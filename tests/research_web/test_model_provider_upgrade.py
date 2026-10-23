@@ -30,7 +30,11 @@ ASSET_PROFILES = (
     "reviewed-market-history-v1",
     "reviewed-market-terminal-v1",
     "reviewed-etf-weekly-v1",
+<<<<<<< HEAD
     "reviewed-research-dossiers-v1",
+=======
+    "reviewed-etf-weekly-v2",
+>>>>>>> origin/master
 )
 
 
@@ -133,7 +137,11 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
+<<<<<<< HEAD
         "reviewed-research-dossiers-v1": "DOSSIERS",
+=======
+        "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
+>>>>>>> origin/master
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
@@ -147,11 +155,15 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
             else (
                 "ASSET_V6_EVIDENCE_SHA256"
                 if profile
+<<<<<<< HEAD
                 in {
                     upgrade.ASSET_V6_MODE,
                     "reviewed-etf-weekly-v1",
                     "reviewed-research-dossiers-v1",
                 }
+=======
+                in {upgrade.ASSET_V6_MODE, "reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"}
+>>>>>>> origin/master
                 else "ASSET_EVIDENCE_SHA256"
             )
         )
@@ -423,7 +435,11 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
         ("apply-assets-v7", upgrade.ASSET_V7_MODE),
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
+<<<<<<< HEAD
         ("apply-dossiers", "reviewed-research-dossiers-v1"),
+=======
+        ("apply-etf-weekly-v2", "reviewed-etf-weekly-v2"),
+>>>>>>> origin/master
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
@@ -476,6 +492,10 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         ("reviewed-etf-weekly-v1", "25b399a42d691766d41bcafce5adbdc3b8cc3d74"),
         ("reviewed-etf-weekly-v1", "0e0022ac792eba88fba0f233524f5c8d66024569"),
         ("reviewed-etf-weekly-v1", "988046d23f9951f889a3b9d02e355ed59fd6aa65"),
+        ("reviewed-etf-weekly-v2", upgrade.ASSET_V6_PREVIOUS),
+        ("reviewed-etf-weekly-v2", "988046d23f9951f889a3b9d02e355ed59fd6aa65"),
+        ("reviewed-etf-weekly-v2", "2e1ba701a0f33bf1dbeab79f1f9984f320d33a24"),
+        ("reviewed-etf-weekly-v2", "56709a8dbb6e01d2ab17b64533319e199ebef86f"),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1433,7 +1453,11 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
+<<<<<<< HEAD
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
+=======
+        "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
+>>>>>>> origin/master
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -2025,7 +2049,11 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
+<<<<<<< HEAD
         "reviewed-research-dossiers-v1",
+=======
+        "reviewed-etf-weekly-v2",
+>>>>>>> origin/master
     ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
@@ -2087,7 +2115,11 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-terminal-v1",
         upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
+<<<<<<< HEAD
         "reviewed-research-dossiers-v1",
+=======
+        "reviewed-etf-weekly-v2",
+>>>>>>> origin/master
     ],
     indirect=True,
 )
@@ -2240,7 +2272,11 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
 
 
 @pytest.mark.parametrize(
+<<<<<<< HEAD
     "real_operations", ["reviewed-etf-weekly-v1", "reviewed-research-dossiers-v1"], indirect=True
+=======
+    "real_operations", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"], indirect=True
+>>>>>>> origin/master
 )
 @pytest.mark.parametrize("active", [True, None, "false", 0])
 def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monkeypatch, active):
@@ -2262,7 +2298,11 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
 
 
 @pytest.mark.parametrize(
+<<<<<<< HEAD
     "real_operations", ["reviewed-etf-weekly-v1", "reviewed-research-dossiers-v1"], indirect=True
+=======
+    "real_operations", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"], indirect=True
+>>>>>>> origin/master
 )
 @pytest.mark.parametrize("guard", ["runtime", "runtime-unknown", "pool", "pool-unknown"])
 def test_etf_weekly_native_or_pool_activity_defers_without_effects(
@@ -2289,13 +2329,15 @@ def test_etf_weekly_native_or_pool_activity_defers_without_effects(
     assert not (home / "server/run/gateway-upgrade.json").exists()
 
 
-def test_etf_weekly_preserves_install_lock_without_dependency_exception():
+@pytest.mark.parametrize("profile", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"])
+def test_etf_weekly_preserves_install_lock_without_dependency_exception(profile):
     old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64}
-    state = {"mode": "reviewed-etf-weekly-v1", "manifest": old, "target": "b" * 40}
+    state = {"mode": profile, "manifest": old, "target": "b" * 40}
     assert upgrade.target_manifest(state) == {**old, "code_commit": "b" * 40}
     assert old == state["manifest"]
 
 
+<<<<<<< HEAD
 def test_dossiers_profile_binds_verified_resident_and_merged_product():
     assert upgrade.DOSSIERS_MODE == "reviewed-research-dossiers-v1"
     assert upgrade.previous_for(upgrade.DOSSIERS_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
@@ -2304,3 +2346,92 @@ def test_dossiers_profile_binds_verified_resident_and_merged_product():
     assert upgrade.target_manifest(
         {"mode": upgrade.DOSSIERS_MODE, "manifest": {"web_lock_sha256": "old"}, "target": "b" * 40}
     ) == {"web_lock_sha256": "old", "code_commit": "b" * 40}
+=======
+def test_etf_weekly_v2_profile_freezes_combined_product_without_rewriting_v1():
+    assert upgrade.ETF_WEEKLY_V2_MODE == "reviewed-etf-weekly-v2"
+    assert upgrade.previous_for(upgrade.ETF_WEEKLY_V2_MODE) == (
+        "5343e18d9f203a87f2d958218e4288afa527711f"
+    )
+    assert upgrade.ETF_WEEKLY_V2_PAYLOAD == "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+    assert upgrade.ETF_WEEKLY_PAYLOAD == "988046d23f9951f889a3b9d02e355ed59fd6aa65"
+    assert upgrade.ETF_WEEKLY_V2_MODE in upgrade.ASSET_MODES
+    assert hashlib.sha256(
+        Path(upgrade.__file__).with_name("evidence.py").read_bytes()
+    ).hexdigest() == (upgrade.ASSET_V6_EVIDENCE_SHA256)
+    lock = Path(__file__).resolve().parents[2] / "requirements/web.lock"
+    assert hashlib.sha256(lock.read_bytes()).hexdigest() == upgrade.ASSET_V6_WEB_LOCK_SHA256
+
+
+def _weekly_v2_dossiers(home, state, uid):
+    from app.research_web.dossiers import DossierService
+    from app.research_web.store import Store
+
+    archives = []
+    for root in (home / "research-web", home / "server/users" / uid / "research-web"):
+        research = SimpleNamespace(store=Store(root))
+        research.store.save()
+        service = DossierService(research)
+        dossier = service.create(
+            {
+                "title": "保全档案",
+                "subject": {"kind": "theme", "key": "energy", "label": "能源"},
+                "idempotency_key": "create-0001",
+            }
+        )
+        archives.append((service, dossier))
+    state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    assert "@dossiers" in state["asset_index_before"]["primary"]
+    assert "@dossiers" in state["asset_index_before"]["private"][uid]
+    return archives
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v2"], indirect=True)
+@pytest.mark.parametrize("failed", [None, *upgrade.FORWARD])
+def test_weekly_v2_dossiers_survive_each_transaction_or_rollback(real_operations, failed):
+    home, state, system, make, uid = real_operations
+    _weekly_v2_dossiers(home, state, uid)
+    system["fail"] = failed
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == ("deployed" if failed is None else "rolled_back")
+    upgrade.verify_asset_index(home, state)
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v2"], indirect=True)
+@pytest.mark.parametrize("scope", [0, 1])
+@pytest.mark.parametrize("boundary", ["verify_target", "finish", "recover"])
+def test_weekly_v2_changed_dossiers_keep_recovery_fenced(real_operations, scope, boundary):
+    home, state, _system, make, uid = real_operations
+    archives = _weekly_v2_dossiers(home, state, uid)
+    service, dossier = archives[scope]
+
+    def mutate():
+        service.patch(
+            dossier["id"],
+            {"expected_revision": 1, "idempotency_key": "patch-0001", "title": "不得丢失的变更"},
+        )
+
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        ops = make(fence)
+        original_action, original_finish = ops.action, ops.finish
+
+        def action(name, value):
+            if name == boundary:
+                mutate()
+            return original_action(name, value)
+
+        def finish(value, result):
+            if boundary == "finish":
+                mutate()
+            return original_finish(value, result)
+
+        ops.action, ops.finish = action, finish
+        if boundary == "recover":
+            upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
+            mutate()
+        result = upgrade.execute(ops, state, recovering=boundary == "recover")
+    assert result["status"] in {"recovery_required", "completion_unknown"}
+    assert result.get("preserved") is not True
+    assert (home / "server/run/gateway-upgrade.json").exists()
+    assert not (home / "server/run/model-upgrade-result.json").exists()
+>>>>>>> origin/master

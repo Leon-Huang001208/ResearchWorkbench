@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+华安 v2 仅负责macOS Native固定操作员闭包；本机、最终原三CI、Mac干净安装、实际切换及Office周报分别记录，未执行层仍待验。新增组合产品不授予Windows/Linux原生或Docker发布资格，不触发他平台产品dispatch。
+
 本次华安固定操作员是Mac mini的macOS Native工具闭包：本机1745项离线回归通过；最终通用CI、同候选macos-14干净安装、实际常驻切换和原生周报交付分别取证。当前没有Windows/Linux原生或Docker产品验收，不从Mac dispatch他平台任务，也不将源码准备当成Office/Wind或正式稿通过。
 
 2026-10-23：终端profile任务属于Mac mini的Web功能／macOS Native部署工具闭包。后端与操作员本地回归、组合候选独评／原三CI／同候选Mac干净安装、真实认证切换及保全分开认证，未执行层保持待验证。Windows/Linux原生与Docker产品层均不由本机预检提升状态，不触发他平台产品dispatch或桌面sidecar／Tauri，见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。

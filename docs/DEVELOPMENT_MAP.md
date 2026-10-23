@@ -1,5 +1,15 @@
 # Research Workbench Development Map
 
+2026-10-23 ETF Native封闭后继：`resident/model_provider_upgrade.py` 新增
+`ETF_WEEKLY_V2_MODE/PREVIOUS/PAYLOAD` 和 `apply-etf-weekly-v2`，旧版固定5343e18d、
+产品固定PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。只纳入原分派、严格reader、
+市场空闲与全账号保全/恢复矩阵，复用PR209的`dossier_preservation.snapshot_dossiers`，
+旧v1、controller/evidence与安装锁保持。近处`test_model_provider_upgrade.py`扩充固定pin、
+真实Git union/blob/mode、wrong previous、活动及主/私账号档案保全与恢复反例；
+合同见[ETF v2](research-web-gateway-upgrade.md#华安etf周报固定部署v2新目标待授权)。
+新组合目标尚未获得独立部署确认；本机/旧PR209 CI、v2最终CI、实际切换与正式报告质量分开。
+沿原Native/Host/网关拓扑，无新增服务、HTTP、权限、依赖或执行器，日程继续关闭。
+
 今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
 
 华安经济底稿字段由 Excel Provider 保留，`weekly_sources.verify_weekly_economic_export` 从同版本原件独立重放，`weekly_data` 在数据门接入。时间原文及有限数值不推测单位或时区；八列底稿完整保全，Word 原三列不扩。仍沿既有 Host／DataHub／DSH／确定性排版链，无新执行节点。
