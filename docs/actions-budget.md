@@ -286,3 +286,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-23 WGC 两种月度吨数捕获与资金流时点守卫只向原 Checks 同一 pytest 步骤加入 test_datahub_wgc/test_wgc_warehouse_integration，旧财务与原生快照矩阵扩展现存模块；无新 job/runner/timeout/依赖。离线新增约秒级，预留原步骤30秒。真实各一次有界公开取数及三子进程 owned PG 验收仅本机，CI不访问厂商/模型/正式数据库。操作前重新核验 PUBLIC，原三 CI 与 exact macos-14 安装保持，Mac不发送Windows/Linux产品dispatch、不手工rerun。
+
+
+2026-10-24：资产v8复用原三CI/同候选macos-14，无新job、runner、依赖、时限或他平台dispatch。产品PR213两次组合三门分别留证；新操作员另验，发布前实时核对PUBLIC，未把旧候选通过当新树证据。 详见[固定部署合同](research-web-gateway-upgrade.md)。

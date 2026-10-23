@@ -372,3 +372,6 @@ AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件�
 
 2026-10-23：资产副图v7只更新macOS Native固定操作员；不宣称Docker产品已验收，不修改构建器、缓存/容量或其他平台规则。原资源回收仍保护未知与活动资源。
 
+
+
+2026-10-24：资产v8本轮为macOS Native/Web切换，不创建Docker产品或临时Docker测试资源；既有运行容器、业务卷和20GiB受管构建缓存合同保持。 详见[固定部署合同](research-web-gateway-upgrade.md)。

@@ -189,3 +189,6 @@ BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报�
 2026-10-23：资产个股周期读数及副图修复不改变华安周报指标、底稿、模板、生产权限、日程或Host质量门；资产图表不冒充规范周报证据。
 
 WGC 两个公开端点新增月度吨数原生研究快照，存量/流量和来源范围分别保存，不替代现有 Wind/Excel 或私有生产验收。AK 个股资金流在 SDK 前拒绝历史时点/正式回测；first_observed 不获得历史 PIT 资格。详见[原生快照](research-web-vendor-snapshots.md)与[研究仓](research-web-market-store.md)。本轮未部署、未启动生产库或日程。
+
+
+2026-10-24：资产v8不启动华安生产、Office、Word或日程，不改变ETF固定模式和原质量门；主线已合入ETF/WGC源码不代表这些真实生产层通过。 详见[固定部署合同](research-web-gateway-upgrade.md)。

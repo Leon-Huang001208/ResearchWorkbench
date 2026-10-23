@@ -224,3 +224,6 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 
 2026-10-23：资产副图v7为macOS Web操作员增量；本机/同候选macos-14与通用仓库门独立认证。Windows/Linux原生与Docker产品实机未执行，不据此升级平台支持状态。
 
+
+
+2026-10-24：资产v8验收仅认证本机macOS Web/Native操作员与同候选Mac安装；通用Ubuntu仓库门不等于Linux原生支持，Windows/Linux原生继续NOT_RUN交接。 详见[固定部署合同](research-web-gateway-upgrade.md)。
