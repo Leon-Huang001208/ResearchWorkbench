@@ -747,6 +747,8 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 不新增HTTP端点。financials的`statements=["income_statement"]`选择新浪来源限定利润表，`periods`最多8；公告日只有日期精度且历史版本未知，as_of/backtest拒绝。factor_macro的`source=bea_archive`只接受`series=us_real_gdp_qoq_saar,start_date=end_date=2024-06-30`；先非历史首捕获，再在`2024-07-25T12:30Z <= as_of < 2024-09-26T04:00Z`读取官方发布版本，历史refresh或miss不会转实时取数。正式截止选择仍通过当前来源和仓库授权；该有限例外不开放通用native正式PIT。详见[DataHub](../../research-web-datahub.md)。
 
 
+2026-10-23：新增apply-assets-v7仅是本机受管CLI分派；不增加HTTP接口、账号权限、公开服务或任意目标覆盖入口。
+
 ## 2026-10-23：BaoStock盈利能力来源
 
 沿既有BusinessQuery入口使用financials/source=baostock、statements=[profitability]、periods单个2017年起季度末。auto仅选择该数据集，不能换成Sina income_statement或财务摘要。拒as_of/backtest；日期精度pubDate不是精确历史可得时刻。保存与显示allow_stale读仓仍检查当前授权，严格最新研究重新取数，旧显式冻结可读。

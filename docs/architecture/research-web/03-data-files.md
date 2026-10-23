@@ -787,6 +787,8 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 财务原件与公告日/更新时间字段进入既有provider-native冻结包，仍按首次捕获排序；未知历史vintage不提升为PIT。BEA档案复用现有market事实/原件/冻结表，以季度末为业务期、官方发布时刻为available_at、本次时间为ingested_at，并保存两次真实发布的修订。来源schema/单位身份隔离；旧显式包可读。没有新增根目录、表、迁移或正式连接，边界见[MarketStore](../../research-web-market-store.md)。
 
 
+2026-10-23：v7部署冻结并核对原全账号索引和恢复包；64MiB业务读取绑定保持，部署元数据原上限保持，不重写旧冻结行情、研究证据或偏好。
+
 ## 2026-10-23：BaoStock盈利能力来源
 
 BaoStock单报告期盈利能力以独立财务schema/units身份进入原provider-native首次观测快照。原SDK字段/值JSON、报告期和日期精度公布日保留；netProfit/MBRevenue的CNY声明绑定官方文档commit e14bd116745d5540c4eca55d8f0a1970e2d13235及SHA256 06369ec88c16977b2efe295f5a0d576c48d80066144b2f22df10cd909795e8fb。没有新表、数据根或迁移；未知比例/股数和累计口径仍不升级规范事实。
