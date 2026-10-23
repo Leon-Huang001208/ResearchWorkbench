@@ -1,5 +1,8 @@
 # Research Workbench Development Map
 
+今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
+
+
 2026-10-23：终端Native部署入口仍为`research_workbench_entrypoint/resident/model_provider_upgrade.py`，新增封闭terminal profile并复用原version4事务／严格保全，不开放任意PAYLOAD。完整操作员回归覆盖旧profiles与terminal，产品后端130例单独记录；PR201产品合并后由主任务固定最终PAYLOAD，再完成组合候选独评、完整Router及原三CI。对应身份与未执行部署状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 全市场终端由`market_indices.py`定义core-v1固定12与terminal-v2共24指数及分组；`market_analysis.py`计算三周期证据与官方六风格矩阵，`market_portfolio.py`管理账号持仓预览/确认及有界文件。market_routes/service复用原维护准入、缓存生命周期；ui/market-terminal.mjs组织原生终端交互，market.mjs保留行情表/成员/导出。近处回归test_market_indices/test_market_terminal和research_web_market_terminal覆盖真实契约、上海跨日、陈旧估值拒绝、账号及迟到响应；真实来源和浏览器独立验收。

@@ -247,6 +247,7 @@ class RuntimePool:
         self._plugin_frozen: set[str] = set()
         self._request_tickets: dict[str, set[str]] = {}
         self._restart_results: dict[tuple[str, str, str], dict] = {}
+        self.discovery_restoration: dict[str, dict] = {}
         self._closed = False
         self._closing = False
         self._lock_fd = None
@@ -396,7 +397,87 @@ class RuntimePool:
             "RWB_SHARED_PLUGINS_ROOT": str(self.config.root / "shared/plugin-approvals"),
             "RWB_PERSONAL_PLUGINS_ROOT": str(root.parent / "plugin-approvals"),
             "RESEARCH_AUTOMATIONS_ENABLED": "0",
+            "RWB_DISCOVERY_TRACKING_ENABLED": "1",
             "RESEARCH_MCP_RUNTIME_ENABLED": "1",
+        }
+
+    def _has_enabled_discovery(self, user_id: str) -> bool:
+        """Read only an authorized owner's safe index, never enumerate unknown owners."""
+        from ..automation.service import AutomationService, _canonical_sha
+
+        self._assert_pool()
+        user_root = self.config.root / "users" / self._user(user_id)
+        if not user_root.exists() and not user_root.is_symlink():
+            return False
+        _directory(user_root, create=False)
+        data_root = user_root / "research-web"
+        if not data_root.exists() and not data_root.is_symlink():
+            return False
+        _directory(data_root, create=False)
+        path = data_root / "index.json"
+        if not path.exists() and not path.is_symlink():
+            return False
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            info = os.fstat(descriptor)
+            limit = 16 * 1024 * 1024
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != os.getuid()
+                or info.st_nlink != 1
+                or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > limit
+            ):
+                raise RuntimeErrorSafe("discovery_restore_index_unverified")
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                payload = json.loads(stream.read(limit + 1))
+            if not isinstance(payload, dict):
+                raise RuntimeErrorSafe("discovery_restore_index_unverified")
+        except (OSError, ValueError, TypeError) as exc:
+            raise RuntimeErrorSafe("discovery_restore_index_unverified") from exc
+        finally:
+            os.close(descriptor)
+        tracks, automations = payload.get("discovery_tracks", {}), payload.get("automations", {})
+        if not isinstance(tracks, dict) or not isinstance(automations, dict):
+            raise RuntimeErrorSafe("discovery_restore_index_unverified")
+        for automation_id, track in tracks.items():
+            automation = automations.get(automation_id)
+            if (
+                isinstance(track, dict)
+                and isinstance(automation, dict)
+                and track.get("schema") == "discovery-tracking-v1"
+                and track.get("automation_id") == automation_id
+                and automation.get("id") == automation_id
+                and automation.get("enabled") is True
+                and automation.get("target", {}).get("kind") == "research_task"
+                and automation.get("mcp_tools") == []
+                and automation.get("delivery") == {"channel_ids": [], "include_attachments": False}
+                and track.get("definition_sha256")
+                == _canonical_sha(AutomationService._definition_snapshot(automation))
+            ):
+                return True
+        return False
+
+    async def restore_discovery_tracks(self, authorized_user_ids) -> dict:
+        """Resume consenting registered owners through the existing capacity admission."""
+        for raw_user_id in dict.fromkeys(authorized_user_ids):
+            user = self._user(raw_user_id)
+            try:
+                if not await asyncio.to_thread(self._has_enabled_discovery, user):
+                    continue
+                await self.backend_for(user)
+            except (RuntimeErrorSafe, OSError, ValueError, TypeError, AttributeError) as exc:
+                code = getattr(exc, "code", "discovery_restore_index_unverified")
+                status = "deferred_capacity" if code == "runtime_capacity_exceeded" else "blocked"
+                self.discovery_restoration[user] = {"status": status, "code": code}
+                log.warning("discovery_tracking_restore_deferred", user_id=user, code=code)
+            else:
+                self.discovery_restoration[user] = {"status": "restored"}
+                log.info("discovery_tracking_owner_restored", user_id=user)
+        return {
+            "items": [
+                {"user_id": key, **value} for key, value in self.discovery_restoration.items()
+            ]
         }
 
     async def backend_for(self, user_id: str) -> Backend:
@@ -410,10 +491,15 @@ class RuntimePool:
             if existing := self._instances.get(user):
                 if any(child.poll() is not None for child in existing.children):
                     raise RuntimeErrorSafe("runtime_process_exited")
+                if user in self.discovery_restoration:
+                    self.discovery_restoration[user] = {"status": "restored"}
                 return existing.backend
             if len(self._instances) >= self.config.max_instances:
                 raise RuntimeErrorSafe("runtime_capacity_exceeded")
-            return await self._start(user)
+            backend = await self._start(user)
+            if user in self.discovery_restoration:
+                self.discovery_restoration[user] = {"status": "restored"}
+            return backend
 
     async def _start(self, user: str) -> Backend:
         sockets = []

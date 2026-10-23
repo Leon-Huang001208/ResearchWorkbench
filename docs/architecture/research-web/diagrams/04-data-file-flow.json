@@ -7,7 +7,7 @@
     "quality_profile": "showcase",
     "viewBox": [
       1900,
-      820
+      940
     ],
     "views": [
       {
@@ -50,14 +50,17 @@
       },
       {
         "id": "share",
-        "label": "页面交接与资料包复用",
+        "label": "今日发现与资料交接",
         "focus": [
+          "discoveryRead",
+          "intelHttp",
+          "discoveryFreeze",
           "snapshots",
           "handoff",
           "agents",
           "web"
         ],
-        "note": "研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"
+        "note": "预览只绑定事件版本，正文冻结时取得；golddata_intel不伪装CLS/网页全文，沿原快照、DSH与质量门执行。"
       }
     ]
   },
@@ -188,6 +191,37 @@
       "stage": 4,
       "row": 4,
       "tag": "不重复联网"
+    },
+    {
+      "id": "discoveryRead",
+      "type": "frontend",
+      "label": "今日发现阅读",
+      "sublabel": "只读已有事件摘要",
+      "stage": 0,
+      "row": 4,
+      "tag": "不调用模型",
+      "yOffset": 114
+    },
+    {
+      "id": "intelHttp",
+      "type": "cloud",
+      "label": "固定 Intel HTTP",
+      "sublabel": "第三方归档与已有判断",
+      "stage": 1,
+      "row": 4,
+      "tag": "陈旧与未知保留",
+      "yOffset": 114
+    },
+    {
+      "id": "discoveryFreeze",
+      "type": "security",
+      "label": "选材版本核对",
+      "sublabel": "预览摘要 / 原始报道 / Hash",
+      "stage": 2,
+      "row": 4,
+      "width": 124,
+      "tag": "显式用户动作",
+      "yOffset": 114
     }
   ],
   "flows": [
@@ -331,6 +365,52 @@
       "labelAt": [
         890,
         330
+      ]
+    },
+    {
+      "id": "discoveryReadRequest",
+      "from": "discoveryRead",
+      "to": "intelHttp",
+      "label": "GET",
+      "classification": "read-only",
+      "variant": "security"
+    },
+    {
+      "id": "discoveryDetails",
+      "from": "intelHttp",
+      "to": "discoveryFreeze",
+      "label": "核对版本",
+      "classification": "third-party archive",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        420,
+        680
+      ]
+    },
+    {
+      "id": "discoverySnapshot",
+      "from": "discoveryFreeze",
+      "to": "snapshots",
+      "label": "归档选材",
+      "classification": "explicit_frozen_selection",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          650,
+          727
+        ],
+        [
+          650,
+          613
+        ]
+      ],
+      "labelAt": [
+        625,
+        680
       ]
     }
   ],

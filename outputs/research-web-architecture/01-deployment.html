@@ -4913,7 +4913,7 @@
 
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="source" data-edge-to="bootstrap" data-edge-label="读取固定合同" data-edge-key="0" data-edge-id="contractRoute" data-composition-points="454.5,140;454.5,175" d="M 454.5 140 L 454.5 175" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="bootstrap" data-edge-to="nativeWeb" data-edge-label="legacy Native" data-edge-key="1" data-edge-id="selectNative" data-composition-points="352,214;144.5,214;144.5,288" d="M 352 214 L 152.5 214 Q 144.5 214 144.5 222 L 144.5 288" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="bootstrap" data-edge-to="privatePool" data-edge-label="legacy Native" data-edge-key="1" data-edge-id="selectNative" data-composition-points="352,214;247,214" d="M 352 214 L 247 214" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="bootstrap" data-edge-to="dockerContainer" data-edge-label="显式实例目标" data-edge-key="2" data-edge-id="selectDocker" data-composition-points="557,214;948,214;948,320;972,320" d="M 557 214 L 940 214 Q 948 214 948 222 L 948 312 Q 948 320 956 320 L 972 320" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="nativeWeb" data-edge-to="nativeDsh" data-edge-label="私有 RPC / WS" data-edge-key="3" data-edge-id="nativeRpc" data-composition-points="247,320;352,320" d="M 247 320 L 352 320" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="nativeWeb" data-edge-to="runtimeState" data-edge-label="独立状态" data-edge-key="4" data-edge-id="nativeState" data-composition-points="144.5,366;144.5,401" d="M 144.5 366 L 144.5 401" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
@@ -4923,7 +4923,8 @@
         <path data-edge-from="nativeDsh" data-edge-to="modelKeychain" data-edge-label="模型私有桥接" data-edge-key="8" data-edge-id="model-credential-pipe" data-composition-points="557,320;662,320" d="M 557 320 L 662 320" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="nativeWeb" data-edge-to="hotNode" data-edge-label="单用户签名请求" data-edge-key="9" data-edge-id="hotSigned" data-composition-points="247,334;299.5,334;299.5,553;352,553" d="M 247 334 L 291.5 334 Q 299.5 334 299.5 342 L 299.5 545 Q 299.5 553 307.5 553 L 352 553" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="hotNode" data-edge-to="hotPg" data-edge-label="指定 schema" data-edge-key="10" data-edge-id="hotPersistence" data-composition-points="557,553;662,553" d="M 557 553 L 662 553" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="privateGateway" data-edge-to="nativeWeb" data-edge-label="按登录账号路由" data-edge-key="11" data-edge-id="authenticatedUserRoute" data-composition-points="144.5,140;144.5,288" d="M 144.5 140 L 144.5 288" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="privateGateway" data-edge-to="privatePool" data-edge-label="认证账号与已保存同意" data-edge-key="11" data-edge-id="authenticatedUserRoute" data-composition-points="144.5,140;144.5,175" d="M 144.5 140 L 144.5 175" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="privatePool" data-edge-to="nativeWeb" data-edge-label="本机启动 / 账号后端" data-edge-key="12" data-edge-id="discoveryOwnerRestore" data-composition-points="144.5,253;144.5,288" d="M 144.5 253 L 144.5 288" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
 
         <!-- Components -->
         <g id="node-source" data-node-id="source" data-node-label="同一源码与依赖合同" tabindex="0" role="button" aria-label="Focus 同一源码与依赖合同, Web 锁 · CJPY · 固定 DSH, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="Web 锁 · CJPY · 固定 DSH" data-node-context="Architecture component">
@@ -5065,14 +5066,25 @@
         <text data-detail="context" x="144.5" y="115" class="t-muted" font-size="9" text-anchor="middle">macOS · SQLite 账号 · :8089</text>
         </g>
 
+        <g id="node-privatePool" data-node-id="privatePool" data-node-label="本机准入 / RuntimePool" tabindex="0" role="button" aria-label="Focus 本机准入 / RuntimePool, 单用户启动 · 账号跟踪容量恢复, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="单用户启动 · 账号跟踪容量恢复" data-node-context="Architecture component">
+          <title>本机准入 / RuntimePool · 单用户启动 · 账号跟踪容量恢复 · Architecture component</title>
+          <rect x="42" y="175" width="205" height="78" rx="6" class="c-mask"/>
+          <rect x="42" y="175" width="205" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(48 181) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-detail-anchor x="144.5" y="212" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">本机准入 / RuntimePool</text>
+        <text data-detail="context" x="144.5" y="228" class="t-muted" font-size="9" text-anchor="middle">单用户启动 · 账号跟踪容量恢复</text>
+        </g>
+
         <!-- Connection labels -->
         <g data-detail="context" data-edge-from="source" data-edge-to="bootstrap" data-edge-label="读取固定合同" data-edge-key="0" data-edge-id="contractRoute">
           <rect x="420.7" y="144" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="454.5" y="154" class="t-backend" font-size="8" text-anchor="middle">读取固定合同</text>
         </g>
-        <g data-detail="context" data-edge-from="bootstrap" data-edge-to="nativeWeb" data-edge-label="legacy Native" data-edge-key="1" data-edge-id="selectNative">
-          <rect x="213.8" y="231" width="72.4" height="14" rx="3" class="c-mask"/>
-          <text x="250" y="241" class="t-backend" font-size="8" text-anchor="middle">legacy Native</text>
+        <g data-detail="context" data-edge-from="bootstrap" data-edge-to="privatePool" data-edge-label="legacy Native" data-edge-key="1" data-edge-id="selectNative">
+          <rect x="263.8" y="194" width="72.4" height="14" rx="3" class="c-mask"/>
+          <text x="300" y="204" class="t-backend" font-size="8" text-anchor="middle">legacy Native</text>
         </g>
         <g data-detail="context" data-edge-from="bootstrap" data-edge-to="dockerContainer" data-edge-label="显式实例目标" data-edge-key="2" data-edge-id="selectDocker">
           <rect x="914.2" y="247" width="67.6" height="14" rx="3" class="c-mask"/>
@@ -5110,9 +5122,13 @@
           <rect x="578.1" y="533" width="62.8" height="14" rx="3" class="c-mask"/>
           <text x="609.5" y="543" class="t-muted" font-size="8" text-anchor="middle">指定 schema</text>
         </g>
-        <g data-detail="context" data-edge-from="privateGateway" data-edge-to="nativeWeb" data-edge-label="按登录账号路由" data-edge-key="11" data-edge-id="authenticatedUserRoute">
-          <rect x="99.4" y="154" width="77.2" height="14" rx="3" class="c-mask"/>
-          <text x="138" y="164" class="t-security" font-size="8" text-anchor="middle">按登录账号路由</text>
+        <g data-detail="context" data-edge-from="privateGateway" data-edge-to="privatePool" data-edge-label="认证账号与已保存同意" data-edge-key="11" data-edge-id="authenticatedUserRoute">
+          <rect x="92" y="150" width="106" height="14" rx="3" class="c-mask"/>
+          <text x="145" y="160" class="t-security" font-size="8" text-anchor="middle">认证账号与已保存同意</text>
+        </g>
+        <g data-detail="context" data-edge-from="privatePool" data-edge-to="nativeWeb" data-edge-label="本机启动 / 账号后端" data-edge-key="12" data-edge-id="discoveryOwnerRestore">
+          <rect x="94.4" y="265" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="145" y="275" class="t-security" font-size="8" text-anchor="middle">本机启动 / 账号后端</text>
         </g>
 
         <!-- Legend -->
@@ -5343,11 +5359,11 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot amber"></div>
-          <h3>验证与部署边界</h3>
+          <h3>私网跟踪与运行边界</h3>
         </div>
         <ul>
-          <li>&bull; 首版仅 macOS Native；Docker 多用户未接入</li>
-          <li>&bull; 无公网注册、宿主工具、MCP、Hot 或日程</li>
+          <li>&bull; macOS Native；Docker多用户未验，跟踪需owner存活</li>
+          <li>&bull; 仅同意跟踪；容量延期，泛用Automation/MCP/Hot仍禁用</li>
         </ul>
       </div>
     </div>

@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-date-window-20261022/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-date-window-20261022/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "2c25ec1766306bdbf8c57dabd28ca41afcc2694a8a2df57be23886a2e5270ae9",
-    "bytes": 14704
+    "sha256": "3a734cc6ae0a16857268fec5a1fa1e97c83e8fae619a860c096580b245f3ab64",
+    "bytes": 14738
   },
   "artifact": {
-    "sha256": "901ff7080b070fc4dfed9bb21969841f536cb9359c27b3a545be6684164c6329",
-    "bytes": 661500
+    "sha256": "171196473aeb79215e60456e0de8896b8f7338d6b0b8d9c48b19d70c8e7e9591",
+    "bytes": 661600
   },
   "validation": {
     "checksPassed": 9,

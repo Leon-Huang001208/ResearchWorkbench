@@ -247,6 +247,7 @@ async def test_two_users_isolate_processes_secrets_paths_capacity(
             assert "OPENAI_API_KEY" not in env and "RESEARCH_WEB_PRIVATE_ORIGIN" not in env
             assert env["RWB_TENANT_MODE"] == "1"
             assert env["RESEARCH_AUTOMATIONS_ENABLED"] == "0"
+            assert env["RWB_DISCOVERY_TRACKING_ENABLED"] == "1"
             # The Host is enabled only behind the managed-package/schema gate;
             # the public /mcp boundary remains closed to tenant consumers.
             assert env["RESEARCH_MCP_RUNTIME_ENABLED"] == "1"
@@ -264,6 +265,85 @@ async def test_two_users_isolate_processes_secrets_paths_capacity(
         assert all(child.code == 0 for child in fake_processes[:2])
         assert all(child.code is None for child in fake_processes[2:])
     finally:
+        await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_discovery_restore_only_registered_consented_owners_and_defers_capacity(
+    tmp_path, fake_processes
+):
+    from app.research_web.automation.models import AutomationCreate
+    from app.research_web.automation.service import AutomationService, _canonical_sha
+    from app.research_web.store import Store
+
+    settings = config(tmp_path)
+    pool = runtime.RuntimePool(settings)
+    users = [str(uuid4()) for _ in range(4)]
+    for user in users:
+        user_root = settings.root / "users" / user
+        user_root.mkdir(mode=0o700)
+        store = Store(user_root / "research-web")
+        automation_service = AutomationService(store, scheduler=False)
+        saved = automation_service.create(
+            AutomationCreate.model_validate(
+                {
+                    "name": "已批准的发现跟踪",
+                    "target_kind": "research_task",
+                    "research_task": {
+                        "description": "只读证据变化",
+                        "model_provider": "deepseek-official",
+                        "model_id": "deepseek-flash",
+                        "output_requirements": "保留缺口",
+                        "approved_data_sources": ["datahub"],
+                        "approved_tools": [],
+                    },
+                    "schedule": {
+                        "kind": "daily",
+                        "timezone": "Asia/Shanghai",
+                        "hour": 9,
+                        "minute": 0,
+                    },
+                }
+            )
+        )
+        store.data["discovery_tracks"] = {
+            saved["id"]: {
+                "schema": "discovery-tracking-v1",
+                "automation_id": saved["id"],
+                "definition_sha256": _canonical_sha(automation_service._definition_snapshot(saved)),
+            }
+        }
+        automation_service.enable(saved["id"])
+        store.save()
+    try:
+        result = await pool.restore_discovery_tracks(users[:3])
+        assert len(pool._instances) == 2
+        assert set(pool._instances) == set(users[:2])
+        assert users[3] not in pool.discovery_restoration
+        assert pool.discovery_restoration[users[2]]["status"] == "deferred_capacity"
+        assert result["items"][-1]["code"] == "runtime_capacity_exceeded"
+        assert len(fake_processes) == 4
+    finally:
+        await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_discovery_restore_never_creates_unconsented_or_symlinked_owner(
+    tmp_path, fake_processes
+):
+    settings = config(tmp_path)
+    pool = runtime.RuntimePool(settings)
+    absent, unsafe = str(uuid4()), str(uuid4())
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    (settings.root / "users" / unsafe).symlink_to(outside, target_is_directory=True)
+    try:
+        await pool.restore_discovery_tracks([absent, unsafe])
+        assert fake_processes == []
+        assert not (settings.root / "users" / absent).exists()
+        assert pool.discovery_restoration[unsafe]["status"] == "blocked"
+    finally:
+        (settings.root / "users" / unsafe).unlink()
         await pool.close()
     assert all(child.code == 0 for child in fake_processes)
 

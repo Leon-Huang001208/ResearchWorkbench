@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-date-window-20261022/outputs/research-web-architecture/02-module-dependencies.html",
-    "sha256": "901ff7080b070fc4dfed9bb21969841f536cb9359c27b3a545be6684164c6329",
-    "bytes": 661500
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/outputs/research-web-architecture/02-module-dependencies.html",
+    "sha256": "171196473aeb79215e60456e0de8896b8f7338d6b0b8d9c48b19d70c8e7e9591",
+    "bytes": 661600
   },
   "state": {
     "detail": "read",
