@@ -63,6 +63,21 @@ UUID、启用状态、管理员角色及 Native 数据根身份。撤权、未�
 经济导出须有同版本原生 UI 观察 receipt，独立证明两页实际范围、全部过滤状态和导出身份。
 当日报告在15:30后实时采集并记录冻结时间；历史期新查属于事后复核，不能取得正式定稿。
 
+印度组可在显式发布的 schema3 Excel 来源合同中选择 BSE `exchange_calendar`，只约束
+`IN/SENSEX.BO` 的交易日，行情继续来自 Wind Excel。每期原生 BSE 休市／hours PDF 及逐个
+自然日的规范化资源必须同版本锁定，Host 从真实 PDF 字节核对公告身份、日期和每日状态；
+来源URI、原生哈希、观察时间和 `calendar_source` 随快照保留，不允许模型自填日期替代证据。
+6月10日公告自8月3日起的 post-closing 16:00（印度时间）仅作为
+`completion_basis=full_session_end` 判断全交易时段已结束，不宣称是指数定价时刻。
+15:30中国时间的印度周五尚未结束，查询只到已完成的交易日，正文仍须标明实际端点。
+WSD 只请求官方连续开市区间，使用 `Days=Alldays;Fill=Blank`，不猜印度 Wind 日历代码。
+上述分号只描述内部选项；原生 Excel WSD 必须把 `Period=D`、`PriceAdj=U`、`Days=Alldays`、
+`Fill=Blank` 各自作为独立字符串参数，其他12市场的已审 `TradingCalendar` 也单独传入。
+该工作表序列化不改变 API SDK 参数语法，不重试或切换来源。印度每段返回日期必须与官方
+完整、有序交易日列表逐项相等；缺日、重复或乱序立即阻断，真实失败请求和返回仍归档。
+未核验原文、缺日、过期范围、未来证据或哈希改变都保持 `blocked_data`；本实现与合成测试
+不认证真实日历或正式稿，不改变当前禁用定时的要求。精确资源结构见[印度日历合同](research-web-etf-weekly-data.md#印度-bse-显式日历schema3)。
+
 Doctor的`weekly_report`仅显示依赖状态，来源合同仍为`not_checked`，真实取数及模型验收保持
 `NOT_RUN`；缺少可选SDK不改变基础安装就绪。该只读诊断不调用Wind、Office或模型。
 

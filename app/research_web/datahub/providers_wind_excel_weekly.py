@@ -26,7 +26,7 @@ from ..report_workflows.weekly_data import (
     load_weekly_mapping,
     sample_snapshot,
 )
-from ..report_workflows.weekly_sources import _resource
+from ..report_workflows.weekly_sources import _resource, read_india_exchange_calendar
 from . import providers_wind as shared
 from .providers import ProviderError
 
@@ -372,6 +372,40 @@ class WindExcelWeeklyProvider:
         from data_layer.adapters.wind.client import _EXCEL_OPERATION_LOCK
 
         spec = self.source_contract["calendars"][market]
+        if spec.get("calendar_source") == "exchange_calendar":
+            if market != "IN" or self.source_contract.get("schema_version") != 3:
+                raise ProviderError("weekly_exchange_calendar_identity_invalid")
+            evidence = read_india_exchange_calendar(
+                self.run_root, self.manifest, spec, contract, acquired_at=_host_now()
+            )
+            rows = [
+                row
+                for row in evidence["days"]
+                if start <= row["date"] <= contract["period_end"] and row["status"] == "open"
+            ]
+            closes = {row["date"]: row["close_at"] for row in rows}
+            completed = [
+                day
+                for day in closes
+                if datetime.fromisoformat(closes[day]) <= datetime.fromisoformat(contract["cutoff"])
+            ]
+            if not completed:
+                raise ProviderError("weekly_excel_calendar_empty")
+            return {
+                "source": "wind_excel",
+                "calendar_source": "exchange_calendar",
+                "retrieved_at": _host_now().isoformat(),
+                "dates": list(closes),
+                "completed_dates": completed,
+                "session_closes": closes,
+                "semantics_verified": True,
+                "evidence_path": spec["evidence_path"],
+                "evidence_sha256": spec["evidence_sha256"],
+                "native_evidence_sha256": {
+                    key: item["sha256"] for key, item in evidence["native_sources"].items()
+                },
+                **_raw(evidence),
+            }
         days, requests = [], []
         cursor, last = date.fromisoformat(start), date.fromisoformat(contract["period_end"])
         while cursor <= last:
@@ -543,12 +577,43 @@ class WindExcelWeeklyProvider:
                 else:
                     rows, requests = [], []
                     cursor, last = date.fromisoformat(start), date.fromisoformat(completed[-1])
-                    while cursor <= last:
-                        end = min(last, cursor + timedelta(days=365))
-                        options = f'Period=D;PriceAdj=U;Days=Trading;Fill=Blank;TradingCalendar={self.source_contract["calendars"][spec["market"]]["wind_calendar"]}'
-                        from data_layer.adapters.wind.client import _EXCEL_OPERATION_LOCK
+                    calendar = self.source_contract["calendars"][spec["market"]]
+                    exchange = calendar.get("calendar_source") == "exchange_calendar"
+                    ranges: list[tuple[date, date]] = []
+                    if exchange:
+                        if spec["market"] != "IN" or spec["asset"] != "SENSEX.BO":
+                            raise ProviderError("weekly_exchange_calendar_identity_invalid")
+                        for day in (date.fromisoformat(day) for day in completed if day >= start):
+                            if (
+                                ranges
+                                and day == ranges[-1][1] + _DAY
+                                and (day - ranges[-1][0]).days < 365
+                            ):
+                                ranges[-1] = (ranges[-1][0], day)
+                            else:
+                                ranges.append((day, day))
+                        if len(ranges) > 64:
+                            raise ProviderError("weekly_exchange_calendar_request_limit")
+                        options = "Period=D;PriceAdj=U;Days=Alldays;Fill=Blank"
+                    else:
+                        while cursor <= last:
+                            end = min(last, cursor + timedelta(days=365))
+                            ranges.append((cursor, end))
+                            cursor = end + _DAY
+                        options = f'Period=D;PriceAdj=U;Days=Trading;Fill=Blank;TradingCalendar={calendar["wind_calendar"]}'
+                    for cursor, end in ranges:
+                        from data_layer.adapters.wind.client import (
+                            _EXCEL_OPERATION_LOCK,
+                            build_wsd_formula,
+                        )
 
-                        formula = f'=wsd("{spec["asset"]}","{spec["field"]}","{cursor.isoformat()}","{end.isoformat()}","{options}")'
+                        formula = build_wsd_formula(
+                            spec["asset"],
+                            spec["field"],
+                            cursor.isoformat(),
+                            end.isoformat(),
+                            options,
+                        )
                         # One accepted vendor invocation only: a timeout is unknown,
                         # and cannot silently resend the same worksheet request.
                         with _EXCEL_OPERATION_LOCK:
@@ -566,6 +631,15 @@ class WindExcelWeeklyProvider:
                                 raise ProviderError("weekly_excel_wsd_shape_invalid")
                             chunk.append([_day(row[0]), row[1]])
                         rows.extend(chunk)
+                        expected_dates = (
+                            [
+                                day
+                                for day in completed
+                                if cursor.isoformat() <= day <= end.isoformat()
+                            ]
+                            if exchange
+                            else []
+                        )
                         requests.append(
                             {
                                 "asset": spec["asset"],
@@ -573,12 +647,52 @@ class WindExcelWeeklyProvider:
                                 "start": cursor.isoformat(),
                                 "end": end.isoformat(),
                                 "options": options,
+                                "formula": formula,
                                 "rows": chunk,
+                                **(
+                                    {
+                                        "calendar_source": "exchange_calendar",
+                                        "expected_dates": expected_dates,
+                                        "calendar_evidence_sha256": calendar["evidence_sha256"],
+                                        "native_evidence_sha256": snapshot["calendars"]["IN"][
+                                            "native_evidence_sha256"
+                                        ],
+                                    }
+                                    if exchange
+                                    else {}
+                                ),
                             }
                         )
-                        cursor = end + _DAY
+                        if exchange and [row[0] for row in chunk] != expected_dates:
+                            # Retain the actual partial/misaligned vendor response
+                            # as evidence, but never present it as valid prices or
+                            # continue querying another segment after the failure.
+                            failed = self._series(spec, [], _raw(requests), completed)
+                            failed.update(
+                                calendar_source="exchange_calendar",
+                                calendar_evidence_sha256=calendar["evidence_sha256"],
+                                native_evidence_sha256=snapshot["calendars"]["IN"][
+                                    "native_evidence_sha256"
+                                ],
+                            )
+                            failed["limitations"].append("weekly_excel_wsd_calendar_mismatch")
+                            snapshot["series"][spec["id"]] = failed
+                            raise ProviderError("weekly_excel_wsd_calendar_mismatch")
                     raw = _raw(requests)
                 snapshot["series"][spec["id"]] = self._series(spec, rows, raw, completed)
+                if (
+                    self.source_contract["calendars"][spec["market"]].get("calendar_source")
+                    == "exchange_calendar"
+                ):
+                    snapshot["series"][spec["id"]].update(
+                        calendar_source="exchange_calendar",
+                        calendar_evidence_sha256=self.source_contract["calendars"][spec["market"]][
+                            "evidence_sha256"
+                        ],
+                        native_evidence_sha256=snapshot["calendars"]["IN"][
+                            "native_evidence_sha256"
+                        ],
+                    )
             economic_rows, economic_sha = exports["economic_calendar"]
             events = []
             source_sheet = self.source_contract["excel_exports"]["economic_calendar"]["sheet"]

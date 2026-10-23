@@ -104,6 +104,29 @@ def test_spill_trims_mac_empty_strings_but_preserves_zero():
     assert _trim_wsd_matrix([["2026-10-16", 0, ""], ["", "", ""]]) == [["2026-10-16", 0]]
 
 
+def test_worksheet_options_are_independent_arguments_not_a_sdk_option_string():
+    from data_layer.adapters.wind.client import build_wsd_formula
+
+    assert build_wsd_formula(
+        "SENSEX.BO",
+        "close",
+        "2026-10-01",
+        "2026-10-09",
+        "Period=D;PriceAdj=U;Days=Alldays;Fill=Blank;TradingCalendar=IDC",
+    ) == (
+        '=wsd("SENSEX.BO","close","2026-10-01","2026-10-09",'
+        '"Period=D","PriceAdj=U","Days=Alldays","Fill=Blank","TradingCalendar=IDC")'
+    )
+
+
+def test_worksheet_formula_preserves_blank_options_and_escapes_argument_quotes():
+    from data_layer.adapters.wind.client import build_wsd_formula
+
+    assert build_wsd_formula('A"B', "close", "2026-10-01", "2026-10-09", "") == (
+        '=wsd("A""B","close","2026-10-01","2026-10-09","")'
+    )
+
+
 def test_subprocess_compat_leaves_unrelated_output_and_module_untouched():
     delegate = MagicMock()
     delegate.check_output.return_value = b"untouched"

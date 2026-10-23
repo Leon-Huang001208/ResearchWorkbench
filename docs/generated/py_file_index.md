@@ -8795,11 +8795,17 @@ Imports:
 - `pathlib`
 - `re`
 - `tempfile`
+- `urllib.parse`
 - `weekly_data`
 - `zipfile`
 - `zoneinfo`
 
 Functions:
+- `_india_calendar_identity`
+- `_bse_native_dates`
+  - Recognize actual BSE circular date spellings, including holiday-table rows.
+- `read_india_exchange_calendar`
+  - Host checks locked BSE bytes and every date; no caller-supplied sessions.
 - `freeze_weekly_workbook_dates`
   - Freeze only Run-copy date inputs before an explicit Office calibration.
 - `_resource`
@@ -13345,6 +13351,8 @@ Functions:
   - 检查返回值是否是 Excel 错误
 - `_offset_excel_column`
   - Return an Excel column name offset from ``column`` without Excel APIs.
+- `build_wsd_formula`
+  - Serialize worksheet options as individual function arguments.
 - `_trim_wsd_matrix`
   - Trim a rectangular Excel spill range to its populated rows and columns.
 

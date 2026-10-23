@@ -1,6 +1,7 @@
 """Offline Excel inputs; synthetic workdays never certify real market semantics."""
 
 import asyncio
+import csv
 import hashlib
 import json
 import re
@@ -212,6 +213,7 @@ def package(root, cutoff="2026-10-16T16:00:00+08:00"):
 class Client:
     def __init__(self):
         self.calls = []
+        self.worksheet_options = []
         self.closed = False
 
     def _ensure_session(self):
@@ -219,20 +221,479 @@ class Client:
 
     def _execute_wsd_once(self, formula, timeout, expected_columns):
         if expected_columns == 2:
-            return self.execute_wsd(*re.findall(r'"([^"]+)"', formula))
+            assert formula.startswith("=wsd(") and formula.endswith(")")
+            arguments = next(csv.reader([formula[5:-1]], strict=True))
+            assert len(arguments) >= 5
+            options = arguments[4:]
+            assert all(
+                ";" not in option and "," not in option for option in options
+            ), "worksheet options must be separate string arguments"
+            self.worksheet_options.append(tuple(options))
+            return self.execute_wsd(*arguments)
         assert expected_columns == 1
         start, end = re.findall(r'"([0-9-]+)"', formula)
         self.calls.append(("calendar", start, end))
         return [[date.fromisoformat(day)] for day in days(start, end)]
 
-    def execute_wsd(self, asset, field, start, end, options):
-        assert "TradingCalendar=SSE" in options
+    def execute_wsd(self, asset, field, start, end, *options):
+        assert options == (
+            "Period=D",
+            "PriceAdj=U",
+            "Days=Trading",
+            "Fill=Blank",
+            "TradingCalendar=SSE",
+        )
         assert (date.fromisoformat(end) - date.fromisoformat(start)).days <= 365
         self.calls.append((asset, start, end))
         return [[date.fromisoformat(day), 100] for day in days(start, end)]
 
     def close(self):
         self.closed = True
+
+
+def synthetic_pdf(lines):
+    """Small genuine PDF with synthetic text; never an official market fixture."""
+    content = (
+        b"BT /F1 10 Tf 40 780 Td 12 TL "
+        + b" ".join(b"(" + line.encode("ascii") + b") Tj T*" for line in lines)
+        + b" ET"
+    )
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n" + content + b"\nendstream",
+    ]
+    raw, offsets = b"%PDF-1.4\n", [0]
+    for index, obj in enumerate(objects, 1):
+        offsets.append(len(raw))
+        raw += f"{index} 0 obj\n".encode() + obj + b"\nendobj\n"
+    xref = len(raw)
+    raw += f"xref\n0 {len(offsets)}\n0000000000 65535 f \n".encode()
+    raw += b"".join(f"{offset:010} 00000 n \n".encode() for offset in offsets[1:])
+    return (
+        raw + f"trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode()
+    )
+
+
+def exchange_package(root, cutoff="2026-10-16T15:30:00+08:00"):
+    contract, source, manifest, save = package(root, cutoff)
+    native_sources = {}
+    for kind, notice, published, lines in (
+        (
+            "holidays",
+            "20251212-8",
+            "2025-12-12",
+            [
+                "Trading Holidays for Calendar Year 2026 Equity and Equity Derivatives Segments",
+                "October 02, 2026 Friday Mahatma Gandhi Jayanti",
+                "October 20, 2026 Tuesday Dussehra",
+            ],
+        ),
+        (
+            "hours",
+            "20260610-41",
+            "2026-06-10",
+            [
+                "Post closing session shall be from 3:50pm to 4:00pm.",
+                "from Monday, August 03, 2026.",
+            ],
+        ),
+    ):
+        path = f"inputs/bse-{kind}.pdf"
+        sha = save(
+            path, synthetic_pdf(["SYNTHETIC TEST ONLY", "BSE Limited", notice, published, *lines])
+        )
+        native_sources[kind] = {
+            "path": path,
+            "sha256": sha,
+            "publisher": "BSE Limited",
+            "notice": notice,
+            "source_url": f"https://www.bseindia.com/synthetic/{notice}.pdf",
+            "published_on": published,
+        }
+        if kind == "hours":
+            native_sources[kind]["effective_from"] = "2026-08-03"
+            native_sources[kind][
+                "source_url"
+            ] = "https://www.bseindia.com/downloads/UploadDocs/Notices/20260610-41/20260610-41.pdf"
+    start, end = contract["window_start"], contract["period_end"]
+    rows, cursor = [], date.fromisoformat(start)
+    while cursor.isoformat() <= end:
+        day = cursor.isoformat()
+        reason = (
+            "weekend"
+            if cursor.weekday() >= 5
+            else "holiday" if day in {"2026-10-02", "2026-10-20"} else "regular"
+        )
+        rows.append(
+            {
+                "date": day,
+                "status": "open" if reason == "regular" else "closed",
+                "close_at": f"{day}T16:00:00+05:30" if reason == "regular" else None,
+                "reason": reason,
+            }
+        )
+        cursor += timedelta(days=1)
+    calendar = {
+        "schema_version": 1,
+        "calendar_source": "exchange_calendar",
+        "market": "IN",
+        "asset": "SENSEX.BO",
+        "timezone": "Asia/Kolkata",
+        "coverage_start": start,
+        "coverage_end": end,
+        "observed_at": contract["cutoff"],
+        "completion_basis": "full_session_end",
+        "native_sources": native_sources,
+        "days": rows,
+    }
+    path = "inputs/bse-calendar.json"
+    source["schema_version"] = 3
+    source["calendars"]["IN"] = {
+        "calendar_source": "exchange_calendar",
+        "semantics_verified": True,
+        "market": "IN",
+        "asset": "SENSEX.BO",
+        "timezone": "Asia/Kolkata",
+        "close_time": "16:00",
+        "completion_basis": "full_session_end",
+        "evidence_path": path,
+        "evidence_sha256": save(path, json.dumps(calendar).encode()),
+    }
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
+    return contract, source, manifest, save, calendar
+
+
+def save_exchange(source, manifest, save, calendar):
+    spec = source["calendars"]["IN"]
+    spec["evidence_sha256"] = replace_resource(
+        manifest, save, spec["evidence_path"], json.dumps(calendar).encode()
+    )
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
+
+
+class ExchangeClient(Client):
+    def __init__(self):
+        super().__init__()
+        self.india_requests = []
+
+    def execute_wsd(self, asset, field, start, end, *options):
+        if asset != "SENSEX.BO":
+            return super().execute_wsd(asset, field, start, end, *options)
+        assert options == ("Period=D", "PriceAdj=U", "Days=Alldays", "Fill=Blank")
+        self.india_requests.append((start, end, options))
+        return [[date.fromisoformat(day), 100] for day in days(start, end)]
+
+
+@pytest.mark.parametrize("cutoff", ["2026-10-16T15:30:00+08:00", "2026-10-23T15:30:00+08:00"])
+def test_exchange_calendar_uses_native_holidays_and_only_completed_contiguous_wsd_ranges(
+    tmp_path, monkeypatch, cutoff
+):
+    # This future short-week case is explicitly synthetic; freeze independent
+    # wall clocks as well as acquisition, preserving all Host time inequalities.
+    if cutoff.startswith("2026-10-23"):
+        from app.research_web.report_workflows import weekly_data, weekly_sources
+
+        class FrozenMeta(type):
+            def __instancecheck__(cls, value):
+                return isinstance(value, datetime)
+
+        class FrozenDateTime(datetime, metaclass=FrozenMeta):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.fromisoformat("2026-10-24T00:00:00+00:00").astimezone(tz)
+
+        for module in (excel_provider, weekly_data, weekly_sources):
+            monkeypatch.setattr(module, "datetime", FrozenDateTime)
+    contract, source, manifest, _, calendar = exchange_package(tmp_path, cutoff)
+    monkeypatch.setattr(excel_provider, "_host_now", lambda: datetime.fromisoformat(cutoff))
+    assert load_run_source_contract(tmp_path, manifest)[0] == source
+    client = ExchangeClient()
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=lambda: client,
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "passed", result["assessment"]["issues"]
+    actual = result["snapshot"]["calendars"]["IN"]
+    assert actual["calendar_source"] == "exchange_calendar"
+    assert actual["source"] == "wind_excel"
+    assert contract["period_end"] not in actual["completed_dates"]
+    expected = [
+        row["date"]
+        for row in calendar["days"]
+        if row["status"] == "open" and row["date"] < contract["period_end"]
+    ]
+    queried = []
+    for start, end, _ in client.india_requests:
+        cursor = date.fromisoformat(start)
+        while cursor.isoformat() <= end:
+            queried.append(cursor.isoformat())
+            cursor += timedelta(days=1)
+    assert queried == expected
+    assert "2026-10-20" not in queried
+    assert "2026-10-02" not in queried
+    assert actual["raw_payload"]["native_sources"] == calendar["native_sources"]
+    sensex = result["snapshot"]["series"]["overseas_sensex"]
+    assert sensex["calendar_source"] == "exchange_calendar"
+    assert sensex["raw_payload"][0]["options"] == "Period=D;PriceAdj=U;Days=Alldays;Fill=Blank"
+    assert sensex["raw_payload"][0]["calendar_source"] == "exchange_calendar"
+    assert sensex["native_evidence_sha256"] == {
+        key: value["sha256"] for key, value in calendar["native_sources"].items()
+    }
+    assert "TradingCalendar" not in sensex["raw_payload"][0]["formula"]
+    expected_options = ("Period=D", "PriceAdj=U", "Days=Alldays", "Fill=Blank")
+    assert all(options == expected_options for _, _, options in client.india_requests)
+    assert (
+        tuple(next(csv.reader([sensex["raw_payload"][0]["formula"][5:-1]]))[4:]) == expected_options
+    )
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "missing_day",
+        "stale_range",
+        "market",
+        "asset",
+        "raw_hash",
+        "model_path",
+        "future_proof",
+        "future_source",
+        "wrong_native_date",
+        "wrong_close",
+        "no_native",
+        "wrong_publisher",
+        "wrong_notice",
+        "source_date",
+        "pdf_date",
+        "malformed_pdf",
+        "old_hours",
+        "hours_effective",
+        "pricing_close",
+        "hours_url",
+    ],
+)
+def test_exchange_calendar_rejects_unbound_or_inconsistent_evidence(tmp_path, invalid):
+    contract, source, manifest, save, calendar = exchange_package(tmp_path)
+    if invalid == "missing_day":
+        calendar["days"].pop(2)
+    elif invalid == "stale_range":
+        calendar["coverage_end"] = "2026-10-15"
+    elif invalid in {"market", "asset"}:
+        calendar[invalid] = "US" if invalid == "market" else "NIFTY.NS"
+    elif invalid == "raw_hash":
+        (tmp_path / "inputs/bse-holidays.pdf").write_bytes(b"changed")
+    elif invalid == "model_path":
+        calendar["native_sources"]["holidays"]["path"] = "../model.json"
+    elif invalid == "future_proof":
+        calendar["observed_at"] = "2026-10-16T16:01:00+08:00"
+    elif invalid == "future_source":
+        calendar["native_sources"]["holidays"]["published_on"] = "2027-12-12"
+    elif invalid == "wrong_native_date":
+        row = next(row for row in calendar["days"] if row["date"] == "2026-10-02")
+        row.update(status="open", reason="regular", close_at="2026-10-02T16:00:00+05:30")
+    elif invalid == "wrong_close":
+        next(row for row in calendar["days"] if row["status"] == "open")[
+            "close_at"
+        ] = "2026-09-28T14:30:00+05:30"
+    elif invalid == "no_native":
+        calendar["native_sources"] = {}
+    elif invalid == "wrong_publisher":
+        calendar["native_sources"]["holidays"]["publisher"] = "Model"
+    elif invalid == "wrong_notice":
+        calendar["native_sources"]["holidays"]["notice"] = "20251213-8"
+    elif invalid == "source_date":
+        calendar["native_sources"]["holidays"]["published_on"] = "2025-12-13"
+    elif invalid in {"pdf_date", "malformed_pdf"}:
+        item = calendar["native_sources"]["holidays"]
+        raw = (
+            synthetic_pdf(["BSE Limited", "20251212-8", "2025-12-13"])
+            if invalid == "pdf_date"
+            else b"%PDF-not-a-valid-file"
+        )
+        item["sha256"] = replace_resource(manifest, save, item["path"], raw)
+    elif invalid == "old_hours":
+        calendar["native_sources"]["hours"].update(notice="20250429-51", published_on="2025-04-29")
+    elif invalid == "hours_effective":
+        calendar["native_sources"]["hours"]["effective_from"] = "2026-10-17"
+    elif invalid == "pricing_close":
+        source["calendars"]["IN"]["close_time"] = "15:35"
+    elif invalid == "hours_url":
+        calendar["native_sources"]["hours"]["source_url"] = "https://www.bseindia.com/other.pdf"
+    save_exchange(source, manifest, save, calendar)
+    provider = WindExcelWeeklyProvider(
+        run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=ExchangeClient
+    )
+    with pytest.raises((ProviderError, WorkflowError)):
+        provider._calendar(ExchangeClient(), "IN", contract["window_start"], contract)
+
+
+def test_exchange_calendar_cannot_be_selected_for_other_market(tmp_path):
+    _, source, manifest, save, _ = exchange_package(tmp_path)
+    source["calendars"]["US"] = source["calendars"]["IN"].copy()
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
+    with pytest.raises(WorkflowError):
+        load_run_source_contract(tmp_path, manifest)
+
+
+def test_exchange_calendar_parses_bse_native_short_dates_and_source_signature(tmp_path):
+    contract, source, manifest, save, calendar = exchange_package(tmp_path)
+    native = calendar["native_sources"]["holidays"]
+    native["sha256"] = replace_resource(
+        manifest,
+        save,
+        native["path"],
+        synthetic_pdf(
+            [
+                "Notice No. 20251212-8 Notice Date 12 Dec 2025",
+                "Trading Holidays for the Calendar Year 2026 for Equity and Equity Derivatives Segments",
+                "11 Mahatma Gandhi Jayanti 02-Oct-26 Friday",
+                "12 Dussehra 20-Oct-26 Tuesday",
+                "For and on behalf of BSE Ltd.,",
+            ]
+        ),
+    )
+    save_exchange(source, manifest, save, calendar)
+    result = WindExcelWeeklyProvider(
+        run_root=tmp_path, manifest=manifest, source_contract=source
+    )._calendar(ExchangeClient(), "IN", contract["window_start"], contract)
+    assert "2026-10-02" not in result["dates"]
+
+
+def test_exchange_calendar_unexpected_holiday_or_unclosed_nonzero_response_blocks(tmp_path):
+    contract, source, manifest, _, _ = exchange_package(tmp_path)
+
+    class InjectedHoliday(ExchangeClient):
+        def execute_wsd(self, asset, field, start, end, *options):
+            rows = super().execute_wsd(asset, field, start, end, *options)
+            if asset == "SENSEX.BO":
+                rows.append([date(2026, 10, 2), 99])
+            return rows
+
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=InjectedHoliday,
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "blocked_data"
+    assert "weekly_excel_wsd_shape_invalid" in result["assessment"]["issues"]
+
+
+def test_exchange_spec_is_not_accepted_in_schema2(tmp_path):
+    _, source, manifest, save, _ = exchange_package(tmp_path)
+    source["schema_version"] = 2
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
+    with pytest.raises(WorkflowError):
+        load_run_source_contract(tmp_path, manifest)
+
+
+@pytest.mark.parametrize(
+    "special_lines",
+    [
+        ["Muhurat Trading will be conducted on Sunday, October 11, 2026."],
+        ["Muhurat Trading will be conducted on Sunday,", "October 11, 2026."],
+        ["Special trading may be conducted on Sunday, October", "11, 2026."],
+        ["Trading may be", "conducted on Sunday, October 11,", "2026."],
+        ["Muhurat Trading will be conducted on Sunday, October 11th, 2026."],
+        ["Muhurat Trading date to be announced."],
+        ["Muhurat Trading " + "notice " * 90 + "on Sunday, October 11, 2026."],
+        ["Muhurat Trading date to be announced.", "Separate date October 11, 2026."],
+        ["Timings of Muhurat Trading shall be notified subsequently."],
+        [
+            "Muhurat Trading will be conducted on Sunday, October 11, 2026.",
+            "Timings of Muhurat Trading shall be notified subsequently.",
+        ],
+        [
+            "Muhurat Trading will be conducted on Sunday, November 08, 2026.",
+            "Unrelated sentence.",
+            "Timings of Muhurat Trading shall be notified subsequently.",
+        ],
+        [
+            "Muhurat Trading will be conducted on Sunday, November 08, 2026.",
+            "",
+            "Timings of Muhurat Trading shall be notified subsequently.",
+        ],
+    ],
+)
+def test_exchange_calendar_does_not_silently_mark_special_sunday_closed(tmp_path, special_lines):
+    contract, source, manifest, save, calendar = exchange_package(tmp_path)
+    native = calendar["native_sources"]["holidays"]
+    native["sha256"] = replace_resource(
+        manifest,
+        save,
+        native["path"],
+        synthetic_pdf(
+            [
+                "BSE Limited",
+                "20251212-8",
+                "12 Dec 2025",
+                "Trading Holidays for the Calendar Year 2026 for Equity and Equity Derivatives Segments",
+                "11 Mahatma Gandhi Jayanti 02-Oct-26 Friday",
+                *special_lines,
+            ]
+        ),
+    )
+    save_exchange(source, manifest, save, calendar)
+    with pytest.raises(WorkflowError):
+        WindExcelWeeklyProvider(
+            run_root=tmp_path, manifest=manifest, source_contract=source
+        )._calendar(ExchangeClient(), "IN", contract["window_start"], contract)
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        ["Muhurat Trading will be conducted on Sunday,", "November 08, 2026."],
+        ["Muhurat Trading may be conducted on Sunday, May", "10, 2026."],
+        ["Muhurat Trading may be conducted on Sunday, September", "20, 2026."],
+        ["Muhurat Trading may be conducted on Sunday, October", "18, 2026."],
+        [
+            "Muhurat Trading will be conducted on Sunday, November 08, 2026.",
+            "Prior date October 11, 2026.",
+        ],
+        [
+            "Muhurat Trading will be conducted on Sunday, November 08, 2026. Timings of Muhurat Trading shall be notified subsequently."
+        ],
+        [
+            "Muhurat Trading will be conducted on Sunday, November 08, 2026.",
+            "Timings of Muhurat Trading shall be notified subsequently.",
+        ],
+    ],
+)
+def test_exchange_special_notice_dates_outside_coverage_do_not_borrow_another_sentence(
+    tmp_path, lines
+):
+    contract, source, manifest, save, calendar = exchange_package(tmp_path)
+    native = calendar["native_sources"]["holidays"]
+    native["sha256"] = replace_resource(
+        manifest,
+        save,
+        native["path"],
+        synthetic_pdf(
+            [
+                "BSE Limited",
+                "20251212-8",
+                "12 Dec 2025",
+                "Trading Holidays for the Calendar Year 2026 for Equity and Equity Derivatives Segments",
+                "11 Mahatma Gandhi Jayanti 02-Oct-26 Friday",
+                *lines,
+            ]
+        ),
+    )
+    save_exchange(source, manifest, save, calendar)
+    result = WindExcelWeeklyProvider(
+        run_root=tmp_path, manifest=manifest, source_contract=source
+    )._calendar(ExchangeClient(), "IN", contract["window_start"], contract)
+    assert result["calendar_source"] == "exchange_calendar"
 
 
 def test_policy_is_opt_in_and_old_api_default_remains():
@@ -261,6 +722,155 @@ def test_excel_contract_has_no_wset_or_api_gate(tmp_path):
         (date.fromisoformat(end) - date.fromisoformat(start)).days <= 365
         for _, start, end in client.calls
     )
+
+
+def test_weekly_wsd_options_are_independent_native_worksheet_arguments(tmp_path):
+    contract, source, manifest, _ = package(tmp_path)
+    client = Client()
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=lambda: client,
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "passed", result["assessment"]["issues"]
+    expected = ("Period=D", "PriceAdj=U", "Days=Trading", "Fill=Blank", "TradingCalendar=SSE")
+    assert client.worksheet_options and all(
+        options == expected for options in client.worksheet_options
+    )
+    series = result["snapshot"]["series"]["overseas_sensex"]
+    assert tuple(next(csv.reader([series["raw_payload"][0]["formula"][5:-1]]))[4:]) == expected
+
+
+@pytest.mark.parametrize(
+    "combined",
+    [
+        "Period=D;PriceAdj=U;Days=Trading;Fill=Blank;TradingCalendar=SSE",
+        "Period=D,PriceAdj=U,Days=Trading,Fill=Blank,TradingCalendar=SSE",
+    ],
+)
+def test_native_worksheet_fixture_rejects_combined_option_argument(combined):
+    formula = f'=wsd("SENSEX.BO","close","2026-10-01","2026-10-09","{combined}")'
+    with pytest.raises(AssertionError, match="separate string arguments"):
+        Client()._execute_wsd_once(formula, 30, 2)
+
+
+def test_native_worksheet_calendar_argument_controls_synthetic_japan_axis(tmp_path):
+    contract, source, manifest, _ = package(tmp_path)
+    source["calendars"]["JP"]["wind_calendar"] = "TSE"
+
+    class JapanCalendarClient(Client):
+        def _execute_wsd_once(self, formula, timeout, expected_columns):
+            if expected_columns == 1:
+                args = next(csv.reader([formula[len("=tdays(") : -1]], strict=True))
+                if args[-1] == "TradingCalendar=TSE":
+                    start, end = args[:2]
+                    self.calls.append(("calendar", start, end))
+                    return [
+                        [date.fromisoformat(day)] for day in days(start, end) if day != "2026-10-12"
+                    ]
+            return super()._execute_wsd_once(formula, timeout, expected_columns)
+
+        def execute_wsd(self, asset, field, start, end, *options):
+            if asset == "N225.GI":
+                assert options == (
+                    "Period=D",
+                    "PriceAdj=U",
+                    "Days=Trading",
+                    "Fill=Blank",
+                    "TradingCalendar=TSE",
+                )
+                self.calls.append((asset, start, end))
+                return [
+                    [date.fromisoformat(day), 100]
+                    for day in days(start, end)
+                    if day != "2026-10-12"
+                ]
+            return super().execute_wsd(asset, field, start, end, *options)
+
+    client = JapanCalendarClient()
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=lambda: client,
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "passed", result["assessment"]["issues"]
+    assert "2026-10-12" not in result["snapshot"]["calendars"]["JP"]["dates"]
+    japan = next(
+        item for item in result["snapshot"]["series"].values() if item["asset"] == "N225.GI"
+    )
+    assert "2026-10-12" not in [row["date"] for row in japan["rows"]]
+    assert (
+        "Period=D",
+        "PriceAdj=U",
+        "Days=Trading",
+        "Fill=Blank",
+        "TradingCalendar=TSE",
+    ) in client.worksheet_options
+
+
+@pytest.mark.parametrize(
+    "missing",
+    ["empty", "first", "interior", "last", "duplicate", "reordered", "china_holiday_axis"],
+)
+def test_exchange_wsd_requires_each_official_date_in_every_segment_and_preserves_failed_raw(
+    tmp_path, missing
+):
+    contract, source, manifest, _, _ = exchange_package(tmp_path)
+
+    class MissingOfficialDates(ExchangeClient):
+        def execute_wsd(self, asset, field, start, end, *options):
+            rows = super().execute_wsd(asset, field, start, end, *options)
+            if asset != "SENSEX.BO":
+                return rows
+            if missing == "empty":
+                return []
+            if missing == "china_holiday_axis":
+                return [
+                    row
+                    for row in rows
+                    if row[0].isoformat()
+                    not in {"2026-10-01", "2026-10-05", "2026-10-06", "2026-10-07"}
+                ]
+            if len(rows) >= 3:
+                if missing == "first":
+                    return rows[1:]
+                if missing == "interior":
+                    return rows[:1] + rows[2:]
+                if missing == "last":
+                    return rows[:-1]
+                if missing == "duplicate":
+                    return rows[:1] + rows
+                if missing == "reordered":
+                    return list(reversed(rows))
+            return rows
+
+    client = MissingOfficialDates()
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=lambda: client,
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "blocked_data"
+    assert "weekly_excel_wsd_calendar_mismatch" in result["assessment"]["issues"]
+    series = result["snapshot"]["series"]["overseas_sensex"]
+    assert series["rows"] == []
+    assert len(series["raw_sha256"]) == 64
+    request = series["raw_payload"][-1]
+    assert request["calendar_source"] == "exchange_calendar"
+    assert request["expected_dates"] != [row[0] for row in request["rows"]]
+    assert len(request["expected_dates"]) >= 1
+    assert len(series["raw_payload"]) == len(client.india_requests)
+    assert client.india_requests[-1][:2] == (request["start"], request["end"])
+    assert client.closed
 
 
 def test_missing_sunday_proof_blocks_even_if_max_row_is_monday(tmp_path):

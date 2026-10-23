@@ -44,8 +44,13 @@ API 迁移路径；准备操作只创建未发布的 `wind_excel` 继任版本�
 凭据存储和取数前后配置摘要继续校验，不能从模型或公开工具参数选择本私有路径。
 
 Excel 模式不导入 WindPy，不要求 API 权益、WSET 配置或 API/Excel 等价校准。依赖检查只
-说明 xlwings 可发现，不能证明 Excel、Wind 登录或业务数据成功。工作表 WSD 与 TDAYS 显式
-使用每个市场已审 `TradingCalendar`，每段最多366自然日，防止1000行助手区域截断。
+说明 xlwings 可发现，不能证明 Excel、Wind 登录或业务数据成功。schema2 的工作表 WSD 与 TDAYS
+显式使用每个市场已审 `TradingCalendar`，每段最多366自然日，防止1000行助手区域截断。
+schema3 仅给印度 `IN/SENSEX.BO` 增加下述显式交易所日历；其余12市场保持原路径。
+工作表 WSD 的每个选项必须是独立字符串参数。配置中的分号 `options` 只是内部表示，
+由共享 `build_wsd_formula` 拆成 `...,"Period=D","PriceAdj=U","Days=Trading","Fill=Blank","TradingCalendar=TSE")`。
+不能把 SDK 的单个分号选项字符串直接作为 Excel 第五参数；Mac 原生插件可能忽略该组合并
+退回默认日期轴。私有 collector 记录并执行同一个真实公式，保持单次调用，不改 API SDK 语法。
 每次工作表请求只执行一次；未知、超时和取消不得自动重放。与普通 Wind Provider 共用单线程
 和 Future 容量；私有周报默认显式使用 `isolated_workbook=True, existing_app_only=True`，只在
 既有可连接 Excel 实例中新建本任务拥有的临时工作簿，不启动或退出用户实例，不修改既有
@@ -63,6 +68,56 @@ schema2 来源合同包含 `data_source=wind_excel`、`excel_exports` 和全部�
 均须位于截止前一天至冻结截止点之间；当前时间已经更晚也不能追认历史截止点之后取得的输入。
 文件须匹配同版本哈希。读取有ZIP大小及行列上限，并处理 Wind 导出的错误A1维度。
 经济数据使用原生八列表头，财经大事使用五列（或同结构八列），各页均须保留 Wind 来源标记。
+
+### 印度 BSE 显式日历（schema3）
+
+schema3 保留 schema2 的 Excel 来源、全部导出与 `verification` 审查资源合同；只允许
+`calendars.IN` 显式选择 `calendar_source=exchange_calendar`。该项精确字段为
+`calendar_source/semantics_verified/market/asset/timezone/close_time/completion_basis/evidence_path/evidence_sha256`，
+身份固定 `IN`、`SENSEX.BO`、`Asia/Kolkata`，`completion_basis=full_session_end`。
+不会把 Wind `BSE`（北京）或 `NSE`（日本）猜作印度，也不以别的证券替代 SENSEX。
+
+`evidence_path` 是当前版本真实发布资源内的规范化 JSON，精确字段为
+`schema_version:1/calendar_source/market/asset/timezone/completion_basis/coverage_start/coverage_end/observed_at/native_sources/days`。
+覆盖须包含本次 `window_start` 至 `period_end`，同一年度且最多63个自然日，每日恰有一行
+`{date,status,close_at,reason}`；`status` 为 `open|closed`，`reason` 为
+`regular|holiday|weekend`。闭市日 `close_at=null`；开市日为该日有时区的完整收盘时间。
+不接受遗漏日期、乱序、重复、范围不足或从价格行反推的交易日。
+
+`native_sources` 恰含 `holidays` 与 `hours`，每项具有
+`path/sha256/publisher/notice/source_url/published_on`；`hours` 另有 `effective_from`。
+`published_on` 只记录公告原生日期，不虚构发布时间；`observed_at` 是操作员实际观察的有时区
+时间，可晚于市场截止，但须不晚于 Host 本次实际采集和当前时间。公告日期不能晚于市场截止
+日或观察日。规范化文件与两份原生 PDF 都必须存在于同版本不可变 manifest，Host 按实际
+字节重算哈希并直接用既有 `pdfplumber` 提取原文，独立核对 BSE 署名、公告编号、日期、年度
+和休市日。只提供一份自填日期名单、模型伪造路径、原文与每日状态冲突均阻断。
+镜像的 `source_url` 如实保留镜像地址，不把券商托管的 BSE 署名文件标成 BSE 官方域名。
+
+当前有界 hours 解析仅接受 BSE `20260610-41` 官方 PDF、2026-06-10 公告日期及
+2026-08-03 生效原文，核对 `Post closing session shall be from 3:50pm to 4:00pm.`。
+由此确定 `close_time=16:00`、`full_session_end`；这是全交易时段结束的保守完成口径，
+不宣称16:00是指数定价时刻，也不改变 Wind `SENSEX.BO/close` 字段。
+生效前覆盖、旧2025年规则、擅用15:30或15:35以及不匹配的官方URI均拒绝。
+其他年度、特殊周末开市或新 hours 通知需要另行审查和实现，不能静默推广本合同。
+特殊开市说明按有界句子上下文核对，规范化 PDF 跨行空白后识别月份、日期及 may/will/shall
+说明；当前覆盖内或无法解析日期的特殊开市明确阻断，只有已解析日期全部位于覆盖外才放行。
+不支持的序数日期、待公布或超出有界上下文的日期同样保持未知，不借用相邻表格、公告日期或下一句。
+原生段落空白保留；仅完整的纯 `Timings of Muhurat Trading shall be notified subsequently.`
+可继承紧前同段有明确日期的 Muhurat 开市句，总长须不超过512字符。独立、断段、插入无关句或
+前句日期未知时均拒绝；这不会把“时间待通知”解释为另一个无日期的开市日。
+
+Host 用核验后的每日收盘时间计算 `completed_dates`，查询上界为最后一个已结束交易日。
+仅把这些日期分成连续自然日区间（最多64段），每段 WSD 显式
+`Period=D;PriceAdj=U;Days=Alldays;Fill=Blank`，不传未知印度 `TradingCalendar`，
+不请求周末／官方休市日，不过滤或制造返回价格；意外日期的非零观测仍拒绝。
+每段返回日期列表必须与官方已结束交易日的该段完整、有序列表逐项相等；空段、缺首尾／中间日、
+重复或乱序立即阻断并停止后续分段，不等到周收益端点门才发现缺口。实际公式、预期日期、
+原始返回行及原生证据哈希保留在失败序列的 raw 证据中，规范化价格行保持为空。
+印度公式形如 `=wsd("SENSEX.BO","close","2026-10-05","2026-10-09","Period=D","PriceAdj=U","Days=Alldays","Fill=Blank")`，
+各选项独立传递；不增加 `IDC` 或其他未经本合同选择的日历作为兜底。
+日历快照和印度行情显式保留 `calendar_source=exchange_calendar`、原生证据路径和哈希，
+原始请求参数／返回行继续归档，Host 原有交易日、数值、日期和新鲜度质量门继续独立复算。
+这只支持明确审查的本期覆盖，不认证全年日历、真实 Wind 结果或正式稿；定时始终关闭。
 
 `observation_path` 指向操作员从原生 UI 捕获并审查的不可变 JSON，不由模型填写。其固定字段为
 `schema_version:1, source:wind_excel, kind:native_export_observation`、实际 `application/source_url`、

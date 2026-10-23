@@ -69,6 +69,21 @@ def _offset_excel_column(column: str, offset: int) -> str:
     return result
 
 
+def build_wsd_formula(
+    code: str, fields: str, start_date: str, end_date: str, options: str = ""
+) -> str:
+    """Serialize worksheet options as individual function arguments.
+
+    Wind's Excel function uses variadic options. Passing a Python SDK style
+    semicolon string silently restored the default SSE date axis on the real
+    Mac plugin; the same independent arguments returned the requested dates.
+    """
+    selected = [option.strip() for option in options.split(";") if option.strip()] or [""]
+    arguments = [code, fields, start_date, end_date, *selected]
+    quoted = ['"' + argument.replace('"', '""') + '"' for argument in arguments]
+    return "=wsd(" + ",".join(quoted) + ")"
+
+
 def _trim_wsd_matrix(raw_data: Any) -> list[list[Any]]:
     """Trim a rectangular Excel spill range to its populated rows and columns."""
     if raw_data is None:
@@ -134,6 +149,7 @@ class WindExcelClient:
             )
 
         prepare_macos_excel_compat()
+        all_apps: list[Any]
 
         # 自动/只读调用可以要求独立应用；此分支不得枚举或选择用户已打开
         # 的应用和工作簿，生命周期完全由本客户端持有。
@@ -383,7 +399,7 @@ class WindExcelClient:
         The helper range is cleared both before and after every attempt so a failed
         request cannot leak stale cells into a later request.
         """
-        formula = f'=wsd("{code}","{fields}","{start_date}","{end_date}","{options}")'
+        formula = build_wsd_formula(code, fields, start_date, end_date, options)
         calculated_timeout = timeout or self._wsd_timeout(start_date, end_date)
         last_error: WindTimeoutError | WindSessionExpiredError | None = None
         with _EXCEL_OPERATION_LOCK:

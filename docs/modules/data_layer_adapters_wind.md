@@ -38,6 +38,15 @@ Mac spill ranges contain empty strings as well as `None`; both are trimmed at
 the boundaries while numeric zero is preserved. Source dates, numeric identity,
 market calendars and report quality still require the Host's independent checks.
 
+`build_wsd_formula` emits each worksheet option as a separate quoted argument.
+The Mac add-in silently returned the SSE date axis when given a combined
+semicolon options argument; splitting `Days`, `Fill` and `TradingCalendar`
+restored the expected India dates in a bounded real comparison. This is Excel
+worksheet syntax only; Client API option syntax is unchanged. The weekly
+provider records the actual formula and rejects missing, duplicated or reordered
+dates against the independently verified official India calendar. It uses the
+single-call transport so an unknown result cannot trigger an implicit retry.
+
 Near tests: `tests/unit/test_wind_excel_instances.py` and
 `tests/unit/test_wind_adapter.py`. Real Office/Wind, Windows and Linux acceptance
 remain separate from mocks.
