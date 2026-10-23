@@ -22,7 +22,11 @@
 
 详情显示证据的 available／missing／changed／revoked／unavailable 状态。正文读取、交接重放及模型重读再次检查当前授权和字节，不用新取数替代旧版本。UTF-8投影最多24000字符，内部扫描可读取受控完整rows和manifest；二进制只返回明确的binary_source投影，未新增PDF／Office解析器。输出文件与未准入MCP结果可作为材料保存，不升级为数值事实。
 
+已绑定来源按项投影失效状态与稳定error_code；一项旧原件缺失、变化或撤权仍保留其他来源及会话访问。精确读取坏原件继续拒绝，admission与事实观察只使用available项，质量上下文以 `dossier_evidence_gaps` 明确列出缺口。DataHub原始响应清单逐项核对受控路径、文件大小和SHA256；只有公开rows完好不能证明声明的raw原件仍在。归档、读取、一致备份及恢复都执行该检查。
+
 成果关联只能引用Host已有会话、文件或报告，报告保留Host原有quality、内容hash与task身份；不会把报告正文复制进档案数据库，也不会把incomplete／invalid改为passed。普通文件接口拒绝数据集路径，MCP数据集禁止普通跨会话复制；应使用重新鉴权的档案交接。
+
+报告关联优先选取同内容hash的既有不可变report-version；未形成版本的报告保留当前原件定位与hash。详情逐次投影链接state/error_code，历史quality只描述保存的原内容。`GET /{id}/links/{link_id}` 通过 `preview_url` 重新鉴权并核对字节后返回有界投影；覆盖或缺失的可变原件不能沿旧quality打开为当前成果。
 
 ## HTTP 与研究交接
 
