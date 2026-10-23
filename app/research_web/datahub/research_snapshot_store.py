@@ -27,6 +27,13 @@ from .providers_external import (
     spdr_fields,
     spdr_projection,
 )
+from .providers_kapsarc import (
+    KAPSARC_NUMERIC_CONTRACT,
+    KAPSARC_UNITS,
+    kapsarc_fields,
+    kapsarc_metadata,
+    kapsarc_projection,
+)
 from .providers_market import INDEXES
 from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT, WGC_UNITS, wgc_fields, wgc_projection
 
@@ -58,6 +65,7 @@ PUBLIC_NUMERIC = frozenset(
         ("ext_spdr", "gld"),
         ("ext_wgc", "etf-holdings"),
         ("ext_wgc", "etf-flows"),
+        ("ext_kapsarc", "production"),
         ("ext_ths", "cmd_history_quotation"),
         ("ext_ths", "basic_data_service"),
         ("ext_ths", "real_time_quotation"),
@@ -69,6 +77,7 @@ METADATA_KEYS = frozenset(
         "provider_semantics_revision",
         "adjustment_contract",
         "field_dictionary_evidence",
+        "projection_scope",
         "schema_version",
         "units",
         "currency",
@@ -101,6 +110,43 @@ START = date(1970, 1, 1)
 NAV_SEMANTIC_GAPS = frozenset(
     {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
 )
+
+
+def _complete_kapsarc_snapshot(result: Result) -> bool:
+    """Require both count/unit evidence and the exact export projection before publishing."""
+    expected = {
+        "schema_version": KAPSARC_NUMERIC_CONTRACT,
+        "provider_semantics_revision": KAPSARC_NUMERIC_CONTRACT,
+        "upstream_id": "bgs-via-kapsarc",
+        "availability_basis": "first_observed",
+        "revision_policy": "first_observed_not_historical_vintage",
+        "projection_scope": "gold_mine_annual_kg_source_export",
+        "units": KAPSARC_UNITS,
+    }
+    if (
+        result.provider_id != "ext_kapsarc"
+        or result.status not in {"complete", "snapshot"}
+        or result.pagination_complete is not True
+        or type(result.provider_total) is not int
+        or result.provider_total != len(result.rows)
+        or not result.rows
+        or result.missing
+        or len(result.raw) != 2
+        or any(result.metadata.get(key) != value for key, value in expected.items())
+        or result.metadata.get("historical_point_in_time") is not False
+        or result.metadata.get("formal_backtest_eligible") is not False
+        or result.metadata.get("independent_source") is not False
+    ):
+        return False
+    try:
+        return (
+            canonical(result.rows) == canonical(kapsarc_projection(*result.raw))
+            and canonical(result.fields) == canonical(kapsarc_fields())
+            and canonical(result.metadata.get("field_dictionary_evidence"))
+            == canonical(kapsarc_metadata(result.raw[1])["field_dictionary_evidence"])
+        )
+    except (ProviderError, MarketStoreError, TypeError, ValueError):
+        return False
 
 
 def _complete_wgc_snapshot(result: Result, dataset: str) -> bool:
@@ -349,8 +395,13 @@ class SnapshotSeries:
             query.capability == "external_data"
             and (self.scope.source, query.parameters.get("dataset")) in PUBLIC_NUMERIC
         )
-        if (self.scope.source, query.parameters.get("dataset")) == ("ext_spdr", "gld") or (
-            self.scope.source == "ext_wgc" and query.parameters.get("dataset") in WGC_DATASETS
+        if (
+            (self.scope.source, query.parameters.get("dataset")) == ("ext_spdr", "gld")
+            or (self.scope.source == "ext_wgc" and query.parameters.get("dataset") in WGC_DATASETS)
+            or (
+                (self.scope.source, query.parameters.get("dataset"))
+                == ("ext_kapsarc", "production")
+            )
         ):
             try:
                 if arguments(query.parameters.get("arguments_json")):
@@ -463,6 +514,14 @@ class SnapshotSeries:
                 )
             ):
                 log.info("research_snapshot_not_ingested", reason="china_macro_contract_incomplete")
+                return None
+            if (
+                query.capability == "external_data"
+                and (self.scope.source, query.parameters.get("dataset"))
+                == ("ext_kapsarc", "production")
+                and not _complete_kapsarc_snapshot(result)
+            ):
+                log.info("research_snapshot_not_ingested", reason="kapsarc_contract_incomplete")
                 return None
             if (
                 query.capability == "external_data"

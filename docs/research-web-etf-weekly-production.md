@@ -192,3 +192,6 @@ BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报�
 2026-10-23：资产个股周期读数及副图修复不改变华安周报指标、底稿、模板、生产权限、日程或Host质量门；资产图表不冒充规范周报证据。
 
 WGC 两个公开端点新增月度吨数原生研究快照，存量/流量和来源范围分别保存，不替代现有 Wind/Excel 或私有生产验收。AK 个股资金流在 SDK 前拒绝历史时点/正式回测；first_observed 不获得历史 PIT 资格。详见[原生快照](research-web-vendor-snapshots.md)与[研究仓](research-web-market-store.md)。本轮未部署、未启动生产库或日程。
+
+
+KAPSARC/BGS 黄金矿山年产量只进入来源独立的原生研究快照；不替代 Wind/Excel、WGC ETF 流量或 SPDR 持仓，不获得历史 PIT 资格，也不启用正式生产库/日程。kg字典、原件、注释缺口及版本合同见[原生快照](research-web-vendor-snapshots.md)。
