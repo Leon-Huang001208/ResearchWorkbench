@@ -331,6 +331,71 @@ def test_reference_and_retention_rollback_together(tmp_path, monkeypatch):
     assert len(bind(research, dossier, row["id"])["evidence"]) == 1
 
 
+def test_optional_signal_index_state_follows_record_and_rolls_back_with_it(tmp_path, monkeypatch):
+    research = service(tmp_path)
+    dossier = create(research)
+    request = {
+        "expected_revision": 1,
+        "idempotency_key": "signal-0001",
+        "kind": "signal",
+        "title": "待处置信号",
+        "body": "原始触发证据未变化",
+        "state": "open",
+        "reason": "初始观察",
+        "evidence_ids": [],
+    }
+    signal = research.dossiers.add_record(dossier["id"], request)["records"][0]
+    original = {
+        "id": signal["id"],
+        "state": "open",
+        "fingerprint": "frozen",
+        "other": {"keep": True},
+    }
+    with research.dossiers.metadata.connection(write=True) as connection:
+        assert (
+            connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='dossier_signal_index'"
+            ).fetchone()
+            is None
+        )
+        connection.execute(
+            "CREATE TABLE dossier_signal_index(id TEXT PRIMARY KEY,dossier_id TEXT,payload TEXT,updated_at TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO dossier_signal_index VALUES(?,?,?,?)",
+            (signal["id"], dossier["id"], json.dumps(original), "fixed"),
+        )
+    update = {
+        **request,
+        "expected_revision": 2,
+        "idempotency_key": "signal-0002",
+        "record_id": signal["id"],
+        "state": "dismissed",
+        "reason": "人工处置",
+    }
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            research.dossiers.metadata,
+            "_append_event",
+            lambda *a: (_ for _ in ()).throw(
+                sqlite3.OperationalError("after optional index update")
+            ),
+        )
+        with pytest.raises(StoreError):
+            research.dossiers.add_record(dossier["id"], update)
+    with research.dossiers.metadata.connection() as connection:
+        assert (
+            json.loads(connection.execute("SELECT payload FROM dossier_signal_index").fetchone()[0])
+            == original
+        )
+    assert research.dossiers.get(dossier["id"])["records"][0]["state"] == "open"
+    research.dossiers.add_record(dossier["id"], update)
+    with research.dossiers.metadata.connection() as connection:
+        row = connection.execute("SELECT payload,updated_at FROM dossier_signal_index").fetchone()
+        assert json.loads(row[0]) == {**original, "state": "dismissed"}
+        assert row[1] == "fixed"
+
+
 def test_forged_provenance_and_company_name_identity_rejected(tmp_path):
     research = service(tmp_path)
     dossier = create(research)
@@ -406,6 +471,54 @@ def test_dataset_retains_original_manifest_after_soft_delete_without_file_alias(
             },
         )
     assert error.value.code == "dossier_evidence_alias_denied"
+
+
+@pytest.mark.parametrize("failure", ["missing", "changed"])
+def test_raw_dataset_originals_are_verified_for_archive_read_backup_and_restore(tmp_path, failure):
+    from app.research_web.datahub.contracts import Query
+    from app.research_web.datahub.providers import Result
+    from app.research_web.datahub.snapshots import Snapshots
+
+    research = service(tmp_path)
+    dossier = create(research)
+    sid = research.store.create("fingpt", "含原始响应")["id"]
+    snapshots = Snapshots(research.store)
+    research.datahub = SimpleNamespace(snapshots=snapshots)
+    manifest = snapshots.publish(
+        sid,
+        Query(source="fund_nav", code="000001"),
+        Result(rows=[{"nav": 1.2}], raw=[b"provider original"], status="complete"),
+    )
+    request = {
+        "expected_revision": 1,
+        "idempotency_key": "dataset-0001",
+        "source_session_id": sid,
+        "reference": {"type": "dataset", "id": manifest["dataset_id"]},
+    }
+    evidence = research.dossiers.add_evidence(dossier["id"], request)["evidence"][0]
+    backup = tmp_path / "before-raw-damage.sqlite3"
+    receipt = research.dossiers.backup_to(backup)
+    raw = research.store.root / ".control/snapshots" / sid / manifest["dataset_id"] / "raw-0001.bin"
+    if failure == "missing":
+        raw.unlink()
+    else:
+        raw.write_bytes(b"provider modified")
+    assert snapshots.detail(sid, manifest["dataset_id"])["dataset_id"] == manifest["dataset_id"]
+    state = research.dossiers.get(dossier["id"])["evidence"][0]
+    assert state["state"] == failure
+    assert state["error_code"] == "dossier_raw_" + failure
+    with pytest.raises(StoreError):
+        research.dossiers.read_evidence(dossier["id"], evidence["id"])
+    with pytest.raises(StoreError):
+        research.dossiers.backup_to(tmp_path / "must-not-pass.sqlite3")
+    before = research.dossiers.metadata.path.read_bytes()
+    with pytest.raises(StoreError):
+        research.dossiers.restore_from(backup, expected_sha256=receipt["sha256"])
+    assert research.dossiers.metadata.path.read_bytes() == before
+    with pytest.raises(StoreError):
+        research.dossiers.add_evidence(
+            dossier["id"], {**request, "expected_revision": 2, "idempotency_key": "new-raw-0001"}
+        )
 
 
 @pytest.mark.asyncio

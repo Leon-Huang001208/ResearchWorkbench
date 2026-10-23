@@ -2524,7 +2524,11 @@ class ResearchService(ModelProfilesMixin):
             self.store,
             sid,
             result["files"],
-            result["research_sources"],
+            [
+                source
+                for source in result["research_sources"]
+                if not source.get("dossier_handle") or source.get("state") == "available"
+            ],
             latest_receipt.get("delivery", {}).get("task_id"),
             result["delivery"],
         )

@@ -231,6 +231,11 @@ def source_context(service, sid, files, sources=()):
             identities.append(row)
     return {
         "sources": identities,
+        "dossier_evidence_gaps": [
+            {key: source[key] for key in ("id", "state", "error_code") if key in source}
+            for source in identities
+            if source.get("dossier_handle") and source.get("state") != "available"
+        ],
         "digest_scope": "full_file_for_inputs_only",
         "excerpt_bytes_limit": 12000,
     }
@@ -367,6 +372,7 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         if kinds.get(source.get("id", "").split(":", 1)[0]) in scope
         and source.get("id") not in {"file:" + identifier for identifier in web_ids}
         and source.get("admission", {}).get("report_admitted") is not False
+        and (not source.get("dossier_handle") or source.get("state") == "available")
     ]
     evidence_files = (
         upload_files
@@ -415,7 +421,11 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         for row in actual_observations
         if row.get("kind") in {"business_numeric", "business_quote"}
     ]
-    fresh = {row["id"]: row.get("sha256") for row in context["sources"]}
+    fresh = {
+        row["id"]: row.get("sha256")
+        for row in context["sources"]
+        if not row.get("dossier_handle") or row.get("state") == "available"
+    }
     if any(
         fresh.get(proof["source_id"]) != proof["sha256"]
         for row in business

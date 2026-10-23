@@ -1,6 +1,7 @@
 """User-triggered dossier routes bind opaque context without starting a model."""
 
 import hashlib
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -199,3 +200,167 @@ def test_report_link_preserves_host_quality_and_freezes_content_identity(api, mo
     file_linked = client.post(f"/api/research/dossiers/{dossier['id']}/links", json=file_request)
     assert file_linked.status_code == 200, file_linked.text
     assert file_linked.json()["links"][-1]["reference_id"] == fid
+
+
+@pytest.mark.parametrize("failure", ["missing", "changed", "revoked"])
+def test_one_unavailable_archived_source_does_not_lock_target_or_other_sources(api, failure):
+    client, _native, research = api
+    dossier, bad_sid, _detail, _unused = prepared(api)
+    good_sid = client.post("/api/research/sessions", json={}).json()["id"]
+    (research.store.directory(good_sid) / "inputs/source.txt").write_text("仍可核验的好材料")
+    added = client.post(
+        f"/api/research/dossiers/{dossier['id']}/evidence",
+        json={
+            "expected_revision": 3,
+            "idempotency_key": "good-source-0001",
+            "source_session_id": good_sid,
+            "reference": {"type": "file", "id": "inputs/source.txt"},
+        },
+    )
+    assert added.status_code == 200, added.text
+    handoff = client.post(
+        f"/api/research/dossiers/{dossier['id']}/handoff",
+        json={
+            "expected_revision": 4,
+            "idempotency_key": "handoff-two-0001",
+            "mode": "fingpt",
+            "action": "update_view",
+        },
+    ).json()
+    target = client.post("/api/research/sessions", json={"source_scope": ["uploads"]}).json()["id"]
+    sent = client.post(
+        f"/api/research/sessions/{target}/messages",
+        json={"text": handoff["prompt"], "dossier_handoff_id": handoff["context"]["handoff_id"]},
+        headers={"Idempotency-Key": "send-two-0001"},
+    )
+    assert sent.status_code == 202, sent.text
+    from test_delivery import finish
+
+    finish((client, _native, research, target))
+    bad_path = research.store.directory(bad_sid) / "inputs/source.txt"
+    if failure == "missing":
+        bad_path.unlink()
+    elif failure == "changed":
+        bad_path.write_text("已经改写的材料")
+    else:
+        research.store.session(bad_sid)["source_scope"] = ["web"]
+    opened = client.get(f"/api/research/sessions/{target}")
+    assert opened.status_code == 200, opened.text
+    sources = opened.json()["research_sources"]
+    bad = next(source for source in sources if source.get("source_session_id") == bad_sid)
+    good = next(source for source in sources if source.get("source_session_id") == good_sid)
+    assert bad["state"] == failure and bad["error_code"]
+    assert good["state"] == "available"
+    assert not research.dossiers.source_admitted(
+        target, operation="read", source_id=bad["dossier_handle"]
+    )
+    assert research.dossiers.source_admitted(
+        target, operation="read", source_id=good["dossier_handle"]
+    )
+    assert (
+        research.dossiers.read_handle(target, good["dossier_handle"])["content"]
+        == "仍可核验的好材料"
+    )
+    from app.research_web.store import StoreError
+
+    with pytest.raises(StoreError):
+        research.dossiers.read_handle(target, bad["dossier_handle"])
+    observed = research.dossiers.observations(target, task_id="a" * 24, contract_sha="b" * 64)
+    assert any(row["id"] == good["id"] for row in observed)
+    assert not any(row["id"] == bad["id"] for row in observed)
+    assert opened.json()["research_quality"]["status"] != "passed"
+    plain = client.post(
+        f"/api/research/sessions/{target}/messages",
+        json={"text": "继续分析仍可核验的材料"},
+        headers={"Idempotency-Key": "plain-after-gap-0001"},
+    )
+    assert plain.status_code == 202, plain.text
+
+
+def test_mutable_report_link_exposes_change_and_refuses_read(api, monkeypatch):
+    client, _native, research = api
+    dossier, sid, _detail, _handoff = prepared(api)
+    path = research.store.directory(sid) / "outputs/research-report.json"
+    original = b'{"version":1}'
+    path.write_bytes(original)
+    fid = next(
+        item["id"] for item in research.store.files(sid) if item["name"] == "research-report.json"
+    )
+
+    async def host_detail(_sid):
+        return {
+            "research_report": {
+                "file_id": fid,
+                "content_sha256": hashlib.sha256(original).hexdigest(),
+                "quality": "passed",
+            }
+        }
+
+    monkeypatch.setattr(research, "detail", host_detail)
+    linked = client.post(
+        f"/api/research/dossiers/{dossier['id']}/links",
+        json={
+            "expected_revision": 3,
+            "idempotency_key": "report-link-0001",
+            "type": "report",
+            "source_session_id": sid,
+        },
+    ).json()["links"][0]
+    path.write_bytes(b'{"version":2}')
+    viewed = client.get(f"/api/research/dossiers/{dossier['id']}").json()["links"][0]
+    assert viewed["quality"] == "passed" and viewed["state"] == "changed"
+    assert viewed["error_code"] == "dossier_evidence_changed"
+    assert (
+        client.get(f"/api/research/dossiers/{dossier['id']}/links/{linked['id']}").status_code
+        == 409
+    )
+    path.unlink()
+    assert (
+        client.get(f"/api/research/dossiers/{dossier['id']}").json()["links"][0]["state"]
+        == "missing"
+    )
+
+
+def test_report_link_prefers_existing_immutable_version(api, monkeypatch, tmp_path):
+    from test_research_report import payload
+
+    from app.research_web.resources.research_report import archive_report_version
+
+    client, _native, research = api
+    dossier, sid, _detail, _handoff = prepared(api)
+    output = research.store.directory(sid) / "outputs"
+    raw = json.dumps(payload(), ensure_ascii=False).encode()
+    (output / "research-report.json").write_bytes(raw)
+    archived = archive_report_version(output)
+    fid = next(
+        item["id"] for item in research.store.files(sid) if item["name"] == "research-report.json"
+    )
+
+    async def host_detail(_sid):
+        return {
+            "research_report": {
+                "file_id": fid,
+                "content_sha256": hashlib.sha256(raw).hexdigest(),
+                "quality": "incomplete",
+                "task_id": "a" * 24,
+            }
+        }
+
+    monkeypatch.setattr(research, "detail", host_detail)
+    linked = client.post(
+        f"/api/research/dossiers/{dossier['id']}/links",
+        json={
+            "expected_revision": 3,
+            "idempotency_key": "version-link-0001",
+            "type": "report",
+            "source_session_id": sid,
+        },
+    ).json()["links"][0]
+    assert linked["report"]["version_id"] == archived["version_id"]
+    (output / "research-report.json").write_text('{"new":"different report"}')
+    viewed = client.get(f"/api/research/dossiers/{dossier['id']}").json()["links"][0]
+    assert viewed["state"] == "available" and viewed["quality"] == "incomplete"
+    preview = client.get(viewed["preview_url"])
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["content"] == raw.decode()
+    research.dossiers.backup_to(tmp_path / "immutable-linked-backup.sqlite3")

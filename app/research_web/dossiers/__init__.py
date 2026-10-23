@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import json
+import os
 import re
 from pathlib import PurePosixPath
 from uuid import uuid4
@@ -23,6 +24,17 @@ from .storage import DossierStore, canonical, identifier, now
 log = get_logger(__name__)
 _SCOPES = {"file": "uploads", "dataset": "datahub", "source": "web"}
 MAX_BYTES = 16 * 1024 * 1024
+_ERROR_STATES = {
+    "dossier_source_revoked": "revoked",
+    "dossier_evidence_changed": "changed",
+    "dossier_evidence_missing": "missing",
+    "dossier_raw_missing": "missing",
+    "dossier_raw_changed": "changed",
+}
+
+
+def project_error(value, error):
+    value.update(state=_ERROR_STATES.get(error.code, "unavailable"), error_code=error.code)
 
 
 def validate(model, value):
@@ -61,12 +73,14 @@ class DossierService:
                 )
                 evidence["state"] = "available"
             except StoreError as exc:
-                evidence["state"] = {
-                    "dossier_source_revoked": "revoked",
-                    "dossier_evidence_changed": "changed",
-                    "dossier_evidence_missing": "missing",
-                }.get(exc.code, "unavailable")
-                evidence["error_code"] = exc.code
+                project_error(evidence, exc)
+        for link in result["links"]:
+            try:
+                self._read_link_value(link)
+                link["state"] = "available"
+            except StoreError as exc:
+                project_error(link, exc)
+            link["preview_url"] = f"/api/research/dossiers/{did}/links/{link['id']}"
         return result
 
     def timeline(self, did, **kwargs):
@@ -119,6 +133,16 @@ class DossierService:
                 if key not in {"expected_revision", "idempotency_key", "record_id"}
             }
             record["id"] = body.get("record_id") or uuid4().hex
+            if (
+                record["kind"] == "signal"
+                and connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dossier_signal_index'"
+                ).fetchone()
+            ):
+                connection.execute(
+                    "UPDATE dossier_signal_index SET payload=json_set(payload,'$.state',?) WHERE id=? AND dossier_id=?",
+                    (record["state"], record["id"], did),
+                )
             return None, record
 
         return self.metadata.mutate(did, body, "record", add)
@@ -259,21 +283,26 @@ class DossierService:
                             target_sid, BusinessQuery.model_validate(query), resolution
                         )
                 raw = snapshots.read(sid, ref, "rows.json")
+                self._verify_raw(sid, ref, manifest)
             except (StoreError, RegistryError, ValueError, OSError) as exc:
                 log.warning(
                     "dossier_dataset_unavailable", session_id=sid, error_type=type(exc).__name__
                 )
                 code = (
-                    "dossier_source_revoked"
-                    if isinstance(exc, RegistryError)
-                    or isinstance(exc, StoreError)
-                    and exc.code
-                    in {
-                        "data_cache_authorization_changed",
-                        "data_capability_unavailable",
-                        "data_outside_declared_scope",
-                    }
-                    else "dossier_evidence_missing"
+                    exc.code
+                    if isinstance(exc, StoreError) and exc.code.startswith("dossier_raw_")
+                    else (
+                        "dossier_source_revoked"
+                        if isinstance(exc, RegistryError)
+                        or isinstance(exc, StoreError)
+                        and exc.code
+                        in {
+                            "data_cache_authorization_changed",
+                            "data_capability_unavailable",
+                            "data_outside_declared_scope",
+                        }
+                        else "dossier_evidence_missing"
+                    )
                 )
                 raise StoreError("数据快照缺失、变化或来源授权不可用", code, 409) from exc
             metadata.update(
@@ -316,6 +345,48 @@ class DossierService:
         ):
             raise StoreError("冻结证据的身份或字节发生变化", "dossier_evidence_changed", 409)
         return metadata, raw
+
+    def _verify_raw(self, sid, did, manifest):
+        entries = manifest.get("raw_files", [])
+        if not isinstance(entries, list) or len(entries) > 10000:
+            raise StoreError("原始响应清单非法", "dossier_raw_invalid", 409)
+        if not entries:
+            return
+        with directory(
+            self.store.root, (".control", "snapshots", sid, did), private=True
+        ) as folder:
+            available = set(os.listdir(folder))
+            names = set()
+            for item in entries:
+                if (
+                    not isinstance(item, dict)
+                    or not isinstance(item.get("name"), str)
+                    or not re.fullmatch(r"raw-[0-9]{4}\.bin", item["name"])
+                    or item["name"] in names
+                    or item.get("path") != f".control/snapshots/{sid}/{did}/{item['name']}"
+                    or not isinstance(item.get("sha256"), str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", item["sha256"])
+                    or type(item.get("size")) is not int
+                    or not 0 <= item["size"] <= MAX_BYTES
+                ):
+                    raise StoreError("原始响应身份或大小清单非法", "dossier_raw_invalid", 409)
+                names.add(item["name"])
+                if item["name"] not in available:
+                    raise StoreError("数据集原始响应已缺失", "dossier_raw_missing", 409)
+                try:
+                    content = read_file(folder, item["name"], private=True, limit=MAX_BYTES)
+                except StoreError as exc:
+                    code = (
+                        "dossier_raw_missing"
+                        if item["name"] not in os.listdir(folder)
+                        else "dossier_raw_changed"
+                    )
+                    raise StoreError("数据集原始响应不可核验", code, 409) from exc
+                if (
+                    len(content) != item["size"]
+                    or hashlib.sha256(content).hexdigest() != item["sha256"]
+                ):
+                    raise StoreError("数据集原始响应字节已变化", "dossier_raw_changed", 409)
 
     def add_evidence(self, did, body):
         body = validate(models.Evidence, body)
@@ -531,6 +602,7 @@ class DossierService:
         if not row.get("dossier_handoff_ids"):
             return False
         sources = self.registered_sources(sid)
+        sources = [source for source in sources if source["state"] == "available"]
         return bool(sources) and (
             operation == "list"
             or any(source_id in {source["id"], source["dossier_handle"]} for source in sources)
@@ -567,8 +639,9 @@ class DossierService:
                 "revision": int(revision),
                 "sha256": result["evidence"]["sha256"],
             }
-            self.store.save()
             source = self._source(handle, result["evidence"])
+            mapping[handle]["source_id"] = source["id"]
+            self.store.save()
             if result["content"] is None:
                 result["content"] = ""
             result.update(source=source, observation_id=source["id"])
@@ -584,11 +657,25 @@ class DossierService:
         row = self.store.session(sid)
         items = []
         for handle, binding in list(row.get("dossier_evidence", {}).items())[:100]:
-            item = self._evidence(binding["dossier_id"], binding["evidence_id"])
-            self._resolve(
-                item["source_session_id"], item["reference"], expected=item, target_sid=sid
-            )
-            items.append(self._source(handle, item))
+            source = {
+                "id": binding.get(
+                    "source_id", "file:" + hashlib.sha256(handle.encode()).hexdigest()[:24]
+                ),
+                "dossier_handle": handle,
+                "title": "档案证据不可用",
+                "state": "unavailable",
+                "sha256": binding.get("sha256"),
+            }
+            try:
+                item = self._evidence(binding["dossier_id"], binding["evidence_id"])
+                source = self._source(handle, item)
+                self._resolve(
+                    item["source_session_id"], item["reference"], expected=item, target_sid=sid
+                )
+            except StoreError as exc:
+                project_error(source, exc)
+                log.warning("dossier_registered_source_unavailable", session_id=sid, code=exc.code)
+            items.append(source)
         return items
 
     def _source(self, handle, item):
@@ -612,13 +699,86 @@ class DossierService:
             result["url"] = item["source"]
         return result
 
+    def _archived_report_reference(self, sid, digest):
+        from ..resources.research_report import list_report_versions
+
+        if not re.fullmatch(r"[a-f0-9]{64}", digest or ""):
+            return None
+        try:
+            with directory(self.store.root, ("sessions", sid, "outputs")):
+                versions = list_report_versions(self.store.root / "sessions" / sid / "outputs")
+        except (StoreError, OSError, ValueError, TypeError, KeyError) as exc:
+            log.warning(
+                "dossier_report_version_unavailable", session_id=sid, error_type=type(exc).__name__
+            )
+            raise StoreError("历史报告版本暂不可核验", "dossier_evidence_changed", 409) from exc
+        for version in versions:
+            for item in version.get("files", []):
+                if item.get("name") == "research-report.json" and item.get("sha256") == digest:
+                    relative = "outputs/" + version["directory"] + "/" + item["stored_name"]
+                    if hashlib.sha256(self._read_path(sid, relative)).hexdigest() != digest:
+                        raise StoreError("历史报告原件已变化", "dossier_evidence_changed", 409)
+                    return {"type": "file", "id": relative}, version["version_id"]
+        return None
+
+    def _read_link_value(self, link):
+        sid = link["source_session_id"]
+        try:
+            row = self.store.session(sid, include_deleted=True)
+        except StoreError as exc:
+            raise StoreError("关联成果来源会话已缺失", "dossier_evidence_missing", 409) from exc
+        if row.get("purge_started_at") is not None:
+            raise StoreError("关联成果来源已开始永久删除", "dossier_evidence_missing", 409)
+        if link["type"] == "session":
+            return {"link": link, "content": None, "truncated": False}
+        digest = link.get("sha256") or link.get("report", {}).get("content_sha256")
+        reference = link.get("reference")
+        if link["type"] == "report":
+            archived = self._archived_report_reference(sid, digest)
+            if archived:
+                reference, version_id = archived
+                link["version_id"] = version_id
+        if reference is None:
+            fid = link.get("reference_id") or link.get("report", {}).get("file_id")
+            relative = row.get("files", {}).get(fid)
+            if relative is None:
+                raise StoreError("关联成果原件已缺失", "dossier_evidence_missing", 409)
+            reference = {"type": "file", "id": relative}
+        metadata, raw = self._resolve(sid, reference)
+        if metadata["sha256"] != digest:
+            raise StoreError("关联成果原件已变化", "dossier_evidence_changed", 409)
+        link["resolved_reference"] = reference
+        try:
+            content = raw.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            content = None
+        return {
+            "link": link,
+            "content": content[:24000] if content is not None else None,
+            "truncated": content is not None and len(content) > 24000,
+        }
+
+    def read_link(self, did, lid):
+        identifier(lid)
+        link = next((item for item in self.metadata.get(did)["links"] if item["id"] == lid), None)
+        if link is None:
+            raise StoreError("成果关联不存在", "dossier_link_unknown", 404)
+        with retention_lock(self.store.root, create=False):
+            return self._read_link_value(link)
+
     def observations(self, sid, *, task_id, contract_sha):
         from ..research_business_evidence import business_observations
 
         result, inputs = [], []
         for source in self.registered_sources(sid):
+            if source["state"] != "available":
+                continue
             match = source["dossier_handle"].split(":")
-            read = self.read_evidence(match[1], match[2], target_sid=sid, full=True)
+            try:
+                read = self.read_evidence(match[1], match[2], target_sid=sid, full=True)
+            except StoreError as exc:
+                log.warning("dossier_observation_source_unavailable", session_id=sid, code=exc.code)
+                continue
             if read["evidence"].get("admission", {}).get("report_admitted") is False:
                 continue
             content = read["content"]
@@ -693,7 +853,9 @@ class DossierService:
                 if not path:
                     raise StoreError("Host 文件身份不存在", "dossier_file_unknown", 404)
                 evidence, _ = self._resolve(sid, {"type": "file", "id": path})
-                link.update(reference_id=fid, sha256=evidence["sha256"])
+                link.update(
+                    reference_id=fid, reference=evidence["reference"], sha256=evidence["sha256"]
+                )
             elif projection is not None:
                 # Keep the exact Host verdict; an incomplete/invalid draft stays so.
                 report = {
@@ -718,6 +880,12 @@ class DossierService:
                     ):
                         raise StoreError("报告在归档前已变化", "dossier_report_changed", 409)
                     report.setdefault("content_sha256", evidence["sha256"])
+                    archived = self._archived_report_reference(sid, evidence["sha256"])
+                    if archived:
+                        reference, version_id = archived
+                        evidence, _raw = self._resolve(sid, reference)
+                        report["version_id"] = version_id
+                    link.update(reference=evidence["reference"], sha256=evidence["sha256"])
                 link.update(report=report, quality=projection.get("quality", "incomplete"))
             connection.execute(
                 "INSERT INTO links VALUES(?,?,?)", (link["id"], did, canonical(link))
@@ -748,15 +916,31 @@ class DossierService:
         return self.metadata.mutate(did, body, "link", add)
 
     def backup_to(self, destination):
-        return self.metadata.backup_to(destination)
+        with admission(), retention_lock(self.store.root):
+            with self.metadata.connection() as connection:
+                if connection is not None:
+                    for row in connection.execute("SELECT payload FROM evidence"):
+                        self._verify_retained_metadata(json.loads(row[0]))
+            return self.metadata.backup_to(destination)
+
+    def _verify_retained_metadata(self, item):
+        if item.get("link_only") and item.get("sha256") is None:
+            self.store.session(item["source_session_id"], include_deleted=True)
+        else:
+            if (
+                item.get("link_only")
+                and item.get("reference", {}).get("id") == "outputs/research-report.json"
+            ):
+                archived = self._archived_report_reference(
+                    item["source_session_id"], item.get("sha256")
+                )
+                if archived:
+                    item = {**item, "reference": archived[0]}
+            self._resolve(item["source_session_id"], item["reference"], expected=item)
 
     def restore_from(self, source_path, *, expected_sha256):
-        def verify(item):
-            if item.get("link_only") and item.get("sha256") is None:
-                self.store.session(item["source_session_id"], include_deleted=True)
-            else:
-                self._resolve(item["source_session_id"], item["reference"], expected=item)
-
         return self.metadata.restore_from(
-            source_path, expected_sha256=expected_sha256, verify_evidence=verify
+            source_path,
+            expected_sha256=expected_sha256,
+            verify_evidence=self._verify_retained_metadata,
         )
