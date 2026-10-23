@@ -47,6 +47,48 @@ BJ = "m:0 t:81 s:262144 f:!2"
 
 
 @pytest.mark.asyncio
+async def test_limits_use_vendor_prices_including_st_and_beijing_not_percent_thresholds():
+    scopes = {
+        SH: [quote("600000", 1, f2=10.63, f350=10.63, f351=8.69, f292=5)],
+        SZ: [quote("002717", f2=0.41, f3=-8.89, f350=0.50, f351=0.41, f292=5)],
+        BJ: [quote("920001", f2=13.4, f3=30.0, f350=13.4, f351=7.22, f292=5)],
+    }
+    async with MarketProvider(transport=transport_for(scopes)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["summary"]["limit_up"] == 2
+    assert result["summary"]["limit_down"] == 1
+    assert result["missing"]["price_limit_status"] == 0
+    assert result["rows"][1]["limit_status"] == "down"
+
+
+@pytest.mark.asyncio
+async def test_unknown_trading_state_cannot_certify_a_price_limit():
+    scopes = {
+        SH: [quote("600000", 1, f350=10, f351=8)],
+        SZ: [quote("000001")],
+        BJ: [quote("920001")],
+    }
+    async with MarketProvider(transport=transport_for(scopes)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["rows"][0]["limit_status"] == "unknown"
+    assert result["summary"]["limit_up"] is None
+
+
+@pytest.mark.asyncio
+async def test_absent_invalid_limit_prices_never_become_zero_limit_counts():
+    scopes = {
+        SH: [quote("600000", 1, f350=0, f351=0)],
+        SZ: [quote("000001", f350=8, f351=12)],
+        BJ: [quote("920001")],
+    }
+    async with MarketProvider(transport=transport_for(scopes)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["summary"]["limit_up"] is None
+    assert result["summary"]["limit_unknown"] == 3
+    assert all(row["limit_status"] == "unknown" for row in result["rows"])
+
+
+@pytest.mark.asyncio
 async def test_details_have_a_separate_hundred_request_capacity():
     count = 0
 

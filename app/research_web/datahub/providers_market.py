@@ -8,6 +8,7 @@ This reader deliberately does not inherit the single-asset 5,000-row limit.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import math
 import re
@@ -39,7 +40,9 @@ SCOPES = {
     "SZ": "m:0 t:6 f:!2,m:0 t:80 f:!2",
     "BJ": "m:0 t:81 s:262144 f:!2",
 }
-QUOTE_FIELDS = "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f26,f124,f292"
+QUOTE_FIELDS = (
+    "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f26,f124,f292,f350,f351"
+)
 BOARD_FIELDS = "f2,f3,f6,f8,f12,f13,f14,f20,f104,f105,f128,f136,f124"
 INDEXES = (
     ("000001.SH", "上证指数", "1.000001"),
@@ -405,6 +408,8 @@ class MarketProvider:
             "pb": "f23",
             "change_60d_pct": "f24",
             "change_ytd_pct": "f25",
+            "limit_up_price": "f350",
+            "limit_down_price": "f351",
         }
         result: dict[str, Any] = {name: _number(row.get(field)) for name, field in mapping.items()}
         lots = _number(row.get("f5"))
@@ -419,6 +424,7 @@ class MarketProvider:
             listing_date=_listing_date(row.get("f26")),
             trade_status=_trade_status(row.get("f292")),
             price_basis="quote",
+            source_closed=row.get("f292") == 5,
         )
         if result["trade_status"] == "suspended" and result["price"] is not None:
             result["price_basis"] = "suspended_reference"
@@ -575,6 +581,24 @@ class MarketProvider:
         result["temporal_complete"] = not missing_time and not previous_date and bool(trade_date)
         for row in rows:
             row["stale"] = row["as_of"] is None or row["as_of"][:10] != trade_date
+            upper, lower, price = (
+                row.get(name) for name in ("limit_up_price", "limit_down_price", "price")
+            )
+            row["limit_status"] = "unknown"
+            if row["trade_status"] in {"suspended", "unlisted", "delisted"}:
+                row["limit_status"] = "not_applicable"
+            elif (
+                row["trade_status"] == "normal"
+                and not row["stale"]
+                and price is not None
+                and upper is not None
+                and lower is not None
+                and 0 < lower < upper
+                and lower <= price <= upper
+            ):
+                row["limit_status"] = (
+                    "up" if price == upper else "down" if price == lower else "none"
+                )
         result["missing"] = {
             "quote": missing_quotes,
             "as_of": missing_time,
@@ -583,13 +607,14 @@ class MarketProvider:
             "amount": sum(
                 row["amount"] is None and row["trade_status"] != "unlisted" for row in rows
             ),
-            "price_limit_status": len(rows),
+            "price_limit_status": sum(row["limit_status"] == "unknown" for row in rows),
         }
         result["limitations"].extend(
             [
                 "股票池为东方财富沪深北A股口径；分页完整性不等于交易所目录已独立核验。",
                 "交易状态采用东财官网f292映射；停牌和未上市单列，不计平盘。停牌参考价按单股接口f301最后价格或f60昨收标注；不代表当日成交。",
-                "缺失成交额仅用同身份、同日单股接口的真实值补取；0与空值区分。补取最多100只、10秒，与全市场快照同批留证；失败保留缺口。涨跌停和昨日成交额未提供时不推算。",
+                "缺失成交额仅用同身份、同日单股接口的真实值补取；0与空值区分。补取最多100只、10秒，与全市场快照同批留证；失败保留缺口。",
+                "涨跌停以同批f350涨停价/f351跌停价与有效现价逐股比较，不以固定涨跌幅判断；限价缺失、非正值或冲突时记未知，停牌/未上市单列。未核实无价格限制的证券不推断为普通未涨跌停。",
                 "成交量按来源手数换算为股，成交额和市值单位为人民币元；PE为动态口径。",
             ]
         )
@@ -671,6 +696,27 @@ class MarketProvider:
             "amount": amount,
             "amount_missing": len(amount_pool) - len(amounts),
             "amount_scope_count": len(amount_pool),
+            "amount_pool_hash": hashlib.sha256(
+                "\n".join(sorted(row["asset"] for row in amount_pool)).encode()
+            ).hexdigest(),
+            "closing_snapshot": bool(amount_pool)
+            and all(
+                row.get("source_closed") or row.get("trade_status") == "suspended"
+                for row in amount_pool
+            )
+            and amount is not None,
+            "limit_up": (
+                sum(row.get("limit_status") == "up" for row in rows)
+                if any(row.get("limit_status") in {"up", "down", "none"} for row in rows)
+                else None
+            ),
+            "limit_down": (
+                sum(row.get("limit_status") == "down" for row in rows)
+                if any(row.get("limit_status") in {"up", "down", "none"} for row in rows)
+                else None
+            ),
+            "limit_unknown": sum(row.get("limit_status", "unknown") == "unknown" for row in rows),
+            "limit_covered": sum(row.get("limit_status") in {"up", "down", "none"} for row in rows),
             "gainers": ordered[-10:][::-1],
             "losers": ordered[:10],
         }

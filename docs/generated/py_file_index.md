@@ -4488,6 +4488,7 @@ Imports:
 - `asyncio`
 - `core.observability`
 - `datetime`
+- `hashlib`
 - `httpx`
 - `json`
 - `math`
@@ -6307,7 +6308,7 @@ Classes:
   - methods: __init__
 - `MarketService`
   - Cache public market reads inside one authenticated user's data root.
-  - methods: __init__, activity_witness, _interval, _key, _path, _directory, _load, _valid_key, _valid_snapshot, _complete_snapshot, _record, _persist, _project, overview, market_state, _validate_board, _trim_requests, refresh, _await_draining, _finish_reader, _collect, _trim_auxiliary, _resolve_members, request, cancel, _quote_snapshot, _filtered, quotes, export_quotes, close
+  - methods: __init__, activity_witness, _interval, _key, _path, _directory, _load, _valid_key, _valid_snapshot, _complete_snapshot, _record, _persist, _previous_amount, _quote_history, _flow_history, _project, overview, market_state, _validate_board, _trim_requests, refresh, _await_draining, _finish_reader, _collect, _trim_auxiliary, _resolve_members, request, cancel, _quote_snapshot, _filtered, quotes, export_quotes, close
 
 Functions:
 - `_iso`

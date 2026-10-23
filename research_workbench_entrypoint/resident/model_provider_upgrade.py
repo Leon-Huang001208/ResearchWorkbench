@@ -71,6 +71,10 @@ MARKET_GATEWAY_SHA256 = "a5ebfaee0211403fd12083c61b6eafd6a4e08915af1c3c9c95b34fb
 MARKET_GAPS_MODE = "reviewed-market-gaps-v1"
 MARKET_GAPS_PREVIOUS = "99d3ee34977c47189a5638207c109a555f52a687"
 MARKET_GAPS_PAYLOAD = "9faeeca3003a912ca75799fb27b635ba1bb87a1a"
+MARKET_HISTORY_MODE = "reviewed-market-history-v1"
+MARKET_HISTORY_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
+MARKET_HISTORY_PAYLOAD = "4f0a248fc87249d41e1c3f75f700c17c8351ad95"
+MARKET_HISTORY_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -81,6 +85,7 @@ ASSET_MODES = frozenset(
         ASSET_V5_MODE,
         MARKET_MODE,
         MARKET_GAPS_MODE,
+        MARKET_HISTORY_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -165,6 +170,8 @@ def previous_for(mode):
         return MARKET_PREVIOUS
     if mode == MARKET_GAPS_MODE:
         return MARKET_GAPS_PREVIOUS
+    if mode == MARKET_HISTORY_MODE:
+        return MARKET_HISTORY_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -223,7 +230,7 @@ def read_business_index(path: Path):
 
 
 def verify_primary(home, expected, mode):
-    if mode in {MARKET_MODE, MARKET_GAPS_MODE, ASSET_V5_MODE}:
+    if mode in {MARKET_MODE, MARKET_GAPS_MODE, MARKET_HISTORY_MODE, ASSET_V5_MODE}:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
 
@@ -294,6 +301,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V5_MODE: ASSET_V5_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
+        MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -765,6 +773,8 @@ def target_manifest(state):
     manifest = {**state["manifest"], "code_commit": state["target"]}
     if state.get("mode") == ASSET_V5_MODE:
         manifest["web_lock_sha256"] = ASSET_V5_WEB_LOCK_SHA256
+    elif state.get("mode") == MARKET_HISTORY_MODE:
+        manifest["web_lock_sha256"] = MARKET_HISTORY_WEB_LOCK_SHA256
     return manifest
 
 
@@ -850,7 +860,10 @@ class Operations:
                 not in (previous_for(self.state.get("mode", MODE)), self.state["target"])
             ):
                 return False
-        if running["web"]["running"] and self.state.get("mode") == MARKET_GAPS_MODE:
+        if running["web"]["running"] and self.state.get("mode") in {
+            MARKET_GAPS_MODE,
+            MARKET_HISTORY_MODE,
+        }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
             )
@@ -1278,6 +1291,7 @@ def main(argv=None):
             "apply-assets-v5",
             "apply-market",
             "apply-market-gaps",
+            "apply-market-history",
             "recover",
         ),
     )
@@ -1298,6 +1312,7 @@ def main(argv=None):
                 "apply-assets-v5": ASSET_V5_MODE,
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
+                "apply-market-history": MARKET_HISTORY_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))
