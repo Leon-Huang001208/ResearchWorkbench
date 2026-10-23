@@ -18,3 +18,6 @@
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"档案profile复用全账号64MiB业务索引与档案元数据、引用和保留标记保全、BirthFence和池空闲门，不新增账号权限、共享数据或后台任务，原安全边界和图保持。","diagrams":[]} -->
 
 完整constraints首次拒绝缺少两项structure decision及ETF原模块说明；补齐决策和模块说明，源／测试字节保持，重新绑定最终候选验证。原失败保留，不删门。
+
+
+主线PR210前进后正常合并固定ETF-v2与档案两模式；测试parametrize冲突首次组合脚本未通过语法检查，shell未停止误提交本地冲突标记。该提交未发布，已追加修复保留历史并启用失败即停止；重新做语法、标记、全矩阵与最终候选验证，不重写历史或弱化门。
