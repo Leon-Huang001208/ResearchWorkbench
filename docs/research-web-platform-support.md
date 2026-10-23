@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+2026-10-23：市场限价/昨日/历史属于Mac mini功能开发与Native固定部署，必须原通用两CI及同候选macos-14安装；Windows/Linux原生和Docker产品证据保持各设备原状态，本任务不触发他平台产品dispatch，不提升跨平台支持声明。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
+
 2026-10-22资产v5索引预检修复仍属Mac mini部署工具修复，仅v5复用已有64 MiB业务读取器；没有新增平台能力、依赖或安装器变化。769＋112本机及173项独评为主任务既有检查点，PR187 Constraints39794625674仍记录失败，后续同候选原三CI及实际切换另证。Windows／Linux原生和Docker产品不由这次Native读取修复推定通过。
 
 2026-10-22资产交互v5是Mac mini功能／固定部署任务，固定PREVIOUS=51f09、PAYLOAD=PR185 merge9bc4；产品合并及产品三CI不更新本profile的验收状态。v5仍需本机操作员回归、独立评审、原通用两门及同候选macos-14安装，实际部署／认证页面另证；Windows、Linux原生和Docker产品层保持各自NOT_RUN／既有状态，由对应设备负责，不从Mac源码或预览推断已支持。

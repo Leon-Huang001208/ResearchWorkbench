@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+2026-10-23：市场补齐仍位于原Host MarketService、DataHub公开东财和当前用户缓存内；只增加限价状态、昨日逐股基线及最多30日真实资金留存，无新增部署节点或后台采集服务。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
+
 公开indices桥由现有ResearchService注入`MarketReader`，仅为MarketService的固定指数分区接入原ResearchWarehouse/StorageRunner。其余分区直取和用户缓存、GET零上游、唯一DSH及部署节点不变；13市场数据流增加可选个人仓库条件边，未配置不会创建数据库或后台采集。
 
 资产v5大索引修复只调整既有Native操作员预检读取绑定：v5业务index沿64 MiB安全读取器，部署元数据仍1 MB。主实例／网关、账号根、锁、BirthFence和version4事务没有新增节点或拓扑；旧profile与固定产品不变，01部署图仍准确。此前8.67 MB索引在停机前被拒绝，不能把随后本机修复或文档补齐当作实际切换成功。
