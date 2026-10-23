@@ -106,7 +106,7 @@ ETF_WEEKLY_V2_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
 # Fixed merged dossiers product; retain the registered resident recovery identity.
 DOSSIERS_MODE = "reviewed-research-dossiers-v1"
 DOSSIERS_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
-DOSSIERS_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+DOSSIERS_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 ASSET_MODES = frozenset(
     (
         ASSET_MODE,

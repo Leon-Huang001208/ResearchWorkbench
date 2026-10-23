@@ -2318,7 +2318,7 @@ def test_etf_weekly_preserves_install_lock_without_dependency_exception(profile)
 def test_dossiers_profile_binds_verified_resident_and_merged_product():
     assert upgrade.DOSSIERS_MODE == "reviewed-research-dossiers-v1"
     assert upgrade.previous_for(upgrade.DOSSIERS_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
-    assert upgrade.DOSSIERS_PAYLOAD == "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+    assert upgrade.DOSSIERS_PAYLOAD == "1780064b712afb61ff18f2f1811650fc31fd3038"
     assert upgrade.DOSSIERS_MODE in upgrade.ASSET_MODES
     assert upgrade.target_manifest(
         {"mode": upgrade.DOSSIERS_MODE, "manifest": {"web_lock_sha256": "old"}, "target": "b" * 40}

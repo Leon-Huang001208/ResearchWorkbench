@@ -2,7 +2,7 @@
 
 宿主macOS，任务dossiers-resident-20261023-514d61ac，Web常驻部署功能。用户明确授权补齐受审入口后部署并验收；不含收费实测。
 
-档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 ## 已观察
 
@@ -24,3 +24,5 @@
 
 
 专项独评发现HIGH：旧5343 wheel不含dossier_preservation，而旧恢复pyz只含resident模块。修复新包manifest绑定永久artifact_source，journal/自身摘要/版本/模式/精确源身份/Git干净校验在app导入前完成，父进程仅改sys.path，不改变旧服务PYTHONPATH；旧历史包格式兼容、新两模式缺source拒绝。先以fixture环境得到1通过/5退出码断言失败（实际正确blocked退出1，已修测试错误预期），再用实际配置的5343 primary venv完成6项真实zipapp子进程反例54.47秒；未安装依赖、未变更生产数据、未停止服务。
+
+主线后续合入PR212 WGC与PR213资产图表修复，封闭产品pin更新为1780064b712afb61ff18f2f1811650fc31fd3038以保留已审主线功能；不得用567旧pin忽略新增源码或放宽逐blob冻结检查。既有ETF-v2历史pin保持567，新候选重新执行全部本机门与同候选CI。
