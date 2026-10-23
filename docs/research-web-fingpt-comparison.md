@@ -136,3 +136,6 @@ fetch审计只克隆实际响应，不改返回给模型的数据；正文保留
 ## 2026-10-23：长期研究档案与机会预警
 
 长期档案与确定性信号可为原比较会话准备冻结材料，但只在实际 Prompt 绑定 receipt 后沿唯一 DSH 执行，不自动创建比较、触发模型或提升来源范围。归档成果保留原 quality／hash／task，未准入小创内容、扫描线索和离线 UI 证据不能替代冻结实验、真实取数、盲评或规范报告质量门。候选 Registry 未验证，54 子弹仅估算，真实价格／凭据／费用与部署未执行；本轮原 CI 仅追加合同与静态资源，见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)与[候选](research-web-seek-alpha.md)。
+
+
+WGC 两个公开端点新增月度吨数原生研究快照，存量/流量和来源范围分别保存，不替代现有 Wind/Excel 或私有生产验收。AK 个股资金流在 SDK 前拒绝历史时点/正式回测；first_observed 不获得历史 PIT 资格。详见[原生快照](research-web-vendor-snapshots.md)与[研究仓](research-web-market-store.md)。本轮未部署、未启动生产库或日程。

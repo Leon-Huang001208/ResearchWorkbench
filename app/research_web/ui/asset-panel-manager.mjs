@@ -3,8 +3,8 @@ import {INDICATOR_CATALOG, INDICATOR_RULES, UNAVAILABLE_INDICATORS, indicatorTit
 
 const PARAMETER_LABELS={short:'短周期',middle:'中周期',long:'长周期',period:'周期',fast:'快线周期',slow:'慢线周期',signal:'信号周期',k:'K 平滑',d:'D 平滑',deviation:'标准差倍数',step:'步长',maximum:'步长上限',adx:'ADX 平滑',average:'均线周期'};
 export function indicatorStrip(state={}) {
-  const favorites=normalizeFavorites(state.favorites);
-  return `<div class="asset-indicator-strip" role="toolbar" aria-label="常用副图指标">${favorites.map(id=>`<button type="button" class="kline-btn${state.activePanel===id?' active':''}" data-asset-chart-action="panel-choose-${id}" aria-pressed="${state.activePanel===id}">${e(INDICATOR_CATALOG.find(item=>item.id===id).name)}</button>`).join('')}<button type="button" class="kline-btn" data-asset-chart-action="indicator-add" title="增加副图">＋副图</button><button type="button" class="kline-btn" data-asset-chart-action="indicator-manager" title="管理常用指标和参数">指标…</button></div>`;
+  const panels=[...new Set((Array.isArray(state.panels)?state.panels:['volume','macd']).filter(id=>Object.hasOwn(INDICATOR_RULES,id)))];
+  return `<div class="asset-indicator-strip" role="toolbar" aria-label="已显示副图">${panels.map(id=>`<button type="button" class="kline-btn${state.activePanel===id?' active':''}" data-asset-chart-action="panel-choose-${id}" aria-pressed="${state.activePanel===id}">${e(INDICATOR_CATALOG.find(item=>item.id===id).name)}</button>`).join('')}<button type="button" class="kline-btn" data-asset-chart-action="indicator-add" aria-label="增加副图与管理指标" title="增加副图与管理指标">＋</button></div>`;
 }
 export function indicatorManager(model={}) {
   const {mode='manage',group='全部',query=''}=model; const favorites=normalizeFavorites(model.favorites);

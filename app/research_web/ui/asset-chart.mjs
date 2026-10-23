@@ -144,7 +144,7 @@ function panelLabels(bar = {}, theme = CHART_THEMES.dark, state = {}, metadata =
 }
 function panelHeaders(state) {
   const layout = chartLayout(state);
-  return layout.panels.map((id, index) => `<div class="asset-panel-header${state.activePanel===id?' is-active':''}" style="top:${layout.top + layout.mainHeight + 3 + index * layout.panelStep}px" data-asset-panel="${id}"><button type="button" class="asset-panel-name kline-btn" data-asset-chart-action="indicator-replace-${id}" aria-label="替换 ${PANEL_NAMES[id]} 副图">${e(indicatorTitle(id,state.indicatorSettings))}</button><span class="asset-panel-readout" tabindex="0" data-asset-panel-readout="${id}"></span><span class="asset-panel-tools"><button type="button" class="kline-btn" data-asset-chart-action="indicator-add-after-${id}" aria-label="在 ${PANEL_NAMES[id]} 后增加副图" title="增加副图">＋</button><button type="button" class="kline-btn" data-asset-chart-action="panel-remove-${id}" aria-label="移除 ${PANEL_NAMES[id]}" title="移除此副图">−</button></span></div>`).join('');
+  return layout.panels.map((id, index) => `<div class="asset-panel-header${state.activePanel===id?' is-active':''}" style="top:${layout.top + layout.mainHeight + 3 + index * layout.panelStep}px" data-asset-panel="${id}"><button type="button" class="asset-panel-name kline-btn" data-asset-chart-action="indicator-replace-${id}" aria-label="替换 ${PANEL_NAMES[id]} 副图">${e(indicatorTitle(id,state.indicatorSettings))}</button><span class="asset-panel-readout" tabindex="0" data-asset-panel-readout="${id}"></span><span class="asset-panel-tools"><button type="button" class="kline-btn" data-asset-chart-action="panel-remove-${id}" aria-label="移除 ${PANEL_NAMES[id]}" title="关闭此副图">×</button></span></div>`).join('');
 }
 function historyStatus(state, metadata) {
   const job = jobFor(metadata); const status = String(job.status || job.state || ''); const pending = busyHistory(metadata) || state.historyRequestPending;
@@ -183,8 +183,8 @@ export function renderMarketTerminal(rows = [], state = {}, metadata = {}) {
   const bars = displayBars(rows, normalized, metadata); Object.assign(normalized, rangeFor(bars.length, normalized));
   const activeIndex = selectedIndex(bars, normalized); normalized.activeIndex = activeIndex;
   normalized.selectedDate = daily[actualDateIndex(daily, normalized.selectedDate || bars[activeIndex]?.source_end_date || bars[activeIndex]?.date)]?.date || '';
-  const active = source === 'day' ? daily[nearestIndex(daily, normalized.selectedDate)] : bars[activeIndex];
-  const previous = source === 'day' ? daily[nearestIndex(daily, normalized.selectedDate) - 1] : bars[activeIndex - 1];
+  const active = bars[activeIndex];
+  const previous = bars[activeIndex - 1];
   const chip = canonicalChip(source === 'day' ? daily : [], normalized, metadata); const layout = chartLayout(normalized);
   return `<section class="asset-market-terminal" aria-label="行情与技术指标">${controls(normalized, bars.length, metadata)}<div class="asset-terminal-quote asset-history-readout" data-asset-history aria-live="off">${readout(active, previous, metadata)}</div><div class="kline-terminal-layout"><div class="asset-kline-stage"><div class="asset-main-overlay" tabindex="0" aria-label="主图指标读数，可横向滚动" data-asset-overlay-label>${overlayReadout(bars[activeIndex], normalized)}</div><div class="asset-terminal-chart" style="height:${layout.height}px" data-asset-chart data-asset-echarts role="img" tabindex="0" aria-label="K线与自定义副图；方向键选择历史交易日"></div><div class="asset-panel-headers" data-asset-panel-headers>${panelHeaders(normalized)}</div><div class="asset-panel-controls"><details class="asset-panel-legacy" hidden><summary>增加副图</summary><div data-asset-panel-choices>${Object.entries(PANEL_NAMES).map(([id,name])=>`<button type="button" data-asset-chart-action="panel-add-${id}"${normalized.panels.includes(id)?' disabled':''}>${name}</button>`).join('')}</div></details><div data-asset-indicator-strip>${indicatorStrip(normalized)}</div><span class="asset-range-summary" data-asset-range-summary>第 ${bars.length ? normalized.start + 1 : 0}–${normalized.end} 条 / 共 ${bars.length} 条</span></div></div>${chipPanel(chip, normalized.chipSettings, normalized.chipTab)}</div><dialog class="asset-indicator-dialog" data-asset-indicator-manager aria-label="指标管理"></dialog><dialog class="asset-indicator-dialog asset-indicator-parameters-dialog" data-asset-indicator-parameter-dialog aria-label="指标参数"></dialog></section>`;
 }
@@ -217,7 +217,7 @@ export function buildMarketChartOption(bars, state = {}, metadata = {}, theme, c
   const [kdjMin, kdjMax] = kdjDomain(bars, state); const axes = layout.grid.map((grid, index) => index);
   const axisStyle = { axisLine: { onZero: false, lineStyle: { color: palette.grid } }, axisTick: { show: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' };
   return { backgroundColor: 'transparent', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', showContent: false, axisPointer: { type: 'cross', crossStyle: { color: palette.muted } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 12 }, formatter: params => { const index = params?.[0]?.dataIndex; return index === undefined ? '' : readout(bars[index], bars[index - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: palette.muted }, label: { backgroundColor: palette.surface, color: palette.text } }, graphic: panelLabels(bars[selectedIndex(bars, state)], palette, state, metadata), grid: layout.grid,
-    xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
+    xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisPointer: { label: { show: index === axes.length - 1 } }, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
     yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: !['rsi','wr','dmi'].includes(id), gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : ['rsi','wr','dmi'].includes(id) ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : ['volume','obv'].includes(id) ? volumeTick : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
     dataZoom: [{ type: 'inside', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, left: 8, right: 54, showDetail: false, borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.selected, dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } }, selectedDataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.selected } }, handleStyle: { color: palette.muted, borderColor: palette.surface }, moveHandleStyle: { color: palette.muted }, emphasis: { handleStyle: { color: palette.text }, moveHandleStyle: { color: palette.text } }, textStyle: { color: palette.muted, fontSize: 12 } }], series };
 }
@@ -240,7 +240,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   const find = selector => slot?.querySelector(selector);
   const notify = reason => guarded('change', () => onChange(getState(), { reason }));
   const selectedDailyIndex = () => nearestIndex(daily, state.selectedDate);
-  const currentBar = () => source === 'day' ? daily[selectedDailyIndex()] : bars[state.activeIndex];
+  const currentBar = () => bars[state.activeIndex];
   function pageTheme() {
     const root = slot?.ownerDocument?.documentElement; const fallback = chartTheme(root && root.dataset?.theme !== 'dark' ? 'light' : 'dark');
     try {
@@ -261,8 +261,8 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   }
   function syncLabels() {
     const meta = find('[data-asset-chart-metadata]'); if (meta) meta.textContent = metadataLabel(metadata);
-    const bar = currentBar(); const index = source === 'day' ? selectedDailyIndex() : state.activeIndex;
-    const history = find('[data-asset-history]'); if (history) history.innerHTML = readout(bar, (source === 'day' ? daily : bars)[index - 1], metadata);
+    const bar = currentBar();
+    const history = find('[data-asset-history]'); if (history) history.innerHTML = readout(bar, bars[state.activeIndex - 1], metadata);
     const overlay = find('[data-asset-overlay-label]'); if (overlay) overlay.innerHTML = overlayReadout(bars[state.activeIndex], state);
     const summary = find('[data-asset-range-summary]'); if (summary) summary.textContent = `第 ${bars.length ? state.start + 1 : 0}–${state.end} 条 / 共 ${bars.length} 条`;
     const date = find('[data-asset-selected-date]'); if (date) {

@@ -39,6 +39,7 @@ from .providers_external import (
     OFFICIAL_NUMERIC_CONTRACT,
     SPDR_NUMERIC_CONTRACT,
 )
+from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT
 from .reliability import TOTAL_DEADLINE, CircuitBreaker, execute, failure_code
 from .security import load_control
 from .snapshots import Snapshots
@@ -1715,6 +1716,12 @@ class DataHub:
                             and query.parameters.get("dataset") == "gld"
                         ):
                             required_contract = SPDR_NUMERIC_CONTRACT
+                        elif (
+                            provider_id == "ext_wgc"
+                            and query.capability == "external_data"
+                            and query.parameters.get("dataset") in WGC_DATASETS
+                        ):
+                            required_contract = WGC_NUMERIC_CONTRACT
                         elif provider_id == "akshare":
                             if query.capability == "financials" and query.parameters.get(
                                 "statements"

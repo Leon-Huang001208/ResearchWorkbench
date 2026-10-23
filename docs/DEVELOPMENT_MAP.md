@@ -555,3 +555,13 @@ providers_baostock.py的profitability分支调用固定query_profit_data，Broke
 ## 2026-10-23：长期研究档案与机会预警
 
 新增 `app/research_web/dossiers/` 负责个人 SQLite、不可变修订、原件解析／pin、冻结交接与确定性扫描；`dossier_preservation.py` 将元数据和引用摘要纳入既有保全。UI 的 dossiers 模块挂入资产观察／情报二级视图，实际 Prompt 才携带 `dossier_handoff_id`；MCP 继续走原受管插件并自动冻结到既有 Snapshots。定位、字段与回归分别见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)、[UI](research-web-dossiers-ui.md)及[候选接入](research-web-seek-alpha.md)；原 Checks／Bootstrap 追加测试与静态资源，由主任务将独评、离线、CI及精确候选统一绑定。
+
+2026-10-23 资产周期读数在 ui/asset-chart.mjs 的 renderMarketTerminal／syncLabels 统一消费 displayBars 的当前及上一聚合记录；原日线 selectedDate 只服务日期选择与筹码截止。asset-panel-manager.mjs 的底栏只留单一＋，同图副图标题替换／×关闭；asset-chip-panel.mjs 关闭横轴网格。无新API、存储、Provider或依赖，既有架构图拓扑准确。回归在 research_web_asset_chart.test.mjs 与 research_web_asset_indicator_library.test.mjs。
+
+副图底栏仅列出当前已显示的面板，选中标签确定当前面板；未显示指标、常用列表与参数统一收进＋目录，不把所有常用项铺在底栏。关闭全部副图后仍保留＋入口。
+
+## WGC 月度吨数与研究时点（2026-10-23）
+
+现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
+
+AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。

@@ -28,6 +28,7 @@ from .providers_external import (
     spdr_projection,
 )
 from .providers_market import INDEXES
+from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT, WGC_UNITS, wgc_fields, wgc_projection
 
 log = get_logger(__name__)
 CAPABILITIES = frozenset(
@@ -55,6 +56,8 @@ PUBLIC_NUMERIC = frozenset(
         ("ext_nyfed", "rates"),
         ("ext_treasury", "cash"),
         ("ext_spdr", "gld"),
+        ("ext_wgc", "etf-holdings"),
+        ("ext_wgc", "etf-flows"),
         ("ext_ths", "cmd_history_quotation"),
         ("ext_ths", "basic_data_service"),
         ("ext_ths", "real_time_quotation"),
@@ -98,6 +101,41 @@ START = date(1970, 1, 1)
 NAV_SEMANTIC_GAPS = frozenset(
     {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
 )
+
+
+def _complete_wgc_snapshot(result: Result, dataset: str) -> bool:
+    """Bind the selected monthly slice to its original, without claiming vintage history."""
+    if (
+        result.provider_id != "ext_wgc"
+        or result.status not in {"complete", "snapshot"}
+        or result.pagination_complete is not True
+        or type(result.provider_total) is not int
+        or result.provider_total != len(result.rows)
+        or not result.rows
+        or result.missing
+        or len(result.raw) != 1
+        or any(
+            result.metadata.get(key) != value
+            for key, value in {
+                "schema_version": WGC_NUMERIC_CONTRACT,
+                "provider_semantics_revision": WGC_NUMERIC_CONTRACT,
+                "upstream_id": "worldgoldcouncil",
+                "availability_basis": "first_observed",
+                "revision_policy": "first_observed_not_historical_vintage",
+                "projection_scope": "monthly_tonnes_four_regions",
+                "units": WGC_UNITS,
+            }.items()
+        )
+        or result.metadata.get("historical_point_in_time") is not False
+        or result.metadata.get("formal_backtest_eligible") is not False
+    ):
+        return False
+    try:
+        return canonical(result.rows) == canonical(
+            wgc_projection(result.raw[0], dataset)
+        ) and canonical(result.fields) == canonical(wgc_fields())
+    except (ProviderError, MarketStoreError, TypeError, ValueError):
+        return False
 
 
 def _complete_spdr_snapshot(result: Result) -> bool:
@@ -311,7 +349,9 @@ class SnapshotSeries:
             query.capability == "external_data"
             and (self.scope.source, query.parameters.get("dataset")) in PUBLIC_NUMERIC
         )
-        if (self.scope.source, query.parameters.get("dataset")) == ("ext_spdr", "gld"):
+        if (self.scope.source, query.parameters.get("dataset")) == ("ext_spdr", "gld") or (
+            self.scope.source == "ext_wgc" and query.parameters.get("dataset") in WGC_DATASETS
+        ):
             try:
                 if arguments(query.parameters.get("arguments_json")):
                     return None
@@ -423,6 +463,14 @@ class SnapshotSeries:
                 )
             ):
                 log.info("research_snapshot_not_ingested", reason="china_macro_contract_incomplete")
+                return None
+            if (
+                query.capability == "external_data"
+                and self.scope.source == "ext_wgc"
+                and query.parameters.get("dataset") in WGC_DATASETS
+                and not _complete_wgc_snapshot(result, query.parameters["dataset"])
+            ):
+                log.info("research_snapshot_not_ingested", reason="wgc_contract_incomplete")
                 return None
             if (
                 query.capability == "external_data"
