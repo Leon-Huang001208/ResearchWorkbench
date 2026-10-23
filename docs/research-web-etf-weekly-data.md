@@ -45,6 +45,168 @@ Asia/Shanghai。提前手动试跑得到上一期，不能提前冻结未来行�
 现货、连续合约、收盘和结算的身份不能互换。来源日期、单位、币种或原始数据缺失会
 返回 `blocked_data`；模型的质量状态和缓存单元格总数不能消除这些问题。
 
+固定映射 `kind=edb` 的长历史按原生观测日期保留数据：已结束交易日上限之前的非市场日
+记录不会因不在 TDAYS 内而被丢弃或改写。上限仍是该市场 `completed_dates` 的最后一天，
+当前未结束／未来日期不因此取得资格。额外观测不加入交易日历，不参与市场周收益或成交天数。
+只有固定 `S0031525/ICE`、`M0000005/NYMEX` 的 `continuous_settlement` 历史允许有限负值
+（例如 WTI 2020-04-20 原生负结算）；黄金、指数和其他行情的负值仍拒绝。
+Provider 与 Host 使用同一日期／负值域判定；NaN、无穷值与布尔值仍拒绝，零／空值不变为
+有效价格，也不补必需历史缺口。原生文件和哈希保留，日志分别汇总非交易日观测与负结算条数。
+Host 原 `expected market sessions` 历史完整性门不变：S0270980 若缺2017-01-30，仍为
+`weekly_history_incomplete`，除以下固定单点补查外不能用额外日、旧缓存或其他品种补齐。
+
+## Excel 主来源（显式继任版本）
+
+`WeeklyProductionPolicy.data_source` 默认仍为 `wind_client_api`，保留历史已发布版本与未来
+API 迁移路径；准备操作只创建未发布的 `wind_excel` 继任版本。Run、生产上下文与幂等身份
+冻结来源、版本和来源资源哈希。当前发布版本、主管理员归属、Wind allowed/configured、
+凭据存储和取数前后配置摘要继续校验，不能从模型或公开工具参数选择本私有路径。
+
+Excel 模式不导入 WindPy，不要求 API 权益、WSET 配置或 API/Excel 等价校准。依赖检查只
+说明 xlwings 可发现，不能证明 Excel、Wind 登录或业务数据成功。schema2 的工作表 WSD 与 TDAYS
+显式使用每个市场已审 `TradingCalendar`，每段最多366自然日，防止1000行助手区域截断。
+私有采集对每个 TDAYS 请求按自然日窗口传入行数、1列，对普通单字段 WSD 按自然日窗口
+传入行数、2列；印度按该段官方已结束交易日的完整列表传入行数。实际读取保留额外1行和
+1列溢出哨兵，`0`／`False` 也算占用，超界直接阻断而不截取成可用结果。原始请求只写
+一次；预清理、写入、读取、清理和关闭分别记录安全请求哈希及范围，未知结果仍不重发。
+自有助手范围在 Mac 直接使用 `range.api.clear_contents()` 原生清空命令，不查询范围形状、
+不切换应用全局 `screen_updating`；其他平台使用 xlwings 标准 `clear_contents()`。
+本机原生对照已证实 `raw_value=None` 保留原数字，因此不能用于清理；旧值若留在溢出
+哨兵仍须阻断。此离线修复不证明完整57项取数成功，也不放宽 Host 的日期与质量复算。
+schema3 仅给印度 `IN/SENSEX.BO` 增加下述显式交易所日历；其余12市场保持原路径。
+工作表 WSD 的每个选项必须是独立字符串参数。配置中的分号 `options` 只是内部表示，
+由共享 `build_wsd_formula` 拆成 `...,"Period=D","PriceAdj=U","Days=Trading","Fill=Blank","TradingCalendar=TSE")`。
+不能把 SDK 的单个分号选项字符串直接作为 Excel 第五参数；Mac 原生插件可能忽略该组合并
+退回默认日期轴。私有 collector 记录并执行同一个真实公式，保持单次调用，不改 API SDK 语法。
+每次工作表请求只执行一次；未知、超时和取消不得自动重放。与普通 Wind Provider 共用单线程
+和 Future 容量；私有周报默认显式使用 `isolated_workbook=True, existing_app_only=True`，只在
+既有可连接 Excel 实例中新建本任务拥有的临时工作簿，不启动或退出用户实例，不修改既有
+工作簿或用户应用设置。真实供应商操作及自有工作簿 close 完成后才释放；close 失败将容量
+标记为不可继续使用。执行持有现有常驻维护准入，普通 Wind 入口的选择策略保持不变。
+
+长期 EDB 使用用户显式冻结的 Wind 原生数值导出，不把失败刷新称为成功。已发布资源的
+schema2 来源合同包含 `data_source=wind_excel`、`excel_exports` 和全部已审市场收盘定义。
+`verification.evidence_path/evidence_sha256` 必须绑定同版本不可变审查资源；经济日历配置为
+`method=wind_excel_export` 和显式 `importance_values`。原生“重要/中等/低”分别映射为
+“重要/较重要/一般”，不猜测 WSET。`excel_exports.edb` 声明 `path`、`sha256`、`exported_at`
+和 `sheet`；经济日历另声明 `coverage_start/end`、`coverage_evidence_path/sha256`、
+`observation_path/sha256`，并可通过
+`additional_sheets` 保留“财经大事”。事件保留原始页名。静态导出时间与原生零结果观察时间
+均须位于截止前一天至冻结截止点之间；当前时间已经更晚也不能追认历史截止点之后取得的输入。
+文件须匹配同版本哈希。读取有ZIP大小及行列上限，并处理 Wind 导出的错误A1维度。
+经济数据使用原生八列表头，财经大事使用五列（或同结构八列），各页均须保留 Wind 来源标记。
+经济事件投影同时保留原始 `time/previous/forecast/actual`：对应原生第2、6、7、8列，
+仅接受原样字符串、整数及有限浮点数，整数或浮点零均保留。缺列、空单元和空字符串为
+`null`；不猜测单位、不补值、不改时区。布尔、非有限数、容器及原生 `datetime.time`
+等未审类型明确返回 `weekly_excel_economic_value_invalid`，沿现有采集阻断日志留证。
+此投影保持日期、国家/地区、指标、重要性、原页名与事件顺序；Word母版经济表仍为原有
+日期／国家地区／指标三列，八列数据底稿不扩写Word版式。
+
+### 印度 BSE 显式日历（schema3）
+
+schema3 保留 schema2 的 Excel 来源、全部导出与 `verification` 审查资源合同；只允许
+`calendars.IN` 显式选择 `calendar_source=exchange_calendar`。该项精确字段为
+`calendar_source/semantics_verified/market/asset/timezone/close_time/completion_basis/evidence_path/evidence_sha256`，
+身份固定 `IN`、`SENSEX.BO`、`Asia/Kolkata`，`completion_basis=full_session_end`。
+不会把 Wind `BSE`（北京）或 `NSE`（日本）猜作印度，也不以别的证券替代 SENSEX。
+
+`evidence_path` 是当前版本真实发布资源内的规范化 JSON，精确字段为
+`schema_version:1/calendar_source/market/asset/timezone/completion_basis/coverage_start/coverage_end/observed_at/native_sources/days`。
+覆盖须包含本次 `window_start` 至 `period_end`，同一年度且最多63个自然日，每日恰有一行
+`{date,status,close_at,reason}`；`status` 为 `open|closed`，`reason` 为
+`regular|holiday|weekend`。闭市日 `close_at=null`；开市日为该日有时区的完整收盘时间。
+不接受遗漏日期、乱序、重复、范围不足或从价格行反推的交易日。
+
+`native_sources` 恰含 `holidays` 与 `hours`，每项具有
+`path/sha256/publisher/notice/source_url/published_on`；`hours` 另有 `effective_from`。
+`published_on` 只记录公告原生日期，不虚构发布时间；`observed_at` 是操作员实际观察的有时区
+时间，可晚于市场截止，但须不晚于 Host 本次实际采集和当前时间。公告日期不能晚于市场截止
+日或观察日。规范化文件与两份原生 PDF 都必须存在于同版本不可变 manifest，Host 按实际
+字节重算哈希并直接用既有 `pdfplumber` 提取原文，独立核对 BSE 署名、公告编号、日期、年度
+和休市日。只提供一份自填日期名单、模型伪造路径、原文与每日状态冲突均阻断。
+镜像的 `source_url` 如实保留镜像地址，不把券商托管的 BSE 署名文件标成 BSE 官方域名。
+
+当前有界 hours 解析仅接受 BSE `20260610-41` 官方 PDF、2026-06-10 公告日期及
+2026-08-03 生效原文，核对 `Post closing session shall be from 3:50pm to 4:00pm.`。
+由此确定 `close_time=16:00`、`full_session_end`；这是全交易时段结束的保守完成口径，
+不宣称16:00是指数定价时刻，也不改变 Wind `SENSEX.BO/close` 字段。
+生效前覆盖、旧2025年规则、擅用15:30或15:35以及不匹配的官方URI均拒绝。
+其他年度、特殊周末开市或新 hours 通知需要另行审查和实现，不能静默推广本合同。
+特殊开市说明按有界句子上下文核对，规范化 PDF 跨行空白后识别月份、日期及 may/will/shall
+说明；当前覆盖内或无法解析日期的特殊开市明确阻断，只有已解析日期全部位于覆盖外才放行。
+不支持的序数日期、待公布或超出有界上下文的日期同样保持未知，不借用相邻表格、公告日期或下一句。
+原生段落空白保留；仅完整的纯 `Timings of Muhurat Trading shall be notified subsequently.`
+可继承紧前同段有明确日期的 Muhurat 开市句，总长须不超过512字符。独立、断段、插入无关句或
+前句日期未知时均拒绝；这不会把“时间待通知”解释为另一个无日期的开市日。
+
+Host 用核验后的每日收盘时间计算 `completed_dates`，查询上界为最后一个已结束交易日。
+仅把这些日期分成连续自然日区间（最多64段），每段 WSD 显式
+`Period=D;PriceAdj=U;Days=Alldays;Fill=Blank`，不传未知印度 `TradingCalendar`，
+不请求周末／官方休市日，不过滤或制造返回价格；意外日期的非零观测仍拒绝。
+每段返回日期列表必须与官方已结束交易日的该段完整、有序列表逐项相等；空段、缺首尾／中间日、
+重复或乱序立即阻断并停止后续分段，不等到周收益端点门才发现缺口。实际公式、预期日期、
+原始返回行及原生证据哈希保留在失败序列的 raw 证据中，规范化价格行保持为空。
+印度公式形如 `=wsd("SENSEX.BO","close","2026-10-05","2026-10-09","Period=D","PriceAdj=U","Days=Alldays","Fill=Blank")`，
+各选项独立传递；不增加 `IDC` 或其他未经本合同选择的日历作为兜底。
+日历快照和印度行情显式保留 `calendar_source=exchange_calendar`、原生证据路径和哈希，
+原始请求参数／返回行继续归档，Host 原有交易日、数值、日期和新鲜度质量门继续独立复算。
+这只支持明确审查的本期覆盖，不认证全年日历、真实 Wind 结果或正式稿；定时始终关闭。
+
+### 伦敦金单点历史补查（schema4，仅2026-10-23试点）
+
+schema4 严格继承 schema3 的 Excel 来源与印度日历合同，只增加
+`history_supplement:{path,sha256}`，绑定同版本不可变 JSON。该资源仅适用
+`history_gold_london` 的原 EDB `S0270980` 在2017-01-30的唯一空单元；不成为通用补缺
+或其他报告期的入口。当前资源与代码均固定报告期2026-10-23、历史覆盖截止2026-10-22；
+下一周须重新审查来源和实采，不能复用旧 proof 认证新周期。原导出 XLSX 及其哈希保持
+不变，来源 lineage 单列原 EDB 哈希、
+补查资源路径／哈希、日期、数值与2534个重叠点计数。
+
+Host 从资源重新解析原 EDB、10段 `SPTAUUSDOZ.IDC/close` WSD、10段 IDC TDAYS 和
+2017-01-30 同公式单点重查。每段保留原公式与原始返回行；日历和 WSD 日期逐项一致，
+重叠价格逐项按 Decimal 精确相等，单点值为1191.27。原 EDB 其他价格及两个非交易日
+观测继续保留；第二处必需交易日空／零、替换原价格、日期或单位不符、重复／缺失、公式
+或哈希改变均阻断。
+原 EDB 在本报告期内晚于最后已收盘日的非空值沿原 Provider 硬门拒绝；空、零可以跳过，
+布尔值仍拒绝，同一未来日期即使两条均为空／零也按重复日期拒绝。报告期之后的行仍遵循
+旧 Provider 的日期筛选，不借补查扩大拒绝范围。
+Wind 原生导出的单独末尾“数据来源：Wind”尾注不是观测行。Host 对快照独立重放来源合同与
+四组原始资源；先检查工作簿成员、累计解压大小及行列预算，再扫描原始 worksheet XML
+拒绝公式。快照删除／改写 lineage 或价格仍返回 `blocked_data`；无 Run 上下文时不能
+凭快照自报通过。schema1–3 与 API 旧语义不受此补查影响，原历史完整性及正式定稿门不变。
+
+`observation_path` 指向操作员从原生 UI 捕获并审查的不可变 JSON，不由模型填写。其固定字段为
+`schema_version:1, source:wind_excel, kind:native_export_observation`、实际 `application/source_url`、
+`export_path/export_sha256`、原生 UI 的 `coverage_start/end`、`observed_at` 及 `pages`。
+`pages` 必须恰含 `economic_data`、`financial_events`；各页含 `sheet`、`result:exported|empty`、
+`filters`、`message`、`raw_accessibility_excerpt`。过滤须为全国家、全部事件和三档重要性，
+原始 AX 文字须显示对应页名、起止日期及全部过滤状态。非空页绑定本导出实际工作表；空页
+须有原生明确零结果文字，且不能与工作表中的事件冲突。观察须不晚于市场截止点。
+原生标签 `选择国家: 全部`、`数据/事件: 全部`、`重要性: 重要 中等 低` 直接支持，不能为适配
+验证器而改写原始 AX 文字。
+
+EDB 列按原始4个指标ID与单位核对，忽略派生 `s1` 列；超过最后已结束交易日的非空值拒绝，
+假日空值/零值不变成有效价格，也不补齐实际交易日缺口。旧底稿中的周收益、周均与固定除五
+不能替代这些原始逐日数据。数据仍通过原 `assess_weekly_snapshot`，再投影原三份工作簿与图表。
+
+经济覆盖证明JSON为 `{schema_version:1, source:"wind_excel", windows:[...]}`，每窗具有
+`start/end/resource/sha256/kind`；窗口并集必须覆盖下周一到周日，每份证据均为同版本不可变
+资源。`native_export` 指向实际原生导出；`native_empty_result` 须含原生应用/URL、同一日、
+有时区观察时间、全国家/全部事件/三档重要性过滤和两页明确零结果及原始可访问性文字。
+原生导出窗口只接受本合同经济导出的精确路径与哈希，并精确匹配原生 UI 观察的实际起止范围；
+只有 XLSX 哈希或人工填写的整周范围不能证明覆盖。每条原生事件
+须属于该导出已审窗口。窗口可以跨入前周日，最终表格只投影下周一至周日的事件。
+不能由表格最小/最大行日期或单个 `coverage_verified` 标记推断周日覆盖。缺失、过期、单位、
+日历或覆盖证据错误均保留 `blocked_data`，不进入正式定稿。
+
+市场 `cutoff` 仍为本期周五15:30；在线采集实际开始和完成冻结由 Host 时钟记录为
+`acquisition_started_at`、`frozen_at`，随 `collection_policy=wind-excel-weekly-v1`、
+`acquisition_kind=current_period` 一起进入快照哈希。仅报告期结束日当天、市场截止点之后的
+实时生产可正式通过；Host 独立复算开始不晚于冻结、冻结不晚于真实当前时间，以及各序列和
+日历的实际取回时间位于采集窗口内。已有原始冻结快照可以复读；对过去报告期新发在线查询
+标为 `historical_recheck` 并阻断正式定稿，不能补写成当时快照。周报事实证据显示市场截止、
+实际采集开始与实际冻结时间。Excel 仍依赖每期人工准备，当前禁止启用定时。
+
 ## Client API 与授权
 
 `WindClientAPIProvider` 仅在受理调用时惰性导入已安装的 WindPy，不安装 SDK、启动

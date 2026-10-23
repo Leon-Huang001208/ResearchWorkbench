@@ -120,11 +120,14 @@ jobs:
             tests/research_web/test_report_workflow_integration.py \
             tests/research_web/test_report_rendering.py \
             tests/research_web/test_report_weekly_data.py \
+            tests/research_web/test_report_weekly_gold_supplement.py \
+            tests/research_web/test_report_weekly_economic_fields.py \
             tests/research_web/test_report_weekly_quality.py \
             tests/research_web/test_report_weekly_owner.py \
             tests/research_web/test_report_weekly_evidence.py \
             tests/research_web/test_report_weekly_rendering.py \
             tests/research_web/test_report_weekly_acceptance.py \
+            tests/research_web/test_datahub_wind_excel_weekly.py \
             tests/research_web/test_bound_analysis.py \
             tests/research_web/test_research_source_reading.py \
             tests/research_web/test_research_report_binding.py \
@@ -197,6 +200,9 @@ jobs:
             tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
             --confcutdir=tests/research_web -q
+          .venv/bin/python -m pytest \
+            tests/unit/test_wind_excel_instances.py \
+            --confcutdir=tests/unit -q
 
       - name: Run Research Web JavaScript contracts
         shell: bash

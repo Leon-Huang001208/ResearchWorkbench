@@ -761,3 +761,10 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 ## 2026-10-23：长期研究档案与机会预警
 
 新增账户绑定域 `/api/research/dossiers`，包含档案、记录修订、时间线、证据／成果关联、冻结 handoff、signals、scan 与 tracking；写入沿用 expected_revision／幂等键，争用返回409，客户端不能提交 owner、源 hash、披露日期或质量通过声明。handoff 返回 `auto_send:false`，仅实际 Prompt 的 `dossier_handoff_id` 绑定研究；受管插件固定凭据／评估动作保持独立审批。完整字段见[档案 API](../../research-web-dossiers-ui.md#ui-接口合同)与[候选动作](../../research-web-seek-alpha.md#个人凭据)，本段不替代主任务生成的 API inventory。
+
+## 华安 ETF Excel 生产来源
+
+本次无新 HTTP 路由；原华安策略新增显式 data_source=wind_excel，旧 wind_client_api 保留。Excel schedule enable 明确拒绝，旧持久化计划停止执行。私有 collector 仅消费 Host 锁定资源和归属，浏览器/模型不能提交认证材料；API Atlas 路由清单不变。
+schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资源绑定，Host 从原 EDB、WSD 和 TDAYS
+重放，不增加通用补数接口或改变原始行情。普通租户、旧合同与定时权限保持原边界。
+

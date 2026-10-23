@@ -21,7 +21,7 @@
 
 全市场概览提供沪深北A股总览、完整行情表、行业／概念及资金排行；使用东财当前官网股票池，显示实际来源、时间、待上市及覆盖缺口，行情浏览不创建研究会话。详见[市场页面](docs/research-web-ui.md#全市场概览)与[数据合同](docs/research-web-datahub.md#无会话全市场数据)。
 
-华安 ETF 周报可在原 Workflow 内显式准备自动生产版本，沿用 DataHub、DSH 和 Host 质量门；数据、文件、质量与正式定稿分别显示。日程为周五北京时间15:30开始，须先完成当前版本真实手动定稿才能启用。Wind API逐组校准、真实成稿与版式、三个周周期仍须实证，缺依赖或来源合同继续阻断。详见[周报生产合同](docs/research-web-etf-weekly-production.md)。
+华安 ETF 周报在原 Workflow 内沿用 DataHub、DSH 和 Host 质量门；当前先使用 Wind Excel，API 留待以后逐项校准切换。市场截止为周五北京时间15:30，采集结束后立即冻结并记录实际时间；数据、文件、质量与正式定稿分别显示。当前不启用定时，交易日历、真实成稿与版式、三个周周期仍须实证，缺证据继续阻断。详见[周报生产合同](docs/research-web-etf-weekly-production.md)。
 
 DataHub 研究仓基座新增可选 PostgreSQL 事实/修订/历史时点与冻结恢复接口、内部缺口补数和实际失败后的原始日线备用源切换。当前为隔离实现，正式数据库/外盘迁移及常驻启用尚未执行；已验证与缺口见 [研究仓合同](docs/research-web-market-store.md)。
 

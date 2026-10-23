@@ -1,5 +1,13 @@
 # Research Workbench Desktop Packaging
 
+2026-10-23 Huaan weekly Excel work remains a Web Workflow task. Its shared Wind
+adapter adds Mac PID compatibility and `existing_app_only` task-owned workbooks;
+it neither packages a desktop product nor changes Tauri/sidecars. Unknown workbook
+creation or cleanup keeps the shared worker poisoned. Actual Mac WSD/TDAYS
+transport comparison does not verify all calendars, Windows, Linux or installers.
+The verification Router still conservatively selects desktop gates for this shared
+path; retain those gates and their NOT_RUN status rather than claim desktop CI.
+
 Research Workbench is moving toward a Tauri desktop shell while keeping the current FastAPI Web Workbench intact.
 
 > **Current phase (2026-09-09): Web-only.** Desktop packaging is preserved but not part of normal product iteration acceptance. Web-only changes do not build sidecars, Tauri bundles, or installers and do not run native desktop CI. Desktop validation resumes only for an explicitly requested desktop task or a change to a desktop-owned path.

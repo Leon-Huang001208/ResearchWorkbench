@@ -62,6 +62,19 @@ def weekly_fact_rows(bundle: dict) -> list[dict]:
             )
     contract = bundle.get("data_contract")
     if contract:
+        snapshot = bundle.get("snapshot", {})
+        if snapshot.get("collection_policy") == "wind-excel-weekly-v1":
+            facts.append(
+                {
+                    "series_id": "weekly_acquisition",
+                    "heading": "本期数据采集与冻结",
+                    "metric": "weekly_acquisition_metadata",
+                    "period": contract["period_end"],
+                    "value": None,
+                    "unit": "status",
+                    "statement": f"市场截止：{contract['cutoff']}；实际采集开始：{snapshot['acquisition_started_at']}；实际冻结：{snapshot['frozen_at']}。",
+                }
+            )
         if any(row.get("group") == "industry" for row in bundle["assessment"]["observations"]):
             facts.append(
                 {

@@ -98,6 +98,7 @@ def freeze_weekly_production(manifest, data_contract: dict) -> dict:
         "cutoff": data_contract["cutoff"],
         "as_of": data_contract["cutoff"][:10],
         "data_contract": data_contract,
+        "data_source": manifest.weekly_production.data_source,
         "news_block_ids": list(manifest.weekly_production.news_block_ids),
         "requirements": [
             {"id": block.id, "text": block.title}
@@ -157,7 +158,18 @@ def weekly_verified_evidence(service, sid: str) -> dict | None:
     raw = _read(service.store.directory(sid), _SNAPSHOT)
     try:
         snapshot = json.loads(raw)
-        assessment = assess_weekly_snapshot(snapshot, frozen["data_contract"])
+        runtime = service.report_workflows.runtime
+        run = runtime._run(frozen["run_id"])
+        manifest = runtime.catalog.manifest(run["workflow_id"], run["version"])
+        assessment = assess_weekly_snapshot(
+            snapshot,
+            frozen["data_contract"],
+            require_excel_acquisition=frozen.get("data_source") == "wind_excel",
+            run_root=runtime.run_path(frozen["run_id"]),
+            manifest=manifest,
+        )
+        if frozen.get("data_source") == "wind_excel" and snapshot.get("source") != "wind_excel":
+            raise ValueError("weekly source no longer matches frozen production policy")
         if assessment.get("status") != "passed":
             raise ValueError("weekly data no longer verified")
         service.store.files(sid)

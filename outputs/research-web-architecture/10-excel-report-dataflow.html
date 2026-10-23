@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"immutable-inputs","label":"不可变输入","focus":["version","runCopy","providerPolicy"],"note":"版本锁定模板、底稿、来源映射和生产合同；母版只读，主管理员归属在运行前复验。"},{"id":"excel-snapshot","label":"取数、校验与冻结","focus":["runCopy","excel","refreshManifest","extract","snapshot"],"note":"旧版保留 Excel 刷新；新合同经私有 DataHub 取得同源 API 数据，逐组等价验证后才能切换。"},{"id":"research-delivery","label":"研究与确定性交付","focus":["snapshot","agents","payload","assembler","artifacts"],"note":"华安新合同由 DSH 写规范正文，Host 投影到原版式，检查本期图表、内容与文件版本；旧 payload 路径兼容保留。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"immutable-inputs","label":"不可变输入","focus":["version","runCopy","providerPolicy"],"note":"版本锁定模板、底稿、来源映射和生产合同；母版只读，主管理员归属在运行前复验。"},{"id":"excel-snapshot","label":"取数、校验与冻结","focus":["runCopy","excel","refreshManifest","extract","snapshot"],"note":"华安先由已有 Excel 插件取数，EDB 与经济日历绑定原生导出证据；实际采集结束冻结。API 待以后逐项验证切换。"},{"id":"research-delivery","label":"研究与确定性交付","focus":["snapshot","agents","payload","assembler","artifacts"],"note":"华安新合同由 DSH 写规范正文，Host 投影到原版式，检查本期图表、内容与文件版本；旧 payload 路径兼容保留。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4976,8 +4976,8 @@
         <text data-detail="fine" x="315" y="175" class="t-database" font-size="7" text-anchor="middle">不覆盖母版</text>
         </g>
 
-        <g id="node-excel" data-node-id="excel" data-node-label="受控数据源适配" tabindex="0" role="button" aria-label="Focus 受控数据源适配, 旧 Excel / 新 Wind API, 02 / 运行与取数" aria-pressed="false" data-node-kind="external" data-node-sublabel="旧 Excel / 新 Wind API" data-node-tag="串行准入" data-node-context="02 / 运行与取数">
-          <title>受控数据源适配 · 旧 Excel / 新 Wind API · 02 / 运行与取数 · 串行准入</title>
+        <g id="node-excel" data-node-id="excel" data-node-label="受控数据源适配" tabindex="0" role="button" aria-label="Focus 受控数据源适配, Excel 主源 / API 待切换, 02 / 运行与取数" aria-pressed="false" data-node-kind="external" data-node-sublabel="Excel 主源 / API 待切换" data-node-tag="串行准入" data-node-context="02 / 运行与取数">
+          <title>受控数据源适配 · Excel 主源 / API 待切换 · 02 / 运行与取数 · 串行准入</title>
           <rect x="259" y="584" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="259" y="584" width="112" height="58" rx="6" class="c-external" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(265 590) scale(0.6875)">
@@ -4985,7 +4985,7 @@
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
           <text data-detail-anchor x="315" y="605" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">受控数据源适配</text>
-          <text data-detail="context" x="315" y="621" class="t-muted" font-size="7" text-anchor="middle">旧 Excel / 新 Wind API</text>
+          <text data-detail="context" x="315" y="621" class="t-muted" font-size="7" text-anchor="middle">Excel 主源 / API 待切换</text>
         <text data-detail="fine" x="315" y="631" class="t-external" font-size="7" text-anchor="middle">串行准入</text>
         </g>
 
@@ -5352,11 +5352,11 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot amber"></div>
-          <h3>同源 API 逐组迁移</h3>
+          <h3>Excel 先行与原生证据</h3>
         </div>
         <ul>
-          <li>&bull; 未经对照的指标保留 Excel；不把相近品种当作等价</li>
-          <li>&bull; SDK、交易日历及经济日历未核实则保持数据阻断</li>
+          <li>&bull; 原始品种和单位不变；API 以后逐项对照再切换</li>
+          <li>&bull; 交易日历或原生范围证据未核实即阻断；定时关闭</li>
         </ul>
       </div>
 

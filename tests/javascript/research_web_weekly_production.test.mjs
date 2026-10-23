@@ -28,9 +28,9 @@ test('a completed file delivery alone never unlocks the upgraded weekly schedule
 
 test('weekly status separates data, quality, delivery and finalization and escapes gaps', async () => {
   const { renderWeeklyProductionStatus } = await import(moduleURL);
-  const html = renderWeeklyProductionStatus({ id: 'huaan-etf-weekly', weekly_production: {
-    enabled: true, provider: { status: 'blocked_dependency' },
-    latest: { quality_status: 'incomplete', finalization_status: 'blocked', delivery_status: 'complete',
+  const html = renderWeeklyProductionStatus({ id: 'huaan-etf-weekly', current_version: 1, weekly_production: {
+    enabled: true, data_source: 'wind_client_api', provider: { status: 'blocked_dependency' },
+    latest: { version: 1, weekly_data_source: 'wind_client_api', quality_status: 'incomplete', finalization_status: 'blocked', delivery_status: 'complete',
       weekly_data_assessment: { status: 'passed' }, missing: ['<unsafe>'], weekly_cutoff: '2026-10-23T15:30:00+08:00' },
   } });
   for (const label of ['数据就绪', '内容质量', '文件交付', '正式定稿', '周五 15:30', 'incomplete', '&lt;unsafe&gt;']) {
@@ -40,4 +40,57 @@ test('weekly status separates data, quality, delivery and finalization and escap
   assert.ok(html.includes('2026-10-23T15:30:00+08:00'));
   assert.ok(html.includes('data-weekly-state="passed">已通过'));
   assert.equal(renderWeeklyProductionStatus({ id: 'other' }), '');
+});
+
+test('API acceptance stays historical after publishing an Excel successor', async () => {
+  const { renderWeeklyProductionStatus } = await import(moduleURL);
+  const old = { id: 'api-history', version: 1, weekly_data_source: 'wind_client_api', session_id: 'old-session',
+    quality_status: 'passed', finalization_status: 'finalized', delivery_status: 'complete', weekly_data_assessment: { status: 'passed' } };
+  const detail = { id: 'huaan-etf-weekly', current_version: 2, weekly_production: {
+    enabled: true, data_source: 'wind_excel', latest: old, provider: { status: 'unverified' },
+  }, runs: [old] };
+  const html = renderWeeklyProductionStatus(detail);
+  const current = html.match(/<dl[^>]*data-weekly-current-acceptance[^>]*>([\s\S]*?)<\/dl>/)?.[1];
+  assert.ok(current, 'current acceptance must have its own explicit boundary');
+  assert.ok(!current.includes('passed') && !current.includes('finalized'));
+  assert.ok(html.includes('当前生产验收：v2 · Wind Excel'));
+  assert.ok(html.includes('当前版本及来源尚无运行验收'));
+  assert.ok(html.includes('历史运行（不计当前验收） · v1 · Wind Client API'));
+  assert.ok(html.includes('#/claw?session=old-session'));
+  assert.equal(detail.runs[0], old);
+});
+
+test('current acceptance requires matching version and an explicit matching frozen source', async () => {
+  const { renderWeeklyProductionStatus } = await import(moduleURL);
+  const currentRun = { id: 'excel-current', version: 2, weekly_data_source: 'wind_excel', quality_status: 'incomplete', finalization_status: 'blocked' };
+  const html = renderWeeklyProductionStatus({ id: 'huaan-etf-weekly', current_version: 2,
+    weekly_production: { enabled: true, data_source: 'wind_excel' }, runs: [
+      { id: 'wrong-source', version: 2, weekly_data_source: 'wind_client_api', quality_status: 'passed', finalization_status: 'finalized' },
+      { id: 'unknown-source', version: 2, quality_status: 'passed', finalization_status: 'finalized' }, currentRun,
+    ] });
+  const current = html.match(/<dl[^>]*data-weekly-current-acceptance[^>]*>([\s\S]*?)<\/dl>/)?.[1];
+  assert.ok(current?.includes('incomplete') && current.includes('blocked'));
+  assert.ok(!current.includes('passed') && !current.includes('finalized'));
+  assert.ok(html.includes('当前验收运行：excel-current · v2 · Wind Excel'));
+  assert.ok(html.includes('历史运行（不计当前验收） · v2 · 来源未记录'));
+  assert.ok(html.includes('历史运行（不计当前验收） · v2 · Wind Client API'));
+});
+
+test('explicit Excel policy displays its source and leaves API successor preparation available', async () => {
+  const { renderWeeklyProductionStatus } = await import(moduleURL);
+  const excel = renderWeeklyProductionStatus({ id: 'huaan-etf-weekly', weekly_production: {
+    enabled: true, data_source: 'wind_excel', provider: { status: 'unverified' },
+  } });
+  assert.ok(excel.includes('Wind Excel（原始导出与工作表取数）'));
+  assert.ok(excel.includes('依赖就绪不代表数据已核验'));
+  assert.ok(excel.includes('既有 Excel 实例中新建任务专用临时工作簿'));
+  assert.ok(!excel.includes('data-prepare-weekly-production'));
+  assert.equal((await import(moduleURL)).weeklyManualRunAccepted({ id: 'huaan-etf-weekly', current_version: 1,
+    weekly_production: { enabled: true, data_source: 'wind_excel' }, runs: [{ version: 1, trigger: 'manual', status: 'completed', delivery_status: 'complete', quality_status: 'passed', finalization_status: 'finalized' }] }), false);
+  assert.ok(excel.includes('暂不支持启用定时'));
+  const api = renderWeeklyProductionStatus({ id: 'huaan-etf-weekly', weekly_production: {
+    enabled: true, data_source: 'wind_client_api',
+  } });
+  assert.ok(api.includes('Wind Client API'));
+  assert.ok(api.includes('data-prepare-weekly-production'));
 });

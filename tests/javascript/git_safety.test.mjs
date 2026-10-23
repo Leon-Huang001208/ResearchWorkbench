@@ -9,7 +9,9 @@ import {backupRepository, checkRepository, configureRepository, selectGitPath, w
 
 const gitPath = '/usr/bin/git';
 function git(root, args) {
-  const result = spawnSync(gitPath, ['-C', root, ...args], {encoding: 'utf8'});
+  // Fixture commits must not race detached Git maintenance with the lock gate.
+  // Keep the production lock checks intact; these options affect this call only.
+  const result = spawnSync(gitPath, ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', root, ...args], {encoding: 'utf8'});
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }

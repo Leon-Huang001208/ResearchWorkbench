@@ -30,7 +30,7 @@
           "extract",
           "snapshot"
         ],
-        "note": "旧版保留 Excel 刷新；新合同经私有 DataHub 取得同源 API 数据，逐组等价验证后才能切换。"
+        "note": "华安先由已有 Excel 插件取数，EDB 与经济日历绑定原生导出证据；实际采集结束冻结。API 待以后逐项验证切换。"
       },
       {
         "id": "research-delivery",
@@ -95,7 +95,7 @@
       "id": "excel",
       "type": "external",
       "label": "受控数据源适配",
-      "sublabel": "旧 Excel / 新 Wind API",
+      "sublabel": "Excel 主源 / API 待切换",
       "stage": 1,
       "row": 4,
       "tag": "串行准入"
@@ -264,10 +264,10 @@
     },
     {
       "dot": "amber",
-      "title": "同源 API 逐组迁移",
+      "title": "Excel 先行与原生证据",
       "items": [
-        "未经对照的指标保留 Excel；不把相近品种当作等价",
-        "SDK、交易日历及经济日历未核实则保持数据阻断"
+        "原始品种和单位不变；API 以后逐项对照再切换",
+        "交易日历或原生范围证据未核实即阻断；定时关闭"
       ]
     },
     {

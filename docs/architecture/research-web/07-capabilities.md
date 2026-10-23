@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+华安 Excel 来源属于原报告 Workflow 内的私有 DataHub 分支，不新增能力包或执行引擎。仅在已有 Excel 中新建任务工作簿；创建/关闭结果未知时污染共享槽并拒绝后续调用。手工导出不认证无人值守刷新，本轮日程禁用。
+
 2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
 
 2026-10-22 插件统一管理 Skill/Workflow/MCP 与受限 Command/Agent/Hook 映射；ready 需 native loader、当前审批、精确 schema 和 DSH guard 全链确认。宿主专属 UI/cloud/API 或未实现 Hook 不静默丢弃，支持表保留 limited/unsupported。升级默认只影响新会话，撤权单独生效，MCP无法并存明确deferred。见[插件合同](../../research-web-plugins.md)。

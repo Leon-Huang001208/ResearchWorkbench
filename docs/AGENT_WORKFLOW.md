@@ -2,6 +2,8 @@
 
 今日发现实现先完成只读预览与显式冻结/单次提交合同、跟踪独立启用/去重/日限及账号容量恢复负例，再执行完整Router、独评和同候选原三CI。Checks只在原Python步骤追加三模块，JS保留原通配符；Mac安装同一步核对discovery静态资源，无新job/runner/timeout/平台dispatch。真实模型、生产计划与部署保持独立NOT_RUN，细则见[今日发现](research-web-discovery.md)。
 
+华安真实底稿投影发现经济可选字段丢失后，先以冻结 XLSX 反例补齐 Provider，再由 Host 独立重放九字段；原件、原失败、旧预检通过均保留版本归属。沿完整 changed-set Router、原通用检查与同候选 Mac 安装，原 Checks 同一步增加近处经济字段测试，无新 job／runner。真实 Word 与认证下载仍单独验收，日程保持关闭。
+
 SPDR 原生快照迭代在 Mac 隔离 worktree 开发，先验证四项闭合投影和原件绑定，再用单次公开取数、独立 socket-only
 PostgreSQL、跨会话/Host 与 PG 重启及第二空库恢复验收；CI 不访问厂商、模型或正式数据库。
 两新测试模块沿原 Checks 同一步，原三 CI 与同候选 macos-14 安装门保持。未更新常驻服务或外盘，其他平台原生保持 NOT_RUN。
@@ -14,6 +16,7 @@ PostgreSQL、跨会话/Host 与 PG 重启及第二空库恢复验收；CI 不访
 2026-10-23来源与宏观研究仓任务在原Checks的Python步骤登记官方封包离线模块，其余回归扩展既有文件。完整changed-set Router、原通用仓库门及同候选Mac干净安装均保留；有界公开请求、独立临时PG、源码评审、CI与部署分别记录。业务错误封包/空序列不能用HTTP200或测试数代替来源可用性。没有新runner、依赖、跨平台产品dispatch或模型调用，现有服务、正式库及外盘保持无操作。
 
 2026-10-23市场限价/昨日/历史任务沿原全市场Checks定点清单、完整changed-set Router、独立评审及原三CI/同候选macOS安装。封闭apply-market-history固定旧51f09、产品4f0a248f，原version4事务和全账号保全/恢复保持，采集inflight活动或未知拒绝；只同步固定目标锁清单，不安装包/启用数据库。实际部署、交易时段真实源、认证页面和保全分别留证；历史来源不足明确缺口，不以离线或一次访客返回冒充连续30日。
+华安 Excel 先行扩展原 Checks Python 步骤中的离线 Provider/实例回归，保留原安装、JS及质量门。Mac 本次是 Web 功能与 Native Excel 验证，完整 Router 仍记录共享 Wind 路径触发的桌面门，不从 Mac dispatch 含 Windows 的桌面矩阵；未执行门按原状态交接。真实原生导出、日历、模型、Word与常驻部署分别留证，不因离线通过关闭真实验收。
 
 2026-10-23资产精炼与筹码使用同一隔离产品任务：原Checks步骤增加chip_inputs定点回归，原Mac安装步骤逐字节验证四个本地新资源，无新增job/runner/依赖。完整changed-set Router、独立评审、真实CJPY冷启动和宽屏单行读数/绘图区对齐分别留证；固定部署profile须绑定最终已审产品SHA，持锁以实际驻留版本为恢复基线，不采用旧51f假设。其他平台产品验收仍交对应真机，Mac不dispatch Windows/Linux。
 
@@ -32,6 +35,9 @@ PR188合流后，当前用户已明确批准“组合验收后一起部署”，
 2026-10-22 Wind v4部署profile固定PREVIOUS=5495、PAYLOAD=`9b436613aad9136f4959c992c89dd72fc7354ed5`（PR180真实merge），产品三CI已通过且候选/preview/merge同tree。沿原操作员真实Git/固定范围/四profile恢复矩阵、完整changed-set Router、独立评审及v4同候选原三CI/Mac安装门，不增job/依赖或放宽保全。热修38/527、产品CI与旧v3正式恢复5495分别留证，不能转写为v4最终通过；实际切换仍由root在最终资格、锁、明确空闲和全账号保全后执行。
 
 华安ETF周报自动生产沿既有Report Workflow/私有DataHub/DSH/Host质量链，不调用旧AlphaFoundry执行器。
+本期黄金历史的显式单点补查复用原 Checks Python 步骤，追加 `test_report_weekly_gold_supplement.py`，
+不增加 job、runner、依赖或平台 dispatch。补查资源与原 EDB 均由 Host 重读复算，旧来源合同保持；
+离线、原生预检、正式 Run、Word 逐页交付、同候选 CI 及常驻切换分别留证，定时继续关闭。
 先冻结真实底稿指标与同源API口径，再验证周五15:30、一交易日滞后、短周、海外收盘、未知受理和撤权。
 规范正文、中文presentation、原版式图表及最终归档须同版本绑定；旧稿与母版保留。原质量门不能由
 模型自评、子Agent数量或文件完整替代。离线回归、候选Mac安装CI、真实取数/成稿、逐页视觉、三个周周期、
@@ -139,6 +145,9 @@ master
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
 
 在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
+
+Git安全单测的临时仓库命令显式传入 `gc.auto=0` 与 `maintenance.auto=false`，避免测试提交
+与分离的自动维护竞争原生锁；参数仅作用于该次夹具命令，不改变全局配置或生产拒绝锁的行为。
 
 ```bash
 node scripts/git_safety.mjs check --project /absolute/RWB

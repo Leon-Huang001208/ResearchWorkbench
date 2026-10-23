@@ -1987,6 +1987,15 @@
             "reopen"
           ],
           "source": "app/research_web/report_documents.py"
+        },
+        {
+          "subjects": [
+            "excelTool",
+            "excelRefresh",
+            "excelResult",
+            "blockedData"
+          ],
+          "source": "app/research_web/datahub/providers_wind_excel_weekly.py"
         }
       ],
       "level": "flows",
@@ -2087,6 +2096,13 @@
             "deliver"
           ],
           "source": "app/research_web/report_documents.py"
+        },
+        {
+          "subjects": [
+            "excel",
+            "recordRefresh"
+          ],
+          "source": "app/research_web/datahub/providers_wind_excel_weekly.py"
         }
       ],
       "level": "flows",

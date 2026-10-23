@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"lock-refresh","label":"锁定版本与数据合同","focus":["web","api","catalog","excelTool","excel","snapshot"],"note":"旧版刷新 Excel；华安新合同由私有 DataHub 收集同源 API 数据，SDK、日历或等价证据不足即阻断。"},{"id":"claw-research","label":"共享快照与唯一 DSH","focus":["api","snapshot","dsh"],"note":"先建立数据所属会话；数据通过后才提交模型。新合同按需使用子 Agent，不以数量证明内容质量。"},{"id":"deterministic-delivery","label":"原版式投影与质量定稿","focus":["dsh","api","renderer","files","web"],"note":"旧版 payload 兼容保留；华安新合同以 research-report.json 为唯一正文，Host 投影并重新检查实际文件。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"lock-refresh","label":"锁定版本与数据合同","focus":["web","api","catalog","excelTool","excel","snapshot"],"note":"华安由私有 DataHub 使用现有 Excel 插件及原生导出证据；市场截止与实际冻结分别记录，日历缺证则阻断。API 留待以后验证。"},{"id":"claw-research","label":"共享快照与唯一 DSH","focus":["api","snapshot","dsh"],"note":"先建立数据所属会话；数据通过后才提交模型。新合同按需使用子 Agent，不以数量证明内容质量。"},{"id":"deterministic-delivery","label":"原版式投影与质量定稿","focus":["dsh","api","renderer","files","web"],"note":"旧版 payload 兼容保留；华安新合同以 research-report.json 为唯一正文，Host 投影并重新检查实际文件。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4959,11 +4959,11 @@
         </g>
         </g>
 
-        <g data-edge-from="api" data-edge-to="excelTool" data-edge-label="旧刷新 / 新 API 取证" data-edge-key="2" data-edge-id="refreshCopy">
+        <g data-edge-from="api" data-edge-to="excelTool" data-edge-label="Excel 取数 / 原生证据" data-edge-key="2" data-edge-id="refreshCopy">
           <path data-composition-edge-from="api" data-composition-edge-to="excelTool" data-composition-edge-id="refreshCopy" data-composition-points="402.5,268;865.5,268" d="M 402.5 268 L 865.5 268" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="576" y="248" width="116" height="16" rx="3" class="c-mask"/>
-          <text x="634" y="258" class="t-backend" font-size="9" text-anchor="middle">旧刷新 / 新 API 取证</text>
+          <rect x="573.4" y="248" width="121.2" height="16" rx="3" class="c-mask"/>
+          <text x="634" y="258" class="t-backend" font-size="9" text-anchor="middle">Excel 取数 / 原生证据</text>
         </g>
         </g>
 
@@ -5450,7 +5450,7 @@
           <h3>数据失败先于模型</h3>
         </div>
         <ul>
-          <li>&bull; 同源 API 尚需 SDK、跨市场日历、经济日历和等价验证</li>
+          <li>&bull; Excel 日历与导出范围需真实核验；API 以后校准切源</li>
           <li>&bull; 一交易日滞后上限；失败或未知状态不自动重发付费研究</li>
         </ul>
       </div>
