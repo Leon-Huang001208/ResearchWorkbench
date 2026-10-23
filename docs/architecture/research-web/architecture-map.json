@@ -571,7 +571,12 @@
         "app/research_web/asset_history.py",
         "app/research_web/asset_history_jobs.py",
         "app/research_web/asset_directory.py",
-        "app/research_web/ui/asset-search.mjs"
+        "app/research_web/ui/asset-search.mjs",
+        "app/research_web/asset_chip_inputs.py",
+        "app/research_web/ui/asset-chips.mjs",
+        "app/research_web/ui/asset-chip-panel.mjs",
+        "app/research_web/ui/asset-format.mjs",
+        "app/research_web/ui/asset-layout.css"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -602,7 +607,10 @@
         "tests/javascript/research_web_asset_loading.test.mjs",
         "tests/javascript/research_web_asset_search.test.mjs",
         "tests/javascript/research_web_asset_tabs.test.mjs",
-        "tests/e2e/research_web_asset_interactions.mjs"
+        "tests/e2e/research_web_asset_interactions.mjs",
+        "tests/research_web/test_asset_chip_inputs.py",
+        "tests/javascript/research_web_chip_distribution.test.mjs",
+        "tests/javascript/research_web_asset_format.test.mjs"
       ]
     },
     {

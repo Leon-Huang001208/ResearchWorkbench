@@ -1,6 +1,9 @@
+import { formatAssetMagnitude } from './asset-format.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
-import { MA_PERIODS, finite, enrichMarketBars, aggregateMarketBars, estimateChipDistribution, sourceFrequency } from './asset-indicators.mjs';
+import { MA_PERIODS, finite, enrichMarketBars, aggregateMarketBars, sourceFrequency } from './asset-indicators.mjs';
+import { estimateChips, normalizeChipSettings, unavailable } from './asset-chips.mjs';
+import { chipPanel, chipStatistics, chipSettingsForm, chipChartOption, chipPeakLines } from './asset-chip-panel.mjs';
 export { enrichMarketBars } from './asset-indicators.mjs';
 
 const UP = '#ff4d4f'; const DOWN = '#00c896';
@@ -24,6 +27,7 @@ const PANEL_NAMES = { volume: '成交量', macd: 'MACD', kdj: 'KDJ', rsi: 'RSI' 
 const DEFAULT_PANELS = ['volume', 'macd'];
 const panelsFor = state => [...new Set((Array.isArray(state.panels) ? state.panels : DEFAULT_PANELS).filter(id => Object.hasOwn(PANEL_NAMES, id)))];
 const historyFor = metadata => metadata.asset_history || {};
+const canLoadChip = metadata => Boolean(metadata.canLoadHistory && (historyFor(metadata).source === 'tinysoft' || ((historyFor(metadata).source === 'auto' || !historyFor(metadata).source) && (metadata.provider === 'tinysoft' || metadata.source === 'tinysoft'))));
 const jobFor = metadata => metadata.historyJob || historyFor(metadata).job || {};
 const completeHistory = metadata => {
   const history = historyFor(metadata); const coverage = history.coverage || {};
@@ -98,14 +102,10 @@ function fieldUnit(metadata, key) {
   return /^(?:万|亿)?(?:股|手|元|美元|港元|份|张|吨|克)$/.test(unit) ? unit : '';
 }
 function metadataLabel(metadata) {
-  const currency = metadata.currency || metadata.fields?.close?.currency || '';
-  const dataset = typeof metadata.dataset === 'string' ? metadata.dataset : metadata.dataset?.dataset_id || metadata.dataset?.id || '';
-  const history = historyFor(metadata); const coverage = history.coverage || {};
-  const anchor = history.anchor_verified === true || history.adjustment_anchor_verified === true ? `复权锚点已核验${history.anchor_date ? ` ${history.anchor_date}` : ''}` : history.canonical_version ? history.anchor_date ? `固定复权锚点 ${history.anchor_date}` : adjustmentFor(metadata) === 'none' ? '原始不复权日线' : '复权锚点未提供' : '原始锚点未核验';
-  const source = typeof history.source === 'string' ? history.source : metadata.provider || (typeof metadata.source === 'string' ? metadata.source : metadata.source?.provider || '') || '';
-  const start = coverage.actual_range?.start_date || coverage.actual_range?.start || coverage.start || history.loaded_start || '';
-  const end = coverage.actual_range?.end_date || coverage.actual_range?.end || coverage.end || history.loaded_end || '';
-  return `源数据频率：${periodLabel(sourceFrequency(metadata.frequency))} ${currency} ${metadata.adjustment || adjustmentLabel(adjustmentFor(metadata))} ${source} · ${anchor} · ${completeHistory(metadata) ? '全部历史已加载' : '历史覆盖未完整'}${coverage.boundary_verified === false ? '（上市边界未核验）' : ''} ${start}${end ? `–${end}` : ''} ${dataset}`;
+  const history = historyFor(metadata), coverage = history.coverage || {};
+  const start = coverage.actual_range?.start_date || coverage.actual_range?.start || history.loaded_start || '';
+  const end = coverage.actual_range?.end_date || coverage.actual_range?.end || history.loaded_end || '';
+  return [`${periodLabel(sourceFrequency(metadata.frequency))}线`, adjustmentLabel(adjustmentFor(metadata)), start ? `${start}${end ? `–${end}` : ''}` : '', coverage.boundary_verified === false ? '历史起点未核实' : ''].filter(Boolean).join(' · ');
 }
 function readout(bar, previous, metadata = {}) {
   if (!bar) return '<span>没有可绘制的有效日期历史记录。不会生成模拟行情。</span>';
@@ -113,30 +113,31 @@ function readout(bar, previous, metadata = {}) {
   const changeAmount = base !== null && finite(bar.close) !== null ? bar.close - base : null;
   const amplitude = base && bar.validOHLC ? (bar.high - bar.low) / base * 100 : null;
   const volumeUnit = fieldUnit(metadata, 'volume') || '源单位'; const amountUnit = fieldUnit(metadata, 'amount') || fieldUnit(metadata, 'turnover') || '源单位';
-  const values = [['开', fmt(bar.open)], ['高', fmt(bar.high)], ['低', fmt(bar.low)], ['收', fmt(bar.close)], ['涨跌额', changeAmount === null ? '—' : `${changeAmount > 0 ? '+' : ''}${fmt(changeAmount)}`], ['涨跌幅', change === null ? '—' : `${change > 0 ? '+' : ''}${fmt(change)}%`], ['均价（源字段）', fmt(bar.vwap)], ['振幅', amplitude === null ? '—' : `${fmt(amplitude)}%`], [`成交量（${volumeUnit}）`, fmt(bar.volume, 0)], [`成交额（${amountUnit}）`, fmt(bar.amount, 0)], ['换手率', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`]];
-  return `<span class="asset-history-date">历史读数 <strong>${e(bar.date)}</strong></span>${values.map(([label, value]) => `<span>${e(label)} <strong>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
+  const values = [['开', fmt(bar.open)], ['高', fmt(bar.high)], ['低', fmt(bar.low)], ['收', fmt(bar.close)], ['涨跌额', changeAmount === null ? '—' : `${changeAmount > 0 ? '+' : ''}${fmt(changeAmount)}`], ['涨跌幅', change === null ? '—' : `${change > 0 ? '+' : ''}${fmt(change)}%`], ['均价', fmt(bar.vwap)], ['振幅', amplitude === null ? '—' : `${fmt(amplitude)}%`], ['成交量', formatAssetMagnitude(bar.volume, volumeUnit === '源单位' ? '' : volumeUnit)], ['成交额', formatAssetMagnitude(bar.amount, amountUnit === '源单位' ? '' : amountUnit)], ['换手率', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`]];
+  return `<span class="asset-history-date"><strong>${e(bar.date)}</strong></span>${values.map(([label, value]) => `<span>${e(label)} <strong>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
 }
 function overlayReadout(bar, state) {
   if (!bar) return '';
   const keys = state.overlay === 'boll' ? BOLL : state.overlay === 'none' ? [] : maEnabled(state).map(n => [`ma${n}`, `MA${n}`, COLORS[MA_PERIODS.indexOf(n)]]);
   return keys.map(([key, label, color]) => `<span style="--asset-series-color:${color}">${label}: ${e(fmt(bar[key]))}</span>`).join('');
 }
-function panelText(id, bar = {}) {
-  return { volume: `VOL:${fmt(bar.volume, 0)} MA5:${fmt(bar.volumeMA5, 0)} MA10:${fmt(bar.volumeMA10, 0)}`, macd: `MACD(12,26,9) DIF:${fmt(bar.dif, 4)} DEA:${fmt(bar.dea, 4)} MACD:${fmt(bar.macd, 4)}`, kdj: `KDJ(9,3,3) K:${fmt(bar.k)} D:${fmt(bar.d)} J:${fmt(bar.j)}`, rsi: `RSI(14):${fmt(bar.rsi)}` }[id] || '';
+function panelText(id, bar = {}, metadata = {}) {
+  return { volume: `VOL:${formatAssetMagnitude(bar.volume, fieldUnit(metadata, 'volume') || '')} MA5:${formatAssetMagnitude(bar.volumeMA5, fieldUnit(metadata, 'volume') || '')} MA10:${formatAssetMagnitude(bar.volumeMA10, fieldUnit(metadata, 'volume') || '')}`, macd: `MACD(12,26,9) DIF:${fmt(bar.dif, 4)} DEA:${fmt(bar.dea, 4)} MACD:${fmt(bar.macd, 4)}`, kdj: `KDJ(9,3,3) K:${fmt(bar.k)} D:${fmt(bar.d)} J:${fmt(bar.j)}`, rsi: `RSI(14):${fmt(bar.rsi)}` }[id] || '';
 }
-function panelLabels(bar = {}, theme = CHART_THEMES.dark, state = {}) {
+function panelLabels(bar = {}, theme = CHART_THEMES.dark, state = {}, metadata = {}) {
   const layout = chartLayout(state);
-  return layout.panels.map((id, index) => ({ id: `kline-panel-label-${id}`, type: 'text', left: 10, top: layout.top + layout.mainHeight + 9 + index * layout.panelStep, silent: true, style: { opacity: state.domPanelHeaders ? 0 : 1, fill: theme.text, font: '10px SF Mono, Consolas, monospace', textAlign: 'left', textVerticalAlign: 'top', text: panelText(id, bar) } }));
+  return layout.panels.map((id, index) => ({ id: `kline-panel-label-${id}`, type: 'text', left: 10, top: layout.top + layout.mainHeight + 9 + index * layout.panelStep, silent: true, style: { opacity: state.domPanelHeaders ? 0 : 1, fill: theme.text, font: '10px SF Mono, Consolas, monospace', textAlign: 'left', textVerticalAlign: 'top', text: panelText(id, bar, metadata) } }));
 }
 function panelHeaders(state) {
   const layout = chartLayout(state);
-  return layout.panels.map((id, index) => `<div class="asset-panel-header" style="top:${layout.top + layout.mainHeight + 3 + index * layout.panelStep}px" data-asset-panel="${id}"><span class="asset-panel-name">${PANEL_NAMES[id]}</span><span class="asset-panel-readout" data-asset-panel-readout="${id}"></span><button type="button" class="kline-btn" data-asset-chart-action="panel-remove-${id}" aria-label="移除 ${PANEL_NAMES[id]}" title="移除 ${PANEL_NAMES[id]}">×</button></div>`).join('');
+  return layout.panels.map((id, index) => `<div class="asset-panel-header" style="top:${layout.top + layout.mainHeight + 3 + index * layout.panelStep}px" data-asset-panel="${id}"><span class="asset-panel-name">${PANEL_NAMES[id]}</span><span class="asset-panel-readout" tabindex="0" data-asset-panel-readout="${id}"></span><button type="button" class="kline-btn" data-asset-chart-action="panel-remove-${id}" aria-label="移除 ${PANEL_NAMES[id]}" title="移除 ${PANEL_NAMES[id]}">×</button></div>`).join('');
 }
 function historyStatus(state, metadata) {
   const job = jobFor(metadata); const status = String(job.status || job.state || ''); const pending = busyHistory(metadata) || state.historyRequestPending;
   const chunks = finite(job.progress?.chunks_total); const completed = finite(job.progress?.chunks_completed);
   const progress = finite(job.progress?.percent ?? job.progress_pct ?? (typeof job.progress === 'number' ? job.progress : chunks > 0 && completed !== null ? completed / chunks * 100 : null));
   const count = finite(job.loaded_rows ?? job.progress?.loaded_rows ?? job.progress?.rows); const failed = ['failed', 'error', 'interrupted'].includes(status);
+  if (pending && job.progress?.phase === 'chip_inputs') return `筹码输入 ${job.progress.chip_batches_completed || 0}/${job.progress.chip_batches_total || 0}批 · 行情仍可查看`;
   if (pending) return `${state.requestedAdjustment ? `正在生成${adjustmentLabel(state.requestedAdjustment)}，当前仍显示${adjustmentLabel(state.adjustment)}原版本 · ` : ''}加载历史${progress === null ? '…' : ` ${fmt(clamp(progress, 0, 100), 0)}%`}${count === null ? '' : ` · ${fmt(count, 0)}条`}`;
   if (failed) return `${retryableHistory(metadata) ? '历史加载失败，可重试' : '历史口径已变化，请重新加载全历史'}${job.failure_code ? ` · ${job.failure_code}` : ''}`;
   if (status === 'cancelled') return '历史加载已取消，已取得数据保留，可重试';
@@ -148,35 +149,39 @@ function controls(state, length, metadata) {
   const button = (action, label, active = false, disabled = false, extra = '') => `<button type="button" class="kline-btn${active ? ' active' : ''}" data-asset-chart-action="${action}" aria-pressed="${active}"${disabled ? ' disabled' : ''}${extra}>${label}</button>`;
   const periods = [['day', '日K'], ['week', '周K'], ['month', '月K']].map(([period, label]) => button(`period-${period}`, label, state.period === period, source !== 'day' && source !== period)).join('');
   const failed = retryableHistory(metadata);
-  return `<div class="asset-chart-toolbar"><div class="kline-period-group" role="group" aria-label="K线周期">${periods}</div><select class="asset-chart-adjustment" data-asset-chart-adjustment aria-label="复权方式"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${[['none', '不复权'], ['qfq', '前复权'], ['hfq', '后复权']].map(([value, label]) => `<option value="${value}"${state.adjustment === value ? ' selected' : ''}>${label}</option>`).join('')}</select><select data-asset-history-source aria-label="历史来源"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${(state.historySource || metadata.historySource) === 'unknown' ? '<option value="unknown" selected>来源未知（请核验快照）</option>' : ''}${[['auto', '自动备用（近期日线/不复权）'], ['tinysoft', '天软（固定来源）'], ['wind', 'Wind（固定来源）'], ['akshare', 'AKShare（固定来源）'], ['baostock', 'BaoStock（固定来源）']].map(([value, label]) => `<option value="${value}"${(state.historySource || metadata.historySource || 'tinysoft') === value ? ' selected' : ''}>${label}</option>`).join('')}</select>${button('all', requiresHistoryRebuild(metadata) ? '重建全历史' : completeHistory(metadata) ? '全部已加载' : '全历史', state.showAll, pending || (state.historySource || metadata.historySource || 'tinysoft') !== 'tinysoft' || (!metadata.canLoadHistory && !completeHistory(metadata)))}<span class="asset-history-status" data-asset-history-status role="status">${e(historyStatus(state, metadata))}</span>${button('history-cancel', '取消', false, false, pending ? '' : ' hidden')}${button('history-retry', '重试', false, pending || !metadata.canLoadHistory, failed ? '' : ' hidden')}<div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${button('overlay-ma', 'MA', state.overlay === 'ma')}${button('overlay-boll', 'BOLL', state.overlay === 'boll')}${button('overlay-none', '裸K', state.overlay === 'none')}<details class="asset-chart-popover"><summary>均线⌄</summary><div class="asset-chart-popover-content" role="group" aria-label="主图均线">${MA_PERIODS.map(n => button(`ma-${n}`, `MA${n}`, maEnabled(state).includes(n))).join('')}<small>完整窗口后显示；缺失保留空档。</small></div></details></div><div class="asset-range-controls" role="group" aria-label="行情视区">${button('pan-back', '‹', false, !state.start && !metadata.canLoadHistory, ' aria-label="视区前移"')}${button('pan-forward', '›', false, state.end === length, ' aria-label="视区后移"')}${button('zoom-in', '＋', false, false, ' aria-label="放大视区"')}${button('zoom-out', '－', false, false, ' aria-label="缩小视区"')}${button('reset', '近120条')}</div></div>`;
+  return `<div class="asset-chart-toolbar"><div class="kline-period-group" role="group" aria-label="K线周期">${periods}</div><select class="asset-chart-adjustment" data-asset-chart-adjustment aria-label="复权方式"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${[['none', '不复权'], ['qfq', '前复权'], ['hfq', '后复权']].map(([value, label]) => `<option value="${value}"${state.adjustment === value ? ' selected' : ''}>${label}</option>`).join('')}</select><span class="asset-history-status" data-asset-history-status role="status" hidden>${e(historyStatus(state, metadata))}</span>${button('history-cancel', '取消', false, false, pending ? '' : ' hidden')}${button('history-retry', '重试', false, pending || !metadata.canLoadHistory, failed ? '' : ' hidden')}<div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${button('overlay-ma', 'MA', state.overlay === 'ma')}${button('overlay-boll', 'BOLL', state.overlay === 'boll')}${button('overlay-none', '裸K', state.overlay === 'none')}</div></div>`;
 }
-function chipStats(chip) {
-  const percent = value => value === null ? '—' : `${fmt(value * 100, 1)}%`;
-  return [['筹码峰', fmt(chip.peak)], ['平均成本', fmt(chip.averageCost)], ['上边界', fmt(chip.upper)], ['下边界', fmt(chip.lower)], ['估算获利', percent(chip.profitFraction)], ['估算套牢', percent(chip.lockedFraction)]].map(([label, value]) => `<div><span>${label}</span><strong>${e(value)}</strong></div>`).join('');
+function safeChipSettings(settings) { try { return normalizeChipSettings(settings || {}); } catch { safeLog('asset_chip_settings_restore_failed', { status: 'invalid' }); return normalizeChipSettings(); } }
+function canonicalChip(daily, state, metadata) {
+  const input = daily.slice(0, nearestIndex(daily, state.selectedDate) + 1);
+  const contract = historyFor(metadata).chip_inputs;
+  if (contract?.status !== 'complete' || contract.contract_version !== 'chip-turnover-1' || contract.turnover_unit !== 'percent') return unavailable('chip_inputs_not_loaded', input);
+  return estimateChips(input, state.chipSettings);
 }
-function canonicalChip(daily, state) {
-  return estimateChipDistribution(daily, 0, nearestIndex(daily, state.selectedDate));
-}
+const volumeTick = value => formatAssetMagnitude(value);
+
 export function renderMarketTerminal(rows = [], state = {}, metadata = {}) {
   const source = sourceFrequency(metadata.frequency); const daily = enrichMarketBars(rows);
   const normalized = { overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: source, showAll: false, adjustment: adjustmentFor(metadata), ...state };
-  normalized.panels = panelsFor(normalized);
+  normalized.panels = panelsFor(normalized); normalized.chipSettings = safeChipSettings(normalized.chipSettings); normalized.chipTab ||= 'statistics';
   const bars = displayBars(rows, normalized, metadata); Object.assign(normalized, rangeFor(bars.length, normalized));
   const activeIndex = selectedIndex(bars, normalized); normalized.activeIndex = activeIndex;
   normalized.selectedDate = daily[actualDateIndex(daily, normalized.selectedDate || bars[activeIndex]?.source_end_date || bars[activeIndex]?.date)]?.date || '';
   const active = source === 'day' ? daily[nearestIndex(daily, normalized.selectedDate)] : bars[activeIndex];
   const previous = source === 'day' ? daily[nearestIndex(daily, normalized.selectedDate) - 1] : bars[activeIndex - 1];
-  const chip = canonicalChip(source === 'day' ? daily : [], normalized); const layout = chartLayout(normalized);
-  return `<section class="asset-market-terminal" aria-label="行情与技术指标">${controls(normalized, bars.length, metadata)}<div class="asset-date-controls"><span>历史读数</span><button type="button" class="kline-btn" data-asset-chart-action="date-prev" aria-label="前一交易日">‹</button><input type="date" data-asset-selected-date aria-label="历史交易日期" value="${e(normalized.selectedDate)}" min="${e(daily[0]?.date || '')}" max="${e(daily.at(-1)?.date || '')}"><button type="button" class="kline-btn" data-asset-chart-action="date-next" aria-label="后一交易日">›</button><button type="button" class="kline-btn" data-asset-chart-action="latest">最新</button><span class="asset-selection-cue" data-asset-selection-cue></span><button type="button" class="kline-btn" data-asset-chart-action="locate" hidden>定位所选日</button></div><div class="asset-terminal-quote asset-history-readout" data-asset-history aria-live="off">${readout(active, previous, metadata)}</div><div class="kline-terminal-layout"><div class="asset-kline-stage"><div class="asset-main-overlay" data-asset-overlay-label>${overlayReadout(bars[activeIndex], normalized)}</div><div class="asset-terminal-chart" style="height:${layout.height}px" data-asset-chart data-asset-echarts role="img" tabindex="0" aria-label="K线与自定义副图；方向键选择历史交易日"></div><div class="asset-panel-headers" data-asset-panel-headers>${panelHeaders(normalized)}</div><div class="asset-panel-controls"><details class="asset-chart-popover"><summary>＋ 添加副图</summary><div class="asset-chart-popover-content" data-asset-panel-choices>${Object.entries(PANEL_NAMES).map(([id, name]) => `<button type="button" class="kline-btn" data-asset-chart-action="panel-add-${id}"${normalized.panels.includes(id) ? ' disabled' : ''}>${name}</button>`).join('')}</div></details><span class="asset-range-summary" data-asset-range-summary>第 ${bars.length ? normalized.start + 1 : 0}–${normalized.end} 条 / 共 ${bars.length} 条</span></div></div><aside class="asset-chip-panel"><div class="asset-chip-heading">筹码分布 <small>OHLCV估算</small></div><div class="asset-chip-chart" data-asset-chip-chart role="img" aria-label="日线累计至所选日的OHLCV估算筹码分布"></div><div class="chip-window-label" data-asset-chip-window>${chip.startDate ? e(`${chip.startDate}–${chip.endDate}`) : source !== 'day' ? '缺少日线底稿，累计筹码不可用' : '暂无有效窗口'}</div><div class="asset-chip-stats" data-asset-chip-stats>${chipStats(chip)}</div><p class="asset-chip-note">从首条已加载日线累计至所选日。按成交量均匀分配价格，不是实际持仓；未建模换手衰减。</p></aside></div><p class="asset-chart-help">滚轮缩放 · 拖动平移 · 底部滑块联动所有副图。点击 / 方向键选择交易日，视区变化保留所选日。<span data-asset-chart-metadata>${e(metadataLabel(metadata))}</span></p><details class="asset-indicator-method"><summary>指标计算与数据缺口</summary><p>MA5/10/20/60/120/250 使用完整窗口；BOLL20 为样本标准差 ±2σ。EMA12/26 首收盘价起算，DIF 第26条、DEA9 与 MACD×2 第34条显示。KDJ9 从首个有效 RSV 起算、α=1/3；RSI14 为14个实际涨跌的简单滚动均值。缺失或无效 OHLC 和明确间断重置预热，周/月先聚合 OHLCV 再重算全部指标。筹码始终使用同一版本日线的首日至所选日，视区和主图指标只改变显示价格轴。源字段单位缺失时不推测。</p></details></section>`;
+  const chip = canonicalChip(source === 'day' ? daily : [], normalized, metadata); const layout = chartLayout(normalized);
+  return `<section class="asset-market-terminal" aria-label="行情与技术指标">${controls(normalized, bars.length, metadata)}<div class="asset-terminal-quote asset-history-readout" data-asset-history aria-live="off">${readout(active, previous, metadata)}</div><div class="kline-terminal-layout"><div class="asset-kline-stage"><div class="asset-main-overlay" tabindex="0" aria-label="主图指标读数，可横向滚动" data-asset-overlay-label>${overlayReadout(bars[activeIndex], normalized)}</div><div class="asset-terminal-chart" style="height:${layout.height}px" data-asset-chart data-asset-echarts role="img" tabindex="0" aria-label="K线与自定义副图；方向键选择历史交易日"></div><div class="asset-panel-headers" data-asset-panel-headers>${panelHeaders(normalized)}</div><div class="asset-panel-controls"><details class="asset-chart-popover"><summary>＋ 添加副图</summary><div class="asset-chart-popover-content" data-asset-panel-choices>${Object.entries(PANEL_NAMES).map(([id, name]) => `<button type="button" class="kline-btn" data-asset-chart-action="panel-add-${id}"${normalized.panels.includes(id) ? ' disabled' : ''}>${name}</button>`).join('')}</div></details><span class="asset-range-summary" data-asset-range-summary>第 ${bars.length ? normalized.start + 1 : 0}–${normalized.end} 条 / 共 ${bars.length} 条</span></div></div>${chipPanel(chip, normalized.chipSettings, normalized.chipTab)}</div></section>`;
 }
 
+export function renderChartExplanation() { return `<p class="asset-chart-help">滚轮缩放 · 拖动平移 · 底部滑块联动所有副图。点击 / 方向键选择交易日，End 回到最新，视区变化保留所选日。</p><details class="asset-indicator-method"><summary>指标计算与数据缺口</summary><p>MA5/10/20/60/120/250 使用完整窗口；BOLL20 为样本标准差 ±2σ。EMA12/26 首收盘价起算，DIF 第26条、DEA9 与 MACD×2 第34条显示。KDJ9 从首个有效 RSV 起算、α=1/3；RSI14 为14个实际涨跌的简单滚动均值。缺失或无效 OHLC 和明确间断重置预热，周/月先聚合 OHLCV 再重算全部指标。筹码始终使用同一版本日线的首日至所选日，视区和主图指标只改变显示价格轴。源字段单位缺失时不推测。</p></details>`; }
+
 /** One price grid and exactly the enabled lower panels; all axes share a range. */
-export function buildMarketChartOption(bars, state = {}, metadata = {}, theme) {
+export function buildMarketChartOption(bars, state = {}, metadata = {}, theme, chip = null) {
   const palette = chartTheme(theme); const layout = chartLayout(state); const panels = layout.panels;
   const range = rangeFor(bars.length, state); const domain = priceDomain(bars, state); const dates = bars.map(bar => bar.date);
   const line = (name, key, axis, color) => ({ name, type: 'line', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, index) => [index, bar[key]]), smooth: false, connectNulls: false, lineStyle: { width: 1, color }, itemStyle: { color }, symbol: 'none', showSymbol: false });
   const volume = axis => ({ name: '成交量', type: 'bar', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, index) => [index, bar.volume, bar.validOHLC ? (bar.close >= bar.open ? 1 : -1) : 0]), barWidth: '60%', itemStyle: { color: params => params.data[2] > 0 ? UP : params.data[2] < 0 ? DOWN : palette.muted } });
-  const series = [{ name: 'K线', type: 'candlestick', large: false, xAxisIndex: 0, yAxisIndex: 0, data: bars.map(bar => bar.validOHLC && !bar.gap ? [bar.open, bar.close, bar.low, bar.high] : [null, null, null, null]), itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } }, ...MA_PERIODS.map((period, index) => line(`MA${period}`, `ma${period}`, 0, COLORS[index])), ...BOLL.map(([key, name, color]) => line(name, key, 0, color))];
+  const series = [{ id: 'asset-kline-price', markLine: chipPeakLines(chip, palette), name: 'K线', type: 'candlestick', large: false, xAxisIndex: 0, yAxisIndex: 0, data: bars.map(bar => bar.validOHLC && !bar.gap ? [bar.open, bar.close, bar.low, bar.high] : [null, null, null, null]), itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } }, ...MA_PERIODS.map((period, index) => line(`MA${period}`, `ma${period}`, 0, COLORS[index])), ...BOLL.map(([key, name, color]) => line(name, key, 0, color))];
   panels.forEach((id, index) => {
     const axis = index + 1;
     if (id === 'volume') series.push(volume(axis));
@@ -187,28 +192,26 @@ export function buildMarketChartOption(bars, state = {}, metadata = {}, theme) {
   const selected = Object.fromEntries([...MA_PERIODS.map(period => [`MA${period}`, (state.overlay || 'ma') === 'ma' && maEnabled(state).includes(period)]), ...BOLL.map(([, name]) => [name, state.overlay === 'boll'])]);
   const [kdjMin, kdjMax] = kdjDomain(bars, state); const axes = layout.grid.map((grid, index) => index);
   const axisStyle = { axisLine: { onZero: false, lineStyle: { color: palette.grid } }, axisTick: { show: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' };
-  return { backgroundColor: 'transparent', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', showContent: false, axisPointer: { type: 'cross', crossStyle: { color: palette.muted } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 12 }, formatter: params => { const index = params?.[0]?.dataIndex; return index === undefined ? '' : readout(bars[index], bars[index - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: palette.muted }, label: { backgroundColor: palette.surface, color: palette.text } }, graphic: panelLabels(bars[selectedIndex(bars, state)], palette, state), grid: layout.grid,
-    xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 10, hideOverlap: true } })),
-    yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: id !== 'rsi', gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : id === 'rsi' ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: index === 0 ? 10 : 9, formatter: index === 0 ? priceFmt : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
-    dataZoom: [{ type: 'inside', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, left: 8, right: 54, showDetail: false, borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.selected, dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } }, selectedDataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.selected } }, handleStyle: { color: palette.muted, borderColor: palette.surface }, moveHandleStyle: { color: palette.muted }, emphasis: { handleStyle: { color: palette.text }, moveHandleStyle: { color: palette.text } }, textStyle: { color: palette.muted, fontSize: 10 } }], series };
+  return { backgroundColor: 'transparent', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', showContent: false, axisPointer: { type: 'cross', crossStyle: { color: palette.muted } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 12 }, formatter: params => { const index = params?.[0]?.dataIndex; return index === undefined ? '' : readout(bars[index], bars[index - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: palette.muted }, label: { backgroundColor: palette.surface, color: palette.text } }, graphic: panelLabels(bars[selectedIndex(bars, state)], palette, state, metadata), grid: layout.grid,
+    xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
+    yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: id !== 'rsi', gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : id === 'rsi' ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : id === 'volume' ? volumeTick : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
+    dataZoom: [{ type: 'inside', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, left: 8, right: 54, showDetail: false, borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.selected, dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } }, selectedDataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.selected } }, handleStyle: { color: palette.muted, borderColor: palette.surface }, moveHandleStyle: { color: palette.muted }, emphasis: { handleStyle: { color: palette.text }, moveHandleStyle: { color: palette.text } }, textStyle: { color: palette.muted, fontSize: 12 } }], series };
 }
 
-export function buildChipChartOption(chip, domain, echarts = null, theme) {
-  const palette = chartTheme(theme);
-  const markers = [['筹码峰', chip.peak, '#eab308'], ['上边界', chip.upper, '#f59e0b'], ['下边界', chip.lower, '#f59e0b'], ['参考收盘', chip.referenceClose, COLORS[0]], ['均本', chip.averageCost, COLORS[1]]].filter(([, value]) => finite(value) !== null).map(([name, value, color]) => ({ yAxis: value, name, lineStyle: { color, width: name === '筹码峰' ? 2 : 1.5, type: name === '筹码峰' ? 'solid' : 'dashed' }, label: { formatter: name, color: palette.text, fontSize: 10 } }));
-  return { backgroundColor: 'transparent', animation: false, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: palette.selected } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 11 }, formatter: p => p?.[0] ? `OHLCV估算<br>价格：${e(fmt(p[0].data[1]))}<br>占比：${e(fmt(p[0].data[0]))}%` : '' }, grid: { left: 0, right: 3, top: 0, bottom: 0, containLabel: false }, xAxis: { type: 'value', axisLabel: { color: palette.muted, fontSize: 9 }, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: palette.grid } }, max: v => v.max ? v.max * 1.25 : 1 }, yAxis: { type: 'value', min: domain[0], max: domain[1], axisLabel: { color: palette.muted, fontSize: 9, formatter: v => fmt(v) }, axisLine: { lineStyle: { color: palette.grid } }, axisTick: { show: false }, splitLine: { show: false } }, graphic: chip.points.length ? [] : [{ type: 'text', left: 'center', top: 'middle', style: { text: '需至少5条有效OHLCV\n暂无筹码估算', fill: palette.muted, font: '11px sans-serif', textAlign: 'center' } }], series: [{ name: 'OHLCV估算筹码分布', type: 'custom', data: chip.points.map(p => [p.concentration_pct, p.price]), renderItem: (params, api) => { const concentration = api.value(0); const price = api.value(1); const start = api.coord([0, price]); const end = api.coord([concentration, price]); const height = Math.max(1, Math.min(3, Math.abs(api.size([0, (chip.bucketWidth || .01) * .72])[1]))); const rect = { x: start[0], y: start[1] - height / 2, width: Math.max(1, end[0] - start[0]), height }; const shape = echarts?.graphic?.clipRectByRect ? echarts.graphic.clipRectByRect(rect, params.coordSys) : rect; return shape ? { type: 'rect', shape, style: api.style({ fill: price > chip.referenceClose ? '#22c55e' : UP }) } : null; }, markLine: { silent: true, symbol: 'none', label: { position: 'end', fontSize: 9, color: palette.muted }, data: markers } }] };
+export function buildChipChartOption(chip, domain, echarts = null, theme, tab = 'statistics', overlay = null) {
+  return chipChartOption(chip, domain, echarts, chartTheme(theme), tab, overlay);
 }
 
-export function createAssetChartController({ onChange = () => {}, onPanelsChange = () => {}, onHistoryRequest = () => {}, logger = safeLog } = {}) {
+export function createAssetChartController({ onChange = () => {}, onPanelsChange = () => {}, onChipSettingsChange = () => {}, onHistoryRequest = () => {}, logger = safeLog } = {}) {
   let rawRows = []; let daily = []; let bars = []; let identity; let datasetKey = ''; let metadata = {}; let source = 'day';
-  let state = { historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+  let state = { chipSettings: normalizeChipSettings(), chipTab: 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
   let slot = null; let main = null; let chips = null; let observer = null; let frame = null; let needsFull = false; let needsResize = false; let view = null; let library = null; let applying = false; let olderAnchor = ''; let lastHistoryScope = 'all'; let lastHistoryAdjustment = null; let pointerBlocked = false; let dragging = false; let gestureStartX = null; let historyRequestSerial = 0;
-  let theme = chartTheme(); const chipCache = new Map();
+  let lastChipMarkers = ''; let theme = chartTheme(); const chipCache = new Map();
   const listeners = []; const chartListeners = []; const zrListeners = [];
   const log = method => { try { logger(`asset_chart_${method}_failed`, { status: 'error', method }); } catch { /* Diagnostics must not prevent disposal. */ } };
   const guarded = (method, fn) => { try { return fn(); } catch { log(method); return false; } };
   const outside = () => bars.length > 0 && (state.activeIndex < state.start || state.activeIndex >= state.end);
-  const getState = () => ({ ...state, selectedOutsideView: outside(), enabledMA: [...state.enabledMA], panels: [...state.panels] });
+  const getState = () => ({ ...state, selectedOutsideView: outside(), enabledMA: [...state.enabledMA], panels: [...state.panels], chipSettings: { ...state.chipSettings, visibleAges: [...state.chipSettings.visibleAges] } });
   const find = selector => slot?.querySelector(selector);
   const notify = reason => guarded('change', () => onChange(getState(), { reason }));
   const selectedDailyIndex = () => nearestIndex(daily, state.selectedDate);
@@ -224,9 +227,9 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const history = historyFor(metadata);
     const version = history.canonical_version || history.canonicalVersion || history.version || metadata.canonicalVersion || datasetKey;
     const factor = history.factor_version || history.factorVersion || metadata.factorVersion || '';
-    const key = JSON.stringify([identity, version, factor, state.selectedDate, adjustmentFor(metadata)]);
+    const key = JSON.stringify([identity, version, factor, state.selectedDate, adjustmentFor(metadata), state.chipSettings]);
     if (!chipCache.has(key)) {
-      chipCache.set(key, estimateChipDistribution(source === 'day' ? daily : [], 0, selectedDailyIndex()));
+      chipCache.set(key, canonicalChip(source === 'day' ? daily : [], state, metadata));
       if (chipCache.size > 24) chipCache.delete(chipCache.keys().next().value);
     }
     return chipCache.get(key);
@@ -246,10 +249,10 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const cue = find('[data-asset-selection-cue]'); if (cue) cue.textContent = outside() ? `所选日 ${state.selectedDate} 在视区外` : '';
     const adjustment = find('[data-asset-chart-adjustment]'); if (adjustment) { adjustment.value = state.adjustment; adjustment.disabled = !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending; }
     const historySource = find('[data-asset-history-source]'); if (historySource) { historySource.value = state.historySource || metadata.historySource || 'tinysoft'; historySource.disabled = !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending; }
-    const status = find('[data-asset-history-status]'); if (status) status.textContent = historyStatus(state, metadata);
+    const status = find('[data-asset-history-status]'); if (status) { status.textContent = historyStatus(state, metadata); status.hidden = !busyHistory(metadata) && !state.historyRequestPending && !['failed', 'error', 'interrupted', 'cancelled', 'unknown'].includes(String(jobFor(metadata).status || jobFor(metadata).state || '')); }
     const pending = busyHistory(metadata) || state.historyRequestPending;
     for (const button of slot?.querySelectorAll('[data-asset-chart-action]') || []) {
-      const action = button.dataset.assetChartAction; let pressed = false;
+      const action = button.dataset.assetChartAction; if (action.startsWith('chip-')) { if (action === 'chip-load') { button.disabled = busyHistory(metadata) || state.historyRequestPending || !canLoadChip(metadata); button.title = canLoadChip(metadata) ? '使用当前天软日线口径加载逐日换手率' : '当前日线来源未支持此筹码输入'; } continue; } let pressed = false;
       if (action.startsWith('overlay-')) pressed = state.overlay === action.slice(8);
       else if (action.startsWith('ma-')) pressed = state.enabledMA.includes(Number(action.slice(3)));
       else if (action.startsWith('period-')) { const period = action.slice(7); pressed = state.period === period; button.disabled = source !== 'day' && source !== period; }
@@ -264,7 +267,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     }
     const headers = find('[data-asset-panel-headers]');
     if (headers && headers.dataset.panels !== state.panels.join(',')) { headers.innerHTML = panelHeaders(state); headers.dataset.panels = state.panels.join(','); }
-    for (const id of state.panels) { const label = find(`[data-asset-panel-readout="${id}"]`); if (label) label.textContent = panelText(id, bars[state.activeIndex]); }
+    for (const id of state.panels) { const label = find(`[data-asset-panel-readout="${id}"]`); if (label) label.textContent = panelText(id, bars[state.activeIndex], metadata); }
     const chart = find('[data-asset-echarts]'); if (chart) {
       chart.style.height = `${chartLayout(state).height}px`;
       if (chart.dataset) Object.assign(chart.dataset, { visibleStart: String(state.start), visibleEnd: String(state.end), visibleCount: String(state.end - state.start), activeIndex: String(state.activeIndex), selectedDate: state.selectedDate, selectedOutsideView: String(outside()), period: state.period, overlay: state.overlay, enabledMa: state.enabledMA.join(','), panels: state.panels.join(','), adjustment: state.adjustment });
@@ -277,7 +280,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     // canvases use zero internal vertical padding, so equal prices share pixels.
     const rect = main?.getModel?.().getComponent?.('grid', 0)?.coordinateSystem?.getRect?.() || chartLayout(state).grid[0];
     const mainRect = mainNode.getBoundingClientRect(); const panelRect = panel.getBoundingClientRect();
-    const narrow = view?.matchMedia?.('(max-width: 760px)')?.matches === true;
+    const narrow = view?.matchMedia?.('(max-width: 959px)')?.matches === true;
     const top = narrow ? 0 : mainRect.top + Number(rect.y ?? rect.top) - panelRect.top;
     panel.style.setProperty('--chip-plot-top', `${Math.max(0, top)}px`);
     panel.style.setProperty('--chip-plot-height', `${Number(rect.height)}px`);
@@ -293,13 +296,22 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     guarded('render', () => {
       if (needsFull) theme = pageTheme(); syncLabels();
       if (needsResize || needsFull) main?.resize({ height: chartLayout(state).height });
-      const domain = priceDomain(bars, state); applying = true;
-      try { main?.setOption(needsFull ? buildMarketChartOption(bars, { ...state, domPanelHeaders: true }, metadata, theme) : { graphic: panelLabels(bars[state.activeIndex], theme, { ...state, domPanelHeaders: true }), yAxis: axisPatch(domain) }, needsFull); }
+      const domain = priceDomain(bars, state); const chip = cumulativeChip(); const markerKey = JSON.stringify([chip.status, chip.peak, chip.peakLower, chip.peakUpper, chip.settings?.showPeak]); applying = true;
+      try { main?.setOption(needsFull ? buildMarketChartOption(bars, { ...state, domPanelHeaders: true }, metadata, theme, chip) : { ...(markerKey !== lastChipMarkers ? { series: [{ id: 'asset-kline-price', markLine: chipPeakLines(chip, theme) }] } : {}), graphic: panelLabels(bars[state.activeIndex], theme, { ...state, domPanelHeaders: true }), yAxis: axisPatch(domain) }, needsFull); }
       finally { applying = false; }
+      lastChipMarkers = markerKey;
       alignChips(); const chipNode = find('[data-asset-chip-chart]'); chips?.resize({ height: parseFloat(chipNode?.style.height) || 300 });
-      const chip = cumulativeChip(); const stats = find('[data-asset-chip-stats]'); if (stats) stats.innerHTML = chipStats(chip);
+      const stats = find('[data-asset-chip-stats]'); if (stats) { const markup = chipStatistics(chip, state.chipTab); if (stats.dataset.chipMarkup !== markup) { stats.innerHTML = markup; stats.dataset.chipMarkup = markup; } }
       const windowLabel = find('[data-asset-chip-window]'); if (windowLabel) windowLabel.textContent = chip.startDate ? `${chip.startDate}–${chip.endDate} · 累计${chip.validBars}条有效日线` : source !== 'day' ? '缺少日线底稿，累计筹码不可用' : '暂无有效窗口';
-      chips?.setOption(buildChipChartOption(chip, domain, library, theme), true);
+      const tabs = find('[data-asset-chip-tabs]'); for (const button of tabs?.querySelectorAll('[aria-pressed]') || []) button.setAttribute('aria-pressed', String(button.dataset.assetChartAction === `chip-tab-${state.chipTab}`));
+      let overlay = null;
+      if (chip.status === 'ready' && state.chipSettings.overlayEnabled) {
+        const cutoff = selectedDailyIndex() - state.chipSettings.overlayDays;
+        if (cutoff >= 4) overlay = estimateChips(daily.slice(0, cutoff + 1), state.chipSettings);
+      }
+      chips?.setOption(buildChipChartOption(chip, domain, library, theme, state.chipTab, overlay), true);
+      const note = find('.asset-chip-note'); if (note) note.textContent = `换手衰减估算，非实际持仓。${chip.status === 'ready' && chip.initialResidual > .01 ? `初始分布仍占 ${(chip.initialResidual * 100).toFixed(2)}%。` : ''}${state.chipSettings.overlayEnabled ? overlay?.status === 'ready' ? `历史叠加：${overlay.endDate}。` : '所选日期之前的历史不足，未绘制历史叠加。' : ''}`;
+      syncLabels();
     });
     needsFull = needsResize = false;
   }
@@ -348,7 +360,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       if (attemptAnchor && olderAnchor === attemptAnchor) olderAnchor = '';
       update({ historyRequestPending: false, historyViewAllRequested: false, requestedAdjustment: null }, 'history_failed');
     };
-    const result = guarded('history_request', () => onHistoryRequest({ action, scope, adjustment, ...(selectedSource ? { source: selectedSource } : {}) }));
+    const result = guarded('history_request', () => onHistoryRequest({ action, scope, adjustment, ...(selectedSource ? { source: selectedSource } : {}), ...((action === 'retry' ? jobFor(metadata).include_chip_inputs === true : selectedSource === 'tinysoft') ? { includeChipInputs: true } : {}) }));
     if (result === false) { rejected(); return false; }
     if (result && typeof result.then === 'function') result.then(accepted => {
       if (requestSerial !== historyRequestSerial) return;
@@ -401,7 +413,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       bars = source === 'day' && ['week', 'month'].includes(period) ? aggregateMarketBars(daily, period) : daily;
       if (changedIdentity) {
         chipCache.clear(); olderAnchor = ''; lastHistoryAdjustment = null; historyRequestSerial++;
-        state = { historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+        state = { chipSettings: safeChipSettings(preferences?.chip_settings || previous.chipSettings), chipTab: previous.chipTab || 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
       } else {
         if (changedRows) chipCache.clear();
         const startDate = previousBars[previous.start]?.source_start_date || previousBars[previous.start]?.date;
@@ -411,7 +423,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         const end = firstRows ? bars.length : bars.length ? previous.showAll ? bars.length : Math.max(start + 1, nearestIndex(bars, endDate) + 1) : 0;
         const selectedDate = daily[actualDateIndex(daily, previous.selectedDate)]?.date || '';
         state = { ...previous, historySource: previousHistorySource !== metadata.historySource ? metadata.historySource : previous.historySource, period, selectedDate, start, end, adjustment: adjustmentFor(metadata), historyRequestPending: busyHistory(metadata) ? previous.historyRequestPending : changedRows || ['completed', 'complete', 'succeeded', 'failed', 'error', 'cancelled', 'interrupted'].includes(String(jobFor(metadata).status || jobFor(metadata).state || '')) ? false : previous.historyRequestPending, crosshairY: null, crosshairVisible: false };
-        if (preferences) state.panels = panelsFor(preferences);
+        if (preferences) { state.panels = panelsFor(preferences); state.chipSettings = safeChipSettings(preferences.chip_settings); }
         if (changedRows && adjustmentFor(metadata) === previous.requestedAdjustment) state.requestedAdjustment = null;
         if (changedRows && previous.historyViewAllRequested && completeHistory(metadata)) state = { ...state, start: 0, end: bars.length, showAll: true, historyViewAllRequested: false };
         if (['failed', 'error', 'cancelled', 'interrupted'].includes(String(jobFor(metadata).status || jobFor(metadata).state || ''))) {
@@ -423,7 +435,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     });
     if (result === false) release(); return result;
   }
-  function setPreferences(preferences = {}) { if (!Array.isArray(preferences.panels)) return false; return update({ panels: panelsFor(preferences) }, 'preferences', true); }
+  function setPreferences(preferences = {}) { if (!Array.isArray(preferences.panels)) return false; return update({ panels: panelsFor(preferences), chipSettings: safeChipSettings(preferences.chip_settings) }, 'preferences', true); }
   function select(index, reveal = true, pointer = false) {
     if (!bars.length || finite(index) === null) return false;
     const activeIndex = clamp(Math.round(index), 0, bars.length - 1); const selectedDate = bars[activeIndex].source_end_date || bars[activeIndex].date;
@@ -477,11 +489,27 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         if (event.target?.matches?.('[data-asset-chart-adjustment]')) {
           const adjustment = event.target.value; if (!['none', 'qfq', 'hfq'].includes(adjustment) || !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending) return false;
           if (adjustment === state.adjustment) return false;
-          return requestHistory('load', 'recent', adjustment, adjustment === 'none' ? state.historySource || metadata.historySource : 'tinysoft');
+          return requestHistory('load', completeHistory(metadata) ? 'all' : 'recent', adjustment, adjustment === 'none' ? state.historySource || metadata.historySource : 'tinysoft');
         }
+      }
+      if (event?.type === 'submit' && event.target?.matches?.('[data-asset-chip-settings-form]')) {
+        event.preventDefault();
+        const form = event.target;
+        try {
+          const data = new view.FormData(form); const value = key => { const text = String(data.get(key) ?? '').trim(); if (!text) throw new Error('empty'); return Number(text); };
+          const settings = normalizeChipSettings({ algorithm: data.get('algorithm'), decay: value('decay'), peakUpperPct: value('peakUpperPct'), peakLowerPct: value('peakLowerPct'), ageShort: value('ageShort'), ageMiddle: value('ageMiddle'), ageLong: value('ageLong'), overlayDays: value('overlayDays'), showPeak: data.has('showPeak'), overlayEnabled: data.has('overlayEnabled'), visibleAges: ['long', 'middle', 'short', 'ultra'].filter(id => data.has(`age-${id}`)) });
+          chipCache.clear(); update({ chipSettings: settings }, 'chip-settings', true); find('[data-asset-chip-settings]')?.close();
+          guarded('chip_preferences', () => onChipSettingsChange(settings));
+        } catch { const message = form.querySelector('[data-chip-settings-error]'); if (message) { message.hidden = false; message.textContent = '请检查数值范围，并保持短线起点＜中线起点＜长线起点。'; } log('chip_settings'); }
+        return true;
       }
       if (event?.type === 'click') {
         const button = event.target?.closest?.('[data-asset-chart-action]'); if (!button || button.disabled) return false; const action = button.dataset.assetChartAction;
+        if (action === 'chip-tab-statistics' || action === 'chip-tab-age') return update({ chipTab: action.slice(9) }, 'chip-tab', true);
+        if (action === 'chip-settings-open') { const dialog = find('[data-asset-chip-settings]'); if (dialog) { dialog.innerHTML = chipSettingsForm(state.chipSettings); dialog.showModal(); } return true; }
+        if (action === 'chip-settings-cancel') { find('[data-asset-chip-settings]')?.close(); return true; }
+        if (action === 'chip-settings-default') { const dialog = find('[data-asset-chip-settings]'); if (dialog) dialog.innerHTML = chipSettingsForm(normalizeChipSettings()); return true; }
+        if (action === 'chip-load') return canLoadChip(metadata) && requestHistory('load', completeHistory(metadata) ? 'all' : 'recent', state.adjustment, 'tinysoft');
         if (['overlay-ma', 'overlay-boll', 'overlay-none'].includes(action)) return update({ overlay: action.slice(8) }, 'overlay', true);
         if (/^ma-(5|10|20|60|120|250)$/.test(action)) { const period = Number(action.slice(3)); return update({ enabledMA: state.enabledMA.includes(period) ? state.enabledMA.filter(value => value !== period) : MA_PERIODS.filter(value => value === period || state.enabledMA.includes(value)) }, 'ma', true); }
         if (action.startsWith('panel-add-') || action.startsWith('panel-remove-')) {
@@ -516,7 +544,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const result = guarded('mount', () => {
       slot.innerHTML = renderMarketTerminal(rawRows, state, metadata);
       const localHandle = event => { const handled = handle(event); if (handled) { event.assetChartHandled = true; event.stopPropagation?.(); } };
-      listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle);
+      listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle); listen(slot, 'submit', localHandle);
       for (const selector of ['[data-asset-echarts]', '[data-asset-chip-chart]']) { const node = find(selector); if (node) { listen(node, 'mouseleave', hidePointer); listen(node, 'pointerleave', hidePointer); } }
       initCharts(); schedule(true); return true;
     });

@@ -198,6 +198,79 @@ def run(sdk, capability="financials", **parameters):
     )
 
 
+class TurnoverSDK(SDK):
+    def get_factor_data(self, *, code, date, factors, client):
+        assert code == "SZ000001" and factors == ["换手率"] and client == "client"
+        assert isinstance(date, list) and len(date) <= 32
+        return [
+            {"代码": code, "截止日": d.replace("-", ""), "换手率": 0 if i == 0 else 8.5}
+            for i, d in enumerate(date)
+        ]
+
+
+def test_chip_turnover_closed_contract_keeps_zero_dates_units_and_raw_evidence():
+    result = run(
+        TurnoverSDK(),
+        "market_activity",
+        dataset="chip_turnover",
+        dates=["2026-01-05", "2026-01-06"],
+    )
+    assert result.rows == [
+        {"asset": "000001.SZ", "date": "2026-01-05", "turnover_rate_pct": 0},
+        {"asset": "000001.SZ", "date": "2026-01-06", "turnover_rate_pct": 8.5},
+    ]
+    assert result.fields["turnover_rate_pct"]["unit"] == "percent"
+    assert result.metadata["chip_turnover_contract"]["version"] == "chip-turnover-1"
+    assert len(result.raw) >= 2
+
+
+@pytest.mark.parametrize(
+    "dates",
+    [
+        [],
+        ["2026-01-05"] * 2,
+        ["not-a-date"],
+        ["2026-01-06", "2026-01-05"],
+        [f"2026-01-{i:02d}" for i in range(1, 34)],
+    ],
+)
+def test_chip_turnover_rejects_unbounded_or_ambiguous_date_requests(dates):
+    with pytest.raises((ProviderError, ValueError)):
+        run(TurnoverSDK(), "market_activity", dataset="chip_turnover", dates=dates)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["identity", "duplicate", "missing", "boolean", "negative", "definition"]
+)
+def test_chip_turnover_rejects_bad_identity_coverage_number_or_definition(mutation):
+    sdk = TurnoverSDK()
+    original = sdk.get_factor_data
+    if mutation == "definition":
+        definitions = sdk.list_factors()
+        sdk.list_factors = lambda **kwargs: [
+            {**r, "公式": "unverified"} if r["因子名称"] == "换手率" else r for r in definitions
+        ]
+    else:
+
+        def data(**kwargs):
+            rows = original(**kwargs)
+            if mutation == "identity":
+                rows[0]["代码"] = "SH600519"
+            if mutation == "duplicate":
+                rows.append(dict(rows[0]))
+            if mutation == "missing":
+                rows.pop()
+            if mutation == "boolean":
+                rows[0]["换手率"] = False
+            if mutation == "negative":
+                rows[0]["换手率"] = -1
+            return rows
+
+        sdk.get_factor_data = data
+    with pytest.raises(ProviderError):
+        run(sdk, "market_activity", dataset="chip_turnover", dates=["2026-01-05", "2026-01-06"])
+
+
 @pytest.mark.parametrize(
     "asset,asset_type", [("000001.SH", "stock"), ("000001.SZ", "index"), ("510300.SH", "etf")]
 )
