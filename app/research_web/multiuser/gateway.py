@@ -116,6 +116,17 @@ def create_gateway(
         try:
             if hasattr(pool, "start"):
                 await pool.start()
+            private_pool = getattr(pool, "private_pool", pool)
+            if hasattr(private_pool, "restore_discovery_tracks"):
+                # Registered enabled accounts are the only restoration inventory.
+                users = await asyncio.to_thread(accounts.list_users)
+                await private_pool.restore_discovery_tracks(
+                    [
+                        user.id
+                        for user in users
+                        if user.enabled and user.id != getattr(pool, "primary_user_id", None)
+                    ]
+                )
             yield
         finally:
             await pool.close()
@@ -359,6 +370,16 @@ def create_gateway(
             "items": [u.public() for u in await asyncio.to_thread(accounts.list_users)],
             "primary_user_id": getattr(pool, "primary_user_id", None),
         }
+
+    @app.get("/api/server/discovery-tracking-status")
+    async def discovery_tracking_status(request: Request):
+        private_pool = getattr(pool, "private_pool", pool)
+        user_id = request.state.user.id
+        if user_id == getattr(pool, "primary_user_id", None):
+            return {"status": "resident_owned"}
+        return getattr(private_pool, "discovery_restoration", {}).get(
+            user_id, {"status": "not_required"}
+        )
 
     @app.post("/api/server/users", status_code=201)
     async def create_user(body: NewUser, request: Request):

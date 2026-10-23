@@ -37,7 +37,7 @@ export function parseRoute(hash = '') {
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
   if (page === 'intel') {
-    const tabs = new Set(['hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events']);
+    const tabs = new Set(['discovery', 'hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
     if (route.intelTab === 'search') {
       route.searchKind = Object.hasOwn(searchSections, params.get('kind')) ? params.get('kind') : 'news';
@@ -383,6 +383,16 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     createAssetAlert: (body) => request('/asset-alerts', { method: 'POST', body }),
     assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
+    discoveryFeed: (horizon = 'medium', refresh = false, options = {}) => request(`/discovery/feed?horizon=${segment(horizon)}&refresh=${refresh ? 'true' : 'false'}`, options),
+    discoverySelection: (feedId, themeId, horizon, options = {}) => request(`/discovery/selection?feed_id=${segment(feedId)}&theme_id=${segment(themeId)}&horizon=${segment(horizon)}`, options),
+    discoveryPrepare: body => request('/discovery/prepare', { method: 'POST', body, userAction: true }),
+    discoveryHandoff: id => request(`/discovery/handoffs/${segment(id)}`),
+    discoveryHandoffs: (options = {}) => request('/discovery/handoffs', options),
+    discoveryRequest: id => request(`/discovery/requests/${segment(id)}`),
+    discoveryExecute: (id, body) => request(`/discovery/handoffs/${segment(id)}/execute`, { method: 'POST', body, userAction: true }),
+    discoveryTracks: (options = {}) => request('/discovery/tracks', options),
+    discoveryTrackSave: body => request('/discovery/tracks', { method: 'POST', body, userAction: true }),
+    discoveryTrackState: (id, enabled, body) => request(`/discovery/tracks/${segment(id)}/${enabled ? 'enable' : 'disable'}`, { method: 'POST', body, userAction: true }),
     artifacts: (sessionId = '') => request(`/artifacts${sessionId ? `?session_id=${segment(sessionId)}` : ''}`),
     operationsUsage: (range = '7d') => request(`/operations/usage?range=${segment(range)}`),
     operationsTools: (range = '7d') => request(`/operations/tools?range=${segment(range)}`),

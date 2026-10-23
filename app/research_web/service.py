@@ -42,6 +42,8 @@ from .datahub import DataHub
 from .datahub.broker import Resolution
 from .datahub.contracts import BusinessQuery
 from .delivery import FINAL, Delivery, expected_formats
+from .discovery.service import DiscoveryService
+from .discovery.tracking import DiscoveryTracking
 from .frameworks import FrameworkService
 from .integrations import IntegrationCoordinator
 from .local_integrations import LocalIntegrationManager
@@ -86,6 +88,7 @@ from .research_quality_service import (
 from .service_manager import WebServiceManager
 from .store import Store, StoreError
 from .tabbit import TabbitIntegration
+from .tenant_policy import enabled as tenant_mode_enabled
 
 log = get_logger(__name__)
 SESSION_DELETE_BLOCKED_STATUSES = {
@@ -350,6 +353,29 @@ class ResearchService(ModelProfilesMixin):
             channel_store=self.delivery_channels,
             dispatcher=DeliveryDispatcher(transport=DeliveryTransport(self.delivery_channels)),
         )
+        self.discovery = DiscoveryService(self)
+        self.discovery_tracking = DiscoveryTracking(self, self.discovery)
+        self.discovery_scheduler_lock = asyncio.Lock()
+        native_automation_executor = self.automations.executor
+
+        async def execute_owned_discovery(automation, run):
+            if self.discovery_tracking.eligible(automation):
+                return await self.discovery_tracking.execute(automation, run)
+            return await native_automation_executor(automation, run)
+
+        def resume_owned_discovery(run_id):
+            run = self.automations._run_row(run_id)
+            automation = self.automations._row(run["automation_id"])
+            if self.discovery_tracking.eligible(automation):
+                return self.discovery_tracking.resume(run_id)
+            return None
+
+        self.automations.executor = execute_owned_discovery
+        self.automations.resume_executor = resume_owned_discovery
+        if tenant_mode_enabled():
+            # Starting the existing scheduler never grants general Automation
+            # permissions to a tenant or wakes unrelated historical tasks.
+            self.automations.eligibility = self.discovery_tracking.eligible
         self.connected: set[str] = set()
         self.claw_projects = ClawProjects(self)
         self.automation_drafts = AutomationDrafts(self)
@@ -447,8 +473,10 @@ class ResearchService(ModelProfilesMixin):
         await self.mcp_runtime.start()
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
         await self.report_workflows.start()
-        if automation_feature_enabled():
+        if not tenant_mode_enabled() and automation_feature_enabled():
             await self.automations.start()
+        elif self.discovery_tracking_allowed() and self.discovery_tracking.has_enabled():
+            await self.ensure_discovery_scheduler()
         await self.purge_expired_sessions()
         self.retention_task = asyncio.create_task(
             self._retention_loop(), name="research-session-retention"
@@ -456,6 +484,26 @@ class ResearchService(ModelProfilesMixin):
         self.integrations.load()
         if self.auto_probe_on_start:
             self.integrations.start()
+
+    @staticmethod
+    def discovery_tracking_allowed():
+        """Tenant discovery consent never opens its disabled general manager."""
+        if tenant_mode_enabled():
+            return os.environ.get("RWB_DISCOVERY_TRACKING_ENABLED") == "1"
+        return automation_feature_enabled()
+
+    async def ensure_discovery_scheduler(self):
+        """Start only the existing scheduler after an explicit enable or recovery."""
+        if not self.discovery_tracking_allowed():
+            raise StoreError("持续跟踪已由宿主关闭", "discovery_tracking_disabled", 403)
+        async with self.discovery_scheduler_lock:
+            if not getattr(self.automations.scheduler, "running", False):
+                await self.automations.start()
+            if not getattr(self.automations.scheduler, "running", False):
+                log.warning("discovery_scheduler_unavailable")
+                raise StoreError(
+                    "跟踪调度尚未就绪，草稿已保留", "discovery_scheduler_unavailable", 503
+                )
 
     async def close(self):
         if self.retention_task:
@@ -2606,6 +2654,10 @@ class ResearchService(ModelProfilesMixin):
             if getattr(self, "plugin_runtime_frozen", False):
                 raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
             row = self.store.session(sid)
+            if row.get("purpose") == "discovery_research" and (
+                row.get("discovery_creation_state") != "ready"
+            ):
+                raise StoreError("研究会话尚未完成准备", "discovery_session_not_ready", 409)
             chosen_mode = research_mode or row.get(
                 "research_mode", "deep" if row.get("research_depth") == "deep" else "quick"
             )
@@ -2904,24 +2956,47 @@ class ResearchService(ModelProfilesMixin):
             from .report_workflows.weekly_quality import trusted_weekly_context
 
             weekly_context = trusted_weekly_context(self, sid)
+            discovery_context = (
+                self.discovery.trusted_context(sid)
+                if row.get("purpose") == "discovery_research"
+                else None
+            )
+            if row.get("purpose") == "discovery_research" and not discovery_context:
+                raise StoreError("发现研究证据归属缺失", "discovery_context_missing", 409)
             if weekly_context:
                 prepare_weekly_evidence(self, sid)
-            if weekly_context or (
-                row["mode"] == "fingpt" and row.get("purpose") in {None, "research"}
+            if (
+                weekly_context
+                or discovery_context
+                or (row["mode"] == "fingpt" and row.get("purpose") in {None, "research"})
             ):
                 try:
+                    requirements = research_requirements
+                    as_of = research_as_of
+                    quality_mode = chosen_mode
+                    if weekly_context:
+                        requirements = [item["text"] for item in weekly_context["requirements"]]
+                        as_of, quality_mode = weekly_context["as_of"], "deep"
+                    elif discovery_context:
+                        requirements = list(
+                            research_requirements or [discovery_context["question"]]
+                        )
+                        requirements.extend(
+                            [
+                                "区分来源陈述、已核验事实与推断，引用固定资料版本。",
+                                "列明反方证据、失效条件和下一验证事项。",
+                                "保留陈旧资料、未知时间、来源与覆盖缺口，不将二手归档当网页全文。",
+                            ]
+                        )
+                        as_of, quality_mode = discovery_context["cutoff"], "deep"
                     contract = prepare_contract(
                         self,
                         sid,
                         prepared_receipt,
                         text,
-                        (
-                            [item["text"] for item in weekly_context["requirements"]]
-                            if weekly_context
-                            else research_requirements
-                        ),
-                        weekly_context["as_of"] if weekly_context else research_as_of,
-                        "deep" if weekly_context else chosen_mode,
+                        requirements,
+                        as_of,
+                        quality_mode,
                     )
                 except (OSError, ValueError, StoreError) as exc:
                     log.warning(

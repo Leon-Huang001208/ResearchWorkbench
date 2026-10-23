@@ -1,5 +1,8 @@
 # Research Workbench Research Web 当前架构
 
+今日发现已登记为独立Host模块阅读入口：固定Intel只读预览、显式冻结、一次DSH提交和单独开启跟踪沿原DataHub/Automation/账号Pool运行。新资料与调度恢复属于真实新边，01部署、02模块、03序列和04资料图同步；当前静态合同不认证真实模型、生产计划或常驻部署。详见[今日发现](../../research-web-discovery.md)。
+
+
 2026-10-23 当前组合源码阅读检查点为`2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0`，包含已审主线Plugin/Auth/Market、资产来源策略与Wind仓库长窗回归修复。读取仍校验数据语义及当前授权，供应商60日容量只应用于实际缺口；受控仓与StorageRunner测试不认证真实Wind/PG。实际Host/Bao、最终CI和部署继续按精确候选独立留证。
 
 2026-10-23 前一组合源码阅读检查点为`4675525d211b30050d31b75279b157e21f3d9e3d`，实际父提交为Market/Auth/Plugin主线71ce8519及Asset功能87abc999；本入口与Atlas绑定此已存在组合source，不将历史feature pin当作含上游的源码。新raw单位策略、原生证据与主线插件/授权/市场能力全部保留；组合实际UI、最终CI与常驻部署分别留证。下方早期pin仅保留各阶段历史归属。

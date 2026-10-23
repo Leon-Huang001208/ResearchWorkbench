@@ -1,5 +1,8 @@
 # DataHub 研究数据仓库内核
 
+今日发现将所选事件存入原会话文件快照，未增加ResearchWarehouse/MarketStore表、SQL迁移、正式PG连接或自动采集。golddata_intel归档的冻结时点与文章来源时间分别保留，不获得历史PIT资格，网页归档不写作供应商原生规范事实。已有研究仓授权、保留/恢复与容量合同不扩权；新增文件链见[今日发现](research-web-discovery.md)。
+
+
 terminal-v2指数集合使用独立市场缓存键；既有MarketReader/研究仓core-v1完整12身份和原生封包不改变，不能把24指数塞入旧仓库profile。新浪历史为price_index、实际采集时间first_observed、historical_pit_verified=false；画像可以展示可算特征，但不能据此认证历史PIT、回测或配置有效性。
 
 2026-10-23新增宏观使用现有SnapshotSeries与PostgreSQL适配：官方数值v2和AK中国宏观v1进入各自schema/units身份；不新增表、不连接正式库、不迁移旧记录。范围查询结果以原生响应冻结，首次观测时间与供应商观察期分开，尚不是可按历史披露版本重建的规范宏观事实。字段、原字节、版本与摘要可随导出恢复复现；Broker当前仍拒绝AK宏观as_of，包括库读取，不宣称Host已支持该历史查询。旧显式冻结包保持可读。

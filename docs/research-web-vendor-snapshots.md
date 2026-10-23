@@ -1,5 +1,8 @@
 # 供应商原生研究快照
 
+今日发现golddata_intel使用专用discovery_evidence文件归档，不扩展本页vendor-native来源/数据集白名单。事件revision与预览投影Hash核对后才取报道正文；冻结raw和manifest可复核，但第三方已有判断、二手内容、未知时间/原始披露缺口均保留，不以外层HTTP成功声明厂商数据、PIT或完整网页已核验。细则见[今日发现](research-web-discovery.md)。
+
+
 终端v2日线来源单列sina、source_url、请求symbol、retrieved_at及price_index收益口径，报价保留eastmoney及真实行情时间。400条日线严格排除当日报价日，最后前日收盘与东财昨收交叉核验；错码、错配、重复日期、超界或网络失败不给合成替代。
 
 2026-10-23 四个外部端点的 `external-envelope-v1` 只修响应判定，不扩本页native白名单。

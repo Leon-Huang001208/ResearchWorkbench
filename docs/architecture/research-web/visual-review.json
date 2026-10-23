@@ -32,33 +32,35 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
-      "specificationSha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
+      "artifactSha256": "4cc50c569006cd2341df725119aef7f13ab89a51b2edd6c0dd5bb374f05e6682",
+      "specificationSha256": "195b40b4f2c1ad807a83f2ee0315162604a293da07015d1da6628ba8605f2566",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-10",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-23",
       "captures": [
         "03-research-sequence.visual-check.1440x900.light.png",
         "03-research-sequence.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图；Tabbit 授权、候选与实时 claim，研究提交、DataHub 路径，以及本机验证在对应 Office 容器操作受管副本的边界均可读，未见遮挡、裁剪、节点穿线或失衡底部留白。四视口自动包含性检查独立通过；视觉查看不证明真实 Tabbit、Provider 或厂商软件在线。"
+      "findings": [
+        "03全览细字需缩放阅读"
+      ],
+      "notes": "已实际查看1440浅色与2048深色同哈希截图；完整保留原12参与者及流程，新增只读/冻结/单次提交/原质量门顺序。为保持全览，压缩消息间距但保留至少28px原字体；默认全览文字密集，逐步骤细读需路径/缩放。无裁剪和标签覆盖，不把静态序列当真实执行证据。 已重新实际查看加入GET /selection详情核对后的同哈希1440浅/2048深截图，原边界与密度限制保持。"
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "3bc3c0bf76de80f364320491ef42f5dc2620bd4c70670966747b2f75315dba5a",
-      "specificationSha256": "aceca92c2490e4b094779be308698f89fced4f1cfd352055407c3ba90d26e1b3",
+      "artifactSha256": "9bbe6b26f1808ec857bccfa7707b90a733ffdf81135beb2898ac1d37e40721c9",
+      "specificationSha256": "96000c0c46b30141724ae67e954a1935431e2a3c8af399d637cfaee4dea6ea45",
       "status": "reviewed",
-      "reviewer": "Codex implementation reviewer (actual image inspection)",
-      "date": "2026-10-22",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-23",
       "captures": [
-        "04-data-file-flow.visual-check.1440x900.dark.png",
-        "04-data-file-flow.visual-check.2048x1320.light.png"
+        "04-data-file-flow.visual-check.1440x900.light.png",
+        "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
       "findings": [
-        "保留原图较大的右侧留白；root明确选择恢复已验证1900宽版面，不再扩几何优化。"
+        "保留既有右侧留白"
       ],
-      "notes": "整合仓库与资产目录描述后重新deliver（9/9，0 warnings）及四视口visual-check；实际查看1440深色和2048浅色截图，未见新增裁剪、穿线或重叠。保留已确认的原宽画布右侧留白；截图不认证产品或厂商可用性。"
+      "notes": "已实际查看1440浅色与2048深色同哈希截图；下方独立固定Intel读取/事件版本核对/归档到原DataHub分支未穿节点，原取数/可选研究仓路径保持。保留既有1900宽画布的右侧留白，非本轮重构布局；JSON归档不等于HTTP原字节或网页全文。"
     },
     {
       "id": "06-run-state",
@@ -133,17 +135,19 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "901ff7080b070fc4dfed9bb21969841f536cb9359c27b3a545be6684164c6329",
-      "specificationSha256": "2c25ec1766306bdbf8c57dabd28ca41afcc2694a8a2df57be23886a2e5270ae9",
+      "artifactSha256": "171196473aeb79215e60456e0de8896b8f7338d6b0b8d9c48b19d70c8e7e9591",
+      "specificationSha256": "3a734cc6ae0a16857268fec5a1fa1e97c83e8fae619a860c096580b245f3ab64",
       "status": "reviewed",
-      "reviewer": "codex-docs-agent",
-      "date": "2026-10-22",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-23",
       "captures": [
-        "02-module-dependencies.visual-check.1440x900.dark.png",
-        "02-module-dependencies.visual-check.2048x1320.light.png"
+        "02-module-dependencies.visual-check.1440x900.light.png",
+        "02-module-dependencies.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已实际用image reader查看本次1440深色和2048浅色最终截图：Host资产工作区／DataHub及账号目录缓存归属清楚，目录非会话标签与搜索按需API可读，没有新穿线、遮挡或裁剪。四桌面包含性另有当前HTML同hash自动回执；此图不证明产品浏览器或真实供应商链路。"
+      "findings": [
+        "未发现新增裁剪或覆盖"
+      ],
+      "notes": "已实际查看1440浅色与2048深色同哈希截图；Host内今日发现与原Automation窄跟踪适配、独立DSH研究路径和原通用外发范围区分清楚。保留既有模块几何与全览密度，细节可缩放；未新增第二运行器。"
     },
     {
       "id": "11-hot-events",
@@ -161,17 +165,19 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "2165d5676562e0dfcc2d2163b4d69a8f70f690e002e73d518aed5cd1355a854b",
-      "specificationSha256": "c7fc5ce5b96d1ba59496cafeec2af8989685c7658c42f1d08c6409989dc42b64",
+      "artifactSha256": "6652aa3ac0ded9c3de410cd781dd177fc783478431de46bf069aa5433947f4aa",
+      "specificationSha256": "91283aae04921e1aa171f514ac07c4eeddf23f158ca1539b132d87087d9c4548",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-10-17",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-23",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已实际查看当前哈希1440浅色与2048深色截图；新增私网登录网关、逐用户Native pair/数据根、原Docker与单用户Hot边界可读，无遮挡、裁剪或无关穿线。四视口包含性通过；图形不证明账号、真实研究、模型或平台产品验收。"
+      "findings": [
+        "未发现新增裁剪或覆盖"
+      ],
+      "notes": "已实际查看1440浅色与2048深色同哈希截图；新增本机准入/账号RuntimePool分组和认证恢复/容量边可定位，标签无重叠裁剪。原“无日程”卡片已更正为窄跟踪与泛用Automation边界；不代表运行或部署验收。"
     },
     {
       "id": "12-ai-news",

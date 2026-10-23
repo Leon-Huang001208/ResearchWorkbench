@@ -906,6 +906,30 @@
         "01-deployment",
         "12-ai-news"
       ]
+    },
+    {
+      "id": "discovery",
+      "sources": [
+        "app/research_web/discovery/"
+      ],
+      "documents": [
+        "docs/research-web-discovery.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies",
+        "03-research-sequence",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_discovery.py",
+        "tests/research_web/test_discovery_tracking.py",
+        "tests/research_web/test_discovery_routes.py",
+        "tests/javascript/research_web_discovery.test.mjs"
+      ]
     }
   ],
   "diagrams": [
@@ -1222,6 +1246,19 @@
             "dataRoute"
           ],
           "source": "app/research_web/datahub/providers_cjpy_assets.py"
+        },
+        {
+          "subjects": [
+            "api"
+          ],
+          "source": "app/research_web/discovery/service.py"
+        },
+        {
+          "subjects": [
+            "automationService",
+            "automationApi"
+          ],
+          "source": "app/research_web/discovery/tracking.py"
         }
       ],
       "level": "subsystems",
@@ -1350,6 +1387,19 @@
             "authenticatedUserRoute"
           ],
           "source": "app/research_web/multiuser/gateway.py"
+        },
+        {
+          "subjects": [
+            "privatePool",
+            "discoveryOwnerRestore"
+          ],
+          "source": "app/research_web/multiuser/runtime.py"
+        },
+        {
+          "subjects": [
+            "privatePool"
+          ],
+          "source": "app/research_web/service_manager.py"
         }
       ],
       "level": "deployment",
@@ -1492,6 +1542,30 @@
             "copySnapshot"
           ],
           "source": "app/research_web/datahub/snapshots.py"
+        },
+        {
+          "subjects": [
+            "discoveryRead",
+            "discoveryIntel",
+            "discoveryPreview"
+          ],
+          "source": "app/research_web/discovery/service.py"
+        },
+        {
+          "subjects": [
+            "discoveryPrepare",
+            "discoveryFreeze",
+            "discoverySession"
+          ],
+          "source": "app/research_web/discovery/handoff.py"
+        },
+        {
+          "subjects": [
+            "discoveryExecute",
+            "discoveryPrompt",
+            "discoveryQuality"
+          ],
+          "source": "app/research_web/discovery/routes.py"
         }
       ],
       "level": "flows",
@@ -1653,6 +1727,22 @@
             "webRead"
           ],
           "source": "app/research_web/ui/asset-controller.mjs"
+        },
+        {
+          "subjects": [
+            "discoveryRead",
+            "intelHttp",
+            "discoveryReadRequest",
+            "discoveryDetails"
+          ],
+          "source": "app/research_web/discovery/sources.py"
+        },
+        {
+          "subjects": [
+            "discoveryFreeze",
+            "discoverySnapshot"
+          ],
+          "source": "app/research_web/datahub/snapshots.py"
         }
       ],
       "level": "flows",
@@ -4800,6 +4890,90 @@
       "path": "/api/research/market/portfolios/readiness",
       "declaredPath": "/portfolios/readiness",
       "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/feed",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/feed",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/prepare",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/prepare",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/handoffs",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/handoffs",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/requests/{request_id}",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/requests/{request_id}",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/handoffs/{handoff_id}",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/handoffs/{handoff_id}",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/handoffs/{handoff_id}/execute",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/handoffs/{handoff_id}/execute",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/tracks",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks/{track_id}/enable",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks/{track_id}/enable",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks/{track_id}/disable",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks/{track_id}/disable",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/discovery-tracking-status",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/discovery-tracking-status",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/selection",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/selection",
+      "prefix": "/api/research/discovery"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -5030,6 +5204,13 @@
         "group": "private-multiuser",
         "title": "私网邀请制用户",
         "summary": "显式 macOS 账号网关、SQLite 登录态和逐用户 Web/DSH；共享资讯由网关限制成员阅读及管理员管理，tenant 后端禁用全局 AI 路径；同 UID 后端受信任。",
+        "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "discovery",
+        "group": "discovery",
+        "title": "今日发现与独立跟踪",
+        "summary": "真实事件摘要、显式冻结和单次DSH研究；独立启用既有Automation，保留来源与质量缺口。",
         "category": "研究会话与 Runtime"
       }
     ],

@@ -161,6 +161,18 @@
         205,
         78
       ]
+    },
+    {
+      "id": "privatePool",
+      "type": "backend",
+      "label": "本机准入 / RuntimePool",
+      "sublabel": "单用户启动 · 账号跟踪容量恢复",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        78
+      ]
     }
   ],
   "connections": [
@@ -175,14 +187,14 @@
     {
       "id": "selectNative",
       "from": "bootstrap",
-      "to": "nativeWeb",
+      "to": "privatePool",
       "label": "legacy Native",
       "variant": "emphasis",
       "fromSide": "left",
-      "toSide": "top",
+      "toSide": "right",
       "labelAt": [
-        250,
-        241
+        300,
+        204
       ]
     },
     {
@@ -251,12 +263,23 @@
     {
       "id": "authenticatedUserRoute",
       "from": "privateGateway",
-      "to": "nativeWeb",
-      "label": "按登录账号路由",
+      "to": "privatePool",
+      "label": "认证账号与已保存同意",
       "variant": "security",
       "labelAt": [
-        138,
-        164
+        145,
+        160
+      ]
+    },
+    {
+      "id": "discoveryOwnerRestore",
+      "from": "privatePool",
+      "to": "nativeWeb",
+      "label": "本机启动 / 账号后端",
+      "variant": "security",
+      "labelAt": [
+        145,
+        275
       ]
     }
   ],
@@ -279,10 +302,10 @@
     },
     {
       "dot": "amber",
-      "title": "验证与部署边界",
+      "title": "私网跟踪与运行边界",
       "items": [
-        "首版仅 macOS Native；Docker 多用户未接入",
-        "无公网注册、宿主工具、MCP、Hot 或日程"
+        "macOS Native；Docker多用户未验，跟踪需owner存活",
+        "仅同意跟踪；容量延期，泛用Automation/MCP/Hot仍禁用"
       ]
     }
   ]

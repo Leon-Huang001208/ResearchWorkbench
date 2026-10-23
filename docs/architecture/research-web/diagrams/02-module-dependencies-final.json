@@ -34,7 +34,7 @@
           "dsh",
           "deliveryTargets"
         ],
-        "note": "任务锁定能力与 MCP 快照；每次触发独立 Claw 会话，研究结果和三次外发重试分别记账。"
+        "note": "今日发现单独保存与启用跟踪，复用原Automation；每次新资料最多每日一次模型研究，无变化静默，质量与受理分开。"
       },
       {
         "id": "reportPath",
@@ -98,7 +98,7 @@
       "id": "api",
       "type": "backend",
       "label": "FastAPI BFF",
-      "sublabel": "/api/research/*",
+      "sublabel": "同源API · 今日发现适配",
       "pos": [
         275,
         380
@@ -307,8 +307,8 @@
     {
       "id": "automationService",
       "type": "backend",
-      "label": "Automation 服务",
-      "sublabel": "版本锁 · IANA 日程 · 单实例",
+      "label": "Automation 与独立跟踪",
+      "sublabel": "原调度器 · 跟踪日限1次",
       "pos": [
         750,
         755
@@ -614,7 +614,7 @@
       "id": "automationApi",
       "from": "api",
       "to": "automationService",
-      "label": "任务 / 运行 / 迁移 API",
+      "label": "自动化与独立跟踪 API",
       "variant": "emphasis",
       "fromSide": "bottom",
       "toSide": "bottom",
@@ -648,7 +648,7 @@
       "id": "automationClaw",
       "from": "automationService",
       "to": "dsh",
-      "label": "独立 Claw 会话",
+      "label": "独立 DSH 研究会话",
       "variant": "emphasis",
       "fromSide": "top",
       "toSide": "top",
@@ -723,10 +723,10 @@
     },
     {
       "dot": "amber",
-      "title": "研究与外发状态分离",
+      "title": "原Automation与窄跟踪",
       "items": [
-        "Automation 锁定目标版本和只读 MCP 快照，重叠触发记录 skipped_overlap",
-        "研究失败不自动重试；外发按 5 / 30 / 120 秒重试且不改写研究结果"
+        "今日发现单独启用、日限1次且无MCP/外发；通用任务仍锁版本",
+        "原通用外发按5/30/120秒重试；研究失败不自动重试"
       ]
     }
   ]
