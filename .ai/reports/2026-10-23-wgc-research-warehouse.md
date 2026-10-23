@@ -12,3 +12,6 @@ AK资金流as_of路径离线反例已证明SDK先执行；backtest首轮用例�
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"复用既有外部Provider、Broker和个人可选研究仓的原生快照链；WGC既有端点闭合月度投影和AK时点守卫没有新增节点、协议、表或数据流边，现有03/04/09图保持准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅向既有Checks同一步新增两个离线模块，沿原三CI及MacBootstrap与Router，不新增runner/job或执行拓扑，既有验证图仍准确。","diagrams":[]} -->
+
+
+首次完整真实验收在配置校验阶段因临时库名前缀不符rwb_market规则失败，capture进程确认0次供应商执行/HTTP；PG和HOME已清理，代码/helper哈希未变。旧attempt-started及失败回执保留，新尝试须用独立目录且只修临时库名，不修改正式配置规则。
