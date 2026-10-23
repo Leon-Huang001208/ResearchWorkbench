@@ -2117,7 +2117,7 @@ def test_market_terminal_profile_freezes_actual_resident_and_reviewed_checkpoint
         upgrade.previous_for(upgrade.MARKET_TERMINAL_MODE)
         == "0e0022ac792eba88fba0f233524f5c8d66024569"
     )
-    assert upgrade.MARKET_TERMINAL_PAYLOAD == "717d564d2e7016a4ec464435b9ba96900dbf3bcd"
+    assert upgrade.MARKET_TERMINAL_PAYLOAD == "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
     assert (
         upgrade.MARKET_TERMINAL_WEB_LOCK_SHA256
         == "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"

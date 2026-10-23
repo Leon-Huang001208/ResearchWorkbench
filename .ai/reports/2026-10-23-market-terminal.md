@@ -10,6 +10,8 @@
 
 三个周期的滚动样本外收益验证均为NOT_RUN：尚缺不可变PIT目标、基准、成本和独立核验，换手、收益、回撤及稳定性均未知。现有时序切分诊断和400日日线不替代这些证据，正式综合择时分、仓位和调整金额继续关闭；逐周期状态见logs/market-terminal-20261023/history-validation-status.json。金元官方接口／权限待确认，首版仅手工与CSV。
 
+最终产品检查点固定ca20293b8244bb0644bf2039ddd96ee452a27b0b，含最新PIT主线及已独评构建器修复f3f4fae；717仅保留历史预检归属。部署profile仍固定当前常驻0e0022ac，后续合并、三CI和实际保全另取证。离线真实浏览器补齐29项交互、明暗1440／390、公式与成分联动，控制台无警告错误，不冒充生产认证数据；细节见terminal-ui-final报告。
+
 <!-- architecture-review {"group": "ui", "structure": "changed", "diagrams": ["13-market-overview"], "reason": "在现有Host模块抽象层内新增版本化目录、分析及组合输入文件，13图已标明公开双来源、身份日期核验与账号文件／只读呈现，不新增常驻节点或DSH引擎。"} -->
 
 <!-- architecture-review {"group": "research-api", "structure": "changed", "diagrams": ["13-market-overview"], "reason": "在现有Host模块抽象层内新增版本化目录、分析及组合输入文件，13图已标明公开双来源、身份日期核验与账号文件／只读呈现，不新增常驻节点或DSH引擎。"} -->

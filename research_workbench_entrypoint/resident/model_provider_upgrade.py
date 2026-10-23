@@ -84,7 +84,7 @@ MARKET_HISTORY_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa052
 # Full terminal and current asset/DataHub checkpoint; no automatic-policy expansion.
 MARKET_TERMINAL_MODE = "reviewed-market-terminal-v1"
 MARKET_TERMINAL_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
-MARKET_TERMINAL_PAYLOAD = "717d564d2e7016a4ec464435b9ba96900dbf3bcd"
+MARKET_TERMINAL_PAYLOAD = "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
 MARKET_TERMINAL_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
 # Historical family name: all these profiles require full business-index preservation.
