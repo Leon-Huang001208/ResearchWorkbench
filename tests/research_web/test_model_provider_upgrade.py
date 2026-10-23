@@ -1520,7 +1520,10 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     artifact = home / "server/run/recovery.pyz"
     artifact.parent.mkdir(parents=True)
     with zipfile.ZipFile(artifact, "w") as archive:
-        archive.writestr("manifest.json", json.dumps({"target": target, "modules": {}}))
+        manifest = {"target": target, "modules": {}}
+        if profile in {"reviewed-research-dossiers-v1", "reviewed-etf-weekly-v2"}:
+            manifest["source"] = str(source)
+        archive.writestr("manifest.json", json.dumps(manifest))
         archive.writestr("__main__.py", upgrade.ENTRY)
     artifact.chmod(0o600)
     plist = home / "recovery.plist"
@@ -2409,3 +2412,161 @@ def test_weekly_v2_changed_dossiers_keep_recovery_fenced(real_operations, scope,
     assert result.get("preserved") is not True
     assert (home / "server/run/gateway-upgrade.json").exists()
     assert not (home / "server/run/model-upgrade-result.json").exists()
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [None, "missing", "dirty", "source-mismatch", "target-mismatch", "checksum", "mode", "alias"],
+)
+def test_real_recovery_zip_preserves_dossiers_with_old_wheel(tmp_path, monkeypatch, damage):
+    """Run the actual zip entry with no dossier module in the installed old app."""
+    import os
+    import shutil
+    import zipfile
+
+    from app.research_web.dossiers.storage import DossierStore
+
+    project = Path(upgrade.__file__).parents[2]
+    authority = tmp_path / "authority"
+    authority.mkdir()
+
+    def only_python_and_contracts(folder, names):
+        return [
+            name
+            for name in names
+            if name == "__pycache__"
+            or (Path(folder, name).is_file() and Path(name).suffix not in {".py", ".json"})
+        ]
+
+    for name in ("app", "core", "research_workbench_entrypoint", "runtimes"):
+        shutil.copytree(project / name, authority / name, ignore=only_python_and_contracts)
+
+    def git(where, *args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(where), *args], text=True, stderr=subprocess.PIPE
+        ).strip()
+
+    git(authority, "init")
+    git(authority, "config", "user.email", "fixture@example.invalid")
+    git(authority, "config", "user.name", "Fixture")
+    git(authority, "add", ".")
+    git(authority, "commit", "-m", "frozen recovery fixture")
+    target = git(authority, "rev-parse", "HEAD")
+    home = tmp_path / "private-home"
+    source = home / "resident/artifacts" / target / "source"
+    source.parent.mkdir(parents=True)
+    subprocess.run(
+        ["/usr/bin/git", "clone", "--no-hardlinks", str(authority), str(source)],
+        check=True,
+        capture_output=True,
+    )
+    (home / "server/run").mkdir(parents=True)
+    (home / "server/users").mkdir()
+    (home / "logs").mkdir()
+    data = home / "research-web"
+    data.mkdir()
+    (data / "index.json").write_text(json.dumps({"notes": {"fixture": "preserved"}}))
+    with DossierStore(data).connection(write=True):
+        pass
+    fake_user = tmp_path / "fake-user"
+    (fake_user / "Library/LaunchAgents").mkdir(parents=True)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_user))
+    real_run = upgrade.g.run
+
+    def local_system_only(argv, *args, **kwargs):
+        if argv[0] == "/bin/launchctl" or argv[:2] == [
+            "/usr/bin/env",
+            "PATH=" + upgrade.g.RECOVERY_PATH,
+        ]:
+            return "fixture system command"
+        return real_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(upgrade.g, "run", local_system_only)
+    python = os.environ.get("RWB_RECOVERY_OLD_PYTHON", sys.executable)
+    recovery = upgrade.install_recovery(home, source, target, python)
+    artifact = Path(recovery["artifact"])
+    with zipfile.ZipFile(artifact) as archive:
+        assert json.loads(archive.read("manifest.json"))["source"] == str(source)
+    state = {
+        "version": 4,
+        "mode": "reviewed-research-dossiers-v1",
+        "target": target,
+        "source": str(source),
+        "recovery": recovery,
+    }
+    if damage == "source-mismatch":
+        state["source"] = str(home / "other-source")
+    elif damage == "target-mismatch":
+        state["target"] = "b" * 40
+    elif damage == "mode":
+        state["mode"] = "unreviewed"
+    elif damage == "checksum":
+        state["recovery"] = {**recovery, "sha256": "0" * 64}
+    journal = home / "server/run/gateway-upgrade.json"
+    journal.write_text(json.dumps(state))
+    journal.chmod(0o600)
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    env.pop("PYTHONPATH", None)
+    if "RWB_RECOVERY_OLD_PYTHON" not in os.environ:
+        old_site = tmp_path / "old-wheel"
+        (old_site / "app/research_web").mkdir(parents=True)
+        (old_site / "app/__init__.py").write_text("")
+        (old_site / "app/research_web/__init__.py").write_text("")
+        env["PYTHONPATH"] = str(old_site)
+    old_check = "import importlib.util; assert importlib.util.find_spec('app.research_web.dossier_preservation') is None"
+    baseline = subprocess.run(
+        [python, "-P", "-c", old_check],
+        cwd=home,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert baseline.returncode == 0, baseline.stderr
+    if damage == "missing":
+        source.rename(source.with_name("retained-source"))
+    elif damage == "alias":
+        retained = source.with_name("retained-source")
+        source.rename(retained)
+        source.symlink_to(retained, target_is_directory=True)
+    elif damage == "dirty":
+        with (source / "app/research_web/dossier_preservation.py").open("a") as stream:
+            stream.write("\n# changed frozen source\n")
+    script = r"""
+import json, os, runpy, subprocess, sys
+from pathlib import Path
+archive, home, python, old_check = sys.argv[1:]
+sys.path.insert(0, archive)
+from resident import model_provider_upgrade as u
+original_path = os.environ.get("PYTHONPATH")
+def probe(*args, **kwargs):
+    home_path = Path(home)
+    (home_path / "probe-called").write_text("fixture probe")
+    snapshot = u.asset_index_snapshot(home_path)
+    assert "@dossiers" in snapshot["primary"]
+    u.verify_asset_index(home_path, {"mode": u.DOSSIERS_MODE, "asset_index_before": snapshot})
+    assert os.environ.get("PYTHONPATH") == original_path
+    child = subprocess.run([python, "-P", "-c", old_check], cwd=home, capture_output=True, text=True)
+    assert child.returncode == 0, child.stderr
+    return {"status": "not_required", "frozen_dossiers_verified": True, "old_child_unchanged": True}
+u.operate = probe
+sys.argv = [archive, "recover", "--home", home]
+runpy.run_path(archive, run_name="__main__")
+"""
+    completed = subprocess.run(
+        [python, "-P", "-c", script, str(artifact), str(home), python, old_check],
+        check=False,
+        cwd=home,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    result = json.loads(completed.stdout.strip().splitlines()[-1])
+    if damage is None:
+        assert completed.returncode == 0, completed.stderr
+        assert result["frozen_dossiers_verified"] and result["old_child_unchanged"]
+    else:
+        assert completed.returncode == 1
+        assert not (home / "probe-called").exists()
+        assert result["reason"] == "model_upgrade_recovery_source_unavailable"

@@ -12,7 +12,7 @@
 
 ## 边界
 
-只固定新profile，不修改旧profile、controller/evidence字节、自动兼容白名单和恢复协议。新的档案HTTP与数据路径属于既有PR209，不在本次更改。持久业务与凭据保护；忙碌或未知不停止服务。Chrome其他任务已预约窗口期间不操作其窗口或标签1512777099。
+固定新profile，保留旧profile、controller/evidence字节、自动兼容白名单和version4 journal；新恢复包的内部manifest补充经过验证的永久冻结源身份。新的档案HTTP与数据路径属于既有PR209，不在本次更改。持久业务与凭据保护；忙碌或未知不停止服务。Chrome其他任务已预约窗口期间不操作其窗口或标签1512777099。
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"只增加原Native联合操作员的固定档案profile，继续同一Host／网关／唯一DSH与version4维护和恢复；新增路由及SQLite属于已审PR209，本次无新节点或数据边，原图仍准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"档案profile复用全账号64MiB业务索引与档案元数据、引用和保留标记保全、BirthFence和池空闲门，不新增账号权限、共享数据或后台任务，原安全边界和图保持。","diagrams":[]} -->
@@ -21,3 +21,6 @@
 
 
 主线PR210前进后正常合并固定ETF-v2与档案两模式；测试parametrize冲突首次组合脚本未通过语法检查，shell未停止误提交本地冲突标记。该提交未发布，已追加修复保留历史并启用失败即停止；重新做语法、标记、全矩阵与最终候选验证，不重写历史或弱化门。
+
+
+专项独评发现HIGH：旧5343 wheel不含dossier_preservation，而旧恢复pyz只含resident模块。修复新包manifest绑定永久artifact_source，journal/自身摘要/版本/模式/精确源身份/Git干净校验在app导入前完成，父进程仅改sys.path，不改变旧服务PYTHONPATH；旧历史包格式兼容、新两模式缺source拒绝。先以fixture环境得到1通过/5退出码断言失败（实际正确blocked退出1，已修测试错误预期），再用实际配置的5343 primary venv完成6项真实zipapp子进程反例54.47秒；未安装依赖、未变更生产数据、未停止服务。
