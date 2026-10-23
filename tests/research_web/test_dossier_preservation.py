@@ -43,6 +43,7 @@ def test_metadata_change_and_pinned_private_original_are_detected(tmp_path):
     raw.write_bytes(b"original")
     before = snapshot(research.store.root)
     assert "dossiers/metadata.sqlite3" in before["files"]
+    assert ".dossiers-initialized" in before["files"]
     assert ".control/snapshots/offline/raw-0001.bin" in before["files"]
     assert compare_snapshot(before, snapshot(research.store.root))["preserved"]
     research.dossiers.patch(
@@ -63,7 +64,7 @@ def test_busy_lock_fails_closed_and_recovers(tmp_path):
     assert snapshot_dossiers(research.store.root)["files"]
 
 
-@pytest.mark.parametrize("damage", ["corrupt", "symlink", "hardlink"])
+@pytest.mark.parametrize("damage", ["corrupt", "symlink", "hardlink", "folder"])
 def test_damaged_metadata_fails_closed(tmp_path, damage):
     research, _dossier = archive(tmp_path / "personal")
     path = research.dossiers.metadata.path
@@ -73,8 +74,10 @@ def test_damaged_metadata_fails_closed(tmp_path, damage):
         original = tmp_path / "original.sqlite3"
         path.rename(original)
         path.symlink_to(original)
-    else:
+    elif damage == "hardlink":
         (tmp_path / "second.sqlite3").hardlink_to(path)
+    else:
+        path.parent.rename(tmp_path / "lost-dossiers")
     with pytest.raises(RuntimeError, match="dossier_preservation_failed"):
         snapshot_dossiers(research.store.root)
     with pytest.raises(RuntimeError, match="preservation_snapshot_failed"):

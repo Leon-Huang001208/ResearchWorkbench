@@ -16,7 +16,13 @@ MAX_METADATA_BYTES = 64 * 1024 * 1024
 def snapshot_dossiers(root: Path) -> dict | None:
     """No directories/DB are initialized; a busy or damaged archive fails closed."""
     folder = root / "dossiers"
-    if not folder.exists() and not folder.is_symlink():
+    marker = root / ".dossiers-initialized"
+    if (
+        not folder.exists()
+        and not folder.is_symlink()
+        and not marker.exists()
+        and not marker.is_symlink()
+    ):
         return None
     try:
         from .dossiers.lock import retention_lock
@@ -35,7 +41,7 @@ def snapshot_dossiers(root: Path) -> dict | None:
                 ):
                     raise ValueError("dossier_preservation_integrity_failed")
             files = {}
-            for path in sorted(folder.rglob("*")):
+            for path in [marker, *sorted(folder.rglob("*"))]:
                 info = path.lstat()
                 if stat.S_ISDIR(info.st_mode):
                     continue
