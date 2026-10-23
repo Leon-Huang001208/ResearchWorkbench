@@ -22,7 +22,7 @@ from .authorization import AuthorizationError, AuthorizationManager, ExactToolAl
 from .control import authenticate
 from .installation_store import INSTALLATION_ID
 from .package_planner import PackagePlanner
-from .sdk_host import SDKHost
+from .sdk_host import MCPHostError, SDKHost
 
 log = get_logger(__name__)
 
@@ -540,11 +540,20 @@ class MCPRuntimeService:
             }
         self._automation_locks[session_id] = exact
 
+    def _deny_candidate_auxiliary(self, installation_id, verb):
+        from .seek_alpha import ENDPOINT
+
+        manifest = self._manifest(installation_id)
+        if _field(_field(manifest, "plan"), "endpoint") == ENDPOINT:
+            log.warning("mcp_candidate_auxiliary_denied", verb=verb)
+            raise MCPRuntimeError(f"mcp_candidate_{verb}_denied", 403)
+
     @sdk_operation
     async def read_resource(
         self, session_id: str, installation_id: str, uri: str
     ) -> dict[str, Any]:
         self._require_session_installation(session_id, installation_id)
+        self._deny_candidate_auxiliary(installation_id, "resource")
         manifest, target = await self._active_target(installation_id)
         del manifest
         try:
@@ -561,6 +570,7 @@ class MCPRuntimeService:
         arguments: dict[str, str] | None,
     ) -> dict[str, Any]:
         self._require_session_installation(session_id, installation_id)
+        self._deny_candidate_auxiliary(installation_id, "prompt")
         manifest, target = await self._active_target(installation_id)
         del manifest
         try:
@@ -916,21 +926,21 @@ class MCPRuntimeService:
             except AuthorizationError as exc:
                 raise self._authorization_error(exc) from exc
         try:
+            from .sdk_host import reject_credential_echo
+            from .seek_alpha import CREDENTIAL_SLOT
+
+            credential_at_dispatch = None
+            credentials = getattr(self.host, "credentials", None)
+            if endpoint and credentials is not None:
+                slot = CREDENTIAL_SLOT if paid else "oauth"
+                credential_at_dispatch = credentials.read(
+                    installation_id, slot, expected_resource=endpoint
+                ).get("access_token")
             result = await _await(
                 self.host.call_tool(target, request["tool_name"], request["arguments"])
             )
-            result, raw = raw_result(result)
-            if endpoint:
-                from .seek_alpha import CREDENTIAL_SLOT
-
-                credentials = getattr(self.host, "credentials", None)
-                if credentials is not None:
-                    slot = CREDENTIAL_SLOT if paid else "oauth"
-                    secret = credentials.read(
-                        installation_id, slot, expected_resource=endpoint
-                    ).get("access_token")
-                    if secret and secret.encode("utf-8") in raw:
-                        raise MCPRuntimeError("mcp_result_contains_credential", 502)
+            result, _raw = raw_result(result)
+            reject_credential_echo(result, credential_at_dispatch)
             reference = (
                 evidence.freeze(
                     request, result, endpoint=endpoint, cost_state="completed" if paid else None
@@ -955,6 +965,8 @@ class MCPRuntimeService:
                     request["call_id"], session_id=request["session_id"], status="unknown"
                 )
             log.warning("mcp_tool_call_failed", error_type=type(exc).__name__)
+            if isinstance(exc, MCPHostError) and str(exc) == "mcp_result_contains_credential":
+                raise MCPRuntimeError("mcp_result_contains_credential", 502) from None
             if isinstance(exc, (asyncio.CancelledError, MCPRuntimeError, StoreError)):
                 raise
             raise MCPRuntimeError("mcp_tool_call_failed", 502) from exc

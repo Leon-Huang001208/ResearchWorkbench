@@ -618,3 +618,107 @@ async def test_revocation_during_provider_response_denies_exposure_but_retains_o
     state["revoked"] = False
     recovered = await service.call_tool(**request)
     assert recovered["recovered"] is True and state["calls"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mutation", ["delete", "rotate"])
+@pytest.mark.parametrize("echo", ["string", "json_key", "nested_leaf", "encoded_json_text"])
+async def test_dispatched_credential_echo_is_rejected_after_rotation_or_deletion(
+    runtime, mutation, echo
+):
+    from app.research_web.mcp_runtime.sdk_host import SDKHost
+
+    service, store, sid, state, backend = runtime
+    secret = 'fixture-"escaped\\token'
+    service.static_credential(INSTALLATION, resource=ENDPOINT, token=secret)
+    credentials = RuntimeCredentialStore(backend)
+    used = []
+
+    class Client:
+        protocol_version = "fixture"
+        server_info = SimpleNamespace(name="fixture", version=VERSION)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def list_tools(self):
+            return {"tools": []}
+
+        async def list_resources(self):
+            return {"resources": []}
+
+        async def list_prompts(self):
+            return {"prompts": []}
+
+        async def call_tool(self, _name, _arguments):
+            state["calls"] += 1
+            if mutation == "delete":
+                credentials.delete(INSTALLATION, CREDENTIAL_SLOT)
+            else:
+                credentials.write(
+                    INSTALLATION,
+                    CREDENTIAL_SLOT,
+                    {
+                        "resource": ENDPOINT,
+                        "token_type": "Bearer",
+                        "access_token": "replacement-token",
+                    },
+                )
+            if echo == "json_key":
+                return {"content": [{secret: "not safe"}]}
+            if echo == "nested_leaf":
+                return {"content": [{"structured": {"nested": ["before " + secret + " after"]}}]}
+            if echo == "encoded_json_text":
+                return {"content": [{"text": json.dumps({"token": secret})}]}
+            return {"content": [{"text": "Bearer " + secret}]}
+
+    def transport(endpoint, token):
+        used.append(token)
+        return endpoint
+
+    service.host = SDKHost(
+        credentials=credentials,
+        remote_target_factory=transport,
+        client_factory=lambda *_args, **_kwargs: Client(),
+    )
+    preview, budget = approved(service.authorization, sid)
+    request = call_for(sid, preview["entries"][0], budget)
+    with assert_code("contains_credential"):
+        await service.call_tool(**request)
+    assert used[-1] == secret
+    assert state["calls"] == 1
+    assert not list((store.root / ".control" / "snapshots").glob("**/raw-0001.bin"))
+    assert all(secret not in file.read_text() for file in store.root.rglob("*.json"))
+    assert (
+        service.authorization.paid_call(request["call_id"], session_id=sid)["status"] == "unknown"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["prompt", "resource"])
+async def test_candidate_auxiliary_methods_deny_private_arguments_before_any_dispatch(
+    runtime, method
+):
+    service, _store, sid, state, _backend = runtime
+    probes = []
+
+    async def capabilities(_target):
+        probes.append("capabilities")
+        return {"tools": []}
+
+    async def forbidden(*_args):
+        probes.append("private_dispatch")
+        raise AssertionError("candidate auxiliary dispatch must be impossible")
+
+    service.host.capabilities = capabilities
+    service.host.get_prompt = forbidden
+    service.host.read_resource = forbidden
+    with assert_code(f"candidate_{method}_denied"):
+        if method == "prompt":
+            await service.get_prompt(sid, INSTALLATION, "arbitrary", {"private_note": "private"})
+        else:
+            await service.read_resource(sid, INSTALLATION, "private://account-data")
+    assert probes == [] and state["calls"] == 0

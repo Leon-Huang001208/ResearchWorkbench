@@ -23,6 +23,10 @@
 `ResearchWorkbench.MCPRuntime` 凭据后端的安装独立 account。
 Native 使用系统凭据库；显式 Docker 模式保留原私有凭据后端契约。
 配置、插件包、预算文件、日志及 HTTP 响应均无 Bearer 明文。
+实际使用的 Bearer 在 SDK 创建本次远程 transport 时绑定到局部调用上下文；后续删除或轮换
+不会改变此调用的回显检查对象。工具、能力发现以及普通 OAuth 返回均在解析后的 JSON 键和
+字符串叶子检查原 token；MCP 文本中有界 JSON 编码也会解码检查，不能用引号/反斜杠转义绕过。
+发现回显时不公开、不冻结；已发送的付费调用继续为 unknown 占用预算。
 UI 仅提交新值，提交前同步清空密码 DOM；状态只返回 `configured/resource/slot`。
 安装卸载同步删除静态 slot，HTTP / redirect / audience 限制不变。
 
@@ -42,6 +46,9 @@ UI 仅提交新值，提交前同步清空密码 DOM；状态只返回 `configur
 多用户路径为 `/api/server/plugins/mcp/{digest}/{key}/{action}`；账号由服务端认证，
 保留页面用户匹配、gateway 固定目标、原一次性签名及 schema / session grant。
 没有放开 tenant 的通用 `/api/research/mcp` 管理接口。
+当前小创候选只允许固定预算内的 tools/call；resources/read 与 prompts/get 在 Host 与 SDK
+两层于能力探测和 transport 创建前拒绝，不能借安装授权传送任意私有参数。
+能力发现不向客户端宣称这些辅助方法可用；其他 OAuth MCP 的原有资源/提示词能力保持。
 
 ## 固定评估清单与费用
 
