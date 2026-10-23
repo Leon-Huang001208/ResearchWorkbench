@@ -372,6 +372,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     addDossierEvidence: (id, body, options = {}) => request(`/dossiers/${segment(id)}/evidence`, { ...options, method: 'POST', body }),
     dossierEvidence: (id, evidenceId, options = {}) => request(`/dossiers/${segment(id)}/evidence/${segment(evidenceId)}`, options),
     addDossierLink: (id, body, options = {}) => request(`/dossiers/${segment(id)}/links`, { ...options, method: 'POST', body }),
+    dossierLink: (id, linkId, options = {}) => request(`/dossiers/${segment(id)}/links/${segment(linkId)}`, options),
     dossierHandoff: (id, body, options = {}) => request(`/dossiers/${segment(id)}/handoff`, { ...options, method: 'POST', body }),
     dossierSignals: (options = {}) => request('/dossiers/signals', options),
     scanDossier: (id, body, options = {}) => request(`/dossiers/${segment(id)}/scan`, { ...options, method: 'POST', body }),

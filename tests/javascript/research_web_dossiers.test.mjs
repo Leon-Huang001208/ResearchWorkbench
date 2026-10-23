@@ -163,6 +163,37 @@ test('signal filters do not start scanning and preserve missing-data distinction
   assert.equal(filterDossierSignals(items, '不存在').length, 0);
 });
 
+test('signal_type drives review and risk filters while legacy kind remains compatible', async () => {
+  const items = [{ id: 'a'.repeat(32), kind: 'signal', signal_type: 'review', title: '财披待研究' }, { id: 'b'.repeat(32), kind: 'signal', signal_type: 'risk', title: '风险观察' }, { kind: 'risk', title: '旧风险' }];
+  assert.equal(filterDossierSignals(items, '', 'review').length, 1);
+  assert.equal(filterDossierSignals(items, '', 'risk').length, 2);
+  const controller = setup({ dossierSignals: async () => ({ items }) }); await controller.activate(parseRoute('#/intel/signals'));
+  assert.match(renderDossiers(controller.state), /待研究/);
+});
+
+test('editing a generated signal fixes its kind while permitting a reviewed dismissal', async () => {
+  let saved;
+  const doc = detail(); doc.records = [{ id: recordID, kind: 'signal', title: '财披待研究', body: '原始披露', state: 'open', evidence_ids: [] }];
+  const controller = setup({ dossier: async () => doc, addDossierRecord: async (_id, body) => { saved = body; return doc; } });
+  await controller.activate(route(id)); await controller.handle(click('revise', { id: recordID }));
+  const html = renderDossiers(controller.state);
+  assert.match(html, /type="hidden" name="kind" value="signal"/);
+  assert.doesNotMatch(html, /<select[^>]+name="kind"/);
+  assert.match(html, /核验／处置信号/);
+  await controller.submit('record', { ...controller.state.forms.record, reason: '已逐项核验', state: 'dismissed' });
+  assert.equal(saved.kind, 'signal'); assert.equal(saved.state, 'dismissed'); assert.equal(saved.record_id, recordID);
+});
+
+test('controlled link preview rechecks the frozen result; changed links never expose current artifact navigation', async () => {
+  const linkID = 'f'.repeat(32), doc = detail();
+  doc.links = [{ id: linkID, type: 'report', quality: { status: 'incomplete' }, state: 'changed', error_code: 'dossier_evidence_changed', source_mode: 'claw', source_session_id: sourceSessionID, reference_id: 'current-canonical', preview_url: 'https://untrusted.invalid/current' }];
+  const controller = setup({ dossier: async () => doc, dossierLink: async (did, lid) => { assert.equal(did, id); assert.equal(lid, linkID); return { link: { ...doc.links[0], state: 'available' }, content: '冻结旧报告', truncated: true }; } });
+  await controller.activate(route(id));
+  let html = renderDossiers(controller.state); assert.doesNotMatch(html, /href="https:\/\/untrusted|current-canonical|查看来源会话/); assert.match(html, /data-dossier-action="link-preview"[^>]*disabled/);
+  await controller.evidence(linkID, 'link'); html = renderDossiers(controller.state);
+  assert.match(html, /冻结旧报告/); assert.match(html, /冻结研究成果/); assert.match(html, /原 Host 质量状态：incomplete/); assert.match(html, /部分正文预览/);
+});
+
 test('method explanations reuse existing published capabilities without granting tools or changing report quality', () => {
   assert.equal(dossierMethods.length, 6);
   const html = renderCapabilityDetail({ id: 'earnings-consensus-research', name: '业绩与一致预期', kind: 'skill', builtin: true, version: 7, enabled: true });
