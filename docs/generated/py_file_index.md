@@ -4558,6 +4558,7 @@ Imports:
 - `core.observability`
 - `csv`
 - `datetime`
+- `decimal`
 - `external_sources`
 - `hashlib`
 - `hmac`
@@ -4579,6 +4580,10 @@ Classes:
 
 Functions:
 - `arguments`
+- `spdr_projection`
+  - Validate four source metrics; preserve source strings and each reference date.
+- `spdr_fields`
+  - Fresh field metadata for the bounded source-native projection.
 - `endpoint_request`
 - `_day`
 - `_positive`
@@ -4865,6 +4870,8 @@ Classes:
   - methods: __init__, _now, dataset, _facts, ingest, read
 
 Functions:
+- `_complete_spdr_snapshot`
+  - Bind the typed projection and units to its one complete source original.
 - `_market_numeric`
 - `_market_stamp`
   - Match the Provider's full Shanghai ISO-second timestamp contract.

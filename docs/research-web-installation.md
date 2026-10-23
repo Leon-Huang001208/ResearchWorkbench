@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+SPDR 四项快照使用现有 httpx 和 Python 标准库；已核对 requirements/web.in、web.lock、scripts/setup_web.py、
+setup-web.sh、setup-web.cmd 和 Bootstrap，均无需为此新增依赖或安装步骤。没有新配置、账号或秘密入口，
+Doctor 既有来源/仓库状态合同保持。同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor 仍须实际通过。
+
 2026-10-23：终端固定Native部署复用现有`apply-market-terminal`事务，仅接受冻结前版和产品候选。当前产品检查点尚待PR201合入后由主任务固定为最终PAYLOAD，不能将预检检查点当作可部署版本。固定目标web.lock身份不变，不安装新包；安装清单同步／恢复沿原受管事务。最终组合仍须同候选macos-14干净安装与原两项仓库门，实际部署另证，详见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 全市场终端v2不新增Python/Node依赖或数据库迁移；原setup-web.sh/setup-web.cmd/python scripts/setup_web.py干净安装合同保持。新的market-terminal.mjs作为同源静态模块加入既有Mac安装HTTP核验；金元普通客户端未认证官方持仓接口，安装成功不等于已接通券商。
