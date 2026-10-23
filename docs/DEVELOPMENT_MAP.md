@@ -2,6 +2,8 @@
 
 今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
 
+华安经济底稿字段由 Excel Provider 保留，`weekly_sources.verify_weekly_economic_export` 从同版本原件独立重放，`weekly_data` 在数据门接入。时间原文及有限数值不推测单位或时区；八列底稿完整保全，Word 原三列不扩。仍沿既有 Host／DataHub／DSH／确定性排版链，无新执行节点。
+
 SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；
 `research_snapshot_store.py` 写入前重新解析原件，`research_warehouse.py` 绑定专用版本/单位身份，
 DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 `test_datahub_spdr.py` 和
@@ -34,6 +36,18 @@ NYFed/Treasury 固定入口。定点离线回归 `test_datahub_official_numeric.
 厂商/PG/CI证据与离线回放分别验收。
 
 2026-10-23市场限价/昨日/历史：`datahub/providers_market.py`负责同批f350/f351、有效限价状态/覆盖与收盘见证；`market_service.py`负责精确日历/逐股昨日金额重算、同用户同key真实资金日线留存及原子恢复；`ui/market.mjs`展示确认涨跌停/未知、昨日来源或缺口和五类日线资金历史表。定点回归沿原test_market_provider/service与research_web_market清单，无新依赖、HTTP路径或第二研究引擎；[口径](research-web-datahub.md#无会话全市场数据)与缓存/API文档同步，真实源/认证部署另留证。
+华安 Excel 主源为 datahub/providers_wind_excel_weekly.py，weekly_sources.py 校验锁定合同，weekly_data.py 独立复算日历、端点及采集时间，evidence.py 输出冻结事实。runtime.py/weekly-production.mjs 禁止本轮 Excel 日程并区分历史验收。近测试 test_datahub_wind_excel_weekly.py、test_report_weekly_acceptance.py 和 JS weekly production；连接兼容修复自身无新拓扑，完整来源分支已更新09/10图。
+schema4 的黄金单点资源重放在 weekly_sources.py；weekly_data.py、DataHub、weekly_quality.py 与
+weekly_workbooks.py 传原 Run 资源上下文，补查快照不得脱离原证据取得通过。定点回归为
+test_report_weekly_gold_supplement.py；schema1–3 与 API 合同保持。原始 EDB、原生补查、封包、质量及
+文件各保留自己的哈希，不以预检布尔值代替正式生产。
+
+2026-10-23 华安周报 Excel 预检发现 macOS `lsappinfo` PID 输出与 xlwings 解析不兼容。
+`data_layer/adapters/wind/excel_instances.py` 只在已复现的 Mac 整数解析失败后规范化该私有模块的
+PID 读取；无法确认实例身份时不另开 Excel。`client.py` 同时识别 Mac 溢出区域的空字符串，保留零值。
+未新增 HTTP、数据源、执行引擎、持久格式或依赖，既有架构图拓扑保持；详见
+[Wind Excel 模块](modules/data_layer_adapters_wind.md)。实采覆盖、生产源切换与成稿验收分别记录，
+不能由这项连接修复替代。
 
 ## 资产筹码与行情精炼（2026-10-23）
 

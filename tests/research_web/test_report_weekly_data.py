@@ -9,10 +9,12 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import pytest
 from openpyxl import Workbook, load_workbook
 from openpyxl.chart import BarChart, LineChart, Reference
 
 from app.research_web.report_workflows.weekly_data import (
+    _series_rows,
     assess_weekly_snapshot,
     build_equivalence_proof,
     build_weekly_data_contract,
@@ -105,6 +107,131 @@ def mapping_hash():
     from app.research_web.report_workflows.weekly_data import MAPPING_SHA256
 
     return MAPPING_SHA256
+
+
+def test_host_preserves_native_history_non_sessions_and_negative_wti_without_trading_day_changes():
+    contract = build_weekly_data_contract("2026-10-23T15:30:00+08:00")
+    snapshot = synthetic_snapshot(contract)
+    baseline = assess_weekly_snapshot(snapshot, contract)
+    snapshot["series"]["history_gold_london"]["rows"].append(
+        {"date": "2017-01-29", "value": "101", "published_at": None}
+    )
+    wti = next(
+        row for row in snapshot["series"]["history_oil_wti"]["rows"] if row["date"] == "2020-04-20"
+    )
+    wti["value"] = "-37.63"
+    frozen = copy.deepcopy(snapshot)
+    result = assess_weekly_snapshot(snapshot, contract)
+    assert result["status"] == "passed", result["issues"]
+    assert snapshot == frozen
+    assert result["observations"] == baseline["observations"]
+    assert wti["value"] == "-37.63"
+
+
+def test_extra_history_observation_does_not_fill_missing_required_market_session():
+    contract = build_weekly_data_contract("2026-10-23T15:30:00+08:00")
+    snapshot = synthetic_snapshot(contract)
+    rows = snapshot["series"]["history_gold_london"]["rows"]
+    rows[:] = [row for row in rows if row["date"] != "2017-01-30"]
+    rows.append({"date": "2017-01-29", "value": "100", "published_at": None})
+    result = assess_weekly_snapshot(snapshot, contract)
+    assert result["status"] == "blocked_data"
+    assert "history_gold_london:weekly_history_incomplete" in result["issues"]
+
+
+@pytest.mark.parametrize(
+    "series_id", ["history_gold_london", "history_gold_shanghai", "domestic_000300", "oil_wti"]
+)
+@pytest.mark.parametrize("invalid", [-1, "NaN", True, False])
+def test_host_rejects_negative_gold_market_and_other_invalid_values(series_id, invalid):
+    contract = build_weekly_data_contract("2026-10-23T15:30:00+08:00")
+    snapshot = synthetic_snapshot(contract)
+    snapshot["series"][series_id]["rows"][0]["value"] = invalid
+    assert assess_weekly_snapshot(snapshot, contract)["status"] == "blocked_data"
+
+
+@pytest.mark.parametrize("series_id", ["history_gold_london", "history_oil_wti", "domestic_000300"])
+@pytest.mark.parametrize("day", ["2026-10-23", "2026-10-24", "2027-01-01"])
+def test_host_future_or_unclosed_history_and_market_dates_remain_rejected(series_id, day):
+    spec = next(item for item in load_weekly_mapping()["series"] if item["id"] == series_id)
+    value = {
+        **{key: spec[key] for key in ("asset", "field", "unit", "currency", "market")},
+        "source": "wind_excel",
+        "raw_sha256": "c" * 64,
+        "rows": [{"date": day, "value": "100", "published_at": None}],
+    }
+    with pytest.raises(ValueError, match="future_or_unclosed"):
+        _series_rows(
+            value, spec, datetime.fromisoformat("2026-10-23T15:30:00+08:00"), ["2026-10-22"]
+        )
+
+
+@pytest.mark.parametrize("zero_date", ["2017-01-29", "2017-01-30"])
+def test_host_history_zero_is_not_a_valid_point_or_a_gap_replacement(zero_date):
+    contract = build_weekly_data_contract("2026-10-23T15:30:00+08:00")
+    snapshot = synthetic_snapshot(contract)
+    spec = next(
+        item for item in load_weekly_mapping()["series"] if item["id"] == "history_gold_london"
+    )
+    series = snapshot["series"][spec["id"]]
+    series["rows"][:] = [row for row in series["rows"] if row["date"] != "2017-01-30"]
+    series["rows"].append({"date": zero_date, "value": "0", "published_at": None})
+    result = assess_weekly_snapshot(snapshot, contract)
+    assert result["status"] == "blocked_data"
+    assert "history_gold_london:weekly_history_incomplete" in result["issues"]
+
+
+@pytest.mark.parametrize(
+    "series_id,negative", [("history_oil_wti", "-37.63"), ("history_oil_brent", "-1.25")]
+)
+def test_host_accepts_only_fixed_crude_negative_settlement_histories(series_id, negative):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == series_id)
+    value = {
+        **{key: spec[key] for key in ("asset", "field", "unit", "currency", "market")},
+        "source": "wind_excel",
+        "raw_sha256": "c" * 64,
+        "rows": [{"date": "2020-04-20", "value": negative, "published_at": None}],
+    }
+    result = _series_rows(
+        value, spec, datetime.fromisoformat("2026-10-23T15:30:00+08:00"), ["2020-04-20"]
+    )
+    assert str(result["2020-04-20"]) == negative
+
+
+def test_host_market_non_session_date_remains_invalid():
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == "gold_london")
+    value = {
+        **{key: spec[key] for key in ("asset", "field", "unit", "currency", "market")},
+        "source": "wind_excel",
+        "raw_sha256": "c" * 64,
+        "rows": [{"date": "2017-01-29", "value": "100", "published_at": None}],
+    }
+    with pytest.raises(ValueError, match="future_or_unclosed"):
+        _series_rows(
+            value,
+            spec,
+            datetime.fromisoformat("2026-10-23T15:30:00+08:00"),
+            ["2017-01-27", "2017-01-30"],
+        )
+
+
+@pytest.mark.parametrize("numbers", [["0"], ["0", "100"], ["100", "0"]])
+def test_host_zero_history_neither_becomes_a_point_nor_hides_conflicting_duplicates(numbers):
+    spec = next(
+        spec for spec in load_weekly_mapping()["series"] if spec["id"] == "history_gold_london"
+    )
+    value = {
+        **{key: spec[key] for key in ("asset", "field", "unit", "currency", "market")},
+        "source": "wind_excel",
+        "raw_sha256": "c" * 64,
+        "rows": [
+            {"date": "2020-04-20", "value": numeric, "published_at": None} for numeric in numbers
+        ],
+    }
+    with pytest.raises(ValueError, match="rows_missing|date_conflict"):
+        _series_rows(
+            value, spec, datetime.fromisoformat("2026-10-23T15:30:00+08:00"), ["2020-04-20"]
+        )
 
 
 class WeeklyDataTests(unittest.TestCase):

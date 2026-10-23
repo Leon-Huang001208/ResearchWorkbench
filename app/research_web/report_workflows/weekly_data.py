@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -97,6 +97,20 @@ def _number(value) -> Decimal:
     return parsed
 
 
+def _edb_history_date_allowed(spec: dict, day: str, completed: list[str]) -> bool:
+    """EDB observation dates are not an exchange-session declaration."""
+    return spec.get("kind") == "edb" and bool(completed) and day <= completed[-1]
+
+
+def _negative_history_settlement_allowed(spec: dict) -> bool:
+    """Only the fixed native crude-settlement histories may be negative."""
+    return (
+        spec.get("kind") == "edb"
+        and spec.get("field") == "continuous_settlement"
+        and (spec.get("asset"), spec.get("market")) in {("S0031525", "ICE"), ("M0000005", "NYMEX")}
+    )
+
+
 def _mean(values: dict, days: list[str]) -> str:
     with localcontext() as context:
         context.prec = 96
@@ -182,6 +196,8 @@ def _series_rows(value: dict, spec: dict, cutoff: datetime, completed: list[str]
     if not isinstance(rows, list) or not rows or len(rows) > 10000:
         raise ValueError("weekly_series_rows_missing")
     values: dict[str, Decimal] = {}
+    seen_numbers: dict[str, Decimal] = {}
+    completed_set = set(completed)
     for row in rows:
         if not isinstance(row, dict):
             raise TypeError("weekly_series_row_invalid")
@@ -189,14 +205,28 @@ def _series_rows(value: dict, spec: dict, cutoff: datetime, completed: list[str]
         if not isinstance(day, str):
             raise TypeError("weekly_date_invalid")
         _day(day)
-        if day not in completed or (
+        if (day not in completed_set and not _edb_history_date_allowed(spec, day, completed)) or (
             row.get("published_at") is not None and _aware(row["published_at"]) > cutoff
         ):
             raise ValueError("weekly_series_future_or_unclosed")
         numeric = _number(row.get("value"))
-        if day in values and values[day] != numeric:
+        if day in seen_numbers and seen_numbers[day] != numeric:
             raise ValueError("weekly_series_date_conflict")
+        seen_numbers[day] = numeric
+        if numeric == 0:
+            continue
+        if numeric < 0 and not _negative_history_settlement_allowed(spec):
+            raise ValueError("weekly_price_invalid")
         values[day] = numeric
+    if not values:
+        raise ValueError("weekly_series_rows_missing")
+    if spec.get("kind") == "edb":
+        log.info(
+            "weekly_host_history_observations_validated",
+            series_id=spec["id"],
+            native_non_session_count=sum(day not in completed_set for day in values),
+            negative_settlement_count=sum(numeric < 0 for numeric in values.values()),
+        )
     return values
 
 
@@ -456,7 +486,14 @@ def adopt_verified_groups(api: dict, excel: dict | None, proof: dict) -> dict:
     return result
 
 
-def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:
+def assess_weekly_snapshot(
+    snapshot: dict,
+    contract: dict,
+    *,
+    require_excel_acquisition: bool = False,
+    run_root=None,
+    manifest=None,
+) -> dict:
     """Validate source evidence and independently derive the report's numbers."""
     issues: list[str] = []
     observations: list[dict] = []
@@ -478,6 +515,43 @@ def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:
         ):
             raise ValueError("weekly_snapshot_schema_invalid")
         cutoff = _aware(contract["cutoff"])
+        from .weekly_sources import (
+            verify_weekly_economic_export,
+            verify_weekly_history_supplement,
+        )
+
+        verify_weekly_economic_export(
+            snapshot,
+            contract,
+            run_root=run_root,
+            manifest=manifest,
+            required=require_excel_acquisition,
+        )
+        verify_weekly_history_supplement(snapshot, contract, run_root=run_root, manifest=manifest)
+        if require_excel_acquisition and snapshot["source"] != "wind_excel":
+            raise ValueError("weekly_excel_acquisition_source_invalid")
+        if snapshot["source"] == "wind_excel" and (
+            require_excel_acquisition or "collection_policy" in snapshot
+        ):
+            if (
+                snapshot.get("collection_policy") != "wind-excel-weekly-v1"
+                or snapshot.get("acquisition_kind") != "current_period"
+            ):
+                raise ValueError("weekly_excel_historical_recheck_not_formal")
+            started, frozen_at = _aware(snapshot["acquisition_started_at"]), _aware(
+                snapshot["frozen_at"]
+            )
+            if not cutoff <= started <= frozen_at <= datetime.now(UTC) or any(
+                moment.astimezone(SHANGHAI).date().isoformat() != contract["period_end"]
+                for moment in (started, frozen_at)
+            ):
+                raise ValueError("weekly_excel_acquisition_time_invalid")
+            for item in [
+                *snapshot.get("series", {}).values(),
+                *snapshot.get("calendars", {}).values(),
+            ]:
+                if not started <= _aware(item["retrieved_at"]) <= frozen_at:
+                    raise ValueError("weekly_excel_acquisition_time_invalid")
         if contract.get("calendar_input_sha256") and contract[
             "calendar_input_sha256"
         ] != weekly_snapshot_sha256(snapshot.get("calendars", {})):
@@ -639,6 +713,15 @@ def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:
         "observations": observations,
         "contract_sha256": contract.get("contract_sha256"),
         "snapshot_sha256": snapshot_hash,
+        **(
+            {
+                "acquisition_started_at": snapshot.get("acquisition_started_at"),
+                "frozen_at": snapshot.get("frozen_at"),
+                "acquisition_kind": snapshot.get("acquisition_kind"),
+            }
+            if snapshot.get("collection_policy") == "wind-excel-weekly-v1"
+            else {}
+        ),
     }
 
 

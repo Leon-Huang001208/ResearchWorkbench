@@ -126,7 +126,13 @@ class ReportWorkflowManager:
         try:
             from ..datahub.providers_wind_api import WindClientAPIProvider
 
-            readiness = WindClientAPIProvider().readiness()
+            selected_source = (policy or {}).get("data_source", "wind_client_api")
+            if selected_source == "wind_excel":
+                from ..datahub.providers_wind_excel_weekly import WindExcelWeeklyProvider
+
+                readiness = WindExcelWeeklyProvider().readiness()
+            else:
+                readiness = WindClientAPIProvider().readiness()
             provider = {
                 "status": (
                     "unverified" if readiness.get("dependency_ready") else "blocked_dependency"
@@ -139,6 +145,7 @@ class ReportWorkflowManager:
         return {
             "enabled": bool(policy),
             "policy_id": (policy or {}).get("policy_id"),
+            "data_source": (policy or {}).get("data_source", "wind_client_api"),
             "prepared_version": prepared if prepared != row.get("current_version") else None,
             "owner_status": owner_status,
             "provider": provider,
@@ -185,6 +192,7 @@ class ReportWorkflowManager:
             }
             draft["weekly_production"] = {
                 "policy_id": "huaan-etf-weekly-v1",
+                "data_source": "wind_excel",
                 "news_block_ids": [
                     item["id"]
                     for item in draft.get("blocks", [])

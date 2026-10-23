@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import sys
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -592,6 +593,45 @@ def test_legacy_success_cannot_enable_formal_automation(tmp_path, monkeypatch):
         asyncio.run(runtime.start_run("huaan-etf-weekly", trigger="automation"))
     assert error.value.code == "manual_run_required"
     assert sent == []
+
+
+def test_excel_production_cannot_enable_schedule_even_after_manual_finalization(
+    tmp_path, monkeypatch
+):
+    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch)
+    original = runtime.catalog.manifest
+    runtime.catalog.manifest = lambda *args: original(*args).model_copy(
+        update={
+            "weekly_production": original(*args).weekly_production.model_copy(
+                update={"data_source": "wind_excel"}
+            )
+        }
+    )
+    runtime._manual_weekly_passed = lambda *_args: True
+    with pytest.raises(WorkflowError) as caught:
+        runtime.put_schedule(
+            "huaan-etf-weekly",
+            {"kind": "weekly", "enabled": True, "weekday": 4, "hour": 15, "minute": 30},
+        )
+    assert caught.value.code == "weekly_excel_schedule_disabled"
+    with pytest.raises(WorkflowError) as caught:
+        asyncio.run(runtime.start_run("huaan-etf-weekly", trigger="schedule"))
+    assert caught.value.code == "weekly_excel_schedule_disabled"
+    assert sent == []
+    runtime.put_schedule(
+        "huaan-etf-weekly",
+        {"kind": "weekly", "enabled": False, "weekday": 4, "hour": 15, "minute": 30},
+    )
+    with runtime.catalog._exclusive():
+        runtime.catalog._row("huaan-etf-weekly")["schedule"].update(
+            enabled=True, next_run_at="2026-10-16T07:30:00+00:00"
+        )
+        runtime.catalog._save()
+    asyncio.run(runtime.tick(datetime.fromisoformat("2026-10-16T16:00:00+08:00")))
+    schedule = runtime.schedule("huaan-etf-weekly")
+    assert schedule["enabled"] is False and schedule["next_run_at"] is None
+    assert schedule["last_error_code"] == "weekly_excel_schedule_disabled"
+    assert sent == [] and runtime.catalog.data["runs"] == {}
 
 
 def test_failed_admission_journal_never_calls_native_rpc(tmp_path, monkeypatch):

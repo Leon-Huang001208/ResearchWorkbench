@@ -355,6 +355,15 @@ class ReportWorkflowRuntime:
                     from .weekly_data import build_weekly_data_contract
 
                     owner = self._require_weekly_owner()
+                    if manifest.weekly_production.data_source == "wind_excel" and trigger not in {
+                        "manual",
+                        "retry",
+                    }:
+                        raise WorkflowError(
+                            "Excel 周报仍需本期人工准备，暂不支持启用定时",
+                            "weekly_excel_schedule_disabled",
+                            409,
+                        )
                     if trigger not in {"manual", "retry"} and not self._manual_weekly_passed(
                         workflow_id, selected
                     ):
@@ -369,6 +378,13 @@ class ReportWorkflowRuntime:
                                 for item in reversed(list(self.catalog.data["runs"].values()))
                                 if item.get("workflow_id") == workflow_id
                                 and item.get("weekly_cutoff") == weekly_contract["cutoff"]
+                                and (
+                                    manifest.weekly_production.data_source != "wind_excel"
+                                    or (
+                                        item.get("version") == selected
+                                        and item.get("weekly_data_source") == "wind_excel"
+                                    )
+                                )
                             ),
                             None,
                         )
@@ -405,6 +421,7 @@ class ReportWorkflowRuntime:
                         owner_id=owner["id"],
                         weekly_cutoff=weekly_contract["cutoff"],
                         weekly_data_contract=weekly_contract,
+                        weekly_data_source=manifest.weekly_production.data_source,
                         quality_status="pending",
                         finalization_status="pending",
                     )
@@ -456,6 +473,9 @@ class ReportWorkflowRuntime:
                     "version": run["version"],
                     "run_id": run_id,
                 }
+                if manifest.weekly_production.data_source == "wind_excel":
+                    minimal["weekly_data_source"] = run.get("weekly_data_source")
+                    minimal["owner_id"] = run.get("owner_id")
                 if existing and any(existing.get(key) != value for key, value in minimal.items()):
                     raise WorkflowError(
                         "恢复会话不属于本次周报", "weekly_recovery_context_unknown", 409
@@ -1189,6 +1209,17 @@ class ReportWorkflowRuntime:
         if (
             formal
             and contract.enabled
+            and self.catalog.manifest(workflow_id, selected).weekly_production.data_source
+            == "wind_excel"
+        ):
+            raise WorkflowError(
+                "Excel 周报仍需本期人工准备，暂不支持启用定时",
+                "weekly_excel_schedule_disabled",
+                409,
+            )
+        if (
+            formal
+            and contract.enabled
             and (
                 contract.kind.value != "weekly"
                 or contract.timezone != "Asia/Shanghai"
@@ -1310,6 +1341,7 @@ class ReportWorkflowRuntime:
                     "workflow_not_enabled",
                     "version_required",
                     "manual_run_required",
+                    "weekly_excel_schedule_disabled",
                 }
                 self._record_schedule_failure(workflow_id, exc.code, now, disable=disable)
                 continue

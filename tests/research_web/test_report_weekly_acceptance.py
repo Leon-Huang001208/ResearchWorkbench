@@ -20,7 +20,7 @@ import pytest
 
 from app.research_web.datahub.providers_wind_api import WindClientAPIProvider
 from app.research_web.report_workflows.evidence import prepare_weekly_evidence
-from app.research_web.report_workflows.models import ReportWorkflowManifest
+from app.research_web.report_workflows.models import ReportWorkflowManifest, WorkflowError
 from app.research_web.report_workflows.weekly_data import (
     MAPPING_SHA256,
     assess_weekly_snapshot,
@@ -114,7 +114,10 @@ class SyntheticSDK:
         )
 
 
-def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path, monkeypatch):
+@pytest.mark.parametrize("data_source", ["wind_client_api", "wind_excel"])
+def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
+    tmp_path, monkeypatch, data_source
+):
     if sys.platform != "darwin":
         pytest.skip("actual native sandbox projection is owned by the Mac acceptance task")
     # Share the explicit, vendor-shaped synthetic fixtures used by the independent
@@ -122,6 +125,7 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
     from test_report_weekly_data import WeeklyDataTests, synthetic_snapshot
     from test_report_weekly_rendering import projection
 
+    cutoff = "2026-10-16T15:30:00+08:00"
     document, render_context, _template_root = projection.__wrapped__(tmp_path / "template")
     # The renderer unit fixture has one series per chart. The production gold
     # and oil charts each hold two distinct series, so preserve that real shape.
@@ -161,7 +165,7 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
                     "providers": [{"provider": "wind_excel", "required": True}],
                 }
             ],
-            "weekly_production": {"policy_id": POLICY_ID},
+            "weekly_production": {"policy_id": POLICY_ID, "data_source": data_source},
             "delivery": {
                 "formats": ["html", "docx", "xlsx"],
                 "primary_workbook": "workbooks/周报数据.xlsx",
@@ -201,6 +205,48 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
             "static_options": {},
         },
     }
+    if data_source == "wind_excel":
+        from test_datahub_wind_excel_weekly import package
+
+        input_root = tmp_path / "excel-inputs"
+        _, source_contract, input_manifest, _ = package(input_root, cutoff)
+        # Keep the existing catalog resource roots in the full published fixture.
+        paths = {
+            item["path"]: item["path"].replace("inputs/", "assets/weekly/")
+            for item in input_manifest["resources"]
+        }
+        coverage = json.loads((input_root / "inputs/coverage.json").read_bytes())
+        for window in coverage["windows"]:
+            window["resource"] = paths[window["resource"]]
+        coverage_raw = json.dumps(coverage).encode()
+        source_contract["verification"]["evidence_path"] = paths[
+            source_contract["verification"]["evidence_path"]
+        ]
+        for export in source_contract["excel_exports"].values():
+            export["path"] = paths[export["path"]]
+        economic = source_contract["excel_exports"]["economic_calendar"]
+        economic["coverage_evidence_path"] = paths[economic["coverage_evidence_path"]]
+        economic["coverage_evidence_sha256"] = _sha(coverage_raw)
+        observation = json.loads((input_root / economic["observation_path"]).read_bytes())
+        observation["export_path"] = economic["path"]
+        observation_raw = json.dumps(observation).encode()
+        economic["observation_path"] = paths[economic["observation_path"]]
+        economic["observation_sha256"] = _sha(observation_raw)
+        for item in input_manifest["resources"]:
+            if item["path"] != "mappings/huaan-weekly-source-contract.json":
+                catalog.upload_resource(
+                    manifest.workflow_id,
+                    paths[item["path"]],
+                    (
+                        coverage_raw
+                        if item["path"] == "inputs/coverage.json"
+                        else (
+                            observation_raw
+                            if item["path"] == "inputs/calendar-observation.json"
+                            else (input_root / item["path"]).read_bytes()
+                        )
+                    ),
+                )
     catalog.upload_resource(
         manifest.workflow_id,
         "mappings/huaan-weekly-source-contract.json",
@@ -214,7 +260,7 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
     workspace = catalog.create_run_workspace(manifest.workflow_id, 1)
     run_id = workspace["run_id"]
     run_root = catalog.run_path(run_id)
-    data_contract = build_weekly_data_contract("2026-10-23T15:30:00+08:00")
+    data_contract = build_weekly_data_contract(cutoff)
     snapshot = synthetic_snapshot(data_contract)
     assert assess_weekly_snapshot(snapshot, data_contract)["status"] == "passed"
     (run_root / "snapshots").mkdir()
@@ -229,6 +275,20 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
         "version": 1,
         "run_id": run_id,
     }
+    if data_source == "wind_excel":
+        session["report_workflow"].update(weekly_data_source=data_source, owner_id="owner")
+        service.report_workflows.runtime._update_run(
+            run_id,
+            id=run_id,
+            workflow_id=manifest.workflow_id,
+            version=1,
+            weekly_data_source=data_source,
+            owner_id="owner",
+            session_id=sid,
+        )
+        with catalog._exclusive():
+            catalog._row(manifest.workflow_id)["status"] = "enabled"
+            catalog._save()
     refresh_root = run_root / "refresh-manifests"
     refresh_root.mkdir()
     calibration_calls = []
@@ -264,6 +324,24 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
         calendar_contracts=source_contract["calendars"],
         economic_contract=source_contract["economic_calendar"],
     )
+    if data_source == "wind_excel":
+        from test_datahub_wind_excel_weekly import Client
+
+        from app.research_web.datahub import providers_wind_excel_weekly
+        from app.research_web.datahub.providers_wind_excel_weekly import WindExcelWeeklyProvider
+
+        monkeypatch.setattr(
+            providers_wind_excel_weekly,
+            "_host_now",
+            lambda: datetime.fromisoformat(cutoff) + timedelta(minutes=30),
+        )
+
+        provider = WindExcelWeeklyProvider(
+            run_root=run_root,
+            manifest=manifest,
+            source_contract=source_contract,
+            client_factory=Client,
+        )
     collected = asyncio.run(
         service.datahub.collect_report_weekly(
             sid,
@@ -275,11 +353,15 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
             prepare_excel=prepare_excel,
         )
     )
-    assert collected["assessment"]["status"] == "passed", collected["assessment"]
-    assert calibration_calls == [data_contract["cutoff"]]
-    assert any(call[0] == "edb" for call in sdk.calls) and any(
-        call[0] == "wsd" for call in sdk.calls
-    )
+    assert collected["assessment"]["status"] == "passed", collected["snapshot"].get("limitations")
+    if data_source == "wind_client_api":
+        assert calibration_calls == [data_contract["cutoff"]]
+        assert any(call[0] == "edb" for call in sdk.calls) and any(
+            call[0] == "wsd" for call in sdk.calls
+        )
+    else:
+        assert calibration_calls == [] and sdk.calls == []
+        assert collected["snapshot"]["source"] == "wind_excel"
     snapshot = collected["snapshot"]
     raw = json.dumps(snapshot, ensure_ascii=False, indent=2).encode()
     (run_root / "snapshots" / "report-data.json").write_bytes(raw)
@@ -439,6 +521,20 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(tmp_path
         )
         assert "OLD" not in package.read("word/document.xml").decode()
     assert runtime.public_run(run)["finalization_status"] == "finalized"
+    if data_source == "wind_excel":
+        from app.research_web.report_workflows.evidence import FACTS_PATH
+        from app.research_web.report_workflows.weekly_quality import weekly_verified_evidence
+
+        assert "实际采集开始" in (service.store.directory(sid) / FACTS_PATH).read_text()
+        assert "实际冻结" in (service.store.directory(sid) / FACTS_PATH).read_text()
+        snapshot_path = target / "snapshots" / "report-data.json"
+        original_snapshot = snapshot_path.read_bytes()
+        changed_snapshot = json.loads(original_snapshot)
+        changed_snapshot["frozen_at"] = "2026-10-16T16:00:01+08:00"
+        snapshot_path.write_text(json.dumps(changed_snapshot))
+        with pytest.raises(WorkflowError):
+            weekly_verified_evidence(service, sid)
+        snapshot_path.write_bytes(original_snapshot)
     (service.store.directory(sid) / "outputs" / "report.docx").write_bytes(b"changed")
     assert runtime.public_run(run)["finalization_status"] == "invalidated"
     assert (

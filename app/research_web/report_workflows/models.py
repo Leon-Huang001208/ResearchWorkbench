@@ -212,6 +212,7 @@ class WeeklyProductionPolicy(StrictModel):
     """Opt in a published Huaan version without upgrading historical runs."""
 
     policy_id: Literal["huaan-etf-weekly-v1"] = "huaan-etf-weekly-v1"
+    data_source: Literal["wind_client_api", "wind_excel"] = "wind_client_api"
     news_block_ids: list[str] = Field(default_factory=list, max_length=100)
 
     @field_validator("news_block_ids")

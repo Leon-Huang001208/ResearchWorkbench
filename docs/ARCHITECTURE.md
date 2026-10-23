@@ -2,6 +2,8 @@
 
 今日发现新增现有Host内的固定Intel读取→显式选材校验→原DataHub归档→一次DSH提交分支；独立开启跟踪复用原Automation与账号RuntimePool恢复，不增加研究引擎、数据库或后台服务。资料流与研究序列有真实新边，01/02/03/04图同步；受理、规范报告质量和实际部署分开，合同见[今日发现](research-web-discovery.md)。
 
+华安经济日历的时间、前值、预测值和今值沿原 Excel 快照保留，Host 从锁定原件独立重建全部事件字段，类型、顺序、来源不符即阻断。此为原资源重放与底稿投影边界的补齐，不新增引擎、HTTP、依赖或持久格式，原架构图仍准确；Word 经济表维持原三列。
+
 2026-10-23 SPDR 四项快照扩展现有外部 Provider 和原生研究仓白名单；单次原件、四项行/字段及单位通过同一解析器绑定。
 仅增加现有 gld 的数据合同版本，Host → DataHub → Provider/可选 MarketStore 的节点与边保持，现有图准确。
 无新 HTTP 路由、数据库表、服务或引擎；首次观测快照、每次授权和正式 PIT 限制见[原生快照](research-web-vendor-snapshots.md)。
@@ -14,6 +16,10 @@
 2026-10-23官方与中国宏观接入继续走Host/DataHub/Broker/既有公开worker/ResearchWarehouse。NYFed与Treasury采用已登记端点；AK的四个factor_macro序列复用现有业务查询接口，原始响应与参考期字段进入provider-native捕获。04数据图的normalize节点已包含可选研究仓、修订与冻结，本轮增加其封闭合同及版本检查，没有新服务、HTTP路由、数据库表或第二研究引擎。观察期不等于披露时间；这些捕获不获得正式PIT资格。错误封包修复在原Provider和会话缓存边界，不能通过HTTP200获得数据成功状态。
 
 2026-10-23市场补齐沿既有浏览器→Host MarketService→DataHub公开东财→当前用户缓存拓扑，新增同批限价状态、同池昨日逐股金额重算及最多30日真实资金留存；不增服务、HTTP路径、业务index、依赖、模型调用或跨账号流。原13市场图拓扑不变，缓存可选字段和公开投影分别见[缓存](architecture/research-web/03-data-files.md#全市场概览缓存)、[API](architecture/research-web/04-api.md#全市场概览接口)与[口径](research-web-datahub.md#无会话全市场数据)。
+华安周报新增既有 DataHub 私有 wind_excel 来源分支，复用 Report Workflow、唯一 DSH、Host 独立复算与原版式投影。EDB/日历绑定同版本原生导出证据；市场截止15:30与实际冻结分别记录，历史重查不认证当时快照。09/10图同步来源分支，无新服务、HTTP或依赖；本轮定时关闭。
+本期 schema4 只为已证实的伦敦金历史单点缺口附加同版本原生 WSD／TDAYS 资源；Host 重读原 EDB
+并重算重叠、覆盖及补点，不覆盖原始导出。它仍是09/10图中的来源证据与 Host 核验节点，未新增执行路径；
+封包审查、实采预检、正式 Run 与交付认证分别记录。
 
 ## 2026-10-23 资产筹码与精炼行情布局
 
