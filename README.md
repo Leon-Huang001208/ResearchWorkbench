@@ -1,5 +1,7 @@
 # Research Workbench
 
+资产精炼布局与换手筹码通过[固定v6部署](docs/research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)交付；精确绑定已合并PR197，保留账号、业务数据和旧恢复合同，实际切换及认证页面另行验收。
+
 资产v5部署前大索引预检修复只让v5使用已有64 MiB安全业务读取器；元数据仍为1 MB，旧profile和固定产品不变。原8.67 MB业务索引在停机前被拒绝，数据未裁剪；修复须继续原完整文档／评审／三CI及同候选Mac安装，PR187原Constraints失败不写成通过。当前仍待正式切换与全账号保全，见[部署合同](docs/research-web-gateway-upgrade.md)和[修复记录](.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 [固定版本部署](docs/research-web-gateway-upgrade.md#全市场缺口修复固定部署)继续保全原会话、数据及模型，并核对行情采集空闲。

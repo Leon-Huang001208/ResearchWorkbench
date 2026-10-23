@@ -1,10 +1,15 @@
 """Resident deployment contracts without host launchd, GitHub writes or model calls."""
 
 import asyncio
+import binascii
+import io
 import json
 import os
+import stat
+import struct
 import subprocess
 import sys
+import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -578,17 +583,34 @@ def github_fixture(tmp_path, monkeypatch, *, tree_mismatch=False, review_head=No
             tree = "wrong" if tree_mismatch and endpoint.endswith(head) else "tree"
             return {"tree": {"sha": tree}}
         if "/jobs?" in endpoint:
-            return {"jobs": [{"id": 7, "conclusion": "success", "labels": ["macos-14"]}]}
+            return {
+                "jobs": [
+                    {"id": 7, "name": "checks", "conclusion": "success", "labels": ["macos-14"]}
+                ]
+            }
         return {"workflow_runs": [{"id": 1, "status": "completed", "conclusion": "success"}]}
 
     monkeypatch.setattr(instance, "api", api)
 
-    def download(argv, *, timeout=30):
-        assert argv[-1].endswith("/logs") and timeout == 120
-        return "[command]/usr/bin/git log -1 --format=%H\n2026-10-15T00:00:00Z " + head
+    def download(argv):
+        assert argv == [
+            "/gh",
+            "api",
+            "repos/owner/repo/actions/runs/1/logs",
+            "-H",
+            "Cache-Control: no-cache",
+        ]
+        return log_archive("[command]/usr/bin/git log -1 --format=%H\n2026-10-15T00:00:00Z " + head)
 
-    monkeypatch.setattr(evidence, "run", download)
+    monkeypatch.setattr(evidence, "run_archive", download)
     return instance, target
+
+
+def log_archive(body, name="0_checks.txt"):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(name, body)
+    return stream.getvalue()
 
 
 def test_regular_evidence_commands_keep_original_bounded_timeout(monkeypatch):
@@ -606,13 +628,37 @@ def test_regular_evidence_commands_keep_original_bounded_timeout(monkeypatch):
 def test_ci_log_timeout_still_blocks_eligibility(tmp_path, monkeypatch):
     instance, target = github_fixture(tmp_path, monkeypatch)
 
-    def command(_argv, **kwargs):
-        assert kwargs["timeout"] == 120
+    def command(_argv):
         raise evidence.UpdateBlocked("resident_command_unavailable")
 
-    monkeypatch.setattr(evidence, "run", command)
+    monkeypatch.setattr(evidence, "run_archive", command)
     with pytest.raises(evidence.UpdateBlocked, match="resident_command_unavailable"):
         instance.qualify(target)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "partial log without checkout",
+        "git log -1 --format=%H\nnot-a-sha",
+        "git log -1 --format=%H\n" + "a" * 40 + "\ngit log -1 --format=%H\n" + "c" * 40,
+    ],
+)
+def test_archive_log_missing_or_ambiguous_checkout_is_rejected(tmp_path, monkeypatch, body):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(evidence, "run_archive", lambda *args, **kwargs: log_archive(body))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
+        instance.qualify(target)
+
+
+def test_full_log_output_still_has_eight_mb_bound(monkeypatch):
+    monkeypatch.setattr(
+        evidence.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, "x" * 8_000_001, ""),
+    )
+    with pytest.raises(evidence.UpdateBlocked, match="resident_command_failed"):
+        evidence.run(["/gh", "run", "view", "--log"], timeout=120)
 
 
 def test_eligibility_requires_matching_review_and_actual_ci_tree(tmp_path, monkeypatch):
@@ -1052,3 +1098,123 @@ def test_busy_bridge_keeps_confirmed_previous_revision_and_deferral_reason(host_
     assert result["deployed"] == h.PREVIOUS
     assert result["reason"] == "resident_busy"
     assert evidence.read_json(root / "config.json") == config
+
+
+def test_archive_keeps_checkout_after_long_line(tmp_path, monkeypatch):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+    body = (
+        "git log -1 --format=%H\n"
+        + "a" * 40
+        + "\n"
+        + "x" * 70_000
+        + "\ngit log -1 --format=%H\n"
+        + "c" * 40
+    )
+    monkeypatch.setattr(evidence, "run_archive", lambda *_: log_archive(body))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
+        instance.qualify(target)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"not a ZIP",
+        log_archive("log")[:-15],
+        log_archive(b"\xff"),
+        log_archive("log", "wrong.txt"),
+        log_archive("log", "../0_checks.txt"),
+    ],
+)
+def test_archive_invalid_data_is_rejected(raw):
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(raw, [{"id": 7, "name": "checks"}])
+
+
+def test_archive_binary_download_retains_timeout_and_bound(monkeypatch):
+    def command(argv, **kwargs):
+        assert kwargs["timeout"] == 120
+        assert "text" not in kwargs
+        return subprocess.CompletedProcess(argv, 0, b"x" * 8_000_001, b"")
+
+    monkeypatch.setattr(evidence.subprocess, "run", command)
+    with pytest.raises(evidence.UpdateBlocked, match="resident_command_failed"):
+        evidence.run_archive(["/gh", "api", "logs"])
+
+
+@pytest.mark.parametrize("compression", [zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED])
+def test_archive_rejects_forged_prefix_length_and_crc(compression):
+    prefix = b"a" * 64
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", compression) as archive:
+        archive.writestr("0_checks.txt", prefix + b"hidden checkout" * 10)
+    raw = bytearray(stream.getvalue())
+    crc = binascii.crc32(prefix)
+    struct.pack_into("<I", raw, 14, crc)
+    struct.pack_into("<I", raw, 22, len(prefix))
+    central = raw.index(b"PK\x01\x02")
+    struct.pack_into("<I", raw, central + 16, crc)
+    struct.pack_into("<I", raw, central + 24, len(prefix))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(bytes(raw), [{"id": 7, "name": "checks"}])
+
+
+def test_archive_rejects_symbolic_link_member():
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        entry = zipfile.ZipInfo("0_checks.txt")
+        entry.create_system = 3
+        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+        archive.writestr(entry, "target")
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(stream.getvalue(), [{"id": 7, "name": "checks"}])
+
+
+def test_fresh_github_metadata_requests_revalidation(monkeypatch, tmp_path):
+    seen = []
+
+    def command(argv):
+        seen.append(argv)
+        return '{"sha":"' + "a" * 40 + '"}'
+
+    monkeypatch.setattr(evidence, "run", command)
+    assert evidence.GitHubEvidence(Path("/gh"), "owner/repo", tmp_path).latest() == "a" * 40
+    assert seen == [
+        ["/gh", "api", "repos/owner/repo/commits/master", "-H", "Cache-Control: no-cache"]
+    ]
+
+
+@pytest.mark.parametrize("second", ["missing", "ambiguous", "matching", "different"])
+def test_each_successful_job_requires_its_own_unique_matching_checkout(
+    tmp_path, monkeypatch, second
+):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+    original = instance.api
+
+    def api(endpoint):
+        if "/jobs?" in endpoint:
+            return {
+                "jobs": [
+                    {"id": 7, "name": "checks", "conclusion": "success", "labels": ["macos-14"]},
+                    {"id": 8, "name": "second", "conclusion": "success", "labels": ["macos-14"]},
+                ]
+            }
+        return original(endpoint)
+
+    body = "git log -1 --format=%H\n" + "a" * 40 + "\n"
+    other = {
+        "missing": "complete but no checkout\n",
+        "matching": body,
+        "ambiguous": body + "git log -1 --format=%H\n" + "c" * 40 + "\n",
+        "different": "git log -1 --format=%H\n" + "c" * 40 + "\n",
+    }[second]
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("0_checks.txt", body)
+        archive.writestr("1_second.txt", other)
+    monkeypatch.setattr(instance, "api", api)
+    monkeypatch.setattr(evidence, "run_archive", lambda *_: stream.getvalue())
+    if second == "matching":
+        assert instance.qualify(target)["sha"] == target
+    else:
+        with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
+            instance.qualify(target)
