@@ -748,3 +748,7 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 
 
 2026-10-23：新增apply-assets-v7仅是本机受管CLI分派；不增加HTTP接口、账号权限、公开服务或任意目标覆盖入口。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+沿既有BusinessQuery入口使用financials/source=baostock、statements=[profitability]、periods单个2017年起季度末。auto仅选择该数据集，不能换成Sina income_statement或财务摘要。拒as_of/backtest；日期精度pubDate不是精确历史可得时刻。保存与显示allow_stale读仓仍检查当前授权，严格最新研究重新取数，旧显式冻结可读。

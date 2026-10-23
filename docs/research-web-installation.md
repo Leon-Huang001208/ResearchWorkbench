@@ -997,3 +997,7 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 
 
 2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=abdc2a5883cfc86daf181062dc6ab8602e33128c（PR204实际合并）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock财务扩展复用已批准并锁定baostock0.9.4；没有新增或安装依赖、账号、端口或数据库服务。已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py、三安装入口和Mac Bootstrap；这些文件无需为该适配更改。最终候选仍须同SHA干净Mac安装、固定DSH、3081/8088及Doctor证明兼容，现有服务、正式数据根和外盘不操作。

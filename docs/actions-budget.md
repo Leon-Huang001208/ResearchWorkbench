@@ -254,3 +254,7 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 
 
 2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=abdc2a5883cfc86daf181062dc6ab8602e33128c（PR204实际合并）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial_integration，原BaoStock测试增加合成季度合同；无新workflow/job/runner/依赖/timeout。当前本机该闭包约3秒，新增预算预留15秒；真实免费SDK与独立临时PG只本机有界执行，CI不连接财务厂商。最终原三CI及同候选Mac安装门保持；Mac不发Windows/Linux产品dispatch，远端动作前实时复查visibility/额度。

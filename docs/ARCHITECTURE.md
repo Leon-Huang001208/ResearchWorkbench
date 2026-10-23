@@ -215,3 +215,7 @@ BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原H
 
 
 2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=abdc2a5883cfc86daf181062dc6ab8602e33128c（PR204实际合并）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock单报告期盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。

@@ -16,6 +16,8 @@ from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
 from .providers import MAX_QUERY_BYTES, Result
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
+from .providers_baostock import FINANCIAL_DICTIONARY, FINANCIAL_DICTIONARY_SHA256
+from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .providers_market import INDEXES
 
@@ -327,6 +329,39 @@ class SnapshotSeries:
                         "research_snapshot_not_ingested", reason="provider_contract_incomplete"
                     )
                     return None
+            if (
+                query.capability == "financials"
+                and self.scope.source == "baostock"
+                and query.parameters.get("statements") == ["profitability"]
+                and (
+                    result.metadata.get("schema_version") != BAOSTOCK_FINANCIAL_SCHEMA
+                    or result.metadata.get("upstream_id") != "baostock"
+                    or result.metadata.get("availability_basis") != "first_observed"
+                    or result.metadata.get("historical_point_in_time") is not False
+                    or result.metadata.get("formal_backtest_eligible") is not False
+                    or result.metadata.get("field_dictionary_evidence")
+                    != {
+                        "source_url": FINANCIAL_DICTIONARY,
+                        "document_sha256": FINANCIAL_DICTIONARY_SHA256,
+                        "fields": ["netProfit", "MBRevenue"],
+                        "unit": "CNY",
+                        "currency": "CNY",
+                    }
+                    or result.status != "complete"
+                    or result.pagination_complete is not True
+                    or result.missing
+                    or len(result.rows) != 1
+                    or any(
+                        result.fields.get(field) != {"unit": "CNY", "currency": "CNY"}
+                        for field in ("netProfit", "MBRevenue")
+                    )
+                )
+            ):
+                log.info(
+                    "research_snapshot_not_ingested",
+                    reason="baostock_financial_contract_incomplete",
+                )
+                return None
             if (
                 query.capability == "factor_macro"
                 and self.scope.source == "akshare"
