@@ -161,15 +161,26 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+let dossierDraftOpening = false;
 const dossierController = createDossierController({ api, onChange: () => { if (isDossierRoute(state.route)) render(); }, onNavigate: hash => { location.hash = hash; }, onDraft: async result => {
-  history.pushState(null, '', `#/${result.mode}`);
-  const ticket = pageGeneration + 1;
-  await showRoute();
-  if (ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
-  const previous = state.draft || '';
-  if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
-  success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
-  render(); document.getElementById('prompt')?.focus({ preventScroll: true });
+  dossierDraftOpening = true;
+  let prepared = false;
+  try {
+    history.pushState(null, '', `#/${result.mode}`);
+    const ticket = pageGeneration + 1;
+    await showRoute();
+    if (ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
+    const previous = state.draft || '';
+    if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
+    success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
+    prepared = true;
+  } catch (error) {
+    state.error = '档案研究草稿暂未准备完成，请返回档案核对后重试。';
+    safeLog('dossier_draft_open_failed', { status: error.code || 'request_failed' });
+  } finally {
+    dossierDraftOpening = false; render();
+    if (prepared) document.getElementById('prompt')?.focus({ preventScroll: true });
+  }
 } });
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets' && state.route.assetView !== 'dossiers';
@@ -385,6 +396,7 @@ function closeMCPServerDialog({ restoreFocus = true } = {}) {
 }
 
 function sendBlockReason() {
+  if (dossierDraftOpening) return '正在准备档案研究草稿，请等待冻结上下文就绪后发送。';
   if (state.detail?.execution_restricted) return '此历史会话执行受限；保留可读记录，请新建研究。';
   if (state.busy || state.stopping || state.loading || (state.route.sessionId && !state.detail)) return '操作尚未结束；草稿已保留，未发送。';
   if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) return '上一任务与交付尚未确认结束；草稿已保留，未发送。';
@@ -400,7 +412,7 @@ function retryBlockReason() {
 }
 
 function composer() {
-  const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
+  const disabled = dossierDraftOpening || state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
@@ -1599,6 +1611,7 @@ async function loadConnectionConfiguration(sourceId) {
 }
 
 async function ensureSession() {
+  if (dossierDraftOpening) return false;
   if (state.detail) return true;
   if (state.route.sessionId) return false;
   const result = await controller.create(state.route.page, selectedWorkspace, state.route.projectId);

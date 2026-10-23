@@ -372,6 +372,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     addDossierEvidence: (id, body, options = {}) => request(`/dossiers/${segment(id)}/evidence`, { ...options, method: 'POST', body }),
     dossierEvidence: (id, evidenceId, options = {}) => request(`/dossiers/${segment(id)}/evidence/${segment(evidenceId)}`, options),
     addDossierLink: (id, body, options = {}) => request(`/dossiers/${segment(id)}/links`, { ...options, method: 'POST', body }),
+    dossierLink: (id, linkId, options = {}) => request(`/dossiers/${segment(id)}/links/${segment(linkId)}`, options),
     dossierHandoff: (id, body, options = {}) => request(`/dossiers/${segment(id)}/handoff`, { ...options, method: 'POST', body }),
     dossierSignals: (options = {}) => request('/dossiers/signals', options),
     scanDossier: (id, body, options = {}) => request(`/dossiers/${segment(id)}/scan`, { ...options, method: 'POST', body }),
@@ -667,8 +668,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
       if (body.dossier_handoff_id) {
-        for (const [key, value] of drafts) {
-          if (key !== id && value.dossierHandoff?.id === body.dossier_handoff_id) {
+        // A page reload may leave only the active session in memory. The two
+        // durable homepage drafts still need the same receipt cleanup.
+        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt'])) {
+          const value = readDraft(key);
+          if (key !== id && value?.dossierHandoff?.id === body.dossier_handoff_id) {
             pending.delete(key); putDraft(key, { ...value, dossierHandoff: null });
             if (draftKey() === key && state.dossierHandoff?.id === body.dossier_handoff_id) state.dossierHandoff = null;
           }
