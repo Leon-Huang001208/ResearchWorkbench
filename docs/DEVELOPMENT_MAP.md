@@ -15,6 +15,16 @@ DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 
 全市场终端由`market_indices.py`定义core-v1固定12与terminal-v2共24指数及分组；`market_analysis.py`计算三周期证据与官方六风格矩阵，`market_portfolio.py`管理账号持仓预览/确认及有界文件。market_routes/service复用原维护准入、缓存生命周期；ui/market-terminal.mjs组织原生终端交互，market.mjs保留行情表/成员/导出。近处回归test_market_indices/test_market_terminal和research_web_market_terminal覆盖真实契约、上海跨日、陈旧估值拒绝、账号及迟到响应；真实来源和浏览器独立验收。
 构建器失效登记恢复由`rwb-docker builder-reconcile`早分发到`research_workbench_entrypoint/builder_reconcile.py`，复用`iteration_cache.operation_lock`。近处`test_builder_reconcile.py`覆盖指纹、错引擎、部分资源、恢复前零mutation拒绝、带全局选项的活动build/bake和停止终态；真实Docker恢复及旧任务清理另留证。
 
+2026-10-23 ETF Native操作员准备：`resident/model_provider_upgrade.py`增加封闭
+`ETF_WEEKLY_MODE/PREVIOUS/PAYLOAD`、`previous_for/review_assets`与`apply-etf-weekly`分支，
+复用v4保全/恢复、大索引读取、v6固定完整CI日志读取器及市场inflight门。PREVIOUS固定当前登记
+`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD固定PR198真实merge
+`988046d23f9951f889a3b9d02e355ed59fd6aa65`；操作员独立验证、评审及CI另证，本轮不部署、不安装依赖。
+`test_model_provider_upgrade.py`将新mode加入原真实Git/历史profile/全账号保全/阶段恢复矩阵，
+补固定身份、Host/Native/私有池活动未知和原manifest锁保持回归；原API活动见证保留。
+部署合同见[ETF离线准备](research-web-gateway-upgrade.md#华安etf周报固定部署profile仅离线准备)。
+无新增服务、HTTP、schema、数据库、依赖或第二执行器，原架构节点/边不变；正式切换仍需单独授权。
+
 2026-10-23宏观闭环：providers_external.py校验官方NYFed/Treasury/WorldBank封包；providers_akshare.py在既有public_worker内执行cpi/gdp/pmi/m2固定请求；catalog/broker只声明实际支持的序列。DataHub新查询缓存、ResearchWarehouse身份与SnapshotSeries准入分别核对合同版本，旧call_id和冻结证据保留。国内观察期及累计GDP语义不借用披露时点。公开错误封包/空参考线/分号CSV在同一external Provider修复，不扩数值仓白名单；真实失败与临时库证据见本轮来源台账和任务报告。
 
 公开数值合同 `official-numeric-v2` 定位于 `datahub/providers_external.py` 的

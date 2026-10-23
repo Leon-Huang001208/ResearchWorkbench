@@ -25,6 +25,29 @@ evidence读取器绑定现有v6的`5c3077b7…eebb`，不能用缓存片段替�
 现有01／12图保持准确，产品终端的数据流仍以已更新13图为准。
 
 
+## 华安ETF周报固定部署profile（仅离线准备）
+
+`reviewed-etf-weekly-v1` / `apply-etf-weekly` 固定登记旧版
+`5343e18d9f203a87f2d958218e4288afa527711f`，`ETF_WEEKLY_PAYLOAD` 固定PR198真实merge
+`988046d23f9951f889a3b9d02e355ed59fd6aa65`。产品reviewed head `61f7d1a6d`的三门已通过，
+不代替操作员最终候选的独立验证、评审和CI；切换前再次核定登记旧版。不能通过命令参数
+指定任意前版或产品。本轮仅授权源码和离线验证，尚未获得常驻部署授权，未执行apply或切换。
+
+该profile复用原version4事务、supervisor/admission/operator锁、BirthFence、主实例Native/Host
+与私有RuntimePool身份/空闲门及全部账号保全恢复；加入64MiB严格业务索引读取与全键摘要，元数据仍
+保持1MB上限。Host的真实Future、Wind、报告准备/执行、市场provider关闭/排空以及其他活动或未知
+继续阻止切换；profile另显式核对市场inflight为空，不以无研究session替代采集终态。它接受与v6相同的
+固定完整CI日志读取器SHA256 `5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb`，
+保留每个成功job自身checkout/tree证明，不改变旧profile、controller、evidence内容或自动兼容白名单。
+
+安装清单只更新code_commit并保留原web_lock_sha256；产品锁与已登记安装锁均为`7c631d4f…7102`，
+不增加依赖安装/数据库/秘密授权。最终候选仍须共享正确Git common directory、干净checkout、
+独立评审、完整changed-set Router及原Project Constraints/Research Web Checks/同候选macos-14干净安装。
+部署授权后才按原事务冻结全账号索引、会话/文件/模型配置/账号数据并逐阶段切换与可恢复回滚。
+部署后的实际版本、主管理员Native Host绑定、认证页面、保全与真实报告质量另证；离线通过不认证
+EDB、真实Office/Wind或正式成稿。对应回归在`tests/research_web/test_model_provider_upgrade.py`，
+原全profile真实Git、阶段中断/回滚、全账号保全矩阵包含该mode；API活动见证继续由原`test_api.py`覆盖。
+
 ## 资产筹码与精炼布局固定部署v6
 
 `reviewed-asset-observation-v6` / `apply-assets-v6` 固定旧驻留版本
