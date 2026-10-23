@@ -21,6 +21,11 @@ def test_catalog_identity_and_legacy_scope():
     assert len({row["asset"] for row in c["items"]}) == 24
     assert {"932000.SH", "000824.SH"} <= set(c["default_pins"])
     assert all(row["return_basis"] == "price_index" for row in c["items"])
+    assert all(
+        ".csindex.com.cn/" in row["definition_url"]
+        for row in c["items"]
+        if row["publisher"] == "CSI"
+    )
     assert next(x[2] for x in selected_indexes(TERMINAL) if x[0] == "932000.SH") == "2.932000"
     with pytest.raises(ValueError):
         selected_indexes("arbitrary")

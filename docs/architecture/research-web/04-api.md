@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+2026-10-23：`apply-market-terminal`是封闭本机操作员命令，不新增HTTP或租户权限。主实例与网关仍通过原认证／租户／维护门，GET市场空闲见证不采集上游；组合预览／确认和现有研究、资讯、周报接口合同保持。固定候选、原三CI和实际切换另证，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
 ## 筹码输入与偏好可选字段（2026-10-23）
 
 原POST history-jobs正文可选严格布尔 `include_chip_inputs`，缺省false，仅固定tinysoft可设true；响应在true时带同名字段。重复幂等键必须保留语义，retry_of必须保留原旗标、截止、范围、来源和复权。进度phase=chip_inputs时带chip_batches_total/completed。没有新增HTTP路径；取消、排空、归属和冻结检查保持。

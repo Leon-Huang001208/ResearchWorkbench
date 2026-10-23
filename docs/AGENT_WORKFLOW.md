@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-23：终端profile闭包先运行后端130例与完整操作员／网关／resident回归，不安装依赖、不改秘密或常驻服务。`apply-market-terminal`仅复用原封闭Native部署通道；PR201合入后主任务固定最终产品身份，完整changed-set Router、独立评审、Project Constraints／Research Web Checks及同候选macos-14干净安装均须重新绑定。实际切换、认证页面及全账号保全另取证；产品CI或本地通过不能认证这些层级。
+
 2026-10-23终端v2先交互v0确认A，再复用原Checks定点Python与JS通配符、完整Router、独立评审及同候选Mac安装CI。公开源、隔离浏览器和常驻认证各留真实证据；缺历史的分项／总分／仓位待验证，金元普通客户端不等于官方API。部署沿保全与恢复事务，Windows/Linux交接不冒充本机完成。
 
 2026-10-23来源与宏观研究仓任务在原Checks的Python步骤登记官方封包离线模块，其余回归扩展既有文件。完整changed-set Router、原通用仓库门及同候选Mac干净安装均保留；有界公开请求、独立临时PG、源码评审、CI与部署分别记录。业务错误封包/空序列不能用HTTP200或测试数代替来源可用性。没有新runner、依赖、跨平台产品dispatch或模型调用，现有服务、正式库及外盘保持无操作。

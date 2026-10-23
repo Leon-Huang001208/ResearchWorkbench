@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+2026-10-23：终端Native固定部署不迁移业务index或研究仓，不把账号market-cache、持仓／预览、会话、报告、模型配置和恢复归档复制成新源。原version4全账号索引哈希、缺失／空值区别、凭据存储元数据和内容寻址恢复继续逐项校验；安装清单只按冻结目标锁同步并可精确恢复。源码来自已核验common directory下的干净目标checkout，原业务数据原位保留；当前文档补齐不是实际保全回执，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
 终端v2仍采用market-cache原schema1分区文件，indices:terminal-v2拥有独立键、目录版本与24身份；indices保留旧12。市场目录下analysis-observations/daily.json最多260日／2MiB，保存首次实际闭市观察，不用当前成分回填历史；portfolios/state.json最多20份已确认快照、8份15分钟预览，4MiB上限。持仓输入256KiB／500行，原子私有文件，GET不初始化。新浪日线400条按请求代码、前日及东财真实昨收交叉核验，first_observed不等于历史PIT。
 
 ## 同版本筹码输入与偏好补充（2026-10-23）

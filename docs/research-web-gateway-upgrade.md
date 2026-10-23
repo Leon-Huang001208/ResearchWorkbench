@@ -1,5 +1,30 @@
 # Mac mini 空私有池网关升级
 
+## 全市场终端固定部署（2026-10-23）
+
+`reviewed-market-terminal-v1`／`apply-market-terminal`固定前版
+`0e0022ac792eba88fba0f233524f5c8d66024569`。本轮本地检查的工具源码以`d076`检查点为基线，
+其中`717d564d2e7016a4ec464435b9ba96900dbf3bcd`仍只是暂存产品检查点；
+PR201合并后由主任务将源码常量固定为实际最终产品身份，并重新核对祖先、完整路径并集、Git blob和文件模式。
+本记录不把暂存检查点称为最终可部署版本，不提供运行时任意目标或前版覆盖入口。
+
+原version4事务、supervisor/admission维护锁、BirthFence、全账号业务索引哈希与内容寻址恢复继续复用。
+研究／历史查询、主实例和网关活动，以及市场GET投影中的`inflight`必须明确为空；未知或活动即拒绝。
+terminal沿现有严格业务读取器，业务索引上限64MiB，元数据原1MiB边界保持；旧profile及controller字节不改，
+evidence读取器绑定现有v6的`5c3077b7…eebb`，不能用缓存片段替代完整GitHub日志与逐job checkout核验。
+
+固定web.lock为`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`；
+沿原事务仅同步目标锁身份和`code_commit`，恢复时精确恢复原安装清单。本轮不安装新依赖、不启用或迁移数据库、
+不改外盘／秘密／Docker，不更换模型。源码仅取自已验证同一common directory下的干净目标checkout，业务数据原位保留。
+会话、报告、模型／凭据存储元数据、账号索引以及新增持仓和观察缓存均不得因切换而丢弃；最终实际保全须单独留证。
+
+最终组合必须最新主线资格、独立评审、完整changed-set Router、Project Constraints、Research Web Checks及
+同候选macos-14干净安装全部通过，CI证据绑定真实checkout／合并tree与完整日志，不能套用产品或旧工具的通过记录。
+本机后端130例、完整操作员测试和预检仅证明各自本地合同；实际切换、双入口健康、认证页面与保全／恢复结果仍待验证，
+未获真实回执不标记已部署。Windows/Linux原生及Docker产品验收保留原状态并交接对应设备；本profile不新增运行节点，
+现有01／12图保持准确，产品终端的数据流仍以已更新13图为准。
+
+
 ## 资产筹码与精炼布局固定部署v6
 
 `reviewed-asset-observation-v6` / `apply-assets-v6` 固定旧驻留版本
