@@ -24,3 +24,10 @@
 `outputs/research-web-dossiers-real/receipt.json` 记录源码 hashes、两视口结果及外网／真实模型零调用；同目录保存 UI／signals／revoked 截图、历史失败现场。`logs/research-web-dossiers-real-*` 保存 Python、JS、真实后端与错误日志。旧合同 JSON producer SHA 仅证明生成时身份；不声明等于当前组合源码。
 
 实际 DSH 构建、真实模型质量、收费 MCP、常驻更新、Mac 干净安装 CI、跨平台及最终组合 Router／独立评审交由 Root，缺证据保持未完成。业务质量状态未改判。
+
+## 最终复审补丁
+
+- 仅修已指出的两个问题：opening 使用独立代数 token，只有当前 owner 的 finally 解锁；旧完成／失败保留导航身份检查且不能覆盖新 owner 的错误状态。回归从实际 app.mjs 提取 onDraft，控制两组 showRoute Promise 验证交错顺序。
+- Uvicorn 固定 asyncio；增加 connect_ex 守卫。积极拒绝测试通过当前 Uvicorn get_loop_factory 建立实际 asyncio selector loop，分别验证连接、DNS 和 connect_ex；底层 tripwire 调用为 0，测试不访问网络。空 blocked_outbound 仅是运行观察，不能独自认证封闭。
+- 本次目标 JS＋原核心：84 passed。Python：3 passed；Ruff、Black、isort、mypy 通过。真实 HTTP 两视口重新执行，sourceHashes 对应本补丁。此前广回归记录不冒充新补丁的再次执行。
+- 积极守卫证据：`outputs/research-web-dossiers-real/network-guard-check.json`、`logs/research-web-dossiers-network-guard.log`；本次目标日志为 `logs/research-web-dossiers-final-review-{js,python,mypy}.log`。未合并 Root 更新或改变生产权限。

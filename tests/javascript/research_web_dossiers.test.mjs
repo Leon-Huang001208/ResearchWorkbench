@@ -194,6 +194,44 @@ test('controlled link preview rechecks the frozen result; changed links never ex
   assert.match(html, /冻结旧报告/); assert.match(html, /冻结研究成果/); assert.match(html, /原 Host 质量状态：incomplete/); assert.match(html, /部分正文预览/);
 });
 
+async function actualDraftOpeningHarness() {
+  const source = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const declaration = source.slice(source.indexOf('let dossierDraftOpening ='), source.indexOf('const dossierController ='));
+  const marker = 'onDraft: async result => {';
+  const start = source.indexOf(marker, source.indexOf('const dossierController =')) + marker.length;
+  const body = source.slice(start, source.indexOf('\n} });\nconst marketController', start));
+  const pending = [], accepted = [], state = { route: { page: 'claw', sessionId: null }, draft: '用户原草稿', error: '' };
+  let harness, renders = 0;
+  const create = new Function('state', 'controller', 'showRoute', 'history', 'render', 'document', 'safeLog', `${declaration}\nlet pageGeneration=0; let success=''; return { open: async result=>{${body}}, locked:()=>Boolean(dossierDraftOpening), generation:()=>pageGeneration, navigate:()=>{pageGeneration++;} };`);
+  harness = create(state, { setDossierDraft: (prompt, context) => { accepted.push({ prompt, context }); state.draft = prompt; return true; } }, () => {
+    harness.navigate(); return new Promise((resolve, reject) => pending.push({ resolve, reject }));
+  }, { pushState() {} }, () => { renders++; }, { getElementById: () => ({ focus() {} }) }, () => {});
+  return { harness, pending, accepted, state, renders: () => renders };
+}
+
+test('actual onDraft opening ownership survives two overlapping navigation promises', async () => {
+  const testbed = await actualDraftOpeningHarness(), { harness, pending, accepted } = testbed;
+  const first = harness.open({ mode: 'claw', prompt: 'A档案', context: { revision: 1 } });
+  harness.navigate(); // User returns to archives before A's showRoute resolves.
+  const second = harness.open({ mode: 'claw', prompt: 'B档案', context: { revision: 2 } });
+  assert.equal(harness.locked(), true);
+  pending[0].resolve(); await first;
+  assert.equal(harness.locked(), true, 'A finally cannot unlock B');
+  assert.equal(testbed.renders(), 0); assert.equal(accepted.length, 0);
+  pending[1].resolve(); await second;
+  assert.equal(harness.locked(), false); assert.equal(testbed.renders(), 1);
+  assert.equal(accepted.length, 1); assert.match(accepted[0].prompt, /B档案/); assert.doesNotMatch(accepted[0].prompt, /A档案/);
+});
+
+test('an old onDraft rejection neither unlocks nor writes an error into the newer opening', async () => {
+  const { harness, pending, accepted, state } = await actualDraftOpeningHarness();
+  const first = harness.open({ mode: 'claw', prompt: 'A档案', context: { revision: 1 } });
+  harness.navigate(); const second = harness.open({ mode: 'claw', prompt: 'B档案', context: { revision: 2 } });
+  pending[0].reject(new Error('old-navigation-failed')); await first;
+  assert.equal(harness.locked(), true); assert.equal(state.error, ''); assert.equal(accepted.length, 0);
+  pending[1].resolve(); await second; assert.equal(harness.locked(), false); assert.equal(accepted.length, 1);
+});
+
 test('method explanations reuse existing published capabilities without granting tools or changing report quality', () => {
   assert.equal(dossierMethods.length, 6);
   const html = renderCapabilityDetail({ id: 'earnings-consensus-research', name: '业绩与一致预期', kind: 'skill', builtin: true, version: 7, enabled: true });

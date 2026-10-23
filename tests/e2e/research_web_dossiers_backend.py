@@ -54,7 +54,9 @@ def isolate(root: Path, output: Path):
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     log.addHandler(handler)
     log.setLevel(logging.INFO)
-    original_connect, original_dns = socket.socket.connect, socket.getaddrinfo
+    original_connect = socket.socket.connect
+    original_connect_ex = socket.socket.connect_ex
+    original_dns = socket.getaddrinfo
     blocked = []
 
     def loopback(host):
@@ -79,7 +81,15 @@ def isolate(root: Path, output: Path):
             raise RuntimeError("fixture_outbound_dns_denied")
         return original_dns(host, *args, **kwargs)
 
+    def connect_ex(sock, address):
+        if not isinstance(address, tuple) or not loopback(address[0]):
+            blocked.append("non_loopback_connect_ex")
+            log.error("fixture_outbound_socket_denied")
+            raise RuntimeError("fixture_outbound_socket_denied")
+        return original_connect_ex(sock, address)
+
     socket.socket.connect, socket.getaddrinfo = connect, dns
+    socket.socket.connect_ex = connect_ex
     import keyring
 
     memory = MemoryCredentials()
@@ -87,6 +97,71 @@ def isolate(root: Path, output: Path):
     keyring.set_password = memory.set_password
     keyring.delete_password = memory.delete_password
     return memory, blocked
+
+
+def server_config(app):
+    """Use Python asyncio sockets; uvloop's C transports bypass Python guards."""
+    import uvicorn
+
+    return uvicorn.Config(
+        app, loop="asyncio", lifespan="off", access_log=False, log_level="warning"
+    )
+
+
+def network_check(root: Path, output: Path):
+    """Prove guards reject actual loop operations before any OS network access."""
+    underlying = []
+
+    def tripwire(*_args, **_kwargs):
+        underlying.append("socket_or_dns_reached")
+        raise AssertionError("network_guard_did_not_intercept")
+
+    # Even a regression in the guards must never access the network in this test.
+    socket.socket.connect = tripwire
+    socket.socket.connect_ex = tripwire
+    socket.getaddrinfo = tripwire
+    _memory, blocked = isolate(root, output)
+    config = server_config(None)
+    assert config.loop == "asyncio"
+    loop_factory = config.get_loop_factory()
+    assert loop_factory is not None
+    loop = loop_factory()
+    try:
+        loop_type = type(loop).__module__ + "." + type(loop).__name__
+        assert type(loop).__module__.startswith("asyncio"), loop_type
+        try:
+            loop.run_until_complete(loop.create_connection(asyncio.Protocol, "203.0.113.1", 9))
+        except RuntimeError as exc:
+            assert str(exc) == "fixture_outbound_socket_denied"
+        else:
+            raise AssertionError("asyncio_outbound_connect_not_denied")
+        try:
+            loop.run_until_complete(loop.getaddrinfo("outside.invalid", 443))
+        except RuntimeError as exc:
+            assert str(exc) == "fixture_outbound_dns_denied"
+        else:
+            raise AssertionError("asyncio_outbound_dns_not_denied")
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.connect_ex(("203.0.113.1", 9))
+            except RuntimeError as exc:
+                assert str(exc) == "fixture_outbound_socket_denied"
+            else:
+                raise AssertionError("connect_ex_not_denied")
+        assert underlying == []
+        result = {
+            "fixture": True,
+            "network_check": "passed",
+            "uvicorn_loop": config.loop,
+            "actual_loop": loop_type,
+            "blocked": blocked,
+            "underlying_network_calls": len(underlying),
+        }
+        (output / "network-guard-check.json").write_text(json.dumps(result, indent=2))
+        print(json.dumps(result), flush=True)
+    finally:
+        loop.run_until_complete(loop.shutdown_default_executor())
+        loop.close()
 
 
 def build_fixture(root: Path, output: Path):
@@ -190,7 +265,7 @@ def build_fixture(root: Path, output: Path):
 
     @app.get("/__fixture/ready")
     def ready():
-        return {"fixture": True, "lifespan": "off", "account": ACCOUNT}
+        return {"fixture": True, "lifespan": "off", "loop": "asyncio", "account": ACCOUNT}
 
     @app.get("/__fixture/login")
     def login():
@@ -280,10 +355,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--self-check", action="store_true")
+    parser.add_argument("--network-check", action="store_true")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     try:
         with tempfile.TemporaryDirectory(prefix="rwb-dossier-http-") as directory:
+            if args.network_check:
+                network_check(Path(directory), args.output)
+                return
             app, _research, _native = build_fixture(Path(directory), args.output)
             if args.self_check:
                 from fastapi.testclient import TestClient
@@ -310,9 +389,7 @@ def main():
                 listener.listen(128)
                 port = listener.getsockname()[1]
                 print("RWB_DOSSIER_HTTP_READY " + json.dumps({"port": port}), flush=True)
-                uvicorn.Server(
-                    uvicorn.Config(app, lifespan="off", access_log=False, log_level="warning")
-                ).run(sockets=[listener])
+                uvicorn.Server(server_config(app)).run(sockets=[listener])
     except Exception as exc:
         log.exception("fixture_failed error_type=%s", type(exc).__name__)
         raise

@@ -161,25 +161,29 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
-let dossierDraftOpening = false;
+let dossierDraftOpening = 0;
+let dossierDraftOpeningGeneration = 0;
 const dossierController = createDossierController({ api, onChange: () => { if (isDossierRoute(state.route)) render(); }, onNavigate: hash => { location.hash = hash; }, onDraft: async result => {
-  dossierDraftOpening = true;
+  const openingToken = ++dossierDraftOpeningGeneration;
+  dossierDraftOpening = openingToken;
   let prepared = false;
   try {
     history.pushState(null, '', `#/${result.mode}`);
     const ticket = pageGeneration + 1;
     await showRoute();
-    if (ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
+    if (openingToken !== dossierDraftOpening || ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
     const previous = state.draft || '';
     if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
     success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
     prepared = true;
   } catch (error) {
-    state.error = '档案研究草稿暂未准备完成，请返回档案核对后重试。';
+    if (openingToken === dossierDraftOpening) state.error = '档案研究草稿暂未准备完成，请返回档案核对后重试。';
     safeLog('dossier_draft_open_failed', { status: error.code || 'request_failed' });
   } finally {
-    dossierDraftOpening = false; render();
-    if (prepared) document.getElementById('prompt')?.focus({ preventScroll: true });
+    if (openingToken === dossierDraftOpening) {
+      dossierDraftOpening = 0; render();
+      if (prepared) document.getElementById('prompt')?.focus({ preventScroll: true });
+    }
   }
 } });
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
