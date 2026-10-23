@@ -118,3 +118,43 @@
 }
 
 .asset-market-terminal .asset-history-status[hidden] { display:none!important; }
+
+/* Wind-style indicator selection stays within the chart lifecycle. */
+.asset-market-terminal .asset-panel-header { gap:4px; }
+.asset-market-terminal .asset-panel-name { background:none; border:0; color:var(--text); padding:0 4px 0 0; font:inherit; font-weight:600; pointer-events:auto; cursor:pointer; white-space:nowrap; }
+.asset-market-terminal .asset-panel-header.is-active .asset-panel-name { text-decoration:underline; text-underline-offset:4px; }
+.asset-market-terminal .asset-panel-tools { display:flex; margin-left:auto; pointer-events:auto; }
+.asset-market-terminal .asset-panel-tools .kline-btn { margin-left:0; }
+.asset-market-terminal .asset-panel-readout { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.asset-market-terminal .asset-indicator-strip { display:flex; flex-wrap:wrap; gap:2px; }
+.asset-market-terminal .asset-panel-controls { align-items:flex-start; justify-content:space-between; }
+.asset-indicator-dialog { width:min(820px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); padding:16px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--text); overflow:auto; }
+.asset-indicator-dialog::backdrop { background:rgba(0,0,0,.35); }
+.asset-indicator-dialog-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
+.asset-indicator-dialog h2 { font-size:18px; margin:0; }
+.asset-indicator-dialog h3 { font-size:14px; margin:0 0 8px; }
+.asset-indicator-dialog input[type=search] { width:100%; margin-bottom:12px; }
+.asset-indicator-catalog { display:grid; grid-template-columns:120px minmax(160px,1fr) minmax(250px,1.4fr); gap:16px; }
+.asset-indicator-catalog nav { display:flex; flex-direction:column; gap:4px; }
+.asset-indicator-catalog nav .kline-btn { text-align:left; }
+.asset-indicator-options,.asset-indicator-favorites { max-height:360px; overflow:auto; }
+.asset-indicator-option,.asset-indicator-favorite { display:flex; align-items:center; gap:4px; min-height:36px; }
+.asset-indicator-option>.kline-btn:first-child,.asset-indicator-favorite>span { flex:1; text-align:left; }
+.asset-indicator-unavailable { display:flex; flex-direction:column; gap:4px; margin:8px 0; font-size:13px; }
+.asset-indicator-dialog footer { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:16px; }
+.asset-indicator-dialog footer>div { display:flex; gap:8px; }
+.asset-indicator-parameters-dialog { width:min(430px,calc(100vw - 32px)); }
+.asset-indicator-parameter-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.asset-indicator-parameter-fields label { display:grid; gap:4px; }
+.asset-indicator-parameter-fields input { width:100%; min-width:0; }
+.asset-indicator-error { color:var(--danger); }
+@media(max-width:620px) {
+ .asset-indicator-catalog { grid-template-columns:minmax(0,1fr); gap:12px; }
+ .asset-indicator-catalog nav { flex-direction:row; overflow:auto; }
+ .asset-indicator-catalog nav .kline-btn { flex-shrink:0; }
+ .asset-indicator-dialog .kline-btn,.asset-market-terminal .asset-panel-name { min-height:44px; }
+ .asset-indicator-options,.asset-indicator-favorites { max-height:220px; }
+ .asset-indicator-dialog footer { align-items:flex-start; }
+}
+
+.asset-market-terminal .asset-panel-header .asset-panel-name { margin-left:0; font-size:12px; }

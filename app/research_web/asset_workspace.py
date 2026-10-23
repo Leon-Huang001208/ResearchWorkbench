@@ -260,6 +260,11 @@ class AssetWorkspace:
         return {
             "panels": list(value["panels"]),
             "revision": value["revision"],
+            **{
+                key: copy.deepcopy(value[key])
+                for key in ("favorites", "indicator_settings")
+                if key in value
+            },
             **(
                 {"chip_settings": copy.deepcopy(value["chip_settings"])}
                 if "chip_settings" in value
@@ -267,14 +272,28 @@ class AssetWorkspace:
             ),
         }
 
-    def set_chart_preferences(self, panels: list[str], chip_settings: dict | None = None) -> dict:
-        if (
-            not isinstance(panels, list)
-            or len(panels) > 4
-            or len(set(panels)) != len(panels)
-            or any(p not in {"volume", "macd", "kdj", "rsi"} for p in panels)
-        ):
-            raise AssetWorkspaceError("图表副图必须是最多四个唯一的受支持面板")
+    def set_chart_preferences(
+        self,
+        panels: list[str],
+        chip_settings: dict | None = None,
+        *,
+        favorites: list[str] | None = None,
+        indicator_settings: dict | None = None,
+    ) -> dict:
+        from .asset_indicator_preferences import (
+            normalize_indicator_settings,
+            validate_indicator_ids,
+        )
+
+        try:
+            panels = validate_indicator_ids(panels)
+            if favorites is not None:
+                favorites = validate_indicator_ids(favorites, name="favorites")
+            if indicator_settings is not None:
+                indicator_settings = normalize_indicator_settings(indicator_settings)
+        except ValueError as exc:
+            log.warning("asset_indicator_preferences_rejected")
+            raise AssetWorkspaceError(str(exc)) from exc
         previous = self.store.data["chart_preferences"]
         if chip_settings is not None:
             from .asset_chip_inputs import normalize_chip_settings
@@ -289,6 +308,12 @@ class AssetWorkspace:
             "panels": list(panels),
             "revision": previous["revision"] + 1,
             **({"chip_settings": chip_settings} if chip_settings is not None else {}),
+            **({"favorites": list(favorites)} if favorites is not None else {}),
+            **(
+                {"indicator_settings": copy.deepcopy(indicator_settings)}
+                if indicator_settings is not None
+                else {}
+            ),
         }
         try:
             self.store.save()
