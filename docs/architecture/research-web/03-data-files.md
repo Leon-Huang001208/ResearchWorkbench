@@ -762,3 +762,7 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 2026-10-23 iFinD历史行情修复：保留cmd_history_quotation原生快照身份，固定供应商出口为history_data；请求体仅包装一层reqBody，不更改快照schema或历史原件。null原值保留，全无值标记partial/history_values_missing，原生完整快照准入仍拒绝该结果。
 
 2026-10-23 新raw历史job、不可变块和canonical metadata冻结required_semantics；块复用须相同合同，旧job无字段读取/重试保持null，不回填旧盘。BusinessQuery默认null保持原fingerprint，选定cn_stock_daily_cny_share_v1使用新指纹；原生SnapshotSeries不接此合同，不能用旧native结果替代规范行。field_dictionary_evidence由静态白名单随原生原件、冻结和export_restore完整保留；旧snapshot字节不改，质量/PIT仍未验证。
+
+## 2026-10-23：披露字段与发布档案
+
+财务原件与公告日/更新时间字段进入既有provider-native冻结包，仍按首次捕获排序；未知历史vintage不提升为PIT。BEA档案复用现有market事实/原件/冻结表，以季度末为业务期、官方发布时刻为available_at、本次时间为ingested_at，并保存两次真实发布的修订。来源schema/单位身份隔离；旧显式包可读。没有新增根目录、表、迁移或正式连接，边界见[MarketStore](../../research-web-market-store.md)。

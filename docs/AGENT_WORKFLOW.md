@@ -394,3 +394,7 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 
 
 2026-10-22 插件与macOS离线Python MCP沿既有Checks步骤新增四个定点模块，保留原Mac本机真实SDK/Seatbelt与同候选Mac安装门。Ubuntu条件跳过不代替Mac原生证明；所有Host/SDK夹具显式内存凭据并对真实后端设置失败哨兵，禁止以只mock get隔离系统Keychain或文件后端。
+
+## 2026-10-23：PIT与口径专项验收
+
+本轮只在隔离worktree实现新浪财报/资金流来源合同及BEA官方档案有限回放。沿完整changed-set Router、独立评审、本机macOS与原Project Constraints/Checks/同候选Mac安装；只向既有Checks步骤补两个模块，不新增job、runner、timeout、依赖或他平台dispatch。真实验证用已批准环境与socket-only临时PG，禁止5432、系统凭据、模型、现有服务及外盘操作。缺历史版本保持明确拒绝，不能把当前下载日期、测试或预告时间冒充真实公布版本。收尾受Docker检查阻断时保留工作树和证据，不重启现有服务解锁。

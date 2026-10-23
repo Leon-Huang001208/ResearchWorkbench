@@ -57,13 +57,14 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 16,
-        "sources": 64,
-        "callable_sources": 40,
+        "sources": 65,
+        "callable_sources": 41,
         "needs_configuration": 15,
         "unavailable": 0,
     }
     ids = {source["id"] for source in catalog["sources"]}
     assert ids == {
+        "bea_archive",
         "wind",
         "tinysoft",
         "ifind",
@@ -91,6 +92,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
     assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
+        "bea_archive",
         "akshare",
         "cls",
         "eastmoney_fund",

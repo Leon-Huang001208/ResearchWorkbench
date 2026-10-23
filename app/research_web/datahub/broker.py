@@ -142,6 +142,12 @@ def resolve(
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]
+    if query.capability == "financials" and query.parameters.get("statements") == [
+        "income_statement"
+    ]:
+        # A generic financial-summary binding is not this source-qualified
+        # statement contract; never substitute a lookalike summary on failure.
+        bindings = [binding for binding in bindings if "income_statement" in binding["datasets"]]
     if query.capability == "market_activity" and query.parameters.get("dataset"):
         bindings = [
             binding
@@ -236,6 +242,16 @@ def resolve(
                     unsupported_code = reason
                     unsupported_source = source_id
                 log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
+        if reason is None and source_id == "bea_archive":
+            from .providers_bea_archive import validate_supported_query as validate_bea_query
+
+            try:
+                validate_bea_query(query, storage_read=storage_read)
+            except ProviderError as exc:
+                reason = str(exc)
+                if query.source == "bea_archive":
+                    unsupported_code, unsupported_source = reason, source_id
+                log.info("datahub_bea_query_rejected", reason=reason)
         if (
             reason is None
             and source_id == "wind"
@@ -298,9 +314,13 @@ def resolve(
     if selected is None:
         if unsupported_code is not None:
             message = (
-                "天软因子请求口径不受支持"
-                if query.capability == "factor_macro" and unsupported_source == "tinysoft"
-                else f"{'Wind' if source_id == 'wind' else 'AKShare'} 请求口径不受支持"
+                "BEA 发布档案请求口径不受支持"
+                if unsupported_source == "bea_archive"
+                else (
+                    "天软因子请求口径不受支持"
+                    if query.capability == "factor_macro" and unsupported_source == "tinysoft"
+                    else f"{'Wind' if source_id == 'wind' else 'AKShare'} 请求口径不受支持"
+                )
             )
             raise StoreError(message, unsupported_code, 400)
         code = (
@@ -351,6 +371,8 @@ def resolve(
         "market_activity",
     }:
         legacy = query.model_copy(update={"source": "tinysoft"})
+    elif selected == "bea_archive" and query.capability == "factor_macro":
+        legacy = query.model_copy(update={"source": "bea_archive"})
     elif selected == "baostock" and query.capability in {
         "search_assets",
         "trading_calendar",

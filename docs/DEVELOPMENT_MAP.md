@@ -478,3 +478,7 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 2026-10-23 CJPY最小单位证据在providers_cjpy._sync_query_with_client返回Result处投影：nativevol在SDK0.5.2/明确stockdaily/沪深股票身份门后声明share，nativeamount仅元/currencyNone；field_dictionary_evidence绑定字典hash/版本，不新增调用。test_datahub_cjpy覆盖旧/未知SDK、缺类型/频率、ETF/index和价格仍未知；ResearchWarehouse规范tinysoft排除不变。
 
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
+
+## 2026-10-23：披露及历史发布定位
+
+`datahub/providers_akshare.py`的income_statement封闭新浪请求、日期精度和资金流同源标记，`providers_bea_archive.py`解析已审核BEA档案，`bea_archive_store.py`绑定公开发布修订。`broker.py`按明确selector和截止范围准入，`research_warehouse.py`按当前profile鉴权并分派原桥；股票日历仅用于bars。`test_datahub_financial_time_contract.py`与`test_datahub_bea_archive.py`覆盖未知单位/日期、旧版冲突、截止边界、并发幂等和恢复。现有三安装入口/依赖锁不变，最终Mac干净安装与实际Host/PG分别验收。
