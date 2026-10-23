@@ -237,3 +237,10 @@ BaoStock单报告期盈利能力沿Host/DataHub/Broker/既有公开worker进入�
 ## 2026-10-23：长期研究档案与机会预警
 
 长期研究档案新增 Host 内的 DossierService 与个人 `dossiers/metadata.sqlite3`，仅保存不可变修订、原件引用、成果关联和保全 pin；原文仍在现有会话／DataHub Snapshots。手动扫描确定性读取冻结材料，A股持续跟踪复用 Automation 且默认关闭，当前不自动采集。研究交接为 Prompt-only，只有用户发送时绑定 receipt，继续由唯一 DSH 执行并保留原报告质量门。小创候选缺少已核验 Registry 身份，保持 unsupported；54 子弹仅为估算，真实报价、凭据、付费与部署未执行。模块及资料边界由主任务更新 02／04 图，详见[档案合同](research-web-dossiers.md)、[扫描合同](research-web-dossier-scans.md)与[小创候选](research-web-seek-alpha.md)。
+
+
+## WGC 月度吨数与研究时点（2026-10-23）
+
+现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
+
+AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。

@@ -1016,3 +1016,6 @@ BaoStock财务扩展复用已批准并锁定baostock0.9.4；没有新增或安�
 ## 2026-10-23：长期研究档案与机会预警
 
 新增个人 `dossiers/metadata.sqlite3` 使用 Python 标准库且惰性初始化，原文继续使用既有 Store／Snapshots，无新增依赖、端口或服务；安装入口和双运行时选择保持。原 macOS Bootstrap 需核对新增档案／MCP UI 静态资源与候选包字节，并结合固定 DSH、健康检查和 Doctor 绑定最终候选，不能由已有环境替代干净安装。Doctor 的 MCP 配置状态沿现有插件 status；小创缺已核验 Registry 身份时保持 unsupported，无合法安装不开放个人凭据配置。正式恢复、真实凭据／费用与常驻部署另授权，见[保全](research-web-dossiers.md#备份恢复与部署边界)与[候选](research-web-seek-alpha.md)。
+
+
+WGC 月度吨数解析与资金流时点修复复用既有 HTTP/JSON、可选研究仓与批准锁依赖，无新增安装步骤、包、服务或公开入口；Doctor 既有可选数据库未配置语义保持。隔离 PG 验收不配置正式库，仍要求同候选 Mac 干净安装证明原六安装文件兼容。

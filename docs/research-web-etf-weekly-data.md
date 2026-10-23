@@ -297,3 +297,6 @@ BaoStock盈利能力只提供来源限定的单季度快照，货币单位证据
 ## 2026-10-23：长期研究档案与机会预警
 
 ETF 可把已有组合／行业研究和周报成果关联到长期档案，但档案引用、A股信号或小创候选内容均不替换本周报逐指标 Wind／Excel 口径，也不提供 ETF 自动证券匹配或历史 PIT 准入。原始数据仍留在既有来源快照，SQLite 只存引用与 pin；缺数据、截断和未知披露时间保持明确缺口。小创 Registry 身份与真实费用尚未验证，不以18／54估算充当等价证明；见[档案合同](research-web-dossiers.md)、[扫描范围](research-web-dossier-scans.md)及[候选边界](research-web-seek-alpha.md)。
+
+
+WGC 两个公开端点新增月度吨数原生研究快照，存量/流量和来源范围分别保存，不替代现有 Wind/Excel 或私有生产验收。AK 个股资金流在 SDK 前拒绝历史时点/正式回测；first_observed 不获得历史 PIT 资格。详见[原生快照](research-web-vendor-snapshots.md)与[研究仓](research-web-market-store.md)。本轮未部署、未启动生产库或日程。

@@ -365,6 +365,37 @@ def test_old_abstract_contract_keeps_sdk_and_normalizer(statement):
     assert "schema_version" not in result.metadata
 
 
+@pytest.mark.parametrize(
+    "historical",
+    [
+        {"purpose": "backtest", "as_of": "2024-07-01T00:00:00Z"},
+        {"as_of": "2024-07-01T00:00:00Z"},
+    ],
+)
+@pytest.mark.parametrize("sdk_fails", [False, True])
+def test_fund_flow_historical_request_rejected_before_sdk(historical, sdk_fails):
+    calls = []
+
+    def fetch(**kwargs):
+        calls.append(kwargs)
+        if sdk_fails:
+            raise RuntimeError("synthetic SDK failure")
+        return pd.DataFrame([{"日期": "2024-06-30", "主力净流入-净额": 10}])
+
+    request = BusinessQuery(
+        capability="market_activity",
+        source="akshare",
+        parameters={"asset": "600600.SH", "dataset": "fund_flow"},
+        **historical,
+    )
+    with (
+        patch.dict(sys.modules, {"akshare": SimpleNamespace(stock_individual_fund_flow=fetch)}),
+        pytest.raises(ProviderError),
+    ):
+        provider.invoke_public(request)
+    assert calls == []
+
+
 def test_fund_flow_sdk_and_guest_have_same_nonindependent_source():
     request = BusinessQuery(
         capability="market_activity",
