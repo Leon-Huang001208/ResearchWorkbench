@@ -14,7 +14,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -53,6 +53,9 @@ QUOTE_FIELDS = (
     "as_of",
     "trade_status",
     "price_basis",
+    "limit_up_price",
+    "limit_down_price",
+    "limit_status",
 )
 MAX_REQUESTS = 128
 MAX_KEYS = 64
@@ -312,6 +315,217 @@ class MarketService:
             if temporary.exists() and not temporary.is_symlink():
                 temporary.unlink()
 
+    def _previous_amount(self, snapshot: dict) -> dict:
+        summary = snapshot.get("summary", {})
+        day = summary.get("quote_trade_date")
+        dates = self._snapshots.get("calendar", {}).get("summary", {}).get("trading_dates", [])
+        previous = summary.get("previous_close", {})
+        result = {
+            "amount": None,
+            "status": "unavailable",
+            "trade_date": None,
+            "reason": "缺少经日历确认、股票池相同的上一交易日完整收盘快照；不以指数成交额替代。",
+        }
+        if not day or day not in dates:
+            result["reason"] = "交易日历无法确认行情日及上一交易日，昨日同口径成交额未知。"
+            return result
+        earlier = [item for item in dates if item < day]
+        if not earlier:
+            return result
+        result["trade_date"] = max(earlier)
+        if previous.get("date") != result["trade_date"]:
+            return result
+        amounts = previous.get("amounts")
+        if isinstance(amounts, dict):
+            pool = [
+                row["asset"]
+                for row in snapshot.get("rows", [])
+                if row.get("trade_status") != "unlisted"
+            ]
+            values = [amounts.get(asset) for asset in pool]
+            missing = sum(
+                isinstance(v, bool)
+                or not isinstance(v, (int, float))
+                or not math.isfinite(v)
+                or v < 0
+                for v in values
+            )
+            if missing or not pool or len(pool) != summary.get("amount_scope_count"):
+                return {
+                    **result,
+                    "missing_count": missing,
+                    "scope_count": len(pool),
+                    "reason": "上一交易日逐股成交额未覆盖本次完整已上市股票池，不补造新股零值。",
+                }
+            return {
+                **result,
+                "amount": math.fsum(float(value) for value in values if value is not None),
+                "status": "ready",
+                "scope_count": len(pool),
+                "missing_count": 0,
+                "reason": "上一交易日全天成交额，按本次股票池逐股重算；新上市证券只接受昨日来源明确返回的零值。",
+                "source_snapshot_id": previous.get("snapshot_id"),
+                "retrieved_at": previous.get("retrieved_at"),
+                "close_basis": previous.get("close_basis"),
+            }
+        if (
+            not summary.get("amount_pool_hash")
+            or previous.get("pool_hash") != summary["amount_pool_hash"]
+            or previous.get("scope_count") != summary.get("amount_scope_count")
+        ):
+            result["reason"] = "昨日与本次已上市股票池不一致，昨日同口径成交额未知。"
+            return result
+        amount = previous.get("amount")
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(amount)
+            or amount < 0
+        ):
+            return result
+        return {
+            **result,
+            "amount": amount,
+            "status": "ready",
+            "reason": "上一交易日全天成交额；按相同已上市股票池收盘快照计算。",
+            "source_snapshot_id": previous.get("snapshot_id"),
+            "retrieved_at": previous.get("retrieved_at"),
+        }
+
+    @staticmethod
+    def _quote_history(snapshot: dict, old: dict | None) -> None:
+        if not old or snapshot.get("provider") != "eastmoney" or old.get("provider") != "eastmoney":
+            return
+        summary = snapshot.setdefault("summary", {})
+        old_summary = old.get("summary", {})
+        reference = deepcopy(old_summary.get("previous_close"))
+        stamp = _iso(old.get("retrieved_at"))
+        day = old_summary.get("quote_trade_date")
+        rows = old.get("rows", [])
+
+        def after_close(row):
+            as_of = _iso(row.get("as_of"))
+            return bool(
+                as_of
+                and as_of.astimezone(SHANGHAI).date().isoformat() == day
+                and (as_of.astimezone(SHANGHAI).hour, as_of.astimezone(SHANGHAI).minute) >= (15, 30)
+            )
+
+        def explicit_unlisted_zero(row):
+            as_of = _iso(row.get("as_of"))
+            return (
+                row.get("trade_status") == "unlisted"
+                and row.get("amount") == 0
+                and not isinstance(row.get("amount"), bool)
+                and as_of is not None
+                and as_of.astimezone(SHANGHAI).date().isoformat() == day
+            )
+
+        def closed_amount(row):
+            as_of = _iso(row.get("as_of"))
+            source_close = (
+                old_summary.get("closing_snapshot") is True
+                and row.get("source_closed") is True
+                and as_of is not None
+                and as_of.astimezone(SHANGHAI).date().isoformat() == day
+                and as_of.astimezone(SHANGHAI).hour >= 15
+            )
+            return source_close or after_close(row) or explicit_unlisted_zero(row)
+
+        legacy_close = (
+            "closing_snapshot" not in old_summary
+            and bool(rows)
+            and all(after_close(row) or explicit_unlisted_zero(row) for row in rows)
+        )
+        if (
+            old.get("complete") is True
+            and old.get("pagination_complete") is True
+            and (old_summary.get("closing_snapshot") is True or legacy_close)
+            and old_summary.get("amount_missing") == 0
+            and stamp
+            and day
+            and stamp.astimezone(SHANGHAI).date().isoformat() >= day
+            and stamp >= datetime.fromisoformat(day + "T15:30:00+08:00")
+            and day < summary.get("quote_trade_date", "")
+        ):
+            amounts = {
+                row["asset"]: row["amount"]
+                for row in rows
+                if closed_amount(row)
+                and isinstance(row.get("amount"), (int, float))
+                and not isinstance(row["amount"], bool)
+                and math.isfinite(row["amount"])
+                and row["amount"] >= 0
+            }
+            reference = {
+                "date": day,
+                "amounts": amounts,
+                "snapshot_id": old.get("snapshot_id"),
+                "retrieved_at": old.get("retrieved_at"),
+                "close_basis": (
+                    "source_closed" if not legacy_close else "legacy_after_close_timestamps"
+                ),
+            }
+            log.info("market_previous_close_retained", trade_date=day, rows=len(amounts))
+        if isinstance(reference, dict):
+            summary["previous_close"] = reference
+
+    @staticmethod
+    def _flow_history(current: dict, old: dict | None) -> None:
+        if current.get("complete") is not True or (
+            current.get("provider"),
+            current.get("scope"),
+            current.get("frequency"),
+        ) != ("eastmoney", "SH+SZ", "daily"):
+            return
+        fields = ("main_net", "small_net", "medium_net", "large_net", "super_net")
+        accumulated = {}
+        newest = max((row.get("date", "") for row in current.get("rows", [])), default="")
+        sources = (
+            [old, current]
+            if isinstance(old, dict)
+            and (old.get("provider"), old.get("scope"), old.get("frequency"))
+            == ("eastmoney", "SH+SZ", "daily")
+            else [current]
+        )
+        for source in sources:
+            rows = (
+                source.get("history_rows", source.get("rows", []))
+                if source is not current
+                else source.get("rows", [])
+            )
+            for row in rows[-100:]:
+                try:
+                    day = date.fromisoformat(row["date"]).isoformat()
+                    if day > datetime.now(SHANGHAI).date().isoformat() or any(
+                        isinstance(row.get(k), bool)
+                        or not isinstance(row.get(k), (int, float))
+                        or not math.isfinite(row[k])
+                        for k in fields
+                    ):
+                        raise ValueError("invalid flow row")
+                except (ValueError, TypeError, KeyError):
+                    log.warning("market_history_row_rejected")
+                    continue
+                accumulated[day] = {
+                    "date": day,
+                    **{k: row[k] for k in fields},
+                    "source_url": row.get("source_url", source.get("source_url")),
+                    "retrieved_at": row.get("retrieved_at", source.get("retrieved_at")),
+                }
+        current["history_rows"] = [accumulated[day] for day in sorted(accumulated)[-30:]]
+        current["history_count"] = len(current["history_rows"])
+        current["history_status"] = "partial" if current["history_count"] < 30 else "observed"
+        current["history_requested"] = 30
+        if accumulated and max(accumulated) > newest:
+            current["stale"] = True
+            current["error"] = {
+                "code": "market_flow_history_regressed",
+                "message": "本次来源日线日期回退，已保留此前取得的较新历史。",
+            }
+            log.warning("market_fund_history_regressed")
+        log.info("market_fund_history_retained", days=current["history_count"])
+
     def _project(self, key: str, snapshot: dict | None = None) -> dict:
         snapshot = snapshot or self._snapshots.get(key) or self._partials.get(key)
         attempt = self._attempts.get(key, {})
@@ -360,6 +574,9 @@ class MarketService:
         )
         if attempt:
             result["last_attempt"] = deepcopy(attempt)
+        if key == "quotes":
+            result.setdefault("summary", {})["previous_amount"] = self._previous_amount(snapshot)
+            result["summary"].pop("previous_close", None)
         return result
 
     def overview(self) -> dict:
@@ -600,9 +817,13 @@ class MarketService:
             if len(raw.encode()) > MAX_RECORD_BYTES:
                 raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)
             snapshot = deepcopy(payload)
+            if section == "quotes" and snapshot.get("complete") is True:
+                self._quote_history(snapshot, self._snapshots.get(key))
             if section == "flows":
                 current_flow = snapshot.get("summary", {}).get("market_flow")
                 old_flow = self._snapshots.get(key, {}).get("summary", {}).get("market_flow")
+                if isinstance(current_flow, dict):
+                    self._flow_history(current_flow, old_flow)
                 if (
                     isinstance(current_flow, dict)
                     and current_flow.get("complete") is False

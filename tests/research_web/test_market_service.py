@@ -91,6 +91,193 @@ class FakeProvider:
         self.closed = True
 
 
+def test_previous_close_requires_exact_calendar_date_and_unchanged_pool(tmp_path):
+    service = MarketService(tmp_path)
+    service._snapshots["calendar"] = payload(
+        summary={"trading_dates": ["2026-10-21", "2026-10-22", "2026-10-23"]}
+    )
+    previous = {
+        "date": "2026-10-22",
+        "amount": 1200,
+        "pool_hash": "same",
+        "scope_count": 2,
+        "snapshot_id": "prior",
+    }
+    current = payload(
+        summary={
+            "quote_trade_date": "2026-10-23",
+            "amount_pool_hash": "same",
+            "amount_scope_count": 2,
+            "previous_close": previous,
+        }
+    )
+    assert service._previous_amount(current)["amount"] == 1200
+    current["summary"]["amount_pool_hash"] = "changed"
+    assert service._previous_amount(current)["amount"] is None
+
+    current["summary"]["amount_pool_hash"] = "same"
+    previous["date"] = "2026-10-21"
+    assert service._previous_amount(current)["amount"] is None
+
+
+def test_previous_day_rebases_only_on_actual_per_security_amounts(tmp_path):
+    service = MarketService(tmp_path)
+    service._snapshots["calendar"] = payload(
+        summary={"trading_dates": ["2026-10-22", "2026-10-23"]}
+    )
+    current = payload(
+        [
+            {"asset": "600000.SH", "trade_status": "normal"},
+            {"asset": "920285.BJ", "trade_status": "normal"},
+        ],
+        summary={
+            "quote_trade_date": "2026-10-23",
+            "amount_scope_count": 2,
+            "previous_close": {
+                "date": "2026-10-22",
+                "amounts": {"600000.SH": 1200, "920285.BJ": 0, "000016.SZ": 0},
+                "snapshot_id": "prior",
+            },
+        },
+    )
+    result = service._previous_amount(current)
+    assert result["amount"] == 1200 and result["scope_count"] == 2
+    del current["summary"]["previous_close"]["amounts"]["920285.BJ"]
+    result = service._previous_amount(current)
+    assert result["amount"] is None and result["missing_count"] == 1
+
+
+def test_funds_daily_history_retains_dates_and_provenance_without_inventing_backfill(tmp_path):
+    service = MarketService(tmp_path)
+
+    def flow(day, value):
+        return {
+            "provider": "eastmoney",
+            "scope": "SH+SZ",
+            "frequency": "daily",
+            "complete": True,
+            "source_url": "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get",
+            "retrieved_at": day + "T16:00:00+08:00",
+            "rows": [
+                {
+                    "date": day,
+                    "main_net": value,
+                    "small_net": 0,
+                    "medium_net": 0,
+                    "large_net": value,
+                    "super_net": 0,
+                }
+            ],
+            "row_count": 1,
+        }
+
+    first = flow("2026-10-21", -1)
+    service._flow_history(first, None)
+    second = flow("2026-10-22", 0)
+    service._flow_history(second, first)
+    assert [r["date"] for r in second["history_rows"]] == ["2026-10-21", "2026-10-22"]
+    assert second["history_rows"][0]["retrieved_at"].startswith("2026-10-21")
+    assert second["history_rows"][1]["main_net"] == 0
+    assert second["row_count"] == 1 and second["history_count"] == 2
+    assert second["history_status"] == "partial"
+
+
+def test_legacy_close_carries_real_unlisted_zero_and_survives_same_day_refresh(tmp_path):
+    old = payload(
+        [
+            {
+                "asset": "600000.SH",
+                "amount": 1200,
+                "trade_status": "normal",
+                "as_of": "2026-10-22T16:00:00+08:00",
+            },
+            {
+                "asset": "920285.BJ",
+                "amount": 0,
+                "trade_status": "unlisted",
+                "as_of": "2026-10-22T08:00:00+08:00",
+            },
+        ],
+        summary={"quote_trade_date": "2026-10-22", "amount_missing": 0},
+    )
+    old.update(retrieved_at="2026-10-22T22:17:01+08:00", snapshot_id="prior")
+    current = payload(summary={"quote_trade_date": "2026-10-23"})
+    MarketService._quote_history(current, old)
+    assert current["summary"]["previous_close"]["amounts"]["920285.BJ"] == 0
+    next_refresh = payload(summary={"quote_trade_date": "2026-10-23"})
+    MarketService._quote_history(next_refresh, current)
+    assert next_refresh["summary"]["previous_close"] == current["summary"]["previous_close"]
+    old["rows"][1]["amount"] = None
+    missing = payload(summary={"quote_trade_date": "2026-10-23"})
+    MarketService._quote_history(missing, old)
+    assert "previous_close" not in missing["summary"]
+
+
+@pytest.mark.parametrize("stamp", ["2026-10-22T10:00:00+08:00", "2026-10-21T16:00:00+08:00"])
+def test_intraday_and_mixed_date_snapshots_cannot_certify_yesterday(stamp):
+    old = payload(
+        [{"asset": "600000.SH", "amount": 1200, "as_of": stamp}],
+        summary={"quote_trade_date": "2026-10-22", "amount_missing": 0},
+    )
+    old["retrieved_at"] = "2026-10-22T22:00:00+08:00"
+    current = payload(summary={"quote_trade_date": "2026-10-23"})
+    MarketService._quote_history(current, old)
+    assert "previous_close" not in current["summary"]
+
+
+def test_explicit_source_close_accepts_1500_but_legacy_needs_later_witness():
+    old = payload(
+        [
+            {
+                "asset": "600000.SH",
+                "amount": 100,
+                "as_of": "2026-10-22T15:00:00+08:00",
+                "source_closed": True,
+            }
+        ],
+        summary={"quote_trade_date": "2026-10-22", "closing_snapshot": True, "amount_missing": 0},
+    )
+    old["retrieved_at"] = "2026-10-22T16:00:00+08:00"
+    new = payload(summary={"quote_trade_date": "2026-10-23"})
+    MarketService._quote_history(new, old)
+    assert new["summary"]["previous_close"]["amounts"] == {"600000.SH": 100}
+    old["rows"][0]["as_of"] = "2026-10-22T10:00:00+08:00"
+    contradictory = payload(summary={"quote_trade_date": "2026-10-23"})
+    MarketService._quote_history(contradictory, old)
+    assert contradictory["summary"]["previous_close"]["amounts"] == {}
+
+
+def test_regressed_funds_source_keeps_newer_observed_history_and_marks_stale():
+    url = "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get"
+
+    def flow(day):
+        return {
+            "provider": "eastmoney",
+            "scope": "SH+SZ",
+            "frequency": "daily",
+            "complete": True,
+            "source_url": url,
+            "retrieved_at": day + "T16:00:00+08:00",
+            "rows": [
+                {
+                    "date": day,
+                    "main_net": 0,
+                    "small_net": 0,
+                    "medium_net": 0,
+                    "large_net": 0,
+                    "super_net": 0,
+                }
+            ],
+        }
+
+    old = flow("2026-10-22")
+    MarketService._flow_history(old, None)
+    new = flow("2026-10-21")
+    MarketService._flow_history(new, old)
+    assert [r["date"] for r in new["history_rows"]] == ["2026-10-21", "2026-10-22"]
+    assert new["stale"] is True and new["error"]["code"] == "market_flow_history_regressed"
+
+
 @pytest.mark.asyncio
 async def test_activity_witness_tracks_real_collection_and_cancel_drain(tmp_path):
     provider = FakeProvider()

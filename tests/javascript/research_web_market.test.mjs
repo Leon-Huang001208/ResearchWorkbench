@@ -6,6 +6,19 @@ const data = (overrides = {}) => ({ sections: {}, market_state: { state: 'unknow
 const section = (rows = [], extra = {}) => ({ rows, provider: 'eastmoney', complete: true, pagination_complete: true, provider_total: rows.length, snapshot_id: 'snap1', as_of: '2026-10-22T03:00:00Z', retrieved_at: '2026-10-22T03:00:01Z', ...extra });
 const quote = { asset: '920001.BJ', code: '920001', name: '北交样本', exchange: 'BJ', price: 0, change_pct: null, amount: 0 };
 
+test('overview separates confirmed limits, unknown coverage and previous amount gap', () => {
+  const html = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { limit_up: 0, limit_down: 2, limit_unknown: 3, limit_covered: 10, previous_amount: { amount: null, reason: '缺少合格昨日快照' } } }) } }) });
+  assert.match(html, /确认涨停/); assert.match(html, /确认跌停/); assert.match(html, /限价未知/);
+  assert.match(html, /昨日同口径成交额/); assert.match(html, /缺少合格昨日快照/);
+});
+
+test('fund history shows all five amounts and distinguishes vendor from accumulated rows', () => {
+  const flow = { provider: 'eastmoney', row_count: 1, provider_total: 1, history_requested: 30, history_count: 2, history_rows: [{date:'2026-10-21',main_net:0,super_net:-1,large_net:1,medium_net:2,small_net:-2},{date:'2026-10-22',main_net:-3,super_net:-1,large_net:-2,medium_net:2,small_net:1}] };
+  const html = renderMarketPage({ snapshot: data({ sections: { 'flows:industry:today': section([], { summary: { market_flow: flow } }) } }) }, {marketView:'sectors'});
+  assert.match(html, /本次来源 1 日/); assert.match(html, /已留存 2 日/); assert.match(html, /未补齐/);
+  assert.match(html, /2026-10-21/); assert.match(html, /超大单/); assert.match(html, /小单/);
+});
+
 test('known suspended and unlisted rows have explicit labels and separate breadth', () => {
   const html = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { up: 1, down: 2, flat: 3, unknown: 0, suspended: 7, unlisted: 4, amount: 2000, amount_scope_count: 13 } }) } }) });
   assert.match(html, /停牌/); assert.match(html, /未上市/); assert.match(html, /已上市 13 只/);
