@@ -111,6 +111,7 @@ class MCPRuntimeService:
         oauth_exchange: Callable[..., Any] | None = None,
         approval_timeout_seconds: float = 900,
         managed_only: bool | None = None,
+        evidence_store: Any = None,
     ) -> None:
         self.enabled = runtime_feature_enabled() if enabled is None else enabled
         self.managed_only = (
@@ -130,6 +131,7 @@ class MCPRuntimeService:
         self.idle_gate = idle_gate
         self.restart_callback = restart_callback
         self.control = copy.deepcopy(control)
+        self.evidence_store = evidence_store
         self.oauth = oauth
         self.oauth_exchange = oauth_exchange
         if not isinstance(approval_timeout_seconds, (int, float)) or not (
@@ -566,6 +568,219 @@ class MCPRuntimeService:
         except Exception as exc:
             raise MCPRuntimeError("mcp_prompt_get_failed", 502) from exc
 
+    def static_credential_capability(self, installation_id):
+        from .seek_alpha import CREDENTIAL_SLOT, ENDPOINT
+
+        manifest = self._manifest(installation_id)
+        if _field(_field(manifest, "plan"), "endpoint") != ENDPOINT:
+            return None
+        return {"provider": "seek_alpha", "resource": ENDPOINT, "slot": CREDENTIAL_SLOT}
+
+    def _static_binding(self, installation_id, resource, slot):
+        from ..plugins.mcp_policy import managed_binding
+        from .seek_alpha import CREDENTIAL_SLOT, ENDPOINT
+
+        self._ensure_enabled()
+        manifest = self._manifest(installation_id)
+        if (
+            slot != CREDENTIAL_SLOT
+            or resource != ENDPOINT
+            or _field(_field(manifest, "plan"), "endpoint") != ENDPOINT
+            or self._data_root is None
+        ):
+            raise MCPRuntimeError("mcp_static_credential_binding_invalid", 403)
+        try:
+            managed_binding(self._data_root, manifest, require_schema=False)
+        except (StoreError, OSError, ValueError, KeyError, TypeError) as exc:
+            raise MCPRuntimeError("mcp_managed_approval_required", 403) from exc
+        if getattr(self.host, "credentials", None) is None:
+            raise MCPRuntimeError("mcp_credential_store_unavailable", 503)
+        return manifest
+
+    def static_credential(
+        self, installation_id, *, resource, slot="static_bearer", token=None, delete=False
+    ):
+        """Only a fixed, reviewed remote installation can receive a Bearer token."""
+        from .credentials import RuntimeCredentialError
+
+        self._static_binding(installation_id, resource, slot)
+        credentials = self.host.credentials
+        try:
+            if delete:
+                credentials.delete(installation_id, slot)
+            elif token is not None:
+                if (
+                    not isinstance(token, str)
+                    or not token
+                    or len(token.encode("utf-8")) > 8192
+                    or any(ord(character) < 33 or ord(character) > 126 for character in token)
+                ):
+                    raise MCPRuntimeError("mcp_static_credential_invalid", 422)
+                credentials.write(
+                    installation_id,
+                    slot,
+                    {"resource": resource, "token_type": "Bearer", "access_token": token},
+                )
+            configured = bool(credentials.read(installation_id, slot, expected_resource=resource))
+        except RuntimeCredentialError as exc:
+            raise MCPRuntimeError("mcp_credential_store_unavailable", 503) from exc
+        self._targets.pop(installation_id, None)
+        log.info(
+            (
+                "mcp_static_credential_changed"
+                if token is not None or delete
+                else "mcp_static_credential_status"
+            ),
+            status="configured" if configured else "missing",
+        )
+        return {"configured": configured, "resource": resource, "slot": slot}
+
+    def evaluation_candidate(self, installation_id):
+        from .seek_alpha import candidate
+
+        self._static_binding(
+            installation_id, candidate()["endpoint"], candidate()["credential_slot"]
+        )
+        return candidate()
+
+    async def evaluation_preview(self, installation_id, *, cutoff):
+        from .seek_alpha import ENDPOINT, evaluation_preview
+
+        manifest, _target = await self._active_target(installation_id)
+        if _field(_field(manifest, "plan"), "endpoint") != ENDPOINT:
+            raise MCPRuntimeError("mcp_evaluation_provider_invalid", 403)
+        tools = [
+            tool
+            for tool in self.authorization.list_tools()
+            if tool["installation_id"] == installation_id
+        ]
+        try:
+            return evaluation_preview(tools, cutoff)
+        except AuthorizationError as exc:
+            raise self._authorization_error(exc) from exc
+
+    async def authorize_evaluation(
+        self,
+        installation_id,
+        *,
+        session_id,
+        version,
+        entries,
+        catalog_sha256,
+        max_credits,
+        confirmed=False,
+    ):
+        from .seek_alpha import ENDPOINT
+
+        if self.evidence_store is None:
+            raise MCPRuntimeError("mcp_evidence_store_required", 503)
+        self.evidence_store.session(session_id)
+        manifest, _target = await self._active_target(installation_id)
+        if _field(_field(manifest, "plan"), "endpoint") != ENDPOINT:
+            raise MCPRuntimeError("mcp_evaluation_provider_invalid", 403)
+        try:
+            from .seek_alpha import evaluation_preview, validate_evaluation
+
+            validated = validate_evaluation(entries, catalog_sha256, max_credits)
+            consensus = next(item for item in validated["entries"] if item["query"] == "consensus")
+            raw_date = consensus["arguments"]["date"]
+            cutoff = raw_date[:4] + "-" + raw_date[4:6] + "-" + raw_date[6:]
+            preview = evaluation_preview(
+                [
+                    tool
+                    for tool in self.authorization.list_tools()
+                    if tool["installation_id"] == installation_id
+                ],
+                cutoff,
+            )
+            if preview["catalog_sha256"] != catalog_sha256:
+                raise AuthorizationError("mcp_schema_drift")
+            return self.authorization.authorize_budget(
+                session_id=session_id,
+                installation_id=installation_id,
+                version=version,
+                entries=entries,
+                catalog_sha256=catalog_sha256,
+                max_credits=max_credits,
+                confirmed=confirmed,
+            )
+        except AuthorizationError as exc:
+            raise self._authorization_error(exc) from exc
+
+    async def evaluation_call(self, installation_id, *, session_id, budget_id, entry_id):
+        """One explicit UI action; fixed id makes a repeated click recovery-only."""
+        if self.evidence_store is None:
+            raise MCPRuntimeError("mcp_evidence_store_required", 503)
+        self.evidence_store.session(session_id)
+        try:
+            request = self.authorization.evaluation_call_request(
+                budget_id=budget_id,
+                session_id=session_id,
+                installation_id=installation_id,
+                entry_id=entry_id,
+            )
+        except AuthorizationError as exc:
+            raise self._authorization_error(exc) from exc
+        result = await self.call_tool(**request)
+        # The gateway receives a bounded receipt; originals remain in session datasets.
+        return {key: value for key, value in result.items() if key != "result"}
+
+    def assert_frozen_result_authorized(self, session_id, dataset_id, metadata=None):
+        """Offline authorization only: no provider request, model or credential read."""
+        from ..plugins.mcp_policy import managed_binding, requires_managed
+        from .evidence import MCPResultEvidence
+
+        if self.evidence_store is None:
+            raise MCPRuntimeError("mcp_evidence_store_required", 503)
+        self.evidence_store.session(session_id, include_deleted=True)
+        snapshot = MCPResultEvidence(self.evidence_store, retained=True).snapshots.detail(
+            session_id, dataset_id
+        )
+        if snapshot.get("snapshot_kind") != "mcp_evidence":
+            raise MCPRuntimeError("mcp_evidence_invalid", 404)
+        binding = snapshot["provider_metadata"]
+        if metadata is not None and metadata != binding:
+            raise MCPRuntimeError("mcp_evidence_binding_invalid", 409)
+        installation = binding["installation_id"]
+        if installation not in self._active:
+            raise MCPRuntimeError("mcp_installation_not_active", 403)
+        native = self._manifest(installation)
+        tools = [
+            tool
+            for tool in self.authorization.list_tools()
+            if tool["installation_id"] == installation
+        ]
+        if self.managed_only or requires_managed(self._data_root, installation):
+            try:
+                managed_binding(self._data_root, native, {"tools": tools}, require_schema=True)
+            except (StoreError, OSError, ValueError, KeyError, TypeError) as exc:
+                raise MCPRuntimeError("mcp_managed_approval_required", 403) from exc
+        try:
+            with self.authorization._transaction():
+                current = self.authorization._current(installation, binding["tool_name"])
+                if (
+                    current["version"] != binding["version"]
+                    or current["schema_sha256"] != binding["schema_sha256"]
+                ):
+                    raise AuthorizationError("mcp_schema_drift")
+                self.authorization._require_grant(
+                    session_id,
+                    installation,
+                    binding["version"],
+                    binding["tool_name"],
+                    binding["schema_sha256"],
+                )
+        except AuthorizationError as exc:
+            raise self._authorization_error(exc) from exc
+        return dict(binding)
+
+    async def read_frozen_result(self, session_id, dataset_id):
+        """Offline reauthorization followed by hash-verified original read."""
+        from .evidence import MCPResultEvidence
+
+        self.assert_frozen_result_authorized(session_id, dataset_id)
+        return MCPResultEvidence(self.evidence_store, retained=True).read(session_id, dataset_id)
+
     @sdk_operation
     async def call_tool(self, **request: Any) -> dict[str, Any]:
         self._ensure_enabled()
@@ -651,14 +866,104 @@ class MCPRuntimeService:
             finally:
                 self._approval_waiters.pop(approval_id, None)
                 self._approval_decisions.pop(approval_id, None)
+        from .evidence import MCPResultEvidence, raw_result
+        from .seek_alpha import ENDPOINT
+
+        endpoint = _field(_field(manifest, "plan"), "endpoint", "")
+        paid = endpoint == ENDPOINT
+        cost = None
+        evidence = (
+            MCPResultEvidence(self.evidence_store) if self.evidence_store is not None else None
+        )
+        if paid:
+            if request.get("unattended") or evidence is None:
+                raise MCPRuntimeError("mcp_paid_evaluation_explicit_only", 403)
+            try:
+                cost = self.authorization.reserve_paid_call(
+                    budget_id=request.get("budget_id"),
+                    call_id=request["call_id"],
+                    session_id=request["session_id"],
+                    installation_id=installation_id,
+                    version=version,
+                    tool_name=tool_name,
+                    schema_sha256=request["schema_sha256"],
+                    arguments=request["arguments"],
+                )
+                if not cost["dispatch"]:
+                    value, reference = evidence.recover(
+                        request, endpoint=endpoint, cost_state=cost["status"]
+                    )
+                    self.assert_frozen_result_authorized(
+                        request["session_id"], reference["dataset_id"]
+                    )
+                    if cost["status"] in {"dispatched", "unknown"}:
+                        cost = self.authorization.transition_paid_call(
+                            request["call_id"],
+                            session_id=request["session_id"],
+                            status="completed",
+                            evidence=reference,
+                        )
+                    return {
+                        "status": "complete",
+                        "result": value,
+                        "evidence": reference,
+                        "cost": cost,
+                        "recovered": True,
+                    }
+                self.authorization.transition_paid_call(
+                    request["call_id"], session_id=request["session_id"], status="dispatched"
+                )
+            except AuthorizationError as exc:
+                raise self._authorization_error(exc) from exc
         try:
             result = await _await(
                 self.host.call_tool(target, request["tool_name"], request["arguments"])
             )
-        except Exception as exc:
+            result, raw = raw_result(result)
+            if endpoint:
+                from .seek_alpha import CREDENTIAL_SLOT
+
+                credentials = getattr(self.host, "credentials", None)
+                if credentials is not None:
+                    slot = CREDENTIAL_SLOT if paid else "oauth"
+                    secret = credentials.read(
+                        installation_id, slot, expected_resource=endpoint
+                    ).get("access_token")
+                    if secret and secret.encode("utf-8") in raw:
+                        raise MCPRuntimeError("mcp_result_contains_credential", 502)
+            reference = (
+                evidence.freeze(
+                    request, result, endpoint=endpoint, cost_state="completed" if paid else None
+                )
+                if evidence
+                else None
+            )
+            # Freeze the original first; revocation must deny exposure without losing it.
+            await self._managed_guard(manifest, target=target, fresh=True)
+            if reference is not None:
+                self.assert_frozen_result_authorized(request["session_id"], reference["dataset_id"])
+            if paid:
+                cost = self.authorization.transition_paid_call(
+                    request["call_id"],
+                    session_id=request["session_id"],
+                    status="completed",
+                    evidence=reference,
+                )
+        except (Exception, asyncio.CancelledError) as exc:
+            if paid:
+                self.authorization.transition_paid_call(
+                    request["call_id"], session_id=request["session_id"], status="unknown"
+                )
             log.warning("mcp_tool_call_failed", error_type=type(exc).__name__)
+            if isinstance(exc, (asyncio.CancelledError, MCPRuntimeError, StoreError)):
+                raise
             raise MCPRuntimeError("mcp_tool_call_failed", 502) from exc
-        return {"status": "complete", "result": result}
+        response = {"status": "complete", "result": result}
+        if reference is not None:
+            response["evidence"] = reference
+        if cost is not None:
+            response["cost"] = cost
+        return response
 
     def approvals(self, *, session_id: str | None = None) -> dict[str, Any]:
         self._ensure_enabled()
@@ -831,7 +1136,15 @@ class MCPRuntimeService:
         targeter = getattr(self.installer, "managed_target" if managed_local else "target", None)
         if targeter is None:
             raise MCPRuntimeError("mcp_installer_target_unavailable", 503)
-        return await _await(targeter(manifest))
+        target = await _await(targeter(manifest))
+        from .seek_alpha import CREDENTIAL_SLOT, ENDPOINT
+        from .transport import RemoteTarget
+
+        if isinstance(target, RemoteTarget) and target.endpoint == ENDPOINT:
+            target = RemoteTarget(
+                target.endpoint, target.installation_id, target.audience, CREDENTIAL_SLOT
+            )
+        return target
 
     def _require_managed_process_isolation(self, manifest: Any) -> None:
         """Only the verified native offline Python contract may launch locally."""

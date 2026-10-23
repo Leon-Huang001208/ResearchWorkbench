@@ -204,6 +204,11 @@ class PluginService:
                 # A native install is not a ready callable tool until activated,
                 # probed and separately authorized to a session by MCP Runtime.
                 component["installation_id"] = row["mcp_bindings"][component["key"]]
+                credential_capability = getattr(self.mcp, "static_credential_capability", None)
+                if credential_capability is not None:
+                    component["credential_support"] = credential_capability(
+                        component["installation_id"]
+                    )
                 if component.get("selection", {}).get("package_index") is None:
                     component["reason"] = "native_tool_session_authorization_required"
         return row
