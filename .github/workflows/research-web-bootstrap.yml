@@ -197,7 +197,7 @@ jobs:
               path = Path.home() / ".research-workbench" / "logs" / f"{role}.log"
               record = {"state": "missing", "frames": [], "exceptions": []}
               try:
-                  descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+                  descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
                   with os.fdopen(descriptor, "rb") as stream:
                       info = os.fstat(stream.fileno())
                       if not stat.S_ISREG(info.st_mode):

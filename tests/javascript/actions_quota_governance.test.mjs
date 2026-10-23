@@ -422,6 +422,12 @@ test('bootstrap failure evidence extracts structure without private log contents
     assert.doesNotMatch(JSON.stringify(evidence), /private|password|token|secret/);
     fs.symlinkSync(path.join(logs, 'web.log'), path.join(logs, 'runtime.log'));
     assert.equal(run().runtime.state, 'diagnostic_failed');
+    fs.unlinkSync(path.join(logs, 'runtime.log'));
+    const fifo = spawnSync('python3', ['-c', 'import os; os.mkfifo(".research-workbench/logs/runtime.log")'], {
+      cwd: root, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(fifo.status, 0, fifo.stderr);
+    assert.equal(run().runtime.state, 'diagnostic_failed');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

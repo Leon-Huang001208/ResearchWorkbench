@@ -43,3 +43,5 @@ PR197使master从bb531a0推进eac6806，本任务同一集成分支保留全部�
 ## Mac安装门失败诊断
 
 9b280候选Constraints/Checks通过，Mac run39901744306在安装成功后启动阶段失败，web_process_exited；旧b1候选run39899542217同类失败保留历史归属。现有artifact仅setup日志，不能归因为数据源代码或系统故障。本机临时HOME/内存钥匙串、禁采集和无DSH连接的真实应用lifespan通过；它不替代干净Mac完整双服务检查。补充同一Bootstrap失败分支的脱敏栈结构采集，读取上限与符号链接/秘密反例实跑19项JS通过；不上传原始子进程日志，不改失败条件、不盲目rerun、不安装新依赖或操作常驻服务。
+
+增量独评指出FIFO在普通只读open阶段可能阻塞，已增加O_NONBLOCK并实际以无writer FIFO验证立即拒绝，19项检查重跑通过。再次合入0e0022主线资产v6配置，双方文档保留，11源码与attempt5逐项一致。新路由额外要求本机集成合同：106 passed、1 skipped（条件未满足）、1 warning，9.43秒；不将skip认证为实际设备能力。
