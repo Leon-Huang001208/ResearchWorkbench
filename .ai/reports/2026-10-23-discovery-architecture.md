@@ -36,3 +36,7 @@ CI只修改既有两处名单，无新增workflow/job/runner/timeout/依赖或�
 ## 真实源码阅读绑定
 
 源码checkpoint为`e4d33c76ce9453d73c7286f796ac44c1b753c208`，已从Git对象逐一读取13份发现模块/UI/测试文件并与当前文件逐字节相等核对，包含真实GET /selection。architecture reading.repository.revision现固定该已提交完整源码，API Atlas/index重新生成；绑定证明保存logs/discovery-reading-source-pin.json。图源/HTML未因阅读链接改变，无需重新伪造图交付或截图回执。此绑定不认证远端CI、部署、生产计划或真实模型质量；最终交付提交仍由root独立回执认证。
+
+## 最终阅读绑定更新
+
+最终源码checkpoint更新为`9282f64cd400e7efc8fea0eea6eab6ec5fe73cf9`，相对前一完整源码仅补真实60条列表的CSS有界滚动与三行标题（详情完整保留）及相关UI文档/阅读pin；产品浏览器证据由root单独记录，本步骤不重跑或冒充视觉。重新从该Git对象逐一读取13份发现模块/UI/测试并与当前字节相等核对，更新reading.repository.revision、Atlas/index及logs/discovery-reading-source-pin.json（保留前次绑定）。未改变研究/资料/调度图拓扑，原同哈希图交付及截图回执保持。
