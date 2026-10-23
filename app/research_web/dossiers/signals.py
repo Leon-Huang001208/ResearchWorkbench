@@ -72,6 +72,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
         source=None,
         state="open",
         source_record_id=None,
+        signal_type="review",
     ):
         identity = _digest([RULE_VERSION, dossier["id"], rule, key])
         current = items.get(identity)
@@ -83,6 +84,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
             "id": uuid5(NAMESPACE_URL, identity).hex,
             "dossier_id": dossier["id"],
             "kind": "signal",
+            "signal_type": signal_type,
             "rule": rule,
             "rule_version": RULE_VERSION,
             "title": title[:240],
@@ -220,6 +222,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
                     [eid],
                     published=published.isoformat(),
                     source=manifest.get("source"),
+                    signal_type="risk" if capability == "risk_alerts" else "review",
                 )
 
     for record in dossier.get("records", []):
@@ -247,6 +250,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
                 ids,
                 state="open",
                 source_record_id=record["id"],
+                signal_type=record["kind"],
             )
 
     if not evidence:

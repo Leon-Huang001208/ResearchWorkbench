@@ -98,6 +98,9 @@ async def test_actual_snapshot_scan_replays_and_preserves_opinion(tmp_path):
     assert result["coverage"]["eligible"] is True
     assert len(result["signals"]) == 1
     assert result["notifications"][0]["change"] == "new"
+    assert result["signals"][0]["signal_type"] == "review"
+    assert scans.list(kind="review")["items"]
+    assert scans.list(kind="risk")["items"] == []
     assert result["signals"][0]["evidence_ids"] == [dossier["evidence"][0]["id"]]
     assert (
         next(row for row in result["dossier"]["records"] if row["kind"] == "opinion")["body"]

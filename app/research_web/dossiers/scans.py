@@ -225,7 +225,7 @@ class DossierSignals:
                     "missing": [{"code": "manual_scan_required"}],
                 }
             rows = connection.execute(
-                "SELECT s.payload FROM dossier_signal_index s JOIN dossiers d ON d.id=s.dossier_id WHERE d.archived=0 AND (? IS NULL OR s.dossier_id=?) AND (? IS NULL OR json_extract(s.payload,'$.state')=?) AND (? IS NULL OR json_extract(s.payload,'$.rule')=?) ORDER BY s.updated_at DESC,s.id LIMIT ? OFFSET ?",
+                "SELECT s.payload FROM dossier_signal_index s JOIN dossiers d ON d.id=s.dossier_id WHERE d.archived=0 AND (? IS NULL OR s.dossier_id=?) AND (? IS NULL OR json_extract(s.payload,'$.state')=?) AND (? IS NULL OR COALESCE(json_extract(s.payload,'$.signal_type'),'review')=?) ORDER BY s.updated_at DESC,s.id LIMIT ? OFFSET ?",
                 (dossier_id, dossier_id, state, state, kind, kind, limit + 1, offset),
             ).fetchall()
             items = [json.loads(row[0]) for row in rows[:limit]]
@@ -248,7 +248,7 @@ class DossierSignals:
                 row
                 for row in items
                 if (state is None or row["state"] == state)
-                and (kind is None or row["rule"] == kind)
+                and (kind is None or row.get("signal_type", "review") == kind)
             ]
             return {
                 "items": items,
