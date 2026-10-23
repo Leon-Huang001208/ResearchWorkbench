@@ -6,3 +6,5 @@
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"仅合并浏览器历史读数字段文本，原始数据、计算、HTTP、持久化及DSH/Host拓扑均不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"纯展示调整，账号隔离、授权、数据查询和部署边界保持，未引入来源或共享状态。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅共用readout中的涨跌百分比和价差合并为幅，原DOM容器、事件、颜色、图表实例及布局结构保持；无新节点或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"共用行情顶部和tooltip展示同一幅文本，原观察、历史请求、冻结、账号隔离和研究交接不变，原接口及文件图仍准确。","diagrams":[]} -->
