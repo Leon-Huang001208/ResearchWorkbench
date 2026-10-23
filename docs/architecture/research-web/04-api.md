@@ -710,3 +710,7 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 2026-10-23 插件原生审核：expected仅接受manifest/artifacts/schemas三项或再加sandbox四项；未知键失败关闭，实际值仍与当前不可变原生快照逐项核对。此修复保留远程三项兼容，避免受管离线Python的合法四项指纹被旧HTTP模型误拒绝。
 
 2026-10-23 既有内部`POST /api/research/internal/data/business-query`的BusinessQuery新增可选typed `required_semantics: "cn_stock_daily_cny_share_v1" | null`，默认null保持旧请求指纹；仅market_bars/规范沪深stock/daily/none合法，其他组合输入422。它由Host规范历史设置，不成为Runtime/DSH普通数据工具的可传业务参数。新job公开投影及canonical metadata记录required_semantics，retry冻结原值，缺字段旧job保null；manifest和缓存指纹绑定合同，旧原生数据不能冒充已证明价格单位的规范数据。无新HTTP端点或SQL迁移。
+
+## 2026-10-23：既有BusinessQuery的明确来源范围
+
+不新增HTTP端点。financials的`statements=["income_statement"]`选择新浪来源限定利润表，`periods`最多8；公告日只有日期精度且历史版本未知，as_of/backtest拒绝。factor_macro的`source=bea_archive`只接受`series=us_real_gdp_qoq_saar,start_date=end_date=2024-06-30`；先非历史首捕获，再在`2024-07-25T12:30Z <= as_of < 2024-09-26T04:00Z`读取官方发布版本，历史refresh或miss不会转实时取数。正式截止选择仍通过当前来源和仓库授权；该有限例外不开放通用native正式PIT。详见[DataHub](../../research-web-datahub.md)。

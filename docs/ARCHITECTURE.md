@@ -191,3 +191,7 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 2026-10-23 CJPY字段字典元数据补齐仍沿原单Future/快照链，仅为已证明股票日线成交量提供share和金额原生元声明，OHLC/CNY仍未知。证据版本/hash随新Provider Result保留，旧快照、Host/DSH、规范仓bridge和部署拓扑不变，不增加请求或服务节点。
 
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
+
+## 2026-10-23：发布版本研究仓
+
+BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原Host→DataHub→MarketStore，复用既有available_at/ingested_at修订、原件与冻结表；只新增Provider内部解析与受信WarehouseBinding，未新增服务、HTTP、数据根或数据库schema。通用native仍是首次观测；东财SDK/游客资金流同源且单位未知，不授予跨源等价。模块与时点范围见[研究仓](research-web-market-store.md)。

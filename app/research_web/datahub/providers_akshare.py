@@ -13,6 +13,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -120,6 +121,11 @@ def _exchange_symbol(value: str) -> str:
 SEMANTICS_REVISION = "akshare-supported-query-v6"
 FUND_FLOW_GUEST_URL = "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get"
 CHINA_MACRO_SCHEMA = "akshare-china-macro-v1"
+SINA_FINANCIAL_SCHEMA = "akshare-sina-financial-disclosure-v1"
+FUND_FLOW_SCHEMA = "akshare-eastmoney-fund-flow-provenance-v1"
+SINA_FINANCIAL_URL = (
+    "https://quotes.sina.cn/cn/api/openapi.php/CompanyFinanceService.getFinanceReport2022"
+)
 CHINA_MACRO_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 CHINA_MACRO_CONTRACTS = {
     "cpi": (
@@ -253,6 +259,9 @@ def validate_supported_query(query: BusinessQuery) -> None:
             raise ProviderError("invalid_asset")
         _symbol(asset)
     if query.capability == "financials":
+        if parameters.get("statements") == ["income_statement"]:
+            _validate_income_statement(query)
+            return
         if parameters.get("statements", ["metrics"]) not in (["metrics"], ["indicators"]):
             raise ProviderError("data_operation_unsupported")
         periods = parameters.get("periods", [])
@@ -729,6 +738,207 @@ def _explicit_money(value):
     return float(match[1]) * {"亿元": 1e8, "亿": 1e8, "万元": 1e4, "万": 1e4, "元": 1}[match[2]]
 
 
+def _validate_income_statement(query):
+    parameters = query.parameters
+    asset = parameters.get("asset")
+    if (
+        set(parameters) - {"asset", "statements", "periods"}
+        or not isinstance(asset, str)
+        or re.fullmatch(r"[0-9]{6}\.(SH|SZ)", asset) is None
+        or cn_stock_identity(asset) != asset
+        or query.purpose == "backtest"
+        or query.as_of is not None
+    ):
+        raise ProviderError("data_not_equivalent")
+    periods = parameters.get("periods", [])
+    if type(periods) is int and 1 <= periods <= 8:
+        return
+    if not isinstance(periods, list) or len(periods) > 8:
+        raise ProviderError("invalid_date_range")
+    try:
+        if len(set(periods)) != len(periods):
+            raise ValueError("duplicate_period")
+        for value in periods:
+            parsed = date.fromisoformat(value)
+            if parsed.isoformat() != value or (parsed.month, parsed.day) not in {
+                (3, 31),
+                (6, 30),
+                (9, 30),
+                (12, 31),
+            }:
+                raise ValueError("invalid_period")
+    except (ValueError, TypeError):
+        raise ProviderError("invalid_date_range") from None
+
+
+def _sina_day(value):
+    if not isinstance(value, str) or re.fullmatch(r"[0-9]{8}", value) is None:
+        raise ValueError("invalid_day")
+    parsed = date(int(value[:4]), int(value[4:6]), int(value[6:]))
+    if parsed > datetime.now(ZoneInfo("Asia/Shanghai")).date():
+        raise ValueError("future_day")
+    return parsed
+
+
+@dataclass(frozen=True)
+class _FinancialNormalizer:
+    raw: bytes
+    source_url: str
+    provider_total: int
+    captured_periods: tuple[str, ...]
+
+    def __call__(self, rows, _query):
+        return rows
+
+
+def _financial_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate_json_key")
+        result[key] = value
+    return result
+
+
+def _financial_json_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("nonfinite_json_number")
+    return number
+
+
+def _sina_income_statement(query):
+    """One reviewed eight-period capture inside the existing public worker."""
+    from pandas import DataFrame
+
+    params = {
+        "paperCode": _exchange_symbol(query.parameters["asset"]),
+        "source": "lrb",
+        "type": "0",
+        "page": "1",
+        "num": "8",
+    }
+    try:
+        with (
+            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
+            client.stream("GET", SINA_FINANCIAL_URL, params=params) as response,
+        ):
+            if response.status_code != 200:
+                log.warning("datahub_sina_financial_http_failed", status=response.status_code)
+                raise ProviderError("vendor_unreachable")
+            raw = bytearray()
+            for chunk in response.iter_bytes():
+                raw.extend(chunk)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    log.warning("datahub_sina_financial_response_limit")
+                    raise ProviderError("vendor_schema_invalid")
+        payload = json.loads(
+            raw,
+            object_pairs_hook=_financial_json_object,
+            parse_float=_financial_json_float,
+            parse_constant=_financial_json_float,
+        )
+        result = payload["result"]
+        if type(result["status"]["code"]) is not int or result["status"]["code"] != 0:
+            raise ValueError("invalid_status")
+        data = result["data"]
+        count = data["report_count"]
+        if not isinstance(count, str) or re.fullmatch(r"[0-9]+", count) is None:
+            raise ValueError("invalid_count")
+        total = int(count)
+        dates, reports = data["report_date"], data["report_list"]
+        if (
+            not isinstance(dates, list)
+            or not 1 <= len(dates) <= 8
+            or not isinstance(reports, dict)
+            or total < len(dates)
+        ):
+            raise ValueError("invalid_reports")
+        rows, periods = [], []
+        for entry in dates:
+            key = entry["date_value"]
+            period = _sina_day(key)
+            if (period.month, period.day) not in {(3, 31), (6, 30), (9, 30), (12, 31)}:
+                raise ValueError("invalid_period")
+            if type(entry["date_type"]) is not int or entry["date_type"] != period.month // 3:
+                raise ValueError("period_type_conflict")
+            if key in periods:
+                raise ValueError("duplicate_period")
+            periods.append(key)
+            report = reports[key]
+            if report["rType"] != "合并期末" or report["rCurrency"] != "CNY":
+                raise ValueError("report_identity_conflict")
+            publication = report.get("publish_date")
+            publication_day = _sina_day(publication) if publication not in (None, "") else None
+            if publication_day is not None and publication_day < period:
+                raise ValueError("publication_period_conflict")
+            if (
+                publication_day is not None
+                and publication_day > datetime.now(ZoneInfo("Asia/Shanghai")).date()
+            ):
+                raise ValueError("future_publication")
+            updated = report["update_time"]
+            if type(updated) is not int or not 0 < updated <= int(time.time()):
+                raise ValueError("invalid_supplier_update")
+            items = report["data"]
+            if not isinstance(items, list) or not items or len(items) > MAX_ROWS:
+                raise ValueError("invalid_items")
+            seen = set()
+            for item in items:
+                field = item["item_field"]
+                if (
+                    not isinstance(field, str)
+                    or not field
+                    or field in seen
+                    or not isinstance(item["item_title"], str)
+                    or not item["item_title"]
+                    or item["item_source"] != "lrb"
+                ):
+                    raise ValueError("invalid_item_identity")
+                seen.add(field)
+                value = item["item_value"]
+                if value is not None and (
+                    isinstance(value, bool)
+                    or not isinstance(value, (str, int, float))
+                    or isinstance(value, str)
+                    and re.fullmatch(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)", value) is None
+                    or not math.isfinite(float(value))
+                ):
+                    raise ValueError("invalid_item_value")
+            rows.append(
+                {
+                    **report,
+                    "asset": query.parameters["asset"],
+                    "report_period": period.isoformat(),
+                    "report_date": entry,
+                    "publication_date": publication_day.isoformat() if publication_day else None,
+                    "publication_precision": "date" if publication_day else "unknown",
+                    "supplier_update_time": updated,
+                }
+            )
+        if set(periods) != set(reports):
+            raise ValueError("period_report_conflict")
+        requested = query.parameters.get("periods", [])
+        if type(requested) is int:
+            rows = sorted(rows, key=lambda row: row["report_period"], reverse=True)[:requested]
+        elif requested:
+            rows = [row for row in rows if row["report_period"] in requested]
+        normalizer = _FinancialNormalizer(
+            bytes(raw),
+            str(httpx.URL(SINA_FINANCIAL_URL).copy_merge_params(params)),
+            total,
+            tuple(_sina_day(key).isoformat() for key in periods),
+        )
+        log.info("datahub_sina_financial_received", rows=len(rows), captured=len(periods))
+        return DataFrame(rows), normalizer
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        log.warning("datahub_sina_financial_invalid")
+        raise ProviderError("vendor_schema_invalid") from None
+    except httpx.HTTPError:
+        log.warning("datahub_sina_financial_unreachable")
+        raise ProviderError("vendor_unreachable") from None
+
+
 def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
     periods = query.parameters.get("periods", [])
     if type(periods) is int:
@@ -933,6 +1143,8 @@ def _invoke_sdk(query: BusinessQuery):
             )
         return pd.DataFrame(snapshots), _normalize_snapshot
     if capability == "financials":
+        if parameters.get("statements") == ["income_statement"]:
+            return _sina_income_statement(query)
         return (
             ak.stock_financial_abstract_ths(
                 symbol=_symbol(str(parameters["asset"])), indicator="按报告期"
@@ -947,7 +1159,11 @@ def _invoke_sdk(query: BusinessQuery):
         except Exception as exc:  # noqa: BLE001 - fixed SDK boundary.
             log.warning("datahub_fund_flow_sdk_failed", error_type=type(exc).__name__)
             return _fund_flow_guest(query)
-        return _slice_activity_frame(frame, query), _normalize_activity
+        return _slice_activity_frame(frame, query), _FeedNormalizer(
+            _normalize_activity,
+            "eastmoney",
+            ({"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "snapshot"},),
+        )
     raise ProviderError("capability_not_implemented")
 
 
@@ -1008,7 +1224,13 @@ def _materialize(query, frame, normalizer):
         "AKShare 是公开聚合库；上游字段与可用性可能变化。",
         "当前快照不代表交易所级实时行情。",
     ]
-    source_rows = _records(frame)
+    # These already validated JSON reports contain dynamic nested item dictionaries;
+    # the generic dataframe cleaner intentionally stringifies such objects.
+    source_rows = (
+        frame.to_dict(orient="records")
+        if isinstance(normalizer, _FinancialNormalizer)
+        else _records(frame)
+    )
     result.rows = normalizer(source_rows[:MAX_ROWS], query)
     result.pages_fetched = 1
     result.provider_total = len(source_rows)
@@ -1084,6 +1306,88 @@ def _materialize(query, frame, normalizer):
             "资金字段保留来源净额；没有真实流入流出和完整构成时不生成饼图，未验证的净额单位保持未知。"
         )
     result.metadata["provider_semantics_revision"] = SEMANTICS_REVISION
+    if isinstance(normalizer, _FinancialNormalizer):
+        result.raw = [normalizer.raw]
+        result.raw_bytes = len(normalizer.raw)
+        result.source_url = normalizer.source_url
+        result.provider_total = normalizer.provider_total
+        result.pagination_complete = normalizer.provider_total == len(normalizer.captured_periods)
+        result.status = "snapshot"
+        result.metadata.update(
+            {
+                "schema_version": SINA_FINANCIAL_SCHEMA,
+                "provider_semantics_revision": SINA_FINANCIAL_SCHEMA,
+                "upstream_id": "sina",
+                "transport": "direct_http_in_public_worker",
+                "availability_basis": "first_observed",
+                "observed_at": datetime.now(UTC).isoformat(),
+                "historical_point_in_time": False,
+                "formal_backtest_eligible": False,
+                "revision_policy": "first_observed_not_historical_vintage",
+                "field_dictionary_evidence": {
+                    "schema_version": SINA_FINANCIAL_SCHEMA,
+                    "endpoint": SINA_FINANCIAL_URL,
+                    "statement": "lrb",
+                    "unit_status": "unverified",
+                    "currency_field": "rCurrency",
+                    "publication_field": "publish_date",
+                    "publication_precision": "date",
+                    "supplier_update_field": "update_time",
+                },
+            }
+        )
+        result.fields = {
+            field: {"unit": None, "currency": None, "semantic": "provider_native"}
+            for field in result.fields
+        }
+        result.limitations.extend(
+            [
+                "single_response_not_complete_history",
+                "financial_item_units_unverified",
+                "date_precision_not_publication_instant",
+                "historical_vintage_unverified",
+            ]
+        )
+        requested = query.parameters.get("periods", [])
+        missing_periods = (
+            len(result.rows) < requested
+            if type(requested) is int
+            else bool(set(requested) - {row["report_period"] for row in result.rows})
+        )
+        if missing_periods:
+            result.status = "partial"
+            result.missing.append("requested_report_periods_missing")
+        if any(row["publication_precision"] != "date" for row in result.rows):
+            result.status = "partial"
+            result.missing.append("publication_date_missing")
+        if any(
+            not any(item["item_value"] is not None for item in row["data"]) for row in result.rows
+        ):
+            result.status = "partial"
+            result.missing.append("financial_numeric_values_missing")
+    if query.capability == "market_activity" and isinstance(normalizer, _FeedNormalizer):
+        result.metadata.update(
+            {
+                "schema_version": FUND_FLOW_SCHEMA,
+                "provider_semantics_revision": FUND_FLOW_SCHEMA,
+                "upstream_id": "eastmoney",
+                "transport": "webguest" if normalizer.limited_history else "akshare_sdk",
+                "upstream_attempts": list(normalizer.attempts),
+                "independent_source": False,
+                "availability_basis": "first_observed",
+                "historical_point_in_time": False,
+                "formal_backtest_eligible": False,
+                "observed_at": datetime.now(UTC).isoformat(),
+                "revision_policy": "first_observed_not_historical_vintage",
+            }
+        )
+        result.limitations.extend(
+            [
+                "fund_flow_units_unverified",
+                "fund_flow_definition_unverified",
+                "same_eastmoney_upstream_not_independent_source",
+            ]
+        )
     if isinstance(normalizer, _MacroNormalizer):
         result.raw = [normalizer.raw]
         result.raw_bytes = len(normalizer.raw)

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "source_qualified_pit_followup",
+  "date": "2026-10-23",
+  "previous_audit": {
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/.ai/reports/2026-10-23-datahub-source-verification.json",
+    "sha256": "fd054ed25d42725b5818c6461a7220574ed066f59c35482d48d65832be8729b0"
+  },
+  "original_audit_source_count": 64,
+  "original_remaining_source_count": 57,
+  "runtime_source_count": 65,
+  "new_source_not_counted_as_original_repair": "bea_archive",
+  "proof": {
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/real-pit-attempt4/receipt.json",
+    "sha256": "3f9d3614d465089dc51448ad6deb8fe39faa4b96fca929f301db7205b05c74ad"
+  },
+  "execution_base_head": "bb531a0db7a567c99018a4239e4f29932ecd44aa",
+  "source_sha256": {
+    "app/research_web/datahub/__init__.py": "38e0bcf9c2cb95acd841c02b6e131335da7752b817ca437d9cf62fff7a4efe79",
+    "app/research_web/datahub/broker.py": "aff1c7f5204037356801e386a1e437e302902f6fd830233fa983d7c1da41087d",
+    "app/research_web/datahub/catalog.py": "14459f03b09d31c4653fab9677f0a62f656ba18013bdf78eec153ac381f7dcda",
+    "app/research_web/datahub/research_warehouse.py": "c45640f0dc6d670bfa09e1e686acbe3e3809b15bd64fef03eaa1275c990cb15c",
+    "app/research_web/datahub/research_snapshot_store.py": "db01268f2f9bb2486b686649bd6810a58c08d57974b32d437d706c37d2a6c430",
+    "app/research_web/datahub/providers_akshare.py": "fd57367c317ce660a1fab747cff6dfb2786ce89de0653b491c21e1547785ded8",
+    "app/research_web/datahub/providers.py": "dbb4cdc83207c444d67b6d086f3985d78c7b7efa3afaa131c157c582e9dcb785",
+    "app/research_web/datahub/providers_bea_archive.py": "9374bc3de350cb69d29a0281e7a19520733df517f3e8e88bfcb2dfcd418c431a",
+    "app/research_web/datahub/bea_archive_store.py": "23c3673828c7080ca57a2ef77c9f9558d6e08f56222e198232d24bc8ad6c6a8e",
+    "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
+    "app/research_web/datahub/contracts.py": "2f93630960b3e161e2389f0bf424efe08b83bef0a09dbd9996fd3f41dd57d693"
+  },
+  "observations": [
+    {
+      "source_id": "akshare",
+      "capability": "financials",
+      "selector": "income_statement",
+      "status": "bounded_live_verified_native_first_observed",
+      "returned_rows": 1,
+      "captured_periods": 8,
+      "provider_total": 117,
+      "selected_report_period": "2026-06-30",
+      "publication_date": "2026-08-27",
+      "publication_precision": "date",
+      "monetary_unit_verified": false,
+      "historical_vintage_verified": false,
+      "formal_backtest_eligible": false,
+      "cache_host_pg_restart_restore": "PASS"
+    },
+    {
+      "source_id": "bea_archive",
+      "capability": "factor_macro",
+      "series": "us_real_gdp_qoq_saar",
+      "period": "2024-06-30",
+      "status": "bounded_official_release_pit_verified",
+      "unit": "percent_qoq_saar",
+      "releases": [
+        {
+          "id": "BEA24-33",
+          "published_at": "2024-07-25T12:30:00Z",
+          "value": 2.8
+        },
+        {
+          "id": "BEA24-38",
+          "published_at": "2024-08-29T12:30:00Z",
+          "value": 3.0
+        }
+      ],
+      "cutoff_interval": "[2024-07-25T12:30Z,2024-09-26T04:00Z)",
+      "latest_scope": "reviewed_archive_catalog",
+      "current_latest_verified": false,
+      "system_known_at_publication": false,
+      "cache_host_pg_restart_restore": "PASS",
+      "partial_sql_restore_future_release_missing": true,
+      "commercial_reuse_rights": "unknown_not_verified"
+    },
+    {
+      "source_id": "akshare",
+      "capability": "market_activity",
+      "dataset": "fund_flow",
+      "status": "contract_repaired_live_NOT_RUN_this_batch",
+      "upstream": "eastmoney",
+      "sdk_guest_independent": false,
+      "unit_verified": false,
+      "definition_verified": false,
+      "ifind_equivalence_verified": false,
+      "formal_backtest_eligible": false,
+      "attempt_chain_freeze_restore": "offline_contract_PASS"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/final-spec-working.json",
+      "sha256": "8fd16f943ed6fae7fa2c8c7f60d32b19a62f9371678e904e84399714ed5cd30d"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/final-quality-working.json",
+      "sha256": "749c85032895106f0e4f84460067dc10bfb0d8e8a3e3bfcc769aa0afa39383d1"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/pit-feasibility/bea-contract-discovery.json",
+      "sha256": "f161a55eac2c476e815b3277ddce503bdaf371ce42baf2efde489517af4a5119"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/pit-feasibility/receipt.json",
+      "sha256": "f39cbfae8e5c5b4f782c53e594a76859c08222d469fc3e5c60df4cef548cecf6"
+    }
+  ],
+  "limits": [
+    "Only reviewed official GDP release interval has formal publication-vintage support; no other macro/financial/native qualification implied.",
+    "SDK worker submission is not an observed HTTP count.",
+    "No FRED/ALFRED or Tushare account/key; no new registration or paid service.",
+    "No deployment, production database changes, external disk operation, model calls or vendor credential reading.",
+    "Windows/Linux native NOT_RUN."
+  ]
+}

@@ -503,6 +503,10 @@ async def fetch(query: Query | BusinessQuery, *, transport=None, connections=Non
             from .providers_akshare import fetch as akshare_fetch
 
             return await akshare_fetch(query)
+        elif query.source == "bea_archive":
+            from .providers_bea_archive import fetch as bea_fetch
+
+            return await bea_fetch(query, transport=transport)
         elif query.source == "baostock":
             from .providers_baostock import fetch as baostock_fetch
 
@@ -585,6 +589,19 @@ async def probe(source_id: str, *, transport=None, connections=None):
         from .providers_akshare import probe as akshare_probe
 
         return await akshare_probe()
+    if source_id == "bea_archive":
+        from .providers_bea_archive import PERIOD, SERIES
+        from .providers_bea_archive import fetch as bea_fetch
+
+        result = await bea_fetch(
+            BusinessQuery(
+                capability="factor_macro",
+                source="bea_archive",
+                parameters={"series": SERIES, "start_date": PERIOD, "end_date": PERIOD},
+            ),
+            transport=transport,
+        )
+        return {"health": "healthy", "failure_code": None, "rows": len(result.rows)}
     if source_id == "baostock":
         from .providers_baostock import fetch as baostock_fetch
 
