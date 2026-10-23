@@ -10,6 +10,54 @@ const day = i => new Date(Date.UTC(2025, 0, i + 1)).toISOString().slice(0, 10);
 const rows = (n, value = i => 100 + i) => Array.from({ length: n }, (_, i) => ({ asset: '603986.SH', vwap: value(i), date: day(i), open: value(i) - .2, high: value(i) + 1, low: value(i) - 1, close: value(i), volume: 1000 + i, amount: 100000 + i, turnover_rate_pct: 2 }));
 const chipInputs = { status: 'complete', contract_version: 'chip-turnover-1', turnover_unit: 'percent' };
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance, `${a} should equal ${b}`);
+
+test('period readout uses aggregate OHLCV and preceding period close, not the final daily return', () => {
+  const input = [
+    { date: '2026-01-30', open: 95, high: 105, low: 90, close: 100, volume: 1000, amount: 100000 },
+    { date: '2026-02-02', open: 100, high: 160, low: 90, close: 150, volume: 2000, amount: 280000 },
+    { date: '2026-02-03', open: 150, high: 170, low: 130, close: 140, volume: 3000, amount: 420000 },
+  ];
+  const metadata = { frequency: 'daily', fields: { volume: { unit: 'shares' }, amount: { unit: 'CNY' } } };
+  for (const period of ['week', 'month']) {
+    const f = fakeDOM(); const c = createAssetChartController();
+    c.configure(input, 'period-return', metadata); c.mount(f.node);
+    c.handle(click(`period-${period}`)); c.select(1); f.flush();
+    const expected = /涨跌幅 <strong class="asset-price-up">\+40\.00%<\/strong>/;
+    const mounted = f.nodes.get('[data-asset-history]').innerHTML;
+    assert.match(mounted, expected, period);
+    assert.match(mounted, /开 <strong[^>]*>100\.00/);
+    assert.match(mounted, /高 <strong[^>]*>170\.00/);
+    assert.match(mounted, /成交量 <strong>0\.50万股/);
+    assert.match(mounted, /振幅 <strong>80\.00%/);
+    const html = renderMarketTerminal(input, c.getState(), metadata);
+    assert.match(html, expected, `initial ${period} render`);
+    assert.equal(f.instances[0].option.tooltip.formatter([{ dataIndex: 1 }]), mounted);
+    const selectedDate = c.getState().selectedDate;
+    c.handle(click('period-day')); f.flush();
+    assert.equal(c.getState().selectedDate, selectedDate);
+    assert.match(f.nodes.get('[data-asset-history]').innerHTML, /-6\.67%/);
+    c.handle(click(`period-${period}`)); c.select(0); f.flush();
+    assert.match(f.nodes.get('[data-asset-history]').innerHTML, /涨跌幅 <strong>—/);
+    c.dispose();
+  }
+});
+
+test('Wind panel chrome has one plus entry, close buttons and bottom-only date labels', () => {
+  const html = renderMarketTerminal(rows(80));
+  assert.equal((html.match(/data-asset-chart-action="indicator-add"/g) || []).length, 1);
+  assert.doesNotMatch(html, /indicator-add-after-|data-asset-chart-action="indicator-manager"|＋副图|指标…/);
+  assert.match(html, /aria-label="移除 MACD"[^>]*>×<\/button>/);
+  assert.doesNotMatch(html, /data-asset-chart-action="panel-choose-(?:kdj|rsi|boll|wr|sar)"/);
+  for (const panels of [[], ['volume'], ['volume', 'macd', 'rsi']]) {
+    const panelHTML = renderMarketTerminal(rows(80), { panels });
+    assert.equal((panelHTML.match(/data-asset-chart-action="panel-choose-/g) || []).length, panels.length);
+    const option = buildMarketChartOption(enrichMarketBars(rows(80)), { panels });
+    assert.deepEqual(option.xAxis.map(axis => axis.axisLabel.show), option.xAxis.map((_, i) => i === panels.length));
+    assert.deepEqual(option.xAxis.map(axis => axis.axisPointer.label.show), option.xAxis.map((_, i) => i === panels.length));
+  }
+  const chip = estimateChipDistribution(enrichMarketBars(rows(80)));
+  assert.equal(buildChipChartOption(chip, [90, 190]).xAxis.splitLine.show, false);
+});
 const click = action => ({ type: 'click', target: { closest: selector => selector === '[data-asset-chart-action]' ? { dataset: { assetChartAction: action } } : null } });
 
 test('approved workspace defaults to two removable panels and a flat chart/chips surface', () => {
@@ -387,7 +435,7 @@ test('aggregated week/month turnover rate cannot reuse the final day percentage 
   assert.equal(aggregateMarketBars(enrichMarketBars(daily), 'week')[0].turnover_rate_pct, null);
   assert.equal(aggregateMarketBars(enrichMarketBars(daily), 'month')[0].turnover_rate_pct, null);
   const html = renderMarketTerminal(daily, { period: 'week' }, { frequency: 'daily' });
-  assert.match(html, /换手率 <strong>1\.00%<\/strong>/, 'historical quote explicitly follows the selected actual daily record');
+  assert.match(html, /换手率 <strong>—<\/strong>/, 'period readout must not inherit the final daily turnover');
 });
 
 test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and two volume MA series', () => {

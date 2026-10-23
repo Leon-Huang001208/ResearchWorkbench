@@ -101,7 +101,7 @@ ETF_WEEKLY_PAYLOAD = "988046d23f9951f889a3b9d02e355ed59fd6aa65"
 DISCOVERY_MODE = "reviewed-discovery-v1"
 DISCOVERY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 # Explicitly authorized combination: discovery, ETF configuration and dossiers.
-DISCOVERY_PAYLOAD = "9802af1e6d7fd64bbfa417cfc03c50961ec1e550"
+DISCOVERY_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 # PR209 combined product includes dossier preservation; deployment needs new authorization.
 ETF_WEEKLY_V2_MODE = "reviewed-etf-weekly-v2"
 ETF_WEEKLY_V2_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"

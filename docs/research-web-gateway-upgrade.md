@@ -345,6 +345,6 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 
 ## 今日发现组合固定部署（2026-10-23）
 
-用户已明确授权组合部署今日发现、ETF配置和持续研究仓；封闭`apply-discovery` / `reviewed-discovery-v1`的PREVIOUS为`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD为`9802af1e6d7fd64bbfa417cfc03c50961ec1e550`。复用原version4事务、BirthFence、全账号业务索引/档案/模型保全与恢复；旧profile及controller/evidence身份不变，无新依赖、迁移或外盘操作。
+用户已明确授权组合部署今日发现、ETF配置和持续研究仓；封闭`apply-discovery` / `reviewed-discovery-v1`的PREVIOUS为`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD为`1780064b712afb61ff18f2f1811650fc31fd3038`。复用原version4事务、BirthFence、全账号业务索引/档案/模型保全与恢复；旧profile及controller/evidence身份不变，无新依赖、迁移或外盘操作。
 
 新mode在任何后端HTTP/启动前重复只读检查primary和全部私有账号的automation/discovery元数据及report-workflows/catalog.json；任何启用任务/日程、活动或未知执行、损坏结构、别名路径均延后。缺失目录/目录中的catalog按原运行时无计划语义处理，绝不请求账号后端来证明空闲。该门也适用于恢复，不修改原同意、计划或数据。不存在模型调用或启用生产跟踪授权；现场切换、认证真实页面及全账号保全另留证。

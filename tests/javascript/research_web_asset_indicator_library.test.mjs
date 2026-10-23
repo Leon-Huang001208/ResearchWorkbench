@@ -64,7 +64,7 @@ test('favorites replace active panel, removal preserves range/date, parameters r
  assert.deepEqual(c.getState().panels,['volume','cci']);assert.equal(saved[0].indicator_settings.cci.period,10);
  c.handle(click('panel-remove-cci'));assert.equal(c.getState().start,before.start);assert.equal(c.getState().selectedDate,before.selectedDate);
  saved[0].indicator_settings.cci.period=1;assert.equal(c.getState().indicatorSettings.cci.period,10);
- const html=renderMarketTerminal(rows(10));assert.match(html,/data-asset-indicator-manager/);assert.match(html,/indicator-add-after-volume/);assert.match(html,/indicator-replace-macd/);
+ const html=renderMarketTerminal(rows(10));assert.match(html,/data-asset-indicator-manager/);assert.match(html,/data-asset-chart-action="indicator-add"/);assert.match(html,/indicator-replace-macd/);
 });
 
 test('explicit legacy or new-account preferences reset optional fields without persisting defaults',()=>{
