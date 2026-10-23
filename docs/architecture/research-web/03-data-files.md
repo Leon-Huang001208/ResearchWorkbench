@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+华安操作员复用原全账号索引冻结、64MiB业务读取和内容寻址恢复；凭据、会话、历史报告和配置保全范围不缩小，元数据小限额不放宽。固定模式自身不写新报告或取数；本期快照、规范正文、底稿及Word仍由获准后的既有Workflow版本管理，原数据图不增节点。
+
 ## 今日发现文件与元数据（2026-10-23）
 
 Store仅首次显式prepare增加懒discovery_handoffs元数据；独立保存跟踪增加discovery_tracks与原Automation版本/运行，不保存第二份对话。原DataHub新增discovery_evidence，golddata_intel事件与报道进入rows.json/csv和私有raw（已解析detail/选择包的规范化JSON，非HTTP传输原字节）；manifest与inputs/discovery-context.json绑定会话/选材/时点/哈希。trusted_context重验全部字节，复制保留origin但无旧执行权限。来源缓存每账号有界，GET不写空索引；跟踪保存批准event_id及完整详情evidence_sha256，不依赖首页排序/60条展示边界，新增报道或已有判断改变可触发，采集时钟不触发；04图增加固定Intel读取及显式冻结资料边。详见[合同](../../research-web-discovery.md)。

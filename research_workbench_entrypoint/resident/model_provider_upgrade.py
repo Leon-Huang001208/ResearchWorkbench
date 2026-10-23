@@ -93,6 +93,11 @@ MARKET_TERMINAL_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
 MARKET_TERMINAL_PAYLOAD = "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
 MARKET_TERMINAL_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
+# PR198's merged Excel-first weekly product; previous is the registered resident.
+# This source profile does not authorize a resident switch or arbitrary runtime SHAs.
+ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
+ETF_WEEKLY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
+ETF_WEEKLY_PAYLOAD = "988046d23f9951f889a3b9d02e355ed59fd6aa65"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -107,6 +112,7 @@ ASSET_MODES = frozenset(
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
+        ETF_WEEKLY_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -199,6 +205,8 @@ def previous_for(mode):
         return MARKET_HISTORY_PREVIOUS
     if mode == MARKET_TERMINAL_MODE:
         return MARKET_TERMINAL_PREVIOUS
+    if mode == ETF_WEEKLY_MODE:
+        return ETF_WEEKLY_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -265,6 +273,7 @@ def verify_primary(home, expected, mode):
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
+        ETF_WEEKLY_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
@@ -350,6 +359,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
+        ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -376,7 +386,9 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     ASSET_V7_EVIDENCE_SHA256
                     if mode == ASSET_V7_MODE
                     else (
-                        ASSET_V6_EVIDENCE_SHA256 if mode == ASSET_V6_MODE else ASSET_EVIDENCE_SHA256
+                        ASSET_V6_EVIDENCE_SHA256
+                        if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE}
+                        else ASSET_EVIDENCE_SHA256
                     )
                 )
             ):
@@ -927,6 +939,7 @@ class Operations:
             MARKET_HISTORY_MODE,
             MARKET_TERMINAL_MODE,
             ASSET_V7_MODE,
+            ETF_WEEKLY_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1359,6 +1372,7 @@ def main(argv=None):
             "apply-market-gaps",
             "apply-market-history",
             "apply-market-terminal",
+            "apply-etf-weekly",
             "recover",
         ),
     )
@@ -1383,6 +1397,7 @@ def main(argv=None):
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
+                "apply-etf-weekly": ETF_WEEKLY_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))

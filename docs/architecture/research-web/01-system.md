@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+华安固定操作员在原Native Host／私网网关／唯一DSH之间复用version4升级、维护锁和恢复节点，只绑定前版5343e18d与产品988046d，不增加进程或公开入口。原01部署图的职责和私网边界保持；源码资格与实际切换仍分别认证。
+
 ## 今日发现与账号后端（2026-10-23）
 
 新增能力落在现有Host、DataHub快照、唯一DSH与Automation内；01图的本机准入/RuntimePool分组分别对应ServiceManager与账号Pool，私网网关恢复已同意计划时仍经容量门。每用户后端独立资料/模型/日程，泛用Automation关闭而窄跟踪由宿主flag允许；owner后端关闭或容量延期不保证执行，不启动全局第二worker。详细[合同](../../research-web-discovery.md)。

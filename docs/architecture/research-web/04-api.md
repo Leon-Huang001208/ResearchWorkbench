@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`apply-etf-weekly` 为固定Native操作员CLI模式，前版5343e18d、产品988046d；不增加HTTP端点、账号权限或任意目标覆盖。实际执行须另行明确授权，并沿原version4保全/恢复；不触发周报生产或启用日程。
+
 ## 今日发现接口（2026-10-23）
 
 新增统一前缀/api/research/discovery：GET feed、handoffs、requests/{request_id}、handoffs/{handoff_id}、tracks；POST prepare、handoffs/{handoff_id}/execute、tracks、tracks/{track_id}/enable与disable。11条声明由真实routes.py和API Atlas逐项登记，新增GET /selection（feed_id/theme_id/horizon）只从当前用户owned预览选择读取完整详情、返回独立scope feed，不写Store/创建会话/调用模型、不污染首页；网关另有GET /api/server/discovery-tracking-status只读当前认证账号恢复状态，不返回其他用户或启动后端。写操作要求原同源认证及X-Research-User-Action:?1；选择只用Host登记ID，不接收客户端正文/URL/归属。GET恢复不创建/配置/发送DSH；启停验证定义版本，泛用Automation接口仍受tenant拒绝。请求/响应及失败状态见[完整合同](../../research-web-discovery.md)。

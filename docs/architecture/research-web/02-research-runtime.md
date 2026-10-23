@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+华安固定Native模式不启动研究，不改DSH协议、历史或模型配置。原Host显式空闲、Native、private-pool与市场inflight检查继续约束升级；未知/忙碌不切换。实际获准更新后，周报仍经原Report Workflow冻结输入→DSH→Host质量门与确定性排版，没有第二执行链或自动模型重试。
+
 ## 今日发现显式交接与跟踪（2026-10-23）
 
 GET读取已有Intel第三方事件，无模型；首次新抽屉的GET selection只读核对所选事件完整详情，独立scope feed不污染首页、不写Store/创建会话；prepare再核对精确详情与预览事件版本、冻结正文/快照及上下文，再按预分配ID/cwd创建和配置原DSH。execute独立确认、固定键至多提交一次，未知只查原receipt/历史，FinGPT与Claw均经原规范报告质量门。跟踪保存禁用、单独启用，原Automation在同用户后端存活时读来源、去重、每日最多一次研究；受理/运行/质量独立。03图新增实际顺序，详见[合同](../../research-web-discovery.md)。
