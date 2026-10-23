@@ -1,5 +1,14 @@
 # Research Workbench Development Map
 
+2026-10-23 ETF Native操作员准备：`resident/model_provider_upgrade.py`增加封闭
+`ETF_WEEKLY_MODE/PREVIOUS/PAYLOAD`、`previous_for/review_assets`与`apply-etf-weekly`分支，
+复用v4保全/恢复、大索引读取、v6固定完整CI日志读取器及市场inflight门。PAYLOAD暂为25b399a42候选，
+须root核定PR198实际合并产品后重新固定、验证和评审；本轮不部署、不安装依赖。
+`test_model_provider_upgrade.py`将新mode加入原真实Git/历史profile/全账号保全/阶段恢复矩阵，
+补固定身份、Host/Native/私有池活动未知和原manifest锁保持回归；原API活动见证保留。
+部署合同见[ETF离线准备](research-web-gateway-upgrade.md#华安etf周报固定部署profile仅离线准备)。
+无新增服务、HTTP、schema、数据库、依赖或第二执行器，原架构节点/边不变；正式切换仍需单独授权。
+
 2026-10-23宏观闭环：providers_external.py校验官方NYFed/Treasury/WorldBank封包；providers_akshare.py在既有public_worker内执行cpi/gdp/pmi/m2固定请求；catalog/broker只声明实际支持的序列。DataHub新查询缓存、ResearchWarehouse身份与SnapshotSeries准入分别核对合同版本，旧call_id和冻结证据保留。国内观察期及累计GDP语义不借用披露时点。公开错误封包/空参考线/分号CSV在同一external Provider修复，不扩数值仓白名单；真实失败与临时库证据见本轮来源台账和任务报告。
 
 公开数值合同 `official-numeric-v2` 定位于 `datahub/providers_external.py` 的

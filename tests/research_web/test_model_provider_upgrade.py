@@ -27,6 +27,7 @@ ASSET_PROFILES = (
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
+    "reviewed-etf-weekly-v1",
 )
 
 
@@ -125,12 +126,17 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
+        "reviewed-etf-weekly-v1": "ETF_WEEKLY",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     monkeypatch.setattr(
         upgrade,
-        "ASSET_V6_EVIDENCE_SHA256" if profile == upgrade.ASSET_V6_MODE else "ASSET_EVIDENCE_SHA256",
+        (
+            "ASSET_V6_EVIDENCE_SHA256"
+            if profile in {upgrade.ASSET_V6_MODE, "reviewed-etf-weekly-v1"}
+            else "ASSET_EVIDENCE_SHA256"
+        ),
         hashlib.sha256(b"reviewed evidence").hexdigest(),
     )
     monkeypatch.setattr(
@@ -392,6 +398,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("apply-assets-v5", upgrade.ASSET_V5_MODE),
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
+        ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
@@ -435,6 +442,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         ("reviewed-market-overview-v1", "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"),
         (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_PREVIOUS),
         (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_GAPS_PAYLOAD),
+        ("reviewed-etf-weekly-v1", upgrade.ASSET_V6_PREVIOUS),
+        ("reviewed-etf-weekly-v1", "25b399a42d691766d41bcafce5adbdc3b8cc3d74"),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1387,6 +1396,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
+        "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -1975,6 +1985,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_HISTORY_MODE,
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
+        "reviewed-etf-weekly-v1",
     ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
@@ -2029,7 +2040,9 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
 
 
 @pytest.mark.parametrize(
-    "real_operations", ["reviewed-market-gaps-v1", "reviewed-market-history-v1"], indirect=True
+    "real_operations",
+    ["reviewed-market-gaps-v1", "reviewed-market-history-v1", "reviewed-etf-weekly-v1"],
+    indirect=True,
 )
 @pytest.mark.parametrize(
     "response,expected",
@@ -2102,3 +2115,68 @@ def test_asset_v6_binds_verified_resident_product_reader_and_unchanged_old_contr
         upgrade.CONTROLLER_MODULE_SHA256
         == "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
     )
+
+
+def test_etf_weekly_profile_freezes_registered_resident_and_provisional_product():
+    assert upgrade.previous_for("reviewed-etf-weekly-v1") == (
+        "0e0022ac792eba88fba0f233524f5c8d66024569"
+    )
+    assert upgrade.ETF_WEEKLY_MODE == "reviewed-etf-weekly-v1"
+    # Provisional until root binds the actual accepted PR198 product and re-reviews.
+    assert upgrade.ETF_WEEKLY_PAYLOAD == "25b399a42d691766d41bcafce5adbdc3b8cc3d74"
+    assert upgrade.ETF_WEEKLY_MODE in upgrade.ASSET_MODES
+    reader = Path(upgrade.__file__).with_name("evidence.py").read_bytes()
+    assert hashlib.sha256(reader).hexdigest() == upgrade.ASSET_V6_EVIDENCE_SHA256
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v1"], indirect=True)
+@pytest.mark.parametrize("active", [True, None, "false", 0])
+def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monkeypatch, active):
+    home, state, system, make, uid = real_operations
+    original = upgrade.request_json
+
+    def request(url):
+        value = original(url)
+        if url.endswith("/api/research/resident"):
+            return {**value, "active": active}
+        return value
+
+    monkeypatch.setattr(upgrade, "request_json", request)
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        assert upgrade.execute(make(fence), state) == {"status": "deferred"}
+    assert system["events"] == []
+    assert not (home / "resident/transaction.json").exists()
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v1"], indirect=True)
+@pytest.mark.parametrize("guard", ["runtime", "runtime-unknown", "pool", "pool-unknown"])
+def test_etf_weekly_native_or_pool_activity_defers_without_effects(
+    real_operations, monkeypatch, guard
+):
+    home, state, system, make, uid = real_operations
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        ops = make(fence)
+        if guard.startswith("runtime"):
+
+            def activity(_probe):
+                if guard == "runtime-unknown":
+                    raise ValueError("fixture_runtime_unknown")
+                return ["fixture-active-session"]
+
+            monkeypatch.setattr(ops.manager, "_active_research_read_only", activity)
+        else:
+            monkeypatch.setattr(
+                upgrade, "reserved_owners", lambda *_: False if guard == "pool" else None
+            )
+        assert upgrade.execute(ops, state) == {"status": "deferred"}
+    assert system["events"] == []
+    assert not (home / "resident/transaction.json").exists()
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+
+
+def test_etf_weekly_preserves_install_lock_without_dependency_exception():
+    old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64}
+    state = {"mode": "reviewed-etf-weekly-v1", "manifest": old, "target": "b" * 40}
+    assert upgrade.target_manifest(state) == {**old, "code_commit": "b" * 40}
+    assert old == state["manifest"]

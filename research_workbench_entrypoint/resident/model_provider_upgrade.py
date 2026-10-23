@@ -81,6 +81,11 @@ MARKET_HISTORY_MODE = "reviewed-market-history-v1"
 MARKET_HISTORY_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
 MARKET_HISTORY_PAYLOAD = "4f0a248fc87249d41e1c3f75f700c17c8351ad95"
 MARKET_HISTORY_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+# Provisional product checkpoint: root must pin the accepted PR198 merge before delivery.
+# This source profile does not authorize a resident switch or arbitrary runtime SHAs.
+ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
+ETF_WEEKLY_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
+ETF_WEEKLY_PAYLOAD = "25b399a42d691766d41bcafce5adbdc3b8cc3d74"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -93,6 +98,7 @@ ASSET_MODES = frozenset(
         MARKET_MODE,
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
+        ETF_WEEKLY_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -181,6 +187,8 @@ def previous_for(mode):
         return MARKET_GAPS_PREVIOUS
     if mode == MARKET_HISTORY_MODE:
         return MARKET_HISTORY_PREVIOUS
+    if mode == ETF_WEEKLY_MODE:
+        return ETF_WEEKLY_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -239,7 +247,14 @@ def read_business_index(path: Path):
 
 
 def verify_primary(home, expected, mode):
-    if mode in {MARKET_MODE, MARKET_GAPS_MODE, MARKET_HISTORY_MODE, ASSET_V5_MODE, ASSET_V6_MODE}:
+    if mode in {
+        MARKET_MODE,
+        MARKET_GAPS_MODE,
+        MARKET_HISTORY_MODE,
+        ASSET_V5_MODE,
+        ASSET_V6_MODE,
+        ETF_WEEKLY_MODE,
+    }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
 
@@ -312,6 +327,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
+        ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -332,7 +348,9 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             if actual_mode != "100644" or hashlib.sha256(
                 g.git_bytes(source, target, "evidence.py")
             ).hexdigest() != (
-                ASSET_V6_EVIDENCE_SHA256 if mode == ASSET_V6_MODE else ASSET_EVIDENCE_SHA256
+                ASSET_V6_EVIDENCE_SHA256
+                if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE}
+                else ASSET_EVIDENCE_SHA256
             ):
                 raise UpdateBlocked("asset_upgrade_evidence_changed")
         elif mode == MARKET_MODE and name == MARKET_GATEWAY:
@@ -875,6 +893,7 @@ class Operations:
         if running["web"]["running"] and self.state.get("mode") in {
             MARKET_GAPS_MODE,
             MARKET_HISTORY_MODE,
+            ETF_WEEKLY_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1305,6 +1324,7 @@ def main(argv=None):
             "apply-market",
             "apply-market-gaps",
             "apply-market-history",
+            "apply-etf-weekly",
             "recover",
         ),
     )
@@ -1327,6 +1347,7 @@ def main(argv=None):
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,
+                "apply-etf-weekly": ETF_WEEKLY_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))
