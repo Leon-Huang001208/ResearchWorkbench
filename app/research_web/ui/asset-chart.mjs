@@ -59,7 +59,8 @@ const actualDateIndex = (bars, date) => {
 const selectedIndex = (bars, state) => state.selectedDate ? nearestIndex(bars, state.selectedDate) : finite(state.activeIndex) === null ? bars.length - 1 : clamp(Math.round(state.activeIndex), 0, bars.length - 1);
 const identityFor = (metadata, key) => {
   const identity = metadata.assetIdentity;
-  return typeof identity === 'string' ? identity : identity && typeof identity === 'object' ? `${identity.code || identity.asset || ''}:${identity.asset_type || identity.type || 'stock'}` : String(key || '').split(':dataset:')[0];
+  const asset=typeof identity === 'string' ? identity : identity && typeof identity === 'object' ? `${identity.code || identity.asset || ''}:${identity.asset_type || identity.type || 'stock'}` : String(key || '').split(':dataset:')[0];
+  return JSON.stringify([metadata.accountIdentity || 'single-user',asset]);
 };
 function chartLayout(state = {}) {
   const panels = panelsFor(state); const top = 26; const mainHeight = 300; const panelStep = 100;
@@ -431,7 +432,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   }
   function configure(rows = [], key = '', nextMetadata = {}, preferences) {
     const result = guarded('configure', () => {
-      const indicatorSettings = safeIndicatorSettings(preferences?.indicator_settings || state.indicatorSettings); const favorites = safeFavorites(preferences?.favorites || state.favorites);
+      const indicatorSettings = safeIndicatorSettings(preferences ? preferences.indicator_settings : state.indicatorSettings); const favorites = safeFavorites(preferences ? preferences.favorites : state.favorites);
       const nextIdentity = identityFor(nextMetadata || {}, key); const changedIdentity = identity !== nextIdentity;
       if (rawRows === rows && datasetKey === key && metadata === nextMetadata && !preferences) return getState();
       const previousBars = bars; const previous = state; const previousSource = source; const previousHistorySource = metadata.historySource; const changedRows = rawRows !== rows || datasetKey !== key;
@@ -441,7 +442,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       bars = source === 'day' && ['week', 'month'].includes(period) ? aggregateMarketBars(daily, period) : daily;
       if (changedIdentity) {
         chipCache.clear(); olderAnchor = ''; lastHistoryAdjustment = null; historyRequestSerial++;
-        state = { indicatorSettings, favorites, activePanel: panelsFor(preferences || previous).at(-1) || '', chipSettings: safeChipSettings(preferences?.chip_settings || previous.chipSettings), chipTab: previous.chipTab || 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+        state = { indicatorSettings, favorites, activePanel: panelsFor(preferences || previous).at(-1) || '', chipSettings: safeChipSettings(preferences ? preferences.chip_settings : previous.chipSettings), chipTab: previous.chipTab || 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
       } else {
         if (changedRows) chipCache.clear();
         const startDate = previousBars[previous.start]?.source_start_date || previousBars[previous.start]?.date;

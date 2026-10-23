@@ -66,3 +66,19 @@ test('favorites replace active panel, removal preserves range/date, parameters r
  saved[0].indicator_settings.cci.period=1;assert.equal(c.getState().indicatorSettings.cci.period,10);
  const html=renderMarketTerminal(rows(10));assert.match(html,/data-asset-indicator-manager/);assert.match(html,/indicator-add-after-volume/);assert.match(html,/indicator-replace-macd/);
 });
+
+test('explicit legacy or new-account preferences reset optional fields without persisting defaults',()=>{
+ const writes=[];const c=createAssetChartController({onIndicatorPreferencesChange:p=>writes.push(p)});
+ const data=rows(100);c.configure(data,'same',{}, {panels:['rsi'],favorites:['cci'],indicator_settings:{rsi:{period:7}}});
+ assert.equal(c.getState().indicatorSettings.rsi.period,7);
+ c.configure(data,'same',{}, {panels:['volume','macd']});
+ assert.equal(c.getState().indicatorSettings.rsi.period,14);assert.ok(c.getState().favorites.includes('volume'));assert.equal(writes.length,0);
+ c.configure(data,'same');assert.equal(c.getState().indicatorSettings.rsi.period,14);
+});
+
+test('account chart identity resets date and chip defaults even for the same asset',()=>{
+ const c=createAssetChartController();const data=rows(300);
+ c.configure(data,'same',{assetIdentity:'603986.SH',accountIdentity:'a'},{panels:['cci'],chip_settings:{decay:.8},favorites:['cci'],indicator_settings:{cci:{period:7}}});c.select(5);
+ c.configure(data,'same',{assetIdentity:'603986.SH',accountIdentity:'b'},{panels:['volume','macd']});
+ assert.equal(c.getState().selectedDate,data.at(-1).date);assert.notEqual(c.getState().chipSettings.decay,.8);assert.equal(c.getState().indicatorSettings.cci.period,14);
+});
