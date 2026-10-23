@@ -53,6 +53,8 @@
 
 ## 全市场概览缓存
 
+2026-10-23仍使用当前/上一完整缓存：summary可选增加`previous_close`逐股昨日金额及来源/收盘见证，资金增加最多30日期的`history_rows`及原来源/采集时间；无业务index迁移、新数据库或跨账号共享。旧字段缺失兼容读取，见证不足不认证昨日数据。重复刷新保留已验证昨日基线；失败/取消/原子落盘异常保持原记录。沿原16MiB单记录/64MiB总容量，不扩大读取预算。
+
 固定12指数完整Provider响应可由Host桥同步捕获到已配置/启用的个人研究仓，使用既有SnapshotSeries的单一响应封包/首次观测槽位和不可变原件，不新增schema。该内部仓库dataset不是研究会话物化dataset；保存的规范响应JSON不冒充HTTP wire字节。POST真实刷新、允许缓存的内部读、profile/source摘要重验和partial保护见[DataHub](../../research-web-datahub.md#无会话全市场数据)。原市场缓存格式/GET语义保持，新增warehouse元数据只说明实际仓库结果。
 
 全市场缓存属于当前用户 `store.root/market-cache/`，与 `index.json`、研究 inputs/outputs 和会话数据集分离；保留当前及上一完整快照，有界原子写入，失败／partial 不覆盖可恢复的完整版本。GET 筛选、分页与 CSV 固定 snapshot_id，板块成员与同份股票池相交；筛选不改变总览分母。数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。

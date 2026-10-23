@@ -11,6 +11,8 @@ NYFed/Treasury 固定入口。定点离线回归 `test_datahub_official_numeric.
 仍沿既有 Host → DataHub → Provider/ResearchWarehouse 拓扑，现有图的节点/边不变；真实
 厂商/PG/CI证据与离线回放分别验收。
 
+2026-10-23市场限价/昨日/历史：`datahub/providers_market.py`负责同批f350/f351、有效限价状态/覆盖与收盘见证；`market_service.py`负责精确日历/逐股昨日金额重算、同用户同key真实资金日线留存及原子恢复；`ui/market.mjs`展示确认涨跌停/未知、昨日来源或缺口和五类日线资金历史表。定点回归沿原test_market_provider/service与research_web_market清单，无新依赖、HTTP路径或第二研究引擎；[口径](research-web-datahub.md#无会话全市场数据)与缓存/API文档同步，真实源/认证部署另留证。
+
 iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_envelope` 链处理；
 `_quantapi_history_body` 在取密前验证旧flat或官方reqBody参数并精确包装一次，目录保留
 `cmd_history_quotation` 身份、固定出口改为官方 `history_data`。近处
