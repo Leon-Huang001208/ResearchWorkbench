@@ -158,6 +158,8 @@ jobs:
             tests/research_web/test_quantapi_authorization.py \
             tests/research_web/test_datahub_numeric_sources.py \
             tests/research_web/test_datahub_official_numeric.py \
+            tests/research_web/test_datahub_spdr.py \
+            tests/research_web/test_spdr_warehouse_integration.py \
             tests/research_web/test_datahub_bea_archive.py \
             tests/research_web/test_datahub_financial_time_contract.py \
             tests/research_web/test_datahub_execution_health.py \

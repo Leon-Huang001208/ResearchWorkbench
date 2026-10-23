@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "task": "datahub-spdr-warehouse-20261023",
+  "base": "3a62ca1a3bff0927db681322a1ff028f08cf03cd",
+  "source": "ext_spdr",
+  "dataset": "gld",
+  "contract": "spdr-gld-trust-snapshot-v1",
+  "projection": [
+    "total_nav_usd",
+    "total_tonnes",
+    "total_ounces",
+    "shares_outstanding"
+  ],
+  "source_count_increment": 0,
+  "cross_source_equivalence_verified": false,
+  "historical_vintage_verified": false,
+  "formal_backtest_eligible": false,
+  "direct_preflight": {
+    "status": "PASS_DIRECT_ENDPOINT_SHAPE_ONLY",
+    "http_status": 200,
+    "bytes": 2362,
+    "sha256": "3791bbf7f86aac01255eed454d7bc2739e3ee130b86a3fdd370ebd7f757ef01b",
+    "logical_requests": 1,
+    "credentials": 0,
+    "host_or_warehouse_proof": false
+  },
+  "synthetic_parser_tests": 99,
+  "synthetic_warehouse_tests": 19,
+  "host_postgres_cache_restart_restore": "NOT_RUN",
+  "independent_reviews": "NOT_RUN",
+  "final_candidate_ci": "NOT_RUN",
+  "existing_services_disk_database5432_or_models_touched": false
+}
