@@ -774,17 +774,22 @@ def _style_profile(snapshot, horizon):
         growth = math.fsum(cell["return_pct"] for cell in cells if cell["style"] == "growth") / 3
         value = math.fsum(cell["return_pct"] for cell in cells if cell["style"] == "value") / 3
         spread = growth - value
-        style_dominance = (
-            "balanced" if abs(spread) <= 0.1 else "growth" if spread > 0.1 else "value"
+        # Raw spreads remain available; tolerance only absorbs binary float
+        # representation at the inclusive, publicly fixed 0.1pp boundary.
+        balanced_style = abs(spread) <= 0.1 or math.isclose(
+            abs(spread), 0.1, rel_tol=0, abs_tol=1e-9
         )
+        style_dominance = "balanced" if balanced_style else "growth" if spread > 0 else "value"
         size_returns = {
             size: math.fsum(cell["return_pct"] for cell in cells if cell["size"] == size) / 2
             for size in ("large", "mid", "small")
         }
+        size_spread = max(size_returns.values()) - min(size_returns.values())
+        balanced_size = size_spread <= 0.1 or math.isclose(
+            size_spread, 0.1, rel_tol=0, abs_tol=1e-9
+        )
         size_dominance = (
-            "balanced"
-            if max(size_returns.values()) - min(size_returns.values()) <= 0.1
-            else max(size_returns, key=lambda size: size_returns[size])
+            "balanced" if balanced_size else max(size_returns, key=lambda size: size_returns[size])
         )
     return {
         "version": "official-six-style-price-v1",
@@ -794,6 +799,7 @@ def _style_profile(snapshot, horizon):
         "provisional": True,
         "rule": "399372/373 large growth/value;399374/375 mid;399376/377 small;intraday=change_pct;20/60=current_price/prior_session_close-1;growth-value=mean3growth-mean3value;size=mean2;deadband0.1pp;all6required;identical_window_date_sequences_required",
         "deadband_pp": 0.1,
+        "deadband_comparison_tolerance_pp": 1e-9,
         "comparison_window_status": comparison_window_status,
         "cells": cells,
         "growth_minus_value_pp": spread,

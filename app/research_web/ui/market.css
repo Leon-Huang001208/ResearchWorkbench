@@ -194,6 +194,20 @@
 .market-holdings { display: grid; gap: 8px; }
 .market-holdings > div { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; align-items: end; gap: 10px; }
 .market-portfolio-preview { border: 1px solid var(--line); border-radius: 5px; padding: 12px; }
+.market-saved-snapshot { border: 1px solid var(--line); border-radius: 5px; margin-bottom: 10px; }
+.market-saved-snapshot > summary { padding: 10px 12px; font-size: 12px; cursor: pointer; }
+.market-saved-body { border-top: 1px solid var(--line); display: grid; gap: 12px; padding: 12px; }
+.market-saved-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.market-saved-metrics > div { display: grid; gap: 6px; }
+.market-saved-metrics span { font-size: 10px; color: var(--muted); }
+.market-saved-metrics strong { font-size: 20px; font-weight: 550; font-variant-numeric: tabular-nums; }
+.market-saved-positions { min-width: 690px; }
+.market-saved-positions td:first-child, .market-saved-positions th:first-child { text-align: left; }
+.market-saved-positions td small { display: block; font-size: 9px; color: var(--muted); padding-top: 4px; }
+.market-saved-risk ul { display: grid; gap: 8px; padding: 0; margin: 10px 0 0; list-style: none; }
+.market-saved-risk li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 14px; border-bottom: 1px solid var(--line); padding-bottom: 7px; font-size: 11px; }
+.market-saved-risk li small { flex-basis: 100%; color: var(--muted); font-size: 10px; }
+@media (max-width: 700px) { .market-saved-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1150px) { .market-terminal-indices { grid-template-columns: repeat(4, minmax(0, 1fr)); } .market-evidence-grid { grid-template-columns: 1fr; } .market-decision { grid-template-columns: 1.5fr 1fr; } .market-decision > div:last-child { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); padding: 12px 0 0; } .market-portfolio-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .market-decision { grid-template-columns: 1fr; padding: 14px; gap: 14px; } .market-decision > div + div { padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--line); } .market-decision h2 { font-size: 18px; } .market-terminal-indices { grid-template-columns: repeat(3, minmax(0, 1fr)); } .market-terminal-index { padding: 12px 9px; } .market-terminal-index strong { font-size: 17px; } .market-six-axes { grid-template-columns: repeat(2, minmax(0, 1fr)); } .market-portfolio-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .market-holdings > div { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .market-column-menu { margin-left: auto; } }

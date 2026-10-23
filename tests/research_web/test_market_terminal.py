@@ -609,3 +609,46 @@ def test_style_requires_identical_comparison_date_sequence(mutation):
     assert profile["comparison_window_status"] == "mismatch"
     assert profile["cells"][0]["status"] == "unavailable"
     assert profile["cells"][0]["reason"]
+
+
+@pytest.mark.parametrize(
+    "delta,expected",
+    [
+        (-0.1, "balanced"),
+        (0.1, "balanced"),
+        (-0.0999999, "balanced"),
+        (0.0999999, "balanced"),
+        (-0.10001, "value"),
+        (0.10001, "growth"),
+    ],
+)
+def test_style_inclusive_deadband_is_stable_at_float_boundary(delta, expected):
+    snapshot = style_snapshot()
+    for row in snapshot["rows"]:
+        row["change_pct"] = (
+            1.5 + delta if row["asset"] in {"399372.SZ", "399374.SZ", "399376.SZ"} else 1.5
+        )
+    profile = analyze({"indices:terminal-v2": snapshot}, [], horizon="intraday")["style_profile"]
+    assert profile["style_dominance"] == expected
+    assert profile["growth_minus_value_pp"] == pytest.approx(delta)
+    assert profile["deadband_comparison_tolerance_pp"] == 1e-9
+
+
+@pytest.mark.parametrize(
+    "spread,expected", [(0.1, "balanced"), (0.0999999, "balanced"), (0.10001, "small")]
+)
+def test_size_inclusive_deadband_is_stable_at_float_boundary(spread, expected):
+    snapshot = style_snapshot()
+    for offset, row in enumerate(snapshot["rows"]):
+        row["change_pct"] = 1.4 + (offset // 2) * spread / 2
+    profile = analyze({"indices:terminal-v2": snapshot}, [], horizon="intraday")["style_profile"]
+    assert profile["size_dominance"] == expected
+
+
+def test_actual_cua_style_deadband_fixture_is_balanced():
+    snapshot = style_snapshot()
+    for row, value in zip(snapshot["rows"], (1.4, 1.5, 1.6, 1.7, 1.8, 1.9), strict=True):
+        row["change_pct"] = value
+    profile = analyze({"indices:terminal-v2": snapshot}, [], horizon="intraday")["style_profile"]
+    assert profile["growth_minus_value_pp"] == pytest.approx(-0.1)
+    assert profile["style_dominance"] == "balanced"

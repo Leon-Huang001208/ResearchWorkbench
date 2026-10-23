@@ -203,3 +203,49 @@ test('participation identifies its source, full quote timestamp and stale or inc
   state.snapshot.sections.quotes = { ...quotes, complete: false };
   html = decisionStrip(state); assert.match(html, /未完整 · 保留数据缺口/); assert.doesNotMatch(html, /· 缓存快照/);
 });
+
+function projectedPortfolio(overrides = {}) {
+  return {
+    snapshot_id: 'saved-nested', created_at: '2026-10-23T08:00:00Z',
+    portfolio: { as_of: '2026-10-22', currency: 'CNY', source: 'manual', cash: 1000, holdings: [{ asset: '000001.SZ', quantity: 100, cost: 0 }], risk_profile: { risk_tolerance: 'conservative', equity_min: .2, equity_max: .4, single_name_max: .5, sector_max: .3 } },
+    positions: [{ asset: '000001.SZ', quantity: 100, cost: 0, price: 10, market_value: 1000, valuation_status: 'observed', trade_status: 'trading', quote_as_of: '2026-10-23T11:00:00+08:00' }],
+    valuation: { status: 'observed', stale: false, holdings_value: 1000, total_value: 2000, equity_ratio: .5, currency: 'CNY', reason: '仅为本次新鲜同日行情估值，现金由用户声明。', as_of: '2026-10-23T11:00:00+08:00', quote_snapshot_id: 'quote-current' },
+    risk_checks: [{ constraint: 'equity_min', declared: .2, observed: .5, status: 'within_declared_limit' }, { constraint: 'equity_max', declared: .4, observed: .5, status: 'outside_declared_limit' }, { constraint: 'sector_max', declared: .3, observed: null, status: 'unavailable', reason: '缺少同日逐股行业归属，不能以交易板块代替行业。' }],
+    allocation: null,
+    ...overrides,
+  };
+}
+
+test('persisted GET portfolio projection has a readable dated summary, metrics, positions and risk checks', () => {
+  const html = portfolioPanel({ portfolios: { items: [projectedPortfolio()] } });
+  assert.match(html, /2026-10-22 · CNY · 手工录入/); assert.match(html, /market-portfolio-snapshot-saved-nested/);
+  assert.match(html, /现金（用户声明）/); assert.match(html, /持仓市值/); assert.match(html, /资产总值/); assert.match(html, />2,000<\/strong>/); assert.match(html, />50%<\/strong>/);
+  assert.match(html, /market-saved-positions/); assert.match(html, /000001.SZ/); assert.match(html, /成交报价/); assert.match(html, /正常交易/); assert.match(html, />0<\/td>/);
+  assert.match(html, /符合用户约束/); assert.match(html, /超出用户约束/); assert.match(html, /缺少同日逐股行业归属/);
+  assert.ok(html.indexOf('market-saved-metrics') < html.indexOf('持仓原件、行情来源与核验详情'));
+});
+
+test('stale or suspended reference projections retain cash and reference provenance without fabricating totals', () => {
+  const item = projectedPortfolio({ positions: [{ asset: '000001.SZ', quantity: 100, cost: 5, reference_price: 9.5, price: null, market_value: null, trade_status: 'suspended', valuation_status: 'suspended_reference' }], valuation: { stale: true, status: 'stale', holdings_value: null, total_value: null, equity_ratio: null, reason: '停牌参考价不汇总为当前资产总值。' }, risk_checks: [] });
+  const html = portfolioPanel({ portfolios: { items: [item] } });
+  assert.match(html, /行情陈旧/); assert.match(html, /停牌参考，不计当前估值/); assert.match(html, /停牌参考价，不计估值/);
+  assert.match(html, />9.5<small>/); assert.match(html, />1,000<\/strong>/);
+  const metrics = html.slice(html.indexOf('market-saved-metrics'), html.indexOf('market-saved-positions'));
+  assert.equal((metrics.match(/>—<\/strong>/g) || []).length, 3);
+  assert.match(html, /缺少完整行情估值/); assert.doesNotMatch(html, /持仓风格：成长|持仓风格：价值/);
+});
+
+test('confirm and route reload preserve nested saved portfolio identity and then show actual GET valuation', async () => {
+  const projected = projectedPortfolio(), saved = { snapshot_id: projected.snapshot_id, created_at: projected.created_at, portfolio: projected.portfolio };
+  let persisted = false;
+  const h = harness((path, options) => {
+    if (options?.method === 'POST') { if (path.endsWith('preview')) return Promise.resolve({ confirmation_token: 'token', snapshot: projected.portfolio }); persisted = true; return Promise.resolve(saved); }
+    if (path === '/market/portfolios') return Promise.resolve({ items: persisted ? [projected] : [] });
+    return base(path);
+  });
+  await h.controller.activate(); h.state.portfolioDraft = validDraft(); await h.controller.preview(); await h.controller.confirm();
+  assert.equal(h.state.portfolios.items[0].snapshot_id, 'saved-nested');
+  assert.match(portfolioPanel(h.state), /2026-10-22 · CNY · 手工录入/);
+  h.controller.cancel(); await h.controller.activate();
+  const html = portfolioPanel(h.state); assert.match(html, /2026-10-22 · CNY · 手工录入/); assert.match(html, /market-portfolio-snapshot-saved-nested/); assert.match(html, />2,000<\/strong>/);
+});
