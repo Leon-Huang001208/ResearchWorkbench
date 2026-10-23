@@ -491,6 +491,11 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。
+
+
+2026-10-23：资产副图：ui/asset-indicator-library.mjs拥有15类纯计算及封闭schema；asset-panel-manager.mjs渲染目录/常用/参数；asset-chart.mjs管理原ECharts实例与模态生命周期；asset_indicator_preferences.py与asset_routes/asset_workspace验证、账号存储和回滚。正式回归为test_asset_indicator_preferences.py与research_web_asset_indicator_library.test.mjs，原指标与交互门保持。
+
 ## 2026-10-23：披露及历史发布定位
 
 `datahub/providers_akshare.py`的income_statement封闭新浪请求、日期精度和资金流同源标记，`providers_bea_archive.py`解析已审核BEA档案，`bea_archive_store.py`绑定公开发布修订。`broker.py`按明确selector和截止范围准入，`research_warehouse.py`按当前profile鉴权并分派原桥；股票日历仅用于bars。`test_datahub_financial_time_contract.py`与`test_datahub_bea_archive.py`覆盖未知单位/日期、旧版冲突、截止边界、并发幂等和恢复。现有三安装入口/依赖锁不变，最终Mac干净安装与实际Host/PG分别验收。

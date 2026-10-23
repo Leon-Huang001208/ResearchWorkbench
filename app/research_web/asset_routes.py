@@ -116,11 +116,23 @@ class BlockLoadRequest(BaseModel):
 class ChartPreferencesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    panels: list[Literal["volume", "macd", "kdj", "rsi"]] = Field(max_length=4)
+    panels: list[str] = Field(max_length=15)
     chip_settings: dict | None = None
+    favorites: list[str] | None = Field(default=None, max_length=15)
+    indicator_settings: dict | None = None
 
     @model_validator(mode="after")
     def unique_panels(self):
+        from .asset_indicator_preferences import (
+            normalize_indicator_settings,
+            validate_indicator_ids,
+        )
+
+        self.panels = validate_indicator_ids(self.panels)
+        if self.favorites is not None:
+            self.favorites = validate_indicator_ids(self.favorites, name="favorites")
+        if self.indicator_settings is not None:
+            self.indicator_settings = normalize_indicator_settings(self.indicator_settings)
         if self.chip_settings is not None:
             from .asset_chip_inputs import normalize_chip_settings
 
@@ -231,7 +243,10 @@ async def get_chart_preferences(request: Request):
 @router.put("/assets/chart-preferences")
 async def put_chart_preferences(body: ChartPreferencesRequest, request: Request):
     return request.app.state.research.asset_workspace.set_chart_preferences(
-        body.panels, body.chip_settings
+        body.panels,
+        body.chip_settings,
+        favorites=body.favorites,
+        indicator_settings=body.indicator_settings,
     )
 
 

@@ -3139,6 +3139,22 @@ Functions:
 - `digest`
 
 
+## `app/research_web/asset_indicator_preferences.py`
+
+Module docstring:
+> Closed, account-scoped display preferences; never vendor formulas or queries.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `math`
+
+Functions:
+- `validate_indicator_ids`
+- `normalize_indicator_settings`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
