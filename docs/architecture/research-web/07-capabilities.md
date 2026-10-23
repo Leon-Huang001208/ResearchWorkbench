@@ -298,3 +298,7 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 ## FinGPT 研究融合 · 2026-10-13
 
 能力 default_formats 新增 pdf；文件仍交原沙箱验证，不由任务完成或计划状态判定成功。会话 research_depth/source_scope 是创建时锁定的研究选项，能力及 Automation 复用原 Service/DSH 链；工具 preflight 收紧排除来源与脚本 dataset read_paths，MCP 未分类来源在部分范围选择下拒绝。
+
+## 2026-10-23：长期研究档案与机会预警
+
+能力中心为公司／行业研究、调研准备、研报增量、预期差和风险检查补输入／输出／限制说明，仍引用原发布能力版本；固定方法说明本身不授予工具或来源权限。档案句柄在实际 Prompt 绑定后走既有 research_read_source 的 Host 分支，DSH 仍是唯一执行器。小创一方包仅可沿原导入预览，真实 Registry 身份未核验而保持 unsupported／未就绪；配置状态复用原插件 status，无合法安装时不开放个人凭据配置。见[方法与 UI](../../research-web-dossiers-ui.md)及[候选合同](../../research-web-seek-alpha.md)，原能力发布拓扑保持。

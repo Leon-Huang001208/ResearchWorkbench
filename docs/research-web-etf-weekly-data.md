@@ -293,3 +293,7 @@ collector 实际调用 `adopt_verified_groups`：已获证明的组采用 API；
 ## 2026-10-23：BaoStock季度财务边界
 
 BaoStock盈利能力只提供来源限定的单季度快照，货币单位证据不覆盖本周报Wind口径、股数/比例尺度、累计期间或历史PIT。未知和不等价不替换现有指标；本次不调用私有collector或Wind。
+
+## 2026-10-23：长期研究档案与机会预警
+
+ETF 可把已有组合／行业研究和周报成果关联到长期档案，但档案引用、A股信号或小创候选内容均不替换本周报逐指标 Wind／Excel 口径，也不提供 ETF 自动证券匹配或历史 PIT 准入。原始数据仍留在既有来源快照，SQLite 只存引用与 pin；缺数据、截断和未知披露时间保持明确缺口。小创 Registry 身份与真实费用尚未验证，不以18／54估算充当等价证明；见[档案合同](research-web-dossiers.md)、[扫描范围](research-web-dossier-scans.md)及[候选边界](research-web-seek-alpha.md)。

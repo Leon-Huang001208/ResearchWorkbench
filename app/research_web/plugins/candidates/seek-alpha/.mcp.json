@@ -1,0 +1,6 @@
+{
+  "seek-alpha": {
+    "type": "http",
+    "url": "https://seek-alpha.cn/mcp/rpc"
+  }
+}

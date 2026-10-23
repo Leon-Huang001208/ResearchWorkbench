@@ -90,6 +90,15 @@ jobs:
             tests/research_web/test_discovery.py \
             tests/research_web/test_discovery_tracking.py \
             tests/research_web/test_discovery_routes.py \
+            tests/research_web/test_dossiers.py \
+            tests/research_web/test_dossier_api.py \
+            tests/research_web/test_dossier_browser_fixture.py \
+            tests/research_web/test_dossier_scans.py \
+            tests/research_web/test_dossier_signals.py \
+            tests/research_web/test_dossier_signal_api.py \
+            tests/research_web/test_dossier_preservation.py \
+            tests/research_web/test_mcp_seek_alpha.py \
+            tests/research_web/test_mcp_transport.py \
             tests/research_web/test_model_profiles.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
             tests/research_web/test_fingpt_comparison.py \

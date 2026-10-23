@@ -104,6 +104,13 @@ async def mcp_action(digest: str, key: str, action: str, request: Request):
         "authorize",
         "approvals",
         "decide",
+        "credential-status",
+        "credential-save",
+        "credential-delete",
+        "evaluation-candidate",
+        "evaluation-preview",
+        "evaluation-call",
+        "evaluation-authorize",
     }:
         raise PluginError("plugin_mcp_action_invalid", 404)
     user = actor(request)
@@ -280,3 +287,19 @@ async def disable(scope: str, digest: str, request: Request, owner: str | None =
 async def uninstall(scope: str, digest: str, request: Request, owner: str | None = None):
     async with request.app.state.plugin_lock:
         return await _service(request, scope, owner, admin=True).uninstall(digest)
+
+
+@router.get("/candidate/seek-alpha")
+def seek_alpha_candidate(request: Request):
+    from ..plugins.seek_alpha_candidate import candidate_archive
+
+    actor(request)
+    return Response(
+        candidate_archive(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="seek-alpha-candidate-0.1.0.zip"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
+    )

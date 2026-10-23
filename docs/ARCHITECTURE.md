@@ -233,3 +233,7 @@ BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原H
 ## 2026-10-23：BaoStock盈利能力来源
 
 BaoStock单报告期盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。
+
+## 2026-10-23：长期研究档案与机会预警
+
+长期研究档案新增 Host 内的 DossierService 与个人 `dossiers/metadata.sqlite3`，仅保存不可变修订、原件引用、成果关联和保全 pin；原文仍在现有会话／DataHub Snapshots。手动扫描确定性读取冻结材料，A股持续跟踪复用 Automation 且默认关闭，当前不自动采集。研究交接为 Prompt-only，只有用户发送时绑定 receipt，继续由唯一 DSH 执行并保留原报告质量门。小创候选缺少已核验 Registry 身份，保持 unsupported；54 子弹仅为估算，真实报价、凭据、付费与部署未执行。模块及资料边界由主任务更新 02／04 图，详见[档案合同](research-web-dossiers.md)、[扫描合同](research-web-dossier-scans.md)与[小创候选](research-web-seek-alpha.md)。

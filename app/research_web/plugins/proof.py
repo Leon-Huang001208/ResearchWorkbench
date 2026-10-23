@@ -12,7 +12,7 @@ ACTOR = "X-RWB-Plugin-Actor"
 PROOF = "X-RWB-Plugin-Proof"
 ROLE = "X-RWB-Plugin-Role"
 PATH = re.compile(
-    r"^/api/research/plugins/[a-f0-9]{64}/mcp/[a-z0-9]+(?:-[a-z0-9]+)*/(?:preview|install|probe|review|enable|disable|status|classify|authorize|approvals|decide)$"
+    r"^/api/research/plugins/[a-f0-9]{64}/mcp/[a-z0-9]+(?:-[a-z0-9]+)*/(?:preview|install|probe|review|enable|disable|status|classify|authorize|approvals|decide|credential-status|credential-save|credential-delete|evaluation-candidate|evaluation-preview|evaluation-authorize|evaluation-call)$"
 )
 MANAGER_PATH = re.compile(
     r"^/api/research/internal/plugin-runtime/(?:freeze|unfreeze|commit|rollback)$"

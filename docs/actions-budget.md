@@ -3,6 +3,8 @@
 2026-10-23华安Native固定配置复用原三CI及Mac Bootstrap自动路径触发，原操作员测试矩阵增加ETF模式，无新workflow/job/runner/依赖/timeout。本机五文件1745项360.53秒，新增矩阵预算预留90秒；同候选通用门与Mac安装仍必需。实时PUBLIC；最近五个成功Checks 39943827410/39941890981/39939839047/39937435254/39937002051，创建至更新766/846/957/1071/1068秒，仅墙钟观察。不手工rerun或从Mac dispatch Windows/Linux产品；源码资格不认证部署、供应商、真实模型或正式稿。
 
 2026-10-23今日发现仅向既有Research Web Checks同一Python步骤增加test_discovery.py/test_discovery_tracking.py/test_discovery_routes.py，JS沿原research_web通配符；Mac Bootstrap原静态资源下载/比较名单加入discovery.mjs/css。没有新增workflow/job/runner/timeout、依赖或Windows/Linux产品dispatch。只读GitHub API本轮实测PUBLIC、private=false；最近5个成功run39924505221/39924505261/39921528192/39921528177/39920692078创建至结束65/505/68/985/56秒，均值335.8秒，仅为预算快照。手动合同16例本机0.39秒、此前DataHub/Store/Hot闭包110例8.37秒为阶段证据；新增三模块预留现有步骤30秒，最终完整候选时长由主任务实测回填，不将本机或旧CI认证为新候选PASS。后续发布前仍实时核对visibility/额度；真实模型、生产计划与常驻部署未运行，不产生这些验收声明。
+2026-10-23档案候选仅扩充原Checks Python清单的9个档案/MCP模块和Mac Bootstrap的4个静态资源同源字节核对，不增job、runner、依赖或其他平台dispatch。实时API确认PUBLIC，近期成功run为39935144625、39934720506、39934720479、39934720463、39933236627（创建至结束约53/322/64/684/527秒）。新增组合266例本机41.33秒，既有JS1075通过/3原skip为6.54秒；定点新增预算预留90秒，Mac静态核对预留15秒。保留原通用CI与同候选Mac干净安装，免费目录估价不授权真实MCP或模型调用。
+
 
 2026-10-23华安经济字段只向原 Checks Python 步骤追加 `test_report_weekly_economic_fields.py`，Provider 原模块补原件字段保全反例；无新 job、runner、依赖、timeout 或供应商调用。独立32例加 Provider180例联合212项28.97秒，预留额外30秒；原历史／API／质量门与同候选 Mac 安装均保留。当前 PUBLIC，最近五个成功 Checks 39935144499/39934720463/39933193220/39932880510/39926802740，创建至更新954/684/968/970/985秒，仅墙钟观察。原 a489 三门成功、新 f58 三门结果分别归属各自旧树；经济字段新修复必须重新绑定最终候选，不以原件重放或旧 CI 认证正式稿。
 
@@ -10,6 +12,7 @@ SPDR 四项快照只向原 Research Web Checks 的同一 Python 步骤添加 tes
 没有新 job、runner、timeout 或依赖；99+19 项定点合成检查本机不足1秒，预留原步骤15秒。
 真实公开 HTTP 和临时 PostgreSQL 仅本机有界执行，不调用模型。保留原三 CI、同候选 macos-14 安装及完整 Router；
 远端操作前实时核对 visibility/额度，不手工 rerun，不从 Mac dispatch Windows/Linux 产品 workflow。
+
 
 2026-10-23终端v2只向原Checks Python步骤加入test_market_indices/test_market_terminal，JS沿原通配符；Mac安装名单增加market-terminal.mjs，原job/runner/timeout/依赖与条件不变。当前公开仓库资格由操作前实时核验。新增离线闭包约1秒，预留原步骤30秒；公开源不进入CI，不触发真实模型或付费数据。
 2026-10-23构建器对账只向现有Research Web Checks同一pytest步骤加入test_builder_reconcile／test_iteration_resources／test_docker_resources；不增workflow/job/runner/timeout。44项及9subtests的本机10.14秒为阶段证据，完整候选另测并保留原三CI／macos-14安装门。只读API当前PUBLIC；真实Docker恢复另验，无模型或业务数据操作。
@@ -270,6 +273,11 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 
 BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial_integration，原BaoStock测试增加合成季度合同；无新workflow/job/runner/依赖/timeout。当前本机该闭包约3秒，新增预算预留15秒；真实免费SDK与独立临时PG只本机有界执行，CI不连接财务厂商。最终原三CI及同候选Mac安装门保持；Mac不发Windows/Linux产品dispatch，远端动作前实时复查visibility/额度。
 
+## 2026-10-23：长期研究档案与机会预警
+
+档案／扫描／受管 MCP 的本轮验收沿既有 Research Web Checks、Project Constraints 与 macOS Bootstrap，追加定点 Python、现有 JS 通配符和新增静态资源／候选包检查，不新增 workflow、job、runner 或模型／付费数据步骤。主任务按最终候选绑定实际时长和回执；本段不更新仓库 visibility 或当前额度结论，所有远端动作仍须实时核对原状态门。Windows／Linux 产品 dispatch 留给对应真机。小创 18 次／54 子弹属于另行授权的供应商估算，不纳入 Actions 通过证明，见[接入与费用边界](research-web-seek-alpha.md)。
+
 2026-10-23华安Excel先行v2在同一Provider测试模块增加官方BSE日历和worksheet参数反例，完整周报/API组合172项本机86秒；原适配器组合139项17秒。预留现有步骤额外120秒，不新增job、runner、依赖、timeout或厂商调用。PR198旧候选cd7b164三门成功仅属于v1，新候选须重绑原通用门和Mac Bootstrap。发布前实时API仍为PUBLIC且标准runner运行中；Mac不触发Windows/Linux产品dispatch。真实Office恢复后WSD超时和导出未知状态继续阻断真实数据与正式稿，CI不代替这些门。
 
 2026-10-23华安历史补查只在原Checks同一Python清单追加test_report_weekly_gold_supplement.py，原job、runner、timeout及依赖不变；初次模块约5秒，预算及未收盘边界补齐后33项27.38秒，预留45秒。九文件本机初次269项72.42秒，解压预算修复后271项71.85秒，未收盘门修复后284项92.86秒。实时仓库PUBLIC；最近五个成功Checks为39918409265/39916809525/39914718255/39912838401/39911774250，创建至更新701/687/1028/955/897秒（墙钟观测，不是计费分钟）。不向CI带入Wind数据、厂商网络或模型；新候选另绑原三门及同候选Mac安装，其他平台交接真机，正式Run与交付仍独立核验。
+

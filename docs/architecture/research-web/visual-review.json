@@ -48,19 +48,17 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "9bbe6b26f1808ec857bccfa7707b90a733ffdf81135beb2898ac1d37e40721c9",
-      "specificationSha256": "96000c0c46b30141724ae67e954a1935431e2a3c8af399d637cfaee4dea6ea45",
+      "artifactSha256": "b0e71a97a5c4e3749d8662f3f4d80df27e1c95bc0dd94d795e6826db25b55290",
+      "specificationSha256": "0b381d402e302fd073791dc72f91556005f1ea6fec4dc70b011edd1fe3550a75",
       "status": "reviewed",
-      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "reviewer": "codex-root",
       "date": "2026-10-23",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
         "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
-      "findings": [
-        "保留既有右侧留白"
-      ],
-      "notes": "已实际查看1440浅色与2048深色同哈希截图；下方独立固定Intel读取/事件版本核对/归档到原DataHub分支未穿节点，原取数/可选研究仓路径保持。保留既有1900宽画布的右侧留白，非本轮重构布局；JSON归档不等于HTTP原字节或网页全文。"
+      "findings": [],
+      "notes": "已实际查看最终1440浅色与2048深色同哈希截图，保留新主线今日发现与档案引用两条路径；模块、原件快照与SQLite交接文字无重叠、穿线或裁剪。showcase9项与四视口包含性均通过，图册证据不代替业务研究或生产部署验收。"
     },
     {
       "id": "06-run-state",
@@ -135,19 +133,17 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "171196473aeb79215e60456e0de8896b8f7338d6b0b8d9c48b19d70c8e7e9591",
-      "specificationSha256": "3a734cc6ae0a16857268fec5a1fa1e97c83e8fae619a860c096580b245f3ab64",
+      "artifactSha256": "12824cac8baf14e3a079ba3b92472a2747556741b2ed4ea68afe71743e108dae",
+      "specificationSha256": "e29b53af59c02cc3be83e305fdcf5def4023a08af77f3627e61591d528297fd7",
       "status": "reviewed",
-      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "reviewer": "codex-root",
       "date": "2026-10-23",
       "captures": [
         "02-module-dependencies.visual-check.1440x900.light.png",
         "02-module-dependencies.visual-check.2048x1320.dark.png"
       ],
-      "findings": [
-        "未发现新增裁剪或覆盖"
-      ],
-      "notes": "已实际查看1440浅色与2048深色同哈希截图；Host内今日发现与原Automation窄跟踪适配、独立DSH研究路径和原通用外发范围区分清楚。保留既有模块几何与全览密度，细节可缩放；未新增第二运行器。"
+      "findings": [],
+      "notes": "已实际查看最终1440浅色与2048深色同哈希截图，保留新主线今日发现与档案引用两条路径；模块、原件快照与SQLite交接文字无重叠、穿线或裁剪。showcase9项与四视口包含性均通过，图册证据不代替业务研究或生产部署验收。"
     },
     {
       "id": "11-hot-events",

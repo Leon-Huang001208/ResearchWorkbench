@@ -53,6 +53,31 @@ class PluginAuthorization(PluginSession):
     schema_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class StaticCredential(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    resource: str = Field(min_length=1, max_length=2048)
+    slot: str = "static_bearer"
+    token: SecretStr | None = None
+
+
+class EvaluationPreview(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    cutoff: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
+
+class EvaluationBudget(PluginSession):
+    version: str = Field(min_length=1, max_length=255)
+    catalog_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    entries: list[dict] = Field(min_length=18, max_length=18)
+    max_credits: int = Field(ge=1, le=54, strict=True)
+    confirmed: bool = False
+
+
+class EvaluationCall(PluginSession):
+    budget_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    entry_id: str = Field(min_length=1, max_length=128)
+
+
 class PluginDecision(PluginSession):
     approval_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$")
     approve: bool
@@ -279,4 +304,94 @@ async def mcp_decide(digest: str, key: str, body: PluginDecision, request: Reque
         raise PluginError("plugin_mcp_approval_not_found", 404)
     return await service.mcp_runtime.decide_approval(
         body.approval_id, session_id=body.session_id, approve=body.approve
+    )
+
+
+@router.post("/{digest}/mcp/{key}/credential-status")
+async def mcp_credential_status(digest: str, key: str, body: StaticCredential, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    if body.token is not None:
+        raise PluginError("plugin_credential_status_body_invalid", 422)
+    return service.mcp_runtime.static_credential(
+        installation, resource=body.resource, slot=body.slot
+    )
+
+
+@router.post("/{digest}/mcp/{key}/credential-save")
+async def mcp_credential_save(digest: str, key: str, body: StaticCredential, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    if body.token is None:
+        raise PluginError("plugin_credential_missing", 422)
+    return service.mcp_runtime.static_credential(
+        installation, resource=body.resource, slot=body.slot, token=body.token.get_secret_value()
+    )
+
+
+@router.post("/{digest}/mcp/{key}/credential-delete")
+async def mcp_credential_delete(digest: str, key: str, body: StaticCredential, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    if body.token is not None:
+        raise PluginError("plugin_credential_delete_body_invalid", 422)
+    return service.mcp_runtime.static_credential(
+        installation, resource=body.resource, slot=body.slot, delete=True
+    )
+
+
+@router.post("/{digest}/mcp/{key}/evaluation-candidate")
+async def mcp_evaluation_candidate(digest: str, key: str, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    return service.mcp_runtime.evaluation_candidate(installation)
+
+
+@router.post("/{digest}/mcp/{key}/evaluation-authorize")
+async def mcp_evaluation_authorize(digest: str, key: str, body: EvaluationBudget, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    return await service.mcp_runtime.authorize_evaluation(installation, **body.model_dump())
+
+
+@router.post("/{digest}/mcp/{key}/evaluation-preview")
+async def mcp_evaluation_preview(digest: str, key: str, body: EvaluationPreview, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    return await service.mcp_runtime.evaluation_preview(installation, cutoff=body.cutoff)
+
+
+@router.post("/{digest}/mcp/{key}/evaluation-call")
+async def mcp_evaluation_call(digest: str, key: str, body: EvaluationCall, request: Request):
+    service = await mcp_management(request)
+    installation = service.plugins._reviewed(digest)["mcp_bindings"].get(key)
+    if not installation:
+        raise PluginError("plugin_mcp_component_not_found", 404)
+    return await service.mcp_runtime.evaluation_call(installation, **body.model_dump())
+
+
+@router.get("/candidates/seek-alpha")
+def seek_alpha_candidate():
+    from .plugins.seek_alpha_candidate import candidate_archive
+
+    return Response(
+        candidate_archive(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="seek-alpha-candidate-0.1.0.zip"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
     )

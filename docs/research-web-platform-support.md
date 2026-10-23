@@ -215,5 +215,10 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+## 2026-10-23：长期研究档案与机会预警
+
+本轮是 Mac mini 的 Web 功能开发：个人 SQLite／pin、原件授权、Prompt-only 交接、确定性A股扫描及受管 MCP 候选分别取证，不涉及桌面 sidecar／Tauri。原通用仓库 CI 与同候选 macOS 干净安装仍为本平台门，既有 job 追加测试／静态资源而无新 runner；Windows／Linux 的原生锁、安装与真实设备验收交对应设备，未执行保留 NOT_RUN。候选 Registry、真实报价／凭据／付费／常驻部署以及原报告模型质量均不由离线测试提升，详见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)与[候选](research-web-seek-alpha.md)。
+
 
 2026-10-23：资产副图v7为macOS Web操作员增量；本机/同候选macos-14与通用仓库门独立认证。Windows/Linux原生与Docker产品实机未执行，不据此升级平台支持状态。
+

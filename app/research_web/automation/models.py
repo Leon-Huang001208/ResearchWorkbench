@@ -131,7 +131,7 @@ class ResearchTaskDefinition(StrictModel):
 
 class AutomationCreate(StrictModel):
     name: str = Field(min_length=1, max_length=160)
-    target_kind: Literal["skill", "workflow", "report_workflow", "research_task"]
+    target_kind: Literal["skill", "workflow", "report_workflow", "research_task", "dossier_scan"]
     target_id: str | None = Field(default=None, pattern=IDENTIFIER_PATTERN)
     target_version: int | None = Field(default=None, ge=1)
     research_task: ResearchTaskDefinition | None = None
@@ -169,6 +169,8 @@ class AutomationCreate(StrictModel):
         keys = [(item.installation_id, item.tool_name) for item in self.mcp_tools]
         if len(keys) != len(set(keys)):
             raise ValueError("duplicate_mcp_tool")
+        if self.target_kind == "dossier_scan" and (self.mcp_tools or self.output_formats):
+            raise ValueError("dossier_scan_is_local_evidence_only")
         return self
 
 

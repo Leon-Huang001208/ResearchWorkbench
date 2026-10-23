@@ -197,7 +197,7 @@ class PackageInstaller:
                 raise PackageInstallError("installation_destination_unsafe")
             shutil.rmtree(destination)
         if self.credentials is not None:
-            for slot in ("environment", "oauth"):
+            for slot in ("environment", "oauth", "static_bearer"):
                 self.credentials.delete(manifest.id, slot)
         log.info("mcp_package_installation_removed", status="removed")
 

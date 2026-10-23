@@ -149,3 +149,7 @@ Windows/Linux 原生及 CI 为对应设备任务，未执行保持 NOT_RUN。无
 
 
 2026-10-23 真实Host验收使用实际ConfirmationTokenManager、InstallationStore、PackageInstaller、SDKHost和AuthorizationManager；仅注册目录/字节下载为离线夹具，模型传输明确NoModels。原生审核HTTP契约接受远程三项和受管四项固定指纹，未知字段422且不改变审核记录。可见页面覆盖至会话授权，真实工具调用/人工批准由独立HTTP验收证明；不冒充完整DSH模型回合。
+
+## 2026-10-23：长期研究档案与机会预警
+
+新增一方小创候选包可下载并沿原流程导入预览；未核验真实 Registry ID／server／version／remote index，当前明确 unsupported／不可安装，不伪造条目或未知 schema。只有合法受管安装及审批后才显示个人固定 resource／slot 凭据控件，Doctor／status 继续沿原插件状态；实际 token 在 transport 绑定并检查所有回显，候选 resource/prompt 禁用。18项／54 子弹是本轮公开单价估算，真实当时报价、凭据、付费授权和部署均未执行；费用未知不重发，原件冻结为 clue，详见[候选合同](research-web-seek-alpha.md)。

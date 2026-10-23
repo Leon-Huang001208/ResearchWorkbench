@@ -609,10 +609,15 @@ class DataHub:
             "as_of",
             "files",
             "asset_history",
+            "snapshot_kind",
         }
         summaries = []
         for item in self.list(sid):
             summary = {key: value for key, value in item.items() if key in keys}
+            if item.get("snapshot_kind") == "mcp_evidence":
+                summary["admission"] = item.get("provider_metadata", {}).get(
+                    "admission", {"status": "clue", "report_admitted": False}
+                )
             history = summary.get("asset_history")
             if isinstance(history, dict):
                 summary["asset_history"] = {

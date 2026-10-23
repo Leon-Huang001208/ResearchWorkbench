@@ -746,5 +746,10 @@ Skill/Workflow/Report Workflow 自动化原本没有批准的服务商身份字�
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+## 2026-10-23：长期研究档案与机会预警
+
+跨会话研究使用 Host 冻结档案版本、hash 与证据句柄，交接只准备草稿。仅用户实际提交的 Prompt 结构化字段 `dossier_handoff_id` 可将 receipt 绑定目标 sid；浏览、@ 候选预创建会话、上传和普通 create-session 均不绑定，草稿文本本身不授予权限。来源范围不得扩张，读取继续复核原件及当前授权，再进入唯一 DSH 和原 Host 质量链。A股跟踪默认关闭，既有 Automation 只执行冻结材料的确定性重查，不采集或调用模型；详见[研究交接](../../research-web-dossiers.md#http-与研究交接)及[持续跟踪](../../research-web-dossier-scans.md#持续跟踪)。
+
 
 2026-10-23：v7沿原运行时、会话和模型配置；来源查询/市场inflight活动或未知延后切换，不调用模型或启动第二研究引擎。
+

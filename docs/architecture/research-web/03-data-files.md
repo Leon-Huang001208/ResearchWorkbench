@@ -803,3 +803,7 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 ## 2026-10-23：BaoStock盈利能力来源
 
 BaoStock单报告期盈利能力以独立财务schema/units身份进入原provider-native首次观测快照。原SDK字段/值JSON、报告期和日期精度公布日保留；netProfit/MBRevenue的CNY声明绑定官方文档commit e14bd116745d5540c4eca55d8f0a1970e2d13235及SHA256 06369ec88c16977b2efe295f5a0d576c48d80066144b2f22df10cd909795e8fb。没有新表、数据根或迁移；未知比例/股数和累计口径仍不升级规范事实。
+
+## 2026-10-23：长期研究档案与机会预警
+
+个人 `dossiers/metadata.sqlite3` 惰性初始化，保存修订、证据引用、成果关联、交接与扫描／跟踪元数据；源字节继续留在原会话文件和私有 raw 快照。引用与 retention pin 同事务，`.dossier-retention.lock` 覆盖解析／pin 到 DSH 删除与 Host purge，软删除不解除保全；普通文件路径不绕过 dataset 的授权，MCP 原件逐次复核安装／schema／grant。备份需同时保留 SQLite、pin 和原证据，单独元数据不是原文备份；02／04 图据此补模块与引用边，详见[存储和保全合同](../../research-web-dossiers.md)。
