@@ -185,6 +185,7 @@ BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报�
 
 周报可作为既有成果关联进长期档案，保留原会话、task、hash 与 quality，正文不搬入档案数据库；incomplete／invalid 不因归档、扫描或关联提升为 passed／finalized。档案继续研究只准备原 DSH 草稿，实际 Prompt 才绑定 receipt；档案跟踪默认关闭且当前只重查冻结材料，不启动本周报、Wind、模型或自动生产。原模板／质量／定稿与日程准入保持，个人 SQLite／pin 纳入保全，详见[成果与保全](research-web-dossiers.md)及[扫描合同](research-web-dossier-scans.md)。
 
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
 
 档案固定部署profile仅接纳包含PR209／PR212／PR213的固定已合并主线产品，使用核验5343前版和全账号业务保全／恢复；保留本周报Excel先行、原Host质量门、禁用日程及单独真实业务验收。apply-dossiers不会执行周报、供应商、模型或开放生产日程，详见[部署合同](research-web-gateway-upgrade.md#研究档案固定部署2026-10-23)。
 

@@ -559,6 +559,8 @@ providers_baostock.py的profitability分支调用固定query_profit_data，Broke
 
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
+今日发现组合部署定位：resident/model_provider_upgrade.py中的DISCOVERY_MODE/PREVIOUS/PAYLOAD、discovery_background_idle、review_assets及CLI分支；test_model_provider_upgrade.py沿原真实Git/全阶段恢复矩阵追加新mode和零后台任务反例。旧mode不调用新门。
+
 2026-10-23 资产周期读数在 ui/asset-chart.mjs 的 renderMarketTerminal／syncLabels 统一消费 displayBars 的当前及上一聚合记录；原日线 selectedDate 只服务日期选择与筹码截止。asset-panel-manager.mjs 的底栏只留单一＋，同图副图标题替换／×关闭；asset-chip-panel.mjs 关闭横轴网格。无新API、存储、Provider或依赖，既有架构图拓扑准确。回归在 research_web_asset_chart.test.mjs 与 research_web_asset_indicator_library.test.mjs。
 
 副图底栏仅列出当前已显示的面板，选中标签确定当前面板；未显示指标、常用列表与参数统一收进＋目录，不把所有常用项铺在底栏。关闭全部副图后仍保留＋入口。

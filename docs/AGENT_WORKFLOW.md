@@ -443,6 +443,7 @@ BaoStock季度盈利能力在新隔离worktree接入，原公开worker/取消排
 
 本轮按 macOS Web 功能开发和隔离 worktree 交付：档案事务、pin／删除竞态、跨会话逐次鉴权、Prompt-only 绑定、扫描／默认关闭的跟踪及 MCP 费用未知状态分别取证。跟踪只重查已有冻结材料，不授权新采集或模型；小创真实 Registry、当时报价与单独费用／凭据授权仍是外部前置。完整 changed set 沿原通用仓库门及同候选 macOS 干净安装，既有 CI job 追加测试与资源，不新增 runner；Windows／Linux 交对应设备，常驻切换另行授权。详见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)及[候选边界](research-web-seek-alpha.md)，离线通过不能提升报告或平台质量状态。
 
+今日发现组合部署先验固定previous/payload及零后台执行门；独立操作员候选运行完整Router/独评/原三CI和同候选Mac安装后，再按锁、明确空闲和全账号保全事务切换。产品CI不能替代操作员CI；认证页面只读线索与详情，不prepare/execute、不enable跟踪，不调用模型。
 
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
