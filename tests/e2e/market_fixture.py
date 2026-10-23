@@ -21,8 +21,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.research_web.datahub.providers_market import INDEXES, MarketProvider
-from app.research_web.market_indices import CORE, TERMINAL, CATALOG_VERSION, selected_indexes
+from app.research_web.datahub.providers_market import MarketProvider
+from app.research_web.market_indices import CATALOG_VERSION, CORE, TERMINAL, selected_indexes
 from app.research_web.market_routes import router
 from app.research_web.market_service import MarketService
 from core.observability import get_logger
@@ -79,7 +79,9 @@ class OfflineProvider:
                 }
             )
 
-    async def fetch(self, section, *, board_id=None, kind="industry", period="today", index_set=CORE):
+    async def fetch(
+        self, section, *, board_id=None, kind="industry", period="today", index_set=CORE
+    ):
         if self.closed:
             raise RuntimeError("offline provider is closed")
         self.calls.append(
@@ -161,7 +163,11 @@ class OfflineProvider:
         complete = not (section == "quotes" and self.mode == "partial")
         log.info("market_browser_fixture_fetch", section=section, rows=len(rows))
         return {
-            **({"index_set": index_set, "catalog_version": CATALOG_VERSION} if section == "indices" and index_set == TERMINAL else {}),
+            **(
+                {"index_set": index_set, "catalog_version": CATALOG_VERSION}
+                if section == "indices" and index_set == TERMINAL
+                else {}
+            ),
             "rows": rows,
             "summary": summary,
             "provider": "offline-fixture",
