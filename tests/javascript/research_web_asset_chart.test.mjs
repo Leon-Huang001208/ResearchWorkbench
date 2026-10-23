@@ -1,3 +1,4 @@
+import {INDICATOR_IDS, indicatorSeries} from '../../app/research_web/ui/asset-indicator-library.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -352,7 +353,7 @@ test('historical readout retains change amount and average-price slots without g
   const input = [{ ...rows(1)[0], close: 100 }, { ...rows(1)[0], date: day(1), open: 105, close: 110, low: 100, high: 120, amount: 999000, volume: 3 }];
   for (const b of input) delete b.vwap;
   const missing = renderMarketTerminal(input);
-  assert.match(missing, /涨跌额 <strong>\+10\.00<\/strong>/);
+  assert.match(missing, /涨跌额 <strong class="asset-price-up">\+10\.00<\/strong>/);
   assert.match(missing, /均价 <strong>—<\/strong>/);
   for (const key of ['vwap', 'avg_price', 'average_price']) {
     const source = [{ ...input[1], [key]: 108.25 }];
@@ -389,12 +390,12 @@ test('aggregated week/month turnover rate cannot reuse the final day percentage 
   assert.match(html, /换手率 <strong>1\.00%<\/strong>/, 'historical quote explicitly follows the selected actual daily record');
 });
 
-test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and no volume MA series', () => {
+test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and two volume MA series', () => {
   const bars = enrichMarketBars(rows(260)); const option = buildMarketChartOption(bars, { start: 140, end: 260, panels: ['volume', 'macd', 'kdj', 'rsi'], overlay: 'ma', enabledMA: [5, 10, 20, 60, 120, 250] });
   assert.equal(option.grid.length, 5); assert.equal(option.grid[0].height, 300); assert.equal(option.grid[4].top, 654);
   assert.equal(option.axisPointer.link[0].xAxisIndex, 'all'); assert.equal(option.dataZoom.length, 2);
   for (const zoom of option.dataZoom) { assert.deepEqual(zoom.xAxisIndex, [0, 1, 2, 3, 4]); assert.equal(zoom.startValue, 140); assert.equal(zoom.endValue, 259); }
-  assert.equal(option.series.filter(s => /^MA\d+$/.test(s.name)).length, 6); assert.equal(option.series.some(s => /^VOLMA/.test(s.name)), false);
+  assert.equal(option.series.filter(s => /^MA\d+$/.test(s.name)).length, 6); assert.deepEqual(option.series.filter(s=>/^VOLMA/.test(s.name)).map(s=>s.name),['VOLMA5','VOLMA10']);
   assert.match(option.graphic[0].style.text, /VOL:.*MA5:.*MA10:/); assert.equal(option.series[0].data.length, 260);
 });
 
@@ -419,7 +420,7 @@ test('both terminal canvases are transparent and explicit themes keep neutral la
     assert.equal(chips.series[0].markLine.label.color, text);
     assert.deepEqual(option.grid, fallback.grid); assert.deepEqual(option.legend, fallback.legend);
     assert.deepEqual(option.series.map(s => s.data), fallback.series.map(s => s.data));
-    assert.deepEqual(option.series.filter(s => s.lineStyle).map(s => s.lineStyle), fallback.series.filter(s => s.lineStyle).map(s => s.lineStyle));
+    assert.deepEqual(option.series.filter(s => s.lineStyle&&s.xAxisIndex===0).map(s => s.lineStyle), fallback.series.filter(s => s.lineStyle&&s.xAxisIndex===0).map(s => s.lineStyle));
     assert.deepEqual(option.series[0].itemStyle, fallback.series[0].itemStyle);
     assert.ok(option.yAxis.slice(1).every(axis => !Object.hasOwn(axis, 'axisPointer')), 'non-price axes must omit axisPointer instead of setting undefined');
   }
@@ -675,7 +676,7 @@ test('real pinned ECharts creates every series view and survives controls, keybo
   const viewsAreReady = () => {
     assert.deepEqual(errors, []);
     const series = charts.at(-2).getModel().getSeries();
-    assert.equal(series.length, 10 + c.getState().panels.reduce((sum, id) => sum + ({ volume: 1, macd: 3, kdj: 3, rsi: 1 })[id], 0));
+    assert.equal(series.length, 10 + c.getState().panels.reduce((sum, id) => sum + ({ volume: 3, macd: 3, kdj: 3, rsi: 1 })[id], 0));
     assert.ok(series.every(model => charts.at(-2).getViewOfSeriesModel(model)), 'every series must have an actual ECharts view');
   };
   try {
@@ -747,4 +748,24 @@ test('changing the adjustment of a complete history requests all records, not a 
     assert.deepEqual(requests,[{action:'load',scope:'all',adjustment,source:'tinysoft',includeChipInputs:true}]);
     assert.equal(c.getState().adjustment,'qfq'); c.dispose();
   }
+});
+
+
+test('all 15 panels render actual ECharts views and mounted light series remain readable',()=>{
+ const timers=new Set();const runtime={console,clearTimeout,setTimeout:(callback,delay)=>{const timer=setTimeout(callback,delay);timers.add(timer);return timer;}};
+ runInNewContext(readFileSync(new URL('../../app/research_web/ui/vendor/echarts-5.5.0.min.js',import.meta.url),'utf8'),runtime);
+ const f=fakeDOM();const charts=[];const errors=[];
+ f.node.ownerDocument.defaultView.echarts={...runtime.echarts,init:()=>{const chart=runtime.echarts.init(null,null,{renderer:'svg',ssr:true,width:1000,height:1900});charts.push(chart);return chart;}};
+ const c=createAssetChartController({logger:event=>errors.push(event)});
+ try {
+  pageTheme(f,'light');c.configure(rows(6001),'all',{}, {panels:[...INDICATOR_IDS]});c.mount(f.node);f.flush();
+  const chart=charts[0];const models=chart.getModel().getSeries();
+  assert.deepEqual(errors,[]);assert.equal(models.length,10+INDICATOR_IDS.reduce((sum,id)=>sum+indicatorSeries(id).length,0));
+  assert.ok(models.every(model=>chart.getViewOfSeriesModel(model)));
+  assert.equal(chart.getOption().series.find(s=>s.name==='CCI CCI').lineStyle.color,'#242424');
+  c.handle(click('period-week'));f.flush();assert.deepEqual(errors,[]);
+  c.handle(click('period-day'));f.flush();assert.deepEqual(errors,[]);
+  const css=readFileSync(new URL('../../app/research_web/ui/asset-chart.css',import.meta.url),'utf8');
+  assert.match(css,/\.asset-market-terminal \.asset-terminal-chart\s*\{[^}]*max-height:none/);
+ } finally {c.dispose();for(const timer of timers)clearTimeout(timer);}
 });

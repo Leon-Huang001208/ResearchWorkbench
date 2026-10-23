@@ -239,6 +239,8 @@ Host元数据专项升级测试复用Research Web Checks现有test_resident.py�
 
 2026-10-23 资产v6配置复用原三CI及原macOS安装步骤；实时仓库PUBLIC、PR197三标准runner均成功。新增配置回归沿原test_model_provider_upgrade/test_resident，1183项部署/网关合同本机73.64秒，预留90秒；无新job、runner、依赖、时限或Windows/Linux dispatch。真实常驻事务与认证页面独立取证。
 
+2026-10-23 资产价格着色沿原三CI与Mac Bootstrap，不加job、runner、依赖或时限；实时PUBLIC，PR200三标准runner均成功。新增纯JS颜色与缺失值回归复用原通配符，资产184项本机1.79秒；最终同候选与常驻另验，不从Mac触发Windows/Linux产品任务。
+
 ## 2026-10-23：有限历史发布与财务日期合同
 
 只在既有Research Web Checks同一Python步骤补test_datahub_bea_archive/test_datahub_financial_time_contract，无新job/runner/超时/依赖。离线合同不访问BEA/新浪/账户或模型，真实有界Host/临时PG另在本机验证；额外定点预算预留15秒。最近已完成候选088c的Checks39892327293与Mac39892343945只证明该旧树，后续最终候选须重绑原三CI；远端动作前重新核对visibility/额度，禁止手动rerun及Mac发Windows/Linux产品dispatch。
