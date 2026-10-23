@@ -85,6 +85,16 @@ static checks, independent review and final source hashes remain pending the fin
 No Git staging/commit, network, model/vendor/Office call, dependency installation,
 service mutation or deployment was performed by this reconciliation subtask.
 
+At merged provisional source commit `b66ddf04c`, the complete operator-module offline
+regression passed: **1270 passed, 1 existing deprecation warning, 77.37s**;
+`logs/etf-native/merged-provisional-profile-tests.log`. Ruff, Black check, isort check
+and scoped mypy (`--follow-imports=skip`) also passed;
+`logs/etf-native/merged-provisional-static-checks.log`. The module test command is
+the previously recorded approved interpreter/PYTHONPATH invocation restricted to
+`tests/research_web/test_model_provider_upgrade.py`; no dependency was installed.
+These results cover the reconciled v7/terminal/ETF matrices with provisional ETF pins
+only. They do not certify the final pins or replace the required final regression.
+
 ## Remaining acceptance gates
 
 Final product pin and independent review, complete changed-set Router/integrity checks,
