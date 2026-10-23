@@ -36,6 +36,7 @@ import { mountCapitalFlow } from './asset-workspace.mjs';
 import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
 import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
@@ -160,8 +161,18 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const dossierController = createDossierController({ api, onChange: () => { if (isDossierRoute(state.route)) render(); }, onNavigate: hash => { location.hash = hash; }, onDraft: async result => {
+  history.pushState(null, '', `#/${result.mode}`);
+  const ticket = pageGeneration + 1;
+  await showRoute();
+  if (ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
+  const previous = state.draft || '';
+  if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
+  success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
+  render(); document.getElementById('prompt')?.focus({ preventScroll: true });
+} });
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
-const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
+const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets' && state.route.assetView !== 'dossiers';
 const assetChart = createAssetChartController({
   onIndicatorPreferencesChange: preferences => { void assetWorkspace.savePreferences(preferences.panels, assetState.preferences.chip_settings, preferences); },
   onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
@@ -451,6 +462,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
   if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
   if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
@@ -1376,6 +1388,7 @@ function workbenchOwner() {
 
 async function loadWorkbench() {
   if (!isDataWorkspaceRoute(state.route)) return;
+  if (isDossierRoute(state.route)) { await dossierController.activate(state.route); return; }
   const owner = workbenchOwner();
   const request = ++workbenchLoadGeneration;
   const current = () => owner() && request === workbenchLoadGeneration;
@@ -1451,7 +1464,7 @@ async function showRoute() {
   const requestedRoute = parseRoute(location.hash);
   const assetPage = root.querySelector('[data-asset-identity]');
   const requestedAssetIdentity = `${requestedRoute.assetType || 'stock'}:${requestedRoute.asset || assetState.observation?.asset || ''}`;
-  const sameAssetPage = isAssetPage() && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && assetPage?.dataset.assetIdentity === requestedAssetIdentity;
+  const sameAssetPage = isAssetPage() && requestedRoute.assetView !== 'dossiers' && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && assetPage?.dataset.assetIdentity === requestedAssetIdentity;
   if (sameAssetPage && requestedRoute.assetView !== state.route.assetView) {
     const ticket = ++pageGeneration;
     assetTopicNavigation = ticket;
@@ -1474,7 +1487,9 @@ async function showRoute() {
     return;
   }
   assetTopicNavigation = 0;
+  if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
   intelController.cancel();
+  dossierController.cancel();
   marketController.cancel();
   assetNews.cancel(); assetChart.cancel();
   aihotController.cancel();
@@ -1558,6 +1573,7 @@ async function showRoute() {
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'hot') await hotController.activate(state.route);
+    else if (state.route.intelTab === 'signals') await dossierController.activate(state.route);
     else if (state.route.intelTab !== 'search') await intelController.activate(state.route.intelTab);
   }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
@@ -1628,6 +1644,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('[data-dossier-workspace]')) { void dossierController.handle(event); return; }
   if (state.route.page === 'market' && marketController.handleInput(event)) return;
   if (event.target.matches?.('[data-asset-list-query]')) { const query = event.target.value.trim().toUpperCase(); for (const row of root.querySelectorAll('[data-asset-list-code]')) row.hidden = !row.dataset.assetListCode.includes(query); return; }
   const hotForm=event.target.closest?.('[data-hot-form]');
@@ -1958,6 +1975,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleChange(event)) return;
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
@@ -2123,6 +2141,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleSubmit(event)) return;
   if (event.target.matches?.('[data-asset-select]')) {
     event.preventDefault(); const data = new FormData(event.target);
@@ -2558,6 +2577,7 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleClick(event)) return;
   if (isAssetPage()) {
     if (event.target.closest?.('[data-asset-metrics-toggle]')) { setAssetMetricsDrawer(!root.querySelector('.asset-wind-metrics')?.classList.contains('is-open')); return; }
