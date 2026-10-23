@@ -1,5 +1,15 @@
 # ETF Native fixed-profile preparation — 2026-10-23
 
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"只增加原Mac Native联合升级器的固定ETF分派与身份，沿原Host/网关/DSH、维护锁和version4保全恢复；不增加服务、运行时或数据流，原图仍准确。","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"ETF模式保留原全账号索引冻结、64MiB业务读取、角色归属与BirthFence，新增模式不扩大账号权限或私有池，也不启动周报或资讯日程。","diagrams":[]} -->
+
+Parent integration local constraints initially rejected missing dual-runtime/private-multiuser
+module documents and meaningful structure decisions. The failed log is preserved at
+`logs/etf-native/final-pins-docs-constraints.log`; required module documentation and these
+explicit unchanged-topology decisions were added without changing production/test bytes.
+The original 1745-case execution remains bound by identical Python hashes; final constraints,
+Git candidate and CI must be rebound after this documentation repair.
+
 ## Scope and authorization
 
 Host: macOS Mac mini. Task: isolated operator feature implementation and offline verification.

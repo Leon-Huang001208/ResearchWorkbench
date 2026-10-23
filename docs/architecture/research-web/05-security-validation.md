@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+华安封闭模式只增加原升级器的固定产品分派，保留完整路径并集/blob/文件模式检查、reader5c3077、旧profile隔离、BirthFence及全部账号保全恢复。前版或产品不能经运行时覆盖；当前5343e18d身份和真实空闲须执行锁内复查。1745项离线及代码评审不认证实际部署，明确授权与同候选原三CI仍为独立门。
+
 ## 今日发现安全与验收（2026-10-23）
 
 固定公开Intel GET不传本地凭据/任意URL；第三方判断与归档不提升为Host已抓取全文。GET selection只接受owned feed_id/horizon/theme及已登记event_ids，返回独立scope feed；不开放任意URL、跨主题或客户端正文，也不污染首页。事件revision/完整详情Hash、当前用户会话/cwd、dataset原件/manifest/context逐项重验，内容不是工具指令或授权；未知创建/受理不重发模型。服务器泛用Automation保持0，仅宿主RWB_DISCOVERY_TRACKING_ENABLED=1允许固定来源/只读工具/无外发的已同意计划，RuntimePool恢复仍经身份与容量门。16项初版手动合同及原110项闭包日志为阶段证据，最终Router/独评/同候选CI另记；真实模型质量、生产计划、常驻与其他平台保持NOT_RUN，见[合同](../../research-web-discovery.md)。
