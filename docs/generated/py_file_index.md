@@ -4784,6 +4784,52 @@ Functions:
 - `_json_vendor`
 
 
+## `app/research_web/datahub/providers_wind_excel_weekly.py`
+
+Module docstring:
+> Private Excel-primary weekly inputs; no SDK import or alternate runtime.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `importlib.util`
+- `io`
+- `json`
+- `math`
+- `providers`
+- `re`
+- `report_workflows.weekly_data`
+- `report_workflows.weekly_sources`
+- `typing`
+- `xml.etree`
+- `zipfile`
+- `zoneinfo`
+
+Classes:
+- `WindExcelWeeklyProvider`
+  - methods: __init__, readiness, _calendar, _series, _run, _run_owned, collect
+
+Functions:
+- `_host_now`
+- `_native_date_in_excerpt`
+- `_export_observation`
+  - Consume only operator-captured, reviewed, immutable native UI evidence.
+- `_economic_rows`
+- `_economic_value`
+  - Preserve native JSON scalars; do not infer units or time semantics.
+- `_day`
+- `_raw`
+- `_workbook`
+- `_sheet_rows`
+- `read_exports`
+  - Validate numeric native exports and independently check reviewed windows.
+- `wait_for_idle`
+  - Retain vendor/close ownership until the real worker returns.
+
+
 ## `app/research_web/datahub/public_worker.py`
 
 Module docstring:
@@ -9072,6 +9118,10 @@ Functions:
 - `_aware`
 - `_day`
 - `_number`
+- `_edb_history_date_allowed`
+  - EDB observation dates are not an exchange-session declaration.
+- `_negative_history_settlement_allowed`
+  - Only the fixed native crude-settlement histories may be negative.
 - `_mean`
 - `_percent_change`
 - `build_weekly_data_contract`
@@ -9161,21 +9211,38 @@ Imports:
 - `hashlib`
 - `io`
 - `json`
+- `math`
 - `models`
 - `os`
 - `pathlib`
 - `re`
 - `tempfile`
+- `urllib.parse`
 - `weekly_data`
+- `xml.etree`
 - `zipfile`
 - `zoneinfo`
 
 Functions:
+- `_india_calendar_identity`
+- `_bse_native_dates`
+  - Recognize actual BSE circular date spellings, including holiday-table rows.
+- `read_india_exchange_calendar`
+  - Host checks locked BSE bytes and every date; no caller-supplied sessions.
 - `freeze_weekly_workbook_dates`
   - Freeze only Run-copy date inputs before an explicit Office calibration.
 - `_resource`
 - `load_run_source_contract`
   - Read only a published package's exact resource, never arbitrary JSON input.
+- `_gold_formula`
+- `_gold_number`
+- `_gold_day`
+- `read_gold_history_supplement`
+  - Replay frozen native responses; repair exactly one empty EDB cell, read-only.
+- `verify_weekly_economic_export`
+  - Independently replay native events from this Run's immutable source package.
+- `verify_weekly_history_supplement`
+  - Host replays version resources even if a forged snapshot drops its lineage.
 - `capture_excel_comparison`
   - Read actual refreshed Run workbooks; callers cannot supply comparison values.
 
@@ -13698,9 +13765,12 @@ Module docstring:
 Imports:
 - `collections.abc`
 - `core.observability`
+- `data_layer.adapters.wind.excel_instances`
 - `data_layer.adapters.wind.exceptions`
 - `datetime`
+- `hashlib`
 - `math`
+- `sys`
 - `threading`
 - `time`
 - `typing`
@@ -13708,15 +13778,46 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, _connect_existing_workbook, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
   - 检查返回值是否是 Excel 错误
 - `_offset_excel_column`
   - Return an Excel column name offset from ``column`` without Excel APIs.
+- `build_wsd_formula`
+  - Serialize worksheet options as individual function arguments.
 - `_trim_wsd_matrix`
   - Trim a rectangular Excel spill range to its populated rows and columns.
+- `_clear_spill_range`
+  - Clear owned cells without the Mac wrapper's global UI setting changes.
+
+
+## `data_layer/adapters/wind/excel_instances.py`
+
+Module docstring:
+> Read macOS Excel instance identities without starting another application.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `exceptions`
+- `importlib`
+- `re`
+- `sys`
+- `threading`
+- `typing`
+
+Classes:
+- `_ProcessOutputCompat`
+  - Normalize only xlwings' PID reads; leave the subprocess module untouched.
+  - methods: __init__, __getattr__, check_output
+
+Functions:
+- `prepare_macos_excel_compat`
+  - Prepare a loaded native bridge without inspecting any user's instances.
+- `running_excel_apps`
+  - Recover the known xlwings parser failure; refuse other inventory errors.
 
 
 ## `data_layer/adapters/wind/exceptions.py`

@@ -59,6 +59,7 @@ v2 metadata 与 pagination_complete=True，partial 仍拒绝。fields、受审 m
 [世界银行指标](https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG)。
 
 2026-10-23：同批f350/f351与已有日线资金只补充MarketService的公开缓存口径；不是新增provider-native研究快照能力，不伪造原件/首次观测时间，不改变固定12指数捕获、私有周报或授权边界。 具体来源、缺口与缓存合同见[DataHub](research-web-datahub.md#无会话全市场数据)。
+华安专用 Excel 来源记录原始 WSD/TDAYS 响应、57项精确映射、13市场日历及原生 EDB/经济日历导出哈希；市场截止与真实冻结分别保留。此输入不授予普通行情摘要正式研究权限，只有原 Host 独立质量与版本绑定通过后才能定稿。
 
 CJPY个股筹码输入继续冻结原始换手响应、完整证券/日期和供应商单位；同复权VWAP/换手衰减作为有版本的派生说明保留，raw行不覆盖。前端万/亿是显示倍率，不改变厂商数量单位、原JSON、费用或回测时点证据；三角均价缺口不由演示数据补齐。
 
