@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+华安固定Native升级模式只接受前版5343e18d及包含已合并产品988046d的已审目标，沿原安装清单与7c631d4f锁复用当前venv；不安装新依赖或接收新凭据。配置源码仍须原三CI与同候选Mac干净安装，实际切换另取明确授权，之后才验证原生Excel和Word；SDK存在与厂商可调用不混为一谈。
+
 ## 今日发现安装兼容（2026-10-23）
 
 本轮复用现有httpx/FastAPI/Pydantic/Automation/DSH，无新Python或Node包；已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py，无需改变依赖或安装器。三公开入口仍从干净checkout安装；原Mac Bootstrap同一步下载并逐字节核验discovery.mjs/css，不增加job/runner/timeout或他平台dispatch。私有账号通用Automation保持0，宿主仅给窄跟踪注入RWB_DISCOVERY_TRACKING_ENABLED=1；只有独立启用且owner后端存活的计划才由原调度器执行，容量延期不保证准点。安装成功不等于来源、真实模型质量或生产计划已验收，详见[今日发现](research-web-discovery.md)。

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23华安Native固定配置复用原三CI及Mac Bootstrap自动路径触发，原操作员测试矩阵增加ETF模式，无新workflow/job/runner/依赖/timeout。本机五文件1745项360.53秒，新增矩阵预算预留90秒；同候选通用门与Mac安装仍必需。实时PUBLIC；最近五个成功Checks 39943827410/39941890981/39939839047/39937435254/39937002051，创建至更新766/846/957/1071/1068秒，仅墙钟观察。不手工rerun或从Mac dispatch Windows/Linux产品；源码资格不认证部署、供应商、真实模型或正式稿。
+
 2026-10-23今日发现仅向既有Research Web Checks同一Python步骤增加test_discovery.py/test_discovery_tracking.py/test_discovery_routes.py，JS沿原research_web通配符；Mac Bootstrap原静态资源下载/比较名单加入discovery.mjs/css。没有新增workflow/job/runner/timeout、依赖或Windows/Linux产品dispatch。只读GitHub API本轮实测PUBLIC、private=false；最近5个成功run39924505221/39924505261/39921528192/39921528177/39920692078创建至结束65/505/68/985/56秒，均值335.8秒，仅为预算快照。手动合同16例本机0.39秒、此前DataHub/Store/Hot闭包110例8.37秒为阶段证据；新增三模块预留现有步骤30秒，最终完整候选时长由主任务实测回填，不将本机或旧CI认证为新候选PASS。后续发布前仍实时核对visibility/额度；真实模型、生产计划与常驻部署未运行，不产生这些验收声明。
 
 2026-10-23华安经济字段只向原 Checks Python 步骤追加 `test_report_weekly_economic_fields.py`，Provider 原模块补原件字段保全反例；无新 job、runner、依赖、timeout 或供应商调用。独立32例加 Provider180例联合212项28.97秒，预留额外30秒；原历史／API／质量门与同候选 Mac 安装均保留。当前 PUBLIC，最近五个成功 Checks 39935144499/39934720463/39933193220/39932880510/39926802740，创建至更新954/684/968/970/985秒，仅墙钟观察。原 a489 三门成功、新 f58 三门结果分别归属各自旧树；经济字段新修复必须重新绑定最终候选，不以原件重放或旧 CI 认证正式稿。
