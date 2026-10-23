@@ -163,6 +163,7 @@ const intelController = createIntelController({ onChange: () => { if (state.rout
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
 const assetChart = createAssetChartController({
+  onIndicatorPreferencesChange: preferences => { void assetWorkspace.savePreferences(preferences.panels, assetState.preferences.chip_settings, preferences); },
   onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
   onChipSettingsChange: settings => { void assetWorkspace.savePreferences(assetState.preferences.panels, settings); },
   onHistoryRequest: request => {
@@ -201,14 +202,14 @@ function assetTerminalMetadata(observation = assetState.observation) {
   const dataset = observation?.blocks?.history?.dataset;
   const history = dataset?.asset_history;
   const historySource = history?.source || (history?.canonical_version === 'asset-history-1' ? 'tinysoft' : history?.canonical_version === 'asset-history-raw-2' ? 'unknown' : observation?.request_parameters?.section_sources?.history || observation?.request_parameters?.source || observation?.source || 'tinysoft');
-  return { ...dataset, frequency: observation?.request_parameters?.frequency || 'daily', adjustment: dataset?.asset_history?.adjustment || observation?.request_parameters?.adjustment || 'qfq', assetIdentity: `${observation?.asset_type || state.route.assetType || 'stock'}:${observation?.asset || state.route.asset || ''}`, historyJob: assetState.historyJob, historySource, canLoadHistory: Boolean(observation?.id) && historySource !== 'unknown', asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'], currentQuote: projectAssetObservation(assetState.rows, observation || {}).basic };
+  return { ...dataset, accountIdentity: String(globalThis.__RWB_USER_ID__ || 'single-user'), frequency: observation?.request_parameters?.frequency || 'daily', adjustment: dataset?.asset_history?.adjustment || observation?.request_parameters?.adjustment || 'qfq', assetIdentity: `${observation?.asset_type || state.route.assetType || 'stock'}:${observation?.asset || state.route.asset || ''}`, historyJob: assetState.historyJob, historySource, canLoadHistory: Boolean(observation?.id) && historySource !== 'unknown', asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'], currentQuote: projectAssetObservation(assetState.rows, observation || {}).basic };
 }
 function configureAssetTerminal() {
   const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
   const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
   const rows = observation ? assetState.rows.history || emptyAssetHistory : emptyAssetHistory;
   const metadata = assetTerminalMetadata(observation);
-  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels, chipSettings: assetState.preferences?.chip_settings });
+  const signature = JSON.stringify({ key, accountIdentity: metadata.accountIdentity, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels, chipSettings: assetState.preferences?.chip_settings, favorites: assetState.preferences?.favorites, indicatorSettings: assetState.preferences?.indicator_settings });
   if (configuredAssetHistory === rows && configuredAssetSignature === signature) return;
   if (assetChart.configure(rows, key, metadata, assetState.preferences) !== false) { configuredAssetHistory = rows; configuredAssetSignature = signature; }
 }

@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+2026-10-23：终端Native部署入口仍为`research_workbench_entrypoint/resident/model_provider_upgrade.py`，新增封闭terminal profile并复用原version4事务／严格保全，不开放任意PAYLOAD。完整操作员回归覆盖旧profiles与terminal，产品后端130例单独记录；PR201产品合并后由主任务固定最终PAYLOAD，再完成组合候选独评、完整Router及原三CI。对应身份与未执行部署状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+全市场终端由`market_indices.py`定义core-v1固定12与terminal-v2共24指数及分组；`market_analysis.py`计算三周期证据与官方六风格矩阵，`market_portfolio.py`管理账号持仓预览/确认及有界文件。market_routes/service复用原维护准入、缓存生命周期；ui/market-terminal.mjs组织原生终端交互，market.mjs保留行情表/成员/导出。近处回归test_market_indices/test_market_terminal和research_web_market_terminal覆盖真实契约、上海跨日、陈旧估值拒绝、账号及迟到响应；真实来源和浏览器独立验收。
+构建器失效登记恢复由`rwb-docker builder-reconcile`早分发到`research_workbench_entrypoint/builder_reconcile.py`，复用`iteration_cache.operation_lock`。近处`test_builder_reconcile.py`覆盖指纹、错引擎、部分资源、恢复前零mutation拒绝、带全局选项的活动build/bake和停止终态；真实Docker恢复及旧任务清理另留证。
+
 2026-10-23 ETF Native操作员准备：`resident/model_provider_upgrade.py`增加封闭
 `ETF_WEEKLY_MODE/PREVIOUS/PAYLOAD`、`previous_for/review_assets`与`apply-etf-weekly`分支，
 复用v4保全/恢复、大索引读取、v6固定完整CI日志读取器及市场inflight门。PAYLOAD暂为25b399a42候选，
@@ -495,9 +500,21 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。
+
+
+2026-10-23：资产副图：ui/asset-indicator-library.mjs拥有15类纯计算及封闭schema；asset-panel-manager.mjs渲染目录/常用/参数；asset-chart.mjs管理原ECharts实例与模态生命周期；asset_indicator_preferences.py与asset_routes/asset_workspace验证、账号存储和回滚。正式回归为test_asset_indicator_preferences.py与research_web_asset_indicator_library.test.mjs，原指标与交互门保持。
+
 ## 2026-10-23：披露及历史发布定位
 
 `datahub/providers_akshare.py`的income_statement封闭新浪请求、日期精度和资金流同源标记，`providers_bea_archive.py`解析已审核BEA档案，`bea_archive_store.py`绑定公开发布修订。`broker.py`按明确selector和截止范围准入，`research_warehouse.py`按当前profile鉴权并分派原桥；股票日历仅用于bars。`test_datahub_financial_time_contract.py`与`test_datahub_bea_archive.py`覆盖未知单位/日期、旧版冲突、截止边界、并发幂等和恢复。现有三安装入口/依赖锁不变，最终Mac干净安装与实际Host/PG分别验收。
 
 `connection_center.py`的公开分组必须与Catalog同步；`test_datahub_catalog.py`遍历真实全目录投影，
 `test_integration_coordinator.py`用真实DataHub恢复已持久集成状态，防止新增源漏登记造成启动KeyError。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+providers_baostock.py的profitability分支调用固定query_profit_data，Broker只把明确statements=[profitability]映射quarterly_profitability。research_warehouse/research_snapshot_store按独立财务schema保存首次观测，DataHub会话缓存拒旧财务schema。test_datahub_baostock与test_baostock_financial_integration覆盖日期/单位/路由/冻结/恢复；原bars身份不变。

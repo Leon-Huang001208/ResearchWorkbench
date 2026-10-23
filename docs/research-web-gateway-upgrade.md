@@ -1,5 +1,30 @@
 # Mac mini 空私有池网关升级
 
+## 全市场终端固定部署（2026-10-23）
+
+`reviewed-market-terminal-v1`／`apply-market-terminal`固定前版
+`0e0022ac792eba88fba0f233524f5c8d66024569`，产品PAYLOAD固定为
+`ca20293b8244bb0644bf2039ddd96ee452a27b0b`。该不可变祖先包含终端产品、PIT上游和
+已独评的构建器修复f3f4fae；替代先前717暂存检查点。实际部署仍等待PR201与终端最终组合各自合并、
+独评和原三CI合格，再核对祖先、完整路径并集、Git blob和文件模式；不提供运行时任意目标或前版覆盖入口。
+
+原version4事务、supervisor/admission维护锁、BirthFence、全账号业务索引哈希与内容寻址恢复继续复用。
+研究／历史查询、主实例和网关活动，以及市场GET投影中的`inflight`必须明确为空；未知或活动即拒绝。
+terminal沿现有严格业务读取器，业务索引上限64MiB，元数据原1MiB边界保持；旧profile及controller字节不改，
+evidence读取器绑定现有v6的`5c3077b7…eebb`，不能用缓存片段替代完整GitHub日志与逐job checkout核验。
+
+固定web.lock为`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`；
+沿原事务仅同步目标锁身份和`code_commit`，恢复时精确恢复原安装清单。本轮不安装新依赖、不启用或迁移数据库、
+不改外盘／秘密／Docker，不更换模型。源码仅取自已验证同一common directory下的干净目标checkout，业务数据原位保留。
+会话、报告、模型／凭据存储元数据、账号索引以及新增持仓和观察缓存均不得因切换而丢弃；最终实际保全须单独留证。
+
+最终组合必须最新主线资格、独立评审、完整changed-set Router、Project Constraints、Research Web Checks及
+同候选macos-14干净安装全部通过，CI证据绑定真实checkout／合并tree与完整日志，不能套用产品或旧工具的通过记录。
+本机后端130例、完整操作员测试和预检仅证明各自本地合同；实际切换、双入口健康、认证页面与保全／恢复结果仍待验证，
+未获真实回执不标记已部署。Windows/Linux原生及Docker产品验收保留原状态并交接对应设备；本profile不新增运行节点，
+现有01／12图保持准确，产品终端的数据流仍以已更新13图为准。
+
+
 ## 华安ETF周报固定部署profile（仅离线准备）
 
 `reviewed-etf-weekly-v1` / `apply-etf-weekly` 固定登记旧版
@@ -290,3 +315,6 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 失败恢复旧网关源码和与当前主实例匹配的绑定；原失配配置另留审计，不能当作健康回滚。恢复先写 rolling_back 再切源码与配置；preparing 阶段崩溃只撤销本事务空槽，不发信号。恢复不覆盖业务文件或凭据。独立不可变 recovery.pyz 和 LaunchAgent 在停机前安装，崩溃后按同一 journal 恢复；活动、身份不符或状态不明仍延后。
 
 证据在私有 `server/run/gateway-upgrade-{original,result}.json` 和 `logs/gateway-upgrade.log`。不记录问题或回答正文，不触发模型调用。源码、模拟测试、CI和真实部署结果分别报告。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。

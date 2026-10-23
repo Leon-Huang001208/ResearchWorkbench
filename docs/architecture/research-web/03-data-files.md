@@ -1,5 +1,10 @@
 # DataHub、研究资料与实际文件
 
+2026-10-23：终端Native固定部署不迁移业务index或研究仓，不把账号market-cache、持仓／预览、会话、报告、模型配置和恢复归档复制成新源。原version4全账号索引哈希、缺失／空值区别、凭据存储元数据和内容寻址恢复继续逐项校验；安装清单只按冻结目标锁同步并可精确恢复。源码来自已核验common directory下的干净目标checkout，原业务数据原位保留；当前文档补齐不是实际保全回执，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+终端v2仍采用market-cache原schema1分区文件，indices:terminal-v2拥有独立键、目录版本与24身份；indices保留旧12。市场目录下analysis-observations/daily.json最多260日／2MiB，保存首次实际闭市观察，不用当前成分回填历史；portfolios/state.json最多20份已确认快照、8份15分钟预览，4MiB上限。持仓输入256KiB／500行，原子私有文件，GET不初始化。新浪日线400条按请求代码、前日及东财真实昨收交叉核验，first_observed不等于历史PIT。
+构建器对账归档保存在原私有Docker管理根的`builder-reconcile/<fingerprint>/`，保存脱敏绑定、旧builder.id、buildkitd.toml和恢复journal。它不是业务快照，不读写research-web会话／模型／账号索引；失败保留现场，不声称已回滚或清理。
+
 ## 同版本筹码输入与偏好补充（2026-10-23）
 
 `asset_history.chip_inputs` 冻结 `contract_version=chip-turnover-1`、完整状态、换手百分数单位/摘要/条数以及VWAP口径。现有输入manifest保留逐批真实来源与授权指纹；raw_rows不修改。`include_chip_inputs` 缺省false且不写入旧请求；true只在全部价格/因子/换手验证后更新规范指针，失败/取消不发布部分新行情。旧快照照常读取，不将缺换手的旧OHLCV合计冒充新版筹码。
@@ -48,7 +53,7 @@ chart_preferences可选chip_settings，缺省只在内存解释，不启动写�
 
 可选历史as_of只影响新任务冻结的截止及其独立规范版本；None保留旧任务／旧请求兼容。已有完整历史在报价交易日超过旧锚点时重建完整覆盖，不把原数据或研究引用改成近期两年；旧dataset、raw、因子及manifest仍可复核。新旧as_of版本各自保留定义／因子／范围证据，失败不得覆盖旧指针，服务恢复和缓存复用仍复核归属与授权。
 
-最后核对：2026-10-22。Store在内存兼容提供`asset_history_jobs={}`、`asset_history_keys={}`及`chart_preferences={panels:[volume,macd],revision:0}`，无数据库/schema迁移。对于旧磁盘中未有且仍精确等于这些默认值（含JSON类型）的键，启动或无关服务save只序列化原有业务字段，不把三键物化到`index.json`；某键第一次真正改变后才写入，并在原子替换成功后登记为已持久化。原磁盘已存在的键，包括空对象、空列表或null，以及已持久化后恢复默认的键均不得删除；保存失败不提前登记。其他键、原子写入/错误处理及部署严格保全比对保持。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
+最后核对：2026-10-22。Store在内存兼容提供`asset_history_jobs={}`、`asset_history_keys={}`及`chart_preferences={panels:[volume,macd],revision:0}`，无数据库/schema迁移。对于旧磁盘中未有且仍精确等于这些默认值（含JSON类型）的键，启动或无关服务save只序列化原有业务字段，不把三键物化到`index.json`；某键第一次真正改变后才写入，并在原子替换成功后登记为已持久化。原磁盘已存在的键，包括空对象、空列表或null，以及已持久化后恢复默认的键均不得删除；保存失败不提前登记。其他键、原子写入/错误处理及部署严格保全比对保持。指标偏好保留0至15个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
 
 该边界修复了旧24项业务键/12账号未变、却因启动新增3个默认键而被严格保全门拒绝的v3切换。故障回滚/恢复另留真实状态；不通过忽略新增键、清洗原索引、改控制器或伪造保全摘要解决。现有数据根、快照和交接图未变化，不重画图，也不改CI结构。
 
@@ -772,6 +777,18 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。
+
+
+2026-10-23：chart_preferences可选favorites为0至15个唯一有序封闭ID，indicator_settings为各类有限数值参数；panels扩为0至15类。旧磁盘缺键不写默认值，旧PUT保留新设置，读写深拷贝、保存失败内存回滚。默认面板不变，冻结行情/报告不修改。
+
 ## 2026-10-23：披露字段与发布档案
 
 财务原件与公告日/更新时间字段进入既有provider-native冻结包，仍按首次捕获排序；未知历史vintage不提升为PIT。BEA档案复用现有market事实/原件/冻结表，以季度末为业务期、官方发布时刻为available_at、本次时间为ingested_at，并保存两次真实发布的修订。来源schema/单位身份隔离；旧显式包可读。没有新增根目录、表、迁移或正式连接，边界见[MarketStore](../../research-web-market-store.md)。
+
+
+2026-10-23：v7部署冻结并核对原全账号索引和恢复包；64MiB业务读取绑定保持，部署元数据原上限保持，不重写旧冻结行情、研究证据或偏好。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock单报告期盈利能力以独立财务schema/units身份进入原provider-native首次观测快照。原SDK字段/值JSON、报告期和日期精度公布日保留；netProfit/MBRevenue的CNY声明绑定官方文档commit e14bd116745d5540c4eca55d8f0a1970e2d13235及SHA256 06369ec88c16977b2efe295f5a0d576c48d80066144b2f22df10cd909795e8fb。没有新表、数据根或迁移；未知比例/股数和累计口径仍不升级规范事实。

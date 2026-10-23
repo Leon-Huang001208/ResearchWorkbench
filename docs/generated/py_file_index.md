@@ -3139,6 +3139,22 @@ Functions:
 - `digest`
 
 
+## `app/research_web/asset_indicator_preferences.py`
+
+Module docstring:
+> Closed, account-scoped display preferences; never vendor formulas or queries.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `math`
+
+Functions:
+- `validate_indicator_ids`
+- `normalize_indicator_settings`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -3918,6 +3934,7 @@ Imports:
 - `os`
 - `probes`
 - `providers_akshare`
+- `providers_baostock`
 - `providers_bea_archive`
 - `providers_external`
 - `re`
@@ -4376,7 +4393,7 @@ Functions:
 ## `app/research_web/datahub/providers_baostock.py`
 
 Module docstring:
-> Closed anonymous BaoStock adapter; raw SH/SZ daily bars only.
+> Closed anonymous BaoStock adapter; SH/SZ bars and quarterly profitability.
 
 Imports:
 - `__future__`
@@ -4389,13 +4406,18 @@ Imports:
 - `providers`
 - `re`
 - `threading`
+- `zoneinfo`
 
 Functions:
 - `active_futures`
 - `_asset`
 - `_bounds`
 - `validate_supported_query`
+- `_financial_date`
+  - Financial dates follow the supplier's Shanghai natural-day precision.
+- `_financial_period`
 - `_records`
+- `_profitability`
 - `invoke`
 - `fetch`
 
@@ -4601,6 +4623,7 @@ Imports:
 - `hashlib`
 - `httpx`
 - `json`
+- `market_indices`
 - `math`
 - `re`
 - `typing`
@@ -4614,7 +4637,7 @@ Classes:
   - methods: __init__, raw, json
 - `MarketProvider`
   - An owned HTTP client, bounded section reads, and exact cancellation.
-  - methods: __init__, __aenter__, __aexit__, close, fetch, _result, _paginate, _quote, _quote_details, _quotes, _statistics, _boards, _flows, _market_flow, _members, _indices, _index_series, _calendar, _decode_calendar
+  - methods: __init__, __aenter__, __aexit__, close, fetch, _result, _paginate, _quote, _quote_details, _quotes, _statistics, _boards, _flows, _market_flow, _members, _indices, _index_daily, _index_series, _calendar, _decode_calendar
 
 Functions:
 - `_now`
@@ -4627,6 +4650,8 @@ Functions:
 - `_board_id`
 - `_calendar_payload`
   - Parse only the vendor's data assignment and its fixed optional alias.
+- `parse_index_daily`
+  - Closed prior sessions only; never treat today's partial daily bar as final.
 
 
 ## `app/research_web/datahub/providers_mysql.py`
@@ -4828,6 +4853,7 @@ Imports:
 - `math`
 - `providers`
 - `providers_akshare`
+- `providers_baostock`
 - `providers_external`
 - `providers_market`
 - `threading`
@@ -4870,6 +4896,7 @@ Imports:
 - `pathlib`
 - `providers`
 - `providers_akshare`
+- `providers_baostock`
 - `providers_external`
 - `pydantic`
 - `re`
@@ -6362,6 +6389,95 @@ Functions:
 - `create_app`
 
 
+## `app/research_web/market_analysis.py`
+
+Module docstring:
+> Versioned descriptive market axes and past-only observation diagnostics.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `itertools`
+- `market_portfolio`
+- `market_service`
+- `math`
+- `pathlib`
+- `statistics`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `AnalysisHistory`
+  - Bounded completed daily observations inside this user's market cache.
+  - methods: __init__, read, capture
+
+Functions:
+- `_number`
+- `_stamp`
+- `past_percentile`
+  - Midrank empirical percentile using only earlier days known by the cutoff.
+- `factor_score`
+  - Versioned descriptive scales, never a cross-axis investment preference.
+- `_index_features`
+  - Features from explicitly sourced closed price-index bars only.
+- `walk_forward`
+  - Chronological expanding folds with embargo, without fabricated P&L.
+- `_axes`
+- `_style_profile`
+  - Six official size/style price indices; current comparisons are provisional.
+- `analyze`
+
+
+## `app/research_web/market_indices.py`
+
+Module docstring:
+> Versioned public index identities; vendor routing is not index authorship.
+
+Imports:
+- `core.observability`
+
+Functions:
+- `selected_indexes`
+- `public_catalog`
+
+
+## `app/research_web/market_portfolio.py`
+
+Module docstring:
+> Account-local, bounded portfolio imports with explicit preview confirmation.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `csv`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `market_service`
+- `math`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `uuid`
+- `zoneinfo`
+
+Classes:
+- `PortfolioStore`
+  - One private document commits previews and immutable snapshot history together.
+  - methods: __init__, _load, _save, read, readiness, preview, commit, project
+
+Functions:
+- `finite`
+  - Reject boolean, nonfinite, negative and unbounded financial numbers.
+- `atomic_json`
+  - Replace one private bounded document; never follow store symlinks.
+- `read_json`
+- `_normalize`
+
+
 ## `app/research_web/market_routes.py`
 
 Module docstring:
@@ -6371,6 +6487,8 @@ Imports:
 - `__future__`
 - `core.observability`
 - `fastapi`
+- `json`
+- `market_portfolio`
 - `market_service`
 - `pydantic`
 - `starlette.responses`
@@ -6389,6 +6507,13 @@ Functions:
 - `cancel`
 - `export_quotes`
 - `quotes`
+- `index_catalog`
+- `analysis`
+- `portfolios`
+- `portfolio_readiness`
+- `_import_body`
+- `preview_portfolio`
+- `commit_portfolio`
 
 
 ## `app/research_web/market_service.py`
@@ -6422,7 +6547,7 @@ Classes:
   - methods: __init__
 - `MarketService`
   - Cache public market reads inside one authenticated user's data root.
-  - methods: __init__, activity_witness, _interval, _key, _path, _directory, _load, _valid_key, _valid_snapshot, _complete_snapshot, _record, _persist, _previous_amount, _quote_history, _flow_history, _project, overview, market_state, _validate_board, _trim_requests, refresh, _await_draining, _finish_reader, _collect, _trim_auxiliary, _resolve_members, request, cancel, _quote_snapshot, _filtered, quotes, export_quotes, close
+  - methods: __init__, activity_witness, _interval, _key, _path, _directory, _load, _valid_key, _valid_snapshot, _complete_snapshot, _record, _persist, _previous_amount, _quote_history, _flow_history, _project, overview, analysis, portfolios, market_state, _validate_board, _trim_requests, refresh, _await_draining, _finish_reader, _collect, _trim_auxiliary, _resolve_members, request, cancel, _quote_snapshot, _filtered, quotes, export_quotes, close
 
 Functions:
 - `_iso`

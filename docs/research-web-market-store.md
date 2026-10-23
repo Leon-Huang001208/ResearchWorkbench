@@ -1,5 +1,7 @@
 # DataHub 研究数据仓库内核
 
+terminal-v2指数集合使用独立市场缓存键；既有MarketReader/研究仓core-v1完整12身份和原生封包不改变，不能把24指数塞入旧仓库profile。新浪历史为price_index、实际采集时间first_observed、historical_pit_verified=false；画像可以展示可算特征，但不能据此认证历史PIT、回测或配置有效性。
+
 2026-10-23新增宏观使用现有SnapshotSeries与PostgreSQL适配：官方数值v2和AK中国宏观v1进入各自schema/units身份；不新增表、不连接正式库、不迁移旧记录。范围查询结果以原生响应冻结，首次观测时间与供应商观察期分开，尚不是可按历史披露版本重建的规范宏观事实。字段、原字节、版本与摘要可随导出恢复复现；Broker当前仍拒绝AK宏观as_of，包括库读取，不宣称Host已支持该历史查询。旧显式冻结包保持可读。
 
 2026-10-23：本轮限价、昨日逐股金额和资金日期留存仍在原market-cache，不新增研究仓schema、SQL迁移或默认写仓。已配置的固定12指数仓桥和账号/profile校验保持，公开缓存历史不冒充研究仓PIT事实。 具体来源、缺口与缓存合同见[DataHub](research-web-datahub.md#无会话全市场数据)。
@@ -143,3 +145,11 @@ row和gdp_growth两指标共享逻辑期、发布编号、公布时刻和原件h
 仅允许`2024-07-25T12:30Z <= as_of < 2024-09-26T04:00Z`；初值2.8与第二版3.0的切换点为`2024-08-29T12:30Z`。无as_of的latest仅指reviewed_archive_catalog末版，不是当前终值。其他宏观和财务native仍按首次观测保存，不能借此放宽正式PIT。财务报告日/公告日/更新时间、资金流单位和定义另行核验。逻辑恢复哈希不替代供应商真实性/导出授权；原有共享/个人与撤销校验继续适用。
 
 部分恢复也核对cutoff应有的发布编号：只恢复初值时，初值期间可读，第二次发布后及catalog latest均为missing，不能以旧值代替缺版；只恢复第二版不能回答初值期间。该矩阵在离线回归与真实独立临时SQL恢复中分别留证。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock盈利能力进入独立baostock-quarterly-profitability-v1的provider-native schema/units身份，仍为first_observed，pubDate保留在数据中而不冒充Fact的历史available_at。只有完整固定响应及已知单位合同可捕获；空/partial/错误不宣称覆盖。显示可显式allow_stale读仓，严格最新研究重新取数；冻结支持原字段与原SDK载荷恢复，不提升正式PIT。原日线身份、旧冻结读取和授权检查保持。
+
+
+600000.SH/2026-06-30实际双源与发行人半年报核对仅确认两格金额对应集团半年累计，不能当作Q2单季或归母净利。两源公告日8月28日与issuer列表8月27日保留不同来源，不回填精确时刻。两个provider-native版本独立冻结和恢复；样本核对不升级通用跨源等价或财务PIT。详见任务报告。

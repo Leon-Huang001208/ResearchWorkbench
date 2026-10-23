@@ -1,5 +1,8 @@
 # Research Web 能力与平台证据
 
+2026-10-23：终端profile任务属于Mac mini的Web功能／macOS Native部署工具闭包。后端与操作员本地回归、组合候选独评／原三CI／同候选Mac干净安装、真实认证切换及保全分开认证，未执行层保持待验证。Windows/Linux原生与Docker产品层均不由本机预检提升状态，不触发他平台产品dispatch或桌面sidecar／Tauri，见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+macOS管理员构建器对账使用当前Docker Desktop本地Unix endpoint；本任务仅认证Mac本机恢复和适用Mac安装CI。Windows/Linux原生适配及实际券商／厂商验证不由该工具或Mac测试认证。
+
 2026-10-23：市场限价/昨日/历史属于Mac mini功能开发与Native固定部署，必须原通用两CI及同候选macos-14安装；Windows/Linux原生和Docker产品证据保持各设备原状态，本任务不触发他平台产品dispatch，不提升跨平台支持声明。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
 
 2026-10-22资产v5索引预检修复仍属Mac mini部署工具修复，仅v5复用已有64 MiB业务读取器；没有新增平台能力、依赖或安装器变化。769＋112本机及173项独评为主任务既有检查点，PR187 Constraints39794625674仍记录失败，后续同候选原三CI及实际切换另证。Windows／Linux原生和Docker产品不由这次Native读取修复推定通过。
@@ -209,3 +212,6 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 模型profile的账户路由与灰阶UI新增离线合同；macOS本机与同候选macOS安装CI分别记录。Keychain实际旧账号不迁移，新AES记录有离线重启验证，但这不证明Linux/Windows原生平台已验收；对应产品门保持NOT_RUN交接。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+2026-10-23：资产副图v7为macOS Web操作员增量；本机/同候选macos-14与通用仓库门独立认证。Windows/Linux原生与Docker产品实机未执行，不据此升级平台支持状态。

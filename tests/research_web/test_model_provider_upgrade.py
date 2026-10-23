@@ -24,9 +24,11 @@ ASSET_PROFILES = (
     upgrade.ASSET_V4_MODE,
     upgrade.ASSET_V5_MODE,
     upgrade.ASSET_V6_MODE,
+    upgrade.ASSET_V7_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
+    "reviewed-market-terminal-v1",
     "reviewed-etf-weekly-v1",
 )
 
@@ -80,6 +82,8 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
         "evidence",
         "evidence-mode",
         "evidence-deleted",
+        "evidence-hash-malformed",
+        "evidence-hash-unknown",
         "untracked",
         "gateway",
         "gateway-mode",
@@ -123,22 +127,34 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V4_MODE: "ASSET_V4",
         upgrade.ASSET_V5_MODE: "ASSET_V5",
         upgrade.ASSET_V6_MODE: "ASSET_V6",
+        upgrade.ASSET_V7_MODE: "ASSET_V7",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
+        "reviewed-market-terminal-v1": "MARKET_TERMINAL",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
-    monkeypatch.setattr(
-        upgrade,
-        (
-            "ASSET_V6_EVIDENCE_SHA256"
-            if profile in {upgrade.ASSET_V6_MODE, "reviewed-etf-weekly-v1"}
-            else "ASSET_EVIDENCE_SHA256"
-        ),
-        hashlib.sha256(b"reviewed evidence").hexdigest(),
+    evidence_constant = (
+        "ASSET_V7_EVIDENCE_SHA256"
+        if profile == upgrade.ASSET_V7_MODE
+        else (
+            "MARKET_TERMINAL_EVIDENCE_SHA256"
+            if profile == upgrade.MARKET_TERMINAL_MODE
+            else (
+                "ASSET_V6_EVIDENCE_SHA256"
+                if profile in {upgrade.ASSET_V6_MODE, "reviewed-etf-weekly-v1"}
+                else "ASSET_EVIDENCE_SHA256"
+            )
+        )
     )
+    evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
+    if bad == "evidence-hash-malformed":
+        evidence_hash = "not-a-hash"
+    if bad == "evidence-hash-unknown":
+        evidence_hash = "f" * 64
+    monkeypatch.setattr(upgrade, evidence_constant, evidence_hash)
     monkeypatch.setattr(
         upgrade, "MARKET_GATEWAY_SHA256", hashlib.sha256(b"reviewed gateway").hexdigest()
     )
@@ -398,8 +414,10 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("apply-assets-v5", upgrade.ASSET_V5_MODE),
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
+        ("apply-assets-v7", upgrade.ASSET_V7_MODE),
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
+        ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
@@ -435,6 +453,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
         (upgrade.ASSET_V6_MODE, upgrade.ASSET_V5_PREVIOUS),
         (upgrade.ASSET_V6_MODE, upgrade.ASSET_V6_PAYLOAD),
+        (upgrade.ASSET_V7_MODE, upgrade.ASSET_V6_PAYLOAD),
+        (upgrade.ASSET_V7_MODE, upgrade.ASSET_V7_PAYLOAD),
         (upgrade.ASSET_V5_MODE, upgrade.ASSET_V4_PREVIOUS),
         (upgrade.ASSET_V5_MODE, upgrade.MARKET_GAPS_PREVIOUS),
         (upgrade.ASSET_V5_MODE, "9bc4e4cab91130647a5bc0dfa519e97f4773416a"),
@@ -442,6 +462,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         ("reviewed-market-overview-v1", "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"),
         (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_PREVIOUS),
         (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_GAPS_PAYLOAD),
+        (upgrade.MARKET_TERMINAL_MODE, upgrade.MARKET_HISTORY_PREVIOUS),
+        (upgrade.MARKET_TERMINAL_MODE, upgrade.MARKET_TERMINAL_PAYLOAD),
         ("reviewed-etf-weekly-v1", upgrade.ASSET_V6_PREVIOUS),
         ("reviewed-etf-weekly-v1", "25b399a42d691766d41bcafce5adbdc3b8cc3d74"),
     ],
@@ -1199,7 +1221,9 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     if failed is None and state["mode"] in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
+        upgrade.ASSET_V7_MODE,
         upgrade.MARKET_HISTORY_MODE,
+        upgrade.MARKET_TERMINAL_MODE,
     }:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -1393,9 +1417,11 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
         upgrade.ASSET_V5_MODE: "ASSET_V5_PREVIOUS",
         upgrade.ASSET_V6_MODE: "ASSET_V6_PREVIOUS",
+        upgrade.ASSET_V7_MODE: "ASSET_V7_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
+        "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
@@ -1983,8 +2009,10 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_MODE,
         upgrade.MARKET_GAPS_MODE,
         upgrade.MARKET_HISTORY_MODE,
+        upgrade.MARKET_TERMINAL_MODE,
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
+        upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
     ],
 )
@@ -2041,7 +2069,13 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
 
 @pytest.mark.parametrize(
     "real_operations",
-    ["reviewed-market-gaps-v1", "reviewed-market-history-v1", "reviewed-etf-weekly-v1"],
+    [
+        "reviewed-market-gaps-v1",
+        "reviewed-market-history-v1",
+        "reviewed-market-terminal-v1",
+        upgrade.ASSET_V7_MODE,
+        "reviewed-etf-weekly-v1",
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize(
@@ -2089,12 +2123,62 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
     target = upgrade.target_manifest(state)
     expected = {**old, "code_commit": "b" * 40}
-    if profile in {upgrade.ASSET_V5_MODE, upgrade.ASSET_V6_MODE, upgrade.MARKET_HISTORY_MODE}:
+    if profile in {
+        upgrade.ASSET_V5_MODE,
+        upgrade.ASSET_V6_MODE,
+        upgrade.ASSET_V7_MODE,
+        upgrade.MARKET_HISTORY_MODE,
+        upgrade.MARKET_TERMINAL_MODE,
+    }:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
         )
     assert target == expected
     assert old == state["manifest"]
+
+
+def test_market_terminal_profile_freezes_actual_resident_and_reviewed_checkpoint():
+    assert upgrade.MARKET_TERMINAL_MODE == "reviewed-market-terminal-v1"
+    assert (
+        upgrade.previous_for(upgrade.MARKET_TERMINAL_MODE)
+        == "0e0022ac792eba88fba0f233524f5c8d66024569"
+    )
+    assert upgrade.MARKET_TERMINAL_PAYLOAD == "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
+    assert (
+        upgrade.MARKET_TERMINAL_WEB_LOCK_SHA256
+        == "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+    )
+    reader = Path(upgrade.__file__).with_name("evidence.py").read_bytes()
+    assert hashlib.sha256(reader).hexdigest() == upgrade.MARKET_TERMINAL_EVIDENCE_SHA256
+    assert upgrade.MARKET_TERMINAL_EVIDENCE_SHA256 == upgrade.ASSET_V6_EVIDENCE_SHA256
+    assert upgrade.MARKET_TERMINAL_EVIDENCE_SHA256 != upgrade.ASSET_EVIDENCE_SHA256
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-market-terminal-v1"], indirect=True)
+@pytest.mark.parametrize("credential", ["credential_configured", "credential_storage"])
+def test_market_terminal_preserves_credential_contract(real_operations, monkeypatch, credential):
+    home, state, _system, make, uid = real_operations
+    original = upgrade.request_json
+
+    def request(url):
+        value = original(url)
+        if url.endswith("/api/research/runtime"):
+            return {
+                **value,
+                credential: False if credential == "credential_configured" else "changed",
+            }
+        return value
+
+    # Model metadata is checked by the existing preservation gate rather than
+    # calling a provider or reading a secret; changing its contract must refuse.
+    monkeypatch.setattr(upgrade, "request_json", request)
+    upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        ops = make(fence)
+        with pytest.raises(
+            upgrade.UpdateBlocked, match="model_upgrade_credential_metadata_changed"
+        ):
+            ops.verify(previous=True)
 
 
 def test_asset_v6_binds_verified_resident_product_reader_and_unchanged_old_contracts():
@@ -2115,6 +2199,19 @@ def test_asset_v6_binds_verified_resident_product_reader_and_unchanged_old_contr
         upgrade.CONTROLLER_MODULE_SHA256
         == "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
     )
+
+
+def test_asset_v7_pins_current_resident_and_merged_panel_product():
+    assert upgrade.ASSET_V7_MODE == "reviewed-asset-observation-v7"
+    assert upgrade.previous_for(upgrade.ASSET_V7_MODE) == "c4e953c4386c615cde89ad2d014d60c6e2959303"
+    assert upgrade.ASSET_V7_PAYLOAD == "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
+    assert upgrade.ASSET_V7_WEB_LOCK_SHA256 == upgrade.ASSET_V6_WEB_LOCK_SHA256
+    assert (
+        hashlib.sha256(Path(upgrade.__file__).with_name("evidence.py").read_bytes()).hexdigest()
+        == upgrade.ASSET_V7_EVIDENCE_SHA256
+    )
+    assert upgrade.ASSET_V6_PREVIOUS == "c1a260fa1d8dcf013426aca938d7e46a98aaee28"
+    assert upgrade.ASSET_V6_PAYLOAD == "eac6806822294d75da990c751d88ec156a417f62"
 
 
 def test_etf_weekly_profile_freezes_registered_resident_and_provisional_product():

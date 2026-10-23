@@ -188,20 +188,20 @@
     },
     {
       "id": "13-market-overview",
-      "artifactSha256": "635bba7379adac04b70c187917727ee2d79f0d4958e41f9312313794b4bbb0c5",
-      "specificationSha256": "44fcc9edb7475a53309f721e299a33570c440e1c9255eb2fcf219863296f4ebf",
+      "artifactSha256": "4ecd0e404a2e87af02cfa7bffd572e4705551d65e89a9bef8c2fa2bf1e9fdac3",
+      "specificationSha256": "f9e54cc0dbc4d7909eec828fa171bbaa49a8db40b1360c1ee0ce62d2add1b65c",
       "status": "reviewed",
-      "reviewer": "codex-controller",
+      "reviewer": "codex-root",
       "date": "2026-10-23",
       "captures": [
-        "13-market-overview.visual-check.1440x900.light.jpg",
-        "13-market-overview.visual-check.1440x900.dark.jpg",
-        "13-market-overview.visual-check.2048x1320.light.jpg",
-        "13-market-overview.visual-check.2048x1320.dark.jpg"
+        "13-market-overview.v2-1440-dark.png",
+        "13-market-overview.v2-1440-light.png",
+        "13-market-overview.v2-2048-dark.png",
+        "13-market-overview.v2-2048-light.png"
       ],
       "findings": [],
-      "notes": "Codex root通过CUA读取四桌面视口DOM，均无横纵溢出，实际查看最小与最大深浅色四截图。首轮1440高1209溢出，紧凑1100x650三行排布修正后通过；未缩字体、隐藏内容或改浏览器输出。刷新、indices-only MarketReader、可选个人仓及其余分区原链可辨，线不穿无关节点，标签与结论卡未裁剪。测量与截图由cua_repl完成，未运行CLI visual-check；本图不证明上游可用性或正式部署。",
-      "correction_rounds": 1
+      "notes": "通过CUA读取四桌面视口DOM，宽高均无溢出；实际查看1440浅/深两截图，Host抽象中的24/12分集、双公开来源、用户文件及证据门可辨，未见节点/线/标签遮挡。2048两主题亦已采集。未运行CLI visual-check，不把图册作为实际产品或来源验收。",
+      "correction_rounds": 3
     }
   ]
 }

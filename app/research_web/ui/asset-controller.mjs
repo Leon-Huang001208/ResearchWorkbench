@@ -1,3 +1,4 @@
+import {validIndicatorIds, normalizeFavorites, normalizeIndicatorSettings} from './asset-indicator-library.mjs';
 import { normalizeChipSettings } from './asset-chips.mjs';
 import { safeLog } from './core.mjs';
 import { selectAssetObservation } from './asset-navigation.mjs';
@@ -6,7 +7,8 @@ const ACTIVE = new Set(['queued', 'running', 'cancelling', 'draining']);
 const jobStatus = job => job?.state || job?.status;
 const identity = observation => `${observation?.asset_type || 'stock'}:${observation?.asset || ''}`;
 const cloneObservation = observation => ({ ...observation, blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([key, block]) => [key, { ...block }])) });
-const validPanels = panels => Array.isArray(panels) && panels.length <= 4 && new Set(panels).size === panels.length && panels.every(panel => ['volume', 'macd', 'kdj', 'rsi'].includes(panel));
+const validPanels = validIndicatorIds;
+const indicatorPreferences = data => ({...(Object.hasOwn(data,'favorites')?{favorites:normalizeFavorites(data.favorites)}:{}),...(Object.hasOwn(data,'indicator_settings')?{indicator_settings:normalizeIndicatorSettings(data.indicator_settings)}:{})});
 const VIEW_BLOCKS = { overview: ['overview', 'valuation', 'financials'], financials: ['financials', 'valuation'], capital: ['activity', 'margin'], holders: ['holders', 'holder_details'], materials: ['research', 'industry', 'events'], news: [], announcements: [] };
 const quoteDate = rows => (rows || []).map(row => String(row.date || row['时间'] || row.as_of || '')).filter(value => /^\d{4}-\d{2}-\d{2}(?:$|[T ])/u.test(value)).map(value => value.slice(0, 10)).filter(day => {
   const parsed = new Date(`${day}T00:00:00Z`);
@@ -41,7 +43,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   const blockReads = new Map();
   const creationKeys = new Map();
   const chipAttempts = new Set();
-  let account = currentAccount();
+  let account = currentAccount(); let accountEpoch = 0;
   let generation = 0; let readAbort; let historyContext = null; let preferencesLoaded = false; let preferenceVersion = 0; let preferenceQueue = Promise.resolve(); let persistedPreferences = state.preferences;
   const currentHistory = context => account === currentAccount() && historyContext === context && !context.cancelled && state.observation?.id === context.observationId && identity(state.observation) === context.identity;
   const notify = () => onChange();
@@ -61,7 +63,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   }
   function checkAccount() {
     if (account === currentAccount()) return;
-    cancel(); account = currentAccount(); creationKeys.clear(); chipAttempts.clear(); preferencesLoaded = false; preferenceVersion++;
+    cancel(); account = currentAccount(); accountEpoch++; preferenceQueue=Promise.resolve(); creationKeys.clear(); chipAttempts.clear(); preferencesLoaded = false; preferenceVersion++;
     persistedPreferences = { panels: ['volume', 'macd'] };
     Object.assign(state, { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [], errors: {}, historyJob: null, preferences: persistedPreferences });
   }
@@ -187,7 +189,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     const preferenceReadVersion = preferenceVersion;
     if (!preferencesLoaded && api.assetChartPreferences) requests.push(['preferences', 'assetChartPreferences']);
     await Promise.all(requests.map(async ([name, method]) => {
-      try { const data = await api[method](options); if (ticket === generation) { if (name === 'preferences') { if (preferenceReadVersion === preferenceVersion && validPanels(data.panels)) { state.preferences = { panels: [...data.panels], chip_settings: normalizeChipSettings(data.chip_settings || {}) }; persistedPreferences = state.preferences; preferencesLoaded = true; } } else state[name] = Array.isArray(data.items) ? data.items : []; } }
+      try { const data = await api[method](options); if (ticket === generation) { if (name === 'preferences') { if (preferenceReadVersion === preferenceVersion && validPanels(data.panels)) { state.preferences = { panels: [...data.panels], chip_settings: normalizeChipSettings(data.chip_settings || {}), ...indicatorPreferences(data) }; persistedPreferences = state.preferences; preferencesLoaded = true; } } else state[name] = Array.isArray(data.items) ? data.items : []; } }
       catch (error) { if (ticket === generation && (name !== 'preferences' || preferenceReadVersion === preferenceVersion)) { if (name !== 'preferences') state[name] = []; state.errors[name] = error.message; safeLog('asset_workspace_read_failed', { status: name }); } }
     }));
     if (ticket !== generation) return;
@@ -287,14 +289,27 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     }
     if (!needsInitialHistory && ticket === generation && !historyContext) void ensureChipInputs();
   }
-  function savePreferences(panels, chipSettings = state.preferences.chip_settings) {
-    if (!validPanels(panels)) { state.errors.preferences = '副图选择无效'; notify(); return Promise.resolve(); }
-    const version = ++preferenceVersion; const owner = account; let settings; try { settings = normalizeChipSettings(chipSettings || {}); } catch { state.errors.preferences = '筹码设置无效，未保存'; safeLog('asset_chip_preferences_invalid', { status: 'invalid' }); notify(); return Promise.resolve(false); } state.preferences = { panels: [...panels], chip_settings: settings }; notify();
-    preferenceQueue = preferenceQueue.then(async () => {
-      if (owner !== account || owner !== currentAccount()) return;
-      try { const data = await api.saveAssetChartPreferences({ panels, chip_settings: settings }); if (owner !== account || owner !== currentAccount()) return; persistedPreferences = { panels: validPanels(data?.panels) ? [...data.panels] : [...panels], chip_settings: normalizeChipSettings(data?.chip_settings || settings) }; if (version === preferenceVersion) { state.preferences = persistedPreferences; preferencesLoaded = true; delete state.errors.preferences; notify(); } }
-      catch (error) { if (owner === account && owner === currentAccount() && version === preferenceVersion) { state.preferences = persistedPreferences; state.errors.preferences = error.message; notify(); } safeLog('asset_chart_preferences_failed', { status: error.code || 'request_failed' }); }
-    }); return preferenceQueue;
+  function savePreferences(panels, chipSettings, indicators = {}) {
+    checkAccount();
+    if (!validPanels(panels)) { state.errors.preferences = '副图选择无效'; notify(); return Promise.resolve(false); }
+    let candidate;
+    try { candidate={panels:[...panels],chip_settings:normalizeChipSettings((chipSettings===undefined?state.preferences.chip_settings:chipSettings)||{}),...indicatorPreferences({...state.preferences,...indicators})}; }
+    catch { state.errors.preferences='指标设置无效，未保存';safeLog('asset_chart_preferences_invalid',{status:'invalid'});notify();return Promise.resolve(false); }
+    const version=++preferenceVersion; const owner=account; const epoch=accountEpoch; state.preferences=candidate;notify();
+    preferenceQueue=preferenceQueue.then(async()=>{
+      if(epoch!==accountEpoch||owner!==account||owner!==currentAccount())return;
+      try {
+        const data=await api.saveAssetChartPreferences(candidate);
+        if(epoch!==accountEpoch||owner!==account||owner!==currentAccount())return;
+        persistedPreferences={panels:validPanels(data?.panels)?[...data.panels]:[...candidate.panels],chip_settings:normalizeChipSettings(data?.chip_settings||candidate.chip_settings),...indicatorPreferences({...candidate,...data})};
+        if(version===preferenceVersion){state.preferences=persistedPreferences;preferencesLoaded=true;delete state.errors.preferences;notify();}
+        return true;
+      } catch(error) {
+        if(epoch===accountEpoch&&owner===account&&owner===currentAccount()&&version===preferenceVersion){state.preferences=persistedPreferences;state.errors.preferences=error.message;notify();}
+        safeLog('asset_chart_preferences_failed',{status:error.code||'request_failed'});return false;
+      }
+    });return preferenceQueue;
   }
+
   return { state, load, activateView, loadBlock, cancel, startHistory, stopHistory, savePreferences };
 }

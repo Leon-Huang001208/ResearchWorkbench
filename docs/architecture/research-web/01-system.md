@@ -1,5 +1,10 @@
 # 部署与模块职责
 
+2026-10-23：终端Native部署沿同一个主实例／私有网关／受管操作员拓扑，仅新增固定`reviewed-market-terminal-v1`身份。原维护锁、BirthFence、完整版本4事务和恢复仍承担切换，不新建服务或运行节点；01／12图保持准确。PR201合入后才由主任务固定最终PAYLOAD，操作员候选CI与实际常驻切换分别认证，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+终端v2在原Host市场上下文增加分析和个人组合文件；公开行情来源细化为东财报价和新浪历史价格指数日线。用户仅能访问自己根下market-cache，旧core-v1研究仓仍仅固定12，terminal-v2不借旧profile声称入仓。系统部署节点和DSH保持，13图同步实际来源及文件／读取边。
+管理员构建器对账只扩展原Docker构建工具节点内部的显式修复路径，继续使用当前本地Docker Desktop endpoint及原操作锁；无新Host／DSH节点或网络公开面，原部署图仍准确。
+
 2026-10-23：市场补齐仍位于原Host MarketService、DataHub公开东财和当前用户缓存内；只增加限价状态、昨日逐股基线及最多30日真实资金留存，无新增部署节点或后台采集服务。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
 
 公开indices桥由现有ResearchService注入`MarketReader`，仅为MarketService的固定指数分区接入原ResearchWarehouse/StorageRunner。其余分区直取和用户缓存、GET零上游、唯一DSH及部署节点不变；13市场数据流增加可选个人仓库条件边，未配置不会创建数据库或后台采集。
@@ -583,3 +588,6 @@ AES 现有记录的全树认证只收紧同一凭据边界，不增加部署节�
 模型服务在原Host设置路由内管理多个命名连接，Store只保存公开profile身份，原凭据桥将两个固定DSH ref路由到独立物理账号。唯一DSH引擎、Native/Docker拓扑及原用户隔离不变；具体身份和失败关闭合同见02/04/05章。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+2026-10-23：固定v7只绑定当前主实例/网关共同c4e前版和组合产品3a62；原部署节点、唯一DSH、私网入口与version4事务拓扑不变。

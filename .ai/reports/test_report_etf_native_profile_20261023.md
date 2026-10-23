@@ -62,7 +62,30 @@ RESEARCH_DISABLE_LOCAL_EMBEDDINGS=1 \
   tests/research_web/test_multiuser_resident.py tests/research_web/test_api.py -q
 ```
 
-## Outstanding gates
+## Merge-conflict reconciliation against master 5343e18d (2026-10-23)
+
+The four conflicted files were reconciled while retaining every master asset-v7 and
+market-terminal profile, fixed identity, CLI branch and existing test. The ETF additions
+were layered on those branches: business-index reader membership, historical-profile and
+recovery matrices, complete CI reader selection, and the explicit market inflight gate.
+The master test fixture's malformed/unknown evidence-hash mutations remain in place;
+ETF selects the v6 evidence constant without bypassing those adversarial checks.
+
+Current ETF PREVIOUS/PAYLOAD remain provisional and are not deployment-qualified.
+The parent task reports the registered resident baseline as `5343e18d`; the parent must
+provide the actual accepted PR198 merge SHA before the single final identity update.
+The old 1531/1058 test evidence and prior file hashes above belong to the earlier bytes
+and do not certify this merge reconciliation or the final identity update.
+
+Actual reconciliation checks: AST parse passed for source and tests; all 45 master
+source function/class names and 108 master test function/class names remain present
+(merged tests have 113 names); no conflict markers remain in the four files;
+Black check passed for both Python files; `git diff --check` passed. Full final tests,
+static checks, independent review and final source hashes remain pending the final pins.
+No Git staging/commit, network, model/vendor/Office call, dependency installation,
+service mutation or deployment was performed by this reconciliation subtask.
+
+## Remaining acceptance gates
 
 Final product pin and independent review, complete changed-set Router/integrity checks,
 Project Constraints, Research Web Checks and same-candidate macOS bootstrap remain required.

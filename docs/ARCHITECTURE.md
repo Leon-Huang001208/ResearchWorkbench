@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+2026-10-23：市场终端固定部署仅在原Native操作员增加`reviewed-market-terminal-v1`／`apply-market-terminal`身份，复用version4维护锁、BirthFence、主实例与网关升级、全账号保全及恢复；不新增运行节点、协议、依赖或第二研究引擎。产品13图已有终端数据边界，操作员沿原01／12图，无须重复重画。固定候选、尚待PR201合并后冻结的产品身份及分层验收见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)；本机回归不代表常驻已切换。
+
+2026-10-23全市场终端v2沿现有浏览器→Host MarketService→公开来源及账号文件增加版本化24指数目录、三周期六维证据、风格矩阵与组合预览确认。东财行情与新浪前日价格指数日线分别保留来源；旧12指数研究仓合同不扩写。持仓与首次观察日线保存在原用户market-cache，GET不采集、不创建目录，不新增守护进程、依赖、研究会话或交易接口。13市场图按Host模块抽象同步这些数据边界。
+2026-10-23构建器对账沿现有管理员rwb-docker／Docker Desktop节点增加显式preview→指纹绑定apply／recover工具，复用原operation.lock、固定BuildKit和资源限额。仅恢复当前已核验本地引擎中容器与卷同时缺失的登记；无新Web服务、业务数据流或常驻切换。详见[Docker对账](research-web-docker.md)。
+
 2026-10-23官方与中国宏观接入继续走Host/DataHub/Broker/既有公开worker/ResearchWarehouse。NYFed与Treasury采用已登记端点；AK的四个factor_macro序列复用现有业务查询接口，原始响应与参考期字段进入provider-native捕获。04数据图的normalize节点已包含可选研究仓、修订与冻结，本轮增加其封闭合同及版本检查，没有新服务、HTTP路由、数据库表或第二研究引擎。观察期不等于披露时间；这些捕获不获得正式PIT资格。错误封包修复在原Provider和会话缓存边界，不能通过HTTP200获得数据成功状态。
 
 2026-10-23市场补齐沿既有浏览器→Host MarketService→DataHub公开东财→当前用户缓存拓扑，新增同批限价状态、同池昨日逐股金额重算及最多30日真实资金留存；不增服务、HTTP路径、业务index、依赖、模型调用或跨账号流。原13市场图拓扑不变，缓存可选字段和公开投影分别见[缓存](architecture/research-web/03-data-files.md#全市场概览缓存)、[API](architecture/research-web/04-api.md#全市场概览接口)与[口径](research-web-datahub.md#无会话全市场数据)。
@@ -199,6 +204,18 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。
+
+
+2026-10-23：资产副图扩展沿现有浏览器→Host偏好→账号Store链路：封闭15类OHLCV计算与有限数值参数，无厂商公式、模型、新服务或依赖。持久化仅显式用户保存，旧偏好不物化新默认键；原系统拓扑/数据流图准确。
+
 ## 2026-10-23：发布版本研究仓
 
 BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原Host→DataHub→MarketStore，复用既有available_at/ingested_at修订、原件与冻结表；只新增Provider内部解析与受信WarehouseBinding，未新增服务、HTTP、数据根或数据库schema。通用native仍是首次观测；东财SDK/游客资金流同源且单位未知，不授予跨源等价。模块与时点范围见[研究仓](research-web-market-store.md)。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock单报告期盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。

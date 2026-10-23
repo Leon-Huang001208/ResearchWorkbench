@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-23：终端`reviewed-market-terminal-v1`是Mac Native封闭部署profile，Docker镜像、Compose、业务卷、容量锁及双运行时选择不变。原version4保全／恢复复用，不操作构建器或生产数据库；本机操作员和同候选Mac安装不构成Docker产品证据，本轮Docker产品层保持NOT_RUN。固定候选及待验证状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
 2026-10-23：市场限价/昨日/历史仅新增Mac Native固定apply-market-history身份，原Docker镜像、Compose、卷、资源锁和双运行时选择不变；不将Mac源码/安装/认证页面作为Docker产品验收，本轮Docker层NOT_RUN。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
 
 资产v5大索引修复仅影响Native操作员verify_primary的v5业务读取绑定，不改Docker镜像、Compose、卷、资源治理或双运行时选择。64 MiB是既有业务索引边界，元数据保持1 MB；没有Docker容量或持久格式扩展。Native停机前拒绝、本机回归和PR187文档门修补均不认证Docker产品验收，本轮Docker／Linux执行保持未运行状态。
@@ -198,6 +200,24 @@ CPU仍为 CFS quota/period=200000/100000、
 PIDs256、日志10MiB×3、`worker.oci.max-parallelism=2`，缓存仅用所属命名卷。
 标准 BuildKit worker 需要 privileged，它仅属于管理员构建平面；业务容器不继承该权。
 首次创建拒绝同名未知 builder/container，后续核验记录ID及限额后使用；不改默认builder。
+若本机 Buildx 注册仍存在，但已登记容器与缓存卷同时缺失，可先执行
+`./rwb-docker builder-reconcile --json` 取得只读预览和 `fingerprint`，再显式执行
+`./rwb-docker builder-reconcile --apply <fingerprint>`。该管理命令需要宿主已有 Python 3.11+，
+不安装依赖；默认预览不改变 Docker。它在同一 `operation.lock` 下核对本机
+`desktop-linux`、Unix socket、当前 Docker Desktop Engine ID、单节点 docker-container
+绑定、旧账本、配置、运行构建和内存预算；任何改变都要求重新预览。
+旧 `builder.id` 不能证明原引擎身份，也不能证明资源为何消失：预览明确承认这一缺口，
+apply 仅授权在该次已核验的当前本机引擎恢复缺失资源，不声称找回旧缓存。
+容器/卷仅缺一个、同名未知资源、运行中的构建器或构建、管理目录别名一律拒绝。
+恢复保留 Buildx 注册，使用官方 Docker create/start 和 Buildx bootstrap，固定
+`moby/buildkit:v0.28.0`、既有限额/标签/配置，验证完成后精确停止新容器并更新账本。
+Docker Desktop 若将配置 bind 的 Source 显示为精确 `/host_mnt` 加原宿主绝对路径，
+必须同时由 `HostConfig.Mounts` 证明相同翻译路径、固定配置目标和只读属性；其他前缀、
+路径后缀匹配或缺失旁证仍拒绝。宿主原路径的既有验证保持。
+原账本、配置、脱敏绑定和分阶段 journal 保存在管理目录 `builder-reconcile/<fingerprint>/`，
+日志在 `logs/builder-reconcile.log`。失败保留实际现场和归档，不伪造回滚；可用
+`--recover <fingerprint>` 显式恢复已登记阶段。创建成功但 journal 未落盘等身份不明窗口
+会拒绝自动恢复，须管理员核对现场。该命令不删除卷、缓存 blob 或 Docker.raw，不重置引擎。
 BuildKit必须留出自身内存，重构建与stage错峰。不要通过全局 prune 或停止他实例解决问题。
 固定 DSH源码、原Node4GiB heap、完整TypeScript与打包检查均保留，不交付失败的降低heap适配。
 受管入口同时核对所有实际运行容器硬上限与VM实际内存，保留2GiB余量；未知无限额容器拒绝。
@@ -340,3 +360,6 @@ AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件�
 模型profile仍使用实例绑定的原加密模型后端，不新增卷或主密钥。新AES-GCM记录携带公开账号并核对文件名和AAD，旧记录不转换；所有记录重启校验继续拒绝未知/损坏绑定。本次Mac任务不从Mac dispatch Linux/Windows产品CI，Docker实际交付仍按对应真机证据。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+2026-10-23：资产副图v7只更新macOS Native固定操作员；不宣称Docker产品已验收，不修改构建器、缓存/容量或其他平台规则。原资源回收仍保护未知与活动资源。

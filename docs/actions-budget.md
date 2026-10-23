@@ -1,5 +1,8 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23终端v2只向原Checks Python步骤加入test_market_indices/test_market_terminal，JS沿原通配符；Mac安装名单增加market-terminal.mjs，原job/runner/timeout/依赖与条件不变。当前公开仓库资格由操作前实时核验。新增离线闭包约1秒，预留原步骤30秒；公开源不进入CI，不触发真实模型或付费数据。
+2026-10-23构建器对账只向现有Research Web Checks同一pytest步骤加入test_builder_reconcile／test_iteration_resources／test_docker_resources；不增workflow/job/runner/timeout。44项及9subtests的本机10.14秒为阶段证据，完整候选另测并保留原三CI／macos-14安装门。只读API当前PUBLIC；真实Docker恢复另验，无模型或业务数据操作。
+
 2026-10-23剩余来源验证与宏观研究仓沿用原Project Constraints、Research Web Checks和同候选Mac Bootstrap。仅向既有Python清单加入test_datahub_official_numeric.py；中国宏观、资金流与外部封包反例扩展既有模块，不新增job、runner、依赖或timeout。只读API核验仓库PUBLIC；最近五个成功run39862338057/39862338001/39860024415/39859994006/39859993855创建至结束63/732/591/53/821秒，均值452秒；这属于预算参考，远端动作前仍须实时复查。定点新增回归约数秒，预留现有步骤30秒，完整Router与全部原门不变。真实免费样例及socket-only临时PostgreSQL仅本机有界执行，CI不连接厂商、凭据、模型或正式数据库；不把跳过或旧候选结果认证为最终候选。Windows/Linux产品验收交接对应设备，本轮不部署、不改现有服务或外盘。
 
 2026-10-23市场限价/昨日/历史只扩展现有test_market_provider/service和test_model_provider_upgrade，JS沿原research_web通配符；不新增workflow/job/runner/超时或项目依赖，不手工rerun。任务开始只读API为PUBLIC；原Project Constraints/Research Web Checks及同候选macos-14安装仍必需，Mac不触发Windows/Linux产品dispatch。产品78项Python与34项JS、操作员868项43.50秒为本机阶段结果，不代替最终候选CI；新增定点预算60秒，实际时长另留日志。真实源/部署/认证页面独立验收，无模型或厂商私有调用。
@@ -236,6 +239,8 @@ Host元数据专项升级测试复用Research Web Checks现有test_resident.py�
 
 2026-10-23 资产v6配置复用原三CI及原macOS安装步骤；实时仓库PUBLIC、PR197三标准runner均成功。新增配置回归沿原test_model_provider_upgrade/test_resident，1183项部署/网关合同本机73.64秒，预留90秒；无新job、runner、依赖、时限或Windows/Linux dispatch。真实常驻事务与认证页面独立取证。
 
+2026-10-23 资产价格着色沿原三CI与Mac Bootstrap，不加job、runner、依赖或时限；实时PUBLIC，PR200三标准runner均成功。新增纯JS颜色与缺失值回归复用原通配符，资产184项本机1.79秒；最终同候选与常驻另验，不从Mac触发Windows/Linux产品任务。
+
 ## 2026-10-23：有限历史发布与财务日期合同
 
 只在既有Research Web Checks同一Python步骤补test_datahub_bea_archive/test_datahub_financial_time_contract，无新job/runner/超时/依赖。离线合同不访问BEA/新浪/账户或模型，真实有界Host/临时PG另在本机验证；额外定点预算预留15秒。最近已完成候选088c的Checks39892327293与Mac39892343945只证明该旧树，后续最终候选须重绑原三CI；远端动作前重新核对visibility/额度，禁止手动rerun及Mac发Windows/Linux产品dispatch。
@@ -246,3 +251,10 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 并在原catalog/coordinator模块覆盖完整目录和持久状态恢复。该文件本机约28秒，新增预算合计预留45秒；
 仍无新job/runner/依赖/时限或他平台dispatch。临时Mac诊断workflow已恢复原字节；三次历史启动失败保留，
 正常修补后的同候选Mac仍须重新证明，不用本机通过替代。追加公开资金流失败只在本机执行，不进入CI。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial_integration，原BaoStock测试增加合成季度合同；无新workflow/job/runner/依赖/timeout。当前本机该闭包约3秒，新增预算预留15秒；真实免费SDK与独立临时PG只本机有界执行，CI不连接财务厂商。最终原三CI及同候选Mac安装门保持；Mac不发Windows/Linux产品dispatch，远端动作前实时复查visibility/额度。

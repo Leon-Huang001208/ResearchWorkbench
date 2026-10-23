@@ -148,6 +148,10 @@ def resolve(
         # A generic financial-summary binding is not this source-qualified
         # statement contract; never substitute a lookalike summary on failure.
         bindings = [binding for binding in bindings if "income_statement" in binding["datasets"]]
+    if query.capability == "financials" and query.parameters.get("statements") == ["profitability"]:
+        bindings = [
+            binding for binding in bindings if "quarterly_profitability" in binding["datasets"]
+        ]
     if query.capability == "market_activity" and query.parameters.get("dataset"):
         bindings = [
             binding
@@ -319,7 +323,7 @@ def resolve(
                 else (
                     "天软因子请求口径不受支持"
                     if query.capability == "factor_macro" and unsupported_source == "tinysoft"
-                    else f"{'Wind' if source_id == 'wind' else 'AKShare'} 请求口径不受支持"
+                    else f"{ {'wind': 'Wind', 'baostock': 'BaoStock'}.get(source_id, 'AKShare')} 请求口径不受支持"
                 )
             )
             raise StoreError(message, unsupported_code, 400)
@@ -377,6 +381,7 @@ def resolve(
         "search_assets",
         "trading_calendar",
         "market_bars",
+        "financials",
     }:
         legacy = query.model_copy(update={"source": "baostock"})
     elif selected == "akshare" and query.capability in {
