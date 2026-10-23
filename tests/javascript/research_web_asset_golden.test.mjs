@@ -28,13 +28,10 @@ for (const period of ['day', 'week', 'month']) test(`actual AlphaFoundry backend
   assert.ok(compared > 10);
 });
 
-test('actual original JS chip buckets, FWHM, mean and profit match across five visible windows', () => {
+test('legacy OHLCV-only golden inputs cannot masquerade as verified turnover chips', () => {
   const bars = enrichMarketBars(fixture.input);
-  for (const expected of fixture.expectedChips) {
-    const actual = estimateChipDistribution(bars, expected.start, expected.end);
-    assert.deepEqual(actual.points, expected.points);
-    for (const field of ['averageCost', 'peak', 'lower', 'upper', 'profitFraction', 'lockedFraction']) assert.ok(Math.abs(actual[field] - expected[field]) < 1e-10, `${field}: ${actual[field]} != ${expected[field]}`);
-    const widerDisplayAxis = estimateChipDistribution(bars, expected.start, expected.end, [80, 180]);
-    assert.deepEqual(widerDisplayAxis.points, actual.points, 'MA/BOLL-driven display scale must not change OHLCV buckets');
+  for (const window of fixture.expectedChips) {
+    const chip = estimateChipDistribution(bars, window.start, window.end);
+    assert.equal(chip.status, 'unavailable'); assert.deepEqual(chip.points, []);
   }
 });

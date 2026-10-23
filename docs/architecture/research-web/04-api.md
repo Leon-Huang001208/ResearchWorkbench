@@ -1,5 +1,12 @@
 # Research Web 接口清单
 
+## 筹码输入与偏好可选字段（2026-10-23）
+
+原POST history-jobs正文可选严格布尔 `include_chip_inputs`，缺省false，仅固定tinysoft可设true；响应在true时带同名字段。重复幂等键必须保留语义，retry_of必须保留原旗标、截止、范围、来源和复权。进度phase=chip_inputs时带chip_batches_total/completed。没有新增HTTP路径；取消、排空、归属和冻结检查保持。
+
+原GET/PUT chart-preferences增可选chip_settings对象；旧panels正文仍兼容且保留已有设置。只接受algorithm(triangle/uniform)、decay(0–10)、peakUpperPct/peakLowerPct(0–100)、showPeak/overlayEnabled(布尔)、ageShort/ageMiddle/ageLong/overlayDays(1–10000整数)、visibleAges(唯一合法枚举)；龄阈值严格递增。非法/超大JSON整数返回校验错误，不产生500或隐式转换。
+
+
 资产v5索引修复只改变Native操作员的内部verify_primary读取绑定，不新增HTTP、CLI参数、账号权限或请求格式；合流PR188后API inventory为321声明／318唯一接口，新增路径按研究仓原合同保留。64 MiB业务读取与1 MB部署元数据明确分开，旧profile不变。阅读页使用已提交组合产品88ef3817，v5一行读取修复另指8f2cb39a；当前PAYLOAD为88ef、PREVIOUS仍51f09。旧a114三CI全PASS不认证新组合，文档与本机结果也不表示常驻已切换。
 
 资产交互v5（2026-10-22）增加的是操作员CLI封闭命令apply-assets-v5，不新增HTTP、请求参数或权限入口。原目录search、区块load、历史as_of及账号／会话归属合同保持，API inventory仍为318条源码声明／315个唯一接口；Atlas只将源码链接固定到PR185真实merge9bc4。最终部署资格与固定旧51f09的恢复见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)，HTTP或产品CI成功不表示v5已切换。

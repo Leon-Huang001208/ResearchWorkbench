@@ -503,6 +503,75 @@ def real_workspace(tmp_path, monkeypatch):
     return ws, hub, oid, calls, sdk, providers_cjpy
 
 
+def chip_real_workspace(tmp_path, monkeypatch):
+    from app.research_web.datahub.providers_cjpy_assets import FACTORS
+
+    ws, hub, oid, _, sdk, _ = real_workspace(tmp_path, monkeypatch)
+    sdk.__version__ = "0.5.2"
+    sdk.get_stocks = lambda **_kwargs: ["SH600000"]
+    original_bars, original_factors, original_definitions = (
+        sdk.get_market_data,
+        sdk.get_factor_data,
+        sdk.list_factors,
+    )
+    sdk.get_market_data = lambda **kwargs: [{**r, "amount": 1100} for r in original_bars(**kwargs)]
+    name, formula, description = FACTORS["turnover_rate_pct"]
+    sdk.list_factors = lambda **kwargs: [
+        *original_definitions(**kwargs),
+        {"因子名称": name, "公式": formula, "说明": description},
+    ]
+    batches = []
+
+    def factors(**kwargs):
+        if kwargs["factors"] != ["换手率"]:
+            return original_factors(**kwargs)
+        batches.append(kwargs["date"])
+        return [
+            {"代码": "SH600000", "截止日": d.replace("-", ""), "换手率": 0 if i == 0 else 5}
+            for i, d in enumerate(kwargs["date"])
+        ]
+
+    sdk.get_factor_data = factors
+    return ws, hub, oid, sdk, batches
+
+
+@pytest.mark.asyncio
+async def test_chip_inputs_use_real_broker_provider_frozen_units_and_bounded_batches(
+    tmp_path, monkeypatch
+):
+    ws, hub, oid, _, batches = chip_real_workspace(tmp_path, monkeypatch)
+    try:
+        job = await ws.history_jobs.create(
+            oid,
+            HistoryJobRequest(scope="recent", adjustment="qfq", include_chip_inputs=True),
+            "chip-real-contract",
+        )
+        await settle(ws)
+        done = ws.history_jobs.get(oid, job["id"])
+        assert done["state"] == "completed", done
+        assert batches and all(1 <= len(d) <= 32 for d in batches)
+        dataset = ws.observation(oid)["blocks"]["history"]["dataset"]
+        manifest = hub.detail(ws.observation(oid)["session_id"], dataset["dataset_id"])
+        history = manifest["asset_history"]
+        assert history["chip_inputs"]["contract_version"] == "chip-turnover-1"
+        assert history["chip_inputs"]["row_count"] == dataset["row_count"]
+        assert history["chip_inputs"]["vwap_valid_rows"] == dataset["row_count"]
+        assert any(e["query"]["capability"] == "market_activity" for e in history["inputs"])
+        rows = json.loads(
+            hub.snapshots.read(
+                ws.observation(oid)["session_id"], dataset["dataset_id"], "rows.json"
+            )
+        )
+        assert rows[0]["turnover_rate_pct"] == 0 and rows[0]["vwap"] == 11
+        assert "turnover_rate_pct" not in history["raw_rows"][0]
+        assert "vwap" not in history["raw_rows"][0]
+        assert manifest["fields"]["turnover_rate_pct"]["unit"] == "percent"
+        assert done["progress"]["chip_batches_completed"] == len(batches)
+    finally:
+        await ws.history_jobs.close()
+        await hub.close()
+
+
 @pytest.mark.asyncio
 async def test_real_broker_provider_all_over_5000_rows_fixed_anchor_and_copy(tmp_path, monkeypatch):
     ws, hub, oid, calls, _, _ = real_workspace(tmp_path, monkeypatch)
@@ -1860,3 +1929,88 @@ async def test_scope_denial_stops_resolver_repeating_ignored_exclusion(tmp_path,
         assert resolutions[1] == frozenset({resolution.provider_id})
     finally:
         await hub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["failure", "cancel"])
+async def test_chip_input_failure_or_cancel_keeps_old_canonical_and_retry_scope(
+    tmp_path, monkeypatch, outcome
+):
+    ws, hub, oid, sdk, _batches = chip_real_workspace(tmp_path, monkeypatch)
+    release, entered = threading.Event(), threading.Event()
+    original = sdk.get_factor_data
+    try:
+        old_job = await ws.history_jobs.create(
+            oid, HistoryJobRequest(scope="recent", adjustment="qfq"), "chip-old-readable"
+        )
+        await settle(ws)
+        assert ws.history_jobs.get(oid, old_job["id"])["state"] == "completed"
+        old = ws.observation(oid)["blocks"]["history"]["dataset"]
+
+        def delayed(**kwargs):
+            if kwargs["factors"] == ["换手率"]:
+                entered.set()
+                if not release.wait(5):
+                    raise RuntimeError("synthetic timeout")
+                if outcome == "failure":
+                    raise RuntimeError("synthetic turnover failure")
+            return original(**kwargs)
+
+        sdk.get_factor_data = delayed
+        body = HistoryJobRequest(scope="recent", adjustment="qfq", include_chip_inputs=True)
+        job = await ws.history_jobs.create(oid, body, "chip-atomic-inputs")
+        assert await asyncio.to_thread(entered.wait, 5)
+        assert ws.observation(oid)["blocks"]["history"]["dataset"] == old
+        if outcome == "cancel":
+            result = await ws.history_jobs.cancel(oid, job["id"])
+            assert result["state"] in {"cancelling", "draining"}
+        release.set()
+        await settle(ws)
+        done = ws.history_jobs.get(oid, job["id"])
+        assert done["state"] == ("failed" if outcome == "failure" else "cancelled"), done
+        assert ws.observation(oid)["blocks"]["history"]["dataset"] == old
+        with pytest.raises(StoreError, match="筹码"):
+            await ws.history_jobs.create(
+                oid,
+                HistoryJobRequest(scope="recent", adjustment="qfq", retry_of=job["id"]),
+                "chip-retry-wrong-scope",
+            )
+        sdk.get_factor_data = original
+        retry = await ws.history_jobs.create(
+            oid,
+            HistoryJobRequest(
+                scope="recent", adjustment="qfq", include_chip_inputs=True, retry_of=job["id"]
+            ),
+            "chip-retry-exact-scope",
+        )
+        await settle(ws)
+        assert ws.history_jobs.get(oid, retry["id"])["state"] == "completed"
+        assert (
+            ws.observation(oid)["blocks"]["history"]["dataset"]["asset_history"]["chip_inputs"][
+                "status"
+            ]
+            == "complete"
+        )
+    finally:
+        release.set()
+        await ws.history_jobs.close()
+        await hub.close()
+
+
+def test_chip_preferences_preserve_old_put_and_do_not_write_defaults_or_cross_accounts(tmp_path):
+    ws, _, _ = workspace(tmp_path / "one")
+    other, _, _ = workspace(tmp_path / "two")
+    before = ws.store.index.read_bytes()
+    assert "chip_settings" not in ws.chart_preferences()
+    assert ws.store.index.read_bytes() == before
+    first = ws.set_chart_preferences(["volume"], {"algorithm": "uniform", "decay": 0.8})
+    assert first["chip_settings"]["algorithm"] == "uniform"
+    first["chip_settings"]["visibleAges"].clear()
+    assert len(ws.chart_preferences()["chip_settings"]["visibleAges"]) == 4
+    ws.set_chart_preferences(["rsi"])
+    assert ws.chart_preferences()["chip_settings"]["decay"] == 0.8
+    assert "chip_settings" not in other.chart_preferences()
+    before = ws.store.index.read_bytes()
+    with pytest.raises(StoreError):
+        ws.set_chart_preferences([], {"decay": True})
+    assert ws.store.index.read_bytes() == before

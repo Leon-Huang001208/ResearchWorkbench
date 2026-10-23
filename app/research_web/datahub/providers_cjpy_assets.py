@@ -161,7 +161,10 @@ def _day(value):
 
 
 def _number(value):
-    return None if isinstance(value, bool) else numeric(value)
+    try:
+        return None if isinstance(value, bool) else numeric(value)
+    except OverflowError as exc:
+        raise ProviderError("invalid_number") from exc
 
 
 class Context:
@@ -512,6 +515,60 @@ def _snapshot(context, parameters):
         context.result.limitations.append("股本单位或数量一致性尚未核实，不据此推导市值。")
 
 
+def _chip_turnover(context, parameters):
+    """Only one metadata-verified vendor factor, at at most 32 exact trading dates."""
+    days = parameters.get("dates")
+    if (
+        set(parameters) - {"asset", "dataset", "dates"}
+        or not isinstance(days, list)
+        or not 1 <= len(days) <= 32
+        or any(not isinstance(d, str) or _day(d) != d or d > context.today for d in days)
+        or days != sorted(set(days))
+    ):
+        raise ProviderError("chip_turnover_dates_invalid")
+    name, formula, description = FACTORS["turnover_rate_pct"]
+    metadata = context.records(context.sdk.list_factors(client=context.client))
+    found = [r for r in metadata if r.get("因子名称") == name]
+    if len(found) != 1 or found[0].get("公式") != formula or found[0].get("说明") != description:
+        raise ProviderError("chip_turnover_definition_unverified")
+    rows = context.identities(
+        context.records(
+            context.sdk.get_factor_data(
+                code=context.code,
+                date=days,
+                factors=[name],
+                client=context.client,
+            )
+        ),
+        "代码",
+    )
+    output = {}
+    for row in rows:
+        day, value = _day(row.get("截止日")), _number(row.get(name))
+        if (
+            day not in days
+            or day in output
+            or value is None
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            raise ProviderError("chip_turnover_result_invalid")
+        output[day] = {"asset": context.asset, "date": day, "turnover_rate_pct": value}
+    if set(output) != set(days):
+        raise ProviderError("chip_turnover_result_incomplete")
+    context.result.rows = [output[d] for d in days]
+    context.field("turnover_rate_pct", "percent", source_field=name)
+    context.result.metadata["chip_turnover_contract"] = {
+        "version": "chip-turnover-1",
+        "factor": name,
+        "formula": formula,
+        "description": description,
+        "unit": "percent",
+        "date_identity_verified": True,
+    }
+    log.info("tinysoft_chip_turnover_verified", rows=len(days))
+
+
 def structured_query(query: BusinessQuery, sdk, client, token: str) -> Result:
     parameters = query.parameters
     if parameters.get("asset_type", "stock") != "stock":
@@ -529,7 +586,9 @@ def structured_query(query: BusinessQuery, sdk, client, token: str) -> Result:
         _snapshot(context, parameters)
     elif query.capability == "market_activity":
         dataset = parameters.get("dataset")
-        if dataset in {"holder_details", "holder_data"}:
+        if dataset == "chip_turnover":
+            _chip_turnover(context, parameters)
+        elif dataset in {"holder_details", "holder_data"}:
             details = _holder_details(context)
             if dataset == "holder_details":
                 context.result.rows = details

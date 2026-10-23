@@ -6,6 +6,11 @@
 
 2026-10-23市场补齐沿既有浏览器→Host MarketService→DataHub公开东财→当前用户缓存拓扑，新增同批限价状态、同池昨日逐股金额重算及最多30日真实资金留存；不增服务、HTTP路径、业务index、依赖、模型调用或跨账号流。原13市场图拓扑不变，缓存可选字段和公开投影分别见[缓存](architecture/research-web/03-data-files.md#全市场概览缓存)、[API](architecture/research-web/04-api.md#全市场概览接口)与[口径](research-web-datahub.md#无会话全市场数据)。
 
+## 2026-10-23 资产筹码与精炼行情布局
+
+本轮保留 Host → AssetWorkspace → DataHub/Broker → 账号绑定 CJPY 的既有拓扑。`market_activity/chip_turnover` 是现有适配器内的封闭数据集，不新增服务、任意公式或第二研究引擎。历史任务可冻结逐日换手与同复权 VWAP，全部输入验证后原子更新快照；前端 `asset-chips.mjs` 只从该版本计算自有估算。新增布局与数值格式模块不改变原始数值或冻结证据。既有运行时与数据流图仍准确，模块及持久/API合同见 03/04 章和 DataHub 文档。
+
+
 2026-10-23公开指数研究仓桥沿现有Host/MarketService/DataHub/ResearchWarehouse拓扑：默认Host注入无会话MarketReader，POST indices显式取公开eastmoney后将完整固定12指数响应归档；GET仍只消费market-cache。内部允许缓存请求可读同来源/同个人profile摘要的短时捕获，读写前后重验Host根、关闭状态与profile epoch。没有新增服务、HTTP接口、依赖、研究引擎、共享scope或第二来源；13市场图新增indices-only的可选写仓/内部缓存读取分支，不沿用此前无仓库边的旧图结论，精确边界见[DataHub](research-web-datahub.md)。
 
 PR188合流后的当前v5组合产品固定88ef3817680ac822e2d7c819db845de4b7275173，包含资产9bc4及DataHub研究仓；PREVIOUS仍51f09，8f2cb39a的一行业务读取修复另保留源码身份。用户已批准组合验收后部署锁定baostock0.9.4／psycopg3.3.6，但不启用／迁移数据库、不改外盘。PR188已审新04数据流保持，以下“v5本身无新结构／依赖”只描述原封闭profile及一行修复，不覆盖组合产品的研究仓变化；旧a114三CI全PASS不认证新组合，最终仍须重验。

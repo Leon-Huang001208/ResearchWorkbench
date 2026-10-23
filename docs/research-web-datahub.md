@@ -1,5 +1,12 @@
 # Research Web DataHub
 
+## 同版本筹码输入合同（2026-10-23）
+
+固定 tinysoft 的 `market_activity` 新增 `dataset=chip_turnover`：只接受单一A股和1–32个唯一有序合法ISO日期。SDK限定预定义“换手率”因子，核对固定名称/公式/说明，响应精确覆盖证券和日期，单位为百分数。保留0，拒绝负值、错身份、重复/缺日期及非有限值。不开放任意因子/表表达式，不从旧全局环境取密。
+
+历史任务 `include_chip_inputs=true` 时，在原始日线、因子和逐日换手全部冻结并重验授权后，生成独立规范版本。VWAP只在原量额单位为股/元已核实时计算，再乘相同复权倍率；平价OHLC的唯一价格单独处理。raw_rows不被改写，返回行附turnover_rate_pct/vwap，manifest附chip_inputs合同版本、单位、摘要、有效条数及导出依据。失败、取消或不完整输入保留旧 canonical 指针；真实SDK Future仍须排空。重试保留原include flag及范围。Wind60日门、因子预检与原来源限制保持。
+
+
 2026-10-23 免费官方数值读取沿原 Host → DataHub → Provider → 原生研究仓链，新增的可入仓
 清单仅为 NYFed rates 与 Treasury cash；WorldBank inflation 同步加严身份/年份/分页验证。
 三者使用 official-numeric-v2 版本隔离新缓存，旧会话/冻结证据保留。分页 partial、缺值和
