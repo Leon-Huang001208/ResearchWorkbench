@@ -265,6 +265,16 @@ def asset_index_snapshot(home: Path):
 
     def snapshot(path):
         index = read_business_index(path)
+        from app.research_web.dossier_preservation import snapshot_dossiers
+
+        try:
+            dossier_state = snapshot_dossiers(path.parent)
+        except RuntimeError as exc:
+            raise UpdateBlocked("dossier_preservation_failed") from exc
+        if dossier_state is not None:
+            if "@dossiers" in index:
+                raise UpdateBlocked("dossier_preservation_key_conflict")
+            index = {**index, "@dossiers": dossier_state}
         return {
             key: hashlib.sha256(
                 json.dumps(

@@ -38,6 +38,7 @@ from .credential_backend import default_credential_backend
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .dossier_signal_routes import router as dossier_signal_router
 from .dossiers.routes import router as dossiers_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
@@ -289,6 +290,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
     app.include_router(datahub_router)
+    app.include_router(dossier_signal_router)
     app.include_router(dossiers_router)
     app.include_router(asset_router)
     app.include_router(market_router)

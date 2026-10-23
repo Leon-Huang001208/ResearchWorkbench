@@ -1,0 +1,9 @@
+{
+  "hostPlatform": "macos",
+  "taskKind": "feature-development",
+  "objective": "长期档案与有证据的机会风险扫描",
+  "acceptanceScope": "macOS本机离线闭环、原通用仓库CI及同候选Mac干净安装；其余平台真机交接；供应商实测与常驻部署分别授权",
+  "candidateCommit": "1ae8040ceba96a2b4e1b66ae21eb145c3701ad8d",
+  "candidateBaseCommit": "3a62ca1a3bff0927db681322a1ff028f08cf03cd",
+  "supplementalGateIds": []
+}
