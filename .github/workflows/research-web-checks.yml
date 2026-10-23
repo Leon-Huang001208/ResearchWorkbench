@@ -89,6 +89,7 @@ jobs:
             tests/research_web/test_protocol.py \
             tests/research_web/test_dossiers.py \
             tests/research_web/test_dossier_api.py \
+            tests/research_web/test_dossier_browser_fixture.py \
             tests/research_web/test_dossier_scans.py \
             tests/research_web/test_dossier_signals.py \
             tests/research_web/test_dossier_signal_api.py \
