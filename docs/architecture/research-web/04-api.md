@@ -719,3 +719,5 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 2026-10-23 既有内部`POST /api/research/internal/data/business-query`的BusinessQuery新增可选typed `required_semantics: "cn_stock_daily_cny_share_v1" | null`，默认null保持旧请求指纹；仅market_bars/规范沪深stock/daily/none合法，其他组合输入422。它由Host规范历史设置，不成为Runtime/DSH普通数据工具的可传业务参数。新job公开投影及canonical metadata记录required_semantics，retry冻结原值，缺字段旧job保null；manifest和缓存指纹绑定合同，旧原生数据不能冒充已证明价格单位的规范数据。无新HTTP端点或SQL迁移。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。

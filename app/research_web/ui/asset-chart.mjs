@@ -1,4 +1,4 @@
-import { formatAssetMagnitude } from './asset-format.mjs';
+import { formatAssetMagnitude, assetPriceClass, assetChangeClass } from './asset-format.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { MA_PERIODS, finite, enrichMarketBars, aggregateMarketBars, sourceFrequency } from './asset-indicators.mjs';
@@ -113,8 +113,8 @@ function readout(bar, previous, metadata = {}) {
   const changeAmount = base !== null && finite(bar.close) !== null ? bar.close - base : null;
   const amplitude = base && bar.validOHLC ? (bar.high - bar.low) / base * 100 : null;
   const volumeUnit = fieldUnit(metadata, 'volume') || '源单位'; const amountUnit = fieldUnit(metadata, 'amount') || fieldUnit(metadata, 'turnover') || '源单位';
-  const values = [['开', fmt(bar.open)], ['高', fmt(bar.high)], ['低', fmt(bar.low)], ['收', fmt(bar.close)], ['涨跌额', changeAmount === null ? '—' : `${changeAmount > 0 ? '+' : ''}${fmt(changeAmount)}`], ['涨跌幅', change === null ? '—' : `${change > 0 ? '+' : ''}${fmt(change)}%`], ['均价', fmt(bar.vwap)], ['振幅', amplitude === null ? '—' : `${fmt(amplitude)}%`], ['成交量', formatAssetMagnitude(bar.volume, volumeUnit === '源单位' ? '' : volumeUnit)], ['成交额', formatAssetMagnitude(bar.amount, amountUnit === '源单位' ? '' : amountUnit)], ['换手率', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`]];
-  return `<span class="asset-history-date"><strong>${e(bar.date)}</strong></span>${values.map(([label, value]) => `<span>${e(label)} <strong>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
+  const values = [['开', fmt(bar.open), assetPriceClass(bar.open, base)], ['高', fmt(bar.high), assetPriceClass(bar.high, base)], ['低', fmt(bar.low), assetPriceClass(bar.low, base)], ['收', fmt(bar.close), assetPriceClass(bar.close, base)], ['涨跌额', changeAmount === null ? '—' : `${changeAmount > 0 ? '+' : ''}${fmt(changeAmount)}`, assetChangeClass(changeAmount)], ['涨跌幅', change === null ? '—' : `${change > 0 ? '+' : ''}${fmt(change)}%`, assetChangeClass(change)], ['均价', fmt(bar.vwap)], ['振幅', amplitude === null ? '—' : `${fmt(amplitude)}%`], ['成交量', formatAssetMagnitude(bar.volume, volumeUnit === '源单位' ? '' : volumeUnit)], ['成交额', formatAssetMagnitude(bar.amount, amountUnit === '源单位' ? '' : amountUnit)], ['换手率', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`]];
+  return `<span class="asset-history-date"><strong>${e(bar.date)}</strong></span>${values.map(([label, value, tone]) => `<span>${e(label)} <strong${tone ? ` class="${tone}"` : ''}>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
 }
 function overlayReadout(bar, state) {
   if (!bar) return '';

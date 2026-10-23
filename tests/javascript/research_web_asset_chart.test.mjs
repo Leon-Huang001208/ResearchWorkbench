@@ -352,7 +352,7 @@ test('historical readout retains change amount and average-price slots without g
   const input = [{ ...rows(1)[0], close: 100 }, { ...rows(1)[0], date: day(1), open: 105, close: 110, low: 100, high: 120, amount: 999000, volume: 3 }];
   for (const b of input) delete b.vwap;
   const missing = renderMarketTerminal(input);
-  assert.match(missing, /涨跌额 <strong>\+10\.00<\/strong>/);
+  assert.match(missing, /涨跌额 <strong class="asset-price-up">\+10\.00<\/strong>/);
   assert.match(missing, /均价 <strong>—<\/strong>/);
   for (const key of ['vwap', 'avg_price', 'average_price']) {
     const source = [{ ...input[1], [key]: 108.25 }];
