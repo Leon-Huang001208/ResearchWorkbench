@@ -389,12 +389,12 @@ test('aggregated week/month turnover rate cannot reuse the final day percentage 
   assert.match(html, /换手率 <strong>1\.00%<\/strong>/, 'historical quote explicitly follows the selected actual daily record');
 });
 
-test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and no volume MA series', () => {
+test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and two volume MA series', () => {
   const bars = enrichMarketBars(rows(260)); const option = buildMarketChartOption(bars, { start: 140, end: 260, panels: ['volume', 'macd', 'kdj', 'rsi'], overlay: 'ma', enabledMA: [5, 10, 20, 60, 120, 250] });
   assert.equal(option.grid.length, 5); assert.equal(option.grid[0].height, 300); assert.equal(option.grid[4].top, 654);
   assert.equal(option.axisPointer.link[0].xAxisIndex, 'all'); assert.equal(option.dataZoom.length, 2);
   for (const zoom of option.dataZoom) { assert.deepEqual(zoom.xAxisIndex, [0, 1, 2, 3, 4]); assert.equal(zoom.startValue, 140); assert.equal(zoom.endValue, 259); }
-  assert.equal(option.series.filter(s => /^MA\d+$/.test(s.name)).length, 6); assert.equal(option.series.some(s => /^VOLMA/.test(s.name)), false);
+  assert.equal(option.series.filter(s => /^MA\d+$/.test(s.name)).length, 6); assert.deepEqual(option.series.filter(s=>/^VOLMA/.test(s.name)).map(s=>s.name),['VOLMA5','VOLMA10']);
   assert.match(option.graphic[0].style.text, /VOL:.*MA5:.*MA10:/); assert.equal(option.series[0].data.length, 260);
 });
 
@@ -419,7 +419,7 @@ test('both terminal canvases are transparent and explicit themes keep neutral la
     assert.equal(chips.series[0].markLine.label.color, text);
     assert.deepEqual(option.grid, fallback.grid); assert.deepEqual(option.legend, fallback.legend);
     assert.deepEqual(option.series.map(s => s.data), fallback.series.map(s => s.data));
-    assert.deepEqual(option.series.filter(s => s.lineStyle).map(s => s.lineStyle), fallback.series.filter(s => s.lineStyle).map(s => s.lineStyle));
+    assert.deepEqual(option.series.filter(s => s.lineStyle&&s.xAxisIndex===0).map(s => s.lineStyle), fallback.series.filter(s => s.lineStyle&&s.xAxisIndex===0).map(s => s.lineStyle));
     assert.deepEqual(option.series[0].itemStyle, fallback.series[0].itemStyle);
     assert.ok(option.yAxis.slice(1).every(axis => !Object.hasOwn(axis, 'axisPointer')), 'non-price axes must omit axisPointer instead of setting undefined');
   }
@@ -675,7 +675,7 @@ test('real pinned ECharts creates every series view and survives controls, keybo
   const viewsAreReady = () => {
     assert.deepEqual(errors, []);
     const series = charts.at(-2).getModel().getSeries();
-    assert.equal(series.length, 10 + c.getState().panels.reduce((sum, id) => sum + ({ volume: 1, macd: 3, kdj: 3, rsi: 1 })[id], 0));
+    assert.equal(series.length, 10 + c.getState().panels.reduce((sum, id) => sum + ({ volume: 3, macd: 3, kdj: 3, rsi: 1 })[id], 0));
     assert.ok(series.every(model => charts.at(-2).getViewOfSeriesModel(model)), 'every series must have an actual ECharts view');
   };
   try {

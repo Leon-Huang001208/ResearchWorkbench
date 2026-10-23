@@ -163,6 +163,7 @@ const intelController = createIntelController({ onChange: () => { if (state.rout
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
 const assetChart = createAssetChartController({
+  onIndicatorPreferencesChange: preferences => { void assetWorkspace.savePreferences(preferences.panels, assetState.preferences.chip_settings, preferences); },
   onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
   onChipSettingsChange: settings => { void assetWorkspace.savePreferences(assetState.preferences.panels, settings); },
   onHistoryRequest: request => {
@@ -208,7 +209,7 @@ function configureAssetTerminal() {
   const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
   const rows = observation ? assetState.rows.history || emptyAssetHistory : emptyAssetHistory;
   const metadata = assetTerminalMetadata(observation);
-  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels, chipSettings: assetState.preferences?.chip_settings });
+  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels, chipSettings: assetState.preferences?.chip_settings, favorites: assetState.preferences?.favorites, indicatorSettings: assetState.preferences?.indicator_settings });
   if (configuredAssetHistory === rows && configuredAssetSignature === signature) return;
   if (assetChart.configure(rows, key, metadata, assetState.preferences) !== false) { configuredAssetHistory = rows; configuredAssetSignature = signature; }
 }

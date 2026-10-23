@@ -5,7 +5,7 @@ import path from 'node:path';
 import { readFile, writeFile, appendFile, mkdir } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 
-const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-layout.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-chips.mjs', 'asset-chip-panel.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-format.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
+const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-layout.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-indicator-library.mjs', 'asset-panel-manager.mjs', 'asset-chips.mjs', 'asset-chip-panel.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-format.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
 const clone = value => structuredClone(value);
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 // Preview-container restrictions only. Product files and their hashes stay intact.
@@ -88,10 +88,11 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
         }
         if (preferencesRoute) {
           if (request.method === 'PUT') {
-            if (!Array.isArray(body.panels) || body.panels.length > 4 || new Set(body.panels).size !== body.panels.length || body.panels.some(id => !['volume', 'macd', 'kdj', 'rsi'].includes(id))) return send({ code: 'preview_preferences_invalid' }, 400);
+            if (!Array.isArray(body.panels) || body.panels.length > 15 || new Set(body.panels).size !== body.panels.length || body.panels.some(id => !['volume','macd','kdj','rsi','boll','wr','sar','dmi','cci','bias','roc','obv','vr','emv','atr'].includes(id))) return send({ code: 'preview_preferences_invalid' }, 400);
+            if (body.favorites) state.favorites=clone(body.favorites); if(body.indicator_settings)state.indicatorSettings=clone(body.indicator_settings);
             state.chipSettings = body.chip_settings ? clone(body.chip_settings) : state.chipSettings; state.preferences = [...body.panels]; state.preferenceWrites.push([...body.panels]);
           }
-          return send({ panels: state.preferences, ...(state.chipSettings ? { chip_settings: state.chipSettings } : {}), revision: state.preferenceWrites.length });
+          return send({ panels: state.preferences, ...(state.favorites?{favorites:state.favorites}:{}),...(state.indicatorSettings?{indicator_settings:state.indicatorSettings}:{}), ...(state.chipSettings ? { chip_settings: state.chipSettings } : {}), revision: state.preferenceWrites.length });
         }
         if (jobMatch) {
           const [, oid, jid, cancel] = jobMatch;

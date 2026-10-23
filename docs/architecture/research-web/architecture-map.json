@@ -568,6 +568,9 @@
         "app/research_web/asset_directory.py",
         "app/research_web/ui/asset-search.mjs",
         "app/research_web/asset_chip_inputs.py",
+        "app/research_web/asset_indicator_preferences.py",
+        "app/research_web/ui/asset-indicator-library.mjs",
+        "app/research_web/ui/asset-panel-manager.mjs",
         "app/research_web/ui/asset-chips.mjs",
         "app/research_web/ui/asset-chip-panel.mjs",
         "app/research_web/ui/asset-format.mjs",
@@ -604,6 +607,8 @@
         "tests/javascript/research_web_asset_tabs.test.mjs",
         "tests/e2e/research_web_asset_interactions.mjs",
         "tests/research_web/test_asset_chip_inputs.py",
+        "tests/research_web/test_asset_indicator_preferences.py",
+        "tests/javascript/research_web_asset_indicator_library.test.mjs",
         "tests/javascript/research_web_chip_distribution.test.mjs",
         "tests/javascript/research_web_asset_format.test.mjs"
       ]

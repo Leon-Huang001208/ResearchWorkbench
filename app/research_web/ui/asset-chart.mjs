@@ -1,3 +1,5 @@
+import {INDICATOR_IDS, INDICATOR_CATALOG, DEFAULT_FAVORITES, INDICATOR_RULES, normalizeIndicatorSettings, normalizeFavorites, calculatePanelIndicators, indicatorSeries, indicatorTitle, panelField} from './asset-indicator-library.mjs';
+import {indicatorStrip, indicatorManager, indicatorParameterForm} from './asset-panel-manager.mjs';
 import { formatAssetMagnitude, assetPriceClass, assetChangeClass } from './asset-format.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
@@ -8,8 +10,8 @@ export { enrichMarketBars } from './asset-indicators.mjs';
 
 const UP = '#ff4d4f'; const DOWN = '#00c896';
 const CHART_THEMES = {
-  dark: { text: '#d1d5db', muted: '#9ca3af', grid: 'rgba(148,163,184,.18)', surface: '#11151c', selected: 'rgba(148,163,184,.18)' },
-  light: { text: '#242424', muted: '#686860', grid: '#e8e8e5', surface: '#fafaf9', selected: '#e8e8e5' },
+  dark: { seriesColors: ['#d1d5db','#ed8936','#22d3ee','#a78bfa'], text: '#d1d5db', muted: '#9ca3af', grid: 'rgba(148,163,184,.18)', surface: '#11151c', selected: 'rgba(148,163,184,.18)' },
+  light: { seriesColors: ['#242424','#a5500d','#086aa6','#7552a2'], text: '#242424', muted: '#686860', grid: '#e8e8e5', surface: '#fafaf9', selected: '#e8e8e5' },
 };
 // Pure option builders remain usable without a DOM; browser controllers supply
 // the resolved page tokens so the canvas never owns a separate color scheme.
@@ -23,7 +25,7 @@ const initialRange = length => ({ start: Math.max(0, length - 120), end: length,
 const periodLabel = period => ({ day: '日', week: '周', month: '月', unknown: '原始（频率未知）' })[period] || '原始';
 const maEnabled = state => Array.isArray(state.enabledMA) ? state.enabledMA : MA_PERIODS;
 const overlayKeys = state => state.overlay === 'boll' ? BOLL.map(v => v[0]) : state.overlay === 'none' ? [] : maEnabled(state).map(n => `ma${n}`);
-const PANEL_NAMES = { volume: '成交量', macd: 'MACD', kdj: 'KDJ', rsi: 'RSI' };
+const PANEL_NAMES = Object.fromEntries(INDICATOR_CATALOG.map(item => [item.id,item.name]));
 const DEFAULT_PANELS = ['volume', 'macd'];
 const panelsFor = state => [...new Set((Array.isArray(state.panels) ? state.panels : DEFAULT_PANELS).filter(id => Object.hasOwn(PANEL_NAMES, id)))];
 const historyFor = metadata => metadata.asset_history || {};
@@ -73,7 +75,7 @@ function rangeFor(length, state = {}) {
 }
 function displayBars(rows, state, metadata) {
   const bars = enrichMarketBars(rows); const source = sourceFrequency(metadata.frequency);
-  return source === 'day' && ['week', 'month'].includes(state.period) ? aggregateMarketBars(bars, state.period) : bars;
+  return calculatePanelIndicators(source === 'day' && ['week', 'month'].includes(state.period) ? aggregateMarketBars(bars, state.period) : bars, state.indicatorSettings);
 }
 function priceDomain(bars, state) {
   const { start, end } = rangeFor(bars.length, state); const keys = overlayKeys(state); const values = [];
@@ -87,7 +89,7 @@ function priceDomain(bars, state) {
 }
 function kdjDomain(bars, state) {
   const range = rangeFor(bars.length, state);
-  const values = bars.slice(range.start, range.end).flatMap(b => [b.k, b.d, b.j]).filter(v => finite(v) !== null);
+  const values = bars.slice(range.start, range.end).flatMap(b => [b[panelField('kdj','k')] ?? b.k, b[panelField('kdj','d')] ?? b.d, b[panelField('kdj','j')] ?? b.j]).filter(v => finite(v) !== null);
   return [Math.min(0, ...values), Math.max(100, ...values)];
 }
 function fieldUnit(metadata, key) {
@@ -121,16 +123,27 @@ function overlayReadout(bar, state) {
   const keys = state.overlay === 'boll' ? BOLL : state.overlay === 'none' ? [] : maEnabled(state).map(n => [`ma${n}`, `MA${n}`, COLORS[MA_PERIODS.indexOf(n)]]);
   return keys.map(([key, label, color]) => `<span style="--asset-series-color:${color}">${label}: ${e(fmt(bar[key]))}</span>`).join('');
 }
-function panelText(id, bar = {}, metadata = {}) {
-  return { volume: `VOL:${formatAssetMagnitude(bar.volume, fieldUnit(metadata, 'volume') || '')} MA5:${formatAssetMagnitude(bar.volumeMA5, fieldUnit(metadata, 'volume') || '')} MA10:${formatAssetMagnitude(bar.volumeMA10, fieldUnit(metadata, 'volume') || '')}`, macd: `MACD(12,26,9) DIF:${fmt(bar.dif, 4)} DEA:${fmt(bar.dea, 4)} MACD:${fmt(bar.macd, 4)}`, kdj: `KDJ(9,3,3) K:${fmt(bar.k)} D:${fmt(bar.d)} J:${fmt(bar.j)}`, rsi: `RSI(14):${fmt(bar.rsi)}` }[id] || '';
+function panelValues(id, bar = {}, metadata = {}, state = {}) {
+  const settings = state.indicatorSettings || normalizeIndicatorSettings();
+  return indicatorSeries(id).map(item => {
+    const label = id === 'volume' && item.name === 'MA1' ? `MA${settings.volume.short}` : id === 'volume' && item.name === 'MA2' ? `MA${settings.volume.long}` : item.name;
+    const value = bar[item.key] ?? (id === 'volume' && item.name === 'VOL' ? bar.volume : null);
+    return { ...item, label, formatted: ['volume','obv'].includes(id) ? formatAssetMagnitude(value, fieldUnit(metadata,'volume') || '') : fmt(value, ['macd','emv'].includes(id) ? 4 : 2) };
+  });
+}
+function panelText(id, bar = {}, metadata = {}, state = {}) {
+  return `${indicatorTitle(id,state.indicatorSettings)} ${panelValues(id,bar,metadata,state).map(item=>`${item.label}:${item.formatted}`).join(' ')}`;
+}
+function panelReadout(id, bar, metadata, state, palette) {
+  return panelValues(id,bar,metadata,state).map((item,index)=>`<span style="color:${palette.seriesColors?.[index] || item.color}">${e(item.label)}:${e(item.formatted)}</span>`).join(' ');
 }
 function panelLabels(bar = {}, theme = CHART_THEMES.dark, state = {}, metadata = {}) {
   const layout = chartLayout(state);
-  return layout.panels.map((id, index) => ({ id: `kline-panel-label-${id}`, type: 'text', left: 10, top: layout.top + layout.mainHeight + 9 + index * layout.panelStep, silent: true, style: { opacity: state.domPanelHeaders ? 0 : 1, fill: theme.text, font: '10px SF Mono, Consolas, monospace', textAlign: 'left', textVerticalAlign: 'top', text: panelText(id, bar, metadata) } }));
+  return layout.panels.map((id, index) => ({ id: `kline-panel-label-${id}`, type: 'text', left: 10, top: layout.top + layout.mainHeight + 9 + index * layout.panelStep, silent: true, style: { opacity: state.domPanelHeaders ? 0 : 1, fill: theme.text, font: '10px SF Mono, Consolas, monospace', textAlign: 'left', textVerticalAlign: 'top', text: panelText(id, bar, metadata, state) } }));
 }
 function panelHeaders(state) {
   const layout = chartLayout(state);
-  return layout.panels.map((id, index) => `<div class="asset-panel-header" style="top:${layout.top + layout.mainHeight + 3 + index * layout.panelStep}px" data-asset-panel="${id}"><span class="asset-panel-name">${PANEL_NAMES[id]}</span><span class="asset-panel-readout" tabindex="0" data-asset-panel-readout="${id}"></span><button type="button" class="kline-btn" data-asset-chart-action="panel-remove-${id}" aria-label="移除 ${PANEL_NAMES[id]}" title="移除 ${PANEL_NAMES[id]}">×</button></div>`).join('');
+  return layout.panels.map((id, index) => `<div class="asset-panel-header${state.activePanel===id?' is-active':''}" style="top:${layout.top + layout.mainHeight + 3 + index * layout.panelStep}px" data-asset-panel="${id}"><button type="button" class="asset-panel-name kline-btn" data-asset-chart-action="indicator-replace-${id}" aria-label="替换 ${PANEL_NAMES[id]} 副图">${e(indicatorTitle(id,state.indicatorSettings))}</button><span class="asset-panel-readout" tabindex="0" data-asset-panel-readout="${id}"></span><span class="asset-panel-tools"><button type="button" class="kline-btn" data-asset-chart-action="indicator-add-after-${id}" aria-label="在 ${PANEL_NAMES[id]} 后增加副图" title="增加副图">＋</button><button type="button" class="kline-btn" data-asset-chart-action="panel-remove-${id}" aria-label="移除 ${PANEL_NAMES[id]}" title="移除此副图">−</button></span></div>`).join('');
 }
 function historyStatus(state, metadata) {
   const job = jobFor(metadata); const status = String(job.status || job.state || ''); const pending = busyHistory(metadata) || state.historyRequestPending;
@@ -151,6 +164,8 @@ function controls(state, length, metadata) {
   const failed = retryableHistory(metadata);
   return `<div class="asset-chart-toolbar"><div class="kline-period-group" role="group" aria-label="K线周期">${periods}</div><select class="asset-chart-adjustment" data-asset-chart-adjustment aria-label="复权方式"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${[['none', '不复权'], ['qfq', '前复权'], ['hfq', '后复权']].map(([value, label]) => `<option value="${value}"${state.adjustment === value ? ' selected' : ''}>${label}</option>`).join('')}</select><span class="asset-history-status" data-asset-history-status role="status" hidden>${e(historyStatus(state, metadata))}</span>${button('history-cancel', '取消', false, false, pending ? '' : ' hidden')}${button('history-retry', '重试', false, pending || !metadata.canLoadHistory, failed ? '' : ' hidden')}<div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${button('overlay-ma', 'MA', state.overlay === 'ma')}${button('overlay-boll', 'BOLL', state.overlay === 'boll')}${button('overlay-none', '裸K', state.overlay === 'none')}</div></div>`;
 }
+function safeIndicatorSettings(settings) { try { return normalizeIndicatorSettings(settings || {}); } catch { safeLog('asset_indicator_settings_restore_failed', {status:'invalid'}); return normalizeIndicatorSettings(); } }
+function safeFavorites(favorites) { try { return normalizeFavorites(favorites); } catch { safeLog('asset_indicator_favorites_restore_failed', {status:'invalid'}); return [...DEFAULT_FAVORITES]; } }
 function safeChipSettings(settings) { try { return normalizeChipSettings(settings || {}); } catch { safeLog('asset_chip_settings_restore_failed', { status: 'invalid' }); return normalizeChipSettings(); } }
 function canonicalChip(daily, state, metadata) {
   const input = daily.slice(0, nearestIndex(daily, state.selectedDate) + 1);
@@ -162,15 +177,15 @@ const volumeTick = value => formatAssetMagnitude(value);
 
 export function renderMarketTerminal(rows = [], state = {}, metadata = {}) {
   const source = sourceFrequency(metadata.frequency); const daily = enrichMarketBars(rows);
-  const normalized = { overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: source, showAll: false, adjustment: adjustmentFor(metadata), ...state };
-  normalized.panels = panelsFor(normalized); normalized.chipSettings = safeChipSettings(normalized.chipSettings); normalized.chipTab ||= 'statistics';
+  const normalized = { indicatorSettings: safeIndicatorSettings(state.indicatorSettings), favorites: safeFavorites(state.favorites), activePanel: state.activePanel || panelsFor(state).at(-1) || '', overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: source, showAll: false, adjustment: adjustmentFor(metadata), ...state };
+  normalized.indicatorSettings = safeIndicatorSettings(state.indicatorSettings); normalized.favorites = safeFavorites(state.favorites); normalized.panels = panelsFor(normalized); normalized.chipSettings = safeChipSettings(normalized.chipSettings); normalized.chipTab ||= 'statistics';
   const bars = displayBars(rows, normalized, metadata); Object.assign(normalized, rangeFor(bars.length, normalized));
   const activeIndex = selectedIndex(bars, normalized); normalized.activeIndex = activeIndex;
   normalized.selectedDate = daily[actualDateIndex(daily, normalized.selectedDate || bars[activeIndex]?.source_end_date || bars[activeIndex]?.date)]?.date || '';
   const active = source === 'day' ? daily[nearestIndex(daily, normalized.selectedDate)] : bars[activeIndex];
   const previous = source === 'day' ? daily[nearestIndex(daily, normalized.selectedDate) - 1] : bars[activeIndex - 1];
   const chip = canonicalChip(source === 'day' ? daily : [], normalized, metadata); const layout = chartLayout(normalized);
-  return `<section class="asset-market-terminal" aria-label="行情与技术指标">${controls(normalized, bars.length, metadata)}<div class="asset-terminal-quote asset-history-readout" data-asset-history aria-live="off">${readout(active, previous, metadata)}</div><div class="kline-terminal-layout"><div class="asset-kline-stage"><div class="asset-main-overlay" tabindex="0" aria-label="主图指标读数，可横向滚动" data-asset-overlay-label>${overlayReadout(bars[activeIndex], normalized)}</div><div class="asset-terminal-chart" style="height:${layout.height}px" data-asset-chart data-asset-echarts role="img" tabindex="0" aria-label="K线与自定义副图；方向键选择历史交易日"></div><div class="asset-panel-headers" data-asset-panel-headers>${panelHeaders(normalized)}</div><div class="asset-panel-controls"><details class="asset-chart-popover"><summary>＋ 添加副图</summary><div class="asset-chart-popover-content" data-asset-panel-choices>${Object.entries(PANEL_NAMES).map(([id, name]) => `<button type="button" class="kline-btn" data-asset-chart-action="panel-add-${id}"${normalized.panels.includes(id) ? ' disabled' : ''}>${name}</button>`).join('')}</div></details><span class="asset-range-summary" data-asset-range-summary>第 ${bars.length ? normalized.start + 1 : 0}–${normalized.end} 条 / 共 ${bars.length} 条</span></div></div>${chipPanel(chip, normalized.chipSettings, normalized.chipTab)}</div></section>`;
+  return `<section class="asset-market-terminal" aria-label="行情与技术指标">${controls(normalized, bars.length, metadata)}<div class="asset-terminal-quote asset-history-readout" data-asset-history aria-live="off">${readout(active, previous, metadata)}</div><div class="kline-terminal-layout"><div class="asset-kline-stage"><div class="asset-main-overlay" tabindex="0" aria-label="主图指标读数，可横向滚动" data-asset-overlay-label>${overlayReadout(bars[activeIndex], normalized)}</div><div class="asset-terminal-chart" style="height:${layout.height}px" data-asset-chart data-asset-echarts role="img" tabindex="0" aria-label="K线与自定义副图；方向键选择历史交易日"></div><div class="asset-panel-headers" data-asset-panel-headers>${panelHeaders(normalized)}</div><div class="asset-panel-controls"><details class="asset-panel-legacy" hidden><summary>增加副图</summary><div data-asset-panel-choices>${Object.entries(PANEL_NAMES).map(([id,name])=>`<button type="button" data-asset-chart-action="panel-add-${id}"${normalized.panels.includes(id)?' disabled':''}>${name}</button>`).join('')}</div></details><div data-asset-indicator-strip>${indicatorStrip(normalized)}</div><span class="asset-range-summary" data-asset-range-summary>第 ${bars.length ? normalized.start + 1 : 0}–${normalized.end} 条 / 共 ${bars.length} 条</span></div></div>${chipPanel(chip, normalized.chipSettings, normalized.chipTab)}</div><dialog class="asset-indicator-dialog" data-asset-indicator-manager aria-label="指标管理"></dialog><dialog class="asset-indicator-dialog asset-indicator-parameters-dialog" data-asset-indicator-parameter-dialog aria-label="指标参数"></dialog></section>`;
 }
 
 export function renderChartExplanation() { return `<p class="asset-chart-help">滚轮缩放 · 拖动平移 · 底部滑块联动所有副图。点击 / 方向键选择交易日，End 回到最新，视区变化保留所选日。</p><details class="asset-indicator-method"><summary>指标计算与数据缺口</summary><p>MA5/10/20/60/120/250 使用完整窗口；BOLL20 为样本标准差 ±2σ。EMA12/26 首收盘价起算，DIF 第26条、DEA9 与 MACD×2 第34条显示。KDJ9 从首个有效 RSV 起算、α=1/3；RSI14 为14个实际涨跌的简单滚动均值。缺失或无效 OHLC 和明确间断重置预热，周/月先聚合 OHLCV 再重算全部指标。筹码始终使用同一版本日线的首日至所选日，视区和主图指标只改变显示价格轴。源字段单位缺失时不推测。</p></details>`; }
@@ -178,23 +193,31 @@ export function renderChartExplanation() { return `<p class="asset-chart-help">�
 /** One price grid and exactly the enabled lower panels; all axes share a range. */
 export function buildMarketChartOption(bars, state = {}, metadata = {}, theme, chip = null) {
   const palette = chartTheme(theme); const layout = chartLayout(state); const panels = layout.panels;
+  bars = calculatePanelIndicators(bars, state.indicatorSettings);
   const range = rangeFor(bars.length, state); const domain = priceDomain(bars, state); const dates = bars.map(bar => bar.date);
   const line = (name, key, axis, color) => ({ name, type: 'line', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, index) => [index, bar[key]]), smooth: false, connectNulls: false, lineStyle: { width: 1, color }, itemStyle: { color }, symbol: 'none', showSymbol: false });
   const volume = axis => ({ name: '成交量', type: 'bar', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, index) => [index, bar.volume, bar.validOHLC ? (bar.close >= bar.open ? 1 : -1) : 0]), barWidth: '60%', itemStyle: { color: params => params.data[2] > 0 ? UP : params.data[2] < 0 ? DOWN : palette.muted } });
   const series = [{ id: 'asset-kline-price', markLine: chipPeakLines(chip, palette), name: 'K线', type: 'candlestick', large: false, xAxisIndex: 0, yAxisIndex: 0, data: bars.map(bar => bar.validOHLC && !bar.gap ? [bar.open, bar.close, bar.low, bar.high] : [null, null, null, null]), itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } }, ...MA_PERIODS.map((period, index) => line(`MA${period}`, `ma${period}`, 0, COLORS[index])), ...BOLL.map(([key, name, color]) => line(name, key, 0, color))];
   panels.forEach((id, index) => {
     const axis = index + 1;
-    if (id === 'volume') series.push(volume(axis));
-    if (id === 'macd') series.push({ name: 'MACD柱', type: 'bar', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, i) => [i, bar.macd, bar.macd >= 0 ? 1 : -1]), barWidth: '60%', itemStyle: { color: params => params.data[2] > 0 ? UP : DOWN } }, line('DIF', 'dif', axis, COLORS[0]), line('DEA', 'dea', axis, COLORS[1]));
-    if (id === 'kdj') series.push(line('K', 'k', axis, COLORS[0]), line('D', 'd', axis, COLORS[1]), line('J', 'j', axis, COLORS[2]));
-    if (id === 'rsi') series.push({ ...line('RSI', 'rsi', axis, COLORS[2]), markLine: { silent: true, symbol: 'none', label: { color: palette.muted }, lineStyle: { type: 'dashed', width: 1, color: palette.grid }, data: [{ yAxis: 70 }, { yAxis: 30 }] } });
+    for (const [seriesIndex,item] of indicatorSeries(id).entries()) {
+      const color = palette.seriesColors?.[seriesIndex] || item.color;
+      if (id === 'volume' && item.type === 'bar') { series.push(volume(axis)); continue; }
+      if (id === 'macd' && item.type === 'bar') { series.push({name:'MACD柱',type:'bar',xAxisIndex:axis,yAxisIndex:axis,data:bars.map((bar,i)=>[i,bar[item.key],bar[item.key]>=0?1:-1]),barWidth:'60%',itemStyle:{color:params=>params.data[2]>0?UP:DOWN}});continue; }
+      const name=id==='volume'?`VOLMA${item.name==='MA1'?(state.indicatorSettings?.volume?.short||5):(state.indicatorSettings?.volume?.long||10)}`:`${id.toUpperCase()} ${item.name}`;
+      const entry = line(name,item.key,axis,color);
+      if (item.type === 'scatter') Object.assign(entry,{type:'scatter',symbol:'circle',symbolSize:3});
+      const levels = id === 'rsi' ? [30,70] : id === 'wr' ? [20,80] : [];
+      if (levels.length && seriesIndex===0) entry.markLine={silent:true,symbol:'none',label:{color:palette.muted},lineStyle:{type:'dashed',width:1,color:palette.grid},data:levels.map(yAxis=>({yAxis}))};
+      series.push(entry);
+    }
   });
   const selected = Object.fromEntries([...MA_PERIODS.map(period => [`MA${period}`, (state.overlay || 'ma') === 'ma' && maEnabled(state).includes(period)]), ...BOLL.map(([, name]) => [name, state.overlay === 'boll'])]);
   const [kdjMin, kdjMax] = kdjDomain(bars, state); const axes = layout.grid.map((grid, index) => index);
   const axisStyle = { axisLine: { onZero: false, lineStyle: { color: palette.grid } }, axisTick: { show: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' };
   return { backgroundColor: 'transparent', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', showContent: false, axisPointer: { type: 'cross', crossStyle: { color: palette.muted } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 12 }, formatter: params => { const index = params?.[0]?.dataIndex; return index === undefined ? '' : readout(bars[index], bars[index - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: palette.muted }, label: { backgroundColor: palette.surface, color: palette.text } }, graphic: panelLabels(bars[selectedIndex(bars, state)], palette, state, metadata), grid: layout.grid,
     xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
-    yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: id !== 'rsi', gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : id === 'rsi' ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : id === 'volume' ? volumeTick : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
+    yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: !['rsi','wr','dmi'].includes(id), gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : ['rsi','wr','dmi'].includes(id) ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : ['volume','obv'].includes(id) ? volumeTick : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
     dataZoom: [{ type: 'inside', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, left: 8, right: 54, showDetail: false, borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.selected, dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } }, selectedDataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.selected } }, handleStyle: { color: palette.muted, borderColor: palette.surface }, moveHandleStyle: { color: palette.muted }, emphasis: { handleStyle: { color: palette.text }, moveHandleStyle: { color: palette.text } }, textStyle: { color: palette.muted, fontSize: 12 } }], series };
 }
 
@@ -202,16 +225,17 @@ export function buildChipChartOption(chip, domain, echarts = null, theme, tab = 
   return chipChartOption(chip, domain, echarts, chartTheme(theme), tab, overlay);
 }
 
-export function createAssetChartController({ onChange = () => {}, onPanelsChange = () => {}, onChipSettingsChange = () => {}, onHistoryRequest = () => {}, logger = safeLog } = {}) {
+export function createAssetChartController({ onChange = () => {}, onPanelsChange = () => {}, onIndicatorPreferencesChange = null, onChipSettingsChange = () => {}, onHistoryRequest = () => {}, logger = safeLog } = {}) {
   let rawRows = []; let daily = []; let bars = []; let identity; let datasetKey = ''; let metadata = {}; let source = 'day';
-  let state = { chipSettings: normalizeChipSettings(), chipTab: 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+  let indicatorEditor = null;
+  let state = { indicatorSettings: normalizeIndicatorSettings(), favorites: [...DEFAULT_FAVORITES], activePanel: 'macd', chipSettings: normalizeChipSettings(), chipTab: 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
   let slot = null; let main = null; let chips = null; let observer = null; let frame = null; let needsFull = false; let needsResize = false; let view = null; let library = null; let applying = false; let olderAnchor = ''; let lastHistoryScope = 'all'; let lastHistoryAdjustment = null; let pointerBlocked = false; let dragging = false; let gestureStartX = null; let historyRequestSerial = 0;
   let lastChipMarkers = ''; let theme = chartTheme(); const chipCache = new Map();
   const listeners = []; const chartListeners = []; const zrListeners = [];
   const log = method => { try { logger(`asset_chart_${method}_failed`, { status: 'error', method }); } catch { /* Diagnostics must not prevent disposal. */ } };
   const guarded = (method, fn) => { try { return fn(); } catch { log(method); return false; } };
   const outside = () => bars.length > 0 && (state.activeIndex < state.start || state.activeIndex >= state.end);
-  const getState = () => ({ ...state, selectedOutsideView: outside(), enabledMA: [...state.enabledMA], panels: [...state.panels], chipSettings: { ...state.chipSettings, visibleAges: [...state.chipSettings.visibleAges] } });
+  const getState = () => ({ ...state, selectedOutsideView: outside(), enabledMA: [...state.enabledMA], panels: [...state.panels], indicatorSettings: normalizeIndicatorSettings(state.indicatorSettings), favorites: [...state.favorites], chipSettings: { ...state.chipSettings, visibleAges: [...state.chipSettings.visibleAges] } });
   const find = selector => slot?.querySelector(selector);
   const notify = reason => guarded('change', () => onChange(getState(), { reason }));
   const selectedDailyIndex = () => nearestIndex(daily, state.selectedDate);
@@ -220,7 +244,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const root = slot?.ownerDocument?.documentElement; const fallback = chartTheme(root && root.dataset?.theme !== 'dark' ? 'light' : 'dark');
     try {
       const styles = view?.getComputedStyle?.(find('.asset-market-terminal') || slot); if (!styles) return fallback;
-      return Object.fromEntries([['text', '--text'], ['muted', '--muted'], ['grid', '--line'], ['surface', '--surface'], ['selected', '--selected']].map(([key, token]) => [key, styles.getPropertyValue(token).trim() || fallback[key]]));
+      return { ...fallback, ...Object.fromEntries([['text', '--text'], ['muted', '--muted'], ['grid', '--line'], ['surface', '--surface'], ['selected', '--selected']].map(([key, token]) => [key, styles.getPropertyValue(token).trim() || fallback[key]])) };
     } catch { log('theme'); return fallback; }
   }
   function cumulativeChip() {
@@ -252,7 +276,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const status = find('[data-asset-history-status]'); if (status) { status.textContent = historyStatus(state, metadata); status.hidden = !busyHistory(metadata) && !state.historyRequestPending && !['failed', 'error', 'interrupted', 'cancelled', 'unknown'].includes(String(jobFor(metadata).status || jobFor(metadata).state || '')); }
     const pending = busyHistory(metadata) || state.historyRequestPending;
     for (const button of slot?.querySelectorAll('[data-asset-chart-action]') || []) {
-      const action = button.dataset.assetChartAction; if (action.startsWith('chip-')) { if (action === 'chip-load') { button.disabled = busyHistory(metadata) || state.historyRequestPending || !canLoadChip(metadata); button.title = canLoadChip(metadata) ? '使用当前天软日线口径加载逐日换手率' : '当前日线来源未支持此筹码输入'; } continue; } let pressed = false;
+      const action = button.dataset.assetChartAction; if (action.startsWith('indicator-') || action.startsWith('panel-choose-')) continue; if (action.startsWith('panel-add-') || action.startsWith('panel-remove-')) {button.removeAttribute?.('aria-pressed');continue;} if (action.startsWith('chip-')) { if (action === 'chip-load') { button.disabled = busyHistory(metadata) || state.historyRequestPending || !canLoadChip(metadata); button.title = canLoadChip(metadata) ? '使用当前天软日线口径加载逐日换手率' : '当前日线来源未支持此筹码输入'; } continue; } let pressed = false;
       if (action.startsWith('overlay-')) pressed = state.overlay === action.slice(8);
       else if (action.startsWith('ma-')) pressed = state.enabledMA.includes(Number(action.slice(3)));
       else if (action.startsWith('period-')) { const period = action.slice(7); pressed = state.period === period; button.disabled = source !== 'day' && source !== period; }
@@ -266,8 +290,10 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       button.setAttribute('aria-pressed', String(pressed)); button.classList.toggle('active', pressed);
     }
     const headers = find('[data-asset-panel-headers]');
-    if (headers && headers.dataset.panels !== state.panels.join(',')) { headers.innerHTML = panelHeaders(state); headers.dataset.panels = state.panels.join(','); }
-    for (const id of state.panels) { const label = find(`[data-asset-panel-readout="${id}"]`); if (label) label.textContent = panelText(id, bars[state.activeIndex], metadata); }
+    const headerKey = JSON.stringify([state.panels,state.activePanel,state.indicatorSettings]);
+    if (headers && headers.dataset.headerKey !== headerKey) { headers.innerHTML = panelHeaders(state); headers.dataset.panels = state.panels.join(','); headers.dataset.headerKey = headerKey; }
+    for (const id of state.panels) { const label = find(`[data-asset-panel-readout="${id}"]`); if (label) { label.innerHTML = panelReadout(id,bars[state.activeIndex],metadata,state,theme); } }
+    const strip = find('[data-asset-indicator-strip]'); if (strip) { const html = indicatorStrip(state); if (strip.dataset?.markup !== html) {strip.innerHTML=html;if(strip.dataset)strip.dataset.markup=html;} }
     const chart = find('[data-asset-echarts]'); if (chart) {
       chart.style.height = `${chartLayout(state).height}px`;
       if (chart.dataset) Object.assign(chart.dataset, { visibleStart: String(state.start), visibleEnd: String(state.end), visibleCount: String(state.end - state.start), activeIndex: String(state.activeIndex), selectedDate: state.selectedDate, selectedOutsideView: String(outside()), period: state.period, overlay: state.overlay, enabledMa: state.enabledMA.join(','), panels: state.panels.join(','), adjustment: state.adjustment });
@@ -289,7 +315,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   }
   function axisPatch(domain) {
     const [low, high] = kdjDomain(bars, state);
-    return [{ min: domain[0], max: domain[1] }, ...state.panels.map(id => id === 'kdj' ? { min: low, max: high } : id === 'rsi' ? { min: 0, max: 100 } : {})];
+    return [{ min: domain[0], max: domain[1] }, ...state.panels.map(id => id === 'kdj' ? { min: low, max: high } : ['rsi','wr','dmi'].includes(id) ? { min: 0, max: 100 } : {})];
   }
   function flush() {
     frame = null; if (!slot) return;
@@ -321,13 +347,14 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   }
   function update(next, reason, full = false) {
     if (!Object.entries(next).some(([key, value]) => JSON.stringify(value) !== JSON.stringify(state[key]))) return false;
-    state = { ...state, ...next }; schedule(full); notify(reason); return true;
+    state = { ...state, ...next }; if(next.indicatorSettings) bars=calculatePanelIndicators(bars,state.indicatorSettings); schedule(full); notify(reason); return true;
   }
   function hidePointer() {
     guarded('pointer_hide', () => { applying = true; try { main?.dispatchAction?.({ type: 'hideTip' }); main?.dispatchAction?.({ type: 'updateAxisPointer', currTrigger: 'leave' }); } finally { applying = false; } });
     return update({ crosshairY: null, crosshairVisible: false }, 'leave');
   }
   function release() {
+    closeIndicators(false);
     if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
     for (const [node, name, handler, options] of listeners.splice(0)) guarded('remove_listener', () => node.removeEventListener(name, handler, options));
     for (const [chart, name, handler] of chartListeners.splice(0)) guarded('remove_listener', () => chart.off(name, handler));
@@ -393,7 +420,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     });
     const zr = main.getZr?.(); if (zr) {
       const leave = () => hidePointer(); zr.on('globalout', leave); zrListeners.push([zr, 'globalout', leave]);
-      const choose = event => guarded('selection', () => { const point = [event.offsetX, event.offsetY]; if (main.containPixel?.({ gridIndex: 0 }, point) === false) return; const value = main.convertFromPixel?.({ xAxisIndex: 0 }, point[0]); if (finite(value) !== null) select(Math.round(value), false, true); });
+      const choose = event => guarded('selection', () => { const point = [event.offsetX, event.offsetY]; const gridIndex=Array.from({length:state.panels.length+1},(_,i)=>i).find(i=>main.containPixel?.({gridIndex:i},point)!==false); if(gridIndex===undefined)return; if(gridIndex>0)update({activePanel:state.panels[gridIndex-1]},'panel-focus'); const value = main.convertFromPixel?.({ xAxisIndex: gridIndex }, point[0]); if (finite(value) !== null) select(Math.round(value), false, true); });
       zr.on('click', choose); zrListeners.push([zr, 'click', choose]);
       const gestures = { mousedown: event => { dragging = true; pointerBlocked = true; gestureStartX = finite(event?.offsetX); }, mouseup: () => { dragging = false; gestureStartX = null; }, mousemove: event => { if (!dragging && !event?.event?.buttons) pointerBlocked = false; else if (state.start === 0 && gestureStartX !== null && finite(event?.offsetX) !== null && event.offsetX - gestureStartX > 4) requestHistory('load', 'older'); }, mousewheel: () => { pointerBlocked = true; } };
       for (const [name, handler] of Object.entries(gestures)) { zr.on(name, handler); zrListeners.push([zr, name, handler]); }
@@ -404,6 +431,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   }
   function configure(rows = [], key = '', nextMetadata = {}, preferences) {
     const result = guarded('configure', () => {
+      const indicatorSettings = safeIndicatorSettings(preferences?.indicator_settings || state.indicatorSettings); const favorites = safeFavorites(preferences?.favorites || state.favorites);
       const nextIdentity = identityFor(nextMetadata || {}, key); const changedIdentity = identity !== nextIdentity;
       if (rawRows === rows && datasetKey === key && metadata === nextMetadata && !preferences) return getState();
       const previousBars = bars; const previous = state; const previousSource = source; const previousHistorySource = metadata.historySource; const changedRows = rawRows !== rows || datasetKey !== key;
@@ -413,7 +441,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       bars = source === 'day' && ['week', 'month'].includes(period) ? aggregateMarketBars(daily, period) : daily;
       if (changedIdentity) {
         chipCache.clear(); olderAnchor = ''; lastHistoryAdjustment = null; historyRequestSerial++;
-        state = { chipSettings: safeChipSettings(preferences?.chip_settings || previous.chipSettings), chipTab: previous.chipTab || 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+        state = { indicatorSettings, favorites, activePanel: panelsFor(preferences || previous).at(-1) || '', chipSettings: safeChipSettings(preferences?.chip_settings || previous.chipSettings), chipTab: previous.chipTab || 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
       } else {
         if (changedRows) chipCache.clear();
         const startDate = previousBars[previous.start]?.source_start_date || previousBars[previous.start]?.date;
@@ -424,6 +452,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         const selectedDate = daily[actualDateIndex(daily, previous.selectedDate)]?.date || '';
         state = { ...previous, historySource: previousHistorySource !== metadata.historySource ? metadata.historySource : previous.historySource, period, selectedDate, start, end, adjustment: adjustmentFor(metadata), historyRequestPending: busyHistory(metadata) ? previous.historyRequestPending : changedRows || ['completed', 'complete', 'succeeded', 'failed', 'error', 'cancelled', 'interrupted'].includes(String(jobFor(metadata).status || jobFor(metadata).state || '')) ? false : previous.historyRequestPending, crosshairY: null, crosshairVisible: false };
         if (preferences) { state.panels = panelsFor(preferences); state.chipSettings = safeChipSettings(preferences.chip_settings); }
+        state.indicatorSettings=indicatorSettings; state.favorites=favorites;
         if (changedRows && adjustmentFor(metadata) === previous.requestedAdjustment) state.requestedAdjustment = null;
         if (changedRows && previous.historyViewAllRequested && completeHistory(metadata)) state = { ...state, start: 0, end: bars.length, showAll: true, historyViewAllRequested: false };
         if (['failed', 'error', 'cancelled', 'interrupted'].includes(String(jobFor(metadata).status || jobFor(metadata).state || ''))) {
@@ -431,11 +460,14 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         }
         state.activeIndex = selectedIndex(bars, state);
       }
+      bars = calculatePanelIndicators(bars,state.indicatorSettings);
+      if (!state.panels.includes(state.activePanel)) state.activePanel=state.panels.at(-1)||'';
+      if (changedIdentity) closeIndicators(false);
       if (slot) { initCharts(); schedule(true, true); } return getState();
     });
     if (result === false) release(); return result;
   }
-  function setPreferences(preferences = {}) { if (!Array.isArray(preferences.panels)) return false; return update({ panels: panelsFor(preferences), chipSettings: safeChipSettings(preferences.chip_settings) }, 'preferences', true); }
+  function setPreferences(preferences = {}) { if (!Array.isArray(preferences.panels)) return false; return update({ panels: panelsFor(preferences), chipSettings: safeChipSettings(preferences.chip_settings), indicatorSettings:safeIndicatorSettings(preferences.indicator_settings), favorites:safeFavorites(preferences.favorites) }, 'preferences', true); }
   function select(index, reveal = true, pointer = false) {
     if (!bars.length || finite(index) === null) return false;
     const activeIndex = clamp(Math.round(index), 0, bars.length - 1); const selectedDate = bars[activeIndex].source_end_date || bars[activeIndex].date;
@@ -471,14 +503,65 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   function changePeriod(period) {
     if (!['day', 'week', 'month'].includes(period) || (source !== 'day' && source !== period)) return false;
     const old = bars; const startDate = old[state.start]?.source_start_date || old[state.start]?.date; const endDate = old[state.end - 1]?.date;
-    bars = period === 'day' ? daily : aggregateMarketBars(daily, period);
+    bars = calculatePanelIndicators(period === 'day' ? daily : aggregateMarketBars(daily, period), state.indicatorSettings);
     const start = state.showAll ? 0 : Math.max(0, nearestIndex(bars, startDate)); const end = bars.length ? Math.max(start + 1, state.showAll ? bars.length : nearestIndex(bars, endDate) + 1) : 0;
     return update({ period, start, end, activeIndex: nearestIndex(bars, state.selectedDate), crosshairVisible: false }, 'period', true);
+  }
+  function persistPanels(next = {}) {
+    const panels = next.panels || state.panels;
+    const changed = update({ ...next, panels, activePanel: next.activePanel ?? (panels.includes(state.activePanel) ? state.activePanel : panels.at(-1) || '') }, 'panels', true);
+    if (changed) guarded('panels_change', () => typeof onIndicatorPreferencesChange === 'function'
+      ? onIndicatorPreferencesChange({ panels:[...state.panels], favorites:[...state.favorites], indicator_settings:normalizeIndicatorSettings(state.indicatorSettings) })
+      : onPanelsChange([...state.panels]));
+    return changed;
+  }
+  function closeIndicators(focus = true) {
+    find('[data-asset-indicator-parameter-dialog]')?.close?.();
+    find('[data-asset-indicator-manager]')?.close?.(); indicatorEditor=null;
+    if (focus) find('[data-asset-echarts]')?.focus?.({preventScroll:true});
+  }
+  function renderIndicators(keepSearch = false) {
+    const dialog=find('[data-asset-indicator-manager]'); if (!dialog || !indicatorEditor) return false;
+    const input=dialog.querySelector('[data-asset-indicator-search]'); const cursor=input?.selectionStart;
+    dialog.innerHTML=indicatorManager(indicatorEditor);
+    if (keepSearch) {const next=dialog.querySelector('[data-asset-indicator-search]');next?.focus?.({preventScroll:true});try {next?.setSelectionRange?.(cursor,cursor);} catch { /* Search inputs can omit text selection support. */ }}
+    return true;
+  }
+  function openIndicators(mode='manage',anchor=state.activePanel) {
+    indicatorEditor={mode,anchor,group:'全部',query:'',favorites:[...state.favorites],settings:normalizeIndicatorSettings(state.indicatorSettings)};
+    if (!renderIndicators()) return false;
+    find('[data-asset-indicator-manager]')?.showModal?.(); return true;
+  }
+  function choosePanel(id,mode='replace',anchor=state.activePanel,draft=null) {
+    if (!Object.hasOwn(PANEL_NAMES,id)) return false;
+    let panels=[...state.panels];
+    if (!panels.includes(id)) {
+      const index=panels.indexOf(anchor);
+      if (mode==='replace' && index>=0) panels.splice(index,1,id);
+      else panels.splice(index<0?panels.length:index+1,0,id);
+    }
+    const next={panels,activePanel:id,...(draft?{favorites:[...draft.favorites],indicatorSettings:normalizeIndicatorSettings(draft.settings)}:{})};
+    closeIndicators(); return persistPanels(next);
   }
   function handle(event) {
     return guarded('interaction', () => {
       if (event?.assetChartHandled) return true;
       if (event?.type === 'mouseleave' || event?.type === 'pointerleave') return hidePointer();
+      if (event?.type === 'input' && event.target?.matches?.('[data-asset-indicator-search]') && indicatorEditor) {
+        indicatorEditor.query=event.target.value; return renderIndicators(true);
+      }
+      if (event?.type === 'cancel' && event.target?.matches?.('[data-asset-indicator-manager]')) { event.preventDefault?.(); closeIndicators(); return true; }
+      if (event?.type === 'cancel' && event.target?.matches?.('[data-asset-indicator-parameter-dialog]')) { event.preventDefault?.(); event.target.close(); return true; }
+      if (event?.type === 'submit' && event.target?.matches?.('[data-asset-indicator-parameters]') && indicatorEditor) {
+        event.preventDefault();
+        try {
+          const data=new view.FormData(event.target); const id=data.get('indicator_id'); if (!Object.hasOwn(INDICATOR_RULES,id)) throw new Error('invalid');
+          const parameters=Object.fromEntries(Object.keys(INDICATOR_RULES[id]).map(key=>{const value=String(data.get(key)??'').trim();if (!value) throw new Error('empty');return [key,Number(value)];}));
+          indicatorEditor.settings=normalizeIndicatorSettings({...indicatorEditor.settings,[id]:parameters});
+          find('[data-asset-indicator-parameter-dialog]')?.close(); renderIndicators();
+        } catch {const error=event.target.querySelector('[data-asset-indicator-parameter-error]');if(error){error.hidden=false;error.textContent='请检查参数范围和周期顺序。';}log('indicator_parameters');}
+        return true;
+      }
       if (event?.type === 'change') {
         if (event.target?.matches?.('[data-asset-history-source]')) {
           const selected = event.target.value; if (!['auto', 'tinysoft', 'wind', 'akshare', 'baostock'].includes(selected) || !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending) return false;
@@ -504,7 +587,25 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         return true;
       }
       if (event?.type === 'click') {
+        const group=event.target?.closest?.('[data-asset-indicator-group]');
+        if (group && indicatorEditor) {indicatorEditor.group=group.dataset.assetIndicatorGroup;return renderIndicators();}
         const button = event.target?.closest?.('[data-asset-chart-action]'); if (!button || button.disabled) return false; const action = button.dataset.assetChartAction;
+        if (action === 'indicator-manager' || action === 'indicator-add') return openIndicators(action==='indicator-add'?'add':'manage');
+        if (action.startsWith('indicator-add-after-')) return openIndicators('add',action.slice(20));
+        if (action.startsWith('indicator-replace-')) return openIndicators('replace',action.slice(18));
+        if (action.startsWith('panel-choose-')) return choosePanel(action.slice(13));
+        if (action==='indicator-cancel') {closeIndicators();return true;}
+        if (action==='indicator-parameters-cancel') {find('[data-asset-indicator-parameter-dialog]')?.close();return true;}
+        if (indicatorEditor && action.startsWith('indicator-')) {
+          const draft=indicatorEditor;
+          if (action==='indicator-save') {const next={favorites:[...draft.favorites],indicatorSettings:normalizeIndicatorSettings(draft.settings)};closeIndicators();return persistPanels(next);}
+          if (action==='indicator-default') {draft.favorites=[...DEFAULT_FAVORITES];draft.settings=normalizeIndicatorSettings();return renderIndicators();}
+          if (action.startsWith('indicator-select-')) return choosePanel(action.slice(17),draft.mode==='add'?'add':'replace',draft.anchor,draft);
+          if (action.startsWith('indicator-parameters-')) {const id=action.slice(21);if(!Object.hasOwn(PANEL_NAMES,id))return false;const dialog=find('[data-asset-indicator-parameter-dialog]');if(dialog){dialog.innerHTML=indicatorParameterForm(id,draft.settings);dialog.showModal();}return true;}
+          if (action.startsWith('indicator-favorite-')) {const id=action.slice(19);if(!Object.hasOwn(PANEL_NAMES,id))return false;draft.favorites=draft.favorites.includes(id)?draft.favorites.filter(value=>value!==id):[...draft.favorites,id];return renderIndicators();}
+          const reorder=/^indicator-(up|down)-(.+)$/.exec(action);
+          if(reorder){const index=draft.favorites.indexOf(reorder[2]);const other=index+(reorder[1]==='up'?-1:1);if(index>=0&&other>=0&&other<draft.favorites.length)[draft.favorites[index],draft.favorites[other]]=[draft.favorites[other],draft.favorites[index]];return renderIndicators();}
+        }
         if (action === 'chip-tab-statistics' || action === 'chip-tab-age') return update({ chipTab: action.slice(9) }, 'chip-tab', true);
         if (action === 'chip-settings-open') { const dialog = find('[data-asset-chip-settings]'); if (dialog) { dialog.innerHTML = chipSettingsForm(state.chipSettings); dialog.showModal(); } return true; }
         if (action === 'chip-settings-cancel') { find('[data-asset-chip-settings]')?.close(); return true; }
@@ -515,7 +616,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         if (action.startsWith('panel-add-') || action.startsWith('panel-remove-')) {
           const add = action.startsWith('panel-add-'); const id = action.slice(add ? 10 : 13); if (!Object.hasOwn(PANEL_NAMES, id) || add === state.panels.includes(id)) return false;
           const panels = add ? [...state.panels, id] : state.panels.filter(value => value !== id);
-          const changed = update({ panels }, 'panels', true); if (changed) guarded('panels_change', () => onPanelsChange([...panels])); return changed;
+          return persistPanels({panels,activePanel:add?id:panels.at(-1)||''});
         }
         if (action.startsWith('period-')) return changePeriod(action.slice(7));
         if (action === 'all') {
@@ -544,7 +645,8 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const result = guarded('mount', () => {
       slot.innerHTML = renderMarketTerminal(rawRows, state, metadata);
       const localHandle = event => { const handled = handle(event); if (handled) { event.assetChartHandled = true; event.stopPropagation?.(); } };
-      listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle); listen(slot, 'submit', localHandle);
+      listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle); listen(slot, 'input', localHandle); listen(slot, 'submit', localHandle);
+      for (const selector of ['[data-asset-indicator-manager]','[data-asset-indicator-parameter-dialog]']) {const dialog=find(selector);if(dialog)listen(dialog,'cancel',localHandle);}
       for (const selector of ['[data-asset-echarts]', '[data-asset-chip-chart]']) { const node = find(selector); if (node) { listen(node, 'mouseleave', hidePointer); listen(node, 'pointerleave', hidePointer); } }
       initCharts(); schedule(true); return true;
     });
