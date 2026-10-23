@@ -373,5 +373,4 @@ AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件�
 2026-10-23：资产副图v7只更新macOS Native固定操作员；不宣称Docker产品已验收，不修改构建器、缓存/容量或其他平台规则。原资源回收仍保护未知与活动资源。
 
 
-
-2026-10-24：资产v8本轮为macOS Native/Web切换，不创建Docker产品或临时Docker测试资源；既有运行容器、业务卷和20GiB受管构建缓存合同保持。 详见[固定部署合同](research-web-gateway-upgrade.md)。
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。

@@ -343,9 +343,8 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 
 2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
+## 今日发现组合固定部署（2026-10-23）
 
-## 资产周期读数与副图固定部署 v8（2026-10-24）
+用户已明确授权组合部署今日发现、ETF配置和持续研究仓；封闭`apply-discovery` / `reviewed-discovery-v1`的PREVIOUS为`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD为`1780064b712afb61ff18f2f1811650fc31fd3038`。复用原version4事务、BirthFence、全账号业务索引/档案/模型保全与恢复；旧profile及controller/evidence身份不变，无新依赖、迁移或外盘操作。
 
-`apply-assets-v8`／`reviewed-asset-observation-v8` 固定 PREVIOUS=`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD=`1780064b712afb61ff18f2f1811650fc31fd3038`（PR213 已合并周期读数和 Wind 副图修复，含已合入 WGC 组合）。复用原 version4 事务、维护锁、BirthFence、64MiB 业务索引严格读取、全账号保全和恢复；研究/历史及市场 inflight 必须明确空闲，未知拒绝。旧 v1–v7、market、ETF 和模型 profile、不可变 controller/evidence 字节保持。
-
-复用 `7c631d4f…7102` Web 锁及 `5c3077b7…eebb` 完整 ZIP/逐 job checkout 读取器；不安装包、不改凭据、不启用数据库或日程、不运行模型。新的固定模式仍须独评、完整 Router、原三 CI 与同候选 macos-14 安装。实际切换另按本任务既有授权持锁执行，之后核对同一实际 revision、保全与认证页面；源码/CI 通过不冒充部署通过。Windows/Linux 原生继续交对应设备。
+新mode在任何后端HTTP/启动前重复只读检查primary和全部私有账号的automation/discovery元数据及report-workflows/catalog.json；任何启用任务/日程、活动或未知执行、损坏结构、别名路径均延后。缺失目录/目录中的catalog按原运行时无计划语义处理，绝不请求账号后端来证明空闲。该门也适用于恢复，不修改原同意、计划或数据。不存在模型调用或启用生产跟踪授权；现场切换、认证真实页面及全账号保全另留证。

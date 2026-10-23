@@ -185,10 +185,8 @@ BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报�
 
 周报可作为既有成果关联进长期档案，保留原会话、task、hash 与 quality，正文不搬入档案数据库；incomplete／invalid 不因归档、扫描或关联提升为 passed／finalized。档案继续研究只准备原 DSH 草稿，实际 Prompt 才绑定 receipt；档案跟踪默认关闭且当前只重查冻结材料，不启动本周报、Wind、模型或自动生产。原模板／质量／定稿与日程准入保持，个人 SQLite／pin 纳入保全，详见[成果与保全](research-web-dossiers.md)及[扫描合同](research-web-dossier-scans.md)。
 
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
 
 2026-10-23：资产个股周期读数及副图修复不改变华安周报指标、底稿、模板、生产权限、日程或Host质量门；资产图表不冒充规范周报证据。
 
 WGC 两个公开端点新增月度吨数原生研究快照，存量/流量和来源范围分别保存，不替代现有 Wind/Excel 或私有生产验收。AK 个股资金流在 SDK 前拒绝历史时点/正式回测；first_observed 不获得历史 PIT 资格。详见[原生快照](research-web-vendor-snapshots.md)与[研究仓](research-web-market-store.md)。本轮未部署、未启动生产库或日程。
-
-
-2026-10-24：资产v8不启动华安生产、Office、Word或日程，不改变ETF固定模式和原质量门；主线已合入ETF/WGC源码不代表这些真实生产层通过。 详见[固定部署合同](research-web-gateway-upgrade.md)。

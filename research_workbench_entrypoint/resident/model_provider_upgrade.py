@@ -73,12 +73,6 @@ ASSET_V7_PREVIOUS = "c4e953c4386c615cde89ad2d014d60c6e2959303"
 ASSET_V7_PAYLOAD = "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
 ASSET_V7_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 ASSET_V7_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
-# PR213 period readout and Wind subpanel repair; keep v1-v7 recovery unchanged.
-ASSET_V8_MODE = "reviewed-asset-observation-v8"
-ASSET_V8_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
-ASSET_V8_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
-ASSET_V8_WEB_LOCK_SHA256 = ASSET_V7_WEB_LOCK_SHA256
-ASSET_V8_EVIDENCE_SHA256 = ASSET_V7_EVIDENCE_SHA256
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
 MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
@@ -104,6 +98,10 @@ MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
 ETF_WEEKLY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 ETF_WEEKLY_PAYLOAD = "988046d23f9951f889a3b9d02e355ed59fd6aa65"
+DISCOVERY_MODE = "reviewed-discovery-v1"
+DISCOVERY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
+# Explicitly authorized combination: discovery, ETF configuration and dossiers.
+DISCOVERY_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 # PR209 combined product includes dossier preservation; deployment needs new authorization.
 ETF_WEEKLY_V2_MODE = "reviewed-etf-weekly-v2"
 ETF_WEEKLY_V2_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
@@ -118,12 +116,12 @@ ASSET_MODES = frozenset(
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
-        ASSET_V8_MODE,
         MARKET_MODE,
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         ETF_WEEKLY_MODE,
+        DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
     )
 )
@@ -209,8 +207,6 @@ def previous_for(mode):
         return ASSET_V6_PREVIOUS
     if mode == ASSET_V7_MODE:
         return ASSET_V7_PREVIOUS
-    if mode == ASSET_V8_MODE:
-        return ASSET_V8_PREVIOUS
     if mode == MARKET_MODE:
         return MARKET_PREVIOUS
     if mode == MARKET_GAPS_MODE:
@@ -221,6 +217,8 @@ def previous_for(mode):
         return MARKET_TERMINAL_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
         return ETF_WEEKLY_PREVIOUS
+    if mode == DISCOVERY_MODE:
+        return DISCOVERY_PREVIOUS
     if mode == ETF_WEEKLY_V2_MODE:
         return ETF_WEEKLY_V2_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
@@ -280,6 +278,96 @@ def read_business_index(path: Path):
     return index
 
 
+def discovery_background_idle(home):
+    """Recheck persisted work without starting a backend or changing consent."""
+    try:
+        users = home / "server/users"
+        if users.is_symlink() or not users.is_dir():
+            return False
+        roots = [home / "research-web"]
+        for folder in sorted(users.iterdir()):
+            if folder.is_symlink() or not folder.is_dir():
+                return False
+            roots.append(folder / "research-web")
+        for root in roots:
+            if root.is_symlink():
+                return False
+            if not root.exists() and root != home / "research-web":
+                # Registered primary/uninitialized accounts can have state only.
+                continue
+            if not root.is_dir():
+                return False
+            index_path = root / "index.json"
+            index = (
+                read_business_index(index_path)
+                if index_path.exists() or index_path.is_symlink()
+                else {}
+            )
+            for name in ("automations", "automation_runs", "discovery_tracks"):
+                table = index.get(name, {})
+                if not isinstance(table, dict) or any(
+                    not isinstance(row, dict) for row in table.values()
+                ):
+                    return False
+            for row in index.get("automations", {}).values():
+                if type(row.get("enabled")) is not bool or row["enabled"]:
+                    return False
+            if any(
+                row.get("research_status")
+                not in {
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "canceled",
+                    "interrupted",
+                    "skipped_overlap",
+                    "blocked_version",
+                }
+                for row in index.get("automation_runs", {}).values()
+            ):
+                return False
+            workflows = root / "report-workflows"
+            if workflows.is_symlink() or (workflows.exists() and not workflows.is_dir()):
+                return False
+            catalog_path = workflows / "catalog.json"
+            if not catalog_path.exists() and not catalog_path.is_symlink():
+                # The existing runtime treats a missing catalog as no plans.
+                continue
+            catalog = read_business_index(catalog_path)
+            if any(not isinstance(catalog.get(name), dict) for name in ("workflows", "runs")):
+                return False
+            for row in catalog["workflows"].values():
+                if not isinstance(row, dict):
+                    return False
+                schedule = row.get("schedule")
+                if schedule is not None and (
+                    not isinstance(schedule, dict)
+                    or type(schedule.get("enabled", False)) is not bool
+                    or schedule.get("enabled", False)
+                ):
+                    return False
+            if any(
+                not isinstance(row, dict)
+                or row.get("status")
+                not in {
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "canceled",
+                    "blocked_data",
+                    "delivery_incomplete",
+                }
+                for row in catalog["runs"].values()
+            ):
+                return False
+        return True
+    except (OSError, ValueError, TypeError, UpdateBlocked) as exc:
+        log.warning(
+            "discovery_deploy_background_unverified", extra={"error_type": type(exc).__name__}
+        )
+        return False
+
+
 def verify_primary(home, expected, mode):
     if mode in {
         MARKET_MODE,
@@ -289,8 +377,8 @@ def verify_primary(home, expected, mode):
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
-        ASSET_V8_MODE,
         ETF_WEEKLY_MODE,
+        DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
@@ -373,12 +461,12 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V5_MODE: ASSET_V5_PAYLOAD,
         ASSET_V6_MODE: ASSET_V6_PAYLOAD,
         ASSET_V7_MODE: ASSET_V7_PAYLOAD,
-        ASSET_V8_MODE: ASSET_V8_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
+        DISCOVERY_MODE: DISCOVERY_PAYLOAD,
         ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
     }[mode]
     c.clean(source, target)
@@ -403,15 +491,12 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 MARKET_TERMINAL_EVIDENCE_SHA256
                 if mode == MARKET_TERMINAL_MODE
                 else (
-                    (
-                        ASSET_V8_EVIDENCE_SHA256
-                        if mode == ASSET_V8_MODE
-                        else ASSET_V7_EVIDENCE_SHA256
-                    )
-                    if mode in {ASSET_V7_MODE, ASSET_V8_MODE}
+                    ASSET_V7_EVIDENCE_SHA256
+                    if mode == ASSET_V7_MODE
                     else (
                         ASSET_V6_EVIDENCE_SHA256
-                        if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE, ETF_WEEKLY_V2_MODE}
+                        if mode
+                        in {ASSET_V6_MODE, ETF_WEEKLY_MODE, DISCOVERY_MODE, ETF_WEEKLY_V2_MODE}
                         else ASSET_EVIDENCE_SHA256
                     )
                 )
@@ -869,8 +954,6 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = ASSET_V6_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V7_MODE:
         manifest["web_lock_sha256"] = ASSET_V7_WEB_LOCK_SHA256
-    elif state.get("mode") == ASSET_V8_MODE:
-        manifest["web_lock_sha256"] = ASSET_V8_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_HISTORY_MODE:
         manifest["web_lock_sha256"] = MARKET_HISTORY_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_TERMINAL_MODE:
@@ -921,6 +1004,9 @@ class Operations:
 
     def idle(self):
         """A proved stopped role is safe; any live/unknown native or Host work is not."""
+        if self.state.get("mode") == DISCOVERY_MODE and not discovery_background_idle(self.home):
+            log.warning("discovery_deploy_background_not_quiet")
+            return False
         g.no_private_processes(self.server)
         if not reserved_owners(self.server, self.state["transaction"]):
             return False
@@ -965,8 +1051,8 @@ class Operations:
             MARKET_HISTORY_MODE,
             MARKET_TERMINAL_MODE,
             ASSET_V7_MODE,
-            ASSET_V8_MODE,
             ETF_WEEKLY_MODE,
+            DISCOVERY_MODE,
             ETF_WEEKLY_V2_MODE,
         }:
             market = request_json(
@@ -1396,12 +1482,12 @@ def main(argv=None):
             "apply-assets-v5",
             "apply-assets-v6",
             "apply-assets-v7",
-            "apply-assets-v8",
             "apply-market",
             "apply-market-gaps",
             "apply-market-history",
             "apply-market-terminal",
             "apply-etf-weekly",
+            "apply-discovery",
             "apply-etf-weekly-v2",
             "recover",
         ),
@@ -1423,12 +1509,12 @@ def main(argv=None):
                 "apply-assets-v5": ASSET_V5_MODE,
                 "apply-assets-v6": ASSET_V6_MODE,
                 "apply-assets-v7": ASSET_V7_MODE,
-                "apply-assets-v8": ASSET_V8_MODE,
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
+                "apply-discovery": DISCOVERY_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
             }.get(args.command, MODE),
         )

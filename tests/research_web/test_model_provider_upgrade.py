@@ -25,14 +25,80 @@ ASSET_PROFILES = (
     upgrade.ASSET_V5_MODE,
     upgrade.ASSET_V6_MODE,
     upgrade.ASSET_V7_MODE,
-    upgrade.ASSET_V8_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
     "reviewed-market-terminal-v1",
     "reviewed-etf-weekly-v1",
+    "reviewed-discovery-v1",
     "reviewed-etf-weekly-v2",
 )
+
+
+def test_discovery_profile_freezes_authorized_combination():
+    assert upgrade.DISCOVERY_MODE == "reviewed-discovery-v1"
+    assert (
+        upgrade.previous_for(upgrade.DISCOVERY_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
+    )
+    assert upgrade.DISCOVERY_PAYLOAD == "1780064b712afb61ff18f2f1811650fc31fd3038"
+    assert upgrade.DISCOVERY_MODE in upgrade.ASSET_MODES
+    old = {"code_commit": "old", "web_lock_sha256": "fixed-lock"}
+    assert upgrade.target_manifest(
+        {"manifest": old, "mode": upgrade.DISCOVERY_MODE, "target": "new"}
+    ) == {**old, "code_commit": "new"}
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "primary_enabled",
+        "private_enabled",
+        "bad_enabled",
+        "active_run",
+        "bad_tracks",
+        "workflow_enabled",
+        "workflow_running",
+        "workflow_corrupt",
+    ],
+)
+def test_discovery_deploy_rechecks_all_background_work_without_writes(tmp_path, monkeypatch, case):
+    home = tmp_path / "home"
+    primary = home / "research-web"
+    private = home / "server/users/alice/research-web"
+    for root in (primary, private):
+        root.mkdir(parents=True)
+        (root / "index.json").write_text("{}")
+    assert upgrade.discovery_background_idle(home) is True
+    index = {}
+    root = primary if case == "primary_enabled" else private
+    if case.endswith("enabled") and not case.startswith("workflow"):
+        index["automations"] = {"task": {"enabled": "false" if case == "bad_enabled" else True}}
+    elif case == "active_run":
+        index["automation_runs"] = {"run": {"research_status": "running"}}
+    elif case == "bad_tracks":
+        index["discovery_tracks"] = []
+    if case.startswith("workflow"):
+        folder = private / "report-workflows"
+        folder.mkdir()
+        catalog = {"workflows": {}, "runs": {}}
+        if case == "workflow_enabled":
+            catalog["workflows"]["w"] = {"schedule": {"enabled": True}}
+        if case == "workflow_running":
+            catalog["runs"]["r"] = {"status": "running"}
+        (folder / "catalog.json").write_text(
+            "{" if case == "workflow_corrupt" else json.dumps(catalog)
+        )
+    (root / "index.json").write_text(json.dumps(index))
+    before = {str(p): p.read_bytes() for p in home.rglob("*") if p.is_file()}
+    monkeypatch.setattr(
+        upgrade.g,
+        "no_private_processes",
+        lambda *_: pytest.fail("process or HTTP probe before background gate"),
+    )
+    assert (
+        upgrade.Operations(home, {"mode": upgrade.DISCOVERY_MODE}, None, None, None).idle() is False
+    )
+    assert {str(p): p.read_bytes() for p in home.rglob("*") if p.is_file()} == before
 
 
 def test_market_profile_binds_resident_and_merged_product():
@@ -130,30 +196,31 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V5_MODE: "ASSET_V5",
         upgrade.ASSET_V6_MODE: "ASSET_V6",
         upgrade.ASSET_V7_MODE: "ASSET_V7",
-        upgrade.ASSET_V8_MODE: "ASSET_V8",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
+        "reviewed-discovery-v1": "DISCOVERY",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     evidence_constant = (
-        (
-            "ASSET_V8_EVIDENCE_SHA256"
-            if profile == upgrade.ASSET_V8_MODE
-            else "ASSET_V7_EVIDENCE_SHA256"
-        )
-        if profile in {upgrade.ASSET_V7_MODE, upgrade.ASSET_V8_MODE}
+        "ASSET_V7_EVIDENCE_SHA256"
+        if profile == upgrade.ASSET_V7_MODE
         else (
             "MARKET_TERMINAL_EVIDENCE_SHA256"
             if profile == upgrade.MARKET_TERMINAL_MODE
             else (
                 "ASSET_V6_EVIDENCE_SHA256"
                 if profile
-                in {upgrade.ASSET_V6_MODE, "reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"}
+                in {
+                    upgrade.ASSET_V6_MODE,
+                    "reviewed-etf-weekly-v1",
+                    "reviewed-discovery-v1",
+                    "reviewed-etf-weekly-v2",
+                }
                 else "ASSET_EVIDENCE_SHA256"
             )
         )
@@ -424,8 +491,8 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v5", upgrade.ASSET_V5_MODE),
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
         ("apply-assets-v7", upgrade.ASSET_V7_MODE),
-        ("apply-assets-v8", upgrade.ASSET_V8_MODE),
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
+        ("apply-discovery", "reviewed-discovery-v1"),
         ("apply-etf-weekly-v2", "reviewed-etf-weekly-v2"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
@@ -466,8 +533,6 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V6_MODE, upgrade.ASSET_V6_PAYLOAD),
         (upgrade.ASSET_V7_MODE, upgrade.ASSET_V6_PAYLOAD),
         (upgrade.ASSET_V7_MODE, upgrade.ASSET_V7_PAYLOAD),
-        (upgrade.ASSET_V8_MODE, upgrade.ASSET_V7_PAYLOAD),
-        (upgrade.ASSET_V8_MODE, upgrade.ASSET_V8_PAYLOAD),
         (upgrade.ASSET_V5_MODE, upgrade.ASSET_V4_PREVIOUS),
         (upgrade.ASSET_V5_MODE, upgrade.MARKET_GAPS_PREVIOUS),
         (upgrade.ASSET_V5_MODE, "9bc4e4cab91130647a5bc0dfa519e97f4773416a"),
@@ -1241,7 +1306,6 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
-        upgrade.ASSET_V8_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
     }:
@@ -1438,12 +1502,12 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V5_MODE: "ASSET_V5_PREVIOUS",
         upgrade.ASSET_V6_MODE: "ASSET_V6_PREVIOUS",
         upgrade.ASSET_V7_MODE: "ASSET_V7_PREVIOUS",
-        upgrade.ASSET_V8_MODE: "ASSET_V8_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
+        "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
@@ -2035,8 +2099,8 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
-        upgrade.ASSET_V8_MODE,
         "reviewed-etf-weekly-v1",
+        "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
     ],
 )
@@ -2098,8 +2162,8 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-history-v1",
         "reviewed-market-terminal-v1",
         upgrade.ASSET_V7_MODE,
-        upgrade.ASSET_V8_MODE,
         "reviewed-etf-weekly-v1",
+        "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
     ],
     indirect=True,
@@ -2153,7 +2217,6 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
-        upgrade.ASSET_V8_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
     }:
@@ -2241,27 +2304,6 @@ def test_asset_v7_pins_current_resident_and_merged_panel_product():
     assert upgrade.ASSET_V6_PAYLOAD == "eac6806822294d75da990c751d88ec156a417f62"
 
 
-def test_asset_v8_registers_fixed_period_repair_without_rewriting_v7():
-    assert (
-        hashlib.sha256(
-            (Path(__file__).resolve().parents[2] / "requirements/web.lock").read_bytes()
-        ).hexdigest()
-        == upgrade.ASSET_V8_WEB_LOCK_SHA256
-    )
-    assert upgrade.ASSET_V8_PAYLOAD == "1780064b712afb61ff18f2f1811650fc31fd3038"
-    assert upgrade.ASSET_V8_WEB_LOCK_SHA256 == upgrade.ASSET_V7_WEB_LOCK_SHA256
-    assert (
-        hashlib.sha256(Path(upgrade.__file__).with_name("evidence.py").read_bytes()).hexdigest()
-        == upgrade.ASSET_V8_EVIDENCE_SHA256
-    )
-    assert "reviewed-asset-observation-v8" in upgrade.ASSET_MODES
-    assert upgrade.previous_for("reviewed-asset-observation-v8") == (
-        "5343e18d9f203a87f2d958218e4288afa527711f"
-    )
-    assert upgrade.ASSET_V7_PREVIOUS == "c4e953c4386c615cde89ad2d014d60c6e2959303"
-    assert upgrade.ASSET_V7_PAYLOAD == "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
-
-
 def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
     assert upgrade.previous_for("reviewed-etf-weekly-v1") == (
         "5343e18d9f203a87f2d958218e4288afa527711f"
@@ -2275,7 +2317,9 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
 
 
 @pytest.mark.parametrize(
-    "real_operations", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"], indirect=True
+    "real_operations",
+    ["reviewed-etf-weekly-v1", "reviewed-discovery-v1", "reviewed-etf-weekly-v2"],
+    indirect=True,
 )
 @pytest.mark.parametrize("active", [True, None, "false", 0])
 def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monkeypatch, active):
@@ -2297,7 +2341,9 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
 
 
 @pytest.mark.parametrize(
-    "real_operations", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"], indirect=True
+    "real_operations",
+    ["reviewed-etf-weekly-v1", "reviewed-discovery-v1", "reviewed-etf-weekly-v2"],
+    indirect=True,
 )
 @pytest.mark.parametrize("guard", ["runtime", "runtime-unknown", "pool", "pool-unknown"])
 def test_etf_weekly_native_or_pool_activity_defers_without_effects(
