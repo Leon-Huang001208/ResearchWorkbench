@@ -53,3 +53,6 @@ handoff只返回草稿：`{prompt,mode,auto_send:false,context,dossier_revision}
 ## 验证
 
 `tests/research_web/test_dossiers.py` 覆盖真实子进程重开、幂等／并发、事务与pin共同回滚、路径／跨根隔离、missing／changed／撤权、软删保留、原生删除竞态及一致备份恢复。`test_dossier_api.py`覆盖结构化handoff绑定与重放、来源伪造拒绝、原生删除前置保护与Host质量保留。原JS quality-tool回归增加档案canonical身份及精确preflight参数。验收使用隔离临时账户和native fixture，不调用真实模型、来源服务或收费MCP。
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。

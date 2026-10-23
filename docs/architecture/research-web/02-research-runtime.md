@@ -753,3 +753,6 @@ Skill/Workflow/Report Workflow 自动化原本没有批准的服务商身份字�
 
 2026-10-23：v7沿原运行时、会话和模型配置；来源查询/市场inflight活动或未知延后切换，不调用模型或启动第二研究引擎。
 
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。

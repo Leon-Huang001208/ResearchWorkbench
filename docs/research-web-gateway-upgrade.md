@@ -318,3 +318,17 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 
 
 2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+
+## 研究档案固定部署（2026-10-23）
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+操作员必须从受审、干净、同候选三CI合格的最新已合并master执行；目标完整差异路径并集、blob及模式必须匹配上述产品，仅允许操作员自身与文档／测试变更。原证据读取器摘要固定；任意额外产品变化拒绝。先验证恢复包和所有业务状态，锁内再次核对前版与明确空闲，未知／忙碌延期，失败沿封闭profile恢复同一5343前版。不得直接运行其他profile或改写现场白名单。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-dossiers \
+  --home /absolute/private-home --source /absolute/clean-reviewed-tool-source
+```
+
+没有新服务、HTTP、依赖或第二研究引擎，现有图与API Atlas拓扑保持。实际验收需登录私网页面，验证五区、冻结交接与第二会话、原业务索引及全部账号保全；只用离线NativeFixture的证明不能提升为真实模型质量。收费MCP、秘密录入与生产持续跟踪不由本入口授权。

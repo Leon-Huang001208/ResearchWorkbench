@@ -789,3 +789,6 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 
 2026-10-23：v7继续固定前版c4e/产品3a62/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。
 
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。

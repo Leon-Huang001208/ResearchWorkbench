@@ -807,3 +807,6 @@ BaoStock单报告期盈利能力以独立财务schema/units身份进入原provid
 ## 2026-10-23：长期研究档案与机会预警
 
 个人 `dossiers/metadata.sqlite3` 惰性初始化，保存修订、证据引用、成果关联、交接与扫描／跟踪元数据；源字节继续留在原会话文件和私有 raw 快照。引用与 retention pin 同事务，`.dossier-retention.lock` 覆盖解析／pin 到 DSH 删除与 Host purge，软删除不解除保全；普通文件路径不绕过 dataset 的授权，MCP 原件逐次复核安装／schema／grant。备份需同时保留 SQLite、pin 和原证据，单独元数据不是原文备份；02／04 图据此补模块与引用边，详见[存储和保全合同](../../research-web-dossiers.md)。
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
