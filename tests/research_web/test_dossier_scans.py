@@ -312,6 +312,31 @@ async def test_signal_disposition_filter_uses_current_transactional_state(tmp_pa
 
 
 @pytest.mark.asyncio
+async def test_tracking_never_silently_enables_when_scheduler_profile_is_disabled(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+    research, scans, dossier, _sid = prepared(tmp_path)
+    result = await scans.scan(
+        dossier["id"], {"expected_revision": dossier["revision"], "idempotency_key": "scan-0001"}
+    )
+    assert result["coverage"]["eligible"]
+    assert result["dossier"]["tracking"]["eligible"] is False
+    assert result["dossier"]["tracking"]["reason"] == "automation_disabled"
+    with pytest.raises(StoreError) as error:
+        scans.tracking(
+            dossier["id"],
+            {
+                "expected_revision": result["dossier"]["revision"],
+                "idempotency_key": "tracking-0001",
+                "enabled": True,
+            },
+        )
+    assert error.value.code == "dossier_tracking_unavailable"
+    assert not research.store.data.get("automations", {})
+
+
+@pytest.mark.asyncio
 async def test_backup_restore_includes_scan_tracking_and_pins(tmp_path):
     research, scans, dossier, sid = prepared(tmp_path)
     result = await scans.scan(

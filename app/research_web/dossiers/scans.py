@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from core.observability import get_logger
 
 from ..automation.models import AutomationCreate, AutomationSchedule
+from ..automation.service import automation_feature_enabled
 from ..store import StoreError
 from .signals import RULE_VERSION, RULES_SHA256, evaluate_signals
 
@@ -165,8 +166,14 @@ class DossierSignals:
             tracking = aux.get("tracking", {"enabled": False})
             if trigger == "manual":
                 tracking.update(
-                    eligible=evaluation["coverage"]["eligible"],
-                    reason=None if evaluation["coverage"]["eligible"] else "evidence_not_qualified",
+                    eligible=evaluation["coverage"]["eligible"] and automation_feature_enabled(),
+                    reason=(
+                        "automation_disabled"
+                        if not automation_feature_enabled()
+                        else (
+                            None if evaluation["coverage"]["eligible"] else "evidence_not_qualified"
+                        )
+                    ),
                     manual_checked_at=cutoff,
                     manual_rules_sha256=RULES_SHA256,
                 )
@@ -259,6 +266,8 @@ class DossierSignals:
 
     def tracking(self, did, request):
         enabled = request["enabled"]
+        if enabled and not automation_feature_enabled():
+            raise StoreError("当前运行模式未启用日程服务", "dossier_tracking_unavailable", 409)
         detail = self.dossiers.get(did)
         definition = (
             self.definition(did)
