@@ -1,13 +1,11 @@
 # GitHub Actions 免费额度治理
 
-2026-10-23华安Excel先行v2在同一Provider测试模块增加官方BSE日历和worksheet参数反例，完整周报/API组合172项本机86秒；原适配器组合139项17秒。预留现有步骤额外120秒，不新增job、runner、依赖、timeout或厂商调用。PR198旧候选cd7b164三门成功仅属于v1，新候选须重绑原通用门和Mac Bootstrap。发布前实时API仍为PUBLIC且标准runner运行中；Mac不触发Windows/Linux产品dispatch。真实Office恢复后WSD超时和导出未知状态继续阻断真实数据与正式稿，CI不代替这些门。
-
+2026-10-23终端v2只向原Checks Python步骤加入test_market_indices/test_market_terminal，JS沿原通配符；Mac安装名单增加market-terminal.mjs，原job/runner/timeout/依赖与条件不变。当前公开仓库资格由操作前实时核验。新增离线闭包约1秒，预留原步骤30秒；公开源不进入CI，不触发真实模型或付费数据。
 2026-10-23构建器对账只向现有Research Web Checks同一pytest步骤加入test_builder_reconcile／test_iteration_resources／test_docker_resources；不增workflow/job/runner/timeout。44项及9subtests的本机10.14秒为阶段证据，完整候选另测并保留原三CI／macos-14安装门。只读API当前PUBLIC；真实Docker恢复另验，无模型或业务数据操作。
 
 2026-10-23剩余来源验证与宏观研究仓沿用原Project Constraints、Research Web Checks和同候选Mac Bootstrap。仅向既有Python清单加入test_datahub_official_numeric.py；中国宏观、资金流与外部封包反例扩展既有模块，不新增job、runner、依赖或timeout。只读API核验仓库PUBLIC；最近五个成功run39862338057/39862338001/39860024415/39859994006/39859993855创建至结束63/732/591/53/821秒，均值452秒；这属于预算参考，远端动作前仍须实时复查。定点新增回归约数秒，预留现有步骤30秒，完整Router与全部原门不变。真实免费样例及socket-only临时PostgreSQL仅本机有界执行，CI不连接厂商、凭据、模型或正式数据库；不把跳过或旧候选结果认证为最终候选。Windows/Linux产品验收交接对应设备，本轮不部署、不改现有服务或外盘。
 
 2026-10-23市场限价/昨日/历史只扩展现有test_market_provider/service和test_model_provider_upgrade，JS沿原research_web通配符；不新增workflow/job/runner/超时或项目依赖，不手工rerun。任务开始只读API为PUBLIC；原Project Constraints/Research Web Checks及同候选macos-14安装仍必需，Mac不触发Windows/Linux产品dispatch。产品78项Python与34项JS、操作员868项43.50秒为本机阶段结果，不代替最终候选CI；新增定点预算60秒，实际时长另留日志。真实源/部署/认证页面独立验收，无模型或厂商私有调用。
-2026-10-23华安 Excel 先行只扩展既有 Checks Python 步骤：新增周报 Excel Provider 与定点实例测试，保留原 job/runner/timeout/安装依赖；JS沿原通配符。新增离线测试本机约11秒，预留20秒，不调用真实Wind/Office/模型，不手工重跑或跨平台dispatch。发布前当前API核对PUBLIC，最终仍须同候选Mac干净安装和原通用门；真实日历与Word另验。
 
 2026-10-23资产筹码与精炼布局复用原三项CI，不增job/runner/依赖或超时。GitHub实时PUBLIC；最近五个成功run为39889555161、39888825843、39888825844、39887171955、39887171898。既有Checks增加test_asset_chip_inputs模块，JS沿原通配符；Mac安装同一步追加四个本地静态文件逐字节验收。定点Python约16秒、资产JS约2秒，新输入模拟覆盖不连接厂商/模型，增量预算30秒。完整changed-set Router及同候选macos-14门保留；Mac不派其他平台产品workflow，真实CJPY/已登录私网浏览器/常驻保全另留证。
 
@@ -251,3 +249,5 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 并在原catalog/coordinator模块覆盖完整目录和持久状态恢复。该文件本机约28秒，新增预算合计预留45秒；
 仍无新job/runner/依赖/时限或他平台dispatch。临时Mac诊断workflow已恢复原字节；三次历史启动失败保留，
 正常修补后的同候选Mac仍须重新证明，不用本机通过替代。追加公开资金流失败只在本机执行，不进入CI。
+
+2026-10-23华安Excel先行v2在同一Provider测试模块增加官方BSE日历和worksheet参数反例，完整周报/API组合172项本机86秒；原适配器组合139项17秒。预留现有步骤额外120秒，不新增job、runner、依赖、timeout或厂商调用。PR198旧候选cd7b164三门成功仅属于v1，新候选须重绑原通用门和Mac Bootstrap。发布前实时API仍为PUBLIC且标准runner运行中；Mac不触发Windows/Linux产品dispatch。真实Office恢复后WSD超时和导出未知状态继续阻断真实数据与正式稿，CI不代替这些门。

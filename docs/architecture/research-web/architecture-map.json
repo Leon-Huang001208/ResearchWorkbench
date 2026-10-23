@@ -180,7 +180,10 @@
         "app/research_web/aihot_content.py",
         "app/research_web/market_service.py",
         "app/research_web/market_routes.py",
-        "app/research_web/warehouse_diagnostics.py"
+        "app/research_web/warehouse_diagnostics.py",
+        "app/research_web/market_analysis.py",
+        "app/research_web/market_portfolio.py",
+        "app/research_web/market_indices.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -219,7 +222,9 @@
         "tests/e2e/market_authenticated.py",
         "tests/research_web/test_warehouse_diagnostics.py",
         "tests/research_web/test_market_reader.py",
-        "tests/research_web/test_market_reader_live_postgres.py"
+        "tests/research_web/test_market_reader_live_postgres.py",
+        "tests/research_web/test_market_terminal.py",
+        "tests/research_web/test_market_indices.py"
       ]
     },
     {
@@ -2199,7 +2204,7 @@
       "receipt": "outputs/research-web-architecture/13-market-overview.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/13-market-overview.visual-check.json",
       "level": "flows",
-      "summary": "沪深北无会话刷新、覆盖与用户缓存；固定12指数经Host桥完整写入可选个人仓库，内部允许缓存读。",
+      "summary": "Host内版本化行情、三周期六维画像与个人组合；东财报价与新浪日线分源，旧12研究仓及证据门保持。",
       "evidence": [
         {
           "subjects": [
@@ -2255,6 +2260,26 @@
             "indicesRefresh"
           ],
           "source": "app/research_web/market_service.py"
+        },
+        {
+          "subjects": [
+            "marketService",
+            "marketRead"
+          ],
+          "source": "app/research_web/market_analysis.py"
+        },
+        {
+          "subjects": [
+            "coverage",
+            "marketCache"
+          ],
+          "source": "app/research_web/market_portfolio.py"
+        },
+        {
+          "subjects": [
+            "publicMarket"
+          ],
+          "source": "app/research_web/market_indices.py"
         }
       ]
     }
@@ -4744,13 +4769,55 @@
       "path": "/api/research/internal/plugin-runtime/unfreeze",
       "declaredPath": "/unfreeze",
       "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/indices/catalog",
+      "declaredPath": "/indices/catalog",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/analysis",
+      "declaredPath": "/analysis",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/portfolios",
+      "declaredPath": "/portfolios",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "POST",
+      "path": "/api/research/market/portfolios/preview",
+      "declaredPath": "/portfolios/preview",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "POST",
+      "path": "/api/research/market/portfolios",
+      "declaredPath": "/portfolios",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/portfolios/readiness",
+      "declaredPath": "/portfolios/readiness",
+      "prefix": "/api/research/market"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "2cccd03b1a6b083d235d147f018059181c374fe0"
+      "revision": "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
     },
     "levels": [
       {
