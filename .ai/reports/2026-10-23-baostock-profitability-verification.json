@@ -52,5 +52,109 @@
   },
   "candidate_CI": "NOT_RUN",
   "deployment": "NOT_RUN",
-  "source_discovery_is_not_product_integration": true
+  "source_discovery_is_not_product_integration": true,
+  "after_parent_merge_execution": {
+    "head": "e4b45b3c78363007506dad1ccb23613c4c5cf181",
+    "proof_path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-baostock-financials-20261023/logs/real-cross-source-attempt3/receipt.json",
+    "sha256": "2954d181846cac5cfcc17ca37cf85191a7cbd1b4546e46d002d63cca1b03a38e",
+    "status": "PASS",
+    "duration_seconds": 5.351,
+    "source_hashes": {
+      "app/research_web/datahub/__init__.py": "801dff18503b3a98c18f299233e2393f16eb687bc0d59c1b92a337b1d61de870",
+      "app/research_web/datahub/broker.py": "d01af31878d0c0531316dc3cdf11f1515354139b773a50c5ef52cff04954647b",
+      "app/research_web/datahub/catalog.py": "235b03e2ab63622b344d6cd49847e3a4e873db63f40233df5676c74baf01f9a5",
+      "app/research_web/datahub/providers_baostock.py": "fcc3661cd81109788abfbb108aba9b33ea2cd0885074d4b175b4f816632cf617",
+      "app/research_web/datahub/providers.py": "dbb4cdc83207c444d67b6d086f3985d78c7b7efa3afaa131c157c582e9dcb785",
+      "app/research_web/datahub/research_warehouse.py": "9553a6e48d5a8a40d3e6c532682e0603c9ea0212feb37118734ef53376ce0cb9",
+      "app/research_web/datahub/research_snapshot_store.py": "834913b47dd5f9509d1073075fffba21382ebacdb2c49e261b779ed114bc5e1f",
+      "app/research_web/datahub/contracts.py": "b6fa687732752dc8906a7966a904c0c9987c4234ab40cf0eedd8029c55deb944",
+      "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
+      "app/research_web/datahub/providers_akshare.py": "fd57367c317ce660a1fab747cff6dfb2786ce89de0653b491c21e1547785ded8"
+    },
+    "source_unchanged": true,
+    "worker_submissions_by_source": {
+      "baostock": 1,
+      "akshare": 1
+    },
+    "independent_snapshots": {
+      "bao_digest": "538b7cb06a8c5ce7ae5ec61f8fabb1d383ed6aed271aa6b5d270b9152d96af98",
+      "sina_digest": "f50116a7bb38fab2dfe58a3c9f9b202823005316083acd4655f445aaefdb5031",
+      "scope_different": true,
+      "dataset_different": true
+    },
+    "host_pg_restart_zero_vendor_calls": true,
+    "independent_restores_equal": true
+  },
+  "same_asset_period_reconciliation": {
+    "status": "PASS_BOUNDED_RECONCILIATION",
+    "asset": "600000.SH",
+    "report_period_end": "2026-06-30",
+    "reference_period_start": "2026-01-01",
+    "reference_period_end": "2026-06-30",
+    "sample_period_basis": "year_to_date_half_year",
+    "sample_is_standalone_Q2": false,
+    "reference_report_scope": "consolidated_group",
+    "reference_report_unit": "CNY_million",
+    "reference_pdf_url": "https://static.cninfo.com.cn/finalpage/2026-08-28/1225521898.PDF",
+    "reference_pdf_sha256": "01f41e69ad9dc1b348204b3aa0acf615b2343d402ac00a0ae3895f56e7010f66",
+    "pdf_pages_one_based": [
+      111,
+      112
+    ],
+    "rendered_tables_visually_verified": true,
+    "stock_code_and_issuer_verified_in_report": true,
+    "cells": [
+      {
+        "bao_field": "netProfit",
+        "sina_field": "NETPROFIT",
+        "reference_column": "group_current_2026_H1",
+        "bao_equals_reference_converted_from_CNY_million": true,
+        "sina_equals_reference_converted_from_CNY_million": true,
+        "group_not_standalone": true,
+        "equality_scope": "one_asset_one_period_one_field_not_general_equivalence"
+      },
+      {
+        "bao_field": "MBRevenue",
+        "sina_field": "BIZINCO",
+        "reference_column": "group_current_2026_H1",
+        "bao_equals_reference_converted_from_CNY_million": true,
+        "sina_equals_reference_converted_from_CNY_million": true,
+        "group_not_standalone": true,
+        "equality_scope": "one_asset_one_period_one_field_not_general_equivalence"
+      }
+    ],
+    "netProfit_is_not_parent_attributable_profit": true,
+    "vendor_disclosure_dates": {
+      "baostock": "2026-08-28",
+      "sina": "2026-08-28"
+    },
+    "issuer_IR_listing": {
+      "url": "https://news.spdb.com.cn/investor_relation/periodic_report/",
+      "observed_listing_date": "2026-08-27",
+      "observed_excerpt": "公司2026年半年度报告（全文） 2026-08-27",
+      "capture_method": "web_read_visible_official_listing",
+      "raw_capture_status": "ConnectError",
+      "raw_bytes_hash_available": false
+    },
+    "date_warning": "vendor_disclosure_day_differs_from_issuer_IR_listing_day_do_not_overwrite_or_invent_timestamp",
+    "exact_publication_instant_verified": false,
+    "historical_vintage_verified": false,
+    "global_cross_source_equivalence": false,
+    "source_snapshots_remain_separate": true,
+    "changes_to_vendor_data": false,
+    "formal_backtest_eligible": false,
+    "source_proof_receipt_sha256": "2954d181846cac5cfcc17ca37cf85191a7cbd1b4546e46d002d63cca1b03a38e",
+    "rendered_page_hashes": {
+      "income-statement-111.png": "fbdc6e596a67448be2326f004eb5270c18136de7f8c1dc10aa20fe42e21908cb",
+      "income-statement-112.png": "7708f8645ae0e807fae9709aa804ed32c779685150e667e551eccdab4536050f"
+    }
+  },
+  "reconciliation_evidence": {
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-baostock-financials-20261023/logs/issuer-reference/reconciliation.json",
+    "sha256": "3219fd2913ae24ef01d945faa37f68e20f47e2f504e3c902847c97932c45ea80"
+  },
+  "sample_reporting_basis_verified_for_two_fields": true,
+  "global_reporting_basis_verified": false,
+  "vendor_dates_overwritten": false,
+  "unverified_vintage_and_exact_instant_still_block_PIT": true
 }

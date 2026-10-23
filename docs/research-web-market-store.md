@@ -148,3 +148,6 @@ row和gdp_growth两指标共享逻辑期、发布编号、公布时刻和原件h
 ## 2026-10-23：BaoStock盈利能力来源
 
 BaoStock盈利能力进入独立baostock-quarterly-profitability-v1的provider-native schema/units身份，仍为first_observed，pubDate保留在数据中而不冒充Fact的历史available_at。只有完整固定响应及已知单位合同可捕获；空/partial/错误不宣称覆盖。显示可显式allow_stale读仓，严格最新研究重新取数；冻结支持原字段与原SDK载荷恢复，不提升正式PIT。原日线身份、旧冻结读取和授权检查保持。
+
+
+600000.SH/2026-06-30实际双源与发行人半年报核对仅确认两格金额对应集团半年累计，不能当作Q2单季或归母净利。两源公告日8月28日与issuer列表8月27日保留不同来源，不回填精确时刻。两个provider-native版本独立冻结和恢复；样本核对不升级通用跨源等价或财务PIT。详见任务报告。

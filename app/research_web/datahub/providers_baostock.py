@@ -203,6 +203,7 @@ def _profitability(query: BusinessQuery, sdk) -> Result:
     limitations = [
         "historical_vintage_unverified",
         "reporting_basis_unverified",
+        "报告期末不等于单季流量；netProfit不应直接标为归母净利润。",
         "盈利能力指标不等同于利润表；比例与股数尺度未校准，未作换算。",
         "披露日期仅精确到自然日，不构成历史当时可得或独立上游证明。",
     ]

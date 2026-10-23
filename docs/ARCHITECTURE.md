@@ -206,4 +206,4 @@ BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原H
 
 ## 2026-10-23：BaoStock盈利能力来源
 
-BaoStock单季度盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。
+BaoStock单报告期盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。

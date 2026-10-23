@@ -38,7 +38,7 @@ Wind 日线的60自然日限制只约束实际供应商取数。完整仓库读�
 
 `BusinessQuery` 新增 `purpose=display|research|backtest`、`quality=strict|allow_stale`、有时区的 `as_of`；默认请求指纹保持兼容，正式回测必须提供历史时点。未证明的历史视图返回 `data_pit_unavailable`，不以当日下载补造过去版本。实际尝试在 `provider_metadata.execution_attempts`，数据成功在 `data_success`；调用完成不代表数据可用。前台总预算18秒，超时返回504及稳定代码；原call_id保留，已启动SDK/数据库在后台排空、真实结束前仍占容量，迟到结果不能发布。断连不取消owned计时器；重复call_id不重发。
 
-BaoStock 0.9.4支持公开沪深股票原始日线、股票目录和交易日历，现补明确单季度盈利能力财务数据集，新闻仍未适配；无账号SDK不等于厂商数据再分发许可。BaoStock与AKShare由固定模块、最小环境和私有临时HOME的自有子进程执行，每次12秒上限；这仅是生命周期隔离，不是插件沙箱。AKShare新浪日线量为股、换手率比例转百分数且不当作成交额，东方财富手数转股；所有未知指数/ETF量单位仍明确标记。
+BaoStock 0.9.4支持公开沪深股票原始日线、股票目录和交易日历，现补明确单报告期盈利能力财务数据集，新闻仍未适配；无账号SDK不等于厂商数据再分发许可。BaoStock与AKShare由固定模块、最小环境和私有临时HOME的自有子进程执行，每次12秒上限；这仅是生命周期隔离，不是插件沙箱。AKShare新浪日线量为股、换手率比例转百分数且不当作成交额，东方财富手数转股；所有未知指数/ETF量单位仍明确标记。
 
 真实免费验收：AKShare provider 新浪历史日线7行、2.04秒、结束后无活动Future；BaoStock首次provider请求12.01秒超时、零行、已回收。其他来源、认证页面及最终CI验收不能由这些样例推定通过。
 
@@ -528,3 +528,6 @@ CJPY局部成交量声明还必须逐行校验所有已存在asset/code/stock_co
 ## 2026-10-23：BaoStock盈利能力来源
 
 financials source=baostock只支持statements=["profitability"]、periods恰好一个2017年起且不晚于上海当日的季度末、明确沪深股票asset。auto配合相同selector只选此数据集；不降为摘要、完整利润表或其他同名指标。netProfit/MBRevenue按官方SDK文档声明CNY；比例/股数尺度及累计/单季度口径保持未核验。pubDate按自然日保存，as_of/backtest拒绝；无历史修订证明。
+
+
+600000.SH/2026-06-30实际双源与发行人半年报核对仅确认两格金额对应集团半年累计，不能当作Q2单季或归母净利。两源公告日8月28日与issuer列表8月27日保留不同来源，不回填精确时刻。两个provider-native版本独立冻结和恢复；样本核对不升级通用跨源等价或财务PIT。详见任务报告。
