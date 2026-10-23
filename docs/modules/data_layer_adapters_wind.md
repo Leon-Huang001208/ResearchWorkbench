@@ -1,0 +1,43 @@
+# Wind Excel adapter
+
+`data_layer/adapters/wind/client.py` owns worksheet queries and explicitly owned
+workbooks/applications. `formulas.py` defines the Mac worksheet functions;
+`wind_adapter.py` maps ordinary business requests onto those functions.
+
+## macOS instance inventory
+
+`excel_instances.py` handles the observed modern `lsappinfo` multiline PID output.
+Before the Wind client creates or attaches an application, it prepares a process-local
+output wrapper on the already-loaded `xlwings._xlmac.subprocess`, without enumerating
+user applications. Direct inventory callers can also recover after the known integer
+parser failure. The wrapper normalizes only the exact
+`lsappinfo info -only pid <ASN>` read, preserving fresh positive PIDs and the
+explicit stale/null record. Duplicate, malformed or unavailable identities fail
+closed; they never imply that Excel is absent. Other subprocess calls and the
+installed package files remain unchanged. This compatibility path also covers
+xlwings' repeated PID parser during workbook activation and exit cleanup.
+
+The client creates a new application only after a successful empty inventory,
+or when the caller explicitly requests an isolated application. Report probes
+use owned workbooks and close only resources that the client owns. Readiness,
+formula values and historical coverage are separate evidence; a successful
+heartbeat does not certify a weekly report or API entitlement.
+
+The weekly Excel source uses `existing_app_only=True`: it creates a task-owned
+workbook inside an already running Excel process, without changing application
+settings or touching existing books. A newly launched Mac Excel process passed
+the static heartbeat but left WSD/TDAYS at `Fetching...`; the same requests in
+the existing Wind-loaded process returned actual rows, including the National
+Day holiday gap. This is a transport comparison, not verification of all markets.
+Only an explicit macOS parameter rejection (-50), followed by an unchanged book
+inventory, permits trying the next existing instance. Timeouts, unknown results
+and changed inventories raise a cleanup error and retain the worker poison gate.
+No available existing application means blocked input, never implicit launch.
+
+Mac spill ranges contain empty strings as well as `None`; both are trimmed at
+the boundaries while numeric zero is preserved. Source dates, numeric identity,
+market calendars and report quality still require the Host's independent checks.
+
+Near tests: `tests/unit/test_wind_excel_instances.py` and
+`tests/unit/test_wind_adapter.py`. Real Office/Wind, Windows and Linux acceptance
+remain separate from mocks.

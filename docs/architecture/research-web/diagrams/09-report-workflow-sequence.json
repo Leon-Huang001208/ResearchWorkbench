@@ -22,7 +22,7 @@
           "excel",
           "snapshot"
         ],
-        "note": "旧版刷新 Excel；华安新合同由私有 DataHub 收集同源 API 数据，SDK、日历或等价证据不足即阻断。"
+        "note": "华安由私有 DataHub 使用现有 Excel 插件及原生导出证据；市场截止与实际冻结分别记录，日历缺证则阻断。API 留待以后验证。"
       },
       {
         "id": "claw-research",
@@ -143,7 +143,7 @@
       "from": "api",
       "to": "excelTool",
       "y": 268,
-      "label": "旧刷新 / 新 API 取证"
+      "label": "Excel 取数 / 原生证据"
     },
     {
       "id": "excelRefresh",
@@ -337,7 +337,7 @@
       "dot": "amber",
       "title": "数据失败先于模型",
       "items": [
-        "同源 API 尚需 SDK、跨市场日历、经济日历和等价验证",
+        "Excel 日历与导出范围需真实核验；API 以后校准切源",
         "一交易日滞后上限；失败或未知状态不自动重发付费研究"
       ]
     },

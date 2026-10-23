@@ -34,6 +34,7 @@ def resolve_report_weekly(
     connection_statuses=None,
     environ=None,
     report_contract_selected: bool = False,
+    report_data_source: str = "wind_client_api",
 ) -> Resolution:
     """Authorize the private Client API path without broadening public Wind tools.
 
@@ -43,6 +44,10 @@ def resolve_report_weekly(
     """
     if not isinstance(query, WindAPIQuery):
         raise StoreError("周报取数合同无效", "weekly_query_invalid", 400)
+    if report_data_source not in {"wind_client_api", "wind_excel"} or (
+        report_data_source == "wind_excel" and report_contract_selected is not True
+    ):
+        raise StoreError("Excel 周报必须由受信生产合同选择", "weekly_source_invalid", 409)
     statuses = connection_statuses or {}
     source = next(
         item
@@ -71,7 +76,7 @@ def resolve_report_weekly(
         [
             {
                 "source": "wind",
-                "adapter": "client_api",
+                "adapter": "excel" if report_data_source == "wind_excel" else "client_api",
                 "status": "selected",
                 "reason": "published_report_contract" if report_contract_selected is True else None,
             }

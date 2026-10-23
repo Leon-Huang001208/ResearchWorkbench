@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+华安 Excel 先行扩展原 Checks Python 步骤中的离线 Provider/实例回归，保留原安装、JS及质量门。Mac 本次是 Web 功能与 Native Excel 验证，完整 Router 仍记录共享 Wind 路径触发的桌面门，不从 Mac dispatch 含 Windows 的桌面矩阵；未执行门按原状态交接。真实原生导出、日历、模型、Word与常驻部署分别留证，不因离线通过关闭真实验收。
+
 2026-10-23公开indices仓库桥复用现有Checks Python步骤，追加MarketReader及opt-in临时PG测试，不新增job/runner/timeout/依赖或平台dispatch。macOS本机只用已有批准venv及既有socket-only临时PG helper；PG5432、生产配置、外盘、真实凭据与模型保持无操作。缺显式PG环境的CI保留skip；本机PG成功不替代同候选Mac干净安装和通用仓库门，评审/发布由root统一绑定。
 
 PR188合流后，当前用户已明确批准“组合验收后一起部署”，包括已合并锁中的baostock0.9.4／psycopg3.3.6；不启用或迁移数据库，不改外盘。尚未成功切换的v5将PAYLOAD固定到完整产品88ef3817（含资产9bc4与DataHub研究仓），PREVIOUS仍51f09；旧profile不变。旧a114候选三CI全PASS只属于旧树，新组合必须重新完成本机兼容／独评／原三CI和同候选Mac安装后才由root部署，本次文档不安装包或切换。

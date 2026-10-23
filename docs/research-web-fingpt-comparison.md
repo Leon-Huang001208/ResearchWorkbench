@@ -1,5 +1,7 @@
 # FinGPT 三组隔离比较（macOS）
 
+华安 Excel 新增回归仅进入既有 Checks 同一 Python 步骤，不增加 FinGPT 比较、真实模型调用或付费重试。合成 canonical 定稿与来源/时间反例证明工程门行为，不认证本期真实周报质量；沿用原 Host 独立核验。
+
 2026-10-23公开indices仓库桥的离线测试只加入原Checks同一步骤，opt-in真实PG缺环境保持skip；不新增比较组、模型调用、付费尝试或验收替代。公开原生捕获/缓存命中不认证FinGPT报告、真实研究质量或周报效果。
 
 华安ETF周报的候选离线回归复用原Host研究质量门；真实collector、合成SDK、规范正文与原生

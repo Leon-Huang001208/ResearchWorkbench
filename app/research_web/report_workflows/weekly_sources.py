@@ -8,7 +8,7 @@ import json
 import os
 import re
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
@@ -116,7 +116,10 @@ def _resource(run_root, manifest, logical, *, immutable=False):
         root.joinpath(*parts.parts[:index]).is_symlink() for index in range(1, len(parts.parts) + 1)
     ):
         raise WorkflowError("周报资源不是安全副本", "weekly_resource_invalid", 409)
-    raw = target.read_bytes()
+    from ..datahub.security import directory, read_file
+
+    with directory(root, parts.parts[:-1]) as folder:
+        raw = read_file(folder, parts.name, limit=128 * 1024 * 1024)
     if (
         len(raw) > 128 * 1024 * 1024
         or immutable
@@ -133,15 +136,22 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
         raise WorkflowError("周报数据源合同过大", "weekly_source_contract_unverified", 409)
     try:
         value = json.loads(raw)
-        if set(value) != {
+        excel_mode = value.get("schema_version") == 2 and value.get("data_source") == "wind_excel"
+        expected = {
             "schema_version",
             "mapping_sha256",
             "verification",
             "calendars",
             "economic_calendar",
-        }:
+        }
+        if excel_mode:
+            expected |= {"data_source", "excel_exports"}
+        if set(value) != expected:
             raise ValueError("contract_fields")
-        if value.get("schema_version") != 1 or value.get("mapping_sha256") != MAPPING_SHA256:
+        if (
+            value.get("schema_version") != (2 if excel_mode else 1)
+            or value.get("mapping_sha256") != MAPPING_SHA256
+        ):
             raise ValueError("identity")
         proof = value.get("verification", {})
         if proof.get("status") != "reviewed" or not _HASH.fullmatch(
@@ -177,49 +187,112 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
                 date.fromisoformat(day)
                 if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", close):
                     raise ValueError("calendar_override")
-        economic = value.get("economic_calendar", {})
-        if economic.get("method") != "wset" or economic.get("semantics_verified") is not True:
-            raise ValueError("economic_method")
-        if set(economic) - {
-            "method",
-            "dataset",
-            "semantics_verified",
-            "start_parameter",
-            "end_parameter",
-            "fields",
-            "static_options",
-            "importance_values",
-        }:
-            raise ValueError("economic_contract_fields")
-        for key in ("dataset", "start_parameter", "end_parameter"):
-            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", economic.get(key, "")):
-                raise ValueError("economic_query")
-        if economic["start_parameter"] == economic["end_parameter"] or set(
-            economic.get("static_options", {})
-        ) & {economic["start_parameter"], economic["end_parameter"]}:
-            raise ValueError("economic_date_parameters")
-        if any(
-            not isinstance(key, str)
-            or not key
-            or len(key) > 80
-            or item not in {"重要", "较重要", "一般"}
-            for key, item in economic.get("importance_values", {}).items()
-        ):
-            raise ValueError("economic_importance_mapping")
-        if set(economic.get("fields", {})) != {"date", "country", "indicator", "importance"}:
-            raise ValueError("economic_fields")
-        if any(
-            not isinstance(field, str) or not field.strip() or len(field) > 80
-            for field in economic["fields"].values()
-        ):
-            raise ValueError("economic_field")
-        for key, item in economic.get("static_options", {}).items():
+        if excel_mode:
+            reviewed = _resource(run_root, manifest, proof["evidence_path"], immutable=True)
+            if hashlib.sha256(reviewed).hexdigest() != proof["evidence_sha256"]:
+                raise ValueError("review_resource_hash")
+            economic = value.get("economic_calendar", {})
             if (
-                not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", key)
-                or not isinstance(item, str)
-                or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", item)
+                set(economic) != {"method", "importance_values"}
+                or economic.get("method") != "wind_excel_export"
             ):
-                raise ValueError("economic_option")
+                raise ValueError("economic_method")
+            if economic["importance_values"] != {"重要": "重要", "中等": "较重要", "低": "一般"}:
+                raise ValueError("economic_importance_mapping")
+            exports = value.get("excel_exports", {})
+            if set(exports) != {"edb", "economic_calendar"}:
+                raise ValueError("excel_export_coverage")
+            for kind, export in exports.items():
+                fields = {"path", "sha256", "exported_at", "sheet"}
+                if kind == "economic_calendar":
+                    fields |= {
+                        "coverage_start",
+                        "coverage_end",
+                        "coverage_evidence_path",
+                        "coverage_evidence_sha256",
+                        "observation_path",
+                        "observation_sha256",
+                    }
+                if kind == "economic_calendar" and "additional_sheets" in export:
+                    fields.add("additional_sheets")
+                    sheets = export["additional_sheets"]
+                    if (
+                        not isinstance(sheets, list)
+                        or len(sheets) > 4
+                        or any(not isinstance(item, str) or not item for item in sheets)
+                        or len(set(sheets)) != len(sheets)
+                        or export.get("sheet") in sheets
+                    ):
+                        raise ValueError("excel_export_sheets")
+                if set(export) != fields or not _HASH.fullmatch(str(export.get("sha256", ""))):
+                    raise ValueError("excel_export_fields")
+                moment = datetime.fromisoformat(export["exported_at"])
+                if (
+                    moment.tzinfo is None
+                    or not isinstance(export["sheet"], str)
+                    or not export["sheet"]
+                ):
+                    raise ValueError("excel_export_metadata")
+                payload = _resource(run_root, manifest, export["path"], immutable=True)
+                if hashlib.sha256(payload).hexdigest() != export["sha256"]:
+                    raise ValueError("excel_export_hash")
+                if kind == "economic_calendar":
+                    date.fromisoformat(export["coverage_start"])
+                    date.fromisoformat(export["coverage_end"])
+                    proof = _resource(
+                        run_root, manifest, export["coverage_evidence_path"], immutable=True
+                    )
+                    if hashlib.sha256(proof).hexdigest() != export["coverage_evidence_sha256"]:
+                        raise ValueError("excel_coverage_hash")
+                    observation = _resource(
+                        run_root, manifest, export["observation_path"], immutable=True
+                    )
+                    if hashlib.sha256(observation).hexdigest() != export["observation_sha256"]:
+                        raise ValueError("excel_observation_hash")
+        else:
+            economic = value.get("economic_calendar", {})
+            if economic.get("method") != "wset" or economic.get("semantics_verified") is not True:
+                raise ValueError("economic_method")
+            if set(economic) - {
+                "method",
+                "dataset",
+                "semantics_verified",
+                "start_parameter",
+                "end_parameter",
+                "fields",
+                "static_options",
+                "importance_values",
+            }:
+                raise ValueError("economic_contract_fields")
+            for key in ("dataset", "start_parameter", "end_parameter"):
+                if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", economic.get(key, "")):
+                    raise ValueError("economic_query")
+            if economic["start_parameter"] == economic["end_parameter"] or set(
+                economic.get("static_options", {})
+            ) & {economic["start_parameter"], economic["end_parameter"]}:
+                raise ValueError("economic_date_parameters")
+            if any(
+                not isinstance(key, str)
+                or not key
+                or len(key) > 80
+                or item not in {"重要", "较重要", "一般"}
+                for key, item in economic.get("importance_values", {}).items()
+            ):
+                raise ValueError("economic_importance_mapping")
+            if set(economic.get("fields", {})) != {"date", "country", "indicator", "importance"}:
+                raise ValueError("economic_fields")
+            if any(
+                not isinstance(field, str) or not field.strip() or len(field) > 80
+                for field in economic["fields"].values()
+            ):
+                raise ValueError("economic_field")
+            for key, item in economic.get("static_options", {}).items():
+                if (
+                    not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", key)
+                    or not isinstance(item, str)
+                    or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", item)
+                ):
+                    raise ValueError("economic_option")
     except (ValueError, TypeError, KeyError) as exc:
         raise WorkflowError(
             "周报数据源合同未核实", "weekly_source_contract_unverified", 409

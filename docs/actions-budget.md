@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23华安 Excel 先行只扩展既有 Checks Python 步骤：新增周报 Excel Provider 与定点实例测试，保留原 job/runner/timeout/安装依赖；JS沿原通配符。新增离线测试本机约11秒，预留20秒，不调用真实Wind/Office/模型，不手工重跑或跨平台dispatch。发布前当前API核对PUBLIC，最终仍须同候选Mac干净安装和原通用门；真实日历与Word另验。
+
 2026-10-23公开indices仓库桥仅向原Research Web Checks的同一pytest步骤追加test_market_reader.py和test_market_reader_live_postgres.py；原job、runner、timeout、依赖、条件和全部平台门不变。无显式RWB_MARKET_STORE_LIVE_PG=1时真实PG测试保持skip，不能认证CI PostgreSQL已通过。本机定点闭包128例4.30秒，新增模块预留15秒；远端visibility/额度仍由root发布前实时复查，本次实现者不push/dispatch/rerun，也不调用厂商或模型。
 
 主线PR188推进后，旧a114候选三CI全PASS保持原候选归属，不能作为新组合候选PASS。当前用户已批准组合验收后将已合并锁定baostock0.9.4／psycopg3.3.6一起部署到常驻，数据库不启用／不迁移、外盘不改；此前隔离授权记录不冒充这次授权。root沿原三CI／同候选Mac安装正常重绑，不手工rerun、不加job／runner或削减门；下述PUBLIC／耗时均为历史快照，远端动作前仍实时核对。

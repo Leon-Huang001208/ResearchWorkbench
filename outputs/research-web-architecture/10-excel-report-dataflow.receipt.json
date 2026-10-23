@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/.codex/worktrees/etf-weekly-docs/ResearchWorkbench/docs/architecture/research-web/diagrams/10-excel-report-dataflow-showcase.json",
-  "output": "/Users/leon/.codex/worktrees/etf-weekly-docs/ResearchWorkbench/outputs/research-web-architecture/10-excel-report-dataflow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/docs/architecture/research-web/diagrams/10-excel-report-dataflow-showcase.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/outputs/research-web-architecture/10-excel-report-dataflow.html",
   "specification": {
-    "sha256": "9139c20c4e4db9a5a77a16239e5946f17bdefea1629fef8be5491b94a79577e4",
-    "bytes": 6960
+    "sha256": "261ce1a8cfcc37d02757ba1986018a265180790c124381b8a5658148f4cba278",
+    "bytes": 6996
   },
   "artifact": {
-    "sha256": "bd5d767f820e278eb168cba99294773af73be23ad126efd467d625c1b1415e49",
-    "bytes": 646593
+    "sha256": "773a77e80dd726911935dbb92116325126c3a3d2003a703a9971a797771cc63c",
+    "bytes": 646641
   },
   "validation": {
     "checksPassed": 9,

@@ -90,31 +90,31 @@
     },
     {
       "id": "09-report-workflow-sequence",
-      "artifactSha256": "fc5fa765e700dcfc87e47d904d314a6583aa607939c26aeb218377600149cc25",
-      "specificationSha256": "3b84504567d310a781f8b994353e7dcbdc703698866289766df4c4ce0cc660b8",
+      "artifactSha256": "252cbe56f64dd1d7bc362611b7a3a7b18fdfc801bed075d7b3853667638c9738",
+      "specificationSha256": "72c5a8e36a949954b3689808a9cb125a90de4d5f0cd8c51b8257d91d2146fb7b",
       "status": "reviewed",
-      "reviewer": "codex-docs-agent",
-      "date": "2026-10-22",
+      "reviewer": "codex-root",
+      "date": "2026-10-23",
       "captures": [
         "09-report-workflow-sequence.visual-check.1440x900.dark.png",
         "09-report-workflow-sequence.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已实际查看本次同哈希1440深色及2048浅色截图；旧版与新合同、同源API/Excel、规范正文、Host投影及独立定稿语义分别可读，未见穿线、标签遮挡或裁剪。密集时序保留原缩放交互。自动visual-check仍为pending，本记录仅是该图截图复核，不认证产品UI、Word版式或业务成稿。"
+      "notes": "实际查看同哈希截图：Excel主源、原生导出证据及未来API切换文字可读，未见新增遮挡或裁剪；密集时序保留原缩放。自动containment通过不认证周报Word或真实成稿。"
     },
     {
       "id": "10-excel-report-dataflow",
-      "artifactSha256": "bd5d767f820e278eb168cba99294773af73be23ad126efd467d625c1b1415e49",
-      "specificationSha256": "9139c20c4e4db9a5a77a16239e5946f17bdefea1629fef8be5491b94a79577e4",
+      "artifactSha256": "773a77e80dd726911935dbb92116325126c3a3d2003a703a9971a797771cc63c",
+      "specificationSha256": "261ce1a8cfcc37d02757ba1986018a265180790c124381b8a5658148f4cba278",
       "status": "reviewed",
-      "reviewer": "codex-docs-agent",
-      "date": "2026-10-22",
+      "reviewer": "codex-root",
+      "date": "2026-10-23",
       "captures": [
-        "10-excel-report-dataflow.visual-check.1440x900.dark.png",
-        "10-excel-report-dataflow.visual-check.2048x1320.light.png"
+        "10-excel-report-dataflow.visual-check.2048x1320.light.png",
+        "10-excel-report-dataflow.visual-check.1440x900.dark.png"
       ],
       "findings": [],
-      "notes": "已实际查看本次同哈希1440深色及2048浅色截图；旧版与新合同、同源API/Excel、规范正文、Host投影及独立定稿语义分别可读，未见穿线、标签遮挡或裁剪。密集时序保留原缩放交互。自动visual-check仍为pending，本记录仅是该图截图复核，不认证产品UI、Word版式或业务成稿。"
+      "notes": "实际查看同哈希截图：Excel主源、原生导出证据及未来API切换文字可读，未见新增遮挡或裁剪；密集时序保留原缩放。自动containment通过不认证周报Word或真实成稿。"
     },
     {
       "id": "00-system-overview",

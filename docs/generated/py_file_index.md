@@ -4643,6 +4643,50 @@ Functions:
 - `_json_vendor`
 
 
+## `app/research_web/datahub/providers_wind_excel_weekly.py`
+
+Module docstring:
+> Private Excel-primary weekly inputs; no SDK import or alternate runtime.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `importlib.util`
+- `io`
+- `json`
+- `math`
+- `providers`
+- `re`
+- `report_workflows.weekly_data`
+- `report_workflows.weekly_sources`
+- `typing`
+- `xml.etree`
+- `zipfile`
+- `zoneinfo`
+
+Classes:
+- `WindExcelWeeklyProvider`
+  - methods: __init__, readiness, _calendar, _series, _run, _run_owned, collect
+
+Functions:
+- `_host_now`
+- `_native_date_in_excerpt`
+- `_export_observation`
+  - Consume only operator-captured, reviewed, immutable native UI evidence.
+- `_economic_rows`
+- `_day`
+- `_raw`
+- `_workbook`
+- `_sheet_rows`
+- `read_exports`
+  - Validate numeric native exports and independently check reviewed windows.
+- `wait_for_idle`
+  - Retain vendor/close ownership until the real worker returns.
+
+
 ## `app/research_web/datahub/public_worker.py`
 
 Module docstring:
@@ -13259,6 +13303,7 @@ Module docstring:
 Imports:
 - `collections.abc`
 - `core.observability`
+- `data_layer.adapters.wind.excel_instances`
 - `data_layer.adapters.wind.exceptions`
 - `datetime`
 - `math`
@@ -13269,7 +13314,7 @@ Imports:
 Classes:
 - `WindExcelClient`
   - 通过 xlwings 操控 Excel 中的 Wind 插件执行公式
-  - methods: __init__, _connect, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
+  - methods: __init__, _connect, _connect_existing_workbook, _get_or_create_helper_sheet, _get_formula_sheet, heartbeat, _ensure_connected, _ensure_session, _execute_raw, _allocate_helper_rows, execute, _wsd_timeout, execute_wsd, _execute_wsd_once, execute_batch, _execute_batch_unlocked, _write_formula_column, _read_formula_column, _clear_formula_column, _normalize_column_values, start_keepalive, stop_keepalive, _keepalive_loop, close, __enter__, __exit__
 
 Functions:
 - `_is_error_value`
@@ -13278,6 +13323,33 @@ Functions:
   - Return an Excel column name offset from ``column`` without Excel APIs.
 - `_trim_wsd_matrix`
   - Trim a rectangular Excel spill range to its populated rows and columns.
+
+
+## `data_layer/adapters/wind/excel_instances.py`
+
+Module docstring:
+> Read macOS Excel instance identities without starting another application.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `exceptions`
+- `importlib`
+- `re`
+- `sys`
+- `threading`
+- `typing`
+
+Classes:
+- `_ProcessOutputCompat`
+  - Normalize only xlwings' PID reads; leave the subprocess module untouched.
+  - methods: __init__, __getattr__, check_output
+
+Functions:
+- `prepare_macos_excel_compat`
+  - Prepare a loaded native bridge without inspecting any user's instances.
+- `running_excel_apps`
+  - Recover the known xlwings parser failure; refuse other inventory errors.
 
 
 ## `data_layer/adapters/wind/exceptions.py`
