@@ -29,7 +29,8 @@ from .connections import (
 )
 from .contracts import BusinessQuery, Query
 from .probes import probe_source
-from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
+from .providers_bea_archive import SCHEMA as BEA_ARCHIVE_SCHEMA
 from .providers_external import (
     EXTERNAL_ENVELOPE_CONTRACT,
     EXTERNAL_ENVELOPES,
@@ -1587,6 +1588,28 @@ class DataHub:
                             source="akshare",
                             capability="factor_macro",
                         )
+                        continue
+                    required_contract = None
+                    if isinstance(query, BusinessQuery):
+                        provider_id = candidate.get("provider")
+                        if provider_id == "bea_archive":
+                            required_contract = BEA_ARCHIVE_SCHEMA
+                        elif provider_id == "akshare":
+                            if query.capability == "financials" and query.parameters.get(
+                                "statements"
+                            ) == ["income_statement"]:
+                                required_contract = SINA_FINANCIAL_SCHEMA
+                            elif (
+                                query.capability == "market_activity"
+                                and query.parameters.get("dataset") == "fund_flow"
+                            ):
+                                required_contract = FUND_FLOW_SCHEMA
+                    if (
+                        required_contract
+                        and candidate.get("provider_metadata", {}).get("schema_version")
+                        != required_contract
+                    ):
+                        log.info("datahub_cache_contract_changed", source=candidate.get("provider"))
                         continue
                     age = (
                         datetime.now(UTC) - datetime.fromisoformat(candidate["retrieved_at"])

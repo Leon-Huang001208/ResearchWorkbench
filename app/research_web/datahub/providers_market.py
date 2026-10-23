@@ -20,6 +20,15 @@ import httpx
 
 from core.observability import get_logger
 
+from ..market_indices import (
+    CATALOG_VERSION,
+    CORE,
+    CORE_INDEXES,
+    TERMINAL,
+    public_catalog,
+    selected_indexes,
+)
+
 log = get_logger(__name__)
 TZ = ZoneInfo("Asia/Shanghai")
 QUOTE_HOST = "https://82.push2.eastmoney.com"
@@ -44,20 +53,9 @@ QUOTE_FIELDS = (
     "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f26,f124,f292,f350,f351"
 )
 BOARD_FIELDS = "f2,f3,f6,f8,f12,f13,f14,f20,f104,f105,f128,f136,f124"
-INDEXES = (
-    ("000001.SH", "上证指数", "1.000001"),
-    ("399001.SZ", "深证成指", "0.399001"),
-    ("000016.SH", "上证50", "1.000016"),
-    ("000680.SH", "科创综指", "1.000680"),
-    ("399006.SZ", "创业板指", "0.399006"),
-    ("399673.SZ", "创业板50", "0.399673"),
-    ("000688.SH", "科创50", "1.000688"),
-    ("899050.BJ", "北证50", "0.899050"),
-    ("000300.SH", "沪深300", "1.000300"),
-    ("000905.SH", "中证500", "1.000905"),
-    ("000510.SH", "中证A500", "1.000510"),
-    ("000852.SH", "中证1000", "1.000852"),
-)
+# Stable compatibility export used by fixed12 warehouse consumers.
+INDEXES = CORE_INDEXES
+
 FLOW_FIELDS = {
     "today": ("1", "f3", "f62", "f184", "f66", "f72", "f78", "f84"),
     "5d": ("5", "f109", "f164", "f165", "f166", "f168", "f170", "f172"),
@@ -161,6 +159,28 @@ def _calendar_payload(raw: bytes) -> str:
         ) from exc
 
 
+def parse_index_daily(payload: Any, quote_time: str) -> list[dict]:
+    """Closed prior sessions only; never treat today's partial daily bar as final."""
+    if not isinstance(payload, list) or not payload or len(payload) > 400:
+        raise MarketProviderError("market_index_history_invalid")
+    day = date.fromisoformat(str(quote_time)[:10])
+    bars = []
+    seen = set()
+    for item in payload:
+        if not isinstance(item, dict):
+            raise MarketProviderError("market_index_history_invalid")
+        bar_date = str(item.get("day", ""))[:10]
+        parsed = date.fromisoformat(bar_date)
+        if parsed >= day:
+            continue
+        close = _number(item.get("close"))
+        if bar_date in seen or close is None or close <= 0:
+            raise MarketProviderError("market_index_history_invalid")
+        seen.add(bar_date)
+        bars.append({"date": bar_date, "close": close, "volume": _number(item.get("volume"))})
+    return sorted(bars, key=lambda value: value["date"])
+
+
 class _Reader:
     def __init__(self, client: httpx.AsyncClient, semaphore: asyncio.Semaphore) -> None:
         self.client = client
@@ -241,9 +261,11 @@ class MarketProvider:
         board_id: str | None = None,
         kind: str = "industry",
         period: str = "today",
+        index_set: str = CORE,
     ) -> dict:
         if (
             section not in SECTIONS
+            or index_set not in {CORE, TERMINAL}
             or kind not in {"industry", "concept"}
             or period not in FLOW_FIELDS
         ):
@@ -261,7 +283,7 @@ class MarketProvider:
                 if section == "quotes":
                     result = await self._quotes(reader)
                 elif section == "indices":
-                    result = await self._indices(reader)
+                    result = await self._indices(reader, index_set)
                 elif section in {"industry", "concept"}:
                     result = await self._boards(reader, section)
                 elif section == "flows":
@@ -875,7 +897,10 @@ class MarketProvider:
         )
         return result
 
-    async def _indices(self, reader: _Reader) -> dict:
+    async def _indices(self, reader: _Reader, index_set: str = CORE) -> dict:
+        indexes = selected_indexes(index_set)
+        catalogue = {row["asset"]: row for row in public_catalog()["items"]}
+
         async def one(asset, name, secid):
             row = {
                 "asset": asset,
@@ -908,6 +933,8 @@ class MarketProvider:
                     as_of=_timestamp(data.get("f86")),
                 )
                 previous_close = _number(data.get("f60"))
+                if index_set != CORE:
+                    row["previous_close"] = previous_close
                 row["series"] = await self._index_series(
                     reader, secid, row["code"], previous_close, row["as_of"]
                 )
@@ -922,7 +949,7 @@ class MarketProvider:
                 issues.append(f"{name}行情或分时不可用（{code}）。")
             return row, issues
 
-        values = await asyncio.gather(*(one(*item) for item in INDEXES))
+        values = await asyncio.gather(*(one(*item) for item in indexes))
         rows = [row for row, _ in values]
         issues = [issue for _, row_issues in values for issue in row_issues]
         dates = [row["as_of"][:10] for row in rows if row["as_of"]]
@@ -936,7 +963,26 @@ class MarketProvider:
         if old_dates:
             issues.append("指数报价存在不同交易日；较早日期的分时已排除，不与当前日叠加。")
         missing = sum(row["price"] is None for row in rows)
-        result = self._result(rows, len(INDEXES), issues)
+        result = self._result(rows, len(indexes), issues)
+        if index_set != CORE:
+            result.update(index_set=index_set, catalog_version=CATALOG_VERSION)
+            for row in rows:
+                identity = catalogue[row["asset"]]
+                row.update(
+                    {
+                        key: identity[key]
+                        for key in ("group", "publisher", "definition_url", "return_basis")
+                    }
+                )
+            # Separate bounded history phase: unavailable history must not discard
+            # valid current quotes. Source-native past bars are first-observed,
+            # never a certification of historical point-in-time availability.
+            try:
+                async with asyncio.timeout(8):
+                    await asyncio.gather(*(self._index_daily(reader, row) for row in rows))
+            except TimeoutError:
+                log.warning("market_index_daily_timeout")
+            result["missing_daily_history"] = sum(not row.get("daily_bars") for row in rows)
         result["quote_trade_date"] = trade_date
         result["temporal_complete"] = (
             not old_dates and bool(trade_date) and all(row["as_of"] for row in rows)
@@ -950,6 +996,42 @@ class MarketProvider:
             "分时涨跌幅按同指数真实昨收归一化；缺失时不补线，不混合交易日。"
         )
         return result
+
+    async def _index_daily(self, reader: _Reader, row: dict) -> None:
+        url = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"
+        row["daily_bars"] = []
+        row["daily_history_status"] = "unavailable"
+        if row.get("price") is None:
+            return
+        asset = row["asset"]
+        symbol = asset.split(".")[1].lower() + asset.split(".")[0]
+        try:
+            payload = json.loads(
+                await reader.raw(url, {"symbol": symbol, "scale": 240, "ma": "no", "datalen": 400})
+            )
+            bars = parse_index_daily(payload, row["as_of"])
+            previous = row.get("previous_close")
+            if (
+                not bars
+                or previous is None
+                or abs(bars[-1]["close"] - previous) > max(0.02, abs(previous) * 0.00001)
+            ):
+                raise MarketProviderError("market_index_history_close_mismatch")
+            row["daily_bars"] = bars
+            row["daily_history_status"] = "ready"
+            row["daily_source"] = {
+                "provider": "sina",
+                "source_url": url,
+                "symbol": symbol,
+                "retrieved_at": _now(),
+                "adjustment": "price_index",
+                "return_basis": "price_index",
+                "availability_basis": "first_observed",
+                "historical_pit_verified": False,
+                "last_close_cross_checked": True,
+            }
+        except (MarketProviderError, httpx.HTTPError, ValueError, TypeError, KeyError):
+            log.warning("market_index_history_unavailable", asset=asset)
 
     async def _index_series(
         self,

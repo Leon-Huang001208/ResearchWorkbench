@@ -32,6 +32,25 @@ from data_layer.adapters.ifind.exceptions import IFinDAuthError, IFinDRateLimitE
 from data_layer.adapters.ifind.http_client import IFinDHTTPClient
 
 
+@pytest.fixture(autouse=True)
+def isolated_native_credentials(monkeypatch):
+    """Connection API regressions must never read the host's credential store."""
+    import keyring
+
+    values = {}
+    monkeypatch.setattr(
+        keyring, "get_password", lambda service, account: values.get((service, account))
+    )
+    monkeypatch.setattr(
+        keyring,
+        "set_password",
+        lambda service, account, value: values.__setitem__((service, account), value),
+    )
+    monkeypatch.setattr(
+        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
+    )
+
+
 def test_ifind_http_import_does_not_initialize_unrelated_adapters():
     project_root = Path(__file__).resolve().parents[2]
     script = """
@@ -169,7 +188,7 @@ def test_connections_summary_has_safe_catalog_sources_and_platform_sections(tmp_
     assert response.status_code == 200
     body = response.json()
     assert set(body) == {"groups", "sources", "platform", "migration"}
-    assert len(body["sources"]) == 64
+    assert len(body["sources"]) == 65
     assert {item["id"] for item in body["sources"]} == {
         item["id"] for item in build_catalog(environ={})["sources"]
     }
@@ -202,6 +221,7 @@ def test_connections_summary_has_safe_catalog_sources_and_platform_sections(tmp_
             "items": [
                 "akshare",
                 "baostock",
+                "bea_archive",
                 "yahoo",
                 "chinastock",
                 "csindex",
@@ -263,7 +283,7 @@ def test_corrupt_single_source_profile_does_not_break_connection_catalog(tmp_pat
         response = client.get("/api/research/data/connections")
     assert response.status_code == 200
     sources = {item["id"]: item for item in response.json()["sources"]}
-    assert len(sources) == 64
+    assert len(sources) == 65
     assert sources["ifind"]["configured"] is False
     assert "configuration_read_failed" in sources["ifind"]["warnings"]
     assert sources["mysql"]["warnings"] == []
@@ -901,7 +921,7 @@ async def test_tinysoft_provider_uses_saved_keyring_token_after_env_migration(
 
     base.CjClient = Client
     package.base = base
-    package.get_stocks = lambda **_kwargs: [{"证券代码": "SH600000"}]
+    package.get_stocks = lambda **_kwargs: ["SH600000"]
     monkeypatch.setitem(sys.modules, "cjpy", package)
     monkeypatch.setitem(sys.modules, "cjpy.base", base)
     result = await providers.fetch(
@@ -913,7 +933,9 @@ async def test_tinysoft_provider_uses_saved_keyring_token_after_env_migration(
         connections=store,
     )
     assert result.status == "complete"
-    assert result.rows == [{"证券代码": "SH600000"}]
+    assert result.rows == [
+        {"asset": "600000.SH", "code": "600000", "exchange": "SH", "asset_type": "stock"}
+    ]
     assert "saved-cj-token" not in repr(result)
 
 

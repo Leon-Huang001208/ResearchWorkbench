@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+2026-10-23：终端Native部署入口仍为`research_workbench_entrypoint/resident/model_provider_upgrade.py`，新增封闭terminal profile并复用原version4事务／严格保全，不开放任意PAYLOAD。完整操作员回归覆盖旧profiles与terminal，产品后端130例单独记录；PR201产品合并后由主任务固定最终PAYLOAD，再完成组合候选独评、完整Router及原三CI。对应身份与未执行部署状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+全市场终端由`market_indices.py`定义core-v1固定12与terminal-v2共24指数及分组；`market_analysis.py`计算三周期证据与官方六风格矩阵，`market_portfolio.py`管理账号持仓预览/确认及有界文件。market_routes/service复用原维护准入、缓存生命周期；ui/market-terminal.mjs组织原生终端交互，market.mjs保留行情表/成员/导出。近处回归test_market_indices/test_market_terminal和research_web_market_terminal覆盖真实契约、上海跨日、陈旧估值拒绝、账号及迟到响应；真实来源和浏览器独立验收。
+构建器失效登记恢复由`rwb-docker builder-reconcile`早分发到`research_workbench_entrypoint/builder_reconcile.py`，复用`iteration_cache.operation_lock`。近处`test_builder_reconcile.py`覆盖指纹、错引擎、部分资源、恢复前零mutation拒绝、带全局选项的活动build/bake和停止终态；真实Docker恢复及旧任务清理另留证。
+
 2026-10-23宏观闭环：providers_external.py校验官方NYFed/Treasury/WorldBank封包；providers_akshare.py在既有public_worker内执行cpi/gdp/pmi/m2固定请求；catalog/broker只声明实际支持的序列。DataHub新查询缓存、ResearchWarehouse身份与SnapshotSeries准入分别核对合同版本，旧call_id和冻结证据保留。国内观察期及累计GDP语义不借用披露时点。公开错误封包/空参考线/分号CSV在同一external Provider修复，不扩数值仓白名单；真实失败与临时库证据见本轮来源台账和任务报告。
 
 公开数值合同 `official-numeric-v2` 定位于 `datahub/providers_external.py` 的
@@ -490,3 +495,10 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 
 
 2026-10-23：资产副图：ui/asset-indicator-library.mjs拥有15类纯计算及封闭schema；asset-panel-manager.mjs渲染目录/常用/参数；asset-chart.mjs管理原ECharts实例与模态生命周期；asset_indicator_preferences.py与asset_routes/asset_workspace验证、账号存储和回滚。正式回归为test_asset_indicator_preferences.py与research_web_asset_indicator_library.test.mjs，原指标与交互门保持。
+
+## 2026-10-23：披露及历史发布定位
+
+`datahub/providers_akshare.py`的income_statement封闭新浪请求、日期精度和资金流同源标记，`providers_bea_archive.py`解析已审核BEA档案，`bea_archive_store.py`绑定公开发布修订。`broker.py`按明确selector和截止范围准入，`research_warehouse.py`按当前profile鉴权并分派原桥；股票日历仅用于bars。`test_datahub_financial_time_contract.py`与`test_datahub_bea_archive.py`覆盖未知单位/日期、旧版冲突、截止边界、并发幂等和恢复。现有三安装入口/依赖锁不变，最终Mac干净安装与实际Host/PG分别验收。
+
+`connection_center.py`的公开分组必须与Catalog同步；`test_datahub_catalog.py`遍历真实全目录投影，
+`test_integration_coordinator.py`用真实DataHub恢复已持久集成状态，防止新增源漏登记造成启动KeyError。

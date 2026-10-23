@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+终端指数目录保留core-v1固定12并新增terminal-v2共24：含中证2000（逻辑932000.SH，东财secid2.932000）、国企红利、国证2000、中证红利及399370—399377风格系列。东财报价与分时沿原有界httpx；新浪CN_MarketData.getKLineData最多400日、独立8秒总预算，仅保留报价日前完整日，最后收盘价须与东财真实昨收一致。不通过则保留报价与历史缺口，不能混为可靠回测历史。无付费源或新依赖。
+
 ## 同版本筹码输入合同（2026-10-23）
 
 固定 tinysoft 的 `market_activity` 新增 `dataset=chip_turnover`：只接受单一A股和1–32个唯一有序合法ISO日期。SDK限定预定义“换手率”因子，核对固定名称/公式/说明，响应精确覆盖证券和日期，单位为百分数。保留0，拒绝负值、错身份、重复/缺日期及非有限值。不开放任意因子/表表达式，不从旧全局环境取密。
@@ -22,6 +24,9 @@
 完整来源、交易期、工作簿投影与未验证项见[数据合同](research-web-etf-weekly-data.md)和[生产合同](research-web-etf-weekly-production.md)。
 
 默认Host已挂入可选ResearchWarehouse；数据设置与能力中心复用同一配置及有界免费验证面板，保存不会连接，Doctor只报告脱敏配置/驱动状态。实际调用健康按来源、能力和配置摘要独立记录，最长300秒、最多256条；改配、撤权或过期即失效。数据库/会话缓存不刷新上游健康，显式探测与实际取数证据分开。连接中心的“部分能力已验证”只覆盖列明的能力与时间，不代表整个供应商或正式回测合格。
+
+`bea_archive` 在目录与能力中心均登记为公开来源；它不需要账号，也不提供配置凭据入口。
+全目录分组与既有集成状态恢复必须共同验证，新增Provider不能只通过独立取数测试。
 
 官方数值响应按封闭合同展开：世界银行分页头与观测分开，未取完分页返回partial；BLS逐series的year/period/value保留，不把M13年均值冒充月份；iFinD历史time数组与table指标逐项核对长度后展开。未知单位保持provider_defined。完整源字节仍冻结，账号/刷新令牌入口不入仓；详见[原生快照](research-web-vendor-snapshots.md)。官方说明：[世界银行](https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures)、[BLS](https://www.bls.gov/developers/api_signature_v2.htm)、[iFinD](https://quantapi.51ifind.com/gwstatic/static/ds_web/quantapi-web/example.html)。
 
@@ -512,3 +517,12 @@ CJPY局部成交量声明还必须逐行校验所有已存在asset/code/stock_co
 2026-10-23 本次交付缓存边界：Asset新历史job固定refresh=True，显式重读所请求整段，不是先读取研究仓再只补缺失部分。DataHub普通refresh=False仅按精确策略/来源复用完整匹配缓存；Wind超过60自然日时缓存来源仍受当前fetch准入guard限制。跨来源部分覆盖不在本任务中拼接，研究仓prepare交易日历仍可能联网。这些是实际未完成能力，不能用本轮候选降级、原生冻结或单源完整缓存测试宣称全部缓存/缺口补数已覆盖。
 
 2026-10-23 最新逐源证据快照见[64源验证清单](../.ai/reports/2026-10-23-datahub-source-verification.json)：保留2026-10-22静态旧快照，区分CJPY Native SDK字段元数据、iFinD Windows SDK与ext_ths HTTP渠道、Market表面及逐源事实。真实AK此前API/页面两轮与最终组合真实Bao一次分别记录，57源未重查；局部元数据、单证券485行或页面图表不升级为全源可用、PIT、正式回测或部署。
+
+指数编制来源与行情供应商分别标明：中证2000、国企红利、中证红利的definition_url指向已在线核对的中证指数官方单张，而非东财行情页；东财secid映射保持独立。中证2000按官方规模指数定义展示，不称为微盘。
+## 2026-10-23：披露日期与官方发布版本
+
+`financials / akshare / statements=["income_statement"]` 是独立的新浪利润表合同，仅单次固定 HTTPS 请求捕获至多8期；`periods` 支持1–8或至多8个明确季末日期。原始 item、报告期、日期精度的公告日、币种和供应商更新时间分别保留。公告日不是精确发布时间，当前下载也不能证明历史重述版本；仍不得用于正式 PIT。此 selector 只匹配明确登记的利润表适配，不以通用摘要或同名净利润替代。金额单位未核实，CNY 币种不自动证明元/万元。
+
+新增独立来源 `bea_archive`（原64来源之外，不计作原57来源已修复）：`factor_macro` 仅接受 `series=us_real_gdp_qoq_saar,start_date=end_date=2024-06-30`。无截止请求读取已审核2024Q2初值/第二版档案中的末版，并保留两份HTML原件；它不是当前最新修订值。先由非历史请求入仓，再通过既有 `as_of` 读取官方发布版本：2024-07-25 12:30 UTC起2.8，2024-08-29 12:30 UTC起3.0，至2024-09-26 04:00 UTC前有效。下界包含、上界排除；上界采用下一次预告发布日期的纽约零点，未推定下一版实际发布时间。未首捕获、未知季度/序列/截止以及历史refresh均拒绝，历史miss不取网络。详细证据与限制见[研究仓](research-web-market-store.md)。
+
+东财资金流SDK/游客路径均标明同一upstream及非独立来源，单位、分类阈值和净额定义未核实；它们不构成与iFinD的等价证明，运行失败不能切换到看似同名的财务或资金指标。新逻辑合同独立绑定仓库身份及会话缓存；旧显式证据仍可读取。无需账号的公开请求不代表商业复用权利已核实，BEA来源fee保留unknown。

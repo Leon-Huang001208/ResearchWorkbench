@@ -1,5 +1,7 @@
 # DataHub 研究数据仓库内核
 
+terminal-v2指数集合使用独立市场缓存键；既有MarketReader/研究仓core-v1完整12身份和原生封包不改变，不能把24指数塞入旧仓库profile。新浪历史为price_index、实际采集时间first_observed、historical_pit_verified=false；画像可以展示可算特征，但不能据此认证历史PIT、回测或配置有效性。
+
 2026-10-23新增宏观使用现有SnapshotSeries与PostgreSQL适配：官方数值v2和AK中国宏观v1进入各自schema/units身份；不新增表、不连接正式库、不迁移旧记录。范围查询结果以原生响应冻结，首次观测时间与供应商观察期分开，尚不是可按历史披露版本重建的规范宏观事实。字段、原字节、版本与摘要可随导出恢复复现；Broker当前仍拒绝AK宏观as_of，包括库读取，不宣称Host已支持该历史查询。旧显式冻结包保持可读。
 
 2026-10-23：本轮限价、昨日逐股金额和资金日期留存仍在原market-cache，不新增研究仓schema、SQL迁移或默认写仓。已配置的固定12指数仓桥和账号/profile校验保持，公开缓存历史不冒充研究仓PIT事实。 具体来源、缺口与缓存合同见[DataHub](research-web-datahub.md#无会话全市场数据)。
@@ -133,3 +135,13 @@ python -m unittest discover -s tests/research_web -p 'test_market_store*.py'
 
 
 2026-10-23 Wind容量回归修复：供应商60自然日上限不再阻断已授权完整仓库长窗读取。对沪深股票daily/none、无as_of、refresh=false的长窗，Host可在同一查询预算内先取得一次Wind缺口计划；每个实际缺口仍须正常通过60日限制及当前权限/配置校验。计划与原查询指纹及来源配置绑定，未知/空库全窗、过大缺口、规划繁忙或失效不会自动拆成供应商可执行小块。固定Wind保留明确失败，auto保留实际skip原因后选择其他候选。取消必须等待规划事务的实际Future结束，不能提前释放容量。此修复没有启用跨来源部分覆盖拼接，Asset新历史job仍为refresh=true整段刷新；交易日历准备也可能联网，不能据此称所有查询均只读离线缓存。
+
+## 官方档案的有限历史发布回放（2026-10-23）
+
+`bea_archive_store.py` 是现有 `WarehouseBinding` 的受信绑定，使用同一专用库、scope、当前profile/来源授权和StorageRunner，不创建表或服务。只处理BEA 2024Q2实际GDP季调环比折年增长率：原始HTML分别证明BEA24-33/38的数值与8:30 EDT公布时刻。季度末是业务日期；`available_at`取已核实的原发布时刻，`ingested_at`仍是本次入库时间。它认证官方发布信息的历史可得性，不宣称本系统当时已收录。
+
+row和gdp_growth两指标共享逻辑期、发布编号、公布时刻和原件hash；release ID放修订版本而不放dimensions。每个旧版按其公布cutoff独立核对，不能只看最新投影；同发布改值整体拒绝，重复原值幂等。两个Host并发提交同发布时只允许一次重新校验，不能吞掉真实数值冲突。读取重验所选行与原始HTML，冻结/独立恢复保留实际选择的发布版与原件。
+
+仅允许`2024-07-25T12:30Z <= as_of < 2024-09-26T04:00Z`；初值2.8与第二版3.0的切换点为`2024-08-29T12:30Z`。无as_of的latest仅指reviewed_archive_catalog末版，不是当前终值。其他宏观和财务native仍按首次观测保存，不能借此放宽正式PIT。财务报告日/公告日/更新时间、资金流单位和定义另行核验。逻辑恢复哈希不替代供应商真实性/导出授权；原有共享/个人与撤销校验继续适用。
+
+部分恢复也核对cutoff应有的发布编号：只恢复初值时，初值期间可读，第二次发布后及catalog latest均为missing，不能以旧值代替缺版；只恢复第二版不能回答初值期间。该矩阵在离线回归与真实独立临时SQL恢复中分别留证。

@@ -39,7 +39,7 @@ from ..market_store.operation import checkpoint, record_committed
 from ..store import StoreError
 from .contracts import BusinessQuery
 from .providers import ProviderError, cn_stock_identity
-from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .research_snapshot_store import SnapshotSeries
 from .security import atomic_json, directory, read_file
@@ -466,6 +466,31 @@ class ResearchWarehouse:
 
     def _bridge(self, query, source, digest):
         profile = self._profile()
+        if source == "bea_archive" and profile and profile["enabled"]:
+            from .bea_archive_store import archive_bridge
+            from .providers_bea_archive import validate_supported_query
+
+            try:
+                validate_supported_query(query, storage_read=True)
+            except ProviderError:
+                raise MarketStoreError("bea_archive_scope_unverified") from None
+            scope = StoreScope(self.owner, "personal-research-v1", source, digest)
+
+            def authorize_archive(actor, requested, _action):
+                current = self._profile()
+                return bool(
+                    current
+                    and current["enabled"]
+                    and current["id"] == profile["id"]
+                    and current["configuration"] == profile["configuration"]
+                    and actor == profile["owner"]
+                    and requested == scope
+                )
+
+            service = MarketStoreService(
+                self._factory(profile, self._secret(profile["id"])), authorize_archive
+            )
+            return archive_bridge(service, profile["owner"], scope)
         if (
             not profile
             or not profile["enabled"]
@@ -752,6 +777,21 @@ class ResearchWarehouse:
             return None
         scope = StoreScope(self.owner, "personal-research-v1", source, digest)
         china_macro = source == "akshare" and query.capability == "factor_macro"
+        financial = (
+            source == "akshare"
+            and query.capability == "financials"
+            and query.parameters.get("statements") == ["income_statement"]
+        )
+        fund_flow = (
+            source == "akshare"
+            and query.capability == "market_activity"
+            and query.parameters.get("dataset") == "fund_flow"
+        )
+        contract = (
+            CHINA_MACRO_SCHEMA
+            if china_macro
+            else SINA_FINANCIAL_SCHEMA if financial else FUND_FLOW_SCHEMA if fund_flow else None
+        )
 
         def authorize(actor, requested, _action):
             current = self._profile()
@@ -774,12 +814,12 @@ class ResearchWarehouse:
             + (
                 ":" + OFFICIAL_NUMERIC_CONTRACT
                 if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
-                else ":" + CHINA_MACRO_SCHEMA if china_macro else ""
+                else ":" + contract if contract else ""
             ),
             units_identity=(
                 OFFICIAL_NUMERIC_CONTRACT
                 if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
-                else CHINA_MACRO_SCHEMA if china_macro else "vendor-fields-retained-unverified-v1"
+                else contract if contract else "vendor-fields-retained-unverified-v1"
             ),
         )
         if query.source not in {"auto", source} and not query.allow_fallback:
@@ -793,7 +833,7 @@ class ResearchWarehouse:
             if bridge is None:
                 binding = self._snapshot_series(query, source, digest)
                 return binding[0].read(binding[1]) if binding else None
-            if query.as_of is None:
+            if query.as_of is None and query.capability == "market_bars":
                 # Trusted complete calendar is evidence for non-trading days;
                 # an empty bars response is never used to infer this state.
                 context = bridge._context(query, source, digest)

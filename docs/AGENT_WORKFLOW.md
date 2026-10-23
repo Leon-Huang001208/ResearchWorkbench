@@ -1,5 +1,10 @@
 # Agent 任务路由指南
 
+2026-10-23：终端profile闭包先运行后端130例与完整操作员／网关／resident回归，不安装依赖、不改秘密或常驻服务。`apply-market-terminal`仅复用原封闭Native部署通道；PR201合入后主任务固定最终产品身份，完整changed-set Router、独立评审、Project Constraints／Research Web Checks及同候选macos-14干净安装均须重新绑定。实际切换、认证页面及全账号保全另取证；产品CI或本地通过不能认证这些层级。
+
+2026-10-23终端v2先交互v0确认A，再复用原Checks定点Python与JS通配符、完整Router、独立评审及同候选Mac安装CI。公开源、隔离浏览器和常驻认证各留真实证据；缺历史的分项／总分／仓位待验证，金元普通客户端不等于官方API。部署沿保全与恢复事务，Windows/Linux交接不冒充本机完成。
+2026-10-23构建器对账先做只读preview和完整本机回归／独评／原三CI，现场apply／recover只能使用相同指纹且实时身份、活动任务与预算仍匹配。恢复后继续原20GiB缓存预算和restore-verified旧任务worktree清理；不手改收尾回执、不重置引擎、不删未知资源。
+
 2026-10-23来源与宏观研究仓任务在原Checks的Python步骤登记官方封包离线模块，其余回归扩展既有文件。完整changed-set Router、原通用仓库门及同候选Mac干净安装均保留；有界公开请求、独立临时PG、源码评审、CI与部署分别记录。业务错误封包/空序列不能用HTTP200或测试数代替来源可用性。没有新runner、依赖、跨平台产品dispatch或模型调用，现有服务、正式库及外盘保持无操作。
 
 2026-10-23市场限价/昨日/历史任务沿原全市场Checks定点清单、完整changed-set Router、独立评审及原三CI/同候选macOS安装。封闭apply-market-history固定旧51f09、产品4f0a248f，原version4事务和全账号保全/恢复保持，采集inflight活动或未知拒绝；只同步固定目标锁清单，不安装包/启用数据库。实际部署、交易时段真实源、认证页面和保全分别留证；历史来源不足明确缺口，不以离线或一次访客返回冒充连续30日。
@@ -403,3 +408,7 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 
 
 2026-10-23：资产副图扩展复用原Checks步骤登记封闭偏好测试、JS通配符及原Mac Bootstrap静态资源核验；没有新增job、runner、依赖或平台dispatch。数学golden/前缀、交互与真实供应商取数分别取证，Wind交互参考不表示私有公式相同。
+
+## 2026-10-23：PIT与口径专项验收
+
+本轮只在隔离worktree实现新浪财报/资金流来源合同及BEA官方档案有限回放。沿完整changed-set Router、独立评审、本机macOS与原Project Constraints/Checks/同候选Mac安装；只向既有Checks步骤补两个模块，不新增job、runner、timeout、依赖或他平台dispatch。真实验证用已批准环境与socket-only临时PG，禁止5432、系统凭据、模型、现有服务及外盘操作。缺历史版本保持明确拒绝，不能把当前下载日期、测试或预告时间冒充真实公布版本。收尾受Docker检查阻断时保留工作树和证据，不重启现有服务解锁。

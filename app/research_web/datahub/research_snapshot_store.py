@@ -15,7 +15,7 @@ from ..market_store import Batch, DatasetIdentity, Fact, MarketStoreError, RawOr
 from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
 from .providers import MAX_QUERY_BYTES, Result
-from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .providers_market import INDEXES
 
@@ -61,6 +61,10 @@ METADATA_KEYS = frozenset(
         "accounting_standard",
         "consolidation",
         "revision_policy",
+        "transport",
+        "independent_source",
+        "availability_basis",
+        "upstream_attempts",
     }
 )
 RESULT_KEYS = (
@@ -306,6 +310,23 @@ class SnapshotSeries:
         with self._lock:
             # Even rejected/empty outcomes recheck current read entitlement.
             previous = self._facts(dataset, None)
+            if self.scope.source == "akshare":
+                required_contract = (
+                    SINA_FINANCIAL_SCHEMA
+                    if query.capability == "financials"
+                    and query.parameters.get("statements") == ["income_statement"]
+                    else (
+                        FUND_FLOW_SCHEMA
+                        if query.capability == "market_activity"
+                        and query.parameters.get("dataset") == "fund_flow"
+                        else None
+                    )
+                )
+                if required_contract and result.metadata.get("schema_version") != required_contract:
+                    log.info(
+                        "research_snapshot_not_ingested", reason="provider_contract_incomplete"
+                    )
+                    return None
             if (
                 query.capability == "factor_macro"
                 and self.scope.source == "akshare"
@@ -356,6 +377,19 @@ class SnapshotSeries:
             document["metadata"] = {
                 key: value for key, value in result.metadata.items() if key in METADATA_KEYS
             }
+            if "upstream_attempts" in document["metadata"]:
+                attempts = document["metadata"]["upstream_attempts"]
+                allowed_attempts = [
+                    [{"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "snapshot"}],
+                    [
+                        {"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "failed"},
+                        {"upstream": "eastmoney", "endpoint": "webguest", "status": "snapshot"},
+                    ],
+                ]
+                if self.scope.source != "akshare" or query.capability != "market_activity":
+                    document["metadata"].pop("upstream_attempts")
+                elif not isinstance(attempts, list) or attempts not in allowed_attempts:
+                    raise MarketStoreError("snapshot_attempt_evidence_invalid")
             document["provider_id"] = self.scope.source
             document["format"] = "provider_native_snapshot-v1"
             document["payloads"] = [
