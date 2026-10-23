@@ -8,6 +8,10 @@ from datetime import datetime
 from typing import Any
 
 from core.observability import get_logger
+from data_layer.adapters.wind.excel_instances import (
+    prepare_macos_excel_compat,
+    running_excel_apps,
+)
 from data_layer.adapters.wind.exceptions import (
     WindCleanupError,
     WindFormulaError,
@@ -73,11 +77,14 @@ def _trim_wsd_matrix(raw_data: Any) -> list[list[Any]]:
     if rows and not isinstance(rows[0], list):
         rows = [[value] for value in rows]
     matrix = [list(row) if isinstance(row, list) else [row] for row in rows]
-    populated = [row for row in matrix if any(value is not None for value in row)]
+    populated = [row for row in matrix if any(value is not None and value != "" for value in row)]
     if not populated:
         return []
     width = max(
-        index + 1 for row in populated for index, value in enumerate(row) if value is not None
+        index + 1
+        for row in populated
+        for index, value in enumerate(row)
+        if value is not None and value != ""
     )
     return [row[:width] for row in populated]
 
@@ -92,16 +99,21 @@ class WindExcelClient:
         *,
         isolated_workbook: bool = False,
         isolated_app: bool = False,
+        existing_app_only: bool = False,
     ):
+        if isolated_app and existing_app_only:
+            raise ValueError("wind_excel_application_policy_conflict")
         self._visible = visible
         self._timeout = timeout
         self._isolated_workbook = isolated_workbook
         self._isolated_app = isolated_app
+        self._existing_app_only = existing_app_only
         self._app = None
         self._wb = None
         self._sheet = None
         self._owns_app = False
         self._owns_workbook = False
+        self._creation_unknown = False
         self._keepalive_thread: threading.Thread | None = None
         self._keepalive_running = False
         self._keepalive_interval = 1800  # 默认 30 分钟
@@ -112,6 +124,8 @@ class WindExcelClient:
 
     def _connect(self):
         """连接 Excel；验证任务可强制使用独立且由客户端持有的实例。"""
+        if self._creation_unknown:
+            raise WindCleanupError()
         try:
             import xlwings as xw
         except Exception:  # noqa: BLE001
@@ -119,21 +133,24 @@ class WindExcelClient:
                 "xlwings not available (NumPy/matplotlib compatibility issue?)"
             )
 
+        prepare_macos_excel_compat()
+
         # 自动/只读调用可以要求独立应用；此分支不得枚举或选择用户已打开
         # 的应用和工作簿，生命周期完全由本客户端持有。
-        if self._isolated_app:
+        if self._existing_app_only:
+            self._connect_existing_workbook(xw)
+            all_apps = []
+        elif self._isolated_app:
             logger.info("启动隔离的 Wind Excel 实例")
             self._app = xw.App(visible=self._visible, add_book=True)
             self._owns_app = True
             all_apps = []
         else:
-            try:
-                all_apps = list(xw.apps)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("无法枚举运行中的 Excel 实例: %s", exc)
-                all_apps = []
+            all_apps = running_excel_apps(xw)
 
-        if not self._isolated_app and all_apps:
+        if self._existing_app_only:
+            pass  # The selected workbook is already owned; user books stay untouched.
+        elif not self._isolated_app and all_apps:
             self._app = all_apps[0]
             logger.info(f"已连接到运行中的 Excel 实例 (PID={self._app.pid})")
             self._owns_app = False
@@ -143,7 +160,9 @@ class WindExcelClient:
             self._owns_app = True
 
         # 验证任务必须持有自己的 workbook；普通数据调用保持原有复用行为。
-        if self._isolated_workbook and not self._owns_app:
+        if self._existing_app_only:
+            pass
+        elif self._isolated_workbook and not self._owns_app:
             self._wb = self._app.books.add()
             self._owns_workbook = True
             logger.info("已创建隔离的 Wind 验证工作簿")
@@ -164,6 +183,46 @@ class WindExcelClient:
             sheet_name = HELPER_SHEET_NAME
         logger.info(f"使用工作表: {sheet_name}")
         self._col = "ZZ"
+
+    def _connect_existing_workbook(self, xw: Any) -> None:
+        """Create only an owned workbook inside an existing Excel application.
+
+        An explicit parameter rejection can advance to another instance only
+        after a fresh inventory proves that no new workbook appeared. Unknown outcomes stop
+        collection and poison the managed worker instead of replaying creation.
+        """
+        for application in running_excel_apps(xw):
+            try:
+                before = [book.name for book in application.books]
+            except Exception as exc:
+                logger.warning("wind_excel_book_inventory_failed", error_type=type(exc).__name__)
+                raise WindNotConnectedError("Excel 工作簿身份无法确认") from exc
+            try:
+                workbook = application.books.add()
+            except Exception as exc:
+                if getattr(exc, "errornumber", None) != -50:
+                    self._creation_unknown = True
+                    logger.warning("wind_excel_creation_unknown", error_type=type(exc).__name__)
+                    raise WindCleanupError() from exc
+                try:
+                    after = [book.name for book in application.books]
+                except Exception as inventory_error:
+                    self._creation_unknown = True
+                    logger.warning(
+                        "wind_excel_creation_unknown", error_type=type(inventory_error).__name__
+                    )
+                    raise WindCleanupError() from inventory_error
+                if before != after:
+                    self._creation_unknown = True
+                    logger.warning("wind_excel_creation_unknown", error_type=type(exc).__name__)
+                    raise WindCleanupError() from exc
+                logger.warning("wind_excel_instance_unavailable", error_type=type(exc).__name__)
+                continue
+            self._app, self._wb = application, workbook
+            self._owns_app, self._owns_workbook = False, True
+            logger.info("wind_excel_existing_instance_attached", pid=application.pid)
+            return
+        raise WindNotConnectedError("没有可用的已有 Excel 实例；请打开已加载 Wind 的 Excel")
 
     def _get_or_create_helper_sheet(self):
         sheets = self._wb.sheets
@@ -299,8 +358,8 @@ class WindExcelClient:
             days = max(
                 1,
                 (
-                    datetime.strptime(end_date, "%Y-%m-%d")  # noqa: DTZ007
-                    - datetime.strptime(start_date, "%Y-%m-%d")  # noqa: DTZ007
+                    datetime.strptime(end_date, "%Y-%m-%d")
+                    - datetime.strptime(start_date, "%Y-%m-%d")
                 ).days,
             )
         except (TypeError, ValueError):
@@ -331,7 +390,9 @@ class WindExcelClient:
             for attempt in range(1, WSD_MAX_RETRIES + 1):
                 try:
                     self._ensure_session()
-                    result = self._execute_wsd_once(formula, calculated_timeout)
+                    result = self._execute_wsd_once(
+                        formula, calculated_timeout, expected_columns=1 + len(fields.split(","))
+                    )
                     if result:
                         return result
                 except (WindTimeoutError, WindSessionExpiredError) as exc:
@@ -351,8 +412,12 @@ class WindExcelClient:
     WSD_MAX_ROWS = 1000
     WSD_MAX_COLS = 20
 
-    def _execute_wsd_once(self, formula: str, timeout: float) -> list[list[Any]]:
+    def _execute_wsd_once(
+        self, formula: str, timeout: float, *, expected_columns: int = 2
+    ) -> list[list[Any]]:
         """Write one WSD formula, wait for it, and read its complete spill range."""
+        if not 1 <= expected_columns <= self.WSD_MAX_COLS:
+            raise ValueError("wind_spill_column_count_invalid")
         start_row = self._allocate_helper_rows(self.WSD_MAX_ROWS)
         end_row = start_row + self.WSD_MAX_ROWS - 1
         start_col = self._col
@@ -364,6 +429,7 @@ class WindExcelClient:
             anchor.value = formula
             elapsed = 0.0
             interval = 0.5
+            previous = None
             while elapsed < timeout:
                 time.sleep(interval)
                 elapsed += interval
@@ -373,7 +439,20 @@ class WindExcelClient:
                 if isinstance(value, str) and value.strip().upper() in EXCEL_ERRORS:
                     raise WindFormulaError(formula, value.strip())
                 if value is not None and not _is_error_value(value):
-                    return _trim_wsd_matrix(self._sheet.range(address).raw_value)
+                    matrix = _trim_wsd_matrix(self._sheet.range(address).raw_value)
+                    # Wind may spill dates before numeric columns. A date-only
+                    # first observation is not a completed historical response.
+                    ready = bool(matrix) and all(
+                        len(row) >= expected_columns
+                        and all(
+                            not _is_error_value(cell) and cell != ""
+                            for cell in row[:expected_columns]
+                        )
+                        for row in matrix
+                    )
+                    if ready and matrix == previous:
+                        return matrix
+                    previous = matrix if ready else None
             raise WindTimeoutError(formula, timeout)
         finally:
             try:
@@ -605,6 +684,9 @@ class WindExcelClient:
     def close(self) -> None:
         """关闭持有资源；无法确认退出时保留所有权状态并失败关闭。"""
         self.stop_keepalive()
+        if self._creation_unknown:
+            logger.warning("wind_excel_creation_cleanup_unconfirmed")
+            raise WindCleanupError()
         workbook_close_failed = False
         if self._owns_workbook and self._wb is not None:
             try:

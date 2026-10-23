@@ -36,6 +36,66 @@ Asia/Shanghai。提前手动试跑得到上一期，不能提前冻结未来行�
 现货、连续合约、收盘和结算的身份不能互换。来源日期、单位、币种或原始数据缺失会
 返回 `blocked_data`；模型的质量状态和缓存单元格总数不能消除这些问题。
 
+## Excel 主来源（显式继任版本）
+
+`WeeklyProductionPolicy.data_source` 默认仍为 `wind_client_api`，保留历史已发布版本与未来
+API 迁移路径；准备操作只创建未发布的 `wind_excel` 继任版本。Run、生产上下文与幂等身份
+冻结来源、版本和来源资源哈希。当前发布版本、主管理员归属、Wind allowed/configured、
+凭据存储和取数前后配置摘要继续校验，不能从模型或公开工具参数选择本私有路径。
+
+Excel 模式不导入 WindPy，不要求 API 权益、WSET 配置或 API/Excel 等价校准。依赖检查只
+说明 xlwings 可发现，不能证明 Excel、Wind 登录或业务数据成功。工作表 WSD 与 TDAYS 显式
+使用每个市场已审 `TradingCalendar`，每段最多366自然日，防止1000行助手区域截断。
+每次工作表请求只执行一次；未知、超时和取消不得自动重放。与普通 Wind Provider 共用单线程
+和 Future 容量；私有周报默认显式使用 `isolated_workbook=True, existing_app_only=True`，只在
+既有可连接 Excel 实例中新建本任务拥有的临时工作簿，不启动或退出用户实例，不修改既有
+工作簿或用户应用设置。真实供应商操作及自有工作簿 close 完成后才释放；close 失败将容量
+标记为不可继续使用。执行持有现有常驻维护准入，普通 Wind 入口的选择策略保持不变。
+
+长期 EDB 使用用户显式冻结的 Wind 原生数值导出，不把失败刷新称为成功。已发布资源的
+schema2 来源合同包含 `data_source=wind_excel`、`excel_exports` 和全部已审市场收盘定义。
+`verification.evidence_path/evidence_sha256` 必须绑定同版本不可变审查资源；经济日历配置为
+`method=wind_excel_export` 和显式 `importance_values`。原生“重要/中等/低”分别映射为
+“重要/较重要/一般”，不猜测 WSET。`excel_exports.edb` 声明 `path`、`sha256`、`exported_at`
+和 `sheet`；经济日历另声明 `coverage_start/end`、`coverage_evidence_path/sha256`、
+`observation_path/sha256`，并可通过
+`additional_sheets` 保留“财经大事”。事件保留原始页名。静态导出时间与原生零结果观察时间
+均须位于截止前一天至冻结截止点之间；当前时间已经更晚也不能追认历史截止点之后取得的输入。
+文件须匹配同版本哈希。读取有ZIP大小及行列上限，并处理 Wind 导出的错误A1维度。
+经济数据使用原生八列表头，财经大事使用五列（或同结构八列），各页均须保留 Wind 来源标记。
+
+`observation_path` 指向操作员从原生 UI 捕获并审查的不可变 JSON，不由模型填写。其固定字段为
+`schema_version:1, source:wind_excel, kind:native_export_observation`、实际 `application/source_url`、
+`export_path/export_sha256`、原生 UI 的 `coverage_start/end`、`observed_at` 及 `pages`。
+`pages` 必须恰含 `economic_data`、`financial_events`；各页含 `sheet`、`result:exported|empty`、
+`filters`、`message`、`raw_accessibility_excerpt`。过滤须为全国家、全部事件和三档重要性，
+原始 AX 文字须显示对应页名、起止日期及全部过滤状态。非空页绑定本导出实际工作表；空页
+须有原生明确零结果文字，且不能与工作表中的事件冲突。观察须不晚于市场截止点。
+原生标签 `选择国家: 全部`、`数据/事件: 全部`、`重要性: 重要 中等 低` 直接支持，不能为适配
+验证器而改写原始 AX 文字。
+
+EDB 列按原始4个指标ID与单位核对，忽略派生 `s1` 列；未结束交易日上的非空正数拒绝，
+假日空值/零值不变成有效价格，也不补齐实际交易日缺口。旧底稿中的周收益、周均与固定除五
+不能替代这些原始逐日数据。数据仍通过原 `assess_weekly_snapshot`，再投影原三份工作簿与图表。
+
+经济覆盖证明JSON为 `{schema_version:1, source:"wind_excel", windows:[...]}`，每窗具有
+`start/end/resource/sha256/kind`；窗口并集必须覆盖下周一到周日，每份证据均为同版本不可变
+资源。`native_export` 指向实际原生导出；`native_empty_result` 须含原生应用/URL、同一日、
+有时区观察时间、全国家/全部事件/三档重要性过滤和两页明确零结果及原始可访问性文字。
+原生导出窗口只接受本合同经济导出的精确路径与哈希，并精确匹配原生 UI 观察的实际起止范围；
+只有 XLSX 哈希或人工填写的整周范围不能证明覆盖。每条原生事件
+须属于该导出已审窗口。窗口可以跨入前周日，最终表格只投影下周一至周日的事件。
+不能由表格最小/最大行日期或单个 `coverage_verified` 标记推断周日覆盖。缺失、过期、单位、
+日历或覆盖证据错误均保留 `blocked_data`，不进入正式定稿。
+
+市场 `cutoff` 仍为本期周五15:30；在线采集实际开始和完成冻结由 Host 时钟记录为
+`acquisition_started_at`、`frozen_at`，随 `collection_policy=wind-excel-weekly-v1`、
+`acquisition_kind=current_period` 一起进入快照哈希。仅报告期结束日当天、市场截止点之后的
+实时生产可正式通过；Host 独立复算开始不晚于冻结、冻结不晚于真实当前时间，以及各序列和
+日历的实际取回时间位于采集窗口内。已有原始冻结快照可以复读；对过去报告期新发在线查询
+标为 `historical_recheck` 并阻断正式定稿，不能补写成当时快照。周报事实证据显示市场截止、
+实际采集开始与实际冻结时间。Excel 仍依赖每期人工准备，当前禁止启用定时。
+
 ## Client API 与授权
 
 `WindClientAPIProvider` 仅在受理调用时惰性导入已安装的 WindPy，不安装 SDK、启动

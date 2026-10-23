@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -456,7 +456,9 @@ def adopt_verified_groups(api: dict, excel: dict | None, proof: dict) -> dict:
     return result
 
 
-def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:
+def assess_weekly_snapshot(
+    snapshot: dict, contract: dict, *, require_excel_acquisition: bool = False
+) -> dict:
     """Validate source evidence and independently derive the report's numbers."""
     issues: list[str] = []
     observations: list[dict] = []
@@ -478,6 +480,30 @@ def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:
         ):
             raise ValueError("weekly_snapshot_schema_invalid")
         cutoff = _aware(contract["cutoff"])
+        if require_excel_acquisition and snapshot["source"] != "wind_excel":
+            raise ValueError("weekly_excel_acquisition_source_invalid")
+        if snapshot["source"] == "wind_excel" and (
+            require_excel_acquisition or "collection_policy" in snapshot
+        ):
+            if (
+                snapshot.get("collection_policy") != "wind-excel-weekly-v1"
+                or snapshot.get("acquisition_kind") != "current_period"
+            ):
+                raise ValueError("weekly_excel_historical_recheck_not_formal")
+            started, frozen_at = _aware(snapshot["acquisition_started_at"]), _aware(
+                snapshot["frozen_at"]
+            )
+            if not cutoff <= started <= frozen_at <= datetime.now(UTC) or any(
+                moment.astimezone(SHANGHAI).date().isoformat() != contract["period_end"]
+                for moment in (started, frozen_at)
+            ):
+                raise ValueError("weekly_excel_acquisition_time_invalid")
+            for item in [
+                *snapshot.get("series", {}).values(),
+                *snapshot.get("calendars", {}).values(),
+            ]:
+                if not started <= _aware(item["retrieved_at"]) <= frozen_at:
+                    raise ValueError("weekly_excel_acquisition_time_invalid")
         if contract.get("calendar_input_sha256") and contract[
             "calendar_input_sha256"
         ] != weekly_snapshot_sha256(snapshot.get("calendars", {})):
@@ -639,6 +665,15 @@ def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:
         "observations": observations,
         "contract_sha256": contract.get("contract_sha256"),
         "snapshot_sha256": snapshot_hash,
+        **(
+            {
+                "acquisition_started_at": snapshot.get("acquisition_started_at"),
+                "frozen_at": snapshot.get("frozen_at"),
+                "acquisition_kind": snapshot.get("acquisition_kind"),
+            }
+            if snapshot.get("collection_policy") == "wind-excel-weekly-v1"
+            else {}
+        ),
     }
 
 

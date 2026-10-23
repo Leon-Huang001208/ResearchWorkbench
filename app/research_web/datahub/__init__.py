@@ -1195,13 +1195,17 @@ class DataHub:
         )
 
         report_contract_selected = False
+        selected_source = "wind_client_api"
 
         def authorize():
+            if selected_source == "wind_excel":
+                self._report_weekly_run_context(sid, run_root, workflow_manifest)
             resolution = resolve_report_weekly(
                 query,
                 probes=self._latest_probes(),
                 connection_statuses=self.connections.statuses(),
                 report_contract_selected=report_contract_selected,
+                report_data_source=selected_source,
             )
             if self.admission is not None:
                 self.admission(sid, query, resolution)
@@ -1228,9 +1232,27 @@ class DataHub:
             report_contract_selected = (
                 isinstance(policy, dict) and policy.get("policy_id") == "huaan-etf-weekly-v1"
             )
+            selected_source = (policy or {}).get("data_source", "wind_client_api")
+            if selected_source != source_contract.get("data_source", "wind_client_api"):
+                raise StoreError("周报来源合同与版本策略不符", "weekly_source_invalid", 409)
+            if selected_source == "wind_excel":
+                from .providers_wind_excel_weekly import wait_for_idle
+
         configuration = authorize()
         receipt = self.snapshots.receipt(sid, call_id)
         fingerprint = query.fingerprint(include_refresh=True)
+        if source_contract is not None:
+            fingerprint = hashlib.sha256(
+                json.dumps(
+                    {
+                        "query": fingerprint,
+                        "source": selected_source,
+                        "source_contract_sha256": source_contract_sha,
+                        "version": declared["version"],
+                    },
+                    sort_keys=True,
+                ).encode()
+            ).hexdigest()
         if receipt:
             if receipt.get("fingerprint") != fingerprint:
                 raise StoreError("同一周报取数标识不能用于不同报告期", "weekly_call_conflict", 409)
@@ -1242,7 +1264,11 @@ class DataHub:
                 return {
                     "contract": contract,
                     "snapshot": snapshot,
-                    "assessment": assess_weekly_snapshot(snapshot, contract),
+                    "assessment": assess_weekly_snapshot(
+                        snapshot,
+                        contract,
+                        require_excel_acquisition=selected_source == "wind_excel",
+                    ),
                     "datasets": [manifest],
                 }
             if (sid, call_id) in self.tasks:
@@ -1278,12 +1304,23 @@ class DataHub:
                         baseline = rows[0]
                     else:
                         economic = rows[0].get("economic_calendar")
-                adapter = provider or WindClientAPIProvider(
-                    calendar_contracts=source_contract["calendars"] if source_contract else None,
-                    economic_contract=(
-                        source_contract["economic_calendar"] if source_contract else None
-                    ),
-                )
+                if selected_source == "wind_excel":
+                    from .providers_wind_excel_weekly import WindExcelWeeklyProvider
+
+                    adapter = provider or WindExcelWeeklyProvider(
+                        run_root=run_root,
+                        manifest=workflow_manifest,
+                        source_contract=source_contract,
+                    )
+                else:
+                    adapter = provider or WindClientAPIProvider(
+                        calendar_contracts=(
+                            source_contract["calendars"] if source_contract else None
+                        ),
+                        economic_contract=(
+                            source_contract["economic_calendar"] if source_contract else None
+                        ),
+                    )
                 readiness = adapter.readiness()
                 proof_identity = {
                     "configuration_sha256": configuration,
@@ -1295,22 +1332,30 @@ class DataHub:
                     json.dumps(proof_identity, sort_keys=True).encode()
                 ).hexdigest()
                 proof = None
-                with directory(
-                    self.store.root,
-                    (".control", "report-weekly-equivalence"),
-                    create=True,
-                    private=True,
-                ) as control:
-                    if proof_key + ".json" in os.listdir(control):
-                        proof = json.loads(read_file(control, proof_key + ".json", private=True))
+                if selected_source == "wind_client_api":
+                    with directory(
+                        self.store.root,
+                        (".control", "report-weekly-equivalence"),
+                        create=True,
+                        private=True,
+                    ) as control:
+                        if proof_key + ".json" in os.listdir(control):
+                            proof = json.loads(
+                                read_file(control, proof_key + ".json", private=True)
+                            )
                 if readiness.get("dependency_ready") is not True:
                     snapshot = sample_snapshot(contract)
+                    snapshot["source"] = selected_source
                     code = readiness.get("code") or "wind_api_dependency_missing"
                     snapshot["limitations"] = [code]
                     collected = {
                         "contract": contract,
                         "snapshot": snapshot,
-                        "assessment": assess_weekly_snapshot(snapshot, contract),
+                        "assessment": assess_weekly_snapshot(
+                            snapshot,
+                            contract,
+                            require_excel_acquisition=selected_source == "wind_excel",
+                        ),
                     }
                     collected["assessment"]["issues"].append(code)
                 else:
@@ -1332,7 +1377,8 @@ class DataHub:
                 all_groups = {item["group"] for item in load_weekly_mapping()["series"]}
                 needs_excel = proof is None or set(proof.get("groups", [])) != all_groups
                 if (
-                    needs_excel
+                    selected_source == "wind_client_api"
+                    and needs_excel
                     and baseline is None
                     and run_root is not None
                     and readiness.get("dependency_ready") is True
@@ -1357,10 +1403,14 @@ class DataHub:
                     )
                     baseline = self.rows(sid, registered["baseline_dataset_id"], 0, 1)["items"][0]
                     snapshot["equivalence_baseline"] = baseline
-                if baseline is not None and all(
-                    isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value)
-                    for key, value in proof_identity.items()
-                    if key != "adapter_revision"
+                if (
+                    selected_source == "wind_client_api"
+                    and baseline is not None
+                    and all(
+                        isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value)
+                        for key, value in proof_identity.items()
+                        if key != "adapter_revision"
+                    )
                 ):
                     try:
                         candidate = build_equivalence_proof(snapshot, baseline, **proof_identity)
@@ -1377,10 +1427,12 @@ class DataHub:
                             private=True,
                         ) as control:
                             atomic_json(control, proof_key + ".json", proof)
-                if proof is not None:
+                if selected_source == "wind_client_api" and proof is not None:
                     snapshot = adopt_verified_groups(snapshot, baseline, proof)
                     collected["snapshot"] = snapshot
-                collected["assessment"] = assess_weekly_snapshot(snapshot, contract)
+                collected["assessment"] = assess_weekly_snapshot(
+                    snapshot, contract, require_excel_acquisition=selected_source == "wind_excel"
+                )
                 if authorize() != configuration:
                     raise StoreError(
                         "取数期间周报来源授权变化", "data_cache_authorization_changed", 409
@@ -1397,14 +1449,16 @@ class DataHub:
                 result = providers.Result(
                     rows=[snapshot],
                     raw=[raw],
-                    source_url="wind-client-api",
+                    source_url=(
+                        "wind-excel" if selected_source == "wind_excel" else "wind-client-api"
+                    ),
                     status=(
                         "complete" if collected["assessment"]["status"] == "passed" else "partial"
                     ),
                     pages_fetched=1,
                     provider_total=1,
                     pagination_complete=True,
-                    provider_id="wind_client_api",
+                    provider_id=selected_source,
                     as_of=contract["period_end"],
                     metadata={
                         "snapshot_kind": "report_weekly",
@@ -1440,6 +1494,7 @@ class DataHub:
                 )
                 raise
             except Exception as exc:  # Vendor text never reaches logs.
+                await wait_for_idle()
                 self.snapshots.receipt(
                     sid, call_id, {"status": "failed", "fingerprint": fingerprint}
                 )
@@ -1472,6 +1527,45 @@ class DataHub:
             or root.resolve() != expected.resolve()
         ):
             raise StoreError("周报资源不属于当前运行", "weekly_resource_invalid", 409)
+        if (value.get("weekly_production") or {}).get("data_source") == "wind_excel":
+            import yaml
+
+            from .security import directory, read_file
+
+            try:
+                with directory(self.store.root, ("report-workflows",)) as folder:
+                    catalog = json.loads(read_file(folder, "catalog.json", limit=16 * 1024 * 1024))
+                owned = catalog["runs"][binding["run_id"]]
+                workflow = catalog["workflows"][binding["workflow_id"]]
+                if (
+                    binding.get("weekly_data_source") != "wind_excel"
+                    or owned.get("weekly_data_source") != "wind_excel"
+                    or owned.get("owner_id") != binding.get("owner_id")
+                    or not owned.get("owner_id")
+                    or owned.get("session_id") != sid
+                    or owned.get("version") != value["version"]
+                    or workflow.get("current_version") != value["version"]
+                    or workflow.get("status") != "enabled"
+                    or not workflow["versions"][str(value["version"])].get("published")
+                ):
+                    raise ValueError("run_source_changed")
+                with directory(
+                    self.store.root,
+                    (
+                        "report-workflows",
+                        "huaan-etf-weekly",
+                        "versions",
+                        str(value["version"]),
+                    ),
+                ) as folder:
+                    published = yaml.safe_load(read_file(folder, "manifest.yaml", limit=1_000_000))
+                if published != value:
+                    raise ValueError("manifest_changed")
+            except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as exc:
+                log.warning("weekly_excel_run_rejected", error_type=type(exc).__name__)
+                raise StoreError(
+                    "Excel 周报来源没有当前受信运行归属", "weekly_resource_invalid", 409
+                ) from None
 
     def register_report_weekly_inputs(self, sid, call_id, cutoff, *, run_root, manifest):
         """Register actual Run Excel bytes for first calibration, never pass flags."""

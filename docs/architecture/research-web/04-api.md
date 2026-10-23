@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+本次无新 HTTP 路由；原华安策略新增显式 data_source=wind_excel，旧 wind_client_api 保留。Excel schedule enable 明确拒绝，旧持久化计划停止执行。私有 collector 仅消费 Host 锁定资源和归属，浏览器/模型不能提交认证材料；API Atlas 路由清单不变。
+
 资产v5索引修复只改变Native操作员的内部verify_primary读取绑定，不新增HTTP、CLI参数、账号权限或请求格式；合流PR188后API inventory为321声明／318唯一接口，新增路径按研究仓原合同保留。64 MiB业务读取与1 MB部署元数据明确分开，旧profile不变。阅读页使用已提交组合产品88ef3817，v5一行读取修复另指8f2cb39a；当前PAYLOAD为88ef、PREVIOUS仍51f09。旧a114三CI全PASS不认证新组合，文档与本机结果也不表示常驻已切换。
 
 资产交互v5（2026-10-22）增加的是操作员CLI封闭命令apply-assets-v5，不新增HTTP、请求参数或权限入口。原目录search、区块load、历史as_of及账号／会话归属合同保持，API inventory仍为318条源码声明／315个唯一接口；Atlas只将源码链接固定到PR185真实merge9bc4。最终部署资格与固定旧51f09的恢复见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)，HTTP或产品CI成功不表示v5已切换。
