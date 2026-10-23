@@ -207,3 +207,5 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 外来 AES 树绑定修复已用 macOS 临时合成文件证明四操作拒绝和正确旧树可读；本轮未运行真实 Docker、Linux/Windows、供应商或远端 CI，不提升这些层级状态。
 
 模型profile的账户路由与灰阶UI新增离线合同；macOS本机与同候选macOS安装CI分别记录。Keychain实际旧账号不迁移，新AES记录有离线重启验证，但这不证明Linux/Windows原生平台已验收；对应产品门保持NOT_RUN交接。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
