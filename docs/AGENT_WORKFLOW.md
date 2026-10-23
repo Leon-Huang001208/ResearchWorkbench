@@ -130,6 +130,9 @@ master
 
 在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
 
+Git安全单测的临时仓库命令显式传入 `gc.auto=0` 与 `maintenance.auto=false`，避免测试提交
+与分离的自动维护竞争原生锁；参数仅作用于该次夹具命令，不改变全局配置或生产拒绝锁的行为。
+
 ```bash
 node scripts/git_safety.mjs check --project /absolute/RWB
 node scripts/git_safety.mjs configure --project /absolute/RWB
