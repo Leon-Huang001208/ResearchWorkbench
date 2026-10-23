@@ -98,6 +98,10 @@ MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
 ETF_WEEKLY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 ETF_WEEKLY_PAYLOAD = "988046d23f9951f889a3b9d02e355ed59fd6aa65"
+# PR209 combined product includes dossier preservation; deployment needs new authorization.
+ETF_WEEKLY_V2_MODE = "reviewed-etf-weekly-v2"
+ETF_WEEKLY_V2_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
+ETF_WEEKLY_V2_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -113,6 +117,7 @@ ASSET_MODES = frozenset(
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         ETF_WEEKLY_MODE,
+        ETF_WEEKLY_V2_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -207,6 +212,8 @@ def previous_for(mode):
         return MARKET_TERMINAL_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
         return ETF_WEEKLY_PREVIOUS
+    if mode == ETF_WEEKLY_V2_MODE:
+        return ETF_WEEKLY_V2_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -274,6 +281,7 @@ def verify_primary(home, expected, mode):
         ASSET_V6_MODE,
         ASSET_V7_MODE,
         ETF_WEEKLY_MODE,
+        ETF_WEEKLY_V2_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
@@ -360,6 +368,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
+        ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -387,7 +396,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     if mode == ASSET_V7_MODE
                     else (
                         ASSET_V6_EVIDENCE_SHA256
-                        if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE}
+                        if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE, ETF_WEEKLY_V2_MODE}
                         else ASSET_EVIDENCE_SHA256
                     )
                 )
@@ -940,6 +949,7 @@ class Operations:
             MARKET_TERMINAL_MODE,
             ASSET_V7_MODE,
             ETF_WEEKLY_MODE,
+            ETF_WEEKLY_V2_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1373,6 +1383,7 @@ def main(argv=None):
             "apply-market-history",
             "apply-market-terminal",
             "apply-etf-weekly",
+            "apply-etf-weekly-v2",
             "recover",
         ),
     )
@@ -1398,6 +1409,7 @@ def main(argv=None):
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
+                "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))
