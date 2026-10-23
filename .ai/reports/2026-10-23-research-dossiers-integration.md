@@ -11,6 +11,8 @@
 
 ## 已观察验证
 
+PR209 首轮 Checks 的 Python 步骤前300项通过后退出126：新增清单后的空行终止shell续行，后续测试路径被当成命令。删除该空行，保留完整原有清单；原失败run39954302629保留，修复后以新候选重跑，不手工rerun或缩减验收。
+
 主线再前进至PR207／9b21783b后，在原受管integration工作树逐块解决实际冲突，保留Discovery、档案、两套启用边界及全部既有CI清单。Discovery未ready检查先于档案receipt绑定，并增加HTTP回归证明失败不消费、普通会话仍可使用原receipt。JS路由／controller采用并集，116项双方定点通过；新增HTTP回归通过。02／04图重新合成、showcase／四视口通过并实际看图，组合源码阅读绑定5bd320a3。未覆盖主线功能，也未伪造CI或改状态机。
 
 末轮更新：Python候选8c0432767最终Approve，15个关键文件blob与各已审版本核对；JS最终af61a1389 Approve。补齐整个档案目录丢失的根级初始化标记与升级保全后，47项Core／扫描／保全通过。更新组合272 passed（67.47秒）、租户／DataHub／插件121 passed（34.60秒）、Node1081 passed／3原skip（26.58秒）。当前源码重新运行真实HTTP＋Chrome1440浅色／390深色均通过，回执含实际storage等12个文件SHA；积极asyncio网络拒绝回归证明底层连接调用0。仅NativeFixture四次Prompt，无真实模型／供应商访问。源码最终提交、CI和发布身份由正式交付回执绑定。

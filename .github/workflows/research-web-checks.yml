@@ -99,7 +99,6 @@ jobs:
             tests/research_web/test_dossier_preservation.py \
             tests/research_web/test_mcp_seek_alpha.py \
             tests/research_web/test_mcp_transport.py \
-
             tests/research_web/test_model_profiles.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
             tests/research_web/test_fingpt_comparison.py \
