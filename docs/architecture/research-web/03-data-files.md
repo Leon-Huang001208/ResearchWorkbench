@@ -815,7 +815,7 @@ BaoStock单报告期盈利能力以独立财务schema/units身份进入原provid
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 
-新Native恢复包内部manifest增加source，精确绑定原内容寻址artifact_source；version4 journal不增加格式版本。新档案/ETF-v2恢复必须保留target、source和pyz摘要一致的完整冻结源，即使旧wheel无档案模块也可复核SQLite/引用/pin；旧格式只用于已有历史模式。
+新Native恢复包内部manifest增加source，精确绑定原内容寻址artifact_source；version4 journal不增加格式版本。新档案/DISCOVERY/ETF-v2恢复必须保留target、source和pyz摘要一致的完整冻结源，即使旧wheel无档案模块也可复核SQLite/引用/pin；旧格式只用于已有历史模式。
 
 2026-10-23：资产图表周/月顶部读数由已有日线前端聚合获得，所选日线日期与筹码截止日独立保存；不改写历史日线、冻结研究、偏好schema、业务index或任何账号数据格式。
 

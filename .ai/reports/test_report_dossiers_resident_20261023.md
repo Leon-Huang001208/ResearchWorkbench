@@ -26,3 +26,5 @@
 专项独评发现HIGH：旧5343 wheel不含dossier_preservation，而旧恢复pyz只含resident模块。修复新包manifest绑定永久artifact_source，journal/自身摘要/版本/模式/精确源身份/Git干净校验在app导入前完成，父进程仅改sys.path，不改变旧服务PYTHONPATH；旧历史包格式兼容、新两模式缺source拒绝。先以fixture环境得到1通过/5退出码断言失败（实际正确blocked退出1，已修测试错误预期），再用实际配置的5343 primary venv完成6项真实zipapp子进程反例54.47秒；未安装依赖、未变更生产数据、未停止服务。
 
 主线后续合入PR212 WGC与PR213资产图表修复，封闭产品pin更新为1780064b712afb61ff18f2f1811650fc31fd3038以保留已审主线功能；不得用567旧pin忽略新增源码或放宽逐blob冻结检查。既有ETF-v2历史pin保持567，新候选重新执行全部本机门与同候选CI。
+
+7056365候选三CI成功（39989457654／39989457662／39989457684），但PR214将master推进b438447，合并前真实拒绝，不复用旧CI。正常合并DISCOVERY固定配置与零后台任务守卫，产品仍1780064。新三模式统一要求恢复manifest source，并在真实独立clone矩阵中验证缺source拒绝；旧历史模式兼容保留。最终新候选重新绑定本机、评审及原三CI。

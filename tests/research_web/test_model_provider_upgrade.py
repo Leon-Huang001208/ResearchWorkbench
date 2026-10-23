@@ -1592,7 +1592,11 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     artifact.parent.mkdir(parents=True)
     with zipfile.ZipFile(artifact, "w") as archive:
         manifest = {"target": target, "modules": {}}
-        if profile in {"reviewed-research-dossiers-v1", "reviewed-etf-weekly-v2"}:
+        if profile in {
+            "reviewed-research-dossiers-v1",
+            "reviewed-discovery-v1",
+            "reviewed-etf-weekly-v2",
+        }:
             manifest["source"] = str(source)
         archive.writestr("manifest.json", json.dumps(manifest))
         archive.writestr("__main__.py", upgrade.ENTRY)
@@ -1615,6 +1619,21 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "sha256": upgrade.c.digest(wheel),
     }
     upgrade.validate_state(home, state)
+    if profile in {
+        "reviewed-research-dossiers-v1",
+        "reviewed-discovery-v1",
+        "reviewed-etf-weekly-v2",
+    }:
+        original_archive = artifact.read_bytes()
+        with zipfile.ZipFile(artifact, "w") as archive:
+            archive.writestr("manifest.json", json.dumps({"target": target, "modules": {}}))
+            archive.writestr("__main__.py", upgrade.ENTRY)
+        state["recovery"]["sha256"] = upgrade.c.digest(artifact)
+        with pytest.raises(upgrade.UpdateBlocked, match="artifact_changed"):
+            upgrade.validate_state(home, state)
+        artifact.write_bytes(original_archive)
+        state["recovery"]["sha256"] = upgrade.c.digest(artifact)
+        upgrade.validate_state(home, state)
     # Preserve path and origin but replace the real Git directory inode.
     import shutil
 

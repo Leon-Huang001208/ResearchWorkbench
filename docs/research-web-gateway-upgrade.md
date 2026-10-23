@@ -358,7 +358,7 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 没有新服务、HTTP、依赖或第二研究引擎，现有图与API Atlas拓扑保持。实际验收需登录私网页面，验证五区、冻结交接与第二会话、原业务索引及全部账号保全；只用离线NativeFixture的证明不能提升为真实模型质量。收费MCP、秘密录入与生产持续跟踪不由本入口授权。
 
 
-恢复依赖保全：新恢复包manifest绑定永久`resident/artifacts/<target>/source`，与journal的target/source/pyz摘要一致后，且源路径无别名、属主正确、Git checkout干净，才在父恢复进程导入app之前加入sys.path。不得设置PYTHONPATH传给旧服务；旧wheel不含档案模块时仍用冻结源进行档案索引核对。新DOSSIERS/ETF-v2包缺source拒绝，历史旧模式manifest和旧pyz字节保持原兼容。保留该冻结源直到恢复结束；缺失或篡改保持围栏并记录错误码，不跳过档案保全。
+恢复依赖保全：新恢复包manifest绑定永久`resident/artifacts/<target>/source`，与journal的target/source/pyz摘要一致后，且源路径无别名、属主正确、Git checkout干净，才在父恢复进程导入app之前加入sys.path。不得设置PYTHONPATH传给旧服务；旧wheel不含档案模块时仍用冻结源进行档案索引核对。新DOSSIERS/DISCOVERY/ETF-v2包缺source拒绝，历史旧模式manifest和旧pyz字节保持原兼容。保留该冻结源直到恢复结束；缺失或篡改保持围栏并记录错误码，不跳过档案保全。
 
 ## 今日发现组合固定部署（2026-10-23）
 

@@ -934,7 +934,11 @@ def validate_state(home, state, *, executor_source=None):
     with zipfile.ZipFile(artifact) as z:
         manifest = json.loads(z.read("manifest.json"))
         expected_manifest = {"target": state["target"], "modules": recovery["modules"]}
-        if "source" in manifest or state["mode"] in {DOSSIERS_MODE, ETF_WEEKLY_V2_MODE}:
+        if "source" in manifest or state["mode"] in {
+            DOSSIERS_MODE,
+            DISCOVERY_MODE,
+            ETF_WEEKLY_V2_MODE,
+        }:
             expected_manifest["source"] = state["source"]
         if manifest != expected_manifest or z.read("__main__.py").decode() != ENTRY:
             raise UpdateBlocked("model_upgrade_artifact_changed")
