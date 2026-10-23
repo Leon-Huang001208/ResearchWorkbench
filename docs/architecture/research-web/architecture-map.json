@@ -52,7 +52,8 @@
         "research_workbench_entrypoint/resident/controller.py",
         "research_workbench_entrypoint/resident/host_metadata.py",
         "research_workbench_entrypoint/resident/evidence.py",
-        "research_workbench_entrypoint/resident/admission.py"
+        "research_workbench_entrypoint/resident/admission.py",
+        "research_workbench_entrypoint/builder_reconcile.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -87,7 +88,8 @@
         "tests/research_web/test_docker_resources.py",
         "tests/research_web/test_docker_resources_live.py",
         "tests/research_web/test_iteration_resources.py",
-        "tests/research_web/test_resident.py"
+        "tests/research_web/test_resident.py",
+        "tests/research_web/test_builder_reconcile.py"
       ]
     },
     {
@@ -4748,7 +4750,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0"
+      "revision": "2cccd03b1a6b083d235d147f018059181c374fe0"
     },
     "levels": [
       {
