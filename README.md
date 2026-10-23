@@ -1,5 +1,7 @@
 # Research Workbench
 
+全市场终端新增版本化指数目录（含中证2000、国企红利）、三周期风格与六维证据，以及账号隔离的手工／CSV持仓预览确认。缺历史、未验证的综合分及仓位明确待验证；金元官方接口仍待确认，不提供交易下单。详见[市场页面](docs/research-web-ui.md#全市场概览)。
+
 资产v5部署前大索引预检修复只让v5使用已有64 MiB安全业务读取器；元数据仍为1 MB，旧profile和固定产品不变。原8.67 MB业务索引在停机前被拒绝，数据未裁剪；修复须继续原完整文档／评审／三CI及同候选Mac安装，PR187原Constraints失败不写成通过。当前仍待正式切换与全账号保全，见[部署合同](docs/research-web-gateway-upgrade.md)和[修复记录](.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 [固定版本部署](docs/research-web-gateway-upgrade.md#全市场缺口修复固定部署)继续保全原会话、数据及模型，并核对行情采集空闲。

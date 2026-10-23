@@ -1,5 +1,7 @@
 # 供应商原生研究快照
 
+终端v2日线来源单列sina、source_url、请求symbol、retrieved_at及price_index收益口径，报价保留eastmoney及真实行情时间。400条日线严格排除当日报价日，最后前日收盘与东财昨收交叉核验；错码、错配、重复日期、超界或网络失败不给合成替代。
+
 2026-10-23 四个外部端点的 `external-envelope-v1` 只修响应判定，不扩本页native白名单。
 Nasdaq history 的status.rCode非200与data=null、CLS hot-list errno非零明确失败，
 不把HTTP200或错误封包当业务数据；没有猜CLS签名或改用telegram。Nasdaq/CLS真实成功业务

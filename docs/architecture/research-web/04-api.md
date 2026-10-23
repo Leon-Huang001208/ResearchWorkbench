@@ -710,3 +710,18 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 2026-10-23 插件原生审核：expected仅接受manifest/artifacts/schemas三项或再加sandbox四项；未知键失败关闭，实际值仍与当前不可变原生快照逐项核对。此修复保留远程三项兼容，避免受管离线Python的合法四项指纹被旧HTTP模型误拒绝。
 
 2026-10-23 既有内部`POST /api/research/internal/data/business-query`的BusinessQuery新增可选typed `required_semantics: "cn_stock_daily_cny_share_v1" | null`，默认null保持旧请求指纹；仅market_bars/规范沪深stock/daily/none合法，其他组合输入422。它由Host规范历史设置，不成为Runtime/DSH普通数据工具的可传业务参数。新job公开投影及canonical metadata记录required_semantics，retry冻结原值，缺字段旧job保null；manifest和缓存指纹绑定合同，旧原生数据不能冒充已证明价格单位的规范数据。无新HTTP端点或SQL迁移。
+
+## 全市场终端v2 API
+
+旧GET市场缓存、POST刷新／任务查询取消、行情筛选导出保持。POST刷新新增可选`index_set=core-v1|terminal-v2`，默认core-v1兼容旧12；终端请求terminal-v2独立缓存24指数。
+
+| 方法 | 路径（/api/research/market） | 合同 |
+|---|---|---|
+| GET | /indices/catalog | 本地固定版本目录、分组、身份及默认置顶，不采集 |
+| GET | /analysis?horizon=intraday|swing|allocation | 缓存六维特征、分项、风格、来源、历史及验证缺口；正式total_score/allocation无有效证据时为null |
+| GET | /portfolios/readiness | 金元只读接入条件及未接通原因，不接收凭据 |
+| GET | /portfolios | 本账号已确认快照、受日期／陈旧门约束的估值，金元接入待确认 |
+| POST | /portfolios/preview | 256KiB有界manual/csv输入；as_of为上海日期，currency/cash/holdings及可选cost、risk_profile；返回账号确认令牌 |
+| POST | /portfolios | 显式confirmation_token保存已预览快照，不接收任意持仓替换正文 |
+
+预览最多500行，asset/quantity或asset/quantity/cost CSV列；风险字段risk_tolerance、equity_min/max、single_name_max、sector_max使用0—1比例。预览票据15分钟，存储有界。无正式预测有效性证据时不输出综合择时分、配置区间或个人调整金额；HTTP客户端参数不能开启。所有GET不创建文件或访问上游，POST沿原维护准入与账号根隔离。

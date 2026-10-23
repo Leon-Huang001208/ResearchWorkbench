@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-23全市场终端v2沿现有浏览器→Host MarketService→公开来源及账号文件增加版本化24指数目录、三周期六维证据、风格矩阵与组合预览确认。东财行情与新浪前日价格指数日线分别保留来源；旧12指数研究仓合同不扩写。持仓与首次观察日线保存在原用户market-cache，GET不采集、不创建目录，不新增守护进程、依赖、研究会话或交易接口。13市场图按Host模块抽象同步这些数据边界。
+
 2026-10-23官方与中国宏观接入继续走Host/DataHub/Broker/既有公开worker/ResearchWarehouse。NYFed与Treasury采用已登记端点；AK的四个factor_macro序列复用现有业务查询接口，原始响应与参考期字段进入provider-native捕获。04数据图的normalize节点已包含可选研究仓、修订与冻结，本轮增加其封闭合同及版本检查，没有新服务、HTTP路由、数据库表或第二研究引擎。观察期不等于披露时间；这些捕获不获得正式PIT资格。错误封包修复在原Provider和会话缓存边界，不能通过HTTP200获得数据成功状态。
 
 2026-10-23市场补齐沿既有浏览器→Host MarketService→DataHub公开东财→当前用户缓存拓扑，新增同批限价状态、同池昨日逐股金额重算及最多30日真实资金留存；不增服务、HTTP路径、业务index、依赖、模型调用或跨账号流。原13市场图拓扑不变，缓存可选字段和公开投影分别见[缓存](architecture/research-web/03-data-files.md#全市场概览缓存)、[API](architecture/research-web/04-api.md#全市场概览接口)与[口径](research-web-datahub.md#无会话全市场数据)。

@@ -160,10 +160,18 @@ class MarketService:
 
     @staticmethod
     def _interval(key: str) -> int:
-        return 3600 if key == "calendar" else 30 if key in {"quotes", "indices"} else 60
+        return (
+            3600
+            if key == "calendar"
+            else 30 if key in {"quotes", "indices"} or key.startswith("indices:") else 60
+        )
 
     @staticmethod
-    def _key(section: str, board_id: str | None, kind: str, period: str) -> str:
+    def _key(
+        section: str, board_id: str | None, kind: str, period: str, index_set: str = "core-v1"
+    ) -> str:
+        if section == "indices" and index_set != "core-v1":
+            return f"indices:{index_set}"
         if section == "flows":
             return f"flows:{kind}:{period}"
         if section == "members":
@@ -212,6 +220,11 @@ class MarketService:
                     continue
                 current = record.get("current")
                 previous = record.get("previous")
+                if key == "indices:terminal-v2":
+                    if isinstance(current, dict) and current.get("index_set") != "terminal-v2":
+                        current = None
+                    if isinstance(previous, dict) and previous.get("index_set") != "terminal-v2":
+                        previous = None
                 if self._complete_snapshot(current):
                     self._snapshots[key] = current
                     if self._complete_snapshot(previous):
@@ -237,7 +250,7 @@ class MarketService:
 
     @staticmethod
     def _valid_key(key: str) -> bool:
-        return key in SECTIONS - {"flows", "members"} or bool(
+        return key in (SECTIONS - {"flows", "members"}) | {"indices:terminal-v2"} or bool(
             re.fullmatch(r"flows:(industry|concept):(today|5d|10d)|members:BK[0-9]{4,6}", key)
         )
 
@@ -556,7 +569,9 @@ class MarketService:
         stale = (
             retrieved is None or (self.now() - retrieved).total_seconds() > self._interval(key) * 2
         )
-        if key in {"quotes", "indices", "industry", "concept"} or key.startswith("flows:"):
+        if key in {"quotes", "indices", "industry", "concept"} or key.startswith(
+            ("flows:", "indices:")
+        ):
             market = self.market_state()
             as_of = _iso(snapshot.get("as_of"))
             if (
@@ -597,6 +612,48 @@ class MarketService:
                 if not value["task"].done()
             ],
         }
+
+    def analysis(self, horizon: str = "swing") -> dict:
+        """Pure bounded cache projection; never fetch, capture or materialize sessions."""
+        from .market_analysis import AnalysisHistory, analyze
+
+        snapshots = {
+            key: deepcopy(value)
+            for key, value in self._snapshots.items()
+            if key in {"quotes", "indices", "indices:terminal-v2"} or key.startswith("flows:")
+        }
+        history_error = None
+        try:
+            observations = AnalysisHistory(self.root).read()
+        except MarketError as exc:
+            observations = []
+            history_error = {"code": exc.code, "message": exc.message}
+        result = analyze(snapshots, observations, horizon=horizon)
+        result["history"]["error"] = history_error
+        result["cache_state"] = {
+            key: {
+                field: self._project(key).get(field) for field in ("status", "stale", "snapshot_id")
+            }
+            for key in snapshots
+        }
+        return result
+
+    def portfolios(self) -> dict:
+        """Read this account's imports and value only against actual cached quotes."""
+        from .market_portfolio import PortfolioStore
+
+        store = PortfolioStore(self.root, now=self.now)
+        result = store.read()
+        quote = self._snapshots.get("quotes")
+        cache_state = self._project("quotes")
+        market_state = self.market_state()
+        result["items"] = [
+            store.project(
+                item, quote, now=self.now(), cache_state=cache_state, market_state=market_state
+            )
+            for item in result["items"]
+        ]
+        return result
 
     def market_state(self) -> dict:
         now = self.now().astimezone(SHANGHAI)
@@ -682,6 +739,7 @@ class MarketService:
         kind: str = "industry",
         period: str = "today",
         idempotency_key: str | None = None,
+        index_set: str = "core-v1",
     ) -> dict:
         if self._closed:
             raise MarketError("market_closed", "市场服务已关闭。", 503)
@@ -691,7 +749,11 @@ class MarketService:
             or any(item not in SECTIONS for item in sections)
         ):
             raise MarketError("market_sections_invalid", "请选择有效市场区块。")
-        if kind not in KINDS or period not in PERIODS:
+        if (
+            kind not in KINDS
+            or period not in PERIODS
+            or index_set not in {"core-v1", "terminal-v2"}
+        ):
             raise MarketError("market_parameters_invalid", "市场查询参数无效。")
         if "members" in sections:
             member_kind = self._validate_board(board_id)
@@ -701,7 +763,9 @@ class MarketService:
             r"[A-Za-z0-9._:-]{8,128}", idempotency_key
         ):
             raise MarketError("market_idempotency_invalid", "刷新标识无效。")
-        keys = {self._key(section, board_id, kind, period): section for section in sections}
+        keys = {
+            self._key(section, board_id, kind, period, index_set): section for section in sections
+        }
         fingerprint = json.dumps([sorted(keys), kind, period, board_id])
         if idempotency_key is not None and idempotency_key in self._idempotency:
             old_fingerprint, old_id = self._idempotency[idempotency_key]
@@ -758,6 +822,11 @@ class MarketService:
                     board_id=board_id if section == "members" else None,
                     kind=member_kind if section == "members" else kind,
                     period=period,
+                    **(
+                        {"index_set": index_set}
+                        if section == "indices" and index_set != "core-v1"
+                        else {}
+                    ),
                 ),
                 name=f"market-{section}",
             )
@@ -813,7 +882,7 @@ class MarketService:
                         from .datahub.providers_market import MarketProvider
 
                         self.provider = MarketProvider()
-                    if section == "indices" and self.market_reader is not None:
+                    if section == "indices" and key == "indices" and self.market_reader is not None:
                         # An explicit product refresh must always contact upstream.
                         payload = await self.market_reader.indices(self.provider, refresh=True)
                     else:
@@ -822,6 +891,8 @@ class MarketService:
             if len(raw.encode()) > MAX_RECORD_BYTES:
                 raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)
             snapshot = deepcopy(payload)
+            if key == "indices:terminal-v2" and snapshot.get("index_set") != "terminal-v2":
+                raise MarketError("market_response_invalid", "指数目录与响应身份不一致。", 502)
             if section == "quotes" and snapshot.get("complete") is True:
                 self._quote_history(snapshot, self._previous.get(key))
                 self._quote_history(snapshot, self._snapshots.get(key))
@@ -882,6 +953,15 @@ class MarketService:
                     else:
                         self._attempts[key] = previous_attempt
                     raise MarketError("market_cache_failed", "市场缓存保存失败。", 503) from exc
+                if section == "quotes":
+                    from .market_analysis import AnalysisHistory
+
+                    try:
+                        AnalysisHistory(self.root).capture(snapshot, self._snapshots)
+                    except MarketError:
+                        # The market refresh remains valid; expose a separate
+                        # history gap on analysis reads rather than lose quotes.
+                        log.warning("market_analysis_capture_failed", code="history_unavailable")
                 self._partials.pop(key, None)
                 log.info("market_refresh_completed", section=section, rows=len(snapshot["rows"]))
             else:

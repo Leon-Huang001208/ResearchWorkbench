@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+全市场终端v2不新增Python/Node依赖或数据库迁移；原setup-web.sh/setup-web.cmd/python scripts/setup_web.py干净安装合同保持。新的market-terminal.mjs作为同源静态模块加入既有Mac安装HTTP核验；金元普通客户端未认证官方持仓接口，安装成功不等于已接通券商。
+
 2026-10-23市场限价/昨日成交额/资金历史迭代不新增项目依赖，一键安装三入口、固定DSH与Doctor合同保持，最终同候选Mac干净安装仍必需。apply-market-history复用已批准主线锁文件7c631d4f及原baostock/psycopg版本，不安装或配置数据库；正式部署前实际核验现有包与pip check，不能只更新清单。用户允许的隔离测试依赖安装只影响任务.venv，不改变常驻环境。
 
 当前用户已批准PR188／v5组合验收后一起部署已合并锁定baostock0.9.4／psycopg3.3.6；数据库不启用／不迁移、外盘不改，不新增数据库服务或连接配置。v5当前PAYLOAD为完整产品88ef3817、PREVIOUS仍51f09；依赖变化来自PR188已审锁文件，原profile及一行读取修复自身不引入任意依赖。旧a114候选三CI全PASS不能代替新组合的原三CI／同候选Mac干净安装，本轮文档不执行包安装或部署。

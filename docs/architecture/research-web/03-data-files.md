@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+终端v2仍采用market-cache原schema1分区文件，indices:terminal-v2拥有独立键、目录版本与24身份；indices保留旧12。市场目录下analysis-observations/daily.json最多260日／2MiB，保存首次实际闭市观察，不用当前成分回填历史；portfolios/state.json最多20份已确认快照、8份15分钟预览，4MiB上限。持仓输入256KiB／500行，原子私有文件，GET不初始化。新浪日线400条按请求代码、前日及东财真实昨收交叉核验，first_observed不等于历史PIT。
+
 2026-10-23数值捕获仍写既有provider-native原件/首次观测槽位。official-numeric-v2和akshare-china-macro-v1只区分逻辑数据身份及新缓存合同，不迁移数据库表或重写旧包；官方与中国宏观的原始HTTP字节、字段单位、观察期及查询范围随冻结包保留；既有AK财务SDK序列化原件不冒充HTTP wire字节。GDP年内累计、月度参考期和数据库捕获时间分别表达，不能用1970存储槽位、REPORT_DATE标签或今天下载时间伪造历史披露。临时库导出恢复验证与正式存储位置/外盘迁移分开。
 
 资产v5预检曾把8.67 MB业务index交给1 MB元数据读取器而在停机前拒绝；修复仅给v5绑定既有64 MiB安全业务读取器，不扩大元数据或旧profile上限。普通文件、NOFOLLOW、大小和JSON对象检查保留，超限／损坏仍拒绝；业务索引不裁剪、不迁移，全部账号键、会话、报告与不可变快照仍按原全量保全比对。没有新持久格式或资料路径，原数据图保持。

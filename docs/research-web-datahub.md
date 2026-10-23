@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+终端指数目录保留core-v1固定12并新增terminal-v2共24：含中证2000（逻辑932000.SH，东财secid2.932000）、国企红利、国证2000、中证红利及399370—399377风格系列。东财报价与分时沿原有界httpx；新浪CN_MarketData.getKLineData最多400日、独立8秒总预算，仅保留报价日前完整日，最后收盘价须与东财真实昨收一致。不通过则保留报价与历史缺口，不能混为可靠回测历史。无付费源或新依赖。
+
 2026-10-23 免费官方数值读取沿原 Host → DataHub → Provider → 原生研究仓链，新增的可入仓
 清单仅为 NYFed rates 与 Treasury cash；WorldBank inflation 同步加严身份/年份/分页验证。
 三者使用 official-numeric-v2 版本隔离新缓存，旧会话/冻结证据保留。分页 partial、缺值和
