@@ -404,3 +404,8 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 ## 2026-10-23：PIT与口径专项验收
 
 本轮只在隔离worktree实现新浪财报/资金流来源合同及BEA官方档案有限回放。沿完整changed-set Router、独立评审、本机macOS与原Project Constraints/Checks/同候选Mac安装；只向既有Checks步骤补两个模块，不新增job、runner、timeout、依赖或他平台dispatch。真实验证用已批准环境与socket-only临时PG，禁止5432、系统凭据、模型、现有服务及外盘操作。缺历史版本保持明确拒绝，不能把当前下载日期、测试或预告时间冒充真实公布版本。收尾受Docker检查阻断时保留工作树和证据，不重启现有服务解锁。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock季度盈利能力在新隔离worktree接入，原公开worker/取消排空、Host/DataHub和可选研究仓复用。先做source限定与单位/日期边界，再以有界匿名真实SDK、完整Host及socket-only临时PG验证，最终同候选原三CI/独评；不以SDK一行或单元测试代替仓库重启恢复，不触碰正式5432、凭据、模型或外盘。

@@ -40,6 +40,7 @@ from ..store import StoreError
 from .contracts import BusinessQuery
 from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
+from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .research_snapshot_store import SnapshotSeries
 from .security import atomic_json, directory, read_file
@@ -777,6 +778,11 @@ class ResearchWarehouse:
             return None
         scope = StoreScope(self.owner, "personal-research-v1", source, digest)
         china_macro = source == "akshare" and query.capability == "factor_macro"
+        bao_financial = (
+            source == "baostock"
+            and query.capability == "financials"
+            and query.parameters.get("statements") == ["profitability"]
+        )
         financial = (
             source == "akshare"
             and query.capability == "financials"
@@ -788,9 +794,13 @@ class ResearchWarehouse:
             and query.parameters.get("dataset") == "fund_flow"
         )
         contract = (
-            CHINA_MACRO_SCHEMA
-            if china_macro
-            else SINA_FINANCIAL_SCHEMA if financial else FUND_FLOW_SCHEMA if fund_flow else None
+            BAOSTOCK_FINANCIAL_SCHEMA
+            if bao_financial
+            else (
+                CHINA_MACRO_SCHEMA
+                if china_macro
+                else SINA_FINANCIAL_SCHEMA if financial else FUND_FLOW_SCHEMA if fund_flow else None
+            )
         )
 
         def authorize(actor, requested, _action):
