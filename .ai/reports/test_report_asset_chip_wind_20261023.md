@@ -12,7 +12,7 @@
 
 - 真实冷启动：隔离Store经 AssetWorkspace → HistoryJobs → DataHub/Broker → CJPY。单A股固定天软，全部2262条，2016-08-18至2026-10-22；完整逐日换手和VWAP，71个至多32日期批次，约82.174秒。记录位于 `logs/asset-chips/live-contract/result.json`，绑定三份后端源码SHA-256与不可变输入manifest。只读当前账号连接namespace，未复制秘密、修改生产业务或调用模型。
 - Python定点：`python -m pytest tests/research_web/test_asset_chip_inputs.py tests/research_web/test_asset_history.py tests/research_web/test_cjpy_asset_data.py --confcutdir=tests/research_web -q`，117 PASS；另Router选定local_integrations/protocol/asset_workspace，244 PASS、1 SKIP，跳过原因保留原日志。
-- 资产JS：`node --test tests/javascript/research_web_asset*.test.mjs tests/javascript/research_web_chip_distribution.test.mjs`，178 PASS（后续完整候选重新执行并由交付回执绑定）。MA/BOLL/MACD/KDJ/RSI原金值保留；旧无换手OHLCV分布不作为新模型的正确性oracle。
+- 资产JS：`node --test tests/javascript/research_web_asset*.test.mjs tests/javascript/research_web_chip_distribution.test.mjs`，178 PASS；另补全历史切换复权不缩窗、旧天软快照自动完整升级回归，后续合并候选重新执行并由交付回执绑定。MA/BOLL/MACD/KDJ/RSI原金值保留；旧无换手OHLCV分布不作为新模型的正确性oracle。
 - 独立评审修复：共享桶边界防止平价原子双计（精确反例质量1.875→1）；重试读取frozen的include旗标；偏好签名纳入chip_settings。对应回归覆盖不同桶数质量/年龄守恒、重试body和同面板偏好加载/回滚。
 - 正式隔离浏览器：使用产品组件和冻结输入，没有v0注入脚本。1575px宽屏读数31.19px高、横跨1460px；指标与图表上沿同为174.69px（实际高度随视区变化）。日期/周线/BOLL与筹码操作、明暗可见结果分别留图；最终宽窄/交互回执另存 `logs/asset-chips/`。
 

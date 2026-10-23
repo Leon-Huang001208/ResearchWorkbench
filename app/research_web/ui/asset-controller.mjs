@@ -92,7 +92,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
         catch (error) { if (!currentHistory(context)) return; state.errors.historyJobs = `新行情快照读取失败，保留当前数据与复权口径：${error.message}`; safeLog('asset_history_snapshot_failed', { status: error.code || 'snapshot_read_failed' }); notify(); }
       }
       if (!currentHistory(context)) return;
-      if (!ACTIVE.has(jobStatus(job))) { historyContext = null; if (jobStatus(job) === 'completed' && !job.include_chip_inputs) void ensureChipInputs(); return; }
+      if (!ACTIVE.has(jobStatus(job))) { historyContext = null; if (jobStatus(job) === 'completed' && !state.errors.historyJobs) void ensureChipInputs(); return; }
       await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
       if (!currentHistory(context)) return;
       job = await api.assetHistoryJob(context.observationId, job.id, { signal: context.abort.signal });
@@ -141,12 +141,13 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   }
   async function ensureChipInputs() {
     if (!api.startAssetHistory || historyContext || account !== currentAccount()) return;
-    const observation = state.observation, dataset = observation?.blocks?.history?.dataset, h = dataset?.asset_history;
-    if (!h?.canonical_version || dataset.row_count < 5 || (h.chip_inputs?.status === 'complete' && h.coverage?.full_history === true) || (state.historyJob?.include_chip_inputs && jobStatus(state.historyJob) !== 'completed')) return;
+    const observation = state.observation, dataset = observation?.blocks?.history?.dataset, h = dataset?.asset_history || {};
+    if (!dataset || !Number.isSafeInteger(dataset.row_count) || dataset.row_count < 5 || (h.canonical_version === 'asset-history-raw-2' && !h.source) || (h.chip_inputs?.status === 'complete' && h.coverage?.full_history === true) || (state.historyJob?.include_chip_inputs && jobStatus(state.historyJob) !== 'completed')) return;
     if (!(h.source === 'tinysoft' || ((h.source === 'auto' || !h.source) && (dataset.provider === 'tinysoft' || dataset.source === 'tinysoft')))) return;
-    const key = JSON.stringify([account, observation.id, h.requested_as_of, h.adjustment]);
+    const adjustment = ({ '不复权':'none', '前复权':'qfq', '后复权':'hfq' })[h.adjustment || dataset.adjustment] || h.adjustment || dataset.adjustment || observation.request_parameters?.adjustment || 'none';
+    const key = JSON.stringify([account, observation.id, h.requested_as_of || quoteDate(state.rows.overview), adjustment]);
     if (chipAttempts.has(key)) return; chipAttempts.add(key);
-    try { await startHistory('all', h.adjustment || 'none', undefined, 'tinysoft', true); }
+    try { await startHistory('all', adjustment, undefined, 'tinysoft', true); }
     catch { safeLog('asset_chip_input_load_failed', { status: 'request_failed' }); }
   }
   async function stopHistory() {
