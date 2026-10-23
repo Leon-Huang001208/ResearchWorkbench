@@ -47,7 +47,10 @@ test('Wind panel chrome has one plus entry, close buttons and bottom-only date l
   assert.equal((html.match(/data-asset-chart-action="indicator-add"/g) || []).length, 1);
   assert.doesNotMatch(html, /indicator-add-after-|data-asset-chart-action="indicator-manager"|＋副图|指标…/);
   assert.match(html, /aria-label="移除 MACD"[^>]*>×<\/button>/);
+  assert.doesNotMatch(html, /data-asset-chart-action="panel-choose-(?:kdj|rsi|boll|wr|sar)"/);
   for (const panels of [[], ['volume'], ['volume', 'macd', 'rsi']]) {
+    const panelHTML = renderMarketTerminal(rows(80), { panels });
+    assert.equal((panelHTML.match(/data-asset-chart-action="panel-choose-/g) || []).length, panels.length);
     const option = buildMarketChartOption(enrichMarketBars(rows(80)), { panels });
     assert.deepEqual(option.xAxis.map(axis => axis.axisLabel.show), option.xAxis.map((_, i) => i === panels.length));
     assert.deepEqual(option.xAxis.map(axis => axis.axisPointer.label.show), option.xAxis.map((_, i) => i === panels.length));

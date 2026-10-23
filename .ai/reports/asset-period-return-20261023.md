@@ -10,3 +10,5 @@
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅原资产行情组件改周期读数投影与副图控件呈现，保留原页面/图表生命周期与主题节点；没有新页面、服务或研究引擎，既有UI架构图准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"聚合K线取代错误单日读数只发生前端；观察、历史、冻结、偏好HTTP及账号数据格式不变，所选日与筹码截止仍独立，原工作区数据与API图准确。","diagrams":[]} -->
+
+- Wind底栏只列实际已显示面板；全部关闭仍可通过唯一＋增加，常用项保留在目录。strip-red反例先失败后修复。
