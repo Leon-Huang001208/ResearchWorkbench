@@ -28,9 +28,9 @@ evidence读取器绑定现有v6的`5c3077b7…eebb`，不能用缓存片段替�
 ## 华安ETF周报固定部署profile（仅离线准备）
 
 `reviewed-etf-weekly-v1` / `apply-etf-weekly` 固定登记旧版
-`0e0022ac792eba88fba0f233524f5c8d66024569`。当前 `ETF_WEEKLY_PAYLOAD` 暂定为产品候选
-`25b399a42d691766d41bcafce5adbdc3b8cc3d74`；这不是最终部署资格。root必须在PR198实际合并产品
-确认后替换该固定值、同步身份回归与本合同并重新评审；切换前再次核定旧版。不能通过命令参数
+`5343e18d9f203a87f2d958218e4288afa527711f`，`ETF_WEEKLY_PAYLOAD` 固定PR198真实merge
+`988046d23f9951f889a3b9d02e355ed59fd6aa65`。产品reviewed head `61f7d1a6d`的三门已通过，
+不代替操作员最终候选的独立验证、评审和CI；切换前再次核定登记旧版。不能通过命令参数
 指定任意前版或产品。本轮仅授权源码和离线验证，尚未获得常驻部署授权，未执行apply或切换。
 
 该profile复用原version4事务、supervisor/admission/operator锁、BirthFence、主实例Native/Host

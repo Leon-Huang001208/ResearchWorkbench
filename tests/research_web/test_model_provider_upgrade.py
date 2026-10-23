@@ -466,6 +466,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.MARKET_TERMINAL_MODE, upgrade.MARKET_TERMINAL_PAYLOAD),
         ("reviewed-etf-weekly-v1", upgrade.ASSET_V6_PREVIOUS),
         ("reviewed-etf-weekly-v1", "25b399a42d691766d41bcafce5adbdc3b8cc3d74"),
+        ("reviewed-etf-weekly-v1", "0e0022ac792eba88fba0f233524f5c8d66024569"),
+        ("reviewed-etf-weekly-v1", "988046d23f9951f889a3b9d02e355ed59fd6aa65"),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -2214,13 +2216,13 @@ def test_asset_v7_pins_current_resident_and_merged_panel_product():
     assert upgrade.ASSET_V6_PAYLOAD == "eac6806822294d75da990c751d88ec156a417f62"
 
 
-def test_etf_weekly_profile_freezes_registered_resident_and_provisional_product():
+def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
     assert upgrade.previous_for("reviewed-etf-weekly-v1") == (
-        "0e0022ac792eba88fba0f233524f5c8d66024569"
+        "5343e18d9f203a87f2d958218e4288afa527711f"
     )
     assert upgrade.ETF_WEEKLY_MODE == "reviewed-etf-weekly-v1"
-    # Provisional until root binds the actual accepted PR198 product and re-reviews.
-    assert upgrade.ETF_WEEKLY_PAYLOAD == "25b399a42d691766d41bcafce5adbdc3b8cc3d74"
+    # Product acceptance and operator acceptance remain separate gates.
+    assert upgrade.ETF_WEEKLY_PAYLOAD == "988046d23f9951f889a3b9d02e355ed59fd6aa65"
     assert upgrade.ETF_WEEKLY_MODE in upgrade.ASSET_MODES
     reader = Path(upgrade.__file__).with_name("evidence.py").read_bytes()
     assert hashlib.sha256(reader).hexdigest() == upgrade.ASSET_V6_EVIDENCE_SHA256

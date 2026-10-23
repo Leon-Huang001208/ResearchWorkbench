@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+华安固定Native配置在独立worktree完成最终产品pin、1745项本机回归及独立评审，再运行完整changed-set Router、原通用CI和同候选Mac干净安装。原读取器/旧模式/保全恢复不放宽；配置源码合并不等于授权部署，不调用Office或模型，不启用日程。取得明确常驻更新授权后才按原锁、真实空闲与全账号保全事务切换，再执行本期正式Workflow与Word交付验收。
+
 今日发现实现先完成只读预览与显式冻结/单次提交合同、跟踪独立启用/去重/日限及账号容量恢复负例，再执行完整Router、独评和同候选原三CI。Checks只在原Python步骤追加三模块，JS保留原通配符；Mac安装同一步核对discovery静态资源，无新job/runner/timeout/平台dispatch。真实模型、生产计划与部署保持独立NOT_RUN，细则见[今日发现](research-web-discovery.md)。
 
 华安真实底稿投影发现经济可选字段丢失后，先以冻结 XLSX 反例补齐 Provider，再由 Host 独立重放九字段；原件、原失败、旧预检通过均保留版本归属。沿完整 changed-set Router、原通用检查与同候选 Mac 安装，原 Checks 同一步增加近处经济字段测试，无新 job／runner。真实 Word 与认证下载仍单独验收，日程保持关闭。

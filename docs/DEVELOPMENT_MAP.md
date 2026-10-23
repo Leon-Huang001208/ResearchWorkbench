@@ -17,8 +17,9 @@ DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 
 
 2026-10-23 ETF Native操作员准备：`resident/model_provider_upgrade.py`增加封闭
 `ETF_WEEKLY_MODE/PREVIOUS/PAYLOAD`、`previous_for/review_assets`与`apply-etf-weekly`分支，
-复用v4保全/恢复、大索引读取、v6固定完整CI日志读取器及市场inflight门。PAYLOAD暂为25b399a42候选，
-须root核定PR198实际合并产品后重新固定、验证和评审；本轮不部署、不安装依赖。
+复用v4保全/恢复、大索引读取、v6固定完整CI日志读取器及市场inflight门。PREVIOUS固定当前登记
+`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD固定PR198真实merge
+`988046d23f9951f889a3b9d02e355ed59fd6aa65`；操作员独立验证、评审及CI另证，本轮不部署、不安装依赖。
 `test_model_provider_upgrade.py`将新mode加入原真实Git/历史profile/全账号保全/阶段恢复矩阵，
 补固定身份、Host/Native/私有池活动未知和原manifest锁保持回归；原API活动见证保留。
 部署合同见[ETF离线准备](research-web-gateway-upgrade.md#华安etf周报固定部署profile仅离线准备)。

@@ -93,11 +93,11 @@ MARKET_TERMINAL_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
 MARKET_TERMINAL_PAYLOAD = "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
 MARKET_TERMINAL_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
-# Provisional product checkpoint: root must pin the accepted PR198 merge before delivery.
+# PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
-ETF_WEEKLY_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
-ETF_WEEKLY_PAYLOAD = "25b399a42d691766d41bcafce5adbdc3b8cc3d74"
+ETF_WEEKLY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
+ETF_WEEKLY_PAYLOAD = "988046d23f9951f889a3b9d02e355ed59fd6aa65"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
