@@ -3917,6 +3917,8 @@ Imports:
 - `market_store`
 - `os`
 - `probes`
+- `providers_akshare`
+- `providers_external`
 - `re`
 - `reliability`
 - `research_workbench_entrypoint.resident.admission`
@@ -4268,6 +4270,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `asyncio`
+- `calendar`
 - `concurrent.futures`
 - `contracts`
 - `core.observability`
@@ -4284,6 +4287,8 @@ Imports:
 
 Classes:
 - `_FeedNormalizer`
+  - methods: __call__
+- `_MacroNormalizer`
   - methods: __call__
 
 Functions:
@@ -4316,6 +4321,11 @@ Functions:
 - `_normalize_snapshot`
 - `_normalize_generic`
 - `_normalize_activity`
+- `_fund_flow_guest`
+  - Same Eastmoney upstream, single bounded response; never historical coverage.
+- `_macro_bounds`
+- `_china_macro`
+  - Closed SDK-equivalent requests retain the envelope the SDK discards.
 - `_explicit_money`
 - `_normalize_financials`
 - `_invoke_sdk`
@@ -4481,11 +4491,20 @@ Classes:
 Functions:
 - `arguments`
 - `endpoint_request`
+- `_day`
+- `_positive`
+- `_nonnegative`
+- `official_numeric_request`
+  - Validate only reviewed filter syntax; never fetch additional pages implicitly.
+- `_number`
+- `_official_rows`
 - `_quantapi_history_body`
   - Wrap only the documented history contract, before reading credentials.
 - `_list_payload`
   - Dict payloads with a primary list become real rows so samples stay small.
 - `response_rows`
+- `external_business_envelope`
+  - Only verified business envelopes; reference lines and error bodies are not rows.
 - `numeric_envelope`
   - Closed official envelopes; original bytes retain publication/revision limits.
 - `_rows_reflect_credentials`
@@ -4741,6 +4760,8 @@ Imports:
 - `market_store.models`
 - `math`
 - `providers`
+- `providers_akshare`
+- `providers_external`
 - `providers_market`
 - `threading`
 - `uuid`
@@ -4781,6 +4802,8 @@ Imports:
 - `os`
 - `pathlib`
 - `providers`
+- `providers_akshare`
+- `providers_external`
 - `pydantic`
 - `re`
 - `research_snapshot_store`

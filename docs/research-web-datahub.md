@@ -7,6 +7,12 @@
 历史任务 `include_chip_inputs=true` 时，在原始日线、因子和逐日换手全部冻结并重验授权后，生成独立规范版本。VWAP只在原量额单位为股/元已核实时计算，再乘相同复权倍率；平价OHLC的唯一价格单独处理。raw_rows不被改写，返回行附turnover_rate_pct/vwap，manifest附chip_inputs合同版本、单位、摘要、有效条数及导出依据。失败、取消或不完整输入保留旧 canonical 指针；真实SDK Future仍须排空。重试保留原include flag及范围。Wind60日门、因子预检与原来源限制保持。
 
 
+2026-10-23 免费官方数值读取沿原 Host → DataHub → Provider → 原生研究仓链，新增的可入仓
+清单仅为 NYFed rates 与 Treasury cash；WorldBank inflation 同步加严身份/年份/分页验证。
+三者使用 official-numeric-v2 版本隔离新缓存，旧会话/冻结证据保留。分页 partial、缺值和
+错误封包不能成为完整仓库命中；原始响应、原字段与百万/十亿美元或百分数的官方单位声明
+均随原件保存，未核单位不猜测。详见[官方数值边界](research-web-vendor-snapshots.md)。
+
 ## 华安ETF周报私有同源取数
 
 `DataHub.collect_report_weekly`仅供受信Report Run使用，不新增`datahub_*`公开工具或放宽通用Wind
@@ -434,6 +440,38 @@ ETF 参数边界参考 [AKShare 官方 ETF 历史接口说明](https://akshare.a
 解码后出现的秘密；错误仅记录 `credential_reflection`，不记录秘密或响应内容。
 
 ## AKShare 请求口径与旧缓存复用边界
+
+2026-10-23 中国宏观 `factor_macro` 仅接受 `series=cpi|gdp|pmi|m2` 与必需的ISO
+`start_date/end_date`，拒绝assets、dates及未知参数。复用owned public worker、原容量与总截止，
+按已安装AKShare的macro_china_cpi/gdp/pmi/money_supply固定同上游reportName/columns，
+直接请求Eastmoney datacenter-web单个pageSize=2000响应以保留SDK会丢弃的原envelope，
+不自动翻页。success/code/pages/count、精确字段、非有限/错误数值、TIME/REPORT_DATE及
+重复/顺序/未来参考期均核验；null原样保留且partial，不经SDK errors=coerce变成假成功。
+每行保留原字段，月观察期派生月末date与YYYY-MM，GDP派生季末date、YYYY-Qn与
+aggregation=year_to_date，`2026年第1-3季度`保持年内累计，绝不当单季。REPORT_DATE/TIME
+是供应商参考标签，不制造精确发布日期或历史vintage。CPI当月指数/累计指数/同比与环比、
+GDP累计金额与累计同比、PMI指数与变化分别标semantic；金额未知单位保持None，仅M2/M1/M0
+数量沿已核(亿元)声明标CNY_100million。完整单次响应为snapshot，不承诺完整历史；分页、
+数值缺失或查询窗无观测为partial且不入仓。原件/fields/schema_version=akshare-china-macro-v1
+沿既有factor_macro原生仓冻结恢复，正式backtest/as_of供应商请求拒绝。
+仅AK+factor_macro的Host schema_identity/units_identity加入独立schema版本；新session查询
+必须匹配schema_version，旧call_id及显式冻结原件仍按原身份可读。native额外拒绝旧/错误schema、
+分页不完整、partial、null及空行。source_configuration_digest与其他AK能力的v6缓存含义不变。
+
+单股资金流的当前真实Host验收为FAILED：HTTP200但rc100/data=null，不视作数据成功；
+以下guest后备只表示封闭实现及离线验收，早先rc0一条样本不能推广当前可用性。
+
+2026-10-23 单股资金流的原 `stock_individual_fund_flow` SDK 实际抛错后，允许在同一个 owned
+public worker 内请求已实测的固定 Eastmoney `82.push2.eastmoney.com/webguest` 日线资金端点。
+这仍是同一 Eastmoney 上游，不计独立源，不请求大盘 `secid2`，不替代沪深市场整体流向。
+固定公开访客 ut 与 fields1/fields2 原参数保留；4秒 HTTP 等待、响应字节上限、禁止重定向及
+trust_env=False 沿原12秒子进程总截止与15秒Provider容量契约执行。SDK成功、空frame或本地
+schema错误不会触发额外请求。guest核验 code/market、15列、有限数值、合法唯一递增日期，
+原始HTTP字节保留；字段f57–f65仅保原字段名，不推断未审核语义。日期按请求裁剪后，上游
+provider_total仍保实际返回数。任何有日期请求始终 partial/history_coverage_unverified，
+缺日期为partial零行而非empty成功；无日期只提供snapshot/latest单次响应、first_observed。
+资金单位保持未知，不补公布时点、完整历史或历史vintage；guest正式backtest/as_of拒绝。
+v6语义版本沿既有配置摘要隔离旧缓存；新增回归复用已登记的test_datahub_akshare_semantics模块。
 
 AKShare `market_activity` 当前只实现个股 `fund_flow`；`northbound`、`money_flow` 等未审阅
 数据集返回 `data_not_equivalent`，不会用个股大中小单流量冒充北向资金。请求日期先在

@@ -1,5 +1,47 @@
 # 供应商原生研究快照
 
+2026-10-23 四个外部端点的 `external-envelope-v1` 只修响应判定，不扩本页native白名单。
+Nasdaq history 的status.rCode非200与data=null、CLS hot-list errno非零明确失败，
+不把HTTP200或错误封包当业务数据；没有猜CLS签名或改用telegram。Nasdaq/CLS真实成功业务
+形状尚未核实，成功码的未知内容也返回external_business_schema_unverified，不发布外层envelope。
+Danjuan history 的index_eva_pe_growths=[]只证明未取得观测，horizontal_lines不算历史行；
+结果为partial/no_observation_rows，raw空数组及参考线原样保留，data_success=False且不作成功缓存。
+result_code非零失败；非空历史字段合同未核实时也失败关闭，不伪造日期/PE投影或全历史覆盖。
+
+KAPSARC production仅该端点用分号CSV，精确country/sub_commodity/year/production四列，
+年份、非空身份、有限非负数及重复业务键校验；零是有效值，字段与HTTP原件保留，单位未知。
+逗号CSV等其他解析器不改。单次导出行数不证明完整历史或厂商总覆盖，limit截断明确partial。
+这四pair的新session查询须匹配schema_version=external-envelope-v1，旧假成功缓存跳过；旧
+call_id及显式历史证据保留，不改授权配置摘要。原生研究仓、正式回测或PIT资格不因本修复扩大。
+真实反例来自本任务remaining-public-probes；Nasdaq/CLS/Dan非空成功路径仍NOT_RUN，
+合成正码封包只用于证明未知形状失败关闭，不代表真实成功验收。
+
+2026-10-23 官方公开数值合同 `official-numeric-v2` 只扩展 `ext_nyfed/rates` 与
+`ext_treasury/cash` 两个原生快照入口，并加严现有 `ext_worldbank/inflation`。
+NYFed 校验 refRates、六种固定利率身份、effectiveDate 和请求起止日期，SOFRAI 保留独立
+average30day/90day/180day/index；普通利率及已核百分位/目标区间单位为 percent，
+volumeInBillions 为 USD_billion，SOFRAI 未核单位保持 provider_defined。
+Treasury 核对 data/meta/links、count/total-count/total-pages、页尺寸、日期过滤和
+Operating Cash Balance 表 I 身份；四个现金字段仅在官方 meta 同时声明 CURRENCY0 与
+`$1,000,000` 时标记 USD_million。保留字符串数值和结构性 `close_today_bal="null"`，
+不把它补零或改成别的列。实际两行/四行样本为 partial，不能入仓；不自动补页。
+
+世界银行固定 WLD/1W 与 FP.CPI.TOTL.ZG，校验年份、date过滤、分页身份及页数/总量一致性；
+value 是年度通胀百分数（percent_per_year），混合或全 null 观测原样保留且为
+partial/numeric_values_missing。分页完整和数值缺失分别记录；Treasury 每行四个现金值
+全部缺失才标 partial，NYFed 必需数值缺失也标 partial。HTML、错误封包、错日期/身份、
+重复观测和不自洽页数失败关闭。仅支持经核验的 query 过滤语法，其他过滤先于 HTTP 拒绝。
+
+Host 对这三个固定入口的 schema_identity/units_identity 加入 v2 版本，授权配置摘要不变；
+新 session 查询跳过未带 v2 schema_version 的旧缓存。旧详情、已完成 call_id 回执及旧
+DatasetRef/冻结包按原身份保留；新 as_of 查询不把旧合同快照冒充 v2。原生写入另外要求
+v2 metadata 与 pagination_complete=True，partial 仍拒绝。fields、受审 metadata、raw
+字节及其 hash 随原有 freeze/export_restore 保存。日期只表原始参考期，不制造精确公开
+时点或历史 vintage；正式 backtest 仍拒绝。没有新增依赖、服务、路由或存储 schema。
+字段依据：[NYFed 官方 CSV](https://markets.newyorkfed.org/api/rates/all/latest.csv)、
+[Treasury 数据字典](https://fiscaldata.treasury.gov/datasets/daily-treasury-statement/operating-cash-balance)、
+[世界银行指标](https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG)。
+
 2026-10-23：同批f350/f351与已有日线资金只补充MarketService的公开缓存口径；不是新增provider-native研究快照能力，不伪造原件/首次观测时间，不改变固定12指数捕获、私有周报或授权边界。 具体来源、缺口与缓存合同见[DataHub](research-web-datahub.md#无会话全市场数据)。
 
 CJPY个股筹码输入继续冻结原始换手响应、完整证券/日期和供应商单位；同复权VWAP/换手衰减作为有版本的派生说明保留，raw行不覆盖。前端万/亿是显示倍率，不改变厂商数量单位、原JSON、费用或回测时点证据；三角均价缺口不由演示数据补齐。
