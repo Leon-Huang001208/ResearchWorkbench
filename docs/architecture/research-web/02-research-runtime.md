@@ -733,3 +733,5 @@ Gold／Dollar 看板确认宿主已读 snapshot revision 后，Bot 才沿原解�
 Host 非秘密 model_profiles 索引记录 items、active_id 和各协议当前路由，旧账号固定绑定 legacy profile；DSH 的两个逻辑 ref 不改变，由产品凭据桥按索引解析为独立物理账号。会话创建与续研验证 model_profile_id；旧会话按 legacy 身份处理。research_task 日程在新建/显式修改研究定义时锁定 profile，旧日程维持 legacy；create 持同一服务锁再次检查，避免切换竞态。运行/断流、未知受理、活动子研究及未完成交付阻止切换；历史子研究只用 activityOnly 的 inactive 判定，不要求恢复其历史执行模式。
 
 Skill/Workflow/Report Workflow 自动化原本没有批准的服务商身份字段，继续保留其既有执行时默认模型语义；本次不补造历史模型审批。profile 身份固定专用于已声明 provider/model 的 research_task。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
