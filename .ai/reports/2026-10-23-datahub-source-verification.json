@@ -192,6 +192,20 @@
       "credentials_models_paid_or_production_operations": 0,
       "source_count_increment": 0,
       "other_source_entries_unchanged": true
+    },
+    "wgc_followup": {
+      "task": "datahub-free-research-next-20261023",
+      "execution_head": "5574af8aa9aa8e6458778814ba5378c12cdf8804",
+      "datasets": [
+        "etf-holdings",
+        "etf-flows"
+      ],
+      "preflight_http": 2,
+      "actual_host_http": 2,
+      "prior_failed_attempt_http": 0,
+      "source_count_increment": 0,
+      "akshare_pit_guard": "offline SDK pre-execution rejection verified, no new AK supplier calls",
+      "all_other_source_entries_unchanged": true
     }
   },
   "sources": [
@@ -5198,63 +5212,95 @@
         "static_readiness_is_live_proof": false
       },
       "current_observation": {
-        "status": "bounded_native_numeric_observed_not_warehouse_verified",
-        "scope": "本轮有界真实external_data/etf-holdings样例；仅认证已观测返回，不认证整源/完整历史",
-        "evidence": [
-          {
-            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/remaining57-static-audit/semantic-review.json",
-            "availability": "present",
-            "sha256": "b4d4cfe97342657e9cb89c75cdd42dfd64f1ecc7ab903ca91ec21aa4dc34e202",
-            "scope": "剩余57离线语义复核；35次业务请求记录不等于35来源可用；无PG认证"
-          },
-          {
-            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023/logs/remaining-public-probes/ext_wgc.json",
-            "availability": "present",
-            "sha256": "6b879f9a968daf547e8ea6a0278c74550df350895ab81761ba361b00fbb0cebe",
-            "scope": "实际有界请求与原始响应归档；返回值不复制到本台账"
-          }
-        ],
-        "limitations": [
-          "chartData has Yearly/Quarterly/Monthly/Weekly tonnes/usd column/set tables; real holdings series candidates, not normalized fundflow.",
-          "单来源单dataset有界样例；外层limit不截断嵌套观测，不代表完整历史",
-          "provider返回snapshot不等于业务成功或已入研究仓",
-          "未部署；现有PG5432/服务/外盘未改"
-        ],
+        "status": "bounded_live_host_owned_pg_monthly_tonnes_verified",
+        "scope": "现有etf-holdings及etf-flows两个固定端点，仅Monthly/tonnes四地区，原件和来源asOfDate保留，非全API/全频率/历史PIT",
         "prior_observation": {
-          "status": "not_rechecked",
-          "scope": "本次未复核",
-          "evidence": [],
-          "limitations": [
-            "不根据旧readiness声明当前可用"
-          ]
-        },
-        "facts": {
-          "reconciliation_category": "public_no_credentials_business_probe_record_present",
-          "new_vendor_call_by_documentation_auditor": false,
-          "dataset": "etf-holdings",
-          "provider_status": "snapshot",
-          "row_count": 1,
-          "semantic_status": "nested_numeric_observed_adapter_missing",
-          "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status",
-          "reconciliation_category_history": [
+          "status": "bounded_native_numeric_observed_not_warehouse_verified",
+          "scope": "本轮有界真实external_data/etf-holdings样例；仅认证已观测返回，不认证整源/完整历史",
+          "evidence": [
             {
-              "category": "public_business_probe_record_present",
-              "label": "免费外部来源有界请求记录",
-              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
-              "superseded_by_fee_scope_correction": true
+              "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/remaining57-static-audit/semantic-review.json",
+              "availability": "present",
+              "sha256": "b4d4cfe97342657e9cb89c75cdd42dfd64f1ecc7ab903ca91ec21aa4dc34e202",
+              "scope": "剩余57离线语义复核；35次业务请求记录不等于35来源可用；无PG认证"
+            },
+            {
+              "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023/logs/remaining-public-probes/ext_wgc.json",
+              "availability": "present",
+              "sha256": "6b879f9a968daf547e8ea6a0278c74550df350895ab81761ba361b00fbb0cebe",
+              "scope": "实际有界请求与原始响应归档；返回值不复制到本台账"
             }
           ],
-          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
-          "fee_review": {
-            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
-            "procurement_or_paid_api_called_this_round": false,
-            "commercial_reuse_fee": "unknown_not_verified",
-            "commercial_reuse_rights": "unknown_not_verified",
-            "no_auth_does_not_prove_free": true
-          }
+          "limitations": [
+            "chartData has Yearly/Quarterly/Monthly/Weekly tonnes/usd column/set tables; real holdings series candidates, not normalized fundflow.",
+            "单来源单dataset有界样例；外层limit不截断嵌套观测，不代表完整历史",
+            "provider返回snapshot不等于业务成功或已入研究仓",
+            "未部署；现有PG5432/服务/外盘未改"
+          ],
+          "prior_observation": {
+            "status": "not_rechecked",
+            "scope": "本次未复核",
+            "evidence": [],
+            "limitations": [
+              "不根据旧readiness声明当前可用"
+            ]
+          },
+          "facts": {
+            "reconciliation_category": "public_no_credentials_business_probe_record_present",
+            "new_vendor_call_by_documentation_auditor": false,
+            "dataset": "etf-holdings",
+            "provider_status": "snapshot",
+            "row_count": 1,
+            "semantic_status": "nested_numeric_observed_adapter_missing",
+            "pagination_complete": false,
+            "underlying_http_count": "not_aggregated_from_provider_status",
+            "reconciliation_category_history": [
+              {
+                "category": "public_business_probe_record_present",
+                "label": "免费外部来源有界请求记录",
+                "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+                "superseded_by_fee_scope_correction": true
+              }
+            ],
+            "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+            "fee_review": {
+              "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+              "procurement_or_paid_api_called_this_round": false,
+              "commercial_reuse_fee": "unknown_not_verified",
+              "commercial_reuse_rights": "unknown_not_verified",
+              "no_auth_does_not_prove_free": true
+            }
+          },
+          "evidence_grade": "current_bounded_sample_and_static_limits"
         },
-        "evidence_grade": "current_bounded_sample_and_static_limits"
+        "evidence": [
+          {
+            "path": "logs/real-wgc-attempt2/receipt.json",
+            "availability": "present_at_observation_archive_on_delivery",
+            "sha256": "810d3e97a4b191aa893c51f5ec3e881e5f25fbcc9fecf1b7ef58fd53fe80c569",
+            "scope": "两真实GET/三独立进程/default factory/owned PG进程重启/第二空库恢复"
+          }
+        ],
+        "facts": {
+          "datasets": [
+            "etf-holdings",
+            "etf-flows"
+          ],
+          "rows_each": 284,
+          "schema_version": "wgc-etf-monthly-tonnes-v1",
+          "supplier_http_submissions": 2,
+          "new_process_and_pg_restart_readback": true,
+          "independent_empty_database_restore": true,
+          "historical_point_in_time": false,
+          "formal_backtest_eligible": false,
+          "cross_source_equivalence_verified": false
+        },
+        "limitations": [
+          "仅月度地区吨数切片；存量和流量不同dataset，不由持仓差分虚构流量",
+          "WGC地区聚合不等同单只SPDR或A股资金流，不认证独立上游",
+          "asOfDate/参考月不当作公布日期，修订只按first_observed保存",
+          "正式库/现有服务/外盘/真实凭据/模型未操作，未部署"
+        ]
       }
     },
     {
