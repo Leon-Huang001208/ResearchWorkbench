@@ -45,3 +45,9 @@ attempt2执行在0e0022 HEAD的dirty tree，9个运行文件SHA256前后完全�
 参考：[官方SDK固定字典](https://github.com/zxygithub/baostock/blob/e14bd116745d5540c4eca55d8f0a1970e2d13235/docs/pythonAPI.md)、[发行人报告列表](https://news.spdb.com.cn/investor_relation/periodic_report/)、[发行人公开半年报](https://static.cninfo.com.cn/finalpage/2026-08-28/1225521898.PDF)。这些是单样本核对，不构成全历史/正式PIT或整源独立性认证。
 
 最终运行代码c98c7752在干净Git候选完成actual attempt4，4.956秒PASS，Bao/Sina各1次真实worker；报告/原字段保留、库命中、Host/PG重启及双scope独立恢复再次通过。原件重算issuer对照仍两格匹配集团半年累计，供应商8月28日与issuer列表8月27日差异保留。10运行源码hash前后一致；其后仅文档/台账更新，不把旧dirty-tree或失败回执改写为最终证明。
+
+## PR203 CI依赖隔离修复
+
+840b候选Project Constraints与同候选Mac Bootstrap已PASS；通用Checks run39913230426实际失败：3724 passed、69 skipped、115 subtests、1 failed。新缓存兼容测试mock了fetch却未声明SDK可用，本机已装Bao而通用CI只安装dev依赖，导致Broker正确按blocked_dependency拒绝；失败原日志保留，不改生产readiness或安装依赖来绕过。
+
+在本机强制find_spec返回None复现原缓存测试失败（red2，首个helper启动命令失败另保留）；仅该合成测试显式mock依赖可用，并新增显式/auto缺SDK仍503/data_capability_unavailable的反例。相同缺依赖环境下缓存测试green通过，独立缺SDK拒绝与整个模块11项通过。生产app字节、实际厂商执行与源合同不变；新候选完整门、独评及Mac安装须重绑，旧840b Mac结果不转写新候选。
