@@ -169,3 +169,11 @@
  .asset-observation-page .kline-terminal-layout { grid-column:1; grid-row:3; }
  .asset-observation-page .asset-wind-metrics { grid-column:2; grid-row:3; padding-top:4px; }
 }
+
+/* Match A-share candles: color values, keep labels and unrelated status colors intact. */
+.asset-observation-page .asset-basic-price .asset-price-up,
+.asset-observation-page .asset-history-readout .asset-price-up,
+.asset-observation-page .asset-wind-metrics .asset-price-up { color:var(--danger); }
+.asset-observation-page .asset-basic-price .asset-price-down,
+.asset-observation-page .asset-history-readout .asset-price-down,
+.asset-observation-page .asset-wind-metrics .asset-price-down { color:var(--green); }
