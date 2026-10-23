@@ -414,4 +414,4 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 本轮只在隔离worktree实现新浪财报/资金流来源合同及BEA官方档案有限回放。沿完整changed-set Router、独立评审、本机macOS与原Project Constraints/Checks/同候选Mac安装；只向既有Checks步骤补两个模块，不新增job、runner、timeout、依赖或他平台dispatch。真实验证用已批准环境与socket-only临时PG，禁止5432、系统凭据、模型、现有服务及外盘操作。缺历史版本保持明确拒绝，不能把当前下载日期、测试或预告时间冒充真实公布版本。收尾受Docker检查阻断时保留工作树和证据，不重启现有服务解锁。
 
 
-2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=abdc2a5883cfc86daf181062dc6ab8602e33128c（PR204实际合并）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。

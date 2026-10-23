@@ -70,7 +70,7 @@ ASSET_V6_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac
 # Fixed merged asset-panel product; retain all earlier recovery identities.
 ASSET_V7_MODE = "reviewed-asset-observation-v7"
 ASSET_V7_PREVIOUS = "c4e953c4386c615cde89ad2d014d60c6e2959303"
-ASSET_V7_PAYLOAD = "abdc2a5883cfc86daf181062dc6ab8602e33128c"
+ASSET_V7_PAYLOAD = "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
 ASSET_V7_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 ASSET_V7_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
 # PR179's merged market product, starting at the completed v4 resident deployment.
