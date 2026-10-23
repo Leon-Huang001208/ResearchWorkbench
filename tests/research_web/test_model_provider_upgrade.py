@@ -25,6 +25,7 @@ ASSET_PROFILES = (
     upgrade.ASSET_V5_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
+    "reviewed-market-history-v1",
 )
 
 
@@ -121,6 +122,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V5_MODE: "ASSET_V5",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
+        "reviewed-market-history-v1": "MARKET_HISTORY",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
@@ -385,6 +387,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v3", upgrade.ASSET_V3_MODE),
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("apply-assets-v5", upgrade.ASSET_V5_MODE),
+        ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
@@ -1177,7 +1180,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
     expected_manifest = {**state["manifest"], "code_commit": expected}
-    if failed is None and state["mode"] == upgrade.ASSET_V5_MODE:
+    if failed is None and state["mode"] in {upgrade.ASSET_V5_MODE, upgrade.MARKET_HISTORY_MODE}:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
         )
@@ -1371,6 +1374,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V5_MODE: "ASSET_V5_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
+        "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -1952,7 +1956,13 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
 
 
 @pytest.mark.parametrize(
-    "profile", [upgrade.MARKET_MODE, upgrade.MARKET_GAPS_MODE, upgrade.ASSET_V5_MODE]
+    "profile",
+    [
+        upgrade.MARKET_MODE,
+        upgrade.MARKET_GAPS_MODE,
+        upgrade.MARKET_HISTORY_MODE,
+        upgrade.ASSET_V5_MODE,
+    ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
     tmp_path, monkeypatch, profile
@@ -2005,7 +2015,9 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
     assert upgrade.MARKET_GAPS_PAYLOAD == "9faeeca3003a912ca75799fb27b635ba1bb87a1a"
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-market-gaps-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", ["reviewed-market-gaps-v1", "reviewed-market-history-v1"], indirect=True
+)
 @pytest.mark.parametrize(
     "response,expected",
     [
@@ -2036,13 +2048,22 @@ def test_asset_v5_is_bound_to_actual_resident_and_merged_product():
     assert upgrade.ASSET_V5_PAYLOAD == "88ef3817680ac822e2d7c819db845de4b7275173"
 
 
+def test_market_history_profile_freezes_resident_and_reviewed_checkpoint():
+    assert upgrade.MARKET_HISTORY_MODE == "reviewed-market-history-v1"
+    assert (
+        upgrade.previous_for(upgrade.MARKET_HISTORY_MODE)
+        == "51f09fa783694aae5234905933948394ca167dcc"
+    )
+    assert upgrade.MARKET_HISTORY_PAYLOAD == "4f0a248fc87249d41e1c3f75f700c17c8351ad95"
+
+
 @pytest.mark.parametrize("profile", [upgrade.MODE, *upgrade.ASSET_MODES])
 def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(profile):
     old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64, "installed_at": "old"}
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
     target = upgrade.target_manifest(state)
     expected = {**old, "code_commit": "b" * 40}
-    if profile == upgrade.ASSET_V5_MODE:
+    if profile in {upgrade.ASSET_V5_MODE, upgrade.MARKET_HISTORY_MODE}:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
         )

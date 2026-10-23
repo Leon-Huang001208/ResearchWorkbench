@@ -1,5 +1,18 @@
 # Mac mini 空私有池网关升级
 
+## 市场限价与历史固定部署（2026-10-23）
+
+`reviewed-market-history-v1` / `apply-market-history` 固定旧版`51f09fa783694aae5234905933948394ca167dcc`、产品检查点`4f0a248fc87249d41e1c3f75f700c17c8351ad95`。检查点为不可变产品祖先，最终组合仍须最新master、独立评审、原三CI和同候选macos-14安装合格。原version4事务、BirthFence、全账号业务索引/会话/模型保全和恢复保持；市场inflight活动/未知均拒绝。旧profile、controller、evidence和自动兼容白名单不改变。
+
+沿现有固定目标锁文件SHA256 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`，只同步安装清单该哈希和code_commit；回滚恢复原清单。不安装依赖或启用研究数据库；原已批准主线baostock0.9.4/psycopg3.3.6须实查已安装、pip check及其余版本不变，不能只改清单掩盖缺包。源码来自共享Git common directory的干净目标checkout，业务数据原位不迁移。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-market-history \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+部署与真实认证页另外核对限价/未知覆盖、昨日同当前池逐股金额及资金历史缺口，缺可靠源不冒充补齐。首个合格昨日见证可从当前或上一完整用户缓存恢复，不向生产注入测试样本。Windows/Linux原生与Docker产品验收仍按各设备交接。
+
 组合v5在安装目标产品时，仅把安装清单的`web_lock_sha256`同步为已冻结88ef锁文件的`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`，并更新code_commit；回滚精确恢复原清单。配置校验只接受原清单或该固定目标清单，不接受任意哈希。用户已授权的三个发行包须先按原锁定哈希安装、核验版本及pip check，并确认其余已装版本不变；不能用更新清单掩盖依赖未安装。旧profile、version4 journal、不可变controller/evidence、账号及业务索引保全不变。
 
 资产 v5 的主实例预检使用已有 `read_business_index`，上限64 MiB，仍拒绝符号链接、非普通文件、越界、损坏或非对象索引。部署元数据继续使用原1 MB读取器；旧资产与模型 profile 的读取绑定不变。真实首次切换因业务索引超过1 MB在停机前被拒绝，旧服务保持；不得裁剪索引或修改不可变证据读取器。修复后须重新通过原评审、三项CI及同候选Mac安装，再执行正式切换和全账号保全。

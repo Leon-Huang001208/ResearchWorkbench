@@ -398,6 +398,7 @@ async def test_yesterday_falls_back_to_previous_snapshot_and_survives_restart(tm
     service._snapshots["calendar"] = payload(
         summary={"trading_dates": ["2026-10-22", "2026-10-23"]}
     )
+    service._snapshots["calendar"]["snapshot_id"] = "00000000-0000-0000-0000-000000000001"
     service._persist("calendar")
     service._snapshots["quotes"] = payload([row], summary={"quote_trade_date": "2026-10-23"})
     old = payload(
