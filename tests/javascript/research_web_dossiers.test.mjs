@@ -264,6 +264,19 @@ test('a lost successful create response and an explicit retry never bind or repl
   assert.equal(messages.length, 1); assert.equal(messages[0].sid, otherSessionID); assert.equal(messages[0].body.dossier_handoff_id, 'c'.repeat(32));
 });
 
+test('successful prompt clears the receipt from a precreated homepage even after @ query text changes', async () => {
+  const controller = createController({ api: {
+    create: async () => ({ id: sourceSessionID, mode: 'claw' }),
+    detail: async sid => ({ id: sid, mode: 'claw', messages: [] }),
+    message: async () => ({ accepted: true }),
+  }, draftStorage: memoryStorage(), logger: () => {}, makeID: () => 'prompt-key' });
+  await controller.open({ page: 'claw', sessionId: null }); controller.setDossierDraft('原始问题 @', receiptContext());
+  await controller.create('claw'); await controller.open({ page: 'claw', sessionId: sourceSessionID });
+  controller.setDraft('原始问题'); await controller.send();
+  await controller.open({ page: 'claw', sessionId: null });
+  assert.equal(controller.state.dossierHandoff, null); assert.equal(controller.state.draft, '原始问题 @');
+});
+
 test('switching object also strips an old receipt restored from storage after a page reload', async () => {
   const storage = memoryStorage(), api = { detail: async session => ({ id: session, mode: 'claw', messages: [] }) };
   const first = createController({ api, draftStorage: storage, logger: () => {} });

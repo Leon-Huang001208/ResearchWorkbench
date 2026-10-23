@@ -666,6 +666,14 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (!accountCurrent()) return;
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
+      if (body.dossier_handoff_id) {
+        for (const [key, value] of drafts) {
+          if (key !== id && value.dossierHandoff?.id === body.dossier_handoff_id) {
+            pending.delete(key); putDraft(key, { ...value, dossierHandoff: null });
+            if (draftKey() === key && state.dossierHandoff?.id === body.dossier_handoff_id) state.dossierHandoff = null;
+          }
+        }
+      }
       const origin = createdDraftOrigins.get(id);
       createdDraftOrigins.delete(id);
       if (origin && origin.draft === text) {
