@@ -769,3 +769,5 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 2026-10-23 iFinD历史行情修复：保留cmd_history_quotation原生快照身份，固定供应商出口为history_data；请求体仅包装一层reqBody，不更改快照schema或历史原件。null原值保留，全无值标记partial/history_values_missing，原生完整快照准入仍拒绝该结果。
 
 2026-10-23 新raw历史job、不可变块和canonical metadata冻结required_semantics；块复用须相同合同，旧job无字段读取/重试保持null，不回填旧盘。BusinessQuery默认null保持原fingerprint，选定cn_stock_daily_cny_share_v1使用新指纹；原生SnapshotSeries不接此合同，不能用旧native结果替代规范行。field_dictionary_evidence由静态白名单随原生原件、冻结和export_restore完整保留；旧snapshot字节不改，质量/PIT仍未验证。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

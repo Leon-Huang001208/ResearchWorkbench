@@ -23,6 +23,7 @@ ASSET_PROFILES = (
     upgrade.ASSET_V3_MODE,
     upgrade.ASSET_V4_MODE,
     upgrade.ASSET_V5_MODE,
+    upgrade.ASSET_V6_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
@@ -120,6 +121,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V3_MODE: "ASSET_V3",
         upgrade.ASSET_V4_MODE: "ASSET_V4",
         upgrade.ASSET_V5_MODE: "ASSET_V5",
+        upgrade.ASSET_V6_MODE: "ASSET_V6",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
@@ -127,7 +129,9 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     monkeypatch.setattr(
-        upgrade, "ASSET_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
+        upgrade,
+        "ASSET_V6_EVIDENCE_SHA256" if profile == upgrade.ASSET_V6_MODE else "ASSET_EVIDENCE_SHA256",
+        hashlib.sha256(b"reviewed evidence").hexdigest(),
     )
     monkeypatch.setattr(
         upgrade, "MARKET_GATEWAY_SHA256", hashlib.sha256(b"reviewed gateway").hexdigest()
@@ -387,6 +391,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v3", upgrade.ASSET_V3_MODE),
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("apply-assets-v5", upgrade.ASSET_V5_MODE),
+        ("apply-assets-v6", upgrade.ASSET_V6_MODE),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
@@ -421,6 +426,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V2_PREVIOUS),
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V3_PAYLOAD),
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
+        (upgrade.ASSET_V6_MODE, upgrade.ASSET_V5_PREVIOUS),
+        (upgrade.ASSET_V6_MODE, upgrade.ASSET_V6_PAYLOAD),
         (upgrade.ASSET_V5_MODE, upgrade.ASSET_V4_PREVIOUS),
         (upgrade.ASSET_V5_MODE, upgrade.MARKET_GAPS_PREVIOUS),
         (upgrade.ASSET_V5_MODE, "9bc4e4cab91130647a5bc0dfa519e97f4773416a"),
@@ -1180,7 +1187,11 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
     expected_manifest = {**state["manifest"], "code_commit": expected}
-    if failed is None and state["mode"] in {upgrade.ASSET_V5_MODE, upgrade.MARKET_HISTORY_MODE}:
+    if failed is None and state["mode"] in {
+        upgrade.ASSET_V5_MODE,
+        upgrade.ASSET_V6_MODE,
+        upgrade.MARKET_HISTORY_MODE,
+    }:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
         )
@@ -1372,6 +1383,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V3_MODE: "ASSET_V3_PREVIOUS",
         upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
         upgrade.ASSET_V5_MODE: "ASSET_V5_PREVIOUS",
+        upgrade.ASSET_V6_MODE: "ASSET_V6_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
@@ -1962,6 +1974,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_GAPS_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.ASSET_V5_MODE,
+        upgrade.ASSET_V6_MODE,
     ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
@@ -2063,9 +2076,29 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
     target = upgrade.target_manifest(state)
     expected = {**old, "code_commit": "b" * 40}
-    if profile in {upgrade.ASSET_V5_MODE, upgrade.MARKET_HISTORY_MODE}:
+    if profile in {upgrade.ASSET_V5_MODE, upgrade.ASSET_V6_MODE, upgrade.MARKET_HISTORY_MODE}:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
         )
     assert target == expected
     assert old == state["manifest"]
+
+
+def test_asset_v6_binds_verified_resident_product_reader_and_unchanged_old_contracts():
+    assert upgrade.ASSET_V6_MODE == "reviewed-asset-observation-v6"
+    assert upgrade.previous_for(upgrade.ASSET_V6_MODE) == "c1a260fa1d8dcf013426aca938d7e46a98aaee28"
+    assert upgrade.ASSET_V6_PAYLOAD == "eac6806822294d75da990c751d88ec156a417f62"
+    reader = Path(upgrade.__file__).with_name("evidence.py").read_bytes()
+    assert hashlib.sha256(reader).hexdigest() == upgrade.ASSET_V6_EVIDENCE_SHA256
+    assert (
+        upgrade.ASSET_EVIDENCE_SHA256
+        == "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
+    )
+    assert (
+        upgrade.CONTROLLER_SHA256
+        == "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
+    )
+    assert (
+        upgrade.CONTROLLER_MODULE_SHA256
+        == "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
+    )
