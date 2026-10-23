@@ -29,6 +29,13 @@ from .connections import (
 )
 from .contracts import BusinessQuery, Query
 from .probes import probe_source
+from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_external import (
+    EXTERNAL_ENVELOPE_CONTRACT,
+    EXTERNAL_ENVELOPES,
+    OFFICIAL_NUMERIC,
+    OFFICIAL_NUMERIC_CONTRACT,
+)
 from .reliability import TOTAL_DEADLINE, CircuitBreaker, execute, failure_code
 from .security import load_control
 from .snapshots import Snapshots
@@ -1549,6 +1556,38 @@ class DataHub:
                     )
             if not query.refresh and warehouse_result is None:
                 for candidate in self.list(sid):
+                    if (
+                        isinstance(query, BusinessQuery)
+                        and query.capability == "external_data"
+                        and (candidate.get("provider"), query.parameters.get("dataset"))
+                        in EXTERNAL_ENVELOPES
+                        and candidate.get("provider_metadata", {}).get("schema_version")
+                        != EXTERNAL_ENVELOPE_CONTRACT
+                    ):
+                        log.info("datahub_cache_contract_changed", source=candidate.get("provider"))
+                        continue
+                    if (
+                        isinstance(query, BusinessQuery)
+                        and (candidate.get("provider"), query.parameters.get("dataset"))
+                        in OFFICIAL_NUMERIC
+                        and candidate.get("provider_metadata", {}).get("schema_version")
+                        != OFFICIAL_NUMERIC_CONTRACT
+                    ):
+                        log.info("datahub_cache_contract_changed", source=candidate.get("provider"))
+                        continue
+                    if (
+                        isinstance(query, BusinessQuery)
+                        and candidate.get("provider") == "akshare"
+                        and query.capability == "factor_macro"
+                        and candidate.get("provider_metadata", {}).get("schema_version")
+                        != CHINA_MACRO_SCHEMA
+                    ):
+                        log.info(
+                            "datahub_cache_contract_changed",
+                            source="akshare",
+                            capability="factor_macro",
+                        )
+                        continue
                     age = (
                         datetime.now(UTC) - datetime.fromisoformat(candidate["retrieved_at"])
                     ).total_seconds()

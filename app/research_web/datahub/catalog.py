@@ -591,7 +591,7 @@ BINDING_SPECS = {
         ("tinysoft", list(SERIES)),
         ("ifind", ["macro", "technical"]),
         ("chinastock", ["macro", "technical"]),
-        ("akshare", ["macro"]),
+        ("akshare", ["cpi", "gdp", "pmi", "m2"]),
     ],
     "fund_data": [
         ("eastmoney_fund", ["fund_nav", "fund_profile", "fund_distributions", "fund_holdings"]),
@@ -636,6 +636,7 @@ IMPLEMENTED_BINDINGS = {
     ("akshare", "market_snapshot"),
     ("akshare", "financials"),
     ("akshare", "market_activity"),
+    ("akshare", "factor_macro"),
     ("wind", "market_bars"),
     ("wind", "market_snapshot"),
     ("wind", "index_data"),

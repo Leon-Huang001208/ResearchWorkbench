@@ -1,5 +1,47 @@
 # 供应商原生研究快照
 
+2026-10-23 四个外部端点的 `external-envelope-v1` 只修响应判定，不扩本页native白名单。
+Nasdaq history 的status.rCode非200与data=null、CLS hot-list errno非零明确失败，
+不把HTTP200或错误封包当业务数据；没有猜CLS签名或改用telegram。Nasdaq/CLS真实成功业务
+形状尚未核实，成功码的未知内容也返回external_business_schema_unverified，不发布外层envelope。
+Danjuan history 的index_eva_pe_growths=[]只证明未取得观测，horizontal_lines不算历史行；
+结果为partial/no_observation_rows，raw空数组及参考线原样保留，data_success=False且不作成功缓存。
+result_code非零失败；非空历史字段合同未核实时也失败关闭，不伪造日期/PE投影或全历史覆盖。
+
+KAPSARC production仅该端点用分号CSV，精确country/sub_commodity/year/production四列，
+年份、非空身份、有限非负数及重复业务键校验；零是有效值，字段与HTTP原件保留，单位未知。
+逗号CSV等其他解析器不改。单次导出行数不证明完整历史或厂商总覆盖，limit截断明确partial。
+这四pair的新session查询须匹配schema_version=external-envelope-v1，旧假成功缓存跳过；旧
+call_id及显式历史证据保留，不改授权配置摘要。原生研究仓、正式回测或PIT资格不因本修复扩大。
+真实反例来自本任务remaining-public-probes；Nasdaq/CLS/Dan非空成功路径仍NOT_RUN，
+合成正码封包只用于证明未知形状失败关闭，不代表真实成功验收。
+
+2026-10-23 官方公开数值合同 `official-numeric-v2` 只扩展 `ext_nyfed/rates` 与
+`ext_treasury/cash` 两个原生快照入口，并加严现有 `ext_worldbank/inflation`。
+NYFed 校验 refRates、六种固定利率身份、effectiveDate 和请求起止日期，SOFRAI 保留独立
+average30day/90day/180day/index；普通利率及已核百分位/目标区间单位为 percent，
+volumeInBillions 为 USD_billion，SOFRAI 未核单位保持 provider_defined。
+Treasury 核对 data/meta/links、count/total-count/total-pages、页尺寸、日期过滤和
+Operating Cash Balance 表 I 身份；四个现金字段仅在官方 meta 同时声明 CURRENCY0 与
+`$1,000,000` 时标记 USD_million。保留字符串数值和结构性 `close_today_bal="null"`，
+不把它补零或改成别的列。实际两行/四行样本为 partial，不能入仓；不自动补页。
+
+世界银行固定 WLD/1W 与 FP.CPI.TOTL.ZG，校验年份、date过滤、分页身份及页数/总量一致性；
+value 是年度通胀百分数（percent_per_year），混合或全 null 观测原样保留且为
+partial/numeric_values_missing。分页完整和数值缺失分别记录；Treasury 每行四个现金值
+全部缺失才标 partial，NYFed 必需数值缺失也标 partial。HTML、错误封包、错日期/身份、
+重复观测和不自洽页数失败关闭。仅支持经核验的 query 过滤语法，其他过滤先于 HTTP 拒绝。
+
+Host 对这三个固定入口的 schema_identity/units_identity 加入 v2 版本，授权配置摘要不变；
+新 session 查询跳过未带 v2 schema_version 的旧缓存。旧详情、已完成 call_id 回执及旧
+DatasetRef/冻结包按原身份保留；新 as_of 查询不把旧合同快照冒充 v2。原生写入另外要求
+v2 metadata 与 pagination_complete=True，partial 仍拒绝。fields、受审 metadata、raw
+字节及其 hash 随原有 freeze/export_restore 保存。日期只表原始参考期，不制造精确公开
+时点或历史 vintage；正式 backtest 仍拒绝。没有新增依赖、服务、路由或存储 schema。
+字段依据：[NYFed 官方 CSV](https://markets.newyorkfed.org/api/rates/all/latest.csv)、
+[Treasury 数据字典](https://fiscaldata.treasury.gov/datasets/daily-treasury-statement/operating-cash-balance)、
+[世界银行指标](https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG)。
+
 2026-10-23固定公开指数桥：额外仅接受source=eastmoney、capability=market_snapshot、asset_type=index、assets严格等于`providers_market.INDEXES`的12个有序身份及固定price/change/change_pct/as_of/series字段。不存在任意market_snapshot扩权。Host把完整MarketProvider响应放在单个`rows[0].response`封包并保留该规范JSON字节为原件；这是Provider响应捕获，不冒充未由适配器暴露的HTTP wire原字节。完整12行、分页完整、missing均为零、每行报价/时间/有界分时齐备才可入仓；partial/failed和无原件仍拒绝。原生点位/百分比与分时语义原样保留，不证明第二来源单位等价。读取仍遵守下文300秒display+allow_stale规则，显式refresh绕过读取。具体Host/profile授权及降级见[DataHub](research-web-datahub.md)。
 
 完整字段捕获还逐行核对固定code/name/stale=False、price/change/change_pct有限数值、上海时区完整ISO秒报价时间；每个分时点须为含time/price/change_pct的对象，有限数值、同报价日、严格递增且不超过供应商已有5分钟未来容差。顶层as_of/quote_trade_date/temporal_complete和精确三项missing零计数必须一致。现Provider的_number可输出None，且其complete主要声明端点覆盖；这样的原响应仍原样交给市场页，但必需字段为null/缺字段/畸形时间或分时不得入仓，warehouse标为incomplete并保护旧完整捕获，不擅自改写原complete字段含义。

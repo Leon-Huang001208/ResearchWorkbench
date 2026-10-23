@@ -39,6 +39,8 @@ from ..market_store.operation import checkpoint, record_committed
 from ..store import StoreError
 from .contracts import BusinessQuery
 from .providers import ProviderError, cn_stock_identity
+from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .research_snapshot_store import SnapshotSeries
 from .security import atomic_json, directory, read_file
 from .warehouse import WarehouseBinding, WarehouseBridge
@@ -749,6 +751,7 @@ class ResearchWarehouse:
         if not profile or not profile["enabled"]:
             return None
         scope = StoreScope(self.owner, "personal-research-v1", source, digest)
+        china_macro = source == "akshare" and query.capability == "factor_macro"
 
         def authorize(actor, requested, _action):
             current = self._profile()
@@ -766,8 +769,18 @@ class ResearchWarehouse:
             service,
             profile["owner"],
             scope,
-            schema_identity="datahub-provider-native-v1:" + digest,
-            units_identity="vendor-fields-retained-unverified-v1",
+            schema_identity="datahub-provider-native-v1:"
+            + digest
+            + (
+                ":" + OFFICIAL_NUMERIC_CONTRACT
+                if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
+                else ":" + CHINA_MACRO_SCHEMA if china_macro else ""
+            ),
+            units_identity=(
+                OFFICIAL_NUMERIC_CONTRACT
+                if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
+                else CHINA_MACRO_SCHEMA if china_macro else "vendor-fields-retained-unverified-v1"
+            ),
         )
         if query.source not in {"auto", source} and not query.allow_fallback:
             raise MarketStoreError("snapshot_source_mismatch")

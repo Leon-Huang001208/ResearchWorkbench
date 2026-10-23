@@ -1,5 +1,16 @@
 # Research Workbench Development Map
 
+2026-10-23宏观闭环：providers_external.py校验官方NYFed/Treasury/WorldBank封包；providers_akshare.py在既有public_worker内执行cpi/gdp/pmi/m2固定请求；catalog/broker只声明实际支持的序列。DataHub新查询缓存、ResearchWarehouse身份与SnapshotSeries准入分别核对合同版本，旧call_id和冻结证据保留。国内观察期及累计GDP语义不借用披露时点。公开错误封包/空参考线/分号CSV在同一external Provider修复，不扩数值仓白名单；真实失败与临时库证据见本轮来源台账和任务报告。
+
+公开数值合同 `official-numeric-v2` 定位于 `datahub/providers_external.py` 的
+`official_numeric_request/_official_rows`：仅 NYFed rates、Treasury cash、WorldBank inflation。
+`__init__.py` 跳过旧版本 session cache，`research_warehouse.py._snapshot_series` 只增加这三项
+schema/units 身份，授权摘要不变；`research_snapshot_store.py` 保留 strict complete 准入并开放
+NYFed/Treasury 固定入口。定点离线回归 `test_datahub_official_numeric.py` 使用公共原响应及
+对抗变异验证过滤、身份、分页、null、freeze恢复和旧receipt。没有新增引擎、HTTP入口或依赖，
+仍沿既有 Host → DataHub → Provider/ResearchWarehouse 拓扑，现有图的节点/边不变；真实
+厂商/PG/CI证据与离线回放分别验收。
+
 iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_envelope` 链处理；
 `_quantapi_history_body` 在取密前验证旧flat或官方reqBody参数并精确包装一次，目录保留
 `cmd_history_quotation` 身份、固定出口改为官方 `history_data`。近处

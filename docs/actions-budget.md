@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23剩余来源验证与宏观研究仓沿用原Project Constraints、Research Web Checks和同候选Mac Bootstrap。仅向既有Python清单加入test_datahub_official_numeric.py；中国宏观、资金流与外部封包反例扩展既有模块，不新增job、runner、依赖或timeout。只读API核验仓库PUBLIC；最近五个成功run39862338057/39862338001/39860024415/39859994006/39859993855创建至结束63/732/591/53/821秒，均值452秒；这属于预算参考，远端动作前仍须实时复查。定点新增回归约数秒，预留现有步骤30秒，完整Router与全部原门不变。真实免费样例及socket-only临时PostgreSQL仅本机有界执行，CI不连接厂商、凭据、模型或正式数据库；不把跳过或旧候选结果认证为最终候选。Windows/Linux产品验收交接对应设备，本轮不部署、不改现有服务或外盘。
+
 2026-10-23公开indices仓库桥仅向原Research Web Checks的同一pytest步骤追加test_market_reader.py和test_market_reader_live_postgres.py；原job、runner、timeout、依赖、条件和全部平台门不变。无显式RWB_MARKET_STORE_LIVE_PG=1时真实PG测试保持skip，不能认证CI PostgreSQL已通过。本机定点闭包128例4.30秒，新增模块预留15秒；远端visibility/额度仍由root发布前实时复查，本次实现者不push/dispatch/rerun，也不调用厂商或模型。
 
 主线PR188推进后，旧a114候选三CI全PASS保持原候选归属，不能作为新组合候选PASS。当前用户已批准组合验收后将已合并锁定baostock0.9.4／psycopg3.3.6一起部署到常驻，数据库不启用／不迁移、外盘不改；此前隔离授权记录不冒充这次授权。root沿原三CI／同候选Mac安装正常重绑，不手工rerun、不加job／runner或削减门；下述PUBLIC／耗时均为历史快照，远端动作前仍实时核对。
