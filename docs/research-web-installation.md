@@ -3,6 +3,11 @@
 2026-10-23市场限价/昨日成交额/资金历史迭代不新增项目依赖，一键安装三入口、固定DSH与Doctor合同保持，最终同候选Mac干净安装仍必需。apply-market-history复用已批准主线锁文件7c631d4f及原baostock/psycopg版本，不安装或配置数据库；正式部署前实际核验现有包与pip check，不能只更新清单。用户允许的隔离测试依赖安装只影响任务.venv，不改变常驻环境。
 华安 Excel 先行复用已声明的 xlwings/openpyxl，不新增 SDK、安装依赖或凭据接收面。仅有已加载 Wind 的本机 Excel 才可真实采集；Mac 新独立进程心跳通过不足以证明历史函数可用。三个安装入口、固定 DSH、Mac 干净安装/健康/Doctor 门继续保留，未执行 CI/Office/跨平台不得写通过。
 
+## 资产静态资源补充（2026-10-23）
+
+本轮不新增或安装依赖；`requirements/web.in`、`web.lock` 与 `scripts/setup_web.py` 保持不变，原三个公开安装入口继续适用。新增 `asset-layout.css`、`asset-format.mjs`、`asset-chips.mjs`、`asset-chip-panel.mjs` 随原UI目录打包；现有macOS Bootstrap同一步HTTP逐字节核对这四份资源及原固定图表库/许可证。CI没有厂商凭据时仍只显示CJPY已安装待配置。本机真实供应商预检和浏览器证据独立于CI；同候选Mac干净安装、固定DSH、3081/8088与Doctor仍是门。
+
+
 当前用户已批准PR188／v5组合验收后一起部署已合并锁定baostock0.9.4／psycopg3.3.6；数据库不启用／不迁移、外盘不改，不新增数据库服务或连接配置。v5当前PAYLOAD为完整产品88ef3817、PREVIOUS仍51f09；依赖变化来自PR188已审锁文件，原profile及一行读取修复自身不引入任意依赖。旧a114候选三CI全PASS不能代替新组合的原三CI／同候选Mac干净安装，本轮文档不执行包安装或部署。
 
 资产v5索引预检修复（2026-10-22）只修原操作员的读取绑定：业务index复用既有64 MiB安全读取，部署元数据保持1 MB，旧profile不变。requirements/web.in、web.lock、setup_web.py及Mac Bootstrap无需改变依赖或安装流程；三个一键入口和原同候选Mac干净安装／固定DSH／3081／8088／Doctor门保留。原8.67 MB索引停机前拒绝与PR187 Constraints失败不写成安装或部署成功，修补候选须重新通过原三CI；不裁剪账号索引、不安装包或处理凭据。
@@ -981,3 +986,5 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 资产观察安装验收复用既有 macOS Bootstrap 启动步骤，读取全部新增／组合的资产静态模块、样式和固定本地图表库并和checkout逐字节比较，上传 `asset-static-smoke.json` 路径／哈希摘要；资源须进入wheel和实际安装目录。此检查不调用供应商、模型或新作业，也不表示浏览器交互或真实CJPY已验收。
 
 2026-10-23 历史auto/固定来源选择与原始日线校验仅复用已有Tinysoft/Wind/AKShare/BaoStock适配和锁定依赖；三一键入口、requirements/web.in、web.lock、scripts/setup_web.py和Bootstrap无需变更。无新配置或秘密入口；安装兼容性仍由最终同候选macos-14干净安装、固定DSH、3081/8088与Doctor门证明，本机离线链不替代安装CI。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

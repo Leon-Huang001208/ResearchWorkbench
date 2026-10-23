@@ -226,7 +226,7 @@ test('asset workspace renders independent states, native chart and personal obse
   assert.doesNotMatch(html, /macro-panel|各区块日期范围/);
   assert.match(html, /akshare/); assert.match(html, /2026-09-05/);
   assert.match(html, /data-asset-echarts[^>]+aria-label="K线与自定义副图；方向键选择历史交易日"/);
-  assert.match(html, /data-asset-chip-chart[^>]+aria-label="日线累计至所选日的OHLCV估算筹码分布"/);
+  assert.match(html, /data-asset-chip-chart[^>]+aria-label="同版本日线与逐日换手率估算筹码分布"/);
   assert.match(html, /换手率 <strong>0\.51%<\/strong>/);
   assert.match(html, /query_failed/);
   assert.doesNotMatch(html, /https?:\/\/[^" ]*(?:cdn|unpkg)|演示/);
@@ -258,7 +258,7 @@ test('asset refresh actions remain unique inside the native source disclosure', 
   const source = html.slice(start, html.indexOf('</details>', start) + 10);
   assert.match(source, /已取得 0 · 待加载 11 · 查询失败 0 · 未接入 0/);
   for (const name of names.filter(name => name !== 'history')) {
-    assert.equal((html.match(new RegExp(`data-asset-block-load="${name}"`, 'g')) || []).length, 1, name);
+    assert.equal((html.match(new RegExp(`data-asset-block-load="${name}"`, 'g')) || []).length, name === 'financials' ? 2 : 1, name);
     assert.ok(source.includes(`data-asset-block-load="${name}"`), name);
   }
   assert.doesNotMatch(source, /data-asset-block-load="history"/);
@@ -273,7 +273,7 @@ test('asset metrics keep canonical turnover amount separate from turnover rate',
     observation: { asset: '600519.SH', asset_type: 'stock', blocks: {} },
     rows: { overview: [{ turnover: 3336029501, turnover_rate_pct: null }], history: [] },
   });
-  assert.match(html, /成交额<\/dt><dd[^>]*>3,336,029,501<\/dd>/);
+  assert.match(html, /成交额<\/dt><dd[^>]*>33\.36亿<\/dd>/);
   assert.match(html, /换手率<\/dt><dd[^>]*>—<\/dd>/);
   assert.doesNotMatch(html, /3,336,029,501%/);
 });

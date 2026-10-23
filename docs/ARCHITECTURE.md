@@ -5,6 +5,11 @@
 2026-10-23市场补齐沿既有浏览器→Host MarketService→DataHub公开东财→当前用户缓存拓扑，新增同批限价状态、同池昨日逐股金额重算及最多30日真实资金留存；不增服务、HTTP路径、业务index、依赖、模型调用或跨账号流。原13市场图拓扑不变，缓存可选字段和公开投影分别见[缓存](architecture/research-web/03-data-files.md#全市场概览缓存)、[API](architecture/research-web/04-api.md#全市场概览接口)与[口径](research-web-datahub.md#无会话全市场数据)。
 华安周报新增既有 DataHub 私有 wind_excel 来源分支，复用 Report Workflow、唯一 DSH、Host 独立复算与原版式投影。EDB/日历绑定同版本原生导出证据；市场截止15:30与实际冻结分别记录，历史重查不认证当时快照。09/10图同步来源分支，无新服务、HTTP或依赖；本轮定时关闭。
 
+## 2026-10-23 资产筹码与精炼行情布局
+
+本轮保留 Host → AssetWorkspace → DataHub/Broker → 账号绑定 CJPY 的既有拓扑。`market_activity/chip_turnover` 是现有适配器内的封闭数据集，不新增服务、任意公式或第二研究引擎。历史任务可冻结逐日换手与同复权 VWAP，全部输入验证后原子更新快照；前端 `asset-chips.mjs` 只从该版本计算自有估算。新增布局与数值格式模块不改变原始数值或冻结证据。既有运行时与数据流图仍准确，模块及持久/API合同见 03/04 章和 DataHub 文档。
+
+
 2026-10-23公开指数研究仓桥沿现有Host/MarketService/DataHub/ResearchWarehouse拓扑：默认Host注入无会话MarketReader，POST indices显式取公开eastmoney后将完整固定12指数响应归档；GET仍只消费market-cache。内部允许缓存请求可读同来源/同个人profile摘要的短时捕获，读写前后重验Host根、关闭状态与profile epoch。没有新增服务、HTTP接口、依赖、研究引擎、共享scope或第二来源；13市场图新增indices-only的可选写仓/内部缓存读取分支，不沿用此前无仓库边的旧图结论，精确边界见[DataHub](research-web-datahub.md)。
 
 PR188合流后的当前v5组合产品固定88ef3817680ac822e2d7c819db845de4b7275173，包含资产9bc4及DataHub研究仓；PREVIOUS仍51f09，8f2cb39a的一行业务读取修复另保留源码身份。用户已批准组合验收后部署锁定baostock0.9.4／psycopg3.3.6，但不启用／迁移数据库、不改外盘。PR188已审新04数据流保持，以下“v5本身无新结构／依赖”只描述原封闭profile及一行修复，不覆盖组合产品的研究仓变化；旧a114三CI全PASS不认证新组合，最终仍须重验。
@@ -192,3 +197,5 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 2026-10-23 CJPY字段字典元数据补齐仍沿原单Future/快照链，仅为已证明股票日线成交量提供share和金额原生元声明，OHLC/CNY仍未知。证据版本/hash随新Provider Result保留，旧快照、Host/DSH、规范仓bridge和部署拓扑不变，不增加请求或服务节点。
 
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

@@ -1,5 +1,12 @@
 # DataHub、研究资料与实际文件
 
+## 同版本筹码输入与偏好补充（2026-10-23）
+
+`asset_history.chip_inputs` 冻结 `contract_version=chip-turnover-1`、完整状态、换手百分数单位/摘要/条数以及VWAP口径。现有输入manifest保留逐批真实来源与授权指纹；raw_rows不修改。`include_chip_inputs` 缺省false且不写入旧请求；true只在全部价格/因子/换手验证后更新规范指针，失败/取消不发布部分新行情。旧快照照常读取，不将缺换手的旧OHLCV合计冒充新版筹码。
+
+chart_preferences可选chip_settings，缺省只在内存解释，不启动写盘；旧PUT仅panels时保留已有筹码设置。算法、衰减、峰区上下限、2/10/100龄阈值、显示层及历史叠加按账号保存，服务端严格校验，失败回滚原值。前端缓存含版本/截止日/设置；可见窗口变化只改变绘制轴，不改变所选日累计统计。源码模型显式标为自有估算；龄按已取得日线期数，不冒称Wind未知公式。
+
+
 2026-10-23数值捕获仍写既有provider-native原件/首次观测槽位。official-numeric-v2和akshare-china-macro-v1只区分逻辑数据身份及新缓存合同，不迁移数据库表或重写旧包；官方与中国宏观的原始HTTP字节、字段单位、观察期及查询范围随冻结包保留；既有AK财务SDK序列化原件不冒充HTTP wire字节。GDP年内累计、月度参考期和数据库捕获时间分别表达，不能用1970存储槽位、REPORT_DATE标签或今天下载时间伪造历史披露。临时库导出恢复验证与正式存储位置/外盘迁移分开。
 华安 wind_excel 从同版本 Run 读取 EDB/经济日历原生数值文件与观察 receipt；哈希、实际筛选窗口、全筛选和两页共同绑定，缺日仅接受真实空结果。在线日期行及采集/冻结时间进入快照哈希；Host 从 canonical 正文投影文件，保留旧正式稿，私有 Wind 原始数据不进公开源码。
 
@@ -763,3 +770,5 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 2026-10-23 iFinD历史行情修复：保留cmd_history_quotation原生快照身份，固定供应商出口为history_data；请求体仅包装一层reqBody，不更改快照schema或历史原件。null原值保留，全无值标记partial/history_values_missing，原生完整快照准入仍拒绝该结果。
 
 2026-10-23 新raw历史job、不可变块和canonical metadata冻结required_semantics；块复用须相同合同，旧job无字段读取/重试保持null，不回填旧盘。BusinessQuery默认null保持原fingerprint，选定cn_stock_daily_cny_share_v1使用新指纹；原生SnapshotSeries不接此合同，不能用旧native结果替代规范行。field_dictionary_evidence由静态白名单随原生原件、冻结和export_restore完整保留；旧snapshot字节不改，质量/PIT仍未验证。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

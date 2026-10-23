@@ -21,6 +21,11 @@ PID 读取；无法确认实例身份时不另开 Excel。`client.py` 同时识�
 [Wind Excel 模块](modules/data_layer_adapters_wind.md)。实采覆盖、生产源切换与成稿验收分别记录，
 不能由这项连接修复替代。
 
+## 资产筹码与行情精炼（2026-10-23）
+
+`asset_chip_inputs.py` 校验逐日换手身份/覆盖/单位，并连接同复权价格与原始量额；`asset_history_jobs.py` 按32个日期串行查询现有 Broker/Provider，带筹码任务只在全部验证后发布。`providers_cjpy_assets.py` 校验固定厂商因子定义；不使用旧全局凭据。`asset-chips.mjs` 为概率守恒的换手衰减/三角或平均分布模型；`asset-chip-panel.mjs` 提供统计、龄分层、历史叠加和设置。`asset-layout.css` 实现已批准的连续工作区，`asset-format.mjs` 只做万/亿显示。测试分别为 `test_asset_chip_inputs.py`、原历史/CJPY合同及 `research_web_chip_distribution`、资产 chart/loading/tabs/format 回归。三项独立评审问题（原子桶重复、重试丢旗标、设置签名遗漏）均有定点回归。
+
+
 iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_envelope` 链处理；
 `_quantapi_history_body` 在取密前验证旧flat或官方reqBody参数并精确包装一次，目录保留
 `cmd_history_quotation` 身份、固定出口改为官方 `history_data`。近处
@@ -486,3 +491,5 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 2026-10-23 CJPY最小单位证据在providers_cjpy._sync_query_with_client返回Result处投影：nativevol在SDK0.5.2/明确stockdaily/沪深股票身份门后声明share，nativeamount仅元/currencyNone；field_dictionary_evidence绑定字典hash/版本，不新增调用。test_datahub_cjpy覆盖旧/未知SDK、缺类型/频率、ETF/index和价格仍未知；ResearchWarehouse规范tinysoft排除不变。
 
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

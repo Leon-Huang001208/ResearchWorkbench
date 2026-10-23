@@ -30,7 +30,7 @@ test('compact header keeps menus closed and original metrics sit beside the char
   const hero = html.slice(html.indexOf('<section class="asset-basic-card'), html.indexOf('<section class="asset-market-full"'));
   assert.match(hero, /<details class="asset-more-menu">/);
   assert.match(hero, /data-asset-search-slot/);
-  const metrics = html.slice(html.indexOf('<aside class="asset-wind-metrics"'), html.indexOf('<details class="asset-source-summary"'));
+  const metrics = html.slice(html.indexOf('<aside class="asset-wind-metrics"'), html.indexOf('</aside>', html.indexOf('<aside class="asset-wind-metrics"')));
   assert.ok(html.indexOf('data-asset-chart-slot') < html.indexOf('<aside class="asset-wind-metrics"'));
   assert.doesNotMatch(hero, /asset-summary-metrics/);
   const trading = metrics.slice(metrics.indexOf('class="asset-trading-group"'), metrics.indexOf('class="asset-valuation-group"'));
@@ -40,7 +40,7 @@ test('compact header keeps menus closed and original metrics sit beside the char
   last = -1;
   for (const label of ['PE-TTM', 'PB', 'PS-TTM', '总股本', '市值']) { const index = valuation.indexOf(`<dt>${label}</dt>`); assert.ok(index > last, label); last = index; }
   assert.match(trading, /开盘<\/dt><dd[^>]*>0<\/dd>/);
-  assert.match(trading, /成交量<\/dt><dd id="asset-volume">0<\/dd>/);
+  assert.match(trading, /成交量<\/dt><dd id="asset-volume">0\.00万<\/dd>/);
   assert.match(valuation, /市值<\/dt><dd id="asset-market-cap">—<\/dd>/);
   assert.match(metrics, /未取得的数据以 — 表示/);
 });
@@ -117,7 +117,7 @@ test('actual provider refresh failures retain the old loaded snapshot notice in 
 test('quote returns and dimensionless valuation metrics do not render price currency as their units', () => {
   const meta = { provider: 'wind', currency: 'CNY', fields: [{ name: 'price', unit: 'currency_per_share', currency: 'CNY' }, { name: 'pb', unit: 'ratio', currency: 'CNY' }, { name: 'ps_ttm', unit: 'ratio' }, { name: 'total_shares', unit: 'share' }] };
   const html = renderAssetWorkspace({ observation: { asset: '600519.SH', blocks: { overview: { dataset: meta }, valuation: { dataset: meta } } }, rows: { overview: [{ price: 10.11, yclose: 10 }], valuation: [{ pe_ttm: 9, pb: 2, ps_ttm: 3, total_shares: 0 }] } });
-  assert.match(html, /id="asset-change-pct">较昨收计算 1\.1%<\/span>/);
+  assert.match(html, /id="asset-change-pct"[^>]*>1\.1%<\/span>/);
   const valuation = html.slice(html.indexOf('class="asset-valuation-grid"'), html.indexOf('<p class="asset-group-note">估值'));
   assert.match(valuation, /PE-TTM<\/dt><dd>9<\/dd>/); assert.match(valuation, /PB<\/dt><dd>2 倍<\/dd>/); assert.match(valuation, /PS-TTM<\/dt><dd>3 倍<\/dd>/);
   assert.doesNotMatch(valuation, /CNY/);
@@ -126,13 +126,13 @@ test('valuation preserves zero and raw Wind shares without guessing a share scal
   const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { valuation: { status: 'complete', dataset: { dataset_id: 'v', provider: 'wind', fields: [{ name: 'total_shares', unit: 'share' }, { name: 'market_cap', unit: 'currency', currency: 'CNY' }] } } } };
   const rows = { valuation: [{ date: '2026-10-20', pe_ttm: 0, pb: 0, ps_ttm: 0, total_shares: 100, close: 9 }] };
   const html = renderAssetWorkspace({ observation, rows });
-  const valuation = html.slice(html.indexOf('class="asset-valuation-group"'), html.indexOf('<details class="asset-source-summary"'));
+  const valuation = html.slice(html.indexOf('class="asset-valuation-group"'), html.indexOf('</aside>', html.indexOf('<aside class="asset-wind-metrics"')));
   for (const label of ['PE-TTM', 'PB', 'PS-TTM']) assert.ok(valuation.includes(`<dt>${label}</dt><dd>0</dd>`), label);
-  assert.match(valuation, /id="asset-total-shares">100<\/dd>/);
+  assert.match(valuation, /id="asset-total-shares">0\.01万<\/dd>/);
   assert.match(valuation, /未经核实，不作换算/);
   assert.match(valuation, /id="asset-market-cap">—<\/dd>/);
   rows.valuation[0].market_cap = 0;
-  assert.match(renderAssetWorkspace({ observation, rows }), /id="asset-market-cap">0 元 CNY<\/dd>/);
+  assert.match(renderAssetWorkspace({ observation, rows }), /id="asset-market-cap">0\.00万元<\/dd>/);
 });
 test('summary leaves market terminal DOM intact and empty shareholders have no synthetic row', () => {
   const rows = { history: [{ date: '2026-10-21', open: 10, high: 12, low: 9, close: 11, volume: 0 }] };
@@ -141,7 +141,7 @@ test('summary leaves market terminal DOM intact and empty shareholders have no s
   const terminal = renderMarketTerminal(rows.history, {}, { ...p.blocks.history.dataset, frequency: 'daily', adjustment: 'none', asset: observation.asset, name: observation.asset, currentQuote: p.basic });
   const html = renderAssetWorkspace({ observation, rows });
   assert.ok(html.includes(`<div data-asset-chart-slot>${terminal}</div></section>`));
-  assert.ok(html.indexOf('<aside class="asset-wind-metrics"') < html.indexOf('<details class="asset-source-summary"'));
+  assert.ok(html.indexOf('<aside class="asset-wind-metrics"') < html.indexOf('</aside>', html.indexOf('<aside class="asset-wind-metrics"')));
   const holders = renderAssetWorkspace({ observation, rows, route: { assetView: 'holders' } });
   const shareholder = holders.slice(holders.indexOf('id="shareholder-panel"'), holders.indexOf('data-asset-block="holders"'));
   assert.match(shareholder, /<tbody><\/tbody>/);
@@ -252,11 +252,11 @@ test('CJPY original date, name and volume fields remain readable without guessin
   const row = { 代码: 'SH603986', 简称: '兆易创新', 时间: '2026-10-20', open: 10, high: 12, low: 9, close: 11, amount: 2000, vol: 30 };
   const bars = enrichMarketBars([row]); assert.equal(bars.length, 1); assert.equal(bars[0].date, '2026-10-20'); assert.equal(bars[0].volume, 30);
   const html = renderAssetWorkspace({ observation: { asset: '603986.SH', asset_type: 'stock', blocks: { overview: { status: 'complete', dataset: { provider: 'tinysoft', retrieved_at: '2026-10-21T08:00:00Z' } } } }, rows: { overview: [row], history: [row] } });
-  assert.match(html, /兆易创新/); assert.match(html, /数据日[^<]*2026-10-20/); assert.match(html, /成交量<\/dt><dd id="asset-volume">30<\/dd>/);
+  assert.match(html, /兆易创新/); assert.match(html, /数据日[^<]*2026-10-20/); assert.match(html, /成交量<\/dt><dd id="asset-volume">0\.00万<\/dd>/);
 });
 test('current quote changes use the same snapshot and never borrow historical trading fields', () => {
   const html = renderAssetWorkspace({ observation: { asset: '603986.SH', asset_type: 'stock', blocks: {} }, rows: { overview: [{ close: 11, yclose: 10, amount: 3000, 时间: '2026-10-21' }], history: [{ date: '2026-10-20', open: 9, high: 12, low: 8, close: 10 }] } });
-  assert.match(html, /较昨收计算[^<]*10%/);
+  assert.match(html, /id="asset-change-pct"[^>]*>10%/);
   const quote = html.slice(html.indexOf('class="asset-trading-group"'), html.indexOf('class="asset-valuation-group"'));
   assert.match(quote, /开盘<\/dt><dd>—<\/dd>/);
   assert.match(quote, /交易数据日[^<]*2026-10-21/);
@@ -264,7 +264,7 @@ test('current quote changes use the same snapshot and never borrow historical tr
 test('Wind snapshot time cannot fall back to a different historical trading day', () => {
   const html = renderAssetWorkspace({ observation: { asset: '603986.SH', asset_type: 'stock', blocks: {} }, rows: { overview: [{ price: 100, as_of: '2026-10-21', turnover_rate_pct: 2 }], history: [{ date: '2026-10-15', open: 90, high: 95, low: 89, close: 91 }] } });
   const identity = html.slice(html.indexOf('<section class="asset-basic-card'), html.indexOf('<section class="asset-market-full"'));
-  assert.match(identity, /数据日 2026-10-21/); assert.doesNotMatch(identity, /数据日 2026-10-15/);
+  assert.match(identity, /数据截至 2026-10-21/); assert.doesNotMatch(identity, /数据截至 2026-10-15/);
   assert.match(html, /交易数据日 2026-10-21/);
 });
 test('asset page uses research topics, source-aware metrics and complete financial records', () => {

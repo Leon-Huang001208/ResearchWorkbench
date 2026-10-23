@@ -51,7 +51,10 @@ test('Wind page puts original metrics beside the chart and keeps research and me
   assert.match(html, /asset-wind-metrics/);
   assert.ok(html.indexOf('data-asset-chart-slot') < html.indexOf('asset-wind-metrics'));
   for (const label of ['PS-TTM', 'PB', '总股本', '区间最高', '区间最低', '个人研究', '来源与口径', 'data-asset-search-slot', 'asset-more-menu']) assert.ok(html.includes(label), label);
-  for (const marker of ['financial-panel', 'shareholder-panel', 'industry-panel', 'events-panel', 'macro-panel']) assert.equal(html.includes(marker), false, marker);
+  assert.match(html, /id="asset-tab-financials"[^>]*aria-selected="true"/);
+  assert.match(html, /id="financial-panel"/);
+  assert.doesNotMatch(html, /asset-tab-overview|asset-topic-overview/);
+  for (const marker of ['shareholder-panel', 'industry-panel', 'events-panel', 'macro-panel']) assert.equal(html.includes(marker), false, marker);
   for (const [assetView, markers] of [['financials', ['financial-panel']], ['holders', ['shareholder-panel']], ['materials', ['industry-panel', 'events-panel']]]) {
     const topic = renderAssetWorkspace({ route: { asset: '603986.SH', assetType: 'stock', assetView } });
     for (const marker of markers) assert.ok(topic.includes(marker), `${assetView}: ${marker}`);

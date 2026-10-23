@@ -120,6 +120,7 @@ jobs:
             tests/research_web/test_integration_coordinator.py \
             tests/research_web/test_asset_workspace.py \
             tests/research_web/test_asset_history.py \
+            tests/research_web/test_asset_chip_inputs.py \
             tests/research_web/test_asset_directory.py \
             tests/research_web/test_asset_loading.py \
             tests/research_web/test_asset_provider_normalization.py \

@@ -3,6 +3,11 @@
 2026-10-23：市场历史仅在当前用户原缓存中保存；昨日要求完整收盘/交易日历/逐股真实金额，资金限同源同scope同key，不读取其他租户或放开Wind/Office。原维护准入、字节/行数/并发上限与失败保留完整快照保持。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
 华安 Excel 继续复验主管理员资格、Host 资源归属和配置摘要，原生观察须绑定不可变导出哈希。未知工作簿创建保留 sticky 状态，close 不能伪报清理完成，Provider 共享槽继续拒绝新请求。模型无权自填证明或绕过独立时间/日历/定稿门。
 
+## 筹码输入边界（2026-10-23）
+
+新输入复用已有账号DataHub/连接namespace、Broker准入、单并发/15秒预算和真实Future排空。只开放单A股固定换手因子和32日期封闭合同；字段定义、响应身份、日期覆盖和单位先校验再发布，拒绝任意表达式、跨账号快照和未核实量额换算。冻结raw与研究引用不改写；偏好严格范围/类型/枚举校验，无新增秘密入口、数据库或权限。独立评审、源码/合同回归、真实供应商预检和浏览器可见结果分开留证。
+
+
 固定公开indices桥只接受Host内构造的12指数合同，浏览器不能提交actor/scope。当前Host用户根、仓库根、profile id/owner/enabled/config摘要和来源配置/合同摘要在读写前后复核；数据库不可用才允许明确未持久化，授权/合同失败不降级。公开访客源没有独立grant，不能声称该不存在的开关可撤销；真实profile撤销与跨用户根拒绝有离线回归。共享/私有Wind/周报与tenant策略均不扩权。
 
 资产v5大索引修复仅让该profile复用既有64 MiB read_business_index：路径／普通文件／NOFOLLOW／大小及JSON对象校验保持，错误仍日志并失败关闭；元数据保持1 MB，旧profile绑定、固定PREVIOUS／PAYLOAD、controller／evidence字节及保全／恢复门不变。没有新信任边界、权限或外部输入；不通过裁剪8.67 MB业务索引或放宽读取检查消除故障。PR187文档／结构门失败保留，补齐后仍须原完整约束、独评和同候选三CI。
@@ -762,3 +767,5 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 嵌入资源使用 /frameworks-embed/ 路由级同源 CSP，不放宽宿主 CSP。宿主与子窗口桥接校验 origin、source、slug、revision 与本次 token，重新挂载必须重新确认；过时回执不能解锁 Bot。原生快照不回退静态 JSON；来源缺口、数据准入和固定 DSH 权限门保留。真实模型、供应商和跨平台证据独立记录。
 
 命名模型 profile 只扩展产品固定命名域 RESEARCH_MODEL_PROFILE_<32hex>；私有 bridge 还必须匹配该用户 Store 注册项。两个 legacy 账号和原 namespace 不迁移或回填。旧 DSH ref 按服务端路由解析，端点/协议不会由浏览器任意控制执行。Docker 新 profile AES envelope 携带公开 account，启动逐项校验 filename、account 与 AAD；旧 envelope 原样兼容，未知文件/损坏/错误绑定仍拒绝。HTTP 不提供读 Key API，日志仅事件/错误码；未知凭据状态阻断生成，清除仍显式确认。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

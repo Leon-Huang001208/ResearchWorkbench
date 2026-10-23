@@ -77,6 +77,7 @@ class HistoryJobRequest(BaseModel):
     scope: Literal["recent", "older", "all"]
     adjustment: Literal["none", "qfq", "hfq"]
     source: Literal["auto", "tinysoft", "wind", "akshare", "baostock"] = "tinysoft"
+    include_chip_inputs: bool = Field(default=False, strict=True)
     as_of: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     retry_of: str | None = Field(
         default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$"
@@ -84,6 +85,8 @@ class HistoryJobRequest(BaseModel):
 
     @model_validator(mode="after")
     def valid_cutoff(self):
+        if self.include_chip_inputs and self.source != "tinysoft":
+            raise ValueError("verified chip turnover inputs currently require explicit Tinysoft")
         if self.source != "tinysoft" and (self.scope != "recent" or self.adjustment != "none"):
             raise ValueError("non-Tinysoft history requires recent unadjusted daily bars")
         if self.as_of is not None:
@@ -114,9 +117,14 @@ class ChartPreferencesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     panels: list[Literal["volume", "macd", "kdj", "rsi"]] = Field(max_length=4)
+    chip_settings: dict | None = None
 
     @model_validator(mode="after")
     def unique_panels(self):
+        if self.chip_settings is not None:
+            from .asset_chip_inputs import normalize_chip_settings
+
+            self.chip_settings = normalize_chip_settings(self.chip_settings)
         if len(set(self.panels)) != len(self.panels):
             raise ValueError("panels must be unique")
         return self
@@ -222,7 +230,9 @@ async def get_chart_preferences(request: Request):
 
 @router.put("/assets/chart-preferences")
 async def put_chart_preferences(body: ChartPreferencesRequest, request: Request):
-    return request.app.state.research.asset_workspace.set_chart_preferences(body.panels)
+    return request.app.state.research.asset_workspace.set_chart_preferences(
+        body.panels, body.chip_settings
+    )
 
 
 @router.post("/assets/observations/{observation_id}/blocks/{block}/refresh", status_code=202)

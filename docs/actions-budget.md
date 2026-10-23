@@ -7,6 +7,8 @@
 2026-10-23市场限价/昨日/历史只扩展现有test_market_provider/service和test_model_provider_upgrade，JS沿原research_web通配符；不新增workflow/job/runner/超时或项目依赖，不手工rerun。任务开始只读API为PUBLIC；原Project Constraints/Research Web Checks及同候选macos-14安装仍必需，Mac不触发Windows/Linux产品dispatch。产品78项Python与34项JS、操作员868项43.50秒为本机阶段结果，不代替最终候选CI；新增定点预算60秒，实际时长另留日志。真实源/部署/认证页面独立验收，无模型或厂商私有调用。
 2026-10-23华安 Excel 先行只扩展既有 Checks Python 步骤：新增周报 Excel Provider 与定点实例测试，保留原 job/runner/timeout/安装依赖；JS沿原通配符。新增离线测试本机约11秒，预留20秒，不调用真实Wind/Office/模型，不手工重跑或跨平台dispatch。发布前当前API核对PUBLIC，最终仍须同候选Mac干净安装和原通用门；真实日历与Word另验。
 
+2026-10-23资产筹码与精炼布局复用原三项CI，不增job/runner/依赖或超时。GitHub实时PUBLIC；最近五个成功run为39889555161、39888825843、39888825844、39887171955、39887171898。既有Checks增加test_asset_chip_inputs模块，JS沿原通配符；Mac安装同一步追加四个本地静态文件逐字节验收。定点Python约16秒、资产JS约2秒，新输入模拟覆盖不连接厂商/模型，增量预算30秒。完整changed-set Router及同候选macos-14门保留；Mac不派其他平台产品workflow，真实CJPY/已登录私网浏览器/常驻保全另留证。
+
 2026-10-23公开indices仓库桥仅向原Research Web Checks的同一pytest步骤追加test_market_reader.py和test_market_reader_live_postgres.py；原job、runner、timeout、依赖、条件和全部平台门不变。无显式RWB_MARKET_STORE_LIVE_PG=1时真实PG测试保持skip，不能认证CI PostgreSQL已通过。本机定点闭包128例4.30秒，新增模块预留15秒；远端visibility/额度仍由root发布前实时复查，本次实现者不push/dispatch/rerun，也不调用厂商或模型。
 
 主线PR188推进后，旧a114候选三CI全PASS保持原候选归属，不能作为新组合候选PASS。当前用户已批准组合验收后将已合并锁定baostock0.9.4／psycopg3.3.6一起部署到常驻，数据库不启用／不迁移、外盘不改；此前隔离授权记录不冒充这次授权。root沿原三CI／同候选Mac安装正常重绑，不手工rerun、不加job／runner或削减门；下述PUBLIC／耗时均为历史快照，远端动作前仍实时核对。
@@ -234,3 +236,5 @@ Host元数据专项升级测试复用Research Web Checks现有test_resident.py�
 
 
 2026-10-22 插件/MCP仅向既有Research Web Checks Python清单补test_plugins、test_plugins_mcp_security、test_plugins_runtime_restart、test_mcp_managed_sandbox四模块，不新增job/runner/timeout/依赖。Mac本机50项26秒、UI4项及独立33/50项分别通过；原生Seatbelt测试在Ubuntu条件跳过，不能记为Mac通过。额外离线预算预留45秒，最终仍绑定原三CI及macos-14干净安装；不触发Windows/Linux产品dispatch，不执行厂商、付费或模型调用。发布前实时核对PUBLIC/额度，历史状态不替代当前证据。
+
+2026-10-23 资产v6配置复用原三CI及原macOS安装步骤；实时仓库PUBLIC、PR197三标准runner均成功。新增配置回归沿原test_model_provider_upgrade/test_resident，1183项部署/网关合同本机73.64秒，预留90秒；无新job、runner、依赖、时限或Windows/Linux dispatch。真实常驻事务与认证页面独立取证。
