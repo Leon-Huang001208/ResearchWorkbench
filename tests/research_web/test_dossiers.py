@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -76,6 +77,7 @@ def bind(research, dossier, sid, key="evidence-0001"):
 
 def test_reads_never_initialize_dossier_storage(tmp_path):
     research = service(tmp_path)
+    assert not research.dossiers.metadata.marker.exists()
     before = set(research.store.root.rglob("*"))
     assert research.dossiers.list() == {"items": [], "next_cursor": None}
     with pytest.raises(StoreError) as error:
@@ -84,6 +86,7 @@ def test_reads_never_initialize_dossier_storage(tmp_path):
     with pytest.raises(StoreError):
         research.dossiers.read_evidence("d" * 32, "e" * 32)
     assert set(research.store.root.rglob("*")) == before
+    assert not research.dossiers.metadata.marker.exists()
 
 
 def test_idempotency_versions_and_reopen(tmp_path):
@@ -366,6 +369,121 @@ def test_existing_database_loss_blocks_reads_writes_purge_backup_until_verified_
         research.store.purge(row["id"])
     assert error.value.code == "dossier_evidence_retained"
     assert original.is_file()
+
+
+def test_whole_directory_loss_survives_restart_and_only_verified_restore_unblocks(tmp_path):
+    research = service(tmp_path)
+    dossier = create(research)
+    row, original = upload(research)
+    bind(research, dossier, row["id"])
+    metadata = research.dossiers.metadata
+    marker_bytes = metadata.marker.read_bytes()
+    assert len(marker_bytes) == metadata.marker_size
+    assert hashlib.sha256(marker_bytes).hexdigest() == metadata.marker_sha256
+    assert json.loads(marker_bytes)["owner_binding"] == metadata.owner_binding
+    backup = tmp_path / "before-folder-loss.sqlite3"
+    receipt = research.dossiers.backup_to(backup)
+    moved = tmp_path / "moved-dossiers"
+    metadata.folder.rename(moved)
+    restarted = SimpleNamespace(store=Store(research.store.root))
+    restarted.dossiers = DossierService(restarted)
+    restarted.store.soft_delete(row["id"])
+    for operation in (
+        restarted.dossiers.list,
+        lambda: restarted.dossiers.metadata.retained_by(row["id"]),
+        lambda: create(restarted, "create-after-move-0001"),
+        lambda: restarted.store.purge(row["id"]),
+        lambda: restarted.dossiers.backup_to(tmp_path / "must-not-create.sqlite3"),
+    ):
+        with pytest.raises(StoreError) as error:
+            operation()
+        assert error.value.code == "dossier_storage_uninitialized" and error.value.status == 503
+        assert not metadata.folder.exists()
+        assert metadata.marker.read_bytes() == marker_bytes
+        assert original.is_file()
+    restarted.dossiers.restore_from(backup, expected_sha256=receipt["sha256"])
+    assert restarted.dossiers.get(dossier["id"])["revision"] == 2
+    assert restarted.dossiers.metadata.retained_by(row["id"]) == [dossier["id"]]
+    with pytest.raises(StoreError) as error:
+        restarted.store.purge(row["id"])
+    assert error.value.code == "dossier_evidence_retained"
+    assert metadata.marker.read_bytes() == marker_bytes
+    assert (moved / "metadata.sqlite3").is_file()
+
+
+@pytest.mark.parametrize(
+    "damage", ["symlink", "hardlink", "content", "scope", "oversized", "permissions", "owner"]
+)
+def test_initialization_marker_rejects_unsafe_identity_without_replacing_data(
+    tmp_path, monkeypatch, damage
+):
+    research = service(tmp_path)
+    create(research)
+    metadata = research.dossiers.metadata
+    before = metadata.path.read_bytes()
+    if damage in {"symlink", "hardlink"}:
+        other = tmp_path / "foreign-marker"
+        other.write_bytes(metadata.marker.read_bytes())
+        other.chmod(0o600)
+        metadata.marker.unlink()
+        if damage == "symlink":
+            metadata.marker.symlink_to(other)
+        else:
+            os.link(other, metadata.marker)
+    elif damage == "content":
+        metadata.marker.write_bytes(b"x" * metadata.marker_size)
+    elif damage == "scope":
+        value = json.loads(metadata.marker.read_bytes())
+        value["owner_binding"] = "0" * 64
+        metadata.marker.write_bytes(
+            json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+        )
+    elif damage == "oversized":
+        metadata.marker.write_bytes(b"x" * 5000)
+    elif damage == "permissions":
+        metadata.marker.chmod(0o644)
+    else:
+        current_uid = os.getuid()
+        monkeypatch.setattr(os, "getuid", lambda: current_uid + 1)
+    for operation in (research.dossiers.list, lambda: create(research, "marker-retry-0001")):
+        with pytest.raises(StoreError) as error:
+            operation()
+        assert error.value.code == "dossier_marker_invalid" and error.value.status == 503
+        assert metadata.path.read_bytes() == before
+
+
+def test_marker_is_durable_before_directory_creation_and_failed_first_init_stays_protected(
+    tmp_path, monkeypatch
+):
+    from pathlib import Path
+
+    research = service(tmp_path)
+    metadata = research.dossiers.metadata
+    real_mkdir, real_fsync = Path.mkdir, os.fsync
+    synced = []
+
+    def record_sync(fd):
+        import stat
+
+        real_fsync(fd)
+        synced.append("directory" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file")
+
+    def fail_directory(path, *args, **kwargs):
+        if path == metadata.folder:
+            assert synced[-2:] == ["file", "directory"]
+            assert metadata.marker.read_bytes()
+            raise OSError("injected before metadata directory creation")
+        return real_mkdir(path, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "fsync", record_sync)
+        patch.setattr(Path, "mkdir", fail_directory)
+        with pytest.raises(StoreError):
+            create(research)
+    assert metadata.marker.is_file() and not metadata.folder.exists()
+    with pytest.raises(StoreError) as error:
+        research.dossiers.list()
+    assert error.value.code == "dossier_storage_uninitialized"
 
 
 def test_reference_and_retention_rollback_together(tmp_path, monkeypatch):

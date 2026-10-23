@@ -8,6 +8,10 @@
 
 已存在的dossiers目录内数据库缺失或为零字节时，返回稳定503 `dossier_storage_uninitialized`，列表、写入、备份与永久删除保全检查全部停止，不返回空列表或重建数据库。首次初始化事务失败留下的空库也需人工核对恢复；只有首次创建目录的同一事务能暂见自己的未提交空文件。显式restore在完整验证备份hash、账户、pin与原件后，才允许原子替换缺失／空的目标；旧pin随恢复重新生效。
 
+首次显式初始化先在保全锁内以O_EXCL、0600创建根级 `.dossiers-initialized`，fsync文件及根目录后才创建dossiers目录。目录整体缺失时，持久标记使重启后的读取、写入、备份和purge仍返回503。未初始化账户的GET不写标记，初始化失败后不自动重建。标记必须是当前用户所有的私有普通文件、单链接，拒绝符号链接／重解析点，并验证路径inode、精确长度和hash；损坏标记以 `dossier_marker_invalid` 停止操作。
+
+保全接口为 `DossierStore.marker`、`marker_size`、`marker_sha256`，构造零I/O。标记是123字节UTF-8紧凑JSON、键排序且无换行：`{"format":"rwb-dossiers-initialized-v1","owner_binding":"<sha256(str(root).encode())>"}`。marker_sha256是这段账户绑定字节的SHA256，不是数据库内容hash。根级标记须与SQLite及原件一起进入业务保全；显式restore完成备份hash／owner／pin／raw核验后可以恢复整个缺失目录并补齐缺失标记，已有安全标记不重写。
+
 所有档案写入要求 `expected_revision` 和8–128字符 `idempotency_key`。相同键与请求返回原版本结果，不同请求或版本争用返回409；失败事务不推进版本。观点、风险、催化剂均追加记录修订，详情展示最新投影，timeline保留原修订。归档不是删除，也不释放原件保全。
 
 根目录 `.dossier-retention.lock` 是跨进程、非阻塞保全锁，覆盖证据解析到引用／pin提交，以及 DSH `session.delete` 到 Host purge 的完整窗口。争用返回 `dossier_retention_busy`，不在事件循环里等待文件锁。Host原生日志永久删除前和Store.purge各自检查引用，软删除不解除引用。外部手工删除不能被此锁防止，只会在读取时显示 missing／changed。
