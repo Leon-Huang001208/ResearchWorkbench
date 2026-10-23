@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 
 import { apply } from '../../app/research_web/runtime/research-tools.mjs';
 import { apply as applyGuard, RESEARCH_TOOLS } from '../../app/research_web/runtime/guard.mjs';
@@ -12,6 +13,21 @@ const token = 'a'.repeat(43);
 const admission = { status: 'available', admitted: true, missing: [], omitted_sections: [] };
 const result = (overrides = {}) => ({ status: 'passed', issues: [], repair_count: 0, may_repair: false,
   contract: { requirements: ['Compare revenue'], cutoff: '2026-10-16T00:00:00Z' }, ...overrides });
+
+test('dossier handles preserve Host canonical identities and forward exact bounded admission arguments', async t => {
+  const handle = `dossier:${'a'.repeat(32)}:${'b'.repeat(32)}:2`;
+  const id = 'file:' + createHash('sha256').update(handle).digest('hex').slice(0,24);
+  const f = await fixture(t, {source:{id,dossier_handle:handle,sha256:'c'.repeat(64)},observation_id:id,content:'frozen original'});
+  const tool = f.tools.get('research_read_source');
+  const value = JSON.parse((await tool.execute({operation:'read',source_id:handle}, f.exec)).result_json);
+  assert.equal(value.source.id,id);
+  const preflight = f.calls.find(call => call.url.endsWith('/skill-preflight'));
+  assert.equal(preflight.body.source_id,handle);
+  assert.equal(preflight.body.source_operation,'read');
+  f.response({source:{id:'file:'+'d'.repeat(24),dossier_handle:handle,sha256:'c'.repeat(64)},observation_id:id,content:'frozen original'});
+  await assert.rejects(() => tool.execute({operation:'read',source_id:handle}, f.exec), /research_source_response_invalid/);
+  await assert.rejects(() => tool.execute({operation:'read',source_id:handle,owner:'other'}, f.exec), /research_source_arguments_invalid/);
+});
 
 test('source reader is guarded, session-bound and cannot accept arbitrary URLs or caller content', async t => {
   const f = await fixture(t, { sources: [] });

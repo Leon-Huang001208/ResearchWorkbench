@@ -209,8 +209,15 @@ def source_context(service, sid, files, sources=()):
     # Up to 20 uploads plus 20 acquired web bodies; summaries must not displace
     # a numeric observation's actual parent in the SDK snapshot or Host context.
     ordered = sorted(sources, key=lambda source: not bool(source.get("file_id")))
+    dossiers = getattr(service, "dossiers", None)
+    if dossiers is not None:
+        identities.extend(dossiers.registered_sources(sid))
     for source in ordered:
-        if len(identities) >= 40 or source.get("id", "").startswith("file:"):
+        if (
+            len(identities) >= 140
+            or source.get("dossier_handle")
+            or source.get("id", "").startswith("file:")
+        ):
             continue
         kind = {"web": "web", "dataset": "datahub"}.get(source.get("id", "").split(":", 1)[0])
         if kind not in scope:
@@ -302,11 +309,22 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
                 )
             continue
     for source in sources[:40]:
+        if source.get("dossier_handle"):
+            continue
         if "datahub" not in scope or not source.get("id", "").startswith("dataset:"):
             continue
         did = source["id"].split(":", 1)[1]
         try:
             metadata = service.datahub.snapshots.detail(sid, did)
+            if metadata.get("snapshot_kind") == "mcp_evidence":
+                service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+                if (
+                    metadata.get("provider_metadata", {})
+                    .get("admission", {})
+                    .get("report_admitted")
+                    is not True
+                ):
+                    continue
             raw = service.datahub.snapshots.read(sid, did, "rows.json")
             if len(raw) > 512000:
                 continue
@@ -323,6 +341,9 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             )
         except (OSError, ValueError, KeyError, StoreError):
             log.warning("research_quality_snapshot_unavailable", session_id=sid)
+    dossiers = getattr(service, "dossiers", None)
+    if dossiers is not None:
+        result.extend(dossiers.observations(sid, task_id=task_id, contract_sha=contract_sha))
     if task_id and contract_sha:
         from .report_workflows.evidence import weekly_business_observations
 
@@ -345,6 +366,7 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         for source in sources
         if kinds.get(source.get("id", "").split(":", 1)[0]) in scope
         and source.get("id") not in {"file:" + identifier for identifier in web_ids}
+        and source.get("admission", {}).get("report_admitted") is not False
     ]
     evidence_files = (
         upload_files

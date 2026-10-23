@@ -1,5 +1,6 @@
 /** Native DataHub bridge. Provider parsing and immutable snapshots live in DataHub. */
 import { constants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { open, lstat, realpath } from 'node:fs/promises';
 import { basename, isAbsolute, join } from 'node:path';
 import { trustedDirectory, trustedSearchActivities } from './research-tools.mjs';
@@ -211,10 +212,15 @@ export async function executeResearchSource(ctx, exec, config, args) {
     });
     const value = await boundedJson(response, signal);
     if (args.operation === 'list') {
-      if (!Array.isArray(value?.sources) || value.sources.length > 40) throw Error('research_source_response_invalid');
-    } else if (value?.source?.id !== args.source_id || value.observation_id !== args.source_id ||
+      if (!Array.isArray(value?.sources) || value.sources.length > 140) throw Error('research_source_response_invalid');
+    } else {
+      const handle = args.source_id.startsWith('dossier:') ? args.source_id : null;
+      const suffix = handle ? createHash('sha256').update(handle).digest('hex').slice(0,24) : null;
+      const identityValid = handle ? value?.source?.dossier_handle === handle && new RegExp(`^(?:file|web|dataset):${suffix}$`).test(value?.source?.id || '') : value?.source?.id === args.source_id;
+      if (!identityValid || value.observation_id !== value.source.id ||
         typeof value.content !== 'string' || value.content.length > 24000 ||
         !/^[a-f0-9]{64}$/.test(value.source.sha256 || '')) throw Error('research_source_response_invalid');
+    }
     signal.throwIfAborted();
     return value;
   } catch (error) {
@@ -396,6 +402,10 @@ export async function nativeAdmission(ctx, exec, config, loaded = false) {
   const control = await privateControl(config.researchRoot);
   const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
   const body = { session_id: basename(cwd), tool_name: exec.name };
+  if (exec.name === 'research_read_source') {
+    if (['list','read'].includes(exec.arguments?.operation)) body.source_operation = exec.arguments.operation;
+    if (typeof exec.arguments?.source_id === 'string') body.source_id = exec.arguments.source_id;
+  }
   if (exec.name === 'skill' || exec.nativeSkillName !== undefined) {
     const name = exec.name === 'skill' ? exec.arguments?.name : exec.nativeSkillName;
     if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,159}$/.test(name)) throw Error('skill_admission_invalid');

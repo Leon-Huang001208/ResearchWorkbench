@@ -30,7 +30,16 @@ def snapshot(root: Path) -> dict:
         if not isinstance(index, dict) or not isinstance(index.get("sessions"), dict):
             raise TypeError("preservation_index_invalid")
         files = {}
-        for folder in (root / "sessions", root / "runtime/home/sessions"):
+        from ..dossier_preservation import snapshot_dossiers
+
+        dossiers = snapshot_dossiers(root)
+        if dossiers is not None:
+            files.update(dossiers["files"])
+        folders = [root / "sessions", root / "runtime/home/sessions"]
+        if dossiers is not None:
+            # Pinned public material and its private originals form one proof.
+            folders.extend([root / ".control/snapshots", root / ".control/calls"])
+        for folder in folders:
             present = True
             ancestor = root
             for part in folder.relative_to(root).parts:
@@ -64,7 +73,7 @@ def snapshot(root: Path) -> dict:
             "models_hash": _digest(models),
             "files": files,
         }
-    except (OSError, ValueError, TypeError) as exc:
+    except (OSError, ValueError, TypeError, RuntimeError) as exc:
         log.error("multiuser_preservation_snapshot_failed", error_type=type(exc).__name__)
         raise RuntimeError("preservation_snapshot_failed") from exc
 
