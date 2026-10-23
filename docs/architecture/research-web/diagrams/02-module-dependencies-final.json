@@ -62,9 +62,10 @@
           "datahub",
           "providers",
           "snapshots",
-          "assetDirectoryCache"
+          "assetDirectoryCache",
+          "dossierStore"
         ],
-        "note": "目录搜索无研究会话；按需区块与历史任务经原DataHub授权及真实Future边界，目录缓存按账号和指纹隔离，区块与规范历史保留不可变会话快照。"
+        "note": "个人SQLite只存修订与原件引用；Prompt实际发送后绑定冻结交接。扫描仅读已授权材料，跟踪复用Automation且默认关闭。"
       },
       {
         "id": "liveBrowser",
@@ -182,7 +183,7 @@
       "id": "mcpState",
       "type": "security",
       "label": "缓存 / 清单 + Keyring",
-      "sublabel": "哈希 · schema · grant · approval",
+      "sublabel": "Keyring · schema · grant · 费用占用",
       "pos": [
         750,
         35
@@ -252,7 +253,7 @@
       "id": "assetWorkspace",
       "type": "backend",
       "label": "资产工作区与目录",
-      "sublabel": "按需区块 · 历史任务 · 账号偏好",
+      "sublabel": "目录 · 历史任务 · 研究档案API",
       "pos": [
         500,
         565
@@ -359,6 +360,20 @@
         190,
         58
       ]
+    },
+    {
+      "id": "dossierStore",
+      "type": "database",
+      "label": "长期研究档案",
+      "sublabel": "个人SQLite · 修订 · 保留引用",
+      "pos": [
+        1285,
+        565
+      ],
+      "size": [
+        205,
+        78
+      ]
     }
   ],
   "boundaries": [
@@ -377,7 +392,8 @@
         "assetWorkspace",
         "datahub",
         "automationState",
-        "automationService"
+        "automationService",
+        "dossierStore"
       ],
       "pad": 24
     }
@@ -567,15 +583,19 @@
       "label": "固化会话数据集",
       "variant": "dashed",
       "fromSide": "bottom",
-      "toSide": "bottom",
+      "toSide": "left",
       "via": [
         [
           845,
           700
         ],
         [
-          1387.5,
+          1270,
           700
+        ],
+        [
+          1270,
+          419
         ]
       ],
       "labelAt": [
@@ -672,7 +692,7 @@
       ],
       "labelAt": [
         1450,
-        600
+        657
       ]
     },
     {
@@ -702,6 +722,17 @@
         475,
         663
       ]
+    },
+    {
+      "id": "dossierRetention",
+      "from": "snapshots",
+      "to": "dossierStore",
+      "label": "原件引用与逐次核验",
+      "variant": "security",
+      "labelAt": [
+        1388,
+        510
+      ]
     }
   ],
   "cards": [
@@ -717,8 +748,8 @@
       "dot": "violet",
       "title": "研究、数据与组装分离",
       "items": [
-        "资产查询与报告 Workflow 复用 DataHub 快照，不补演示事实",
-        "锁定版本、Excel 刷新、Claw payload 与确定性组装职责分开"
+        "资产与报告Workflow复用DataHub原件；Excel刷新、DSH研究和组装分别验证",
+        "档案保留旧证据与Host质量；冻结扫描不执行模型、不改写观点"
       ]
     },
     {

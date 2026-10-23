@@ -46,19 +46,17 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "3bc3c0bf76de80f364320491ef42f5dc2620bd4c70670966747b2f75315dba5a",
-      "specificationSha256": "aceca92c2490e4b094779be308698f89fced4f1cfd352055407c3ba90d26e1b3",
+      "artifactSha256": "30dba15fcc8263509acdd8e29535eff1cc6d16a6bbd8582e0855b2534f12569e",
+      "specificationSha256": "bfd1d2458c1396f629aa85a705cbc2eeb6c1ad4bd9a54e6ea82dc0d57352e068",
       "status": "reviewed",
-      "reviewer": "Codex implementation reviewer (actual image inspection)",
-      "date": "2026-10-22",
+      "reviewer": "codex-root",
+      "date": "2026-10-23",
       "captures": [
-        "04-data-file-flow.visual-check.1440x900.dark.png",
-        "04-data-file-flow.visual-check.2048x1320.light.png"
+        "04-data-file-flow.visual-check.1440x900.light.png",
+        "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
-      "findings": [
-        "保留原图较大的右侧留白；root明确选择恢复已验证1900宽版面，不再扩几何优化。"
-      ],
-      "notes": "整合仓库与资产目录描述后重新deliver（9/9，0 warnings）及四视口visual-check；实际查看1440深色和2048浅色截图，未见新增裁剪、穿线或重叠。保留已确认的原宽画布右侧留白；截图不认证产品或厂商可用性。"
+      "findings": [],
+      "notes": "已实际查看1440浅色和2048深色最终截图：沿原宽画布展示DataHub原件、独立SQLite引用与Prompt后绑定；标签未压线，说明卡及节点均未裁剪。保留原交接链，不以图证明生产源覆盖或已部署。四视口包含性独立PASS。"
     },
     {
       "id": "06-run-state",
@@ -133,17 +131,17 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "901ff7080b070fc4dfed9bb21969841f536cb9359c27b3a545be6684164c6329",
-      "specificationSha256": "2c25ec1766306bdbf8c57dabd28ca41afcc2694a8a2df57be23886a2e5270ae9",
+      "artifactSha256": "7a708c8e045e9270b412c6b72ca1aa44587e8d9f58618fec8cefbec8d32cdb7a",
+      "specificationSha256": "d58d4cce404007a27f5c02026ab29ae28a6c9f46b9949ed68fdf0c89933568c7",
       "status": "reviewed",
-      "reviewer": "codex-docs-agent",
-      "date": "2026-10-22",
+      "reviewer": "codex-root",
+      "date": "2026-10-23",
       "captures": [
-        "02-module-dependencies.visual-check.1440x900.dark.png",
-        "02-module-dependencies.visual-check.2048x1320.light.png"
+        "02-module-dependencies.visual-check.1440x900.light.png",
+        "02-module-dependencies.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已实际用image reader查看本次1440深色和2048浅色最终截图：Host资产工作区／DataHub及账号目录缓存归属清楚，目录非会话标签与搜索按需API可读，没有新穿线、遮挡或裁剪。四桌面包含性另有当前HTML同hash自动回执；此图不证明产品浏览器或真实供应商链路。"
+      "notes": "已实际查看1440浅色和2048深色同哈希截图：长期档案与快照保留边、MCP预算和既有Automation节点可辨，无节点穿线、文本遮挡和裁剪。四视口包含性PASS；首轮卡片溢出已精简重复文案修复。图不是供应商或研究质量验收。"
     },
     {
       "id": "11-hot-events",

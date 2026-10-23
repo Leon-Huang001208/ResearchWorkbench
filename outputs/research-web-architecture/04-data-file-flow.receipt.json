@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022-integration/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022-integration/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-signals-20261023-ade97261/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-signals-20261023-ade97261/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "aceca92c2490e4b094779be308698f89fced4f1cfd352055407c3ba90d26e1b3",
-    "bytes": 8521
+    "sha256": "bfd1d2458c1396f629aa85a705cbc2eeb6c1ad4bd9a54e6ea82dc0d57352e068",
+    "bytes": 8637
   },
   "artifact": {
-    "sha256": "3bc3c0bf76de80f364320491ef42f5dc2620bd4c70670966747b2f75315dba5a",
-    "bytes": 650316
+    "sha256": "30dba15fcc8263509acdd8e29535eff1cc6d16a6bbd8582e0855b2534f12569e",
+    "bytes": 650562
   },
   "validation": {
     "checksPassed": 9,

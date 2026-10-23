@@ -2,11 +2,11 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "DataHub 区块与资产历史快照流",
+    "title": "DataHub 冻结证据与长期研究档案",
     "output": "04-data-file-flow.html",
     "quality_profile": "showcase",
     "viewBox": [
-      1900,
+      1800,
       820
     ],
     "views": [
@@ -57,7 +57,7 @@
           "agents",
           "web"
         ],
-        "note": "研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"
+        "note": "长期档案跨会话持有不可变引用；Host重验来源、raw与hash，缺失撤权明确保留缺口，只有用户发送Prompt才绑定。"
       }
     ]
   },
@@ -173,12 +173,12 @@
     },
     {
       "id": "handoff",
-      "type": "security",
-      "label": "页面交接",
-      "sublabel": "数据集 / 上下文 / Hash",
+      "type": "database",
+      "label": "研究档案与冻结交接",
+      "sublabel": "SQLite引用 / 修订 / pin",
       "stage": 4,
       "row": 2,
-      "tag": "会话隔离"
+      "tag": "逐次鉴权 · 显式发送"
     },
     {
       "id": "agents",
@@ -305,11 +305,11 @@
       "id": "snapshotHandoff",
       "from": "snapshots",
       "to": "handoff",
-      "label": "复制并核验归属 / Hash",
+      "label": "原件引用或授权副本 / Hash",
       "classification": "session-owned",
       "channelX": 835,
       "labelAt": [
-        680,
+        665,
         530
       ]
     },
@@ -317,7 +317,7 @@
       "id": "agentRead",
       "from": "handoff",
       "to": "agents",
-      "label": "只读资料包",
+      "label": "发送后绑定原证据句柄",
       "classification": "shared snapshot",
       "variant": "dashed"
     },
@@ -355,8 +355,8 @@
       "dot": "emerald",
       "title": "迁移与回测",
       "items": [
-        "原件、修订和历史可得时间分别保留",
-        "冻结版本可导出恢复；本阶段不启用正式库或迁移"
+        "原件与SQLite引用分别保全，历史可得时点不补造",
+        "档案只存引用和修订；不启用PG或迁移旧交接"
       ]
     }
   ]

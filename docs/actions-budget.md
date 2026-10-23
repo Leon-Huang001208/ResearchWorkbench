@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23档案候选仅扩充原Checks Python清单的8个档案/MCP模块和Mac Bootstrap的4个静态资源同源字节核对，不增job、runner、依赖或其他平台dispatch。实时API确认PUBLIC，近期成功run为39935144625、39934720506、39934720479、39934720463、39933236627（创建至结束约53/322/64/684/527秒）。新增组合266例本机41.33秒，既有JS1075通过/3原skip为6.54秒；定点新增预算预留90秒，Mac静态核对预留15秒。保留原通用CI与同候选Mac干净安装，免费目录估价不授权真实MCP或模型调用。
+
 2026-10-23终端v2只向原Checks Python步骤加入test_market_indices/test_market_terminal，JS沿原通配符；Mac安装名单增加market-terminal.mjs，原job/runner/timeout/依赖与条件不变。当前公开仓库资格由操作前实时核验。新增离线闭包约1秒，预留原步骤30秒；公开源不进入CI，不触发真实模型或付费数据。
 2026-10-23构建器对账只向现有Research Web Checks同一pytest步骤加入test_builder_reconcile／test_iteration_resources／test_docker_resources；不增workflow/job/runner/timeout。44项及9subtests的本机10.14秒为阶段证据，完整候选另测并保留原三CI／macos-14安装门。只读API当前PUBLIC；真实Docker恢复另验，无模型或业务数据操作。
 

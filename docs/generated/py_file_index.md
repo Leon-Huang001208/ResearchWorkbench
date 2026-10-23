@@ -5184,6 +5184,232 @@ Functions:
 - `architecture_document`
 
 
+## `app/research_web/dossier_preservation.py`
+
+Module docstring:
+> Read-only, fenced preservation identities for personal dossier metadata.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `os`
+- `pathlib`
+- `stat`
+
+Functions:
+- `snapshot_dossiers`
+  - No directories/DB are initialized; a busy or damaged archive fails closed.
+
+
+## `app/research_web/dossier_signal_routes.py`
+
+Module docstring:
+> Personal frozen-evidence scans; no provider or model execution.
+
+Imports:
+- `automation.models`
+- `datetime`
+- `dossiers.scans`
+- `fastapi`
+- `pydantic`
+
+Classes:
+- `ScanRequest`
+  - methods: valid_day
+- `TrackingRequest`
+
+Functions:
+- `service`
+- `list_signals`
+- `scan`
+- `tracking`
+
+
+## `app/research_web/dossiers/__init__.py`
+
+Module docstring:
+> Account-local research dossiers reuse the Host's existing evidence and execution chain.
+
+Imports:
+- `copy`
+- `core.observability`
+- `datahub.security`
+- `datahub.snapshots`
+- `hashlib`
+- `json`
+- `lock`
+- `mcp_registry`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `storage`
+- `store`
+- `uuid`
+
+Classes:
+- `RetainedStore`
+  - Read-only adapter permits retained bytes after a session's recoverable soft delete.
+  - methods: __init__, session
+- `DossierService`
+  - methods: __init__, list, get, timeline, create, patch, add_record, _read_path, _resolve, _verify_raw, add_evidence, _evidence, read_evidence, handoff, validate_handoff, bind_handoff, source_admitted, read_handle, registered_sources, _source, _archived_report_reference, _read_link_value, read_link, observations, add_link, backup_to, _verify_retained_metadata, restore_from
+
+Functions:
+- `project_error`
+- `validate`
+
+
+## `app/research_web/dossiers/lock.py`
+
+Module docstring:
+> One nonblocking cross-process fence for archive pins and destructive session work.
+
+Imports:
+- `asyncio`
+- `contextlib`
+- `contextvars`
+- `core.observability`
+- `os`
+- `stat`
+- `store`
+- `threading`
+
+Functions:
+- `_owner`
+- `retention_lock`
+  - Hold across native deletion awaits; a contender fails closed instead of blocking.
+
+
+## `app/research_web/dossiers/models.py`
+
+Module docstring:
+> Closed, bounded dossier write contracts; identity always comes from the Host.
+
+Imports:
+- `datetime`
+- `pydantic`
+- `typing`
+
+Classes:
+- `Closed`
+- `Subject`
+  - methods: company_identity
+- `Create`
+- `Mutation`
+- `Patch`
+- `Record`
+  - methods: interval
+- `Reference`
+- `Evidence`
+- `Link`
+- `Handoff`
+
+
+## `app/research_web/dossiers/routes.py`
+
+Module docstring:
+> Dossier HTTP surface delegates ownership to the request's selected ResearchService.
+
+Imports:
+- `fastapi`
+
+Functions:
+- `list_dossiers`
+- `create_dossier`
+- `get_dossier`
+- `patch_dossier`
+- `add_record`
+- `timeline`
+- `add_evidence`
+- `read_evidence`
+- `link`
+- `read_link`
+- `handoff`
+
+
+## `app/research_web/dossiers/scans.py`
+
+Module docstring:
+> Dossier scan transactions and opt-in scheduling on the existing Automation.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `automation.models`
+- `automation.service`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `inspect`
+- `json`
+- `signals`
+- `store`
+- `zoneinfo`
+
+Classes:
+- `DossierSignals`
+  - No provider execution: current frozen materials remain the sole inputs.
+  - methods: __init__, _today, _table, _aux, _save, definition, _evaluate, scan, list, tracking, scheduled
+
+Functions:
+- `_json`
+
+
+## `app/research_web/dossiers/signals.py`
+
+Module docstring:
+> Bounded, deterministic review signals from Host-verified frozen evidence.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `pathlib`
+- `re`
+- `uuid`
+
+Functions:
+- `_digest`
+- `_day`
+- `evaluate_signals`
+  - Consume already-authorized native manifests/rows, never user-made facts.
+
+
+## `app/research_web/dossiers/storage.py`
+
+Module docstring:
+> Lazy per-user SQLite metadata and append-only revisions, with atomic retention pins.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `lock`
+- `os`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `sqlite3`
+- `stat`
+- `store`
+- `tempfile`
+- `uuid`
+
+Classes:
+- `DossierStore`
+  - methods: __init__, _safe, connection, _validate_database, _row, _detail, get, list, timeline, _append_event, mutate, backup_to, restore_from, retained_by, assert_deletable
+
+Functions:
+- `canonical`
+- `now`
+- `identifier`
+
+
 ## `app/research_web/frameworks/__init__.py`
 
 Module docstring:
@@ -6353,6 +6579,8 @@ Imports:
 - `datahub.routes`
 - `datetime`
 - `documentation`
+- `dossier_signal_routes`
+- `dossiers.routes`
 - `fastapi`
 - `fastapi.exceptions`
 - `fastapi.responses`
@@ -6364,9 +6592,7 @@ Imports:
 - `hot_service`
 - `integrations.routes`
 - `intel_routes`
-- `json`
-- `local_integrations`
-- ... 29 more
+- ... 31 more
 
 Classes:
 - `NewSession`
@@ -6935,6 +7161,7 @@ Imports:
 - `__future__`
 - `app.research_web.datahub.security`
 - `app.research_web.store`
+- `contextlib`
 - `core.observability`
 - `hashlib`
 - `hmac`
@@ -6943,6 +7170,7 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `stat`
 - `threading`
 - `typing`
 - `uuid`
@@ -6956,7 +7184,7 @@ Classes:
   - methods: __init__, allows
 - `AuthorizationManager`
   - Persist exact tool snapshots, session grants, and one-use approvals.
-  - methods: __init__, register_tool, classify_tool, authorize_session, grant, list_tools, active_bindings, list_approvals, has_session_authorization, approve, deny, admit_call, _load, _save, _current, _checked_risk, _checked_unattended, _pause_for_drift, _pause_for_policy_change, _require_grant, _require_unattended, _new_approval, _consume_approval
+  - methods: __init__, register_tool, classify_tool, authorize_session, grant, list_tools, active_bindings, list_approvals, has_session_authorization, approve, deny, admit_call, _transaction, authorize_budget, _budget_projection, budgets, evaluation_call_request, reserve_paid_call, paid_call, transition_paid_call, _load, _save, _current, _checked_risk, _checked_unattended, _pause_for_drift, _pause_for_policy_change, _require_grant, _require_unattended, _new_approval, _consume_approval
 
 Functions:
 - `_canonical_bytes`
@@ -7022,6 +7250,36 @@ Classes:
 
 Functions:
 - `_id_digest`
+
+
+## `app/research_web/mcp_runtime/evidence.py`
+
+Module docstring:
+> Freeze MCP originals in the existing session Snapshot store, never a body ledger.
+
+Imports:
+- `__future__`
+- `authorization`
+- `core.observability`
+- `datahub.security`
+- `datahub.snapshots`
+- `datetime`
+- `hashlib`
+- `json`
+- `os`
+- `seek_alpha`
+- `store`
+- `uuid`
+
+Classes:
+- `_RetainedReadStore`
+  - Keep soft-deleted source evidence readable after Host authorization.
+  - methods: __init__, session
+- `MCPResultEvidence`
+  - methods: __init__, dataset_id, freeze, read, recover
+
+Functions:
+- `raw_result`
 
 
 ## `app/research_web/mcp_runtime/installation_store.py`
@@ -7395,7 +7653,39 @@ Classes:
   - Stable Host error that omits target, arguments and third-party bodies.
 - `SDKHost`
   - Expose tools/resources/prompts without sampling, elicitation or MCP Tasks.
-  - methods: __init__, _official_client, _official_target, _managed_cleanup_blocked, _remote_transport, _client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
+  - methods: __init__, _official_client, _official_target, _managed_cleanup_blocked, _remote_transport, _client, _bound_client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
+
+Functions:
+- `reject_credential_echo`
+  - Inspect parsed keys/leaves, including bounded JSON encoded in MCP text.
+- `_candidate_target`
+- `deny_candidate_verb`
+  - The fixed evaluation candidate has no resource/prompt data contract.
+
+
+## `app/research_web/mcp_runtime/seek_alpha.py`
+
+Module docstring:
+> Closed, disabled-by-default Seek Alpha evaluation candidate; no network I/O.
+
+Imports:
+- `__future__`
+- `authorization`
+- `datetime`
+- `hashlib`
+- `json`
+- `re`
+
+Functions:
+- `fixed_arguments`
+- `validate_arguments`
+  - Only local schema references; validation must never fetch a URI.
+- `evaluation_preview`
+- `candidate`
+  - Metadata is a proposal, not a callable tool catalogue or spending grant.
+- `validate_evaluation`
+- `assess_result`
+  - Unreviewed provider semantics cannot become report-grade evidence by success.
 
 
 ## `app/research_web/mcp_runtime/service.py`
@@ -7431,7 +7721,7 @@ Classes:
   - methods: __init__
 - `MCPRuntimeService`
   - Coordinate trusted MCP components while keeping public requests declarative.
-  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, _plugin_activation, _save_plugin_activation, stage_managed_enable, commit_managed_activation, rollback_managed_activation, disable, update, delete, classify_tool, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _managed_guard, _resolve_target, _require_managed_process_isolation, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
+  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, _plugin_activation, _save_plugin_activation, stage_managed_enable, commit_managed_activation, rollback_managed_activation, disable, update, delete, classify_tool, authorize_session, register_automation_session, _deny_candidate_auxiliary, read_resource, get_prompt, static_credential_capability, _static_binding, static_credential, evaluation_candidate, evaluation_preview, authorize_evaluation, evaluation_call, assert_frozen_result_authorized, read_frozen_result, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _managed_guard, _resolve_target, _require_managed_process_isolation, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
 
 Functions:
 - `sdk_operation`
@@ -7752,6 +8042,7 @@ Functions:
 - `enable`
 - `disable`
 - `uninstall`
+- `seek_alpha_candidate`
 
 
 ## `app/research_web/multiuser/preservation.py`
@@ -7988,6 +8279,10 @@ Classes:
   - methods: exact_fingerprint_shape
 - `PluginSession`
 - `PluginAuthorization`
+- `StaticCredential`
+- `EvaluationPreview`
+- `EvaluationBudget`
+- `EvaluationCall`
 - `PluginDecision`
 
 Functions:
@@ -8012,6 +8307,14 @@ Functions:
 - `mcp_authorize`
 - `mcp_approvals`
 - `mcp_decide`
+- `mcp_credential_status`
+- `mcp_credential_save`
+- `mcp_credential_delete`
+- `mcp_evaluation_candidate`
+- `mcp_evaluation_authorize`
+- `mcp_evaluation_preview`
+- `mcp_evaluation_call`
+- `seek_alpha_candidate`
 
 
 ## `app/research_web/plugins/__init__.py`
@@ -8154,6 +8457,22 @@ Functions:
 - `profile`
 - `run_script`
   - Bounded own process group; cancellation/failure always kills and reaps it.
+
+
+## `app/research_web/plugins/seek_alpha_candidate.py`
+
+Module docstring:
+> Reproducible first-party candidate archive; never invent a Registry identity.
+
+Imports:
+- `core.observability`
+- `io`
+- `packages`
+- `pathlib`
+- `zipfile`
+
+Functions:
+- `candidate_archive`
 
 
 ## `app/research_web/plugins/service.py`
@@ -9736,7 +10055,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -10558,7 +10877,7 @@ Classes:
 - `StoreError`
   - methods: __init__
 - `Store`
-  - methods: __init__, save, create, reserve_hot_session, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
+  - methods: __init__, save, create, reserve_hot_session, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, _purge_retention_checked, directory, reserve, receipt, files, file_path, open_file
 
 Functions:
 - `_is_reparse_point`
