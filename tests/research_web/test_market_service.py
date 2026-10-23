@@ -382,6 +382,42 @@ async def settled(service, request):
 
 
 @pytest.mark.asyncio
+async def test_yesterday_falls_back_to_previous_snapshot_and_survives_restart(tmp_path):
+    provider = FakeProvider()
+    row = {
+        **provider.value["rows"][0],
+        "amount": 50,
+        "trade_status": "normal",
+        "as_of": "2026-10-23T10:00:00+08:00",
+    }
+    provider.value = payload(
+        [row],
+        summary={"quote_trade_date": "2026-10-23", "amount_scope_count": 1, "amount_missing": 0},
+    )
+    service = MarketService(tmp_path, provider=provider)
+    service._snapshots["calendar"] = payload(
+        summary={"trading_dates": ["2026-10-22", "2026-10-23"]}
+    )
+    service._persist("calendar")
+    service._snapshots["quotes"] = payload([row], summary={"quote_trade_date": "2026-10-23"})
+    old = payload(
+        [{**row, "amount": 1200, "as_of": "2026-10-22T16:00:00+08:00"}],
+        summary={"quote_trade_date": "2026-10-22", "amount_missing": 0},
+    )
+    old.update(retrieved_at="2026-10-22T22:00:00+08:00", snapshot_id="prior")
+    service._previous["quotes"] = old
+    result = await settled(service, await service.refresh(["quotes"]))
+    assert result["status"] == "completed"
+    projected = service.overview()["sections"]["quotes"]["summary"]
+    assert projected["previous_amount"]["amount"] == 1200
+    assert "previous_close" not in projected
+    await service.close()
+    restored = MarketService(tmp_path)
+    assert restored.overview()["sections"]["quotes"]["summary"]["previous_amount"]["amount"] == 1200
+    await restored.close()
+
+
+@pytest.mark.asyncio
 async def test_failed_market_flow_preserves_own_last_good_rows_and_recovers(tmp_path):
     provider = FakeProvider()
     flow = {

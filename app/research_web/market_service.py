@@ -467,7 +467,12 @@ class MarketService:
                 ),
             }
             log.info("market_previous_close_retained", trade_date=day, rows=len(amounts))
-        if isinstance(reference, dict):
+        existing = summary.get("previous_close")
+        if isinstance(reference, dict) and (
+            not isinstance(existing, dict)
+            or (reference.get("date", ""), reference.get("retrieved_at", ""))
+            >= (existing.get("date", ""), existing.get("retrieved_at", ""))
+        ):
             summary["previous_close"] = reference
 
     @staticmethod
@@ -818,6 +823,7 @@ class MarketService:
                 raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)
             snapshot = deepcopy(payload)
             if section == "quotes" and snapshot.get("complete") is True:
+                self._quote_history(snapshot, self._previous.get(key))
                 self._quote_history(snapshot, self._snapshots.get(key))
             if section == "flows":
                 current_flow = snapshot.get("summary", {}).get("market_flow")

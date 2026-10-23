@@ -19,3 +19,7 @@ Provider新增两限价、状态与覆盖、收盘见证；Service在原当前/�
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"既有市场页面/Host/Provider/用户缓存链内补限价和历史投影，无新服务或HTTP路径；原图拓扑准确，缓存/API字段文档同步。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"既有市场页面/Host/Provider/用户缓存链内补限价和历史投影，无新服务或HTTP路径；原图拓扑准确，缓存/API字段文档同步。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"既有市场页面/Host/Provider/用户缓存链内补限价和历史投影，无新服务或HTTP路径；原图拓扑准确，缓存/API字段文档同步。","diagrams":[]} -->
+
+## 独立审查补充
+
+修复未知交易状态误确认、明确收盘15:00报价被过滤、资金来源日期回退丢新历史及收盘状态/盘中时间矛盾四项；对应RED→GREEN，78项Python与34项JS通过。新增上一完整缓存昨日基线恢复/重启与较新见证优先，避免老版盘前空报价覆盖当前缓存时丢失昨日对账。f987bb7f为首个独立APPROVE检查点，最终产品/操作员组合仍须另绑候选与CI。
