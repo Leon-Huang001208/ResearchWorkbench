@@ -88,3 +88,11 @@ time/table逐项对齐和raw字节保存保持；全null指标结果标记`parti
 2026-10-23 `METADATA_KEYS`明确纳入静态非秘密`field_dictionary_evidence`（合同/SDK/服务方法/字典hash/适用判定），与fields及raw一起进入原生不可变原件，export_restore后对象与摘要保持，不因metadata白名单而丢来源依据。普通token和任意metadata仍不保留。SnapshotSeries对非空required_semantics返回不适用，不允许未核实价格单位的旧native快照满足规范股票raw合同；默认None维持旧dataset与冻结可读，存储schema不迁移。
 
 2026-10-23 field_dictionary_evidence还显式保存identity_basis与response_identity_observed：完全无身份列可依据封闭单证券请求合同但不补原行；任意实际身份列空或矛盾则不应用股票单位。两项身份依据和其余静态字典证据均由原生freeze/export_restore原样保留，不能据此声称价格币种、正式回测或PIT已证明。
+
+## 财报披露字段及资金流来源合同（2026-10-23）
+
+新浪利润表使用`akshare-sina-financial-disclosure-v1`独立schema/units身份，原动态item和`publish_date`日期精度、`update_time`原Unix时间分别保留。有限8期捕获保留供应商总报告数和pagination_complete=False；明确所需报告期缺失、公告日缺失或任一所选报告数值全null为partial（零值仍有效），不得入仓。完整所选期可保存为有界native捕获，不表示完整历史。公告日期不转午夜/收盘时间，不作为available_at；native仍以真实捕获时间排序，正式backtest拒绝。原metrics/indicators摘要及旧冻结证据保持其原合同。
+
+资金流独立合同`akshare-eastmoney-fund-flow-provenance-v1`同时覆盖SDK/游客通道，保留upstream_id=eastmoney、transport、independent_source=False和first_observed。这些静态来源字段进入冻结/恢复白名单；当前观测时间仍由仓库捕获，不把动态provider observed_at写成供应商历史时刻。没有已审单位、订单分类或iFinD指标定义时不合并、不认证等价。新会话缓存和新仓身份须匹配合同版本，旧明示call_id/冻结包不重写。
+
+BEA官方档案不走本native首见投影，使用[独立受信绑定](research-web-market-store.md#官方档案的有限历史发布回放2026-10-23)；有限PIT例外不扩展本页通用native白名单。

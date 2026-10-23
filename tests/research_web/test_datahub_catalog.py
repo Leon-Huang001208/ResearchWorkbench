@@ -21,6 +21,29 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
 
 
+def test_all_catalog_sources_project_into_connection_center(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.research_web.datahub import connections
+
+    monkeypatch.setattr(connections.os, "environ", {})
+    monkeypatch.setattr(
+        connections,
+        "default_credential_backend",
+        lambda: SimpleNamespace(get_password=lambda *_args: None),
+    )
+    hub = DataHub(Store(tmp_path))
+    center = hub.connection_center()
+    catalog_ids = {source["id"] for source in hub.catalog()["sources"]}
+    assert {source["id"] for source in center["sources"]} == catalog_ids
+    grouped = [source for group in center["groups"] for source in group["items"]]
+    assert len(grouped) == len(set(grouped))
+    assert set(grouped) == catalog_ids
+    archived = next(source for source in center["sources"] if source["id"] == "bea_archive")
+    assert archived["group"] == "public"
+    assert archived["configuration_supported"] is False
+
+
 @pytest.mark.parametrize("source", ["auto", "tavily", "bing"])
 def test_web_search_without_integrated_provider_is_unavailable_not_invalid_query(source):
     from app.research_web.datahub.broker import resolve
@@ -57,13 +80,14 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 16,
-        "sources": 64,
-        "callable_sources": 40,
+        "sources": 65,
+        "callable_sources": 41,
         "needs_configuration": 15,
         "unavailable": 0,
     }
     ids = {source["id"] for source in catalog["sources"]}
     assert ids == {
+        "bea_archive",
         "wind",
         "tinysoft",
         "ifind",
@@ -91,6 +115,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
     assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
+        "bea_archive",
         "akshare",
         "cls",
         "eastmoney_fund",

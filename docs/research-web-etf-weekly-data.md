@@ -117,3 +117,7 @@ collector 实际调用 `adopt_verified_groups`：已获证明的组采用 API；
 2026-10-22 iFinD凭据复用：同花顺权限策略验证属于来源认证，data_permission_verified仍为false，不能取代本周报Wind/Excel同源资料、覆盖或正式回测证据。
 
 2026-10-23 Broker新增股票原始历史的Wind范围候选准入，只让auto请求跳过超60自然日Wind；私有周报WindAPIQuery仍经resolve_report_weekly，不借股票备用源填周报组或改厂商字段。已有同源校准及原件绑定继续独立验收。
+
+## 2026-10-23：新研究资料的周报边界
+
+新浪利润表的日期精度公告字段与BEA封闭2024Q2 GDP档案分别属于其来源合同，不能替代本周报Wind同源指标/日期校准。BEA有限历史发布回放不认证其他财务、资金流或经济序列PIT；东财两个通道不构成第二独立来源。原Excel保底、主管理员、授权和blocked_data条件保留。

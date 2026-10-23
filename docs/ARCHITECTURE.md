@@ -3,6 +3,7 @@
 2026-10-23：市场终端固定部署仅在原Native操作员增加`reviewed-market-terminal-v1`／`apply-market-terminal`身份，复用version4维护锁、BirthFence、主实例与网关升级、全账号保全及恢复；不新增运行节点、协议、依赖或第二研究引擎。产品13图已有终端数据边界，操作员沿原01／12图，无须重复重画。固定候选、尚待PR201合并后冻结的产品身份及分层验收见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)；本机回归不代表常驻已切换。
 
 2026-10-23全市场终端v2沿现有浏览器→Host MarketService→公开来源及账号文件增加版本化24指数目录、三周期六维证据、风格矩阵与组合预览确认。东财行情与新浪前日价格指数日线分别保留来源；旧12指数研究仓合同不扩写。持仓与首次观察日线保存在原用户market-cache，GET不采集、不创建目录，不新增守护进程、依赖、研究会话或交易接口。13市场图按Host模块抽象同步这些数据边界。
+2026-10-23构建器对账沿现有管理员rwb-docker／Docker Desktop节点增加显式preview→指纹绑定apply／recover工具，复用原operation.lock、固定BuildKit和资源限额。仅恢复当前已核验本地引擎中容器与卷同时缺失的登记；无新Web服务、业务数据流或常驻切换。详见[Docker对账](research-web-docker.md)。
 
 2026-10-23官方与中国宏观接入继续走Host/DataHub/Broker/既有公开worker/ResearchWarehouse。NYFed与Treasury采用已登记端点；AK的四个factor_macro序列复用现有业务查询接口，原始响应与参考期字段进入provider-native捕获。04数据图的normalize节点已包含可选研究仓、修订与冻结，本轮增加其封闭合同及版本检查，没有新服务、HTTP路由、数据库表或第二研究引擎。观察期不等于披露时间；这些捕获不获得正式PIT资格。错误封包修复在原Provider和会话缓存边界，不能通过HTTP200获得数据成功状态。
 
@@ -202,3 +203,7 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：发布版本研究仓
+
+BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原Host→DataHub→MarketStore，复用既有available_at/ingested_at修订、原件与冻结表；只新增Provider内部解析与受信WarehouseBinding，未新增服务、HTTP、数据根或数据库schema。通用native仍是首次观测；东财SDK/游客资金流同源且单位未知，不授予跨源等价。模块与时点范围见[研究仓](research-web-market-store.md)。

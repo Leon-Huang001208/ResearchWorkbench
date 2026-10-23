@@ -263,3 +263,7 @@ Hot固定原件发布复用DataHub私有会话快照目录与读取授权；它�
 2026-10-23 iFinD历史行情修复：合法flat与reqBody按官方合同二选一，仅历史dataset固定出口改到history_data；未知参数在取密前失败。凭据仍来自当前Host connections，原账号/配置epoch/授权及原生快照白名单不变；不读取全局Skill配置，不新增EDB或正式回测权限。
 
 2026-10-23 历史任务请求显式source并冻结来源配置映射，最终规范发布与缓存复用复查实际输入来源授权；取消/partial复用worker_activity的所有实际涉及来源排空。仍通过现Host、Broker、Provider及会话快照，不增加协调器节点、存储服务或新HTTP入口。
+
+## 2026-10-23：有限发布版本与财务口径
+
+既有Host/DataHub Broker→Provider→ResearchWarehouse链新增内部BEA受信绑定和新浪利润表selector；不创建第二执行器或HTTP入口。明确利润表只选择其登记适配器，其他财务摘要不构成等价。BEA历史miss不取网络，只有已首捕获、受审截止区间内的事实可供backtest；股票日历覆盖仅适用于market_bars，不能向宏观写nontrading。原profile/来源授权、关闭与事务排空保持。东财SDK/游客资金流是同源通道，未知单位/分类不跨源降级。

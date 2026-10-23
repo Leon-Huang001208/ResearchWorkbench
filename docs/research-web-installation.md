@@ -3,6 +3,7 @@
 2026-10-23：终端固定Native部署复用现有`apply-market-terminal`事务，仅接受冻结前版和产品候选。当前产品检查点尚待PR201合入后由主任务固定为最终PAYLOAD，不能将预检检查点当作可部署版本。固定目标web.lock身份不变，不安装新包；安装清单同步／恢复沿原受管事务。最终组合仍须同候选macos-14干净安装与原两项仓库门，实际部署另证，详见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 全市场终端v2不新增Python/Node依赖或数据库迁移；原setup-web.sh/setup-web.cmd/python scripts/setup_web.py干净安装合同保持。新的market-terminal.mjs作为同源静态模块加入既有Mac安装HTTP核验；金元普通客户端未认证官方持仓接口，安装成功不等于已接通券商。
+管理员Docker构建器登记与实际资源不一致时，使用`rwb-docker builder-reconcile`只读预览，审查当前Engine ID、endpoint及预算后以预览指纹显式恢复。该命令不替代公开Web安装三入口，不装Python依赖、不重置Docker、不切换Native常驻服务。完整故障边界见[Docker合同](research-web-docker.md)。
 
 2026-10-23市场限价/昨日成交额/资金历史迭代不新增项目依赖，一键安装三入口、固定DSH与Doctor合同保持，最终同候选Mac干净安装仍必需。apply-market-history复用已批准主线锁文件7c631d4f及原baostock/psycopg版本，不安装或配置数据库；正式部署前实际核验现有包与pip check，不能只更新清单。用户允许的隔离测试依赖安装只影响任务.venv，不改变常驻环境。
 
