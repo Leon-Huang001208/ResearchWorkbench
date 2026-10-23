@@ -29,8 +29,9 @@ from .connections import (
 )
 from .contracts import BusinessQuery, Query
 from .probes import probe_source
-from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
+from .providers_bea_archive import SCHEMA as BEA_ARCHIVE_SCHEMA
 from .providers_external import (
     EXTERNAL_ENVELOPE_CONTRACT,
     EXTERNAL_ENVELOPES,
@@ -1589,15 +1590,33 @@ class DataHub:
                             capability="factor_macro",
                         )
                         continue
+                    required_contract = None
+                    if isinstance(query, BusinessQuery):
+                        provider_id = candidate.get("provider")
+                        if (
+                            provider_id == "baostock"
+                            and query.capability == "financials"
+                            and query.parameters.get("statements") == ["profitability"]
+                        ):
+                            required_contract = BAOSTOCK_FINANCIAL_SCHEMA
+                        elif provider_id == "bea_archive":
+                            required_contract = BEA_ARCHIVE_SCHEMA
+                        elif provider_id == "akshare":
+                            if query.capability == "financials" and query.parameters.get(
+                                "statements"
+                            ) == ["income_statement"]:
+                                required_contract = SINA_FINANCIAL_SCHEMA
+                            elif (
+                                query.capability == "market_activity"
+                                and query.parameters.get("dataset") == "fund_flow"
+                            ):
+                                required_contract = FUND_FLOW_SCHEMA
                     if (
-                        isinstance(query, BusinessQuery)
-                        and candidate.get("provider") == "baostock"
-                        and query.capability == "financials"
-                        and query.parameters.get("statements") == ["profitability"]
+                        required_contract
                         and candidate.get("provider_metadata", {}).get("schema_version")
-                        != BAOSTOCK_FINANCIAL_SCHEMA
+                        != required_contract
                     ):
-                        log.info("datahub_cache_contract_changed", source="baostock")
+                        log.info("datahub_cache_contract_changed", source=candidate.get("provider"))
                         continue
                     age = (
                         datetime.now(UTC) - datetime.fromisoformat(candidate["retrieved_at"])

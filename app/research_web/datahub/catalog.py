@@ -148,6 +148,18 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "公开聚合库；上游口径与可用性可能变化。",
     ),
     (
+        "bea_archive",
+        "BEA 官方发布档案",
+        "formal",
+        "official",
+        "none",
+        [],
+        [],
+        ["美国宏观"],
+        "unknown",
+        "无需账号读取已审核的2024Q2 GDP初值与第二次发布；仅限定历史截止区间，不代表当前终值或完整历史。",
+    ),
+    (
         "baostock",
         "BaoStock",
         "formal",
@@ -574,7 +586,7 @@ BINDING_SPECS = {
         ("tinysoft", ["table_data"]),
         ("wind", ["financial_statements"]),
         ("ifind", ["financials"]),
-        ("akshare", ["financials"]),
+        ("akshare", ["financials", "income_statement"]),
         ("baostock", ["quarterly_profitability"]),
         ("tushare", ["fina_indicator"]),
         ("yahoo", ["financials"]),
@@ -602,6 +614,7 @@ BINDING_SPECS = {
         ("ifind", ["macro", "technical"]),
         ("chinastock", ["macro", "technical"]),
         ("akshare", ["cpi", "gdp", "pmi", "m2"]),
+        ("bea_archive", ["us_real_gdp_qoq_saar"]),
     ],
     "fund_data": [
         ("eastmoney_fund", ["fund_nav", "fund_profile", "fund_distributions", "fund_holdings"]),
@@ -627,9 +640,19 @@ BINDING_SPECS = {
     "table_query": [("mysql", ["single_table_select"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql", "wind", "baostock"}
+INTEGRATED = {
+    "eastmoney_fund",
+    "cls",
+    "tinysoft",
+    "akshare",
+    "mysql",
+    "wind",
+    "baostock",
+    "bea_archive",
+}
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
+    ("bea_archive", "factor_macro"),
     ("baostock", "search_assets"),
     ("baostock", "trading_calendar"),
     ("baostock", "market_bars"),
@@ -670,6 +693,13 @@ BINDING_SEMANTICS = {
             "historical_point_in_time": False,
             "currency": "CNY",
             "units": {"netProfit": "CNY", "MBRevenue": "CNY"},
+        },
+    },
+    ("bea_archive", "factor_macro"): {
+        "us_real_gdp_qoq_saar": {
+            "frequencies": ["quarterly"],
+            "historical_point_in_time": True,
+            "units": {"value": "percent_qoq_saar"},
         },
     },
     ("baostock", "market_bars"): {

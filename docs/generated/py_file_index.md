@@ -3919,6 +3919,7 @@ Imports:
 - `probes`
 - `providers_akshare`
 - `providers_baostock`
+- `providers_bea_archive`
 - `providers_external`
 - `re`
 - `reliability`
@@ -3959,6 +3960,30 @@ Functions:
   - Return a fresh JSON policy declaration, independent of private log files.
 - `validate_adjustment_parameters`
   - Reject requests outside the exact three-series single-Shanghai/Shenzhen scope.
+
+
+## `app/research_web/datahub/bea_archive_store.py`
+
+Module docstring:
+> Trusted bridge for reviewed official release vintages; no native PIT promotion.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `market_store`
+- `providers`
+- `providers_bea_archive`
+- `warehouse`
+
+Classes:
+- `_ArchiveBridge`
+  - methods: read, ingest
+
+Functions:
+- `archive_bridge`
 
 
 ## `app/research_web/datahub/broker.py`
@@ -4285,11 +4310,14 @@ Imports:
 - `threading`
 - `time`
 - `typing`
+- `zoneinfo`
 
 Classes:
 - `_FeedNormalizer`
   - methods: __call__
 - `_MacroNormalizer`
+  - methods: __call__
+- `_FinancialNormalizer`
   - methods: __call__
 
 Functions:
@@ -4328,6 +4356,12 @@ Functions:
 - `_china_macro`
   - Closed SDK-equivalent requests retain the envelope the SDK discards.
 - `_explicit_money`
+- `_validate_income_statement`
+- `_sina_day`
+- `_financial_json_object`
+- `_financial_json_float`
+- `_sina_income_statement`
+  - One reviewed eight-period capture inside the existing public worker.
 - `_normalize_financials`
 - `_invoke_sdk`
 - `_fetch_probe_payload`
@@ -4369,6 +4403,39 @@ Functions:
 - `_records`
 - `_profitability`
 - `invoke`
+- `fetch`
+
+
+## `app/research_web/datahub/providers_bea_archive.py`
+
+Module docstring:
+> Closed official GDP release catalogue, distinct from current BEA estimates.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `html.parser`
+- `httpx`
+- `math`
+- `providers`
+- `re`
+- `zoneinfo`
+
+Classes:
+- `Release`
+- `_VisibleText`
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `validate_supported_query`
+- `parse_release`
+  - Bind a number to its real-GDP paragraph, stage, release ID and embargo.
+- `metadata`
 - `fetch`
 
 
