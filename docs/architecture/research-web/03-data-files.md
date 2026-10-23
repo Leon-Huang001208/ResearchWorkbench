@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+## 今日发现文件与元数据（2026-10-23）
+
+Store仅首次显式prepare增加懒discovery_handoffs元数据；独立保存跟踪增加discovery_tracks与原Automation版本/运行，不保存第二份对话。原DataHub新增discovery_evidence，golddata_intel事件与报道进入rows.json/csv和私有raw（已解析detail/选择包的规范化JSON，非HTTP传输原字节）；manifest与inputs/discovery-context.json绑定会话/选材/时点/哈希。trusted_context重验全部字节，复制保留origin但无旧执行权限。来源缓存每账号有界，GET不写空索引；跟踪保存批准event_id及完整详情evidence_sha256，不依赖首页排序/60条展示边界，新增报道或已有判断改变可触发，采集时钟不触发；04图增加固定Intel读取及显式冻结资料边。详见[合同](../../research-web-discovery.md)。
+
 SPDR四项快照沿现有provider_native_snapshot-v1原件/事实包装保存；专用source schema与单位身份、完整参数和scope分别参加索引。
 写入前核对原件重解析的行、字段和四项总数，单位及各项参考日期原样保留。旧显式回执仍可读，旧未解析缓存不作为新版本使用。
 冻结导出包含完整响应体与声明；首次观测不补造供应商历史公布/修订链。无新SQL表、数据根或磁盘迁移。

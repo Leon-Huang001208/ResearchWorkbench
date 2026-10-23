@@ -1,5 +1,7 @@
 # 华安 ETF 周报数据合同
 
+今日发现的golddata_intel归档只证明选中事件响应在冻结时的字节，不是周报Wind同源API、Excel等价或57必需序列的来源。它不变更私有collect_report_weekly、主管理员及Dataset/报告期核验；上游陈旧、未知日期或缺原始披露继续作为缺口，不能用于取消原blocked_data/unverified。新归档机制见[今日发现](research-web-discovery.md)。
+
 SPDR GLD净资产、持金重量和总份额按独立来源及各自日期保存；原单位标签和精确小数字符串保留。
 四项首次观测快照没有历史披露/修订链，也未获本周报逐指标等价认证；既有私有数据、Wind/Excel优先级及正式回测门保持。
 

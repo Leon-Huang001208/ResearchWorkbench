@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+今日发现新增现有Host内的固定Intel读取→显式选材校验→原DataHub归档→一次DSH提交分支；独立开启跟踪复用原Automation与账号RuntimePool恢复，不增加研究引擎、数据库或后台服务。资料流与研究序列有真实新边，01/02/03/04图同步；受理、规范报告质量和实际部署分开，合同见[今日发现](research-web-discovery.md)。
+
 2026-10-23 SPDR 四项快照扩展现有外部 Provider 和原生研究仓白名单；单次原件、四项行/字段及单位通过同一解析器绑定。
 仅增加现有 gld 的数据合同版本，Host → DataHub → Provider/可选 MarketStore 的节点与边保持，现有图准确。
 无新 HTTP 路由、数据库表、服务或引擎；首次观测快照、每次授权和正式 PIT 限制见[原生快照](research-web-vendor-snapshots.md)。

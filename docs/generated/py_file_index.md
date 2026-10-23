@@ -3441,7 +3441,7 @@ Imports:
 Classes:
 - `AutomationService`
   - Keep Automation/Run JSON as the fact source and schedule only next fires.
-  - methods: __init__, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
 
 Functions:
 - `_definition_transaction`
@@ -5047,7 +5047,7 @@ Imports:
 
 Classes:
 - `Snapshots`
-  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, _publish_files, admit_hot_script, publish_hot, copy_for_upgrade, copy_selected
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, _publish_files, admit_hot_script, publish_hot, publish_discovery, copy_for_upgrade, copy_selected
 
 Functions:
 - `sha`
@@ -5165,6 +5165,198 @@ Functions:
 - `meaningful`
 - `validate_content`
 - `validate_file`
+
+
+## `app/research_web/discovery/__init__.py`
+
+Module docstring:
+> Today's discovery reads and explicit DSH research handoffs.
+
+Imports:
+- `models`
+- `service`
+
+
+## `app/research_web/discovery/handoff.py`
+
+Module docstring:
+> Durable native identity and immutable context for a manual discovery handoff.
+
+Imports:
+- `asyncio`
+- `client`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `models`
+- `os`
+- `pathlib`
+- `shutil`
+- `sources`
+- `store`
+- `time`
+
+Functions:
+- `context_bytes`
+- `write_context`
+- `ensure_session`
+  - GETs only observe; a lost create reply can never trigger another create.
+- `trusted_context`
+  - Only owned unchanged bytes can authorize the original research contract.
+
+
+## `app/research_web/discovery/models.py`
+
+Module docstring:
+> Closed, user-action request contracts for discovery.
+
+Imports:
+- `pydantic`
+- `store`
+- `typing`
+- `uuid`
+
+Classes:
+- `DiscoveryError`
+  - A safe, structured error without upstream bodies or local credentials.
+- `Prepare`
+  - methods: valid_uuid, selected_materials, nonempty_question
+
+
+## `app/research_web/discovery/routes.py`
+
+Module docstring:
+> Current-user discovery reading and explicit research/tracking actions.
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `models`
+- `pydantic`
+- `store`
+- `tracking`
+- `typing`
+- `uuid`
+
+Classes:
+- `Execute`
+- `Version`
+
+Functions:
+- `_research`
+- `_action`
+- `feed`
+- `prepare`
+- `selection`
+  - Review current archived detail before freezing a compact-list selection.
+- `handoffs`
+- `request_state`
+- `handoff`
+- `execute`
+- `tracks`
+- `save_track`
+- `enable_track`
+- `disable_track`
+
+
+## `app/research_web/discovery/service.py`
+
+Module docstring:
+> Per-user finite discovery cache and explicit, at-most-once research admission.
+
+Imports:
+- `asyncio`
+- `client`
+- `collections`
+- `copy`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `fastapi`
+- `handoff`
+- `hashlib`
+- `intel_routes`
+- `models`
+- `projection`
+- `re`
+- `sources`
+- `store`
+- `time`
+- `uuid`
+
+Classes:
+- `DiscoveryService`
+  - methods: __init__, _table, _record, _public, list_handoffs, _prune_feeds, feed, cached_preview, selection_preview, refresh_theme, prepare, _finish_session, get_handoff, trusted_context, _reconcile_execution, execute
+
+Functions:
+- `now`
+
+
+## `app/research_web/discovery/sources.py`
+
+Module docstring:
+> Pure projections of existing Golddata data; no model or new provider.
+
+Imports:
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `math`
+- `re`
+- `urllib.parse`
+
+Functions:
+- `digest`
+- `stamp`
+  - Only explicit source timestamps become dates; never infer from a URL.
+- `safe_url`
+- `string`
+- `objects`
+- `statements`
+- `projection`
+  - Bind every displayed event judgment, including changes without a new revision.
+- `display_fields`
+  - One semantic projection is shared by the UI and preview/detail comparison.
+- `evidence_projection`
+  - All archived evidence bytes count; acquisition transport timestamps do not.
+- `theme`
+- `selected_rows`
+  - Keep exact acquired detail JSON in rows; original-page acquisition is separate.
+- `acquired_materials`
+
+
+## `app/research_web/discovery/tracking.py`
+
+Module docstring:
+> Explicit discovery tracking over the existing per-user Automation scheduler.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `automation.models`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `inspect`
+- `json`
+- `pydantic`
+- `re`
+- `research_quality_service`
+- `store`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `TrackSave`
+  - No arbitrary targets, upstream URLs, MCP or external delivery permissions.
+  - methods: uuid_value, condition_nonempty
+- `DiscoveryTracking`
+  - Restrict consent, identity, novelty and quality; never own a second timer.
+  - methods: __init__, _table, _owned, eligible, _theme, _fingerprint, save, _version, enable, disable, _public, list, has_enabled, _model_current, execute, _monitor, resume
+
+Functions:
+- `_sha`
 
 
 ## `app/research_web/documentation.py`
@@ -6359,6 +6551,7 @@ Imports:
 - `credential_backend`
 - `datahub.routes`
 - `datetime`
+- `discovery.routes`
 - `documentation`
 - `fastapi`
 - `fastapi.exceptions`
@@ -6372,8 +6565,7 @@ Imports:
 - `integrations.routes`
 - `intel_routes`
 - `json`
-- `local_integrations`
-- ... 29 more
+- ... 30 more
 
 Classes:
 - `NewSession`
@@ -7896,7 +8088,7 @@ Classes:
 - `_Instance`
 - `RuntimePool`
   - Never adopt old processes or evict an active user's research for capacity.
-  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, backend_for, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, request_started, request_finished, _restart_identity, _plugin_control, _replace_dsh, _wait_plugin_guard, restart_runtime, stop, close, _close_owned
+  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, _has_enabled_discovery, restore_discovery_tracks, backend_for, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, request_started, request_finished, _restart_identity, _plugin_control, _replace_dsh, _wait_plugin_guard, restart_runtime, stop, close, _close_owned
 
 Functions:
 - `_directory`
@@ -9730,20 +9922,20 @@ Imports:
 - `datahub.contracts`
 - `datetime`
 - `delivery`
+- `discovery.service`
+- `discovery.tracking`
 - `frameworks`
 - `hashlib`
 - `integrations`
 - `json`
-- `local_integrations`
-- `market_service`
-- ... 30 more
+- ... 33 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -10565,7 +10757,7 @@ Classes:
 - `StoreError`
   - methods: __init__
 - `Store`
-  - methods: __init__, save, create, reserve_hot_session, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
+  - methods: __init__, save, create, reserve_hot_session, reserve_discovery_session, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
 
 Functions:
 - `_is_reparse_point`

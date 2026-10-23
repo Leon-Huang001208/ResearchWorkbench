@@ -1,5 +1,10 @@
 # 部署与模块职责
 
+## 今日发现与账号后端（2026-10-23）
+
+新增能力落在现有Host、DataHub快照、唯一DSH与Automation内；01图的本机准入/RuntimePool分组分别对应ServiceManager与账号Pool，私网网关恢复已同意计划时仍经容量门。每用户后端独立资料/模型/日程，泛用Automation关闭而窄跟踪由宿主flag允许；owner后端关闭或容量延期不保证执行，不启动全局第二worker。详细[合同](../../research-web-discovery.md)。
+
+
 2026-10-23：终端Native部署沿同一个主实例／私有网关／受管操作员拓扑，仅新增固定`reviewed-market-terminal-v1`身份。原维护锁、BirthFence、完整版本4事务和恢复仍承担切换，不新建服务或运行节点；01／12图保持准确。PR201合入后才由主任务固定最终PAYLOAD，操作员候选CI与实际常驻切换分别认证，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 终端v2在原Host市场上下文增加分析和个人组合文件；公开行情来源细化为东财报价和新浪历史价格指数日线。用户仅能访问自己根下market-cache，旧core-v1研究仓仍仅固定12，terminal-v2不借旧profile声称入仓。系统部署节点和DSH保持，13图同步实际来源及文件／读取边。

@@ -1,5 +1,7 @@
 # DataHub 研究数据仓库内核
 
+今日发现将所选事件存入原会话文件快照，未增加ResearchWarehouse/MarketStore表、SQL迁移、正式PG连接或自动采集。golddata_intel归档的冻结时点与文章来源时间分别保留，不获得历史PIT资格，网页归档不写作供应商原生规范事实。已有研究仓授权、保留/恢复与容量合同不扩权；新增文件链见[今日发现](research-web-discovery.md)。
+
 SPDR `ext_spdr/gld` 的四项来源原生快照沿现有 `ResearchWarehouse → SnapshotSeries → MarketStoreService` 保存。
 版本身份包含专用 schema/单位合同和完整查询，原件与投影重新核对，读取/导出/恢复逐次验证当前权限。
 各指标的参考日期和单位独立保留，历史回测资格未认证；不会进入规范股票行情表或替代资金流指标。

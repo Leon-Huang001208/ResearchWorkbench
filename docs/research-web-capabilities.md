@@ -1,5 +1,8 @@
 # Research Web 能力包与版本
 
+今日发现不发布新原生Tool/Skill或第二运行器：手动选择先固定golddata_intel事件归档，再由唯一DSH调用已授权能力。独立跟踪锁定原research_task定义、模型/profile和固定只读工具；禁用草稿、启用、运行、质量和通知各自保留，默认无MCP/外部投递，每条计划每日最多一次模型尝试。既有框架、Workflow及能力发布门不因事件摘要自动通过，合同见[今日发现](research-web-discovery.md)。
+
+
 固定公开indices个人仓库桥属于Host市场页内部适配，不新增原生Tool、Skill、Workflow或Broker公开来源绑定，不伪造研究sid。能力发布、自动化依赖和私有来源准入保持原门；仓库已持久化或命中不提升研究质量及正式回测资格。
 
 华安ETF周报在既有报告Workflow详情准备未发布的`huaan-etf-weekly-v1`继任版本，沿原版本API发布；

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
+
 SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；
 `research_snapshot_store.py` 写入前重新解析原件，`research_warehouse.py` 绑定专用版本/单位身份，
 DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 `test_datahub_spdr.py` 和

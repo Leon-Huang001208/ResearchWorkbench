@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23今日发现仅向既有Research Web Checks同一Python步骤增加test_discovery.py/test_discovery_tracking.py/test_discovery_routes.py，JS沿原research_web通配符；Mac Bootstrap原静态资源下载/比较名单加入discovery.mjs/css。没有新增workflow/job/runner/timeout、依赖或Windows/Linux产品dispatch。只读GitHub API本轮实测PUBLIC、private=false；最近5个成功run39924505221/39924505261/39921528192/39921528177/39920692078创建至结束65/505/68/985/56秒，均值335.8秒，仅为预算快照。手动合同16例本机0.39秒、此前DataHub/Store/Hot闭包110例8.37秒为阶段证据；新增三模块预留现有步骤30秒，最终完整候选时长由主任务实测回填，不将本机或旧CI认证为新候选PASS。后续发布前仍实时核对visibility/额度；真实模型、生产计划与常驻部署未运行，不产生这些验收声明。
+
 SPDR 四项快照只向原 Research Web Checks 的同一 Python 步骤添加 test_datahub_spdr 和 test_spdr_warehouse_integration，
 没有新 job、runner、timeout 或依赖；99+19 项定点合成检查本机不足1秒，预留原步骤15秒。
 真实公开 HTTP 和临时 PostgreSQL 仅本机有界执行，不调用模型。保留原三 CI、同候选 macos-14 安装及完整 Router；
