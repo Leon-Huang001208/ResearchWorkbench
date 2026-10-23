@@ -184,3 +184,6 @@ BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报�
 ## 2026-10-23：长期研究档案与机会预警
 
 周报可作为既有成果关联进长期档案，保留原会话、task、hash 与 quality，正文不搬入档案数据库；incomplete／invalid 不因归档、扫描或关联提升为 passed／finalized。档案继续研究只准备原 DSH 草稿，实际 Prompt 才绑定 receipt；档案跟踪默认关闭且当前只重查冻结材料，不启动本周报、Wind、模型或自动生产。原模板／质量／定稿与日程准入保持，个人 SQLite／pin 纳入保全，详见[成果与保全](research-web-dossiers.md)及[扫描合同](research-web-dossier-scans.md)。
+
+
+WGC 两个公开端点新增月度吨数原生研究快照，存量/流量和来源范围分别保存，不替代现有 Wind/Excel 或私有生产验收。AK 个股资金流在 SDK 前拒绝历史时点/正式回测；first_observed 不获得历史 PIT 资格。详见[原生快照](research-web-vendor-snapshots.md)与[研究仓](research-web-market-store.md)。本轮未部署、未启动生产库或日程。

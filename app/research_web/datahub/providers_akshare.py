@@ -228,6 +228,9 @@ def validate_supported_query(query: BusinessQuery) -> None:
         if parameters.get("adjustment", "qfq") not in {"none", "qfq", "hfq"}:
             raise ProviderError("invalid_adjustment")
     if query.capability == "market_activity":
+        if query.purpose == "backtest" or query.as_of is not None:
+            log.info("datahub_fund_flow_pit_rejected", reason="historical_vintage_unavailable")
+            raise ProviderError("data_not_equivalent")
         if parameters.get("dataset") != "fund_flow":
             raise ProviderError("data_not_equivalent")
         _activity_bounds(query)
