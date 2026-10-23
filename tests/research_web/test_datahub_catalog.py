@@ -136,6 +136,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         if row["source_id"] == "akshare"
     }
     assert {key for key, implemented in akshare_bindings.items() if implemented} == {
+        "factor_macro",
         "search_assets",
         "trading_calendar",
         "market_bars",
@@ -772,11 +773,13 @@ async def test_business_query_routes_only_integrated_sources_and_snapshots(tmp_p
             "bad-source",
             BusinessQuery(capability="search_news", source="wind", parameters={}),
         )
-    with pytest.raises(StoreError, match="没有完成 DataHub 适配"):
+    with pytest.raises(StoreError, match="口径"):
         await hub.query(
             sid,
             "not-integrated",
-            BusinessQuery(capability="factor_macro", parameters={"series": "CPI"}),
+            BusinessQuery(
+                capability="factor_macro", source="akshare", parameters={"series": "CPI"}
+            ),
         )
     await hub.close()
 

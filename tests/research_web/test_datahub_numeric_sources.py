@@ -2,6 +2,7 @@
 
 import json
 from datetime import date, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -100,11 +101,17 @@ def query(source, dataset):
 
 @pytest.mark.asyncio
 async def test_worldbank_header_is_not_an_observation_and_pages_remain_partial():
-    rows = [{"date": "2024", "value": 3.1}, {"date": "2023", "value": 4.2}]
+    rows = json.loads(
+        (Path(__file__).parent / "fixtures/official_numeric/worldbank.json").read_bytes()
+    )[1]
     transport = httpx.MockTransport(
-        lambda _request: httpx.Response(200, json=[{"page": 1, "pages": 3, "total": 6}, rows])
+        lambda _request: httpx.Response(
+            200, json=[{"page": 1, "pages": 3, "per_page": 2, "total": 6}, rows]
+        )
     )
-    result = await fetch(query("ext_worldbank", "inflation"), transport=transport)
+    request = query("ext_worldbank", "inflation")
+    request.parameters["arguments_json"] = json.dumps({"query": {"per_page": 2}})
+    result = await fetch(request, transport=transport)
     assert result.rows == rows
     assert result.provider_total == 6
     assert result.pagination_complete is False
@@ -394,3 +401,242 @@ async def test_quantapi_history_empty_null_and_business_rejection_are_distinct(
         assert result.raw == [raw]
     if status == "partial":
         assert result.missing == ["history_values_missing"]
+
+
+EXTERNAL_FIXTURES = Path(__file__).parent / "fixtures/external_envelopes"
+
+
+def external_query(name, **parameters):
+    args = (
+        {"params": {"symbol": "AAPL"}}
+        if name == "nasdaq"
+        else {"params": {"code": "510050"}} if name == "danjuan" else {}
+    )
+    return BusinessQuery(
+        capability="external_data",
+        source="ext_" + name,
+        parameters={
+            "dataset": (
+                "history"
+                if name in {"nasdaq", "danjuan"}
+                else "hot-list" if name == "cls" else "production"
+            ),
+            "arguments_json": json.dumps(args),
+            **parameters,
+        },
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "name,status",
+    [("nasdaq", "failed"), ("cls", "failed"), ("danjuan", "partial"), ("kapsarc", "partial")],
+)
+async def test_actual_external_business_envelopes_are_not_container_success(name, status):
+    raw = (EXTERNAL_FIXTURES / (name + (".csv" if name == "kapsarc" else ".json"))).read_bytes()
+    result = await fetch(
+        external_query(name, limit=5),
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(
+                200,
+                content=raw,
+                headers={"content-type": "text/csv" if name == "kapsarc" else "application/json"},
+            )
+        ),
+    )
+    assert result.status == status
+    if name in {"nasdaq", "cls"}:
+        assert result.rows == [] and result.raw == []
+        assert result.limitations == ["vendor_rejected"]
+    else:
+        assert result.raw == [raw]
+        assert result.metadata["schema_version"] == "external-envelope-v1"
+        if name == "danjuan":
+            assert result.rows == [] and result.provider_total == 0
+            assert result.missing == ["no_observation_rows"]
+        else:
+            assert len(result.rows) == 5
+            assert set(result.rows[0]) == {"country", "sub_commodity", "year", "production"}
+            assert result.rows[0]["country"] == "South Africa"
+            assert result.rows[0]["production"] == "679665.0"
+            assert result.fields["production"]["unit"] == "provider_defined"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "name,payload,reason",
+    [
+        ("nasdaq", {"status": {"rCode": 200}, "data": None}, "external_numeric_schema_invalid"),
+        (
+            "nasdaq",
+            {"status": {"rCode": 200}, "data": {"synthetic": True}},
+            "external_business_schema_unverified",
+        ),
+        ("cls", {"errno": 0, "data": [{"synthetic": True}]}, "external_business_schema_unverified"),
+        ("danjuan", {"result_code": 1, "data": {}}, "vendor_rejected"),
+        (
+            "danjuan",
+            {"result_code": 0, "data": {"horizontal_lines": []}},
+            "external_numeric_schema_invalid",
+        ),
+        (
+            "danjuan",
+            {"result_code": 0, "data": {"index_eva_pe_growths": [{"synthetic": True}]}},
+            "external_business_schema_unverified",
+        ),
+    ],
+)
+async def test_synthetic_unknown_positive_envelopes_fail_closed(name, payload, reason):
+    result = await fetch(
+        external_query(name),
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload)),
+    )
+    assert result.status == "failed" and result.rows == [] and result.raw == []
+    assert result.limitations == [reason]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"country,sub_commodity,year,production\nChina,x,2024,1\n",
+        b"country;sub_commodity;year;production;extra\nChina;x;2024;1;x\n",
+        b"country;sub_commodity;year;production\nChina;x;2024;NaN\n",
+        b"country;sub_commodity;year;production\nChina;x;2024;-1\n",
+        b"country;sub_commodity;year;production\nChina;x;2099;1\n",
+        b"country;sub_commodity;year;production\n;x;2024;1\n",
+        b"country;sub_commodity;year;production\nChina;x;2024;1;extra\n",
+        b"<html>upstream error</html>",
+    ],
+)
+async def test_kapsarc_closed_semicolon_csv_rejects_invalid_rows(raw):
+    result = await fetch(
+        external_query("kapsarc"),
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, content=raw, headers={"content-type": "text/csv"})
+        ),
+    )
+    assert result.status == "failed" and not result.rows and not result.raw
+
+
+@pytest.mark.asyncio
+async def test_danjuan_empty_is_not_success_cached_or_warehoused_and_old_receipt_remains(tmp_path):
+    from app.research_web.datahub import DataHub
+    from app.research_web.datahub.providers import Result
+    from app.research_web.datahub.research_snapshot_store import SnapshotSeries
+    from app.research_web.market_store import InMemoryMarketStore, MarketStoreService, StoreScope
+    from app.research_web.store import Store
+
+    raw = (EXTERNAL_FIXTURES / "danjuan.json").read_bytes()
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, content=raw, headers={"content-type": "application/json"})
+
+    store = Store(tmp_path)
+    sid = store.create("claw", "dan false success")["id"]
+    hub = DataHub(store, transport=httpx.MockTransport(handler))
+    request = external_query("danjuan")
+    old = Result(
+        provider_id="ext_danjuan",
+        status="snapshot",
+        rows=[{"data": {"horizontal_lines": []}}],
+        raw=[b"legacy"],
+    )
+    saved = hub.snapshots.publish(
+        sid,
+        request,
+        old,
+        request_query=request,
+        authorization_fingerprint=hub.source_configuration_digest("ext_danjuan"),
+    )
+    hub.snapshots.receipt(
+        sid,
+        "legacy",
+        {
+            "status": "completed",
+            "fingerprint": request.fingerprint(include_refresh=True),
+            "dataset_id": saved["dataset_id"],
+            "cache_hit": False,
+        },
+    )
+    try:
+        assert (await hub.query(sid, "legacy", request))["dataset_id"] == saved["dataset_id"]
+        assert not calls
+        for call in ("new", "again"):
+            current = await hub.query(sid, call, request)
+            assert (
+                current["status"] == "partial"
+                and current["data_success"] is False
+                and not current["cache_hit"]
+            )
+            assert current["dataset_id"] != saved["dataset_id"]
+        assert len(calls) == 2
+        result = await fetch(request, transport=httpx.MockTransport(handler))
+        native = SnapshotSeries(
+            MarketStoreService(InMemoryMarketStore(), lambda *_: True),
+            "alice",
+            StoreScope("alice", "public", "ext_danjuan", "a" * 64),
+        )
+        assert native.dataset(request) is None and native.ingest(request, result) is None
+    finally:
+        await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_kapsarc_zero_is_valid_unknown_units_and_does_not_change_general_csv():
+    from app.research_web.datahub.providers_external import response_rows
+
+    raw = b"country;sub_commodity;year;production\nChina;gold;2024;0\n"
+    result = await fetch(
+        external_query("kapsarc"),
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, content=raw, headers={"content-type": "text/csv"})
+        ),
+    )
+    assert result.status == "snapshot" and result.rows[0]["production"] == "0"
+    assert result.raw == [raw] and result.pagination_complete is False
+    assert result.fields["production"]["unit"] == "provider_defined"
+    assert response_rows(b"date,value\n2024,1\n", "text/csv") == [{"date": "2024", "value": "1"}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "name,parameters", [("nasdaq", {"symbol": "../AAPL"}), ("danjuan", {"code": "../510050"})]
+)
+async def test_external_history_identity_parameters_reject_path_before_http(name, parameters):
+    def forbidden(_):
+        raise AssertionError("invalid path must not perform HTTP")
+
+    request = external_query(name, arguments_json=json.dumps({"params": parameters}))
+    result = await fetch(request, transport=httpx.MockTransport(forbidden))
+    assert result.status == "failed" and result.limitations == ["external_parameters_invalid"]
+
+
+@pytest.mark.parametrize(
+    "source,dataset",
+    [
+        ("ext_nasdaq", "history"),
+        ("ext_cls", "hot-list"),
+        ("ext_danjuan", "history"),
+        ("ext_kapsarc", "production"),
+    ],
+)
+def test_external_envelope_repairs_do_not_expand_native_warehouse(source, dataset):
+    from app.research_web.datahub.research_snapshot_store import SnapshotSeries
+    from app.research_web.market_store import InMemoryMarketStore, MarketStoreService, StoreScope
+
+    native = SnapshotSeries(
+        MarketStoreService(InMemoryMarketStore(), lambda *_: True),
+        "alice",
+        StoreScope("alice", "public", source, "a" * 64),
+    )
+    assert (
+        native.dataset(
+            BusinessQuery(
+                capability="external_data", source=source, parameters={"dataset": dataset}
+            )
+        )
+        is None
+    )

@@ -182,6 +182,7 @@ def resolve(
     attempts = []
     selected = None
     unsupported_code: str | None = None
+    unsupported_source: str | None = None
     for source_id in ordered:
         readiness = sources[source_id]["readiness"]
         reason = None
@@ -231,7 +232,9 @@ def resolve(
                 validator(query)
             except ProviderError as exc:
                 reason = str(exc)
-                unsupported_code = reason
+                if unsupported_code is None or reason != "data_not_equivalent":
+                    unsupported_code = reason
+                    unsupported_source = source_id
                 log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
         if (
             reason is None
@@ -278,6 +281,7 @@ def resolve(
             except ValueError as exc:
                 reason = str(exc)
                 unsupported_code = reason
+                unsupported_source = source_id
                 log.warning("datahub_tinysoft_factor_semantics_rejected", reason=reason)
         attempts.append(
             {
@@ -295,7 +299,7 @@ def resolve(
         if unsupported_code is not None:
             message = (
                 "天软因子请求口径不受支持"
-                if query.capability == "factor_macro"
+                if query.capability == "factor_macro" and unsupported_source == "tinysoft"
                 else f"{'Wind' if source_id == 'wind' else 'AKShare'} 请求口径不受支持"
             )
             raise StoreError(message, unsupported_code, 400)
@@ -354,6 +358,7 @@ def resolve(
     }:
         legacy = query.model_copy(update={"source": "baostock"})
     elif selected == "akshare" and query.capability in {
+        "factor_macro",
         "search_assets",
         "trading_calendar",
         "market_bars",

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-23来源与宏观研究仓任务在原Checks的Python步骤登记官方封包离线模块，其余回归扩展既有文件。完整changed-set Router、原通用仓库门及同候选Mac干净安装均保留；有界公开请求、独立临时PG、源码评审、CI与部署分别记录。业务错误封包/空序列不能用HTTP200或测试数代替来源可用性。没有新runner、依赖、跨平台产品dispatch或模型调用，现有服务、正式库及外盘保持无操作。
+
 2026-10-23市场限价/昨日/历史任务沿原全市场Checks定点清单、完整changed-set Router、独立评审及原三CI/同候选macOS安装。封闭apply-market-history固定旧51f09、产品4f0a248f，原version4事务和全账号保全/恢复保持，采集inflight活动或未知拒绝；只同步固定目标锁清单，不安装包/启用数据库。实际部署、交易时段真实源、认证页面和保全分别留证；历史来源不足明确缺口，不以离线或一次访客返回冒充连续30日。
 
 2026-10-23公开indices仓库桥复用现有Checks Python步骤，追加MarketReader及opt-in临时PG测试，不新增job/runner/timeout/依赖或平台dispatch。macOS本机只用已有批准venv及既有socket-only临时PG helper；PG5432、生产配置、外盘、真实凭据与模型保持无操作。缺显式PG环境的CI保留skip；本机PG成功不替代同候选Mac干净安装和通用仓库门，评审/发布由root统一绑定。

@@ -130,6 +130,30 @@ def test_auto_selects_only_supported_tinysoft_adjustment_series(ready):
     assert error.value.code == "factor_series_unsupported"
 
 
+def test_auto_china_macro_can_skip_tinysoft_specific_rejection_and_select_akshare(ready):
+    resolution = resolve(
+        BusinessQuery(
+            capability="factor_macro",
+            parameters={"series": "cpi", "start_date": "2026-08-01", "end_date": "2026-09-30"},
+        ),
+        environ={},
+        connection_statuses=ready,
+    )
+    assert resolution.provider_id == "akshare"
+    assert resolution.query.source == "akshare"
+    assert resolution.attempted_sources[0]["source"] == "tinysoft"
+    assert resolution.attempted_sources[0]["reason"] == "factor_series_unsupported"
+    with pytest.raises(StoreError) as failure:
+        resolve(
+            BusinessQuery(
+                capability="factor_macro", source="akshare", parameters={"series": "CPI"}
+            ),
+            environ={},
+            connection_statuses=ready,
+        )
+    assert failure.value.code == "data_not_equivalent"
+
+
 def test_catalog_declares_only_three_adjustment_series(ready):
     catalog = build_catalog(environ={}, connection_statuses=ready)
     binding = next(
