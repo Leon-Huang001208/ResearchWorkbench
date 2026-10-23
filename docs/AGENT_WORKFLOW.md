@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+华安 v1 获批后主线合入 PR209，旧固定产品不能通过放宽 latest、路径或 blob 门部署。v2 在新独立 worktree 固定组合产品56709a8d，保留旧模式；完整本机、独评与原三CI先完成，再请求具体新目标部署授权，不把2e1ba701的批准外推到新增产品。
+
 华安固定Native配置在独立worktree完成最终产品pin、1745项本机回归及独立评审，再运行完整changed-set Router、原通用CI和同候选Mac干净安装。原读取器/旧模式/保全恢复不放宽；配置源码合并不等于授权部署，不调用Office或模型，不启用日程。取得明确常驻更新授权后才按原锁、真实空闲与全账号保全事务切换，再执行本期正式Workflow与Word交付验收。
 
 今日发现实现先完成只读预览与显式冻结/单次提交合同、跟踪独立启用/去重/日限及账号容量恢复负例，再执行完整Router、独评和同候选原三CI。Checks只在原Python步骤追加三模块，JS保留原通配符；Mac安装同一步核对discovery静态资源，无新job/runner/timeout/平台dispatch。真实模型、生产计划与部署保持独立NOT_RUN，细则见[今日发现](research-web-discovery.md)。
