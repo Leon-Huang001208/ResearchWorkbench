@@ -30,6 +30,7 @@ ASSET_PROFILES = (
     "reviewed-market-history-v1",
     "reviewed-market-terminal-v1",
     "reviewed-etf-weekly-v1",
+    "reviewed-research-dossiers-v1",
 )
 
 
@@ -132,6 +133,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
+        "reviewed-research-dossiers-v1": "DOSSIERS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
@@ -144,7 +146,12 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
             if profile == upgrade.MARKET_TERMINAL_MODE
             else (
                 "ASSET_V6_EVIDENCE_SHA256"
-                if profile in {upgrade.ASSET_V6_MODE, "reviewed-etf-weekly-v1"}
+                if profile
+                in {
+                    upgrade.ASSET_V6_MODE,
+                    "reviewed-etf-weekly-v1",
+                    "reviewed-research-dossiers-v1",
+                }
                 else "ASSET_EVIDENCE_SHA256"
             )
         )
@@ -416,6 +423,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
         ("apply-assets-v7", upgrade.ASSET_V7_MODE),
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
+        ("apply-dossiers", "reviewed-research-dossiers-v1"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
@@ -1425,6 +1433,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
+        "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -2016,6 +2025,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
+        "reviewed-research-dossiers-v1",
     ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
@@ -2077,6 +2087,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-terminal-v1",
         upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
+        "reviewed-research-dossiers-v1",
     ],
     indirect=True,
 )
@@ -2228,7 +2239,9 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
     assert hashlib.sha256(reader).hexdigest() == upgrade.ASSET_V6_EVIDENCE_SHA256
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", ["reviewed-etf-weekly-v1", "reviewed-research-dossiers-v1"], indirect=True
+)
 @pytest.mark.parametrize("active", [True, None, "false", 0])
 def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monkeypatch, active):
     home, state, system, make, uid = real_operations
@@ -2248,7 +2261,9 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
     assert not (home / "server/run/gateway-upgrade.json").exists()
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", ["reviewed-etf-weekly-v1", "reviewed-research-dossiers-v1"], indirect=True
+)
 @pytest.mark.parametrize("guard", ["runtime", "runtime-unknown", "pool", "pool-unknown"])
 def test_etf_weekly_native_or_pool_activity_defers_without_effects(
     real_operations, monkeypatch, guard
@@ -2279,3 +2294,13 @@ def test_etf_weekly_preserves_install_lock_without_dependency_exception():
     state = {"mode": "reviewed-etf-weekly-v1", "manifest": old, "target": "b" * 40}
     assert upgrade.target_manifest(state) == {**old, "code_commit": "b" * 40}
     assert old == state["manifest"]
+
+
+def test_dossiers_profile_binds_verified_resident_and_merged_product():
+    assert upgrade.DOSSIERS_MODE == "reviewed-research-dossiers-v1"
+    assert upgrade.previous_for(upgrade.DOSSIERS_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
+    assert upgrade.DOSSIERS_PAYLOAD == "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+    assert upgrade.DOSSIERS_MODE in upgrade.ASSET_MODES
+    assert upgrade.target_manifest(
+        {"mode": upgrade.DOSSIERS_MODE, "manifest": {"web_lock_sha256": "old"}, "target": "b" * 40}
+    ) == {"web_lock_sha256": "old", "code_commit": "b" * 40}

@@ -440,3 +440,6 @@ BaoStock季度盈利能力在新隔离worktree接入，原公开worker/取消排
 ## 2026-10-23：长期研究档案与机会预警
 
 本轮按 macOS Web 功能开发和隔离 worktree 交付：档案事务、pin／删除竞态、跨会话逐次鉴权、Prompt-only 绑定、扫描／默认关闭的跟踪及 MCP 费用未知状态分别取证。跟踪只重查已有冻结材料，不授权新采集或模型；小创真实 Registry、当时报价与单独费用／凭据授权仍是外部前置。完整 changed set 沿原通用仓库门及同候选 macOS 干净安装，既有 CI job 追加测试与资源，不新增 runner；Windows／Linux 交对应设备，常驻切换另行授权。详见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)及[候选边界](research-web-seek-alpha.md)，离线通过不能提升报告或平台质量状态。
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定已合并 PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
