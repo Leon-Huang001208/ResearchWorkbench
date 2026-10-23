@@ -71,6 +71,8 @@ class AutomationService:
         dispatcher=None,
         channel_store=None,
         scheduler=None,
+        eligibility=None,
+        resume_executor=None,
         now=None,
         sleep=asyncio.sleep,
     ) -> None:
@@ -82,6 +84,8 @@ class AutomationService:
         self.channel_store = channel_store
         self.channels = channel_store
         self.scheduler = scheduler
+        self.eligibility = eligibility
+        self.resume_executor = resume_executor
         self.now = now or (lambda: datetime.now(UTC))
         self.sleep = sleep
         self.tasks: dict[str, asyncio.Task] = {}
@@ -90,6 +94,20 @@ class AutomationService:
         self.store.data.setdefault("automations", {})
         self.store.data.setdefault("automation_runs", {})
         self.store.data.setdefault("delivery_channels", {})
+
+    def _eligible(self, automation: dict) -> bool:
+        """An optional tenant restriction cannot grant general Automation access."""
+        if self.eligibility is None:
+            return True
+        try:
+            return self.eligibility(automation) is True
+        except Exception as exc:  # noqa: BLE001 - a scope probe always fails closed.
+            log.warning("automation_scope_check_failed", error_type=type(exc).__name__)
+            return False
+
+    def _require_eligible(self, automation: dict) -> None:
+        if not self._eligible(automation):
+            raise AutomationError("该任务不在当前受限调度范围", "automation_scope_denied", 403)
 
     def _row(self, automation_id: str) -> dict:
         try:
@@ -204,7 +222,9 @@ class AutomationService:
         return {"items": [self._public(row) for row in rows]}
 
     @_definition_transaction
-    def create(self, body: AutomationCreate, *, creation_key: str | None = None) -> dict:
+    def create(
+        self, body: AutomationCreate, *, creation_key: str | None = None, before_save=None
+    ) -> dict:
         creation_sha = _canonical_sha(body.model_dump(mode="json"))
         automation_id = (
             "automation-" + hashlib.sha256(creation_key.encode()).hexdigest()
@@ -266,10 +286,15 @@ class AutomationService:
         if creation_key is not None:
             row["creation_sha256"] = creation_sha
         self.store.data["automations"][automation_id] = row
+        rollback = None
         try:
+            if before_save is not None:
+                rollback = before_save(self._public(row))
             self.store.save()
         except Exception:
             self.store.data["automations"].pop(automation_id, None)
+            if rollback is not None:
+                rollback()
             log.error("automation_create_failed")
             raise
         log.info(
@@ -443,6 +468,7 @@ class AutomationService:
     @_definition_transaction
     def enable(self, automation_id: str, *, expected_version: int | None = None) -> dict:
         row = self._row(automation_id)
+        self._require_eligible(row)
         if expected_version is not None and (
             type(expected_version) is not int
             or expected_version < 1
@@ -597,6 +623,7 @@ class AutomationService:
     @_definition_transaction
     def _admit_run(self, automation_id, *, trigger, scheduled_for, retry_of):
         automation = self._row(automation_id)
+        self._require_eligible(automation)
         status = "queued"
         if self._active_run(automation_id):
             status = "skipped_overlap"
@@ -633,6 +660,7 @@ class AutomationService:
         self.store.save()
         self._notify_research()
         try:
+            self._require_eligible(automation)
             result = self.executor(self._public(automation), self._public(row))
             if inspect.isawaitable(result):
                 result = await result
@@ -755,6 +783,7 @@ class AutomationService:
             row
             for row in self.store.data["automations"].values()
             if row.get("enabled")
+            and self._eligible(row)
             and row.get("next_run_at")
             and datetime.fromisoformat(row["next_run_at"]) <= now
         ]
@@ -770,6 +799,9 @@ class AutomationService:
 
     async def start(self) -> None:
         for run in list(self.store.data["automation_runs"].values()):
+            automation = self.store.data["automations"].get(run.get("automation_id"), {})
+            if not self._eligible(automation):
+                continue
             if (
                 run.get("research_status") == "completed"
                 and run.get("delivery_status") == "pending"
@@ -823,6 +855,8 @@ class AutomationService:
         if self.scheduler in (None, False):
             return
         self._remove_job(row["id"])
+        if not self._eligible(row):
+            return
         if row.get("enabled") and row.get("next_run_at"):
             self.scheduler.add_job(
                 self._scheduled_fire,
@@ -850,6 +884,8 @@ class AutomationService:
 
     async def _scheduled_fire(self, automation_id: str) -> None:
         row = self._row(automation_id)
+        if not self._eligible(row):
+            return
         due = row.get("next_run_at")
         if due:
             await self.tick(datetime.fromisoformat(due))
@@ -1002,6 +1038,12 @@ class AutomationService:
         row = self._run_row(run_id)
         automation = row.get("definition_snapshot") or self._row(row["automation_id"])
         try:
+            self._require_eligible(automation)
+            if self.resume_executor is not None:
+                resumed = self.resume_executor(run_id)
+                if resumed is not None:
+                    await resumed
+                    return
             if row.get("report_run_id"):
                 if automation["target"]["kind"] != "report_workflow":
                     raise AutomationError(

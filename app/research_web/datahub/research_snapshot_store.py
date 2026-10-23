@@ -14,11 +14,19 @@ from core.observability import get_logger
 from ..market_store import Batch, DatasetIdentity, Fact, MarketStoreError, RawOriginal
 from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
-from .providers import MAX_QUERY_BYTES, Result
+from .providers import MAX_QUERY_BYTES, ProviderError, Result
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_DICTIONARY, FINANCIAL_DICTIONARY_SHA256
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
-from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
+from .providers_external import (
+    OFFICIAL_NUMERIC,
+    OFFICIAL_NUMERIC_CONTRACT,
+    SPDR_METRIC_UNITS,
+    SPDR_NUMERIC_CONTRACT,
+    arguments,
+    spdr_fields,
+    spdr_projection,
+)
 from .providers_market import INDEXES
 
 log = get_logger(__name__)
@@ -46,6 +54,7 @@ PUBLIC_NUMERIC = frozenset(
         ("ext_worldbank", "inflation"),
         ("ext_nyfed", "rates"),
         ("ext_treasury", "cash"),
+        ("ext_spdr", "gld"),
         ("ext_ths", "cmd_history_quotation"),
         ("ext_ths", "basic_data_service"),
         ("ext_ths", "real_time_quotation"),
@@ -89,6 +98,39 @@ START = date(1970, 1, 1)
 NAV_SEMANTIC_GAPS = frozenset(
     {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
 )
+
+
+def _complete_spdr_snapshot(result: Result) -> bool:
+    """Bind the typed projection and units to its one complete source original."""
+    if (
+        result.provider_id != "ext_spdr"
+        or result.status not in {"complete", "snapshot"}
+        or result.pagination_complete is not True
+        or type(result.provider_total) is not int
+        or result.provider_total != len(SPDR_METRIC_UNITS)
+        or result.missing
+        or result.metadata.get("schema_version") != SPDR_NUMERIC_CONTRACT
+        or result.metadata.get("provider_semantics_revision") != SPDR_NUMERIC_CONTRACT
+        or result.metadata.get("upstream_id") != "spdrgoldshares"
+        or result.metadata.get("availability_basis") != "first_observed"
+        or result.metadata.get("revision_policy") != "first_observed_not_historical_vintage"
+        or result.metadata.get("historical_point_in_time") is not False
+        or result.metadata.get("formal_backtest_eligible") is not False
+        or result.metadata.get("units") != SPDR_METRIC_UNITS
+        or len(result.raw) != 1
+        or not isinstance(result.raw[0], bytes)
+    ):
+        return False
+    try:
+        # Canonical bytes distinguish bool from int and bind all original strings,
+        # reference dates, decimal precision, field roles and source unit labels.
+        return canonical(result.rows) == canonical(spdr_projection(result.raw[0])) and canonical(
+            result.fields
+        ) == canonical(spdr_fields())
+    except (ProviderError, MarketStoreError, TypeError, ValueError):
+        return False
+
+
 MARKET_INDICES_PARAMETERS = {
     "asset_type": "index",
     "assets": [asset for asset, _, _ in INDEXES],
@@ -269,6 +311,12 @@ class SnapshotSeries:
             query.capability == "external_data"
             and (self.scope.source, query.parameters.get("dataset")) in PUBLIC_NUMERIC
         )
+        if (self.scope.source, query.parameters.get("dataset")) == ("ext_spdr", "gld"):
+            try:
+                if arguments(query.parameters.get("arguments_json")):
+                    return None
+            except ProviderError:
+                return None
         if not accepted:
             return None
         if query.purpose == "backtest":
@@ -375,6 +423,13 @@ class SnapshotSeries:
                 )
             ):
                 log.info("research_snapshot_not_ingested", reason="china_macro_contract_incomplete")
+                return None
+            if (
+                query.capability == "external_data"
+                and (self.scope.source, query.parameters.get("dataset")) == ("ext_spdr", "gld")
+                and not _complete_spdr_snapshot(result)
+            ):
+                log.info("research_snapshot_not_ingested", reason="spdr_contract_incomplete")
                 return None
             if (
                 query.capability == "external_data"

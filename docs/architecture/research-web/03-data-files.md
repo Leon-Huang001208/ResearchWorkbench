@@ -1,5 +1,13 @@
 # DataHub、研究资料与实际文件
 
+## 今日发现文件与元数据（2026-10-23）
+
+Store仅首次显式prepare增加懒discovery_handoffs元数据；独立保存跟踪增加discovery_tracks与原Automation版本/运行，不保存第二份对话。原DataHub新增discovery_evidence，golddata_intel事件与报道进入rows.json/csv和私有raw（已解析detail/选择包的规范化JSON，非HTTP传输原字节）；manifest与inputs/discovery-context.json绑定会话/选材/时点/哈希。trusted_context重验全部字节，复制保留origin但无旧执行权限。来源缓存每账号有界，GET不写空索引；跟踪保存批准event_id及完整详情evidence_sha256，不依赖首页排序/60条展示边界，新增报道或已有判断改变可触发，采集时钟不触发；04图增加固定Intel读取及显式冻结资料边。详见[合同](../../research-web-discovery.md)。
+
+SPDR四项快照沿现有provider_native_snapshot-v1原件/事实包装保存；专用source schema与单位身份、完整参数和scope分别参加索引。
+写入前核对原件重解析的行、字段和四项总数，单位及各项参考日期原样保留。旧显式回执仍可读，旧未解析缓存不作为新版本使用。
+冻结导出包含完整响应体与声明；首次观测不补造供应商历史公布/修订链。无新SQL表、数据根或磁盘迁移。
+
 2026-10-23：终端Native固定部署不迁移业务index或研究仓，不把账号market-cache、持仓／预览、会话、报告、模型配置和恢复归档复制成新源。原version4全账号索引哈希、缺失／空值区别、凭据存储元数据和内容寻址恢复继续逐项校验；安装清单只按冻结目标锁同步并可精确恢复。源码来自已核验common directory下的干净目标checkout，原业务数据原位保留；当前文档补齐不是实际保全回执，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 终端v2仍采用market-cache原schema1分区文件，indices:terminal-v2拥有独立键、目录版本与24身份；indices保留旧12。市场目录下analysis-observations/daily.json最多260日／2MiB，保存首次实际闭市观察，不用当前成分回填历史；portfolios/state.json最多20份已确认快照、8份15分钟预览，4MiB上限。持仓输入256KiB／500行，原子私有文件，GET不初始化。新浪日线400条按请求代码、前日及东财真实昨收交叉核验，first_observed不等于历史PIT。
