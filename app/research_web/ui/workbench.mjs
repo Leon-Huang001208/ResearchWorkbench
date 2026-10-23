@@ -12,7 +12,7 @@ export const SECTIONS = [
   ['etf-paper', 'ETF 模拟', '受约束的策略模拟与复盘', null],
 ];
 
-const assetTabs = [['assets', '行情与基本面', '#/assets'], ['funds', '基金数据', '#/assets/funds']];
+const assetTabs = [['assets', '行情与基本面', '#/assets'], ['funds', '基金数据', '#/assets/funds'], ['dossiers', '研究档案', '#/assets?view=dossiers']];
 const searchTabs = [['market', '新闻', '#/intel/search?kind=news'], ['industry', '研报', '#/intel/search?kind=research'], ['documents', '公告', '#/intel/search?kind=announcements']];
 const navigation = (section, tabs, label) => `<nav class="workbench-tabs" aria-label="${label}">${tabs.map(([id, title, href]) => `<a href="${href}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${title}</a>`).join('')}</nav>`;
 
