@@ -86,3 +86,8 @@ time/table逐项对齐和raw字节保存保持；全null指标结果标记`parti
 2026-10-23 `METADATA_KEYS`明确纳入静态非秘密`field_dictionary_evidence`（合同/SDK/服务方法/字典hash/适用判定），与fields及raw一起进入原生不可变原件，export_restore后对象与摘要保持，不因metadata白名单而丢来源依据。普通token和任意metadata仍不保留。SnapshotSeries对非空required_semantics返回不适用，不允许未核实价格单位的旧native快照满足规范股票raw合同；默认None维持旧dataset与冻结可读，存储schema不迁移。
 
 2026-10-23 field_dictionary_evidence还显式保存identity_basis与response_identity_observed：完全无身份列可依据封闭单证券请求合同但不补原行；任意实际身份列空或矛盾则不应用股票单位。两项身份依据和其余静态字典证据均由原生freeze/export_restore原样保留，不能据此声称价格币种、正式回测或PIT已证明。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock季频盈利能力原件是SDK解析返回的字段/字符串JSON，不是原始网络二进制流。保留statDate、pubDate与来源数值；精确公布时刻、历史修订链、比例/股数尺度和累计口径不得推定。只给netProfit、MBRevenue声明官方文档CNY，未知字段不乘100或万元换算。与新浪income_statement保持独立schema，不能按同名字段自动拼接。

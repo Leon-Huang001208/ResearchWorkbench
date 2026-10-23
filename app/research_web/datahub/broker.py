@@ -142,6 +142,10 @@ def resolve(
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]
+    if query.capability == "financials" and query.parameters.get("statements") == ["profitability"]:
+        bindings = [
+            binding for binding in bindings if "quarterly_profitability" in binding["datasets"]
+        ]
     if query.capability == "market_activity" and query.parameters.get("dataset"):
         bindings = [
             binding
@@ -355,6 +359,7 @@ def resolve(
         "search_assets",
         "trading_calendar",
         "market_bars",
+        "financials",
     }:
         legacy = query.model_copy(update={"source": "baostock"})
     elif selected == "akshare" and query.capability in {

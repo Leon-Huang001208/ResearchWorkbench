@@ -771,3 +771,8 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 2026-10-23 新raw历史job、不可变块和canonical metadata冻结required_semantics；块复用须相同合同，旧job无字段读取/重试保持null，不回填旧盘。BusinessQuery默认null保持原fingerprint，选定cn_stock_daily_cny_share_v1使用新指纹；原生SnapshotSeries不接此合同，不能用旧native结果替代规范行。field_dictionary_evidence由静态白名单随原生原件、冻结和export_restore完整保留；旧snapshot字节不改，质量/PIT仍未验证。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock单季度盈利能力以独立财务schema/units身份进入原provider-native首次观测快照。原SDK字段/值JSON、报告期和日期精度公布日保留；netProfit/MBRevenue的CNY声明绑定官方文档commit e14bd116745d5540c4eca55d8f0a1970e2d13235及SHA256 06369ec88c16977b2efe295f5a0d576c48d80066144b2f22df10cd909795e8fb。没有新表、数据根或迁移；未知比例/股数和累计口径仍不升级规范事实。

@@ -157,7 +157,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         ["baostock"],
         ["A股"],
         "free",
-        "历史行情为主；实时与新闻覆盖有限。",
+        "原始日线、目录/日历及单季度盈利能力；财务为来源原生首次观测，不代表历史修订完整。",
     ),
     (
         "tushare",
@@ -575,7 +575,7 @@ BINDING_SPECS = {
         ("wind", ["financial_statements"]),
         ("ifind", ["financials"]),
         ("akshare", ["financials"]),
-        ("baostock", ["financials"]),
+        ("baostock", ["quarterly_profitability"]),
         ("tushare", ["fina_indicator"]),
         ("yahoo", ["financials"]),
         ("chinastock", ["financials"]),
@@ -633,6 +633,7 @@ IMPLEMENTED_BINDINGS = {
     ("baostock", "search_assets"),
     ("baostock", "trading_calendar"),
     ("baostock", "market_bars"),
+    ("baostock", "financials"),
     ("tinysoft", "search_assets"),
     ("tinysoft", "trading_calendar"),
     ("tinysoft", "market_bars"),
@@ -654,6 +655,7 @@ IMPLEMENTED_BINDINGS = {
     ("wind", "market_activity"),
 }
 BINDING_ASSETS = {
+    ("baostock", "financials"): ["股票"],
     ("tinysoft", "financials"): ["股票"],
     ("tinysoft", "market_activity"): ["股票"],
     ("tinysoft", "factor_macro"): ["股票"],
@@ -663,6 +665,13 @@ BINDING_ASSETS = {
 
 # Dataset-specific facts match the reviewed adapters. Unlisted facts stay unknown.
 BINDING_SEMANTICS = {
+    ("baostock", "financials"): {
+        "quarterly_profitability": {
+            "historical_point_in_time": False,
+            "currency": "CNY",
+            "units": {"netProfit": "CNY", "MBRevenue": "CNY"},
+        },
+    },
     ("baostock", "market_bars"): {
         "stock_daily": {
             "frequencies": ["daily"],

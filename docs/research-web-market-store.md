@@ -133,3 +133,8 @@ python -m unittest discover -s tests/research_web -p 'test_market_store*.py'
 
 
 2026-10-23 Wind容量回归修复：供应商60自然日上限不再阻断已授权完整仓库长窗读取。对沪深股票daily/none、无as_of、refresh=false的长窗，Host可在同一查询预算内先取得一次Wind缺口计划；每个实际缺口仍须正常通过60日限制及当前权限/配置校验。计划与原查询指纹及来源配置绑定，未知/空库全窗、过大缺口、规划繁忙或失效不会自动拆成供应商可执行小块。固定Wind保留明确失败，auto保留实际skip原因后选择其他候选。取消必须等待规划事务的实际Future结束，不能提前释放容量。此修复没有启用跨来源部分覆盖拼接，Asset新历史job仍为refresh=true整段刷新；交易日历准备也可能联网，不能据此称所有查询均只读离线缓存。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock盈利能力进入独立baostock-quarterly-profitability-v1的provider-native schema/units身份，仍为first_observed，pubDate保留在数据中而不冒充Fact的历史available_at。只有完整固定响应及已知单位合同可捕获；空/partial/错误不宣称覆盖。显示可显式allow_stale读仓，严格最新研究重新取数；冻结支持原字段与原SDK载荷恢复，不提升正式PIT。原日线身份、旧冻结读取和授权检查保持。

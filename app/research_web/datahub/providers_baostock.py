@@ -1,4 +1,4 @@
-"""Closed anonymous BaoStock adapter; raw SH/SZ daily bars only."""
+"""Closed anonymous BaoStock adapter; SH/SZ bars and quarterly profitability."""
 
 from __future__ import annotations
 
@@ -7,7 +7,8 @@ import json
 import re
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
@@ -16,6 +17,16 @@ from .providers import MAX_QUERY_BYTES, MAX_ROWS, ProviderError, Result, numeric
 
 log = get_logger(__name__)
 SEMANTICS_REVISION = "baostock-raw-sh-sz-v1"
+FINANCIAL_SCHEMA = "baostock-quarterly-profitability-v1"
+FINANCIAL_FIELDS = (
+    "code,pubDate,statDate,roeAvg,npMargin,gpMargin,netProfit,epsTTM,"
+    "MBRevenue,totalShare,liqaShare"
+)
+FINANCIAL_DICTIONARY = (
+    "https://github.com/zxygithub/baostock/blob/"
+    "e14bd116745d5540c4eca55d8f0a1970e2d13235/docs/pythonAPI.md"
+)
+FINANCIAL_DICTIONARY_SHA256 = "06369ec88c16977b2efe295f5a0d576c48d80066144b2f22df10cd909795e8fb"
 FIELDS = "date,code,open,high,low,close,volume,amount,adjustflag,tradestatus,pctChg"
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-baostock")
 _CAPACITY = threading.BoundedSemaphore(1)
@@ -53,7 +64,9 @@ def _bounds(parameters):
 
 def validate_supported_query(query: BusinessQuery):
     parameters = query.parameters
-    if query.capability == "market_bars":
+    if query.capability == "financials":
+        _financial_period(query)
+    elif query.capability == "market_bars":
         _asset(parameters.get("asset"))
         if parameters.get("asset_type", "stock") != "stock":
             raise ProviderError("data_not_equivalent")
@@ -76,6 +89,42 @@ def validate_supported_query(query: BusinessQuery):
             raise ProviderError("invalid_asset")
     else:
         raise ProviderError("data_operation_unsupported")
+
+
+def _financial_date(value) -> str:
+    """Financial dates follow the supplier's Shanghai natural-day precision."""
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        raise ProviderError("vendor_schema_invalid")
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        raise ProviderError("vendor_schema_invalid") from None
+    if parsed > datetime.now(ZoneInfo("Asia/Shanghai")).date():
+        raise ProviderError("vendor_schema_invalid")
+    return value
+
+
+def _financial_period(query: BusinessQuery) -> str:
+    parameters = query.parameters
+    if (
+        query.source not in {"auto", "baostock"}
+        or query.as_of is not None
+        or query.purpose == "backtest"
+        or set(parameters) != {"asset", "statements", "periods"}
+        or parameters.get("statements") != ["profitability"]
+    ):
+        raise ProviderError("data_not_equivalent")
+    _asset(parameters.get("asset"))
+    periods = parameters.get("periods")
+    if not isinstance(periods, list) or len(periods) != 1:
+        raise ProviderError("invalid_date_range")
+    try:
+        period = _financial_date(periods[0])
+    except ProviderError:
+        raise ProviderError("invalid_date_range") from None
+    if period < "2017-01-01" or period[5:] not in {"03-31", "06-30", "09-30", "12-31"}:
+        raise ProviderError("invalid_date_range")
+    return period
 
 
 def _records(response, expected):
@@ -104,6 +153,94 @@ def _records(response, expected):
     return rows
 
 
+def _profitability(query: BusinessQuery, sdk) -> Result:
+    period = _financial_period(query)
+    code = _asset(query.parameters["asset"])
+    try:
+        raw = _records(
+            sdk.query_profit_data(code=code, year=int(period[:4]), quarter=int(period[5:7]) // 3),
+            FINANCIAL_FIELDS.split(","),
+        )
+    except ProviderError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - never expose vendor exception text.
+        log.warning("baostock_profitability_failed", error_type=type(exc).__name__)
+        raise ProviderError("vendor_unreachable") from None
+    if len(raw) > 1:
+        raise ProviderError("vendor_schema_invalid")
+    rows = []
+    missing = []
+    number_fields = FINANCIAL_FIELDS.split(",")[3:]
+    for row in raw:
+        if row["code"] != code or row["statDate"] != period:
+            raise ProviderError("data_not_equivalent")
+        try:
+            _financial_date(row["statDate"])
+            publication = (
+                _financial_date(row["pubDate"]) if row["pubDate"] not in (None, "") else None
+            )
+            if publication is not None and publication < period:
+                raise ProviderError("vendor_schema_invalid")
+            numbers = {key: numeric(row[key]) for key in number_fields}
+        except ProviderError:
+            raise ProviderError("vendor_schema_invalid") from None
+        if publication is None:
+            missing.append("publication_date")
+        if all(value is None for value in numbers.values()):
+            missing.append("profitability_metrics")
+        rows.append(
+            {
+                **row,
+                **numbers,
+                "asset": query.parameters["asset"].upper(),
+                "report_period": period,
+                "publication_date": publication,
+                "publication_precision": "date" if publication is not None else None,
+            }
+        )
+    fields: dict = {key: {"unit": None, "currency": None} for key in number_fields}
+    fields.update({key: {"unit": "CNY", "currency": "CNY"} for key in ("netProfit", "MBRevenue")})
+    limitations = [
+        "historical_vintage_unverified",
+        "reporting_basis_unverified",
+        "盈利能力指标不等同于利润表；比例与股数尺度未校准，未作换算。",
+        "披露日期仅精确到自然日，不构成历史当时可得或独立上游证明。",
+    ]
+    if not rows:
+        limitations.append("coverage_unknown")
+    log.info("baostock_profitability_completed", rows=len(rows), partial=bool(missing))
+    return Result(
+        rows=rows,
+        raw=[json.dumps(raw, ensure_ascii=False).encode()],
+        source_url=FINANCIAL_DICTIONARY,
+        provider_id="baostock",
+        status=("partial" if missing else "complete") if rows else "empty",
+        provider_total=len(rows),
+        pages_fetched=1,
+        pagination_complete=True,
+        fields=fields,
+        missing=missing,
+        limitations=limitations,
+        metadata={
+            "schema_version": FINANCIAL_SCHEMA,
+            "provider_semantics_revision": FINANCIAL_SCHEMA,
+            "statement": "profitability",
+            "upstream_id": "baostock",
+            "availability_basis": "first_observed",
+            "historical_point_in_time": False,
+            "formal_backtest_eligible": False,
+            "redistribution_rights": "unverified",
+            "field_dictionary_evidence": {
+                "source_url": FINANCIAL_DICTIONARY,
+                "document_sha256": FINANCIAL_DICTIONARY_SHA256,
+                "fields": ["netProfit", "MBRevenue"],
+                "unit": "CNY",
+                "currency": "CNY",
+            },
+        },
+    )
+
+
 def invoke(query: BusinessQuery, *, sdk=None) -> Result:
     validate_supported_query(query)
     owned = sdk is None
@@ -121,6 +258,8 @@ def invoke(query: BusinessQuery, *, sdk=None) -> Result:
                 raise ProviderError("vendor_unreachable")
             logged_in = True
         parameters = query.parameters
+        if query.capability == "financials":
+            return _profitability(query, sdk)
         if query.capability == "market_bars":
             code = _asset(parameters["asset"])
             start, end = _bounds(parameters)

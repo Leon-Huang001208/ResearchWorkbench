@@ -719,3 +719,8 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 2026-10-23 既有内部`POST /api/research/internal/data/business-query`的BusinessQuery新增可选typed `required_semantics: "cn_stock_daily_cny_share_v1" | null`，默认null保持旧请求指纹；仅market_bars/规范沪深stock/daily/none合法，其他组合输入422。它由Host规范历史设置，不成为Runtime/DSH普通数据工具的可传业务参数。新job公开投影及canonical metadata记录required_semantics，retry冻结原值，缺字段旧job保null；manifest和缓存指纹绑定合同，旧原生数据不能冒充已证明价格单位的规范数据。无新HTTP端点或SQL迁移。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+沿既有BusinessQuery入口使用financials/source=baostock、statements=[profitability]、periods单个2017年起季度末。auto仅选择该数据集，不能换成Sina income_statement或财务摘要。拒as_of/backtest；日期精度pubDate不是精确历史可得时刻。保存与显示allow_stale读仓仍检查当前授权，严格最新研究重新取数，旧显式冻结可读。

@@ -398,3 +398,8 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 2026-10-22 插件与macOS离线Python MCP沿既有Checks步骤新增四个定点模块，保留原Mac本机真实SDK/Seatbelt与同候选Mac安装门。Ubuntu条件跳过不代替Mac原生证明；所有Host/SDK夹具显式内存凭据并对真实后端设置失败哨兵，禁止以只mock get隔离系统Keychain或文件后端。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock季度盈利能力在新隔离worktree接入，原公开worker/取消排空、Host/DataHub和可选研究仓复用。先做source限定与单位/日期边界，再以有界匿名真实SDK、完整Host及socket-only临时PG验证，最终同候选原三CI/独评；不以SDK一行或单元测试代替仓库重启恢复，不触碰正式5432、凭据、模型或外盘。

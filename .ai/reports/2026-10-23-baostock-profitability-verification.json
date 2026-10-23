@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "task": "datahub-baostock-financials-20261023",
+  "source": "baostock",
+  "capability": "financials",
+  "dataset": "quarterly_profitability",
+  "status": "bounded_real_host_owned_pg_verified_dirty_source_map",
+  "requested_quarter": "2026-06-30",
+  "returned_rows": 1,
+  "publication_date": "2026-08-28",
+  "publication_precision": "date",
+  "formal_backtest_eligible": false,
+  "cross_source_equivalence_verified": false,
+  "historical_vintage_verified": false,
+  "reporting_basis_verified": false,
+  "source_count_increment": 0,
+  "proof": {
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-baostock-financials-20261023/logs/real-bao-financial-attempt2/receipt.json",
+    "sha256": "af8f7d176d3e53f4ddb35895d5f15fbbeaf82cd4c31ab8a73270b9dfb06e1047"
+  },
+  "actual_execution_head": "0e0022ac792eba88fba0f233524f5c8d66024569",
+  "source_hashes": {
+    "app/research_web/datahub/__init__.py": "24d15ab823d1554525d3853059c7f4abb6d42fd4d331ea9098254f3df737455c",
+    "app/research_web/datahub/broker.py": "a0190f0e164f1adfd09de39236f8f15850f6c08929b188aa7700eed72b9db300",
+    "app/research_web/datahub/catalog.py": "84016cfff25faad695f9538e2081329fbe4e1bb7d92b23f120a02385c4e4df07",
+    "app/research_web/datahub/providers_baostock.py": "fcc3661cd81109788abfbb108aba9b33ea2cd0885074d4b175b4f816632cf617",
+    "app/research_web/datahub/providers.py": "64183a75372507c2b6fd5922b984bf31c95d305c45693bddf7acee11d18cc9f4",
+    "app/research_web/datahub/research_warehouse.py": "8c06f7f210445ff404ea57a74379ee80eabfd0e1e51e3a09d40afa6258a6114f",
+    "app/research_web/datahub/research_snapshot_store.py": "4524ce90faa604cdcaee9c5d205a2f0fc0b051a93d596b2e904b7ff2cb8b3ac6",
+    "app/research_web/datahub/contracts.py": "b6fa687732752dc8906a7966a904c0c9987c4234ab40cf0eedd8029c55deb944",
+    "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d"
+  },
+  "source_unchanged": true,
+  "worker_submissions": 1,
+  "child_network_count": "unmeasured",
+  "host_pg_restart_zero_vendor_calls": true,
+  "independent_database_restore_equal": true,
+  "dictionary": {
+    "requests": 1,
+    "request_limit": 1,
+    "commit": "e14bd116745d5540c4eca55d8f0a1970e2d13235",
+    "status": "PASS",
+    "sha256": "06369ec88c16977b2efe295f5a0d576c48d80066144b2f22df10cd909795e8fb",
+    "bytes": 67245,
+    "git_blob_sha1": "c7640ad9ad65c8072eff0aae6c5ab03fe20ace8e",
+    "canonical_url": "https://github.com/zxygithub/baostock/blob/e14bd116745d5540c4eca55d8f0a1970e2d13235/docs/pythonAPI.md",
+    "money_definitions_verified": [
+      "netProfit:CNY",
+      "MBRevenue:CNY"
+    ],
+    "ratio_share_scale_verified": false
+  },
+  "candidate_CI": "NOT_RUN",
+  "deployment": "NOT_RUN",
+  "source_discovery_is_not_product_integration": true
+}

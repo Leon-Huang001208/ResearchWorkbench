@@ -40,6 +40,7 @@ from ..store import StoreError
 from .contracts import BusinessQuery
 from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .research_snapshot_store import SnapshotSeries
 from .security import atomic_json, directory, read_file
@@ -752,6 +753,16 @@ class ResearchWarehouse:
             return None
         scope = StoreScope(self.owner, "personal-research-v1", source, digest)
         china_macro = source == "akshare" and query.capability == "factor_macro"
+        bao_financial = (
+            source == "baostock"
+            and query.capability == "financials"
+            and query.parameters.get("statements") == ["profitability"]
+        )
+        native_contract = (
+            BAOSTOCK_FINANCIAL_SCHEMA
+            if bao_financial
+            else CHINA_MACRO_SCHEMA if china_macro else None
+        )
 
         def authorize(actor, requested, _action):
             current = self._profile()
@@ -774,12 +785,12 @@ class ResearchWarehouse:
             + (
                 ":" + OFFICIAL_NUMERIC_CONTRACT
                 if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
-                else ":" + CHINA_MACRO_SCHEMA if china_macro else ""
+                else ":" + native_contract if native_contract else ""
             ),
             units_identity=(
                 OFFICIAL_NUMERIC_CONTRACT
                 if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
-                else CHINA_MACRO_SCHEMA if china_macro else "vendor-fields-retained-unverified-v1"
+                else native_contract if native_contract else "vendor-fields-retained-unverified-v1"
             ),
         )
         if query.source not in {"auto", source} and not query.allow_fallback:

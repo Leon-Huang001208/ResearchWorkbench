@@ -198,3 +198,8 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock单季度盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。

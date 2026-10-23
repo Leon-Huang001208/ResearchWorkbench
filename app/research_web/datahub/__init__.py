@@ -30,6 +30,7 @@ from .connections import (
 from .contracts import BusinessQuery, Query
 from .probes import probe_source
 from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_external import (
     EXTERNAL_ENVELOPE_CONTRACT,
     EXTERNAL_ENVELOPES,
@@ -1587,6 +1588,16 @@ class DataHub:
                             source="akshare",
                             capability="factor_macro",
                         )
+                        continue
+                    if (
+                        isinstance(query, BusinessQuery)
+                        and candidate.get("provider") == "baostock"
+                        and query.capability == "financials"
+                        and query.parameters.get("statements") == ["profitability"]
+                        and candidate.get("provider_metadata", {}).get("schema_version")
+                        != BAOSTOCK_FINANCIAL_SCHEMA
+                    ):
+                        log.info("datahub_cache_contract_changed", source="baostock")
                         continue
                     age = (
                         datetime.now(UTC) - datetime.fromisoformat(candidate["retrieved_at"])
