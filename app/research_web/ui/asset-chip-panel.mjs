@@ -70,7 +70,7 @@ export function chipChartOption(chip, domain, echarts, palette, tab = 'statistic
   return { backgroundColor: 'transparent', animation: false,
     tooltip: { trigger: 'item', backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 11 }, formatter: p => p.seriesType === 'custom' ? `${e(p.seriesName)} · 估算<br>价格 ${fmt(p.data[2])}<br>占比 ${fmt(p.data[1] - p.data[0])}%` : e(p.seriesName) },
     grid: { left: 0, right: 2, top: 0, bottom: 0, containLabel: false },
-    xAxis: { type: 'value', min: 0, max: Math.max(.001, ...maxima) * 1.06, axisLabel: { show: false }, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: palette.grid } } },
+    xAxis: { type: 'value', min: 0, max: Math.max(.001, ...maxima) * 1.06, axisLabel: { show: false }, axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false } },
     yAxis: { type: 'value', min: domain[0], max: domain[1], axisLabel: { show: false }, axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false } },
     graphic: empty ? [{ type: 'text', left: 'center', top: 'middle', style: { text: empty, fill: palette.muted, font: '11px sans-serif', textAlign: 'center' } }] : [], series,
   };
