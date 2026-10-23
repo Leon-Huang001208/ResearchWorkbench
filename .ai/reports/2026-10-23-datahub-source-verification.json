@@ -9,7 +9,8 @@
     "surfaces": "产品表面与设备策略，不增加或冒充Broker来源",
     "evidence": "仅报告/回执路径与SHA256；未定位原件明确标记historical_summary_only",
     "prior_observation": "保留上次未复核观测，current_observation按本轮证据更新；old_static_snapshot及历史证据不改写",
-    "attempt_accounting": "逻辑provider execution、父进程直连HTTP和SDK底层HTTP分别记录；sdk_invocations父patch计数不穿子进程，不代表实际零调用"
+    "attempt_accounting": "逻辑provider execution、父进程直连HTTP和SDK底层HTTP分别记录；sdk_invocations父patch计数不穿子进程，不代表实际零调用",
+    "fee_scope": "auth/公开请求/目录费用声明/实际商业复用费用与权益分别判断；未核实逐项标unknown，不以无凭据推断免费"
   },
   "old_audit": {
     "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-source-audit.json",
@@ -159,6 +160,27 @@
         "models": 0,
         "host_restart_zero_additional_vendor_calls": true,
         "cleanup": true
+      },
+      "latest_base_056b_evidence": {
+        "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+        "numeric_host_cases": 8,
+        "ifind_host_cases": 1,
+        "numeric_direct_http": 3,
+        "numeric_worker_submissions": 5,
+        "ifind_additional_business_direct_http": 1,
+        "ifind_prior_separate_business_direct_http": 1,
+        "child_http_unmeasured": true,
+        "token_exchange": 0,
+        "models": 0,
+        "source10_aggregate": "0396b9e59dac1f8d1233a333ef67b16cfa2ef33fe01299d7d8d008769b511873",
+        "source7_aggregate": "f6ba79c554d11b5bd4a3ebcae30d67a44badadbdb50cff7adf7ab9f9bcd4793c",
+        "source10_changed_from_prior": [
+          "app/research_web/market_service.py"
+        ],
+        "source_unchanged": true,
+        "old_d696_ci": "PASS_OLD_CANDIDATE_ONLY",
+        "new_056b_ci": "IN_PROGRESS_NOT_CERTIFIED",
+        "report_correction_final_ci_rebind": "PENDING_ROOT"
       }
     }
   },
@@ -822,6 +844,42 @@
             "availability": "present",
             "sha256": "2efc41fc3e33df7f0f7b295c0b15d3b5374dfb46fd317fea18fc6e655607223f",
             "scope": "最终候选对应case冻结导出；dirty-tree源码hash精确绑定"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/receipt.json",
+            "availability": "present",
+            "sha256": "753cfded0578bc21df6e2d91c8d33af6aea10760e733c5456f83794e6cd10c1c",
+            "scope": "最新实际HEAD056b：8宏观/财务完整Host/ownedPG重跑PASS；新base market_service源码变化已覆盖，不复用旧10source回执"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/financials-frozen.json",
+            "availability": "present",
+            "sha256": "1970fcef9b0def752f763acfae981d2ba0a0330733ee605560f8826bbd11d7a8",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/cpi-frozen.json",
+            "availability": "present",
+            "sha256": "f9bc49f4483eb6f63e1ae28ed8e477f478c3430b4e01312cdea352f02b4827bb",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/gdp-frozen.json",
+            "availability": "present",
+            "sha256": "4a843aee67477d67b591c39add733fb8cbc82c2a93651c35fb676d5bf20109b3",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/pmi-frozen.json",
+            "availability": "present",
+            "sha256": "0de9e8a092a585a85b6e03f0e0a8c5b8ef1f1fff9aa99cfe4eb53e4f573bba9f",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/m2-frozen.json",
+            "availability": "present",
+            "sha256": "bb51861a41a0968900f9373522a17471fd453ac516637f8838c614befe8e3e82",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
           }
         ],
         "facts": {
@@ -1189,6 +1247,98 @@
             "formal_backtest_eligible": false,
             "ci": "NOT_RUN",
             "deployment": "NOT_RUN"
+          },
+          "latest_base_056b_real_host_round": {
+            "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+            "status": "PASS",
+            "source_aggregate_json_sha256": "0396b9e59dac1f8d1233a333ef67b16cfa2ef33fe01299d7d8d008769b511873",
+            "source_sha256": {
+              "app/research_web/datahub/__init__.py": "c9d918ffd2bd012d86d4c2a8bfbeaa6db7d365d7c3afab75b79227babe17c033",
+              "app/research_web/datahub/catalog.py": "df3d8bb05eef6f4f985469b76419f38fe10ce9e08593f948705ec170f8cc6da4",
+              "app/research_web/datahub/broker.py": "30fd977ef3fddc73caea83839460b85d88f2cbed454f526cf0237825817ce3c2",
+              "app/research_web/datahub/providers_external.py": "ce5f54c526b2d34f34ba1e0ebdc173c42048049e0e9c73ae645250dc71dfb832",
+              "app/research_web/datahub/providers_akshare.py": "bf633304560f4133c040d9b76136f330fdcffeb9a209ee1609dbfb82f9a4303c",
+              "app/research_web/market_service.py": "37d9bb0e18a12935cb815628f57666f4a821f2fc4abfa9ebd7f41245cc2ffc09",
+              "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
+              "app/research_web/datahub/market_reader.py": "e687eaa7608dbb30d32e2b1f43339822cea87ed6be8a7191eb39c47cf991045d",
+              "app/research_web/datahub/research_snapshot_store.py": "c957c3a79f60e59a24b8ed7cea11aa9025b7cf57b1acdaba9b2b910a388845e8",
+              "app/research_web/datahub/research_warehouse.py": "ba41257c425d0d8a54adc7ac4301cc249ec43aed1626814eb70177861fde474e"
+            },
+            "changed_source_from_previous_host_receipt": [
+              "app/research_web/market_service.py"
+            ],
+            "worker7_aggregate_unchanged": "f6ba79c554d11b5bd4a3ebcae30d67a44badadbdb50cff7adf7ab9f9bcd4793c",
+            "worker7_subset_matches": true,
+            "cases": [
+              {
+                "name": "financials",
+                "rows": 1,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "0bd87484a23b48570eace570f9bc7a840eea6bc02ccb0904263b06683cf027b6",
+                "fields_sha256": "c7a279d88c51413df098f0ca5262a064e38f25694545e2737038c4d08a645018",
+                "frozen_digest": "e332156c854bb678da30c13c89574bf5d20c73fb67ce9f5fa5eca0b7e50b8cb5"
+              },
+              {
+                "name": "cpi",
+                "rows": 3,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "6ebeb59046095b761c637faa0acbb532147dd7c7a00e92712cba11f639f94bcb",
+                "fields_sha256": "86a6437f724393a27f7a1a530b06ec7d1e818b1605cce3374cd30369b10ee313",
+                "frozen_digest": "4844491bab143ea1a29f1c73a5f49ba11b96d1c2264299359e1f604ebf742125"
+              },
+              {
+                "name": "gdp",
+                "rows": 1,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "a535901adafa162d04c561c02c34a0d2a790f8f1e850e0b61906012952420697",
+                "fields_sha256": "47ffe91b46a17e7f10ef22a75805a48b461862c31cca946edebe6caad96bf44a",
+                "frozen_digest": "11e423266d52b5297fc62e985df4c7e04637cde5297456e22ef897dc4a1b1d53"
+              },
+              {
+                "name": "pmi",
+                "rows": 3,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "43d1db2671475dcc58ded5dc47d2690c35769f6fb3a5a3264a1751d573a9ca9d",
+                "fields_sha256": "97f235fc830144ba307ddcd42f982e0c2b4e8a2ff790b95f4deac756a08d569c",
+                "frozen_digest": "a1e89a5160c822b147c7e22549ecc2195289835c97cce638236a47be614fb49c"
+              },
+              {
+                "name": "m2",
+                "rows": 3,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "a67203412ec95da2b2d69c4a6910cbe96edd6ba03a7fa8897a16c26be761176d",
+                "fields_sha256": "e5ca30b99238b35188f315dc9df0d839715508e4224d6596d424d764e8038f73",
+                "frozen_digest": "cea9f24154ddb53a82b8b70037a0989fd971ddb93fd048e622ecda076e485508"
+              }
+            ],
+            "postgres_restart_same_versions": true,
+            "host_restart_passed": true,
+            "host_restart_zero_vendor_calls": true,
+            "independent_restore_same_digests": true,
+            "facts_after": 8,
+            "direct_http_calls": 3,
+            "worker_submissions": 5,
+            "child_http": "unmeasured",
+            "models": 0,
+            "formal_backtest_eligible": false,
+            "source_unchanged": true,
+            "cleanup": {
+              "owned_pg_stopped": true,
+              "owned_pgdata_removed": true
+            },
+            "temporary_home_removed": true,
+            "candidate_ci": "IN_PROGRESS_NOT_CERTIFIED",
+            "report_update_final_ci_binding": "PENDING_ROOT"
           }
         },
         "limitations": [
@@ -1555,7 +1705,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -1566,8 +1717,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -1644,7 +1815,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -1655,8 +1827,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "unknown",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -1756,7 +1948,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -1767,8 +1960,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -1815,7 +2028,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -1826,8 +2040,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -1867,7 +2101,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -1878,8 +2113,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -1969,7 +2224,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -1980,8 +2236,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -2021,7 +2297,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -2032,8 +2309,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free",
+            "catalog_declaration_evidence": "app/research_web/datahub/catalog.py:SOURCE_SPECS",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -2521,7 +2818,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -2532,8 +2830,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free_generated_default_for_non_secret_external_source",
+            "catalog_declaration_evidence": "app/research_web/datahub/external_sources.py:catalog_entries fee default",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -2573,7 +2891,8 @@
         ],
         "limitations": [
           "未读取秘密值，未猜测账号或使用缺失凭据联网",
-          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS"
+          "静态目录/旧readiness不认证业务可用；已明确阻断类别，未标PASS",
+          "费用/商业复用权益未知；旧快照没有fee字段，当前Catalog声明亦非本次费用核验。auth=none不证明免费，未实现或无端点来源不能归为已验证免费源"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -2584,8 +2903,28 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "free_native_disabled_or_connector_missing",
-          "new_vendor_call_by_documentation_auditor": false
+          "reconciliation_category": "unimplemented_or_no_public_business_contract_fee_entitlement_unverified",
+          "new_vendor_call_by_documentation_auditor": false,
+          "reconciliation_category_history": [
+            {
+              "category": "free_native_disabled_or_connector_missing",
+              "label": "免费原生来源/连接器未实现",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "未实现或无公开业务合同的候选（费用/权益未全核）",
+          "fee_review": {
+            "old_static_snapshot_fee": null,
+            "old_static_snapshot_fee_present": false,
+            "current_catalog_fee_declaration": "free_generated_default_for_non_secret_external_source",
+            "catalog_declaration_evidence": "app/research_web/datahub/external_sources.py:catalog_entries fee default",
+            "business_fee_verification": "unknown",
+            "commercial_reuse_rights": "unknown",
+            "account_entitlement": "unknown",
+            "public_business_contract_verified": false,
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_static_blocker_no_vendor_call"
       }
@@ -2634,6 +2973,72 @@
             "availability": "present",
             "sha256": "a69396ddc6774634ad9a6bcdf00e09ccbc36e7d07e957fb1545f3dd86146d2d5",
             "scope": "授权与历史修复报告"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/ifind/receipt.json",
+            "availability": "present",
+            "sha256": "75464ad725f0f15dd9a179e07180140d1bab359615922898a67f35d7331d69e1",
+            "scope": "最新实际HEAD056b：另一次已授权iFinD单日单指标1cell完整Host/ownedPG重跑PASS；单位未知，非规范market_activity/PIT"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/ifind/ifind_fund_flow-frozen.json",
+            "availability": "present",
+            "sha256": "e8605ef14f5f5e928d8cda82023e593cf8c38fd20a6d70fb2e20dcd177ac11f7",
+            "scope": "HEAD056b第二阶段iFinD资金流单元格冻结导出；只记计数/摘要，不向Git复制licensed数值"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-fundflow-host-real/receipt.json",
+            "availability": "present",
+            "sha256": "fb857cf8e3c487443d96c9c8048381e6e442724d6d47d635a3dde80b734db1b7",
+            "scope": "保留此前iFinD字段完整Host验证：一次业务HTTP/1cell；与056b重跑分阶段计数"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-fundflow-host-real/ifind_fund_flow-frozen.json",
+            "availability": "present",
+            "sha256": "3dce191c953f8fd96acf557be19919d2d0c5efc6e4aa108cb25aa7edc2b7d7ae",
+            "scope": "此前已授权iFinD业务原件冻结导出；仅ignored本地供应商原件"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-fundflow-proof-audit.json",
+            "availability": "present",
+            "sha256": "963a678d969264184fb897c8cca4f79104b6ba9066df6b9058d40eef445aa7a1",
+            "scope": "此前iFinD单字段独立证据审计；不替代056b新base真实重跑"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-followup/policy-status.json",
+            "availability": "present",
+            "sha256": "561213d0473411b659b8b4eeb6cd58552035f49f4692c22141fac298e4ffda2b",
+            "scope": "sanitized元数据/安全摘要；只保存原件path/hash，不引用token文件或内容"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-followup/indicator-status.json",
+            "availability": "present",
+            "sha256": "a29623f2e6341713189bef149cc748663f7a6e92de5ce188da1ed541f1a7fe87",
+            "scope": "sanitized元数据/安全摘要；只保存原件path/hash，不引用token文件或内容"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-followup/parameter-status.json",
+            "availability": "present",
+            "sha256": "6042ff33d09e55d98cd685f4aa6f6024a3b7c098d9503fb1f249d4cf786f4367",
+            "scope": "sanitized元数据/安全摘要；只保存原件path/hash，不引用token文件或内容"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-followup/financial-pit-mapping-status.json",
+            "availability": "present",
+            "sha256": "9e8e0069089cecd94b0549abe073a3e85de4582600e776ce64df2fc3977750ae",
+            "scope": "sanitized元数据/安全摘要；只保存原件path/hash，不引用token文件或内容"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-followup/financial-pit-parameter-status.json",
+            "availability": "present",
+            "sha256": "f210720e1a29a8413f2bf97d3742cd59eb321b535103f532d32355a1afe1c691",
+            "scope": "sanitized元数据/安全摘要；只保存原件path/hash，不引用token文件或内容"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-followup/local-secret-scan.json",
+            "availability": "present",
+            "sha256": "fcaa6eda4e1d20fc16cfb32752ce4830c4defd765c4a63f1c6375c25967de1ea",
+            "scope": "sanitized元数据/安全摘要；只保存原件path/hash，不引用token文件或内容"
           }
         ],
         "facts": {
@@ -2641,14 +3046,93 @@
           "host_market_queries": 1,
           "access_exchanges": 0,
           "token_resets": 0,
-          "model_prompts": 0
+          "model_prompts": 0,
+          "ifind_fundflow_real_rounds": [
+            {
+              "stage": "prior_ifind_proof",
+              "receipt_path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/ifind-fundflow-host-real/receipt.json",
+              "head": "d696b6920a47a0126fa74c6661e500cb43120924",
+              "status": "PASS",
+              "business_http": 1,
+              "finite_cells": 1,
+              "unit_verified": false
+            },
+            {
+              "stage": "latest_base_056b_rerun",
+              "receipt_path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/ifind/receipt.json",
+              "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+              "status": "PASS",
+              "business_http": 1,
+              "finite_cells": 1,
+              "unit_verified": false
+            }
+          ],
+          "ifind_fundflow_round_count_scope": "仅上述两次资金流字段proof共2次业务HTTP/2个单元格观测；不是全部阶段同花顺业务/元数据调用总量",
+          "latest_base_056b_ifind_fundflow": {
+            "capability": "external_data",
+            "source": "ext_ths",
+            "dataset": "basic_data_service",
+            "indicator": "ths_net_inflow_amt_stock",
+            "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+            "status": "PASS",
+            "rows": 1,
+            "nonnull_finite_numeric_cells": 1,
+            "unit_verified": false,
+            "units": "unknown",
+            "normalized_market_activity_adapter": false,
+            "automatic_equivalent_fallback": false,
+            "formal_backtest_eligible": false,
+            "historical_point_in_time": false,
+            "revision_vintage": "unknown",
+            "storage_form": "provider_native_snapshot",
+            "availability_basis": "first_observed",
+            "warehouse_persisted": true,
+            "cross_session_cache_hit": true,
+            "cache_rows_equal": true,
+            "cache_fields_equal": true,
+            "postgres_restart_same_versions": true,
+            "new_host_restart_passed": true,
+            "new_host_zero_extra_vendor_calls": true,
+            "independent_restore_same_digests": true,
+            "facts_after": 1,
+            "direct_http_calls": 1,
+            "token_exchanges": 0,
+            "sdk_worker_submissions": 0,
+            "model_calls": 0,
+            "approved_credential_metadata_unchanged": true,
+            "cleanup": {
+              "owned_pg_stopped": true,
+              "owned_pgdata_removed": true
+            },
+            "temporary_home_removed": true,
+            "source_unchanged": true,
+            "source_aggregate_json_sha256": "0396b9e59dac1f8d1233a333ef67b16cfa2ef33fe01299d7d8d008769b511873",
+            "ci": "IN_PROGRESS_NOT_CERTIFIED",
+            "report_update_final_ci_binding": "PENDING_ROOT"
+          },
+          "ifind_metadata_followup": {
+            "policy_plan": "free",
+            "basicData_monthly_allotment_cells": 600000,
+            "edb": "unavailable",
+            "net_profit_pit_mapping_exist": true,
+            "pit_parameter_query_status": "UNVERIFIED",
+            "pit_parameter_query_error": "RuntimeError",
+            "pit_numeric_values_fetched": false,
+            "pit_template_inferred": false,
+            "pit_account_entitlement_denied_claim": false,
+            "metadata_only_not_numeric_pit_proof": true,
+            "credential_metadata_unchanged": true
+          }
         },
         "limitations": [
           "不认证ifind来源Windows SDK、财务、宏观或全部HTTP能力",
           "临时Host注入Memory凭据，非现有常驻服务配置",
           "官方Skill的600权限持久配置已由root确认；本审计未读取或验证该文件，不推定Host共享配置",
           "单次历史样本不是PIT或正式回测验收",
-          "未部署"
+          "未部署",
+          "056b重跑再次真实取得1cell；此前proof另一次1cell，分阶段记账，不说全部阶段只有1cell；licensed数据原件留ignored日志，不在Git报告保存数值",
+          "字段单位和THS/东财分类口径未校准；现有external_data不等于规范market_activity自动等价降级，native first_observed不认证正式PIT",
+          "净利润PIT映射exist=true，但PIT参数查询UNVERIFIED/RuntimeError；没有取得PIT数值，不猜普通模板，也不能据元数据失败断言账号无PIT权限。免费版policy及EDB unavailable各按范围保留"
         ]
       }
     },
@@ -2710,14 +3194,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "items",
           "provider_status": "partial",
           "row_count": 5,
           "semantic_status": "content_rows_observed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -2778,14 +3278,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "related-sector",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "mapping_text_observed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -2920,14 +3436,30 @@
           "channel_note": "同上游的原生Provider成功不等于此通用外部适配器已验收。"
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "legacy-6",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -2989,14 +3521,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "history",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "nested_numeric_observed_adapter_missing",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -3059,14 +3607,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "quote",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "javascript_quote_observed_adapter_missing",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -3127,14 +3691,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "chart",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -3207,7 +3787,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "history",
           "provider_status": "snapshot",
@@ -3221,6 +3801,22 @@
             "limitations": [
               "deadline"
             ]
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -3270,7 +3866,8 @@
           "No provider rows or original returned. Retain precise failure limitations; no semantic success.",
           "单来源单dataset有界样例；外层limit不截断嵌套观测，不代表完整历史",
           "provider返回snapshot不等于业务成功或已入研究仓",
-          "未部署；现有PG5432/服务/外盘未改"
+          "未部署；现有PG5432/服务/外盘未改",
+          "用户明确无FRED/ALFRED密钥，继续优先无新增凭据的免费路径；既有timeout及源码状态不改，不把无密钥等同于所有公开FRED路径不可用"
         ],
         "prior_observation": {
           "status": "not_rechecked",
@@ -3281,14 +3878,37 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "series",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          },
+          "latest_user_authorization_constraint": {
+            "user_has_fred_key": false,
+            "user_has_alfred_key": false,
+            "priority": "free_no_new_credentials",
+            "confirmation_source": "direct_user_confirmation_relayed_by_parent",
+            "new_request_performed_by_documentation_auditor": false
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -3376,6 +3996,18 @@
             "availability": "present",
             "sha256": "4e705ccc1ee5632334d39f803ea4f3133871ce27cd9ec2e60d64b6cba885bd86",
             "scope": "最终候选对应case冻结导出；dirty-tree源码hash精确绑定"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/receipt.json",
+            "availability": "present",
+            "sha256": "753cfded0578bc21df6e2d91c8d33af6aea10760e733c5456f83794e6cd10c1c",
+            "scope": "最新实际HEAD056b：8宏观/财务完整Host/ownedPG重跑PASS；新base market_service源码变化已覆盖，不复用旧10source回执"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/nyfed-frozen.json",
+            "availability": "present",
+            "sha256": "828ecaebba2d0f684938927532314d96facbe88706cc481d585ad9749ac4bf40",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
           }
         ],
         "limitations": [
@@ -3397,7 +4029,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "rates",
           "provider_status": "snapshot",
@@ -3533,6 +4165,74 @@
             "formal_backtest_eligible": false,
             "ci": "NOT_RUN",
             "deployment": "NOT_RUN"
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          },
+          "latest_base_056b_real_host_round": {
+            "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+            "status": "PASS",
+            "source_aggregate_json_sha256": "0396b9e59dac1f8d1233a333ef67b16cfa2ef33fe01299d7d8d008769b511873",
+            "source_sha256": {
+              "app/research_web/datahub/__init__.py": "c9d918ffd2bd012d86d4c2a8bfbeaa6db7d365d7c3afab75b79227babe17c033",
+              "app/research_web/datahub/catalog.py": "df3d8bb05eef6f4f985469b76419f38fe10ce9e08593f948705ec170f8cc6da4",
+              "app/research_web/datahub/broker.py": "30fd977ef3fddc73caea83839460b85d88f2cbed454f526cf0237825817ce3c2",
+              "app/research_web/datahub/providers_external.py": "ce5f54c526b2d34f34ba1e0ebdc173c42048049e0e9c73ae645250dc71dfb832",
+              "app/research_web/datahub/providers_akshare.py": "bf633304560f4133c040d9b76136f330fdcffeb9a209ee1609dbfb82f9a4303c",
+              "app/research_web/market_service.py": "37d9bb0e18a12935cb815628f57666f4a821f2fc4abfa9ebd7f41245cc2ffc09",
+              "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
+              "app/research_web/datahub/market_reader.py": "e687eaa7608dbb30d32e2b1f43339822cea87ed6be8a7191eb39c47cf991045d",
+              "app/research_web/datahub/research_snapshot_store.py": "c957c3a79f60e59a24b8ed7cea11aa9025b7cf57b1acdaba9b2b910a388845e8",
+              "app/research_web/datahub/research_warehouse.py": "ba41257c425d0d8a54adc7ac4301cc249ec43aed1626814eb70177861fde474e"
+            },
+            "changed_source_from_previous_host_receipt": [
+              "app/research_web/market_service.py"
+            ],
+            "worker7_aggregate_unchanged": "f6ba79c554d11b5bd4a3ebcae30d67a44badadbdb50cff7adf7ab9f9bcd4793c",
+            "worker7_subset_matches": true,
+            "cases": [
+              {
+                "name": "nyfed",
+                "rows": 6,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "e45b98ac032eb0532ef2977f94c976e0d728a2a8510c806463eadc224cbfeb40",
+                "fields_sha256": "11d68182d82ebba52e0ad5eb9ab2d58c55220331f46cf8b9ce91d46f6ff6a6b5",
+                "frozen_digest": "d7e63b474cfbeff6401c3ea8d9f8df5c0a3c723ec96577fea86e7d5ba942f993"
+              }
+            ],
+            "postgres_restart_same_versions": true,
+            "host_restart_passed": true,
+            "host_restart_zero_vendor_calls": true,
+            "independent_restore_same_digests": true,
+            "facts_after": 8,
+            "direct_http_calls": 3,
+            "worker_submissions": 5,
+            "child_http": "unmeasured",
+            "models": 0,
+            "formal_backtest_eligible": false,
+            "source_unchanged": true,
+            "cleanup": {
+              "owned_pg_stopped": true,
+              "owned_pgdata_removed": true
+            },
+            "temporary_home_removed": true,
+            "candidate_ci": "IN_PROGRESS_NOT_CERTIFIED",
+            "report_update_final_ci_binding": "PENDING_ROOT"
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -3596,14 +4296,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "h41",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "html_readable_not_numeric",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -3663,14 +4379,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "mpt",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -3756,6 +4488,18 @@
             "availability": "present",
             "sha256": "949748cb0a679d1c400876c84681394aed540f487cc8d31a94e40efe9233491a",
             "scope": "最终候选对应case冻结导出；dirty-tree源码hash精确绑定"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/receipt.json",
+            "availability": "present",
+            "sha256": "753cfded0578bc21df6e2d91c8d33af6aea10760e733c5456f83794e6cd10c1c",
+            "scope": "最新实际HEAD056b：8宏观/财务完整Host/ownedPG重跑PASS；新base market_service源码变化已覆盖，不复用旧10source回执"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/treasury-frozen.json",
+            "availability": "present",
+            "sha256": "0a5a8443efb3acebe5bf192e101b55bafe85205bf3bafe6c7b0a0957a648d762",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
           }
         ],
         "limitations": [
@@ -3777,7 +4521,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "cash",
           "provider_status": "snapshot",
@@ -3913,6 +4657,74 @@
             "formal_backtest_eligible": false,
             "ci": "NOT_RUN",
             "deployment": "NOT_RUN"
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          },
+          "latest_base_056b_real_host_round": {
+            "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+            "status": "PASS",
+            "source_aggregate_json_sha256": "0396b9e59dac1f8d1233a333ef67b16cfa2ef33fe01299d7d8d008769b511873",
+            "source_sha256": {
+              "app/research_web/datahub/__init__.py": "c9d918ffd2bd012d86d4c2a8bfbeaa6db7d365d7c3afab75b79227babe17c033",
+              "app/research_web/datahub/catalog.py": "df3d8bb05eef6f4f985469b76419f38fe10ce9e08593f948705ec170f8cc6da4",
+              "app/research_web/datahub/broker.py": "30fd977ef3fddc73caea83839460b85d88f2cbed454f526cf0237825817ce3c2",
+              "app/research_web/datahub/providers_external.py": "ce5f54c526b2d34f34ba1e0ebdc173c42048049e0e9c73ae645250dc71dfb832",
+              "app/research_web/datahub/providers_akshare.py": "bf633304560f4133c040d9b76136f330fdcffeb9a209ee1609dbfb82f9a4303c",
+              "app/research_web/market_service.py": "37d9bb0e18a12935cb815628f57666f4a821f2fc4abfa9ebd7f41245cc2ffc09",
+              "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
+              "app/research_web/datahub/market_reader.py": "e687eaa7608dbb30d32e2b1f43339822cea87ed6be8a7191eb39c47cf991045d",
+              "app/research_web/datahub/research_snapshot_store.py": "c957c3a79f60e59a24b8ed7cea11aa9025b7cf57b1acdaba9b2b910a388845e8",
+              "app/research_web/datahub/research_warehouse.py": "ba41257c425d0d8a54adc7ac4301cc249ec43aed1626814eb70177861fde474e"
+            },
+            "changed_source_from_previous_host_receipt": [
+              "app/research_web/market_service.py"
+            ],
+            "worker7_aggregate_unchanged": "f6ba79c554d11b5bd4a3ebcae30d67a44badadbdb50cff7adf7ab9f9bcd4793c",
+            "worker7_subset_matches": true,
+            "cases": [
+              {
+                "name": "treasury",
+                "rows": 4,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "e6397097c85399893005f52dcef6f982843869c1a6e02fb849f7f8026eb8bd90",
+                "fields_sha256": "3c679d5256ceced0d84e4f26742d5cf77c8f02a19cbe2cb43547579e7fc3d003",
+                "frozen_digest": "cb86b04578429b5605e8ce6000debb3e7092cedf2aac9e54e6f26a6a5090e271"
+              }
+            ],
+            "postgres_restart_same_versions": true,
+            "host_restart_passed": true,
+            "host_restart_zero_vendor_calls": true,
+            "independent_restore_same_digests": true,
+            "facts_after": 8,
+            "direct_http_calls": 3,
+            "worker_submissions": 5,
+            "child_http": "unmeasured",
+            "models": 0,
+            "formal_backtest_eligible": false,
+            "source_unchanged": true,
+            "cleanup": {
+              "owned_pg_stopped": true,
+              "owned_pgdata_removed": true
+            },
+            "temporary_home_removed": true,
+            "candidate_ci": "IN_PROGRESS_NOT_CERTIFIED",
+            "report_update_final_ci_binding": "PENDING_ROOT"
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -3982,7 +4794,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "series",
           "provider_status": "failed",
@@ -3998,6 +4810,22 @@
             "error_type": "ConnectTimeout",
             "contract_reference": "https://www.bls.gov/developers/api_signature_v2.htm",
             "contract_evidence_scope": "父任务提供官方GET合同引用；本报告未发网络或独立读取该页面"
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -4086,6 +4914,18 @@
             "availability": "present",
             "sha256": "1e5c3a58a4d418101c99cd54f2bbfaf73783b5a4d1eab3e47062b699c6271440",
             "scope": "最终候选对应case冻结导出；dirty-tree源码hash精确绑定"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/receipt.json",
+            "availability": "present",
+            "sha256": "753cfded0578bc21df6e2d91c8d33af6aea10760e733c5456f83794e6cd10c1c",
+            "scope": "最新实际HEAD056b：8宏观/财务完整Host/ownedPG重跑PASS；新base market_service源码变化已覆盖，不复用旧10source回执"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023-integration/logs/latest-base-real-056b/numeric/worldbank-frozen.json",
+            "availability": "present",
+            "sha256": "8080c067be9f00a39c1aab88e0aff8ea094df7ec658f38b7836348a9bbcec798",
+            "scope": "HEAD056b宏观/财务case冻结导出，仅ignored本地日志，不复制供应商数据值"
           }
         ],
         "limitations": [
@@ -4107,7 +4947,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "inflation",
           "provider_status": "snapshot",
@@ -4243,6 +5083,74 @@
             "formal_backtest_eligible": false,
             "ci": "NOT_RUN",
             "deployment": "NOT_RUN"
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          },
+          "latest_base_056b_real_host_round": {
+            "head": "056b030507beb5a4b30cab0b53a28cbaa4364e5f",
+            "status": "PASS",
+            "source_aggregate_json_sha256": "0396b9e59dac1f8d1233a333ef67b16cfa2ef33fe01299d7d8d008769b511873",
+            "source_sha256": {
+              "app/research_web/datahub/__init__.py": "c9d918ffd2bd012d86d4c2a8bfbeaa6db7d365d7c3afab75b79227babe17c033",
+              "app/research_web/datahub/catalog.py": "df3d8bb05eef6f4f985469b76419f38fe10ce9e08593f948705ec170f8cc6da4",
+              "app/research_web/datahub/broker.py": "30fd977ef3fddc73caea83839460b85d88f2cbed454f526cf0237825817ce3c2",
+              "app/research_web/datahub/providers_external.py": "ce5f54c526b2d34f34ba1e0ebdc173c42048049e0e9c73ae645250dc71dfb832",
+              "app/research_web/datahub/providers_akshare.py": "bf633304560f4133c040d9b76136f330fdcffeb9a209ee1609dbfb82f9a4303c",
+              "app/research_web/market_service.py": "37d9bb0e18a12935cb815628f57666f4a821f2fc4abfa9ebd7f41245cc2ffc09",
+              "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
+              "app/research_web/datahub/market_reader.py": "e687eaa7608dbb30d32e2b1f43339822cea87ed6be8a7191eb39c47cf991045d",
+              "app/research_web/datahub/research_snapshot_store.py": "c957c3a79f60e59a24b8ed7cea11aa9025b7cf57b1acdaba9b2b910a388845e8",
+              "app/research_web/datahub/research_warehouse.py": "ba41257c425d0d8a54adc7ac4301cc249ec43aed1626814eb70177861fde474e"
+            },
+            "changed_source_from_previous_host_receipt": [
+              "app/research_web/market_service.py"
+            ],
+            "worker7_aggregate_unchanged": "f6ba79c554d11b5bd4a3ebcae30d67a44badadbdb50cff7adf7ab9f9bcd4793c",
+            "worker7_subset_matches": true,
+            "cases": [
+              {
+                "name": "worldbank",
+                "rows": 2,
+                "passed": true,
+                "cache_rows_equal": true,
+                "cache_fields_equal": true,
+                "rows_sha256": "cbe270ce4e36613602257ccc7d4596feec87d3dbc0bd3bad19c87d9915c04b83",
+                "fields_sha256": "ae0c574fad1e487792ba4c41029b2c4b828849a10a0543f684255789a590c828",
+                "frozen_digest": "c650853025283a93d41d5044d555746a7ac0850b31fef291d3439b86bbcd6769"
+              }
+            ],
+            "postgres_restart_same_versions": true,
+            "host_restart_passed": true,
+            "host_restart_zero_vendor_calls": true,
+            "independent_restore_same_digests": true,
+            "facts_after": 8,
+            "direct_http_calls": 3,
+            "worker_submissions": 5,
+            "child_http": "unmeasured",
+            "models": 0,
+            "formal_backtest_eligible": false,
+            "source_unchanged": true,
+            "cleanup": {
+              "owned_pg_stopped": true,
+              "owned_pgdata_removed": true
+            },
+            "temporary_home_removed": true,
+            "candidate_ci": "IN_PROGRESS_NOT_CERTIFIED",
+            "report_update_final_ci_binding": "PENDING_ROOT"
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -4311,14 +5219,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "etf-holdings",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "nested_numeric_observed_adapter_missing",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4378,14 +5302,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "gold-pm",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4445,14 +5385,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "cot",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4512,14 +5468,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "gld-options",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4579,14 +5551,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "gld",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "nested_numeric_observed_adapter_missing",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4646,14 +5634,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "index",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "nested_numeric_observed_adapter_missing",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4732,7 +5736,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "production",
           "provider_status": "partial",
@@ -4760,6 +5764,22 @@
             ],
             "units": "unknown",
             "warehouse_persisted": false
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -4830,14 +5850,30 @@
           "channel_note": "同上游的原生Provider成功不等于此通用外部适配器已验收。"
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "hot-list",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "false_success_signature_rejected",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4900,14 +5936,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "lives",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -4968,14 +6020,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "hot",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "html_readable_not_numeric",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5035,14 +6103,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "search",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5103,14 +6187,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "week-json",
           "provider_status": "partial",
           "row_count": 5,
           "semantic_status": "calendar_rows_observed_not_actual_series",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5170,14 +6270,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "valuation",
           "provider_status": "partial",
           "row_count": 5,
           "semantic_status": "flat_numeric_observed_adapter_missing",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5250,7 +6366,7 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "history",
           "provider_status": "snapshot",
@@ -5267,6 +6383,22 @@
             ],
             "index_code": "000300",
             "requested_history_rows": 0
+          },
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
           }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
@@ -5327,14 +6459,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "index",
           "provider_status": "snapshot",
           "row_count": 1,
           "semantic_status": "html_shell_not_numeric",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5394,14 +6542,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "valuation",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5569,14 +6733,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "monthly",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5636,14 +6816,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "search",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5703,14 +6899,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "rss",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5770,14 +6982,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "rss",
           "provider_status": "partial",
           "row_count": 5,
           "semantic_status": "content_rows_observed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5838,14 +7066,30 @@
           ]
         },
         "facts": {
-          "reconciliation_category": "public_business_probe_record_present",
+          "reconciliation_category": "public_no_credentials_business_probe_record_present",
           "new_vendor_call_by_documentation_auditor": false,
           "dataset": "business",
           "provider_status": "failed",
           "row_count": 0,
           "semantic_status": "transport_failed",
           "pagination_complete": false,
-          "underlying_http_count": "not_aggregated_from_provider_status"
+          "underlying_http_count": "not_aggregated_from_provider_status",
+          "reconciliation_category_history": [
+            {
+              "category": "public_business_probe_record_present",
+              "label": "免费外部来源有界请求记录",
+              "classification_basis": "先前费用标签未逐源核实；无auth声明不构成免费或商业权益证明",
+              "superseded_by_fee_scope_correction": true
+            }
+          ],
+          "reconciliation_category_label": "公开无凭据业务请求记录（不承诺商业复用免费）",
+          "fee_review": {
+            "request_authentication_scope": "public_no_credentials_bounded_request_attempt",
+            "procurement_or_paid_api_called_this_round": false,
+            "commercial_reuse_fee": "unknown_not_verified",
+            "commercial_reuse_rights": "unknown_not_verified",
+            "no_auth_does_not_prove_free": true
+          }
         },
         "evidence_grade": "current_bounded_sample_and_static_limits"
       }
@@ -5998,12 +7242,12 @@
     "remaining57_reconciliation_counts": {
       "device_required": 1,
       "existing_account_key_or_entitlement_required": 10,
-      "free_native_disabled_or_connector_missing": 9,
       "virtual_local_placeholder": 1,
       "catalog_only": 1,
-      "public_business_probe_record_present": 35
+      "unimplemented_or_no_public_business_contract_fee_entitlement_unverified": 9,
+      "public_no_credentials_business_probe_record_present": 35
     },
-    "current_round_unique_evidence_files_hash_checked": 87,
+    "current_round_unique_evidence_files_hash_checked": 107,
     "legacy_review_counter_scope": "evidence_files_hash_checked=30/unique_evidence_files=20等保留上次审计值；本轮另核42个新增证据原件，未伪称重跑旧历史验证",
     "addendum_evidence_files_hash_checked": 20,
     "latest_eightcase_evidence_files_hash_checked": 9,
@@ -6039,6 +7283,46 @@
           "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-remaining-sources-20261023/logs/final-public-parser-real/ext_kapsarc.json"
         ]
       }
-    ]
+    ],
+    "remaining57_reconciliation_counts_history": [
+      {
+        "counts": {
+          "device_required": 1,
+          "existing_account_key_or_entitlement_required": 10,
+          "free_native_disabled_or_connector_missing": 9,
+          "virtual_local_placeholder": 1,
+          "catalog_only": 1,
+          "public_business_probe_record_present": 35
+        },
+        "superseded_reason": "费用分类用语缺少逐源费用/商业权益证据，保留历史但不继续声称免费"
+      }
+    ],
+    "remaining57_reconciliation_category_labels": {
+      "unimplemented_or_no_public_business_contract_fee_entitlement_unverified": "未实现或无公开业务合同的候选（费用/权益未全核）",
+      "public_no_credentials_business_probe_record_present": "公开无凭据业务请求记录（不承诺商业复用免费）"
+    },
+    "fee_classification_correction": {
+      "scope": "报告事实与用语修正；无新来源/费用/权益联网核验",
+      "candidate_source_code_changed": false,
+      "frozen_receipts_changed": false,
+      "existing_evidence_hashes_changed": false,
+      "not_reuse_old_candidate_ci_for_report_update": true,
+      "new_report_commit_and_ci_binding": "PENDING_ROOT",
+      "candidate9_count": 9,
+      "anonymous_probe35_count": 35,
+      "total_remaining": 57,
+      "catalog_free_declaration_not_free_verification": true
+    },
+    "latest_base_056b_added_evidence_files_hash_checked": 20,
+    "parent_latest_local_validation_summary": {
+      "python_passed": 512,
+      "python_subtests_passed": 71,
+      "javascript_passed": 264,
+      "local_gates": "PASS_PARENT_REPORTED",
+      "executed_by_documentation_auditor": false,
+      "old_d696_ci_not_reused": true,
+      "latest_056b_ci_in_progress": true,
+      "post_report_final_ci_binding": "PENDING_ROOT"
+    }
   }
 }
