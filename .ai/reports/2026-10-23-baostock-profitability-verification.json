@@ -181,5 +181,24 @@
     "baostock": 1,
     "akshare": 1
   },
-  "final_bounded_runtime_duration_seconds": 4.956
+  "final_bounded_runtime_duration_seconds": 4.956,
+  "ci_dependency_isolation_followup": {
+    "failed_candidate": "840b3081c3c00af2ddd942640adf0c3f931a48f2",
+    "checks_run": 39913230426,
+    "status": "failed_test_fixture_dependency_not_production_contract",
+    "passed": 3724,
+    "failed": 1,
+    "skipped": 69,
+    "subtests": 115,
+    "mac_old_candidate_run": 39913496739,
+    "mac_old_candidate_status": "success_not_new_candidate_proof",
+    "production_readiness_changed": false,
+    "new_dependency_installed": false,
+    "targeted_after_fix": {
+      "passed": 11,
+      "simulated_absent_sdk_cache_test_passed": true,
+      "real_absent_sdk_rejection_preserved": true
+    },
+    "final_candidate_ci": "NOT_RUN"
+  }
 }

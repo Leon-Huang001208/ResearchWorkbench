@@ -50,6 +50,17 @@ def test_explicit_and_auto_profitability_select_same_supplier_without_summary_su
         resolve(profitability("auto"), environ={}, excluded_sources=frozenset({"baostock"}))
 
 
+def test_profitability_missing_sdk_is_rejected_before_provider_execution(monkeypatch):
+    from app.research_web.datahub import catalog
+
+    monkeypatch.setattr(catalog, "find_spec", lambda _name: None)
+    for source in ["baostock", "auto"]:
+        with pytest.raises(StoreError) as rejected:
+            resolve(profitability(source), environ={})
+        assert rejected.value.code == "data_capability_unavailable"
+        assert rejected.value.status == 503
+
+
 def stored_response():
     from app.research_web.datahub.providers import Result
     from app.research_web.datahub.providers_baostock import (
@@ -161,9 +172,12 @@ async def test_legacy_profitability_session_cache_is_not_reused_but_receipt_rema
 ):
     from types import SimpleNamespace
 
-    from app.research_web.datahub import DataHub, connections, providers
+    from app.research_web.datahub import DataHub, catalog, connections, providers
     from app.research_web.store import Store
 
+    # The provider below is synthetic; model its installed SDK explicitly so
+    # cache compatibility does not depend on the developer's site-packages.
+    monkeypatch.setattr(catalog, "find_spec", lambda _name: object())
     monkeypatch.setattr(connections.os, "environ", {})
     monkeypatch.setattr(
         connections,
