@@ -281,3 +281,5 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 2026-10-23华安历史补查只在原Checks同一Python清单追加test_report_weekly_gold_supplement.py，原job、runner、timeout及依赖不变；初次模块约5秒，预算及未收盘边界补齐后33项27.38秒，预留45秒。九文件本机初次269项72.42秒，解压预算修复后271项71.85秒，未收盘门修复后284项92.86秒。实时仓库PUBLIC；最近五个成功Checks为39918409265/39916809525/39914718255/39912838401/39911774250，创建至更新701/687/1028/955/897秒（墙钟观测，不是计费分钟）。不向CI带入Wind数据、厂商网络或模型；新候选另绑原三门及同候选Mac安装，其他平台交接真机，正式Run与交付仍独立核验。
 
+
+今日发现组合操作员复用原Checks中的test_model_provider_upgrade.py及原三CI/同候选Mac安装；不新增workflow/job/runner/超时/平台dispatch/依赖。公开标准runner资格在publish前实时复核，真实模型和生产计划保持零调用/未开启。
