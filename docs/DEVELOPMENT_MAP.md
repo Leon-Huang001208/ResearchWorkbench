@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；
+`research_snapshot_store.py` 写入前重新解析原件，`research_warehouse.py` 绑定专用版本/单位身份，
+DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 `test_datahub_spdr.py` 和
+`test_spdr_warehouse_integration.py`，覆盖源格式、提前拒绝、原件绑定、授权、冻结恢复及旧回执可读；
+真实 HTTP/Host/PostgreSQL 和同候选 CI 证据由任务报告分别记录，不能以合成样例代替。
+
 2026-10-23：终端Native部署入口仍为`research_workbench_entrypoint/resident/model_provider_upgrade.py`，新增封闭terminal profile并复用原version4事务／严格保全，不开放任意PAYLOAD。完整操作员回归覆盖旧profiles与terminal，产品后端130例单独记录；PR201产品合并后由主任务固定最终PAYLOAD，再完成组合候选独评、完整Router及原三CI。对应身份与未执行部署状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 全市场终端由`market_indices.py`定义core-v1固定12与terminal-v2共24指数及分组；`market_analysis.py`计算三周期证据与官方六风格矩阵，`market_portfolio.py`管理账号持仓预览/确认及有界文件。market_routes/service复用原维护准入、缓存生命周期；ui/market-terminal.mjs组织原生终端交互，market.mjs保留行情表/成员/导出。近处回归test_market_indices/test_market_terminal和research_web_market_terminal覆盖真实契约、上海跨日、陈旧估值拒绝、账号及迟到响应；真实来源和浏览器独立验收。
@@ -503,6 +509,8 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 `connection_center.py`的公开分组必须与Catalog同步；`test_datahub_catalog.py`遍历真实全目录投影，
 `test_integration_coordinator.py`用真实DataHub恢复已持久集成状态，防止新增源漏登记造成启动KeyError。
 
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
 ## 2026-10-23：BaoStock盈利能力来源
 

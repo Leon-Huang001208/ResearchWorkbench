@@ -2,6 +2,12 @@
 
 2026-10-23档案候选仅扩充原Checks Python清单的8个档案/MCP模块和Mac Bootstrap的4个静态资源同源字节核对，不增job、runner、依赖或其他平台dispatch。实时API确认PUBLIC，近期成功run为39935144625、39934720506、39934720479、39934720463、39933236627（创建至结束约53/322/64/684/527秒）。新增组合266例本机41.33秒，既有JS1075通过/3原skip为6.54秒；定点新增预算预留90秒，Mac静态核对预留15秒。保留原通用CI与同候选Mac干净安装，免费目录估价不授权真实MCP或模型调用。
 
+SPDR 四项快照只向原 Research Web Checks 的同一 Python 步骤添加 test_datahub_spdr 和 test_spdr_warehouse_integration，
+没有新 job、runner、timeout 或依赖；99+19 项定点合成检查本机不足1秒，预留原步骤15秒。
+真实公开 HTTP 和临时 PostgreSQL 仅本机有界执行，不调用模型。保留原三 CI、同候选 macos-14 安装及完整 Router；
+远端操作前实时核对 visibility/额度，不手工 rerun，不从 Mac dispatch Windows/Linux 产品 workflow。
+
+
 2026-10-23终端v2只向原Checks Python步骤加入test_market_indices/test_market_terminal，JS沿原通配符；Mac安装名单增加market-terminal.mjs，原job/runner/timeout/依赖与条件不变。当前公开仓库资格由操作前实时核验。新增离线闭包约1秒，预留原步骤30秒；公开源不进入CI，不触发真实模型或付费数据。
 2026-10-23构建器对账只向现有Research Web Checks同一pytest步骤加入test_builder_reconcile／test_iteration_resources／test_docker_resources；不增workflow/job/runner/timeout。44项及9subtests的本机10.14秒为阶段证据，完整候选另测并保留原三CI／macos-14安装门。只读API当前PUBLIC；真实Docker恢复另验，无模型或业务数据操作。
 
@@ -254,6 +260,8 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 仍无新job/runner/依赖/时限或他平台dispatch。临时Mac诊断workflow已恢复原字节；三次历史启动失败保留，
 正常修补后的同候选Mac仍须重新证明，不用本机通过替代。追加公开资金流失败只在本机执行，不进入CI。
 
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
 ## 2026-10-23：BaoStock盈利能力来源
 

@@ -10,6 +10,7 @@ import math
 import re
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import quote, urlsplit
@@ -31,6 +32,33 @@ from .providers import DEADLINE, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Re
 log = get_logger(__name__)
 OFFICIAL_NUMERIC_CONTRACT = "official-numeric-v2"
 EXTERNAL_ENVELOPE_CONTRACT = "external-envelope-v1"
+SPDR_NUMERIC_CONTRACT = "spdr-gld-trust-snapshot-v1"
+SPDR_METRIC_UNITS = {
+    "total_nav_usd": "USD",
+    "total_tonnes": "tonnes",
+    "total_ounces": "ounces",
+    "shares_outstanding": "shares",
+}
+_SPDR_MONTHS = {
+    name: index
+    for index, name in enumerate(
+        (
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ),
+        start=1,
+    )
+}
 EXTERNAL_ENVELOPES = frozenset(
     {
         ("ext_nasdaq", "history"),
@@ -92,6 +120,90 @@ def arguments(value: str | None) -> dict[str, Any]:
         if key in parsed and not isinstance(parsed[key], dict):
             raise ProviderError("external_arguments_invalid")
     return parsed
+
+
+def spdr_projection(raw: bytes) -> list[dict[str, Any]]:
+    """Validate four source metrics; preserve source strings and each reference date."""
+    try:
+        body = json.loads(raw)
+        if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
+            raise TypeError("invalid_envelope")
+        if (
+            body.get("success") is False
+            or body.get("error")
+            or any(
+                body.get(key) not in (None, 0, "0")
+                for key in ("errorcode", "error_code", "errcode")
+            )
+            or body.get("code") not in (None, 0, "0", 200, "200")
+        ):
+            raise ValueError("error_envelope")
+        rows = []
+        for metric, unit in SPDR_METRIC_UNITS.items():
+            item = body["data"][metric]
+            source_value, source_date = item["value"], item["date"]
+            if (
+                not isinstance(source_value, str)
+                or not 1 <= len(source_value) <= 128
+                or not isinstance(source_date, str)
+                or not 1 <= len(source_date) <= 64
+            ):
+                raise ValueError("invalid_metric_text")
+            number_text = source_value
+            if metric == "total_nav_usd":
+                match = re.fullmatch(r"US\$ ?(.+)", source_value)
+                if match is None:
+                    raise ValueError("invalid_currency")
+                number_text = match[1]
+            grammar = r"(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+)"
+            if metric != "shares_outstanding":
+                grammar += r"(?:\.[0-9]+)?"
+            if re.fullmatch(grammar, number_text) is None:
+                raise ValueError("invalid_number")
+            exact = number_text.replace(",", "")
+            numeric = int(exact) if metric == "shares_outstanding" else float(Decimal(exact))
+            if not math.isfinite(numeric):
+                raise ValueError("nonfinite_number")
+            match = re.fullmatch(r"([A-Za-z]+) ([0-9]{1,2}), ([0-9]{4})", source_date)
+            if match is None:
+                raise ValueError("invalid_reference_date")
+            reference_date = (
+                datetime(int(match[3]), _SPDR_MONTHS[match[1]], int(match[2])).date().isoformat()
+            )
+            rows.append(
+                {
+                    "metric": metric,
+                    "value": numeric,
+                    "value_decimal": exact,
+                    "source_value": source_value,
+                    "reference_date": reference_date,
+                    "source_reference_date": source_date,
+                    "unit": unit,
+                    "currency": "USD" if metric == "total_nav_usd" else None,
+                }
+            )
+        return rows
+    except (ValueError, TypeError, KeyError, OverflowError, AttributeError, RecursionError):
+        log.warning("spdr_numeric_envelope_invalid", source="ext_spdr", dataset="gld")
+        raise ProviderError("spdr_numeric_schema_invalid") from None
+
+
+def spdr_fields() -> dict[str, dict[str, str]]:
+    """Fresh field metadata for the bounded source-native projection."""
+    return {
+        "metric": {"type": "string", "unit": "source_metric"},
+        "value": {"type": "number", "unit": "per_row"},
+        "value_decimal": {"type": "string", "unit": "per_row", "role": "exact_decimal"},
+        "source_value": {"type": "string", "unit": "per_row", "role": "source_original"},
+        "reference_date": {
+            "type": "date",
+            "unit": "date",
+            "role": "reference_period_not_available_at",
+        },
+        "source_reference_date": {"type": "string", "unit": "date", "role": "source_original"},
+        "unit": {"type": "string", "unit": "source_unit"},
+        "currency": {"type": "string", "unit": "source_currency"},
+    }
 
 
 def endpoint_request(
@@ -917,6 +1029,13 @@ async def fetch(
         if source_id not in EXTERNAL_SOURCES:
             raise ProviderError("external_source_required")
         args = arguments(query.parameters.get("arguments_json"))
+        if (source_id, dataset) == ("ext_spdr", "gld"):
+            if query.as_of is not None or query.purpose == "backtest" or query.required_semantics:
+                log.warning("spdr_request_rejected", reason="historical_semantics_unsupported")
+                raise ProviderError("spdr_historical_semantics_unsupported")
+            if args:
+                log.warning("spdr_request_rejected", reason="arguments_unsupported")
+                raise ProviderError("spdr_arguments_unsupported")
         endpoint, url = endpoint_request(source_id, dataset, args)
         official_numeric_request(source_id, dataset, args)
         if (source_id, dataset) == ("ext_ths", "cmd_history_quotation"):
@@ -975,7 +1094,11 @@ async def fetch(
                 # JSON-escaped secret must never enter archived original bytes.
                 if _rows_reflect_credentials(decoded, reflected):
                     raise ProviderError("credential_reflection")
-        business = external_business_envelope(source_id, dataset, raw)
+        business = (
+            (spdr_projection(raw), 4, True)
+            if (source_id, dataset) == ("ext_spdr", "gld")
+            else external_business_envelope(source_id, dataset, raw)
+        )
         if business is None:
             rows = response_rows(raw, content_type, encoding)
             rows, provider_total, complete_page = numeric_envelope(
@@ -1019,6 +1142,18 @@ async def fetch(
             for row in result.rows
             for key in row
         }
+        if (source_id, dataset) == ("ext_spdr", "gld"):
+            result.fields = spdr_fields()
+            result.metadata = {
+                "schema_version": SPDR_NUMERIC_CONTRACT,
+                "provider_semantics_revision": SPDR_NUMERIC_CONTRACT,
+                "upstream_id": "spdrgoldshares",
+                "availability_basis": "first_observed",
+                "revision_policy": "first_observed_not_historical_vintage",
+                "historical_point_in_time": False,
+                "formal_backtest_eligible": False,
+                "units": dict(SPDR_METRIC_UNITS),
+            }
         if (source_id, dataset) in EXTERNAL_ENVELOPES:
             result.metadata["schema_version"] = EXTERNAL_ENVELOPE_CONTRACT
             if (source_id, dataset) == ("ext_danjuan", "history") or not result.rows:

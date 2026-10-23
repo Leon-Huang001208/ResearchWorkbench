@@ -1,5 +1,10 @@
 # DataHub 研究数据仓库内核
 
+SPDR `ext_spdr/gld` 的四项来源原生快照沿现有 `ResearchWarehouse → SnapshotSeries → MarketStoreService` 保存。
+版本身份包含专用 schema/单位合同和完整查询，原件与投影重新核对，读取/导出/恢复逐次验证当前权限。
+各指标的参考日期和单位独立保留，历史回测资格未认证；不会进入规范股票行情表或替代资金流指标。
+没有新增 SQL 表、数据库服务、迁移或存储根。正式库和外盘保持现状，真实验证仅在独立临时 PostgreSQL 进行。
+
 terminal-v2指数集合使用独立市场缓存键；既有MarketReader/研究仓core-v1完整12身份和原生封包不改变，不能把24指数塞入旧仓库profile。新浪历史为price_index、实际采集时间first_observed、historical_pit_verified=false；画像可以展示可算特征，但不能据此认证历史PIT、回测或配置有效性。
 
 2026-10-23新增宏观使用现有SnapshotSeries与PostgreSQL适配：官方数值v2和AK中国宏观v1进入各自schema/units身份；不新增表、不连接正式库、不迁移旧记录。范围查询结果以原生响应冻结，首次观测时间与供应商观察期分开，尚不是可按历史披露版本重建的规范宏观事实。字段、原字节、版本与摘要可随导出恢复复现；Broker当前仍拒绝AK宏观as_of，包括库读取，不宣称Host已支持该历史查询。旧显式冻结包保持可读。

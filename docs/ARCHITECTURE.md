@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+2026-10-23 SPDR 四项快照扩展现有外部 Provider 和原生研究仓白名单；单次原件、四项行/字段及单位通过同一解析器绑定。
+仅增加现有 gld 的数据合同版本，Host → DataHub → Provider/可选 MarketStore 的节点与边保持，现有图准确。
+无新 HTTP 路由、数据库表、服务或引擎；首次观测快照、每次授权和正式 PIT 限制见[原生快照](research-web-vendor-snapshots.md)。
+
 2026-10-23：市场终端固定部署仅在原Native操作员增加`reviewed-market-terminal-v1`／`apply-market-terminal`身份，复用version4维护锁、BirthFence、主实例与网关升级、全账号保全及恢复；不新增运行节点、协议、依赖或第二研究引擎。产品13图已有终端数据边界，操作员沿原01／12图，无须重复重画。固定候选、尚待PR201合并后冻结的产品身份及分层验收见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)；本机回归不代表常驻已切换。
 
 2026-10-23全市场终端v2沿现有浏览器→Host MarketService→公开来源及账号文件增加版本化24指数目录、三周期六维证据、风格矩阵与组合预览确认。东财行情与新浪前日价格指数日线分别保留来源；旧12指数研究仓合同不扩写。持仓与首次观察日线保存在原用户market-cache，GET不采集、不创建目录，不新增守护进程、依赖、研究会话或交易接口。13市场图按Host模块抽象同步这些数据边界。
@@ -213,6 +217,8 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 
 BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原Host→DataHub→MarketStore，复用既有available_at/ingested_at修订、原件与冻结表；只新增Provider内部解析与受信WarehouseBinding，未新增服务、HTTP、数据根或数据库schema。通用native仍是首次观测；东财SDK/游客资金流同源且单位未知，不授予跨源等价。模块与时点范围见[研究仓](research-web-market-store.md)。
 
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
 ## 2026-10-23：BaoStock盈利能力来源
 

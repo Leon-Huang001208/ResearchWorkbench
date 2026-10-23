@@ -364,3 +364,7 @@ AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件�
 ## 2026-10-23：长期研究档案与机会预警
 
 档案个人 SQLite、引用／pin 和既有 raw 快照随原用户业务根保全，Native／Docker 单一写入与用户隔离不变；无新镜像角色、容器、卷、端口或 PostgreSQL 服务。新增 metadata／lock 摘要只扩展保全覆盖，正式恢复与切换仍走原维护准入和独立授权。当前跟踪只重查冻结材料且默认关闭，小创缺真实 Registry 身份保持 unsupported；Mac离线回归不替代 Docker 产品层验收或他平台证据，见[档案保全](research-web-dossiers.md#备份恢复与部署边界)、[扫描](research-web-dossier-scans.md)及[候选](research-web-seek-alpha.md)。
+
+
+2026-10-23：资产副图v7只更新macOS Native固定操作员；不宣称Docker产品已验收，不修改构建器、缓存/容量或其他平台规则。原资源回收仍保护未知与活动资源。
+

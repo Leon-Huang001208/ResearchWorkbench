@@ -37,6 +37,7 @@ from .providers_external import (
     EXTERNAL_ENVELOPES,
     OFFICIAL_NUMERIC,
     OFFICIAL_NUMERIC_CONTRACT,
+    SPDR_NUMERIC_CONTRACT,
 )
 from .reliability import TOTAL_DEADLINE, CircuitBreaker, execute, failure_code
 from .security import load_control
@@ -1606,6 +1607,12 @@ class DataHub:
                             required_contract = BAOSTOCK_FINANCIAL_SCHEMA
                         elif provider_id == "bea_archive":
                             required_contract = BEA_ARCHIVE_SCHEMA
+                        elif (
+                            provider_id == "ext_spdr"
+                            and query.capability == "external_data"
+                            and query.parameters.get("dataset") == "gld"
+                        ):
+                            required_contract = SPDR_NUMERIC_CONTRACT
                         elif provider_id == "akshare":
                             if query.capability == "financials" and query.parameters.get(
                                 "statements"

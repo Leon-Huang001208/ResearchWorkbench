@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+SPDR 四项快照使用现有 httpx 和 Python 标准库；已核对 requirements/web.in、web.lock、scripts/setup_web.py、
+setup-web.sh、setup-web.cmd 和 Bootstrap，均无需为此新增依赖或安装步骤。没有新配置、账号或秘密入口，
+Doctor 既有来源/仓库状态合同保持。同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor 仍须实际通过。
+
 2026-10-23：终端固定Native部署复用现有`apply-market-terminal`事务，仅接受冻结前版和产品候选。当前产品检查点尚待PR201合入后由主任务固定为最终PAYLOAD，不能将预检检查点当作可部署版本。固定目标web.lock身份不变，不安装新包；安装清单同步／恢复沿原受管事务。最终组合仍须同候选macos-14干净安装与原两项仓库门，实际部署另证，详见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 全市场终端v2不新增Python/Node依赖或数据库迁移；原setup-web.sh/setup-web.cmd/python scripts/setup_web.py干净安装合同保持。新的market-terminal.mjs作为同源静态模块加入既有Mac安装HTTP核验；金元普通客户端未认证官方持仓接口，安装成功不等于已接通券商。
@@ -995,6 +999,8 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 
 2026-10-23副图扩展不新增依赖、配置或Doctor能力；requirements/web.in、web.lock、setup_web.py和三个公开安装入口保持。asset-indicator-library.mjs与asset-panel-manager.mjs随原UI包安装，原Mac Bootstrap下载比对追加两模块；固定图表库、许可证、CJPY无凭据待配置、同候选DSH构建/健康检查/Doctor门均保持。
 
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
 ## 2026-10-23：BaoStock盈利能力来源
 

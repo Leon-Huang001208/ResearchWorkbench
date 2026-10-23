@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+SPDR 原生快照迭代在 Mac 隔离 worktree 开发，先验证四项闭合投影和原件绑定，再用单次公开取数、独立 socket-only
+PostgreSQL、跨会话/Host 与 PG 重启及第二空库恢复验收；CI 不访问厂商、模型或正式数据库。
+两新测试模块沿原 Checks 同一步，原三 CI 与同候选 macos-14 安装门保持。未更新常驻服务或外盘，其他平台原生保持 NOT_RUN。
+
 2026-10-23：终端profile闭包先运行后端130例与完整操作员／网关／resident回归，不安装依赖、不改秘密或常驻服务。`apply-market-terminal`仅复用原封闭Native部署通道；PR201合入后主任务固定最终产品身份，完整changed-set Router、独立评审、Project Constraints／Research Web Checks及同候选macos-14干净安装均须重新绑定。实际切换、认证页面及全账号保全另取证；产品CI或本地通过不能认证这些层级。
 
 2026-10-23终端v2先交互v0确认A，再复用原Checks定点Python与JS通配符、完整Router、独立评审及同候选Mac安装CI。公开源、隔离浏览器和常驻认证各留真实证据；缺历史的分项／总分／仓位待验证，金元普通客户端不等于官方API。部署沿保全与恢复事务，Windows/Linux交接不冒充本机完成。
@@ -413,6 +417,8 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 
 本轮只在隔离worktree实现新浪财报/资金流来源合同及BEA官方档案有限回放。沿完整changed-set Router、独立评审、本机macOS与原Project Constraints/Checks/同候选Mac安装；只向既有Checks步骤补两个模块，不新增job、runner、timeout、依赖或他平台dispatch。真实验证用已批准环境与socket-only临时PG，禁止5432、系统凭据、模型、现有服务及外盘操作。缺历史版本保持明确拒绝，不能把当前下载日期、测试或预告时间冒充真实公布版本。收尾受Docker检查阻断时保留工作树和证据，不重启现有服务解锁。
 
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
 ## 2026-10-23：BaoStock盈利能力来源
 

@@ -777,3 +777,7 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 ## 2026-10-23：长期研究档案与机会预警
 
 新增边界为个人 SQLite 引用／pin、Prompt-only receipt 与冻结原件的逐次授权；浏览器不能自报 hash、公开时点或 passed，源撤权／损坏显示缺口，不重新取数替换历史。MCP 在真实 transport 绑定当次 token，并检查解析 JSON 键／叶子及有界文本 JSON；候选禁止 resource/prompt，未知受理继续占预算。小创 Registry 身份未核验，导入后 unsupported，真实报价／凭据／收费／部署未执行；54 仅估算。独评、离线回归、同候选 CI 与真实研究质量分开绑定，见[档案安全](../../research-web-dossiers.md)与[候选安全](../../research-web-seek-alpha.md)。
+
+
+2026-10-23：v7继续固定前版c4e/产品3a62/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。
+
