@@ -160,6 +160,34 @@ def test_preview_readonly_and_restore_stopped(manager):
     assert manager.mutations == mutations
 
 
+def test_desktop_vm_bind_translation_preserves_exact_config_identity(manager):
+    manager.apply(manager.preview()["fingerprint"])
+    source = "/host_mnt" + str(manager.root / "buildkitd.toml")
+    manager.container["Mounts"][1]["Source"] = source
+    manager.container["HostConfig"]["Mounts"] = [
+        {
+            "Type": "bind",
+            "Source": source,
+            "Target": "/etc/buildkit/buildkitd.toml",
+            "ReadOnly": True,
+        }
+    ]
+    manager.verify()
+    before = list(manager.mutations)
+    manager.container["HostConfig"]["Mounts"][0]["Source"] = source + ".other"
+    with pytest.raises(ResourceError, match="builder_resource_identity_changed"):
+        manager.verify()
+    assert manager.mutations == before
+
+
+@pytest.mark.parametrize("prefix", ["/unknown", "/host_mnt/other", "/host_mnt/../host_mnt"])
+def test_unknown_vm_bind_prefix_is_not_accepted(manager, prefix):
+    manager.apply(manager.preview()["fingerprint"])
+    manager.container["Mounts"][1]["Source"] = prefix + str(manager.root / "buildkitd.toml")
+    with pytest.raises(ResourceError, match="builder_resource_identity_changed"):
+        manager.verify()
+
+
 @pytest.mark.parametrize(
     "change,code",
     [

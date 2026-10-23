@@ -209,6 +209,9 @@ apply 仅授权在该次已核验的当前本机引擎恢复缺失资源，不�
 容器/卷仅缺一个、同名未知资源、运行中的构建器或构建、管理目录别名一律拒绝。
 恢复保留 Buildx 注册，使用官方 Docker create/start 和 Buildx bootstrap，固定
 `moby/buildkit:v0.28.0`、既有限额/标签/配置，验证完成后精确停止新容器并更新账本。
+Docker Desktop 若将配置 bind 的 Source 显示为精确 `/host_mnt` 加原宿主绝对路径，
+必须同时由 `HostConfig.Mounts` 证明相同翻译路径、固定配置目标和只读属性；其他前缀、
+路径后缀匹配或缺失旁证仍拒绝。宿主原路径的既有验证保持。
 原账本、配置、脱敏绑定和分阶段 journal 保存在管理目录 `builder-reconcile/<fingerprint>/`，
 日志在 `logs/builder-reconcile.log`。失败保留实际现场和归档，不伪造回滚；可用
 `--recover <fingerprint>` 显式恢复已登记阶段。创建成功但 journal 未落盘等身份不明窗口
