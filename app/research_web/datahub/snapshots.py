@@ -522,6 +522,14 @@ class Snapshots:
         requested = list(dict.fromkeys(dataset_ids))
         if any(did not in available for did in requested):
             raise StoreError("交接数据集不存在或不属于来源会话")
+        if any(
+            self.detail(old_sid, did).get("snapshot_kind") == "mcp_evidence" for did in requested
+        ):
+            raise StoreError(
+                "受管 MCP 原件须通过档案冻结交接重新授权读取，不能普通复制",
+                "mcp_evidence_copy_denied",
+                409,
+            )
         copied = []
         for did in requested:
             original = self.detail(old_sid, did)

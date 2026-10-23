@@ -930,6 +930,34 @@
         "tests/research_web/test_discovery_routes.py",
         "tests/javascript/research_web_discovery.test.mjs"
       ]
+    },
+    {
+      "id": "dossiers",
+      "sources": [
+        "app/research_web/dossiers/",
+        "app/research_web/dossier_signal_routes.py",
+        "app/research_web/dossier_preservation.py"
+      ],
+      "documents": [
+        "docs/research-web-dossiers.md",
+        "docs/research-web-dossier-scans.md",
+        "docs/research-web-ui.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "tests": [
+        "tests/research_web/test_dossiers.py",
+        "tests/research_web/test_dossier_api.py",
+        "tests/research_web/test_dossier_scans.py",
+        "tests/research_web/test_dossier_signals.py",
+        "tests/research_web/test_dossier_signal_api.py",
+        "tests/research_web/test_dossier_preservation.py"
+      ],
+      "diagrams": [
+        "02-module-dependencies",
+        "04-data-file-flow"
+      ]
     }
   ],
   "diagrams": [
@@ -1259,10 +1287,30 @@
             "automationApi"
           ],
           "source": "app/research_web/discovery/tracking.py"
+        },
+        {
+          "subjects": [
+            "dossierStore",
+            "dossierRetention"
+          ],
+          "source": "app/research_web/dossiers/__init__.py"
+        },
+        {
+          "subjects": [
+            "mcpState",
+            "registryState"
+          ],
+          "source": "app/research_web/mcp_runtime/authorization.py"
+        },
+        {
+          "subjects": [
+            "automationService"
+          ],
+          "source": "app/research_web/dossiers/scans.py"
         }
       ],
       "level": "subsystems",
-      "summary": "资产目录、按需区块、历史任务与原MCP／自动化／报告Host依赖。"
+      "summary": "Host长期档案与保留引用、受管MCP费用占用及默认关闭的冻结扫描，沿既有DSH依赖。"
     },
     {
       "id": "01-deployment",
@@ -1743,10 +1791,24 @@
             "discoverySnapshot"
           ],
           "source": "app/research_web/datahub/snapshots.py"
+        },
+        {
+          "subjects": [
+            "handoff",
+            "snapshotHandoff",
+            "agentRead"
+          ],
+          "source": "app/research_web/dossiers/__init__.py"
+        },
+        {
+          "subjects": [
+            "handoff"
+          ],
+          "source": "app/research_web/dossiers/storage.py"
         }
       ],
       "level": "flows",
-      "summary": "DataHub授权查仓、缺口补数、等价切换、规范修订与冻结资料流；正式库尚未启用。 按需资产区块、固定复权快照与研究交接；无会话目录缓存分支见02。"
+      "summary": "DataHub原件与个人档案SQLite引用、不可变修订、冻结交接及逐次鉴权；旧快照和可选研究仓保持。"
     },
     {
       "id": "05-capability-flow",
@@ -4974,6 +5036,181 @@
       "source": "app/research_web/discovery/routes.py",
       "declaredPath": "/selection",
       "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/dossiers/{did}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/evidence",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/evidence",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}/evidence/{eid}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/evidence/{eid}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/handoff",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/handoff",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/links",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/links",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/records",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/records",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}/timeline",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/timeline",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{dossier_id}/scan",
+      "source": "app/research_web/dossier_signal_routes.py",
+      "declaredPath": "/{dossier_id}/scan",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/dossiers/{dossier_id}/tracking",
+      "source": "app/research_web/dossier_signal_routes.py",
+      "declaredPath": "/{dossier_id}/tracking",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/signals",
+      "source": "app/research_web/dossier_signal_routes.py",
+      "declaredPath": "/signals",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-delete",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/credential-delete",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-save",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/credential-save",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-status",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/credential-status",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-authorize",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-authorize",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-call",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-call",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-candidate",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-candidate",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-preview",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-preview",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/plugins/candidates/seek-alpha",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/candidates/seek-alpha",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/plugins/candidate/seek-alpha",
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "declaredPath": "/candidate/seek-alpha",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}/links/{lid}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/links/{lid}",
+      "prefix": "/api/research/dossiers"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -5212,6 +5449,17 @@
         "title": "今日发现与独立跟踪",
         "summary": "真实事件摘要、显式冻结和单次DSH研究；独立启用既有Automation，保留来源与质量缺口。",
         "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "dossiers",
+        "group": "dossiers",
+        "title": "长期研究档案与信号",
+        "summary": "个人SQLite保留不可变观点、证据引用和原Host质量；冻结扫描、显式交接及默认关闭的Automation跟踪。",
+        "category": "DataHub 与交接",
+        "diagrams": [
+          "02-module-dependencies",
+          "04-data-file-flow"
+        ]
       }
     ],
     "generator": {

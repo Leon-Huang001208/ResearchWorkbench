@@ -39,6 +39,8 @@ from .datahub.routes import router as datahub_router
 from .discovery.routes import router as discovery_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .dossier_signal_routes import router as dossier_signal_router
+from .dossiers.routes import router as dossiers_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
 from .hot_routes import private_router as hot_private_router
@@ -111,6 +113,7 @@ class TabbitTabRef(BaseModel):
 
 
 class Prompt(BaseModel):
+    dossier_handoff_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     text: str = Field(min_length=1, max_length=100000)
     research_mode: Literal["quick", "deep", "agent"] | None = None
     research_requirements: list[str] | None = Field(default=None, min_length=1, max_length=30)
@@ -288,6 +291,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
     app.include_router(datahub_router)
+    app.include_router(dossier_signal_router)
+    app.include_router(dossiers_router)
     app.include_router(asset_router)
     app.include_router(market_router)
     app.include_router(intel_router)
@@ -791,6 +796,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             research_mode=body.research_mode,
             research_requirements=body.research_requirements,
             research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
+            dossier_handoff_id=body.dossier_handoff_id,
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")

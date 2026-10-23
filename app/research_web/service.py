@@ -312,6 +312,9 @@ class ResearchService(ModelProfilesMixin):
         market_store_bridge=None,
     ):
         self.client, self.store, self.owned = client, store, owned
+        from .dossiers import DossierService
+
+        self.dossiers = DossierService(self)
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
@@ -444,6 +447,7 @@ class ResearchService(ModelProfilesMixin):
         return MCPRuntimeService(
             self.store.root,
             enabled=True,
+            evidence_store=self.store,
             registry=self.mcp_registry,
             resolver=resolver,
             planner=planner,
@@ -1856,46 +1860,54 @@ class ResearchService(ModelProfilesMixin):
 
     async def permanent_delete_session(self, sid: str):
         """Delete the DSH transcript first, then all Workbench-owned session data."""
+        from .dossiers.lock import retention_lock
+
         await self.ensure_owned()
         async with self.lock:
-            row = self.store.session(sid, include_deleted=True)
-            if row.get("deleted_at") is None:
-                raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
-            await self.asset_workspace.history_jobs.cancel_session(sid)
-            if row.get("native_deleted_at") is None:
-                try:
-                    native = await self.client.rpc("session.delete", {"sessionId": sid})
-                except RuntimeFailure as exc:
-                    if exc.code != "session/not-found":
-                        raise
-                    # A prior delete may have committed before Workbench wrote
-                    # its tombstone acknowledgement. Authoritative absence is
-                    # sufficient to finish the retained local purge safely.
-                    native = {"deletedSessionIds": [sid]}
-                    log.info("research_native_session_already_absent", session_id=sid)
-                deleted_ids = native.get("deletedSessionIds")
-                if not isinstance(deleted_ids, list) or sid not in deleted_ids:
-                    raise RuntimeFailure(
-                        "DSH 未确认原生日志已经删除，Workbench 数据保持不变",
-                        "native_session_delete_unconfirmed",
-                    )
-                self.store.mark_native_deleted(sid)
-            self.store.purge(sid)
-            self.events.pop(sid, None)
-            self.loaded.discard(sid)
-            self.approvals = {
-                key: value
-                for key, value in self.approvals.items()
-                if value.get("ownerSessionId", value.get("sessionId")) != sid
-            }
-            self.questions = {
-                key: value
-                for key, value in self.questions.items()
-                if value.get("ownerSessionId", value.get("sessionId")) != sid
-            }
-            self.running.pop(sid, None)
-            self.notify()
-            return {"id": sid, "purged": True}
+            with retention_lock(self.store.root):
+                self.dossiers.metadata.assert_deletable(sid)
+                return await self._permanent_delete_retention_checked(sid)
+
+    async def _permanent_delete_retention_checked(self, sid: str):
+        """The retention fence spans the native RPC, acknowledgement and Host purge."""
+        row = self.store.session(sid, include_deleted=True)
+        if row.get("deleted_at") is None:
+            raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
+        await self.asset_workspace.history_jobs.cancel_session(sid)
+        if row.get("native_deleted_at") is None:
+            try:
+                native = await self.client.rpc("session.delete", {"sessionId": sid})
+            except RuntimeFailure as exc:
+                if exc.code != "session/not-found":
+                    raise
+                # A prior delete may have committed before Workbench wrote
+                # its tombstone acknowledgement. Authoritative absence is
+                # sufficient to finish the retained local purge safely.
+                native = {"deletedSessionIds": [sid]}
+                log.info("research_native_session_already_absent", session_id=sid)
+            deleted_ids = native.get("deletedSessionIds")
+            if not isinstance(deleted_ids, list) or sid not in deleted_ids:
+                raise RuntimeFailure(
+                    "DSH 未确认原生日志已经删除，Workbench 数据保持不变",
+                    "native_session_delete_unconfirmed",
+                )
+            self.store.mark_native_deleted(sid)
+        self.store.purge(sid)
+        self.events.pop(sid, None)
+        self.loaded.discard(sid)
+        self.approvals = {
+            key: value
+            for key, value in self.approvals.items()
+            if value.get("ownerSessionId", value.get("sessionId")) != sid
+        }
+        self.questions = {
+            key: value
+            for key, value in self.questions.items()
+            if value.get("ownerSessionId", value.get("sessionId")) != sid
+        }
+        self.running.pop(sid, None)
+        self.notify()
+        return {"id": sid, "purged": True}
 
     async def purge_expired_sessions(self, now: float | None = None) -> int:
         """Best-effort purge of sessions whose recoverable window has elapsed."""
@@ -2026,6 +2038,8 @@ class ResearchService(ModelProfilesMixin):
         tool_name: str | None = None,
         *,
         loaded: bool = False,
+        source_operation: str | None = None,
+        source_id: str | None = None,
     ) -> dict:
         """Preflight is pure; only confirmed loading records a current task scope."""
         if self.store.session(sid)["created"] is not True:
@@ -2083,6 +2097,9 @@ class ResearchService(ModelProfilesMixin):
             ),
         }
         allowed_sources = self.store.session(sid).get("source_scope", ["datahub", "web", "uploads"])
+        dossier_read = tool_name == "research_read_source" and self.dossiers.source_admitted(
+            sid, operation=source_operation, source_id=source_id
+        )
         automation_scope = self.store.session(sid).get("automation_research_scope")
         if (
             automation_scope
@@ -2107,7 +2124,7 @@ class ResearchService(ModelProfilesMixin):
             and tool_name.startswith("datahub_")
             and tool_name not in web_tools
             and "datahub" not in allowed_sources
-        ) or (tool_name in web_tools and "web" not in allowed_sources)
+        ) or (tool_name in web_tools and "web" not in allowed_sources and not dossier_read)
         if (
             tool_name
             and tool_name.startswith("mcp__")
@@ -2121,6 +2138,7 @@ class ResearchService(ModelProfilesMixin):
         if (
             declared
             and tool_name
+            and not dossier_read
             and (
                 tool_name in {"web_search", "web_fetch", "tabbit_browser", "research_read_source"}
                 or tool_name.startswith("mcp__")
@@ -2432,6 +2450,7 @@ class ResearchService(ModelProfilesMixin):
         ]:
             source_map.setdefault(source["id"], source)
         result["research_sources"] = list(source_map.values())[:300]
+        result["research_sources"].extend(self.dossiers.registered_sources(sid))
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()
@@ -2553,7 +2572,11 @@ class ResearchService(ModelProfilesMixin):
             self.store,
             sid,
             result["files"],
-            result["research_sources"],
+            [
+                source
+                for source in result["research_sources"]
+                if not source.get("dossier_handle") or source.get("state") == "available"
+            ],
             latest_receipt.get("delivery", {}).get("task_id"),
             result["delivery"],
         )
@@ -2646,6 +2669,7 @@ class ResearchService(ModelProfilesMixin):
         research_mode=None,
         research_requirements=None,
         research_as_of=None,
+        dossier_handoff_id=None,
     ):
         await self.ensure_owned()
         async with self.lock:
@@ -2658,6 +2682,9 @@ class ResearchService(ModelProfilesMixin):
                 row.get("discovery_creation_state") != "ready"
             ):
                 raise StoreError("研究会话尚未完成准备", "discovery_session_not_ready", 409)
+            if dossier_handoff_id:
+                self.dossiers.bind_handoff(sid, dossier_handoff_id)
+
             chosen_mode = research_mode or row.get(
                 "research_mode", "deep" if row.get("research_depth") == "deep" else "quick"
             )
@@ -2755,6 +2782,7 @@ class ResearchService(ModelProfilesMixin):
                 and capability_version is None
                 and not tabbit_tabs
                 and not tabbit_live_confirmed
+                and not dossier_handoff_id
             ):
                 legacy = {
                     "text": text,
@@ -2857,6 +2885,8 @@ class ResearchService(ModelProfilesMixin):
                     research_requirements=research_requirements,
                     research_as_of=research_as_of,
                 )
+            if dossier_handoff_id is not None:
+                payload["dossier_handoff_id"] = dossier_handoff_id
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             if f"{sid}:{key}" in self.store.data["receipts"]:
                 self.store.reserve(sid, key, digest)

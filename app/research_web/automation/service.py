@@ -676,7 +676,10 @@ class AutomationService:
                 updated_at=time.time(),
             )
             self.store.save()
-            if row["research_status"] == "completed":
+            if row["research_status"] == "completed" and result.get("suppress_delivery"):
+                row["delivery_status"] = "not_requested"
+                self.store.save()
+            elif row["research_status"] == "completed":
                 try:
                     await self._deliver(automation, row)
                 except Exception as exc:  # noqa: BLE001 - delivery must not alter research.
@@ -900,6 +903,10 @@ class AutomationService:
     def _resolve_target(self, kind: str, target_id: str, version: int) -> dict:
         if self.research is None:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
+        if kind == "dossier_scan":
+            from ..dossiers.scans import DossierSignals
+
+            return DossierSignals(self.research).definition(target_id, version)
         if kind in {"skill", "workflow"}:
             selection = self.research.capabilities.selection(target_id, version)
             if selection["kind"] != kind:
@@ -1254,6 +1261,10 @@ class AutomationService:
         if self.research is None:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
         target = automation["target"]
+        if target["kind"] == "dossier_scan":
+            from ..dossiers.scans import DossierSignals
+
+            return await DossierSignals(self.research).scheduled(target["id"], run["id"])
         if target["kind"] == "report_workflow":
             runtime = self.research.report_workflows.runtime
             existing_reports = set(runtime.catalog.data["runs"])

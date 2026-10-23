@@ -272,3 +272,7 @@ Hot固定原件发布复用DataHub私有会话快照目录与读取授权；它�
 ## 2026-10-23：有限发布版本与财务口径
 
 既有Host/DataHub Broker→Provider→ResearchWarehouse链新增内部BEA受信绑定和新浪利润表selector；不创建第二执行器或HTTP入口。明确利润表只选择其登记适配器，其他财务摘要不构成等价。BEA历史miss不取网络，只有已首捕获、受审截止区间内的事实可供backtest；股票日历覆盖仅适用于market_bars，不能向宏观写nontrading。原profile/来源授权、关闭与事务排空保持。东财SDK/游客资金流是同源通道，未知单位/分类不跨源降级。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案归档和扫描消费已有会话／DataHub 冻结材料，重验原来源授权、证券身份、hash、覆盖和已证实公开时间；不由协调器自动补抓或授予历史 PIT。小创接入复用现有受管插件状态与固定 resource／slot，缺真实 Registry 身份时保持 unsupported，Doctor 不因配置入口或目录说明而声称可调用，缺少合法安装时不开放个人凭据配置。原 Wind／Office／模型探测和授权拓扑保持，详见[档案证据](../../research-web-dossiers.md#证据与成果)与[候选阻断](../../research-web-seek-alpha.md#当前边界)。

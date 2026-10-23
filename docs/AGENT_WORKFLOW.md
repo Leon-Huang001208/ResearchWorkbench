@@ -425,3 +425,7 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 ## 2026-10-23：BaoStock盈利能力来源
 
 BaoStock季度盈利能力在新隔离worktree接入，原公开worker/取消排空、Host/DataHub和可选研究仓复用。先做source限定与单位/日期边界，再以有界匿名真实SDK、完整Host及socket-only临时PG验证，最终同候选原三CI/独评；不以SDK一行或单元测试代替仓库重启恢复，不触碰正式5432、凭据、模型或外盘。
+
+## 2026-10-23：长期研究档案与机会预警
+
+本轮按 macOS Web 功能开发和隔离 worktree 交付：档案事务、pin／删除竞态、跨会话逐次鉴权、Prompt-only 绑定、扫描／默认关闭的跟踪及 MCP 费用未知状态分别取证。跟踪只重查已有冻结材料，不授权新采集或模型；小创真实 Registry、当时报价与单独费用／凭据授权仍是外部前置。完整 changed set 沿原通用仓库门及同候选 macOS 干净安装，既有 CI job 追加测试与资源，不新增 runner；Windows／Linux 交对应设备，常驻切换另行授权。详见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)及[候选边界](research-web-seek-alpha.md)，离线通过不能提升报告或平台质量状态。

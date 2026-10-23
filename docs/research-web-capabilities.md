@@ -535,3 +535,7 @@ report_plan 只在原 research_run_script 中替代代码输入，沿同一准�
 
 
 命名模型连接不改变Skill/Method/Workflow的版本或工具权限。显式声明provider/model的research_task日程另锁profile身份并在创建锁内核验；其他能力自动化继续原有默认模型语义，不补造历史选模审批，未验证的兼容工具能力仍拒绝深入研究。
+
+## 2026-10-23：长期研究档案与机会预警
+
+六类档案研究方法只补充现有能力中心的输入、输出和限制，继续使用原已发布版本与原 DSH 工具；档案交接句柄需由实际 Prompt 绑定后才能读取，方法介绍不授予来源／MCP 权限。个人凭据和固定评估操作复用受管插件审批／status；小创候选缺已核验 Registry 身份，导入不等于安装或可配置，54 子弹只为另行确认前的估算。能力发布／发现拓扑与原报告质量门保持，详见[档案方法](research-web-dossiers-ui.md)、[扫描边界](research-web-dossier-scans.md)及[候选合同](research-web-seek-alpha.md)。

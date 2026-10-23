@@ -697,3 +697,7 @@ SOFTWARE.
 
 
 2026-10-23：副图采用已批准Wind参考交互：标题可替换、每面板＋/−增减，底部常用项替换当前面板；指标管理提供分类/搜索、常用排序与参数，内层参数暂存、外层确定统一保存，取消不落盘。支持VOL/MACD/KDJ/RSI/BOLL/W&R/SAR/DMI/CCI/BIAS/ROC/OBV/VR/EMV/ATR，每类至多一面板。默认VOL＋MACD保持；日周月先聚合再计算，不改所选日期、视区、筹码版本。PE/PB/持仓无真实历史时仅简短缺口，不生成常数图。涨红跌绿各数值与同快照前收比较，未知/平盘中性。
+
+## 2026-10-23：长期研究档案与机会预警
+
+新增 `#/assets?view=dossiers` 五区档案与 `#/intel/signals` 线索列表，保留主导航、资产行情和原 FinGPT／Claw 输入框。409 保留输入／旧版本，403 清理正文，missing／changed／revoked／过期／覆盖未知分别展示；继续研究只追加冻结草稿，Prompt-only 的 `dossier_handoff_id` 仅在用户实际发送时提交，普通创建／@ 候选预创建不绑定。手动扫描确定性读取冻结资料；A股跟踪默认关闭且不自动采集。MCP 控件独立保留候选 unsupported 与估算费用边界，详见[UI 合同](research-web-dossiers-ui.md)、[扫描](research-web-dossier-scans.md)及[候选](research-web-seek-alpha.md)。

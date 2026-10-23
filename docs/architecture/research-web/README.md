@@ -212,3 +212,7 @@ FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03
 模型服务按供应商卡片管理多个独立命名连接，完整添加流程与凭据隔离仍位于原Host/Store/DSH凭据桥；不增加研究执行器。运行/未知活动拒绝切换，旧凭据原位保留，详细见02、03、04、05章及Research Web UI说明。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+本轮新增个人长期研究档案、确定性机会／风险扫描及受管 MCP 候选证据分支，优先阅读[档案合同](../../research-web-dossiers.md)、[扫描合同](../../research-web-dossier-scans.md)、[UI 交接](../../research-web-dossiers-ui.md)与[小创候选](../../research-web-seek-alpha.md)。02 模块图与 04 资料图的新增 Host 内模块／元数据引用由主任务更新并绑定收据；01 部署与 12 私网／资讯服务拓扑保持。个人 SQLite 不存原文，Prompt-only 交接仍进入唯一 DSH；候选 Registry 未核验、真实收费与部署未执行，不能把文档或离线结构认证为已上线。

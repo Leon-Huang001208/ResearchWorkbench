@@ -50,6 +50,10 @@ def evidence_index(files, datasets, activities):
             "as_of": item.get("as_of"),
             "dataset_id": item.get("id"),
         }
+        if item.get("snapshot_kind") == "mcp_evidence":
+            sources[key]["admission"] = item.get(
+                "admission", {"status": "clue", "report_admitted": False}
+            )
     for activity in activities:
         if (
             activity.get("title")

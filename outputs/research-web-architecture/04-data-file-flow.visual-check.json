@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/outputs/research-web-architecture/04-data-file-flow.html",
-    "sha256": "9bbe6b26f1808ec857bccfa7707b90a733ffdf81135beb2898ac1d37e40721c9",
-    "bytes": 657119
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-20261023-e2a3b9d1-integration/outputs/research-web-architecture/04-data-file-flow.html",
+    "sha256": "b0e71a97a5c4e3749d8662f3f4d80df27e1c95bc0dd94d795e6826db25b55290",
+    "bytes": 657344
   },
   "state": {
     "detail": "read",

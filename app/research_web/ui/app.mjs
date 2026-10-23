@@ -37,6 +37,8 @@ import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
+import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
+
 import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
@@ -162,8 +164,33 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const discoveryController = createDiscoveryController({ api, onChange: () => { if (state.route.page === 'intel' && state.route.intelTab === 'discovery') render(); }, onNavigate: (mode, sessionId) => { if (sessionId && ['fingpt', 'claw'].includes(mode)) location.hash = `#/${mode}?session=${encodeURIComponent(sessionId)}`; } });
+let dossierDraftOpening = 0;
+let dossierDraftOpeningGeneration = 0;
+const dossierController = createDossierController({ api, onChange: () => { if (isDossierRoute(state.route)) render(); }, onNavigate: hash => { location.hash = hash; }, onDraft: async result => {
+  const openingToken = ++dossierDraftOpeningGeneration;
+  dossierDraftOpening = openingToken;
+  let prepared = false;
+  try {
+    history.pushState(null, '', `#/${result.mode}`);
+    const ticket = pageGeneration + 1;
+    await showRoute();
+    if (openingToken !== dossierDraftOpening || ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
+    const previous = state.draft || '';
+    if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
+    success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
+    prepared = true;
+  } catch (error) {
+    if (openingToken === dossierDraftOpening) state.error = '档案研究草稿暂未准备完成，请返回档案核对后重试。';
+    safeLog('dossier_draft_open_failed', { status: error.code || 'request_failed' });
+  } finally {
+    if (openingToken === dossierDraftOpening) {
+      dossierDraftOpening = 0; render();
+      if (prepared) document.getElementById('prompt')?.focus({ preventScroll: true });
+    }
+  }
+} });
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
-const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
+const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets' && state.route.assetView !== 'dossiers';
 const assetChart = createAssetChartController({
   onIndicatorPreferencesChange: preferences => { void assetWorkspace.savePreferences(preferences.panels, assetState.preferences.chip_settings, preferences); },
   onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
@@ -376,6 +403,7 @@ function closeMCPServerDialog({ restoreFocus = true } = {}) {
 }
 
 function sendBlockReason() {
+  if (dossierDraftOpening) return '正在准备档案研究草稿，请等待冻结上下文就绪后发送。';
   if (state.detail?.execution_restricted) return '此历史会话执行受限；保留可读记录，请新建研究。';
   if (state.busy || state.stopping || state.loading || (state.route.sessionId && !state.detail)) return '操作尚未结束；草稿已保留，未发送。';
   if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) return '上一任务与交付尚未确认结束；草稿已保留，未发送。';
@@ -391,7 +419,7 @@ function retryBlockReason() {
 }
 
 function composer() {
-  const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
+  const disabled = dossierDraftOpening || state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
@@ -453,6 +481,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
   if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
   if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
@@ -1383,6 +1412,7 @@ function workbenchOwner() {
 
 async function loadWorkbench() {
   if (!isDataWorkspaceRoute(state.route)) return;
+  if (isDossierRoute(state.route)) { await dossierController.activate(state.route); return; }
   const owner = workbenchOwner();
   const request = ++workbenchLoadGeneration;
   const current = () => owner() && request === workbenchLoadGeneration;
@@ -1458,7 +1488,7 @@ async function showRoute() {
   const requestedRoute = parseRoute(location.hash);
   const assetPage = root.querySelector('[data-asset-identity]');
   const requestedAssetIdentity = `${requestedRoute.assetType || 'stock'}:${requestedRoute.asset || assetState.observation?.asset || ''}`;
-  const sameAssetPage = isAssetPage() && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && assetPage?.dataset.assetIdentity === requestedAssetIdentity;
+  const sameAssetPage = isAssetPage() && requestedRoute.assetView !== 'dossiers' && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && assetPage?.dataset.assetIdentity === requestedAssetIdentity;
   if (sameAssetPage && requestedRoute.assetView !== state.route.assetView) {
     const ticket = ++pageGeneration;
     assetTopicNavigation = ticket;
@@ -1481,8 +1511,11 @@ async function showRoute() {
     return;
   }
   assetTopicNavigation = 0;
+  if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
   intelController.cancel();
   discoveryController.deactivate();
+  dossierController.cancel();
+
   marketController.cancel();
   assetNews.cancel(); assetChart.cancel();
   aihotController.cancel();
@@ -1567,6 +1600,8 @@ async function showRoute() {
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'discovery') await discoveryController.activate();
     else if (state.route.intelTab === 'hot') await hotController.activate(state.route);
+    else if (state.route.intelTab === 'signals') await dossierController.activate(state.route);
+
     else if (state.route.intelTab !== 'search') await intelController.activate(state.route.intelTab);
   }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
@@ -1592,6 +1627,7 @@ async function loadConnectionConfiguration(sourceId) {
 }
 
 async function ensureSession() {
+  if (dossierDraftOpening) return false;
   if (state.detail) return true;
   if (state.route.sessionId) return false;
   const result = await controller.create(state.route.page, selectedWorkspace, state.route.projectId);
@@ -1638,6 +1674,8 @@ function selectTabbit(tabId) {
 
 function handleInput(event) {
   if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
+  if (event.target.closest?.('[data-dossier-workspace]')) { void dossierController.handle(event); return; }
+
   if (state.route.page === 'market' && marketController.handleInput(event)) return;
   if (event.target.matches?.('[data-asset-list-query]')) { const query = event.target.value.trim().toUpperCase(); for (const row of root.querySelectorAll('[data-asset-list-code]')) row.hidden = !row.dataset.assetListCode.includes(query); return; }
   const hotForm=event.target.closest?.('[data-hot-form]');
@@ -1984,6 +2022,8 @@ async function configureComposerModel(value) {
 
 root.addEventListener('change', async (event) => {
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
+
   if (state.route.page === 'market' && await marketController.handleChange(event)) return;
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
@@ -2150,6 +2190,8 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
+
   if (state.route.page === 'market' && await marketController.handleSubmit(event)) return;
   if (event.target.matches?.('[data-asset-select]')) {
     event.preventDefault(); const data = new FormData(event.target);
@@ -2585,6 +2627,7 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleClick(event)) return;
   if (isAssetPage()) {
     if (event.target.closest?.('[data-asset-metrics-toggle]')) { setAssetMetricsDrawer(!root.querySelector('.asset-wind-metrics')?.classList.contains('is-open')); return; }
