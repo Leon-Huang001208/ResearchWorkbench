@@ -811,6 +811,8 @@ BaoStock单报告期盈利能力以独立财务schema/units身份进入原provid
 个人 `dossiers/metadata.sqlite3` 惰性初始化，保存修订、证据引用、成果关联、交接与扫描／跟踪元数据；源字节继续留在原会话文件和私有 raw 快照。引用与 retention pin 同事务，`.dossier-retention.lock` 覆盖解析／pin 到 DSH 删除与 Host purge，软删除不解除保全；普通文件路径不绕过 dataset 的授权，MCP 原件逐次复核安装／schema／grant。备份需同时保留 SQLite、pin 和原证据，单独元数据不是原文备份；02／04 图据此补模块与引用边，详见[存储和保全合同](../../research-web-dossiers.md)。
 
 
+2026-10-23：资产图表周/月顶部读数由已有日线前端聚合获得，所选日线日期与筹码截止日独立保存；不改写历史日线、冻结研究、偏好schema、业务index或任何账号数据格式。
+
 ## WGC 月度吨数与研究时点（2026-10-23）
 
 现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
