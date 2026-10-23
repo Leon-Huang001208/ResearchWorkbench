@@ -987,3 +987,5 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 资产观察安装验收复用既有 macOS Bootstrap 启动步骤，读取全部新增／组合的资产静态模块、样式和固定本地图表库并和checkout逐字节比较，上传 `asset-static-smoke.json` 路径／哈希摘要；资源须进入wheel和实际安装目录。此检查不调用供应商、模型或新作业，也不表示浏览器交互或真实CJPY已验收。
 
 2026-10-23 历史auto/固定来源选择与原始日线校验仅复用已有Tinysoft/Wind/AKShare/BaoStock适配和锁定依赖；三一键入口、requirements/web.in、web.lock、scripts/setup_web.py和Bootstrap无需变更。无新配置或秘密入口；安装兼容性仍由最终同候选macos-14干净安装、固定DSH、3081/8088与Doctor门证明，本机离线链不替代安装CI。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

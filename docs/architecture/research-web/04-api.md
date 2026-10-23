@@ -732,3 +732,5 @@ GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model
 | POST | /portfolios | 显式confirmation_token保存已预览快照，不接收任意持仓替换正文 |
 
 预览最多500行，asset/quantity或asset/quantity/cost CSV列；风险字段risk_tolerance、equity_min/max、single_name_max、sector_max使用0—1比例。预览票据15分钟，存储有界。无正式预测有效性证据时不输出综合择时分、配置区间或个人调整金额；HTTP客户端参数不能开启。所有GET不创建文件或访问上游，POST沿原维护准入与账号根隔离。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。

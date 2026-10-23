@@ -1,5 +1,23 @@
 # Mac mini 空私有池网关升级
 
+## 资产筹码与精炼布局固定部署v6
+
+`reviewed-asset-observation-v6` / `apply-assets-v6` 固定旧驻留版本
+`c1a260fa1d8dcf013426aca938d7e46a98aaee28`，产品为PR197已合并的
+`eac6806822294d75da990c751d88ec156a417f62`。后者已通过Project Constraints、Research Web Checks
+及同候选macOS干净安装；这不代替部署工具最终候选的独立评审、完整Router和原三CI。
+
+v6复用原版本4事务、全账号索引哈希保全、真实查询/研究空闲检查、BirthFence及逐阶段恢复。
+锁文件保持`7c631d4f…7102`，不安装新依赖、不启用数据库、不改外盘或秘密。旧v1–v5、市场及模型配置的固定身份、
+controller和旧evidence哈希不变。v6以固定`5c3077b7…eebb`读取器校验实时、完整GitHub运行日志ZIP：
+有界下载，成员名称/大小/CRC/完整流、每个成功job的checkout及合并目标tree均须一致；不读取缓存片段或跳过失败门。
+原PR192的读取器和严格回归经Git补丁复用，并修复逐job自身checkout缺失不能借用其他job的校验遗漏；未引入其过时v5产品pin。
+
+真实部署必须在两驻留checkout均有目标Git对象、操作员checkout干净且共享正确common目录后执行，
+先持锁确认旧版/全账号/空闲，再安装并验证主实例和网关。活动或未知任务存在时延后；完成后验证认证页面与保全，
+没有通过时不标记已部署。这里保留历史配置，不能通过运行时参数任意扩展目标或前版。
+
+
 ## 市场限价与历史固定部署（2026-10-23）
 
 `reviewed-market-history-v1` / `apply-market-history` 固定旧版`51f09fa783694aae5234905933948394ca167dcc`、产品检查点`4f0a248fc87249d41e1c3f75f700c17c8351ad95`。检查点为不可变产品祖先，最终组合仍须最新master、独立评审、原三CI和同候选macos-14安装合格。原version4事务、BirthFence、全账号业务索引/会话/模型保全和恢复保持；市场inflight活动/未知均拒绝。旧profile、controller、evidence和自动兼容白名单不改变。

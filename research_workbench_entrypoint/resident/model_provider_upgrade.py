@@ -61,6 +61,12 @@ ASSET_V5_MODE = "reviewed-asset-observation-v5"
 ASSET_V5_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
 ASSET_V5_PAYLOAD = "88ef3817680ac822e2d7c819db845de4b7275173"
 ASSET_V5_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+# PR197 is the merged compact workspace, verified turnover chips and magnitude display.
+ASSET_V6_MODE = "reviewed-asset-observation-v6"
+ASSET_V6_PREVIOUS = "c1a260fa1d8dcf013426aca938d7e46a98aaee28"
+ASSET_V6_PAYLOAD = "eac6806822294d75da990c751d88ec156a417f62"
+ASSET_V6_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+ASSET_V6_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
 MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
@@ -77,9 +83,10 @@ MARKET_HISTORY_PAYLOAD = "4f0a248fc87249d41e1c3f75f700c17c8351ad95"
 MARKET_HISTORY_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 # Full terminal and current asset/DataHub checkpoint; no automatic-policy expansion.
 MARKET_TERMINAL_MODE = "reviewed-market-terminal-v1"
-MARKET_TERMINAL_PREVIOUS = "c1a260fa1d8dcf013426aca938d7e46a98aaee28"
+MARKET_TERMINAL_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
 MARKET_TERMINAL_PAYLOAD = "717d564d2e7016a4ec464435b9ba96900dbf3bcd"
 MARKET_TERMINAL_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -88,6 +95,7 @@ ASSET_MODES = frozenset(
         ASSET_V3_MODE,
         ASSET_V4_MODE,
         ASSET_V5_MODE,
+        ASSET_V6_MODE,
         MARKET_MODE,
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
@@ -172,6 +180,8 @@ def previous_for(mode):
         return ASSET_V4_PREVIOUS
     if mode == ASSET_V5_MODE:
         return ASSET_V5_PREVIOUS
+    if mode == ASSET_V6_MODE:
+        return ASSET_V6_PREVIOUS
     if mode == MARKET_MODE:
         return MARKET_PREVIOUS
     if mode == MARKET_GAPS_MODE:
@@ -244,6 +254,7 @@ def verify_primary(home, expected, mode):
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         ASSET_V5_MODE,
+        ASSET_V6_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
@@ -313,6 +324,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V3_MODE: ASSET_V3_PAYLOAD,
         ASSET_V4_MODE: ASSET_V4_PAYLOAD,
         ASSET_V5_MODE: ASSET_V5_PAYLOAD,
+        ASSET_V6_MODE: ASSET_V6_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
@@ -334,10 +346,12 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         if actual_mode not in {"100644", "100755"}:
             raise UpdateBlocked("asset_upgrade_payload_changed")
         if name == ASSET_EVIDENCE:
-            if (
-                actual_mode != "100644"
-                or hashlib.sha256(g.git_bytes(source, target, "evidence.py")).hexdigest()
-                != ASSET_EVIDENCE_SHA256
+            if actual_mode != "100644" or hashlib.sha256(
+                g.git_bytes(source, target, "evidence.py")
+            ).hexdigest() != (
+                MARKET_TERMINAL_EVIDENCE_SHA256
+                if mode == MARKET_TERMINAL_MODE
+                else ASSET_V6_EVIDENCE_SHA256 if mode == ASSET_V6_MODE else ASSET_EVIDENCE_SHA256
             ):
                 raise UpdateBlocked("asset_upgrade_evidence_changed")
         elif mode == MARKET_MODE and name == MARKET_GATEWAY:
@@ -788,6 +802,8 @@ def target_manifest(state):
     manifest = {**state["manifest"], "code_commit": state["target"]}
     if state.get("mode") == ASSET_V5_MODE:
         manifest["web_lock_sha256"] = ASSET_V5_WEB_LOCK_SHA256
+    elif state.get("mode") == ASSET_V6_MODE:
+        manifest["web_lock_sha256"] = ASSET_V6_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_HISTORY_MODE:
         manifest["web_lock_sha256"] = MARKET_HISTORY_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_TERMINAL_MODE:
@@ -1307,6 +1323,7 @@ def main(argv=None):
             "apply-assets-v3",
             "apply-assets-v4",
             "apply-assets-v5",
+            "apply-assets-v6",
             "apply-market",
             "apply-market-gaps",
             "apply-market-history",
@@ -1329,6 +1346,7 @@ def main(argv=None):
                 "apply-assets-v3": ASSET_V3_MODE,
                 "apply-assets-v4": ASSET_V4_MODE,
                 "apply-assets-v5": ASSET_V5_MODE,
+                "apply-assets-v6": ASSET_V6_MODE,
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,

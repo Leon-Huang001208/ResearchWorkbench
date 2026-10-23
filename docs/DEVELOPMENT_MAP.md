@@ -485,3 +485,5 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 2026-10-23 CJPY最小单位证据在providers_cjpy._sync_query_with_client返回Result处投影：nativevol在SDK0.5.2/明确stockdaily/沪深股票身份门后声明share，nativeamount仅元/currencyNone；field_dictionary_evidence绑定字典hash/版本，不新增调用。test_datahub_cjpy覆盖旧/未知SDK、缺类型/频率、ETF/index和价格仍未知；ResearchWarehouse规范tinysoft排除不变。
 
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
