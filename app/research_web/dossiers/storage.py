@@ -41,13 +41,23 @@ class DossierStore:
         self.path = self.folder / "metadata.sqlite3"
         self.owner_binding = hashlib.sha256(str(root).encode()).hexdigest()
 
-    def _safe(self, create=False):
+    def _uninitialized(self):
+        log.error("dossier_database_missing_or_empty")
+        raise StoreError(
+            "档案库缺失或为空；读写与永久删除已停止，请通过已核验备份显式恢复",
+            "dossier_storage_uninitialized",
+            503,
+        )
+
+    def _safe(self, create=False, *, allow_uninitialized=False):
+        created = False
         if not self.folder.exists():
             if self.folder.is_symlink():
                 raise StoreError("档案存储路径不安全", "dossier_storage_unsafe", 409)
             if not create:
                 return False
             self.folder.mkdir(mode=0o700)
+            created = True
         info = self.folder.lstat()
         if (
             self.folder.is_symlink()
@@ -62,7 +72,14 @@ class DossierStore:
                 info = path.lstat()
                 if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
                     raise StoreError("档案存储路径不安全", "dossier_storage_unsafe", 409)
-        return self.path.exists()
+        exists = self.path.exists()
+        if (
+            not created
+            and not allow_uninitialized
+            and (not exists or self.path.stat().st_size == 0)
+        ):
+            self._uninitialized()
+        return exists
 
     @contextmanager
     def connection(self, write=False):
@@ -70,6 +87,8 @@ class DossierStore:
         try:
             exists = self._safe(create=write)
             initialized = exists and self.path.stat().st_size > 0
+            if exists and not initialized:
+                self._uninitialized()
             if not initialized and not write:
                 yield None
                 return
@@ -117,7 +136,10 @@ class DossierStore:
                 if not initialized:
                     connection.execute("INSERT INTO identity VALUES(?)", (self.owner_binding,))
                     connection.execute("PRAGMA user_version=1")
-            self._safe()
+            # Only this first writer may see its own zero-byte file before the
+            # schema transaction commits. Later callers must never recreate it.
+            if not self._safe(allow_uninitialized=not exists):
+                self._uninitialized()
             yield connection
             if write:
                 connection.commit()
@@ -447,7 +469,9 @@ class DossierStore:
                         raise StoreError("恢复保全引用不完整", "dossier_restore_invalid", 409)
                     for item in evidence:
                         verify_evidence(json.loads(item["payload"]))
-                    self._safe(create=True)
+                    # Source identity, pins and originals were all verified
+                    # above. Explicit recovery alone may replace a lost target.
+                    self._safe(create=True, allow_uninitialized=True)
                     descriptor, temporary = tempfile.mkstemp(prefix=".restore-", dir=self.folder)
                     os.close(descriptor)
                     staging = Path(temporary)
