@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+SPDR 原生快照迭代在 Mac 隔离 worktree 开发，先验证四项闭合投影和原件绑定，再用单次公开取数、独立 socket-only
+PostgreSQL、跨会话/Host 与 PG 重启及第二空库恢复验收；CI 不访问厂商、模型或正式数据库。
+两新测试模块沿原 Checks 同一步，原三 CI 与同候选 macos-14 安装门保持。未更新常驻服务或外盘，其他平台原生保持 NOT_RUN。
+
 2026-10-23：终端profile闭包先运行后端130例与完整操作员／网关／resident回归，不安装依赖、不改秘密或常驻服务。`apply-market-terminal`仅复用原封闭Native部署通道；PR201合入后主任务固定最终产品身份，完整changed-set Router、独立评审、Project Constraints／Research Web Checks及同候选macos-14干净安装均须重新绑定。实际切换、认证页面及全账号保全另取证；产品CI或本地通过不能认证这些层级。
 
 2026-10-23终端v2先交互v0确认A，再复用原Checks定点Python与JS通配符、完整Router、独立评审及同候选Mac安装CI。公开源、隔离浏览器和常驻认证各留真实证据；缺历史的分项／总分／仓位待验证，金元普通客户端不等于官方API。部署沿保全与恢复事务，Windows/Linux交接不冒充本机完成。

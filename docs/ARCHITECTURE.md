@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+2026-10-23 SPDR 四项快照扩展现有外部 Provider 和原生研究仓白名单；单次原件、四项行/字段及单位通过同一解析器绑定。
+仅增加现有 gld 的数据合同版本，Host → DataHub → Provider/可选 MarketStore 的节点与边保持，现有图准确。
+无新 HTTP 路由、数据库表、服务或引擎；首次观测快照、每次授权和正式 PIT 限制见[原生快照](research-web-vendor-snapshots.md)。
+
 2026-10-23：市场终端固定部署仅在原Native操作员增加`reviewed-market-terminal-v1`／`apply-market-terminal`身份，复用version4维护锁、BirthFence、主实例与网关升级、全账号保全及恢复；不新增运行节点、协议、依赖或第二研究引擎。产品13图已有终端数据边界，操作员沿原01／12图，无须重复重画。固定候选、尚待PR201合并后冻结的产品身份及分层验收见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)；本机回归不代表常驻已切换。
 
 2026-10-23全市场终端v2沿现有浏览器→Host MarketService→公开来源及账号文件增加版本化24指数目录、三周期六维证据、风格矩阵与组合预览确认。东财行情与新浪前日价格指数日线分别保留来源；旧12指数研究仓合同不扩写。持仓与首次观察日线保存在原用户market-cache，GET不采集、不创建目录，不新增守护进程、依赖、研究会话或交易接口。13市场图按Host模块抽象同步这些数据边界。
