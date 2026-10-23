@@ -791,3 +791,6 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 
 2026-10-23：v7继续固定前版c4e/产品3a62/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。
 
+
+
+2026-10-24：资产v8仍绑定实际前版、固定产品、严格逐job CI证据与BirthFence，账号边界和全量保全不放宽；不处理新秘密、不改变私网或登录策略。 详见[固定部署合同](../../research-web-gateway-upgrade.md)。
