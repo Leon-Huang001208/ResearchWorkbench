@@ -1,3 +1,4 @@
+import {INDICATOR_IDS, indicatorSeries} from '../../app/research_web/ui/asset-indicator-library.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -747,4 +748,24 @@ test('changing the adjustment of a complete history requests all records, not a 
     assert.deepEqual(requests,[{action:'load',scope:'all',adjustment,source:'tinysoft',includeChipInputs:true}]);
     assert.equal(c.getState().adjustment,'qfq'); c.dispose();
   }
+});
+
+
+test('all 15 panels render actual ECharts views and mounted light series remain readable',()=>{
+ const timers=new Set();const runtime={console,clearTimeout,setTimeout:(callback,delay)=>{const timer=setTimeout(callback,delay);timers.add(timer);return timer;}};
+ runInNewContext(readFileSync(new URL('../../app/research_web/ui/vendor/echarts-5.5.0.min.js',import.meta.url),'utf8'),runtime);
+ const f=fakeDOM();const charts=[];const errors=[];
+ f.node.ownerDocument.defaultView.echarts={...runtime.echarts,init:()=>{const chart=runtime.echarts.init(null,null,{renderer:'svg',ssr:true,width:1000,height:1900});charts.push(chart);return chart;}};
+ const c=createAssetChartController({logger:event=>errors.push(event)});
+ try {
+  pageTheme(f,'light');c.configure(rows(6001),'all',{}, {panels:[...INDICATOR_IDS]});c.mount(f.node);f.flush();
+  const chart=charts[0];const models=chart.getModel().getSeries();
+  assert.deepEqual(errors,[]);assert.equal(models.length,10+INDICATOR_IDS.reduce((sum,id)=>sum+indicatorSeries(id).length,0));
+  assert.ok(models.every(model=>chart.getViewOfSeriesModel(model)));
+  assert.equal(chart.getOption().series.find(s=>s.name==='CCI CCI').lineStyle.color,'#242424');
+  c.handle(click('period-week'));f.flush();assert.deepEqual(errors,[]);
+  c.handle(click('period-day'));f.flush();assert.deepEqual(errors,[]);
+  const css=readFileSync(new URL('../../app/research_web/ui/asset-chart.css',import.meta.url),'utf8');
+  assert.match(css,/\.asset-market-terminal \.asset-terminal-chart\s*\{[^}]*max-height:none/);
+ } finally {c.dispose();for(const timer of timers)clearTimeout(timer);}
 });
