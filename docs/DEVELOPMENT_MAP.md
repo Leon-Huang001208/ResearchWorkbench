@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+构建器失效登记恢复由`rwb-docker builder-reconcile`早分发到`research_workbench_entrypoint/builder_reconcile.py`，复用`iteration_cache.operation_lock`。近处`test_builder_reconcile.py`覆盖指纹、错引擎、部分资源、恢复前零mutation拒绝、带全局选项的活动build/bake和停止终态；真实Docker恢复及旧任务清理另留证。
+
 2026-10-23宏观闭环：providers_external.py校验官方NYFed/Treasury/WorldBank封包；providers_akshare.py在既有public_worker内执行cpi/gdp/pmi/m2固定请求；catalog/broker只声明实际支持的序列。DataHub新查询缓存、ResearchWarehouse身份与SnapshotSeries准入分别核对合同版本，旧call_id和冻结证据保留。国内观察期及累计GDP语义不借用披露时点。公开错误封包/空参考线/分号CSV在同一external Provider修复，不扩数值仓白名单；真实失败与临时库证据见本轮来源台账和任务报告。
 
 公开数值合同 `official-numeric-v2` 定位于 `datahub/providers_external.py` 的

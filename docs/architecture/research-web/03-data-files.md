@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+构建器对账归档保存在原私有Docker管理根的`builder-reconcile/<fingerprint>/`，保存脱敏绑定、旧builder.id、buildkitd.toml和恢复journal。它不是业务快照，不读写research-web会话／模型／账号索引；失败保留现场，不声称已回滚或清理。
+
 ## 同版本筹码输入与偏好补充（2026-10-23）
 
 `asset_history.chip_inputs` 冻结 `contract_version=chip-turnover-1`、完整状态、换手百分数单位/摘要/条数以及VWAP口径。现有输入manifest保留逐批真实来源与授权指纹；raw_rows不修改。`include_chip_inputs` 缺省false且不写入旧请求；true只在全部价格/因子/换手验证后更新规范指针，失败/取消不发布部分新行情。旧快照照常读取，不将缺换手的旧OHLCV合计冒充新版筹码。

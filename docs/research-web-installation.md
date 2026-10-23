@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+管理员Docker构建器登记与实际资源不一致时，使用`rwb-docker builder-reconcile`只读预览，审查当前Engine ID、endpoint及预算后以预览指纹显式恢复。该命令不替代公开Web安装三入口，不装Python依赖、不重置Docker、不切换Native常驻服务。完整故障边界见[Docker合同](research-web-docker.md)。
+
 2026-10-23市场限价/昨日成交额/资金历史迭代不新增项目依赖，一键安装三入口、固定DSH与Doctor合同保持，最终同候选Mac干净安装仍必需。apply-market-history复用已批准主线锁文件7c631d4f及原baostock/psycopg版本，不安装或配置数据库；正式部署前实际核验现有包与pip check，不能只更新清单。用户允许的隔离测试依赖安装只影响任务.venv，不改变常驻环境。
 
 ## 资产静态资源补充（2026-10-23）

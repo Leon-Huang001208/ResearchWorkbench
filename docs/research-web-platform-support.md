@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+macOS管理员构建器对账使用当前Docker Desktop本地Unix endpoint；本任务仅认证Mac本机恢复和适用Mac安装CI。Windows/Linux原生适配及实际券商／厂商验证不由该工具或Mac测试认证。
+
 2026-10-23：市场限价/昨日/历史属于Mac mini功能开发与Native固定部署，必须原通用两CI及同候选macos-14安装；Windows/Linux原生和Docker产品证据保持各设备原状态，本任务不触发他平台产品dispatch，不提升跨平台支持声明。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
 
 2026-10-22资产v5索引预检修复仍属Mac mini部署工具修复，仅v5复用已有64 MiB业务读取器；没有新增平台能力、依赖或安装器变化。769＋112本机及173项独评为主任务既有检查点，PR187 Constraints39794625674仍记录失败，后续同候选原三CI及实际切换另证。Windows／Linux原生和Docker产品不由这次Native读取修复推定通过。
