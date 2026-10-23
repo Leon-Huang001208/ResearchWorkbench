@@ -47,3 +47,31 @@ def test_fixture_self_check_uses_real_store_without_lifespan_or_native_prompts(t
     assert receipt["state"]["automations"] == 0
     assert receipt["state"]["blocked_outbound"] == []
     assert (tmp_path / "backend-logs/fixture.log").is_file()
+
+
+def test_actual_asyncio_loop_rejects_connect_dns_and_connect_ex_before_network(tmp_path):
+    try:
+        result = subprocess.run(
+            [sys.executable, str(HELPER), "--network-check", "--output", str(tmp_path)],
+            cwd=PROJECT,
+            env={"PATH": os.defpath, "PYTHONIOENCODING": "utf-8"},
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log.error("dossier_browser_network_check_failed error_type=%s", type(exc).__name__)
+        pytest.fail("temporary backend network guard self-check did not complete")
+    assert result.returncode == 0, (result.stdout + result.stderr)[-1500:]
+    receipt = json.loads(result.stdout.strip().splitlines()[-1])
+    assert receipt["network_check"] == "passed"
+    assert receipt["uvicorn_loop"] == "asyncio"
+    assert receipt["actual_loop"].startswith("asyncio.")
+    assert receipt["underlying_network_calls"] == 0
+    assert receipt["blocked"] == [
+        "non_loopback_connect",
+        "non_loopback_dns",
+        "non_loopback_connect_ex",
+    ]
+    assert json.loads((tmp_path / "network-guard-check.json").read_text()) == receipt

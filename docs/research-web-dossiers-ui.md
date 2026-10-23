@@ -45,7 +45,7 @@
 
 Prompt 已获接收后，receipt 清理同时检查内存草稿及固定的 `new:claw`／`new:fingpt` 持久首页草稿，覆盖 @ 预创建后刷新目标会话的情况；只清相同 receipt，保留文字和其他新 receipt。
 
-信号的记录类型始终为 `kind=signal`，展示和筛选使用 `signal_type`（待研究、风险、催化剂、机会），兼容旧条目的 kind。修订已有记录固定其原类型，信号可由用户核验并修订状态；新建表单不提供人为新建 signal。档案交接进入研究页期间锁定输入与发送，冻结上下文保存后才开放，避免旧首页草稿被提前发送。
+信号的记录类型始终为 `kind=signal`，展示和筛选使用 `signal_type`（待研究、风险、催化剂、机会），兼容旧条目的 kind。修订已有记录固定其原类型，信号可由用户核验并修订状态；新建表单不提供人为新建 signal。档案交接进入研究页期间锁定输入与发送，冻结上下文保存后才开放；独立 opening 代数只允许当前 owner 解锁，旧导航迟到完成／失败均不能解锁新的准备过程。
 
 ## 真实 HTTP 与 Chrome 联合验收
 
@@ -54,3 +54,5 @@ Prompt 已获接收后，receipt 清理同时检查内存草稿及固定的 `new
 联合验收覆盖 1440/light、390/dark：UI 创建档案、五区、追加观点、证据与受控成果预览，缺资料与合格空快照无信号分开，真实财披 review 线索可筛选，交接准备锁，@ 预建零绑定、目标页刷新、显式 Prompt 202 后绑定、持久首页清理、再次新会话续研、真实 read_handle、撤权 403 清缓存。服务与临时 Store 随 runner 退出清理，输出在 `outputs/research-web-dossiers-real/`，日志在 `logs/research-web-dossiers-real-*`。
 
 Python helper 近处验证：`python -m pytest --confcutdir=tests/research_web tests/research_web/test_dossier_browser_fixture.py -q`，并执行该 helper／测试的 Ruff、Black、isort、mypy。历史合同 JSON 保留生成时 producer SHA；当前组合身份以真实 HTTP receipt 的 sourceHashes 为准，不把旧 producer SHA 冒充当前源码。
+
+后端固定 Uvicorn `loop="asyncio"`，拒绝 uvloop C 层绕过 Python transport 守卫，覆盖 `connect`、`connect_ex` 与 DNS。`python tests/e2e/research_web_dossiers_backend.py --network-check --output outputs/research-web-dossiers-real` 使用实际 Uvicorn loop factory 进行拒绝回归；底层连接／DNS 均替换为 tripwire，测试本身即使回归也不访问网络。积极拒绝证据在 `network-guard-check.json`，`blocked_outbound` 为空仅表示未观测到出站尝试，不能单独证明守卫有效。
