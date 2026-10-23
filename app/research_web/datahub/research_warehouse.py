@@ -42,6 +42,7 @@ from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT, SPDR_NUMERIC_CONTRACT
+from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT
 from .research_snapshot_store import SnapshotSeries
 from .security import atomic_json, directory, read_file
 from .warehouse import WarehouseBinding, WarehouseBridge
@@ -807,6 +808,12 @@ class ResearchWarehouse:
             "gld",
         ):
             contract = SPDR_NUMERIC_CONTRACT
+        if (
+            query.capability == "external_data"
+            and source == "ext_wgc"
+            and query.parameters.get("dataset") in WGC_DATASETS
+        ):
+            contract = WGC_NUMERIC_CONTRACT
 
         def authorize(actor, requested, _action):
             current = self._profile()

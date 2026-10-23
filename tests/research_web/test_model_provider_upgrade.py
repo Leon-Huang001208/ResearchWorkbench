@@ -40,7 +40,7 @@ def test_discovery_profile_freezes_authorized_combination():
     assert (
         upgrade.previous_for(upgrade.DISCOVERY_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
     )
-    assert upgrade.DISCOVERY_PAYLOAD == "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+    assert upgrade.DISCOVERY_PAYLOAD == "9802af1e6d7fd64bbfa417cfc03c50961ec1e550"
     assert upgrade.DISCOVERY_MODE in upgrade.ASSET_MODES
     old = {"code_commit": "old", "web_lock_sha256": "fixed-lock"}
     assert upgrade.target_manifest(

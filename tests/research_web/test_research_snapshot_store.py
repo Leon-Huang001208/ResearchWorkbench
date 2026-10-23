@@ -517,3 +517,49 @@ def test_unverified_native_series_cannot_satisfy_required_stock_price_semantics(
     )
     assert series.dataset(required) is None
     assert series.read(required) is None
+
+
+@pytest.mark.parametrize(
+    "capability,parameters,schema",
+    [
+        (
+            "financials",
+            {"asset": "600000.SH", "statements": ["income_statement"], "periods": ["2025-12-31"]},
+            "akshare-sina-financial-disclosure-v1",
+        ),
+        ("factor_macro", {"series": ["cpi"]}, "akshare-china-macro-v1"),
+        (
+            "market_activity",
+            {"asset": "600000.SH", "dataset": "fund_flow"},
+            "akshare-eastmoney-fund-flow-provenance-v1",
+        ),
+    ],
+)
+def test_research_families_cutoff_revision_boundary(capability, parameters, schema):
+    # Synthetic store envelopes exercise revision time, not a supplier dictionary.
+    request = BusinessQuery(capability=capability, source="akshare", parameters=parameters)
+    scope = StoreScope("alice", "personal", "akshare", "c" * 64)
+    service = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
+    series = SnapshotSeries(service, "alice", scope)
+    first, second = OBSERVED, OBSERVED + timedelta(days=1)
+    for stamp, value in [(first, 1), (second, 2)]:
+        series._now = lambda stamp=stamp: stamp
+        native = response(
+            value,
+            provider_id="akshare",
+            status="snapshot",
+            pagination_complete=True,
+            metadata={"schema_version": schema},
+            rows=[{"native_unknown": value}],
+        )
+        assert series.ingest(request, native)
+    assert (
+        series.read(request.model_copy(update={"as_of": first - timedelta(microseconds=1)})) is None
+    )
+    for cutoff, expected in [(first, 1), (second - timedelta(microseconds=1), 1), (second, 2)]:
+        captured = series.read(request.model_copy(update={"as_of": cutoff}))
+        assert captured.rows[0]["native_unknown"] == expected
+        assert captured.metadata["historical_point_in_time"] is False
+        assert captured.metadata["formal_backtest_eligible"] is False
+    with pytest.raises(MarketStoreError):
+        series.read(request.model_copy(update={"purpose": "backtest", "as_of": first}))

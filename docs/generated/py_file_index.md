@@ -3937,6 +3937,7 @@ Imports:
 - `providers_baostock`
 - `providers_bea_archive`
 - `providers_external`
+- `providers_wgc`
 - `re`
 - `reliability`
 - `research_workbench_entrypoint.resident.admission`
@@ -4568,6 +4569,7 @@ Imports:
 - `json`
 - `math`
 - `providers`
+- `providers_wgc`
 - `re`
 - `time`
 - `typing`
@@ -4694,6 +4696,34 @@ Functions:
 - `_failure_code`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_wgc.py`
+
+Module docstring:
+> Closed WGC monthly tonnes projection; reference periods are not publication times.
+
+Imports:
+- `calendar`
+- `core.observability`
+- `datetime`
+- `json`
+- `math`
+- `providers`
+- `re`
+- `typing`
+
+Functions:
+- `_object`
+  - JSON duplicate keys would make the source's identity ambiguous.
+- `_envelope`
+- `_number`
+- `_period`
+- `_points`
+- `wgc_projection`
+  - Validate the entire selected monthly-tonnes slice before applying any row limit.
+- `wgc_fields`
+  - Fresh metadata shared by both fixed datasets; no price or inferred release field.
 
 
 ## `app/research_web/datahub/providers_wind.py`
@@ -4907,6 +4937,7 @@ Imports:
 - `providers_baostock`
 - `providers_external`
 - `providers_market`
+- `providers_wgc`
 - `threading`
 - `uuid`
 
@@ -4916,6 +4947,8 @@ Classes:
   - methods: __init__, _now, dataset, _facts, ingest, read
 
 Functions:
+- `_complete_wgc_snapshot`
+  - Bind the selected monthly slice to its original, without claiming vintage history.
 - `_complete_spdr_snapshot`
   - Bind the typed projection and units to its one complete source original.
 - `_market_numeric`
@@ -4951,6 +4984,7 @@ Imports:
 - `providers_akshare`
 - `providers_baostock`
 - `providers_external`
+- `providers_wgc`
 - `pydantic`
 - `re`
 - `research_snapshot_store`

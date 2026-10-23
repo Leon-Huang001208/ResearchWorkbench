@@ -28,6 +28,13 @@ from .external_sources import (
     readable_endpoints,
 )
 from .providers import DEADLINE, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Result
+from .providers_wgc import (
+    WGC_DATASETS,
+    WGC_NUMERIC_CONTRACT,
+    WGC_UNITS,
+    wgc_fields,
+    wgc_projection,
+)
 
 log = get_logger(__name__)
 OFFICIAL_NUMERIC_CONTRACT = "official-numeric-v2"
@@ -1029,6 +1036,13 @@ async def fetch(
         if source_id not in EXTERNAL_SOURCES:
             raise ProviderError("external_source_required")
         args = arguments(query.parameters.get("arguments_json"))
+        if source_id == "ext_wgc" and dataset in WGC_DATASETS:
+            if query.as_of is not None or query.purpose == "backtest" or query.required_semantics:
+                log.warning("wgc_request_rejected", reason="historical_semantics_unsupported")
+                raise ProviderError("wgc_historical_semantics_unsupported")
+            if args:
+                log.warning("wgc_request_rejected", reason="arguments_unsupported")
+                raise ProviderError("wgc_arguments_unsupported")
         if (source_id, dataset) == ("ext_spdr", "gld"):
             if query.as_of is not None or query.purpose == "backtest" or query.required_semantics:
                 log.warning("spdr_request_rejected", reason="historical_semantics_unsupported")
@@ -1094,11 +1108,15 @@ async def fetch(
                 # JSON-escaped secret must never enter archived original bytes.
                 if _rows_reflect_credentials(decoded, reflected):
                     raise ProviderError("credential_reflection")
-        business = (
-            (spdr_projection(raw), 4, True)
-            if (source_id, dataset) == ("ext_spdr", "gld")
-            else external_business_envelope(source_id, dataset, raw)
-        )
+        if source_id == "ext_wgc" and dataset in WGC_DATASETS:
+            projected = wgc_projection(raw, dataset)
+            business = (projected, len(projected), True)
+        else:
+            business = (
+                (spdr_projection(raw), 4, True)
+                if (source_id, dataset) == ("ext_spdr", "gld")
+                else external_business_envelope(source_id, dataset, raw)
+            )
         if business is None:
             rows = response_rows(raw, content_type, encoding)
             rows, provider_total, complete_page = numeric_envelope(
@@ -1153,6 +1171,19 @@ async def fetch(
                 "historical_point_in_time": False,
                 "formal_backtest_eligible": False,
                 "units": dict(SPDR_METRIC_UNITS),
+            }
+        if source_id == "ext_wgc" and dataset in WGC_DATASETS:
+            result.fields = wgc_fields()
+            result.metadata = {
+                "schema_version": WGC_NUMERIC_CONTRACT,
+                "provider_semantics_revision": WGC_NUMERIC_CONTRACT,
+                "upstream_id": "worldgoldcouncil",
+                "availability_basis": "first_observed",
+                "revision_policy": "first_observed_not_historical_vintage",
+                "historical_point_in_time": False,
+                "formal_backtest_eligible": False,
+                "units": dict(WGC_UNITS),
+                "projection_scope": "monthly_tonnes_four_regions",
             }
         if (source_id, dataset) in EXTERNAL_ENVELOPES:
             result.metadata["schema_version"] = EXTERNAL_ENVELOPE_CONTRACT
