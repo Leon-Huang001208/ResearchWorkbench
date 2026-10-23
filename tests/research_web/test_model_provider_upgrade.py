@@ -24,6 +24,7 @@ ASSET_PROFILES = (
     upgrade.ASSET_V4_MODE,
     upgrade.ASSET_V5_MODE,
     upgrade.ASSET_V6_MODE,
+    upgrade.ASSET_V7_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
@@ -125,6 +126,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V4_MODE: "ASSET_V4",
         upgrade.ASSET_V5_MODE: "ASSET_V5",
         upgrade.ASSET_V6_MODE: "ASSET_V6",
+        upgrade.ASSET_V7_MODE: "ASSET_V7",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
@@ -133,12 +135,16 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     evidence_constant = (
-        "MARKET_TERMINAL_EVIDENCE_SHA256"
-        if profile == upgrade.MARKET_TERMINAL_MODE
+        "ASSET_V7_EVIDENCE_SHA256"
+        if profile == upgrade.ASSET_V7_MODE
         else (
-            "ASSET_V6_EVIDENCE_SHA256"
-            if profile == upgrade.ASSET_V6_MODE
-            else "ASSET_EVIDENCE_SHA256"
+            "MARKET_TERMINAL_EVIDENCE_SHA256"
+            if profile == upgrade.MARKET_TERMINAL_MODE
+            else (
+                "ASSET_V6_EVIDENCE_SHA256"
+                if profile == upgrade.ASSET_V6_MODE
+                else "ASSET_EVIDENCE_SHA256"
+            )
         )
     )
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
@@ -406,6 +412,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("apply-assets-v5", upgrade.ASSET_V5_MODE),
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
+        ("apply-assets-v7", upgrade.ASSET_V7_MODE),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
@@ -443,6 +450,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
         (upgrade.ASSET_V6_MODE, upgrade.ASSET_V5_PREVIOUS),
         (upgrade.ASSET_V6_MODE, upgrade.ASSET_V6_PAYLOAD),
+        (upgrade.ASSET_V7_MODE, upgrade.ASSET_V6_PAYLOAD),
+        (upgrade.ASSET_V7_MODE, upgrade.ASSET_V7_PAYLOAD),
         (upgrade.ASSET_V5_MODE, upgrade.ASSET_V4_PREVIOUS),
         (upgrade.ASSET_V5_MODE, upgrade.MARKET_GAPS_PREVIOUS),
         (upgrade.ASSET_V5_MODE, "9bc4e4cab91130647a5bc0dfa519e97f4773416a"),
@@ -1207,6 +1216,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     if failed is None and state["mode"] in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
+        upgrade.ASSET_V7_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
     }:
@@ -1402,6 +1412,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
         upgrade.ASSET_V5_MODE: "ASSET_V5_PREVIOUS",
         upgrade.ASSET_V6_MODE: "ASSET_V6_PREVIOUS",
+        upgrade.ASSET_V7_MODE: "ASSET_V7_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
@@ -1995,6 +2006,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_TERMINAL_MODE,
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
+        upgrade.ASSET_V7_MODE,
     ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
@@ -2050,7 +2062,12 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
 
 @pytest.mark.parametrize(
     "real_operations",
-    ["reviewed-market-gaps-v1", "reviewed-market-history-v1", "reviewed-market-terminal-v1"],
+    [
+        "reviewed-market-gaps-v1",
+        "reviewed-market-history-v1",
+        "reviewed-market-terminal-v1",
+        upgrade.ASSET_V7_MODE,
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize(
@@ -2101,6 +2118,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
     if profile in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
+        upgrade.ASSET_V7_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
     }:
@@ -2173,3 +2191,16 @@ def test_asset_v6_binds_verified_resident_product_reader_and_unchanged_old_contr
         upgrade.CONTROLLER_MODULE_SHA256
         == "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
     )
+
+
+def test_asset_v7_pins_current_resident_and_merged_panel_product():
+    assert upgrade.ASSET_V7_MODE == "reviewed-asset-observation-v7"
+    assert upgrade.previous_for(upgrade.ASSET_V7_MODE) == "c4e953c4386c615cde89ad2d014d60c6e2959303"
+    assert upgrade.ASSET_V7_PAYLOAD == "abdc2a5883cfc86daf181062dc6ab8602e33128c"
+    assert upgrade.ASSET_V7_WEB_LOCK_SHA256 == upgrade.ASSET_V6_WEB_LOCK_SHA256
+    assert (
+        hashlib.sha256(Path(upgrade.__file__).with_name("evidence.py").read_bytes()).hexdigest()
+        == upgrade.ASSET_V7_EVIDENCE_SHA256
+    )
+    assert upgrade.ASSET_V6_PREVIOUS == "c1a260fa1d8dcf013426aca938d7e46a98aaee28"
+    assert upgrade.ASSET_V6_PAYLOAD == "eac6806822294d75da990c751d88ec156a417f62"
