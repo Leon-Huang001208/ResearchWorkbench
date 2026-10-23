@@ -200,5 +200,21 @@
       "real_absent_sdk_rejection_preserved": true
     },
     "final_candidate_ci": "NOT_RUN"
+  },
+  "ci_fake_process_port_followup": {
+    "failed_candidate": "ed30e7fb49b96ce89b7e1d73cc0b422c6f635154",
+    "checks_run": 39916718351,
+    "passed": 3906,
+    "failed": 1,
+    "skipped": 69,
+    "subtests": 115,
+    "failed_test": "test_explicit_four_pair_capacity_retains_existing_users_at_limit",
+    "cause": "fake Popen released reserved ports without binding child listeners; OS ephemeral reuse allowed",
+    "fix": "test fixture owns loopback listeners until fake stop; teardown closes remaining sockets",
+    "production_runtime_changed": false,
+    "deterministic_red": "fake active backend port unexpectedly available",
+    "green_module_passed": 26,
+    "capacity_or_isolation_assertions_removed": false,
+    "new_candidate_ci": "NOT_RUN"
   }
 }

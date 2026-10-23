@@ -132,6 +132,25 @@ async def test_explicit_four_pair_capacity_retains_existing_users_at_limit(
         await pool.close()
 
 
+@pytest.mark.asyncio
+async def test_fake_children_own_listener_ports_until_stopped(tmp_path, fake_processes):
+    pool = runtime.RuntimePool(config(tmp_path))
+    user = str(uuid4())
+    try:
+        await pool.backend_for(user)
+        ports = [int(child.command[child.command.index("--port") + 1]) for child in fake_processes]
+        assert len(ports) == 2 and len(set(ports)) == 2
+        for port in ports:
+            with socket.socket() as contender, pytest.raises(OSError):
+                contender.bind(("127.0.0.1", port))
+        await pool.stop(user)
+        for port in ports:
+            with socket.socket() as contender:
+                contender.bind(("127.0.0.1", port))
+    finally:
+        await pool.close()
+
+
 class Child:
     serial = 10000
 
@@ -147,9 +166,21 @@ class Child:
 @pytest.fixture
 def fake_processes(monkeypatch):
     children = []
+    listeners = {}
 
     def spawn(*args, **kwargs):
         child = Child(*args, **kwargs)
+        port = int(child.command[child.command.index("--port") + 1])
+        listener = socket.socket()
+        try:
+            listener.bind(("127.0.0.1", port))
+            listener.listen(1)
+        except BaseException:
+            listener.close()
+            raise
+        # Real children bind after the parent releases its reservation. Holding
+        # the fake listener prevents the OS from reusing a live backend's port.
+        listeners[child] = listener
         children.append(child)
         return child
 
@@ -157,13 +188,20 @@ def fake_processes(monkeypatch):
         return None
 
     async def stop(child):
+        listener = listeners.pop(child, None)
+        if listener is not None:
+            listener.close()
         child.code = 0
 
     monkeypatch.setattr(runtime.subprocess, "Popen", spawn)
     monkeypatch.setattr(runtime.RuntimePool, "_wait_runtime", ready)
     monkeypatch.setattr(runtime.RuntimePool, "_wait_backend", ready)
     monkeypatch.setattr(runtime.RuntimePool, "_stop_child", staticmethod(stop))
-    return children
+    try:
+        yield children
+    finally:
+        for listener in listeners.values():
+            listener.close()
 
 
 @pytest.mark.asyncio

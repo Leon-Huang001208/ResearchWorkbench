@@ -51,3 +51,9 @@ attempt2执行在0e0022 HEAD的dirty tree，9个运行文件SHA256前后完全�
 840b候选Project Constraints与同候选Mac Bootstrap已PASS；通用Checks run39913230426实际失败：3724 passed、69 skipped、115 subtests、1 failed。新缓存兼容测试mock了fetch却未声明SDK可用，本机已装Bao而通用CI只安装dev依赖，导致Broker正确按blocked_dependency拒绝；失败原日志保留，不改生产readiness或安装依赖来绕过。
 
 在本机强制find_spec返回None复现原缓存测试失败（red2，首个helper启动命令失败另保留）；仅该合成测试显式mock依赖可用，并新增显式/auto缺SDK仍503/data_capability_unavailable的反例。相同缺依赖环境下缓存测试green通过，独立缺SDK拒绝与整个模块11项通过。生产app字节、实际厂商执行与源合同不变；新候选完整门、独评及Mac安装须重绑，旧840b Mac结果不转写新候选。
+
+## PR203第二次CI：模拟子进程端口生命周期
+
+ed30候选同SHA Mac与Constraints已PASS，Checks run39916718351实际3906 passed、69 skipped、115 subtests、1 failed；Bao缺SDK相关测试已通过。失败为既有test_multiuser_runtime四用户容量用例，四个fake backend只有三个URL。真实RuntimePool关闭预留socket后等待实际子进程监听；原fake_processes既不启动进程也不持有端口，ready立即成功，OS可把已关闭的临时端口再分给后续fake用户。
+
+新增确定性反例证明fake backend活着时同端口仍可bind（RED），不靠随机循环碰撞复现。仅测试fixture在fake Popen时绑定命令里的loopback端口并listen，fake stop释放，fixture finally清理；原四用户URL唯一、容量拒绝、既有用户不驱逐、停止后再准入断言不减。补测假子进程活跃时拒绝占用、停止后可重绑，模块26项通过。只开有界测试socket，没有启动服务/DSH、访问模型或修改生产runtime代码；旧失败保留，不手工rerun或降低门。新候选原三CI及Mac须再次取得。
