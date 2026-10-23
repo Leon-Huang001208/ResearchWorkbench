@@ -775,4 +775,4 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
 
-2026-10-23：v7继续固定前版c4e/产品abdc/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。
+2026-10-23：v7继续固定前版c4e/产品3a62/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。

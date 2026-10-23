@@ -996,7 +996,7 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 2026-10-23副图扩展不新增依赖、配置或Doctor能力；requirements/web.in、web.lock、setup_web.py和三个公开安装入口保持。asset-indicator-library.mjs与asset-panel-manager.mjs随原UI包安装，原Mac Bootstrap下载比对追加两模块；固定图表库、许可证、CJPY无凭据待配置、同候选DSH构建/健康检查/Doctor门均保持。
 
 
-2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=abdc2a5883cfc86daf181062dc6ab8602e33128c（PR204实际合并）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
 
 ## 2026-10-23：BaoStock盈利能力来源
 

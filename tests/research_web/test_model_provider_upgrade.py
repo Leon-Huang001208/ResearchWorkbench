@@ -2196,7 +2196,7 @@ def test_asset_v6_binds_verified_resident_product_reader_and_unchanged_old_contr
 def test_asset_v7_pins_current_resident_and_merged_panel_product():
     assert upgrade.ASSET_V7_MODE == "reviewed-asset-observation-v7"
     assert upgrade.previous_for(upgrade.ASSET_V7_MODE) == "c4e953c4386c615cde89ad2d014d60c6e2959303"
-    assert upgrade.ASSET_V7_PAYLOAD == "abdc2a5883cfc86daf181062dc6ab8602e33128c"
+    assert upgrade.ASSET_V7_PAYLOAD == "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
     assert upgrade.ASSET_V7_WEB_LOCK_SHA256 == upgrade.ASSET_V6_WEB_LOCK_SHA256
     assert (
         hashlib.sha256(Path(upgrade.__file__).with_name("evidence.py").read_bytes()).hexdigest()
