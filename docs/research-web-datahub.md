@@ -23,6 +23,9 @@
 
 默认Host已挂入可选ResearchWarehouse；数据设置与能力中心复用同一配置及有界免费验证面板，保存不会连接，Doctor只报告脱敏配置/驱动状态。实际调用健康按来源、能力和配置摘要独立记录，最长300秒、最多256条；改配、撤权或过期即失效。数据库/会话缓存不刷新上游健康，显式探测与实际取数证据分开。连接中心的“部分能力已验证”只覆盖列明的能力与时间，不代表整个供应商或正式回测合格。
 
+`bea_archive` 在目录与能力中心均登记为公开来源；它不需要账号，也不提供配置凭据入口。
+全目录分组与既有集成状态恢复必须共同验证，新增Provider不能只通过独立取数测试。
+
 官方数值响应按封闭合同展开：世界银行分页头与观测分开，未取完分页返回partial；BLS逐series的year/period/value保留，不把M13年均值冒充月份；iFinD历史time数组与table指标逐项核对长度后展开。未知单位保持provider_defined。完整源字节仍冻结，账号/刷新令牌入口不入仓；详见[原生快照](research-web-vendor-snapshots.md)。官方说明：[世界银行](https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures)、[BLS](https://www.bls.gov/developers/api_signature_v2.htm)、[iFinD](https://quantapi.51ifind.com/gwstatic/static/ds_web/quantapi-web/example.html)。
 
 ## 研究仓及可靠性基座（2026-10-22，隔离实现）

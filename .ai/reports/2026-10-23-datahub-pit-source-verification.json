@@ -76,14 +76,23 @@
       "source_id": "akshare",
       "capability": "market_activity",
       "dataset": "fund_flow",
-      "status": "contract_repaired_live_NOT_RUN_this_batch",
+      "status": "bounded_live_failed_no_ingestion",
       "upstream": "eastmoney",
       "sdk_guest_independent": false,
       "unit_verified": false,
       "definition_verified": false,
       "ifind_equivalence_verified": false,
       "formal_backtest_eligible": false,
-      "attempt_chain_freeze_restore": "offline_contract_PASS"
+      "attempt_chain_freeze_restore": "offline_contract_PASS",
+      "worker_submissions": 1,
+      "worker_error": "vendor_schema_invalid",
+      "guest_http_status": 200,
+      "guest_business_code": 100,
+      "guest_data": null,
+      "official_history_diagnostic": "RemoteProtocolError",
+      "parent_http_requests": 4,
+      "child_http_count": "unmeasured",
+      "warehouse_ingestion": false
     }
   ],
   "evidence": [
@@ -102,6 +111,26 @@
     {
       "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/pit-feasibility/receipt.json",
       "sha256": "f39cbfae8e5c5b4f782c53e594a76859c08222d469fc3e5c60df4cef548cecf6"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023-integration/logs/fundflow-public-0eba/receipt.json",
+      "sha256": "c592474bea0dec3b8bcce0f9da25f27dd122a13629249a611eab737f6426a5e6"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023-integration/logs/fundflow-public-0eba/guest-receipt.json",
+      "sha256": "3ed5608eac2deb2d13f3cb8de5bd366f0db6f9759ac4c71b844c0d20a9979626"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023-integration/logs/fundflow-public-0eba/official-page-receipt.json",
+      "sha256": "7a74c9bfafb5e2c91d00f771e09024d834f8f097a0bfa5a4bbea49d55e50116c"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023-integration/logs/fundflow-public-0eba/official-script-receipt.json",
+      "sha256": "0318c6832dce20d41ff6ab330daeba8b68c90ce768bdec935f92255d399b96f9"
+    },
+    {
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023-integration/logs/fundflow-public-0eba/history-receipt.json",
+      "sha256": "60a5e428d340b09cbc30aaf5957ac072e8d0d01381d4a57df342b5503c92db3b"
     }
   ],
   "limits": [
@@ -116,5 +145,16 @@
     "sha256": "3f9d3614d465089dc51448ad6deb8fe39faa4b96fca929f301db7205b05c74ad"
   },
   "execution_candidate_head": "f611f98b6da090cdf828b9c0f16a32816ed25561",
-  "base_refresh": "PR197 shared catalog/contracts integrated; all earlier proof and CI retain original candidate scope"
+  "base_refresh": "PR197 shared catalog/contracts integrated; all earlier proof and CI retain original candidate scope",
+  "startup_integration_repair": {
+    "failed_candidate": "0eba659225d5bf5b951c4315c32671b4a07fd86d",
+    "mac_run": 39904204739,
+    "error_type": "KeyError",
+    "cause": "bea_archive_missing_connection_center_public_group",
+    "regressions": "real_catalog_projection_and_persisted_integration_restore_red_then_green",
+    "prior_data_path_11_hashes_unchanged": true,
+    "new_runtime_file_not_in_prior_data_path_proof": "app/research_web/datahub/connection_center.py",
+    "temporary_ci_instrumentation_removed": true,
+    "new_candidate_CI": "NOT_RUN"
+  }
 }

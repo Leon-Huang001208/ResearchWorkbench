@@ -873,10 +873,6 @@ Linux 真机任务负责 Linux 适配、本地验收与对应 GitHub CI；其他
 Bootstrap 的 macOS 验收还要求 Doctor schema 2 的安装/产品 ready、双服务 ready，以及首页和主
 静态模块实际可读取；本机运行和单元测试不能替代该干净 runner 的结果。
 
-启动失败时，Bootstrap 在停止自有服务前生成 `startup-failure-structure.json`，只保留自有
-Web/runtime 日志中仓库模块名、行号和异常类型；不上传子进程原始日志、异常消息或凭据。
-读取限于普通文件末尾256 KiB，拒绝符号链接，缺日志与诊断失败单列；诊断不改变原启动失败结果。
-
 维护者更新直接依赖后，用 Python 3.12 重新生成锁：
 
 ```bash

@@ -1,8 +1,5 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 const readWorkflow = (name) => fs.readFileSync(
@@ -382,55 +379,6 @@ test('Web evidence retention is short and full logs upload only on failure', () 
     /if: failure\(\)[\s\S]*logs\/setup-web\.log[\s\S]*retention-days: 3/,
   );
   assert.match(workflows.windows, /retention-days: 3/);
-});
-
-test('bootstrap failure evidence extracts structure without private log contents', () => {
-  const section = workflows.bootstrap.split('      - name: Collect sanitized startup failure structure\n')[1]
-    ?.split('      - name: Stop macOS services\n')[0];
-  assert.ok(section);
-  assert.match(section, /if: failure\(\)/);
-  const script = section.split("          .venv/bin/python - <<'PY'\n")[1]
-    .split('          PY\n')[0].split('\n').map((line) => line.slice(10)).join('\n');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-bootstrap-redaction-'));
-  try {
-    const logs = path.join(root, '.research-workbench', 'logs');
-    fs.mkdirSync(logs, { recursive: true });
-    fs.writeFileSync(path.join(logs, 'web.log'), [
-      'secret=do-not-upload-this-token',
-      '  File "/private/checkout/app/research_web/service.py", line 321, in start',
-      '    raise RuntimeError("private-account-and-password")',
-      'RuntimeError: private-account-and-password',
-      '  File "/private/checkout/research_workbench_entrypoint/runner.py", line 12, in run',
-    ].join('\n'));
-    const run = () => {
-      const result = spawnSync('python3', ['-c', script], {
-        cwd: root, env: { ...process.env, HOME: root }, encoding: 'utf8', timeout: 10000,
-      });
-      assert.equal(result.status, 0, result.stderr);
-      return JSON.parse(fs.readFileSync(path.join(root, 'startup-failure-structure.json'), 'utf8'));
-    };
-    const evidence = run();
-    assert.deepEqual(evidence.web, {
-      state: 'read',
-      frames: [
-        { module: 'app/research_web/service.py', line: 321 },
-        { module: 'research_workbench_entrypoint/runner.py', line: 12 },
-      ],
-      exceptions: ['RuntimeError'],
-    });
-    assert.equal(evidence.runtime.state, 'missing');
-    assert.doesNotMatch(JSON.stringify(evidence), /private|password|token|secret/);
-    fs.symlinkSync(path.join(logs, 'web.log'), path.join(logs, 'runtime.log'));
-    assert.equal(run().runtime.state, 'diagnostic_failed');
-    fs.unlinkSync(path.join(logs, 'runtime.log'));
-    const fifo = spawnSync('python3', ['-c', 'import os; os.mkfifo(".research-workbench/logs/runtime.log")'], {
-      cwd: root, encoding: 'utf8', timeout: 10000,
-    });
-    assert.equal(fifo.status, 0, fifo.stderr);
-    assert.equal(run().runtime.state, 'diagnostic_failed');
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
 });
 
 test('Docker CI is dispatched by the Linux device for an exact commit', () => {
