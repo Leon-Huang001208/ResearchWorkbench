@@ -29,6 +29,34 @@ from .external_sources import (
 from .providers import DEADLINE, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Result
 
 log = get_logger(__name__)
+OFFICIAL_NUMERIC_CONTRACT = "official-numeric-v2"
+EXTERNAL_ENVELOPE_CONTRACT = "external-envelope-v1"
+EXTERNAL_ENVELOPES = frozenset(
+    {
+        ("ext_nasdaq", "history"),
+        ("ext_cls", "hot-list"),
+        ("ext_danjuan", "history"),
+        ("ext_kapsarc", "production"),
+    }
+)
+OFFICIAL_NUMERIC = frozenset(
+    {("ext_worldbank", "inflation"), ("ext_nyfed", "rates"), ("ext_treasury", "cash")}
+)
+_CASH_FIELDS = ("close_today_bal", "open_today_bal", "open_month_bal", "open_fiscal_year_bal")
+_RATE_PERCENT_FIELDS = frozenset(
+    {
+        "percentRate",
+        "percentPercentile1",
+        "percentPercentile25",
+        "percentPercentile75",
+        "percentPercentile99",
+        "targetRateFrom",
+        "targetRateTo",
+        "intraDayLow",
+        "intraDayHigh",
+        "standardDeviation",
+    }
+)
 _PRIVATE_KEYS = re.compile(
     r"(?:password|secret|token|api_?key|registration_?key|authorization|cookie|headers?|url|host|proxy|redirect|callback|path|module|sql)",
     re.IGNORECASE,
@@ -97,6 +125,206 @@ def endpoint_request(
     if endpoint["method"] == "GET" and args.get("body"):
         raise ProviderError("external_body_not_allowed")
     return endpoint, url
+
+
+def _day(value):
+    if (
+        not isinstance(value, str)
+        or datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d") != value
+    ):
+        raise ValueError("invalid_date")
+    return value
+
+
+def _positive(value):
+    if isinstance(value, bool) or not re.fullmatch(r"[1-9][0-9]*", str(value)):
+        raise ValueError("invalid_page")
+    return int(value)
+
+
+def _nonnegative(value):
+    if isinstance(value, bool) or not re.fullmatch(r"0|[1-9][0-9]*", str(value)):
+        raise ValueError("invalid_count")
+    return int(value)
+
+
+def official_numeric_request(source, dataset, args):
+    """Validate only reviewed filter syntax; never fetch additional pages implicitly."""
+    if (source, dataset) not in OFFICIAL_NUMERIC:
+        return
+    try:
+        filters = args.get("query", {})
+        allowed = (
+            {"date", "page", "per_page", "format"}
+            if source == "ext_worldbank"
+            else (
+                {"filter", "page[size]", "page[number]", "format"}
+                if source == "ext_treasury"
+                else set()
+            )
+        )
+        if filters.keys() - allowed or args.get("body"):
+            raise ValueError("unsupported_filter")
+        if filters.get("format", "json") != "json":
+            raise ValueError("invalid_format")
+        for key in ("page", "per_page", "page[size]", "page[number]"):
+            if key in filters:
+                _positive(filters[key])
+        if source == "ext_worldbank" and "date" in filters:
+            years = str(filters["date"]).split(":")
+            if (
+                len(years) not in {1, 2}
+                or any(re.fullmatch(r"[0-9]{4}", year) is None for year in years)
+                or years[0] > years[-1]
+            ):
+                raise ValueError("invalid_year_range")
+        if source == "ext_nyfed":
+            start, end = (args["params"][key] for key in ("start", "end"))
+            if _day(start) > _day(end):
+                raise ValueError("invalid_date_range")
+        if source == "ext_treasury" and "filter" in filters:
+            lower, upper = [], []
+            for clause in str(filters["filter"]).split(","):
+                field, operation, value = clause.split(":")
+                if field != "record_date" or operation not in {"eq", "gte", "lte"}:
+                    raise ValueError("unsupported_filter")
+                _day(value)
+                if operation in {"eq", "gte"}:
+                    lower.append(value)
+                if operation in {"eq", "lte"}:
+                    upper.append(value)
+            if lower and upper and max(lower) > min(upper):
+                raise ValueError("invalid_date_range")
+    except (ValueError, TypeError, KeyError):
+        log.warning("external_numeric_request_invalid", source=source, dataset=dataset)
+        raise ProviderError("external_numeric_request_invalid") from None
+
+
+def _number(value):
+    if value is None or value == "null":
+        return False
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise TypeError("invalid_numeric")
+    if not math.isfinite(float(value)):
+        raise ValueError("invalid_numeric")
+    return True
+
+
+def _official_rows(source, body, args):
+    filters = args.get("query", {})
+    if source == "ext_worldbank":
+        if not isinstance(body, list) or len(body) != 2 or not isinstance(body[0], dict):
+            raise ValueError("invalid_worldbank")
+        header, rows = body
+        page = _positive(header["page"])
+        pages, total = _nonnegative(header["pages"]), _nonnegative(header["total"])
+        size = _positive(header["per_page"])
+        if page != _positive(filters.get("page", 1)) or size != _positive(
+            filters.get("per_page", 100)
+        ):
+            raise ValueError("pagination_identity_mismatch")
+        if rows is None and total == 0:
+            rows = []
+        if (
+            not isinstance(rows, list)
+            or total < 0
+            or pages != (total + size - 1) // size
+            or page > max(1, pages)
+            or len(rows) != max(0, min(size, total - (page - 1) * size))
+        ):
+            raise ValueError("pagination_inconsistent")
+        seen = set()
+        for row in rows:
+            year = row["date"]
+            if (
+                row["indicator"]["id"] != "FP.CPI.TOTL.ZG"
+                or row["countryiso3code"] != "WLD"
+                or row["country"]["id"] != "1W"
+                or not isinstance(year, str)
+                or re.fullmatch(r"[0-9]{4}", year) is None
+                or year in seen
+            ):
+                raise ValueError("observation_identity_mismatch")
+            years = str(filters.get("date", year)).split(":")
+            if not years[0] <= year <= years[-1]:
+                raise ValueError("date_filter_mismatch")
+            _number(row["value"])
+            seen.add(year)
+        return rows, total, pages <= 1
+    if source == "ext_nyfed":
+        if (
+            not isinstance(body, dict)
+            or set(body) != {"refRates"}
+            or not isinstance(body["refRates"], list)
+        ):
+            raise ValueError("invalid_nyfed")
+        rows, seen = body["refRates"], set()
+        for row in rows:
+            day, kind = _day(row["effectiveDate"]), row["type"]
+            if (
+                kind not in {"EFFR", "OBFR", "TGCR", "BGCR", "SOFR", "SOFRAI"}
+                or not args["params"]["start"] <= day <= args["params"]["end"]
+                or (day, kind) in seen
+            ):
+                raise ValueError("rate_identity_mismatch")
+            for field in (
+                ("average30day", "average90day", "average180day", "index")
+                if kind == "SOFRAI"
+                else ("percentRate", "volumeInBillions")
+            ):
+                _number(row[field])
+            for field in _RATE_PERCENT_FIELDS & row.keys():
+                _number(row[field])
+            seen.add((day, kind))
+        return rows, len(rows), True
+    if (
+        not isinstance(body, dict)
+        or not {"data", "meta", "links"} <= body.keys()
+        or not isinstance(body["data"], list)
+    ):
+        raise ValueError("invalid_treasury")
+    rows, meta, links = body["data"], body["meta"], body["links"]
+    count, total, pages = (
+        _nonnegative(meta[key]) for key in ("count", "total-count", "total-pages")
+    )
+    size, page = _positive(filters.get("page[size]", 20)), _positive(filters.get("page[number]", 1))
+    if (
+        count != len(rows)
+        or total < 0
+        or pages != (total + size - 1) // size
+        or page > max(1, pages)
+        or count != max(0, min(size, total - (page - 1) * size))
+        or bool(links.get("next")) != (page < pages)
+        or bool(links.get("prev")) != (page > 1)
+    ):
+        raise ValueError("pagination_inconsistent")
+    seen = set()
+    for row in rows:
+        day = _day(row["record_date"])
+        key = (day, row["account_type"], row["src_line_nbr"])
+        if (
+            row["table_nbr"] != "I"
+            or row["table_nm"] != "Operating Cash Balance"
+            or not row["account_type"]
+            or key in seen
+        ):
+            raise ValueError("cash_identity_mismatch")
+        for clause in str(filters.get("filter", "")).split(","):
+            if clause:
+                _, operation, expected = clause.split(":")
+                if not {"eq": day == expected, "gte": day >= expected, "lte": day <= expected}[
+                    operation
+                ]:
+                    raise ValueError("date_filter_mismatch")
+        for field in _CASH_FIELDS:
+            if (
+                meta["dataTypes"][field] != "CURRENCY0"
+                or meta["dataFormats"][field] != "$1,000,000"
+            ):
+                raise ValueError("cash_unit_mismatch")
+            _number(row[field])
+        seen.add(key)
+    return rows, total, pages <= 1
 
 
 def _quantapi_history_body(args: dict[str, Any]) -> dict[str, Any]:
@@ -291,36 +519,99 @@ def response_rows(raw: bytes, content_type: str, encoding: str = "utf-8") -> lis
     return [{"text": text, "format": "source_text"}]
 
 
-def numeric_envelope(source, dataset, raw, fallback_rows):
+def external_business_envelope(source, dataset, raw):
+    """Only verified business envelopes; reference lines and error bodies are not rows."""
+    selected = (source, dataset)
+    if selected not in EXTERNAL_ENVELOPES:
+        return None
+    try:
+        if selected == ("ext_kapsarc", "production"):
+            records = csv.reader(io.StringIO(raw.decode("utf-8-sig")), delimiter=";", strict=True)
+            fields = ["country", "sub_commodity", "year", "production"]
+            if next(records, None) != fields:
+                raise ValueError("header_mismatch")
+            rows = []
+            identities = set()
+            for parts in records:
+                if not parts:
+                    continue
+                if (
+                    len(parts) != 4
+                    or not all(part.strip() for part in parts)
+                    or re.fullmatch(r"[0-9]{4}", parts[2]) is None
+                ):
+                    raise ValueError("invalid_csv_row")
+                year = int(parts[2])
+                value = float(parts[3])
+                identity = tuple(parts[:3])
+                if (
+                    not 1 <= year <= datetime.now(UTC).year
+                    or not math.isfinite(value)
+                    or value < 0
+                    or identity in identities
+                ):
+                    raise ValueError("invalid_production")
+                identities.add(identity)
+                rows.append(dict(zip(fields, parts, strict=True)))
+            return rows, len(rows), None
+        body = json.loads(raw)
+        if not isinstance(body, dict):
+            raise TypeError("envelope_required")
+        if selected == ("ext_nasdaq", "history"):
+            code = body["status"]["rCode"]
+            if type(code) is not int:
+                raise TypeError("invalid_status")
+            if code != 200:
+                raise ProviderError("vendor_rejected")
+            if body.get("data") is None:
+                raise ValueError("missing_business_data")
+        elif selected == ("ext_cls", "hot-list"):
+            code = body["errno"]
+            if type(code) not in {int, str}:
+                raise TypeError("invalid_status")
+            if code not in {0, "0"}:
+                raise ProviderError("vendor_rejected")
+        else:
+            code = body["result_code"]
+            if type(code) not in {int, str}:
+                raise TypeError("invalid_status")
+            if code not in {0, "0"}:
+                raise ProviderError("vendor_rejected")
+            history = body["data"]["index_eva_pe_growths"]
+            if not isinstance(history, list):
+                raise TypeError("invalid_history")
+            if not history:
+                return [], 0, None
+        # No successful Nasdaq/CLS/Danjuan business schema has been verified.
+        log.warning("external_business_schema_unverified", source=source, dataset=dataset)
+        raise ProviderError("external_business_schema_unverified")
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        UnicodeError,
+        csv.Error,
+        OverflowError,
+    ):
+        log.warning("external_business_envelope_invalid", source=source, dataset=dataset)
+        raise ProviderError("external_numeric_schema_invalid") from None
+
+
+def numeric_envelope(source, dataset, raw, fallback_rows, args=None):
     """Closed official envelopes; original bytes retain publication/revision limits."""
     selected = (source, dataset)
     if selected not in {
         ("ext_worldbank", "inflation"),
         ("ext_bls", "series"),
         ("ext_ths", "cmd_history_quotation"),
+        *OFFICIAL_NUMERIC,
     }:
         return fallback_rows, None, None
     try:
         body = json.loads(raw)
-        if selected == ("ext_worldbank", "inflation"):
-            if not isinstance(body, list) or len(body) != 2 or not isinstance(body[0], dict):
-                raise ValueError("invalid_worldbank")
-            header, rows = body
-            page, pages, total = (int(header[key]) for key in ("page", "pages", "total"))
-            if page < 1 or pages < 0 or total < 0 or (pages and page > pages):
-                raise ValueError("invalid_pagination")
-            if rows is None and total == 0:
-                rows = []
-            if (
-                not isinstance(rows, list)
-                or any(
-                    not isinstance(row, dict) or "date" not in row or "value" not in row
-                    for row in rows
-                )
-                or total < len(rows)
-            ):
-                raise ValueError("invalid_observations")
-            return rows, total, pages <= 1
+        if selected in OFFICIAL_NUMERIC:
+            return _official_rows(source, body, args or {})
         if selected == ("ext_bls", "series"):
             if not isinstance(body, dict) or body.get("status") != "REQUEST_SUCCEEDED":
                 raise ValueError("invalid_bls_status")
@@ -371,7 +662,7 @@ def numeric_envelope(source, dataset, raw, fallback_rows):
                     }
                 )
         return rows, len(rows), True
-    except (ValueError, TypeError, KeyError, AttributeError):
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
         log.warning("external_numeric_envelope_invalid", source=source, dataset=dataset)
         raise ProviderError("external_numeric_schema_invalid") from None
 
@@ -627,6 +918,7 @@ async def fetch(
             raise ProviderError("external_source_required")
         args = arguments(query.parameters.get("arguments_json"))
         endpoint, url = endpoint_request(source_id, dataset, args)
+        official_numeric_request(source_id, dataset, args)
         if (source_id, dataset) == ("ext_ths", "cmd_history_quotation"):
             args["body"] = _quantapi_history_body(args)
         if credential_transport_blocked(endpoint):
@@ -683,8 +975,14 @@ async def fetch(
                 # JSON-escaped secret must never enter archived original bytes.
                 if _rows_reflect_credentials(decoded, reflected):
                     raise ProviderError("credential_reflection")
-        rows = response_rows(raw, content_type, encoding)
-        rows, provider_total, complete_page = numeric_envelope(source_id, dataset, raw, rows)
+        business = external_business_envelope(source_id, dataset, raw)
+        if business is None:
+            rows = response_rows(raw, content_type, encoding)
+            rows, provider_total, complete_page = numeric_envelope(
+                source_id, dataset, raw, rows, args
+            )
+        else:
+            rows, provider_total, complete_page = business
         if _rows_reflect_credentials(rows, reflected):
             raise ProviderError("credential_reflection")
         result.rows = rows[:limit]
@@ -713,12 +1011,90 @@ async def fetch(
         result.raw_bytes = len(raw)
         result.pages_fetched = 1
         result.source_url = url
+        if (source_id, dataset) in OFFICIAL_NUMERIC:
+            result.source_url = str(httpx.URL(url).copy_merge_params(args.get("query", {})))
         result.as_of = datetime.now(UTC).isoformat()
         result.fields = {
             key: {"type": "source", "unit": "provider_defined"}
             for row in result.rows
             for key in row
         }
+        if (source_id, dataset) in EXTERNAL_ENVELOPES:
+            result.metadata["schema_version"] = EXTERNAL_ENVELOPE_CONTRACT
+            if (source_id, dataset) == ("ext_danjuan", "history") or not result.rows:
+                result.status = "partial"
+                result.missing.append("no_observation_rows")
+        if (source_id, dataset) in OFFICIAL_NUMERIC:
+            result.metadata = {
+                "schema_version": OFFICIAL_NUMERIC_CONTRACT,
+                "provider_semantics_revision": OFFICIAL_NUMERIC_CONTRACT,
+                "revision_policy": "first_observed_not_historical_vintage",
+            }
+            result.fields[
+                (
+                    "date"
+                    if source_id == "ext_worldbank"
+                    else "effectiveDate" if source_id == "ext_nyfed" else "record_date"
+                )
+            ] = {
+                "type": "date",
+                "unit": "year" if source_id == "ext_worldbank" else "date",
+                "role": "reference_period_not_available_at",
+            }
+            numeric = (
+                ("value",)
+                if source_id == "ext_worldbank"
+                else (
+                    _CASH_FIELDS
+                    if source_id == "ext_treasury"
+                    else (
+                        "percentRate",
+                        "average30day",
+                        "average90day",
+                        "average180day",
+                        "index",
+                        "volumeInBillions",
+                    )
+                )
+            )
+            for field in numeric:
+                if field in result.fields:
+                    unit = (
+                        "percent_per_year"
+                        if source_id == "ext_worldbank"
+                        else "USD_million" if source_id == "ext_treasury" else "provider_defined"
+                    )
+                    result.fields[field] = {"type": "number", "unit": unit}
+            if source_id == "ext_nyfed":
+                for field in result.fields:
+                    if field in _RATE_PERCENT_FIELDS:
+                        result.fields[field] = {"type": "number", "unit": "percent"}
+                    elif field == "volumeInBillions":
+                        result.fields[field] = {"type": "number", "unit": "USD_billion"}
+            if source_id == "ext_treasury":
+                result.metadata["units"] = {field: "USD_million" for field in _CASH_FIELDS}
+            missing_values = any(
+                (
+                    (not any(_number(row.get(field)) for field in numeric if field in row))
+                    if source_id == "ext_treasury"
+                    else any(
+                        not _number(row[field])
+                        for field in (
+                            ("value",)
+                            if source_id == "ext_worldbank"
+                            else (
+                                ("average30day", "average90day", "average180day", "index")
+                                if row["type"] == "SOFRAI"
+                                else ("percentRate", "volumeInBillions")
+                            )
+                        )
+                    )
+                )
+                for row in result.rows
+            )
+            if missing_values:
+                result.status = "partial"
+                result.missing.append("numeric_values_missing")
         result.limitations = ["single_response_not_complete_history", "provider_native_fields"]
         if len(rows) > limit:
             result.limitations.append("row_limit")

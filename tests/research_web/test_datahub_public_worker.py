@@ -4,6 +4,7 @@ import json
 import subprocess
 import unittest
 from dataclasses import asdict
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,6 +14,40 @@ from app.research_web.datahub.public_worker import invoke_worker
 
 
 class PublicWorkerTests(unittest.TestCase):
+    def test_actual_akshare_child_serializes_offline_guest_result(self):
+        """Run real child/codec; SDK and HTTP alone are controlled offline fixtures."""
+        source = (Path(__file__).parent / "fixtures/fund_flow_guest.json").read_bytes()
+        bootstrap = f"""
+import sys, types, httpx
+ak = types.ModuleType("akshare")
+def failure(**kwargs): raise OSError("offline sdk failure")
+ak.stock_individual_fund_flow = failure
+sys.modules["akshare"] = ak
+original = httpx.Client
+httpx.Client = lambda **kwargs: original(transport=httpx.MockTransport(lambda request: httpx.Response(200,content={source!r})),**kwargs)
+sys.argv = ["offline-public-worker", "akshare"]
+from app.research_web.datahub.public_worker import main
+raise SystemExit(main())
+"""
+        original = subprocess.run
+
+        def run(command, **kwargs):
+            self.assertEqual(
+                command[1:], ["-m", "app.research_web.datahub.public_worker", "akshare"]
+            )
+            return original([command[0], "-c", bootstrap], **kwargs)
+
+        request = BusinessQuery(
+            capability="market_activity",
+            source="akshare",
+            parameters={"asset": "000001.SZ", "dataset": "fund_flow"},
+        )
+        with patch("app.research_web.datahub.public_worker.subprocess.run", run):
+            result = invoke_worker("akshare", request)
+        self.assertEqual(result.status, "snapshot")
+        self.assertEqual(result.raw, [source])
+        self.assertFalse(result.metadata["formal_backtest_eligible"])
+
     def test_guest_socket_reports_eof_instead_of_looping_forever(self):
         import socket
 

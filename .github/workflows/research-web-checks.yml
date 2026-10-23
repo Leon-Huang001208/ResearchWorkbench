@@ -148,6 +148,7 @@ jobs:
             tests/research_web/test_research_snapshot_store.py \
             tests/research_web/test_quantapi_authorization.py \
             tests/research_web/test_datahub_numeric_sources.py \
+            tests/research_web/test_datahub_official_numeric.py \
             tests/research_web/test_datahub_execution_health.py \
             tests/research_web/test_warehouse_diagnostics.py \
             tests/research_web/test_market_store.py \

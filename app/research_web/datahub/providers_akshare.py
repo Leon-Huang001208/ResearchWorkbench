@@ -8,6 +8,7 @@ import math
 import re
 import threading
 import time
+from calendar import monthrange
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -18,7 +19,7 @@ import httpx
 from core.observability import get_logger
 
 from .contracts import BusinessQuery
-from .providers import MAX_ROWS, ProviderError, Result, cn_stock_identity
+from .providers import MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Result, cn_stock_identity
 
 log = get_logger(__name__)
 
@@ -28,6 +29,10 @@ class _FeedNormalizer:
     normalize: Any
     upstream_id: str
     attempts: tuple[dict, ...]
+    raw: bytes | None = None
+    source_url: str | None = None
+    limited_history: bool = False
+    provider_total: int | None = None
 
     def __call__(self, rows, query):
         return self.normalize(rows, query)
@@ -112,7 +117,39 @@ def _exchange_symbol(value: str) -> str:
     return f"{market}{code}"
 
 
-SEMANTICS_REVISION = "akshare-supported-query-v5"
+SEMANTICS_REVISION = "akshare-supported-query-v6"
+FUND_FLOW_GUEST_URL = "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get"
+CHINA_MACRO_SCHEMA = "akshare-china-macro-v1"
+CHINA_MACRO_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+CHINA_MACRO_CONTRACTS = {
+    "cpi": (
+        "RPT_ECONOMY_CPI",
+        "REPORT_DATE,TIME,NATIONAL_SAME,NATIONAL_BASE,NATIONAL_SEQUENTIAL,NATIONAL_ACCUMULATE,CITY_SAME,CITY_BASE,CITY_SEQUENTIAL,CITY_ACCUMULATE,RURAL_SAME,RURAL_BASE,RURAL_SEQUENTIAL,RURAL_ACCUMULATE",
+    ),
+    "gdp": (
+        "RPT_ECONOMY_GDP",
+        "REPORT_DATE,TIME,DOMESTICL_PRODUCT_BASE,FIRST_PRODUCT_BASE,SECOND_PRODUCT_BASE,THIRD_PRODUCT_BASE,SUM_SAME,FIRST_SAME,SECOND_SAME,THIRD_SAME",
+    ),
+    "pmi": ("RPT_ECONOMY_PMI", "REPORT_DATE,TIME,MAKE_INDEX,MAKE_SAME,NMAKE_INDEX,NMAKE_SAME"),
+    "m2": (
+        "RPT_ECONOMY_CURRENCY_SUPPLY",
+        "REPORT_DATE,TIME,BASIC_CURRENCY,BASIC_CURRENCY_SAME,BASIC_CURRENCY_SEQUENTIAL,CURRENCY,CURRENCY_SAME,CURRENCY_SEQUENTIAL,FREE_CASH,FREE_CASH_SAME,FREE_CASH_SEQUENTIAL",
+    ),
+}
+
+
+@dataclass(frozen=True)
+class _MacroNormalizer:
+    raw: bytes
+    source_url: str
+    provider_total: int
+    pages_complete: bool
+    series: str
+
+    def __call__(self, rows, _query):
+        return rows
+
+
 _FREQUENCIES = {
     "daily": "daily",
     "day": "daily",
@@ -156,6 +193,16 @@ def _activity_bounds(query: BusinessQuery) -> tuple[date | None, date | None]:
 def validate_supported_query(query: BusinessQuery) -> None:
     """Pure semantics check shared by selection/cache admission and execution."""
     parameters = query.parameters
+    if query.capability == "factor_macro":
+        if (
+            set(parameters) != {"series", "start_date", "end_date"}
+            or not isinstance(parameters.get("series"), str)
+            or parameters.get("series") not in CHINA_MACRO_CONTRACTS
+        ):
+            raise ProviderError("data_not_equivalent")
+        _macro_bounds(query)
+        if query.purpose == "backtest" or query.as_of is not None:
+            raise ProviderError("data_not_equivalent")
     if query.capability == "trading_calendar":
         start, end = _activity_bounds(query)
         if (
@@ -178,6 +225,7 @@ def validate_supported_query(query: BusinessQuery) -> None:
         if parameters.get("dataset") != "fund_flow":
             raise ProviderError("data_not_equivalent")
         _activity_bounds(query)
+        cn_stock_identity(parameters.get("asset"))
     if query.capability == "market_bars" and parameters.get("asset_type") == "index":
         if parameters.get("adjustment", "none") != "none":
             raise ProviderError("invalid_adjustment")
@@ -441,6 +489,234 @@ def _normalize_activity(rows: list[dict], query: BusinessQuery) -> list[dict]:
     return normalized
 
 
+def _fund_flow_guest(query):
+    """Same Eastmoney upstream, single bounded response; never historical coverage."""
+    from pandas import DataFrame
+
+    if query.purpose == "backtest" or query.as_of is not None:
+        raise ProviderError("data_not_equivalent")
+    identity = cn_stock_identity(query.parameters["asset"])
+    code, exchange = identity.split(".")
+    if exchange not in {"SH", "SZ"}:
+        raise ProviderError("data_not_equivalent")
+    market = 1 if exchange == "SH" else 0
+    params = {
+        "secid": f"{market}.{code}",
+        "klt": "101",
+        "lmt": "30",
+        "fields1": "f1,f2,f3,f7",
+        "fields2": ",".join(f"f{index}" for index in range(51, 66)),
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+    }
+    try:
+        with (
+            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
+            client.stream("GET", FUND_FLOW_GUEST_URL, params=params) as response,
+        ):
+            if response.status_code != 200:
+                log.warning("datahub_fund_flow_guest_http_failed", status=response.status_code)
+                raise ProviderError("vendor_unreachable")
+            raw = bytearray()
+            for chunk in response.iter_bytes():
+                raw.extend(chunk)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    log.warning("datahub_fund_flow_guest_response_limit")
+                    raise ProviderError("vendor_schema_invalid")
+        payload = json.loads(raw)
+        data = payload["data"]
+        if (
+            type(payload.get("rc")) is not int
+            or payload["rc"] != 0
+            or data.get("code") != code
+            or type(data.get("market")) is not int
+            or data["market"] != market
+        ):
+            raise ValueError("identity_mismatch")
+        lines = data["klines"]
+        if not isinstance(lines, list) or not lines or len(lines) > MAX_ROWS:
+            raise ValueError("invalid_lines")
+        rows = []
+        previous = None
+        names = (
+            "日期",
+            "主力净流入-净额",
+            "小单净流入-净额",
+            "中单净流入-净额",
+            "大单净流入-净额",
+            "超大单净流入-净额",
+            *(f"f{index}" for index in range(57, 66)),
+        )
+        for line in lines:
+            parts = line.split(",") if isinstance(line, str) else []
+            if len(parts) != 15:
+                raise ValueError("invalid_line")
+            day = date.fromisoformat(parts[0])
+            if (
+                day.isoformat() != parts[0]
+                or day > datetime.now(UTC).date()
+                or previous is not None
+                and day <= previous
+            ):
+                raise ValueError("invalid_day")
+            values = [float(value) for value in parts[1:]]
+            if any(not math.isfinite(value) for value in values):
+                raise ValueError("invalid_numeric")
+            rows.append(dict(zip(names, [parts[0], *values], strict=True)))
+            previous = day
+        normalizer = _FeedNormalizer(
+            _normalize_activity,
+            "eastmoney",
+            (
+                {"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "failed"},
+                {"upstream": "eastmoney", "endpoint": "webguest", "status": "snapshot"},
+            ),
+            raw=bytes(raw),
+            source_url=str(httpx.URL(FUND_FLOW_GUEST_URL).copy_merge_params(params)),
+            limited_history=True,
+            provider_total=len(rows),
+        )
+        log.info("datahub_fund_flow_guest_received", rows=len(rows))
+        return _slice_activity_frame(DataFrame(rows), query), normalizer
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        log.warning("datahub_fund_flow_guest_invalid")
+        raise ProviderError("vendor_schema_invalid") from None
+    except httpx.HTTPError:
+        log.warning("datahub_fund_flow_guest_unreachable")
+        raise ProviderError("vendor_unreachable") from None
+
+
+def _macro_bounds(query):
+    try:
+        values = [query.parameters[key] for key in ("start_date", "end_date")]
+        if any(not isinstance(value, str) for value in values):
+            raise TypeError("date_type")
+        start, end = (date.fromisoformat(value) for value in values)
+        if start.isoformat() != values[0] or end.isoformat() != values[1] or start > end:
+            raise ValueError("date_range")
+        return start, end
+    except (TypeError, ValueError, KeyError):
+        log.warning("datahub_china_macro_request_invalid")
+        raise ProviderError("invalid_date_range") from None
+
+
+def _china_macro(query):
+    """Closed SDK-equivalent requests retain the envelope the SDK discards."""
+    from pandas import DataFrame
+
+    series = query.parameters["series"]
+    report, columns = CHINA_MACRO_CONTRACTS[series]
+    params = {
+        "columns": columns,
+        "pageNumber": "1",
+        "pageSize": "2000",
+        "sortColumns": "REPORT_DATE",
+        "sortTypes": "-1",
+        "source": "WEB",
+        "client": "WEB",
+        "reportName": report,
+        "p": "1",
+        "pageNo": "1",
+        "pageNum": "1",
+    }
+    try:
+        with (
+            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
+            client.stream("GET", CHINA_MACRO_URL, params=params) as response,
+        ):
+            if response.status_code != 200:
+                raise ProviderError("vendor_unreachable")
+            raw = bytearray()
+            for chunk in response.iter_bytes():
+                raw.extend(chunk)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    raise ValueError("response_limit")
+        payload = json.loads(raw)
+        if (
+            payload.get("success") is not True
+            or type(payload.get("code")) is not int
+            or payload["code"] != 0
+        ):
+            raise ValueError("vendor_rejected")
+        envelope = payload["result"]
+        observations = envelope["data"]
+        pages = envelope["pages"]
+        count = envelope["count"]
+        if (
+            type(pages) is not int
+            or type(count) is not int
+            or count < 0
+            or pages != max(1, (count + 1999) // 2000)
+            or not isinstance(observations, list)
+            or len(observations) != min(count, 2000)
+        ):
+            raise ValueError("pagination_invalid")
+        start, end = _macro_bounds(query)
+        rows = []
+        previous = None
+        numeric = set(columns.split(",")) - {"TIME", "REPORT_DATE"}
+        for original in observations:
+            if not isinstance(original, dict) or set(original) != set(columns.split(",")):
+                raise ValueError("columns_mismatch")
+            stamp = datetime.strptime(original["REPORT_DATE"], "%Y-%m-%d %H:%M:%S")
+            pattern = (
+                r"(\d{4})年第1(?:-([234]))?季度" if series == "gdp" else r"(\d{4})年(\d{2})月份"
+            )
+            match = re.fullmatch(pattern, original["TIME"])
+            if match is None:
+                raise ValueError("reference_period_invalid")
+            year = int(match[1])
+            position = int(match[2] or 1)
+            month = position * 3 if series == "gdp" else position
+            day = date(year, month, monthrange(year, month)[1])
+            if (
+                day > datetime.now(UTC).date()
+                or stamp.strftime("%Y-%m-%d %H:%M:%S") != original["REPORT_DATE"]
+                or stamp != datetime(year, month, 1)
+                or previous is not None
+                and day >= previous
+            ):
+                raise ValueError("reference_label_mismatch")
+            for field in numeric:
+                value = original[field]
+                if value is not None and (
+                    type(value) not in {int, float} or not math.isfinite(value)
+                ):
+                    raise ValueError("numeric_invalid")
+            if start <= day <= end:
+                rows.append(
+                    {
+                        **original,
+                        "series": series,
+                        "date": day.isoformat(),
+                        "reference_period": (
+                            f"{year}-Q{position}" if series == "gdp" else f"{year}-{month:02d}"
+                        ),
+                        "aggregation": "year_to_date" if series == "gdp" else "period",
+                    }
+                )
+            previous = day
+        normalizer = _MacroNormalizer(
+            bytes(raw),
+            str(httpx.URL(CHINA_MACRO_URL).copy_merge_params(params)),
+            count,
+            pages == 1,
+            series,
+        )
+        log.info(
+            "datahub_china_macro_received",
+            series=series,
+            rows=len(rows),
+            provider_rows=len(observations),
+        )
+        return DataFrame(rows), normalizer
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        log.warning("datahub_china_macro_invalid", series=series)
+        raise ProviderError("vendor_schema_invalid") from None
+    except httpx.HTTPError:
+        log.warning("datahub_china_macro_unreachable", series=series)
+        raise ProviderError("vendor_unreachable") from None
+
+
 def _explicit_money(value):
     if isinstance(value, bool) or value is None or value in ("", "--", "-"):
         return None
@@ -501,6 +777,8 @@ def _invoke_sdk(query: BusinessQuery):
 
     capability = query.capability
     parameters = query.parameters
+    if capability == "factor_macro":
+        return _china_macro(query)
     if capability == "trading_calendar":
         from pandas import DataFrame
 
@@ -664,7 +942,11 @@ def _invoke_sdk(query: BusinessQuery):
     if capability == "market_activity":
         symbol = _symbol(str(parameters["asset"]))
         market = _exchange_symbol(str(parameters["asset"]))[:2]
-        frame = ak.stock_individual_fund_flow(stock=symbol, market=market)
+        try:
+            frame = ak.stock_individual_fund_flow(stock=symbol, market=market)
+        except Exception as exc:  # noqa: BLE001 - fixed SDK boundary.
+            log.warning("datahub_fund_flow_sdk_failed", error_type=type(exc).__name__)
+            return _fund_flow_guest(query)
         return _slice_activity_frame(frame, query), _normalize_activity
     raise ProviderError("capability_not_implemented")
 
@@ -802,6 +1084,96 @@ def _materialize(query, frame, normalizer):
             "资金字段保留来源净额；没有真实流入流出和完整构成时不生成饼图，未验证的净额单位保持未知。"
         )
     result.metadata["provider_semantics_revision"] = SEMANTICS_REVISION
+    if isinstance(normalizer, _MacroNormalizer):
+        result.raw = [normalizer.raw]
+        result.raw_bytes = len(normalizer.raw)
+        result.source_url = normalizer.source_url
+        result.provider_total = normalizer.provider_total
+        result.pagination_complete = normalizer.pages_complete
+        result.status = "snapshot"
+        result.metadata.update(
+            {
+                "schema_version": CHINA_MACRO_SCHEMA,
+                "provider_semantics_revision": CHINA_MACRO_SCHEMA,
+                "upstream_id": "eastmoney",
+                "availability_basis": "first_observed",
+                "formal_backtest_eligible": False,
+                "historical_point_in_time": False,
+                "revision_policy": "first_observed_not_historical_vintage",
+            }
+        )
+        result.limitations.extend(
+            [
+                "single_response_not_complete_history",
+                "reference_period_not_publication_date",
+                "native_macro_units_not_cross_source_equivalent",
+            ]
+        )
+        for field in result.fields:
+            semantic = "provider_native"
+            if field.endswith("_SAME"):
+                semantic = (
+                    "year_to_date_year_over_year_change"
+                    if normalizer.series == "gdp"
+                    else "year_over_year_change"
+                )
+            elif field.endswith("_SEQUENTIAL"):
+                semantic = "month_over_month_change"
+            elif normalizer.series == "cpi" and field.endswith("_ACCUMULATE"):
+                semantic = "year_to_date_index_level"
+            elif field.endswith("_INDEX") or normalizer.series == "cpi" and field.endswith("_BASE"):
+                semantic = "index_level"
+            elif normalizer.series == "gdp" and field.endswith("_BASE"):
+                semantic = "year_to_date_amount"
+            elif field in {"REPORT_DATE", "TIME"}:
+                semantic = "vendor_reference_label_not_publication"
+            elif field == "date":
+                semantic = "derived_reference_period_end"
+            unit = (
+                "CNY_100million"
+                if normalizer.series == "m2"
+                and field in {"BASIC_CURRENCY", "CURRENCY", "FREE_CASH"}
+                else None
+            )
+            result.fields[field] = {
+                "unit": unit,
+                "currency": "CNY" if unit else None,
+                "semantic": semantic,
+            }
+        if not result.rows or not normalizer.pages_complete:
+            result.status = "partial"
+            result.missing.append("macro_response_coverage_unverified")
+        if any(value is None for row in result.rows for value in row.values()):
+            result.status = "partial"
+            result.missing.append("macro_values_missing")
+    if isinstance(normalizer, _FeedNormalizer) and normalizer.limited_history:
+        result.source_url = normalizer.source_url
+        result.raw = [normalizer.raw]
+        result.raw_bytes = len(normalizer.raw)
+        result.status = "snapshot"
+        result.provider_total = normalizer.provider_total
+        result.pagination_complete = False
+        result.metadata.update(
+            {
+                "upstream_id": "eastmoney",
+                "upstream_attempts": list(normalizer.attempts),
+                "independent_source": False,
+                "availability_basis": "first_observed",
+                "historical_point_in_time": False,
+                "formal_backtest_eligible": False,
+                "observed_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        result.limitations.extend(
+            [
+                "single_response_not_complete_history",
+                "fund_flow_units_unverified",
+                "same_eastmoney_upstream_not_independent_source",
+            ]
+        )
+        if any(value is not None for value in _activity_bounds(query)):
+            result.status = "partial"
+            result.missing.append("fund_flow_history_coverage_unverified")
     if query.capability == "market_bars" and query.parameters.get("asset_type", "stock") == "stock":
         result.metadata["upstream_id"] = getattr(normalizer, "upstream_id", None) or (
             "sina" if _frequency(query.parameters) == "daily" else "eastmoney"

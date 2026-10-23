@@ -15,6 +15,8 @@ from ..market_store import Batch, DatasetIdentity, Fact, MarketStoreError, RawOr
 from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
 from .providers import MAX_QUERY_BYTES, Result
+from .providers_akshare import CHINA_MACRO_SCHEMA
+from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT
 from .providers_market import INDEXES
 
 log = get_logger(__name__)
@@ -40,6 +42,8 @@ PUBLIC_NUMERIC = frozenset(
         ("ext_fred", "series"),
         ("ext_bls", "series"),
         ("ext_worldbank", "inflation"),
+        ("ext_nyfed", "rates"),
+        ("ext_treasury", "cash"),
         ("ext_ths", "cmd_history_quotation"),
         ("ext_ths", "basic_data_service"),
         ("ext_ths", "real_time_quotation"),
@@ -302,6 +306,32 @@ class SnapshotSeries:
         with self._lock:
             # Even rejected/empty outcomes recheck current read entitlement.
             previous = self._facts(dataset, None)
+            if (
+                query.capability == "factor_macro"
+                and self.scope.source == "akshare"
+                and (
+                    result.metadata.get("schema_version") != CHINA_MACRO_SCHEMA
+                    or result.pagination_complete is not True
+                    or result.status != "snapshot"
+                    or result.missing
+                    or not result.rows
+                    or any(value is None for row in result.rows for value in row.values())
+                )
+            ):
+                log.info("research_snapshot_not_ingested", reason="china_macro_contract_incomplete")
+                return None
+            if (
+                query.capability == "external_data"
+                and (self.scope.source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
+                and (
+                    result.pagination_complete is not True
+                    or result.metadata.get("schema_version") != OFFICIAL_NUMERIC_CONTRACT
+                )
+            ):
+                log.info(
+                    "research_snapshot_not_ingested", reason="official_numeric_contract_incomplete"
+                )
+                return None
             if query.capability == "market_snapshot" and (
                 len(result.rows) != 1
                 or not isinstance(result.rows[0], dict)

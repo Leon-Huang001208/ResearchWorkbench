@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-23官方与中国宏观接入继续走Host/DataHub/Broker/既有公开worker/ResearchWarehouse。NYFed与Treasury采用已登记端点；AK的四个factor_macro序列复用现有业务查询接口，原始响应与参考期字段进入provider-native捕获。04数据图的normalize节点已包含可选研究仓、修订与冻结，本轮增加其封闭合同及版本检查，没有新服务、HTTP路由、数据库表或第二研究引擎。观察期不等于披露时间；这些捕获不获得正式PIT资格。错误封包修复在原Provider和会话缓存边界，不能通过HTTP200获得数据成功状态。
+
 2026-10-23公开指数研究仓桥沿现有Host/MarketService/DataHub/ResearchWarehouse拓扑：默认Host注入无会话MarketReader，POST indices显式取公开eastmoney后将完整固定12指数响应归档；GET仍只消费market-cache。内部允许缓存请求可读同来源/同个人profile摘要的短时捕获，读写前后重验Host根、关闭状态与profile epoch。没有新增服务、HTTP接口、依赖、研究引擎、共享scope或第二来源；13市场图新增indices-only的可选写仓/内部缓存读取分支，不沿用此前无仓库边的旧图结论，精确边界见[DataHub](research-web-datahub.md)。
 
 PR188合流后的当前v5组合产品固定88ef3817680ac822e2d7c819db845de4b7275173，包含资产9bc4及DataHub研究仓；PREVIOUS仍51f09，8f2cb39a的一行业务读取修复另保留源码身份。用户已批准组合验收后部署锁定baostock0.9.4／psycopg3.3.6，但不启用／迁移数据库、不改外盘。PR188已审新04数据流保持，以下“v5本身无新结构／依赖”只描述原封闭profile及一行修复，不覆盖组合产品的研究仓变化；旧a114三CI全PASS不认证新组合，最终仍须重验。
