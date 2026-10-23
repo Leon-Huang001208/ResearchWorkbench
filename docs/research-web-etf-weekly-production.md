@@ -186,7 +186,7 @@ BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报�
 周报可作为既有成果关联进长期档案，保留原会话、task、hash 与 quality，正文不搬入档案数据库；incomplete／invalid 不因归档、扫描或关联提升为 passed／finalized。档案继续研究只准备原 DSH 草稿，实际 Prompt 才绑定 receipt；档案跟踪默认关闭且当前只重查冻结材料，不启动本周报、Wind、模型或自动生产。原模板／质量／定稿与日程准入保持，个人 SQLite／pin 纳入保全，详见[成果与保全](research-web-dossiers.md)及[扫描合同](research-web-dossier-scans.md)。
 
 
-档案固定部署profile仅接纳已合并PR209产品，使用核验5343前版和全账号业务保全／恢复；保留本周报Excel先行、原Host质量门、禁用日程及单独真实业务验收。apply-dossiers不会执行周报、供应商、模型或开放生产日程，详见[部署合同](research-web-gateway-upgrade.md#研究档案固定部署2026-10-23)。
+档案固定部署profile仅接纳包含PR209／PR212／PR213的固定已合并主线产品，使用核验5343前版和全账号业务保全／恢复；保留本周报Excel先行、原Host质量门、禁用日程及单独真实业务验收。apply-dossiers不会执行周报、供应商、模型或开放生产日程，详见[部署合同](research-web-gateway-upgrade.md#研究档案固定部署2026-10-23)。
 
 2026-10-23：资产个股周期读数及副图修复不改变华安周报指标、底稿、模板、生产权限、日程或Host质量门；资产图表不冒充规范周报证据。
 
