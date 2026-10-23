@@ -157,3 +157,15 @@ test('chip retry preserves the frozen true flag after publishing queued UI state
   assert.deepEqual(jobs, [{ scope: 'all', adjustment: 'qfq', source: 'tinysoft', as_of: '2026-10-20', retry_of: 'failed-chip', include_chip_inputs: true }]);
   c.cancel();
 });
+
+test('a readable legacy Tinysoft snapshot automatically upgrades to a separate full chip version once', async () => {
+  const record=observed('603986.SH'); const jobs=[];
+  Object.assign(record.blocks.history.dataset,{provider:'tinysoft',row_count:10,adjustment:'qfq'});
+  const rows=Array.from({length:10},(_,i)=>({date:`2026-10-${String(i+1).padStart(2,'0')}`,open:10,high:12,low:9,close:11,volume:100}));
+  const c=createAssetWorkspaceController({api:apiFor({assetObservations:async()=>({items:[record]}),datasetRows:async()=>({items:rows,total:10}),startAssetHistory:async(_id,body)=>{jobs.push(body);return {id:'legacy-upgrade',status:'completed',include_chip_inputs:true}}})});
+  await c.activateView({asset:record.asset,assetType:'stock',assetView:'news'}); await new Promise(resolve=>setTimeout(resolve,0));
+  assert.deepEqual(jobs,[{scope:'all',adjustment:'qfq',source:'tinysoft',include_chip_inputs:true}]);
+  assert.equal(c.state.rows.history.length,10);
+  await c.activateView({asset:record.asset,assetType:'stock',assetView:'announcements'});
+  assert.equal(jobs.length,1); c.cancel();
+});

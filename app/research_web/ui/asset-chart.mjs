@@ -489,7 +489,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         if (event.target?.matches?.('[data-asset-chart-adjustment]')) {
           const adjustment = event.target.value; if (!['none', 'qfq', 'hfq'].includes(adjustment) || !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending) return false;
           if (adjustment === state.adjustment) return false;
-          return requestHistory('load', 'recent', adjustment, adjustment === 'none' ? state.historySource || metadata.historySource : 'tinysoft');
+          return requestHistory('load', completeHistory(metadata) ? 'all' : 'recent', adjustment, adjustment === 'none' ? state.historySource || metadata.historySource : 'tinysoft');
         }
       }
       if (event?.type === 'submit' && event.target?.matches?.('[data-asset-chip-settings-form]')) {

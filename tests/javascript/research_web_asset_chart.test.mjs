@@ -738,3 +738,13 @@ test('source control explicitly selects raw auto while retry preserves frozen so
   c.handle(click('history-retry'));
   assert.equal(requests.at(-1).source, 'baostock');
 });
+
+test('changing the adjustment of a complete history requests all records, not a recent replacement', () => {
+  for (const adjustment of ['none','hfq']) {
+    const requests=[]; const c=createAssetChartController({onHistoryRequest:r=>{requests.push(r);return false;}});
+    c.configure(rows(5003),'full',{historySource:'tinysoft',canLoadHistory:true,asset_history:{canonical_version:'asset-history-1',adjustment:'qfq',coverage:{full_history:true}}});
+    c.handle({type:'change',target:{value:adjustment,matches:s=>s==='[data-asset-chart-adjustment]'}});
+    assert.deepEqual(requests,[{action:'load',scope:'all',adjustment,source:'tinysoft',includeChipInputs:true}]);
+    assert.equal(c.getState().adjustment,'qfq'); c.dispose();
+  }
+});
