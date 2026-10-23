@@ -224,6 +224,19 @@ class BuilderReconcile(DockerResources):
             "Destination": "/etc/buildkit/buildkitd.toml",
             "RW": False,
         }
+        # Docker Desktop reports a host bind in its Linux VM namespace. Accept
+        # only this exact translation and corroborate the configured mount; no
+        # suffix matching, path normalization or arbitrary prefix is permitted.
+        vm_source = "/host_mnt" + bind_mount["Source"]
+        translated = any(m.get("Type") == "bind" and m.get("Source") == vm_source for m in mounts)
+        if translated and any(
+            m.get("Type") == "bind"
+            and m.get("Source") == vm_source
+            and m.get("Target") == bind_mount["Destination"]
+            and m.get("ReadOnly") is True
+            for m in raw.get("HostConfig", {}).get("Mounts", [])
+        ):
+            bind_mount["Source"] = vm_source
         if (
             projection != expected
             or raw.get("Id") != expected.split(" ", 1)[0]
