@@ -164,9 +164,10 @@ const marketController = createMarketController({ api, onChange: () => { if (sta
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
 const assetChart = createAssetChartController({
   onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
+  onChipSettingsChange: settings => { void assetWorkspace.savePreferences(assetState.preferences.panels, settings); },
   onHistoryRequest: request => {
     if (request.action === 'cancel') return assetWorkspace.stopHistory();
-    return assetWorkspace.startHistory(request.scope || 'recent', request.adjustment || 'none', request.action === 'retry' ? assetState.historyJob?.id : undefined, request.source);
+    return assetWorkspace.startHistory(request.scope || 'recent', request.adjustment || 'none', request.action === 'retry' ? assetState.historyJob?.id : undefined, request.source, request.includeChipInputs === true);
   },
 });
 let assetCapitalFlow = null;
@@ -207,7 +208,7 @@ function configureAssetTerminal() {
   const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
   const rows = observation ? assetState.rows.history || emptyAssetHistory : emptyAssetHistory;
   const metadata = assetTerminalMetadata(observation);
-  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels });
+  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels, chipSettings: assetState.preferences?.chip_settings });
   if (configuredAssetHistory === rows && configuredAssetSignature === signature) return;
   if (assetChart.configure(rows, key, metadata, assetState.preferences) !== false) { configuredAssetHistory = rows; configuredAssetSignature = signature; }
 }

@@ -6,7 +6,8 @@ import { enrichMarketBars, renderMarketTerminal, createAssetChartController, bui
 import { aggregateMarketBars, estimateChipDistribution } from '../../app/research_web/ui/asset-indicators.mjs';
 
 const day = i => new Date(Date.UTC(2025, 0, i + 1)).toISOString().slice(0, 10);
-const rows = (n, value = i => 100 + i) => Array.from({ length: n }, (_, i) => ({ date: day(i), open: value(i) - .2, high: value(i) + 1, low: value(i) - 1, close: value(i), volume: 1000 + i, amount: 100000 + i, turnover_rate_pct: 2 }));
+const rows = (n, value = i => 100 + i) => Array.from({ length: n }, (_, i) => ({ asset: '603986.SH', vwap: value(i), date: day(i), open: value(i) - .2, high: value(i) + 1, low: value(i) - 1, close: value(i), volume: 1000 + i, amount: 100000 + i, turnover_rate_pct: 2 }));
+const chipInputs = { status: 'complete', contract_version: 'chip-turnover-1', turnover_unit: 'percent' };
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance, `${a} should equal ${b}`);
 const click = action => ({ type: 'click', target: { closest: selector => selector === '[data-asset-chart-action]' ? { dataset: { assetChartAction: action } } : null } });
 
@@ -16,9 +17,10 @@ test('approved workspace defaults to two removable panels and a flat chart/chips
   assert.match(html, /data-asset-chart-action="panel-remove-volume"/);
   assert.match(html, /data-asset-chart-action="panel-remove-macd"/);
   assert.doesNotMatch(html, /data-asset-chart-action="panel-remove-kdj"/);
-  assert.match(html, /data-asset-selected-date/);
+  assert.doesNotMatch(html, /data-asset-selected-date|asset-date-controls|asset-range-controls/);
+  assert.match(html, /asset-history-date/);
   assert.match(html, /data-asset-chart-adjustment/);
-  assert.match(html, /原始锚点未核验/);
+  assert.match(html, /筹码输入/);
   const option = buildMarketChartOption(enrichMarketBars(rows(260)));
   assert.equal(option.grid.length, 3);
   assert.deepEqual(option.dataZoom[0].xAxisIndex, [0, 1, 2]);
@@ -66,7 +68,7 @@ test('selected actual date survives every viewport gesture, leave and same-asset
 
 test('recent 120 resets only the viewport while latest explicitly selects the last trade day', () => {
   const f = fakeDOM(); const c = createAssetChartController();
-  c.configure(rows(300), 'one'); c.mount(f.node); c.select(80); f.flush();
+  c.configure(rows(300), 'one', { asset_history: { chip_inputs: chipInputs } }); c.mount(f.node); c.select(80); f.flush();
   const points = f.instances[1].option.series[0].data; const stats = f.nodes.get('[data-asset-chip-stats]').innerHTML;
   const readout = f.nodes.get('[data-asset-history]').innerHTML;
   assert.equal(points.length, 180);
@@ -110,7 +112,7 @@ for (const period of ['week', 'month']) {
 
 test('daily cumulative chip statistics remain identical after zoom, overlays and period changes', () => {
   const f = fakeDOM(); const c = createAssetChartController();
-  c.configure(rows(300), 'version-one', { assetIdentity: '603986.SH:stock', asset_history: { canonical_version: 'v1', factor_version: 'f1', adjustment: 'qfq' } });
+  c.configure(rows(300), 'version-one', { assetIdentity: '603986.SH:stock', asset_history: { canonical_version: 'v1', factor_version: 'f1', chip_inputs: chipInputs, adjustment: 'qfq' } });
   c.mount(f.node); c.select(180); f.flush();
   const points = f.instances[1].option.series[0].data; const stats = f.nodes.get('[data-asset-chip-stats]').innerHTML;
   assert.equal(points.length, 180); assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(`${day(0)}.*${day(180)}`));
@@ -135,7 +137,7 @@ test('all-history requests are real jobs and reaching the loaded left edge reque
 
 test('requested adjustment never renames the visible canonical dataset before atomic configure', () => {
   const requests = []; const f = fakeDOM(); const c = createAssetChartController({ onHistoryRequest: request => requests.push(request) });
-  const metadata = { assetIdentity: 'one', canLoadHistory: true, adjustment: 'qfq', asset_history: { canonical_version: 'v1', factor_version: 'f1', adjustment: 'qfq', anchor_verified: true } };
+  const metadata = { assetIdentity: 'one', canLoadHistory: true, adjustment: 'qfq', asset_history: { canonical_version: 'v1', factor_version: 'f1', chip_inputs: chipInputs, adjustment: 'qfq', anchor_verified: true } };
   c.configure(rows(200), 'v1', metadata); c.mount(f.node); f.flush();
   const before = f.instances[1].option.series[0].data;
   c.handle({ type: 'change', target: { value: 'hfq', matches: selector => selector === '[data-asset-chart-adjustment]' } }); f.flush();
@@ -217,7 +219,7 @@ test('cancelled adjustment does not change the basis of a new older request; exp
   assert.deepEqual(requests.at(-1), { action: 'retry', scope: 'recent', adjustment: 'hfq' });
   c.configure(input, 'v1', { ...cancelled });
   c.pan(-1000);
-  assert.deepEqual(requests.at(-1), { action: 'load', scope: 'older', adjustment: 'qfq', source: 'tinysoft' });
+  assert.deepEqual(requests.at(-1), { action: 'load', scope: 'older', adjustment: 'qfq', source: 'tinysoft', includeChipInputs: true });
 });
 
 test('atomic canonical metadata updates the displayed basis while the history job is still running', () => {
@@ -261,8 +263,8 @@ test('programmatic initialization never requests history; wheel/drag axis update
 test('canonical job metadata distinguishes completed recent coverage from full history and renders real chunk progress', () => {
   const metadata = { canLoadHistory: true, adjustment: 'qfq', asset_history: { canonical_version: 'asset-history-1', factor_version: 'f1', anchor_date: day(299), adjustment: 'qfq', coverage: { complete: true, full_history: false, scope: 'recent', actual_range: { start_date: day(0), end_date: day(299) }, boundary_verified: false } }, historyJob: { status: 'running', progress: { chunks_completed: 2, chunks_total: 4, rows: 300 } } };
   const html = renderMarketTerminal(rows(300), {}, metadata);
-  assert.match(html, /加载历史 50% · 300条/); assert.match(html, /固定复权锚点/); assert.match(html, /上市边界未核验/);
-  assert.doesNotMatch(html, /全部历史已加载|全部已加载/); assert.match(html, new RegExp(`${day(0)}–${day(299)}`));
+  assert.match(html, /加载历史 50% · 300条/);
+  assert.doesNotMatch(html, /全部历史已加载|全部已加载/);
   const requests = []; const c = createAssetChartController({ onHistoryRequest: request => requests.push(request) });
   c.configure(rows(300), 'v1', { ...metadata, historyJob: { status: 'cancelled', retryable: true, scope: 'older' } });
   c.handle(click('history-retry')); assert.equal(requests[0].scope, 'older'); assert.equal(requests[0].action, 'retry');
@@ -279,7 +281,7 @@ test('normalizes, sorts and deduplicates real dates without null/boolean to zero
 test('strict calendar aliases and supplied VWAP never infer unverified amount/volume units', () => {
   const bars = enrichMarketBars([{ date: '2025-0101', close: 1 }, { date: '202501-02', close: 1 }, { date: '2025-01-01T25:00:00Z', close: 1 }, { date: '', trade_date: day(2), close: 1 }, { datetime: '2025-01-04T10:30:00+08:00', close: 1 }]);
   assert.deepEqual(bars.map(b => b.date), [day(2), day(3)]); assert.equal(bars.diagnostics.invalidDates, 3);
-  assert.equal(enrichMarketBars(rows(1))[0].vwap, null);
+  const input = rows(1); delete input[0].vwap; assert.equal(enrichMarketBars(input)[0].vwap, null);
   assert.equal(enrichMarketBars([{ ...rows(1)[0], vwap: 99.5 }])[0].vwap, 99.5);
 });
 
@@ -333,28 +335,29 @@ test('week/month aggregate OHLCV before recomputing every indicator and do not s
   const unknown = rows(8); unknown[1].volume = null; assert.equal(aggregateMarketBars(enrichMarketBars(unknown), 'week')[0].volume, null);
 });
 
-test('terminal retains full MA controls, dynamic panels and truthful history controls without SVG fallback', () => {
+test('terminal retains whole overlays and panels while removing redundant controls', () => {
   const html = renderMarketTerminal(rows(150), {}, { currency: 'CNY', adjustment: '前复权', frequency: 'daily' });
   assert.match(html, /kline-terminal-layout/); assert.match(html, /data-asset-echarts/); assert.match(html, /data-asset-chip-chart/); assert.doesNotMatch(html, /<svg/);
-  for (const n of [5, 10, 20, 60, 120, 250]) assert.match(html, new RegExp(`data-asset-chart-action="ma-${n}"`));
-  for (const action of ['period-day', 'period-week', 'period-month', 'all', 'overlay-boll', 'overlay-none']) assert.ok(html.includes(`data-asset-chart-action="${action}"`));
-  assert.doesNotMatch(html, /分时<\/button>/); assert.match(html, /OHLCV估算/); assert.match(html, /不是实际持仓/); assert.match(html, /前复权/);
+  assert.doesNotMatch(html, /data-asset-chart-action="(?:ma-\d+|pan-back|pan-forward|zoom-in|zoom-out|reset|all)"|asset-date-controls|data-asset-history-source/);
+  for (const action of ['period-day', 'period-week', 'period-month', 'overlay-boll', 'overlay-none']) assert.ok(html.includes(`data-asset-chart-action="${action}"`));
+  assert.doesNotMatch(html, /分时<\/button>/); assert.match(html, /估算/); assert.match(html, /不代表实际持仓/); assert.match(html, /前复权/);
 });
 
 test('historical change and amplitude use previous close and metadata is escaped', () => {
   const html = renderMarketTerminal([{ ...rows(1)[0], close: 100 }, { ...rows(1)[0], date: day(1), open: 105, close: 110, low: 100, high: 120 }], {}, { dataset: '<img src=x>', currency: 'CNY' });
-  assert.match(html, /10\.00%/); assert.match(html, /20\.00%/); assert.doesNotMatch(html, /<img src=x>/); assert.match(html, /历史读数/);
+  assert.match(html, /10\.00%/); assert.match(html, /20\.00%/); assert.doesNotMatch(html, /<img src=x>/); assert.match(html, /asset-history-date/);
 });
 
 test('historical readout retains change amount and average-price slots without guessing units', () => {
   const input = [{ ...rows(1)[0], close: 100 }, { ...rows(1)[0], date: day(1), open: 105, close: 110, low: 100, high: 120, amount: 999000, volume: 3 }];
+  for (const b of input) delete b.vwap;
   const missing = renderMarketTerminal(input);
   assert.match(missing, /涨跌额 <strong>\+10\.00<\/strong>/);
-  assert.match(missing, /均价（源字段） <strong>—<\/strong>/);
+  assert.match(missing, /均价 <strong>—<\/strong>/);
   for (const key of ['vwap', 'avg_price', 'average_price']) {
     const source = [{ ...input[1], [key]: 108.25 }];
     assert.equal(enrichMarketBars(source)[0].vwap, 108.25);
-    assert.match(renderMarketTerminal(source), /均价（源字段） <strong>108\.25<\/strong>/);
+    assert.match(renderMarketTerminal(source), /均价 <strong>108\.25<\/strong>/);
   }
   assert.match(renderMarketTerminal([input[0]]), /涨跌额 <strong>—<\/strong>/);
 });
@@ -364,18 +367,18 @@ test('price axes format floating-point ticks to readable two-decimal prices', ()
   assert.equal(option.yAxis[0].axisLabel.formatter(129.99999996), '130.00');
   assert.equal(option.yAxis[0].axisPointer.label.formatter({ value: 129.99999996 }), '130.00');
   const chip = estimateChipDistribution(enrichMarketBars(rows(10)), 0, 9);
-  assert.equal(buildChipChartOption(chip, [90, 130]).yAxis.axisLabel.formatter(129.99999996), '130.00');
+  assert.equal(buildChipChartOption(chip, [90, 130]).yAxis.axisLabel.show, false, 'chip prices share the main price axis');
 });
 
 test('confirmed share/currency units are translated and unknown units remain source units', () => {
   for (const unit of ['share', 'shares']) {
     const html = renderMarketTerminal(rows(2), {}, { fields: { volume: { unit }, turnover: { unit: 'currency', currency: 'CNY' } } });
-    assert.match(html, /成交量（股）/); assert.match(html, /成交额（元）/); assert.doesNotMatch(html, /成交量（shares?）|成交额（currency）/);
+    assert.match(html, /成交量 <strong>0\.10万股/); assert.match(html, /成交额 <strong>10\.00万元/); assert.doesNotMatch(html, /万shares|万currency/);
   }
   const foreign = renderMarketTerminal(rows(2), {}, { fields: { volume: { unit: 'shares' }, amount: { unit: 'currency', currency: 'USD' } } });
-  assert.match(foreign, /成交额（美元）/); assert.doesNotMatch(foreign, /成交额（元）/);
-  assert.match(renderMarketTerminal(rows(2), {}, { fields: { amount: { unit: 'currency' } } }), /成交额（源单位）/);
-  assert.match(renderMarketTerminal(rows(2)), /成交量（源单位）/);
+  assert.match(foreign, /成交额 <strong>10\.00万美元/); assert.doesNotMatch(foreign, /成交额 <strong>10\.00万元/);
+  assert.match(renderMarketTerminal(rows(2), {}, { fields: { amount: { unit: 'currency' } } }), /成交额 <strong>10\.00万<\/strong>/);
+  assert.match(renderMarketTerminal(rows(2)), /成交量 <strong>0\.10万<\/strong>/);
 });
 
 test('aggregated week/month turnover rate cannot reuse the final day percentage as a whole-period fact', () => {
@@ -411,9 +414,9 @@ test('both terminal canvases are transparent and explicit themes keep neutral la
     assert.equal(option.dataZoom[1].dataBackground.lineStyle.color, muted);
     assert.equal(option.dataZoom[1].moveHandleStyle.color, muted);
     assert.equal(option.dataZoom[1].emphasis.handleStyle.color, text);
-    assert.equal(chips.xAxis.axisLabel.color, muted); assert.equal(chips.yAxis.axisLabel.color, muted);
+    assert.equal(chips.xAxis.axisLabel.show, false); assert.equal(chips.yAxis.axisLabel.show, false);
     assert.equal(option.series.at(-1).markLine.label.color, muted);
-    assert.equal(chips.series[0].markLine.data[0].label.color, text);
+    assert.equal(chips.series[0].markLine.label.color, text);
     assert.deepEqual(option.grid, fallback.grid); assert.deepEqual(option.legend, fallback.legend);
     assert.deepEqual(option.series.map(s => s.data), fallback.series.map(s => s.data));
     assert.deepEqual(option.series.filter(s => s.lineStyle).map(s => s.lineStyle), fallback.series.filter(s => s.lineStyle).map(s => s.lineStyle));
@@ -439,13 +442,14 @@ test('KDJ axis includes visible out-of-range J values while RSI alone stays fixe
   assert.equal(option.yAxis[4].min, 0); assert.equal(option.yAxis[4].max, 100);
 });
 
-test('AF 180 buckets quantize price, volume and concentration before cost/FWHM/profit', () => {
+test('180 probability buckets conserve turnover mass without old volume quantization', () => {
   const source = rows(5, () => 10).map(b => ({ ...b, open: 10, low: 8, high: 12, close: 10, volume: 100 }));
-  const chip = estimateChipDistribution(enrichMarketBars(source), 0, 4, [8, 12]);
-  assert.equal(chip.points.length, 180); near(chip.points.reduce((s, p) => s + p.volume, 0), 500.4);
-  assert.deepEqual(chip.points[0], { price: 8.01, volume: 2.78, concentration_pct: .56 }); near(chip.averageCost, 10); near(chip.profitFraction, .5); near(chip.lockedFraction, .5);
-  assert.ok(chip.lower <= chip.peak && chip.upper >= chip.peak); assert.equal(chip.validBars, 5);
-  const option = buildChipChartOption(chip, [8, 12]); assert.equal(option.yAxis.min, 8); assert.equal(option.yAxis.max, 12); assert.equal(option.series[0].type, 'custom');
+  const chip = estimateChipDistribution(enrichMarketBars(source), 0, 4);
+  assert.equal(chip.status, 'ready'); assert.equal(chip.points.length, 180);
+  near(chip.points.reduce((sum, point) => sum + point.mass, 0), 1);
+  near(chip.averageCost, 10); near(chip.profitFraction, .5);
+  near(chip.peak, 10); near(chip.peakLower, 9); near(chip.peakUpper, 11);
+  const option = buildChipChartOption(chip, [8, 12]); assert.equal(option.yAxis.min, 8); assert.equal(option.yAxis.max, 12);
 });
 
 test('chips require five valid dates and OHLCV; zero volume is valid but cannot invent distribution', () => {
@@ -477,15 +481,12 @@ test('chips require five positive-volume candles, although zero volume remains v
   assert.equal(estimateChipDistribution(bars, 0, 4).points.length, 0);
 });
 
-test('chip FWHM interpolates half-height crossings rather than rounding whole buckets', () => {
+test('flat candles keep exact-price mass and configurable peak bounds', () => {
   const flat = rows(5, () => 10).map(b => ({ ...b, open: 10, low: 10, high: 10, volume: 100 }));
-  assert.equal(estimateChipDistribution(enrichMarketBars(flat), 0, 4).points.length, 0, 'zero raw price range cannot invent an expanded domain');
-  const bars = enrichMarketBars([...flat, { ...rows(6, () => 10)[5], open: 10, low: 8, high: 12, volume: 1 }]);
-  const chip = estimateChipDistribution(bars, 0, 5, [8, 12]);
-  near(chip.lower, 10); near(chip.upper, 10.02); near(chip.peak, 10.01);
-  const total = chip.points.reduce((sum, point) => sum + point.volume, 0);
-  const profit = chip.points.filter(point => point.price < 10).reduce((sum, point) => sum + point.volume, 0);
-  near(chip.profitFraction, profit / total); near(chip.lockedFraction, 1 - profit / total);
+  const chip = estimateChipDistribution(enrichMarketBars(flat), 0, 4);
+  assert.equal(chip.status, 'ready'); near(chip.peak, 10); near(chip.averageCost, 10);
+  near(chip.atCostFraction, 1); near(chip.profitFraction, 0); near(chip.lockedFraction, 0);
+  near(chip.peakLower, 9); near(chip.peakUpper, 11);
 });
 
 test('configure never triggers outer render and controls retain independent MA choices', () => {
@@ -500,7 +501,7 @@ test('weekly/monthly controls recompute, legacy weekly inputs never masquerade a
   const c = createAssetChartController(); c.configure(rows(300), 'one'); c.handle(click('period-week')); assert.equal(c.getState().period, 'week'); assert.ok(c.getState().end < 50);
   c.handle(click('period-month')); assert.equal(c.getState().end, 10); c.configure(rows(20), 'legacy', { frequency: 'weekly' });
   assert.equal(c.getState().period, 'week'); assert.equal(c.handle(click('period-day')), false);
-  assert.match(renderMarketTerminal(rows(20), c.getState(), { frequency: 'weekly' }), /源数据频率：周/);
+  assert.match(renderMarketTerminal(rows(20), c.getState(), { frequency: 'weekly' }), /周K/);
 });
 
 test('refresh preserves viewport dates and selected actual day; empty/cancel/dispose safe', () => {
@@ -543,7 +544,7 @@ test('theme remount reads page variables and preserves controls, range, history 
   c.select(231); f.flush(); assert.equal(f.instances[2].option.graphic[0].style.fill, light['--text']);
   const dark = pageTheme(f, 'dark'); c.mount(f.node); f.flush();
   assert.equal(f.instances[4].option.xAxis[0].axisLabel.color, dark['--muted']);
-  assert.equal(f.instances[5].option.yAxis.axisLine.lineStyle.color, dark['--line']);
+  assert.equal(f.instances[5].option.yAxis.axisLine.show, false);
   assert.equal(c.getState().activeIndex, 231); c.dispose();
 });
 
@@ -599,7 +600,7 @@ test('historical select then cancel then leave keeps state, readout, panel label
   c.select(110); assert.equal(f.frames.size, 1); c.cancel(); assert.equal(f.frames.size, 0);
   assert.equal(c.getState().activeIndex, 110); assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(110)));
   assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(110)));
-  assert.equal(f.instances[0].option.graphic[0].style.text.includes('1,110'), true);
+  assert.equal(f.instances[0].option.graphic[0].style.text.includes('0.11万'), true);
   f.handlers.get('mouseleave')(); f.flush(); assert.equal(c.getState().activeIndex, 110);
   assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(110))); c.dispose();
 });
@@ -637,7 +638,7 @@ test('mounted configure refreshes metadata and can recover from an initially mis
   const f = fakeDOM(); const library = f.node.ownerDocument.defaultView.echarts; delete f.node.ownerDocument.defaultView.echarts;
   const c = createAssetChartController({ logger: () => {} }); c.configure(rows(20), 'one'); c.mount(f.node); f.flush();
   f.node.ownerDocument.defaultView.echarts = library; c.configure(rows(30), 'one', { currency: 'CNY', adjustment: '前复权', frequency: 'daily' }); f.flush();
-  assert.equal(f.instances.length, 2); assert.match(f.nodes.get('[data-asset-chart-metadata]').textContent, /CNY 前复权/); c.dispose();
+  assert.equal(f.instances.length, 2); assert.match(f.nodes.get('[data-asset-chart-metadata]').textContent, /日线 · 前复权/); c.dispose();
 });
 
 test('real pinned ECharts retains candle bodies above 600 rows with only 120 visible bars', () => {
@@ -731,9 +732,19 @@ test('real ECharts price and chip coordinates align globally within one pixel at
 test('source control explicitly selects raw auto while retry preserves frozen source', () => {
   const requests = []; const c = createAssetChartController({ onHistoryRequest: value => { requests.push(value); return false; } });
   c.configure(rows(50), 'old', { canLoadHistory: true, historySource: 'tinysoft', adjustment: 'none', historyJob: { id: 'failed', state: 'failed', retryable: true, scope: 'recent', adjustment: 'none', source: 'baostock' } });
-  assert.match(renderMarketTerminal(rows(50), c.getState(), { canLoadHistory: true, historySource: 'tinysoft' }), /data-asset-history-source/);
+  assert.doesNotMatch(renderMarketTerminal(rows(50), c.getState(), { canLoadHistory: true, historySource: 'tinysoft' }), /data-asset-history-source/);
   c.handle({ type: 'change', target: { value: 'auto', matches: selector => selector === '[data-asset-history-source]' } });
   assert.deepEqual(requests[0], { action: 'load', scope: 'recent', adjustment: 'none', source: 'auto' });
   c.handle(click('history-retry'));
   assert.equal(requests.at(-1).source, 'baostock');
+});
+
+test('changing the adjustment of a complete history requests all records, not a recent replacement', () => {
+  for (const adjustment of ['none','hfq']) {
+    const requests=[]; const c=createAssetChartController({onHistoryRequest:r=>{requests.push(r);return false;}});
+    c.configure(rows(5003),'full',{historySource:'tinysoft',canLoadHistory:true,asset_history:{canonical_version:'asset-history-1',adjustment:'qfq',coverage:{full_history:true}}});
+    c.handle({type:'change',target:{value:adjustment,matches:s=>s==='[data-asset-chart-adjustment]'}});
+    assert.deepEqual(requests,[{action:'load',scope:'all',adjustment,source:'tinysoft',includeChipInputs:true}]);
+    assert.equal(c.getState().adjustment,'qfq'); c.dispose();
+  }
 });

@@ -23,7 +23,7 @@
 .asset-market-terminal .asset-range-summary { margin-left:auto; color:var(--muted,#9ca3af); font-size:10px; font-variant-numeric:tabular-nums; }
 .asset-market-terminal .asset-history-readout { display:flex; flex-wrap:wrap; gap:3px 12px; min-height:40px; padding:3px 0 8px; background:transparent; color:var(--muted,#9ca3af); font-size:10px; line-height:1.6; }
 .asset-market-terminal .asset-history-readout strong { color:var(--text,#d1d5db); font-variant-numeric:tabular-nums; font-weight:500; }
-.asset-market-terminal .asset-history-date { display:none; }
+.asset-market-terminal .asset-history-date { display:inline; font-variant-numeric:tabular-nums; }
 /* The parent workspace owns its metrics column; this component owns chart + chips. */
 .asset-market-terminal .kline-terminal-layout { display:grid; grid-template-columns:minmax(0,1fr) 200px; gap:12px; min-height:0; background:transparent; }
 .asset-market-terminal .asset-kline-stage { position:relative; min-width:0; }
@@ -71,3 +71,50 @@
  .asset-market-terminal .asset-history-status { max-width:160px; font-size:9px; }
 }
 @media(max-width:380px) { .asset-market-terminal .asset-chip-panel { grid-template-columns:minmax(110px,.8fr) minmax(120px,1fr); gap:6px 10px; } .asset-market-terminal .asset-chart-popover-content { left:auto; right:0; } }
+
+/* Ordinary chip module shares the chart surface; statistics never move its price grid. */
+.asset-market-terminal .asset-chip-heading { display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:11px; }
+.asset-market-terminal .asset-chip-heading small { color:var(--muted); font-size:9px; font-weight:400; }
+.asset-market-terminal .asset-chip-stats { display:block; }
+.chip-tabs { display:flex; align-items:stretch; border-bottom:1px solid var(--line); gap:2px; }
+.chip-tab { background:transparent; color:var(--muted); border:0; border-radius:0; padding:6px 3px; min-height:32px; font:inherit; font-size:10px; cursor:pointer; }
+.chip-tab:hover { color:var(--text); }
+.chip-tab[aria-pressed=true] { color:var(--text); border-bottom:2px solid var(--accent,#5590b9); }
+.chip-tab:focus-visible,.asset-chip-settings :focus-visible { outline:2px solid var(--accent,#5590b9); outline-offset:2px; }
+.chip-stat-group { margin:0; padding:5px 0; border-bottom:1px solid var(--line); }
+.chip-stat-group:last-child { border-bottom:0; }
+.chip-stat-group h4 { margin:2px 0 4px; font-size:10px; font-weight:600; }
+.asset-market-terminal .chip-stat-row { display:flex; align-items:baseline; justify-content:space-between; gap:5px; padding:3px 0; }
+.asset-market-terminal .chip-stat-row>span { font-size:10px; color:var(--muted); }
+.asset-market-terminal .chip-stat-row>strong,.asset-market-terminal .chip-age-row>strong { font-size:10px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.chip-age-composition { display:flex; height:12px; overflow:hidden; margin:5px 0; }
+.chip-age-composition>span { height:100%; min-width:0; }
+.asset-market-terminal .chip-age-row { display:flex; justify-content:space-between; gap:6px; padding:3px 0; font-size:10px; }
+.chip-age-row i,.chip-setting-ages i { display:inline-block; width:9px; height:9px; margin-right:4px; }
+.asset-chip-empty { margin:8px 0; font-size:11px; color:var(--muted); line-height:1.6; }
+.asset-chip-settings { width:min(460px,calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto; box-sizing:border-box; padding:16px; border:1px solid var(--line); border-radius:8px; color:var(--text); background:var(--surface); box-shadow:0 16px 50px #0004; }
+.asset-chip-settings::backdrop { background:#0005; }
+.asset-chip-settings h3 { font-size:16px; margin:0 0 12px; }
+.asset-chip-settings fieldset { border:1px solid var(--line); padding:8px; margin:8px 0; }
+.asset-chip-settings legend { padding:0 4px; font-size:11px; color:var(--muted); }
+.asset-chip-settings label { font-size:12px; margin:0; }
+.asset-chip-settings input[type=number] { width:92px; min-height:32px; box-sizing:border-box; font:inherit; color:var(--text); background:transparent; border:1px solid var(--line); padding:5px 8px; border-radius:4px; }
+.asset-chip-settings input[type=checkbox],.asset-chip-settings input[type=radio] { width:auto; margin:0 6px 0 0; }
+.chip-setting-row { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:4px 0; }
+.chip-setting-check,.chip-setting-ages label,.asset-chip-settings fieldset>label { display:flex; align-items:center; min-height:32px; }
+.chip-setting-ages { display:grid; grid-template-columns:1fr 1fr; margin-top:6px; }
+.chip-settings-explanation,.asset-chip-settings small { font-size:10px; line-height:1.6; color:var(--muted); }
+.chip-settings-error { color:var(--danger,#bb615a); font-size:12px; }
+.asset-chip-settings footer { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.asset-chip-settings footer button { min-height:36px; padding:6px 12px; border:1px solid var(--line); border-radius:4px; background:transparent; color:var(--text); cursor:pointer; }
+.asset-chip-settings footer button[type=submit] { background:var(--text); color:var(--surface); }
+@media(max-width:700px) {
+ .asset-market-terminal .asset-chip-panel { display:block; padding:0; }
+ .asset-market-terminal .asset-chip-heading { position:static; margin:0 0 8px; }
+ .asset-market-terminal .asset-chip-chart { position:relative; top:auto; width:100%; height:220px; }
+ .asset-market-terminal .chip-tabs,.asset-market-terminal .asset-chip-stats,.asset-market-terminal .chip-window-label,.asset-market-terminal .asset-chip-note { grid-column:auto; }
+ .asset-market-terminal .chip-tab,.asset-chip-settings label,.asset-chip-settings input[type=number],.asset-chip-settings footer button { min-height:44px; }
+ .asset-market-terminal .chip-stat-row,.asset-market-terminal .chip-age-row { padding:5px 0; }
+}
+
+.asset-market-terminal .asset-history-status[hidden] { display:none!important; }

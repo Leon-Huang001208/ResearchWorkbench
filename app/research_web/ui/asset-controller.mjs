@@ -1,3 +1,4 @@
+import { normalizeChipSettings } from './asset-chips.mjs';
 import { safeLog } from './core.mjs';
 import { selectAssetObservation } from './asset-navigation.mjs';
 
@@ -6,7 +7,7 @@ const jobStatus = job => job?.state || job?.status;
 const identity = observation => `${observation?.asset_type || 'stock'}:${observation?.asset || ''}`;
 const cloneObservation = observation => ({ ...observation, blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([key, block]) => [key, { ...block }])) });
 const validPanels = panels => Array.isArray(panels) && panels.length <= 4 && new Set(panels).size === panels.length && panels.every(panel => ['volume', 'macd', 'kdj', 'rsi'].includes(panel));
-const VIEW_BLOCKS = { overview: ['overview', 'valuation'], financials: ['financials', 'valuation'], capital: ['activity', 'margin'], holders: ['holders', 'holder_details'], materials: ['research', 'industry', 'events'], news: [], announcements: [] };
+const VIEW_BLOCKS = { overview: ['overview', 'valuation', 'financials'], financials: ['financials', 'valuation'], capital: ['activity', 'margin'], holders: ['holders', 'holder_details'], materials: ['research', 'industry', 'events'], news: [], announcements: [] };
 const quoteDate = rows => (rows || []).map(row => String(row.date || row['时间'] || row.as_of || '')).filter(value => /^\d{4}-\d{2}-\d{2}(?:$|[T ])/u.test(value)).map(value => value.slice(0, 10)).filter(day => {
   const parsed = new Date(`${day}T00:00:00Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
@@ -39,6 +40,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   const state = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [], errors: {}, loading: false, loadingBlocks: {}, historyJob: null, preferences: { panels: ['volume', 'macd'] } };
   const blockReads = new Map();
   const creationKeys = new Map();
+  const chipAttempts = new Set();
   let account = currentAccount();
   let generation = 0; let readAbort; let historyContext = null; let preferencesLoaded = false; let preferenceVersion = 0; let preferenceQueue = Promise.resolve(); let persistedPreferences = state.preferences;
   const currentHistory = context => account === currentAccount() && historyContext === context && !context.cancelled && state.observation?.id === context.observationId && identity(state.observation) === context.identity;
@@ -59,7 +61,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   }
   function checkAccount() {
     if (account === currentAccount()) return;
-    cancel(); account = currentAccount(); creationKeys.clear(); preferencesLoaded = false; preferenceVersion++;
+    cancel(); account = currentAccount(); creationKeys.clear(); chipAttempts.clear(); preferencesLoaded = false; preferenceVersion++;
     persistedPreferences = { panels: ['volume', 'macd'] };
     Object.assign(state, { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [], errors: {}, historyJob: null, preferences: persistedPreferences });
   }
@@ -90,7 +92,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
         catch (error) { if (!currentHistory(context)) return; state.errors.historyJobs = `新行情快照读取失败，保留当前数据与复权口径：${error.message}`; safeLog('asset_history_snapshot_failed', { status: error.code || 'snapshot_read_failed' }); notify(); }
       }
       if (!currentHistory(context)) return;
-      if (!ACTIVE.has(jobStatus(job))) { historyContext = null; return; }
+      if (!ACTIVE.has(jobStatus(job))) { historyContext = null; if (jobStatus(job) === 'completed' && !state.errors.historyJobs) void ensureChipInputs(); return; }
       await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
       if (!currentHistory(context)) return;
       job = await api.assetHistoryJob(context.observationId, job.id, { signal: context.abort.signal });
@@ -98,7 +100,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     }
     } finally { context.following = false; }
   }
-  async function startHistory(scope = 'recent', adjustment = 'none', retryOf, source) {
+  async function startHistory(scope = 'recent', adjustment = 'none', retryOf, source, includeChipInputs = false) {
     const observation = state.observation;
     if (!observation?.id || !api.startAssetHistory || historyContext) return;
     const frozen = retryOf ? state.historyJob : null;
@@ -113,7 +115,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
       try {
         // Creation is intentionally not tied to read cancellation: a late 202 identifies the exact job.
         const cutoff = frozen ? (scope === 'older' ? null : frozen.requested_as_of) : scope !== 'older' ? quoteDate(state.rows.overview) : null;
-        job = await api.startAssetHistory(context.observationId, { scope, adjustment, ...(source ? { source } : {}), ...(cutoff ? { as_of: cutoff } : {}), ...(retryOf ? { retry_of: retryOf } : {}) }, context.key);
+        job = await api.startAssetHistory(context.observationId, { scope, adjustment, ...(source ? { source } : {}), ...(cutoff ? { as_of: cutoff } : {}), ...(retryOf ? { retry_of: retryOf } : {}), ...((retryOf ? frozen.include_chip_inputs === true : includeChipInputs) ? { include_chip_inputs: true } : {}) }, context.key);
       } catch (error) {
         if (error.status >= 400 && error.status < 500) { context.rejected = true; throw error; }
         safeLog('asset_history_submit_reconcile', { status: error.code || 'request_failed' });
@@ -136,6 +138,17 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
       else if (!context.job?.id) state.historyJob = { ...state.historyJob, status: 'unknown', submission_unknown: true };
       notify();
     }
+  }
+  async function ensureChipInputs() {
+    if (!api.startAssetHistory || historyContext || account !== currentAccount()) return;
+    const observation = state.observation, dataset = observation?.blocks?.history?.dataset, h = dataset?.asset_history || {};
+    if (!dataset || !Number.isSafeInteger(dataset.row_count) || dataset.row_count < 5 || (h.canonical_version === 'asset-history-raw-2' && !h.source) || (h.chip_inputs?.status === 'complete' && h.coverage?.full_history === true) || (state.historyJob?.include_chip_inputs && jobStatus(state.historyJob) !== 'completed')) return;
+    if (!(h.source === 'tinysoft' || ((h.source === 'auto' || !h.source) && (dataset.provider === 'tinysoft' || dataset.source === 'tinysoft')))) return;
+    const adjustment = ({ '不复权':'none', '前复权':'qfq', '后复权':'hfq' })[h.adjustment || dataset.adjustment] || h.adjustment || dataset.adjustment || observation.request_parameters?.adjustment || 'none';
+    const key = JSON.stringify([account, observation.id, h.requested_as_of || quoteDate(state.rows.overview), adjustment]);
+    if (chipAttempts.has(key)) return; chipAttempts.add(key);
+    try { await startHistory('all', adjustment, undefined, 'tinysoft', true); }
+    catch { safeLog('asset_chip_input_load_failed', { status: 'request_failed' }); }
   }
   async function stopHistory() {
     const context = historyContext; const job = context?.job || state.historyJob;
@@ -174,7 +187,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     const preferenceReadVersion = preferenceVersion;
     if (!preferencesLoaded && api.assetChartPreferences) requests.push(['preferences', 'assetChartPreferences']);
     await Promise.all(requests.map(async ([name, method]) => {
-      try { const data = await api[method](options); if (ticket === generation) { if (name === 'preferences') { if (preferenceReadVersion === preferenceVersion && validPanels(data.panels)) { state.preferences = { panels: [...data.panels] }; persistedPreferences = state.preferences; preferencesLoaded = true; } } else state[name] = Array.isArray(data.items) ? data.items : []; } }
+      try { const data = await api[method](options); if (ticket === generation) { if (name === 'preferences') { if (preferenceReadVersion === preferenceVersion && validPanels(data.panels)) { state.preferences = { panels: [...data.panels], chip_settings: normalizeChipSettings(data.chip_settings || {}) }; persistedPreferences = state.preferences; preferencesLoaded = true; } } else state[name] = Array.isArray(data.items) ? data.items : []; } }
       catch (error) { if (ticket === generation && (name !== 'preferences' || preferenceReadVersion === preferenceVersion)) { if (name !== 'preferences') state[name] = []; state.errors[name] = error.message; safeLog('asset_workspace_read_failed', { status: name }); } }
     }));
     if (ticket !== generation) return;
@@ -272,13 +285,14 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
         void startHistory(history.coverage?.full_history ? 'all' : 'recent', history.adjustment || 'qfq', undefined, history.source).catch(() => { safeLog('asset_history_advance_failed', { status: 'history_failed' }); });
       }
     }
+    if (!needsInitialHistory && ticket === generation && !historyContext) void ensureChipInputs();
   }
-  function savePreferences(panels) {
+  function savePreferences(panels, chipSettings = state.preferences.chip_settings) {
     if (!validPanels(panels)) { state.errors.preferences = '副图选择无效'; notify(); return Promise.resolve(); }
-    const version = ++preferenceVersion; const owner = account; state.preferences = { panels: [...panels] }; notify();
+    const version = ++preferenceVersion; const owner = account; let settings; try { settings = normalizeChipSettings(chipSettings || {}); } catch { state.errors.preferences = '筹码设置无效，未保存'; safeLog('asset_chip_preferences_invalid', { status: 'invalid' }); notify(); return Promise.resolve(false); } state.preferences = { panels: [...panels], chip_settings: settings }; notify();
     preferenceQueue = preferenceQueue.then(async () => {
       if (owner !== account || owner !== currentAccount()) return;
-      try { const data = await api.saveAssetChartPreferences({ panels }); if (owner !== account || owner !== currentAccount()) return; persistedPreferences = { panels: validPanels(data?.panels) ? [...data.panels] : [...panels] }; if (version === preferenceVersion) { state.preferences = persistedPreferences; preferencesLoaded = true; delete state.errors.preferences; notify(); } }
+      try { const data = await api.saveAssetChartPreferences({ panels, chip_settings: settings }); if (owner !== account || owner !== currentAccount()) return; persistedPreferences = { panels: validPanels(data?.panels) ? [...data.panels] : [...panels], chip_settings: normalizeChipSettings(data?.chip_settings || settings) }; if (version === preferenceVersion) { state.preferences = persistedPreferences; preferencesLoaded = true; delete state.errors.preferences; notify(); } }
       catch (error) { if (owner === account && owner === currentAccount() && version === preferenceVersion) { state.preferences = persistedPreferences; state.errors.preferences = error.message; notify(); } safeLog('asset_chart_preferences_failed', { status: error.code || 'request_failed' }); }
     }); return preferenceQueue;
   }
