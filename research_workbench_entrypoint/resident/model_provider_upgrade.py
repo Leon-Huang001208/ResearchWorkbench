@@ -98,6 +98,10 @@ MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
 ETF_WEEKLY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 ETF_WEEKLY_PAYLOAD = "988046d23f9951f889a3b9d02e355ed59fd6aa65"
+DISCOVERY_MODE = "reviewed-discovery-v1"
+DISCOVERY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
+# Explicitly authorized combination: discovery, ETF configuration and dossiers.
+DISCOVERY_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -113,6 +117,7 @@ ASSET_MODES = frozenset(
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         ETF_WEEKLY_MODE,
+        DISCOVERY_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -207,6 +212,8 @@ def previous_for(mode):
         return MARKET_TERMINAL_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
         return ETF_WEEKLY_PREVIOUS
+    if mode == DISCOVERY_MODE:
+        return DISCOVERY_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -264,6 +271,96 @@ def read_business_index(path: Path):
     return index
 
 
+def discovery_background_idle(home):
+    """Recheck persisted work without starting a backend or changing consent."""
+    try:
+        users = home / "server/users"
+        if users.is_symlink() or not users.is_dir():
+            return False
+        roots = [home / "research-web"]
+        for folder in sorted(users.iterdir()):
+            if folder.is_symlink() or not folder.is_dir():
+                return False
+            roots.append(folder / "research-web")
+        for root in roots:
+            if root.is_symlink():
+                return False
+            if not root.exists() and root != home / "research-web":
+                # Registered primary/uninitialized accounts can have state only.
+                continue
+            if not root.is_dir():
+                return False
+            index_path = root / "index.json"
+            index = (
+                read_business_index(index_path)
+                if index_path.exists() or index_path.is_symlink()
+                else {}
+            )
+            for name in ("automations", "automation_runs", "discovery_tracks"):
+                table = index.get(name, {})
+                if not isinstance(table, dict) or any(
+                    not isinstance(row, dict) for row in table.values()
+                ):
+                    return False
+            for row in index.get("automations", {}).values():
+                if type(row.get("enabled")) is not bool or row["enabled"]:
+                    return False
+            if any(
+                row.get("research_status")
+                not in {
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "canceled",
+                    "interrupted",
+                    "skipped_overlap",
+                    "blocked_version",
+                }
+                for row in index.get("automation_runs", {}).values()
+            ):
+                return False
+            workflows = root / "report-workflows"
+            if workflows.is_symlink() or (workflows.exists() and not workflows.is_dir()):
+                return False
+            catalog_path = workflows / "catalog.json"
+            if not catalog_path.exists() and not catalog_path.is_symlink():
+                # The existing runtime treats a missing catalog as no plans.
+                continue
+            catalog = read_business_index(catalog_path)
+            if any(not isinstance(catalog.get(name), dict) for name in ("workflows", "runs")):
+                return False
+            for row in catalog["workflows"].values():
+                if not isinstance(row, dict):
+                    return False
+                schedule = row.get("schedule")
+                if schedule is not None and (
+                    not isinstance(schedule, dict)
+                    or type(schedule.get("enabled", False)) is not bool
+                    or schedule.get("enabled", False)
+                ):
+                    return False
+            if any(
+                not isinstance(row, dict)
+                or row.get("status")
+                not in {
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "canceled",
+                    "blocked_data",
+                    "delivery_incomplete",
+                }
+                for row in catalog["runs"].values()
+            ):
+                return False
+        return True
+    except (OSError, ValueError, TypeError, UpdateBlocked) as exc:
+        log.warning(
+            "discovery_deploy_background_unverified", extra={"error_type": type(exc).__name__}
+        )
+        return False
+
+
 def verify_primary(home, expected, mode):
     if mode in {
         MARKET_MODE,
@@ -274,6 +371,7 @@ def verify_primary(home, expected, mode):
         ASSET_V6_MODE,
         ASSET_V7_MODE,
         ETF_WEEKLY_MODE,
+        DISCOVERY_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
@@ -360,6 +458,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
+        DISCOVERY_MODE: DISCOVERY_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -387,7 +486,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     if mode == ASSET_V7_MODE
                     else (
                         ASSET_V6_EVIDENCE_SHA256
-                        if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE}
+                        if mode in {ASSET_V6_MODE, ETF_WEEKLY_MODE, DISCOVERY_MODE}
                         else ASSET_EVIDENCE_SHA256
                     )
                 )
@@ -895,6 +994,9 @@ class Operations:
 
     def idle(self):
         """A proved stopped role is safe; any live/unknown native or Host work is not."""
+        if self.state.get("mode") == DISCOVERY_MODE and not discovery_background_idle(self.home):
+            log.warning("discovery_deploy_background_not_quiet")
+            return False
         g.no_private_processes(self.server)
         if not reserved_owners(self.server, self.state["transaction"]):
             return False
@@ -940,6 +1042,7 @@ class Operations:
             MARKET_TERMINAL_MODE,
             ASSET_V7_MODE,
             ETF_WEEKLY_MODE,
+            DISCOVERY_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1373,6 +1476,7 @@ def main(argv=None):
             "apply-market-history",
             "apply-market-terminal",
             "apply-etf-weekly",
+            "apply-discovery",
             "recover",
         ),
     )
@@ -1398,6 +1502,7 @@ def main(argv=None):
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
+                "apply-discovery": DISCOVERY_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))

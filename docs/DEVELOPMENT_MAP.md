@@ -545,3 +545,5 @@ providers_baostock.py的profitability分支调用固定query_profit_data，Broke
 ## 2026-10-23：长期研究档案与机会预警
 
 新增 `app/research_web/dossiers/` 负责个人 SQLite、不可变修订、原件解析／pin、冻结交接与确定性扫描；`dossier_preservation.py` 将元数据和引用摘要纳入既有保全。UI 的 dossiers 模块挂入资产观察／情报二级视图，实际 Prompt 才携带 `dossier_handoff_id`；MCP 继续走原受管插件并自动冻结到既有 Snapshots。定位、字段与回归分别见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)、[UI](research-web-dossiers-ui.md)及[候选接入](research-web-seek-alpha.md)；原 Checks／Bootstrap 追加测试与静态资源，由主任务将独评、离线、CI及精确候选统一绑定。
+
+今日发现组合部署定位：resident/model_provider_upgrade.py中的DISCOVERY_MODE/PREVIOUS/PAYLOAD、discovery_background_idle、review_assets及CLI分支；test_model_provider_upgrade.py沿原真实Git/全阶段恢复矩阵追加新mode和零后台任务反例。旧mode不调用新门。

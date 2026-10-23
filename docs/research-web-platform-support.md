@@ -222,3 +222,5 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 
 2026-10-23：资产副图v7为macOS Web操作员增量；本机/同候选macos-14与通用仓库门独立认证。Windows/Linux原生与Docker产品实机未执行，不据此升级平台支持状态。
 
+
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
