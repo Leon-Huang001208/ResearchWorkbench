@@ -33,6 +33,7 @@ GROUP_SPECS = (
         [
             "akshare",
             "baostock",
+            "bea_archive",
             "yahoo",
             "chinastock",
             "csindex",

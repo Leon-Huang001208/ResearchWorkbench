@@ -199,3 +199,7 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：发布版本研究仓
+
+BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原Host→DataHub→MarketStore，复用既有available_at/ingested_at修订、原件与冻结表；只新增Provider内部解析与受信WarehouseBinding，未新增服务、HTTP、数据根或数据库schema。通用native仍是首次观测；东财SDK/游客资金流同源且单位未知，不授予跨源等价。模块与时点范围见[研究仓](research-web-market-store.md)。
