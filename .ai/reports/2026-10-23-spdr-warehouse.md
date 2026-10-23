@@ -19,3 +19,17 @@
 SPDR网站的交易日持仓与金条清单的结算日口径分别保留；四项持仓快照不当作资金流指标。
 
 参考：[GLD官方页面](https://www.spdrgoldshares.com/usa/gld/)、[官方FAQ](https://files.spdrgoldshares.com/spdr-cms/2026-03/GLD-FAQs-January-2026.pdf)。
+
+## 真实Host与独立研究仓
+
+干净源码0b58b545844707aceed8f053bf3679763efd87e6实际执行一次供应商调用、一次已计数HTTP GET，4项投影通过完整ResearchService及内部business-query API进入独立PostgreSQL。使用生产默认仓库工厂；连接guard仅放行已验证的Unix socket/65473/数据库白名单/空密码并原样调用真实psycopg，exercise guard实际计数19次owned连接（不含外围夹具连接）。不是替换仓储backend；临时数据库账号取自该自有实例，不读现有账号。
+
+跨会话display缓存、同进程关闭并重建Host对象、owned PG进程停止/重启后零额外供应商调用读回、冻结导出及同一owned PG实例的第二空库独立恢复并再次读取均PASS，行、字段、日期、单位及原件绑定一致。合法历史与正式backtest请求被拒，未制造历史版本。20.794秒完成；临时PG停止/目录移除、临时HOME回收，模型/RPC0、供应商凭据0，现有5432/服务/外盘无操作。回执SHA256=409982d8d1a43b367753f9dbac0f11f64f8765aa01fef8b5eec1e06b825ec073，全部258个app执行源码/PG隔离夹具哈希前后一致。
+
+原始公开响应和真实数值仅在ignored私有证据保存，Git报告只记哈希、范围和结果；交付时归档并恢复核验。直接预检与本轮Host各1次公开HTTP，不能把预检当Host成功。原四项数据是当前来源快照，金融流量、全历史、跨源等价及正式PIT均未由此认证。认证私网页面/部署仍NOT_RUN。
+
+## 验证过程与剩余门
+
+完整本地Python954/99子测试、JS397通过。初轮校验helper误用base..HEAD，暂存改动下文件清单为空，Ruff意外全仓8137项失败保留；不把未分类结果算作本任务新增回归或通过。修正为完整工作区/暂存changed set后按六Python文件/四运行源码执行静态检查，保留已通过且字节未变的Python/JS证据。完整Router仍L4/原三CI，补齐5份必须模块文档后10项本地检查PASS，未削弱门。
+
+安装合同raw字节对比首次因setup-web.cmd的CRLF与Git blob LF不同失败；改用Git attributes规范化哈希核验6份安装文件未改。纯预检回放首次误用系统Python缺pydantic，未安装依赖，使用已批准环境后成功；这些都不作为供应商失败。真实helper已由独立Python质量审查允许一次执行，最终候选评审/CI/Mac仍待精确绑定，旧候选结果不转写。
