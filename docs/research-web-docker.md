@@ -198,6 +198,21 @@ CPU仍为 CFS quota/period=200000/100000、
 PIDs256、日志10MiB×3、`worker.oci.max-parallelism=2`，缓存仅用所属命名卷。
 标准 BuildKit worker 需要 privileged，它仅属于管理员构建平面；业务容器不继承该权。
 首次创建拒绝同名未知 builder/container，后续核验记录ID及限额后使用；不改默认builder。
+若本机 Buildx 注册仍存在，但已登记容器与缓存卷同时缺失，可先执行
+`./rwb-docker builder-reconcile --json` 取得只读预览和 `fingerprint`，再显式执行
+`./rwb-docker builder-reconcile --apply <fingerprint>`。该管理命令需要宿主已有 Python 3.11+，
+不安装依赖；默认预览不改变 Docker。它在同一 `operation.lock` 下核对本机
+`desktop-linux`、Unix socket、当前 Docker Desktop Engine ID、单节点 docker-container
+绑定、旧账本、配置、运行构建和内存预算；任何改变都要求重新预览。
+旧 `builder.id` 不能证明原引擎身份，也不能证明资源为何消失：预览明确承认这一缺口，
+apply 仅授权在该次已核验的当前本机引擎恢复缺失资源，不声称找回旧缓存。
+容器/卷仅缺一个、同名未知资源、运行中的构建器或构建、管理目录别名一律拒绝。
+恢复保留 Buildx 注册，使用官方 Docker create/start 和 Buildx bootstrap，固定
+`moby/buildkit:v0.28.0`、既有限额/标签/配置，验证完成后精确停止新容器并更新账本。
+原账本、配置、脱敏绑定和分阶段 journal 保存在管理目录 `builder-reconcile/<fingerprint>/`，
+日志在 `logs/builder-reconcile.log`。失败保留实际现场和归档，不伪造回滚；可用
+`--recover <fingerprint>` 显式恢复已登记阶段。创建成功但 journal 未落盘等身份不明窗口
+会拒绝自动恢复，须管理员核对现场。该命令不删除卷、缓存 blob 或 Docker.raw，不重置引擎。
 BuildKit必须留出自身内存，重构建与stage错峰。不要通过全局 prune 或停止他实例解决问题。
 固定 DSH源码、原Node4GiB heap、完整TypeScript与打包检查均保留，不交付失败的降低heap适配。
 受管入口同时核对所有实际运行容器硬上限与VM实际内存，保留2GiB余量；未知无限额容器拒绝。

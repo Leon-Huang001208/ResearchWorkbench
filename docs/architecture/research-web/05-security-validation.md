@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+构建器对账明确拒绝环境重定向、错context／socket／引擎、同名未知资源及部分缺失状态；apply在共享锁内重验preview。所有恢复前置条件必须在首次stop之前成立。已观察的活动build/bake（含全局选项）使操作拒绝；Docker命令绑定desktop-linux并受超时限制。
+
 2026-10-23：市场历史仅在当前用户原缓存中保存；昨日要求完整收盘/交易日历/逐股真实金额，资金限同源同scope同key，不读取其他租户或放开Wind/Office。原维护准入、字节/行数/并发上限与失败保留完整快照保持。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
 
 固定公开indices桥只接受Host内构造的12指数合同，浏览器不能提交actor/scope。当前Host用户根、仓库根、profile id/owner/enabled/config摘要和来源配置/合同摘要在读写前后复核；数据库不可用才允许明确未持久化，授权/合同失败不降级。公开访客源没有独立grant，不能声称该不存在的开关可撤销；真实profile撤销与跨用户根拒绝有离线回归。共享/私有Wind/周报与tenant策略均不扩权。
