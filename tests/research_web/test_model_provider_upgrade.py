@@ -2227,6 +2227,15 @@ def test_asset_v7_pins_current_resident_and_merged_panel_product():
     assert upgrade.ASSET_V6_PAYLOAD == "eac6806822294d75da990c751d88ec156a417f62"
 
 
+def test_asset_v8_registers_fixed_period_repair_without_rewriting_v7():
+    assert "reviewed-asset-observation-v8" in upgrade.ASSET_MODES
+    assert upgrade.previous_for("reviewed-asset-observation-v8") == (
+        "5343e18d9f203a87f2d958218e4288afa527711f"
+    )
+    assert upgrade.ASSET_V7_PREVIOUS == "c4e953c4386c615cde89ad2d014d60c6e2959303"
+    assert upgrade.ASSET_V7_PAYLOAD == "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
+
+
 def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
     assert upgrade.previous_for("reviewed-etf-weekly-v1") == (
         "5343e18d9f203a87f2d958218e4288afa527711f"
