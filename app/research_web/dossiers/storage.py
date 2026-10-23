@@ -14,6 +14,7 @@ from uuid import uuid4
 from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import admission
 
+from ..datahub.security import directory, read_file, sync_directory, write_new
 from ..store import StoreError
 from .lock import retention_lock
 
@@ -40,6 +41,75 @@ class DossierStore:
         self.folder = root / "dossiers"
         self.path = self.folder / "metadata.sqlite3"
         self.owner_binding = hashlib.sha256(str(root).encode()).hexdigest()
+        self.marker = root / ".dossiers-initialized"
+        self._marker_bytes = canonical(
+            {"format": "rwb-dossiers-initialized-v1", "owner_binding": self.owner_binding}
+        ).encode("utf-8")
+        self.marker_size = len(self._marker_bytes)
+        self.marker_sha256 = hashlib.sha256(self._marker_bytes).hexdigest()
+
+    def _marker_info(self, folder):
+        return (
+            os.stat(self.marker.name, dir_fd=folder, follow_symlinks=False)
+            if isinstance(folder, int)
+            else self.marker.lstat()
+        )
+
+    def _marked(self):
+        """Read-only, bounded root marker validation; absence never creates it."""
+        try:
+            with directory(self.root) as folder:
+                try:
+                    before = self._marker_info(folder)
+                except FileNotFoundError:
+                    return False
+                if (
+                    not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                    or before.st_size != self.marker_size
+                    or getattr(before, "st_file_attributes", 0)
+                    & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+                    or os.name != "nt"
+                    and (before.st_uid != os.getuid() or before.st_mode & 0o077)
+                ):
+                    raise ValueError("unsafe initialization marker")
+                raw = read_file(folder, self.marker.name, private=True, limit=self.marker_size)
+                after = self._marker_info(folder)
+                if (
+                    (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+                    or len(raw) != self.marker_size
+                    or hashlib.sha256(raw).hexdigest() != self.marker_sha256
+                ):
+                    raise ValueError("initialization marker changed")
+                return True
+        except (StoreError, OSError, ValueError) as exc:
+            log.error("dossier_initialization_marker_invalid", error_type=type(exc).__name__)
+            raise StoreError(
+                "档案初始化标记不可安全核验，已停止操作", "dossier_marker_invalid", 503
+            ) from exc
+
+    def _ensure_marker(self):
+        """Persist protection before the first metadata directory or transaction exists."""
+        with admission(), retention_lock(self.root):
+            if self._marked():
+                return
+            try:
+                with directory(self.root) as folder:
+                    # O_EXCL, private mode and file fsync are enforced by write_new.
+                    # A partial marker is retained and fails closed after a write error.
+                    write_new(folder, self.marker.name, self._marker_bytes)
+                    sync_directory(folder)
+                self._marked()
+                log.info(
+                    "dossier_initialization_protection_recorded", marker_sha256=self.marker_sha256
+                )
+            except (StoreError, OSError) as exc:
+                log.error(
+                    "dossier_initialization_marker_write_failed", error_type=type(exc).__name__
+                )
+                raise StoreError(
+                    "档案初始化保护标记未完成，已停止操作", "dossier_marker_invalid", 503
+                ) from exc
 
     def _uninitialized(self):
         log.error("dossier_database_missing_or_empty")
@@ -50,12 +120,17 @@ class DossierStore:
         )
 
     def _safe(self, create=False, *, allow_uninitialized=False):
+        marked = self._marked()
         created = False
         if not self.folder.exists():
             if self.folder.is_symlink():
                 raise StoreError("档案存储路径不安全", "dossier_storage_unsafe", 409)
+            if marked and not allow_uninitialized:
+                self._uninitialized()
             if not create:
                 return False
+            self._ensure_marker()
+            marked = True
             self.folder.mkdir(mode=0o700)
             created = True
         info = self.folder.lstat()
@@ -79,6 +154,8 @@ class DossierStore:
             and (not exists or self.path.stat().st_size == 0)
         ):
             self._uninitialized()
+        if create and not marked:
+            self._ensure_marker()
         return exists
 
     @contextmanager
