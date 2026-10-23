@@ -1,5 +1,7 @@
 # 供应商原生研究快照
 
+CJPY个股筹码输入继续冻结原始换手响应、完整证券/日期和供应商单位；同复权VWAP/换手衰减作为有版本的派生说明保留，raw行不覆盖。前端万/亿是显示倍率，不改变厂商数量单位、原JSON、费用或回测时点证据；三角均价缺口不由演示数据补齐。
+
 2026-10-23固定公开指数桥：额外仅接受source=eastmoney、capability=market_snapshot、asset_type=index、assets严格等于`providers_market.INDEXES`的12个有序身份及固定price/change/change_pct/as_of/series字段。不存在任意market_snapshot扩权。Host把完整MarketProvider响应放在单个`rows[0].response`封包并保留该规范JSON字节为原件；这是Provider响应捕获，不冒充未由适配器暴露的HTTP wire原字节。完整12行、分页完整、missing均为零、每行报价/时间/有界分时齐备才可入仓；partial/failed和无原件仍拒绝。原生点位/百分比与分时语义原样保留，不证明第二来源单位等价。读取仍遵守下文300秒display+allow_stale规则，显式refresh绕过读取。具体Host/profile授权及降级见[DataHub](research-web-datahub.md)。
 
 完整字段捕获还逐行核对固定code/name/stale=False、price/change/change_pct有限数值、上海时区完整ISO秒报价时间；每个分时点须为含time/price/change_pct的对象，有限数值、同报价日、严格递增且不超过供应商已有5分钟未来容差。顶层as_of/quote_trade_date/temporal_complete和精确三项missing零计数必须一致。现Provider的_number可输出None，且其complete主要声明端点覆盖；这样的原响应仍原样交给市场页，但必需字段为null/缺字段/畸形时间或分时不得入仓，warehouse标为incomplete并保护旧完整捕获，不擅自改写原complete字段含义。

@@ -581,7 +581,17 @@ BINDING_SPECS = {
         ("chinastock", ["financials"]),
     ],
     "market_activity": [
-        ("tinysoft", ["margin_trading", "holder_data", "holder_details", "industry", "events"]),
+        (
+            "tinysoft",
+            [
+                "margin_trading",
+                "holder_data",
+                "holder_details",
+                "industry",
+                "events",
+                "chip_turnover",
+            ],
+        ),
         ("wind", ["fund_flow", "margin_trading", "holder_data"]),
         ("ifind", ["fund_flow", "industry"]),
         ("chinastock", ["fund_flow", "sentiment"]),

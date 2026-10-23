@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+## 资产静态资源补充（2026-10-23）
+
+本轮不新增或安装依赖；`requirements/web.in`、`web.lock` 与 `scripts/setup_web.py` 保持不变，原三个公开安装入口继续适用。新增 `asset-layout.css`、`asset-format.mjs`、`asset-chips.mjs`、`asset-chip-panel.mjs` 随原UI目录打包；现有macOS Bootstrap同一步HTTP逐字节核对这四份资源及原固定图表库/许可证。CI没有厂商凭据时仍只显示CJPY已安装待配置。本机真实供应商预检和浏览器证据独立于CI；同候选Mac干净安装、固定DSH、3081/8088与Doctor仍是门。
+
+
 当前用户已批准PR188／v5组合验收后一起部署已合并锁定baostock0.9.4／psycopg3.3.6；数据库不启用／不迁移、外盘不改，不新增数据库服务或连接配置。v5当前PAYLOAD为完整产品88ef3817、PREVIOUS仍51f09；依赖变化来自PR188已审锁文件，原profile及一行读取修复自身不引入任意依赖。旧a114候选三CI全PASS不能代替新组合的原三CI／同候选Mac干净安装，本轮文档不执行包安装或部署。
 
 资产v5索引预检修复（2026-10-22）只修原操作员的读取绑定：业务index复用既有64 MiB安全读取，部署元数据保持1 MB，旧profile不变。requirements/web.in、web.lock、setup_web.py及Mac Bootstrap无需改变依赖或安装流程；三个一键入口和原同候选Mac干净安装／固定DSH／3081／8088／Doctor门保留。原8.67 MB索引停机前拒绝与PR187 Constraints失败不写成安装或部署成功，修补候选须重新通过原三CI；不裁剪账号索引、不安装包或处理凭据。

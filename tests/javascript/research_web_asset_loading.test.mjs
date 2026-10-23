@@ -148,3 +148,12 @@ test('unbound raw2 snapshot never auto-advances with an invented fixed source', 
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.deepEqual(jobs, []); assert.match(c.state.errors.historyJobs, /来源未知/); c.cancel();
 });
+
+test('chip retry preserves the frozen true flag after publishing queued UI state', async () => {
+  const jobs = []; const c = createAssetWorkspaceController({ api: apiFor({ startAssetHistory: async (_id, body) => { jobs.push(body); return { id: 'retried', status: 'completed', include_chip_inputs: true }; } }) });
+  await c.activateView({ asset: '603986.SH', assetType: 'stock', assetView: 'news' });
+  c.state.historyJob = { id: 'failed-chip', status: 'failed', scope: 'all', source: 'tinysoft', adjustment: 'qfq', requested_as_of: '2026-10-20', include_chip_inputs: true };
+  await c.startHistory('recent', 'none', 'failed-chip', 'wind', false);
+  assert.deepEqual(jobs, [{ scope: 'all', adjustment: 'qfq', source: 'tinysoft', as_of: '2026-10-20', retry_of: 'failed-chip', include_chip_inputs: true }]);
+  c.cancel();
+});

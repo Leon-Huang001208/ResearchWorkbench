@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+## 资产筹码与行情精炼（2026-10-23）
+
+`asset_chip_inputs.py` 校验逐日换手身份/覆盖/单位，并连接同复权价格与原始量额；`asset_history_jobs.py` 按32个日期串行查询现有 Broker/Provider，带筹码任务只在全部验证后发布。`providers_cjpy_assets.py` 校验固定厂商因子定义；不使用旧全局凭据。`asset-chips.mjs` 为概率守恒的换手衰减/三角或平均分布模型；`asset-chip-panel.mjs` 提供统计、龄分层、历史叠加和设置。`asset-layout.css` 实现已批准的连续工作区，`asset-format.mjs` 只做万/亿显示。测试分别为 `test_asset_chip_inputs.py`、原历史/CJPY合同及 `research_web_chip_distribution`、资产 chart/loading/tabs/format 回归。三项独立评审问题（原子桶重复、重试丢旗标、设置签名遗漏）均有定点回归。
+
+
 iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_envelope` 链处理；
 `_quantapi_history_body` 在取密前验证旧flat或官方reqBody参数并精确包装一次，目录保留
 `cmd_history_quotation` 身份、固定出口改为官方 `history_data`。近处

@@ -75,7 +75,7 @@ CAPABILITY_PARAMETERS = {
     "market_snapshot": {"assets", "asset_type", "fields"},
     "index_data": {"index", "dataset", "date"},
     "financials": {"asset", "statements", "periods"},
-    "market_activity": {"asset", "dataset", "start_date", "end_date"},
+    "market_activity": {"asset", "dataset", "start_date", "end_date", "dates"},
     "factor_macro": {"series", "assets", "dates", "start_date", "end_date"},
     "fund_data": {"dataset", "code", "start_date", "end_date", "year", "limit"},
     "search_news": {"query", "limit", "start_date", "end_date"},
@@ -265,6 +265,22 @@ class BusinessQuery(BaseModel):
             TableQueryParameters.model_validate(self.parameters)
             if self.source not in {"auto", "mysql"}:
                 raise ValueError("表查询仅支持已配置的 MySQL 来源")
+        elif self.capability == "market_activity":
+            days = self.parameters.get("dates")
+            if self.parameters.get("dataset") == "chip_turnover":
+                if (
+                    set(self.parameters) != {"asset", "dataset", "dates"}
+                    or not isinstance(days, list)
+                    or not 1 <= len(days) <= 32
+                    or any(
+                        not isinstance(d, str) or date.fromisoformat(d).isoformat() != d
+                        for d in days
+                    )
+                    or days != sorted(set(days))
+                ):
+                    raise ValueError("筹码换手率仅支持单证券、至多32个唯一有序日期")
+            elif "dates" in self.parameters:
+                raise ValueError("离散日期仅属于封闭筹码换手率区块")
         elif self.capability == "factor_macro":
             if self.source == "tinysoft":
                 validate_adjustment_parameters(self.parameters)
