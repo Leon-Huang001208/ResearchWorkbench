@@ -43,3 +43,5 @@ attempt2执行在0e0022 HEAD的dirty tree，9个运行文件SHA256前后完全�
 - 财务修订链与精确历史可得瞬时没有证明，正式backtest/as_of继续拒绝。接口描述改为“季度末/单报告期”而非暗示单季金额，保留累计口径与归母归属警示。
 
 参考：[官方SDK固定字典](https://github.com/zxygithub/baostock/blob/e14bd116745d5540c4eca55d8f0a1970e2d13235/docs/pythonAPI.md)、[发行人报告列表](https://news.spdb.com.cn/investor_relation/periodic_report/)、[发行人公开半年报](https://static.cninfo.com.cn/finalpage/2026-08-28/1225521898.PDF)。这些是单样本核对，不构成全历史/正式PIT或整源独立性认证。
+
+最终运行代码c98c7752在干净Git候选完成actual attempt4，4.956秒PASS，Bao/Sina各1次真实worker；报告/原字段保留、库命中、Host/PG重启及双scope独立恢复再次通过。原件重算issuer对照仍两格匹配集团半年累计，供应商8月28日与issuer列表8月27日差异保留。10运行源码hash前后一致；其后仅文档/台账更新，不把旧dirty-tree或失败回执改写为最终证明。
