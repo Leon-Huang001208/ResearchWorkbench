@@ -41,3 +41,5 @@
 目标测试为 `node --test tests/javascript/research_web_dossiers.test.mjs`，以及既有 UI、intel、asset、navigation 回归。离线 Chrome 闭环命令为 `node tests/e2e/research_web_dossiers.mjs`，在 1440×900 light、768×1024 dark、390×844 light 检查冲突保留、证据撤权、XSS、扫描缺口、冻结草稿、用户显式发送时的实际 prompt receipt body，@ 候选可预创建普通会话但零绑定、键盘返回及横向溢出。日志写入 `logs/research-web-dossiers-ui.jsonl`，截图和回执在 `outputs/research-web-dossiers/`；夹具产生的 409／403 作为预期错误单独计数。浏览器 fixture 与截图不替代登录态候选安装和业务保全；真实模型、收费 MCP、常驻部署及 Windows/Linux 原生保持独立验收。
 
 合同夹具 `tests/fixtures/research_web_dossier_contract.json` 由当前真实 `DossierService` 与临时 `Store` 离线生成，记录 producer 源文件 SHA。报告质量投影明确为 fixture-only，不作为真实报告验收。档案／记录／证据为32hex，来源会话独立保留36位UUID；时间线读取 payload，证据状态读取 state/error_code，ISO观察窗口在日期编辑中保留原时分秒与时区。403 会清理正文缓存并阻止迟到响应重新填入，渲染侧再次拒绝展示。
+
+Prompt 已获接收后，receipt 清理同时检查内存草稿及固定的 `new:claw`／`new:fingpt` 持久首页草稿，覆盖 @ 预创建后刷新目标会话的情况；只清相同 receipt，保留文字和其他新 receipt。

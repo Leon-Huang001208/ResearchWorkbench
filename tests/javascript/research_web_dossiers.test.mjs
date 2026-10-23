@@ -277,6 +277,26 @@ test('successful prompt clears the receipt from a precreated homepage even after
   assert.equal(controller.state.dossierHandoff, null); assert.equal(controller.state.draft, '原始问题 @');
 });
 
+test('after target-session reload, accepted prompt clears durable homepages while preserving text and a newer receipt', async () => {
+  const storage = memoryStorage(), api = {
+    create: async () => ({ id: sourceSessionID, mode: 'claw' }),
+    detail: async sid => ({ id: sid, mode: 'claw', messages: [] }),
+    message: async (_sid, body) => { assert.equal(body.dossier_handoff_id, 'c'.repeat(32)); return { accepted: true }; },
+  };
+  const first = createController({ api, draftStorage: storage, logger: () => {} });
+  await first.open({ page: 'claw', sessionId: null }); first.setDossierDraft('准备后输入 @', receiptContext());
+  await first.create('claw'); await first.open({ page: 'claw', sessionId: sourceSessionID });
+  const anotherHomepage = createController({ api, draftStorage: storage, logger: () => {} });
+  await anotherHomepage.open({ page: 'fingpt', sessionId: null });
+  anotherHomepage.setDossierDraft('另一份新草稿', { dossier_id: other, handoff_id: 'd'.repeat(32) });
+  const reload = createController({ api, draftStorage: storage, logger: () => {}, makeID: () => 'accepted-key' });
+  await reload.open({ page: 'claw', sessionId: sourceSessionID }); reload.setDraft('实际发送问题'); await reload.send();
+  await reload.open({ page: 'claw', sessionId: null });
+  assert.equal(reload.state.dossierHandoff, null); assert.equal(reload.state.draft, '准备后输入 @');
+  await reload.open({ page: 'fingpt', sessionId: null });
+  assert.equal(reload.state.dossierHandoff.id, 'd'.repeat(32)); assert.equal(reload.state.draft, '另一份新草稿');
+});
+
 test('switching object also strips an old receipt restored from storage after a page reload', async () => {
   const storage = memoryStorage(), api = { detail: async session => ({ id: session, mode: 'claw', messages: [] }) };
   const first = createController({ api, draftStorage: storage, logger: () => {} });

@@ -667,8 +667,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
       if (body.dossier_handoff_id) {
-        for (const [key, value] of drafts) {
-          if (key !== id && value.dossierHandoff?.id === body.dossier_handoff_id) {
+        // A page reload may leave only the active session in memory. The two
+        // durable homepage drafts still need the same receipt cleanup.
+        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt'])) {
+          const value = readDraft(key);
+          if (key !== id && value?.dossierHandoff?.id === body.dossier_handoff_id) {
             pending.delete(key); putDraft(key, { ...value, dossierHandoff: null });
             if (draftKey() === key && state.dossierHandoff?.id === body.dossier_handoff_id) state.dossierHandoff = null;
           }
