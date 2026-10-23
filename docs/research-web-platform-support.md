@@ -1,5 +1,6 @@
 # Research Web 能力与平台证据
 
+2026-10-23：终端profile任务属于Mac mini的Web功能／macOS Native部署工具闭包。后端与操作员本地回归、组合候选独评／原三CI／同候选Mac干净安装、真实认证切换及保全分开认证，未执行层保持待验证。Windows/Linux原生与Docker产品层均不由本机预检提升状态，不触发他平台产品dispatch或桌面sidecar／Tauri，见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 macOS管理员构建器对账使用当前Docker Desktop本地Unix endpoint；本任务仅认证Mac本机恢复和适用Mac安装CI。Windows/Linux原生适配及实际券商／厂商验证不由该工具或Mac测试认证。
 
 2026-10-23：市场限价/昨日/历史属于Mac mini功能开发与Native固定部署，必须原通用两CI及同候选macos-14安装；Windows/Linux原生和Docker产品证据保持各设备原状态，本任务不触发他平台产品dispatch，不提升跨平台支持声明。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。

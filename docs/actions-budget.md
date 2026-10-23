@@ -1,5 +1,6 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23终端v2只向原Checks Python步骤加入test_market_indices/test_market_terminal，JS沿原通配符；Mac安装名单增加market-terminal.mjs，原job/runner/timeout/依赖与条件不变。当前公开仓库资格由操作前实时核验。新增离线闭包约1秒，预留原步骤30秒；公开源不进入CI，不触发真实模型或付费数据。
 2026-10-23构建器对账只向现有Research Web Checks同一pytest步骤加入test_builder_reconcile／test_iteration_resources／test_docker_resources；不增workflow/job/runner/timeout。44项及9subtests的本机10.14秒为阶段证据，完整候选另测并保留原三CI／macos-14安装门。只读API当前PUBLIC；真实Docker恢复另验，无模型或业务数据操作。
 
 2026-10-23剩余来源验证与宏观研究仓沿用原Project Constraints、Research Web Checks和同候选Mac Bootstrap。仅向既有Python清单加入test_datahub_official_numeric.py；中国宏观、资金流与外部封包反例扩展既有模块，不新增job、runner、依赖或timeout。只读API核验仓库PUBLIC；最近五个成功run39862338057/39862338001/39860024415/39859994006/39859993855创建至结束63/732/591/53/821秒，均值452秒；这属于预算参考，远端动作前仍须实时复查。定点新增回归约数秒，预留现有步骤30秒，完整Router与全部原门不变。真实免费样例及socket-only临时PostgreSQL仅本机有界执行，CI不连接厂商、凭据、模型或正式数据库；不把跳过或旧候选结果认证为最终候选。Windows/Linux产品验收交接对应设备，本轮不部署、不改现有服务或外盘。

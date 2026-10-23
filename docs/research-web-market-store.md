@@ -1,5 +1,7 @@
 # DataHub 研究数据仓库内核
 
+terminal-v2指数集合使用独立市场缓存键；既有MarketReader/研究仓core-v1完整12身份和原生封包不改变，不能把24指数塞入旧仓库profile。新浪历史为price_index、实际采集时间first_observed、historical_pit_verified=false；画像可以展示可算特征，但不能据此认证历史PIT、回测或配置有效性。
+
 2026-10-23新增宏观使用现有SnapshotSeries与PostgreSQL适配：官方数值v2和AK中国宏观v1进入各自schema/units身份；不新增表、不连接正式库、不迁移旧记录。范围查询结果以原生响应冻结，首次观测时间与供应商观察期分开，尚不是可按历史披露版本重建的规范宏观事实。字段、原字节、版本与摘要可随导出恢复复现；Broker当前仍拒绝AK宏观as_of，包括库读取，不宣称Host已支持该历史查询。旧显式冻结包保持可读。
 
 2026-10-23：本轮限价、昨日逐股金额和资金日期留存仍在原market-cache，不新增研究仓schema、SQL迁移或默认写仓。已配置的固定12指数仓桥和账号/profile校验保持，公开缓存历史不冒充研究仓PIT事实。 具体来源、缺口与缓存合同见[DataHub](research-web-datahub.md#无会话全市场数据)。

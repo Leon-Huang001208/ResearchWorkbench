@@ -183,8 +183,46 @@ test('flow period and kind controls request the selected supplier scope', async 
   assert.equal(h.controller.handleChange(event),true);
   await new Promise(resolve=>setImmediate(resolve));
   const refresh=h.calls.find(call=>call.path==='/market/refresh');
-  assert.deepEqual(refresh.options.body,{sections:['flows'],kind:'industry',period:'5d'});
+  assert.deepEqual(refresh.options.body,{sections:['flows'],kind:'industry',period:'5d',index_set:'terminal-v2'});
   h.controller.dispose();
+});
+
+test('legacy-only overview upgrades terminal indices once during lunch without altering other sections', async () => {
+  const snapshot = data({ market_state: { state: 'lunch' }, sections: Object.fromEntries(['quotes', 'indices', 'industry', 'concept', 'calendar'].map(key => [key, section()])) });
+  const h = harness(snapshot), request = h.controller.api.request;
+  h.controller.api.request = async (path, options = {}) => path === '/market/indices/catalog' ? { default_set: 'terminal-v2', items: [], default_pins: [] } : request(path, options);
+  await h.controller.activate({ marketView: 'overview' }); await new Promise(resolve => setImmediate(resolve));
+  const writes = h.calls.filter(call => call.path === '/market/refresh');
+  assert.equal(writes.length, 1); assert.deepEqual(writes[0].options.body, { sections: ['indices'], kind: 'industry', period: 'today', index_set: 'terminal-v2' });
+  assert.equal(h.controller.state.snapshot.sections.indices, snapshot.sections.indices);
+  h.controller.setPaused(true); h.controller.setPaused(false); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.calls.filter(call => call.path === '/market/refresh').length, 1, 'a retained legacy gap must not cause an automatic retry');
+  h.controller.dispose();
+});
+
+test('existing initial collection merges the terminal upgrade instead of starting a second POST', async () => {
+  const h = harness(data({ sections: { indices: section() } })), request = h.controller.api.request;
+  h.controller.api.request = async (path, options = {}) => path === '/market/indices/catalog' ? { default_set: 'terminal-v2', items: [], default_pins: [] } : request(path, options);
+  await h.controller.activate({ marketView: 'overview' }); await new Promise(resolve => setImmediate(resolve));
+  const writes = h.calls.filter(call => call.path === '/market/refresh'); assert.equal(writes.length, 1);
+  assert.ok(writes[0].options.body.sections.includes('indices')); assert.equal(writes[0].options.body.index_set, 'terminal-v2');
+  h.controller.dispose();
+});
+
+test('late catalog completion after leaving, hiding or pausing cannot start an initial upgrade', async () => {
+  for (const action of ['leave', 'hide', 'pause']) {
+    let finish;
+    const snapshot = data({ market_state: { state: 'closed' }, sections: Object.fromEntries(['quotes', 'indices', 'industry', 'concept', 'calendar'].map(key => [key, section()])) });
+    const h = harness(snapshot), request = h.controller.api.request;
+    h.controller.api.request = async (path, options = {}) => path === '/market/indices/catalog' ? new Promise(resolve => { finish = resolve; }) : request(path, options);
+    await h.controller.activate({ marketView: 'overview' });
+    if (action === 'leave') h.controller.cancel();
+    else if (action === 'hide') { h.doc.hidden = true; h.controller.cancel(false); }
+    else h.controller.setPaused(true);
+    finish({ default_set: 'terminal-v2', items: [], default_pins: [] }); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.calls.filter(call => call.path === '/market/refresh').length, 0, action);
+    h.controller.dispose();
+  }
 });
 
 test('index comparisons use gaps and never turn absolute prices into returns', () => {
@@ -231,6 +269,22 @@ test('hiding all index lines keeps controls so the selection can be restored', (
   assert.match(html,/data-market-index="000001.SH"/);assert.match(html,/可勾选指数查看/);assert.doesNotMatch(html,/market-intraday/);
 });
 
+test('index chart starts with three comparisons while all 24 real-series controls remain available', async () => {
+  const assets = ['000001.SH', '000300.SH', '399006.SZ', ...Array.from({ length: 21 }, (_, index) => `${900000 + index}.SH`)];
+  const snapshot = data({ sections: Object.fromEntries(['quotes', 'indices', 'industry', 'concept', 'calendar'].map(key => [key, section(key === 'indices' ? assets.map(asset => ({ asset, name: asset, series: [{ time: '09:30', change_pct: 0 }] })) : [])])) });
+  const h = harness(snapshot); await h.controller.activate({ marketView: 'overview' });
+  let html = renderMarketPage(h.controller.state);
+  assert.equal((html.match(/data-market-index="/g) || []).length, 24);
+  const checked = () => [...html.matchAll(/data-market-index="([^"]+)" checked/g)].map(match => match[1]);
+  assert.deepEqual(checked(), ['000001.SH', '000300.SH', '399006.SZ']);
+  h.controller.handleChange({ target: { dataset: { marketIndex: '900000.SH' }, checked: true } });
+  h.controller.handleChange({ target: { dataset: { marketIndex: '000001.SH' }, checked: false } });
+  await h.controller.refresh(['indices']); await h.controller.activate({ marketView: 'overview' });
+  html = renderMarketPage(h.controller.state);
+  assert.deepEqual(checked(), ['000300.SH', '399006.SZ', '900000.SH']);
+  h.controller.dispose();
+});
+
 test('partial snapshots show coverage while preventing an unaccepted CSV download', () => {
   const html=renderMarketPage({view:'quotes',snapshot:data({sections:{quotes:section([],{complete:false,provider_total:6000,row_count:5500})}}),quotes:{items:[quote],total:5500,snapshot_id:'partial'}});
   assert.match(html,/5,500 \/ 6,000 条/);assert.match(html,/aria-disabled="true" data-market-disabled title="取得完整快照后可导出"/);
@@ -250,6 +304,15 @@ test('market funds render the provider nested daily history rows', () => {
 test('individual index dates and mixed-day stock statistics remain visibly distinct', () => {
   const html=renderMarketPage({snapshot:data({sections:{indices:section([{asset:'000001.SH',name:'上证',as_of:'2026-10-22T03:00:00Z'},{asset:'899050.BJ',name:'北证',as_of:'2026-10-21T07:00:00Z'}]),quotes:section([],{summary:{temporal_complete:false,quote_trade_date:'2026-10-22'},missing:{quote_date:2}})}})});
   assert.match(html,/2026-10-21 · 旧日/);assert.match(html,/行情日不齐/);assert.match(html,/统计行情日：2026-10-22/);assert.match(html,/quote_date：2/);
+});
+
+test('the index collection itself includes shared full source metadata and retained refresh failure', () => {
+  const indices = section([{ asset: '932000.SH', name: '中证2000', price: 1000 }], { snapshot_id: 'terminal-old-snapshot', stale: true, error: { message: '指数本次刷新失败' }, row_count: 23, provider_total: 24 });
+  const html = renderMarketPage({ snapshot: data({ sections: { 'indices:terminal-v2': indices } }) });
+  const collection = html.slice(html.indexOf('market-index-collection'), html.indexOf('market-evidence-grid'));
+  assert.match(collection, /陈旧 · 保留上次快照/); assert.match(collection, /东方财富 · 23 \/ 24 条/);
+  assert.match(collection, /快照：terminal-old-snapshot/); assert.match(collection, /指数本次刷新失败/); assert.match(collection, /采集：2026/);
+  assert.equal((collection.match(/class="market-metadata"/g) || []).length, 1);
 });
 
 async function deferredBoardRace(firstFinished) {
