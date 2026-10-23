@@ -22,7 +22,7 @@ test('period readout uses aggregate OHLCV and preceding period close, not the fi
     const f = fakeDOM(); const c = createAssetChartController();
     c.configure(input, 'period-return', metadata); c.mount(f.node);
     c.handle(click(`period-${period}`)); c.select(1); f.flush();
-    const expected = /涨跌幅 <strong class="asset-price-up">\+40\.00%<\/strong>/;
+    const expected = /幅 <strong class="asset-price-up">\+40\.00%（\+40\.00）<\/strong>/;
     const mounted = f.nodes.get('[data-asset-history]').innerHTML;
     assert.match(mounted, expected, period);
     assert.match(mounted, /开 <strong[^>]*>100\.00/);
@@ -37,7 +37,7 @@ test('period readout uses aggregate OHLCV and preceding period close, not the fi
     assert.equal(c.getState().selectedDate, selectedDate);
     assert.match(f.nodes.get('[data-asset-history]').innerHTML, /-6\.67%/);
     c.handle(click(`period-${period}`)); c.select(0); f.flush();
-    assert.match(f.nodes.get('[data-asset-history]').innerHTML, /涨跌幅 <strong>—/);
+    assert.match(f.nodes.get('[data-asset-history]').innerHTML, /幅 <strong>—/);
     c.dispose();
   }
 });
@@ -401,14 +401,15 @@ test('historical readout retains change amount and average-price slots without g
   const input = [{ ...rows(1)[0], close: 100 }, { ...rows(1)[0], date: day(1), open: 105, close: 110, low: 100, high: 120, amount: 999000, volume: 3 }];
   for (const b of input) delete b.vwap;
   const missing = renderMarketTerminal(input);
-  assert.match(missing, /涨跌额 <strong class="asset-price-up">\+10\.00<\/strong>/);
+  assert.match(missing, /幅 <strong class="asset-price-up">\+10\.00%（\+10\.00）<\/strong>/);
+  assert.doesNotMatch(missing, /涨跌额|涨跌幅/);
   assert.match(missing, /均价 <strong>—<\/strong>/);
   for (const key of ['vwap', 'avg_price', 'average_price']) {
     const source = [{ ...input[1], [key]: 108.25 }];
     assert.equal(enrichMarketBars(source)[0].vwap, 108.25);
     assert.match(renderMarketTerminal(source), /均价 <strong>108\.25<\/strong>/);
   }
-  assert.match(renderMarketTerminal([input[0]]), /涨跌额 <strong>—<\/strong>/);
+  assert.match(renderMarketTerminal([input[0]]), /幅 <strong>—<\/strong>/);
 });
 
 test('price axes format floating-point ticks to readable two-decimal prices', () => {

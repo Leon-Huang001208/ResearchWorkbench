@@ -42,9 +42,10 @@ test('OHLC colors compare each value to previous close, not candle direction, wh
   const {renderMarketTerminal}=await import('../../app/research_web/ui/asset-chart.mjs');
   const bars=[{date:'2026-10-21',open:100,high:101,low:99,close:100,volume:1},{date:'2026-10-22',open:101,high:102,low:95,close:98,volume:2}];
   const html=renderMarketTerminal(bars);
-  for(const [label,value,tone] of [['开','101.00','up'],['高','102.00','up'],['低','95.00','down'],['收','98.00','down'],['涨跌额','-2.00','down'],['涨跌幅','-2.00%','down']]) assert.ok(html.includes(`${label} <strong class="asset-price-${tone}">${value}</strong>`));
+  for(const [label,value,tone] of [['开','101.00','up'],['高','102.00','up'],['低','95.00','down'],['收','98.00','down'],['幅','-2.00%（-2.00）','down']]) assert.ok(html.includes(`${label} <strong class="asset-price-${tone}">${value}</strong>`));
   const readout=html.slice(html.indexOf('data-asset-history'),html.indexOf('<div class="kline-terminal-layout"'));
-  assert.equal((readout.match(/asset-price-/g)||[]).length,6);
+  assert.equal((readout.match(/asset-price-/g)||[]).length,5);
+  assert.doesNotMatch(readout,/涨跌额|涨跌幅/);
   const first=renderMarketTerminal([bars[0]]); const firstReadout=first.slice(first.indexOf('data-asset-history'),first.indexOf('<div class="kline-terminal-layout"'));
   assert.doesNotMatch(firstReadout,/asset-price-up|asset-price-down/);
 });
