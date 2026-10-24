@@ -64,7 +64,9 @@ def test_discovery_profile_freezes_authorized_combination():
         "workflow_corrupt",
     ],
 )
-@pytest.mark.parametrize("profile", [upgrade.DISCOVERY_MODE, upgrade.ASSET_V8_MODE, upgrade.ETF_HISTORICAL_MODE])
+@pytest.mark.parametrize(
+    "profile", [upgrade.DISCOVERY_MODE, upgrade.ASSET_V8_MODE, upgrade.ETF_HISTORICAL_MODE]
+)
 def test_discovery_deploy_rechecks_all_background_work_without_writes(
     tmp_path, monkeypatch, case, profile
 ):
