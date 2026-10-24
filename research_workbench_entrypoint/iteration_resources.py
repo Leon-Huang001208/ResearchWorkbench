@@ -600,11 +600,76 @@ def closeout(project, task, policy):
     return report
 
 
+def revalidate_closeout(project, task, policy):
+    """Recheck retired resources without replaying directory/volume deletion."""
+    project, state, delivery = state_paths(project, task)
+    for name in ("receipt.json", "git-finalization.json", "resources.json"):
+        _private_proof(state / name)
+    before = (state / "receipt.json").read_bytes()
+    previous = json.loads(before)
+    proof = json.loads((state / "git-finalization.json").read_text())
+    if (
+        delivery.get("status") != "cleaned"
+        or delivery.get("ci", {}).get("status") != "passed"
+        or not all(
+            delivery.get("cleanup", {}).get(key) is True
+            for key in (
+                "featureWorktreeRemoved",
+                "integrationWorktreeRemoved",
+                "localBranchDeleted",
+                "remoteBranchDeleted",
+            )
+        )
+        or proof.get("taskId") != task
+        or proof.get("candidateCommit") != delivery.get("integrationCommit")
+        or proof.get("status") != "pending"
+        or proof.get("restoreVerified") is not True
+        or previous.get("taskId") != task
+        or previous.get("ok") is not True
+        or previous.get("cache", {}).get("ok") is not True
+        or any(row.get("phase") != "git" for row in previous.get("blocked", []))
+    ):
+        raise ResourceError("closeout_revalidation_not_accepted")
+    git(project, "merge-base", "--is-ancestor", delivery["integrationCommit"], "origin/master")
+    ledger = json.loads((state / "resources.json").read_text())
+    for value in ledger["roots"]:
+        root = Path(value)
+        if root.exists() or root.is_symlink():
+            raise ResourceError("closeout_retired_worktree_reappeared")
+    homes = [Path.home() / ".research-workbench"]
+    driver = DockerResources()
+    with cleanup_locks(homes), operation_lock(Path.home() / ".local/share/rwb-docker"):
+        # Observe only: unfinished task objects require the original disposal
+        # workflow, never an implicit second delete in Git finalization recovery.
+        plan = task_resource_plan(driver.inventory(), protections(homes), task)
+        if any(row["action"] == "delete" for row in plan["resources"]) or any(
+            row["kind"] == "container" and "container:" + row["id"] in plan["retired"]
+            for row in plan["resources"]
+        ):
+            raise ResourceError("closeout_task_resources_remain")
+    caches = ManagedCaches(Path.home() / ".local/share/rwb-docker")
+    with caches.maintenance():
+        cache = cache_budget(caches, list(caches.names), policy["cacheBudgetBytes"])
+    if not cache["ok"]:
+        raise ResourceError("closeout_cache_over_budget")
+    if (state / "receipt.json").read_bytes() != before:
+        raise ResourceError("closeout_revalidation_changed")
+    log.info("iteration_resources_revalidated task=%s", task)
+    return {
+        "ok": True,
+        "status": "resources_revalidated",
+        "taskId": task,
+        "candidateCommit": delivery["integrationCommit"],
+        "cache": cache,
+        "previousReceiptSha256": hashlib.sha256(before).hexdigest(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True, type=Path)
     parser.add_argument("--task-id", required=True)
-    parser.add_argument("--phase", required=True, choices=["record", "cleanup"])
+    parser.add_argument("--phase", required=True, choices=["record", "cleanup", "revalidate"])
     args = parser.parse_args()
     try:
         _, state, _ = state_paths(args.project, args.task_id)
@@ -622,15 +687,28 @@ def main():
         ):
             raise ResourceError("closeout_policy_invalid")
         result = (
-            record_task(args.project, args.task_id)
-            if args.phase == "record"
-            else closeout(args.project, args.task_id, policy)
+            revalidate_closeout(args.project, args.task_id, policy)
+            if args.phase == "revalidate"
+            else (
+                record_task(args.project, args.task_id)
+                if args.phase == "record"
+                else closeout(args.project, args.task_id, policy)
+            )
         )
         print(
             json.dumps(
                 {
                     key: result[key]
-                    for key in ("ok", "status", "state", "registeredDirectories")
+                    for key in (
+                        "ok",
+                        "status",
+                        "state",
+                        "registeredDirectories",
+                        "taskId",
+                        "candidateCommit",
+                        "cache",
+                        "previousReceiptSha256",
+                    )
                     if key in result
                 }
             )
