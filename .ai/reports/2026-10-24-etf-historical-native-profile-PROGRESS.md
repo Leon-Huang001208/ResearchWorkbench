@@ -27,6 +27,10 @@
 
 ## 未执行与边界
 
+主任务组合复核：原网关、resident、多账号resident与API四模块由同一实际文件runner完成 **473 passed，1条既有警告，709.53秒**，进程exit=0；完整日志/XML在`logs/etf-historical/native-four-tests.log`与`native-four.xml`。与上述1727项构成原五文件闭包，不以产品测试替代操作员检查。
+
+Native规格独评与质量独评均APPROVED、无P1/P2；质量审查另在自身进程完成1727 passed（365.77秒），Ruff/Black/isort/mypy及去除新注册后AST等价核对通过。操作员SHA256为`3e52368cb9cf6239afc57fb6dc586dc147944b97d4084e76579ca7aa73351ba7`，对应测试为`6eb5d3153c5011f335a4e7d326e46029dc4033ce95dec41fb914983deae0186b`；审查JSON哈希`3a9656f01aa86f79304fc33ba787770c309899870bd85e46209730214b0fee71`。最终组合提交仍须重新绑定独评、Router及原三CI；真实部署/报告验收未执行。
+
 本子任务仅修改操作员、对应测试及本报告，文档/图/workflow由主任务负责。
 未修改 Git、commit/push、依赖、Office、厂商、模型、凭据或生产服务。
 新目标部署仍需单独明确授权；本机/旧产品 CI 不替代最终完整候选独评、三 CI 和同候选 macos-14 干净安装。
