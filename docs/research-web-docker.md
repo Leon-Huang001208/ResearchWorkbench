@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+全市场 `reviewed-market-preview-v1` 是现有Mac Native操作员的封闭身份，不更新Docker运行服务、业务卷、构建器登记或缓存策略。原version4锁、BirthFence、全账号保全和回滚保持；不会从Mac派发Windows/Linux产品验收。
+
 资产V9的CI reader容量修复仅用于Mac Native更新；8MB压缩/16MB单job/64MB总展开日志限制与Docker业务卷、构建器和20GiB缓存预算无关，不触发Docker产品发布。
 
 资产V8仅负责Mac Native固定更新，复用原私有池忙碌拒绝和维护锁，不改变Docker镜像、卷、构建器或20GiB缓存预算。没有Docker产品构建/发布，也不认证Windows/Linux原生支持。

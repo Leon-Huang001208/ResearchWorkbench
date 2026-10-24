@@ -31,6 +31,7 @@ ASSET_PROFILES = (
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
     "reviewed-market-terminal-v1",
+    "reviewed-market-preview-v1",
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
@@ -71,6 +72,7 @@ def test_discovery_profile_freezes_authorized_combination():
         upgrade.DISCOVERY_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
+        "reviewed-market-preview-v1",
         upgrade.ETF_HISTORICAL_MODE,
     ],
 )
@@ -220,6 +222,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
+        "reviewed-market-preview-v1": "MARKET_PREVIEW",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
@@ -246,6 +249,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     )
     if profile == upgrade.ASSET_V9_MODE:
         evidence_constant = "ASSET_V9_EVIDENCE_SHA256"
+    if profile == "reviewed-market-preview-v1":
+        evidence_constant = "MARKET_PREVIEW_EVIDENCE_SHA256"
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
@@ -523,6 +528,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-etf-historical", "reviewed-etf-historical-v1"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
+        ("apply-market-preview", "reviewed-market-preview-v1"),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
@@ -1344,6 +1350,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.ASSET_V9_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
+        "reviewed-market-preview-v1",
     }:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -1544,6 +1551,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
+        "reviewed-market-preview-v1": "MARKET_PREVIEW_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
@@ -2160,6 +2168,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_GAPS_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
+        "reviewed-market-preview-v1",
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
@@ -2229,6 +2238,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-gaps-v1",
         "reviewed-market-history-v1",
         "reviewed-market-terminal-v1",
+        "reviewed-market-preview-v1",
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
@@ -2293,6 +2303,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.ASSET_V9_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
+        "reviewed-market-preview-v1",
     }:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -2774,3 +2785,20 @@ def test_asset_v9_freezes_current_reader_and_keeps_previous_profiles():
     )
     assert upgrade.ASSET_V9_EVIDENCE_SHA256 != upgrade.ASSET_V8_EVIDENCE_SHA256
     assert upgrade.ASSET_V9_WEB_LOCK_SHA256 == upgrade.ASSET_V8_WEB_LOCK_SHA256
+
+
+def test_market_preview_profile_freezes_authorized_product_and_current_resident():
+    assert getattr(upgrade, "MARKET_PREVIEW_MODE", None) == "reviewed-market-preview-v1"
+    assert upgrade.previous_for(upgrade.MARKET_PREVIEW_MODE) == (
+        "36fd990ceed88d2fc595443926105c4b2601fbf6"
+    )
+    assert upgrade.MARKET_PREVIEW_PAYLOAD == "47260107dcbc5fdce1bd96b7831ca26f492edaf8"
+    assert upgrade.MARKET_PREVIEW_MODE in upgrade.ASSET_MODES
+    assert upgrade.MARKET_PREVIEW_EVIDENCE_SHA256 == (
+        "193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7dad6bb8ce63988"
+    )
+    assert upgrade.MARKET_PREVIEW_WEB_LOCK_SHA256 == (
+        "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+    )
+    assert upgrade.MARKET_TERMINAL_PREVIOUS == "0e0022ac792eba88fba0f233524f5c8d66024569"
+    assert upgrade.MARKET_TERMINAL_PAYLOAD == "ca20293b8244bb0644bf2039ddd96ee452a27b0b"

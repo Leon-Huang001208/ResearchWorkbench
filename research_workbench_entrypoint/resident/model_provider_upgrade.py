@@ -106,6 +106,12 @@ MARKET_TERMINAL_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
 MARKET_TERMINAL_PAYLOAD = "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
 MARKET_TERMINAL_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
+# User-authorized PR223 combination: terminal edit fix and DataHub cash flows.
+MARKET_PREVIEW_MODE = "reviewed-market-preview-v1"
+MARKET_PREVIEW_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
+MARKET_PREVIEW_PAYLOAD = "47260107dcbc5fdce1bd96b7831ca26f492edaf8"
+MARKET_PREVIEW_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+MARKET_PREVIEW_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
@@ -143,6 +149,7 @@ ASSET_MODES = frozenset(
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
+        MARKET_PREVIEW_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
@@ -244,6 +251,8 @@ def previous_for(mode):
         return MARKET_HISTORY_PREVIOUS
     if mode == MARKET_TERMINAL_MODE:
         return MARKET_TERMINAL_PREVIOUS
+    if mode == MARKET_PREVIEW_MODE:
+        return MARKET_PREVIEW_PREVIOUS
     if mode == DOSSIERS_MODE:
         return DOSSIERS_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
@@ -407,6 +416,7 @@ def verify_primary(home, expected, mode):
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
+        MARKET_PREVIEW_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
@@ -504,6 +514,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
+        MARKET_PREVIEW_MODE: MARKET_PREVIEW_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
         DOSSIERS_MODE: DOSSIERS_PAYLOAD,
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
@@ -529,8 +540,11 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             if actual_mode != "100644" or hashlib.sha256(
                 g.git_bytes(source, target, "evidence.py")
             ).hexdigest() != (
-                ASSET_V9_EVIDENCE_SHA256
-                if mode == ASSET_V9_MODE
+                {
+                    ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
+                    MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
+                }[mode]
+                if mode in {ASSET_V9_MODE, MARKET_PREVIEW_MODE}
                 else (
                     MARKET_TERMINAL_EVIDENCE_SHA256
                     if mode == MARKET_TERMINAL_MODE
@@ -1069,6 +1083,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_HISTORY_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_TERMINAL_MODE:
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
+    elif state.get("mode") == MARKET_PREVIEW_MODE:
+        manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
     return manifest
 
 
@@ -1119,6 +1135,7 @@ class Operations:
             DISCOVERY_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
+            MARKET_PREVIEW_MODE,
             ETF_HISTORICAL_MODE,
         } and not discovery_background_idle(self.home):
             log.warning("discovery_deploy_background_not_quiet")
@@ -1166,6 +1183,7 @@ class Operations:
             MARKET_GAPS_MODE,
             MARKET_HISTORY_MODE,
             MARKET_TERMINAL_MODE,
+            MARKET_PREVIEW_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
@@ -1608,6 +1626,7 @@ def main(argv=None):
             "apply-market-gaps",
             "apply-market-history",
             "apply-market-terminal",
+            "apply-market-preview",
             "apply-etf-weekly",
             "apply-dossiers",
             "apply-discovery",
@@ -1641,6 +1660,7 @@ def main(argv=None):
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
+                "apply-market-preview": MARKET_PREVIEW_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,

@@ -303,3 +303,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24现金流财务仅向原Checks同一pytest步骤加入test_datahub_baostock_cashflow/test_cashflow_warehouse_integration，无新job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实免费样例和隔离PG仅本机，不接模型/付费/生产库。最终仍绑定原三CI和同候选macos-14安装，远端动作前实时核对PUBLIC，不手工rerun或从Mac发其他平台产品dispatch。
+
+
+2026-10-24全市场预览组合profile只扩展原test_model_provider_upgrade矩阵，2042项本机124.99秒；保留原Research Web Checks、Constraints和macos-14干净安装，不增加workflow/job/runner/依赖/timeout。新增profile增量预算预留原步骤30秒，最终候选另取证；远端操作前实时核验公开标准runner资格，不派发Windows/Linux产品，不用旧PR223的三CI代替新operator候选。
