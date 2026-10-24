@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+历史验收CI捕获后继：原Checks两条pytest加`-o addopts=`，覆盖全局禁用捕获但保留失败上下文；Actions治理合同防止再次关闭。原Native操作员新增reviewed-etf-historical-v2/apply-etf-historical-v2，前版b4384470、完整产品祖先99cf121f；原历史和V8身份不改，reader及后台空闲/保全/恢复继续共用，详见部署合同。
+
 资产V8位于resident/model_provider_upgrade.py：ASSET_V8常量、previous_for/review_assets/target_manifest及CLI闭合分派；加入原64MiB reader、市场inflight和后台空闲检查。test_model_provider_upgrade复用全部旧恢复/真实Git矩阵并补V8固定pin和后台拒绝反例。最终产品固定为包含PR216/217/219的真实merge组合，部署/认证页面另验。
 
 历史验收产品冻结于bb4d2e65，随后原Native联合操作员新增reviewed-etf-historical-v1/apply-etf-historical，前版仅b4384470；原v4全账号/档案保全、严格reader、空闲/恢复及产品union/blob/mode门不改。最终同一PR普通merge保留产品祖先，再完整独评和原三CI；源码准备不授予常驻切换，合同见research-web-gateway-upgrade.md历史验收章节。

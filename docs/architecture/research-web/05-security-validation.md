@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+历史验收v2不放宽8MB/64MB完整ZIP reader、CRC/路径/模式或产品祖先与union/blob门。CI恢复标准pytest捕获，失败上下文、错误、警告仍显示；旧profile身份及后台未知/活动拒绝、全账号保全保持。
+
 资产V8不扩大自动兼容白名单，不改变不可变controller/evidence或凭据权限；校验固定产品祖先与完整union blob/mode。后台跟踪、自动化、Workflow、市场及资产查询活动/未知均拒绝；恢复与全账号档案保全不可由CI或画面成功替代。
 
 历史验收必须同时验证可信Run用途/冻结上下文、原件独立重放、全部数字引用及文件哈希；snapshot自报历史/正式都不能改变模式。Host渲染先加标签、bind及产物重验后取最终SHA，删除标签或篡改用途即拒绝。finalization与正式pointer/manual gate再次拒历史，即便quality passed也不授予定时资格，原正式采集门保持。

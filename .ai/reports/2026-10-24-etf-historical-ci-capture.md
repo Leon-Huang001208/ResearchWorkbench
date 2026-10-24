@@ -25,3 +25,7 @@ b500只读资格预检又被严格CI ZIP reader拒绝。官方原始归档的0_c
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅恢复原两个pytest调用的标准输出捕获；保留原模块清单和三项CI jobs runner超时及原严格日志reader，不增减验证节点或门禁","diagrams":[]} -->
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"封闭后继只注册固定前版和CI修复祖先，沿用原Native主实例与私网网关v4事务保全和恢复，没有新服务节点权限或依赖","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"后继沿原全账号档案业务索引与BirthFence维护锁和后台空闲检查，不增加租户共享边界或新的账号数据流","diagrams":[]} -->
+
+## 已取得的本机证据
+
+规格及质量独评均APPROVED，无P1/P2，源清单SHA256 `9a710f269fcd89a5610cf444185fc1042a05ead28f00e706894f7e610cff2262`；治理合同19 passed，新的操作员矩阵1965 passed/107.99秒，Ruff/Black/isort/mypy通过。固定controller/evidence和77个旧literal常量保持。产品app/requirements/runtimes/vendor与已确认dee0逐字相同。模块文档门首次提示9份未同步文档，已逐项说明对应部署、资料、权限、研究和平台边界，再查通过；未通过修改校验器解决。最终候选SHA、Router、CI/完整原始日志与真实运行仍待各自绑定。

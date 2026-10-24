@@ -1,5 +1,11 @@
 # Mac mini 空私有池网关升级
 
+## 历史验收固定部署v2：CI捕获后继（2026-10-24）
+
+`reviewed-etf-historical-v2` / `apply-etf-historical-v2` 固定前版`b438447071d08eec38902b2a50610644283885f9`、产品祖先`99cf121fb55ab211bc1c66ade7b6cc9989a60d8b`。原PR218成功checks原始job日志8,045,256字节超过原8,000,000字节上限，故不能认证部署；原ZIP保留。该祖先仅让原CI两条pytest恢复标准捕获，通过用例INFO不进入console，失败/错误/警告保持；根pytest.ini、原测试模块清单、job/runner/timeout和8MB/64MB完整reader均不变。
+
+后继复用原v4事务、BirthFence、64MiB业务读取、固定5c3077完整证据reader、全账号/档案保全、Host/Native/私有池/市场及后台空闲门；旧profile身份与恢复不改，无任意前版/目标参数。最终须普通merge保留产品祖先、独立规格/质量评审、完整Router、原三CI和同候选Mac干净安装；原CI不能替代新组合。产品代码/依赖/模板与用户已确认dee0cce4保持同一字节范围，实际更新沿该确认执行，若发生额外产品改动则重新确认范围。历史稿永不正式定稿，定时关闭，实际Wind/DSH/Word及下载分别验收。
+
 ## 资产幅字段固定部署 V8（2026-10-24）
 
 封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `dee0cce4dbc65782dba2c720f33ada683457d72a`（包含PR216幅字段、PR217数据源与PR219历史验收），三项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
