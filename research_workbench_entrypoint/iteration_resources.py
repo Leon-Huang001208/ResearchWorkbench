@@ -698,15 +698,7 @@ def main():
         output_keys = ("ok", "status", "state", "registeredDirectories")
         if args.phase == "revalidate":
             output_keys += ("taskId", "candidateCommit", "cache", "previousReceiptSha256")
-        print(
-            json.dumps(
-                {
-                    key: result[key]
-                    for key in output_keys
-                    if key in result
-                }
-            )
-        )
+        print(json.dumps({key: result[key] for key in output_keys if key in result}))
         return 0 if result["ok"] else 1
     except (ResourceError, OSError, ValueError, subprocess.SubprocessError) as error:
         code = str(error) if isinstance(error, ResourceError) else "closeout_io_failed"
