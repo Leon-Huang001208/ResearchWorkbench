@@ -385,3 +385,10 @@ AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件�
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
