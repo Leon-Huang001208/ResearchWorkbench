@@ -13,3 +13,5 @@
 <!-- architecture-review {"group": "private-multiuser", "structure": "unchanged", "diagrams": [], "reason": "仅在原Mac Native version4操作员增加封闭前版/产品身份，主实例/私网网关、维护锁、BirthFence、严格业务索引及全账号保全/恢复边界不变；新source绑定是现有恢复合同的模式内校验，无新HTTP、服务、数据库、引擎或权限节点，原01/12部署图准确。"} -->
 
 本机配置验证：完整operator 2151 PASS/123.45秒，原操作员/网关/Native/多用户四文件闭包2413 PASS/142.70秒；独评109个v2用例PASS、代码批准进入候选CI。Ruff/Black/Isort/Mypy、完整changed-set项目约束、架构/文档治理、113个JS治理测试与Python索引已通过。部署资格尚未取得，不把这些离线结果标为实际切换或页面验收。
+
+范围更新：已读取全市场任务中人类用户对“纳入PR227并协调最多30分钟窗口”的明确答复，产品扩为53d9fa2a（保留PR226）；窗口只在必要候选全部达门后开始。原9758/01fa的81文件真实Git预检作为旧阶段记录保留，不认证新组合。必要周报维护和Git运维代码仍等待其各自最终受审候选，未因此取得任意业务范围或真实模型授权。

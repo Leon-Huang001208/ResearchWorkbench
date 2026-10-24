@@ -124,7 +124,7 @@ DISCOVERY_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 # Explicitly authorized native dual-pane/raw-news product; historical profile stays frozen.
 DISCOVERY_V2_MODE = "reviewed-discovery-v2"
 DISCOVERY_V2_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
-DISCOVERY_V2_PAYLOAD = "01fa32c85b16a67dc042c68af9811da6eb63a390"
+DISCOVERY_V2_PAYLOAD = "53d9fa2a94bf400679c08022ca2037d7ecdf70a6"
 DISCOVERY_V2_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 DISCOVERY_V2_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR209 combined product includes dossier preservation; deployment needs new authorization.

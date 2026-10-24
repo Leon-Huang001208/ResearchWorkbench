@@ -396,7 +396,7 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 
 ## 今日发现原生双栏固定部署 v2（2026-10-24）
 
-用户明确授权部署PR226的原生双栏、最新原始资讯和证据关联。新封闭apply-discovery-v2 / reviewed-discovery-v2固定当前实际前版36fd990ceed88d2fc595443926105c4b2601fbf6和产品01fa32c85b16a67dc042c68af9811da6eb63a390，沿严格reader193f4fcc及web.lock7c631d4f。原v1及其他profile、控制器、自动兼容清单不修改；前版或产品变化须重新固定并验收，不接受任意目标。
+用户明确授权部署PR226的原生双栏、最新原始资讯和证据关联。新封闭apply-discovery-v2 / reviewed-discovery-v2固定当前实际前版36fd990ceed88d2fc595443926105c4b2601fbf6和产品53d9fa2a94bf400679c08022ca2037d7ecdf70a6（含PR226及用户在全市场任务明确批准的PR227来源／单位核验），沿严格reader193f4fcc及web.lock7c631d4f。原v1及其他profile、控制器、自动兼容清单不修改；前版或产品变化须重新固定并验收，不接受任意目标。
 
 复用原version4锁、BirthFence、全账号/业务索引/会话模型与档案保全、市场采集及后台/Workflow空闲门。新恢复包必须绑定固定source路径；缺失source、错误reader/锁/模式、活动或未知状态均拒绝。预检已见既存周报needs_attention，正式维护流程完成并通过完整空闲门以前不执行切换；不取消Native、不重发模型、不启用计划、不手改catalog。
 

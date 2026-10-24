@@ -2826,7 +2826,7 @@ def test_discovery_v2_profile_freezes_native_news_product_and_current_resident()
         upgrade.previous_for(upgrade.DISCOVERY_V2_MODE)
         == "36fd990ceed88d2fc595443926105c4b2601fbf6"
     )
-    assert upgrade.DISCOVERY_V2_PAYLOAD == "01fa32c85b16a67dc042c68af9811da6eb63a390"
+    assert upgrade.DISCOVERY_V2_PAYLOAD == "53d9fa2a94bf400679c08022ca2037d7ecdf70a6"
     assert upgrade.DISCOVERY_V2_MODE in upgrade.ASSET_MODES
     assert upgrade.DISCOVERY_V2_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
     assert upgrade.DISCOVERY_V2_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
