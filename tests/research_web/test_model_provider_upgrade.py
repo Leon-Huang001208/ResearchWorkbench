@@ -2792,7 +2792,7 @@ def test_market_preview_profile_freezes_authorized_product_and_current_resident(
     assert upgrade.previous_for(upgrade.MARKET_PREVIEW_MODE) == (
         "36fd990ceed88d2fc595443926105c4b2601fbf6"
     )
-    assert upgrade.MARKET_PREVIEW_PAYLOAD == "47260107dcbc5fdce1bd96b7831ca26f492edaf8"
+    assert upgrade.MARKET_PREVIEW_PAYLOAD == "e56d9718e12c2252128a6690ca202c7ae21f341e"
     assert upgrade.MARKET_PREVIEW_MODE in upgrade.ASSET_MODES
     assert upgrade.MARKET_PREVIEW_EVIDENCE_SHA256 == (
         "193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7dad6bb8ce63988"

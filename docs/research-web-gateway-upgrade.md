@@ -387,7 +387,7 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 
 ## 全市场预览修复组合固定部署（2026-10-24）
 
-用户已明确授权将PR223产品 `47260107dcbc5fdce1bd96b7831ca26f492edaf8`（含组合表单幂等修复及DataHub财务现金流）纳入保全部署。新封闭 `apply-market-preview` / `reviewed-market-preview-v1` 的PREVIOUS为 `36fd990ceed88d2fc595443926105c4b2601fbf6`，严格reader193f4fcc与web.lock7c631d4f固定。旧profile、controller/evidence模块及权限不修改。
+用户已明确授权将PR223/224组合产品 `e56d9718e12c2252128a6690ca202c7ae21f341e`（含组合表单幂等修复、DataHub财务现金流及PR224代理/PIT修复）纳入保全部署。新封闭 `apply-market-preview` / `reviewed-market-preview-v1` 的PREVIOUS为 `36fd990ceed88d2fc595443926105c4b2601fbf6`，严格reader193f4fcc与web.lock7c631d4f固定。旧profile、controller/evidence模块及权限不修改。
 
 复用原version4事务、主实例/网关维护锁、BirthFence、全部账号会话/模型/业务索引与档案保全、已核验wheel和恢复artifact。新mode纳入全部账号automation/discovery/工作流及市场inflight空闲门；活动或无法确认时延后，不终止未知工作。代码不启用数据库、迁移、日程或厂商/模型调用。
 

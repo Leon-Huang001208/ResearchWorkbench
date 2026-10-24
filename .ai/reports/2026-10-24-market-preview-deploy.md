@@ -4,7 +4,7 @@
 
 ## 固定范围与真实授权
 
-用户明确选择“纳入组合版本保全部署”。冻结PREVIOUS为当前实际常驻36fd990ceed88d2fc595443926105c4b2601fbf6、PAYLOAD为PR223实际合并47260107dcbc5fdce1bd96b7831ca26f492edaf8，包含组合表单幂等修复与DataHub财务现金流，不自动纳入之后主线产品。
+用户先明确选择纳入PR223组合保全部署，又明确允许加入随后合入的PR224。冻结PREVIOUS为当前实际常驻36fd990ceed88d2fc595443926105c4b2601fbf6、PAYLOAD为PR224实际合并e56d9718e12c2252128a6690ca202c7ae21f341e，包含组合表单幂等修复、DataHub财务现金流与代理/PIT修复，不自动纳入之后主线产品。
 
 只新增reviewed-market-preview-v1 / apply-market-preview。旧profile、controller和evidence源码保持；reader193f4fcc、lock7c631d4f沿当前已部署身份。新mode完整接入严格业务索引、全部账号后台/工作流、市场采集空闲、原version4维护锁/BirthFence、会话模型/业务索引/档案保全及失败恢复。
 
