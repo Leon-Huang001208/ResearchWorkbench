@@ -16,6 +16,7 @@ from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
 from .providers import MAX_QUERY_BYTES, ProviderError, Result
 from .providers_akshare import (
+    FUND_FLOW_FAILURE_CODES,
     FUND_FLOW_SCHEMA,
     SINA_FINANCIAL_SCHEMA,
     china_macro_fields,
@@ -691,13 +692,30 @@ class SnapshotSeries:
             document["metadata"] = {
                 key: value for key, value in result.metadata.items() if key in METADATA_KEYS
             }
+            if (
+                self.scope.source == "akshare"
+                and query.capability == "market_activity"
+                and query.parameters.get("dataset") == "fund_flow"
+                and result.metadata.get("schema_version") == FUND_FLOW_SCHEMA
+                and "upstream_attempts" not in document["metadata"]
+            ):
+                log.info("research_snapshot_not_ingested", reason="fund_flow_attempts_missing")
+                raise MarketStoreError("snapshot_attempt_evidence_invalid")
             if "upstream_attempts" in document["metadata"]:
                 attempts = document["metadata"]["upstream_attempts"]
                 allowed_attempts = [
                     [{"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "snapshot"}],
-                    [
-                        {"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "failed"},
-                        {"upstream": "eastmoney", "endpoint": "webguest", "status": "snapshot"},
+                    *[
+                        [
+                            {
+                                "upstream": "eastmoney",
+                                "endpoint": "akshare_sdk",
+                                "status": "failed",
+                                "error_code": code,
+                            },
+                            {"upstream": "eastmoney", "endpoint": "webguest", "status": "snapshot"},
+                        ]
+                        for code in sorted(FUND_FLOW_FAILURE_CODES)
                     ],
                 ]
                 if self.scope.source != "akshare" or query.capability != "market_activity":
