@@ -2,6 +2,8 @@
 
 行情读数重排“收幅开高低均量换振额”不改变观察、历史任务或DataHub的HTTP路径、请求和冻结响应。已存在assetIdentity与field.unit只用于显示股/手及万/亿；原data-*事件、ARIA角色和月K计算保持，单位/币种通过title保留。
 
+全市场预览部署配置仅增加本机受审CLI命令，不新增HTTP接口或扩大租户权限。现有market GET只读、POST维护准入及持仓预览→用户确认保存保持；profile后台空闲检查不通过时不启动切换。
+
 新增封闭操作员CLI `apply-assets-v9`，固定产品b500fcbe、前版b4384470和新reader哈希；不接受任意公式/目标覆盖，不新增HTTP或权限。reader保留压缩8MB、总展开64MB及完整性检查，单job明确16MB。
 
 apply-assets-v8仅为原Native操作员的封闭CLI分派，无新增HTTP、账号权限或任意SHA参数。固定前版b4384470和包含PR216/217/219的真实合并组合；旧v1-v7及其它固定入口保持，实际切换仍需全部资格、空闲与保全证据。
