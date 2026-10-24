@@ -788,3 +788,6 @@ schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 2026-10-23：资产周/月读数与副图入口修复不新增HTTP；仍复用原观察、历史分页和封闭图表偏好API。单一＋只是原目录入口合并，关闭副图保留既有账号隔离保存合同。
+
+
+2026-10-24：新增GET /api/research/discovery/association?feed_id&news_id&event_id&horizon，在当前认证用户的同feed范围内逐个核对归档报道精确URL；不接任意URL/正文、不创建会话/计划。feed新增news/events/freshness的独立有界投影，原七字段Prepare与独立execute/save/enable接口保持，详见今日发现合同。

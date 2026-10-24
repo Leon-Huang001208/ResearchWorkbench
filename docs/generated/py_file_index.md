@@ -5409,6 +5409,54 @@ Classes:
   - methods: valid_uuid, selected_materials, nonempty_question
 
 
+## `app/research_web/discovery/news.py`
+
+Module docstring:
+> Bounded raw Intel news identities; no URL fetching, model or event fabrication.
+
+Imports:
+- `core.observability`
+- `datetime`
+- `models`
+- `sources`
+
+Functions:
+- `stable`
+- `published`
+- `observation`
+- `collect`
+  - Keep full returned records private; reject conflicting same-source URL versions.
+- `projection`
+- `theme`
+- `fingerprint`
+  - Published time/content and verified links count; source display clocks do not.
+- `source_state`
+  - Freeze the latest read status without treating it as content novelty.
+- `source_stale`
+- `verified_association`
+- `observed`
+
+
+## `app/research_web/discovery/reading.py`
+
+Module docstring:
+> Independent bounded read lanes and truthful refresh receipts for Discovery.
+
+Imports:
+- `asyncio`
+- `client`
+- `copy`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `models`
+- `sources`
+- `uuid`
+
+Functions:
+- `build_feed`
+
+
 ## `app/research_web/discovery/routes.py`
 
 Module docstring:
@@ -5435,6 +5483,8 @@ Functions:
 - `prepare`
 - `selection`
   - Review current archived detail before freezing a compact-list selection.
+- `association`
+  - Only inspect an event already present in this user's exact feed.
 - `handoffs`
 - `request_state`
 - `handoff`
@@ -5472,7 +5522,7 @@ Imports:
 
 Classes:
 - `DiscoveryService`
-  - methods: __init__, _table, _record, _public, list_handoffs, _prune_feeds, feed, cached_preview, selection_preview, refresh_theme, prepare, _finish_session, get_handoff, trusted_context, _reconcile_execution, execute
+  - methods: __init__, _table, _record, _public, list_handoffs, _prune_feeds, feed, cached_preview, _read_news, _cache_news, refresh_news, associate, selection_preview, refresh_theme, prepare, _finish_session, get_handoff, trusted_context, _reconcile_execution, execute
 
 Functions:
 - `now`
@@ -5507,7 +5557,7 @@ Functions:
   - All archived evidence bytes count; acquisition transport timestamps do not.
 - `theme`
 - `selected_rows`
-  - Keep exact acquired detail JSON in rows; original-page acquisition is separate.
+  - Archive source types honestly; legacy event rows retain their original shape.
 - `acquired_materials`
 
 
@@ -5543,6 +5593,7 @@ Classes:
 
 Functions:
 - `_sha`
+- `_raw_description`
 
 
 ## `app/research_web/documentation.py`

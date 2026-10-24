@@ -20,23 +20,28 @@ CONTEXT_FILE = "inputs/discovery-context.json"
 
 
 def context_bytes(record):
-    return json_bytes(
-        {
-            "schema_version": "discovery-handoff-1",
-            "handoff_id": record["handoff_id"],
-            "session_id": record["session_id"],
-            "target_mode": record["target_mode"],
-            "dataset_id": record["dataset_id"],
-            "dataset_manifest_sha256": record["dataset_manifest_sha256"],
-            "selection_sha256": record["selection_sha256"],
-            "cutoff": record["cutoff"],
-            "retrieved_at": record["retrieved_at"],
-            "question": record["question"],
-            "horizon": record["horizon"],
-            "materials": record["materials"],
-            "source_policy": SOURCE_POLICY,
-        }
-    )
+    value = {
+        "schema_version": "discovery-handoff-1",
+        "handoff_id": record["handoff_id"],
+        "session_id": record["session_id"],
+        "target_mode": record["target_mode"],
+        "dataset_id": record["dataset_id"],
+        "dataset_manifest_sha256": record["dataset_manifest_sha256"],
+        "selection_sha256": record["selection_sha256"],
+        "cutoff": record["cutoff"],
+        "retrieved_at": record["retrieved_at"],
+        "question": record["question"],
+        "horizon": record["horizon"],
+        "materials": record["materials"],
+        "source_policy": SOURCE_POLICY,
+    }
+    if record.get("source_kind") == "news":
+        value.update(
+            schema_version="discovery-handoff-2",
+            source_kind="news",
+            associations=record.get("associations", []),
+        )
+    return json_bytes(value)
 
 
 def write_context(research, record):

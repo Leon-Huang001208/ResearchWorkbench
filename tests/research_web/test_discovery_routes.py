@@ -211,3 +211,72 @@ def test_tenant_tracking_requires_manager_flag_and_keeps_general_api_denied(monk
         )
         result = asyncio.run(tenant_policy.check_request(request))
         assert (result is not None) is denied
+
+
+@pytest.mark.asyncio
+async def test_registered_invalid_discovery_never_falls_through_to_generic_model_executor(
+    discovery_api,
+):
+    from app.research_web.store import StoreError
+
+    _, native, service = discovery_api
+    service.store.data.setdefault("discovery_tracks", {})["owned-invalid"] = {"schema": "invalid"}
+    with pytest.raises(StoreError, match="批准范围不可核验"):
+        await service.automations.executor({"id": "owned-invalid"}, {"id": "no-model-run"})
+    assert not any(name in {"session.create", "session.prompt"} for name, _ in native.calls)
+
+
+def test_real_host_raw_preview_association_is_owned_readonly_and_typed(discovery_api):
+    client, native, service = discovery_api
+    original = service.discovery.reader
+    raw = {
+        "title": "原始报道",
+        "source": "公开发布者",
+        "url": ARTICLE["url"],
+        "ts": 1792742307,
+        "raw_content": "归档正文",
+    }
+
+    async def reader(path, params=None):
+        if path == "/radar":
+            return {
+                "industries": [{"name": "行业", "items": [raw]}],
+                "cache_stale": False,
+                "stats": {},
+            }
+        return await original(path, params)
+
+    service.discovery.reader = reader
+    feed = client.get("/api/research/discovery/feed").json()
+    item = feed["news"][0]
+    before = copy.deepcopy(service.store.data)
+    args = {
+        "feed_id": feed["feed_id"],
+        "news_id": item["id"],
+        "event_id": EVENT["id"],
+        "horizon": "medium",
+    }
+    result = client.get("/api/research/discovery/association", params=args)
+    assert result.status_code == 200, result.text
+    assert result.json()["themes"][0]["related_events"][0]["matched_url"] == ARTICLE["url"]
+    assert (
+        client.get(
+            "/api/research/discovery/association", params={**args, "feed_id": str(uuid4())}
+        ).status_code
+        == 409
+    )
+    assert (
+        client.get(
+            "/api/research/discovery/association", params={**args, "event_id": "not-in-feed"}
+        ).status_code
+        == 409
+    )
+    assert (
+        client.get(
+            "/api/research/discovery/association",
+            params={**args, "news_id": "https://arbitrary.test"},
+        ).status_code
+        == 422
+    )
+    assert service.store.data == before
+    assert not any(name in {"session.create", "session.prompt"} for name, _ in native.calls)

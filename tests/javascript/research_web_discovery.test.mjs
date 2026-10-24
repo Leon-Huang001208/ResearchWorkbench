@@ -309,7 +309,7 @@ test('render preserves stale/errors/unknown times and never turns source claims 
   const { c } = harness(); await c.activate();
   c.state.feed.stale = true; c.state.error = '上游暂不可用';
   const html = renderDiscovery(c.state);
-  assert.match(html, /上次保存的资料/); assert.match(html, /上游暂不可用/); assert.match(html, /时间待核实/);
+  assert.match(html, /本次连接失败，保留已有资料/); assert.match(html, /来源标记资料陈旧/); assert.doesNotMatch(html, /来源尚未更新/); assert.match(html, /上游暂不可用/); assert.match(html, /时间待核实/);
   assert.match(html, /来源归纳 · 非质量结论/); assert.match(html, /版本 3/);
   assert.doesNotMatch(html, /质量已通过|Tweaks|preview-events|样例资料/);
 });
@@ -342,4 +342,25 @@ test('discovery mutations use explicit-user-action headers and reads never resen
   assert.equal(calls.at(-1).path, '/api/research/discovery/selection?feed_id=feed%20id&theme_id=theme%2Fid&horizon=long');
   assert.equal(calls.at(-1).options.method, 'GET');
   assert.equal(calls.at(-1).options.headers['X-Research-User-Action'], undefined);
+});
+
+test('native lanes show latest raw separately and never equate cache expiry with no new content', async () => {
+  const raw = { ...theme, id:'news-one', source_kind:'news', publisher:'新闻源', state:'未形成研判', published_at:'2026-10-24T09:38:00Z', judgment_as_of:null };
+  const { c, calls } = harness({ discoveryFeed:async()=>({...feed,themes:[raw,theme],news:[raw],events:[theme],freshness:{news:{status:'ready',retrieved_at:feed.retrieved_at,latest_published_at:raw.published_at},events:{status:'ready',cache_status:'expired',source_as_of:'2026-10-24T08:00:00Z'}}}) });
+  await c.activate();assert.equal(c.theme().id,raw.id);
+  let html=renderDiscovery(c.state);assert.doesNotMatch(html,/intel-page hot-reader|来源尚未更新/);assert.match(html,/上游事件汇总缓存过期/);assert.match(html,/未形成研判/);
+  await c.handle(event('click',{action:'view',id:'events'}));assert.equal(c.theme().id,theme.id);html=renderDiscovery(c.state);assert.match(html,/研判截止/);
+  assert.ok(calls.every(x=>!['discoveryPrepare','discoveryExecute','discoveryTrackSave','discoveryTrackState'].includes(x.key)));
+});
+
+test('association is a read-only exact-feed request and linked scope becomes the drawer parent', async () => {
+  const raw={...theme,id:'news-one',source_kind:'news',related_events:[]};
+  const linked={...feed,feed_id:'linked-feed',themes:[{...raw,related_events:[{event_id:theme.id,title:theme.title,judgment_as_of:null,judgment:{description:'来源判断'}}]}]};
+  const {c,calls}=harness({discoveryFeed:async()=>({...feed,themes:[raw,theme],news:[raw],events:[theme]}),discoveryAssociation:async()=>structuredClone(linked),discoverySelection:async(parent,id,horizon)=>{assert.equal(parent,'linked-feed');return {...linked,horizon};}});
+  await c.activate();c.state.associationEvent=theme.id;await c.associate();await c.openResearch();
+  assert.ok(calls.some(x=>x.key==='discoveryAssociation'));assert.ok(!calls.some(x=>x.key==='discoveryPrepare'));
+});
+
+test('native event detail preserves transmission, assets and next validation without hero duplication', async () => {
+ const {c}=harness({discoveryFeed:async()=>({...feed,themes:[{...theme,assets:['000001.SZ']}]})});await c.activate();let html=renderDiscovery(c.state);assert.match(html,/关联资产 000001.SZ/);assert.match(html,/投资/);assert.match(html,/核对原件/);assert.match(html,/下一验证点：核实财报/);assert.match(html,/data-discovery-action="chain"/);
 });
