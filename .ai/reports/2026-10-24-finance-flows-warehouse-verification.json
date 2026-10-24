@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "task": "datahub-finance-flows-20261024",
+  "host": "macos",
+  "real_acceptance": {
+    "cash_flow": {
+      "status": "PASS",
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-finance-flows-20261024/logs/real-cashflow/receipt.json",
+      "sha256": "2e6a9dc4bfbe5ac63f20670a99188cd9a8518a551ba2e516f72fd608eb07af2a",
+      "execution_head": "0ae2c55a4c043b14c20c38f157b04e9f1a5c8c79",
+      "duration_seconds": 4.746,
+      "sdk_workers": 1,
+      "source_helper_hash_count": 287,
+      "source_helpers_unchanged": true,
+      "three_process_pids": [
+        25939,
+        26168,
+        26172
+      ],
+      "actual_pg_restart_read": true,
+      "independent_empty_database_restore": true,
+      "cleanup": {
+        "pg_stopped": true,
+        "pgdata_removed": true
+      },
+      "historical_point_in_time": false,
+      "formal_backtest_eligible": false,
+      "underlying_network_operations": "unknown_unmeasured",
+      "scope": {
+        "asset": "600600.SH",
+        "report_period": "2026-06-30",
+        "rows": 1,
+        "fields": 7,
+        "known_numeric": 6,
+        "source_null": 1,
+        "scale": "unverified"
+      }
+    },
+    "fund_flow": {
+      "status": "PASS",
+      "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-finance-flows-20261024/logs/real-fundflow-owned-v2/receipt.json",
+      "sha256": "eeb7684eb3c297e18062228ca4971147dd121cf23705fcc7d19ef010c090c783",
+      "execution_head": "3b2c4231aa6e7f94ce74b89053f715059b63e570",
+      "duration_seconds": 6.5,
+      "sdk_workers": 1,
+      "source_helper_hash_count": 286,
+      "source_helpers_unchanged": true,
+      "three_process_pids": [
+        62750,
+        62779,
+        62782
+      ],
+      "actual_pg_restart_read": true,
+      "independent_empty_database_restore": true,
+      "cleanup": {
+        "pg_stopped": true,
+        "pgdata_removed": true
+      },
+      "historical_point_in_time": false,
+      "formal_backtest_eligible": false,
+      "underlying_network_operations": "unknown_unmeasured",
+      "scope": {
+        "rows": 1,
+        "asset": "600600.SH",
+        "min_date": "2026-10-23",
+        "max_date": "2026-10-23",
+        "coverage": "unknown_snapshot_only",
+        "unit": "unverified",
+        "transport": "webguest",
+        "upstream_attempts": [
+          {
+            "upstream": "eastmoney",
+            "endpoint": "akshare_sdk",
+            "status": "failed"
+          },
+          {
+            "upstream": "eastmoney",
+            "endpoint": "webguest",
+            "status": "snapshot"
+          }
+        ]
+      },
+      "http_submissions": 2,
+      "sdk_transport_error": "ProxyError",
+      "helper_guard_rejections": [],
+      "transport_instrumented": false,
+      "independent_source": false
+    }
+  },
+  "prior_fundflow_v1": {
+    "status": "bounded_persistence_verified_but_fallback_attribution_unknown",
+    "first_sdk_error": "AssertionError",
+    "cause": "undetermined_guard_or_transport",
+    "not_used_to_certify_natural_fallback": true
+  },
+  "final_candidate_checks": "pending",
+  "resident_deployed": false,
+  "production_database_modified": false,
+  "external_disk_modified": false,
+  "new_dependencies": false,
+  "new_source_count": 0
+}

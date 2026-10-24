@@ -3935,6 +3935,7 @@ Imports:
 - `probes`
 - `providers_akshare`
 - `providers_baostock`
+- `providers_baostock_cashflow`
 - `providers_bea_archive`
 - `providers_external`
 - `providers_kapsarc`
@@ -3947,8 +3948,7 @@ Imports:
 - `storage_activity`
 - `store`
 - `time`
-- `typing`
-- ... 1 more
+- ... 2 more
 
 Classes:
 - `DataHub`
@@ -4395,7 +4395,7 @@ Functions:
 ## `app/research_web/datahub/providers_baostock.py`
 
 Module docstring:
-> Closed anonymous BaoStock adapter; SH/SZ bars and quarterly profitability.
+> Closed BaoStock adapter; SH/SZ bars and reviewed quarterly financial ratios.
 
 Imports:
 - `__future__`
@@ -4420,8 +4420,30 @@ Functions:
 - `_financial_period`
 - `_records`
 - `_profitability`
+- `_cash_flow`
 - `invoke`
 - `fetch`
+
+
+## `app/research_web/datahub/providers_baostock_cashflow.py`
+
+Module docstring:
+> Reviewed BaoStock cash-flow ratios; pure raw projection shared with storage.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `json`
+- `math`
+- `providers`
+
+Functions:
+- `cash_flow_fields`
+  - Return fresh reviewed field metadata without inferring a numeric scale.
+- `cash_flow_metadata`
+- `_unique_object`
+- `cash_flow_projection`
+  - Reject malformed SDK records; blanks are missing, zero/negative stay native.
 
 
 ## `app/research_web/datahub/providers_bea_archive.py`
@@ -4966,6 +4988,7 @@ Imports:
 - `providers`
 - `providers_akshare`
 - `providers_baostock`
+- `providers_baostock_cashflow`
 - `providers_external`
 - `providers_kapsarc`
 - `providers_market`
@@ -4979,6 +5002,8 @@ Classes:
   - methods: __init__, _now, dataset, _facts, ingest, read
 
 Functions:
+- `_complete_cash_flow_snapshot`
+  - Bind native financial ratios to their SDK original, never to market fund flow.
 - `_complete_kapsarc_snapshot`
   - Require both count/unit evidence and the exact export projection before publishing.
 - `_complete_wgc_snapshot`
@@ -5017,6 +5042,7 @@ Imports:
 - `providers`
 - `providers_akshare`
 - `providers_baostock`
+- `providers_baostock_cashflow`
 - `providers_external`
 - `providers_kapsarc`
 - `providers_wgc`

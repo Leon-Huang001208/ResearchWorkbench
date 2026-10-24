@@ -31,6 +31,7 @@ from .contracts import BusinessQuery, Query
 from .probes import probe_source
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
+from .providers_baostock_cashflow import CASH_FLOW_SCHEMA
 from .providers_bea_archive import SCHEMA as BEA_ARCHIVE_SCHEMA
 from .providers_external import (
     EXTERNAL_ENVELOPE_CONTRACT,
@@ -1731,6 +1732,12 @@ class DataHub:
                             and query.parameters.get("statements") == ["profitability"]
                         ):
                             required_contract = BAOSTOCK_FINANCIAL_SCHEMA
+                        elif (
+                            provider_id == "baostock"
+                            and query.capability == "financials"
+                            and query.parameters.get("statements") == ["cash_flow"]
+                        ):
+                            required_contract = CASH_FLOW_SCHEMA
                         elif provider_id == "bea_archive":
                             required_contract = BEA_ARCHIVE_SCHEMA
                         elif (

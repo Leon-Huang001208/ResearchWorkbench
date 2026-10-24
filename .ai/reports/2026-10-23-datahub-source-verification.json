@@ -217,7 +217,8 @@
       "source_count_increment": 0,
       "all_other_source_entries_unchanged": true,
       "git_diagnostic_readonly": true
-    }
+    },
+    "finance_flows_iteration": "2026-10-24 source-native cashflow and guest snapshot; zero new upstreams"
   },
   "sources": [
     {
@@ -1387,8 +1388,59 @@
           "资金流Host首次失败/空数据后，display cache未命中而重拉，被单次SDK受控脚本拒绝，后freeze空选择失败；不能把第二次受控拒绝当首次失败原因。四次direct guest分别默认/记录原响应/header/omitUT均schema失败或rc100，未入仓",
           "中国宏观CPI225/GDP83/PMI225/M0M1M2货币供应225均为SDK raw sample，各一次调用；不是完整Host或PG证据，历史发布时间和vintage未知；最新八case另有有界完整Host证据，SDK全量raw sample本身仍不认证Host",
           "最新八case仅认证回执七个dirty-tree源码哈希；后续源码变动和最终候选CI未验证，不能提升为最终交付或部署PASS",
-          "最终候选八case另绑定final-candidate-numeric-host-real/receipt：Root10源码map与worker7源码map逐项相容，二者aggregate范围不同；不能将旧final-numeric的3个不同源码哈希复用为最终证据"
-        ]
+          "最终候选八case另绑定final-candidate-numeric-host-real/receipt：Root10源码map与worker7源码map逐项相容，二者aggregate范围不同；不能将旧final-numeric的3个不同源码哈希复用为最终证据",
+          "2026-10-24限定新增样本原生快照；未知尺度/定义、累计口径和历史PIT不提升，既有证据按原范围保留。"
+        ],
+        "latest_fund_flow_warehouse_acceptance": {
+          "status": "PASS",
+          "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-finance-flows-20261024/logs/real-fundflow-owned-v2/receipt.json",
+          "sha256": "eeb7684eb3c297e18062228ca4971147dd121cf23705fcc7d19ef010c090c783",
+          "execution_head": "3b2c4231aa6e7f94ce74b89053f715059b63e570",
+          "duration_seconds": 6.5,
+          "sdk_workers": 1,
+          "source_helper_hash_count": 286,
+          "source_helpers_unchanged": true,
+          "three_process_pids": [
+            62750,
+            62779,
+            62782
+          ],
+          "actual_pg_restart_read": true,
+          "independent_empty_database_restore": true,
+          "cleanup": {
+            "pg_stopped": true,
+            "pgdata_removed": true
+          },
+          "historical_point_in_time": false,
+          "formal_backtest_eligible": false,
+          "underlying_network_operations": "unknown_unmeasured",
+          "scope": {
+            "rows": 1,
+            "asset": "600600.SH",
+            "min_date": "2026-10-23",
+            "max_date": "2026-10-23",
+            "coverage": "unknown_snapshot_only",
+            "unit": "unverified",
+            "transport": "webguest",
+            "upstream_attempts": [
+              {
+                "upstream": "eastmoney",
+                "endpoint": "akshare_sdk",
+                "status": "failed"
+              },
+              {
+                "upstream": "eastmoney",
+                "endpoint": "webguest",
+                "status": "snapshot"
+              }
+            ]
+          },
+          "http_submissions": 2,
+          "sdk_transport_error": "ProxyError",
+          "helper_guard_rejections": [],
+          "transport_instrumented": false,
+          "independent_source": false
+        }
       }
     },
     {
@@ -1506,7 +1558,8 @@
           "canonical顶层attempted_sources空，但输入manifest保留完整候选和两条执行记录",
           "历史首次12秒超时与旧2行摘要保留，不覆盖为本次成功",
           "真实临时Host/Memory独立配置，未部署",
-          "两轮Bao分别绑定5cda与bc456产品字节；第二轮因3源修复而重验，不覆盖首次证据，不证明真实Wind或完整仓PG"
+          "两轮Bao分别绑定5cda与bc456产品字节；第二轮因3源修复而重验，不覆盖首次证据，不证明真实Wind或完整仓PG",
+          "2026-10-24限定新增样本原生快照；未知尺度/定义、累计口径和历史PIT不提升，既有证据按原范围保留。"
         ],
         "facts": {
           "source_git_head": "bc4562f45d714bf863314f8642ce852562513ba0",
@@ -1600,6 +1653,39 @@
           "temporary_root_removed": true,
           "port_18997_reuseaddr": "PASS",
           "browser_tab9_closed": true
+        },
+        "latest_cash_flow_warehouse_acceptance": {
+          "status": "PASS",
+          "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-finance-flows-20261024/logs/real-cashflow/receipt.json",
+          "sha256": "2e6a9dc4bfbe5ac63f20670a99188cd9a8518a551ba2e516f72fd608eb07af2a",
+          "execution_head": "0ae2c55a4c043b14c20c38f157b04e9f1a5c8c79",
+          "duration_seconds": 4.746,
+          "sdk_workers": 1,
+          "source_helper_hash_count": 287,
+          "source_helpers_unchanged": true,
+          "three_process_pids": [
+            25939,
+            26168,
+            26172
+          ],
+          "actual_pg_restart_read": true,
+          "independent_empty_database_restore": true,
+          "cleanup": {
+            "pg_stopped": true,
+            "pgdata_removed": true
+          },
+          "historical_point_in_time": false,
+          "formal_backtest_eligible": false,
+          "underlying_network_operations": "unknown_unmeasured",
+          "scope": {
+            "asset": "600600.SH",
+            "report_period": "2026-06-30",
+            "rows": 1,
+            "fields": 7,
+            "known_numeric": 6,
+            "source_null": 1,
+            "scale": "unverified"
+          }
         }
       }
     },
@@ -7301,71 +7387,9 @@
   ],
   "changed_observation_source_ids": [
     "akshare",
-    "baostock",
-    "bing",
-    "chinastock",
-    "cls",
-    "cninfo",
-    "cnstock_flash",
-    "cnstock_news",
-    "csindex",
-    "eastmoney_fund",
-    "ext_aihot",
-    "ext_atlantafed",
-    "ext_bls",
-    "ext_cboe",
-    "ext_cftc",
-    "ext_cicc",
-    "ext_cls",
-    "ext_coindesk",
-    "ext_cointelegraph",
-    "ext_csindex",
-    "ext_danjuan",
-    "ext_daole",
-    "ext_datahub_gold",
-    "ext_eastmoney",
-    "ext_etfrun",
-    "ext_fed",
-    "ext_forexfactory",
-    "ext_fred",
-    "ext_funddb",
-    "ext_google_news",
-    "ext_jin10",
-    "ext_kapsarc",
-    "ext_lbma",
-    "ext_moex",
-    "ext_morningstar",
-    "ext_nasdaq",
-    "ext_nyfed",
-    "ext_realfund",
-    "ext_reddit",
-    "ext_registry",
-    "ext_reuters_rss",
-    "ext_sina",
-    "ext_spdr",
-    "ext_tencent",
-    "ext_ths",
-    "ext_tikhub",
-    "ext_tradingview",
-    "ext_treasury",
-    "ext_wallstreetcn",
-    "ext_wgc",
-    "ext_worldbank",
-    "ext_yahoo",
-    "ifind",
-    "local_cache",
-    "mysql",
-    "szse",
-    "tavily",
-    "tinysoft",
-    "tushare",
-    "wind",
-    "yahoo",
-    "zhiqiu_reports",
-    "zhiqiu_transcript",
-    "zhiqiu_wechat"
+    "baostock"
   ],
-  "not_rechecked_count": 0,
+  "not_rechecked_count": 62,
   "overall_status": "remaining57_reconciled_partial_bounded_data_and_owned_pg_native_verified_not_all_available_not_deployed",
   "review": {
     "evidence_files_hash_checked": 30,
