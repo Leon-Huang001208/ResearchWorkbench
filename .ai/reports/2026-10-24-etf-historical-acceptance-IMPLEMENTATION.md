@@ -1,5 +1,7 @@
 # 华安 ETF 周报独立历史验收实现
 
+首轮组合CI（40046249178）实际5369 passed、71 skipped、115 subtests，唯一失败为新增API测试隐式读取系统Keyring。导入NativeFixture类不会自动注册原模块的autouse凭据夹具；Mac本机可用Keychain掩盖了这个测试隔离缺口，Ubuntu正确以credential_store_unavailable拒绝。以任务进程PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring真实复现1 failed（2.50秒），随后显式复用原isolated_keyring内存夹具，保持全部路由断言及真实产品凭据拒绝策略不变。修复只改测试与本报告，不改产品、依赖、CI清单或固定P2；原失败日志保存在私有验收证据目录，修复候选及新CI另行绑定。 修复后同一不可用Keyring进程条件下历史32项与原集成24项共56 passed（41.02秒），没有接触宿主Keychain；完整green日志与XML在logs/etf-historical/keyring-green.*。
+
 主任务产品冻结记录：14文件广回归在可见性封闭修复后504 passed，164.87秒；最后仅增加类型注解，原函数逆替换字节相同，历史/renderer另49项复验通过。9组JS合同241 passed；独立规格/代码质量均批准最终17文件清单e2cbbe73afb1750291c65c7304c3b9ef26392689267f1fb0628e0deb13e8cad4，独立mypy9应用文件通过。完整改动集项目约束、文档/架构初检通过，最终组合候选/CI另行绑定。第一次广回归的11个spawn失败确因主任务stdin入口，实际main runner重跑原workflows60 passed，原始失败保留。
 
 09/10图已真实生成并通过showcase9项/0几何错误/0警告及四视口包含检查；已查看两图最小/最大视口明暗共8截图。09时序默认全景标注偏小，视觉复核明确记录需放大阅读，不宣称每条初屏文字舒适可读。API inventory现399条声明/396唯一操作，阅读页由正式构建器生成；实际产物回执原样同步，没有改写哈希来认证旧图。

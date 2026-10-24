@@ -5,10 +5,13 @@ from datetime import datetime
 
 import pytest
 from test_datahub_wind_excel_weekly import Client, package
+from test_report_workflow_integration import isolated_keyring
 
 from app.research_web.datahub import providers_wind_excel_weekly as excel_provider
 from app.research_web.datahub.providers_wind_excel_weekly import WindExcelWeeklyProvider
 from app.research_web.report_workflows.weekly_data import assess_weekly_snapshot
+
+__all__ = ["isolated_keyring"]
 
 
 def test_explicit_historical_provider_rechecks_without_formal_eligibility(tmp_path, monkeypatch):
