@@ -5,7 +5,7 @@
 ## 变更边界
 
 - 仅修改 `research_workbench_entrypoint/resident/model_provider_upgrade.py`、原操作员测试和本报告；其他产品、依赖、CI、旧 profile 常量与恢复哈希均不由本子任务修改。
-- 新封闭命令 `apply-etf-weekly-admission`，mode `reviewed-etf-weekly-admission-v1`；前版固定 `36fd990ceed88d2fc595443926105c4b2601fbf6`。完整产品祖先从历史 P5 `82151bc2708d60c7abb1d38b686a3e368e42f812` 推进至普通 merge P6 `88b2f96d449085cae01912393a416b0e90a21083`，纳入上游 PR227 数据出处/单位核验及其 Checks 清单。保留 v9 完整 16MiB job reader 哈希与 web.lock 身份；PREVIOUS、action 封印及旧 modes 不变。
+- 新封闭命令 `apply-etf-weekly-admission`，mode `reviewed-etf-weekly-admission-v1`；前版固定 `36fd990ceed88d2fc595443926105c4b2601fbf6`。当前完整产品祖先固定普通 merge P7 `63583746e6bccc201e29f622063307f8d4333bc1`，包含上游 PR227 数据出处/单位核验及用户明确批准的 PR229 Wind 字段顺序/单位/均价红绿。历史 P5 `82151bc2708d60c7abb1d38b686a3e368e42f812`、P6 `88b2f96d449085cae01912393a416b0e90a21083` 及其旧证据保留。保留 v9 完整 16MiB job reader 哈希与 web.lock 身份；PREVIOUS、action 封印及旧 modes 不变。
 - 同时要求 `--end-weekly-waiting` 与 `--weekly-monitoring-action`；旧命令收到任一新 flag 明确拒绝。封印只含固定 canonical SHA256，不写入真实 owner 或运行身份。
 - 在原三把 EX 锁、source/latest master/CI/controller/current revision/恢复工件门之后、第一次原 `Operations.idle` 之前，单独执行领域维护。原 background/market/asset、全账号保全、BirthFence 和 version4 恢复门全部保留。
 
@@ -59,3 +59,9 @@ prepared integration `462ea81495648268e7360382e7e0ae4621d5779b` 的实际 scope 
 ## 最终prepared候选自身验证
 
 主会话从候选519458a6725d029757fb845b15cdedc3d70e5958自身源码运行完整操作员及领域测试：2338 passed、1既有warning、134.96秒，integration日志final-candidate-native.log/xml；该源码已包含最终生成文档精确例外。其自身真实Git范围审查106路径通过，源码operator be2e2e07…匹配候选。仅源范围与离线测试，不是executor/CI/生产维护或部署通过；最终发布身份另由私有交付回执绑定。
+
+## P7 最终批准范围
+
+主任务普通合并用户明确批准的 PR229 后，冻结 P7 `63583746e6bccc201e29f622063307f8d4333bc1`。本子任务仅修改新 mode 的产品 pin，不改 previous、action SHA、旧 modes、两生成 HTML 精确 `100644` 例外或两轮 P2 修复。新增三个 UI 模块、Root README 和五个上游 JS 测试进入真实 Git 冻结矩阵：逐文件 content/mode/deletion 均须拒绝，其他 README/tests 不获宽豁免。原 P6 后端和 CI 冻结用例继续保留。
+
+P7 pin RED：1 failed，见 `logs/weekly-admission/native-bridge-p7-red.log`。最终源 SHA256：operator `18a846bb1eb8ebb053c9cb6a384f2d053ce7d2a4dd585793219f9977c74eb754`；test `f1cbc8419863198d0c7b2684c621c5611d11245033a72b594f56163e079f90d8`。Black/Ruff/isort/diffcheck 通过。P7 冻结定点 **58 passed**，40.50 秒，见 `logs/weekly-admission/native-bridge-p7-green.log`；包含 P7、两轮 P2 与两个生成 HTML 精确例外的最终完整 operator＋领域矩阵 **2365 passed**，1 个既有 Starlette DeprecationWarning，167.90 秒，见 `logs/weekly-admission/native-bridge-p7-full-matrix.log`。上游五 JS、后端字节与最终规格/质量重绑由主任务分别取证；本轮未重复 API、未提交、未触生产。
