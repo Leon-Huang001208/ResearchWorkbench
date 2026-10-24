@@ -1,4 +1,4 @@
-"""Closed anonymous BaoStock adapter; SH/SZ bars and quarterly profitability."""
+"""Closed BaoStock adapter; SH/SZ bars and reviewed quarterly financial ratios."""
 
 from __future__ import annotations
 
@@ -65,7 +65,10 @@ def _bounds(parameters):
 def validate_supported_query(query: BusinessQuery):
     parameters = query.parameters
     if query.capability == "financials":
-        _financial_period(query)
+        statement = (
+            "cash_flow" if parameters.get("statements") == ["cash_flow"] else "profitability"
+        )
+        _financial_period(query, statement=statement)
     elif query.capability == "market_bars":
         _asset(parameters.get("asset"))
         if parameters.get("asset_type", "stock") != "stock":
@@ -104,14 +107,15 @@ def _financial_date(value) -> str:
     return value
 
 
-def _financial_period(query: BusinessQuery) -> str:
+def _financial_period(query: BusinessQuery, *, statement: str = "profitability") -> str:
     parameters = query.parameters
     if (
         query.source not in {"auto", "baostock"}
         or query.as_of is not None
         or query.purpose == "backtest"
         or set(parameters) != {"asset", "statements", "periods"}
-        or parameters.get("statements") != ["profitability"]
+        or parameters.get("statements") != [statement]
+        or (statement == "cash_flow" and query.required_semantics is not None)
     ):
         raise ProviderError("data_not_equivalent")
     _asset(parameters.get("asset"))
@@ -242,6 +246,59 @@ def _profitability(query: BusinessQuery, sdk) -> Result:
     )
 
 
+def _cash_flow(query: BusinessQuery, sdk) -> Result:
+    from .providers_baostock_cashflow import (
+        CASH_FLOW_FIELDS,
+        cash_flow_fields,
+        cash_flow_metadata,
+        cash_flow_projection,
+    )
+
+    period = _financial_period(query, statement="cash_flow")
+    try:
+        records = _records(
+            sdk.query_cash_flow_data(
+                code=_asset(query.parameters["asset"]),
+                year=int(period[:4]),
+                quarter=int(period[5:7]) // 3,
+            ),
+            CASH_FLOW_FIELDS.split(","),
+        )
+        raw = json.dumps(records, ensure_ascii=False).encode()
+    except ProviderError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - redact unstable vendor diagnostics.
+        log.warning("baostock_cash_flow_failed", error_type=type(exc).__name__)
+        raise ProviderError("vendor_unreachable") from None
+    rows, missing = cash_flow_projection(raw, query.parameters["asset"], period)
+    limitations = [
+        "historical_vintage_unverified",
+        "reporting_basis_unverified",
+        "现金流比率不是现金流量表金额或个股资金流；比例尺度未校准，未作换算。",
+        "季度末不证明单季或累计口径；披露自然日不证明历史当时可得。",
+    ]
+    limitations.extend(
+        f"source_missing:{key}" for key in cash_flow_fields() if rows and rows[0][key] is None
+    )
+    if not rows:
+        limitations.append("coverage_unknown")
+    log.info("baostock_cash_flow_completed", rows=len(rows), partial=bool(missing))
+    return Result(
+        rows=rows,
+        raw=[raw],
+        source_url=FINANCIAL_DICTIONARY,
+        provider_id="baostock",
+        status=("partial" if missing else "complete") if rows else "empty",
+        provider_total=len(rows),
+        pages_fetched=1,
+        pagination_complete=True,
+        fields=cash_flow_fields(),
+        missing=missing,
+        limitations=limitations,
+        metadata=cash_flow_metadata(),
+    )
+
+
 def invoke(query: BusinessQuery, *, sdk=None) -> Result:
     validate_supported_query(query)
     owned = sdk is None
@@ -260,6 +317,8 @@ def invoke(query: BusinessQuery, *, sdk=None) -> Result:
             logged_in = True
         parameters = query.parameters
         if query.capability == "financials":
+            if parameters.get("statements") == ["cash_flow"]:
+                return _cash_flow(query, sdk)
             return _profitability(query, sdk)
         if query.capability == "market_bars":
             code = _asset(parameters["asset"])

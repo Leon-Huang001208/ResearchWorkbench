@@ -18,6 +18,11 @@ from .providers import MAX_QUERY_BYTES, ProviderError, Result
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_DICTIONARY, FINANCIAL_DICTIONARY_SHA256
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
+from .providers_baostock_cashflow import (
+    cash_flow_fields,
+    cash_flow_metadata,
+    cash_flow_projection,
+)
 from .providers_external import (
     OFFICIAL_NUMERIC,
     OFFICIAL_NUMERIC_CONTRACT,
@@ -78,6 +83,8 @@ METADATA_KEYS = frozenset(
         "adjustment_contract",
         "field_dictionary_evidence",
         "projection_scope",
+        "reporting_basis",
+        "statement",
         "schema_version",
         "units",
         "currency",
@@ -110,6 +117,38 @@ START = date(1970, 1, 1)
 NAV_SEMANTIC_GAPS = frozenset(
     {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
 )
+
+
+def _complete_cash_flow_snapshot(query: BusinessQuery, result: Result) -> bool:
+    """Bind native financial ratios to their SDK original, never to market fund flow."""
+    if (
+        set(query.parameters) != {"asset", "statements", "periods"}
+        or query.parameters.get("statements") != ["cash_flow"]
+        or not isinstance(query.parameters.get("periods"), list)
+        or len(query.parameters["periods"]) != 1
+        or result.provider_id != "baostock"
+        or result.status != "complete"
+        or result.pagination_complete is not True
+        or type(result.provider_total) is not int
+        or result.provider_total != 1
+        or len(result.rows) != 1
+        or len(result.raw) != 1
+        or result.missing
+        or canonical({key: result.metadata.get(key) for key in cash_flow_metadata()})
+        != canonical(cash_flow_metadata())
+    ):
+        return False
+    try:
+        rows, missing = cash_flow_projection(
+            result.raw[0], query.parameters["asset"], query.parameters["periods"][0]
+        )
+        return (
+            not missing
+            and canonical(result.rows) == canonical(rows)
+            and canonical(result.fields) == canonical(cash_flow_fields())
+        )
+    except (ProviderError, MarketStoreError, TypeError, ValueError, KeyError):
+        return False
 
 
 def _complete_kapsarc_snapshot(result: Result) -> bool:
@@ -451,6 +490,14 @@ class SnapshotSeries:
         with self._lock:
             # Even rejected/empty outcomes recheck current read entitlement.
             previous = self._facts(dataset, None)
+            if (
+                query.capability == "financials"
+                and self.scope.source == "baostock"
+                and query.parameters.get("statements") == ["cash_flow"]
+                and not _complete_cash_flow_snapshot(query, result)
+            ):
+                log.info("research_snapshot_not_ingested", reason="cash_flow_contract_incomplete")
+                return None
             if self.scope.source == "akshare":
                 required_contract = (
                     SINA_FINANCIAL_SCHEMA

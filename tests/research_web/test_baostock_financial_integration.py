@@ -29,7 +29,7 @@ def test_catalog_declares_distinct_bounded_baostock_financial_dataset():
         if item["source_id"] == "baostock" and item["capability_id"] == "financials"
     )
     assert binding["implemented"] is True
-    assert binding["datasets"] == ["quarterly_profitability"]
+    assert binding["datasets"] == ["quarterly_profitability", "quarterly_cash_flow_ratios"]
     assert binding["semantics"]["quarterly_profitability"]["historical_point_in_time"] is False
 
 
