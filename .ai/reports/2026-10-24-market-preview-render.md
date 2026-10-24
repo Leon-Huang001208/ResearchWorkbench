@@ -12,3 +12,7 @@
 - 真实浏览器复测：仅在本任务独立认证标签临时覆盖`/static/market-terminal.mjs`为候选文件，后端API保持真实。有效CSV预览、修改现金使旧预览失效、重新预览全部完成；复现路径控制台0 errors/0 warnings。随后撤除该单资产覆盖并重载，页面仍“未载入持仓”，未点击确认保存。该证据验证候选前端对真实后端的行为，不代表常驻修复部署；原线上异常日志保留。
 - 待完成：完整 Router、同候选原三CI/macOS干净安装、发布及当前常驻版本兼容的部署判断。
 - 真实验收原件位于主工作区 `output/playwright/market-terminal-20261024/`，窄屏、板块同批对账及 CSV 导入与新修复的部署状态分别记录。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","diagrams":[],"reason":"仅令现有组合编辑通知幂等，浏览器、Host MarketService、账号缓存与唯一DSH的节点、数据流、接口和持久合同不变；原13号市场图及架构开发映射准确，无须为同值事件增加节点。"} -->
+
+完整 Router 初次在文档约束门拒绝：要求复核 README 回执及 UI、外观、框架、周报模块文档。失败日志保留；补齐这些原文档的行为及不变边界后，按完整 changed set 重新规划，不减少所选验收门。
