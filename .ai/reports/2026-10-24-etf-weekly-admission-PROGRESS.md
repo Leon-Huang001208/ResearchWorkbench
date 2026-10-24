@@ -12,6 +12,8 @@
 
 ## 本地实现与边界
 
+发布排序：最终prepared候选`519458a6725d029757fb845b15cdedc3d70e5958`已用其自身operator通过真实106文件范围检查，未调用action；该候选完整Native/领域再跑2338 passed、1既有warning、134.96秒。协调任务随后更正：纯文档PR230排在runtime切换后，不作为本候选前置，当前仍按53d基线发布，不等待230。PR229资产读数为额外业务改动，不在P6冻结或当前具体授权内，请统一窗口协调业务源码稳定；本任务不会静默扩payload或先行部署。PR228仍按协调要求留切换后，不作为本候选前置。
+
 生成文档delta已获规格与质量独立APPROVED：最终operator `be2e2e070dab9ebc04c3072bc8135c229decbe4d473bca46a8aabd2738c5268d`、test `ba913e4e677ec0bf6e23b882d9a3365b022a0f421071c4aa81e2ba3659ceb6d3`，源码提交`a59b533714ae3003377a2fa2f374664be0386128`，P6/前版/action不变。两份HTML严格100644，其它输出/品牌/SVG/业务与CI继续冻结；9realGit反例独立各9项通过，实现方195weekly定点通过。2329全套仍明确是此前40ee/546a源基线，不假称当前源码全套已跑；最终CI将跑完整当前候选。旧prepared462的106文件scope GREEN由新函数验证，只说明范围逻辑，不能认证其旧executor。正在整合新的prepared候选并由其自身源码再验真实范围后才发布。
 
 供统一窗口核对授权：截至当前，尚无针对封印action `7cbd0ba4…` 和P6新增组合的具体人类执行批准，旧fc96/dee0的批准不替代本次。其它新封闭v2若复用本bridge，仍须在其operate原三锁与完整源码/CI/恢复资格之后、原idle之前，仅显式paired flags触发；需重新核对mode/封印/intent/receipt/recovery绑定、CLI无flag拒绝、独评和同候选CI。本文不授予该v2维护或部署权限，也不允许独立调用内部函数绕开外锁。统一窗口协调任务持有最终候选确认，本任务不独立apply、不在窗口发历史模型。
