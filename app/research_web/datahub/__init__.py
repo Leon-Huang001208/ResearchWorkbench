@@ -39,6 +39,7 @@ from .providers_external import (
     OFFICIAL_NUMERIC_CONTRACT,
     SPDR_NUMERIC_CONTRACT,
 )
+from .providers_kapsarc import KAPSARC_NUMERIC_CONTRACT
 from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT
 from .reliability import TOTAL_DEADLINE, CircuitBreaker, execute, failure_code
 from .security import load_control
@@ -1672,6 +1673,8 @@ class DataHub:
                         and query.capability == "external_data"
                         and (candidate.get("provider"), query.parameters.get("dataset"))
                         in EXTERNAL_ENVELOPES
+                        and (candidate.get("provider"), query.parameters.get("dataset"))
+                        != ("ext_kapsarc", "production")
                         and candidate.get("provider_metadata", {}).get("schema_version")
                         != EXTERNAL_ENVELOPE_CONTRACT
                     ):
@@ -1722,6 +1725,12 @@ class DataHub:
                             and query.parameters.get("dataset") in WGC_DATASETS
                         ):
                             required_contract = WGC_NUMERIC_CONTRACT
+                        elif (
+                            provider_id == "ext_kapsarc"
+                            and query.capability == "external_data"
+                            and query.parameters.get("dataset") == "production"
+                        ):
+                            required_contract = KAPSARC_NUMERIC_CONTRACT
                         elif provider_id == "akshare":
                             if query.capability == "financials" and query.parameters.get(
                                 "statements"

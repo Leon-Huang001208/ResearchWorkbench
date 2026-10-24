@@ -106,6 +106,7 @@ def test_wgc_holdings_and_flows_restore_separately_without_invented_pit():
         captured = series.read(display)
         assert captured.rows == original.rows and captured.fields == original.fields
         assert captured.metadata["historical_point_in_time"] is False
+        assert captured.metadata["projection_scope"] == "monthly_tonnes_four_regions"
         assert captured.metadata["formal_backtest_eligible"] is False
         frozen = service.freeze(
             "alice", scope, series.dataset(request), date(1970, 1, 1), date(1970, 1, 1)
