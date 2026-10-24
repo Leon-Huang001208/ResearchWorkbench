@@ -306,3 +306,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24公开SDK代理与宏观/新浪原件绑定v2仅向原Checks同一pytest步骤加入test_ak_native_binding，公开worker既有模块增无网络子进程回归；不加job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实3worker/最多4HTTP和隔离PG仅本机。原三CI及同候选macos-14安装保留，远端前实时核对PUBLIC，不手工rerun或由Mac派发其他平台产品。
+
+
+2026-10-24原端点与参考证据只向原Checks同一pytest步骤加入test_reference_evidence，既有AK/native/financial模块补反例，无新job/runner/timeout/依赖。158项定点约秒级，预留原步骤30秒；4次诊断与后续真实免费捕获/临时PG仅本机，不在CI调用供应商/模型/正式库。原三CI、同候选macos-14安装与实时PUBLIC核对保留，不手工rerun或Mac发他平台产品dispatch。
