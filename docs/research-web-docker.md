@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+资产V8仅负责Mac Native固定更新，复用原私有池忙碌拒绝和维护锁，不改变Docker镜像、卷、构建器或20GiB缓存预算。没有Docker产品构建/发布，也不认证Windows/Linux原生支持。
+
 华安 v2 仍为Mac Native固定升级；Docker镜像、卷、构建器不变，private-pool忙碌或未知仍阻断，不创建替代执行后端。Windows/Linux原生及Docker产品验收不由该配置认证。
 
 `apply-etf-weekly`仅复用原Mac Native联合升级事务；Docker镜像、Compose、业务卷与构建器不变。原private-pool忙碌或未知仍拒绝切换，不为周报创建替代后端或绕过容量；没有Docker产品验收或部署声明，Windows/Linux交对应真机。

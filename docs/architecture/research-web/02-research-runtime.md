@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+资产V8不启动研究，后台空闲复核覆盖已上线今日发现跟踪、Automation与Workflow；原Host/Native/私有池、资产Future和市场inflight未知或活动继续拒绝。旧profile恢复身份与唯一DSH保持，不重试任何未知模型调用。
+
 华安 v2 不启动研究或模型，只新增固定升级分派；原Native/Host/私有池、真实Future及市场inflight空闲门保持，沿现有事务恢复。PR209档案运行状态继续纳入保全；周报仍经唯一DSH与Host质量门，不自动重复未知调用。
 
 华安固定Native模式不启动研究，不改DSH协议、历史或模型配置。原Host显式空闲、Native、private-pool与市场inflight检查继续约束升级；未知/忙碌不切换。实际获准更新后，周报仍经原Report Workflow冻结输入→DSH→Host质量门与确定性排版，没有第二执行链或自动模型重试。
