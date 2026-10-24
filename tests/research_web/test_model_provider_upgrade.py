@@ -2827,7 +2827,7 @@ def test_weekly_admission_frozen_successor():
         upgrade.previous_for(upgrade.ETF_WEEKLY_ADMISSION_MODE)
         == "36fd990ceed88d2fc595443926105c4b2601fbf6"
     )
-    assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "63583746e6bccc201e29f622063307f8d4333bc1"
+    assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "bacb423cea203ba0469b5c7f21bfd581408b03ef"
     assert upgrade.ETF_WEEKLY_ADMISSION_MODE in upgrade.ASSET_MODES
 
 
@@ -3602,6 +3602,7 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
         "tests/research_web/test_datahub_financial_time_contract.py",
         "tests/research_web/test_reference_evidence.py",
         "tests/research_web/test_research_snapshot_store.py",
+        "tests/research_web/test_report_weekly_historical_acceptance.py",
         "app/research_web/ui/asset-chart.mjs",
         "app/research_web/ui/asset-format.mjs",
         "app/research_web/ui/asset-workspace.mjs",
@@ -3614,7 +3615,7 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
     ],
 )
 @pytest.mark.parametrize("mutation", ["content", "mode", "deleted"])
-def test_weekly_p7_freezes_full_upstream_product_and_ci_without_new_exemptions(
+def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
     tmp_path, monkeypatch, changed, mutation
 ):
     def git(*args):
@@ -3635,6 +3636,7 @@ def test_weekly_p7_freezes_full_upstream_product_and_ci_without_new_exemptions(
         "tests/research_web/test_datahub_financial_time_contract.py",
         "tests/research_web/test_reference_evidence.py",
         "tests/research_web/test_research_snapshot_store.py",
+        "tests/research_web/test_report_weekly_historical_acceptance.py",
         "app/research_web/ui/asset-chart.mjs",
         "app/research_web/ui/asset-format.mjs",
         "app/research_web/ui/asset-workspace.mjs",
