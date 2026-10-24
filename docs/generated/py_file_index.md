@@ -4324,6 +4324,7 @@ Imports:
 - `json`
 - `math`
 - `providers`
+- `providers_reference_evidence`
 - `re`
 - `threading`
 - `time`
@@ -4395,6 +4396,8 @@ Functions:
 - `_sina_income_statement`
   - One reviewed eight-period capture inside the existing public worker.
 - `_normalize_financials`
+- `_fund_flow_failure_code`
+  - Classify SDK HTTP failures without persisting messages, URLs or proxy settings.
 - `_invoke_sdk`
 - `_fetch_probe_payload`
 - `_probe_remote`
@@ -4763,6 +4766,32 @@ Functions:
 - `_failure_code`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_reference_evidence.py`
+
+Module docstring:
+> Pinned public reference descriptors; no network access or financial cell values.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `decimal`
+- `hashlib`
+- `json`
+- `re`
+- `typing`
+
+Functions:
+- `reference_digest`
+  - Hash the complete descriptor ledger independently of runtime observations.
+- `canonical_decimal_sha256`
+  - Hash exact decimal strings or integers; binary floats cannot prove exactness.
+- `gdp_reference_evidence`
+- `sina_reference_dictionary`
+- `enrich_sina_reference`
+  - Deterministic row metadata, bound again by the shared raw snapshot parser.
 
 
 ## `app/research_web/datahub/providers_wgc.py`

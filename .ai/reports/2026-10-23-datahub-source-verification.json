@@ -219,7 +219,8 @@
       "git_diagnostic_readonly": true
     },
     "finance_flows_iteration": "2026-10-24 source-native cashflow and guest snapshot; zero new upstreams",
-    "proxy_pit_iteration": "2026-10-24 three actual native captures; proxy bypass only in public child; zero new upstreams"
+    "proxy_pit_iteration": "2026-10-24 three actual native captures; proxy bypass only in public child; zero new upstreams",
+    "origin_unit_evidence_iteration": "2026-10-24 pinned scope/unit evidence; originalSDK still noHTTPresponse; zero new independentupstreams"
   },
   "sources": [
     {
@@ -1514,6 +1515,79 @@
             "financials": "600600.SH/2026-06-30 native items; unknown units and day publication precision"
           },
           "underlying_network_operations": "unknown_unmeasured"
+        },
+        "latest_unit_reference_and_default_restore": {
+          "status": "PASS",
+          "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-origin-evidence-20261024/logs/real-origin-evidence/receipt.json",
+          "sha256": "c61610486649603db7de643655b0dc61d3c2ba528adb908abb778f1d51eac9a2",
+          "execution_head": "72167e0d6e794c8dafc4c0df323224df9d13e28b",
+          "duration_seconds": 6.074,
+          "workers": 3,
+          "http_submissions": 4,
+          "source_helper_count": 288,
+          "sources_unchanged": true,
+          "process_pids": [
+            32168,
+            32213,
+            32232
+          ],
+          "real_pg_restart_read": true,
+          "default_host_empty_database_restore": true,
+          "cleanup": {
+            "pg_stopped": true,
+            "pgdata_removed": true
+          },
+          "datasets": {
+            "fund_flow": {
+              "rows": 1,
+              "rows_sha256": "64c6b5e8847238540d0a15e4e89bab897c6cda692b37057b340a2429e779c508",
+              "fields_sha256": "50b43c348ae1a58c12be8ff06b139a1997d213f2a98b3957fa7bd3ab08b0a1db",
+              "raw_sha256": [
+                "7038c877e5cbd210d4d1b04fe6b8935af27fa2a637fa7b28adc1a46ce97278ba"
+              ],
+              "schema_identity": "datahub-provider-native-v1:4bcfdae4682b508f054174392e9a198048d33106be73da70699ef2544afac0aa:akshare-eastmoney-fund-flow-provenance-v2",
+              "units_identity": "akshare-eastmoney-fund-flow-provenance-v2",
+              "formal_backtest_eligible": false,
+              "historical_point_in_time": false
+            },
+            "gdp": {
+              "rows": 6,
+              "rows_sha256": "137d0cd6e9c0c98002165e22a4e556c43988f10aac3c4d8a36c6ad0a97c3dc09",
+              "fields_sha256": "f7a96371653cf683a3f71f7c61807718960b20ee4317c6ae049418ae6c18318c",
+              "raw_sha256": [
+                "973bd64a189ee661a9c66403213182c689e3dce365d8277a0d95325e759ec3d0"
+              ],
+              "schema_identity": "datahub-provider-native-v1:4bcfdae4682b508f054174392e9a198048d33106be73da70699ef2544afac0aa:akshare-china-macro-v3",
+              "units_identity": "akshare-china-macro-v3",
+              "formal_backtest_eligible": false,
+              "historical_point_in_time": false
+            },
+            "financials": {
+              "rows": 1,
+              "rows_sha256": "814d4af487b454d1ac3b2c1f0dde40469c5729c026202b519fe02384ca7d8219",
+              "fields_sha256": "9a3cb60e9434a29e8d000b53c08315e641f416e1effa7a7f354c6233dd8abb71",
+              "raw_sha256": [
+                "95b6ae245d3a1ceea49b7109bf9fa023ff143d93b974d6372a1b8d8302347287"
+              ],
+              "schema_identity": "datahub-provider-native-v1:4bcfdae4682b508f054174392e9a198048d33106be73da70699ef2544afac0aa:akshare-sina-financial-disclosure-v3",
+              "units_identity": "akshare-sina-financial-disclosure-v3",
+              "formal_backtest_eligible": false,
+              "historical_point_in_time": false
+            }
+          },
+          "scope": {
+            "fund_flow": "600600.SH bounded guest snapshot, SDK failure preserved",
+            "gdp": "six YTD quarters 2025Q2..2026Q3; calibrated units and price basis",
+            "financials": "600600.SH2025H1 two reference cell matches and date conflict"
+          },
+          "underlying_network_operations": "unknown_unmeasured"
+        },
+        "sdk_origin_transport_diagnostic": {
+          "summary_sha256": "533573b6ff48513f4d193295cbff83eb9b285bacd01d74174e0f8a15c8dd7235",
+          "requests": 4,
+          "responses_received": 0,
+          "cause": "undetermined_after_http_send_before_headers",
+          "origin_repaired": false
         }
       }
     },
