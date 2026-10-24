@@ -14,6 +14,10 @@ const RUN_STATUS = {
   cancelled: '已取消', skipped_overlap: '重叠跳过',
   quality_incomplete: '内容核验未通过', needs_attention: '需要核对受理状态',
 };
+const monitoringEnded = (item) => item?.monitoring_disposition === 'ended_by_user';
+const runStatus = (item) => monitoringEnded(item)
+  ? '已结束等待（模型结果仍未知）'
+  : RUN_STATUS[item?.status] || item?.status || '已记录';
 const roleName = (role) => ({ template: '模板', workbook: 'Excel 底稿', asset: '素材', mapping: '映射', validation: '校验', workflow: '流程' })[role] || role || '资源';
 const providerName = (provider) => ({ wind_excel: 'Wind Excel', ifind_excel: '同花顺 iFinD Excel' })[provider] || provider || '未知 Provider';
 const currentManifest = (detail) => list(detail?.versions).find(item => item.current)?.manifest || list(detail?.versions).at(-1)?.manifest || detail?.draft || {};
@@ -38,7 +42,7 @@ export function renderReportWorkflowShelf(items = [], { busy = false, compact = 
     const runnable = canRun(item);
     const latest = item.latest_run;
     const latestLabel = latest && typeof latest === 'object'
-      ? RUN_STATUS[latest?.status] || latest?.status || '已记录'
+      ? runStatus(latest)
       : latest ? '已记录' : '尚未运行';
     return `<article class="report-workflow-library-card ${runnable ? '' : 'unavailable'}"><header><span class="report-workflow-icon">${icon('layers')}</span><div><span class="eyebrow">REPORT WORKFLOW</span><h3>${e(item.name)}</h3></div><span class="badge ${runnable ? 'live' : 'danger'}">${e(STATUS[item.status] || item.status)}</span></header><p>${e(item.description || '该报告的模板、Excel 底稿、步骤和交付格式随版本锁定。')}</p><dl><div><dt>版本</dt><dd>${item.current_version ? `v${e(item.current_version)}` : '未发布'}</dd></div><div><dt>交付</dt><dd>${list(item.delivery_formats).map(value => String(value).toUpperCase()).join(' / ') || '未声明'}</dd></div><div><dt>数据插件</dt><dd>${list(item.providers).join('、') || '无 Excel Provider'}</dd></div><div><dt>最近运行</dt><dd>${e(latestLabel)}</dd></div></dl><div class="button-row"><button type="button" class="button small" data-report-workflow-detail="${e(item.id)}">查看模板与底稿</button><button type="button" class="button small primary" data-run-report-workflow="${e(item.id)}" ${busy || !runnable ? 'disabled' : ''}>交给 Claw 执行</button></div>${!runnable ? `<p class="small muted" role="status">${item.status === 'needs_attention' ? '模板或配置尚不完整，只能查看，不能运行。' : 'Workflow 尚未发布或已停用。'}</p>` : ''}</article>`;
   }).join('');
@@ -62,9 +66,9 @@ export function renderReportWorkflowDetail(detail, { busy = false } = {}) {
   }).join('');
   const providerRows = providers.map(item => `<li><div><strong>${e(providerName(item.id))}</strong><small>${item.integration_state === 'ready' ? '依赖已就绪' : '依赖不可用'} · ${e(item.health || 'untested')}</small></div><button class="button small" type="button" data-probe-report-provider="${e(item.id)}" ${busy || item.integration_state !== 'ready' ? 'disabled' : ''}>检测 ${e(providerName(item.id))}</button></li>`).join('');
   const runRows = runs.slice(0, 12).map(item => {
-    const active = ['queued', 'preparing_data', 'blocked_approval', 'running', 'validating'].includes(item.status);
-    const retryable = ['blocked_data', 'delivery_incomplete', 'failed', 'cancelled', 'quality_incomplete', 'needs_attention'].includes(item.status);
-    return `<li class="report-run-row"><div><strong>${e(item.id)}</strong><small>v${e(item.version)} · ${e(item.trigger)} · ${item.execution_purpose === 'historical_acceptance' ? '历史验收稿（不得作为正式定稿）' : '正式生产'} · ${e(RUN_STATUS[item.status] || item.status)}</small></div><span class="badge ${item.status === 'completed' ? 'live' : active ? '' : 'danger'}">${e(item.delivery_status || 'pending')}</span>${active ? `<button class="button small" data-cancel-report-run="${e(item.id)}">取消运行</button>` : ''}${retryable ? `<button class="button small" data-retry-report-run="${e(item.id)}">${item.status === 'needs_attention' ? '核对受理状态' : item.status === 'quality_incomplete' ? '继续核验' : '失败重试'}</button>` : ''}${renderRunEvidence(item)}</li>`;
+    const active = !monitoringEnded(item) && ['queued', 'preparing_data', 'blocked_approval', 'running', 'validating'].includes(item.status);
+    const retryable = !monitoringEnded(item) && ['blocked_data', 'delivery_incomplete', 'failed', 'cancelled', 'quality_incomplete', 'needs_attention'].includes(item.status);
+    return `<li class="report-run-row"><div><strong>${e(item.id)}</strong><small>v${e(item.version)} · ${e(item.trigger)} · ${item.execution_purpose === 'historical_acceptance' ? '历史验收稿（不得作为正式定稿）' : '正式生产'} · ${e(runStatus(item))}</small></div><span class="badge ${item.status === 'completed' ? 'live' : active ? '' : 'danger'}">${e(item.delivery_status || 'pending')}</span>${active ? `<button class="button small" data-cancel-report-run="${e(item.id)}">取消运行</button>` : ''}${retryable ? `<button class="button small" data-retry-report-run="${e(item.id)}">${item.status === 'needs_attention' ? '核对受理状态' : item.status === 'quality_incomplete' ? '继续核验' : '失败重试'}</button>` : ''}${renderRunEvidence(item)}</li>`;
   }).join('');
   const manualPassed = weeklyManualRunAccepted(detail);
   const schedule = detail.schedule?.kind === 'manual' && !detail.schedule?.enabled && detail.id === 'huaan-etf-weekly'

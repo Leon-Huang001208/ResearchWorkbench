@@ -36,6 +36,58 @@ def test_runner_contract_exists():
     assert callable(load_runner().run_script)
 
 
+@pytest.mark.parametrize("policy", [None, "unknown-policy"])
+def test_weekly_files_require_explicit_host_policy(prepared, policy):
+    module, _root, session, config = prepared
+    folder = session / "inputs/report-workflow"
+    folder.mkdir()
+    (folder / "run-context.json").write_text("{}")
+    with pytest.raises(module.SandboxError):
+        module.run_script(
+            config,
+            session,
+            "print('never')",
+            read_paths=["inputs/report-workflow/run-context.json"],
+            input_policy=policy,
+        )
+
+
+@pytest.mark.parametrize(
+    "kind", ["symlink", "hardlink", "directory", "oversize", "parent", "absolute", "backslash"]
+)
+def test_weekly_file_scope_rejects_aliases_types_and_escape(prepared, kind):
+    module, _root, session, config = prepared
+    folder = session / "inputs/report-workflow"
+    folder.mkdir()
+    source = folder / "original.json"
+    source.write_text("{}")
+    target = folder / "scope.json"
+    relative = "inputs/report-workflow/scope.json"
+    if kind == "symlink":
+        target.symlink_to(source)
+    elif kind == "hardlink":
+        os.link(source, target)
+    elif kind == "directory":
+        target.mkdir()
+    elif kind == "oversize":
+        with target.open("wb") as stream:
+            stream.truncate(32 * 1024 * 1024 + 1)
+    else:
+        relative = {
+            "parent": "inputs/report-workflow/../original.json",
+            "absolute": str(source),
+            "backslash": "inputs/report-workflow/bad\\file",
+        }[kind]
+    with pytest.raises(module.SandboxError):
+        module.run_script(
+            config,
+            session,
+            "print('never')",
+            read_paths=[relative],
+            input_policy="weekly-frozen-inputs-v1",
+        )
+
+
 @pytest.mark.skipif(sys.platform != "darwin", reason="native macOS Seatbelt evidence only")
 @pytest.mark.parametrize("name", ["ASCII spaces", "中文 空格", '中文 "引用" 空格'])
 def test_owned_unicode_paths_preserve_kernel_permissions(tmp_path, name):

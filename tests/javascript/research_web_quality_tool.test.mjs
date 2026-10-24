@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile, symlink, link, truncate } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -13,6 +13,31 @@ const token = 'a'.repeat(43);
 const admission = { status: 'available', admitted: true, missing: [], omitted_sections: [] };
 const result = (overrides = {}) => ({ status: 'passed', issues: [], repair_count: 0, may_repair: false,
   contract: { requirements: ['Compare revenue'], cutoff: '2026-10-16T00:00:00Z' }, ...overrides });
+
+test('weekly script scopes reject missing policy, escape paths, aliases and non-files before spawning', async t => {
+  const f = await fixture(t);
+  const base = join(f.cwd, 'inputs/report-workflow');
+  await mkdir(base, { recursive: true });
+  await writeFile(join(base, 'run-context.json'), '{}');
+  await writeFile(join(base, 'oversize.json'), '');
+  await truncate(join(base, 'oversize.json'), 32 * 1024 * 1024 + 1);
+  await symlink(join(base, 'run-context.json'), join(base, 'symlink.json'));
+  await link(join(base, 'run-context.json'), join(base, 'hardlink.json'));
+  const tool = f.tools.get('research_run_script');
+  for (const input_policy of [undefined, 'unknown-policy']) {
+    f.admission({ ...admission, read_paths: ['inputs/report-workflow/run-context.json'], ...(input_policy === undefined ? {} : {input_policy}) });
+    await assert.rejects(() => tool.execute({code:'print("never")'}, f.exec), /research_script_scope_unverified/);
+  }
+  for (const path of ['/outside', 'inputs/report-workflow/../outside', 'inputs/report-workflow/./run-context.json',
+    'inputs/report-workflow//run-context.json', 'inputs/report-workflow/hidden\\file',
+    'inputs/report-workflow', 'inputs/report-workflow/symlink.json', 'inputs/report-workflow/hardlink.json',
+    'inputs/report-workflow/oversize.json', 'inputs/report-workflow/run-context.json']) {
+    f.admission({ ...admission, input_policy:'weekly-frozen-inputs-v1', read_paths:[path] });
+    await assert.rejects(() => tool.execute({code:'print("never")'}, f.exec), /research_script_scope_unverified/);
+  }
+  // Model parameters cannot supply or override the Host policy.
+  await assert.rejects(() => tool.execute({code:'print("never")',input_policy:'weekly-frozen-inputs-v1'}, f.exec), /bounded code/);
+});
 
 test('dossier handles preserve Host canonical identities and forward exact bounded admission arguments', async t => {
   const handle = `dossier:${'a'.repeat(32)}:${'b'.repeat(32)}:2`;

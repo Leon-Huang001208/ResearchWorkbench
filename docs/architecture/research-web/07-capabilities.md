@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+本次不修改document-reading/company-research的缺合同拒绝，也不替它们伪造数据需求。只有Host已核验的华安Report Workflow使用私有专属准入投影；普通通用能力仍按原data_contract_missing规则拒绝。投影不是新的可选Skill或Tool，不扩大租户、MCP和来源授权。
+
 历史验收只是原华安Report Workflow的Host固定Run用途，不新增模型可选的Tool、Skill或数据源权限。专用owner入口、冻结用途、恢复幂等与标识/文件检查共用原DSH链；历史quality通过不变成正式资格或日程授权。
 
 华安 Excel 来源属于原报告 Workflow 内的私有 DataHub 分支，不新增能力包或执行引擎。仅在已有 Excel 中新建任务工作簿；创建/关闭结果未知时污染共享槽并拒绝后续调用。手工导出不认证无人值守刷新，本轮日程禁用。
