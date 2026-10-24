@@ -16,6 +16,7 @@
 - 独立Python审查已批准未提交二文件差异，独立101个新profile用例及ruff/black/mypy通过；最终SHA、完整本机Router和原三CI仍须再绑定。
 - 原四文件操作员/网关/Native/多用户闭包共2304 PASS，193.38秒，仅既有anyio警告；ruff、black、isort、mypy通过。完整19文件本机约束、架构、文档治理和Python索引预检通过，日志均在本任务logs。
 - 已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py及原Bootstrap流程：没有依赖、入口或打包改动；安装说明补充新配置，最终同候选Mac安装仍是硬门。
+- 获批PR224后在最终集成源码重跑同一四文件闭包：2304 PASS，135.49秒，原警告保留；真实Git产品预检核验固定e56d9718与36fd990c及55个受审文件，通过后才进入新operator候选CI。
 
 ## 文档和结构
 
