@@ -87,7 +87,7 @@ def weekly_enabled(manifest) -> bool:
     )
 
 
-def freeze_weekly_production(manifest, data_contract: dict) -> dict:
+def freeze_weekly_production(manifest, data_contract: dict, *, execution_purpose="formal") -> dict:
     """Freeze original block obligations and explicitly permitted news gaps."""
     if not weekly_enabled(manifest):
         raise WorkflowError("周报自动定稿策略未启用", "weekly_policy_missing", 409)
@@ -98,6 +98,7 @@ def freeze_weekly_production(manifest, data_contract: dict) -> dict:
         "cutoff": data_contract["cutoff"],
         "as_of": data_contract["cutoff"][:10],
         "data_contract": data_contract,
+        "execution_purpose": execution_purpose,
         "data_source": manifest.weekly_production.data_source,
         "news_block_ids": list(manifest.weekly_production.news_block_ids),
         "requirements": [
@@ -121,6 +122,7 @@ def trusted_weekly_context(service, sid: str) -> dict | None:
             any(run.get(key) != marker.get(key) for key in ("workflow_id", "version"))
             or run.get("id") != marker["run_id"]
             or run.get("session_id") != sid
+            or run.get("execution_purpose", "formal") != marker.get("execution_purpose", "formal")
         ):
             raise ValueError("wrong run")
         root = service.store.directory(sid)
@@ -131,9 +133,13 @@ def trusted_weekly_context(service, sid: str) -> dict | None:
             not isinstance(frozen, dict)
             or frozen.get("policy_id") != POLICY_ID
             or frozen != context.get("weekly_production")
+            or frozen.get("execution_purpose", "formal") != run.get("execution_purpose", "formal")
+            or run.get("execution_purpose", "formal") not in {"formal", "historical_acceptance"}
             or _digest(raw) != run.get("weekly_context_sha256")
         ):
             raise ValueError("changed context")
+        if run.get("execution_purpose") == "historical_acceptance":
+            service.report_workflows.runtime._require_weekly_owner(run.get("owner_id"))
         snapshot = _read(root, _SNAPSHOT)
         if _digest(snapshot) != run.get("dataset_snapshot_sha256"):
             raise ValueError("changed snapshot")
@@ -142,6 +148,8 @@ def trusted_weekly_context(service, sid: str) -> dict | None:
             "run_id": run["id"],
             "session_id": sid,
             "snapshot_sha256": _digest(snapshot),
+            "acquisition_started_at": json.loads(snapshot).get("acquisition_started_at"),
+            "frozen_at": json.loads(snapshot).get("frozen_at"),
         }
     except (OSError, ValueError, TypeError, KeyError, StoreError) as exc:
         log.warning("report_weekly_context_rejected", error_type=type(exc).__name__)
@@ -165,6 +173,7 @@ def weekly_verified_evidence(service, sid: str) -> dict | None:
             snapshot,
             frozen["data_contract"],
             require_excel_acquisition=frozen.get("data_source") == "wind_excel",
+            execution_purpose=frozen.get("execution_purpose", "formal"),
             run_root=runtime.run_path(frozen["run_id"]),
             manifest=manifest,
         )
@@ -187,6 +196,130 @@ def weekly_verified_evidence(service, sid: str) -> dict | None:
     except (ValueError, TypeError, UnicodeError, KeyError) as exc:
         log.warning("report_weekly_evidence_rejected", error_type=type(exc).__name__)
         raise WorkflowError("周报原始数据不再通过核验", "weekly_evidence_invalid", 409) from None
+
+
+def historical_notice(frozen: dict) -> str | None:
+    """Visible Host label derives from the exact frozen Run and snapshot bytes."""
+    if frozen.get("execution_purpose", "formal") != "historical_acceptance":
+        return None
+    contract = frozen["data_contract"]
+    return (
+        "历史验收稿（不得作为正式定稿）"
+        f"；报告期间：{contract['period_start']} 至 {contract['period_end']}"
+        f"；实际采集开始：{frozen['acquisition_started_at']}"
+        f"；实际冻结：{frozen['frozen_at']}。事后复核数据，不证明报告期当时可得。"
+    )
+
+
+def _verify_historical_notice(name: str, raw: bytes, notice: str | None) -> None:
+    """Accept the Host's fixed visible banner structure, never matching hidden text."""
+    if not notice or not name.endswith((".docx", ".html")):
+        return
+    visible = False
+    if name.endswith(".docx"):
+        word = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+        with zipfile.ZipFile(BytesIO(raw)) as archive:
+            document = ElementTree.fromstring(archive.read("word/document.xml"))
+        body = document.find(word + "body")
+        paragraph = body[0] if body is not None and len(body) else None
+        # render_docx inserts one unstyled main-document paragraph containing
+        # exactly one visible, bold, black 12pt run before all template content.
+        if paragraph is not None and paragraph.tag == word + "p" and len(paragraph) == 1:
+            run = paragraph[0]
+            if run.tag == word + "r" and [node.tag for node in run] == [word + "rPr", word + "t"]:
+                properties, text = run
+                expected = {word + "b", word + "vanish", word + "color", word + "sz"}
+                props = {node.tag: node for node in properties}
+                visible = (
+                    text.text == notice
+                    and len(text) == 0
+                    and len(properties) == len(expected)
+                    and set(props) == expected
+                    and props[word + "b"].get(word + "val", "1") in {"1", "true", "on"}
+                    and props[word + "vanish"].attrib == {word + "val": "0"}
+                    and props[word + "color"].attrib == {word + "val": "000000"}
+                    and props[word + "sz"].attrib == {word + "val": "24"}
+                )
+    else:
+        from lxml import etree
+        from lxml import html as html_document
+
+        # lxml is already required by python-docx and the existing Word renderer.
+        # Parse nodes so comments, deleted text and strings in scripts cannot act
+        # as a banner. The reviewed renderer emits no scripts or hiding rules.
+        try:
+            document = html_document.document_fromstring(
+                raw.decode("utf-8", errors="strict"),
+                parser=html_document.HTMLParser(no_network=True),
+            )
+            from ..report_render_script import REPORT_HTML_STYLE
+
+            # Historical HTML is a closed renderer product. Only the single
+            # trusted stylesheet and renderer-emitted element/attribute shapes
+            # are eligible; no user CSS or active elements may affect visibility.
+            nodes = list(document.iter())
+            expected_head = ["meta", "meta", "title", "style"]
+            allowed = {
+                "html",
+                "head",
+                "meta",
+                "title",
+                "style",
+                "body",
+                "aside",
+                "h1",
+                "h2",
+                "p",
+                "br",
+                "section",
+                "ul",
+                "li",
+            }
+            closed = (
+                document.tag == "html"
+                and document.attrib == {"lang": "zh-CN"}
+                and [node.tag for node in document] == ["head", "body"]
+                and all(isinstance(node.tag, str) and node.tag in allowed for node in nodes)
+            )
+            if closed:
+                head, body = document
+                styles = document.xpath("//style")
+                closed = (
+                    [node.tag for node in head] == expected_head
+                    and head.attrib == body.attrib == {}
+                    and head[0].attrib == {"charset": "utf-8"}
+                    and head[1].attrib == {"name": "viewport", "content": "width=device-width"}
+                    and len(styles) == 1
+                    and len(document.xpath("//meta")) == 2
+                    and len(document.xpath("//title")) == 1
+                    and styles[0] is head[3]
+                    and styles[0].attrib == {}
+                    and len(styles[0]) == 0
+                    and styles[0].text == REPORT_HTML_STYLE
+                    and all(
+                        (
+                            node.attrib in ({}, {"class": "meta"})
+                            if node.tag == "p"
+                            else node.attrib == {}
+                        )
+                        for node in nodes
+                        if node.tag not in {"html", "meta", "aside"}
+                    )
+                    and len(document.xpath("//aside")) == 1
+                )
+                if closed and len(body):
+                    banner = body[0]
+                    visible = (
+                        banner.tag == "aside"
+                        and banner.attrib == {"data-host-historical-acceptance": "true"}
+                        and len(banner) == 0
+                        and banner.text == notice
+                        and not (body.text or "").strip()
+                    )
+        except (ValueError, UnicodeError, etree.ParserError) as exc:
+            log.warning("report_weekly_historical_html_invalid", error_type=type(exc).__name__)
+    if not visible:
+        raise WorkflowError("历史验收稿缺少Host可见标识", "weekly_historical_label_missing", 409)
 
 
 def canonical_projection(value: dict, context: dict, binding: dict) -> dict:
@@ -291,6 +424,8 @@ def stage_weekly_projection(service, sid: str) -> dict:
         "workflow_id": WORKFLOW_ID,
         "version": frozen["version"],
         "run_id": frozen["run_id"],
+        "execution_purpose": frozen.get("execution_purpose", "formal"),
+        "historical_notice": historical_notice(frozen),
     }
     payload = canonical_projection(canonical, context, binding)
     _write(root, "outputs/report_payload.json", payload)
@@ -384,6 +519,7 @@ def bind_weekly_projection(service, sid: str, staged: dict, projection: dict) ->
             raise WorkflowError("周报产物引用无效", "weekly_artifact_invalid", 409)
         body = _read(root, relative)
         _validate_artifact(relative, body)
+        _verify_historical_notice(relative, body, historical_notice(frozen))
         artifacts.append({"name": PurePosixPath(relative).name, "sha256": _digest(body)})
     if not artifacts or len({item["name"] for item in artifacts}) != len(artifacts):
         raise WorkflowError("周报产物不完整", "weekly_artifact_missing", 409)
@@ -493,6 +629,17 @@ def verify_weekly_rendered_artifact(store, sid: str, payload: dict, kind: str, b
         if len(candidates) != 1 or candidates[0]["sha256"] != _digest(body):
             raise ValueError("weekly projection artifact changed")
         _validate_artifact(candidates[0]["name"], body)
+        context = json.loads(_read(root, _CONTEXT, limit=1_000_000))
+        frozen = context.get("weekly_production") or {}
+        snapshot = json.loads(_read(root, _SNAPSHOT))
+        frozen = {
+            **frozen,
+            "acquisition_started_at": snapshot.get("acquisition_started_at"),
+            "frozen_at": snapshot.get("frozen_at"),
+        }
+        if binding.get("execution_purpose", "formal") != frozen.get("execution_purpose", "formal"):
+            raise ValueError("weekly purpose changed")
+        _verify_historical_notice(candidates[0]["name"], body, historical_notice(frozen))
         log.info("report_weekly_render_verified", format=kind)
     except (OSError, ValueError, KeyError, TypeError, StoreError, zipfile.BadZipFile) as exc:
         log.warning("report_weekly_render_rejected", error_type=type(exc).__name__)
@@ -500,6 +647,23 @@ def verify_weekly_rendered_artifact(store, sid: str, payload: dict, kind: str, b
 
 
 def finalization_binding(service, sid: str) -> dict:
+    frozen = trusted_weekly_context(service, sid)
+    if frozen and frozen.get("execution_purpose", "formal") != "formal":
+        raise WorkflowError("历史验收稿不得正式定稿", "weekly_historical_not_formal", 409)
+    return _delivery_binding(service, sid)
+
+
+def historical_acceptance_binding(service, sid: str) -> dict:
+    frozen = trusted_weekly_context(service, sid)
+    if not frozen or frozen.get("execution_purpose") != "historical_acceptance":
+        raise WorkflowError("历史验收上下文无效", "weekly_context_invalid", 409)
+    binding = _delivery_binding(service, sid)
+    binding["historical_accepted_at"] = binding.pop("finalized_at")
+    binding["execution_purpose"] = "historical_acceptance"
+    return binding
+
+
+def _delivery_binding(service, sid: str) -> dict:
     """Fail closed unless the Host checked these exact canonical and file bytes."""
     evidence = weekly_verified_evidence(service, sid)
     session = service.store.session(sid)

@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+历史周报验收仍在主管理员绑定Native Host和唯一DSH运行，不创建Docker替代引擎、镜像、卷或构建器。原运行准入、私有池空闲及部署保全保持；历史文件交付不提升Docker产品或其他平台支持状态。
+
 华安 v2 仍为Mac Native固定升级；Docker镜像、卷、构建器不变，private-pool忙碌或未知仍阻断，不创建替代执行后端。Windows/Linux原生及Docker产品验收不由该配置认证。
 
 `apply-etf-weekly`仅复用原Mac Native联合升级事务；Docker镜像、Compose、业务卷与构建器不变。原private-pool忙碌或未知仍拒绝切换，不为周报创建替代后端或绕过容量；没有Docker产品验收或部署声明，Windows/Linux交对应真机。

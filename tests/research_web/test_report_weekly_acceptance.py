@@ -17,6 +17,7 @@ from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
+from test_report_workflow_integration import isolated_keyring
 
 from app.research_web.datahub.providers_wind_api import WindClientAPIProvider
 from app.research_web.report_workflows.evidence import prepare_weekly_evidence
@@ -36,6 +37,8 @@ from app.research_web.research_quality_service import prepare_contract
 from app.research_web.resources.research_report_plan import write_business_report_plan
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+
+__all__ = ["isolated_keyring"]
 
 
 class QuietNative:
@@ -114,9 +117,16 @@ class SyntheticSDK:
         )
 
 
-@pytest.mark.parametrize("data_source", ["wind_client_api", "wind_excel"])
+@pytest.mark.parametrize(
+    "data_source,execution_purpose",
+    [
+        ("wind_client_api", "formal"),
+        ("wind_excel", "formal"),
+        ("wind_excel", "historical_acceptance"),
+    ],
+)
 def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
-    tmp_path, monkeypatch, data_source
+    tmp_path, monkeypatch, data_source, execution_purpose
 ):
     if sys.platform != "darwin":
         pytest.skip("actual native sandbox projection is owned by the Mac acceptance task")
@@ -276,13 +286,16 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
         "run_id": run_id,
     }
     if data_source == "wind_excel":
-        session["report_workflow"].update(weekly_data_source=data_source, owner_id="owner")
+        session["report_workflow"].update(
+            weekly_data_source=data_source, owner_id="owner", execution_purpose=execution_purpose
+        )
         service.report_workflows.runtime._update_run(
             run_id,
             id=run_id,
             workflow_id=manifest.workflow_id,
             version=1,
             weekly_data_source=data_source,
+            execution_purpose=execution_purpose,
             owner_id="owner",
             session_id=sid,
         )
@@ -333,7 +346,8 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
         monkeypatch.setattr(
             providers_wind_excel_weekly,
             "_host_now",
-            lambda: datetime.fromisoformat(cutoff) + timedelta(minutes=30),
+            lambda: datetime.fromisoformat(cutoff)
+            + timedelta(minutes=30, days=1 if execution_purpose == "historical_acceptance" else 0),
         )
 
         provider = WindExcelWeeklyProvider(
@@ -341,6 +355,7 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
             manifest=manifest,
             source_contract=source_contract,
             client_factory=Client,
+            execution_purpose=execution_purpose,
         )
     collected = asyncio.run(
         service.datahub.collect_report_weekly(
@@ -365,9 +380,11 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
     snapshot = collected["snapshot"]
     raw = json.dumps(snapshot, ensure_ascii=False, indent=2).encode()
     (run_root / "snapshots" / "report-data.json").write_bytes(raw)
-    projected_books = materialize_weekly_workbooks(snapshot, run_root, manifest)
+    projected_books = materialize_weekly_workbooks(
+        snapshot, run_root, manifest, execution_purpose=execution_purpose
+    )
     session["report_workflow"]["quality_policy"] = POLICY_ID
-    frozen = freeze_weekly_production(manifest, data_contract)
+    frozen = freeze_weekly_production(manifest, data_contract, execution_purpose=execution_purpose)
     context = {
         "workflow_id": manifest.workflow_id,
         "version": 1,
@@ -399,6 +416,7 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
         session_id=sid,
         owner_id="owner",
         trigger="manual",
+        execution_purpose=execution_purpose,
         status="running",
         weekly_data_contract=data_contract,
         weekly_production=frozen,
@@ -498,9 +516,27 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
     run = runtime._run(run_id)
     assert run["quality_status"] == "passed", run
     assert run["delivery_status"] == "complete", run
-    assert run["finalization_status"] == "finalized", run
+    expected_final = (
+        "not_eligible_historical" if execution_purpose == "historical_acceptance" else "finalized"
+    )
+    assert run["finalization_status"] == expected_final, run
     assert run["finalization_binding"]["archive"]["quality_status"] == "passed"
-    assert catalog._row(manifest.workflow_id)["last_finalized_run"] == run_id
+    if execution_purpose == "historical_acceptance":
+        assert run["status"] == "historical_acceptance"
+        assert not runtime._manual_weekly_passed(manifest.workflow_id, 1)
+        assert not catalog._row(manifest.workflow_id).get("last_finalized_run")
+        from app.research_web.report_workflows.weekly_quality import (
+            finalization_binding,
+            historical_notice,
+            trusted_weekly_context,
+        )
+
+        with pytest.raises(WorkflowError, match="历史验收稿不得正式定稿"):
+            finalization_binding(service, sid)
+        label = historical_notice(trusted_weekly_context(service, sid))
+        assert label in (service.store.directory(sid) / "outputs/report.html").read_text()
+    else:
+        assert catalog._row(manifest.workflow_id)["last_finalized_run"] == run_id
     canonical = json.loads(
         (service.store.directory(sid) / "outputs" / "research-report.json").read_text()
     )
@@ -520,7 +556,7 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
             == 3
         )
         assert "OLD" not in package.read("word/document.xml").decode()
-    assert runtime.public_run(run)["finalization_status"] == "finalized"
+    assert runtime.public_run(run)["finalization_status"] == expected_final
     if data_source == "wind_excel":
         from app.research_web.report_workflows.evidence import FACTS_PATH
         from app.research_web.report_workflows.weekly_quality import weekly_verified_evidence
@@ -537,7 +573,10 @@ def test_original_quality_gate_can_finalize_a_fully_bound_weekly_report(
         snapshot_path.write_bytes(original_snapshot)
     (service.store.directory(sid) / "outputs" / "report.docx").write_bytes(b"changed")
     assert runtime.public_run(run)["finalization_status"] == "invalidated"
-    assert (
-        catalog._row(manifest.workflow_id)["last_finalized"]["binding"]["archive"]["quality_status"]
-        == "passed"
-    )
+    if execution_purpose == "formal":
+        assert (
+            catalog._row(manifest.workflow_id)["last_finalized"]["binding"]["archive"][
+                "quality_status"
+            ]
+            == "passed"
+        )

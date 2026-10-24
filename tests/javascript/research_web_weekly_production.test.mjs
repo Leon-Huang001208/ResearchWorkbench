@@ -94,3 +94,22 @@ test('explicit Excel policy displays its source and leaves API successor prepara
   assert.ok(api.includes('Wind Client API'));
   assert.ok(api.includes('data-prepare-weekly-production'));
 });
+
+test('explicit historical acceptance remains separate from current formal acceptance', async () => {
+  const { renderWeeklyProductionStatus, weeklyManualRunAccepted } = await import(moduleURL);
+  const historical = { id: 'historical', version: 4, weekly_data_source: 'wind_excel',
+    execution_purpose: 'historical_acceptance', trigger: 'manual', status: 'historical_acceptance',
+    quality_status: 'passed', delivery_status: 'complete', finalization_status: 'not_eligible_historical' };
+  const detail = { id: 'huaan-etf-weekly', current_version: 4, weekly_production: {
+    enabled: true, data_source: 'wind_excel', latest: historical }, runs: [historical] };
+  const html = renderWeeklyProductionStatus(detail);
+  const current = html.match(/<dl[^>]*data-weekly-current-acceptance[^>]*>([\s\S]*?)<\/dl>/)?.[1];
+  assert.ok(!current.includes('passed'));
+  assert.ok(html.includes('data-run-historical-report-workflow="huaan-etf-weekly"'));
+  assert.ok(html.includes('历史验收稿（不得作为正式定稿）'));
+  assert.equal(weeklyManualRunAccepted(detail), false);
+  // Even a dishonest passed/finalized row cannot contribute a historical run.
+  Object.assign(historical, { status: 'completed', finalization_status: 'finalized' });
+  detail.weekly_production.data_source = 'wind_client_api';
+  assert.equal(weeklyManualRunAccepted(detail), false);
+});

@@ -1,5 +1,13 @@
 # Mac mini 空私有池网关升级
 
+## 华安历史验收固定部署（2026-10-24）
+
+`reviewed-etf-historical-v1` / `apply-etf-historical` 仅为明确批准的历史验收功能准备封闭更新。前版固定现场主实例/网关 `b438447071d08eec38902b2a50610644283885f9`，产品固定提交 `bb4d2e657872ecb24df5bb0e89f571b4600b84d1`。该产品提交包含全部功能、测试、CI清单、09/10图与API文档，随后仅追加操作员/测试/文档；它随最终同一PR普通merge进入master，不宣称具有单独产品PR或CI回执。
+
+最终目标仍须为最新已合并master，保留产品祖先和完整路径并集/blob/文件模式校验；不能squash或rebase丢失产品身份。最终完整候选重新独评及原三CI，成功job各自checkout/tree相同后，才可按另行明确部署授权执行。产品提交之后的非豁免产品变动必须重新冻结验证，不能靠扩大白名单或放宽latest解决。
+
+复用原version4事务、维护锁、BirthFence、64MiB严格业务读取、全部账号/档案保全恢复、完整日志reader5c3077及市场/Host/Native/私有池空闲检查；旧模式、controller/evidence、7c631d4f锁和凭据保持。忙碌或未知不切换，不停止其他任务。部署本身不发Wind/模型或创建报告，不启用周报定时；历史真实Run、Word和下载验收单独取证。
+
 ## 全市场终端固定部署（2026-10-23）
 
 `reviewed-market-terminal-v1`／`apply-market-terminal`固定前版

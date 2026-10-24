@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+周报Run.execution_purpose默认formal，专用历史入口由Host固定historical_acceptance并冻结绑定。去重、retry/recovery保持原用途及会话；未知模型提交不重新发送。历史用途继续通过同一DSH和质量门，完成状态historical_acceptance/不可正式定稿与文件状态分开，不能满足manual finalized门；原序列图的Host内部状态抽象仍准确。
+
 华安 v2 不启动研究或模型，只新增固定升级分派；原Native/Host/私有池、真实Future及市场inflight空闲门保持，沿现有事务恢复。PR209档案运行状态继续纳入保全；周报仍经唯一DSH与Host质量门，不自动重复未知调用。
 
 华安固定Native模式不启动研究，不改DSH协议、历史或模型配置。原Host显式空闲、Native、private-pool与市场inflight检查继续约束升级；未知/忙碌不切换。实际获准更新后，周报仍经原Report Workflow冻结输入→DSH→Host质量门与确定性排版，没有第二执行链或自动模型重试。

@@ -438,6 +438,7 @@ def _runtime_fixture(
     revoke_during_collection=False,
     unknown_send=False,
     native_accept=False,
+    data_source="wind_client_api",
 ):
     from app.research_web.report_workflows.catalog import ReportWorkflowService
     from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
@@ -445,7 +446,7 @@ def _runtime_fixture(
 
     contract = {"cutoff": "2026-10-16T15:30:00+08:00"}
 
-    def materialize(_snapshot, root, _manifest):
+    def materialize(_snapshot, root, _manifest, **_policy):
         return {"snapshot_sha256": _digest((root / "snapshots" / "report-data.json").read_bytes())}
 
     monkeypatch.setitem(
@@ -457,7 +458,9 @@ def _runtime_fixture(
         ),
     )
     catalog = ReportWorkflowService(tmp_path / "catalog")
-    manifest = ReportWorkflowManifest.model_validate(_manifest())
+    declaration = _manifest()
+    declaration["weekly_production"]["data_source"] = data_source
+    manifest = ReportWorkflowManifest.model_validate(declaration)
     catalog.create_draft(manifest)
     catalog.create_version(manifest.workflow_id)
     catalog.publish_version(manifest.workflow_id, 1)

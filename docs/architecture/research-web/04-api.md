@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`POST /api/research/report-workflows/{workflow_id}/historical-acceptance-runs` 只为已发布华安Wind Excel周报创建非正式验收Run，重查当前绑定主管理员资格；普通`/runs`默认formal。用途由Host固定并冻结，不接受模型或snapshot字段提升；重试/恢复保持，未知提交不得重复。该入口不修改正式稿和日程权限。
+
 资产图表“幅”合并显示复用既有历史响应，不新增 HTTP、查询参数或字段，不修改观察/历史任务与冻结合同；百分比及价差继续在前端按上一同周期收盘计算。
 
 `apply-etf-weekly-v2` 为封闭操作员CLI分派，前版5343e18d、组合产品56709a8d，不新增HTTP、账号权限或任意目标参数。v1入口保留；新增产品须在最终验证后明确授权部署，周报日程关闭。
