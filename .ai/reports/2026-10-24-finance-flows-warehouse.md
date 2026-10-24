@@ -10,3 +10,8 @@ macOS Web 功能开发，使用独立 worktree 和隔离临时库。现有服务
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"仅扩展既有BaoStock公开worker财务数据集及原生仓准入；Host、Broker、Provider、可选研究仓节点和边不变，没有新HTTP、数据库表、服务或依赖。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks同一Python步骤增加两离线模块，保留既有三CI和同候选MacBootstrap，不新增job、runner或验收拓扑。","diagrams":[]} -->
+
+
+## 实际现金流验收
+
+源码`0ae2c55a4c043b14c20c38f157b04e9f1a5c8c79`，4.746秒PASS：一次真实Bao公开worker，三个独立Python进程，默认Host/ResearchWarehouse/真实psycopg和独立socket-only PG18.3。600600.SH、2026-06-30，1行七项财务比例，其中6个有数值、1个来源空值；pubDate自然日精度保留，不冒充可得时刻。真实停启PG后新进程零供应商执行读回；另一空库恢复并核对rows/fields/原件哈希。287份源码/helper哈希前后一致，SDK/PG二进制另绑定。底层SDK网络次数未测量，不把一个worker写成一次网络请求。临时PG及HOME已清理；5432、现有服务、外盘不动。回执SHA256=2e6a9dc4bfbe5ac63f20670a99188cd9a8518a551ba2e516f72fd608eb07af2a。
