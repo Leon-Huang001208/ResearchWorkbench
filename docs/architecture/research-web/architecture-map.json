@@ -5254,13 +5254,20 @@
       "source": "app/research_web/dossiers/routes.py",
       "declaredPath": "/{did}/links/{lid}",
       "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/association",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/association",
+      "prefix": "/api/research/discovery"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "974a069673cb46633aafedce388821456e6f72c2"
+      "revision": "d2c4fad2628e721b61778de880af5e33738e252e"
     },
     "levels": [
       {

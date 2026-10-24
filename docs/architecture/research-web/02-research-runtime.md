@@ -2,6 +2,8 @@
 
 weekly-admission-v2将preflight/prepared/rpc_attempted/accepted/unknown分开，模型RPC前先写不可覆盖且fsync的claim。明确未RPC状态只经显式同Run/SID/key/hash恢复；已接受/未知只观察，不重发。旧协议缺sender证据只记recovery缺口、原失败/时间保持。普通研究及Automation原幂等与审批逻辑不变。
 
+`apply-market-preview` 沿原version4事务复用唯一DSH及Host状态门，先核验所有账号后台任务、工作流和市场采集空闲，再栅栏切换；未知/活动时延后。CSV预览验收不提交研究、不调用模型，原运行与恢复合同不变。
+
 资产V9只读取完整CI证据并固定reader身份，不启动DSH或研究；继承全账号跟踪/Automation/Workflow及Host/Native/市场/资产空闲拒绝，旧冻结恢复包继续使用原reader。
 
 资产V8不启动研究，后台空闲复核覆盖已上线今日发现跟踪、Automation与Workflow；原Host/Native/私有池、资产Future和市场inflight未知或活动继续拒绝。旧profile恢复身份与唯一DSH保持，不重试任何未知模型调用。
@@ -768,3 +770,6 @@ Skill/Workflow/Report Workflow 自动化原本没有批准的服务商身份字�
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+2026-10-24：今日发现原始news与event证据分别复核，同一个DataHub冻结/原DSH显式提交；new raw context v2为内部条件类型分支，旧v1字节保持。已登记失效跟踪不走通用模型回退，原预算、unknown不重发与质量链不变。

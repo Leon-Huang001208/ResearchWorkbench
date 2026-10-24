@@ -2,6 +2,8 @@
 
 可信华安周报在原Host内投影Run/SID/版本/owner/purpose及冻结字节对应的执行scope，复用唯一DSH的现有Native guard/visible_tools与脚本runner；不再误选通用公司研究能力。提交claim在原Run目录内持久化，preflight与实际RPC未知分开；没有新服务、引擎、DB或HTTP路径，原分层拓扑仍准确。
 
+全市场预览的 `apply-market-preview` 仅在既有Native操作员固定36fd990c前版及获批e56d9718组合产品，复用原version4事务、主实例/网关、全账号保全、后台/市场空闲与回滚。没有新节点、API、依赖或引擎，现有01／12／13图仍准确。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8只在原Native操作员注册固定身份与apply-assets-v8，前版b4384470、产品为包含PR216/217/219的真实合并组合检查点。原主实例/私网网关/唯一DSH、version4事务和全账号/档案保全保持；继承已上线今日发现的后台空闲复核，无新HTTP、数据格式、服务或依赖，原部署图准确。
@@ -275,3 +277,14 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
 
 披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：今日发现原始资讯在原Host/Intel固定GET reader增加/radar读取，与已有事件分别时钟/失败并在账号有限缓存中投影；新news证据类型进入同一DataHub冻结与唯一DSH，不伪造event_id。只读精确地址关联是同用户预览内部核对，不新增进程、数据库、依赖或第二引擎；旧上下文字节与原质量判据保留。
+
+## 2026-10-24：公开代理策略与原件绑定v2
+
+匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
+
+中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
+
+实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。

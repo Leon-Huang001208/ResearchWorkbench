@@ -13,6 +13,37 @@ function harness(request, saved = null, options = {}) {
 function base(path) { return Promise.resolve(path.includes('catalog') ? catalog : path.includes('portfolios') ? { items: [] } : { axes: {}, validation: { status: 'insufficient_evidence' } }); }
 function validDraft() { return { ...newPortfolioDraft(), as_of: '2026-10-22', cash: '0', holdings: [{ asset: '000001.sz', quantity: '100', cost: '10' }] }; }
 
+for (const [label, target] of [
+  ['portfolio cash', { dataset: { marketPortfolio: 'cash' }, value: '1000' }],
+  ['holding quantity', { dataset: { marketHolding: 'quantity', row: '0' }, value: '200' }],
+]) {
+  test(`${label} input tolerates the same change event emitted while replacing the focused DOM`, async () => {
+    let armed = false, rendering = false, editRenders = 0;
+    const h = harness(base, null, { changed() {
+      if (!armed) return;
+      assert.equal(rendering, false, 'a duplicate blur change must not reenter rendering');
+      rendering = true; editRenders++;
+      try { assert.equal(h.controller.input(target), true); }
+      finally { rendering = false; }
+    } });
+    await h.controller.activate(); h.state.portfolioDraft = validDraft();
+    h.state.portfolioPreview = { confirmation_token: 'old-preview' }; armed = true;
+    assert.doesNotThrow(() => h.controller.input(target));
+    assert.equal(editRenders, 1); assert.equal(h.state.portfolioPreview, null);
+    assert.equal(h.calls.some(call => call.options?.method === 'POST'), false);
+  });
+}
+
+test('unchanged form events preserve an existing preview without rendering or sending requests', async () => {
+  const h = harness(base); await h.controller.activate(); h.state.portfolioDraft = validDraft();
+  const preview = { confirmation_token: 'current-preview' }; h.state.portfolioPreview = preview;
+  const renders = h.renders.length, calls = h.calls.length;
+  assert.equal(h.controller.input({ dataset: { marketPortfolio: 'cash' }, value: '0' }), true);
+  assert.equal(h.controller.input({ dataset: { marketHolding: 'quantity', row: '0' }, value: '100' }), true);
+  assert.equal(h.renders.length, renders); assert.equal(h.calls.length, calls);
+  assert.equal(h.state.portfolioPreview, preview);
+});
+
 test('catalog uses canonical terminal snapshot and explicit legacy fallback', () => {
   const legacy = { rows: [{ asset: '000001.SH' }] }, terminal = { rows: [{ asset: '932000.SH' }] };
   assert.equal(terminalIndices({ snapshot: { sections: { indices: legacy } } }), legacy);

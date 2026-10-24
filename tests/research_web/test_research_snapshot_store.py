@@ -524,10 +524,14 @@ def test_unverified_native_series_cannot_satisfy_required_stock_price_semantics(
     [
         (
             "financials",
-            {"asset": "600000.SH", "statements": ["income_statement"], "periods": ["2025-12-31"]},
-            "akshare-sina-financial-disclosure-v1",
+            {"asset": "600600.SH", "statements": ["income_statement"], "periods": ["2025-06-30"]},
+            "akshare-sina-financial-disclosure-v2",
         ),
-        ("factor_macro", {"series": ["cpi"]}, "akshare-china-macro-v1"),
+        (
+            "factor_macro",
+            {"series": "gdp", "start_date": "2025-09-01", "end_date": "2025-09-30"},
+            "akshare-china-macro-v2",
+        ),
         (
             "market_activity",
             {"asset": "600000.SH", "dataset": "fund_flow"},
@@ -536,7 +540,9 @@ def test_unverified_native_series_cannot_satisfy_required_stock_price_semantics(
     ],
 )
 def test_research_families_cutoff_revision_boundary(capability, parameters, schema):
-    # Synthetic store envelopes exercise revision time, not a supplier dictionary.
+    # Synthetic source envelopes retain strict raw binding while exercising revision time.
+    from test_ak_native_binding import macro_result, sina_result
+
     request = BusinessQuery(capability=capability, source="akshare", parameters=parameters)
     scope = StoreScope("alice", "personal", "akshare", "c" * 64)
     service = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
@@ -552,13 +558,22 @@ def test_research_families_cutoff_revision_boundary(capability, parameters, sche
             metadata={"schema_version": schema},
             rows=[{"native_unknown": value}],
         )
+        if capability == "financials":
+            native = sina_result(str(value))
+        elif capability == "factor_macro":
+            native = macro_result(value=value)
         assert series.ingest(request, native)
     assert (
         series.read(request.model_copy(update={"as_of": first - timedelta(microseconds=1)})) is None
     )
     for cutoff, expected in [(first, 1), (second - timedelta(microseconds=1), 1), (second, 2)]:
         captured = series.read(request.model_copy(update={"as_of": cutoff}))
-        assert captured.rows[0]["native_unknown"] == expected
+        if capability == "financials":
+            assert captured.rows[0]["data"][0]["item_value"] == str(expected)
+        elif capability == "factor_macro":
+            assert captured.rows[0]["DOMESTICL_PRODUCT_BASE"] == expected
+        else:
+            assert captured.rows[0]["native_unknown"] == expected
         assert captured.metadata["historical_point_in_time"] is False
         assert captured.metadata["formal_backtest_eligible"] is False
     with pytest.raises(MarketStoreError):

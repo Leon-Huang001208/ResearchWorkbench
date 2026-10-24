@@ -142,6 +142,12 @@ def main() -> int:
             request = requests.sessions.Session.request
 
             def bounded_request(session, method, url, **kwargs):
+                # Tokenless public data follows the same direct policy as our
+                # httpx adapters. A minimal environment alone does not exclude
+                # macOS system proxies or requests' implicit netrc credentials.
+                session.trust_env = False
+                session.proxies.clear()
+                kwargs["proxies"] = {}
                 timeout = kwargs.get("timeout")
                 if isinstance(timeout, tuple):
                     kwargs["timeout"] = tuple(
@@ -156,6 +162,10 @@ def main() -> int:
 
             requests.sessions.Session.request = bounded_request
         with contextlib.redirect_stdout(sys.stderr):
+            if source == "akshare":
+                log.info(
+                    "datahub_public_worker_transport", source=source, policy="anonymous_direct"
+                )
             if source == "baostock":
                 from .providers_baostock import invoke
             else:

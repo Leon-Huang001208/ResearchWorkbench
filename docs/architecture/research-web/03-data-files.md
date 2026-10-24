@@ -2,6 +2,8 @@
 
 weekly-rpc-attempt.json保存在Host私有Run内、模型workspace之外，O_EXCL/NOFOLLOW、类型/大小/私有权限与fsync读回约束保证不被替换。冻结scope绑定context/snapshot/版本/owner/model；Host materialize后的工作簿与Session副本核同一字节，模板资产仍核原资源hash。脚本的weekly输入策略只对冻结文件授literal读，不自动授读后来新增inputs。
 
+全市场预览组合部署保留原用户根、全部会话/模型、业务索引和档案；操作员只沿原日志、事务journal、当前/上一轮wheel与恢复artifact写入。新profile不引入持久schema、数据库启用或迁移，固定旧/新代码身份后按原恢复验证切换。
+
 V9的16MB单job界限仅适用GitHub CI日志解压，不改变64MiB业务索引、账号/档案保全、原始金融快照或数据库。日志CRC、UTF-8、完整流和总64MB展开检查保持，实际业务保全须切换后核对。
 
 资产V8复用全账号业务索引及dossier内容保全，保持缺失/空值区别、64MiB严格读取和内容寻址恢复；不迁移数据库、覆盖旧冻结证据或改动外盘。仅安装清单按固定目标锁同步，原凭据和业务文件保持原位。
@@ -850,3 +852,14 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
 
 披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../../../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：原始资讯沿同一discovery_evidence存储来源归档，不伪造event_id；news_id/源安全URL/正文指纹与显式归档地址关联进入同一不可变bundle。来源cache状态保存在冻结来源元数据，不作为内容新颖性；旧事件上下文/manifest不迁移。raw批准范围锁进现有Automation定义，GET仅有限内存，无新数据库。
+
+## 2026-10-24：公开代理策略与原件绑定v2
+
+匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
+
+中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
+
+实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../../../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。

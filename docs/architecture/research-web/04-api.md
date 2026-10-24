@@ -2,6 +2,8 @@
 
 现有周报创建/运行/retry路径保持；retry对新协议已知未RPC状态可显式继续，对旧未知/已尝试状态仍只核查观察，未新增force或模型可传scope参数。内部skill-preflight响应可带Host input_policy=weekly-frozen-inputs-v1及逐文件read_paths，经JS传给Python；普通capability/dataset目录协议兼容，缺失/未知策略与非法路径拒绝。
 
+全市场预览部署配置仅增加本机受审CLI命令，不新增HTTP接口或扩大租户权限。现有market GET只读、POST维护准入及持仓预览→用户确认保存保持；profile后台空闲检查不通过时不启动切换。
+
 新增封闭操作员CLI `apply-assets-v9`，固定产品b500fcbe、前版b4384470和新reader哈希；不接受任意公式/目标覆盖，不新增HTTP或权限。reader保留压缩8MB、总展开64MB及完整性检查，单job明确16MB。
 
 apply-assets-v8仅为原Native操作员的封闭CLI分派，无新增HTTP、账号权限或任意SHA参数。固定前版b4384470和包含PR216/217/219的真实合并组合；旧v1-v7及其它固定入口保持，实际切换仍需全部资格、空闲与保全证据。
@@ -788,3 +790,6 @@ schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 2026-10-23：资产周/月读数与副图入口修复不新增HTTP；仍复用原观察、历史分页和封闭图表偏好API。单一＋只是原目录入口合并，关闭副图保留既有账号隔离保存合同。
+
+
+2026-10-24：新增GET /api/research/discovery/association?feed_id&news_id&event_id&horizon，在当前认证用户的同feed范围内逐个核对归档报道精确URL；不接任意URL/正文、不创建会话/计划。feed新增news/events/freshness的独立有界投影，原七字段Prepare与独立execute/save/enable接口保持，详见今日发现合同。

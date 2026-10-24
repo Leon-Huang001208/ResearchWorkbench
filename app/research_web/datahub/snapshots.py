@@ -447,7 +447,11 @@ class Snapshots:
         manifest = {
             "id": did,
             "dataset_id": did,
-            "name": "今日发现冻结事件资料",
+            "name": (
+                "今日发现冻结原始资讯"
+                if any(item.get("source_kind") == "news" for item in evidence)
+                else "今日发现冻结事件资料"
+            ),
             "source": "golddata_intel",
             "provider": "golddata_intel",
             "capability": "frozen_evidence",
@@ -476,9 +480,17 @@ class Snapshots:
             "missing": [],
             "limitations": [
                 SOURCE_POLICY,
-                "仅冻结本次选中事件；预览未读取的报道正文只在冻结时取得。",
+                (
+                    "仅冻结本次选中原始资讯与显式核验的事件关联，不将同一地址计作独立来源。"
+                    if any(item.get("source_kind") == "news" for item in evidence)
+                    else "仅冻结本次选中事件；预览未读取的报道正文只在冻结时取得。"
+                ),
             ],
-            "discovery": {**origin, "bundle_sha256": sha(raw)},
+            "discovery": {
+                **origin,
+                "bundle_sha256": sha(raw),
+                **({"source_states": bundle["source_states"]} if "source_states" in bundle else {}),
+            },
             "files": [
                 {
                     "name": name,

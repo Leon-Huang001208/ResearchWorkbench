@@ -2,6 +2,8 @@
 
 可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。
 
+`reviewed-market-preview-v1` 固定前版36fd990c、产品e56d9718、严格reader193f4fcc与既有锁文件。原全账号后台/工作流、市场inflight、维护锁、BirthFence、业务保全与失败恢复门均保留；测试和候选浏览器覆盖不冒充部署，旧模式及凭据权限不修改。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8不扩大自动兼容白名单，不改变不可变controller/evidence或凭据权限；校验固定产品祖先与完整union blob/mode。后台跟踪、自动化、Workflow、市场及资产查询活动/未知均拒绝；恢复与全账号档案保全不可由CI或画面成功替代。
@@ -807,3 +809,6 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 恢复包先以私有journal和摘要确认自身，再校验冻结源精确路径、属主、无符号别名和Git身份；父进程sys.path只在验证后调整，不向旧服务传递PYTHONPATH。源坏/丢失保持原围栏，不捕获后跳过档案检查；真实旧解释器zipapp子进程反例单独验证。
 
 今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+2026-10-24：原始news_id不伪造event_id；关联只认本人同feed已展示事件与归档精确URL，客户端不能指定来源URL或可信Hash。prepare复读全证据和关联后才冻结，同一地址不增加独立来源数。raw批准范围绑定锁定Automation定义，已登记失效发现任务拒绝通用模型回退；旧事件上下文及质量门保持。

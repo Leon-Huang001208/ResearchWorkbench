@@ -2,6 +2,8 @@
 
 周报准入修复位于report_workflows/weekly_execution.py、runtime.py和service.py：Host冻结13工具/逐文件输入，普通capability data gate保持。research-tools.mjs与sandbox.py传递Host input_policy并支持literal冻结文件，只读审批与原目录scope兼容。新提交协议为weekly-admission-v2，旧未知只recheck，正确首提/显式未RPC恢复均有持久claim及真实Sender/Seatbelt回归。
 
+全市场预览封闭部署继续由 `research_workbench_entrypoint/resident/model_provider_upgrade.py` 及原 `test_model_provider_upgrade.py` 矩阵维护。`reviewed-market-preview-v1` / `apply-market-preview` 绑定36fd990c→e56d9718，背景/工作流/市场空闲及全账号保全恢复沿旧合同；最终资格与实切换分别记录。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8位于resident/model_provider_upgrade.py：ASSET_V8常量、previous_for/review_assets/target_manifest及CLI闭合分派；加入原64MiB reader、市场inflight和后台空闲检查。test_model_provider_upgrade复用全部旧恢复/真实Git矩阵并补V8固定pin和后台拒绝反例。最终产品固定为包含PR216/217/219的真实merge组合，部署/认证页面另验。
@@ -596,3 +598,14 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
 
 披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：今日发现原生改版定位：discovery/news.py处理原始来源身份/指纹，reading.py处理独立读取lane；service.py复核selection/association/显式freeze，tracking.py绑定原始批准范围并复用原日程，ui/discovery.mjs/css按原生令牌双栏显示。新GET association与raw context v2见research-web-discovery.md，旧事件/恢复保持。
+
+## 2026-10-24：公开代理策略与原件绑定v2
+
+匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
+
+中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
+
+实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。

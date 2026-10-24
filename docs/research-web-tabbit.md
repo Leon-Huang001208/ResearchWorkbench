@@ -341,3 +341,6 @@ FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调
 ## 2026-10-23：长期研究档案与机会预警
 
 档案 source 引用只能读取已保存网页字节，并在归档／重读／Prompt 交接时复核原来源权限与 hash；准备继续研究不会重新抓取、认领 Tabbit 页面或自动调用浏览器。实际 Prompt 绑定的 receipt 不扩张用户已选 web 范围，仍沿原 claim、一次性 token、审批和只读规则；截图／浏览器夹具也不认证 Tabbit 或供应商可调用。唯一 DSH 与既有浏览器拓扑保持，详见[档案研究交接](research-web-dossiers.md#http-与研究交接)和[界面发送合同](research-web-dossiers-ui.md)。
+
+
+2026-10-24：今日发现raw/事件GET与归档URL关系不是Tabbit实时网页取证，不生成web_evidence收据，也不提升原文核验等级。Tabbit的浏览器授权、实时标记和同会话质量绑定保持。

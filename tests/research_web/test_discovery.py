@@ -111,6 +111,8 @@ def setup(tmp_path):
         state["calls"].append((path, params))
         if state["failed"]:
             raise HTTPException(504, detail={"code": "intel_upstream_timeout"})
+        if path == "/radar":
+            return {"industries": [], "stats": {}}
         if path == "/intelligence":
             return {
                 "as_of": None,
@@ -159,7 +161,7 @@ async def test_feed_real_fields_cache_stale_unknown_dates_and_no_model(setup):
     assert feed["themes"][0]["next"] == "等待官方披露"
     assert feed["themes"][0]["materials"][0]["kind"] == "事件归档资料包"
     assert feed["errors"][0]["code"] == "upstream_judgment_unverified"
-    assert await service.feed() == feed and len(state["calls"]) == 1
+    assert await service.feed() == feed and len(state["calls"]) == 2
     assert (
         research.store.data == before and research.client.calls == [] and research.send_calls == []
     )
@@ -713,3 +715,434 @@ async def test_read_only_native_list_outage_recovers_existing_ready_identity(set
     recovered = await service.get_handoff(prepared["handoff_id"])
     assert recovered["state"] == "snapshot_ready" and "code" not in recovered
     assert len([method for method, _ in research.client.calls if method == "session.create"]) == 1
+
+
+@pytest.fixture
+def news_setup(setup):
+    research, old, legacy = setup
+    raw = {
+        "title": "最新原始资讯",
+        "url": "https://example.com/raw",
+        "source": "原始发布者",
+        "ts": 1792840000,
+        "time": "刚刚",
+        "summary": "来源摘要",
+        "raw_content": "来源归档正文",
+    }
+    state = {"raw": raw, "gone": False, "news_failed": False, "events_failed": False, "calls": []}
+
+    async def reader(path, params=None):
+        state["calls"].append((path, params))
+        if path == "/radar":
+            if state["news_failed"]:
+                raise HTTPException(504, detail={"code": "fixture_unavailable"})
+            return {
+                "industries": [
+                    {
+                        "name": "科技",
+                        "items": [] if state["gone"] else [copy.deepcopy(state["raw"])],
+                    }
+                ],
+                "stats": {"failed_sources": 2},
+                **state.get("metadata", {}),
+            }
+        if path == "/intelligence" and state["events_failed"]:
+            raise HTTPException(504, detail={"code": "fixture_unavailable"})
+        return await old.reader(path, params)
+
+    return research, DiscoveryService(research, reader=reader), state, legacy
+
+
+@pytest.mark.asyncio
+async def test_news_freshness_lanes_refresh_and_zero_writes(news_setup):
+    research, service, state, _legacy = news_setup
+    before = copy.deepcopy(research.store.data)
+    feed = await service.feed()
+    assert feed["news"][0]["source_kind"] == "news"
+    assert feed["news"][0]["state"] == "未形成研判"
+    assert feed["freshness"]["news"]["status"] == "ready"
+    assert feed["freshness"]["events"]["cache_status"] == "expired"
+    assert feed["news"][0]["judgment_as_of"] is None
+    assert "event_id" not in feed["news"][0]["materials"][0]
+    assert await service.feed() == feed
+    state["raw"]["title"] = "新事实"
+    refreshed = await service.feed(refresh=True)
+    assert refreshed["news"][0]["title"] == "新事实"
+    assert refreshed["news"][0]["id"] == feed["news"][0]["id"]
+    assert (
+        refreshed["news"][0]["materials"][0]["content_sha256"]
+        != feed["news"][0]["materials"][0]["content_sha256"]
+    )
+    assert research.store.data == before and not research.client.calls and not research.send_calls
+    assert not research.store.index.exists()
+
+
+@pytest.mark.asyncio
+async def test_news_and_events_fail_independently_without_freshening_old_bytes(news_setup):
+    _, service, state, _ = news_setup
+    first = await service.feed()
+    state["events_failed"] = True
+    state["raw"]["title"] = "事件汇总失败时仍有新稿"
+    second = await service.feed(refresh=True)
+    assert second["news"][0]["title"] == "事件汇总失败时仍有新稿"
+    assert second["freshness"]["events"]["status"] == "unavailable"
+    assert second["freshness"]["news"]["status"] == "ready"
+    state["news_failed"] = True
+    state["events_failed"] = False
+    third = await service.feed(refresh=True)
+    assert third["news"] == second["news"]
+    assert third["freshness"]["news"]["status"] == "unavailable"
+    assert third["freshness"]["news"]["retrieved_at"] == second["freshness"]["news"]["retrieved_at"]
+    assert third["freshness"]["news"]["last_attempt_at"] != first["retrieved_at"]
+
+
+@pytest.mark.asyncio
+async def test_news_selection_freeze_raw_tamper_and_exact_association(news_setup):
+    research, service, state, legacy = news_setup
+    feed = await service.feed()
+    news = feed["news"][0]
+    preview = await service.selection_preview(feed["feed_id"], news["id"], "medium")
+    assert not research.store.index.exists() and not research.client.calls
+    body = Prepare(
+        request_id=str(uuid4()),
+        feed_id=preview["feed_id"],
+        horizon="medium",
+        theme_id=news["id"],
+        material_ids=[preview["themes"][0]["materials"][0]["id"]],
+        target_mode="claw",
+        question="核验原始资讯",
+    )
+    state["raw"]["raw_content"] = "正文变化，即使标题没变也拒绝"
+    with pytest.raises(DiscoveryError, match="变化"):
+        await service.prepare(body)
+    assert not research.store.data.get("sessions")
+    state["raw"]["raw_content"] = "来源归档正文"
+    legacy["articles"][0]["url"] = state["raw"]["url"]
+    linked = await service.associate(feed["feed_id"], news["id"], EVENT["id"], "medium")
+    assert linked["themes"][0]["related_events"][0]["event_id"] == EVENT["id"]
+    linked_body = body.model_copy(
+        update={
+            "feed_id": linked["feed_id"],
+            "material_ids": [linked["themes"][0]["materials"][0]["id"]],
+        }
+    )
+    prepared = await service.prepare(linked_body)
+    assert prepared["execution_started"] is False
+    context = service.trusted_context(prepared["session_id"])
+    assert context["materials"][0]["source_kind"] == "news"
+    dataset = research.datahub.snapshots.detail(prepared["session_id"], prepared["dataset_id"])
+    assert dataset["snapshot_kind"] == "discovery_evidence"
+    assert not research.send_calls
+    restarted = Research(research.store.root)
+    cold = DiscoveryService(restarted, reader=service.reader)
+    assert (
+        cold.trusted_context(prepared["session_id"])["context_sha256"] == context["context_sha256"]
+    )
+    assert not restarted.client.calls and not restarted.send_calls
+    legacy["articles"][0]["url"] = "https://example.com/different"
+    with pytest.raises(DiscoveryError, match="关联"):
+        await service.associate(feed["feed_id"], news["id"], EVENT["id"], "medium")
+
+
+@pytest.mark.asyncio
+async def test_news_stable_fingerprint_and_missing_observation(news_setup):
+    _, service, state, _ = news_setup
+    feed = await service.feed()
+    news = feed["news"][0]
+    first = await service.refresh_news("medium", news["id"])
+    state["raw"]["time"] = "1分钟前"
+    second = await service.refresh_news("medium", news["id"])
+    assert (
+        first["themes"][0]["materials"][0]["evidence_sha256"]
+        == second["themes"][0]["materials"][0]["evidence_sha256"]
+    )
+    state["gone"] = True
+    with pytest.raises(DiscoveryError, match="不可观察"):
+        await service.refresh_news("medium", news["id"])
+
+
+@pytest.mark.asyncio
+async def test_raw_tracking_disabled_creation_and_cold_read_without_scheduler(news_setup):
+    from app.research_web.automation.service import AutomationService
+    from app.research_web.discovery.tracking import DiscoveryTracking
+
+    research, service, state, _ = news_setup
+    research.automations = AutomationService(research.store, research=research, scheduler=False)
+    tracking = DiscoveryTracking(research, service)
+    feed = await service.feed()
+    identifier = feed["news"][0]["id"]
+    preview = await service.selection_preview(feed["feed_id"], identifier, "medium")
+    body = {
+        "request_id": str(uuid4()),
+        "feed_id": preview["feed_id"],
+        "horizon": "medium",
+        "theme_id": identifier,
+        "condition": "仅核对本条归档及已核验关联事件；不扩展来源范围",
+        "frequency": "daily",
+        "time": "08:30",
+    }
+    saved = await tracking.save(body)
+    assert not saved["enabled"]
+    row, automation = tracking._owned(saved["id"])
+    assert row["approved_news_ids"] == [identifier] and row["approved_event_ids"] == []
+    assert row["schema"] == "discovery-tracking-v1"
+    resumed = DiscoveryTracking(research, service)
+    assert resumed.eligible(automation) and not resumed.has_enabled()
+    assert not research.client.calls and not research.send_calls
+    row["approved_event_ids"] = ["unapproved-event"]
+    assert not resumed.eligible(automation)
+    row["approved_event_ids"] = []
+    assert resumed.eligible(automation)
+    state["gone"] = True
+    with pytest.raises(DiscoveryError, match="不可观察"):
+        await service.refresh_news("medium", identifier)
+    assert not research.send_calls and not resumed._owned(saved["id"])[1]["enabled"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("change", ["missing_url", "unknown_time", "conflict"])
+async def test_news_unknown_identity_time_and_conflicting_versions_fail_honestly(
+    news_setup, change
+):
+    research, service, state, _ = news_setup
+    if change == "missing_url":
+        state["raw"]["url"] = "javascript:unsafe"
+    elif change == "unknown_time":
+        state["raw"]["ts"] = "10-24 10:00"
+    else:
+        original = service.reader
+
+        async def conflicting(path, params=None):
+            value = await original(path, params)
+            if path == "/radar":
+                value["industries"][0]["items"].append(
+                    {**state["raw"], "raw_content": "conflicting archive"}
+                )
+            return value
+
+        service.reader = conflicting
+    feed = await service.feed()
+    item = feed["news"][0]
+    if change == "unknown_time":
+        assert item["published_at"] is None and item["materials"][0]["published_at"] is None
+    else:
+        assert item["actionable"] is False
+        with pytest.raises(DiscoveryError):
+            await service.selection_preview(feed["feed_id"], item["id"], "medium")
+    assert not research.client.calls and not research.store.data.get("discovery_handoffs")
+
+
+@pytest.mark.asyncio
+async def test_news_association_rejects_foreign_scopes_and_keeps_multiple_verified_links(
+    news_setup,
+):
+    _, service, state, legacy = news_setup
+    second = {**copy.deepcopy(EVENT), "id": "event_two", "title": "独立事件记录"}
+    legacy["reading"] = [copy.deepcopy(EVENT), second]
+    legacy["articles"][0]["url"] = state["raw"]["url"]
+    original = service.reader
+
+    async def reader(path, params=None):
+        if path == "/intelligence/events/event_two":
+            return {"event": second, "articles": copy.deepcopy(legacy["articles"])}
+        return await original(path, params)
+
+    service.reader = reader
+    feed = await service.feed()
+    identifier = feed["news"][0]["id"]
+    with pytest.raises(DiscoveryError):
+        await service.associate(str(uuid4()), identifier, EVENT["id"], "medium")
+    with pytest.raises(DiscoveryError):
+        await service.associate(feed["feed_id"], identifier, "unselected", "medium")
+    await service.associate(feed["feed_id"], identifier, EVENT["id"], "medium")
+    linked = await service.associate(feed["feed_id"], identifier, "event_two", "medium")
+    assert {x["event_id"] for x in linked["themes"][0]["related_events"]} == {
+        EVENT["id"],
+        "event_two",
+    }
+    assert all(x["judgment_as_of"] is None for x in linked["themes"][0]["related_events"])
+
+
+def test_legacy_context_bytes_have_the_original_exact_contract():
+    from app.research_web.datahub.security import json_bytes
+    from app.research_web.discovery.handoff import context_bytes
+    from app.research_web.discovery.sources import SOURCE_POLICY
+
+    record = {
+        key: "fixture-" + key
+        for key in [
+            "handoff_id",
+            "session_id",
+            "target_mode",
+            "dataset_id",
+            "dataset_manifest_sha256",
+            "selection_sha256",
+            "cutoff",
+            "retrieved_at",
+            "question",
+            "horizon",
+        ]
+    }
+    record["materials"] = [{"event_id": "unchanged"}]
+    import hashlib
+
+    assert (
+        hashlib.sha256(SOURCE_POLICY.encode()).hexdigest()
+        == "3ba4e0ace445c59c0120eec34891747629085c25fe6832f7f71490ea5c9162ff"
+    )
+    expected = {"schema_version": "discovery-handoff-1", **record, "source_policy": SOURCE_POLICY}
+    assert context_bytes(record) == json_bytes(expected)
+    assert "source_kind" not in json.loads(context_bytes(record))
+
+
+@pytest.mark.asyncio
+async def test_explicit_raw_cache_expiry_propagates_without_creating_novelty_or_tracking(
+    news_setup,
+):
+    from app.research_web.automation.service import AutomationService
+    from app.research_web.discovery.tracking import DiscoveryTracking
+
+    research, service, state, _ = news_setup
+    state["metadata"] = {
+        "cache_stale": True,
+        "as_of": 1792742307,
+        "generated_at": "2026-10-24 12:00",
+    }
+    feed = await service.feed()
+    assert feed["freshness"]["news"]["cache_status"] == "expired"
+    assert feed["freshness"]["news"]["source_as_of"] is not None
+    identifier = feed["news"][0]["id"]
+    preview = await service.selection_preview(feed["feed_id"], identifier, "medium")
+    assert preview["stale"] is True and preview["freshness"]["news"]["cache_status"] == "expired"
+    first = preview["themes"][0]["materials"][0]["evidence_sha256"]
+    state["metadata"]["as_of"] += 100
+    newer = await service.refresh_news("medium", identifier)
+    assert newer["themes"][0]["materials"][0]["evidence_sha256"] == first
+    research.automations = AutomationService(research.store, research=research, scheduler=False)
+    tracking = DiscoveryTracking(research, service)
+    with pytest.raises(StoreError, match="来源本次不可用"):
+        await tracking.save(
+            {
+                "request_id": str(uuid4()),
+                "feed_id": preview["feed_id"],
+                "horizon": "medium",
+                "theme_id": identifier,
+                "condition": "核查原始资料",
+                "frequency": "daily",
+                "time": "08:30",
+            }
+        )
+    assert not research.store.data.get("discovery_tracks") and not research.send_calls
+
+
+@pytest.mark.asyncio
+async def test_raw_tracking_unknown_admission_does_not_retry_after_cold_tracking(news_setup):
+    from app.research_web.automation.service import AutomationService
+    from app.research_web.discovery.tracking import DiscoveryTracking
+
+    research, service, state, _ = news_setup
+    research.automations = AutomationService(research.store, research=research, scheduler=False)
+    tracking = DiscoveryTracking(research, service)
+    research.automations.executor = tracking.execute
+
+    async def detail(sid):
+        return {
+            "id": sid,
+            "status": "disconnected",
+            "files": [],
+            "research_quality": {"status": "incomplete"},
+        }
+
+    research.detail = detail
+    feed = await service.feed()
+    identifier = feed["news"][0]["id"]
+    preview = await service.selection_preview(feed["feed_id"], identifier, "medium")
+    saved = await tracking.save(
+        {
+            "request_id": str(uuid4()),
+            "feed_id": preview["feed_id"],
+            "horizon": "medium",
+            "theme_id": identifier,
+            "condition": "核对批准原始归档",
+            "frequency": "daily",
+            "time": "08:30",
+        }
+    )
+    assert not saved["enabled"]
+    state["raw"]["raw_content"] = "新的来源正文"
+    research.lose_send = True
+    await research.automations.run(saved["id"])
+    await research.automations.wait_for_idle()
+    assert tracking.list()["items"][0]["runs"][0]["execution_status"] == "interrupted"
+    assert len(research.send_calls) == 1
+    cold = DiscoveryTracking(research, service)
+    assert cold.eligible(research.automations._row(saved["id"]))
+    research.automations.executor = cold.execute
+    await research.automations.run(saved["id"])
+    await research.automations.wait_for_idle()
+    assert cold.list()["items"][0]["runs"][0]["execution_status"] == "skipped_unchanged"
+    assert len(research.send_calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unattended", [False, True])
+async def test_news_freeze_uses_current_observation_and_blocks_unattended_expiry(
+    news_setup, unattended
+):
+    research, service, state, _ = news_setup
+    state["metadata"] = {"cache_stale": False, "as_of": 1792742307}
+    feed = await service.feed()
+    item = feed["news"][0]
+    preview = await service.selection_preview(feed["feed_id"], item["id"], "medium")
+    state["metadata"] = {"cache_stale": True, "as_of": 1792742407}
+    body = Prepare(
+        request_id=str(uuid4()),
+        feed_id=preview["feed_id"],
+        horizon="medium",
+        theme_id=item["id"],
+        material_ids=[preview["themes"][0]["materials"][0]["id"]],
+        target_mode="fingpt",
+        question="核验当前冻结来源",
+    )
+    if unattended:
+        with pytest.raises(DiscoveryError, match="缓存已过期"):
+            await service.prepare(body, require_fresh=True)
+        assert not research.store.data.get("sessions") and not research.store.data.get(
+            "discovery_handoffs"
+        )
+        assert not research.client.calls
+    else:
+        prepared = await service.prepare(body)
+        snapshot = research.datahub.snapshots.detail(prepared["session_id"], prepared["dataset_id"])
+        assert snapshot["source_stale"] is True
+        assert snapshot["discovery"]["source_states"]["news"]["cache_status"] == "expired"
+        assert snapshot["source_as_of"] != preview["source_as_of"]
+    assert not research.send_calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["cache_stale", "as_of", "generated_at"])
+async def test_news_association_transport_metadata_does_not_trigger_novelty(news_setup, field):
+    from app.research_web.discovery import news
+
+    _, service, state, legacy = news_setup
+    legacy["articles"][0]["url"] = state["raw"]["url"]
+    feed = await service.feed()
+    identifier = feed["news"][0]["id"]
+    detail = await service._read_news(identifier, [EVENT["id"]])
+    original = news.fingerprint(detail)
+    changed = copy.deepcopy(detail)
+    changed["associations"][0]["detail"][field] = (
+        True if field == "cache_stale" else "2026-10-24T12:00:00Z"
+    )
+    assert news.fingerprint(changed) == original
+    for path, value in [
+        (("articles", "content"), "新原文"),
+        (("articles", "published_at"), "2026-10-24T12:00:00Z"),
+        (("event", "judgment_as_of"), "2026-10-24T12:00:00Z"),
+    ]:
+        changed = copy.deepcopy(detail)
+        archive = changed["associations"][0]["detail"]
+        target = archive[path[0]][0] if path[0] == "articles" else archive[path[0]]
+        target[path[1]] = value
+        assert news.fingerprint(changed) != original

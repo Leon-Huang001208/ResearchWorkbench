@@ -2,6 +2,8 @@
 
 华安准入/账本修复先以真实ResearchService.send重现错误capability data gate，不能再mock send绕过。逐层验证Host→Native Tool→Python→Seatbelt真实读取；预检/claim/已接受/未知并发与重启分开，旧sender缺证保unknown。用户已选保留旧运行、修复部署后新版本手动验收；原Wind/正文/文件门和独立部署授权保持。
 
+全市场预览修复部署固定用户批准的e56d9718组合产品和36fd990c旧版，经原三CI/同候选Mac安装及独评后，由 `apply-market-preview` 走原version4锁、全账号后台/市场空闲、BirthFence和恢复事务；前版变化或存在活动任务时停止，不覆盖其他部署或提升旧证据。
+
 资产幅字段采用封闭V8部署：先固定包含PR216/217/219的真实合并组合，再对最终操作员运行完整Router、独评、原三CI和同候选Mac安装；前版为实际b4384470。沿本任务既有部署授权执行持锁空闲、BirthFence与全账号保全，后台跟踪/Automation/Workflow活动或未知拒绝，旧恢复合同保持。
 
 华安历史验收是显式非正式Run用途，不是正式数据门豁免。独立worktree验证可信用途在owner、冻结、DataHub、重试/恢复、渲染与最终门的完整传播；普通调用、模型自声明和快照字段不能开启。先取本机、独评、完整Router及原三CI，再按明确授权更新常驻并跑真实历史稿/Word/下载；历史通过不更新正式pointer、不解锁定时。
@@ -472,3 +474,10 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 ## 2026-10-24：现金流财务与个股资金流验收
 
 BaoStock单报告期现金流比率沿原公开worker及默认Host/研究仓，完整源码哈希绑定三独立进程、真实ownedPG重启与空库恢复。资金流SDK/guest按同一上游保留有限覆盖、未知单位及非PIT状态；不能以预检替代入仓。原Router、独评、三CI与同候选Mac安装不减少，现有服务、正式库和外盘不操作。
+
+
+2026-10-24：今日发现原生资讯迭代先取同一fixed reader两个独立lane/陈旧元数据与raw正文/范围反例，再复用原Snapshot/DSH/Automation验证旧v1字节、raw显式冻结、来源不可观察和unknown至多一次。原三CI与同候选Mac安装保持，不新建runner/依赖；生产模型、跟踪与常驻部署须独立授权取证。
+
+## 2026-10-24：公开代理与原件绑定v2验收
+
+先以空环境和真实requests无网络复现系统代理继承，再在独立worker修复并保留原端点真实失败；禁止修改系统代理或把helper限制包装为vendor失败。GDP累计/新浪自然日披露与未知单位按v2原件投影绑定；真实默认Host/PG三进程、实际重启和空库恢复独立取证，原三CI和同候选Mac安装不省略。
