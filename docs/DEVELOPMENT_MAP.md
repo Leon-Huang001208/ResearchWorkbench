@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+资产V8位于resident/model_provider_upgrade.py：ASSET_V8常量、previous_for/review_assets/target_manifest及CLI闭合分派；加入原64MiB reader、市场inflight和后台空闲检查。test_model_provider_upgrade复用全部旧恢复/真实Git矩阵并补V8固定pin和后台拒绝反例。最终产品固定为PR216真实merge，部署/认证页面另验。
+
 2026-10-23 ETF Native封闭后继：`resident/model_provider_upgrade.py` 新增
 `ETF_WEEKLY_V2_MODE/PREVIOUS/PAYLOAD` 和 `apply-etf-weekly-v2`，旧版固定5343e18d、
 产品固定PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。只纳入原分派、严格reader、
