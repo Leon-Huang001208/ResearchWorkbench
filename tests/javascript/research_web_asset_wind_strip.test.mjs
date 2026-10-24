@@ -61,3 +61,13 @@ test('unrecognized identity objects remain raw-unit display instead of coercing 
   const html=strip(renderMarketTerminal(bars(),{}, {...meta('股'),assetIdentity:{code:'603986.SH',asset_type:'stock',toString:null}}));
   assert.match(html,/量 <strong>4602\.71万<\/strong>/);
 });
+
+test('average price follows previous-close red/green semantics and keeps flat or missing neutral', () => {
+  for(const [average,tone] of [[280.65,'up'],[270,'down'],[276.75,''],[null,''],[0,'']]) {
+    const input=bars();input[1].vwap=average;const html=strip(renderMarketTerminal(input,{},meta('股')));
+    const averageSpan=html.match(/<span>均 <strong([^>]*)>([^<]*)<\/strong><\/span>/);
+    assert.ok(averageSpan);
+    assert.equal(averageSpan[1],tone ? ` class="asset-price-${tone}"` : '');
+  }
+  const html=strip(renderMarketTerminal([bars()[1]],{},meta('股')));assert.match(html,/均 <strong>280\.65<\/strong>/);
+});
