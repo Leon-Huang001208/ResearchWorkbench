@@ -41,6 +41,15 @@ def _sha(value):
     ).hexdigest()
 
 
+def _raw_description(condition, news_id, event_ids):
+    return (
+        condition
+        + "\n\n[RWB_RAW_SOURCE_SCOPE:"
+        + _sha({"news_id": news_id, "event_ids": sorted(event_ids)})
+        + "]"
+    )
+
+
 class TrackSave(BaseModel):
     """No arbitrary targets, upstream URLs, MCP or external delivery permissions."""
 
@@ -90,9 +99,29 @@ class DiscoveryTracking:
     def eligible(self, automation):
         """Local index identity plus the original locked definition, never a UI claim."""
         row = self._table().get(automation.get("id"))
+        raw = isinstance(row, dict) and row.get("source_kind") == "news"
+        description = automation.get("research_task", {}).get("description", "")
+        bound = False
+        if (
+            raw
+            and isinstance(row.get("body"), dict)
+            and isinstance(row.get("approved_event_ids"), list)
+        ):
+            try:
+                bound = description == _raw_description(
+                    row["body"]["condition"], row["body"]["theme_id"], row["approved_event_ids"]
+                )
+            except (KeyError, TypeError, ValueError):
+                log.warning("discovery_raw_scope_invalid")
         return bool(
             isinstance(row, dict)
+            and (bound if raw else "[RWB_RAW_SOURCE_SCOPE:" not in description)
             and row.get("schema") == TRACK_SCHEMA
+            and row.get("source_kind", "event") in {"event", "news"}
+            and (
+                row.get("source_kind") != "news"
+                or row.get("approved_news_ids") == [row.get("body", {}).get("theme_id")]
+            )
             and row.get("automation_id") == automation.get("id")
             and row.get("definition_sha256")
             == _sha(self.automations._definition_snapshot(automation))
@@ -117,6 +146,26 @@ class DiscoveryTracking:
     @staticmethod
     def _fingerprint(theme):
         # A complete baseline and each later observation use the same acquired evidence contract.
+        if theme.get("source_kind") == "news":
+            materials = theme["materials"]
+            if (
+                len(materials) != 1
+                or materials[0].get("source_kind") != "news"
+                or materials[0].get("news_id") != theme["id"]
+                or "event_id" in materials[0]
+                or not re.fullmatch(r"news-[a-f0-9]{48}", theme["id"])
+                or not re.fullmatch(r"[a-f0-9]{64}", str(materials[0].get("evidence_sha256", "")))
+            ):
+                raise StoreError(
+                    "原始资讯归档指纹未核验", "discovery_track_evidence_unverified", 409
+                )
+            return _sha(
+                {
+                    "source_kind": "news",
+                    "news_id": theme["id"],
+                    "evidence_sha256": materials[0]["evidence_sha256"],
+                }
+            )
         if any(
             not isinstance(row.get("event_id"), str)
             or not re.fullmatch(r"[a-f0-9]{64}", str(row.get("evidence_sha256", "")))
@@ -152,12 +201,31 @@ class DiscoveryTracking:
             if feed.get("feed_id") != body.feed_id:
                 raise StoreError("发现资料已更新，请重新确认", "discovery_feed_changed", 409)
             theme = self._theme(feed, body.theme_id)
-            event_ids = [material.get("event_id") for material in theme["materials"][:20]]
-            if event_ids != [body.theme_id]:
-                raise StoreError("跟踪来源范围尚未核验", "discovery_track_scope_unverified", 409)
-            baseline_feed = await self.discovery.refresh_theme(
-                body.horizon, body.theme_id, event_ids
+            raw_news = theme.get("source_kind") == "news"
+            event_ids = (
+                [x["event_id"] for x in theme.get("related_events", [])]
+                if raw_news
+                else [material.get("event_id") for material in theme["materials"][:20]]
             )
+            if raw_news:
+                if (
+                    len(theme["materials"]) != 1
+                    or theme["materials"][0].get("news_id") != body.theme_id
+                ):
+                    raise StoreError(
+                        "跟踪来源范围尚未核验", "discovery_track_scope_unverified", 409
+                    )
+                baseline_feed = await self.discovery.refresh_news(
+                    body.horizon, body.theme_id, event_ids
+                )
+            else:
+                if event_ids != [body.theme_id]:
+                    raise StoreError(
+                        "跟踪来源范围尚未核验", "discovery_track_scope_unverified", 409
+                    )
+                baseline_feed = await self.discovery.refresh_theme(
+                    body.horizon, body.theme_id, event_ids
+                )
             if baseline_feed.get("stale") is True:
                 raise StoreError(
                     "跟踪基线来源本次不可用", "discovery_track_source_unavailable", 503
@@ -169,6 +237,11 @@ class DiscoveryTracking:
                 raise StoreError(
                     "预览中的研究判断已变化，请刷新后确认", "discovery_evidence_changed", 409
                 )
+            if any(
+                old.get("evidence_sha256") and old["evidence_sha256"] != new.get("evidence_sha256")
+                for old, new in zip(theme["materials"], baseline["materials"])
+            ):
+                raise StoreError("归档证据已变化，请重新确认", "discovery_evidence_changed", 409)
             model = copy.deepcopy(self.research.default_model)
             if model.get("provider") not in {"deepseek-official", "openai-compatible"}:
                 raise StoreError("当前模型不支持跟踪", "discovery_model_unavailable", 409)
@@ -188,7 +261,11 @@ class DiscoveryTracking:
                     "name": f"今日发现 · {theme['title']}"[:160],
                     "target_kind": "research_task",
                     "research_task": {
-                        "description": body.condition,
+                        "description": (
+                            _raw_description(body.condition, body.theme_id, event_ids)
+                            if raw_news
+                            else body.condition
+                        ),
                         "model_provider": model["provider"],
                         "model_id": model["model"],
                         "output_requirements": "核对冻结资料、反证与失效条件，沿用原研究质量门。",
@@ -221,6 +298,11 @@ class DiscoveryTracking:
                     "enable_error": None,
                     "max_model_runs_per_day": 1,
                 }
+
+                if raw_news:
+                    table[automation["id"]].update(
+                        source_kind="news", approved_news_ids=[body.theme_id]
+                    )
 
                 def rollback():
                     table.pop(automation["id"], None)
@@ -347,9 +429,16 @@ class DiscoveryTracking:
         actual = self.automations._run_row(run["id"])
         if not self._model_current(row):
             raise StoreError("当前模型连接与批准跟踪不一致", "discovery_model_changed", 409)
-        feed = await self.discovery.refresh_theme(
-            row["body"]["horizon"], row["body"]["theme_id"], row.get("approved_event_ids")
-        )
+        if row.get("source_kind") == "news":
+            if row.get("approved_news_ids") != [row["body"]["theme_id"]]:
+                raise StoreError("跟踪来源范围尚未核验", "discovery_track_scope_unverified", 409)
+            feed = await self.discovery.refresh_news(
+                row["body"]["horizon"], row["body"]["theme_id"], row.get("approved_event_ids")
+            )
+        else:
+            feed = await self.discovery.refresh_theme(
+                row["body"]["horizon"], row["body"]["theme_id"], row.get("approved_event_ids")
+            )
         if feed.get("stale") is True or feed.get("state") == "stale":
             raise StoreError("本次未取得新的来源观察", "discovery_track_source_unavailable", 503)
         theme = self._theme(feed, row["body"]["theme_id"])
@@ -402,7 +491,8 @@ class DiscoveryTracking:
                 material_ids=[item["id"] for item in theme["materials"][:20]],
                 target_mode="fingpt",
                 question=row["body"]["condition"],
-            )
+            ),
+            **({"require_fresh": True} if row.get("source_kind") == "news" else {}),
         )
         actual["discovery_handoff_id"] = prepared["handoff_id"]
         self.automations._persist_native_reference(run["id"], session_id=prepared["session_id"])

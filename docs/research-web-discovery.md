@@ -58,3 +58,17 @@ Host按当前owned selection feed再读事件详情，比较展示投影、revis
 本轮是Mac功能开发；离线合同覆盖来源失败、未知/陈旧、选择和版本变化、持久失败、同账号恢复/跨账号拒绝、Hash篡改、创建/受理未知、跟踪独立开启、去重/日限、容量恢复与既有质量状态。前端回归验证真实响应投影及两条明确操作链，不能代替实际模型质量。
 
 既有Checks同一Python步骤登记 `test_discovery.py/test_discovery_tracking.py/test_discovery_routes.py`，JS沿 `research_web*.test.mjs`；原Mac Bootstrap在同一步逐字节核对 `discovery.mjs/css`。公开三安装入口、锁文件、固定DSH、3081/8088和Doctor门保留，无新依赖或数据库启用。最终完整Router、独立评审、同候选CI由交付报告记录；本模块的真实模型、生产跟踪、常驻部署与Windows/Linux原生层均未据此认证，保持 `NOT_RUN`。
+
+## 原生双栏与最新原始资讯（2026-10-24）
+
+默认原生RWB双栏，使用appearance.css暖灰令牌、字体和控件，不再继承hot-reader的独立配色。最新原始资讯与事件/已有研判分栏，均先按明确发布时间排序后截取；未知时间置后，不以读取时间代替发布或研判时点。保留事件传导、关联资产、反证、跟踪条件与判断履历。
+
+既有Intel /radar与/intelligence通过同一个固定只读reader分别读取；原始资讯最多180条、事件最多60条，共用原90秒/6份/8MiB/30分钟账号内存缓存。两个读取lane分别保存成功/空/失败、原读取时间、本次尝试、最新发布时间、上游缓存状态/明确时点与覆盖信息。一侧失败只保留这一侧旧资料，不能重新赋予旧资料新读取时间；两侧首次失败明确报错。显式refresh跳过Host缓存，只执行既有GET，不触发上游重算、模型或采集计划。上游缺失cache_stale保持not_reported，显式true传递到预览/冻结并阻断跟踪基线，不能改成新鲜。
+
+原始资讯使用news-身份（来源与安全URL的内容地址），source_kind=news、news_id，与event_id分开；无有效身份、冲突版本仅可阅读。内容指纹包括正文/标题/明确发布时间，排除取得时钟与来源的相对time标签。GET selection只读重新取得当前归档；prepare再次核对完整内容及关联指纹，然后复用原DataHub discovery_evidence/唯一DSH两步提交。原始归档是现有源返回内容，不宣称独立抓取链接网页全文。旧event行和旧context v1/SOURCE_POLICY字节不迁移；只有新raw上下文采用v2条件分支。
+
+GET /api/research/discovery/association仅接受本人同一feed中的news_id和已展示event_id；逐次读取指定事件归档，只有article的精确安全URL匹配才建立地址关联，标题近似和同主题无效。最多保留5个已核验候选，记录匹配报道指纹、事件原件和分别报告的研判截止/事件更新时间；缺研判截止保持未知。关系不是事实核验，也不增加独立来源数。GET仅修改有限内存预览，不能创建会话、快照或计划。
+
+raw跟踪继续复用discovery-tracking-v1与原Automation，不更换调度器；批准news_id及显式关联事件范围绑定在锁定定义中，旧event任务的指纹/批准范围/冷恢复保持。原始资讯滚出/radar窗口时标不可观察，不报unchanged、不删除计划、不回退旧档当新观察。已登记的发现任务定义失效时分派直接拒绝，不回退通用执行器。无变化不模型、未知受理不重发、每日一次尝试、模型连接/工具范围与原精确版本质量门保持。
+
+本轮验证只使用隔离Store/DSH替身和只读来源，真实模型、生产跟踪启用及实际常驻切换分别保留NOT_RUN，不能由源码或CI通过推导。

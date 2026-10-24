@@ -1040,3 +1040,6 @@ KAPSARC 固定 metadata 校验和 kg 投影只使用既有 HTTP/CSV/JSON 与可�
 既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
 
 披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：今日发现原生双栏与原始资讯分支只使用既有Python/HTTP/原生JS；无新依赖、安装入口、DSH/CJPY pin或系统配置。新增Python模块由既有包构建自动收集，原Mac Bootstrap继续核对discovery资源及同候选安装/健康/Doctor，不能由现有环境替代。

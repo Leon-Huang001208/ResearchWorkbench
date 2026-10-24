@@ -5252,6 +5252,13 @@
       "source": "app/research_web/dossiers/routes.py",
       "declaredPath": "/{did}/links/{lid}",
       "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/association",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/association",
+      "prefix": "/api/research/discovery"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

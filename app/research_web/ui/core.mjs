@@ -401,6 +401,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
     discoveryFeed: (horizon = 'medium', refresh = false, options = {}) => request(`/discovery/feed?horizon=${segment(horizon)}&refresh=${refresh ? 'true' : 'false'}`, options),
+    discoveryAssociation: (feedId, newsId, eventId, horizon, options = {}) => request(`/discovery/association?feed_id=${segment(feedId)}&news_id=${segment(newsId)}&event_id=${segment(eventId)}&horizon=${segment(horizon)}`, options),
     discoverySelection: (feedId, themeId, horizon, options = {}) => request(`/discovery/selection?feed_id=${segment(feedId)}&theme_id=${segment(themeId)}&horizon=${segment(horizon)}`, options),
     discoveryPrepare: body => request('/discovery/prepare', { method: 'POST', body, userAction: true }),
     discoveryHandoff: id => request(`/discovery/handoffs/${segment(id)}`),

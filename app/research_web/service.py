@@ -362,14 +362,28 @@ class ResearchService(ModelProfilesMixin):
         native_automation_executor = self.automations.executor
 
         async def execute_owned_discovery(automation, run):
-            if self.discovery_tracking.eligible(automation):
+            if automation.get("id") in self.store.data.get("discovery_tracks", {}):
+                if not self.discovery_tracking.eligible(automation):
+                    log.warning("discovery_tracking_dispatch_rejected")
+                    raise StoreError(
+                        "发现跟踪定义或来源批准范围不可核验",
+                        "discovery_track_scope_unverified",
+                        409,
+                    )
                 return await self.discovery_tracking.execute(automation, run)
             return await native_automation_executor(automation, run)
 
         def resume_owned_discovery(run_id):
             run = self.automations._run_row(run_id)
             automation = self.automations._row(run["automation_id"])
-            if self.discovery_tracking.eligible(automation):
+            if automation.get("id") in self.store.data.get("discovery_tracks", {}):
+                if not self.discovery_tracking.eligible(automation):
+                    log.warning("discovery_tracking_resume_rejected")
+                    raise StoreError(
+                        "发现跟踪定义或来源批准范围不可核验",
+                        "discovery_track_scope_unverified",
+                        409,
+                    )
                 return self.discovery_tracking.resume(run_id)
             return None
 

@@ -18,6 +18,7 @@ from ..datahub.security import json_bytes
 from ..intel_routes import read_upstream
 from ..projection import content_text
 from ..store import StoreError
+from . import news
 from .handoff import ensure_session, trusted_context, write_context
 from .models import DiscoveryError, Prepare
 from .sources import (
@@ -27,7 +28,6 @@ from .sources import (
     acquired_materials,
     digest,
     evidence_projection,
-    objects,
     projection,
     stamp,
     theme,
@@ -135,6 +135,8 @@ class DiscoveryService:
             self._feeds.popitem(last=False)
 
     async def feed(self, horizon="medium", refresh=False):
+        from .reading import build_feed
+
         if horizon not in {"short", "medium", "long"} or not isinstance(refresh, bool):
             raise DiscoveryError("发现期限参数非法", "discovery_horizon_invalid", 422)
         async with self._feed_lock:
@@ -143,106 +145,28 @@ class DiscoveryService:
                 (
                     entry
                     for entry in reversed(self._feeds.values())
-                    if entry["public"]["horizon"] == horizon and entry.get("scope") != "tracking"
+                    if entry["public"]["horizon"] == horizon
+                    and entry.get("scope", "home") == "home"
                 ),
                 None,
             )
             if previous and not refresh and time.monotonic() - previous["time"] < CACHE_SECONDS:
                 return copy.deepcopy(previous["public"])
-            acquired = now()
-            try:
-                payload = await self.reader(
-                    "/intelligence", {"impact": "medium_high", "view": "compact"}
-                )
-                if not isinstance(payload, dict) or not isinstance(payload.get("reading"), list):
-                    raise DiscoveryError("资讯结构暂不可核验", "discovery_source_invalid", 502)
-                logical = {
-                    item["id"]: item.get("name", item["id"])
-                    for item in objects(payload.get("logics"))
-                    if isinstance(item.get("id"), str)
-                }
-                challenges = {item.get("id") for item in objects(payload.get("challenges"))}
-                themes, proofs, seen = [], {}, set()
-                for event in objects(payload["reading"]):
-                    item = theme(event, acquired, logical, event.get("id") in challenges)
-                    if item is None or item["id"] in seen:
-                        continue
-                    seen.add(item["id"])
-                    themes.append(item)
-                    proofs[item["id"]] = projection(event)
-                    if len(themes) >= MAX_THEMES:
-                        break
-                feed_id = str(uuid4())
-                daily = (
-                    payload.get("daily_reading")
-                    if isinstance(payload.get("daily_reading"), dict)
-                    else {}
-                )
-                errors = (
-                    [
-                        {
-                            "code": "upstream_judgment_unverified",
-                            "message": "上游精选判断有核验缺口，不能作为已验证结论。",
-                        }
-                    ]
-                    if daily.get("analysis_error")
-                    else []
-                )
-                value = {
-                    "feed_id": feed_id,
-                    "horizon": horizon,
-                    "cutoff": acquired,
-                    "retrieved_at": acquired,
-                    "source": SOURCE,
-                    "source_label": SOURCE_LABEL,
-                    "source_as_of": stamp(payload.get("as_of")),
-                    "stale": payload.get("cache_stale") is True,
-                    "state": "ready" if themes else "empty",
-                    "themes": themes,
-                    "errors": errors,
-                    "source_policy": SOURCE_POLICY,
-                    "limitations": [
-                        "展示现有第三方资料；打开页面不调用模型。",
-                        "期限是研究问题范围，不把来源未知期限补造成事实。",
-                        "资料包正文在确认研究时取得；事件摘要无变化不证明链接网页正文未变化。",
-                    ],
-                    "bounded": len(payload["reading"]) > len(themes),
-                }
-                encoded = json_bytes({"public": value, "proofs": proofs})
-                if len(encoded) > MAX_CACHE_BYTES:
-                    raise DiscoveryError("发现资料超过缓存上限", "discovery_source_limit", 502)
-                self._feeds[feed_id] = {
-                    "public": value,
-                    "proofs": proofs,
-                    "time": time.monotonic(),
-                    "size": len(encoded),
-                }
-                self._prune_feeds()
-                log.info("discovery_feed_read", count=len(themes), stale=value["stale"])
-                return copy.deepcopy(value)
-            except (
-                HTTPException,
-                DiscoveryError,
-                RuntimeFailure,
-                OSError,
-                ValueError,
-                TimeoutError,
-            ) as exc:
-                log.warning("discovery_feed_failed", error_type=type(exc).__name__)
-                if previous:
-                    value = copy.deepcopy(previous["public"])
-                    value.update(stale=True, state="stale")
-                    value["errors"] = [
-                        {
-                            "code": "discovery_source_unavailable",
-                            "message": "本次读取失败，当前为上次资料。",
-                        }
-                    ]
-                    previous["public"] = copy.deepcopy(value)
-                    return value
-                raise DiscoveryError(
-                    "发现来源暂不可用，请稍后重试", "discovery_source_unavailable", 502
-                ) from exc
+            value, proofs = await build_feed(
+                self.reader, previous["public"] if previous else None, horizon, now(), MAX_THEMES
+            )
+            if previous:
+                for item in value["themes"]:
+                    if item["id"] not in proofs and item["id"] in previous["proofs"]:
+                        proofs[item["id"]] = copy.deepcopy(previous["proofs"][item["id"]])
+            entry = {"scope": "home", "public": value, "proofs": proofs, "time": time.monotonic()}
+            entry["size"] = len(json_bytes(entry))
+            if entry["size"] > MAX_CACHE_BYTES:
+                raise DiscoveryError("发现资料超过缓存上限", "discovery_source_limit", 502)
+            self._feeds[value["feed_id"]] = entry
+            self._prune_feeds()
+            log.info("discovery_feed_read", count=len(value["themes"]), stale=value["stale"])
+            return copy.deepcopy(value)
 
     def cached_preview(self, feed_id, horizon):
         """Read the exact owned preview the user confirmed, rather than a different feed."""
@@ -254,6 +178,144 @@ class DiscoveryService:
             raise DiscoveryError("资料不属于当前预览", "discovery_selection_invalid", 409)
         return copy.deepcopy(entry["public"])
 
+    async def _read_news(self, identifier, associations=None):
+        if not isinstance(identifier, str) or not re.fullmatch(r"news-[a-f0-9]{48}", identifier):
+            raise DiscoveryError("原始资讯身份非法", "discovery_news_identity_unverified", 409)
+        associations = associations or []
+        if (
+            not isinstance(associations, list)
+            or len(associations) > 5
+            or len(set(associations)) != len(associations)
+            or any(
+                not isinstance(x, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", x)
+                for x in associations
+            )
+        ):
+            raise DiscoveryError("关联范围不可核验", "discovery_association_invalid", 409)
+        try:
+            async with asyncio.timeout(25):
+                payload = await self.reader("/radar")
+                item = news.observed(news.collect(payload), identifier)
+                details = await asyncio.gather(
+                    *(self.reader("/intelligence/events/" + event_id) for event_id in associations)
+                )
+                linked = [
+                    news.verified_association(item, detail, event_id)
+                    for event_id, detail in zip(associations, details)
+                ]
+                return {
+                    "news": item,
+                    "associations": linked,
+                    "observation": news.observation(payload),
+                }
+        except DiscoveryError:
+            raise
+        except (HTTPException, RuntimeFailure, OSError, ValueError, TimeoutError) as exc:
+            log.warning("discovery_news_observation_failed", error_type=type(exc).__name__)
+            raise DiscoveryError(
+                "原始资讯或关联归档本次不可读取", "discovery_news_source_unavailable", 503
+            ) from exc
+
+    def _cache_news(self, detail, horizon):
+        acquired, feed_id = now(), str(uuid4())
+        source_state = news.source_state(detail, acquired)
+        item = news.theme(detail["news"], acquired)
+        proof = news.fingerprint(detail)
+        item["materials"][0]["evidence_sha256"] = proof
+        item["related_events"] = [
+            {key: value for key, value in row.items() if key != "detail"}
+            for row in detail["associations"]
+        ]
+        item["association_state"] = "verified_address" if item["related_events"] else "not_checked"
+        value = {
+            "feed_id": feed_id,
+            "horizon": horizon,
+            "cutoff": acquired,
+            "retrieved_at": acquired,
+            "source": SOURCE,
+            "source_label": SOURCE_LABEL,
+            "source_as_of": detail["observation"]["source_as_of"],
+            "stale": news.source_stale(source_state),
+            "state": "ready",
+            "themes": [item],
+            "errors": [],
+            "source_policy": SOURCE_POLICY,
+            "bounded": False,
+            "limitations": [
+                "只核对现有原始资讯归档；滚出来源窗口时不可观察，不以旧资料冒充新观察。",
+                "关联仅认归档报道的精确地址，不证明事实已核验；同一地址不是新增独立来源。",
+            ],
+        }
+        value["freshness"] = {"news": source_state}
+        entry = {
+            "scope": "selection",
+            "public": value,
+            "proofs": {
+                item["id"]: {
+                    "source_kind": "news",
+                    "content_sha256": item["materials"][0]["content_sha256"],
+                }
+            },
+            "detail_proofs": {item["id"]: proof},
+            "associations": {item["id"]: [x["event_id"] for x in detail["associations"]]},
+            "time": time.monotonic(),
+        }
+        entry["size"] = len(json_bytes(entry))
+        if entry["size"] > MAX_CACHE_BYTES:
+            raise DiscoveryError("发现资料超过缓存上限", "discovery_source_limit", 502)
+        self._feeds[feed_id] = entry
+        self._prune_feeds()
+        log.info("discovery_news_preview_read", associations=len(item["related_events"]))
+        return copy.deepcopy(value)
+
+    async def refresh_news(self, horizon, identifier, associations=None):
+        if horizon not in {"short", "medium", "long"}:
+            raise DiscoveryError("发现期限参数非法", "discovery_horizon_invalid", 422)
+        async with self._feed_lock:
+            return self._cache_news(await self._read_news(identifier, associations), horizon)
+
+    async def associate(self, feed_id, news_id, event_id, horizon):
+        async with self._feed_lock:
+            feed = self.cached_preview(feed_id, horizon)
+            selected = next(
+                (
+                    x
+                    for x in feed["themes"]
+                    if x["id"] == news_id and x.get("source_kind") == "news"
+                ),
+                None,
+            )
+            event = next(
+                (
+                    x
+                    for x in feed["themes"]
+                    if x["id"] == event_id and x.get("source_kind", "event") == "event"
+                ),
+                None,
+            )
+            if selected is None or event is None:
+                raise DiscoveryError(
+                    "关联资料不属于当前用户预览", "discovery_selection_invalid", 409
+                )
+            entry = self._feeds[feed_id]
+            known = entry.get("verified_news_links", {}).get(news_id, [])
+            selected_ids = list(dict.fromkeys([*known, event_id]))
+            detail = await self._read_news(news_id, selected_ids)
+            if digest(news.projection(detail["news"])) != selected["materials"][0][
+                "content_sha256"
+            ] or any(
+                projection(x["detail"]["event"]) != entry["proofs"].get(x["event_id"])
+                for x in detail["associations"]
+            ):
+                raise DiscoveryError(
+                    "关联资料版本已变化，请刷新后确认", "discovery_evidence_changed", 409
+                )
+            result = self._cache_news(detail, horizon)
+            entry.setdefault("verified_news_links", {})[news_id] = selected_ids
+            entry["size"] = len(json_bytes({k: v for k, v in entry.items() if k != "size"}))
+            self._prune_feeds()
+            return result
+
     async def selection_preview(self, feed_id, theme_id, horizon):
         """Read full current evidence only for a theme selected from an owned live preview."""
         async with self._feed_lock:
@@ -261,11 +323,19 @@ class DiscoveryService:
             selected = next((item for item in feed["themes"] if item["id"] == theme_id), None)
             if feed["horizon"] != horizon or selected is None:
                 raise DiscoveryError("资料不属于当前预览", "discovery_selection_invalid", 409)
+            if selected.get("source_kind") == "news":
+                associations = list(self._feeds[feed_id].get("associations", {}).get(theme_id, []))
+            else:
+                associations = None
             event_ids = [material.get("event_id") for material in selected.get("materials", [])]
-            if event_ids != [theme_id]:
+            if associations is None and event_ids != [theme_id]:
                 raise DiscoveryError("预览来源范围不可核验", "discovery_selection_invalid", 409)
         # This updates only bounded memory caches. It never reserves a session or writes Store.
-        result = await self.refresh_theme(horizon, theme_id, event_ids)
+        result = (
+            await self.refresh_news(horizon, theme_id, associations)
+            if associations is not None
+            else await self.refresh_theme(horizon, theme_id, event_ids)
+        )
         log.info("discovery_selection_preview_read")
         return result
 
@@ -335,7 +405,7 @@ class DiscoveryService:
                     "跟踪来源本次不可用", "discovery_track_source_unavailable", 502
                 ) from exc
 
-    async def prepare(self, body):
+    async def prepare(self, body, *, require_fresh=False):
         body = body if isinstance(body, Prepare) else Prepare.model_validate(body)
         async with self.lock:
             request_hash = digest(body.model_dump())
@@ -365,31 +435,35 @@ class DiscoveryService:
                 raise DiscoveryError("研究交接记录已达上限", "discovery_handoff_limit", 409)
             # Complete and validate every source read before reserving any native identity.
             evidence = []
-            for identifier in body.material_ids:
-                material = materials[identifier]
-                detail = await self.reader("/intelligence/events/" + material["event_id"])
-                if (
-                    not isinstance(detail, dict)
-                    or not isinstance(detail.get("event"), dict)
-                    or not isinstance(detail.get("articles", []), list)
+            if selected_theme.get("source_kind") == "news":
+                if len(body.material_ids) != 1 or any(
+                    materials[x].get("news_id") != body.theme_id
+                    or materials[x].get("source_kind") != "news"
+                    for x in body.material_ids
                 ):
-                    raise DiscoveryError("事件归档结构不可核验", "discovery_source_invalid", 502)
-                proof = projection(detail["event"])
-                if (
-                    digest(proof) != material["content_sha256"]
-                    or proof != feed_entry["proofs"][body.theme_id]
-                ):
+                    raise DiscoveryError("原始资讯范围不可核验", "discovery_selection_invalid", 409)
+                detail = await self._read_news(
+                    body.theme_id, feed_entry.get("associations", {}).get(body.theme_id, [])
+                )
+                frozen_source_state = news.source_state(detail, now())
+                if require_fresh and news.source_stale(frozen_source_state):
+                    log.warning("discovery_freeze_source_expired")
                     raise DiscoveryError(
-                        "事件版本已变化，请刷新重新选择", "discovery_evidence_changed", 409
+                        "冻结时来源缓存已过期，未提交研究", "discovery_source_expired", 409
                     )
-                expected_detail = feed_entry.get("detail_proofs", {}).get(body.theme_id)
-                if expected_detail and digest(evidence_projection(detail)) != expected_detail:
+                material = materials[body.material_ids[0]]
+                proof = news.projection(detail["news"])
+                if digest(proof) != material["content_sha256"] or (
+                    feed_entry.get("detail_proofs", {}).get(body.theme_id)
+                    and news.fingerprint(detail) != feed_entry["detail_proofs"][body.theme_id]
+                ):
                     raise DiscoveryError(
-                        "归档证据已变化，请重新确认", "discovery_evidence_changed", 409
+                        "资讯或关联证据已变化，请重新确认", "discovery_evidence_changed", 409
                     )
                 evidence.append(
                     {
-                        "event_id": material["event_id"],
+                        "source_kind": "news",
+                        "news_id": body.theme_id,
                         "material": material,
                         "projection": proof,
                         "preview_sha256": material["content_sha256"],
@@ -397,6 +471,41 @@ class DiscoveryService:
                         "acquired_at": now(),
                     }
                 )
+            else:
+                for identifier in body.material_ids:
+                    material = materials[identifier]
+                    detail = await self.reader("/intelligence/events/" + material["event_id"])
+                    if (
+                        not isinstance(detail, dict)
+                        or not isinstance(detail.get("event"), dict)
+                        or not isinstance(detail.get("articles", []), list)
+                    ):
+                        raise DiscoveryError(
+                            "事件归档结构不可核验", "discovery_source_invalid", 502
+                        )
+                    proof = projection(detail["event"])
+                    if (
+                        digest(proof) != material["content_sha256"]
+                        or proof != feed_entry["proofs"][body.theme_id]
+                    ):
+                        raise DiscoveryError(
+                            "事件版本已变化，请刷新重新选择", "discovery_evidence_changed", 409
+                        )
+                    expected_detail = feed_entry.get("detail_proofs", {}).get(body.theme_id)
+                    if expected_detail and digest(evidence_projection(detail)) != expected_detail:
+                        raise DiscoveryError(
+                            "归档证据已变化，请重新确认", "discovery_evidence_changed", 409
+                        )
+                    evidence.append(
+                        {
+                            "event_id": material["event_id"],
+                            "material": material,
+                            "projection": proof,
+                            "preview_sha256": material["content_sha256"],
+                            "detail": detail,
+                            "acquired_at": now(),
+                        }
+                    )
             frozen_at = now()
             selection_hash = digest(
                 {
@@ -422,6 +531,14 @@ class DiscoveryService:
                 "retrieved_at": frozen_at,
                 "materials": acquired_materials(evidence),
             }
+            if selected_theme.get("source_kind") == "news":
+                record.update(
+                    source_kind="news",
+                    associations=[
+                        {key: value for key, value in x.items() if key != "detail"}
+                        for x in evidence[0]["detail"]["associations"]
+                    ],
+                )
             had_table = "discovery_handoffs" in self.store.data
             table = self.store.data.setdefault("discovery_handoffs", {})
             table[handoff_id] = record
@@ -447,6 +564,14 @@ class DiscoveryService:
                 "stale": feed["stale"],
                 "evidence": evidence,
             }
+            if "freshness" in feed:
+                bundle["source_states"] = copy.deepcopy(feed["freshness"])
+            if selected_theme.get("source_kind") == "news":
+                bundle.update(
+                    source_as_of=frozen_source_state["source_as_of"],
+                    stale=news.source_stale(frozen_source_state),
+                    source_states={"news": frozen_source_state},
+                )
             dataset = self.research.datahub.snapshots.publish_discovery(
                 record["session_id"], handoff_id, bundle
             )

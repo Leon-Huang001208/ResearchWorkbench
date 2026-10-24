@@ -303,3 +303,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24现金流财务仅向原Checks同一pytest步骤加入test_datahub_baostock_cashflow/test_cashflow_warehouse_integration，无新job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实免费样例和隔离PG仅本机，不接模型/付费/生产库。最终仍绑定原三CI和同候选macos-14安装，远端动作前实时核对PUBLIC，不手工rerun或从Mac发其他平台产品dispatch。
+
+
+2026-10-24：2026-10-24今日发现最新资讯与原生双栏只扩展既有test_discovery/test_discovery_routes/test_discovery_tracking和JS通配符，无新workflow/job/runner/依赖/timeout；同候选原三CI/Mac安装保留。原定点79项约12.4秒、JS37项不足1秒是阶段本机证据，新反例预留原步骤30秒，最终耗时另证。真实模型/生产跟踪/上游重算不进入CI。
