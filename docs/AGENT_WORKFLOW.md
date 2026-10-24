@@ -502,3 +502,7 @@ node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id T
 历史pending没有backup manifest摘要时，先依据原Git安全日志独立核对归档来源，再将指定归档seal、manifest及本轮实际恢复结果绑定新epoch。不能把兼容备份宣称为全部历史现场证明。原失败与缺失旧Git对象分别保留。
 
 已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+## 2026-10-24：原端点与参考证据验收
+
+四案SDK原端点诊断保留无响应事实，不归因账号或冒充修复。GDP字典由官方JS/统计局方法固定原件校准，财务限定两格和原件页／精确值哈希，float不认证；日期冲突保留，历史可得性不由下载或目录日期证明。源码冻结后走默认Host/PG三进程、实际停启和默认factory空库恢复；原Router、独评、三CI及同提交Mac安装不省略。
