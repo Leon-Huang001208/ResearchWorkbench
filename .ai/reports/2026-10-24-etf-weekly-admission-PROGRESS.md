@@ -12,6 +12,15 @@
 
 ## 本地实现与边界
 
+P5普通merge后Sender/领域组合113 passed（100.07秒），规格与Python质量均补绑`postmerge-source-hashes.json`/P5：除构造函数已合入主线的发现跟踪资格拒绝外，send/scope/claim及并发修复没有改变。API/运行管理补验的610通过+139路径安全失败，后者因主会话把basetemp放入现有Projects的0775祖先；记录保留，未chmod/削弱安全门。将同139项移至正常private临时目录后139 passed/3.47秒，合并覆盖原749项（另1既有skip），不是声称失败批次一次全绿。
+
+Native受管衔接源码规格已关闭receipt-only恢复P2并APPROVED，`d0eddc5c…`/`6b895a4e…`两源冻结；2285全矩阵为该P2之前基线，修后149项定点及规格独立8项通过，未假称修后重跑2285。Native独立代码质量评审待完成。只读Native观察91sessions/70parent目录/21children无运行或不明running，不代表完整Host idle（旧catalog等待仍active），也不复用为以后apply时空闲证据。
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新封闭Native后继复用原主实例网关三锁和version4切换恢复事务，只在现有准备阶段增加同目录维护intent与receipt，不改变Native/Docker服务和数据归属节点或连接，Docker服务无操作","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"既有主管理员身份与所有账号活动门保留，旧等待动作只修改已核验Run控制态且不取消Native，仍用原网关Host和DSH节点及旧GET缓存刷新，不增加租户入口或跨用户能力","diagrams":[]} -->
+
+统一部署协调：收到今日发现任务基于用户“允许协调，统一部署窗口”的通知，本任务暂缓独立常驻切换，不并发apply。当前准备的完整产品祖先为`82151bc2708d60c7abb1d38b686a3e368e42f812`，普通merge纳入最新主线`01fa32c85b16a67dc042c68af9811da6eb63a390`，包括PR226今日发现及此前全市场组合源码。它不是已部署版本；真正空闲仍未建立。维护无需先部署新页面：候选冷operator将从36fd执行既有GET与受限领域动作，但尚在实现及离线验证，真实动作和统一切换仍需对最终候选明确授权。正式入口、固定action摘要、独评和CI完成后在本报告更新；本任务不取消Native、不重发旧模型、不启用任何日程。
+
 提交实现最终清单`bbc1fb7ee1d7923793e4495a9640fa6f14d4ee9d17c4030cbcbc296778a77950`获规格及Python质量APPROVED。质量评审发现并修复两个并发状态问题：第二调用不能把首个accepted回退unknown；真实accepted后交付观察错误不能被重复提交guard吞掉。6项真实交错回归通过；原JS scope两源不变，质量回执补绑最终清单。结束等待UI单独规格及JS质量APPROVED，全9项Node通过。
 
 Router选L4，未减门。L0文档治理和Python索引通过；Node完整规划合同230 passed/5.24秒；protocol/service_manager/local_integrations/API组合749 passed、1 skipped、1 warning/638.82秒，日志与JUnit分别router-api.log/xml。完整changed-set约束检查首次因新增UI缺少两个模块文档和ui结构说明失败，补文档并保留失败JSON，已用validation_failure重规划，最终约束待重跑。以上为当前功能源码闭包，尚非最终合并/Native候选证据。

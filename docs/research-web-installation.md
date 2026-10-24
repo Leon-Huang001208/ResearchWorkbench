@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+apply-etf-weekly-admission固定36fd990c前版与完整产品祖先82151bc2，要求显式结束等待标志及本地私有封印action文件；其摘要由源码固定，不接收凭据或任意JSON修改。冷操作员先资格验证与三锁，领域动作保留未知并留下独立intent/receipt，窄GET刷新旧Host，再要求原完整idle通过。安装入口/依赖/旧模式不变，真实维护与统一切换另行批准。
+
 新增周报内部scope/journal模块及脚本冻结文件策略随既有Web包和Runtime JS发布，无新增包/凭据/服务或用户配置。setup三入口、固定DSH构建和同候选Mac安装/3081/8088/Doctor保持；JS/Python范围协议必须同候选，不以旧安装或合成测试认证真实Word/Excel/模型。
 
 全市场预览修复的封闭 `apply-market-preview` 复用现有安装栈与 version4 保全事务：仅接受当前36fd990c前版及获批e56d9718组合产品；reader193f4fcc与web.lock7c631d4f不变，不安装新依赖或启用数据库。旧安装入口保持，最终候选仍须同候选Mac干净安装及独立部署验收。
