@@ -303,3 +303,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24现金流财务仅向原Checks同一pytest步骤加入test_datahub_baostock_cashflow/test_cashflow_warehouse_integration，无新job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实免费样例和隔离PG仅本机，不接模型/付费/生产库。最终仍绑定原三CI和同候选macos-14安装，远端动作前实时核对PUBLIC，不手工rerun或从Mac发其他平台产品dispatch。
+
+
+2026-10-24公开SDK代理与宏观/新浪原件绑定v2仅向原Checks同一pytest步骤加入test_ak_native_binding，公开worker既有模块增无网络子进程回归；不加job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实3worker/最多4HTTP和隔离PG仅本机。原三CI及同候选macos-14安装保留，远端前实时核对PUBLIC，不手工rerun或由Mac派发其他平台产品。

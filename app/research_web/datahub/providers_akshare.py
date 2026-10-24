@@ -120,8 +120,8 @@ def _exchange_symbol(value: str) -> str:
 
 SEMANTICS_REVISION = "akshare-supported-query-v6"
 FUND_FLOW_GUEST_URL = "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get"
-CHINA_MACRO_SCHEMA = "akshare-china-macro-v1"
-SINA_FINANCIAL_SCHEMA = "akshare-sina-financial-disclosure-v1"
+CHINA_MACRO_SCHEMA = "akshare-china-macro-v2"
+SINA_FINANCIAL_SCHEMA = "akshare-sina-financial-disclosure-v2"
 FUND_FLOW_SCHEMA = "akshare-eastmoney-fund-flow-provenance-v1"
 SINA_FINANCIAL_URL = (
     "https://quotes.sina.cn/cn/api/openapi.php/CompanyFinanceService.getFinanceReport2022"
@@ -611,38 +611,15 @@ def _macro_bounds(query):
         raise ProviderError("invalid_date_range") from None
 
 
-def _china_macro(query):
-    """Closed SDK-equivalent requests retain the envelope the SDK discards."""
-    from pandas import DataFrame
-
-    series = query.parameters["series"]
-    report, columns = CHINA_MACRO_CONTRACTS[series]
-    params = {
-        "columns": columns,
-        "pageNumber": "1",
-        "pageSize": "2000",
-        "sortColumns": "REPORT_DATE",
-        "sortTypes": "-1",
-        "source": "WEB",
-        "client": "WEB",
-        "reportName": report,
-        "p": "1",
-        "pageNo": "1",
-        "pageNum": "1",
-    }
+def china_macro_projection(raw: bytes, query: BusinessQuery):
+    """Reparse one bounded source original and derive its exact native rows."""
+    validate_supported_query(query)
+    if query.capability != "factor_macro":
+        raise ProviderError("data_not_equivalent")
     try:
-        with (
-            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
-            client.stream("GET", CHINA_MACRO_URL, params=params) as response,
-        ):
-            if response.status_code != 200:
-                raise ProviderError("vendor_unreachable")
-            raw = bytearray()
-            for chunk in response.iter_bytes():
-                raw.extend(chunk)
-                if len(raw) > MAX_RESPONSE_BYTES:
-                    raise ValueError("response_limit")
-        payload = json.loads(raw)
+        payload = _native_json(raw)
+        series = query.parameters["series"]
+        columns = CHINA_MACRO_CONTRACTS[series][1]
         if (
             payload.get("success") is not True
             or type(payload.get("code")) is not int
@@ -707,18 +684,61 @@ def _china_macro(query):
                     }
                 )
             previous = day
+        return rows, count, pages == 1
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        log.warning("datahub_china_macro_projection_invalid")
+        raise ProviderError("vendor_schema_invalid") from None
+
+
+def china_macro_source_url(query):
+    series = query.parameters["series"]
+    report, columns = CHINA_MACRO_CONTRACTS[series]
+    params = {
+        "columns": columns,
+        "pageNumber": "1",
+        "pageSize": "2000",
+        "sortColumns": "REPORT_DATE",
+        "sortTypes": "-1",
+        "source": "WEB",
+        "client": "WEB",
+        "reportName": report,
+        "p": "1",
+        "pageNo": "1",
+        "pageNum": "1",
+    }
+    return str(httpx.URL(CHINA_MACRO_URL).copy_merge_params(params))
+
+
+def _china_macro(query):
+    """Closed SDK-equivalent requests retain the envelope the SDK discards."""
+    from pandas import DataFrame
+
+    series = query.parameters["series"]
+    try:
+        with (
+            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
+            client.stream("GET", china_macro_source_url(query)) as response,
+        ):
+            if response.status_code != 200:
+                raise ProviderError("vendor_unreachable")
+            raw = bytearray()
+            for chunk in response.iter_bytes():
+                raw.extend(chunk)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    raise ValueError("response_limit")
+        rows, count, pages_complete = china_macro_projection(bytes(raw), query)
         normalizer = _MacroNormalizer(
             bytes(raw),
-            str(httpx.URL(CHINA_MACRO_URL).copy_merge_params(params)),
+            china_macro_source_url(query),
             count,
-            pages == 1,
+            pages_complete,
             series,
         )
         log.info(
             "datahub_china_macro_received",
             series=series,
             rows=len(rows),
-            provider_rows=len(observations),
+            provider_rows=count,
         )
         return DataFrame(rows), normalizer
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
@@ -810,37 +830,15 @@ def _financial_json_float(value):
     return number
 
 
-def _sina_income_statement(query):
-    """One reviewed eight-period capture inside the existing public worker."""
-    from pandas import DataFrame
-
-    params = {
-        "paperCode": _exchange_symbol(query.parameters["asset"]),
-        "source": "lrb",
-        "type": "0",
-        "page": "1",
-        "num": "8",
-    }
+def sina_income_projection(raw: bytes, query: BusinessQuery):
+    """Retain source report items, date precision and bounded period coverage."""
+    _validate_income_statement(query)
+    if query.capability != "financials" or query.parameters.get("statements") != [
+        "income_statement"
+    ]:
+        raise ProviderError("data_not_equivalent")
     try:
-        with (
-            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
-            client.stream("GET", SINA_FINANCIAL_URL, params=params) as response,
-        ):
-            if response.status_code != 200:
-                log.warning("datahub_sina_financial_http_failed", status=response.status_code)
-                raise ProviderError("vendor_unreachable")
-            raw = bytearray()
-            for chunk in response.iter_bytes():
-                raw.extend(chunk)
-                if len(raw) > MAX_RESPONSE_BYTES:
-                    log.warning("datahub_sina_financial_response_limit")
-                    raise ProviderError("vendor_schema_invalid")
-        payload = json.loads(
-            raw,
-            object_pairs_hook=_financial_json_object,
-            parse_float=_financial_json_float,
-            parse_constant=_financial_json_float,
-        )
+        payload = _native_json(raw)
         result = payload["result"]
         if type(result["status"]["code"]) is not int or result["status"]["code"] != 0:
             raise ValueError("invalid_status")
@@ -926,9 +924,163 @@ def _sina_income_statement(query):
             rows = sorted(rows, key=lambda row: row["report_period"], reverse=True)[:requested]
         elif requested:
             rows = [row for row in rows if row["report_period"] in requested]
+        return rows, total, _sina_income_missing(rows, query)
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        log.warning("datahub_sina_financial_projection_invalid")
+        raise ProviderError("vendor_schema_invalid") from None
+
+
+def _native_json(raw):
+    if not isinstance(raw, bytes) or not raw or len(raw) > MAX_RESPONSE_BYTES:
+        raise ValueError("invalid_raw_original")
+    return json.loads(
+        raw,
+        object_pairs_hook=_financial_json_object,
+        parse_float=_financial_json_float,
+        parse_constant=_financial_json_float,
+    )
+
+
+def _sina_income_missing(rows, query):
+    requested = query.parameters.get("periods", [])
+    missing = []
+    if (
+        len(rows) < requested
+        if type(requested) is int
+        else bool(set(requested) - {row["report_period"] for row in rows})
+    ):
+        missing.append("requested_report_periods_missing")
+    if any(row["publication_precision"] != "date" for row in rows):
+        missing.append("publication_date_missing")
+    if any(not any(item["item_value"] is not None for item in row["data"]) for row in rows):
+        missing.append("financial_numeric_values_missing")
+    return tuple(missing)
+
+
+def sina_income_metadata():
+    """Static source dictionary and first-observation contract, excluding clock time."""
+    return {
+        "schema_version": SINA_FINANCIAL_SCHEMA,
+        "provider_semantics_revision": SINA_FINANCIAL_SCHEMA,
+        "upstream_id": "sina",
+        "transport": "direct_http_in_public_worker",
+        "availability_basis": "first_observed",
+        "historical_point_in_time": False,
+        "formal_backtest_eligible": False,
+        "reporting_basis": "unknown",
+        "revision_policy": "first_observed_not_historical_vintage",
+        "field_dictionary_evidence": {
+            "schema_version": SINA_FINANCIAL_SCHEMA,
+            "endpoint": SINA_FINANCIAL_URL,
+            "statement": "lrb",
+            "unit_status": "unverified",
+            "currency_field": "rCurrency",
+            "publication_field": "publish_date",
+            "publication_precision": "date",
+            "supplier_update_field": "update_time",
+        },
+    }
+
+
+def sina_income_fields(rows):
+    return {
+        field: {"unit": None, "currency": None, "semantic": "provider_native"}
+        for row in rows
+        for field in row
+    }
+
+
+def china_macro_metadata(series):
+    """Static native dictionary: reference periods never establish publication time."""
+    return {
+        "schema_version": CHINA_MACRO_SCHEMA,
+        "provider_semantics_revision": CHINA_MACRO_SCHEMA,
+        "upstream_id": "eastmoney",
+        "availability_basis": "first_observed",
+        "formal_backtest_eligible": False,
+        "historical_point_in_time": False,
+        "revision_policy": "first_observed_not_historical_vintage",
+        "field_dictionary_evidence": {
+            "schema_version": CHINA_MACRO_SCHEMA,
+            "endpoint": CHINA_MACRO_URL,
+            "report_name": CHINA_MACRO_CONTRACTS[series][0],
+            "columns": CHINA_MACRO_CONTRACTS[series][1].split(","),
+            "reference_period_field": "TIME",
+            "reference_label_field": "REPORT_DATE",
+            "publication_time": "unavailable",
+            "aggregation": "year_to_date" if series == "gdp" else "period",
+            "cross_source_equivalence": "unverified",
+        },
+    }
+
+
+def china_macro_fields(rows, series):
+    fields = dict.fromkeys(field for row in rows for field in row)
+    for field in fields:
+        semantic = "provider_native"
+        if field.endswith("_SAME"):
+            semantic = (
+                "year_to_date_year_over_year_change" if series == "gdp" else "year_over_year_change"
+            )
+        elif field.endswith("_SEQUENTIAL"):
+            semantic = "month_over_month_change"
+        elif series == "cpi" and field.endswith("_ACCUMULATE"):
+            semantic = "year_to_date_index_level"
+        elif field.endswith("_INDEX") or series == "cpi" and field.endswith("_BASE"):
+            semantic = "index_level"
+        elif series == "gdp" and field.endswith("_BASE"):
+            semantic = "year_to_date_amount"
+        elif field in {"REPORT_DATE", "TIME"}:
+            semantic = "vendor_reference_label_not_publication"
+        elif field == "date":
+            semantic = "derived_reference_period_end"
+        unit = (
+            "CNY_100million"
+            if series == "m2" and field in {"BASIC_CURRENCY", "CURRENCY", "FREE_CASH"}
+            else None
+        )
+        fields[field] = {
+            "unit": unit,
+            "currency": "CNY" if unit == "CNY_100million" else None,
+            "semantic": semantic,
+        }
+    return fields
+
+
+def sina_income_source_url(query):
+    params = {
+        "paperCode": _exchange_symbol(query.parameters["asset"]),
+        "source": "lrb",
+        "type": "0",
+        "page": "1",
+        "num": "8",
+    }
+    return str(httpx.URL(SINA_FINANCIAL_URL).copy_merge_params(params))
+
+
+def _sina_income_statement(query):
+    """One reviewed eight-period capture inside the existing public worker."""
+    from pandas import DataFrame
+
+    try:
+        with (
+            httpx.Client(timeout=4, trust_env=False, follow_redirects=False) as client,
+            client.stream("GET", sina_income_source_url(query)) as response,
+        ):
+            if response.status_code != 200:
+                log.warning("datahub_sina_financial_http_failed", status=response.status_code)
+                raise ProviderError("vendor_unreachable")
+            raw = bytearray()
+            for chunk in response.iter_bytes():
+                raw.extend(chunk)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    log.warning("datahub_sina_financial_response_limit")
+                    raise ProviderError("vendor_schema_invalid")
+        rows, total, _missing = sina_income_projection(bytes(raw), query)
+        periods = _native_json(bytes(raw))["result"]["data"]["report_list"]
         normalizer = _FinancialNormalizer(
             bytes(raw),
-            str(httpx.URL(SINA_FINANCIAL_URL).copy_merge_params(params)),
+            sina_income_source_url(query),
             total,
             tuple(_sina_day(key).isoformat() for key in periods),
         )
@@ -1316,33 +1468,10 @@ def _materialize(query, frame, normalizer):
         result.provider_total = normalizer.provider_total
         result.pagination_complete = normalizer.provider_total == len(normalizer.captured_periods)
         result.status = "snapshot"
-        result.metadata.update(
-            {
-                "schema_version": SINA_FINANCIAL_SCHEMA,
-                "provider_semantics_revision": SINA_FINANCIAL_SCHEMA,
-                "upstream_id": "sina",
-                "transport": "direct_http_in_public_worker",
-                "availability_basis": "first_observed",
-                "observed_at": datetime.now(UTC).isoformat(),
-                "historical_point_in_time": False,
-                "formal_backtest_eligible": False,
-                "revision_policy": "first_observed_not_historical_vintage",
-                "field_dictionary_evidence": {
-                    "schema_version": SINA_FINANCIAL_SCHEMA,
-                    "endpoint": SINA_FINANCIAL_URL,
-                    "statement": "lrb",
-                    "unit_status": "unverified",
-                    "currency_field": "rCurrency",
-                    "publication_field": "publish_date",
-                    "publication_precision": "date",
-                    "supplier_update_field": "update_time",
-                },
-            }
-        )
-        result.fields = {
-            field: {"unit": None, "currency": None, "semantic": "provider_native"}
-            for field in result.fields
-        }
+        result.metadata.update(sina_income_metadata())
+        result.metadata["observed_at"] = datetime.now(UTC).isoformat()
+        result.rows, result.provider_total, missing = sina_income_projection(normalizer.raw, query)
+        result.fields = sina_income_fields(result.rows)
         result.limitations.extend(
             [
                 "single_response_not_complete_history",
@@ -1351,23 +1480,9 @@ def _materialize(query, frame, normalizer):
                 "historical_vintage_unverified",
             ]
         )
-        requested = query.parameters.get("periods", [])
-        missing_periods = (
-            len(result.rows) < requested
-            if type(requested) is int
-            else bool(set(requested) - {row["report_period"] for row in result.rows})
-        )
-        if missing_periods:
+        if missing:
             result.status = "partial"
-            result.missing.append("requested_report_periods_missing")
-        if any(row["publication_precision"] != "date" for row in result.rows):
-            result.status = "partial"
-            result.missing.append("publication_date_missing")
-        if any(
-            not any(item["item_value"] is not None for item in row["data"]) for row in result.rows
-        ):
-            result.status = "partial"
-            result.missing.append("financial_numeric_values_missing")
+            result.missing.extend(missing)
     if query.capability == "market_activity" and isinstance(normalizer, _FeedNormalizer):
         result.metadata.update(
             {
@@ -1398,17 +1513,11 @@ def _materialize(query, frame, normalizer):
         result.provider_total = normalizer.provider_total
         result.pagination_complete = normalizer.pages_complete
         result.status = "snapshot"
-        result.metadata.update(
-            {
-                "schema_version": CHINA_MACRO_SCHEMA,
-                "provider_semantics_revision": CHINA_MACRO_SCHEMA,
-                "upstream_id": "eastmoney",
-                "availability_basis": "first_observed",
-                "formal_backtest_eligible": False,
-                "historical_point_in_time": False,
-                "revision_policy": "first_observed_not_historical_vintage",
-            }
+        result.metadata.update(china_macro_metadata(normalizer.series))
+        result.rows, result.provider_total, result.pagination_complete = china_macro_projection(
+            normalizer.raw, query
         )
+        result.fields = china_macro_fields(result.rows, normalizer.series)
         result.limitations.extend(
             [
                 "single_response_not_complete_history",
@@ -1416,37 +1525,6 @@ def _materialize(query, frame, normalizer):
                 "native_macro_units_not_cross_source_equivalent",
             ]
         )
-        for field in result.fields:
-            semantic = "provider_native"
-            if field.endswith("_SAME"):
-                semantic = (
-                    "year_to_date_year_over_year_change"
-                    if normalizer.series == "gdp"
-                    else "year_over_year_change"
-                )
-            elif field.endswith("_SEQUENTIAL"):
-                semantic = "month_over_month_change"
-            elif normalizer.series == "cpi" and field.endswith("_ACCUMULATE"):
-                semantic = "year_to_date_index_level"
-            elif field.endswith("_INDEX") or normalizer.series == "cpi" and field.endswith("_BASE"):
-                semantic = "index_level"
-            elif normalizer.series == "gdp" and field.endswith("_BASE"):
-                semantic = "year_to_date_amount"
-            elif field in {"REPORT_DATE", "TIME"}:
-                semantic = "vendor_reference_label_not_publication"
-            elif field == "date":
-                semantic = "derived_reference_period_end"
-            unit = (
-                "CNY_100million"
-                if normalizer.series == "m2"
-                and field in {"BASIC_CURRENCY", "CURRENCY", "FREE_CASH"}
-                else None
-            )
-            result.fields[field] = {
-                "unit": unit,
-                "currency": "CNY" if unit else None,
-                "semantic": semantic,
-            }
         if not result.rows or not normalizer.pages_complete:
             result.status = "partial"
             result.missing.append("macro_response_coverage_unverified")

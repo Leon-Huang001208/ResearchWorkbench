@@ -15,7 +15,18 @@ from ..market_store import Batch, DatasetIdentity, Fact, MarketStoreError, RawOr
 from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
 from .providers import MAX_QUERY_BYTES, ProviderError, Result
-from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
+from .providers_akshare import (
+    FUND_FLOW_SCHEMA,
+    SINA_FINANCIAL_SCHEMA,
+    china_macro_fields,
+    china_macro_metadata,
+    china_macro_projection,
+    china_macro_source_url,
+    sina_income_fields,
+    sina_income_metadata,
+    sina_income_projection,
+    sina_income_source_url,
+)
 from .providers_baostock import FINANCIAL_DICTIONARY, FINANCIAL_DICTIONARY_SHA256
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_baostock_cashflow import (
@@ -117,6 +128,68 @@ START = date(1970, 1, 1)
 NAV_SEMANTIC_GAPS = frozenset(
     {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
 )
+
+
+def _complete_ak_native_snapshot(query: BusinessQuery, result: Result) -> bool:
+    """Bind new captures to one strictly reparsed original and fixed source contract."""
+    if (
+        result.provider_id != "akshare"
+        or result.status != "snapshot"
+        or type(result.pages_fetched) is not int
+        or result.pages_fetched != 1
+        or type(result.provider_total) is not int
+        or type(result.pagination_complete) is not bool
+        or len(result.raw) != 1
+        or not result.rows
+        or result.missing
+        or type(result.duplicates) is not int
+        or result.duplicates != 0
+    ):
+        return False
+    try:
+        if query.capability == "factor_macro":
+            rows, total, pages_complete = china_macro_projection(result.raw[0], query)
+            source_url = china_macro_source_url(query)
+            metadata = china_macro_metadata(query.parameters["series"])
+            fields = china_macro_fields(rows, query.parameters["series"])
+            if not pages_complete or any(value is None for row in rows for value in row.values()):
+                return False
+        else:
+            rows, total, missing = sina_income_projection(result.raw[0], query)
+            if missing:
+                return False
+            source_url = sina_income_source_url(query)
+            metadata = sina_income_metadata()
+            fields = sina_income_fields(rows)
+            # Strict duplicate/number validation already ran in the shared parser.
+            captured = json.loads(result.raw[0])["result"]["data"]["report_date"]
+            pages_complete = total == len(captured)
+        expected_as_of = max(
+            (
+                str(row.get("date") or row.get("as_of"))
+                for row in rows
+                if row.get("date") or row.get("as_of")
+            ),
+            default=None,
+        )
+        return (
+            result.source_url == source_url
+            and result.as_of == expected_as_of
+            and result.provider_total == total
+            and result.pagination_complete is pages_complete
+            and canonical(result.rows) == canonical(rows)
+            and canonical(result.fields) == canonical(fields)
+            and canonical(
+                {
+                    key: value
+                    for key, value in result.metadata.items()
+                    if key in METADATA_KEYS or key in metadata
+                }
+            )
+            == canonical(metadata)
+        )
+    except (ProviderError, MarketStoreError, TypeError, ValueError, KeyError, AttributeError):
+        return False
 
 
 def _complete_cash_flow_snapshot(query: BusinessQuery, result: Result) -> bool:
@@ -491,6 +564,17 @@ class SnapshotSeries:
             # Even rejected/empty outcomes recheck current read entitlement.
             previous = self._facts(dataset, None)
             if (
+                self.scope.source == "akshare"
+                and (
+                    query.capability == "factor_macro"
+                    or query.capability == "financials"
+                    and query.parameters.get("statements") == ["income_statement"]
+                )
+                and not _complete_ak_native_snapshot(query, result)
+            ):
+                log.info("research_snapshot_not_ingested", reason="ak_native_binding_incomplete")
+                return None
+            if (
                 query.capability == "financials"
                 and self.scope.source == "baostock"
                 and query.parameters.get("statements") == ["cash_flow"]
@@ -547,20 +631,6 @@ class SnapshotSeries:
                     "research_snapshot_not_ingested",
                     reason="baostock_financial_contract_incomplete",
                 )
-                return None
-            if (
-                query.capability == "factor_macro"
-                and self.scope.source == "akshare"
-                and (
-                    result.metadata.get("schema_version") != CHINA_MACRO_SCHEMA
-                    or result.pagination_complete is not True
-                    or result.status != "snapshot"
-                    or result.missing
-                    or not result.rows
-                    or any(value is None for row in result.rows for value in row.values())
-                )
-            ):
-                log.info("research_snapshot_not_ingested", reason="china_macro_contract_incomplete")
                 return None
             if (
                 query.capability == "external_data"
