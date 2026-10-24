@@ -1,5 +1,7 @@
 # 真实 Primary 门顺序回归：主任务记录
 
+最终产品pin为`a8d58cb989ba6f556d597242f1afc51af8549b55`，仅原4个运维代码/测试和文档纳入，无新业务/依赖。代码提交`69d3562df5c7494c560cacd348222b2eee1e32ad`，operator f6390827…/test afbf62f3…；独立规格/质量已重绑APPROVED。真实g顺序及最终逻辑源联合2796 passed（353.77秒），当前pin精确增量163 passed（93.88秒）各自留证，不混称同一运行。最终prepared自身真实范围、原三CI/Mac安装、保护合并尚待完成，生产未改。
+
 宿主macOS，Web/Native功能修复，task etf-weekly-primary-order-20261025。受管check/start已通过，独立worktree从b0ebe1df建立。源码与本机/原三CI及Mac安装分开取证，其它平台原生不冒充。
 
 真实首次统一apply在任何停机/领域写入前deferred research_or_maintenance_busy；原Primary guard先于监控桥要求Host.active=False，旧needs_attention导致True，Native实际0。四个journal/intent/receipt不存在，生产36fd及旧unknown/会话/数据/模型/登录未改，定时关闭。原回归mock掉verify_primary，漏掉完整真实顺序；本轮必须让真实g及LegacyBinding参与。
