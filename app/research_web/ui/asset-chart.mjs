@@ -1,6 +1,6 @@
 import {INDICATOR_IDS, INDICATOR_CATALOG, DEFAULT_FAVORITES, INDICATOR_RULES, normalizeIndicatorSettings, normalizeFavorites, calculatePanelIndicators, indicatorSeries, indicatorTitle, panelField} from './asset-indicator-library.mjs';
 import {indicatorStrip, indicatorManager, indicatorParameterForm} from './asset-panel-manager.mjs';
-import { formatAssetMagnitude, assetPriceClass, assetChangeClass } from './asset-format.mjs';
+import { formatAssetMagnitude, formatAssetVolume, assetPriceClass, assetChangeClass } from './asset-format.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { MA_PERIODS, finite, enrichMarketBars, aggregateMarketBars, sourceFrequency } from './asset-indicators.mjs';
@@ -117,8 +117,9 @@ function readout(bar, previous, metadata = {}) {
   const movement = change === null ? '—' : `${change > 0 ? '+' : ''}${fmt(change)}%（${changeAmount > 0 ? '+' : ''}${fmt(changeAmount)}）`;
   const amplitude = base && bar.validOHLC ? (bar.high - bar.low) / base * 100 : null;
   const volumeUnit = fieldUnit(metadata, 'volume') || '源单位'; const amountUnit = fieldUnit(metadata, 'amount') || fieldUnit(metadata, 'turnover') || '源单位';
-  const values = [['开', fmt(bar.open), assetPriceClass(bar.open, base)], ['高', fmt(bar.high), assetPriceClass(bar.high, base)], ['低', fmt(bar.low), assetPriceClass(bar.low, base)], ['收', fmt(bar.close), assetPriceClass(bar.close, base)], ['幅', movement, assetChangeClass(change)], ['均价', fmt(bar.vwap)], ['振幅', amplitude === null ? '—' : `${fmt(amplitude)}%`], ['成交量', formatAssetMagnitude(bar.volume, volumeUnit === '源单位' ? '' : volumeUnit)], ['成交额', formatAssetMagnitude(bar.amount, amountUnit === '源单位' ? '' : amountUnit)], ['换手率', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`]];
-  return `<span class="asset-history-date"><strong>${e(bar.date)}</strong></span>${values.map(([label, value, tone]) => `<span>${e(label)} <strong${tone ? ` class="${tone}"` : ''}>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
+  const volumeNote = typeof metadata.assetIdentity === 'string' && /^stock:\d{6}\.(?:SH|SZ|BJ)$/i.test(metadata.assetIdentity) && /股$/.test(volumeUnit) ? '成交量（手；1手=100股，仅展示换算）' : `成交量（${volumeUnit}；不推测未知单位）`;
+  const values = [['收', fmt(bar.close), assetPriceClass(bar.close, base)], ['幅', movement, assetChangeClass(change)], ['开', fmt(bar.open), assetPriceClass(bar.open, base)], ['高', fmt(bar.high), assetPriceClass(bar.high, base)], ['低', fmt(bar.low), assetPriceClass(bar.low, base)], ['均', fmt(bar.vwap), assetPriceClass(bar.vwap, base)], ['量', formatAssetVolume(bar.volume, volumeUnit === '源单位' ? '' : volumeUnit, metadata.assetIdentity, { compact: true }), '', volumeNote], ['换', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`], ['振', amplitude === null ? '—' : `${fmt(amplitude)}%`], ['额', formatAssetMagnitude(bar.amount, amountUnit === '源单位' ? '' : amountUnit, '', { compact: true }), '', `成交额（${amountUnit}）`]];
+  return `<span class="asset-history-date"><strong>${e(bar.date)}</strong></span>${values.map(([label, value, tone, title]) => `<span${title ? ` title="${e(title)}"` : ''}>${e(label)} <strong${tone ? ` class="${tone}"` : ''}>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
 }
 function overlayReadout(bar, state) {
   if (!bar) return '';
@@ -130,7 +131,7 @@ function panelValues(id, bar = {}, metadata = {}, state = {}) {
   return indicatorSeries(id).map(item => {
     const label = id === 'volume' && item.name === 'MA1' ? `MA${settings.volume.short}` : id === 'volume' && item.name === 'MA2' ? `MA${settings.volume.long}` : item.name;
     const value = bar[item.key] ?? (id === 'volume' && item.name === 'VOL' ? bar.volume : null);
-    return { ...item, label, formatted: ['volume','obv'].includes(id) ? formatAssetMagnitude(value, fieldUnit(metadata,'volume') || '') : fmt(value, ['macd','emv'].includes(id) ? 4 : 2) };
+    return { ...item, label, formatted: ['volume','obv'].includes(id) ? formatAssetVolume(value, fieldUnit(metadata,'volume') || '', metadata.assetIdentity, { compact: true }) : fmt(value, ['macd','emv'].includes(id) ? 4 : 2) };
   });
 }
 function panelText(id, bar = {}, metadata = {}, state = {}) {
@@ -175,7 +176,7 @@ function canonicalChip(daily, state, metadata) {
   if (contract?.status !== 'complete' || contract.contract_version !== 'chip-turnover-1' || contract.turnover_unit !== 'percent') return unavailable('chip_inputs_not_loaded', input);
   return estimateChips(input, state.chipSettings);
 }
-const volumeTick = value => formatAssetMagnitude(value);
+const volumeTick = (value, metadata) => formatAssetVolume(value, fieldUnit(metadata,'volume') || '', metadata.assetIdentity, { compact: true });
 
 export function renderMarketTerminal(rows = [], state = {}, metadata = {}) {
   const source = sourceFrequency(metadata.frequency); const daily = enrichMarketBars(rows);
@@ -219,7 +220,7 @@ export function buildMarketChartOption(bars, state = {}, metadata = {}, theme, c
   const axisStyle = { axisLine: { onZero: false, lineStyle: { color: palette.grid } }, axisTick: { show: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' };
   return { backgroundColor: 'transparent', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', showContent: false, axisPointer: { type: 'cross', crossStyle: { color: palette.muted } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 12 }, formatter: params => { const index = params?.[0]?.dataIndex; return index === undefined ? '' : readout(bars[index], bars[index - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: palette.muted }, label: { backgroundColor: palette.surface, color: palette.text } }, graphic: panelLabels(bars[selectedIndex(bars, state)], palette, state, metadata), grid: layout.grid,
     xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisPointer: { label: { show: index === axes.length - 1 } }, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
-    yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: !['rsi','wr','dmi'].includes(id), gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : ['rsi','wr','dmi'].includes(id) ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : ['volume','obv'].includes(id) ? volumeTick : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
+    yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: !['rsi','wr','dmi'].includes(id), gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : ['rsi','wr','dmi'].includes(id) ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : ['volume','obv'].includes(id) ? value => volumeTick(value, metadata) : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
     dataZoom: [{ type: 'inside', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, left: 8, right: 54, showDetail: false, borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.selected, dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } }, selectedDataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.selected } }, handleStyle: { color: palette.muted, borderColor: palette.surface }, moveHandleStyle: { color: palette.muted }, emphasis: { handleStyle: { color: palette.text }, moveHandleStyle: { color: palette.text } }, textStyle: { color: palette.muted, fontSize: 12 } }], series };
 }
 
