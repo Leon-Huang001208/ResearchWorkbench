@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+`apply-market-preview` 沿原version4事务复用唯一DSH及Host状态门，先核验所有账号后台任务、工作流和市场采集空闲，再栅栏切换；未知/活动时延后。CSV预览验收不提交研究、不调用模型，原运行与恢复合同不变。
+
 资产V9只读取完整CI证据并固定reader身份，不启动DSH或研究；继承全账号跟踪/Automation/Workflow及Host/Native/市场/资产空闲拒绝，旧冻结恢复包继续使用原reader。
 
 资产V8不启动研究，后台空闲复核覆盖已上线今日发现跟踪、Automation与Workflow；原Host/Native/私有池、资产Future和市场inflight未知或活动继续拒绝。旧profile恢复身份与唯一DSH保持，不重试任何未知模型调用。

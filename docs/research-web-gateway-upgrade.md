@@ -383,3 +383,12 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 用户已明确授权组合部署今日发现、ETF配置和持续研究仓；封闭`apply-discovery` / `reviewed-discovery-v1`的PREVIOUS为`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD为`1780064b712afb61ff18f2f1811650fc31fd3038`。复用原version4事务、BirthFence、全账号业务索引/档案/模型保全与恢复；旧profile及controller/evidence身份不变，无新依赖、迁移或外盘操作。
 
 新mode在任何后端HTTP/启动前重复只读检查primary和全部私有账号的automation/discovery元数据及report-workflows/catalog.json；任何启用任务/日程、活动或未知执行、损坏结构、别名路径均延后。缺失目录/目录中的catalog按原运行时无计划语义处理，绝不请求账号后端来证明空闲。该门也适用于恢复，不修改原同意、计划或数据。不存在模型调用或启用生产跟踪授权；现场切换、认证真实页面及全账号保全另留证。
+
+
+## 全市场预览修复组合固定部署（2026-10-24）
+
+用户已明确授权将PR223/224组合产品 `e56d9718e12c2252128a6690ca202c7ae21f341e`（含组合表单幂等修复、DataHub财务现金流及PR224代理/PIT修复）纳入保全部署。新封闭 `apply-market-preview` / `reviewed-market-preview-v1` 的PREVIOUS为 `36fd990ceed88d2fc595443926105c4b2601fbf6`，严格reader193f4fcc与web.lock7c631d4f固定。旧profile、controller/evidence模块及权限不修改。
+
+复用原version4事务、主实例/网关维护锁、BirthFence、全部账号会话/模型/业务索引与档案保全、已核验wheel和恢复artifact。新mode纳入全部账号automation/discovery/工作流及市场inflight空闲门；活动或无法确认时延后，不终止未知工作。代码不启用数据库、迁移、日程或厂商/模型调用。
+
+最终operator候选与产品源码分开绑定：完成原三CI及同候选macOS干净安装、独立评审和准入后才执行；本机矩阵或临时前端覆盖不表示常驻已升级。部署前后保存当前用户根的独立摘要，原始数据、会话及模型配置保留，实页另验无候选覆盖的CSV输入失焦与保存前预览。
