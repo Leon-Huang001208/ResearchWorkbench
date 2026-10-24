@@ -3937,6 +3937,7 @@ Imports:
 - `providers_baostock`
 - `providers_bea_archive`
 - `providers_external`
+- `providers_kapsarc`
 - `providers_wgc`
 - `re`
 - `reliability`
@@ -3947,7 +3948,7 @@ Imports:
 - `store`
 - `time`
 - `typing`
-- `uuid`
+- ... 1 more
 
 Classes:
 - `DataHub`
@@ -4569,6 +4570,7 @@ Imports:
 - `json`
 - `math`
 - `providers`
+- `providers_kapsarc`
 - `providers_wgc`
 - `re`
 - `time`
@@ -4615,6 +4617,35 @@ Functions:
   - Verify existing access via metadata, or exchange a refresh-only config.
 - `cicc_request`
 - `fetch`
+
+
+## `app/research_web/datahub/providers_kapsarc.py`
+
+Module docstring:
+> Validate the fixed KAPSARC BGS mirror; metadata dates are not disclosure dates.
+
+Imports:
+- `core.observability`
+- `csv`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `math`
+- `providers`
+- `re`
+- `typing`
+- `unicodedata`
+
+Functions:
+- `_object`
+- `_text`
+- `kapsarc_metadata`
+  - Return validated count and immutable field-dictionary provenance, never PIT.
+- `kapsarc_projection`
+  - Preserve source decimals and country labels; validate full export before slicing.
+- `kapsarc_fields`
+  - Fresh field definitions for source originals and the sole typed projection.
 
 
 ## `app/research_web/datahub/providers_market.py`
@@ -4936,6 +4967,7 @@ Imports:
 - `providers_akshare`
 - `providers_baostock`
 - `providers_external`
+- `providers_kapsarc`
 - `providers_market`
 - `providers_wgc`
 - `threading`
@@ -4947,6 +4979,8 @@ Classes:
   - methods: __init__, _now, dataset, _facts, ingest, read
 
 Functions:
+- `_complete_kapsarc_snapshot`
+  - Require both count/unit evidence and the exact export projection before publishing.
 - `_complete_wgc_snapshot`
   - Bind the selected monthly slice to its original, without claiming vintage history.
 - `_complete_spdr_snapshot`
@@ -4984,6 +5018,7 @@ Imports:
 - `providers_akshare`
 - `providers_baostock`
 - `providers_external`
+- `providers_kapsarc`
 - `providers_wgc`
 - `pydantic`
 - `re`

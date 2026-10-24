@@ -28,6 +28,14 @@ from .external_sources import (
     readable_endpoints,
 )
 from .providers import DEADLINE, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Result
+from .providers_kapsarc import (
+    KAPSARC_METADATA_URL,
+    KAPSARC_NUMERIC_CONTRACT,
+    KAPSARC_UNITS,
+    kapsarc_fields,
+    kapsarc_metadata,
+    kapsarc_projection,
+)
 from .providers_wgc import (
     WGC_DATASETS,
     WGC_NUMERIC_CONTRACT,
@@ -1043,6 +1051,11 @@ async def fetch(
             if args:
                 log.warning("wgc_request_rejected", reason="arguments_unsupported")
                 raise ProviderError("wgc_arguments_unsupported")
+        if (source_id, dataset) == ("ext_kapsarc", "production"):
+            if query.as_of is not None or query.purpose == "backtest" or query.required_semantics:
+                raise ProviderError("kapsarc_historical_semantics_unsupported")
+            if args:
+                raise ProviderError("kapsarc_arguments_unsupported")
         if (source_id, dataset) == ("ext_spdr", "gld"):
             if query.as_of is not None or query.purpose == "backtest" or query.required_semantics:
                 log.warning("spdr_request_rejected", reason="historical_semantics_unsupported")
@@ -1060,6 +1073,7 @@ async def fetch(
         if type(limit) is not int or not 1 <= limit <= MAX_ROWS:
             raise ProviderError("external_limit_invalid")
         reflected: list[str] = []
+        metadata_raw = b""
         async with asyncio.timeout(DEADLINE):
             async with httpx.AsyncClient(
                 transport=transport,
@@ -1095,6 +1109,8 @@ async def fetch(
                     raw, content_type, encoding = await bounded_response(
                         client, endpoint["method"], url, **request
                     )
+                if (source_id, dataset) == ("ext_kapsarc", "production"):
+                    metadata_raw, _, _ = await bounded_response(client, "GET", KAPSARC_METADATA_URL)
         if any(value and value.encode() in raw for value in reflected):
             raise ProviderError("credential_reflection")
         if reflected:
@@ -1108,7 +1124,10 @@ async def fetch(
                 # JSON-escaped secret must never enter archived original bytes.
                 if _rows_reflect_credentials(decoded, reflected):
                     raise ProviderError("credential_reflection")
-        if source_id == "ext_wgc" and dataset in WGC_DATASETS:
+        if (source_id, dataset) == ("ext_kapsarc", "production"):
+            projected = kapsarc_projection(raw, metadata_raw)
+            business = (projected, len(projected), True)
+        elif source_id == "ext_wgc" and dataset in WGC_DATASETS:
             projected = wgc_projection(raw, dataset)
             business = (projected, len(projected), True)
         else:
@@ -1185,7 +1204,7 @@ async def fetch(
                 "units": dict(WGC_UNITS),
                 "projection_scope": "monthly_tonnes_four_regions",
             }
-        if (source_id, dataset) in EXTERNAL_ENVELOPES:
+        if (source_id, dataset) in EXTERNAL_ENVELOPES and source_id != "ext_kapsarc":
             result.metadata["schema_version"] = EXTERNAL_ENVELOPE_CONTRACT
             if (source_id, dataset) == ("ext_danjuan", "history") or not result.rows:
                 result.status = "partial"
@@ -1262,6 +1281,33 @@ async def fetch(
                 result.status = "partial"
                 result.missing.append("numeric_values_missing")
         result.limitations = ["single_response_not_complete_history", "provider_native_fields"]
+        if (source_id, dataset) == ("ext_kapsarc", "production"):
+            result.raw = [raw, metadata_raw]
+            result.raw_bytes = len(raw) + len(metadata_raw)
+            result.pages_fetched = 2
+            result.fields = kapsarc_fields()
+            result.metadata = {
+                "schema_version": KAPSARC_NUMERIC_CONTRACT,
+                "provider_semantics_revision": KAPSARC_NUMERIC_CONTRACT,
+                "upstream_id": "bgs-via-kapsarc",
+                "availability_basis": "first_observed",
+                "revision_policy": "first_observed_not_historical_vintage",
+                "historical_point_in_time": False,
+                "formal_backtest_eligible": False,
+                "units": dict(KAPSARC_UNITS),
+                "independent_source": False,
+                "projection_scope": "gold_mine_annual_kg_source_export",
+                "field_dictionary_evidence": kapsarc_metadata(metadata_raw)[
+                    "field_dictionary_evidence"
+                ],
+            }
+            result.limitations = [
+                "full_source_export_not_complete_global_country_year_coverage",
+                "bgs_mirror_not_independent_source",
+                "bgs_null_zero_estimated_symbols_lossy_no_kapsarc_footnotes",
+                "metadata_modified_and_data_processed_not_observation_disclosure",
+                "first_observed_not_historical_vintage",
+            ]
         if len(rows) > limit:
             result.limitations.append("row_limit")
     except asyncio.CancelledError:

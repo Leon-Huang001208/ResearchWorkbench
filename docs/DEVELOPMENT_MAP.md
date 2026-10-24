@@ -1,6 +1,6 @@
 # Research Workbench Development Map
 
-历史验收产品冻结于ffab6925，随后原Native联合操作员新增reviewed-etf-historical-v1/apply-etf-historical，前版仅b4384470；原v4全账号/档案保全、严格reader、空闲/恢复及产品union/blob/mode门不改。最终同一PR普通merge保留产品祖先，再完整独评和原三CI；源码准备不授予常驻切换，合同见research-web-gateway-upgrade.md历史验收章节。
+历史验收产品冻结于bb4d2e65，随后原Native联合操作员新增reviewed-etf-historical-v1/apply-etf-historical，前版仅b4384470；原v4全账号/档案保全、严格reader、空闲/恢复及产品union/blob/mode门不改。最终同一PR普通merge保留产品祖先，再完整独评和原三CI；源码准备不授予常驻切换，合同见research-web-gateway-upgrade.md历史验收章节。
 
 华安历史验收：report_workflow_routes/runtime固定专用创建及Run.execution_purpose；DataHub/providers_wind_excel_weekly、weekly_data/workbooks/quality沿可信运行上下文区分正式和事后采集。report_rendering/report_render_script在bind计算文件哈希前加历史标签，weekly_quality读回核对并拒绝历史正式定稿；UI周报入口与manualAccepted同样分离。test_report_weekly_historical_acceptance覆盖新分支，原正式/原件/质量回归保留。设计与实现计划见docs/superpowers/内2026-10-24-etf-historical-acceptance文件。
 
@@ -574,3 +574,12 @@ providers_baostock.py的profitability分支调用固定query_profit_data，Broke
 现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
 
 AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。
+
+
+## KAPSARC / BGS 年度矿产实物量（2026-10-24）
+
+既有 ext_kapsarc/production 在同一有界 deadline 内读取分号 CSV 与固定官方 metadata。只有 dataset/publisher/Public/四字段类型、kilograms 单位及本次记录数全部核实，才将完整导出投影写入原生研究仓；原 country/sub_commodity/year/production 字符串和两份原件均保留，另有 production_kg 数值列。部分、错数、错单位、错原件或未知合同拒绝入仓，不按国家补年、不做 ISO 映射或 kg/tonne 换算。
+
+BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月度 ETF 吨数流量、SPDR 单基金持仓属于不同指标/范围/频率，不能因物理单位可换算就合并；首次观察和修订链不等于历史公布 PIT。metadata 修改/处理日期不作为行级披露日，旧说明年份不覆盖实际导出年份；源注释/估算符号缺口保留。新增 projection_scope 元数据随 freeze/restore 保存，旧快照不补造该字段。
+
+该扩展沿既有 Host/DataHub/Provider/可选研究仓拓扑，无新服务、路由、表、依赖或执行引擎，原图仍准确。只做独立进程和 owned socket-only PG 有界验收、原三CI与同候选Mac安装，不配置正式库、更新常驻服务或操作外盘。
