@@ -2827,7 +2827,7 @@ def test_weekly_admission_frozen_successor():
         upgrade.previous_for(upgrade.ETF_WEEKLY_ADMISSION_MODE)
         == "36fd990ceed88d2fc595443926105c4b2601fbf6"
     )
-    assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "82151bc2708d60c7abb1d38b686a3e368e42f812"
+    assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "88b2f96d449085cae01912393a416b0e90a21083"
     assert upgrade.ETF_WEEKLY_ADMISSION_MODE in upgrade.ASSET_MODES
 
 
@@ -3587,3 +3587,85 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
         assert intent.read_bytes() == intent_before
     elif case.startswith("receipt"):
         assert not intent.exists() and not intent.is_symlink()
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        None,
+        "app/research_web/datahub/providers_akshare.py",
+        "app/research_web/datahub/providers_reference_evidence.py",
+        "app/research_web/datahub/research_snapshot_store.py",
+        ".github/workflows/research-web-checks.yml",
+        "tests/research_web/test_ak_native_binding.py",
+        "tests/research_web/test_datahub_akshare_semantics.py",
+        "tests/research_web/test_datahub_financial_time_contract.py",
+        "tests/research_web/test_reference_evidence.py",
+        "tests/research_web/test_research_snapshot_store.py",
+    ],
+)
+@pytest.mark.parametrize("mutation", ["content", "mode", "deleted"])
+def test_weekly_p6_freezes_full_upstream_product_and_ci_without_new_exemptions(
+    tmp_path, monkeypatch, changed, mutation
+):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    upstream = [
+        "app/research_web/datahub/providers_akshare.py",
+        "app/research_web/datahub/providers_reference_evidence.py",
+        "app/research_web/datahub/research_snapshot_store.py",
+        ".github/workflows/research-web-checks.yml",
+        "tests/research_web/test_ak_native_binding.py",
+        "tests/research_web/test_datahub_akshare_semantics.py",
+        "tests/research_web/test_datahub_financial_time_contract.py",
+        "tests/research_web/test_reference_evidence.py",
+        "tests/research_web/test_research_snapshot_store.py",
+    ]
+    for name in [upgrade.MODULE, upgrade.TEST, upgrade.ASSET_EVIDENCE, *upstream]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("reviewed evidence" if name == upgrade.ASSET_EVIDENCE else "previous")
+    git("add", ".")
+    git("commit", "-m", "registered previous")
+    previous = git("rev-parse", "HEAD")
+    for name in upstream:
+        (tmp_path / name).write_text("merged upstream product and checks")
+    git("add", ".")
+    git("commit", "-m", "full product ancestor including upstream")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade,
+        "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256",
+        hashlib.sha256(b"reviewed evidence").hexdigest(),
+    )
+    (tmp_path / upgrade.MODULE).write_text("fixed successor operator")
+    (tmp_path / upgrade.TEST).write_text("operator tests only")
+    docs = tmp_path / "docs/successor.md"
+    docs.parent.mkdir()
+    docs.write_text("reviewable contract")
+    if changed:
+        path = tmp_path / changed
+        if mutation == "content":
+            path.write_text("unexpected product mutation")
+        elif mutation == "mode":
+            path.chmod(0o755)
+        else:
+            path.unlink()
+    git("add", ".")
+    git("commit", "-m", "successor candidate")
+    target = git("rev-parse", "HEAD")
+    if changed:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+    else:
+        reviewed = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        assert set(upstream) <= set(reviewed)
+        assert all(reviewed[name] == git("rev-parse", f"{payload}:{name}") for name in upstream)
