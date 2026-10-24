@@ -276,13 +276,20 @@ class ReportWorkflowRuntime:
                 )
 
     def _new_run(
-        self, run_id: str, workflow_id: str, version: int, trigger: str, status: str
+        self,
+        run_id: str,
+        workflow_id: str,
+        version: int,
+        trigger: str,
+        status: str,
+        execution_purpose: str = "formal",
     ) -> dict:
         row = {
             "id": run_id,
             "workflow_id": workflow_id,
             "version": version,
             "trigger": trigger,
+            "execution_purpose": execution_purpose,
             "status": status,
             "delivery_status": "pending",
             "session_id": None,
@@ -301,9 +308,24 @@ class ReportWorkflowRuntime:
 
     def public_run(self, row: dict) -> dict:
         row = copy.deepcopy(row)
-        if row.get("finalization_status") == "finalized":
+        if row.get("finalization_status") == "finalized" or (
+            row.get("finalization_status") == "not_eligible_historical"
+            and row.get("finalization_binding")
+        ):
             try:
-                binding = finalization_binding(self.service, row["session_id"])
+                if (
+                    row.get("execution_purpose") == "historical_acceptance"
+                    and row.get("finalization_status") == "finalized"
+                ):
+                    raise WorkflowError(
+                        "历史验收稿不得正式定稿", "weekly_historical_not_formal", 409
+                    )
+                if row.get("execution_purpose") == "historical_acceptance":
+                    from .weekly_quality import historical_acceptance_binding
+
+                    binding = historical_acceptance_binding(self.service, row["session_id"])
+                else:
+                    binding = finalization_binding(self.service, row["session_id"])
                 if any(
                     binding.get(key) != row.get("finalization_binding", {}).get(key)
                     for key in (
@@ -333,8 +355,15 @@ class ReportWorkflowRuntime:
         ]
 
     async def start_run(
-        self, workflow_id: str, *, trigger: str = "manual", version: int | None = None
+        self,
+        workflow_id: str,
+        *,
+        trigger: str = "manual",
+        version: int | None = None,
+        execution_purpose: str = "formal",
     ) -> dict:
+        if execution_purpose not in {"formal", "historical_acceptance"}:
+            raise WorkflowError("运行用途无效", "weekly_execution_purpose_invalid", 400)
         async with self.lock:
             with self.catalog._exclusive():
                 workflow = self.catalog._row(workflow_id)
@@ -349,6 +378,13 @@ class ReportWorkflowRuntime:
                 if workflow_status != "enabled":
                     raise WorkflowError("Workflow 尚未启用", "workflow_not_enabled", 409)
                 manifest = self.catalog.manifest(workflow_id, selected)
+                if execution_purpose == "historical_acceptance" and (
+                    not weekly_enabled(manifest)
+                    or manifest.weekly_production.data_source != "wind_excel"
+                ):
+                    raise WorkflowError(
+                        "历史验收只适用于华安Excel周报", "weekly_historical_policy_invalid", 409
+                    )
                 weekly_contract = None
                 owner: dict = {}
                 if weekly_enabled(manifest):
@@ -378,6 +414,7 @@ class ReportWorkflowRuntime:
                                 for item in reversed(list(self.catalog.data["runs"].values()))
                                 if item.get("workflow_id") == workflow_id
                                 and item.get("weekly_cutoff") == weekly_contract["cutoff"]
+                                and item.get("execution_purpose", "formal") == execution_purpose
                                 and (
                                     manifest.weekly_production.data_source != "wind_excel"
                                     or (
@@ -396,7 +433,14 @@ class ReportWorkflowRuntime:
                     for item in self.catalog.data["runs"].values()
                 ):
                     return self.public_run(
-                        self._new_run(run_id, workflow_id, selected, trigger, "skipped_overlap")
+                        self._new_run(
+                            run_id,
+                            workflow_id,
+                            selected,
+                            trigger,
+                            "skipped_overlap",
+                            execution_purpose,
+                        )
                     )
                 workspace = self.catalog.create_run_workspace(workflow_id, selected)
                 run_id = workspace["run_id"]
@@ -419,6 +463,7 @@ class ReportWorkflowRuntime:
                 if weekly_contract is not None:
                     row.update(
                         owner_id=owner["id"],
+                        execution_purpose=execution_purpose,
                         weekly_cutoff=weekly_contract["cutoff"],
                         weekly_data_contract=weekly_contract,
                         weekly_data_source=manifest.weekly_production.data_source,
@@ -441,10 +486,19 @@ class ReportWorkflowRuntime:
             raise WorkflowError("周报管理员身份尚未验证", "weekly_owner_unavailable", 403)
         return authorizer(expected_owner_id=owner_id)
 
+    def _historical_notice(self, run: dict) -> str | None:
+        from .weekly_quality import historical_notice, trusted_weekly_context
+
+        frozen = trusted_weekly_context(self.service, run["session_id"])
+        if frozen is None:
+            raise WorkflowError("周报上下文缺失", "weekly_context_invalid", 409)
+        return historical_notice(frozen)
+
     def _manual_weekly_passed(self, workflow_id: str, version: int) -> bool:
         return any(
             row.get("workflow_id") == workflow_id
             and row.get("version") == version
+            and row.get("execution_purpose", "formal") == "formal"
             and row.get("trigger") == "manual"
             and row.get("status") == "completed"
             and row.get("delivery_status") == "complete"
@@ -476,6 +530,7 @@ class ReportWorkflowRuntime:
                 if manifest.weekly_production.data_source == "wind_excel":
                     minimal["weekly_data_source"] = run.get("weekly_data_source")
                     minimal["owner_id"] = run.get("owner_id")
+                    minimal["execution_purpose"] = run.get("execution_purpose", "formal")
                 if existing and any(existing.get(key) != value for key, value in minimal.items()):
                     raise WorkflowError(
                         "恢复会话不属于本次周报", "weekly_recovery_context_unknown", 409
@@ -529,6 +584,7 @@ class ReportWorkflowRuntime:
                     collected["snapshot"],
                     self.run_path(run_id),
                     manifest,
+                    execution_purpose=run.get("execution_purpose", "formal"),
                 )
                 if workbook_projection.get("snapshot_sha256") != snapshot["sha256"]:
                     raise WorkflowError(
@@ -536,10 +592,21 @@ class ReportWorkflowRuntime:
                     )
                 run = self._update_run(
                     run_id,
-                    weekly_production=freeze_weekly_production(manifest, collected["contract"]),
+                    weekly_production=freeze_weekly_production(
+                        manifest,
+                        collected["contract"],
+                        execution_purpose=run.get("execution_purpose", "formal"),
+                    ),
                     weekly_data_assessment={
                         key: assessment.get(key)
-                        for key in ("status", "issues", "contract_sha256", "snapshot_sha256")
+                        for key in (
+                            "status",
+                            "issues",
+                            "contract_sha256",
+                            "snapshot_sha256",
+                            "acquisition_started_at",
+                            "frozen_at",
+                        )
                     },
                 )
             else:
@@ -577,6 +644,9 @@ class ReportWorkflowRuntime:
             }
             if formal:
                 session_row["report_workflow"]["quality_policy"] = POLICY_ID
+                session_row["report_workflow"]["execution_purpose"] = run.get(
+                    "execution_purpose", "formal"
+                )
             target = self.service.store.directory(sid) / "inputs" / "report-workflow"
             shutil.copytree(self.run_path(run_id), target, dirs_exist_ok=True)
             context = {
@@ -810,6 +880,12 @@ class ReportWorkflowRuntime:
                             self.service.store,
                             current["session_id"],
                             [item.value for item in manifest.delivery.formats],
+                            **(
+                                {"historical_notice": self._historical_notice(current)}
+                                if formal
+                                and current.get("execution_purpose") == "historical_acceptance"
+                                else {}
+                            ),
                         )
                         if formal and projection.get("status") == "completed":
                             self._require_weekly_owner(current.get("owner_id"))
@@ -892,8 +968,19 @@ class ReportWorkflowRuntime:
                         checked = await check_quality(self.service, current["session_id"])
                         quality_status = checked.get("status", "incomplete")
                         if complete and quality_status == "passed":
-                            binding = finalization_binding(self.service, current["session_id"])
-                            finalization_status = "finalized"
+                            if (
+                                current.get("execution_purpose", "formal")
+                                == "historical_acceptance"
+                            ):
+                                from .weekly_quality import historical_acceptance_binding
+
+                                binding = historical_acceptance_binding(
+                                    self.service, current["session_id"]
+                                )
+                                finalization_status = "not_eligible_historical"
+                            else:
+                                binding = finalization_binding(self.service, current["session_id"])
+                                finalization_status = "finalized"
                         else:
                             complete = False
                             missing.extend(
@@ -908,7 +995,11 @@ class ReportWorkflowRuntime:
                         missing.append(getattr(exc, "code", "weekly_finalization_invalid"))
                 updates = {
                     "status": (
-                        "completed"
+                        (
+                            "historical_acceptance"
+                            if current.get("execution_purpose") == "historical_acceptance"
+                            else "completed"
+                        )
                         if complete
                         else (
                             "quality_incomplete"
@@ -939,10 +1030,18 @@ class ReportWorkflowRuntime:
 
     def _finish_run(self, run_id: str, updates: dict) -> None:
         """Publish the accepted run and latest-final pointer in one catalog write."""
+        if (
+            updates.get("finalization_status") == "finalized"
+            and self._run(run_id).get("execution_purpose", "formal") != "formal"
+        ):
+            raise WorkflowError("历史验收稿不得正式定稿", "weekly_historical_not_formal", 409)
         if updates.get("finalization_status") == "finalized":
             self._require_weekly_owner(self._run(run_id).get("owner_id"))
         with self.catalog._exclusive():
             row = self.catalog.data["runs"][run_id]
+            frozen_purpose = (row.get("weekly_production") or {}).get("execution_purpose", "formal")
+            if frozen_purpose != row.get("execution_purpose", "formal"):
+                raise WorkflowError("周报运行用途已改变", "weekly_context_invalid", 409)
             workflow = self.catalog._row(row["workflow_id"])
             before_run, before_workflow = copy.deepcopy(row), copy.deepcopy(workflow)
             row.update(updates, updated_at=time.time())
@@ -1028,6 +1127,10 @@ class ReportWorkflowRuntime:
                 self._resume_delivery(run_id), name=f"report-weekly-recheck-{run_id}"
             )
             return self.public_run(self._run(run_id))
+        if run.get("execution_purpose") == "historical_acceptance":
+            # No implicit second collection/model after a historical attempt.
+            self._require_weekly_owner(run.get("owner_id"))
+            return self.public_run(run)
         if (
             run["status"] == "delivery_incomplete"
             and run.get("session_id")

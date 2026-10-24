@@ -1996,6 +1996,15 @@
             "blockedData"
           ],
           "source": "app/research_web/datahub/providers_wind_excel_weekly.py"
+        },
+        {
+          "subjects": [
+            "manualRun",
+            "lockVersion",
+            "deliveryState"
+          ],
+          "source": "app/research_web/report_workflows/runtime.py",
+          "contains": "historical_acceptance"
         }
       ],
       "level": "flows",
@@ -2103,6 +2112,15 @@
             "recordRefresh"
           ],
           "source": "app/research_web/datahub/providers_wind_excel_weekly.py"
+        },
+        {
+          "subjects": [
+            "runCopy",
+            "assembler",
+            "deliver"
+          ],
+          "source": "app/research_web/report_workflows/weekly_quality.py",
+          "contains": "historical_acceptance"
         }
       ],
       "level": "flows",
@@ -4123,6 +4141,13 @@
       "prefix": "/api/research"
     },
     {
+      "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/historical-acceptance-runs",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/historical-acceptance-runs",
+      "prefix": "/api/research"
+    },
+    {
       "method": "GET",
       "path": "/api/research/report-workflows/{workflow_id}/schedule",
       "source": "app/research_web/report_workflow_routes.py",
@@ -5233,7 +5258,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "35327d91476cd4ce0d39f1af2abe1483fbc83976"
+      "revision": "7e545de13112fe347748bb2a672607377e20d11f"
     },
     "levels": [
       {

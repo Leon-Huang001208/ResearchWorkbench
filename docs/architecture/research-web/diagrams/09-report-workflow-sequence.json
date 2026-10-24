@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "sequence",
   "meta": {
-    "title": "报告 Workflow：旧版交付与华安自动定稿",
+    "title": "报告 Workflow：正式生产与历史验收",
     "output": "09-report-workflow-sequence.html",
     "quality_profile": "showcase",
     "viewBox": [
@@ -22,7 +22,7 @@
           "excel",
           "snapshot"
         ],
-        "note": "华安由私有 DataHub 使用现有 Excel 插件及原生导出证据；市场截止与实际冻结分别记录，日历缺证则阻断。API 留待以后验证。"
+        "note": "Host锁定正式或历史验收用途；事后采集保留真实时间，数据或日历失败仍阻断，定时关闭。"
       },
       {
         "id": "claw-research",
@@ -44,7 +44,7 @@
           "files",
           "web"
         ],
-        "note": "旧版 payload 兼容保留；华安新合同以 research-report.json 为唯一正文，Host 投影并重新检查实际文件。"
+        "note": "Host从唯一正文投影，最终哈希前标注历史用途；历史验收即使质量通过也不能定稿或解锁日程。"
       }
     ]
   },
@@ -118,7 +118,7 @@
     {
       "from": 820,
       "to": 1150,
-      "label": "确定性投影与正式定稿"
+      "label": "确定性投影与用途隔离"
     }
   ],
   "messages": [
@@ -127,7 +127,7 @@
       "from": "web",
       "to": "api",
       "y": 180,
-      "label": "手动或日程触发：核验主管理员",
+      "label": "显式正式或历史验收：核验主管理员",
       "variant": "emphasis"
     },
     {
@@ -135,7 +135,7 @@
       "from": "api",
       "to": "catalog",
       "y": 224,
-      "label": "锁定版本、截止时点与 Run 副本",
+      "label": "锁定版本、截止与正式/历史用途",
       "variant": "security"
     },
     {
@@ -238,7 +238,7 @@
       "from": "renderer",
       "to": "files",
       "y": 896,
-      "label": "保留模板样式并更新嵌入图表",
+      "label": "原版式；历史标签先于文件哈希",
       "variant": "emphasis"
     },
     {
@@ -254,7 +254,7 @@
       "from": "renderer",
       "to": "api",
       "y": 984,
-      "label": "新合同：原质量 passed 才可定稿",
+      "label": "正式通过可定稿；历史验收永不定稿",
       "variant": "return"
     },
     {
@@ -270,14 +270,14 @@
       "from": "api",
       "to": "web",
       "y": 1072,
-      "label": "执行 / 交付 / 质量 / 定稿分别显示"
+      "label": "执行 / 交付 / 质量 / 正式资格"
     },
     {
       "id": "download",
       "from": "web",
       "to": "files",
       "y": 1116,
-      "label": "当前版本与上一正式稿分别保留"
+      "label": "历史验收稿与上一正式稿分开保留"
     }
   ],
   "activations": [
@@ -343,10 +343,10 @@
     },
     {
       "dot": "emerald",
-      "title": "自动定稿绑定实际版本",
+      "title": "正式与历史用途分别绑定",
       "items": [
-        "规范正文、模板、快照、工作簿与产物哈希共同绑定",
-        "文件完整不代表内容通过；新失败不覆盖上一正式稿"
+        "正文、模板、快照、用途与产物哈希共同绑定",
+        "历史文件显著标注，不改正式稿或解锁日程"
       ]
     }
   ]

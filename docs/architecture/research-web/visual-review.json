@@ -90,31 +90,37 @@
     },
     {
       "id": "09-report-workflow-sequence",
-      "artifactSha256": "252cbe56f64dd1d7bc362611b7a3a7b18fdfc801bed075d7b3853667638c9738",
-      "specificationSha256": "72c5a8e36a949954b3689808a9cb125a90de4d5f0cd8c51b8257d91d2146fb7b",
+      "artifactSha256": "a82e68877fea1da862d5ddd6a65b19b8de814dd01a7fba643f86514f000615fa",
+      "specificationSha256": "f4c67f2717ad8fd907b7c8c6f127802ac939d3b07610a30c7ff250986a8710d5",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-10-23",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-24",
       "captures": [
+        "09-report-workflow-sequence.visual-check.1440x900.light.png",
         "09-report-workflow-sequence.visual-check.1440x900.dark.png",
-        "09-report-workflow-sequence.visual-check.2048x1320.light.png"
+        "09-report-workflow-sequence.visual-check.2048x1320.light.png",
+        "09-report-workflow-sequence.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "实际查看同哈希截图：Excel主源、原生导出证据及未来API切换文字可读，未见新增遮挡或裁剪；密集时序保留原缩放。自动containment通过不认证周报Word或真实成稿。"
+      "findings": [
+        "密集时序标注在1440全景中较小，需使用原查看器放大阅读；不宣称全景每条文字均舒适可读。"
+      ],
+      "notes": "已实际查看最小/最大视口的明暗四张截图，未见边界溢出、节点遮挡或标签穿线；用途锁定、先注记后哈希和历史永不定稿语义已同步。自动四视口包含性与人工图像查看分开记录；不是用户或真人批准。"
     },
     {
       "id": "10-excel-report-dataflow",
-      "artifactSha256": "773a77e80dd726911935dbb92116325126c3a3d2003a703a9971a797771cc63c",
-      "specificationSha256": "261ce1a8cfcc37d02757ba1986018a265180790c124381b8a5658148f4cba278",
+      "artifactSha256": "4ca63922a784142c13fea6a295c51c8edc0895e9f5df9bb225fbad37a0c1bcc7",
+      "specificationSha256": "aa458dfc0f06f1f49d1fea746260fbfe37730b941ee2f942944c4611413a1bfb",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-10-23",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-24",
       "captures": [
+        "10-excel-report-dataflow.visual-check.1440x900.light.png",
+        "10-excel-report-dataflow.visual-check.1440x900.dark.png",
         "10-excel-report-dataflow.visual-check.2048x1320.light.png",
-        "10-excel-report-dataflow.visual-check.1440x900.dark.png"
+        "10-excel-report-dataflow.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "实际查看同哈希截图：Excel主源、原生导出证据及未来API切换文字可读，未见新增遮挡或裁剪；密集时序保留原缩放。自动containment通过不认证周报Word或真实成稿。"
+      "notes": "已实际查看最小/最大视口的明暗四张截图，未见边界溢出、节点遮挡或标签穿线；用途锁定、先注记后哈希和历史永不定稿语义已同步。自动四视口包含性与人工图像查看分开记录；不是用户或真人批准。"
     },
     {
       "id": "00-system-overview",

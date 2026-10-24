@@ -9151,6 +9151,7 @@ Functions:
 - `report_resources`
 - `download_report_resource`
 - `run_report_workflow`
+- `run_historical_report_workflow`
 - `report_workflow_runs`
 - `report_workflow_schedule`
 - `save_report_workflow_schedule`
@@ -9415,7 +9416,7 @@ Imports:
 
 Classes:
 - `ReportWorkflowRuntime`
-  - methods: __init__, start, close, _run, _update_run, _accepted_weekly_submission, _recover_weekly_runs, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _require_weekly_owner, _manual_weekly_passed, _execute, _refresh_workbook, _prepare_weekly_excel, _wait_for_delivery, _finish_run, cancel, retry, _inspect_weekly_run, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
+  - methods: __init__, start, close, _run, _update_run, _accepted_weekly_submission, _recover_weekly_runs, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _require_weekly_owner, _historical_notice, _manual_weekly_passed, _execute, _refresh_workbook, _prepare_weekly_excel, _wait_for_delivery, _finish_run, cancel, retry, _inspect_weekly_run, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
 
 Functions:
 - `_public_metadata`
@@ -9537,6 +9538,10 @@ Functions:
   - Accept only the run and exact input bytes frozen by the Host runtime.
 - `weekly_verified_evidence`
   - Rebuild observations from the same owned bytes on every quality check.
+- `historical_notice`
+  - Visible Host label derives from the exact frozen Run and snapshot bytes.
+- `_verify_historical_notice`
+  - Accept the Host's fixed visible banner structure, never matching hidden text.
 - `canonical_projection`
   - Map the only editable report body into the existing template renderer.
 - `stage_weekly_projection`
@@ -9549,6 +9554,8 @@ Functions:
 - `verify_weekly_rendered_artifact`
   - The template-specific check requires a private Host receipt, never a flag.
 - `finalization_binding`
+- `historical_acceptance_binding`
+- `_delivery_binding`
   - Fail closed unless the Host checked these exact canonical and file bytes.
 
 

@@ -491,6 +491,7 @@ def assess_weekly_snapshot(
     contract: dict,
     *,
     require_excel_acquisition: bool = False,
+    execution_purpose: str = "formal",
     run_root=None,
     manifest=None,
 ) -> dict:
@@ -498,6 +499,8 @@ def assess_weekly_snapshot(
     issues: list[str] = []
     observations: list[dict] = []
     try:
+        if execution_purpose not in {"formal", "historical_acceptance"}:
+            raise ValueError("weekly_execution_purpose_invalid")
         snapshot_hash = weekly_snapshot_sha256(snapshot)
         frozen = {key: value for key, value in contract.items() if key != "contract_sha256"}
         if (
@@ -520,6 +523,12 @@ def assess_weekly_snapshot(
             verify_weekly_history_supplement,
         )
 
+        if (
+            execution_purpose == "formal"
+            and snapshot.get("collection_policy") == "wind-excel-weekly-v1"
+            and snapshot.get("acquisition_kind") == "historical_recheck"
+        ):
+            raise ValueError("weekly_excel_historical_recheck_not_formal")
         verify_weekly_economic_export(
             snapshot,
             contract,
@@ -533,17 +542,23 @@ def assess_weekly_snapshot(
         if snapshot["source"] == "wind_excel" and (
             require_excel_acquisition or "collection_policy" in snapshot
         ):
-            if (
-                snapshot.get("collection_policy") != "wind-excel-weekly-v1"
-                or snapshot.get("acquisition_kind") != "current_period"
+            if snapshot.get("collection_policy") != "wind-excel-weekly-v1" or snapshot.get(
+                "acquisition_kind"
+            ) != (
+                "historical_recheck"
+                if execution_purpose == "historical_acceptance"
+                else "current_period"
             ):
                 raise ValueError("weekly_excel_historical_recheck_not_formal")
             started, frozen_at = _aware(snapshot["acquisition_started_at"]), _aware(
                 snapshot["frozen_at"]
             )
-            if not cutoff <= started <= frozen_at <= datetime.now(UTC) or any(
-                moment.astimezone(SHANGHAI).date().isoformat() != contract["period_end"]
-                for moment in (started, frozen_at)
+            if not cutoff <= started <= frozen_at <= datetime.now(UTC) or (
+                execution_purpose == "formal"
+                and any(
+                    moment.astimezone(SHANGHAI).date().isoformat() != contract["period_end"]
+                    for moment in (started, frozen_at)
+                )
             ):
                 raise ValueError("weekly_excel_acquisition_time_invalid")
             for item in [
@@ -741,8 +756,10 @@ def sample_snapshot(contract: dict) -> dict:
     }
 
 
-def materialize_weekly_workbooks(snapshot: dict, run_root: Path, manifest) -> dict:
+def materialize_weekly_workbooks(
+    snapshot: dict, run_root: Path, manifest, *, execution_purpose="formal"
+) -> dict:
     """Project validated data into Run copies while preserving Office package parts."""
     from .weekly_workbooks import materialize_weekly_workbooks as project
 
-    return project(snapshot, run_root, manifest)
+    return project(snapshot, run_root, manifest, execution_purpose=execution_purpose)

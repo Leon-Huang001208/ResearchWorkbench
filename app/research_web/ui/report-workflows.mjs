@@ -7,6 +7,7 @@ const STATUS = {
   draft: '草稿', needs_attention: '需要补充', enabled: '已启用', disabled: '已停用',
 };
 const RUN_STATUS = {
+  historical_acceptance: '历史验收完成（不得正式定稿）',
   queued: '排队中', preparing_data: '刷新底稿', blocked_data: '数据阻塞',
   blocked_approval: '等待审批', running: 'Claw 执行中', validating: '校验交付',
   completed: '已完成', delivery_incomplete: '交付不完整', failed: '失败',
@@ -28,7 +29,7 @@ const renderRunEvidence = (item) => {
   const sessionLink = item.session_id
     ? `<a class="text-button" href="#/claw?session=${e(item.session_id)}">查看 Claw 活动与工具事件</a>`
     : '<span class="muted">尚未创建 Claw 会话</span>';
-  return `<details class="report-run-evidence"><summary>查看运行证据</summary><dl><dt>Excel 刷新</dt><dd>刷新清单 ${list(item.refresh_manifests).length}</dd><dt>共享快照</dt><dd>${item.dataset_snapshot_sha256 ? `<code>${e(String(item.dataset_snapshot_sha256).slice(0, 16))}…</code>` : '尚未生成'}</dd><dt>子 Agent</dt><dd>${agents.length ? agents.map(agent => `${e(agent.name || agent.id)} · ${e(agent.status || 'unknown')}`).join('<br>') : '无真实证据'}</dd><dt>产物</dt><dd>${artifacts.length ? artifacts.map(artifactLink).join(' · ') : '尚无本次产物'}</dd><dt>缺失</dt><dd>${missing.length ? missing.map(value => e(value)).join('<br>') : '无已记录缺失项'}</dd></dl>${sessionLink}</details>`;
+  return `<details class="report-run-evidence"><summary>查看运行证据</summary><dl><dt>运行用途</dt><dd>${item.execution_purpose === 'historical_acceptance' ? '历史验收稿（不得作为正式定稿）' : '正式生产'}</dd><dt>内容质量</dt><dd>${e(item.quality_status || '未核验')}</dd><dt>正式定稿</dt><dd>${item.finalization_status === 'not_eligible_historical' ? '历史验收，不具备正式定稿资格' : e(item.finalization_status || '未定稿')}</dd><dt>Excel 刷新</dt><dd>刷新清单 ${list(item.refresh_manifests).length}</dd><dt>共享快照</dt><dd>${item.dataset_snapshot_sha256 ? `<code>${e(String(item.dataset_snapshot_sha256).slice(0, 16))}…</code>` : '尚未生成'}</dd><dt>子 Agent</dt><dd>${agents.length ? agents.map(agent => `${e(agent.name || agent.id)} · ${e(agent.status || 'unknown')}`).join('<br>') : '无真实证据'}</dd><dt>产物</dt><dd>${artifacts.length ? artifacts.map(artifactLink).join(' · ') : '尚无本次产物'}</dd><dt>缺失</dt><dd>${missing.length ? missing.map(value => e(value)).join('<br>') : '无已记录缺失项'}</dd></dl>${sessionLink}</details>`;
 };
 
 export function renderReportWorkflowShelf(items = [], { busy = false, compact = false } = {}) {
@@ -63,7 +64,7 @@ export function renderReportWorkflowDetail(detail, { busy = false } = {}) {
   const runRows = runs.slice(0, 12).map(item => {
     const active = ['queued', 'preparing_data', 'blocked_approval', 'running', 'validating'].includes(item.status);
     const retryable = ['blocked_data', 'delivery_incomplete', 'failed', 'cancelled', 'quality_incomplete', 'needs_attention'].includes(item.status);
-    return `<li class="report-run-row"><div><strong>${e(item.id)}</strong><small>v${e(item.version)} · ${e(item.trigger)} · ${e(RUN_STATUS[item.status] || item.status)}</small></div><span class="badge ${item.status === 'completed' ? 'live' : active ? '' : 'danger'}">${e(item.delivery_status || 'pending')}</span>${active ? `<button class="button small" data-cancel-report-run="${e(item.id)}">取消运行</button>` : ''}${retryable ? `<button class="button small" data-retry-report-run="${e(item.id)}">${item.status === 'needs_attention' ? '核对受理状态' : item.status === 'quality_incomplete' ? '继续核验' : '失败重试'}</button>` : ''}${renderRunEvidence(item)}</li>`;
+    return `<li class="report-run-row"><div><strong>${e(item.id)}</strong><small>v${e(item.version)} · ${e(item.trigger)} · ${item.execution_purpose === 'historical_acceptance' ? '历史验收稿（不得作为正式定稿）' : '正式生产'} · ${e(RUN_STATUS[item.status] || item.status)}</small></div><span class="badge ${item.status === 'completed' ? 'live' : active ? '' : 'danger'}">${e(item.delivery_status || 'pending')}</span>${active ? `<button class="button small" data-cancel-report-run="${e(item.id)}">取消运行</button>` : ''}${retryable ? `<button class="button small" data-retry-report-run="${e(item.id)}">${item.status === 'needs_attention' ? '核对受理状态' : item.status === 'quality_incomplete' ? '继续核验' : '失败重试'}</button>` : ''}${renderRunEvidence(item)}</li>`;
   }).join('');
   const manualPassed = weeklyManualRunAccepted(detail);
   const schedule = detail.schedule?.kind === 'manual' && !detail.schedule?.enabled && detail.id === 'huaan-etf-weekly'

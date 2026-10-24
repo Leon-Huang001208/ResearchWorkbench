@@ -1205,6 +1205,7 @@ class DataHub:
 
         report_contract_selected = False
         selected_source = "wind_client_api"
+        execution_purpose = "formal"
 
         def authorize():
             if selected_source == "wind_excel":
@@ -1228,7 +1229,7 @@ class DataHub:
                 raise StoreError("周报资源上下文不完整", "weekly_resource_invalid", 409)
             from ..report_workflows.weekly_sources import load_run_source_contract
 
-            self._report_weekly_run_context(sid, run_root, workflow_manifest)
+            execution_purpose = self._report_weekly_run_context(sid, run_root, workflow_manifest)
             source_contract, source_contract_sha = load_run_source_contract(
                 run_root, workflow_manifest
             )
@@ -1257,6 +1258,11 @@ class DataHub:
                         "query": fingerprint,
                         "source": selected_source,
                         "source_contract_sha256": source_contract_sha,
+                        **(
+                            {"execution_purpose": execution_purpose}
+                            if execution_purpose == "historical_acceptance"
+                            else {}
+                        ),
                         "version": declared["version"],
                     },
                     sort_keys=True,
@@ -1277,6 +1283,7 @@ class DataHub:
                         snapshot,
                         contract,
                         require_excel_acquisition=selected_source == "wind_excel",
+                        execution_purpose=execution_purpose,
                         run_root=run_root,
                         manifest=workflow_manifest,
                     ),
@@ -1322,6 +1329,7 @@ class DataHub:
                         run_root=run_root,
                         manifest=workflow_manifest,
                         source_contract=source_contract,
+                        execution_purpose=execution_purpose,
                     )
                 else:
                     adapter = provider or WindClientAPIProvider(
@@ -1366,6 +1374,7 @@ class DataHub:
                             snapshot,
                             contract,
                             require_excel_acquisition=selected_source == "wind_excel",
+                            execution_purpose=execution_purpose,
                             run_root=run_root,
                             manifest=workflow_manifest,
                         ),
@@ -1447,6 +1456,7 @@ class DataHub:
                     snapshot,
                     contract,
                     require_excel_acquisition=selected_source == "wind_excel",
+                    execution_purpose=execution_purpose,
                     run_root=run_root,
                     manifest=workflow_manifest,
                 )
@@ -1555,7 +1565,11 @@ class DataHub:
                 owned = catalog["runs"][binding["run_id"]]
                 workflow = catalog["workflows"][binding["workflow_id"]]
                 if (
-                    binding.get("weekly_data_source") != "wind_excel"
+                    binding.get("execution_purpose", "formal")
+                    != owned.get("execution_purpose", "formal")
+                    or owned.get("execution_purpose", "formal")
+                    not in {"formal", "historical_acceptance"}
+                    or binding.get("weekly_data_source") != "wind_excel"
                     or owned.get("weekly_data_source") != "wind_excel"
                     or owned.get("owner_id") != binding.get("owner_id")
                     or not owned.get("owner_id")
@@ -1583,6 +1597,12 @@ class DataHub:
                 raise StoreError(
                     "Excel 周报来源没有当前受信运行归属", "weekly_resource_invalid", 409
                 ) from None
+
+        return (
+            owned.get("execution_purpose", "formal")
+            if (value.get("weekly_production") or {}).get("data_source") == "wind_excel"
+            else "formal"
+        )
 
     def register_report_weekly_inputs(self, sid, call_id, cutoff, *, run_root, manifest):
         """Register actual Run Excel bytes for first calibration, never pass flags."""

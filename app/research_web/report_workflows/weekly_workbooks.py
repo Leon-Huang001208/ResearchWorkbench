@@ -331,13 +331,21 @@ def _project(raw, role, snapshot, assessment, contract):
     return output.getvalue(), history_ends
 
 
-def materialize_weekly_workbooks(snapshot: dict, run_root: Path, manifest) -> dict:
+def materialize_weekly_workbooks(
+    snapshot: dict, run_root: Path, manifest, *, execution_purpose="formal"
+) -> dict:
     """Modify only safe, existing Run copies, with exact snapshot/output hashes."""
     cutoff = snapshot.get("cutoff")
     if not isinstance(cutoff, str):
         raise WorkflowError("周报截止时间无效", "weekly_cutoff_invalid", 409)
     contract = build_weekly_data_contract(cutoff)
-    assessment = assess_weekly_snapshot(snapshot, contract, run_root=run_root, manifest=manifest)
+    assessment = assess_weekly_snapshot(
+        snapshot,
+        contract,
+        run_root=run_root,
+        manifest=manifest,
+        execution_purpose=execution_purpose,
+    )
     if assessment["status"] != "passed":
         raise WorkflowError("本期数据未通过，禁止投影工作簿", "weekly_data_not_passed", 409)
     root = Path(run_root)

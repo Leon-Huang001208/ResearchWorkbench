@@ -161,6 +161,13 @@ async def run_report_workflow(workflow_id: str, request: Request):
     return await request.app.state.research.report_workflows.runtime.start_run(workflow_id)
 
 
+@router.post("/report-workflows/{workflow_id}/historical-acceptance-runs", status_code=202)
+async def run_historical_report_workflow(workflow_id: str, request: Request):
+    return await request.app.state.research.report_workflows.runtime.start_run(
+        workflow_id, execution_purpose="historical_acceptance"
+    )
+
+
 @router.get("/report-workflows/{workflow_id}/runs")
 async def report_workflow_runs(workflow_id: str, request: Request):
     return {"items": request.app.state.research.report_workflows.runtime.runs(workflow_id)}
