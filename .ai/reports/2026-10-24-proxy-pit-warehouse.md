@@ -10,3 +10,14 @@ macOS Web 功能开发；隔离 worktree、临时 owned PG 与有限免费请求
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"只收紧既有匿名worker内请求策略及原生研究仓原件绑定；Host、Broker、SDKworker、Provider、可选仓节点与数据边不新增，无HTTP路由、表、依赖、服务或引擎变化。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks同一Python步骤追加一个离线合同模块，保留同候选三CI与MacBootstrap，不新增job、runner或验证节点。","diagrams":[]} -->
+
+
+## 实际源码验收
+
+源码22385ece1e23873e9523ed4e3b7a71684cfb2964；attempt2真实5.637秒PASS，3个公开worker、4次HTTP提交。fund_flow的实际Session.send trust_env=False、proxies为空，不再ProxyError；SDK端点ConnectionError仍如实失败，随后访客HTTP200。GDP2026Q3累计、Sina600600.SH/2026-06-30各HTTP200并各选择1行。GDP来源总83条且分页完整，Sina总117期/实际8期的有限snapshot保持分页false；不改成全历史成功。291份源码/helper映射前后相等，SDK/PG二进制另绑定。
+
+真实默认Host/ResearchWarehouse/psycopg、socket-only owned PG18.3/65477，capture/reopen/restore三个独立OS进程；PG实际停启后读回，再向第二空库恢复三份冻结包，行、字段和嵌套原件哈希完全一致，后两阶段HTTP/worker均0。临时PG/HOME/Host已清理，现有5432、系统代理、服务、凭据和外盘无操作。宏观和财务v2首次观测、未知单位和非PIT声明实际保留。回执SHA256=a2ccfd0b01698d6910700a66580771eec91369b9c8847af7bb16d8b0b23359fe。
+
+首次one-shot仅SDK直连1次ConnectionError后，helper的httpx.send lambda命名与Client.stream(request=...)不兼容，未发送guest/GDP/Sina；失败和永久marker保留。修正后的新目录增加真实MockTransport stream/keyword-send纯回归，保存stdout/stderr后才解码，再独评后单次执行。没有重置旧marker、把脚本故障写成供应商故障或隐瞒请求数。
+
+本地完整10组PASS46.116秒（1230 Python/101子测试/399JS）；最终集成候选、评审与三CI/Mac安装另由精确SHA回执认证，当前源码报告不替代这些门。
