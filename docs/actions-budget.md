@@ -306,3 +306,5 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24：2026-10-24今日发现最新资讯与原生双栏只扩展既有test_discovery/test_discovery_routes/test_discovery_tracking和JS通配符，无新workflow/job/runner/依赖/timeout；同候选原三CI/Mac安装保留。原定点79项约12.4秒、JS37项不足1秒是阶段本机证据，新反例预留原步骤30秒，最终耗时另证。真实模型/生产跟踪/上游重算不进入CI。
+
+2026-10-24公开SDK代理与宏观/新浪原件绑定v2仅向原Checks同一pytest步骤加入test_ak_native_binding，公开worker既有模块增无网络子进程回归；不加job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实3worker/最多4HTTP和隔离PG仅本机。原三CI及同候选macos-14安装保留，远端前实时核对PUBLIC，不手工rerun或由Mac派发其他平台产品。
