@@ -203,10 +203,10 @@ jobs:
             tests/research_web/test_multiuser_runtime.py \
             tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
-            --confcutdir=tests/research_web -q
+            --confcutdir=tests/research_web -q -o addopts=
           .venv/bin/python -m pytest \
             tests/unit/test_wind_excel_instances.py \
-            --confcutdir=tests/unit -q
+            --confcutdir=tests/unit -q -o addopts=
 
       - name: Run Research Web JavaScript contracts
         shell: bash

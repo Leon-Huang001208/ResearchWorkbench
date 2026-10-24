@@ -20,6 +20,20 @@ const verificationPolicy = JSON.parse(fs.readFileSync(
   'utf8',
 ));
 
+test('Research Web CI captures passing-test noise while preserving failure diagnostics', () => {
+  const pythonStep = workflows.checks
+    .split('      - name: Run Research Web Python contracts')[1]
+    ?.split('      - name: Run Research Web JavaScript contracts')[0];
+  assert.ok(pythonStep, 'the original Python contract step must remain');
+  const commands = pythonStep.split('.venv/bin/python -m pytest').slice(1);
+  assert.equal(commands.length, 2, 'both original contract invocations must remain');
+  for (const command of commands) {
+    assert.match(command, /\s-o\s+addopts=(?=\s|$)/);
+    assert.doesNotMatch(command, /(?:\s-s(?:\s|$)|--capture[= ]no|-p\s+no:capture)/);
+    assert.doesNotMatch(command, /(?:--show-capture[= ]no|--tb[= ]no|--disable-warnings)/);
+  }
+});
+
 function workflowTriggers(source) {
   const lines = source.split(/\r?\n/);
   const start = lines.findIndex((line) => line === 'on:');
