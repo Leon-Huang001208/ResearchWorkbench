@@ -12,7 +12,10 @@
 
 ## 本地实现与边界
 
-发布排序：最终prepared候选`519458a6725d029757fb845b15cdedc3d70e5958`已用其自身operator通过真实106文件范围检查，未调用action；该候选完整Native/领域再跑2338 passed、1既有warning、134.96秒。协调任务随后更正：纯文档PR230排在runtime切换后，不作为本候选前置，当前仍按53d基线发布，不等待230。PR229资产读数为额外业务改动，不在P6冻结或当前具体授权内，请统一窗口协调业务源码稳定；本任务不会静默扩payload或先行部署。PR228仍按协调要求留切换后，不作为本候选前置。
+当前完整组合更新为P7 `63583746e6bccc201e29f622063307f8d4333bc1`，普通merge纳入已批准PR229 `ccdbd5a2b3b284e4c2f0a69569c4e97463efc0f0`（仅3asset UI、README、JS测试/文档）。后端/依赖/runtime/CI相对P6同字节，API213证据保留；上游5JS模块本机134 passed/4.39秒。P7操作员仅换产品pin，2365完整operator/领域通过167.90秒，58realGit冻结定点通过；规格/质量最终APPROVED。代码提交`a9e275cca3493fa82094cbdb38300e93f7c76b0f`，operator18a846bb…/testf1cbc841…；previous36/action7cbd/旧modes/两P2/两HTML精确例外均保持。最终prepared、原三CI、真实维护与统一切换另记，当前未publish或实际执行。
+
+
+发布排序：最终prepared候选`519458a6725d029757fb845b15cdedc3d70e5958`已用其自身operator通过真实106文件范围检查，未调用action；该候选完整Native/领域再跑2338 passed、1既有warning、134.96秒。协调任务随后更正：纯文档PR230排在runtime切换后，不作为本候选前置，当前仍按53d基线发布，不等待230。当时PR229尚未纳入P6；随后统一窗口明确传达人类批准，已合入下述P7，不能复用P6资格；本任务不会静默扩payload或先行部署。PR228仍按协调要求留切换后，不作为本候选前置。
 
 生成文档delta已获规格与质量独立APPROVED：最终operator `be2e2e070dab9ebc04c3072bc8135c229decbe4d473bca46a8aabd2738c5268d`、test `ba913e4e677ec0bf6e23b882d9a3365b022a0f421071c4aa81e2ba3659ceb6d3`，源码提交`a59b533714ae3003377a2fa2f374664be0386128`，P6/前版/action不变。两份HTML严格100644，其它输出/品牌/SVG/业务与CI继续冻结；9realGit反例独立各9项通过，实现方195weekly定点通过。2329全套仍明确是此前40ee/546a源基线，不假称当前源码全套已跑；最终CI将跑完整当前候选。旧prepared462的106文件scope GREEN由新函数验证，只说明范围逻辑，不能认证其旧executor。正在整合新的prepared候选并由其自身源码再验真实范围后才发布。
 
