@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+可信华安周报在原Host内投影Run/SID/版本/owner/purpose及冻结字节对应的执行scope，复用唯一DSH的现有Native guard/visible_tools与脚本runner；不再误选通用公司研究能力。提交claim在原Run目录内持久化，preflight与实际RPC未知分开；没有新服务、引擎、DB或HTTP路径，原分层拓扑仍准确。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8只在原Native操作员注册固定身份与apply-assets-v8，前版b4384470、产品为包含PR216/217/219的真实合并组合检查点。原主实例/私网网关/唯一DSH、version4事务和全账号/档案保全保持；继承已上线今日发现的后台空闲复核，无新HTTP、数据格式、服务或依赖，原部署图准确。

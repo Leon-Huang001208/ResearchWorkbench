@@ -553,7 +553,9 @@
         "tests/research_web/test_report_weekly_rendering.py",
         "tests/javascript/research_web_weekly_production.test.mjs",
         "tests/research_web/test_report_weekly_data.py",
-        "tests/research_web/test_datahub_wind_api.py"
+        "tests/research_web/test_datahub_wind_api.py",
+        "tests/research_web/test_report_weekly_admission.py",
+        "tests/research_web/test_legacy_weekly_monitoring.py"
       ]
     },
     {

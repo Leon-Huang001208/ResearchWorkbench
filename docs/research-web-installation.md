@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+新增周报内部scope/journal模块及脚本冻结文件策略随既有Web包和Runtime JS发布，无新增包/凭据/服务或用户配置。setup三入口、固定DSH构建和同候选Mac安装/3081/8088/Doctor保持；JS/Python范围协议必须同候选，不以旧安装或合成测试认证真实Word/Excel/模型。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8沿固定Native事务更新现有安装清单，锁与严格evidence身份复用已审V7常量；没有新增依赖、设置或数据根。公开setup入口、3081/8088健康与Doctor仍由最终候选Mac干净安装验收；实际常驻保全另证。

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+周报准入修复位于report_workflows/weekly_execution.py、runtime.py和service.py：Host冻结13工具/逐文件输入，普通capability data gate保持。research-tools.mjs与sandbox.py传递Host input_policy并支持literal冻结文件，只读审批与原目录scope兼容。新提交协议为weekly-admission-v2，旧未知只recheck，正确首提/显式未RPC恢复均有持久claim及真实Sender/Seatbelt回归。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8位于resident/model_provider_upgrade.py：ASSET_V8常量、previous_for/review_assets/target_manifest及CLI闭合分派；加入原64MiB reader、市场inflight和后台空闲检查。test_model_provider_upgrade复用全部旧恢复/真实Git矩阵并补V8固定pin和后台拒绝反例。最终产品固定为包含PR216/217/219的真实merge组合，部署/认证页面另验。

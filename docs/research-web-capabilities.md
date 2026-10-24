@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+华安冻结Run不再选择不适用的公司研究Workflow，而按Host验证的专属输入/工具投影提交。通用能力目录、其data_requirements和数据拒绝逻辑不改；不发布新泛化capability、不复用Automation任务身份，原Native审批/插件撤权/来源约束继续有效。
+
 今日发现不发布新原生Tool/Skill或第二运行器：手动选择先固定golddata_intel事件归档，再由唯一DSH调用已授权能力。独立跟踪锁定原research_task定义、模型/profile和固定只读工具；禁用草稿、启用、运行、质量和通知各自保留，默认无MCP/外部投递，每条计划每日最多一次模型尝试。既有框架、Workflow及能力发布门不因事件摘要自动通过，合同见[今日发现](research-web-discovery.md)。
 
 

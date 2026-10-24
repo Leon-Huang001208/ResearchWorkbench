@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。
+
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
 
 资产V8不扩大自动兼容白名单，不改变不可变controller/evidence或凭据权限；校验固定产品祖先与完整union blob/mode。后台跟踪、自动化、Workflow、市场及资产查询活动/未知均拒绝；恢复与全账号档案保全不可由CI或画面成功替代。

@@ -9264,7 +9264,7 @@ Imports:
 Classes:
 - `ReportWorkflowService`
   - Manage drafts, immutable versions and isolated runtime copies.
-  - methods: __init__, _reload, _exclusive, _reconcile, _save, _row, _draft, create_draft, _create_draft, upload_resource, _upload_resource, _resources, create_version, _create_version, _version_path, manifest, list_resources, resource_path, preflight, publish_version, _publish_version, rollback_version, _rollback_version, create_run_workspace, _create_run_workspace, run_path, _run_path, read_refresh_manifest, _read_refresh_file, refresh_workbook
+  - methods: open_for_maintenance, end_legacy_monitoring, __init__, _reload, _exclusive, _reconcile, _save, _row, _draft, create_draft, _create_draft, upload_resource, _upload_resource, _resources, create_version, _create_version, _version_path, manifest, list_resources, resource_path, preflight, publish_version, _publish_version, rollback_version, _rollback_version, create_run_workspace, _create_run_workspace, run_path, _run_path, read_refresh_manifest, _read_refresh_file, refresh_workbook
 
 Functions:
 - `_sha256`
@@ -9309,6 +9309,52 @@ Functions:
 - `_content`
 - `prepare_weekly_evidence`
 - `weekly_business_observations`
+
+
+## `app/research_web/report_workflows/legacy_monitoring.py`
+
+Module docstring:
+> Explicit legacy monitoring disposition, preserving uncertain execution evidence.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `dataclasses`
+- `datahub.security`
+- `hashlib`
+- `json`
+- `math`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `time`
+
+Classes:
+- `LegacyMonitoringExpectation`
+
+Functions:
+- `digest`
+  - Canonical catalog-row digest used for explicit compare and swap.
+- `deny`
+- `validate_existing_path`
+  - Reject symlink ancestors, shared ownership, hardlinks and unsafe modes.
+- `_lock_identity`
+- `validate_existing_lock`
+  - Accept the old empty 0644 flock inode only within its private parent.
+- `open_existing_lock`
+  - Bind checked inode/mode to fstat and the post-open name before locking.
+- `_validate`
+- `end_monitoring`
+  - CAS control only; owner_check must be the live primary-owner resolver.
+- `_timestamp`
+- `_validate_receipt`
+  - An existing receipt cannot authorize a changed identity or disposition.
+- `_sync_catalog_directory`
+  - Confirm durability after an uncertain replace or directory-fsync return.
+- `_confirm_committed`
 
 
 ## `app/research_web/report_workflows/manager.py`
@@ -9477,7 +9523,7 @@ Imports:
 
 Classes:
 - `ReportWorkflowRuntime`
-  - methods: __init__, start, close, _run, _update_run, _accepted_weekly_submission, _recover_weekly_runs, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _require_weekly_owner, _historical_notice, _manual_weekly_passed, _execute, _refresh_workbook, _prepare_weekly_excel, _wait_for_delivery, _finish_run, cancel, retry, _inspect_weekly_run, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
+  - methods: __init__, start, close, _run, _update_run, _accepted_weekly_submission, _recover_weekly_runs, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _require_weekly_owner, _historical_notice, _manual_weekly_passed, _execute, _weekly_submission_prompt, _submit_weekly, _resume_weekly_submission, _refresh_workbook, _prepare_weekly_excel, _wait_for_delivery, _finish_run, cancel, retry, _inspect_weekly_run, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
 
 Functions:
 - `_public_metadata`
@@ -9560,6 +9606,36 @@ Functions:
   - Return a schema example, explicitly empty and incapable of passing gates.
 - `materialize_weekly_workbooks`
   - Project validated data into Run copies while preserving Office package parts.
+
+
+## `app/research_web/report_workflows/weekly_execution.py`
+
+Module docstring:
+> Host-only weekly execution scope and durable, non-replayable RPC claim.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `stat`
+- `store`
+- `time`
+- `weekly_quality`
+
+Functions:
+- `_digest`
+- `has_attempt`
+  - Any existing claim, including corrupt/symlink claims, prevents a replay.
+- `create_attempt`
+- `_inputs`
+- `projection`
+  - Revalidate all Host-owned bindings on send and every native admission.
+- `claim`
 
 
 ## `app/research_web/report_workflows/weekly_quality.py`

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+华安准入/账本修复先以真实ResearchService.send重现错误capability data gate，不能再mock send绕过。逐层验证Host→Native Tool→Python→Seatbelt真实读取；预检/claim/已接受/未知并发与重启分开，旧sender缺证保unknown。用户已选保留旧运行、修复部署后新版本手动验收；原Wind/正文/文件门和独立部署授权保持。
+
 资产幅字段采用封闭V8部署：先固定包含PR216/217/219的真实合并组合，再对最终操作员运行完整Router、独评、原三CI和同候选Mac安装；前版为实际b4384470。沿本任务既有部署授权执行持锁空闲、BirthFence与全账号保全，后台跟踪/Automation/Workflow活动或未知拒绝，旧恢复合同保持。
 
 华安历史验收是显式非正式Run用途，不是正式数据门豁免。独立worktree验证可信用途在owner、冻结、DataHub、重试/恢复、渲染与最终门的完整传播；普通调用、模型自声明和快照字段不能开启。先取本机、独评、完整Router及原三CI，再按明确授权更新常驻并跑真实历史稿/Word/下载；历史通过不更新正式pointer、不解锁定时。

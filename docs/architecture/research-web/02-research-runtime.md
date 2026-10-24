@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+weekly-admission-v2将preflight/prepared/rpc_attempted/accepted/unknown分开，模型RPC前先写不可覆盖且fsync的claim。明确未RPC状态只经显式同Run/SID/key/hash恢复；已接受/未知只观察，不重发。旧协议缺sender证据只记recovery缺口、原失败/时间保持。普通研究及Automation原幂等与审批逻辑不变。
+
 资产V9只读取完整CI证据并固定reader身份，不启动DSH或研究；继承全账号跟踪/Automation/Workflow及Host/Native/市场/资产空闲拒绝，旧冻结恢复包继续使用原reader。
 
 资产V8不启动研究，后台空闲复核覆盖已上线今日发现跟踪、Automation与Workflow；原Host/Native/私有池、资产Future和市场inflight未知或活动继续拒绝。旧profile恢复身份与唯一DSH保持，不重试任何未知模型调用。
