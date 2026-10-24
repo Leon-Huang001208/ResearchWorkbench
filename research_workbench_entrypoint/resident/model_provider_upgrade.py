@@ -79,6 +79,13 @@ ASSET_V8_PREVIOUS = "b438447071d08eec38902b2a50610644283885f9"
 ASSET_V8_PAYLOAD = "dee0cce4dbc65782dba2c720f33ada683457d72a"
 ASSET_V8_WEB_LOCK_SHA256 = ASSET_V7_WEB_LOCK_SHA256
 ASSET_V8_EVIDENCE_SHA256 = ASSET_V7_EVIDENCE_SHA256
+
+# V9 admits the reviewed bounded CI reader; V1-V8 evidence identities stay frozen.
+ASSET_V9_MODE = "reviewed-asset-observation-v9"
+ASSET_V9_PREVIOUS = ASSET_V8_PREVIOUS
+ASSET_V9_PAYLOAD = "b500fcbe9b95632667a6194e519f7e8a743c4221"
+ASSET_V9_WEB_LOCK_SHA256 = ASSET_V8_WEB_LOCK_SHA256
+ASSET_V9_EVIDENCE_SHA256 = "193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7dad6bb8ce63988"
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
 MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
@@ -131,6 +138,7 @@ ASSET_MODES = frozenset(
         ASSET_V6_MODE,
         ASSET_V7_MODE,
         ASSET_V8_MODE,
+        ASSET_V9_MODE,
         MARKET_MODE,
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
@@ -224,6 +232,8 @@ def previous_for(mode):
         return ASSET_V6_PREVIOUS
     if mode == ASSET_V7_MODE:
         return ASSET_V7_PREVIOUS
+    if mode == ASSET_V9_MODE:
+        return ASSET_V9_PREVIOUS
     if mode == ASSET_V8_MODE:
         return ASSET_V8_PREVIOUS
     if mode == MARKET_MODE:
@@ -401,6 +411,7 @@ def verify_primary(home, expected, mode):
         ASSET_V6_MODE,
         ASSET_V7_MODE,
         ASSET_V8_MODE,
+        ASSET_V9_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
@@ -488,6 +499,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V6_MODE: ASSET_V6_PAYLOAD,
         ASSET_V7_MODE: ASSET_V7_PAYLOAD,
         ASSET_V8_MODE: ASSET_V8_PAYLOAD,
+        ASSET_V9_MODE: ASSET_V9_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
@@ -517,27 +529,31 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             if actual_mode != "100644" or hashlib.sha256(
                 g.git_bytes(source, target, "evidence.py")
             ).hexdigest() != (
-                MARKET_TERMINAL_EVIDENCE_SHA256
-                if mode == MARKET_TERMINAL_MODE
+                ASSET_V9_EVIDENCE_SHA256
+                if mode == ASSET_V9_MODE
                 else (
-                    (
-                        ASSET_V8_EVIDENCE_SHA256
-                        if mode == ASSET_V8_MODE
-                        else ASSET_V7_EVIDENCE_SHA256
-                    )
-                    if mode in {ASSET_V7_MODE, ASSET_V8_MODE}
+                    MARKET_TERMINAL_EVIDENCE_SHA256
+                    if mode == MARKET_TERMINAL_MODE
                     else (
-                        ASSET_V6_EVIDENCE_SHA256
-                        if mode
-                        in {
-                            ASSET_V6_MODE,
-                            ETF_WEEKLY_MODE,
-                            DOSSIERS_MODE,
-                            DISCOVERY_MODE,
-                            ETF_WEEKLY_V2_MODE,
-                            ETF_HISTORICAL_MODE,
-                        }
-                        else ASSET_EVIDENCE_SHA256
+                        (
+                            ASSET_V8_EVIDENCE_SHA256
+                            if mode == ASSET_V8_MODE
+                            else ASSET_V7_EVIDENCE_SHA256
+                        )
+                        if mode in {ASSET_V7_MODE, ASSET_V8_MODE}
+                        else (
+                            ASSET_V6_EVIDENCE_SHA256
+                            if mode
+                            in {
+                                ASSET_V6_MODE,
+                                ETF_WEEKLY_MODE,
+                                DOSSIERS_MODE,
+                                DISCOVERY_MODE,
+                                ETF_WEEKLY_V2_MODE,
+                                ETF_HISTORICAL_MODE,
+                            }
+                            else ASSET_EVIDENCE_SHA256
+                        )
                     )
                 )
             ):
@@ -1045,6 +1061,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = ASSET_V6_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V7_MODE:
         manifest["web_lock_sha256"] = ASSET_V7_WEB_LOCK_SHA256
+    elif state.get("mode") == ASSET_V9_MODE:
+        manifest["web_lock_sha256"] = ASSET_V9_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V8_MODE:
         manifest["web_lock_sha256"] = ASSET_V8_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_HISTORY_MODE:
@@ -1100,6 +1118,7 @@ class Operations:
         if self.state.get("mode") in {
             DISCOVERY_MODE,
             ASSET_V8_MODE,
+            ASSET_V9_MODE,
             ETF_HISTORICAL_MODE,
         } and not discovery_background_idle(self.home):
             log.warning("discovery_deploy_background_not_quiet")
@@ -1149,6 +1168,7 @@ class Operations:
             MARKET_TERMINAL_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
+            ASSET_V9_MODE,
             ETF_WEEKLY_MODE,
             DOSSIERS_MODE,
             DISCOVERY_MODE,
@@ -1583,6 +1603,7 @@ def main(argv=None):
             "apply-assets-v6",
             "apply-assets-v7",
             "apply-assets-v8",
+            "apply-assets-v9",
             "apply-market",
             "apply-market-gaps",
             "apply-market-history",
@@ -1615,6 +1636,7 @@ def main(argv=None):
                 "apply-assets-v6": ASSET_V6_MODE,
                 "apply-assets-v7": ASSET_V7_MODE,
                 "apply-assets-v8": ASSET_V8_MODE,
+                "apply-assets-v9": ASSET_V9_MODE,
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,

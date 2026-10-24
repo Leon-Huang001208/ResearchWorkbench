@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+新增封闭操作员CLI `apply-assets-v9`，固定产品b500fcbe、前版b4384470和新reader哈希；不接受任意公式/目标覆盖，不新增HTTP或权限。reader保留压缩8MB、总展开64MB及完整性检查，单job明确16MB。
+
 apply-assets-v8仅为原Native操作员的封闭CLI分派，无新增HTTP、账号权限或任意SHA参数。固定前版b4384470和包含PR216/217/219的真实合并组合；旧v1-v7及其它固定入口保持，实际切换仍需全部资格、空闲与保全证据。
 
 `POST /api/research/report-workflows/{workflow_id}/historical-acceptance-runs` 只为已发布华安Wind Excel周报创建非正式验收Run，重查当前绑定主管理员资格；普通`/runs`默认formal。用途由Host固定并冻结，不接受模型或snapshot字段提升；重试/恢复保持，未知提交不得重复。该入口不修改正式稿和日程权限。

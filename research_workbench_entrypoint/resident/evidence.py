@@ -16,6 +16,9 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 SHA = re.compile(r"[a-f0-9]{40}\Z")
+# Independent bounds: compressed transport 8 MB, each expanded job 16 MB,
+# and all archive members together 64 MB. CRC and complete-stream checks remain.
+JOB_LOG_LIMIT = 16_000_000
 WORKFLOWS = (
     "project-constraints.yml",
     "research-web-checks.yml",
@@ -101,7 +104,7 @@ def archive_job_logs(raw: bytes, jobs: list[dict]) -> dict[int, str]:
             for job in jobs:
                 pattern = re.compile(r"[0-9]+_" + re.escape(job["name"]) + r"\.txt\Z")
                 matches = [entry for entry in entries if pattern.fullmatch(entry.filename)]
-                if len(matches) != 1 or matches[0].file_size > 8_000_000:
+                if len(matches) != 1 or matches[0].file_size > JOB_LOG_LIMIT:
                     raise ValueError("job log missing or oversized")
                 entry = matches[0]
                 # Validate the local header/name and overlapping-member boundary.
@@ -120,19 +123,19 @@ def archive_job_logs(raw: bytes, jobs: list[dict]) -> dict[int, str]:
                     content = compressed
                 elif entry.compress_type == zipfile.ZIP_DEFLATED:
                     decoder = zlib.decompressobj(-15)
-                    content = decoder.decompress(compressed, 8_000_001)
+                    content = decoder.decompress(compressed, JOB_LOG_LIMIT + 1)
                     if not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
                         raise ValueError("incomplete or trailing deflate stream")
                 else:
                     raise ValueError("unsupported compression")
                 if (
-                    len(content) > 8_000_000
+                    len(content) > JOB_LOG_LIMIT
                     or len(content) != entry.file_size
                     or binascii.crc32(content) != entry.CRC
                 ):
                     raise ValueError("member length or CRC mismatch")
                 body = content.decode("utf-8")
-                if len(body) > 8_000_000:
+                if len(body) > JOB_LOG_LIMIT:
                     raise ValueError("log output budget")
                 result[job["id"]] = body
             return result
