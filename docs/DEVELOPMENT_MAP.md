@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+资产V8位于resident/model_provider_upgrade.py：ASSET_V8常量、previous_for/review_assets/target_manifest及CLI闭合分派；加入原64MiB reader、市场inflight和后台空闲检查。test_model_provider_upgrade复用全部旧恢复/真实Git矩阵并补V8固定pin和后台拒绝反例。最终产品固定为包含PR216/217/219的真实merge组合，部署/认证页面另验。
+
 历史验收产品冻结于bb4d2e65，随后原Native联合操作员新增reviewed-etf-historical-v1/apply-etf-historical，前版仅b4384470；原v4全账号/档案保全、严格reader、空闲/恢复及产品union/blob/mode门不改。最终同一PR普通merge保留产品祖先，再完整独评和原三CI；源码准备不授予常驻切换，合同见research-web-gateway-upgrade.md历史验收章节。
 
 华安历史验收：report_workflow_routes/runtime固定专用创建及Run.execution_purpose；DataHub/providers_wind_excel_weekly、weekly_data/workbooks/quality沿可信运行上下文区分正式和事后采集。report_rendering/report_render_script在bind计算文件哈希前加历史标签，weekly_quality读回核对并拒绝历史正式定稿；UI周报入口与manualAccepted同样分离。test_report_weekly_historical_acceptance覆盖新分支，原正式/原件/质量回归保留。设计与实现计划见docs/superpowers/内2026-10-24-etf-historical-acceptance文件。

@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+apply-assets-v8仅为原Native操作员的封闭CLI分派，无新增HTTP、账号权限或任意SHA参数。固定前版b4384470和包含PR216/217/219的真实合并组合；旧v1-v7及其它固定入口保持，实际切换仍需全部资格、空闲与保全证据。
+
 `POST /api/research/report-workflows/{workflow_id}/historical-acceptance-runs` 只为已发布华安Wind Excel周报创建非正式验收Run，重查当前绑定主管理员资格；普通`/runs`默认formal。用途由Host固定并冻结，不接受模型或snapshot字段提升；重试/恢复保持，未知提交不得重复。该入口不修改正式稿和日程权限。
 
 资产图表“幅”合并显示复用既有历史响应，不新增 HTTP、查询参数或字段，不修改观察/历史任务与冻结合同；百分比及价差继续在前端按上一同周期收盘计算。

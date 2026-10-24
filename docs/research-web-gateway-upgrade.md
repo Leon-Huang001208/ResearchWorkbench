@@ -1,5 +1,11 @@
 # Mac mini 空私有池网关升级
 
+## 资产幅字段固定部署 V8（2026-10-24）
+
+封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `dee0cce4dbc65782dba2c720f33ada683457d72a`（包含PR216幅字段、PR217数据源与PR219历史验收），三项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
+
+沿本任务既有部署授权完成最终独评/完整Router/原三CI/Mac干净安装，再用干净精确目标执行；实际版本、保全、认证页面及资源收尾单独留证。不安装新依赖、不改秘密/数据库/外盘、不调用模型。
+
 ## 华安历史验收固定部署（2026-10-24）
 
 `reviewed-etf-historical-v1` / `apply-etf-historical` 仅为明确批准的历史验收功能准备封闭更新。前版固定现场主实例/网关 `b438447071d08eec38902b2a50610644283885f9`，产品固定提交 `bb4d2e657872ecb24df5bb0e89f571b4600b84d1`。该产品提交包含全部功能、测试、CI清单、09/10图与API文档，随后仅追加操作员/测试/文档；它随最终同一PR普通merge进入master，不宣称具有单独产品PR或CI回执。

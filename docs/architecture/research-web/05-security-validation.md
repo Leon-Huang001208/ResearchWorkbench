@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+资产V8不扩大自动兼容白名单，不改变不可变controller/evidence或凭据权限；校验固定产品祖先与完整union blob/mode。后台跟踪、自动化、Workflow、市场及资产查询活动/未知均拒绝；恢复与全账号档案保全不可由CI或画面成功替代。
+
 历史验收必须同时验证可信Run用途/冻结上下文、原件独立重放、全部数字引用及文件哈希；snapshot自报历史/正式都不能改变模式。Host渲染先加标签、bind及产物重验后取最终SHA，删除标签或篡改用途即拒绝。finalization与正式pointer/manual gate再次拒历史，即便quality passed也不授予定时资格，原正式采集门保持。
 
 华安 v2 维持 latest、完整路径并集/blob/文件模式、固定完整CI读取器、BirthFence、全部账号与dossier保全；不得为已前进主线忽略检查。前版5343e18d和组合产品56709a8d固定，旧目标2e1ba701授权不自动扩展为新增产品授权。
