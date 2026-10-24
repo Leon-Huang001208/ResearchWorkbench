@@ -323,6 +323,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     prepareWeeklyProduction: (id) => request(`/report-workflows/${segment(id)}/weekly-production/prepare`, { method: 'POST', body: {} }),
     publishReportWorkflowVersion: (id, version) => request(`/report-workflows/${segment(id)}/versions/${segment(version)}/publish`, { method: 'POST', body: {} }),
     runReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/runs`, { method: 'POST', body: {} }),
+    runHistoricalReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/historical-acceptance-runs`, { method: 'POST', body: {} }),
     reportWorkflowRuns: (id) => request(`/report-workflows/${segment(id)}/runs`),
     reportProviders: () => request('/report-workflows/providers'),
     probeReportProvider: (id, key) => request(`/report-workflows/providers/${segment(id)}/probe`, { method: 'POST', body: {}, key }),

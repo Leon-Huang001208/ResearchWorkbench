@@ -1,5 +1,13 @@
 # 华安 ETF 周报自动生产
 
+## 历史验收（2026-10-24用户确认）
+
+周五之外重采仍不能用于正式定稿。主管理员可通过专用`historical-acceptance-runs`在同一版本/报告期创建历史Run；Host保存并冻结`execution_purpose=historical_acceptance`，普通运行默认formal。去重、重试和恢复保持用途；模型正文、snapshot或模板字段不能自报提升，未知模型提交不新建重发。
+
+历史验收沿原Wind Excel、全部数据/日历/原件重放、唯一DSH、数字引用/正文和文件硬门；真实采集与冻结时间、historical_recheck保留。Host在最终文件SHA之前向Word/HTML加入“历史验收稿（不得作为正式定稿）”和期间/时间说明，并在绑定/产物校验中读回检查。规范正文仍唯一research-report.json，原模板原件和上一正式稿保留。
+
+历史完成状态与正式资格分开：quality passed、delivery complete也不能finalized、更新正式pointer或满足手动正式定稿的日程准入。当前不启用定时。历史全流程/Word/下载的实际结果另行记录，不能替代真实周五生产及三个真实周周期。
+
 原固定目标2e1ba701获批后，主线合入PR209；v2将组合产品固定为56709a8d，保留所有数据、正文、文件和定稿硬门。最终源码/CI及具体新目标部署授权先于切换，真实DSH/Word/下载尚待执行，不能将已有预检写作正式稿，日程关闭。
 
 华安产品988046d已合并，封闭`apply-etf-weekly`只为从已核定5343e18d前版进行原Native事务更新做源码准备。最终操作员三CI、同候选Mac安装及单独部署授权均先于实际切换；原owner、数据/正文/文件/定稿硬门与日程禁用保持。真实原件重放与底稿预检不替代正式Host Run、DSH、Word逐页或认证下载验收。

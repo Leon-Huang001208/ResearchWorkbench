@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/outputs/research-web-architecture/09-report-workflow-sequence.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/outputs/research-web-architecture/09-report-workflow-sequence.html",
   "specification": {
-    "sha256": "72c5a8e36a949954b3689808a9cb125a90de4d5f0cd8c51b8257d91d2146fb7b",
-    "bytes": 8256
+    "sha256": "f4c67f2717ad8fd907b7c8c6f127802ac939d3b07610a30c7ff250986a8710d5",
+    "bytes": 8202
   },
   "artifact": {
-    "sha256": "252cbe56f64dd1d7bc362611b7a3a7b18fdfc801bed075d7b3853667638c9738",
-    "bytes": 650174
+    "sha256": "a82e68877fea1da862d5ddd6a65b19b8de814dd01a7fba643f86514f000615fa",
+    "bytes": 650110
   },
   "validation": {
     "checksPassed": 9,

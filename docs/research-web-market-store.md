@@ -1,5 +1,7 @@
 # DataHub 研究数据仓库内核
 
+华安历史验收只复用原私有周报冻结快照及底稿，不启用或迁移ResearchWarehouse/MarketStore、补造PIT或增加源白名单。事后时间与用途仍显式记录，全部原件/数值门保持；验收通过不证明正式实时数据或研究仓等价性。
+
 今日发现将所选事件存入原会话文件快照，未增加ResearchWarehouse/MarketStore表、SQL迁移、正式PG连接或自动采集。golddata_intel归档的冻结时点与文章来源时间分别保留，不获得历史PIT资格，网页归档不写作供应商原生规范事实。已有研究仓授权、保留/恢复与容量合同不扩权；新增文件链见[今日发现](research-web-discovery.md)。
 
 SPDR `ext_spdr/gld` 的四项来源原生快照沿现有 `ResearchWarehouse → SnapshotSeries → MarketStoreService` 保存。

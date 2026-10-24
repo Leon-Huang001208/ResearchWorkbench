@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/docs/architecture/research-web/diagrams/10-excel-report-dataflow-showcase.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/outputs/research-web-architecture/10-excel-report-dataflow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/docs/architecture/research-web/diagrams/10-excel-report-dataflow-showcase.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/outputs/research-web-architecture/10-excel-report-dataflow.html",
   "specification": {
-    "sha256": "261ce1a8cfcc37d02757ba1986018a265180790c124381b8a5658148f4cba278",
-    "bytes": 6996
+    "sha256": "aa458dfc0f06f1f49d1fea746260fbfe37730b941ee2f942944c4611413a1bfb",
+    "bytes": 6946
   },
   "artifact": {
-    "sha256": "773a77e80dd726911935dbb92116325126c3a3d2003a703a9971a797771cc63c",
-    "bytes": 646641
+    "sha256": "4ca63922a784142c13fea6a295c51c8edc0895e9f5df9bb225fbad37a0c1bcc7",
+    "bytes": 646628
   },
   "validation": {
     "checksPassed": 9,

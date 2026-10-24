@@ -1996,6 +1996,15 @@
             "blockedData"
           ],
           "source": "app/research_web/datahub/providers_wind_excel_weekly.py"
+        },
+        {
+          "subjects": [
+            "manualRun",
+            "lockVersion",
+            "deliveryState"
+          ],
+          "source": "app/research_web/report_workflows/runtime.py",
+          "contains": "historical_acceptance"
         }
       ],
       "level": "flows",
@@ -2103,6 +2112,15 @@
             "recordRefresh"
           ],
           "source": "app/research_web/datahub/providers_wind_excel_weekly.py"
+        },
+        {
+          "subjects": [
+            "runCopy",
+            "assembler",
+            "deliver"
+          ],
+          "source": "app/research_web/report_workflows/weekly_quality.py",
+          "contains": "historical_acceptance"
         }
       ],
       "level": "flows",
@@ -4120,6 +4138,13 @@
       "path": "/api/research/report-workflows/{workflow_id}/runs",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}/runs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/historical-acceptance-runs",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/historical-acceptance-runs",
       "prefix": "/api/research"
     },
     {

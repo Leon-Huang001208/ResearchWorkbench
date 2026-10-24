@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+华安历史验收：report_workflow_routes/runtime固定专用创建及Run.execution_purpose；DataHub/providers_wind_excel_weekly、weekly_data/workbooks/quality沿可信运行上下文区分正式和事后采集。report_rendering/report_render_script在bind计算文件哈希前加历史标签，weekly_quality读回核对并拒绝历史正式定稿；UI周报入口与manualAccepted同样分离。test_report_weekly_historical_acceptance覆盖新分支，原正式/原件/质量回归保留。设计与实现计划见docs/superpowers/内2026-10-24-etf-historical-acceptance文件。
+
 2026-10-23 ETF Native封闭后继：`resident/model_provider_upgrade.py` 新增
 `ETF_WEEKLY_V2_MODE/PREVIOUS/PAYLOAD` 和 `apply-etf-weekly-v2`，旧版固定5343e18d、
 产品固定PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。只纳入原分派、严格reader、

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-24华安历史验收只向原Research Web Checks同一Python步骤加入test_report_weekly_historical_acceptance.py，JS沿原research_web通配符；没有新job/runner/timeout/依赖。增量预留原步骤60秒，本机和最终CI耗时分别取证。原三门、同候选Mac干净安装/固定DSH/3081/8088/Doctor保留，不手工rerun或从Mac派发他平台产品，远端前仍实时核对仓库visibility/额度。
+
 2026-10-23华安Native v2只扩展原操作员测试矩阵，无新workflow/job/runner/依赖/timeout；预留原步骤90秒，最终耗时另取证。PR208的4594项及PR209成功只属各自候选，不替代v2原三CI和Mac干净安装。远端操作前实时核对公开仓库资格；不rerun或从Mac派发他平台产品。
 
 2026-10-23华安Native固定配置复用原三CI及Mac Bootstrap自动路径触发，原操作员测试矩阵增加ETF模式，无新workflow/job/runner/依赖/timeout。本机五文件1745项360.53秒，新增矩阵预算预留90秒；同候选通用门与Mac安装仍必需。实时PUBLIC；最近五个成功Checks 39943827410/39941890981/39939839047/39937435254/39937002051，创建至更新766/846/957/1071/1068秒，仅墙钟观察。不手工rerun或从Mac dispatch Windows/Linux产品；源码资格不认证部署、供应商、真实模型或正式稿。

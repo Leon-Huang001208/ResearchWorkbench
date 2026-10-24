@@ -365,7 +365,11 @@ class WindExcelWeeklyProvider:
         source_contract=None,
         client_factory=None,
         deadline_seconds=900,
+        execution_purpose="formal",
     ):
+        if execution_purpose not in {"formal", "historical_acceptance"}:
+            raise ProviderError("weekly_execution_purpose_invalid")
+        self.execution_purpose = execution_purpose
         self.run_root, self.manifest = run_root, manifest
         self.source_contract = source_contract
         self.client_factory = client_factory
@@ -542,14 +546,21 @@ class WindExcelWeeklyProvider:
             limitations=[],
             collection_policy=COLLECTION_POLICY,
             acquisition_started_at=started.isoformat(),
-            acquisition_kind="current_period",
+            acquisition_kind=(
+                "historical_recheck"
+                if self.execution_purpose == "historical_acceptance"
+                else "current_period"
+            ),
         )
         client = None
         try:
             if (
                 started.tzinfo is None
-                or started.astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
-                != contract["period_end"]
+                or (
+                    self.execution_purpose == "formal"
+                    and started.astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
+                    != contract["period_end"]
+                )
                 or started < datetime.fromisoformat(contract["cutoff"])
             ):
                 snapshot["acquisition_kind"] = "historical_recheck"
@@ -813,6 +824,7 @@ class WindExcelWeeklyProvider:
             snapshot,
             contract,
             require_excel_acquisition=True,
+            execution_purpose=self.execution_purpose,
             run_root=self.run_root,
             manifest=self.manifest,
         )
