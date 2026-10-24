@@ -38,6 +38,16 @@ P6 上游 `providers_akshare.py`、`providers_reference_evidence.py`、`research
 
 最终 P6 冻结文件 SHA256：operator `40ee0823cd39fec227e2c727e51c2e26f2a66555a106bf015d2f1ae3fa80dfd1`；test `546a049cc2eae36081eab137062e7defd256c71e2ab27e3328a7b721b628c40b`。Black/Ruff/isort/diffcheck 通过。P6 pin 与两轮 P2 的完整操作员＋领域矩阵 **2329 passed**，1 个既有 Starlette DeprecationWarning，159.40 秒，见 `logs/weekly-admission/native-bridge-p6-full-matrix.log`。本轮没有重跑 API 或操作生产环境。
 
+## 最后生成文档例外修复
+
+prepared integration `462ea81495648268e7360382e7e0ae4621d5779b` 的实际 scope review 复现 `asset_upgrade_payload_changed`，原因是 new mode 的精确业务冻结分支先于历史两个生成 HTML 例外。仅为新 mode 显式允许 `outputs/research-web-architecture/index.html` 与 `outputs/research-web-architecture/api-atlas.html` 再生，且两文件必须为 Git `100644`。第三 output、品牌/SVG、PNG 等仍逐 blob 和 mode 冻结，不增加 `outputs/` 宽例外，不变更 P6、源 renderer、业务门或部署。
+
+真实旧 candidate 的失败和修后同 target scope review 通过（106 个文件）分别保存为 `logs/weekly-admission/native-bridge-generated-docs-real-red.log`、`native-bridge-generated-docs-real-green.log`。修后读取 feature 新操作员代码对旧 candidate 执行的仅是 scope review，不代表该旧 candidate 已满足 executor 自身代码资格，也没有执行 apply。
+
+真实 Git 回归新增两文件一起或分别再生的正例，以及第三 output 内容/模式、两 HTML 可执行模式、链接和删除的拒绝反例；RED 为 3 failed / 6 passed。修后 weekly 窄闭包 **195 passed**，见 `logs/weekly-admission/native-bridge-generated-docs-green.log`。Black/Ruff/isort/diffcheck 通过；主任务要求本 delta 不重跑 2329 完整基线，旧完整日志保留，最终 CI 另证。
+
+此 delta 最终冻结 SHA256：operator `be2e2e070dab9ebc04c3072bc8135c229decbe4d473bca46a8aabd2738c5268d`；test `ba913e4e677ec0bf6e23b882d9a3365b022a0f421071c4aa81e2ba3659ceb6d3`。未提交、未更改 prepared candidate，由主会话负责 managed 整合及原规格/质量复核。
+
 运行命令使用已批准环境：`PYTHONPATH=.:/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/.venv/lib/python3.12/site-packages /Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python logs/weekly-admission/run_offline_tests.py --confcutdir=tests/research_web -q -o addopts= tests/research_web/test_model_provider_upgrade.py tests/research_web/test_legacy_weekly_monitoring.py`。该入口隔离 xlwings；无 pip、Office 或真实 Native 访问。
 
 覆盖包含：封印 schema/hash/权限/链接/大小/重复 JSON、所有旧 mode flags、原 profile 实际 Git/事务矩阵、新协议与 claim 拒绝、parent/child strict RPC 正反例、CAS 前后及 intent/receipt 前后故障、replace/fsync 边界、精确补 receipt、恢复篡改与根更换、GET 失败，以及领域维护后真实原 Operations.idle 的其他活动拒绝。
