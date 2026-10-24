@@ -18,7 +18,16 @@ GDP页面观察到的官方JS明确把RPT_ECONOMY_GDP八个字段映射到亿元
 
 主要原始来源：[东财GDP页面](https://data.eastmoney.com/cjsj/gdp.html)、[页面引用脚本](https://data.eastmoney.com/newstatic/js/cjsj/cn/gdp.js)、[统计局核算方法](https://www.stats.gov.cn/sj/zxfb/202507/t20250716_1960426.html)、[发行人发布声明](https://www.tsingtao.com.cn/MT/news/7cc9514e-bbb1-44dd-b3d7-c57ac18085be.html)。原件哈希和PDF地址在新版本引用ledger及私有记录内。
 
-红绿记录保留：新增参考模块初轮失败、缺失整段attempts未被拒绝、未匹配项仍带basis、JSON浮点折叠错误认证均先复现再修复。当前真实新版仓库验收尚待源码检查点冻结后执行；旧源成功不冒充本轮PASS。
+红绿记录保留：新增参考模块初轮失败、缺失整段attempts未被拒绝、未匹配项仍带basis、JSON浮点折叠错误认证均先复现再修复。真实新版仓库验收计划在源码冻结后执行；当前结果见后节，旧源成功不冒充本轮PASS。
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"只增加既有AK原生投影中的固定参考ledger、逐格注释和SDK失败码，沿现有Provider/仓库节点，无新HTTP路由、表、依赖、服务或执行引擎；参考原件由已有证据归档保存。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks同一pytest步骤增加一个离线参考合同模块，原三CI和同候选Mac安装均保留，无新job/runner/验证节点。","diagrams":[]} -->
+
+
+## 实际新版默认Host／仓库验收
+
+源码72167e0d6e794c8dafc4c0df323224df9d13e28b，6.074秒PASS，3个公开worker、4次HTTP。资金流1行（SDK自然连接失败码保留、guest真实后备）、GDP2025Q2至2026Q3六行、Sina600600.SH/2025H1一行。默认ResearchService/ResearchWarehouse/真实psycopg，owned PG18.3 Unix65478/TCP关闭/fsync开启；三独立OS进程、真实postmasterPID改变后的读回、默认Host及相同actor/scope/dataset向第二空库export_restore与新session业务读取。后两阶段SDK/HTTP均0，行/字段/原始字节/参考哈希和冻结包一致，288份源码/helper映射前后一致，依赖包/PG另绑定。PG/数据目录/HOME已回收，5432/现有服务/外盘/账号不操作。回执SHA256=c61610486649603db7de643655b0dc61d3c2ba528adb908abb778f1d51eac9a2。
+
+恢复后六季度GDP单位和价格基础、两格财务参考匹配及2026供应商日期/2025发行人日期冲突均保留；全局未知项和PIT=false不提升。额外只读对照显示当前供应商2025H1 GDP值不同于NBS当年初步发布页，差异可能是修订或供应商映射，原因未证实；不能使用当前值伪装历史可得数据，当前抓取也不证明发布时完全相同字节。参考HTML/PDF/JS和图像另随私有归档迁移。
+
+本机源码阶段完整10组检查67.503秒PASS；最终集成候选的独评、CI/Mac安装与安全收尾以精确SHA外部回执闭环，不把本段源码阶段状态冒充最终候选资格。
