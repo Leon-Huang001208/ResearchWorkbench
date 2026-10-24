@@ -70,7 +70,11 @@ test('missing committed objects fail fsck without repair or log writes', t => {
   const {projectRoot, options} = fixture(t);
   const blob = git(projectRoot, ['rev-parse', 'HEAD:tracked.txt']);
   fs.rmSync(path.join(projectRoot, '.git/objects', blob.slice(0, 2), blob.slice(2)));
-  assert.throws(() => checkRepository({projectRoot}, options), {code: 'OBJECT_INTEGRITY_FAILED'});
+  assert.throws(() => checkRepository({projectRoot}, options), error=>{
+    assert.equal(error.code,'OBJECT_INTEGRITY_FAILED');
+    assert.equal(Number.isInteger(error.integrity.exitCode),true);assert.ok(error.integrity.exitCode>0);assert.equal(error.integrity.signal,null);
+    assert.match(error.integrity.stderrSha256,/^[a-f0-9]{64}$/);return true;
+  });
   assert.equal(fs.existsSync(path.join(projectRoot, 'logs')), false);
 });
 
@@ -777,17 +781,23 @@ test('completed closeout survives a later task removing its own refs and worktre
   assert.equal((await runDelivery({projectRoot,taskId:'task',action:'cleanup'},{...options,controller,quotaProbe:()=>({allowed:true})})).status,'cleaned');
 });
 
-async function pendingSnapshotCloseout(t) {
+async function pendingSnapshotCloseout(t, {otherRetirement=false}={}) {
   const f=cleanupFixture(t), {projectRoot,receipt}=f;
   fs.appendFileSync(path.join(projectRoot,'.git/info/exclude'),'\nlogs/\n');
   const snapshot='refs/codex/turn-diffs/captures/123/fixture/base';
   const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
   git(projectRoot,['update-ref',snapshot,tree]);
+  const head=receipt.integrationCommit;
+  const other={taskId:'other-task',status:'cleaned',mode:'pr',ci:{status:'passed'},verification:{status:'passed'},integrationCommit:head,featureCommit:head,featureBranch:'codex/other-feature',integrationBranch:'codex/other-integration',featureWorktree:path.join(f.root,'other-feature'),integrationWorktree:path.join(f.root,'other-integration'),cleanup:Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]))};
+  Object.assign(other,{repositoryRoot:projectRoot,remote:receipt.remote,remoteUrl:receipt.remoteUrl,defaultBranch:receipt.defaultBranch});
+  const retiredRefs=otherRetirement?[`refs/heads/${other.featureBranch}`,`refs/heads/${other.integrationBranch}`,`refs/remotes/origin/${other.integrationBranch}`]:[];
+  for(const ref of retiredRefs)git(projectRoot,['update-ref',ref,head]);
   const beforeRefs=Object.fromEntries(git(projectRoot,['for-each-ref','--format=%(refname) %(objectname)']).split('\n').map(line=>line.split(' ')));
   const backup=backupRepository({projectRoot},{...f.options,backupVersion:2,worktreePaths:[projectRoot,receipt.featureWorktree,receipt.integrationWorktree],preservationRefs:beforeRefs});
   const state=path.join(projectRoot,'.git/leon-engineering/resource-closeout/task');fs.mkdirSync(state,{recursive:true});
   const managed=[{branch:receipt.featureBranch,worktree:receipt.featureWorktree,commit:receipt.featureCommit},{branch:receipt.integrationBranch,worktree:receipt.integrationWorktree,commit:receipt.integrationCommit}];
   const beforeWorktrees=managed.map(row=>({worktree:row.worktree,HEAD:receipt.featureCommit,branch:`refs/heads/${row.branch}`}));
+  if(otherRetirement)beforeWorktrees.push({worktree:other.featureWorktree,HEAD:head,branch:`refs/heads/${other.featureBranch}`},{worktree:other.integrationWorktree,HEAD:head,branch:`refs/heads/${other.integrationBranch}`});
   const proof={taskId:'task',candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired:true,restoreVerified:true,beforeRefs,beforeWorktrees,managed,verifiedPreservationRefs:beforeRefs};
   fs.writeFileSync(path.join(state,'git-finalization.json'),JSON.stringify(proof),{mode:0o600});
   fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'blocked',blocked:[{phase:'git'}]}),{mode:0o600});
@@ -796,12 +806,23 @@ async function pendingSnapshotCloseout(t) {
   receipt.status='cleaned';receipt.mode='pr';receipt.pullRequest={url:'https://github.com/fixture/repo/pull/1'};
   receipt.verification={status:'passed'};receipt.cleanup=Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]));
   const controller={readDeliveryReceipt:()=>receipt,validateCleanedDelivery:()=>receipt};
+  let otherState;
+  if(otherRetirement){
+    const base=path.join(projectRoot,'.git/leon-engineering');otherState=path.join(base,'resource-closeout',other.taskId);
+    fs.mkdirSync(path.join(base,'deliveries'),{recursive:true});fs.mkdirSync(otherState,{recursive:true});
+    const put=(file,value)=>fs.writeFileSync(file,JSON.stringify(value),{mode:0o600});
+    put(path.join(base,'deliveries',other.taskId+'.json'),other);
+    put(path.join(base,'git-safety/reviews',other.taskId+'.json'),{candidateCommit:head,reviewedCommit:head,status:'PASS'});
+    put(path.join(otherState,'git-finalization.json'),{taskId:other.taskId,status:'complete',candidateCommit:head,restoreVerified:true,beforeRefs:Object.fromEntries(retiredRefs.map(ref=>[ref,head])),beforeWorktrees:beforeWorktrees.filter(row=>row.worktree===other.featureWorktree || row.worktree===other.integrationWorktree),managed:[{branch:other.featureBranch,worktree:other.featureWorktree,commit:head},{branch:other.integrationBranch,worktree:other.integrationWorktree,commit:head}]});
+    put(path.join(otherState,'receipt.json'),{taskId:other.taskId,status:'complete',ok:true,cache:{ok:true},gitCleanup:true,restoreVerified:true,blocked:[]});
+    for(const ref of retiredRefs)git(projectRoot,['update-ref','-d',ref]);
+  }
   const resourceRevalidationProbe=(_repo,task,phase)=>{
     assert.equal(phase,'revalidate');
     const bytes=fs.readFileSync(path.join(state,'receipt.json'));
     return {ok:true,taskId:task,candidateCommit:receipt.integrationCommit,cache:{ok:true},previousReceiptSha256:crypto.createHash('sha256').update(bytes).digest('hex')};
   };
-  return {...f,state,snapshot,tree,backup,options:{...f.options,controller,resourceRevalidationProbe}};
+  return {...f,state,snapshot,tree,backup,other,otherState,retiredRefs,options:{...f.options,controller,resourceRevalidationProbe}};
 }
 
 test('explicit recovery keeps the pending proof and accepts only restore-verified retired Codex snapshots', async t => {
@@ -874,6 +895,58 @@ test('closeout recovery CLI defaults to preview and refuses unmatched execute fl
   assert.throws(()=>parseCli([...args,'--apply']),{code:'CLI_ARGUMENT_REQUIRED'});
   assert.throws(()=>parseCli([...args,'--status']),{code:'CLI_ARGUMENT_REQUIRED'});
   assert.equal(parseCli([...args,'--apply','--preview-sha256','a'.repeat(64)]).options.apply,true);
+});
+
+test('recovery recognizes another fully finalized delivery without guessing retired ref ownership', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.deepEqual(preview.retiredDeliveries.map(row=>row.ref).sort(),f.retiredRefs.sort());
+  assert.equal(preview.retiredWorktrees.length,2);
+  const result=await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(result.status,'cleaned');
+  assert.equal((await runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options)).status,'cleaned');
+});
+
+test('a retired delivery cannot authorize a reappeared or unrelated worktree', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true});
+  fs.mkdirSync(f.other.featureWorktree);
+  await assert.rejects(recoverCloseoutFinalization({projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory},f.options),{code:'UNRELATED_WORKTREE_CHANGED'});
+  assert.equal(fs.existsSync(f.other.featureWorktree),true);
+});
+
+test('another pending or tampered retirement is still an unknown ordinary deletion', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const file=path.join(f.otherState,'git-finalization.json'), value=JSON.parse(fs.readFileSync(file));
+  value.status='pending';fs.writeFileSync(file,JSON.stringify(value));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  value.status='complete';fs.writeFileSync(file,JSON.stringify(value));
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const resource=path.join(f.otherState,'receipt.json');fs.appendFileSync(resource,' ');
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+});
+
+test('retirement rejects cross-repository, ambiguous and unmerged branch claims', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const directory=path.join(f.projectRoot,'.git/leon-engineering/deliveries'), file=path.join(directory,f.other.taskId+'.json');
+  const original=fs.readFileSync(file), other=JSON.parse(original);
+  other.repositoryRoot=f.root;fs.writeFileSync(file,JSON.stringify(other));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  fs.writeFileSync(file,original);
+  const duplicate=path.join(directory,'ambiguous-task.json');fs.writeFileSync(duplicate,JSON.stringify({...f.other,taskId:'ambiguous-task'}),{mode:0o600});
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  fs.unlinkSync(duplicate);
+  const tree=git(f.projectRoot,['rev-parse','HEAD^{tree}']);
+  const child=git(f.projectRoot,['commit-tree',tree,'-p',f.receipt.integrationCommit,'-m','unmerged branch']);
+  const proofFile=path.join(f.otherState,'git-finalization.json'), proof=JSON.parse(fs.readFileSync(proofFile));
+  other.repositoryRoot=f.projectRoot;other.featureCommit=child;fs.writeFileSync(file,JSON.stringify(other));
+  proof.managed.find(row=>row.branch===other.featureBranch).commit=child;
+  proof.beforeRefs[`refs/heads/${other.featureBranch}`]=child;
+  fs.writeFileSync(proofFile,JSON.stringify(proof));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
 });
 
 test('resource revalidation accepts only cleaned pending deliveries without replaying deletion', () => {

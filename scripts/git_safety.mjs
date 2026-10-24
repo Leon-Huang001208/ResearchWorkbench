@@ -32,7 +32,7 @@ export function selectGitPath({platform = process.platform, gitPath, mutate = fa
 }
 function git(project, args, options = {}, extra = {}) {
   if (FORBIDDEN.has(args[0])) fail('MAINTENANCE_FORBIDDEN');
-  return command(selectGitPath(options), ['--no-optional-locks', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', project, ...args], extra);
+  return command(selectGitPath(options), ['--no-optional-locks', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', project, ...args], {...extra,...(options.readOnlyGit?{env:{...process.env,...extra.env,GIT_NO_LAZY_FETCH:'1',GIT_NO_REPLACE_OBJECTS:'1'}}:{})});
 }
 function output(result) { return result.stdout.toString('utf8').trim(); }
 function discover(projectRoot, options = {}) {
@@ -119,7 +119,8 @@ function nativeLocks(repository) {
 }
 function assertNativeUnlocked(repository) { if (nativeLocks(repository).length) fail('NATIVE_LOCKED'); }
 function fsck(repository, options) {
-  if (git(repository.repositoryRoot, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true}).status !== 0) fail('OBJECT_INTEGRITY_FAILED');
+  const result=git(repository.repositoryRoot, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true});
+  if(result.status!==0)throw Object.assign(new Error('OBJECT_INTEGRITY_FAILED'),{code:'OBJECT_INTEGRITY_FAILED',integrity:{exitCode:result.status,signal:result.signal??null,stdoutBytes:result.stdout.length,stderrBytes:result.stderr.length,stdoutSha256:sha256(result.stdout),stderrSha256:sha256(result.stderr)}});
 }
 export function checkRepository({projectRoot}, options = {}) {
   const repository = discover(projectRoot, options);
@@ -792,6 +793,40 @@ function validateCompletedCloseout(repository,taskId,receipt,options) {
 // A recovery certificate is an additional audit epoch; never rewrite the original
 // pending proof or recreate another application's ephemeral snapshot pointers.
 const retiredSnapshotRef = ref => /^refs\/codex\/turn-diffs\/(?:captures\/[^/]+\/[^/]+\/base|checkpoints\/[^/]+\/[^/]+\/[^/]+\/[^/]+)$/.test(ref);
+function retirementIdentity(ref,oid,currentTask,records) {
+  const owner=records.delivery.value, proof=records.proof.value, resource=records.resource.value, review=records.review.value;
+  const branch=ref.startsWith('refs/heads/')?ref.slice(11):ref.startsWith('refs/remotes/origin/')?ref.slice(20):null;
+  if(!branch?.startsWith('codex/') || !ID.test(owner.taskId??'') || owner.taskId===currentTask || owner.mode!=='pr' || owner.status!=='cleaned' || owner.ci?.status!=='passed' || owner.verification?.status!=='passed' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>owner.cleanup?.[key]===true))return null;
+  const targets=managed(owner), matches=targets.filter(row=>row.branch===branch);
+  if(matches.length!==1 || !/^[a-f0-9]{40,64}$/.test(oid) || !/^[a-f0-9]{40,64}$/.test(matches[0].commit??'') || !/^[a-f0-9]{40,64}$/.test(owner.integrationCommit??''))return null;
+  if(proof.taskId!==owner.taskId || proof.status!=='complete' || proof.candidateCommit!==owner.integrationCommit || proof.restoreVerified!==true || !Array.isArray(proof.managed) || proof.managed.length!==targets.length || proof.managed.some(row=>!targets.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)) || proof.beforeRefs?.[ref]!==matches[0].commit)return null;
+  if(resource.taskId!==owner.taskId || resource.status!=='complete' || resource.ok!==true || resource.cache?.ok!==true || resource.gitCleanup!==true || resource.restoreVerified!==true || !Array.isArray(resource.blocked) || resource.blocked.length || review.status!=='PASS' || review.candidateCommit!==owner.integrationCommit || review.reviewedCommit!==owner.integrationCommit)return null;
+  return {ref,oid,ownerTaskId:owner.taskId,branchCommit:matches[0].commit,candidateCommit:owner.integrationCommit,deliverySha256:records.delivery.sha256,proofSha256:records.proof.sha256,resourceSha256:records.resource.sha256,reviewSha256:records.review.sha256};
+}
+function retiredDelivery(repository,taskId,receipt,ref,oid,options) {
+  const directory=path.join(repository.commonDirectory,'leon-engineering/deliveries');
+  const files=fs.readdirSync(directory).filter(name=>name.endsWith('.json'));
+  if(files.length>2000)fail('CLOSEOUT_RECOVERY_SCAN_LIMIT');
+  const candidates=[];
+  for(const name of files) {
+    const delivery=recoveryJson(path.join(directory,name));
+    const owner=delivery.value;
+    if(owner.taskId===taskId || !ID.test(owner.taskId??'') || name!==owner.taskId+'.json')continue;
+    if(!managed(owner).some(row=>ref===`refs/heads/${row.branch}` || ref===`refs/remotes/origin/${row.branch}`))continue;
+    candidates.push({delivery,owner});
+  }
+  if(candidates.length!==1)fail('UNRELATED_REF_CHANGED');
+  const {delivery,owner}=candidates[0], base=path.join(repository.commonDirectory,'leon-engineering');
+  if(owner.repositoryRoot!==repository.repositoryRoot || owner.remote!==receipt.remote || owner.remoteUrl!==receipt.remoteUrl || owner.defaultBranch!==receipt.defaultBranch)fail('UNRELATED_REF_CHANGED');
+  const records={delivery,proof:recoveryJson(path.join(base,'resource-closeout',owner.taskId,'git-finalization.json')),resource:recoveryJson(path.join(base,'resource-closeout',owner.taskId,'receipt.json')),review:recoveryJson(path.join(base,'git-safety/reviews',owner.taskId+'.json'))};
+  const witness=retirementIdentity(ref,oid,taskId,records);
+  if(!witness || output(git(repository.repositoryRoot,['cat-file','-t',oid],options))!=='commit' || git(repository.repositoryRoot,['merge-base','--is-ancestor',oid,witness.branchCommit],options,{allowFailure:true}).status!==0 || git(repository.repositoryRoot,['merge-base','--is-ancestor',witness.branchCommit,owner.integrationCommit],options,{allowFailure:true}).status!==0 || git(repository.repositoryRoot,['merge-base','--is-ancestor',owner.integrationCommit,`refs/remotes/${receipt.remote}/${receipt.defaultBranch}`],options,{allowFailure:true}).status!==0)fail('UNRELATED_REF_CHANGED');
+  return {witness:{...witness,ancestorVerified:true},records};
+}
+function retirementWorktreeMatches(worktree,ref,records) {
+  const targets=managed(records.delivery.value), target=targets.find(row=>`refs/heads/${row.branch}`===ref && row.worktree===worktree);
+  return Boolean(target && records.proof.value.beforeWorktrees?.some(row=>row.worktree===worktree && row.branch===ref && row.HEAD===target.commit && !row.bare));
+}
 function recoveryJson(filename) {
   assertNoSymlinkAncestors(filename);
   const fd=fs.openSync(filename,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
@@ -811,7 +846,15 @@ function validateRecoveryCompletion(repository,taskId,receipt) {
   const record=recoveryJson(path.join(directory,certificate.epoch));
   const saved=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-proof.json'));
   const epoch=record.value;
-  if(record.sha256!==certificate.epochSha256 || saved.sha256!==proof.sha256 || epoch.originalProofSha256!==proof.sha256 || epoch.taskId!==taskId || epoch.candidateCommit!==receipt.integrationCommit || epoch.status!=='complete' || epoch.restoreVerified!==true || !/^[a-f0-9]{64}$/.test(epoch.backupManifestSha256??'') || !Array.isArray(epoch.retiredSnapshots) || !epoch.retiredSnapshots.length || epoch.retiredSnapshots.some(row=>!retiredSnapshotRef(row.ref) || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  if(record.sha256!==certificate.epochSha256 || saved.sha256!==proof.sha256 || epoch.originalProofSha256!==proof.sha256 || epoch.taskId!==taskId || epoch.candidateCommit!==receipt.integrationCommit || epoch.status!=='complete' || epoch.restoreVerified!==true || !/^[a-f0-9]{64}$/.test(epoch.backupManifestSha256??'') || !Array.isArray(epoch.retiredSnapshots) || !Array.isArray(epoch.retiredDeliveries) || !Array.isArray(epoch.retiredWorktrees) || (!epoch.retiredSnapshots.length && !epoch.retiredDeliveries.length && !epoch.retiredWorktrees.length) || epoch.retiredSnapshots.some(row=>!retiredSnapshotRef(row.ref) || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  for(const [row,isWorktree] of [...epoch.retiredDeliveries.map(row=>[row,false]),...epoch.retiredWorktrees.map(row=>[row,true])]) {
+    if(!ID.test(row.ownerTaskId??'') || row.ancestorVerified!==true || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    const retirementDirectory=path.join(path.dirname(path.join(directory,certificate.epoch)),'retired-deliveries',row.ownerTaskId);
+    const records=Object.fromEntries(['delivery','proof','resource','review'].map(kind=>[kind,recoveryJson(path.join(retirementDirectory,kind+'.json'))]));
+    const identity=retirementIdentity(row.ref,row.oid,taskId,records);
+    if(isWorktree && (!proof.value.beforeWorktrees?.some(saved=>saved.worktree===row.worktree && saved.branch===row.ref && saved.HEAD===row.oid && !saved.bare) || !retirementWorktreeMatches(row.worktree,row.ref,records)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    if(!identity || records.delivery.value.repositoryRoot!==repository.repositoryRoot || records.delivery.value.remoteUrl!==receipt.remoteUrl || records.delivery.value.remote!==receipt.remote || records.delivery.value.defaultBranch!==receipt.defaultBranch || JSON.stringify({...identity,ancestorVerified:true,...(isWorktree?{worktree:row.worktree}:{})})!==JSON.stringify(row))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  }
   const resource=recoveryJson(path.join(directory,'receipt.json')).value;
   if(resource.taskId!==taskId || resource.status!=='complete' || !resource.ok || !resource.cache?.ok || !resource.gitCleanup || !resource.restoreVerified)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
   const originalResource=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-resource-receipt.json'));
@@ -826,17 +869,37 @@ function recoveryPlan(repository,taskId,backupDirectory,receipt,options) {
   const owned=managed(receipt);
   if(proof.managed.length!==owned.length || proof.managed.some(row=>!owned.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
   const current=refs(repository,options), managedRefs=new Set(proof.managed.flatMap(row=>[`refs/heads/${row.branch}`,`refs/remotes/origin/${row.branch}`]));
-  const retiredSnapshots=[];
+  const retiredSnapshots=[], retiredDeliveries=[], retiredWorktrees=[], retirementRecords={};
+  const remember=retired=>{
+    const prior=retirementRecords[retired.witness.ownerTaskId];
+    if(prior && Object.keys(prior).some(kind=>prior[kind].sha256!==retired.records[kind].sha256))fail('CLOSEOUT_RECOVERY_STALE');
+    retirementRecords[retired.witness.ownerTaskId]=retired.records;
+  };
   for(const [ref,oid] of Object.entries(proof.beforeRefs)) {
     if(current[ref] || managedRefs.has(ref))continue;
-    if(!retiredSnapshotRef(ref) || proof.verifiedPreservationRefs?.[ref]!==oid || output(git(repository.repositoryRoot,['cat-file','-t',oid],options))!=='tree')fail('UNRELATED_REF_CHANGED');
-    retiredSnapshots.push({ref,oid});
+    if(proof.verifiedPreservationRefs?.[ref]!==oid)fail('UNRELATED_REF_CHANGED');
+    if(retiredSnapshotRef(ref)) {
+      if(output(git(repository.repositoryRoot,['cat-file','-t',oid],options))!=='tree')fail('UNRELATED_REF_CHANGED');
+      retiredSnapshots.push({ref,oid});
+    } else {
+      const retired=retiredDelivery(repository,taskId,receipt,ref,oid,options);
+      remember(retired);retiredDeliveries.push(retired.witness);
+    }
   }
-  if(!retiredSnapshots.length || retiredSnapshots.length>128)fail('CLOSEOUT_RECOVERY_NOT_PENDING');
-  const remaining=Object.fromEntries(Object.entries(proof.beforeRefs).filter(([ref])=>!retiredSnapshots.some(row=>row.ref===ref)));
+  const currentWorktrees=worktrees(repository,options);
+  for(const row of proof.beforeWorktrees) {
+    if(proof.managed.some(own=>own.worktree===row.worktree) || currentWorktrees.some(current=>current.worktree===row.worktree))continue;
+    if(row.bare || proof.beforeRefs[row.branch]!==row.HEAD || fs.lstatSync(row.worktree,{throwIfNoEntry:false}))fail('UNRELATED_WORKTREE_CHANGED');
+    let retired;
+    try {retired=retiredDelivery(repository,taskId,receipt,row.branch,row.HEAD,options);}catch(error){if(error.code==='UNRELATED_REF_CHANGED')fail('UNRELATED_WORKTREE_CHANGED');throw error;}
+    if(!retirementWorktreeMatches(row.worktree,row.branch,retired.records))fail('UNRELATED_WORKTREE_CHANGED');
+    remember(retired);retiredWorktrees.push({...retired.witness,worktree:row.worktree});
+  }
+  if(!retiredSnapshots.length && !retiredDeliveries.length && !retiredWorktrees.length || retiredSnapshots.length+retiredDeliveries.length+retiredWorktrees.length>128)fail('CLOSEOUT_RECOVERY_NOT_PENDING');
+  const remaining=Object.fromEntries(Object.entries(proof.beforeRefs).filter(([ref])=>![...retiredSnapshots,...retiredDeliveries].some(row=>row.ref===ref)));
   // Every ordinary deletion, divergence and unrelated worktree change retains
   // the existing audit. Only the named archived tree pointers get a new witness.
-  preservationAudit(repository,remaining,proof.beforeWorktrees,proof.managed,options,proof.verifiedPreservationRefs);
+  preservationAudit(repository,remaining,proof.beforeWorktrees.filter(row=>!retiredWorktrees.some(retired=>retired.worktree===row.worktree)),proof.managed,options,proof.verifiedPreservationRefs);
   const root=path.resolve(options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'));
   const backup=path.resolve(backupDirectory??'');assertNoSymlinkAncestors(backup);
   if(path.dirname(backup)!==root || !/^[a-f0-9-]{36}$/.test(path.basename(backup)))fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
@@ -845,18 +908,21 @@ function recoveryPlan(repository,taskId,backupDirectory,receipt,options) {
   if(manifest.schemaVersion!==2 || manifest.repositoryKey!==repositoryKey(repository.commonDirectory) || !manifest.worktrees.some(row=>row.path===repository.repositoryRoot) || savedManaged.some(row=>!manifest.worktrees.some(saved=>saved.path===row.worktree && saved.head===row.HEAD && saved.branch===(row.branch??null))) || Object.entries(proof.verifiedPreservationRefs??{}).some(([ref,oid])=>manifest.preservationRefs[ref]!==oid) || Object.entries(proof.beforeRefs).some(([ref,oid])=>manifest.preservationRefs[ref]!==oid))fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
   const resource=recoveryJson(path.join(path.dirname(original),'receipt.json')).value;
   if(resource.taskId!==taskId || !resource.ok || !resource.cache?.ok || !Array.isArray(resource.blocked) || resource.blocked.some(row=>row.phase!=='git'))fail('RESOURCE_CLOSEOUT_BLOCKED');
-  const plan={schemaVersion:1,taskId,candidateCommit:receipt.integrationCommit,originalProofSha256:saved.sha256,backupDirectory:backup,backupManifestSha256:hash,retiredSnapshots:retiredSnapshots.sort((a,b)=>a.ref.localeCompare(b.ref))};
-  return {plan,proof,saved,original,previewSha256:sha256(JSON.stringify(plan))};
+  const plan={schemaVersion:1,taskId,candidateCommit:receipt.integrationCommit,originalProofSha256:saved.sha256,backupDirectory:backup,backupManifestSha256:hash,retiredSnapshots:retiredSnapshots.sort((a,b)=>a.ref.localeCompare(b.ref)),retiredDeliveries:retiredDeliveries.sort((a,b)=>a.ref.localeCompare(b.ref)),retiredWorktrees:retiredWorktrees.sort((a,b)=>a.worktree.localeCompare(b.worktree))};
+  return {plan,proof,saved,original,retirementRecords,previewSha256:sha256(JSON.stringify(plan))};
 }
 export async function recoverCloseoutFinalization({projectRoot,taskId,backupDirectory,apply=false,previewSha256},options={}) {
+  options={...options,readOnlyGit:true};
   if(!ID.test(taskId??''))fail('DELIVERY_ARGUMENT_INVALID');
   selectGitPath({...options,mutate:apply});
   const perform=async repository=>{
     const controller=options.controller??await import(pathToFileURL(CONTROLLER).href);
     const common={projectRoot:repository.repositoryRoot,taskId};
+    const local=controller.readDeliveryReceipt(common);
+    if(local.repositoryRoot!==repository.repositoryRoot || local.remote!=='origin' || local.defaultBranch!=='master' || output(git(repository.repositoryRoot,['remote','get-url',local.remote],options))!==local.remoteUrl)fail('REMOTE_IDENTITY_CHANGED');
     // The shared validateCleanedDelivery performs fetch: only the locked apply
     // lane may use it. Preview reads local records and audits local Git only.
-    const receipt=apply?controller.validateCleanedDelivery(common):controller.readDeliveryReceipt(common);
+    const receipt=apply?controller.validateCleanedDelivery(common):local;
     assertReviewed(repository,receipt);
     fsck(repository,options);
     const certificate=path.join(path.dirname(closeoutFinalization(repository,taskId)),'git-finalization-recovery.json');
@@ -880,6 +946,13 @@ export async function recoverCloseoutFinalization({projectRoot,taskId,backupDire
       const epochDirectory=path.join(epochs,id);fs.mkdirSync(epochDirectory,{mode:0o700});
       fs.writeFileSync(path.join(epochDirectory,'original-proof.json'),first.saved.bytes,{flag:'wx',mode:0o600});
       fs.writeFileSync(path.join(epochDirectory,'original-resource-receipt.json'),beforeResource.bytes,{flag:'wx',mode:0o600});
+      if(Object.keys(final.retirementRecords).length) {
+        const directory=path.join(epochDirectory,'retired-deliveries');fs.mkdirSync(directory,{mode:0o700});
+        for(const [owner,records] of Object.entries(final.retirementRecords)) {
+          const saved=path.join(directory,owner);fs.mkdirSync(saved,{mode:0o700});
+          for(const [kind,record] of Object.entries(records))fs.writeFileSync(path.join(saved,kind+'.json'),record.bytes,{flag:'wx',mode:0o600});
+        }
+      }
       const epoch={...final.plan,status:'complete',restoreVerified:true,resourceRevalidation:resources,verifiedAt:new Date().toISOString()};
       const payload=JSON.stringify(epoch,null,2)+'\n';
       fs.writeFileSync(path.join(epochDirectory,'epoch.json'),payload,{flag:'wx',mode:0o600});
@@ -892,7 +965,7 @@ export async function recoverCloseoutFinalization({projectRoot,taskId,backupDire
       writePrivateJson(certificate,{schemaVersion:1,taskId,candidateCommit:receipt.integrationCommit,originalProofSha256:first.saved.sha256,epoch:`recovery-epochs/${id}/epoch.json`,epochSha256:sha256(payload)});
       validateRecoveryCompletion(repository,taskId,receipt);
       log(repository,'closeout-recover','PASS',undefined,{backup:first.plan.backupDirectory},options);
-      return {taskId,status:'cleaned',restoreVerified:true,retiredSnapshots:first.plan.retiredSnapshots,epoch:certificate};
+      return {taskId,status:'cleaned',restoreVerified:true,retiredSnapshots:first.plan.retiredSnapshots,retiredDeliveries:first.plan.retiredDeliveries,retiredWorktrees:first.plan.retiredWorktrees,epoch:certificate};
     });
   };
   if(!apply)return perform(discover(projectRoot,options));
@@ -1266,5 +1339,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');
-  } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED'}) + '\n'); process.exitCode = 1; }
+  } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED',...(error.integrity?{integrity:error.integrity}:{})}) + '\n'); process.exitCode = 1; }
 }

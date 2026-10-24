@@ -500,3 +500,5 @@ node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id T
 执行持仓库/备份锁，实际独立恢复v2归档并全量检查；候选、旧锚点、当时存在的任务worktree、退休目录缺席、剩余Docker资源和20GiB缓存预算须成立。不重放目录或卷删除。原git-finalization.json字节保持，资源回执原件归档，追加epoch与独立完成证书；不回填ref、不改旧基线。重复恢复及普通status仍经过fsck。
 
 历史pending没有backup manifest摘要时，先依据原Git安全日志独立核对归档来源，再将指定归档seal、manifest及本轮实际恢复结果绑定新epoch。不能把兼容备份宣称为全部历史现场证明。原失败与缺失旧Git对象分别保留。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。

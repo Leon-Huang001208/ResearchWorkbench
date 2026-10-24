@@ -18,8 +18,12 @@ Python revalidate只接受cleaned、CI通过、四项Git清理标志全成立的
 
 ## 安装与平台
 
-没有新依赖、安装入口、schema或后台服务。复用原Node/标准库Python与Docker管理能力；核对原Web锁、setup-web与Bootstrap合同，同候选Mac安装必须通过。Windows/Linux原生交接对应设备。
+没有新依赖、安装入口、业务schema或后台服务。复用原Node/标准库Python与Docker管理能力；核对原Web锁、setup-web与Bootstrap合同，同候选Mac安装必须通过。Windows/Linux原生交接对应设备。
 
 ## 交付与真实现场
 
 最终候选验证/三CI/评审、合并后，才执行正式恢复。历史pending未绑定manifest摘要，归档来源须依据原日志独立核对，兼容性不等于历史来源证明。未恢复2637旧树，未执行真实恢复/部署/页面验收。周报未知状态由其所有者正式处理，组合部署及认证页面另取证。
+
+## 真实预览补充
+
+原候选ce15的真实只读预览正确拒绝PR226已退休的3分支和2worktree。独立审查核对其4原件及祖先链与指定备份锚点后，增加上述严格的已完成任务退休证据；未知普通删除仍拒绝。新增正例、pending/篡改/重现目录负例，以及fsck退出/信号/摘要诊断。一次现场OBJECT_INTEGRITY_FAILED后，两种独立raw fsck均exit0，原因仍未确定，原失败保留。所有目标文件/FETCH_HEAD观测哈希未变，未执行真实apply。新候选必须重新本机回归/独评与三CI；ce15成功不替代更新候选。
