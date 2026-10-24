@@ -525,17 +525,17 @@ def test_unverified_native_series_cannot_satisfy_required_stock_price_semantics(
         (
             "financials",
             {"asset": "600600.SH", "statements": ["income_statement"], "periods": ["2025-06-30"]},
-            "akshare-sina-financial-disclosure-v2",
+            "akshare-sina-financial-disclosure-v3",
         ),
         (
             "factor_macro",
             {"series": "gdp", "start_date": "2025-09-01", "end_date": "2025-09-30"},
-            "akshare-china-macro-v2",
+            "akshare-china-macro-v3",
         ),
         (
             "market_activity",
             {"asset": "600000.SH", "dataset": "fund_flow"},
-            "akshare-eastmoney-fund-flow-provenance-v1",
+            "akshare-eastmoney-fund-flow-provenance-v2",
         ),
     ],
 )
@@ -562,6 +562,10 @@ def test_research_families_cutoff_revision_boundary(capability, parameters, sche
             native = sina_result(str(value))
         elif capability == "factor_macro":
             native = macro_result(value=value)
+        else:
+            native.metadata["upstream_attempts"] = [
+                {"upstream": "eastmoney", "endpoint": "akshare_sdk", "status": "snapshot"}
+            ]
         assert series.ingest(request, native)
     assert (
         series.read(request.model_copy(update={"as_of": first - timedelta(microseconds=1)})) is None

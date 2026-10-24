@@ -173,6 +173,7 @@ jobs:
             tests/research_web/test_cashflow_warehouse_integration.py \
             tests/research_web/test_datahub_public_worker.py \
             tests/research_web/test_ak_native_binding.py \
+            tests/research_web/test_reference_evidence.py \
             tests/research_web/test_research_warehouse_management.py \
             tests/research_web/test_research_snapshot_store.py \
             tests/research_web/test_quantapi_authorization.py \
