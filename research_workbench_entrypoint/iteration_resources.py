@@ -695,20 +695,14 @@ def main():
                 else closeout(args.project, args.task_id, policy)
             )
         )
+        output_keys = ("ok", "status", "state", "registeredDirectories")
+        if args.phase == "revalidate":
+            output_keys += ("taskId", "candidateCommit", "cache", "previousReceiptSha256")
         print(
             json.dumps(
                 {
                     key: result[key]
-                    for key in (
-                        "ok",
-                        "status",
-                        "state",
-                        "registeredDirectories",
-                        "taskId",
-                        "candidateCommit",
-                        "cache",
-                        "previousReceiptSha256",
-                    )
+                    for key in output_keys
                     if key in result
                 }
             )
