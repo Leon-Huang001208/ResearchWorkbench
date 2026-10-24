@@ -153,8 +153,9 @@ export function createTerminalController({ state, api, changed, storage, visible
   function input(target) {
     const data = target?.dataset || {};
     if ('marketIndexSearchDraft' in data) { state.indexSearchDraft = target.value; return true; }
-    if (data.marketPortfolio && Object.hasOwn(state.portfolioDraft, data.marketPortfolio)) { invalidate(); state.portfolioDraft[data.marketPortfolio] = target.value; changed(); return true; }
-    if (data.marketHolding && ['asset', 'quantity', 'cost'].includes(data.marketHolding) && state.portfolioDraft.holdings[Number(data.row)]) { invalidate(); state.portfolioDraft.holdings[Number(data.row)][data.marketHolding] = target.value; changed(); return true; }
+    // Replacing a focused input can synchronously emit its already-applied change event.
+    if (data.marketPortfolio && Object.hasOwn(state.portfolioDraft, data.marketPortfolio)) { if (state.portfolioDraft[data.marketPortfolio] === target.value) return true; invalidate(); state.portfolioDraft[data.marketPortfolio] = target.value; changed(); return true; }
+    if (data.marketHolding && ['asset', 'quantity', 'cost'].includes(data.marketHolding) && state.portfolioDraft.holdings[Number(data.row)]) { if (state.portfolioDraft.holdings[Number(data.row)][data.marketHolding] === target.value) return true; invalidate(); state.portfolioDraft.holdings[Number(data.row)][data.marketHolding] = target.value; changed(); return true; }
     return false;
   }
   async function file(target) {
