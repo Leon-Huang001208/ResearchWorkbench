@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli, maintainBackups, verifyBackupDirectory} from '../../scripts/git_safety.mjs';
 
 const gitPath = '/usr/bin/git';
@@ -69,7 +70,11 @@ test('missing committed objects fail fsck without repair or log writes', t => {
   const {projectRoot, options} = fixture(t);
   const blob = git(projectRoot, ['rev-parse', 'HEAD:tracked.txt']);
   fs.rmSync(path.join(projectRoot, '.git/objects', blob.slice(0, 2), blob.slice(2)));
-  assert.throws(() => checkRepository({projectRoot}, options), {code: 'OBJECT_INTEGRITY_FAILED'});
+  assert.throws(() => checkRepository({projectRoot}, options), error=>{
+    assert.equal(error.code,'OBJECT_INTEGRITY_FAILED');
+    assert.equal(Number.isInteger(error.integrity.exitCode),true);assert.ok(error.integrity.exitCode>0);assert.equal(error.integrity.signal,null);
+    assert.match(error.integrity.stderrSha256,/^[a-f0-9]{64}$/);return true;
+  });
   assert.equal(fs.existsSync(path.join(projectRoot, 'logs')), false);
 });
 
@@ -774,6 +779,208 @@ test('completed closeout survives a later task removing its own refs and worktre
   const controller={readDeliveryReceipt:()=>receipt,validateCleanedDelivery:()=>receipt};
   assert.equal((await runDelivery({projectRoot,taskId:'task',action:'status'},{...options,controller})).status,'cleaned');
   assert.equal((await runDelivery({projectRoot,taskId:'task',action:'cleanup'},{...options,controller,quotaProbe:()=>({allowed:true})})).status,'cleaned');
+});
+
+async function pendingSnapshotCloseout(t, {otherRetirement=false}={}) {
+  const f=cleanupFixture(t), {projectRoot,receipt}=f;
+  fs.appendFileSync(path.join(projectRoot,'.git/info/exclude'),'\nlogs/\n');
+  const snapshot='refs/codex/turn-diffs/captures/123/fixture/base';
+  const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
+  git(projectRoot,['update-ref',snapshot,tree]);
+  const head=receipt.integrationCommit;
+  const other={taskId:'other-task',status:'cleaned',mode:'pr',ci:{status:'passed'},verification:{status:'passed'},integrationCommit:head,featureCommit:head,featureBranch:'codex/other-feature',integrationBranch:'codex/other-integration',featureWorktree:path.join(f.root,'other-feature'),integrationWorktree:path.join(f.root,'other-integration'),cleanup:Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]))};
+  Object.assign(other,{repositoryRoot:projectRoot,remote:receipt.remote,remoteUrl:receipt.remoteUrl,defaultBranch:receipt.defaultBranch});
+  const retiredRefs=otherRetirement?[`refs/heads/${other.featureBranch}`,`refs/heads/${other.integrationBranch}`,`refs/remotes/origin/${other.integrationBranch}`]:[];
+  for(const ref of retiredRefs)git(projectRoot,['update-ref',ref,head]);
+  const beforeRefs=Object.fromEntries(git(projectRoot,['for-each-ref','--format=%(refname) %(objectname)']).split('\n').map(line=>line.split(' ')));
+  const backup=backupRepository({projectRoot},{...f.options,backupVersion:2,worktreePaths:[projectRoot,receipt.featureWorktree,receipt.integrationWorktree],preservationRefs:beforeRefs});
+  const state=path.join(projectRoot,'.git/leon-engineering/resource-closeout/task');fs.mkdirSync(state,{recursive:true});
+  const managed=[{branch:receipt.featureBranch,worktree:receipt.featureWorktree,commit:receipt.featureCommit},{branch:receipt.integrationBranch,worktree:receipt.integrationWorktree,commit:receipt.integrationCommit}];
+  const beforeWorktrees=managed.map(row=>({worktree:row.worktree,HEAD:receipt.featureCommit,branch:`refs/heads/${row.branch}`}));
+  if(otherRetirement)beforeWorktrees.push({worktree:other.featureWorktree,HEAD:head,branch:`refs/heads/${other.featureBranch}`},{worktree:other.integrationWorktree,HEAD:head,branch:`refs/heads/${other.integrationBranch}`});
+  const proof={taskId:'task',candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired:true,restoreVerified:true,beforeRefs,beforeWorktrees,managed,verifiedPreservationRefs:beforeRefs};
+  fs.writeFileSync(path.join(state,'git-finalization.json'),JSON.stringify(proof),{mode:0o600});
+  fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'blocked',blocked:[{phase:'git'}]}),{mode:0o600});
+  for(const item of managed){git(projectRoot,['worktree','remove',item.worktree]);git(projectRoot,['branch','-d',item.branch]);}
+  git(projectRoot,['update-ref','-d',snapshot]);
+  receipt.status='cleaned';receipt.mode='pr';receipt.pullRequest={url:'https://github.com/fixture/repo/pull/1'};
+  receipt.verification={status:'passed'};receipt.cleanup=Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]));
+  const controller={readDeliveryReceipt:()=>receipt,validateCleanedDelivery:()=>receipt};
+  let otherState;
+  if(otherRetirement){
+    const base=path.join(projectRoot,'.git/leon-engineering');otherState=path.join(base,'resource-closeout',other.taskId);
+    fs.mkdirSync(path.join(base,'deliveries'),{recursive:true});fs.mkdirSync(otherState,{recursive:true});
+    const put=(file,value)=>fs.writeFileSync(file,JSON.stringify(value),{mode:0o600});
+    put(path.join(base,'deliveries',other.taskId+'.json'),other);
+    put(path.join(base,'git-safety/reviews',other.taskId+'.json'),{candidateCommit:head,reviewedCommit:head,status:'PASS'});
+    put(path.join(otherState,'git-finalization.json'),{taskId:other.taskId,status:'complete',candidateCommit:head,restoreVerified:true,beforeRefs:Object.fromEntries(retiredRefs.map(ref=>[ref,head])),beforeWorktrees:beforeWorktrees.filter(row=>row.worktree===other.featureWorktree || row.worktree===other.integrationWorktree),managed:[{branch:other.featureBranch,worktree:other.featureWorktree,commit:head},{branch:other.integrationBranch,worktree:other.integrationWorktree,commit:head}]});
+    put(path.join(otherState,'receipt.json'),{taskId:other.taskId,status:'complete',ok:true,cache:{ok:true},gitCleanup:true,restoreVerified:true,blocked:[]});
+    for(const ref of retiredRefs)git(projectRoot,['update-ref','-d',ref]);
+  }
+  const resourceRevalidationProbe=(_repo,task,phase)=>{
+    assert.equal(phase,'revalidate');
+    const bytes=fs.readFileSync(path.join(state,'receipt.json'));
+    return {ok:true,taskId:task,candidateCommit:receipt.integrationCommit,cache:{ok:true},previousReceiptSha256:crypto.createHash('sha256').update(bytes).digest('hex')};
+  };
+  return {...f,state,snapshot,tree,backup,other,otherState,retiredRefs,options:{...f.options,controller,resourceRevalidationProbe}};
+}
+
+test('explicit recovery keeps the pending proof and accepts only restore-verified retired Codex snapshots', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), before=fs.readFileSync(path.join(f.state,'git-finalization.json'));
+  const input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  let validations=0;f.options.controller.validateCleanedDelivery=()=>{validations++;return f.receipt;};
+  await recoverCloseoutFinalization(input,f.options);assert.equal(validations,0);
+  assert.equal(preview.status,'preview');assert.deepEqual(preview.retiredSnapshots,[{ref:f.snapshot,oid:f.tree}]);
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),before);
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+  const result=await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(result.status,'cleaned');assert.equal(result.restoreVerified,true);
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),before);
+  assert.equal(git(f.projectRoot,['for-each-ref','--format=%(refname)',f.snapshot]),'');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'complete');
+  assert.equal((await runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options)).status,'cleaned');
+  assert.equal((await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options)).status,'cleaned');
+  const oid=git(f.projectRoot,['rev-parse','HEAD:tracked.txt']);
+  fs.rmSync(path.join(f.projectRoot,'.git/objects',oid.slice(0,2),oid.slice(2)));
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'OBJECT_INTEGRITY_FAILED'});
+});
+
+test('recovery refuses ordinary ref deletion, stale preview, wrong backup and changes during restore', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const other=fixture(t), unrelated=backupRepository({projectRoot:other.projectRoot},{...other.options,backupVersion:1});
+  await assert.rejects(recoverCloseoutFinalization({...input,backupDirectory:unrelated.directory},f.options),{code:'CLOSEOUT_RECOVERY_BACKUP_INVALID'});
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:'0'.repeat(64)},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+  const proof=JSON.parse(fs.readFileSync(path.join(f.state,'git-finalization.json')));
+  proof.beforeRefs['refs/heads/unknown-retired']=f.receipt.featureCommit;
+  fs.writeFileSync(path.join(f.state,'git-finalization.json'),JSON.stringify(proof));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  delete proof.beforeRefs['refs/heads/unknown-retired'];
+  fs.writeFileSync(path.join(f.state,'git-finalization.json'),JSON.stringify(proof));
+  const changedPreview=await recoverCloseoutFinalization(input,f.options);
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:changedPreview.previewSha256},{...f.options,afterRecoveryVerified:()=>git(f.projectRoot,['update-ref','-d','refs/remotes/origin/master'])}),{code:'UNRELATED_REF_CHANGED'});
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'blocked');
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+});
+
+test('recovery requires an unmodified archive and hash-bound completion', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const manifestPath=path.join(f.backup.directory,'manifest.json'), bytes=fs.readFileSync(manifestPath);
+  fs.appendFileSync(manifestPath,' ');
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'BACKUP_METADATA_MISMATCH'});
+  fs.writeFileSync(manifestPath,bytes);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const cert=JSON.parse(fs.readFileSync(path.join(f.state,'git-finalization-recovery.json')));
+  fs.appendFileSync(path.join(f.state,cert.epoch),' ');
+  await assert.rejects(runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options),{code:'CLOSEOUT_FINALIZATION_UNVERIFIED'});
+});
+
+test('recovery keeps committed-object and backup ownership gates', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const oid=git(f.projectRoot,['rev-parse','HEAD:tracked.txt']);
+  fs.rmSync(path.join(f.projectRoot,'.git/objects',oid.slice(0,2),oid.slice(2)));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'OBJECT_INTEGRITY_FAILED'});
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'blocked');
+});
+
+test('closeout recovery CLI defaults to preview and refuses unmatched execute flags', () => {
+  const args=['closeout-recover','--project','/fixture','--task-id','task','--recovery-backup','/backup'];
+  assert.equal(parseCli(args).options.apply,undefined);
+  assert.throws(()=>parseCli([...args,'--apply']),{code:'CLI_ARGUMENT_REQUIRED'});
+  assert.throws(()=>parseCli([...args,'--status']),{code:'CLI_ARGUMENT_REQUIRED'});
+  assert.equal(parseCli([...args,'--apply','--preview-sha256','a'.repeat(64)]).options.apply,true);
+});
+
+test('recovery recognizes another fully finalized delivery without guessing retired ref ownership', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.deepEqual(preview.retiredDeliveries.map(row=>row.ref).sort(),f.retiredRefs.sort());
+  assert.equal(preview.retiredWorktrees.length,2);
+  const result=await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(result.status,'cleaned');
+  assert.equal((await runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options)).status,'cleaned');
+});
+
+test('a retired delivery cannot authorize a reappeared or unrelated worktree', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true});
+  fs.mkdirSync(f.other.featureWorktree);
+  await assert.rejects(recoverCloseoutFinalization({projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory},f.options),{code:'UNRELATED_WORKTREE_CHANGED'});
+  assert.equal(fs.existsSync(f.other.featureWorktree),true);
+});
+
+test('another pending or tampered retirement is still an unknown ordinary deletion', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const file=path.join(f.otherState,'git-finalization.json'), value=JSON.parse(fs.readFileSync(file));
+  value.status='pending';fs.writeFileSync(file,JSON.stringify(value));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  value.status='complete';fs.writeFileSync(file,JSON.stringify(value));
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const resource=path.join(f.otherState,'receipt.json');fs.appendFileSync(resource,' ');
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+});
+
+test('retirement rejects cross-repository, ambiguous and unmerged branch claims', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const directory=path.join(f.projectRoot,'.git/leon-engineering/deliveries'), file=path.join(directory,f.other.taskId+'.json');
+  const original=fs.readFileSync(file), other=JSON.parse(original);
+  other.repositoryRoot=f.root;fs.writeFileSync(file,JSON.stringify(other));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  fs.writeFileSync(file,original);
+  const duplicate=path.join(directory,'ambiguous-task.json');fs.writeFileSync(duplicate,JSON.stringify({...f.other,taskId:'ambiguous-task'}),{mode:0o600});
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  fs.unlinkSync(duplicate);
+  const tree=git(f.projectRoot,['rev-parse','HEAD^{tree}']);
+  const child=git(f.projectRoot,['commit-tree',tree,'-p',f.receipt.integrationCommit,'-m','unmerged branch']);
+  const proofFile=path.join(f.otherState,'git-finalization.json'), proof=JSON.parse(fs.readFileSync(proofFile));
+  other.repositoryRoot=f.projectRoot;other.featureCommit=child;fs.writeFileSync(file,JSON.stringify(other));
+  proof.managed.find(row=>row.branch===other.featureBranch).commit=child;
+  proof.beforeRefs[`refs/heads/${other.featureBranch}`]=child;
+  fs.writeFileSync(proofFile,JSON.stringify(proof));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+});
+
+test('resource revalidation accepts only cleaned pending deliveries without replaying deletion', () => {
+  const source=fileURLToPath(new URL('../research_web/test_iteration_revalidation.py',import.meta.url));
+  const result=spawnSync('python3',[source],{encoding:'utf8',env:{...process.env,PYTHONPATH:path.resolve(path.dirname(source),'../..'),PYTHONDONTWRITEBYTECODE:'1'}});
+  assert.equal(result.status,0,result.stderr);
+  assert.match(result.stderr,/Ran 4 tests/);
+});
+
+test('enabled resource contract receives revalidate through the Python process boundary', async t => {
+  const f=await pendingSnapshotCloseout(t), root=f.projectRoot;
+  fs.mkdirSync(path.join(root,'scripts'));fs.mkdirSync(path.join(root,'.agents'));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
+  fs.writeFileSync(path.join(root,'.agents/resource-closeout.json'),'{}');
+  const python=spawnSync('python3',['-c','import sys;print(sys.executable)'],{encoding:'utf8'});
+  assert.equal(python.status,0,python.stderr);
+  fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.symlinkSync(python.stdout.trim(),path.join(root,'.venv/bin/python'));
+  const pkg=path.join(root,'research_workbench_entrypoint');fs.mkdirSync(pkg);fs.writeFileSync(path.join(pkg,'__init__.py'),'');
+  fs.writeFileSync(path.join(pkg,'iteration_resources.py'),[
+    'import json,hashlib,sys', 'from pathlib import Path',
+    'phase=sys.argv[sys.argv.index("--phase")+1]',
+    'Path("observed-phase.txt").write_text(phase)',
+    'assert phase=="revalidate", phase',
+    'r=Path(".git/leon-engineering/resource-closeout/task/receipt.json").read_bytes()',
+    'd=json.loads(Path("bridge-delivery.json").read_text())',
+    'print(json.dumps(dict(ok=True,taskId="task",candidateCommit=d["integrationCommit"],cache=dict(ok=True),previousReceiptSha256=hashlib.sha256(r).hexdigest())))',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root,'bridge-delivery.json'),JSON.stringify(f.receipt));
+  const {recoverCloseoutFinalization}=await import(pathToFileURL(path.join(root,'scripts/git_safety.mjs')).href);
+  const input={projectRoot:root,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal(fs.existsSync(path.join(root,'observed-phase.txt')),false);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(fs.readFileSync(path.join(root,'observed-phase.txt'),'utf8'),'revalidate');
 });
 
 function baseRefreshFixture(t, {includeBase = true, includePrevious = true} = {}) {

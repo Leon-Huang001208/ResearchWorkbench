@@ -487,6 +487,28 @@ BaoStock单报告期现金流比率沿原公开worker及默认Host/研究仓，�
 先以空环境和真实requests无网络复现系统代理继承，再在独立worker修复并保留原端点真实失败；禁止修改系统代理或把helper限制包装为vendor失败。GDP累计/新浪自然日披露与未知单位按v2原件投影绑定；真实默认Host/PG三进程、实际重启和空库恢复独立取证，原三CI和同候选Mac安装不省略。
 
 
+## 2026-10-24：pending finalization 的受约束重新核验
+
+controller已cleaned而资源回执仍blocked/pending时，不得因目录消失就宣称整轮cleaned。普通status/cleanup原审计不放宽。仅对已归档的Codex captures/base或checkpoints树引用消失，可显式追加核验；普通引用删除、分叉、其他worktree变化和对象缺失仍拒绝。
+
+先只读预览，指定从原日志核对的恢复验证备份：
+
+~~~bash
+node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id TASK --recovery-backup /absolute/verified-backup
+~~~
+
+预览不fetch或写回执。核对其候选、证明/备份哈希、消失快照清单，再使用返回的previewSha256：
+
+~~~bash
+node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id TASK --recovery-backup /absolute/verified-backup --apply --preview-sha256 EXACT_PREVIEW_SHA256
+~~~
+
+执行持仓库/备份锁，实际独立恢复v2归档并全量检查；候选、旧锚点、当时存在的任务worktree、退休目录缺席、剩余Docker资源和20GiB缓存预算须成立。不重放目录或卷删除。原git-finalization.json字节保持，资源回执原件归档，追加epoch与独立完成证书；不回填ref、不改旧基线。重复恢复及普通status仍经过fsck。
+
+历史pending没有backup manifest摘要时，先依据原Git安全日志独立核对归档来源，再将指定归档seal、manifest及本轮实际恢复结果绑定新epoch。不能把兼容备份宣称为全部历史现场证明。原失败与缺失旧Git对象分别保留。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
 ## 2026-10-24：原端点与参考证据验收
 
 四案SDK原端点诊断保留无响应事实，不归因账号或冒充修复。GDP字典由官方JS/统计局方法固定原件校准，财务限定两格和原件页／精确值哈希，float不认证；日期冲突保留，历史可得性不由下载或目录日期证明。源码冻结后走默认Host/PG三进程、实际停启和默认factory空库恢复；原Router、独评、三CI及同提交Mac安装不省略。

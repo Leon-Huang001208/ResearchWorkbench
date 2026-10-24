@@ -321,3 +321,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-24原端点与参考证据只向原Checks同一pytest步骤加入test_reference_evidence，既有AK/native/financial模块补反例，无新job/runner/timeout/依赖。158项定点约秒级，预留原步骤30秒；4次诊断与后续真实免费捕获/临时PG仅本机，不在CI调用供应商/模型/正式库。原三CI、同候选macos-14安装与实时PUBLIC核对保留，不手工rerun或Mac发他平台产品dispatch。
 
 2026-10-24全市场预览组合profile只扩展原test_model_provider_upgrade矩阵，2042项本机124.99秒；保留原Research Web Checks、Constraints和macos-14干净安装，不增加workflow/job/runner/依赖/timeout。新增profile增量预算预留原步骤30秒，最终候选另取证；远端操作前实时核验公开标准runner资格，不派发Windows/Linux产品，不用旧PR223的三CI代替新operator候选。
+
+
+2026-10-24 pending-finalization恢复复用原Project Constraints的git_safety/iteration_closeout Node步骤，其中增加标准库Python复核与子进程桥接；无新workflow/job/runner/依赖/timeout。增量预留原步骤30秒，原Checks与同候选macos-14安装保留，远端前复查PUBLIC/预算，不从Mac派发Windows/Linux产品CI。
