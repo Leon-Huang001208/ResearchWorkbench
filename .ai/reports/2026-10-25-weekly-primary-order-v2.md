@@ -47,3 +47,23 @@ PYTHONPATH=.:/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-
 pin RED：1 failed，见 `logs/primary-order-v2/final-pin-red.log`。最终 pin + scope + 两生成 HTML 的窄 delta **163 passed**，93.88 秒，见 `final-pin-delta.log/xml`。本轮只修改常量与 scope 测试；按主任务授权保留 2796 完整联合证据并组合此 delta，不重跑完整五模块。不得将旧完整结果写成新 pin 后完整重跑。
 
 最终 pin 两源 SHA256：operator `f6390827e3480c77734beddf884dfea76899905655eb9def154069ecac39f906`；test `afbf62f33d7d5411a7b7908a4c0bb5a3b89b2dcea01f8f47217e3a719b90efe2`。Black/isort/Ruff/diffcheck 通过。未提交、未执行真实服务操作。
+
+## Checks 预算修复后的最终产品冻结
+
+主任务报告的 GitHub 取证：PR232 首 head `7c…` 的 macOS 与 Project Constraints 已 PASS；Research Web Checks 被 GitHub 确认在 30m0s 因 job timeout 取消，并非新 head 或 concurrency 替换。取消前仍有测试进度，但无 pytest 汇总，因此该旧 Checks 记 `CANCELLED/TIMEOUT`，不能记 PASS。本子任务未 rerun 旧 SHA，也未执行远端或生产动作。
+
+完整预算修复产品固定为 `d0e83e438e42e74f606bbd6645ad326db6c5b8a2`。据主任务受审预算修复，唯一 Checks job timeout 从 30 改 40，`.agents/project-constraints.json` 的 requireAll literal 同步；测试列表、skip、runner、job、权限、concurrency、业务和依赖均未变化。预算 delta 的独立评审与 SourceCI 由主任务绑定，本子任务不把预算可用性等同于 Checks 已通过。
+
+本子任务仅把新 v2 payload 从 a8d58 改为 d0e83；previous36fd、action7cbd 和所有旧 mode/constants/payload 保留。对本轮 HEAD 的 AST 校验，唯一改变的常量为 `ETF_WEEKLY_ADMISSION_V2_PAYLOAD`，见 `budget-pin-identities.txt`。原严格 scope 逻辑合法覆盖两文件，不修改逻辑：`.github/workflows/research-web-checks.yml` 已在原真实 Git 矩阵，现新增 `.agents/project-constraints.json`；两者 content/mode/deletion 都必须拒绝。只允许原 operator/test、docs/reports 和两个生成 HTML `100644`，无 CI/scripts/tests 宽例外。
+
+三类版本证据分别保留：
+
+| 产品冻结 | 本地证据 | 实际范围 |
+| --- | --- | --- |
+| 初始 b0ebe | `final-joint.log/xml`，2796 passed | 新 v2 准入逻辑完整五模块联合 |
+| 运维组合 a8d58 | `final-pin-delta.log/xml`，163 passed | 新产品 pin 与四个运维上游文件的精确 scope delta |
+| 预算修复 d0e83 | `budget-pin-delta.log/xml`，169 passed，99.29 秒 | 新产品 pin、workflow/constraints 精确冻结与两 HTML 例外 delta |
+
+budget pin RED 为 1 failed，见 `budget-pin-red.log`。本轮只更新常量与冻结测试；按主任务指令不重新执行完整 2796，不能把旧完整日志写成 d0e83 的完整重跑。新的 SourceCI 应由新 head 正常触发，旧 timeout 记录原样保留。
+
+本轮最终两源 SHA256：operator `4ddc21103572c4f3f0ee271d94512deb994c12505c8e45fd94aca6d2db3efa34`；test `fe0a59db4ada4565d65f18497f9e93063b1a373d3247d8fe6ffe051de8ebf349`。Black/isort/Ruff/diffcheck 通过，日志前缀 `budget-pin-`。未提交、未操作生产。

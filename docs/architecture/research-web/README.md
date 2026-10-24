@@ -1,6 +1,8 @@
 # Research Workbench Research Web 当前架构
 
-v2真实Primary门顺序源码阅读检查点`69d3562df5c7494c560cacd348222b2eee1e32ad`，完整产品冻结到已核验主线`a8d58cb9`（原业务组合及PR228运维修复）。首处只证明身份，桥后完整真实Primary/Host/Native再验，旧v1不变；最终候选CI与live资格另行绑定。
+最终v2源码检查点`fa557ac53cb2aed54fab6313bb8e2e5352000227`，完整产品祖先`d0e83e438`含已审运行组合、PR228及原单job40分钟预算；全部测试/断言保持。首候选7c的取消是30m0s超时，不是整套通过；新候选实际CI与live资格另验。
+
+v2真实Primary门顺序源码阅读检查点`fa557ac53cb2aed54fab6313bb8e2e5352000227`，完整产品冻结到已核验主线`a8d58cb9`（原业务组合及PR228运维修复）。首处只证明身份，桥后完整真实Primary/Host/Native再验，旧v1不变；最终候选CI与live资格另行绑定。
 
 华安周报可信执行scope与提交claim是原Host内部的冻结/准入/恢复补齐，继续同一DSH和Native guard，不是通用公司研究能力的数据豁免。旧未知运行不自动重发；用户选择保留旧证据，待新版本显式验收。Native/文件协议及只读输入边界见02、03、04、05章，真实模型/Word/下载仍分别验证。
 

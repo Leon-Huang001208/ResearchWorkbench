@@ -1,5 +1,9 @@
 # 真实 Primary 门顺序回归：主任务记录
 
+当前完整产品`d0e83e438e42e74f606bbd6645ad326db6c5b8a2`已将单job40min和对应约束纳入非豁免freeze；operator4ddc2110…/testfe0a59db…仅新v2pin与constraints冻结增量，独立规格/质量APPROVED。新pin169 passed/99.29秒、旧最终逻辑2796 passed/353.77秒分开保留，不冒充新pin全joint已跑。代码提交`fa557ac53cb2aed54fab6313bb8e2e5352000227`，等待新head同候选三CI，不rerun旧7c。
+
+首发布PR232候选7c7015b5546eb545666f1ed779630acd6cc4be0a：Constraints40123195063、Mac40123195089成功；Checks40123195128在30m0s上限被取消（GitHub annotation明确），head没变，取消前仍在执行，不能当新源码完整通过。源码预算修复仅原单job timeout30→40及匹配workflow约束/文档，不减原测试/权限/范围或新job/runner；将作为非豁免内容纳入新的完整产品祖先和新head重新三CI。既有2796逻辑联合及163pin增量分别保留，不冒充本次CI。未实际维护/部署/模型。
+
 最终产品pin为`a8d58cb989ba6f556d597242f1afc51af8549b55`，仅原4个运维代码/测试和文档纳入，无新业务/依赖。代码提交`69d3562df5c7494c560cacd348222b2eee1e32ad`，operator f6390827…/test afbf62f3…；独立规格/质量已重绑APPROVED。真实g顺序及最终逻辑源联合2796 passed（353.77秒），当前pin精确增量163 passed（93.88秒）各自留证，不混称同一运行。最终prepared自身真实范围、原三CI/Mac安装、保护合并尚待完成，生产未改。
 
 宿主macOS，Web/Native功能修复，task etf-weekly-primary-order-20261025。受管check/start已通过，独立worktree从b0ebe1df建立。源码与本机/原三CI及Mac安装分开取证，其它平台原生不冒充。

@@ -3619,6 +3619,7 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
         "app/research_web/datahub/providers_reference_evidence.py",
         "app/research_web/datahub/research_snapshot_store.py",
         ".github/workflows/research-web-checks.yml",
+        ".agents/project-constraints.json",
         "tests/research_web/test_ak_native_binding.py",
         "tests/research_web/test_datahub_akshare_semantics.py",
         "tests/research_web/test_datahub_financial_time_contract.py",
@@ -3662,6 +3663,7 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
         "app/research_web/datahub/providers_reference_evidence.py",
         "app/research_web/datahub/research_snapshot_store.py",
         ".github/workflows/research-web-checks.yml",
+        ".agents/project-constraints.json",
         "tests/research_web/test_ak_native_binding.py",
         "tests/research_web/test_datahub_akshare_semantics.py",
         "tests/research_web/test_datahub_financial_time_contract.py",
@@ -4178,7 +4180,7 @@ def test_weekly_primary_v2_profile_keeps_previous_immutable():
         upgrade.previous_for(upgrade.ETF_WEEKLY_ADMISSION_V2_MODE)
         == "36fd990ceed88d2fc595443926105c4b2601fbf6"
     )
-    assert upgrade.ETF_WEEKLY_ADMISSION_V2_PAYLOAD == "a8d58cb989ba6f556d597242f1afc51af8549b55"
+    assert upgrade.ETF_WEEKLY_ADMISSION_V2_PAYLOAD == "d0e83e438e42e74f606bbd6645ad326db6c5b8a2"
     assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "bacb423cea203ba0469b5c7f21bfd581408b03ef"
     assert upgrade.ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
     assert upgrade.ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
