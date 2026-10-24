@@ -41,6 +41,7 @@ from .contracts import BusinessQuery
 from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
+from .providers_baostock_cashflow import CASH_FLOW_SCHEMA
 from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT, SPDR_NUMERIC_CONTRACT
 from .providers_kapsarc import KAPSARC_NUMERIC_CONTRACT
 from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT
@@ -804,6 +805,12 @@ class ResearchWarehouse:
                 else SINA_FINANCIAL_SCHEMA if financial else FUND_FLOW_SCHEMA if fund_flow else None
             )
         )
+        if (
+            source == "baostock"
+            and query.capability == "financials"
+            and query.parameters.get("statements") == ["cash_flow"]
+        ):
+            contract = CASH_FLOW_SCHEMA
         if query.capability == "external_data" and (source, query.parameters.get("dataset")) == (
             "ext_spdr",
             "gld",

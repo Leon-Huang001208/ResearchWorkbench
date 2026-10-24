@@ -587,7 +587,7 @@ BINDING_SPECS = {
         ("wind", ["financial_statements"]),
         ("ifind", ["financials"]),
         ("akshare", ["financials", "income_statement"]),
-        ("baostock", ["quarterly_profitability"]),
+        ("baostock", ["quarterly_profitability", "quarterly_cash_flow_ratios"]),
         ("tushare", ["fina_indicator"]),
         ("yahoo", ["financials"]),
         ("chinastock", ["financials"]),
@@ -689,6 +689,10 @@ BINDING_ASSETS = {
 # Dataset-specific facts match the reviewed adapters. Unlisted facts stay unknown.
 BINDING_SEMANTICS = {
     ("baostock", "financials"): {
+        "quarterly_cash_flow_ratios": {
+            "historical_point_in_time": False,
+            "frequencies": ["quarterly"],
+        },
         "quarterly_profitability": {
             "historical_point_in_time": False,
             "currency": "CNY",

@@ -157,6 +157,10 @@ def resolve(
         bindings = [
             binding for binding in bindings if "quarterly_profitability" in binding["datasets"]
         ]
+    if query.capability == "financials" and query.parameters.get("statements") == ["cash_flow"]:
+        bindings = [
+            binding for binding in bindings if "quarterly_cash_flow_ratios" in binding["datasets"]
+        ]
     if query.capability == "market_activity" and query.parameters.get("dataset"):
         bindings = [
             binding

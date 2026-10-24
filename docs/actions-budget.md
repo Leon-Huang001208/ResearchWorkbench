@@ -300,3 +300,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24 KAPSARC/BGS 单导出单位/计数校验只向原Checks同一pytest步骤添加test_datahub_kapsarc/test_kapsarc_warehouse_integration，旧CSV合同回归沿已有模块。无新job/runner/timeout/依赖；新增离线约秒级，预留原步骤30秒。有界免费数据与三子进程ownedPG仅本机，不将供应商/模型/正式库调用纳入CI。原三CI、exact macos-14安装、实时PUBLIC核对和Windows/Linux交接保持，不手工rerun或从Macdispatch其他平台产品任务。
+
+
+2026-10-24现金流财务仅向原Checks同一pytest步骤加入test_datahub_baostock_cashflow/test_cashflow_warehouse_integration，无新job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实免费样例和隔离PG仅本机，不接模型/付费/生产库。最终仍绑定原三CI和同候选macos-14安装，远端动作前实时核对PUBLIC，不手工rerun或从Mac发其他平台产品dispatch。
