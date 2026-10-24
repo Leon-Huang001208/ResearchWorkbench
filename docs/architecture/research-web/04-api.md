@@ -791,6 +791,3 @@ schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资
 
 
 2026-10-24：新增GET /api/research/discovery/association?feed_id&news_id&event_id&horizon，在当前认证用户的同feed范围内逐个核对归档报道精确URL；不接任意URL/正文、不创建会话/计划。feed新增news/events/freshness的独立有界投影，原七字段Prepare与独立execute/save/enable接口保持，详见今日发现合同。
-
-
-apply-discovery-v2为原Native操作员CLI的封闭身份，不新增HTTP接口；页面验收只读既有feed/selection/association和状态入口，不借部署prepare/execute或保存/开启跟踪。
