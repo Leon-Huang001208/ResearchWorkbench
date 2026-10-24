@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+部署衔接回归必须执行真实operate并让原g.verify_primary和LegacyBinding参与，不得mock关键门成None。v2仅先做非空闲身份前提，桥后完整原Primary/Host/Native门不减；字段未知或其它活动拒绝停机。旧v1保持原顺序，现场deferred的绿源码/CI不能当真实切换成功。
+
 华安提交/恢复改动的本地邻近闭包必须同时包含test_report_weekly_historical_acceptance.py、test_report_weekly_quality.py及test_report_weekly_admission.py。历史路径需用真实ResearchService、合法Provider合成证据、真实scope/send/claim；不能整体替换weekly_data模块后把尚未抵达Sender的失败当成unknown/accepted恢复证明。先断言数据门、RPC及收据前提，再核历史用途、owner和冻结证据。CI已登记该模块，夹具修复不移除或跳过用例。
 
 华安准入后继先冻结完整产品祖先bacb423ce（含PR227单位/出处证据及已批准PR229行情展示），再只改受审Native操作员/测试与文档。apply-etf-weekly-admission以固定36fd为前版，显式封印维护意图才能结束旧等待；恢复不重发模型，维护意图/回执缺失或冲突拒绝。领域动作后窄GET刷新旧缓存，原三锁、全账号活动与恢复门保持；与统一部署窗口衔接，不独立切换或在窗口启动模型。

@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+华安admission-v2仅调整既有Mac Native事务内部的准入顺序：维护前真实实例身份/Native空列表/索引前提，封印桥接和旧GET后再完整真实Primary及Host活动门。v1和通用verify_primary保持，唯一DSH、原主实例/网关/三锁、保全恢复节点不变；不把旧Host active=true解释为空闲。
+
 可信华安周报在原Host内投影Run/SID/版本/owner/purpose及冻结字节对应的执行scope，复用唯一DSH的现有Native guard/visible_tools与脚本runner；不再误选通用公司研究能力。提交claim在原Run目录内持久化，preflight与实际RPC未知分开；没有新服务、引擎、DB或HTTP路径，原分层拓扑仍准确。
 
 资产行情条固定为“收／幅／开／高／低／均／量／换／振／额”，金额只写万／亿，两位小数；币种和原单位保留title。已识别沪深北股票且来源明确为股时，量、成交量副图/VOL/MA与右侧已确认单位报价统一按100股/手展示；未知单位和非A股不猜倍率。原始OHLCV、复权、周月聚合、指标、筹码及冻结快照不改，股本和财务金额保留原单位；只改展示投影，无新依赖、服务、路由、节点或研究引擎。

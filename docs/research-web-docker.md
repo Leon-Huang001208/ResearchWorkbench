@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+admission-v2只调整Mac Native维护事务内部顺序，不启动/更新Docker服务、卷、构建器或缓存。真实Primary/Host/Native/其它账号门保持，Mac通用Ubuntu CI不宣称Linux/Docker产品原生验收。
+
 华安提交修复的 apply-etf-weekly-admission 仍只处理 Mac Native。旧等待处置与代码切换采用原维护锁和完整活动检查，不触碰 Docker 服务、业务卷、构建缓存或 20GiB 预算；其它平台继续由对应设备验收。
 
 全市场 `reviewed-market-preview-v1` 是现有Mac Native操作员的封闭身份，不更新Docker运行服务、业务卷、构建器登记或缓存策略。原version4锁、BirthFence、全账号保全和回滚保持；不会从Mac派发Windows/Linux产品验收。

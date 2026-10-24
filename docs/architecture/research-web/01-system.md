@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+admission-v2仍用原Host、唯一DSH、网关、三锁和version4切换节点；变化仅是准备阶段身份与最终idle验证顺序，不增服务、引擎或部署边界。
+
 华安专属准入仍沿浏览器→Host→唯一DSH及原脚本runner/Seatbelt节点。Host返回冻结范围给既有Native guard，claim保存在同一Run，既有全账号隔离与部署拓扑保持；不添加Automation、MCP或独立生产引擎。
 
 全市场组合预览修复仅新增现有Native操作员的封闭36fd990c→e56d9718产品身份；主实例、网关、维护锁、BirthFence和恢复节点不变。没有新增服务或第二研究引擎，01／12部署图保持准确。

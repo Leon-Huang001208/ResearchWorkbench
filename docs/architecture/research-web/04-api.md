@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+v2只增加明确paired flags的本机受审CLI命令，沿已有GET刷新Host缓存；无HTTP新路由、Header/Cookie覆盖或force参数，普通租户/能力与已发布v1行为保持。
+
 现有周报创建/运行/retry路径保持；retry对新协议已知未RPC状态可显式继续，对旧未知/已尝试状态仍只核查观察，未新增force或模型可传scope参数。内部skill-preflight响应可带Host input_policy=weekly-frozen-inputs-v1及逐文件read_paths，经JS传给Python；普通capability/dataset目录协议兼容，缺失/未知策略与非法路径拒绝。
 
 行情读数重排“收幅开高低均量换振额”不改变观察、历史任务或DataHub的HTTP路径、请求和冻结响应。已存在assetIdentity与field.unit只用于显示股/手及万/亿；原data-*事件、ARIA角色和月K计算保持，单位/币种通过title保留。

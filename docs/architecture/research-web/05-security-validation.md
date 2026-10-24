@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。
+
 可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。
 
 `reviewed-market-preview-v1` 固定前版36fd990c、产品e56d9718、严格reader193f4fcc与既有锁文件。原全账号后台/工作流、市场inflight、维护锁、BirthFence、业务保全与失败恢复门均保留；测试和候选浏览器覆盖不冒充部署，旧模式及凭据权限不修改。

@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+v2沿原固定seal/intent/receipt与原目录CAS，只改变操作员验证顺序。身份预检不修改旧Run；领域动作仍保留unknown、原failure、输入、SID和冻结日期，回滚代码不逆转已授权控制决定，数据根与存储结构不变。
+
 weekly-rpc-attempt.json保存在Host私有Run内、模型workspace之外，O_EXCL/NOFOLLOW、类型/大小/私有权限与fsync读回约束保证不被替换。冻结scope绑定context/snapshot/版本/owner/model；Host materialize后的工作簿与Session副本核同一字节，模板资产仍核原资源hash。脚本的weekly输入策略只对冻结文件授literal读，不自动授读后来新增inputs。
 
 行情条与成交量副图的手/万/亿只为纯展示投影，已确认股单位的A股按100股/手显示。原OHLCV、MA输入、量额、复权因子、筹码和旧冻结快照保持原值/原单位；未知单位不借别的快照推断，缺失与真实零保持区别，无存储/API迁移。
