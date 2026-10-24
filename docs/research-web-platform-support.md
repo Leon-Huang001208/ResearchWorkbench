@@ -2,6 +2,8 @@
 
 资产V8为macOS Native固定更新，本机、原通用仓库门、同候选Mac安装及实际部署分别记录。Windows/Linux原生与Docker产品未运行，不因本profile获得支持或发布认证。
 
+2026-10-24华安历史验收属于Mac主开发的Web/Native Host既有周报能力：本机离线、最终三CI/Mac安装、真实Wind/DSH、Word与下载分别取证；历史成功不能认证正式实时周报或三个真实周期。Windows/Linux原生与Docker产品未由本任务验收，不从Mac派发其产品任务。
+
 华安 v2 仅负责macOS Native固定操作员闭包；本机、最终原三CI、Mac干净安装、实际切换及Office周报分别记录，未执行层仍待验。新增组合产品不授予Windows/Linux原生或Docker发布资格，不触发他平台产品dispatch。
 
 本次华安固定操作员是Mac mini的macOS Native工具闭包：本机1745项离线回归通过；最终通用CI、同候选macos-14干净安装、实际常驻切换和原生周报交付分别取证。当前没有Windows/Linux原生或Docker产品验收，不从Mac dispatch他平台任务，也不将源码准备当成Office/Wind或正式稿通过。

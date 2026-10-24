@@ -12,7 +12,8 @@ import zipfile
 from pathlib import Path
 
 FORMATS = list(globals().get("FORMATS", []))
-WEEKLY_BLOCK_BINDINGS = []
+WEEKLY_BLOCK_BINDINGS: list[dict[str, str]] = []
+REPORT_HTML_STYLE = "body{max-width:920px;margin:40px auto;padding:0 24px;font:16px/1.75 system-ui;color:#202124}h1,h2{line-height:1.3}.meta{color:#666}section{margin:32px 0}@media print{body{margin:0}}"
 
 
 def clean_text(value, limit=100_000):
@@ -206,6 +207,16 @@ def render_docx(payload, values):
     WEEKLY_BLOCK_BINDINGS = apply_weekly_docx_projection(  # noqa: F821
         document, context, Path(globals()["SESSION_ROOT"]) / "inputs/report-workflow"
     )
+    if globals().get("HOST_HISTORICAL_NOTICE"):
+        from docx.shared import Pt, RGBColor
+
+        paragraph = document.add_paragraph(globals()["HOST_HISTORICAL_NOTICE"])
+        for run in paragraph.runs:
+            run.bold = True
+            run.font.hidden = False
+            run.font.size = Pt(12)
+            run.font.color.rgb = RGBColor(0, 0, 0)
+        document._element.body.insert(0, paragraph._p)
     output = Path("outputs/report.docx")
     document.save(output)
     return output
@@ -271,7 +282,14 @@ def render_html(payload):
         for item in payload["sources"]
     )
     missing = "".join(f"<li>{html.escape(clean_text(item))}</li>" for item in payload["missing"])
-    text = f"""<!doctype html><html lang=\"zh-CN\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>{html.escape(payload["title"])}</title><style>body{{max-width:920px;margin:40px auto;padding:0 24px;font:16px/1.75 system-ui;color:#202124}}h1,h2{{line-height:1.3}}.meta{{color:#666}}section{{margin:32px 0}}@media print{{body{{margin:0}}}}</style><body><h1>{html.escape(payload["title"])}</h1><p class=\"meta\">数据截止时间：{html.escape(payload["as_of"] or "未提供")}</p><p>{html.escape(payload["summary"])}</p>{sections}<section><h2>来源</h2><ul>{sources or "<li>未提供</li>"}</ul></section><section><h2>数据缺失与限制</h2><ul>{missing or "<li>无已声明缺失项</li>"}</ul></section></body></html>"""
+    text = f"""<!doctype html><html lang=\"zh-CN\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>{html.escape(payload["title"])}</title><style>{REPORT_HTML_STYLE}</style><body><h1>{html.escape(payload["title"])}</h1><p class=\"meta\">数据截止时间：{html.escape(payload["as_of"] or "未提供")}</p><p>{html.escape(payload["summary"])}</p>{sections}<section><h2>来源</h2><ul>{sources or "<li>未提供</li>"}</ul></section><section><h2>数据缺失与限制</h2><ul>{missing or "<li>无已声明缺失项</li>"}</ul></section></body></html>"""
+    if globals().get("HOST_HISTORICAL_NOTICE"):
+        banner = (
+            '<aside data-host-historical-acceptance="true">'
+            + html.escape(globals()["HOST_HISTORICAL_NOTICE"])
+            + "</aside>"
+        )
+        text = text.replace("<body>", "<body>" + banner, 1)
     output = Path("outputs/report.html")
     output.write_text(text, encoding="utf-8")
     return output
@@ -619,7 +637,7 @@ if office_request is not None:
                 }
             )
         )
-else:
+elif __name__ == "__main__":
     payload = load_payload()
     values = replacements(payload)
 

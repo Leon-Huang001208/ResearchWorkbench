@@ -73,10 +73,10 @@ ASSET_V7_PREVIOUS = "c4e953c4386c615cde89ad2d014d60c6e2959303"
 ASSET_V7_PAYLOAD = "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
 ASSET_V7_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 ASSET_V7_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
-# PR216/217 merged readout/DataHub checkpoint; retain previous recovery identities.
+# PR216/217/219 combined product; retain previous recovery identities.
 ASSET_V8_MODE = "reviewed-asset-observation-v8"
 ASSET_V8_PREVIOUS = "b438447071d08eec38902b2a50610644283885f9"
-ASSET_V8_PAYLOAD = "08406f018a76f2ebb67d8478c97486ca4ef18d76"
+ASSET_V8_PAYLOAD = "dee0cce4dbc65782dba2c720f33ada683457d72a"
 ASSET_V8_WEB_LOCK_SHA256 = ASSET_V7_WEB_LOCK_SHA256
 ASSET_V8_EVIDENCE_SHA256 = ASSET_V7_EVIDENCE_SHA256
 # PR179's merged market product, starting at the completed v4 resident deployment.
@@ -112,6 +112,10 @@ DISCOVERY_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 ETF_WEEKLY_V2_MODE = "reviewed-etf-weekly-v2"
 ETF_WEEKLY_V2_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 ETF_WEEKLY_V2_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+# This PR freezes the full historical product before appending its operator.
+ETF_HISTORICAL_MODE = "reviewed-etf-historical-v1"
+ETF_HISTORICAL_PREVIOUS = "b438447071d08eec38902b2a50610644283885f9"
+ETF_HISTORICAL_PAYLOAD = "bb4d2e657872ecb24df5bb0e89f571b4600b84d1"
 # Historical family name: all these profiles require full business-index preservation.
 # Fixed merged dossiers product; retain the registered resident recovery identity.
 DOSSIERS_MODE = "reviewed-research-dossiers-v1"
@@ -135,6 +139,7 @@ ASSET_MODES = frozenset(
         DOSSIERS_MODE,
         DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
+        ETF_HISTORICAL_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -237,6 +242,8 @@ def previous_for(mode):
         return DISCOVERY_PREVIOUS
     if mode == ETF_WEEKLY_V2_MODE:
         return ETF_WEEKLY_V2_PREVIOUS
+    if mode == ETF_HISTORICAL_MODE:
+        return ETF_HISTORICAL_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -398,6 +405,7 @@ def verify_primary(home, expected, mode):
         DOSSIERS_MODE,
         DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
+        ETF_HISTORICAL_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
@@ -488,6 +496,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         DOSSIERS_MODE: DOSSIERS_PAYLOAD,
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
         ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
+        ETF_HISTORICAL_MODE: ETF_HISTORICAL_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -526,6 +535,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                             DOSSIERS_MODE,
                             DISCOVERY_MODE,
                             ETF_WEEKLY_V2_MODE,
+                            ETF_HISTORICAL_MODE,
                         }
                         else ASSET_EVIDENCE_SHA256
                     )
@@ -953,6 +963,7 @@ def validate_state(home, state, *, executor_source=None):
             DOSSIERS_MODE,
             DISCOVERY_MODE,
             ETF_WEEKLY_V2_MODE,
+            ETF_HISTORICAL_MODE,
         }:
             expected_manifest["source"] = state["source"]
         if manifest != expected_manifest or z.read("__main__.py").decode() != ENTRY:
@@ -1089,6 +1100,7 @@ class Operations:
         if self.state.get("mode") in {
             DISCOVERY_MODE,
             ASSET_V8_MODE,
+            ETF_HISTORICAL_MODE,
         } and not discovery_background_idle(self.home):
             log.warning("discovery_deploy_background_not_quiet")
             return False
@@ -1141,6 +1153,7 @@ class Operations:
             DOSSIERS_MODE,
             DISCOVERY_MODE,
             ETF_WEEKLY_V2_MODE,
+            ETF_HISTORICAL_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1578,6 +1591,7 @@ def main(argv=None):
             "apply-dossiers",
             "apply-discovery",
             "apply-etf-weekly-v2",
+            "apply-etf-historical",
             "recover",
         ),
     )
@@ -1609,6 +1623,7 @@ def main(argv=None):
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
+                "apply-etf-historical": ETF_HISTORICAL_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))

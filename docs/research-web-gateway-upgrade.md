@@ -2,9 +2,17 @@
 
 ## 资产幅字段固定部署 V8（2026-10-24）
 
-封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `08406f018a76f2ebb67d8478c97486ca4ef18d76`（包含PR216幅字段与PR217数据源），两项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
+封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `dee0cce4dbc65782dba2c720f33ada683457d72a`（包含PR216幅字段、PR217数据源与PR219历史验收），三项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
 
 沿本任务既有部署授权完成最终独评/完整Router/原三CI/Mac干净安装，再用干净精确目标执行；实际版本、保全、认证页面及资源收尾单独留证。不安装新依赖、不改秘密/数据库/外盘、不调用模型。
+
+## 华安历史验收固定部署（2026-10-24）
+
+`reviewed-etf-historical-v1` / `apply-etf-historical` 仅为明确批准的历史验收功能准备封闭更新。前版固定现场主实例/网关 `b438447071d08eec38902b2a50610644283885f9`，产品固定提交 `bb4d2e657872ecb24df5bb0e89f571b4600b84d1`。该产品提交包含全部功能、测试、CI清单、09/10图与API文档，随后仅追加操作员/测试/文档；它随最终同一PR普通merge进入master，不宣称具有单独产品PR或CI回执。
+
+最终目标仍须为最新已合并master，保留产品祖先和完整路径并集/blob/文件模式校验；不能squash或rebase丢失产品身份。最终完整候选重新独评及原三CI，成功job各自checkout/tree相同后，才可按另行明确部署授权执行。产品提交之后的非豁免产品变动必须重新冻结验证，不能靠扩大白名单或放宽latest解决。
+
+复用原version4事务、维护锁、BirthFence、64MiB严格业务读取、全部账号/档案保全恢复、完整日志reader5c3077及市场/Host/Native/私有池空闲检查；旧模式、controller/evidence、7c631d4f锁和凭据保持。忙碌或未知不切换，不停止其他任务。部署本身不发Wind/模型或创建报告，不启用周报定时；历史真实Run、Word和下载验收单独取证。
 
 ## 全市场终端固定部署（2026-10-23）
 

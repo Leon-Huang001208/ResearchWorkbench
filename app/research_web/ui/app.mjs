@@ -3724,10 +3724,12 @@ async function handleCapabilityClick(data) {
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
-  if ('runReportWorkflow' in data) {
+  if ('runReportWorkflow' in data || 'runHistoricalReportWorkflow' in data) {
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
-      let run = await api.runReportWorkflow(data.runReportWorkflow);
+      let run = 'runHistoricalReportWorkflow' in data
+        ? await api.runHistoricalReportWorkflow(data.runHistoricalReportWorkflow)
+        : await api.runReportWorkflow(data.runReportWorkflow);
       for (let attempt = 0; attempt < 12 && !run.session_id && ['queued', 'preparing_data', 'running'].includes(run.status); attempt += 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
         run = await api.reportRun(run.id);

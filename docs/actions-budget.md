@@ -2,6 +2,10 @@
 
 2026-10-24资产V8只扩充现有升级测试矩阵和后台空闲反例，无新workflow/job/runner、依赖或timeout；1712项本机111.77秒为预备候选证据，现有步骤预算另预留90秒，最终候选重新绑定原三CI/Mac安装。发布前实时核对PUBLIC/额度，不从Mac派发Windows/Linux产品，不调用模型或厂商。
 
+本次历史验收组合另向既有test_model_provider_upgrade矩阵纳入封闭升级模式，无新增job/runner/依赖/timeout，增量预留90秒，与历史功能60秒分别取本机耗时。产品P与操作员同一普通merge，最终三CI及Mac安装必须重新绑定完整组合树；旧产品或离线通过不能充当新候选CI。
+
+2026-10-24华安历史验收只向原Research Web Checks同一Python步骤加入test_report_weekly_historical_acceptance.py，JS沿原research_web通配符；没有新job/runner/timeout/依赖。增量预留原步骤60秒，本机和最终CI耗时分别取证。原三门、同候选Mac干净安装/固定DSH/3081/8088/Doctor保留，不手工rerun或从Mac派发他平台产品，远端前仍实时核对仓库visibility/额度。
+
 2026-10-23华安Native v2只扩展原操作员测试矩阵，无新workflow/job/runner/依赖/timeout；预留原步骤90秒，最终耗时另取证。PR208的4594项及PR209成功只属各自候选，不替代v2原三CI和Mac干净安装。远端操作前实时核对公开仓库资格；不rerun或从Mac派发他平台产品。
 
 2026-10-23华安Native固定配置复用原三CI及Mac Bootstrap自动路径触发，原操作员测试矩阵增加ETF模式，无新workflow/job/runner/依赖/timeout。本机五文件1745项360.53秒，新增矩阵预算预留90秒；同候选通用门与Mac安装仍必需。实时PUBLIC；最近五个成功Checks 39943827410/39941890981/39939839047/39937435254/39937002051，创建至更新766/846/957/1071/1068秒，仅墙钟观察。不手工rerun或从Mac dispatch Windows/Linux产品；源码资格不认证部署、供应商、真实模型或正式稿。

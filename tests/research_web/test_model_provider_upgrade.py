@@ -34,6 +34,7 @@ ASSET_PROFILES = (
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
     "reviewed-etf-weekly-v2",
+    "reviewed-etf-historical-v1",
 )
 
 
@@ -63,7 +64,7 @@ def test_discovery_profile_freezes_authorized_combination():
         "workflow_corrupt",
     ],
 )
-@pytest.mark.parametrize("profile", [upgrade.DISCOVERY_MODE, upgrade.ASSET_V8_MODE])
+@pytest.mark.parametrize("profile", [upgrade.DISCOVERY_MODE, upgrade.ASSET_V8_MODE, upgrade.ETF_HISTORICAL_MODE])
 def test_discovery_deploy_rechecks_all_background_work_without_writes(
     tmp_path, monkeypatch, case, profile
 ):
@@ -207,6 +208,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-research-dossiers-v1": "DOSSIERS",
         "reviewed-discovery-v1": "DISCOVERY",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
+        "reviewed-etf-historical-v1": "ETF_HISTORICAL",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
@@ -226,6 +228,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
                     "reviewed-research-dossiers-v1",
                     "reviewed-discovery-v1",
                     "reviewed-etf-weekly-v2",
+                    "reviewed-etf-historical-v1",
                 }
                 else "ASSET_EVIDENCE_SHA256"
             )
@@ -504,6 +507,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-dossiers", "reviewed-research-dossiers-v1"),
         ("apply-discovery", "reviewed-discovery-v1"),
         ("apply-etf-weekly-v2", "reviewed-etf-weekly-v2"),
+        ("apply-etf-historical", "reviewed-etf-historical-v1"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
@@ -562,6 +566,9 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         ("reviewed-etf-weekly-v2", "988046d23f9951f889a3b9d02e355ed59fd6aa65"),
         ("reviewed-etf-weekly-v2", "2e1ba701a0f33bf1dbeab79f1f9984f320d33a24"),
         ("reviewed-etf-weekly-v2", "56709a8dbb6e01d2ab17b64533319e199ebef86f"),
+        ("reviewed-etf-historical-v1", "5343e18d9f203a87f2d958218e4288afa527711f"),
+        ("reviewed-etf-historical-v1", "fc96be6d147721af080619179cdad1966b26ae8f"),
+        ("reviewed-etf-historical-v1", "bb4d2e657872ecb24df5bb0e89f571b4600b84d1"),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1524,6 +1531,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
+        "reviewed-etf-historical-v1": "ETF_HISTORICAL_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -1606,6 +1614,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-research-dossiers-v1",
             "reviewed-discovery-v1",
             "reviewed-etf-weekly-v2",
+            "reviewed-etf-historical-v1",
         }:
             manifest["source"] = str(source)
         archive.writestr("manifest.json", json.dumps(manifest))
@@ -1633,6 +1642,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
+        "reviewed-etf-historical-v1",
     }:
         original_archive = artifact.read_bytes()
         with zipfile.ZipFile(artifact, "w") as archive:
@@ -2141,6 +2151,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
+        "reviewed-etf-historical-v1",
     ],
 )
 def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
@@ -2206,6 +2217,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
+        "reviewed-etf-historical-v1",
     ],
     indirect=True,
 )
@@ -2353,7 +2365,7 @@ def test_asset_v8_registers_fixed_period_repair_without_rewriting_v7():
         ).hexdigest()
         == upgrade.ASSET_V8_WEB_LOCK_SHA256
     )
-    assert upgrade.ASSET_V8_PAYLOAD == "08406f018a76f2ebb67d8478c97486ca4ef18d76"
+    assert upgrade.ASSET_V8_PAYLOAD == "dee0cce4dbc65782dba2c720f33ada683457d72a"
     assert upgrade.ASSET_V8_WEB_LOCK_SHA256 == upgrade.ASSET_V7_WEB_LOCK_SHA256
     assert (
         hashlib.sha256(Path(upgrade.__file__).with_name("evidence.py").read_bytes()).hexdigest()
@@ -2386,6 +2398,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
+        "reviewed-etf-historical-v1",
     ],
     indirect=True,
 )
@@ -2415,6 +2428,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
+        "reviewed-etf-historical-v1",
     ],
     indirect=True,
 )
@@ -2443,7 +2457,9 @@ def test_etf_weekly_native_or_pool_activity_defers_without_effects(
     assert not (home / "server/run/gateway-upgrade.json").exists()
 
 
-@pytest.mark.parametrize("profile", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2"])
+@pytest.mark.parametrize(
+    "profile", ["reviewed-etf-weekly-v1", "reviewed-etf-weekly-v2", "reviewed-etf-historical-v1"]
+)
 def test_etf_weekly_preserves_install_lock_without_dependency_exception(profile):
     old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64}
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
@@ -2499,7 +2515,9 @@ def _weekly_v2_dossiers(home, state, uid):
     return archives
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v2"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", ["reviewed-etf-weekly-v2", "reviewed-etf-historical-v1"], indirect=True
+)
 @pytest.mark.parametrize("failed", [None, *upgrade.FORWARD])
 def test_weekly_v2_dossiers_survive_each_transaction_or_rollback(real_operations, failed):
     home, state, system, make, uid = real_operations
@@ -2511,7 +2529,9 @@ def test_weekly_v2_dossiers_survive_each_transaction_or_rollback(real_operations
     upgrade.verify_asset_index(home, state)
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-etf-weekly-v2"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", ["reviewed-etf-weekly-v2", "reviewed-etf-historical-v1"], indirect=True
+)
 @pytest.mark.parametrize("scope", [0, 1])
 @pytest.mark.parametrize("boundary", ["verify_target", "finish", "recover"])
 def test_weekly_v2_changed_dossiers_keep_recovery_fenced(real_operations, scope, boundary):
@@ -2706,3 +2726,19 @@ runpy.run_path(archive, run_name="__main__")
         assert completed.returncode == 1
         assert not (home / "probe-called").exists()
         assert result["reason"] == "model_upgrade_recovery_source_unavailable"
+
+
+def test_etf_historical_profile_freezes_product_ancestor_and_current_resident():
+    assert upgrade.ETF_HISTORICAL_MODE == "reviewed-etf-historical-v1"
+    assert upgrade.previous_for(upgrade.ETF_HISTORICAL_MODE) == (
+        "b438447071d08eec38902b2a50610644283885f9"
+    )
+    assert upgrade.ETF_HISTORICAL_PAYLOAD == "bb4d2e657872ecb24df5bb0e89f571b4600b84d1"
+    assert upgrade.ETF_HISTORICAL_MODE in upgrade.ASSET_MODES
+    assert upgrade.ETF_WEEKLY_V2_PREVIOUS == "5343e18d9f203a87f2d958218e4288afa527711f"
+    assert upgrade.ETF_WEEKLY_V2_PAYLOAD == "56709a8dbb6e01d2ab17b64533319e199ebef86f"
+    assert hashlib.sha256(
+        Path(upgrade.__file__).with_name("evidence.py").read_bytes()
+    ).hexdigest() == (upgrade.ASSET_V6_EVIDENCE_SHA256)
+    lock = Path(__file__).resolve().parents[2] / "requirements/web.lock"
+    assert hashlib.sha256(lock.read_bytes()).hexdigest() == upgrade.ASSET_V6_WEB_LOCK_SHA256

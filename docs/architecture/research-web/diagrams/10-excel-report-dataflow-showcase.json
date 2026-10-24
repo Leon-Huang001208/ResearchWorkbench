@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "报告数据、规范正文与正式产物数据流",
+    "title": "报告正文、正式定稿与历史验收",
     "output": "10-excel-report-dataflow.html",
     "quality_profile": "showcase",
     "viewBox": [
@@ -18,7 +18,7 @@
           "runCopy",
           "providerPolicy"
         ],
-        "note": "版本锁定模板、底稿、来源映射和生产合同；母版只读，主管理员归属在运行前复验。"
+        "note": "版本包只读；Host在Run冻结用途并重查owner，模型或snapshot不能自报提升。"
       },
       {
         "id": "excel-snapshot",
@@ -42,7 +42,7 @@
           "assembler",
           "artifacts"
         ],
-        "note": "华安新合同由 DSH 写规范正文，Host 投影到原版式，检查本期图表、内容与文件版本；旧 payload 路径兼容保留。"
+        "note": "同一DSH与正文/文件门；Host先注记后取哈希，历史验收永不正式定稿，旧正式稿保留。"
       }
     ]
   },
@@ -86,7 +86,7 @@
       "id": "runCopy",
       "type": "database",
       "label": "Run 资源副本",
-      "sublabel": "隔离目录 / 锁定版本",
+      "sublabel": "隔离目录 / 冻结运行用途",
       "stage": 1,
       "row": 0,
       "tag": "不覆盖母版"
@@ -150,16 +150,16 @@
       "id": "assembler",
       "type": "security",
       "label": "Host 投影与质量",
-      "sublabel": "原版式 / 重开 / 哈希",
+      "sublabel": "历史注记 / 重开 / 哈希",
       "stage": 4,
       "row": 2,
-      "tag": "通过才定稿"
+      "tag": "历史永不定稿"
     },
     {
       "id": "artifacts",
       "type": "database",
-      "label": "产物与正式归档",
-      "sublabel": "文件 / 质量 / 定稿状态",
+      "label": "交付与正式归档",
+      "sublabel": "历史验收 / 正式资格分开",
       "stage": 4,
       "row": 4,
       "tag": "保留上一正式稿"
@@ -170,7 +170,7 @@
       "id": "copyVersion",
       "from": "version",
       "to": "runCopy",
-      "label": "复制锁定资源",
+      "label": "锁定版本与用途",
       "classification": "不可变来源",
       "variant": "emphasis"
     },
@@ -248,8 +248,8 @@
       "id": "deliver",
       "from": "assembler",
       "to": "artifacts",
-      "label": "新合同通过才定稿",
-      "classification": "文件与质量分开",
+      "label": "交付与正式资格分开",
+      "classification": "历史不可定稿",
       "variant": "emphasis"
     }
   ],
@@ -272,10 +272,10 @@
     },
     {
       "dot": "emerald",
-      "title": "正文与文件同版本绑定",
+      "title": "正文、用途与文件共同绑定",
       "items": [
-        "新合同以 research-report.json 为正文，payload 由 Host 投影",
-        "本期图表与文件通过原质量门后定稿；旧正式稿继续保留"
+        "正文真源不变；Host先加历史标签再绑定最终文件哈希",
+        "历史验收可交付，不能更新正式稿或解锁定时"
       ]
     }
   ]
