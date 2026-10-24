@@ -3669,3 +3669,91 @@ def test_weekly_p6_freezes_full_upstream_product_and_ci_without_new_exemptions(
         reviewed = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
         assert set(upstream) <= set(reviewed)
         assert all(reviewed[name] == git("rev-parse", f"{payload}:{name}") for name in upstream)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "both",
+        "index",
+        "atlas",
+        "third-content",
+        "third-mode",
+        "index-mode",
+        "atlas-mode",
+        "index-symlink",
+        "atlas-deleted",
+    ],
+)
+def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(tmp_path, monkeypatch, case):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "core.filemode", "true")
+    index = "outputs/research-web-architecture/index.html"
+    atlas = "outputs/research-web-architecture/api-atlas.html"
+    third = "outputs/research-web-architecture/brand.svg"
+    product = "app/research_web/product.py"
+    for name in [
+        upgrade.MODULE,
+        upgrade.TEST,
+        upgrade.ASSET_EVIDENCE,
+        product,
+        index,
+        atlas,
+        third,
+    ]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("reviewed evidence" if name == upgrade.ASSET_EVIDENCE else "previous")
+    git("add", ".")
+    git("commit", "-m", "registered previous")
+    previous = git("rev-parse", "HEAD")
+    (tmp_path / product).write_text("full frozen product")
+    git("add", ".")
+    git("commit", "-m", "frozen product ancestor")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade,
+        "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256",
+        hashlib.sha256(b"reviewed evidence").hexdigest(),
+    )
+    (tmp_path / upgrade.MODULE).write_text("reviewed successor")
+    (tmp_path / upgrade.TEST).write_text("reviewed operator regression")
+    for name in ([index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]):
+        (tmp_path / name).write_text("generated reading revision")
+    if case == "third-content":
+        (tmp_path / third).write_text("unexpected output bytes")
+    if case == "third-mode":
+        (tmp_path / third).chmod(0o755)
+    if case == "index-mode":
+        (tmp_path / index).chmod(0o755)
+    if case == "atlas-mode":
+        (tmp_path / atlas).chmod(0o755)
+    if case == "index-symlink":
+        (tmp_path / index).unlink()
+        (tmp_path / index).symlink_to("api-atlas.html")
+    if case == "atlas-deleted":
+        (tmp_path / atlas).unlink()
+    git("add", ".")
+    git("commit", "-m", "regenerate two exact docs")
+    target = git("rev-parse", "HEAD")
+    if case in {"both", "index", "atlas"}:
+        result = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        assert product in result and git("rev-parse", f"{payload}:{product}") == result[product]
+        assert all(
+            name in result
+            for name in (
+                [index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]
+            )
+        )
+    else:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
