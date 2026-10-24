@@ -12,6 +12,14 @@
 
 ## 本地实现与边界
 
+P6最终API再验213 passed、1既有warning、325.61秒（p6-api.xml/log）。其余protocol、service_manager、local_integrations源码和测试相对P5保持同字节，对应既有81/349/107覆盖保留；service_manager139路径环境失败与私有临时根补跑证据全部保留，不削门。最终L0文档/索引、完整changed-set约束及架构零违规、Router Node合同230 passed/5.62秒；同候选GitHub通用两门及Mac干净安装待PR。Windows条件CI留对应设备NOT_RUN交接，不由Mac发送，不把总体验收标READY。
+
+最终Native源码提交`112c2f83aa3c6ec2d18fbfc5cb2a0c092ca58a8a`，固定完整P6祖先`88b2f96d449085cae01912393a416b0e90a21083`、前版36fd、原封印action摘要。两轮恢复/receipt P2修复与P6均纳入一次最终完整operator+领域矩阵：2329 passed、1既有warning、159.40秒；规格及质量独立APPROVED并重绑两源`40ee0823…`/`546a049c…`，独立窄复查45与31项分别留证，不与实现方全套混算。源码阅读/API Atlas随后绑定该真实提交，最终发布/CI候选另记。统一窗口真实维护、切换、模型及Word均未执行。
+
+统一窗口所需准确边界：维护不依赖先部署新页面/Host。本候选冷操作员在旧36fd上先执行已审领域方法与旧GET，再原idle，之后同一次受管事务切换完整新产品；但它不是独立maintenance-only命令，独立weekly_monitoring CLI的apply仍明确拒绝。现有01fa产品的apply-discovery-v2或e56产品的apply-market-preview不因此获得新产品/维护权限，不能放宽其payload/latest门；建议统一采用本任务最终完整组合候选与该封闭入口，待精确SHA、原三CI、独评和具体授权后由统一窗口确定执行者，不重复切换。
+
+主线PR227已于本轮后段合入，故P5不是最终部署pin：普通merge后的新完整祖先P6=`88b2f96d449085cae01912393a416b0e90a21083`，包含`53d9fa2a94bf400679c08022ca2037d7ecdf70a6`的固定单位/出处证据源码、原CI清单与文档。需要对最终候选明确审批此新增范围；Native仅更新本新mode的pin，其它旧profile和前版36fd/封印摘要不动。最终精确发布SHA及CI尚待完成，不可据此立即固定其它操作员或切换。
+
 P5普通merge后Sender/领域组合113 passed（100.07秒），规格与Python质量均补绑`postmerge-source-hashes.json`/P5：除构造函数已合入主线的发现跟踪资格拒绝外，send/scope/claim及并发修复没有改变。API/运行管理补验的610通过+139路径安全失败，后者因主会话把basetemp放入现有Projects的0775祖先；记录保留，未chmod/削弱安全门。将同139项移至正常private临时目录后139 passed/3.47秒，合并覆盖原749项（另1既有skip），不是声称失败批次一次全绿。
 
 Native受管衔接源码规格已关闭receipt-only恢复P2并APPROVED，`d0eddc5c…`/`6b895a4e…`两源冻结；2285全矩阵为该P2之前基线，修后149项定点及规格独立8项通过，未假称修后重跑2285。Native独立代码质量评审待完成。只读Native观察91sessions/70parent目录/21children无运行或不明running，不代表完整Host idle（旧catalog等待仍active），也不复用为以后apply时空闲证据。

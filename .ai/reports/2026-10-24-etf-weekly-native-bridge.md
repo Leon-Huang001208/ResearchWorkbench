@@ -5,7 +5,7 @@
 ## 变更边界
 
 - 仅修改 `research_workbench_entrypoint/resident/model_provider_upgrade.py`、原操作员测试和本报告；其他产品、依赖、CI、旧 profile 常量与恢复哈希均不由本子任务修改。
-- 新封闭命令 `apply-etf-weekly-admission`，mode `reviewed-etf-weekly-admission-v1`；前版固定 `36fd990ceed88d2fc595443926105c4b2601fbf6`，完整产品祖先固定 `82151bc2708d60c7abb1d38b686a3e368e42f812`。保留 v9 完整 16MiB job reader 哈希与 web.lock 身份。
+- 新封闭命令 `apply-etf-weekly-admission`，mode `reviewed-etf-weekly-admission-v1`；前版固定 `36fd990ceed88d2fc595443926105c4b2601fbf6`。完整产品祖先从历史 P5 `82151bc2708d60c7abb1d38b686a3e368e42f812` 推进至普通 merge P6 `88b2f96d449085cae01912393a416b0e90a21083`，纳入上游 PR227 数据出处/单位核验及其 Checks 清单。保留 v9 完整 16MiB job reader 哈希与 web.lock 身份；PREVIOUS、action 封印及旧 modes 不变。
 - 同时要求 `--end-weekly-waiting` 与 `--weekly-monitoring-action`；旧命令收到任一新 flag 明确拒绝。封印只含固定 canonical SHA256，不写入真实 owner 或运行身份。
 - 在原三把 EX 锁、source/latest master/CI/controller/current revision/恢复工件门之后、第一次原 `Operations.idle` 之前，单独执行领域维护。原 background/market/asset、全账号保全、BirthFence 和 version4 恢复门全部保留。
 
@@ -31,6 +31,12 @@
 该质量 delta 的 7 例 RED 为 5 failed / 2 passed，见 `logs/weekly-admission/native-bridge-quality-delta-red.log`；修后 156 weekly 定点 passed，见 `logs/weekly-admission/native-bridge-quality-delta-green.log`。全部新增反例明确断言 catalog 字节不变、无新 intent、Native 不启动。Black/Ruff/isort/diffcheck 通过；依主任务要求不重跑 2285 完整基线。
 
 质量 P2 修复冻结文件 SHA256：operator `3bca508c987673820cb67cf41c691f7f4b6127cacbce7c29f19ab52a750c5c71`；test `1eaa91496d5cc2025d60b49d69fea0b07f03dacb8c581ce39f3c6e2115bee58a`。规格与质量复核由主任务接续。
+
+## P6 完整冻结与最终复验
+
+P6 上游 `providers_akshare.py`、`providers_reference_evidence.py`、`research_snapshot_store.py`、原 `research-web-checks.yml` 和五个上游测试均属于非豁免完整产品字节。新增真实临时 Git 回归证明这些文件被纳入部署 review，逐文件内容、模式、删除均拒绝；只允许既有 operator、原 operator test、文档和报告例外，没有放宽 CI 或其他测试例外。P6 pin RED 为 1 failed；修后定点 31 passed，日志分别为 `native-bridge-p6-red.log`、`native-bridge-p6-green.log`。P5 及两轮 P2 旧证据完整保留。
+
+最终 P6 冻结文件 SHA256：operator `40ee0823cd39fec227e2c727e51c2e26f2a66555a106bf015d2f1ae3fa80dfd1`；test `546a049cc2eae36081eab137062e7defd256c71e2ab27e3328a7b721b628c40b`。Black/Ruff/isort/diffcheck 通过。P6 pin 与两轮 P2 的完整操作员＋领域矩阵 **2329 passed**，1 个既有 Starlette DeprecationWarning，159.40 秒，见 `logs/weekly-admission/native-bridge-p6-full-matrix.log`。本轮没有重跑 API 或操作生产环境。
 
 运行命令使用已批准环境：`PYTHONPATH=.:/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-excel-first-20261023/.venv/lib/python3.12/site-packages /Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python logs/weekly-admission/run_offline_tests.py --confcutdir=tests/research_web -q -o addopts= tests/research_web/test_model_provider_upgrade.py tests/research_web/test_legacy_weekly_monitoring.py`。该入口隔离 xlwings；无 pip、Office 或真实 Native 访问。
 
