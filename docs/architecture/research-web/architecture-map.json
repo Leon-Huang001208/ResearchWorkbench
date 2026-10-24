@@ -553,7 +553,10 @@
         "tests/research_web/test_report_weekly_rendering.py",
         "tests/javascript/research_web_weekly_production.test.mjs",
         "tests/research_web/test_report_weekly_data.py",
-        "tests/research_web/test_datahub_wind_api.py"
+        "tests/research_web/test_datahub_wind_api.py",
+        "tests/research_web/test_report_weekly_admission.py",
+        "tests/research_web/test_legacy_weekly_monitoring.py",
+        "tests/research_web/test_report_weekly_historical_acceptance.py"
       ]
     },
     {
@@ -5265,7 +5268,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "d2c4fad2628e721b61778de880af5e33738e252e"
+      "revision": "b00503f2adfa38a115f93684c8c92dd54eff2b68"
     },
     "levels": [
       {

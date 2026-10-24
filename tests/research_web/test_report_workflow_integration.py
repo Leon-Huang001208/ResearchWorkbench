@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import threading
 import zipfile
 from datetime import UTC, datetime, timedelta
@@ -34,6 +35,9 @@ def isolated_keyring(monkeypatch):
     import keyring
 
     values = {}
+    # Offline report fixtures must never import the host Office bridge: importing
+    # xlwings alone installs an atexit callback that enumerates real Excel apps.
+    monkeypatch.setitem(sys.modules, "xlwings", None)
     monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
     monkeypatch.setattr(
         keyring, "get_password", lambda service, account: values.get((service, account))

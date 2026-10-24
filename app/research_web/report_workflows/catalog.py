@@ -189,8 +189,38 @@ def _role(path: str) -> WorkflowResourceRole:
 class ReportWorkflowService:
     """Manage drafts, immutable versions and isolated runtime copies."""
 
-    def __init__(self, data_root: Path) -> None:
+    @classmethod
+    def open_for_maintenance(cls, data_root: Path):
+        """Open an existing private catalog without creating or reconciling anything."""
+        return cls(data_root, _maintenance=True)
+
+    def end_legacy_monitoring(self, expected, *, operation_id, owner_check, apply=False):
+        """End only explicitly reviewed legacy workflow monitoring; never cancel Native."""
+        from .legacy_monitoring import end_monitoring
+
+        return end_monitoring(
+            self, expected, operation_id=operation_id, owner_check=owner_check, apply=apply
+        )
+
+    def __init__(self, data_root: Path, *, _maintenance: bool = False) -> None:
         self.root = Path(data_root) / "report-workflows"
+        self.index = self.root / "catalog.json"
+        self.lock_path = self.root / "catalog.lock"
+        self._thread_lock = threading.RLock()
+        self._local = threading.local()
+        self.data: dict[str, Any] = {"schema_version": 1, "workflows": {}, "runs": {}}
+        self._loaded_digest = _index_digest(self.data)
+        self._maintenance_only = _maintenance
+        if _maintenance:
+            from .legacy_monitoring import validate_existing_lock, validate_existing_path
+
+            for path in (Path(data_root), self.root, self.root / "runs"):
+                validate_existing_path(path, directory=True, private=True)
+            validate_existing_path(self.index, private=True)
+            self._maintenance_lock_identity = validate_existing_lock(self.lock_path)
+            with self._exclusive():
+                pass  # _reload validates the complete existing maintenance schema.
+            return
         if self.root.is_symlink():
             raise WorkflowError("Report Workflow 根目录不能是链接", "unsafe_workflow_root", 503)
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -200,22 +230,27 @@ class ReportWorkflowService:
                     "Report Workflow 运行目录不能是链接", "unsafe_workflow_root", 503
                 )
             folder.mkdir(exist_ok=True, mode=0o700)
-        self.index = self.root / "catalog.json"
-        self.lock_path = self.root / "catalog.lock"
-        self._thread_lock = threading.RLock()
-        self._local = threading.local()
-        self.data: dict[str, Any] = {"schema_version": 1, "workflows": {}, "runs": {}}
-        self._loaded_digest = _index_digest(self.data)
         with self._exclusive():
             self._reconcile()
 
     def _reload(self) -> None:
         try:
+            if getattr(self, "_maintenance_only", False):
+                from .legacy_monitoring import validate_existing_lock, validate_existing_path
+
+                validate_existing_path(self.index, private=True)
+                validate_existing_lock(self.lock_path, expected=self._maintenance_lock_identity)
             value: dict[str, Any] = (
                 json.loads(self.index.read_text(encoding="utf-8"))
                 if self.index.exists()
                 else {"schema_version": 1, "workflows": {}, "runs": {}}
             )
+            if getattr(self, "_maintenance_only", False) and (
+                not isinstance(value, dict)
+                or value.get("schema_version") != 1
+                or not all(isinstance(value.get(key), dict) for key in ("runs", "workflows"))
+            ):
+                raise ValueError("maintenance catalog schema invalid")
             value.setdefault("workflows", {})
             value.setdefault("runs", {})
             self.data = value
@@ -237,10 +272,25 @@ class ReportWorkflowService:
                 finally:
                     self._local.depth -= 1
                 return
-            with self.lock_path.open("a+b") as stream:
+            if getattr(self, "_maintenance_only", False):
+                from .legacy_monitoring import (
+                    open_existing_lock,
+                    validate_existing_lock,
+                    validate_existing_path,
+                )
+
+                validate_existing_path(self.root, directory=True, private=True)
+                stream_context = open_existing_lock(self.lock_path, self._maintenance_lock_identity)
+            else:
+                stream_context = self.lock_path.open("a+b")
+            with stream_context as stream:
                 _lock_file(stream)
                 self._local.depth = 1
                 try:
+                    if getattr(self, "_maintenance_only", False):
+                        validate_existing_lock(
+                            self.lock_path, expected=self._maintenance_lock_identity
+                        )
                     if reload:
                         self._reload()
                     yield
@@ -278,6 +328,10 @@ class ReportWorkflowService:
             with self._exclusive(reload=False):
                 self._save()
             return
+        if getattr(self, "_maintenance_only", False):
+            from .legacy_monitoring import validate_existing_lock
+
+            validate_existing_lock(self.lock_path, expected=self._maintenance_lock_identity)
         disk: dict[str, Any] = (
             json.loads(self.index.read_text(encoding="utf-8"))
             if self.index.exists()
