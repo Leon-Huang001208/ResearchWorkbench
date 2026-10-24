@@ -240,15 +240,17 @@ def test_query_validation_is_repeated_at_ingest(family):
         )
 
 
-def test_gdp_units_remain_unknown_with_ytd_semantics():
+def test_gdp_reference_units_keep_ytd_semantics():
     result = macro_result()
     assert result.fields["DOMESTICL_PRODUCT_BASE"] == {
-        "unit": None,
-        "currency": None,
+        "unit": "CNY_100million",
+        "currency": "CNY",
         "semantic": "year_to_date_amount",
+        "price_basis": "current_prices",
     }
     assert all(
-        field["unit"] is None and field["currency"] is None for field in result.fields.values()
+        result.fields[field]["unit"] is None
+        for field in ("REPORT_DATE", "TIME", "date", "reference_period", "aggregation", "series")
     )
     assert result.fields["SUM_SAME"]["semantic"] == "year_to_date_year_over_year_change"
 
@@ -256,9 +258,9 @@ def test_gdp_units_remain_unknown_with_ytd_semantics():
 @pytest.mark.parametrize(
     "field,unit,currency",
     [
-        ("DOMESTICL_PRODUCT_BASE", "CNY_100million", "CNY"),
+        ("DOMESTICL_PRODUCT_BASE", None, None),
         ("DOMESTICL_PRODUCT_BASE", "CNY", "CNY"),
-        ("SUM_SAME", "percent", None),
+        ("SUM_SAME", None, None),
         ("SUM_SAME", "percent_qoq_saar", None),
     ],
 )

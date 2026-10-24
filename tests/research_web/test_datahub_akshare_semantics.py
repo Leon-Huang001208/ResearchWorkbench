@@ -67,7 +67,7 @@ class ChinaMacroTests(unittest.TestCase):
                 self.assertEqual(
                     result.rows[0]["reference_period"], "2026-Q3" if series == "gdp" else "2026-09"
                 )
-                self.assertEqual(result.metadata["schema_version"], "akshare-china-macro-v2")
+                self.assertEqual(result.metadata["schema_version"], "akshare-china-macro-v3")
                 self.assertFalse(result.metadata["formal_backtest_eligible"])
                 if series == "gdp":
                     self.assertEqual(result.rows[0]["aggregation"], "year_to_date")
@@ -158,7 +158,7 @@ class ChinaMacroTests(unittest.TestCase):
                 captured = request.model_copy(update={"as_of": stamp})
                 read = native.read(captured)
                 self.assertEqual(read.rows, result.rows)
-                self.assertEqual(read.metadata["schema_version"], "akshare-china-macro-v2")
+                self.assertEqual(read.metadata["schema_version"], "akshare-china-macro-v3")
                 frozen = FrozenSnapshot.load(read.raw[0])
                 envelope = json.loads(
                     base64.b64decode(json.loads(frozen.payload)["batch"]["originals"][0]["base64"])
@@ -244,8 +244,8 @@ class ChinaMacroTests(unittest.TestCase):
             units_identity="vendor-fields-retained-unverified-v1",
         )
         self.assertEqual(native.scope, legacy.scope)
-        self.assertTrue(native.schema_identity.endswith(":akshare-china-macro-v2"))
-        self.assertEqual(native.units_identity, "akshare-china-macro-v2")
+        self.assertTrue(native.schema_identity.endswith(":akshare-china-macro-v3"))
+        self.assertEqual(native.units_identity, "akshare-china-macro-v3")
         self.assertNotEqual(native.dataset(request), legacy.dataset(request))
 
     def test_macro_new_cache_rejects_old_schema_but_old_receipt_is_readable(self):
