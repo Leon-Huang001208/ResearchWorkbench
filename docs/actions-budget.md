@@ -1,6 +1,6 @@
 # GitHub Actions 免费额度治理
 
-Wind行情条仅向既有JS通配符增加6项显示合同测试；本机完整JS1132通过3原skip，无新增job/runner/依赖/timeout。现有步骤增量预算10秒；同候选Mac Bootstrap因纯UI路径须按原workflow_dispatch明确ref执行一次，保留原通用两门与Mac安装。远端动作前实时核对PUBLIC/额度，不rerun、不从Mac派发Windows/Linux产品；本轮不更新常驻或运行模型。
+Wind行情条仅向既有JS通配符增加7项显示合同测试；本机完整JS1132通过3原skip，无新增job/runner/依赖/timeout。现有步骤增量预算10秒；同候选Mac Bootstrap因纯UI路径须按原workflow_dispatch明确ref执行一次，保留原通用两门与Mac安装。远端动作前实时核对PUBLIC/额度，不rerun、不从Mac派发Windows/Linux产品；本轮不更新常驻或运行模型。
 
 2026-10-24资产V8只扩充现有升级测试矩阵和后台空闲反例，无新workflow/job/runner、依赖或timeout；1712项本机111.77秒为预备候选证据，现有步骤预算另预留90秒，最终候选重新绑定原三CI/Mac安装。发布前实时核对PUBLIC/额度，不从Mac派发Windows/Linux产品，不调用模型或厂商。
 
@@ -310,5 +310,8 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-24：2026-10-24今日发现最新资讯与原生双栏只扩展既有test_discovery/test_discovery_routes/test_discovery_tracking和JS通配符，无新workflow/job/runner/依赖/timeout；同候选原三CI/Mac安装保留。原定点79项约12.4秒、JS37项不足1秒是阶段本机证据，新反例预留原步骤30秒，最终耗时另证。真实模型/生产跟踪/上游重算不进入CI。
 
 2026-10-24公开SDK代理与宏观/新浪原件绑定v2仅向原Checks同一pytest步骤加入test_ak_native_binding，公开worker既有模块增无网络子进程回归；不加job/runner/timeout/依赖。新增离线约秒级，预留原步骤30秒；真实3worker/最多4HTTP和隔离PG仅本机。原三CI及同候选macos-14安装保留，远端前实时核对PUBLIC，不手工rerun或由Mac派发其他平台产品。
+
+
+2026-10-24原端点与参考证据只向原Checks同一pytest步骤加入test_reference_evidence，既有AK/native/financial模块补反例，无新job/runner/timeout/依赖。158项定点约秒级，预留原步骤30秒；4次诊断与后续真实免费捕获/临时PG仅本机，不在CI调用供应商/模型/正式库。原三CI、同候选macos-14安装与实时PUBLIC核对保留，不手工rerun或Mac发他平台产品dispatch。
 
 2026-10-24全市场预览组合profile只扩展原test_model_provider_upgrade矩阵，2042项本机124.99秒；保留原Research Web Checks、Constraints和macos-14干净安装，不增加workflow/job/runner/依赖/timeout。新增profile增量预算预留原步骤30秒，最终候选另取证；远端操作前实时核验公开标准runner资格，不派发Windows/Linux产品，不用旧PR223的三CI代替新operator候选。

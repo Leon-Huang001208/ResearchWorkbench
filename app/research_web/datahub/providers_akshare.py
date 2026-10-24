@@ -10,7 +10,7 @@ import threading
 import time
 from calendar import monthrange
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -21,6 +21,13 @@ from core.observability import get_logger
 
 from .contracts import BusinessQuery
 from .providers import MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Result, cn_stock_identity
+from .providers_reference_evidence import (
+    GDP_AMOUNT_FIELDS,
+    GDP_GROWTH_FIELDS,
+    enrich_sina_reference,
+    gdp_reference_evidence,
+    sina_reference_dictionary,
+)
 
 log = get_logger(__name__)
 
@@ -120,9 +127,10 @@ def _exchange_symbol(value: str) -> str:
 
 SEMANTICS_REVISION = "akshare-supported-query-v6"
 FUND_FLOW_GUEST_URL = "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get"
-CHINA_MACRO_SCHEMA = "akshare-china-macro-v2"
-SINA_FINANCIAL_SCHEMA = "akshare-sina-financial-disclosure-v2"
-FUND_FLOW_SCHEMA = "akshare-eastmoney-fund-flow-provenance-v1"
+CHINA_MACRO_SCHEMA = "akshare-china-macro-v3"
+SINA_FINANCIAL_SCHEMA = "akshare-sina-financial-disclosure-v3"
+FUND_FLOW_SCHEMA = "akshare-eastmoney-fund-flow-provenance-v2"
+FUND_FLOW_FAILURE_CODES = frozenset({"proxy_error", "timeout", "connection_error", "sdk_error"})
 SINA_FINANCIAL_URL = (
     "https://quotes.sina.cn/cn/api/openapi.php/CompanyFinanceService.getFinanceReport2022"
 )
@@ -907,15 +915,19 @@ def sina_income_projection(raw: bytes, query: BusinessQuery):
                 ):
                     raise ValueError("invalid_item_value")
             rows.append(
-                {
-                    **report,
-                    "asset": query.parameters["asset"],
-                    "report_period": period.isoformat(),
-                    "report_date": entry,
-                    "publication_date": publication_day.isoformat() if publication_day else None,
-                    "publication_precision": "date" if publication_day else "unknown",
-                    "supplier_update_time": updated,
-                }
+                enrich_sina_reference(
+                    {
+                        **report,
+                        "asset": query.parameters["asset"],
+                        "report_period": period.isoformat(),
+                        "report_date": entry,
+                        "publication_date": (
+                            publication_day.isoformat() if publication_day else None
+                        ),
+                        "publication_precision": "date" if publication_day else "unknown",
+                        "supplier_update_time": updated,
+                    }
+                )
             )
         if set(periods) != set(reports):
             raise ValueError("period_report_conflict")
@@ -978,13 +990,22 @@ def sina_income_metadata():
             "publication_field": "publish_date",
             "publication_precision": "date",
             "supplier_update_field": "update_time",
+            "reference_evidence": sina_reference_dictionary(),
         },
     }
 
 
 def sina_income_fields(rows):
     return {
-        field: {"unit": None, "currency": None, "semantic": "provider_native"}
+        field: {
+            "unit": None,
+            "currency": None,
+            "semantic": (
+                "reference_evidence_metadata"
+                if field in {"reference_evidence", "scoped_date_evidence", "publication_date_role"}
+                else "provider_native"
+            ),
+        }
         for row in rows
         for field in row
     }
@@ -1010,6 +1031,7 @@ def china_macro_metadata(series):
             "publication_time": "unavailable",
             "aggregation": "year_to_date" if series == "gdp" else "period",
             "cross_source_equivalence": "unverified",
+            **({"reference_evidence": gdp_reference_evidence()} if series == "gdp" else {}),
         },
     }
 
@@ -1036,13 +1058,25 @@ def china_macro_fields(rows, series):
             semantic = "derived_reference_period_end"
         unit = (
             "CNY_100million"
-            if series == "m2" and field in {"BASIC_CURRENCY", "CURRENCY", "FREE_CASH"}
-            else None
+            if series == "m2"
+            and field in {"BASIC_CURRENCY", "CURRENCY", "FREE_CASH"}
+            or series == "gdp"
+            and field in GDP_AMOUNT_FIELDS
+            else "percent" if series == "gdp" and field in GDP_GROWTH_FIELDS else None
         )
         fields[field] = {
             "unit": unit,
             "currency": "CNY" if unit == "CNY_100million" else None,
             "semantic": semantic,
+            **(
+                {
+                    "price_basis": (
+                        "current_prices" if field in GDP_AMOUNT_FIELDS else "comparable_prices"
+                    )
+                }
+                if series == "gdp" and field in (*GDP_AMOUNT_FIELDS, *GDP_GROWTH_FIELDS)
+                else {}
+            ),
         }
     return fields
 
@@ -1134,6 +1168,22 @@ def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
         row["roe"] = _number(_pick(row, "净资产收益率", "净资产收益率(%)"))
         row["gross_profit_margin"] = _number(_pick(row, "销售毛利率", "毛利率", "销售毛利率(%)"))
     return normalized
+
+
+def _fund_flow_failure_code(error: Exception) -> str:
+    """Classify SDK HTTP failures without persisting messages, URLs or proxy settings."""
+    names = {kind.__name__ for kind in type(error).__mro__}
+    if "ProxyError" in names:
+        return "proxy_error"
+    if isinstance(error, (TimeoutError, httpx.TimeoutException)) or names & {
+        "Timeout",
+        "ConnectTimeout",
+        "ReadTimeout",
+    }:
+        return "timeout"
+    if isinstance(error, (ConnectionError, httpx.NetworkError)) or "ConnectionError" in names:
+        return "connection_error"
+    return "sdk_error"
 
 
 def _invoke_sdk(query: BusinessQuery):
@@ -1312,8 +1362,16 @@ def _invoke_sdk(query: BusinessQuery):
         try:
             frame = ak.stock_individual_fund_flow(stock=symbol, market=market)
         except Exception as exc:  # noqa: BLE001 - fixed SDK boundary.
-            log.warning("datahub_fund_flow_sdk_failed", error_type=type(exc).__name__)
-            return _fund_flow_guest(query)
+            error_code = _fund_flow_failure_code(exc)
+            log.warning("datahub_fund_flow_sdk_failed", error_code=error_code)
+            guest_frame, normalizer = _fund_flow_guest(query)
+            return guest_frame, replace(
+                normalizer,
+                attempts=(
+                    {**normalizer.attempts[0], "error_code": error_code},
+                    *normalizer.attempts[1:],
+                ),
+            )
         return _slice_activity_frame(frame, query), _FeedNormalizer(
             _normalize_activity,
             "eastmoney",

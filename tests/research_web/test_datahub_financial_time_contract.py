@@ -50,8 +50,14 @@ def test_all_missing_financial_values_are_not_a_numeric_success(value, expected)
         assert "financial_numeric_values_missing" in result.missing
 
 
-@pytest.mark.parametrize("transport", ["akshare_sdk", "webguest"])
-def test_flow_endpoint_attempts_survive_native_freeze_restore(transport):
+@pytest.mark.parametrize(
+    "transport,error_code",
+    [
+        ("akshare_sdk", None),
+        *[("webguest", code) for code in sorted(provider.FUND_FLOW_FAILURE_CODES)],
+    ],
+)
+def test_flow_endpoint_attempts_survive_native_freeze_restore(transport, error_code):
     from app.research_web.datahub.providers import Result
     from app.research_web.datahub.research_snapshot_store import START, SnapshotSeries
     from app.research_web.market_store import (
@@ -82,6 +88,7 @@ def test_flow_endpoint_attempts_survive_native_freeze_restore(transport):
         }
     ]
     if transport == "webguest":
+        attempts[0]["error_code"] = error_code
         attempts.append({"upstream": "eastmoney", "endpoint": "webguest", "status": "snapshot"})
     response = Result(
         rows=[{"date": "2026-08-27", "main_net": 1}],
@@ -108,9 +115,29 @@ def test_flow_endpoint_attempts_survive_native_freeze_restore(transport):
     assert restored.metadata["upstream_attempts"] == attempts
     assert restored.metadata["independent_source"] is False
     assert "token" not in restored.metadata
-    response.metadata["upstream_attempts"][0]["token"] = "must-not-save"
+    response.metadata.pop("upstream_attempts")
     with pytest.raises(MarketStoreError, match="snapshot_attempt_evidence_invalid"):
         series.ingest(request, response)
+    assert series.read(request).metadata["upstream_attempts"] == attempts
+    invalid = [
+        [{**attempts[0], "token": "must-not-save"}, *attempts[1:]],
+        [{**attempts[0], "error_code": "unknown"}, *attempts[1:]],
+        [*attempts, {"upstream": "other", "status": "snapshot"}],
+        [{**attempts[0], "upstream": "other"}, *attempts[1:]],
+    ]
+    if transport == "webguest":
+        invalid.append(
+            [
+                {key: value for key, value in attempts[0].items() if key != "error_code"},
+                *attempts[1:],
+            ]
+        )
+        invalid.append([{**attempts[0], "error_code": False}, *attempts[1:]])
+    for forged in invalid:
+        response.metadata["upstream_attempts"] = forged
+        with pytest.raises(MarketStoreError, match="snapshot_attempt_evidence_invalid"):
+            series.ingest(request, response)
+        assert series.read(request).metadata["upstream_attempts"] == attempts
 
 
 def test_income_statement_auto_never_selects_a_generic_financial_summary(monkeypatch):

@@ -20,3 +20,5 @@ RED新增4项全部失败，明确是字段顺序、短单位与已确认股口�
 主线再次前进后，集成保留PR225封闭市场操作员与PR226今日发现全部改动，当前base01fa32c8。补充第6项未知身份对象防卫：RED明确TypeError，增加字符串身份门后通过，不从对象推断股/手；常规字段输出不变。最终组合完整测试、独评和CI重新绑定本轮新SHA，前候选证据不冒充新候选。
 
 最新组合本机验证：`node --test tests/javascript/research_web*.test.mjs` 为1136通过、3原skip；独立相关测试133/133通过。实际运行 `node scripts/plan_verification.mjs --project . --base 01fa32c85b16a67dc042c68af9811da6eb63a390 --task-context logs/asset-wind-strip/task-context.json`，再按完整plan执行本机八门，全PASS；源码/测试之外的CI和Mac安装尚待同候选结果，不由本机替代。明暗冻结预览有真实PNG及DOM字段顺序证据；旧样本量单位缺失仍保留原值。最后文档更新不改变应用/测试树。
+
+用户追加均价红绿后，独立相关测试134通过，均以前收比较，平/缺/无可靠前收中性。最终集成保留PR226与PR227，base53d9fa2a；本轮源码交付不更新常驻服务。后台DOM正式三交互已按实际就绪条件通过，任务结束解绑控制、不关闭原页。
