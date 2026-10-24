@@ -12,3 +12,7 @@ RED新增4项全部失败，明确是字段顺序、短单位与已确认股口�
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"只修改asset-chart/format/workspace三处浏览器数字投影、标签和title，不新增页面、组件框架、服务、运行节点或数据流，现有图的节点和连线仍准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"股转手和万亿只改变显示字符串；Broker/Provider、观察、全历史、复权、筹码和冻结OHLCV边界保持，旧原值不回写，无新增HTTP或研究引擎。","diagrams":[]} -->
+
+最终本机完整JS1132通过、3原skip；独立JS评审132/132通过，并绑定集成9e2cd09d2，三个MJS与五个测试逐字节一致。当前集成base为e56d9718（主线DataHub代理/PIT），保留其改动。完整Router八项本机检查通过；静态预览22个关键文件与候选逐字节匹配，新顺序/短单位实际DOM与PNG通过。旧真实冻结样本未声明量单位，预览按原值保留，未篡改元数据强行显示手。
+
+经用户明确允许现有OpenCLI，背景正式页月K六月+74.51%、ATR添加/关闭、三次页签切换均实际通过；DOM里的ECharts实例ID、日期、视区及main.scrollTop保留。首轮立即读取早于RAF，已通过等待data-period、selected-date、aria-selected等实际就绪状态修正验收方法，原FAIL日志保留；没有更改生产源代码或定时器来换通过。不安装/升级OpenCLI，不读取/复制Cookie，不改变跨站守卫。常驻按当前DOM排障的保全要求仍36fd990c，本任务未切换服务；最终CI与源码发布另留证。

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+Wind行情条仅向既有JS通配符增加5项显示合同测试；本机完整JS1132通过3原skip，无新增job/runner/依赖/timeout。现有步骤增量预算10秒；同候选Mac Bootstrap因纯UI路径须按原workflow_dispatch明确ref执行一次，保留原通用两门与Mac安装。远端动作前实时核对PUBLIC/额度，不rerun、不从Mac派发Windows/Linux产品；本轮不更新常驻或运行模型。
+
 2026-10-24资产V8只扩充现有升级测试矩阵和后台空闲反例，无新workflow/job/runner、依赖或timeout；1712项本机111.77秒为预备候选证据，现有步骤预算另预留90秒，最终候选重新绑定原三CI/Mac安装。发布前实时核对PUBLIC/额度，不从Mac派发Windows/Linux产品，不调用模型或厂商。
 
 本次历史验收组合另向既有test_model_provider_upgrade矩阵纳入封闭升级模式，无新增job/runner/依赖/timeout，增量预留90秒，与历史功能60秒分别取本机耗时。产品P与操作员同一普通merge，最终三CI及Mac安装必须重新绑定完整组合树；旧产品或离线通过不能充当新候选CI。
