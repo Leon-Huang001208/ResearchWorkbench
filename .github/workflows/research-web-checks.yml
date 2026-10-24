@@ -175,6 +175,8 @@ jobs:
             tests/research_web/test_datahub_official_numeric.py \
             tests/research_web/test_datahub_spdr.py \
             tests/research_web/test_datahub_wgc.py \
+            tests/research_web/test_datahub_kapsarc.py \
+            tests/research_web/test_kapsarc_warehouse_integration.py \
             tests/research_web/test_wgc_warehouse_integration.py \
             tests/research_web/test_spdr_warehouse_integration.py \
             tests/research_web/test_datahub_bea_archive.py \

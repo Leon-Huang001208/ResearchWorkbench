@@ -430,7 +430,7 @@ def external_query(name, **parameters):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "name,status",
-    [("nasdaq", "failed"), ("cls", "failed"), ("danjuan", "partial"), ("kapsarc", "partial")],
+    [("nasdaq", "failed"), ("cls", "failed"), ("danjuan", "partial"), ("kapsarc", "failed")],
 )
 async def test_actual_external_business_envelopes_are_not_container_success(name, status):
     raw = (EXTERNAL_FIXTURES / (name + (".csv" if name == "kapsarc" else ".json"))).read_bytes()
@@ -445,7 +445,18 @@ async def test_actual_external_business_envelopes_are_not_container_success(name
         ),
     )
     assert result.status == status
-    if name in {"nasdaq", "cls"}:
+    if name == "kapsarc":
+        # A CSV served again at the mandatory metadata URL cannot verify its unit/count.
+        assert result.rows == [] and result.raw == []
+        assert result.limitations == ["kapsarc_metadata_invalid"]
+        from app.research_web.datahub.providers_external import external_business_envelope
+
+        legacy_rows, _, _ = external_business_envelope("ext_kapsarc", "production", raw)
+        assert len(legacy_rows) == 4128
+        assert set(legacy_rows[0]) == {"country", "sub_commodity", "year", "production"}
+        assert legacy_rows[0]["country"] == "South Africa"
+        assert legacy_rows[0]["production"] == "679665.0"
+    elif name in {"nasdaq", "cls"}:
         assert result.rows == [] and result.raw == []
         assert result.limitations == ["vendor_rejected"]
     else:
@@ -454,12 +465,6 @@ async def test_actual_external_business_envelopes_are_not_container_success(name
         if name == "danjuan":
             assert result.rows == [] and result.provider_total == 0
             assert result.missing == ["no_observation_rows"]
-        else:
-            assert len(result.rows) == 5
-            assert set(result.rows[0]) == {"country", "sub_commodity", "year", "production"}
-            assert result.rows[0]["country"] == "South Africa"
-            assert result.rows[0]["production"] == "679665.0"
-            assert result.fields["production"]["unit"] == "provider_defined"
 
 
 @pytest.mark.asyncio
@@ -585,8 +590,11 @@ async def test_danjuan_empty_is_not_success_cached_or_warehoused_and_old_receipt
 
 
 @pytest.mark.asyncio
-async def test_kapsarc_zero_is_valid_unknown_units_and_does_not_change_general_csv():
-    from app.research_web.datahub.providers_external import response_rows
+async def test_legacy_kapsarc_zero_does_not_claim_verified_units_or_change_general_csv():
+    from app.research_web.datahub.providers_external import (
+        external_business_envelope,
+        response_rows,
+    )
 
     raw = b"country;sub_commodity;year;production\nChina;gold;2024;0\n"
     result = await fetch(
@@ -595,9 +603,9 @@ async def test_kapsarc_zero_is_valid_unknown_units_and_does_not_change_general_c
             lambda _: httpx.Response(200, content=raw, headers={"content-type": "text/csv"})
         ),
     )
-    assert result.status == "snapshot" and result.rows[0]["production"] == "0"
-    assert result.raw == [raw] and result.pagination_complete is False
-    assert result.fields["production"]["unit"] == "provider_defined"
+    assert result.status == "failed" and result.raw == []
+    rows, total, complete = external_business_envelope("ext_kapsarc", "production", raw)
+    assert rows[0]["production"] == "0" and total == 1 and complete is None
     assert response_rows(b"date,value\n2024,1\n", "text/csv") == [{"date": "2024", "value": "1"}]
 
 
@@ -632,11 +640,20 @@ def test_external_envelope_repairs_do_not_expand_native_warehouse(source, datase
         "alice",
         StoreScope("alice", "public", source, "a" * 64),
     )
-    assert (
-        native.dataset(
-            BusinessQuery(
-                capability="external_data", source=source, parameters={"dataset": dataset}
-            )
-        )
-        is None
+    request = BusinessQuery(
+        capability="external_data", source=source, parameters={"dataset": dataset}
     )
+    if source == "ext_kapsarc":
+        from app.research_web.datahub.providers import Result
+
+        assert native.dataset(request) is not None
+        legacy = Result(
+            rows=[{"country": "A", "year": "2020", "production": "1"}],
+            provider_id=source,
+            status="snapshot",
+            raw=[b"legacy"],
+            metadata={"schema_version": "external-envelope-v1"},
+        )
+        assert native.ingest(request, legacy) is None
+    else:
+        assert native.dataset(request) is None
