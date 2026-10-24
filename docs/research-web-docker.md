@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+历史验收v2是Native封闭后继和CI捕获修复，Docker镜像、卷、构建器、缓存预算及原私有池拓扑保持。没有Docker产品构建或平台dispatch；后台活动/未知仍阻断Native切换。
+
 资产V8仅负责Mac Native固定更新，复用原私有池忙碌拒绝和维护锁，不改变Docker镜像、卷、构建器或20GiB缓存预算。没有Docker产品构建/发布，也不认证Windows/Linux原生支持。
 
 历史周报验收仍在主管理员绑定Native Host和唯一DSH运行，不创建Docker替代引擎、镜像、卷或构建器。原运行准入、私有池空闲及部署保全保持；历史文件交付不提升Docker产品或其他平台支持状态。

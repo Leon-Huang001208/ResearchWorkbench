@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+历史验收v2为macOS Native封闭部署后继与CI输出捕获修复；没有新增产品行为或跨平台实现。本机、同候选通用CI/Mac安装、实际常驻切换与Wind/DSH/Word/下载分别记录；Windows/Linux原生及Docker产品仍NOT_RUN，历史通过不认证正式实时稿。
+
 资产V8为macOS Native固定更新，本机、原通用仓库门、同候选Mac安装及实际部署分别记录。Windows/Linux原生与Docker产品未运行，不因本profile获得支持或发布认证。
 
 2026-10-24华安历史验收属于Mac主开发的Web/Native Host既有周报能力：本机离线、最终三CI/Mac安装、真实Wind/DSH、Word与下载分别取证；历史成功不能认证正式实时周报或三个真实周期。Windows/Linux原生与Docker产品未由本任务验收，不从Mac派发其产品任务。

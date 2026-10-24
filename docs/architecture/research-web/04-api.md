@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+apply-etf-historical-v2仅注册固定前版b4384470与99cf121f祖先的原Native CLI分派，无新HTTP、查询参数或凭据接口。历史Run专用API及主管理员绑定保持；实际部署须最新完整候选和原三CI。
+
 apply-assets-v8仅为原Native操作员的封闭CLI分派，无新增HTTP、账号权限或任意SHA参数。固定前版b4384470和包含PR216/217/219的真实合并组合；旧v1-v7及其它固定入口保持，实际切换仍需全部资格、空闲与保全证据。
 
 `POST /api/research/report-workflows/{workflow_id}/historical-acceptance-runs` 只为已发布华安Wind Excel周报创建非正式验收Run，重查当前绑定主管理员资格；普通`/runs`默认formal。用途由Host固定并冻结，不接受模型或snapshot字段提升；重试/恢复保持，未知提交不得重复。该入口不修改正式稿和日程权限。
