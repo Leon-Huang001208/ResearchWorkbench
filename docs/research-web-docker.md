@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+资产V9的CI reader容量修复仅用于Mac Native更新；8MB压缩/16MB单job/64MB总展开日志限制与Docker业务卷、构建器和20GiB缓存预算无关，不触发Docker产品发布。
+
 资产V8仅负责Mac Native固定更新，复用原私有池忙碌拒绝和维护锁，不改变Docker镜像、卷、构建器或20GiB缓存预算。没有Docker产品构建/发布，也不认证Windows/Linux原生支持。
 
 历史周报验收仍在主管理员绑定Native Host和唯一DSH运行，不创建Docker替代引擎、镜像、卷或构建器。原运行准入、私有池空闲及部署保全保持；历史文件交付不提升Docker产品或其他平台支持状态。

@@ -6,3 +6,5 @@
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"仅更新原Native固定reader容量和封闭V9分派；version4事务、恢复、主实例网关与DSH拓扑不变，无新运行节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"CI日志解压有界容量调整不改变账号授权、数据根、BirthFence或全账号保全；原图拓扑与安全边界仍准确。","diagrams":[]} -->
+
+最终集成2174项通过136.84秒；独评142项、真实Git95路径通过。首轮CI Constraints指出缺少七份模块文档更新，已逐项补充，不修改门或减少检查；重新执行完整changed set Router及本机Constraints，后续CI绑定修正文档新候选。
