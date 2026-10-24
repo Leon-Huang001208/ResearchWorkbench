@@ -1061,6 +1061,12 @@ KAPSARC 固定 metadata 校验和 kg 投影只使用既有 HTTP/CSV/JSON 与可�
 实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
 
 
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
 ## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
 
 原SDK四案请求在接收响应头前关闭，仍未恢复；没有用改参数、换客户端或后备成功冒充原端点修好。自然失败现在保留有限error_code，资金流尝试链必须存在且精确验证，旧档按原义可读。
