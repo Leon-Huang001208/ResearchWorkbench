@@ -27,8 +27,8 @@ test('period readout uses aggregate OHLCV and preceding period close, not the fi
     assert.match(mounted, expected, period);
     assert.match(mounted, /开 <strong[^>]*>100\.00/);
     assert.match(mounted, /高 <strong[^>]*>170\.00/);
-    assert.match(mounted, /成交量 <strong>0\.50万股/);
-    assert.match(mounted, /振幅 <strong>80\.00%/);
+    assert.match(mounted, /量 <strong>0\.50万/);
+    assert.match(mounted, /振 <strong>80\.00%/);
     const html = renderMarketTerminal(input, c.getState(), metadata);
     assert.match(html, expected, `initial ${period} render`);
     assert.equal(f.instances[0].option.tooltip.formatter([{ dataIndex: 1 }]), mounted);
@@ -403,11 +403,11 @@ test('historical readout retains change amount and average-price slots without g
   const missing = renderMarketTerminal(input);
   assert.match(missing, /幅 <strong class="asset-price-up">\+10\.00%（\+10\.00）<\/strong>/);
   assert.doesNotMatch(missing, /涨跌额|涨跌幅/);
-  assert.match(missing, /均价 <strong>—<\/strong>/);
+  assert.match(missing, /均 <strong>—<\/strong>/);
   for (const key of ['vwap', 'avg_price', 'average_price']) {
     const source = [{ ...input[1], [key]: 108.25 }];
     assert.equal(enrichMarketBars(source)[0].vwap, 108.25);
-    assert.match(renderMarketTerminal(source), /均价 <strong>108\.25<\/strong>/);
+    assert.match(renderMarketTerminal(source), /均 <strong>108\.25<\/strong>/);
   }
   assert.match(renderMarketTerminal([input[0]]), /幅 <strong>—<\/strong>/);
 });
@@ -423,12 +423,12 @@ test('price axes format floating-point ticks to readable two-decimal prices', ()
 test('confirmed share/currency units are translated and unknown units remain source units', () => {
   for (const unit of ['share', 'shares']) {
     const html = renderMarketTerminal(rows(2), {}, { fields: { volume: { unit }, turnover: { unit: 'currency', currency: 'CNY' } } });
-    assert.match(html, /成交量 <strong>0\.10万股/); assert.match(html, /成交额 <strong>10\.00万元/); assert.doesNotMatch(html, /万shares|万currency/);
+    assert.match(html, /量 <strong>0\.10万/); assert.match(html, /额 <strong>10\.00万/); assert.doesNotMatch(html, /万shares|万currency/);
   }
   const foreign = renderMarketTerminal(rows(2), {}, { fields: { volume: { unit: 'shares' }, amount: { unit: 'currency', currency: 'USD' } } });
-  assert.match(foreign, /成交额 <strong>10\.00万美元/); assert.doesNotMatch(foreign, /成交额 <strong>10\.00万元/);
-  assert.match(renderMarketTerminal(rows(2), {}, { fields: { amount: { unit: 'currency' } } }), /成交额 <strong>10\.00万<\/strong>/);
-  assert.match(renderMarketTerminal(rows(2)), /成交量 <strong>0\.10万<\/strong>/);
+  assert.match(foreign, /title="成交额（美元）"/); assert.doesNotMatch(foreign, /title="成交额（元）"/);
+  assert.match(renderMarketTerminal(rows(2), {}, { fields: { amount: { unit: 'currency' } } }), /额 <strong>10\.00万<\/strong>/);
+  assert.match(renderMarketTerminal(rows(2)), /量 <strong>0\.10万<\/strong>/);
 });
 
 test('aggregated week/month turnover rate cannot reuse the final day percentage as a whole-period fact', () => {
@@ -436,7 +436,7 @@ test('aggregated week/month turnover rate cannot reuse the final day percentage 
   assert.equal(aggregateMarketBars(enrichMarketBars(daily), 'week')[0].turnover_rate_pct, null);
   assert.equal(aggregateMarketBars(enrichMarketBars(daily), 'month')[0].turnover_rate_pct, null);
   const html = renderMarketTerminal(daily, { period: 'week' }, { frequency: 'daily' });
-  assert.match(html, /换手率 <strong>—<\/strong>/, 'period readout must not inherit the final daily turnover');
+  assert.match(html, /换 <strong>—<\/strong>/, 'period readout must not inherit the final daily turnover');
 });
 
 test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and two volume MA series', () => {
