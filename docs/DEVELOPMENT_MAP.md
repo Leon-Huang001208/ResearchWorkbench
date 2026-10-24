@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+admission-v2顺序修复位于原model_provider_upgrade.py和原操作员测试。真实gateway_upgrade.verify_primary不修改：新v2先身份预检，桥/GET后完整g验证、fresh strict Host=False/Native=[]再原idle；测试从真实operate调用原g与LegacyBinding，覆盖此前mock漏掉的桥前拒绝。
+
 周报准入修复位于report_workflows/weekly_execution.py、runtime.py和service.py：Host冻结13工具/逐文件输入，普通capability data gate保持。research-tools.mjs与sandbox.py传递Host input_policy并支持literal冻结文件，只读审批与原目录scope兼容。新提交协议为weekly-admission-v2，旧未知只recheck，正确首提/显式未RPC恢复均有持久claim及真实Sender/Seatbelt回归。
 
 资产行情条固定为“收／幅／开／高／低／均／量／换／振／额”，金额只写万／亿，两位小数；币种和原单位保留title。已识别沪深北股票且来源明确为股时，量、成交量副图/VOL/MA与右侧已确认单位报价统一按100股/手展示；未知单位和非A股不猜倍率。原始OHLCV、复权、周月聚合、指标、筹码及冻结快照不改，股本和财务金额保留原单位；只改展示投影，无新依赖、服务、路由、节点或研究引擎。

@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+v2把真实绑定身份前提与最终完整活动门分开：Host.active=true只观测，桥后必须再执行原完整Primary、fresh strict和原idle。它不取消/重放Native请求，既有report submission unknown与claim证据不改变。
+
 weekly-admission-v2将preflight/prepared/rpc_attempted/accepted/unknown分开，模型RPC前先写不可覆盖且fsync的claim。明确未RPC状态只经显式同Run/SID/key/hash恢复；已接受/未知只观察，不重发。旧协议缺sender证据只记recovery缺口、原失败/时间保持。普通研究及Automation原幂等与审批逻辑不变。
 
 `apply-market-preview` 沿原version4事务复用唯一DSH及Host状态门，先核验所有账号后台任务、工作流和市场采集空闲，再栅栏切换；未知/活动时延后。CSV预览验收不提交研究、不调用模型，原运行与恢复合同不变。
