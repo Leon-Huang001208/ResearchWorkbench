@@ -1,5 +1,7 @@
 # 华安周报真实准入故障修复：主任务证据
 
+当前状态更新（2026-10-25）：PR231首候选a555的Checks失败，完整Root job 9,762,364字节已保存，Mac及Constraints通过不替代该失败。3项均旧历史夹具整模块mock weekly_data导致ImportError，尚未调用Sender；旧accepted/owner断言因此未触目标路径。本地此前漏跑旧历史模块，已加入后续必验闭包与架构测试索引。修复只历史测试，真实Service/Provider合成Client/scope/evidence/send/claim保持；100相关测试和独立Spec/Quality均通过，生产/共享fixture未改。正在冻结P8（包括此非豁免测试）再换新profile pin与新head CI，不重跑旧run、不弱化历史/owner/unknown门。原运行、36fd服务、数据、模型与定时未改，统一窗口尚未启动。
+
 宿主macOS，功能开发，独立worktree etf-weekly-admission-20261024，基线85072764（含已审上游PR222；实际常驻仍36fd990c）。没有改AlphaFoundry、新依赖、秘密或普通用户权限；定时关闭。
 
 ## 现有生产事实

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+PR231首候选a555的Checks真实3failed/6232passed/72skipped/117subtests，Python1426.47秒；完整job9.76MB留档，不是截断或日志容量失败。修复仅升级原历史模块夹具，不新增CI步骤/job/依赖或改超时；本机历史/quality/admission三模块100passed102.15秒，原3节点独立复跑约12秒。新commit自动重跑原三CI，禁止rerun旧候选；P8会完整纳入修复测试后固定，实际供应商/模型不进入CI。
+
 本轮华安Native后继只扩展原test_model_provider_upgrade.py矩阵，不新增job、runner、依赖或超时；完整矩阵基线2285项116.85秒，修复后定点另列，不混称同一运行。增量预留原步骤90秒；与提交/等待领域原240秒预算分别记录。原三CI及同候选Mac安装、完整日志/checkout/tree门保留，统一窗口不启动模型/跟踪，他平台产品dispatch不由Mac发送。
 
 2026-10-24周报准入修复向原Checks Python步骤增加test_report_weekly_admission.py与test_legacy_weekly_monitoring.py，原脚本scope/guard及Workflow UI测试模块复用；无新job/runner/timeout/依赖，预留现有步骤240秒（真实scope含macOS Seatbelt，Ubuntu不冒充此层）。原三CI及同候选Mac安装保留；Windows条件门按对应设备交接NOT_RUN，不从Mac dispatch。实际模型/取数不进入CI，最终耗时和完整日志另取证。
