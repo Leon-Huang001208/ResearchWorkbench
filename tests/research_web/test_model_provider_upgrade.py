@@ -560,7 +560,7 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         ("reviewed-etf-weekly-v2", "56709a8dbb6e01d2ab17b64533319e199ebef86f"),
         ("reviewed-etf-historical-v1", "5343e18d9f203a87f2d958218e4288afa527711f"),
         ("reviewed-etf-historical-v1", "fc96be6d147721af080619179cdad1966b26ae8f"),
-        ("reviewed-etf-historical-v1", "d5d5b456706fc02505ac1100353d46438c184556"),
+        ("reviewed-etf-historical-v1", "ffab692587f6228bb9ed44b55bbb5a7bff47190e"),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -2699,7 +2699,7 @@ def test_etf_historical_profile_freezes_product_ancestor_and_current_resident():
     assert upgrade.previous_for(upgrade.ETF_HISTORICAL_MODE) == (
         "b438447071d08eec38902b2a50610644283885f9"
     )
-    assert upgrade.ETF_HISTORICAL_PAYLOAD == "d5d5b456706fc02505ac1100353d46438c184556"
+    assert upgrade.ETF_HISTORICAL_PAYLOAD == "ffab692587f6228bb9ed44b55bbb5a7bff47190e"
     assert upgrade.ETF_HISTORICAL_MODE in upgrade.ASSET_MODES
     assert upgrade.ETF_WEEKLY_V2_PREVIOUS == "5343e18d9f203a87f2d958218e4288afa527711f"
     assert upgrade.ETF_WEEKLY_V2_PAYLOAD == "56709a8dbb6e01d2ab17b64533319e199ebef86f"

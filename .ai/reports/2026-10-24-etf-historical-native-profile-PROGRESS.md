@@ -39,3 +39,7 @@ Windows/Linux原生及Docker产品验证 NOT_RUN。
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"原封闭profile只绑定新的固定历史产品祖先并复用既有Native主实例网关v4事务和恢复，不新增部署节点拓扑权限或依赖","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"新固定profile沿用原64MiB全账号业务索引和dossier快照保全及BirthFence恢复，不增加账号通道部署节点权限或依赖","diagrams":[]} -->
+
+## 主线推进后的产品重新冻结
+
+准备期间master推进至PR216的1fe4b8cc。保留资产幅读数及双方文档，经普通merge形成完整新产品P2 `ffab692587f6228bb9ed44b55bbb5a7bff47190e`；操作员PAYLOAD与固定断言改绑P2，前版仍b4384470。旧P和评审/测试原始记录保留，不将旧产品blob匹配误认新组合。相对已审操作员仅固定产品SHA变化，五文件源未受主线变动；最终重新核对历史17文件、固定模式回归、资产增量和独评及CI。
