@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+weekly-rpc-attempt.json保存在Host私有Run内、模型workspace之外，O_EXCL/NOFOLLOW、类型/大小/私有权限与fsync读回约束保证不被替换。冻结scope绑定context/snapshot/版本/owner/model；Host materialize后的工作簿与Session副本核同一字节，模板资产仍核原资源hash。脚本的weekly输入策略只对冻结文件授literal读，不自动授读后来新增inputs。
+
+行情条与成交量副图的手/万/亿只为纯展示投影，已确认股单位的A股按100股/手显示。原OHLCV、MA输入、量额、复权因子、筹码和旧冻结快照保持原值/原单位；未知单位不借别的快照推断，缺失与真实零保持区别，无存储/API迁移。
+
 全市场预览组合部署保留原用户根、全部会话/模型、业务索引和档案；操作员只沿原日志、事务journal、当前/上一轮wheel与恢复artifact写入。新profile不引入持久schema、数据库启用或迁移，固定旧/新代码身份后按原恢复验证切换。
 
 V9的16MB单job界限仅适用GitHub CI日志解压，不改变64MiB业务索引、账号/档案保全、原始金融快照或数据库。日志CRC、UTF-8、完整流和总64MB展开检查保持，实际业务保全须切换后核对。

@@ -1,5 +1,13 @@
 # GitHub Actions 免费额度治理
 
+PR231首候选a555的Checks真实3failed/6232passed/72skipped/117subtests，Python1426.47秒；完整job9.76MB留档，不是截断或日志容量失败。修复仅升级原历史模块夹具，不新增CI步骤/job/依赖或改超时；本机历史/quality/admission三模块100passed102.15秒，原3节点独立复跑约12秒。新commit自动重跑原三CI，禁止rerun旧候选；P8会完整纳入修复测试后固定，实际供应商/模型不进入CI。
+
+本轮华安Native后继只扩展原test_model_provider_upgrade.py矩阵，不新增job、runner、依赖或超时；完整矩阵基线2285项116.85秒，修复后定点另列，不混称同一运行。增量预留原步骤90秒；与提交/等待领域原240秒预算分别记录。原三CI及同候选Mac安装、完整日志/checkout/tree门保留，统一窗口不启动模型/跟踪，他平台产品dispatch不由Mac发送。
+
+2026-10-24周报准入修复向原Checks Python步骤增加test_report_weekly_admission.py与test_legacy_weekly_monitoring.py，原脚本scope/guard及Workflow UI测试模块复用；无新job/runner/timeout/依赖，预留现有步骤240秒（真实scope含macOS Seatbelt，Ubuntu不冒充此层）。原三CI及同候选Mac安装保留；Windows条件门按对应设备交接NOT_RUN，不从Mac dispatch。实际模型/取数不进入CI，最终耗时和完整日志另取证。
+
+Wind行情条仅向既有JS通配符增加7项显示合同测试；本机完整JS1132通过3原skip，无新增job/runner/依赖/timeout。现有步骤增量预算10秒；同候选Mac Bootstrap因纯UI路径须按原workflow_dispatch明确ref执行一次，保留原通用两门与Mac安装。远端动作前实时核对PUBLIC/额度，不rerun、不从Mac派发Windows/Linux产品；本轮不更新常驻或运行模型。
+
 2026-10-24资产V8只扩充现有升级测试矩阵和后台空闲反例，无新workflow/job/runner、依赖或timeout；1712项本机111.77秒为预备候选证据，现有步骤预算另预留90秒，最终候选重新绑定原三CI/Mac安装。发布前实时核对PUBLIC/额度，不从Mac派发Windows/Linux产品，不调用模型或厂商。
 
 本次历史验收组合另向既有test_model_provider_upgrade矩阵纳入封闭升级模式，无新增job/runner/依赖/timeout，增量预留90秒，与历史功能60秒分别取本机耗时。产品P与操作员同一普通merge，最终三CI及Mac安装必须重新绑定完整组合树；旧产品或离线通过不能充当新候选CI。

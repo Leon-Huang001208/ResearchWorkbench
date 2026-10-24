@@ -2058,6 +2058,9 @@ class ResearchService(ModelProfilesMixin):
         """Preflight is pure; only confirmed loading records a current task scope."""
         if self.store.session(sid)["created"] is not True:
             raise CapabilityError("原生会话归属未确认", "session_create_failed", 409)
+        from .report_workflows.weekly_execution import projection as weekly_projection
+
+        weekly_scope = weekly_projection(self, sid)
         catalog = self.datahub.catalog()
         receipt, refs = self._task_capabilities(sid)
         refs = list(refs)
@@ -2251,6 +2254,16 @@ class ResearchService(ModelProfilesMixin):
                 loaded_refs.append(selected)
             receipt["capability_readiness"] = scope
             self.store.save()
+        if weekly_scope:
+            scope["visible_tools"] = weekly_scope["tools"].copy()
+            if native_name or tool_name not in {None, "agent_step", *weekly_scope["tools"]}:
+                scope.update(status="unavailable", admitted=False)
+                scope["missing"].append({"code": "weekly_tool_not_approved"})
+            if tool_name == "research_run_script":
+                scope["input_policy"] = "weekly-frozen-inputs-v1"
+                scope["read_paths"] = [
+                    "inputs/report-workflow/" + name for name in weekly_scope["inputs"]
+                ]
         return scope
 
     def _data_query_admission(self, sid: str, query: BusinessQuery, resolution: Resolution) -> None:
@@ -2684,6 +2697,8 @@ class ResearchService(ModelProfilesMixin):
         research_requirements=None,
         research_as_of=None,
         dossier_handoff_id=None,
+        _weekly_run_id=None,
+        _weekly_resume=False,
     ):
         await self.ensure_owned()
         async with self.lock:
@@ -2692,6 +2707,45 @@ class ResearchService(ModelProfilesMixin):
             if getattr(self, "plugin_runtime_frozen", False):
                 raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
             row = self.store.session(sid)
+            weekly_scope = None
+            weekly_resume = False
+            if row.get("report_workflow", {}).get("quality_policy") and _weekly_run_id is None:
+                raise StoreError("周报须经受信运行入口提交", "weekly_scope_invalid", 409)
+            if _weekly_run_id is not None:
+                from .report_workflows.weekly_execution import has_attempt, projection
+
+                weekly_scope = projection(self, sid, prompt=text, formats=formats)
+                if (
+                    not weekly_scope
+                    or weekly_scope["run_id"] != _weekly_run_id
+                    or key != "report-workflow-" + _weekly_run_id
+                    or any(
+                        (
+                            capability_id,
+                            capability_version,
+                            skill_id,
+                            tool_ids,
+                            method_ids,
+                            attachments,
+                            tabbit_tabs,
+                            dossier_handoff_id,
+                        )
+                    )
+                ):
+                    raise StoreError("周报执行请求不匹配", "weekly_scope_invalid", 409)
+                weekly_runtime = self.report_workflows.runtime
+                weekly_run = weekly_runtime._run(_weekly_run_id)
+                if weekly_run.get("legacy_sender_evidence") == "missing":
+                    raise StoreError(
+                        "旧运行缺少可信提交阶段证据，不能重发", "weekly_legacy_sender_unproven", 409
+                    )
+                if has_attempt(weekly_runtime.run_path(_weekly_run_id)):
+                    raise StoreError("周报已尝试提交，仅允许观察", "weekly_research_unknown", 409)
+                weekly_resume = bool(
+                    _weekly_resume
+                    and weekly_run.get("research_submission_state")
+                    in {"prepared", "preflight_rejected"}
+                )
             if row.get("purpose") == "discovery_research" and (
                 row.get("discovery_creation_state") != "ready"
             ):
@@ -2702,6 +2756,8 @@ class ResearchService(ModelProfilesMixin):
             chosen_mode = research_mode or row.get(
                 "research_mode", "deep" if row.get("research_depth") == "deep" else "quick"
             )
+            if weekly_scope:
+                chosen_mode = "deep"
             if chosen_mode not in {"quick", "deep", "agent"} or (
                 research_mode and row["mode"] != "fingpt"
             ):
@@ -2902,7 +2958,7 @@ class ResearchService(ModelProfilesMixin):
             if dossier_handoff_id is not None:
                 payload["dossier_handoff_id"] = dossier_handoff_id
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
-            if f"{sid}:{key}" in self.store.data["receipts"]:
+            if f"{sid}:{key}" in self.store.data["receipts"] and not weekly_resume:
                 self.store.reserve(sid, key, digest)
                 if self.store.receipt(sid, key)["status"] == "accepted":
                     return {"accepted": True}
@@ -2931,7 +2987,11 @@ class ResearchService(ModelProfilesMixin):
             busy = current["can_cancel"] or any(
                 item["sessionId"] == sid and item["running"] for item in native["items"]
             )
-            if busy or (current["delivery"] and current["delivery"]["status"] not in FINAL):
+            if busy or (
+                current["delivery"]
+                and current["delivery"]["status"] not in FINAL
+                and not weekly_resume
+            ):
                 raise RuntimeFailure(
                     "上一任务或子 Agent 尚未结束，或交付/受理结果未确认；请先等待并刷新，不要重复提交",
                     "delivery_pending",
@@ -2992,10 +3052,19 @@ class ResearchService(ModelProfilesMixin):
                 list(tabbit_tabs),
                 confirmed=tabbit_live_confirmed,
             )
-            delivery = self.delivery.begin(sid, key, required)
+            frozen_weekly_receipt = (
+                self.store.data["receipts"].get(f"{sid}:{key}") if weekly_resume else None
+            )
+            if frozen_weekly_receipt:
+                self.store.reserve(sid, key, digest)
+            delivery = (
+                frozen_weekly_receipt["delivery"]
+                if frozen_weekly_receipt
+                else self.delivery.begin(sid, key, required)
+            )
             method_trace_start = len(read_method_trace(self.store.directory(sid)))
             contract = None
-            prepared_receipt = {"delivery": delivery}
+            prepared_receipt = frozen_weekly_receipt or {"delivery": delivery}
             from .report_workflows.evidence import prepare_weekly_evidence
             from .report_workflows.weekly_quality import trusted_weekly_context
 
@@ -3007,9 +3076,13 @@ class ResearchService(ModelProfilesMixin):
             )
             if row.get("purpose") == "discovery_research" and not discovery_context:
                 raise StoreError("发现研究证据归属缺失", "discovery_context_missing", 409)
-            if weekly_context:
+            if weekly_context and not frozen_weekly_receipt:
                 prepare_weekly_evidence(self, sid)
-            if (
+            if frozen_weekly_receipt:
+                contract = frozen_weekly_receipt.get("research_contract")
+                if not contract:
+                    raise StoreError("周报冻结正文合同缺失", "weekly_scope_invalid", 409)
+            elif (
                 weekly_context
                 or discovery_context
                 or (row["mode"] == "fingpt" and row.get("purpose") in {None, "research"})
@@ -3053,7 +3126,7 @@ class ResearchService(ModelProfilesMixin):
                         "research_contract_preflight_failed",
                         409,
                     ) from None
-            if not self.store.reserve(sid, key, digest, delivery):
+            if not frozen_weekly_receipt and not self.store.reserve(sid, key, digest, delivery):
                 status = self.store.receipt(sid, key)["status"]
                 if status == "accepted":
                     return {"accepted": True}
@@ -3073,6 +3146,8 @@ class ResearchService(ModelProfilesMixin):
                 self.store.receipt(sid, key)["methods"] = methods
                 self.store.receipt(sid, key)["method_trace_start"] = method_trace_start
             self.store.save()
+            if weekly_scope:
+                weekly_runtime._update_run(_weekly_run_id, research_submission_state="prepared")
             prompt = text
             if tabbit_markers:
                 prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
@@ -3319,6 +3394,10 @@ class ResearchService(ModelProfilesMixin):
             if native_skill:
                 prompt = f"/{native_skill} " + prompt
             try:
+                if weekly_scope:
+                    from .report_workflows.weekly_execution import claim
+
+                    claim(self, sid, weekly_scope, key)
                 result = await self.client.rpc(
                     "session.prompt",
                     {

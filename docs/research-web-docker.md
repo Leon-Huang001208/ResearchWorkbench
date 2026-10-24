@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+华安提交修复的 apply-etf-weekly-admission 仍只处理 Mac Native。旧等待处置与代码切换采用原维护锁和完整活动检查，不触碰 Docker 服务、业务卷、构建缓存或 20GiB 预算；其它平台继续由对应设备验收。
+
 全市场 `reviewed-market-preview-v1` 是现有Mac Native操作员的封闭身份，不更新Docker运行服务、业务卷、构建器登记或缓存策略。原version4锁、BirthFence、全账号保全和回滚保持；不会从Mac派发Windows/Linux产品验收。
 
 资产V9的CI reader容量修复仅用于Mac Native更新；8MB压缩/16MB单job/64MB总展开日志限制与Docker业务卷、构建器和20GiB缓存预算无关，不触发Docker产品发布。

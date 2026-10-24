@@ -40,7 +40,7 @@ test('compact header keeps menus closed and original metrics sit beside the char
   last = -1;
   for (const label of ['PE-TTM', 'PB', 'PS-TTM', '总股本', '市值']) { const index = valuation.indexOf(`<dt>${label}</dt>`); assert.ok(index > last, label); last = index; }
   assert.match(trading, /开盘<\/dt><dd[^>]*>0<\/dd>/);
-  assert.match(trading, /成交量<\/dt><dd id="asset-volume">0\.00万<\/dd>/);
+  assert.match(trading, /成交量<\/dt><dd id="asset-volume"[^>]*>0\.00万<\/dd>/);
   assert.match(valuation, /市值<\/dt><dd id="asset-market-cap">—<\/dd>/);
   assert.match(metrics, /未取得的数据以 — 表示/);
 });
@@ -252,7 +252,7 @@ test('CJPY original date, name and volume fields remain readable without guessin
   const row = { 代码: 'SH603986', 简称: '兆易创新', 时间: '2026-10-20', open: 10, high: 12, low: 9, close: 11, amount: 2000, vol: 30 };
   const bars = enrichMarketBars([row]); assert.equal(bars.length, 1); assert.equal(bars[0].date, '2026-10-20'); assert.equal(bars[0].volume, 30);
   const html = renderAssetWorkspace({ observation: { asset: '603986.SH', asset_type: 'stock', blocks: { overview: { status: 'complete', dataset: { provider: 'tinysoft', retrieved_at: '2026-10-21T08:00:00Z' } } } }, rows: { overview: [row], history: [row] } });
-  assert.match(html, /兆易创新/); assert.match(html, /数据日[^<]*2026-10-20/); assert.match(html, /成交量<\/dt><dd id="asset-volume">0\.00万<\/dd>/);
+  assert.match(html, /兆易创新/); assert.match(html, /数据日[^<]*2026-10-20/); assert.match(html, /成交量<\/dt><dd id="asset-volume"[^>]*>0\.00万<\/dd>/);
 });
 test('current quote changes use the same snapshot and never borrow historical trading fields', () => {
   const html = renderAssetWorkspace({ observation: { asset: '603986.SH', asset_type: 'stock', blocks: {} }, rows: { overview: [{ close: 11, yclose: 10, amount: 3000, 时间: '2026-10-21' }], history: [{ date: '2026-10-20', open: 9, high: 12, low: 8, close: 10 }] } });

@@ -1,6 +1,8 @@
 """Offline historical acceptance keeps formal acquisition and file gates separate."""
 
 import asyncio
+import hashlib
+import json
 from datetime import datetime
 
 import pytest
@@ -12,6 +14,149 @@ from app.research_web.datahub.providers_wind_excel_weekly import WindExcelWeekly
 from app.research_web.report_workflows.weekly_data import assess_weekly_snapshot
 
 __all__ = ["isolated_keyring"]
+
+
+def _historical_runtime(tmp_path, monkeypatch, *, unknown_send=False):
+    """Keep historical recovery on the real Sender and Host scope/claim path."""
+    from test_report_weekly_quality import _manifest
+    from test_report_workflow_integration import NativeFixture
+
+    from app.research_web.client import RuntimeFailure
+    from app.research_web.report_workflows import weekly_data
+    from app.research_web.report_workflows.models import ReportWorkflowManifest, WorkflowError
+    from app.research_web.service import ResearchService
+    from app.research_web.store import Store
+
+    inputs = tmp_path / "source"
+    contract, source, resources, _ = package(inputs)
+    monkeypatch.setattr(
+        excel_provider, "_host_now", lambda: datetime.fromisoformat("2026-10-17T16:00:00+08:00")
+    )
+    build_contract = weekly_data.build_weekly_data_contract
+    monkeypatch.setattr(weekly_data, "build_weekly_data_contract", lambda _now: contract.copy())
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path / "state"))
+    service.connected = {"mux", "host"}
+    owner = {"enabled": True}
+
+    def authorize():
+        if not owner["enabled"]:
+            raise WorkflowError("管理员已停用", "weekly_owner_denied", 403)
+        return {"id": "owner", "role": "admin", "enabled": True}
+
+    service.report_owner_authorizer = authorize
+
+    async def credentials(_provider):
+        return None
+
+    async def create(mode, title):
+        row = service.store.create(mode, title)
+        row.update(created=True, model="deepseek-flash", model_provider="deepseek-official")
+        return row
+
+    async def collect(_sid, _call_id, *, cutoff, run_root, manifest, prepare_excel):
+        assert cutoff == contract["cutoff"]
+        assert build_contract(cutoff) == contract
+        collected = await WindExcelWeeklyProvider(
+            run_root=run_root,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=Client,
+            execution_purpose="historical_acceptance",
+        ).collect(contract)
+        assert collected["assessment"]["status"] == "passed", collected["assessment"]
+        assert collected["snapshot"]["acquisition_kind"] == "historical_recheck"
+        return collected
+
+    def materialize(_snapshot, root, _manifest, **_policy):
+        # Workbook projection has its own regression suite. Retain the real
+        # data assessor used by admission instead of replacing its module.
+        return {
+            "snapshot_sha256": hashlib.sha256(
+                (root / "snapshots/report-data.json").read_bytes()
+            ).hexdigest()
+        }
+
+    monkeypatch.setattr(service, "_require_model_credentials", credentials)
+    monkeypatch.setattr(service, "create", create)
+    monkeypatch.setattr(service.datahub, "collect_report_weekly", collect)
+    monkeypatch.setattr(weekly_data, "materialize_weekly_workbooks", materialize)
+    declaration = _manifest()
+    declaration["weekly_production"]["data_source"] = "wind_excel"
+    catalog = service.report_workflows.catalog
+    catalog.create_draft(ReportWorkflowManifest.model_validate(declaration))
+    # The provider-only package uses inputs/; published workflows use the
+    # existing assets/ resource root. Rebind every referenced byte digest.
+    paths = {
+        item["path"]: item["path"].replace("inputs/", "assets/weekly/")
+        for item in resources["resources"]
+    }
+    coverage = json.loads((inputs / "inputs/coverage.json").read_bytes())
+    for window in coverage["windows"]:
+        window["resource"] = paths[window["resource"]]
+    coverage_raw = json.dumps(coverage).encode()
+    source["verification"]["evidence_path"] = paths[source["verification"]["evidence_path"]]
+    for export in source["excel_exports"].values():
+        export["path"] = paths[export["path"]]
+    economic = source["excel_exports"]["economic_calendar"]
+    economic["coverage_evidence_path"] = paths[economic["coverage_evidence_path"]]
+    economic["coverage_evidence_sha256"] = hashlib.sha256(coverage_raw).hexdigest()
+    observation = json.loads((inputs / economic["observation_path"]).read_bytes())
+    observation["export_path"] = economic["path"]
+    observation_raw = json.dumps(observation).encode()
+    economic["observation_path"] = paths[economic["observation_path"]]
+    economic["observation_sha256"] = hashlib.sha256(observation_raw).hexdigest()
+    replacements = {
+        "inputs/coverage.json": coverage_raw,
+        "inputs/calendar-observation.json": observation_raw,
+        "mappings/huaan-weekly-source-contract.json": json.dumps(source).encode(),
+    }
+    for resource in resources["resources"]:
+        catalog.upload_resource(
+            "huaan-etf-weekly",
+            paths[resource["path"]],
+            replacements.get(resource["path"], (inputs / resource["path"]).read_bytes()),
+        )
+    catalog.create_version("huaan-etf-weekly")
+    catalog.publish_version("huaan-etf-weekly", 1)
+    with catalog._exclusive():
+        catalog._row("huaan-etf-weekly")["status"] = "enabled"
+        catalog._save()
+    if unknown_send:
+        original = native.rpc
+
+        async def lost(method, payload):
+            result = await original(method, payload)
+            if method == "session.prompt":
+                raise RuntimeFailure("lost ACK", "transport_lost")
+            return result
+
+        monkeypatch.setattr(native, "rpc", lost)
+    return service.report_workflows.runtime, owner, native.calls
+
+
+def _submission_evidence(runtime, run):
+    """Verify submission happened, then retain original acquisition and identity."""
+    assert run["weekly_data_assessment"]["status"] == "passed"
+    assert run["research_admission_at"]
+    assert run["weekly_execution_scope"]["protocol"] == "weekly-admission-v2"
+    root = runtime.run_path(run["id"])
+    claim = json.loads((root / "weekly-rpc-attempt.json").read_bytes())
+    assert claim["protocol"] == "weekly-admission-v2"
+    assert claim["run_id"] == run["id"] and claim["session_id"] == run["session_id"]
+    key = "report-workflow-" + run["id"]
+    assert claim["key"] == key
+    assert runtime.service.store.session(run["session_id"])["delivery_key"] == key
+    snapshot_raw = (root / "snapshots/report-data.json").read_bytes()
+    assert hashlib.sha256(snapshot_raw).hexdigest() == run["dataset_snapshot_sha256"]
+    return {
+        "session_id": run["session_id"],
+        "failure_code": run["failure_code"],
+        "snapshot": snapshot_raw,
+        "claim": claim,
+        "assessment": run["weekly_data_assessment"].copy(),
+        "context_sha256": run["weekly_context_sha256"],
+    }
 
 
 def test_explicit_historical_provider_rechecks_without_formal_eligibility(tmp_path, monkeypatch):
@@ -64,11 +209,7 @@ def test_historical_failure_is_not_hidden_by_missing_economic_replay(tmp_path, m
 
 
 def test_historical_runtime_deduplicates_and_preserves_unknown_submission(tmp_path, monkeypatch):
-    from test_report_weekly_quality import _runtime_fixture
-
-    runtime, _owner, sent = _runtime_fixture(
-        tmp_path, monkeypatch, data_source="wind_excel", unknown_send=True
-    )
+    runtime, _owner, calls = _historical_runtime(tmp_path, monkeypatch, unknown_send=True)
 
     async def check():
         first = await runtime.start_run(
@@ -77,6 +218,10 @@ def test_historical_runtime_deduplicates_and_preserves_unknown_submission(tmp_pa
         await runtime.tasks[first["id"]]
         run = runtime._run(first["id"])
         assert run["status"] == "needs_attention", run
+        assert run["failure_code"] == "research_submission_unknown", run
+        assert run["research_submission_state"] == "unknown"
+        assert run["weekly_execution_scope"]["purpose"] == "historical_acceptance"
+        evidence = _submission_evidence(runtime, run)
         assert run["execution_purpose"] == "historical_acceptance"
         assert run["weekly_production"]["execution_purpose"] == "historical_acceptance"
         repeated = await runtime.start_run(
@@ -86,6 +231,7 @@ def test_historical_runtime_deduplicates_and_preserves_unknown_submission(tmp_pa
         assert first["id"] == repeated["id"] == retried["id"]
         assert retried["session_id"] == run["session_id"]
         assert retried["execution_purpose"] == "historical_acceptance"
+        assert _submission_evidence(runtime, runtime._run(first["id"])) == evidence
         formal = await runtime.start_run("huaan-etf-weekly")
         assert formal["id"] != first["id"]
         assert formal["execution_purpose"] == "formal"
@@ -95,7 +241,7 @@ def test_historical_runtime_deduplicates_and_preserves_unknown_submission(tmp_pa
         assert error.value.code == "weekly_historical_not_formal"
 
     asyncio.run(check())
-    assert len(sent) == 1
+    assert sum(name == "session.prompt" for name, _ in calls) == 1
 
 
 def test_historical_runtime_rejects_api_policy_before_workspace_or_model(tmp_path, monkeypatch):
@@ -181,14 +327,10 @@ def test_historical_startup_only_observes_accepted_work_and_rechecks_owner(
 ):
     import asyncio
 
-    from test_report_weekly_quality import _runtime_fixture
-
     from app.research_web.report_workflows.catalog import ReportWorkflowService
     from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
 
-    runtime, owner, sent = _runtime_fixture(
-        tmp_path, monkeypatch, data_source="wind_excel", native_accept=True
-    )
+    runtime, owner, calls = _historical_runtime(tmp_path, monkeypatch)
     original_save = runtime.catalog._save
     failed = []
 
@@ -208,7 +350,11 @@ def test_historical_startup_only_observes_accepted_work_and_rechecks_owner(
             "huaan-etf-weekly", execution_purpose="historical_acceptance"
         )
         await runtime.tasks[first["id"]]
-        assert runtime._run(first["id"])["status"] == "needs_attention"
+        original = runtime._run(first["id"])
+        assert original["status"] == "needs_attention", original
+        assert failed == [True]
+        assert runtime._accepted_weekly_submission(original)
+        evidence = _submission_evidence(runtime, original)
         owner["enabled"] = not revoke
         recovered = ReportWorkflowRuntime(
             runtime.service, ReportWorkflowService(runtime.catalog.root.parent), None
@@ -227,10 +373,11 @@ def test_historical_startup_only_observes_accepted_work_and_rechecks_owner(
         assert row["weekly_production"]["execution_purpose"] == "historical_acceptance"
         assert monitored == ([] if revoke else [first["id"]])
         if revoke:
-            assert row["failure_code"] == "weekly_owner_denied"
+            assert row["recovery_failure_code"] == "weekly_owner_denied"
+        assert _submission_evidence(recovered, row) == evidence
 
     asyncio.run(check())
-    assert len(sent) == 1
+    assert sum(name == "session.prompt" for name, _ in calls) == 1
 
 
 def test_historical_api_is_explicit_and_ordinary_body_cannot_select_mode(tmp_path):

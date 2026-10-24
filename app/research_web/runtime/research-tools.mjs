@@ -9,6 +9,35 @@ export const inject = ['tools', 'sessions'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const METHOD_IDS = new Set(['socratic-clarification','dual-layer-explanation','reverse-engineering','horizontal-vertical-analysis','fact-checking','expert-perspectives','first-principles','cross-domain-transfer','steelman-comparison','minimal-experiment']);
 const METHOD_SOURCES = new Set(['required','user-selected','recommended','model-supplemented']);
+const WEEKLY_INPUT_POLICY = 'weekly-frozen-inputs-v1';
+
+async function validateScriptScope(scope, cwd) {
+  if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
+      ![undefined, WEEKLY_INPUT_POLICY].includes(scope.input_policy)) throw Error('research_script_scope_unverified');
+  if (scope.input_policy !== WEEKLY_INPUT_POLICY) {
+    if (!scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
+    return;
+  }
+  if (!scope.read_paths.length || new Set(scope.read_paths).size !== scope.read_paths.length) throw Error('research_script_scope_unverified');
+  for (const path of scope.read_paths) {
+    if (typeof path !== 'string' || path.length > 512 || !path.startsWith('inputs/report-workflow/') ||
+        /[\\:\u0000-\u001f\u007f]/.test(path)) throw Error('research_script_scope_unverified');
+    const parts = path.split('/');
+    if (parts.some(part => !part || part.startsWith('.'))) throw Error('research_script_scope_unverified');
+    let target = cwd;
+    for (let index = 0; index < parts.length; index++) {
+      target = join(target, parts[index]);
+      let info;
+      try { info = await lstat(target); } catch { throw Error('research_script_scope_unverified'); }
+      if (info.isSymbolicLink() || (index === parts.length - 1
+        ? !info.isFile() || info.nlink !== 1 || info.size > 32 * 1024 * 1024
+        : !info.isDirectory())) throw Error('research_script_scope_unverified');
+    }
+    let canonical;
+    try { canonical = await realpath(target); } catch { throw Error('research_script_scope_unverified'); }
+    if (canonical !== target) throw Error('research_script_scope_unverified');
+  }
+}
 let scriptRunning = false;
 let scriptPoisoned = false;
 const scriptWaiters = [];
@@ -373,8 +402,8 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
         const cwd = await trustedDirectory(ctx, exec, config);
         exec.signal.throwIfAborted();
         const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script' }, config);
-        if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
-            !scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
+        try { await validateScriptScope(scope, cwd); }
+        catch { ctx.logger.warn('research_script_scope_denied'); throw Error('research_script_scope_unverified'); }
         if (planMode) {
           code = reportPlanCode(args.report_plan, scope.report_context);
           ctx.logger.info('research_script_report_plan outcome=assembled');
@@ -447,7 +476,8 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
             resolveResult(result);
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }
         });
-        child.stdin.end(JSON.stringify({ code, read_paths: scope.read_paths }));
+        child.stdin.end(JSON.stringify({ code, read_paths: scope.read_paths,
+          ...(scope.input_policy === undefined ? {} : { input_policy: scope.input_policy }) }));
         if (exec.signal.aborted) onAbort();
         });
       } finally {

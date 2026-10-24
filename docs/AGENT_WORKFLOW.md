@@ -1,5 +1,11 @@
 # Agent 任务路由指南
 
+华安提交/恢复改动的本地邻近闭包必须同时包含test_report_weekly_historical_acceptance.py、test_report_weekly_quality.py及test_report_weekly_admission.py。历史路径需用真实ResearchService、合法Provider合成证据、真实scope/send/claim；不能整体替换weekly_data模块后把尚未抵达Sender的失败当成unknown/accepted恢复证明。先断言数据门、RPC及收据前提，再核历史用途、owner和冻结证据。CI已登记该模块，夹具修复不移除或跳过用例。
+
+华安准入后继先冻结完整产品祖先bacb423ce（含PR227单位/出处证据及已批准PR229行情展示），再只改受审Native操作员/测试与文档。apply-etf-weekly-admission以固定36fd为前版，显式封印维护意图才能结束旧等待；恢复不重发模型，维护意图/回执缺失或冲突拒绝。领域动作后窄GET刷新旧缓存，原三锁、全账号活动与恢复门保持；与统一部署窗口衔接，不独立切换或在窗口启动模型。
+
+华安准入/账本修复先以真实ResearchService.send重现错误capability data gate，不能再mock send绕过。逐层验证Host→Native Tool→Python→Seatbelt真实读取；预检/claim/已接受/未知并发与重启分开，旧sender缺证保unknown。用户已选保留旧运行、修复部署后新版本手动验收；原Wind/正文/文件门和独立部署授权保持。
+
 全市场预览修复部署固定用户批准的e56d9718组合产品和36fd990c旧版，经原三CI/同候选Mac安装及独评后，由 `apply-market-preview` 走原version4锁、全账号后台/市场空闲、BirthFence和恢复事务；前版变化或存在活动任务时停止，不覆盖其他部署或提升旧证据。
 
 资产幅字段采用封闭V8部署：先固定包含PR216/217/219的真实合并组合，再对最终操作员运行完整Router、独评、原三CI和同候选Mac安装；前版为实际b4384470。沿本任务既有部署授权执行持锁空闲、BirthFence与全账号保全，后台跟踪/Automation/Workflow活动或未知拒绝，旧恢复合同保持。

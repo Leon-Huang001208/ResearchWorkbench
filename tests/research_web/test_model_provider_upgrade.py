@@ -13,6 +13,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.research_web.client import RuntimeFailure
+from app.research_web.report_workflows.models import WorkflowError
 from research_workbench_entrypoint.resident import model_provider_upgrade as upgrade
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
@@ -37,6 +39,7 @@ ASSET_PROFILES = (
     "reviewed-discovery-v1",
     "reviewed-etf-weekly-v2",
     "reviewed-etf-historical-v1",
+    "reviewed-etf-weekly-admission-v1",
 )
 
 
@@ -73,6 +76,7 @@ def test_discovery_profile_freezes_authorized_combination():
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-etf-weekly-admission-v1",
         upgrade.ETF_HISTORICAL_MODE,
     ],
 )
@@ -221,6 +225,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-discovery-v1": "DISCOVERY",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL",
+        "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
         "reviewed-market-preview-v1": "MARKET_PREVIEW",
     }[profile]
@@ -242,6 +247,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
                     "reviewed-discovery-v1",
                     "reviewed-etf-weekly-v2",
                     "reviewed-etf-historical-v1",
+                    "reviewed-etf-weekly-admission-v1",
                 }
                 else "ASSET_EVIDENCE_SHA256"
             )
@@ -251,6 +257,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         evidence_constant = "ASSET_V9_EVIDENCE_SHA256"
     if profile == "reviewed-market-preview-v1":
         evidence_constant = "MARKET_PREVIEW_EVIDENCE_SHA256"
+    if profile == "reviewed-etf-weekly-admission-v1":
+        evidence_constant = "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256"
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
@@ -1351,6 +1359,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-etf-weekly-admission-v1",
     }:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -1557,6 +1566,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL_PREVIOUS",
+        "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -1640,6 +1650,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-discovery-v1",
             "reviewed-etf-weekly-v2",
             "reviewed-etf-historical-v1",
+            "reviewed-etf-weekly-admission-v1",
         }:
             manifest["source"] = str(source)
         archive.writestr("manifest.json", json.dumps(manifest))
@@ -1668,6 +1679,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
+        "reviewed-etf-weekly-admission-v1",
     }:
         original_archive = artifact.read_bytes()
         with zipfile.ZipFile(artifact, "w") as archive:
@@ -2169,6 +2181,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-etf-weekly-admission-v1",
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
@@ -2239,6 +2252,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-history-v1",
         "reviewed-market-terminal-v1",
         "reviewed-market-preview-v1",
+        "reviewed-etf-weekly-admission-v1",
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
@@ -2304,6 +2318,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-etf-weekly-admission-v1",
     }:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -2430,6 +2445,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
+        "reviewed-etf-weekly-admission-v1",
     ],
     indirect=True,
 )
@@ -2460,6 +2476,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
+        "reviewed-etf-weekly-admission-v1",
     ],
     indirect=True,
 )
@@ -2802,3 +2819,961 @@ def test_market_preview_profile_freezes_authorized_product_and_current_resident(
     )
     assert upgrade.MARKET_TERMINAL_PREVIOUS == "0e0022ac792eba88fba0f233524f5c8d66024569"
     assert upgrade.MARKET_TERMINAL_PAYLOAD == "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
+
+
+def test_weekly_admission_frozen_successor():
+    assert upgrade.ETF_WEEKLY_ADMISSION_MODE == "reviewed-etf-weekly-admission-v1"
+    assert (
+        upgrade.previous_for(upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        == "36fd990ceed88d2fc595443926105c4b2601fbf6"
+    )
+    assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "bacb423cea203ba0469b5c7f21bfd581408b03ef"
+    assert upgrade.ETF_WEEKLY_ADMISSION_MODE in upgrade.ASSET_MODES
+
+
+def test_weekly_admission_requires_explicit_action_before_configuration(monkeypatch, tmp_path):
+    monkeypatch.setattr(upgrade.c, "configured", lambda *_: pytest.fail("configuration touched"))
+    with pytest.raises(upgrade.UpdateBlocked, match="weekly_monitoring_authorization_required"):
+        upgrade.operate(tmp_path, mode="reviewed-etf-weekly-admission-v1")
+
+
+@pytest.fixture
+def weekly_bridge(tmp_path, monkeypatch):
+    import copy
+    from dataclasses import asdict
+
+    from app.research_web.report_workflows import owner
+    from app.research_web.report_workflows.legacy_monitoring import LegacyMonitoringExpectation
+
+    home = tmp_path / "home"
+    root = home / "research-web"
+    rid, sid, uid = "a" * 32, str(uuid4()), str(uuid4())
+    run = root / "report-workflows/runs" / rid
+    session = root / "sessions" / sid / "inputs/report-workflow"
+    for folder in (run / "snapshots", session / "snapshots", home / "server/run"):
+        folder.mkdir(parents=True, mode=0o700)
+    for folder in (
+        home,
+        root,
+        root / "report-workflows",
+        root / "report-workflows/runs",
+        home / "server",
+    ):
+        folder.chmod(0o700)
+    snap, context = b'{"snapshot":true}', b'{"context":true}'
+    sha = lambda b: hashlib.sha256(b).hexdigest()
+    for folder in (run, session):
+        (folder / "snapshots/report-data.json").write_bytes(snap)
+    (session / "run-context.json").write_bytes(context)
+    contract = {"source": "frozen"}
+    row = {
+        "id": rid,
+        "session_id": sid,
+        "owner_id": uid,
+        "version": 5,
+        "workflow_id": "huaan-etf-weekly",
+        "run_ref": f"runs/{rid}",
+        "execution_purpose": "historical_acceptance",
+        "status": "needs_attention",
+        "research_submission_state": "unknown",
+        "updated_at": 124.0,
+        "failure_code": "research_submission_unknown",
+        "collected_at": 111,
+        "weekly_context_sha256": sha(context),
+        "dataset_snapshot_sha256": sha(snap),
+        "weekly_data_contract": contract,
+    }
+    index = root / "report-workflows/catalog.json"
+    index.write_text(json.dumps({"schema_version": 1, "workflows": {}, "runs": {rid: row}}))
+    index.chmod(0o600)
+    (index.parent / "catalog.lock").touch(mode=0o600)
+    expected = LegacyMonitoringExpectation(
+        rid,
+        sid,
+        5,
+        uid,
+        upgrade._weekly_digest(row),
+        sha(context),
+        sha(snap),
+        upgrade._weekly_digest(contract),
+    )
+    action = {
+        "schema_version": 1,
+        "profile": "weekly-legacy-monitoring-v1",
+        "operation_id": upgrade.WEEKLY_OPERATION_ID,
+        "expected_identity": asdict(expected),
+    }
+    action_path = home / "action.json"
+    action_path.write_text(json.dumps(action))
+    action_path.chmod(0o600)
+    monkeypatch.setattr(upgrade, "WEEKLY_ACTION_SHA256", upgrade._weekly_digest(action))
+    monkeypatch.setattr(
+        owner, "resolve_primary_owner", lambda service, expected: {"id": expected, "role": "admin"}
+    )
+    monkeypatch.setattr(upgrade, "reserved_owners", lambda *_: True)
+    monkeypatch.setattr(upgrade, "_weekly_native_idle", lambda *_: None)
+    gets = []
+
+    def get(url):
+        gets.append(url)
+        return json.loads(index.read_text())["runs"][rid]
+
+    monkeypatch.setattr(upgrade, "request_json", get)
+    state = {
+        "mode": upgrade.ETF_WEEKLY_ADMISSION_MODE,
+        "transaction": str(uuid4()),
+        "config": {"web_port": 8088},
+    }
+    return SimpleNamespace(
+        home=home,
+        root=root,
+        row=copy.deepcopy(row),
+        index=index,
+        action=action,
+        path=action_path,
+        state=state,
+        gets=gets,
+        rid=rid,
+    )
+
+
+def bridge(fixture, *, recovering=False):
+    return upgrade.weekly_monitoring_bridge(
+        fixture.home,
+        fixture.state,
+        None,
+        None if recovering else fixture.path,
+        recovering=recovering,
+    )
+
+
+def test_weekly_bridge_changes_only_control_and_recovers(weekly_bridge):
+    f = weekly_bridge
+    bridge(f)
+    after = json.loads(f.index.read_text())["runs"][f.rid]
+    assert {
+        k: v
+        for k, v in after.items()
+        if k not in {"monitoring_disposition", "monitoring_end_receipt", "status"}
+    } == {k: v for k, v in f.row.items() if k != "status"}
+    assert after["status"] == "cancelled"
+    assert after["research_submission_state"] == "unknown"
+    receipt = upgrade._weekly_private_json(f.home / "server/run/weekly-monitoring-receipt.json")
+    assert receipt["native_cancelled"] is False and receipt["preserve_unknown"] is True
+    before = f.index.read_bytes()
+    bridge(f, recovering=True)
+    bridge(f)
+    assert f.index.read_bytes() == before
+    assert len(f.gets) == 2
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "extra",
+        "boolean-version",
+        "bool-schema",
+        "unsafe-id",
+        "hash",
+        "mode",
+        "symlink",
+        "hardlink",
+        "duplicate",
+        "oversize",
+    ],
+)
+def test_weekly_sealed_action_rejects_without_catalog_change(weekly_bridge, case):
+    import os
+
+    f = weekly_bridge
+    before = f.index.read_bytes()
+    if case == "extra":
+        f.action["data_root"] = "/outside"
+    if case == "boolean-version":
+        f.action["expected_identity"]["version"] = True
+    if case == "bool-schema":
+        f.action["schema_version"] = True
+    if case == "unsafe-id":
+        f.action["expected_identity"]["run_id"] = "../outside"
+    if case == "hash":
+        f.action["expected_identity"]["run_sha256"] = "b" * 64
+    f.path.write_text(json.dumps(f.action))
+    if case == "mode":
+        f.path.chmod(0o644)
+    if case == "symlink":
+        target = f.path.with_suffix(".target")
+        f.path.rename(target)
+        f.path.symlink_to(target)
+    if case == "hardlink":
+        os.link(f.path, f.path.with_suffix(".link"))
+    if case == "duplicate":
+        f.path.write_text('{"schema_version":1,"schema_version":1}')
+    if case == "oversize":
+        f.path.write_bytes(b" " * (256 * 1024 + 1))
+    with pytest.raises((upgrade.UpdateBlocked, WorkflowError, ValueError, OSError, RuntimeFailure)):
+        bridge(f)
+    assert f.index.read_bytes() == before
+    assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+
+
+@pytest.mark.parametrize(
+    "field", ["research_submission_protocol", "weekly_execution_scope", "claim"]
+)
+def test_weekly_bridge_domain_rejects_new_protocol_and_claim(weekly_bridge, field):
+    f = weekly_bridge
+    data = json.loads(f.index.read_text())
+    if field == "claim":
+        (f.root / "report-workflows/runs" / f.rid / "weekly-rpc-attempt.json").write_text("{}")
+    else:
+        data["runs"][f.rid][field] = "new"
+        f.index.write_text(json.dumps(data))
+    before = f.index.read_bytes()
+    with pytest.raises((upgrade.UpdateBlocked, WorkflowError, ValueError, OSError, RuntimeFailure)):
+        bridge(f)
+    assert f.index.read_bytes() == before
+
+
+@pytest.mark.parametrize("record", ["intent", "receipt", "root", "action", "disk-after"])
+def test_weekly_bridge_recovery_rejects_changed_binding(weekly_bridge, record):
+    f = weekly_bridge
+    bridge(f)
+    if record in {"intent", "receipt"}:
+        path = f.home / f"server/run/weekly-monitoring-{record}.json"
+        value = json.loads(path.read_text())
+        value["operation_id"] = "changed"
+        path.write_text(json.dumps(value))
+    elif record == "root":
+        f.root.rename(f.root.with_name("old"))
+        f.root.mkdir(mode=0o700)
+    elif record == "action":
+        f.path.write_text("{}")
+    else:
+        value = json.loads(f.index.read_text())
+        value["runs"][f.rid]["failure_code"] = "changed"
+        f.index.write_text(json.dumps(value))
+    with pytest.raises((upgrade.UpdateBlocked, WorkflowError, ValueError, OSError, RuntimeFailure)):
+        bridge(f, recovering=True)
+
+
+def test_weekly_bridge_refresh_failure_keeps_decision(weekly_bridge, monkeypatch):
+    f = weekly_bridge
+    monkeypatch.setattr(
+        upgrade, "request_json", lambda *_: (_ for _ in ()).throw(OSError("GET failed"))
+    )
+    with pytest.raises(OSError):
+        bridge(f)
+    assert json.loads(f.index.read_text())["runs"][f.rid]["status"] == "cancelled"
+    assert (f.home / "server/run/weekly-monitoring-receipt.json").exists()
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    [
+        "intent-before",
+        "intent-after",
+        "catalog-before",
+        "catalog-after",
+        "receipt-before",
+        "receipt-after",
+    ],
+)
+def test_weekly_bridge_crash_boundaries_preserve_and_retry(weekly_bridge, monkeypatch, boundary):
+    from app.research_web.report_workflows.catalog import ReportWorkflowService
+
+    f = weekly_bridge
+    publish, end = upgrade._weekly_publish, ReportWorkflowService.end_legacy_monitoring
+
+    def injected(path, value):
+        label = "intent" if "intent" in path.name else "receipt"
+        if boundary == label + "-before":
+            raise OSError("before publication")
+        publish(path, value)
+        if boundary == label + "-after":
+            raise OSError("after publication")
+
+    def domain(self, *args, **kwargs):
+        if kwargs.get("apply") and boundary == "catalog-before":
+            raise OSError("before catalog")
+        value = end(self, *args, **kwargs)
+        if kwargs.get("apply") and boundary == "catalog-after":
+            raise OSError("after catalog")
+        return value
+
+    monkeypatch.setattr(upgrade, "_weekly_publish", injected)
+    monkeypatch.setattr(ReportWorkflowService, "end_legacy_monitoring", domain)
+    with pytest.raises((OSError, upgrade.UpdateBlocked)):
+        bridge(f)
+    monkeypatch.setattr(upgrade, "_weekly_publish", publish)
+    monkeypatch.setattr(ReportWorkflowService, "end_legacy_monitoring", end)
+    bridge(f)
+    assert json.loads(f.index.read_text())["runs"][f.rid]["research_submission_state"] == "unknown"
+    assert (f.home / "server/run/weekly-monitoring-receipt.json").exists()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "parent-running",
+        "running-string",
+        "missing-list",
+        "duplicate-session",
+        "missing-catalog",
+        "active-child",
+        "orphan",
+        "duplicate-child",
+        "wrong-origin",
+        "wrong-parent",
+    ],
+)
+def test_weekly_native_catalog_strict_real_client_protocol(monkeypatch, case):
+    import asyncio
+
+    import httpx
+
+    import app.research_web.client as client_module
+    from app.research_web.client import DSHClient
+
+    rows = [
+        {
+            "sessionId": "parent",
+            "running": False,
+            "projections": {
+                "values": {"subagentCatalog": [{"id": "child", "mode": "continuable"}]}
+            },
+        },
+        {
+            "sessionId": "child",
+            "running": False,
+            "origin": "subagent",
+            "parentSessionId": "parent",
+            "projections": {"values": {"subagentCatalog": []}},
+        },
+    ]
+    if case == "parent-running":
+        rows[0]["running"] = True
+    if case == "running-string":
+        rows[0]["running"] = "false"
+    if case == "duplicate-session":
+        rows.append(rows[0])
+    if case == "missing-catalog":
+        rows[0]["projections"]["values"] = {}
+    if case == "active-child":
+        rows[1]["running"] = True
+    if case == "orphan":
+        rows[0]["projections"]["values"]["subagentCatalog"] = []
+    if case == "duplicate-child":
+        rows[0]["projections"]["values"]["subagentCatalog"] *= 2
+    if case == "wrong-origin":
+        rows[1]["origin"] = "user"
+    if case == "wrong-parent":
+        rows[1]["parentSessionId"] = "other"
+    calls = []
+
+    def transport(request):
+        calls.append(request.url.path)
+        assert request.url.path in {"/api/session/list", "/api/session/projections"}
+        incoming = json.loads(request.content)
+        value = {"values": {}} if request.url.path.endswith("projections") else {"items": rows}
+        if case == "missing-list":
+            value = {}
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": incoming["rpcId"],
+                "result": {"ok": True, "value": value},
+            },
+        )
+
+    monkeypatch.setattr(
+        client_module,
+        "DSHClient",
+        lambda url, **kwargs: DSHClient(url, transport=httpx.MockTransport(transport)),
+    )
+    manager = SimpleNamespace(runtime_port=3081, _runtime_auth_path=lambda: Path("/unused"))
+    with pytest.raises((upgrade.UpdateBlocked, WorkflowError, ValueError, OSError, RuntimeFailure)):
+        asyncio.run(upgrade._weekly_native_catalog_idle(manager))
+    assert calls
+
+
+@pytest.mark.parametrize("command", ["apply", "apply-assets-v9", "apply-market-preview", "recover"])
+@pytest.mark.parametrize("flag", ["--end-weekly-waiting", "--weekly-monitoring-action"])
+def test_weekly_flags_rejected_for_old_modes_before_operate(tmp_path, monkeypatch, command, flag):
+    (tmp_path / "logs").mkdir()
+    monkeypatch.setattr(upgrade, "operate", lambda *_args, **_kwargs: pytest.fail("operate called"))
+    args = [command, "--home", str(tmp_path), flag]
+    if flag.endswith("action"):
+        args.append(str(tmp_path / "sealed.json"))
+    assert upgrade.main(args) == 1
+
+
+@pytest.mark.parametrize("historical", [False, True])
+def test_weekly_native_inactive_catalog_real_client_positive(monkeypatch, historical):
+    import asyncio
+
+    import httpx
+
+    import app.research_web.client as client_module
+    from app.research_web.client import DSHClient
+
+    rows = [
+        {
+            "sessionId": "parent",
+            "running": False,
+            "projections": {
+                "values": {
+                    "subagentCatalog": [
+                        {"id": "child", "mode": "unknown" if historical else "continuable"}
+                    ]
+                }
+            },
+        },
+        {"sessionId": "child", "running": False, "origin": "subagent", "parentSessionId": "parent"},
+    ]
+    calls = []
+
+    def respond(request):
+        calls.append(request.url.path)
+        assert request.url.path == "/api/session/list"
+        incoming = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": incoming["rpcId"],
+                "result": {"ok": True, "value": {"items": rows}},
+            },
+        )
+
+    clients = []
+
+    def client(url, **kwargs):
+        result = DSHClient(url, transport=httpx.MockTransport(respond))
+        clients.append(result)
+        return result
+
+    monkeypatch.setattr(client_module, "DSHClient", client)
+    manager = SimpleNamespace(runtime_port=3081, _runtime_auth_path=lambda: Path("/unused"))
+    asyncio.run(upgrade._weekly_native_catalog_idle(manager))
+    assert len(calls) == 2
+    assert clients[0].http.is_closed
+
+
+def test_weekly_native_unknown_before_intent_is_zero_change(weekly_bridge, monkeypatch):
+    f = weekly_bridge
+    before = f.index.read_bytes()
+    monkeypatch.setattr(
+        upgrade,
+        "_weekly_native_idle",
+        lambda *_: (_ for _ in ()).throw(upgrade.UpdateBlocked("weekly_monitoring_native_unknown")),
+    )
+    with pytest.raises(upgrade.UpdateBlocked, match="native_unknown"):
+        bridge(f)
+    assert f.index.read_bytes() == before
+    assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+
+
+def test_weekly_missing_receipt_reentry_only_supplements_and_recover_never_apply(
+    weekly_bridge, monkeypatch
+):
+    from app.research_web.report_workflows.catalog import ReportWorkflowService
+
+    f = weekly_bridge
+    publish = upgrade._weekly_publish
+
+    def stop_receipt(path, value):
+        if "receipt" in path.name:
+            raise OSError("publication interrupted")
+        return publish(path, value)
+
+    monkeypatch.setattr(upgrade, "_weekly_publish", stop_receipt)
+    with pytest.raises(upgrade.UpdateBlocked, match="action_committed_receipt_pending"):
+        bridge(f)
+    before = f.index.read_bytes()
+    original = ReportWorkflowService.end_legacy_monitoring
+
+    def read_only(self, *args, **kwargs):
+        assert kwargs["apply"] is False
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(ReportWorkflowService, "end_legacy_monitoring", read_only)
+    with pytest.raises(upgrade.UpdateBlocked, match="receipt_missing"):
+        bridge(f, recovering=True)
+    monkeypatch.setattr(upgrade, "_weekly_publish", publish)
+    bridge(f)
+    assert f.index.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "boundary", ["replace-before", "replace-after", "file-fsync", "directory-fsync"]
+)
+def test_weekly_record_atomic_faults_do_not_overwrite(weekly_bridge, monkeypatch, boundary):
+    import os
+
+    f = weekly_bridge
+    path = f.home / "server/run/test-decision.json"
+    replace = os.replace
+
+    def fail_replace(src, dst):
+        if boundary == "replace-before":
+            raise OSError("replace failed")
+        replace(src, dst)
+        if boundary == "replace-after":
+            raise OSError("replace returned unknown")
+
+    def fail_sync(*_):
+        raise OSError("sync failed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "replace", fail_replace)
+        if boundary == "file-fsync":
+            patch.setattr(os, "fsync", fail_sync)
+        if boundary == "directory-fsync":
+            patch.setattr(upgrade.c, "sync_directory", fail_sync)
+        with pytest.raises(OSError):
+            upgrade._weekly_publish(path, {"decision": "fixed"})
+    upgrade._weekly_publish(path, {"decision": "fixed"})
+    assert upgrade._weekly_private_json(path) == {"decision": "fixed"}
+    with pytest.raises(upgrade.UpdateBlocked):
+        upgrade._weekly_publish(path, {"decision": "changed"})
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.ETF_WEEKLY_ADMISSION_MODE], indirect=True)
+@pytest.mark.parametrize("other_busy", [False, True])
+def test_weekly_bridge_then_original_operations_idle(
+    real_operations, weekly_bridge, monkeypatch, other_busy
+):
+    import shutil
+
+    home, state, system, make, _uid = real_operations
+    f = weekly_bridge
+    shutil.copytree(f.root, home / "research-web", dirs_exist_ok=True)
+    f.home, f.root, f.index, f.state = (
+        home,
+        home / "research-web",
+        home / "research-web/report-workflows/catalog.json",
+        state,
+    )
+    calls = []
+
+    def get(url):
+        calls.append(url)
+        if "/api/research/report-runs/" in url:
+            system["active"] = other_busy
+            return json.loads(f.index.read_text())["runs"][f.rid]
+        if url.endswith("/market"):
+            return {"inflight": []}
+        return {"enabled": True, "revision": system["primary"], "active": system["active"]}
+
+    monkeypatch.setattr(upgrade, "request_json", get)
+    system["active"] = True
+    assert make(None).idle() is False
+    bridge(f)
+    assert make(None).idle() is (not other_busy)
+    result = upgrade.execute(make(None), state) if other_busy else None
+    if other_busy:
+        assert result == {"status": "deferred"}
+    assert system["events"] == []
+    assert json.loads(f.index.read_text())["runs"][f.rid]["status"] == "cancelled"
+    assert any("/api/research/report-runs/" in url for url in calls)
+    if not other_busy:
+        assert any(url.endswith("/market") for url in calls)
+        assert any(url.endswith("/resident") for url in calls)
+
+
+def test_weekly_recovery_after_action_requires_no_native_or_host(weekly_bridge, monkeypatch):
+    f = weekly_bridge
+    bridge(f)
+    monkeypatch.setattr(
+        upgrade, "_weekly_native_idle", lambda *_: pytest.fail("Native during recovery")
+    )
+    monkeypatch.setattr(
+        upgrade, "request_json", lambda *_: pytest.fail("Host GET during stopped recovery")
+    )
+    bridge(f, recovering=True)
+
+
+def test_weekly_record_oversize_rejected_before_file_creation(weekly_bridge):
+    path = weekly_bridge.home / "server/run/oversize.json"
+    with pytest.raises(upgrade.UpdateBlocked, match="record_oversize"):
+        upgrade._weekly_publish(path, {"data": "x" * (256 * 1024)})
+    assert not path.exists()
+
+
+def test_weekly_explicit_cli_passes_only_the_sealed_action(tmp_path, monkeypatch):
+    (tmp_path / "logs").mkdir()
+    calls = []
+    monkeypatch.setattr(
+        upgrade, "operate", lambda *args, **kwargs: calls.append(kwargs) or {"status": "deployed"}
+    )
+    action = tmp_path / "private.json"
+    assert (
+        upgrade.main(
+            [
+                "apply-etf-weekly-admission",
+                "--home",
+                str(tmp_path),
+                "--end-weekly-waiting",
+                "--weekly-monitoring-action",
+                str(action),
+            ]
+        )
+        == 0
+    )
+    assert calls == [
+        {
+            "recovering": False,
+            "mode": upgrade.ETF_WEEKLY_ADMISSION_MODE,
+            "end_weekly_waiting": True,
+            "weekly_monitoring_action": action,
+        }
+    ]
+
+
+@pytest.mark.parametrize("case", ["valid", "pending", "receipt-changed", "intent-changed"])
+def test_weekly_recover_without_upgrade_journal_validates_independent_decision(
+    weekly_bridge, monkeypatch, case
+):
+    f = weekly_bridge
+    bridge(f)
+    receipt = f.home / "server/run/weekly-monitoring-receipt.json"
+    intent = f.home / "server/run/weekly-monitoring-intent.json"
+    if case == "pending":
+        receipt.unlink()
+    if case in {"receipt-changed", "intent-changed"}:
+        path = receipt if case == "receipt-changed" else intent
+        value = json.loads(path.read_text())
+        value["operation_id"] = "changed"
+        path.write_text(json.dumps(value))
+    resident = f.home / "resident"
+    resident.mkdir(mode=0o700)
+    config = {
+        "artifact": str(resident / "controller.pyz"),
+        "artifact_sha256": upgrade.CONTROLLER_SHA256,
+    }
+    monkeypatch.setattr(upgrade.sys, "platform", "darwin")
+    monkeypatch.setattr(upgrade.c, "configured", lambda *_: (resident, config))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_: None)
+    monkeypatch.setattr(upgrade, "_weekly_native_idle", lambda *_: pytest.fail("Native recovery"))
+    monkeypatch.setattr(upgrade, "request_json", lambda *_: pytest.fail("Host recovery"))
+    if case == "valid":
+        assert upgrade.operate(f.home, recovering=True) == {
+            "status": "not_required",
+            "weekly_monitoring": "verified",
+        }
+    else:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.operate(f.home, recovering=True)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "absent",
+        "receipt-only",
+        "intent-only",
+        "intent-symlink",
+        "receipt-symlink",
+        "intent-broken",
+        "receipt-broken",
+    ],
+)
+def test_weekly_no_upgrade_journal_rejects_asymmetric_or_linked_records_before_bridge(
+    weekly_bridge, monkeypatch, case
+):
+    f = weekly_bridge
+    bridge(f)
+    intent = f.home / "server/run/weekly-monitoring-intent.json"
+    receipt = f.home / "server/run/weekly-monitoring-receipt.json"
+    if case in {"absent", "receipt-only"}:
+        intent.unlink()
+    if case in {"absent", "intent-only"}:
+        receipt.unlink()
+    if case.endswith(("-symlink", "-broken")):
+        path = intent if case.startswith("intent") else receipt
+        target = path.with_suffix(".saved")
+        path.rename(target)
+        if case.endswith("-broken"):
+            target.unlink()
+        path.symlink_to(target)
+    resident = f.home / "resident"
+    resident.mkdir(mode=0o700)
+    config = {
+        "artifact": str(resident / "controller.pyz"),
+        "artifact_sha256": upgrade.CONTROLLER_SHA256,
+    }
+    monkeypatch.setattr(upgrade.sys, "platform", "darwin")
+    monkeypatch.setattr(upgrade.c, "configured", lambda *_: (resident, config))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_: None)
+    monkeypatch.setattr(
+        upgrade,
+        "weekly_monitoring_bridge",
+        lambda *_args, **_kwargs: pytest.fail("bridge must not start"),
+    )
+    monkeypatch.setattr(upgrade, "_weekly_native_idle", lambda *_: pytest.fail("Native recovery"))
+    monkeypatch.setattr(upgrade, "request_json", lambda *_: pytest.fail("Host recovery"))
+    if case == "absent":
+        assert upgrade.operate(f.home, recovering=True) == {"status": "not_required"}
+    else:
+        code = (
+            "weekly_monitoring_record_unsafe"
+            if case.endswith(("-symlink", "-broken"))
+            else (
+                "weekly_monitoring_intent_missing"
+                if case == "receipt-only"
+                else "weekly_monitoring_action_receipt_pending"
+            )
+        )
+        with pytest.raises(upgrade.UpdateBlocked, match=code):
+            upgrade.operate(f.home, recovering=True)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "receipt-broken-no-intent",
+        "receipt-symlink-no-intent",
+        "receipt-only",
+        "receipt-broken-with-intent",
+        "receipt-corrupt-with-intent",
+        "intent-broken",
+        "intent-symlink",
+    ],
+)
+def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
+    weekly_bridge, monkeypatch, case
+):
+    f = weekly_bridge
+    intent = f.home / "server/run/weekly-monitoring-intent.json"
+    receipt = f.home / "server/run/weekly-monitoring-receipt.json"
+    if case.endswith("with-intent"):
+        count = []
+
+        def stop_after_intent(*_):
+            count.append(True)
+            if len(count) == 2:
+                raise OSError("stop before CAS")
+
+        monkeypatch.setattr(upgrade, "_weekly_native_idle", stop_after_intent)
+        with pytest.raises(OSError):
+            bridge(f)
+        assert intent.exists()
+    if case.startswith("receipt"):
+        if "broken" in case:
+            receipt.symlink_to(receipt.with_suffix(".missing"))
+        elif "symlink" in case:
+            target = receipt.with_suffix(".target")
+            target.write_text("{}")
+            target.chmod(0o600)
+            receipt.symlink_to(target)
+        else:
+            receipt.write_text("{}")
+            receipt.chmod(0o600)
+    else:
+        target = intent.with_suffix(".target")
+        if case.endswith("symlink"):
+            target.write_text("{}")
+            target.chmod(0o600)
+        intent.symlink_to(target)
+    before = f.index.read_bytes()
+    intent_before = intent.read_bytes() if intent.exists() and not intent.is_symlink() else None
+    monkeypatch.setattr(
+        upgrade, "_weekly_native_idle", lambda *_: pytest.fail("Native must not start")
+    )
+    with pytest.raises(upgrade.UpdateBlocked):
+        bridge(f)
+    assert f.index.read_bytes() == before
+    if intent_before is not None:
+        assert intent.read_bytes() == intent_before
+    elif case.startswith("receipt"):
+        assert not intent.exists() and not intent.is_symlink()
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        None,
+        "app/research_web/datahub/providers_akshare.py",
+        "app/research_web/datahub/providers_reference_evidence.py",
+        "app/research_web/datahub/research_snapshot_store.py",
+        ".github/workflows/research-web-checks.yml",
+        "tests/research_web/test_ak_native_binding.py",
+        "tests/research_web/test_datahub_akshare_semantics.py",
+        "tests/research_web/test_datahub_financial_time_contract.py",
+        "tests/research_web/test_reference_evidence.py",
+        "tests/research_web/test_research_snapshot_store.py",
+        "tests/research_web/test_report_weekly_historical_acceptance.py",
+        "app/research_web/ui/asset-chart.mjs",
+        "app/research_web/ui/asset-format.mjs",
+        "app/research_web/ui/asset-workspace.mjs",
+        "README.md",
+        "tests/javascript/research_web_asset_chart.test.mjs",
+        "tests/javascript/research_web_asset_format.test.mjs",
+        "tests/javascript/research_web_asset_wind_strip.test.mjs",
+        "tests/javascript/research_web_asset_workspace.test.mjs",
+        "tests/javascript/research_web_workbench.test.mjs",
+    ],
+)
+@pytest.mark.parametrize("mutation", ["content", "mode", "deleted"])
+def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
+    tmp_path, monkeypatch, changed, mutation
+):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    upstream = [
+        "app/research_web/datahub/providers_akshare.py",
+        "app/research_web/datahub/providers_reference_evidence.py",
+        "app/research_web/datahub/research_snapshot_store.py",
+        ".github/workflows/research-web-checks.yml",
+        "tests/research_web/test_ak_native_binding.py",
+        "tests/research_web/test_datahub_akshare_semantics.py",
+        "tests/research_web/test_datahub_financial_time_contract.py",
+        "tests/research_web/test_reference_evidence.py",
+        "tests/research_web/test_research_snapshot_store.py",
+        "tests/research_web/test_report_weekly_historical_acceptance.py",
+        "app/research_web/ui/asset-chart.mjs",
+        "app/research_web/ui/asset-format.mjs",
+        "app/research_web/ui/asset-workspace.mjs",
+        "README.md",
+        "tests/javascript/research_web_asset_chart.test.mjs",
+        "tests/javascript/research_web_asset_format.test.mjs",
+        "tests/javascript/research_web_asset_wind_strip.test.mjs",
+        "tests/javascript/research_web_asset_workspace.test.mjs",
+        "tests/javascript/research_web_workbench.test.mjs",
+    ]
+    for name in [upgrade.MODULE, upgrade.TEST, upgrade.ASSET_EVIDENCE, *upstream]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("reviewed evidence" if name == upgrade.ASSET_EVIDENCE else "previous")
+    git("add", ".")
+    git("commit", "-m", "registered previous")
+    previous = git("rev-parse", "HEAD")
+    for name in upstream:
+        (tmp_path / name).write_text("merged upstream product and checks")
+    git("add", ".")
+    git("commit", "-m", "full product ancestor including upstream")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade,
+        "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256",
+        hashlib.sha256(b"reviewed evidence").hexdigest(),
+    )
+    (tmp_path / upgrade.MODULE).write_text("fixed successor operator")
+    (tmp_path / upgrade.TEST).write_text("operator tests only")
+    docs = tmp_path / "docs/successor.md"
+    docs.parent.mkdir()
+    docs.write_text("reviewable contract")
+    if changed:
+        path = tmp_path / changed
+        if mutation == "content":
+            path.write_text("unexpected product mutation")
+        elif mutation == "mode":
+            path.chmod(0o755)
+        else:
+            path.unlink()
+    git("add", ".")
+    git("commit", "-m", "successor candidate")
+    target = git("rev-parse", "HEAD")
+    if changed:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+    else:
+        reviewed = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        assert set(upstream) <= set(reviewed)
+        assert all(reviewed[name] == git("rev-parse", f"{payload}:{name}") for name in upstream)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "both",
+        "index",
+        "atlas",
+        "third-content",
+        "third-mode",
+        "index-mode",
+        "atlas-mode",
+        "index-symlink",
+        "atlas-deleted",
+    ],
+)
+def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(tmp_path, monkeypatch, case):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "core.filemode", "true")
+    index = "outputs/research-web-architecture/index.html"
+    atlas = "outputs/research-web-architecture/api-atlas.html"
+    third = "outputs/research-web-architecture/brand.svg"
+    product = "app/research_web/product.py"
+    for name in [
+        upgrade.MODULE,
+        upgrade.TEST,
+        upgrade.ASSET_EVIDENCE,
+        product,
+        index,
+        atlas,
+        third,
+    ]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("reviewed evidence" if name == upgrade.ASSET_EVIDENCE else "previous")
+    git("add", ".")
+    git("commit", "-m", "registered previous")
+    previous = git("rev-parse", "HEAD")
+    (tmp_path / product).write_text("full frozen product")
+    git("add", ".")
+    git("commit", "-m", "frozen product ancestor")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade,
+        "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256",
+        hashlib.sha256(b"reviewed evidence").hexdigest(),
+    )
+    (tmp_path / upgrade.MODULE).write_text("reviewed successor")
+    (tmp_path / upgrade.TEST).write_text("reviewed operator regression")
+    for name in ([index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]):
+        (tmp_path / name).write_text("generated reading revision")
+    if case == "third-content":
+        (tmp_path / third).write_text("unexpected output bytes")
+    if case == "third-mode":
+        (tmp_path / third).chmod(0o755)
+    if case == "index-mode":
+        (tmp_path / index).chmod(0o755)
+    if case == "atlas-mode":
+        (tmp_path / atlas).chmod(0o755)
+    if case == "index-symlink":
+        (tmp_path / index).unlink()
+        (tmp_path / index).symlink_to("api-atlas.html")
+    if case == "atlas-deleted":
+        (tmp_path / atlas).unlink()
+    git("add", ".")
+    git("commit", "-m", "regenerate two exact docs")
+    target = git("rev-parse", "HEAD")
+    if case in {"both", "index", "atlas"}:
+        result = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        assert product in result and git("rev-parse", f"{payload}:{product}") == result[product]
+        assert all(
+            name in result
+            for name in (
+                [index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]
+            )
+        )
+    else:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
