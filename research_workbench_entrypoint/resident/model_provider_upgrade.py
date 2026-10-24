@@ -597,6 +597,12 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 != MARKET_GATEWAY_SHA256
             ):
                 raise UpdateBlocked("market_upgrade_gateway_changed")
+        elif mode == ETF_WEEKLY_ADMISSION_MODE and name in {
+            "outputs/research-web-architecture/index.html",
+            "outputs/research-web-architecture/api-atlas.html",
+        }:
+            if actual_mode != "100644":
+                raise UpdateBlocked("asset_upgrade_payload_changed")
         elif (
             mode == ETF_WEEKLY_ADMISSION_MODE
             and name not in {MODULE, TEST}

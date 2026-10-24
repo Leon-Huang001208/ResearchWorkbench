@@ -12,6 +12,12 @@
 
 ## 本地实现与边界
 
+生成文档delta已获规格与质量独立APPROVED：最终operator `be2e2e070dab9ebc04c3072bc8135c229decbe4d473bca46a8aabd2738c5268d`、test `ba913e4e677ec0bf6e23b882d9a3365b022a0f421071c4aa81e2ba3659ceb6d3`，源码提交`a59b533714ae3003377a2fa2f374664be0386128`，P6/前版/action不变。两份HTML严格100644，其它输出/品牌/SVG/业务与CI继续冻结；9realGit反例独立各9项通过，实现方195weekly定点通过。2329全套仍明确是此前40ee/546a源基线，不假称当前源码全套已跑；最终CI将跑完整当前候选。旧prepared462的106文件scope GREEN由新函数验证，只说明范围逻辑，不能认证其旧executor。正在整合新的prepared候选并由其自身源码再验真实范围后才发布。
+
+供统一窗口核对授权：截至当前，尚无针对封印action `7cbd0ba4…` 和P6新增组合的具体人类执行批准，旧fc96/dee0的批准不替代本次。其它新封闭v2若复用本bridge，仍须在其operate原三锁与完整源码/CI/恢复资格之后、原idle之前，仅显式paired flags触发；需重新核对mode/封印/intent/receipt/recovery绑定、CLI无flag拒绝、独评和同候选CI。本文不授予该v2维护或部署权限，也不允许独立调用内部函数绕开外锁。统一窗口协调任务持有最终候选确认，本任务不独立apply、不在窗口发历史模型。
+
+最终真实Git资格检查（尚未publish）捕获生成文档范围遗漏：prepared候选462ea814含源码阅读链接更新的index.html/API Atlas，而本新mode在旧明确生成文档例外之前误把二者当业务资产冻结，正确拒绝asset_upgrade_payload_changed。只读RED保留final-real-git-scope-red.json；源码修复仅增加预先约定的这两份生成文档精确例外，其它outputs/品牌/模板和mode继续冻结，不放宽业务payload。修复及最终真实Git资格重跑完成后才允许发布；现有候选不可执行维护。
+
 P6最终API再验213 passed、1既有warning、325.61秒（p6-api.xml/log）。其余protocol、service_manager、local_integrations源码和测试相对P5保持同字节，对应既有81/349/107覆盖保留；service_manager139路径环境失败与私有临时根补跑证据全部保留，不削门。最终L0文档/索引、完整changed-set约束及架构零违规、Router Node合同230 passed/5.62秒；同候选GitHub通用两门及Mac干净安装待PR。Windows条件CI留对应设备NOT_RUN交接，不由Mac发送，不把总体验收标READY。
 
 最终Native源码提交`112c2f83aa3c6ec2d18fbfc5cb2a0c092ca58a8a`，固定完整P6祖先`88b2f96d449085cae01912393a416b0e90a21083`、前版36fd、原封印action摘要。两轮恢复/receipt P2修复与P6均纳入一次最终完整operator+领域矩阵：2329 passed、1既有warning、159.40秒；规格及质量独立APPROVED并重绑两源`40ee0823…`/`546a049c…`，独立窄复查45与31项分别留证，不与实现方全套混算。源码阅读/API Atlas随后绑定该真实提交，最终发布/CI候选另记。统一窗口真实维护、切换、模型及Word均未执行。
