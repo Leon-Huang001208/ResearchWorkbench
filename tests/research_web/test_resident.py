@@ -1218,3 +1218,13 @@ def test_each_successful_job_requires_its_own_unique_matching_checkout(
     else:
         with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
             instance.qualify(target)
+
+
+def test_archive_accepts_complete_large_ci_log_without_losing_checkout():
+    body = "x" * 8_045_256 + "\ngit log -1 --format=%H\n" + "a" * 40
+    assert evidence.archive_job_logs(log_archive(body), [{"id": 7, "name": "checks"}]) == {7: body}
+
+
+def test_archive_rejects_log_above_new_fixed_capacity():
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(log_archive("x" * 16_000_001), [{"id": 7, "name": "checks"}])
