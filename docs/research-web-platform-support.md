@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+全市场预览封闭升级本轮仅由Mac mini验证macOS Native及同候选macos-14安装。Ubuntu Checks/Constraints为通用仓库证据，Windows/Linux产品原生与真机仍由对应设备交接；本配置不扩大平台支持声明。
+
 资产V9 reader修复由macOS承担本机和同候选Mac干净安装；Ubuntu通用仓库门不能冒充Linux原生，Windows/Linux与Docker产品层仍NOT_RUN。运行版本和认证实页另行验收。
 
 资产V8为macOS Native固定更新，本机、原通用仓库门、同候选Mac安装及实际部署分别记录。Windows/Linux原生与Docker产品未运行，不因本profile获得支持或发布认证。
