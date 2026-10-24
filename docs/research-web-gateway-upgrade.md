@@ -1,5 +1,9 @@
 # Mac mini 空私有池网关升级
 
+## CI容量修复固定部署V9（2026-10-24）
+
+封闭 `apply-assets-v9`／`reviewed-asset-observation-v9`。资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
+
 ## 资产幅字段固定部署 V8（2026-10-24）
 
 封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `dee0cce4dbc65782dba2c720f33ada683457d72a`（包含PR216幅字段、PR217数据源与PR219历史验收），三项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。

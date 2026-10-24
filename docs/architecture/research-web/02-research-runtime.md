@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+资产V9只读取完整CI证据并固定reader身份，不启动DSH或研究；继承全账号跟踪/Automation/Workflow及Host/Native/市场/资产空闲拒绝，旧冻结恢复包继续使用原reader。
+
 资产V8不启动研究，后台空闲复核覆盖已上线今日发现跟踪、Automation与Workflow；原Host/Native/私有池、资产Future和市场inflight未知或活动继续拒绝。旧profile恢复身份与唯一DSH保持，不重试任何未知模型调用。
 
 周报Run.execution_purpose默认formal，专用历史入口由Host固定historical_acceptance并冻结绑定。去重、retry/recovery保持原用途及会话；未知模型提交不重新发送。历史用途继续通过同一DSH和质量门，完成状态historical_acceptance/不可正式定稿与文件状态分开，不能满足manual finalized门；原序列图的Host内部状态抽象仍准确。
