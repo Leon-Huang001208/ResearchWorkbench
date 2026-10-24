@@ -73,10 +73,10 @@ ASSET_V7_PREVIOUS = "c4e953c4386c615cde89ad2d014d60c6e2959303"
 ASSET_V7_PAYLOAD = "3a62ca1a3bff0927db681322a1ff028f08cf03cd"
 ASSET_V7_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 ASSET_V7_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
-# PR216 merged Wind compact readout; retain every previous recovery identity.
+# PR216/217 merged readout/DataHub checkpoint; retain previous recovery identities.
 ASSET_V8_MODE = "reviewed-asset-observation-v8"
 ASSET_V8_PREVIOUS = "b438447071d08eec38902b2a50610644283885f9"
-ASSET_V8_PAYLOAD = "1fe4b8ccc0aa6d9e860f8dddfad987a2594e5453"
+ASSET_V8_PAYLOAD = "08406f018a76f2ebb67d8478c97486ca4ef18d76"
 ASSET_V8_WEB_LOCK_SHA256 = ASSET_V7_WEB_LOCK_SHA256
 ASSET_V8_EVIDENCE_SHA256 = ASSET_V7_EVIDENCE_SHA256
 # PR179's merged market product, starting at the completed v4 resident deployment.

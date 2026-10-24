@@ -293,3 +293,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 发布前API实测PUBLIC；最近五个成功run39962045254/39962045074/39962045167/39957945617/39957945679创建至更新72/489/1239/505/58秒，仅为墙钟参考，不推定计费额度或新候选通过。
 
 2026-10-23 WGC 两种月度吨数捕获与资金流时点守卫只向原 Checks 同一 pytest 步骤加入 test_datahub_wgc/test_wgc_warehouse_integration，旧财务与原生快照矩阵扩展现存模块；无新 job/runner/timeout/依赖。离线新增约秒级，预留原步骤30秒。真实各一次有界公开取数及三子进程 owned PG 验收仅本机，CI不访问厂商/模型/正式数据库。操作前重新核验 PUBLIC，原三 CI 与 exact macos-14 安装保持，Mac不发送Windows/Linux产品dispatch、不手工rerun。
+
+
+2026-10-24 KAPSARC/BGS 单导出单位/计数校验只向原Checks同一pytest步骤添加test_datahub_kapsarc/test_kapsarc_warehouse_integration，旧CSV合同回归沿已有模块。无新job/runner/timeout/依赖；新增离线约秒级，预留原步骤30秒。有界免费数据与三子进程ownedPG仅本机，不将供应商/模型/正式库调用纳入CI。原三CI、exact macos-14安装、实时PUBLIC核对和Windows/Linux交接保持，不手工rerun或从Macdispatch其他平台产品任务。

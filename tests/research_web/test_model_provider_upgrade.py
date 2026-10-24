@@ -2353,7 +2353,7 @@ def test_asset_v8_registers_fixed_period_repair_without_rewriting_v7():
         ).hexdigest()
         == upgrade.ASSET_V8_WEB_LOCK_SHA256
     )
-    assert upgrade.ASSET_V8_PAYLOAD == "1fe4b8ccc0aa6d9e860f8dddfad987a2594e5453"
+    assert upgrade.ASSET_V8_PAYLOAD == "08406f018a76f2ebb67d8478c97486ca4ef18d76"
     assert upgrade.ASSET_V8_WEB_LOCK_SHA256 == upgrade.ASSET_V7_WEB_LOCK_SHA256
     assert (
         hashlib.sha256(Path(upgrade.__file__).with_name("evidence.py").read_bytes()).hexdigest()

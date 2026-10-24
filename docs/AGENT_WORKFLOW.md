@@ -1,6 +1,6 @@
 # Agent 任务路由指南
 
-资产幅字段采用封闭V8部署：先固定PR216真实合并产品，再对最终操作员运行完整Router、独评、原三CI和同候选Mac安装；前版为实际b4384470。沿本任务既有部署授权执行持锁空闲、BirthFence与全账号保全，后台跟踪/Automation/Workflow活动或未知拒绝，旧恢复合同保持。
+资产幅字段采用封闭V8部署：先固定包含PR216/217的真实合并组合，再对最终操作员运行完整Router、独评、原三CI和同候选Mac安装；前版为实际b4384470。沿本任务既有部署授权执行持锁空闲、BirthFence与全账号保全，后台跟踪/Automation/Workflow活动或未知拒绝，旧恢复合同保持。
 
 华安 v1 获批后主线合入 PR209，旧固定产品不能通过放宽 latest、路径或 blob 门部署。v2 在新独立 worktree 固定组合产品56709a8d，保留旧模式；完整本机、独评与原三CI先完成，再请求具体新目标部署授权，不把2e1ba701的批准外推到新增产品。
 
@@ -454,3 +454,12 @@ BaoStock季度盈利能力在新隔离worktree接入，原公开worker/取消排
 现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
 
 AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。
+
+
+## KAPSARC / BGS 年度矿产实物量（2026-10-24）
+
+既有 ext_kapsarc/production 在同一有界 deadline 内读取分号 CSV 与固定官方 metadata。只有 dataset/publisher/Public/四字段类型、kilograms 单位及本次记录数全部核实，才将完整导出投影写入原生研究仓；原 country/sub_commodity/year/production 字符串和两份原件均保留，另有 production_kg 数值列。部分、错数、错单位、错原件或未知合同拒绝入仓，不按国家补年、不做 ISO 映射或 kg/tonne 换算。
+
+BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月度 ETF 吨数流量、SPDR 单基金持仓属于不同指标/范围/频率，不能因物理单位可换算就合并；首次观察和修订链不等于历史公布 PIT。metadata 修改/处理日期不作为行级披露日，旧说明年份不覆盖实际导出年份；源注释/估算符号缺口保留。新增 projection_scope 元数据随 freeze/restore 保存，旧快照不补造该字段。
+
+该扩展沿既有 Host/DataHub/Provider/可选研究仓拓扑，无新服务、路由、表、依赖或执行引擎，原图仍准确。只做独立进程和 owned socket-only PG 有界验收、原三CI与同候选Mac安装，不配置正式库、更新常驻服务或操作外盘。

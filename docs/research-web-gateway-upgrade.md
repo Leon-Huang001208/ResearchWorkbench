@@ -2,7 +2,7 @@
 
 ## 资产幅字段固定部署 V8（2026-10-24）
 
-封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定PR216真实merge `1fe4b8ccc0aa6d9e860f8dddfad987a2594e5453`，产品三CI通过；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
+封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `08406f018a76f2ebb67d8478c97486ca4ef18d76`（包含PR216幅字段与PR217数据源），两项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
 
 沿本任务既有部署授权完成最终独评/完整Router/原三CI/Mac干净安装，再用干净精确目标执行；实际版本、保全、认证页面及资源收尾单独留证。不安装新依赖、不改秘密/数据库/外盘、不调用模型。
 
