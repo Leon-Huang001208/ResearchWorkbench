@@ -225,24 +225,45 @@ def theme(event, retrieved_at, logic_names, counter=False):
 
 
 def selected_rows(evidence):
-    """Keep exact acquired detail JSON in rows; original-page acquisition is separate."""
-    return [
-        {
-            "event_id": item["event_id"],
-            "event_revision": item["projection"].get("revision"),
+    """Archive source types honestly; legacy event rows retain their original shape."""
+    result = []
+    for item in evidence:
+        common = {
             "preview_sha256": item["preview_sha256"],
             "detail_sha256": digest(item["detail"]),
             "acquired_at": item["acquired_at"],
             "detail": item["detail"],
             "source_policy": SOURCE_POLICY,
         }
-        for item in evidence
-    ]
+        if item.get("source_kind") == "news":
+            result.append({"source_kind": "news", "news_id": item["news_id"], **common})
+        else:
+            result.append(
+                {
+                    "event_id": item["event_id"],
+                    "event_revision": item["projection"].get("revision"),
+                    **common,
+                }
+            )
+    return result
 
 
 def acquired_materials(evidence):
     result = []
     for item in evidence:
+        if item.get("source_kind") == "news":
+            result.append(
+                {
+                    **item["material"],
+                    "acquired_at": item["acquired_at"],
+                    "detail_sha256": digest(item["detail"]),
+                    "kind": "已冻结原始资讯归档",
+                    "related_event_ids": [
+                        x["event_id"] for x in item["detail"].get("associations", [])
+                    ],
+                }
+            )
+            continue
         event = item["detail"]["event"]
         result.append(
             {
