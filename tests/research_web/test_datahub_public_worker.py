@@ -14,6 +14,58 @@ from app.research_web.datahub.public_worker import invoke_worker
 
 
 class PublicWorkerTests(unittest.TestCase):
+    def test_actual_child_ignores_system_and_explicit_proxies_without_changing_host(self):
+        """Real requests settings must be direct in the owned child, even on macOS."""
+        import requests
+
+        parent_request = requests.sessions.Session.request
+        for explicit in (False, True):
+            with self.subTest(explicit_proxy=explicit):
+                bootstrap = f"""
+import sys, types, requests, pandas as pd
+requests.sessions.get_environ_proxies = lambda *a, **kw: {{'https': 'http://fixture.invalid:9'}}
+netrc_calls = []
+def no_netrc(*a, **kw): netrc_calls.append(True); return None
+requests.sessions.get_netrc_auth = no_netrc
+def send(session, request, **kwargs):
+    assert kwargs['proxies'] == {{}}, 'proxy selected for anonymous SDK'
+    assert session.trust_env is False, 'system proxy policy inherited'
+    assert not netrc_calls, 'anonymous worker must not read netrc'
+    assert kwargs['timeout'] == 4
+    response = requests.Response(); response.status_code = 200; response._content = b'{{}}'
+    return response
+requests.sessions.Session.send = send
+ak = types.ModuleType('akshare')
+def fetch(**kwargs):
+    options = {{'proxies': {{'https': 'http://explicit.invalid:9'}}}} if {explicit!r} else {{}}
+    requests.get('https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get', **options)
+    return pd.DataFrame([{{'日期':'2026-06-30','主力净流入-净额':0,
+        '超大单净流入-净额':1,'大单净流入-净额':-1,
+        '中单净流入-净额':2,'小单净流入-净额':-2}}])
+ak.stock_individual_fund_flow = fetch
+sys.modules['akshare'] = ak
+from app.research_web.datahub import providers_akshare
+def no_guest(query): raise AssertionError('proxy defect must not be hidden by guest fallback')
+providers_akshare._fund_flow_guest = no_guest
+sys.argv = ['offline-public-worker', 'akshare']
+from app.research_web.datahub.public_worker import main
+raise SystemExit(main())
+"""
+                original = subprocess.run
+
+                def run(command, _original=original, _bootstrap=bootstrap, **kwargs):
+                    return _original([command[0], "-c", _bootstrap], **kwargs)
+
+                query = BusinessQuery(
+                    capability="market_activity",
+                    source="akshare",
+                    parameters={"asset": "600600.SH", "dataset": "fund_flow"},
+                )
+                with patch("app.research_web.datahub.public_worker.subprocess.run", run):
+                    result = invoke_worker("akshare", query)
+                self.assertEqual(result.rows[0]["main_net"], 0)
+                self.assertIs(requests.sessions.Session.request, parent_request)
+
     def test_actual_akshare_child_serializes_offline_guest_result(self):
         """Run real child/codec; SDK and HTTP alone are controlled offline fixtures."""
         source = (Path(__file__).parent / "fixtures/fund_flow_guest.json").read_bytes()

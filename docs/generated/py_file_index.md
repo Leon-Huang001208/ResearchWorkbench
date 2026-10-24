@@ -4371,6 +4371,9 @@ Functions:
 - `_fund_flow_guest`
   - Same Eastmoney upstream, single bounded response; never historical coverage.
 - `_macro_bounds`
+- `china_macro_projection`
+  - Reparse one bounded source original and derive its exact native rows.
+- `china_macro_source_url`
 - `_china_macro`
   - Closed SDK-equivalent requests retain the envelope the SDK discards.
 - `_explicit_money`
@@ -4378,6 +4381,17 @@ Functions:
 - `_sina_day`
 - `_financial_json_object`
 - `_financial_json_float`
+- `sina_income_projection`
+  - Retain source report items, date precision and bounded period coverage.
+- `_native_json`
+- `_sina_income_missing`
+- `sina_income_metadata`
+  - Static source dictionary and first-observation contract, excluding clock time.
+- `sina_income_fields`
+- `china_macro_metadata`
+  - Static native dictionary: reference periods never establish publication time.
+- `china_macro_fields`
+- `sina_income_source_url`
 - `_sina_income_statement`
   - One reviewed eight-period capture inside the existing public worker.
 - `_normalize_financials`
@@ -5002,6 +5016,8 @@ Classes:
   - methods: __init__, _now, dataset, _facts, ingest, read
 
 Functions:
+- `_complete_ak_native_snapshot`
+  - Bind new captures to one strictly reparsed original and fixed source contract.
 - `_complete_cash_flow_snapshot`
   - Bind native financial ratios to their SDK original, never to market fund flow.
 - `_complete_kapsarc_snapshot`
