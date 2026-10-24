@@ -5,7 +5,7 @@
 ## 变更边界
 
 - 仅修改 `research_workbench_entrypoint/resident/model_provider_upgrade.py`、原操作员测试和本报告；其他产品、依赖、CI、旧 profile 常量与恢复哈希均不由本子任务修改。
-- 新封闭命令 `apply-etf-weekly-admission`，mode `reviewed-etf-weekly-admission-v1`；前版固定 `36fd990ceed88d2fc595443926105c4b2601fbf6`。当前完整产品祖先固定普通 merge P7 `63583746e6bccc201e29f622063307f8d4333bc1`，包含上游 PR227 数据出处/单位核验及用户明确批准的 PR229 Wind 字段顺序/单位/均价红绿。历史 P5 `82151bc2708d60c7abb1d38b686a3e368e42f812`、P6 `88b2f96d449085cae01912393a416b0e90a21083` 及其旧证据保留。保留 v9 完整 16MiB job reader 哈希与 web.lock 身份；PREVIOUS、action 封印及旧 modes 不变。
+- 新封闭命令 `apply-etf-weekly-admission`，mode `reviewed-etf-weekly-admission-v1`；前版固定 `36fd990ceed88d2fc595443926105c4b2601fbf6`。当前完整产品祖先固定 P8 `bacb423cea203ba0469b5c7f21bfd581408b03ef`，包含上游 PR227 数据出处/单位核验、用户明确批准的 PR229 Wind 字段顺序/单位/均价红绿，以及 CI 暴露的旧历史测试夹具修复。历史 P5 `82151bc2708d60c7abb1d38b686a3e368e42f812`、P6 `88b2f96d449085cae01912393a416b0e90a21083`、P7 `63583746e6bccc201e29f622063307f8d4333bc1` 及其旧证据保留。保留 v9 完整 16MiB job reader 哈希与 web.lock 身份；PREVIOUS、action 封印及旧 modes 不变。
 - 同时要求 `--end-weekly-waiting` 与 `--weekly-monitoring-action`；旧命令收到任一新 flag 明确拒绝。封印只含固定 canonical SHA256，不写入真实 owner 或运行身份。
 - 在原三把 EX 锁、source/latest master/CI/controller/current revision/恢复工件门之后、第一次原 `Operations.idle` 之前，单独执行领域维护。原 background/market/asset、全账号保全、BirthFence 和 version4 恢复门全部保留。
 
@@ -65,3 +65,11 @@ prepared integration `462ea81495648268e7360382e7e0ae4621d5779b` 的实际 scope 
 主任务普通合并用户明确批准的 PR229 后，冻结 P7 `63583746e6bccc201e29f622063307f8d4333bc1`。本子任务仅修改新 mode 的产品 pin，不改 previous、action SHA、旧 modes、两生成 HTML 精确 `100644` 例外或两轮 P2 修复。新增三个 UI 模块、Root README 和五个上游 JS 测试进入真实 Git 冻结矩阵：逐文件 content/mode/deletion 均须拒绝，其他 README/tests 不获宽豁免。原 P6 后端和 CI 冻结用例继续保留。
 
 P7 pin RED：1 failed，见 `logs/weekly-admission/native-bridge-p7-red.log`。最终源 SHA256：operator `18a846bb1eb8ebb053c9cb6a384f2d053ce7d2a4dd585793219f9977c74eb754`；test `f1cbc8419863198d0c7b2684c621c5611d11245033a72b594f56163e079f90d8`。Black/Ruff/isort/diffcheck 通过。P7 冻结定点 **58 passed**，40.50 秒，见 `logs/weekly-admission/native-bridge-p7-green.log`；包含 P7、两轮 P2 与两个生成 HTML 精确例外的最终完整 operator＋领域矩阵 **2365 passed**，1 个既有 Starlette DeprecationWarning，167.90 秒，见 `logs/weekly-admission/native-bridge-p7-full-matrix.log`。上游五 JS、后端字节与最终规格/质量重绑由主任务分别取证；本轮未重复 API、未提交、未触生产。
+
+## P8 历史夹具修复与联合闭包
+
+主任务保留 PR231 首次 CI 的三条旧历史测试失败记录。旧夹具替换整模块导致真实 Excel projection 缺少 `assess`，在 `send` 前出现 ImportError；修复由主任务单独实现于 `test_report_weekly_historical_acceptance.py`，本子任务不改生产代码或 shared fixture。P8 固定包含该已审测试修复，新 mode 仅改产品 pin；真实 Git 冻结矩阵加入该历史测试的 content/mode/deletion 拒绝，没有 tests 宽例外，P7 业务代码与三 CI 定义不因本子任务改变。
+
+P8 pin RED 为 1 failed，见 `logs/weekly-admission/native-bridge-p8-red.log`。最终两源 SHA256：operator `d7d6bff2ed30f9c9f68fa64977d464aa12fc91dc195266a925e9bb71e6f64916`；test `7359f16036cb20634e36e048d3ccfbd0ef3d8367a4985f615a7a5a97ff75cd77`。Black/Ruff/isort/diffcheck 通过。
+
+本轮必验清单补入历史、quality、admission 三模块，与完整 Native 操作员和领域维护模块在同一 pytest 进程运行，以暴露 `sys.modules` 夹具污染。最终 **2468 passed**，1 个既有 Starlette DeprecationWarning，264.50 秒（4:24）；日志与 JUnit 为 `logs/weekly-admission/native-bridge-p8-joint.log`、`native-bridge-p8-joint.xml`。JUnit 实际分布：Native 操作员 2295、领域维护 73、historical acceptance 32、quality 28、admission 40；全部 passed，后三模块合计 100，没有把独立进程结果拼成同进程联合通过。此前仅 Native/领域通过不能替代这项联合验证。旧 CI 和历史日志均保留；SourceCI 必须绑定主任务修复后新 commit，不 rerun 旧失败 SHA。本轮未调用 API、供应商、模型、服务或安装依赖，未提交，主会话负责整合及发布资格。
