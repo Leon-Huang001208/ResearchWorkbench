@@ -3634,6 +3634,10 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
         "tests/javascript/research_web_asset_wind_strip.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
         "tests/javascript/research_web_workbench.test.mjs",
+        "research_workbench_entrypoint/iteration_resources.py",
+        "scripts/git_safety.mjs",
+        "tests/javascript/git_safety.test.mjs",
+        "tests/research_web/test_iteration_revalidation.py",
     ],
 )
 @pytest.mark.parametrize("mutation", ["content", "mode", "deleted"])
@@ -3673,6 +3677,10 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
         "tests/javascript/research_web_asset_wind_strip.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
         "tests/javascript/research_web_workbench.test.mjs",
+        "research_workbench_entrypoint/iteration_resources.py",
+        "scripts/git_safety.mjs",
+        "tests/javascript/git_safety.test.mjs",
+        "tests/research_web/test_iteration_revalidation.py",
     ]
     for name in [upgrade.MODULE, upgrade.TEST, upgrade.ASSET_EVIDENCE, *upstream]:
         path = tmp_path / name
@@ -4170,7 +4178,7 @@ def test_weekly_primary_v2_profile_keeps_previous_immutable():
         upgrade.previous_for(upgrade.ETF_WEEKLY_ADMISSION_V2_MODE)
         == "36fd990ceed88d2fc595443926105c4b2601fbf6"
     )
-    assert upgrade.ETF_WEEKLY_ADMISSION_V2_PAYLOAD == "b0ebe1df301f9e660c5247af9a5b1526384a32f1"
+    assert upgrade.ETF_WEEKLY_ADMISSION_V2_PAYLOAD == "a8d58cb989ba6f556d597242f1afc51af8549b55"
     assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "bacb423cea203ba0469b5c7f21bfd581408b03ef"
     assert upgrade.ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
     assert upgrade.ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
