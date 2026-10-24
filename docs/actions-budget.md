@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+本轮华安Native后继只扩展原test_model_provider_upgrade.py矩阵，不新增job、runner、依赖或超时；完整矩阵基线2285项116.85秒，修复后定点另列，不混称同一运行。增量预留原步骤90秒；与提交/等待领域原240秒预算分别记录。原三CI及同候选Mac安装、完整日志/checkout/tree门保留，统一窗口不启动模型/跟踪，他平台产品dispatch不由Mac发送。
+
+2026-10-24周报准入修复向原Checks Python步骤增加test_report_weekly_admission.py与test_legacy_weekly_monitoring.py，原脚本scope/guard及Workflow UI测试模块复用；无新job/runner/timeout/依赖，预留现有步骤240秒（真实scope含macOS Seatbelt，Ubuntu不冒充此层）。原三CI及同候选Mac安装保留；Windows条件门按对应设备交接NOT_RUN，不从Mac dispatch。实际模型/取数不进入CI，最终耗时和完整日志另取证。
+
 2026-10-24资产V8只扩充现有升级测试矩阵和后台空闲反例，无新workflow/job/runner、依赖或timeout；1712项本机111.77秒为预备候选证据，现有步骤预算另预留90秒，最终候选重新绑定原三CI/Mac安装。发布前实时核对PUBLIC/额度，不从Mac派发Windows/Linux产品，不调用模型或厂商。
 
 本次历史验收组合另向既有test_model_provider_upgrade矩阵纳入封闭升级模式，无新增job/runner/依赖/timeout，增量预留90秒，与历史功能60秒分别取本机耗时。产品P与操作员同一普通merge，最终三CI及Mac安装必须重新绑定完整组合树；旧产品或离线通过不能充当新候选CI。
