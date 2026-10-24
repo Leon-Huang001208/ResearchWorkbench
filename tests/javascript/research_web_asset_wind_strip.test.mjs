@@ -56,3 +56,8 @@ test('confirmed current quote volume uses the same compact lot display as histor
   assert.match(html,/<dd id="asset-amount">129\.18亿<\/dd>/);
   assert.deepEqual(props,frozen);
 });
+
+test('unrecognized identity objects remain raw-unit display instead of coercing their methods', () => {
+  const html=strip(renderMarketTerminal(bars(),{}, {...meta('股'),assetIdentity:{code:'603986.SH',asset_type:'stock',toString:null}}));
+  assert.match(html,/量 <strong>4602\.71万<\/strong>/);
+});
