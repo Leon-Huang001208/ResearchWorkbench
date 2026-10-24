@@ -237,3 +237,6 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
 
 今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+今日发现v2配置只交付macOS Native部署及同平台安装验证，不由Mac认证Windows/Linux原生；源码、CI、真实保全和认证页面分别记录。

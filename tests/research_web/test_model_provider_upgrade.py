@@ -35,6 +35,7 @@ ASSET_PROFILES = (
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
+    "reviewed-discovery-v2",
     "reviewed-etf-weekly-v2",
     "reviewed-etf-historical-v1",
 )
@@ -70,6 +71,7 @@ def test_discovery_profile_freezes_authorized_combination():
     "profile",
     [
         upgrade.DISCOVERY_MODE,
+        upgrade.DISCOVERY_V2_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
         "reviewed-market-preview-v1",
@@ -219,6 +221,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
         "reviewed-research-dossiers-v1": "DOSSIERS",
         "reviewed-discovery-v1": "DISCOVERY",
+        "reviewed-discovery-v2": "DISCOVERY_V2",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
@@ -240,6 +243,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
                     "reviewed-etf-weekly-v1",
                     "reviewed-research-dossiers-v1",
                     "reviewed-discovery-v1",
+                    "reviewed-discovery-v2",
                     "reviewed-etf-weekly-v2",
                     "reviewed-etf-historical-v1",
                 }
@@ -251,6 +255,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         evidence_constant = "ASSET_V9_EVIDENCE_SHA256"
     if profile == "reviewed-market-preview-v1":
         evidence_constant = "MARKET_PREVIEW_EVIDENCE_SHA256"
+    if profile == "reviewed-discovery-v2":
+        evidence_constant = "DISCOVERY_V2_EVIDENCE_SHA256"
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
@@ -524,6 +530,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
         ("apply-dossiers", "reviewed-research-dossiers-v1"),
         ("apply-discovery", "reviewed-discovery-v1"),
+        ("apply-discovery-v2", "reviewed-discovery-v2"),
         ("apply-etf-weekly-v2", "reviewed-etf-weekly-v2"),
         ("apply-etf-historical", "reviewed-etf-historical-v1"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
@@ -1351,6 +1358,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-discovery-v2",
     }:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -1555,6 +1563,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
+        "reviewed-discovery-v2": "DISCOVERY_V2_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL_PREVIOUS",
     }[profile]
@@ -1638,6 +1647,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         if profile in {
             "reviewed-research-dossiers-v1",
             "reviewed-discovery-v1",
+            "reviewed-discovery-v2",
             "reviewed-etf-weekly-v2",
             "reviewed-etf-historical-v1",
         }:
@@ -1666,6 +1676,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     if profile in {
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
+        "reviewed-discovery-v2",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
     }:
@@ -2177,6 +2188,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         "reviewed-etf-weekly-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
+        "reviewed-discovery-v2",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
     ],
@@ -2245,6 +2257,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-etf-weekly-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
+        "reviewed-discovery-v2",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
     ],
@@ -2304,6 +2317,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-discovery-v2",
     }:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -2428,6 +2442,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-etf-weekly-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
+        "reviewed-discovery-v2",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
     ],
@@ -2458,6 +2473,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-etf-weekly-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
+        "reviewed-discovery-v2",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
     ],
@@ -2802,3 +2818,19 @@ def test_market_preview_profile_freezes_authorized_product_and_current_resident(
     )
     assert upgrade.MARKET_TERMINAL_PREVIOUS == "0e0022ac792eba88fba0f233524f5c8d66024569"
     assert upgrade.MARKET_TERMINAL_PAYLOAD == "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
+
+
+def test_discovery_v2_profile_freezes_native_news_product_and_current_resident():
+    assert getattr(upgrade, "DISCOVERY_V2_MODE", None) == "reviewed-discovery-v2"
+    assert (
+        upgrade.previous_for(upgrade.DISCOVERY_V2_MODE)
+        == "36fd990ceed88d2fc595443926105c4b2601fbf6"
+    )
+    assert upgrade.DISCOVERY_V2_PAYLOAD == "01fa32c85b16a67dc042c68af9811da6eb63a390"
+    assert upgrade.DISCOVERY_V2_MODE in upgrade.ASSET_MODES
+    assert upgrade.DISCOVERY_V2_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
+    assert upgrade.DISCOVERY_V2_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
+    assert (
+        upgrade.previous_for(upgrade.DISCOVERY_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
+    )
+    assert upgrade.DISCOVERY_PAYLOAD == "1780064b712afb61ff18f2f1811650fc31fd3038"

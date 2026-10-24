@@ -1053,3 +1053,6 @@ KAPSARC 固定 metadata 校验和 kg 投影只使用既有 HTTP/CSV/JSON 与可�
 中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
 
 实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
+
+
+今日发现v2新增封闭Native部署命令而非用户依赖或安装入口；setup-web三入口、web.in/web.lock与DSH固定值不变，同候选Mac干净安装证明兼容。部署沿gateway-upgrade的v2保全/恢复合同，不迁移账号或凭据。

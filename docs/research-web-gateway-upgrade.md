@@ -392,3 +392,12 @@ SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不�
 复用原version4事务、主实例/网关维护锁、BirthFence、全部账号会话/模型/业务索引与档案保全、已核验wheel和恢复artifact。新mode纳入全部账号automation/discovery/工作流及市场inflight空闲门；活动或无法确认时延后，不终止未知工作。代码不启用数据库、迁移、日程或厂商/模型调用。
 
 最终operator候选与产品源码分开绑定：完成原三CI及同候选macOS干净安装、独立评审和准入后才执行；本机矩阵或临时前端覆盖不表示常驻已升级。部署前后保存当前用户根的独立摘要，原始数据、会话及模型配置保留，实页另验无候选覆盖的CSV输入失焦与保存前预览。
+
+
+## 今日发现原生双栏固定部署 v2（2026-10-24）
+
+用户明确授权部署PR226的原生双栏、最新原始资讯和证据关联。新封闭apply-discovery-v2 / reviewed-discovery-v2固定当前实际前版36fd990ceed88d2fc595443926105c4b2601fbf6和产品01fa32c85b16a67dc042c68af9811da6eb63a390，沿严格reader193f4fcc及web.lock7c631d4f。原v1及其他profile、控制器、自动兼容清单不修改；前版或产品变化须重新固定并验收，不接受任意目标。
+
+复用原version4锁、BirthFence、全账号/业务索引/会话模型与档案保全、市场采集及后台/Workflow空闲门。新恢复包必须绑定固定source路径；缺失source、错误reader/锁/模式、活动或未知状态均拒绝。预检已见既存周报needs_attention，正式维护流程完成并通过完整空闲门以前不执行切换；不取消Native、不重发模型、不启用计划、不手改catalog。
+
+原三CI和同候选Mac安装/独评与实际部署分别取证。真实页面验收仅GET读取、刷新、筛选及打开研究/跟踪面板，不prepare/execute/save/enable；保留账号、会话、业务数据和模型配置。

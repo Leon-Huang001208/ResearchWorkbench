@@ -121,6 +121,12 @@ DISCOVERY_MODE = "reviewed-discovery-v1"
 DISCOVERY_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 # Explicitly authorized combination: discovery, ETF configuration and dossiers.
 DISCOVERY_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
+# Explicitly authorized native dual-pane/raw-news product; historical profile stays frozen.
+DISCOVERY_V2_MODE = "reviewed-discovery-v2"
+DISCOVERY_V2_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
+DISCOVERY_V2_PAYLOAD = "01fa32c85b16a67dc042c68af9811da6eb63a390"
+DISCOVERY_V2_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+DISCOVERY_V2_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR209 combined product includes dossier preservation; deployment needs new authorization.
 ETF_WEEKLY_V2_MODE = "reviewed-etf-weekly-v2"
 ETF_WEEKLY_V2_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
@@ -150,6 +156,7 @@ ASSET_MODES = frozenset(
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         MARKET_PREVIEW_MODE,
+        DISCOVERY_V2_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
@@ -253,6 +260,8 @@ def previous_for(mode):
         return MARKET_TERMINAL_PREVIOUS
     if mode == MARKET_PREVIEW_MODE:
         return MARKET_PREVIEW_PREVIOUS
+    if mode == DISCOVERY_V2_MODE:
+        return DISCOVERY_V2_PREVIOUS
     if mode == DOSSIERS_MODE:
         return DOSSIERS_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
@@ -417,6 +426,7 @@ def verify_primary(home, expected, mode):
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         MARKET_PREVIEW_MODE,
+        DISCOVERY_V2_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
@@ -515,6 +525,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         MARKET_PREVIEW_MODE: MARKET_PREVIEW_PAYLOAD,
+        DISCOVERY_V2_MODE: DISCOVERY_V2_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
         DOSSIERS_MODE: DOSSIERS_PAYLOAD,
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
@@ -543,8 +554,9 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 {
                     ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
+                    DISCOVERY_V2_MODE: DISCOVERY_V2_EVIDENCE_SHA256,
                 }[mode]
-                if mode in {ASSET_V9_MODE, MARKET_PREVIEW_MODE}
+                if mode in {ASSET_V9_MODE, MARKET_PREVIEW_MODE, DISCOVERY_V2_MODE}
                 else (
                     MARKET_TERMINAL_EVIDENCE_SHA256
                     if mode == MARKET_TERMINAL_MODE
@@ -992,6 +1004,7 @@ def validate_state(home, state, *, executor_source=None):
         if "source" in manifest or state["mode"] in {
             DOSSIERS_MODE,
             DISCOVERY_MODE,
+            DISCOVERY_V2_MODE,
             ETF_WEEKLY_V2_MODE,
             ETF_HISTORICAL_MODE,
         }:
@@ -1085,6 +1098,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
+    elif state.get("mode") == DISCOVERY_V2_MODE:
+        manifest["web_lock_sha256"] = DISCOVERY_V2_WEB_LOCK_SHA256
     return manifest
 
 
@@ -1136,6 +1151,7 @@ class Operations:
             ASSET_V8_MODE,
             ASSET_V9_MODE,
             MARKET_PREVIEW_MODE,
+            DISCOVERY_V2_MODE,
             ETF_HISTORICAL_MODE,
         } and not discovery_background_idle(self.home):
             log.warning("discovery_deploy_background_not_quiet")
@@ -1184,6 +1200,7 @@ class Operations:
             MARKET_HISTORY_MODE,
             MARKET_TERMINAL_MODE,
             MARKET_PREVIEW_MODE,
+            DISCOVERY_V2_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
@@ -1630,6 +1647,7 @@ def main(argv=None):
             "apply-etf-weekly",
             "apply-dossiers",
             "apply-discovery",
+            "apply-discovery-v2",
             "apply-etf-weekly-v2",
             "apply-etf-historical",
             "recover",
@@ -1664,6 +1682,7 @@ def main(argv=None):
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
+                "apply-discovery-v2": DISCOVERY_V2_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
                 "apply-etf-historical": ETF_HISTORICAL_MODE,
             }.get(args.command, MODE),
