@@ -43,3 +43,7 @@ Windows/Linux原生及Docker产品验证 NOT_RUN。
 ## 主线推进后的产品重新冻结
 
 准备期间master推进至PR216的1fe4b8cc。保留资产幅读数及双方文档，经普通merge形成完整新产品P2 `ffab692587f6228bb9ed44b55bbb5a7bff47190e`；操作员PAYLOAD与固定断言改绑P2，前版仍b4384470。旧P和评审/测试原始记录保留，不将旧产品blob匹配误认新组合。相对已审操作员仅固定产品SHA变化，五文件源未受主线变动；最终重新核对历史17文件、固定模式回归、资产增量和独评及CI。
+
+## PR217主线兼容与P3
+
+修复历史API凭据测试隔离后，远端master已前进到PR217的08406f01。普通merge保留两侧全部DataHub/CI/文档，冲突仅README评审摘要；共享DataHub的历史用途绑定与KAPSARC合同分支位于不同函数。完整产品重新冻结P3 `bb4d2e657872ecb24df5bb0e89f571b4600b84d1`，固定PAYLOAD及断言同步，PREVIOUS保持b4384470。未扩大豁免或绕过latest，原CI失败与P2证据保留；本轮再核验共享DataHub/仓储测试、历史链、操作员固定身份及最终组合CI。

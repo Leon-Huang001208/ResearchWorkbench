@@ -109,7 +109,7 @@ ETF_WEEKLY_V2_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
 # This PR freezes the full historical product before appending its operator.
 ETF_HISTORICAL_MODE = "reviewed-etf-historical-v1"
 ETF_HISTORICAL_PREVIOUS = "b438447071d08eec38902b2a50610644283885f9"
-ETF_HISTORICAL_PAYLOAD = "ffab692587f6228bb9ed44b55bbb5a7bff47190e"
+ETF_HISTORICAL_PAYLOAD = "bb4d2e657872ecb24df5bb0e89f571b4600b84d1"
 # Historical family name: all these profiles require full business-index preservation.
 # Fixed merged dossiers product; retain the registered resident recovery identity.
 DOSSIERS_MODE = "reviewed-research-dossiers-v1"
