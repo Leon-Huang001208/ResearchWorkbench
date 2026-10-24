@@ -62,6 +62,18 @@ async def selection(
     return await _research(request).discovery.selection_preview(feed_id, theme_id, horizon)
 
 
+@router.get("/association")
+async def association(
+    request: Request,
+    feed_id: Annotated[str, Query(pattern=UUID_PATTERN)],
+    news_id: Annotated[str, Query(pattern=r"^news-[a-f0-9]{48}$")],
+    event_id: Annotated[str, Query(min_length=1, max_length=160, pattern=r"^[A-Za-z0-9_-]+$")],
+    horizon: Horizon = "medium",
+):
+    """Only inspect an event already present in this user's exact feed."""
+    return await _research(request).discovery.associate(feed_id, news_id, event_id, horizon)
+
+
 @router.get("/handoffs")
 async def handoffs(request: Request):
     return _research(request).discovery.list_handoffs()

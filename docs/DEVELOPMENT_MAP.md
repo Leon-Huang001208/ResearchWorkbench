@@ -598,6 +598,8 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
 
 
+2026-10-24：今日发现原生改版定位：discovery/news.py处理原始来源身份/指纹，reading.py处理独立读取lane；service.py复核selection/association/显式freeze，tracking.py绑定原始批准范围并复用原日程，ui/discovery.mjs/css按原生令牌双栏显示。新GET association与raw context v2见research-web-discovery.md，旧事件/恢复保持。
+
 ## 2026-10-24：公开代理策略与原件绑定v2
 
 匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。

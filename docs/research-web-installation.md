@@ -1044,6 +1044,8 @@ KAPSARC 固定 metadata 校验和 kg 投影只使用既有 HTTP/CSV/JSON 与可�
 披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
 
 
+2026-10-24：今日发现原生双栏与原始资讯分支只使用既有Python/HTTP/原生JS；无新依赖、安装入口、DSH/CJPY pin或系统配置。新增Python模块由既有包构建自动收集，原Mac Bootstrap继续核对discovery资源及同候选安装/健康/Doctor，不能由现有环境替代。
+
 ## 2026-10-24：公开代理策略与原件绑定v2
 
 匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
