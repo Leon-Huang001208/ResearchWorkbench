@@ -17,6 +17,7 @@ from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
+from test_report_workflow_integration import isolated_keyring
 
 from app.research_web.datahub.providers_wind_api import WindClientAPIProvider
 from app.research_web.report_workflows.evidence import prepare_weekly_evidence
@@ -36,6 +37,8 @@ from app.research_web.research_quality_service import prepare_contract
 from app.research_web.resources.research_report_plan import write_business_report_plan
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+
+__all__ = ["isolated_keyring"]
 
 
 class QuietNative:
