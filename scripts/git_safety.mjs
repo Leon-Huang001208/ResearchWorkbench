@@ -805,6 +805,8 @@ function retirementIdentity(ref,oid,currentTask,records) {
 }
 function retiredDelivery(repository,taskId,receipt,ref,oid,options) {
   const directory=path.join(repository.commonDirectory,'leon-engineering/deliveries');
+  assertNoSymlinkAncestors(directory);
+  if(!fs.lstatSync(directory,{throwIfNoEntry:false})?.isDirectory())fail('UNRELATED_REF_CHANGED');
   const files=fs.readdirSync(directory).filter(name=>name.endsWith('.json'));
   if(files.length>2000)fail('CLOSEOUT_RECOVERY_SCAN_LIMIT');
   const candidates=[];
