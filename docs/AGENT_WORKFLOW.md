@@ -1,5 +1,13 @@
 # Agent 任务路由指南
 
+部署衔接回归必须执行真实operate并让原g.verify_primary和LegacyBinding参与，不得mock关键门成None。v2仅先做非空闲身份前提，桥后完整原Primary/Host/Native门不减；字段未知或其它活动拒绝停机。旧v1保持原顺序，现场deferred的绿源码/CI不能当真实切换成功。
+
+华安提交/恢复改动的本地邻近闭包必须同时包含test_report_weekly_historical_acceptance.py、test_report_weekly_quality.py及test_report_weekly_admission.py。历史路径需用真实ResearchService、合法Provider合成证据、真实scope/send/claim；不能整体替换weekly_data模块后把尚未抵达Sender的失败当成unknown/accepted恢复证明。先断言数据门、RPC及收据前提，再核历史用途、owner和冻结证据。CI已登记该模块，夹具修复不移除或跳过用例。
+
+华安准入后继先冻结完整产品祖先bacb423ce（含PR227单位/出处证据及已批准PR229行情展示），再只改受审Native操作员/测试与文档。apply-etf-weekly-admission以固定36fd为前版，显式封印维护意图才能结束旧等待；恢复不重发模型，维护意图/回执缺失或冲突拒绝。领域动作后窄GET刷新旧缓存，原三锁、全账号活动与恢复门保持；与统一部署窗口衔接，不独立切换或在窗口启动模型。
+
+华安准入/账本修复先以真实ResearchService.send重现错误capability data gate，不能再mock send绕过。逐层验证Host→Native Tool→Python→Seatbelt真实读取；预检/claim/已接受/未知并发与重启分开，旧sender缺证保unknown。用户已选保留旧运行、修复部署后新版本手动验收；原Wind/正文/文件门和独立部署授权保持。
+
 全市场预览修复部署固定用户批准的e56d9718组合产品和36fd990c旧版，经原三CI/同候选Mac安装及独评后，由 `apply-market-preview` 走原version4锁、全账号后台/市场空闲、BirthFence和恢复事务；前版变化或存在活动任务时停止，不覆盖其他部署或提升旧证据。
 
 资产幅字段采用封闭V8部署：先固定包含PR216/217/219的真实合并组合，再对最终操作员运行完整Router、独评、原三CI和同候选Mac安装；前版为实际b4384470。沿本任务既有部署授权执行持锁空闲、BirthFence与全账号保全，后台跟踪/Automation/Workflow活动或未知拒绝，旧恢复合同保持。
@@ -480,6 +488,28 @@ BaoStock单报告期现金流比率沿原公开worker及默认Host/研究仓，�
 
 先以空环境和真实requests无网络复现系统代理继承，再在独立worker修复并保留原端点真实失败；禁止修改系统代理或把helper限制包装为vendor失败。GDP累计/新浪自然日披露与未知单位按v2原件投影绑定；真实默认Host/PG三进程、实际重启和空库恢复独立取证，原三CI和同候选Mac安装不省略。
 
+
+## 2026-10-24：pending finalization 的受约束重新核验
+
+controller已cleaned而资源回执仍blocked/pending时，不得因目录消失就宣称整轮cleaned。普通status/cleanup原审计不放宽。仅对已归档的Codex captures/base或checkpoints树引用消失，可显式追加核验；普通引用删除、分叉、其他worktree变化和对象缺失仍拒绝。
+
+先只读预览，指定从原日志核对的恢复验证备份：
+
+~~~bash
+node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id TASK --recovery-backup /absolute/verified-backup
+~~~
+
+预览不fetch或写回执。核对其候选、证明/备份哈希、消失快照清单，再使用返回的previewSha256：
+
+~~~bash
+node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id TASK --recovery-backup /absolute/verified-backup --apply --preview-sha256 EXACT_PREVIEW_SHA256
+~~~
+
+执行持仓库/备份锁，实际独立恢复v2归档并全量检查；候选、旧锚点、当时存在的任务worktree、退休目录缺席、剩余Docker资源和20GiB缓存预算须成立。不重放目录或卷删除。原git-finalization.json字节保持，资源回执原件归档，追加epoch与独立完成证书；不回填ref、不改旧基线。重复恢复及普通status仍经过fsck。
+
+历史pending没有backup manifest摘要时，先依据原Git安全日志独立核对归档来源，再将指定归档seal、manifest及本轮实际恢复结果绑定新epoch。不能把兼容备份宣称为全部历史现场证明。原失败与缺失旧Git对象分别保留。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 ## 2026-10-24：原端点与参考证据验收
 

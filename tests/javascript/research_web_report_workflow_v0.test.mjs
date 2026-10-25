@@ -101,6 +101,19 @@ test('real migrated report Workflows have a dedicated Claw shelf and package det
   for (const expected of ['刷新清单 1', '共享快照', '行业研究', 'report.docx', 'block:industry', '#/claw?session=11111111-1111-4111-8111-111111111111']) assert.ok(detail.includes(expected));
 });
 
+test('ended weekly monitoring remains unknown and cannot offer a retry action', async () => {
+  const { renderReportWorkflowShelf, renderReportWorkflowDetail } = await import(new URL('report-workflows.mjs', root));
+  const run = { id: 'legacy-unknown', status: 'cancelled', monitoring_disposition: 'ended_by_user', research_submission_state: 'unknown', execution_purpose: 'historical_acceptance', version: 5, trigger: 'manual', quality_status: 'pending', finalization_status: 'blocked' };
+  const detail = { id: 'huaan-etf-weekly', name: '华安 ETF 周报', status: 'enabled', current_version: 5, runs: [run], latest_run: run };
+  for (const html of [renderReportWorkflowShelf([detail]), renderReportWorkflowDetail(detail)]) {
+    assert.match(html, /已结束等待（模型结果仍未知）/);
+    assert.doesNotMatch(html, /已取消|data-retry-report-run="legacy-unknown"|data-cancel-report-run="legacy-unknown"/);
+  }
+  const ordinary = renderReportWorkflowDetail({ ...detail, runs: [{ ...run, monitoring_disposition: undefined }] });
+  assert.match(ordinary, /已取消/);
+  assert.match(ordinary, /data-retry-report-run="legacy-unknown"/);
+});
+
 test('report Workflow selection requires its own published ready package version', async () => {
   const { reportWorkflowEligibility, renderCapabilityCatalog, renderCapabilityDetail } = await import(new URL('capabilities.mjs', root));
   const { renderQuickSkills } = await import(new URL('composer.mjs', root));

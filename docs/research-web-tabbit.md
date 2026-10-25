@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+周报13工具范围不授予tabbit_browser或额外MCP；已有Tabbit批准流程和普通Native会话范围不变。允许的新闻/网页取证走现有DataHub及research_read_source保留出处；本修复不操作浏览器、不用未访问URL充证据。
+
 华安ETF周报继续使用唯一DSH执行和原Host质量门；模板渲染脚本只接收Host注入的绝对
 `SESSION_ROOT`，不放宽沙箱的目录或浏览器权限。Wind Client API的私有取数不启用Tabbit，
 真实网页观点仍须当前任务允许的来源及实际读取证据。离线合成数据贯通不证明浏览器、模型、

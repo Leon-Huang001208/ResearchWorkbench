@@ -1,5 +1,17 @@
 # GitHub Actions 免费额度治理
 
+PR232的7c7015b5单job从18:59:09Z至19:29:26Z因达到30m0s被GitHub取消，annotation明确maximum execution time；head未更新，非并发替换。取消前仍在产生capability校验进度，无完整pytest汇总，不能标PASS或推断所有测试无失败。保留原全套Python/JS/Native测试与相同单一ubuntu-latest job、permissions和concurrency，预算明确从30增加至40分钟（有界增加10分钟），同步项目workflow约束；不新增job/runner、不rerun旧候选或删除/跳过用例。当前仓库PUBLIC标准runner；新提交与完整payload重新固定、独评及同候选原三CI/Mac证据仍必需，旧绿不复用。
+
+真实Primary门顺序v2仍扩展原操作员测试矩阵，不新增job/runner/依赖或超时。实际b0e安全deferred后增加真实g.verify_primary/LegacyBinding参与的operate回归，身份与最终活动门均保留；新增预算预留原步骤90秒，最终本机/原三CI及同候选Mac安装分别记录。新head正常自动CI，不rerun旧候选，不从Mac派发Windows/Linux产品，正式剩余窗口1336秒不由源码任务重置。
+
+PR231首候选a555的Checks真实3failed/6232passed/72skipped/117subtests，Python1426.47秒；完整job9.76MB留档，不是截断或日志容量失败。修复仅升级原历史模块夹具，不新增CI步骤/job/依赖或改超时；本机历史/quality/admission三模块100passed102.15秒，原3节点独立复跑约12秒。新commit自动重跑原三CI，禁止rerun旧候选；P8会完整纳入修复测试后固定，实际供应商/模型不进入CI。
+
+本轮华安Native后继只扩展原test_model_provider_upgrade.py矩阵，不新增job、runner、依赖或超时；完整矩阵基线2285项116.85秒，修复后定点另列，不混称同一运行。增量预留原步骤90秒；与提交/等待领域原240秒预算分别记录。原三CI及同候选Mac安装、完整日志/checkout/tree门保留，统一窗口不启动模型/跟踪，他平台产品dispatch不由Mac发送。
+
+2026-10-24周报准入修复向原Checks Python步骤增加test_report_weekly_admission.py与test_legacy_weekly_monitoring.py，原脚本scope/guard及Workflow UI测试模块复用；无新job/runner/timeout/依赖，预留现有步骤240秒（真实scope含macOS Seatbelt，Ubuntu不冒充此层）。原三CI及同候选Mac安装保留；Windows条件门按对应设备交接NOT_RUN，不从Mac dispatch。实际模型/取数不进入CI，最终耗时和完整日志另取证。
+
+Wind行情条仅向既有JS通配符增加7项显示合同测试；本机完整JS1132通过3原skip，无新增job/runner/依赖/timeout。现有步骤增量预算10秒；同候选Mac Bootstrap因纯UI路径须按原workflow_dispatch明确ref执行一次，保留原通用两门与Mac安装。远端动作前实时核对PUBLIC/额度，不rerun、不从Mac派发Windows/Linux产品；本轮不更新常驻或运行模型。
+
 2026-10-24资产V8只扩充现有升级测试矩阵和后台空闲反例，无新workflow/job/runner、依赖或timeout；1712项本机111.77秒为预备候选证据，现有步骤预算另预留90秒，最终候选重新绑定原三CI/Mac安装。发布前实时核对PUBLIC/额度，不从Mac派发Windows/Linux产品，不调用模型或厂商。
 
 本次历史验收组合另向既有test_model_provider_upgrade矩阵纳入封闭升级模式，无新增job/runner/依赖/timeout，增量预留90秒，与历史功能60秒分别取本机耗时。产品P与操作员同一普通merge，最终三CI及Mac安装必须重新绑定完整组合树；旧产品或离线通过不能充当新候选CI。
@@ -313,3 +325,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-24原端点与参考证据只向原Checks同一pytest步骤加入test_reference_evidence，既有AK/native/financial模块补反例，无新job/runner/timeout/依赖。158项定点约秒级，预留原步骤30秒；4次诊断与后续真实免费捕获/临时PG仅本机，不在CI调用供应商/模型/正式库。原三CI、同候选macos-14安装与实时PUBLIC核对保留，不手工rerun或Mac发他平台产品dispatch。
 
 2026-10-24全市场预览组合profile只扩展原test_model_provider_upgrade矩阵，2042项本机124.99秒；保留原Research Web Checks、Constraints和macos-14干净安装，不增加workflow/job/runner/依赖/timeout。新增profile增量预算预留原步骤30秒，最终候选另取证；远端操作前实时核验公开标准runner资格，不派发Windows/Linux产品，不用旧PR223的三CI代替新operator候选。
+
+
+2026-10-24 pending-finalization恢复复用原Project Constraints的git_safety/iteration_closeout Node步骤，其中增加标准库Python复核与子进程桥接；无新workflow/job/runner/依赖/timeout。增量预留原步骤30秒，原Checks与同候选macos-14安装保留，远端前复查PUBLIC/预算，不从Mac派发Windows/Linux产品CI。

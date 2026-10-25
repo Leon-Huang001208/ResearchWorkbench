@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
+from test_report_weekly_admission import freeze_scope, weekly
+from test_report_workflow_integration import isolated_keyring
 
 from app.research_web.report_workflows.models import ReportWorkflowManifest, WorkflowError
 from app.research_web.report_workflows.weekly_quality import (
@@ -21,6 +23,8 @@ from app.research_web.report_workflows.weekly_quality import (
     trusted_weekly_context,
     verify_weekly_rendered_artifact,
 )
+
+__all__ = ["isolated_keyring", "weekly"]
 
 
 def _service(tmp_path):
@@ -504,8 +508,8 @@ def _runtime_fixture(
         }
 
     async def send(*args, **kwargs):
-        sent.append((args, kwargs))
         sid, _text, key = args
+        sent.append((args, kwargs))
         task = hashlib.sha256(f"{sid}:{key}".encode()).hexdigest()[:24]
         store.reserve(
             sid,
@@ -532,6 +536,7 @@ def _runtime_fixture(
     service.report_workflows = SimpleNamespace(require_weekly_owner=authorize)
     runtime = ReportWorkflowRuntime(service, catalog, None)
     service.report_workflows.runtime = runtime
+
     return runtime, owner, sent
 
 
@@ -564,22 +569,31 @@ def test_owner_revocation_during_collection_blocks_model_admission(tmp_path, mon
     assert sent == []
 
 
-def test_unknown_model_submission_is_preserved_for_attention_without_retry(tmp_path, monkeypatch):
-    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, unknown_send=True)
+def test_unknown_model_submission_is_preserved_for_attention_without_retry(weekly, monkeypatch):
+    from app.research_web.client import RuntimeFailure
 
-    async def run():
-        created = await runtime.start_run("huaan-etf-weekly")
-        await runtime.tasks[created["id"]]
-        row = runtime._run(created["id"])
-        assert row["status"] == "needs_attention"
-        assert row["research_submission_state"] == "unknown"
-        checked = await runtime.retry(created["id"])
+    service, native, run, _manifest = weekly
+    runtime = service.report_workflows.runtime
+    freeze_scope(weekly)
+    original = native.rpc
+
+    async def lost(method, payload):
+        result = await original(method, payload)
+        if method == "session.prompt":
+            raise RuntimeFailure("lost ACK", "transport_lost")
+        return result
+
+    monkeypatch.setattr(native, "rpc", lost)
+
+    async def execute():
+        with pytest.raises(RuntimeFailure):
+            await runtime._submit_weekly(run["id"])
+        checked = await runtime._inspect_weekly_run(run["id"])
         assert checked["status"] == "needs_attention"
-        duplicate = await runtime.start_run("huaan-etf-weekly")
-        assert duplicate["id"] == created["id"]
+        assert checked["research_submission_state"] == "unknown"
 
-    asyncio.run(run())
-    assert len(sent) == 1
+    asyncio.run(execute())
+    assert sum(name == "session.prompt" for name, _ in native.calls) == 1
 
 
 def test_legacy_success_cannot_enable_formal_automation(tmp_path, monkeypatch):
@@ -637,37 +651,32 @@ def test_excel_production_cannot_enable_schedule_even_after_manual_finalization(
     assert sent == [] and runtime.catalog.data["runs"] == {}
 
 
-def test_failed_admission_journal_never_calls_native_rpc(tmp_path, monkeypatch):
-    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, unknown_send=True)
-    original_save = runtime.catalog._save
-    failed = []
+def test_failed_admission_journal_never_calls_native_rpc(weekly, monkeypatch):
+    from app.research_web.report_workflows import weekly_execution
 
-    def save():
-        if not failed and any(
-            row.get("research_admission_at") for row in runtime.catalog.data["runs"].values()
-        ):
-            failed.append(True)
-            raise OSError("journal fsync failed")
-        return original_save()
+    service, native, run, _manifest = weekly
+    runtime = service.report_workflows.runtime
+    freeze_scope(weekly)
 
-    monkeypatch.setattr(runtime.catalog, "_save", save)
+    def fail(*_args):
+        raise WorkflowError("journal fsync failed", "weekly_attempt_failed", 409)
 
-    async def run():
-        created = await runtime.start_run("huaan-etf-weekly")
-        await runtime.tasks[created["id"]]
-        row = runtime._run(created["id"])
-        assert row["status"] == "failed"
-        assert "research_admission_at" not in row
-
-    asyncio.run(run())
-    assert failed and sent == []
+    monkeypatch.setattr(weekly_execution, "create_attempt", fail)
+    with pytest.raises(WorkflowError):
+        asyncio.run(runtime._submit_weekly(run["id"]))
+    current = runtime._run(run["id"])
+    assert current["research_submission_state"] == "preflight_rejected"
+    assert "research_admission_at" not in current
+    assert not any(name == "session.prompt" for name, _ in native.calls)
 
 
-def test_startup_recovers_accepted_rpc_without_sending_again(tmp_path, monkeypatch):
-    from app.research_web.report_workflows.catalog import ReportWorkflowService
+def test_startup_recovers_accepted_rpc_without_sending_again(weekly, monkeypatch):
     from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
 
-    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, native_accept=True)
+    service, native, run, _manifest = weekly
+    runtime = service.report_workflows.runtime
+    freeze_scope(weekly)
+    runtime._update_run(run["id"], status="preparing_data")
     original_save = runtime.catalog._save
     failed = []
 
@@ -682,14 +691,11 @@ def test_startup_recovers_accepted_rpc_without_sending_again(tmp_path, monkeypat
     monkeypatch.setattr(runtime.catalog, "_save", save)
     monitored = []
 
-    async def run():
-        created = await runtime.start_run("huaan-etf-weekly")
-        await runtime.tasks[created["id"]]
-        assert runtime._run(created["id"])["status"] == "needs_attention"
-        recovered = ReportWorkflowRuntime(
-            runtime.service, ReportWorkflowService(runtime.catalog.root.parent), None
-        )
-        runtime.service.report_workflows.runtime = recovered
+    async def execute():
+        with pytest.raises(OSError):
+            await runtime._submit_weekly(run["id"])
+        recovered = ReportWorkflowRuntime(service, runtime.catalog, None)
+        service.report_workflows.runtime = recovered
 
         async def monitor(run_id):
             monitored.append(run_id)
@@ -698,29 +704,42 @@ def test_startup_recovers_accepted_rpc_without_sending_again(tmp_path, monkeypat
         await recovered.start()
         await asyncio.gather(*list(recovered.tasks.values()))
         await recovered.close()
-        assert monitored == [created["id"]]
 
-    asyncio.run(run())
-    assert len(sent) == 1
+    asyncio.run(execute())
+    assert monitored == [run["id"]]
+    assert failed == [True]
+    assert sum(name == "session.prompt" for name, _ in native.calls) == 1
 
 
-def test_startup_retains_unknown_rpc_without_model_or_vendor_replay(tmp_path, monkeypatch):
+def test_startup_retains_unknown_rpc_without_model_or_vendor_replay(weekly, monkeypatch):
+    from app.research_web.client import RuntimeFailure
     from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
 
-    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, unknown_send=True)
+    service, native, run, _manifest = weekly
+    runtime = service.report_workflows.runtime
+    freeze_scope(weekly)
+    original = native.rpc
 
-    async def run():
-        created = await runtime.start_run("huaan-etf-weekly")
-        await runtime.tasks[created["id"]]
-        recovered = ReportWorkflowRuntime(runtime.service, runtime.catalog, None)
-        runtime.service.report_workflows.runtime = recovered
+    async def lost(method, payload):
+        result = await original(method, payload)
+        if method == "session.prompt":
+            raise RuntimeFailure("lost ACK", "transport_lost")
+        return result
+
+    monkeypatch.setattr(native, "rpc", lost)
+
+    async def execute():
+        with pytest.raises(RuntimeFailure):
+            await runtime._submit_weekly(run["id"])
+        recovered = ReportWorkflowRuntime(service, runtime.catalog, None)
+        service.report_workflows.runtime = recovered
         await recovered.start()
         assert recovered.tasks == {}
-        assert recovered._run(created["id"])["status"] == "needs_attention"
+        assert recovered._run(run["id"])["status"] == "needs_attention"
         await recovered.close()
 
-    asyncio.run(run())
-    assert len(sent) == 1
+    asyncio.run(execute())
+    assert sum(name == "session.prompt" for name, _ in native.calls) == 1
 
 
 def test_pending_data_receipt_is_only_inspected_not_replayed(tmp_path, monkeypatch):

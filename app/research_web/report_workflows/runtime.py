@@ -147,7 +147,9 @@ class ReportWorkflowRuntime:
             runs = [
                 copy.deepcopy(row)
                 for row in self.catalog.data["runs"].values()
-                if row.get("weekly_data_contract") and row.get("status") in ACTIVE
+                if row.get("weekly_data_contract")
+                and row.get("status") in ACTIVE
+                and row.get("monitoring_disposition") != "ended_by_user"
             ]
         for run in runs:
             run_id = run.get("id")
@@ -172,11 +174,23 @@ class ReportWorkflowRuntime:
                         self._resume_delivery(run_id), name=f"report-weekly-recover-{run_id}"
                     )
                 else:
+                    from .weekly_execution import PROTOCOL
+
+                    known_preflight = run.get(
+                        "research_submission_protocol"
+                    ) == PROTOCOL and run.get("research_submission_state") in {
+                        "prepared",
+                        "preflight_rejected",
+                    }
                     self._update_run(
                         run_id,
                         status="needs_attention",
                         finalization_status="blocked",
-                        failure_code="weekly_recovery_unknown",
+                        recovery_failure_code=(
+                            "weekly_recovery_waiting_explicit_retry"
+                            if known_preflight
+                            else "weekly_recovery_unknown"
+                        ),
                         recovered_at=time.time(),
                     )
             except (StoreError, OSError, ValueError, KeyError, TypeError) as exc:
@@ -185,7 +199,7 @@ class ReportWorkflowRuntime:
                     run_id,
                     status="needs_attention",
                     finalization_status="blocked",
-                    failure_code=getattr(exc, "code", "weekly_recovery_context_unknown"),
+                    recovery_failure_code=getattr(exc, "code", "weekly_recovery_context_unknown"),
                 )
 
     def _append_refresh_manifest(self, run_id: str, path: str | None) -> dict:
@@ -462,6 +476,8 @@ class ReportWorkflowRuntime:
                 row.pop("path", None)
                 if weekly_contract is not None:
                     row.update(
+                        research_submission_protocol="weekly-admission-v2",
+                        research_submission_state="preflight",
                         owner_id=owner["id"],
                         execution_purpose=execution_purpose,
                         weekly_cutoff=weekly_contract["cutoff"],
@@ -697,30 +713,18 @@ class ReportWorkflowRuntime:
                 "文件组装和交付检查由后端受审查 Tool 完成，不调用旧报告执行链。"
             )
             if formal:
-                prompt = (
-                    f"执行锁定的华安 ETF 周报 v{run['version']}。先读取 inputs/report-workflow/run-context.json、模板及共享数据快照。"
-                    "本轮仅使用已核验事实、确定性比较和有原文出处的观点；数据、计算、截止和实际交易日期以 Host 冻结合同为准。"
-                    "正文的唯一可修改真源为 outputs/research-report.json，必须使用原生 report_plan，sections.id 对应全部原报告区块，coverage 绑定本轮研究合同要求。"
-                    "区块 id 是绑定依据；report_plan 的 heading 使用不含数词的中性名称，交付原标题由 Host 按锁定区块元数据恢复，不手写数字标题绕过质量门。"
-                    "开始日期和结束日期是 Host 冻结的 workbook 元数据，不加入 report_plan 正文；其余区块 id 与研究合同要求必须完整覆盖。"
-                    "不要另写 report_payload.json 或自行组装 Office；Host 将规范正文投影到原模板。"
-                    f"仅 run-context 中 news_block_ids 允许声明：{INSUFFICIENT_NEWS} 必须保留真实取证记录，不能用训练知识补新闻。"
-                    "调用 research_check_quality；只允许原回合一次有界补查，失败保留 incomplete，不新建研究或放宽要求。"
-                    f"子 Agent 只复用已冻结快照 SHA-256 {snapshot['sha256']}，不得重复刷新底稿。"
-                )
+                prompt = self._weekly_submission_prompt(run, manifest, snapshot["sha256"])
             if formal:
-                self._update_run(
-                    run_id,
-                    research_admission_at=time.time(),
-                    research_submission_state="submitting",
+                self._update_run(run_id, weekly_submission_prompt=prompt)
+                await self._submit_weekly(run_id)
+            else:
+                await self.service.send(
+                    sid,
+                    prompt,
+                    f"report-workflow-{run_id}",
+                    formats=[item.value for item in manifest.delivery.formats],
+                    capability_id="report-production-workflow",
                 )
-            await self.service.send(
-                sid,
-                prompt,
-                f"report-workflow-{run_id}",
-                formats=[item.value for item in manifest.delivery.formats],
-                capability_id="report-production-workflow",
-            )
             self._update_run(
                 run_id,
                 status="running",
@@ -738,12 +742,19 @@ class ReportWorkflowRuntime:
                 with suppress(Exception):
                     await self.service.cancel(run["session_id"])
             current = self._run(run_id)
-            if current.get("weekly_data_contract") and current.get("research_admission_at"):
+            from .weekly_execution import has_attempt
+
+            if current.get("weekly_data_contract") and (
+                current.get("research_admission_at") or has_attempt(self.run_path(run_id))
+            ):
                 self._update_run(
                     run_id,
                     status="needs_attention",
                     finalization_status="blocked",
                     failure_code="weekly_monitor_interrupted",
+                    research_submission_state=(
+                        "unknown" if not current.get("research_started_at") else "accepted"
+                    ),
                 )
             else:
                 self._update_run(run_id, status="cancelled", delivery_status="incomplete")
@@ -751,11 +762,15 @@ class ReportWorkflowRuntime:
         except Exception as exc:  # noqa: BLE001 - background boundary fails closed.
             log.error("report_workflow_run_failed", error_type=type(exc).__name__)
             current = self._run(run_id)
-            unknown = bool(
-                current.get("research_admission_at") and not current.get("research_started_at")
+            from .weekly_execution import has_attempt
+
+            attempted = bool(
+                current.get("weekly_data_contract") and has_attempt(self.run_path(run_id))
             )
+            unknown = bool(attempted and not current.get("research_started_at"))
             admitted = bool(
-                current.get("weekly_data_contract") and current.get("research_admission_at")
+                current.get("weekly_data_contract")
+                and (current.get("weekly_context_sha256") or attempted)
             )
             self._update_run(
                 run_id,
@@ -771,7 +786,11 @@ class ReportWorkflowRuntime:
                         "research_submission_state": (
                             "unknown"
                             if unknown
-                            else current.get("research_submission_state", "not_submitted")
+                            else (
+                                "accepted"
+                                if current.get("research_started_at")
+                                else "preflight_rejected"
+                            )
                         ),
                     }
                     if current.get("weekly_data_contract")
@@ -781,6 +800,138 @@ class ReportWorkflowRuntime:
         finally:
             self.tasks.pop(run_id, None)
             self.cancellations.pop(run_id, None)
+
+    @staticmethod
+    def _weekly_submission_prompt(run, manifest, snapshot_sha256):
+        return (
+            f"执行锁定的华安 ETF 周报 v{run['version']}。先读取 inputs/report-workflow/run-context.json、模板及共享数据快照。"
+            "本轮仅使用已核验事实、确定性比较和有原文出处的观点；数据、计算、截止和实际交易日期以 Host 冻结合同为准。"
+            "正文的唯一可修改真源为 outputs/research-report.json，必须使用原生 report_plan，sections.id 对应全部原报告区块，coverage 绑定本轮研究合同要求。"
+            "区块 id 是绑定依据；report_plan 的 heading 使用不含数词的中性名称，交付原标题由 Host 按锁定区块元数据恢复，不手写数字标题绕过质量门。"
+            "开始日期和结束日期是 Host 冻结的 workbook 元数据，不加入 report_plan 正文；其余区块 id 与研究合同要求必须完整覆盖。"
+            "不要另写 report_payload.json 或自行组装 Office；Host 将规范正文投影到原模板。"
+            f"仅 run-context 中 news_block_ids 允许声明：{INSUFFICIENT_NEWS} 必须保留真实取证记录，不能用训练知识补新闻。"
+            "调用 research_check_quality；只允许原回合一次有界补查，失败保留 incomplete，不新建研究或放宽要求。"
+            f"必须创建并完成至少 {manifest.minimum_subagents} 个原生子 Agent；"
+            f"子 Agent 只复用已冻结快照 SHA-256 {snapshot_sha256}，不得重复刷新底稿。"
+        )
+
+    async def _submit_weekly(self, run_id: str, *, resume=False):
+        """Submit frozen inputs only; retries never run the data collector."""
+        from .weekly_execution import has_attempt, projection
+
+        run = self._run(run_id)
+        sid = run["session_id"]
+        if run.get("legacy_sender_evidence") == "missing":
+            raise WorkflowError(
+                "旧运行缺少可信提交阶段证据，不能重发", "weekly_legacy_sender_unproven", 409
+            )
+        if has_attempt(self.run_path(run_id)):
+            raise WorkflowError("模型受理未知，仅允许观察", "weekly_research_unknown", 409)
+        manifest = self.catalog.manifest(run["workflow_id"], run["version"])
+        formats = [item.value for item in manifest.delivery.formats]
+        prompt = run.get("weekly_submission_prompt")
+        if not isinstance(prompt, str):
+            raise WorkflowError("周报原始提交上下文缺失", "weekly_scope_invalid", 409)
+        projection(
+            self.service,
+            sid,
+            initialize=not run.get("weekly_execution_scope"),
+            prompt=prompt,
+            formats=formats,
+        )
+        try:
+            await self.service.send(
+                sid,
+                prompt,
+                "report-workflow-" + run_id,
+                formats=formats,
+                _weekly_run_id=run_id,
+                _weekly_resume=resume,
+            )
+        except Exception as exc:
+            current = self._run(run_id)
+            if (
+                current.get("research_started_at")
+                or current.get("research_submission_state") == "accepted"
+            ):
+                # Another caller can finish while this one waits for send's
+                # lock. Preserve that durable result, but propagate this error.
+                log.info("weekly_duplicate_submission_preserved_accepted", run_id=run_id)
+                raise
+            attempted = has_attempt(self.run_path(run_id))
+            retained = {}
+            if not attempted and not self._run(run_id).get("research_preflight_failed_at"):
+                retained = {
+                    "research_preflight_failed_at": time.time(),
+                    "research_preflight_failure_code": getattr(
+                        exc, "code", "report_execution_failed"
+                    ),
+                }
+            self._update_run(
+                run_id,
+                status="needs_attention",
+                finalization_status="blocked",
+                research_submission_state="unknown" if attempted else "preflight_rejected",
+                failure_code=(
+                    "research_submission_unknown"
+                    if attempted
+                    else getattr(exc, "code", "report_execution_failed")
+                ),
+                **retained,
+            )
+            raise
+        self._update_run(
+            run_id,
+            status="running",
+            research_submission_state="accepted",
+            research_started_at=time.time(),
+            failure_code=None,
+        )
+
+    async def _resume_weekly_submission(self, run_id):
+        submitted_here = False
+        try:
+            await self._submit_weekly(run_id, resume=True)
+            submitted_here = True
+            await self._wait_for_delivery(run_id)
+        except Exception as exc:  # noqa: BLE001 - background boundary preserves the journal.
+            log.warning("weekly_explicit_submission_failed", error_type=type(exc).__name__)
+            current = self._run(run_id)
+            if not submitted_here and (
+                current.get("research_started_at")
+                or current.get("research_submission_state") == "accepted"
+            ):
+                log.info("weekly_duplicate_monitor_preserved_accepted", run_id=run_id)
+                return
+            if submitted_here:
+                self._update_run(
+                    run_id,
+                    status="needs_attention",
+                    finalization_status="blocked",
+                    recovery_failure_code=getattr(exc, "code", "weekly_monitor_failed"),
+                )
+                return
+            from .weekly_execution import has_attempt
+
+            attempted = has_attempt(self.run_path(run_id))
+            self._update_run(
+                run_id,
+                status="needs_attention",
+                finalization_status="blocked",
+                research_submission_state=(
+                    "unknown"
+                    if attempted and current.get("research_submission_state") != "accepted"
+                    else current.get("research_submission_state", "preflight_rejected")
+                ),
+                failure_code=(
+                    "research_submission_unknown"
+                    if attempted
+                    else getattr(exc, "code", "report_execution_failed")
+                ),
+            )
+        finally:
+            self.tasks.pop(run_id, None)
 
     async def _refresh_workbook(
         self, run_id: str, workbook: str, *, refresh_date: date | None = None
@@ -1088,6 +1239,8 @@ class ReportWorkflowRuntime:
 
     async def retry(self, run_id: str) -> dict:
         run = self._run(run_id)
+        if run.get("monitoring_disposition") == "ended_by_user":
+            return self.public_run(run)
         if run.get("weekly_data_contract") and run.get("status") == "needs_attention":
             return await self._inspect_weekly_run(run_id)
         if run["status"] in ACTIVE:
@@ -1210,7 +1363,70 @@ class ReportWorkflowRuntime:
         if run_id in self.tasks:
             return self.public_run(run)
         sid = run.get("session_id")
-        if run.get("research_admission_at") or run.get("research_started_at"):
+        from .weekly_execution import PROTOCOL, has_attempt
+
+        # Legacy rows do not record the Sender revision. Even an empty Native
+        # history cannot prove which preflight implementation produced the row.
+        # Record only the recovery protocol; the original sender remains unknown.
+        if not run.get("research_submission_protocol") and (
+            run.get("weekly_context_sha256")
+            or run.get("research_admission_at")
+            or run.get("research_submission_state")
+            in {"unknown", "submitting", "accepted", "prepared", "preflight_rejected"}
+        ):
+            self._update_run(
+                run_id,
+                research_recovery_protocol=PROTOCOL,
+                legacy_sender_evidence="missing",
+                legacy_rechecked_at=time.time(),
+            )
+            run = self._run(run_id)
+        existing_receipt = (
+            self.service.store.data["receipts"].get(f"{sid}:report-workflow-{run_id}")
+            if sid
+            else None
+        )
+        if (
+            existing_receipt
+            and not run.get("research_submission_protocol")
+            and not self._accepted_weekly_submission(run)
+        ):
+            self._update_run(
+                run_id,
+                recovery_failure_code=(
+                    "weekly_legacy_sender_unproven"
+                    if run.get("legacy_sender_evidence") == "missing"
+                    else "weekly_native_submission_unconfirmed"
+                ),
+            )
+            return self.public_run(self._run(run_id))
+
+        if (
+            sid
+            and run.get("research_submission_protocol") == PROTOCOL
+            and run.get("legacy_sender_evidence") != "missing"
+            and run.get("research_submission_state") in {"prepared", "preflight_rejected"}
+            and not has_attempt(self.run_path(run_id))
+        ):
+            self.tasks[run_id] = asyncio.create_task(
+                self._resume_weekly_submission(run_id), name=f"report-weekly-submit-{run_id}"
+            )
+            return self.public_run(run)
+        if run.get("legacy_sender_evidence") == "missing" and not self._accepted_weekly_submission(
+            run
+        ):
+            self._update_run(
+                run_id,
+                status="needs_attention",
+                recovery_failure_code="weekly_legacy_sender_unproven",
+                finalization_status="blocked",
+            )
+            return self.public_run(self._run(run_id))
+        if (
+            run.get("research_admission_at")
+            or run.get("research_started_at")
+            or has_attempt(self.run_path(run_id))
+        ):
             if not sid:
                 raise WorkflowError("模型受理结果未知，不能重发", "weekly_research_unknown", 409)
             try:
@@ -1226,25 +1442,47 @@ class ReportWorkflowRuntime:
                 if seen and self.service.store.session(sid).get("delivery_key") == key:
                     self.service.store.receipt(sid, key, "accepted")
                 if not self._accepted_weekly_submission(run):
-                    self._update_run(run_id, failure_code="weekly_native_submission_unconfirmed")
+                    self._update_run(
+                        run_id,
+                        recovery_failure_code=(
+                            "weekly_legacy_sender_unproven"
+                            if run.get("legacy_sender_evidence") == "missing"
+                            else "weekly_native_submission_unconfirmed"
+                        ),
+                    )
                     return self.public_run(self._run(run_id))
             except (StoreError, RuntimeFailure, OSError, ValueError, KeyError, TypeError) as exc:
                 log.warning(
                     "report_weekly_submission_recheck_failed", error_type=type(exc).__name__
                 )
-                self._update_run(run_id, failure_code="weekly_native_submission_unconfirmed")
+                self._update_run(
+                    run_id,
+                    recovery_failure_code=(
+                        "weekly_legacy_sender_unproven"
+                        if run.get("legacy_sender_evidence") == "missing"
+                        else "weekly_native_submission_unconfirmed"
+                    ),
+                )
                 return self.public_run(self._run(run_id))
             self._update_run(
                 run_id,
                 status="validating",
                 research_submission_state="accepted",
                 research_observed_at=time.time(),
-                failure_code=None,
+                recovery_failure_code=None,
             )
             self.tasks[run_id] = asyncio.create_task(
                 self._resume_delivery(run_id), name=f"report-weekly-reconcile-{run_id}"
             )
         else:
+            if run.get("weekly_context_sha256"):
+                self._update_run(
+                    run_id,
+                    status="needs_attention",
+                    recovery_failure_code="weekly_preflight_incomplete",
+                    finalization_status="blocked",
+                )
+                return self.public_run(self._run(run_id))
             if sid:
                 receipt = self.service.datahub.snapshots.receipt(
                     sid, f"report-weekly-data-{run_id}"
@@ -1271,7 +1509,7 @@ class ReportWorkflowRuntime:
                     run_id,
                     status="needs_attention",
                     finalization_status="blocked",
-                    failure_code="weekly_monitor_interrupted",
+                    recovery_failure_code="weekly_monitor_interrupted",
                 )
             else:
                 self._update_run(run_id, status="cancelled", delivery_status="incomplete")
@@ -1282,7 +1520,11 @@ class ReportWorkflowRuntime:
             self._update_run(
                 run_id,
                 status="needs_attention" if current.get("weekly_data_contract") else "failed",
-                failure_code="delivery_retry_failed",
+                **(
+                    {"recovery_failure_code": "delivery_retry_failed"}
+                    if current.get("weekly_data_contract")
+                    else {"failure_code": "delivery_retry_failed"}
+                ),
             )
         finally:
             self.tasks.pop(run_id, None)

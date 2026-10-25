@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+v2沿原固定seal/intent/receipt与原目录CAS，只改变操作员验证顺序。身份预检不修改旧Run；领域动作仍保留unknown、原failure、输入、SID和冻结日期，回滚代码不逆转已授权控制决定，数据根与存储结构不变。
+
+weekly-rpc-attempt.json保存在Host私有Run内、模型workspace之外，O_EXCL/NOFOLLOW、类型/大小/私有权限与fsync读回约束保证不被替换。冻结scope绑定context/snapshot/版本/owner/model；Host materialize后的工作簿与Session副本核同一字节，模板资产仍核原资源hash。脚本的weekly输入策略只对冻结文件授literal读，不自动授读后来新增inputs。
+
+行情条与成交量副图的手/万/亿只为纯展示投影，已确认股单位的A股按100股/手显示。原OHLCV、MA输入、量额、复权因子、筹码和旧冻结快照保持原值/原单位；未知单位不借别的快照推断，缺失与真实零保持区别，无存储/API迁移。
+
 全市场预览组合部署保留原用户根、全部会话/模型、业务索引和档案；操作员只沿原日志、事务journal、当前/上一轮wheel与恢复artifact写入。新profile不引入持久schema、数据库启用或迁移，固定旧/新代码身份后按原恢复验证切换。
 
 V9的16MB单job界限仅适用GitHub CI日志解压，不改变64MiB业务索引、账号/档案保全、原始金融快照或数据库。日志CRC、UTF-8、完整流和总64MB展开检查保持，实际业务保全须切换后核对。
@@ -862,6 +868,12 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 
 实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../../../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
 
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 ## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
 

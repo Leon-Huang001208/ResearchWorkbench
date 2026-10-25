@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import copy
 import hashlib
 import io
 import json
@@ -19,6 +21,7 @@ import urllib.request
 import zipfile
 from contextlib import ExitStack
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from . import controller as c
@@ -129,6 +132,19 @@ ETF_WEEKLY_V2_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
 ETF_HISTORICAL_MODE = "reviewed-etf-historical-v1"
 ETF_HISTORICAL_PREVIOUS = "b438447071d08eec38902b2a50610644283885f9"
 ETF_HISTORICAL_PAYLOAD = "bb4d2e657872ecb24df5bb0e89f571b4600b84d1"
+# Full reviewed product ancestor; no runtime-selected identity is accepted.
+ETF_WEEKLY_ADMISSION_MODE = "reviewed-etf-weekly-admission-v1"
+ETF_WEEKLY_ADMISSION_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
+ETF_WEEKLY_ADMISSION_PAYLOAD = "bacb423cea203ba0469b5c7f21bfd581408b03ef"
+ETF_WEEKLY_ADMISSION_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
+ETF_WEEKLY_ADMISSION_V2_MODE = "reviewed-etf-weekly-admission-v2"
+ETF_WEEKLY_ADMISSION_V2_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
+ETF_WEEKLY_ADMISSION_V2_PAYLOAD = "d0e83e438e42e74f606bbd6645ad326db6c5b8a2"
+ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
+WEEKLY_ACTION_SHA256 = "7cbd0ba4d25c496fe6367c59e2487659e878de0b8b86de5d4b4ac014157ec5af"
+WEEKLY_OPERATION_ID = "etf-legacy-monitoring-20261024"
 # Historical family name: all these profiles require full business-index preservation.
 # Fixed merged dossiers product; retain the registered resident recovery identity.
 DOSSIERS_MODE = "reviewed-research-dossiers-v1"
@@ -155,6 +171,8 @@ ASSET_MODES = frozenset(
         DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
+        ETF_WEEKLY_ADMISSION_MODE,
+        ETF_WEEKLY_ADMISSION_V2_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -261,6 +279,10 @@ def previous_for(mode):
         return DISCOVERY_PREVIOUS
     if mode == ETF_WEEKLY_V2_MODE:
         return ETF_WEEKLY_V2_PREVIOUS
+    if mode == ETF_WEEKLY_ADMISSION_MODE:
+        return ETF_WEEKLY_ADMISSION_PREVIOUS
+    if mode == ETF_WEEKLY_ADMISSION_V2_MODE:
+        return ETF_WEEKLY_ADMISSION_V2_PREVIOUS
     if mode == ETF_HISTORICAL_MODE:
         return ETF_HISTORICAL_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
@@ -427,9 +449,51 @@ def verify_primary(home, expected, mode):
         DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
+        ETF_WEEKLY_ADMISSION_MODE,
+        ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
+
+
+def weekly_primary_identity_precheck(home, expected):
+    """V2 only: original primary identity, explicit activity observation, Native idle.
+
+    Host active=True is observed, never certified idle. The sealed bridge may
+    end its approved legacy control wait; the original full verifier must still
+    pass afterwards. Keep every non-Host-activity check from g.verify_primary.
+    """
+    from app.research_web.multiuser.resident_binding import LegacyBinding
+    from app.research_web.service_manager import WebServiceManager
+
+    _, config = g.configured(home)
+    g.clean(Path(config["project"]), expected)
+    server = read_json(home / "server/resident.json")
+    binding = LegacyBinding.discover(home, server["binding"]["primary_user_id"])
+    state = binding.verify()
+    manager = WebServiceManager(
+        project_root=binding.project,
+        data_root=binding.data_root,
+        python=str(binding.project / ".venv/bin/python"),
+        node=config["node"],
+        web_port=binding.web_port,
+        runtime_port=binding.runtime_port,
+    )
+    probes = [probe for probe in manager._service_probes() if probe.role == "runtime"]
+    native = manager._active_research_read_only(probes[0]) if len(probes) == 1 else None
+    if type(state.get("active")) is not bool or type(native) is not list or native:
+        raise MaintenanceBusy("research_active_or_unknown")
+    index = read_business_index(binding.data_root / "index.json")
+    rows = index.get("automation_runs", {})
+    if not isinstance(rows, dict) or any(
+        not isinstance(row, dict) or row.get("research_status") in {"queued", "running"}
+        for row in rows.values()
+    ):
+        raise MaintenanceBusy("research_active_or_unknown")
+    log.info(
+        "weekly_primary_identity_verified host_active=%s idle_certified=false", state["active"]
+    )
+    return state
 
 
 def asset_index_snapshot(home: Path):
@@ -520,6 +584,8 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
         ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
         ETF_HISTORICAL_MODE: ETF_HISTORICAL_PAYLOAD,
+        ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_PAYLOAD,
+        ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -543,8 +609,16 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 {
                     ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
+                    ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
+                    ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256,
                 }[mode]
-                if mode in {ASSET_V9_MODE, MARKET_PREVIEW_MODE}
+                if mode
+                in {
+                    ASSET_V9_MODE,
+                    MARKET_PREVIEW_MODE,
+                    ETF_WEEKLY_ADMISSION_MODE,
+                    ETF_WEEKLY_ADMISSION_V2_MODE,
+                }
                 else (
                     MARKET_TERMINAL_EVIDENCE_SHA256
                     if mode == MARKET_TERMINAL_MODE
@@ -565,6 +639,8 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                                 DISCOVERY_MODE,
                                 ETF_WEEKLY_V2_MODE,
                                 ETF_HISTORICAL_MODE,
+                                ETF_WEEKLY_ADMISSION_MODE,
+                                ETF_WEEKLY_ADMISSION_V2_MODE,
                             }
                             else ASSET_EVIDENCE_SHA256
                         )
@@ -579,6 +655,22 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 != MARKET_GATEWAY_SHA256
             ):
                 raise UpdateBlocked("market_upgrade_gateway_changed")
+        elif mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE} and name in {
+            "outputs/research-web-architecture/index.html",
+            "outputs/research-web-architecture/api-atlas.html",
+        }:
+            if actual_mode != "100644":
+                raise UpdateBlocked("asset_upgrade_payload_changed")
+        elif (
+            mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
+            and name not in {MODULE, TEST}
+            and not name.startswith(("docs/", ".ai/reports/"))
+        ):
+            if (
+                blob != c.git(source, "rev-parse", f"{payload}:{name}")
+                or actual_mode != c.git(source, "ls-tree", payload, "--", name).split()[0]
+            ):
+                raise UpdateBlocked("asset_upgrade_payload_changed")
         elif name.startswith(("docs/", "tests/", ".ai/reports/")) or name in {
             MODULE,
             "README.md",
@@ -994,6 +1086,8 @@ def validate_state(home, state, *, executor_source=None):
             DISCOVERY_MODE,
             ETF_WEEKLY_V2_MODE,
             ETF_HISTORICAL_MODE,
+            ETF_WEEKLY_ADMISSION_MODE,
+            ETF_WEEKLY_ADMISSION_V2_MODE,
         }:
             expected_manifest["source"] = state["source"]
         if manifest != expected_manifest or z.read("__main__.py").decode() != ENTRY:
@@ -1085,6 +1179,10 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
+    if state.get("mode") == ETF_WEEKLY_ADMISSION_MODE:
+        manifest["web_lock_sha256"] = ETF_WEEKLY_ADMISSION_WEB_LOCK_SHA256
+    elif state.get("mode") == ETF_WEEKLY_ADMISSION_V2_MODE:
+        manifest["web_lock_sha256"] = ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256
     return manifest
 
 
@@ -1137,6 +1235,8 @@ class Operations:
             ASSET_V9_MODE,
             MARKET_PREVIEW_MODE,
             ETF_HISTORICAL_MODE,
+            ETF_WEEKLY_ADMISSION_MODE,
+            ETF_WEEKLY_ADMISSION_V2_MODE,
         } and not discovery_background_idle(self.home):
             log.warning("discovery_deploy_background_not_quiet")
             return False
@@ -1192,6 +1292,8 @@ class Operations:
             DISCOVERY_MODE,
             ETF_WEEKLY_V2_MODE,
             ETF_HISTORICAL_MODE,
+            ETF_WEEKLY_ADMISSION_MODE,
+            ETF_WEEKLY_ADMISSION_V2_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1419,7 +1521,395 @@ class Operations:
         return record
 
 
-def operate(home, source=None, *, recovering=False, mode=MODE):
+def _weekly_digest(value):
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _weekly_private_json(path):
+    """Bind a bounded private single-link file to its checked inode, without following links."""
+    from app.research_web.report_workflows.legacy_monitoring import validate_existing_path
+
+    path = validate_existing_path(path, private=True)
+    before = path.stat(follow_symlinks=False)
+    if stat.S_IMODE(before.st_mode) != 0o600 or before.st_size > 256 * 1024:
+        raise UpdateBlocked("weekly_monitoring_file_unsafe")
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        opened = os.fstat(descriptor)
+        raw = os.read(descriptor, 256 * 1024 + 1)
+        after = path.stat(follow_symlinks=False)
+        identity = lambda item: (
+            item.st_dev,
+            item.st_ino,
+            item.st_size,
+            item.st_mtime_ns,
+            item.st_ctime_ns,
+            item.st_uid,
+            item.st_mode,
+            item.st_nlink,
+        )
+        if (
+            identity(before) != identity(opened)
+            or identity(opened) != identity(after)
+            or len(raw) != before.st_size
+        ):
+            raise UpdateBlocked("weekly_monitoring_file_changed")
+
+        def unique(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError("duplicate JSON field")
+                value[key] = item
+            return value
+
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=unique)
+        if not isinstance(value, dict):
+            raise UpdateBlocked("weekly_monitoring_file_invalid")
+        return value
+    finally:
+        os.close(descriptor)
+
+
+def _weekly_publish(path, value):
+    """Publish an immutable decision record under the operator lock, then fsync its directory."""
+    from app.research_web.report_workflows.legacy_monitoring import validate_existing_path
+
+    validate_existing_path(path.parent, directory=True, private=True)
+    raw = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+    if len(raw) > 256 * 1024:
+        raise UpdateBlocked("weekly_monitoring_record_oversize")
+    if path.exists() or path.is_symlink():
+        if _weekly_private_json(path) != value:
+            raise UpdateBlocked("weekly_monitoring_record_changed")
+        c.sync_directory(path.parent)
+        return
+    temporary = path.with_name(path.name + "." + uuid4().hex + ".tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # The original operator EX lock serializes publication in this private directory.
+        if path.exists() or path.is_symlink():
+            raise UpdateBlocked("weekly_monitoring_record_changed")
+        os.replace(temporary, path)
+        c.sync_directory(path.parent)
+        if _weekly_private_json(path) != value:
+            raise UpdateBlocked("weekly_monitoring_record_changed")
+    finally:
+        if temporary.exists() or temporary.is_symlink():
+            temporary.unlink()
+
+
+def _weekly_action(path):
+    from app.research_web.report_workflows.legacy_monitoring import LegacyMonitoringExpectation
+
+    value = _weekly_private_json(path)
+    keys = {
+        "run_id",
+        "session_id",
+        "version",
+        "owner_id",
+        "run_sha256",
+        "context_sha256",
+        "snapshot_sha256",
+        "contract_sha256",
+    }
+    expected = value.get("expected_identity")
+    if (
+        set(value) != {"schema_version", "profile", "operation_id", "expected_identity"}
+        or type(value.get("schema_version")) is not int
+        or value["schema_version"] != 1
+        or value.get("profile") != "weekly-legacy-monitoring-v1"
+        or value.get("operation_id") != WEEKLY_OPERATION_ID
+        or not isinstance(expected, dict)
+        or set(expected) != keys
+        or type(expected.get("version")) is not int
+        or expected["version"] < 1
+        or any(not isinstance(expected[key], str) for key in keys - {"version"})
+        or not re.fullmatch(r"[a-f0-9]{32}", expected["run_id"])
+        or any(
+            not re.fullmatch(r"[a-f0-9]{64}", expected[key])
+            for key in keys
+            if key.endswith("sha256")
+        )
+    ):
+        raise UpdateBlocked("weekly_monitoring_action_invalid")
+    try:
+        if any(str(UUID(expected[key])) != expected[key] for key in ("owner_id", "session_id")):
+            raise ValueError("UUID")
+    except ValueError as error:
+        raise UpdateBlocked("weekly_monitoring_action_invalid") from error
+    if _weekly_digest(value) != WEEKLY_ACTION_SHA256:
+        raise UpdateBlocked("weekly_monitoring_action_unreviewed")
+    return value, LegacyMonitoringExpectation(**expected)
+
+
+async def _weekly_native_catalog_idle(manager):
+    """Read every Native parent and its catalog; reject missing, duplicate and orphan children."""
+    from app.research_web.client import DSHClient
+
+    async with DSHClient(
+        f"http://127.0.0.1:{manager.runtime_port}", auth_path=manager._runtime_auth_path()
+    ) as client:
+        native = await client.rpc("session.list", {})
+        items = native.get("items")
+        if not isinstance(items, list):
+            raise UpdateBlocked("weekly_monitoring_native_unknown")
+        rows = {}
+        for row in items:
+            if (
+                not isinstance(row, dict)
+                or not isinstance(row.get("sessionId"), str)
+                or not row["sessionId"]
+                or row["sessionId"] in rows
+                or row.get("running") is not False
+            ):
+                raise UpdateBlocked("weekly_monitoring_native_unknown")
+            rows[row["sessionId"]] = row
+        linked = set()
+        for sid, row in rows.items():
+            if row.get("origin") == "subagent":
+                continue
+            children = await client.rpc(
+                "subagent.list", {"parentSessionId": sid, "activityOnly": True}
+            )
+            entries = children.get("entries")
+            if not isinstance(entries, list):
+                raise UpdateBlocked("weekly_monitoring_native_unknown")
+            for child in entries:
+                if (
+                    not isinstance(child, dict)
+                    or child.get("kind") != "child"
+                    or child.get("activity") != "inactive"
+                    or child.get("mode") not in {"one-shot", "continuable", "unknown"}
+                ):
+                    raise UpdateBlocked("weekly_monitoring_native_unknown")
+                cid = child.get("id")
+                live = rows.get(cid) if isinstance(cid, str) else None
+                if (
+                    cid in linked
+                    or not live
+                    or cid == sid
+                    or live.get("parentSessionId") != sid
+                    or live.get("origin") != "subagent"
+                ):
+                    raise UpdateBlocked("weekly_monitoring_native_unknown")
+                linked.add(cid)
+        for sid, row in rows.items():
+            if (row.get("origin") == "subagent" or row.get("parentSessionId")) and (
+                sid not in linked
+                or row.get("parentSessionId") not in rows
+                or row.get("origin") != "subagent"
+            ):
+                raise UpdateBlocked("weekly_monitoring_native_unknown")
+
+
+def _weekly_native_idle(manager):
+    probes = [probe for probe in manager._service_probes() if probe.role == "runtime"]
+    if len(probes) != 1 or manager._active_research_read_only(probes[0]) != []:
+        raise UpdateBlocked("weekly_monitoring_native_unknown")
+    asyncio.run(asyncio.wait_for(_weekly_native_catalog_idle(manager), timeout=60))
+
+
+def _weekly_record_presence(intent_path, receipt_path):
+    """Reject linked or orphan records before any domain action or intent publication."""
+    intent_present = intent_path.exists() or intent_path.is_symlink()
+    receipt_present = receipt_path.exists() or receipt_path.is_symlink()
+    if intent_path.is_symlink() or receipt_path.is_symlink():
+        raise UpdateBlocked("weekly_monitoring_record_unsafe")
+    if receipt_present and not intent_present:
+        raise UpdateBlocked("weekly_monitoring_intent_missing")
+    return intent_present, receipt_present
+
+
+def weekly_monitoring_bridge(home, state, manager, action_path=None, *, recovering=False):
+    """End only the sealed legacy wait, retaining its unknown outcome across code rollback.
+
+    Called under supervisor, admission and operator EX locks, before the original
+    Operations.idle. Catalog locks are released before any Host GET.
+    """
+    from app.research_web.report_workflows.catalog import ReportWorkflowService
+    from app.research_web.report_workflows.owner import resolve_primary_owner
+
+    root = home / "research-web"
+    folder = home / "server/run"
+    intent_path = folder / "weekly-monitoring-intent.json"
+    receipt_path = folder / "weekly-monitoring-receipt.json"
+    intent_present, receipt_present = _weekly_record_presence(intent_path, receipt_path)
+    existing_receipt = _weekly_private_json(receipt_path) if receipt_present else None
+    if recovering:
+        intent = _weekly_private_json(intent_path)
+        action_path = Path(intent["action_path"])
+    action, expected = _weekly_action(action_path)
+    action_info = Path(action_path).stat(follow_symlinks=False)
+    identity = root.stat(follow_symlinks=False)
+    binding = {
+        "schema_version": 1,
+        "profile": ETF_WEEKLY_ADMISSION_MODE,
+        "operation_id": WEEKLY_OPERATION_ID,
+        "action_sha256": WEEKLY_ACTION_SHA256,
+        "action_path": str(Path(action_path).absolute()),
+        "action_identity": [
+            action_info.st_dev,
+            action_info.st_ino,
+            action_info.st_size,
+            action_info.st_mtime_ns,
+        ],
+        "root": str(root),
+        "root_identity": [identity.st_dev, identity.st_ino],
+        "expected_identity": action["expected_identity"],
+    }
+    owner_service = SimpleNamespace(
+        store=SimpleNamespace(root=root), report_primary_owner_root=home / "server"
+    )
+    owner_check = lambda owner: resolve_primary_owner(owner_service, owner)
+    owner_check(expected.owner_id)
+    if not reserved_owners(home / "server", state["transaction"]):
+        raise UpdateBlocked("weekly_monitoring_owner_unknown")
+    catalog = ReportWorkflowService.open_for_maintenance(root)
+    with catalog._exclusive():
+        row = copy.deepcopy(catalog.data["runs"].get(expected.run_id))
+    if existing_receipt is not None:
+        # A receipt can only describe an already committed after-state. Validate
+        # it before the before-state CAS; malformed records cannot authorize it.
+        observed_receipt = {
+            **binding,
+            "before_sha256": expected.run_sha256,
+            "after_sha256": _weekly_digest(row),
+            "domain_receipt": row.get("monitoring_end_receipt") if isinstance(row, dict) else None,
+            "preserve_unknown": True,
+            "native_cancelled": False,
+        }
+        if (
+            existing_receipt != observed_receipt
+            or row.get("status") != "cancelled"
+            or row.get("monitoring_disposition") != "ended_by_user"
+            or row.get("research_submission_state") != "unknown"
+        ):
+            raise UpdateBlocked("weekly_monitoring_receipt_changed")
+    if intent_present:
+        intent = _weekly_private_json(intent_path)
+        if (
+            set(intent) != set(binding) | {"before"}
+            or any(intent.get(key) != value for key, value in binding.items())
+            or _weekly_digest(intent["before"]) != expected.run_sha256
+        ):
+            raise UpdateBlocked("weekly_monitoring_intent_changed")
+        if not recovering:
+            # A prior rename may have committed before its directory fsync
+            # returned. Confirm durable intent before permitting the CAS.
+            _weekly_publish(intent_path, intent)
+    else:
+        if recovering or receipt_present or _weekly_digest(row) != expected.run_sha256:
+            raise UpdateBlocked("weekly_monitoring_intent_missing")
+        # Validate domain contract and Native before publishing any intent.
+        catalog.end_legacy_monitoring(
+            expected, operation_id=WEEKLY_OPERATION_ID, owner_check=owner_check, apply=False
+        )
+        _weekly_native_idle(manager)
+        intent = {**binding, "before": row}
+        _weekly_publish(intent_path, intent)
+    if recovering:
+        if not receipt_present:
+            raise UpdateBlocked("weekly_monitoring_receipt_missing")
+        domain_receipt = catalog.end_legacy_monitoring(
+            expected, operation_id=WEEKLY_OPERATION_ID, owner_check=owner_check, apply=False
+        )
+        if domain_receipt.get("status") == "dry_run":
+            raise UpdateBlocked("weekly_monitoring_recovery_before_action")
+    else:
+        _weekly_native_idle(manager)
+        again, _ = _weekly_action(action_path)
+        current_action = Path(action_path).stat(follow_symlinks=False)
+        current_root = root.stat(follow_symlinks=False)
+        if (
+            again != action
+            or [
+                current_action.st_dev,
+                current_action.st_ino,
+                current_action.st_size,
+                current_action.st_mtime_ns,
+            ]
+            != binding["action_identity"]
+            or [current_root.st_dev, current_root.st_ino] != binding["root_identity"]
+        ):
+            raise UpdateBlocked("weekly_monitoring_identity_changed")
+        domain_receipt = catalog.end_legacy_monitoring(
+            expected,
+            operation_id=WEEKLY_OPERATION_ID,
+            owner_check=owner_check,
+            apply=_weekly_digest(row) == expected.run_sha256,
+        )
+        c.sync_directory(catalog.root)
+    with catalog._exclusive():
+        after = copy.deepcopy(catalog.data["runs"].get(expected.run_id))
+    wanted = {
+        **intent["before"],
+        "status": "cancelled",
+        "monitoring_disposition": "ended_by_user",
+        "monitoring_end_receipt": domain_receipt,
+    }
+    if (
+        after != wanted
+        or after.get("research_submission_state") != "unknown"
+        or domain_receipt.get("native_cancelled") is not False
+    ):
+        raise UpdateBlocked("weekly_monitoring_after_changed")
+    receipt = {
+        **binding,
+        "before_sha256": expected.run_sha256,
+        "after_sha256": _weekly_digest(after),
+        "domain_receipt": domain_receipt,
+        "preserve_unknown": True,
+        "native_cancelled": False,
+    }
+    if recovering:
+        if _weekly_private_json(receipt_path) != receipt:
+            raise UpdateBlocked("weekly_monitoring_receipt_changed")
+        # Recovery may own a deliberately stopped Host. Disk validation must
+        # not require HTTP or replay the independently committed decision.
+        return
+    else:
+        try:
+            _weekly_publish(receipt_path, receipt)
+        except OSError as error:
+            raise UpdateBlocked("weekly_monitoring_action_committed_receipt_pending") from error
+    # The catalog lock is no longer held. GET refreshes the old Host's cached row.
+    observed = request_json(
+        f"http://127.0.0.1:{state['config']['web_port']}/api/research/report-runs/{expected.run_id}"
+    )
+    from app.research_web.report_workflows.runtime import _public_metadata
+
+    public_after = _public_metadata({key: value for key, value in after.items() if key != "path"})
+    if observed != public_after:
+        raise UpdateBlocked("weekly_monitoring_host_refresh_unknown")
+    log.info("weekly_monitoring_bridge_verified preserve_unknown=true native_cancelled=false")
+
+
+def operate(
+    home,
+    source=None,
+    *,
+    recovering=False,
+    mode=MODE,
+    end_weekly_waiting=False,
+    weekly_monitoring_action=None,
+):
+    if (end_weekly_waiting or weekly_monitoring_action is not None) and (
+        recovering or mode not in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
+    ):
+        raise UpdateBlocked("weekly_monitoring_flags_forbidden")
+    if (
+        not recovering
+        and mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
+        and (end_weekly_waiting is not True or weekly_monitoring_action is None)
+    ):
+        raise UpdateBlocked("weekly_monitoring_authorization_required")
     previous = previous_for(mode)
     if sys.platform != "darwin":
         raise UpdateBlocked("model_upgrade_macos_only")
@@ -1439,6 +1929,18 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
         stack.enter_context(file_lock(server / "run", "operator.lock", exclusive=True))
         if recovering:
             if not journal.exists():
+                weekly_intent = server / "run/weekly-monitoring-intent.json"
+                weekly_receipt = server / "run/weekly-monitoring-receipt.json"
+                intent_present, receipt_present = _weekly_record_presence(
+                    weekly_intent, weekly_receipt
+                )
+                if intent_present and not receipt_present:
+                    raise UpdateBlocked("weekly_monitoring_action_receipt_pending")
+                if intent_present and receipt_present:
+                    weekly_monitoring_bridge(
+                        home, {"transaction": "no-upgrade-journal"}, None, recovering=True
+                    )
+                    return {"status": "not_required", "weekly_monitoring": "verified"}
                 return {"status": "not_required"}
             state = g.read_upgrade_journal(journal)
             validate_state(home, state)
@@ -1491,7 +1993,10 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
                 or read_json(root / "accepted.json").get("target") != previous
             ):
                 raise UpdateBlocked("model_upgrade_previous_changed")
-            verify_primary(home, previous, state["mode"] if recovering else mode)
+            if mode == ETF_WEEKLY_ADMISSION_V2_MODE:
+                weekly_primary_identity_precheck(home, previous)
+            else:
+                verify_primary(home, previous, mode)
             g.no_private_processes(server)
             directory = root / "artifacts" / target
             g.private_root(directory)
@@ -1574,6 +2079,32 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
             web_port=config["web_port"],
             runtime_port=config["runtime_port"],
         )
+        if state["mode"] in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}:
+            try:
+                weekly_monitoring_bridge(
+                    home, state, manager, weekly_monitoring_action, recovering=recovering
+                )
+            except Exception as error:
+                log.warning("weekly_monitoring_bridge_deferred error_type=%s", type(error).__name__)
+                if (
+                    isinstance(error, UpdateBlocked)
+                    and str(error) != "weekly_monitoring_native_unknown"
+                ):
+                    raise
+                return {
+                    "status": "recovery_required" if recovering else "deferred",
+                    "reason": "weekly_monitoring_unverified",
+                }
+        if not recovering and state["mode"] == ETF_WEEKLY_ADMISSION_V2_MODE:
+            # Refresh completed with catalog locks released; the original full
+            # verifier now proves Host and Native idle before any service fence.
+            verify_primary(home, previous, state["mode"])
+            # The historical verifier uses truthiness for Native activity. V2
+            # additionally requires a fresh explicit empty list and Host false;
+            # neither an unknown falsey value nor a new Host activity is idle.
+            observed = weekly_primary_identity_precheck(home, previous)
+            if observed.get("active") is not False:
+                raise MaintenanceBusy("research_active_or_unknown")
         # In the gateway-only crash window a local primary caller could have
         # started work before a durable primary journal existed. Do not create
         # that journal or reservations until this real activity check is idle.
@@ -1632,14 +2163,26 @@ def main(argv=None):
             "apply-discovery",
             "apply-etf-weekly-v2",
             "apply-etf-historical",
+            "apply-etf-weekly-admission",
+            "apply-etf-weekly-admission-v2",
             "recover",
         ),
     )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
+    parser.add_argument("--end-weekly-waiting", action="store_true")
+    parser.add_argument("--weekly-monitoring-action", type=Path)
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/model-upgrade.log", level=logging.INFO)
     try:
+        if (
+            args.end_weekly_waiting or args.weekly_monitoring_action is not None
+        ) and args.command not in {"apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"}:
+            raise UpdateBlocked("weekly_monitoring_flags_forbidden")
+        if args.command in {"apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"} and (
+            not args.end_weekly_waiting or args.weekly_monitoring_action is None
+        ):
+            raise UpdateBlocked("weekly_monitoring_authorization_required")
         if args.command == "recover":
             activate_recovery_source(args.home)
         result = operate(
@@ -1666,7 +2209,17 @@ def main(argv=None):
                 "apply-discovery": DISCOVERY_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
                 "apply-etf-historical": ETF_HISTORICAL_MODE,
+                "apply-etf-weekly-admission": ETF_WEEKLY_ADMISSION_MODE,
+                "apply-etf-weekly-admission-v2": ETF_WEEKLY_ADMISSION_V2_MODE,
             }.get(args.command, MODE),
+            **(
+                {
+                    "end_weekly_waiting": True,
+                    "weekly_monitoring_action": args.weekly_monitoring_action,
+                }
+                if args.command in {"apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"}
+                else {}
+            ),
         )
         print(json.dumps(result))
         return 0 if result["status"] in {"deployed", "not_required"} else 2

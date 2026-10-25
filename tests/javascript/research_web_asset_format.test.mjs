@@ -24,8 +24,8 @@ test('historical quote uses the same normalized units as the summary instead of 
   const {renderMarketTerminal} = await import('../../app/research_web/ui/asset-chart.mjs');
   const row = {asset:'603986.SH',date:'2026-10-22',open:10,high:12,low:9,close:11,volume:70397.1427,amount:19482409.24};
   const html=renderMarketTerminal([row],{}, {fields:{volume:{unit:'万股'},amount:{unit:'万元'}}});
-  assert.match(html,/成交量 <strong>7\.04亿股<\/strong>/);
-  assert.match(html,/成交额 <strong>1948\.24亿元<\/strong>/);
+  assert.match(html,/量 <strong>7\.04亿<\/strong>/);
+  assert.match(html,/额 <strong>1948\.24亿<\/strong>/);
   assert.doesNotMatch(html,/万万元|亿万元|亿万股/);
 });
 

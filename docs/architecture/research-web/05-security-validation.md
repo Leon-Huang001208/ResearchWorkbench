@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。
+
+可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。
+
 `reviewed-market-preview-v1` 固定前版36fd990c、产品e56d9718、严格reader193f4fcc与既有锁文件。原全账号后台/工作流、市场inflight、维护锁、BirthFence、业务保全与失败恢复门均保留；测试和候选浏览器覆盖不冒充部署，旧模式及凭据权限不修改。
 
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
@@ -810,3 +814,9 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 
 
 2026-10-24：原始news_id不伪造event_id；关联只认本人同feed已展示事件与归档精确URL，客户端不能指定来源URL或可信Hash。prepare复读全证据和关联后才冻结，同一地址不增加独立来源数。raw批准范围绑定锁定Automation定义，已登记失效发现任务拒绝通用模型回退；旧事件上下文及质量门保持。
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。

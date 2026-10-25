@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+admission-v2仍用原Host、唯一DSH、网关、三锁和version4切换节点；变化仅是准备阶段身份与最终idle验证顺序，不增服务、引擎或部署边界。
+
+华安专属准入仍沿浏览器→Host→唯一DSH及原脚本runner/Seatbelt节点。Host返回冻结范围给既有Native guard，claim保存在同一Run，既有全账号隔离与部署拓扑保持；不添加Automation、MCP或独立生产引擎。
+
 全市场组合预览修复仅新增现有Native操作员的封闭36fd990c→e56d9718产品身份；主实例、网关、维护锁、BirthFence和恢复节点不变。没有新增服务或第二研究引擎，01／12部署图保持准确。
 
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
@@ -621,3 +625,9 @@ AES 现有记录的全树认证只收紧同一凭据边界，不增加部署节�
 
 
 2026-10-24：今日发现原始/radar与事件/intelligence仍由同一Host的固定Intel reader取得，账号内存/原DataHub/唯一DSH与私网网关不变，无新服务、端口、数据库或部署节点。新增association是同用户只读核对，源码与实际常驻切换仍分别验收。
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。

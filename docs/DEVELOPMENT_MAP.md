@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+admission-v2顺序修复位于原model_provider_upgrade.py和原操作员测试。真实gateway_upgrade.verify_primary不修改：新v2先身份预检，桥/GET后完整g验证、fresh strict Host=False/Native=[]再原idle；测试从真实operate调用原g与LegacyBinding，覆盖此前mock漏掉的桥前拒绝。
+
+周报准入修复位于report_workflows/weekly_execution.py、runtime.py和service.py：Host冻结13工具/逐文件输入，普通capability data gate保持。research-tools.mjs与sandbox.py传递Host input_policy并支持literal冻结文件，只读审批与原目录scope兼容。新提交协议为weekly-admission-v2，旧未知只recheck，正确首提/显式未RPC恢复均有持久claim及真实Sender/Seatbelt回归。
+
+资产行情条固定为“收／幅／开／高／低／均／量／换／振／额”，金额只写万／亿，两位小数；币种和原单位保留title。已识别沪深北股票且来源明确为股时，量、成交量副图/VOL/MA与右侧已确认单位报价统一按100股/手展示；未知单位和非A股不猜倍率。原始OHLCV、复权、周月聚合、指标、筹码及冻结快照不改，股本和财务金额保留原单位；只改展示投影，无新依赖、服务、路由、节点或研究引擎。
+
 全市场预览封闭部署继续由 `research_workbench_entrypoint/resident/model_provider_upgrade.py` 及原 `test_model_provider_upgrade.py` 矩阵维护。`reviewed-market-preview-v1` / `apply-market-preview` 绑定36fd990c→e56d9718，背景/工作流/市场空闲及全账号保全恢复沿旧合同；最终资格与实切换分别记录。
 
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
@@ -608,6 +614,12 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 
 实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
 
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 ## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
 

@@ -1,5 +1,11 @@
 # Research Workbench 架构总览
 
+华安admission-v2仅调整既有Mac Native事务内部的准入顺序：维护前真实实例身份/Native空列表/索引前提，封印桥接和旧GET后再完整真实Primary及Host活动门。v1和通用verify_primary保持，唯一DSH、原主实例/网关/三锁、保全恢复节点不变；不把旧Host active=true解释为空闲。
+
+可信华安周报在原Host内投影Run/SID/版本/owner/purpose及冻结字节对应的执行scope，复用唯一DSH的现有Native guard/visible_tools与脚本runner；不再误选通用公司研究能力。提交claim在原Run目录内持久化，preflight与实际RPC未知分开；没有新服务、引擎、DB或HTTP路径，原分层拓扑仍准确。
+
+资产行情条固定为“收／幅／开／高／低／均／量／换／振／额”，金额只写万／亿，两位小数；币种和原单位保留title。已识别沪深北股票且来源明确为股时，量、成交量副图/VOL/MA与右侧已确认单位报价统一按100股/手展示；未知单位和非A股不猜倍率。原始OHLCV、复权、周月聚合、指标、筹码及冻结快照不改，股本和财务金额保留原单位；只改展示投影，无新依赖、服务、路由、节点或研究引擎。
+
 全市场预览的 `apply-market-preview` 仅在既有Native操作员固定36fd990c前版及获批e56d9718组合产品，复用原version4事务、主实例/网关、全账号保全、后台/市场空闲与回滚。没有新节点、API、依赖或引擎，现有01／12／13图仍准确。
 
 资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
@@ -287,6 +293,12 @@ BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月
 
 实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
 
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 ## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
 

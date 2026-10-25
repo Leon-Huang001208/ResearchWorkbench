@@ -227,7 +227,7 @@ test('asset workspace renders independent states, native chart and personal obse
   assert.match(html, /akshare/); assert.match(html, /2026-09-05/);
   assert.match(html, /data-asset-echarts[^>]+aria-label="K线与自定义副图；方向键选择历史交易日"/);
   assert.match(html, /data-asset-chip-chart[^>]+aria-label="同版本日线与逐日换手率估算筹码分布"/);
-  assert.match(html, /换手率 <strong>0\.51%<\/strong>/);
+  assert.match(html, /换 <strong>0\.51%<\/strong>/);
   assert.match(html, /query_failed/);
   assert.doesNotMatch(html, /https?:\/\/[^" ]*(?:cdn|unpkg)|演示/);
 });
