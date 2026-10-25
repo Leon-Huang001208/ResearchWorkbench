@@ -32,6 +32,8 @@ Ruff、Black、isort 及两个修改 Python 文件的 Mypy 通过；原类型债
 
 ## 结构决定
 
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"仅将原能力目录索引编码为等值JSON后单次写入，保存时点、临时文件、同步、原子替换与失败清理保持；不新增能力、权限、包版本或跨Host缓存，原能力拓扑无需调整。","diagrams":[]} -->
+
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"仅提前初始化原Host来源请求及取消内存表，严格活动归约和真实来源生命周期保持，不增加接口、权限或业务节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"原唯一DSH和Host控制关系保持；修复冷启动字段生命周期，不修改模型提交、执行恢复、控制器或维护协议。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"两张登记表按真实服务实例构造，不改变租户数据根、账号权限或持久格式，其他未知见证与旧现场拒绝保持。","diagrams":[]} -->
