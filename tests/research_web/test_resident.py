@@ -52,6 +52,113 @@ def _idle_research(**values):
     return SimpleNamespace(**fields)
 
 
+@pytest.fixture
+def cold_service(tmp_path, monkeypatch):
+    """Construct the real Host without a session, source call or native startup."""
+    import keyring
+
+    # Importing the real Office module can register an application-enumerating
+    # atexit callback. Isolate that dependency before importing the Host graph.
+    monkeypatch.setitem(sys.modules, "xlwings", None)
+    monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
+    values = {}
+    backend = SimpleNamespace(
+        get_password=lambda service, account: values.get((service, account)),
+        set_password=lambda service, account, value: values.__setitem__((service, account), value),
+        delete_password=lambda service, account: values.pop((service, account), None),
+    )
+
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, getattr(backend, method))
+
+    from app.research_web.service import ResearchService
+    from app.research_web.store import Store
+
+    class Native:
+        async def close(self):
+            pass
+
+        async def rpc(self, *args, **kwargs):
+            raise AssertionError("cold Host fixtures must not invoke Native")
+
+    service = ResearchService(
+        Native(),
+        Store(tmp_path / "cold-host"),
+        mcp_keyring_backend=backend,
+        delivery_keyring_backend=backend,
+    )
+    yield service
+    asyncio.run(service.close())
+
+
+def _resident_for_real_service(service):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.main import create_app
+
+    app = create_app(service)
+    # Do not start the lifespan or substitute the Host's internal activity maps.
+    app.state.research = service
+    client = TestClient(app)
+    try:
+        return client.get("/api/research/resident").json()
+    finally:
+        client.close()
+
+
+def test_real_cold_host_source_state_exists_before_first_source_call(cold_service):
+    requests = cold_service.source_requests
+    cancelled = cold_service.source_cancellations
+    assert requests == cancelled == {}
+    actual = _resident_for_real_service(cold_service)
+    assert actual["active"] is False
+    assert actual["activity_witness"]["checks"]["source_requests"] is False
+    assert cold_service.source_requests == {}
+    assert cold_service.source_cancellations == {}
+    assert cold_service.source_requests is requests
+    assert cold_service.source_cancellations is cancelled
+
+
+def test_real_host_source_registry_busy_and_cancel_lifecycle(cold_service, monkeypatch):
+    from app.research_web import research_web_sources as reader
+
+    async def run():
+        sid = cold_service.store.create("fingpt", "source lifecycle")["id"]
+        requests = cold_service.source_requests
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def owned_body_reader(*args, **kwargs):
+            # Only the source body boundary is synthetic. Registry admission,
+            # registration, cancellation and resident projection remain real.
+            entered.set()
+            await release.wait()
+            return {"content": "fixture"}
+
+        monkeypatch.setattr(reader, "read_source", owned_body_reader)
+        task = asyncio.create_task(reader.execute_source(cold_service, sid, "source-call", "list"))
+        try:
+            await asyncio.wait_for(entered.wait(), 2)
+            assert cold_service.source_requests is requests
+            assert (sid, "source-call") in requests
+            actual = _resident_for_real_service(cold_service)
+            assert actual["active"] is True
+            assert actual["activity_witness"]["checks"]["source_requests"] is True
+            reader.cancel_source(cold_service, sid, "source-call")
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert requests == {}
+            assert (sid, "source-call") in cold_service.source_cancellations
+            assert _resident_for_real_service(cold_service)["active"] is False
+        finally:
+            release.set()
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(run())
+
+
 def test_mutation_fence_is_cross_process_and_released_on_exit(resident):
     with file_lock(resident, "admission.lock", exclusive=True):
         command = (

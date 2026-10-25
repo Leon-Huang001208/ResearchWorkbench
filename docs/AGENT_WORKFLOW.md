@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+来源活动见证必须覆盖真实冷 Host，不能仅给 SimpleNamespace 补空属性而漏掉真实构造。先观察实际 HTTP `active=null` 的失败，再初始化原有来源登记表，联合 resident、来源生命周期和真实 API 回归；缺失或异常见证仍拒绝，不能改回宽泛 getattr 默认空。此修复不等于旧 Wind 现场恢复，也不授权部署或重试模型。
+
 Wind poisoned 恢复准备先验证逐项活动见证、旧 Host 无见证/运行 Future/混合未知拒绝，以及无强杀单 PID 构件。只读 preflight 不代表已持维护锁、全账号冻结或允许执行；本轮没有 apply。旧不可变 controller.pyz 不识别新 journal，须先解决受控兼容迁移和崩溃恢复，不能伪造旧 transaction、暗换控制器/hash、清 poison 或以普通 restart 绕未知。离线测试禁止 Office/供应商/模型，完整 Router、独评及适用 CI 不省略；现场历史稿/Word/认证下载另验，定时保持关闭。
 
 部署衔接回归必须执行真实operate并让原g.verify_primary和LegacyBinding参与，不得mock关键门成None。v2仅先做非空闲身份前提，桥后完整原Primary/Host/Native门不减；字段未知或其它活动拒绝停机。旧v1保持原顺序，现场deferred的绿源码/CI不能当真实切换成功。

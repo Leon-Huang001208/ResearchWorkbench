@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+来源请求及取消登记表在真实 Host 构造时初始化，resident 在首次来源操作前即可观察已知空表；请求执行、取消与清理仍归原来源生命周期。严格未知拒绝、唯一 DSH、租户数据根和现有拓扑不变，旧 b800 不因此取得新见证。
+
 Wind 清理未确认的恢复准备沿原 Host/Native/resident 边界增加分项活动见证和严格只读 preflight；普通 `active=None` 仍被部署拒绝。无新服务、引擎或执行型 API，无 apply；无强杀的私有停止构件不能代替三锁、BirthFence 与恢复事务。旧不可变控制器兼容迁移和旧 Host 缺证仍是未完成门，不因新源码而认证恢复；现有拓扑图不变。
 
 华安admission-v2仅调整既有Mac Native事务内部的准入顺序：维护前真实实例身份/Native空列表/索引前提，封印桥接和旧GET后再完整真实Primary及Host活动门。v1和通用verify_primary保持，唯一DSH、原主实例/网关/三锁、保全恢复节点不变；不把旧Host active=true解释为空闲。
