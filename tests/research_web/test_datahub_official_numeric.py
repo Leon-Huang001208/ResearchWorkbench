@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.research_web.datahub.contracts import BusinessQuery
-from app.research_web.datahub.providers_external import fetch
+from app.research_web.datahub.providers_external import fetch, official_numeric_contract
 
 FIXTURES = Path(__file__).parent / "fixtures" / "official_numeric"
 DATASETS = {"nyfed": "rates", "treasury": "cash", "worldbank": "inflation"}
@@ -55,7 +55,9 @@ async def test_actual_official_payloads(name, total, status):
     assert result.raw == [raw]
     assert result.provider_total == total
     assert result.pagination_complete is (status == "snapshot")
-    assert result.metadata["schema_version"] == "official-numeric-v2"
+    assert result.metadata["schema_version"] == official_numeric_contract(
+        "ext_" + name, DATASETS[name]
+    )
     if name == "treasury":
         assert result.rows[0]["close_today_bal"] == "null"
         assert result.fields["open_today_bal"]["unit"] == "USD_million"
@@ -165,7 +167,12 @@ async def test_native_admission_freeze_restore_and_backtest(name):
     result, raw = await replay(name)
     service = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
     scope = StoreScope("alice", "public", "ext_" + name, "a" * 64)
-    series = SnapshotSeries(service, "alice", scope, schema_identity="official-numeric-v2")
+    series = SnapshotSeries(
+        service,
+        "alice",
+        scope,
+        schema_identity=official_numeric_contract("ext_" + name, DATASETS[name]),
+    )
     stamp = datetime(2026, 10, 23, tzinfo=UTC)
     series._now = lambda: stamp
     request = query(name)
@@ -176,14 +183,21 @@ async def test_native_admission_freeze_restore_and_backtest(name):
     assert series.ingest(request, result)
     read = series.read(request.model_copy(update={"as_of": stamp}))
     assert read.fields == result.fields and read.rows == result.rows
-    assert read.metadata["schema_version"] == "official-numeric-v2"
+    assert read.metadata["schema_version"] == official_numeric_contract(
+        "ext_" + name, DATASETS[name]
+    )
     frozen = FrozenSnapshot.load(read.raw[0])
     original = json.loads(frozen.payload)["batch"]["originals"][0]
     envelope = json.loads(base64.b64decode(original["base64"]))
     assert base64.b64decode(envelope["payloads"][0]["base64"]) == raw
     replacement = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
     assert replacement.export_restore("alice", scope, frozen.export()).digest == frozen.digest
-    restored = SnapshotSeries(replacement, "alice", scope, schema_identity="official-numeric-v2")
+    restored = SnapshotSeries(
+        replacement,
+        "alice",
+        scope,
+        schema_identity=official_numeric_contract("ext_" + name, DATASETS[name]),
+    )
     again = restored.read(request.model_copy(update={"as_of": stamp}))
     assert again.rows == read.rows and again.fields == read.fields and again.raw == read.raw
     assert again.metadata["formal_backtest_eligible"] is False
@@ -233,7 +247,10 @@ async def test_noninteger_pagination_is_rejected(name, count):
 
 
 @pytest.mark.asyncio
-async def test_new_query_skips_old_contract_session_cache_but_receipt_remains_readable(tmp_path):
+@pytest.mark.parametrize("name", ["nyfed", "worldbank"])
+async def test_new_query_skips_old_contract_session_cache_but_receipt_remains_readable(
+    tmp_path, name
+):
     from app.research_web.datahub import DataHub
     from app.research_web.datahub.providers import Result
     from app.research_web.store import Store
@@ -241,26 +258,27 @@ async def test_new_query_skips_old_contract_session_cache_but_receipt_remains_re
     store = Store(tmp_path)
     sid = store.create("claw", "official numeric")["id"]
     calls = []
-    raw = (FIXTURES / "worldbank.json").read_bytes()
+    raw = (FIXTURES / (name + ".json")).read_bytes()
 
     def handle(request):
         calls.append(request)
         return httpx.Response(200, content=raw, headers={"content-type": "application/json"})
 
     hub = DataHub(store, transport=httpx.MockTransport(handle))
-    request = query("worldbank")
+    request = query(name)
     old = Result(
-        provider_id="ext_worldbank",
+        provider_id="ext_" + name,
         status="snapshot",
         rows=[{"date": "2023", "value": 99}],
         raw=[b"old"],
+        metadata={"schema_version": "official-numeric-v2"} if name == "nyfed" else {},
     )
     saved = hub.snapshots.publish(
         sid,
         request,
         old,
         request_query=request,
-        authorization_fingerprint=hub.source_configuration_digest("ext_worldbank"),
+        authorization_fingerprint=hub.source_configuration_digest("ext_" + name),
     )
     hub.snapshots.receipt(
         sid,
@@ -283,7 +301,8 @@ async def test_new_query_skips_old_contract_session_cache_but_receipt_remains_re
         await hub.close()
 
 
-def test_host_numeric_schema_isolated_without_changing_authorization_scope():
+@pytest.mark.parametrize("name", ["nyfed", "worldbank", "treasury"])
+def test_host_numeric_schema_isolated_without_changing_authorization_scope(name):
     from types import SimpleNamespace
 
     from app.research_web.datahub.research_snapshot_store import SnapshotSeries
@@ -297,8 +316,8 @@ def test_host_numeric_schema_isolated_without_changing_authorization_scope():
         _secret=lambda _: "fixture",
         _factory=lambda *_: InMemoryMarketStore(),
     )
-    request = query("worldbank")
-    series, effective = ResearchWarehouse._snapshot_series(host, request, "ext_worldbank", "a" * 64)
+    request = query(name)
+    series, effective = ResearchWarehouse._snapshot_series(host, request, "ext_" + name, "a" * 64)
     old = SnapshotSeries(
         series.service,
         "alice",
@@ -308,5 +327,7 @@ def test_host_numeric_schema_isolated_without_changing_authorization_scope():
     )
     assert series.scope == old.scope
     assert series.dataset(effective) != old.dataset(effective)
-    assert series.schema_identity.endswith(":official-numeric-v2")
-    assert series.units_identity == "official-numeric-v2"
+    assert series.schema_identity.endswith(
+        ":" + official_numeric_contract("ext_" + name, DATASETS[name])
+    )
+    assert series.units_identity == official_numeric_contract("ext_" + name, DATASETS[name])

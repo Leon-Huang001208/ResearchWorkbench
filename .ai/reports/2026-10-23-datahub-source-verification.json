@@ -1597,6 +1597,13 @@
           "sdk_origin_repaired": false,
           "historical_point_in_time": false,
           "formal_backtest_eligible": false
+        },
+        "origin_diagnostics_sofrai_20261025": {
+          "status": "unrecovered_cause_undetermined",
+          "new_probes": 4,
+          "scope": "three single-variable Python and one nativecurl original fixed endpoint; no business success",
+          "report": ".ai/reports/2026-10-25-nyfed-sofrai-evidence.md",
+          "new_source_functionality_claimed": false
         }
       }
     },
@@ -4522,7 +4529,19 @@
             "report_update_final_ci_binding": "PENDING_ROOT"
           }
         },
-        "evidence_grade": "current_bounded_sample_and_static_limits"
+        "evidence_grade": "current_bounded_sample_and_static_limits",
+        "sofrai_v3_20261025": {
+          "status": "bounded_live_host_owned_pg_restart_restore_verified",
+          "scope": "2024-03-01 six rate types; SOFRAI one row with published averages and index; fields/reference semantics only, no derived reconstruction",
+          "report": ".ai/reports/2026-10-25-nyfed-sofrai-verification.json",
+          "receipt_sha256": "c6d45bb5d7750d9a33ced076a179fd111f747f573f7805962e450aaa35ba3f9d",
+          "historical_point_in_time": false,
+          "formal_backtest_eligible": false,
+          "source_metadata_persisted": true,
+          "provider_publication_instant_verified": false,
+          "previous_receipt_sha256": "420c13842b80c54d3fd6f4a57a408e5b0c5c87d4b9fb03e177fcf4e4cfee7298",
+          "new_base_execution_head": "0789c6e9b85a989ec6ec75eeb19dff16d93626c4"
+        }
       }
     },
     {

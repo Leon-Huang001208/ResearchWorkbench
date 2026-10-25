@@ -36,6 +36,12 @@ from .providers_kapsarc import (
     kapsarc_metadata,
     kapsarc_projection,
 )
+from .providers_nyfed_reference import (
+    NYFED_RATES_CONTRACT,
+    nyfed_fields,
+    nyfed_metadata,
+    nyfed_projection,
+)
 from .providers_wgc import (
     WGC_DATASETS,
     WGC_NUMERIC_CONTRACT,
@@ -85,6 +91,17 @@ EXTERNAL_ENVELOPES = frozenset(
 OFFICIAL_NUMERIC = frozenset(
     {("ext_worldbank", "inflation"), ("ext_nyfed", "rates"), ("ext_treasury", "cash")}
 )
+
+
+def official_numeric_contract(source, dataset):
+    """Version only the reviewed NYFed pair; other official contracts retain v2."""
+    return (
+        NYFED_RATES_CONTRACT
+        if (source, dataset) == ("ext_nyfed", "rates")
+        else OFFICIAL_NUMERIC_CONTRACT
+    )
+
+
 _CASH_FIELDS = ("close_today_bal", "open_today_bal", "open_month_bal", "open_fiscal_year_bal")
 _RATE_PERCENT_FIELDS = frozenset(
     {
@@ -378,32 +395,6 @@ def _official_rows(source, body, args):
             _number(row["value"])
             seen.add(year)
         return rows, total, pages <= 1
-    if source == "ext_nyfed":
-        if (
-            not isinstance(body, dict)
-            or set(body) != {"refRates"}
-            or not isinstance(body["refRates"], list)
-        ):
-            raise ValueError("invalid_nyfed")
-        rows, seen = body["refRates"], set()
-        for row in rows:
-            day, kind = _day(row["effectiveDate"]), row["type"]
-            if (
-                kind not in {"EFFR", "OBFR", "TGCR", "BGCR", "SOFR", "SOFRAI"}
-                or not args["params"]["start"] <= day <= args["params"]["end"]
-                or (day, kind) in seen
-            ):
-                raise ValueError("rate_identity_mismatch")
-            for field in (
-                ("average30day", "average90day", "average180day", "index")
-                if kind == "SOFRAI"
-                else ("percentRate", "volumeInBillions")
-            ):
-                _number(row[field])
-            for field in _RATE_PERCENT_FIELDS & row.keys():
-                _number(row[field])
-            seen.add((day, kind))
-        return rows, len(rows), True
     if (
         not isinstance(body, dict)
         or not {"data", "meta", "links"} <= body.keys()
@@ -736,6 +727,9 @@ def numeric_envelope(source, dataset, raw, fallback_rows, args=None):
     }:
         return fallback_rows, None, None
     try:
+        if selected == ("ext_nyfed", "rates"):
+            rows = nyfed_projection(raw, args or {})
+            return rows, len(rows), True
         body = json.loads(raw)
         if selected in OFFICIAL_NUMERIC:
             return _official_rows(source, body, args or {})
@@ -1124,7 +1118,10 @@ async def fetch(
                 # JSON-escaped secret must never enter archived original bytes.
                 if _rows_reflect_credentials(decoded, reflected):
                     raise ProviderError("credential_reflection")
-        if (source_id, dataset) == ("ext_kapsarc", "production"):
+        if (source_id, dataset) == ("ext_nyfed", "rates"):
+            projected = nyfed_projection(raw, args)
+            business = (projected, len(projected), True)
+        elif (source_id, dataset) == ("ext_kapsarc", "production"):
             projected = kapsarc_projection(raw, metadata_raw)
             business = (projected, len(projected), True)
         elif source_id == "ext_wgc" and dataset in WGC_DATASETS:
@@ -1211,8 +1208,8 @@ async def fetch(
                 result.missing.append("no_observation_rows")
         if (source_id, dataset) in OFFICIAL_NUMERIC:
             result.metadata = {
-                "schema_version": OFFICIAL_NUMERIC_CONTRACT,
-                "provider_semantics_revision": OFFICIAL_NUMERIC_CONTRACT,
+                "schema_version": official_numeric_contract(source_id, dataset),
+                "provider_semantics_revision": official_numeric_contract(source_id, dataset),
                 "revision_policy": "first_observed_not_historical_vintage",
             }
             result.fields[
@@ -1251,11 +1248,8 @@ async def fetch(
                     )
                     result.fields[field] = {"type": "number", "unit": unit}
             if source_id == "ext_nyfed":
-                for field in result.fields:
-                    if field in _RATE_PERCENT_FIELDS:
-                        result.fields[field] = {"type": "number", "unit": "percent"}
-                    elif field == "volumeInBillions":
-                        result.fields[field] = {"type": "number", "unit": "USD_billion"}
+                result.fields = nyfed_fields(result.rows)
+                result.metadata = nyfed_metadata()
             if source_id == "ext_treasury":
                 result.metadata["units"] = {field: "USD_million" for field in _CASH_FIELDS}
             missing_values = any(
