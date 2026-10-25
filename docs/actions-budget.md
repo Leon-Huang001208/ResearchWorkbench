@@ -328,3 +328,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 
 2026-10-24 pending-finalization恢复复用原Project Constraints的git_safety/iteration_closeout Node步骤，其中增加标准库Python复核与子进程桥接；无新workflow/job/runner/依赖/timeout。增量预留原步骤30秒，原Checks与同候选macos-14安装保留，远端前复查PUBLIC/预算，不从Mac派发Windows/Linux产品CI。
+
+
+2026-10-25宏观/财务参考扩围只在原Checks Python步骤追加test_baostock_reference.py，原reference/native-binding测试扩展；无新job/runner/timeout/依赖或他平台产品dispatch，预留现有步骤15秒。本机、独评、原三CI及同候选Mac安装分别绑定；真实无账号请求不进入CI，正式部署未执行。远端前核对当前visibility/额度。

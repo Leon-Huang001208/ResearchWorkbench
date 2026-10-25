@@ -62,50 +62,31 @@ def test_profitability_missing_sdk_is_rejected_before_provider_execution(monkeyp
 
 
 def stored_response():
+    import json
+
     from app.research_web.datahub.providers import Result
-    from app.research_web.datahub.providers_baostock import (
-        FINANCIAL_DICTIONARY,
-        FINANCIAL_DICTIONARY_SHA256,
-        FINANCIAL_SCHEMA,
+    from app.research_web.datahub.providers_baostock import FINANCIAL_DICTIONARY, FINANCIAL_FIELDS
+    from app.research_web.datahub.providers_baostock_reference import (
+        profitability_fields,
+        profitability_metadata,
+        profitability_projection,
     )
 
+    record = dict.fromkeys(FINANCIAL_FIELDS.split(","), "1.0")
+    record.update(code="sh.600000", statDate="2026-06-30", pubDate="2026-08-27")
+    original = json.dumps([record]).encode()
+    rows, missing = profitability_projection(original, "600000.SH", "2026-06-30")
     return Result(
-        rows=[
-            {
-                "asset": "600000.SH",
-                "report_period": "2026-06-30",
-                "publication_date": "2026-08-27",
-                "publication_precision": "date",
-                "netProfit": 12.0,
-                "MBRevenue": 30.0,
-                "roeAvg": 0.02,
-            }
-        ],
-        raw=[b'{"synthetic_original":true}'],
-        source_url="https://github.com/zxygithub/baostock/blob/master/docs/pythonAPI.md",
+        rows=rows,
+        raw=[original],
+        source_url=FINANCIAL_DICTIONARY,
         provider_id="baostock",
         status="complete",
+        provider_total=1,
         pagination_complete=True,
-        fields={
-            "netProfit": {"unit": "CNY", "currency": "CNY"},
-            "MBRevenue": {"unit": "CNY", "currency": "CNY"},
-            "roeAvg": {"unit": None, "currency": None},
-        },
-        metadata={
-            "schema_version": FINANCIAL_SCHEMA,
-            "upstream_id": "baostock",
-            "availability_basis": "first_observed",
-            "historical_point_in_time": False,
-            "formal_backtest_eligible": False,
-            "field_dictionary_evidence": {
-                "source_url": FINANCIAL_DICTIONARY,
-                "document_sha256": FINANCIAL_DICTIONARY_SHA256,
-                "fields": ["netProfit", "MBRevenue"],
-                "unit": "CNY",
-                "currency": "CNY",
-            },
-            "token": "synthetic-must-not-persist",
-        },
+        fields=profitability_fields(),
+        missing=missing,
+        metadata={**profitability_metadata(), "token": "synthetic-must-not-persist"},
     )
 
 
@@ -209,3 +190,63 @@ async def test_legacy_profitability_session_cache_is_not_reused_but_receipt_rema
         assert len(calls) == 2
     finally:
         await hub.close()
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "row",
+        "reference",
+        "raw",
+        "raw-bool",
+        "raw-duplicate",
+        "fields",
+        "metadata",
+        "basis",
+        "source",
+        "count",
+    ],
+)
+def test_profitability_original_binding_rejects_forgery_and_preserves_previous(tamper):
+    import json
+
+    from app.research_web.datahub.research_snapshot_store import SnapshotSeries
+    from app.research_web.market_store import InMemoryMarketStore, MarketStoreService, StoreScope
+
+    scope = StoreScope("alice", "personal", "baostock", "a" * 64)
+    series = SnapshotSeries(
+        MarketStoreService(InMemoryMarketStore(), lambda *_: True), "alice", scope
+    )
+    query = profitability()
+    good = stored_response()
+    assert series.ingest(query, good)
+    display = query.model_copy(update={"purpose": "display", "quality": "allow_stale"})
+    before = series.read(display)
+    bad = stored_response()
+    if tamper == "row":
+        bad.rows[0]["netProfit"] = 2.0
+    elif tamper == "reference":
+        bad.rows[0]["reference_evidence"] = {"reporting_basis": "year_to_date"}
+    elif tamper == "raw":
+        bad.raw = [b'{"synthetic_original":true}']
+    elif tamper == "raw-bool":
+        original = json.loads(bad.raw[0])
+        original[0]["netProfit"] = True
+        bad.raw = [json.dumps(original).encode()]
+    elif tamper == "raw-duplicate":
+        bad.raw = [
+            bad.raw[0].replace(b'"netProfit": "1.0"', b'"netProfit": "1.0", "netProfit": "1.0"')
+        ]
+    elif tamper == "fields":
+        bad.fields["roeAvg"]["unit"] = "percent"
+    elif tamper == "metadata":
+        bad.metadata["reference_dictionary"]["document_sha256"] = "f" * 64
+    elif tamper == "basis":
+        bad.metadata["reporting_basis"] = "single_quarter"
+    elif tamper == "source":
+        bad.source_url = "https://invalid.example/forged"
+    else:
+        bad.provider_total = True
+    assert series.ingest(query, bad) is None
+    after = series.read(display)
+    assert after.rows == before.rows and after.raw == before.raw

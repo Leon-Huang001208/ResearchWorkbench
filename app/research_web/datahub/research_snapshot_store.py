@@ -28,12 +28,16 @@ from .providers_akshare import (
     sina_income_projection,
     sina_income_source_url,
 )
-from .providers_baostock import FINANCIAL_DICTIONARY, FINANCIAL_DICTIONARY_SHA256
-from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
+from .providers_baostock import FINANCIAL_DICTIONARY
 from .providers_baostock_cashflow import (
     cash_flow_fields,
     cash_flow_metadata,
     cash_flow_projection,
+)
+from .providers_baostock_reference import (
+    profitability_fields,
+    profitability_metadata,
+    profitability_projection,
 )
 from .providers_external import (
     OFFICIAL_NUMERIC,
@@ -94,6 +98,7 @@ METADATA_KEYS = frozenset(
         "provider_semantics_revision",
         "adjustment_contract",
         "field_dictionary_evidence",
+        "reference_dictionary",
         "projection_scope",
         "reporting_basis",
         "statement",
@@ -190,6 +195,49 @@ def _complete_ak_native_snapshot(query: BusinessQuery, result: Result) -> bool:
             == canonical(metadata)
         )
     except (ProviderError, MarketStoreError, TypeError, ValueError, KeyError, AttributeError):
+        return False
+
+
+def _complete_profitability_snapshot(query: BusinessQuery, result: Result) -> bool:
+    """Reject changed rows, references and originals before replacing a good snapshot."""
+    if (
+        set(query.parameters) != {"asset", "statements", "periods"}
+        or query.parameters.get("statements") != ["profitability"]
+        or not isinstance(query.parameters.get("periods"), list)
+        or len(query.parameters["periods"]) != 1
+        or result.provider_id != "baostock"
+        or result.status != "complete"
+        or result.pagination_complete is not True
+        or type(result.provider_total) is not int
+        or result.provider_total != 1
+        or len(result.rows) != 1
+        or len(result.raw) != 1
+        or result.source_url != FINANCIAL_DICTIONARY
+        or result.missing
+    ):
+        return False
+    try:
+        expected = profitability_metadata()
+        rows, missing = profitability_projection(
+            result.raw[0], query.parameters["asset"], query.parameters["periods"][0]
+        )
+        return (
+            not missing
+            and canonical(result.rows) == canonical(rows)
+            and canonical(result.fields) == canonical(profitability_fields())
+            and canonical(
+                {
+                    key: value
+                    for key, value in result.metadata.items()
+                    if key in METADATA_KEYS or key in expected
+                }
+            )
+            == canonical(expected)
+            and not any(
+                key.startswith("reference") and key not in expected for key in result.metadata
+            )
+        )
+    except (ProviderError, MarketStoreError, TypeError, ValueError, KeyError):
         return False
 
 
@@ -604,29 +652,7 @@ class SnapshotSeries:
                 query.capability == "financials"
                 and self.scope.source == "baostock"
                 and query.parameters.get("statements") == ["profitability"]
-                and (
-                    result.metadata.get("schema_version") != BAOSTOCK_FINANCIAL_SCHEMA
-                    or result.metadata.get("upstream_id") != "baostock"
-                    or result.metadata.get("availability_basis") != "first_observed"
-                    or result.metadata.get("historical_point_in_time") is not False
-                    or result.metadata.get("formal_backtest_eligible") is not False
-                    or result.metadata.get("field_dictionary_evidence")
-                    != {
-                        "source_url": FINANCIAL_DICTIONARY,
-                        "document_sha256": FINANCIAL_DICTIONARY_SHA256,
-                        "fields": ["netProfit", "MBRevenue"],
-                        "unit": "CNY",
-                        "currency": "CNY",
-                    }
-                    or result.status != "complete"
-                    or result.pagination_complete is not True
-                    or result.missing
-                    or len(result.rows) != 1
-                    or any(
-                        result.fields.get(field) != {"unit": "CNY", "currency": "CNY"}
-                        for field in ("netProfit", "MBRevenue")
-                    )
-                )
+                and not _complete_profitability_snapshot(query, result)
             ):
                 log.info(
                     "research_snapshot_not_ingested",

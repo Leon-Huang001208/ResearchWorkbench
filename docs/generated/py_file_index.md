@@ -4463,6 +4463,29 @@ Functions:
   - Reject malformed SDK records; blanks are missing, zero/negative stay native.
 
 
+## `app/research_web/datahub/providers_baostock_reference.py`
+
+Module docstring:
+> Pure original-bound profitability projection and narrowly scoped issuer reference.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `json`
+- `providers`
+- `providers_baostock_cashflow`
+
+Functions:
+- `reference_dictionary`
+  - Only hashes of reviewed exact vendor strings are distributed with code.
+- `_reference`
+- `profitability_fields`
+- `profitability_metadata`
+- `profitability_projection`
+  - Reparse SDK strings; a narrow reference never changes original numeric values.
+
+
 ## `app/research_web/datahub/providers_bea_archive.py`
 
 Module docstring:
@@ -4789,6 +4812,8 @@ Functions:
 - `canonical_decimal_sha256`
   - Hash exact decimal strings or integers; binary floats cannot prove exactness.
 - `gdp_reference_evidence`
+- `monthly_macro_reference`
+  - Pinned vendor field definitions; neither reference dates nor units prove PIT.
 - `sina_reference_dictionary`
 - `enrich_sina_reference`
   - Deterministic row metadata, bound again by the shared raw snapshot parser.
@@ -5032,6 +5057,7 @@ Imports:
 - `providers_akshare`
 - `providers_baostock`
 - `providers_baostock_cashflow`
+- `providers_baostock_reference`
 - `providers_external`
 - `providers_kapsarc`
 - `providers_market`
@@ -5047,6 +5073,8 @@ Classes:
 Functions:
 - `_complete_ak_native_snapshot`
   - Bind new captures to one strictly reparsed original and fixed source contract.
+- `_complete_profitability_snapshot`
+  - Reject changed rows, references and originals before replacing a good snapshot.
 - `_complete_cash_flow_snapshot`
   - Bind native financial ratios to their SDK original, never to market fund flow.
 - `_complete_kapsarc_snapshot`

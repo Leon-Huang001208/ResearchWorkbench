@@ -17,7 +17,7 @@ from .providers import MAX_QUERY_BYTES, MAX_ROWS, ProviderError, Result, numeric
 
 log = get_logger(__name__)
 SEMANTICS_REVISION = "baostock-raw-sh-sz-v1"
-FINANCIAL_SCHEMA = "baostock-quarterly-profitability-v1"
+FINANCIAL_SCHEMA = "baostock-quarterly-profitability-v2"
 FINANCIAL_FIELDS = (
     "code,pubDate,statDate,roeAvg,npMargin,gpMargin,netProfit,epsTTM,"
     "MBRevenue,totalShare,liqaShare"
@@ -170,40 +170,15 @@ def _profitability(query: BusinessQuery, sdk) -> Result:
     except Exception as exc:  # noqa: BLE001 - never expose vendor exception text.
         log.warning("baostock_profitability_failed", error_type=type(exc).__name__)
         raise ProviderError("vendor_unreachable") from None
-    if len(raw) > 1:
-        raise ProviderError("vendor_schema_invalid")
-    rows = []
-    missing = []
-    number_fields = FINANCIAL_FIELDS.split(",")[3:]
-    for row in raw:
-        if row["code"] != code or row["statDate"] != period:
-            raise ProviderError("data_not_equivalent")
-        try:
-            _financial_date(row["statDate"])
-            publication = (
-                _financial_date(row["pubDate"]) if row["pubDate"] not in (None, "") else None
-            )
-            if publication is not None and publication < period:
-                raise ProviderError("vendor_schema_invalid")
-            numbers = {key: numeric(row[key]) for key in number_fields}
-        except ProviderError:
-            raise ProviderError("vendor_schema_invalid") from None
-        if publication is None:
-            missing.append("publication_date")
-        if all(value is None for value in numbers.values()):
-            missing.append("profitability_metrics")
-        rows.append(
-            {
-                **row,
-                **numbers,
-                "asset": query.parameters["asset"].upper(),
-                "report_period": period,
-                "publication_date": publication,
-                "publication_precision": "date" if publication is not None else None,
-            }
-        )
-    fields: dict = {key: {"unit": None, "currency": None} for key in number_fields}
-    fields.update({key: {"unit": "CNY", "currency": "CNY"} for key in ("netProfit", "MBRevenue")})
+    from .providers_baostock_reference import (
+        profitability_fields,
+        profitability_metadata,
+        profitability_projection,
+    )
+
+    original = json.dumps(raw, ensure_ascii=False).encode()
+    rows, missing = profitability_projection(original, query.parameters["asset"], period)
+    fields = profitability_fields()
     limitations = [
         "historical_vintage_unverified",
         "reporting_basis_unverified",
@@ -216,7 +191,7 @@ def _profitability(query: BusinessQuery, sdk) -> Result:
     log.info("baostock_profitability_completed", rows=len(rows), partial=bool(missing))
     return Result(
         rows=rows,
-        raw=[json.dumps(raw, ensure_ascii=False).encode()],
+        raw=[original],
         source_url=FINANCIAL_DICTIONARY,
         provider_id="baostock",
         status=("partial" if missing else "complete") if rows else "empty",
@@ -226,23 +201,7 @@ def _profitability(query: BusinessQuery, sdk) -> Result:
         fields=fields,
         missing=missing,
         limitations=limitations,
-        metadata={
-            "schema_version": FINANCIAL_SCHEMA,
-            "provider_semantics_revision": FINANCIAL_SCHEMA,
-            "statement": "profitability",
-            "upstream_id": "baostock",
-            "availability_basis": "first_observed",
-            "historical_point_in_time": False,
-            "formal_backtest_eligible": False,
-            "redistribution_rights": "unverified",
-            "field_dictionary_evidence": {
-                "source_url": FINANCIAL_DICTIONARY,
-                "document_sha256": FINANCIAL_DICTIONARY_SHA256,
-                "fields": ["netProfit", "MBRevenue"],
-                "unit": "CNY",
-                "currency": "CNY",
-            },
-        },
+        metadata=profitability_metadata(),
     )
 
 
