@@ -524,3 +524,5 @@ node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id T
 
 
 NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿名HTTP、owned socket-only PG18.3、跨进程重启及默认factory空库恢复；SDK三项单变量新诊断失败如实保留。原完整Router、SPEC/QUALITY、通用两CI及同候选Mac安装门保持，无新增runner/依赖或他平台产品dispatch。现有服务、正式5432、外盘、凭据与模型不操作。
+
+资产区间统计的数学与DOM控制器先分别RED/GREEN及独立spec/JS评审，再用CUA支持的真实鼠标输入与冻结快照验证。Mac Bootstrap既有静态资源步骤只补两份本地mjs字节核对，原完整JS通配符、仓库门及同候选Mac安装不减；登录实页和运行未知安全门另证，不触发模型或分时供应商。
