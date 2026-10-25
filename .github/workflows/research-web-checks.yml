@@ -87,6 +87,7 @@ jobs:
         run: |
           .venv/bin/python -m pytest \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_api.py \
             tests/research_web/test_discovery.py \
             tests/research_web/test_discovery_tracking.py \
             tests/research_web/test_discovery_routes.py \
@@ -197,6 +198,8 @@ jobs:
             tests/research_web/test_market_store_operation.py \
             tests/research_web/test_market_store_live_postgres.py \
             tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
+            tests/research_web/test_capabilities.py::test_catalog_save_uses_one_write_with_identical_json \
+            tests/research_web/test_capabilities.py::test_catalog_save_failure_preserves_previous_index \
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \
             tests/research_web/test_cli_lazy.py \

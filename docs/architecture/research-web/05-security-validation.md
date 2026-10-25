@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+MARKET_BREADTH沿reader193f4fcc、web.lock7c631d4f及原完整产品并集/模式/哈希检查；前版b800、产品4c72固定。活动或未知拒绝且零停机/安装，不授权Wind恢复、清污染标记或周报维护桥。全部旧profile、controller及evidence信任边界保持。
+
+来源初始化回归使用真实 ResearchService 构造和真实 resident HTTP 投影，Native 与凭据外部边界在无网络/内存夹具内隔离。实际请求登记、取消和 tombstone 仍走原 reader，缺失/异常见证负例保留；补丁不认证旧 b800 空闲或允许停机。
+
 Wind 清理恢复准备验证缺字段、混合未知、晚到忙状态、只读快照零创建，以及安装租约和单 PID 信号边界。私有停止构件无强杀后备但不是完整维护事务；未持三锁/BirthFence、缺旧 Host 见证或不可变控制器不兼容时均不能执行恢复。源码/CI与现场停启及数据保全分别验收。
 
 v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。

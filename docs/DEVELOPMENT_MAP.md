@@ -2,6 +2,12 @@
 
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
 
+全市场广度组合后继位于resident/model_provider_upgrade.py及原test_model_provider_upgrade矩阵：MARKET_BREADTH固定b800→4c72，reader193f4fcc/lock7c631d4f不变，接入原源码并集、manifest、全部账号后台/市场/Native空闲及恢复。真实operate和真实Primary/LegacyBinding反例覆盖Host true/null提前拒绝；不进入周报桥或Wind恢复。
+
+`capabilities/catalog.py:save` 的序列化写入优化保留原临时文件、flush/fsync、replace 和错误清理。`test_capabilities.py` 覆盖 UTF-8 字节一致、单次 write、序列化/fsync/replace 失败保全；真实 API 冷构造和原依赖清单新鲜性测试继续执行。
+
+冷启动来源见证修复仅在 `service.py` 提前初始化原 `research_web_sources.request_state` 使用的两张内存表。`test_resident.py` 使用真实服务构造和 HTTP 投影验证首次来源操作前的空闲，以及实际登记/取消/tombstone；来源读取安全回归保持。`main.py` 的缺失见证拒绝不改。
+
 Wind 清理故障的分项活动见证位于既有 DataHub worker/Host resident 状态；严格只读恢复准备位于 `research_workbench_entrypoint/resident/wind_cleanup_recovery.py`，私有无强杀停止构件位于 `service_manager.py`。目标测试分别覆盖活动归约、旧 Host/混合未知拒绝和单 PID 信号边界。此阶段不开放 apply，不改普通部署/profile/controller 信任链；完整恢复事务与旧现场恢复仍未完成。
 
 admission-v2顺序修复位于原model_provider_upgrade.py和原操作员测试。真实gateway_upgrade.verify_primary不修改：新v2先身份预检，桥/GET后完整g验证、fresh strict Host=False/Native=[]再原idle；测试从真实operate调用原g与LegacyBinding，覆盖此前mock漏掉的桥前拒绝。
@@ -652,3 +658,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+# 区间统计实现定位（2026-10-25）
+
+`app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。

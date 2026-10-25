@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+全市场广度组合的apply-market-breadth只走既有Mac Native主服务/网关事务，不新增Docker镜像、容器、卷或daemon权限。构建缓存仍沿两受管构建器合计20GiB及原操作锁治理；本mode不重置Docker，也不据停止状态清理未知资源。
+
 admission-v2只调整Mac Native维护事务内部顺序，不启动/更新Docker服务、卷、构建器或缓存。真实Primary/Host/Native/其它账号门保持，Mac通用Ubuntu CI不宣称Linux/Docker产品原生验收。
 
 华安提交修复的 apply-etf-weekly-admission 仍只处理 Mac Native。旧等待处置与代码切换采用原维护锁和完整活动检查，不触碰 Docker 服务、业务卷、构建缓存或 20GiB 预算；其它平台继续由对应设备验收。

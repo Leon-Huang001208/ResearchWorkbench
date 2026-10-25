@@ -34,6 +34,7 @@ ASSET_PROFILES = (
     "reviewed-market-history-v1",
     "reviewed-market-terminal-v1",
     "reviewed-market-preview-v1",
+    "reviewed-market-breadth-v1",
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
@@ -77,6 +78,7 @@ def test_discovery_profile_freezes_authorized_combination():
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ETF_HISTORICAL_MODE,
@@ -231,6 +233,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-etf-weekly-admission-v2": "ETF_WEEKLY_ADMISSION_V2",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
         "reviewed-market-preview-v1": "MARKET_PREVIEW",
+        "reviewed-market-breadth-v1": "MARKET_BREADTH",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
@@ -261,6 +264,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         evidence_constant = "ASSET_V9_EVIDENCE_SHA256"
     if profile == "reviewed-market-preview-v1":
         evidence_constant = "MARKET_PREVIEW_EVIDENCE_SHA256"
+    if profile == "reviewed-market-breadth-v1":
+        evidence_constant = "MARKET_BREADTH_EVIDENCE_SHA256"
     if profile == "reviewed-etf-weekly-admission-v1":
         evidence_constant = "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256"
     if profile == "reviewed-etf-weekly-admission-v2":
@@ -543,6 +548,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
         ("apply-market-terminal", upgrade.MARKET_TERMINAL_MODE),
         ("apply-market-preview", "reviewed-market-preview-v1"),
+        ("apply-market-breadth", "reviewed-market-breadth-v1"),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
@@ -1365,6 +1371,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
     }:
@@ -1568,6 +1575,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
         "reviewed-market-preview-v1": "MARKET_PREVIEW_PREVIOUS",
+        "reviewed-market-breadth-v1": "MARKET_BREADTH_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
@@ -2191,6 +2199,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ASSET_V5_MODE,
@@ -2263,6 +2272,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-history-v1",
         "reviewed-market-terminal-v1",
         "reviewed-market-preview-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ASSET_V7_MODE,
@@ -2330,6 +2340,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
     }:
@@ -2454,6 +2465,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
     "real_operations",
     [
         "reviewed-etf-weekly-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
@@ -2486,6 +2498,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
     "real_operations",
     [
         "reviewed-etf-weekly-v1",
+        "reviewed-market-breadth-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
@@ -2817,6 +2830,25 @@ def test_asset_v9_freezes_current_reader_and_keeps_previous_profiles():
     )
     assert upgrade.ASSET_V9_EVIDENCE_SHA256 != upgrade.ASSET_V8_EVIDENCE_SHA256
     assert upgrade.ASSET_V9_WEB_LOCK_SHA256 == upgrade.ASSET_V8_WEB_LOCK_SHA256
+
+
+def test_market_breadth_profile_freezes_approved_combination_and_verified_previous():
+    assert getattr(upgrade, "MARKET_BREADTH_MODE", None) == "reviewed-market-breadth-v1"
+    assert upgrade.previous_for(upgrade.MARKET_BREADTH_MODE) == (
+        "b800e50366d1a0868372bbf173822976066c143f"
+    )
+    assert upgrade.MARKET_BREADTH_PAYLOAD == "4c72ed4349c087cf0b7d037d7133b84201a76d5f"
+    assert upgrade.MARKET_BREADTH_MODE in upgrade.ASSET_MODES
+    assert upgrade.MARKET_BREADTH_EVIDENCE_SHA256 == upgrade.MARKET_PREVIEW_EVIDENCE_SHA256
+    assert upgrade.MARKET_BREADTH_WEB_LOCK_SHA256 == upgrade.MARKET_PREVIEW_WEB_LOCK_SHA256
+    manifest = {"code_commit": "old", "web_lock_sha256": "old-lock"}
+    assert upgrade.target_manifest(
+        {"manifest": manifest, "mode": upgrade.MARKET_BREADTH_MODE, "target": "new"}
+    ) == {
+        **manifest,
+        "code_commit": "new",
+        "web_lock_sha256": upgrade.MARKET_BREADTH_WEB_LOCK_SHA256,
+    }
 
 
 def test_market_preview_profile_freezes_authorized_product_and_current_resident():
@@ -3211,7 +3243,10 @@ def test_weekly_native_catalog_strict_real_client_protocol(monkeypatch, case):
     assert calls
 
 
-@pytest.mark.parametrize("command", ["apply", "apply-assets-v9", "apply-market-preview", "recover"])
+@pytest.mark.parametrize(
+    "command",
+    ["apply", "apply-assets-v9", "apply-market-preview", "apply-market-breadth", "recover"],
+)
 @pytest.mark.parametrize("flag", ["--end-weekly-waiting", "--weekly-monitoring-action"])
 def test_weekly_flags_rejected_for_old_modes_before_operate(tmp_path, monkeypatch, command, flag):
     (tmp_path / "logs").mkdir()
@@ -4275,3 +4310,21 @@ def test_weekly_primary_v2_unknown_host_before_bridge_zero_write(weekly_operate_
     ):
         assert not (f.home / "server/run" / name).exists()
     assert not (f.home / "resident/transaction.json").exists()
+
+
+@pytest.mark.parametrize("host_active", [True, None])
+def test_market_breadth_actual_operate_keeps_real_primary_gate(
+    weekly_operate_protocol, monkeypatch, host_active
+):
+    f, control, events = weekly_operate_protocol
+    monkeypatch.setattr(upgrade, "MARKET_BREADTH_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    control["active_override"] = host_active
+    before = f.index.read_bytes()
+    with pytest.raises(MaintenanceBusy):
+        upgrade.operate(f.home, f.home / "source", mode=upgrade.MARKET_BREADTH_MODE)
+    assert f.index.read_bytes() == before
+    assert "fence-would-start" not in events
+    assert "recovery" not in events
+    assert not (f.home / "resident/transaction.json").exists()
+    assert not (f.home / "server/run/gateway-upgrade.json").exists()
+    assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()

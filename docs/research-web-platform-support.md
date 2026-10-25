@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+全市场广度组合操作员为Mac Native固定profile：本机与同候选Mac安装CI分别认证，源码通过不认证真实上线。Windows/Linux原生及对应设备验收继续交接未执行，不从Mac发产品dispatch；原跨平台支持矩阵不因新CLI扩大。
+
 本轮v2是macOS Native受管准入修复，仅取本机、通用仓库CI与同候选Mac安装证据。真实b0e曾在停机前deferred；源码通过不认证切换或Word。Windows/Linux产品原生及条件CI由对应设备交接，NOT_RUN不改支持声明。
 
 本次华安准入/等待维护只验 macOS Native及同候选Mac安装。真实Native只读观察、源代码离线测试、生产维护、统一部署、模型与Word交付分别记录；Windows/Linux产品及Docker部署未运行，不由通用Ubuntu CI推导支持。
