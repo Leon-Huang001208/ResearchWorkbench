@@ -37,6 +37,80 @@ def isolate_keyring(monkeypatch):
     )
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"中文": '行情\n引号"与反斜线\\及😀', "values": [None, True, False, 3.25]},
+        {"nested": {"items": [{"key": "value"}] * 120}, "large": 10**30},
+    ],
+)
+def test_catalog_save_uses_one_write_with_identical_json(tmp_path, monkeypatch, data):
+    import os
+
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog.root = tmp_path
+    catalog.index = tmp_path / "catalog.json"
+    catalog.data = data
+    expected = io.StringIO()
+    json.dump(data, expected, ensure_ascii=False)
+    writes = []
+    fdopen = os.fdopen
+
+    class ObservedStream:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def write(self, value):
+            writes.append(value)
+            return self.stream.write(value)
+
+        def flush(self):
+            return self.stream.flush()
+
+        def fileno(self):
+            return self.stream.fileno()
+
+    monkeypatch.setattr(os, "fdopen", lambda *a, **k: ObservedStream(fdopen(*a, **k)))
+    catalog.save()
+    assert catalog.index.read_bytes() == expected.getvalue().encode("utf-8")
+    assert writes == [expected.getvalue()]
+    assert not list(tmp_path.glob("catalog-*"))
+
+
+@pytest.mark.parametrize("stage", ["fsync", "replace", "serialization"])
+def test_catalog_save_failure_preserves_previous_index(tmp_path, monkeypatch, stage):
+    import os
+
+    from app.research_web.capabilities.models import CapabilityError
+
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog.root = tmp_path
+    catalog.index = tmp_path / "catalog.json"
+    previous = b'{"previous": true}'
+    catalog.index.write_bytes(previous)
+    catalog.data = {"next": object() if stage == "serialization" else True}
+
+    def fail(*args):
+        raise OSError("synthetic persistence failure")
+
+    if stage != "serialization":
+        monkeypatch.setattr(os, stage, fail)
+    with pytest.raises(TypeError if stage == "serialization" else CapabilityError) as error:
+        catalog.save()
+    if stage != "serialization":
+        assert error.value.code == "catalog_write_failed"
+    assert catalog.index.read_bytes() == previous
+    assert not list(tmp_path.glob("catalog-*"))
+
+
 @pytest.fixture
 def api(tmp_path, monkeypatch):
     isolate_keyring(monkeypatch)

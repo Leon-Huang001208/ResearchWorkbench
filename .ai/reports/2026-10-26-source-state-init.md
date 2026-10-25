@@ -1,5 +1,13 @@
 # 真实 Host 冷启动来源状态初始化
 
+## 同 PR 首次 CI 修补：目录序列化成本
+
+候选 ecef 的 Checks40226600173 达40分钟上限取消，Python仅57%，无完整汇总；完整日志14.5MB持续推进，不认证无失败。Mac40226753690与Constraints40226600281已通过但不跨候选复用。真实四项API profile中Service构造16.666秒/目录16.506秒，880次save占10.714秒，约1120万次JSON逐片段write；依赖扫描4次0.935秒，不能将扫描假设当根因。独立评审确认该定位。
+
+最小修补把 `json.dump` 改为相同参数的 `stream.write(json.dumps(...))`，保留保存时点、临时文件、flush/fsync、replace、错误类型和清理；不共享Service、不跨Host缓存、不合并事务。新增UTF-8/嵌套字节一致及单次write断言在修复前2 failed/4 passed，fsync/replace/序列化失败保全原索引均保留。后续完整回归、profile对照、静态、评审及新候选CI另留实际证据，不从本段推断已通过。
+
+修补后完整 capabilities/resident/API 335 passed，283.40秒；Ruff/Black/isort/Mypy、文档治理及索引检查通过，独立内容评审 APPROVED。同样4项真实API的顺序单次、非profile对照为旧7.659秒/新6.462秒，仅是本机小样本，不能由profile热点或约16%墙钟变化推导整个CI已满足40分钟。编码期间会短暂持有完整JSON字符串，未扩张索引内容；新候选完整CI仍需实跑。
+
 ## 问题和修复边界
 
 PR237 将 resident 的来源活动见证改为严格读取 `source_requests`。真实 `ResearchService` 却只在首次来源执行或取消时，由 `research_web_sources.request_state` 懒创建请求和取消登记表。尚未发生来源操作的真实 Host 会因属性缺失把空闲归约为未知。原 b800 的 Wind 清理未确认是另一项现场问题，本补丁不能给旧进程补证。
