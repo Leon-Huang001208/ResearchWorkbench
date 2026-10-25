@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "task": "datahub-sofrai-20261025",
+  "host": "macos",
+  "real_acceptance": {
+    "status": "PASS",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-sofrai-20261025/logs/real-sofrai-evidence-repair1/receipt.json",
+    "sha256": "420c13842b80c54d3fd6f4a57a408e5b0c5c87d4b9fb03e177fcf4e4cfee7298",
+    "execution_head": "6e294f4575d6d6efd2b896b18dd5f3b367652659",
+    "duration_seconds": 5.628,
+    "source_helper_count": 378,
+    "source_and_helpers_unchanged": true,
+    "process_pids": [
+      51468,
+      51515,
+      51525
+    ],
+    "supplier_http_submissions": 1,
+    "sdk_workers": 0,
+    "reopen_restore_vendor_submissions": 0,
+    "actual_pg_restart_read": true,
+    "independent_empty_database_restore": true,
+    "datasets": {
+      "rates": {
+        "rows": 6,
+        "rows_sha256": "e45b98ac032eb0532ef2977f94c976e0d728a2a8510c806463eadc224cbfeb40",
+        "fields_sha256": "4fd435da0bf5231e6af838d98b1fce20ebf255c2d7854b343c89a0a87056a821",
+        "raw_sha256": [
+          "ce873d1ebdd3480861f4d1973945fd363007ade7bba80feb41efffd1b01adb84"
+        ],
+        "schema_identity": "datahub-provider-native-v1:fa60e227628fdf7a9db10d731ce155d3bd6c65782d05b4f9674c873b4836ff09:nyfed-rates-native-v3",
+        "units_identity": "nyfed-rates-native-v3"
+      }
+    },
+    "cleanup": {
+      "pg_stopped": true,
+      "pgdata_removed": true
+    },
+    "temporary_home_host_removed": true
+  },
+  "original_failed_attempt": {
+    "head": "58bce994592c384318c2998f81f0ae41f30e1426",
+    "sha256": "0cb7a551f0004377b5d1bd41a19675fbf49238576346b25686118f06429a6d19",
+    "result": "FAILED",
+    "supplier_http_submissions": 1,
+    "failure": "framework metadata rejected before persistence",
+    "not_rewritten": true
+  },
+  "sdk_origin": {
+    "new_python_single_variable_probes": 3,
+    "native_curl_probe": 1,
+    "business_successes": 0,
+    "state": "UNRECOVERED_CAUSE_UNDETERMINED"
+  },
+  "historical_point_in_time": false,
+  "formal_backtest_eligible": false,
+  "metadata_semantics": "fixed dictionary persisted; false PIT/backtest flags reconstructed by native read; no inferred availability",
+  "final_candidate_acceptance": "must bind independently; not certified by this source receipt",
+  "protected_resources": "no operation on resident services, formal database, external disk, real credentials; no new dependency, payment or production model"
+}

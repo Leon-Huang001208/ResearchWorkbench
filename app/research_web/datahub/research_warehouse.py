@@ -42,7 +42,7 @@ from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import CHINA_MACRO_SCHEMA, FUND_FLOW_SCHEMA, SINA_FINANCIAL_SCHEMA
 from .providers_baostock import FINANCIAL_SCHEMA as BAOSTOCK_FINANCIAL_SCHEMA
 from .providers_baostock_cashflow import CASH_FLOW_SCHEMA
-from .providers_external import OFFICIAL_NUMERIC, OFFICIAL_NUMERIC_CONTRACT, SPDR_NUMERIC_CONTRACT
+from .providers_external import OFFICIAL_NUMERIC, SPDR_NUMERIC_CONTRACT, official_numeric_contract
 from .providers_kapsarc import KAPSARC_NUMERIC_CONTRACT
 from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT
 from .research_snapshot_store import SnapshotSeries
@@ -847,12 +847,12 @@ class ResearchWarehouse:
             schema_identity="datahub-provider-native-v1:"
             + digest
             + (
-                ":" + OFFICIAL_NUMERIC_CONTRACT
+                ":" + official_numeric_contract(source, query.parameters.get("dataset"))
                 if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
                 else ":" + contract if contract else ""
             ),
             units_identity=(
-                OFFICIAL_NUMERIC_CONTRACT
+                official_numeric_contract(source, query.parameters.get("dataset"))
                 if (source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
                 else contract if contract else "vendor-fields-retained-unverified-v1"
             ),

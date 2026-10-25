@@ -37,8 +37,8 @@ from .providers_external import (
     EXTERNAL_ENVELOPE_CONTRACT,
     EXTERNAL_ENVELOPES,
     OFFICIAL_NUMERIC,
-    OFFICIAL_NUMERIC_CONTRACT,
     SPDR_NUMERIC_CONTRACT,
+    official_numeric_contract,
 )
 from .providers_kapsarc import KAPSARC_NUMERIC_CONTRACT
 from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT
@@ -1706,7 +1706,9 @@ class DataHub:
                         and (candidate.get("provider"), query.parameters.get("dataset"))
                         in OFFICIAL_NUMERIC
                         and candidate.get("provider_metadata", {}).get("schema_version")
-                        != OFFICIAL_NUMERIC_CONTRACT
+                        != official_numeric_contract(
+                            candidate.get("provider"), query.parameters.get("dataset")
+                        )
                     ):
                         log.info("datahub_cache_contract_changed", source=candidate.get("provider"))
                         continue
