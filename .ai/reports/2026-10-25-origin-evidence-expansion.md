@@ -24,3 +24,11 @@ macOS Web 功能开发，独立 worktree 和 owned socket-only 临时 PostgreSQL
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"只扩展既有宏观字段字典及限定财务引用，强化原件重建与缓存版本，没有新节点、HTTP、表、依赖或执行引擎，原拓扑仍准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只向原Checks同一步追加一个离线模块，保持原三CI及同候选Mac安装，无新job/runner/timeout或验证节点。","diagrams":[]} -->
+
+## 已执行真实仓库验收
+
+源码执行HEAD b83b15ce69c263c4b1378b438e502d83c2f6ea9f，8.937秒PASS；377份源码/helper、依赖包和PG二进制前后校验一致。7个实际public worker与7次受观测HTTP提交（Bao原生socket底层次数仍unknown），宏观四类GDP1/CPI3/PMI3/M2 3，资金流1，Bao与Sina同600000/2026H1各1行。两格原始字符串Decimal哈希相等，集团累计和单位参考独立保留，provider scope/dataset不合并。
+
+默认ResearchService/ResearchWarehouse及原postgres factory，owned PG18.3仅Unix65478、TCP空、fsync开启；22313/22568/22590三个独立进程，postmaster真实重启、新Host业务读回及同actor/scope/dataset第二空库恢复通过。后两阶段SDK/HTTP均0，行/字段/原件/引用/冻结摘要相同；临时PG已停并移除。原SDK自然连接失败+guest后备仍分别记账。回执SHA256 be10518e2e014789301704b60dccc169b32ef027088f554ea6a9f59c360381dd。
+
+本机源候选完整10组56.799秒通过，Python1282/101子测试；最终集成评审、CI与同候选Mac安装仍由精确SHA外部回执认证。新增报告只包含摘要与哈希，真实数值及定义/PDF字节保留私有证据。
