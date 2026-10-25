@@ -25,3 +25,11 @@ PR234是已核实CJPY新报价单位修复，独立交付。当前常驻b800不�
 浏览器发现并修复两次display:contents无布局盒误用、浮窗颜色作用域缺失，以及ECharts首次setOption前getModel为空导致主题恢复出现空窗；保留原FAIL截图和新增RED回归。当前使用真实stage和明确网格ready边界；日期与结果原子更新。对应125项控制器/chart/workspace回归通过；新数学22项另记。代码质量独评与最终候选/CI重新绑定仍待完成。
 
 相同7/20–9/1冻结日线复算：32日、-15.15%、-70.15、年化-72.28%、极值回撤-32.75%、极值上涨48.70%、振幅35.44%、阳14阴18平0与Wind截图相符。区间换手为268.25%，截图268.01%，差异原样保留；旧快照量额字段缺单位，因此相关指标显示未取得，不回填或猜单位。该快照截至10/22，非实时。
+
+## 结构复核
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "独立纯计算和浮窗控制器只读取已载入行情；没有新服务或研究引擎节点，原浏览器与Host边界准确。真实stage承载绕过display:contents零布局盒，既有行情和筹码仍独立管理。"} -->
+
+<!-- architecture-review {"group": "workbench", "structure": "unchanged", "reason": "右键选区不触发额外请求、不保存数据集或改写冻结材料；账号和版本沿既有观察身份，原DataHub/Host接口与文件拓扑保持准确。日期编辑只改变本地统计状态。"} -->
+
+<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "沿既有JS测试通配符和Mac安装单步追加两份静态mjs字节核验；没有新增runner、job或依赖，也不减少原仓库门或同候选证据。真实手势与认证部署仍分层取证。"} -->

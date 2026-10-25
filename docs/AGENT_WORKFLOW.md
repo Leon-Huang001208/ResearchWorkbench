@@ -517,3 +517,5 @@ node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id T
 
 
 2026-10-25月度口径扩围沿默认Host/研究仓做七例有界实际采集、独立进程与真实owned PG停启和第二空库恢复；宏观v4/Bao盈利v2原件重建拒伪造。原三CI/同候选Mac安装和双阶段独评保持，新增纯离线模块只加入原Checks步骤；无依赖、服务、正式库、外盘或模型操作。
+
+资产区间统计的数学与DOM控制器先分别RED/GREEN及独立spec/JS评审，再用CUA支持的真实鼠标输入与冻结快照验证。Mac Bootstrap既有静态资源步骤只补两份本地mjs字节核对，原完整JS通配符、仓库门及同候选Mac安装不减；登录实页和运行未知安全门另证，不触发模型或分时供应商。
