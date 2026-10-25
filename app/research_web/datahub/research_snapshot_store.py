@@ -14,7 +14,7 @@ from core.observability import get_logger
 from ..market_store import Batch, DatasetIdentity, Fact, MarketStoreError, RawOriginal
 from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
-from .providers import MAX_QUERY_BYTES, ProviderError, Result
+from .providers import MAX_QUERY_BYTES, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Result
 from .providers_akshare import (
     FUND_FLOW_FAILURE_CODES,
     FUND_FLOW_SCHEMA,
@@ -41,10 +41,12 @@ from .providers_baostock_reference import (
 )
 from .providers_external import (
     OFFICIAL_NUMERIC,
-    OFFICIAL_NUMERIC_CONTRACT,
     SPDR_METRIC_UNITS,
     SPDR_NUMERIC_CONTRACT,
     arguments,
+    endpoint_request,
+    official_numeric_contract,
+    official_numeric_request,
     spdr_fields,
     spdr_projection,
 )
@@ -56,6 +58,7 @@ from .providers_kapsarc import (
     kapsarc_projection,
 )
 from .providers_market import INDEXES
+from .providers_nyfed_reference import nyfed_fields, nyfed_metadata, nyfed_projection
 from .providers_wgc import WGC_DATASETS, WGC_NUMERIC_CONTRACT, WGC_UNITS, wgc_fields, wgc_projection
 
 log = get_logger(__name__)
@@ -270,6 +273,57 @@ def _complete_cash_flow_snapshot(query: BusinessQuery, result: Result) -> bool:
             and canonical(result.fields) == canonical(cash_flow_fields())
         )
     except (ProviderError, MarketStoreError, TypeError, ValueError, KeyError):
+        return False
+
+
+def _complete_nyfed_snapshot(query: BusinessQuery, result: Result) -> bool:
+    """Rebind exact native capture to its closed request and immutable dictionary."""
+    limit = query.parameters.get("limit", MAX_ROWS)
+    if (
+        type(limit) is not int
+        or not 1 <= limit <= MAX_ROWS
+        or result.provider_id != "ext_nyfed"
+        or result.status not in {"snapshot", "empty"}
+        or result.pagination_complete is not True
+        or type(result.provider_total) is not int
+        or result.provider_total != len(result.rows)
+        or type(result.pages_fetched) is not int
+        or result.pages_fetched != 1
+        or result.missing
+        or len(result.raw) != 1
+        or not isinstance(result.raw[0], bytes)
+        or len(result.raw[0]) > MAX_RESPONSE_BYTES
+        or result.raw_bytes != len(result.raw[0])
+    ):
+        return False
+    try:
+        if canonical(result.metadata) != canonical(nyfed_metadata()):
+            return False
+        args = arguments(query.parameters.get("arguments_json"))
+        _, url = endpoint_request("ext_nyfed", "rates", args)
+        official_numeric_request("ext_nyfed", "rates", args)
+        rows = nyfed_projection(result.raw[0], args)
+        numeric = {
+            "percentRate",
+            "volumeInBillions",
+            "average30day",
+            "average90day",
+            "average180day",
+            "index",
+        }
+        return (
+            result.source_url == url
+            and len(rows) <= limit
+            and result.status == ("snapshot" if rows else "empty")
+            and not any(
+                row[key] is None or row[key] == "null"
+                for row in rows
+                for key in numeric & row.keys()
+            )
+            and canonical(result.rows) == canonical(rows)
+            and canonical(result.fields) == canonical(nyfed_fields(rows))
+        )
+    except (ProviderError, MarketStoreError, TypeError, ValueError, KeyError, RecursionError):
         return False
 
 
@@ -687,12 +741,20 @@ class SnapshotSeries:
                 and (self.scope.source, query.parameters.get("dataset")) in OFFICIAL_NUMERIC
                 and (
                     result.pagination_complete is not True
-                    or result.metadata.get("schema_version") != OFFICIAL_NUMERIC_CONTRACT
+                    or result.metadata.get("schema_version")
+                    != official_numeric_contract(self.scope.source, query.parameters.get("dataset"))
                 )
             ):
                 log.info(
                     "research_snapshot_not_ingested", reason="official_numeric_contract_incomplete"
                 )
+                return None
+            if (
+                query.capability == "external_data"
+                and (self.scope.source, query.parameters.get("dataset")) == ("ext_nyfed", "rates")
+                and not _complete_nyfed_snapshot(query, result)
+            ):
+                log.info("research_snapshot_not_ingested", reason="nyfed_contract_incomplete")
                 return None
             if query.capability == "market_snapshot" and (
                 len(result.rows) != 1

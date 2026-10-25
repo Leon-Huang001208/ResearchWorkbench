@@ -4633,6 +4633,7 @@ Imports:
 - `math`
 - `providers`
 - `providers_kapsarc`
+- `providers_nyfed_reference`
 - `providers_wgc`
 - `re`
 - `time`
@@ -4645,6 +4646,8 @@ Classes:
   - methods: __init__, handle_starttag, handle_endtag, handle_data
 
 Functions:
+- `official_numeric_contract`
+  - Version only the reviewed NYFed pair; other official contracts retain v2.
 - `arguments`
 - `spdr_projection`
   - Validate four source metrics; preserve source strings and each reference date.
@@ -4789,6 +4792,30 @@ Functions:
 - `_failure_code`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_nyfed_reference.py`
+
+Module docstring:
+> Pure NYFed raw projection and fixed, source-qualified SOFRAI dictionary.
+
+Imports:
+- `copy`
+- `core.observability`
+- `datetime`
+- `json`
+- `math`
+
+Functions:
+- `nyfed_metadata`
+  - Return fresh fixed metadata; reference hashes cover original decoded HTTP bodies.
+- `nyfed_fields`
+  - Apply SOFRAI units only to its fields; retain ordinary rate field meanings.
+- `_day`
+- `_pairs`
+- `_reject_constant`
+- `nyfed_projection`
+  - Validate strict original JSON and bounded observation identities without coercion.
 
 
 ## `app/research_web/datahub/providers_reference_evidence.py`
@@ -5061,6 +5088,7 @@ Imports:
 - `providers_external`
 - `providers_kapsarc`
 - `providers_market`
+- `providers_nyfed_reference`
 - `providers_wgc`
 - `threading`
 - `uuid`
@@ -5077,6 +5105,8 @@ Functions:
   - Reject changed rows, references and originals before replacing a good snapshot.
 - `_complete_cash_flow_snapshot`
   - Bind native financial ratios to their SDK original, never to market fund flow.
+- `_complete_nyfed_snapshot`
+  - Rebind exact native capture to its closed request and immutable dictionary.
 - `_complete_kapsarc_snapshot`
   - Require both count/unit evidence and the exact export projection before publishing.
 - `_complete_wgc_snapshot`

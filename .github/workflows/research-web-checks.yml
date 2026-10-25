@@ -180,6 +180,7 @@ jobs:
             tests/research_web/test_quantapi_authorization.py \
             tests/research_web/test_datahub_numeric_sources.py \
             tests/research_web/test_datahub_official_numeric.py \
+            tests/research_web/test_nyfed_sofrai_reference.py \
             tests/research_web/test_datahub_spdr.py \
             tests/research_web/test_datahub_wgc.py \
             tests/research_web/test_datahub_kapsarc.py \
