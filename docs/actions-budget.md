@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+PR240 候选 ecef 的 Checks40226600173 达40分钟上限取消；14.5MB完整日志显示Python仅57%且持续推进，无完整汇总。Mac40226753690/Constraints40226600281的通过保留原SHA归属。真实4项API profile显示目录880次保存/约1120万次JSON分片write为主要构造成本，模块扫描仅4次且缓存有效。本次仅优化原catalog.save为等字节单次写入，保留所有保存/同步/恢复语义，并在原步骤补登记6个字节及失败保全用例；不增job、runner、依赖或40分钟上限，不删用例/不rerun旧候选。新候选仍重新验证完整原三门及Mac安装。
+
+2026-10-26 来源登记初始化窄修在原 Checks Python 步骤补登记完整 `test_api.py`，原 `test_resident.py` 扩展真实冷 Host 和来源生命周期；不新增 job、runner、依赖或改变 40 分钟上限。未登记前真实 API 有三个同根基线失败，不能靠模拟对象绿替代。修复后本机 resident/reader/活动/API 四模块 342 passed、747.32 秒，包含完整 API；现有步骤增量预留 750 秒，实际 CI 耗时另证，不能删除用例求绿。同候选 Mac 干净安装与通用两门保持，实际服务及模型未运行；发布前实时核对 public/额度，不从 Mac 派发其他平台产品 CI。
+
 2026-10-25 Wind 恢复准备仅向原 Checks Python 步骤登记三个离线模块，保留全部原用例、job、runner、40 分钟上限与 concurrency；无新依赖、厂商或模型请求。前一源码相邻七模块本机 562 项约 7.91 秒，后续评审修补另行记录，增量预算预留 60 秒；同候选 macOS 干净安装与通用两门保持。仓库本轮 API 为 public，发布前再次核对；Windows 条件门由对应设备交接，不从 Mac dispatch，也不将源码准备或 CI 当成常驻恢复通过。
 
 PR232的7c7015b5单job从18:59:09Z至19:29:26Z因达到30m0s被GitHub取消，annotation明确maximum execution time；head未更新，非并发替换。取消前仍在产生capability校验进度，无完整pytest汇总，不能标PASS或推断所有测试无失败。保留原全套Python/JS/Native测试与相同单一ubuntu-latest job、permissions和concurrency，预算明确从30增加至40分钟（有界增加10分钟），同步项目workflow约束；不新增job/runner、不rerun旧候选或删除/跳过用例。当前仓库PUBLIC标准runner；新提交与完整payload重新固定、独评及同候选原三CI/Mac证据仍必需，旧绿不复用。

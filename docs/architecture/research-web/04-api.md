@@ -2,6 +2,8 @@
 
 全市场广度组合仅新增封闭本机CLI apply-market-breadth，不新增业务HTTP入口或租户权限。普通resident active必须明确false；PR237已有分项诊断不能反向补齐旧b800缺失的见证，也不构成恢复执行API。
 
+既有 resident API 在真实冷服务首次来源调用前可观察已初始化的空请求表；没有新增端点或字段。缺失属性及其他异常仍归约未知，来源请求进行中仍为忙，不引入查询时初始化或权限放宽。
+
 现有 `GET /api/research/resident` 附带固定、无秘密的 `activity_witness`，列出各 Host 检查与来源的运行/清理状态；未知不得同时被归约为 `active=false`。没有新增 HTTP 路由或执行型恢复 API；内部只读 inspect 不能授予维护准入，旧客户端的普通活动门保持。
 
 v2只增加明确paired flags的本机受审CLI命令，沿已有GET刷新Host缓存；无HTTP新路由、Header/Cookie覆盖或force参数，普通租户/能力与已发布v1行为保持。

@@ -1,5 +1,7 @@
 # Wind 清理故障：活动观察与恢复边界
 
+真实 Host 在构造阶段建立原来源执行/取消登记表，确保首次来源操作前的空表可被严格观察；来源请求存在时仍报告忙，取消清理和 tombstone 继续由原 reader 管理。字段缺失或检查异常仍是未知，不能从初始化补丁推导旧 b800 的来源状态或 Wind 清理完成。
+
 本模块是只读诊断和未来事务的私有停止原语。本轮没有恢复执行器、`apply`、`recover` 或 CLI；不修改旧产品 pin、部署 profile、原 `verify_primary`、`Operations.idle`、不可变 `controller.pyz` 或普通停止逻辑。它不能用于恢复当前旧实例。
 
 ## Host 的固定观察合同
