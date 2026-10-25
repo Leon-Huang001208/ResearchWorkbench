@@ -166,6 +166,21 @@ test('range signed values and extrema use existing rise/fall classes, neutral an
  c.setDates('2026-01-03','2026-01-03');markup=nodes.get('[data-asset-range-card]').innerHTML;assert.match(markup,/<dt>涨跌幅<\/dt><dd class="asset-price-up">10\.00%/);
  c.setDates('2026-01-04','2026-01-04');markup=nodes.get('[data-asset-range-card]').innerHTML;assert.match(markup,/<dt>涨跌幅<\/dt><dd class="">0\.00%/);
 });
+test('change amount uses its sign before price units while absolute OHLC still compare previous close',()=>{
+ for(const [close,expected] of [[1050,'asset-price-up'],[950,'asset-price-down'],[1000,''],[null,'']]){
+  const {controller:c,nodes,context}=fixture();
+  context.metadata={frequency:'daily',asset_history:{canonical_version:'v1',adjustment:'none',coverage:{scanned_ranges:[{start_date:'2026-01-01',end_date:'2026-01-02'}]}}};
+  context.daily=[{date:'2026-01-01',open:1000,high:1100,low:900,close:1000},{date:'2026-01-02',open:980,high:1100,low:900,close}];
+  c.setDates('2026-01-02','2026-01-02');const markup=nodes.get('[data-asset-range-card]').innerHTML;
+  const field=label=>{const match=new RegExp(`<dt>${label}<\\/dt><dd class="([^"]*)">([^<]*)<\\/dd>`).exec(markup);assert.ok(match,`${label} must be a visible metric`);return {tone:match[1],text:match[2]};};
+  assert.deepEqual(field('涨跌'),{tone:expected,text:close===null?'未取得':(close-1000).toFixed(2)},`change amount ${close}`);
+  assert.equal(field('收盘价').tone,expected,`closing absolute price ${close}`);
+  assert.deepEqual(field('开盘价'),{tone:'asset-price-down',text:'980.00'});
+  assert.equal(field('前收盘价').tone,'');
+  if(close!==null){assert.deepEqual(field('最高价'),{tone:'asset-price-up',text:'1100.00'});assert.deepEqual(field('最低价'),{tone:'asset-price-down',text:'900.00'});}
+  c.dispose();
+ }
+});
 test('range card rise/fall selectors consume the same theme tokens as existing Wind readouts',()=>{
  const chartCSS=readFileSync(new URL('../../app/research_web/ui/asset-chart.css',import.meta.url),'utf8');
  const layoutCSS=readFileSync(new URL('../../app/research_web/ui/asset-layout.css',import.meta.url),'utf8');
@@ -262,4 +277,35 @@ test('range window cancellation, Esc and disposal still own their cleanup indepe
  begin();dispatch({...event(120),type:'pointerup',pointerId:1});assert.equal(card.hidden,false);
  c.handle({type:'keydown',key:'Escape',preventDefault(){},stopImmediatePropagation(){}});assert.equal(layer.hidden,true);assert.equal(card.hidden,true);
  begin();c.dispose();assert.equal(layer.hidden,true);assert.equal(card.hidden,true);assert.ok([...f.windowHandlers.values()].every(list=>list.length===0));
+});
+test('native indicator dialog receives Esc before range capture and native cancel leaves committed range intact',()=>{
+ const f=mountedChart(),c=createAssetChartController({logger:()=>{}});
+ const dialog={open:false,innerHTML:'',querySelector:()=>null,showModal(){this.open=true;},close(){this.open=false;},addEventListener(){},removeEventListener(){}};
+ f.nodes.set('[data-asset-indicator-manager]',dialog);
+ c.configure(daily,'modal-escape',{frequency:'daily'});assert.equal(c.mount(f.host),true);
+ const click=action=>({type:'click',target:{closest:s=>s==='[data-asset-chart-action]'?{dataset:{assetChartAction:action}}:null}});
+ c.handle(click('range-open'));c.handle(click('indicator-manager'));assert.equal(dialog.open,true);
+ const card=f.nodes.get('[data-asset-range-card]');const markup=card.innerHTML;
+ const modalTarget={closest:s=>s==='dialog[open], [aria-modal="true"]'&&dialog.open?dialog:null};f.host.ownerDocument.activeElement=modalTarget;
+ const escape={type:'keydown',key:'Escape',target:modalTarget,preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;}};
+ f.windowHandlers.get('keydown')[0].handler(escape);
+ // The event then bubbles through the chart slot before the browser's native cancel default.
+ c.handle(escape);assert.equal(escape.defaultPrevented,undefined);assert.equal(escape.stopped,undefined);
+ c.handle({type:'cancel',target:{matches:s=>s==='[data-asset-indicator-manager]'},preventDefault(){}});
+ assert.equal(dialog.open,false);assert.equal(card.hidden,false);assert.equal(card.innerHTML,markup);
+ f.host.ownerDocument.activeElement=null;
+ const plain={type:'keydown',key:'Escape',target:{closest:()=>null},preventDefault(){},stopImmediatePropagation(){}};
+ f.windowHandlers.get('keydown')[0].handler(plain);assert.equal(card.hidden,true);c.dispose();
+});
+test('aria-modal drawer or modal-focused window Esc stays with its existing modal handler',()=>{
+ const f=mountedChart(),c=createAssetChartController({logger:()=>{}});c.configure(daily,'drawer-escape',{frequency:'daily'});c.mount(f.host);
+ c.handle({type:'click',target:{closest:s=>s==='[data-asset-chart-action]'?{dataset:{assetChartAction:'range-open'}}:null}});
+ const modalTarget={closest:s=>s==='dialog[open], [aria-modal="true"]'?{}:null};
+ for(const focusOnly of [false,true]){
+  f.host.ownerDocument.activeElement=modalTarget;
+  const escape={type:'keydown',key:'Escape',target:focusOnly?{}:modalTarget,preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;}};
+  f.windowHandlers.get('keydown')[0].handler(escape);c.handle(escape);
+  assert.equal(escape.defaultPrevented,undefined);assert.equal(f.nodes.get('[data-asset-range-card]').hidden,false);
+ }
+ c.dispose();
 });

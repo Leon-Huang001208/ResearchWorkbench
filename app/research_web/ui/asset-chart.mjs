@@ -564,9 +564,11 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const next={panels,activePanel:id,...(draft?{favorites:[...draft.favorites],indicatorSettings:normalizeIndicatorSettings(draft.settings)}:{})};
     closeIndicators(); return persistPanels(next);
   }
+  const modalOwnsEscape = event => event?.type==='keydown' && event.key==='Escape' && Boolean(event.target?.closest?.('dialog[open], [aria-modal="true"]') || slot?.ownerDocument?.activeElement?.closest?.('dialog[open], [aria-modal="true"]'));
   function handle(event) {
     return guarded('interaction', () => {
       if (event?.assetChartHandled) return true;
+      if (modalOwnsEscape(event)) return false;
       if(rangeController?.handle(event))return true;
       if (event?.type === 'mouseleave' || event?.type === 'pointerleave') return hidePointer();
       if (event?.type === 'input' && event.target?.matches?.('[data-asset-indicator-search]') && indicatorEditor) {
@@ -674,7 +676,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       const capture=event=>rangeController?.capture(event);
       for(const name of ['pointerdown','mousedown','contextmenu','click','lostpointercapture'])listen(slot,name,capture,true);
       for(const name of ['pointermove','mousemove','pointerup','mouseup','pointercancel','blur'])if(view?.addEventListener)listen(view,name,capture,true);
-      if(view?.addEventListener)listen(view,'keydown',event=>{if(event.key==='Escape')rangeController?.handle(event);},true);
+      if(view?.addEventListener)listen(view,'keydown',event=>{if(event.key==='Escape'&&!modalOwnsEscape(event))rangeController?.handle(event);},true);
       for(const name of ['resize','scroll'])if(view?.addEventListener)listen(view,name,()=>rangeController?.render(),true);
       listen(slot,'toggle',event=>{if(event.target?.matches?.('.asset-range-method'))rangeController?.render();},true);
       const localHandle = event => { const handled = handle(event); if (handled) { event.assetChartHandled = true; event.stopPropagation?.(); } };
