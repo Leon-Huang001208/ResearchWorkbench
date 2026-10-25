@@ -4295,7 +4295,7 @@ def test_weekly_primary_v2_unknown_host_before_bridge_zero_write(weekly_operate_
 def test_asset_volume_v10_is_fixed_to_reviewed_source_and_current_resident():
     mode = "reviewed-asset-observation-v10"
     assert upgrade.previous_for(mode) == "b800e50366d1a0868372bbf173822976066c143f"
-    assert upgrade.ASSET_V10_PAYLOAD == "9142016accd6994673abe15a8d418a494e9b0f1b"
+    assert upgrade.ASSET_V10_PAYLOAD == "9b6ba57a6d649abf89d68797815b1aee0b06949d"
     assert upgrade.ASSET_V10_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
     assert upgrade.ASSET_V10_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
     assert mode in upgrade.ASSET_MODES

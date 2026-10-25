@@ -92,7 +92,7 @@ ASSET_V9_EVIDENCE_SHA256 = "193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7da
 # Verified quote-volume metadata only; never replay the legacy weekly bridge.
 ASSET_V10_MODE = "reviewed-asset-observation-v10"
 ASSET_V10_PREVIOUS = "b800e50366d1a0868372bbf173822976066c143f"
-ASSET_V10_PAYLOAD = "9142016accd6994673abe15a8d418a494e9b0f1b"
+ASSET_V10_PAYLOAD = "9b6ba57a6d649abf89d68797815b1aee0b06949d"
 ASSET_V10_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 ASSET_V10_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR179's merged market product, starting at the completed v4 resident deployment.

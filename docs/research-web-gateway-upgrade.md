@@ -2,9 +2,9 @@
 
 ## 报价成交量单位固定部署V10（2026-10-25）
 
-新增封闭`apply-assets-v10` / `reviewed-asset-observation-v10`。PREVIOUS固定`b800e50366d1a0868372bbf173822976066c143f`，PAYLOAD固定产品检查点`9142016accd6994673abe15a8d418a494e9b0f1b`；候选须为产品祖先的受审普通merge，禁止任意target覆盖。仅修复新CJPY沪深股票日K报价vol/amount单位证据传播，原值不改，旧unknown不回填。
+新增封闭`apply-assets-v10` / `reviewed-asset-observation-v10`。PREVIOUS固定`b800e50366d1a0868372bbf173822976066c143f`，PAYLOAD固定组合检查点`9b6ba57a6d649abf89d68797815b1aee0b06949d`（单独单位修复9142016与已合并PR233均保留祖先）；候选须为产品祖先的受审普通merge，禁止任意target覆盖。仅修复新CJPY沪深股票日K报价vol/amount单位证据传播，原值不改，旧unknown不回填。
 
-封闭V10只冻结已核实报价单位产品9142016和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
+封闭V10只冻结包含已核实报价单位及PR233的组合产品9b6ba57a和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
 
 实际部署前重新核验完整候选、当前前版、授权/空闲、source/module身份及全账号保全，任何活动/未知或前版变化都延后；不改登录12小时TTL、不清除有效认证或研究会话。代码、测试、旧CI不代替新候选独评/完整Router/原三CI和同候选macos-14安装。部署后刷新overview生成新快照，再在已登录实页以同来源同日核对主量/VOL/右侧按手一致。没有新包、数据库迁移、外盘或真实模型调用。当前仅源码准备，尚未部署V10。
 

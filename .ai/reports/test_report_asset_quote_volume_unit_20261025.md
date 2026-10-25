@@ -41,3 +41,7 @@
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"V10只给原Native操作员增加固定身份，原锁、Primary/网关和恢复节点及Docker模式保持，不新增容器、端口、卷、依赖或平台执行链。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"新报价单位只作为现有Provider Result字段证据沿Broker和Snapshots传递，纯显示股转手不写raw，不新增Provider、仓库桥、HTTP边或历史PIT资格。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"原Account Store/RuntimePool/用户数据根和授权保持，V10沿原全账号索引及档案保全，不修改登录有效期、Token、租户策略或跨账号访问流。","diagrams":[]} -->
+
+## 最新基线与部署范围
+
+PR233在集成前合入主线7408e1d3，包含月度宏观字段证据及浦发2026H1财务原件核验等额外生产路径。单修复9142016的冻结门正确拒绝未冻结组合，未绕过。集成普通merge9b6ba57a保留两者祖先，作为待审组合产品冻结；V10仅把payload改为该精确组合，前版仍b800、原门不变。用户额外部署范围问题已单独提出，尚待答复；可先完成源码候选验证/CI，但未获得允许前不得调用apply。若用户选择不纳入，则本轮不切换服务，不能用已授权单位修复冒充PR233授权。
