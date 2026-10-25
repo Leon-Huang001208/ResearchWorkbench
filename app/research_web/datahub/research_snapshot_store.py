@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import math
+import re
 from datetime import UTC, date, datetime, timedelta
 from threading import RLock
 from uuid import uuid4
@@ -297,7 +298,23 @@ def _complete_nyfed_snapshot(query: BusinessQuery, result: Result) -> bool:
     ):
         return False
     try:
-        if canonical(result.metadata) != canonical(nyfed_metadata()):
+        # Validate the whole object before separating the three known DataHub annotations.
+        # These fields are neither stored by METADATA_KEYS nor used as authorization here.
+        canonical(result.metadata)
+        metadata = dict(result.metadata)
+        if "execution_authorization_digest" in metadata:
+            value = metadata.pop("execution_authorization_digest")
+            if not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+                return False
+        if "quality_accepted" in metadata and type(metadata.pop("quality_accepted")) is not bool:
+            return False
+        if "execution_attempts" in metadata:
+            attempts = metadata.pop("execution_attempts")
+            if not isinstance(attempts, list) or any(
+                not isinstance(item, dict) for item in attempts
+            ):
+                return False
+        if canonical(metadata) != canonical(nyfed_metadata()):
             return False
         args = arguments(query.parameters.get("arguments_json"))
         _, url = endpoint_request("ext_nyfed", "rates", args)

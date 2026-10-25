@@ -24,3 +24,9 @@ NYFed单独切nyfed-rates-native-v3；Treasury/WorldBank保留official-numeric-v
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"沿原外部Provider/Host/可选研究仓增加NYFed专用语义版本和原件重建，没有新服务、HTTP、表、依赖或执行引擎，原数据流图仍准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks同一步新增一个离线测试模块，无新增job/runner/timeout；原三CI及同候选Mac安装保留。","diagrams":[]} -->
+
+## 第一次真实捕获失败与修复
+
+源58bce994592c384318c2998f81f0ae41f30e1426，单次实际HTTP取得6种记录，任务捕获阶段3.521秒失败于warehouse_persisted=False；未执行后续重启/恢复。默认Host/Broker添加的execution_authorization_digest、quality_accepted、execution_attempts不属于供应商固定字典，旧guard误将其全部拒绝。原失败、raw、HTTP1/SDK0计数和marker保留，owned PG已停并移除；未把该请求提升为入仓PASS。
+
+修复先以默认ResearchService/DataHub/Broker/Warehouse/Series真实链离线复现（只替换HTTP运输与PGbackend，无mock整个send/fetch/ingest），RED后仅将三个精确框架key校验类型并分离；完整meta仍先canonical，剩余来源metadata保持严格等值。未知extra、原件/行/字段/引用/PIT伪造仍拒绝。这些运行态字段不用于授权且不进持久化白名单，首次观察和非PIT标志的既有读取语义保持。332项邻近回归通过；重新真实取数须新源码与独立repair1预算，原marker不重置。

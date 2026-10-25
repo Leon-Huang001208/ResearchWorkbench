@@ -87,6 +87,12 @@ def test_raw_duplicate_json_and_wrong_scope_rejected():
         "metadata_deep",
         "fields_deep",
         "rows_deep",
+        "framework_digest_type",
+        "framework_digest_shape",
+        "framework_quality_type",
+        "framework_attempts_type",
+        "framework_attempts_item_type",
+        "framework_unknown_extra",
     ],
 )
 async def test_nyfed_admission_rebinds_raw_metadata_and_preserves_previous(mutation):
@@ -115,6 +121,11 @@ async def test_nyfed_admission_rebinds_raw_metadata_and_preserves_previous(mutat
         transport=httpx.MockTransport(
             lambda _: httpx.Response(200, content=raw, headers={"content-type": "application/json"})
         ),
+    )
+    good.metadata.update(
+        execution_authorization_digest="a" * 64,
+        quality_accepted=True,
+        execution_attempts=[{"source": "ext_nyfed", "status": "snapshot"}],
     )
     series = SnapshotSeries(
         MarketStoreService(InMemoryMarketStore(), lambda *_: True),
@@ -198,6 +209,18 @@ async def test_nyfed_admission_rebinds_raw_metadata_and_preserves_previous(mutat
             altered.fields["untrusted"] = deep
         else:
             altered.rows[0]["untrusted"] = deep
+    elif mutation == "framework_digest_type":
+        altered.metadata["execution_authorization_digest"] = 123
+    elif mutation == "framework_digest_shape":
+        altered.metadata["execution_authorization_digest"] = "not-a-digest"
+    elif mutation == "framework_quality_type":
+        altered.metadata["quality_accepted"] = 1
+    elif mutation == "framework_attempts_type":
+        altered.metadata["execution_attempts"] = {}
+    elif mutation == "framework_attempts_item_type":
+        altered.metadata["execution_attempts"] = ["not-a-dict"]
+    elif mutation == "framework_unknown_extra":
+        altered.metadata["execution_unknown_extra"] = True
     altered.raw_bytes = sum(map(len, altered.raw))
     try:
         admitted = series.ingest(request, altered)
@@ -392,3 +415,100 @@ def test_official_api_schema_reference_binding_is_complete():
         "date_filters": {"startDate": "inclusive", "endDate": "inclusive"},
     }
     assert set(schema["number_fields"]) == set(evidence["sofrai"]["average_fields"]) | {"index"}
+
+
+@pytest.mark.asyncio
+async def test_default_host_broker_persists_nyfed_framework_metadata(tmp_path, monkeypatch):
+    import base64
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    import httpx
+    from test_api import NativeFixture
+
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.datahub.research_snapshot_store import METADATA_KEYS
+    from app.research_web.datahub.research_warehouse import ResearchWarehouse
+    from app.research_web.market_store import FrozenSnapshot, InMemoryMarketStore
+    from app.research_web.mcp_registry.service import MCPRegistryService
+    from app.research_web.service import ResearchService
+    from app.research_web.store import Store
+
+    class Backend(InMemoryMarketStore):
+        def bootstrap(self):
+            pass
+
+    backend = Backend()
+    secrets = {}
+    keyring = SimpleNamespace(
+        get_password=lambda service, account: secrets.get((service, account)),
+        set_password=lambda service, account, value: secrets.__setitem__((service, account), value),
+        delete_password=lambda service, account: secrets.pop((service, account), None),
+    )
+    monkeypatch.setattr(ResearchWarehouse, "_postgres", staticmethod(lambda *_: backend))
+    monkeypatch.setattr(
+        "app.research_web.datahub.connections.default_credential_backend", lambda: keyring
+    )
+    native = NativeFixture()
+    host = ResearchService(
+        native,
+        Store(tmp_path),
+        mcp_registry=MCPRegistryService(tmp_path, keyring_backend=keyring),
+        mcp_keyring_backend=keyring,
+        delivery_keyring_backend=keyring,
+    )
+    hub = host.datahub
+    raw = (Path(__file__).parent / "fixtures/official_numeric/nyfed.json").read_bytes()
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(200, content=raw, headers={"content-type": "application/json"})
+
+    hub.transport = httpx.MockTransport(handle)
+    warehouse = hub.warehouse
+    saved = warehouse.save(
+        {
+            "host": "127.0.0.1",
+            "database": "rwb_market_nyfed",
+            "username": "research",
+            "sslmode": "disable",
+        }
+    )
+    warehouse.initialize(saved["profile_id"], "rwb_market_nyfed")
+    sid = host.store.create("claw", "NYFed native capture")["id"]
+    query = BusinessQuery(
+        capability="external_data",
+        source="ext_nyfed",
+        purpose="display",
+        quality="allow_stale",
+        parameters={
+            "dataset": "rates",
+            "arguments_json": json.dumps({"params": {"start": "2024-03-01", "end": "2024-03-01"}}),
+        },
+    )
+    try:
+        first = await hub.query(sid, "nyfed-first", query)
+        assert first["provider_metadata"]["warehouse_persisted"] is True
+        assert first["row_count"] == 6 and len(calls) == 1
+        second = await hub.query(sid, "nyfed-warehouse-hit", query)
+        assert second["provider_metadata"]["warehouse_hit"] is True and len(calls) == 1
+        binding = warehouse._snapshot_series(
+            query, "ext_nyfed", hub.source_configuration_digest("ext_nyfed")
+        )
+        retained = binding[0].read(binding[1])
+        assert retained.rows == json.loads(raw)["refRates"]
+        frozen = FrozenSnapshot.load(retained.raw[0])
+        original = json.loads(frozen.payload)["batch"]["originals"][0]
+        captured = json.loads(base64.b64decode(original["base64"]))
+        assert captured["metadata"] == {
+            key: value for key, value in nyfed_metadata().items() if key in METADATA_KEYS
+        }
+        assert base64.b64decode(captured["payloads"][0]["base64"]) == raw
+        for key in ("execution_authorization_digest", "quality_accepted", "execution_attempts"):
+            assert key not in METADATA_KEYS and key not in captured["metadata"]
+        assert retained.metadata["formal_backtest_eligible"] is False
+        assert retained.metadata["historical_point_in_time"] is False
+        assert not any(method == "session.prompt" for method, _ in native.calls)
+    finally:
+        await hub.close()
