@@ -13,6 +13,7 @@ import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from websockets.exceptions import WebSocketException
 
@@ -401,6 +402,10 @@ class ResearchService(ModelProfilesMixin):
         self.loaded: set[str] = set()
         self.approvals: dict[str, dict] = {}
         self.questions: dict[str, dict] = {}
+        # The source reader owns these live registries. Resident observation
+        # must also see their empty state before the first source operation.
+        self.source_requests: dict[tuple[str, str], asyncio.Task] = {}
+        self.source_cancellations: dict[tuple[str, str], float] = {}
         self.errors: dict[str, str] = {}
         self.running: dict[str, bool] = {}
         self.child_parents: dict[str, str] = {}
@@ -2187,7 +2192,7 @@ class ResearchService(ModelProfilesMixin):
                 }
                 body_target = required_body_target(contract)
                 if body_target is not None:
-                    scope["report_context"]["body_target"] = body_target
+                    cast(dict[str, object], scope["report_context"])["body_target"] = body_target
             scope["read_paths"] = [
                 f"resources/capabilities/{record['id']}/{record['version']}" for record in records
             ]
