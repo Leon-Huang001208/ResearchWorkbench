@@ -33,3 +33,7 @@ PR234是已核实CJPY新报价单位修复，独立交付。当前常驻b800不�
 <!-- architecture-review {"group": "workbench", "structure": "unchanged", "reason": "右键选区不触发额外请求、不保存数据集或改写冻结材料；账号和版本沿既有观察身份，原DataHub/Host接口与文件拓扑保持准确。日期编辑只改变本地统计状态。", "diagrams": []} -->
 
 <!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "沿既有JS测试通配符和Mac安装单步追加两份静态mjs字节核验；没有新增runner、job或依赖，也不减少原仓库门或同候选证据。真实手势与认证部署仍分层取证。", "diagrams": []} -->
+
+## 全局取消边界追加回归
+
+实际app窗口回调序列的只读复现确认：外来pointerup/cancel经range自身归属检查拒绝后，旧无参chart.cancel仍无条件取消第一指。最小修复仅移除这次新增的取消耦合，不改app.mjs；range匹配事件、失焦、Esc及dispose仍自管生命周期。新增完整序列先2FAIL后相关128PASS，独立JS49项复审通过。旧5eba818候选CI继续保持原归属，不当作该修复通过；新候选须重新绑定原检查。

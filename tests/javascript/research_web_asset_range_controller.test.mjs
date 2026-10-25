@@ -240,3 +240,26 @@ test('mobile range controls have 44px targets without changing desktop sizing',(
  assert.match(mobile,/\.asset-range-method summary\s*\{[^}]*min-height:44px;[^}]*display:flex;[^}]*align-items:center;/);
  assert.match(css.slice(0,css.lastIndexOf('@media(max-width:619px)')),/\.asset-range-card button\s*\{[^}]*min-width:30px;[^}]*min-height:30px;/);
 });
+for(const foreignType of ['pointerup','pointercancel'])test(`app global cancel after foreign ${foreignType} leaves owned range gesture active`,()=>{
+ const f=mountedChart(),c=createAssetChartController({logger:()=>{}});c.configure(daily,'global-cancel',{frequency:'daily'});c.mount(f.host);
+ const down=f.handlers.get('pointerdown').find(item=>item.options===true).handler;
+ const dispatch=event=>{const capture=f.windowHandlers.get(event.type).find(item=>item.options===true).handler;const handled=capture(event);if(!event.stopped)c.cancel();return handled;};
+ const layer=f.nodes.get('[data-asset-range-layer]'),card=f.nodes.get('[data-asset-range-card]');
+ down({...event(30),type:'pointerdown',pointerId:1});assert.equal(layer.hidden,false);
+ assert.equal(dispatch({...event(120),type:foreignType,pointerId:2}),false);assert.equal(layer.hidden,false);assert.equal(card.hidden,true);
+ const owned={...event(120),type:'pointerup',pointerId:1,stopPropagation(){this.stopped=true;},stopImmediatePropagation(){this.stopped=true;}};
+ assert.equal(dispatch(owned),true);assert.equal(card.hidden,false);assert.match(card.innerHTML,/区间统计/);c.dispose();
+});
+test('range window cancellation, Esc and disposal still own their cleanup independently of app cancel',()=>{
+ const f=mountedChart(),c=createAssetChartController({logger:()=>{}});c.configure(daily,'owned-cancel',{frequency:'daily'});c.mount(f.host);
+ const down=f.handlers.get('pointerdown').find(item=>item.options===true).handler;
+ const layer=f.nodes.get('[data-asset-range-layer]'),card=f.nodes.get('[data-asset-range-card]');
+ const begin=()=>{down({...event(30),type:'pointerdown',pointerId:1});assert.equal(layer.hidden,false);};
+ const dispatch=event=>f.windowHandlers.get(event.type).find(item=>item.options===true).handler(event);
+ begin();assert.equal(dispatch({type:'pointercancel',pointerId:1}),true);c.cancel();assert.equal(layer.hidden,true);
+ begin();assert.equal(dispatch({type:'blur'}),true);c.cancel();assert.equal(layer.hidden,true);
+ begin();c.handle({type:'keydown',key:'Escape',preventDefault(){},stopImmediatePropagation(){}});assert.equal(layer.hidden,true);
+ begin();dispatch({...event(120),type:'pointerup',pointerId:1});assert.equal(card.hidden,false);
+ c.handle({type:'keydown',key:'Escape',preventDefault(){},stopImmediatePropagation(){}});assert.equal(layer.hidden,true);assert.equal(card.hidden,true);
+ begin();c.dispose();assert.equal(layer.hidden,true);assert.equal(card.hidden,true);assert.ok([...f.windowHandlers.values()].every(list=>list.length===0));
+});
