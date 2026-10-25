@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Wind 恢复准备仅使用既有标准库及 Web 依赖，未增加安装步骤、凭据或可配置能力；公开 setup 入口、锁文件、固定 DSH 与 Doctor 合同保持，仍以同候选 Mac 干净安装证明兼容。本轮没有恢复 apply；旧不可变 controller.pyz 的兼容迁移须单独受控交付，不能用普通 restart 或替换 controller/hash 绕过。
+
 apply-etf-weekly-admission-v2是新增封闭身份，修复旧Host持久needs_attention在原Primary活动门先拒的循环。旧安装/控制器/依赖不变；v2身份预检不是idle，必须桥接/GET后完整g.verify_primary及fresh strict验证、原idle通过。旧v1和恢复身份保持，真实执行由唯一协调者完成。
 
 apply-etf-weekly-admission固定36fd990c前版与完整产品祖先bacb423ce（含PR227单位/出处证据及已批准PR229行情展示），要求显式结束等待标志及本地私有封印action文件；其摘要由源码固定，不接收凭据或任意JSON修改。冷操作员先资格验证与三锁，领域动作保留未知并留下独立intent/receipt，窄GET刷新旧Host，再要求原完整idle通过。安装入口/依赖/旧模式不变，真实维护与统一切换另行批准。

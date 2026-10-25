@@ -159,6 +159,7 @@ jobs:
             tests/research_web/test_datahub_wind.py \
             tests/research_web/test_datahub_wind_api.py \
             tests/research_web/test_service_manager.py \
+            tests/research_web/test_service_manager_graceful.py \
             tests/research_web/test_plugins.py \
             tests/research_web/test_plugins_mcp_security.py \
             tests/research_web/test_plugins_runtime_restart.py \
@@ -204,6 +205,8 @@ jobs:
             tests/research_web/test_ai_news_eval.py \
             tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
+            tests/research_web/test_wind_recovery_activity.py \
+            tests/research_web/test_wind_cleanup_recovery.py \
             tests/research_web/test_gateway_upgrade.py tests/research_web/test_model_provider_upgrade.py \
             tests/research_web/test_multiuser_accounts.py \
             tests/research_web/test_multiuser_gateway.py \

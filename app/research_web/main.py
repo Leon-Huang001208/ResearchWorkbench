@@ -452,17 +452,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         revision = os.environ.get("RESEARCH_RESIDENT_REVISION", "")
         research = getattr(request.app.state, "research", None)
         active = None
+        activity = None
         if research is not None:
-            active = bool(
-                any(research.running.values())
-                or research.approvals
-                or research.questions
-                or getattr(research, "source_requests", {})
-                or any(
-                    row.get("research_status") in {"queued", "running"}
-                    for row in research.store.data.get("automation_runs", {}).values()
-                )
-            )
+            active = False
 
             def history_activity():
                 history_jobs = research.store.data.get("asset_history_jobs", {})
@@ -493,7 +485,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 report_manager = getattr(research, "report_workflows", None)
                 report_runtime = getattr(report_manager, "runtime", None)
                 report_catalog = getattr(report_manager, "catalog", None)
-                report_runs = getattr(report_catalog, "data", {}).get("runs", {})
+                if report_runtime is None or report_catalog is None:
+                    raise ValueError("report_activity_unknown")
+                report_runs = report_catalog.data["runs"]
                 terminal_reports = {
                     "completed",
                     "cancelled",
@@ -509,7 +503,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                         not isinstance(row, dict) or row.get("status") not in terminal_reports
                         for row in report_runs.values()
                     )
-                    or bool(getattr(report_runtime, "tasks", {}))
+                    or bool(report_runtime.tasks)
                 )
 
             def storage_activity():
@@ -521,34 +515,81 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     raise ValueError("storage_activity_unknown")
                 return value
 
-            unknown = False
-            for check in (
-                history_activity,
-                sdk_activity,
-                wind_api_activity,
-                lambda: witness_flag(research.market.activity_witness()),
-                report_activity,
-                lambda: any(not task.done() for task in research.datahub.tasks.values()),
-                storage_activity,
-                lambda: research.asset_workspace.directory.active,
-                lambda: any(not task.done() for task in research.asset_workspace.tasks.values()),
-                lambda: bool(research.datahub.directory_tasks),
+            observations = {}
+            for name, check in (
+                ("research_tasks", lambda: any(research.running.values())),
+                ("approvals", lambda: bool(research.approvals)),
+                ("questions", lambda: bool(research.questions)),
+                ("source_requests", lambda: bool(research.source_requests)),
+                (
+                    "automation_runs",
+                    lambda: any(
+                        row.get("research_status") in {"queued", "running"}
+                        for row in research.store.data.get("automation_runs", {}).values()
+                    ),
+                ),
+                ("history_jobs", history_activity),
+                ("sdk_aggregate", sdk_activity),
+                ("wind_api", wind_api_activity),
+                ("market", lambda: witness_flag(research.market.activity_witness())),
+                ("reports", report_activity),
+                (
+                    "datahub_tasks",
+                    lambda: any(not task.done() for task in research.datahub.tasks.values()),
+                ),
+                ("storage", storage_activity),
+                ("asset_directory", lambda: research.asset_workspace.directory.active),
+                (
+                    "asset_tasks",
+                    lambda: any(
+                        not task.done() for task in research.asset_workspace.tasks.values()
+                    ),
+                ),
+                ("directory_tasks", lambda: bool(research.datahub.directory_tasks)),
             ):
                 try:
                     # Evaluate every witness, including after a known busy or
                     # unknown result. Neither may erase another subsystem's fact.
                     observed = check()
+                    if type(observed) is not bool:
+                        raise ValueError("activity_witness_unknown")
+                    observations[name] = observed
                     active = bool(active or observed)
                 except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                     log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)
-                    unknown = True
-            active = True if active else None if unknown else False
-        return {
+                    observations[name] = None
+            from .datahub.worker_activity import activity_witness
+
+            activity = {
+                "schema": "resident-activity-v1",
+                "checks": observations,
+                "sources": activity_witness(),
+            }
+            active = (
+                True
+                if any(value is True for value in observations.values())
+                else None if any(value is None for value in observations.values()) else False
+            )
+            # Source observations can be newer than the aggregate above. Never
+            # publish aggregate idle alongside a known running or unknown source.
+            # Keep the original aggregate/mock observation and its unknown result;
+            # later evidence can strengthen refusal, never erase it.
+            for source in activity["sources"].values():
+                if source["running"] is True:
+                    active = True
+                elif active is not True and (
+                    source["running"] is None or source["cleanup_unconfirmed"] is not False
+                ):
+                    active = None
+        result = {
             "enabled": bool(setting),
             "revision": revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None,
             "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
             "active": active,
         }
+        if activity is not None:
+            result["activity_witness"] = activity
+        return result
 
     @app.exception_handler(RuntimeFailure)
     async def runtime_error(request, exc):

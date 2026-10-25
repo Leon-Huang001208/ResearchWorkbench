@@ -50,6 +50,10 @@ handoff只返回草稿：`{prompt,mode,auto_send:false,context,dossier_revision}
 
 全部HTTP写入沿现有resident admission；元数据事务、显式备份／恢复与交接绑定也在服务内部持admission，后台调用不能绕过维护锁。新档案根和lock属于业务保全清单。本文不授权执行正式恢复、常驻部署、供应商实测或处理真实凭据。
 
+维护只读观察显式使用 `snapshot_dossiers(create_lock=False)` 和 `snapshot(create_dossier_lock=False)`，透传到 `retention_lock(create=False)` 的无 `O_CREAT` 打开。档案存在但锁缺失（含打开瞬间消失）时明确拒绝，不创建锁／目录／数据库，也不跳过档案、原件、模型或索引保全。旧普通部署调用默认仍为 true，行为不变；Wind inspect 的独立快照组合复用原 session/model/file 比较器并保留全部业务键。
+
+严格观察不向磁盘档案库建立 SQLite 连接：`mode=ro` 在 WAL 格式下仍可能创建 `-wal/-shm`。严格分支先拒绝 WAL header（含无 sidecar 的已关闭 WAL 库）及 `-wal/-shm/-journal`，然后以无符号链接、64MiB 有界且前后身份一致的只读文件读取，把 rollback 格式字节反序列化到内存 SQLite，保留账户绑定、user_version、quick_check 和 foreign_key_check。它不使用 `immutable=1` 忽略 WAL，也不迁移／checkpoint／恢复数据库；不支持的存储格式明确阻断。原普通默认连接和完整性检查不变。
+
 ## 验证
 
 `tests/research_web/test_dossiers.py` 覆盖真实子进程重开、幂等／并发、事务与pin共同回滚、路径／跨根隔离、missing／changed／撤权、软删保留、原生删除竞态及一致备份恢复。`test_dossier_api.py`覆盖结构化handoff绑定与重放、来源伪造拒绝、原生删除前置保护与Host质量保留。原JS quality-tool回归增加档案canonical身份及精确preflight参数。验收使用隔离临时账户和native fixture，不调用真实模型、来源服务或收费MCP。

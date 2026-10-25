@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Wind 清理故障的分项活动见证位于既有 DataHub worker/Host resident 状态；严格只读恢复准备位于 `research_workbench_entrypoint/resident/wind_cleanup_recovery.py`，私有无强杀停止构件位于 `service_manager.py`。目标测试分别覆盖活动归约、旧 Host/混合未知拒绝和单 PID 信号边界。此阶段不开放 apply，不改普通部署/profile/controller 信任链；完整恢复事务与旧现场恢复仍未完成。
+
 admission-v2顺序修复位于原model_provider_upgrade.py和原操作员测试。真实gateway_upgrade.verify_primary不修改：新v2先身份预检，桥/GET后完整g验证、fresh strict Host=False/Native=[]再原idle；测试从真实operate调用原g与LegacyBinding，覆盖此前mock漏掉的桥前拒绝。
 
 周报准入修复位于report_workflows/weekly_execution.py、runtime.py和service.py：Host冻结13工具/逐文件输入，普通capability data gate保持。research-tools.mjs与sandbox.py传递Host input_policy并支持literal冻结文件，只读审批与原目录scope兼容。新提交协议为weekly-admission-v2，旧未知只recheck，正确首提/显式未RPC恢复均有持久claim及真实Sender/Seatbelt回归。

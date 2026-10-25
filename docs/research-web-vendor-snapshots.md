@@ -1,5 +1,7 @@
 # 供应商原生研究快照
 
+Wind Future 运行状态与外部清理未确认的分项见证仅用于恢复准备，不能认证厂商返回或覆盖旧冻结原件。只读预检禁止采集、换源和补造快照；既有供应商原件绑定、哈希及失败证据保持。
+
 华安历史验收不扩大vendor-native数据集或凭据范围。已有Wind Excel原件/真实数据日、采集与冻结时间继续保存并由Host重放，历史用途来自冻结Run而非供应商或模型自报；质量通过不升级为当期正式、PIT或跨源等价证据。
 
 今日发现golddata_intel使用专用discovery_evidence文件归档，不扩展本页vendor-native来源/数据集白名单。事件revision与预览投影Hash核对后才取报道正文；冻结raw和manifest可复核，但第三方已有判断、二手内容、未知时间/原始披露缺口均保留，不以外层HTTP成功声明厂商数据、PIT或完整网页已核验。细则见[今日发现](research-web-discovery.md)。

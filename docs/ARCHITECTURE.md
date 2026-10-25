@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Wind 清理未确认的恢复准备沿原 Host/Native/resident 边界增加分项活动见证和严格只读 preflight；普通 `active=None` 仍被部署拒绝。无新服务、引擎或执行型 API，无 apply；无强杀的私有停止构件不能代替三锁、BirthFence 与恢复事务。旧不可变控制器兼容迁移和旧 Host 缺证仍是未完成门，不因新源码而认证恢复；现有拓扑图不变。
+
 华安admission-v2仅调整既有Mac Native事务内部的准入顺序：维护前真实实例身份/Native空列表/索引前提，封印桥接和旧GET后再完整真实Primary及Host活动门。v1和通用verify_primary保持，唯一DSH、原主实例/网关/三锁、保全恢复节点不变；不把旧Host active=true解释为空闲。
 
 可信华安周报在原Host内投影Run/SID/版本/owner/purpose及冻结字节对应的执行scope，复用唯一DSH的现有Native guard/visible_tools与脚本runner；不再误选通用公司研究能力。提交claim在原Run目录内持久化，preflight与实际RPC未知分开；没有新服务、引擎、DB或HTTP路径，原分层拓扑仍准确。

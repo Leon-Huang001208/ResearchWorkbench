@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+Wind poisoned 恢复准备先验证逐项活动见证、旧 Host 无见证/运行 Future/混合未知拒绝，以及无强杀单 PID 构件。只读 preflight 不代表已持维护锁、全账号冻结或允许执行；本轮没有 apply。旧不可变 controller.pyz 不识别新 journal，须先解决受控兼容迁移和崩溃恢复，不能伪造旧 transaction、暗换控制器/hash、清 poison 或以普通 restart 绕未知。离线测试禁止 Office/供应商/模型，完整 Router、独评及适用 CI 不省略；现场历史稿/Word/认证下载另验，定时保持关闭。
+
 部署衔接回归必须执行真实operate并让原g.verify_primary和LegacyBinding参与，不得mock关键门成None。v2仅先做非空闲身份前提，桥后完整原Primary/Host/Native门不减；字段未知或其它活动拒绝停机。旧v1保持原顺序，现场deferred的绿源码/CI不能当真实切换成功。
 
 华安提交/恢复改动的本地邻近闭包必须同时包含test_report_weekly_historical_acceptance.py、test_report_weekly_quality.py及test_report_weekly_admission.py。历史路径需用真实ResearchService、合法Provider合成证据、真实scope/send/claim；不能整体替换weekly_data模块后把尚未抵达Sender的失败当成unknown/accepted恢复证明。先断言数据门、RPC及收据前提，再核历史用途、owner和冻结证据。CI已登记该模块，夹具修复不移除或跳过用例。

@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+现有 `GET /api/research/resident` 附带固定、无秘密的 `activity_witness`，列出各 Host 检查与来源的运行/清理状态；未知不得同时被归约为 `active=false`。没有新增 HTTP 路由或执行型恢复 API；内部只读 inspect 不能授予维护准入，旧客户端的普通活动门保持。
+
 v2只增加明确paired flags的本机受审CLI命令，沿已有GET刷新Host缓存；无HTTP新路由、Header/Cookie覆盖或force参数，普通租户/能力与已发布v1行为保持。
 
 现有周报创建/运行/retry路径保持；retry对新协议已知未RPC状态可显式继续，对旧未知/已尝试状态仍只核查观察，未新增force或模型可传scope参数。内部skill-preflight响应可带Host input_policy=weekly-frozen-inputs-v1及逐文件read_paths，经JS传给Python；普通capability/dataset目录协议兼容，缺失/未知策略与非法路径拒绝。
