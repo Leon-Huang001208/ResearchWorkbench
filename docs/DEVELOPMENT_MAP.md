@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`capabilities/catalog.py:save` 的序列化写入优化保留原临时文件、flush/fsync、replace 和错误清理。`test_capabilities.py` 覆盖 UTF-8 字节一致、单次 write、序列化/fsync/replace 失败保全；真实 API 冷构造和原依赖清单新鲜性测试继续执行。
+
 冷启动来源见证修复仅在 `service.py` 提前初始化原 `research_web_sources.request_state` 使用的两张内存表。`test_resident.py` 使用真实服务构造和 HTTP 投影验证首次来源操作前的空闲，以及实际登记/取消/tombstone；来源读取安全回归保持。`main.py` 的缺失见证拒绝不改。
 
 Wind 清理故障的分项活动见证位于既有 DataHub worker/Host resident 状态；严格只读恢复准备位于 `research_workbench_entrypoint/resident/wind_cleanup_recovery.py`，私有无强杀停止构件位于 `service_manager.py`。目标测试分别覆盖活动归约、旧 Host/混合未知拒绝和单 PID 信号边界。此阶段不开放 apply，不改普通部署/profile/controller 信任链；完整恢复事务与旧现场恢复仍未完成。

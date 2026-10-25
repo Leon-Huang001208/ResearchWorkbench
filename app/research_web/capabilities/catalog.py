@@ -403,7 +403,7 @@ class CapabilityCatalog:
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(self.data, stream, ensure_ascii=False)
+                stream.write(json.dumps(self.data, ensure_ascii=False))
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(name, self.index)
