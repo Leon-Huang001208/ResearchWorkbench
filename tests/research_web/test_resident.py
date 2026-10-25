@@ -40,6 +40,18 @@ def inactive_market():
     return SimpleNamespace(activity_witness=lambda: {"active": False})
 
 
+def _idle_research(**values):
+    """Explicit otherwise-idle service facts; absent production witnesses are unknown."""
+    fields = {
+        "source_requests": {},
+        "report_workflows": SimpleNamespace(
+            runtime=SimpleNamespace(tasks={}), catalog=SimpleNamespace(data={"runs": {}})
+        ),
+    }
+    fields.update(values)
+    return SimpleNamespace(**fields)
+
+
 def test_mutation_fence_is_cross_process_and_released_on_exit(resident):
     with file_lock(resident, "admission.lock", exclusive=True):
         command = (
@@ -122,7 +134,7 @@ def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending, in
     from app.research_web.main import create_app
 
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -143,7 +155,7 @@ def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state,
     from app.research_web.main import create_app
 
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -169,7 +181,7 @@ def test_resident_activity_keeps_unknown_or_conflicting_history_busy(
     from app.research_web.main import create_app
 
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -192,7 +204,7 @@ def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch, i
         raise RuntimeError("worker_witness_unavailable")
 
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -212,7 +224,7 @@ def test_resident_activity_missing_market_witness_remains_unknown(monkeypatch):
     from app.research_web.main import create_app
 
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -242,7 +254,7 @@ def test_resident_known_busy_survives_another_unknown_witness(monkeypatch, busy,
     monkeypatch.setattr(worker_activity, "active_futures", sdk)
     monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -280,7 +292,7 @@ def test_resident_accumulates_all_known_activity_without_skipping_witnesses(monk
     monkeypatch.setattr(worker_activity, "active_futures", sdk)
     monkeypatch.setattr(providers_wind_api, "activity_witness", wind_api)
     app = create_app()
-    app.state.research = SimpleNamespace(
+    app.state.research = _idle_research(
         running={},
         approvals={},
         questions={},
@@ -341,7 +353,7 @@ def test_resident_preserves_all_activity_witnesses_and_rejects_unknown(monkeypat
         del workspace.directory
     if busy == "missing_directory_tasks":
         del hub.directory_tasks
-    service = SimpleNamespace(
+    service = _idle_research(
         running={},
         approvals={},
         questions={},

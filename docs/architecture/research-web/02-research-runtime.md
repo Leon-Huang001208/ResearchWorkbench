@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+Wind 分项活动见证不创建研究、不改变旧 Run、不重发 DSH。SDK Future 已结束与外部清理未确认分别记录，普通活动归约保留未知拒绝。当前只读维护准备始终明确未实现恢复，旧 Host 缺见证保持阻断；研究与交付状态不因预检通过而提升。
+
 v2把真实绑定身份前提与最终完整活动门分开：Host.active=true只观测，桥后必须再执行原完整Primary、fresh strict和原idle。它不取消/重放Native请求，既有report submission unknown与claim证据不改变。
 
 weekly-admission-v2将preflight/prepared/rpc_attempted/accepted/unknown分开，模型RPC前先写不可覆盖且fsync的claim。明确未RPC状态只经显式同Run/SID/key/hash恢复；已接受/未知只观察，不重发。旧协议缺sender证据只记recovery缺口、原失败/时间保持。普通研究及Automation原幂等与审批逻辑不变。

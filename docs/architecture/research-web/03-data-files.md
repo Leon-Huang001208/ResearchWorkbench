@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+Wind 恢复预检只读取现有账号、业务索引和完整保全快照；严格档案读取不得创建 retention 锁或 SQLite sidecar，无法证明不写时拒绝。普通部署快照的原默认行为保留。本轮无新数据根、快照格式或恢复 journal，旧报告和输入字节继续保护。
+
 v2沿原固定seal/intent/receipt与原目录CAS，只改变操作员验证顺序。身份预检不修改旧Run；领域动作仍保留unknown、原failure、输入、SID和冻结日期，回滚代码不逆转已授权控制决定，数据根与存储结构不变。
 
 weekly-rpc-attempt.json保存在Host私有Run内、模型workspace之外，O_EXCL/NOFOLLOW、类型/大小/私有权限与fsync读回约束保证不被替换。冻结scope绑定context/snapshot/版本/owner/model；Host materialize后的工作簿与Session副本核同一字节，模板资产仍核原资源hash。脚本的weekly输入策略只对冻结文件授literal读，不自动授读后来新增inputs。
