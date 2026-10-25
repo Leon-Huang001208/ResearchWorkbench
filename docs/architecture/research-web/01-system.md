@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Wind 清理恢复准备仍在原 Host/Native/resident 模块内：既有 resident 状态附带分项见证，只读预检不产生维护事务，也不操作 Excel。原不可变控制器兼容和完整恢复事务未实现，不能借新源码越过旧进程的未知状态；现有部署拓扑保持。
+
 admission-v2仍用原Host、唯一DSH、网关、三锁和version4切换节点；变化仅是准备阶段身份与最终idle验证顺序，不增服务、引擎或部署边界。
 
 华安专属准入仍沿浏览器→Host→唯一DSH及原脚本runner/Seatbelt节点。Host返回冻结范围给既有Native guard，claim保存在同一Run，既有全账号隔离与部署拓扑保持；不添加Automation、MCP或独立生产引擎。

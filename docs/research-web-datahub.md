@@ -271,6 +271,8 @@ Wind Provider 同样保留 DataHub 单查询 5,000 行；超限返回 `row_limit
 不保存该工作簿并退出专用应用。若 workbook/app 清理无法确认，稳定返回 `wind_cleanup_failed` 并将
 Provider 保持 poisoned busy；进程重启前不创建新 Excel 实例。每个 schema 均验证最低有效字段；关键字段全空失败，请求字段部分
 缺失时返回 `partial` 与稳定限制说明。
+
+Resident 的 `resident-activity-v1` 分项观察将 Wind 实际 Future 是否运行与清理未确认分开，并独立读取全部来源及 Host 活动；它不清除 poison，也不改变普通 `active=null` 和部署／恢复拒绝门。只读维护观察永远返回完整恢复尚未实现的阻断状态，旧 Host 缺见证明确拒绝；无恢复执行器或服务操作。合同见[Wind 清理故障边界](research-web-wind-cleanup-recovery.md)。
 股票日线、资金流与融资融券历史入口另有取数前硬边界：起止日必须是合法字符串且正序，跨度最多
 60 个日历日；超长区间返回 `workload_too_large`，不构造或探测 adapter，更不会先取数再截断。
 

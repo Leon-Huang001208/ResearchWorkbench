@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+Wind 清理恢复准备验证缺字段、混合未知、晚到忙状态、只读快照零创建，以及安装租约和单 PID 信号边界。私有停止构件无强杀后备但不是完整维护事务；未持三锁/BirthFence、缺旧 Host 见证或不可变控制器不兼容时均不能执行恢复。源码/CI与现场停启及数据保全分别验收。
+
 v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。
 
 可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。
