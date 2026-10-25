@@ -568,6 +568,19 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   function handle(event) {
     return guarded('interaction', () => {
       if (event?.assetChartHandled) return true;
+      if (event?.type==='keydown' && event.key==='Escape') {
+        const selector='[data-asset-indicator-manager], [data-asset-indicator-parameter-dialog]';
+        const dialog=event.target?.closest?.(selector)||slot?.ownerDocument?.activeElement?.closest?.(selector);
+        if(dialog?.open && (dialog===find('[data-asset-indicator-manager]')||dialog===find('[data-asset-indicator-parameter-dialog]'))) {
+          // Owned dialogs cannot rely on the browser cancel default: the app
+          // root also handles Escape. During composition leave the IME default
+          // intact while keeping this event away from that root catchall.
+          if(event.isComposing){event.stopPropagation?.();return true;}
+          event.preventDefault?.();
+          if(dialog===find('[data-asset-indicator-parameter-dialog]'))dialog.close?.();else closeIndicators();
+          return true;
+        }
+      }
       if (modalOwnsEscape(event)) return false;
       if(rangeController?.handle(event))return true;
       if (event?.type === 'mouseleave' || event?.type === 'pointerleave') return hidePointer();
