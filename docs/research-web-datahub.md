@@ -1,5 +1,13 @@
 # Research Web DataHub
 
+## 天软股票报价成交量单位（2026-10-25）
+
+实际 CJPY 0.5.2 `list_market_fields`（服务方法 `markettable_columns`）返回53字段，原生 `vol` 的股票单位明确为股，`amount` 为元；未声明 OHLC 币种。隔离真实查询经 AssetWorkspace→DataHub→Broker→Provider→快照，2026-10-23 `SH603986` 返回 vol=46,027,129，新增字段元数据为 share，展示为460,271.29手／46.03万手。样本和合成测试分开记录，不将测试输入称为厂商返回。
+
+原故障是报价走同一SDK日K读取，但单位证据仅在 `market_bars` 发布。现在 `market_snapshot` 在精确SDK版本、显式stock、实际day周期、单沪深股票请求及返回身份别名核验均满足时，标注原生vol/amount；volume等未证明别名、其他版本、非股票、BJ或冲突身份仍不推断。新增 `tinysoft-stock-daily-snapshot-fields-v1`，字典按UTF-8规范JSON（sort_keys=True，紧凑分隔）SHA-256=`458a5aaf5495d776d9391ac246daa360808fe2ce5c35be057e235451b28b8705`。原bars的v1合同和旧证据hash不改；价格单位/币种不补CNY，不恢复未通过价格单位门的研究仓桥。
+
+只对新供应商响应发布单位元数据，raw/rows数值不除100，不回填旧快照。旧观察可通过既有overview区块刷新创建新快照，旧manifest/rows字节保留；未刷新且单位未知时仍保留明确缺口。报价沿用原SDK最后返回行行为，本次不新增排序或额外宣称最大日期已核验；实际样本日期和主图同日对账另验。
+
 周报历史验收由Host冻结Run.execution_purpose显式传入现有Wind Excel采集与独立评估；不是可由模型、普通查询或snapshot选择的来源降级。实际采集时间和historical_recheck保留，原件/日历/字段/单位/端点/历史补点校验不减少，普通正式评估仍拒历史数据；验收通过不能证明实时或历史PIT。
 
 ## 今日发现事件归档（2026-10-23）

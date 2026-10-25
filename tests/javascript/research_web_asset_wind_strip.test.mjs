@@ -71,3 +71,22 @@ test('average price follows previous-close red/green semantics and keeps flat or
   }
   const html=strip(renderMarketTerminal([bars()[1]],{},meta('股')));assert.match(html,/均 <strong>280\.65<\/strong>/);
 });
+
+test('native snapshot vol metadata drives the same lot display and does not rewrite unknown old units', async () => {
+  const {renderAssetWorkspace}=await import('../../app/research_web/ui/asset-workspace.mjs');
+  const native={'代码':'SH603986','时间':'2026-10-23',close:292,vol:46027129,amount:12917512995};
+  const daily=bars();Object.assign(daily[1],{volume:native.vol,amount:native.amount});
+  const props={route:{asset:'603986.SH',assetType:'stock'},observation:{asset:'603986.SH',asset_type:'stock',blocks:{
+    overview:{status:'complete',dataset:{provider:'tinysoft',fields:{vol:{unit:'share',currency:null},amount:{unit:'元',currency:null}}}},
+    history:{status:'complete',dataset:{provider:'tinysoft',fields:{volume:{unit:'share'},amount:{unit:'元'}}}}
+  }},rows:{overview:[native],history:daily}};
+  const frozen=structuredClone(props),html=renderAssetWorkspace(props);
+  assert.match(html,/<dd id="asset-volume"[^>]*>46\.03万<\/dd>/);
+  assert.match(html,/量 <strong>46\.03万<\/strong>/);
+  assert.match(html,/<dd id="asset-amount">129\.18亿<\/dd>/);
+  assert.deepEqual(props,frozen);
+  const old=structuredClone(props);old.observation.blocks.overview.dataset.fields.vol.unit=null;
+  const oldBefore=structuredClone(old),unknown=renderAssetWorkspace(old);
+  assert.match(unknown,/<dd id="asset-volume"[^>]*源单位未提供[^>]*>4602\.71万<\/dd>/);
+  assert.deepEqual(old,oldBefore);
+});

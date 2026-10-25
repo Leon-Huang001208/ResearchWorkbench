@@ -27,6 +27,10 @@ log = get_logger(__name__)
 SOURCE_URL = "https://www.chinajoin.com/"
 FIELD_DICTIONARY_VERSION = "tinysoft-stock-daily-fields-v1"
 FIELD_DICTIONARY_SHA256 = "27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829"
+SNAPSHOT_FIELD_DICTIONARY_VERSION = "tinysoft-stock-daily-snapshot-fields-v1"
+SNAPSHOT_FIELD_DICTIONARY_SHA256 = (
+    "458a5aaf5495d776d9391ac246daa360808fe2ce5c35be057e235451b28b8705"
+)
 DEADLINE = 15
 MAX_ROWS = 5000
 SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
@@ -468,14 +472,18 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             end = today.isoformat()
         else:
             start, end = _required_date_range(parameters)
+        frequency = parameters.get("frequency", "day")
+        cycle = (
+            {"daily": "day", "weekly": "W", "monthly": "M"}.get(frequency, frequency)
+            if isinstance(frequency, str)
+            else frequency
+        )
         rows = _rows(
             cjpy.get_market_data(
                 code=canonical_vendor_code(asset),
                 start=start,
                 end=end,
-                cycle={"daily": "day", "weekly": "W", "monthly": "M"}.get(
-                    parameters.get("frequency"), parameters.get("frequency", "day")
-                ),
+                cycle=cycle,
                 rate={
                     "none": "不复权",
                     "forward": "前复权",
@@ -493,19 +501,21 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
         raise ProviderError("tinysoft_capability_unsupported")
     if _contains_secret(rows, effective_token):
         raise ProviderError("credential_reflection")
-    if query.capability == "market_bars":
+    if query.capability in {"market_bars", "market_snapshot"}:
+        snapshot = query.capability == "market_snapshot"
         verified_sdk = getattr(cjpy, "__version__", None) == "0.5.2"
         applied = (
             verified_sdk
             and parameters.get("asset_type") == "stock"
-            and parameters.get("frequency") == "daily"
+            and cycle == "day"
+            and (snapshot or parameters.get("frequency") == "daily")
         )
         identity_basis = "unverified"
         identities = ("asset", "code", "stock_code", "证券代码", "代码")
         response_identity_observed = any(any(name in row for name in identities) for row in rows)
         if applied:
             try:
-                expected = cn_stock_identity(parameters.get("asset"))
+                expected = cn_stock_identity(asset)
                 allowed = {expected, expected[:6], expected[-2:] + expected[:6]}
                 if not response_identity_observed:
                     applied = bool(rows)
@@ -532,7 +542,12 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
                 fields["vol"] = {"unit": "share", "currency": None}
             if "amount" in fields:
                 fields["amount"] = {"unit": "元", "currency": None}
-        log.info("tinysoft_field_dictionary_projected", applied=applied, sdk_verified=verified_sdk)
+        log.info(
+            "tinysoft_field_dictionary_projected",
+            applied=applied,
+            sdk_verified=verified_sdk,
+            capability=query.capability,
+        )
         return Result(
             rows=rows,
             raw=[json.dumps(rows, ensure_ascii=False).encode()],
@@ -541,13 +556,21 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             fields=fields,
             metadata={
                 "field_dictionary_evidence": {
-                    "contract_version": FIELD_DICTIONARY_VERSION,
+                    "contract_version": (
+                        SNAPSHOT_FIELD_DICTIONARY_VERSION if snapshot else FIELD_DICTIONARY_VERSION
+                    ),
                     "observed_sdk_version": "0.5.2",
                     "runtime_sdk_version": "0.5.2" if verified_sdk else "unverified",
                     "method": "markettable_columns",
-                    "dictionary_sha256": FIELD_DICTIONARY_SHA256,
+                    "dictionary_sha256": (
+                        SNAPSHOT_FIELD_DICTIONARY_SHA256 if snapshot else FIELD_DICTIONARY_SHA256
+                    ),
                     "applied": applied,
-                    "scope": "explicit_stock_daily_native_vol_amount",
+                    "scope": (
+                        "explicit_stock_latest_daily_native_vol_amount"
+                        if snapshot
+                        else "explicit_stock_daily_native_vol_amount"
+                    ),
                     "price_currency_verified": False,
                     "identity_basis": identity_basis,
                     "response_identity_observed": response_identity_observed,
