@@ -166,6 +166,21 @@ test('range signed values and extrema use existing rise/fall classes, neutral an
  c.setDates('2026-01-03','2026-01-03');markup=nodes.get('[data-asset-range-card]').innerHTML;assert.match(markup,/<dt>涨跌幅<\/dt><dd class="asset-price-up">10\.00%/);
  c.setDates('2026-01-04','2026-01-04');markup=nodes.get('[data-asset-range-card]').innerHTML;assert.match(markup,/<dt>涨跌幅<\/dt><dd class="">0\.00%/);
 });
+test('change amount uses its sign before price units while absolute OHLC still compare previous close',()=>{
+ for(const [close,expected] of [[1050,'asset-price-up'],[950,'asset-price-down'],[1000,''],[null,'']]){
+  const {controller:c,nodes,context}=fixture();
+  context.metadata={frequency:'daily',asset_history:{canonical_version:'v1',adjustment:'none',coverage:{scanned_ranges:[{start_date:'2026-01-01',end_date:'2026-01-02'}]}}};
+  context.daily=[{date:'2026-01-01',open:1000,high:1100,low:900,close:1000},{date:'2026-01-02',open:980,high:1100,low:900,close}];
+  c.setDates('2026-01-02','2026-01-02');const markup=nodes.get('[data-asset-range-card]').innerHTML;
+  const field=label=>{const match=new RegExp(`<dt>${label}<\\/dt><dd class="([^"]*)">([^<]*)<\\/dd>`).exec(markup);assert.ok(match,`${label} must be a visible metric`);return {tone:match[1],text:match[2]};};
+  assert.deepEqual(field('涨跌'),{tone:expected,text:close===null?'未取得':(close-1000).toFixed(2)},`change amount ${close}`);
+  assert.equal(field('收盘价').tone,expected,`closing absolute price ${close}`);
+  assert.deepEqual(field('开盘价'),{tone:'asset-price-down',text:'980.00'});
+  assert.equal(field('前收盘价').tone,'');
+  if(close!==null){assert.deepEqual(field('最高价'),{tone:'asset-price-up',text:'1100.00'});assert.deepEqual(field('最低价'),{tone:'asset-price-down',text:'900.00'});}
+  c.dispose();
+ }
+});
 test('range card rise/fall selectors consume the same theme tokens as existing Wind readouts',()=>{
  const chartCSS=readFileSync(new URL('../../app/research_web/ui/asset-chart.css',import.meta.url),'utf8');
  const layoutCSS=readFileSync(new URL('../../app/research_web/ui/asset-layout.css',import.meta.url),'utf8');
