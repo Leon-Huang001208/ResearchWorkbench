@@ -115,6 +115,12 @@ MARKET_PREVIEW_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
 MARKET_PREVIEW_PAYLOAD = "e56d9718e12c2252128a6690ca202c7ae21f341e"
 MARKET_PREVIEW_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 MARKET_PREVIEW_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
+# User-approved PR233/235/237/236 product, from the verified b800 resident.
+MARKET_BREADTH_MODE = "reviewed-market-breadth-v1"
+MARKET_BREADTH_PREVIOUS = "b800e50366d1a0868372bbf173822976066c143f"
+MARKET_BREADTH_PAYLOAD = "4c72ed4349c087cf0b7d037d7133b84201a76d5f"
+MARKET_BREADTH_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+MARKET_BREADTH_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
@@ -166,6 +172,7 @@ ASSET_MODES = frozenset(
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         MARKET_PREVIEW_MODE,
+        MARKET_BREADTH_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
@@ -271,6 +278,8 @@ def previous_for(mode):
         return MARKET_TERMINAL_PREVIOUS
     if mode == MARKET_PREVIEW_MODE:
         return MARKET_PREVIEW_PREVIOUS
+    if mode == MARKET_BREADTH_MODE:
+        return MARKET_BREADTH_PREVIOUS
     if mode == DOSSIERS_MODE:
         return DOSSIERS_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
@@ -439,6 +448,7 @@ def verify_primary(home, expected, mode):
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         MARKET_PREVIEW_MODE,
+        MARKET_BREADTH_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
@@ -579,6 +589,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         MARKET_PREVIEW_MODE: MARKET_PREVIEW_PAYLOAD,
+        MARKET_BREADTH_MODE: MARKET_BREADTH_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
         DOSSIERS_MODE: DOSSIERS_PAYLOAD,
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
@@ -609,6 +620,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 {
                     ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
+                    MARKET_BREADTH_MODE: MARKET_BREADTH_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256,
                 }[mode]
@@ -616,6 +628,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 in {
                     ASSET_V9_MODE,
                     MARKET_PREVIEW_MODE,
+                    MARKET_BREADTH_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
                 }
@@ -1179,6 +1192,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
+    elif state.get("mode") == MARKET_BREADTH_MODE:
+        manifest["web_lock_sha256"] = MARKET_BREADTH_WEB_LOCK_SHA256
     if state.get("mode") == ETF_WEEKLY_ADMISSION_MODE:
         manifest["web_lock_sha256"] = ETF_WEEKLY_ADMISSION_WEB_LOCK_SHA256
     elif state.get("mode") == ETF_WEEKLY_ADMISSION_V2_MODE:
@@ -1234,6 +1249,7 @@ class Operations:
             ASSET_V8_MODE,
             ASSET_V9_MODE,
             MARKET_PREVIEW_MODE,
+            MARKET_BREADTH_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
             ETF_WEEKLY_ADMISSION_V2_MODE,
@@ -1284,6 +1300,7 @@ class Operations:
             MARKET_HISTORY_MODE,
             MARKET_TERMINAL_MODE,
             MARKET_PREVIEW_MODE,
+            MARKET_BREADTH_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
@@ -2158,6 +2175,7 @@ def main(argv=None):
             "apply-market-history",
             "apply-market-terminal",
             "apply-market-preview",
+            "apply-market-breadth",
             "apply-etf-weekly",
             "apply-dossiers",
             "apply-discovery",
@@ -2204,6 +2222,7 @@ def main(argv=None):
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-market-preview": MARKET_PREVIEW_MODE,
+                "apply-market-breadth": MARKET_BREADTH_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
