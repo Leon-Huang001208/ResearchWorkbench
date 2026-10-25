@@ -35,3 +35,9 @@
 产品检查点9142016accd6994673abe15a8d418a494e9b0f1b已冻结。新增V10固定前版b800，不复用旧weekly admission mode、不运行旧维护动作；Source reader/hash/web锁沿V9，不重写旧常量。profile注册前最小测试以model_upgrade_profile_unknown真实失败；注册后目标32项通过，完整旧/新矩阵2758项全部通过，219.02秒（1项原Starlette弃用警告）；旧/新恢复、保全和失败拒绝均保留。来源/产品修复与操作员在同一普通祖先链，由最终组合自身重新验证、评审和CI。
 
 类型检查曾发现抽出cycle后的None-key问题，已用显式str分支保留SDK缺省/None原行为，mypy对Provider一文件实际通过；不是通过skip导入或改检查级别掩盖。
+
+## 结构复核
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"V10只给原Native操作员增加固定身份，原锁、Primary/网关和恢复节点及Docker模式保持，不新增容器、端口、卷、依赖或平台执行链。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"新报价单位只作为现有Provider Result字段证据沿Broker和Snapshots传递，纯显示股转手不写raw，不新增Provider、仓库桥、HTTP边或历史PIT资格。","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"原Account Store/RuntimePool/用户数据根和授权保持，V10沿原全账号索引及档案保全，不修改登录有效期、Token、租户策略或跨账号访问流。","diagrams":[]} -->

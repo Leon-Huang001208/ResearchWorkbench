@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+V10报价单位修复不改变DSH执行、研究提交或质量协议。新profile不进入weekly旧等待桥，仍要求Native/Host/后台任务全空闲，活动/未知保持拒绝，不取消或重发研究。
+
 v2把真实绑定身份前提与最终完整活动门分开：Host.active=true只观测，桥后必须再执行原完整Primary、fresh strict和原idle。它不取消/重放Native请求，既有report submission unknown与claim证据不改变。
 
 weekly-admission-v2将preflight/prepared/rpc_attempted/accepted/unknown分开，模型RPC前先写不可覆盖且fsync的claim。明确未RPC状态只经显式同Run/SID/key/hash恢复；已接受/未知只观察，不重发。旧协议缺sender证据只记recovery缺口、原失败/时间保持。普通研究及Automation原幂等与审批逻辑不变。

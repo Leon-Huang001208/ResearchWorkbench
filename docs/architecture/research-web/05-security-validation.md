@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+报价单位仅在精确SDK0.5.2、显式沪深stock/day和来源身份一致时声明原生vol股，未证明别名与其他资产不猜。新V10冻结前版/产品、复用原reader/锁/idle/保全，旧冻结不回填、登录TTL及凭据边界不改。
+
 v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。
 
 可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。

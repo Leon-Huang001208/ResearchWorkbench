@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+V10是既有Native固定操作员的新封闭身份，仅补股票报价单位。Docker镜像/compose/卷/模式及Windows/Linux原生行为不变，不启动或清理Docker资源；未执行平台验收仍单列。
+
 admission-v2只调整Mac Native维护事务内部顺序，不启动/更新Docker服务、卷、构建器或缓存。真实Primary/Host/Native/其它账号门保持，Mac通用Ubuntu CI不宣称Linux/Docker产品原生验收。
 
 华安提交修复的 apply-etf-weekly-admission 仍只处理 Mac Native。旧等待处置与代码切换采用原维护锁和完整活动检查，不触碰 Docker 服务、业务卷、构建缓存或 20GiB 预算；其它平台继续由对应设备验收。
