@@ -26,6 +26,7 @@ from .providers_reference_evidence import (
     GDP_GROWTH_FIELDS,
     enrich_sina_reference,
     gdp_reference_evidence,
+    monthly_macro_reference,
     sina_reference_dictionary,
 )
 
@@ -127,7 +128,7 @@ def _exchange_symbol(value: str) -> str:
 
 SEMANTICS_REVISION = "akshare-supported-query-v6"
 FUND_FLOW_GUEST_URL = "https://82.push2.eastmoney.com/webguest/api/qt/stock/fflow/daykline/get"
-CHINA_MACRO_SCHEMA = "akshare-china-macro-v3"
+CHINA_MACRO_SCHEMA = "akshare-china-macro-v4"
 SINA_FINANCIAL_SCHEMA = "akshare-sina-financial-disclosure-v3"
 FUND_FLOW_SCHEMA = "akshare-eastmoney-fund-flow-provenance-v2"
 FUND_FLOW_FAILURE_CODES = frozenset({"proxy_error", "timeout", "connection_error", "sdk_error"})
@@ -1031,13 +1032,16 @@ def china_macro_metadata(series):
             "publication_time": "unavailable",
             "aggregation": "year_to_date" if series == "gdp" else "period",
             "cross_source_equivalence": "unverified",
-            **({"reference_evidence": gdp_reference_evidence()} if series == "gdp" else {}),
+            "reference_evidence": (
+                gdp_reference_evidence() if series == "gdp" else monthly_macro_reference(series)
+            ),
         },
     }
 
 
 def china_macro_fields(rows, series):
     fields = dict.fromkeys(field for row in rows for field in row)
+    reference_fields = {} if series == "gdp" else monthly_macro_reference(series)["field_mapping"]
     for field in fields:
         semantic = "provider_native"
         if field.endswith("_SAME"):
@@ -1056,6 +1060,8 @@ def china_macro_fields(rows, series):
             semantic = "vendor_reference_label_not_publication"
         elif field == "date":
             semantic = "derived_reference_period_end"
+        if series == "m2" and field in {"BASIC_CURRENCY", "CURRENCY", "FREE_CASH"}:
+            semantic = "month_end_stock"
         unit = (
             "CNY_100million"
             if series == "m2"
@@ -1064,6 +1070,8 @@ def china_macro_fields(rows, series):
             and field in GDP_AMOUNT_FIELDS
             else "percent" if series == "gdp" and field in GDP_GROWTH_FIELDS else None
         )
+        if series != "gdp":
+            unit = reference_fields.get(field, {}).get("unit")
         fields[field] = {
             "unit": unit,
             "currency": "CNY" if unit == "CNY_100million" else None,

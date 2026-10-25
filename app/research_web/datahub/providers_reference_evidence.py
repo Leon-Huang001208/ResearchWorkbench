@@ -142,6 +142,110 @@ def gdp_reference_evidence() -> dict:
     return {**copy.deepcopy(GDP_REFERENCE), "ledger_sha256": reference_digest(GDP_REFERENCE)}
 
 
+def monthly_macro_reference(series: str) -> dict:
+    """Pinned vendor field definitions; neither reference dates nor units prove PIT."""
+    documents = {
+        "cpi": (
+            "cpi",
+            "6321c527e07e8cb0c22be774680b09f65013d3a89363fb13066702b6c919a017",
+            "51f0ad248516c025787c2169932715c5771a92ee61275d9c3f4d1ff35e1eeb17",
+        ),
+        "pmi": (
+            "pmi",
+            "8af484fac6df94684512b517df5c9f133a4b95e3e5009515a066ab635ac4e8d8",
+            "d9b284d8e20927f180039e2bfc52b9776b5b1b4dd3aec5527a524aff52dbb35c",
+        ),
+        "m2": (
+            "hbgyl",
+            "771d821350ab6cc11c389d11d0a8cc18f52abc8c6a304e15f24b40955589c546",
+            "92ff113d8800924dab4e75444b922c11bd28833385704c136d6c88bada4a05d0",
+        ),
+    }
+    if series not in documents:
+        log.warning("datahub_monthly_reference_series_invalid")
+        raise ValueError("monthly_reference_series_invalid")
+    stem, page_hash, script_hash = documents[series]
+    mapping: dict[str, Any] = {}
+    if series == "cpi":
+        for prefix, region in (("NATIONAL", "全国"), ("CITY", "城市"), ("RURAL", "农村")):
+            for suffix, label in (
+                ("SAME", "同比增长"),
+                ("SEQUENTIAL", "环比增长"),
+                ("BASE", "当月"),
+                ("ACCUMULATE", "累计"),
+            ):
+                rate = suffix in {"SAME", "SEQUENTIAL"}
+                mapping[f"{prefix}_{suffix}"] = {
+                    "source_label": label,
+                    "source_region": region,
+                    "source_format": "%" if rate else None,
+                    "unit": "percent" if rate else None,
+                    "currency": None,
+                }
+    elif series == "pmi":
+        for prefix, sector in (("MAKE", "制造业"), ("NMAKE", "非制造业")):
+            for suffix, label in (("INDEX", "指数"), ("SAME", "同比增长")):
+                mapping[f"{prefix}_{suffix}"] = {
+                    "source_label": label,
+                    "source_sector": sector,
+                    "source_format": "%" if suffix == "SAME" else None,
+                    "unit": "percent" if suffix == "SAME" else None,
+                    "currency": None,
+                }
+    else:
+        for field, aggregate in (("BASIC_CURRENCY", "M2"), ("CURRENCY", "M1"), ("FREE_CASH", "M0")):
+            mapping[field] = {
+                "source_label": "数量(亿元)",
+                "monetary_aggregate": aggregate,
+                "unit": "CNY_100million",
+                "currency": "CNY",
+                "semantic": "month_end_stock",
+            }
+            for suffix, label in (("SAME", "同比增长"), ("SEQUENTIAL", "环比增长")):
+                mapping[f"{field}_{suffix}"] = {
+                    "source_label": label,
+                    "monetary_aggregate": aggregate,
+                    "source_format": "%",
+                    "unit": "percent",
+                    "currency": None,
+                }
+    reference = {
+        "field_mapping_document": {
+            "url": f"https://data.eastmoney.com/newstatic/js/cjsj/cn/{stem}.js",
+            "sha256": script_hash,
+            "observed_script_page": f"https://data.eastmoney.com/cjsj/{stem}.html",
+            "observed_script_page_sha256": page_hash,
+        },
+        "field_mapping": mapping,
+        "cross_source_equivalence": "unverified",
+        "historical_availability": "unverified",
+        "revision_vintage": "unavailable",
+        "index_base": "unverified",
+        "percentage_point_change": "not_asserted",
+        "cross_vintage_definition_equivalence": "unverified",
+    }
+    if series == "m2":
+        reference["definition_revision_evidence"] = {
+            "url": "https://www.pbc.gov.cn/diaochatongjisi/attachDir/2025/11/2025111913535682666.pdf",
+            "sha256": "b8fb30d6d277cd3de7e4106cb2239239c4de52fef6edc5d6cc1c8c229db83a87",
+            "m1_definition_effective_reference_month": "2025-01",
+            "retrospectively_revised_months": "2024-01/2024-12",
+            "vendor_revision_alignment": "unverified",
+            "original_release_bytes_proven": False,
+        }
+    elif series == "cpi":
+        reference["release_timing_example"] = {
+            "url": "https://www.stats.gov.cn/sj/zxfb/202510/t20251015_1961521.html",
+            "sha256": "6468a275460e4da2be0c7e972b49943e56e0b5efecc809e58080e9f078e777d5",
+            "reference_month": "2025-09",
+            "publisher_stated_local_release": "2025-10-15 09:30",
+            "timezone_verified": False,
+            "original_release_bytes_proven": False,
+            "applies_to_current_vendor_values": False,
+        }
+    return {**reference, "ledger_sha256": reference_digest(reference)}
+
+
 def sina_reference_dictionary() -> dict:
     return {
         "ledger_sha256": reference_digest(SINA_REFERENCE),

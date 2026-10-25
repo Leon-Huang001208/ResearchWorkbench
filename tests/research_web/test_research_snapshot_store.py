@@ -530,7 +530,7 @@ def test_unverified_native_series_cannot_satisfy_required_stock_price_semantics(
         (
             "factor_macro",
             {"series": "gdp", "start_date": "2025-09-01", "end_date": "2025-09-30"},
-            "akshare-china-macro-v3",
+            "akshare-china-macro-v4",
         ),
         (
             "market_activity",
