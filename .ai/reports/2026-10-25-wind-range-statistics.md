@@ -28,8 +28,8 @@ PR234是已核实CJPY新报价单位修复，独立交付。当前常驻b800不�
 
 ## 结构复核
 
-<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "独立纯计算和浮窗控制器只读取已载入行情；没有新服务或研究引擎节点，原浏览器与Host边界准确。真实stage承载绕过display:contents零布局盒，既有行情和筹码仍独立管理。"} -->
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "独立纯计算和浮窗控制器只读取已载入行情；没有新服务或研究引擎节点，原浏览器与Host边界准确。真实stage承载绕过display:contents零布局盒，既有行情和筹码仍独立管理。", "diagrams": []} -->
 
-<!-- architecture-review {"group": "workbench", "structure": "unchanged", "reason": "右键选区不触发额外请求、不保存数据集或改写冻结材料；账号和版本沿既有观察身份，原DataHub/Host接口与文件拓扑保持准确。日期编辑只改变本地统计状态。"} -->
+<!-- architecture-review {"group": "workbench", "structure": "unchanged", "reason": "右键选区不触发额外请求、不保存数据集或改写冻结材料；账号和版本沿既有观察身份，原DataHub/Host接口与文件拓扑保持准确。日期编辑只改变本地统计状态。", "diagrams": []} -->
 
-<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "沿既有JS测试通配符和Mac安装单步追加两份静态mjs字节核验；没有新增runner、job或依赖，也不减少原仓库门或同候选证据。真实手势与认证部署仍分层取证。"} -->
+<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "沿既有JS测试通配符和Mac安装单步追加两份静态mjs字节核验；没有新增runner、job或依赖，也不减少原仓库门或同候选证据。真实手势与认证部署仍分层取证。", "diagrams": []} -->
