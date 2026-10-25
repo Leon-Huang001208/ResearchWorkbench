@@ -30,3 +30,9 @@ NYFed单独切nyfed-rates-native-v3；Treasury/WorldBank保留official-numeric-v
 源58bce994592c384318c2998f81f0ae41f30e1426，单次实际HTTP取得6种记录，任务捕获阶段3.521秒失败于warehouse_persisted=False；未执行后续重启/恢复。默认Host/Broker添加的execution_authorization_digest、quality_accepted、execution_attempts不属于供应商固定字典，旧guard误将其全部拒绝。原失败、raw、HTTP1/SDK0计数和marker保留，owned PG已停并移除；未把该请求提升为入仓PASS。
 
 修复先以默认ResearchService/DataHub/Broker/Warehouse/Series真实链离线复现（只替换HTTP运输与PGbackend，无mock整个send/fetch/ingest），RED后仅将三个精确框架key校验类型并分离；完整meta仍先canonical，剩余来源metadata保持严格等值。未知extra、原件/行/字段/引用/PIT伪造仍拒绝。这些运行态字段不用于授权且不进持久化白名单，首次观察和非PIT标志的既有读取语义保持。332项邻近回归通过；重新真实取数须新源码与独立repair1预算，原marker不重置。
+
+## 修复后的实际成功验收
+
+源码6e294f4575d6d6efd2b896b18dd5f3b367652659，repair1独立预算一次HTTP、零SDK，5.628秒PASS。API2024-03-01六类各一条，SOFRAI一条含三个已发布均值与指数；不是六天数据，也没有自行重算180天均值。默认Host/ResearchWarehouse及_postgres factory，owned PG18.3只开Unix65478/TCP关闭/fsync开启；51468/51515/51525三独立进程，postmaster真实重启、新Host业务读回及第二空库默认factory恢复通过，后两阶段HTTP/SDK均0。378份source/helper及依赖、PG二进制前后不变；原件、rows/fields、持久metadata及冻结摘要一致。
+
+固定字段字典完整持久化；PIT/backtest两个false由原生读取路径重建，不冒称该两flag字节已进入持久化白名单。框架三字段没有入仓，也未参与授权。临时PG/HOME/Host均已回收。成功回执SHA420c13842b80c54d3fd6f4a57a408e5b0c5c87d4b9fb03e177fcf4e4cfee7298；原失败保持，两个实际阶段合计2次业务HTTP，不能把全轮写成只有一次请求。当前本机完整10组50.078秒PASS；最终集成SHA、独评和CI/Mac安装另行绑定。
