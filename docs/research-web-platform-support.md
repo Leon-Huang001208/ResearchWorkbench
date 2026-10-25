@@ -1,7 +1,5 @@
 # Research Web 能力与平台证据
 
-报价单位及V10封闭profile属于macOS本轮Web开发与Native验收，无新依赖/原生绑定或Docker更改；最终同候选Mac安装/医生门保持，Windows/Linux原生仍交对应设备，不以通用Ubuntu门冒充已验证。
-
 本轮v2是macOS Native受管准入修复，仅取本机、通用仓库CI与同候选Mac安装证据。真实b0e曾在停机前deferred；源码通过不认证切换或Word。Windows/Linux产品原生及条件CI由对应设备交接，NOT_RUN不改支持声明。
 
 本次华安准入/等待维护只验 macOS Native及同候选Mac安装。真实Native只读观察、源代码离线测试、生产维护、统一部署、模型与Word交付分别记录；Windows/Linux产品及Docker部署未运行，不由通用Ubuntu CI推导支持。
@@ -250,3 +248,5 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
 
 已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

@@ -1,8 +1,8 @@
 # GitHub Actions 免费额度治理
 
-V10封闭profile只扩展原test_model_provider_upgrade矩阵（含旧模式、阶段故障、恢复和所有者/数据损失拒绝），原步骤增量预留90秒，实际本机时长另记录；不新增工作流/job/runner/timeout或他平台dispatch。完整候选沿原三CI/同候选Mac安装，旧产品/旧mode测试不能替代新组合。
-
 2026-10-25报价成交量单位修复扩展原test_datahub_cjpy模块11例（本地61例1.45秒），JS沿原通配符新增1例（本文件8例）。不新增job/runner/依赖/timeout，原Python步骤预留10秒；完整Router/原三CI及同候选Mac安装不变，远端操作前实时核对PUBLIC/额度。真实字典+隔离单证券取数与离线回归、CI、常驻验收分开记录，模型调用0。
+
+2026-10-25 Wind 恢复准备仅向原 Checks Python 步骤登记三个离线模块，保留全部原用例、job、runner、40 分钟上限与 concurrency；无新依赖、厂商或模型请求。前一源码相邻七模块本机 562 项约 7.91 秒，后续评审修补另行记录，增量预算预留 60 秒；同候选 macOS 干净安装与通用两门保持。仓库本轮 API 为 public，发布前再次核对；Windows 条件门由对应设备交接，不从 Mac dispatch，也不将源码准备或 CI 当成常驻恢复通过。
 
 PR232的7c7015b5单job从18:59:09Z至19:29:26Z因达到30m0s被GitHub取消，annotation明确maximum execution time；head未更新，非并发替换。取消前仍在产生capability校验进度，无完整pytest汇总，不能标PASS或推断所有测试无失败。保留原全套Python/JS/Native测试与相同单一ubuntu-latest job、permissions和concurrency，预算明确从30增加至40分钟（有界增加10分钟），同步项目workflow约束；不新增job/runner、不rerun旧候选或删除/跳过用例。当前仓库PUBLIC标准runner；新提交与完整payload重新固定、独评及同候选原三CI/Mac证据仍必需，旧绿不复用。
 
@@ -337,3 +337,7 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-25宏观/财务参考扩围只在原Checks Python步骤追加test_baostock_reference.py，原reference/native-binding测试扩展；无新job/runner/timeout/依赖或他平台产品dispatch，预留现有步骤15秒。本机、独评、原三CI及同候选Mac安装分别绑定；真实无账号请求不进入CI，正式部署未执行。远端前核对当前visibility/额度。
 
 2026-10-25市场广度仅扩展既有research_web_market JS通配符中的三项行为回归，不新增workflow/job/runner/依赖/timeout；既有步骤增量预留10秒。原通用门与同候选macos-14干净安装仍必需；PUBLIC状态发布前复查，不rerun旧候选，不派发他平台产品，不在CI调用上游或模型。
+
+2026-10-25 NYFed SOFRAI只在原Checks Python步骤增加test_nyfed_sofrai_reference.py，近处官方数值/仓库回归扩展；不新增job、runner、timeout、依赖或Windows/Linux产品dispatch。增量预留15秒，同候选本机/独评/原三CI与macos-14安装单独取证。公开仓库及额度在远端操作前实时核对，不rerun旧候选；真实厂商请求与生产模型不进入CI。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

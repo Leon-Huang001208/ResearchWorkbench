@@ -1,6 +1,6 @@
 # 安全边界与验证方法
 
-报价单位仅在精确SDK0.5.2、显式沪深stock/day和来源身份一致时声明原生vol股，未证明别名与其他资产不猜。新V10冻结前版/产品、复用原reader/锁/idle/保全，旧冻结不回填、登录TTL及凭据边界不改。
+Wind 清理恢复准备验证缺字段、混合未知、晚到忙状态、只读快照零创建，以及安装租约和单 PID 信号边界。私有停止构件无强杀后备但不是完整维护事务；未持三锁/BirthFence、缺旧 Host 见证或不可变控制器不兼容时均不能执行恢复。源码/CI与现场停启及数据保全分别验收。
 
 v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。
 
@@ -822,3 +822,5 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
 
 已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

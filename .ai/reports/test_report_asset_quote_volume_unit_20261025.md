@@ -1,3 +1,7 @@
+# 当前交付范围更新（2026-10-26）
+
+按统一部署协调已确认的B分工，本轮最终diff撤下未合入、未上线的V10草稿，仅保留单位业务修复、测试与证据；旧V10提交和CI保留在原祖先，不改写或删除历史。Native操作员和其测试已逐字恢复为当前origin/master，因此V1–V9及主线Wind恢复准备不变。下文V10过程属于历史记录，不代表最终提供该模式或授权其部署。新组合与新controller由独立受审任务负责；旧现场仍NO-GO，未执行任何服务、Excel、工作簿、凭据、数据或模型操作。
+
 # 报价成交量单位修复
 
 宿主macOS；Web功能修复，最终Native常驻部署另验。任务asset-quote-volume-unit-20261025，基线f71c8063；现驻留b800e503。本报告不将源码/隔离源验证当常驻成功。
@@ -38,9 +42,9 @@
 
 ## 结构复核
 
-<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"V10只给原Native操作员增加固定身份，原锁、Primary/网关和恢复节点及Docker模式保持，不新增容器、端口、卷、依赖或平台执行链。","diagrams":[]} -->
-<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"新报价单位只作为现有Provider Result字段证据沿Broker和Snapshots传递，纯显示股转手不写raw，不新增Provider、仓库桥、HTTP边或历史PIT资格。","diagrams":[]} -->
-<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"原Account Store/RuntimePool/用户数据根和授权保持，V10沿原全账号索引及档案保全，不修改登录有效期、Token、租户策略或跨账号访问流。","diagrams":[]} -->
+<!-- architecture-review {"group": "dual-runtime", "structure": "unchanged", "reason": "最终diff不修改Native操作员或部署profile，原主实例、网关、锁、恢复、安装和所有旧模式逐字保留；V10草稿只作为历史提交，不提供新的运行入口。", "diagrams": []} -->
+<!-- architecture-review {"group": "datahub", "structure": "unchanged", "reason": "新报价单位只作为现有Provider Result字段证据沿Broker和Snapshots传递，纯显示股转手不写raw，不新增Provider、仓库桥、HTTP边或历史PIT资格。", "diagrams": []} -->
+<!-- architecture-review {"group": "private-multiuser", "structure": "unchanged", "reason": "报价单位字段沿原账号DataHub、RuntimePool、用户根和来源授权传递；最终diff没有Native或部署模式变化，不修改登录有效期、Token、租户策略或跨账号访问。", "diagrams": []} -->
 
 ## 最新基线与部署范围
 

@@ -4633,6 +4633,7 @@ Imports:
 - `math`
 - `providers`
 - `providers_kapsarc`
+- `providers_nyfed_reference`
 - `providers_wgc`
 - `re`
 - `time`
@@ -4645,6 +4646,8 @@ Classes:
   - methods: __init__, handle_starttag, handle_endtag, handle_data
 
 Functions:
+- `official_numeric_contract`
+  - Version only the reviewed NYFed pair; other official contracts retain v2.
 - `arguments`
 - `spdr_projection`
   - Validate four source metrics; preserve source strings and each reference date.
@@ -4791,6 +4794,30 @@ Functions:
 - `probe`
 
 
+## `app/research_web/datahub/providers_nyfed_reference.py`
+
+Module docstring:
+> Pure NYFed raw projection and fixed, source-qualified SOFRAI dictionary.
+
+Imports:
+- `copy`
+- `core.observability`
+- `datetime`
+- `json`
+- `math`
+
+Functions:
+- `nyfed_metadata`
+  - Return fresh fixed metadata; reference hashes cover original decoded HTTP bodies.
+- `nyfed_fields`
+  - Apply SOFRAI units only to its fields; retain ordinary rate field meanings.
+- `_day`
+- `_pairs`
+- `_reject_constant`
+- `nyfed_projection`
+  - Validate strict original JSON and bounded observation identities without coercion.
+
+
 ## `app/research_web/datahub/providers_reference_evidence.py`
 
 Module docstring:
@@ -4869,6 +4896,8 @@ Imports:
 Functions:
 - `active_futures`
   - Read-only witness; a stopped waiter cannot release real Excel work.
+- `activity_witness`
+  - Observe native work and cleanup independently under their shared lock.
 - `_asset`
 - `_day`
 - `_bounded_history_range`
@@ -5061,7 +5090,9 @@ Imports:
 - `providers_external`
 - `providers_kapsarc`
 - `providers_market`
+- `providers_nyfed_reference`
 - `providers_wgc`
+- `re`
 - `threading`
 - `uuid`
 
@@ -5077,6 +5108,8 @@ Functions:
   - Reject changed rows, references and originals before replacing a good snapshot.
 - `_complete_cash_flow_snapshot`
   - Bind native financial ratios to their SDK original, never to market fund flow.
+- `_complete_nyfed_snapshot`
+  - Rebind exact native capture to its closed request and immutable dictionary.
 - `_complete_kapsarc_snapshot`
   - Require both count/unit evidence and the exact export projection before publishing.
 - `_complete_wgc_snapshot`
@@ -5325,6 +5358,8 @@ Imports:
 Functions:
 - `source_futures`
 - `active_futures`
+- `activity_witness`
+  - Fixed, secret-free independent source observations; never infer cleanup.
 - `drain_sources`
   - Wait on owned futures; never cancel underlying native/SDK operations.
 
@@ -5655,15 +5690,19 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `contextlib`
 - `core.observability`
 - `hashlib`
 - `os`
 - `pathlib`
+- `sqlite3`
 - `stat`
 
 Functions:
+- `_strict_integrity`
+  - Validate bounded rollback bytes in memory; never open disk with SQLite.
 - `snapshot_dossiers`
-  - No directories/DB are initialized; a busy or damaged archive fails closed.
+  - No directories/DB are initialized; strict observers cannot create a lock.
 
 
 ## `app/research_web/dossier_signal_routes.py`
@@ -8526,7 +8565,7 @@ Imports:
 Functions:
 - `_digest`
 - `snapshot`
-  - Hash existing session bytes and non-secret model settings under admission.
+  - Hash session/model/original scopes; strict observers never create dossier locks.
 - `compare_snapshot`
   - New verification sessions are allowed; every original object must remain.
 
@@ -10700,12 +10739,14 @@ Classes:
   - Validated state-file facts private to the service manager.
 - `_ProcessFact`
   - Process ownership facts without commands or operating-system errors.
+- `_GracefulStopIdentity`
+  - Private identity for a future fully fenced maintenance transaction.
 - `_WebReadiness`
   - Complete, allowlisted Research Web protocol readiness.
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _graceful_stop_identity, _graceful_stop_owned_once, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`

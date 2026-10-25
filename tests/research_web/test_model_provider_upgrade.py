@@ -29,7 +29,6 @@ ASSET_PROFILES = (
     upgrade.ASSET_V7_MODE,
     upgrade.ASSET_V8_MODE,
     upgrade.ASSET_V9_MODE,
-    upgrade.ASSET_V10_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
     "reviewed-market-history-v1",
@@ -77,7 +76,6 @@ def test_discovery_profile_freezes_authorized_combination():
         upgrade.DISCOVERY_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
-        upgrade.ASSET_V10_MODE,
         "reviewed-market-preview-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -221,7 +219,6 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V7_MODE: "ASSET_V7",
         upgrade.ASSET_V8_MODE: "ASSET_V8",
         upgrade.ASSET_V9_MODE: "ASSET_V9",
-        upgrade.ASSET_V10_MODE: "ASSET_V10",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
@@ -262,8 +259,6 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     )
     if profile == upgrade.ASSET_V9_MODE:
         evidence_constant = "ASSET_V9_EVIDENCE_SHA256"
-    if profile == upgrade.ASSET_V10_MODE:
-        evidence_constant = "ASSET_V10_EVIDENCE_SHA256"
     if profile == "reviewed-market-preview-v1":
         evidence_constant = "MARKET_PREVIEW_EVIDENCE_SHA256"
     if profile == "reviewed-etf-weekly-admission-v1":
@@ -540,7 +535,6 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v7", upgrade.ASSET_V7_MODE),
         ("apply-assets-v8", upgrade.ASSET_V8_MODE),
         ("apply-assets-v9", upgrade.ASSET_V9_MODE),
-        ("apply-assets-v10", upgrade.ASSET_V10_MODE),
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
         ("apply-dossiers", "reviewed-research-dossiers-v1"),
         ("apply-discovery", "reviewed-discovery-v1"),
@@ -590,8 +584,6 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V9_MODE, upgrade.ASSET_V7_PAYLOAD),
         (upgrade.ASSET_V8_MODE, upgrade.ASSET_V8_PAYLOAD),
         (upgrade.ASSET_V9_MODE, upgrade.ASSET_V9_PAYLOAD),
-        (upgrade.ASSET_V10_MODE, upgrade.ASSET_V9_PAYLOAD),
-        (upgrade.ASSET_V10_MODE, upgrade.ASSET_V10_PAYLOAD),
         (upgrade.ASSET_V5_MODE, upgrade.ASSET_V4_PREVIOUS),
         (upgrade.ASSET_V5_MODE, upgrade.MARKET_GAPS_PREVIOUS),
         (upgrade.ASSET_V5_MODE, "9bc4e4cab91130647a5bc0dfa519e97f4773416a"),
@@ -1370,7 +1362,6 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
-        upgrade.ASSET_V10_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
@@ -1572,7 +1563,6 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V7_MODE: "ASSET_V7_PREVIOUS",
         upgrade.ASSET_V8_MODE: "ASSET_V8_PREVIOUS",
         upgrade.ASSET_V9_MODE: "ASSET_V9_PREVIOUS",
-        upgrade.ASSET_V10_MODE: "ASSET_V10_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
@@ -2208,7 +2198,6 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
-        upgrade.ASSET_V10_MODE,
         "reviewed-etf-weekly-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
@@ -2279,7 +2268,6 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
-        upgrade.ASSET_V10_MODE,
         "reviewed-etf-weekly-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
@@ -2339,7 +2327,6 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
-        upgrade.ASSET_V10_MODE,
         upgrade.MARKET_HISTORY_MODE,
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
@@ -3224,9 +3211,7 @@ def test_weekly_native_catalog_strict_real_client_protocol(monkeypatch, case):
     assert calls
 
 
-@pytest.mark.parametrize(
-    "command", ["apply", "apply-assets-v9", "apply-assets-v10", "apply-market-preview", "recover"]
-)
+@pytest.mark.parametrize("command", ["apply", "apply-assets-v9", "apply-market-preview", "recover"])
 @pytest.mark.parametrize("flag", ["--end-weekly-waiting", "--weekly-monitoring-action"])
 def test_weekly_flags_rejected_for_old_modes_before_operate(tmp_path, monkeypatch, command, flag):
     (tmp_path / "logs").mkdir()
@@ -4290,12 +4275,3 @@ def test_weekly_primary_v2_unknown_host_before_bridge_zero_write(weekly_operate_
     ):
         assert not (f.home / "server/run" / name).exists()
     assert not (f.home / "resident/transaction.json").exists()
-
-
-def test_asset_volume_v10_is_fixed_to_reviewed_source_and_current_resident():
-    mode = "reviewed-asset-observation-v10"
-    assert upgrade.previous_for(mode) == "b800e50366d1a0868372bbf173822976066c143f"
-    assert upgrade.ASSET_V10_PAYLOAD == "9b6ba57a6d649abf89d68797815b1aee0b06949d"
-    assert upgrade.ASSET_V10_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
-    assert upgrade.ASSET_V10_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
-    assert mode in upgrade.ASSET_MODES

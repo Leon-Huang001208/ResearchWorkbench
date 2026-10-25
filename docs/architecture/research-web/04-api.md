@@ -1,8 +1,8 @@
 # Research Web 接口清单
 
-封闭V10只冻结包含已核实报价单位及PR233的组合产品9b6ba57a和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
-
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
+
+现有 `GET /api/research/resident` 附带固定、无秘密的 `activity_witness`，列出各 Host 检查与来源的运行/清理状态；未知不得同时被归约为 `active=false`。没有新增 HTTP 路由或执行型恢复 API；内部只读 inspect 不能授予维护准入，旧客户端的普通活动门保持。
 
 v2只增加明确paired flags的本机受审CLI命令，沿已有GET刷新Host缓存；无HTTP新路由、Header/Cookie覆盖或force参数，普通租户/能力与已发布v1行为保持。
 
@@ -801,3 +801,5 @@ schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资
 
 
 2026-10-24：新增GET /api/research/discovery/association?feed_id&news_id&event_id&horizon，在当前认证用户的同feed范围内逐个核对归档报道精确URL；不接任意URL/正文、不创建会话/计划。feed新增news/events/freshness的独立有界投影，原七字段Prepare与独立execute/save/enable接口保持，详见今日发现合同。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+Wind poisoned 恢复准备先验证逐项活动见证、旧 Host 无见证/运行 Future/混合未知拒绝，以及无强杀单 PID 构件。只读 preflight 不代表已持维护锁、全账号冻结或允许执行；本轮没有 apply。旧不可变 controller.pyz 不识别新 journal，须先解决受控兼容迁移和崩溃恢复，不能伪造旧 transaction、暗换控制器/hash、清 poison 或以普通 restart 绕未知。离线测试禁止 Office/供应商/模型，完整 Router、独评及适用 CI 不省略；现场历史稿/Word/认证下载另验，定时保持关闭。
+
 部署衔接回归必须执行真实operate并让原g.verify_primary和LegacyBinding参与，不得mock关键门成None。v2仅先做非空闲身份前提，桥后完整原Primary/Host/Native门不减；字段未知或其它活动拒绝停机。旧v1保持原顺序，现场deferred的绿源码/CI不能当真实切换成功。
 
 华安提交/恢复改动的本地邻近闭包必须同时包含test_report_weekly_historical_acceptance.py、test_report_weekly_quality.py及test_report_weekly_admission.py。历史路径需用真实ResearchService、合法Provider合成证据、真实scope/send/claim；不能整体替换weekly_data模块后把尚未抵达Sender的失败当成unknown/accepted恢复证明。先断言数据门、RPC及收据前提，再核历史用途、owner和冻结证据。CI已登记该模块，夹具修复不移除或跳过用例。
@@ -517,3 +519,6 @@ node scripts/git_safety.mjs closeout-recover --project /absolute/RWB --task-id T
 
 
 2026-10-25月度口径扩围沿默认Host/研究仓做七例有界实际采集、独立进程与真实owned PG停启和第二空库恢复；宏观v4/Bao盈利v2原件重建拒伪造。原三CI/同候选Mac安装和双阶段独评保持，新增纯离线模块只加入原Checks步骤；无依赖、服务、正式库、外盘或模型操作。
+
+
+NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿名HTTP、owned socket-only PG18.3、跨进程重启及默认factory空库恢复；SDK三项单变量新诊断失败如实保留。原完整Router、SPEC/QUALITY、通用两CI及同候选Mac安装门保持，无新增runner/依赖或他平台产品dispatch。现有服务、正式5432、外盘、凭据与模型不操作。

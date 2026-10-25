@@ -1,13 +1,5 @@
 # Mac mini 空私有池网关升级
 
-## 报价成交量单位固定部署V10（2026-10-25）
-
-新增封闭`apply-assets-v10` / `reviewed-asset-observation-v10`。PREVIOUS固定`b800e50366d1a0868372bbf173822976066c143f`，PAYLOAD固定组合检查点`9b6ba57a6d649abf89d68797815b1aee0b06949d`（单独单位修复9142016与已合并PR233均保留祖先）；候选须为产品祖先的受审普通merge，禁止任意target覆盖。仅修复新CJPY沪深股票日K报价vol/amount单位证据传播，原值不改，旧unknown不回填。
-
-封闭V10只冻结包含已核实报价单位及PR233的组合产品9b6ba57a和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
-
-实际部署前重新核验完整候选、当前前版、授权/空闲、source/module身份及全账号保全，任何活动/未知或前版变化都延后；不改登录12小时TTL、不清除有效认证或研究会话。代码、测试、旧CI不代替新候选独评/完整Router/原三CI和同候选macos-14安装。部署后刷新overview生成新快照，再在已登录实页以同来源同日核对主量/VOL/右侧按手一致。没有新包、数据库迁移、外盘或真实模型调用。当前仅源码准备，尚未部署V10。
-
 ## CI容量修复固定部署V9（2026-10-24）
 
 封闭 `apply-assets-v9`／`reviewed-asset-observation-v9`。资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
