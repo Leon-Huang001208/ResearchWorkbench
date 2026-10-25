@@ -1094,3 +1094,5 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
 
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。

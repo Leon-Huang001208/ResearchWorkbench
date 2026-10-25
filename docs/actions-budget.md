@@ -337,3 +337,5 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-25市场广度仅扩展既有research_web_market JS通配符中的三项行为回归，不新增workflow/job/runner/依赖/timeout；既有步骤增量预留10秒。原通用门与同候选macos-14干净安装仍必需；PUBLIC状态发布前复查，不rerun旧候选，不派发他平台产品，不在CI调用上游或模型。
 
 2026-10-25 NYFed SOFRAI只在原Checks Python步骤增加test_nyfed_sofrai_reference.py，近处官方数值/仓库回归扩展；不新增job、runner、timeout、依赖或Windows/Linux产品dispatch。增量预留15秒，同候选本机/独评/原三CI与macos-14安装单独取证。公开仓库及额度在远端操作前实时核对，不rerun旧候选；真实厂商请求与生产模型不进入CI。
+
+区间统计沿原Research Web Checks的research_web*.test.mjs通配符增加数学/控制器用例，Mac Bootstrap同一步校验两份新增mjs，不增加job、runner或timeout。新候选仍需原Constraints/Checks/Mac三门，公开仓库与checkout身份在发布前重验；本机与隔离浏览器不替代CI。

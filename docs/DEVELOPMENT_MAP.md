@@ -648,3 +648,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
 
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+# 区间统计实现定位（2026-10-25）
+
+`app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。
