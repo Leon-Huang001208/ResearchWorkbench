@@ -187,5 +187,8 @@
  .asset-range-layer { position:static; }
  .asset-range-card { position:relative; left:auto!important; top:auto!important; width:100%; max-height:none; margin-top:12px; box-shadow:none; }
  .asset-range-card header { cursor:default; }
+ .asset-range-card button { min-width:44px; min-height:44px; }
+ .asset-range-card input { min-height:44px; }
+ .asset-range-method summary { min-height:44px; display:flex; align-items:center; }
  .asset-range-fields { gap:12px; }
 }

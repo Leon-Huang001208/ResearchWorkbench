@@ -246,12 +246,16 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   const currentBar = () => bars[state.activeIndex];
   function rangeContext() {
     const node = find('[data-asset-echarts]'); const hostRect = rangeHost?.getBoundingClientRect?.() || {left:0,top:0}; const rect = node?.getBoundingClientRect?.() || {left:0,top:0,width:800};
-    const grid = main?.getModel?.().getComponent?.('grid',0)?.coordinateSystem?.getRect?.() || {x:8,y:26,width:Math.max(0,rect.width-62),height:300};
+    // init() has no model until its first setOption(). Only a real grid
+    // coordinate system permits ECharts conversions; layout geometry works
+    // during same-slot theme restoration before that first draw.
+    const coordinateSystem = main?.getModel?.()?.getComponent?.('grid',0)?.coordinateSystem;
+    const grid = coordinateSystem?.getRect?.() || {x:8,y:26,width:Math.max(0,rect.width-62),height:300};
     const plot = {left:rect.left-hostRect.left+grid.x,top:rect.top-hostRect.top+grid.y,width:grid.width,height:grid.height};
     const step=plot.width/Math.max(1,state.end-state.start);
     return {daily,displayBars:bars,metadata,plot,visibleStart:state.start,visibleEnd:state.end,
-      indexAt:x=>{const converted=main?.convertFromPixel?.({xAxisIndex:0},x-(rect.left-hostRect.left));return finite(converted)===null?state.start+Math.floor((x-plot.left)/step):Number(converted);},
-      pixelAt:index=>{const converted=main?.convertToPixel?.({xAxisIndex:0},index);return finite(converted)===null?plot.left+(index-state.start+.5)*step:Number(converted)+rect.left-hostRect.left;}};
+      indexAt:x=>{const converted=coordinateSystem?main?.convertFromPixel?.({xAxisIndex:0},x-(rect.left-hostRect.left)):null;return finite(converted)===null?state.start+Math.floor((x-plot.left)/step):Number(converted);},
+      pixelAt:index=>{const converted=coordinateSystem?main?.convertToPixel?.({xAxisIndex:0},index):null;return finite(converted)===null?plot.left+(index-state.start+.5)*step:Number(converted)+rect.left-hostRect.left;}};
   }
   function pageTheme() {
     const root = slot?.ownerDocument?.documentElement; const fallback = chartTheme(root && root.dataset?.theme !== 'dark' ? 'light' : 'dark');

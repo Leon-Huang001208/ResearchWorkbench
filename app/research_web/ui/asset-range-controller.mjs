@@ -69,7 +69,14 @@ export function createRangeController({host,getContext,logger=safeLog}) {
       constrain();
     }}return true;
   });}
-  function setDates(startDate,endDate){return guarded('dates',()=>{selection={startDate,endDate};const context=getContext();result=calculateRangeStatistics(context.daily,selection,context.metadata);if(result.range.requestedStart&&result.range.requestedEnd)selection={startDate:result.range.requestedStart,endDate:result.range.requestedEnd};render();report('calculate',result.range.count?'ok':'unavailable');return true;});}
+  function setDates(startDate,endDate){return guarded('dates',()=>{
+    const requested={startDate,endDate},context=getContext();
+    const calculated=calculateRangeStatistics(context.daily,requested,context.metadata);
+    // Commit the date/result pair together. A failed context read must never
+    // expose a new selection backed by a null or previous calculation.
+    selection=calculated.range.requestedStart&&calculated.range.requestedEnd?{startDate:calculated.range.requestedStart,endDate:calculated.range.requestedEnd}:requested;
+    result=calculated;render();report('calculate',result.range.count?'ok':'unavailable');return true;
+  });}
   function open(){return guarded('open',()=>{const context=getContext();const next=barRange(context,context.visibleStart,context.visibleEnd-1);if(!next)return false;position={x:context.plot?.left||0,y:(context.plot?.top||0)+16};setDates(next.startDate,next.endDate);find('[data-asset-range-start]')?.focus?.({preventScroll:true});return true;});}
   function begin(event){return guarded('begin',()=>{
     if(event.button!==2)return false;const context=getContext(),p=point(event);if(!context.daily.length||!inPlot(p,context.plot))return false;

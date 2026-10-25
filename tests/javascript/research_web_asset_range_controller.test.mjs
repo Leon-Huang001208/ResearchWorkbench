@@ -199,3 +199,44 @@ test('reverse date edits normalize requested selection and inputs without losing
  assert.match(nodes.get('[data-asset-range-card]').innerHTML,/data-asset-range-start value="2026-01-03"/);assert.match(nodes.get('[data-asset-range-card]').innerHTML,/data-asset-range-end value="2026-01-07"/);
  c.setDates('','2026-01-07');assert.deepEqual(c.getState().selection,{startDate:'',endDate:'2026-01-07'});assert.match(nodes.get('[data-asset-range-card]').innerHTML,/日期无效或未填写/);
 });
+test('theme remount restores full card before and after first setOption when ECharts has no initial model',()=>{
+ const f=mountedChart(),errors=[],frames=new Map();let nextFrame=0,html='',earlyConversions=0;
+ const card=f.nodes.get('[data-asset-range-card]');
+ Object.defineProperty(f.host,'innerHTML',{get:()=>html,set:value=>{html=value;card.innerHTML='';card.dataset={};card.hidden=true;}});
+ const view=f.host.ownerDocument.defaultView,baseInit=view.echarts.init;
+ view.requestAnimationFrame=fn=>{const id=++nextFrame;frames.set(id,fn);return id;};view.cancelAnimationFrame=id=>frames.delete(id);
+ const flush=()=>{const callbacks=[...frames.values()];frames.clear();for(const fn of callbacks)fn();};
+ view.echarts.init=(...args)=>{const chart=baseInit(...args);let ready=false;
+  chart.getModel=()=>ready?{getComponent:()=>({coordinateSystem:{getRect:()=>({x:8,y:26,width:738,height:300})}})}:undefined;
+  chart.setOption=()=>{ready=true;};
+  chart.convertFromPixel=()=>{if(!ready){earlyConversions++;throw new Error('model not ready');}return 2;};
+  chart.convertToPixel=index=>{if(!ready){earlyConversions++;throw new Error('model not ready');}return 8+92*(index+.5);};
+  return chart;
+ };
+ const c=createAssetChartController({logger:(code,data)=>{if(data.status==='error')errors.push(code);}});
+ c.configure(daily,'theme-ready',{frequency:'daily'});c.mount(f.host);flush();
+ c.handle({type:'click',target:{closest:selector=>selector==='[data-asset-chart-action]'?{dataset:{assetChartAction:'range-open'}}:null}});
+ const markup=card.innerHTML,left=card.style.left,top=card.style.top;assert.match(markup,/区间统计/);
+ for(const theme of ['light','dark']){
+  f.host.ownerDocument.documentElement={dataset:{theme}};c.mount(f.host);
+  assert.equal(card.hidden,false);assert.equal(card.innerHTML,markup);assert.equal(card.style.left,left);assert.equal(card.style.top,top);
+  flush();assert.equal(card.innerHTML,markup);assert.deepEqual(errors,[]);assert.equal(earlyConversions,0);
+ }
+ c.dispose();
+});
+test('context failure never commits dates without a matching calculation result',()=>{
+ const {context,nodes}=fixture();let broken=false;const errors=[];
+ const host={querySelector:key=>nodes.get(key),getBoundingClientRect:()=>({left:0,top:0,width:800,height:600})};
+ const c=createRangeController({host,getContext:()=>{if(broken)throw new Error('not ready');return context;},logger:code=>errors.push(code)});
+ broken=true;assert.equal(c.setDates('2026-01-02','2026-01-03'),false);assert.equal(c.getState().selection,null);assert.equal(c.getState().result,null);
+ broken=false;c.setDates('2026-01-02','2026-01-03');const previous=c.getState();broken=true;
+ assert.equal(c.setDates('2026-01-04','2026-01-05'),false);assert.deepEqual(c.getState().selection,previous.selection);assert.deepEqual(c.getState().result,previous.result);assert.ok(errors.includes('asset_range_dates'));
+});
+test('mobile range controls have 44px targets without changing desktop sizing',()=>{
+ const css=readFileSync(new URL('../../app/research_web/ui/asset-chart.css',import.meta.url),'utf8');
+ const mobile=css.slice(css.lastIndexOf('@media(max-width:619px)'));
+ assert.match(mobile,/\.asset-range-card button\s*\{[^}]*min-width:44px;[^}]*min-height:44px;/);
+ assert.match(mobile,/\.asset-range-card input\s*\{[^}]*min-height:44px;/);
+ assert.match(mobile,/\.asset-range-method summary\s*\{[^}]*min-height:44px;[^}]*display:flex;[^}]*align-items:center;/);
+ assert.match(css.slice(0,css.lastIndexOf('@media(max-width:619px)')),/\.asset-range-card button\s*\{[^}]*min-width:30px;[^}]*min-height:30px;/);
+});
