@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
+
 全市场广度组合后继位于resident/model_provider_upgrade.py及原test_model_provider_upgrade矩阵：MARKET_BREADTH固定b800→4c72，reader193f4fcc/lock7c631d4f不变，接入原源码并集、manifest、全部账号后台/市场/Native空闲及恢复。真实operate和真实Primary/LegacyBinding反例覆盖Host true/null提前拒绝；不进入周报桥或Wind恢复。
 
 `capabilities/catalog.py:save` 的序列化写入优化保留原临时文件、flush/fsync、replace 和错误清理。`test_capabilities.py` 覆盖 UTF-8 字节一致、单次 write、序列化/fsync/replace 失败保全；真实 API 冷构造和原依赖清单新鲜性测试继续执行。
@@ -654,6 +656,8 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
 
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 # 区间统计实现定位（2026-10-25）
 

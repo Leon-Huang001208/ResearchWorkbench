@@ -1,5 +1,7 @@
 # 供应商原生研究快照
 
+新增tinysoft-stock-daily-snapshot-fields-v1，仅在SDK0.5.2/显式沪深stock/day及行身份核验时为原生vol/amount声明share/元。原rows/raw及旧bars字典证据不动，未知单位留缺口，显示手不回写原件。
+
 Wind Future 运行状态与外部清理未确认的分项见证仅用于恢复准备，不能认证厂商返回或覆盖旧冻结原件。只读预检禁止采集、换源和补造快照；既有供应商原件绑定、哈希及失败证据保持。
 
 华安历史验收不扩大vendor-native数据集或凭据范围。已有Wind Excel原件/真实数据日、采集与冻结时间继续保存并由Host重放，历史用途来自冻结Run而非供应商或模型自报；质量通过不升级为当期正式、PIT或跨源等价证据。

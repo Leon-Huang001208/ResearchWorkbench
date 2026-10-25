@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-25报价成交量单位修复扩展原test_datahub_cjpy模块11例（本地61例1.45秒），JS沿原通配符新增1例（本文件8例）。不新增job/runner/依赖/timeout，原Python步骤预留10秒；完整Router/原三CI及同候选Mac安装不变，远端操作前实时核对PUBLIC/额度。真实字典+隔离单证券取数与离线回归、CI、常驻验收分开记录，模型调用0。
+
 PR240 候选 ecef 的 Checks40226600173 达40分钟上限取消；14.5MB完整日志显示Python仅57%且持续推进，无完整汇总。Mac40226753690/Constraints40226600281的通过保留原SHA归属。真实4项API profile显示目录880次保存/约1120万次JSON分片write为主要构造成本，模块扫描仅4次且缓存有效。本次仅优化原catalog.save为等字节单次写入，保留所有保存/同步/恢复语义，并在原步骤补登记6个字节及失败保全用例；不增job、runner、依赖或40分钟上限，不删用例/不rerun旧候选。新候选仍重新验证完整原三门及Mac安装。
 
 2026-10-26 来源登记初始化窄修在原 Checks Python 步骤补登记完整 `test_api.py`，原 `test_resident.py` 扩展真实冷 Host 和来源生命周期；不新增 job、runner、依赖或改变 40 分钟上限。未登记前真实 API 有三个同根基线失败，不能靠模拟对象绿替代。修复后本机 resident/reader/活动/API 四模块 342 passed、747.32 秒，包含完整 API；现有步骤增量预留 750 秒，实际 CI 耗时另证，不能删除用例求绿。同候选 Mac 干净安装与通用两门保持，实际服务及模型未运行；发布前实时核对 public/额度，不从 Mac 派发其他平台产品 CI。
@@ -341,6 +343,8 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-25市场广度仅扩展既有research_web_market JS通配符中的三项行为回归，不新增workflow/job/runner/依赖/timeout；既有步骤增量预留10秒。原通用门与同候选macos-14干净安装仍必需；PUBLIC状态发布前复查，不rerun旧候选，不派发他平台产品，不在CI调用上游或模型。
 
 2026-10-25 NYFed SOFRAI只在原Checks Python步骤增加test_nyfed_sofrai_reference.py，近处官方数值/仓库回归扩展；不新增job、runner、timeout、依赖或Windows/Linux产品dispatch。增量预留15秒，同候选本机/独评/原三CI与macos-14安装单独取证。公开仓库及额度在远端操作前实时核对，不rerun旧候选；真实厂商请求与生产模型不进入CI。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 区间统计沿原Research Web Checks的research_web*.test.mjs通配符增加数学/控制器用例，Mac Bootstrap同一步校验两份新增mjs，不增加job、runner或timeout。新候选仍需原Constraints/Checks/Mac三门，公开仓库与checkout身份在发布前重验；本机与隔离浏览器不替代CI。
 

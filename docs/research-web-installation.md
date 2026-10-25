@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+报价单位修复沿用锁定CJPY0.5.2及三公开安装入口，无新依赖/配置/数据库迁移；只给已核实新响应附单位元数据。requirements/web.in、web.lock、setup_web.py、Bootstrap流程保持，最终同候选Mac干净安装/DSH/3081/8088/Doctor继续取证，不用既存venv或真实专业源通过替代安装CI。
+
 封闭apply-market-breadth/reviewed-market-breadth-v1固定b800e503前版和4c72ed43组合产品，沿现有安装锁与DSH，不新增依赖或初始化数据库。操作员最终候选必须重做同候选macos-14干净安装；旧产品CI不能认证新操作员。当前旧Host活动未知仍延期，不以安装通过代替现场空闲与保全。
 
 Wind 恢复准备仅使用既有标准库及 Web 依赖，未增加安装步骤、凭据或可配置能力；公开 setup 入口、锁文件、固定 DSH 与 Doctor 合同保持，仍以同候选 Mac 干净安装证明兼容。本轮没有恢复 apply；旧不可变 controller.pyz 的兼容迁移须单独受控交付，不能用普通 restart 或替换 controller/hash 绕过。
@@ -1096,5 +1098,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
 
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。
