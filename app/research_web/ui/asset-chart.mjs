@@ -3,6 +3,7 @@ import {indicatorStrip, indicatorManager, indicatorParameterForm} from './asset-
 import { formatAssetMagnitude, formatAssetVolume, assetPriceClass, assetChangeClass } from './asset-format.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
+import { createRangeController } from './asset-range-controller.mjs';
 import { MA_PERIODS, finite, enrichMarketBars, aggregateMarketBars, sourceFrequency } from './asset-indicators.mjs';
 import { estimateChips, normalizeChipSettings, unavailable } from './asset-chips.mjs';
 import { chipPanel, chipStatistics, chipSettingsForm, chipChartOption, chipPeakLines } from './asset-chip-panel.mjs';
@@ -230,7 +231,7 @@ export function buildChipChartOption(chip, domain, echarts = null, theme, tab = 
 
 export function createAssetChartController({ onChange = () => {}, onPanelsChange = () => {}, onIndicatorPreferencesChange = null, onChipSettingsChange = () => {}, onHistoryRequest = () => {}, logger = safeLog } = {}) {
   let rawRows = []; let daily = []; let bars = []; let identity; let datasetKey = ''; let metadata = {}; let source = 'day';
-  let indicatorEditor = null;
+  let indicatorEditor = null; let rangeController = null; let rangeHost = null;
   let state = { indicatorSettings: normalizeIndicatorSettings(), favorites: [...DEFAULT_FAVORITES], activePanel: 'macd', chipSettings: normalizeChipSettings(), chipTab: 'statistics', historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
   let slot = null; let main = null; let chips = null; let observer = null; let frame = null; let needsFull = false; let needsResize = false; let view = null; let library = null; let applying = false; let olderAnchor = ''; let lastHistoryScope = 'all'; let lastHistoryAdjustment = null; let pointerBlocked = false; let dragging = false; let gestureStartX = null; let historyRequestSerial = 0;
   let lastChipMarkers = ''; let theme = chartTheme(); const chipCache = new Map();
@@ -243,6 +244,19 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   const notify = reason => guarded('change', () => onChange(getState(), { reason }));
   const selectedDailyIndex = () => nearestIndex(daily, state.selectedDate);
   const currentBar = () => bars[state.activeIndex];
+  function rangeContext() {
+    const node = find('[data-asset-echarts]'); const hostRect = rangeHost?.getBoundingClientRect?.() || {left:0,top:0}; const rect = node?.getBoundingClientRect?.() || {left:0,top:0,width:800};
+    // init() has no model until its first setOption(). Only a real grid
+    // coordinate system permits ECharts conversions; layout geometry works
+    // during same-slot theme restoration before that first draw.
+    const coordinateSystem = main?.getModel?.()?.getComponent?.('grid',0)?.coordinateSystem;
+    const grid = coordinateSystem?.getRect?.() || {x:8,y:26,width:Math.max(0,rect.width-62),height:300};
+    const plot = {left:rect.left-hostRect.left+grid.x,top:rect.top-hostRect.top+grid.y,width:grid.width,height:grid.height};
+    const step=plot.width/Math.max(1,state.end-state.start);
+    return {daily,displayBars:bars,metadata,plot,visibleStart:state.start,visibleEnd:state.end,
+      indexAt:x=>{const converted=coordinateSystem?main?.convertFromPixel?.({xAxisIndex:0},x-(rect.left-hostRect.left)):null;return finite(converted)===null?state.start+Math.floor((x-plot.left)/step):Number(converted);},
+      pixelAt:index=>{const converted=coordinateSystem?main?.convertToPixel?.({xAxisIndex:0},index):null;return finite(converted)===null?plot.left+(index-state.start+.5)*step:Number(converted)+rect.left-hostRect.left;}};
+  }
   function pageTheme() {
     const root = slot?.ownerDocument?.documentElement; const fallback = chartTheme(root && root.dataset?.theme !== 'dark' ? 'light' : 'dark');
     try {
@@ -340,7 +354,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       }
       chips?.setOption(buildChipChartOption(chip, domain, library, theme, state.chipTab, overlay), true);
       const note = find('.asset-chip-note'); if (note) note.textContent = `换手衰减估算，非实际持仓。${chip.status === 'ready' && chip.initialResidual > .01 ? `初始分布仍占 ${(chip.initialResidual * 100).toFixed(2)}%。` : ''}${state.chipSettings.overlayEnabled ? overlay?.status === 'ready' ? `历史叠加：${overlay.endDate}。` : '所选日期之前的历史不足，未绘制历史叠加。' : ''}`;
-      syncLabels();
+      syncLabels(); rangeController?.render();
     });
     needsFull = needsResize = false;
   }
@@ -357,6 +371,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     return update({ crosshairY: null, crosshairVisible: false }, 'leave');
   }
   function release() {
+    rangeController?.dispose(); rangeController=null; rangeHost=null;
     closeIndicators(false);
     if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
     for (const [node, name, handler, options] of listeners.splice(0)) guarded('remove_listener', () => node.removeEventListener(name, handler, options));
@@ -423,9 +438,9 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     });
     const zr = main.getZr?.(); if (zr) {
       const leave = () => hidePointer(); zr.on('globalout', leave); zrListeners.push([zr, 'globalout', leave]);
-      const choose = event => guarded('selection', () => { const point = [event.offsetX, event.offsetY]; const gridIndex=Array.from({length:state.panels.length+1},(_,i)=>i).find(i=>main.containPixel?.({gridIndex:i},point)!==false); if(gridIndex===undefined)return; if(gridIndex>0)update({activePanel:state.panels[gridIndex-1]},'panel-focus'); const value = main.convertFromPixel?.({ xAxisIndex: gridIndex }, point[0]); if (finite(value) !== null) select(Math.round(value), false, true); });
+      const choose = event => guarded('selection', () => { if(event?.event?.button===2)return; const point = [event.offsetX, event.offsetY]; const gridIndex=Array.from({length:state.panels.length+1},(_,i)=>i).find(i=>main.containPixel?.({gridIndex:i},point)!==false); if(gridIndex===undefined)return; if(gridIndex>0)update({activePanel:state.panels[gridIndex-1]},'panel-focus'); const value = main.convertFromPixel?.({ xAxisIndex: gridIndex }, point[0]); if (finite(value) !== null) select(Math.round(value), false, true); });
       zr.on('click', choose); zrListeners.push([zr, 'click', choose]);
-      const gestures = { mousedown: event => { dragging = true; pointerBlocked = true; gestureStartX = finite(event?.offsetX); }, mouseup: () => { dragging = false; gestureStartX = null; }, mousemove: event => { if (!dragging && !event?.event?.buttons) pointerBlocked = false; else if (state.start === 0 && gestureStartX !== null && finite(event?.offsetX) !== null && event.offsetX - gestureStartX > 4) requestHistory('load', 'older'); }, mousewheel: () => { pointerBlocked = true; } };
+      const gestures = { mousedown: event => { if(event?.event?.button===2)return; dragging = true; pointerBlocked = true; gestureStartX = finite(event?.offsetX); }, mouseup: () => { dragging = false; gestureStartX = null; }, mousemove: event => { if (!dragging && !event?.event?.buttons) pointerBlocked = false; else if (state.start === 0 && gestureStartX !== null && finite(event?.offsetX) !== null && event.offsetX - gestureStartX > 4) requestHistory('load', 'older'); }, mousewheel: () => { pointerBlocked = true; } };
       for (const [name, handler] of Object.entries(gestures)) { zr.on(name, handler); zrListeners.push([zr, name, handler]); }
     }
     if (view?.ResizeObserver) { observer = new view.ResizeObserver(() => schedule(false, true)); observer.observe(mainNode); }
@@ -438,6 +453,8 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       const nextIdentity = identityFor(nextMetadata || {}, key); const changedIdentity = identity !== nextIdentity;
       if (rawRows === rows && datasetKey === key && metadata === nextMetadata && !preferences) return getState();
       const previousBars = bars; const previous = state; const previousSource = source; const previousHistorySource = metadata.historySource; const changedRows = rawRows !== rows || datasetKey !== key;
+      const rangeVersion = value => JSON.stringify([value.asset_history?.canonical_version,value.asset_history?.factor_version,value.canonicalVersion,value.factorVersion,adjustmentFor(value)]);
+      if(changedIdentity || changedRows || rangeVersion(metadata)!==rangeVersion(nextMetadata||{}))rangeController?.clear(false);
       rawRows = rows; identity = nextIdentity; datasetKey = key; metadata = nextMetadata || {}; source = sourceFrequency(metadata.frequency);
       daily = enrichMarketBars(rawRows);
       const period = changedIdentity || !previousBars.length || source !== previousSource ? source : source === 'day' ? state.period : source;
@@ -499,6 +516,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   function latest() { hidePointer(); return update({ ...initialRange(bars.length), selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, crosshairY: null, crosshairVisible: false }, 'reset', true); }
   function locate() { if (!bars.length) return false; const count = state.end - state.start; const start = clamp(state.activeIndex - Math.floor(count / 2), 0, bars.length - count); return update({ start, end: start + count }, 'locate', true); }
   function cancel() {
+    dragging=false; gestureStartX=null;
     if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
     hidePointer(); if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
     if (slot) flush(); else needsFull = needsResize = false; return true;
@@ -546,9 +564,25 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const next={panels,activePanel:id,...(draft?{favorites:[...draft.favorites],indicatorSettings:normalizeIndicatorSettings(draft.settings)}:{})};
     closeIndicators(); return persistPanels(next);
   }
+  const modalOwnsEscape = event => event?.type==='keydown' && event.key==='Escape' && Boolean(event.target?.closest?.('dialog[open], [aria-modal="true"]') || slot?.ownerDocument?.activeElement?.closest?.('dialog[open], [aria-modal="true"]'));
   function handle(event) {
     return guarded('interaction', () => {
       if (event?.assetChartHandled) return true;
+      if (event?.type==='keydown' && event.key==='Escape') {
+        const selector='[data-asset-indicator-manager], [data-asset-indicator-parameter-dialog]';
+        const dialog=event.target?.closest?.(selector)||slot?.ownerDocument?.activeElement?.closest?.(selector);
+        if(dialog?.open && (dialog===find('[data-asset-indicator-manager]')||dialog===find('[data-asset-indicator-parameter-dialog]'))) {
+          // Owned dialogs cannot rely on the browser cancel default: the app
+          // root also handles Escape. During composition leave the IME default
+          // intact while keeping this event away from that root catchall.
+          if(event.isComposing){event.stopPropagation?.();return true;}
+          event.preventDefault?.();
+          if(dialog===find('[data-asset-indicator-parameter-dialog]'))dialog.close?.();else closeIndicators();
+          return true;
+        }
+      }
+      if (modalOwnsEscape(event)) return false;
+      if(rangeController?.handle(event))return true;
       if (event?.type === 'mouseleave' || event?.type === 'pointerleave') return hidePointer();
       if (event?.type === 'input' && event.target?.matches?.('[data-asset-indicator-search]') && indicatorEditor) {
         indicatorEditor.query=event.target.value; return renderIndicators(true);
@@ -593,6 +627,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         const group=event.target?.closest?.('[data-asset-indicator-group]');
         if (group && indicatorEditor) {indicatorEditor.group=group.dataset.assetIndicatorGroup;return renderIndicators();}
         const button = event.target?.closest?.('[data-asset-chart-action]'); if (!button || button.disabled) return false; const action = button.dataset.assetChartAction;
+        if(action==='range-open') {const menu=button.closest?.('.asset-more-menu');if(menu)menu.open=false;return rangeController?.open()||false;}
         if (action === 'indicator-manager' || action === 'indicator-add') return openIndicators(action==='indicator-add'?'add':'manage');
         if (action.startsWith('indicator-add-after-')) return openIndicators('add',action.slice(20));
         if (action.startsWith('indicator-replace-')) return openIndicators('replace',action.slice(18));
@@ -644,14 +679,24 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   }
   function listen(node, name, handler, options) { node.addEventListener(name, handler, options); listeners.push([node, name, handler, options]); }
   function mount(nextSlot) {
+    const preservedRange=nextSlot===slot?rangeController?.getState():null;
     release(); if (!nextSlot) return false; slot = nextSlot; view = slot.ownerDocument?.defaultView || (typeof window === 'undefined' ? null : window);
     const result = guarded('mount', () => {
-      slot.innerHTML = renderMarketTerminal(rawRows, state, metadata);
+      const rangeLayer='<div class="asset-range-layer" data-asset-range-layer hidden><div class="asset-range-selection" data-asset-range-selection hidden></div><section class="asset-range-card" data-asset-range-card role="region" aria-label="区间统计" hidden></section></div>';
+      slot.innerHTML = renderMarketTerminal(rawRows, state, metadata).replace('<div class="asset-panel-controls">',`${rangeLayer}<div class="asset-panel-controls">`);
+      rangeHost=find('.asset-kline-stage')||slot;
+      rangeController=createRangeController({host:rangeHost,getContext:rangeContext,logger});
+      const capture=event=>rangeController?.capture(event);
+      for(const name of ['pointerdown','mousedown','contextmenu','click','lostpointercapture'])listen(slot,name,capture,true);
+      for(const name of ['pointermove','mousemove','pointerup','mouseup','pointercancel','blur'])if(view?.addEventListener)listen(view,name,capture,true);
+      if(view?.addEventListener)listen(view,'keydown',event=>{if(event.key==='Escape'&&!modalOwnsEscape(event))rangeController?.handle(event);},true);
+      for(const name of ['resize','scroll'])if(view?.addEventListener)listen(view,name,()=>rangeController?.render(),true);
+      listen(slot,'toggle',event=>{if(event.target?.matches?.('.asset-range-method'))rangeController?.render();},true);
       const localHandle = event => { const handled = handle(event); if (handled) { event.assetChartHandled = true; event.stopPropagation?.(); } };
       listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle); listen(slot, 'input', localHandle); listen(slot, 'submit', localHandle);
       for (const selector of ['[data-asset-indicator-manager]','[data-asset-indicator-parameter-dialog]']) {const dialog=find(selector);if(dialog)listen(dialog,'cancel',localHandle);}
       for (const selector of ['[data-asset-echarts]', '[data-asset-chip-chart]']) { const node = find(selector); if (node) { listen(node, 'mouseleave', hidePointer); listen(node, 'pointerleave', hidePointer); } }
-      initCharts(); schedule(true); return true;
+      initCharts(); rangeController.restore(preservedRange); schedule(true); return true;
     });
     if (result === false) release(); return result;
   }

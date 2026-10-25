@@ -5,7 +5,7 @@ import path from 'node:path';
 import { readFile, writeFile, appendFile, mkdir } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 
-const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-layout.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-indicator-library.mjs', 'asset-panel-manager.mjs', 'asset-chips.mjs', 'asset-chip-panel.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-format.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
+const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-layout.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-range-statistics.mjs', 'asset-range-controller.mjs', 'asset-indicator-library.mjs', 'asset-panel-manager.mjs', 'asset-chips.mjs', 'asset-chip-panel.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-format.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
 const clone = value => structuredClone(value);
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 // Preview-container restrictions only. Product files and their hashes stay intact.
