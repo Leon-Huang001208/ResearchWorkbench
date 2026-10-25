@@ -1,5 +1,7 @@
 # 华安 ETF 周报自动生产
 
+Wind 清理未确认时保留失败 Run 和冻结证据，新的分项活动见证及[只读恢复准备](research-web-wind-cleanup-recovery.md)不允许重发或定稿。旧 Host 缺见证及控制器兼容未闭合时继续阻断；本轮无恢复 apply，历史稿、Word与认证下载仍须独立通过，定时保持关闭。
+
 b0e真实维护在桥前被原Primary活动门安全拒绝，旧运行/36fd未改。新增v2先真实身份/Native空列表前提，封印桥及旧GET后再次完整g.verify_primary、fresh strict Host=False/Native=[]及原idle；旧v1不变，不强改active。待新候选三CI/原位资格齐后由唯一协调者执行，定时和历史定稿边界保持。
 
 旧未知Run的维护候选可在现有36fd上从已审冷源码运行，无须先部署页面；仅结束Workflow等待且保留模型结果未知。完整候选冻结到bacb423ce产品祖先，沿原固定Native事务，显式action只读身份与冻结字节核验、Native/子研究idle、目录CAS后经旧单Run GET刷新缓存，再执行未放宽原Operations.idle。当前apply尚未执行，统一部署窗口内零模型、零跟踪；新版本历史运行与Word验收留待窗口结束及具体版本确认。

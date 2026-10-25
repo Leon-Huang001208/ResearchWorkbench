@@ -48,6 +48,19 @@ def active_futures() -> tuple[concurrent.futures.Future[Any], ...]:
         return (_WIND_OUTSTANDING,)
 
 
+def activity_witness() -> dict[str, bool]:
+    """Observe native work and cleanup independently under their shared lock.
+
+    Poison remains fail closed in the ordinary worker API. This observation
+    never clears it, cancels a Future, or constructs an adapter.
+    """
+    with _WIND_LOCK:
+        return {
+            "running": _WIND_OUTSTANDING is not None and not _WIND_OUTSTANDING.done(),
+            "cleanup_unconfirmed": _WIND_POISONED,
+        }
+
+
 # Each reviewed adapter result is projected through one immutable schema. The
 # first tuple is (output field, adapter field, type, unit, currency); allowed
 # adapter fields may include reviewed values intentionally omitted from output.

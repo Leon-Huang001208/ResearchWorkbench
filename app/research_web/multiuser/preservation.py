@@ -18,8 +18,8 @@ def _digest(value) -> str:
     ).hexdigest()
 
 
-def snapshot(root: Path) -> dict:
-    """Hash existing session bytes and non-secret model settings under admission."""
+def snapshot(root: Path, *, create_dossier_lock: bool = True) -> dict:
+    """Hash session/model/original scopes; strict observers never create dossier locks."""
     try:
         if root.resolve() != root.absolute() or root.is_symlink():
             raise ValueError("preservation_root_unsafe")
@@ -32,7 +32,7 @@ def snapshot(root: Path) -> dict:
         files = {}
         from ..dossier_preservation import snapshot_dossiers
 
-        dossiers = snapshot_dossiers(root)
+        dossiers = snapshot_dossiers(root, create_lock=create_dossier_lock)
         if dossiers is not None:
             files.update(dossiers["files"])
         folders = [root / "sessions", root / "runtime/home/sessions"]
