@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+全市场广度组合后继位于resident/model_provider_upgrade.py及原test_model_provider_upgrade矩阵：MARKET_BREADTH固定b800→4c72，reader193f4fcc/lock7c631d4f不变，接入原源码并集、manifest、全部账号后台/市场/Native空闲及恢复。真实operate和真实Primary/LegacyBinding反例覆盖Host true/null提前拒绝；不进入周报桥或Wind恢复。
+
 Wind 清理故障的分项活动见证位于既有 DataHub worker/Host resident 状态；严格只读恢复准备位于 `research_workbench_entrypoint/resident/wind_cleanup_recovery.py`，私有无强杀停止构件位于 `service_manager.py`。目标测试分别覆盖活动归约、旧 Host/混合未知拒绝和单 PID 信号边界。此阶段不开放 apply，不改普通部署/profile/controller 信任链；完整恢复事务与旧现场恢复仍未完成。
 
 admission-v2顺序修复位于原model_provider_upgrade.py和原操作员测试。真实gateway_upgrade.verify_primary不修改：新v2先身份预检，桥/GET后完整g验证、fresh strict Host=False/Native=[]再原idle；测试从真实operate调用原g与LegacyBinding，覆盖此前mock漏掉的桥前拒绝。
