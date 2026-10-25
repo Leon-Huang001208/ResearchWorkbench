@@ -40,6 +40,7 @@ ASSET_PROFILES = (
     "reviewed-etf-weekly-v2",
     "reviewed-etf-historical-v1",
     "reviewed-etf-weekly-admission-v1",
+    "reviewed-etf-weekly-admission-v2",
 )
 
 
@@ -77,6 +78,7 @@ def test_discovery_profile_freezes_authorized_combination():
         upgrade.ASSET_V9_MODE,
         "reviewed-market-preview-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
         upgrade.ETF_HISTORICAL_MODE,
     ],
 )
@@ -226,6 +228,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL",
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION",
+        "reviewed-etf-weekly-admission-v2": "ETF_WEEKLY_ADMISSION_V2",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
         "reviewed-market-preview-v1": "MARKET_PREVIEW",
     }[profile]
@@ -248,6 +251,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
                     "reviewed-etf-weekly-v2",
                     "reviewed-etf-historical-v1",
                     "reviewed-etf-weekly-admission-v1",
+                    "reviewed-etf-weekly-admission-v2",
                 }
                 else "ASSET_EVIDENCE_SHA256"
             )
@@ -259,6 +263,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         evidence_constant = "MARKET_PREVIEW_EVIDENCE_SHA256"
     if profile == "reviewed-etf-weekly-admission-v1":
         evidence_constant = "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256"
+    if profile == "reviewed-etf-weekly-admission-v2":
+        evidence_constant = "ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256"
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
@@ -1360,6 +1366,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
     }:
         expected_manifest["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -1567,6 +1574,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL_PREVIOUS",
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION_PREVIOUS",
+        "reviewed-etf-weekly-admission-v2": "ETF_WEEKLY_ADMISSION_V2_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -1651,6 +1659,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-etf-weekly-v2",
             "reviewed-etf-historical-v1",
             "reviewed-etf-weekly-admission-v1",
+            "reviewed-etf-weekly-admission-v2",
         }:
             manifest["source"] = str(source)
         archive.writestr("manifest.json", json.dumps(manifest))
@@ -1680,6 +1689,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
     }:
         original_archive = artifact.read_bytes()
         with zipfile.ZipFile(artifact, "w") as archive:
@@ -2182,6 +2192,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
@@ -2253,6 +2264,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-terminal-v1",
         "reviewed-market-preview-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
         upgrade.ASSET_V7_MODE,
         upgrade.ASSET_V8_MODE,
         upgrade.ASSET_V9_MODE,
@@ -2319,6 +2331,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         upgrade.MARKET_TERMINAL_MODE,
         "reviewed-market-preview-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
     }:
         expected["web_lock_sha256"] = (
             "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
@@ -2446,6 +2459,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
     ],
     indirect=True,
 )
@@ -2477,6 +2491,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
+        "reviewed-etf-weekly-admission-v2",
     ],
     indirect=True,
 )
@@ -2837,8 +2852,8 @@ def test_weekly_admission_requires_explicit_action_before_configuration(monkeypa
         upgrade.operate(tmp_path, mode="reviewed-etf-weekly-admission-v1")
 
 
-@pytest.fixture
-def weekly_bridge(tmp_path, monkeypatch):
+@pytest.fixture(params=["reviewed-etf-weekly-admission-v1", "reviewed-etf-weekly-admission-v2"])
+def weekly_bridge(tmp_path, monkeypatch, request):
     import copy
     from dataclasses import asdict
 
@@ -2920,7 +2935,7 @@ def weekly_bridge(tmp_path, monkeypatch):
 
     monkeypatch.setattr(upgrade, "request_json", get)
     state = {
-        "mode": upgrade.ETF_WEEKLY_ADMISSION_MODE,
+        "mode": request.param,
         "transaction": str(uuid4()),
         "config": {"web_port": 8088},
     }
@@ -3400,7 +3415,14 @@ def test_weekly_record_oversize_rejected_before_file_creation(weekly_bridge):
     assert not path.exists()
 
 
-def test_weekly_explicit_cli_passes_only_the_sealed_action(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "command,mode",
+    [
+        ("apply-etf-weekly-admission", "reviewed-etf-weekly-admission-v1"),
+        ("apply-etf-weekly-admission-v2", "reviewed-etf-weekly-admission-v2"),
+    ],
+)
+def test_weekly_explicit_cli_passes_only_the_sealed_action(tmp_path, monkeypatch, command, mode):
     (tmp_path / "logs").mkdir()
     calls = []
     monkeypatch.setattr(
@@ -3410,7 +3432,7 @@ def test_weekly_explicit_cli_passes_only_the_sealed_action(tmp_path, monkeypatch
     assert (
         upgrade.main(
             [
-                "apply-etf-weekly-admission",
+                command,
                 "--home",
                 str(tmp_path),
                 "--end-weekly-waiting",
@@ -3423,7 +3445,7 @@ def test_weekly_explicit_cli_passes_only_the_sealed_action(tmp_path, monkeypatch
     assert calls == [
         {
             "recovering": False,
-            "mode": upgrade.ETF_WEEKLY_ADMISSION_MODE,
+            "mode": mode,
             "end_weekly_waiting": True,
             "weekly_monitoring_action": action,
         }
@@ -3597,6 +3619,7 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
         "app/research_web/datahub/providers_reference_evidence.py",
         "app/research_web/datahub/research_snapshot_store.py",
         ".github/workflows/research-web-checks.yml",
+        ".agents/project-constraints.json",
         "tests/research_web/test_ak_native_binding.py",
         "tests/research_web/test_datahub_akshare_semantics.py",
         "tests/research_web/test_datahub_financial_time_contract.py",
@@ -3612,12 +3635,21 @@ def test_weekly_apply_rejects_unsafe_or_uncommitted_receipt_before_any_cas(
         "tests/javascript/research_web_asset_wind_strip.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
         "tests/javascript/research_web_workbench.test.mjs",
+        "research_workbench_entrypoint/iteration_resources.py",
+        "scripts/git_safety.mjs",
+        "tests/javascript/git_safety.test.mjs",
+        "tests/research_web/test_iteration_revalidation.py",
     ],
 )
 @pytest.mark.parametrize("mutation", ["content", "mode", "deleted"])
+@pytest.mark.parametrize(
+    "profile", ["reviewed-etf-weekly-admission-v1", "reviewed-etf-weekly-admission-v2"]
+)
 def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
-    tmp_path, monkeypatch, changed, mutation
+    tmp_path, monkeypatch, changed, mutation, profile
 ):
+    prefix = "ETF_WEEKLY_ADMISSION_V2" if profile.endswith("v2") else "ETF_WEEKLY_ADMISSION"
+
     def git(*args):
         return subprocess.check_output(
             ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
@@ -3631,6 +3663,7 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
         "app/research_web/datahub/providers_reference_evidence.py",
         "app/research_web/datahub/research_snapshot_store.py",
         ".github/workflows/research-web-checks.yml",
+        ".agents/project-constraints.json",
         "tests/research_web/test_ak_native_binding.py",
         "tests/research_web/test_datahub_akshare_semantics.py",
         "tests/research_web/test_datahub_financial_time_contract.py",
@@ -3646,6 +3679,10 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
         "tests/javascript/research_web_asset_wind_strip.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
         "tests/javascript/research_web_workbench.test.mjs",
+        "research_workbench_entrypoint/iteration_resources.py",
+        "scripts/git_safety.mjs",
+        "tests/javascript/git_safety.test.mjs",
+        "tests/research_web/test_iteration_revalidation.py",
     ]
     for name in [upgrade.MODULE, upgrade.TEST, upgrade.ASSET_EVIDENCE, *upstream]:
         path = tmp_path / name
@@ -3659,11 +3696,11 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
     git("add", ".")
     git("commit", "-m", "full product ancestor including upstream")
     payload = git("rev-parse", "HEAD")
-    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PREVIOUS", previous)
-    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PAYLOAD", payload)
+    monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     monkeypatch.setattr(
         upgrade,
-        "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256",
+        prefix + "_EVIDENCE_SHA256",
         hashlib.sha256(b"reviewed evidence").hexdigest(),
     )
     (tmp_path / upgrade.MODULE).write_text("fixed successor operator")
@@ -3684,9 +3721,9 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
     target = git("rev-parse", "HEAD")
     if changed:
         with pytest.raises(upgrade.UpdateBlocked):
-            upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+            upgrade.review(tmp_path, target, profile)
     else:
-        reviewed = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        reviewed = upgrade.review(tmp_path, target, profile)
         assert set(upstream) <= set(reviewed)
         assert all(reviewed[name] == git("rev-parse", f"{payload}:{name}") for name in upstream)
 
@@ -3705,7 +3742,14 @@ def test_weekly_p8_freezes_full_upstream_product_and_ci_without_new_exemptions(
         "atlas-deleted",
     ],
 )
-def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(tmp_path, monkeypatch, case):
+@pytest.mark.parametrize(
+    "profile", ["reviewed-etf-weekly-admission-v1", "reviewed-etf-weekly-admission-v2"]
+)
+def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(
+    tmp_path, monkeypatch, case, profile
+):
+    prefix = "ETF_WEEKLY_ADMISSION_V2" if profile.endswith("v2") else "ETF_WEEKLY_ADMISSION"
+
     def git(*args):
         return subprocess.check_output(
             ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
@@ -3738,11 +3782,11 @@ def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(tmp_path, monk
     git("add", ".")
     git("commit", "-m", "frozen product ancestor")
     payload = git("rev-parse", "HEAD")
-    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PREVIOUS", previous)
-    monkeypatch.setattr(upgrade, "ETF_WEEKLY_ADMISSION_PAYLOAD", payload)
+    monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     monkeypatch.setattr(
         upgrade,
-        "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256",
+        prefix + "_EVIDENCE_SHA256",
         hashlib.sha256(b"reviewed evidence").hexdigest(),
     )
     (tmp_path / upgrade.MODULE).write_text("reviewed successor")
@@ -3766,7 +3810,7 @@ def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(tmp_path, monk
     git("commit", "-m", "regenerate two exact docs")
     target = git("rev-parse", "HEAD")
     if case in {"both", "index", "atlas"}:
-        result = upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+        result = upgrade.review(tmp_path, target, profile)
         assert product in result and git("rev-parse", f"{payload}:{product}") == result[product]
         assert all(
             name in result
@@ -3776,4 +3820,458 @@ def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(tmp_path, monk
         )
     else:
         with pytest.raises(upgrade.UpdateBlocked):
-            upgrade.review(tmp_path, target, upgrade.ETF_WEEKLY_ADMISSION_MODE)
+            upgrade.review(tmp_path, target, profile)
+
+
+@pytest.fixture
+def weekly_primary_protocol(weekly_bridge, monkeypatch):
+    """Real LegacyBinding and gateway verifier; isolate only Git/Native/HTTP transport."""
+    from app.research_web import service_manager
+    from app.research_web.multiuser import resident_binding
+
+    f = weekly_bridge
+    project = f.home / "primary"
+    project.mkdir(mode=0o700)
+    (f.home / "server/users").mkdir(mode=0o700)
+    revision = upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS
+    config = {"project": str(project), "node": "/node", "web_port": 8088, "runtime_port": 3081}
+    upgrade.c.atomic(f.home / "resident/config.json", config)
+    upgrade.c.atomic(
+        f.home / "install/manifest.json", {"status": "installed", "code_commit": revision}
+    )
+    upgrade.c.atomic(
+        f.home / "server/resident.json", {"binding": {"primary_user_id": f.row["owner_id"]}}
+    )
+    upgrade.c.atomic(f.root / "index.json", {"automation_runs": {}})
+    events = []
+    control = {"native": [], "other_active": False, "active_override": "catalog", "owned": True}
+
+    def get(port, path):
+        assert port == 8088
+        events.append(path)
+        if path.endswith("/runtime"):
+            return {
+                "connected": True,
+                "owned_runtime": control["owned"],
+                "health_check_passed": True,
+            }
+        row = json.loads(f.index.read_text())["runs"][f.rid]
+        active = row["status"] == "needs_attention" or control["other_active"]
+        if control["active_override"] != "catalog":
+            active = control["active_override"]
+        return {"enabled": True, "revision": revision, "active": active}
+
+    class Manager:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+        def status(self):
+            return {
+                "services": {
+                    role: {"ready": True, "running": True, "healthy": True}
+                    for role in ("web", "runtime")
+                }
+            }
+
+        def _service_probes(self):
+            return [SimpleNamespace(role="runtime")]
+
+        def _active_research_read_only(self, probe):
+            events.append("native")
+            return control["native"]
+
+    monkeypatch.setattr(service_manager, "WebServiceManager", Manager)
+    monkeypatch.setattr(resident_binding, "get_json", get)
+    monkeypatch.setattr(resident_binding.subprocess, "check_output", lambda *_a, **_k: revision)
+    monkeypatch.setattr(upgrade.g, "configured", lambda _home: (f.home / "resident", config))
+    monkeypatch.setattr(upgrade.g, "clean", lambda *_: None)
+    f.state.update(primary_project=str(project), target="b" * 40, config=config)
+    monkeypatch.setattr(upgrade.g, "no_private_processes", lambda *_: None)
+    monkeypatch.setattr(
+        upgrade,
+        "request_json",
+        lambda url: (
+            json.loads(f.index.read_text())["runs"][f.rid]
+            if "/report-runs/" in url
+            else (
+                {"inflight": []} if url.endswith("/market") else get(8088, "/api/research/resident")
+            )
+        ),
+    )
+    return f, control, events, Manager(**config)
+
+
+def test_weekly_primary_v2_real_verifier_order(weekly_primary_protocol):
+    f, _control, _events, manager = weekly_primary_protocol
+    # Actual v1 chain is RED: aggregate legacy waiting blocks before any bridge.
+    before = f.index.read_bytes()
+    with pytest.raises(MaintenanceBusy, match="research_active_or_unknown"):
+        upgrade.verify_primary(
+            f.home, upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS, upgrade.ETF_WEEKLY_ADMISSION_MODE
+        )
+    assert f.index.read_bytes() == before
+    assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+    upgrade.weekly_primary_identity_precheck(f.home, upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    bridge(f)
+    upgrade.verify_primary(
+        f.home, upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS, "reviewed-etf-weekly-admission-v2"
+    )
+    ops = upgrade.Operations(f.home, f.state, manager, None, None)
+    assert ops.idle() is True
+    assert json.loads(f.index.read_text())["runs"][f.rid]["research_submission_state"] == "unknown"
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["active_missing", "active_string", "native_active", "native_unknown", "owned", "automation"],
+)
+def test_weekly_primary_v2_identity_rejects_before_bridge(weekly_primary_protocol, case):
+    f, control, _events, _manager = weekly_primary_protocol
+    if case == "active_missing":
+        control["active_override"] = None
+    elif case == "active_string":
+        control["active_override"] = "false"
+    elif case == "native_active":
+        control["native"] = ["busy"]
+    elif case == "native_unknown":
+        control["native"] = None
+    elif case == "owned":
+        control["owned"] = False
+    else:
+        upgrade.c.atomic(
+            f.root / "index.json", {"automation_runs": {"x": {"research_status": "running"}}}
+        )
+    before = f.index.read_bytes()
+    from app.research_web.multiuser.runtime import RuntimeErrorSafe
+
+    with pytest.raises((MaintenanceBusy, RuntimeErrorSafe)):
+        upgrade.weekly_primary_identity_precheck(f.home, upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    assert f.index.read_bytes() == before
+    assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+
+
+@pytest.fixture
+def weekly_operate_protocol(weekly_primary_protocol, monkeypatch):
+    """Exercise actual operate order through first idle; no stop/start execution."""
+    import zipfile
+
+    from app.research_web.multiuser import resident_binding
+
+    f, control, events, _manager = weekly_primary_protocol
+    root = f.home / "resident"
+    primary = Path(f.state["primary_project"])
+    target = "b" * 40
+    config = {
+        **f.state["config"],
+        "artifact": str(root / "controller.pyz"),
+        "artifact_sha256": upgrade.CONTROLLER_SHA256,
+        "private_origin": "https://fixture.tail.ts.net",
+        "source_common": str(f.home / "common"),
+        "repository": "fixture/repo",
+        "gh": "/gh",
+    }
+    upgrade.c.atomic(root / "config.json", config)
+    upgrade.c.atomic(root / "accepted.json", {"target": upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS})
+    upgrade.c.atomic(root / "candidate.json", {})
+    gateway = {
+        "project": str(primary),
+        "revision": upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
+        "binding": {"primary_user_id": f.row["owner_id"]},
+    }
+    upgrade.c.atomic(f.home / "server/resident.json", gateway)
+    with zipfile.ZipFile(root / "controller.pyz", "w") as archive:
+        archive.writestr("resident/controller.py", b"reviewed-fixture")
+    monkeypatch.setattr(
+        upgrade, "CONTROLLER_MODULE_SHA256", hashlib.sha256(b"reviewed-fixture").hexdigest()
+    )
+    monkeypatch.setattr(upgrade.c, "digest", lambda _path: upgrade.CONTROLLER_SHA256)
+    monkeypatch.setattr(upgrade.c, "configured", lambda *_: (root, config))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_: None)
+    monkeypatch.setattr(upgrade.sys, "platform", "darwin")
+    monkeypatch.setattr(upgrade.sys, "prefix", str(primary / ".venv"))
+    monkeypatch.setattr(upgrade, "validate_executor", lambda *_: events.append("executor"))
+    monkeypatch.setattr(upgrade, "review", lambda *_: events.append("source") or {})
+    monkeypatch.setattr(upgrade, "verify_serve", lambda *_: None)
+    monkeypatch.setattr(upgrade, "verify_retention", lambda *_: None)
+    monkeypatch.setattr(upgrade, "verify_supervisor", lambda *_: "fixture")
+    monkeypatch.setattr(upgrade, "repository_identity", lambda *_: {})
+    monkeypatch.setattr(upgrade, "install_recovery", lambda *_: {})
+    monkeypatch.setattr(upgrade, "validate_state", lambda *_a, **_k: events.append("recovery"))
+    monkeypatch.setattr(upgrade, "model_metadata", lambda *_: {})
+    monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
+    monkeypatch.setattr(upgrade.c, "build_wheel", lambda *_: {})
+
+    def git(project, *args):
+        if args[:2] == ("rev-parse", "HEAD"):
+            return target
+        if args[0] == "rev-parse":
+            return config["source_common"]
+        return ""
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+
+    class Evidence:
+        def __init__(self, *_):
+            pass
+
+        def latest(self):
+            return target
+
+        def qualify(self, sha):
+            events.append("ci")
+            return {"qualified": True}
+
+    monkeypatch.setattr(upgrade, "GitHubEvidence", Evidence)
+    monkeypatch.setattr(upgrade.Path, "home", classmethod(lambda cls: f.home))
+    plist = f.home / "Library/LaunchAgents" / (upgrade.g.LABEL + ".plist")
+    plist.parent.mkdir(parents=True)
+    argv = [
+        str(primary / ".venv/bin/python"),
+        "-m",
+        "app.research_web.multiuser.resident",
+        "--root",
+        str(f.home / "server"),
+    ]
+    plist.write_bytes(
+        plistlib.dumps(
+            {"ProgramArguments": argv, "WorkingDirectory": str(primary), "Label": upgrade.g.LABEL}
+        )
+    )
+    monkeypatch.setattr(upgrade.g, "job_pid", lambda: 123)
+    monkeypatch.setattr(upgrade.g, "process", lambda _: "a b c d e " + " ".join(argv))
+    monkeypatch.setattr(upgrade.g, "listener_pids", lambda: {123})
+    monkeypatch.setattr(upgrade.g, "native_image", lambda _: Path("/fixture"))
+    monkeypatch.setattr(upgrade.g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(upgrade.g, "no_children", lambda _: None)
+    # Keep real LegacyBinding.verify and g.verify_primary entirely intact.
+    real_get = resident_binding.get_json
+
+    def get(port, path):
+        result = real_get(port, path)
+        if path.endswith("/resident"):
+            events.append("host-waiting" if result["active"] else "host-idle")
+        return result
+
+    monkeypatch.setattr(resident_binding, "get_json", get)
+
+    def stop_at_fence(self, state):
+        events.append("fence-would-start")
+        raise SystemExit("observed-idle-no-service-effects")
+
+    monkeypatch.setattr(upgrade.Operations, "prepare_fence", stop_at_fence)
+    return f, control, events
+
+
+@pytest.mark.parametrize(
+    "mode", ["reviewed-etf-weekly-admission-v1", "reviewed-etf-weekly-admission-v2"]
+)
+@pytest.mark.parametrize("other_active", [False, True])
+def test_weekly_primary_v2_actual_operate_order(weekly_operate_protocol, mode, other_active):
+    f, control, events = weekly_operate_protocol
+    control["other_active"] = other_active
+    before = f.index.read_bytes()
+    kwargs = {"mode": mode, "end_weekly_waiting": True, "weekly_monitoring_action": f.path}
+    if mode.endswith("v1") or other_active:
+        with pytest.raises(MaintenanceBusy):
+            upgrade.operate(f.home, f.home / "source", **kwargs)
+    else:
+        with pytest.raises(SystemExit, match="observed-idle-no-service-effects"):
+            upgrade.operate(f.home, f.home / "source", **kwargs)
+    if mode.endswith("v1"):
+        assert f.index.read_bytes() == before
+        assert "recovery" not in events
+        assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+    else:
+        assert json.loads(f.index.read_text())["runs"][f.rid]["status"] == "cancelled"
+        assert "recovery" in events
+        if not other_active:
+            assert (
+                events.index("host-waiting")
+                < events.index("recovery")
+                < events.index("host-idle")
+                < events.index("fence-would-start")
+            )
+    assert ("fence-would-start" in events) is (mode.endswith("v2") and not other_active)
+    assert not (f.home / "resident/transaction.json").exists()
+    assert not (f.home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "owner",
+        "version",
+        "project_symlink",
+        "git_revision",
+        "runtime_owner",
+        "service",
+        "config_port",
+    ],
+)
+def test_weekly_primary_v2_identity_matches_real_gateway_negative(
+    weekly_primary_protocol, monkeypatch, case
+):
+    from app.research_web import service_manager
+    from app.research_web.multiuser import resident_binding
+    from app.research_web.multiuser.runtime import RuntimeErrorSafe
+
+    f, control, _events, _manager = weekly_primary_protocol
+    if case == "owner":
+        upgrade.c.atomic(
+            f.home / "server/resident.json", {"binding": {"primary_user_id": "invalid"}}
+        )
+    elif case == "version":
+        upgrade.c.atomic(f.home / "install/manifest.json", {"status": "failed", "code_commit": "x"})
+    elif case == "project_symlink":
+        project = Path(f.state["primary_project"])
+        project.rename(project.with_name("moved"))
+        project.symlink_to(project.with_name("moved"), target_is_directory=True)
+    elif case == "git_revision":
+        monkeypatch.setattr(resident_binding.subprocess, "check_output", lambda *_a, **_k: "x" * 40)
+    elif case == "runtime_owner":
+        control["owned"] = False
+    elif case == "service":
+        monkeypatch.setattr(
+            service_manager.WebServiceManager,
+            "status",
+            lambda _: {
+                "services": {"web": {"running": False}, "runtime": {"running": True, "ready": True}}
+            },
+        )
+    else:
+        config_path = f.home / "resident/config.json"
+        value = json.loads(config_path.read_text())
+        value["runtime_port"] = 0
+        upgrade.c.atomic(config_path, value)
+        # Strict expected original service transport rejects the changed port.
+        monkeypatch.setattr(
+            service_manager.WebServiceManager,
+            "status",
+            lambda self: {
+                "services": {
+                    role: {"running": self.runtime_port == 3081, "ready": True}
+                    for role in ("web", "runtime")
+                }
+            },
+        )
+    before = f.index.read_bytes()
+    for check in (
+        upgrade.weekly_primary_identity_precheck,
+        lambda h, s: upgrade.verify_primary(h, s, upgrade.ETF_WEEKLY_ADMISSION_MODE),
+    ):
+        with pytest.raises(RuntimeErrorSafe, match="legacy_instance_unverified"):
+            check(f.home, upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    assert f.index.read_bytes() == before
+    assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+
+
+@pytest.mark.parametrize("command", ["apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"])
+@pytest.mark.parametrize(
+    "flags", [[], ["--end-weekly-waiting"], ["--weekly-monitoring-action", "action.json"]]
+)
+def test_weekly_primary_v2_requires_paired_flags(tmp_path, monkeypatch, command, flags):
+    monkeypatch.setattr(upgrade, "operate", lambda *_a, **_k: pytest.fail("operate reached"))
+    assert upgrade.main([command, "--home", str(tmp_path), *flags]) == 1
+
+
+def test_weekly_primary_v2_profile_keeps_previous_immutable():
+    assert upgrade.ETF_WEEKLY_ADMISSION_V2_MODE == "reviewed-etf-weekly-admission-v2"
+    assert (
+        upgrade.previous_for(upgrade.ETF_WEEKLY_ADMISSION_V2_MODE)
+        == "36fd990ceed88d2fc595443926105c4b2601fbf6"
+    )
+    assert upgrade.ETF_WEEKLY_ADMISSION_V2_PAYLOAD == "d0e83e438e42e74f606bbd6645ad326db6c5b8a2"
+    assert upgrade.ETF_WEEKLY_ADMISSION_PAYLOAD == "bacb423cea203ba0469b5c7f21bfd581408b03ef"
+    assert upgrade.ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256 == upgrade.ASSET_V9_WEB_LOCK_SHA256
+    assert upgrade.ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256 == upgrade.ASSET_V9_EVIDENCE_SHA256
+
+
+@pytest.mark.parametrize("value", [None, False, 0, "", {}, (), "idle", ["active"]])
+@pytest.mark.parametrize("boundary", ["before", "after"])
+def test_weekly_primary_v2_native_unknown_at_each_boundary(
+    weekly_operate_protocol, monkeypatch, value, boundary
+):
+    f, control, events = weekly_operate_protocol
+    original_get = upgrade.request_json
+    if boundary == "before":
+        control["native"] = value
+    else:
+
+        def get(url):
+            result = original_get(url)
+            if "/report-runs/" in url:
+                control["native"] = value
+            return result
+
+        monkeypatch.setattr(upgrade, "request_json", get)
+    before = f.index.read_bytes()
+    with pytest.raises(MaintenanceBusy, match="research_active_or_unknown"):
+        upgrade.operate(
+            f.home,
+            f.home / "source",
+            mode=upgrade.ETF_WEEKLY_ADMISSION_V2_MODE,
+            end_weekly_waiting=True,
+            weekly_monitoring_action=f.path,
+        )
+    assert "fence-would-start" not in events
+    assert not (f.home / "resident/transaction.json").exists()
+    assert not (f.home / "server/run/gateway-upgrade.json").exists()
+    if boundary == "before":
+        assert f.index.read_bytes() == before
+        assert not (f.home / "server/run/weekly-monitoring-intent.json").exists()
+    else:
+        assert json.loads(f.index.read_text())["runs"][f.rid]["status"] == "cancelled"
+        assert (f.home / "server/run/weekly-monitoring-receipt.json").exists()
+
+
+@pytest.mark.parametrize("value", [None, "false", 0, {}, [], True])
+def test_weekly_primary_v2_host_changes_after_bridge_never_switches(
+    weekly_operate_protocol, monkeypatch, value
+):
+    f, control, events = weekly_operate_protocol
+    original_get = upgrade.request_json
+
+    def get(url):
+        result = original_get(url)
+        if "/report-runs/" in url:
+            control["active_override"] = value
+        return result
+
+    monkeypatch.setattr(upgrade, "request_json", get)
+    with pytest.raises(MaintenanceBusy, match="research_active_or_unknown"):
+        upgrade.operate(
+            f.home,
+            f.home / "source",
+            mode=upgrade.ETF_WEEKLY_ADMISSION_V2_MODE,
+            end_weekly_waiting=True,
+            weekly_monitoring_action=f.path,
+        )
+    assert "fence-would-start" not in events
+    assert json.loads(f.index.read_text())["runs"][f.rid]["research_submission_state"] == "unknown"
+    assert (f.home / "server/run/weekly-monitoring-receipt.json").exists()
+    assert not (f.home / "resident/transaction.json").exists()
+
+
+@pytest.mark.parametrize("value", [None, "false", 0, {}, []])
+def test_weekly_primary_v2_unknown_host_before_bridge_zero_write(weekly_operate_protocol, value):
+    f, control, events = weekly_operate_protocol
+    control["active_override"] = value
+    before = f.index.read_bytes()
+    with pytest.raises(MaintenanceBusy, match="research_active_or_unknown"):
+        upgrade.operate(
+            f.home,
+            f.home / "source",
+            mode=upgrade.ETF_WEEKLY_ADMISSION_V2_MODE,
+            end_weekly_waiting=True,
+            weekly_monitoring_action=f.path,
+        )
+    assert f.index.read_bytes() == before
+    assert "recovery" not in events
+    assert "fence-would-start" not in events
+    for name in (
+        "weekly-monitoring-intent.json",
+        "weekly-monitoring-receipt.json",
+        "gateway-upgrade.json",
+    ):
+        assert not (f.home / "server/run" / name).exists()
+    assert not (f.home / "resident/transaction.json").exists()

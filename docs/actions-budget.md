@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+PR232的7c7015b5单job从18:59:09Z至19:29:26Z因达到30m0s被GitHub取消，annotation明确maximum execution time；head未更新，非并发替换。取消前仍在产生capability校验进度，无完整pytest汇总，不能标PASS或推断所有测试无失败。保留原全套Python/JS/Native测试与相同单一ubuntu-latest job、permissions和concurrency，预算明确从30增加至40分钟（有界增加10分钟），同步项目workflow约束；不新增job/runner、不rerun旧候选或删除/跳过用例。当前仓库PUBLIC标准runner；新提交与完整payload重新固定、独评及同候选原三CI/Mac证据仍必需，旧绿不复用。
+
+真实Primary门顺序v2仍扩展原操作员测试矩阵，不新增job/runner/依赖或超时。实际b0e安全deferred后增加真实g.verify_primary/LegacyBinding参与的operate回归，身份与最终活动门均保留；新增预算预留原步骤90秒，最终本机/原三CI及同候选Mac安装分别记录。新head正常自动CI，不rerun旧候选，不从Mac派发Windows/Linux产品，正式剩余窗口1336秒不由源码任务重置。
+
 PR231首候选a555的Checks真实3failed/6232passed/72skipped/117subtests，Python1426.47秒；完整job9.76MB留档，不是截断或日志容量失败。修复仅升级原历史模块夹具，不新增CI步骤/job/依赖或改超时；本机历史/quality/admission三模块100passed102.15秒，原3节点独立复跑约12秒。新commit自动重跑原三CI，禁止rerun旧候选；P8会完整纳入修复测试后固定，实际供应商/模型不进入CI。
 
 本轮华安Native后继只扩展原test_model_provider_upgrade.py矩阵，不新增job、runner、依赖或超时；完整矩阵基线2285项116.85秒，修复后定点另列，不混称同一运行。增量预留原步骤90秒；与提交/等待领域原240秒预算分别记录。原三CI及同候选Mac安装、完整日志/checkout/tree门保留，统一窗口不启动模型/跟踪，他平台产品dispatch不由Mac发送。

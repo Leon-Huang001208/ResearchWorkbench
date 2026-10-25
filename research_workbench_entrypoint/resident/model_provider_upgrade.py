@@ -138,6 +138,11 @@ ETF_WEEKLY_ADMISSION_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
 ETF_WEEKLY_ADMISSION_PAYLOAD = "bacb423cea203ba0469b5c7f21bfd581408b03ef"
 ETF_WEEKLY_ADMISSION_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
+ETF_WEEKLY_ADMISSION_V2_MODE = "reviewed-etf-weekly-admission-v2"
+ETF_WEEKLY_ADMISSION_V2_PREVIOUS = "36fd990ceed88d2fc595443926105c4b2601fbf6"
+ETF_WEEKLY_ADMISSION_V2_PAYLOAD = "d0e83e438e42e74f606bbd6645ad326db6c5b8a2"
+ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 WEEKLY_ACTION_SHA256 = "7cbd0ba4d25c496fe6367c59e2487659e878de0b8b86de5d4b4ac014157ec5af"
 WEEKLY_OPERATION_ID = "etf-legacy-monitoring-20261024"
 # Historical family name: all these profiles require full business-index preservation.
@@ -167,6 +172,7 @@ ASSET_MODES = frozenset(
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
         ETF_WEEKLY_ADMISSION_MODE,
+        ETF_WEEKLY_ADMISSION_V2_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -275,6 +281,8 @@ def previous_for(mode):
         return ETF_WEEKLY_V2_PREVIOUS
     if mode == ETF_WEEKLY_ADMISSION_MODE:
         return ETF_WEEKLY_ADMISSION_PREVIOUS
+    if mode == ETF_WEEKLY_ADMISSION_V2_MODE:
+        return ETF_WEEKLY_ADMISSION_V2_PREVIOUS
     if mode == ETF_HISTORICAL_MODE:
         return ETF_HISTORICAL_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
@@ -442,9 +450,50 @@ def verify_primary(home, expected, mode):
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
         ETF_WEEKLY_ADMISSION_MODE,
+        ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
+
+
+def weekly_primary_identity_precheck(home, expected):
+    """V2 only: original primary identity, explicit activity observation, Native idle.
+
+    Host active=True is observed, never certified idle. The sealed bridge may
+    end its approved legacy control wait; the original full verifier must still
+    pass afterwards. Keep every non-Host-activity check from g.verify_primary.
+    """
+    from app.research_web.multiuser.resident_binding import LegacyBinding
+    from app.research_web.service_manager import WebServiceManager
+
+    _, config = g.configured(home)
+    g.clean(Path(config["project"]), expected)
+    server = read_json(home / "server/resident.json")
+    binding = LegacyBinding.discover(home, server["binding"]["primary_user_id"])
+    state = binding.verify()
+    manager = WebServiceManager(
+        project_root=binding.project,
+        data_root=binding.data_root,
+        python=str(binding.project / ".venv/bin/python"),
+        node=config["node"],
+        web_port=binding.web_port,
+        runtime_port=binding.runtime_port,
+    )
+    probes = [probe for probe in manager._service_probes() if probe.role == "runtime"]
+    native = manager._active_research_read_only(probes[0]) if len(probes) == 1 else None
+    if type(state.get("active")) is not bool or type(native) is not list or native:
+        raise MaintenanceBusy("research_active_or_unknown")
+    index = read_business_index(binding.data_root / "index.json")
+    rows = index.get("automation_runs", {})
+    if not isinstance(rows, dict) or any(
+        not isinstance(row, dict) or row.get("research_status") in {"queued", "running"}
+        for row in rows.values()
+    ):
+        raise MaintenanceBusy("research_active_or_unknown")
+    log.info(
+        "weekly_primary_identity_verified host_active=%s idle_certified=false", state["active"]
+    )
+    return state
 
 
 def asset_index_snapshot(home: Path):
@@ -536,6 +585,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
         ETF_HISTORICAL_MODE: ETF_HISTORICAL_PAYLOAD,
         ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_PAYLOAD,
+        ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -560,8 +610,15 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
+                    ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256,
                 }[mode]
-                if mode in {ASSET_V9_MODE, MARKET_PREVIEW_MODE, ETF_WEEKLY_ADMISSION_MODE}
+                if mode
+                in {
+                    ASSET_V9_MODE,
+                    MARKET_PREVIEW_MODE,
+                    ETF_WEEKLY_ADMISSION_MODE,
+                    ETF_WEEKLY_ADMISSION_V2_MODE,
+                }
                 else (
                     MARKET_TERMINAL_EVIDENCE_SHA256
                     if mode == MARKET_TERMINAL_MODE
@@ -583,6 +640,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                                 ETF_WEEKLY_V2_MODE,
                                 ETF_HISTORICAL_MODE,
                                 ETF_WEEKLY_ADMISSION_MODE,
+                                ETF_WEEKLY_ADMISSION_V2_MODE,
                             }
                             else ASSET_EVIDENCE_SHA256
                         )
@@ -597,14 +655,14 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 != MARKET_GATEWAY_SHA256
             ):
                 raise UpdateBlocked("market_upgrade_gateway_changed")
-        elif mode == ETF_WEEKLY_ADMISSION_MODE and name in {
+        elif mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE} and name in {
             "outputs/research-web-architecture/index.html",
             "outputs/research-web-architecture/api-atlas.html",
         }:
             if actual_mode != "100644":
                 raise UpdateBlocked("asset_upgrade_payload_changed")
         elif (
-            mode == ETF_WEEKLY_ADMISSION_MODE
+            mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
             and name not in {MODULE, TEST}
             and not name.startswith(("docs/", ".ai/reports/"))
         ):
@@ -1029,6 +1087,7 @@ def validate_state(home, state, *, executor_source=None):
             ETF_WEEKLY_V2_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
+            ETF_WEEKLY_ADMISSION_V2_MODE,
         }:
             expected_manifest["source"] = state["source"]
         if manifest != expected_manifest or z.read("__main__.py").decode() != ENTRY:
@@ -1122,6 +1181,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
     if state.get("mode") == ETF_WEEKLY_ADMISSION_MODE:
         manifest["web_lock_sha256"] = ETF_WEEKLY_ADMISSION_WEB_LOCK_SHA256
+    elif state.get("mode") == ETF_WEEKLY_ADMISSION_V2_MODE:
+        manifest["web_lock_sha256"] = ETF_WEEKLY_ADMISSION_V2_WEB_LOCK_SHA256
     return manifest
 
 
@@ -1175,6 +1236,7 @@ class Operations:
             MARKET_PREVIEW_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
+            ETF_WEEKLY_ADMISSION_V2_MODE,
         } and not discovery_background_idle(self.home):
             log.warning("discovery_deploy_background_not_quiet")
             return False
@@ -1231,6 +1293,7 @@ class Operations:
             ETF_WEEKLY_V2_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
+            ETF_WEEKLY_ADMISSION_V2_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1838,12 +1901,12 @@ def operate(
     weekly_monitoring_action=None,
 ):
     if (end_weekly_waiting or weekly_monitoring_action is not None) and (
-        recovering or mode != ETF_WEEKLY_ADMISSION_MODE
+        recovering or mode not in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
     ):
         raise UpdateBlocked("weekly_monitoring_flags_forbidden")
     if (
         not recovering
-        and mode == ETF_WEEKLY_ADMISSION_MODE
+        and mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
         and (end_weekly_waiting is not True or weekly_monitoring_action is None)
     ):
         raise UpdateBlocked("weekly_monitoring_authorization_required")
@@ -1930,7 +1993,10 @@ def operate(
                 or read_json(root / "accepted.json").get("target") != previous
             ):
                 raise UpdateBlocked("model_upgrade_previous_changed")
-            verify_primary(home, previous, state["mode"] if recovering else mode)
+            if mode == ETF_WEEKLY_ADMISSION_V2_MODE:
+                weekly_primary_identity_precheck(home, previous)
+            else:
+                verify_primary(home, previous, mode)
             g.no_private_processes(server)
             directory = root / "artifacts" / target
             g.private_root(directory)
@@ -2013,7 +2079,7 @@ def operate(
             web_port=config["web_port"],
             runtime_port=config["runtime_port"],
         )
-        if state["mode"] == ETF_WEEKLY_ADMISSION_MODE:
+        if state["mode"] in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}:
             try:
                 weekly_monitoring_bridge(
                     home, state, manager, weekly_monitoring_action, recovering=recovering
@@ -2029,6 +2095,16 @@ def operate(
                     "status": "recovery_required" if recovering else "deferred",
                     "reason": "weekly_monitoring_unverified",
                 }
+        if not recovering and state["mode"] == ETF_WEEKLY_ADMISSION_V2_MODE:
+            # Refresh completed with catalog locks released; the original full
+            # verifier now proves Host and Native idle before any service fence.
+            verify_primary(home, previous, state["mode"])
+            # The historical verifier uses truthiness for Native activity. V2
+            # additionally requires a fresh explicit empty list and Host false;
+            # neither an unknown falsey value nor a new Host activity is idle.
+            observed = weekly_primary_identity_precheck(home, previous)
+            if observed.get("active") is not False:
+                raise MaintenanceBusy("research_active_or_unknown")
         # In the gateway-only crash window a local primary caller could have
         # started work before a durable primary journal existed. Do not create
         # that journal or reservations until this real activity check is idle.
@@ -2088,6 +2164,7 @@ def main(argv=None):
             "apply-etf-weekly-v2",
             "apply-etf-historical",
             "apply-etf-weekly-admission",
+            "apply-etf-weekly-admission-v2",
             "recover",
         ),
     )
@@ -2100,9 +2177,9 @@ def main(argv=None):
     try:
         if (
             args.end_weekly_waiting or args.weekly_monitoring_action is not None
-        ) and args.command != "apply-etf-weekly-admission":
+        ) and args.command not in {"apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"}:
             raise UpdateBlocked("weekly_monitoring_flags_forbidden")
-        if args.command == "apply-etf-weekly-admission" and (
+        if args.command in {"apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"} and (
             not args.end_weekly_waiting or args.weekly_monitoring_action is None
         ):
             raise UpdateBlocked("weekly_monitoring_authorization_required")
@@ -2133,13 +2210,14 @@ def main(argv=None):
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
                 "apply-etf-historical": ETF_HISTORICAL_MODE,
                 "apply-etf-weekly-admission": ETF_WEEKLY_ADMISSION_MODE,
+                "apply-etf-weekly-admission-v2": ETF_WEEKLY_ADMISSION_V2_MODE,
             }.get(args.command, MODE),
             **(
                 {
                     "end_weekly_waiting": True,
                     "weekly_monitoring_action": args.weekly_monitoring_action,
                 }
-                if args.command == "apply-etf-weekly-admission"
+                if args.command in {"apply-etf-weekly-admission", "apply-etf-weekly-admission-v2"}
                 else {}
             ),
         )
