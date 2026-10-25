@@ -278,7 +278,7 @@ test('range window cancellation, Esc and disposal still own their cleanup indepe
  c.handle({type:'keydown',key:'Escape',preventDefault(){},stopImmediatePropagation(){}});assert.equal(layer.hidden,true);assert.equal(card.hidden,true);
  begin();c.dispose();assert.equal(layer.hidden,true);assert.equal(card.hidden,true);assert.ok([...f.windowHandlers.values()].every(list=>list.length===0));
 });
-test('native indicator dialog receives Esc before range capture and native cancel leaves committed range intact',()=>{
+test('owned indicator dialog Esc closes before root catchall while preserving committed range',()=>{
  const f=mountedChart(),c=createAssetChartController({logger:()=>{}});
  const dialog={open:false,innerHTML:'',querySelector:()=>null,showModal(){this.open=true;},close(){this.open=false;},addEventListener(){},removeEventListener(){}};
  f.nodes.set('[data-asset-indicator-manager]',dialog);
@@ -286,16 +286,35 @@ test('native indicator dialog receives Esc before range capture and native cance
  const click=action=>({type:'click',target:{closest:s=>s==='[data-asset-chart-action]'?{dataset:{assetChartAction:action}}:null}});
  c.handle(click('range-open'));c.handle(click('indicator-manager'));assert.equal(dialog.open,true);
  const card=f.nodes.get('[data-asset-range-card]');const markup=card.innerHTML;
- const modalTarget={closest:s=>s==='dialog[open], [aria-modal="true"]'&&dialog.open?dialog:null};f.host.ownerDocument.activeElement=modalTarget;
- const escape={type:'keydown',key:'Escape',target:modalTarget,preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;}};
+ const modalTarget={closest:s=>['dialog[open], [aria-modal="true"]','[data-asset-indicator-manager], [data-asset-indicator-parameter-dialog]'].includes(s)&&dialog.open?dialog:null};f.host.ownerDocument.activeElement=modalTarget;
+ const escape={type:'keydown',key:'Escape',target:modalTarget,preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;},stopImmediatePropagation(){this.stopped=true;}};
  f.windowHandlers.get('keydown')[0].handler(escape);
- // The event then bubbles through the chart slot before the browser's native cancel default.
- c.handle(escape);assert.equal(escape.defaultPrevented,undefined);assert.equal(escape.stopped,undefined);
- c.handle({type:'cancel',target:{matches:s=>s==='[data-asset-indicator-manager]'},preventDefault(){}});
+ // Match app.mjs: the slot must stop this before the root's unconditional
+ // Escape preventDefault/render; otherwise native dialog cancel never runs.
+ f.handlers.get('keydown').find(item=>item.options!==true).handler(escape);let rootCalls=0;
+ if(!escape.stopped){rootCalls++;escape.preventDefault();}
+ assert.equal(rootCalls,0);assert.equal(escape.defaultPrevented,true);assert.equal(escape.stopped,true);
  assert.equal(dialog.open,false);assert.equal(card.hidden,false);assert.equal(card.innerHTML,markup);
  f.host.ownerDocument.activeElement=null;
  const plain={type:'keydown',key:'Escape',target:{closest:()=>null},preventDefault(){},stopImmediatePropagation(){}};
  f.windowHandlers.get('keydown')[0].handler(plain);assert.equal(card.hidden,true);c.dispose();
+});
+test('parameter dialog Esc closes only parameters and composing Esc keeps owned dialog open',()=>{
+ const f=mountedChart(),c=createAssetChartController({logger:()=>{}});
+ const make=()=>({open:false,innerHTML:'',querySelector:()=>null,showModal(){this.open=true;},close(){this.open=false;},addEventListener(){},removeEventListener(){}});
+ const manager=make(),parameters=make();f.nodes.set('[data-asset-indicator-manager]',manager);f.nodes.set('[data-asset-indicator-parameter-dialog]',parameters);
+ c.configure(daily,'parameter-escape',{frequency:'daily'});assert.equal(c.mount(f.host),true);
+ const click=action=>({type:'click',target:{closest:s=>s==='[data-asset-chart-action]'?{dataset:{assetChartAction:action}}:null}});
+ c.handle(click('range-open'));c.handle(click('indicator-manager'));c.handle(click('indicator-parameters-volume'));assert.equal(parameters.open,true);
+ const target={closest:s=>['dialog[open], [aria-modal="true"]','[data-asset-indicator-manager], [data-asset-indicator-parameter-dialog]'].includes(s)?parameters:null};f.host.ownerDocument.activeElement=target;
+ for(const isComposing of [true,false]){
+  const escape={type:'keydown',key:'Escape',isComposing,target,preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;}};
+  f.windowHandlers.get('keydown')[0].handler(escape);f.handlers.get('keydown').find(item=>item.options!==true).handler(escape);
+  let rootCalls=0;if(!escape.stopped){rootCalls++;escape.preventDefault();}
+  assert.equal(rootCalls,0);assert.equal(parameters.open,isComposing);assert.equal(manager.open,true);assert.equal(f.nodes.get('[data-asset-range-card]').hidden,false);
+  assert.equal(escape.defaultPrevented,isComposing?undefined:true);
+ }
+ c.dispose();
 });
 test('aria-modal drawer or modal-focused window Esc stays with its existing modal handler',()=>{
  const f=mountedChart(),c=createAssetChartController({logger:()=>{}});c.configure(daily,'drawer-escape',{frequency:'daily'});c.mount(f.host);
