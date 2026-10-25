@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+封闭V10只冻结已核实报价单位产品9142016和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
+
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
 
 华安admission-v2仅调整既有Mac Native事务内部的准入顺序：维护前真实实例身份/Native空列表/索引前提，封印桥接和旧GET后再完整真实Primary及Host活动门。v1和通用verify_primary保持，唯一DSH、原主实例/网关/三锁、保全恢复节点不变；不把旧Host active=true解释为空闲。

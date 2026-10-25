@@ -29,3 +29,9 @@
 ## 待完成
 
 完整Router与本地静态/相邻回归、独立最终SHA复核、原三CI/同候选macos-14干净安装；固定新产品SHA及b800前版的封闭部署profile与原完整idle/恢复/保全门；认证实页刷新新报价后，核对主读数/成交量副图/右侧同日同单位同值，以及红绿/月K/页签无回归。Windows/Linux原生验收不由Mac冒充。尚未部署本修复，不宣称收尾cleaned。
+
+## 封闭部署候选
+
+产品检查点9142016accd6994673abe15a8d418a494e9b0f1b已冻结。新增V10固定前版b800，不复用旧weekly admission mode、不运行旧维护动作；Source reader/hash/web锁沿V9，不重写旧常量。profile注册前最小测试以model_upgrade_profile_unknown真实失败；注册后目标32项通过，完整旧/新矩阵2758项全部通过，219.02秒（1项原Starlette弃用警告）；旧/新恢复、保全和失败拒绝均保留。来源/产品修复与操作员在同一普通祖先链，由最终组合自身重新验证、评审和CI。
+
+类型检查曾发现抽出cycle后的None-key问题，已用显式str分支保留SDK缺省/None原行为，mypy对Provider一文件实际通过；不是通过skip导入或改检查级别掩盖。
