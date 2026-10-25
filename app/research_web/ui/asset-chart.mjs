@@ -516,7 +516,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   function latest() { hidePointer(); return update({ ...initialRange(bars.length), selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, crosshairY: null, crosshairVisible: false }, 'reset', true); }
   function locate() { if (!bars.length) return false; const count = state.end - state.start; const start = clamp(state.activeIndex - Math.floor(count / 2), 0, bars.length - count); return update({ start, end: start + count }, 'locate', true); }
   function cancel() {
-    rangeController?.cancel(); dragging=false; gestureStartX=null;
+    dragging=false; gestureStartX=null;
     if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
     hidePointer(); if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
     if (slot) flush(); else needsFull = needsResize = false; return true;
