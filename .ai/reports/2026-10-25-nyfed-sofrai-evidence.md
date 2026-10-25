@@ -36,3 +36,9 @@ NYFed单独切nyfed-rates-native-v3；Treasury/WorldBank保留official-numeric-v
 源码6e294f4575d6d6efd2b896b18dd5f3b367652659，repair1独立预算一次HTTP、零SDK，5.628秒PASS。API2024-03-01六类各一条，SOFRAI一条含三个已发布均值与指数；不是六天数据，也没有自行重算180天均值。默认Host/ResearchWarehouse及_postgres factory，owned PG18.3只开Unix65478/TCP关闭/fsync开启；51468/51515/51525三独立进程，postmaster真实重启、新Host业务读回及第二空库默认factory恢复通过，后两阶段HTTP/SDK均0。378份source/helper及依赖、PG二进制前后不变；原件、rows/fields、持久metadata及冻结摘要一致。
 
 固定字段字典完整持久化；PIT/backtest两个false由原生读取路径重建，不冒称该两flag字节已进入持久化白名单。框架三字段没有入仓，也未参与授权。临时PG/HOME/Host均已回收。成功回执SHA420c13842b80c54d3fd6f4a57a408e5b0c5c87d4b9fb03e177fcf4e4cfee7298；原失败保持，两个实际阶段合计2次业务HTTP，不能把全轮写成只有一次请求。当前本机完整10组50.078秒PASS；最终集成SHA、独评和CI/Mac安装另行绑定。
+
+## PR237新后端组合验收
+
+原11198候选三CI和同候选Mac安装均通过，但主线PR237在等待期间修改了6份后端Python源码，故未沿用旧378文件实测认证新组合。正常merge后的0789c6e9b85a989ec6ec75eeb19dff16d93626c4在独立main237目录以新预算再次请求一次，4.966秒PASS；6类记录同一日期，默认Host/仓库factory、三进程、真实PG重启和第二空库恢复均通过，后两阶段HTTP/SDK0。新378份完整source/helper/依赖/PG map前后一致，回执c6d45bb5d7750d9a33ced076a179fd111f747f573f7805962e450aaa35ba3f9d。临时PG/HOME已回收。
+
+本轮三次独立实际阶段合计3次NYFed业务HTTP（第一次失败、repair1成功、main237新组合成功），不重置任何旧marker或结果。旧11198的CI、Mac及实测只保留其版本身份；最终候选重新绑定完整本机、独评及三CI/Mac门。source业务与PIT声明没有因主线变化放松。
