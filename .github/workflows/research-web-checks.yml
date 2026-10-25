@@ -169,6 +169,7 @@ jobs:
             tests/research_web/test_datahub_akshare_semantics.py \
             tests/research_web/test_datahub_baostock.py \
             tests/research_web/test_baostock_financial_integration.py \
+            tests/research_web/test_baostock_reference.py \
             tests/research_web/test_datahub_baostock_cashflow.py \
             tests/research_web/test_cashflow_warehouse_integration.py \
             tests/research_web/test_datahub_public_worker.py \

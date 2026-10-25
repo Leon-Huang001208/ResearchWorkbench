@@ -10,12 +10,70 @@ from types import SimpleNamespace
 import httpx
 import pandas as pd
 import pytest
-from test_ak_native_binding import macro_result, native_series, sina_query, sina_raw, sina_result
+from test_ak_native_binding import (
+    macro_query,
+    macro_result,
+    native_series,
+    sina_query,
+    sina_raw,
+    sina_result,
+)
 
 from app.research_web.datahub import providers_akshare as provider
 from app.research_web.datahub.contracts import BusinessQuery
 from app.research_web.datahub.research_snapshot_store import START, SnapshotSeries
 from app.research_web.market_store import InMemoryMarketStore, MarketStoreService
+
+
+@pytest.mark.parametrize("series,count", [("cpi", 6), ("pmi", 2), ("m2", 6)])
+def test_monthly_reference_units_are_field_scoped_and_not_pit(series, count):
+    result = macro_result(series)
+    dictionary = result.metadata["field_dictionary_evidence"]["reference_evidence"]
+    assert len(dictionary["ledger_sha256"]) == 64
+    assert dictionary["cross_source_equivalence"] == "unverified"
+    rates = [v for v in result.fields.values() if v["unit"] == "percent"]
+    assert len(rates) == count
+    assert all(v["currency"] is None for v in rates)
+    assert result.metadata["historical_point_in_time"] is False
+    assert result.metadata["formal_backtest_eligible"] is False
+    assert dictionary["historical_availability"] == "unverified"
+    assert dictionary["revision_vintage"] == "unavailable"
+    if series == "cpi":
+        assert dictionary["index_base"] == "unverified"
+        assert result.fields["NATIONAL_BASE"]["unit"] is None
+        assert result.fields["NATIONAL_ACCUMULATE"]["unit"] is None
+        assert dictionary["field_mapping"]["NATIONAL_ACCUMULATE"]["source_label"] == "累计"
+    elif series == "pmi":
+        assert result.fields["MAKE_INDEX"]["unit"] is None
+        assert result.fields["MAKE_INDEX"]["semantic"] == "index_level"
+        assert result.fields["MAKE_SAME"]["semantic"] == "year_over_year_change"
+        assert dictionary["percentage_point_change"] == "not_asserted"
+    else:
+        mapping = dictionary["field_mapping"]
+        assert mapping["BASIC_CURRENCY"]["monetary_aggregate"] == "M2"
+        assert mapping["CURRENCY"]["monetary_aggregate"] == "M1"
+        assert mapping["FREE_CASH"]["monetary_aggregate"] == "M0"
+        assert dictionary["cross_vintage_definition_equivalence"] == "unverified"
+        for field in ("BASIC_CURRENCY", "CURRENCY", "FREE_CASH"):
+            assert result.fields[field]["unit"] == "CNY_100million"
+            assert result.fields[field]["semantic"] == "month_end_stock"
+
+
+@pytest.mark.parametrize("series", ["cpi", "pmi", "m2"])
+def test_monthly_reference_tamper_rejected_and_previous_capture_kept(series):
+    store = native_series()
+    stamp = datetime(2026, 10, 25, tzinfo=UTC)
+    store._now = lambda: stamp
+    query = macro_query(series)
+    good = macro_result(series)
+    captured = store.ingest(query, good)
+    assert captured is not None
+    bad = copy.deepcopy(good)
+    bad.metadata["field_dictionary_evidence"]["reference_evidence"][
+        "historical_availability"
+    ] = "verified"
+    assert store.ingest(query, bad) is None
+    assert store.read(query.model_copy(update={"as_of": stamp})).rows == good.rows
 
 
 def test_gdp_reference_dictionary_units_and_price_bases():
