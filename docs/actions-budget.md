@@ -335,3 +335,5 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-25宏观/财务参考扩围只在原Checks Python步骤追加test_baostock_reference.py，原reference/native-binding测试扩展；无新job/runner/timeout/依赖或他平台产品dispatch，预留现有步骤15秒。本机、独评、原三CI及同候选Mac安装分别绑定；真实无账号请求不进入CI，正式部署未执行。远端前核对当前visibility/额度。
 
 2026-10-25市场广度仅扩展既有research_web_market JS通配符中的三项行为回归，不新增workflow/job/runner/依赖/timeout；既有步骤增量预留10秒。原通用门与同候选macos-14干净安装仍必需；PUBLIC状态发布前复查，不rerun旧候选，不派发他平台产品，不在CI调用上游或模型。
+
+2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
