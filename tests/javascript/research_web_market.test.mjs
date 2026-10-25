@@ -6,6 +6,37 @@ const data = (overrides = {}) => ({ sections: {}, market_state: { state: 'unknow
 const section = (rows = [], extra = {}) => ({ rows, provider: 'eastmoney', complete: true, pagination_complete: true, provider_total: rows.length, snapshot_id: 'snap1', as_of: '2026-10-22T03:00:00Z', retrieved_at: '2026-10-22T03:00:01Z', ...extra });
 const quote = { asset: '920001.BJ', code: '920001', name: '北交样本', exchange: 'BJ', price: 0, change_pct: null, amount: 0 };
 
+test('breadth orders decline-flat-advance and excludes other states from the quoted denominator', () => {
+  const html = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { down: 3, flat: 1, up: 6, unknown: 4, suspended: 2, unlisted: 1 } }) } }) });
+  const bar = html.match(/class="market-breadth-bar"[^>]*>(.*?)<\/div>/s)?.[1];
+  assert.ok(bar, 'reliable quoted counts produce a breadth bar');
+  assert.deepEqual([...bar.matchAll(/class="market-bg-([^"]+)"/g)].map(match => match[1]), ['down', 'flat', 'up']);
+  assert.deepEqual([...bar.matchAll(/width:([^%]+)%/g)].map(match => Number(match[1])), [30, 10, 60]);
+  assert.match(html, /有效报价 10 只/);
+  const other = html.match(/aria-label="其他证券状态"[^>]*>(.*?)<\/div><\/div>/s)?.[1];
+  assert.ok(other, 'nonquoted states stay visible in a separate group');
+  for (const label of ['缺报价', '停牌', '未上市']) assert.ok(other.includes(label), label);
+});
+
+test('missing auxiliary status counts do not suppress reliable quoted breadth', () => {
+  const html = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { down: 0, flat: 0, up: 1 } }) } }) });
+  const bar = html.match(/class="market-breadth-bar"[^>]*>(.*?)<\/div>/s)?.[1];
+  assert.ok(bar);
+  assert.deepEqual([...bar.matchAll(/width:([^%]+)%/g)].map(match => Number(match[1])), [0, 0, 100]);
+  assert.match(html, /有效报价 1 只/);
+});
+
+test('zero quoted breadth and absent quoted counts never manufacture a ratio', () => {
+  const zero = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { down: 0, flat: 0, up: 0, unknown: 7 } }) } }) });
+  assert.doesNotMatch(zero, /class="market-breadth-bar"/);
+  assert.match(zero, /有效报价 0 只/);
+  for (const flat of [null, -1]) {
+    const absent = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { down: 3, flat, up: 6, unknown: 0 } }) } }) });
+    assert.doesNotMatch(absent, /class="market-breadth-bar"/);
+    assert.match(absent, /有效报价家数.*暂不展示比例/);
+  }
+});
+
 test('overview separates confirmed limits, unknown coverage and previous amount gap', () => {
   const html = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { limit_up: 0, limit_down: 2, limit_unknown: 3, limit_covered: 10, previous_amount: { amount: null, reason: '缺少合格昨日快照' } } }) } }) });
   assert.match(html, /确认涨停/); assert.match(html, /确认跌停/); assert.match(html, /限价未知/);
