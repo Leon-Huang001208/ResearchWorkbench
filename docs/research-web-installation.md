@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+封闭V10只冻结已核实报价单位产品9142016和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
+
+报价单位修复沿用锁定CJPY0.5.2及三公开安装入口，无新依赖/配置/数据库迁移；只给已核实新响应附单位元数据。requirements/web.in、web.lock、setup_web.py、Bootstrap流程保持，最终同候选Mac干净安装/DSH/3081/8088/Doctor继续取证，不用既存venv或真实专业源通过替代安装CI。
+
 apply-etf-weekly-admission-v2是新增封闭身份，修复旧Host持久needs_attention在原Primary活动门先拒的循环。旧安装/控制器/依赖不变；v2身份预检不是idle，必须桥接/GET后完整g.verify_primary及fresh strict验证、原idle通过。旧v1和恢复身份保持，真实执行由唯一协调者完成。
 
 apply-etf-weekly-admission固定36fd990c前版与完整产品祖先bacb423ce（含PR227单位/出处证据及已批准PR229行情展示），要求显式结束等待标志及本地私有封印action文件；其摘要由源码固定，不接收凭据或任意JSON修改。冷操作员先资格验证与三锁，领域动作保留未知并留下独立intent/receipt，窄GET刷新旧Host，再要求原完整idle通过。安装入口/依赖/旧模式不变，真实维护与统一切换另行批准。

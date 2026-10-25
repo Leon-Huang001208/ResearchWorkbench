@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
+
 v2沿原固定seal/intent/receipt与原目录CAS，只改变操作员验证顺序。身份预检不修改旧Run；领域动作仍保留unknown、原failure、输入、SID和冻结日期，回滚代码不逆转已授权控制决定，数据根与存储结构不变。
 
 weekly-rpc-attempt.json保存在Host私有Run内、模型workspace之外，O_EXCL/NOFOLLOW、类型/大小/私有权限与fsync读回约束保证不被替换。冻结scope绑定context/snapshot/版本/owner/model；Host materialize后的工作簿与Session副本核同一字节，模板资产仍核原资源hash。脚本的weekly输入策略只对冻结文件授literal读，不自动授读后来新增inputs。

@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+封闭V10只冻结已核实报价单位产品9142016和实际前版b800e503；保留V1–V9恢复身份、原16MB单job/8MB下载/64MB总展开reader及web锁。继承三锁、BirthFence、原完整Primary/Native/Host/后台Workflow与市场inflight检查、全账号业务索引和档案保全；新mode不调用周报维护桥，不接受weekly结束等待flags，活动/未知原样拒绝。
+
+天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
+
 v2只增加明确paired flags的本机受审CLI命令，沿已有GET刷新Host缓存；无HTTP新路由、Header/Cookie覆盖或force参数，普通租户/能力与已发布v1行为保持。
 
 现有周报创建/运行/retry路径保持；retry对新协议已知未RPC状态可显式继续，对旧未知/已尝试状态仍只核查观察，未新增force或模型可传scope参数。内部skill-preflight响应可带Host input_policy=weekly-frozen-inputs-v1及逐文件read_paths，经JS传给Python；普通capability/dataset目录协议兼容，缺失/未知策略与非法路径拒绝。

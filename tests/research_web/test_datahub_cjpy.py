@@ -5,7 +5,7 @@ import json
 import sys
 import threading
 from datetime import date, timedelta
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -427,6 +427,7 @@ async def test_market_dictionary_units_are_sdk_and_explicit_stock_daily_scoped(
     assert result.rows == rows and json.loads(result.raw[0]) == rows
     assert len(calls) == 1 and calls[0][0] == "bars"
     assert result.fields["vol"] == {"unit": "share" if applied else None, "currency": None}
+
     assert result.fields["volume"] == {"unit": None, "currency": None}
     assert result.fields["amount"] == {"unit": "元" if applied else None, "currency": None}
     assert all(
@@ -542,3 +543,139 @@ async def test_stock_units_require_every_returned_identity_to_match_request(sdk,
     elif applied:
         assert result.metadata["field_dictionary_evidence"]["identity_basis"] == "row_aliases"
     assert result.fields["vol"] == {"unit": "share" if applied else None, "currency": None}
+
+
+@pytest.mark.asyncio
+async def test_stock_snapshot_native_volume_has_verified_dictionary_units(sdk):
+    package, calls, _ = sdk
+    package.__version__ = "0.5.2"
+    # Synthetic fixture matching the separately archived live field layout.
+    rows = [
+        {
+            "代码": "SH603986",
+            "时间": "2026-10-23",
+            "close": 292,
+            "vol": 46027129,
+            "amount": 12917512995,
+        }
+    ]
+    package.get_market_data = lambda **kw: (calls.append(("market", kw)) or rows)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_snapshot",
+            source="tinysoft",
+            parameters={"assets": ["603986.SH"], "asset_type": "stock"},
+        ),
+        token="synthetic-token",
+    )
+    assert result.status == "complete"
+    assert result.fields["vol"] == {"unit": "share", "currency": None}
+    assert result.fields["amount"] == {"unit": "元", "currency": None}
+    assert result.fields["close"] == {"unit": None, "currency": None}
+    assert result.rows == rows and json.loads(result.raw[0]) == rows
+    assert len(calls) == 1 and calls[0][1]["cycle"] == "day"
+    evidence = result.metadata["field_dictionary_evidence"]
+    assert evidence["contract_version"] == "tinysoft-stock-daily-snapshot-fields-v1"
+    assert (
+        evidence["dictionary_sha256"]
+        == "458a5aaf5495d776d9391ac246daa360808fe2ce5c35be057e235451b28b8705"
+    )
+    assert evidence["applied"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sdk_version,asset_type,asset,identity,field,expected",
+    [
+        ("0.5.2", "stock", "603986.SH", None, "vol", "share"),
+        ("0.5.1", "stock", "603986.SH", "SH603986", "vol", None),
+        (None, "stock", "603986.SH", "SH603986", "vol", None),
+        ("0.5.2", None, "603986.SH", "SH603986", "vol", None),
+        ("0.5.2", "etf", "603986.SH", "SH603986", "vol", None),
+        ("0.5.2", "index", "000001.SH", "SH000001", "vol", None),
+        ("0.5.2", "stock", "603986.SH", "SZ000001", "vol", None),
+        ("0.5.2", "stock", "833000.BJ", "BJ833000", "vol", None),
+        ("0.5.2", "stock", "603986.SH", "SH603986", "volume", None),
+    ],
+)
+async def test_snapshot_unit_scope_does_not_guess_aliases_or_identity(
+    sdk, sdk_version, asset_type, asset, identity, field, expected
+):
+    package, calls, _ = sdk
+    if sdk_version is not None:
+        package.__version__ = sdk_version
+    rows = [{"时间": "2026-10-23", field: 0}]
+    if identity is not None:
+        rows[0]["代码"] = identity
+    package.get_market_data = lambda **kw: (calls.append(("market", kw)) or rows)
+    parameters = {"assets": [asset]}
+    if asset_type is not None:
+        parameters["asset_type"] = asset_type
+    result = await provider.fetch(
+        BusinessQuery(capability="market_snapshot", source="tinysoft", parameters=parameters),
+        token="synthetic-token",
+    )
+    assert result.fields[field] == {"unit": expected, "currency": None}
+    assert result.rows == rows and result.rows[0][field] == 0
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_snapshot_units_cross_real_broker_and_keep_old_frozen_bytes(
+    tmp_path, monkeypatch, sdk
+):
+    from app.research_web.asset_routes import ObservationRequest
+    from app.research_web.asset_workspace import AssetWorkspace
+    from app.research_web.datahub import catalog
+
+    package, calls, _ = sdk
+    rows = [
+        {
+            "代码": "SH603986",
+            "时间": "2026-10-23",
+            "close": 292,
+            "vol": 46027129,
+            "amount": 12917512995,
+        }
+    ]
+    package.get_market_data = lambda **kw: (calls.append(("market", kw)) or rows)
+    monkeypatch.setattr(catalog, "_dependency_status", lambda *_a: (True, None))
+    store = Store(tmp_path)
+    sid = store.create("claw", "synthetic quote unit regression")["id"]
+    hub = DataHub(store)
+    status = {"configured": True, "secret_configured": True}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": dict(status)})
+    monkeypatch.setattr(hub.connections, "source_status", lambda _s: dict(status))
+    monkeypatch.setattr(hub.connections, "configuration_revision", lambda _s: "synthetic-v1")
+    monkeypatch.setattr(hub.connections, "read_source_secret", lambda _s: "synthetic-token")
+    workspace = AssetWorkspace(SimpleNamespace(store=store, datahub=hub, notify=lambda: None))
+    try:
+        package.__version__ = "0.5.1"
+        observation = await workspace.create_observation(
+            ObservationRequest(
+                session_id=sid,
+                asset="603986.SH",
+                asset_type="stock",
+                source="tinysoft",
+                sections=["overview"],
+            ),
+            "quote-unit-observation",
+        )
+        await asyncio.gather(*list(workspace.tasks.values()))
+        old = workspace.observation(observation["id"])["blocks"]["overview"]["dataset"]
+        assert old["fields"]["vol"]["unit"] is None
+        manifest = tmp_path / ".control" / "snapshots" / sid / old["dataset_id"] / "manifest.json"
+        old_bytes = manifest.read_bytes()
+        old_rows = hub.snapshots.read(sid, old["dataset_id"], "rows.json")
+        package.__version__ = "0.5.2"
+        await workspace.refresh_block(observation["id"], "overview", "quote-unit-refresh")
+        await asyncio.gather(*list(workspace.tasks.values()))
+        fresh = workspace.observation(observation["id"])["blocks"]["overview"]["dataset"]
+        assert fresh["provider"] == "tinysoft" and fresh["fields"]["vol"]["unit"] == "share"
+        assert fresh["fields"]["amount"]["unit"] == "元"
+        assert fresh["dataset_id"] != old["dataset_id"] and len(calls) == 2
+        assert manifest.read_bytes() == old_bytes
+        assert hub.snapshots.read(sid, old["dataset_id"], "rows.json") == old_rows
+    finally:
+        await workspace.close()
+        await hub.close()

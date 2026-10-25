@@ -89,6 +89,12 @@ ASSET_V9_PREVIOUS = ASSET_V8_PREVIOUS
 ASSET_V9_PAYLOAD = "b500fcbe9b95632667a6194e519f7e8a743c4221"
 ASSET_V9_WEB_LOCK_SHA256 = ASSET_V8_WEB_LOCK_SHA256
 ASSET_V9_EVIDENCE_SHA256 = "193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7dad6bb8ce63988"
+# Verified quote-volume metadata only; never replay the legacy weekly bridge.
+ASSET_V10_MODE = "reviewed-asset-observation-v10"
+ASSET_V10_PREVIOUS = "b800e50366d1a0868372bbf173822976066c143f"
+ASSET_V10_PAYLOAD = "9142016accd6994673abe15a8d418a494e9b0f1b"
+ASSET_V10_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+ASSET_V10_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
 MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
@@ -161,6 +167,7 @@ ASSET_MODES = frozenset(
         ASSET_V7_MODE,
         ASSET_V8_MODE,
         ASSET_V9_MODE,
+        ASSET_V10_MODE,
         MARKET_MODE,
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
@@ -257,6 +264,8 @@ def previous_for(mode):
         return ASSET_V6_PREVIOUS
     if mode == ASSET_V7_MODE:
         return ASSET_V7_PREVIOUS
+    if mode == ASSET_V10_MODE:
+        return ASSET_V10_PREVIOUS
     if mode == ASSET_V9_MODE:
         return ASSET_V9_PREVIOUS
     if mode == ASSET_V8_MODE:
@@ -444,6 +453,7 @@ def verify_primary(home, expected, mode):
         ASSET_V7_MODE,
         ASSET_V8_MODE,
         ASSET_V9_MODE,
+        ASSET_V10_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
@@ -574,6 +584,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V7_MODE: ASSET_V7_PAYLOAD,
         ASSET_V8_MODE: ASSET_V8_PAYLOAD,
         ASSET_V9_MODE: ASSET_V9_PAYLOAD,
+        ASSET_V10_MODE: ASSET_V10_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
@@ -608,6 +619,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             ).hexdigest() != (
                 {
                     ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
+                    ASSET_V10_MODE: ASSET_V10_EVIDENCE_SHA256,
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256,
@@ -615,6 +627,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 if mode
                 in {
                     ASSET_V9_MODE,
+                    ASSET_V10_MODE,
                     MARKET_PREVIEW_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
@@ -1169,6 +1182,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = ASSET_V6_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V7_MODE:
         manifest["web_lock_sha256"] = ASSET_V7_WEB_LOCK_SHA256
+    elif state.get("mode") == ASSET_V10_MODE:
+        manifest["web_lock_sha256"] = ASSET_V10_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V9_MODE:
         manifest["web_lock_sha256"] = ASSET_V9_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V8_MODE:
@@ -1233,6 +1248,7 @@ class Operations:
             DISCOVERY_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
+            ASSET_V10_MODE,
             MARKET_PREVIEW_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
@@ -1287,6 +1303,7 @@ class Operations:
             ASSET_V7_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
+            ASSET_V10_MODE,
             ETF_WEEKLY_MODE,
             DOSSIERS_MODE,
             DISCOVERY_MODE,
@@ -2153,6 +2170,7 @@ def main(argv=None):
             "apply-assets-v7",
             "apply-assets-v8",
             "apply-assets-v9",
+            "apply-assets-v10",
             "apply-market",
             "apply-market-gaps",
             "apply-market-history",
@@ -2199,6 +2217,7 @@ def main(argv=None):
                 "apply-assets-v7": ASSET_V7_MODE,
                 "apply-assets-v8": ASSET_V8_MODE,
                 "apply-assets-v9": ASSET_V9_MODE,
+                "apply-assets-v10": ASSET_V10_MODE,
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,
