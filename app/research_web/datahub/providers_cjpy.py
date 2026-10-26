@@ -478,6 +478,13 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             if isinstance(frequency, str)
             else frequency
         )
+        minute_dictionary_sha256 = None
+        if cycle == "1m" and parameters.get("asset_type") == "stock":
+            from .intraday_contract import validate_definitions
+
+            minute_dictionary_sha256 = validate_definitions(
+                _rows(cjpy.list_market_fields(client=client))
+            )
         rows = _rows(
             cjpy.get_market_data(
                 code=canonical_vendor_code(asset),
@@ -491,7 +498,21 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
                     "qfq": "前复权",
                     "hfq": "后复权",
                 }.get(adjustment, adjustment),
-                fields=parameters.get("fields"),
+                fields=(
+                    [
+                        "open",
+                        "high",
+                        "low",
+                        "close",
+                        "vol",
+                        "amount",
+                        "sectional_yclose",
+                        "sectional_vol",
+                        "sectional_amount",
+                    ]
+                    if cycle == "1m" and parameters.get("asset_type") == "stock"
+                    else parameters.get("fields")
+                ),
                 client=client,
             )
         )
@@ -542,6 +563,22 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
                 fields["vol"] = {"unit": "share", "currency": None}
             if "amount" in fields:
                 fields["amount"] = {"unit": "元", "currency": None}
+        minute_applied = False
+        if verified_sdk and cycle == "1m" and parameters.get("asset_type") == "stock":
+            try:
+                expected = cn_stock_identity(asset)
+                minute_applied = all(
+                    row.get("代码") in {expected, expected[-2:] + expected[:6]} for row in rows
+                )
+            except ProviderError:
+                minute_applied = False
+            if minute_applied:
+                for key in ("vol", "sectional_vol"):
+                    if key in fields:
+                        fields[key] = {"unit": "share", "currency": None}
+                for key in ("amount", "sectional_amount"):
+                    if key in fields:
+                        fields[key] = {"unit": "元", "currency": None}
         log.info(
             "tinysoft_field_dictionary_projected",
             applied=applied,
@@ -555,6 +592,22 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             provider_id="tinysoft",
             fields=fields,
             metadata={
+                **(
+                    {
+                        "intraday_field_dictionary": {
+                            "contract_version": "tinysoft-stock-minute-fields-v1",
+                            "dictionary_sha256": minute_dictionary_sha256,
+                            "applied": minute_applied,
+                            "runtime_sdk_version": "0.5.2" if verified_sdk else "unverified",
+                            "quantity_basis": "per_period_share",
+                            "amount_basis": "per_period_cny",
+                            "previous_close_field": "sectional_yclose",
+                            "price_currency_verified": False,
+                        }
+                    }
+                    if cycle == "1m"
+                    else {}
+                ),
                 "field_dictionary_evidence": {
                     "contract_version": (
                         SNAPSHOT_FIELD_DICTIONARY_VERSION if snapshot else FIELD_DICTIONARY_VERSION
@@ -574,7 +627,7 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
                     "price_currency_verified": False,
                     "identity_basis": identity_basis,
                     "response_identity_observed": response_identity_observed,
-                }
+                },
             },
         )
     return rows

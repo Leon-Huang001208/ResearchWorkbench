@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`POST /api/research/assets/observations/{observation_id}/intraday`：认证内只接受可选严格布尔refresh；由当前账号观察解析证券和session，返回最近实际市场日分钟快照、单位、累计均价及覆盖说明。不接收任意日期、公式、来源、路径或账号；动态授权/维护准入每次复核。空成功清图，失败可重试并保留已显示旧快照。
+
 管理员CLI新增rwb-docker capacity --json、build --wait --task-id TASK [--refresh-dsh]、resume --task-id TASK及resume --next。
 查询与空队列exit0，waiting_resources exit75，硬阻断非零；notify只建议一次通知，不发送消息。不新增Web API或业务权限。
 

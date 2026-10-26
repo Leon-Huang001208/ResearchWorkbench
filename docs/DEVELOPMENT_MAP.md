@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+分时：asset_intraday.py负责固定最近市场数据日/分钟时间校验/缓存合并；datahub/intraday_contract.py固定已核厂商字段定义，providers_cjpy.py只为1m股票请求封闭字段；asset_routes.py声明认证内POST，workspace.close排空；ui/asset-intraday(-option).mjs负责独立canvas/取消/迟到响应，app.mjs按原生命周期挂载；不写入日线、筹码或原观察块。
+
 Docker队列入口为rwb-docker的capacity/build --wait/resume；标准库实现位于research_workbench_entrypoint/docker_build_queue.py。
 原脚本持锁复核容量并清理自身builder，模块负责任务/SHA去重、提交归档、FIFO及完成回执；测试test_docker_build_queue.py。
 复用原心跳，不新建调度服务；12GiB生效与冷构建/30分钟观察独立留证。

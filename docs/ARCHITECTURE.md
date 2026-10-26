@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+分时沿现有账号 Host/AssetWorkspace → DataHub → Broker → 天软 Provider → 不可变快照链读取；新增封闭 POST observations/{id}/intraday，不新增服务/数据库/凭据通道。独立分钟时间合同与日周月历史、筹码和副图隔离，CJPY厂商字典核验每次执行，60秒账号内缓存仍重过动态授权和维护准入，任务计入原空闲见证。图层只隐藏原K实例，切回不重建。
+
 管理员Docker构建队列复用原rwb-docker、operation.lock与既有心跳；它不属于业务API或新常驻调度器。
 容量观察与硬上限准入分离，提交归档固定构建输入，持久请求/完成回执支持中断对账；12GiB配置与实机负载验收独立。
 命令及安全边界见[Docker手册](research-web-docker.md#12-gib-与持久构建队列)。

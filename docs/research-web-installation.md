@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+本轮分时使用既有CJPY0.5.2、ECharts5.5.0及标准库，无新增依赖/配置/迁移。requirements/web.in、web.lock、setup_web.py及公开安装入口保持；新Python/静态模块仍须由同候选Mac Bootstrap证明随安装产物交付，现有天软配置复用且CI不调用供应商。
+
 可选Docker持久构建队列使用安装器已有Python3.12标准库和Git，不新增包或修改web.in/web.lock/setup_web.py。
 原纯Docker入口不依赖宿主Python；新增capacity/build --wait/resume缺少Python时明确queue_python_unavailable，不自动安装。
 Docker上限12GiB需独立授权和安全重启后实测，公开Native干净安装仍由原macOS Bootstrap验收。

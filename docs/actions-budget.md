@@ -1,8 +1,12 @@
 # GitHub Actions 免费额度治理
 
+候选0e4ceeb2的Checks40262625759在40m上限取消：Python7109通过/72原skip/117subtests（2201.70s），另47通过（0.89s）；JS1199通过/3原skip（20.80s），但step因总时限取消，末尾固定编辑引擎检查NOT_RUN。完整日志18446774B保留原失败归属；只把原同一ubuntu-latest job有界延长40→45分钟（增加5分钟），不新增job/runner/依赖/跳过或删除用例，不改变permissions/concurrency。约132s依赖安装+约37m Python已耗尽旧预算；新增分钟合同本地亚秒，不把超时伪称功能通过。新候选重跑原三CI/Mac安装，不rerun旧run，CI不调用实际供应商或模型。
+
+分时初始候选在既有Checks登记test_asset_intraday.py并扩展test_datahub_cjpy.py；JS沿原通配符增加分钟图合同回归。无新job、runner、依赖或timeout，增量预留原步骤30秒，Mac Bootstrap原静态资源步骤追加两份分时模块字节校验与Python模块导入（预留10秒）；完整Router、原三CI与同候选Mac安装保持，实源与CI分离。
+
 2026-10-19 Docker持久队列只向Research Web Checks既有Python步骤加入test_docker_build_queue.py，无新job/runner/包。
 实时PUBLIC；最近五次成功39156583067/39155701211/39153118330/39152253987/39145940523创建至结束
-580/575/583/440/574秒，均值550.4秒；新20项离线测试本机0.73秒，当时预留20秒；本次合并保留最新master现行40分钟上限及原concurrency，不重设预算。
+580/575/583/440/574秒，均值550.4秒；新20项离线测试本机0.73秒，当时预留20秒；本次基线合并继承PR241最新master现行45分钟上限及原concurrency，队列任务不重设预算。
 Mac冷构建/30分钟负载与同候选Mac Bootstrap独立取证；不发送Windows/Linux产品dispatch，不触发供应商请求。
 
 2026-10-25报价成交量单位修复扩展原test_datahub_cjpy模块11例（本地61例1.45秒），JS沿原通配符新增1例（本文件8例）。不新增job/runner/依赖/timeout，原Python步骤预留10秒；完整Router/原三CI及同候选Mac安装不变，远端操作前实时核对PUBLIC/额度。真实字典+隔离单证券取数与离线回归、CI、常驻验收分开记录，模型调用0。
@@ -356,4 +360,4 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
 
 
-2026-10-26 DSH资源队列后继保留原全部Python/JS/editorial测试、原runner/job和40分钟上限；仅在既有Python contracts命令追加-vv，保证取消前能留下实际nodeid而不是孤立F。前一候选Checks实际37m11s Python后超时且有F，无完整汇总；Mac为hosted runner通信丢失，不归因Node版本。离线deadline/drain夹具用100ms延迟重现旧30ms竞态，再以本模块局部时钟/事件控制过期顺序，真实线程/Future/取消/排空及独立准入前期限拒绝仍保留；80模块、31邻近与独评通过不替代新候选完整CI。输出增量预算预留原步骤30秒，不改时间上限、不重跑未修复旧候选，不引入真实模型/供应商。
+2026-10-26 DSH资源队列后继保留原全部Python/JS/editorial测试、原runner/job；本次合并继承PR241的45分钟上限（旧取消run为40分钟）；仅在既有Python contracts命令追加-vv，保证取消前能留下实际nodeid而不是孤立F。前一候选Checks实际37m11s Python后超时且有F，无完整汇总；Mac为hosted runner通信丢失，不归因Node版本。离线deadline/drain夹具用100ms延迟重现旧30ms竞态，再以本模块局部时钟/事件控制过期顺序，真实线程/Future/取消/排空及独立准入前期限拒绝仍保留；80模块、31邻近与独评通过不替代新候选完整CI。输出增量预算预留原步骤30秒，不改时间上限、不重跑未修复旧候选，不引入真实模型/供应商。

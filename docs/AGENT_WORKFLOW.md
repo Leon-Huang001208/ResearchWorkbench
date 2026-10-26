@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+候选0e4ceeb2的Checks40262625759在40m上限取消：Python7109通过/72原skip/117subtests（2201.70s），另47通过（0.89s）；JS1199通过/3原skip（20.80s），但step因总时限取消，末尾固定编辑引擎检查NOT_RUN。完整日志18446774B保留原失败归属；只把原同一ubuntu-latest job有界延长40→45分钟（增加5分钟），不新增job/runner/依赖/跳过或删除用例，不改变permissions/concurrency。约132s依赖安装+约37m Python已耗尽旧预算；新增分钟合同本地亚秒，不把超时伪称功能通过。新候选重跑原三CI/Mac安装，不rerun旧run，CI不调用实际供应商或模型。
+
+分时正式接入沿原Checks步骤登记分钟合同回归，完整changed-set Router/独评/原三CI/同候选Mac安装不减。真实分时使用账号隔离DataHub快照，分钟K仅核验样本不冒充实现；受控部署仍等待实际空闲/保全/恢复门，旧Wind未知不能由本功能源码绿替代。
+
 管理员长构建使用rwb-docker build --wait --task-id TASK（DSH冷刷新另加--refresh-dsh），exit75保留waiting_resources。
 既有15分钟续跑执行resume --next；只恢复同仓已登记请求，notify=false静默，不重建任务/worktree/PR或重复已验构建。
 capacity --json是真只读入口，禁止用build --help探测。清理、stage预留、未知锁和12GiB宿主维护边界保持。

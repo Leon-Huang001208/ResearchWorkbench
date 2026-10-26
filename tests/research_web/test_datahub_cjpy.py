@@ -14,6 +14,104 @@ from app.research_web.datahub import providers_cjpy as provider
 from app.research_web.store import Store, StoreError
 
 
+@pytest.mark.asyncio
+async def test_intraday_workspace_broker_provider_and_frozen_units(tmp_path, monkeypatch, sdk):
+    from app.research_web.asset_routes import ObservationRequest
+    from app.research_web.asset_workspace import AssetWorkspace
+    from app.research_web.datahub import catalog
+    from app.research_web.datahub.intraday_contract import DEFINITIONS
+
+    package, calls, _ = sdk
+    package.__version__ = "0.5.2"
+    package.list_market_fields = lambda **kw: DEFINITIONS
+
+    def market(**kw):
+        calls.append(("market", kw))
+        if kw["cycle"] == "1m":
+            assert kw["fields"] == [
+                "open",
+                "high",
+                "low",
+                "close",
+                "vol",
+                "amount",
+                "sectional_yclose",
+                "sectional_vol",
+                "sectional_amount",
+            ]
+            return [
+                {
+                    "代码": "SH603986",
+                    "时间": "2026-10-23 09:31:00",
+                    "open": 10,
+                    "high": 12,
+                    "low": 9,
+                    "close": 11,
+                    "vol": 100,
+                    "amount": 1100,
+                    "sectional_yclose": 10,
+                    "sectional_vol": 100,
+                    "sectional_amount": 1100,
+                }
+            ]
+        return [
+            {
+                "代码": kw["code"],
+                "时间": "2026-10-23",
+                "close": 11,
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "vol": 100,
+                "amount": 1100,
+            }
+        ]
+
+    package.get_market_data = market
+    monkeypatch.setattr(catalog, "_dependency_status", lambda *_: (True, None))
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "synthetic intraday integration")["id"]
+    hub = DataHub(store)
+    status = {"configured": True, "secret_configured": True}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": status})
+    monkeypatch.setattr(hub.connections, "source_status", lambda _: dict(status))
+    monkeypatch.setattr(hub.connections, "configuration_revision", lambda _: "synthetic-v1")
+    monkeypatch.setattr(hub.connections, "read_source_secret", lambda _: "synthetic-token")
+    workspace = AssetWorkspace(SimpleNamespace(store=store, datahub=hub, notify=lambda: None))
+    try:
+        observation = await workspace.create_observation(
+            ObservationRequest(
+                session_id=sid,
+                asset="603986.SH",
+                asset_type="stock",
+                source="tinysoft",
+                sections=["overview"],
+            ),
+            "synthetic-intraday-integration",
+        )
+        await asyncio.gather(*list(workspace.tasks.values()))
+        result = await workspace.intraday.load(observation["id"])
+        assert result["previous_close"] == 10
+        assert result["rows"][0]["volume_lots"] == 1
+        assert result["rows"][0]["mean"] == 11
+        frozen = hub.snapshots.detail(sid, result["dataset_id"])
+        assert frozen["fields"]["vol"]["unit"] == "share"
+        assert frozen["provider_metadata"]["intraday_field_dictionary"]["applied"] is True
+        assert not workspace.tasks
+        before = len(calls)
+
+        def deny_admission(*_args):
+            raise StoreError("Synthetic frozen capability", "plugin_runtime_frozen", 409)
+
+        hub.admission = deny_admission
+        with pytest.raises(StoreError, match="Synthetic frozen capability"):
+            await workspace.intraday.load(observation["id"])
+        assert len(calls) == before
+    finally:
+        await workspace.close()
+        await hub.close()
+
+
 @pytest.fixture(autouse=True)
 def isolated_credentials(monkeypatch):
     import keyring

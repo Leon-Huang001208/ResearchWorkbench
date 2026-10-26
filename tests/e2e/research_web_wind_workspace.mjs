@@ -44,6 +44,8 @@ async function open(width = 1864, theme = 'dark', asset = '603986.SH') {
   await next.route('**/*', route => { if (new URL(route.request().url()).origin !== origin) { external.push(route.request().url()); return route.abort(); } return route.continue(); });
   await next.goto(`${origin}/#/assets?asset=${asset}&asset_type=stock&view=overview`);
   page = next;
+  // This suite owns K-line acceptance; the new default intraday has its own suite.
+  await page.locator('[data-asset-chart-action="period-day"]').click();
   try { await stable(); }
   catch (error) {
     await writeFile(path.join(output, 'startup-diagnostics.json'), JSON.stringify(await page.evaluate(() => ({ text: document.body.innerText, chart: { ...document.querySelector('[data-asset-echarts]')?.dataset }, echarts: Boolean(window.echarts), chartOptions: window.echarts?.getInstanceByDom(document.querySelector('[data-asset-echarts]'))?.getOption()?.grid?.length })), null, 2));
