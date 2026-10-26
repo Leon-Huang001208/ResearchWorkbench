@@ -17,3 +17,5 @@ macOS功能开发，task asset-minute-k-20261026，基线bb40c791。目标1/5/15
 <!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "分钟K沿原Host资产UI/DataHub/Broker/固定天软及不可变快照链，有界六周期和独立画布，不新增服务、数据库、秘密、依赖或研究引擎；新HTTP已登记Atlas，原三CI/安装及排空/保全拓扑保持。", "diagrams": []} -->
 
 本地阶段复核：完整Research Web JS1203通过、3原skip；近处Python306通过，新增严格请求/消费者取消见证另18项通过。Router15项本地门通过；Ruff/Black/isort近处通过。Python/JS独评前次问题已复核无新增高优先缺陷；浏览器六周期/三种复权真绘图，负例失败保留旧图及口径已验。最终CI与Mac安装仍待候选，常驻仍未切换。
+
+补充交互反例复现：分钟图拖动后窗口blur/外部pointerup/pointercancel没有终止拖动态，十字线停在旧索引250而非200。仅对分钟实例补齐三事件，随组件销毁解绑且隐藏图不刷新；原日周月Host监听不变。红/绿证据保留私有logs，最终候选重新执行Router/独评/三CI/Mac安装；e3d25431原Mac安装通过只属于旧候选，完整Checks未完成时不借用PASS。

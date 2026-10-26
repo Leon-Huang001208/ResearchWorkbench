@@ -696,6 +696,9 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       for(const name of ['pointermove','mousemove','pointerup','mouseup','pointercancel','blur'])if(view?.addEventListener)listen(view,name,capture,true);
       if(view?.addEventListener)listen(view,'keydown',event=>{if(event.key==='Escape'&&!modalOwnsEscape(event))rangeController?.handle(event);},true);
       for(const name of ['resize','scroll'])if(view?.addEventListener)listen(view,name,()=>rangeController?.render(),true);
+      if(metadata.minute_k && view?.addEventListener) {
+        for(const name of ['blur','pointerup','pointercancel'])listen(view,name,()=>{if(find('[data-asset-echarts]')?.getBoundingClientRect?.().width>0)cancel();});
+      }
       listen(slot,'toggle',event=>{if(event.target?.matches?.('.asset-range-method'))rangeController?.render();},true);
       const localHandle = event => { const handled = handle(event); if (handled) { event.assetChartHandled = true; event.stopPropagation?.(); } };
       listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle); listen(slot, 'input', localHandle); listen(slot, 'submit', localHandle);
