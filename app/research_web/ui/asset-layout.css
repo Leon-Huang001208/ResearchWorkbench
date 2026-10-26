@@ -189,3 +189,15 @@
 .asset-intraday-status{font-size:12px;margin:8px 0;color:var(--muted)}.asset-intraday-status summary{cursor:pointer;min-height:32px}.asset-intraday-status p{line-height:1.6}
 [data-intraday-mode]{font:inherit;border:0;background:transparent;color:inherit;padding:4px 8px;cursor:pointer;min-height:32px;border-radius:4px}[data-intraday-mode].active{background:var(--hover)}
 .intraday-readout[hidden],.asset-intraday-stage[hidden]{display:none!important}@media(max-width:619px){[data-intraday-mode],[data-intraday-refresh]{min-height:44px;min-width:44px}.intraday-canvas{height:560px}.intraday-readout{gap:4px 10px}.asset-intraday-status summary{min-height:44px}}
+
+/* The minute canvas is a sibling, so chart event ownership never overlaps. */
+.asset-minute-k-on [data-asset-chart-slot]{display:none!important}
+[data-asset-minute-slot][hidden]{display:none!important}
+.asset-minute-menu{position:relative;display:inline-block;font-size:inherit}
+.asset-minute-menu summary{cursor:pointer;padding:4px 8px;min-height:32px;box-sizing:border-box}
+.asset-minute-menu[open]{z-index:20;background:var(--surface)}
+.asset-minute-menu>button{display:block;width:100%;border:0;background:var(--surface);color:var(--text);padding:8px 12px;cursor:pointer}
+.asset-minute-status{grid-column:1/-1;grid-row:4;color:var(--muted);font-size:12px;padding:8px 0}
+.asset-minute-status details{display:inline-block;margin-left:12px}.asset-minute-status p{max-width:60em}
+@media(min-width:1280px){[data-asset-minute-slot]{display:contents}}
+@media(max-width:619px){.asset-minute-menu summary,.asset-minute-menu>button{min-height:44px}}

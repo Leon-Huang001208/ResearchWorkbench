@@ -33,6 +33,7 @@ SNAPSHOT_FIELD_DICTIONARY_SHA256 = (
 )
 DEADLINE = 15
 MAX_ROWS = 5000
+MINUTE_CYCLES = {"1m", "5m", "15m", "30m", "60m", "120m"}
 SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-tinysoft")
 _CAPACITY = threading.BoundedSemaphore(1)
@@ -479,7 +480,7 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             else frequency
         )
         minute_dictionary_sha256 = None
-        if cycle == "1m" and parameters.get("asset_type") == "stock":
+        if cycle in MINUTE_CYCLES and parameters.get("asset_type") == "stock":
             from .intraday_contract import validate_definitions
 
             minute_dictionary_sha256 = validate_definitions(
@@ -510,7 +511,7 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
                         "sectional_vol",
                         "sectional_amount",
                     ]
-                    if cycle == "1m" and parameters.get("asset_type") == "stock"
+                    if cycle in MINUTE_CYCLES and parameters.get("asset_type") == "stock"
                     else parameters.get("fields")
                 ),
                 client=client,
@@ -564,7 +565,7 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             if "amount" in fields:
                 fields["amount"] = {"unit": "元", "currency": None}
         minute_applied = False
-        if verified_sdk and cycle == "1m" and parameters.get("asset_type") == "stock":
+        if verified_sdk and cycle in MINUTE_CYCLES and parameters.get("asset_type") == "stock":
             try:
                 expected = cn_stock_identity(asset)
                 minute_applied = all(
@@ -605,7 +606,7 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
                             "price_currency_verified": False,
                         }
                     }
-                    if cycle == "1m"
+                    if cycle in MINUTE_CYCLES
                     else {}
                 ),
                 "field_dictionary_evidence": {
