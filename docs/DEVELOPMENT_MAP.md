@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+Docker队列入口为rwb-docker的capacity/build --wait/resume；标准库实现位于research_workbench_entrypoint/docker_build_queue.py。
+原脚本持锁复核容量并清理自身builder，模块负责任务/SHA去重、提交归档、FIFO及完成回执；测试test_docker_build_queue.py。
+复用原心跳，不新建调度服务；12GiB生效与冷构建/30分钟观察独立留证。
+
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
 
 全市场广度组合后继位于resident/model_provider_upgrade.py及原test_model_provider_upgrade矩阵：MARKET_BREADTH固定b800→4c72，reader193f4fcc/lock7c631d4f不变，接入原源码并集、manifest、全部账号后台/市场/Native空闲及恢复。真实operate和真实Primary/LegacyBinding反例覆盖Host true/null提前拒绝；不进入周报桥或Wind恢复。

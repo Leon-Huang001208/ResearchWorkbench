@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+可选Docker持久构建队列使用安装器已有Python3.12标准库和Git，不新增包或修改web.in/web.lock/setup_web.py。
+原纯Docker入口不依赖宿主Python；新增capacity/build --wait/resume缺少Python时明确queue_python_unavailable，不自动安装。
+Docker上限12GiB需独立授权和安全重启后实测，公开Native干净安装仍由原macOS Bootstrap验收。
+详见[Docker手册](research-web-docker.md#12-gib-与持久构建队列)。
+
 报价单位修复沿用锁定CJPY0.5.2及三公开安装入口，无新依赖/配置/数据库迁移；只给已核实新响应附单位元数据。requirements/web.in、web.lock、setup_web.py、Bootstrap流程保持，最终同候选Mac干净安装/DSH/3081/8088/Doctor继续取证，不用既存venv或真实专业源通过替代安装CI。
 
 封闭apply-market-breadth/reviewed-market-breadth-v1固定b800e503前版和4c72ed43组合产品，沿现有安装锁与DSH，不新增依赖或初始化数据库。操作员最终候选必须重做同候选macos-14干净安装；旧产品CI不能认证新操作员。当前旧Host活动未知仍延期，不以安装通过代替现场空闲与保全。

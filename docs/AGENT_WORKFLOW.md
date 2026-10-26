@@ -1,5 +1,10 @@
 # Agent 任务路由指南
 
+管理员长构建使用rwb-docker build --wait --task-id TASK（DSH冷刷新另加--refresh-dsh），exit75保留waiting_resources。
+既有15分钟续跑执行resume --next；只恢复同仓已登记请求，notify=false静默，不重建任务/worktree/PR或重复已验构建。
+capacity --json是真只读入口，禁止用build --help探测。清理、stage预留、未知锁和12GiB宿主维护边界保持。
+新增纯标准库队列测试进入现有Research Web Checks同一job，不扩平台dispatch；Mac实机与安装CI分别认证。
+
 全市场广度组合按用户批准纳入PR233/235/237，固定产品4c72ed43与实际前版b800e503；独立worktree实现封闭apply-market-breadth，完整Router/原三CI/同候选Mac安装及独评后才准入。旧active=null/Wind清理未确认继续阻断，不补假见证或清标记，不执行未实现恢复、周报重放、模型或日程；源码交付与现场上线分别留证。
 
 来源活动见证必须覆盖真实冷 Host，不能仅给 SimpleNamespace 补空属性而漏掉真实构造。先观察实际 HTTP `active=null` 的失败，再初始化原有来源登记表，联合 resident、来源生命周期和真实 API 回归；缺失或异常见证仍拒绝，不能改回宽泛 getattr 默认空。此修复不等于旧 Wind 现场恢复，也不授权部署或重试模型。

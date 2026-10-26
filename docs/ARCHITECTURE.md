@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+管理员Docker构建队列复用原rwb-docker、operation.lock与既有心跳；它不属于业务API或新常驻调度器。
+容量观察与硬上限准入分离，提交归档固定构建输入，持久请求/完成回执支持中断对账；12GiB配置与实机负载验收独立。
+命令及安全边界见[Docker手册](research-web-docker.md#12-gib-与持久构建队列)。
+
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
 
 全市场广度组合部署仅在原Native操作员新增封闭apply-market-breadth：前版b800e503、获批完整产品4c72ed43（PR233/235/237）。复用原三锁、BirthFence、全账号保全与回滚，无新增部署节点、业务API或引擎。当前旧Host的active=null仍拒绝停机；PR237诊断不是Wind恢复执行器，原图准确。

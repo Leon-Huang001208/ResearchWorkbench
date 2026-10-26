@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+2026-10-19 Docker持久队列只向Research Web Checks既有Python步骤加入test_docker_build_queue.py，无新job/runner/包。
+实时PUBLIC；最近五次成功39156583067/39155701211/39153118330/39152253987/39145940523创建至结束
+580/575/583/440/574秒，均值550.4秒；新20项离线测试本机0.73秒，当时预留20秒；本次合并保留最新master现行40分钟上限及原concurrency，不重设预算。
+Mac冷构建/30分钟负载与同候选Mac Bootstrap独立取证；不发送Windows/Linux产品dispatch，不触发供应商请求。
+
 2026-10-25报价成交量单位修复扩展原test_datahub_cjpy模块11例（本地61例1.45秒），JS沿原通配符新增1例（本文件8例）。不新增job/runner/依赖/timeout，原Python步骤预留10秒；完整Router/原三CI及同候选Mac安装不变，远端操作前实时核对PUBLIC/额度。真实字典+隔离单证券取数与离线回归、CI、常驻验收分开记录，模型调用0。
 
 PR240 候选 ecef 的 Checks40226600173 达40分钟上限取消；14.5MB完整日志显示Python仅57%且持续推进，无完整汇总。Mac40226753690/Constraints40226600281的通过保留原SHA归属。真实4项API profile显示目录880次保存/约1120万次JSON分片write为主要构造成本，模块扫描仅4次且缓存有效。本次仅优化原catalog.save为等字节单次写入，保留所有保存/同步/恢复语义，并在原步骤补登记6个字节及失败保全用例；不增job、runner、依赖或40分钟上限，不删用例/不rerun旧候选。新候选仍重新验证完整原三门及Mac安装。

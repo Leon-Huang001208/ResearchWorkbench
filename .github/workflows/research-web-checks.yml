@@ -87,6 +87,7 @@ jobs:
         run: |
           .venv/bin/python -m pytest \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_docker_build_queue.py \
             tests/research_web/test_api.py \
             tests/research_web/test_discovery.py \
             tests/research_web/test_discovery_tracking.py \

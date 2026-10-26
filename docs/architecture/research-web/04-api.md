@@ -1,5 +1,8 @@
 # Research Web 接口清单
 
+管理员CLI新增rwb-docker capacity --json、build --wait --task-id TASK [--refresh-dsh]、resume --task-id TASK及resume --next。
+查询与空队列exit0，waiting_resources exit75，硬阻断非零；notify只建议一次通知，不发送消息。不新增Web API或业务权限。
+
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
 
 全市场广度组合仅新增封闭本机CLI apply-market-breadth，不新增业务HTTP入口或租户权限。普通resident active必须明确false；PR237已有分项诊断不能反向补齐旧b800缺失的见证，也不构成恢复执行API。

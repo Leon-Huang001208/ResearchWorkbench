@@ -1,5 +1,8 @@
 # Research Web 能力与平台证据
 
+Docker持久构建队列本轮负责macOS管理员入口；离线安全测试不表示Docker冷构建、12GiB配置或30分钟负载已通过。
+后者各自绑定实机证据；Windows/Linux原生及exact-SHA产品dispatch继续交接对应设备，不从Mac发起。
+
 全市场广度组合操作员为Mac Native固定profile：本机与同候选Mac安装CI分别认证，源码通过不认证真实上线。Windows/Linux原生及对应设备验收继续交接未执行，不从Mac发产品dispatch；原跨平台支持矩阵不因新CLI扩大。
 
 本轮v2是macOS Native受管准入修复，仅取本机、通用仓库CI与同候选Mac安装证据。真实b0e曾在停机前deferred；源码通过不认证切换或Word。Windows/Linux产品原生及条件CI由对应设备交接，NOT_RUN不改支持声明。

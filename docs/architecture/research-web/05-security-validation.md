@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+Docker队列只运行固定build参数，拒绝链接/未知归属账本；等待不持操作锁，实际构建拿原锁后重核全部容量及stage预留。
+提交归档固定输入，不以可变worktree内容冒充SHA；FIFO前统一对账完成结果，镜像身份失效不复用。
+不降低5GiB builder/2GiB余量，不停止其他容器或清未知锁；日志不保存环境与秘密。12GiB宿主配置及维护重启独立授权。
+
 MARKET_BREADTH沿reader193f4fcc、web.lock7c631d4f及原完整产品并集/模式/哈希检查；前版b800、产品4c72固定。活动或未知拒绝且零停机/安装，不授权Wind恢复、清污染标记或周报维护桥。全部旧profile、controller及evidence信任边界保持。
 
 来源初始化回归使用真实 ResearchService 构造和真实 resident HTTP 投影，Native 与凭据外部边界在无网络/内存夹具内隔离。实际请求登记、取消和 tombstone 仍走原 reader，缺失/异常见证负例保留；补丁不认证旧 b800 空闲或允许停机。
