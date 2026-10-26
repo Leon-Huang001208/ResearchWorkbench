@@ -14,6 +14,7 @@ import os
 import re
 import selectors
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -25,6 +26,7 @@ from uuid import UUID
 
 LOGGER = logging.getLogger("research_web.sandbox")
 MAX_CODE_BYTES = 65_536
+WEEKLY_INPUT_POLICY = "weekly-frozen-inputs-v1"
 _cancelled = False
 
 
@@ -157,6 +159,7 @@ def seatbelt_profile(
     executables: tuple[str, ...],
     read_files: tuple[str, ...] = (),
     permitted_paths: tuple[str, ...] = (),
+    input_policy: str | None = None,
 ) -> str:
     """Build a read-data allowlist and narrow mutation grants (metadata stays visible)."""
     read_paths = ["/System/Library", "/usr/lib", "/usr/bin", "/usr/share", "/bin", *read_roots]
@@ -167,6 +170,8 @@ def seatbelt_profile(
         ("inputs", {"datasets"}),
         ("resources", {"capabilities", "skills"}),
     ]:
+        if directory_name == "inputs" and input_policy == WEEKLY_INPUT_POLICY:
+            continue
         for entry in (session / directory_name).iterdir():
             if entry.name in excluded or entry.is_symlink():
                 continue
@@ -217,7 +222,45 @@ def _kill_group(process: subprocess.Popen[bytes]) -> bool:
         return False
 
 
-def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()) -> ScriptResult:
+def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
+    """Read only the packaged SDK's fixed files; never overwrite legacy session copies."""
+    try:
+        root = Path(__file__).resolve(strict=True).parent / "resources"
+        if root.is_symlink() or not root.is_dir() or root.resolve(strict=True) != root:
+            raise SandboxError("bundled report SDK directory is unsafe")
+        fonts = root / "fonts"
+        if fonts.is_symlink() or not fonts.is_dir():
+            raise SandboxError("bundled report SDK fonts are unsafe")
+        files = [str(root), str(fonts)]
+        for name in (
+            "research_helpers.py",
+            "research_report.py",
+            "research_report_plan.py",
+            "research_report_calculations.py",
+            "fonts/NotoSansSC-Regular.ttf",
+        ):
+            target = root / name
+            info = target.lstat()
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_nlink != 1
+                or target.resolve(strict=True) != target
+            ):
+                raise SandboxError("bundled report SDK file is unsafe")
+            files.append(str(target))
+        LOGGER.info("research_report_sdk_scope_verified files=5")
+        return str(root), tuple(files)
+    except SandboxError:
+        LOGGER.warning("research_report_sdk_scope_rejected")
+        raise
+    except OSError as exc:
+        LOGGER.warning("research_report_sdk_scope_unavailable")
+        raise SandboxError("bundled report SDK is unavailable") from exc
+
+
+def run_script(
+    config: SandboxConfig, session: Path, code: str, *, read_paths=(), input_policy=None
+) -> ScriptResult:
     """Execute bounded Python source under kernel-enforced research capabilities."""
     if sys.platform != "darwin" or not Path("/usr/bin/sandbox-exec").is_file():
         raise SandboxError("research scripts require the verified native macOS sandbox")
@@ -233,12 +276,54 @@ def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()
     try:
         session = validate_session(config, session)
         executable, reads, exec_paths, read_files = _runtime(str(config.python))
+        sdk_root, sdk_files = _report_sdk_scope()
+        read_files = (*read_files, *sdk_files)
     except OSError as exc:
         raise SandboxError("research sandbox directories are unavailable") from exc
     if not isinstance(read_paths, (list, tuple)) or len(read_paths) > 320:
         raise SandboxError("invalid script resource scope")
+    if input_policy not in (None, WEEKLY_INPUT_POLICY):
+        raise SandboxError("invalid script input policy")
+    weekly = input_policy == WEEKLY_INPUT_POLICY
+    if weekly and (
+        not read_paths
+        or any(not isinstance(path, str) for path in read_paths)
+        or len(set(read_paths)) != len(read_paths)
+    ):
+        raise SandboxError("invalid weekly input scope")
     permitted = []
     for relative in read_paths:
+        if weekly:
+            if (
+                not isinstance(relative, str)
+                or len(relative) > 512
+                or not relative.startswith("inputs/report-workflow/")
+                or re.search(r"[\\:\x00-\x1f\x7f]", relative)
+                or any(not part or part.startswith(".") for part in relative.split("/"))
+            ):
+                raise SandboxError("invalid weekly input scope")
+            target = session
+            parts = relative.split("/")
+            for index, part in enumerate(parts):
+                target = target / part
+                try:
+                    info = target.lstat()
+                except OSError as exc:
+                    raise SandboxError("unsafe weekly input scope") from exc
+                if stat.S_ISLNK(info.st_mode) or (
+                    index < len(parts) - 1 and not stat.S_ISDIR(info.st_mode)
+                ):
+                    raise SandboxError("unsafe weekly input scope")
+                if index == len(parts) - 1 and (
+                    not stat.S_ISREG(info.st_mode)
+                    or info.st_nlink != 1
+                    or info.st_size > 32 * 1024 * 1024
+                ):
+                    raise SandboxError("unsafe weekly input scope")
+            if target.resolve(strict=True) != target:
+                raise SandboxError("unsafe weekly input scope")
+            read_files = (*read_files, str(target))
+            continue
         if not isinstance(relative, str) or not re.fullmatch(
             r"(?:resources/capabilities/[a-z0-9_-]+/[1-9][0-9]*|inputs/datasets/[0-9a-f-]{36})",
             relative,
@@ -253,10 +338,10 @@ def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()
             raise SandboxError("unsafe script resource scope")
         permitted.append(str(target))
     # -I -S prevents user startup/.pth execution. Only the configured venv's
-    # site-packages and this session's reviewed resources use absolute paths.
-    # Relative imports require getcwd(), denied at the session root. Adding the
-    # already-readable resource directory needs no new filesystem permission.
-    site_paths = [path for path in reads if path.endswith("/site-packages")]
+    # site-packages, fixed packaged SDK literals and session resources use absolute
+    # paths. The current SDK precedes legacy copies; no session file is replaced.
+    # Only the four curated SDK files gain read-data, never their parent subtree.
+    site_paths = [sdk_root, *[path for path in reads if path.endswith("/site-packages")]]
     site_paths.append(str(session / "resources"))
     bootstrap = (
         "import sys,resource,mimetypes;"
@@ -265,12 +350,14 @@ def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()
         "resource.setrlimit(resource.RLIMIT_NOFILE,(64,)*2);"
         "mimetypes.knownfiles=[];mimetypes.init();"
         f"sys.path.extend({site_paths!r});"
+        "import research_report;"
+        f"research_report._SESSION_ROOT={str(session)!r};"
         "exec(compile(sys.stdin.buffer.read(),'<research-script>','exec'),{'__name__':'__main__'})"
     )
     command = [
         "/usr/bin/sandbox-exec",
         "-p",
-        seatbelt_profile(session, reads, exec_paths, read_files, tuple(permitted)),
+        seatbelt_profile(session, reads, exec_paths, read_files, tuple(permitted), input_policy),
         executable,
         "-I",
         "-S",
@@ -413,10 +500,18 @@ def main() -> int:
         if len(raw) > MAX_CODE_BYTES * 6 + 1024:
             raise SandboxError("runner request is too large")
         request = json.loads(raw)
-        if not isinstance(request, dict) or set(request) not in ({"code"}, {"code", "read_paths"}):
+        if not isinstance(request, dict) or set(request) not in (
+            {"code"},
+            {"code", "read_paths"},
+            {"code", "read_paths", "input_policy"},
+        ):
             raise SandboxError("runner request accepts only code")
         result = run_script(
-            config, Path(args.session), request["code"], read_paths=request.get("read_paths", ())
+            config,
+            Path(args.session),
+            request["code"],
+            read_paths=request.get("read_paths", ()),
+            input_policy=request.get("input_policy"),
         )
     except (SandboxError, OSError, ValueError) as exc:
         LOGGER.warning("research_sandbox_request_rejected: %s", type(exc).__name__)

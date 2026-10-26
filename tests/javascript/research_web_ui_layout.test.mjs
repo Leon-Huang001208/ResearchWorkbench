@@ -103,7 +103,7 @@ test('composer provides non-submitting real Skill shortcuts and file drop/paste 
   const shortcuts = composer.researchQuickSkills(skills);
   assert.deepEqual(shortcuts.map((skill) => skill.id), skills.slice(0, 4).map((skill) => skill.id));
   const html = composer.renderComposer({ page: 'claw', draft: '', attachments: [], expectedFormats: null, skills, skillId: '', disabled: false, taskPending: false, detail: null });
-  for (const expected of ['data-dropzone', 'data-slash-search', 'data-paste-support', '选择 Skill 或 Workflow', '任务目标或补充信息']) assert.match(html, new RegExp(expected));
+  for (const expected of ['data-dropzone', 'data-cm-open', 'data-paste-support', '添加附件、能力、方法或输出格式', '任务目标或补充信息']) assert.match(html, new RegExp(expected));
   assert.match(composer.renderQuickSkills(skills), /data-skill-shortcut/);
   assert.doesNotMatch(html, /fetch\(|POST \/api\/research/);
 });

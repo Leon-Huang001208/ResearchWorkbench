@@ -1,5 +1,57 @@
 # Mac mini Docker 开发与独立部署
 
+全市场广度组合的apply-market-breadth只走既有Mac Native主服务/网关事务，不新增Docker镜像、容器、卷或daemon权限。构建缓存仍沿两受管构建器合计20GiB及原操作锁治理；本mode不重置Docker，也不据停止状态清理未知资源。
+
+admission-v2只调整Mac Native维护事务内部顺序，不启动/更新Docker服务、卷、构建器或缓存。真实Primary/Host/Native/其它账号门保持，Mac通用Ubuntu CI不宣称Linux/Docker产品原生验收。
+
+华安提交修复的 apply-etf-weekly-admission 仍只处理 Mac Native。旧等待处置与代码切换采用原维护锁和完整活动检查，不触碰 Docker 服务、业务卷、构建缓存或 20GiB 预算；其它平台继续由对应设备验收。
+
+全市场 `reviewed-market-preview-v1` 是现有Mac Native操作员的封闭身份，不更新Docker运行服务、业务卷、构建器登记或缓存策略。原version4锁、BirthFence、全账号保全和回滚保持；不会从Mac派发Windows/Linux产品验收。
+
+资产V9的CI reader容量修复仅用于Mac Native更新；8MB压缩/16MB单job/64MB总展开日志限制与Docker业务卷、构建器和20GiB缓存预算无关，不触发Docker产品发布。
+
+资产V8仅负责Mac Native固定更新，复用原私有池忙碌拒绝和维护锁，不改变Docker镜像、卷、构建器或20GiB缓存预算。没有Docker产品构建/发布，也不认证Windows/Linux原生支持。
+
+历史周报验收仍在主管理员绑定Native Host和唯一DSH运行，不创建Docker替代引擎、镜像、卷或构建器。原运行准入、私有池空闲及部署保全保持；历史文件交付不提升Docker产品或其他平台支持状态。
+
+华安 v2 仍为Mac Native固定升级；Docker镜像、卷、构建器不变，private-pool忙碌或未知仍阻断，不创建替代执行后端。Windows/Linux原生及Docker产品验收不由该配置认证。
+
+`apply-etf-weekly`仅复用原Mac Native联合升级事务；Docker镜像、Compose、业务卷与构建器不变。原private-pool忙碌或未知仍拒绝切换，不为周报创建替代后端或绕过容量；没有Docker产品验收或部署声明，Windows/Linux交对应真机。
+
+2026-10-23：终端`reviewed-market-terminal-v1`是Mac Native封闭部署profile，Docker镜像、Compose、业务卷、容量锁及双运行时选择不变。原version4保全／恢复复用，不操作构建器或生产数据库；本机操作员和同候选Mac安装不构成Docker产品证据，本轮Docker产品层保持NOT_RUN。固定候选及待验证状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+2026-10-23：市场限价/昨日/历史仅新增Mac Native固定apply-market-history身份，原Docker镜像、Compose、卷、资源锁和双运行时选择不变；不将Mac源码/安装/认证页面作为Docker产品验收，本轮Docker层NOT_RUN。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
+
+资产v5大索引修复仅影响Native操作员verify_primary的v5业务读取绑定，不改Docker镜像、Compose、卷、资源治理或双运行时选择。64 MiB是既有业务索引边界，元数据保持1 MB；没有Docker容量或持久格式扩展。Native停机前拒绝、本机回归和PR187文档门修补均不认证Docker产品验收，本轮Docker／Linux执行保持未运行状态。
+
+2026-10-22资产交互v5仅是现有macOS Native常驻的封闭部署身份（旧51f09、产品PR185 merge9bc4）；Docker镜像、Compose、卷、双运行时选择与资源生命周期均无变化，不将Native profile或产品三CI作为Docker构建／健康／持久化证据。本轮不触发Docker执行或Linux产品dispatch，相关未执行状态保留；原version4保全／恢复与同候选Mac安装要求见[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 v4仍只覆盖原macOS Native主实例/网关，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，不构建或切换Docker镜像/卷/网络/缓存，不新增节点。产品已合并及其三CI不认证v4最终候选或Docker产品；旧v3正式恢复也分别留证。原version4锁/恢复/保全、旧profiles、依赖/CI及图保持，未执行Docker产品层仍NOT_RUN。
+
+2026-10-22 Wind工作区v3封闭部署profile仅服务现有macOS Native主实例/网关，固定旧5495和产品a0ff3ae2，复用原v4锁/恢复/保全；本轮不构建或更新Docker镜像、容器、业务卷、网络和缓存，不新增依赖/端口/节点。产品原证据与profile候选CI分别记录，Native实际切换不充当Docker产品验收，未执行层保持NOT_RUN；当前架构图无需修改。
+
+2026-10-22 Wind历史任务、固定复权和账号偏好位于既有Host与账号数据根，不增容器、端口、卷或数据库；原始块/因子使用当前实例私有控制目录。CJPY真实Future未退出及历史任务未终态时禁止把实例当空闲。Native预检和Mac安装证据不替代Docker内厂商授权、构建或健康检查；本轮未执行的Docker产品层保持NOT_RUN，资源归属与回收保护不变。
+
+资产观察 `apply-assets-v2` 仅为 macOS Native 显式联合升级增加固定旧版／产品身份，不操作 Docker 镜像、容器、业务卷、网络或构建缓存。原容量、归属及活动保护保持；Native 本地、CI 或实际切换不充当 Docker 产品验收，未执行项继续 NOT_RUN。
+
+AF指标区新增的固定本地ECharts／Chart.js属于现有Web静态包，不新增容器、端口、卷、网络或数据库；Docker部署与容量／归属保护保持。wheel静态资源核对不能替代真实Docker构建与健康证据，未执行Docker产品验收仍为NOT_RUN，Native／Mac安装结果不互相冒充。
+
+本轮CI大日志下载预算修正只服务既有macOS Native显式部署；不改Docker部署、构建缓存、网络或卷。原全部资格检查保留，本机操作员仅有界等待120秒读取CI日志，非Docker验收证据。
+
+资产观察 apply-assets 仅更新已审 macOS Native 主实例和网关，不切换 Docker 镜像、容器或业务卷；Docker 活动、容量和未知资源保护保持，不能把该部署当作 Docker 验收。
+
+联合升级的独立 Git 仓库身份修补只适用于 Native 发布目录；不改 Docker 源码挂载、镜像、卷或容量保护，仍不构成 Docker 产品升级验证。
+
+PR168 五个导航文件的显式联合交付仍仅针对 macOS Native 主实例/网关；精确 UI 身份不授予 Docker 切换、数据库或构建器维护权限。
+
+模型服务商 v4 联合升级仅适用于当前受审 macOS Native 常驻主实例及网关，不操作 Docker 引擎、容器、卷或容量队列；Docker 活动和未知资源继续保留，不把 Native 部署测试当作 Docker 升级验收。
+
+本轮FinGPT三组比较只在macOS隔离Native实例执行，不调整Docker服务、VM或生产数据。资源收尾仅在既有锁与任务证明下认领重新生成的匹配源码字节码或空目录；未知目录和正在运行的构建仍阻止回收。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 私网邀请制多用户的 `rwb server` 首版只运行 macOS Native，不装入本页 Docker 管理链，也不复用 dev/stage/prod 卷、身份账本或 Native 个人数据。Docker 原单用户安装/健康/凭据合同保留；本轮账号或隔离测试不认证 Docker 多用户与 Linux 原生支持。服务器使用方式及同 UID 信任限制见[安装指南](research-web-installation.md#私网邀请制多用户macos-native)。
@@ -207,6 +259,24 @@ CPU仍为 CFS quota/period=200000/100000、
 PIDs256、日志10MiB×3、`worker.oci.max-parallelism=2`，缓存仅用所属命名卷。
 标准 BuildKit worker 需要 privileged，它仅属于管理员构建平面；业务容器不继承该权。
 首次创建拒绝同名未知 builder/container，后续核验记录ID及限额后使用；不改默认builder。
+若本机 Buildx 注册仍存在，但已登记容器与缓存卷同时缺失，可先执行
+`./rwb-docker builder-reconcile --json` 取得只读预览和 `fingerprint`，再显式执行
+`./rwb-docker builder-reconcile --apply <fingerprint>`。该管理命令需要宿主已有 Python 3.11+，
+不安装依赖；默认预览不改变 Docker。它在同一 `operation.lock` 下核对本机
+`desktop-linux`、Unix socket、当前 Docker Desktop Engine ID、单节点 docker-container
+绑定、旧账本、配置、运行构建和内存预算；任何改变都要求重新预览。
+旧 `builder.id` 不能证明原引擎身份，也不能证明资源为何消失：预览明确承认这一缺口，
+apply 仅授权在该次已核验的当前本机引擎恢复缺失资源，不声称找回旧缓存。
+容器/卷仅缺一个、同名未知资源、运行中的构建器或构建、管理目录别名一律拒绝。
+恢复保留 Buildx 注册，使用官方 Docker create/start 和 Buildx bootstrap，固定
+`moby/buildkit:v0.28.0`、既有限额/标签/配置，验证完成后精确停止新容器并更新账本。
+Docker Desktop 若将配置 bind 的 Source 显示为精确 `/host_mnt` 加原宿主绝对路径，
+必须同时由 `HostConfig.Mounts` 证明相同翻译路径、固定配置目标和只读属性；其他前缀、
+路径后缀匹配或缺失旁证仍拒绝。宿主原路径的既有验证保持。
+原账本、配置、脱敏绑定和分阶段 journal 保存在管理目录 `builder-reconcile/<fingerprint>/`，
+日志在 `logs/builder-reconcile.log`。失败保留实际现场和归档，不伪造回滚；可用
+`--recover <fingerprint>` 显式恢复已登记阶段。创建成功但 journal 未落盘等身份不明窗口
+会拒绝自动恢复，须管理员核对现场。该命令不删除卷、缓存 blob 或 Docker.raw，不重置引擎。
 BuildKit必须留出自身内存，重构建与stage错峰。不要通过全局 prune 或停止他实例解决问题。
 固定 DSH源码、原Node4GiB heap、完整TypeScript与打包检查均保留，不交付失败的降低heap适配。
 受管入口同时核对所有实际运行容器硬上限与VM实际内存，保留2GiB余量；未知无限额容器拒绝。
@@ -345,3 +415,29 @@ Hot原件冻结的本轮PG容器仅为既有项目隔离验证资源：启动前
 两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
 
 AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件名及完整 AEAD；A 树配 B 完整密钥/身份不会成为未配置的新写目标，修复不执行卷迁移或清理。
+
+模型profile仍使用实例绑定的原加密模型后端，不新增卷或主密钥。新AES-GCM记录携带公开账号并核对文件名和AAD，旧记录不转换；所有记录重启校验继续拒绝未知/损坏绑定。本次Mac任务不从Mac dispatch Linux/Windows产品CI，Docker实际交付仍按对应真机证据。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案个人 SQLite、引用／pin 和既有 raw 快照随原用户业务根保全，Native／Docker 单一写入与用户隔离不变；无新镜像角色、容器、卷、端口或 PostgreSQL 服务。新增 metadata／lock 摘要只扩展保全覆盖，正式恢复与切换仍走原维护准入和独立授权。当前跟踪只重查冻结材料且默认关闭，小创缺真实 Registry 身份保持 unsupported；Mac离线回归不替代 Docker 产品层验收或他平台证据，见[档案保全](research-web-dossiers.md#备份恢复与部署边界)、[扫描](research-web-dossier-scans.md)及[候选](research-web-seek-alpha.md)。
+
+
+2026-10-23：资产副图v7只更新macOS Native固定操作员；不宣称Docker产品已验收，不修改构建器、缓存/容量或其他平台规则。原资源回收仍保护未知与活动资源。
+
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

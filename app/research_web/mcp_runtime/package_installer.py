@@ -175,6 +175,21 @@ class PackageInstaller:
 
         return self.target(manifest)
 
+    def managed_target(self, manifest: InstallationManifest):
+        """Offline managed launch never reads supplier environment credentials."""
+        from .managed_sandbox import build_managed_target, validate_plan
+
+        plan = manifest.plan
+        plan.assert_integrity()
+        try:
+            validate_plan(plan)
+            return build_managed_target(
+                self.installation_root / manifest.id, plan.argv, plan.package_type
+            )
+        except ValueError as exc:
+            log.warning("mcp_managed_target_rejected", error_type=type(exc).__name__)
+            raise PackageInstallError("mcp_managed_offline_target_invalid") from exc
+
     def remove(self, manifest: InstallationManifest) -> None:
         destination = self.installation_root / manifest.id
         if destination.exists() or destination.is_symlink():
@@ -182,7 +197,7 @@ class PackageInstaller:
                 raise PackageInstallError("installation_destination_unsafe")
             shutil.rmtree(destination)
         if self.credentials is not None:
-            for slot in ("environment", "oauth"):
+            for slot in ("environment", "oauth", "static_bearer"):
                 self.credentials.delete(manifest.id, slot)
         log.info("mcp_package_installation_removed", status="removed")
 

@@ -1,0 +1,11 @@
+{
+  "fixture": true,
+  "checks": [
+    "capability center tab, bounded ZIP preview, support table and initially unchecked permissions",
+    "digest-bound approval, native CapabilityCatalog projection and truthful unconfirmed discovery",
+    "native MCP preview/confirm/probe, exact artifact/config/schema review and activation through real MCPRuntimeService with mock Host",
+    "withdrawal, reviewed upgrade and rollback actually change current native package projection"
+  ],
+  "pageErrors": [],
+  "modelPrompts": 0
+}

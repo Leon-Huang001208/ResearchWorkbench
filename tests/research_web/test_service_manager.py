@@ -185,6 +185,28 @@ def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monk
     assert all(report[key] == previous[key] for key in ("python", "node", "cjpy", "dsh", "data"))
 
 
+def test_weekly_doctor_never_certifies_vendor_or_report_from_dependency_readiness(
+    manager, monkeypatch
+):
+    from app.research_web.datahub.providers_wind_api import WindClientAPIProvider
+
+    monkeypatch.setattr(
+        WindClientAPIProvider,
+        "readiness",
+        lambda _: {
+            "dependency_ready": True,
+            "status": "unverified",
+            "code": None,
+        },
+    )
+    value = manager._weekly_report_diagnostic()
+    assert value["dependency_ready"] is True
+    assert value["status"] == "unverified"
+    assert value["source_contract"] == "not_checked"
+    assert value["live_acceptance"] == "NOT_RUN"
+    assert value["model_acceptance"] == "NOT_RUN"
+
+
 @pytest.mark.parametrize(
     "access, expected",
     [

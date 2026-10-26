@@ -18,8 +18,8 @@ def _digest(value) -> str:
     ).hexdigest()
 
 
-def snapshot(root: Path) -> dict:
-    """Hash existing session bytes and non-secret model settings under admission."""
+def snapshot(root: Path, *, create_dossier_lock: bool = True) -> dict:
+    """Hash session/model/original scopes; strict observers never create dossier locks."""
     try:
         if root.resolve() != root.absolute() or root.is_symlink():
             raise ValueError("preservation_root_unsafe")
@@ -30,7 +30,16 @@ def snapshot(root: Path) -> dict:
         if not isinstance(index, dict) or not isinstance(index.get("sessions"), dict):
             raise TypeError("preservation_index_invalid")
         files = {}
-        for folder in (root / "sessions", root / "runtime/home/sessions"):
+        from ..dossier_preservation import snapshot_dossiers
+
+        dossiers = snapshot_dossiers(root, create_lock=create_dossier_lock)
+        if dossiers is not None:
+            files.update(dossiers["files"])
+        folders = [root / "sessions", root / "runtime/home/sessions"]
+        if dossiers is not None:
+            # Pinned public material and its private originals form one proof.
+            folders.extend([root / ".control/snapshots", root / ".control/calls"])
+        for folder in folders:
             present = True
             ancestor = root
             for part in folder.relative_to(root).parts:
@@ -64,7 +73,7 @@ def snapshot(root: Path) -> dict:
             "models_hash": _digest(models),
             "files": files,
         }
-    except (OSError, ValueError, TypeError) as exc:
+    except (OSError, ValueError, TypeError, RuntimeError) as exc:
         log.error("multiuser_preservation_snapshot_failed", error_type=type(exc).__name__)
         raise RuntimeError("preservation_snapshot_failed") from exc
 

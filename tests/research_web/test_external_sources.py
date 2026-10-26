@@ -42,6 +42,7 @@ def test_inventory_preserves_all_sources_and_reference_boundary():
         "{",
         '{"url":"https://evil.test"}',
         '{"query":{"api_key":"x"}}',
+        '{"body":{"registrationkey":"synthetic-bls-secret"}}',
         '{"body":{"nested":{"callback":"x"}}}',
     ],
 )
@@ -137,6 +138,33 @@ async def test_authenticated_responses_cannot_reflect_credentials():
     )
     assert result.status == "failed" and result.limitations == ["credential_reflection"]
     assert not result.raw and not result.rows
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [200, 401])
+async def test_ths_existing_access_is_used_without_exchange_or_retry(status):
+    class Secrets:
+        def read_source_secret(self, _source):
+            return json.dumps(
+                {"access_token": "synthetic-access", "refresh_token": "synthetic-refresh"}
+            )
+
+    calls = []
+
+    def reply(request):
+        calls.append(request)
+        assert request.url.path.endswith("real_time_quotation")
+        assert request.headers["access_token"] == "synthetic-access"
+        assert "refresh_token" not in request.headers
+        return httpx.Response(status, json={"errorcode": 0, "tables": [{"latest": 4000}]})
+
+    result = await fetch(
+        query("ext_ths", "real_time_quotation", body={}),
+        connections=Secrets(),
+        transport=httpx.MockTransport(reply),
+    )
+    assert len(calls) == 1
+    assert result.status == ("snapshot" if status == 200 else "failed")
 
 
 @pytest.mark.asyncio

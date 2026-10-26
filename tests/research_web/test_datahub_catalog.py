@@ -21,6 +21,29 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
 
 
+def test_all_catalog_sources_project_into_connection_center(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.research_web.datahub import connections
+
+    monkeypatch.setattr(connections.os, "environ", {})
+    monkeypatch.setattr(
+        connections,
+        "default_credential_backend",
+        lambda: SimpleNamespace(get_password=lambda *_args: None),
+    )
+    hub = DataHub(Store(tmp_path))
+    center = hub.connection_center()
+    catalog_ids = {source["id"] for source in hub.catalog()["sources"]}
+    assert {source["id"] for source in center["sources"]} == catalog_ids
+    grouped = [source for group in center["groups"] for source in group["items"]]
+    assert len(grouped) == len(set(grouped))
+    assert set(grouped) == catalog_ids
+    archived = next(source for source in center["sources"] if source["id"] == "bea_archive")
+    assert archived["group"] == "public"
+    assert archived["configuration_supported"] is False
+
+
 @pytest.mark.parametrize("source", ["auto", "tavily", "bing"])
 def test_web_search_without_integrated_provider_is_unavailable_not_invalid_query(source):
     from app.research_web.datahub.broker import resolve
@@ -57,13 +80,14 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 16,
-        "sources": 64,
-        "callable_sources": 40,
+        "sources": 65,
+        "callable_sources": 41,
         "needs_configuration": 15,
         "unavailable": 0,
     }
     ids = {source["id"] for source in catalog["sources"]}
     assert ids == {
+        "bea_archive",
         "wind",
         "tinysoft",
         "ifind",
@@ -91,6 +115,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
     assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
+        "bea_archive",
         "akshare",
         "cls",
         "eastmoney_fund",
@@ -125,6 +150,9 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "trading_calendar",
         "market_bars",
         "market_snapshot",
+        "factor_macro",
+        "financials",
+        "market_activity",
     }
     assert tinysoft_bindings["fund_data"] is False
     akshare_bindings = {
@@ -133,7 +161,9 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         if row["source_id"] == "akshare"
     }
     assert {key for key, implemented in akshare_bindings.items() if implemented} == {
+        "factor_macro",
         "search_assets",
+        "trading_calendar",
         "market_bars",
         "market_snapshot",
         "financials",
@@ -367,6 +397,7 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(
         ]
     )
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -395,7 +426,7 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(
             "turnover_rate_pct": 1.2,
         }
     ]
-    assert result.fields["close"] == {"unit": "CNY", "currency": "CNY"}
+    assert result.fields["close"] == {"unit": "currency_per_share", "currency": "CNY"}
 
 
 @pytest.mark.asyncio
@@ -416,6 +447,7 @@ async def test_akshare_financials_normalize_boolean_missing_sentinels(monkeypatc
         ]
     )
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
 
     result = await provider.fetch(
         BusinessQuery(
@@ -433,6 +465,11 @@ async def test_akshare_financials_normalize_boolean_missing_sentinels(monkeypatc
             "净利润": "1.47亿",
             "净利润同比增长率": None,
             "扣非净利润": None,
+            "report_period": "1998-12-31",
+            "revenue": None,
+            "net_profit": 147000000.0,
+            "roe": None,
+            "gross_profit_margin": None,
         }
     ]
     assert (
@@ -461,7 +498,7 @@ async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypat
         )
     )
     assert result.status == "failed"
-    assert result.limitations[-1] == "provider_error"
+    assert result.limitations[-1] == "vendor_unreachable"
     assert "secret" not in str(result.limitations)
 
 
@@ -477,6 +514,7 @@ async def test_akshare_probe_uses_lightweight_remote_trade_calendar(monkeypatch)
         return b'var datelist="fixture";var KLC_TD_SH=datelist;'
 
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     monkeypatch.setattr(provider, "_fetch_probe_payload", fetch_probe_payload)
 
     result = await provider.probe()
@@ -760,18 +798,29 @@ async def test_business_query_routes_only_integrated_sources_and_snapshots(tmp_p
             "bad-source",
             BusinessQuery(capability="search_news", source="wind", parameters={}),
         )
-    with pytest.raises(StoreError, match="没有完成 DataHub 适配"):
+    with pytest.raises(StoreError, match="口径"):
         await hub.query(
             sid,
             "not-integrated",
-            BusinessQuery(capability="factor_macro", parameters={"series": "CPI"}),
+            BusinessQuery(
+                capability="factor_macro", source="akshare", parameters={"series": "CPI"}
+            ),
         )
     await hub.close()
 
 
-def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
+def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path, monkeypatch):
+    from test_mcp_runtime_integration import FakeKeyring
+
+    from app.research_web.credential_backend import CredentialBackendError, SystemKeyringBackend
+
+    def unavailable(*_args, **_kwargs):
+        raise CredentialBackendError("credential_store_unavailable")
+
+    for operation in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(SystemKeyringBackend, operation, unavailable)
     native = NativeFixture()
-    service = ResearchService(native, Store(tmp_path))
+    service = ResearchService(native, Store(tmp_path), mcp_keyring_backend=FakeKeyring())
     external = []
 
     def respond(request):
@@ -862,6 +911,7 @@ async def test_akshare_index_filters_full_history_before_cap_and_uses_points(mon
 
     package.stock_zh_index_daily = index
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -902,6 +952,7 @@ async def test_akshare_etf_uses_fund_feed_and_marks_native_volume(monkeypatch):
 
     package.fund_etf_hist_em = etf
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -936,6 +987,7 @@ async def test_akshare_index_rejects_unsupported_semantics_before_feed(
     import app.research_web.datahub.providers_akshare as provider
 
     monkeypatch.setitem(sys.modules, "akshare", ModuleType("akshare"))
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -967,6 +1019,7 @@ async def test_akshare_index_fallback_is_bounded_and_retains_unknown_volume_unit
     package.stock_zh_index_daily = primary
     package.stock_zh_index_daily_em = alternate
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     monkeypatch.setattr(provider.time, "sleep", lambda _delay: None)
     result = await provider.fetch(
         BusinessQuery(
@@ -1013,6 +1066,7 @@ async def test_akshare_nonequivalent_queries_fail_before_vendor(
     package.stock_individual_fund_flow = reply
     package.stock_zh_a_daily = reply
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(capability=capability, source="akshare", parameters=parameters)
     )
@@ -1039,6 +1093,7 @@ async def test_akshare_fund_flow_slices_dates_before_row_limit(monkeypatch):
 
     package.stock_individual_fund_flow = reply
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_activity",
@@ -1072,7 +1127,7 @@ def test_akshare_stock_snapshot_keeps_explicit_exchange_identity():
     [
         ("trading_calendar", {"market": "CN"}, "data_capability_unavailable"),
         ("index_data", {"index": "000300.SH", "dataset": "quotes"}, "data_capability_unavailable"),
-        ("factor_macro", {"series": "synthetic"}, "data_capability_not_integrated"),
+        ("factor_macro", {"series": "adjustment_metadata"}, "data_capability_unavailable"),
     ],
 )
 def test_unavailable_business_source_has_stable_code(
@@ -1093,7 +1148,7 @@ def test_unavailable_business_source_has_stable_code(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("asset,expected", [("000001.SH", "sh000001"), ("000001.SZ", "sz000001")])
+@pytest.mark.parametrize("asset,expected", [("600000.SH", "sh600000"), ("000001.SZ", "sz000001")])
 async def test_akshare_stock_snapshot_preserves_exchange_in_feed_and_result(
     monkeypatch, asset, expected
 ):
@@ -1109,6 +1164,7 @@ async def test_akshare_stock_snapshot_preserves_exchange_in_feed_and_result(
 
     package.stock_zh_a_daily = reply
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_snapshot",
@@ -1139,6 +1195,7 @@ async def test_akshare_fund_flow_unverifiable_or_excessive_rows_fail_closed(
     package = ModuleType("akshare")
     package.stock_individual_fund_flow = lambda **_kwargs: pd.DataFrame(payload)
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_activity",

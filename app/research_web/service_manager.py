@@ -150,6 +150,17 @@ class _ProcessFact:
 
 
 @dataclass(frozen=True)
+class _GracefulStopIdentity:
+    """Private identity for a future fully fenced maintenance transaction."""
+
+    role: str
+    port: int
+    pid: int
+    started_at: float
+    argv: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class _WebReadiness:
     """Complete, allowlisted Research Web protocol readiness."""
 
@@ -1582,6 +1593,112 @@ class WebServiceManager:
                 return False
         return False
 
+    def _graceful_stop_identity(self, process: ManagedProcess) -> _GracefulStopIdentity:
+        """Capture read-only identity; this does not grant permission to signal."""
+        probe = self._probe_service(process)
+        observed = probe_process(probe.pid) if probe.pid is not None else None
+        if (
+            not self._is_owned_alive(probe)
+            or probe.pid is None
+            or observed is None
+            or observed.issue is not None
+            or observed.started_at is None
+            or observed.argv is None
+        ):
+            raise ServiceManagerError(
+                "优雅停止的进程身份未确认", code="graceful_stop_identity_unverified"
+            )
+        return _GracefulStopIdentity(
+            process.role, process.port, probe.pid, observed.started_at, observed.argv
+        )
+
+    def _graceful_stop_owned_once(
+        self,
+        process: ManagedProcess,
+        identity: _GracefulStopIdentity,
+        *,
+        lease,
+        persist_signal_intent,
+        signal_already_attempted: bool,
+        timeout: float = 10,
+    ) -> None:
+        """Private primitive, unused until a complete maintenance operator exists.
+
+        Caller must hold the installation/lifecycle lease and complete admission,
+        supervisor/operator locks, BirthFence and durable preservation journal.
+        Persist intent before the signal; a crash in that interval is ambiguous
+        and MUST resume with signal_already_attempted=True (never resend). This
+        method never starts, rolls back, removes state, clears auth, or escalates.
+        """
+        self._assert_installation_scope(lease)
+        if (
+            os.name == "nt"
+            or (process.role, process.port) != (identity.role, identity.port)
+            or type(signal_already_attempted) is not bool
+            or type(identity.pid) is not int
+            or identity.pid <= 0
+            or not math.isfinite(identity.started_at)
+            or not 0 < timeout <= 90
+        ):
+            raise ServiceManagerError(
+                "优雅停止合同未确认", code="graceful_stop_identity_unverified"
+            )
+
+        def observed_retired():
+            self._assert_installation_scope(lease)
+            observed = probe_process(identity.pid)
+            listener = listener_pids(identity.port)
+            if listener.state not in {"closed", "listening"} or any(
+                pid != identity.pid for pid in listener.pids
+            ):
+                raise ServiceManagerError(
+                    "优雅停止监听身份变化", code="graceful_stop_identity_changed"
+                )
+            if observed.state == "missing":
+                return not listener.pids
+            state = self._probe_state(process)
+            if (
+                observed.state != "alive"
+                or observed.issue is not None
+                or observed.started_at != identity.started_at
+                or observed.argv != identity.argv
+                or state.state != "valid"
+                or state.pid != identity.pid
+                or not signature_matches_argv(state.signature, identity.argv)
+                or state.started_at is None
+                or abs(state.started_at - identity.started_at) > PROCESS_START_TOLERANCE_SECONDS
+            ):
+                raise ServiceManagerError(
+                    "优雅停止进程身份变化", code="graceful_stop_identity_changed"
+                )
+            return False
+
+        if observed_retired():
+            return
+        if not signal_already_attempted:
+            persist_signal_intent()
+            # The durable callback can take time. Recheck birth, command and
+            # listener immediately before one single-PID SIGTERM.
+            if observed_retired():
+                return
+            try:
+                os.kill(identity.pid, signal.SIGTERM)
+            except OSError as exc:
+                log.warning("research_service_graceful_signal_unconfirmed", role=process.role)
+                raise ServiceManagerError(
+                    "停止信号未确认；保留已发送意图", code="graceful_stop_signal_unconfirmed"
+                ) from exc
+            log.info("research_service_graceful_signal_once", role=process.role)
+        deadline = time.monotonic() + timeout
+        while not observed_retired():
+            if time.monotonic() >= deadline:
+                log.warning("research_service_graceful_drain_pending", role=process.role)
+                raise ServiceManagerError(
+                    "优雅停止仍在排空；保留维护事务", code="graceful_stop_pending"
+                )
+            time.sleep(0.1)
+        log.info("research_service_graceful_retired", role=process.role)
+
     def _stop_owned_probe(self, process: ManagedProcess, probe: ServiceProbe) -> bool:
         self._assert_foreign_observation()
         if not self._is_owned_alive(probe) or probe.pid is None:
@@ -2945,6 +3062,9 @@ class WebServiceManager:
         """Return a path-free, credential-free Web installation diagnosis."""
         from research_workbench_entrypoint.resident.admission import diagnostic
 
+        from .mcp_runtime.managed_sandbox import POLICY_VERSION, available
+        from .warehouse_diagnostics import warehouse_diagnostic
+
         diagnosis = self._installation_diagnosis()
         probes = self._service_probes()
         installation_issues = diagnosis.get("issues", [])
@@ -3008,8 +3128,43 @@ class WebServiceManager:
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
             "office_auto_verification": office_auto,
+            "weekly_report": self._weekly_report_diagnostic(),
             "ai_news": self._ai_news_diagnostic(),
+            "research_warehouse": warehouse_diagnostic(self.data_root),
+            "mcp_managed_local_sandbox": {
+                "available": available(),
+                "policy": POLICY_VERSION,
+                "runtime": "python",
+                "network": False,
+                "child_processes": False,
+                "supplier_credentials": False,
+                "acceptance": "NOT_RUN",
+            },
         }
+
+    def _weekly_report_diagnostic(self) -> dict:
+        """Dependency discovery only; never start a vendor session or run a report."""
+        try:
+            from .datahub.providers_wind_api import WindClientAPIProvider
+
+            readiness = WindClientAPIProvider().readiness()
+            return {
+                "provider": "wind_client_api",
+                "dependency_ready": readiness["dependency_ready"],
+                "status": readiness["status"],
+                "code": readiness.get("code"),
+                "source_contract": "not_checked",
+                "live_acceptance": "NOT_RUN",
+                "model_acceptance": "NOT_RUN",
+            }
+        except (ImportError, OSError, ValueError, RuntimeError) as exc:
+            log.warning("report_weekly_doctor_failed", error_type=type(exc).__name__)
+            return {
+                "status": "unavailable",
+                "code": "weekly_diagnostic_failed",
+                "live_acceptance": "NOT_RUN",
+                "model_acceptance": "NOT_RUN",
+            }
 
     def _ai_news_diagnostic(self) -> dict:
         """Optional editorial readiness never grants model or collection acceptance."""

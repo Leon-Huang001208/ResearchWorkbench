@@ -129,8 +129,8 @@ test('capability workspace preserves legacy links and exposes five stable primar
   assert.equal(capabilityWorkspaceHash('tool', 'market'), '#/skills?kind=tool&view=market');
   assert.equal(capabilityWorkspaceHash('data'), '#/skills?kind=data');
   assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'method' });
-  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
-  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'plugin' });
+  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'plugin' });
   assert.deepEqual(capabilityWorkspaceKindKey('Enter', 'tool'), { handled: false });
 });
 
@@ -553,7 +553,7 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
 test('real app event handlers close/select slash, search and drawers without any model or tool write', async () => {
   const handlers = new Map(); const calls = []; const logs = [];
-  const viewportChanges = []; const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
+  const viewportChanges = []; const windowHandlers = new Map(); const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
   const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const prompt = { id: 'prompt', focus() {} };
@@ -570,7 +570,7 @@ test('real app event handlers close/select slash, search and drawers without any
   const detail = { ...selectedSkill, draft: { kind: 'skill', metadata: selectedSkill.metadata, instructions: '真实候选', files: [], steps: [] } };
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, querySelectorAll: () => resultItems, getElementById: id => id === 'global-search-results' ? searchResults : null, activeElement: null, title: '' } });
-    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => viewport, addEventListener() {} } });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => viewport, addEventListener(name, handler) { windowHandlers.set(name, handler); } } });
     Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt' } });
     Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
@@ -582,8 +582,19 @@ test('real app event handlers close/select slash, search and drawers without any
     await load(`app.mjs?capabilities-integration=${Date.now()}`);
     assert.equal(viewportChanges.length, 1);
     viewport.matches = false; viewportChanges[0]({ matches: false });
-    assert.match(rootElement.innerHTML, /aria-label="关闭会话侧栏"/);
+    assert.match(rootElement.innerHTML, /data-collapse-sidebar aria-label="折叠 FinGPT 二级侧栏"/);
+    windowHandlers.get('focusin')({ target: { matches: () => true } });
+    document.body = {}; document.activeElement = document.body;
     viewport.matches = true; viewportChanges[0]({ matches: true });
+    assert.equal(focused, 'toggle', 'CSS-hidden sidebar control restores focus to the mobile opener');
+    windowHandlers.get('focusin')({ target: { matches: () => false } });
+    focused = '';
+    viewportChanges[0]({ matches: true });
+    assert.equal(focused, '', 'resizing must not steal focus from unrelated controls');
+    windowHandlers.get('focusin')({ target: { matches: () => true } });
+    windowHandlers.get('focusout')({ target: { matches: () => true, getClientRects: () => [{}] } });
+    viewportChanges[0]({ matches: true });
+    assert.equal(focused, '', 'deliberately blurred visible sidebar controls must not reclaim focus');
     assert.match(rootElement.innerHTML, /aria-label="打开会话侧栏"/);
     const input = async (id, value, dataset = {}) => handlers.get('input')({ target: { id, value, dataset, closest: () => null } });
     const click = async (dataset) => handlers.get('click')({ target: { closest: () => ({ dataset, disabled: false }) } });
@@ -648,12 +659,15 @@ test('real landing modes filter catalog categories and select Workflow or Skill 
     await load(`app.mjs?landing-integration=${Date.now()}`);
     const quickIDs = () => [...rootElement.innerHTML.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]);
     const change = (id, value, dataset = {}) => handlers.get('change')({ target: { id, value, dataset, closest: () => null } });
-    assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类/);
+    assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类|claw-examples|claw-case-card|查看示例/);
     assert.deepEqual(quickIDs(), []);
     const reads = calls.length;
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { slashSearch: '' }, disabled: false }) } });
-    assert.ok(quickIDs().includes('flow-one')); assert.equal(calls.length, reads);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { skillShortcut: 'flow-one' }, disabled: false }) } });
+    await handlers.get('click')({ target: { closest: selector => selector === '[data-cm-open]' ? { dataset: { cmOpen: 'capabilities' }, disabled: false } : null } });
+    assert.match(rootElement.innerHTML, /composer-command-panel/);
+    assert.match(rootElement.innerHTML, /公司研究步骤/); assert.equal(calls.length, reads);
+    const labels = [...rootElement.innerHTML.matchAll(/composer-command-label">([^<]+)</g)].map(match => match[1]);
+    const index = labels.indexOf('公司研究步骤'); assert.ok(index >= 0);
+    await handlers.get('click')({ target: { closest: selector => selector === '#claw-composer-menu' ? {} : selector === '[data-cm-row]' ? { dataset: { cmRow: String(index) }, disabled: false } : null } });
     assert.equal(globalThis.location.hash, '#/claw');
     assert.match(rootElement.innerHTML, /capability-chips.*公司研究步骤 · v2/s);
     await change('skill-select', 'document-reading');

@@ -3,6 +3,124 @@
 管理员构建队列沿原rwb-docker和15分钟心跳运行，没有新增常驻调度服务或业务节点。
 12GiB为待独立授权生效的宿主默认方案；冷构建仍在原受管builder内，业务容器/网络与生产生命周期保持。
 
+apply-market-breadth复用原Native主实例/私网网关version4维护与恢复拓扑，固定b800前版及获批4c72完整组合。没有新服务或第二研究引擎；原01/12图仍准确，前后版本健康及保全另行取证。
+
+原 Host 构造阶段提前建立来源请求和取消登记表，不等待首次来源操作才创建。执行器、网关、唯一 DSH 和数据根不变；这是新源码的真实冷启动见证修复，不是旧进程维护或状态改写。
+
+Wind 清理恢复准备仍在原 Host/Native/resident 模块内：既有 resident 状态附带分项见证，只读预检不产生维护事务，也不操作 Excel。原不可变控制器兼容和完整恢复事务未实现，不能借新源码越过旧进程的未知状态；现有部署拓扑保持。
+
+admission-v2仍用原Host、唯一DSH、网关、三锁和version4切换节点；变化仅是准备阶段身份与最终idle验证顺序，不增服务、引擎或部署边界。
+
+华安专属准入仍沿浏览器→Host→唯一DSH及原脚本runner/Seatbelt节点。Host返回冻结范围给既有Native guard，claim保存在同一Run，既有全账号隔离与部署拓扑保持；不添加Automation、MCP或独立生产引擎。
+
+全市场组合预览修复仅新增现有Native操作员的封闭36fd990c→e56d9718产品身份；主实例、网关、维护锁、BirthFence和恢复节点不变。没有新增服务或第二研究引擎，01／12部署图保持准确。
+
+资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
+
+资产V8沿现有Mac Native主实例、私网网关和唯一DSH，仅增加固定前版b4384470与包含PR216/217/219的产品组合检查点身份。原事务和恢复节点不变；运行源码资格、真实服务版本及认证画面分别验收。
+
+华安历史验收复用原浏览器/Host/Native/唯一DSH节点：专用owner入口在既有Run中保存用途，后续数据/正文/文件链保持。没有新服务或旁路引擎；旧正式流程及私网边界保持，部署与真实文件验收分别认证。
+
+华安 v2 固定组合产品56709a8d及原前版5343e18d，沿原Native Host、私网网关与唯一DSH部署职责；新产品已有档案保全一并保留，无新增进程或公开入口。源码资格和实际切换分别认证。
+
+华安固定操作员在原Native Host／私网网关／唯一DSH之间复用version4升级、维护锁和恢复节点，只绑定前版5343e18d与产品988046d，不增加进程或公开入口。原01部署图的职责和私网边界保持；源码资格与实际切换仍分别认证。
+
+## 今日发现与账号后端（2026-10-23）
+
+新增能力落在现有Host、DataHub快照、唯一DSH与Automation内；01图的本机准入/RuntimePool分组分别对应ServiceManager与账号Pool，私网网关恢复已同意计划时仍经容量门。每用户后端独立资料/模型/日程，泛用Automation关闭而窄跟踪由宿主flag允许；owner后端关闭或容量延期不保证执行，不启动全局第二worker。详细[合同](../../research-web-discovery.md)。
+
+
+2026-10-23：终端Native部署沿同一个主实例／私有网关／受管操作员拓扑，仅新增固定`reviewed-market-terminal-v1`身份。原维护锁、BirthFence、完整版本4事务和恢复仍承担切换，不新建服务或运行节点；01／12图保持准确。PR201合入后才由主任务固定最终PAYLOAD，操作员候选CI与实际常驻切换分别认证，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+终端v2在原Host市场上下文增加分析和个人组合文件；公开行情来源细化为东财报价和新浪历史价格指数日线。用户仅能访问自己根下market-cache，旧core-v1研究仓仍仅固定12，terminal-v2不借旧profile声称入仓。系统部署节点和DSH保持，13图同步实际来源及文件／读取边。
+管理员构建器对账只扩展原Docker构建工具节点内部的显式修复路径，继续使用当前本地Docker Desktop endpoint及原操作锁；无新Host／DSH节点或网络公开面，原部署图仍准确。
+
+2026-10-23：市场补齐仍位于原Host MarketService、DataHub公开东财和当前用户缓存内；只增加限价状态、昨日逐股基线及最多30日真实资金留存，无新增部署节点或后台采集服务。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
+
+公开indices桥由现有ResearchService注入`MarketReader`，仅为MarketService的固定指数分区接入原ResearchWarehouse/StorageRunner。其余分区直取和用户缓存、GET零上游、唯一DSH及部署节点不变；13市场数据流增加可选个人仓库条件边，未配置不会创建数据库或后台采集。
+
+资产v5大索引修复只调整既有Native操作员预检读取绑定：v5业务index沿64 MiB安全读取器，部署元数据仍1 MB。主实例／网关、账号根、锁、BirthFence和version4事务没有新增节点或拓扑；旧profile与固定产品不变，01部署图仍准确。此前8.67 MB索引在停机前被拒绝，不能把随后本机修复或文档补齐当作实际切换成功。
+
+资产交互v5（2026-10-22）只新增原Native操作员的固定profile：旧51f09、产品PR185真实merge9bc4，入口apply-assets-v5。主实例／网关、维护锁、BirthFence、账号数据根和唯一DSH节点保持；没有新守护进程、容器、HTTP或部署拓扑，01部署图仍准确。旧资产／market／模型profile保留，v5最终资格及未部署状态见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 Host资产工作区新增账号AssetDirectory和按需load，仍部署在原FastAPI进程，不创建第二研究引擎、守护进程或数据库。目录search GET可以合并后台天软读取，结果落账号24小时缓存；普通专题区块沿原会话DataHub快照，15分钟同条件缓存，规范历史继续history-job。02模块图补目录缓存分支，04区分资产／DSH取数和会话快照，API Atlas登记两新HTTP；这些真实变化不能沿用旧纯静态或封闭部署profile的“无新接口”描述。账号、凭据namespace及唯一DSH边界保持，实际安装与部署仍须独立证据。
+
+Host ResearchService默认挂入可选ResearchWarehouse，也保留受信market_store_bridge注入，仍由现有DataHub和唯一DSH执行。MarketStore是独立业务库接口，不默认连接现有5432或更改服务；resident空闲证明同时纳入所有SDK真实Future、DataHub未终态任务和存储线程占用。
+
+
+2026-10-22 插件增加现有 Host 内版本/审批适配，现有 gateway → 每用户 Host → 唯一 DSH 的部署节点保持。共享与个人审批从真实 AccountStore 角色进入固定 HMAC 通道；Pool 双阶段冻结/重启只处理自有 DSH，未知不停止。无第二引擎或新的服务进程，详细流见[插件合同](../../research-web-plugins.md)。
+
+2026-10-22 v4沿既有Native主实例/私网网关和version4事务，只增加固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`身份。旧v1/v2/v3、controller/evidence及严格保全保持，无新运行节点/接口/引擎/依赖，原图及Atlas准确，不改HTML/PNG。产品候选654fa6、preview2e069与真实merge同tree；产品三CI和旧v3正式恢复5495不替代v4工具最终验收/部署。
+
+华安ETF周报新合同复用现有Native Host、附接主管理员网关、DataHub和唯一DSH；没有新增守护进程、
+数据库或研究循环。`report_workflows`锁定资源/截止期，私有API适配取得同源证据，DSH写规范正文，
+Host以原质量门核验并将中文presentation投影到原版式、本期图表和正式归档。普通tenant不获得该
+主账号例外。09/10报告图分别展示旧版兼容与新合同；通用部署节点保持。详见[周报生产](../../research-web-etf-weekly-production.md)。
+
+2026-10-22 v3仅为已合并Wind产品增加封闭部署身份：旧主实例/网关5495、产品a0ff3ae2，沿同一model_provider_upgrade协调原Native/网关v4事务。controller、evidence和旧v1/v2恢复保持字节及语义，无新运行节点、HTTP、产品模块或依赖；部署/模块图与Atlas不变，也不重新生成HTML/PNG。最终候选验收通过且root持锁证明全部任务/Future空闲并冻结全账号索引后，才执行本轮已授权切换；[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)是本轮真源。
+
+2026-10-22 Wind工作区在现有Host的AssetWorkspace旁增加`HistoryJobs`与纯历史规范模块，沿Broker串行取得日线/因子并原子发布规范快照，账号Store保存任务和副图偏好。模块及数据流图02/04已同步真实变化，API Atlas补6端点；部署仍是原浏览器/Host/DSH/网关节点，无新守护进程或数据库。Host关闭等待任务排空，resident及操作员空闲证明同时检查真实CJPY Future和持久任务。Automation调度与每用户运行根保持；详细[存储](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)与[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)分别维护。
+
+Host 新增无会话 `MarketService`，由 ResearchService 初始化和关闭；市场 HTTP 只在 POST 启动有界公共行情采集，GET 读取用户缓存。它不是独立守护进程或研究引擎，不改变 Web/DSH 部署节点；新模块内数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。实际常驻升级仍须独立授权和检查新模块任务的排空，不沿用旧固定产品 profile 冒充兼容。
+
+resident 空闲证明同步读取 `MarketService` 的有界活动见证；真实 collector、取消后的排空与 Provider 关闭期间均保持活动。缺失或无效见证、关闭失败保持未知，不能认证可安全停止；请求显示已取消不等于底层采集已经结束。
+
+资产观察 v2 仍由原 `model_provider_upgrade` 协调既有 Native 主实例和网关；固定旧版 `9bc12355` 与产品 `93d62be6`，旧 v1／模型 profile 保留。v4 journal、不可变控制器、生产解释器、冻结恢复包和锁的职责不变，没有新增服务节点或扩大自动升级权限，现有部署图继续准确。
+
+资产观察迁入原 AF 连续指标区仍是既有浏览器 → Host AssetWorkspace → DataHub Broker → Provider／会话快照链路。`asset-indicators.mjs`、`asset-projection.mjs` 与本地固定 ECharts 5.5.0／Chart.js 4.4.7 属于前端内部模块及安装资源，不新增服务节点、数据库、协调器或研究执行引擎；账号权限与唯一DSH不变。原部署图拓扑仍准确，具体页面见[UI合同](../../research-web-ui.md#资产观察工作台)。
+
+资产联合操作员固定证据读取器完整SHA256，CI大日志下载上限120秒，其他命令30秒；节点、不可变controller、全请求冻结及恢复拓扑不变，复核失败仍在停机前拒绝，详见[专项部署](../../research-web-gateway-upgrade.md)。
+
+资产观察部署只为既有联合事务增加封闭固定产品profile，复用同一主实例、网关、不可变控制器及恢复包，不新增部署节点或自动升级权限。
+
+受审源码与既有 Native 发布角色可分别属于不同 Git common directory，但均须是同一 GitHub 仓库。联合事务逐角色固定原目录/inode，不搬迁部署节点或引入新服务。
+
+PR168 导航随原模型服务商联合事务交付，五个 UI 文件使用独立冻结产品身份；后端仍是原受审基线。节点、端口、旧控制器与恢复职责不变，原会话及模型配置由同一保全链核对。
+
+模型服务商联合升级为显式管理平面事务，协调既有主实例 wheel、网关源码及绑定，不新增研究引擎或服务节点。先全局冻结与空闲证明，再优雅停止；原不可变控制器和独立冻结恢复任务共同保留回退通道。
+
+恢复LaunchAgent仅补齐自身工具环境，仍是原管理平面；主实例和DSH不重启，不增加研究节点。新内容身份不覆盖旧artifact/job。
+
+显式v3 static-gateway仅切网关静态版本，主实例保持实际旧SHA和原进程；升级器模块必须等于冻结受审工具，后端差异拒绝，部署节点及恢复职责不变。
+
+显式 stage-primary-ui 仅构建原 resident 的候选记录和新旧 wheel；实际部署/恢复仍由既有不可变控制器执行。网关工具自身随静态产品更新时必须与冻结恢复工具为同一 Git blob，不新增运行服务或自动兼容范围。
+
+网关界面升级只切换已验收UI产品源码；独立审核工具构建version 2恢复artifact并使用原事务。主研究实例继续原进程，依赖、模型和会话根不变；内容寻址helper不是第二研究执行服务。
+
+供应商参数必须为根级object；code/report_plan互斥由原执行入口继续强制，固定DSH和研究拓扑不变。SDK转换与供应商请求序列化分别离线检查，不增加模型调用或权限。
+
+自由分析绑定、中文正文和版本审计附件复用原DSH、固定SDK、Host与会话outputs。新轮次receipt冻结绑定策略，旧记录不迁移；实际渲染核对在原Host验收内，无新增研究循环、进程或持久服务。
+
+系统报告仍运行于原DSH工具和原Native沙箱；新增固定只读计算SDK不启动服务或循环。Host独立重建计算/来源日期/交付格式，归档与数据根保持，自动化和多用户拓扑不变。固定SDK现在为四个Python文件与一个字体。
+
+更新器的退休等待和大保全journal读取仍在原管理平面内，不新增节点。PID未消失时延后，恢复读写预算在停机前闭合；原primary和研究执行拓扑保持。
+
+网关更新器通过Mac内核实际可执行映像绑定受管Python；Homebrew framework的exec不增加部署节点或可停止对象，原primary及私有pair拓扑保持。
+
+显式网关更新器属于既有 Mac 管理平面，使用 primary 的 supervisor/admission 锁，但不重启 primary。旧网关空池出生栅栏与优雅排空之后，目标通过同源全请求冻结启动；联合健康及保全通过才解冻，失败恢复匹配的网关代码与绑定。见[操作合同](../../research-web-gateway-upgrade.md)。
+
+网页数值投影和报告 URL 规范化属于原 Host/SDK/UI 路径。Native/Docker、Automation、多用户和 DSH 执行节点均不改变；静态证据不是外部真实性或模型验收结果。
+
+本轮只调整已有任务提示的报告生成路线：有数值业务观测时不再同时指示手写payload；一般资料保持原功能。原认证网关、用户数据根、DSH及常驻部署事务均未替换。
+
+DSH仍是唯一研究执行端。Host额外对报告字面算式复算，并把最终下载指向本轮已检查不可变归档；不增加模型循环、后台任务或持久表。原自动化和多用户部署节点保持。
+
+原 Native 沙箱可从当前已审 Host 包只读导入固定报告 SDK，兼容资源目录较旧的会话；不替换旧会话文件，不增加执行引擎或进程。仅给四个 SDK Python 文件和一个字体文件精确读取，原账号、模型、资料和写入边界保持。
+
+report_plan 为原 DSH script 工具的数据参数，Host 只提供当前冻结绑定，不新增研究引擎、服务或账号存储。脚本内独立计算和报告组装仍交原 Host 评分；常驻更新须绑定精确版本并保全全部用户根及原模型配置。
+
+有限三组实验在独立case运行精确源码快照和既有Node/DSH；隔离控制器不是常驻部署节点，不修改生产主实例或多用户网关。实验数据、过程、模型就绪及实际验收分别记录。
+
+新增正文读取属于既有研究工具：Host 为已登记来源启动有限只读 HTTP 工作进程，取消/超时 kill 并等待退出，不持有研究执行循环。它沿原研究准入与私有回调，活动请求也阻止常驻切换；不增加依赖、账户设置或持久聊天正文库。
+
+本轮脚本修复仅调整原报告资源、Host受限业务投影与DSH指导；既有常驻网关、账号库和用户数据根不变。部署和真实模型验收分别记录，离线通过不代表业务分析通过。
+
 冻结研究要求时，在既有会话resources内写入可再生业务证据投影；DSH沙箱只读，原Host质量工作线程仍从实际输入重算。无新服务、数据库、端点或凭据流向。
 
 实际业务报告新增的纯Python来源/算术/引用helper仍由原DSH沙箱调用，不增加进程、数据层或研究执行节点。Host门与常驻数据/模型保全边界保持；更新使用审过精确版本的原受控事务。
@@ -496,3 +614,31 @@ AES 现有记录的全树认证只收紧同一凭据边界，不增加部署节�
 ## 框架嵌入核心闭环 · 2026-10-14
 
 嵌入核心看板仍位于原 Browser→同源 Host→唯一 DSH 节点内；静态资源是 Host 的仓库资产，不新增服务器、进程、外部数据服务或部署模式。Gold／Dollar 原生采集和 Bot 保留，其他九项仅导入快照。
+
+模型服务在原Host设置路由内管理多个命名连接，Store只保存公开profile身份，原凭据桥将两个固定DSH ref路由到独立物理账号。唯一DSH引擎、Native/Docker拓扑及原用户隔离不变；具体身份和失败关闭合同见02/04/05章。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案服务及 dossier_scan 位于原 Host／Automation 内，个人 SQLite 与 pin 跟随已有用户 Store.root，保全扩展不新增网关、容器、运行节点或 PostgreSQL。Native／Docker 单一写入与 RuntimePool 账户隔离保持；维护准入、源会话永久删除和元数据备份／恢复均核对档案引用。01／12 图仍描述部署拓扑，新增模块依赖归入 02 图；实际部署、真实凭据与他平台验收另留证，详见[档案保全](../../research-web-dossiers.md#备份恢复与部署边界)。
+
+
+2026-10-23：固定v7只绑定当前主实例/网关共同c4e前版和组合产品3a62；原部署节点、唯一DSH、私网入口与version4事务拓扑不变。
+
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+2026-10-24：今日发现原始/radar与事件/intelligence仍由同一Host的固定Intel reader取得，账号内存/原DataHub/唯一DSH与私网网关不变，无新服务、端口、数据库或部署节点。新增association是同用户只读核对，源码与实际常驻切换仍分别验收。
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

@@ -1,44 +1,445 @@
 {
   "schema_version": 1,
   "diagram_type": "dataflow",
-  "meta": {"title": "DataHub 选源、标准化与共享资料流", "output": "04-data-file-flow.html", "quality_profile": "showcase", "viewBox": [1900, 820], "views": [
-    {"id": "catalog", "label": "能力与来源目录", "focus": ["sourceSpecs", "catalog", "web"], "note": "前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"},
-    {"id": "materialize", "label": "自动取数与物化", "focus": ["tool", "policy", "router", "providers", "upstreams", "normalize", "snapshots"], "note": "已启用工具的业务参数通过本地校验后直接路由到单一来源，结果标准化为不可变会话快照。"},
-    {"id": "share", "label": "页面交接与资料包复用", "focus": ["snapshots", "handoff", "agents", "web"], "note": "研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"}
-  ]},
-  "stages": [{"label": "声明与请求"}, {"label": "访问控制"}, {"label": "选源与获取"}, {"label": "标准化存储"}, {"label": "研究消费"}],
+  "meta": {
+    "title": "DataHub 冻结证据与长期研究档案",
+    "output": "04-data-file-flow.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1900,
+      940
+
+    ],
+    "views": [
+      {
+        "id": "catalog",
+        "label": "能力与来源目录",
+        "focus": [
+          "sourceSpecs",
+          "catalog",
+          "web"
+        ],
+        "note": "前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"
+      },
+      {
+        "id": "assetLoad",
+        "label": "按需区块与历史任务",
+        "focus": [
+          "tool",
+          "policy",
+          "router",
+          "providers",
+          "normalize",
+          "snapshots",
+          "web"
+        ],
+        "note": "资产专题按需load与历史任务沿当前账号授权写原会话不可变快照；目录搜索无会话、不经此发布链，其24h缓存分支见02模块图。"
+      },
+      {
+        "id": "materialize",
+        "label": "取数与固定复权",
+        "focus": [
+          "tool",
+          "policy",
+          "router",
+          "providers",
+          "upstreams",
+          "normalize",
+          "snapshots"
+        ],
+        "note": "业务参数限定单一来源；资产历史任务串行取得原始日线与精确逐日因子，完整累计行和固定锚点metadata原子发布。"
+      },
+      {
+        "id": "share",
+        "label": "今日发现与资料交接",
+        "focus": [
+          "discoveryRead",
+          "intelHttp",
+          "discoveryFreeze",
+          "snapshots",
+          "handoff",
+          "agents",
+          "web"
+        ],
+        "note": "预览绑定事件版本，正文取证时冻结；档案原件逐次鉴权与Hash复核，用户实际发送Prompt后绑定DSH；golddata_intel不伪装网页全文。"
+
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "声明与请求"
+    },
+    {
+      "label": "访问控制"
+    },
+    {
+      "label": "选源与获取"
+    },
+    {
+      "label": "标准化存储"
+    },
+    {
+      "label": "研究消费"
+    }
+  ],
   "nodes": [
-    {"id": "sourceSpecs", "type": "backend", "label": "静态来源声明", "sublabel": "22 来源 / 绑定 / 限制", "stage": 0, "row": 0, "tag": "不联网"},
-    {"id": "tool", "type": "external", "label": "datahub_* Tool", "sublabel": "稳定业务参数", "stage": 0, "row": 3, "tag": "DSH"},
-    {"id": "policy", "type": "security", "label": "工具与参数边界", "sublabel": "enabledTools / Schema", "stage": 1, "row": 3, "tag": "automatic"},
-    {"id": "catalog", "type": "backend", "label": "能力目录", "sublabel": "适配 / 配置 / 健康 / 允许", "stage": 1, "row": 0, "tag": "read-only"},
-    {"id": "router", "type": "backend", "label": "DataHub 路由", "sublabel": "市场过滤 / 优先级 / 单源", "stage": 2, "row": 1, "tag": "auto 或显式"},
-    {"id": "providers", "type": "backend", "label": "Provider 适配器", "sublabel": "请求 / 分页 / 解析", "stage": 2, "row": 2, "tag": "已适配才执行"},
-    {"id": "upstreams", "type": "cloud", "label": "外部数据来源", "sublabel": "公开源 / 专业源 / 用户 MySQL", "stage": 2, "row": 3, "tag": "本机配置"},
-    {"id": "normalize", "type": "backend", "label": "统一结果封装", "sublabel": "范围 / 单位 / 缺失 / 来源", "stage": 3, "row": 2, "width": 124, "tag": "DataResult"},
-    {"id": "snapshots", "type": "database", "label": "会话隔离快照", "sublabel": "JSON / CSV / Manifest / SHA-256", "stage": 3, "row": 4, "width": 124, "tag": "原子发布"},
-    {"id": "web", "type": "frontend", "label": "研究台与数据目录", "sublabel": "查询 / 详情 / 手动检测", "stage": 4, "row": 0, "tag": "显式操作"},
-    {"id": "handoff", "type": "security", "label": "页面交接", "sublabel": "数据集 / 上下文 / Hash", "stage": 4, "row": 2, "tag": "会话隔离"},
-    {"id": "agents", "type": "backend", "label": "DSH Agent 团队", "sublabel": "父子任务读取同一资料包", "stage": 4, "row": 4, "tag": "不重复联网"}
+    {
+      "id": "sourceSpecs",
+      "type": "backend",
+      "label": "静态来源声明",
+      "sublabel": "22 来源 / 绑定 / 限制",
+      "stage": 0,
+      "row": 0,
+      "tag": "不联网"
+    },
+    {
+      "id": "tool",
+      "type": "external",
+      "label": "资料取数请求",
+      "sublabel": "DSH工具 / 资产专题",
+      "stage": 0,
+      "row": 3,
+      "tag": "既有两入口"
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "业务参数与授权",
+      "sublabel": "账号来源 / 范围 / Schema",
+      "stage": 1,
+      "row": 3,
+      "tag": "当前授权"
+    },
+    {
+      "id": "catalog",
+      "type": "backend",
+      "label": "能力目录",
+      "sublabel": "适配 / 配置 / 健康 / 允许",
+      "stage": 1,
+      "row": 0,
+      "tag": "read-only"
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "DataHub 路由",
+      "sublabel": "先读仓 / 缺口 / 等价切换",
+      "stage": 2,
+      "row": 1,
+      "tag": "固定来源语义保留"
+    },
+    {
+      "id": "providers",
+      "type": "backend",
+      "label": "Provider 适配器",
+      "sublabel": "真实工作占用 / 分页 / 解析",
+      "stage": 2,
+      "row": 2,
+      "tag": "公开SDK子进程12秒"
+    },
+    {
+      "id": "upstreams",
+      "type": "cloud",
+      "label": "外部数据来源",
+      "sublabel": "公开源 / 专业源 / 用户 MySQL",
+      "stage": 2,
+      "row": 3,
+      "tag": "本机配置"
+    },
+    {
+      "id": "normalize",
+      "type": "backend",
+      "label": "规范事实与研究仓",
+      "sublabel": "可选PG / 修订 / PIT / 冻结",
+      "stage": 3,
+      "row": 2,
+      "width": 124,
+      "tag": "宿主绑定及逐次授权"
+    },
+    {
+      "id": "snapshots",
+      "type": "database",
+      "label": "账号隔离快照",
+      "sublabel": "原始块 / 因子 / 规范行 / Hash",
+      "stage": 3,
+      "row": 4,
+      "width": 124,
+      "tag": "不可变与原子发布"
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "资产与研究页面",
+      "sublabel": "专题快照 / 资料交接",
+      "stage": 4,
+      "row": 0,
+      "tag": "当前账号"
+    },
+    {
+      "id": "handoff",
+      "type": "database",
+      "label": "研究档案与冻结交接",
+      "sublabel": "SQLite引用 / 修订 / pin",
+      "stage": 4,
+      "row": 2,
+      "tag": "逐次鉴权 · 显式发送"
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": "DSH Agent 团队",
+      "sublabel": "父子任务读取同一资料包",
+      "stage": 4,
+      "row": 4,
+      "tag": "不重复联网"
+    },
+    {
+      "id": "discoveryRead",
+      "type": "frontend",
+      "label": "今日发现阅读",
+      "sublabel": "只读已有事件摘要",
+      "stage": 0,
+      "row": 4,
+      "tag": "不调用模型",
+      "yOffset": 114
+    },
+    {
+      "id": "intelHttp",
+      "type": "cloud",
+      "label": "固定 Intel HTTP",
+      "sublabel": "第三方归档与已有判断",
+      "stage": 1,
+      "row": 4,
+      "tag": "陈旧与未知保留",
+      "yOffset": 114
+    },
+    {
+      "id": "discoveryFreeze",
+      "type": "security",
+      "label": "选材版本核对",
+      "sublabel": "预览摘要 / 原始报道 / Hash",
+      "stage": 2,
+      "row": 4,
+      "width": 124,
+      "tag": "显式用户动作",
+      "yOffset": 114
+    }
   ],
   "flows": [
-    {"id": "catalogProjection", "from": "sourceSpecs", "to": "catalog", "label": "声明与绑定", "classification": "static"},
-    {"id": "catalogView", "from": "catalog", "to": "web", "label": "GET 目录 / 详情", "classification": "read-only", "fromSide": "right", "toSide": "left", "via": [[400, 157], [400, 130], [875, 130], [875, 157]], "labelAt": [650, 120]},
-    {"id": "businessIntent", "from": "tool", "to": "policy", "label": "业务参数", "classification": "no credentials", "variant": "security"},
-    {"id": "validatedQuery", "from": "policy", "to": "router", "label": "校验后的 BusinessQuery", "classification": "bounded", "variant": "security", "labelAt": [423, 428]},
-    {"id": "catalogRoute", "from": "catalog", "to": "router", "label": "候选来源与就绪状态", "classification": "routing metadata", "variant": "emphasis"},
-    {"id": "providerSelection", "from": "router", "to": "providers", "label": "选择一个已适配来源", "classification": "single provider", "variant": "emphasis", "fromSide": "bottom", "toSide": "top"},
-    {"id": "externalFetch", "from": "providers", "to": "upstreams", "label": "有界只读请求", "classification": "external", "variant": "security", "fromSide": "bottom", "toSide": "top"},
-    {"id": "parsedResult", "from": "providers", "to": "normalize", "label": "解析行与原始响应", "classification": "provider result", "variant": "emphasis"},
-    {"id": "snapshotPublish", "from": "normalize", "to": "snapshots", "label": "校验后原子发布", "classification": "session-owned", "variant": "emphasis"},
-    {"id": "selectHandoff", "from": "web", "to": "handoff", "label": "选定快照与页面上下文", "classification": "explicit", "variant": "security"},
-    {"id": "snapshotHandoff", "from": "snapshots", "to": "handoff", "label": "复制并核验归属 / Hash", "classification": "session-owned", "channelX": 835, "labelAt": [680, 530]},
-    {"id": "agentRead", "from": "handoff", "to": "agents", "label": "只读资料包", "classification": "shared snapshot", "variant": "dashed"},
-    {"id": "webRead", "from": "snapshots", "to": "web", "label": "当前会话数据集", "classification": "paginated", "channelX": 875, "labelAt": [890, 330]}
+    {
+      "id": "catalogProjection",
+      "from": "sourceSpecs",
+      "to": "catalog",
+      "label": "声明与绑定",
+      "classification": "static"
+    },
+    {
+      "id": "catalogView",
+      "from": "catalog",
+      "to": "web",
+      "label": "GET 目录 / 详情",
+      "classification": "read-only",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          400,
+          157
+        ],
+        [
+          400,
+          130
+        ],
+        [
+          875,
+          130
+        ],
+        [
+          875,
+          157
+        ]
+      ],
+      "labelAt": [
+        650,
+        120
+      ]
+    },
+    {
+      "id": "businessIntent",
+      "from": "tool",
+      "to": "policy",
+      "label": "业务参数",
+      "classification": "no credentials",
+      "variant": "security"
+    },
+    {
+      "id": "validatedQuery",
+      "from": "policy",
+      "to": "router",
+      "label": "校验后的 BusinessQuery",
+      "classification": "bounded",
+      "variant": "security",
+      "labelAt": [
+        423,
+        428
+      ]
+    },
+    {
+      "id": "catalogRoute",
+      "from": "catalog",
+      "to": "router",
+      "label": "候选来源与就绪状态",
+      "classification": "routing metadata",
+      "variant": "emphasis"
+    },
+    {
+      "id": "providerSelection",
+      "from": "router",
+      "to": "providers",
+      "label": "选择一个已适配来源",
+      "classification": "single provider",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "externalFetch",
+      "from": "providers",
+      "to": "upstreams",
+      "label": "有界只读请求",
+      "classification": "external",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "parsedResult",
+      "from": "providers",
+      "to": "normalize",
+      "label": "原始行与逐日因子",
+      "classification": "provider result",
+      "variant": "emphasis"
+    },
+    {
+      "id": "snapshotPublish",
+      "from": "normalize",
+      "to": "snapshots",
+      "label": "全行与口径原子发布",
+      "classification": "session-owned",
+      "variant": "emphasis"
+    },
+    {
+      "id": "selectHandoff",
+      "from": "web",
+      "to": "handoff",
+      "label": "选定快照与页面上下文",
+      "classification": "explicit",
+      "variant": "security"
+    },
+    {
+      "id": "snapshotHandoff",
+      "from": "snapshots",
+      "to": "handoff",
+      "label": "原件引用或授权副本 / Hash",
+      "classification": "session-owned",
+      "channelX": 835,
+      "labelAt": [
+        665,
+        530
+      ]
+    },
+    {
+      "id": "agentRead",
+      "from": "handoff",
+      "to": "agents",
+      "label": "发送后绑定原证据句柄",
+      "classification": "shared snapshot",
+      "variant": "dashed"
+    },
+    {
+      "id": "webRead",
+      "from": "snapshots",
+      "to": "web",
+      "label": "当前会话数据集",
+      "classification": "paginated",
+      "channelX": 875,
+      "labelAt": [
+        890,
+        330
+      ]
+    },
+    {
+      "id": "discoveryReadRequest",
+      "from": "discoveryRead",
+      "to": "intelHttp",
+      "label": "GET",
+      "classification": "read-only",
+      "variant": "security"
+    },
+    {
+      "id": "discoveryDetails",
+      "from": "intelHttp",
+      "to": "discoveryFreeze",
+      "label": "核对版本",
+      "classification": "third-party archive",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        420,
+        680
+      ]
+    },
+    {
+      "id": "discoverySnapshot",
+      "from": "discoveryFreeze",
+      "to": "snapshots",
+      "label": "归档选材",
+      "classification": "explicit_frozen_selection",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          650,
+          727
+        ],
+        [
+          650,
+          613
+        ]
+      ],
+      "labelAt": [
+        625,
+        680
+      ]
+    }
   ],
   "cards": [
-    {"dot": "cyan", "title": "DataHub 的价值", "items": ["Skill 不需要知道 Wind、AKShare 或东方财富的私有参数", "Web 展示与 DSH 分析共享来源目录、口径和数据文件"]},
-    {"dot": "orange", "title": "诚实的接入状态", "items": ["登记来源只说明系统知道它，不代表配置、在线或获得授权", "Runtime 只注册至少有一个可调用来源的工具；目录 GET 永不触发上游请求"]},
-    {"dot": "emerald", "title": "可重复研究", "items": ["结果保存请求范围、实际覆盖、单位、缺失、限制与来源链接", "父子 Agent 共享同一快照，减少重复请求与截止日漂移"]}
+    {
+      "dot": "cyan",
+      "title": "DataHub 的价值",
+      "items": [
+        "Skill 不需要知道 Wind、AKShare 或东方财富的私有参数",
+        "Web 展示与 DSH 分析共享来源目录、口径和数据文件"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "仓库与运行边界",
+      "items": [
+        "覆盖账本识别内部缺口，空响应不证明无交易",
+        "18秒前台预算；SDK与数据库真实排空后才回收"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "迁移与回测",
+      "items": [
+        "原件与SQLite引用分别保全，历史可得时点不补造",
+        "档案只存引用和修订；不启用PG或迁移旧交接"
+      ]
+    }
   ]
 }

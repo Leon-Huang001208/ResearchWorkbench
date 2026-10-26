@@ -11,7 +11,20 @@ from urllib.parse import urlsplit
 from .research_business_evidence import business_lineage_issues
 from .research_calculations import CalculationError, observe_calculations
 from .research_quality import assess_quality
-from .resources.research_report import source_id, validate_payload
+from .resources.research_report import (
+    audit_descriptors,
+    canonical_source,
+    required_report_formats,
+    source_id,
+    validate_payload,
+    verify_rendered_artifact,
+)
+from .resources.research_report_calculations import derive_business_observations
+from .resources.research_report_plan import (
+    audit_content,
+    required_body_target,
+    verify_system_report,
+)
 from .store import StoreError
 
 log = logging.getLogger(__name__)
@@ -37,6 +50,10 @@ def evidence_index(files, datasets, activities):
             "as_of": item.get("as_of"),
             "dataset_id": item.get("id"),
         }
+        if item.get("snapshot_kind") == "mcp_evidence":
+            sources[key]["admission"] = item.get(
+                "admission", {"status": "clue", "report_admitted": False}
+            )
     for activity in activities:
         if (
             activity.get("title")
@@ -50,8 +67,20 @@ def evidence_index(files, datasets, activities):
         try:
             result = json.loads(detail)
         except (ValueError, TypeError, RecursionError):
-            log.info("research_search_shape_unavailable")
-            continue
+            # Native DSH web_search renders its real identities as Markdown,
+            # rather than JSON. Only its explicit Sources list is an identity
+            # channel; ordinary result prose never becomes observed page text.
+            if "Sources:\n" not in detail:
+                log.info("research_search_shape_unavailable")
+                continue
+            result = []
+            for line in detail.split("Sources:\n", 1)[1].splitlines()[:201]:
+                match = re.fullmatch(
+                    r"[-*] \[([^\n]{1,1000}?)\]\((https?://[^\s]{1,4000}?)\)", line
+                )
+                if not match:
+                    break
+                result.append({"title": match[1], "url": match[2]})
         pending, inspected = [result], 0
         while pending and inspected < 1000 and len(sources) < 300:
             row = pending.pop()
@@ -146,6 +175,65 @@ def report_projection(
                 }
             return {"quality": "stale", "issues": ["report_task_mismatch"]}
         calculation_observations = []
+        business_calculation_observations = []
+        current_key = store.session(sid).get("delivery_key", "")
+        frozen_receipt = store.data.get("receipts", {}).get(f"{sid}:{current_key}", {})
+        binding_required = frozen_receipt.get("report_binding_policy") == "bound-analysis-v1"
+        if "system_plan" in payload:
+            if contract is None:
+                raise ValueError("research_report_system_contract_missing")
+            context = {
+                "task_id": contract["task_id"],
+                "contract_sha256": contract["sha256"],
+                "as_of": contract["as_of"],
+                "requirement_ids": [r["id"] for r in contract["requirements"]],
+            }
+            target = required_body_target(contract)
+            if target is not None:
+                context["body_target"] = target
+            bundle = {
+                "task_id": contract["task_id"],
+                "contract_sha256": contract["sha256"],
+                "sources": [canonical_source(sources, s["id"]) for s in payload["sources"]],
+                "observations": [
+                    r
+                    for r in observations or []
+                    if r.get("kind") in {"business_numeric", "business_quote"}
+                ],
+            }
+            verify_system_report(payload, bundle, context)
+            for attachment in audit_descriptors(payload):
+                owned = [
+                    f
+                    for f in files
+                    if f.get("kind") == "outputs" and f["name"] == attachment["name"]
+                ]
+                if len(owned) != 1:
+                    raise ValueError("research_report_audit_missing")
+                stream, _ = store.open_file(sid, owned[0]["id"])
+                with stream:
+                    body = stream.read(2_000_001)
+                if (
+                    body != audit_content(payload)
+                    or hashlib.sha256(body).hexdigest() != attachment["sha256"]
+                ):
+                    raise ValueError("research_report_audit_changed")
+        elif "presentation" in payload or "audit_attachment" in payload or binding_required:
+            # A new explicit Chinese-body request cannot downgrade to a hand-built
+            # payload to bypass quantity bindings or the frozen length requirement.
+            raise ValueError("research_report_system_plan_required")
+        if contract is not None and payload.get("business_calculations"):
+            # Rebuild from independently observed owned bytes, never SDK cache or model results.
+            business_calculation_observations = derive_business_observations(
+                [row for row in observations or [] if row.get("kind") == "business_numeric"],
+                payload["business_calculations"],
+                task_id=contract["task_id"],
+            )
+            observations = [*(observations or []), *business_calculation_observations]
+        if payload.get("business_calculation_trace", []) != [
+            row["calculation_trace"] for row in business_calculation_observations
+        ]:
+            raise ValueError("report_calculation_trace_changed")
         if contract is not None and payload.get("calculations"):
             calculation_observations = observe_calculations(
                 store, sid, files, sources, payload["calculations"], task_id=contract["task_id"]
@@ -159,7 +247,18 @@ def report_projection(
             if row.get("valid")
         }
         artifacts = payload.get("artifacts", [])
-        if not isinstance(artifacts, list) or len(artifacts) != 3:
+        current_key = store.session(sid).get("delivery_key", "")
+        frozen_delivery = (
+            store.data.get("receipts", {}).get(f"{sid}:{current_key}", {}).get("delivery")
+        )
+        formats = (
+            set(required_report_formats(contract, frozen_delivery))
+            if contract
+            else {"html", "docx", "pdf"}
+        )
+        if payload.get("report_formats") is not None and set(payload["report_formats"]) != formats:
+            issues.append("report_artifact_formats_invalid:contract")
+        if not isinstance(artifacts, list) or len(artifacts) != len(formats):
             issues.append("report_artifacts_missing")
         else:
             names = [
@@ -167,11 +266,10 @@ def report_projection(
                 for a in artifacts
                 if isinstance(a, dict) and isinstance(a.get("name"), str)
             ]
-            if len(set(names)) != 3 or {name.rsplit(".", 1)[-1] for name in names} != {
-                "html",
-                "docx",
-                "pdf",
-            }:
+            if (
+                len(set(names)) != len(formats)
+                or {name.rsplit(".", 1)[-1] for name in names} != formats
+            ):
                 issues.append("report_artifact_formats_invalid")
             for artifact in artifacts:
                 if (
@@ -196,6 +294,21 @@ def report_projection(
                     issues.append("report_artifact_changed:" + artifact["name"])
                 if verified.get(artifact["name"]) != artifact.get("sha256"):
                     issues.append("report_artifact_delivery_unverified:" + artifact["name"])
+                if "system_plan" in payload:
+                    # A private runtime receipt binds the reviewed weekly template
+                    # renderer. Before that projection, native SDK files retain
+                    # their original exact-render gate and cannot become final.
+                    from .report_workflows.weekly_quality import (
+                        has_weekly_policy,
+                        verify_weekly_rendered_artifact,
+                    )
+
+                    if has_weekly_policy(store, sid) and frozen_receipt.get("weekly_projection"):
+                        verify_weekly_rendered_artifact(
+                            store, sid, payload, artifact["name"].rsplit(".", 1)[-1], body
+                        )
+                    else:
+                        verify_rendered_artifact(payload, artifact["name"].rsplit(".", 1)[-1], body)
         if not payload.get("sources"):
             issues.append("sources_missing")
         issues.extend(
@@ -218,6 +331,12 @@ def report_projection(
                 issues.append("section_note_lineage_missing:" + section["heading"])
         for source in payload.get("sources", []):
             record = known.get(source["id"])
+            if (
+                record is not None
+                and source.get("as_of") is not None
+                and source["as_of"] != record.get("as_of", "unknown")
+            ):
+                raise ValueError("report_source_date_changed")
             if record is None or (source.get("url") and source["url"] != record.get("url")):
                 issues.append("source_unverified:" + source["id"])
             elif source.get("title") != record.get("title"):
@@ -276,7 +395,9 @@ def report_projection(
                 raise ValueError("report_changed_during_verification")
             return {
                 **payload,
+                "content_sha256": hashlib.sha256(raw).hexdigest(),
                 "calculation_observations": calculation_observations,
+                "business_calculation_observations": business_calculation_observations,
                 "quality": assessment["status"],
                 "issues": assessment["issues"],
                 "assessment": assessment,

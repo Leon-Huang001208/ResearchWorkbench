@@ -110,11 +110,22 @@ class Snapshots:
                     raise StoreError("资料manifest校验失败")
                 for item in manifest["files"]:
                     from .frozen_archive import OBJECT_FILE
-                    archive_file = manifest.get("snapshot_kind") == "hot_evidence" and (item["name"] == "evidence-manifest.json" or OBJECT_FILE.fullmatch(item["name"]))
-                    if item["name"] not in {"rows.json", "rows.csv"} and not archive_file:
+
+                    archive_file = manifest.get("snapshot_kind") == "hot_evidence" and (
+                        item["name"] == "evidence-manifest.json"
+                        or OBJECT_FILE.fullmatch(item["name"])
+                    )
+                    if (
+                        item["name"] not in {"rows.json", "rows.csv", "asset-history.json"}
+                        and not archive_file
+                    ):
                         raise StoreError("资料文件引用非法")
                     if sha(read_file(fd, item["name"])) != item["sha256"]:
                         raise StoreError("资料文件hash校验失败")
+                if manifest.get("snapshot_kind") == "asset_history" and read_file(
+                    fd, "asset-history.json"
+                ) != json_bytes(manifest.get("asset_history")):
+                    raise StoreError("历史资料独立 manifest 与快照不一致")
             manifest["manifest_sha256"] = sha(raw)
             manifest["files"].append(
                 {
@@ -143,11 +154,23 @@ class Snapshots:
         return raw
 
     def publish(
-        self, sid, query, result, *, origin=None, request_query=None, authorization_fingerprint=None
+        self,
+        sid,
+        query,
+        result,
+        *,
+        origin=None,
+        request_query=None,
+        authorization_fingerprint=None,
+        asset_history=None,
     ):
         did = str(uuid4())
-        temporary = ".pending-" + did
         parsed = {"rows.json": json_bytes(result.rows), "rows.csv": csv_bytes(result.rows)}
+        if asset_history is not None:
+            # Subsequent chunks must not mutate an earlier published manifest's
+            # in-memory metadata through shared list/dict references.
+            asset_history = json.loads(json_bytes(asset_history))
+            parsed["asset-history.json"] = json_bytes(asset_history)
         dates = sorted(row["date"] for row in result.rows if "date" in row)
         label = SOURCES.get(query.source) or source_label(query.source) or query.source
         manifest = {
@@ -160,8 +183,8 @@ class Snapshots:
             "attempted_sources": result.attempted_sources,
             "source_url": result.source_url,
             "schema_version": SCHEMA_VERSION,
-            "query": (request_query or query).model_dump(exclude={"refresh"}),
-            "provider_query": query.model_dump(exclude={"refresh"}),
+            "query": (request_query or query).model_dump(mode="json", exclude={"refresh"}),
+            "provider_query": query.model_dump(mode="json", exclude={"refresh"}),
             "query_fingerprint": (request_query or query).fingerprint(),
             "retrieved_at": datetime.now(UTC).isoformat(),
             "as_of": result.as_of,
@@ -173,6 +196,7 @@ class Snapshots:
             "duplicates_removed": result.duplicates,
             "cache_hit": False,
             "fields": result.fields,
+            "provider_metadata": result.metadata,
             "requested_range": {
                 "start_date": getattr(query, "start_date", None)
                 or getattr(query, "parameters", {}).get("start_date"),
@@ -208,6 +232,15 @@ class Snapshots:
                 for index, raw in enumerate(result.raw, 1)
             ],
         }
+        if asset_history is not None:
+            manifest["asset_history"] = asset_history
+            manifest["snapshot_kind"] = "asset_history"
+            manifest["transformation"] = {
+                "owner": "research_web",
+                "version": asset_history["canonical_version"],
+                "input_count": len(asset_history.get("inputs", [])),
+                "provider_query_is_logical_aggregate": True,
+            }
         if authorization_fingerprint is not None:
             manifest["authorization_fingerprint"] = authorization_fingerprint
         if origin is not None:
@@ -228,7 +261,10 @@ class Snapshots:
         owned_temporary = set()
         committed = False
         try:
-            for parts, files, private in [(self._private(sid), private_files, True), (self._public(sid), public_files, False)]:
+            for parts, files, private in [
+                (self._private(sid), private_files, True),
+                (self._public(sid), public_files, False),
+            ]:
                 with directory(self.store.root, parts, create=True, private=private) as parent:
                     if temporary not in os.listdir(parent):
                         make_directory(parent, temporary)
@@ -245,7 +281,11 @@ class Snapshots:
                             existing = read_file(fd, name, private=private)
                             if existing == content:
                                 continue
-                            if not recover or len(existing) >= len(content) or not content.startswith(existing):
+                            if (
+                                not recover
+                                or len(existing) >= len(content)
+                                or not content.startswith(existing)
+                            ):
                                 raise StoreError("资料暂存内容校验失败")
                             unlink_file(fd, name)
                         write_new(fd, name, content)
@@ -257,7 +297,10 @@ class Snapshots:
                         if not recover:
                             raise StoreError("资料标识已存在")
                         with directory(self.store.root, (*parts, did), private=private) as fd:
-                            if set(os.listdir(fd)) != set(files) or any(read_file(fd, name, private=private) != content for name, content in files.items()):
+                            if set(os.listdir(fd)) != set(files) or any(
+                                read_file(fd, name, private=private) != content
+                                for name, content in files.items()
+                            ):
                                 raise StoreError("已有资料与固定选材不一致")
                         with directory(self.store.root, (*parts, temporary), private=private) as fd:
                             for name in files:
@@ -269,7 +312,13 @@ class Snapshots:
                     if private:
                         committed = True
                     sync_directory(parent)
-            log.info("datahub_snapshot_published", session_id=sid, dataset_id=did, status=manifest["status"], rows=manifest["row_count"])
+            log.info(
+                "datahub_snapshot_published",
+                session_id=sid,
+                dataset_id=did,
+                status=manifest["status"],
+                rows=manifest["row_count"],
+            )
             return self.detail(sid, did)
         except (OSError, StoreError):
             log.error("datahub_snapshot_publish_failed", session_id=sid, dataset_id=did)
@@ -279,7 +328,10 @@ class Snapshots:
                 raise
             for parts, files, private in created:
                 with directory(self.store.root, parts, private=private) as parent:
-                    for name in [*([temporary] if parts in owned_temporary else []), *([did] if parts in published else [])]:
+                    for name in [
+                        *([temporary] if parts in owned_temporary else []),
+                        *([did] if parts in published else []),
+                    ]:
                         if name not in os.listdir(parent):
                             continue
                         with directory(self.store.root, (*parts, name), private=private) as fd:
@@ -294,15 +346,21 @@ class Snapshots:
     def admit_hot_script(self, sid, did):
         """Grant only this owned Hot run's fully verified, immutable evidence copy."""
         from .frozen_archive import OBJECT_FILE, validate_bundle
+
         row = self.store.session(sid)
         origin = row.get("hot_origin")
         snapshot = self.detail(sid, did)
         binding = snapshot.get("hot")
-        if (row.get("created") is not True or row.get("purpose") != "hot_research"
-                or not isinstance(origin, dict) or snapshot.get("snapshot_kind") != "hot_evidence"
-                or not isinstance(binding, dict) or binding.get("runId") != origin.get("runId")
-                or binding.get("instanceId") != origin.get("instanceId")
-                or binding.get("manifestHash") != origin.get("manifestHash")):
+        if (
+            row.get("created") is not True
+            or row.get("purpose") != "hot_research"
+            or not isinstance(origin, dict)
+            or snapshot.get("snapshot_kind") != "hot_evidence"
+            or not isinstance(binding, dict)
+            or binding.get("runId") != origin.get("runId")
+            or binding.get("instanceId") != origin.get("instanceId")
+            or binding.get("manifestHash") != origin.get("manifestHash")
+        ):
             raise StoreError("冻结资料不属于当前Hot研究会话")
         try:
             # detail already verified the private manifest and all public hashes.
@@ -319,8 +377,14 @@ class Snapshots:
                     if not OBJECT_FILE.fullmatch(item["filename"]):
                         raise ValueError("hot_object_name")
                     values[item["key"]] = read_file(fd, item["filename"])
-            validate_bundle({"manifest": frozen, "manifestBytes": canonical,
-                             "manifestHash": origin["manifestHash"], "objects": values})
+            validate_bundle(
+                {
+                    "manifest": frozen,
+                    "manifestBytes": canonical,
+                    "manifestHash": origin["manifestHash"],
+                    "objects": values,
+                }
+            )
         except (ValueError, KeyError, TypeError) as exc:
             log.warning("hot_script_snapshot_denied")
             raise StoreError("冻结资料校验失败") from exc
@@ -329,11 +393,16 @@ class Snapshots:
 
     def publish_hot(self, sid, run_id, bundle, *, origin=None):
         from .frozen_archive import build_archive, validate_bundle
+
         row = self.store.session(sid)
         if row.get("created") is not True:
             raise StoreError("目标研究会话尚未获得原生创建回执")
         frozen, _, _ = validate_bundle(bundle)
-        expected = {"runId": run_id, "instanceId": frozen["instanceId"], "manifestHash": bundle["manifestHash"]}
+        expected = {
+            "runId": run_id,
+            "instanceId": frozen["instanceId"],
+            "manifestHash": bundle["manifestHash"],
+        }
         if origin is None and row.get("hot_origin") != expected:
             raise StoreError("冻结证据不属于目标研究交接")
         key = "hot-publication:" + run_id + ":" + bundle["manifestHash"]
@@ -343,11 +412,111 @@ class Snapshots:
             self.receipt(sid, key, prepared)
         if prepared.get("manifestHash") != bundle["manifestHash"]:
             raise StoreError("资料准备记录与选材不一致")
-        did, manifest, public, private = build_archive(sid, run_id, bundle, prepared["at"], origin=origin)
+        did, manifest, public, private = build_archive(
+            sid, run_id, bundle, prepared["at"], origin=origin
+        )
         if did in self.ids(sid):
             found = self.detail(sid, did)
             if found.get("hot") != manifest["hot"]:
                 raise StoreError("已有资料与固定交接不一致")
+            return found
+        return self._publish_files(sid, did, manifest, public, private, recover=True)
+
+    def publish_discovery(self, sid, handoff_id, bundle):
+        """Freeze an explicit Intel selection; never fabricate a provider query or web fetch."""
+        from uuid import UUID as Identity
+        from uuid import uuid5
+
+        from ..discovery.sources import SOURCE_POLICY, selected_rows
+
+        row = self.store.session(sid)
+        origin = {"handoff_id": handoff_id, "selection_sha256": bundle.get("selection_sha256")}
+        if row.get("purpose") != "discovery_research" or row.get("discovery_origin") != origin:
+            raise StoreError("资料不属于当前发现研究", "discovery_session_foreign", 409)
+        evidence = bundle.get("evidence")
+        if not isinstance(evidence, list) or not 1 <= len(evidence) <= 20:
+            raise StoreError("冻结资料范围非法", "discovery_materials_invalid", 409)
+        raw = json_bytes(bundle)
+        if len(raw) > 16 * 1024 * 1024:
+            raise StoreError("冻结资料超过上限", "discovery_snapshot_limit", 409)
+        did = str(uuid5(Identity(handoff_id), "discovery:" + sid + ":" + sha(raw)))
+        rows = selected_rows(evidence)
+        files = {"rows.json": json_bytes(rows), "rows.csv": csv_bytes(rows)}
+        if any(len(content) > 16 * 1024 * 1024 for content in files.values()):
+            raise StoreError("冻结资料超过上限", "discovery_snapshot_limit", 409)
+        manifest = {
+            "id": did,
+            "dataset_id": did,
+            "name": (
+                "今日发现冻结原始资讯"
+                if any(item.get("source_kind") == "news" for item in evidence)
+                else "今日发现冻结事件资料"
+            ),
+            "source": "golddata_intel",
+            "provider": "golddata_intel",
+            "capability": "frozen_evidence",
+            "snapshot_kind": "discovery_evidence",
+            "schema_version": SCHEMA_VERSION,
+            "query": {"kind": "explicit_discovery_selection", "handoff_id": handoff_id},
+            "query_fingerprint": bundle["selection_sha256"],
+            "source_url": "",
+            "attempted_sources": [],
+            "retrieved_at": bundle["retrieved_at"],
+            "as_of": bundle["cutoff"],
+            "snapshot_prepared_at": bundle["retrieved_at"],
+            "source_as_of": bundle.get("source_as_of"),
+            "source_stale": bool(bundle.get("stale")),
+            "status": "success",
+            "row_count": len(rows),
+            "provider_total": None,
+            "pages_fetched": len(evidence),
+            "pagination_complete": False,
+            "duplicates_removed": 0,
+            "cache_hit": False,
+            "fields": {},
+            "requested_range": {},
+            "actual_range": {},
+            "coverage": "explicit_frozen_selection",
+            "missing": [],
+            "limitations": [
+                SOURCE_POLICY,
+                (
+                    "仅冻结本次选中原始资讯与显式核验的事件关联，不将同一地址计作独立来源。"
+                    if any(item.get("source_kind") == "news" for item in evidence)
+                    else "仅冻结本次选中事件；预览未读取的报道正文只在冻结时取得。"
+                ),
+            ],
+            "discovery": {
+                **origin,
+                "bundle_sha256": sha(raw),
+                **({"source_states": bundle["source_states"]} if "source_states" in bundle else {}),
+            },
+            "files": [
+                {
+                    "name": name,
+                    "path": f"inputs/datasets/{did}/{name}",
+                    "sha256": sha(content),
+                    "size": len(content),
+                }
+                for name, content in files.items()
+            ],
+            "raw_files": [
+                {
+                    "name": "raw-0001.bin",
+                    "path": f".control/snapshots/{sid}/{did}/raw-0001.bin",
+                    "sha256": sha(raw),
+                    "size": len(raw),
+                }
+            ],
+        }
+        public = {**files, "manifest.json": json_bytes(manifest)}
+        private = {"manifest.json": public["manifest.json"], "raw-0001.bin": raw}
+        with directory(self.store.root, (".control",), create=True, private=True):
+            pass
+        if did in self.ids(sid):
+            found = self.detail(sid, did)
+            if found.get("discovery") != manifest["discovery"]:
+                raise StoreError("已有发现资料与本次选材不一致", "discovery_snapshot_changed", 409)
             return found
         return self._publish_files(sid, did, manifest, public, private, recover=True)
 
@@ -365,15 +534,82 @@ class Snapshots:
         requested = list(dict.fromkeys(dataset_ids))
         if any(did not in available for did in requested):
             raise StoreError("交接数据集不存在或不属于来源会话")
+        if any(
+            self.detail(old_sid, did).get("snapshot_kind") == "mcp_evidence" for did in requested
+        ):
+            raise StoreError(
+                "受管 MCP 原件须通过档案冻结交接重新授权读取，不能普通复制",
+                "mcp_evidence_copy_denied",
+                409,
+            )
         copied = []
         for did in requested:
             original = self.detail(old_sid, did)
+            if original.get("snapshot_kind") == "discovery_evidence":
+                new_id = str(uuid4())
+                files = {name: self.read(old_sid, did, name) for name in ("rows.json", "rows.csv")}
+                private = {}
+                with directory(self.store.root, (*self._private(old_sid), did), private=True) as fd:
+                    for item in original["raw_files"]:
+                        content = read_file(fd, item["name"], private=True)
+                        if sha(content) != item["sha256"]:
+                            raise StoreError("原始发现资料hash校验失败，未复制")
+                        private[item["name"]] = content
+                manifest = {
+                    key: value
+                    for key, value in original.items()
+                    if key not in {"manifest_sha256", "files"}
+                }
+                manifest.update(
+                    id=new_id,
+                    dataset_id=new_id,
+                    origin_dataset_id=did,
+                    origin_manifest_sha256=original["manifest_sha256"],
+                )
+                manifest["files"] = [
+                    {
+                        "name": name,
+                        "path": f"inputs/datasets/{new_id}/{name}",
+                        "sha256": sha(raw),
+                        "size": len(raw),
+                    }
+                    for name, raw in files.items()
+                ]
+                manifest["raw_files"] = [
+                    {**item, "path": f".control/snapshots/{new_sid}/{new_id}/{item['name']}"}
+                    for item in original["raw_files"]
+                ]
+                public = {**files, "manifest.json": json_bytes(manifest)}
+                copied.append(
+                    self._publish_files(
+                        new_sid,
+                        new_id,
+                        manifest,
+                        public,
+                        {**private, "manifest.json": public["manifest.json"]},
+                    )
+                )
+                continue
             if original.get("snapshot_kind") == "hot_evidence":
                 canonical = self.read(old_sid, did, "evidence-manifest.json")
                 frozen = json.loads(canonical)
-                values = {item["key"]: self.read(old_sid, did, item["filename"]) for item in frozen["objects"]}
-                copied.append(self.publish_hot(new_sid, original["hot"]["runId"], {"manifest": frozen,
-                    "manifestBytes": canonical, "manifestHash": original["hot"]["manifestHash"], "objects": values}, origin=original))
+                values = {
+                    item["key"]: self.read(old_sid, did, item["filename"])
+                    for item in frozen["objects"]
+                }
+                copied.append(
+                    self.publish_hot(
+                        new_sid,
+                        original["hot"]["runId"],
+                        {
+                            "manifest": frozen,
+                            "manifestBytes": canonical,
+                            "manifestHash": original["hot"]["manifestHash"],
+                            "objects": values,
+                        },
+                        origin=original,
+                    )
+                )
                 continue
             raw = []
             with directory(self.store.root, (*self._private(old_sid), did), private=True) as fd:
@@ -397,19 +633,30 @@ class Snapshots:
                 as_of=original["as_of"],
                 provider_id=original.get("provider"),
                 attempted_sources=original.get("attempted_sources", []),
+                metadata=original.get("provider_metadata", {}),
             )
+
+            def parse_query(value):
+                if value.get("capability") == "report_weekly":
+                    from .providers_wind_api import WindAPIQuery
+
+                    return WindAPIQuery.model_validate(value)
+                return (BusinessQuery if "capability" in value else Query).model_validate(value)
+
             request_query = (
-                BusinessQuery.model_validate(original["query"])
+                parse_query(original["query"])
                 if "capability" in original.get("query", {})
                 else None
             )
             copied.append(
                 self.publish(
                     new_sid,
-                    Query.model_validate(original.get("provider_query", original["query"])),
+                    parse_query(original.get("provider_query", original["query"])),
                     result,
                     origin=original,
                     request_query=request_query,
+                    authorization_fingerprint=original.get("authorization_fingerprint"),
+                    asset_history=original.get("asset_history"),
                 )
             )
         return copied

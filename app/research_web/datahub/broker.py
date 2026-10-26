@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from core.observability import get_logger
 
 from ..store import StoreError
+from .adjustment_contract import validate_adjustment_parameters
 from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
-from .providers import ProviderError
+from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import validate_supported_query
+from .providers_baostock import validate_supported_query as validate_baostock_query
+from .providers_wind import validate_supported_query as validate_wind_query
+from .providers_wind_api import WindAPIQuery
 
 log = get_logger(__name__)
 
@@ -18,8 +23,65 @@ log = get_logger(__name__)
 @dataclass(frozen=True)
 class Resolution:
     provider_id: str
-    query: Query | BusinessQuery
+    query: Query | BusinessQuery | WindAPIQuery
     attempted_sources: list[dict]
+
+
+def resolve_report_weekly(
+    query,
+    *,
+    probes=None,
+    connection_statuses=None,
+    environ=None,
+    report_contract_selected: bool = False,
+    report_data_source: str = "wind_client_api",
+) -> Resolution:
+    """Authorize the private Client API path without broadening public Wind tools.
+
+    A validated published report policy may select its private API independently
+    of the ordinary Wind preference. Callers without that trusted context still
+    require an explicit global Client API choice. Public bindings never change.
+    """
+    if not isinstance(query, WindAPIQuery):
+        raise StoreError("周报取数合同无效", "weekly_query_invalid", 400)
+    if report_data_source not in {"wind_client_api", "wind_excel"} or (
+        report_data_source == "wind_excel" and report_contract_selected is not True
+    ):
+        raise StoreError("Excel 周报必须由受信生产合同选择", "weekly_source_invalid", 409)
+    statuses = connection_statuses or {}
+    source = next(
+        item
+        for item in build_catalog(probes=probes, connection_statuses=statuses, environ=environ)[
+            "sources"
+        ]
+        if item["id"] == "wind"
+    )
+    readiness = source["readiness"]
+    if not readiness["allowed"] or not readiness["configured"]:
+        raise StoreError("Wind 周报来源未配置或未获允许", "weekly_source_unavailable", 503)
+    if (
+        statuses.get("wind", {}).get("preferred_adapter") != "client_api"
+        and report_contract_selected is not True
+    ):
+        raise StoreError("周报 API 需显式选择 Client API", "weekly_client_api_not_selected", 409)
+    if not statuses.get("wind", {}).get("credential_store_available", True) or (
+        readiness["health"] == "unavailable" and report_contract_selected is not True
+    ):
+        raise StoreError("Wind 周报来源状态不可用", "weekly_source_unavailable", 503)
+    # A probe of the ordinary Excel adapter is not a Client API health check.
+    # The private path still verifies SDK connection and every vendor response.
+    return Resolution(
+        "wind",
+        query,
+        [
+            {
+                "source": "wind",
+                "adapter": "excel" if report_data_source == "wind_excel" else "client_api",
+                "status": "selected",
+                "reason": "published_report_contract" if report_contract_selected is True else None,
+            }
+        ],
+    )
 
 
 def _integer(value, name, default, minimum=1, maximum=100):
@@ -30,6 +92,41 @@ def _integer(value, name, default, minimum=1, maximum=100):
     return value
 
 
+def _wind_financial_query(query: BusinessQuery) -> BusinessQuery:
+    """Translate equivalent indicator naming without reducing requested periods."""
+    parameters = query.parameters
+    statements = parameters.get("statements", ["metrics"])
+    periods = parameters.get("periods", [])
+    valid = (
+        statements in (["indicators"], ["metrics"])
+        and isinstance(periods, list)
+        and len(periods) <= 1
+    )
+    if valid and periods:
+        try:
+            valid = (
+                isinstance(periods[0], str)
+                and date.fromisoformat(periods[0]).isoformat() == periods[0]
+            )
+        except (ValueError, TypeError):
+            valid = False
+    if not valid:
+        log.warning("datahub_wind_financial_semantics_rejected")
+        raise StoreError(
+            "Wind 当前仅支持最新一期或明确指定的单期财务指标", "data_not_equivalent", 400
+        )
+    return query.model_copy(
+        update={
+            "source": "wind",
+            "parameters": {
+                **parameters,
+                "statements": ["metrics"],
+                "periods": list(periods),
+            },
+        }
+    )
+
+
 def resolve(
     query: BusinessQuery,
     *,
@@ -37,6 +134,9 @@ def resolve(
     environ=None,
     mysql_status=None,
     connection_statuses=None,
+    excluded_sources: frozenset[str] = frozenset(),
+    storage_read: bool = False,
+    defer_workload_limit: bool = False,
 ) -> Resolution:
     catalog = build_catalog(
         probes=probes,
@@ -47,6 +147,31 @@ def resolve(
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]
+    if query.capability == "financials" and query.parameters.get("statements") == [
+        "income_statement"
+    ]:
+        # A generic financial-summary binding is not this source-qualified
+        # statement contract; never substitute a lookalike summary on failure.
+        bindings = [binding for binding in bindings if "income_statement" in binding["datasets"]]
+    if query.capability == "financials" and query.parameters.get("statements") == ["profitability"]:
+        bindings = [
+            binding for binding in bindings if "quarterly_profitability" in binding["datasets"]
+        ]
+    if query.capability == "financials" and query.parameters.get("statements") == ["cash_flow"]:
+        bindings = [
+            binding for binding in bindings if "quarterly_cash_flow_ratios" in binding["datasets"]
+        ]
+    if query.capability == "market_activity" and query.parameters.get("dataset"):
+        bindings = [
+            binding
+            for binding in bindings
+            if query.parameters["dataset"] in binding["datasets"]
+            or (
+                query.source == "akshare"
+                and binding["source_id"] == "akshare"
+                and not query.allow_fallback
+            )
+        ]
     binding_by_source = {binding["source_id"]: binding for binding in bindings}
     sources = {source["id"]: source for source in catalog["sources"]}
     if query.capability == "external_data":
@@ -76,28 +201,117 @@ def resolve(
     attempts = []
     selected = None
     unsupported_code: str | None = None
+    unsupported_source: str | None = None
     for source_id in ordered:
         readiness = sources[source_id]["readiness"]
         reason = None
-        if not binding_by_source[source_id]["implemented"]:
+        if source_id in excluded_sources:
+            reason = "runtime_source_exhausted"
+        elif not binding_by_source[source_id]["implemented"]:
             reason = "capability_not_integrated"
         elif not readiness["integration_completed"]:
             reason = "not_integrated"
         elif not readiness["configured"]:
             reason = "blocked_config"
-        elif not readiness["dependency_ready"]:
+        elif not storage_read and not readiness["dependency_ready"]:
             reason = "blocked_dependency"
         elif not readiness["allowed"]:
             reason = "disabled"
-        elif readiness["health"] == "unavailable":
+        elif not storage_read and readiness["health"] == "unavailable":
             reason = "probe_unavailable"
-        if reason is None and source_id == "akshare":
+        if (
+            reason is None
+            and query.required_semantics is not None
+            and source_id not in {"wind", "akshare", "baostock"}
+        ):
+            reason = "price_units_unverified"
+            log.info(
+                "datahub_required_semantics_skipped",
+                source=source_id,
+                contract=query.required_semantics,
+            )
+        if reason is None and excluded_sources and not storage_read:
+            # Matching qfq/hfq names do not prove matching factor anchors. Until
+            # a canonical merge proof exists, runtime failover is raw daily stock
+            # data only; historical adjusted blocks use the warehouse contract.
+            reviewed_raw_bars = (
+                source_id in {"wind", "akshare", "baostock"}
+                and query.capability == "market_bars"
+                and query.parameters.get("asset_type") == "stock"
+                and query.parameters.get("adjustment") == "none"
+                and query.parameters.get("frequency") in {"1d", "daily", "day"}
+            )
+            if not reviewed_raw_bars:
+                reason = "data_not_equivalent"
+        if reason is None and source_id in {"akshare", "baostock"}:
             try:
-                validate_supported_query(query)
+                validator = (
+                    validate_baostock_query if source_id == "baostock" else validate_supported_query
+                )
+                validator(query)
             except ProviderError as exc:
                 reason = str(exc)
+                if unsupported_code is None or reason != "data_not_equivalent":
+                    unsupported_code = reason
+                    unsupported_source = source_id
+                log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
+        if reason is None and source_id == "bea_archive":
+            from .providers_bea_archive import validate_supported_query as validate_bea_query
+
+            try:
+                validate_bea_query(query, storage_read=storage_read)
+            except ProviderError as exc:
+                reason = str(exc)
+                if query.source == "bea_archive":
+                    unsupported_code, unsupported_source = reason, source_id
+                log.info("datahub_bea_query_rejected", reason=reason)
+        if (
+            reason is None
+            and source_id == "wind"
+            and query.capability
+            in {
+                "market_bars",
+                "market_snapshot",
+            }
+        ):
+            try:
+                assets = (
+                    [query.parameters.get("asset")]
+                    if query.capability == "market_bars"
+                    else query.parameters.get("assets")
+                )
+                if not isinstance(assets, list) or not assets:
+                    raise ProviderError("data_not_equivalent")
+                for asset in assets:
+                    cn_stock_identity(asset)
+            except ProviderError:
+                reason = unsupported_code = "data_not_equivalent"
+                log.warning("datahub_wind_stock_identity_rejected")
+        if (
+            reason is None
+            and source_id == "wind"
+            and query.capability == "market_bars"
+            and (
+                storage_read
+                or defer_workload_limit
+                or query.parameters.get("asset_type", "stock") == "stock"
+            )
+        ):
+            try:
+                validate_wind_query(
+                    query, storage_read=storage_read, defer_workload_limit=defer_workload_limit
+                )
+            except ProviderError as exc:
+                reason = unsupported_code = str(exc)
+                log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
+        if reason is None and source_id == "tinysoft" and query.capability == "factor_macro":
+            try:
+                validate_adjustment_parameters(query.parameters)
+            except ValueError as exc:
+                reason = str(exc)
                 unsupported_code = reason
-                log.warning("datahub_akshare_query_semantics_rejected", reason=reason)
+                unsupported_source = source_id
+                log.warning("datahub_tinysoft_factor_semantics_rejected", reason=reason)
         attempts.append(
             {
                 "source": source_id,
@@ -112,7 +326,16 @@ def resolve(
             break
     if selected is None:
         if unsupported_code is not None:
-            raise StoreError("AKShare 请求口径不受支持", unsupported_code, 400)
+            message = (
+                "BEA 发布档案请求口径不受支持"
+                if unsupported_source == "bea_archive"
+                else (
+                    "天软因子请求口径不受支持"
+                    if query.capability == "factor_macro" and unsupported_source == "tinysoft"
+                    else f"{ {'wind': 'Wind', 'baostock': 'BaoStock'}.get(source_id, 'AKShare')} 请求口径不受支持"
+                )
+            )
+            raise StoreError(message, unsupported_code, 400)
         code = (
             "data_capability_unavailable"
             if any(binding_by_source[source_id]["implemented"] for source_id in ordered)
@@ -156,10 +379,24 @@ def resolve(
         "trading_calendar",
         "market_bars",
         "market_snapshot",
+        "factor_macro",
+        "financials",
+        "market_activity",
     }:
         legacy = query.model_copy(update={"source": "tinysoft"})
-    elif selected == "akshare" and query.capability in {
+    elif selected == "bea_archive" and query.capability == "factor_macro":
+        legacy = query.model_copy(update={"source": "bea_archive"})
+    elif selected == "baostock" and query.capability in {
         "search_assets",
+        "trading_calendar",
+        "market_bars",
+        "financials",
+    }:
+        legacy = query.model_copy(update={"source": "baostock"})
+    elif selected == "akshare" and query.capability in {
+        "factor_macro",
+        "search_assets",
+        "trading_calendar",
         "market_bars",
         "market_snapshot",
         "financials",
@@ -173,7 +410,11 @@ def resolve(
         "financials",
         "market_activity",
     }:
-        legacy = query.model_copy(update={"source": "wind"})
+        legacy = (
+            _wind_financial_query(query)
+            if query.capability == "financials"
+            else query.model_copy(update={"source": "wind"})
+        )
     elif selected == "mysql" and query.capability in {"database_schema", "table_query"}:
         legacy = query.model_copy(update={"source": "mysql"})
     else:

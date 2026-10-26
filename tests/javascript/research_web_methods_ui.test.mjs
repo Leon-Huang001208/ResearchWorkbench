@@ -15,7 +15,8 @@ test('method is a separate read-only capability tab with ten versioned entries',
   assert.match(html, /方法能力库/);
   assert.doesNotMatch(html, /data-cap-create|data-cap-import/);
   assert.equal((html.match(/data-use-method=/g) || []).length, 10);
-  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'plugin' });
+  assert.deepEqual(capabilityWorkspaceKindKey('Home', 'plugin'), { handled: true, kind: 'skill' });
 });
 
 test('composer exposes method sources, max-three state and selected chips', () => {

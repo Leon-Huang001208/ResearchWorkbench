@@ -36,8 +36,11 @@ from .claw_routes import router as claw_router
 from .client import DSHClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub.routes import router as datahub_router
+from .discovery.routes import router as discovery_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .dossier_signal_routes import router as dossier_signal_router
+from .dossiers.routes import router as dossiers_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
 from .hot_routes import private_router as hot_private_router
@@ -47,10 +50,13 @@ from .integrations.routes import router as integrations_router
 from .intel_routes import router as intel_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
+from .market_routes import router as market_router
 from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
 from .mcp_runtime.routes import router as mcp_runtime_router
 from .operations import router as operations_router
+from .plugin_routes import router as plugin_router
+from .plugins.runtime_restart import router as plugin_runtime_router
 from .portfolio_decisions.routes import router as portfolio_decisions_router
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
@@ -107,6 +113,7 @@ class TabbitTabRef(BaseModel):
 
 
 class Prompt(BaseModel):
+    dossier_handoff_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     text: str = Field(min_length=1, max_length=100000)
     research_mode: Literal["quick", "deep", "agent"] | None = None
     research_requirements: list[str] | None = Field(default=None, min_length=1, max_length=30)
@@ -222,6 +229,17 @@ class ModelConfig(BaseModel):
         return value
 
 
+class ModelProfileConfig(ModelConfig):
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def profile_name(cls, value):
+        if not value.strip() or any(ord(char) < 32 for char in value):
+            raise ValueError("model_profile_name_invalid")
+        return value.strip()
+
+
 def create_app(service: ResearchService | None = None) -> FastAPI:
     # Operator opt-in for one authenticated Tailscale Serve HTTPS origin only.
     # Never derive trust from Host, X-Forwarded-Host, or a wildcard suffix.
@@ -273,9 +291,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
     app.include_router(datahub_router)
+    app.include_router(dossier_signal_router)
+    app.include_router(dossiers_router)
     app.include_router(asset_router)
+    app.include_router(market_router)
     app.include_router(intel_router)
+    app.include_router(discovery_router)
     app.include_router(capabilities_router)
+    app.include_router(plugin_router)
+    app.include_router(plugin_runtime_router)
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
     app.include_router(hot_router)
@@ -304,6 +328,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         tenant_denial = await check_tenant_request(request)
         if tenant_denial is not None:
             return tenant_denial
+        plugin_control = request.url.path.startswith("/api/research/internal/plugin-runtime/")
+        if tenant_mode_enabled() and not plugin_control:
+            active = request.app.state.research
+            if active.plugin_runtime_frozen:
+                return JSONResponse({"error": {"code": "plugin_runtime_frozen"}}, status_code=409)
         if request.url.path.startswith(
             "/api/research/internal/data/"
         ) and not request.app.state.research.datahub.authenticate(
@@ -358,6 +387,26 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             return JSONResponse(
                 {"error": {"code": "origin_denied", "message": "跨站请求被拒绝"}}, status_code=403
             )
+
+        async def dispatch():
+            ticket = (
+                tenant_mode_enabled()
+                and not plugin_control
+                and request.method not in {"GET", "HEAD"}
+            )
+            if ticket:
+                active = request.app.state.research
+                if active.plugin_runtime_frozen:
+                    return JSONResponse(
+                        {"error": {"code": "plugin_runtime_frozen"}}, status_code=409
+                    )
+                active.plugin_inflight += 1
+            try:
+                return await call_next(request)
+            finally:
+                if ticket:
+                    active.plugin_inflight -= 1
+
         try:
             # Internal plugin callbacks remain authenticated above and must not
             # deadlock startup while the updater holds the exclusive fence.
@@ -365,9 +414,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 "/api/research/internal/"
             ):
                 with admission():
-                    response = await call_next(request)
+                    response = await dispatch()
             else:
-                response = await call_next(request)
+                response = await dispatch()
         except MaintenanceBusy:
             log.info("research_web_resident_maintenance")
             return JSONResponse(
@@ -403,22 +452,144 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         revision = os.environ.get("RESEARCH_RESIDENT_REVISION", "")
         research = getattr(request.app.state, "research", None)
         active = None
+        activity = None
         if research is not None:
-            active = bool(
-                any(research.running.values())
-                or research.approvals
-                or research.questions
-                or any(
-                    row.get("research_status") in {"queued", "running"}
-                    for row in research.store.data.get("automation_runs", {}).values()
+            active = False
+
+            def history_activity():
+                history_jobs = research.store.data.get("asset_history_jobs", {})
+                return not isinstance(history_jobs, dict) or any(
+                    not isinstance(row, dict)
+                    or ("state" in row and "status" in row and row["state"] != row["status"])
+                    or row.get("state", row.get("status"))
+                    not in {"completed", "failed", "cancelled", "interrupted"}
+                    for row in history_jobs.values()
                 )
+
+            def witness_flag(value):
+                if not isinstance(value, dict) or type(value.get("active")) is not bool:
+                    raise ValueError("activity_witness_unknown")
+                return value["active"]
+
+            def sdk_activity():
+                from .datahub.worker_activity import active_futures
+
+                return bool(active_futures())
+
+            def wind_api_activity():
+                from .datahub.providers_wind_api import activity_witness
+
+                return witness_flag(activity_witness())
+
+            def report_activity():
+                report_manager = getattr(research, "report_workflows", None)
+                report_runtime = getattr(report_manager, "runtime", None)
+                report_catalog = getattr(report_manager, "catalog", None)
+                if report_runtime is None or report_catalog is None:
+                    raise ValueError("report_activity_unknown")
+                report_runs = report_catalog.data["runs"]
+                terminal_reports = {
+                    "completed",
+                    "cancelled",
+                    "failed",
+                    "blocked_data",
+                    "delivery_incomplete",
+                    "quality_incomplete",
+                    "skipped_overlap",
+                }
+                return (
+                    not isinstance(report_runs, dict)
+                    or any(
+                        not isinstance(row, dict) or row.get("status") not in terminal_reports
+                        for row in report_runs.values()
+                    )
+                    or bool(report_runtime.tasks)
+                )
+
+            def storage_activity():
+                storage_runner = research.datahub.storage_runner
+                if storage_runner is None:
+                    return False
+                value = storage_runner.active
+                if type(value) is not bool:
+                    raise ValueError("storage_activity_unknown")
+                return value
+
+            observations = {}
+            for name, check in (
+                ("research_tasks", lambda: any(research.running.values())),
+                ("approvals", lambda: bool(research.approvals)),
+                ("questions", lambda: bool(research.questions)),
+                ("source_requests", lambda: bool(research.source_requests)),
+                (
+                    "automation_runs",
+                    lambda: any(
+                        row.get("research_status") in {"queued", "running"}
+                        for row in research.store.data.get("automation_runs", {}).values()
+                    ),
+                ),
+                ("history_jobs", history_activity),
+                ("sdk_aggregate", sdk_activity),
+                ("wind_api", wind_api_activity),
+                ("market", lambda: witness_flag(research.market.activity_witness())),
+                ("reports", report_activity),
+                (
+                    "datahub_tasks",
+                    lambda: any(not task.done() for task in research.datahub.tasks.values()),
+                ),
+                ("storage", storage_activity),
+                ("asset_directory", lambda: research.asset_workspace.directory.active),
+                (
+                    "asset_tasks",
+                    lambda: any(
+                        not task.done() for task in research.asset_workspace.tasks.values()
+                    ),
+                ),
+                ("directory_tasks", lambda: bool(research.datahub.directory_tasks)),
+            ):
+                try:
+                    # Evaluate every witness, including after a known busy or
+                    # unknown result. Neither may erase another subsystem's fact.
+                    observed = check()
+                    if type(observed) is not bool:
+                        raise ValueError("activity_witness_unknown")
+                    observations[name] = observed
+                    active = bool(active or observed)
+                except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
+                    log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)
+                    observations[name] = None
+            from .datahub.worker_activity import activity_witness
+
+            activity = {
+                "schema": "resident-activity-v1",
+                "checks": observations,
+                "sources": activity_witness(),
+            }
+            active = (
+                True
+                if any(value is True for value in observations.values())
+                else None if any(value is None for value in observations.values()) else False
             )
-        return {
+            # Source observations can be newer than the aggregate above. Never
+            # publish aggregate idle alongside a known running or unknown source.
+            # Keep the original aggregate/mock observation and its unknown result;
+            # later evidence can strengthen refusal, never erase it.
+            for source in activity["sources"].values():
+                if source["running"] is True:
+                    active = True
+                elif active is not True and (
+                    source["running"] is None or source["cleanup_unconfirmed"] is not False
+                ):
+                    active = None
+        result = {
             "enabled": bool(setting),
             "revision": revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None,
             "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
             "active": active,
         }
+        if activity is not None:
+            result["activity_witness"] = activity
+        return result
 
     @app.exception_handler(RuntimeFailure)
     async def runtime_error(request, exc):
@@ -536,6 +707,26 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             credential_mode=body.credential_mode,
         )
 
+    @app.get("/api/research/model-profiles")
+    async def model_profiles(request: Request):
+        return await svc(request).list_model_profiles()
+
+    @app.post("/api/research/model-profiles")
+    async def add_model_profile(body: ModelProfileConfig, request: Request):
+        return await svc(request).save_model_profile(body)
+
+    @app.put("/api/research/model-profiles/{identity}")
+    async def update_model_profile(identity: str, body: ModelProfileConfig, request: Request):
+        return await svc(request).save_model_profile(body, identity)
+
+    @app.post("/api/research/model-profiles/{identity}/activate")
+    async def activate_model_profile(identity: str, request: Request):
+        return await svc(request).activate_model_profile(identity)
+
+    @app.delete("/api/research/model-profiles/{identity}")
+    async def archive_model_profile(identity: str, request: Request):
+        return await svc(request).archive_model_profile(identity)
+
     @app.post("/api/research/runtime/model/test")
     async def test_model(request: Request):
         return await svc(request).test_model()
@@ -646,6 +837,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             research_mode=body.research_mode,
             research_requirements=body.research_requirements,
             research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
+            dossier_handoff_id=body.dossier_handoff_id,
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")

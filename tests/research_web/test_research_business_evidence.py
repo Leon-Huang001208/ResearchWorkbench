@@ -20,6 +20,26 @@ def observed(text, name="a"):
     }
 
 
+def test_business_prompt_index_remains_bounded_and_obeys_source_scope(tmp_path):
+    import json
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality import make_contract
+    from app.research_web.research_quality_service import business_prompt_index
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "business index")["id"]
+    (store.directory(sid) / "inputs/cpi.md").write_text(CPI)
+    contract = make_contract("a" * 24, "Actual CPI", ["Facts"], "2026-10-19", "quick")
+    result = business_prompt_index(SimpleNamespace(store=store), sid, contract)
+    assert result["total"] >= 40 and len(json.dumps(result, ensure_ascii=False).encode()) <= 24000
+    assert all(row["source_ids"] and "preview_truncated" in row for row in result["observations"])
+    assert not {"passed", "coverage", "quality"} & result.keys()
+    store.session(sid)["source_scope"] = ["datahub"]
+    assert business_prompt_index(SimpleNamespace(store=store), sid, contract)["observations"] == []
+
+
 def test_initial_business_snapshot_is_readable_without_literal_copying(tmp_path, monkeypatch):
     import json
     from types import SimpleNamespace
@@ -170,6 +190,99 @@ def test_cpi_core_yoy_uses_actual_unadjusted_header():
     assert data["core_mom_sa_pct", "2024-12"] == "0.2"
     assert data["headline_mom_sa_pct", "2024-12"] == "0.4"
     assert not metrics(business_observations([observed(CPI.replace("Un-<br>adjusted", "Unknown"))]))
+
+
+def test_failed_cpi_analysis_uses_actual_months_and_exact_percentage_points():
+    from app.research_web.resources.research_report import select_business_evidence
+
+    rows = business_observations([observed(CPI)])
+    data = metrics(rows)
+    assert data["headline_mom_sa_pct", "2024-11"] == "0.3"
+    assert data["headline_mom_change_pp", "2024-12"] == "0.1"
+    assert data["core_mom_change_pp", "2024-12"] == "-0.1"
+    assert data["core_minus_headline_mom_sa_pp", "2024-12"] == "-0.2"
+    assert data["core_minus_headline_yoy_nsa_pp", "2024-12"] == "0.3"
+    bundle = {"observations": rows}
+    with pytest.raises(ValueError, match="ambiguous"):
+        select_business_evidence(bundle, {"headline_mom_sa_pct": ["r1"]})
+    block = select_business_evidence(
+        bundle, {"headline_mom_sa_pct@2024-11": ["r1"], "core_minus_headline_mom_sa_pp": ["r2"]}
+    )
+    assert len(block["numeric_claims"]) == 2
+    assert len(block["coverage"]) == 2
+    from app.research_web.research_quality import assess_quality, make_contract
+
+    contract = make_contract(
+        "a" * 24, "Compare actual CPI", ["Months", "Gap"], "2026-10-19", "quick"
+    )
+    source = observed(CPI)
+    payload = {
+        "task_id": contract["task_id"],
+        "title": "Actual CPI",
+        "as_of": "2026-10-19",
+        "sources": [{"id": source["id"], "title": "Table A"}],
+        **block,
+    }
+    assert (
+        assess_quality(contract, payload, payload["sources"], [source, *rows])["status"] == "passed"
+    )
+    with pytest.raises(ValueError):
+        select_business_evidence(bundle, {"unknown_metric": ["r1"]})
+
+
+def test_real_cpi_previous_yoy_requires_complete_affirmative_paragraph():
+    from pathlib import Path
+
+    raw = (Path(__file__).parent / "fixtures/business-evidence/bls-cpi-dec2024.txt").read_text()
+    data = metrics(business_observations([observed(raw)]))
+    assert data["headline_yoy_nsa_pct", "2024-11"] == "2.7"
+    assert data["headline_yoy_change_pp", "2024-12"] == "0.2"
+    for bad in (
+        raw.replace("The all items index rose", "It is false that:\n\nThe all items index rose"),
+        raw.replace(
+            "The all items index rose",
+            "The following paragraph is hypothetical.\n\nThe all items index rose",
+        ),
+        raw + "\n\nThe preceding release is hypothetical.",
+        raw.replace("The all items index rose", "It is false that the all items index rose"),
+        raw.replace("ending November", "ending October"),
+        raw.replace("rose 2.9 percent", "rose 9.9 percent"),
+    ):
+        data = metrics(business_observations([observed(bad)]))
+        assert ("headline_yoy_nsa_pct", "2024-11") not in data
+
+
+def test_nist_context_exposes_original_qualitative_evidence_without_certifying_translation():
+    from app.research_web.resources.research_report import select_business_evidence
+
+    text = "AI RMF\n\nGovernance is a cross-cutting function that enables organizations to manage risks.\n\nOrganizations cannot infer implementation from this framework."
+    rows = business_observations([observed(text)])
+    quotes = [r for r in rows if r["metric"] == "source_quote"]
+    assert len(quotes) == 2
+    assert any("cannot infer" in row["content"] for row in quotes)
+    block = select_business_evidence({"observations": rows}, {quotes[0]["id"]: ["r1"]})
+    assert block["sections"][0]["text"] == quotes[0]["content"]
+    assert not block["numeric_claims"]
+    assert not {"quality", "missing", "status"} & block.keys()
+    from app.research_web.research_quality import assess_quality, make_contract
+
+    contract = make_contract("a" * 24, "NIST", ["Governance"], "2026-10-19", "quick")
+    payload = {
+        "task_id": contract["task_id"],
+        "title": "NIST",
+        "as_of": "2026-10-19",
+        "sources": [{"id": observed(text)["id"], "title": "NIST excerpt"}],
+        **block,
+    }
+    assert (
+        assess_quality(contract, payload, payload["sources"], [observed(text), *rows])["status"]
+        == "passed"
+    )
+    payload["sections"][0]["text"] += "\n该企业已经全面通过治理认证。"
+    assert (
+        assess_quality(contract, payload, payload["sources"], [observed(text), *rows])["status"]
+        != "passed"
+    )
 
 
 def statement(date, limits):

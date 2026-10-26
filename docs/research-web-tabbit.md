@@ -1,5 +1,29 @@
 # Research Web Tabbit 集成
 
+周报13工具范围不授予tabbit_browser或额外MCP；已有Tabbit批准流程和普通Native会话范围不变。允许的新闻/网页取证走现有DataHub及research_read_source保留出处；本修复不操作浏览器、不用未访问URL充证据。
+
+华安ETF周报继续使用唯一DSH执行和原Host质量门；模板渲染脚本只接收Host注入的绝对
+`SESSION_ROOT`，不放宽沙箱的目录或浏览器权限。Wind Client API的私有取数不启用Tabbit，
+真实网页观点仍须当前任务允许的来源及实际读取证据。离线合成数据贯通不证明浏览器、模型、
+Wind或Office真实运行，缺少来源不得由训练知识补成本周事实；服务器profile的宿主浏览器拒绝保持。
+
+DataHub的purpose/quality/as_of与稳定错误代码仅扩展既有原生数值工具桥，未改变Tabbit正文抓取、DNS/TLS、网页证据或报告质量授权。数据库命中和公开SDK取数不能代替网页正文或真实模型证明，Tabbit凭据不进入公开SDK最小环境。
+
+
+2026-10-22 插件浏览器只是管理与审核界面，不将Tabbit/Codex/Claude宿主API映射为通用执行权限；不存在的专有页面/云API明确unsupported。原Tabbit工具、来源、授权与会话范围保持，受控指令工具不能执行浏览器或Shell。详见[插件合同](research-web-plugins.md)。
+
+本次工具schema兼容修复不调用Tabbit或浏览器，供应商请求序列化回归使用本地fake fetch，不接真实凭据或网络。原正文取证、来源登记和授权边界不变。
+
+自由分析引用、精确计算与渲染复核不调用Tabbit或浏览器，不新增联网、凭据或目录权限。审计附件只来自当前任务实际观测和报告底稿；原服务器profile及来源授权继续适用。
+
+系统计算配方和格式器不调用Tabbit或网络；只读SDK的新增计算模块仍受固定文件清单及原沙箱限制。网页取证仍走已登记来源和原DNS/TLS规则，不复用其他会话授权，自动化及服务器profile边界保持。
+
+报告提示分流不增加浏览器调用或授权，不把独立Python检查变成联网能力；服务器profile仍拒绝宿主Tabbit，业务观测须来自当前允许资料。
+
+原 script 工具的 report_plan 数据参数不获得浏览器能力，也不改变服务器 profile 对宿主 Tabbit 的拒绝；有界算术和报告组装不联网、不复用其他用户标签授权。
+
+research_read_source 不使用或启用 Tabbit，不改变既有浏览器授权和网页读取设置。它只在私有 Host 桥中读取已登记的公开 HTTPS 来源，拒绝私网和凭据；受信身份、有限网络进程、取消回收与实际字节保全见安全合同。
+
 私网邀请制服务器 profile 明确禁用 Tabbit/宿主浏览器：前端隐藏入口，后端路由与原生 guard 拒绝访问，不将 Mac mini 的标签授权共享给用户。以下 Tabbit 合同继续仅适用于原单用户实例；服务器登录、文件或模型配置不能替代浏览器授权，也不新增远程用户设备桥接。
 
 FinGPT 的研究策略与质量检查不扩大 Tabbit 权限；页面正文只有经现有授权和实际读取才可作为来源，检索摘要或建议链接不冒充读取结果。停止、私有认证和写操作审批沿原合同。
@@ -311,3 +335,12 @@ Hot冻结FinGPT使用仅本地脚本/文档工具的research-hot-frozen组合，
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调用；未选择 web 时拒绝受理。保留 Tabbit 的原 claim、一次性 token、审批与只读限制；FinGPT 原生 Todo/报告投影不会将 Codex 内置浏览器连接证据用作 Tabbit 可调用性证明。
+
+模型服务商配置只调整模型连接索引与Key解析，不更改Tabbit CLI/实例选择、浏览器审批或MCP工具范围。本次浏览器测试只访问回环隔离UI夹具，不调用Tabbit、真实供应商或生产研究。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案 source 引用只能读取已保存网页字节，并在归档／重读／Prompt 交接时复核原来源权限与 hash；准备继续研究不会重新抓取、认领 Tabbit 页面或自动调用浏览器。实际 Prompt 绑定的 receipt 不扩张用户已选 web 范围，仍沿原 claim、一次性 token、审批和只读规则；截图／浏览器夹具也不认证 Tabbit 或供应商可调用。唯一 DSH 与既有浏览器拓扑保持，详见[档案研究交接](research-web-dossiers.md#http-与研究交接)和[界面发送合同](research-web-dossiers-ui.md)。
+
+
+2026-10-24：今日发现raw/事件GET与归档URL关系不是Tabbit实时网页取证，不生成web_evidence收据，也不提升原文核验等级。Tabbit的浏览器授权、实时标记和同会话质量绑定保持。

@@ -37,6 +37,80 @@ def isolate_keyring(monkeypatch):
     )
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"中文": '行情\n引号"与反斜线\\及😀', "values": [None, True, False, 3.25]},
+        {"nested": {"items": [{"key": "value"}] * 120}, "large": 10**30},
+    ],
+)
+def test_catalog_save_uses_one_write_with_identical_json(tmp_path, monkeypatch, data):
+    import os
+
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog.root = tmp_path
+    catalog.index = tmp_path / "catalog.json"
+    catalog.data = data
+    expected = io.StringIO()
+    json.dump(data, expected, ensure_ascii=False)
+    writes = []
+    fdopen = os.fdopen
+
+    class ObservedStream:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def write(self, value):
+            writes.append(value)
+            return self.stream.write(value)
+
+        def flush(self):
+            return self.stream.flush()
+
+        def fileno(self):
+            return self.stream.fileno()
+
+    monkeypatch.setattr(os, "fdopen", lambda *a, **k: ObservedStream(fdopen(*a, **k)))
+    catalog.save()
+    assert catalog.index.read_bytes() == expected.getvalue().encode("utf-8")
+    assert writes == [expected.getvalue()]
+    assert not list(tmp_path.glob("catalog-*"))
+
+
+@pytest.mark.parametrize("stage", ["fsync", "replace", "serialization"])
+def test_catalog_save_failure_preserves_previous_index(tmp_path, monkeypatch, stage):
+    import os
+
+    from app.research_web.capabilities.models import CapabilityError
+
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog.root = tmp_path
+    catalog.index = tmp_path / "catalog.json"
+    previous = b'{"previous": true}'
+    catalog.index.write_bytes(previous)
+    catalog.data = {"next": object() if stage == "serialization" else True}
+
+    def fail(*args):
+        raise OSError("synthetic persistence failure")
+
+    if stage != "serialization":
+        monkeypatch.setattr(os, stage, fail)
+    with pytest.raises(TypeError if stage == "serialization" else CapabilityError) as error:
+        catalog.save()
+    if stage != "serialization":
+        assert error.value.code == "catalog_write_failed"
+    assert catalog.index.read_bytes() == previous
+    assert not list(tmp_path.glob("catalog-*"))
+
+
 @pytest.fixture
 def api(tmp_path, monkeypatch):
     isolate_keyring(monkeypatch)
@@ -76,6 +150,47 @@ def create(client, value=None):
     response = client.post("/api/research/capabilities", json=value or candidate())
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def test_builtin_dependency_inventory_is_scoped_to_initialization(tmp_path, monkeypatch):
+    import importlib.metadata
+
+    isolate_keyring(monkeypatch)
+    installed = importlib.metadata.packages_distributions()
+    scans = []
+    present = True
+
+    def inventory():
+        scans.append(True)
+        return {**installed, **({"task_only_module": ["task-only-dist"]} if present else {})}
+
+    monkeypatch.setattr(importlib.metadata, "packages_distributions", inventory)
+    catalog = CapabilityCatalog(tmp_path / "first")
+    assert len(scans) == 1
+    value = candidate()
+    value["files"] = [{"path": "scripts/check.py", "content": "import task_only_module\n"}]
+    draft = catalog._draft(value)
+    draft["reviewed_scripts"] = [draft["files"][0]["sha256"]]
+    assert catalog.validate("skill", draft)["valid"]
+    present = False
+    result = catalog.validate("skill", draft)
+    assert any(issue["code"] == "dependency_missing" for issue in result["issues"])
+    assert len(scans) == 3
+    CapabilityCatalog(tmp_path / "second")
+    assert len(scans) == 4
+    assert catalog._initial_module_distributions is None
+
+    def fail_inventory():
+        raise ValueError("synthetic inventory failure")
+
+    from app.research_web.capabilities.models import CapabilityError
+
+    monkeypatch.setattr(importlib.metadata, "packages_distributions", fail_inventory)
+    interrupted = CapabilityCatalog.__new__(CapabilityCatalog)
+    with pytest.raises(CapabilityError):
+        interrupted.__init__(tmp_path / "interrupted")
+    assert not interrupted._initializing
+    assert interrupted._initial_module_distributions is None
 
 
 @pytest.mark.parametrize(
@@ -247,8 +362,15 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "rwb_prepare_automation_update",
         "rwb_run_automation",
         "ask_user_question",
+        "research_check_quality",
+        "research_read_source",
     }
     assert {tool["id"] for tool in tools} == baseline_tool_ids | added_tool_ids
+    assert all(
+        not tool["selectable"]
+        for tool in tools
+        if tool["id"] in {"research_check_quality", "research_read_source"}
+    )
     assert len(tools) == len(baseline_tool_ids | added_tool_ids)
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
     assert document_tool["read_only"] is False

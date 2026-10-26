@@ -1,13 +1,18 @@
+import { closedComposerMenu, openComposerMenu, composerMenuRows, composerMenuKey, composerSlashQuery, consumeComposerSlash, nextComposerFormats } from './composer-menu.mjs';
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
 import { createConversationNavigation, renderProjectEditor } from './conversation-navigation.mjs';
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
-import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
+import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
+import { createWarehousePanel } from './research-warehouse.mjs';
 import { createDisclosureState } from './disclosures.mjs';
-import { createUploadHandler } from './uploads.mjs';
+import { createAccountMenu } from './server/account-menu.mjs';
+import { createPluginWorkspace } from './plugins-workspace.mjs';
+import { createAccountWorkspace, renderAccountProfile } from './server/account-workspace.mjs';
+import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
-import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
+import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
@@ -16,17 +21,30 @@ import { focusSidebarControl, renderGlobalResults, renderResearchAttention, rend
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
-import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, renderClawCases, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
+import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
 import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
-import { readAssetObservation } from './asset-workspace.mjs';
+import { readAssetObservation, updateAssetSummary, updateAssetTopic } from './asset-workspace.mjs';
+import { assetHref, assetTopicKey, selectAssetObservation } from './asset-navigation.mjs';
+import { createAssetWorkspaceController } from './asset-controller.mjs';
+import { createAssetNewsController, renderAssetNews } from './asset-news.mjs';
+import { createAssetChartController } from './asset-chart.mjs';
+import { mountAssetSearch } from './asset-search.mjs';
+import { mountCapitalFlow } from './asset-workspace.mjs';
+import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
+import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
+
+import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
-import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
+import { canUseReportWorkflows } from './weekly-production.mjs';
+import { buildConfigurationPayload, confirmAutoProbeConsent, createExecutionEvidenceExpiry, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
+import { createModelSettings } from './model-settings.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 import { renderEmbeddedBot } from './frameworks/embedded.mjs';
@@ -36,7 +54,7 @@ const frameworkEmbedBridge = createEmbedBridge({ origin: globalThis.location?.or
 let frameworkEmbedFrame = null;
 frameworkEmbedBridge.setTheme(document.documentElement?.dataset?.theme || 'light');
 if (globalThis.MutationObserver && document.documentElement) {
-  new MutationObserver(() => frameworkEmbedBridge.setTheme(document.documentElement.dataset.theme)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  new MutationObserver(() => { frameworkEmbedBridge.setTheme(document.documentElement.dataset.theme); mountAssetIndicators(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 window.addEventListener('message', event => {
   if (frameworkEmbedBridge.receive(event)) {
@@ -46,10 +64,16 @@ window.addEventListener('message', event => {
 import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
 const api = createAPI();
+let modelSettingsPanel = null;
+let warehousePanel = null;
 const conversationNavigation = createConversationNavigation({ api, notify: () => render(), changed: () => loadCatalog(['sessions']) });
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+root.setAttribute?.('data-account-workspace-native', '1');
+const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
+const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
+const pluginWorkspace = createPluginWorkspace({ root, user: globalThis.__RWB_ACCOUNT__ ? { ...globalThis.__RWB_ACCOUNT__, id: globalThis.__RWB_USER_ID__ } : null, logger: safeLog });
 const disclosureState = createDisclosureState({ logger: safeLog });
 const nativeSessionSearch = createSessionSearch({ search: (query, mode) => api.searchSessions(query, mode), notify: updateGlobalSearchResults, logger: safeLog });
 
@@ -61,8 +85,8 @@ function updateGlobalSearchResults() {
   if (focused) ([...results.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focused) || document.getElementById('global-search'))?.focus({ preventScroll: true });
 }
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
-// The private server profile does not execute host report Workflows.
-if (globalThis.__RWB_USER_ID__) defaultCatalogNames.splice(defaultCatalogNames.indexOf('reportWorkflows'), 1);
+const reportWorkflowsAllowed = canUseReportWorkflows(globalThis.__RWB_USER_ID__, globalThis.__RWB_ACCOUNT__);
+if (!reportWorkflowsAllowed) defaultCatalogNames.splice(defaultCatalogNames.indexOf('reportWorkflows'), 1);
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
 const catalogPendingCounts = new Map();
 const catalogRequestGenerations = new Map();
@@ -92,10 +116,13 @@ let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 const answerFeedback = new Map(); let copiedTransient = '';
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
 let methodPickerOpen = false;
+let composerMenu = closedComposerMenu();
 const tabbitGrants = new Set();
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
+let workbenchLoadGeneration = 0;
+const workbenchDrafts = new Map();
 let assetState = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [] };
 let etfState = { readiness: {}, runs: [], result: null };
 let operationsRange = '7d';
@@ -103,6 +130,7 @@ let operationsData = { usage: null, tools: null, datahub: null, services: null, 
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 let automationFormOpen = false; let automationBusy = false;
 let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = ''; let localCategory = 'all'; let officeConsentConfirmation = ''; let localStatusExpiryTimer = null;
+const executionEvidenceExpiry = createExecutionEvidenceExpiry({ getSources: () => catalog.connections.sources, isActive: () => Boolean(root.querySelector('[data-connection-workbench]')), onExpire: () => render() });
 let frameworkState = { status: 'idle', catalog: null, data: null, slug: '', error: '' };
 let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
 let closeFrameworkStream = () => {};
@@ -119,15 +147,136 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+let sidebarControlFocused = false;
+window.addEventListener('focusin', event => {
+  sidebarControlFocused = Boolean(event.target?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]'));
+});
+window.addEventListener('focusout', event => {
+  if (event.target?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]') && event.target.getClientRects().length) sidebarControlFocused = false;
+});
 window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
-  const sidebarFocused = document.activeElement?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]');
+  const sidebarFocused = document.activeElement?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]') || (sidebarControlFocused && document.activeElement === document.body);
   sidebarOpen = false; contextOpen = false;
   safeLog('research_navigation_viewport_changed');
   render();
-  if (sidebarFocused) focusSidebarControl(document, event.matches);
+  if (sidebarFocused) focusSidebarControl(document, event.matches, !event.matches && !sidebarCollapsed);
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const discoveryController = createDiscoveryController({ api, onChange: () => { if (state.route.page === 'intel' && state.route.intelTab === 'discovery') render(); }, onNavigate: (mode, sessionId) => { if (sessionId && ['fingpt', 'claw'].includes(mode)) location.hash = `#/${mode}?session=${encodeURIComponent(sessionId)}`; } });
+let dossierDraftOpening = 0;
+let dossierDraftOpeningGeneration = 0;
+const dossierController = createDossierController({ api, onChange: () => { if (isDossierRoute(state.route)) render(); }, onNavigate: hash => { location.hash = hash; }, onDraft: async result => {
+  const openingToken = ++dossierDraftOpeningGeneration;
+  dossierDraftOpening = openingToken;
+  let prepared = false;
+  try {
+    history.pushState(null, '', `#/${result.mode}`);
+    const ticket = pageGeneration + 1;
+    await showRoute();
+    if (openingToken !== dossierDraftOpening || ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
+    const previous = state.draft || '';
+    if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
+    success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
+    prepared = true;
+  } catch (error) {
+    if (openingToken === dossierDraftOpening) state.error = '档案研究草稿暂未准备完成，请返回档案核对后重试。';
+    safeLog('dossier_draft_open_failed', { status: error.code || 'request_failed' });
+  } finally {
+    if (openingToken === dossierDraftOpening) {
+      dossierDraftOpening = 0; render();
+      if (prepared) document.getElementById('prompt')?.focus({ preventScroll: true });
+    }
+  }
+} });
+const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
+const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets' && state.route.assetView !== 'dossiers';
+const assetChart = createAssetChartController({
+  onIndicatorPreferencesChange: preferences => { void assetWorkspace.savePreferences(preferences.panels, assetState.preferences.chip_settings, preferences); },
+  onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
+  onChipSettingsChange: settings => { void assetWorkspace.savePreferences(assetState.preferences.panels, settings); },
+  onHistoryRequest: request => {
+    if (request.action === 'cancel') return assetWorkspace.stopHistory();
+    return assetWorkspace.startHistory(request.scope || 'recent', request.adjustment || 'none', request.action === 'retry' ? assetState.historyJob?.id : undefined, request.source, request.includeChipInputs === true);
+  },
+});
+let assetCapitalFlow = null;
+let assetSearch = null;
+let assetTopicNavigation = 0;
+const emptyAssetHistory = Object.freeze([]);
+let configuredAssetHistory = null;
+let configuredAssetSignature = '';
+function assetTopicProps() { return { ...assetState, route: state.route, news: assetNews.state, busy: workbenchBusy }; }
+function mountAssetTopicIndicators(page) {
+  const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
+  assetCapitalFlow?.dispose();
+  assetCapitalFlow = mountCapitalFlow(page, projectAssetObservation(observation ? assetState.rows : {}, observation || {}));
+}
+function paintAssetTopic() {
+  const page = root.querySelector('[data-asset-identity]');
+  if (!updateAssetTopic(page, assetTopicProps())) return false;
+  mountAssetTopicIndicators(page);
+  return true;
+}
+function paintAssetWorkspace() {
+  const page = root.querySelector('[data-asset-identity]');
+  if (!updateAssetSummary(page, assetTopicProps()) || !paintAssetTopic()) return false;
+  configureAssetTerminal();
+  assetSearch?.update({ asset: state.route.asset || assetState.observation?.asset || '' });
+  const notices = page.querySelector('[data-asset-workspace-notices]');
+  if (notices) notices.insertAdjacentHTML('afterbegin', `${notice(state.error)}${notice(success, 'success')}`);
+  return true;
+}
+function assetTerminalMetadata(observation = assetState.observation) {
+  const dataset = observation?.blocks?.history?.dataset;
+  const history = dataset?.asset_history;
+  const historySource = history?.source || (history?.canonical_version === 'asset-history-1' ? 'tinysoft' : history?.canonical_version === 'asset-history-raw-2' ? 'unknown' : observation?.request_parameters?.section_sources?.history || observation?.request_parameters?.source || observation?.source || 'tinysoft');
+  return { ...dataset, accountIdentity: String(globalThis.__RWB_USER_ID__ || 'single-user'), frequency: observation?.request_parameters?.frequency || 'daily', adjustment: dataset?.asset_history?.adjustment || observation?.request_parameters?.adjustment || 'qfq', assetIdentity: `${observation?.asset_type || state.route.assetType || 'stock'}:${observation?.asset || state.route.asset || ''}`, historyJob: assetState.historyJob, historySource, canLoadHistory: Boolean(observation?.id) && historySource !== 'unknown', asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'], currentQuote: projectAssetObservation(assetState.rows, observation || {}).basic };
+}
+function configureAssetTerminal() {
+  const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
+  const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
+  const rows = observation ? assetState.rows.history || emptyAssetHistory : emptyAssetHistory;
+  const metadata = assetTerminalMetadata(observation);
+  const signature = JSON.stringify({ key, accountIdentity: metadata.accountIdentity, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels, chipSettings: assetState.preferences?.chip_settings, favorites: assetState.preferences?.favorites, indicatorSettings: assetState.preferences?.indicator_settings });
+  if (configuredAssetHistory === rows && configuredAssetSignature === signature) return;
+  if (assetChart.configure(rows, key, metadata, assetState.preferences) !== false) { configuredAssetHistory = rows; configuredAssetSignature = signature; }
+}
+function setAssetMetricsDrawer(open, focus = true) {
+  const panel = root.querySelector('.asset-wind-metrics'); const trigger = root.querySelector('[data-asset-metrics-toggle]');
+  if (!panel || !trigger) return;
+  panel.classList.toggle('is-open', open); trigger.setAttribute('aria-expanded', String(open));
+  if (open) { panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); if (focus) panel.querySelector('[data-asset-metrics-close]')?.focus({ preventScroll: true }); }
+  else { panel.removeAttribute('role'); panel.removeAttribute('aria-modal'); if (focus) trigger.focus({ preventScroll: true }); }
+}
+function mountAssetIndicators(keepTerminal = false) {
+  if (!isAssetPage()) return;
+  const page = root.querySelector('[data-asset-identity]');
+  if (!page) return;
+  try {
+    configureAssetTerminal();
+    if (!keepTerminal) assetChart.mount(page.querySelector('[data-asset-chart-slot]'));
+    mountAssetTopicIndicators(page);
+  } catch (error) { safeLog('asset_indicators_mount_failed', { error: error.name }); }
+}
+const assetWorkspace = createAssetWorkspaceController({ api, onChange: () => { assetState = assetWorkspace.state; if (isAssetPage() && !paintAssetWorkspace()) render(); } });
+assetState = assetWorkspace.state;
+const assetNews = createAssetNewsController({ onChange: () => {
+  if (!isAssetPage() || assetNews.state.asset !== state.route.asset || assetNews.state.view !== state.route.assetView) return;
+  const slot = root.querySelector('[data-asset-news-slot]'); if (!slot) return;
+  const active = document.activeElement; const focused = slot.contains(active);
+  const selected = active?.dataset?.assetNewsSelect;
+  const action = selected !== undefined ? `[data-asset-news-select="${selected}"]` : active?.hasAttribute?.('data-asset-news-more') ? '[data-asset-news-more]' : '[data-asset-news-refresh]';
+  const scroll = slot.querySelector('.asset-news-list')?.scrollTop || 0;
+  const previousRows = slot.querySelectorAll('[data-asset-news-select]').length;
+  slot.innerHTML = renderAssetNews(assetNews.state);
+  const list = slot.querySelector('.asset-news-list'); if (list) list.scrollTop = scroll;
+  if (focused) (slot.querySelector(action) || slot.querySelector(`[data-asset-news-select="${previousRows}"]`) || slot.querySelector('[data-asset-news-refresh]'))?.focus({ preventScroll: true });
+} });
+window.addEventListener('blur', () => assetChart.cancel());
+window.addEventListener('pointerup', () => assetChart.cancel());
+window.addEventListener('pointercancel', () => assetChart.cancel());
+
 const aihotController = createAihotController({ onChange: () => { if (state.route.page === 'aihot') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
@@ -254,6 +403,7 @@ function closeMCPServerDialog({ restoreFocus = true } = {}) {
 }
 
 function sendBlockReason() {
+  if (dossierDraftOpening) return '正在准备档案研究草稿，请等待冻结上下文就绪后发送。';
   if (state.detail?.execution_restricted) return '此历史会话执行受限；保留可读记录，请新建研究。';
   if (state.busy || state.stopping || state.loading || (state.route.sessionId && !state.detail)) return '操作尚未结束；草稿已保留，未发送。';
   if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) return '上一任务与交付尚未确认结束；草稿已保留，未发送。';
@@ -269,16 +419,17 @@ function retryBlockReason() {
 }
 
 function composer() {
-  const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
+  const disabled = dossierDraftOpening || state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderClawCases(quickCategory) : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  if (claw) return `<div class="landing claw-landing">${state.busy ? '<div class="claw-welcome-pending" role="status">正在连接会话…</div>' : state.error || state.streamError ? '<div class="claw-welcome-pending" aria-hidden="true"></div>' : renderClawWelcome()}<div class="claw-landing-editor">${composer()}</div></div>`;
+  return `<div class="landing fingpt-landing"><div class="greeting"><h1>从一个问题，开始研究。</h1><p class="landing-subtitle">读懂资料，比较公司，探索行业。</p></div>${renderResearchRecipes({ busy: state.busy })}${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -287,8 +438,10 @@ function researchPage() {
   if (!state.detail) return landing();
   const detail = state.detail;
   const cards = detail.mode === 'claw' ? positionClawAutomationCards(detail,clawDraftEdits,clawWorkspace.busy) : {entries:[],unpositionedDrafts:[],unpositionedRuns:[]};
+  const welcomeBlocked = state.busy || state.stopping || Boolean(state.error || state.streamError);
+  if (isClawWelcome(detail, { busy: welcomeBlocked, extraEntries: cards.entries }) && !cards.unpositionedDrafts.length && !cards.unpositionedRuns.length) return landing();
   const toolNames = Object.fromEntries((catalog.tools || []).map((tool) => [tool.id, tool.name]).filter(([id, name]) => typeof id === 'string' && typeof name === 'string'));
-  const canvas = `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, { toolNames, feedback: Object.fromEntries(answerFeedback), copied: copiedTransient, retryAllowed: !retryBlockReason(), extraEntries: cards.entries })}</div>`;
+  const canvas = `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, { busy: welcomeBlocked || Boolean(cards.unpositionedDrafts.length || cards.unpositionedRuns.length), toolNames, feedback: Object.fromEntries(answerFeedback), copied: copiedTransient, retryAllowed: !retryBlockReason(), extraEntries: cards.entries })}</div>`;
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
@@ -297,6 +450,7 @@ function researchPage() {
 
 function settingsPage() {
   return renderSettingsPage({
+    account: globalThis.__RWB_ACCOUNT__,
     route: state.route,
     runtime: catalog.runtime,
     tabbit: catalog.tabbit,
@@ -319,7 +473,7 @@ function settingsPage() {
 }
 
 function currentSettingsSection() {
-  return resolveSettingsSection(state.route, catalog.connections.sources);
+  return resolveSettingsSection(state.route, catalog.connections.sources, globalThis.__RWB_ACCOUNT__);
 }
 
 function currentSettingsConnectionId() {
@@ -327,15 +481,18 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
+  if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
+  if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
     return clawMainPage();
   }
   if (state.route.page === 'fingpt') return state.route.clawView === 'projects' ? renderClawProject(clawWorkspace, 'fingpt') : researchPage();
   if (state.route.page === 'settings') return settingsPage();
-  if (state.route.page === 'workbench') return workbenchPage();
+  if (isDataWorkspaceRoute(state.route)) return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
   if (state.route.page === 'operations') return operationsPage();
-  if (state.route.page === 'intel') return state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
+  if (state.route.page === 'intel') return state.route.intelTab === 'discovery' ? renderDiscovery(discoveryController.state) : state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'aihot') return renderAihot(aihotController.state);
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
@@ -354,7 +511,7 @@ function clawMainPage() {
   const view = state.route.clawView || 'sessions';
   if (view === 'projects') return renderClawProject(clawWorkspace);
   if (view === 'skills') return renderClawConnections(catalog.capabilities, catalog.tools);
-  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '');
+  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '') + (reportWorkflowsAllowed ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : '');
   return researchPage();
 }
 
@@ -388,7 +545,7 @@ async function clawAction(action) {
 
 function workbenchPage() {
   if(state.route.section==='hot')return renderHotWorkspace(hotController.state);
-  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState, etfState });
+  return renderWorkbench({ section: state.route.section || 'assets', catalog: catalog.dataCatalog, queries: workbenchQueries, queryDraft: workbenchDrafts.get(state.route.section), busy: workbenchBusy, assetState: { ...assetState, route: state.route, news: assetNews.state, chart: assetChart.getState() }, etfState });
 }
 
 function operationsPage() {
@@ -414,7 +571,9 @@ function capabilityPage() {
     busy: cap.busy || reportWorkflowBusy || automationBusy,
     error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
   });
-  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
+  const reports = reportWorkflowsAllowed && cap.kindFilter === 'workflow' && ['library', 'mine'].includes(cap.view)
+    ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : '';
+  return messages + reports + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
 
 function sidebar() {
@@ -453,6 +612,7 @@ function primaryRail() {
     page: state.route.page,
     section: state.route.section,
     secondaryOpen: narrow ? sidebarOpen : !sidebarCollapsed,
+    account: globalThis.__RWB_ACCOUNT__,
   });
 }
 
@@ -514,13 +674,27 @@ function searchableCapabilityList() {
 
 function render() {
   if (composingInput?.isConnected !== false && composingInput) { renderAfterComposition = true; return; }
+  if (assetTopicNavigation === pageGeneration && isAssetPage() && paintAssetWorkspace()) return;
+  accountWorkspace.captureFocus();
   if (!document.hidden && state.route.sessionId === state.detail?.id) conversationNavigation.markSeen(state.detail);
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
-  const modelForm = root.querySelector('#settings-form[data-dirty]');
+  const modelForm = root.querySelector('#settings-form[data-dirty]:not(.mp-form)');
   const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const documentForm = root.querySelector('#document-edit-form');
+  const assetPage = root.querySelector('[data-asset-identity]');
+  const assetIdentity = `${state.route.assetType || assetState.observation?.asset_type || 'stock'}:${state.route.asset || assetState.observation?.asset || ''}`;
+  const keepAssetForms = isAssetPage() && assetPage?.dataset.assetIdentity === assetIdentity;
+  const persistentAssetTerminal = keepAssetForms ? assetPage.querySelector('[data-asset-chart-slot]') : null;
+  const assetFormSelectors = ['[data-asset-select]', '[data-asset-observation]', '[data-asset-note]', '[data-asset-alert]', '[data-watchlist-item]', '[data-asset-watchlist-create]'];
+  const assetForms = keepAssetForms ? assetFormSelectors.map(selector => [selector, assetPage.querySelector(selector)]).filter(([, node]) => node) : [];
+  const assetFocus = keepAssetForms && assetForms.some(([, form]) => form.contains(document.activeElement)) ? document.activeElement : null;
+  const assetMetricsOpen = keepAssetForms && assetPage.querySelector('.asset-wind-metrics')?.classList.contains('is-open');
+  const assetDetails = keepAssetForms ? ['.asset-list-drawer', '.asset-personal-details', '.asset-source-summary', '.asset-identity-switch', '.asset-research-menu', ...(assetPage.dataset.assetView === (state.route.assetView || 'overview') ? ['.asset-chart-details', ...(assetPage.dataset.observationId ? ['.asset-query-controls'] : [])] : [])].map(selector => [selector, assetPage.querySelector(selector)?.open]) : [];
   const active = document.activeElement; const focusId = active?.id;
+  const modelPanelFocus = modelSettingsPanel?.element.contains(active) ? {node:active,action:active.dataset?.mpAction,profile:active.dataset?.profile} : null;
+  const activeQuestion = active?.closest?.('[data-question-form]');
+  const questionFocus = activeQuestion ? { session: activeQuestion.dataset.qSession, id: activeQuestion.dataset.questionForm, index: activeQuestion.dataset.qIndex, legend: active.matches('legend'), name: active.name, value: active.value } : null;
   const focusedSearchResult = active?.dataset?.globalResultKey;
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
@@ -535,11 +709,19 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = searchableCapabilityList();
-  const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
-    name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
-  ));
+  const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
+    if (name === 'artifacts') return false;
+    if (name === 'assetWorkspace') return state.route.page === 'assets' && state.route.section === 'assets';
+    if (name === 'etfPaper') return state.route.page === 'simulation';
+    if (name === 'workbenchQueries') return isDataWorkspaceRoute(state.route) && !['assets', 'etf-paper'].includes(state.route.section);
+    return true;
+  });
+  assetSearch?.dispose(); assetSearch = null;
+  if (!persistentAssetTerminal) assetChart.dispose();
+  assetCapitalFlow?.dispose(); assetCapitalFlow = null;
   root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
+  executionEvidenceExpiry.sync();
   frameworkEmbedFrame = newFrameworkFrame;
   frameworkEmbedBridge.clear();
   if (newFrameworkFrame) {
@@ -551,7 +733,24 @@ function render() {
   if (freshAihotArchive) freshAihotArchive.scrollTop = aihotArchiveScroll;
   window.ResearchWebTheme?.syncControls();
   const freshDocumentForm = root.querySelector('#document-edit-form');
+  if (persistentAssetTerminal) root.querySelector('[data-asset-chart-slot]')?.replaceWith(persistentAssetTerminal);
+  for (const [selector, form] of assetForms) root.querySelector(selector)?.replaceWith(form);
+  for (const [selector, open] of assetDetails) { const details = root.querySelector(selector); if (details && open !== undefined) details.open = open; }
+  if (assetMetricsOpen) setAssetMetricsDrawer(true, false);
+  if (assetFocus?.isConnected) assetFocus.focus({ preventScroll: true });
   if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
+  const modelPanelMount = root.querySelector('[data-model-profiles-root]');
+  const warehouseMount = root.querySelector('[data-research-warehouse-root]');
+  if (warehouseMount) {
+    if (!warehousePanel) warehousePanel = createWarehousePanel({api,logger:safeLog,onValidated:()=>loadCatalog(['connections','dataCatalog'])});
+    warehouseMount.replaceWith(warehousePanel.element);
+  } else if (warehousePanel) { warehousePanel.dispose(); warehousePanel = null; }
+  if (modelPanelMount) {
+    const props = {runtime:catalog.runtime || {},models:catalog.models,busy:state.busy};
+    if (!modelSettingsPanel) modelSettingsPanel = createModelSettings({api,...props,changed:()=>loadCatalog(['runtime','models']),logger:safeLog});
+    modelPanelMount.replaceWith(modelSettingsPanel.element);
+    modelSettingsPanel.update(props);
+  } else if (modelSettingsPanel) { modelSettingsPanel.dispose(); modelSettingsPanel = null; }
   const freshModelForm = root.querySelector('#settings-form');
   if (modelForm && freshModelForm) {
     const disabled = freshModelForm.querySelector('button[type="submit"]').disabled;
@@ -578,12 +777,24 @@ function render() {
   if (freshConversationScroller) freshConversationScroller.scrollTop = conversationScrollPositions.get(freshConversationScroller.dataset.conversationScroll) || 0;
   if (root.querySelector('.nav-scroll')) root.querySelector('.nav-scroll').scrollTop = conversationNavigation.state(state.route.page)?.scrollTop || 0;
   disclosureState.restore(root);
+  accountMenu.sync();
+  accountWorkspace.sync();
+  pluginWorkspace.sync();
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
+  else if (modelPanelFocus && modelSettingsPanel) {
+    const replacement = modelPanelFocus.node.isConnected ? modelPanelFocus.node : [...modelSettingsPanel.element.querySelectorAll('[data-mp-action]')].find(node=>node.dataset.mpAction===modelPanelFocus.action&&node.dataset.profile===modelPanelFocus.profile);
+    if(replacement && !replacement.disabled) replacement.focus({preventScroll:true});
+  }
   else if (focusedSearchResult && searchOpen) {
     ([...root.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focusedSearchResult) || document.getElementById('global-search'))?.focus({ preventScroll: true });
+  }
+  else if (questionFocus) {
+    const form = [...root.querySelectorAll('[data-question-form]')].find(item => item.dataset.qSession === questionFocus.session && item.dataset.questionForm === questionFocus.id && item.dataset.qIndex === questionFocus.index);
+    const replacement = questionFocus.legend ? form?.querySelector('legend') : [...(form?.querySelectorAll('input') || [])].find(item => item.name === questionFocus.name && item.value === questionFocus.value);
+    replacement?.focus({ preventScroll: true });
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
   const projectDialog = root.querySelector('.nav-project-dialog');
@@ -591,10 +802,19 @@ function render() {
     for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
   }
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置' })[state.route.page])} · Research Workbench`;
+  const discoveryDialog = root.querySelector('.discovery-page .d-drawer');
+  if (discoveryDialog) {
+    for (const background of root.querySelectorAll('.discovery-page > :not(.d-drawer-backdrop), .navigation-column, .topbar')) background.inert = true;
+    if (!discoveryDialog.contains(document.activeElement) || document.activeElement?.disabled) root.querySelector('#discovery-drawer-title')?.focus({ preventScroll: true });
+  }
+  mountAssetIndicators(Boolean(persistentAssetTerminal));
+  const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
+  if (assetSearchSlot) assetSearch = mountAssetSearch(assetSearchSlot, { api, account: () => globalThis.__RWB_USER_ID__ || 'local', asset: state.route.asset || assetState.observation?.asset || '', onSelect: item => { location.hash = assetHref(item.asset, 'stock', state.route.assetView || 'overview'); } });
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
+  names = names.filter(name => name !== 'reportWorkflows' || reportWorkflowsAllowed);
   const requests = names.map(name => ({ name, generation: startCatalogRequest(name) }));
   render();
   await Promise.all(requests.map(async ({ name, generation }) => {
@@ -1182,106 +1402,127 @@ async function loadOperations() {
   render();
 }
 
+// A response belongs to the navigation that requested it, even after back/forward
+// returns to the same section. Server-side queries continue independently.
+function workbenchOwner() {
+  const ticket = pageGeneration;
+  const section = state.route.section;
+  return () => ticket === pageGeneration && isDataWorkspaceRoute(state.route) && state.route.section === section;
+}
+
 async function loadWorkbench() {
-  const section = state.route.section || 'market';
+  if (!isDataWorkspaceRoute(state.route)) return;
+  if (isDossierRoute(state.route)) { await dossierController.activate(state.route); return; }
+  const owner = workbenchOwner();
+  const request = ++workbenchLoadGeneration;
+  const current = () => owner() && request === workbenchLoadGeneration;
+  const section = state.route.section || 'assets';
   if(section==='hot'){await hotController.activate(state.route);return;}
 
   if (section === 'etf-paper') {
     try {
       const [readiness, runs] = await Promise.all([api.etfReadiness(), api.etfRuns()]);
+      if (!current()) return;
       etfState = { ...etfState, readiness, runs: runs.items || [] };
       delete catalog.errors.etfPaper;
-    } catch (error) { catalog.errors.etfPaper = error.message; safeLog('etf_paper_load_failed'); }
-    render(); return;
+    } catch (error) { if (current()) catalog.errors.etfPaper = error.message; safeLog('etf_paper_load_failed'); }
+    if (current()) render(); return;
   }
   if (section === 'assets') {
     delete catalog.errors.artifacts;
-    await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace()]);
-    render();
+    await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace(current), assetNews.activate(state.route)]);
+    if (current()) render();
     return;
   }
   await Promise.all([
-    loadCatalog(['dataCatalog', 'artifacts']),
+    loadCatalog(['dataCatalog']),
     (async () => {
       try {
         const data = await api.dataQueries(section);
+        if (!current()) return;
         workbenchQueries = Array.isArray(data.items) ? data.items : [];
         delete catalog.errors.workbenchQueries;
       } catch (error) {
+        safeLog('business_query_index_failed', { section, code: error.code || 'request_failed' });
+        if (!current()) return;
         workbenchQueries = [];
         catalog.errors.workbenchQueries = error.message;
       }
     })(),
   ]);
-  render();
+  if (current()) render();
 }
 
-async function loadAssetWorkspace() {
-  try {
-    const [observations, watchlists, notes, alerts, notifications] = await Promise.all([
-      api.assetObservations(), api.watchlists(), api.assetNotes(), api.assetAlerts(), api.assetNotifications(),
-    ]);
-    const items = Array.isArray(observations.items) ? observations.items : [];
-    const observation = items[0] || null;
-    const rows = {};
-    if (observation?.session_id) {
-      await Promise.all(Object.entries(observation.blocks || {}).map(async ([name, block]) => {
-        const datasetId = block?.dataset?.dataset_id;
-        if (!datasetId) return;
-        try {
-          const result = await api.datasetRows(observation.session_id, datasetId, 0, 200);
-          rows[name] = Array.isArray(result.items) ? result.items : [];
-        } catch (error) {
-          safeLog('asset_dataset_rows_failed', { block: name, code: error.code || 'request_failed' });
-          rows[name] = [];
-        }
-      }));
-    }
-    assetState = {
-      observations: items,
-      observation,
-      rows,
-      watchlists: watchlists.items || [],
-      notes: notes.items || [],
-      alerts: alerts.items || [],
-      notifications: notifications.items || [],
-    };
-    workbenchContext = observation ? {
-      section: 'assets',
-      asset: observation.asset,
-      asset_type: observation.asset_type,
-      source: observation.source,
-      requested_at: observation.created_at,
-      completed_at: observation.completed_at,
-      dataset_ids: observation.dataset_ids || [],
-      blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([name, block]) => [name, {
-        status: block.status,
-        as_of: block.dataset?.as_of || null,
-        provider: block.dataset?.provider || null,
-      }])),
-    } : {};
-    delete catalog.errors.assetWorkspace;
-  } catch (error) {
-    assetState = { ...assetState, observation: null, rows: {} };
-    catalog.errors.assetWorkspace = error.message;
+async function loadAssetWorkspace(current = workbenchOwner()) {
+  const ticket = pageGeneration;
+  await assetWorkspace.activateView(state.route, { refresh: false });
+  if (ticket !== pageGeneration || !current() || !isAssetPage()) return;
+  assetState = assetWorkspace.state;
+  const observation = assetState.observation;
+  configureAssetTerminal();
+  workbenchContext = observation ? { section: 'assets', asset: observation.asset, asset_type: observation.asset_type, source: observation.source, requested_at: observation.created_at, completed_at: observation.updated_at, dataset_ids: observation.dataset_ids || [], blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([name, block]) => [name, { status: block.status, as_of: block.dataset?.as_of || null, provider: block.dataset?.provider || null }])) } : {};
+  delete catalog.errors.assetWorkspace;
+}
+
+async function pollAssetObservation(record, ticket) {
+  const deadline = Date.now() + 240000;
+  while (record.status === 'running' && Date.now() < deadline && ticket === pageGeneration && isAssetPage()) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    if (ticket !== pageGeneration || !isAssetPage()) return record;
+    record = await api.assetObservation(record.id);
+    if (ticket !== pageGeneration) return record;
+    assetState.observation = record; render();
   }
+  return record;
 }
 
 async function showRoute() {
   if (/^#\/skills\?.*\bview=plans(?:&|$)/.test(location.hash)) {
     history.replaceState(null, '', '#/claw?view=plans');
   }
-  intelController.cancel();
-  aihotController.cancel();
-  localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
-  localVerificationTarget = '';
   const legacyTarget = legacyRouteTarget(location.hash);
   if (legacyTarget) {
     history.replaceState(null, '', legacyTarget);
     location.hash = legacyTarget;
   }
-  quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
+  const assetPage = root.querySelector('[data-asset-identity]');
+  const requestedAssetIdentity = `${requestedRoute.assetType || 'stock'}:${requestedRoute.asset || assetState.observation?.asset || ''}`;
+  const sameAssetPage = isAssetPage() && requestedRoute.assetView !== 'dossiers' && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && assetPage?.dataset.assetIdentity === requestedAssetIdentity;
+  if (sameAssetPage && requestedRoute.assetView !== state.route.assetView) {
+    const ticket = ++pageGeneration;
+    assetTopicNavigation = ticket;
+    state.route = requestedRoute;
+    state.error = ''; workbenchBusy = false;
+    delete assetState.errors.topic;
+    updateAssetTopic(assetPage, assetTopicProps());
+    mountAssetTopicIndicators(assetPage);
+    try {
+      await Promise.all([assetWorkspace.activateView?.(requestedRoute, { refresh: false }), assetNews.activate(requestedRoute)]);
+    } catch (error) {
+      if (ticket === pageGeneration) {
+        assetState.errors ||= {};
+        assetState.errors.topic = error.message || '页签数据读取失败，请重试。';
+      }
+      safeLog('asset_topic_navigation_failed', { status: 'error' });
+    } finally {
+      if (ticket === pageGeneration) { paintAssetWorkspace(); assetTopicNavigation = 0; }
+    }
+    return;
+  }
+  assetTopicNavigation = 0;
+  if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
+  intelController.cancel();
+  discoveryController.deactivate();
+  dossierController.cancel();
+
+  marketController.cancel();
+  assetNews.cancel(); assetChart.cancel();
+  aihotController.cancel();
+  localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
+  localVerificationTarget = '';
+  quickCategory = '';
+  assetWorkspace.cancel({ stopHistory: !sameAssetPage });
   if(!(requestedRoute.page==='intel'&&requestedRoute.intelTab==='hot'||requestedRoute.page==='settings'&&requestedRoute.settingsSection==='hot'))hotController.deactivate();
   if (requestedRoute.page !== 'frameworks' || requestedRoute.frameworkSlug !== state.route.frameworkSlug) {
     closeFrameworkStream(); closeFrameworkStream = () => {};
@@ -1289,7 +1530,8 @@ async function showRoute() {
   }
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
-  const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
+  composerMenu = closedComposerMenu();
+  const ticket = ++pageGeneration; workbenchBusy = false; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
   if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
   cancelProjectMenuTimers();
@@ -1337,7 +1579,7 @@ async function showRoute() {
     capabilityState.kindFilter = nextKind;
     capabilityState.dataView = nextKind === 'data' && capabilityState.view === 'connections' ? 'sources' : 'capabilities';
     if (['skill', 'workflow'].includes(nextKind)) capabilityState.kind = nextKind;
-    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
+    if (nextKind !== 'plugin') await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
     if (nextKind === 'workflow' && capabilityState.view === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels']);
     if (nextKind === 'tool' && capabilityState.view === 'market') await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length });
     else if (previousView === 'market') mcpMarketplaceState = { ...mcpMarketplaceState, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };
@@ -1346,16 +1588,21 @@ async function showRoute() {
     try { const projects = await api.clawProjects(); if (ticket === pageGeneration) clawWorkspace.projects = projects.items || []; }
     catch (error) { if (ticket === pageGeneration) clawWorkspace.error = error.message; safeLog('claw_project_index_failed', { status: error.code || 'request_failed' }); }
   }
-  if (state.route.page === 'claw' && !state.route.sessionId && !globalThis.__RWB_USER_ID__) await loadCatalog(['reportWorkflows']);
+  if (state.route.page === 'claw' && !state.route.sessionId && reportWorkflowsAllowed) await loadCatalog(['reportWorkflows']);
   if (['claw', 'fingpt'].includes(state.route.page) && state.route.clawView === 'projects') await loadClawProjects();
   if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns']);
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
-  if (state.route.page === 'workbench') await loadWorkbench();
+  if (isDataWorkspaceRoute(state.route)) await loadWorkbench();
+  if (ticket !== pageGeneration) return;
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (state.route.page === 'intel') {
-    if (state.route.intelTab === 'hot') await hotController.activate(state.route);
-    else await intelController.activate(state.route.intelTab);
+    if (state.route.intelTab === 'discovery') await discoveryController.activate();
+    else if (state.route.intelTab === 'hot') await hotController.activate(state.route);
+    else if (state.route.intelTab === 'signals') await dossierController.activate(state.route);
+
+    else if (state.route.intelTab !== 'search') await intelController.activate(state.route.intelTab);
   }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
     const expected = pendingMCPMarketTabFocus;
@@ -1380,6 +1627,7 @@ async function loadConnectionConfiguration(sourceId) {
 }
 
 async function ensureSession() {
+  if (dossierDraftOpening) return false;
   if (state.detail) return true;
   if (state.route.sessionId) return false;
   const result = await controller.create(state.route.page, selectedWorkspace, state.route.projectId);
@@ -1425,6 +1673,11 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
+  if (event.target.closest?.('[data-dossier-workspace]')) { void dossierController.handle(event); return; }
+
+  if (state.route.page === 'market' && marketController.handleInput(event)) return;
+  if (event.target.matches?.('[data-asset-list-query]')) { const query = event.target.value.trim().toUpperCase(); for (const row of root.querySelectorAll('[data-asset-list-code]')) row.hidden = !row.dataset.assetListCode.includes(query); return; }
   const hotForm=event.target.closest?.('[data-hot-form]');
   if(hotForm)hotForm.dataset.hotDirty='true';
   const draftForm = event.target.closest?.('[data-claw-draft-form]');
@@ -1447,16 +1700,23 @@ function handleInput(event) {
   const modelForm = event.target.closest?.('#settings-form');
   if (modelForm) modelForm.dataset.dirty = 'true';
   if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
+  if (event.target.id === 'composer-command-search') { composerMenu.query = event.target.value; composerMenu.index = 0; if (!event.isComposing) render(); return; }
   if (event.target.id === 'prompt') {
     controller.setDraft(event.target.value);
     for (const button of root.querySelectorAll('[data-retry-round]')) button.disabled = Boolean(retryBlockReason());
-    const wasOpen = slashOpen; slashOpen = event.target.value.trimStart().startsWith('/'); slashIndex = 0;
+    const wasCommandOpen = Boolean(composerMenu.entry);
+    if (state.route.page === 'claw' && !state.detail?.execution_context && !event.isComposing) {
+      const query = composerSlashQuery(event.target.value);
+      composerMenu = query === null ? closedComposerMenu() : openComposerMenu('slash', 'root', query);
+      if (composerMenu.entry) { tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; }
+    }
+    const wasOpen = slashOpen; slashOpen = state.route.page !== 'claw' && event.target.value.trimStart().startsWith('/'); slashIndex = 0;
     const query = tabbitMentionQuery(event.target.value);
-    if (query !== null && !slashOpen) void loadTabbitCandidates(query);
+    if (query !== null && !slashOpen && !composerMenu.entry) void loadTabbitCandidates(query);
     else {
       const wasTabbitOpen = tabbitOpen;
       tabbitOpen = false; tabbitLoading = false; tabbitCandidates = []; tabbitRequest += 1;
-      if (slashOpen || wasOpen || wasTabbitOpen) render();
+      if (slashOpen || wasOpen || wasTabbitOpen || composerMenu.entry || wasCommandOpen) render();
     }
   }
   if (event.target.closest('#cap-editor-form')) captureEditor();
@@ -1508,9 +1768,82 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (event.target.closest?.('.discovery-page')) {
+    if (event.isComposing || event.keyCode === 229) return;
+    const drawerKind = discoveryController.state.drawer?.kind;
+    if (event.key === 'Tab' && discoveryController.state.drawer) {
+      const dialog = root.querySelector('.d-drawer');
+      const items = [...(dialog?.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
+      if (items.length && (!items.includes(document.activeElement) || event.shiftKey && document.activeElement === items[0] || !event.shiftKey && document.activeElement === items.at(-1))) { event.preventDefault(); (event.shiftKey ? items.at(-1) : items[0]).focus({ preventScroll: true }); }
+      return;
+    }
+    void discoveryController.handle(event).then(handled => {
+      if (handled && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) root.querySelector(`#discovery-tab-${discoveryController.state.tab}`)?.focus({ preventScroll: true });
+      if (handled && event.key === 'Escape' && drawerKind) root.querySelector(`[data-discovery-action="${drawerKind === 'tracking' ? 'tracking' : 'research'}"]`)?.focus({ preventScroll: true });
+    });
+    return;
+  }
+  if (state.route.page === 'claw' && composerMenu.entry && (event.target.id === 'prompt' || event.target.closest?.('#claw-composer-menu'))) {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Enter' && event.target.closest?.('[data-cm-back], [data-cm-done]')) return;
+    const rows = currentComposerRows();
+    const clickedIndex = event.target.dataset?.cmRow;
+    const index = clickedIndex === undefined ? composerMenu.index : Number(clickedIndex);
+    const result = composerMenuKey(event.key, index, rows);
+    if (result.handled) {
+      event.preventDefault();
+      if (result.back) backComposerMenu();
+      else if (result.select) void activateComposerRow(result.select);
+      else if (result.index !== undefined) {
+        composerMenu.index = result.index; render();
+        if (clickedIndex !== undefined) document.getElementById(`composer-command-${result.index}`)?.focus({ preventScroll: true });
+        document.getElementById(`composer-command-${result.index}`)?.scrollIntoView({ block: 'nearest' });
+      }
+      return;
+    }
+  }
+
+  if (isAssetPage()) {
+    const metrics = root.querySelector('.asset-wind-metrics.is-open');
+    if (metrics && event.key === 'Escape') { event.preventDefault(); setAssetMetricsDrawer(false); return; }
+    if (metrics && event.key === 'Tab') {
+      const focusable = [...metrics.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')].filter(item => !item.disabled);
+      const first = focusable[0]; const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); return; }
+    }
+    if (event.key === 'Escape') {
+      const menu = event.target.closest?.('.asset-header-actions details[open]');
+      if (menu) { event.preventDefault(); menu.open = false; menu.querySelector('summary')?.focus(); return; }
+    }
+  }
   if (state.route.page === 'aihot' && event.key === 'Escape') root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; });
   if (event.isComposing || event.keyCode === 229) return;
+  if (event.target.type === 'radio' && event.target.matches?.('.codex-question-option input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+    const form = event.target.closest('[data-question-form]');
+    const question = state.detail?.questions?.find(item => item.id === form.dataset.questionForm);
+    if (!question || form.dataset.qSession !== state.detail.id || state.busy) return;
+    const inputs = [...form.querySelectorAll('input[type="radio"]')];
+    const direction = ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1;
+    const next = inputs[(inputs.indexOf(event.target) + direction + inputs.length) % inputs.length];
+    try { next.checked = true; captureQuestionForm(form, questionDrafts, state.detail.id, question); next.focus(); }
+    catch (error) { safeLog('question_option_failed'); state.error = error.message || '无法保存选项，请重试。'; render(); }
+    return;
+  }
+  if (['radio', 'checkbox'].includes(event.target.type) && event.target.matches?.('.codex-question-option input') && ['Enter', ' '].includes(event.key)) {
+    event.preventDefault();
+    if (!event.repeat) event.target.click();
+    return;
+  }
   if (searchOpen && event.key === 'Escape') { event.preventDefault(); closeGlobalSearch(); return; }
+  const assetTab = event.target.closest?.('[data-asset-tab]');
+  const nextAssetTopic = assetTab && (['Enter', ' '].includes(event.key) ? assetTab.dataset.assetTab : assetTopicKey(event.key, assetTab.dataset.assetTab));
+  if (isAssetPage() && nextAssetTopic) {
+    event.preventDefault();
+    root.querySelector(`[data-asset-tab="${nextAssetTopic}"]`)?.focus({ preventScroll: true });
+    location.hash = assetHref(state.route.asset || assetState.observation?.asset || '', state.route.assetType || 'stock', nextAssetTopic);
+    return;
+  }
   const projectDialog = event.target.closest?.('.nav-project-dialog');
   const projectEditorState = conversationNavigation.state(state.route.page);
   if (projectDialog && projectEditorState?.editor) {
@@ -1558,8 +1891,8 @@ root.addEventListener('keydown', (event) => {
     }
     return;
   }
-  const composerMenu = root.querySelector('.composer-more[open]');
-  if (event.key === 'Escape' && composerMenu) { event.preventDefault(); composerMenu.open = false; composerMenu.querySelector('summary')?.focus(); return; }
+  const legacyComposerMenu = root.querySelector('.composer-more[open]');
+  if (event.key === 'Escape' && legacyComposerMenu) { event.preventDefault(); legacyComposerMenu.open = false; legacyComposerMenu.querySelector('summary')?.focus(); return; }
   if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
@@ -1634,7 +1967,7 @@ root.addEventListener('keydown', (event) => {
       return;
     }
   }
-  if (event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
+  if (state.route.page !== 'claw' && event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
     const result = slashKey(event.key, slashIndex, currentSlashMatches());
     if (result.handled) {
       event.preventDefault();
@@ -1683,16 +2016,22 @@ async function configureComposerModel(value) {
     }
     const result = await controller.action(() => api.configure(selection), { refreshAfter: false });
     if (result?.configured) { success = state.detail ? '默认模型已更新，下次新研究生效；当前会话仍使用原模型。' : '默认模型已更新，新研究将使用此模型。'; await loadCatalog(['runtime']); }
+    return Boolean(result?.configured);
   } catch { safeLog('composer_model_selection_failed'); state.error = '模型选择失败，请刷新模型目录后重试。'; render(); }
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
+
+  if (state.route.page === 'market' && await marketController.handleChange(event)) return;
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
+    const current = workbenchOwner();
     workbenchBusy = true;
-    try { etfState.result = await api.etfRun(event.target.value); }
-    catch (error) { state.error = error.message; safeLog('etf_paper_detail_failed'); }
-    finally { workbenchBusy = false; render(); }
+    try { const result = await api.etfRun(event.target.value); if (current()) etfState.result = result; }
+    catch (error) { if (current()) state.error = error.message; safeLog('etf_paper_detail_failed'); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
@@ -1850,6 +2189,21 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
+
+  if (state.route.page === 'market' && await marketController.handleSubmit(event)) return;
+  if (event.target.matches?.('[data-asset-select]')) {
+    event.preventDefault(); const data = new FormData(event.target);
+    location.hash = assetHref(String(data.get('asset') || '').trim(), String(data.get('asset_type') || 'stock'), state.route.assetView || 'overview'); return;
+  }
+  if (event.target.matches?.('[data-asset-list-filter]')) { event.preventDefault(); return; }
+  if (event.target.matches?.('[data-asset-watchlist-create]')) {
+    event.preventDefault(); const name = String(new FormData(event.target).get('name') || '').trim(); if (!name) return;
+    try { await api.createWatchlist({ name }); await loadAssetWorkspace(); }
+    catch (error) { state.error = error.message; safeLog('asset_watchlist_create_failed'); } render(); return;
+  }
+
   if(event.target.matches?.('[data-news-form]')) {
     event.preventDefault(); await aihotController.management.submit(event.target,event.submitter);return;
   }
@@ -1858,13 +2212,17 @@ root.addEventListener('submit', async (event) => {
     if (workbenchBusy) return;
     const file = new FormData(event.target).get('snapshot');
     if (!file || file.size > 8 * 1024 * 1024) { state.error = '输入文件须小于 8 MiB'; render(); return; }
+    const current = workbenchOwner();
     workbenchBusy = true; state.error = ''; render();
     try {
       const body = JSON.parse(await file.text());
-      etfState.result = await api.etfReplay(body, crypto.randomUUID());
+      if (!current()) return;
+      const result = await api.etfReplay(body, crypto.randomUUID());
+      if (!current()) return;
+      etfState.result = result;
       await loadWorkbench();
-    } catch (error) { state.error = error.message; safeLog('etf_paper_replay_failed'); }
-    finally { workbenchBusy = false; render(); }
+    } catch (error) { if (current()) state.error = error.message; safeLog('etf_paper_replay_failed'); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
@@ -2056,27 +2414,30 @@ root.addEventListener('submit', async (event) => {
   }
   if (event.target.matches('[data-asset-observation]')) {
     if (workbenchBusy) return;
+    const current = workbenchOwner();
+    const payload = readAssetObservation(event.target); const ticket = pageGeneration;
+    if (payload.source === 'wind' && (payload.frequency !== 'daily' || (Date.parse(payload.end_date) - Date.parse(payload.start_date)) / 86400000 + 1 > 60)) { state.error = 'Wind 当前仅支持不超过 60 个日历日的股票日线，请修改区间或来源。'; render(); return; }
+    assetWorkspace.cancel();
     workbenchBusy = true; state.error = ''; render();
     try {
-      const payload = readAssetObservation(event.target);
       let record = await api.createAssetObservation(payload, crypto.randomUUID());
-      assetState = { ...assetState, observation: record, observations: [record, ...assetState.observations.filter(item => item.id !== record.id)] };
-      render();
-      for (let attempt = 0; attempt < 120 && record.status === 'running'; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        record = await api.assetObservation(record.id);
-        assetState = { ...assetState, observation: record, observations: [record, ...assetState.observations.filter(item => item.id !== record.id)] };
-        render();
-      }
+      if (ticket !== pageGeneration || !current()) return;
+      Object.assign(state.route, { asset: payload.asset, assetType: payload.asset_type });
+      history.replaceState(null, '', assetHref(payload.asset, payload.asset_type, state.route.assetView || 'overview'));
+      assetState.observation = record; assetState.rows = {}; render();
+      // replaceState does not dispatch hashchange; keep topic reads bound to this asset.
+      void assetNews.activate(state.route);
+      record = await pollAssetObservation(record, ticket);
+      if (ticket !== pageGeneration || !current()) return;
       await loadAssetWorkspace();
-      success = record.status === 'completed'
-        ? '资产各区块已按真实数据源更新，可冻结快照并交给研究。'
-        : '资产区块查询已结束；请查看各区块的失败或缺失状态。';
-    } catch (error) { state.error = error.message; }
-    finally { workbenchBusy = false; render(); }
+      if (ticket === pageGeneration && current() && record.status !== 'running' && assetState.observation?.id === record.id) void assetWorkspace.startHistory('recent', payload.adjustment, undefined, payload.adjustment === 'none' ? payload.source : 'tinysoft');
+      success = record.status === 'complete' ? '资产数据查询已结束，请查看各区块的来源与覆盖。' : record.status === 'running' ? '查询仍在运行，刷新本地状态可继续查看；未重新提交。' : '查询已结束，部分区块有缺失或失败，请查看对应状态。';
+    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('asset_observation_create_failed'); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.matches('[data-watchlist-item]')) {
+    const current = workbenchOwner();
     const values = new FormData(event.target);
     try {
       await api.addWatchlistItem(String(values.get('watchlist_id')), {
@@ -2084,19 +2445,23 @@ root.addEventListener('submit', async (event) => {
         asset_type: assetState.observation?.asset_type || 'stock',
         name: String(assetState.rows?.overview?.[0]?.name || values.get('asset')),
       });
+      if (!current()) return;
       success = '已加入本地自选列表。'; await loadAssetWorkspace(); render();
-    } catch (error) { state.error = error.message; render(); }
+    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_watchlist_update_failed', { code: error.code || 'request_failed' }); }
     return;
   }
   if (event.target.matches('[data-asset-note]')) {
+    const current = workbenchOwner();
     const values = new FormData(event.target);
     try {
       await api.createAssetNote({ asset: String(values.get('asset')), text: String(values.get('text')).trim() });
-      success = '观察笔记已保存。'; await loadAssetWorkspace(); render();
-    } catch (error) { state.error = error.message; render(); }
+      if (!current()) return;
+      event.target.reset(); success = '观察笔记已保存。'; await loadAssetWorkspace(); render();
+    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_note_update_failed', { code: error.code || 'request_failed' }); }
     return;
   }
   if (event.target.matches('[data-asset-alert]')) {
+    const current = workbenchOwner();
     const values = new FormData(event.target);
     try {
       await api.createAssetAlert({
@@ -2106,29 +2471,34 @@ root.addEventListener('submit', async (event) => {
         threshold: Number(values.get('threshold')),
         cooldown_minutes: 60,
       });
-      success = '提醒规则已保存，将在新快照到达时评估。'; await loadAssetWorkspace(); render();
-    } catch (error) { state.error = error.message; render(); }
+      if (!current()) return;
+      event.target.reset(); success = '提醒规则已保存，将在新快照到达时评估。'; await loadAssetWorkspace(); render();
+    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_alert_update_failed', { code: error.code || 'request_failed' }); }
     return;
   }
   if (event.target.matches('[data-workbench-query]')) {
     if (workbenchBusy) return;
+    const current = workbenchOwner();
+    const section = state.route.section;
+    const query = readWorkbenchQuery(event.target);
+    workbenchDrafts.set(section, query);
     workbenchBusy = true; state.error = ''; render();
     try {
-      const query = readWorkbenchQuery(event.target);
-      const section = state.route.section || 'market';
-      const previous = [...workbenchQueries].reverse().find(item => item.section === section);
-      workbenchContext = { section, source: query.source, parameters: query.parameters, requested_at: new Date().toISOString() };
+      const previous = workbenchQueries.filter(item => item.section === section).sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
       let record = await api.startDataQuery({ session_id: previous?.session_id || null, section, query }, crypto.randomUUID());
+      if (!current()) return;
       workbenchQueries = [...workbenchQueries.filter(item => item.id !== record.id), record]; render();
-      for (let attempt = 0; attempt < 80 && record.status === 'running'; attempt++) {
+      for (let attempt = 0; attempt < 80 && record.status === 'running' && current(); attempt++) {
         await new Promise(resolve => setTimeout(resolve, 500));
+        if (!current()) return;
         record = await api.dataQuery(record.id);
+        if (!current()) return;
         workbenchQueries = [...workbenchQueries.filter(item => item.id !== record.id), record]; render();
       }
       if (record.status === 'completed') success = '真实数据快照已生成，可交给 FinGPT 或 Claw。';
       else if (record.status === 'failed') state.error = `查询失败：${record.failure_code || '未知错误'}`;
-    } catch (error) { state.error = error.message; }
-    finally { workbenchBusy = false; render(); }
+    } catch (error) { if (current()) state.error = error.message; safeLog('business_query_failed', { section, code: error.code || 'request_failed' }); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.id === 'cap-editor-form') { captureEditor(); await capabilityController.save(); return; }
@@ -2191,7 +2561,8 @@ root.addEventListener('submit', async (event) => {
     if (result) { questionDrafts.delete(questionStateKey(id, question.id)); render(); }
   }
   if (event.target.id === 'composer') {
-    if (state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
+    if (state.route.page === 'claw' && !state.detail?.execution_context && (composerMenu.entry || composerSlashQuery(state.draft) !== null)) { if (!composerMenu.entry) composerMenu = openComposerMenu('slash', 'root', composerSlashQuery(state.draft)); render(); return; }
+    if (state.route.page !== 'claw' && state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
     if (!state.draft.trim() || state.busy || slashOpen) return;
     const blocked = sendBlockReason();
     if (blocked) { state.error = blocked; render(); return; }
@@ -2249,16 +2620,101 @@ root.addEventListener('submit', async (event) => {
   }
 });
 
+let questionAdvanceUntil = 0;
+let questionAdvanceKey = '';
+root.addEventListener('pointerdown', event => {
+  const form = event.target.closest?.('.codex-question-option')?.closest('[data-question-form]');
+  if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
+});
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
+  if (state.route.page === 'market' && await marketController.handleClick(event)) return;
+  if (isAssetPage()) {
+    if (event.target.closest?.('[data-asset-metrics-toggle]')) { setAssetMetricsDrawer(!root.querySelector('.asset-wind-metrics')?.classList.contains('is-open')); return; }
+    if (event.target.closest?.('[data-asset-metrics-close]')) { setAssetMetricsDrawer(false); return; }
+    if (assetChart.handle(event)) return;
+    if (event.target.closest?.('[data-asset-news-refresh]')) { await assetNews.activate(state.route, { refresh: true }); return; }
+    const newsRow = event.target.closest?.('[data-asset-news-select]');
+    if (newsRow) { assetNews.select(Number(newsRow.dataset.assetNewsSelect)); return; }
+    if (event.target.closest?.('[data-asset-news-more]')) { assetNews.more(); return; }
+    const loadBlock = event.target.closest?.('[data-asset-block-load]');
+    if (loadBlock) {
+      event.preventDefault();
+      delete assetState.errors.topic;
+      try { await assetWorkspace.loadBlock(loadBlock.dataset.assetBlockLoad, { refresh: true }); }
+      catch (error) { assetState.errors.topic = error.message || '区块读取失败，请重试。'; safeLog('asset_block_load_failed', { status: 'error' }); paintAssetTopic(); }
+      return;
+    }
+    const refreshBlock = event.target.closest?.('[data-asset-block-refresh]');
+    if (refreshBlock && assetState.observation && !workbenchBusy) {
+      const ticket = pageGeneration; workbenchBusy = true; state.error = ''; render();
+      try { const record = await api.refreshAssetBlock(assetState.observation.id, refreshBlock.dataset.assetBlockRefresh, crypto.randomUUID()); await pollAssetObservation(record, ticket); if (ticket === pageGeneration) await loadAssetWorkspace(); }
+      catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('asset_block_refresh_failed'); }
+      finally { if (ticket === pageGeneration && isAssetPage()) { workbenchBusy = false; render(); } }
+      return;
+    }
+  }
+
+  const commandTrigger = event.target.closest?.('[data-cm-open]');
+  if (state.route.page === 'claw' && commandTrigger && Object.hasOwn(commandTrigger.dataset, 'cmOpen')) {
+    if (commandTrigger.disabled || state.detail?.execution_restricted) return;
+    const view = commandTrigger.dataset.cmOpen;
+    if (composerMenu.entry && composerMenu.view === view) closeComposerMenu();
+    else {
+      composerMenu = openComposerMenu('add', view);
+      slashOpen = false; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1;
+      root.querySelectorAll('.composer-model-menu[open], .composer-more[open]').forEach(item => { item.open = false; });
+      safeLog('claw_composer_menu_opened'); focusComposerMenu();
+    }
+    return;
+  }
+  if (state.route.page === 'claw' && event.target.closest?.('#claw-composer-menu')) {
+    if (event.target.closest('[data-cm-back]')) backComposerMenu();
+    else if (event.target.closest('[data-cm-done]')) closeComposerMenu(true);
+    else {
+      const button = event.target.closest('[data-cm-row]');
+      if (button && !button.disabled) { composerMenu.index = Number(button.dataset.cmRow); await activateComposerRow(currentComposerRows()[composerMenu.index]); }
+    }
+    return;
+  }
+  if (composerMenu.entry && !event.target.closest?.('#claw-composer-menu') && !(composerMenu.entry === 'slash' && event.target.id === 'prompt')) { composerMenu = closedComposerMenu(); render(); }
+
   if (searchOpen && !event.target.closest?.('.search-popover, [data-toggle-search]')) {
     event.preventDefault(); event.stopPropagation(); closeGlobalSearch(); return;
   }
   const closeSearchButton = event.target.closest?.('[data-close-search]');
   if (closeSearchButton && Object.hasOwn(closeSearchButton.dataset, 'closeSearch')) { closeGlobalSearch(); return; }
+  const questionOption = event.target.closest?.('.codex-question-option');
+  const questionInput = questionOption?.querySelector?.('input');
+  if (questionInput) {
+    const input = questionInput;
+    const form = questionOption.closest('[data-question-form]');
+    const question = state.detail?.questions?.find(item => item.id === form?.dataset.questionForm);
+    const key = form && questionStateKey(form.dataset.qSession, form.dataset.questionForm);
+    if (!question || form.dataset.qSession !== state.detail.id || state.busy || event.detail > 1 || (event.detail > 0 && key === questionAdvanceKey && performance.now() < questionAdvanceUntil)) { event.preventDefault(); return; }
+    // Checkboxes keep native toggle/keyboard semantics; change captures their draft.
+    if (input?.type !== 'radio') return;
+    if (event.target !== input) { event.preventDefault(); input.checked = true; }
+    try {
+      captureQuestionForm(form, questionDrafts, state.detail.id, question);
+      const next = Number(form.dataset.qIndex) < question.items.length - 1;
+      if (next) {
+        actionQuestion(questionDrafts, state.detail.id, question, 'next');
+        questionAdvanceKey = key;
+        questionAdvanceUntil = performance.now() + 300;
+        safeLog('question_option_advanced');
+      }
+      state.error = ''; render();
+      const nextForm = [...root.querySelectorAll('[data-question-form]')].find(item => item.dataset.questionForm === question.id);
+      if (next) nextForm?.querySelector('legend')?.focus({ preventScroll: true });
+      else [...(nextForm?.querySelectorAll('input[type="radio"]') || [])].find(item => item.value === input.value)?.focus({ preventScroll: true });
+    } catch (error) { safeLog('question_option_failed'); state.error = error.message || '无法保存选项，请重试。'; render(); }
+    return;
+  }
   const modelMenu = root.querySelector('.composer-model-menu[open]');
   if (modelMenu && !event.target.closest?.('.composer-model-menu')) modelMenu.open = false;
-  const composerMenu = root.querySelector('.composer-more[open]');
-  if (composerMenu && !event.target.closest?.('.composer-more')) composerMenu.open = false;
+  const legacyComposerMenu = root.querySelector('.composer-more[open]');
+  if (legacyComposerMenu && !event.target.closest?.('.composer-more')) legacyComposerMenu.open = false;
   const modelChoice = event.target.closest?.('[data-composer-model]');
   if (modelChoice && Object.hasOwn(modelChoice.dataset, 'composerModel')) {
     if (modelChoice.disabled) return;
@@ -2334,6 +2790,14 @@ root.addEventListener('click', async (event) => {
     const month = event.target.closest?.('[data-aihot-month-retry]')?.dataset.aihotMonthRetry;
     if (month) { await aihotController.loadMonth(month); return; }
   }
+  if (event.target.closest?.('.discovery-page')) {
+    const action = event.target.closest?.('[data-discovery-action]')?.dataset.discoveryAction;
+    if (await discoveryController.handle(event)) {
+      if (['research', 'tracking', 'source', 'tracking-new', 'research-new', 'history-status'].includes(action)) root.querySelector('#discovery-drawer-title')?.focus({ preventScroll: true });
+      if (action === 'close') root.querySelector('[data-discovery-action="research"]')?.focus({ preventScroll: true });
+      return;
+    }
+  }
   if (event.target.closest?.('.intel-page')) {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
     if (await intelController.handle(event)) {
@@ -2401,6 +2865,7 @@ root.addEventListener('click', async (event) => {
     const form = button.closest('[data-question-form]');
     const question = state.detail?.questions?.find(q => q.id === form?.dataset.questionForm);
     if (!question || form.dataset.qSession !== state.detail.id || state.busy) return;
+    questionAdvanceUntil = 0; questionAdvanceKey = '';
     captureQuestionForm(form, questionDrafts, state.detail.id, question);
     actionQuestion(questionDrafts, state.detail.id, question, data.qPage || ('qClose' in data ? 'close' : 'qOpen' in data ? 'open' : 'skip'));
     state.error = ''; render();
@@ -2666,6 +3131,16 @@ root.addEventListener('click', async (event) => {
     }
     return;
   }
+  if ('verifySourceAuth' in data) {
+    connectionProbeBusy = true; state.error = ''; success = ''; render();
+    try {
+      const result = await api.verifySourceAuthorization(data.verifySourceAuth);
+      success = result.status === 'authenticated' ? 'HTTP 授权交换成功；具体数据权限尚未验证。' : '授权尚未验证。';
+      await loadConnectionConfiguration(data.verifySourceAuth);
+    } catch (error) { state.error = error.message || '授权未验证'; safeLog('source_authorization_unverified'); }
+    finally { connectionProbeBusy = false; render(); }
+    return;
+  }
   if ('localIntegrationsProbe' in data) {
     state.error = ''; success = ''; localIntegrationProbeBusy = true; render();
     try {
@@ -2793,7 +3268,7 @@ root.addEventListener('click', async (event) => {
   if ('refresh' in data) {
     success = '';
     state.error = '';
-    if (state.route.page === 'workbench') await loadWorkbench();
+    if (isDataWorkspaceRoute(state.route)) await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
     else if (state.route.page === 'settings') {
@@ -2842,22 +3317,38 @@ root.addEventListener('click', async (event) => {
   if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }
   if ('workbenchHandoff' in data) {
     if (workbenchBusy || !data.sourceSession) return;
+    const current = workbenchOwner();
+    const section = state.route.section;
+    const assetContext = workbenchContext;
     workbenchBusy = true; state.error = ''; render();
     try {
+      const datasetIds = JSON.parse(data.datasetIds || '[]');
+      let context = assetContext;
+      if (section !== 'assets') {
+        if (datasetIds.length !== 1) throw new Error('请选择一个有效的查询快照。');
+        const manifest = await api.datasetManifest(data.sourceSession, datasetIds[0]);
+        if (!current()) return;
+        if (!manifest.query || !manifest.query.parameters) throw new Error('查询快照缺少原始参数，无法交接。');
+        context = { section, source: manifest.query.source, parameters: manifest.query.parameters, requested_at: manifest.retrieved_at, as_of: manifest.as_of };
+      }
       const result = await api.handoff({
         source_session_id: data.sourceSession,
         target_mode: data.workbenchHandoff,
-        section: state.route.section || 'market',
-        dataset_ids: JSON.parse(data.datasetIds || '[]'),
-        context: workbenchContext,
+        section,
+        dataset_ids: datasetIds,
+        context,
       }, crypto.randomUUID());
+      if (!current()) return;
       history.pushState(null, '', `#/${result.mode}?session=${encodeURIComponent(result.session_id)}`);
+      const targetTicket = pageGeneration + 1;
       await showRoute();
-      controller.setDraft(result.draft || '请基于研究台交接资料继续研究。');
-      await loadCatalog(['sessions']);
+      if (pageGeneration !== targetTicket || state.route.page !== result.mode || state.route.sessionId !== result.session_id) return;
+      controller.setDraft(result.draft || '请基于冻结的页面资料继续研究。');
       success = '页面参数和数据集已冻结到新会话，确认草稿后再发送。';
-    } catch (error) { state.error = error.message; }
-    finally { workbenchBusy = false; render(); }
+      await loadCatalog(['sessions']);
+      if (targetTicket === pageGeneration) render();
+    } catch (error) { if (current()) state.error = error.message; safeLog('business_handoff_failed', { section, code: error.code || 'request_failed' }); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
   }
   if ('clawScheduleRefresh' in data) {
     if (state.route.page !== 'claw' || state.route.clawView !== 'plans' || catalog.pending.has('automations') || catalog.pending.has('automationRuns')) return;
@@ -2897,7 +3388,6 @@ root.addEventListener('click', async (event) => {
       safeLog('claw_workspace_preview_missing', {});
     }
   }
-  if ('clawCaseCategory' in data) { quickCategory = data.clawCaseCategory; render(); }
   if ('clawCase' in data || 'clawEditTask' in data) {
     const prompt = 'clawEditTask' in data ? `请查询任务 ID ${data.clawEditTask} 的当前定义。我想修改它，请先澄清修改内容，提出同一任务的待确认变更。` : clawCases.find(c => c.id === data.clawCase)?.text;
     if (prompt) {
@@ -2924,7 +3414,7 @@ root.addEventListener('click', async (event) => {
   if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; render(); }
   if ('closeDrawers' in data) { const wasSidebarOpen = sidebarOpen; sidebarOpen = false; contextOpen = false; render(); if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
-  if ('slashSearch' in data) { if (composerMenu) composerMenu.open = false; slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
+  if ('slashSearch' in data) { if (legacyComposerMenu) legacyComposerMenu.open = false; slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('documentCreate' in data && ['docx', 'xlsx', 'pptx'].includes(data.documentCreate) && state.detail?.id) {
@@ -3036,6 +3526,66 @@ function collectAnswers(form, question) {
   catch (error) { safeLog('invalid_question_selection'); state.error = error.message; render(); return null; }
 }
 
+function composerTaskPending() { return Boolean(state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))); }
+function currentComposerRows() {
+  return composerMenuRows(composerMenu, { skills: catalog.capabilities, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, expectedFormats: state.expectedFormats, models: catalog.models, model: catalog.runtime?.model, modelProvider: catalog.runtime?.provider, modelEndpoint: catalog.runtime?.connection?.base_url, disabled: Boolean(state.busy || state.loading || state.route.sessionId && !state.detail || state.detail?.execution_restricted || state.detail?.execution_context), busy: state.busy || state.stopping || composerTaskPending(), uploadsAllowed: canUploadToSession(state.detail, state.sourceScope) });
+}
+function closeComposerMenu(consume = false) {
+  const entry = composerMenu.entry;
+  const modelView = composerMenu.view === 'models';
+  if (consume && entry === 'slash') controller.setDraft(consumeComposerSlash(state.draft));
+  composerMenu = closedComposerMenu(); render();
+  document.getElementById(entry === 'slash' ? 'prompt' : modelView ? 'composer-model' : 'composer-add')?.focus({ preventScroll: true });
+}
+function focusComposerMenu() {
+  const rows = currentComposerRows();
+  if (!rows[composerMenu.index] || rows[composerMenu.index].disabled) composerMenu.index = Math.max(0, rows.findIndex(row => !row.disabled));
+  render();
+  const row = document.getElementById(`composer-command-${composerMenu.index}`);
+  (document.getElementById('composer-command-search') || (row && !row.disabled ? row : null) || document.getElementById('claw-composer-menu'))?.focus({ preventScroll: true });
+}
+function backComposerMenu() {
+  if (composerMenu.view === 'root') { closeComposerMenu(); return; }
+  composerMenu = openComposerMenu(composerMenu.entry, 'root', composerMenu.entry === 'slash' ? composerSlashQuery(state.draft) || '' : '');
+  render();
+  const prompt = document.getElementById('prompt');
+  if (composerMenu.entry === 'slash' && prompt && !prompt.disabled) prompt.focus({ preventScroll: true });
+  else focusComposerMenu();
+}
+async function activateComposerRow(row) {
+  if (!row || row.disabled || state.detail?.execution_restricted || state.detail?.execution_context) return;
+  try {
+    if (row.action === 'view') {
+      composerMenu = openComposerMenu(composerMenu.entry, row.value); focusComposerMenu(); return;
+    }
+    if (state.busy || state.stopping || composerTaskPending()) return;
+    if (row.action === 'upload') {
+      if (!canUploadToSession(state.detail, state.sourceScope)) return;
+      closeComposerMenu(true); document.getElementById('file-input')?.click(); return;
+    }
+    if (row.action === 'capability') {
+      await selectCapability(row.value);
+      if (state.capability?.id === row.value) closeComposerMenu();
+      return;
+    }
+    if (row.action === 'method') {
+      const ids = state.methodIds;
+      if (!ids.includes(row.value) && ids.length >= 3) return;
+      controller.setMethods(ids.includes(row.value) ? ids.filter(id => id !== row.value) : [...ids, row.value]);
+    } else if (row.action === 'format') controller.setFormats(nextComposerFormats(state.expectedFormats, row.value));
+    else if (row.action === 'model') {
+      const menu = composerMenu, generation = pageGeneration, draft = state.draft;
+      const pending = configureComposerModel(row.value);
+      document.getElementById('claw-composer-menu')?.focus({ preventScroll: true });
+      const configured = await pending;
+      if (configured && generation === pageGeneration && menu === composerMenu && draft === state.draft) closeComposerMenu(true);
+      return;
+    }
+    safeLog('claw_composer_selection_changed'); render();
+    document.getElementById(`composer-command-${composerMenu.index}`)?.focus({ preventScroll: true });
+  } catch { safeLog('claw_composer_selection_failed'); state.error = '无法应用所选选项，请刷新目录后重试。'; render(); }
+}
+
 function currentSlashMatches() {
   return skillMatches(state.draft.trimStart().replace(/^\//, ''), catalog.capabilities).slice(0, 6);
 }
@@ -3056,7 +3606,7 @@ async function selectCapability(id) {
   if (capabilityPreviewIsOpen()) capabilityController.close();
   await goToResearchDraft();
   controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
-  if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
+  if (state.draft.trimStart().startsWith('/')) controller.setDraft(state.route.page === 'claw' ? consumeComposerSlash(state.draft) : '');
   slashOpen = false; globalSearch = ''; searchOpen = false; nativeSessionSearch.close(); render();
   document.querySelector('#prompt')?.focus();
 }
@@ -3129,6 +3679,34 @@ async function handleCapabilityClick(data) {
   }
   if ('capKind' in data) { cap.kind = data.capKind; cap.kindFilter = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
   if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; render(); return true; }
+  if ('prepareWeeklyProduction' in data) {
+    if (reportWorkflowBusy) return true;
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      const detail = await api.prepareWeeklyProduction(data.prepareWeeklyProduction);
+      if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return true;
+      reportWorkflowDetail = detail;
+      success = '已准备新的生产版本；数据与质量验收通过后才能启用日程。';
+    } catch (error) { if (ticket === pageGeneration && reportWorkflowDetail?.id === workflowId) state.error = error.message; safeLog('weekly_production_prepare_failed', { code: error.code || 'request_failed' }); }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
+  if ('publishWeeklyProduction' in data) {
+    if (reportWorkflowBusy || reportWorkflowDetail?.id !== 'huaan-etf-weekly') return true;
+    const version = Number(data.publishWeeklyProduction);
+    if (!Number.isInteger(version) || version < 1) { state.error = '生产版本无效。'; render(); return true; }
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail.id;
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      const detail = await api.publishReportWorkflowVersion('huaan-etf-weekly', version);
+      if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return true;
+      reportWorkflowDetail = detail;
+      success = '生产合同已发布；首次手动定稿通过后才能启用日程。';
+    } catch (error) { if (ticket === pageGeneration && reportWorkflowDetail?.id === workflowId) state.error = error.message; safeLog('weekly_production_publish_failed', { code: error.code || 'request_failed' }); }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
   if ('reportWorkflowDetail' in data) {
     const ticket = pageGeneration;
     cap.detail = null; cap.tool = null; cap.dataDetail = null; cap.form = '';
@@ -3146,10 +3724,12 @@ async function handleCapabilityClick(data) {
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
-  if ('runReportWorkflow' in data) {
+  if ('runReportWorkflow' in data || 'runHistoricalReportWorkflow' in data) {
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
-      let run = await api.runReportWorkflow(data.runReportWorkflow);
+      let run = 'runHistoricalReportWorkflow' in data
+        ? await api.runHistoricalReportWorkflow(data.runHistoricalReportWorkflow)
+        : await api.runReportWorkflow(data.runReportWorkflow);
       for (let attempt = 0; attempt < 12 && !run.session_id && ['queued', 'preparing_data', 'running'].includes(run.status); attempt += 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
         run = await api.reportRun(run.id);
@@ -3305,7 +3885,9 @@ async function handleCapabilityClick(data) {
 }
 
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
-window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); void showRoute(); });
+window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); executionEvidenceExpiry.cancel(); void showRoute(); });
+window.addEventListener('pagehide', () => executionEvidenceExpiry.cancel());
+window.addEventListener('pageshow', () => { if (root.querySelector('[data-connection-workbench]')) render(); });
 window.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.detail?.status === 'completed') render();
   if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);

@@ -1,6 +1,26 @@
 # 能力包、版本与原生调用
 
-私网服务器首版只允许原受信内置能力；管理/安装修改、MCP、宿主浏览器、Office/Wind、Hot、日程/自动化、报告 Workflow 和运维在 profile 中拒绝。普通会话的文件式文档仍通过既有文件校验，native 文档执行入口及内部回调均拒绝；文件生成成功不推导研究质量或来源已通过。该 profile 不改变原单用户能力的版本、工具合同或审批，后端与固定工具实现仍是同 UID 受信代码。
+目录保存先生成与原 `json.dump(..., ensure_ascii=False)` 相同的 JSON 字节，再在同一个临时文件中一次写入；每次保存及同步、原子替换、失败清理时点保持。该优化减少真实 Host 重复冷构造中的 Python 逐片段写，不缓存验证、模块清单、权限或凭据，不改变任何包版本和准入。
+
+本次不修改document-reading/company-research的缺合同拒绝，也不替它们伪造数据需求。只有Host已核验的华安Report Workflow使用私有专属准入投影；普通通用能力仍按原data_contract_missing规则拒绝。投影不是新的可选Skill或Tool，不扩大租户、MCP和来源授权。
+
+历史验收只是原华安Report Workflow的Host固定Run用途，不新增模型可选的Tool、Skill或数据源权限。专用owner入口、冻结用途、恢复幂等与标识/文件检查共用原DSH链；历史quality通过不变成正式资格或日程授权。
+
+华安 Excel 来源属于原报告 Workflow 内的私有 DataHub 分支，不新增能力包或执行引擎。仅在已有 Excel 中新建任务工作簿；创建/关闭结果未知时污染共享槽并拒绝后续调用。手工导出不认证无人值守刷新，本轮日程禁用。
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件统一管理 Skill/Workflow/MCP 与受限 Command/Agent/Hook 映射；ready 需 native loader、当前审批、精确 schema 和 DSH guard 全链确认。宿主专属 UI/cloud/API 或未实现 Hook 不静默丢弃，支持表保留 limited/unsupported。升级默认只影响新会话，撤权单独生效，MCP无法并存明确deferred。见[插件合同](../../research-web-plugins.md)。
+
+资产观察 AF 指标公式和快照投影属于前端显示能力，不登记新Skill／Tool／Workflow，不迁移AF Agent委员会或新Provider。ECharts 5.5.0／Chart.js 4.4.7为经批准的固定本地渲染资源，不授予网络、脚本、凭据或模型调用权限；研究继续只经原DSH及能力准入，估算与空字段不满足真实证据门。
+
+目录初始化时的静态 Python 导入检查共享该事务内的模块清单，结束或异常即清除；后续显式检查及新实例仍独立扫描。来源状态、凭据、版本和执行准入不缓存，Host/DSH 边界及原目录持久化协议保持。
+
+report_plan 只是原 research_run_script 的互斥数据参数，调用仍受同一能力准入、私有冻结绑定和沙箱权限限制，无新增工具、网络、模型循环或评分权。
+
+research_read_source 使用原研究插件，列举和读取当前会话准确来源；来源范围、业务能力限定、模型工具验证与原硬预算仍适用。它不启用 Tabbit、不改变用户数据源设置；只有 Host 实际取得并保全的正文能进入观测，原文中的指令不获得执行权限。
+
+新建私网租户的服务器profile只允许原受信内置能力；管理/安装修改、MCP、宿主浏览器、Office/Wind、Hot、日程/自动化、报告 Workflow 和运维在 profile 中拒绝。普通会话的文件式文档仍通过既有文件校验，native 文档执行入口及内部回调均拒绝；文件生成成功不推导研究质量或来源已通过。该 profile 不改变原单用户能力的版本、工具合同或审批，后端与固定工具实现仍是同 UID 受信代码。
 
 FinGPT 原生质量工具在既有目录登记为不可手动选择的受控工具，复用实时 nativeAdmission、原生会话血缘与48工具/4子任务预算。冻结要求和检查回执由 Host 所有，Skill/Workflow 仍不能伪造通过。
 
@@ -253,6 +273,13 @@ Claw 首页直接展示同一目录中的已启用 Workflow（含自建），Fin
 
 ## 具体报告 Workflow
 
+华安ETF周报可显式准备`huaan-etf-weekly-v1`生产合同继任版本：保留模板和业务口径，以私有
+DataHub同源API候选、冻结事实、原DSH研究和Host质量门完成原版式交付。首期仅附接主管理员可用，
+每周五15:30开始，数据最多落后各市场一个已结束交易日；其他租户profile保持拒绝。
+旧版payload与子Agent数量义务只约束旧版本，不补认证新合同。新合同按需并行，质量不由Agent数量
+或文件完成决定；新闻缺材料只接受冻结例外和真实取证。当前版本真实手动定稿后才可启用日程。
+完整的输入、规范正文、图表和定稿边界见[周报生产](../../research-web-etf-weekly-production.md)。
+
 通用能力目录的 Workflow 规定可复用研究步骤；`app/research_web/report_workflows/` 则管理“每篇报告一个 Workflow”的真实资源包。两者都由 Claw/DSH 执行，但具体报告额外锁定 Word/PPT 模板、Excel 底稿、品牌素材、映射、交付契约和日程，不能由一张通用模板卡替代。
 
 本机 Wind 验证在验证器独占的空白工作簿中执行最小厂商公式，不读取或刷新报告 Workflow 母版；这个诊断入口不发布新版本、不运行 Claw，也不改变 Workflow 自身的可运行判断。验证成功只证明当前设备上的插件调用链，不能代替报告内容与交付验证。
@@ -277,3 +304,7 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 ## FinGPT 研究融合 · 2026-10-13
 
 能力 default_formats 新增 pdf；文件仍交原沙箱验证，不由任务完成或计划状态判定成功。会话 research_depth/source_scope 是创建时锁定的研究选项，能力及 Automation 复用原 Service/DSH 链；工具 preflight 收紧排除来源与脚本 dataset read_paths，MCP 未分类来源在部分范围选择下拒绝。
+
+## 2026-10-23：长期研究档案与机会预警
+
+能力中心为公司／行业研究、调研准备、研报增量、预期差和风险检查补输入／输出／限制说明，仍引用原发布能力版本；固定方法说明本身不授予工具或来源权限。档案句柄在实际 Prompt 绑定后走既有 research_read_source 的 Host 分支，DSH 仍是唯一执行器。小创一方包仅可沿原导入预览，真实 Registry 身份未核验而保持 unsupported／未就绪；配置状态复用原插件 status，无合法安装时不开放个人凭据配置。见[方法与 UI](../../research-web-dossiers-ui.md)及[候选合同](../../research-web-seek-alpha.md)，原能力发布拓扑保持。

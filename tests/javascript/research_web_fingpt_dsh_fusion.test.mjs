@@ -101,6 +101,14 @@ test('report versions preserve original quality and notes without binding histor
   assert.match(html, /新报告/); assert.match(html, /&lt;旧报告&gt;/); assert.match(html, /original-turn/); assert.match(html, /前轮笔记/); assert.match(html, /&lt;缺口&gt;/);
   assert.equal((html.match(/data-report-stage=/g) || []).length, 1);
   assert.doesNotMatch(html, /<旧报告>|<缺口>/);
+  const currentAndDraft = renderResearchPanel(session({research_report:report,research_quality:{status:'incomplete',issues:[]},research_report_versions:[
+    {version_id:'v-current',is_current:true,report,quality:{status:'incomplete',issues:[]},quality_binding:'host_check'},
+    {version_id:'v-draft',is_current:false,report:old,quality:{status:'invalid',issues:['report_version_quality_unbound']},quality_binding:'unbound'},
+  ]}), 'report');
+  assert.match(currentAndDraft,/当前版本 · [^<]*v-current/);
+  assert.match(currentAndDraft,/历史版本 · [^<]*v-draft · 检查未绑定/);
+  assert.match(currentAndDraft,/完整性检查未通过/);
+  assert.doesNotMatch(currentAndDraft,/质量检查已通过/);
 });
 
 test('Host passed projection exposes current report body and notes and bounds the actual verification scope', () => {

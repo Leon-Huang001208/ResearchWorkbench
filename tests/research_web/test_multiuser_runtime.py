@@ -132,6 +132,25 @@ async def test_explicit_four_pair_capacity_retains_existing_users_at_limit(
         await pool.close()
 
 
+@pytest.mark.asyncio
+async def test_fake_children_own_listener_ports_until_stopped(tmp_path, fake_processes):
+    pool = runtime.RuntimePool(config(tmp_path))
+    user = str(uuid4())
+    try:
+        await pool.backend_for(user)
+        ports = [int(child.command[child.command.index("--port") + 1]) for child in fake_processes]
+        assert len(ports) == 2 and len(set(ports)) == 2
+        for port in ports:
+            with socket.socket() as contender, pytest.raises(OSError):
+                contender.bind(("127.0.0.1", port))
+        await pool.stop(user)
+        for port in ports:
+            with socket.socket() as contender:
+                contender.bind(("127.0.0.1", port))
+    finally:
+        await pool.close()
+
+
 class Child:
     serial = 10000
 
@@ -147,9 +166,21 @@ class Child:
 @pytest.fixture
 def fake_processes(monkeypatch):
     children = []
+    listeners = {}
 
     def spawn(*args, **kwargs):
         child = Child(*args, **kwargs)
+        port = int(child.command[child.command.index("--port") + 1])
+        listener = socket.socket()
+        try:
+            listener.bind(("127.0.0.1", port))
+            listener.listen(1)
+        except BaseException:
+            listener.close()
+            raise
+        # Real children bind after the parent releases its reservation. Holding
+        # the fake listener prevents the OS from reusing a live backend's port.
+        listeners[child] = listener
         children.append(child)
         return child
 
@@ -157,13 +188,20 @@ def fake_processes(monkeypatch):
         return None
 
     async def stop(child):
+        listener = listeners.pop(child, None)
+        if listener is not None:
+            listener.close()
         child.code = 0
 
     monkeypatch.setattr(runtime.subprocess, "Popen", spawn)
     monkeypatch.setattr(runtime.RuntimePool, "_wait_runtime", ready)
     monkeypatch.setattr(runtime.RuntimePool, "_wait_backend", ready)
     monkeypatch.setattr(runtime.RuntimePool, "_stop_child", staticmethod(stop))
-    return children
+    try:
+        yield children
+    finally:
+        for listener in listeners.values():
+            listener.close()
 
 
 @pytest.mark.asyncio
@@ -209,7 +247,12 @@ async def test_two_users_isolate_processes_secrets_paths_capacity(
             assert "OPENAI_API_KEY" not in env and "RESEARCH_WEB_PRIVATE_ORIGIN" not in env
             assert env["RWB_TENANT_MODE"] == "1"
             assert env["RESEARCH_AUTOMATIONS_ENABLED"] == "0"
-            assert env["RESEARCH_MCP_RUNTIME_ENABLED"] == "0"
+            assert env["RWB_DISCOVERY_TRACKING_ENABLED"] == "1"
+            # The Host is enabled only behind the managed-package/schema gate;
+            # the public /mcp boundary remains closed to tenant consumers.
+            assert env["RESEARCH_MCP_RUNTIME_ENABLED"] == "1"
+            assert env["RWB_TENANT_USER"] in {first, second}
+            assert env["RWB_TENANT_GENERATION"]
             assert env["RESEARCH_RUN_MODE"] == "web-prod"
             assert env["HOME"].startswith(str(tmp_path / "server/users"))
             assert child.kwargs["stdout"] == runtime.subprocess.DEVNULL
@@ -222,6 +265,85 @@ async def test_two_users_isolate_processes_secrets_paths_capacity(
         assert all(child.code == 0 for child in fake_processes[:2])
         assert all(child.code is None for child in fake_processes[2:])
     finally:
+        await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_discovery_restore_only_registered_consented_owners_and_defers_capacity(
+    tmp_path, fake_processes
+):
+    from app.research_web.automation.models import AutomationCreate
+    from app.research_web.automation.service import AutomationService, _canonical_sha
+    from app.research_web.store import Store
+
+    settings = config(tmp_path)
+    pool = runtime.RuntimePool(settings)
+    users = [str(uuid4()) for _ in range(4)]
+    for user in users:
+        user_root = settings.root / "users" / user
+        user_root.mkdir(mode=0o700)
+        store = Store(user_root / "research-web")
+        automation_service = AutomationService(store, scheduler=False)
+        saved = automation_service.create(
+            AutomationCreate.model_validate(
+                {
+                    "name": "已批准的发现跟踪",
+                    "target_kind": "research_task",
+                    "research_task": {
+                        "description": "只读证据变化",
+                        "model_provider": "deepseek-official",
+                        "model_id": "deepseek-flash",
+                        "output_requirements": "保留缺口",
+                        "approved_data_sources": ["datahub"],
+                        "approved_tools": [],
+                    },
+                    "schedule": {
+                        "kind": "daily",
+                        "timezone": "Asia/Shanghai",
+                        "hour": 9,
+                        "minute": 0,
+                    },
+                }
+            )
+        )
+        store.data["discovery_tracks"] = {
+            saved["id"]: {
+                "schema": "discovery-tracking-v1",
+                "automation_id": saved["id"],
+                "definition_sha256": _canonical_sha(automation_service._definition_snapshot(saved)),
+            }
+        }
+        automation_service.enable(saved["id"])
+        store.save()
+    try:
+        result = await pool.restore_discovery_tracks(users[:3])
+        assert len(pool._instances) == 2
+        assert set(pool._instances) == set(users[:2])
+        assert users[3] not in pool.discovery_restoration
+        assert pool.discovery_restoration[users[2]]["status"] == "deferred_capacity"
+        assert result["items"][-1]["code"] == "runtime_capacity_exceeded"
+        assert len(fake_processes) == 4
+    finally:
+        await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_discovery_restore_never_creates_unconsented_or_symlinked_owner(
+    tmp_path, fake_processes
+):
+    settings = config(tmp_path)
+    pool = runtime.RuntimePool(settings)
+    absent, unsafe = str(uuid4()), str(uuid4())
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    (settings.root / "users" / unsafe).symlink_to(outside, target_is_directory=True)
+    try:
+        await pool.restore_discovery_tracks([absent, unsafe])
+        assert fake_processes == []
+        assert not (settings.root / "users" / absent).exists()
+        assert pool.discovery_restoration[unsafe]["status"] == "blocked"
+    finally:
+        (settings.root / "users" / unsafe).unlink()
         await pool.close()
     assert all(child.code == 0 for child in fake_processes)
 
@@ -544,3 +666,33 @@ async def test_leader_exit_during_stop_does_not_hide_live_descendants(monkeypatc
     monkeypatch.setattr(os, "killpg", lambda *_: None)
     with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_stop_unverified"):
         await runtime.RuntimePool._stop_child(child)
+
+
+@pytest.mark.asyncio
+async def test_deployment_slot_wins_after_native_exists_check_without_spawn_or_dispose(
+    tmp_path, fake_processes, monkeypatch
+):
+    pool = runtime.RuntimePool(config(tmp_path))
+    uid = str(uuid4())
+    original = pool._record
+    owner = pool.config.root / "users" / uid / "state/owner.json"
+
+    def publish_before_record(entry, *, create=False):
+        if create:
+            owner.mkdir(mode=0o700)
+            (owner / "reservation").write_text("operator-owned test slot")
+        return original(entry, create=create)
+
+    async def forbidden_dispose(*_):
+        pytest.fail("native must not dispose an operator-owned slot")
+
+    monkeypatch.setattr(pool, "_record", publish_before_record)
+    monkeypatch.setattr(pool, "_dispose", forbidden_dispose)
+    try:
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_start_failed"):
+            await pool.backend_for(uid)
+        assert fake_processes == [] and not pool._instances
+        assert (owner / "reservation").read_text() == "operator-owned test slot"
+        assert not (owner.parent / "gateway.key").exists()
+    finally:
+        await pool.close()

@@ -54,6 +54,8 @@ class RuntimeConfig:
 class Backend:
     url: str
     key: str = field(repr=False)
+    generation: str = ""
+    runtime_pid: int | None = None
 
 
 @dataclass
@@ -62,6 +64,7 @@ class _Instance:
     state: Path
     backend: Backend
     children: list
+    generation: str = field(default_factory=lambda: uuid4().hex)
 
 
 def _directory(path: Path, *, create=True) -> None:
@@ -241,6 +244,10 @@ class RuntimePool:
         self.boot_id = boot_id
         self._lock = asyncio.Lock()
         self._instances: dict[str, _Instance] = {}
+        self._plugin_frozen: set[str] = set()
+        self._request_tickets: dict[str, set[str]] = {}
+        self._restart_results: dict[tuple[str, str, str], dict] = {}
+        self.discovery_restoration: dict[str, dict] = {}
         self._closed = False
         self._closing = False
         self._lock_fd = None
@@ -340,6 +347,7 @@ class RuntimePool:
                 "instance": self.instance,
                 "user": instance.user,
                 "pids": [child.pid for child in instance.children],
+                "generation": instance.generation,
                 **({"boot_id": self.boot_id} if self.boot_id else {}),
             }
         ).encode()
@@ -386,8 +394,90 @@ class RuntimePool:
             "RWB_RUNTIME_STATE": str(state),
             "RWB_TENANT_MODE": "1",
             "RWB_TENANT_GATEWAY_KEY_FILE": str(state / "gateway.key"),
+            "RWB_SHARED_PLUGINS_ROOT": str(self.config.root / "shared/plugin-approvals"),
+            "RWB_PERSONAL_PLUGINS_ROOT": str(root.parent / "plugin-approvals"),
             "RESEARCH_AUTOMATIONS_ENABLED": "0",
-            "RESEARCH_MCP_RUNTIME_ENABLED": "0",
+            "RWB_DISCOVERY_TRACKING_ENABLED": "1",
+            "RESEARCH_MCP_RUNTIME_ENABLED": "1",
+        }
+
+    def _has_enabled_discovery(self, user_id: str) -> bool:
+        """Read only an authorized owner's safe index, never enumerate unknown owners."""
+        from ..automation.service import AutomationService, _canonical_sha
+
+        self._assert_pool()
+        user_root = self.config.root / "users" / self._user(user_id)
+        if not user_root.exists() and not user_root.is_symlink():
+            return False
+        _directory(user_root, create=False)
+        data_root = user_root / "research-web"
+        if not data_root.exists() and not data_root.is_symlink():
+            return False
+        _directory(data_root, create=False)
+        path = data_root / "index.json"
+        if not path.exists() and not path.is_symlink():
+            return False
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            info = os.fstat(descriptor)
+            limit = 16 * 1024 * 1024
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != os.getuid()
+                or info.st_nlink != 1
+                or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > limit
+            ):
+                raise RuntimeErrorSafe("discovery_restore_index_unverified")
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                payload = json.loads(stream.read(limit + 1))
+            if not isinstance(payload, dict):
+                raise RuntimeErrorSafe("discovery_restore_index_unverified")
+        except (OSError, ValueError, TypeError) as exc:
+            raise RuntimeErrorSafe("discovery_restore_index_unverified") from exc
+        finally:
+            os.close(descriptor)
+        tracks, automations = payload.get("discovery_tracks", {}), payload.get("automations", {})
+        if not isinstance(tracks, dict) or not isinstance(automations, dict):
+            raise RuntimeErrorSafe("discovery_restore_index_unverified")
+        for automation_id, track in tracks.items():
+            automation = automations.get(automation_id)
+            if (
+                isinstance(track, dict)
+                and isinstance(automation, dict)
+                and track.get("schema") == "discovery-tracking-v1"
+                and track.get("automation_id") == automation_id
+                and automation.get("id") == automation_id
+                and automation.get("enabled") is True
+                and automation.get("target", {}).get("kind") == "research_task"
+                and automation.get("mcp_tools") == []
+                and automation.get("delivery") == {"channel_ids": [], "include_attachments": False}
+                and track.get("definition_sha256")
+                == _canonical_sha(AutomationService._definition_snapshot(automation))
+            ):
+                return True
+        return False
+
+    async def restore_discovery_tracks(self, authorized_user_ids) -> dict:
+        """Resume consenting registered owners through the existing capacity admission."""
+        for raw_user_id in dict.fromkeys(authorized_user_ids):
+            user = self._user(raw_user_id)
+            try:
+                if not await asyncio.to_thread(self._has_enabled_discovery, user):
+                    continue
+                await self.backend_for(user)
+            except (RuntimeErrorSafe, OSError, ValueError, TypeError, AttributeError) as exc:
+                code = getattr(exc, "code", "discovery_restore_index_unverified")
+                status = "deferred_capacity" if code == "runtime_capacity_exceeded" else "blocked"
+                self.discovery_restoration[user] = {"status": status, "code": code}
+                log.warning("discovery_tracking_restore_deferred", user_id=user, code=code)
+            else:
+                self.discovery_restoration[user] = {"status": "restored"}
+                log.info("discovery_tracking_owner_restored", user_id=user)
+        return {
+            "items": [
+                {"user_id": key, **value} for key, value in self.discovery_restoration.items()
+            ]
         }
 
     async def backend_for(self, user_id: str) -> Backend:
@@ -396,13 +486,20 @@ class RuntimePool:
             if self._closed or self._closing:
                 raise RuntimeErrorSafe("runtime_pool_closed")
             self._assert_pool()
+            if user in self._plugin_frozen:
+                raise RuntimeErrorSafe("runtime_restart_deferred", 409)
             if existing := self._instances.get(user):
                 if any(child.poll() is not None for child in existing.children):
                     raise RuntimeErrorSafe("runtime_process_exited")
+                if user in self.discovery_restoration:
+                    self.discovery_restoration[user] = {"status": "restored"}
                 return existing.backend
             if len(self._instances) >= self.config.max_instances:
                 raise RuntimeErrorSafe("runtime_capacity_exceeded")
-            return await self._start(user)
+            backend = await self._start(user)
+            if user in self.discovery_restoration:
+                self.discovery_restoration[user] = {"status": "restored"}
+            return backend
 
     async def _start(self, user: str) -> Backend:
         sockets = []
@@ -447,9 +544,17 @@ class RuntimePool:
                 runtime_port=runtime_port,
             )
             environment = self._environment(root, state, web_port, runtime_port)
+            environment.update(
+                RWB_TENANT_GENERATION=entry.generation,
+                RWB_TENANT_MANAGER_INSTANCE=self.instance,
+                RWB_TENANT_USER=user,
+            )
             self._audit(user, "runtime_starting")
             sockets[1].close()
             entry.children.append(self._spawn(specs.runtime.command, environment))
+            entry.backend = Backend(
+                entry.backend.url, entry.backend.key, entry.generation, entry.children[0].pid
+            )
             self._record(entry)
             deadline = time.monotonic() + START_TIMEOUT
             await self._wait_runtime(entry, runtime_port, root, deadline)
@@ -595,9 +700,256 @@ class RuntimePool:
         owner.unlink()
         self._audit(entry.user, "runtime_stopped")
 
+    async def request_started(self, user_id: str, backend: Backend) -> str:
+        """A mutating gateway request holds a birth ticket through its response."""
+        user = self._user(user_id)
+        async with self._lock:
+            entry = self._instances.get(user)
+            if user in self._plugin_frozen or entry is None or entry.backend != backend:
+                raise RuntimeErrorSafe("runtime_generation_changed", 409)
+            ticket = uuid4().hex
+            self._request_tickets.setdefault(user, set()).add(ticket)
+            return ticket
+
+    async def request_finished(self, user_id: str, ticket: str) -> None:
+        user = self._user(user_id)
+        async with self._lock:
+            self._request_tickets.setdefault(user, set()).discard(ticket)
+
+    def _restart_identity(self, entry):
+        self._assert_pool()
+        owner = json.loads(_read_private(entry.state / "owner.json"))
+        if (
+            owner.get("instance") != self.instance
+            or owner.get("user") != entry.user
+            or owner.get("generation") != entry.generation
+            or owner.get("pids") != [child.pid for child in entry.children]
+            or _read_private(entry.state / "gateway.key").decode("ascii") != entry.backend.key
+            or len(entry.children) != 2
+            or any(child.poll() is not None for child in entry.children)
+        ):
+            raise RuntimeErrorSafe("runtime_restart_identity_unknown", 409)
+        auth = read_runtime_auth_record(entry.state / "auth.json")
+        if (
+            auth.get("pid") != entry.children[0].pid
+            or auth.get("source_commit") != PINNED_DSH_COMMIT
+        ):
+            raise RuntimeErrorSafe("runtime_restart_identity_unknown", 409)
+        return auth
+
+    async def _plugin_control(self, entry, action, body):
+        from ..plugins.proof import sign
+
+        path = f"/api/research/internal/plugin-runtime/{action}"
+        raw = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+        headers = sign(entry.backend.key, "POST", path, raw, entry.user, "manager")
+        headers.update(
+            {
+                GATEWAY_HEADER: entry.backend.key,
+                "Origin": entry.backend.url,
+                "Content-Type": "application/json",
+            }
+        )
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False, trust_env=False) as client:
+            response = await client.post(entry.backend.url + path, content=raw, headers=headers)
+        if response.status_code != 200 or len(response.content) > 65536:
+            raise RuntimeErrorSafe("runtime_restart_callback_unverified", 409)
+        value = response.json()
+        if not isinstance(value, dict):
+            raise RuntimeErrorSafe("runtime_restart_callback_unverified", 409)
+        return value
+
+    async def _replace_dsh(self, entry, auth, *, allow_missing_auth=False):
+        """Only the Pool's verified, idle DSH child; the Web child stays alive."""
+        root = self.config.root / "users" / entry.user / "research-web"
+        runtime_port = urlsplit("http://" + auth["authority"]).port
+        web_port = urlsplit(entry.backend.url).port
+        if runtime_port is None or web_port is None:
+            raise RuntimeErrorSafe("runtime_restart_identity_unknown", 409)
+        old = entry.children[0]
+        owner = json.loads(_read_private(entry.state / "owner.json"))
+        if (
+            owner.get("instance") != self.instance
+            or owner.get("generation") != entry.generation
+            or owner.get("pids") != [child.pid for child in entry.children]
+            or _read_private(entry.state / "gateway.key").decode("ascii") != entry.backend.key
+        ):
+            raise RuntimeErrorSafe("runtime_restart_identity_unknown", 409)
+        await self._stop_child(old)
+        if not _group_retired(old.pid):
+            raise RuntimeErrorSafe("runtime_restart_retirement_unknown", 409)
+        auth_path = entry.state / "auth.json"
+        if auth_path.exists() or auth_path.is_symlink():
+            current_auth = read_runtime_auth_record(auth_path)
+            if current_auth.get("pid") != old.pid:
+                raise RuntimeErrorSafe("runtime_auth_identity_invalid", 409)
+            auth_path.unlink()
+        elif not allow_missing_auth:
+            raise RuntimeErrorSafe("runtime_auth_identity_invalid", 409)
+        specs = build_process_specs(
+            python=self.config.python,
+            node=self.config.node,
+            project_root=self.config.project,
+            data_root=root,
+            runtime_source=self.config.source,
+            state_root=entry.state,
+            web_host="127.0.0.1",
+            web_port=web_port,
+            runtime_port=runtime_port,
+        )
+        environment = self._environment(root, entry.state, web_port, runtime_port)
+        environment.update(
+            RWB_TENANT_GENERATION=entry.generation,
+            RWB_TENANT_MANAGER_INSTANCE=self.instance,
+            RWB_TENANT_USER=entry.user,
+        )
+        entry.children[0] = self._spawn(specs.runtime.command, environment)
+        entry.backend = Backend(
+            entry.backend.url, entry.backend.key, entry.generation, entry.children[0].pid
+        )
+        self._record(entry)
+        deadline = time.monotonic() + START_TIMEOUT
+        await self._wait_runtime(entry, runtime_port, root, deadline)
+        await self._wait_plugin_guard(entry, root, deadline)
+        return entry.children[0].pid
+
+    async def _wait_plugin_guard(self, entry, root, deadline):
+        path = root / "plugins/guard-state.json"
+        while time.monotonic() < deadline:
+            if entry.children[0].poll() is not None:
+                raise RuntimeErrorSafe("runtime_process_exited")
+            try:
+                value = json.loads(_read_private(path))
+                if (
+                    value.get("pid") == entry.children[0].pid
+                    and value.get("freeze_supported") is True
+                ):
+                    return
+            except (OSError, ValueError, RuntimeErrorSafe):
+                pass  # Only this newly spawned, owned DSH is polled until deadline.
+            await asyncio.sleep(0.05)
+        raise RuntimeErrorSafe("runtime_plugin_guard_unverified", 409)
+
+    async def restart_runtime(
+        self, user_id: str, expected: Backend, transaction_id: str | None = None
+    ):
+        """Freeze births, attest full idleness, replace own DSH, then commit.
+
+        A missing/active/ambiguous participant is deferred without sending signals.
+        Unknown recovery retains the fence and durable evidence for the operator.
+        """
+        user = self._user(user_id)
+        operation = transaction_id or uuid4().hex
+        async with self._lock:
+            cache_key = (user, expected.generation, operation)
+            if cache_key in self._restart_results:
+                return dict(self._restart_results[cache_key])
+            entry = self._instances.get(user)
+            if entry is None or entry.backend != expected or user in self._plugin_frozen:
+                return {"status": "unknown", "reason": "runtime_generation_changed"}
+            if self._request_tickets.get(user):
+                return {"status": "deferred", "reason": "requests_inflight"}
+            try:
+                auth = self._restart_identity(entry)
+            except (OSError, ValueError, RuntimeErrorSafe, RuntimeAuthFileError):
+                return {"status": "unknown", "reason": "runtime_identity_unverified"}
+            self._plugin_frozen.add(user)
+        body = {
+            "generation": entry.generation,
+            "manager_instance": self.instance,
+            "freeze_id": uuid4().hex,
+            "dsh_pid": entry.children[0].pid,
+            "new_dsh_pid": None,
+            "transaction_id": transaction_id,
+        }
+        journal = entry.state / "plugin-restart.json"
+        from ..plugins.service import _atomic
+
+        frozen, stopped, completed, rolled_back = False, False, False, False
+        try:
+            _atomic(journal, {"state": "freezing", **body})
+            # The request can take effect even if its HTTP acknowledgement is
+            # lost. From this boundary onward the backend may already be fenced.
+            frozen = True
+            reply = await self._plugin_control(entry, "freeze", body)
+            if (
+                reply.get("status") != "ready"
+                or reply.get("freeze_id") != body["freeze_id"]
+                or reply.get("dsh_pid") != body["dsh_pid"]
+            ):
+                if reply.get("status") == "deferred":
+                    frozen = False
+                    _atomic(journal, {"state": "deferred", **body})
+                    return {"status": "deferred", "reason": reply.get("reason", "backend_not_idle")}
+                raise RuntimeErrorSafe("runtime_restart_callback_unverified", 409)
+            self._restart_identity(entry)  # PID/key/owner rechecked after awaited callback.
+            _atomic(journal, {"state": "restarting", **body})
+            stopped = True
+            body["new_dsh_pid"] = await self._replace_dsh(entry, auth)
+            reply = await self._plugin_control(entry, "commit", body)
+            if reply.get("status") != "ready":
+                raise RuntimeErrorSafe("runtime_restart_commit_unverified", 409)
+            released = await self._plugin_control(entry, "unfreeze", body)
+            if released.get("status") != "ready":
+                raise RuntimeErrorSafe("runtime_restart_unfreeze_unverified", 409)
+            frozen = False
+            completed = True
+            result = {
+                "status": "ready",
+                "transaction_id": transaction_id,
+                "generation": entry.generation,
+                "runtime_pid": entry.children[0].pid,
+            }
+            _atomic(journal, {"state": "committed", **body})
+            self._restart_results[cache_key] = result
+            self._audit(user, "plugin_runtime_restarted")
+            return result
+        except BaseException as exc:
+            log.warning("tenant_plugin_restart_failed", error_type=type(exc).__name__)
+            if frozen:
+                try:
+                    rollback_reply = await self._plugin_control(entry, "rollback", body)
+                    if rollback_reply.get("status") != "rolled_back":
+                        raise RuntimeErrorSafe("runtime_restart_rollback_unverified", 409)
+                    if stopped:
+                        # The same owned slot remains fenced; rollback restores
+                        # active bindings before a replacement is allowed to run.
+                        body["new_dsh_pid"] = await self._replace_dsh(
+                            entry, auth, allow_missing_auth=True
+                        )
+                    released = await self._plugin_control(entry, "unfreeze", body)
+                    if released.get("status") != "ready":
+                        raise RuntimeErrorSafe("runtime_restart_unfreeze_unverified", 409)
+                    frozen = False
+                    rolled_back = True
+                    _atomic(journal, {"state": "rolled_back", **body})
+                except BaseException as recovery:  # noqa: BLE001
+                    log.error(
+                        "tenant_plugin_restart_recovery_unknown", error_type=type(recovery).__name__
+                    )
+                    _atomic(journal, {"state": "unknown", **body})
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            if frozen:
+                return {"status": "unknown", "reason": "restart_recovery_required"}
+            if completed:
+                return {"status": "unknown", "reason": "restart_receipt_unavailable"}
+            return {
+                "status": "deferred",
+                "reason": "restart_rolled_back" if rolled_back else "restart_not_started",
+            }
+        finally:
+            if not frozen:
+                async with self._lock:
+                    self._plugin_frozen.discard(user)
+            if not completed:
+                self._audit(user, "plugin_runtime_restart_deferred")
+
     async def stop(self, user_id: str) -> None:
         user = self._user(user_id)
         async with self._lock:
+            if user in self._plugin_frozen:
+                raise RuntimeErrorSafe("runtime_restart_deferred", 409)
             if entry := self._instances.get(user):
                 cleanup = asyncio.create_task(self._dispose(entry))
                 try:
@@ -612,6 +964,8 @@ class RuntimePool:
 
     async def close(self) -> None:
         async with self._lock:
+            if self._plugin_frozen:
+                raise RuntimeErrorSafe("runtime_restart_in_progress", 409)
             if self._closed:
                 return
             self._closing = True

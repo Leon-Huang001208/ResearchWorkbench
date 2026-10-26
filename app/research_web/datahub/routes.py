@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
+from ..market_store import MarketStoreError
 from ..store import StoreError
 from .connections import (
     CredentialStoreError,
@@ -22,6 +23,55 @@ class MySQLConfigurationUpdate(MySQLConfiguration):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     password: SecretStr | None = None
+
+
+class WarehouseControl(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    operation: Literal["save", "initialize", "disable"]
+    configuration: dict[str, Any] | None = None
+    profile_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    database_confirmation: str | None = Field(default=None, max_length=64)
+
+
+@router.get("/data/warehouse")
+async def research_warehouse_status(request: Request):
+    hub = request.app.state.research.datahub
+    if not callable(getattr(hub.warehouse, "status", None)):
+        raise StoreError("当前宿主未接入可管理研究仓", "warehouse_management_unavailable", 409)
+    try:
+        return await hub.storage_runner.run(hub.warehouse.status)
+    except MarketStoreError:
+        raise StoreError("研究仓状态不可读取", "warehouse_status_unavailable", 503) from None
+
+
+@router.post("/data/warehouse")
+async def research_warehouse_control(body: WarehouseControl, request: Request):
+    hub = request.app.state.research.datahub
+    if not callable(getattr(hub.warehouse, "status", None)):
+        raise StoreError("当前宿主未接入可管理研究仓", "warehouse_management_unavailable", 409)
+    try:
+        if body.operation == "save":
+            if body.configuration is None:
+                raise ValueError("configuration_required")
+            return await hub.storage_runner.run(hub.warehouse.save, body.configuration)
+        if body.operation == "initialize":
+            return await hub.storage_runner.run(
+                hub.warehouse.initialize, body.profile_id, body.database_confirmation
+            )
+        return await hub.storage_runner.run(hub.warehouse.disable, body.profile_id)
+    except MarketStoreError as exc:
+        codes = {
+            "warehouse_confirmation_mismatch",
+            "warehouse_credentials_unavailable",
+            "warehouse_database_unavailable",
+            "warehouse_database_operation_failed",
+        }
+        code = str(exc) if str(exc) in codes else "warehouse_operation_rejected"
+        raise StoreError("研究仓操作未完成，请核对配置和明确确认的专用数据库", code, 409) from None
+    except ValueError:
+        raise StoreError(
+            "研究仓配置字段或确认信息非法", "warehouse_configuration_invalid", 422
+        ) from None
 
 
 class MigrationRequest(BaseModel):
@@ -40,6 +90,11 @@ class SkillAdmissionRequest(BaseModel):
         default=None, min_length=1, max_length=160, pattern=r"^[a-z0-9][a-z0-9_-]*$"
     )
     loaded: bool = False
+    source_operation: Literal["list", "read"] | None = None
+    source_id: str | None = Field(
+        default=None,
+        pattern=r"^(?:(?:web|file|dataset):[a-f0-9]{24}|dossier:[a-f0-9]{32}:[a-f0-9]{32}:[1-9][0-9]{0,9})$",
+    )
     tool_name: str | None = Field(
         default=None, min_length=1, max_length=300, pattern=r"^[A-Za-z][A-Za-z0-9_.:-]*$"
     )
@@ -49,6 +104,32 @@ class QualityCheckRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
     operation: Literal["check"] = "check"
+
+
+class NativeSearchActivity(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    id: str = Field(min_length=1, max_length=241)
+    title: Literal["web_search", "datahub_search_web", "datahub_search_research"]
+    status: Literal["completed"]
+    detail: str = Field(max_length=16000)
+
+
+class SourceReadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
+    operation: Literal["list", "read"]
+    source_id: str | None = Field(
+        default=None,
+        pattern=r"^(?:(?:web|file|dataset):[a-f0-9]{24}|dossier:[a-f0-9]{32}:[a-f0-9]{32}:[1-9][0-9]{0,9})$",
+    )
+    search_activities: list[NativeSearchActivity] = Field(default_factory=list, max_length=16)
+
+
+class SourceCancelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
 
 
 def _credential_error(exc: CredentialStoreError):
@@ -98,9 +179,41 @@ def apply_migration(body: MigrationRequest, request: Request):
 @router.get("/data/sources/{source_id}/configuration")
 def source_configuration(source_id: str, request: Request):
     try:
-        return request.app.state.research.datahub.connections.source_status(source_id)
+        hub = request.app.state.research.datahub
+        result = hub.connections.source_status(source_id)
+        check = hub.authorization_checks.get(source_id)
+        if check and check["configuration_digest"] == hub.source_configuration_digest(source_id):
+            result["authorization_check"] = check["result"]
+        return result
     except CredentialStoreError as exc:
         return _credential_error(exc)
+
+
+@router.post("/data/sources/{source_id}/configuration/verify")
+async def verify_source_authorization(source_id: str, request: Request):
+    import httpx
+
+    from .providers import ProviderError
+    from .providers_external import verify_quantapi_authorization
+
+    if source_id != "ext_ths" or request.headers.get("X-Research-User-Action") != "?1":
+        raise StoreError(
+            "只允许显式验证官方iFinD HTTP授权", "authorization_check_not_admitted", 403
+        )
+    hub = request.app.state.research.datahub
+    before = hub.source_configuration_digest(source_id)
+    try:
+        result = await verify_quantapi_authorization(hub.connections, transport=hub.transport)
+    except (ProviderError, httpx.HTTPError, TimeoutError):
+        raise StoreError(
+            "HTTP授权未验证，请核对现有refresh_token和账号权限；未更新或轮换token",
+            "source_authorization_unverified",
+            409,
+        ) from None
+    if before != hub.source_configuration_digest(source_id):
+        raise StoreError("验证期间凭据配置发生变化", "data_source_authorization_changed", 409)
+    hub.authorization_checks[source_id] = {"configuration_digest": before, "result": result}
+    return result
 
 
 @router.put("/data/sources/{source_id}/configuration")
@@ -174,7 +287,11 @@ async def datasets(sid: str, request: Request):
 
 @router.get("/sessions/{sid}/datasets/{did}")
 async def detail(sid: str, did: str, request: Request):
-    return request.app.state.research.datahub.detail(sid, did)
+    service = request.app.state.research
+    metadata = service.datahub.detail(sid, did)
+    if metadata.get("snapshot_kind") == "mcp_evidence":
+        service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+    return metadata
 
 
 @router.get("/sessions/{sid}/datasets/{did}/rows")
@@ -185,14 +302,22 @@ async def rows(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ):
-    return request.app.state.research.datahub.rows(sid, did, offset, limit)
+    service = request.app.state.research
+    metadata = service.datahub.detail(sid, did)
+    if metadata.get("snapshot_kind") == "mcp_evidence":
+        service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+    return service.datahub.rows(sid, did, offset, limit)
 
 
 @router.get("/sessions/{sid}/datasets/{did}/files/{name}")
 async def download(
     sid: str, did: str, name: Literal["rows.csv", "rows.json", "manifest.json"], request: Request
 ):
-    content = request.app.state.research.datahub.snapshots.read(sid, did, name)
+    service = request.app.state.research
+    metadata = service.datahub.detail(sid, did)
+    if metadata.get("snapshot_kind") == "mcp_evidence":
+        service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+    content = service.datahub.snapshots.read(sid, did, name)
     return Response(
         content,
         media_type="text/csv" if name.endswith(".csv") else "application/json",
@@ -206,6 +331,14 @@ async def business_query(body: InternalBusinessQuery, request: Request):
     await service.ensure_owned()
     try:
         result = await service.datahub.query(body.session_id, body.call_id, body.query)
+        if service.store.session(body.session_id).get("report_workflow", {}).get("quality_policy"):
+            from ..report_workflows.evidence import refresh_weekly_news_evidence
+            from ..research_quality_service import latest_receipt, write_business_snapshot
+
+            refresh_weekly_news_evidence(service, body.session_id)
+            contract = latest_receipt(service, body.session_id).get("research_contract")
+            if contract:
+                write_business_snapshot(service, body.session_id, contract)
         service.notify()
         return result
     except asyncio.CancelledError:
@@ -218,7 +351,12 @@ async def skill_preflight(body: SkillAdmissionRequest, request: Request):
     await service.ensure_owned()
     async with service.lock:
         return service.native_admission(
-            body.session_id, body.native_name, body.tool_name, loaded=body.loaded
+            body.session_id,
+            body.native_name,
+            body.tool_name,
+            loaded=body.loaded,
+            source_operation=body.source_operation,
+            source_id=body.source_id,
         )
 
 
@@ -229,6 +367,29 @@ async def research_quality(body: QualityCheckRequest, request: Request):
     service = request.app.state.research
     await service.ensure_owned()
     return await check_quality(service, body.session_id)
+
+
+@router.post("/internal/data/research-source")
+async def research_source(body: SourceReadRequest, request: Request):
+    from ..research_web_sources import execute_source
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    return await execute_source(
+        service,
+        body.session_id,
+        body.call_id,
+        body.operation,
+        body.source_id,
+        [activity.model_dump() for activity in body.search_activities],
+    )
+
+
+@router.post("/internal/data/research-source/cancel")
+async def research_source_cancel(body: SourceCancelRequest, request: Request):
+    from ..research_web_sources import cancel_source
+
+    return cancel_source(request.app.state.research, body.session_id, body.call_id)
 
 
 @router.post("/internal/data/cancel")

@@ -2,13 +2,16 @@
 
 import hashlib
 import json
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .adjustment_contract import validate_adjustment_parameters
+
 SCHEMA_VERSION = "1.0.0"
+RAW_STOCK_SEMANTICS = "cn_stock_daily_cny_share_v1"
 SOURCES = {
     "fund_nav": "基金净值",
     "cls_telegraph": "财联社电报",
@@ -72,8 +75,8 @@ CAPABILITY_PARAMETERS = {
     "market_snapshot": {"assets", "asset_type", "fields"},
     "index_data": {"index", "dataset", "date"},
     "financials": {"asset", "statements", "periods"},
-    "market_activity": {"asset", "dataset", "start_date", "end_date"},
-    "factor_macro": {"series", "assets", "start_date", "end_date"},
+    "market_activity": {"asset", "dataset", "start_date", "end_date", "dates"},
+    "factor_macro": {"series", "assets", "dates", "start_date", "end_date"},
     "fund_data": {"dataset", "code", "start_date", "end_date", "year", "limit"},
     "search_news": {"query", "limit", "start_date", "end_date"},
     "search_announcements": {"asset", "query", "start_date", "end_date"},
@@ -207,9 +210,35 @@ class BusinessQuery(BaseModel):
     allow_fallback: bool = Field(default=False, strict=True)
     parameters: dict[str, Any] = Field(default_factory=dict)
     refresh: bool = Field(default=False, strict=True)
+    purpose: Literal["display", "research", "backtest"] = "research"
+    quality: Literal["strict", "allow_stale"] = "strict"
+    as_of: datetime | None = None
+    required_semantics: Literal["cn_stock_daily_cny_share_v1"] | None = None
 
     @model_validator(mode="after")
     def safe_parameters(self):
+        if self.required_semantics is not None:
+            from .providers import ProviderError, cn_stock_identity
+
+            if (
+                self.capability != "market_bars"
+                or self.parameters.get("asset_type") != "stock"
+                or self.parameters.get("frequency") != "daily"
+                or self.parameters.get("adjustment") != "none"
+            ):
+                raise ValueError("规范原始日线合同仅支持明确沪深股票daily/none")
+            try:
+                cn_stock_identity(self.parameters.get("asset"))
+            except ProviderError as exc:
+                raise ValueError("规范原始日线合同证券身份非法") from exc
+        if self.quality == "allow_stale" and self.purpose != "display":
+            raise ValueError("只有展示查询可以显式接受陈旧数据")
+        if self.as_of is not None and self.as_of.tzinfo is None:
+            raise ValueError("历史时点必须包含时区")
+        if self.as_of is not None and self.as_of > datetime.now(UTC):
+            raise ValueError("历史时点不能位于未来")
+        if self.purpose == "backtest" and self.as_of is None:
+            raise ValueError("正式回测必须明确历史时点")
         if len(self.parameters) > 20:
             raise ValueError("业务参数过多")
         forbidden = {
@@ -236,10 +265,42 @@ class BusinessQuery(BaseModel):
             TableQueryParameters.model_validate(self.parameters)
             if self.source not in {"auto", "mysql"}:
                 raise ValueError("表查询仅支持已配置的 MySQL 来源")
+        elif self.capability == "market_activity":
+            days = self.parameters.get("dates")
+            if self.parameters.get("dataset") == "chip_turnover":
+                if (
+                    set(self.parameters) != {"asset", "dataset", "dates"}
+                    or not isinstance(days, list)
+                    or not 1 <= len(days) <= 32
+                    or any(
+                        not isinstance(d, str) or date.fromisoformat(d).isoformat() != d
+                        for d in days
+                    )
+                    or days != sorted(set(days))
+                ):
+                    raise ValueError("筹码换手率仅支持单证券、至多32个唯一有序日期")
+            elif "dates" in self.parameters:
+                raise ValueError("离散日期仅属于封闭筹码换手率区块")
+        elif self.capability == "factor_macro":
+            if self.source == "tinysoft":
+                validate_adjustment_parameters(self.parameters)
+            elif "dates" in self.parameters and self.source != "auto":
+                raise ValueError("显式日期因子查询仅支持天软")
         return self
 
     def fingerprint(self, *, include_refresh=False):
         value = self.model_dump(exclude=set() if include_refresh else {"refresh"})
+        # Existing receipts are immutable: default policy retains the v1 digest.
+        for key, default in (
+            ("purpose", "research"),
+            ("quality", "strict"),
+            ("as_of", None),
+            ("required_semantics", None),
+        ):
+            if value.get(key) == default:
+                value.pop(key, None)
+        if self.as_of is not None:
+            value["as_of"] = self.as_of.isoformat()
         return hashlib.sha256(
             json.dumps(["business-1.0.0", value], sort_keys=True, ensure_ascii=False).encode()
         ).hexdigest()

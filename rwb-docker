@@ -3,6 +3,13 @@
 set -eu
 umask 077
 PROJECT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+# Recovery shares the Python manager lock; dispatch before this shell acquires it.
+if [ "${1:-}" = builder-reconcile ]; then
+  shift
+  command -v python3 >/dev/null 2>&1 || { echo builder_reconcile_python_unavailable >&2; exit 1; }
+  cd "$PROJECT"
+  exec python3 -m research_workbench_entrypoint.builder_reconcile "$@"
+fi
 if [ -f "$PROJECT/.git" ]; then
   GIT_DIRECTORY=$(sed -n 's/^gitdir: //p' "$PROJECT/.git")
   GIT_COMMON=$(CDPATH= cd -- "$GIT_DIRECTORY/../.." && pwd -P)

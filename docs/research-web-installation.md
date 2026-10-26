@@ -5,6 +5,122 @@
 Docker上限12GiB需独立授权和安全重启后实测，公开Native干净安装仍由原macOS Bootstrap验收。
 详见[Docker手册](research-web-docker.md#12-gib-与持久构建队列)。
 
+报价单位修复沿用锁定CJPY0.5.2及三公开安装入口，无新依赖/配置/数据库迁移；只给已核实新响应附单位元数据。requirements/web.in、web.lock、setup_web.py、Bootstrap流程保持，最终同候选Mac干净安装/DSH/3081/8088/Doctor继续取证，不用既存venv或真实专业源通过替代安装CI。
+
+封闭apply-market-breadth/reviewed-market-breadth-v1固定b800e503前版和4c72ed43组合产品，沿现有安装锁与DSH，不新增依赖或初始化数据库。操作员最终候选必须重做同候选macos-14干净安装；旧产品CI不能认证新操作员。当前旧Host活动未知仍延期，不以安装通过代替现场空闲与保全。
+
+Wind 恢复准备仅使用既有标准库及 Web 依赖，未增加安装步骤、凭据或可配置能力；公开 setup 入口、锁文件、固定 DSH 与 Doctor 合同保持，仍以同候选 Mac 干净安装证明兼容。本轮没有恢复 apply；旧不可变 controller.pyz 的兼容迁移须单独受控交付，不能用普通 restart 或替换 controller/hash 绕过。
+
+apply-etf-weekly-admission-v2是新增封闭身份，修复旧Host持久needs_attention在原Primary活动门先拒的循环。旧安装/控制器/依赖不变；v2身份预检不是idle，必须桥接/GET后完整g.verify_primary及fresh strict验证、原idle通过。旧v1和恢复身份保持，真实执行由唯一协调者完成。
+
+apply-etf-weekly-admission固定36fd990c前版与完整产品祖先bacb423ce（含PR227单位/出处证据及已批准PR229行情展示），要求显式结束等待标志及本地私有封印action文件；其摘要由源码固定，不接收凭据或任意JSON修改。冷操作员先资格验证与三锁，领域动作保留未知并留下独立intent/receipt，窄GET刷新旧Host，再要求原完整idle通过。安装入口/依赖/旧模式不变，真实维护与统一切换另行批准。
+
+新增周报内部scope/journal模块及脚本冻结文件策略随既有Web包和Runtime JS发布，无新增包/凭据/服务或用户配置。setup三入口、固定DSH构建和同候选Mac安装/3081/8088/Doctor保持；JS/Python范围协议必须同候选，不以旧安装或合成测试认证真实Word/Excel/模型。
+
+全市场预览修复的封闭 `apply-market-preview` 复用现有安装栈与 version4 保全事务：仅接受当前36fd990c前版及获批e56d9718组合产品；reader193f4fcc与web.lock7c631d4f不变，不安装新依赖或启用数据库。旧安装入口保持，最终候选仍须同候选Mac干净安装及独立部署验收。
+
+资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
+
+资产V8沿固定Native事务更新现有安装清单，锁与严格evidence身份复用已审V7常量；没有新增依赖、设置或数据根。公开setup入口、3081/8088健康与Doctor仍由最终候选Mac干净安装验收；实际常驻保全另证。
+
+华安历史验收只增加原Host内Run分支、渲染注记及详情按钮，不增加依赖、凭据、服务或配置项；沿原三公开安装入口与固定DSH，既有打包包含相同渲染脚本和前端文件。原三CI与Mac干净安装分别验证，源码准备不认证实际Office/Wind/模型或历史稿交付，不启用定时。
+
+华安 v2 组合产品56709a8d继续复用既有venv与7c631d4f锁，无新包或凭据配置；前版仍5343e18d。原三公开安装入口及同候选Mac干净安装门保留，旧v1/PR209成功不能替代新操作员CI或实际Office验收。
+
+华安固定Native升级模式只接受前版5343e18d及包含已合并产品988046d的已审目标，沿原安装清单与7c631d4f锁复用当前venv；不安装新依赖或接收新凭据。配置源码仍须原三CI与同候选Mac干净安装，实际切换另取明确授权，之后才验证原生Excel和Word；SDK存在与厂商可调用不混为一谈。
+
+## 今日发现安装兼容（2026-10-23）
+
+本轮复用现有httpx/FastAPI/Pydantic/Automation/DSH，无新Python或Node包；已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py，无需改变依赖或安装器。三公开入口仍从干净checkout安装；原Mac Bootstrap同一步下载并逐字节核验discovery.mjs/css，不增加job/runner/timeout或他平台dispatch。私有账号通用Automation保持0，宿主仅给窄跟踪注入RWB_DISCOVERY_TRACKING_ENABLED=1；只有独立启用且owner后端存活的计划才由原调度器执行，容量延期不保证准点。安装成功不等于来源、真实模型质量或生产计划已验收，详见[今日发现](research-web-discovery.md)。
+
+SPDR 四项快照使用现有 httpx 和 Python 标准库；已核对 requirements/web.in、web.lock、scripts/setup_web.py、
+setup-web.sh、setup-web.cmd 和 Bootstrap，均无需为此新增依赖或安装步骤。没有新配置、账号或秘密入口，
+Doctor 既有来源/仓库状态合同保持。同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor 仍须实际通过。
+
+2026-10-23：终端固定Native部署复用现有`apply-market-terminal`事务，仅接受冻结前版和产品候选。当前产品检查点尚待PR201合入后由主任务固定为最终PAYLOAD，不能将预检检查点当作可部署版本。固定目标web.lock身份不变，不安装新包；安装清单同步／恢复沿原受管事务。最终组合仍须同候选macos-14干净安装与原两项仓库门，实际部署另证，详见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+全市场终端v2不新增Python/Node依赖或数据库迁移；原setup-web.sh/setup-web.cmd/python scripts/setup_web.py干净安装合同保持。新的market-terminal.mjs作为同源静态模块加入既有Mac安装HTTP核验；金元普通客户端未认证官方持仓接口，安装成功不等于已接通券商。
+管理员Docker构建器登记与实际资源不一致时，使用`rwb-docker builder-reconcile`只读预览，审查当前Engine ID、endpoint及预算后以预览指纹显式恢复。该命令不替代公开Web安装三入口，不装Python依赖、不重置Docker、不切换Native常驻服务。完整故障边界见[Docker合同](research-web-docker.md)。
+
+2026-10-23市场限价/昨日成交额/资金历史迭代不新增项目依赖，一键安装三入口、固定DSH与Doctor合同保持，最终同候选Mac干净安装仍必需。apply-market-history复用已批准主线锁文件7c631d4f及原baostock/psycopg版本，不安装或配置数据库；正式部署前实际核验现有包与pip check，不能只更新清单。用户允许的隔离测试依赖安装只影响任务.venv，不改变常驻环境。
+华安 Excel 先行复用已声明的 xlwings/openpyxl，不新增 SDK、安装依赖或凭据接收面。仅有已加载 Wind 的本机 Excel 才可真实采集；Mac 新独立进程心跳通过不足以证明历史函数可用。三个安装入口、固定 DSH、Mac 干净安装/健康/Doctor 门继续保留，未执行 CI/Office/跨平台不得写通过。
+
+## 资产静态资源补充（2026-10-23）
+
+本轮不新增或安装依赖；`requirements/web.in`、`web.lock` 与 `scripts/setup_web.py` 保持不变，原三个公开安装入口继续适用。新增 `asset-layout.css`、`asset-format.mjs`、`asset-chips.mjs`、`asset-chip-panel.mjs` 随原UI目录打包；现有macOS Bootstrap同一步HTTP逐字节核对这四份资源及原固定图表库/许可证。CI没有厂商凭据时仍只显示CJPY已安装待配置。本机真实供应商预检和浏览器证据独立于CI；同候选Mac干净安装、固定DSH、3081/8088与Doctor仍是门。
+
+
+当前用户已批准PR188／v5组合验收后一起部署已合并锁定baostock0.9.4／psycopg3.3.6；数据库不启用／不迁移、外盘不改，不新增数据库服务或连接配置。v5当前PAYLOAD为完整产品88ef3817、PREVIOUS仍51f09；依赖变化来自PR188已审锁文件，原profile及一行读取修复自身不引入任意依赖。旧a114候选三CI全PASS不能代替新组合的原三CI／同候选Mac干净安装，本轮文档不执行包安装或部署。
+
+资产v5索引预检修复（2026-10-22）只修原操作员的读取绑定：业务index复用既有64 MiB安全读取，部署元数据保持1 MB，旧profile不变。requirements/web.in、web.lock、setup_web.py及Mac Bootstrap无需改变依赖或安装流程；三个一键入口和原同候选Mac干净安装／固定DSH／3081／8088／Doctor门保留。原8.67 MB索引停机前拒绝与PR187 Constraints失败不写成安装或部署成功，修补候选须重新通过原三CI；不裁剪账号索引、不安装包或处理凭据。
+
+2026-10-22资产交互v5使用既有macOS Native操作员，固定旧51f09与PR185产品9bc4，入口`apply-assets-v5`；不新增安装参数、依赖、凭据接收面或Doctor能力。已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py、本页及research-web-bootstrap.yml，依赖／安装器／workflow字节均无需改动。原setup-web.sh、setup-web.cmd、python scripts/setup_web.py三入口及同候选macos-14干净安装、固定DSH、3081／8088和Doctor门保留；产品旧CI与本机installed环境不认证v5最终候选安装通过。实际切换及固定51f09恢复见[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产交互与结构化数据迭代继续使用现有CJPY 0.5.2、Python锁、固定DSH及本地ECharts／Chart.js。`asset_directory.py`、`providers_cjpy_assets.py`与资产搜索静态模块随既有Web包安装，不新增Python／Node依赖、系统配置或秘密接收面。已核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、本安装文档和 `.github/workflows/research-web-bootstrap.yml`；requirements与安装器无须新增依赖；Bootstrap仅在原静态下载／逐字节比较两处名单追加asset-search.mjs，现覆盖16项资产，不加job／runner／条件。此结论的安装兼容性仍待最终同候选 `macos-14` 干净checkout、固定DSH构建、3081／8088健康和 `rwb web doctor --json` 证明；本机已有包不能算安装PASS。原 `./setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 三入口与所有平台门保留。
+
+目录只读取当前账号已配置的天软连接，首次打开可能显示加载／未授权，24小时同授权旧缓存可继续显示并标过期；来源配置变化不复用旧目录。不复制开发账号凭据、不自动配置厂商或调用模型。新Provider只声明本轮封闭A股能力；Windows／Linux原生、Docker及常驻部署仍分别记录实际证据，源码和本机预检不自动更新原常驻服务。协议及文件见[资产目录合同](research-web-datahub.md#资产目录与结构化区块)。
+
+## 可选研究仓与只读 Doctor
+
+研究仓是显式配置的可选能力；安装驱动、保存配置及启用标记都不能证明数据库连通、schema权限或数据完整。`rwb web doctor --json` 的 `research_warehouse` 只检查当前实例的 `warehouse.json` 形状、私有目录/文件权限与 `psycopg` 模块可发现状态，不连接PostgreSQL、不读凭据、不调用厂商，也不创建或修改配置。该字段不输出host、数据库名、用户名、数据根、profile ID或owner。
+
+未配置显示 `state=unconfigured`，不阻断整体Doctor。有效配置显示 `state=configured` 和真实 `enabled` 标记；两者都保持 `connectivity=unknown`、`readiness=not_verified`。格式、权限、链接或内嵌秘密字段异常显示 `state=invalid`；驱动缺失单独显示 `driver=missing`。真实数据库可用性必须在UI中显式验证，Doctor不会把旧启用标记或配置存在当成已通过。Windows ACL和其他平台实机验证仍按各平台任务独立记录。
+
+研究仓基座新增锁定 `psycopg[binary]` 3.3.6 与 `baostock` 0.9.4，用户仅授权本任务隔离环境安装及有界免费验证。公开安装器仍从 `requirements/web.lock` 的哈希集合安装，`scripts/setup_web.py` 无额外全局依赖或服务安装步骤。驱动安装不创建业务库，不启用数据采集，不迁移原件；正式库配置/权限和部署另行确认。`setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 与既有 macOS Bootstrap 干净安装/固定DSH/3081/8088/Doctor门保留，尚待本候选CI证明兼容。外盘ExFAT且无独立备份，不配置为活动数据库数据根。
+
+
+2026-10-22 插件基座复用既有 Python/Node 依赖与固定 DSH，公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py、Bootstrap 工作流保持。管理员从能力中心导入固定 ZIP，核对摘要/文件/精确权限后审核；导入不执行脚本或复制 Codex/Claude 凭据。macOS Hook 仅在 Seatbelt 可用时启用，其他平台显示受限。macOS 受管本地 MCP 仅支持经过显式 offline-sandbox 权限和实际 runtime/安装树/schema 摘要审核的离线 Python；安装包只读、独立 scratch 可写，禁止网络、子进程与供应商凭据。npm/Node 和非 macOS 本地执行保持拒绝，固定远程端点保留原生审批流程；Doctor 的 mcp_managed_local_sandbox 仅报告平台入口且 acceptance 保持 NOT_RUN；详情见[插件合同](research-web-plugins.md)。最终候选仍须同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor，当前本地夹具不替代此门。
+
+2026-10-22 v4部署只复用现有Native操作员及生产venv，固定旧5495和PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py与原Mac Bootstrap合同保持，不增依赖/流程。产品Mac39730452006实际checkout654fa6、581秒，干净安装/固定DSH/3081/8088/doctor及15项静态资源通过；v4工具仍须自身最终同候选CI/安装与部署证据，不能复用产品通过代替。旧v3已正式恢复5495并保全，旧v1/v2/v3恢复及controller/evidence字节不变，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
+2026-10-22 Wind产品PR177已合并，常驻切换单独使用`reviewed-asset-observation-v3`/`apply-assets-v3`：旧主实例/网关必须精确5495，产品必须精确a0ff3ae2；最终操作员候选仍需原三CI及同候选macOS干净安装证据。公开安装三入口、锁定依赖、固定DSH和生产venv保持，不新增依赖、厂商权限或系统配置。用户已授权本轮常驻部署，root在验收后按原锁/空闲/全账号索引保全事务执行；文档或产品CI不等于已切换。旧v1/v2恢复、controller/evidence字节保持，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
+2026-10-22 Wind工作区增加Host内历史任务、兼容Store键与账号图表偏好，继续使用现有CJPY 0.5.2、ECharts 5.5.0、Chart.js 4.4.7及唯一DSH；没有新依赖、安装参数或秘密接收面。公开三安装入口、`requirements/web.in`/`web.lock`、`scripts/setup_web.py`与Bootstrap均按现有合同核对；未修改这些文件的兼容性仍必须由同候选macos-14干净安装、固定DSH构建、3081/8088及doctor证明。历史取数/复权只在已授权来源可用后执行，旧观察与研究材料不迁移；5495是该历史迭代记录的部署基线，本轮实际版本与切换以独立受管部署证据为准，开发态测试不表示已部署。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)。
+
+全市场概览使用既有固定 `httpx`／AKShare 依赖与产品静态资源，不新增包、厂商配置或秘密。公开安装器必须包含 market Python模块、JS和CSS；三安装入口、requirements锁与固定DSH合同保持，仍须同候选macOS Bootstrap核验干净安装、3081/8088健康及Doctor。公开行情实际覆盖另作本地验证，CI夹具不证明当日源可用；常驻服务不由源码合并自动切换。
+
+资产摘要布局与图表主题迭代只修改既有 Web 静态模块：紧凑交易／估值、来源纯投影、折叠状态及透明图表；继续使用已批准本地 ECharts 5.5.0／Chart.js 4.4.7，没有新 Python／Node 依赖、厂商 SDK、设置、秘密或数据库迁移。公开三入口、`requirements/web.in`／`web.lock`、`scripts/setup_web.py` 与 Bootstrap 工作流保持既有合同；最终候选仍须本地 macOS 验证及同候选 `macos-14` 干净安装、固定 DSH 构建、3081／8088 健康和 Doctor 证据。源码合并与浏览器结果不等于常驻更新；常驻切换须在产品版本冻结后另行交付绑定实际 previous 与精确 payload 的正式版本化封闭 profile，既有部署 profile 不自动兼容本轮资产摘要。
+
+macOS显式资产部署的CI日志复核使用120秒有界下载，普通资格命令仍30秒；读取器完整SHA256由已审操作员绑定。无需新依赖或安装参数，原干净安装、固定DSH、Doctor与恢复门保持，详见[部署合同](research-web-gateway-upgrade.md)。
+
+资产观察 AF 连续指标区随既有 Web 包安装，新增已独立授权的本地静态 ECharts 5.5.0 与 Chart.js 4.4.7，固定版本、许可及SHA-256，不依赖CDN或开发者全局包；无新Python包、厂商SDK、秘密或模型权限。公开 `./setup-web.sh`、`setup-web.cmd` 和 `python scripts/setup_web.py`、`requirements/web.in`／`web.lock`、固定DSH及原Bootstrap合同保持。交付须核对本地静态库、wheel及干净安装物逐字节一致，并由最终候选 `macos-14` 的3081／8088健康与Doctor证明安装兼容；核对文件无须修改的结论也须由安装CI验证。本机已有环境与浏览器夹具不能替代此门，真实CJPY冷启动首次查询、逐区刷新及Wind可用性另留证据。
+
+显式联合升级保留独立的常驻发布 clone；仅构建源码使用受审 source 的 common directory，两发布角色分别绑定原 Git 目录/inode 和同一 GitHub origin。目标对象缺失在停机前拒绝，不修改既有安装布局或凭据。
+
+现有常驻的模型服务商后端更新使用[显式联合升级](research-web-gateway-upgrade.md#模型服务商联合升级)，须受审精确 SHA、Mac 干净安装证据、真实空闲及恢复准备；不替换原控制器、不安装新依赖、不迁移凭据/会话。公开安装入口和依赖锁保持。
+
+网关冻结恢复任务显式提供既有系统/Homebrew工具PATH，安装前核验Git LFS；本轮不安装新依赖、不修改公开安装入口或全局环境。干净Mac Bootstrap仍是必需门。
+
+需保留旧主实例版本时，显式 `apply-ui --preserve-primary` 使用v3恢复合同。三段受限差异、原锁/空闲/排空/保全均通过才更新网关；公开安装入口和依赖锁不变，仍须同候选Mac干净安装CI。
+
+已验收UI的网关更新使用[显式apply-ui事务](research-web-gateway-upgrade.md#已验收界面的显式更新)：工具和产品各自核对资格，主实例不重装；恢复artifact有独立内容身份，不替换旧控制器。没有新依赖、凭据、数据库迁移或默认安装步骤，原锁与Mac Bootstrap安装/健康门保持。
+
+自由分析/中文报告修复沿用已锁定的stdlib、python-docx和ReportLab，无新增依赖、设置、凭据或迁移。公开安装入口、requirements/web.in/web.lock、setup_web.py保持；同候选macOS Bootstrap验证干净安装与固定DSH/健康。包内原四个SDK文件及字体白名单不扩大，旧会话和模型配置原位保留。
+
+网关安全更新在SIGTERM后等待PID真正消失，退出未回收或签名变化都不触发追加信号。完整保全journal专用读取上限16 MB，首次信号前检查实际序列化字节并保留4096字节阶段余量；通用配置读取上限保持1 MB。Mac Bootstrap用临时子进程和临时大journal验证这两条合同。
+
+Mac网关更新通过内核proc_pidpath核对实际Python映像，兼容Homebrew启动器exec到Python.app；argv0只接受该受管解释器的三个精确路径，完整参数、PID起始时间及8089 listener继续核对。Mac Bootstrap在原环境校验步骤执行原生探针，不增加依赖或安装流程。
+
+附接网关与主实例版本不一致时，使用显式[空私有池安全升级](research-web-gateway-upgrade.md)；不能只替换 binding 或放宽自动白名单。主实例继续运行，活动/未知延后，失败恢复网关的匹配绑定与旧源码。公开安装依赖、固定 DSH 和安装入口不变，兼容性由同候选 macOS Bootstrap 验证。
+
+本轮网页日期、数字声明与历史/URL 修复没有新增依赖、设置、凭据或迁移；Web 锁、setup_web.py 和固定 DSH 保持，干净安装仍由同候选 macOS Bootstrap 核对。其他平台原生验收保持独立。
+
+本轮仅统一业务报告提示和原一次补查路径，现有会话、模型设置、依赖锁、安装入口与固定 DSH 均保持；由最终同候选 Mac Bootstrap 证明干净安装兼容，不安装新依赖。
+
+本轮数字与最终报告链接修复不增加依赖、凭据、设置或迁移；requirements/web.in、web.lock、setup_web.py和固定DSH不变。同候选macOS Bootstrap仍验证干净安装与健康；未执行的其他平台层保留NOT_RUN。
+
+旧会话 SDK 兼容依赖包内既有三个报告 Python 文件与 Noto 字体，均随现有 wheel/资源合同交付；没有新依赖、设置或迁移。Host 沙箱固定只读这些文件，既有会话目录不覆盖；最终候选仍须 Mac 干净安装与本机 Native 验证。
+
+报告配方使用现有标准库及报告依赖，无新增安装项、用户配置、数据库迁移或模型配置格式。公开三入口和锁文件保持，最终候选仍需 macOS Bootstrap 干净安装证据；现有会话及模型凭据原位保留。
+
+FinGPT隔离比较不新增依赖或生产配置；测试模块随既有wheel携带但无自动启动入口。Lite设置仅写本次case的Keychain账户，Flash仅复用受管只读凭据调用；公开setup、锁文件、固定DSH和常驻服务保持。新控制器的打包/安装由同候选macOS Bootstrap验证。
+
+正文取证使用现有 Python 标准库及原私有回调，无新依赖或凭据设置。requirements/web.in、web.lock、setup_web.py 和 Mac Bootstrap 安装流程保持；新增模块须随 wheel 进入干净安装。正文读取与取消、版本回执元数据超出 resident 自动兼容范围，须经精确候选专项复核后在空闲门内切换，不扩大自动白名单或搬迁研究数据。
+
 本次质量修复只使用已具备的Python标准库及既有报告依赖，不新增依赖、数据库schema或模型配置。公开安装入口与requirements/web.in、web.lock、setup_web.py、Bootstrap保持；仍须由本机与最终候选macOS干净安装CI证明兼容，不能依赖开发环境推断。
 
 管理员 stage 停止仍保留容量；已完成任务仅通过 Docker 手册的 release-reservation 精确身份入口释放预留，容器和卷保留。公开安装与凭据初始化合同不变。
@@ -15,11 +131,11 @@ primary 的 index.html、/static 资源及原 /api/research/aihot/ 阅读请求�
 
 ### 显式保留既有常驻实例
 
-已安装的 Mac 可在单独授权部署后，由操作员将唯一 primary 管理员绑定到经过目录身份、安装 SHA、进程归属和实际健康核验的原 Web/DSH。原数据根、模型配置及 Keychain 命名空间原位保留；原监督器继续拥有其生命周期。primary 不能被账号页停用或停止，其他用户仍使用新用户根；原实例占用两个总槽中的一个。此绑定仅限可信的服务器所有者管理员，原个人实例保持原能力，不能绑定普通受邀用户。
+已安装的 Mac 可在单独授权部署后，由操作员将唯一 primary 管理员绑定到经过目录身份、安装 SHA、进程归属和实际健康核验的原 Web/DSH。原数据根、模型配置及 Keychain 命名空间原位保留；原监督器继续拥有其生命周期。primary 不能被用户管理界面停用或停止，其他用户仍使用新用户根；原实例占用两个总槽中的一个。此绑定仅限可信的服务器所有者管理员，原个人实例保持原能力，不能绑定普通受邀用户。
 
 独立 `com.research-workbench.multiuser-server` 用户 LaunchAgent 用已审核的精确源码 SHA 执行 `python -m app.research_web.multiuser.resident --root <private-root>`；解释器、Node 与固定 DSH 复用已安装环境，无新依赖。私有 `resident.json` 保存绑定身份及部署 SHA。先验证回环 8089，再持有原 supervisor/admission/lifecycle 锁复查空闲，在路由切换前写 `run/cutover.json`，检查原会话文件与模型配置摘要后，才把既有 Tailscale HTTPS 根代理 8088 改为 8089。该 journal 存在时拒绝业务写入；原实例不停止，不改变自动兼容白名单。失败仅恢复本次拥有的原路由并停用新网关，不覆盖研究数据。安装日志与保全证据仅存本机私有目录。
 
-初始管理员密码可由已授权操作员随机生成并只写入 macOS Keychain，配置只记录服务名/账号引用；不得出现在 argv、环境、日志、报告或聊天中。用户登录后可在账号页设置新密码。匿名 `/api/server/health` 只显示网关就绪及 primary 先前核验标记，不探测模型、不反复启动子进程；认证主账号的深度核验采用单飞与三秒缓存。正常退出只回收新用户 pair；登录启动等待原监督器恢复。仅在内核 boot UUID 已变化且旧 owner 完整、账号已知、权限与目录安全时，归档并退休旧控制元数据；同 boot 崩溃及未知归属仍拒绝启动。登录后启动与完整重启实测分别记录，FileVault 与系统登录策略不改变。
+初始管理员密码可由已授权操作员随机生成并只写入 macOS Keychain，配置只记录服务名/账号引用；不得出现在 argv、环境、日志、报告或聊天中。用户登录后可通过菜单顶部用户名进入账号资料；管理员在“设置 → 用户管理”重置密码，普通用户联系管理员。匿名 `/api/server/health` 只显示网关就绪及 primary 先前核验标记，不探测模型、不反复启动子进程；认证主账号的深度核验采用单飞与三秒缓存。正常退出只回收新用户 pair；登录启动等待原监督器恢复。仅在内核 boot UUID 已变化且旧 owner 完整、账号已知、权限与目录安全时，归档并退休旧控制元数据；同 boot 崩溃及未知归属仍拒绝启动。登录后启动与完整重启实测分别记录，FileVault 与系统登录策略不改变。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
@@ -29,7 +145,7 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 本次24GiB/12核Mac mini实测3个额外pair约1.06GiB RSS，60个并发列表请求通过，swap未增长，生产选择额外3（加原primary共4）。保留约6GiB工作波动预算及主机余量；RSS是轻量下界，重型研究、长上下文/大量文件及真实模型并发尚未验证。满槽拒绝新实例，不驱逐既有用户；减少配置只在受控重启后生效，仍须先确认无活跃研究，保全数据及模型。没有自动回收或硬性内存配额，额外用户的退出登录也不释放实例槽。
 
-此模式是显式选择的独立服务器入口：Mac mini 保存所有账号的研究数据；用户通过浏览器登录，管理员在账号页创建/停用用户、重置密码和停止用户实例。没有开放注册。默认原单用户入口、个人数据、resident 与 Docker 实例均不转换为服务器；不自动部署 Tailscale、迁移数据或复制原模型密钥。
+此模式是显式选择的独立服务器入口：Mac mini 保存所有账号的研究数据；用户通过浏览器登录，管理员在“设置 → 用户管理”创建/停用用户、重置密码和停止用户实例。没有开放注册。默认原单用户入口、个人数据、resident 与 Docker 实例均不转换为服务器；不自动部署 Tailscale、迁移数据或复制原模型密钥。
 
 AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员阅读正文/专题/图片/RSS，status/control仅管理员可用。共享库不放入用户DSH根；逐用户tenant后端封禁全局AI路径，资讯请求不启动研究实例。默认未配置不创建目录或数据库、不调用模型；首次共享库初始化与服务启动仍须单独授权，详见[多用户资讯合同](research-web-ai-news.md#私网多用户权限与共享目录)。
 
@@ -44,7 +160,7 @@ AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员
 
 示例域名必须替换成已获准设备的精确、小写 Tailscale HTTPS origin，不能有路径、查询、尾部斜线或用户信息；`--node` 指向已有、匹配固定 DSH 的 Node 可执行文件。Serve 只监听 `127.0.0.1:8089`；操作员另行明确授权后配置 Tailscale Serve 将该精确私网域名代理到此端口，不使用 Funnel，不覆盖原个人实例代理。测试可显式使用 `--origin http://127.0.0.1:8089`；此时 Cookie 不带 Secure，仅用于本机开发。
 
-所有命令可选 `--root /absolute/private/server-root`，默认为 `~/.research-workbench/server`。`serve` 可选 `--port`（默认 8089）及 `--max-instances 1|2|3|4`（默认 2），不接受多 worker；首次研究才占用实例槽，容量满明确返回 busy，不自动驱逐。管理员在 `/account` 的“停止实例”释放槽位，停用账号会撤销登录并停止其受管实例；仅退出登录、关闭页面或重置密码不停止研究。网关前台正常退出会关闭本进程创建的实例；崩溃残留身份未知时失败关闭，需要操作员核查，不能自动终止未知进程。
+所有命令可选 `--root /absolute/private/server-root`，默认为 `~/.research-workbench/server`。`serve` 可选 `--port`（默认 8089）及 `--max-instances 1|2|3|4`（默认 2），不接受多 worker；首次研究才占用实例槽，容量满明确返回 busy，不自动驱逐。管理员在 `/#/settings/users` 的“停止实例”释放槽位，停用账号会撤销登录并停止其受管实例；仅退出登录、关闭页面或重置密码不停止研究。网关前台正常退出会关闭本进程创建的实例；崩溃残留身份未知时失败关闭，需要操作员核查，不能自动终止未知进程。
 
 `./rwb server reset-admin --username admin` 交互重置既有管理员密码并撤销该账号所有登录态；不会创建新的管理员或搬移会话。密码至少 12 字符。`server doctor` 只读检查账号库、源码构建文件及解释器/已有模块，输出 runtime/model `not_checked`；`build_present` 不代表固定 SHA、运行健康、Tailscale、真实研究或模型通过。尚未安装时 help/doctor 仍可用；服务启动只用安装后的 Web Python。
 
@@ -63,6 +179,14 @@ FinGPT 单引擎融合不新增 npm/Python 产品依赖，不增加供应商环�
 正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
 
 ## macOS 登录后常驻与自动部署
+
+新版资产页通过独立 `model_provider_upgrade apply-assets-v2` 交付，固定旧主实例／网关 `9bc12355c3b80e4e4459f4c250e13fc2634ed23d` 与 PR175 产品 `93d62be64084a5c92541a4a008216c0b3f56c2f1`。最终操作员须先通过原三项 CI 与独立评审，再从同源码 common directory 的干净目标 checkout、使用原生产 venv 执行；含未跟踪文件的开发目录不能直接用作操作源。原 v4 恢复、空闲与完整业务索引保全继续生效，旧 v1 和模型专项不改。此流程只安装本项目 wheel，无新依赖、配置项、HTTP 字段或迁移；公开安装入口及 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、Mac Bootstrap 保持兼容并按候选验收。详见[固定版本联合部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
+资产观察有显式 `model_provider_upgrade apply-assets` 合同，固定 c688 旧版本与已审 PR171 产品，只复用现有生产解释器安装本项目 wheel，不安装新依赖或扩大自动兼容范围。必须先通过最新源码资格、资产/DataHub与原Native/Host/私有池空闲、保全和恢复检查；使用方法见[固定版本联合部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
+模型服务商联合升级可同时交付 PR168 的五个精确导航 UI blob；其余产品文件仍绑定原模型服务商基线。须通过最新已合并候选的三CI、独立评审与原空闲/保全事务，不使用复制静态目录或临时放宽自动白名单交付界面。范围见[联合升级合同](research-web-gateway-upgrade.md#模型服务商联合升级)。
+
+UI 更新若同时包含显式网关升级工具，可按[受控 UI 候选准备](research-web-gateway-upgrade.md#显式准备主实例-ui-候选)先准备精确新旧 wheel，再由原不可变 resident 执行空闲切换；之后独立更新网关。此专项不扩大自动白名单、不安装新依赖、不改 baseline 或数据根；工具本身的 Git blob 必须与冻结恢复工具一致，主实例和网关均须核对原会话及模型保全。
 
 适用于已安装 Native 的 Mac mini，保留 FileVault。开机解锁并登录安装用户后，
 LaunchAgent 自动启动/恢复 Web 8088 与 DSH 3081，每60秒只读检查 GitHub master。
@@ -814,6 +938,8 @@ uv pip compile requirements/web.in \
 
 ## 单一兼容模型连接
 
+模型服务页现提供多个命名连接；每个连接仍遵守以下同一兼容协议合同。旧配置与两个原凭据账号原位保留，第一次显式修改才增添非秘密 profile 索引；不自动搬迁 Key、会话或日程。DSH 两个逻辑 ref 由产品凭据层映射到各连接的独立物理账号。公开安装入口、依赖锁与固定 DSH 不变。见[模型服务商与连接](research-web-ui.md#模型服务商与连接)。
+
 新受管 Docker 实例的模型后端可由管理员显式初始化为实例隔离的 AES-256-GCM 存储，
 复用锁文件中 cryptography 50.0.1，并将其列为 Web 直接依赖；版本与哈希未升级。
 Native macOS 的 Keychain 选择及安装流程保留。Docker 操作、主密钥只读挂载及最小恢复材料
@@ -849,6 +975,24 @@ Hot迁移15增加持久简报版本与请求审计；升级时先停止Hot并执
 
 ## 可选 Office 自动验证
 
+### 华安ETF周报的可选API生产合同
+
+公开安装入口仍安装同一Research Web，不自动安装WindPy、登录厂商、迁移报告或启用日程。
+主管理员在既有Workflow详情准备并发布`huaan-etf-weekly-v1`后，仍须完成SDK权限、同源Excel对照、
+跨市场交易日历／收盘定义和经济日历数据集验证。SDK及厂商许可是可选外部前提，安装和凭据配置须
+另行授权；不得从非官方同名包自动获取SDK。秘密不进入版本包、锁文件、日志或CI产物。
+
+`rwb web doctor --json`的`weekly_report`只做零厂商调用的依赖摘要：`dependency_ready`、`status`、
+`code`、`source_contract=not_checked`，以及`live_acceptance`／`model_acceptance=NOT_RUN`。
+可选SDK缺失不改变主体安装ready语义；Doctor不登录、刷新Office、查询厂商或发模型。
+Doctor的主体安装就绪、Office诊断和既有Wind通用状态不能认证该私有API链的真实取数。
+Workflow详情分别展示依赖、待配置／未核验和最近运行；未取得源覆盖及质量证据时保持阻断。
+缺少可选SDK不应伪报可调用，也不应把基础研究安装误判为厂商已登录。保留三份底稿和原母版，
+只在Run副本上投影本期数据；原生Office刷新与API逐组迁移的边界见[周报生产合同](research-web-etf-weekly-production.md)。
+
+本能力不扩展Docker宿主Office桥或其他平台支持；本机验证、同候选macOS干净安装CI、真实取数／
+成稿与三个周周期分别取证。常驻部署另行授权，源码安装成功不启用正式周报日程。
+
 安装/启动成功不代表 Office 可调用。默认不开启真实验证；在设置 → 本机集成一次开启所属实例的Word、Excel、PowerPoint自动验证，或逐项开启/关闭。会创建、保存、重开并清理登记的测试文稿，保留验证记录（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留），可能出现系统提示；提示只能人工处理。有效24小时证据复用，失败不自动重试，关闭后不再启动，冷启动不重放旧任务。Wind最多5分钟，厂商调用不在此开关内。
 
 `rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。
@@ -879,3 +1023,87 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 ## 框架嵌入资产安装 · 2026-10-14
 
 十一套看板资产随 Git checkout 提供，公开安装器继续使用锁定依赖与固定 DSH，无额外 Node/Python 依赖和开发服务器。Gold／Dollar 核心使用本站原生快照；其余九套是明确标记的静态导入资产。无需创建凭据或调用模型即可验证页面资源与数据桥接；模型生成和供应商数据可用性仍独立验收。安装验收须检查十一套入口、核心脚本和样式在干净 checkout 可读取。
+
+
+资产观察安装验收复用既有 macOS Bootstrap 启动步骤，读取全部新增／组合的资产静态模块、样式和固定本地图表库并和checkout逐字节比较，上传 `asset-static-smoke.json` 路径／哈希摘要；资源须进入wheel和实际安装目录。此检查不调用供应商、模型或新作业，也不表示浏览器交互或真实CJPY已验收。
+
+2026-10-23 历史auto/固定来源选择与原始日线校验仅复用已有Tinysoft/Wind/AKShare/BaoStock适配和锁定依赖；三一键入口、requirements/web.in、web.lock、scripts/setup_web.py和Bootstrap无需变更。无新配置或秘密入口；安装兼容性仍由最终同候选macos-14干净安装、固定DSH、3081/8088与Doctor门证明，本机离线链不替代安装CI。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+2026-10-23副图扩展不新增依赖、配置或Doctor能力；requirements/web.in、web.lock、setup_web.py和三个公开安装入口保持。asset-indicator-library.mjs与asset-panel-manager.mjs随原UI包安装，原Mac Bootstrap下载比对追加两模块；固定图表库、许可证、CJPY无凭据待配置、同候选DSH构建/健康检查/Doctor门均保持。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock财务扩展复用已批准并锁定baostock0.9.4；没有新增或安装依赖、账号、端口或数据库服务。已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py、三安装入口和Mac Bootstrap；这些文件无需为该适配更改。最终候选仍须同SHA干净Mac安装、固定DSH、3081/8088及Doctor证明兼容，现有服务、正式数据根和外盘不操作。
+
+## 2026-10-23：长期研究档案与机会预警
+
+新增个人 `dossiers/metadata.sqlite3` 使用 Python 标准库且惰性初始化，原文继续使用既有 Store／Snapshots，无新增依赖、端口或服务；安装入口和双运行时选择保持。原 macOS Bootstrap 需核对新增档案／MCP UI 静态资源与候选包字节，并结合固定 DSH、健康检查和 Doctor 绑定最终候选，不能由已有环境替代干净安装。Doctor 的 MCP 配置状态沿现有插件 status；小创缺已核验 Registry 身份时保持 unsupported，无合法安装不开放个人凭据配置。正式恢复、真实凭据／费用与常驻部署另授权，见[保全](research-web-dossiers.md#备份恢复与部署边界)与[候选](research-web-seek-alpha.md)。
+
+今日发现组合常驻更新使用封闭apply-discovery事务；三公开安装入口、Web锁、DSH/CJPY和配置存储保持。无新依赖安装或数据迁移；原macos-14干净安装继续验证同候选，零后台任务门及保全合同见research-web-gateway-upgrade.md。
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+WGC 月度吨数解析与资金流时点修复复用既有 HTTP/JSON、可选研究仓与批准锁依赖，无新增安装步骤、包、服务或公开入口；Doctor 既有可选数据库未配置语义保持。隔离 PG 验收不配置正式库，仍要求同候选 Mac 干净安装证明原六安装文件兼容。
+
+
+KAPSARC 固定 metadata 校验和 kg 投影只使用既有 HTTP/CSV/JSON 与可选仓库，不新增包、服务或公开安装入口。Doctor 的未配置数据库语义不变；原六安装文件按Git规范化哈希复核，同候选 Mac Bootstrap 仍为必需门，不以当前开发环境替代干净安装。
+
+
+## 2026-10-24：现金流财务比率
+
+既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
+
+披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：今日发现原生双栏与原始资讯分支只使用既有Python/HTTP/原生JS；无新依赖、安装入口、DSH/CJPY pin或系统配置。新增Python模块由既有包构建自动收集，原Mac Bootstrap继续核对discovery资源及同候选安装/健康/Doctor，不能由现有环境替代。
+
+## 2026-10-24：公开代理策略与原件绑定v2
+
+匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
+
+中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
+
+实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
+
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
+
+原SDK四案请求在接收响应头前关闭，仍未恢复；没有用改参数、换客户端或后备成功冒充原端点修好。自然失败现在保留有限error_code，资金流尝试链必须存在且精确验证，旧档按原义可读。
+
+GDP v3依据已固定SHA的东财页面脚本字段映射和统计局方法，把四项累计金额标CNY_100million／现价、四项累计同比标percent／可比价；保持年内累计，不推导单季QoQ SAAR。此前v2“GDP单位未知”的段落为当时历史状态，未回写旧快照。
+
+新浪v3只对600600.SH／2025-06-30／合并期末／CNY的营业收入与集团净利润两格，按原件页5（印刷页4）及精确十进制字符串／整数哈希附加参考匹配。float、bool、别股／别期／别项及值修订不获得认证；原data和全局单位不变，未匹配时单位及basis均未知。供应商日期和发行人发布声称分开，冲突不覆盖；PDF历史版本未知，PIT／正式回测始终false。冻结包保留供应商原件和引用元数据，外部参考原件随单独证据包迁移。
+
+实现及逐阶段实际结果见[本轮报告](../.ai/reports/2026-10-24-origin-reference-evidence.md)。不改现有服务、正式库、系统代理、凭据或外盘，无新依赖／付费。
+
+
+## 2026-10-25：月度宏观与限定财务参考扩围
+
+宏观v4通过固定东财页面实际引用的CPI/PMI/货币供应量脚本绑定字段定义：仅明确变化率为percent，CPI当月／累计指数的基期仍未知，PMI水平不冒充百分点变化；M2/M1/M0数量亿元和月末存量分别声明。央行原件记录M1自2025-01调整并回溯2024年，供应商采用的修订版本未证明，不自动跨年拼接。统计局2025-09 CPI页声称次月公布，只作时点差异示例，不给当前API值回填历史可得时间。
+
+Bao盈利能力v2以保存的SDK原始字符串重建行、字段、固定元数据与引用，伪造或错原件拒入仓。仅600000.SH／2026H1两格与已归档集团半年报的百万元换元值精确匹配，附集团累计／非归母说明；其他证券、期间、比例或修订值不外推。两源分别入仓，首次观察／历史PIT及正式回测限制保持。旧schema缓存跳过，旧显式冻结可读，无新服务、表、HTTP或依赖，原架构图仍准确。外部定义/PDF原件由独立证据包归档，数值冻结保留引用元数据。SDK原端点交叉路由仍失败，不能以后备成功冒充修复。
+
+
+## 2026-10-25：NYFed SOFRAI 专用v3
+
+NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-numeric-v2。官方API Schema原件将SOFRAI与四个数值字段绑定；三个30/90/180日历日均值为ACT/360年化复合百分率，营业日复利、非营业日按前营业日利率单利，发布五位小数。指数为无量纲累计因子，2018-04-02基准1、发布八位；不按百分率解释，也不从已舍入指数重建原均值。
+
+官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
+
+生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。

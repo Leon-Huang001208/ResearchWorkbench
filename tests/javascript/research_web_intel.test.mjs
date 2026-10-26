@@ -25,10 +25,11 @@ test('one research intelligence entry preserves external tabs and frozen Hot dee
   assert.match(external, /研究情报/);
   assert.match(external, /href="#\/intel\/hot"/);
   assert.match(external, /Golddata/);
-  assert.equal(intelTabs.length, 8);
+  assert.equal(intelTabs.length, 6);
+  assert.ok(!intelTabs.some(([tab]) => ['news', 'filings'].includes(tab)));
 });
 
-test('eight native routes and active navigation', () => {
+test('remaining native routes and active navigation', () => {
   for (const [tab] of intelTabs) assert.equal(parseRoute(`#/intel/${tab}`).intelTab, tab);
   for (const hash of ['#/intel', '#/intel/unknown', '#/intel/news/extra']) assert.equal(parseRoute(hash).intelTab, 'overview');
   assert.match(renderPrimaryRail({ page: 'intel' }), /href="#\/intel\/overview" class="rail-link active"/);
@@ -142,5 +143,5 @@ test('market confidence follows disclosed evidence mapping and preserves missing
 test('legacy hot query routes normalize before activating the research view',()=>{
  const id='12345678-1234-1234-1234-123456789abc';
  assert.equal(legacyRouteTarget(`#/workbench?section=hot&view=research&event=${id}`),`#/intel/hot?view=research&event=${id}`);
- assert.equal(legacyRouteTarget('#/workbench?section=market'),null);
+ assert.equal(legacyRouteTarget('#/workbench?section=market'),'#/intel/search?kind=news');
 });

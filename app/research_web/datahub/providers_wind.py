@@ -19,6 +19,7 @@ from .providers import (
     MAX_ROWS,
     ProviderError,
     Result,
+    cn_stock_identity,
     numeric,
     valid_date,
 )
@@ -37,6 +38,28 @@ _WIND_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
 _WIND_LOCK = threading.Lock()
 _WIND_OUTSTANDING: concurrent.futures.Future[Any] | None = None
 _WIND_POISONED = False
+
+
+def active_futures() -> tuple[concurrent.futures.Future[Any], ...]:
+    """Read-only witness; a stopped waiter cannot release real Excel work."""
+    with _WIND_LOCK:
+        if _WIND_OUTSTANDING is None or _WIND_OUTSTANDING.done():
+            return ()
+        return (_WIND_OUTSTANDING,)
+
+
+def activity_witness() -> dict[str, bool]:
+    """Observe native work and cleanup independently under their shared lock.
+
+    Poison remains fail closed in the ordinary worker API. This observation
+    never clears it, cancels a Future, or constructs an adapter.
+    """
+    with _WIND_LOCK:
+        return {
+            "running": _WIND_OUTSTANDING is not None and not _WIND_OUTSTANDING.done(),
+            "cleanup_unconfirmed": _WIND_POISONED,
+        }
+
 
 # Each reviewed adapter result is projected through one immutable schema. The
 # first tuple is (output field, adapter field, type, unit, currency); allowed
@@ -248,7 +271,9 @@ def _day(value: Any) -> str:
     return value
 
 
-def _bounded_history_range(parameters: dict[str, Any]) -> tuple[str, str]:
+def _bounded_history_range(
+    parameters: dict[str, Any], *, enforce_workload_limit: bool = True
+) -> tuple[str, str]:
     raw_start = parameters.get("start_date")
     raw_end = parameters.get("end_date")
     if not isinstance(raw_start, str) or not isinstance(raw_end, str):
@@ -259,18 +284,46 @@ def _bounded_history_range(parameters: dict[str, Any]) -> tuple[str, str]:
     end_day = date.fromisoformat(end)
     if start_day > end_day:
         raise ProviderError("data_not_equivalent")
-    if (end_day - start_day).days + 1 > MAX_HISTORY_CALENDAR_DAYS:
+    if enforce_workload_limit and (end_day - start_day).days + 1 > MAX_HISTORY_CALENDAR_DAYS:
         raise ProviderError("workload_too_large")
     return start, end
 
 
-def _preflight(query: BusinessQuery) -> None:
+def _bar_semantics(parameters: dict[str, Any]) -> tuple[str, str]:
+    frequency = parameters.get("frequency", "1d")
+    adjustment = parameters.get("adjustment", "none")
+    if (
+        parameters.get("asset_type") != "stock"
+        or not isinstance(frequency, str)
+        or frequency not in {"1d", "day", "daily"}
+        or not isinstance(adjustment, str)
+        or adjustment not in _ADJUSTMENTS
+    ):
+        raise ProviderError("data_not_equivalent")
+    return frequency, adjustment
+
+
+def validate_supported_query(
+    query: BusinessQuery, *, storage_read: bool = False, defer_workload_limit: bool = False
+) -> None:
+    """Check local request bounds without opening an adapter or reading credentials."""
     parameters = query.parameters
     if query.capability in {"market_bars", "market_snapshot"}:
         if parameters.get("asset_type") != "stock":
             raise ProviderError("data_not_equivalent")
         if query.capability == "market_bars":
-            _bounded_history_range(parameters)
+            cn_stock_identity(parameters.get("asset"))
+            if storage_read or defer_workload_limit:
+                _bar_semantics(parameters)
+            _bounded_history_range(
+                parameters, enforce_workload_limit=not (storage_read or defer_workload_limit)
+            )
+        else:
+            assets = parameters.get("assets")
+            if not isinstance(assets, list) or not 1 <= len(assets) <= 50:
+                raise ProviderError("data_not_equivalent")
+            for asset in assets:
+                cn_stock_identity(asset)
     elif query.capability == "market_activity" and parameters.get("dataset") in {
         "fund_flow",
         "margin_trading",
@@ -444,6 +497,7 @@ def _requested_output_fields(query: BusinessQuery) -> frozenset[str]:
         for field in requested
         if field in source_to_output and field not in {"code", "trade_date"}
     }
+    projected.update(field for field in requested if field in {"pb_mrq", "ps_ttm"})
     return frozenset(projected) or _MINIMUM_OUTPUT_FIELDS[_schema_key(query)]
 
 
@@ -524,16 +578,7 @@ def _submit(query: BusinessQuery, adapter: Any | None) -> concurrent.futures.Fut
 def _invoke(query: BusinessQuery, adapter: Any) -> Any:
     parameters = query.parameters
     if query.capability == "market_bars":
-        frequency = parameters.get("frequency", "1d")
-        adjustment = parameters.get("adjustment", "none")
-        if (
-            parameters.get("asset_type") != "stock"
-            or not isinstance(frequency, str)
-            or frequency not in {"1d", "day", "daily"}
-            or not isinstance(adjustment, str)
-            or adjustment not in _ADJUSTMENTS
-        ):
-            raise ProviderError("data_not_equivalent")
+        _frequency, adjustment = _bar_semantics(parameters)
         start_date, end_date = _bounded_history_range(parameters)
         return adapter.fetch_daily_quotes(
             codes=[_asset(parameters.get("asset"))],
@@ -551,6 +596,8 @@ def _invoke(query: BusinessQuery, adapter: Any) -> Any:
             "turnover",
             "pe_ttm",
             "pb",
+            "pb_mrq",
+            "ps_ttm",
             "pcf_ocf_ttm",
             "total_shares",
         }
@@ -610,7 +657,7 @@ def _invoke(query: BusinessQuery, adapter: Any) -> Any:
 async def fetch(query: BusinessQuery, *, adapter: Any | None = None) -> Result:
     result = Result(provider_id="wind", source_url="wind://local-session")
     try:
-        _preflight(query)
+        validate_supported_query(query)
         future = _submit(query, adapter)
         try:
             frame = await asyncio.wait_for(

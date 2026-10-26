@@ -116,6 +116,9 @@ class CapabilityCatalog:
                 raise CapabilityError("能力目录不能为链接", "unsafe_directory", 503)
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.index = self.root / "catalog.json"
+        # Share metadata only within this startup transaction; later checks stay fresh.
+        self._initializing = True
+        self._initial_module_distributions = None
         try:
             if self.index.exists():
                 self.data = json.loads(self.index.read_text(encoding="utf-8"))
@@ -154,6 +157,16 @@ class CapabilityCatalog:
             raise CapabilityError(
                 "能力目录无法读取；未覆盖原索引", "catalog_unavailable", 503
             ) from exc
+        finally:
+            self._initializing = False
+            self._initial_module_distributions = None
+
+    def _installed_module_distributions(self):
+        if not self._initializing:
+            return importlib.metadata.packages_distributions()
+        if self._initial_module_distributions is None:
+            self._initial_module_distributions = importlib.metadata.packages_distributions()
+        return self._initial_module_distributions
 
     @staticmethod
     def _replace_script_tool(value):
@@ -390,7 +403,7 @@ class CapabilityCatalog:
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(self.data, stream, ensure_ascii=False)
+                stream.write(json.dumps(self.data, ensure_ascii=False))
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(name, self.index)
@@ -1230,7 +1243,7 @@ class CapabilityCatalog:
                         )
                     external_modules = modules - sys.stdlib_module_names - {"research_helpers"}
                     installed_modules = (
-                        importlib.metadata.packages_distributions() if external_modules else {}
+                        self._installed_module_distributions() if external_modules else {}
                     )
                     for module in external_modules:
                         if module not in installed_modules and f"scripts/{module}.py" not in {

@@ -1,0 +1,6 @@
+{
+  "name": "seek-alpha-candidate",
+  "version": "0.1.0",
+  "description": "RWB 小创数据候选；待真实 Registry 身份、固定版本及工具 schema 审批，不能直接安装或调用。",
+  "mcpServers": ".mcp.json"
+}

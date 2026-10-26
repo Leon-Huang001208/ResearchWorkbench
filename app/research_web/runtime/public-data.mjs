@@ -1,8 +1,9 @@
 /** Native DataHub bridge. Provider parsing and immutable snapshots live in DataHub. */
 import { constants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { open, lstat, realpath } from 'node:fs/promises';
 import { basename, isAbsolute, join } from 'node:path';
-import { trustedDirectory } from './research-tools.mjs';
+import { trustedDirectory, trustedSearchActivities } from './research-tools.mjs';
 
 export const name = 'research-data-tools';
 export const inject = ['tools', 'sessions'];
@@ -36,6 +37,9 @@ const SAFE_ERROR_CODES = new Set([
   'invalid_request', 'invalid_resource', 'internal_error',
   'data_source_unavailable', 'data_capability_unsupported', 'data_operation_unsupported',
   'data_capability_not_integrated', 'data_capability_unavailable',
+  'data_pit_unavailable', 'data_query_deadline', 'data_source_authorization_changed',
+  'warehouse_read_rejected', 'warehouse_write_rejected',
+  'warehouse_query_rejected', 'warehouse_upstream_overlap_conflict', 'warehouse_upstream_anchor_missing',
   'data_cache_authorization_changed',
   'data_not_equivalent', 'invalid_asset', 'invalid_adjustment', 'invalid_frequency',
   'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
@@ -46,6 +50,15 @@ const SAFE_ERROR_CODES = new Set([
   'automation_trial_conflict', 'automation_trial_unknown', 'automation_version_conflict',
   'automation_busy', 'automation_run_busy', 'automation_control_denied',
   'research_quality_contract_missing', 'research_quality_check_limit',
+  'research_report_version_binding_failed',
+  'research_source_target_denied', 'research_source_redirect_invalid',
+  'research_source_http_unavailable', 'research_source_content_unsupported',
+  'research_source_encoding_unsupported', 'research_source_size_limit',
+  'research_source_body_unavailable', 'research_source_redirect_limit',
+  'research_source_fetch_failed', 'research_source_integrity_failed',
+  'research_source_scope_denied', 'research_source_identity_unknown',
+  'research_source_count_limit', 'research_source_arguments_invalid',
+  'research_source_call_inactive',
 ]);
 
 function isDenseStringArray(value) {
@@ -74,7 +87,7 @@ function validSchema(value,schema) {
 
 function stableBusinessQuery(capability, args, properties, required) {
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('Business data arguments must be an object');
-  const common=['source','allow_fallback','refresh'];
+  const common=['source','allow_fallback','refresh','purpose','quality','as_of'];
   const allowed=new Set([...common,...Object.keys(properties)]);
   if (Object.keys(args).some(key=>!allowed.has(key))) throw Error('Only registered business data arguments are accepted');
   for (const key of required) if (!Object.hasOwn(args,key) || args[key] === undefined) throw Error(`Business data argument ${key} is required`);
@@ -89,13 +102,22 @@ function stableBusinessQuery(capability, args, properties, required) {
   const source=Object.hasOwn(args,'source') ? args.source : undefined;
   const allowFallback=Object.hasOwn(args,'allow_fallback') ? args.allow_fallback : undefined;
   const refresh=Object.hasOwn(args,'refresh') ? args.refresh : undefined;
+  const purpose=Object.hasOwn(args,'purpose') ? args.purpose : undefined;
+  const quality=Object.hasOwn(args,'quality') ? args.quality : undefined;
+  const asOf=Object.hasOwn(args,'as_of') ? args.as_of : undefined;
   if (source !== undefined && (typeof source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(source))) throw Error('Data source is not a registered identifier');
   if (allowFallback !== undefined && typeof allowFallback !== 'boolean') throw Error('allow_fallback must be boolean');
   if (refresh !== undefined && typeof refresh !== 'boolean') throw Error('refresh must be boolean');
+  if (purpose !== undefined && !['display','research','backtest'].includes(purpose)) throw Error('purpose is invalid');
+  if (quality !== undefined && !['strict','allow_stale'].includes(quality)) throw Error('quality is invalid');
+  if (quality === 'allow_stale' && purpose !== 'display') throw Error('Only display queries may allow stale data');
+  if (asOf !== undefined && (typeof asOf !== 'string' || asOf.length > 64 || !/(?:Z|[+-]\d{2}:\d{2})$/.test(asOf) || !Number.isFinite(Date.parse(asOf)) || Date.parse(asOf)>Date.now())) throw Error('Historical cutoff must be a known time with timezone');
+  if (purpose === 'backtest' && asOf === undefined) throw Error('Backtests require an explicit historical cutoff');
   const parameters=Object.fromEntries(Object.entries(args).filter(([key])=>!common.includes(key)));
   const raw=JSON.stringify(parameters);
   if (Buffer.byteLength(raw)>32768) throw Error('Business data arguments exceed size limit');
-  return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false};
+  return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false,
+    ...(purpose === undefined ? {} : {purpose}),...(quality === undefined ? {} : {quality}),...(asOf === undefined ? {} : {as_of:asOf})};
 }
 
 export async function privateControl(root) {
@@ -158,6 +180,53 @@ export async function executeDocumentTool(ctx, exec, config, args) {
     redirect: 'error', credentials: 'omit', signal,
   });
   return boundedJson(response, signal);
+}
+
+/** Read only an identity registered by this native session's real search. */
+export async function executeResearchSource(ctx, exec, config, args) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(exec.agent.session.header.id) || !/^[a-zA-Z0-9_.:-]{1,120}$/.test(exec.callId)) throw Error('Native call identity is invalid');
+  const identity = { session_id: basename(cwd), call_id: `${exec.agent.session.header.id}:${exec.callId}` };
+  const search_activities = await trustedSearchActivities(ctx, exec, config);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(30000)]);
+  const headers = { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token };
+  let cancellation;
+  const cancel = () => cancellation ??= (async () => {
+    try {
+      const response = await fetch(control.url + '/api/research/internal/data/research-source/cancel', {
+        method: 'POST', headers, body: JSON.stringify(identity), redirect: 'error', credentials: 'omit', signal: AbortSignal.timeout(2500),
+      });
+      const result = await boundedJson(response, AbortSignal.timeout(2500));
+      if (result?.status !== 'cancelled') throw Error('cancel unverified');
+      return true;
+    } catch { ctx.logger.warn('research_source_cancel_unverified'); return false; }
+  })();
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    signal.throwIfAborted();
+    const response = await fetch(control.url + '/api/research/internal/data/research-source', {
+      method: 'POST', headers, body: JSON.stringify({ ...args, ...identity, search_activities }),
+      redirect: 'error', credentials: 'omit', signal,
+    });
+    const value = await boundedJson(response, signal);
+    if (args.operation === 'list') {
+      if (!Array.isArray(value?.sources) || value.sources.length > 140) throw Error('research_source_response_invalid');
+    } else {
+      const handle = args.source_id.startsWith('dossier:') ? args.source_id : null;
+      const suffix = handle ? createHash('sha256').update(handle).digest('hex').slice(0,24) : null;
+      const identityValid = handle ? value?.source?.dossier_handle === handle && new RegExp(`^(?:file|web|dataset):${suffix}$`).test(value?.source?.id || '') : value?.source?.id === args.source_id;
+      if (!identityValid || value.observation_id !== value.source.id ||
+        typeof value.content !== 'string' || value.content.length > 24000 ||
+        !/^[a-f0-9]{64}$/.test(value.source.sha256 || '')) throw Error('research_source_response_invalid');
+    }
+    signal.throwIfAborted();
+    return value;
+  } catch (error) {
+    if (!(await cancel())) throw Error('research_source_cancel_unverified');
+    throw error;
+  } finally { signal.removeEventListener('abort', cancel); if (cancellation) await cancellation; }
 }
 
 /** Check Host-observed evidence; model arguments cannot control quality state. */
@@ -270,9 +339,60 @@ export async function executeAutomationAction(ctx, exec, config, args) {
 
 function smallResult(value) {
   if (!value || typeof value.dataset_id !== 'string' || typeof value.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(value.source) || !['complete','snapshot','empty','partial','failed'].includes(value.status) || !Array.isArray(value.files) || !Array.isArray(value.sample) || value.sample.length > 3 || !Number.isSafeInteger(value.row_count)) throw Error('DataHub response schema is invalid');
-  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256','query','provider_query','coverage'];
+  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256','query','provider_query','coverage','data_success'];
+  const manifest=Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]));
+  if ('data_success' in value && typeof value.data_success !== 'boolean') throw Error('DataHub quality result is invalid');
+  const metadata=value.provider_metadata;
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    const selected={};
+    const upstreams = new Set(['sina','eastmoney','baostock','akshare','wind','tinysoft']);
+    if (Object.hasOwn(metadata,'upstream_id')) {
+      if (!upstreams.has(metadata.upstream_id)) throw Error('DataHub upstream is invalid');
+      selected.upstream_id=metadata.upstream_id;
+    }
+    if (Object.hasOwn(metadata,'actual_upstreams')) {
+      if (!Array.isArray(metadata.actual_upstreams) || metadata.actual_upstreams.length>6 || metadata.actual_upstreams.some(value=>!upstreams.has(value))) throw Error('DataHub upstreams are invalid');
+      selected.actual_upstreams=[...metadata.actual_upstreams];
+    }
+    if (Object.hasOwn(metadata,'upstream_attempts')) {
+      if (!Array.isArray(metadata.upstream_attempts) || metadata.upstream_attempts.length>2 || metadata.upstream_attempts.some(value=>!value || !upstreams.has(value.upstream) || !['complete','failed','empty','partial'].includes(value.status))) throw Error('DataHub upstream attempts are invalid');
+      selected.upstream_attempts=metadata.upstream_attempts.map(value=>({upstream:value.upstream,status:value.status}));
+    }
+    for (const key of ['warehouse_hit','warehouse_persisted','historical_point_in_time','quality_accepted','formal_backtest_eligible']) {
+      if (Object.hasOwn(metadata,key)) {
+        if (typeof metadata[key] !== 'boolean') throw Error('DataHub metadata is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    for (const [key, allowed] of [['storage_form',['provider_native_snapshot']],['availability_basis',['first_observed']]]) {
+      if (Object.hasOwn(metadata,key)) {
+        if (!allowed.includes(metadata[key])) throw Error('DataHub storage contract is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    for (const key of ['observed_at','captured_as_of']) {
+      if (Object.hasOwn(metadata,key)) {
+        if (metadata[key] !== null && (typeof metadata[key] !== 'string' || metadata[key].length>64 || !Number.isFinite(Date.parse(metadata[key])))) throw Error('DataHub capture time is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    for (const key of ['warehouse_version','warehouse_snapshot_sha256','warehouse_scope_digest','warehouse_semantics_digest']) {
+      if (Object.hasOwn(metadata,key)) {
+        if (typeof metadata[key] !== 'string' || !/^[a-f0-9]{64}$/.test(metadata[key])) throw Error('DataHub version is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    if (Object.hasOwn(metadata,'execution_attempts')) {
+      if (!Array.isArray(metadata.execution_attempts) || metadata.execution_attempts.length>4) throw Error('DataHub attempts are invalid');
+      selected.execution_attempts=metadata.execution_attempts.map(attempt=>{
+        if (!attempt || typeof attempt.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(attempt.source) || !['complete','snapshot','empty','partial','failed'].includes(attempt.status) || typeof attempt.quality_accepted !== 'boolean' || !Number.isSafeInteger(attempt.duration_ms) || attempt.duration_ms<0 || (attempt.failure_code!==null && (typeof attempt.failure_code!=='string' || !/^[a-z0-9_]{1,128}$/.test(attempt.failure_code)))) throw Error('DataHub attempt is invalid');
+        return {source:attempt.source,status:attempt.status,quality_accepted:attempt.quality_accepted,duration_ms:attempt.duration_ms,failure_code:attempt.failure_code};
+      });
+    }
+    if (Object.keys(selected).length) manifest.provider_metadata=selected;
+  }
   return {dataset_id:value.dataset_id,source:value.source,status:value.status,
-    manifest_json:JSON.stringify(Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]))),
+    manifest_json:JSON.stringify(manifest),
     files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
 }
 
@@ -282,6 +402,10 @@ export async function nativeAdmission(ctx, exec, config, loaded = false) {
   const control = await privateControl(config.researchRoot);
   const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
   const body = { session_id: basename(cwd), tool_name: exec.name };
+  if (exec.name === 'research_read_source') {
+    if (['list','read'].includes(exec.arguments?.operation)) body.source_operation = exec.arguments.operation;
+    if (typeof exec.arguments?.source_id === 'string') body.source_id = exec.arguments.source_id;
+  }
   if (exec.name === 'skill' || exec.nativeSkillName !== undefined) {
     const name = exec.name === 'skill' ? exec.arguments?.name : exec.nativeSkillName;
     if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,159}$/.test(name)) throw Error('skill_admission_invalid');
@@ -311,7 +435,7 @@ export function apply(ctx, config) {
   const outputKeys=['dataset_id','source','status','manifest_json','files_json','sample_json'];
   for (const [toolName,[capability,description,properties,required]] of Object.entries(BUSINESS)) {
     if (!enabledTools.has(toolName)) continue;
-    const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
+    const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'},purpose:{type:'string',enum:['display','research','backtest']},quality:{type:'string',enum:['strict','allow_stale']},as_of:{type:'string',description:'正式回测所需的历史可得时点，必须包含时区；不能用实时响应代替'}};
     ctx.tools.register({
       name:toolName,
       description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时须核对来源与参数；data_capability_not_integrated 表示来源尚未适配；data_capability_unavailable 表示当前来源条件未满足，不要重复相同请求或改写查询反复尝试，须说明缺口。其他工具仍须符合本任务批准范围，不得隐式扩大权限。`,

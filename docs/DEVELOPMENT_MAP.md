@@ -4,6 +4,211 @@ Docker队列入口为rwb-docker的capacity/build --wait/resume；标准库实现
 原脚本持锁复核容量并清理自身builder，模块负责任务/SHA去重、提交归档、FIFO及完成回执；测试test_docker_build_queue.py。
 复用原心跳，不新建调度服务；12GiB生效与冷构建/30分钟观察独立留证。
 
+天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
+
+全市场广度组合后继位于resident/model_provider_upgrade.py及原test_model_provider_upgrade矩阵：MARKET_BREADTH固定b800→4c72，reader193f4fcc/lock7c631d4f不变，接入原源码并集、manifest、全部账号后台/市场/Native空闲及恢复。真实operate和真实Primary/LegacyBinding反例覆盖Host true/null提前拒绝；不进入周报桥或Wind恢复。
+
+`capabilities/catalog.py:save` 的序列化写入优化保留原临时文件、flush/fsync、replace 和错误清理。`test_capabilities.py` 覆盖 UTF-8 字节一致、单次 write、序列化/fsync/replace 失败保全；真实 API 冷构造和原依赖清单新鲜性测试继续执行。
+
+冷启动来源见证修复仅在 `service.py` 提前初始化原 `research_web_sources.request_state` 使用的两张内存表。`test_resident.py` 使用真实服务构造和 HTTP 投影验证首次来源操作前的空闲，以及实际登记/取消/tombstone；来源读取安全回归保持。`main.py` 的缺失见证拒绝不改。
+
+Wind 清理故障的分项活动见证位于既有 DataHub worker/Host resident 状态；严格只读恢复准备位于 `research_workbench_entrypoint/resident/wind_cleanup_recovery.py`，私有无强杀停止构件位于 `service_manager.py`。目标测试分别覆盖活动归约、旧 Host/混合未知拒绝和单 PID 信号边界。此阶段不开放 apply，不改普通部署/profile/controller 信任链；完整恢复事务与旧现场恢复仍未完成。
+
+admission-v2顺序修复位于原model_provider_upgrade.py和原操作员测试。真实gateway_upgrade.verify_primary不修改：新v2先身份预检，桥/GET后完整g验证、fresh strict Host=False/Native=[]再原idle；测试从真实operate调用原g与LegacyBinding，覆盖此前mock漏掉的桥前拒绝。
+
+周报准入修复位于report_workflows/weekly_execution.py、runtime.py和service.py：Host冻结13工具/逐文件输入，普通capability data gate保持。research-tools.mjs与sandbox.py传递Host input_policy并支持literal冻结文件，只读审批与原目录scope兼容。新提交协议为weekly-admission-v2，旧未知只recheck，正确首提/显式未RPC恢复均有持久claim及真实Sender/Seatbelt回归。
+
+资产行情条固定为“收／幅／开／高／低／均／量／换／振／额”，金额只写万／亿，两位小数；币种和原单位保留title。已识别沪深北股票且来源明确为股时，量、成交量副图/VOL/MA与右侧已确认单位报价统一按100股/手展示；未知单位和非A股不猜倍率。原始OHLCV、复权、周月聚合、指标、筹码及冻结快照不改，股本和财务金额保留原单位；只改展示投影，无新依赖、服务、路由、节点或研究引擎。
+
+全市场预览封闭部署继续由 `research_workbench_entrypoint/resident/model_provider_upgrade.py` 及原 `test_model_provider_upgrade.py` 矩阵维护。`reviewed-market-preview-v1` / `apply-market-preview` 绑定36fd990c→e56d9718，背景/工作流/市场空闲及全账号保全恢复沿旧合同；最终资格与实切换分别记录。
+
+资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
+
+资产V8位于resident/model_provider_upgrade.py：ASSET_V8常量、previous_for/review_assets/target_manifest及CLI闭合分派；加入原64MiB reader、市场inflight和后台空闲检查。test_model_provider_upgrade复用全部旧恢复/真实Git矩阵并补V8固定pin和后台拒绝反例。最终产品固定为包含PR216/217/219的真实merge组合，部署/认证页面另验。
+
+历史验收产品冻结于bb4d2e65，随后原Native联合操作员新增reviewed-etf-historical-v1/apply-etf-historical，前版仅b4384470；原v4全账号/档案保全、严格reader、空闲/恢复及产品union/blob/mode门不改。最终同一PR普通merge保留产品祖先，再完整独评和原三CI；源码准备不授予常驻切换，合同见research-web-gateway-upgrade.md历史验收章节。
+
+华安历史验收：report_workflow_routes/runtime固定专用创建及Run.execution_purpose；DataHub/providers_wind_excel_weekly、weekly_data/workbooks/quality沿可信运行上下文区分正式和事后采集。report_rendering/report_render_script在bind计算文件哈希前加历史标签，weekly_quality读回核对并拒绝历史正式定稿；UI周报入口与manualAccepted同样分离。test_report_weekly_historical_acceptance覆盖新分支，原正式/原件/质量回归保留。设计与实现计划见docs/superpowers/内2026-10-24-etf-historical-acceptance文件。
+
+2026-10-23 ETF Native封闭后继：`resident/model_provider_upgrade.py` 新增
+`ETF_WEEKLY_V2_MODE/PREVIOUS/PAYLOAD` 和 `apply-etf-weekly-v2`，旧版固定5343e18d、
+产品固定PR209 `56709a8dbb6e01d2ab17b64533319e199ebef86f`。只纳入原分派、严格reader、
+市场空闲与全账号保全/恢复矩阵，复用PR209的`dossier_preservation.snapshot_dossiers`，
+旧v1、controller/evidence与安装锁保持。近处`test_model_provider_upgrade.py`扩充固定pin、
+真实Git union/blob/mode、wrong previous、活动及主/私账号档案保全与恢复反例；
+合同见[ETF v2](research-web-gateway-upgrade.md#华安etf周报固定部署v2新目标待授权)。
+新组合目标尚未获得独立部署确认；本机/旧PR209 CI、v2最终CI、实际切换与正式报告质量分开。
+沿原Native/Host/网关拓扑，无新增服务、HTTP、权限、依赖或执行器，日程继续关闭。
+
+今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
+
+华安经济底稿字段由 Excel Provider 保留，`weekly_sources.verify_weekly_economic_export` 从同版本原件独立重放，`weekly_data` 在数据门接入。时间原文及有限数值不推测单位或时区；八列底稿完整保全，Word 原三列不扩。仍沿既有 Host／DataHub／DSH／确定性排版链，无新执行节点。
+
+SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；
+`research_snapshot_store.py` 写入前重新解析原件，`research_warehouse.py` 绑定专用版本/单位身份，
+DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 `test_datahub_spdr.py` 和
+`test_spdr_warehouse_integration.py`，覆盖源格式、提前拒绝、原件绑定、授权、冻结恢复及旧回执可读；
+真实 HTTP/Host/PostgreSQL 和同候选 CI 证据由任务报告分别记录，不能以合成样例代替。
+
+2026-10-23：终端Native部署入口仍为`research_workbench_entrypoint/resident/model_provider_upgrade.py`，新增封闭terminal profile并复用原version4事务／严格保全，不开放任意PAYLOAD。完整操作员回归覆盖旧profiles与terminal，产品后端130例单独记录；PR201产品合并后由主任务固定最终PAYLOAD，再完成组合候选独评、完整Router及原三CI。对应身份与未执行部署状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+全市场终端由`market_indices.py`定义core-v1固定12与terminal-v2共24指数及分组；`market_analysis.py`计算三周期证据与官方六风格矩阵，`market_portfolio.py`管理账号持仓预览/确认及有界文件。market_routes/service复用原维护准入、缓存生命周期；ui/market-terminal.mjs组织原生终端交互，market.mjs保留行情表/成员/导出。近处回归test_market_indices/test_market_terminal和research_web_market_terminal覆盖真实契约、上海跨日、陈旧估值拒绝、账号及迟到响应；真实来源和浏览器独立验收。
+构建器失效登记恢复由`rwb-docker builder-reconcile`早分发到`research_workbench_entrypoint/builder_reconcile.py`，复用`iteration_cache.operation_lock`。近处`test_builder_reconcile.py`覆盖指纹、错引擎、部分资源、恢复前零mutation拒绝、带全局选项的活动build/bake和停止终态；真实Docker恢复及旧任务清理另留证。
+
+2026-10-23 ETF Native操作员准备：`resident/model_provider_upgrade.py`增加封闭
+`ETF_WEEKLY_MODE/PREVIOUS/PAYLOAD`、`previous_for/review_assets`与`apply-etf-weekly`分支，
+复用v4保全/恢复、大索引读取、v6固定完整CI日志读取器及市场inflight门。PREVIOUS固定当前登记
+`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD固定PR198真实merge
+`988046d23f9951f889a3b9d02e355ed59fd6aa65`；操作员独立验证、评审及CI另证，本轮不部署、不安装依赖。
+`test_model_provider_upgrade.py`将新mode加入原真实Git/历史profile/全账号保全/阶段恢复矩阵，
+补固定身份、Host/Native/私有池活动未知和原manifest锁保持回归；原API活动见证保留。
+部署合同见[ETF离线准备](research-web-gateway-upgrade.md#华安etf周报固定部署profile仅离线准备)。
+无新增服务、HTTP、schema、数据库、依赖或第二执行器，原架构节点/边不变；正式切换仍需单独授权。
+
+2026-10-23宏观闭环：providers_external.py校验官方NYFed/Treasury/WorldBank封包；providers_akshare.py在既有public_worker内执行cpi/gdp/pmi/m2固定请求；catalog/broker只声明实际支持的序列。DataHub新查询缓存、ResearchWarehouse身份与SnapshotSeries准入分别核对合同版本，旧call_id和冻结证据保留。国内观察期及累计GDP语义不借用披露时点。公开错误封包/空参考线/分号CSV在同一external Provider修复，不扩数值仓白名单；真实失败与临时库证据见本轮来源台账和任务报告。
+
+公开数值合同 `official-numeric-v2` 定位于 `datahub/providers_external.py` 的
+`official_numeric_request/_official_rows`：仅 NYFed rates、Treasury cash、WorldBank inflation。
+`__init__.py` 跳过旧版本 session cache，`research_warehouse.py._snapshot_series` 只增加这三项
+schema/units 身份，授权摘要不变；`research_snapshot_store.py` 保留 strict complete 准入并开放
+NYFed/Treasury 固定入口。定点离线回归 `test_datahub_official_numeric.py` 使用公共原响应及
+对抗变异验证过滤、身份、分页、null、freeze恢复和旧receipt。没有新增引擎、HTTP入口或依赖，
+仍沿既有 Host → DataHub → Provider/ResearchWarehouse 拓扑，现有图的节点/边不变；真实
+厂商/PG/CI证据与离线回放分别验收。
+
+2026-10-23市场限价/昨日/历史：`datahub/providers_market.py`负责同批f350/f351、有效限价状态/覆盖与收盘见证；`market_service.py`负责精确日历/逐股昨日金额重算、同用户同key真实资金日线留存及原子恢复；`ui/market.mjs`展示确认涨跌停/未知、昨日来源或缺口和五类日线资金历史表。定点回归沿原test_market_provider/service与research_web_market清单，无新依赖、HTTP路径或第二研究引擎；[口径](research-web-datahub.md#无会话全市场数据)与缓存/API文档同步，真实源/认证部署另留证。
+华安 Excel 主源为 datahub/providers_wind_excel_weekly.py，weekly_sources.py 校验锁定合同，weekly_data.py 独立复算日历、端点及采集时间，evidence.py 输出冻结事实。runtime.py/weekly-production.mjs 禁止本轮 Excel 日程并区分历史验收。近测试 test_datahub_wind_excel_weekly.py、test_report_weekly_acceptance.py 和 JS weekly production；连接兼容修复自身无新拓扑，完整来源分支已更新09/10图。
+schema4 的黄金单点资源重放在 weekly_sources.py；weekly_data.py、DataHub、weekly_quality.py 与
+weekly_workbooks.py 传原 Run 资源上下文，补查快照不得脱离原证据取得通过。定点回归为
+test_report_weekly_gold_supplement.py；schema1–3 与 API 合同保持。原始 EDB、原生补查、封包、质量及
+文件各保留自己的哈希，不以预检布尔值代替正式生产。
+
+2026-10-23 华安周报 Excel 预检发现 macOS `lsappinfo` PID 输出与 xlwings 解析不兼容。
+`data_layer/adapters/wind/excel_instances.py` 只在已复现的 Mac 整数解析失败后规范化该私有模块的
+PID 读取；无法确认实例身份时不另开 Excel。`client.py` 同时识别 Mac 溢出区域的空字符串，保留零值。
+未新增 HTTP、数据源、执行引擎、持久格式或依赖，既有架构图拓扑保持；详见
+[Wind Excel 模块](modules/data_layer_adapters_wind.md)。实采覆盖、生产源切换与成稿验收分别记录，
+不能由这项连接修复替代。
+
+## 资产筹码与行情精炼（2026-10-23）
+
+`asset_chip_inputs.py` 校验逐日换手身份/覆盖/单位，并连接同复权价格与原始量额；`asset_history_jobs.py` 按32个日期串行查询现有 Broker/Provider，带筹码任务只在全部验证后发布。`providers_cjpy_assets.py` 校验固定厂商因子定义；不使用旧全局凭据。`asset-chips.mjs` 为概率守恒的换手衰减/三角或平均分布模型；`asset-chip-panel.mjs` 提供统计、龄分层、历史叠加和设置。`asset-layout.css` 实现已批准的连续工作区，`asset-format.mjs` 只做万/亿显示。测试分别为 `test_asset_chip_inputs.py`、原历史/CJPY合同及 `research_web_chip_distribution`、资产 chart/loading/tabs/format 回归。三项独立评审问题（原子桶重复、重试丢旗标、设置签名遗漏）均有定点回归。
+
+
+iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_envelope` 链处理；
+`_quantapi_history_body` 在取密前验证旧flat或官方reqBody参数并精确包装一次，目录保留
+`cmd_history_quotation` 身份、固定出口改为官方 `history_data`。近处
+`test_datahub_numeric_sources.py` 覆盖官方形状、失败、空值、长度和字节保真；全null结果为
+`partial/history_values_missing`，不提升原生快照/正式回测或单位核验状态。无新Provider、凭据后端或依赖。
+
+公开indices个人仓库闭环定位在`datahub/market_reader.py`，默认注入点为`service.py`的MarketService构造，POST采集点在`market_service.py._collect`；`research_snapshot_store.py`只额外接受固定12指数原生封包，`research_warehouse.py.capture_identity`提供无秘密profile epoch。定点回归为`test_market_reader.py`与opt-in `test_market_reader_live_postgres.py`，后者复用已有socket-only临时PG helper，结束停止并删除自有实例；不会触及5432或部署服务。取消/close真实draining、跨用户根和profile/source变更、部分响应保护是该桥验收边界；公开源无独立grant、多源等价及正式PIT仍未实现。
+
+组合v5的 `target_manifest` 只为本次已授权的新锁固定目标哈希；`Operations.install` 启用目标清单、恢复原清单，`validate_configuration` 保留精确二选一。旧profile不改，新增八profile清单回归并继续原完整恢复矩阵；安装三包与pip check是实际部署前的独立证据，不由清单字段代替。
+
+PR188合流后当前v5的PAYLOAD由root固定完整组合产品88ef3817，PREVIOUS仍51f09；初始9bc4身份是历史检查点。一行verify_primary业务读取修复源码为8f2cb39a，DataHub仓库与新04数据流按PR188来源保留，不将两者混成同一已提交源码。用户允许组合验收后部署锁定baostock0.9.4／psycopg3.3.6，不启用／迁移DB或改外盘；源码／兼容回归由root负责，旧a114三CI与新候选重验分开。
+
+资产v5部署大索引修复只在 `model_provider_upgrade.verify_primary` 的v5分支复用既有64 MiB业务读取器；原元数据1 MB上限和旧profile不变。回归位于 `test_model_provider_upgrade.py`，覆盖大索引绑定及五种旧profile无变化；原完整事务、恢复和安全读取矩阵继续执行。无新节点、API、格式或依赖，现有图准确，部署合同见[网关升级](research-web-gateway-upgrade.md)。
+
+2026-10-22资产交互v5部署定位在`resident/model_provider_upgrade.py`的ASSET_V5_MODE／PREVIOUS／PAYLOAD、原ASSET_MODES、previous_for、review_assets和CLI分派；近处回归为`test_model_provider_upgrade.py`。固定旧51f09、产品PR185真实merge9bc4，禁止运行时任意版本；原controller／evidence、恢复、保全、产品源码、依赖及CI配置不改。无新架构节点或数据流，原图仍准确；完整验证及未部署状态见[任务报告](../.ai/reports/test_report_asset_interaction_v5_deploy_20261022.md)和[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
+
+市场部署的 read_business_index 复用原64MiB业务上限；retention、idle及市场profile的verify_primary统一使用该读取器，gateway_upgrade.py仅增加默认仍为原元数据读取器的显式参数。市场profile单独固定该模块SHA-256，旧profiles不接受新增例外；大索引及网关额外字节/模式/删除拒绝由同一操作员测试覆盖。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产交互与数据定位：`asset_directory.py`负责账号目录索引、代码／名称／GB2312简拼排序、24小时缓存、授权指纹与有界原子文件；DataHub `directory_fingerprint/asset_directory`负责显式天软授权和同namespace凭据读取前后的复核，`providers_cjpy.fetch_directory`沿原SDK容量分批取得完整目录。`asset_routes.py`新增搜索与区块load端点，`asset_workspace.py`负责旧观察缺块补建、15分钟缓存、成功受理签名、来源／区间409、统一区块锁、失败原位回滚和旧快照保留；活动目录／区块任务进入原resident活动投影及关闭边界。
+
+`datahub/providers_cjpy_assets.py`保存固定表／字段／因子合同；`providers_cjpy.py`继续拥有真实SDK Future、容量与关闭，Broker按dataset选择实际支持的来源。AKShare标准字段与原中文列并存，不派生流出或资金构成。前端 `asset-search.mjs`提供单A股搜索与账号／代次取消，`asset-controller.mjs`按专题激活和初次overview→recent qfq加载，`asset-workspace.mjs/css`保留图表／指标并局部替换专题；`asset-projection.mjs`按真实估值、报告期、股东和行业字段投影，独立新闻／公告控制器保留60秒缓存。新回归为 `test_asset_directory.py`、`test_asset_loading.py`、`test_cjpy_asset_data.py`、`test_asset_provider_normalization.py`及资产搜索／专题JS和E2E；原资产、历史、Provider、安装门均保留。合同见[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产目录与结构化区块)、架构03／04／05章；源码与本机夹具通过不代替同候选CI、真实浏览器或部署。
+
+研究仓代码定位 `app/research_web/market_store/{models,store,postgres,operation}.py`；DataHub 的 warehouse/storage_activity/reliability/worker_activity 分别负责可信绑定、数据库真实占用、多源执行与SDK排空。公开SDK固定子进程在 public_worker.py，BaoStock适配在 providers_baostock.py；对应 test_market_store* 和 test_datahub_* 定点离线回归。
+
+
+2026-10-22 MCP 离线本地执行：`mcp_runtime/managed_sandbox.py`维护固定 Python入口、runtime/政策摘要、Seatbelt和scratch生命周期；`package_installer.managed_target`不读取凭据，`service._managed_guard`重验审批与缓存目标，`sdk_host`使用官方SDK transport。`plugins/mcp_policy.py`绑定native摘要，`packages.py`新增精确offline-sandbox权限，旧审批须显式重导入/重审。真实SDK/Runtime canary回归位于`test_mcp_managed_sandbox.py`，UI三态位于`research_web_plugins_ui.test.mjs`；Host/DSH/浏览器最终验收仍由主任务另行取证。
+
+2026-10-22 插件入口：`plugins/packages.py` 管惰性 ZIP 规范化，`plugins/service.py` 管不可变版本与原 CapabilityCatalog，`mcp_policy.py` 管 native artifact/schema 审批绑定，`proof.py` 管固定动作凭证，`sandbox_runner.py` 管 macOS Hook，`runtime_restart.py`/`multiuser/runtime.py` 管受控冻结。`plugin_routes.py`/`multiuser/plugin_routes.py`、`ui/plugins-workspace.mjs`、`runtime/plugins.mjs`/guard 贯通能力中心与唯一 DSH；定点测试 `test_plugins*.py`、`research_web_plugins*.test.mjs` 及隔离浏览器夹具。详见[插件合同](research-web-plugins.md)。
+
+2026-10-22 v4 profile在`resident/model_provider_upgrade.py`的ASSET_V4_MODE/PREVIOUS/PAYLOAD、封闭previous_for/review_assets和CLI分派中维护，近处回归为test_model_provider_upgrade.py；操作员/测试由独立实现者负责。旧5495固定，产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；654fa6只保留在历史候选证据中。旧v1/v2/v3/controller/evidence/保全门及依赖/CI不变，既有图准确，不改HTML/PNG。产品三CI不替代v4最终本机/评审/CI/部署证据，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
+华安ETF周报新合同由`report_workflows/weekly_data.py`、`weekly_sources.py`和`weekly_workbooks.py`
+负责封闭来源、期间复算及运行副本，`datahub/providers_wind_api.py`提供惰性SDK适配；`evidence.py`、
+`owner.py`和`weekly_quality.py`接既有研究质量、主管理员与同版本定稿。`ui/weekly-production.mjs`只投影
+四类状态和显式版本操作。近处测试为`test_report_weekly_*.py`、`test_datahub_wind_api.py`及
+`research_web_weekly_production.test.mjs`，仍须全量Router选择的闭包。合同见[周报生产](research-web-etf-weekly-production.md)；
+SDK可导入、离线合成通过与真实连续运行分别取证。
+
+2026-10-22 启动保全修复位于`app/research_web/store.py`：记录磁盘原有的三项可选资产键，save时只省略“原来缺失且仍精确默认”的键，成功原子替换后更新持久键集合；失败沿原日志/异常处理，不误记已持久化。相关回归在`tests/research_web/test_store.py`，覆盖旧索引启动/重复save、首次修改、原有空值及写失败。Automation仍可按原合同save，修复不绕过调用方、不修改保全比对、控制器、依赖或安装流程。存储真源见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)；部署恢复、本机结果和同候选Mac安装CI由主任务分别取证。
+
+2026-10-22 Wind工作区部署工具独立于PR177产品：`resident/model_provider_upgrade.py`新增ASSET_V3_MODE/PREVIOUS/PAYLOAD、previous_for/review_assets及CLI封闭分支，固定旧5495与产品a0ff3ae2，`test_model_provider_upgrade.py`覆盖精确范围、拒绝额外变化、索引保全及v1/v2/v3恢复。controller/evidence、产品、依赖和workflow字节不变；原v4部署拓扑不变，无需改现有图或生成HTML/PNG。真源见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)，v3候选CI、真实切换/认证页面与保全另取证，产品通过不能复用成profile通过。
+
+最后核对：2026-10-22。Wind工作区：`asset_history.py` 负责日线规范化/重叠校验/固定锚点复权；`asset_history_jobs.py` 负责持久任务/分块缓存/显式重试/取消排空/规范快照CAS发布；`asset_routes.py` 声明6个历史任务与账号偏好API；`asset_workspace.py`、`store.py`、`service.py` 负责观察投影、旧索引缺省、任务清理和服务关闭。DataHub `adjustment_contract.py`、`contracts.py`、`catalog.py`、`providers_cjpy.py`、`broker.py`、`__init__.py`、`snapshots.py` 负责封闭三种复权查询、真实Future占用、metadata和自包含交接；`main.py`与`resident/model_provider_upgrade.py`合并任务/真实Future空闲证明。UI仍在`app.mjs`、`core.mjs`及`asset-controller/chart/workspace`模块，动态副图偏好、历史任务轮询及日线前缀筹码互相独立。权威文档为[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产历史任务与固定复权)、架构03/04章和[批准计划](plans/2026-10-22-wind-asset-workspace.md)。定点回归新增`test_asset_history.py`，扩展原DataHub/catalog/CJPY/broker模块，保留原资产/Provider/空闲/JS/E2E测试；真实厂商、几何浏览器与同候选Mac安装CI分别取证，不能用预检替代最终验收。
+
+全市场概览由 `market_service.py` 管无会话缓存、合并刷新、取消和关闭，`market_routes.py` 管固定 HTTP 参数；`datahub/providers_market.py` 管沪深北分页、来源字段与完整性。前端 `ui/market.mjs`／`market.css` 负责三页签和可见页刷新。定点回归为 `test_market_provider.py`、`test_market_service.py` 和 `research_web_market*.test.mjs`；数据流见[市场概览](../outputs/research-web-architecture/13-market-overview.html)。
+
+真实源及正式登录验收入口为 `tests/e2e/market_authenticated.py` 与 `research_web_market_authenticated.mjs`：临时私有根、合成测试账号、正式网关与候选用户实例，不注入cookie或替换Provider。连接路径、官网范围及未来上市排除由provider回归固定；独立源调查在[任务报告](../.ai/reports/2026-10-22-market-data-sources.md)中分开记录可达、覆盖与授权状态。
+
+`resident/model_provider_upgrade.py` 的 `ASSET_V2_MODE/ASSET_V2_PREVIOUS/ASSET_V2_PAYLOAD` 与 `previous_for/review_assets` 增加封闭 v2 身份：`apply-assets-v2` 固定旧版 `9bc12355` 与 PR175 产品 `93d62be6`；v1 和模型常量保持。两资产 mode 共享原索引冻结、空闲、状态校验及 v4 恢复，动态读取所选固定常量而不接受运行时任意版本。近处 `test_model_provider_upgrade.py` 覆盖真实 Git 范围、完整恢复与错误 previous 拒绝；执行合同见[部署说明](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。无新服务、HTTP 字段、数据迁移或依赖。
+
+资产摘要重排由 `ui/asset-workspace.mjs/css` 形成紧凑页头、交易／估值分组、嵌套查询和图后默认收起的来源表；`asset-projection.mjs` 输出仅用于前端的 `valuation`／`coverageRows`，保留真实零值、来源、已载入行和缺口，Wind 未核验股本不派生市值。`app.mjs` 在同资产重绘中恢复原生 details，跨证券／类型重置。`asset-chart.mjs/css` 从主题变量同步透明画布、文字、网格与 tooltip，原比例、公式和联动保持；资金图沿原 Chart.js 实例读取主题。相关纯投影回归为 `tests/javascript/research_web_asset_projection.test.mjs`，页面、主题与联动沿 `research_web_asset_workspace.test.mjs`／`research_web_asset_chart.test.mjs` 及资产 E2E 分别验证。本轮不改 HTTP、观察存储、Provider 或安装依赖，浏览器／厂商读回／同候选 Mac CI／常驻部署仍须各自真实证据。
+
+`resident/evidence.py:GitHubEvidence.qualify` 仅对CI日志下载传120秒时限，普通命令仍30秒；`model_provider_upgrade.py:ASSET_EVIDENCE_SHA256` 将读取器绑定为受审工具内容。邻近 `test_resident.py` 与 `test_model_provider_upgrade.py` 覆盖超时、实际树不符及文件内容/模式/缺失拒绝。
+
+资产观察显式部署仍在 `resident/model_provider_upgrade.py`：`ASSET_MODE/previous_for/review_assets` 绑定固定旧版与已审产品，`asset_queries_idle` 补齐异步行情任务空闲证明。近处 `test_model_provider_upgrade.py` 以真实临时Git、真实操作方法与固定旧控制器夹具覆盖原始/资产两种profile的准入及恢复；没有第二部署执行器或自动白名单扩展。
+
+联合升级中的 `repository_identity/verify_release_repository` 分别验证主实例和网关的既有 GitHub origin、common directory 与 inode；独立 clone、来源变更及目录替换由 `test_model_provider_upgrade.py` 的真实临时 Git 仓库回归覆盖。
+
+`resident/model_provider_upgrade.py:review` 对 PR168 五个导航文件使用独立固定 Git 身份，其余产品保持原模型基线；近处测试 `test_navigation_payload_is_exact_and_does_not_expand_backend_scope` 覆盖接受精确导航、拒绝未知 UI/后端/依赖/模式及非祖先。修改该范围须正式交付，不修改现场自动白名单。
+
+业务模块导航重分组由 `ui/core.mjs` 规范化新旧 Hash 路由、`ui/shell.mjs` 组织主导航、`ui/workbench.mjs` 复用资产双视图/主题检索/ETF 模拟、`ui/intel.mjs` 增加主题检索栏目、`ui/app.mjs` 绑定页面归属与查询/交接异步结果。规范入口为 `#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`；旧 `workbench` 地址保留映射，历史 section/API/持久化/DSH 均不变。近处回归为 `research_web_workbench.test.mjs`、`research_web_intel.test.mjs` 与 `tests/e2e/research_web_business_navigation.mjs`；行为归属见[UI 合同](research-web-ui.md#业务模块与导航-2026-10-21)。
+
+资产观察的原 AF 五图终端与实例生命周期位于 `ui/asset-chart.mjs/css`，纯计算在 `asset-indicators.mjs`，真实字段／空态投影在 `asset-projection.mjs`，连续页面在 `asset-workspace.mjs/css`；观察控制、兼容导航、证券资讯和外层生命周期继续由 `asset-controller.mjs`、`asset-navigation.mjs`、`asset-news.mjs` 与 `app.mjs` 负责。保留 `renderMarketTerminal(rows,state,metadata)`、`enrichMarketBars`、`createAssetChartController` 导出；controller 提供 configure／getState／mount／dispose／cancel／handle，内部更新图表与读数。后端 `asset_routes.py` / `asset_workspace.py` 新增 section_sources／section_ranges 和 valuation，仍由 Broker 取数、原 Store 恢复并保存会话快照。相关回归为 `test_asset_workspace.py`、`test_datahub_wind.py`、`research_web_asset_chart.test.mjs`、`research_web_asset_workspace.test.mjs`、原 workbench/intel 测试及 `tests/e2e/research_web_asset_workspace.mjs`。公式黄金值、分区范围、真实厂商和离线安装分别验收；页面／数据／刷新合同见 UI、DataHub 和架构03–05章。
+
+`research_workbench_entrypoint/resident/model_provider_upgrade.py` 是模型服务商专项联合部署入口，复用 supervisor/admission 锁、BirthFence、服务管理器、保全摘要和独立恢复包；测试为 `test_model_provider_upgrade.py`，合同见 `research-web-gateway-upgrade.md`。不改变自动部署白名单或 DSH 协议。
+
+恢复环境回归使用真实Git LFS post-checkout钩子、受限launchd PATH和冻结恢复包，在临时Git仓库重现失败并验证恢复；部署前工具缺失须先失败，优雅排空预算为90秒。
+
+网关升级器 `resident/gateway_upgrade.py` 的 `--preserve-primary` 走 v3 静态事务；相邻 `test_gateway_upgrade.py` 与冻结恢复 runner 覆盖受限差异、双资格、空闲排空和离线六阶段回滚。旧菜单适配继续由 `ui/server/account-menu.mjs` 维护，隔离浏览器使用真实旧版模块验证身份入口。
+
+账号UI位于 `ui/server/account-menu.mjs`、`account-workspace.mjs` 与共用 `account-api.mjs`：身份顶部进资料、admin设置管理、保留DOM表单与旧primary适配。`accounts.mjs`只负责登录及旧/account跳转；相邻account_workspace/menu/session/settings JS测试与隔离浏览器证据分别验证行为。
+
+网关`apply-ui`与version 2恢复合同在`gateway_upgrade.py`；`test_gateway_upgrade.py`及两个冻结恢复fixture覆盖新旧helper、工具/产品隔离、资格失败和六阶段恢复。操作合同见[网关升级](research-web-gateway-upgrade.md)。
+
+供应商参数根object回归位于test_sandbox.py::test_native_tool_schemas_match_pinned_dsh_converter：固定DSH转换、真实pi-ai序列化及fake fetch一并验证；research-tools.mjs保留执行时code/report_plan互斥和全部预算。
+
+自由分析绑定位于resources/research_report_plan.py（fact/formula模板、中文长度、审计core）与research_evidence.py（Host重建及真实产物核对）；resources/research_report.py生成去重中文表、独立审计附件和确定性PDF；research_quality_service.py冻结新轮次policy。test_bound_analysis.py回放真实两篇公报及错误平减指数，覆盖完整绑定、绕过拒绝、附件损坏与恢复；UI报告正文用presentation，原笔记保留底稿。
+
+Claw 统一添加/斜杠菜单定位 `ui/composer-menu.mjs`（目录行、键盘与格式纯函数）、`composer.mjs`（渲染）及 `app.mjs`（原控制器接线）；回归 `tests/javascript/research_web_composer_menu.test.mjs`。FinGPT 保持原布局，无后端/依赖/DSH协议变更。
+
+系统报告流程：resources/research_report_calculations.py 只接收原始观测引用/操作/展示位数，SDK 与 research_evidence.py 的 Host 输入重建分别执行；research_report_plan.py 串起派生选择、claims/notes/coverage、暂存与归档。report.py 从冻结要求确定格式并以已评分声明生成真实HTML/Word表。test_report_calculations/formats/system_flow 覆盖成功、拒绝、写入回滚及原 macOS 沙箱；service/source/tool 保持统一 plan 指导。
+
+网关退休与大保全摘要合同定位 `gateway_upgrade.py:wait_retired/read_upgrade_journal/journal_preflight`；近处回归覆盖真实延迟reap、正式recover、不可变artifact读取及读取替换/短读/边界。Mac安装CI在原step跑临时夹具，业务数据与全局reader不改。
+
+Mac网关Python映像定位在 `resident/gateway_upgrade.py:native_image`，由原网关回归和Mac Bootstrap原生只读探针验证；配置venv、内核映像、完整argv与listener是共同条件，不能按进程名或路径子串放宽。
+
+`resident/gateway_fence.py` 与 `gateway_upgrade.py` 是显式 Mac 空池网关更新器；`multiuser/resident.py` 绑定持久冻结路径，`gateway.py` 在认证及实例创建前阻断全请求。近处回归为 `test_gateway_upgrade.py`、`test_multiuser_resident.py`；合同见 `research-web-gateway-upgrade.md`。不得以改 baseline 或清理未知 owner 解锁部署。
+
+网页日期在 research_web_sources 的出版 meta/header 合并；数值闭合布局在 research_web_numeric，quality_service 刷新同一 SDK 快照并独立重读字节。test_fingpt_evidence_contract 覆盖错期、否定、冲突、20上传加网页及声明篡改；UI/fusion 与 report_delivery_links 覆盖误拼 URL 和当前/历史投影。
+
+service.py 按当前合法业务观测选择一致的报告提示；runtime/research-tools.mjs 在既有一次补查内提示同一 report_plan 路径。test_fingpt_dsh_fusion.py 覆盖真实 CPI 上传后的提示及一般研究兼容；test_report_revision.py 固定真实 FOMC 错字段/错误基点负例，quality_tool JS 覆盖补查不续授权。
+
+FinGPT 显式算式审计位于 research_arithmetic.py，接入 research_quality.py；报告链接投影位于 research_quality_service.report_delivery，detail 与 check_quality 共享。近处回归 test_research_arithmetic.py、test_report_delivery_links.py 和 research_web_ui.test.mjs 覆盖真实GDP错算、别名偏离、直接API绕过、附件保留及归档损坏。
+
+sandbox._report_sdk_scope 精确列出当前包的四个只读 SDK/字体文件，并在 bootstrap 注入 session root；resources/research_report.render_pdf 保持原输出定位。test_sandbox 覆盖只读、未列文件和链接拒绝，test_report_revision 的 new/legacy-session 两参数覆盖原资源不改的生成及修订。
+
+research_web_sources.upload_evidence_files 依据 _stored_records 的会话登记分类 Host 网页，service.detail 和 quality_service 的来源上下文/观测/评分均复用；fusion_api 端到端及 source_reading 跨会话/损坏登记回归防止来源别名丢失 scope/日期。正文与原文件不迁移。
+
+本轮数据配方位于 resources/research_report_plan.py，经 runtime/research-tools.mjs 原 script 工具执行；service/quality_service 提供冻结绑定及有界实际观测索引。test_report_revision 覆盖旧 CPI 声明、NIST 真父来源、独立算术及双重恢复失败。research_quality.py 仅调整已核验原句与期间的删除顺序，判据保持。
+
+fingpt_compare.py/worker.py/node.mjs/html属于有限的隔离验收控制面：一次预约、受管凭据seam、48工具/6检索/900秒、逐组原始产物审计。测试test_fingpt_comparison.py及research_web_fingpt_comparison.test.mjs；不接入生产入口。iteration_resources只对有原回收证明、匹配tracked源码的真实pyc或空目录补登记新身份，保存旧新绑定及已验证manifest，未知内容阻止删除。
+
+公开正文入口为 research_web_sources.py、datahub/routes.py 的私有 research-source/list/read/cancel 与 runtime/research-tools.mjs；Markdown 检索身份解析在 research_evidence.py，真实输入字节观测和逐版本回执在 research_quality_service.py。定点回归 test_research_source_reading.py、test_research_report_binding.py 及 research_web_quality_tool.test.mjs 覆盖来源、取消、沙箱修订和旧版质量错绑；完整合同见 02–05 章。
+
+脚本故障回归：report_revision覆盖重复父来源、观测ID误用、完整斜杠来源与原子Summary写入；select_business_evidence将选择与映射合并且拒绝歧义。business_evidence覆盖CPI真实月列/百分点及完整肯定同比段落，NIST原文走原source_quote；service按冻结要求限定治理提示。research_quality.py规则未改。
+
+Git安全备份：`scripts/git_safety.mjs`保持原Git交付、完整恢复及v1读取边界，`scripts/git_backup_store.mjs`提供独立v2共享pack/文件载荷、元数据seal、备份锁及原子迁移。普通恢复点按7天和最新2个有效点轮转，未归并/未提交/活动/隔离及独有锚点保留；不维护活动Git对象。恢复、复用、损坏拒绝、迁移中断与轮转回归位于`tests/javascript/git_safety.test.mjs`，仍由原Project Constraints步骤执行。入口与保留合同见[Agent任务指南](AGENT_WORKFLOW.md#去重备份迁移与自动轮转2026-10-19)。
+
 报告恢复：quality_service在冻结要求时由实际允许上传字节生成resources/research_evidence.json，SDK load_business_evidence按task/contract读取；它不参与Host评分。source_references核对规范ID、准确Host标题及明确定位；Decimal算术和claim操作数保持精确JSON字符串。近处原两个测试模块覆盖伪造副本仍拒绝。
 
 research_business_evidence.py是原Host观测路径内的受限业务摘录规范化与复算；quality_service读取实际输入/重验SHA与缓存身份，research_evidence校验所有父来源，resources/research_report.py只序列化实际返回观测。近处test_research_business_evidence.py覆盖肯定句、表头结构、精确解析、真Store链与隔离负例；质量算法仍在原research_quality.py，不以规范句自动认证中文推断。
@@ -21,6 +226,7 @@ AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥�
 私网邀请制入口为 `research_workbench_entrypoint/server.py` → `app/research_web/multiuser/__main__.py`；accounts 管 SQLite 账号/登录态，gateway 管固定 origin、鉴权及逐用户代理，runtime 管独立 Web/DSH pair 和两实例上限。`tenant_policy.py` 在后端执行入口拒绝宿主能力；`ui/server/` 管登录、账号和页面身份，浏览器草稿/导航偏好按账号 UUID 命名空间恢复。近处测试为 `test_multiuser_accounts/gateway/runtime/cli.py`、`research_web_multiuser_storage/policy.test.mjs`。安装、安全/API和部署图映射至架构清单的 private-multiuser 组；不改变原单用户数据或依赖锁。
 
 Git基线恢复由git_safety.mjs的remote_moved原位prepare认证，保留原PR/工作树和旧回执，重置CI/验证并推进已发布tip绑定。近处git_safety.test.mjs覆盖所有权、祖先、并发变化、重复准备、发布后回退及锁保护；共享框架不修改。
+已发布PR等待/失败状态也通过同一原位prepare恢复真实前进的主线，保留修补计数；新回归覆盖计数耗尽、主线未变、脏目录与外来PR head，不修改全局控制器或发布配额。
 
 AI资讯：aihot_routes.py管理v1兼容和完整site报刊/热点合同、LRU/ETag/限流；aihot_media.py
 只读取上游已签发图片。ui/aihot.mjs负责代次/取消/归档状态，aihot-report/hot/common.mjs
@@ -343,3 +549,120 @@ hot_results分别显示执行failed与交付completed；读资料的Seatbelt验�
 Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test_hot_results/test_delivery及research_web_hot；Delivery.refresh新增可选不可变key，旧调用默认保持。结果按Delivery原合同完整流式SHA核验，100文件/每文件16MiB，超限明确不可核验，不以展示截断写入failed。
 
 报告质量的全量 CSV 复算由 research_calculations.py 提供，研究质量服务绑定来源、文件 SHA 与当前回合；test_research_calculations.py、test_delivery_cache.py、test_research_quality_scope.py 复用现有 Research Web Checks Python 步骤，新增测试预算 15 秒，不新增 job/runner。Mac 干净安装及真实模型并发交付单独验收。
+
+模型服务多连接：`model_profile_registry.py` 校验公开身份及固定 ref→物理账号映射，`model_profiles.py` 复用服务锁、活动/受理/交付保护与原配置提交，`ui/model-settings.mjs/css` 管独立 DOM 表单与服务商目录。`automation/service.py` 保存连接身份，`service.create` 在同一锁内核对日程期望绑定。近处回归 `test_model_profiles.py`、`research_web_model_profiles.test.mjs`，原 Keychain、Docker 密文、兼容适配与设置回归保留。
+
+
+资产 CJPY 实际回读补充：providers_cjpy.py 映射业务周期/复权到已安装 SDK；asset-chart.mjs 与 asset-workspace.mjs 读取供应商原字段“时间/简称/vol”。test_asset_workspace.py 对单通道来源调度和 SDK 参数做离线回归；真实取数只在显式授权的隔离目录中验收，不修改已有实例凭据。
+
+2026-10-23 资产历史来源修复：HistoryJobRequest/source、HistoryJobs冻结来源配置映射及真实输入授权，recent/none经现Broker等价候选降级；Wind纯参数校验前移候选准入。asset_history.normalize_raw_rows核验CNY/share/amount声明与证券/日期后生成asset-history-raw-2；旧版与Tinysoft固定复权门不变。UI历史来源选择、初次auto/none及冻结重试沿既有Host/DataHub/快照图，无新引擎、数据库、依赖或HTTP端点。离线HTTP/执行器/快照与JS证据分别保留；真实供应商、认证浏览器及同候选Mac安装CI另验。
+
+2026-10-23 CJPY最小单位证据在providers_cjpy._sync_query_with_client返回Result处投影：nativevol在SDK0.5.2/明确stockdaily/沪深股票身份门后声明share，nativeamount仅元/currencyNone；field_dictionary_evidence绑定字典hash/版本，不新增调用。test_datahub_cjpy覆盖旧/未知SDK、缺类型/频率、ETF/index和价格仍未知；ResearchWarehouse规范tinysoft排除不变。
+
+2026-10-23 规范raw单位策略落在datahub/contracts.py的typed required_semantics与broker候选准入，HistoryJobs冻结到查询/任务/块缓存/canonical；默认null沿旧合同。当前CJPY缺OHLC单位而在该策略下跳过，通用native不变。providers_cjpy逐行身份限定局部vol证据，research_snapshot_store保留静态field_dictionary_evidence及其冻结/恢复、拒绝native满足新规范合同；无新引擎、HTTP、依赖或SQLschema，原结构图仍准确。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。
+
+
+2026-10-23：资产副图：ui/asset-indicator-library.mjs拥有15类纯计算及封闭schema；asset-panel-manager.mjs渲染目录/常用/参数；asset-chart.mjs管理原ECharts实例与模态生命周期；asset_indicator_preferences.py与asset_routes/asset_workspace验证、账号存储和回滚。正式回归为test_asset_indicator_preferences.py与research_web_asset_indicator_library.test.mjs，原指标与交互门保持。
+
+## 2026-10-23：披露及历史发布定位
+
+`datahub/providers_akshare.py`的income_statement封闭新浪请求、日期精度和资金流同源标记，`providers_bea_archive.py`解析已审核BEA档案，`bea_archive_store.py`绑定公开发布修订。`broker.py`按明确selector和截止范围准入，`research_warehouse.py`按当前profile鉴权并分派原桥；股票日历仅用于bars。`test_datahub_financial_time_contract.py`与`test_datahub_bea_archive.py`覆盖未知单位/日期、旧版冲突、截止边界、并发幂等和恢复。现有三安装入口/依赖锁不变，最终Mac干净安装与实际Host/PG分别验收。
+
+`connection_center.py`的公开分组必须与Catalog同步；`test_datahub_catalog.py`遍历真实全目录投影，
+`test_integration_coordinator.py`用真实DataHub恢复已持久集成状态，防止新增源漏登记造成启动KeyError。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+providers_baostock.py的profitability分支调用固定query_profit_data，Broker只把明确statements=[profitability]映射quarterly_profitability。research_warehouse/research_snapshot_store按独立财务schema保存首次观测，DataHub会话缓存拒旧财务schema。test_datahub_baostock与test_baostock_financial_integration覆盖日期/单位/路由/冻结/恢复；原bars身份不变。
+
+## 2026-10-23：长期研究档案与机会预警
+
+新增 `app/research_web/dossiers/` 负责个人 SQLite、不可变修订、原件解析／pin、冻结交接与确定性扫描；`dossier_preservation.py` 将元数据和引用摘要纳入既有保全。UI 的 dossiers 模块挂入资产观察／情报二级视图，实际 Prompt 才携带 `dossier_handoff_id`；MCP 继续走原受管插件并自动冻结到既有 Snapshots。定位、字段与回归分别见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)、[UI](research-web-dossiers-ui.md)及[候选接入](research-web-seek-alpha.md)；原 Checks／Bootstrap 追加测试与静态资源，由主任务将独评、离线、CI及精确候选统一绑定。
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+今日发现组合部署定位：resident/model_provider_upgrade.py中的DISCOVERY_MODE/PREVIOUS/PAYLOAD、discovery_background_idle、review_assets及CLI分支；test_model_provider_upgrade.py沿原真实Git/全阶段恢复矩阵追加新mode和零后台任务反例。旧mode不调用新门。
+
+2026-10-23 资产周期读数在 ui/asset-chart.mjs 的 renderMarketTerminal／syncLabels 统一消费 displayBars 的当前及上一聚合记录；原日线 selectedDate 只服务日期选择与筹码截止。asset-panel-manager.mjs 的底栏只留单一＋，同图副图标题替换／×关闭；asset-chip-panel.mjs 关闭横轴网格。无新API、存储、Provider或依赖，既有架构图拓扑准确。回归在 research_web_asset_chart.test.mjs 与 research_web_asset_indicator_library.test.mjs。
+
+副图底栏仅列出当前已显示的面板，选中标签确定当前面板；未显示指标、常用列表与参数统一收进＋目录，不把所有常用项铺在底栏。关闭全部副图后仍保留＋入口。
+
+## WGC 月度吨数与研究时点（2026-10-23）
+
+现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
+
+AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。
+
+
+## KAPSARC / BGS 年度矿产实物量（2026-10-24）
+
+既有 ext_kapsarc/production 在同一有界 deadline 内读取分号 CSV 与固定官方 metadata。只有 dataset/publisher/Public/四字段类型、kilograms 单位及本次记录数全部核实，才将完整导出投影写入原生研究仓；原 country/sub_commodity/year/production 字符串和两份原件均保留，另有 production_kg 数值列。部分、错数、错单位、错原件或未知合同拒绝入仓，不按国家补年、不做 ISO 映射或 kg/tonne 换算。
+
+BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月度 ETF 吨数流量、SPDR 单基金持仓属于不同指标/范围/频率，不能因物理单位可换算就合并；首次观察和修订链不等于历史公布 PIT。metadata 修改/处理日期不作为行级披露日，旧说明年份不覆盖实际导出年份；源注释/估算符号缺口保留。新增 projection_scope 元数据随 freeze/restore 保存，旧快照不补造该字段。
+
+该扩展沿既有 Host/DataHub/Provider/可选研究仓拓扑，无新服务、路由、表、依赖或执行引擎，原图仍准确。只做独立进程和 owned socket-only PG 有界验收、原三CI与同候选Mac安装，不配置正式库、更新常驻服务或操作外盘。
+
+
+## 2026-10-24：现金流财务比率
+
+既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
+
+披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：今日发现原生改版定位：discovery/news.py处理原始来源身份/指纹，reading.py处理独立读取lane；service.py复核selection/association/显式freeze，tracking.py绑定原始批准范围并复用原日程，ui/discovery.mjs/css按原生令牌双栏显示。新GET association与raw context v2见research-web-discovery.md，旧事件/恢复保持。
+
+## 2026-10-24：公开代理策略与原件绑定v2
+
+匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
+
+中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
+
+实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
+
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
+
+原SDK四案请求在接收响应头前关闭，仍未恢复；没有用改参数、换客户端或后备成功冒充原端点修好。自然失败现在保留有限error_code，资金流尝试链必须存在且精确验证，旧档按原义可读。
+
+GDP v3依据已固定SHA的东财页面脚本字段映射和统计局方法，把四项累计金额标CNY_100million／现价、四项累计同比标percent／可比价；保持年内累计，不推导单季QoQ SAAR。此前v2“GDP单位未知”的段落为当时历史状态，未回写旧快照。
+
+新浪v3只对600600.SH／2025-06-30／合并期末／CNY的营业收入与集团净利润两格，按原件页5（印刷页4）及精确十进制字符串／整数哈希附加参考匹配。float、bool、别股／别期／别项及值修订不获得认证；原data和全局单位不变，未匹配时单位及basis均未知。供应商日期和发行人发布声称分开，冲突不覆盖；PDF历史版本未知，PIT／正式回测始终false。冻结包保留供应商原件和引用元数据，外部参考原件随单独证据包迁移。
+
+实现及逐阶段实际结果见[本轮报告](../.ai/reports/2026-10-24-origin-reference-evidence.md)。不改现有服务、正式库、系统代理、凭据或外盘，无新依赖／付费。
+
+
+## 2026-10-25：月度宏观与限定财务参考扩围
+
+宏观v4通过固定东财页面实际引用的CPI/PMI/货币供应量脚本绑定字段定义：仅明确变化率为percent，CPI当月／累计指数的基期仍未知，PMI水平不冒充百分点变化；M2/M1/M0数量亿元和月末存量分别声明。央行原件记录M1自2025-01调整并回溯2024年，供应商采用的修订版本未证明，不自动跨年拼接。统计局2025-09 CPI页声称次月公布，只作时点差异示例，不给当前API值回填历史可得时间。
+
+Bao盈利能力v2以保存的SDK原始字符串重建行、字段、固定元数据与引用，伪造或错原件拒入仓。仅600000.SH／2026H1两格与已归档集团半年报的百万元换元值精确匹配，附集团累计／非归母说明；其他证券、期间、比例或修订值不外推。两源分别入仓，首次观察／历史PIT及正式回测限制保持。旧schema缓存跳过，旧显式冻结可读，无新服务、表、HTTP或依赖，原架构图仍准确。外部定义/PDF原件由独立证据包归档，数值冻结保留引用元数据。SDK原端点交叉路由仍失败，不能以后备成功冒充修复。
+
+
+## 2026-10-25：NYFed SOFRAI 专用v3
+
+NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-numeric-v2。官方API Schema原件将SOFRAI与四个数值字段绑定；三个30/90/180日历日均值为ACT/360年化复合百分率，营业日复利、非营业日按前营业日利率单利，发布五位小数。指数为无量纲累计因子，2018-04-02基准1、发布八位；不按百分率解释，也不从已舍入指数重建原均值。
+
+官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
+
+生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+# 区间统计实现定位（2026-10-25）
+
+`app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。

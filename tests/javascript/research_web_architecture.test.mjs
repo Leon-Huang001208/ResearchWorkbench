@@ -615,3 +615,16 @@ test('API filters combine domain, method and search while counting duplicate dec
   controls.density.value='compact';events.get('density:change')();assert.equal(root.dataset.density,'compact');
   controls.theme.value='light';events.get('theme:change')();assert.equal(root.dataset.theme,'light');
 });
+
+// New private router must be imported and mounted by the verified gateway itself.
+test('private relative routers require exact gateway include and verified CLI', async t => {
+  const f=fixture(t);
+  const gateway='app/research_web/multiuser/gateway.py';
+  const plugin='app/research_web/multiuser/plugin_routes.py';
+  f.write('app/research_web/multiuser/__main__.py', 'from .gateway import create_gateway\napp = create_gateway(store,pool)\nuvicorn.run(app, host="127.0.0.1")\n');
+  f.write(gateway, 'from .plugin_routes import router as plugin_router\napp.include_router(plugin_router)\n');
+  f.write(plugin, 'router = APIRouter(prefix="/api/server/plugins")\n@router.get("")\nasync def listing(): pass\n');
+  assert.equal((await check(f)).violations.some(v=>v.code==='api_unmounted' && v.path===plugin),false);
+  f.write(gateway, 'from .plugin_routes import router as plugin_router\n');
+  assert.equal((await check(f)).violations.some(v=>v.code==='api_unmounted' && v.path===plugin),true);
+});

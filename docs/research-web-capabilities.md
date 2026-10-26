@@ -1,5 +1,49 @@
 # Research Web 能力包与版本
 
+能力目录索引保存使用相同 UTF-8 JSON 的单次写入，保留原逐次保存、临时文件同步与原子替换。序列化、fsync 或替换失败仍保留上一索引并清理临时文件；未绕过冷启动、依赖新鲜性或能力验证。
+
+Host 的来源请求/取消内存表在构造时即存在，来源工具仍复用原登记、取消和清理流程；不新增能力包版本、工具授权或原件信任。空闲观察不触发来源读取、模型提交或自动化执行。
+
+华安冻结Run不再选择不适用的公司研究Workflow，而按Host验证的专属输入/工具投影提交。通用能力目录、其data_requirements和数据拒绝逻辑不改；不发布新泛化capability、不复用Automation任务身份，原Native审批/插件撤权/来源约束继续有效。
+
+今日发现不发布新原生Tool/Skill或第二运行器：手动选择先固定golddata_intel事件归档，再由唯一DSH调用已授权能力。独立跟踪锁定原research_task定义、模型/profile和固定只读工具；禁用草稿、启用、运行、质量和通知各自保留，默认无MCP/外部投递，每条计划每日最多一次模型尝试。既有框架、Workflow及能力发布门不因事件摘要自动通过，合同见[今日发现](research-web-discovery.md)。
+
+
+固定公开indices个人仓库桥属于Host市场页内部适配，不新增原生Tool、Skill、Workflow或Broker公开来源绑定，不伪造研究sid。能力发布、自动化依赖和私有来源准入保持原门；仓库已持久化或命中不提升研究质量及正式回测资格。
+
+华安ETF周报在既有报告Workflow详情准备未发布的`huaan-etf-weekly-v1`继任版本，沿原版本API发布；
+不新增执行引擎或公开原生Tool。主管理员身份、同源取数、原质量门、文件交付及正式定稿分别核验，
+当前版本真实手动定稿后才可启用周五15:30日程。旧历史不继承新认证，见[周报生产合同](research-web-etf-weekly-production.md)。
+
+本轮DataHub仍使用既有datahub_*工具ID，新增purpose/quality/as_of约束和真实尝试元数据；工具注册不表示来源可用，BaoStock仅三个已实现业务绑定开放。Skill/Workflow/Automation不会因此取得数据库写权限、个人凭据或新增模型预算，仓库由可信Host绑定。
+
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 能力中心新增插件页：固定包导入/文件核对/精确权限审核、支持与就绪状态、启用/撤权/回滚/卸载、个人与共享分发以及 MCP 原生确认/审批链。Skill/Workflow 复用 CapabilityCatalog，Command 展开为现有消息，Agent 经当前 session grant 调用唯一 DSH 原生 subagent；Hook 仅受审事件子集。升级保留仍批准旧会话的原字节，MCP 无法并存时明确 deferred，不静默换版。状态和未支持范围见[插件合同](research-web-plugins.md)。
+
+2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
+
+全市场概览属于固定行情浏览页面，不注册新的Skill／Tool／Workflow，不启动Automation或研究会话。30／60秒刷新只在页面可见且日历允许时运行，取消、公开来源与用户缓存由MarketService负责；能力权限、日程和唯一DSH执行边界保持。
+
+原AF连续指标工作区只迁入确定性浏览器公式、字段投影及本地固定图表资源，未增加Skill／Tool／Workflow或第二Agent引擎；不迁移AF委员会、数据库、协调器或其能力注册。财务／行业／股东／宏观缺数据时显示未知，估算筹码不能作为真实持仓或通过研究质量门。
+
+能力目录初始化事务内只读取一次 Python 模块到发行包的清单，供内置能力的静态导入检查共享；事务结束（包括异常）立即清除。每次新的目录实例，以及初始化后的显式检查/发布，仍读取当前安装清单；来源可调用状态、凭据、版本约束与脚本安全检查不缓存或放宽。
+
+原report_plan增加同节fact/formula数值引用及有界年度GDP推算；系统负责声明/笔记/中文呈现/审计附件，Host独立重建，不新增工具、来源授权、模型或自动化执行器。精度、输入和执行预算由固定代码实际强制，DSH wire的schema兼容调整不放宽这些边界。
+
+原research_run_script扩展有界calculations数据配方，不增加工具或权限。模型选择实际证据，系统计算/组装/格式化；旧code保留独立检查能力。Host对任意客户端副本不授予信任，未验证分析和资料范围继续保持原准入及质量规则。
+
+网页来源读取只增加从已取得完整字节产生的有界证据投影，不新增工具、来源授权或执行次数。来源日期冲突保持未知，数字声明仍经Host独立重算；自动化、Claw与旧能力合同不因SDK便利函数而放宽。
+
+本轮未增加能力包、工具或准入字段。实际数值业务观测已可用时，提示使用已有report_plan；脚本仍可做独立计算与取证，补查仅沿既有一次授权，不把说明文字当新权限。
+
+Host检查版链接及显式算式审计不增加能力、自动化动作或授权。Claw与旧能力流程沿原执行通道；只有带冻结研究合同的当前FinGPT报告启用检查链接约束，上传资料仍可下载。
+
+research_read_source 只暴露 list/read 与来源 ID，不接受调用方 URL、正文、会话或凭据。原生插件从本会话真实完成的搜索事件同步有界身份清单，Host 按来源范围核对；读取的实际正文保存在本会话只读 inputs，并绑定 SHA-256。继承原模型工具准入与48次工具硬预算，取消经同一原生 call_id 传达；不授予浏览器登录、DataHub 或任意宿主网络权限。
+
+脚本资源提供select_business_evidence(bundle,{准确id或唯一metric或metric@period:[要求ID]})，将选择与映射一起校验；evidence_section统一返回空numeric_claims，父来源重复项去重，business_观测ID不得冒充来源。write_summary_workbook分开数值Summary、ExactValues和说明表；render_markdown保留完整规范报告与缺口。所有函数仅格式化，不授予可信观察或质量结论。CPI可用真实历史月列/精确百分点；NIST可用实际原文句，中文推断仍独立核验。
+
 报告资源新增load_business_evidence读取当前task/contract的便利投影，避免手抄大段观测；并不签发质量结论。Decimal计算结果和claim操作数保存为精确JSON字符串；来源定位格式只在真实ID和准确标题核对后接受。无新工具权限或模型重试。
 
 实际业务证据的canonical_source、build_numeric_claim与evidence_section复用已打包报告资源，没有新Skill、Workflow、权限或Automation节点。对账/利率算术工具不是可信来源，调用成功不等于研究通过。
@@ -491,3 +535,15 @@ Hot FinGPT的冻结研究不加载全量Skill目录及外部数据工具，沿�
 ## 历史子会话模式兼容 · 2026-10-13
 
 历史子会话模式unknown只影响读取其历史，不表示能力包或模型工具已验证。能力执行与控制路径保留原严格校验。
+# 报告数据参数与原能力边界
+
+report_plan 只在原 research_run_script 中替代代码输入，沿同一准入和冻结上下文执行；不增加 Automation、模型循环或补查预算。独立报告组装无评分权，所有分析和真实缺口继续交原 Host 核验。
+
+
+命名模型连接不改变Skill/Method/Workflow的版本或工具权限。显式声明provider/model的research_task日程另锁profile身份并在创建锁内核验；其他能力自动化继续原有默认模型语义，不补造历史选模审批，未验证的兼容工具能力仍拒绝深入研究。
+
+## 2026-10-23：长期研究档案与机会预警
+
+六类档案研究方法只补充现有能力中心的输入、输出和限制，继续使用原已发布版本与原 DSH 工具；档案交接句柄需由实际 Prompt 绑定后才能读取，方法介绍不授予来源／MCP 权限。个人凭据和固定评估操作复用受管插件审批／status；小创候选缺已核验 Registry 身份，导入不等于安装或可配置，54 子弹只为另行确认前的估算。能力发布／发现拓扑与原报告质量门保持，详见[档案方法](research-web-dossiers-ui.md)、[扫描边界](research-web-dossier-scans.md)及[候选合同](research-web-seek-alpha.md)。
+
+今日发现原始资讯沿原 Automation research_task 跟踪，批准范围绑定原始资讯及精确核对的事件归档。已登记但核对失效的任务在调度入口拒绝，不回退通用模型执行；默认禁用、独立启用及原质量门保持。详见[发现合同](research-web-discovery.md)。

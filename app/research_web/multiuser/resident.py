@@ -68,6 +68,7 @@ def run(root: Path) -> int:
         try:
             pool = AttachedPool(accounts, private, binding, revision)
             pool.maintenance_path = root / "run/cutover.json"
+            pool.deployment_path = root / "run/gateway-upgrade.json"
             app = create_gateway(accounts, pool, origin=config["origin"])
             uvicorn.run(
                 app,

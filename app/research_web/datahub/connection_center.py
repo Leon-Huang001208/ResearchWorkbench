@@ -33,6 +33,7 @@ GROUP_SPECS = (
         [
             "akshare",
             "baostock",
+            "bea_archive",
             "yahoo",
             "chinastock",
             "csindex",
@@ -118,6 +119,13 @@ def build_connection_center(catalog: dict, connections) -> dict:
                 "configured": bool(status.get("configured", readiness["configured"])),
                 "secret_configured": bool(status.get("secret_configured", False)),
                 "probe_status": readiness["health"],
+                "execution_evidence": descriptor.get("execution_evidence", []),
+                "execution_verified": readiness["callable"]
+                and any(
+                    item.get("status") == "success"
+                    for item in descriptor.get("execution_evidence", [])
+                ),
+                "execution_scope": "listed_capabilities_only",
                 "integration_completed": readiness["integration_completed"],
                 "callable": readiness["callable"],
                 "configuration_supported": supported,

@@ -1,10 +1,12 @@
 const API_ROOT = '/api/research';
+import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'claw', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
-const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot']);
+const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
+const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
-const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
+const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data', 'plugin']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
 
 export function parseRoute(hash = '') {
@@ -16,6 +18,10 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'market') {
+    route.marketView = ['overview', 'quotes', 'sectors'].includes(params.get('view')) ? params.get('view') : 'overview';
+    route.marketBoardId = /^BK[0-9]{4,6}$/.test(params.get('board_id') || '') ? params.get('board_id') : null;
+  }
   if (page === 'aihot') {
     route.aihotTab = !extraSegments.length && ['hot', 'archive', 'weekly', 'monthly', 'manage'].includes(sectionSegment) ? sectionSegment : 'daily';
     route.aiNewsSection = params.get('section') || 'sources';
@@ -31,8 +37,13 @@ export function parseRoute(hash = '') {
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
   if (page === 'intel') {
-    const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
+    const tabs = new Set(['discovery', 'hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events', 'signals']);
+
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
+    if (route.intelTab === 'search') {
+      route.searchKind = Object.hasOwn(searchSections, params.get('kind')) ? params.get('kind') : 'news';
+      route.section = searchSections[route.searchKind];
+    }
     if (route.intelTab === 'hot') {
       route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
@@ -68,13 +79,21 @@ export function parseRoute(hash = '') {
     }
   }
   if (page === 'workbench') {
-    const requestedSection = sectionSegment || params.get('section');
-    route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+    const requestedSection = extraSegments.length ? '' : (sectionSegment || params.get('section'));
+    route.section = workbenchSections.has(requestedSection) ? requestedSection : 'assets';
     if (route.section === 'hot') {
       route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
+  if (page === 'assets') route.section = !extraSegments.length && sectionSegment === 'funds' ? 'funds' : 'assets';
+  if (['assets', 'workbench'].includes(page) && route.section === 'assets') {
+    route.asset = cleanAsset(params.get('asset'));
+    route.assetType = ASSET_TYPES.includes(params.get('asset_type')) ? params.get('asset_type') : 'stock';
+    route.assetView = params.get('view') === 'dossiers' && page === 'assets' ? 'dossiers' : ASSET_VIEWS.includes(params.get('view')) ? params.get('view') : 'overview';
+    if (route.assetView === 'dossiers') route.dossierId = /^[a-f0-9]{32}$/.test(params.get('dossier') || '') ? params.get('dossier') : null;
+  }
+  if (page === 'simulation') route.section = 'etf-paper';
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
     route.frameworkTab = frameworkTabs.has(params.get('tab')) ? params.get('tab') : 'overview';
@@ -83,15 +102,33 @@ export function parseRoute(hash = '') {
 }
 
 export function legacyRouteTarget(hash = '') {
-  if (/^#\/workbench\/hot(?:\?|$)/.test(String(hash))) return String(hash).replace('#/workbench/hot', '#/intel/hot');
-  if (/^#\/workbench\?/.test(String(hash))) {
-    const params = new URLSearchParams(String(hash).split('?')[1]);
-    if (params.get('section') === 'hot') {
-      params.delete('section');
-      return `#/intel/hot${params.size ? `?${params}` : ''}`;
+  const oldAssetTopic = /^#\/intel\/(news|filings)(?:\?([^#]*))?$/.exec(String(hash));
+  if (oldAssetTopic) {
+    const params = new URLSearchParams({ view: oldAssetTopic[1] === 'news' ? 'news' : 'announcements' });
+    const code = new URLSearchParams(oldAssetTopic[2] || '').get('code');
+    if (/^\d{6}$/.test(code || '')) { params.set('asset', code); params.set('asset_type', 'stock'); }
+    return `#/assets?${params}`;
+  }
+  if (/^#\/settings\/account(?:\?|$)/.test(String(hash))) return '#/account';
+  if (/^#\/workbench(?:\/|\?|$)/.test(String(hash))) {
+    const route = parseRoute(hash);
+    const params = new URLSearchParams(String(hash).split('?')[1] || '');
+    params.delete('section');
+    const targets = { assets: '#/assets', funds: '#/assets/funds', market: '#/intel/search', industry: '#/intel/search', documents: '#/intel/search', 'etf-paper': '#/simulation/etf', hot: '#/intel/hot' };
+    const kind = Object.keys(searchSections).find(key => searchSections[key] === route.section);
+    if (kind) {
+      params.delete('kind');
+      const searchParams = new URLSearchParams({ kind });
+      for (const [key, value] of params) searchParams.append(key, value);
+      return `${targets[route.section]}?${searchParams}`;
     }
+    return `${targets[route.section]}${params.size ? `?${params}` : ''}`;
   }
   return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
+}
+
+export function isDataWorkspaceRoute(route) {
+  return ['assets', 'simulation', 'workbench'].includes(route?.page) || (route?.page === 'intel' && route?.intelTab === 'search');
 }
 export async function prepareClawExampleDraft(controller, prompt, { navigate, currentGeneration }) {
   const pending = navigate();
@@ -152,7 +189,7 @@ export function safeLog(event, metadata = {}) {
 }
 
 export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog, requestTimeoutMs = 120000 } = {}) {
-  async function request(path, { method = 'GET', body, key, userAction = false, readOnly = false } = {}) {
+  async function request(path, { method = 'GET', body, key, userAction = false, readOnly = false, signal } = {}) {
     const reading = method === 'GET' || readOnly;
     const abort = new AbortController();
     let timer;
@@ -164,7 +201,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
         error.code = 'request_timeout'; reject(error);
       }, reading ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
     });
-    try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: abort.signal }), timeout]); }
+    const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
+    try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: combined }), timeout]); }
     finally { clearTimeout(timer); }
   }
   async function performRequest(path, { method, body, key, userAction, signal }) {
@@ -176,7 +214,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     let response;
     try {
       response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
-    } catch {
+    } catch (error) {
+      if (signal.aborted) throw new DOMException('读取已取消', 'AbortError');
       logger('request_failed', { method });
       throw new Error('网络连接失败，请检查服务后重试。未自动重新提交请求。');
     }
@@ -187,7 +226,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     }
     if (!response.ok) {
       const error = new Error(data?.error?.message || `请求失败（HTTP ${response.status}）`);
-      error.code = data?.error?.code || 'request_failed'; throw error;
+      error.code = data?.error?.code || 'request_failed'; error.status = response.status; throw error;
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('服务响应格式异常，请检查后端日志。');
     return data;
@@ -200,6 +239,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     return query.size ? `?${query}` : '';
   };
   return {
+    request,
     hotStatus: () => request('/hot/status'), hotConfiguration: () => request('/hot/configuration'),
     hotConfigure: (body) => request('/hot/configuration', { method: 'PUT', body, userAction: true }),
     hotLifecycle: (action) => request('/hot/lifecycle', { method: 'POST', body: { action }, userAction: true }),
@@ -280,7 +320,10 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     previewReportScheduleMigrations: () => request('/automations/migrations/report-schedules/preview', { method: 'POST', body: {} }),
     applyReportScheduleMigrations: (workflowIds) => request('/automations/migrations/report-schedules/apply', { method: 'POST', body: { workflow_ids: workflowIds } }),
     reportWorkflow: (id) => request(`/report-workflows/${segment(id)}`),
+    prepareWeeklyProduction: (id) => request(`/report-workflows/${segment(id)}/weekly-production/prepare`, { method: 'POST', body: {} }),
+    publishReportWorkflowVersion: (id, version) => request(`/report-workflows/${segment(id)}/versions/${segment(version)}/publish`, { method: 'POST', body: {} }),
     runReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/runs`, { method: 'POST', body: {} }),
+    runHistoricalReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/historical-acceptance-runs`, { method: 'POST', body: {} }),
     reportWorkflowRuns: (id) => request(`/report-workflows/${segment(id)}/runs`),
     reportProviders: () => request('/report-workflows/providers'),
     probeReportProvider: (id, key) => request(`/report-workflows/providers/${segment(id)}/probe`, { method: 'POST', body: {}, key }),
@@ -292,6 +335,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     reportSchedule: (id) => request(`/report-workflows/${segment(id)}/schedule`),
     saveReportSchedule: (id, body) => request(`/report-workflows/${segment(id)}/schedule`, { method: 'PUT', body }),
     dataCatalog: () => request('/data/catalog'),
+    warehouseStatus: (options = {}) => request('/data/warehouse', options),
+    warehouseControl: (body, options = {}) => request('/data/warehouse', {...options, method:'POST', body}),
     dataCapability: (id) => request(`/data/capabilities/${segment(id)}`),
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
     connections: () => request('/data/connections'),
@@ -305,6 +350,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     verifyLocalIntegration: (target, key) => request('/local-integrations/verifications', { method: 'POST', body: { target }, key }),
     localIntegrationVerification: (id) => request(`/local-integrations/verifications/${segment(id)}`),
     sourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`),
+    verifySourceAuthorization: (id) => request(`/data/sources/${segment(id)}/configuration/verify`, {method:'POST',body:{},userAction:true}),
     saveSourceConfiguration: (id, body) => request(`/data/sources/${segment(id)}/configuration`, { method: 'PUT', body }),
     deleteSourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`, { method: 'DELETE' }),
     connectionMigrationPreview: () => request('/data/connections/migration-preview'),
@@ -317,19 +363,54 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     startDataQuery: (body, key) => request('/data/queries', { method: 'POST', body, key }),
     dataQueries: (section = '') => request(`/data/queries${section ? `?section=${segment(section)}` : ''}`),
     dataQuery: (id) => request(`/data/queries/${segment(id)}`),
-    datasetRows: (sid, did, offset = 0, limit = 200) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`),
-    assetObservations: () => request('/assets/observations'),
-    assetObservation: (id) => request(`/assets/observations/${segment(id)}`),
-    createAssetObservation: (body, key) => request('/assets/observations', { method: 'POST', body, key }),
-    watchlists: () => request('/watchlists'),
+    datasetManifest: (sid, did) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}`),
+    datasetRows: (sid, did, offset = 0, limit = 200, options = {}) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`, options),
+    dossiers: ({ includeArchived = false, cursor, ...options } = {}) => request(`/dossiers?include_archived=${includeArchived ? 'true' : 'false'}${cursor ? `&cursor=${segment(cursor)}` : ''}`, options),
+    dossier: (id, options = {}) => request(`/dossiers/${segment(id)}`, options),
+    createDossier: (body, options = {}) => request('/dossiers', { ...options, method: 'POST', body }),
+    updateDossier: (id, body, options = {}) => request(`/dossiers/${segment(id)}`, { ...options, method: 'PATCH', body }),
+    dossierTimeline: (id, { cursor, ...options } = {}) => request(`/dossiers/${segment(id)}/timeline${cursor ? `?cursor=${segment(cursor)}` : ''}`, options),
+    addDossierRecord: (id, body, options = {}) => request(`/dossiers/${segment(id)}/records`, { ...options, method: 'POST', body }),
+    addDossierEvidence: (id, body, options = {}) => request(`/dossiers/${segment(id)}/evidence`, { ...options, method: 'POST', body }),
+    dossierEvidence: (id, evidenceId, options = {}) => request(`/dossiers/${segment(id)}/evidence/${segment(evidenceId)}`, options),
+    addDossierLink: (id, body, options = {}) => request(`/dossiers/${segment(id)}/links`, { ...options, method: 'POST', body }),
+    dossierLink: (id, linkId, options = {}) => request(`/dossiers/${segment(id)}/links/${segment(linkId)}`, options),
+    dossierHandoff: (id, body, options = {}) => request(`/dossiers/${segment(id)}/handoff`, { ...options, method: 'POST', body }),
+    dossierSignals: (options = {}) => request('/dossiers/signals', options),
+    scanDossier: (id, body, options = {}) => request(`/dossiers/${segment(id)}/scan`, { ...options, method: 'POST', body }),
+    setDossierTracking: (id, body, options = {}) => request(`/dossiers/${segment(id)}/tracking`, { ...options, method: 'PATCH', body }),
+    assetObservations: (options = {}) => request('/assets/observations', options),
+    searchAssets: (query = '', { limit = 20, ...options } = {}) => request(`/assets/search?q=${segment(query)}&limit=${segment(limit)}`, options),
+    assetObservation: (id, options = {}) => request(`/assets/observations/${segment(id)}`, options),
+    createAssetObservation: (body, key, options = {}) => request('/assets/observations', { ...options, method: 'POST', body, key }),
+    refreshAssetBlock: (id, block, key) => request(`/assets/observations/${segment(id)}/blocks/${segment(block)}/refresh`, { method: 'POST', body: {}, key }),
+    loadAssetBlock: (id, block, body, key, options = {}) => request(`/assets/observations/${segment(id)}/blocks/${segment(block)}/load`, { ...options, method: 'POST', body, key }),
+    startAssetHistory: (id, body, key, options = {}) => request(`/assets/observations/${segment(id)}/history-jobs`, { ...options, method: 'POST', body, key }),
+    assetHistoryJobs: (id, options = {}) => request(`/assets/observations/${segment(id)}/history-jobs`, options),
+    assetHistoryJob: (id, jobId, options = {}) => request(`/assets/observations/${segment(id)}/history-jobs/${segment(jobId)}`, options),
+    cancelAssetHistory: (id, jobId) => request(`/assets/observations/${segment(id)}/history-jobs/${segment(jobId)}/cancel`, { method: 'POST', body: {} }),
+    assetChartPreferences: (options = {}) => request('/assets/chart-preferences', options),
+    saveAssetChartPreferences: body => request('/assets/chart-preferences', { method: 'PUT', body }),
+    watchlists: (options = {}) => request('/watchlists', options),
     createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
     addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),
-    assetNotes: () => request('/asset-notes'),
+    assetNotes: (options = {}) => request('/asset-notes', options),
     createAssetNote: (body) => request('/asset-notes', { method: 'POST', body }),
-    assetAlerts: () => request('/asset-alerts'),
+    assetAlerts: (options = {}) => request('/asset-alerts', options),
     createAssetAlert: (body) => request('/asset-alerts', { method: 'POST', body }),
-    assetNotifications: () => request('/asset-notifications'),
+    assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
+    discoveryFeed: (horizon = 'medium', refresh = false, options = {}) => request(`/discovery/feed?horizon=${segment(horizon)}&refresh=${refresh ? 'true' : 'false'}`, options),
+    discoveryAssociation: (feedId, newsId, eventId, horizon, options = {}) => request(`/discovery/association?feed_id=${segment(feedId)}&news_id=${segment(newsId)}&event_id=${segment(eventId)}&horizon=${segment(horizon)}`, options),
+    discoverySelection: (feedId, themeId, horizon, options = {}) => request(`/discovery/selection?feed_id=${segment(feedId)}&theme_id=${segment(themeId)}&horizon=${segment(horizon)}`, options),
+    discoveryPrepare: body => request('/discovery/prepare', { method: 'POST', body, userAction: true }),
+    discoveryHandoff: id => request(`/discovery/handoffs/${segment(id)}`),
+    discoveryHandoffs: (options = {}) => request('/discovery/handoffs', options),
+    discoveryRequest: id => request(`/discovery/requests/${segment(id)}`),
+    discoveryExecute: (id, body) => request(`/discovery/handoffs/${segment(id)}/execute`, { method: 'POST', body, userAction: true }),
+    discoveryTracks: (options = {}) => request('/discovery/tracks', options),
+    discoveryTrackSave: body => request('/discovery/tracks', { method: 'POST', body, userAction: true }),
+    discoveryTrackState: (id, enabled, body) => request(`/discovery/tracks/${segment(id)}/${enabled ? 'enable' : 'disable'}`, { method: 'POST', body, userAction: true }),
     artifacts: (sessionId = '') => request(`/artifacts${sessionId ? `?session_id=${segment(sessionId)}` : ''}`),
     operationsUsage: (range = '7d') => request(`/operations/usage?range=${segment(range)}`),
     operationsTools: (range = '7d') => request(`/operations/tools?range=${segment(range)}`),
@@ -382,6 +463,10 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     approve: (id, approval, decision) => request(`${sessionPath(id)}/approvals/${segment(approval)}`, { method: 'POST', body: { decision } }),
     answer: (id, question, answers) => request(`${sessionPath(id)}/questions/${segment(question)}`, { method: 'POST', body: { answers } }),
     configure: (body) => request('/runtime/model', { method: 'PUT', body }),
+    modelProfiles: () => request('/model-profiles'),
+    saveModelProfile: (id, body) => request(id ? `/model-profiles/${segment(id)}` : '/model-profiles', { method: id ? 'PUT' : 'POST', body }),
+    activateModelProfile: id => request(`/model-profiles/${segment(id)}/activate`, { method: 'POST', body: {} }),
+    archiveModelProfile: id => request(`/model-profiles/${segment(id)}`, { method: 'DELETE' }),
     testModel: () => request('/runtime/model/test', { method: 'POST', body: {} }),
     tabbitStatus: () => request('/runtime/tabbit'),
     configureTabbit: (body) => request('/runtime/tabbit', { method: 'PUT', body }),
@@ -403,19 +488,27 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   };
 }
 
-export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', researchMode: 'quick', researchAsOf: '', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
+export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, getAccount = () => globalThis.__RWB_USER_ID__ || 'local', confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', dossierHandoff: null, attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', researchMode: 'quick', researchAsOf: '', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map(); const createdDraftOrigins = new Map(); const sendingSessions = new Set();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {}; let hasOpened = false;
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
   const researchMode = (value, depth) => ['quick', 'deep', 'agent'].includes(value) ? value : depth === 'deep' ? 'deep' : 'quick';
   const validResearchAsOf = value => value === '' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.startsWith('0000-') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
-  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats });
+  const draftState = () => ({ draft: state.draft, dossierHandoff: state.dossierHandoff, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats });
+  const controllerAccount = String(getAccount());
+  let dossierScopeID = null;
+  const validDossierHandoff = value => value == null || typeof value === 'object' && /^[a-f0-9]{32}$/.test(value.id || '') && /^[a-f0-9]{32}$/.test(value.dossierID || '') && Object.keys(value).every(key => ['id', 'dossierID'].includes(key));
+  const accountCurrent = () => {
+    if (controllerAccount === String(getAccount())) return true;
+    state.dossierHandoff = null; state.draft = ''; state.attachments = []; drafts.clear(); pending.clear();
+    state.error = '账户已变化，请重新加载页面后继续研究。'; logger('dossier_draft_account_changed'); emit(); return false;
+  };
   if (draftStorage === undefined) {
     try { draftStorage = globalThis.sessionStorage; } catch { logger('draft_storage_unavailable', {}); }
   }
-  const userNamespace = /^[a-f0-9-]{36}$/.test(globalThis.__RWB_USER_ID__ || '') ? `user:${globalThis.__RWB_USER_ID__}:` : '';
+  const userNamespace = /^[a-f0-9-]{36}$/.test(controllerAccount) ? `user:${controllerAccount}:` : '';
   const storageKey = id => `research-web:${userNamespace}explicit-draft:v1:${id}`;
   const validDraft = value => typeof value?.draft === 'string' && Array.isArray(value.attachments) && value.attachments.length <= 100 && value.attachments.every(file => typeof file?.id === 'string' && /^[A-Za-z0-9_-]{1,255}$/.test(file.id) && typeof file.name === 'string' && file.name.length <= 500);
   const draftAttachment = file => {
@@ -437,6 +530,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     capability: value.capability ? { id: value.capability.id, version: value.capability.version, name: value.capability.name || value.capability.id } : null,
     toolIds: value.toolIds || [], methodIds: value.methodIds || [], expectedFormats: value.expectedFormats ?? null,
     ...(value.researchAsOf !== undefined ? { researchAsOf: value.researchAsOf } : {}),
+    ...(value.dossierHandoff ? { dossierHandoff: value.dossierHandoff } : {}),
     tabbitTabs: (value.tabbitTabs || []).map(({ tab_id, instance_id, title }) => ({ tab_id, instance_id, ...(typeof title === 'string' ? { title: title.slice(0, 500) } : {}) })),
   });
   const restorePending = (id, value) => {
@@ -451,6 +545,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const identifiers = (value, max) => Array.isArray(value) && value.length <= max && value.every(identifier);
       if (!selection || (selection.skillId !== '' && !identifier(selection.skillId)) || !identifiers(selection.toolIds, 3) || !identifiers(selection.methodIds, 3)) throw new Error('pending_selection_invalid');
       if (selection.researchAsOf !== undefined && !validResearchAsOf(selection.researchAsOf)) throw new Error('pending_cutoff_invalid');
+      if (!validDossierHandoff(selection.dossierHandoff) || request.dossier_handoff_id !== selection.dossierHandoff?.id) throw new Error('pending_dossier_handoff_invalid');
       if (selection.capability && (!identifier(selection.capability.id) || !Number.isInteger(selection.capability.version) || selection.capability.version < 1)) throw new Error('pending_capability_invalid');
       if (selection.expectedFormats !== null && (!Array.isArray(selection.expectedFormats) || selection.expectedFormats.length > 7 || selection.expectedFormats.some(format => !['md', 'html', 'docx', 'xlsx', 'pptx', 'png', 'pdf'].includes(format)))) throw new Error('pending_formats_invalid');
       if (!Array.isArray(selection.tabbitTabs) || selection.tabbitTabs.length > 8 || selection.tabbitTabs.some(tab => !Number.isInteger(tab?.tab_id) || tab.tab_id < 0 || !identifier(tab.instance_id))) throw new Error('pending_tabs_invalid');
@@ -469,6 +564,8 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (!validDraft(value)) throw new Error('draft_invalid');
       if (!validResearchAsOf(value.researchAsOf ?? '')) throw new Error('draft_cutoff_invalid');
       const record = { draft: value.draft, attachments: value.attachments.map(draftAttachment), researchMode: researchMode(value.researchMode, value.researchDepth), researchAsOf: value.researchAsOf ?? '' };
+      if (!validDossierHandoff(value.dossierHandoff)) throw new Error('draft_dossier_handoff_invalid');
+      if (value.dossierHandoff) record.dossierHandoff = { ...value.dossierHandoff };
       if (JSON.stringify(record).length > 200000) throw new Error('draft_too_large');
       const attempt = pending.get(id);
       if (attempt?.durable) record.pending = { session_id: id, signature: attempt.signature, key: attempt.key, selection: pendingSelection(value) };
@@ -486,16 +583,27 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const raw = draftStorage.getItem(storageKey(id));
       if (!raw) return undefined;
       if (raw.length > 400000) throw new Error('draft_too_large');
-      const value = JSON.parse(raw);
+      let value = JSON.parse(raw);
       if (!validDraft(value)) throw new Error('draft_invalid');
+      if (!validDossierHandoff(value.dossierHandoff)) throw new Error('draft_dossier_handoff_invalid');
+      if (dossierScopeID !== null && value.dossierHandoff && value.dossierHandoff.dossierID !== dossierScopeID) {
+        value = { ...value, dossierHandoff: null }; delete value.pending; persistDraft(id, value); logger('dossier_draft_scope_cleared');
+      }
       const mode = researchMode(value.researchMode, value.researchDepth);
       const savedDate = Object.hasOwn(value, 'researchAsOf') ? { researchAsOf: validResearchAsOf(value.researchAsOf) ? value.researchAsOf : '' } : {};
       if (Object.hasOwn(value, 'researchAsOf') && !validResearchAsOf(value.researchAsOf)) { logger('draft_cutoff_restore_failed', {}); state.error = '草稿截止日期无效，已保留问题和附件，请重新选择日期。'; }
       if (JSON.stringify({ draft: value.draft, attachments: value.attachments }).length > 200000) throw new Error('draft_too_large');
-      return { draft: value.draft, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [], ...restorePending(id, value), ...savedDate, ...(value.researchMode !== undefined || value.researchDepth !== undefined ? { researchMode: mode, researchDepth: mode === 'quick' ? 'instant' : 'deep' } : {}) };
+      return { draft: value.draft, dossierHandoff: value.dossierHandoff || null, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [], ...restorePending(id, value), ...savedDate, ...(value.researchMode !== undefined || value.researchDepth !== undefined ? { researchMode: mode, researchDepth: mode === 'quick' ? 'instant' : 'deep' } : {}) };
     } catch { logger('draft_storage_read_failed', {}); state.error = '草稿恢复副本无效；请重新选择附件。'; return undefined; }
   };
   const saveDraft = () => putDraft(draftKey(), draftState());
+  function clearDossierHandoff(nextDossierID = '') {
+    dossierScopeID = nextDossierID;
+    for (const [key, value] of drafts) {
+      if (value.dossierHandoff && value.dossierHandoff.dossierID !== nextDossierID) { pending.delete(key); putDraft(key, { ...value, dossierHandoff: null }); }
+    }
+    if (state.dossierHandoff && state.dossierHandoff.dossierID !== nextDossierID) { state.dossierHandoff = null; pending.delete(draftKey()); saveDraft(); }
+  }
   const fail = (error) => { state.error = error?.message || '操作失败，请重试。'; };
   function snapshot(data) {
     if (!data || data.id !== state.route.sessionId || !Array.isArray(data.messages)) throw new Error('会话响应格式异常，请刷新重试。');
@@ -508,10 +616,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     catch (error) { if (ticket === generation) { fail(error); emit(); } }
   }
   async function open(route) {
+    if (!accountCurrent()) return;
     if (hasOpened) saveDraft(); hasOpened = true; const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false; state.stopping = false;
     const savedDraft = readDraft(draftKey());
-    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -531,6 +640,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     finally { if (ticket === generation) { state.loading = false; emit(); } }
   }
   async function send() {
+    if (!accountCurrent()) return;
     if (state.busy || state.stopping || !state.detail || !state.draft.trim()) return;
     const id = state.detail.id; const ticket = generation; const text = state.draft;
     if (sendingSessions.has(id)) return;
@@ -547,11 +657,12 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       body.research_mode = state.researchMode;
       if (state.researchAsOf) body.research_as_of = state.researchAsOf;
     }
+    if (!execution && state.dossierHandoff) body.dossier_handoff_id = state.dossierHandoff.id;
     // Bind confirmation and accepted cleanup to the submitted snapshot, never the next draft.
     const attachmentIds = new Set(body.attachment_ids || []);
     const tabIdentity = tab => JSON.stringify([tab.instance_id, tab.tab_id]);
     const tabIds = new Set((body.tabbit_tabs || []).map(tabIdentity));
-    const acceptedDraft = value => ({ ...value, draft: value.draft === text ? '' : value.draft,
+    const acceptedDraft = value => ({ ...value, draft: value.draft === text ? '' : value.draft, dossierHandoff: value.dossierHandoff?.id === body.dossier_handoff_id ? null : value.dossierHandoff,
       attachments: value.attachments.filter(file => !attachmentIds.has(file.id)),
       tabbitTabs: (value.tabbitTabs || []).filter(tab => !tabIds.has(tabIdentity(tab))) });
     sendingSessions.add(id); state.busy = true; state.error = ''; emit();
@@ -562,19 +673,31 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
         if (!confirmed) return;
       }
       const signature = JSON.stringify(body); const previous = pending.get(id);
-      const attempt = previous?.signature === signature ? previous : { signature, key: makeID(), durable: !execution && state.detail.mode === 'fingpt' };
+      const attempt = previous?.signature === signature ? previous : { signature, key: makeID(), durable: !execution && (state.detail.mode === 'fingpt' || Boolean(body.dossier_handoff_id)) };
       pending.set(id, attempt);
       if (attempt.durable && !putDraft(id, draftState())) throw new Error('无法保存提交重试凭据，本次问题尚未发送；请恢复浏览器存储后重试。');
       const response = await api.message(id, body, attempt.key);
+      if (!accountCurrent()) return;
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
+      if (body.dossier_handoff_id) {
+        // A page reload may leave only the active session in memory. The two
+        // durable homepage drafts still need the same receipt cleanup.
+        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt'])) {
+          const value = readDraft(key);
+          if (key !== id && value?.dossierHandoff?.id === body.dossier_handoff_id) {
+            pending.delete(key); putDraft(key, { ...value, dossierHandoff: null });
+            if (draftKey() === key && state.dossierHandoff?.id === body.dossier_handoff_id) state.dossierHandoff = null;
+          }
+        }
+      }
       const origin = createdDraftOrigins.get(id);
       createdDraftOrigins.delete(id);
       if (origin && origin.draft === text) {
         const homepage = readDraft(origin.key);
         if (homepage?.draft === origin.draft) {
-          putDraft(origin.key,{...homepage,draft:''});
-          if (draftKey() === origin.key && state.draft === origin.draft) { state.draft = ''; emit(); }
+          putDraft(origin.key,{...homepage,draft:'',dossierHandoff:homepage.dossierHandoff?.id === body.dossier_handoff_id ? null : homepage.dossierHandoff});
+          if (draftKey() === origin.key && state.draft === origin.draft) { state.draft = ''; state.dossierHandoff = null; emit(); }
           logger('accepted_initial_draft_cleared');
         }
       }
@@ -612,7 +735,14 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     setResearchDepth: (value) => { if (!["instant", "deep"].includes(value)) throw new Error("不支持的研究深度"); state.researchDepth = value; state.researchMode = value === 'deep' ? 'deep' : 'quick'; saveDraft(); emit(); },
     setResearchMode: (value) => { if (!['quick', 'deep', 'agent'].includes(value)) throw new Error('不支持的研究模式'); state.researchMode = value; state.researchDepth = value === 'quick' ? 'instant' : 'deep'; logger('research_mode_selected', { mode: value }); saveDraft(); emit(); },
     setResearchAsOf: (value) => { if (!validResearchAsOf(value)) throw new Error('研究截止日期须为有效的 YYYY-MM-DD 日期；留空时新研究默认今日，续研沿用原截止日期。'); state.researchAsOf = value; logger('research_cutoff_selected', { configured: Boolean(value) }); saveDraft(); emit(); },
-    setDraft: (value) => { state.draft = value; saveDraft(); },
+    setDraft: (value) => { state.draft = value; if (!value.trim()) { state.dossierHandoff = null; pending.delete(draftKey()); } saveDraft(); },
+    setDossierDraft: (prompt, context) => {
+      if (!accountCurrent()) return false;
+      const receipt = { id: context?.handoff_id, dossierID: context?.dossier_id };
+      if (typeof prompt !== 'string' || !prompt.trim() || !validDossierHandoff(receipt)) throw new Error('档案研究交接凭据无效，请重新准备草稿。');
+      dossierScopeID = receipt.dossierID; state.dossierHandoff = receipt; state.draft = prompt; saveDraft(); logger('dossier_research_draft_prepared'); return true;
+    },
+    clearDossierHandoff,
     setSkill: (value) => { state.skillId = value; state.capability = null; saveDraft(); },
     setCapability: (value) => {
       if (value && (value.enabled !== true || !Number.isInteger(value.version) || value.version < 1)) throw new Error('只能选择已启用的已发布能力版本。');
@@ -643,12 +773,14 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     },
     removeTabbit: (tabId) => { state.tabbitTabs = state.tabbitTabs.filter((item) => item.tab_id !== Number(tabId)); saveDraft(); emit(); },
     create: async (mode, workspaceId, projectId) => {
+      if (!accountCurrent()) return null;
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
       const origin = !state.route.sessionId ? {key:draftKey(),draft:previousDraft.draft} : null;
       const result = await action(() => api.create({ mode, research_depth: state.researchDepth, ...(mode === 'fingpt' ? { research_mode: state.researchMode } : {}), source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}), ...(projectId ? { project_id: projectId } : {}) }), { refreshAfter: false });
+      if (!accountCurrent()) return null;
       if (ticket !== generation) return null;
-      if (result?.id) { drafts.set(result.id, previousDraft); if (origin) createdDraftOrigins.set(result.id,origin); onNavigate(sessionHash(result)); }
+      if (result?.id) { putDraft(result.id, previousDraft); if (origin) { createdDraftOrigins.set(result.id,origin); putDraft(origin.key, previousDraft); } onNavigate(sessionHash(result)); }
       return result;
     },
     createCapabilitySession: async (kind, goal) => {

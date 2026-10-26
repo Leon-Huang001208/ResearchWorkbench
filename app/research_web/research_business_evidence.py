@@ -471,6 +471,7 @@ def _cpi(item, scope):
     ):
         raise ValueError("business_cpi_period_columns")
     rows = {}
+    measured = {}
     result = []
     labels = {
         "All items": "headline",
@@ -491,6 +492,7 @@ def _cpi(item, scope):
         rows[label] = line
         values = [_number(c) for c in cells[1:]]
         proof = _proof(item, [title[0].strip(), header[0], monthline[0], line, lines[caption]])
+        measured[labels[label]] = (values, proof)
         for metric, value in (
             (labels[label] + "_mom_sa_pct", values[-2]),
             (labels[label] + "_yoy_nsa_pct", values[-1]),
@@ -508,6 +510,133 @@ def _cpi(item, scope):
             )
     if not {"All items", "All items less food and energy"}.issubset(rows):
         raise ValueError("business_cpi_rows_missing")
+    # Preserve the existing latest-period identities; expose the actual earlier
+    # columns and deterministic differences instead of asking scripts to invent quotes.
+    for label, (values, proof) in measured.items():
+        for (year, column_month), value in zip(parsed[:-1], values[:-2]):
+            result.append(
+                _emit(
+                    scope,
+                    label + "_mom_sa_pct",
+                    f"{year}-{column_month:02d}",
+                    value,
+                    "%",
+                    [proof],
+                    method="Actual seasonally adjusted monthly column in Table A; not a twelve-month change.",
+                )
+            )
+        with localcontext(Context(prec=128)) as context:
+            context.traps[Inexact] = True
+            difference = values[-2] - values[-3]
+        result.append(
+            _emit(
+                scope,
+                label + "_mom_change_pp",
+                period,
+                difference,
+                "percentage_points",
+                [proof],
+                method="Latest seasonally adjusted monthly percent change minus the preceding monthly percent change in the same Table A row. This is a change in rates, not an index contribution or a forecast.",
+            )
+        )
+    for suffix, index in (("mom_sa", -2), ("yoy_nsa", -1)):
+        with localcontext(Context(prec=128)) as context:
+            context.traps[Inexact] = True
+            difference = measured["core"][0][index] - measured["headline"][0][index]
+        result.append(
+            _emit(
+                scope,
+                "core_minus_headline_" + suffix + "_pp",
+                period,
+                difference,
+                "percentage_points",
+                [
+                    _proof(
+                        item,
+                        [
+                            span["text"]
+                            for label in ("core", "headline")
+                            for span in measured[label][1]["spans"]
+                        ],
+                    )
+                ],
+                method="Core rate minus headline rate from the same Table A period and seasonality column. The difference is in percentage points; it is not a weighted contribution or causal attribution.",
+            )
+        )
+    # The prior twelve-month rate is not a monthly table column. Accept only
+    # this complete affirmative publication paragraph and cross-check its peers.
+    pattern = (
+        r"The all items index rose ([0-9]+\.[0-9]+) percent for the 12 months ending ([A-Za-z]+), after rising ([0-9]+\.[0-9]+) percent over the 12 months ending ([A-Za-z]+)\. "
+        r"The all items less food and energy index rose ([0-9]+\.[0-9]+) percent over the last 12 months\. "
+        r"The energy index decreased ([0-9]+\.[0-9]+) percent for the 12 months ending ([A-Za-z]+)\. "
+        r"The food index increased ([0-9]+\.[0-9]+) percent over the last year\."
+    )
+    paragraphs = [p[0].strip() for p in re.finditer(r"(?s)\S.*?(?=\n\s*\n|\Z)", raw)]
+    candidates = [
+        (p, re.fullmatch(pattern + r"(?: ```)?", re.sub(r"\s+", " ", p))) for p in paragraphs
+    ]
+    candidates = [(p, m) for p, m in candidates if m]
+    if len(candidates) == 1 and {"energy", "food"}.issubset(measured):
+        paragraph, match = candidates[0]
+        prefix = re.sub(r"\s+", " ", raw[: raw.index(paragraph)].strip())
+        release_prefix = (
+            r"CONSUMER PRICE INDEX - [A-Z]+ (?:19|20)\d{2} "
+            r"The Consumer Price Index for All Urban Consumers \(CPI-U\) increased [0-9]+\.[0-9]+ percent on a seasonally adjusted basis in [A-Za-z]+, after rising [0-9]+\.[0-9]+ percent in [A-Za-z]+, the U\.S\. Bureau of Labor Statistics reported today\. Over the last 12 months, the all items index increased [0-9]+\.[0-9]+ percent before seasonal adjustment\. "
+            r"The index for energy rose [0-9]+\.[0-9]+ percent in [A-Za-z]+, accounting for over forty percent of the monthly all items increase\. The gasoline index increased [0-9]+\.[0-9]+ percent over the month\. The index for food also increased in [A-Za-z]+, rising [0-9]+\.[0-9]+ percent as both the index for food at home and the index for food away from home increased [0-9]+\.[0-9]+ percent each\. "
+            r"The index for all items less food and energy rose [0-9]+\.[0-9]+ percent in [A-Za-z]+, after increasing [0-9]+\.[0-9]+ percent in each of the previous [0-9]+ months\. Indexes that increased in [A-Za-z]+ include shelter, airline fares, used cars and trucks, new vehicles, motor vehicle insurance, and medical care\. The indexes for personal care, communication, and alcoholic beverages were among the few major indexes that decreased over the month\."
+        )
+        gap = raw[raw.index(paragraph) + len(paragraph) : raw.index(header[0])]
+        if (
+            not re.fullmatch(release_prefix, prefix)
+            or gap.strip()
+            or raw[raw.index(lines[caption]) + len(lines[caption]) :].strip()
+        ):
+            return result
+        if (
+            _MONTHS.get(match[2].lower()) == month
+            and _MONTHS.get(match[4].lower()) == month - 1
+            and _MONTHS.get(match[7].lower()) == month
+            and _number(match[1]) == measured["headline"][0][-1]
+            and _number(match[5]) == measured["core"][0][-1]
+            and -_number(match[6]) == measured["energy"][0][-1]
+            and _number(match[8]) == measured["food"][0][-1]
+        ):
+            proof = _proof(item, [title[0].strip(), paragraph])
+            previous = _number(match[3])
+            result.append(
+                _emit(
+                    scope,
+                    "headline_yoy_nsa_pct",
+                    f"{title[2]}-{month-1:02d}",
+                    previous,
+                    "%",
+                    [proof],
+                    method="Previous twelve-month all-items rate explicitly stated in the complete release paragraph; not the seasonally adjusted monthly column.",
+                )
+            )
+            with localcontext(Context(prec=128)) as context:
+                context.traps[Inexact] = True
+                difference = measured["headline"][0][-1] - previous
+            result.append(
+                _emit(
+                    scope,
+                    "headline_yoy_change_pp",
+                    period,
+                    difference,
+                    "percentage_points",
+                    [
+                        _proof(
+                            item,
+                            [
+                                span["text"]
+                                for source in (proof, measured["headline"][1])
+                                for span in source["spans"]
+                            ],
+                        )
+                    ],
+                    method="Current unadjusted twelve-month rate minus the explicitly published preceding twelve-month rate; percentage-point change, not a forecast or weighted contribution.",
+                )
+            )
     return result
 
 
@@ -895,7 +1024,7 @@ def business_observations(inputs, *, scope):
                     if m[1] in functions:
                         raise ValueError("business_function_duplicate")
                     functions[m[1]] = True
-            if target:
+            if target or "AI RMF" in item["content"]:
                 current += _quotes(item, scope)
             result += current
         except (ValueError, ArithmeticError, KeyError, TypeError) as exc:

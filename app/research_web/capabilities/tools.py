@@ -67,6 +67,13 @@ DECLARATIONS = {
         [],
         "本轮冻结要求与已取得证据；最多一次补查，不改变研究权限",
     ),
+    "research_read_source": (
+        "读取来源正文",
+        "runtime/research-tools.mjs",
+        {"operation": "string", "source_id": "string"},
+        ["operation"],
+        "本会话登记的公开HTTPS来源，或用户通过冻结交接显式绑定的档案证据；逐次鉴权，拒绝私网、凭据、任意路径与伪造正文",
+    ),
     "research_document_operation": (
         "Office 文档操作",
         "runtime/research-tools.mjs",

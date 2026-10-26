@@ -1,5 +1,9 @@
 # Research Workbench 文档门户
 
+2026-10-22 插件契约新增固定包/权限/原生能力映射与支持限制；静态API扫描仍需真实CLI网关，再逐一验证其相对router import与include，未挂载保持拒绝。新模块、路由、Python索引与API Atlas已登记；无新任意文档文件入口或图阅读权限。见[插件合同](research-web-plugins.md)。
+
+全市场概览的三页签见[前端说明](research-web-ui.md#全市场概览)，来源完整性见[DataHub合同](research-web-datahub.md#无会话全市场数据)，无会话读取与缓存见[数据流图](../outputs/research-web-architecture/13-market-overview.html)。
+
 [AI资讯自主采编](research-web-ai-news.md)与[零调用模型评测](ai-news-model-evaluation.md)：原引擎、独立库与管理配置；生产切换待真实闭环验收。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。

@@ -718,3 +718,116 @@ async def test_remote_transport_disables_proxies_redirects_and_caps_before_buffe
         hook = captured["event_hooks"]["response"][0]
         with pytest.raises(MCPHostError, match="too_large"):
             await hook(SimpleNamespace(headers={"content-length": "129"}))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("origin", ["tools", "resources", "prompts", "server", "protocol"])
+@pytest.mark.parametrize("mutation", ["delete", "rotate"])
+async def test_capability_discovery_binds_original_transport_credential_and_rejects_echo(
+    origin, mutation
+):
+    secret = 'fixture-"quoted\\credential'
+    endpoint = "https://mcp.example.test/mcp"
+    credentials = RuntimeCredentialStore(FakeKeyring())
+    credentials.write(
+        INSTALLATION_ID,
+        "oauth",
+        {"resource": endpoint, "token_type": "Bearer", "access_token": secret},
+    )
+    dispatched = []
+
+    class Echo(FakeClient):
+        protocol_version = secret if origin == "protocol" else "fixture"
+        server_info = SimpleNamespace(
+            name=secret if origin == "server" else "fixture", version="1.0.0"
+        )
+
+        async def __aenter__(self):
+            if mutation == "delete":
+                credentials.delete(INSTALLATION_ID, "oauth")
+            else:
+                credentials.write(
+                    INSTALLATION_ID,
+                    "oauth",
+                    {
+                        "resource": endpoint,
+                        "token_type": "Bearer",
+                        "access_token": "new-fixture-token",
+                    },
+                )
+            return self
+
+        async def list_tools(self):
+            if origin == "tools":
+                return FakeResult(
+                    tools=[
+                        {"name": "search", "inputSchema": {"type": "object"}, "description": secret}
+                    ]
+                )
+            return await super().list_tools()
+
+        async def list_resources(self):
+            return (
+                FakeResult(resources=[{secret: "leaked-key"}])
+                if origin == "resources"
+                else await super().list_resources()
+            )
+
+        async def list_prompts(self):
+            return (
+                FakeResult(prompts=[{"name": "brief", "description": {"nested": [secret]}}])
+                if origin == "prompts"
+                else await super().list_prompts()
+            )
+
+    def transport(actual_endpoint, actual_token):
+        dispatched.append((actual_endpoint, actual_token))
+        return actual_endpoint
+
+    host = SDKHost(
+        credentials=credentials,
+        remote_target_factory=transport,
+        client_factory=lambda *_args, **_kwargs: Echo(),
+    )
+    with pytest.raises(MCPHostError, match="contains_credential"):
+        await host.capabilities(RemoteTarget(endpoint, INSTALLATION_ID, endpoint))
+    assert dispatched == [(endpoint, secret)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["prompt", "resource"])
+@pytest.mark.parametrize("alias", [False, True])
+async def test_fixed_candidate_sdk_refuses_auxiliary_methods_before_transport(method, alias):
+    from app.research_web.mcp_runtime.seek_alpha import ENDPOINT
+
+    opened = []
+    host = SDKHost(
+        credentials=RuntimeCredentialStore(FakeKeyring()),
+        remote_target_factory=lambda *_args: opened.append("transport"),
+        client_factory=lambda *_args, **_kwargs: opened.append("client"),
+    )
+    endpoint = ENDPOINT.replace("seek-alpha.cn", "SEEK-ALPHA.CN") + "/" if alias else ENDPOINT
+    target = RemoteTarget(endpoint, INSTALLATION_ID, endpoint, "static_bearer")
+    with pytest.raises(MCPHostError, match=f"candidate_{method}_denied"):
+        if method == "prompt":
+            await host.get_prompt(target, "private", {"private_note": "never send"})
+        else:
+            await host.read_resource(target, "private://never-send")
+    assert opened == []
+
+
+@pytest.mark.asyncio
+async def test_candidate_discovery_does_not_advertise_denied_auxiliary_methods():
+    from app.research_web.mcp_runtime.seek_alpha import ENDPOINT
+
+    host = SDKHost(
+        credentials=RuntimeCredentialStore(FakeKeyring()),
+        remote_target_factory=lambda *_args: "fixture",
+        client_factory=lambda *_args, **_kwargs: FakeClient(),
+    )
+    result = await host.capabilities(
+        RemoteTarget(ENDPOINT, INSTALLATION_ID, ENDPOINT, "static_bearer")
+    )
+    assert result["tools"][0]["name"] == "search"
+    assert result["resources"] == [] and result["prompts"] == []
+    assert result["auxiliary_methods"] == "disabled"

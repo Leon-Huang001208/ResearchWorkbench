@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {withBackupLock, repositoryKey, fingerprint, findReusable, convertToV2, finishMigration, readManifest, materializeV2, hydrateV2, listPoints, sweepPayloads, fileHash} from './git_backup_store.mjs';
 
 const CONTROLLER = path.join(os.homedir(), '.agents/leon-engineering/runtime/iteration-delivery.mjs');
 const FORBIDDEN = new Set(['gc', 'prune', 'repack', 'maintenance', 'prune-packed']);
@@ -31,7 +32,7 @@ export function selectGitPath({platform = process.platform, gitPath, mutate = fa
 }
 function git(project, args, options = {}, extra = {}) {
   if (FORBIDDEN.has(args[0])) fail('MAINTENANCE_FORBIDDEN');
-  return command(selectGitPath(options), ['--no-optional-locks', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', project, ...args], extra);
+  return command(selectGitPath(options), ['--no-optional-locks', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', project, ...args], {...extra,...(options.readOnlyGit?{env:{...process.env,...extra.env,GIT_NO_LAZY_FETCH:'1',GIT_NO_REPLACE_OBJECTS:'1'}}:{})});
 }
 function output(result) { return result.stdout.toString('utf8').trim(); }
 function discover(projectRoot, options = {}) {
@@ -118,7 +119,8 @@ function nativeLocks(repository) {
 }
 function assertNativeUnlocked(repository) { if (nativeLocks(repository).length) fail('NATIVE_LOCKED'); }
 function fsck(repository, options) {
-  if (git(repository.repositoryRoot, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true}).status !== 0) fail('OBJECT_INTEGRITY_FAILED');
+  const result=git(repository.repositoryRoot, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true});
+  if(result.status!==0)throw Object.assign(new Error('OBJECT_INTEGRITY_FAILED'),{code:'OBJECT_INTEGRITY_FAILED',integrity:{exitCode:result.status,signal:result.signal??null,stdoutBytes:result.stdout.length,stderrBytes:result.stderr.length,stdoutSha256:sha256(result.stdout),stderrSha256:sha256(result.stderr)}});
 }
 export function checkRepository({projectRoot}, options = {}) {
   const repository = discover(projectRoot, options);
@@ -322,16 +324,21 @@ function restoreFileMode(scratch, restored, item, rawArtifact) {
     if (after.nlink !== 1 || (after.mode & 0o777) !== item.mode || !afterPath || afterPath.isSymbolicLink() || afterPath.nlink !== 1 || afterPath.ino !== after.ino || afterPath.dev !== after.dev) fail('RESTORE_FILE_INVALID');
   } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
-function restoreBackup(directory, manifest, options) {
+function restoreBackup(directory, manifest, options, storedDirectory = directory) {
   const scratch = fs.mkdtempSync(path.join(directory, '.restore-'));
   const bare = path.join(scratch, 'restored.git');
   try {
     command(selectGitPath(options), ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', 'init', '--bare', bare]);
-    git(bare, ['bundle', 'verify', path.join(directory, 'commits.bundle')], options);
-    git(bare, ['bundle', 'unbundle', path.join(directory, 'commits.bundle')], options);
-    const packFd = fs.openSync(path.join(directory, 'objects.pack'), 'r');
-    try { git(bare, ['index-pack', '--stdin'], options, {inputFd: packFd}); }
-    finally { fs.closeSync(packFd); }
+    if(manifest.schemaVersion===2) hydrateV2(storedDirectory,manifest,bare);
+    else {
+      if(!manifest.objectOnly) {
+        git(bare, ['bundle', 'verify', path.join(directory, 'commits.bundle')], options);
+        git(bare, ['bundle', 'unbundle', path.join(directory, 'commits.bundle')], options);
+      }
+      const packFd = fs.openSync(path.join(directory, 'objects.pack'), 'r');
+      try { git(bare, ['index-pack', '--stdin'], options, {inputFd: packFd}); }
+      finally { fs.closeSync(packFd); }
+    }
     for (const [ref, oid] of Object.entries(manifest.refs)) git(bare, ['update-ref', ref, oid], options);
     for (let index = 0; index < manifest.worktrees.length; index++) {
       const saved = manifest.worktrees[index];
@@ -344,6 +351,8 @@ function restoreBackup(directory, manifest, options) {
       for (let itemIndex = 0; itemIndex < saved.untracked.length; itemIndex++) {
         const item = saved.untracked[itemIndex];
         const target = path.join(restored, item.path);
+        if(!target.startsWith(restored+path.sep))fail('RESTORE_FILE_INVALID');
+        assertNoSymlinkAncestors(path.dirname(target));
         fs.mkdirSync(path.dirname(target), {recursive: true, mode: 0o700});
         if (item.type === 'symlink') fs.symlinkSync(item.link, target);
         else { fs.copyFileSync(path.join(directory, `worktrees/${index}/untracked/${itemIndex}`), target); restoreFileMode(scratch, restored, item); }
@@ -352,18 +361,18 @@ function restoreBackup(directory, manifest, options) {
       const actualTracked = saved.tracked.map(item => fileRecord(restored, item.path));
       const actualUntracked = saved.untracked.map(item => fileRecord(restored, item.path));
       if (JSON.stringify(actualTracked) !== JSON.stringify(saved.tracked) || JSON.stringify(actualUntracked) !== JSON.stringify(saved.untracked)) fail('RESTORE_HASH_MISMATCH');
-      if (sha256(git(restored, ['ls-files', '--stage', '-z'], options).stdout) !== saved.index) fail('RESTORE_INDEX_MISMATCH');
+      if (saved.index!==undefined && sha256(git(restored, ['ls-files', '--stage', '-z'], options).stdout) !== saved.index) fail('RESTORE_INDEX_MISMATCH');
       if (sha256(git(restored, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout) !== saved.staged || sha256(git(restored, ['diff', '--binary', '--full-index', '--'], options).stdout) !== saved.unstaged) fail('RESTORE_PATCH_MISMATCH');
     }
     if (git(bare, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const [ref, oid] of Object.entries(manifest.refs)) if (output(git(bare, ['rev-parse', ref], options)) !== oid) fail('RESTORE_REF_MISMATCH');
-    const anchors = [...new Set(Object.values(manifest.preservationRefs))];
+    const anchors = [...new Set([...Object.values(manifest.preservationRefs),...Object.values(manifest.additionalBundleRefs??{})])];
     for (const oid of anchors) if (git(bare, ['cat-file', '-e', oid], options, {allowFailure: true}).status !== 0) fail('RESTORE_REF_MISMATCH');
     if (anchors.length && git(bare, ['fsck', '--connectivity-only', '--no-reflogs', ...anchors], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const item of manifest.files) if (hashFile(path.join(directory, item.path)) !== item.sha256) fail('BACKUP_HASH_MISMATCH');
   } finally { fs.rmSync(scratch, {recursive: true, force: true}); }
 }
-function backupUnlocked(repository, options) {
+function backupLegacyUnlocked(repository, options) {
   assertNativeUnlocked(repository);
   fsck(repository, options);
   const before = capture(repository, options);
@@ -376,11 +385,13 @@ function backupUnlocked(repository, options) {
   privateDirectory(directory);
   const preservationRefs = {...(options.preservationRefs ?? {})};
   if (Object.entries(preservationRefs).some(([ref, oid]) => !ref.startsWith('refs/') || !/^[a-f0-9]{40,64}$/.test(oid))) fail('PRESERVATION_REFS_INVALID');
-  const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
+  const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, ...(options.stageV2 ? {objectOnly:true,createdAt:new Date(options.now??Date.now()).toISOString()} : {}), preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
   try {
-    git(repository.repositoryRoot, ['bundle', 'create', path.join(directory, 'commits.bundle'), '--all', ...before.worktrees.map(item => item.head)], options);
-    fs.chmodSync(path.join(directory, 'commits.bundle'), 0o600);
-    manifest.files.push({path: 'commits.bundle', sha256: hashFile(path.join(directory, 'commits.bundle'))});
+    if(!options.stageV2) {
+      git(repository.repositoryRoot, ['bundle', 'create', path.join(directory, 'commits.bundle'), '--all', ...before.worktrees.map(item => item.head)], options);
+      fs.chmodSync(path.join(directory, 'commits.bundle'), 0o600);
+      manifest.files.push({path: 'commits.bundle', sha256: hashFile(path.join(directory, 'commits.bundle'))});
+    }
     const oids = [...new Set([...Object.values(before.refs), ...Object.values(preservationRefs), ...before.registeredWorktrees.map(item => item.HEAD).filter(Boolean)])];
     const packFile = path.join(directory, 'objects.pack');
     const packFd = fs.openSync(packFile, 'wx', 0o600);
@@ -413,6 +424,126 @@ function backupUnlocked(repository, options) {
     log(repository, 'backup', 'FAIL', error.code ?? 'BACKUP_FAILED', {backup: directory}, options);
     throw error;
   }
+}
+export function verifyBackupDirectory(directory, options = {}) {
+  const {manifest}=readManifest(directory);
+  for(const row of manifest.files) {
+    if(typeof row.path!=='string' || path.isAbsolute(row.path) || row.path.split('/').some(x=>!x || x==='.' || x==='..'))fail('BACKUP_PATH_INVALID');
+    if(manifest.schemaVersion===1 && fileHash(path.join(directory,row.path))!==row.sha256)fail('BACKUP_HASH_MISMATCH');
+  }
+  if(manifest.schemaVersion===2)materializeV2(directory,manifest,temporary=>restoreBackup(temporary,manifest,options,directory));
+  else restoreBackup(directory,manifest,options);
+  return {restoreVerified:true,fsck:'PASS'};
+}
+function backupUnlocked(repository,options) {
+  if(options.backupVersion===1)return backupLegacyUnlocked(repository,options);
+  assertNativeUnlocked(repository);fsck(repository,options);
+  const captured=capture(repository,options),preservationRefs={...(options.preservationRefs??{})};
+  const key=repositoryKey(repository.commonDirectory),protection=options.backupProtection??'ordinary';
+  const stateHash=fingerprint({...captured,preservationRefs},protection);
+  const root=options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety');
+  return withBackupLock(root,()=>{
+    const existing=findReusable(root,key,stateHash);
+    if(existing) {
+      verifyBackupDirectory(existing.directory,options);
+      if(JSON.stringify(targetFootprint(capture(repository,options)))!==JSON.stringify(targetFootprint(captured)))fail('BACKUP_RACE');
+      log(repository,'backup-reuse','PASS',undefined,{backup:existing.directory},options);
+      const reused={directory:existing.directory,reused:true,restoreVerified:true,fsck:'PASS',snapshotRefs:Object.fromEntries(Object.entries(captured.refs).filter(([ref])=>ref.startsWith('refs/codex/')))};
+      Object.defineProperty(reused,'verifiedPreservationRefs',{value:{...existing.manifest.preservationRefs}});
+      return reused;
+    }
+    const legacy=backupLegacyUnlocked(repository,{...options,stageV2:true});
+    const saved=readManifest(legacy.directory).manifest;
+    const savedHash=fingerprint(saved,protection);
+    const checkTarget=()=>{if(JSON.stringify(targetFootprint(capture(repository,options)))!==JSON.stringify(targetFootprint(saved)))fail('BACKUP_RACE');};
+    checkTarget();
+    const result=convertToV2(legacy.directory,key,{gitPath:selectGitPath(options),now:options.now,protection,stateHash:savedHash,verify:(dir,m)=>materializeV2(dir,m,tmp=>restoreBackup(tmp,m,options,dir)),afterVerified:checkTarget});
+    log(repository,'backup-v2','PASS',undefined,{backup:result.directory},options);
+    const completed={...legacy,...result};
+    Object.defineProperty(completed,'verifiedPreservationRefs',{value:legacy.verifiedPreservationRefs});
+    return completed;
+  });
+}
+
+/** Preview is read-only; apply serializes archive changes without maintaining the live Git database. */
+export function maintainBackups({projectRoot,action='backup-audit',apply=false},options={}) {
+  const repository=discover(projectRoot,options);assertRepositoryIdentity(repository,options);
+  if(!['backup-audit','backup-migrate','backup-prune'].includes(action) || action==='backup-audit'&&apply)fail('CLI_OPTION_INVALID');
+  const root=options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'),key=repositoryKey(repository.commonDirectory),now=options.now??Date.now();
+  const run=()=>{
+    const points=listPoints(root),items=[];
+    const sameRepo=m=>m.schemaVersion===2 ? m.repositoryKey===key : m.registeredWorktrees?.some(x=>path.resolve(x.worktree)===repository.repositoryRoot);
+    const eligible=points.filter(x=>!x.error && sameRepo(x.manifest));
+    const newest=new Set(eligible.filter(x=>x.manifest.schemaVersion===2 && x.manifest.protection==='ordinary').sort((a,b)=>Date.parse(b.manifest.createdAt)-Date.parse(a.manifest.createdAt)).slice(0,2).map(x=>x.id));
+    // Validate all certified points before a deletion. No corrupted retained snapshot can be certified away.
+    if(apply && action==='backup-prune') {
+      if(points.some(p=>p.error && !p.protectedLegacyFailure))fail('BACKUP_UNCERTIFIED_POINT');
+      if(points.some(p=>fs.existsSync(path.join(p.directory,'manifest-v2.pending.json'))))fail('BACKUP_MIGRATION_PENDING');
+      for(const p of eligible)verifyBackupDirectory(p.directory,options);
+    }
+    for(const p of points) {
+      const item={id:p.id,status:'retained'};items.push(item);
+      if(p.error){item.reason=p.protectedLegacyFailure?'failed_v1_evidence':p.error;continue;}
+      const m=p.manifest;
+      if(!sameRepo(m)){item.reason='foreign_or_unknown_repository';continue;}
+      if(m.protection && m.protection!=='ordinary'){item.reason='protected';continue;}
+      if(fs.existsSync(path.join(p.directory,'failure-status.json'))){item.reason='failed_or_isolated';continue;}
+      if(action==='backup-migrate') {
+        if(m.schemaVersion===2) {
+          if(apply){verifyBackupDirectory(p.directory,options);finishMigration(p.directory,m);}
+          item.reason='already_v2';continue;
+        }
+        if(m.worktrees.some(saved=>saved.index===undefined)){item.reason='legacy_index_unrecorded';continue;}
+        item.status=apply?'migrated':'would_migrate';
+        if(apply) {
+          const converted=convertToV2(p.directory,key,{gitPath:selectGitPath(options),now,verify:(dir,manifest)=>materializeV2(dir,manifest,tmp=>restoreBackup(tmp,manifest,options,dir)),afterVerified:options.afterMigrationVerified,afterPendingWritten:options.afterMigrationPending});
+          item.restoreVerified=converted.restoreVerified;
+          log(repository,'backup-migrate','PASS',undefined,{backup:p.directory},options);
+        }
+        continue;
+      }
+      if(m.schemaVersion!==2){item.reason='migration_required';continue;}
+      let reason;
+      const roots=[...Object.values(m.refs),...Object.values(m.preservationRefs??{}),...Object.values(m.additionalBundleRefs??{}),...(m.registeredWorktrees??[]).map(x=>x.HEAD).filter(Boolean)];
+      const otherCertified=eligible.filter(x=>x.id!==p.id && newest.has(x.id));
+      for(const oid of new Set(roots)) {
+        const covered=otherCertified.some(x=>[...Object.values(x.manifest.refs),...Object.values(x.manifest.preservationRefs??{}),...Object.values(x.manifest.additionalBundleRefs??{}),...(x.manifest.registeredWorktrees??[]).map(w=>w.HEAD)].includes(oid));
+        if(covered)continue;
+        const type=output(git(repository.repositoryRoot,['cat-file','-t',oid],options,{allowFailure:true}));
+        if(type!=='commit' || git(repository.repositoryRoot,['merge-base','--is-ancestor',oid,'master'],options,{allowFailure:true}).status!==0){reason='unmerged_or_unique_anchor';break;}
+      }
+      for(const saved of m.worktrees) {
+        if(reason)break;
+        if(git(repository.repositoryRoot,['merge-base','--is-ancestor',saved.head,'master'],options,{allowFailure:true}).status!==0){reason='unmerged';break;}
+        if(saved.untracked?.length || saved.staged!==sha256(Buffer.alloc(0)) || saved.unstaged!==sha256(Buffer.alloc(0))){reason='uncommitted';break;}
+        if(fs.existsSync(saved.path)) {
+          const state=git(saved.path,['status','--porcelain'],options,{allowFailure:true});
+          if(state.status!==0 || state.stdout.length){reason='active_or_dirty';break;}
+          if((options.processProbe??occupied)(saved.path)){reason='active';break;}
+        }
+      }
+      if(reason){item.reason=reason;continue;}
+      if(newest.has(p.id)){item.reason='latest_two';continue;}
+      const created=Date.parse(m.createdAt);
+      if(!Number.isFinite(created) || created>now){item.reason='unknown_age';continue;}
+      if(now-created<=7*86400000){item.reason='seven_days';continue;}
+      item.status=action==='backup-prune'?(apply?'expired':'would_expire'):'retained';
+      if(item.status==='expired') {
+        if(readManifest(p.directory).hash!==p.hash)fail('BACKUP_MANIFEST_CHANGED');
+        fs.rmSync(p.directory,{recursive:true});
+        log(repository,'backup-expire','PASS',undefined,{backup:p.directory},options);
+      }
+    }
+    const result={status:apply?'complete':'preview',retentionDays:7,minimumRecoveryPoints:2,items};
+    if(apply && action==='backup-prune') {
+      result.collection=sweepPayloads(root,listPoints(root));
+      if(result.collection.status==='blocked')result.status='blocked';
+    }
+    return result;
+  };
+  if(!apply)return run();
+  assertNativeUnlocked(repository);fsck(repository,options);
+  try{return withBackupLock(root,run);}catch(error){log(repository,action,'FAIL',error.code??'BACKUP_MAINTENANCE_FAILED',{},options);throw error;}
 }
 export function backupRepository({projectRoot}, options = {}) {
   options = {...options, startedAt: Date.now()};
@@ -448,7 +579,7 @@ function closeoutEnabled(repository) {
 }
 
 function resourcePhase(repository, taskId, phase, options) {
-  if (!closeoutEnabled(repository)) return;
+  if (!closeoutEnabled(repository)) return options.resourceRevalidationProbe?.(repository,taskId,phase);
   const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const installedPython = path.join(repository.repositoryRoot, '.venv/bin/python');
   const python = fs.existsSync(installedPython) ? installedPython : 'python3.12';
@@ -462,6 +593,9 @@ function resourcePhase(repository, taskId, phase, options) {
     fail(code);
   }
   log(repository, 'resource-' + phase, 'PASS', undefined, {}, options);
+  if(phase==='revalidate') {
+    try{return JSON.parse(result.stdout.toString('utf8'));}catch{fail('RESOURCE_CLOSEOUT_BLOCKED');}
+  }
 }
 
 function refreshFeatureRecord(repository, receipt, options) {
@@ -495,7 +629,8 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
   // an already committed descendant, preserving every ref and any existing PR.
   // A never-published candidate must retain explicit null publication identities.
   const unpublished = receipt.mode === null && receipt.pullRequest === null && receipt.remoteCommit === null;
-  if ((!unpublished && receipt.mode !== 'pr') || receipt.status !== 'remote_moved' || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
+  const refreshable = unpublished ? ['remote_moved'] : ['remote_moved', 'awaiting_ci', 'ci_failed'];
+  if ((!unpublished && receipt.mode !== 'pr') || !refreshable.includes(receipt.status) || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
   if (unpublished && (receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit/i.test(key) && !['pullRequest', 'remoteCommit', 'baseRefreshPublishedHead'].includes(key)) || receipt.cleanup?.remoteBranchDeleted === true || receipt.rollback && receipt.rollback.status !== 'not_run')) fail('UNPUBLISHED_STATE_INVALID');
   if (receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '')) fail('TASK_OWNERSHIP_MISMATCH');
   const repo = githubRepo(receipt);
@@ -624,13 +759,14 @@ function writePrivateJson(destination, value) {
   if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
   fs.renameSync(temporary,destination);
 }
-function finishResourceReceipt(repository, taskId, required=closeoutEnabled(repository)) {
+function finishResourceReceipt(repository, taskId, required=closeoutEnabled(repository), revalidation) {
   const filename=path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'receipt.json');
   if (!fs.existsSync(filename)) { if (required) fail('RESOURCE_CLOSEOUT_MISSING'); return; }
   if (fs.lstatSync(filename).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
   const value=JSON.parse(fs.readFileSync(filename,'utf8'));
   if (value.taskId!==taskId || !value.ok || !value.cache?.ok) fail('RESOURCE_CLOSEOUT_BLOCKED');
-  writePrivateJson(filename,{...value,status:'complete',gitCleanup:true,restoreVerified:true,blocked:(value.blocked??[]).filter(row=>row.phase!=='git')});
+  if(revalidation && (revalidation.taskId!==taskId || !revalidation.ok || !revalidation.cache?.ok || revalidation.previousReceiptSha256!==hashFile(filename)))fail('RESOURCE_CLOSEOUT_BLOCKED');
+  writePrivateJson(filename,{...value,...(revalidation?{cache:revalidation.cache,revalidation}:{}),status:'complete',gitCleanup:true,restoreVerified:true,blocked:(value.blocked??[]).filter(row=>row.phase!=='git')});
 }
 function validateCompletedCloseout(repository,taskId,receipt,options) {
   const pending=closeoutFinalization(repository,taskId);
@@ -638,6 +774,10 @@ function validateCompletedCloseout(repository,taskId,receipt,options) {
   if (fs.lstatSync(pending).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
   const proof=JSON.parse(fs.readFileSync(pending,'utf8'));
   if (proof.taskId!==taskId || proof.candidateCommit!==receipt.integrationCommit || !proof.restoreVerified) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  if (fs.existsSync(path.join(path.dirname(pending),'git-finalization-recovery.json'))) {
+    validateRecoveryCompletion(repository,taskId,receipt);
+    return;
+  }
   if (proof.status === 'complete') {
     const filename=path.join(path.dirname(pending),'receipt.json');
     if (!fs.existsSync(filename) || fs.lstatSync(filename).isSymbolicLink()) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
@@ -648,6 +788,192 @@ function validateCompletedCloseout(repository,taskId,receipt,options) {
     finishResourceReceipt(repository,taskId,proof.resourceContractRequired);
     writePrivateJson(pending,{...proof,status:'complete'});
   }
+}
+
+// A recovery certificate is an additional audit epoch; never rewrite the original
+// pending proof or recreate another application's ephemeral snapshot pointers.
+const retiredSnapshotRef = ref => /^refs\/codex\/turn-diffs\/(?:captures\/[^/]+\/[^/]+\/base|checkpoints\/[^/]+\/[^/]+\/[^/]+\/[^/]+)$/.test(ref);
+function retirementIdentity(ref,oid,currentTask,records) {
+  const owner=records.delivery.value, proof=records.proof.value, resource=records.resource.value, review=records.review.value;
+  const branch=ref.startsWith('refs/heads/')?ref.slice(11):ref.startsWith('refs/remotes/origin/')?ref.slice(20):null;
+  if(!branch?.startsWith('codex/') || !ID.test(owner.taskId??'') || owner.taskId===currentTask || owner.mode!=='pr' || owner.status!=='cleaned' || owner.ci?.status!=='passed' || owner.verification?.status!=='passed' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>owner.cleanup?.[key]===true))return null;
+  const targets=managed(owner), matches=targets.filter(row=>row.branch===branch);
+  if(matches.length!==1 || !/^[a-f0-9]{40,64}$/.test(oid) || !/^[a-f0-9]{40,64}$/.test(matches[0].commit??'') || !/^[a-f0-9]{40,64}$/.test(owner.integrationCommit??''))return null;
+  if(proof.taskId!==owner.taskId || proof.status!=='complete' || proof.candidateCommit!==owner.integrationCommit || proof.restoreVerified!==true || !Array.isArray(proof.managed) || proof.managed.length!==targets.length || proof.managed.some(row=>!targets.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)) || proof.beforeRefs?.[ref]!==matches[0].commit)return null;
+  if(resource.taskId!==owner.taskId || resource.status!=='complete' || resource.ok!==true || resource.cache?.ok!==true || resource.gitCleanup!==true || resource.restoreVerified!==true || !Array.isArray(resource.blocked) || resource.blocked.length || review.status!=='PASS' || review.candidateCommit!==owner.integrationCommit || review.reviewedCommit!==owner.integrationCommit)return null;
+  return {ref,oid,ownerTaskId:owner.taskId,branchCommit:matches[0].commit,candidateCommit:owner.integrationCommit,deliverySha256:records.delivery.sha256,proofSha256:records.proof.sha256,resourceSha256:records.resource.sha256,reviewSha256:records.review.sha256};
+}
+function retiredDelivery(repository,taskId,receipt,ref,oid,options) {
+  const directory=path.join(repository.commonDirectory,'leon-engineering/deliveries');
+  assertNoSymlinkAncestors(directory);
+  if(!fs.lstatSync(directory,{throwIfNoEntry:false})?.isDirectory())fail('UNRELATED_REF_CHANGED');
+  const files=fs.readdirSync(directory).filter(name=>name.endsWith('.json'));
+  if(files.length>2000)fail('CLOSEOUT_RECOVERY_SCAN_LIMIT');
+  const candidates=[];
+  for(const name of files) {
+    const delivery=recoveryJson(path.join(directory,name));
+    const owner=delivery.value;
+    if(owner.taskId===taskId || !ID.test(owner.taskId??'') || name!==owner.taskId+'.json')continue;
+    if(!managed(owner).some(row=>ref===`refs/heads/${row.branch}` || ref===`refs/remotes/origin/${row.branch}`))continue;
+    candidates.push({delivery,owner});
+  }
+  if(candidates.length!==1)fail('UNRELATED_REF_CHANGED');
+  const {delivery,owner}=candidates[0], base=path.join(repository.commonDirectory,'leon-engineering');
+  if(owner.repositoryRoot!==repository.repositoryRoot || owner.remote!==receipt.remote || owner.remoteUrl!==receipt.remoteUrl || owner.defaultBranch!==receipt.defaultBranch)fail('UNRELATED_REF_CHANGED');
+  const records={delivery,proof:recoveryJson(path.join(base,'resource-closeout',owner.taskId,'git-finalization.json')),resource:recoveryJson(path.join(base,'resource-closeout',owner.taskId,'receipt.json')),review:recoveryJson(path.join(base,'git-safety/reviews',owner.taskId+'.json'))};
+  const witness=retirementIdentity(ref,oid,taskId,records);
+  if(!witness || output(git(repository.repositoryRoot,['cat-file','-t',oid],options))!=='commit' || git(repository.repositoryRoot,['merge-base','--is-ancestor',oid,witness.branchCommit],options,{allowFailure:true}).status!==0 || git(repository.repositoryRoot,['merge-base','--is-ancestor',witness.branchCommit,owner.integrationCommit],options,{allowFailure:true}).status!==0 || git(repository.repositoryRoot,['merge-base','--is-ancestor',owner.integrationCommit,`refs/remotes/${receipt.remote}/${receipt.defaultBranch}`],options,{allowFailure:true}).status!==0)fail('UNRELATED_REF_CHANGED');
+  return {witness:{...witness,ancestorVerified:true},records};
+}
+function retirementWorktreeMatches(worktree,ref,records) {
+  const targets=managed(records.delivery.value), target=targets.find(row=>`refs/heads/${row.branch}`===ref && row.worktree===worktree);
+  return Boolean(target && records.proof.value.beforeWorktrees?.some(row=>row.worktree===worktree && row.branch===ref && row.HEAD===target.commit && !row.bare));
+}
+function recoveryJson(filename) {
+  assertNoSymlinkAncestors(filename);
+  const fd=fs.openSync(filename,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+  try {
+    const info=fs.fstatSync(fd);
+    if(!info.isFile() || info.nlink!==1 || info.mode&0o077 || info.size>16*1024*1024 || typeof process.getuid==='function' && info.uid!==process.getuid())fail('CLOSEOUT_RECOVERY_RECORD_INVALID');
+    const bytes=fs.readFileSync(fd), after=fs.lstatSync(filename);
+    if(after.isSymbolicLink() || after.ino!==info.ino || after.dev!==info.dev || after.size!==info.size || after.mtimeMs!==info.mtimeMs || bytes.length!==info.size)fail('CLOSEOUT_RECOVERY_STALE');
+    return {value:JSON.parse(bytes),bytes,sha256:sha256(bytes)};
+  } finally {fs.closeSync(fd);}
+}
+function validateRecoveryCompletion(repository,taskId,receipt) {
+  const original=closeoutFinalization(repository,taskId), directory=path.dirname(original);
+  const proof=recoveryJson(original), certificate=recoveryJson(path.join(directory,'git-finalization-recovery.json')).value;
+  if(proof.value.taskId!==taskId || proof.value.candidateCommit!==receipt.integrationCommit || proof.value.restoreVerified!==true || proof.value.status!=='pending')fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  if(certificate.schemaVersion!==1 || certificate.taskId!==taskId || certificate.candidateCommit!==receipt.integrationCommit || certificate.originalProofSha256!==proof.sha256 || !/^recovery-epochs\/[a-f0-9-]{36}\/epoch.json$/.test(certificate.epoch??''))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const record=recoveryJson(path.join(directory,certificate.epoch));
+  const saved=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-proof.json'));
+  const epoch=record.value;
+  if(record.sha256!==certificate.epochSha256 || saved.sha256!==proof.sha256 || epoch.originalProofSha256!==proof.sha256 || epoch.taskId!==taskId || epoch.candidateCommit!==receipt.integrationCommit || epoch.status!=='complete' || epoch.restoreVerified!==true || !/^[a-f0-9]{64}$/.test(epoch.backupManifestSha256??'') || !Array.isArray(epoch.retiredSnapshots) || !Array.isArray(epoch.retiredDeliveries) || !Array.isArray(epoch.retiredWorktrees) || (!epoch.retiredSnapshots.length && !epoch.retiredDeliveries.length && !epoch.retiredWorktrees.length) || epoch.retiredSnapshots.some(row=>!retiredSnapshotRef(row.ref) || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  for(const [row,isWorktree] of [...epoch.retiredDeliveries.map(row=>[row,false]),...epoch.retiredWorktrees.map(row=>[row,true])]) {
+    if(!ID.test(row.ownerTaskId??'') || row.ancestorVerified!==true || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    const retirementDirectory=path.join(path.dirname(path.join(directory,certificate.epoch)),'retired-deliveries',row.ownerTaskId);
+    const records=Object.fromEntries(['delivery','proof','resource','review'].map(kind=>[kind,recoveryJson(path.join(retirementDirectory,kind+'.json'))]));
+    const identity=retirementIdentity(row.ref,row.oid,taskId,records);
+    if(isWorktree && (!proof.value.beforeWorktrees?.some(saved=>saved.worktree===row.worktree && saved.branch===row.ref && saved.HEAD===row.oid && !saved.bare) || !retirementWorktreeMatches(row.worktree,row.ref,records)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    if(!identity || records.delivery.value.repositoryRoot!==repository.repositoryRoot || records.delivery.value.remoteUrl!==receipt.remoteUrl || records.delivery.value.remote!==receipt.remote || records.delivery.value.defaultBranch!==receipt.defaultBranch || JSON.stringify({...identity,ancestorVerified:true,...(isWorktree?{worktree:row.worktree}:{})})!==JSON.stringify(row))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  }
+  const resource=recoveryJson(path.join(directory,'receipt.json')).value;
+  if(resource.taskId!==taskId || resource.status!=='complete' || !resource.ok || !resource.cache?.ok || !resource.gitCleanup || !resource.restoreVerified)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const originalResource=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-resource-receipt.json'));
+  const revalidation=epoch.resourceRevalidation;
+  if(!revalidation?.ok || revalidation.taskId!==taskId || revalidation.candidateCommit!==receipt.integrationCommit || !revalidation.cache?.ok || revalidation.previousReceiptSha256!==originalResource.sha256 || JSON.stringify(resource.revalidation)!==JSON.stringify(revalidation) || JSON.stringify(resource.cache)!==JSON.stringify(revalidation.cache))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+}
+function recoveryPlan(repository,taskId,backupDirectory,receipt,options) {
+  if(receipt.status!=='cleaned' || receipt.ci?.status!=='passed' || receipt.verification?.status!=='passed' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>receipt.cleanup?.[key]===true))fail('CLOSEOUT_RECOVERY_NOT_PENDING');
+  assertReviewed(repository,receipt);
+  const original=closeoutFinalization(repository,taskId), saved=recoveryJson(original), proof=saved.value;
+  if(proof.taskId!==taskId || proof.candidateCommit!==receipt.integrationCommit || proof.status!=='pending' || proof.restoreVerified!==true || !proof.beforeRefs || !Array.isArray(proof.beforeWorktrees) || !Array.isArray(proof.managed))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const owned=managed(receipt);
+  if(proof.managed.length!==owned.length || proof.managed.some(row=>!owned.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const current=refs(repository,options), managedRefs=new Set(proof.managed.flatMap(row=>[`refs/heads/${row.branch}`,`refs/remotes/origin/${row.branch}`]));
+  const retiredSnapshots=[], retiredDeliveries=[], retiredWorktrees=[], retirementRecords={};
+  const remember=retired=>{
+    const prior=retirementRecords[retired.witness.ownerTaskId];
+    if(prior && Object.keys(prior).some(kind=>prior[kind].sha256!==retired.records[kind].sha256))fail('CLOSEOUT_RECOVERY_STALE');
+    retirementRecords[retired.witness.ownerTaskId]=retired.records;
+  };
+  for(const [ref,oid] of Object.entries(proof.beforeRefs)) {
+    if(current[ref] || managedRefs.has(ref))continue;
+    if(proof.verifiedPreservationRefs?.[ref]!==oid)fail('UNRELATED_REF_CHANGED');
+    if(retiredSnapshotRef(ref)) {
+      if(output(git(repository.repositoryRoot,['cat-file','-t',oid],options))!=='tree')fail('UNRELATED_REF_CHANGED');
+      retiredSnapshots.push({ref,oid});
+    } else {
+      const retired=retiredDelivery(repository,taskId,receipt,ref,oid,options);
+      remember(retired);retiredDeliveries.push(retired.witness);
+    }
+  }
+  const currentWorktrees=worktrees(repository,options);
+  for(const row of proof.beforeWorktrees) {
+    if(proof.managed.some(own=>own.worktree===row.worktree) || currentWorktrees.some(current=>current.worktree===row.worktree))continue;
+    if(row.bare || proof.beforeRefs[row.branch]!==row.HEAD || fs.lstatSync(row.worktree,{throwIfNoEntry:false}))fail('UNRELATED_WORKTREE_CHANGED');
+    let retired;
+    try {retired=retiredDelivery(repository,taskId,receipt,row.branch,row.HEAD,options);}catch(error){if(error.code==='UNRELATED_REF_CHANGED')fail('UNRELATED_WORKTREE_CHANGED');throw error;}
+    if(!retirementWorktreeMatches(row.worktree,row.branch,retired.records))fail('UNRELATED_WORKTREE_CHANGED');
+    remember(retired);retiredWorktrees.push({...retired.witness,worktree:row.worktree});
+  }
+  if(!retiredSnapshots.length && !retiredDeliveries.length && !retiredWorktrees.length || retiredSnapshots.length+retiredDeliveries.length+retiredWorktrees.length>128)fail('CLOSEOUT_RECOVERY_NOT_PENDING');
+  const remaining=Object.fromEntries(Object.entries(proof.beforeRefs).filter(([ref])=>![...retiredSnapshots,...retiredDeliveries].some(row=>row.ref===ref)));
+  // Every ordinary deletion, divergence and unrelated worktree change retains
+  // the existing audit. Only the named archived tree pointers get a new witness.
+  preservationAudit(repository,remaining,proof.beforeWorktrees.filter(row=>!retiredWorktrees.some(retired=>retired.worktree===row.worktree)),proof.managed,options,proof.verifiedPreservationRefs);
+  const root=path.resolve(options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'));
+  const backup=path.resolve(backupDirectory??'');assertNoSymlinkAncestors(backup);
+  if(path.dirname(backup)!==root || !/^[a-f0-9-]{36}$/.test(path.basename(backup)))fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+  const {manifest,hash}=readManifest(backup);
+  const savedManaged=proof.beforeWorktrees.filter(row=>proof.managed.some(target=>target.worktree===row.worktree));
+  if(manifest.schemaVersion!==2 || manifest.repositoryKey!==repositoryKey(repository.commonDirectory) || !manifest.worktrees.some(row=>row.path===repository.repositoryRoot) || savedManaged.some(row=>!manifest.worktrees.some(saved=>saved.path===row.worktree && saved.head===row.HEAD && saved.branch===(row.branch??null))) || Object.entries(proof.verifiedPreservationRefs??{}).some(([ref,oid])=>manifest.preservationRefs[ref]!==oid) || Object.entries(proof.beforeRefs).some(([ref,oid])=>manifest.preservationRefs[ref]!==oid))fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+  const resource=recoveryJson(path.join(path.dirname(original),'receipt.json')).value;
+  if(resource.taskId!==taskId || !resource.ok || !resource.cache?.ok || !Array.isArray(resource.blocked) || resource.blocked.some(row=>row.phase!=='git'))fail('RESOURCE_CLOSEOUT_BLOCKED');
+  const plan={schemaVersion:1,taskId,candidateCommit:receipt.integrationCommit,originalProofSha256:saved.sha256,backupDirectory:backup,backupManifestSha256:hash,retiredSnapshots:retiredSnapshots.sort((a,b)=>a.ref.localeCompare(b.ref)),retiredDeliveries:retiredDeliveries.sort((a,b)=>a.ref.localeCompare(b.ref)),retiredWorktrees:retiredWorktrees.sort((a,b)=>a.worktree.localeCompare(b.worktree))};
+  return {plan,proof,saved,original,retirementRecords,previewSha256:sha256(JSON.stringify(plan))};
+}
+export async function recoverCloseoutFinalization({projectRoot,taskId,backupDirectory,apply=false,previewSha256},options={}) {
+  options={...options,readOnlyGit:true};
+  if(!ID.test(taskId??''))fail('DELIVERY_ARGUMENT_INVALID');
+  selectGitPath({...options,mutate:apply});
+  const perform=async repository=>{
+    const controller=options.controller??await import(pathToFileURL(CONTROLLER).href);
+    const common={projectRoot:repository.repositoryRoot,taskId};
+    const local=controller.readDeliveryReceipt(common);
+    if(local.repositoryRoot!==repository.repositoryRoot || local.remote!=='origin' || local.defaultBranch!=='master' || output(git(repository.repositoryRoot,['remote','get-url',local.remote],options))!==local.remoteUrl)fail('REMOTE_IDENTITY_CHANGED');
+    // The shared validateCleanedDelivery performs fetch: only the locked apply
+    // lane may use it. Preview reads local records and audits local Git only.
+    const receipt=apply?controller.validateCleanedDelivery(common):local;
+    assertReviewed(repository,receipt);
+    fsck(repository,options);
+    const certificate=path.join(path.dirname(closeoutFinalization(repository,taskId)),'git-finalization-recovery.json');
+    if(fs.existsSync(certificate)){validateRecoveryCompletion(repository,taskId,receipt);return {taskId,status:'cleaned',restoreVerified:true};}
+    const first=recoveryPlan(repository,taskId,backupDirectory,receipt,options);
+    if(!apply)return {...first.plan,status:'preview',previewSha256:first.previewSha256};
+    if(previewSha256!==first.previewSha256)fail('CLOSEOUT_RECOVERY_STALE');
+    return withBackupLock(path.dirname(first.plan.backupDirectory),()=>{
+      verifyBackupDirectory(first.plan.backupDirectory,options);
+      options.afterRecoveryVerified?.();
+      const after=recoveryPlan(repository,taskId,backupDirectory,receipt,options);
+      if(after.previewSha256!==previewSha256)fail('CLOSEOUT_RECOVERY_STALE');
+      const resources=resourcePhase(repository,taskId,'revalidate',options);
+      const beforeResource=recoveryJson(path.join(path.dirname(first.original),'receipt.json'));
+      if(!resources?.ok || resources.taskId!==taskId || resources.candidateCommit!==receipt.integrationCommit || resources.previousReceiptSha256!==beforeResource.sha256 || !resources.cache?.ok)fail('RESOURCE_CLOSEOUT_BLOCKED');
+      fsck(repository,options);
+      const final=recoveryPlan(repository,taskId,backupDirectory,receipt,options);
+      if(final.previewSha256!==previewSha256)fail('CLOSEOUT_RECOVERY_STALE');
+      const directory=path.dirname(first.original), id=crypto.randomUUID();
+      const epochs=path.join(directory,'recovery-epochs');privateDirectory(epochs);
+      const epochDirectory=path.join(epochs,id);fs.mkdirSync(epochDirectory,{mode:0o700});
+      fs.writeFileSync(path.join(epochDirectory,'original-proof.json'),first.saved.bytes,{flag:'wx',mode:0o600});
+      fs.writeFileSync(path.join(epochDirectory,'original-resource-receipt.json'),beforeResource.bytes,{flag:'wx',mode:0o600});
+      if(Object.keys(final.retirementRecords).length) {
+        const directory=path.join(epochDirectory,'retired-deliveries');fs.mkdirSync(directory,{mode:0o700});
+        for(const [owner,records] of Object.entries(final.retirementRecords)) {
+          const saved=path.join(directory,owner);fs.mkdirSync(saved,{mode:0o700});
+          for(const [kind,record] of Object.entries(records))fs.writeFileSync(path.join(saved,kind+'.json'),record.bytes,{flag:'wx',mode:0o600});
+        }
+      }
+      const epoch={...final.plan,status:'complete',restoreVerified:true,resourceRevalidation:resources,verifiedAt:new Date().toISOString()};
+      const payload=JSON.stringify(epoch,null,2)+'\n';
+      fs.writeFileSync(path.join(epochDirectory,'epoch.json'),payload,{flag:'wx',mode:0o600});
+      // The certificate is committed only after resource completion and another
+      // full audit. A crash leaves an uncommitted epoch and the old pending gate.
+      fsck(repository,options);
+      if(recoveryPlan(repository,taskId,backupDirectory,receipt,options).previewSha256!==previewSha256)fail('CLOSEOUT_RECOVERY_STALE');
+      finishResourceReceipt(repository,taskId,first.proof.resourceContractRequired,resources);
+      if(fs.existsSync(certificate))fail('CLOSEOUT_RECOVERY_STALE');
+      writePrivateJson(certificate,{schemaVersion:1,taskId,candidateCommit:receipt.integrationCommit,originalProofSha256:first.saved.sha256,epoch:`recovery-epochs/${id}/epoch.json`,epochSha256:sha256(payload)});
+      validateRecoveryCompletion(repository,taskId,receipt);
+      log(repository,'closeout-recover','PASS',undefined,{backup:first.plan.backupDirectory},options);
+      return {taskId,status:'cleaned',restoreVerified:true,retiredSnapshots:first.plan.retiredSnapshots,retiredDeliveries:first.plan.retiredDeliveries,retiredWorktrees:first.plan.retiredWorktrees,epoch:certificate};
+    });
+  };
+  if(!apply)return perform(discover(projectRoot,options));
+  return withRepositoryLock({projectRoot},async repository=>{
+    try{return await perform(repository);}catch(error){log(repository,'closeout-recover','FAIL',error.code??'CLOSEOUT_RECOVERY_FAILED',{},options);throw error;}
+  },options);
 }
 function assertNoIgnoredData(directory, options) {
   if (paths(directory, ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'], options).length) fail('WORKTREE_IGNORED_DATA');
@@ -869,7 +1195,8 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (params.replacePrepared) fail('PREPARE_REMOVAL_BLOCKED');
         const receipt = controller.readDeliveryReceipt(common);
         if (receipt.status === 'ci_passed') fail('PREPARE_REMOVAL_BLOCKED');
-        result = receipt.status === 'remote_moved'
+        const refreshBase = receipt.status === 'remote_moved' || receipt.mode === 'pr' && ['awaiting_ci', 'ci_failed'].includes(receipt.status);
+        result = refreshBase
           ? refreshPublishedBase(repository, receipt, taskId, options)
           : controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
         resourcePhase(repository, taskId, 'record', options);
@@ -971,19 +1298,28 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
 }
 export function parseCli(args) {
   const [subcommand, ...rest] = args;
-  if (!['check', 'configure', 'backup', 'delivery'].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
+  if (!['check', 'configure', 'backup', 'delivery', 'backup-audit', 'backup-migrate', 'backup-prune', 'closeout-recover'].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
   const options = {};
-  const values = new Map([['--project', 'projectRoot'], ['--task-id', 'taskId'], ['--slug', 'slug'], ['--worktree-root', 'worktreeRoot'], ['--reviewed-commit', 'reviewedCommit'], ['--verification-command', 'verificationCommand'], ['--verification-status', 'verificationStatus'], ['--verification-duration-seconds', 'verificationDuration']]);
+  const values = new Map([['--project', 'projectRoot'], ['--task-id', 'taskId'], ['--recovery-backup', 'backupDirectory'], ['--preview-sha256', 'previewSha256'], ['--slug', 'slug'], ['--worktree-root', 'worktreeRoot'], ['--reviewed-commit', 'reviewedCommit'], ['--verification-command', 'verificationCommand'], ['--verification-status', 'verificationStatus'], ['--verification-duration-seconds', 'verificationDuration']]);
   for (let index = 0; index < rest.length; index++) {
     const item = rest[index];
     if (['--start', '--prepare', '--publish', '--status', '--cleanup'].includes(item)) { if (options.action) fail('CLI_ACTION_INVALID'); options.action = item.slice(2); }
+    else if (item === '--apply') options.apply = true;
     else if (item === '--repair') options.repair = true;
     else if (item === '--replace-prepared') options.replacePrepared = true;
     else if (values.has(item) && rest[index + 1] && !rest[index + 1].startsWith('--')) options[values.get(item)] = rest[++index];
     else fail('CLI_OPTION_INVALID');
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
-  if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot')) fail('CLI_OPTION_INVALID');
+  if(subcommand==='closeout-recover') {
+    if(!options.taskId || !options.backupDirectory || Object.keys(options).some(key=>!['projectRoot','taskId','backupDirectory','previewSha256','apply'].includes(key)) || options.apply && !/^[a-f0-9]{64}$/.test(options.previewSha256??'') || !options.apply && options.previewSha256)fail('CLI_ARGUMENT_REQUIRED');
+    return {subcommand,options};
+  }
+  if(options.backupDirectory || options.previewSha256)fail('CLI_OPTION_INVALID');
+  const maintenance=['backup-audit','backup-migrate','backup-prune'].includes(subcommand);
+  if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot' && !(maintenance && key==='apply'))) fail('CLI_OPTION_INVALID');
+  if(options.apply && !['backup-migrate','backup-prune'].includes(subcommand))fail('CLI_OPTION_INVALID');
+  if(maintenance)options.action=subcommand;
   if (options.reviewedCommit && (options.action !== 'status' || !/^[a-f0-9]{40}$/.test(options.reviewedCommit))) fail('CLI_REVIEW_INVALID');
   if (options.replacePrepared && options.action !== 'prepare' || options.repair && options.action !== 'publish') fail('CLI_OPTION_INVALID');
   if (options.action === 'publish') {
@@ -997,7 +1333,7 @@ export function parseCli(args) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const {subcommand, options} = parseCli(process.argv.slice(2));
-    const result = subcommand === 'check' ? checkRepository(options) : subcommand === 'configure' ? configureRepository(options) : subcommand === 'backup' ? backupRepository(options) : await runDelivery(options);
+    const result = subcommand === 'check' ? checkRepository(options) : subcommand === 'configure' ? configureRepository(options) : subcommand === 'backup' ? backupRepository(options) : subcommand.startsWith('backup-') ? maintainBackups(options) : subcommand==='closeout-recover' ? await recoverCloseoutFinalization(options) : await runDelivery(options);
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
@@ -1005,5 +1341,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');
-  } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED'}) + '\n'); process.exitCode = 1; }
+  } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED',...(error.integrity?{integrity:error.integrity}:{})}) + '\n'); process.exitCode = 1; }
 }

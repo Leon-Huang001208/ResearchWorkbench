@@ -301,6 +301,7 @@ async def render_report_payload(
     formats: list[str],
     *,
     python: str | Path | None = None,
+    historical_notice: str | None = None,
 ) -> dict:
     """Project a model-authored payload into reviewed, deterministic file formats."""
     if not formats or any(item not in {"docx", "html", "xlsx", "pptx", "pdf"} for item in formats):
@@ -315,7 +316,18 @@ async def render_report_payload(
         }
     script = Path(__file__).with_name("report_render_script.py").read_text()
     shared_docx = Path(__file__).with_name("report_documents.py").read_text()
-    source = shared_docx + "\nFORMATS = " + repr(formats) + "\n" + script
+    source = (
+        "SESSION_ROOT = "
+        + repr(str(session))
+        + "\n"
+        + shared_docx
+        + "\nHOST_HISTORICAL_NOTICE = "
+        + repr(historical_notice)
+        + "\nFORMATS = "
+        + repr(formats)
+        + "\n"
+        + script
+    )
     config = sandbox.SandboxConfig(
         store.root,
         Path(python or __import__("sys").executable),

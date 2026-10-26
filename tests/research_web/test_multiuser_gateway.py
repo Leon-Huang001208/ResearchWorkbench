@@ -93,11 +93,67 @@ def login(browser, username="alice", password="a safe alice password"):
     return response
 
 
+def test_discovery_restart_uses_only_registered_enabled_owners_and_status_is_private(tmp_path):
+    store = AccountStore(tmp_path / "server")
+    alice = store.create_user("alice", "a safe alice password", role="admin")
+    bob = store.create_user("bobby", "a safe bobby password")
+    disabled = store.create_user("disabled", "a safe disabled password")
+    store.set_enabled(disabled.id, False)
+
+    class RestoringPool(Pool):
+        def __init__(self):
+            super().__init__()
+            self.restored = []
+            self.discovery_restoration = {
+                alice.id: {"status": "deferred_capacity", "code": "runtime_capacity_exceeded"},
+                bob.id: {"status": "restored"},
+            }
+
+        async def restore_discovery_tracks(self, user_ids):
+            self.restored.extend(user_ids)
+
+    pool = RestoringPool()
+    upstream = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(200)))
+    app = create_gateway(store, pool, origin="http://localhost", upstream=upstream)
+    with TestClient(app, base_url="http://localhost") as browser:
+        assert set(pool.restored) == {alice.id, bob.id}
+        assert browser.get("/api/server/discovery-tracking-status").status_code == 401
+        assert login(browser).status_code == 200
+        result = browser.get("/api/server/discovery-tracking-status")
+        assert result.json() == {"status": "deferred_capacity", "code": "runtime_capacity_exceeded"}
+        assert bob.id not in result.text
+        assert pool.users == []
+
+
 def test_anonymous_cannot_read_user_data_or_start_runtime(server):
     browser, _, pool, _, _ = server
     assert browser.get("/api/research/sessions").status_code == 401
     assert browser.get("/", follow_redirects=False).headers["location"] == "/auth"
     assert pool.users == []
+
+
+def test_report_workflows_require_attached_primary_admin_not_browser_role(server):
+    browser, accounts, pool, (admin, _, _), forwarded = server
+    pool.primary_user_id = admin.id
+    assert login(browser).status_code == 200
+    assert (
+        browser.get(
+            "/api/research/report-workflows",
+            headers={
+                "X-RWB-User-Role": "admin",
+                "X-RWB-Primary-User": admin.id,
+            },
+        ).status_code
+        == 403
+    )
+    assert not forwarded
+    assert not pool.users
+    assert login(browser, "admin", "a safe admin password").status_code == 200
+    assert browser.get("/api/research/report-workflows").status_code == 200
+    secondary = accounts.create_user("otheradmin", "a safe other admin password", "admin")
+    assert secondary.id != admin.id
+    assert login(browser, "otheradmin", "a safe other admin password").status_code == 200
+    assert browser.get("/api/research/report-workflows").status_code == 403
 
 
 def test_two_users_route_from_cookie_not_owner_or_headers(server):

@@ -1,14 +1,618 @@
 """Asset workspace state, personal observations and alert regressions."""
 
 import asyncio
+from copy import deepcopy
 from pathlib import Path
+from threading import Event
+from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
+from app.research_web.asset_routes import ObservationRequest
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+
+
+@pytest.fixture(autouse=True)
+def isolated_host_credentials(monkeypatch):
+    """Use explicit memory storage and reject unexpected OS credential access."""
+    import sys
+
+    import keyring
+
+    from app.research_web import credential_backend
+
+    class MemoryCredentials:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("asset fixture must not access host credentials")
+
+    for module in list(sys.modules.values()):
+        if (
+            module
+            and getattr(module, "__name__", "").startswith("app.research_web")
+            and hasattr(module, "default_credential_backend")
+        ):
+            monkeypatch.setattr(module, "default_credential_backend", MemoryCredentials)
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+        for method in ("get_password", "set_password", "delete_password"):
+            monkeypatch.setattr(backend, method, deny)
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
+
+
+def test_tinysoft_canonical_asset_query_translates_cycle_and_adjustment(monkeypatch):
+    import sys
+
+    from app.research_web.datahub import providers_cjpy
+    from app.research_web.datahub.contracts import BusinessQuery
+
+    calls = []
+
+    def market_data(**kwargs):
+        calls.append(kwargs)
+        return [{"date": "2026-10-20", "close": 10}]
+
+    monkeypatch.setattr(providers_cjpy, "_client", lambda token: object())
+    monkeypatch.setitem(sys.modules, "cjpy", SimpleNamespace(get_market_data=market_data))
+    providers_cjpy._sync_query(
+        BusinessQuery(
+            capability="market_bars",
+            source="tinysoft",
+            parameters={
+                "asset": "603986.SH",
+                "asset_type": "stock",
+                "frequency": "daily",
+                "adjustment": "qfq",
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-20",
+            },
+        ),
+        "isolated-test-token",
+    )
+    assert calls[0]["cycle"] == "day"
+    assert calls[0]["rate"] == "前复权"
+
+
+class ObservationWindAdapter:
+    """Only replaces the vendor boundary; Broker and snapshots remain real."""
+
+    def __init__(self):
+        self.calls = []
+        self.fail = False
+        self.started = Event()
+        self.release = Event()
+        self.block = False
+
+    def is_available(self):
+        return True
+
+    def close(self):
+        return None
+
+    def _frame(self, method, kwargs, values):
+        self.calls.append((method, kwargs))
+        self.started.set()
+        if self.block:
+            assert self.release.wait(2), "fixture release timed out"
+        if self.fail:
+            raise ValueError("private vendor diagnostic must not leak")
+        return pd.DataFrame([{"code": "600519.SH", **values}])
+
+    def fetch_market_snapshot(self, **kwargs):
+        return self._frame(
+            "snapshot",
+            kwargs,
+            {"trade_date": "2026-09-11", "close": 1500, "pe_ttm": 20, "pb": 6, "total_shares": 100},
+        )
+
+    def fetch_daily_quotes(self, **kwargs):
+        return self._frame("history", kwargs, {"date": "2026-09-11", "close": 1500})
+
+    def fetch_financial_statements(self, **kwargs):
+        return self._frame("financials", kwargs, {"trade_date": "2026-09-11", "revenue": 12})
+
+    def fetch_margin_trading(self, **kwargs):
+        return self._frame("margin", kwargs, {"date": "2026-09-11", "margin_balance": 10})
+
+    def fetch_fund_flow(self, **kwargs):
+        return self._frame("activity", kwargs, {"date": "2026-09-11", "main_force_inflow": 10})
+
+    def fetch_holder_data(self, **kwargs):
+        return self._frame(
+            "holders", kwargs, {"report_date": kwargs["report_date"], "holder_num": 3}
+        )
+
+
+@pytest.fixture
+def wind_workspace(tmp_path, monkeypatch):
+    from app.research_web.asset_workspace import AssetWorkspace
+    from app.research_web.datahub import DataHub, catalog, providers_wind
+
+    monkeypatch.setattr(
+        catalog,
+        "_dependency_status",
+        lambda source_id, dependencies: (
+            source_id == "wind",
+            None if source_id == "wind" else "blocked_dependency",
+        ),
+    )
+    service = SimpleNamespace(store=Store(tmp_path), notify=lambda: None)
+    service.datahub = DataHub(service.store)
+    service.asset_workspace = AssetWorkspace(service)
+    monkeypatch.setattr(
+        service.datahub.connections,
+        "statuses",
+        lambda: {
+            "wind": {
+                "configured": True,
+                "credential_store_available": True,
+                "preferred_adapter": "excel",
+            }
+        },
+    )
+    adapter = ObservationWindAdapter()
+    monkeypatch.setattr(providers_wind, "_make_adapter", lambda: adapter)
+    sid = service.store.create("fingpt", "asset provider contract")["id"]
+    return service, sid, adapter
+
+
+async def _observe_wind(service, sid, section, **changes):
+    body = ObservationRequest(
+        **{
+            "session_id": sid,
+            "asset": "600519.SH",
+            "asset_type": "stock",
+            "source": "wind",
+            "sections": [section],
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-11",
+            **changes,
+        }
+    )
+    item = await service.asset_workspace.create_observation(body, f"contract:{section}")
+    await asyncio.wait_for(service.asset_workspace.tasks[item["id"]], 2)
+    return service.asset_workspace.observation(item["id"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("section", ["overview", "history", "financials", "margin", "holders"])
+async def test_observation_uses_real_broker_wind_and_public_metadata(wind_workspace, section):
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(service, sid, section)
+    block = item["blocks"][section]
+    assert block["status"] == "complete", block
+    dataset = block["dataset"]
+    assert adapter.calls
+    assert dataset["fields"]
+    assert dataset["coverage"]
+    assert dataset["retrieved_at"]
+    assert item["request_parameters"] == {
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-11",
+        "frequency": "daily",
+        "adjustment": "qfq",
+        "section_sources": {},
+        "section_ranges": {},
+    }
+    assert "request" not in item
+    assert "authorization_fingerprint" not in dataset
+    if section in {"overview", "history"}:
+        assert dataset["query"]["parameters"]["asset_type"] == "stock"
+        assert dataset["fields"]["price" if section == "overview" else "close"]["currency"] == "CNY"
+    if section == "financials":
+        assert dataset["query"]["parameters"] == {
+            "asset": "600519.SH",
+            "statements": ["indicators"],
+            "periods": [],
+        }
+        assert dataset["provider_query"]["parameters"]["statements"] == ["metrics"]
+        assert adapter.calls == [("financials", {"codes": ["600519.SH"], "report_date": None})]
+        assert any("最新一期" in limitation for limitation in dataset["limitations"])
+    if section == "holders":
+        assert dataset["query"]["parameters"] == {
+            "asset": "600519.SH",
+            "dataset": "holder_data",
+            "end_date": "2026-09-11",
+        }
+        assert adapter.calls == [("holders", {"codes": ["600519.SH"], "report_date": "2026-09-11"})]
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asset_type", ["index", "etf"])
+async def test_observation_preserves_asset_type_and_wind_rejection(wind_workspace, asset_type):
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(service, sid, "history", asset_type=asset_type)
+    block = item["blocks"]["history"]
+    assert block["status"] == "unavailable"
+    assert block["failure_code"] == "data_not_equivalent"
+    assert block["dataset"]["query"]["parameters"]["asset_type"] == asset_type
+    assert adapter.calls == []
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_observation_refresh_is_independent_and_preserves_previous_snapshot(wind_workspace):
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(service, sid, "overview", sections=["overview", "history"])
+    workspace = service.asset_workspace
+    original_id = item["blocks"]["overview"]["dataset"]["dataset_id"]
+    history_id = item["blocks"]["history"]["dataset"]["dataset_id"]
+    first = await workspace.refresh_block(item["id"], "overview", "refresh-contract-1")
+    assert first["session_id"] == sid
+    await asyncio.wait_for(asyncio.gather(*list(workspace.tasks.values())), 2)
+    refreshed = workspace.observation(item["id"])
+    new_id = refreshed["blocks"]["overview"]["dataset"]["dataset_id"]
+    assert original_id != new_id
+    assert refreshed["blocks"]["history"]["dataset"]["dataset_id"] == history_id
+    assert service.datahub.detail(sid, original_id)["dataset_id"] == original_id
+    repeated = await workspace.refresh_block(item["id"], "overview", "refresh-contract-1")
+    assert repeated["blocks"]["overview"]["dataset"]["dataset_id"] == new_id
+    assert len(adapter.calls) == 3
+    adapter.fail = True
+    await workspace.refresh_block(item["id"], "overview", "refresh-contract-2")
+    await asyncio.wait_for(asyncio.gather(*list(workspace.tasks.values())), 2)
+    failed = workspace.observation(item["id"])["blocks"]["overview"]
+    assert failed["status"] == "unavailable"
+    assert failed["failure_code"] == "wind_provider_error"
+    assert failed["dataset"]["dataset_id"] == new_id
+    assert "private vendor" not in str(failed)
+    assert len(adapter.calls) == 4
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_observation_refresh_rejects_inflight_duplicate_and_recovers_restart(wind_workspace):
+    from app.research_web.asset_workspace import AssetWorkspace
+    from app.research_web.store import StoreError
+
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(service, sid, "overview", sections=["overview", "history"])
+    adapter.block = True
+    adapter.started.clear()
+    workspace = service.asset_workspace
+    await workspace.refresh_block(item["id"], "overview", "refresh-inflight-1")
+    for _ in range(100):
+        if adapter.started.is_set():
+            break
+        await asyncio.sleep(0.001)
+    assert adapter.started.is_set()
+    replay = await workspace.refresh_block(item["id"], "overview", "refresh-inflight-1")
+    assert replay["blocks"]["overview"]["status"] == "loading"
+    with pytest.raises(StoreError) as error:
+        await workspace.refresh_block(item["id"], "overview", "refresh-inflight-2")
+    assert error.value.status == 409
+    with pytest.raises(StoreError) as other_block_error:
+        await workspace.refresh_block(item["id"], "history", "refresh-inflight-3")
+    assert other_block_error.value.status == 409
+    adapter.release.set()
+    await asyncio.wait_for(asyncio.gather(*list(workspace.tasks.values())), 2)
+    row = service.store.data["asset_observations"][item["id"]]
+    row["blocks"]["overview"]["status"] = "loading"
+    row["status"] = "running"
+    recovered = AssetWorkspace(service).observation(item["id"])
+    assert recovered["blocks"]["overview"]["status"] == "unavailable"
+    assert recovered["blocks"]["overview"]["failure_code"] == "interrupted"
+    assert recovered["status"] == "partial"
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_wind_observation_does_not_overlap_its_own_blocks(wind_workspace):
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(
+        service,
+        sid,
+        "overview",
+        sections=["overview", "history", "financials", "margin", "holders"],
+    )
+    assert item["status"] == "complete", item
+    assert [method for method, kwargs in adapter.calls] == [
+        "snapshot",
+        "history",
+        "financials",
+        "margin",
+        "holders",
+    ]
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["tinysoft", "akshare"])
+async def test_single_capacity_source_blocks_are_not_started_concurrently(tmp_path, source):
+    from app.research_web.asset_workspace import AssetWorkspace
+
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "isolated source scheduling")["id"]
+    active = 0
+    peak = 0
+
+    async def query(*args, **kwargs):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return {"status": "empty", "row_count": 0, "sample": []}
+
+    service = SimpleNamespace(
+        store=store, datahub=SimpleNamespace(query=query), notify=lambda: None
+    )
+    workspace = AssetWorkspace(service)
+    await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="603986.SH",
+            asset_type="stock",
+            source=source,
+            sections=["overview", "history"],
+        ),
+        "single-capacity-scheduling",
+    )
+    await asyncio.gather(*list(workspace.tasks.values()))
+    assert peak == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["wind", "auto"])
+async def test_cancelled_sequential_observation_settles_pending_blocks_and_allows_refresh(
+    wind_workspace, source
+):
+    service, sid, adapter = wind_workspace
+    workspace = service.asset_workspace
+    adapter.block = True
+    item = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="600519.SH",
+            asset_type="stock",
+            source=source,
+            sections=["overview", "history"],
+            start_date="2026-09-01",
+            end_date="2026-09-11",
+        ),
+        "cancel-sequential-observation",
+    )
+    task = workspace.tasks[item["id"]]
+    for _ in range(100):
+        if adapter.started.is_set():
+            break
+        await asyncio.sleep(0.001)
+    assert adapter.started.is_set()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    adapter.release.set()
+    await asyncio.gather(*list(service.datahub.tasks.values()))
+    cancelled = workspace.observation(item["id"])
+    assert cancelled["status"] == "cancelled"
+    assert all(
+        block["status"] == "unavailable" and block["failure_code"] == "cancelled"
+        for block in cancelled["blocks"].values()
+    )
+    persisted = Store(service.store.root).data["asset_observations"][item["id"]]
+    assert persisted["blocks"]["history"]["status"] == "unavailable"
+    assert [method for method, _ in adapter.calls] == ["snapshot"]
+    await workspace.refresh_block(item["id"], "history", "retry-cancelled-history")
+    await asyncio.gather(*list(workspace.tasks.values()))
+    assert workspace.observation(item["id"])["blocks"]["history"]["status"] == "complete"
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_cancel_before_observation_task_starts_settles_all_blocks(wind_workspace):
+    service, sid, adapter = wind_workspace
+    workspace = service.asset_workspace
+    item = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="600519.SH",
+            asset_type="stock",
+            source="wind",
+            sections=["overview", "history"],
+        ),
+        "cancel-before-task-starts",
+    )
+    task = workspace.tasks[item["id"]]
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    cancelled = workspace.observation(item["id"])
+    assert cancelled["status"] == "cancelled"
+    assert all(
+        block["status"] == "unavailable" and block["failure_code"] == "cancelled"
+        for block in cancelled["blocks"].values()
+    )
+    assert adapter.calls == []
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("shared_store", [True, False])
+async def test_workspace_construction_preserves_active_observation_owner(
+    wind_workspace, shared_store
+):
+    from app.research_web.asset_workspace import AssetWorkspace
+
+    service, sid, adapter = wind_workspace
+    workspace = service.asset_workspace
+    adapter.block = True
+    item = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="600519.SH",
+            asset_type="stock",
+            source="wind",
+            sections=["overview"],
+        ),
+        "constructor-active-owner",
+    )
+    task = workspace.tasks[item["id"]]
+    try:
+        duplicate = AssetWorkspace(
+            SimpleNamespace(store=service.store if shared_store else Store(service.store.root))
+        )
+        assert duplicate.observation(item["id"])["blocks"]["overview"]["status"] == "loading"
+        assert workspace.observation(item["id"])["blocks"]["overview"]["status"] == "loading"
+        assert (
+            Store(service.store.root).data["asset_observations"][item["id"]]["status"] == "running"
+        )
+    finally:
+        adapter.release.set()
+        await task
+        await service.datahub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("write_then_fail", [False, True])
+async def test_refresh_save_failure_rolls_back_admission_and_allows_new_key(
+    wind_workspace, monkeypatch, write_then_fail
+):
+    from app.research_web.store import StoreError
+
+    service, sid, adapter = wind_workspace
+    workspace = service.asset_workspace
+    item = await _observe_wind(service, sid, "overview")
+    before = deepcopy(service.store.data["asset_observations"][item["id"]])
+    save = service.store.save
+
+    def save_failed():
+        if write_then_fail:
+            save()
+        raise StoreError("fixture persistence failure")
+
+    monkeypatch.setattr(service.store, "save", save_failed)
+    with pytest.raises(StoreError):
+        await workspace.refresh_block(item["id"], "overview", "refresh-save-failed")
+    assert len(adapter.calls) == 1
+    assert not any(not task.done() for task in workspace.tasks.values())
+    assert service.store.data["asset_observations"][item["id"]] == before
+    monkeypatch.setattr(service.store, "save", save)
+    await workspace.refresh_block(item["id"], "overview", "refresh-save-recovered")
+    await asyncio.gather(*list(workspace.tasks.values()))
+    assert workspace.observation(item["id"])["blocks"]["overview"]["status"] == "complete"
+    assert len(adapter.calls) == 2
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["error", "invalid", "unexpected"])
+async def test_observation_never_marks_provider_error_or_unknown_status_complete(
+    wind_workspace, status
+):
+    service, sid, _ = wind_workspace
+
+    async def invalid_result(*args):
+        return {"status": status, "sample": [], "limitations": ["row_limit"]}
+
+    service.datahub.query = invalid_result
+    item = await service.asset_workspace.create_observation(
+        ObservationRequest(
+            session_id=sid, asset="600519.SH", asset_type="stock", sections=["overview"]
+        ),
+        "provider-error-status",
+    )
+    await service.asset_workspace.tasks[item["id"]]
+    result = service.asset_workspace.observation(item["id"])
+    assert result["blocks"]["overview"]["status"] == "error"
+    assert result["blocks"]["overview"]["failure_code"] == "row_limit"
+    assert result["status"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_observation_dataset_read_failure_is_error_and_not_complete(
+    wind_workspace, monkeypatch
+):
+    service, sid, _ = wind_workspace
+
+    def unreadable_dataset(*args):
+        raise OSError("private filesystem diagnostic")
+
+    monkeypatch.setattr(service.datahub, "rows", unreadable_dataset)
+    item = await _observe_wind(service, sid, "overview")
+    assert item["status"] == "failed"
+    assert item["blocks"]["overview"]["status"] == "error"
+    assert item["blocks"]["overview"]["failure_code"] == "query_failed"
+    assert "private filesystem" not in str(item)
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_observation_does_not_downgrade_or_chunk_wind_calendar_limit(wind_workspace):
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(service, sid, "history", start_date="2026-06-01")
+    block = item["blocks"]["history"]
+    assert block["status"] == "error"
+    assert block["failure_code"] == "workload_too_large"
+    assert block["dataset"] is None
+    assert block["requested_range"] == {
+        "start_date": "2026-06-01",
+        "end_date": "2026-09-11",
+    }
+    assert adapter.calls == []
+    await service.datahub.close()
+
+
+def test_observation_block_refresh_http_contract(api):
+    client, _ = api
+    created = client.post(
+        "/api/research/assets/observations",
+        json={"asset": "600519.SH", "asset_type": "stock", "sections": ["overview", "history"]},
+        headers={"Idempotency-Key": "refresh-http-observation"},
+    ).json()
+    _wait(client, created["id"])
+    endpoint = f"/api/research/assets/observations/{created['id']}/blocks"
+    response = client.post(
+        f"{endpoint}/overview/refresh", headers={"Idempotency-Key": "refresh-http-request"}
+    )
+    assert response.status_code == 202, response.text
+    assert response.json()["id"] == created["id"]
+    assert response.json()["session_id"] == created["session_id"]
+    _wait(client, created["id"])
+    assert (
+        client.post(
+            f"{endpoint}/overview/refresh", headers={"Idempotency-Key": "refresh-http-request"}
+        ).status_code
+        == 202
+    )
+    assert (
+        client.post(
+            f"{endpoint}/history/refresh", headers={"Idempotency-Key": "refresh-http-request"}
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(
+            f"{endpoint}/holders/refresh", headers={"Idempotency-Key": "refresh-no-holder"}
+        ).status_code
+        == 400
+    )
+    assert (
+        client.post(
+            f"{endpoint}/unknown/refresh", headers={"Idempotency-Key": "refresh-unknown"}
+        ).status_code
+        == 422
+    )
 
 
 class NativeFixture:
@@ -173,12 +777,18 @@ def test_watchlist_notes_and_alert_false_to_true_deduplication(api):
     )
     assert len(first) == 1
     assert second == []
-    assert client.get("/api/research/asset-notifications").json()["items"][0]["alert_id"] == alert["id"]
+    assert (
+        client.get("/api/research/asset-notifications").json()["items"][0]["alert_id"]
+        == alert["id"]
+    )
 
     # stale/unavailable never trigger; a false result resolves the active edge.
-    assert service.asset_workspace.evaluate_alerts(
-        "600519.SH", {"status": "unavailable", "price": 1600.0}
-    ) == []
+    assert (
+        service.asset_workspace.evaluate_alerts(
+            "600519.SH", {"status": "unavailable", "price": 1600.0}
+        )
+        == []
+    )
     service.asset_workspace.evaluate_alerts(
         "600519.SH", {"status": "snapshot", "price": 1400.0, "as_of": "2026-09-05"}
     )
@@ -187,8 +797,303 @@ def test_watchlist_notes_and_alert_false_to_true_deduplication(api):
 
 def test_personal_asset_resources_reject_unknown_ids_and_bad_polling(api):
     client, _ = api
-    assert client.patch(
-        "/api/research/asset-notes/00000000-0000-0000-0000-000000000000",
-        json={"text": "x"},
-    ).status_code == 400
-    assert client.post("/api/research/watchlists", json={"name": "x", "polling_minutes": 10}).status_code == 422
+    assert (
+        client.patch(
+            "/api/research/asset-notes/00000000-0000-0000-0000-000000000000",
+            json={"text": "x"},
+        ).status_code
+        == 400
+    )
+    assert (
+        client.post(
+            "/api/research/watchlists", json={"name": "x", "polling_minutes": 10}
+        ).status_code
+        == 422
+    )
+
+
+def test_observation_schema_accepts_explicit_sections_sources_and_ranges():
+    body = ObservationRequest(
+        asset="600519.SH",
+        asset_type="stock",
+        sections=[
+            "overview",
+            "history",
+            "valuation",
+            "financials",
+            "activity",
+            "margin",
+            "holders",
+            "announcements",
+            "news",
+            "research",
+        ],
+        section_sources={"history": "tinysoft", "valuation": "wind"},
+        section_ranges={"history": {"start_date": "2024-02-29", "end_date": "2026-09-11"}},
+    )
+    assert len(body.sections) == 10
+    assert body.model_dump()["section_sources"] == {"history": "tinysoft", "valuation": "wind"}
+    assert body.model_dump()["section_ranges"]["history"]["start_date"] == "2024-02-29"
+    legacy = ObservationRequest(asset="600519.SH", asset_type="stock")
+    assert legacy.model_dump()["section_sources"] == {}
+    assert legacy.model_dump()["section_ranges"] == {}
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"section_sources": {"unknown": "wind"}},
+        {"section_sources": {"history": "Wind"}},
+        {"section_sources": {"history": "wind;other"}},
+        {"section_sources": {"history": ""}},
+        {"section_sources": {"history": None}},
+        {"section_ranges": {"holders": {"start_date": "2026-09-01", "end_date": "2026-09-11"}}},
+        {"section_ranges": {"unknown": {"start_date": "2026-09-01", "end_date": "2026-09-11"}}},
+        {"section_ranges": {"history": {"start_date": "2026-09-01"}}},
+        {"section_ranges": {"history": {"end_date": "2026-09-11"}}},
+        {"section_ranges": {"history": {"start_date": "2026-02-29", "end_date": "2026-09-11"}}},
+        {"section_ranges": {"history": {"start_date": "2026-09-12", "end_date": "2026-09-11"}}},
+        {"section_ranges": {"history": {"start_date": "20260901", "end_date": "2026-09-11"}}},
+        {"section_ranges": {"history": {"start_date": None, "end_date": "2026-09-11"}}},
+        {
+            "section_ranges": {
+                "history": {"start_date": "2026-09-01", "end_date": "2026-09-11", "limit": 60}
+            }
+        },
+    ],
+)
+def test_observation_schema_rejects_invalid_section_contract(changes):
+    with pytest.raises(ValidationError):
+        ObservationRequest(asset="600519.SH", asset_type="stock", **changes)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("section", ["history", "activity", "margin"])
+@pytest.mark.parametrize("days", [60, 61])
+async def test_section_range_hits_real_wind_provider_calendar_gate(wind_workspace, section, days):
+    from datetime import date, timedelta
+
+    service, sid, adapter = wind_workspace
+    end = "2026-09-11"
+    start = (date.fromisoformat(end) - timedelta(days=days - 1)).isoformat()
+    requested_range = {"start_date": start, "end_date": end}
+    item = await _observe_wind(
+        service,
+        sid,
+        section,
+        start_date="2025-09-11",
+        section_ranges={section: requested_range},
+    )
+    block = item["blocks"][section]
+    assert block["requested_range"] == requested_range
+    assert block["requested_source"] == "wind"
+    if block["dataset"]:
+        assert block["dataset"]["query"]["parameters"]["start_date"] == start
+        assert block["dataset"]["query"]["parameters"]["end_date"] == end
+    if days == 60:
+        assert block["status"] == "complete", block
+        assert len(adapter.calls) == 1
+        assert adapter.calls[0][1]["start_date"] == start
+        assert adapter.calls[0][1]["end_date"] == end
+    else:
+        assert block["status"] == ("error" if section == "history" else "unavailable"), block
+        if section == "history":
+            assert block["dataset"] is None
+        assert block["failure_code"] == "workload_too_large"
+        assert adapter.calls == []
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_mixed_sources_use_real_broker_providers_and_saved_refresh_scope(
+    wind_workspace, monkeypatch
+):
+    import sys
+
+    from app.research_web.asset_workspace import AssetWorkspace
+    from app.research_web.datahub import catalog, providers_cjpy
+
+    service, sid, adapter = wind_workspace
+    tinysoft_calls = []
+
+    def market_data(**kwargs):
+        tinysoft_calls.append(kwargs)
+        return [{"date": "2026-09-11", "close": 1500}]
+
+    monkeypatch.setattr(catalog, "_dependency_status", lambda *_: (True, None))
+    monkeypatch.setattr(
+        service.datahub.connections,
+        "statuses",
+        lambda: {
+            source: {
+                "configured": True,
+                "secret_configured": True,
+                "credential_store_available": True,
+            }
+            for source in ("wind", "tinysoft")
+        },
+    )
+    monkeypatch.setattr(
+        service.datahub.connections, "read_source_secret", lambda *_: "fixture-token"
+    )
+    monkeypatch.setattr(providers_cjpy, "_client", lambda token: object())
+    monkeypatch.setitem(sys.modules, "cjpy", SimpleNamespace(get_market_data=market_data))
+    ranges = {
+        "history": {"start_date": "2025-09-11", "end_date": "2026-09-11"},
+        "margin": {"start_date": "2026-09-01", "end_date": "2026-09-11"},
+    }
+    sources = {"history": "tinysoft", "valuation": "wind", "news": "wind", "margin": "wind"}
+    workspace = service.asset_workspace
+    item = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="600519.SH",
+            asset_type="stock",
+            source="wind",
+            sections=["history", "valuation", "holders", "news"],
+            start_date="2026-09-01",
+            end_date="2026-09-11",
+            section_sources=sources,
+            section_ranges=ranges,
+        ),
+        "mixed-section-source-contract",
+    )
+    await workspace.tasks[item["id"]]
+    item = workspace.observation(item["id"])
+    assert item["status"] == "partial"
+    assert item["request_parameters"]["section_sources"] == sources
+    assert item["request_parameters"]["section_ranges"] == ranges
+    assert set(item["blocks"]) == {"history", "valuation", "holders", "news"}
+    assert item["blocks"]["history"]["dataset"]["provider"] == "tinysoft"
+    assert item["blocks"]["history"]["dataset"]["query"]["allow_fallback"] is False
+    assert tinysoft_calls[0]["start"] == "2025-09-11"
+    assert tinysoft_calls[0]["end"] == "2026-09-11"
+    valuation = item["blocks"]["valuation"]
+    assert valuation["status"] == "partial", valuation
+    assert "partial_fields_missing" in valuation["dataset"]["limitations"]
+    assert valuation["requested_source"] == "wind"
+    assert valuation["requested_range"] == {}
+    assert valuation["dataset"]["query"]["parameters"] == {
+        "assets": ["600519.SH"],
+        "asset_type": "stock",
+        "fields": ["close", "pe_ttm", "pb", "pb_mrq", "ps_ttm", "total_shares"],
+    }
+    assert item["blocks"]["holders"]["dataset"]["query"]["parameters"] == {
+        "asset": "600519.SH",
+        "dataset": "holder_data",
+        "end_date": "2026-09-11",
+    }
+    assert item["blocks"]["news"]["status"] == "error"
+    assert item["blocks"]["news"]["requested_source"] == "wind"
+    assert item["blocks"]["news"]["requested_range"] == {}
+    assert [call[0] for call in adapter.calls] == ["snapshot", "holders"]
+    # Recover an interrupted block from disk, preserving the frozen request and other blocks.
+    service.store.data["asset_observations"][item["id"]]["blocks"]["history"]["status"] = "loading"
+    service.store.save()
+    service.store = Store(service.store.root)
+    recovered = AssetWorkspace(service)
+    assert recovered.observation(item["id"])["request_parameters"] == item["request_parameters"]
+    assert recovered.observation(item["id"])["blocks"]["history"]["failure_code"] == "interrupted"
+    await recovered.refresh_block(item["id"], "history", "mixed-history-refresh")
+    await asyncio.gather(*list(recovered.tasks.values()))
+    refreshed = recovered.observation(item["id"])
+    assert len(tinysoft_calls) == 2
+    assert tinysoft_calls[1]["start"] == "2025-09-11"
+    assert len(adapter.calls) == 2
+    assert refreshed["blocks"]["valuation"] == valuation
+    assert refreshed["blocks"]["history"]["requested_range"] == ranges["history"]
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+async def test_valuation_missing_vendor_fields_remains_partial(wind_workspace, monkeypatch):
+    service, sid, adapter = wind_workspace
+    monkeypatch.setattr(
+        adapter,
+        "fetch_market_snapshot",
+        lambda **kwargs: adapter._frame(
+            "snapshot", kwargs, {"trade_date": "2026-09-11", "close": 1500}
+        ),
+    )
+    item = await _observe_wind(service, sid, "valuation")
+    block = item["blocks"]["valuation"]
+    assert block["status"] == "partial"
+    assert block["dataset"]["provider"] == "wind"
+    assert block["dataset"]["query"]["allow_fallback"] is False
+    assert block["requested_source"] == "wind"
+    assert len(adapter.calls) == 1
+    await service.datahub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("effective_source", ["auto", "wind", "tinysoft", "akshare"])
+async def test_effective_section_sources_protect_single_capacity(tmp_path, effective_source):
+    from app.research_web.asset_workspace import AssetWorkspace
+
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "effective scheduling")["id"]
+    active = peak = 0
+    sources = []
+
+    async def query(sid, call_id, request):
+        nonlocal active, peak
+        sources.append(request.source)
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return {"status": "empty", "row_count": 0, "sample": []}
+
+    service = SimpleNamespace(
+        store=store, datahub=SimpleNamespace(query=query), notify=lambda: None
+    )
+    workspace = AssetWorkspace(service)
+    item = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="600519.SH",
+            asset_type="stock",
+            source="cls",
+            sections=["overview", "history"],
+            section_sources={"history": effective_source},
+        ),
+        "mixed-single-capacity-contract",
+    )
+    await workspace.tasks[item["id"]]
+    assert peak == 1
+    assert sources == ["cls", effective_source]
+
+
+@pytest.mark.asyncio
+async def test_legacy_saved_observation_reads_without_migration_and_preserves_global_scope(
+    wind_workspace,
+):
+    from app.research_web.asset_workspace import AssetWorkspace
+
+    service, sid, adapter = wind_workspace
+    item = await _observe_wind(service, sid, "history", start_date="2025-09-11")
+    row = service.store.data["asset_observations"][item["id"]]
+    row["request"].pop("section_sources", None)
+    row["request"].pop("section_ranges", None)
+    row["blocks"]["history"].pop("requested_source", None)
+    row["blocks"]["history"].pop("requested_range", None)
+    service.store.save()
+    before = service.store.index.read_bytes()
+    recovered = AssetWorkspace(service)
+    public = recovered.observation(item["id"])
+    assert service.store.index.read_bytes() == before
+    assert public["request_parameters"]["section_sources"] == {}
+    assert public["request_parameters"]["section_ranges"] == {}
+    assert public["blocks"]["history"]["requested_source"] == "wind"
+    assert public["blocks"]["history"]["requested_range"] == {
+        "start_date": "2025-09-11",
+        "end_date": "2026-09-11",
+    }
+    await recovered.refresh_block(item["id"], "history", "legacy-exact-scope-refresh")
+    await asyncio.gather(*list(recovered.tasks.values()))
+    assert (
+        recovered.observation(item["id"])["blocks"]["history"]["failure_code"]
+        == "workload_too_large"
+    )
+    assert adapter.calls == []
+    await service.datahub.close()

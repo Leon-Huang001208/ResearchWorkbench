@@ -1,0 +1,179 @@
+/* Dense asset workspace. Base component semantics and chart lifecycle stay intact. */
+#main:has(.asset-observation-page) .page-content {
+  width:100%; max-width:none; margin:0; padding:12px 16px 20px; box-sizing:border-box;
+}
+.app-shell:has(.asset-observation-page) { grid-template-rows:0 minmax(0,1fr); }
+.app-shell:has(.asset-observation-page)>.topbar { display:none; }
+.asset-observation-page { font-size:13px; line-height:1.5; }
+.page-content:has(.asset-observation-page) .workbench-tabs {
+  border:0; border-radius:0; background:transparent; padding:0; margin:0 0 12px; gap:16px;
+}
+.page-content:has(.asset-observation-page) .workbench-tabs a {
+  font-size:13px; padding:6px 0; border:0; border-radius:0; background:transparent; color:var(--muted);
+}
+.page-content:has(.asset-observation-page) .workbench-tabs a.active {
+  color:var(--text); box-shadow:inset 0 -2px var(--text);
+}
+.asset-observation-page .asset-identity { margin:0 0 8px; padding:0; }
+.asset-observation-page .asset-basic-header { align-items:baseline; gap:8px 12px; min-height:44px; }
+.asset-observation-page .asset-basic-header h1 { font-size:18px; line-height:28px; letter-spacing:0; }
+.asset-observation-page .asset-basic-header #asset-code-display { font-size:12px; }
+.asset-observation-page .asset-basic-price { align-items:baseline; gap:12px; }
+.asset-observation-page .asset-basic-price>strong { font-size:26px; line-height:32px; letter-spacing:0; }
+.asset-observation-page .asset-quote-change { font-size:13px; gap:8px; }
+.asset-observation-page .asset-quote-meta { font-size:12px; max-width:none; }
+.asset-observation-page .asset-header-actions { align-items:center; gap:12px; }
+.asset-observation-page .asset-header-actions summary { font-size:13px; }
+.asset-observation-page .asset-code-search>input { min-height:36px; padding:6px 10px; border-radius:4px; font-size:13px; background:transparent; }
+.asset-observation-page .asset-header-actions [data-asset-search-slot] { width:220px; }
+.asset-observation-page .asset-wind-grid { grid-template-columns:minmax(0,1fr) 240px; gap:12px; margin-bottom:12px; }
+.asset-observation-page .asset-market-terminal,
+.asset-observation-page .asset-block,
+.asset-observation-page .panel-card,
+.asset-observation-page .capital-flow-card,
+.asset-observation-page .asset-news-reader,
+.asset-observation-page .asset-topic-empty {
+  border:0; border-radius:0; background:transparent; box-shadow:none; min-height:0; padding:0;
+}
+.asset-observation-page .asset-market-full { margin:0; }
+.asset-market-terminal .asset-chart-toolbar { min-height:36px; gap:4px 8px; padding:0 0 4px; border:0; }
+.asset-market-terminal .kline-btn,
+.asset-market-terminal .asset-chart-adjustment,
+.asset-market-terminal .asset-chart-popover summary { font-size:13px; min-height:32px; padding:4px 8px; }
+.asset-market-terminal .asset-chart-adjustment { border-color:transparent; background:transparent; }
+.asset-market-terminal .asset-overlay-controls { border:0; padding-left:8px; }
+.asset-market-terminal .asset-history-readout { gap:4px 14px; font-size:12px; min-height:0; margin:0; padding:4px 0 8px; border:0; }
+.asset-market-terminal .asset-history-date { display:inline; }
+.asset-market-terminal .asset-readout-break { flex-basis:100%; height:0; }
+.asset-market-terminal .asset-main-overlay { font-size:12px; gap:4px 10px; }
+.asset-market-terminal .asset-main-overlay span { text-decoration:none; color:var(--asset-series-color); }
+.asset-market-terminal .asset-panel-header { font-size:12px; border:0; }
+.asset-market-terminal .asset-panel-readout { font-size:12px; }
+.asset-market-terminal .kline-terminal-layout { gap:12px; }
+.asset-market-terminal .asset-chip-panel { border:0; padding-left:0; }
+.asset-market-terminal .asset-chip-heading { left:0; font-size:13px; }
+.asset-market-terminal .asset-chip-heading small { font-size:12px; }
+.asset-market-terminal .asset-chip-chart { left:0; }
+.asset-market-terminal .chip-window-label { display:none; }
+.asset-market-terminal .asset-chip-stats { border:0; padding-top:8px; }
+.asset-market-terminal .chip-tabs { border:0; gap:8px; }
+.asset-market-terminal .chip-tab { font-size:12px; padding:4px 0; min-height:32px; }
+.asset-market-terminal .chip-stat-group { border:0; padding:0; }
+.asset-market-terminal .chip-stat-group+.chip-stat-group { margin-top:12px; }
+.asset-market-terminal .chip-stat-row,
+.asset-market-terminal .chip-age-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; padding:0; min-height:0; line-height:22px; gap:8px; }
+.asset-market-terminal .chip-stat-row strong small { color:var(--muted); font:inherit; font-size:12px; margin-left:6px; }
+.asset-market-terminal .chip-stat-row>span { font-size:12px; }
+.asset-market-terminal .chip-stat-row>span { white-space:nowrap; }
+.asset-market-terminal .chip-stat-row.chip-cost-row>strong { font-size:12px; letter-spacing:-.02em; }
+.asset-market-terminal .chip-stat-row>strong,
+.asset-market-terminal .chip-age-row>strong { font-size:13px; font-weight:500; text-align:right; }
+.asset-market-terminal .chip-stat-group h4 { font-size:12px; font-weight:500; margin:8px 0 4px; }
+.asset-market-terminal .asset-chip-note,
+.asset-market-terminal .asset-chart-help,
+.asset-market-terminal .asset-indicator-method,
+.asset-market-terminal .asset-range-summary { display:none; }
+.asset-market-terminal .asset-panel-controls { padding:0; }
+.asset-observation-page .asset-wind-metrics { padding:4px 0 0 12px; border-left:1px solid var(--line); }
+.asset-wind-metrics>header { display:none; }
+.asset-wind-metrics .asset-summary-metrics { gap:16px; }
+.asset-wind-metrics .asset-summary-metrics h2 { font-size:13px; color:var(--text); margin:0 0 4px; }
+.asset-wind-metrics .metric-item { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; padding:4px 0; border:0; gap:8px; }
+.asset-wind-metrics .metric-item dt { font-size:12px; }
+.asset-wind-metrics .metric-item dd { font-size:13px; text-align:right; font-weight:500; }
+.asset-wind-metrics .asset-group-note { display:none; }
+.asset-observation-page .asset-topic-tabs { margin:0 0 12px; padding:0; gap:24px; border-bottom:1px solid var(--line); }
+.asset-observation-page .asset-topic-tabs a { font-size:13px; border-radius:0; padding:8px 0; }
+.asset-observation-page .asset-topic-tabs a.active { background:transparent; box-shadow:inset 0 -2px var(--text); }
+.asset-observation-page .asset-secondary[data-asset-topic-slot] { min-height:0; }
+.asset-observation-page .asset-five-panels { display:block; margin:0; }
+.asset-observation-page .asset-five-panels>article { margin:0 0 12px; padding:0; }
+.asset-observation-page .asset-topic-content h2 { font-size:14px; margin:0 0 8px; font-weight:600; }
+.asset-observation-page #financial-panel>h2 { display:none; }
+.asset-observation-page .panel-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 24px; margin:0; }
+.asset-observation-page .panel-grid>div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:baseline; background:transparent; border:0; border-radius:0; padding:8px 0; }
+.asset-observation-page .panel-grid dt { font-size:13px; }
+.asset-observation-page .panel-grid dd { font-size:14px; margin:0; text-align:right; font-weight:500; }
+.asset-observation-page .asset-card-coverage { font-size:12px; margin-top:8px; justify-content:flex-end; }
+.asset-observation-page .asset-card-coverage>span { display:none; }
+.asset-observation-page .asset-card-coverage.has-state>span { display:inline; margin-right:auto; }
+.asset-observation-page .asset-card-coverage .button { font-size:12px; min-height:32px; padding:4px 8px; border-color:transparent; }
+.asset-observation-page #financial-panel>.asset-card-coverage:has(+.asset-card-coverage) { display:none; }
+.asset-observation-page #financial-panel>p { font-size:12px; margin:4px 0 8px; }
+.asset-observation-page .asset-table { font-size:13px; }
+.asset-observation-page .asset-table th,.asset-observation-page .asset-table td { font-size:13px; padding:6px 8px; }
+.asset-observation-page .asset-news-row { border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; padding:8px 0; }
+.asset-observation-page .asset-news-row.active { background:var(--surface); }
+.asset-observation-page .asset-news-row strong { font-size:13px; }
+.asset-observation-page .asset-news-reader { padding:0 0 0 16px; }
+.asset-observation-page .capital-flow-details { gap:0 24px; }
+.asset-observation-page .capital-flow-details>div { border:0; padding:6px 0; display:flex; align-items:baseline; justify-content:space-between; }
+.asset-observation-page .capital-flow-details dt,.asset-observation-page .capital-flow-details dd { font-size:13px; margin:0; }
+.asset-observation-page .asset-personal-details { margin:12px 0 0; border:0; }
+.asset-observation-page .asset-personal-details>summary { font-size:13px; padding:8px 0; }
+.asset-observation-page .asset-personal .asset-block { padding:8px 0; }
+.asset-observation-page .asset-data-info { font-size:13px; }
+.asset-observation-page .asset-data-info>summary { min-height:36px; }
+.asset-observation-page .asset-data-info>.asset-data-body { position:fixed; inset:80px 16px 24px auto; width:min(760px,calc(100vw - 32px)); max-width:none; overflow:auto; padding:16px; }
+.asset-data-body .asset-source-summary { margin:0; border:0; }
+.asset-data-body .asset-source-summary>summary { padding:0 0 8px; }
+.asset-data-body .asset-source-table { font-size:12px; }
+.asset-data-body .asset-source-footnote { font-size:12px; margin:12px 0; }
+.asset-data-body .asset-chart-help,.asset-data-body .asset-indicator-method { display:block; font-size:12px; margin:12px 0; }
+.asset-data-body .asset-group-note { display:block; font-size:12px; }
+.asset-report-meta { font-size:12px; color:var(--muted); margin:4px 0 8px; }
+@media(min-width:1280px) {
+  .asset-observation-page .asset-wind-grid { grid-template-columns:minmax(0,1fr) 240px; }
+  .asset-observation-page .asset-wind-metrics { display:block; position:static; inset:auto; width:auto; box-shadow:none; background:transparent; z-index:auto; overflow:visible; }
+  .asset-observation-page .asset-metrics-trigger { display:none; }
+}
+@media(max-width:1279px) {
+  .asset-observation-page .asset-wind-grid { grid-template-columns:minmax(0,1fr); }
+  .asset-observation-page .asset-metrics-trigger { display:inline-flex; }
+  .asset-observation-page .asset-wind-metrics { padding:16px; }
+  .asset-observation-page .asset-wind-metrics>header { display:flex; }
+}
+@media(max-width:959px) {
+  .asset-market-terminal .kline-btn,.asset-market-terminal .asset-chart-adjustment,
+  .asset-market-terminal summary,.asset-market-terminal .chip-tab,
+  .asset-chip-settings label,.asset-chip-settings input[type=number],.asset-chip-settings footer button { min-height:44px; }
+  .asset-market-terminal .asset-main-overlay { flex-wrap:nowrap; white-space:nowrap; overflow-x:auto; pointer-events:auto; touch-action:pan-x; scrollbar-width:none; }
+  .asset-market-terminal .asset-panel-readout { overflow-x:auto; text-overflow:clip; pointer-events:auto; touch-action:pan-x; scrollbar-width:none; }
+  .asset-market-terminal .kline-terminal-layout { display:flex; flex-direction:column; }
+  .asset-market-terminal .asset-chip-panel { display:block; padding:0; }
+  .asset-market-terminal .asset-chip-heading { position:static; }
+  .asset-market-terminal .asset-chip-chart { position:relative; top:auto; width:100%; height:220px; }
+  .asset-market-terminal .chip-tabs,.asset-market-terminal .asset-chip-stats { grid-column:auto; }
+  .asset-market-terminal .chip-stat-group { max-width:420px; }
+  .asset-observation-page .panel-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:620px) {
+  #main:has(.asset-observation-page) .page-content { padding:8px 12px 16px; }
+  .asset-observation-page .asset-basic-header { gap:4px 10px; }
+  .asset-observation-page .asset-header-actions { border:0; }
+  .asset-observation-page .asset-header-actions [data-asset-search-slot] { width:auto; min-width:150px; }
+  .asset-observation-page .panel-grid { grid-template-columns:minmax(0,1fr); }
+  .asset-observation-page .asset-topic-tabs { gap:20px; }
+  .asset-observation-page .kline-btn,.asset-observation-page .chip-tab,.asset-observation-page .asset-topic-tabs a,
+  .asset-observation-page .asset-chart-adjustment,.asset-observation-page summary,.asset-observation-page .asset-code-search>input { min-height:44px; }
+  .asset-market-terminal .asset-main-overlay { font-size:12px; }
+}
+
+@media(min-width:1280px) {
+ .asset-observation-page .asset-wind-grid { grid-template-columns:minmax(0,1fr) 240px; row-gap:0; }
+ .asset-observation-page .asset-market-full,
+ .asset-observation-page [data-asset-chart-slot],
+ .asset-observation-page .asset-market-terminal { display:contents; }
+ .asset-observation-page .asset-chart-toolbar { grid-column:1/-1; grid-row:1; }
+ .asset-observation-page .asset-history-readout { grid-column:1/-1; grid-row:2; }
+ .asset-observation-page .kline-terminal-layout { grid-column:1; grid-row:3; }
+ .asset-observation-page .asset-wind-metrics { grid-column:2; grid-row:3; padding-top:4px; }
+}
+
+/* Match A-share candles: color values, keep labels and unrelated status colors intact. */
+.asset-observation-page .asset-basic-price .asset-price-up,
+.asset-observation-page .asset-history-readout .asset-price-up,
+.asset-observation-page .asset-wind-metrics .asset-price-up { color:var(--danger); }
+.asset-observation-page .asset-basic-price .asset-price-down,
+.asset-observation-page .asset-history-readout .asset-price-down,
+.asset-observation-page .asset-wind-metrics .asset-price-down { color:var(--green); }

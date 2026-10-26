@@ -71,6 +71,8 @@ class AutomationService:
         dispatcher=None,
         channel_store=None,
         scheduler=None,
+        eligibility=None,
+        resume_executor=None,
         now=None,
         sleep=asyncio.sleep,
     ) -> None:
@@ -82,6 +84,8 @@ class AutomationService:
         self.channel_store = channel_store
         self.channels = channel_store
         self.scheduler = scheduler
+        self.eligibility = eligibility
+        self.resume_executor = resume_executor
         self.now = now or (lambda: datetime.now(UTC))
         self.sleep = sleep
         self.tasks: dict[str, asyncio.Task] = {}
@@ -90,6 +94,20 @@ class AutomationService:
         self.store.data.setdefault("automations", {})
         self.store.data.setdefault("automation_runs", {})
         self.store.data.setdefault("delivery_channels", {})
+
+    def _eligible(self, automation: dict) -> bool:
+        """An optional tenant restriction cannot grant general Automation access."""
+        if self.eligibility is None:
+            return True
+        try:
+            return self.eligibility(automation) is True
+        except Exception as exc:  # noqa: BLE001 - a scope probe always fails closed.
+            log.warning("automation_scope_check_failed", error_type=type(exc).__name__)
+            return False
+
+    def _require_eligible(self, automation: dict) -> None:
+        if not self._eligible(automation):
+            raise AutomationError("该任务不在当前受限调度范围", "automation_scope_denied", 403)
 
     def _row(self, automation_id: str) -> dict:
         try:
@@ -204,7 +222,9 @@ class AutomationService:
         return {"items": [self._public(row) for row in rows]}
 
     @_definition_transaction
-    def create(self, body: AutomationCreate, *, creation_key: str | None = None) -> dict:
+    def create(
+        self, body: AutomationCreate, *, creation_key: str | None = None, before_save=None
+    ) -> dict:
         creation_sha = _canonical_sha(body.model_dump(mode="json"))
         automation_id = (
             "automation-" + hashlib.sha256(creation_key.encode()).hexdigest()
@@ -258,14 +278,23 @@ class AutomationService:
         }
         if payload["research_task"] is not None:
             row["research_task"] = payload["research_task"]
+            if hasattr(self.research, "model_profile_identity"):
+                row["model_profile_id"] = self.research.model_profile_identity(
+                    payload["research_task"]["model_provider"]
+                )
         row["definition_revisions"] = [self._definition_snapshot(row)]
         if creation_key is not None:
             row["creation_sha256"] = creation_sha
         self.store.data["automations"][automation_id] = row
+        rollback = None
         try:
+            if before_save is not None:
+                rollback = before_save(self._public(row))
             self.store.save()
         except Exception:
             self.store.data["automations"].pop(automation_id, None)
+            if rollback is not None:
+                rollback()
             log.error("automation_create_failed")
             raise
         log.info(
@@ -291,6 +320,7 @@ class AutomationService:
                     "schedule",
                     "delivery",
                     "research_task",
+                    "model_profile_id",
                     "definition_version",
                 )
                 if key in row
@@ -382,6 +412,10 @@ class AutomationService:
                 row[field] = updates[field]
         if "research_task" in updates:
             row["target"]["sha256"] = _canonical_sha(updates["research_task"])
+            if hasattr(self.research, "model_profile_identity"):
+                row["model_profile_id"] = self.research.model_profile_identity(
+                    updates["research_task"]["model_provider"]
+                )
         row["definition_version"] = version + 1
         revision = self._definition_snapshot(row)
         if mutation_key is not None:
@@ -434,6 +468,7 @@ class AutomationService:
     @_definition_transaction
     def enable(self, automation_id: str, *, expected_version: int | None = None) -> dict:
         row = self._row(automation_id)
+        self._require_eligible(row)
         if expected_version is not None and (
             type(expected_version) is not int
             or expected_version < 1
@@ -588,6 +623,7 @@ class AutomationService:
     @_definition_transaction
     def _admit_run(self, automation_id, *, trigger, scheduled_for, retry_of):
         automation = self._row(automation_id)
+        self._require_eligible(automation)
         status = "queued"
         if self._active_run(automation_id):
             status = "skipped_overlap"
@@ -624,6 +660,7 @@ class AutomationService:
         self.store.save()
         self._notify_research()
         try:
+            self._require_eligible(automation)
             result = self.executor(self._public(automation), self._public(row))
             if inspect.isawaitable(result):
                 result = await result
@@ -639,7 +676,10 @@ class AutomationService:
                 updated_at=time.time(),
             )
             self.store.save()
-            if row["research_status"] == "completed":
+            if row["research_status"] == "completed" and result.get("suppress_delivery"):
+                row["delivery_status"] = "not_requested"
+                self.store.save()
+            elif row["research_status"] == "completed":
                 try:
                     await self._deliver(automation, row)
                 except Exception as exc:  # noqa: BLE001 - delivery must not alter research.
@@ -746,6 +786,7 @@ class AutomationService:
             row
             for row in self.store.data["automations"].values()
             if row.get("enabled")
+            and self._eligible(row)
             and row.get("next_run_at")
             and datetime.fromisoformat(row["next_run_at"]) <= now
         ]
@@ -761,6 +802,9 @@ class AutomationService:
 
     async def start(self) -> None:
         for run in list(self.store.data["automation_runs"].values()):
+            automation = self.store.data["automations"].get(run.get("automation_id"), {})
+            if not self._eligible(automation):
+                continue
             if (
                 run.get("research_status") == "completed"
                 and run.get("delivery_status") == "pending"
@@ -814,6 +858,8 @@ class AutomationService:
         if self.scheduler in (None, False):
             return
         self._remove_job(row["id"])
+        if not self._eligible(row):
+            return
         if row.get("enabled") and row.get("next_run_at"):
             self.scheduler.add_job(
                 self._scheduled_fire,
@@ -841,6 +887,8 @@ class AutomationService:
 
     async def _scheduled_fire(self, automation_id: str) -> None:
         row = self._row(automation_id)
+        if not self._eligible(row):
+            return
         due = row.get("next_run_at")
         if due:
             await self.tick(datetime.fromisoformat(due))
@@ -855,6 +903,10 @@ class AutomationService:
     def _resolve_target(self, kind: str, target_id: str, version: int) -> dict:
         if self.research is None:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
+        if kind == "dossier_scan":
+            from ..dossiers.scans import DossierSignals
+
+            return DossierSignals(self.research).definition(target_id, version)
         if kind in {"skill", "workflow"}:
             selection = self.research.capabilities.selection(target_id, version)
             if selection["kind"] != kind:
@@ -993,6 +1045,12 @@ class AutomationService:
         row = self._run_row(run_id)
         automation = row.get("definition_snapshot") or self._row(row["automation_id"])
         try:
+            self._require_eligible(automation)
+            if self.resume_executor is not None:
+                resumed = self.resume_executor(run_id)
+                if resumed is not None:
+                    await resumed
+                    return
             if row.get("report_run_id"):
                 if automation["target"]["kind"] != "report_workflow":
                     raise AutomationError(
@@ -1203,6 +1261,10 @@ class AutomationService:
         if self.research is None:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
         target = automation["target"]
+        if target["kind"] == "dossier_scan":
+            from ..dossiers.scans import DossierSignals
+
+            return await DossierSignals(self.research).scheduled(target["id"], run["id"])
         if target["kind"] == "report_workflow":
             runtime = self.research.report_workflows.runtime
             existing_reports = set(runtime.catalog.data["runs"])
@@ -1233,7 +1295,13 @@ class AutomationService:
             }
         if target["kind"] == "research_task":
             session = await self.research.create_automation_research_session(
-                automation["name"], automation["research_task"]
+                automation["name"],
+                automation["research_task"],
+                **(
+                    {"model_profile_id": automation["model_profile_id"]}
+                    if "model_profile_id" in automation
+                    else {}
+                ),
             )
         else:
             session = await self.research.create("claw", f"{automation['name']} · Automation")

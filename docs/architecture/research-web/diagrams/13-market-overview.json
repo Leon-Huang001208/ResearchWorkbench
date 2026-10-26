@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "全市场终端：行情、证据分析与个人组合",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1100,
+      650
+    ]
+  },
+  "stages": [
+    {
+      "label": "行情页面"
+    },
+    {
+      "label": "请求与生命周期"
+    },
+    {
+      "label": "固定来源"
+    },
+    {
+      "label": "完整性与存储"
+    },
+    {
+      "label": "只读呈现"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "marketPage",
+      "type": "frontend",
+      "label": "三个行情页签",
+      "sublabel": "可见刷新 / 手动暂停",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "marketRoutes",
+      "type": "security",
+      "label": "POST 准入",
+      "sublabel": "刷新 / 预览 / 确认",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "marketService",
+      "type": "backend",
+      "label": "MarketService",
+      "sublabel": "缓存 / 分析 / 组合上下文",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "publicMarket",
+      "type": "cloud",
+      "label": "公开行情来源",
+      "sublabel": "东财行情 / 新浪日线",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "marketReader",
+      "type": "backend",
+      "label": "MarketReader",
+      "sublabel": "仅固定12指数 / 重验身份",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "optionalWarehouse",
+      "type": "database",
+      "label": "可选个人研究仓",
+      "sublabel": "已启用profile / 完整原生封包",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "coverage",
+      "type": "backend",
+      "label": "身份与完整性核验",
+      "sublabel": "日期 / 来源 / 输入边界",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "marketCache",
+      "type": "database",
+      "label": "用户市场与组合文件",
+      "sublabel": "分集缓存 / 观察 / 导入",
+      "stage": 4,
+      "row": 0
+    },
+    {
+      "id": "marketRead",
+      "type": "frontend",
+      "label": "GET 行情与分析",
+      "sublabel": "持仓估值 / 证据缺口",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "id": "marketRefresh",
+      "from": "marketPage",
+      "to": "marketRoutes",
+      "label": "显式启动",
+      "variant": "security"
+    },
+    {
+      "id": "marketAdmit",
+      "from": "marketRoutes",
+      "to": "marketService",
+      "label": "有界任务"
+    },
+    {
+      "id": "marketFetch",
+      "from": "marketService",
+      "to": "publicMarket",
+      "label": "其余分区直取",
+      "variant": "security",
+      "route": "bottom-channel"
+    },
+    {
+      "id": "indicesRefresh",
+      "from": "marketService",
+      "to": "marketReader",
+      "label": "POST指数真实刷新",
+      "labelDy": 55
+    },
+    {
+      "id": "indicesFetch",
+      "from": "marketReader",
+      "to": "publicMarket",
+      "label": "刷新必取上游",
+      "variant": "security",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 35
+    },
+    {
+      "id": "indicesCapture",
+      "from": "marketReader",
+      "to": "optionalWarehouse",
+      "label": "完整才写仓",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "indicesCache",
+      "from": "optionalWarehouse",
+      "to": "marketReader",
+      "label": "内部允许缓存读",
+      "variant": "dashed",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "bottom"
+    },
+    {
+      "id": "marketNormalize",
+      "from": "marketService",
+      "to": "coverage",
+      "label": "采集与规范化",
+      "route": "vertical-channel",
+      "channelX": 440,
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "marketPersist",
+      "from": "coverage",
+      "to": "marketCache",
+      "label": "完整快照原子保存",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "top",
+      "toSide": "top"
+    },
+    {
+      "id": "marketProjection",
+      "from": "coverage",
+      "to": "marketRead",
+      "label": "完整或明确缺口",
+      "route": "auto",
+      "labelDy": 40
+    },
+    {
+      "id": "marketCachedRead",
+      "from": "marketCache",
+      "to": "marketRead",
+      "label": "失败保留旧版",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "数据口径",
+      "items": [
+        "原12与新24指数分集",
+        "新浪日线核对东财昨收",
+        "首次观察不冒充历史PIT"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "刷新与恢复",
+      "items": [
+        "行情30秒、板块资金60秒",
+        "GET只读 / 隐藏停止订阅",
+        "失败保留旧版 / 不重分权重"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "系统边界",
+      "items": [
+        "组合预览后显式确认",
+        "总分与仓位须验证齐备",
+        "金元待接入 / 无交易接口"
+      ]
+    }
+  ]
+}

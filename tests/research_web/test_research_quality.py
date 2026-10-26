@@ -133,6 +133,7 @@ def test_actual_host_dataset_observation_identifier_is_accepted(tmp_path):
     from types import SimpleNamespace
 
     from app.research_web.research_quality_service import observations
+    from app.research_web.store import Store
 
     contract, report, _ = example()
     source = {"id": "dataset:snapshot_abc", "title": "经营资料"}
@@ -143,11 +144,15 @@ def test_actual_host_dataset_observation_identifier_is_accepted(tmp_path):
         detail=lambda sid, did: {"id": did},
         read=lambda sid, did, name: json.dumps({"quote": "存在经营不确定性。"}).encode(),
     )
-    actual = observations(
-        SimpleNamespace(datahub=SimpleNamespace(snapshots=snapshots)), "sid", [], [source]
-    )
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "Actual data scope")["id"]
+    store.session(sid)["source_scope"] = ["datahub"]
+    service = SimpleNamespace(store=store, datahub=SimpleNamespace(snapshots=snapshots))
+    actual = observations(service, sid, [], [source])
     assert actual[0]["id"] == "dataset:snapshot_abc"
     assert assess_quality(contract, report, [source], actual)["status"] == "passed"
+    store.session(sid)["source_scope"] = ["uploads"]
+    assert observations(service, sid, [], [source]) == []
 
 
 @pytest.mark.parametrize(

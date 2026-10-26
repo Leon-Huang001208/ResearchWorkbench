@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from enum import Enum
 from pathlib import PurePosixPath
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -95,8 +96,7 @@ class WorkbookProviderRequirement(StrictModel):
     @classmethod
     def mapping_must_be_a_package_resource(cls, value: str | None) -> str | None:
         if value is not None and (
-            not value.startswith("mappings/")
-            or not value.endswith((".yaml", ".yml", ".json"))
+            not value.startswith("mappings/") or not value.endswith((".yaml", ".yml", ".json"))
         ):
             raise ValueError("等价 DataHub mapping 必须位于 mappings/ 下")
         return value
@@ -104,9 +104,7 @@ class WorkbookProviderRequirement(StrictModel):
 
 class WorkbookRefreshPolicy(StrictModel):
     workbook: str = Field(min_length=1, max_length=240)
-    providers: list[WorkbookProviderRequirement] = Field(
-        default_factory=list, max_length=2
-    )
+    providers: list[WorkbookProviderRequirement] = Field(default_factory=list, max_length=2)
     required_cells: list[str] = Field(default_factory=list, max_length=256)
     required_date_cell: str | None = Field(default=None, max_length=160)
     required_date: date | None = None
@@ -141,9 +139,7 @@ class WorkbookRefreshPolicy(StrictModel):
     def date_fields_are_paired(self) -> WorkbookRefreshPolicy:
         has_date_rule = self.required_date is not None or self.max_age_days is not None
         if (self.required_date_cell is None) != (not has_date_rule):
-            raise ValueError(
-                "日期规则必须声明 required_date_cell 与日期下限或最大陈旧天数"
-            )
+            raise ValueError("日期规则必须声明 required_date_cell 与日期下限或最大陈旧天数")
         providers = [item.provider for item in self.providers]
         if len(providers) != len(set(providers)):
             raise ValueError("Provider 不能重复声明")
@@ -212,24 +208,34 @@ class WorkflowSchedule(StrictModel):
         return self
 
 
+class WeeklyProductionPolicy(StrictModel):
+    """Opt in a published Huaan version without upgrading historical runs."""
+
+    policy_id: Literal["huaan-etf-weekly-v1"] = "huaan-etf-weekly-v1"
+    data_source: Literal["wind_client_api", "wind_excel"] = "wind_client_api"
+    news_block_ids: list[str] = Field(default_factory=list, max_length=100)
+
+    @field_validator("news_block_ids")
+    @classmethod
+    def news_blocks_are_unique(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("新闻缺口策略不能重复声明区块")
+        return value
+
+
 class ReportWorkflowManifest(StrictModel):
     schema_version: int = Field(default=1, ge=1, le=1)
-    workflow_id: str = Field(
-        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=80
-    )
+    workflow_id: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=80)
     name: str = Field(min_length=1, max_length=160)
     description: str = Field(default="", max_length=4000)
     version: int = Field(ge=1)
-    providers: list[WorkbookProviderRequirement] = Field(
-        default_factory=list, max_length=2
-    )
+    providers: list[WorkbookProviderRequirement] = Field(default_factory=list, max_length=2)
     resources: list[WorkflowResource] = Field(default_factory=list, max_length=512)
-    workbook_policies: list[WorkbookRefreshPolicy] = Field(
-        default_factory=list, max_length=64
-    )
+    workbook_policies: list[WorkbookRefreshPolicy] = Field(default_factory=list, max_length=64)
     excluded_workbooks: list[str] = Field(default_factory=list, max_length=64)
     blocks: list[ReportBlock] = Field(default_factory=list, max_length=128)
     minimum_subagents: int = Field(default=0, ge=0, le=8)
+    weekly_production: WeeklyProductionPolicy | None = None
     delivery: DeliveryContract
     schedule: WorkflowSchedule = Field(default_factory=WorkflowSchedule)
 
@@ -267,6 +273,12 @@ class ReportWorkflowManifest(StrictModel):
             raise ValueError("工作簿不能同时启用刷新并排除运行")
         if len(block_ids) != len(set(block_ids)):
             raise ValueError("报告区块标识不能重复")
+        if self.weekly_production is not None:
+            if self.workflow_id != "huaan-etf-weekly":
+                raise ValueError("自动定稿策略仅适用于华安 ETF 周报")
+            news = {block.id for block in self.blocks if block.kind is ReportBlockKind.NARRATIVE}
+            if not set(self.weekly_production.news_block_ids).issubset(news):
+                raise ValueError("新闻缺口策略必须引用已声明的文字区块")
         return self
 
 

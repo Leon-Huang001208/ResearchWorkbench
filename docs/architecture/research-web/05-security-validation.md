@@ -4,6 +4,137 @@ Docker队列只运行固定build参数，拒绝链接/未知归属账本；等�
 提交归档固定输入，不以可变worktree内容冒充SHA；FIFO前统一对账完成结果，镜像身份失效不复用。
 不降低5GiB builder/2GiB余量，不停止其他容器或清未知锁；日志不保存环境与秘密。12GiB宿主配置及维护重启独立授权。
 
+MARKET_BREADTH沿reader193f4fcc、web.lock7c631d4f及原完整产品并集/模式/哈希检查；前版b800、产品4c72固定。活动或未知拒绝且零停机/安装，不授权Wind恢复、清污染标记或周报维护桥。全部旧profile、controller及evidence信任边界保持。
+
+来源初始化回归使用真实 ResearchService 构造和真实 resident HTTP 投影，Native 与凭据外部边界在无网络/内存夹具内隔离。实际请求登记、取消和 tombstone 仍走原 reader，缺失/异常见证负例保留；补丁不认证旧 b800 空闲或允许停机。
+
+Wind 清理恢复准备验证缺字段、混合未知、晚到忙状态、只读快照零创建，以及安装租约和单 PID 信号边界。私有停止构件无强杀后备但不是完整维护事务；未持三锁/BirthFence、缺旧 Host 见证或不可变控制器不兼容时均不能执行恢复。源码/CI与现场停启及数据保全分别验收。
+
+v2首处复用真实LegacyBinding与原非活动前提，Host.active严格bool且不伪装false，Native必须明确空list；桥后真实完整g再验与fresh strict禁止None/假值混过，原idle/全账号/市场门保持。旧通用verify_primary不修改，恢复stopped不强加live要求。
+
+可信周报scope必须同时通过trusted_weekly_context与weekly_verified_evidence并重查owner/启用/模型/用途，不能以模型材料证明数据。13工具范围在Native可见列表及每次调用veto中执行，行情刷新、数据库、Automation和MCP不授予。冻结文件拒绝链接/非regular/nlink异常/越界/超32MiB，weekly不隐式授读整个inputs；ordinary scope保持。RPC claim失败不调用，未知/重启/双击不重放。
+
+`reviewed-market-preview-v1` 固定前版36fd990c、产品e56d9718、严格reader193f4fcc与既有锁文件。原全账号后台/工作流、市场inflight、维护锁、BirthFence、业务保全与失败恢复门均保留；测试和候选浏览器覆盖不冒充部署，旧模式及凭据权限不修改。
+
+资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
+
+资产V8不扩大自动兼容白名单，不改变不可变controller/evidence或凭据权限；校验固定产品祖先与完整union blob/mode。后台跟踪、自动化、Workflow、市场及资产查询活动/未知均拒绝；恢复与全账号档案保全不可由CI或画面成功替代。
+
+历史验收必须同时验证可信Run用途/冻结上下文、原件独立重放、全部数字引用及文件哈希；snapshot自报历史/正式都不能改变模式。Host渲染先加标签、bind及产物重验后取最终SHA，删除标签或篡改用途即拒绝。finalization与正式pointer/manual gate再次拒历史，即便quality passed也不授予定时资格，原正式采集门保持。
+
+华安 v2 维持 latest、完整路径并集/blob/文件模式、固定完整CI读取器、BirthFence、全部账号与dossier保全；不得为已前进主线忽略检查。前版5343e18d和组合产品56709a8d固定，旧目标2e1ba701授权不自动扩展为新增产品授权。
+
+华安封闭模式只增加原升级器的固定产品分派，保留完整路径并集/blob/文件模式检查、reader5c3077、旧profile隔离、BirthFence及全部账号保全恢复。前版或产品不能经运行时覆盖；当前5343e18d身份和真实空闲须执行锁内复查。1745项离线及代码评审不认证实际部署，明确授权与同候选原三CI仍为独立门。
+
+## 今日发现安全与验收（2026-10-23）
+
+固定公开Intel GET不传本地凭据/任意URL；第三方判断与归档不提升为Host已抓取全文。GET selection只接受owned feed_id/horizon/theme及已登记event_ids，返回独立scope feed；不开放任意URL、跨主题或客户端正文，也不污染首页。事件revision/完整详情Hash、当前用户会话/cwd、dataset原件/manifest/context逐项重验，内容不是工具指令或授权；未知创建/受理不重发模型。服务器泛用Automation保持0，仅宿主RWB_DISCOVERY_TRACKING_ENABLED=1允许固定来源/只读工具/无外发的已同意计划，RuntimePool恢复仍经身份与容量门。16项初版手动合同及原110项闭包日志为阶段证据，最终Router/独评/同候选CI另记；真实模型质量、生产计划、常驻与其他平台保持NOT_RUN，见[合同](../../research-web-discovery.md)。
+
+
+2026-10-23：terminal profile只允许源码冻结的前版和产品检查点祖先，不开放浏览器／CLI任意SHA或自动兼容白名单；原controller／严格evidence读取器、账号／秘密namespace和恢复权限保持。最终工具／产品组合仍需独评、完整Router及原三CI，CI每成功job的真实checkout／合并tree／完整日志须绑定；实际认证页面及全账号保全单独核验。当前本地检查不读取秘密、不切换服务，详见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+新增市场分析GET与组合预览／确认POST继续由现有身份、租户及维护门保护。确认令牌只属于当前账号已规范化预览，输入变化／离页／隐藏／账号变化使前端票据失效；服务端验证大小、证券、数量、现金、币种、上海日期及风险字段，不接收券商凭据。估值逐行核验aware行情与快照时点、真实缓存状态；过期／未来／无效／停牌参考价保留来源但不合计成当前总值。
+构建器对账明确拒绝环境重定向、错context／socket／引擎、同名未知资源及部分缺失状态；apply在共享锁内重验preview。所有恢复前置条件必须在首次stop之前成立。已观察的活动build/bake（含全局选项）使操作拒绝；Docker命令绑定desktop-linux并受超时限制。
+
+2026-10-23：市场历史仅在当前用户原缓存中保存；昨日要求完整收盘/交易日历/逐股真实金额，资金限同源同scope同key，不读取其他租户或放开Wind/Office。原维护准入、字节/行数/并发上限与失败保留完整快照保持。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
+华安 Excel 继续复验主管理员资格、Host 资源归属和配置摘要，原生观察须绑定不可变导出哈希。未知工作簿创建保留 sticky 状态，close 不能伪报清理完成，Provider 共享槽继续拒绝新请求。模型无权自填证明或绕过独立时间/日历/定稿门。
+
+## 筹码输入边界（2026-10-23）
+
+新输入复用已有账号DataHub/连接namespace、Broker准入、单并发/15秒预算和真实Future排空。只开放单A股固定换手因子和32日期封闭合同；字段定义、响应身份、日期覆盖和单位先校验再发布，拒绝任意表达式、跨账号快照和未核实量额换算。冻结raw与研究引用不改写；偏好严格范围/类型/枚举校验，无新增秘密入口、数据库或权限。独立评审、源码/合同回归、真实供应商预检和浏览器可见结果分开留证。
+
+
+固定公开indices桥只接受Host内构造的12指数合同，浏览器不能提交actor/scope。当前Host用户根、仓库根、profile id/owner/enabled/config摘要和来源配置/合同摘要在读写前后复核；数据库不可用才允许明确未持久化，授权/合同失败不降级。公开访客源没有独立grant，不能声称该不存在的开关可撤销；真实profile撤销与跨用户根拒绝有离线回归。共享/私有Wind/周报与tenant策略均不扩权。
+
+资产v5大索引修复仅让该profile复用既有64 MiB read_business_index：路径／普通文件／NOFOLLOW／大小及JSON对象校验保持，错误仍日志并失败关闭；元数据保持1 MB，旧profile绑定、固定PREVIOUS／PAYLOAD、controller／evidence字节及保全／恢复门不变。没有新信任边界、权限或外部输入；不通过裁剪8.67 MB业务索引或放宽读取检查消除故障。PR187文档／结构门失败保留，补齐后仍须原完整约束、独评和同候选三CI。
+
+资产交互v5固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4；原review_assets继续核对产品祖先、完整路径并集、blob、模式、干净checkout及源码／发布仓库身份，运行时不接受任意旧版或产品SHA。旧profile、不可变controller／evidence、自动兼容白名单、账号与秘密namespace不变；原维护锁、BirthFence、明确空闲、全账号保全和正式recover仍为硬门。没有新信任边界或认证流程，01／12安全相关图保持，产品三CI不替代v5最终独评／CI／真实切换证据。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产目录搜索沿认证账号Store与连接namespace隔离。DataHub显式resolve `search_assets/tinysoft`，读秘密前后及Provider返回后复核当前授权／配置指纹；目录缓存只在同指纹下返回，旧授权不可借stale复用。搜索q≤80、返回≤50、完整目录≤20000条／8MiB，冷启动只合并一个后台loader并节流失败重试；不接受会话ID、凭据、路径、表达式或任意供应商端点，不启动研究／模型。缓存使用NOFOLLOW／目录fd／普通文件检查，固定pending以本次创建fd身份认证，未知pending保留并失败关闭；真实Future和跨批次loader共同进入resident空闲／关闭边界。
+
+按需区块load复用原观察和会话归属；封闭AssetBlock、来源和完整合法日期对，成功缓存／合并也先持久幂等签名，同键换条件或加载中来源／范围冲突409。显式来源变更须实际保存并查询，不静默返回旧源。初始／旧refresh／load共用锁，持久化失败不启动查询，原位回滚仅本次字段，保留其他活动block及共享引用；旧快照可读但不能冒充本次更新成功。规范历史只能history-job发布，原复权因子白名单不扩展。
+
+天软结构化资产Provider只允许已审固定表／字段和预定义因子，读取前校验metadata，不开放任意repo／公式；财务按真实报告期／公布日，不以行情窗口截断或混报告版本。单位／币种缺口、未提供行业PE／PB、资金流出和构成均不补造。股票公告events只有标题／类型／日期，不授权模型分析。新闻／公告继续独立Golddata只读接口，60秒账号／证券／栏目缓存不转换为DataHub研究证据或Hot采集。宏观／ETF／指数能力、Windows／Linux验证和跨平台支持不从此次A股预检推导；来源、浏览器、安装CI和部署各自验收。
+
+库命中、收据重放及每段补数均重新验证当前来源配置与授权；撤权后不能继续发下一段SDK请求。公开SDK仅固定模块/最小环境/私有临时HOME自有子进程，不传厂商秘密；这不是插件OS沙箱。共享/个人商业许可不得根据同名指标推定可共享，生产权限与迁移不由测试授权。
+
+
+2026-10-22 插件安全检查：固定 ZIP 摘要与精确权限审核、不可变版本/旧会话 pin、撤权即时复验、MCP 原生安装确认/OAuth/会话 grant、当前 artifact/config/schema 再校验；受管本地 MCP 只开放 macOS 固定 Python 的离线 Seatbelt：安装树/runtime只读、独立scratch可写，禁网络/子进程/Mach/IPC及凭据环境；新offline-sandbox权限和政策/runtime/安装树/schema摘要逐次复验。Node/npm、宿主site-packages与非macOS本地执行失败关闭，固定远程端点保留原合同。真实SDK canary与Host/DSH/浏览器验收分开，详见插件合同。网关凭真实 AccountStore cookie 角色，以固定路由与一次性 HMAC 绑定 owner/backend/body，不信任浏览器 role header。空闲重启双阶段冻结出生并只处理 Pool 自有 PID，未知保留 fence；Hook 使用独立 macOS Seatbelt、空 HOME、最小环境、默认禁网络/Keychain/宿主秘密及显式文件 scope。共享审核不复制个人秘密，卸载只删除自有副本；具体支持与限制见[插件合同](../../research-web-plugins.md)。
+
+2026-10-22 v4精确固定旧5495与PR180真实merge产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，候选654fa6/preview2e069只作历史tree证据。完整路径并集/blob/模式/祖先、干净源码及角色仓库身份、原锁/真实空闲/全账号索引保全、controller/evidence字节和旧v1/v2/v3恢复全部保持；不开放任意SHA或新依赖/workflow/产品差异。旧v3恢复和产品三CI不代表v4最终资格或已部署，无新权限/协议/拓扑，不改生成图。
+
+2026-10-22 Wind部署v3只接受精确previous5495/PAYLOADa0ff3ae2，完整路径并集/blob/模式/祖先与干净源码身份仍强制；未知产品、依赖、workflow、图表HTML/PNG差异拒绝。controller/evidence字节、自动白名单及旧v1/v2恢复不变，不开放任意SHA部署。本轮已获常驻部署授权，执行仍限定root在候选CI/评审后持原锁证明任务/真实Future全部空闲并冻结全账号索引；不接收或迁移秘密，不修改认证和数据隔离。原安全/部署拓扑无需重画。
+
+2026-10-22 历史任务及指标偏好沿现有认证账号Store；task/observation/session归属、配置摘要、manifest/raw/factor hash和代次/旧指针比较共同限制缓存与规范发布。`factor_macro`仅允许三种封闭series、单规范沪深股票、≤500个非未来唯一日期，不开放任意repo/公式/宏观全集。缺因子/上市日/锚点、重叠冲突或版本变化失败关闭，旧快照可读；公开job只给安全失败码、进度、覆盖与核对键，不输出私有路径/raw/factors。purge前排空真实Future并核验缓存归属，未知状态保留并阻止切换。真实预检的原始市场与因子只留私有logs，不入Git；两股票预检不认证全市场。浏览器、来源、安装和DSH质量门分别验收，详见[DataHub](../../research-web-datahub.md#资产历史任务与固定复权)。
+
+市场接口复用现有身份及租户数据根，固定来源、字段、板块代码和枚举，不接受上游 URL、公式、路径或凭据；刷新 POST 经过维护准入，GET 无取数副作用。取消只释放当前刷新请求的订阅，其他读者继续；CSV 对公式起始字符安全转义。新增市场入口不开放租户连接配置、Office、Wind 或 MCP；完整分页和安全响应分别验收。
+
+资产观察 v2 是封闭的固定版本身份，旧主实例／网关只接受 `9bc12355`，产品只接受 PR175 的 `93d62be6`；祖先、完整路径并集、blob、模式及证据读取器摘要继续强制，回退／删除路径不漏检。最终工具的干净 checkout、真实模块、生产 venv 和各仓库身份均验证后才进入原持锁空闲事务；不修改忽略规则、自动白名单或不可变控制器。两资产 mode 保留全部业务索引摘要和恢复检查，未知状态拒绝切换。
+
+AF指标迁移保留原认证、每用户数据根、封闭区块、快照及取消边界。section_sources只接受来源ID，section_ranges只接受history／activity／margin完整合法日期对，不接收路径、表达式或凭据；显式专业来源失败不扩大为自动来源。valuation复用现有market_snapshot权限，不新增Provider。固定本地ECharts／Chart.js不引入外部CDN；公式、180桶估算筹码及页面空态不获得研究事实或质量认证。真实CJPY、同候选Mac安装、浏览器交互和原DSH质量证据各自留验。
+
+CI日志下载采用120秒上限，普通命令30秒、日志8MB上限、真实checkout树、三CI与独立评审仍强制。资产专项仅接受固定读取器完整SHA256和100644模式，变更/缺失/回退拒绝；不改自动白名单或不可变controller。
+
+资产部署profile固定c688旧版和PR171产品；实际差异和固定产品改变路径都校验blob/模式，不能通过回退使路径从diff消失来绕过。新mode不修改自动白名单；资产观察/DataHub非终态也拒绝停机。真实Git负例、双profile恢复及原不可变控制器夹具分别验证边界。
+
+受管Git主线恢复可从已发布PR的等待/失败状态进入，仍逐一核对真实主线前进、已获取Git对象、原PR head、旧候选/新主线祖先及干净的受管工作树；保存旧回执并保留修补计数。相同基线、未知身份或并发变化继续拒绝，不通过减少计数放行CI重试。
+
+资产观察单区块刷新沿已有 Host 认证、用户数据根和会话快照边界，参数仍由封闭 `AssetBlock` 与原观察请求限定；不接收路径、厂商表达式、凭据或任意新查询。幂等键先校验再哈希落盘，加载期间的冲突返回 409；持久化失败不得启动上游请求，取消或重启不自动重试。公开投影排除内部刷新键、原请求及 sample，旧 dataset 与失败码并存时 UI 必须显示本次未成功。Wind 的指标/期间等价校验、显式股票类型及既有 60 天边界保持，不扩大专业来源准入。新闻/公告继续读取既有 Golddata 只读路径，旧地址兼容跳转不能触发 Hot 采集或模型。
+
+不以开发仓库 common directory 覆盖发布角色身份：分别核对 canonical Git 目录、inode 及精确 GitHub origin；apply、安装和恢复均复用这些约束。换源、换目录或 inode 变化先拒绝，不弱化恢复包自身及合格源码身份检查。
+
+固定五个导航文件在没有出现在 Git diff 时也逐一核验，拒绝通过回退为旧 blob 隐藏必需产品内容。
+
+导航附加范围绑定 PR168 精确祖先、五文件 Git blob 与文件模式，其他产品仍逐字节绑定原模型基线；拒绝任意额外 UI、后端、依赖及模式替换。冻结恢复包携带同一检查，自动白名单、控制器身份、空闲与全量保全门均保持。
+
+模型服务商联合升级限定旧基线与受审产品 blob，恢复核对自身源码/pyz、目录 inode、wheel、原不可变控制器与 LaunchAgent。全局冻结先落盘，确认私网根实际返回 503 才建主实例 journal；不改 Tailscale 路由。终态清理异常不在原栈重新停机，须重新取得全部保护后恢复。
+
+部署前先验证恢复任务同一PATH下的既有Git LFS，工具不可用时不建恢复artifact、不进入栅栏或发送信号。受限launchd环境的真实Git钩子回归覆盖冻结包回滚；不绕过钩子、不修改全局环境，排空超时仍禁止强杀。
+
+v3 static-gateway在primary/旧网关到目标均限制UI及确切受审升级器，后者blob须等于冻结工具；工具段保持原限制。独立恢复重新核对三段离线身份，v1/v2 helper不接管v3，全部原安全门保留。
+
+静态产品携带网关升级器时，payload helper 必须与冻结 tool revision 的 Git blob 相同；删除、替换、未知后端、依赖和 controller 变化仍拒绝。stage-primary-ui 拒绝其他候选/恢复 journal，准备后仍须原不可变控制器执行空闲与回滚门；不使用临时 monkeypatch 放行部署或恢复。
+
+账号管理迁入设置不改变后端鉴权：浏览器普通用户拒绝挂载管理面板，API仍独立校验管理员。密码只存在当前表单DOM和必要的提交请求，重绘复用DOM，离开页、取消及请求结束清空，不写应用状态/存储/日志。写操作不自动重试，停用/停止/改密保留确认；重置自己密码后回到登录。浏览器验收使用隔离假接口，不能操作真实账号或研究实例。
+
+网关apply-ui为显式管理操作：旧网关→产品仅UI/docs/tests/report，产品→工具仅升级器及docs/tests/report；两段Git祖先、路径和blob及两份GitHub资格分别认证。version 2独立恢复包验证自身内容及实际primary，旧helper在副作用前拒绝该版本；不能以进程内临时放宽review替代恢复合同。原EX锁/出生栅栏/排空/保全不减，发信号后未完成必须保留recovery_required。
+
+自由分析的数值绑定由系统入口和Host独立重建共同执行，不依赖提示词：拒绝Unicode/中文分数/英文数词、裸数字和手写算式；只接受同节所选观测或有界系统配方的完整事实/公式引用。新receipt policy阻止手写payload降级，旧报告不补写policy。Host重建声明、笔记、引用和presentation，并检查审计文件实际字节与语义core；自洽的伪造SHA不能认证文件内容：HTML逐字节重建、DOCX有界ZIP成员/内容逐一核对、PDF invariant确定性字节核对（含可见绘制，不能只查文字层）。解析错误归一为invalid，附件和内容错绑不作为资料缺口放行。原research_quality.py未修改；来源真实性、可比性和解释性分析仍可incomplete。
+
+恢复预算仅扩展专属journal到16 MB，保留通用配置1 MB门；同一O_NOFOLLOW fd有界读取并复查inode、UID、mode、nlink、size与时间。大manifest超过预算时在首个信号前撤本事务栅栏。退出后遇到zombie/签名变化/重用都只等待，不再向该PID发信号；超时延后而非当作退休。
+
+Mac的proc_pidpath把gateway PID实际映像与当前生产venv解释器映像精确绑定；argv0仅允许配置路径、其canonical路径或该映像路径，完整模块/root参数必须一致。发送SIGTERM前再次核验；未知PID、读取失败、foreign映像均拒绝。Mac Bootstrap执行同一原生探针，Ubuntu不冒充该证据。
+
+网关更新必须同时证明不能出生新私有实例、已接纳HTTP已优雅排空及primary Native/Host/自动化空闲；单次owner=0或active=false不能代替。目标持久gate在认证前拦GET与控制操作；未知owner/auth/key/进程、SQLite sidecar及版本不匹配均拒绝。失败先落rolling_back再恢复代码和匹配绑定，不恢复业务旧快照。详见[安全升级](../../research-web-gateway-upgrade.md)。
+
+日期合并出版 meta 与正文 header，冲突保持 unknown；只读缓存同样检查。GDP 只支持明确年度公报主段、核实完整肯定句和明确全年列/计价注释的表格；错列、否定、错期和互相冲突的值拒绝。完整性核对、结构化数值精确复算、覆盖与叙述核验原门不变。
+
+指令一致性回归以真实上传CPI驱动原API，兼测一般资料仍可用原payload；补查指令不续授权或改变Host状态。真实FOMC错字段/错误基点工作簿保持拒绝，沙箱错误不通过自动导入、猜参数或扩大权限掩盖。
+
+显式算式仅允许有界数值AST的加减乘除及百分数，无eval/名称/调用；整数精确、十进制按写明位数ROUND_HALF_UP展示核对，原结构化数值门仍精确。报告链接只由Host实际归档哈希生成，来源/数值未核验不被算术匹配覆盖；附件下载不受报告链接拒绝影响。
+
+当前 SDK 的新增 read-data 精确列出 research_helpers.py、research_report.py、research_report_plan.py、research_report_calculations.py 和 NotoSansSC-Regular.ttf；资源/字体目录只有literal列名权限，绝不添加包父目录或仓库subtree。拒绝软链、多链接和非规范路径；旧会话副本不写。Native回归验证新旧会话所选格式及旧默认交付及新增独立审计附件、SDK只读、未列__init__.py/父service.py拒绝以及既有网络/fork/文件/预算门。原venv读取合同保持，不能把固定SDK位置用作任意宿主路径参数。
+
+派生配方不接受literal value/unit/quote/source；操作只取有界实际原始业务观测，单位/期间/同指标family、零分母与重放scope分别校验。Host评分不信任SDK缓存，独立从原始字节重算后才交原identity门。格式缩减由冻结要求确定，不信任模型metadata；可预览下载不等于通过。新成功测试只认证受控数字合同，原题全文的叙述/缺证据仍保持incomplete。
+
+网页正文的 scope 和截止日不能经上传别名绕过：服务来源清单、source_context、observations、业务索引/快照及 quality_result 共用会话内 Host provenance 分类，web 禁用时不生成网页观测；启用时保留原 as_of 并走原日期门。跨会话相同文件名不继承 provenance；损坏登记不授予上传身份。端到端回归覆盖真实 Host 落盘、关闭 web、未来日期、同前缀合法上传和跨会话隔离。
+
+数据配方仍在既有 script 权限内执行：未知/歧义观测、外来绑定、额外字段、超限、错误单位/算术/父来源继续拒绝。所有分析和控制建议保留在 Host 评分正文，不能藏入工作簿绕过；独立算术一致仅证明计算和展示，不证明公式语义或外部真实性。质量扫描修复同期间多条已核验声明的误报：先删除全部通过原 _verified_claim 的完整原句，再清理期间；数值、期间、单位、引用和缺口判据不变。新增错误值/单位/期间/原句/额外数值/额外分析及双重写入恢复失败回归。
+
+隔离设置页仅回环地址，单次grant兑换HttpOnly同站Cookie并验证Origin；凭据保存与执行评审分开，未获执行评审禁止预约。Keychain值仅到client私有管道/内存；Flash固定ref只读，Lite命名空间独立。缓存重绑定从已验证原始pyc构造manifest，末次扫描只作相等检查，竞争出现的未知文件不进入删除许可。
+
+公开正文工具拒绝调用方任意 URL、凭据、正文与宿主路径，只取当前原生搜索登记的身份。每跳只允许 HTTPS/443，无认证、Cookie或代理；解析全部 DNS 后拒绝私网/保留/多播地址，连接固定数字地址但 TLS 验证原域名，最多两次跳转。响应限2 MB、提取文本20万字符，只接收 HTML/纯文本，不执行脚本。有限读取进程有总时限，超时及取消均 kill/reap；取消前到的墓碑阻止晚启动，同一 call_id 不重复取证。tenant 两个回调仍强制实例私有 key。
+
+正文 SHA/身份/期间、笔记链、覆盖摘录和独立数字复算门不放宽。已检查版本的真实字节与归档/回执精确绑定；未检查或回退版本不得继承其他版本质量。旧报告、完整性错误、未知活动继续 fail closed。
+
+本轮失败样本回归包括：FOMC父来源/观测ID混用和映射不一致、微软非空分隔行/列表单元格、CPI前月与百分点、NIST原句遗漏。负例保留未知来源/歧义metric/非有限数/否定或不完整同比段落/伪造投影拒绝。原Host质量规则不变，真实模型的工具错误、未核验分析与下载状态须另行实测，不能从离线helper成功推断。
+
 resources/research_evidence.json只含当前允许上传资料的有界实际派生，使用既有NOFOLLOW目录fd和原子私有写入；整包≤256000字节。SDK核对task/contract、普通单链接文件和大小；Host判定不读取此副本，篡改/旧回合/外来观测不能据此通过。不存在跳过未核验中文分析、删除missing或增加补查预算的路径。
 
 业务证据helper只解析调用者数据和计算，不联网、读凭据、写可信observations或覆盖质量状态。独立Summary展示舍入策略不能传入Host；非有限值、重复键、公式、伪造身份/观测及真实缺口继续拒绝。资金方向、宏观表头和治理来源还需对实际官方原文独立审查。
@@ -27,6 +158,17 @@ primary 原版 UI 与静态资源根由已验证 project 身份选择，不能�
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
 
 ## 私网邀请制账号与执行边界
+
+华安ETF周报新合同的报告／自动化路由只向附接原Native Host的primary管理员开放；其他用户或
+管理员不能靠浏览器角色、owner、实例地址或伪造header使用该例外。转发前重验真实账号，后台运行、
+发模型和定稿前再核验既有服务器绑定、数据根身份、primary UUID、enabled及admin角色。
+账号库只读，未知绑定不创建替代账号库，撤权或路径身份变化保持`weekly_owner_unavailable`。
+不会给普通tenant解除Office、报告Workflow或日程禁令，也不把primary凭据复制给其他根。
+
+周报API取数仍经私有Broker准入和会话快照；厂商返回、配置身份及原始哈希独立核验，不接收模型
+自报的等价／质量通过。SDK、市场日历、经济日历和同源对照未证明时阻断。规范正文、中文交付、
+模板、本期工作簿和最终文件须同版本绑定；图片缓存、外链、错绑、未决提交和失败归档均不能获得
+`finalized`。安全与验收边界见[周报生产合同](../../research-web-etf-weekly-production.md)。
 
 服务器模式仅在 macOS Native 显式启用，固定一个 Tailscale HTTPS origin/Host；回环 HTTP 仅供本机开发。Tailscale 网络准入和产品账号登录分别验证，无公网注册或 CORS。账号库用 scrypt 密码摘要、随机 Cookie 令牌的哈希和到期时间；密码不进入参数、日志或浏览器持久存储。HTTPS Cookie 为 HttpOnly/Secure/SameSite=Strict，12 小时过期；未知账号与错误密码同样失败，登录失败有界限速。停用、密码重置和退出登录即时撤销对应登录态；最后一个活动管理员受保护。
 
@@ -620,7 +762,7 @@ Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node
 
 ## 研究情报统一入口 · 2026-10-12
 
-主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，六个外部栏目在 `#/intel/*`；新闻/公告旧地址保留证券参数转入资产观察。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
 
 恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
 
@@ -659,3 +801,34 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 ## 框架嵌入核心闭环 · 2026-10-14
 
 嵌入资源使用 /frameworks-embed/ 路由级同源 CSP，不放宽宿主 CSP。宿主与子窗口桥接校验 origin、source、slug、revision 与本次 token，重新挂载必须重新确认；过时回执不能解锁 Bot。原生快照不回退静态 JSON；来源缺口、数据准入和固定 DSH 权限门保留。真实模型、供应商和跨平台证据独立记录。
+
+命名模型 profile 只扩展产品固定命名域 RESEARCH_MODEL_PROFILE_<32hex>；私有 bridge 还必须匹配该用户 Store 注册项。两个 legacy 账号和原 namespace 不迁移或回填。旧 DSH ref 按服务端路由解析，端点/协议不会由浏览器任意控制执行。Docker 新 profile AES envelope 携带公开 account，启动逐项校验 filename、account 与 AAD；旧 envelope 原样兼容，未知文件/损坏/错误绑定仍拒绝。HTTP 不提供读 Key API，日志仅事件/错误码；未知凭据状态阻断生成，清除仍显式确认。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+新增边界为个人 SQLite 引用／pin、Prompt-only receipt 与冻结原件的逐次授权；浏览器不能自报 hash、公开时点或 passed，源撤权／损坏显示缺口，不重新取数替换历史。MCP 在真实 transport 绑定当次 token，并检查解析 JSON 键／叶子及有界文本 JSON；候选禁止 resource/prompt，未知受理继续占预算。小创 Registry 身份未核验，导入后 unsupported，真实报价／凭据／收费／部署未执行；54 仅估算。独评、离线回归、同候选 CI 与真实研究质量分开绑定，见[档案安全](../../research-web-dossiers.md)与[候选安全](../../research-web-seek-alpha.md)。
+
+
+2026-10-23：v7继续固定前版c4e/产品3a62/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。
+
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+
+恢复包先以私有journal和摘要确认自身，再校验冻结源精确路径、属主、无符号别名和Git身份；父进程sys.path只在验证后调整，不向旧服务传递PYTHONPATH。源坏/丢失保持原围栏，不捕获后跳过档案检查；真实旧解释器zipapp子进程反例单独验证。
+
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+2026-10-24：原始news_id不伪造event_id；关联只认本人同feed已展示事件与归档精确URL，客户端不能指定来源URL或可信Hash。prepare复读全证据和关联后才冻结，同一地址不增加独立来源数。raw批准范围绑定锁定Automation定义，已登记失效发现任务拒绝通用模型回退；旧事件上下文及质量门保持。
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。

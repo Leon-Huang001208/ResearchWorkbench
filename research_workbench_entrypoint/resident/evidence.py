@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import binascii
+import io
 import json
 import logging
 import re
+import stat
+import struct
 import subprocess
+import zipfile
+import zlib
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 SHA = re.compile(r"[a-f0-9]{40}\Z")
+# Independent bounds: compressed transport 8 MB, each expanded job 16 MB,
+# and all archive members together 64 MB. CRC and complete-stream checks remain.
+JOB_LOG_LIMIT = 16_000_000
 WORKFLOWS = (
     "project-constraints.yml",
     "research-web-checks.yml",
@@ -52,6 +61,98 @@ def run(argv: list[str], *, cwd: Path | None = None, timeout: int = 30) -> str:
     return completed.stdout.strip()
 
 
+def run_archive(argv: list[str]) -> bytes:
+    """Fetch fresh GitHub bytes without the gh display scanner or disk cache."""
+    try:
+        completed = subprocess.run(argv, capture_output=True, timeout=120, check=False)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise UpdateBlocked("resident_command_unavailable") from exc
+    if completed.returncode or len(completed.stdout) > 8_000_000:
+        raise UpdateBlocked("resident_command_failed")
+    return completed.stdout
+
+
+def archive_job_logs(raw: bytes, jobs: list[dict]) -> dict[int, str]:
+    """Read complete unique job logs; malformed or partial archives fail closed."""
+    names = [job.get("name") for job in jobs]
+    if any(
+        not isinstance(name, str) or not name or "/" in name or "\\" in name for name in names
+    ) or len(set(names)) != len(names):
+        raise UpdateBlocked("resident_ci_archive_invalid")
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            entries = archive.infolist()
+            filenames = [entry.filename for entry in entries]
+            if len(entries) > 2000 or len(set(filenames)) != len(filenames):
+                raise ValueError("ambiguous archive")
+            if sum(entry.file_size for entry in entries) > 64_000_000:
+                raise ValueError("archive budget")
+            for entry in entries:
+                if (
+                    stat.S_IFMT(entry.external_attr >> 16) not in {0, stat.S_IFREG, stat.S_IFDIR}
+                    or (
+                        stat.S_IFMT(entry.external_attr >> 16) == stat.S_IFDIR
+                        and not entry.is_dir()
+                    )
+                    or entry.flag_bits & 1
+                    or "\\" in entry.filename
+                    or entry.filename.startswith("/")
+                    or ".." in entry.filename.split("/")
+                ):
+                    raise ValueError("unsafe archive member")
+            result = {}
+            for job in jobs:
+                pattern = re.compile(r"[0-9]+_" + re.escape(job["name"]) + r"\.txt\Z")
+                matches = [entry for entry in entries if pattern.fullmatch(entry.filename)]
+                if len(matches) != 1 or matches[0].file_size > JOB_LOG_LIMIT:
+                    raise ValueError("job log missing or oversized")
+                entry = matches[0]
+                # Validate the local header/name and overlapping-member boundary.
+                with archive.open(entry):
+                    pass
+                header = struct.unpack_from("<4s5H3I2H", raw, entry.header_offset)
+                offset = entry.header_offset + 30 + header[9] + header[10]
+                compressed = raw[offset : offset + entry.compress_size]
+                if (
+                    header[0] != b"PK\x03\x04"
+                    or header[3] != entry.compress_type
+                    or len(compressed) != entry.compress_size
+                ):
+                    raise ValueError("member header mismatch")
+                if entry.compress_type == zipfile.ZIP_STORED:
+                    content = compressed
+                elif entry.compress_type == zipfile.ZIP_DEFLATED:
+                    decoder = zlib.decompressobj(-15)
+                    content = decoder.decompress(compressed, JOB_LOG_LIMIT + 1)
+                    if not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
+                        raise ValueError("incomplete or trailing deflate stream")
+                else:
+                    raise ValueError("unsupported compression")
+                if (
+                    len(content) > JOB_LOG_LIMIT
+                    or len(content) != entry.file_size
+                    or binascii.crc32(content) != entry.CRC
+                ):
+                    raise ValueError("member length or CRC mismatch")
+                body = content.decode("utf-8")
+                if len(body) > JOB_LOG_LIMIT:
+                    raise ValueError("log output budget")
+                result[job["id"]] = body
+            return result
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        RuntimeError,
+        zipfile.BadZipFile,
+        EOFError,
+        struct.error,
+        zlib.error,
+    ) as exc:
+        log.warning("resident_ci_archive_rejected")
+        raise UpdateBlocked("resident_ci_archive_invalid") from exc
+
+
 def read_json(path: Path) -> dict:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 1_000_000:
         raise UpdateBlocked("resident_record_invalid")
@@ -76,7 +177,17 @@ class GitHubEvidence:
 
     def api(self, endpoint: str):
         try:
-            return json.loads(run([str(self.gh), "api", f"repos/{self.repository}/{endpoint}"]))
+            return json.loads(
+                run(
+                    [
+                        str(self.gh),
+                        "api",
+                        f"repos/{self.repository}/{endpoint}",
+                        "-H",
+                        "Cache-Control: no-cache",
+                    ]
+                )
+            )
         except ValueError as exc:
             raise UpdateBlocked("resident_github_response_invalid") from exc
 
@@ -142,21 +253,29 @@ class GitHubEvidence:
                     )
                 ):
                     raise UpdateBlocked("resident_macos_ci_missing")
+                raw_archive = run_archive(
+                    [
+                        str(self.gh),
+                        "api",
+                        f"repos/{self.repository}/actions/runs/{latest['id']}/logs",
+                        "-H",
+                        "Cache-Control: no-cache",
+                    ]
+                )
+                logs = archive_job_logs(raw_archive, checks)
                 checkout_shas = set()
                 for job in checks:
-                    raw = run(
-                        [
-                            str(self.gh),
-                            "api",
-                            f"repos/{self.repository}/actions/jobs/{job['id']}/logs",
-                        ]
-                    )
+                    job_checkouts = set()
+                    raw = logs[job["id"]]
                     lines = raw.splitlines()
                     for index, line in enumerate(lines[:-1]):
                         if "git log -1 --format=%H" in line:
                             match = re.search(r"\b([a-f0-9]{40})\s*$", lines[index + 1])
                             if match:
-                                checkout_shas.add(match[1])
+                                job_checkouts.add(match[1])
+                    if len(job_checkouts) != 1:
+                        raise UpdateBlocked("resident_ci_checkout_unverified")
+                    checkout_shas.update(job_checkouts)
                 if len(checkout_shas) != 1:
                     raise UpdateBlocked("resident_ci_checkout_unverified")
                 checkout = checkout_shas.pop()

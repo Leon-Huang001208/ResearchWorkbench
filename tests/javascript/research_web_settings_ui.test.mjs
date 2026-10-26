@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { apply as registerResearchTools } from '../../app/research_web/runtime/research-tools.mjs';
 
+import { renderModelProfileList, renderModelProfileForm } from '../../app/research_web/ui/model-settings.mjs';
 import { parseRoute } from '../../app/research_web/ui/core.mjs';
 import {
   renderSettingsPage,
@@ -64,13 +65,16 @@ const baseOptions = {
   tabbit: { status: 'ready', browser_enabled: false, web_fetch_enabled: false, saved_config: { browser_enabled: false, web_fetch_enabled: false, instance_id: null }, applied_config: { browser_enabled: true, web_fetch_enabled: false, instance_id: null }, restart_required: true, plugin_version: '0.3.4', browser_version: '1.13.23', online_instances: 1, selected_instance: 'ABCDEF0123456789', instances: [] },
 };
 
-test('model settings uses the supported provider rather than the DSH host label', () => {
-  const html = renderSettingsPage({ ...baseOptions, runtime: { connected: true, provider: 'DSH', model: 'deepseek-v4-flash', owned_runtime: true }, route: parseRoute('#/settings/model') });
-  assert.match(html, /id="provider"[^>]*value="deepseek-official"/);
-  assert.doesNotMatch(html, /placeholder="例如 openai"/);
-  assert.match(html, /data-model-clear/);
-  assert.match(html, /data-model-test/);
-  assert.match(html, /真实推理/);
+test('model settings mounts provider workspace and keeps original form selectors in the editor', () => {
+  const html = renderSettingsPage({ ...baseOptions, route: parseRoute('#/settings/model') });
+  assert.match(html, /data-model-profiles-root/);
+  assert.doesNotMatch(html, /DSH 与模型配置|MODEL SERVICE/);
+  const form = renderModelProfileForm({item:{provider:'deepseek-official',model:'deepseek-flash',name:'DeepSeek'},runtime:{owned_runtime:true}});
+  assert.match(form, /id="provider"[^>]*name="provider"/);
+  assert.match(form, /value="deepseek-official"/);
+  assert.match(form, /data-model-clear/);
+  assert.match(form, /data-model-test/);
+  assert.match(form, /提交即清空，不回填/);
 });
 
 test('research preset mounting only accesses declared DSH services', () => {
@@ -107,7 +111,7 @@ test('legacy connection links select the compatible data or local section', () =
 test('settings renders exactly one active body and marks one category current', () => {
   const signatures = {
     general: 'appearance-picker',
-    model: 'id="settings-form"',
+    model: 'data-model-profiles-root',
     data: 'data-connection-scope="data"',
     local: 'data-local-integrations-console',
     docs: '/api/research/documentation/index.html',
@@ -129,7 +133,8 @@ test('only live settings sections render scoped refresh controls', () => {
   assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
   assert.deepEqual(settingsRefreshCatalogs('general'), []);
   assert.deepEqual(settingsRefreshCatalogs('docs'), []);
-  for (const section of ['model', 'data', 'local']) {
+  assert.match(renderModelProfileList(), /data-refresh/);
+  for (const section of ['data', 'local']) {
     const html = renderSettingsPage({ ...baseOptions, route: parseRoute(`#/settings/${section}`), hash: `#/settings/${section}` });
     assert.match(html, /data-refresh/);
   }

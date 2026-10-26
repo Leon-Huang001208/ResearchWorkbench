@@ -34,7 +34,7 @@
           "dsh",
           "deliveryTargets"
         ],
-        "note": "任务锁定能力与 MCP 快照；每次触发独立 Claw 会话，研究结果和三次外发重试分别记账。"
+        "note": "今日发现单独保存与启用跟踪，复用原Automation；每次新资料最多每日一次模型研究，无变化静默，质量与受理分开。"
       },
       {
         "id": "reportPath",
@@ -61,9 +61,11 @@
           "assetWorkspace",
           "datahub",
           "providers",
-          "snapshots"
+          "snapshots",
+          "assetDirectoryCache",
+          "dossierStore"
         ],
-        "note": "资产页按区块查询真实来源；资料固化为会话快照后再交给 FinGPT 或 Claw。"
+        "note": "个人SQLite只存修订与原件引用；Prompt实际发送后绑定冻结交接。扫描仅读已授权材料，跟踪复用Automation且默认关闭。"
       },
       {
         "id": "liveBrowser",
@@ -97,7 +99,7 @@
       "id": "api",
       "type": "backend",
       "label": "FastAPI BFF",
-      "sublabel": "/api/research/*",
+      "sublabel": "同源API · 今日发现适配",
       "pos": [
         275,
         380
@@ -153,7 +155,7 @@
       "id": "snapshots",
       "type": "database",
       "label": "会话隔离快照",
-      "sublabel": "数据集 · 产物 · manifest",
+      "sublabel": "原始块 · 因子 · 规范行 · manifest",
       "pos": [
         1285,
         380
@@ -181,7 +183,7 @@
       "id": "mcpState",
       "type": "security",
       "label": "缓存 / 清单 + Keyring",
-      "sublabel": "哈希 · schema · grant · approval",
+      "sublabel": "Keyring · schema · grant · 费用占用",
       "pos": [
         750,
         35
@@ -250,8 +252,8 @@
     {
       "id": "assetWorkspace",
       "type": "backend",
-      "label": "资产观察服务",
-      "sublabel": "区块状态 · 自选 · 笔记 · 提醒",
+      "label": "资产工作区与目录",
+      "sublabel": "目录 · 历史任务 · 研究档案API",
       "pos": [
         500,
         565
@@ -265,7 +267,7 @@
       "id": "datahub",
       "type": "backend",
       "label": "DataHub",
-      "sublabel": "enabledTools · 自动查询 · 快照",
+      "sublabel": "配置授权 · 固定表 · 单Future",
       "pos": [
         750,
         565
@@ -306,8 +308,8 @@
     {
       "id": "automationService",
       "type": "backend",
-      "label": "Automation 服务",
-      "sublabel": "版本锁 · IANA 日程 · 单实例",
+      "label": "Automation 与独立跟踪",
+      "sublabel": "原调度器 · 跟踪日限1次",
       "pos": [
         750,
         755
@@ -344,6 +346,34 @@
         210,
         78
       ]
+    },
+    {
+      "id": "assetDirectoryCache",
+      "type": "database",
+      "label": "账号目录缓存",
+      "sublabel": "24h · 指纹一致 · 非会话",
+      "pos": [
+        500,
+        670
+      ],
+      "size": [
+        190,
+        58
+      ]
+    },
+    {
+      "id": "dossierStore",
+      "type": "database",
+      "label": "长期研究档案",
+      "sublabel": "个人SQLite · 修订 · 保留引用",
+      "pos": [
+        1285,
+        565
+      ],
+      "size": [
+        205,
+        78
+      ]
     }
   ],
   "boundaries": [
@@ -362,7 +392,8 @@
         "assetWorkspace",
         "datahub",
         "automationState",
-        "automationService"
+        "automationService",
+        "dossierStore"
       ],
       "pad": 24
     }
@@ -517,7 +548,7 @@
       "id": "assetRoute",
       "from": "api",
       "to": "assetWorkspace",
-      "label": "资产观察 API",
+      "label": "搜索 / 按需 / 历史 API",
       "fromSide": "bottom",
       "toSide": "left",
       "labelAt": [
@@ -529,7 +560,7 @@
       "id": "dataRoute",
       "from": "assetWorkspace",
       "to": "datahub",
-      "label": "分块业务查询",
+      "label": "目录 / 区块 / 日线因子",
       "labelAt": [
         720,
         657
@@ -552,15 +583,19 @@
       "label": "固化会话数据集",
       "variant": "dashed",
       "fromSide": "bottom",
-      "toSide": "bottom",
+      "toSide": "left",
       "via": [
         [
           845,
           700
         ],
         [
-          1387.5,
+          1270,
           700
+        ],
+        [
+          1270,
+          419
         ]
       ],
       "labelAt": [
@@ -599,7 +634,7 @@
       "id": "automationApi",
       "from": "api",
       "to": "automationService",
-      "label": "任务 / 运行 / 迁移 API",
+      "label": "自动化与独立跟踪 API",
       "variant": "emphasis",
       "fromSide": "bottom",
       "toSide": "bottom",
@@ -633,7 +668,7 @@
       "id": "automationClaw",
       "from": "automationService",
       "to": "dsh",
-      "label": "独立 Claw 会话",
+      "label": "独立 DSH 研究会话",
       "variant": "emphasis",
       "fromSide": "top",
       "toSide": "top",
@@ -657,7 +692,7 @@
       ],
       "labelAt": [
         1450,
-        600
+        657
       ]
     },
     {
@@ -676,6 +711,28 @@
       "from": "api",
       "to": "hotSubsystem",
       "label": "有界签名桥"
+    },
+    {
+      "id": "directoryCache",
+      "from": "assetWorkspace",
+      "to": "assetDirectoryCache",
+      "label": "读写",
+      "variant": "security",
+      "labelAt": [
+        475,
+        663
+      ]
+    },
+    {
+      "id": "dossierRetention",
+      "from": "snapshots",
+      "to": "dossierStore",
+      "label": "原件引用与逐次核验",
+      "variant": "security",
+      "labelAt": [
+        1388,
+        510
+      ]
     }
   ],
   "cards": [
@@ -691,16 +748,16 @@
       "dot": "violet",
       "title": "研究、数据与组装分离",
       "items": [
-        "资产查询与报告 Workflow 复用 DataHub 快照，不补演示事实",
-        "锁定版本、Excel 刷新、Claw payload 与确定性组装职责分开"
+        "资产与报告Workflow复用DataHub原件；Excel刷新、DSH研究和组装分别验证",
+        "档案保留旧证据与Host质量；冻结扫描不执行模型、不改写观点"
       ]
     },
     {
       "dot": "amber",
-      "title": "研究与外发状态分离",
+      "title": "原Automation与窄跟踪",
       "items": [
-        "Automation 锁定目标版本和只读 MCP 快照，重叠触发记录 skipped_overlap",
-        "研究失败不自动重试；外发按 5 / 30 / 120 秒重试且不改写研究结果"
+        "今日发现单独启用、日限1次且无MCP/外发；通用任务仍锁版本",
+        "原通用外发按5/30/120秒重试；研究失败不自动重试"
       ]
     }
   ]

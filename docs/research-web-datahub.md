@@ -1,5 +1,153 @@
 # Research Web DataHub
 
+## 天软股票报价成交量单位（2026-10-25）
+
+实际 CJPY 0.5.2 `list_market_fields`（服务方法 `markettable_columns`）返回53字段，原生 `vol` 的股票单位明确为股，`amount` 为元；未声明 OHLC 币种。隔离真实查询经 AssetWorkspace→DataHub→Broker→Provider→快照，2026-10-23 `SH603986` 返回 vol=46,027,129，新增字段元数据为 share，展示为460,271.29手／46.03万手。样本和合成测试分开记录，不将测试输入称为厂商返回。
+
+原故障是报价走同一SDK日K读取，但单位证据仅在 `market_bars` 发布。现在 `market_snapshot` 在精确SDK版本、显式stock、实际day周期、单沪深股票请求及返回身份别名核验均满足时，标注原生vol/amount；volume等未证明别名、其他版本、非股票、BJ或冲突身份仍不推断。新增 `tinysoft-stock-daily-snapshot-fields-v1`，字典按UTF-8规范JSON（sort_keys=True，紧凑分隔）SHA-256=`458a5aaf5495d776d9391ac246daa360808fe2ce5c35be057e235451b28b8705`。原bars的v1合同和旧证据hash不改；价格单位/币种不补CNY，不恢复未通过价格单位门的研究仓桥。
+
+只对新供应商响应发布单位元数据，raw/rows数值不除100，不回填旧快照。旧观察可通过既有overview区块刷新创建新快照，旧manifest/rows字节保留；未刷新且单位未知时仍保留明确缺口。报价沿用原SDK最后返回行行为，本次不新增排序或额外宣称最大日期已核验；实际样本日期和主图同日对账另验。
+
+周报历史验收由Host冻结Run.execution_purpose显式传入现有Wind Excel采集与独立评估；不是可由模型、普通查询或snapshot选择的来源降级。实际采集时间和historical_recheck保留，原件/日历/字段/单位/端点/历史补点校验不减少，普通正式评估仍拒历史数据；验收通过不能证明实时或历史PIT。
+
+## 今日发现事件归档（2026-10-23）
+
+`Snapshots.publish_discovery`复用原会话隔离/NOFOLLOW/Hash/原子发布，来源与Provider明确golddata_intel，kind为discovery_evidence，coverage为explicit_frozen_selection。rows.json/csv含冻结时取得的事件与报道，私有raw保留已解析detail与选择包的规范化JSON字节（不是HTTP传输原字节）；上下文绑定dataset manifest及选材Hash。它不经伪造CLS Provider Query，不注册新供应商、不写研究仓、不冒充Host网页全文或PIT。GET selection的完整详情核对仅在当前用户有界内存缓存生成独立scope feed，freeze/save前再次核验；它本身不发布DataHub快照或改变首页。显式跨会话复制重验原件并保留origin映射，但不取得旧交接执行权；见[今日发现](research-web-discovery.md)。
+
+## SPDR GLD 四项原生快照（2026-10-23）
+
+既有 `external_data` 的 `source=ext_spdr`、`dataset=gld` 现在按
+`spdr-gld-trust-snapshot-v1` 投影 `total_nav_usd`、`total_tonnes`、`total_ounces`、
+`shares_outstanding` 四项。参数 `arguments_json` 省略或为 `{}`；非空对象（含空的 query/params/body 容器）拒绝。
+四项各有数值、精确 `value_decimal`、原始格式文本、自己的参考日期、原日期文本和原单位标签。
+`USD/tonnes/ounces/shares` 沿用源口径，不换算盎司标准、重量、币种或份额；参考日期不作为公布时刻。
+完整响应体保留，四项投影完整不表示整源或全部历史完整。`limit<4` 返回 partial，不能入仓。
+
+可选研究仓按独立来源、完整查询、版本和单位身份保存完整四项响应；写入时重新解析原件并核对行与字段。
+display+allow_stale 可在既有有界 TTL 内读库；最新 strict 研究的仓库读取保持 miss，沿原 Provider 获取。
+旧未解析会话缓存不复用，旧显式回执继续可读。原生捕获保留 first_observed，历史发布时间和修订链未认证；
+供应商历史/as_of 与正式 backtest 取数拒绝，仓库已有捕获仅能按其实际观测时间回放。
+SPDR 与其他黄金来源分别保存。本轮不增加来源 ID、配置或正式数据库连接，不更新常驻服务和外盘。
+
+终端指数目录保留core-v1固定12并新增terminal-v2共24：含中证2000（逻辑932000.SH，东财secid2.932000）、国企红利、国证2000、中证红利及399370—399377风格系列。东财报价与分时沿原有界httpx；新浪CN_MarketData.getKLineData最多400日、独立8秒总预算，仅保留报价日前完整日，最后收盘价须与东财真实昨收一致。不通过则保留报价与历史缺口，不能混为可靠回测历史。无付费源或新依赖。
+
+组合表单将同值的 `input`／失焦 `change` 视为同一次编辑，避免替换已聚焦 DOM 时同步渲染重入。仅值实际变化才使旧预览和确认凭据失效；重复事件不发送请求、不清除有效预览。该前端修复不改变持仓 API、缓存格式、风险约束或必须由用户显式确认保存的边界。
+
+## 同版本筹码输入合同（2026-10-23）
+
+固定 tinysoft 的 `market_activity` 新增 `dataset=chip_turnover`：只接受单一A股和1–32个唯一有序合法ISO日期。SDK限定预定义“换手率”因子，核对固定名称/公式/说明，响应精确覆盖证券和日期，单位为百分数。保留0，拒绝负值、错身份、重复/缺日期及非有限值。不开放任意因子/表表达式，不从旧全局环境取密。
+
+历史任务 `include_chip_inputs=true` 时，在原始日线、因子和逐日换手全部冻结并重验授权后，生成独立规范版本。VWAP只在原量额单位为股/元已核实时计算，再乘相同复权倍率；平价OHLC的唯一价格单独处理。raw_rows不被改写，返回行附turnover_rate_pct/vwap，manifest附chip_inputs合同版本、单位、摘要、有效条数及导出依据。失败、取消或不完整输入保留旧 canonical 指针；真实SDK Future仍须排空。重试保留原include flag及范围。Wind60日门、因子预检与原来源限制保持。
+
+
+2026-10-23 免费官方数值读取沿原 Host → DataHub → Provider → 原生研究仓链，新增的可入仓
+清单仅为 NYFed rates 与 Treasury cash；WorldBank inflation 同步加严身份/年份/分页验证。
+三者使用 official-numeric-v2 版本隔离新缓存，旧会话/冻结证据保留。分页 partial、缺值和
+错误封包不能成为完整仓库命中；原始响应、原字段与百万/十亿美元或百分数的官方单位声明
+均随原件保存，未核单位不猜测。详见[官方数值边界](research-web-vendor-snapshots.md)。
+
+## 华安ETF周报私有同源取数
+
+`DataHub.collect_report_weekly`仅供受信Report Run使用，不新增`datahub_*`公开工具或放宽通用Wind
+参数。沿原连接准入、单调用容量、配置复查、原始响应/哈希、会话快照与幂等回执，按已发布
+生产策略选择私有 Excel 主来源或原 Client API。历史版本默认 API；新准备版本显式声明
+`wind_excel`，冻结当前 Run、来源合同及原生导出哈希。Excel 不依赖 WindPy/WSET/API等价门，
+仍要求全部真实日历、精确单位、新鲜度和下周完整覆盖。工作表采集共用普通Wind执行器与容量，
+周报只在既有可连接Excel中新建自有临时工作簿，不新建或退出用户实例；真实操作及自有资源close排空后
+释放，关闭失败阻断，未知状态不重放。API原有同源校准保留，不能按品牌混称已验证。
+经济导出范围须有绑定XLSX哈希的原生UI双页观察receipt；快照分别记录15:30市场截止与Host实际
+采集开始／冻结时间。历史期在线新查仅属事后复核，Excel模式禁止启用定时。
+完整来源、交易期、工作簿投影与未验证项见[数据合同](research-web-etf-weekly-data.md)和[生产合同](research-web-etf-weekly-production.md)。
+
+默认Host已挂入可选ResearchWarehouse；数据设置与能力中心复用同一配置及有界免费验证面板，保存不会连接，Doctor只报告脱敏配置/驱动状态。实际调用健康按来源、能力和配置摘要独立记录，最长300秒、最多256条；改配、撤权或过期即失效。数据库/会话缓存不刷新上游健康，显式探测与实际取数证据分开。连接中心的“部分能力已验证”只覆盖列明的能力与时间，不代表整个供应商或正式回测合格。
+
+`bea_archive` 在目录与能力中心均登记为公开来源；它不需要账号，也不提供配置凭据入口。
+全目录分组与既有集成状态恢复必须共同验证，新增Provider不能只通过独立取数测试。
+
+官方数值响应按封闭合同展开：世界银行分页头与观测分开，未取完分页返回partial；BLS逐series的year/period/value保留，不把M13年均值冒充月份；iFinD历史time数组与table指标逐项核对长度后展开。未知单位保持provider_defined。完整源字节仍冻结，账号/刷新令牌入口不入仓；详见[原生快照](research-web-vendor-snapshots.md)。官方说明：[世界银行](https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures)、[BLS](https://www.bls.gov/developers/api_signature_v2.htm)、[iFinD](https://quantapi.51ifind.com/gwstatic/static/ds_web/quantapi-web/example.html)。
+
+## 研究仓及可靠性基座（2026-10-22，隔离实现）
+
+本阶段新增可选的 `MarketStore` 与可信 `WarehouseBridge` 注入接口，原有会话快照继续读取；正式数据根/数据库配置与自动采集尚未启用。仓库按明确交易日历检查内部缺口，原始日线按缺失连续区间补数后重新检查整窗覆盖；未知空结果不会证明停牌或无交易。显式 refresh 重取请求区间以发现修订；源间自动切换仅开放经过审核的沪深股票原始日线口径，复权行情和财务/资金流不依据同名字段猜测等价性。内核及权限/恢复合同见[研究仓](research-web-market-store.md)。
+
+Wind 日线的60自然日限制只约束实际供应商取数。完整仓库读取仍检查沪深股票身份、频率、复权及日期语义，但不以总窗口长度拒绝已有数据；来源授权、配置摘要与仓库owner仍逐次复验。仅在可信Host的仓库启用、refresh=false、无as_of、沪深股票原始日线长窗时，先有界规划Wind缺口，再对每个实际缺口执行正常60日准入。规划绑定请求指纹和来源配置；空库、失效或过大的缺口不会被盲拆或整段送SDK。auto可按真实原因跳过该Wind候选，固定Wind明确拒绝；预规划及执行共用原总预算，取消继续等待实际存储Future排空。显式refresh=true不进入此路径。
+
+只有auto请求遇到明确的来源专属data_outside_declared_scope时才重新resolve并完整准入；固定来源、缓存来源和全局冻结/能力拒绝不借此切源。候选排除与真实skip原因保留，重复返回同一已拒来源立即停止，不重复调用admission。
+
+`BusinessQuery` 新增 `purpose=display|research|backtest`、`quality=strict|allow_stale`、有时区的 `as_of`；默认请求指纹保持兼容，正式回测必须提供历史时点。未证明的历史视图返回 `data_pit_unavailable`，不以当日下载补造过去版本。实际尝试在 `provider_metadata.execution_attempts`，数据成功在 `data_success`；调用完成不代表数据可用。前台总预算18秒，超时返回504及稳定代码；原call_id保留，已启动SDK/数据库在后台排空、真实结束前仍占容量，迟到结果不能发布。断连不取消owned计时器；重复call_id不重发。
+
+BaoStock 0.9.4支持公开沪深股票原始日线、股票目录和交易日历，现补明确单报告期盈利能力财务数据集，新闻仍未适配；无账号SDK不等于厂商数据再分发许可。BaoStock与AKShare由固定模块、最小环境和私有临时HOME的自有子进程执行，每次12秒上限；这仅是生命周期隔离，不是插件沙箱。AKShare新浪日线量为股、换手率比例转百分数且不当作成交额，东方财富手数转股；所有未知指数/ETF量单位仍明确标记。
+
+真实免费验收：AKShare provider 新浪历史日线7行、2.04秒、结束后无活动Future；BaoStock首次provider请求12.01秒超时、零行、已回收。其他来源、认证页面及最终CI验收不能由这些样例推定通过。
+
+## 资产目录与结构化区块
+
+2026-10-22新增账号内无会话目录读取：`GET /api/research/assets/search`触发一个合并的后台目录任务，显式通过Broker核验`search_assets/tinysoft`，在同一凭据namespace读取秘密前后及Provider返回后复核配置／授权指纹。它不创建研究会话或启动模型。完整目录按代码／名称／GB2312简拼排序，并兼容常用多音字首字母候选（如银行、重庆、西藏）；不改证券名称、代码或旧缓存格式，不引入拼音依赖。搜索只返回最多50个匹配项（默认20），完整记录不在5000条截断。固定SDK调用保持每次≤5000行、15秒及一个真实Future；名称按≤500证券一批取得，不放宽底层上限。
+
+目录状态为loading／ready／stale／error／unavailable，当前账号`asset-directory/index.json`保留24小时同指纹缓存，最多20000条／8MiB。冷启动立即返回loading并轮询，旧缓存过期可读并后台刷新，失败有30秒重试间隔；配置或授权变化禁止复用旧目录。固定`.pending.json`只按本次创建的文件身份清理，未知遗留不删且明确刷新失败。后台任务跨SDK批次始终进入resident活动／关闭等待，真实Future未结束不放行空闲。目录实际读取持有既有resident共享准入租约；事务围栏期间不启动SDK，返回deployment_busy，取消时等待真实SDK退出后才释放租约。
+
+`POST .../blocks/{block}/load`为旧观察补齐区块并按相同来源／区间复用15分钟缓存，显式refresh绕过普通缓存。新缺失activity／margin无显式区间时，按上海时区和保存截止日（缺省当日）持久近60个日历日；events按同一截止规则固定派生60日业务范围，不开放events的RangeBlock参数。旧create／refresh已保存日期语义保留，财务报告期不套此窗口。所有成功受理（包括缓存和合并）先保存幂等签名；来源／区间冲突或同键换条件返回409，保存失败不启动新查询，也不替换其他活动区块共享引用。初始观察、旧refresh、新load共用区块锁；失败保留旧快照，规范历史只能由history-job发布。接口和文件见[API](architecture/research-web/04-api.md#资产目录搜索与区块按需加载)与[存储](architecture/research-web/03-data-files.md#资产目录与按需区块缓存)。
+
+天软结构化适配在`providers_cjpy_assets.py`封闭表、字段及预定义因子，读取前核验SDK metadata，不接受任意repo／表达式。market_snapshot提供PETTM、PBLF、独立PBMRQ、PSTTM、总股本和来源总市值；普通PB与PB-MRQ分开，源市值单位为万元。financials读取主要财务指标及同报告期的合并利润表，必要时使用金融利润表；以报告截止／公布日约束，不套用行情60日区间，不混不同报告版本。market_activity支持holder_data汇总、holder_details名单、industry分类、margin_trading和events公告标题／类型／日期；行业PE／PB没有提供，events不生成分析，fund_flow不选择未实现此dataset的天软。
+
+财务及两融源单位为元，币种未单列时不猜CNY；原字段、来源字段、日期、报告期与单位metadata随快照保留。AKShare保留中文原列并增加已证明等价的财务／净额标准字段，不构造流出或资金构成。auto按capability及dataset的真实实现选源，显式来源不能静默替换；未取到的新估值字段保持partial，不填伪值。CJPY宏观、ETF和指数不因本轮沪深北A股目录与固定表接入而获得支持声明，原复权factor_macro白名单保持。
+
+本机有限预检读取完整5577条目录及603986相关七类结构化区块，原始证据只留私有`logs/asset-data-preflight/`；这不是全证券、全历史、真实浏览器链路、同候选安装CI或部署验收。各级状态见[任务报告](../.ai/reports/test_report_asset_interaction_data_20261022.md)。
+
+## 资产历史任务与固定复权
+
+2026-10-23 来源合同：新页面观察使用auto，初次历史请求明确recent/daily/none/source:auto。未传source的旧客户端仍固定tinysoft；旧观察不批量改源，用户可显式切换历史来源。只有近期原始日线开放auto/Wind/AKShare/BaoStock；qfq/hfq、older/all保持原Tinysoft因子与固定锚点合同。Broker在执行前跳过超过Wind60自然日上限的auto候选，继续同证券、同daily/none口径的等价来源；显式Wind仍报参数错误。不会拆分换源，也不扩大transient集合。
+
+非Tinysoft请求的原始输入必须核验证券身份、请求日期、OHLC与量额声明单位：价格为CNY/share、量为share、金额为CNY；turnover只有声明CNY金额时才映射amount。每个有值OHLC/量额别名均须声明相同单位且数值一致，不能默选首字段；可选量额全为空仍保持缺失，不填零。未知单位、错证券、区间外日期或同日冲突停止规范发布，旧图保持；这种失败不声称已经质量降级。规范版本`asset-history-raw-2`逐输入绑定真实provider/URL/manifest/hash/配置摘要。最终发布及缓存命中复验实际来源授权，取消和partial按所有涉及来源的真实Future排空。无上市证据保持listing_date:null、boundary_verified:false、full_history:false。
+
+历史任务可选as_of为新一版冻结的截止／锚点输入，省略时保持旧行为。重新进入个股时，若来源实际报价交易日超过旧全历史的截止锚点，按新日期独立重建完整历史版本，原全历史／因子／研究冻结材料不改写；新证券首次recent默认不变。不能按HTTP读取日冒充报价交易日，也不能用一次recent替换已完成全历史。新版本仍受全部因子／覆盖／代次与原子发布门约束，失败继续保留旧版本。
+
+2026-10-22 启动保全热修复限定Store持久化边界：旧磁盘缺失且仍为精确默认的历史jobs/keys和图表偏好只在内存提供；启动或Automation无关save不将其写入旧index，首次真实变化才落盘。原有键（含空值）及写入后恢复默认的键继续保留，原子替换失败不误记已持久化。DataHub Provider、raw/factors/canonical、业务API与严格保全门不变，不追加厂商调用或放宽来源权限；同候选Mac安装与真实恢复/部署另证，详见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)。
+
+最后核对：2026-10-22。历史工作区沿用当前账号的 Host → DataHub Broker → 天软 CJPY → 会话快照链路，不建立另一研究引擎或全局行情数据库。`asset_history_jobs.py` 负责持久任务、分块、取消与发布，`asset_history.py` 负责日线校验、合并及复权。任务范围为近期2自然年、向前续取4年、全部至上市日；没有上市日证明时仅声明1990-01-01扫描下界。每块最多4自然年且边界日重叠，按从近到远顺序处理；同日同值去重，冲突失败，不任选一条。每次 Provider 调用仍≤5000行、15秒、每来源一个真实 Future；规范合并结果可以超过5000行，不能因此截断客户端读取。
+
+`factor_macro` 的天软绑定只开放封闭的 `series=adjustment_metadata|listing_date|adjustment_factors`；后两者只接受一个规范沪深A股证券，逐日因子每次1至500个唯一、非未来 ISO 日期。拒绝任意仓库、公式、宏观全集及额外参数；这不代表通用宏观或因子库已经接入。metadata版本为 `tinysoft-adjustment-v1`，定义 SHA-256 为 `76fb444109d027db7657b8baea96a4299b5d8ddb826aac7edc31dfb09df82fc5`。
+
+产品规范前复权为 `P(t) × A(t) / A(as_of)`，后复权为 `P(t) × A(t) / A(listing_date)`；`as_of` 是当前已得到的最后交易日，续取更早区间保留原锚点。复权前校验真实上市日行情、上市日因子等于1、全部交易日期有精确正因子、定义及来源配置版本一致。只调整 OHLC，量额保留供应商原值。缺因子、上市日/锚点未证明、哈希不符、重叠冲突或版本变化一律失败关闭，不向前填因子、不回退原始价；旧规范快照继续可用。
+
+已授权独立预检在两只股票、676个交易日及上市日上完成18次实际调用，审阅报告 SHA-256 为 `85fc23ae55255cdaec3e693753d4202c972a56ba29b9bd41b93750c273849cf3`；独立 gate 为 PASS。原始市场行、因子、授权与 wire 文件仅留私有 `logs/wind-adjustment-preflight/`，不提交仓库。此有限实测不证明全市场或全历史已验证；厂商原生前复权与本规范存在全局尺度差异，其精确全局锚点未知，不承诺 SDK 的按截止日复权保证。OHLC币种和单位未声明；成交量“股”、成交额“元”仅引用供应商目录声明，不升级为独立单位核验。
+
+原始块、因子与来源 manifest 不可变，并按账号保存缓存、配置摘要与因子版本。每次发布把全部累计规范行和同版本 metadata 一起写成新快照，再比较观察代次与旧 dataset 指针并原子切换；不能拼接不同锚点下的已复权块。重试只有显式请求才发生，复用缓存仍复验授权、来源 hash 与因子；旧观察与旧研究冻结材料继续可读。研究交接复制规范行、原始响应、因子和 metadata，脱离原任务后仍可复核。
+
+取消将子 DataHub `call_id` 联动取消，但同步SDK的真实 Future 结束前仍为 `cancelling/draining`，不释放来源容量、不发布迟到结果。Host关闭、会话取消/清理及恢复都覆盖历史任务；遗留无owner任务恢复为 `interrupted`，不自动重试。常驻空闲证明同时检查 Store 非终态任务和真实 CJPY Future，未知 witness 保持未知并阻止切换。API、持久化及UI合同分别见[接口](architecture/research-web/04-api.md#资产历史任务与图表偏好)、[文件](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)与[工作台](research-web-ui.md#资产观察工作台)。
+
+## 无会话全市场数据
+
+2026-10-23：同批列表新增f350涨停价/f351跌停价和`limit_status=up/down/none/unknown/not_applicable`。仅同日有效现价在正数限价区间内才比较相等；缺失/非正/冲突/无现价记未知，停牌/未上市/退市不参与，不套固定涨跌幅或ST名称规则。总览与CSV明示确认值及覆盖缺口。
+
+昨日基线优先保留较新日期/采集时间，并可从上一完整缓存恢复，持久化重启后继续使用。来源明确收盘的逐股时间不得早于15:00；昨日成交额按本次已上市股票池逐股重算上一交易日完整收盘快照；日历必须确认精确前一交易日。来源f292=5为已收盘；旧缓存只在逐股同日15:30后时间、完整分页/金额和收盘后采集均可核验时认证。旧未上市股票只有同日来源明确返回0，才可覆盖次日新上市证券的昨日金额；不补造零，不以指数成交额替代。内部`previous_close`保留逐股金额、原snapshot_id/采集时间，反复刷新仍保留昨日见证；公开`previous_amount`只投影重算金额、scope_count/missing_count或明确reason。缺证券、日期/金额或收盘见证时留空。
+
+大盘资金在原同用户、同板块key内按Eastmoney/SH+SZ/daily定义逐日留存最近30条实际记录；`rows/row_count/provider_total`仍指本次供应商响应，`history_rows/history_count/history_requested/history_status`单独指已留存/目标/缺口，每日保留来源URL和原采集时间。重复日期由本次真实记录更新，不生成空白日或声称连续完整。首次仅1日时明确历史未补齐，失败保留旧值与stale/error；不混用其他资金分类。盘前来源rc=100/data=null保持缺口，不能当零资金。历史端点连接中断/访客仅1日/其他报表无等价合同均如实记录。
+
+`datahub/providers_market.py` 在现有依赖内对东方财富固定端点进行有界异步读取，沪、深、北按独立范围完整分页；北交所身份不能仅由上游 `f13=0` 推为深圳。保留来源总数、页数、行情时间、日期分布与缺口，重复、漏页、总数变化和容量超界不能标为完整。市场采集使用独立容量边界，其他 Provider 的5000行限制保持。
+
+公开报价、指数分时、沪深大盘日线资金固定使用 `82.push2.eastmoney.com/webguest/api/qt/`。旧 `push2his` 资金端点连接中断，访客端点已返回真实当日沪深合计；参数 `secid=1.000001&secid2=0.399001` 及15列日线定义与[AKShare原适配](https://github.com/akfamily/akshare/blob/main/akshare/stock/stock_fund_em.py)一致。每次保留实际返回的交易日数，不把请求30日解释为已取得30日；缺失、无效金额、重复/逆序及未来日期拒绝。大盘资金使用自身元数据并继承所属采集的陈旧/错误；本轮仅资金失败时保留同用户同key的上次完整日线及stale/error，成功后恢复。资金按东财订单分类，不等于Wind机构净买入，也不含北交所。没有改代理、证书或重定向边界。
+
+股票池继续使用[东财当前官网脚本](https://quote.eastmoney.com/center/static/build/index.js)的沪、深、北独立范围；`f292` 状态定义来自[官网报价脚本](https://quote.eastmoney.com/newstatic/build/vendor.js)：6停牌、8暂停上市、14盘中停牌、9未上市。未上市不补造当日价格；停牌价格为来源参考价，`price_basis` 区分 quote / suspended_reference / last_traded_reference / previous_close_reference / unlisted，不当作当日成交。单股 `stock/get?fltt=2` 中 f43/f60 已按价格单位返回，而 f301 仍依 f59 缩放，不能直接当元。空成交额/量只用同身份、同日单股 f48（元）/f47（手→股）明确数值补回，零值不当缺失；最多100只、共享3并发及10秒明细预算，沿用单响应/总字节和外层期限。失败保留缺口，不覆盖已有可靠字段；`quote_detail` 保存来源、字段、原时间和采集时间。
+
+广度增加 suspended/unlisted；unknown 仅代表其余证券的实际报价缺口，六类合计仍对账完整股票池。成交额从同批股票池中已上市范围计算，`amount_scope_count`、`amount_missing` 明示分母与缺口，停牌的真实零成交额参与合计，未上市单列。上市日期只在 f26 提供时显示，不从名称或价格猜测。CSV追加 `trade_status`/`price_basis`，旧缓存与原列仍兼容；源码不迁移业务 index。2026-10-22完整实采5581（沪2319/深2908/北354），停牌7、未上市4、真实交易样本5570；报价及已上市成交额缺口0，单位和时点另留证，不把来源目录完整性当独立交易所目录证明。
+
+腾讯、与新浪访客报价已做只读对照：腾讯明确停牌标记及参考价格与东财吻合；新浪对部分停牌返回零价/旧日，北交所样本为空。不将不同源状态/单位默混进本批；本轮现有东财接口已补齐目标缺口，不新增依赖或登录。实测、合同与保全部署记录见[任务报告](../.ai/reports/2026-10-22-market-gaps.md)。
+
+`MarketService`使用当前用户market-cache/保存当前及上一完整快照，GET消费缓存、POST显式刷新；不产生研究会话、研究receipt或DSH调用。indices的默认Host链路现通过`datahub/market_reader.py`接入个人ResearchWarehouse；完整固定12指数响应作为一个原生响应封包入仓，既有GET不读上游也不主动读仓。POST始终实际取上游；仅受信内部`refresh=False`读可使用同来源、同配置摘要、300秒内的仓库捕获。行业／概念按东方财富分类，沪深大盘资金不含北交所；其余分区仍走既有公开适配。本次不改变天软权限，也不注册未经等价性核实的第二来源。
+
+公开eastmoney访客合同目前没有独立来源授权开关，不能声称已实现该来源grant撤销；真实可撤销边界为Host生命周期与个人仓库profile。读写前后复核Host未关闭、用户根/仓库根一致，以及profile的id、owner、enabled和脱敏配置摘要、来源配置/固定合同摘要。profile停用或换配置后不能再命中旧仓库，进行中变化拒绝交付；每次底层read/write/export仍走MarketStore授权。浏览器不能提交actor/scope。新增`warehouse`元数据准确区分hit/persisted/incomplete/disabled/not_configured及数据库不可用；仅数据库busy/unavailable/operation_failed允许继续上游，授权和合同错误不降级。partial/失败/缺指数/缺分时不替换旧完整捕获；不提升研究质量、PIT或正式回测资格。公开源可达、字段可用、分页完整和真实验收分别记录。
+
+资产页估值与coverageRows仍是浏览器DTO，但本轮另增加上述目录／load HTTP和缓存合同。来源摘要按当前区块动态统计已取得／待加载／查询失败／未接入，成功空结果与未读取快照分开，新闻／公告不计入DataHub统计。数据日、as_of、retrieved_at、报告期、请求／实际／已载入区间保留，不能合并为一个“最新”。
+
+AssetWorkspace保持旧create／refresh；新页面进入专题后按需调用load，旧观察可补缺块。section_sources覆盖原source，未指定时沿保存值；显式source变化必须保存并按该来源重新查询，显式专业来源失败不能隐式fallback。section_ranges仅允许history／activity／margin的完整ISO日期对；holders.end_date仍为报告期，不参与历史日期覆盖。
+
+valuation沿market_snapshot请求close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares；天软按上节的预定义因子取得新字段。普通PB不升级MRQ，PS-TTM不以市值／单期营收补造；Wind未提供的新字段保持partial，未核验股本数量级不派生市值。财务仍从业务financials进入，按所选Provider实际支持的报告期／报表合同读取，不能把本轮最新披露数据称为多年财务历史。
+
+新观察默认概览auto、近期历史明确auto/none，旧观察固定源及其余缺块auto，Broker按dataset真实实现选源，fund_flow不选未实现该dataset的天软。Wind60日硬门保持，不截断或拆分、不泛化为天软财务与历史任务限制。真实全历史、首次自动加载和逐区刷新仍分别留厂商证据；有限预检或离线fixtures不替代完整验收。新闻／公告仍按证券读取既有Golddata接口，和旧DataHub news／announcements快照的来源身份分开。
+
+正文读取通过原实例私有数据桥按本会话已登记来源 ID 执行，不增加 Provider 凭据或修改已有取数合同。取消使用受信原生 call_id，有限请求的实际输入字节与来源身份保全，搜索摘要继续未核验；正文范围及网络保护见架构 03–05。
+
 FinGPT 数值验收读取本会话真实 DataHub 快照及上传文本，不复制候选分支的直接腾讯/东财/iFinD 调用路径。未经现有 Provider 合同和环境验收的来源继续未接入。检索摘要不作为全文证据，缺口不伪装成可调用或已核实。
 
 原生日程动作复用的DataHub内部桥只补充Automation稳定拒绝码白名单；具体拒绝原因可被模型识别，错误message/detail与未知、超界响应仍不透传。全文会话搜索走DSH既有session.search，不通过DataHub注册新来源或复制聊天正文。
@@ -70,7 +218,7 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 
 iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健康检查、最小只读基础数据查询和登出；登录成功但空响应、权限或配额失败都不会标记健康。Token 只存在于客户端会话与当前模式的凭据后端，不返回本机集成页或写入日志。
 
-东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable；其财务摘要把供应商布尔缺失哨兵规范化为 JSON `null`，不把 `false` 作为财务数值写入新快照，其他 capability 的真实布尔字段不受影响。Wind 新增受限 DataHub binding，只复用现有 xlwings/Excel `WindAdapter` 的封闭方法映射：股票日线行情、快照、指数实时行情 `quotes`、固定财务指标，以及资金流、融资融券和股东数据；现有 `fetch_block_trades` 实际返回龙虎榜，不能等价为大宗交易，因此不登记。Wind `market_bars` binding 的资产范围固定为股票，BusinessQuery 与 Runtime 工具接受显式 `asset_type` 上下文，但 Wind Provider 只允许 `stock`；缺失、指数或 ETF 均在 adapter 初始化前返回 `data_not_equivalent`，不会只凭六位代码推断。指数继续通过 `index_data` 的 points 口径查询。每个 capability/dataset 都投影到固定输出字段、类型、单位和日期语义，并拒绝 adapter 返回的任何未知列、其他证券或越界日期；指数身份也必须与请求一致。指数点位使用 points，融券余量使用 share，不能按 CNY/share 或 CNY 发布。业务请求只接受 `.SH`、`.SZ`、`.BJ` A 股代码及封闭字段、日期和复权枚举；不接受 Wind 公式、表达式、路径、凭据或任意字段。只有 xlwings/Excel 路径构成该 Provider 的依赖就绪条件，只有 WindPy 或配置 `preferred_adapter=client_api` 时不能进入 Runtime callable 计算。未登录返回 `wind_not_logged_in`，当前适配器缺方法返回 `wind_method_unavailable`，身份、单位、日期、复权或数据集不等价返回 `data_not_equivalent`。指数成分、宏观/利率及基金持仓没有已核实的现有适配器等价方法，因此不登记为 Wind 已实现绑定。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
+东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情、实时快照及上述三种封闭复权查询的 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable；其财务摘要把供应商布尔缺失哨兵规范化为 JSON `null`，不把 `false` 作为财务数值写入新快照，其他 capability 的真实布尔字段不受影响。Wind 新增受限 DataHub binding，只复用现有 xlwings/Excel `WindAdapter` 的封闭方法映射：股票日线行情、快照、指数实时行情 `quotes`、固定财务指标，以及资金流、融资融券和股东数据；现有 `fetch_block_trades` 实际返回龙虎榜，不能等价为大宗交易，因此不登记。Wind `market_bars` binding 的资产范围固定为股票，BusinessQuery 与 Runtime 工具接受显式 `asset_type` 上下文，但 Wind Provider 只允许 `stock`；缺失、指数或 ETF 均在 adapter 初始化前返回 `data_not_equivalent`，不会只凭六位代码推断。指数继续通过 `index_data` 的 points 口径查询。每个 capability/dataset 都投影到固定输出字段、类型、单位和日期语义，并拒绝 adapter 返回的任何未知列、其他证券或越界日期；指数身份也必须与请求一致。指数点位使用 points，融券余量使用 share，不能按 CNY/share 或 CNY 发布。业务请求只接受 `.SH`、`.SZ`、`.BJ` A 股代码及封闭字段、日期和复权枚举；不接受 Wind 公式、表达式、路径、凭据或任意字段。只有 xlwings/Excel 路径构成该 Provider 的依赖就绪条件，只有 WindPy 或配置 `preferred_adapter=client_api` 时不能进入 Runtime callable 计算。未登录返回 `wind_not_logged_in`，当前适配器缺方法返回 `wind_method_unavailable`，身份、单位、日期、复权或数据集不等价返回 `data_not_equivalent`。指数成分、宏观/利率及基金持仓没有已核实的现有适配器等价方法，因此不登记为 Wind 已实现绑定。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 
 Wind `market_bars` 与 `market_snapshot` 都要求显式 `asset_type=stock`；对应 binding 只显示股票，
 缺失、指数或 ETF 在 adapter 初始化和可用性检查前失败关闭。通用能力仍允许其他 Provider 按真实
@@ -131,6 +279,8 @@ Wind Provider 同样保留 DataHub 单查询 5,000 行；超限返回 `row_limit
 不保存该工作簿并退出专用应用。若 workbook/app 清理无法确认，稳定返回 `wind_cleanup_failed` 并将
 Provider 保持 poisoned busy；进程重启前不创建新 Excel 实例。每个 schema 均验证最低有效字段；关键字段全空失败，请求字段部分
 缺失时返回 `partial` 与稳定限制说明。
+
+Resident 的 `resident-activity-v1` 分项观察将 Wind 实际 Future 是否运行与清理未确认分开，并独立读取全部来源及 Host 活动；它不清除 poison，也不改变普通 `active=null` 和部署／恢复拒绝门。只读维护观察永远返回完整恢复尚未实现的阻断状态，旧 Host 缺见证明确拒绝；无恢复执行器或服务操作。合同见[Wind 清理故障边界](research-web-wind-cleanup-recovery.md)。
 股票日线、资金流与融资融券历史入口另有取数前硬边界：起止日必须是合法字符串且正序，跨度最多
 60 个日历日；超长区间返回 `workload_too_large`，不构造或探测 adapter，更不会先取数再截断。
 
@@ -276,7 +426,38 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 出口固定为目录内注册的 URL 与方法，拒绝重定向；单响应 1MiB、行数上限 5000，超限保留 `row_limit` 说明。
 供应商 HTTP 200 但错误码非零、密钥反弹（凭据出现在响应正文）都失败关闭，不写入快照。四个凭据来源
 `ext_ths`、`ext_daole`、`ext_tikhub`、`ext_cicc` 只经 DataHub 凭据后端读取秘密；其中 `ext_ths` 支持用
-`refresh_token` 在 Provider 内换取 access token，换取与业务响应的密钥均不进入参数、结果或日志。
+`refresh_token` 在 Provider 内换取 access token。已保存非空、有界 `access_token` 时优先使用，
+只有 refresh-only 配置才交换；业务 401 不自动重试、轮换或回写凭据。换取与业务响应的密钥均不进入参数、结果或日志。
+
+显式 QuantAPI 授权验证对已有 access token（包括旧式纯字符串）只向固定 HTTPS
+`https://quantapi.51ifind.com/ds_service_basic/api/v1/get_limit_policy` 发一次 GET，
+不跟随重定向、不读取代理环境，总预算12秒，单响应沿用1MiB上限。只接受原生顶层六字段政策形状：
+`user_type`／`user_type_cn` 为非空字符串，`qps_limit`／`request_data_limit`／`data_volume_limit`／
+`data_range_limit` 为对象；失败、未知形状或秘密反射拒绝认证，不返回用户类型、限额、厂商错误正文或凭据。
+refresh-only 配置保持一次显式交换验证。两条路径始终返回 `data_queries=0`、
+`data_permission_verified=false`、`token_rotated=false`；元数据认证成功不证明任何市场数据权限。
+
+历史行情保留既有 `ext_ths/cmd_history_quotation` dataset ID 与原生快照白名单，实际固定出口修正为
+`POST https://quantapi.51ifind.com/api/v1/history_data`。按已审官方 Skill 1.1.0 的 THS_HQ 合同，
+`arguments_json.body` 可为旧式合法扁平对象或仅含 `reqBody` 的对象；Provider 只包装一次，
+不接受两种格式混合或 URL query 替代参数。`codes`／`indicators` 为非空、无空白、至多4096字符的
+逗号分隔字符串，`startdate`／`enddate` 为有序有效日期（`YYYYMMDD`、`YYYY-MM-DD`、`YYYY/MM/DD`）。
+可选 `functionpara` 仅接受官方对象格式及 `Interval`／`SampleInterval`（互斥）、`CPS`、`PriceType`、
+`Fill`、`BaseDate`、`Currency`；不猜测历史字符串语法、不丢弃未知字段或补币种／复权／填充默认值。
+未知或歧义参数在读取凭据前返回 `quantapi_history_contract_invalid`。
+
+证券列表仅接受显式字母数字、点、下划线、短横线代码；指标仅接受显式英文字母数字与下划线，
+均以逗号分隔，拒绝通配符／括号／表达式。Host单次保守预算为5000 cells：
+`证券项数 × 指标项数 × 首尾均计入的日历天数`，超限在取密前返回
+`quantapi_history_workload_limit`。这是产品安全上限，不是供应商或账户额度，也不是返回行数limit；
+周/月Interval及SampleInterval不放宽估算，不自动拆批、截断或添加默认值。
+
+例如旧式 `body={"codes":"600000.SH","indicators":"close","startdate":"2026-10-21",
+"enddate":"2026-10-21","functionpara":{"Interval":"D","Currency":"RMB","Fill":"Blank"}}`
+转换为 `{"reqBody":body}`。仍按 `tables[].thscode/time/table` 对齐展开并保存完整源字节，
+空数组返回 `empty`、坏结构和非零错误码失败；真实 null 不填零，全部指标无值时保留原件与行并返回
+`partial/history_values_missing`，不进入原生研究仓的完整快照。请求 RMB 或复权选项不构成单位或
+跨源等价的独立核验，未知单位仍为 `provider_defined`，正式回测／历史可得性边界不变。
 
 状态语义：`code_exists` 表示来源在清单中已登记；`integration_completed` 表示已有按需取数适配；
 `configured` 对公开来源为真、对凭据来源仅在秘密已保存时为真。外部来源的探测只报告配置与适配状态，不向上游发请求，
@@ -303,6 +484,38 @@ ETF 参数边界参考 [AKShare 官方 ETF 历史接口说明](https://akshare.a
 
 ## AKShare 请求口径与旧缓存复用边界
 
+2026-10-23 中国宏观 `factor_macro` 仅接受 `series=cpi|gdp|pmi|m2` 与必需的ISO
+`start_date/end_date`，拒绝assets、dates及未知参数。复用owned public worker、原容量与总截止，
+按已安装AKShare的macro_china_cpi/gdp/pmi/money_supply固定同上游reportName/columns，
+直接请求Eastmoney datacenter-web单个pageSize=2000响应以保留SDK会丢弃的原envelope，
+不自动翻页。success/code/pages/count、精确字段、非有限/错误数值、TIME/REPORT_DATE及
+重复/顺序/未来参考期均核验；null原样保留且partial，不经SDK errors=coerce变成假成功。
+每行保留原字段，月观察期派生月末date与YYYY-MM，GDP派生季末date、YYYY-Qn与
+aggregation=year_to_date，`2026年第1-3季度`保持年内累计，绝不当单季。REPORT_DATE/TIME
+是供应商参考标签，不制造精确发布日期或历史vintage。CPI当月指数/累计指数/同比与环比、
+GDP累计金额与累计同比、PMI指数与变化分别标semantic；金额未知单位保持None，仅M2/M1/M0
+数量沿已核(亿元)声明标CNY_100million。完整单次响应为snapshot，不承诺完整历史；分页、
+数值缺失或查询窗无观测为partial且不入仓。原件/fields/schema_version=akshare-china-macro-v1
+沿既有factor_macro原生仓冻结恢复，正式backtest/as_of供应商请求拒绝。
+仅AK+factor_macro的Host schema_identity/units_identity加入独立schema版本；新session查询
+必须匹配schema_version，旧call_id及显式冻结原件仍按原身份可读。native额外拒绝旧/错误schema、
+分页不完整、partial、null及空行。source_configuration_digest与其他AK能力的v6缓存含义不变。
+
+单股资金流的当前真实Host验收为FAILED：HTTP200但rc100/data=null，不视作数据成功；
+以下guest后备只表示封闭实现及离线验收，早先rc0一条样本不能推广当前可用性。
+
+2026-10-23 单股资金流的原 `stock_individual_fund_flow` SDK 实际抛错后，允许在同一个 owned
+public worker 内请求已实测的固定 Eastmoney `82.push2.eastmoney.com/webguest` 日线资金端点。
+这仍是同一 Eastmoney 上游，不计独立源，不请求大盘 `secid2`，不替代沪深市场整体流向。
+固定公开访客 ut 与 fields1/fields2 原参数保留；4秒 HTTP 等待、响应字节上限、禁止重定向及
+trust_env=False 沿原12秒子进程总截止与15秒Provider容量契约执行。SDK成功、空frame或本地
+schema错误不会触发额外请求。guest核验 code/market、15列、有限数值、合法唯一递增日期，
+原始HTTP字节保留；字段f57–f65仅保原字段名，不推断未审核语义。日期按请求裁剪后，上游
+provider_total仍保实际返回数。任何有日期请求始终 partial/history_coverage_unverified，
+缺日期为partial零行而非empty成功；无日期只提供snapshot/latest单次响应、first_observed。
+资金单位保持未知，不补公布时点、完整历史或历史vintage；guest正式backtest/as_of拒绝。
+v6语义版本沿既有配置摘要隔离旧缓存；新增回归复用已登记的test_datahub_akshare_semantics模块。
+
 AKShare `market_activity` 当前只实现个股 `fund_flow`；`northbound`、`money_flow` 等未审阅
 数据集返回 `data_not_equivalent`，不会用个股大中小单流量冒充北向资金。请求日期先在
 完整供应商 frame 上切片，再应用 5,000 行硬门；缺少可验证日期、非法日期或超限分别失败
@@ -320,3 +533,107 @@ Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新�
 
 
 2026-10-13续跑：Hot研究脚本现在可读取本会话授权的冻结资料：创建回执、hot_research目的、run/instance/manifest匹配及所有原件hash必须通过。普通Provider选源/查询仍走原合同；本次仅修复快照只读权限。
+
+
+资产观察按单查询容量顺序调度 auto、Wind、天软和 AKShare 的同观察区块，避免自身触发 provider_busy；其他会话的占用仍如实返回。CJPY 将业务 daily/weekly/monthly 等价映射到 SDK day/W/M，qfq/hfq 映射前/后复权，保留原始字段与未知单位。资产图表识别原字段“时间/简称/vol”，来源数据日与读取时刻分开，不用读取时间替代交易日。既有 SDK 凭据用于隔离验收并不自动建立其他实例或账号的 DataHub 连接。
+
+
+2026-10-22 基金NAV入仓：基金NAV已接入原生研究仓：日期范围最多31日且分页完整时，保留adjusted_total_return、benchmark_timeseries、verified_currency三项已声明缺口；第二次展示查询可命中仓库，data_success与正式回测标记仍不提升。
+
+2026-10-23 前台data_query_deadline或其他异常若DataHub仍拥有同一call_id任务，历史job保留child_call_id及draining活动状态，复用DataHub.cancel同调用等待真实SDK Future排空后才失败/开放retry；排空期间新任务history_busy。取消排空期间仍等待原调用，不重发、放宽超时或发布晚结果。
+
+2026-10-23 本次独立CJPY 0.5.2专用CjClient只读markettable_columns一次，HTTP200、53字段，0行情/财务/模型、0配置写与凭据持久化；字典SHA-256为27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829。股票vol明确为股，amount规则仅元，OHLC单位/币种仍未声明。Provider仅在实际SDK.__version__精确0.5.2、显式stock/daily及规范沪深股票身份时，新响应vol字段标share、amount标原生元/currency:null，原始rows/raw不变。证据合同tinysoft-stock-daily-fields-v1及字典hash随新provider_metadata.field_dictionary_evidence保存，不重复取字典。旧/未知SDK、缺类型/频率、ETF/index及未证明volume别名保持未知；不填CNY或OHLC单位，不恢复Tinysoft规范研究仓桥，原raw2价格门仍拒绝。旧快照不改写。
+
+2026-10-23 规范raw历史显式使用Host查询合同`required_semantics=cn_stock_daily_cny_share_v1`，仅market_bars、规范沪深stock、daily/none合法；非法组合在Pydantic输入层拒绝，不读凭据。当前单位合同候选只有Wind/AKShare/BaoStock；Tinysoft即使SDK成功也因OHLC单位/currency未知在候选准入记skipped/price_units_unverified，不先调行情再把complete改failed。通用native及显式Tinysoft旧无合同查询不变，qfq/hfq仍原完整门。该选项由Host历史任务设置，不加入DSH通用工具参数schema，不从call_id推断。
+
+合同进入BusinessQuery指纹、manifest query/provider_query、历史job和块缓存身份；默认None从fingerprint移除，旧receipt/缓存保持兼容。新任务冻结请求策略，显式retry保留原策略，旧job缺字段保None而不在重启或retry时悄悄升级。原生SnapshotSeries不满足该合同并拒绝其缓存读取；规范单位的历史后置证券/日期/OHLC/量额校验仍保留，坏响应不会因policy而变成可重试降级。共享deadline、Future容量与draining合同不变。
+
+CJPY局部成交量声明还必须逐行校验所有已存在asset/code/stock_code/证券代码/代码与请求同身份；任意已返回身份列出现显式冲突、ETF/指数或空值均保持unknown，原rows/raw不改，不凭stock标签覆盖冲突。完全没有身份列时，封闭的单一精确code请求、stock/daily及SDK0.5.2合同可作identity_basis=single_security_request，response_identity_observed=false；全匹配身份列为row_aliases，不向rows/raw补asset。field_dictionary_evidence现进入原生SnapshotSeries受审metadata白名单，冻结/导出/恢复保持完整静态证据对象；仍quality_accepted=false、formal_backtest_eligible=false、historical_point_in_time=false，不恢复天软规范研究仓桥。
+
+2026-10-23 单位策略还逐输入冻结到required_semantics证据字段、query及manifest/query/provider_query，_authorize_inputs复验与任务策略一致，_cache_chunk/_reuse检查块顶层策略；旧缺字段None按原合同处理。离线HTTP链覆盖AK执行失败再Bao可信raw成功，候选skip与实际execution_attempts分别保存，不以skip替代运行失败降级证明。
+
+2026-10-23 本次交付缓存边界：Asset新历史job固定refresh=True，显式重读所请求整段，不是先读取研究仓再只补缺失部分。DataHub普通refresh=False仅按精确策略/来源复用完整匹配缓存；Wind超过60自然日时缓存来源仍受当前fetch准入guard限制。跨来源部分覆盖不在本任务中拼接，研究仓prepare交易日历仍可能联网。这些是实际未完成能力，不能用本轮候选降级、原生冻结或单源完整缓存测试宣称全部缓存/缺口补数已覆盖。
+
+2026-10-23 最新逐源证据快照见[64源验证清单](../.ai/reports/2026-10-23-datahub-source-verification.json)：保留2026-10-22静态旧快照，区分CJPY Native SDK字段元数据、iFinD Windows SDK与ext_ths HTTP渠道、Market表面及逐源事实。真实AK此前API/页面两轮与最终组合真实Bao一次分别记录，57源未重查；局部元数据、单证券485行或页面图表不升级为全源可用、PIT、正式回测或部署。
+
+指数编制来源与行情供应商分别标明：中证2000、国企红利、中证红利的definition_url指向已在线核对的中证指数官方单张，而非东财行情页；东财secid映射保持独立。中证2000按官方规模指数定义展示，不称为微盘。
+## 2026-10-23：披露日期与官方发布版本
+
+`financials / akshare / statements=["income_statement"]` 是独立的新浪利润表合同，仅单次固定 HTTPS 请求捕获至多8期；`periods` 支持1–8或至多8个明确季末日期。原始 item、报告期、日期精度的公告日、币种和供应商更新时间分别保留。公告日不是精确发布时间，当前下载也不能证明历史重述版本；仍不得用于正式 PIT。此 selector 只匹配明确登记的利润表适配，不以通用摘要或同名净利润替代。金额单位未核实，CNY 币种不自动证明元/万元。
+
+新增独立来源 `bea_archive`（原64来源之外，不计作原57来源已修复）：`factor_macro` 仅接受 `series=us_real_gdp_qoq_saar,start_date=end_date=2024-06-30`。无截止请求读取已审核2024Q2初值/第二版档案中的末版，并保留两份HTML原件；它不是当前最新修订值。先由非历史请求入仓，再通过既有 `as_of` 读取官方发布版本：2024-07-25 12:30 UTC起2.8，2024-08-29 12:30 UTC起3.0，至2024-09-26 04:00 UTC前有效。下界包含、上界排除；上界采用下一次预告发布日期的纽约零点，未推定下一版实际发布时间。未首捕获、未知季度/序列/截止以及历史refresh均拒绝，历史miss不取网络。详细证据与限制见[研究仓](research-web-market-store.md)。
+
+东财资金流SDK/游客路径均标明同一upstream及非独立来源，单位、分类阈值和净额定义未核实；它们不构成与iFinD的等价证明，运行失败不能切换到看似同名的财务或资金指标。新逻辑合同独立绑定仓库身份及会话缓存；旧显式证据仍可读取。无需账号的公开请求不代表商业复用权利已核实，BEA来源fee保留unknown。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+既有盈利能力financials source=baostock使用statements=["profitability"]（新增cash_flow另见下节）、periods恰好一个2017年起且不晚于上海当日的季度末、明确沪深股票asset。auto配合相同selector只选此数据集；不降为摘要、完整利润表或其他同名指标。netProfit/MBRevenue按官方SDK文档声明CNY；比例/股数尺度及累计/单季度口径保持未核验。pubDate按自然日保存，as_of/backtest拒绝；无历史修订证明。
+
+
+600000.SH/2026-06-30实际双源与发行人半年报核对仅确认两格金额对应集团半年累计，不能当作Q2单季或归母净利。两源公告日8月28日与issuer列表8月27日保留不同来源，不回填精确时刻。两个provider-native版本独立冻结和恢复；样本核对不升级通用跨源等价或财务PIT。详见任务报告。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案通过 dataset 身份引用现有 Snapshots，原文和私有 raw 不复制进个人 SQLite；归档、正文／文件读取、研究重放均验证 manifest、hash 与当前来源权限，pin 阻止仍被引用的源永久清理。扫描仅消费来源准入、时点、精确证券身份与完整覆盖合格的冻结行；未准入 MCP 结果保持 clue，普通文件和跨会话复制不能绕过其 grant。自动跟踪不拉取新数据，不提升 first_observed 或报告期为历史 PIT；详见[档案证据](research-web-dossiers.md#证据与成果)、[扫描](research-web-dossier-scans.md)与[候选快照](research-web-seek-alpha.md#原始结果与撤权)。
+
+
+## WGC 月度吨数与研究时点（2026-10-23）
+
+现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
+
+AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。
+
+
+## KAPSARC / BGS 年度矿产实物量（2026-10-24）
+
+既有 ext_kapsarc/production 在同一有界 deadline 内读取分号 CSV 与固定官方 metadata。只有 dataset/publisher/Public/四字段类型、kilograms 单位及本次记录数全部核实，才将完整导出投影写入原生研究仓；原 country/sub_commodity/year/production 字符串和两份原件均保留，另有 production_kg 数值列。部分、错数、错单位、错原件或未知合同拒绝入仓，不按国家补年、不做 ISO 映射或 kg/tonne 换算。
+
+BGS 经 KAPSARC 转发不是两个独立上游。矿山年产量、WGC 地区月度 ETF 吨数流量、SPDR 单基金持仓属于不同指标/范围/频率，不能因物理单位可换算就合并；首次观察和修订链不等于历史公布 PIT。metadata 修改/处理日期不作为行级披露日，旧说明年份不覆盖实际导出年份；源注释/估算符号缺口保留。新增 projection_scope 元数据随 freeze/restore 保存，旧快照不补造该字段。
+
+该扩展沿既有 Host/DataHub/Provider/可选研究仓拓扑，无新服务、路由、表、依赖或执行引擎，原图仍准确。只做独立进程和 owned socket-only PG 有界验收、原三CI与同候选Mac安装，不配置正式库、更新常驻服务或操作外盘。
+
+
+## 2026-10-24：现金流财务比率
+
+既有 BaoStock 公开 worker 增加 `financials` 的 `statements=["cash_flow"]`、单证券及单季度末请求，绑定 `quarterly_cash_flow_ratios` 与独立 `baostock-quarterly-cash-flow-v1`。七项原生比例保留空值，unit/currency=None、scale=unverified；累计/单季、集团/本行口径未知，不能当作现金金额或证券交易资金流。原件重解析结果、行、字段、固定字典哈希和声明完全一致才入原可选研究仓。
+
+披露日保留自然日精度；first_observed、历史PIT和正式回测资格分开，as_of/backtest在公开worker前拒绝。来源隔离、当前授权、旧盈利能力合同及快照兼容不变；没有新依赖、HTTP路由、服务、正式库配置或外盘迁移。真实验证与最终候选证据见[任务报告](../.ai/reports/2026-10-24-finance-flows-warehouse.md)。
+
+
+2026-10-24：今日发现原始news新增同一discovery_evidence内部联合行类型，保存完整来源返回归档及来源缓存/时点元数据；地址关联不算新独立来源，不借web_evidence身份或PIT资格。仅显式prepare冻结，读取/关联不写DataHub、不建立第二Provider或数据库。
+
+## 2026-10-24：公开代理策略与原件绑定v2
+
+匿名AK public worker在既有独立子进程中禁止requests继承系统/环境代理和netrc，清空该session及调用代理；保留4秒网络和12秒进程上限，不修改宿主或系统设置、账号SDK或TLS验证。系统最小环境并不能自动排除macOS系统代理。
+
+中国宏观及新浪利润表的v2来源合同将原件重解析结果与完整行、字段、单位/语义、来源URL、总数、分页和参考时间逐项绑定。GDP保持年内累计/累计同比，单位仍未知，不按字段名猜亿元或百分数，也不与BEA单季QoQ SAAR归并。新浪有限snapshot和未知金额尺度、币种/累计口径、自然日披露精度保持；first_observed不等于历史PIT。旧缓存不冒充v2，旧call_id和冻结证据按原义保留。
+
+实际取数、默认Host入仓、PG重启后的独立进程读回、第二空库恢复及最终候选验收分别见[本轮报告](../.ai/reports/2026-10-24-proxy-pit-warehouse.md)。不启用正式库，不部署现有服务或迁移外盘，无新增依赖。
+
+
+## 2026-10-24：参考证据合同（宏观／新浪v3、资金流v2）
+
+原SDK四案请求在接收响应头前关闭，仍未恢复；没有用改参数、换客户端或后备成功冒充原端点修好。自然失败现在保留有限error_code，资金流尝试链必须存在且精确验证，旧档按原义可读。
+
+GDP v3依据已固定SHA的东财页面脚本字段映射和统计局方法，把四项累计金额标CNY_100million／现价、四项累计同比标percent／可比价；保持年内累计，不推导单季QoQ SAAR。此前v2“GDP单位未知”的段落为当时历史状态，未回写旧快照。
+
+新浪v3只对600600.SH／2025-06-30／合并期末／CNY的营业收入与集团净利润两格，按原件页5（印刷页4）及精确十进制字符串／整数哈希附加参考匹配。float、bool、别股／别期／别项及值修订不获得认证；原data和全局单位不变，未匹配时单位及basis均未知。供应商日期和发行人发布声称分开，冲突不覆盖；PDF历史版本未知，PIT／正式回测始终false。冻结包保留供应商原件和引用元数据，外部参考原件随单独证据包迁移。
+
+实现及逐阶段实际结果见[本轮报告](../.ai/reports/2026-10-24-origin-reference-evidence.md)。不改现有服务、正式库、系统代理、凭据或外盘，无新依赖／付费。
+
+
+## 2026-10-25：月度宏观与限定财务参考扩围
+
+宏观v4通过固定东财页面实际引用的CPI/PMI/货币供应量脚本绑定字段定义：仅明确变化率为percent，CPI当月／累计指数的基期仍未知，PMI水平不冒充百分点变化；M2/M1/M0数量亿元和月末存量分别声明。央行原件记录M1自2025-01调整并回溯2024年，供应商采用的修订版本未证明，不自动跨年拼接。统计局2025-09 CPI页声称次月公布，只作时点差异示例，不给当前API值回填历史可得时间。
+
+Bao盈利能力v2以保存的SDK原始字符串重建行、字段、固定元数据与引用，伪造或错原件拒入仓。仅600000.SH／2026H1两格与已归档集团半年报的百万元换元值精确匹配，附集团累计／非归母说明；其他证券、期间、比例或修订值不外推。两源分别入仓，首次观察／历史PIT及正式回测限制保持。旧schema缓存跳过，旧显式冻结可读，无新服务、表、HTTP或依赖，原架构图仍准确。外部定义/PDF原件由独立证据包归档，数值冻结保留引用元数据。SDK原端点交叉路由仍失败，不能以后备成功冒充修复。
+
+
+## 2026-10-25：NYFed SOFRAI 专用v3
+
+NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-numeric-v2。官方API Schema原件将SOFRAI与四个数值字段绑定；三个30/90/180日历日均值为ACT/360年化复合百分率，营业日复利、非营业日按前营业日利率单利，发布五位小数。指数为无量纲累计因子，2018-04-02基准1、发布八位；不按百分率解释，也不从已舍入指数重建原均值。
+
+官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
+
+生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。

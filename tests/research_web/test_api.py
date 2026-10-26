@@ -132,6 +132,91 @@ def api(tmp_path):
         yield client, native, service
 
 
+@pytest.mark.parametrize(
+    "witness,expected",
+    [({"active": True}, True), ({"active": False}, False), ({"active": 1}, None), ({}, None)],
+)
+def test_resident_includes_real_wind_api_future_and_unknown_is_not_idle(
+    api, monkeypatch, witness, expected
+):
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+
+    client, _, _ = api
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: witness)
+    assert client.get("/api/research/resident").json()["active"] is expected
+
+
+def test_resident_blocks_during_weekly_data_preparation(api, monkeypatch):
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+
+    client, _, service = api
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    service.report_workflows.catalog.data["runs"]["preparing"] = {"status": "preparing_data"}
+    assert client.get("/api/research/resident").json()["active"] is True
+    service.report_workflows.catalog.data["runs"].clear()
+
+
+@pytest.mark.parametrize(
+    "witness,expected",
+    [
+        ({"active": True}, True),
+        ({"active": False}, False),
+        ({"active": None}, None),
+        ({"active": 1}, None),
+        ({}, None),
+    ],
+)
+def test_resident_includes_market_activity_and_rejects_unknown(api, monkeypatch, witness, expected):
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+
+    client, _, service = api
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    monkeypatch.setattr(service.market, "activity_witness", lambda: witness, raising=False)
+    assert client.get("/api/research/resident").json()["active"] is expected
+
+
+def test_resident_sees_real_sessionless_market_collection(api, monkeypatch):
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+
+    class BlockingMarketProvider:
+        def __init__(self):
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+
+        async def fetch(self, _section, **_parameters):
+            self.started.set()
+            await self.release.wait()
+            return {
+                "rows": [],
+                "summary": {},
+                "provider": "fixture",
+                "complete": True,
+                "pagination_complete": True,
+            }
+
+        async def close(self):
+            return None
+
+    client, _, service = api
+    provider = BlockingMarketProvider()
+    service.market.provider = provider
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    result = client.post("/api/research/market/refresh", json={"sections": ["quotes"]})
+    assert result.status_code == 202
+    client.portal.call(provider.started.wait)
+    try:
+        assert service.running == {}
+        assert client.get("/api/research/resident").json()["active"] is True
+    finally:
+        client.portal.call(provider.release.set)
+        client.portal.call(asyncio.sleep, 0)
+    assert client.get("/api/research/resident").json()["active"] is False
+
+
 def test_create_submit_duplicate_never_replays(api, monkeypatch):
     from datetime import UTC, datetime
 
@@ -170,8 +255,21 @@ def test_create_submit_duplicate_never_replays(api, monkeypatch):
     )
 
 
-def test_ordinary_task_receives_truthful_capability_and_data_readiness(api):
+def test_ordinary_task_receives_truthful_capability_and_data_readiness(api, monkeypatch):
     import json
+
+    from app.research_web.datahub import catalog
+
+    dependency_status = catalog._dependency_status
+    monkeypatch.setattr(
+        catalog,
+        "_dependency_status",
+        lambda source, dependencies: (
+            (False, "blocked_dependency")
+            if source in {"baostock", "akshare"}
+            else dependency_status(source, dependencies)
+        ),
+    )
 
     client, native, _ = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]

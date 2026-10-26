@@ -32,7 +32,9 @@ jobs:
         run: node --test tests/javascript/git_safety.test.mjs tests/javascript/iteration_closeout.test.mjs
 
       - name: Test iteration resource safety without Docker
-        run: python3 -m unittest discover -s tests/research_web -p 'test_iteration_resources.py' -q
+        run: |
+          python3 -m unittest discover -s tests/research_web -p 'test_iteration_resources.py' -q
+          python3 -m unittest discover -s tests/research_web -p 'test_iteration_regeneration.py' -q
 
       - name: Verify documentation governance and generated index
         run: |

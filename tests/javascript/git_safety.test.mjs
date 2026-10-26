@@ -5,11 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli} from '../../scripts/git_safety.mjs';
+import {fileURLToPath, pathToFileURL} from 'node:url';
+import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli, maintainBackups, verifyBackupDirectory} from '../../scripts/git_safety.mjs';
 
 const gitPath = '/usr/bin/git';
 function git(root, args) {
-  const result = spawnSync(gitPath, ['-C', root, ...args], {encoding: 'utf8'});
+  // Fixture commits must not race detached Git maintenance with the lock gate.
+  // Keep the production lock checks intact; these options affect this call only.
+  const result = spawnSync(gitPath, ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', root, ...args], {encoding: 'utf8'});
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }
@@ -25,7 +28,7 @@ function fixture(t) {
   fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'base\n');
   git(projectRoot, ['add', '.']);
   git(projectRoot, ['commit', '-m', 'base']);
-  return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups')}};
+  return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups'), backupVersion: 1}};
 }
 
 test('macOS always selects native Git; unsupported production mutations fail closed', () => {
@@ -67,7 +70,11 @@ test('missing committed objects fail fsck without repair or log writes', t => {
   const {projectRoot, options} = fixture(t);
   const blob = git(projectRoot, ['rev-parse', 'HEAD:tracked.txt']);
   fs.rmSync(path.join(projectRoot, '.git/objects', blob.slice(0, 2), blob.slice(2)));
-  assert.throws(() => checkRepository({projectRoot}, options), {code: 'OBJECT_INTEGRITY_FAILED'});
+  assert.throws(() => checkRepository({projectRoot}, options), error=>{
+    assert.equal(error.code,'OBJECT_INTEGRITY_FAILED');
+    assert.equal(Number.isInteger(error.integrity.exitCode),true);assert.ok(error.integrity.exitCode>0);assert.equal(error.integrity.signal,null);
+    assert.match(error.integrity.stderrSha256,/^[a-f0-9]{64}$/);return true;
+  });
   assert.equal(fs.existsSync(path.join(projectRoot, 'logs')), false);
 });
 
@@ -774,6 +781,208 @@ test('completed closeout survives a later task removing its own refs and worktre
   assert.equal((await runDelivery({projectRoot,taskId:'task',action:'cleanup'},{...options,controller,quotaProbe:()=>({allowed:true})})).status,'cleaned');
 });
 
+async function pendingSnapshotCloseout(t, {otherRetirement=false}={}) {
+  const f=cleanupFixture(t), {projectRoot,receipt}=f;
+  fs.appendFileSync(path.join(projectRoot,'.git/info/exclude'),'\nlogs/\n');
+  const snapshot='refs/codex/turn-diffs/captures/123/fixture/base';
+  const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
+  git(projectRoot,['update-ref',snapshot,tree]);
+  const head=receipt.integrationCommit;
+  const other={taskId:'other-task',status:'cleaned',mode:'pr',ci:{status:'passed'},verification:{status:'passed'},integrationCommit:head,featureCommit:head,featureBranch:'codex/other-feature',integrationBranch:'codex/other-integration',featureWorktree:path.join(f.root,'other-feature'),integrationWorktree:path.join(f.root,'other-integration'),cleanup:Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]))};
+  Object.assign(other,{repositoryRoot:projectRoot,remote:receipt.remote,remoteUrl:receipt.remoteUrl,defaultBranch:receipt.defaultBranch});
+  const retiredRefs=otherRetirement?[`refs/heads/${other.featureBranch}`,`refs/heads/${other.integrationBranch}`,`refs/remotes/origin/${other.integrationBranch}`]:[];
+  for(const ref of retiredRefs)git(projectRoot,['update-ref',ref,head]);
+  const beforeRefs=Object.fromEntries(git(projectRoot,['for-each-ref','--format=%(refname) %(objectname)']).split('\n').map(line=>line.split(' ')));
+  const backup=backupRepository({projectRoot},{...f.options,backupVersion:2,worktreePaths:[projectRoot,receipt.featureWorktree,receipt.integrationWorktree],preservationRefs:beforeRefs});
+  const state=path.join(projectRoot,'.git/leon-engineering/resource-closeout/task');fs.mkdirSync(state,{recursive:true});
+  const managed=[{branch:receipt.featureBranch,worktree:receipt.featureWorktree,commit:receipt.featureCommit},{branch:receipt.integrationBranch,worktree:receipt.integrationWorktree,commit:receipt.integrationCommit}];
+  const beforeWorktrees=managed.map(row=>({worktree:row.worktree,HEAD:receipt.featureCommit,branch:`refs/heads/${row.branch}`}));
+  if(otherRetirement)beforeWorktrees.push({worktree:other.featureWorktree,HEAD:head,branch:`refs/heads/${other.featureBranch}`},{worktree:other.integrationWorktree,HEAD:head,branch:`refs/heads/${other.integrationBranch}`});
+  const proof={taskId:'task',candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired:true,restoreVerified:true,beforeRefs,beforeWorktrees,managed,verifiedPreservationRefs:beforeRefs};
+  fs.writeFileSync(path.join(state,'git-finalization.json'),JSON.stringify(proof),{mode:0o600});
+  fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'blocked',blocked:[{phase:'git'}]}),{mode:0o600});
+  for(const item of managed){git(projectRoot,['worktree','remove',item.worktree]);git(projectRoot,['branch','-d',item.branch]);}
+  git(projectRoot,['update-ref','-d',snapshot]);
+  receipt.status='cleaned';receipt.mode='pr';receipt.pullRequest={url:'https://github.com/fixture/repo/pull/1'};
+  receipt.verification={status:'passed'};receipt.cleanup=Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]));
+  const controller={readDeliveryReceipt:()=>receipt,validateCleanedDelivery:()=>receipt};
+  let otherState;
+  if(otherRetirement){
+    const base=path.join(projectRoot,'.git/leon-engineering');otherState=path.join(base,'resource-closeout',other.taskId);
+    fs.mkdirSync(path.join(base,'deliveries'),{recursive:true});fs.mkdirSync(otherState,{recursive:true});
+    const put=(file,value)=>fs.writeFileSync(file,JSON.stringify(value),{mode:0o600});
+    put(path.join(base,'deliveries',other.taskId+'.json'),other);
+    put(path.join(base,'git-safety/reviews',other.taskId+'.json'),{candidateCommit:head,reviewedCommit:head,status:'PASS'});
+    put(path.join(otherState,'git-finalization.json'),{taskId:other.taskId,status:'complete',candidateCommit:head,restoreVerified:true,beforeRefs:Object.fromEntries(retiredRefs.map(ref=>[ref,head])),beforeWorktrees:beforeWorktrees.filter(row=>row.worktree===other.featureWorktree || row.worktree===other.integrationWorktree),managed:[{branch:other.featureBranch,worktree:other.featureWorktree,commit:head},{branch:other.integrationBranch,worktree:other.integrationWorktree,commit:head}]});
+    put(path.join(otherState,'receipt.json'),{taskId:other.taskId,status:'complete',ok:true,cache:{ok:true},gitCleanup:true,restoreVerified:true,blocked:[]});
+    for(const ref of retiredRefs)git(projectRoot,['update-ref','-d',ref]);
+  }
+  const resourceRevalidationProbe=(_repo,task,phase)=>{
+    assert.equal(phase,'revalidate');
+    const bytes=fs.readFileSync(path.join(state,'receipt.json'));
+    return {ok:true,taskId:task,candidateCommit:receipt.integrationCommit,cache:{ok:true},previousReceiptSha256:crypto.createHash('sha256').update(bytes).digest('hex')};
+  };
+  return {...f,state,snapshot,tree,backup,other,otherState,retiredRefs,options:{...f.options,controller,resourceRevalidationProbe}};
+}
+
+test('explicit recovery keeps the pending proof and accepts only restore-verified retired Codex snapshots', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), before=fs.readFileSync(path.join(f.state,'git-finalization.json'));
+  const input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  let validations=0;f.options.controller.validateCleanedDelivery=()=>{validations++;return f.receipt;};
+  await recoverCloseoutFinalization(input,f.options);assert.equal(validations,0);
+  assert.equal(preview.status,'preview');assert.deepEqual(preview.retiredSnapshots,[{ref:f.snapshot,oid:f.tree}]);
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),before);
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+  const result=await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(result.status,'cleaned');assert.equal(result.restoreVerified,true);
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),before);
+  assert.equal(git(f.projectRoot,['for-each-ref','--format=%(refname)',f.snapshot]),'');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'complete');
+  assert.equal((await runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options)).status,'cleaned');
+  assert.equal((await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options)).status,'cleaned');
+  const oid=git(f.projectRoot,['rev-parse','HEAD:tracked.txt']);
+  fs.rmSync(path.join(f.projectRoot,'.git/objects',oid.slice(0,2),oid.slice(2)));
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'OBJECT_INTEGRITY_FAILED'});
+});
+
+test('recovery refuses ordinary ref deletion, stale preview, wrong backup and changes during restore', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const other=fixture(t), unrelated=backupRepository({projectRoot:other.projectRoot},{...other.options,backupVersion:1});
+  await assert.rejects(recoverCloseoutFinalization({...input,backupDirectory:unrelated.directory},f.options),{code:'CLOSEOUT_RECOVERY_BACKUP_INVALID'});
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:'0'.repeat(64)},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+  const proof=JSON.parse(fs.readFileSync(path.join(f.state,'git-finalization.json')));
+  proof.beforeRefs['refs/heads/unknown-retired']=f.receipt.featureCommit;
+  fs.writeFileSync(path.join(f.state,'git-finalization.json'),JSON.stringify(proof));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  delete proof.beforeRefs['refs/heads/unknown-retired'];
+  fs.writeFileSync(path.join(f.state,'git-finalization.json'),JSON.stringify(proof));
+  const changedPreview=await recoverCloseoutFinalization(input,f.options);
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:changedPreview.previewSha256},{...f.options,afterRecoveryVerified:()=>git(f.projectRoot,['update-ref','-d','refs/remotes/origin/master'])}),{code:'UNRELATED_REF_CHANGED'});
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'blocked');
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+});
+
+test('recovery requires an unmodified archive and hash-bound completion', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const manifestPath=path.join(f.backup.directory,'manifest.json'), bytes=fs.readFileSync(manifestPath);
+  fs.appendFileSync(manifestPath,' ');
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'BACKUP_METADATA_MISMATCH'});
+  fs.writeFileSync(manifestPath,bytes);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const cert=JSON.parse(fs.readFileSync(path.join(f.state,'git-finalization-recovery.json')));
+  fs.appendFileSync(path.join(f.state,cert.epoch),' ');
+  await assert.rejects(runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options),{code:'CLOSEOUT_FINALIZATION_UNVERIFIED'});
+});
+
+test('recovery keeps committed-object and backup ownership gates', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const oid=git(f.projectRoot,['rev-parse','HEAD:tracked.txt']);
+  fs.rmSync(path.join(f.projectRoot,'.git/objects',oid.slice(0,2),oid.slice(2)));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'OBJECT_INTEGRITY_FAILED'});
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'blocked');
+});
+
+test('closeout recovery CLI defaults to preview and refuses unmatched execute flags', () => {
+  const args=['closeout-recover','--project','/fixture','--task-id','task','--recovery-backup','/backup'];
+  assert.equal(parseCli(args).options.apply,undefined);
+  assert.throws(()=>parseCli([...args,'--apply']),{code:'CLI_ARGUMENT_REQUIRED'});
+  assert.throws(()=>parseCli([...args,'--status']),{code:'CLI_ARGUMENT_REQUIRED'});
+  assert.equal(parseCli([...args,'--apply','--preview-sha256','a'.repeat(64)]).options.apply,true);
+});
+
+test('recovery recognizes another fully finalized delivery without guessing retired ref ownership', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.deepEqual(preview.retiredDeliveries.map(row=>row.ref).sort(),f.retiredRefs.sort());
+  assert.equal(preview.retiredWorktrees.length,2);
+  const result=await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(result.status,'cleaned');
+  assert.equal((await runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'status'},f.options)).status,'cleaned');
+});
+
+test('a retired delivery cannot authorize a reappeared or unrelated worktree', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true});
+  fs.mkdirSync(f.other.featureWorktree);
+  await assert.rejects(recoverCloseoutFinalization({projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory},f.options),{code:'UNRELATED_WORKTREE_CHANGED'});
+  assert.equal(fs.existsSync(f.other.featureWorktree),true);
+});
+
+test('another pending or tampered retirement is still an unknown ordinary deletion', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const file=path.join(f.otherState,'git-finalization.json'), value=JSON.parse(fs.readFileSync(file));
+  value.status='pending';fs.writeFileSync(file,JSON.stringify(value));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  value.status='complete';fs.writeFileSync(file,JSON.stringify(value));
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  const resource=path.join(f.otherState,'receipt.json');fs.appendFileSync(resource,' ');
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+});
+
+test('retirement rejects cross-repository, ambiguous and unmerged branch claims', async t => {
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true}), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const directory=path.join(f.projectRoot,'.git/leon-engineering/deliveries'), file=path.join(directory,f.other.taskId+'.json');
+  const original=fs.readFileSync(file), other=JSON.parse(original);
+  other.repositoryRoot=f.root;fs.writeFileSync(file,JSON.stringify(other));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  fs.writeFileSync(file,original);
+  const duplicate=path.join(directory,'ambiguous-task.json');fs.writeFileSync(duplicate,JSON.stringify({...f.other,taskId:'ambiguous-task'}),{mode:0o600});
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+  fs.unlinkSync(duplicate);
+  const tree=git(f.projectRoot,['rev-parse','HEAD^{tree}']);
+  const child=git(f.projectRoot,['commit-tree',tree,'-p',f.receipt.integrationCommit,'-m','unmerged branch']);
+  const proofFile=path.join(f.otherState,'git-finalization.json'), proof=JSON.parse(fs.readFileSync(proofFile));
+  other.repositoryRoot=f.projectRoot;other.featureCommit=child;fs.writeFileSync(file,JSON.stringify(other));
+  proof.managed.find(row=>row.branch===other.featureBranch).commit=child;
+  proof.beforeRefs[`refs/heads/${other.featureBranch}`]=child;
+  fs.writeFileSync(proofFile,JSON.stringify(proof));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'UNRELATED_REF_CHANGED'});
+});
+
+test('resource revalidation accepts only cleaned pending deliveries without replaying deletion', () => {
+  const source=fileURLToPath(new URL('../research_web/test_iteration_revalidation.py',import.meta.url));
+  const result=spawnSync('python3',[source],{encoding:'utf8',env:{...process.env,PYTHONPATH:path.resolve(path.dirname(source),'../..'),PYTHONDONTWRITEBYTECODE:'1'}});
+  assert.equal(result.status,0,result.stderr);
+  assert.match(result.stderr,/Ran 4 tests/);
+});
+
+test('enabled resource contract receives revalidate through the Python process boundary', async t => {
+  const f=await pendingSnapshotCloseout(t), root=f.projectRoot;
+  fs.mkdirSync(path.join(root,'scripts'));fs.mkdirSync(path.join(root,'.agents'));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
+  fs.writeFileSync(path.join(root,'.agents/resource-closeout.json'),'{}');
+  const python=spawnSync('python3',['-c','import sys;print(sys.executable)'],{encoding:'utf8'});
+  assert.equal(python.status,0,python.stderr);
+  fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.symlinkSync(python.stdout.trim(),path.join(root,'.venv/bin/python'));
+  const pkg=path.join(root,'research_workbench_entrypoint');fs.mkdirSync(pkg);fs.writeFileSync(path.join(pkg,'__init__.py'),'');
+  fs.writeFileSync(path.join(pkg,'iteration_resources.py'),[
+    'import json,hashlib,sys', 'from pathlib import Path',
+    'phase=sys.argv[sys.argv.index("--phase")+1]',
+    'Path("observed-phase.txt").write_text(phase)',
+    'assert phase=="revalidate", phase',
+    'r=Path(".git/leon-engineering/resource-closeout/task/receipt.json").read_bytes()',
+    'd=json.loads(Path("bridge-delivery.json").read_text())',
+    'print(json.dumps(dict(ok=True,taskId="task",candidateCommit=d["integrationCommit"],cache=dict(ok=True),previousReceiptSha256=hashlib.sha256(r).hexdigest())))',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root,'bridge-delivery.json'),JSON.stringify(f.receipt));
+  const {recoverCloseoutFinalization}=await import(pathToFileURL(path.join(root,'scripts/git_safety.mjs')).href);
+  const input={projectRoot:root,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal(fs.existsSync(path.join(root,'observed-phase.txt')),false);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(fs.readFileSync(path.join(root,'observed-phase.txt'),'utf8'),'revalidate');
+});
+
 function baseRefreshFixture(t, {includeBase = true, includePrevious = true} = {}) {
   const f = fixture(t);
   const base = git(f.projectRoot, ['rev-parse', 'HEAD']);
@@ -825,6 +1034,42 @@ test('remote advance recovery preserves the existing PR, worktrees and old commi
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(snapshots, files[0]))), f.receipt);
   assert.equal(fs.statSync(path.join(snapshots, files[0])).mode & 0o777, 0o600);
   assert.ok(f.calls.every(args => args[0] === 'api' || args[0] === 'pr' && args[1] === 'view'));
+});
+
+for (const status of ['awaiting_ci', 'ci_failed']) test(`live published ${status} refreshes a moved base without consuming exhausted CI repair budget`, async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.status = status; f.receipt.repairAttempts = 3;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt));
+  const before = git(f.projectRoot, ['show-ref']);
+  const result = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  assert.equal(result.status, 'prepared');
+  assert.equal(result.baseCommit, f.latest);
+  assert.equal(result.repairAttempts, 3);
+  assert.deepEqual(result.pullRequest, f.receipt.pullRequest);
+  assert.equal(result.verification, null);
+  assert.deepEqual(result.ci, {status: 'pending', runs: []});
+  assert.equal(git(f.projectRoot, ['show-ref']), before);
+  assert.ok(f.calls.every(args => args[0] === 'api' || args[0] === 'pr' && args[1] === 'view'));
+});
+
+test('live published base refresh rejects an unchanged master without mutating the receipt', async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.status = 'awaiting_ci'; f.receipt.repairAttempts = 3;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt)); f.setRemoteBase(f.receipt.baseCommit);
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'BASE_REFRESH_NOT_NEEDED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+});
+
+for (const failure of ['dirty', 'foreign-pr']) test(`live published base refresh preserves guards with ${failure}`, async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.status = 'awaiting_ci'; f.receipt.repairAttempts = 3;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt));
+  if (failure === 'dirty') fs.writeFileSync(path.join(f.receipt.integrationWorktree, 'untracked'), 'preserve');
+  else f.pr.headRefOid = f.latest;
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: failure === 'dirty' ? 'WORKTREE_DIRTY' : 'PR_HEAD_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
 });
 
 test('remote advance recovery refuses dirty or wrong-branch worktrees without changing the receipt', async t => {
@@ -1056,4 +1301,245 @@ test('unpublished recovery rechecks a last-moment remote advance after its priva
   const snapshots = path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task');
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(snapshots, fs.readdirSync(snapshots)[0]))), f.receipt);
   assert.ok(fs.existsSync(f.receipt.integrationWorktree));
+});
+
+function treeBytes(root) {
+  if (!fs.existsSync(root)) return 0;
+  return fs.readdirSync(root, {withFileTypes:true}).reduce((n,e) => n + (e.isDirectory() ? treeBytes(path.join(root,e.name)) : fs.lstatSync(path.join(root,e.name)).size),0);
+}
+function v2Fixture(t) {
+  const f=fixture(t);f.options.backupVersion=2;f.options.processProbe=()=>false;
+  // Match RWB's ignored operational logs; logging must not alter the captured working copy.
+  fs.appendFileSync(path.join(f.projectRoot,'.git/info/exclude'),'\nlogs/\n');
+  return f;
+}
+
+test('v2 reuses unchanged independent recovery point and stores content only once', t => {
+  const {projectRoot,options}=v2Fixture(t);
+  fs.writeFileSync(path.join(projectRoot,'untracked.txt'),'private work\n');
+  fs.chmodSync(path.join(projectRoot,'tracked.txt'),0o600);
+  const first=backupRepository({projectRoot},options);
+  const size=treeBytes(options.backupRoot);
+  for(let i=0;i<4;i++) {
+    const next=backupRepository({projectRoot},options);
+    assert.equal(next.directory,first.directory);
+    assert.equal(next.reused,true);
+  }
+  assert.equal(treeBytes(options.backupRoot),size);
+  const manifest=JSON.parse(fs.readFileSync(path.join(first.directory,'manifest.json')));
+  assert.equal(manifest.schemaVersion,2);
+  assert.equal(fs.existsSync(path.join(first.directory,'objects.pack')),false);
+  assert.equal(fs.existsSync(path.join(first.directory,'commits.bundle')),false);
+  fs.renameSync(projectRoot,projectRoot+'-offline');
+  assert.equal(verifyBackupDirectory(first.directory,options).restoreVerified,true);
+});
+
+test('v2 preserves binary index/worktree, non-Git permissions, missing and symlink records', t => {
+  const {projectRoot,options}=v2Fixture(t);
+  fs.writeFileSync(path.join(projectRoot,'tracked.txt'),Buffer.from([0,1,2]));
+  git(projectRoot,['add','tracked.txt']);
+  fs.writeFileSync(path.join(projectRoot,'tracked.txt'),Buffer.from([0,1,3]));
+  fs.chmodSync(path.join(projectRoot,'tracked.txt'),0o400);
+  fs.symlinkSync('tracked.txt',path.join(projectRoot,'new-link'));
+  fs.unlinkSync(path.join(projectRoot,'package.json'));
+  const point=backupRepository({projectRoot},options);
+  assert.equal(verifyBackupDirectory(point.directory,options).restoreVerified,true);
+});
+
+test('v1 migration previews without writes, preserves point path, verifies v2 and resumes', t => {
+  const {projectRoot,options}=fixture(t);
+  const old=backupRepository({projectRoot},options);
+  const before=treeBytes(options.backupRoot);
+  const preview=maintainBackups({projectRoot,action:'backup-migrate'},options);
+  assert.equal(preview.status,'preview');
+  assert.equal(treeBytes(options.backupRoot),before);
+  const migrated=maintainBackups({projectRoot,action:'backup-migrate',apply:true},options);
+  assert.equal(migrated.items.find(x=>x.id===path.basename(old.directory)).status,'migrated');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(old.directory,'manifest.json'))).schemaVersion,2);
+  assert.equal(verifyBackupDirectory(old.directory,options).restoreVerified,true);
+  assert.equal(fs.existsSync(path.join(old.directory,'objects.pack')),false);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+});
+
+test('rotation retains seven days and latest two points and does not mutate the live Git objects', t => {
+  const {projectRoot,options}=v2Fixture(t); const points=[];
+  const day=86400000, now=Date.now();
+  for(let i=0;i<4;i++) {
+    fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'version '+i+'\n');
+    git(projectRoot,['add','.']);git(projectRoot,['commit','-m','change '+i]);
+    points.push(backupRepository({projectRoot},{...options,now:now-(10-i)*day}));
+  }
+  const before=fs.readFileSync(path.join(projectRoot,'.git/config'));
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  assert.equal(result.items.filter(x=>x.status==='expired').length,2);
+  assert.equal(fs.existsSync(points[0].directory),false);
+  assert.equal(fs.existsSync(points[1].directory),false);
+  for(const p of points.slice(2))assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+  assert.deepEqual(fs.readFileSync(path.join(projectRoot,'.git/config')),before);
+  assert.doesNotThrow(()=>git(projectRoot,['fsck','--full']));
+});
+
+test('rotation protects dirty, unmerged and explicitly held recovery points', t => {
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now();const old=now-20*86400000;
+  git(projectRoot,['checkout','-b','codex/unmerged']);
+  fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'not on master');git(projectRoot,['add','.']);git(projectRoot,['commit','-m','unmerged']);
+  const p=backupRepository({projectRoot},{...options,now:old});
+  git(projectRoot,['checkout','master']);
+  const held=backupRepository({projectRoot},{...options,now:old,backupProtection:'object-repair'});
+  fs.writeFileSync(path.join(projectRoot,'dirty.txt'),'unsaved');
+  const dirty=backupRepository({projectRoot},{...options,now:old});
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  for(const x of [p,held,dirty])assert.equal(fs.existsSync(x.directory),true);
+  assert.ok(result.items.some(x=>x.reason==='unmerged'));
+  assert.ok(result.items.some(x=>x.reason==='protected'));
+});
+
+test('corruption and lock conflicts fail closed without deleting originals', t => {
+  const {projectRoot,options}=v2Fixture(t);
+  const p=backupRepository({projectRoot},options);
+  const root=path.join(options.backupRoot,'.v2-store');
+  fs.mkdirSync(path.join(options.backupRoot,'.backup.lock'));
+  assert.throws(()=>backupRepository({projectRoot},options),{code:'BACKUP_STORE_LOCKED'});
+  fs.rmdirSync(path.join(options.backupRoot,'.backup.lock'));
+  const manifest=JSON.parse(fs.readFileSync(path.join(p.directory,'manifest.json')));
+  const blob=manifest.files[0].sha256;
+  fs.writeFileSync(path.join(root,'files',blob.slice(0,2),blob.slice(2)),'corrupt');
+  assert.throws(()=>verifyBackupDirectory(p.directory,options));
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now:Date.now()+20*86400000}));
+  assert.equal(fs.existsSync(p.directory),true);
+});
+
+test('backup CLI maintenance defaults to preview and apply is restricted to maintenance', () => {
+  assert.equal(parseCli(['backup-prune','--project','/repo']).options.apply,undefined);
+  assert.equal(parseCli(['backup-migrate','--project','/repo','--apply']).options.apply,true);
+  assert.throws(()=>parseCli(['backup','--project','/repo','--apply']),{code:'CLI_OPTION_INVALID'});
+});
+
+test('migration resumes after a persisted pending commit with a different retry clock', t => {
+  const {projectRoot,options}=fixture(t);const point=backupRepository({projectRoot},options);
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},{...options,afterMigrationPending:()=>{throw new Error('simulated interruption');}}));
+  assert.equal(fs.existsSync(path.join(point.directory,'objects.pack')),true);
+  assert.equal(fs.existsSync(path.join(point.directory,'manifest-v2.pending.json')),true);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},{...options,now:Date.now()+1000}));
+  assert.equal(verifyBackupDirectory(point.directory,options).restoreVerified,true);
+});
+
+test('v2 certificate detects edited retention metadata without deleting any recovery point', t => {
+  const {projectRoot,options}=v2Fixture(t);const p=backupRepository({projectRoot},options);
+  const file=path.join(p.directory,'manifest.json');const original=fs.readFileSync(file);
+  for(const edit of [m=>m.worktrees=[],m=>m.protection='ordinary-other',m=>m.createdAt='2000-01-01T00:00:00Z']) {
+    const m=JSON.parse(original);edit(m);fs.writeFileSync(file,JSON.stringify(m));
+    assert.throws(()=>verifyBackupDirectory(p.directory,options),{code:'BACKUP_METADATA_MISMATCH'});
+    assert.throws(()=>maintainBackups({projectRoot,action:'backup-prune',apply:true},options));
+    assert.equal(fs.existsSync(p.directory),true);fs.writeFileSync(file,original);
+  }
+});
+
+test('v2 returns verified preservation proof on new and reused snapshots', t => {
+  const {projectRoot,options}=v2Fixture(t);const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
+  const preservationRefs={'refs/codex/turn-diffs/proof':tree};
+  for(let i=0;i<2;i++)assert.deepEqual(backupRepository({projectRoot},{...options,preservationRefs}).verifiedPreservationRefs,preservationRefs);
+});
+
+test('rotation protects deleted unmerged refs not belonging to the selected worktree', t => {
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now();
+  git(projectRoot,['switch','-c','codex/orphan']);fs.writeFileSync(path.join(projectRoot,'orphan.txt'),'only old point');git(projectRoot,['add','.']);git(projectRoot,['commit','-m','orphan']);
+  git(projectRoot,['switch','master']);const old=backupRepository({projectRoot},{...options,now:now-20*86400000});
+  git(projectRoot,['branch','-D','codex/orphan']);
+  for(let i=0;i<2;i++){fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'new '+i);git(projectRoot,['add','.']);git(projectRoot,['commit','-m','new '+i]);backupRepository({projectRoot},options);}
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  assert.equal(result.items.find(x=>x.id===path.basename(old.directory)).reason,'unmerged_or_unique_anchor');
+  assert.equal(fs.existsSync(old.directory),true);
+});
+
+test('pending migration prevents rotation from collecting its shared payloads', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},{...options,afterMigrationPending:()=>{throw new Error('interrupted');}}));
+  const bytes=treeBytes(path.join(options.backupRoot,'.v2-store'));
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-prune',apply:true},options),{code:'BACKUP_MIGRATION_PENDING'});
+  assert.equal(treeBytes(path.join(options.backupRoot,'.v2-store')),bytes);
+  assert.equal(fs.existsSync(path.join(p.directory,'objects.pack')),true);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+});
+
+test('earliest v1 points remain readable and protected when the index proof was never recorded', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  const file=path.join(p.directory,'manifest.json'),m=JSON.parse(fs.readFileSync(file));
+  delete m.metadataSemantics;delete m.preservationRefs;for(const w of m.worktrees)delete w.index;
+  fs.writeFileSync(file,JSON.stringify(m));
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+  const result=maintainBackups({projectRoot,action:'backup-migrate',apply:true},options);
+  assert.equal(result.items[0].reason,'legacy_index_unrecorded');
+  assert.equal(fs.existsSync(path.join(p.directory,'objects.pack')),true);
+});
+
+test('metadata partial-write failure keeps the original and resumes without a truncated seal', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  const write=fs.writeFileSync;
+  fs.writeFileSync=function(target,value,...rest) {
+    if(typeof target==='number' && typeof value==='string' && value.startsWith('{"manifestSha256"')) {
+      write.call(fs,target,value.slice(0,5),...rest);throw new Error('simulated metadata I/O failure');
+    }
+    return write.call(fs,target,value,...rest);
+  };
+  try{assert.throws(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));}finally{fs.writeFileSync=write;}
+  assert.equal(fs.existsSync(path.join(p.directory,'objects.pack')),true);
+  assert.equal(fs.existsSync(path.join(p.directory,'seal.json')),false);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+});
+
+test('failed v1 diagnostic remains protected while independent expired v2 points can be collected', t => {
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now();
+  for(let i=0;i<3;i++) {
+    fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'version '+i);git(projectRoot,['add','.']);git(projectRoot,['commit','-m','version '+i]);
+    backupRepository({projectRoot},{...options,now:now-(20-i)*86400000});
+  }
+  const failed=path.join(options.backupRoot,crypto.randomUUID());fs.mkdirSync(failed,{mode:0o700});
+  fs.writeFileSync(path.join(failed,'manifest-draft.json'),JSON.stringify({schemaVersion:1,restoreVerified:false}),{mode:0o600});
+  fs.writeFileSync(path.join(failed,'failure-status.json'),JSON.stringify({status:'FAIL',restoreVerified:false}),{mode:0o600});
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  assert.equal(result.collection.status,'complete');
+  assert.equal(result.items.filter(x=>x.status==='expired').length,1);
+  assert.equal(fs.existsSync(failed),true);
+});
+
+test('distinct v2 metadata points share identical payloads without growth or borrowing source objects', t => {
+  const {projectRoot,options}=v2Fixture(t);const first=backupRepository({projectRoot},options);
+  const store=path.join(options.backupRoot,'.v2-store'),bytes=treeBytes(store);
+  fs.chmodSync(path.join(projectRoot,'tracked.txt'),0o600);
+  const second=backupRepository({projectRoot},options);
+  assert.notEqual(second.directory,first.directory);assert.equal(treeBytes(store),bytes);
+  fs.renameSync(projectRoot,projectRoot+'-offline');
+  for(const p of [first,second])assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+});
+
+test('v2 preserves an as-of old tree while unrelated Codex refs and worktrees move during export', t => {
+  const {root,projectRoot,options}=v2Fixture(t),ref='refs/codex/turn-diffs/checkpoints/v2';
+  const old=snapshotTree(projectRoot,'old tree only'),next=snapshotTree(projectRoot,'new tree only');
+  git(projectRoot,['update-ref',ref,old.tree]);
+  const marker=path.join(root,'mutated'),other=path.join(root,'other'),wrapper=path.join(root,'snapshot-v2-git');
+  fs.writeFileSync(wrapper,`#!${process.execPath}\nconst fs=require('node:fs');const {spawnSync}=require('node:child_process');const a=process.argv.slice(2);const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});if(r.status===0&&a.includes('pack-objects')&&!fs.existsSync(${JSON.stringify(marker)})){fs.writeFileSync(${JSON.stringify(marker)},'done');for(const args of [['update-ref',${JSON.stringify(ref)},${JSON.stringify(next.tree)}],['worktree','add','-b','codex/other',${JSON.stringify(other)}]])if(spawnSync('/usr/bin/git',['-C',${JSON.stringify(projectRoot)},...args],{stdio:'ignore'}).status!==0)process.exit(79);}process.exit(r.status??1);\n`,{mode:0o700});
+  const p=backupRepository({projectRoot},{...options,gitPath:wrapper,preservationRefs:{[ref]:old.tree}});
+  const m=JSON.parse(fs.readFileSync(path.join(p.directory,'manifest.json')));
+  assert.equal(m.refs[ref],old.tree);assert.equal(git(projectRoot,['rev-parse',ref]),next.tree);
+  assert.equal(p.verifiedPreservationRefs[ref],old.tree);
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+});
+
+test('v1 migration also preserves objects and refs present only in its concurrent full bundle', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
+  const result=spawnSync(gitPath,['-C',projectRoot,'commit-tree',tree,'-p','HEAD'],{input:'bundle-only recovery commit\n',encoding:'utf8'});
+  assert.equal(result.status,0);const oid=result.stdout.trim();
+  git(projectRoot,['update-ref','refs/heads/bundle-only',oid]);
+  const bundle=path.join(p.directory,'commits.bundle');fs.unlinkSync(bundle);
+  git(projectRoot,['bundle','create',bundle,'--all']);fs.chmodSync(bundle,0o600);
+  const file=path.join(p.directory,'manifest.json'),m=JSON.parse(fs.readFileSync(file));
+  m.files.find(x=>x.path==='commits.bundle').sha256=crypto.createHash('sha256').update(fs.readFileSync(bundle)).digest('hex');fs.writeFileSync(file,JSON.stringify(m));
+  git(projectRoot,['update-ref','-d','refs/heads/bundle-only']);
+  fs.unlinkSync(path.join(projectRoot,'.git/objects',oid.slice(0,2),oid.slice(2)));
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+  const migrated=JSON.parse(fs.readFileSync(file));assert.equal(migrated.additionalBundleRefs['refs/heads/bundle-only'],oid);
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
 });

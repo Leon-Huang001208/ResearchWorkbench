@@ -3,9 +3,22 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/09-report-workflow-sequence.html",
-  "specification": {"sha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a", "bytes": 6136},
-  "artifact": {"sha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427", "bytes": 649642},
-  "validation": {"checksPassed": 9, "checkCount": 9, "compositionProfile": "showcase", "compositionStatus": "pass", "errors": 0, "warnings": 0}
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/outputs/research-web-architecture/09-report-workflow-sequence.html",
+  "specification": {
+    "sha256": "f4c67f2717ad8fd907b7c8c6f127802ac939d3b07610a30c7ff250986a8710d5",
+    "bytes": 8202
+  },
+  "artifact": {
+    "sha256": "a82e68877fea1da862d5ddd6a65b19b8de814dd01a7fba643f86514f000615fa",
+    "bytes": 650110
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
 }

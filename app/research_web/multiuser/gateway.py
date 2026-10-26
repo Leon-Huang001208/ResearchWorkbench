@@ -20,8 +20,11 @@ from core.observability import get_logger
 from ..ai_news_routes import router as ai_news_router
 from ..ai_news_service import create_ai_news_service
 from ..aihot_routes import router as aihot_router
+from ..plugins import PluginError
 from .accounts import SESSION_TTL_SECONDS, AccountError, AccountStore
 from .origin import validate_origin
+from .plugin_routes import configure as configure_plugins
+from .plugin_routes import router as plugin_router
 from .runtime import RuntimeErrorSafe
 
 log = get_logger(__name__)
@@ -113,6 +116,17 @@ def create_gateway(
         try:
             if hasattr(pool, "start"):
                 await pool.start()
+            private_pool = getattr(pool, "private_pool", pool)
+            if hasattr(private_pool, "restore_discovery_tracks"):
+                # Registered enabled accounts are the only restoration inventory.
+                users = await asyncio.to_thread(accounts.list_users)
+                await private_pool.restore_discovery_tracks(
+                    [
+                        user.id
+                        for user in users
+                        if user.enabled and user.id != getattr(pool, "primary_user_id", None)
+                    ]
+                )
             yield
         finally:
             await pool.close()
@@ -121,6 +135,8 @@ def create_gateway(
     app = FastAPI(title="Research Workbench Private Server", lifespan=lifespan)
     app.state.accounts = accounts
     app.state.pool = pool
+    configure_plugins(app, accounts, pool, client)
+    app.include_router(plugin_router)
     # One server-owned news store, outside every user's DSH/data/credential namespace.
     # Constructing the default bridge does no I/O and never starts a runtime or DB.
     app.state.ai_news = (ai_news_factory or create_ai_news_service)(
@@ -142,6 +158,10 @@ def create_gateway(
     async def account_error(request, exc):
         return error(exc.code, exc.status)
 
+    @app.exception_handler(PluginError)
+    async def plugin_error(request, exc):
+        return error(exc.code, exc.status)
+
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request, exc):
         return error("invalid_request", 422)
@@ -153,6 +173,14 @@ def create_gateway(
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
+        deployment = getattr(pool, "deployment_path", None)
+        if (
+            deployment is not None
+            and (deployment.exists() or deployment.is_symlink())
+            and request.url.path != "/api/server/health"
+        ):
+            log.info("multiuser_deployment_fenced")
+            return error("server_maintenance", 503)
         maintenance = getattr(pool, "maintenance_path", None)
         if (
             maintenance is not None
@@ -228,7 +256,11 @@ def create_gateway(
                 "GET",
                 "HEAD",
             }:
-                maximum = 65536 if news else 16384
+                maximum = (
+                    11 * 1024 * 1024
+                    if request.url.path.startswith("/api/server/plugins/")
+                    else 65536 if news else 16384
+                )
                 if length > maximum:
                     return error("request_too_large", 413)
                 parts = []
@@ -322,7 +354,11 @@ def create_gateway(
     async def health():
         if hasattr(pool, "health"):
             try:
-                return await pool.health()
+                value = await pool.health()
+                deployment = getattr(pool, "deployment_path", None)
+                if deployment is not None:
+                    value["deployment_fenced"] = deployment.exists() or deployment.is_symlink()
+                return value
             except RuntimeErrorSafe as exc:
                 return error(exc.code, exc.status)
         return {"status": "ready", "runtime": "not_started_by_health"}
@@ -334,6 +370,16 @@ def create_gateway(
             "items": [u.public() for u in await asyncio.to_thread(accounts.list_users)],
             "primary_user_id": getattr(pool, "primary_user_id", None),
         }
+
+    @app.get("/api/server/discovery-tracking-status")
+    async def discovery_tracking_status(request: Request):
+        private_pool = getattr(pool, "private_pool", pool)
+        user_id = request.state.user.id
+        if user_id == getattr(pool, "primary_user_id", None):
+            return {"status": "resident_owned"}
+        return getattr(private_pool, "discovery_restoration", {}).get(
+            user_id, {"status": "not_required"}
+        )
 
     @app.post("/api/server/users", status_code=201)
     async def create_user(body: NewUser, request: Request):
@@ -418,6 +464,21 @@ def create_gateway(
         if path.startswith("api/research/internal/") or "//" in path or "\\" in path:
             return error("server_internal_route_denied", 403)
         user = request.state.user
+        report_admin = request.url.path.startswith(
+            (
+                "/api/research/report-workflows",
+                "/api/research/report-runs",
+                "/api/research/report-projects",
+                "/api/research/automations",
+                "/api/research/automation-runs",
+                "/api/research/delivery-channels",
+            )
+        )
+        if report_admin and (
+            user.role != "admin" or user.id != getattr(pool, "primary_user_id", None)
+        ):
+            log.warning("multiuser_report_owner_denied", user_id=user.id)
+            return error("primary_administrator_required", 403)
         token = request.cookies.get(COOKIE, "")
         if not page_matches(request, user):
             return error("account_changed", 401)
@@ -443,6 +504,10 @@ def create_gateway(
         current = await asyncio.to_thread(accounts.authenticate, token)
         if current is None or current.id != user.id:
             return error("login_required", 401)
+        if report_admin and (
+            current.role != "admin" or current.id != getattr(pool, "primary_user_id", None)
+        ):
+            return error("primary_administrator_required", 403)
         query = httpx.QueryParams(request.url.query).remove("rwb_user")
         target = httpx.URL(backend.url + "/" + path).copy_with(query=str(query).encode())
         outbound = client.build_request(
@@ -451,13 +516,23 @@ def create_gateway(
         # httpx's shared cookie jar may have learned a backend Set-Cookie.
         # Backend authentication is exclusively the per-instance header.
         outbound.headers.pop("cookie", None)
+        ticket = None
+        if request.method not in {"GET", "HEAD"} and hasattr(pool, "request_started"):
+            try:
+                ticket = await pool.request_started(user.id, backend)
+            except RuntimeErrorSafe as exc:
+                return error(exc.code, exc.status)
         try:
             response = await client.send(outbound, stream=True, follow_redirects=False)
         except httpx.HTTPError as exc:
+            if ticket is not None:
+                await pool.request_finished(user.id, ticket)
             log.warning("multiuser_proxy_failed", error_type=type(exc).__name__)
             return error("runtime_unavailable", 503)
         if 300 <= response.status_code < 400:
             await response.aclose()
+            if ticket is not None:
+                await pool.request_finished(user.id, ticket)
             return error("runtime_redirect_denied", 502)
 
         async def content():
@@ -489,6 +564,8 @@ def create_gateway(
                     pending.cancel()
                     await asyncio.gather(pending, return_exceptions=True)
                 await response.aclose()
+                if ticket is not None:
+                    await pool.request_finished(user.id, ticket)
 
         return StreamingResponse(
             content(),

@@ -1,0 +1,54 @@
+{
+  "task_id": "datahub-warehouse-20261022",
+  "captured_at": "2026-10-22T11:07:13.706314+00:00",
+  "phase": "intermediate-isolated-browser",
+  "final_candidate_acceptance": false,
+  "host": "loopback-18994-owned-fixture",
+  "database": "owned-temporary-unix-socket-postgresql",
+  "dsh": "NativeFixture-model-generation-denied",
+  "model_calls": 0,
+  "existing_services_changed": false,
+  "external_disk_changed": false,
+  "cases": [
+    {
+      "source": "akshare",
+      "rows": 2,
+      "first": "live-provider",
+      "second": "warehouse_hit",
+      "snapshot_sha256": "bd80841987a2aebddc2f80a00053e7ab1abdd68b2b1c162a34e5a0faf09267d9"
+    },
+    {
+      "source": "baostock",
+      "rows": 2,
+      "first": "live-provider",
+      "second": "warehouse_hit",
+      "snapshot_sha256": "4ef90329c6ca9862e0abf9423fee43672bb8ef3d5d839fbc8f9e22693d0c773f"
+    }
+  ],
+  "configuration_flow": [
+    "saved-disabled",
+    "explicit-initialize",
+    "enabled",
+    "bounded-free-two-read-validation"
+  ],
+  "screenshots": [
+    {
+      "path": "outputs/datahub-warehouse/ui-saved-disabled.png",
+      "sha256": "80c38a7ffd6a69e4274b6fa20a1fb5fe84157b179c3c442147753f0a1980febe"
+    },
+    {
+      "path": "outputs/datahub-warehouse/ui-akshare-hit.png",
+      "sha256": "e20562f22b160f828349fd127436b94ac246335e8ba72d67040b86a18715e338"
+    },
+    {
+      "path": "outputs/datahub-warehouse/ui-baostock-hit.png",
+      "sha256": "d2e8e4e42e86ca657f55be3813418ef30e34bbad5b027a2feef1295199044eed"
+    }
+  ],
+  "limitations": [
+    "not-resident-deployed",
+    "not-authenticated-tailnet-acceptance",
+    "source-health-ui-integration-in-progress",
+    "rerun-final-candidate-required"
+  ]
+}

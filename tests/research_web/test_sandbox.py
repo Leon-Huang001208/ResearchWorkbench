@@ -36,6 +36,58 @@ def test_runner_contract_exists():
     assert callable(load_runner().run_script)
 
 
+@pytest.mark.parametrize("policy", [None, "unknown-policy"])
+def test_weekly_files_require_explicit_host_policy(prepared, policy):
+    module, _root, session, config = prepared
+    folder = session / "inputs/report-workflow"
+    folder.mkdir()
+    (folder / "run-context.json").write_text("{}")
+    with pytest.raises(module.SandboxError):
+        module.run_script(
+            config,
+            session,
+            "print('never')",
+            read_paths=["inputs/report-workflow/run-context.json"],
+            input_policy=policy,
+        )
+
+
+@pytest.mark.parametrize(
+    "kind", ["symlink", "hardlink", "directory", "oversize", "parent", "absolute", "backslash"]
+)
+def test_weekly_file_scope_rejects_aliases_types_and_escape(prepared, kind):
+    module, _root, session, config = prepared
+    folder = session / "inputs/report-workflow"
+    folder.mkdir()
+    source = folder / "original.json"
+    source.write_text("{}")
+    target = folder / "scope.json"
+    relative = "inputs/report-workflow/scope.json"
+    if kind == "symlink":
+        target.symlink_to(source)
+    elif kind == "hardlink":
+        os.link(source, target)
+    elif kind == "directory":
+        target.mkdir()
+    elif kind == "oversize":
+        with target.open("wb") as stream:
+            stream.truncate(32 * 1024 * 1024 + 1)
+    else:
+        relative = {
+            "parent": "inputs/report-workflow/../original.json",
+            "absolute": str(source),
+            "backslash": "inputs/report-workflow/bad\\file",
+        }[kind]
+    with pytest.raises(module.SandboxError):
+        module.run_script(
+            config,
+            session,
+            "print('never')",
+            read_paths=[relative],
+            input_policy="weekly-frozen-inputs-v1",
+        )
+
+
 @pytest.mark.skipif(sys.platform != "darwin", reason="native macOS Seatbelt evidence only")
 @pytest.mark.parametrize("name", ["ASCII spaces", "中文 空格", '中文 "引用" 空格'])
 def test_owned_unicode_paths_preserve_kernel_permissions(tmp_path, name):
@@ -69,6 +121,68 @@ def prepared(tmp_path):
     session = make_session(root)
     config = module.SandboxConfig(research_root=root, python=PYTHON)
     return module, root, session, config
+
+
+@pytest.mark.parametrize("alias", ["symlink", "hardlink"])
+def test_packaged_sdk_scope_rejects_aliased_files(tmp_path, monkeypatch, alias):
+    module = load_runner()
+    package = tmp_path / "package"
+    package.mkdir()
+    source = package / "sandbox.py"
+    source.write_text("# trusted package fixture")
+    root = package / "resources"
+    (root / "fonts").mkdir(parents=True)
+    for name in [
+        "research_helpers.py",
+        "research_report.py",
+        "research_report_plan.py",
+        "research_report_calculations.py",
+        "fonts/NotoSansSC-Regular.ttf",
+    ]:
+        (root / name).write_bytes(b"fixture")
+    monkeypatch.setattr(module, "__file__", str(source))
+    sdk, files = module._report_sdk_scope()
+    assert sdk == str(root) and len(files) == 7
+    target = root / "research_report.py"
+    target.unlink()
+    outside = tmp_path / "outside.py"
+    outside.write_text("outside")
+    if alias == "symlink":
+        target.symlink_to(outside)
+    else:
+        os.link(outside, target)
+    with pytest.raises(module.SandboxError, match="SDK file is unsafe"):
+        module._report_sdk_scope()
+
+
+def test_packaged_sdk_is_read_only_and_excludes_unlisted_source_files(prepared):
+    module, _root, session, config = prepared
+    (session / "resources/research_report.py").write_text("raise RuntimeError('legacy copy')")
+    prior = (session / "resources/research_report.py").read_bytes()
+    code = """
+import os
+from pathlib import Path
+import research_report_plan
+import research_report
+assert research_report.__file__ == str(Path(research_report_plan.__file__).with_name('research_report.py'))
+def denied(action):
+    try:
+        action()
+    except PermissionError:
+        return
+    raise AssertionError('unlisted or write access was allowed')
+def write_open():
+    descriptor = os.open(research_report.__file__, os.O_WRONLY)
+    os.close(descriptor)
+denied(write_open)
+denied(lambda: Path(research_report.__file__).with_name('__init__.py').read_bytes())
+denied(lambda: Path(research_report.__file__).parent.parent.joinpath('service.py').read_bytes())
+print('fixed SDK only')
+"""
+    result = module.run_script(config, session, code)
+    assert result.status == "completed", result
+    assert result.stdout == "fixed SDK only\n"
+    assert (session / "resources/research_report.py").read_bytes() == prior
 
 
 def test_reads_inputs_resources_and_writes_only_outputs_tmp(prepared):
@@ -316,6 +430,10 @@ def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
         pytest.skip("set DSH_SOURCE_ROOT to the pinned built DSH checkout")
     converter = Path(dsh_source) / "packages/core/tools/lib/index.js"
     assert converter.is_file(), "explicit DSH_SOURCE_ROOT must contain the built schema converter"
+    pi_root = Path(dsh_source) / "packages/llm/llm-pi-ai"
+    context_module = pi_root / "src/context.ts"
+    wire_module = pi_root / "node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js"
+    assert context_module.is_file() and wire_module.is_file()
     plugin = SOURCE.parent / "runtime/research-tools.mjs"
     config_json = json.dumps(
         {"python": str(PYTHON), "runnerPath": str(SOURCE), "researchRoot": str(tmp_path)}
@@ -323,11 +441,18 @@ def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
     program = (
         f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
         "import { assertSupportedJsonSchema, validateJsonSchemaValue, jsonSchemaToTs, jsonSchemaToPy } "
-        f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};" + """
+        f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};"
+        + """
 const tools = new Map();
 apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config,undefined,async()=>({admitted:true,read_paths:[]}));
 const tool = tools.get('research_run_script');
 // Use the same implementation ToolRuntime.register invokes, not a local mock.
+// DeepSeek rejects a root union before any research execution (real request
+// 20261020): checking SDK conversion alone did not cover this provider contract.
+for (const registered of tools.values()) {
+  if(registered.parameters.type !== 'object') throw Error('provider tool parameters require root object: '+registered.name);
+  if(['oneOf','anyOf','allOf'].some(key=>key in registered.parameters)) throw Error('provider root composition rejected');
+}
 assertSupportedJsonSchema(tool.output.schema);
 assertSupportedJsonSchema(tool.parameters);
 const result = {status:'completed',stdout:'',stderr:'',exit_code:0,error:null};
@@ -341,6 +466,33 @@ for (const value of [{...result,exit_code:'0'}, {...result,error:1}]) {
 for(const schema of [tool.parameters,tool.output.schema]) {
   if(jsonSchemaToTs(schema)==='unknown') throw Error('TypeScript SDK schema degraded to unknown');
   if(jsonSchemaToPy(schema)==='Any') throw Error('Python SDK schema degraded to Any');
+}
+"""
+        + f"const {{toPiContext}} = await import({json.dumps(context_module.as_uri())});\n"
+        + f"const {{stream}} = await import({json.dumps(wire_module.as_uri())});\n"
+        + f"const {{normalizeContext}} = await import({json.dumps((wire_module.parent.parent / 'utils/transcript.js').as_uri())});\n"
+        + """
+// Exercise the actual pinned provider serializer, with a fake transport only.
+// No server, credentials, or paid model is involved. Reject a bad root exactly
+// where the real supplier rejected the recorded request.
+const declared = [...tools.values()].map(({name,description,parameters})=>({name,description,parameters}));
+const context = toPiContext({messages:[{role:'user',content:[{type:'text',text:'offline schema fixture'}]}],tools:declared});
+let requests=0, wirePayload;
+const model={id:'offline-fixture',name:'offline',api:'openai-completions',provider:'offline-fixture',baseUrl:'https://offline.invalid/v1',reasoning:false,input:['text'],cost:{input:0,output:0,cacheRead:0,cacheWrite:0},contextWindow:8192,maxTokens:32};
+const resultWire=await stream(model,normalizeContext(context),{apiKey:'offline-fixture-only',maxRetries:0,fetch:async (_url,init)=>{
+  requests++;
+  wirePayload=JSON.parse(init?.body ?? await _url.clone().text());
+  const chunk={id:'offline',object:'chat.completion.chunk',created:0,model:'offline-fixture',choices:[{index:0,delta:{role:'assistant',content:'fixture'},finish_reason:'stop'}],usage:{prompt_tokens:0,completion_tokens:0,total_tokens:0}};
+  const separator=String.fromCharCode(10,10);
+  return new Response('data: '+JSON.stringify(chunk)+separator+'data: [DONE]'+separator,{headers:{'Content-Type':'text/event-stream'}});
+}}).result();
+if(requests!==1||resultWire.stopReason==='error') throw Error('offline provider serialization failed: '+JSON.stringify({requests,error:resultWire.errorMessage}));
+if(wirePayload.tools.length!==declared.length) throw Error('wire tools lost');
+for(const row of wirePayload.tools) {
+  const schema=row.function.parameters;
+  if(schema.type!=='object'||['oneOf','anyOf','allOf'].some(key=>key in schema)) throw Error('supplier rejects root schema');
+  const original=declared.find(t=>t.name===row.function.name);
+  if(JSON.stringify(schema)!==JSON.stringify(original.parameters)) throw Error('wire schema changed');
 }
 console.log('pinned-dsh-schemas-ok');
 """
