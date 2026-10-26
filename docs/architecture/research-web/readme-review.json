@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "补充分钟K单菜单及六周期说明，保留既有分时/日周月/副图/筹码与安全部署边界。",
+  "summary": "补充分钟K横排按键及六周期说明，保留既有分时/日周月/副图/筹码与安全部署边界。",
   "reason": "本轮新增封闭分钟K接口与独立画布，原Host/DataHub/DSH拓扑、依赖和账号边界不变；README明确非持续实时与源码/常驻各自验收。"
 }
