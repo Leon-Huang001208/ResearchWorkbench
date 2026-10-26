@@ -22,6 +22,20 @@
 
 只读复用既有 Web Python 安装及既有缓存中的测试／格式工具，没有安装新依赖。相关基线：Node composer menu／Discovery 43 passed，资产页签／workbench 40 passed；Python workbench operations 8 passed、1 个既有 Starlette 弃用警告、10.77 秒。最初未使用 Web 既定 confcutdir 的命令在 legacy SQLAlchemy 导入失败；后续使用原 CI／Router 的 `--confcutdir=tests/research_web`，不修改或删除测试。
 
+## 模块结构复核
+
+本批源码和配置更改均在现有系统边界内；下列决定逐组对应架构映射，不能用功能声明代替真实执行或平台门。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"场景与资产资料属于原浏览器UI中的局部组件和事件接线，继续使用原主题、导航、同源API和唯一DSH，没有新前端服务或独立研究入口拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新场景路由和冻结正文权限检查均由原账号Host承载，实际研究继续走原ResearchService与私有DSH连接，不增加服务、消息正文库或公共网络节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"资料仍冻结在当前账号原DataHub文件快照，新增祖先复验收紧既有行读取和导出，不改变Provider链、供应商字段映射、正式数据库或仓准入。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共享服务与质量合同新增场景绑定但不创建或启用计划；原Automation仍拥有调度和未知不重发，保存与启用及研究执行分离拓扑保持。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"上下文与结构化研究资料复用原会话文件及来源引用，schema2仅加强Host冻结身份，原备份恢复和保全锁继续管理，不新增事实或聊天数据库。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"场景及资产研究投影位于既有资产工作台到DataHub快照到DSH草稿边内，新增局部模块和引用角色未引入第二执行器或数据存储节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks步骤登记新增回归、原MacBootstrap步骤核对新资源，无新增workflow/job/runner/依赖或timeout，仓库验收到CI再到独立部署的流程保持。","diagrams":[]} -->
+<!-- architecture-review {"group":"discovery","structure":"unchanged","reason":"可选场景v3继续沿原selection/prepare/review/execute和同一个Automation来源链，旧v1/v2保持，未增加采集器、后台队列或自动推理边。","diagrams":[]} -->
+<!-- architecture-review {"group":"dossiers","structure":"unchanged","reason":"原档案解析器增加新交接祖先权限和保全检查，元数据仍属个人原Store与SQLite，归档修订仍由用户确认，不新增隐藏档案或事实库。","diagrams":[]} -->
+
 ## 权限与质量原则
 
 - 静态映射中的 reuse 是实现候选；所有原始行保留 unverified，不能推导 callable、runtime_verified 或 quality_passed。
@@ -43,3 +57,5 @@ MyPy不是通过：初始13条导入文件错误已在干净基线`d47cf3ad`逐�
 原对交接按钮“未绑定”的早期判断不准确；独立评审定位到已有较后处理分支，新代码曾截获它。现已保留原基金／主题路径并增加真实点击回归；该判断的更正和修复历史完整保留。
 
 整分支最终评审又实际复现两项Important：详情／回执／重放会返回撤权摘录，及确定未创建的比较材料拒绝会锁住编辑。修复在受管集成分支提交`22d00320`，未变更旧持久化证据；返回安全无正文状态、创建锁内的`not_created`证明与真正未知分开。4项真实Host反例、14项JS目标、123项Python／375项Node／4条真实隔离浏览器旅程通过，完整stdout/stderr在集成工作树`logs/t2-final-*`。当前仍待该修复的独立定点复核、完整候选本机闭包、CI和Mac安装，不宣称已发布或上线。
+
+后续完整源码／登记评审已批准`c6357d6c`；其集成本机Python闭包709 passed、1个原skip、1条原警告、16 subtests，405.46秒。强制Node门发现既有受控DOM未提供新组件访问的shell，以及相对Python测试假设本地存在`.venv`；测试fixture-only修复`db6d7910`由独立TS评审批准，目标37／相邻19通过，未改产品、安装环境、删断言或skip。原Project Constraints还发现未补全部模块文档／README／结构决定；本报告九组复核、关联文档及README回执按原规则补齐，预检查零违规，未删减门或修改约束。上述失败日志和修复历史均保留，最终候选完整门与CI仍待实际执行。
