@@ -1889,6 +1889,9 @@ class ResearchService(ModelProfilesMixin):
 
     async def _permanent_delete_retention_checked(self, sid: str):
         """The retention fence spans the native RPC, acknowledgement and Host purge."""
+        from .scenario_handoffs import assert_handoff_deletable
+
+        assert_handoff_deletable(self.store, sid)
         row = self.store.session(sid, include_deleted=True)
         if row.get("deleted_at") is None:
             raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
@@ -1969,7 +1972,10 @@ class ResearchService(ModelProfilesMixin):
     def _task_capabilities(self, sid: str) -> tuple[dict, list[dict]]:
         row = self.store.session(sid)
         receipt = self.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
-        refs = [*receipt.get("native_capabilities", [])]
+        refs = [
+            *receipt.get("native_capabilities", []),
+            *receipt.get("scenario_required_capabilities", []),
+        ]
         if receipt.get("capability"):
             refs.append(receipt["capability"])
         return receipt, list({ref["id"]: ref for ref in refs}.values())
@@ -2719,13 +2725,23 @@ class ResearchService(ModelProfilesMixin):
             if getattr(self, "plugin_runtime_frozen", False):
                 raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
             row = self.store.session(sid)
+            if row.get("purpose") == "discovery_research" and (
+                row.get("discovery_creation_state") != "ready"
+            ):
+                raise StoreError("研究会话尚未完成准备", "discovery_session_not_ready", 409)
             weekly_scope = None
             weekly_resume = False
+            from .scenario_handoffs import execution_context as scenario_execution_context
             from .scenario_handoffs import trusted_context as scenario_context_for
 
             scenario_context = scenario_context_for(self, sid)
+            scenario_selections = []
             if scenario_context:
                 frozen = scenario_context["scenario"]
+                scenario_selections = [
+                    self.capabilities.selection(item["id"], item["version"])
+                    for item in frozen["capabilities"]
+                ]
                 if dossier_handoff_id:
                     raise StoreError(
                         "场景已有独立冻结上下文，不能混入另一档案交接",
@@ -2788,10 +2804,6 @@ class ResearchService(ModelProfilesMixin):
                     and weekly_run.get("research_submission_state")
                     in {"prepared", "preflight_rejected"}
                 )
-            if row.get("purpose") == "discovery_research" and (
-                row.get("discovery_creation_state") != "ready"
-            ):
-                raise StoreError("研究会话尚未完成准备", "discovery_session_not_ready", 409)
             if dossier_handoff_id:
                 self.dossiers.bind_handoff(sid, dossier_handoff_id)
 
@@ -3003,6 +3015,7 @@ class ResearchService(ModelProfilesMixin):
                 from .scenario_handoffs import fingerprint as scenario_fingerprint
 
                 payload["scenario_context_sha256"] = scenario_fingerprint(scenario_context)
+                payload["scenario_capabilities"] = scenario_selections
                 payload["source_scope"] = source_scope
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             if f"{sid}:{key}" in self.store.data["receipts"] and not weekly_resume:
@@ -3013,6 +3026,16 @@ class ResearchService(ModelProfilesMixin):
                     "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
                 )
             capability_readiness = None
+            scenario_readiness = {}
+            for required_capability in scenario_selections:
+                current_readiness = self.capability_readiness(required_capability["id"], sid)
+                scenario_readiness[required_capability["id"]] = current_readiness
+                if not current_readiness["admitted"]:
+                    raise CapabilityError(
+                        "场景必需能力尚未通过执行准入，草稿保留",
+                        "scenario_capability_not_admitted",
+                        409,
+                    )
             if selection:
                 capability_readiness = self.capability_readiness(selection["id"], sid)
                 if not capability_readiness["admitted"]:
@@ -3074,11 +3097,13 @@ class ResearchService(ModelProfilesMixin):
                         }
                     )
             native_skill = selection["native_name"] if selection else skill_id
-            if native_skill or methods:
+            if native_skill or methods or scenario_selections:
                 skills = await self.skill_catalog(sid)
                 discovered = {skill["name"] for skill in skills["skills"]}
-                if (native_skill and native_skill not in discovered) or any(
-                    method["native_name"] not in discovered for method in methods
+                if (
+                    (native_skill and native_skill not in discovered)
+                    or any(method["native_name"] not in discovered for method in methods)
+                    or any(item["native_name"] not in discovered for item in scenario_selections)
                 ):
                     raise CapabilityError(
                         "能力或方法未由 DSH 原生发现；请等待目录观察，旧实例需空闲后更新启动配置",
@@ -3087,6 +3112,8 @@ class ResearchService(ModelProfilesMixin):
                     )
             if selection:
                 self.capabilities.snapshot(selection, self.store.directory(sid))
+            for required_capability in scenario_selections:
+                self.capabilities.snapshot(required_capability, self.store.directory(sid))
             for method in methods:
                 self.capabilities.snapshot(
                     self.capabilities.selection(method["method_id"]),
@@ -3164,6 +3191,15 @@ class ResearchService(ModelProfilesMixin):
                         requirements,
                         as_of,
                         quality_mode,
+                        **(
+                            {
+                                "execution_context": scenario_execution_context(
+                                    scenario_context, scenario_selections
+                                )
+                            }
+                            if scenario_context
+                            else {}
+                        ),
                     )
                 except (OSError, ValueError, StoreError) as exc:
                     log.warning(
@@ -3184,6 +3220,12 @@ class ResearchService(ModelProfilesMixin):
                     "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
                 )
             self.store.receipt(sid, key)["capability_catalog"] = capability_snapshots
+            if scenario_selections:
+                self.store.receipt(sid, key)["scenario_required_capabilities"] = scenario_selections
+                self.store.receipt(sid, key)["scenario_discovered_capabilities"] = [
+                    item["native_name"] for item in scenario_selections
+                ]
+                self.store.receipt(sid, key)["scenario_readiness"] = scenario_readiness
             if contract:
                 row.update(research_mode=chosen_mode, research_depth=depth)
                 self.store.receipt(sid, key).update(
@@ -3201,6 +3243,10 @@ class ResearchService(ModelProfilesMixin):
             prompt = text
             if scenario_context:
                 prompt += "\n\nHost冻结场景要求：\n" + "\n".join(scenario_context["requirements"])
+                prompt += "\n逐一读取并应用下列已冻结的必需能力；不能只执行第一项：\n" + "\n".join(
+                    item["resource_path"] + "/SKILL.md SHA-256=" + item["sha256"]
+                    for item in scenario_selections
+                )
                 prompt += "\n核对冻结资料与上下文：" + (
                     self.store.data["handoffs"][row["scenario_handoff_id"]]["context_file"]["path"]
                     if row.get("scenario_handoff_id")

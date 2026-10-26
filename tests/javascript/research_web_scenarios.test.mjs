@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createScenarioController, renderScenarioPanel } from '../../app/research_web/ui/scenarios.mjs';
+import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from '../../app/research_web/ui/scenarios.mjs';
 import { renderComposer } from '../../app/research_web/ui/composer.mjs';
 import { createController } from '../../app/research_web/ui/core.mjs';
-import { discoveryItems } from '../../app/research_web/ui/discovery.mjs';
+import { discoveryItems, discoveryEmptyState } from '../../app/research_web/ui/discovery.mjs';
 
 const scenario = options => createScenarioController({storage:null,...options});
 const row = { id: 'company-onepager', name: '<公司>', description: '', coverage: ['风险'], steps: ['核对'], examples: [{question:'示例'}], expected_artifacts:['draft'], required_inputs:[], capabilities:[{id:'company-research', version:1, available:true}] };
@@ -13,7 +13,7 @@ test('real delegated input, submit and open events freeze once and never send', 
   const c = scenario({ api:{scenarioCatalog:async()=>({items:[row]}), handoff:async(body,key)=>{calls.push({body,key});return frozen;}}, onOpen:r=>opened.push(r), makeID:()=> 'same-key' });
   await c.open({subject:{kind:'stock',identity:'600600.SH'},as_of:'2026-01-01',question:'原草稿'});
   await c.handle({type:'input',target:{dataset:{scenarioField:'question'},value:'修订问题'}});
-  await c.handle({type:'submit',target:{matches:()=>true},preventDefault(){}});
+  await c.handle({type:'submit',target:{matches:()=>true},submitter:{dataset:{scenarioFreeze:''}},preventDefault(){}});
   await c.prepare();
   assert.equal(calls.length,1); assert.equal(calls[0].body.scenario_inputs.question,'修订问题'); assert.equal(opened.length,0);
   await c.handle({type:'click',target:{closest:()=>({dataset:{scenarioAction:'open'}})},preventDefault(){}});
@@ -72,4 +72,25 @@ test('independent industry draft clears the stock observation and its materials'
   await c.open({observation_id:'stock-observation',session_id:'stock-session',subject:{kind:'stock',identity:'600600.SH'},datasets:[{dataset_id:'stock-material'}],as_of:'2026-01-01',question:'独立行业问题'});
   await c.handle({type:'click',target:{closest:()=>({dataset:{scenarioAction:'independent'}})},preventDefault(){}});
   assert.equal(c.state.context.observation_id,undefined);assert.equal(c.state.context.session_id,undefined);assert.deepEqual(c.state.inputs.material_ids,[]);assert.equal(c.state.inputs.subject.kind,'industry');assert.equal(c.state.inputs.question,'独立行业问题');
+});
+
+
+test('non-asset legacy handoffs remain with the original controller and stale asset routes cannot open',()=>{
+  const observation={asset:'600600.SH',asset_type:'stock',session_id:'old-session',blocks:{}};
+  assert.equal(scenarioLaunchContext({assetPage:false,route:{page:'assets',section:'funds'},observation},{workbenchHandoff:'fingpt',sourceSession:'fund-session',datasetIds:'["nav"]'}),null);
+  assert.ok(scenarioLaunchContext({assetPage:true,route:{page:'assets',asset:'601318.SH',assetType:'stock'},observation},{}).error);
+  assert.equal(scenarioLaunchContext({assetPage:true,route:{page:'assets',asset:'600600.SH',assetType:'stock'},observation},{}).context.session_id,'old-session');
+});
+test('Enter in scenario search and implicit submit cannot create a handoff',async()=>{
+  let created=0;const c=scenario({api:{scenarioCatalog:async()=>({items:[row]}),handoff:async()=>{created++;return frozen}}});
+  await c.open({subject:{kind:'stock',identity:'600600.SH'},as_of:'2026-01-01',question:'已填问题'});
+  let prevented=0;assert.equal(c.key({key:'Enter',target:{dataset:{scenarioField:'query'},tagName:'INPUT'},preventDefault(){prevented++}}),true);
+  await c.handle({type:'submit',target:{matches:()=>true},preventDefault(){}});
+  assert.equal(prevented,1);assert.equal(created,0);
+});
+test('source-empty, date-filter-empty and unknown self-watch association stay distinct',()=>{
+  assert.equal(discoveryEmptyState({feed:{themes:[]},filters:{from:'2026-01-01'}}).code,'source_empty');
+  const feed={themes:[{id:'one',assets:[]}]};
+  assert.equal(discoveryEmptyState({feed,filters:{from:'2026-01-01'}}).code,'filtered_empty');
+  assert.equal(discoveryEmptyState({feed,filters:{watchlist:'mine'}}).code,'association_unknown');
 });

@@ -24,7 +24,9 @@ def latest_receipt(service, sid):
     return service.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
 
 
-def prepare_contract(service, sid, receipt, question, requirements, as_of, mode):
+def prepare_contract(
+    service, sid, receipt, question, requirements, as_of, mode, *, execution_context=None
+):
     """Freeze requirements before sending; continuation preserves original obligations."""
     previous_receipt = next(
         (
@@ -64,6 +66,7 @@ def prepare_contract(service, sid, receipt, question, requirements, as_of, mode)
         as_of or (previous or {}).get("as_of") or datetime.now(UTC).date().isoformat(),
         mode,
         previous_task_id=(previous or {}).get("task_id"),
+        execution_context=execution_context,
     )
     receipt["research_contract"] = contract
     if "web" in service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"]):
@@ -362,6 +365,17 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
     contract = receipt.get("research_contract")
     if not contract:
         return None
+    scenario_issues = []
+    scenario_invalid = False
+    if contract.get("execution_context") is not None:
+        from .scenario_handoffs import verify_execution
+
+        try:
+            scenario_issues = verify_execution(service, sid, receipt)
+        except (StoreError, ValueError, OSError, KeyError, TypeError):
+            scenario_invalid = True
+            scenario_issues = ["scenario_execution_changed"]
+            log.warning("research_scenario_execution_rejected", session_id=sid)
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     kinds = {"file": "uploads", "dataset": "datahub", "web": "web"}
     upload_files = upload_evidence_files(service.store, sid, files)
@@ -446,6 +460,15 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         log.warning("research_business_input_changed_during_verification")
     status = assessment.get("status", "incomplete")
     issues = assessment.get("issues", ["report_missing"])
+    if scenario_issues:
+        status = "invalid" if scenario_invalid or status == "invalid" else "incomplete"
+        issues = list(dict.fromkeys([*issues, *scenario_issues]))
+        if report is not None:
+            report.update(
+                quality=status,
+                issues=issues,
+                assessment={**assessment, "status": status, "issues": issues},
+            )
     return {
         **assessment,
         "status": status,

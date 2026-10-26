@@ -84,3 +84,58 @@ LFATvV204kt4AbRh。最终错误在 `data_layer/adapters/wind/wind_adapter.py`、
   Python场景路由测试及浏览器脚本纳入既有静态检查和完整交付门。
 - 控制任务的 `.ai/reports/2026-10-26-seek-alpha-core-parity.md` 和整体计划保持未提交。
   本报告／独立交接文档为T2所有；未处理其他任务资源。
+
+## 独立评审修复 round 1（2026-10-27）
+
+首轮独立评审为Needs fixes，不能沿用上方初始完成描述作为批准。以下修复已实现并通过本轮本机回归，
+**等待原评审scoped re-review**；不声称已通过独立评审、CI、常驻部署或真实模型质量。
+
+| 发现 | 修复与实际证据 |
+| --- | --- |
+| 1 多跳／legacy撤权 | 全部新页面交接保存来源链；读／导出／再交接／发送递归核验，环与未知祖先拒绝。A→B→C及legacy撤权均403；档案原件解析同样核验链。 |
+| 1 祖先保全补充 | 在原retention fence内登记引用；源及中间节点软删除仍读回200，永久清理在原生删除前409，恢复后读回。没有新隐藏档案或事实库。 |
+| 2、3、5 日期／身份／新闻资格 | search_news按行published_at判断已知未来日期；market_snapshot.assets按正式参数核主体；真正文、空正文、未知时间分别给资格，不用取得时间补资格。 |
+| 4 全部必需能力 | 每项冻结compiled hash/native_name/resource_path；逐项readiness、原生发现与资源复制。required/discovered/loaded分字段；loaded仅真实回调。质量schema2绑定完整上下文，Host核实际资源；重hash篡改与资源字节篡改均invalid。旧schema1字节不变；实际发送→SDK计划/HTML→Host质检保持incomplete而不伪过。 |
+| 6、7 原入口／切换窗口 | 只在资产页接管旧按钮；原基金交接真实点击后仍携带原sid/dataset。证券DOM切换窗口实际点击阻断，无旧证券/新会话。 |
+| 8 搜索Enter | 搜索不属于冻结form，输入Enter不提交，冻结须明确按钮；真实浏览器观察会话数不变。 |
+| 9 筛选状态 | 来源空、筛选无匹配、缺规范资产关联分别显示；raw资讯仅使用源明确asset_codes，不猜标题或简称。 |
+| 10 资产工作区 | 正向API及真实浏览器完成研究资料导入、已保存资料再次选择、可读摘要、两对象不同期/单位并列、带原件定位产业边、同材料／角色继续冻结。通用上传白名单未改，新增严格256KiB JSON数据入口。 |
+| 11 设备边界 | 1440/390为桌面Chrome视口；实际桌面Shift+Tab、Escape、逐字输入、滚动已验。实体手机与软键盘NOT_RUN。 |
+
+最终验证：
+
+- **225 Python PASS**，1条既有Starlette弃用警告，124.44秒；`logs/t2-r1-python-final.log`。
+  覆盖原120项、新工作区与review反例、research_quality/scope、dossiers/API、DSH fusion。
+- **368 Node PASS**；`logs/t2-r1-node-full.log`。保留原资产图表／区间／导航／档案／资讯／composer回归。
+- **真实浏览器4条组合旅程PASS**（2视口×QA及资产/legacy），`logs/t2-r1-browser.log`、
+  `outputs/research-web-scenarios/result.json`。截图包含“隔离验收样本”标记，关系为合成测试材料；
+  `asset-workspace-390.png`已实际查看。
+- Ruff、Black、isort通过：`t2-r1-ruff.log`、`t2-r1-black-check.log`、`t2-r1-isort.log`。
+- MyPy仍为**13条／5个已由controller在d47复现的导入文件错误**，不是整体通过。
+  新candidates标注问题已修复；本轮14目标文件没有新增类型错误，见 `t2-r1-mypy.log`。
+
+真实失败保留：四个独立Python反例最初4 FAILED（`t2-r1-python-red.log`）；新工作区最初5 FAILED
+（`t2-r1-workspace-red.log`）。扩大回归曾224 PASS/1 FAIL：原Discovery未就绪门被新场景读取抢先，
+恢复原门优先级后定点通过并完整225通过。Browser曾因双notice严格locator及在disabled上传控件上
+调用setInputFiles失败；已按真实可操作控件时序修复脚本，没有删除零创建、权限或材料断言。
+
+本轮Python完整命令（缓存PYTHONPATH沿上文pytest命令）：
+
+```bash
+/Users/leon/.local/share/research-workbench/releases/d744029a5/.venv/bin/python -m pytest --confcutdir=tests/research_web tests/research_web/test_asset_research_workspace.py tests/research_web/test_scenario_review_regressions.py tests/research_web/test_scenario_handoffs.py tests/research_web/test_workbench_operations.py tests/research_web/test_discovery.py tests/research_web/test_discovery_routes.py tests/research_web/test_discovery_tracking.py tests/research_web/test_research_quality.py tests/research_web/test_research_quality_scope.py tests/research_web/test_dossiers.py tests/research_web/test_dossier_api.py tests/research_web/test_fingpt_dsh_fusion.py -q
+```
+
+本轮MyPy完整命令：
+
+```bash
+PYTHONPATH=/Users/leon/.cache/uv/archive-v0/LFATvV204kt4AbRh:/Users/leon/.cache/uv/archive-v0/6EvMPkhT8ScqCsai:/Users/leon/.cache/uv/archive-v0/vqigiLXjMCLGAtsa:/Users/leon/.cache/uv/archive-v0/NVc3Vbz9TRdVLjyM:/Users/leon/.cache/uv/archive-v0/2fOdTQeHDrbnvgJc /Users/leon/.local/share/research-workbench/releases/d744029a5/.venv/bin/python -m mypy app/research_web/asset_research.py app/research_web/scenario_handoffs.py app/research_web/workbench.py app/research_web/discovery app/research_web/research_quality.py app/research_web/research_quality_service.py
+```
+
+Browser仍用原命令，内部改为 `tests/e2e/research_web_scenarios_backend.py` 扩展原隔离夹具；
+所有原生／供应商输入均离线，后端socket/DNS与Chrome均阻断外部网络。没有安装、push、merge、部署、
+真实模型或收费调用。父任务的总报告与计划仍未提交。
+
+本轮新增：`asset_research.py`、`ui/asset-research.mjs/css`、工作区文档、两份Python回归及扩展浏览器
+夹具。其余修改覆盖原workbench/scenario、Discovery源码投影、dossiers解析、Store保全、service/quality
+合同、主UI挂载及既有场景浏览器脚本。精确文件清单随本轮Git提交固定；原62/78目录未改。
+新增静态模块／样式及schema2消费者须由控制任务纳入完整Router、独立评审、原三CI与Mac安装。

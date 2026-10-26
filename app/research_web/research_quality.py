@@ -35,7 +35,9 @@ def _cutoff(value):
     return datetime.fromisoformat(value).date()
 
 
-def make_contract(task_id, question, requirements, as_of, mode, previous_task_id=None):
+def make_contract(
+    task_id, question, requirements, as_of, mode, previous_task_id=None, execution_context=None
+):
     """Copy and hash Host-frozen requirements before accepting a DSH turn."""
     try:
         if not re.fullmatch(r"[a-f0-9]{24}", str(task_id)):
@@ -78,6 +80,52 @@ def make_contract(task_id, question, requirements, as_of, mode, previous_task_id
             "mode": mode,
             "previous_task_id": previous_task_id,
         }
+        if execution_context is not None:
+            if not isinstance(execution_context, dict) or set(execution_context) != {
+                "kind",
+                "scenario_id",
+                "scenario_version",
+                "context_sha256",
+                "capabilities",
+            }:
+                raise ValueError("scenario_execution_invalid")
+            if (
+                execution_context["kind"] != "research-scenario"
+                or not _IDENTITY.fullmatch(str(execution_context["scenario_id"]))
+                or not re.fullmatch(
+                    r"[0-9]+\.[0-9]+\.[0-9]+", str(execution_context["scenario_version"])
+                )
+                or not re.fullmatch(r"[a-f0-9]{64}", str(execution_context["context_sha256"]))
+            ):
+                raise ValueError("scenario_execution_invalid")
+            capabilities = execution_context["capabilities"]
+            if not isinstance(capabilities, list) or not 1 <= len(capabilities) <= 8:
+                raise ValueError("scenario_execution_invalid")
+            seen = set()
+            for item in capabilities:
+                if not isinstance(item, dict) or set(item) != {
+                    "id",
+                    "version",
+                    "sha256",
+                    "native_name",
+                    "resource_path",
+                }:
+                    raise ValueError("scenario_execution_invalid")
+                if (
+                    not _IDENTITY.fullmatch(str(item["id"]))
+                    or item["id"] in seen
+                    or type(item["version"]) is not int
+                    or item["version"] < 1
+                    or not re.fullmatch(r"[a-f0-9]{64}", str(item["sha256"]))
+                    or not _IDENTITY.fullmatch(str(item["native_name"]))
+                    or item["resource_path"]
+                    != f"resources/capabilities/{item['id']}/{item['version']}"
+                ):
+                    raise ValueError("scenario_execution_invalid")
+                seen.add(item["id"])
+            contract.update(
+                schema_version=2, execution_context=json.loads(json.dumps(execution_context))
+            )
         contract["sha256"] = _digest(contract)
         log.info("research_quality_contract_frozen requirements=%d", len(frozen))
         return contract
@@ -97,6 +145,7 @@ def _valid_contract(contract):
         content.get("as_of"),
         content.get("mode"),
         content.get("previous_task_id"),
+        content.get("execution_context"),
     )
     return contract == expected and contract.get("sha256") == _digest(content)
 

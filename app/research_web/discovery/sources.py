@@ -65,6 +65,22 @@ def string(value, limit=6000):
     return value[:limit] if isinstance(value, str) else ""
 
 
+def canonical_assets(value):
+    """Accept explicit source security identities only; names are not mappings."""
+    if not isinstance(value, list) or len(value) > 100:
+        return []
+    return list(
+        dict.fromkeys(
+            item.upper()
+            for item in value
+            if isinstance(item, str)
+            and re.fullmatch(
+                r"(?:\d{6}\.(?:SH|SZ|BJ)|\d{4,5}\.HK|[A-Z][A-Z0-9.-]{0,10}\.US)", item.upper()
+            )
+        )
+    )
+
+
 def objects(value):
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 

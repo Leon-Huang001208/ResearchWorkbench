@@ -76,3 +76,8 @@ raw跟踪继续复用discovery-tracking-v1与原Automation，不更换调度器�
 日期按Asia/Shanghai自然日判断，不以取得时间替代发布时间。
 场景prepare仍不发送，execute和追问沿原send的能力、原生发现、幂等及质量合同。
 详见 `docs/research-web-scenario-handoffs.md`；完整资料选择不声称任意网页全文或字符选段功能。
+
+
+场景质量合同的schema2另绑定全部必需能力资源身份；required/discovered/loaded三类事实分开，
+未发现第二能力不能发送，未收到真实加载回调不能因报告可读宣称通过。raw news仅将源明确给出的
+规范asset_codes投影为关联，不从标题或简称猜证券。无关联的自选筛选显示缺口而非“没有自选资讯”。
