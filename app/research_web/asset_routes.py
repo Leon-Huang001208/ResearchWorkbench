@@ -211,6 +211,29 @@ class IntradayRequest(BaseModel):
     refresh: bool = Field(default=False, strict=True)
 
 
+class MinuteKRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cycle: Literal["1m", "5m", "15m", "30m", "60m", "120m"]
+    adjustment: Literal["none", "qfq", "hfq"] = "none"
+    refresh: bool = Field(default=False, strict=True)
+
+
+@router.post("/assets/observations/{observation_id}/minute-bars")
+async def minute_bars(observation_id: str, body: MinuteKRequest, request: Request):
+    from .datahub.providers import ProviderError
+    from .store import StoreError
+
+    try:
+        return await request.app.state.research.asset_workspace.minute_k.load(
+            observation_id, body.cycle, body.adjustment, body.refresh
+        )
+    except (ValueError, ProviderError) as exc:
+        code = str(exc)
+        if not code.startswith("minute_") or len(code) > 64:
+            code = "minute_data_invalid"
+        raise StoreError("分钟K数据或复权口径校验未通过，原图与快照已保留。", code, 422) from exc
+
+
 @router.post("/assets/observations/{observation_id}/intraday")
 async def intraday(observation_id: str, body: IntradayRequest, request: Request):
     from .datahub.providers import ProviderError

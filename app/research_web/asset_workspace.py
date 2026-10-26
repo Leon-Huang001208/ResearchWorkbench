@@ -161,6 +161,7 @@ class AssetWorkspace:
         from .asset_directory import AssetDirectory
         from .asset_history_jobs import HistoryJobs
         from .asset_intraday import Intraday
+        from .asset_minute_k import MinuteK
 
         self.directory = AssetDirectory(
             self.store.root,
@@ -169,6 +170,7 @@ class AssetWorkspace:
         )
         self.history_jobs = HistoryJobs(self)
         self.intraday = Intraday(self)
+        self.minute_k = MinuteK(self)
         interrupted = False
         for row in self.store.data["asset_observations"].values():
             if any(
@@ -865,6 +867,7 @@ class AssetWorkspace:
         await self.directory.close()
         await self.history_jobs.close()
         await self.intraday.close()
+        await self.minute_k.close()
         tasks = list(self.tasks.values())
         for task in tasks:
             task.cancel()

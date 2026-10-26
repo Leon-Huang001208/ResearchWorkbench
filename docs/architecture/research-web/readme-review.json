@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增最近交易日分时说明，保留原资产、唯一DSH、安装与保全部署范围。",
-  "reason": "分时沿现有账号Host/DataHub/Provider/快照链，无新增引擎、凭据或依赖；当前沪深范围、非持续实时及源码和常驻验收边界在README明确。"
+  "summary": "补充分钟K横排按键及六周期说明，保留既有分时/日周月/副图/筹码与安全部署边界。",
+  "reason": "本轮新增封闭分钟K接口与独立画布，原Host/DataHub/DSH拓扑、依赖和账号边界不变；README明确非持续实时与源码/常驻各自验收。"
 }

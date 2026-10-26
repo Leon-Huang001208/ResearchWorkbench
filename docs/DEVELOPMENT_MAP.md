@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+分钟K入口asset_routes.MinuteKRequest / observations/{id}/minute-bars，asset_workspace.MinuteK负责账号生命周期，asset_minute_k负责有界查询/规范化/复权/底稿桥接，ui/asset-minute-k独立画布。test_asset_minute_k、test_datahub_cjpy实际Broker链和research_web_asset_minute_k覆盖新合同；原intraday、日周月及安全排空保持。
+
 分时：asset_intraday.py负责固定最近市场数据日/分钟时间校验/缓存合并；datahub/intraday_contract.py固定已核厂商字段定义，providers_cjpy.py只为1m股票请求封闭字段；asset_routes.py声明认证内POST，workspace.close排空；ui/asset-intraday(-option).mjs负责独立canvas/取消/迟到响应，app.mjs按原生命周期挂载；不写入日线、筹码或原观察块。
 
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。

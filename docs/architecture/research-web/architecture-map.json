@@ -587,7 +587,9 @@
         "app/research_web/ui/asset-layout.css",
         "app/research_web/asset_intraday.py",
         "app/research_web/ui/asset-intraday.mjs",
-        "app/research_web/ui/asset-intraday-option.mjs"
+        "app/research_web/ui/asset-intraday-option.mjs",
+        "app/research_web/asset_minute_k.py",
+        "app/research_web/ui/asset-minute-k.mjs"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -625,7 +627,9 @@
         "tests/javascript/research_web_chip_distribution.test.mjs",
         "tests/javascript/research_web_asset_format.test.mjs",
         "tests/research_web/test_asset_intraday.py",
-        "tests/javascript/research_web_asset_intraday.test.mjs"
+        "tests/javascript/research_web_asset_intraday.test.mjs",
+        "tests/research_web/test_asset_minute_k.py",
+        "tests/javascript/research_web_asset_minute_k.test.mjs"
       ]
     },
     {
@@ -5274,13 +5278,20 @@
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/observations/{observation_id}/intraday",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/minute-bars",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/minute-bars",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "fa557ac53cb2aed54fab6313bb8e2e5352000227"
+      "revision": "6a227a07682ac24f46ea11c485192334059c11b9"
     },
     "levels": [
       {
