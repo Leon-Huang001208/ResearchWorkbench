@@ -33,6 +33,7 @@ T3九组合包／其余Skill与Tool、T4深研与角色、T5资料与跟踪仍�
 本批源码和配置更改均在现有系统边界内；下列决定逐组对应架构映射，不能用功能声明代替真实执行或平台门。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"场景与资产资料属于原浏览器UI中的局部组件和事件接线，继续使用原主题、导航、同源API和唯一DSH，没有新前端服务或独立研究入口拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"资源回收仍在原任务登记与文件清理边界内，只以标准库编码可信重编译结果后逐字节核对缓存；不创建或选择执行后端，不改变容器、卷、资源锁、构建缓存与保全恢复拓扑，未知字节和占用继续拒绝。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新场景路由和冻结正文权限检查均由原账号Host承载，实际研究继续走原ResearchService与私有DSH连接，不增加服务、消息正文库或公共网络节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"资料仍冻结在当前账号原DataHub文件快照，新增祖先复验收紧既有行读取和导出，不改变Provider链、供应商字段映射、正式数据库或仓准入。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共享服务与质量合同新增场景绑定但不创建或启用计划；原Automation仍拥有调度和未知不重发，保存与启用及研究执行分离拓扑保持。","diagrams":[]} -->
