@@ -402,6 +402,11 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     createAssetAlert: (body) => request('/asset-alerts', { method: 'POST', body }),
     assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
+    scenarioCatalog: () => request('/scenarios'),
+    assetResearchCatalog: observationId => request(`/assets/research/catalog?observation_id=${segment(observationId)}`),
+    assetResearchPreview: body => request('/assets/research/preview', { method:'POST', body }),
+    assetResearchImport: (observationId, file) => { const body=new FormData(); body.append('file',file); return request(`/assets/research/import/${segment(observationId)}`,{method:'POST',body}); },
+    handoffRequest: key => request(`/handoff-requests/${segment(key)}`),
     discoveryFeed: (horizon = 'medium', refresh = false, options = {}) => request(`/discovery/feed?horizon=${segment(horizon)}&refresh=${refresh ? 'true' : 'false'}`, options),
     discoveryAssociation: (feedId, newsId, eventId, horizon, options = {}) => request(`/discovery/association?feed_id=${segment(feedId)}&news_id=${segment(newsId)}&event_id=${segment(eventId)}&horizon=${segment(horizon)}`, options),
     discoverySelection: (feedId, themeId, horizon, options = {}) => request(`/discovery/selection?feed_id=${segment(feedId)}&theme_id=${segment(themeId)}&horizon=${segment(horizon)}`, options),
@@ -610,6 +615,10 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   function snapshot(data) {
     if (!data || data.id !== state.route.sessionId || !Array.isArray(data.messages)) throw new Error('会话响应格式异常，请刷新重试。');
     state.detail = data; snapshotRevision++;
+    if (data.scenario_context) {
+      state.sourceScope = [...data.source_scope];
+      state.researchAsOf = data.scenario_context.scenario.inputs.as_of;
+    }
   }
   async function refresh() {
     const ticket = generation; const revision = snapshotRevision; const id = state.route.sessionId;
@@ -794,6 +803,14 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
         onNavigate(sessionHash(result));
       }
       return result;
+    },
+    openScenarioHandoff: result => {
+      if (!accountCurrent() || result?.state !== 'prepared' || !result.session_id) return false;
+      saveDraft();
+      const existing = readDraft(result.session_id);
+      if (!existing) putDraft(result.session_id, { draft: result.draft, attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: state.expectedFormats === null ? null : [...state.expectedFormats], sourceScope: result.scenario_context.source_scope, researchAsOf: result.scenario_context.scenario.inputs.as_of });
+      onNavigate(sessionHash({ id: result.session_id, mode: result.mode }));
+      return true;
     },
     upgrade: async () => {
       if (!state.detail) return null;

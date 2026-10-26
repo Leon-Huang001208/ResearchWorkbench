@@ -65,6 +65,22 @@ def string(value, limit=6000):
     return value[:limit] if isinstance(value, str) else ""
 
 
+def canonical_assets(value):
+    """Accept explicit source security identities only; names are not mappings."""
+    if not isinstance(value, list) or len(value) > 100:
+        return []
+    return list(
+        dict.fromkeys(
+            item.upper()
+            for item in value
+            if isinstance(item, str)
+            and re.fullmatch(
+                r"(?:\d{6}\.(?:SH|SZ|BJ)|\d{4,5}\.HK|[A-Z][A-Z0-9.-]{0,10}\.US)", item.upper()
+            )
+        )
+    )
+
+
 def objects(value):
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
@@ -116,6 +132,7 @@ def display_fields(event):
             g if isinstance(g, str) else g.get("id") for g in groups if isinstance(g, (str, dict))
         ],
         "description": string(event.get("priority_reason") or event.get("last_change")),
+        "importance": string(event.get("importance") or event.get("priority"), 80),
         "state": string(verification.get("status") or extraction.get("confirmation")) or "待核实",
         "change": string(event.get("last_change")),
         "next": string(progression.get("next_action"))
@@ -201,6 +218,7 @@ def theme(event, retrieved_at, logic_names, counter=False):
             key: display[key]
             for key in (
                 "description",
+                "importance",
                 "state",
                 "change",
                 "next",

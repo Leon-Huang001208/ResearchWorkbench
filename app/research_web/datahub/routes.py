@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from ..market_store import MarketStoreError
+from ..scenario_handoffs import trusted_context as scenario_context
 from ..store import StoreError
 from .connections import (
     CredentialStoreError,
@@ -288,6 +289,7 @@ async def datasets(sid: str, request: Request):
 @router.get("/sessions/{sid}/datasets/{did}")
 async def detail(sid: str, did: str, request: Request):
     service = request.app.state.research
+    scenario_context(service, sid, check_capabilities=False)
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)
@@ -303,6 +305,7 @@ async def rows(
     limit: int = Query(default=100, ge=1, le=500),
 ):
     service = request.app.state.research
+    scenario_context(service, sid, check_capabilities=False)
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)
@@ -314,6 +317,7 @@ async def download(
     sid: str, did: str, name: Literal["rows.csv", "rows.json", "manifest.json"], request: Request
 ):
     service = request.app.state.research
+    scenario_context(service, sid, check_capabilities=False)
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)

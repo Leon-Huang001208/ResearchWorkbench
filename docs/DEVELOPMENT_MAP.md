@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-27 研究场景首批：`app/research_web/scenarios/`维护固定 62／78 对照与八场景合同，`scenario_handoffs.py`与原`workbench.py`负责本人原件／身份／截止、完整请求幂等、来源链与未知创建；实际发送和质量绑定仍在`service.py`、`research_quality.py`及`research_quality_service.py`。`asset_research.py`与`ui/asset-research.mjs/css`投影已取得资料摘要、2–5 对象比较和资料声明；`ui/scenarios.mjs/css`串接原资产／资讯／FinGPT／Claw。新回归为`test_research_scenarios_catalog.py`、`test_scenario_handoffs.py`、`test_scenario_review_regressions.py`、`test_asset_research_workspace.py`及对应 Node／真实临时 Host 浏览器旅程。原禁用方法、质量门、资料／账号根和唯一 DSH 保持；[实施计划](plans/2026-10-26-seek-alpha-core-parity.md)保留后续组合包、深研、角色与资料跟踪范围。
+
 分钟K入口asset_routes.MinuteKRequest / observations/{id}/minute-bars，asset_workspace.MinuteK负责账号生命周期，asset_minute_k负责有界查询/规范化/复权/底稿桥接，ui/asset-minute-k独立画布。test_asset_minute_k、test_datahub_cjpy实际Broker链和research_web_asset_minute_k覆盖新合同；原intraday、日周月及安全排空保持。
 
 分时：asset_intraday.py负责固定最近市场数据日/分钟时间校验/缓存合并；datahub/intraday_contract.py固定已核厂商字段定义，providers_cjpy.py只为1m股票请求封闭字段；asset_routes.py声明认证内POST，workspace.close排空；ui/asset-intraday(-option).mjs负责独立canvas/取消/迟到响应，app.mjs按原生命周期挂载；不写入日线、筹码或原观察块。

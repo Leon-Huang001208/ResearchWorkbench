@@ -39,6 +39,8 @@ import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
+import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
+import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
 import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
 
 import { createMarketController, renderMarketPage } from './market.mjs';
@@ -165,6 +167,20 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
+const assetResearch = createAssetResearchController({api,changed:()=>paintAssetResearch(),onResearch:context=>scenarioController.open(context)});
+function paintAssetResearch() {
+  const slot=root.querySelector('[data-asset-research-slot]'); if(!slot || !isAssetPage())return;
+  const active=document.activeElement, focus=slot.contains(active)?active.id:null;
+  const selection=focus && ['INPUT','TEXTAREA'].includes(active.tagName)?{start:active.selectionStart,end:active.selectionEnd}:null;
+  slot.innerHTML=renderAssetResearch(assetResearch.state);
+  if(focus){const replacement=document.getElementById(focus);replacement?.focus({preventScroll:true});if(selection?.start!==null && selection?.start!==undefined)replacement?.setSelectionRange?.(selection.start,selection.end);}
+}
+function syncAssetResearch() {
+  if(!isAssetPage()){assetResearch.deactivate();return;}
+  void assetResearch.activate(assetState.observation,state.route,assetState.observations);
+  paintAssetResearch();
+}
 const discoveryController = createDiscoveryController({ api, onChange: () => { if (state.route.page === 'intel' && state.route.intelTab === 'discovery') render(); }, onNavigate: (mode, sessionId) => { if (sessionId && ['fingpt', 'claw'].includes(mode)) location.hash = `#/${mode}?session=${encodeURIComponent(sessionId)}`; } });
 let dossierDraftOpening = 0;
 let dossierDraftOpeningGeneration = 0;
@@ -211,7 +227,7 @@ let assetTopicNavigation = 0;
 const emptyAssetHistory = Object.freeze([]);
 let configuredAssetHistory = null;
 let configuredAssetSignature = '';
-function assetTopicProps() { return { ...assetState, route: state.route, news: assetNews.state, busy: workbenchBusy }; }
+function assetTopicProps() { return { ...assetState, research:assetResearch.state, route: state.route, news: assetNews.state, busy: workbenchBusy }; }
 function mountAssetTopicIndicators(page) {
   const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
   assetCapitalFlow?.dispose();
@@ -227,6 +243,7 @@ function paintAssetWorkspace() {
   const page = root.querySelector('[data-asset-identity]');
   if (!updateAssetSummary(page, assetTopicProps()) || !paintAssetTopic()) return false;
   configureAssetTerminal();
+  syncAssetResearch();
   assetIntraday.mount(page, selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route), String(globalThis.__RWB_USER_ID__ || 'single-user'));
   assetMinuteK.mount(page, selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route), String(globalThis.__RWB_USER_ID__ || 'single-user'), assetState.preferences);
   assetSearch?.update({ asset: state.route.asset || assetState.observation?.asset || '' });
@@ -432,7 +449,7 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return `<button type="button" class="button" data-scenario-open>选择研究场景</button>` + renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
@@ -554,7 +571,7 @@ async function clawAction(action) {
 
 function workbenchPage() {
   if(state.route.section==='hot')return renderHotWorkspace(hotController.state);
-  return renderWorkbench({ section: state.route.section || 'assets', catalog: catalog.dataCatalog, queries: workbenchQueries, queryDraft: workbenchDrafts.get(state.route.section), busy: workbenchBusy, assetState: { ...assetState, route: state.route, news: assetNews.state, chart: assetChart.getState() }, etfState });
+  return renderWorkbench({ section: state.route.section || 'assets', catalog: catalog.dataCatalog, queries: workbenchQueries, queryDraft: workbenchDrafts.get(state.route.section), busy: workbenchBusy, assetState: { ...assetState, research:assetResearch.state, route: state.route, news: assetNews.state, chart: assetChart.getState() }, etfState });
 }
 
 function operationsPage() {
@@ -728,7 +745,10 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  syncAssetResearch();
+  root.querySelector('.app-shell').inert = scenarioController.state.open;
+  if (scenarioController.state.open && !document.activeElement?.closest?.('.scenario-panel')) root.querySelector('#scenario-query')?.focus({ preventScroll: true });
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
   executionEvidenceExpiry.sync();
   frameworkEmbedFrame = newFrameworkFrame;
@@ -1682,6 +1702,8 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('[data-asset-research]')) { void assetResearch.handle(event); return; }
+  if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
   if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
   if (event.target.closest?.('[data-dossier-workspace]')) { void dossierController.handle(event); return; }
 
@@ -1777,6 +1799,7 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (scenarioController.state.open && scenarioController.key(event)) return;
   if (event.target.closest?.('.discovery-page')) {
     if (event.isComposing || event.keyCode === 229) return;
     const drawerKind = discoveryController.state.drawer?.kind;
@@ -2030,6 +2053,8 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
+  if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
 
@@ -2198,6 +2223,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
 
@@ -2636,6 +2662,18 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
+  if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
+  const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
+  if (scenarioAction) {
+    const launch = scenarioLaunchContext({ assetPage:isAssetPage(), route:state.route, observation:assetState.observation, observations:assetState.observations, detail:state.detail, draft:state.draft, researchAsOf:state.researchAsOf }, scenarioAction.dataset);
+    if (launch) {
+      event.preventDefault();
+      if (launch.error) { state.error = launch.error; render(); }
+      else await scenarioController.open(launch.context);
+      return;
+    }
+  }
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleClick(event)) return;
   if (isAssetPage()) {
