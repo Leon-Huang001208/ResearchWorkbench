@@ -178,3 +178,42 @@ node --test tests/javascript/research_web_scenarios.test.mjs tests/javascript/re
 本轮只改scenario_handoffs、asset_research、对应UI/主挂载、两篇owned功能文档、场景Browser脚本，
 新增 `test_scenario_review_round2.py` 与 `research_web_asset_research.test.mjs`。父任务所有workflow、
 共享架构/安装/额度文档及生成图、总计划/报告保持未stage；无新代理、worktree、模型或外部协调。
+
+## 整分支最终评审修复（2026-10-27）
+
+仅在受管integration工作树、基线 `cf59e0e71fd2034d083ab953d407a4e4d7cfea12` 修复两项Important。
+`service.detail` 在正文投影前重验祖先；`workbench._public_handoff` 覆盖GET原回执及POST同键重放，
+撤权／原件不再可核验时只返回 `context_unavailable` 和原创建状态，未知intent始终只返回安全状态，
+不含scenario_context、摘要、quote、lineage或draft。原持久化证据不改，恢复授权后重新核验可读。
+
+准备入口在原创建锁内、确认没有持久化intent时，才为输入拒绝提供 `handoff_outcome=not_created`；
+core API与场景控制器据此恢复编辑并清除已证实未创建的恢复锁。已有intent后的同码错误、请求冲突、
+普通404、网络未知均不能作为重试证明，保留原key。新增状态使用中文提示。
+
+实际证据：新增真实Host回归 **4 RED→4 GREEN**，覆盖datahub/uploads分别撤权、A→B→legacy C
+详情／下载／GET／POST投影及恢复、取消比较前零intent/零会话、改正成功、冲突及重载未知intent无正文。
+新增JS两条反例RED→GREEN，目标 **14 PASS**；通过真实createAPI错误解析验证未创建证明，未知／404
+跨关闭、重开、sessionStorage重载不自动重发。Python受影响闭包 **123 PASS**（1条原Starlette warning，
+97.90秒），Node闭包 **375 PASS**；真实Browser **4条组合旅程PASS**（1440/390），新增实际取消全部
+比较快照→422→GET原key404→新增会话0/交接0→重新勾选→201冻结。原身份别名／race、旧基金、草稿、
+保全／soft restore、schema2及旧Discovery路径仍由闭包覆盖。Ruff、Black、isort、diff-check通过。
+
+完整stdout/stderr位于integration `logs/t2-final-python-red.log`、`t2-final-python-green.log`、
+`t2-final-js-red.log`、`t2-final-js-green.log`、`t2-final-python-closure.log`、
+`t2-final-node-closure.log`、`t2-final-browser.log`、`t2-browser-backend.log`、
+`t2-final-ruff.log`、`t2-final-black-format.log`、`t2-final-black-check.log`、`t2-final-isort.log`。
+首次日志目录尚不存在、首次闭包误写不存在的单数test_discovery_handoff.py均没有执行测试；纠正后才
+取得以上结果，没有把命令启动失败计为通过。测试截图仍带“隔离验收样本”。
+
+实际闭包命令（在integration目录执行；复用已安装解释器与pytest缓存，无依赖安装）：
+
+```bash
+export PYTHONPATH=/Users/leon/.cache/uv/archive-v0/v7TGbdM8q5alf7K0:/Users/leon/.cache/uv/archive-v0/kcc-PJGC25EjHvMq:/Users/leon/.cache/uv/archive-v0/oI-0I7odtjpBJjwl:/Users/leon/.cache/uv/archive-v0/zdffqOb6hg1LqITK:/Users/leon/.cache/uv/archive-v0/7z-45qlp5-uTFIgN
+/Users/leon/.local/share/research-workbench/releases/d744029a5/.venv/bin/python -m pytest --confcutdir=tests/research_web tests/research_web/test_scenario_final_review.py tests/research_web/test_scenario_handoffs.py tests/research_web/test_scenario_review_regressions.py tests/research_web/test_scenario_review_round2.py tests/research_web/test_asset_research_workspace.py tests/research_web/test_workbench_operations.py tests/research_web/test_discovery.py tests/research_web/test_discovery_routes.py -q
+node --test tests/javascript/research_web_scenarios.test.mjs tests/javascript/research_web_core*.test.mjs tests/javascript/research_web_composer_menu.test.mjs tests/javascript/research_web_discovery.test.mjs tests/javascript/research_web_asset*.test.mjs tests/javascript/research_web_workbench.test.mjs tests/javascript/research_web_dossier*.test.mjs
+RWB_TEST_PYTHON=/Users/leon/.local/share/research-workbench/releases/d744029a5/.venv/bin/python node tests/e2e/research_web_scenarios_real_backend.mjs
+```
+
+Ruff/Black/isort范围仅workbench.py、service.py、test_scenario_final_review.py及Browser后台夹具，
+格式工具沿前述缓存环境。未运行MyPy旧基线、真实供应商／模型、CI、安装、常驻部署或实体手机键盘；
+本修复不代表这些门通过。没有修改feature工作树、controller共享文档/workflow、托管receipt或发布状态。

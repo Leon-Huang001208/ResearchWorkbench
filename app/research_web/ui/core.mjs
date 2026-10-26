@@ -226,7 +226,9 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     }
     if (!response.ok) {
       const error = new Error(data?.error?.message || `请求失败（HTTP ${response.status}）`);
-      error.code = data?.error?.code || 'request_failed'; error.status = response.status; throw error;
+      error.code = data?.error?.code || 'request_failed'; error.status = response.status;
+      if (method === 'POST' && path === '/handoffs' && response.status >= 400 && response.status < 500 && data?.error?.handoff_outcome === 'not_created') error.handoffOutcome = 'not_created';
+      throw error;
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('服务响应格式异常，请检查后端日志。');
     return data;

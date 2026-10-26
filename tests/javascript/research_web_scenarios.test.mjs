@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from '../../app/research_web/ui/scenarios.mjs';
 import { renderComposer } from '../../app/research_web/ui/composer.mjs';
-import { createController } from '../../app/research_web/ui/core.mjs';
+import { createAPI, createController } from '../../app/research_web/ui/core.mjs';
 import { discoveryItems, discoveryEmptyState } from '../../app/research_web/ui/discovery.mjs';
 
 const scenario = options => createScenarioController({storage:null,...options});
@@ -55,9 +55,40 @@ test('refresh restores the same pending receipt and a missing lookup never rotat
 });
 
 test('definitive input rejection preserves editable text without misclassifying an unknown creation',async()=>{
-  const c=scenario({api:{scenarioCatalog:async()=>({items:[row]}),handoff:async()=>{const error=new Error('bad identity');error.code='scenario_inputs_invalid';throw error}},logger(){},makeID:()=> 'input-rejected-key'});
+  const c=scenario({api:{scenarioCatalog:async()=>({items:[row]}),handoff:async()=>{const error=new Error('bad identity');error.code='scenario_inputs_invalid';error.status=422;error.handoffOutcome='not_created';throw error}},logger(){},makeID:()=> 'input-rejected-key'});
   await c.open({subject:{kind:'stock',identity:'invalid'},as_of:'2026-01-01',question:'保留问题'});await c.prepare();
   assert.equal(c.state.request,null);c.edit('identity','600600.SH');assert.equal(c.state.inputs.question,'保留问题');assert.equal(c.state.inputs.subject.identity,'600600.SH');
+});
+
+test('server before-create proof unlocks comparison correction and clears persisted lock',async()=>{
+  const saved=new Map(),calls=[];
+  const storage={getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)};
+  const api=createAPI({logger(){},fetcher:async(url,options)=>{
+    if(url.endsWith('/scenarios'))return {ok:true,status:200,json:async()=>({items:[row]})};
+    const body=JSON.parse(options.body);calls.push(body);
+    return body.dataset_ids.includes('peer') ? {ok:true,status:201,json:async()=>frozen} : {ok:false,status:422,json:async()=>({error:{code:'scenario_comparison_material_missing',message:'缺少比较资料',handoff_outcome:'not_created'}})};
+  }});
+  const c=scenario({api,storage,logger(){},makeID:()=> 'correctable-key'});
+  const context={subject:{kind:'stock',identity:'600600.SH'},as_of:'2026-01-01',question:'保留问题',datasets:[{dataset_id:'primary'},{dataset_id:'peer'}],comparison_observation_ids:['peer-observation']};
+  await c.open(context);c.edit('material_ids',['primary']);await c.prepare();
+  assert.equal(c.state.request,null);assert.equal(saved.size,0);assert.equal(c.state.inputs.question,'保留问题');
+  c.close();await c.open(context);c.edit('material_ids',['primary','peer']);await c.prepare();
+  assert.equal(c.state.result.state,'prepared');assert.equal(calls.length,2);
+  assert.deepEqual(calls[1].comparison_observation_ids,['peer-observation']);
+  const restored=scenario({api,storage,logger(){}});await restored.open();await restored.prepare();
+  assert.equal(restored.state.result.state,'prepared');assert.equal(calls.length,2);
+});
+
+test('validation-shaped errors without server outcome proof and generic404 never permit resend',async()=>{
+  for(const code of ['scenario_inputs_invalid','scenario_comparison_material_missing','handoff_not_found']){
+    const saved=new Map(),calls=[];
+    const storage={getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)};
+    const api={scenarioCatalog:async()=>({items:[row]}),handoff:async(_,key)=>{calls.push(key);throw Object.assign(new Error('uncertain'),{code,status:422})},handoffRequest:async()=>{throw Object.assign(new Error('missing'),{code:'handoff_not_found',status:404})}};
+    const first=scenario({api,storage,logger(){},makeID:()=> 'uncertain-original-key'});
+    await first.open({subject:{kind:'stock',identity:'600600.SH'},as_of:'2026-01-01',question:'保留'});await first.prepare();
+    const restored=scenario({api,storage,logger(){}});await restored.open();await restored.lookup();restored.edit('question','不能覆盖');await restored.prepare();
+    assert.equal(restored.state.request.key,'uncertain-original-key');assert.equal(restored.state.inputs.question,'保留');assert.deepEqual(calls,['uncertain-original-key']);
+  }
 });
 
 

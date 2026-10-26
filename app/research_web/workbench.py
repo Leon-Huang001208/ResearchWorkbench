@@ -13,6 +13,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Header, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.observability import get_logger
@@ -63,14 +64,32 @@ async def scenarios(request: Request):
 @router.get("/handoff-requests/{request_key}")
 async def handoff_request(request_key: str, request: Request):
     """Read original receipt only; unknown native creation is never retried."""
-    store = request.app.state.research.store
+    service = request.app.state.research
+    store = service.store
     identifier = store.data["handoff_keys"].get(_key(request_key))
     if not identifier:
         raise StoreError("交接请求尚无回执", "handoff_not_found", 404)
-    return _public_handoff(store.data["handoffs"][identifier])
+    return _public_handoff(service, store.data["handoffs"][identifier])
 
 
-def _public_handoff(record):
+def _public_handoff(service, record):
+    # Unknown creation is a status-only receipt, never a second read path for
+    # frozen source text. The original intent remains untouched for recovery.
+    safe = {key: record[key] for key in ("id", "state", "mode", "session_id") if key in record}
+    if record.get("state") != "prepared":
+        return safe
+    from .scenario_handoffs import trusted_context
+
+    try:
+        trusted_context(service, record["session_id"], check_capabilities=False)
+    except StoreError as exc:
+        log.warning("research_handoff_projection_denied", code=exc.code)
+        return {
+            **safe,
+            "state": "context_unavailable",
+            "creation_state": record["state"],
+            "code": exc.code,
+        }
     return {key: value for key, value in record.items() if key not in {"request_sha256", "copied"}}
 
 
@@ -338,14 +357,6 @@ async def create_handoff(
     idempotency_key: str = Header(min_length=8, max_length=128),
 ):
     service = request.app.state.research
-    _validate_context(body.context)
-    if body.source_session_id:
-        service.store.session(body.source_session_id)
-        from .scenario_handoffs import trusted_context
-
-        trusted_context(service, body.source_session_id, check_capabilities=False)
-    elif not body.scenario_id or body.dataset_ids or body.observation_id:
-        raise StoreError("来源会话缺失", "scenario_source_missing", 422)
     digest = _key(idempotency_key)
     from .scenario_handoffs import fingerprint, freeze_lineage, prepare_context
 
@@ -360,50 +371,75 @@ async def create_handoff(
             record = service.store.data["handoffs"][existing]
             if record.get("request_sha256") != request_hash:
                 raise StoreError("同一交接请求已绑定其他内容", "handoff_request_conflict", 409)
-            return _public_handoff(record)
+            return _public_handoff(service, record)
         from .dossiers.lock import retention_lock
 
-        with retention_lock(service.store.root):
-            available = (
-                set(service.datahub.snapshots.ids(body.source_session_id))
-                if body.source_session_id
-                else set()
-            )
-            requested = set(body.dataset_ids)
-            if not body.scenario_id and not requested.issubset(available):
-                raise StoreError("交接数据集不存在或不属于来源会话")
-            scenario = prepare_context(service, body) if body.scenario_id else None
-            if not body.scenario_id and (
-                body.scenario_inputs
-                or body.observation_id
-                or body.comparison_observation_ids
-                or body.workspace_material
-                or body.source_scope
-            ):
-                raise StoreError("场景身份缺失", "scenario_inputs_invalid", 422)
-            lineage = (
-                scenario["references"]
-                if scenario
-                else (
-                    freeze_lineage(service, body.source_session_id, body.dataset_ids)
+        try:
+            _validate_context(body.context)
+            if body.source_session_id:
+                service.store.session(body.source_session_id)
+                from .scenario_handoffs import trusted_context
+
+                trusted_context(service, body.source_session_id, check_capabilities=False)
+            elif not body.scenario_id or body.dataset_ids or body.observation_id:
+                raise StoreError("来源会话缺失", "scenario_source_missing", 422)
+            with retention_lock(service.store.root):
+                available = (
+                    set(service.datahub.snapshots.ids(body.source_session_id))
                     if body.source_session_id
-                    else []
+                    else set()
                 )
+                requested = set(body.dataset_ids)
+                if not body.scenario_id and not requested.issubset(available):
+                    raise StoreError("交接数据集不存在或不属于来源会话")
+                scenario = prepare_context(service, body) if body.scenario_id else None
+                if not body.scenario_id and (
+                    body.scenario_inputs
+                    or body.observation_id
+                    or body.comparison_observation_ids
+                    or body.workspace_material
+                    or body.source_scope
+                ):
+                    raise StoreError("场景身份缺失", "scenario_inputs_invalid", 422)
+                lineage = (
+                    scenario["references"]
+                    if scenario
+                    else (
+                        freeze_lineage(service, body.source_session_id, body.dataset_ids)
+                        if body.source_session_id
+                        else []
+                    )
+                )
+                handoff_id = str(uuid4())
+                # Persist BEFORE native create. service.create owns its identity; if
+                # its outcome is lost, this receipt must never create another one.
+                intent = {
+                    "id": handoff_id,
+                    "state": "creation_outcome_unknown",
+                    "request_sha256": request_hash,
+                    "mode": body.target_mode,
+                    "scenario_context": scenario,
+                    "lineage": lineage,
+                }
+                service.store.data["handoffs"][handoff_id] = intent
+                service.store.data["handoff_keys"][digest] = handoff_id
+                service.store.save()
+        except StoreError as exc:
+            # This proof is issued only under the creation lock, before any
+            # persisted intent. Existing/unknown outcomes must retain their key.
+            if digest in service.store.data["handoff_keys"] or not 400 <= exc.status < 500:
+                raise
+            log.warning("research_handoff_not_created", code=exc.code)
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": exc.code,
+                        "message": str(exc),
+                        "handoff_outcome": "not_created",
+                    }
+                },
+                status_code=exc.status,
             )
-            handoff_id = str(uuid4())
-            # Persist BEFORE native create. service.create owns its identity; if
-            # its outcome is lost, this receipt must never create another one.
-            intent = {
-                "id": handoff_id,
-                "state": "creation_outcome_unknown",
-                "request_sha256": request_hash,
-                "mode": body.target_mode,
-                "scenario_context": scenario,
-                "lineage": lineage,
-            }
-            service.store.data["handoffs"][handoff_id] = intent
-            service.store.data["handoff_keys"][digest] = handoff_id
-            service.store.save()
         created = await service.create(
             body.target_mode,
             f"研究台交接 · {body.section}",
@@ -451,7 +487,7 @@ async def create_handoff(
         service.store.data["handoff_keys"][digest] = handoff_id
         service.store.save()
     log.info("research_desk_handoff_created", mode=body.target_mode, datasets=len(copied))
-    return _public_handoff(result)
+    return _public_handoff(service, result)
 
 
 @router.get("/artifacts")

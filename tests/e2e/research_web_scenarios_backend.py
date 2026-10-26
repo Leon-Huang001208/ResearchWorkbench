@@ -160,6 +160,13 @@ def build_fixture(root, output):
             "fixture": True,
             "observation_id": oid,
             "peer_observation_id": peer,
+            "peer_dataset_ids": sorted(
+                {
+                    block["dataset"]["dataset_id"]
+                    for block in research.store.data["asset_observations"][peer]["blocks"].values()
+                }
+            ),
+            "handoff_count": len(research.store.data["handoffs"]),
             "source_session_id": sid,
             "bundle": bundle,
             "legacy_dataset_id": nav["dataset_id"],

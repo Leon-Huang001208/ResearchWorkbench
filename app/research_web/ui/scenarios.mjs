@@ -1,7 +1,7 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { selectAssetObservation } from './asset-navigation.mjs';
-const stateLabel = value => ({ incomplete:'证据不完整', ready_for_draft:'可准备草稿', unverified:'待核验', unavailable:'暂不可用', ready:'具备准入条件', prepared:'已准备草稿', creation_outcome_unknown:'创建结果尚未确认' })[value] || '待核验';
+const stateLabel = value => ({ incomplete:'证据不完整', ready_for_draft:'可准备草稿', unverified:'待核验', unavailable:'暂不可用', ready:'具备准入条件', prepared:'已准备草稿', context_unavailable:'来源暂不可读取，请恢复授权后查询', creation_outcome_unknown:'创建结果尚未确认' })[value] || '待核验';
 const artifactLabel = value => ({ 'source-linked-research-draft':'带来源的研究草稿', 'coverage-and-missing-evidence-ledger':'覆盖与缺口台账' })[value] || value;
 
 export function scenarioLaunchContext({ assetPage, route, observation, observations = [], detail, draft, researchAsOf }, data) {
@@ -75,9 +75,9 @@ export function createScenarioController({ api, changed = () => {}, onOpen, make
     try { const result = await api.handoff(body, state.request.key); if (account() === owner) state.result = result; }
     catch (error) {
       state.error = error.message || '冻结结果未知，请查询原请求';
-      // Only these deterministic pre-create rejections permit editing. An
-      // unknown transport/server outcome always retains the original key.
-      if (['scenario_inputs_invalid','scenario_material_selection_mismatch','scenario_capability_unavailable','scenario_subject_mismatch','scenario_cutoff_mismatch','scenario_observation_foreign','scenario_observation_material_mismatch','scenario_source_missing'].includes(error.code)) state.request = null;
+      // Only a server proof made under the creation lock permits correction.
+      // Error codes (including 404) alone say nothing about a prior intent.
+      if (error.handoffOutcome === 'not_created' && error.status >= 400 && error.status < 500) state.request = null;
       logger('scenario_prepare_failed', { code: error.code || 'request_failed' });
     } finally { state.busy = false; persist(); changed(); }
   }

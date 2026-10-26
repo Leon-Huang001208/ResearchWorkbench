@@ -2374,6 +2374,11 @@ class ResearchService(ModelProfilesMixin):
 
     async def detail(self, sid):
         row = self.store.session(sid)
+        from .scenario_handoffs import trusted_context
+
+        # Session detail includes frozen summaries and quotes. Reuse the same
+        # ancestor authorization/integrity boundary as controlled file reads.
+        frozen_scenario = trusted_context(self, sid, check_capabilities=False)
         if not row["created"]:
             raise RuntimeFailure("该会话未成功创建，请新建研究", "session_create_failed")
         observed = self._cancel_observation(sid)
@@ -2445,13 +2450,8 @@ class ResearchService(ModelProfilesMixin):
             )
         result["files"] = self.store.files(sid)
         result["datasets"] = self.datahub.summaries(sid)
-        scenario_record = self.store.data["handoffs"].get(row.get("scenario_handoff_id"), {})
-        if row.get("purpose") == "discovery_research":
-            scenario_record = self.store.data.get("discovery_handoffs", {}).get(
-                row.get("discovery_origin", {}).get("handoff_id"), {}
-            )
-        if scenario_record.get("session_id") == sid and scenario_record.get("scenario_context"):
-            result["scenario_context"] = scenario_record["scenario_context"]
+        if frozen_scenario:
+            result["scenario_context"] = frozen_scenario
         if row["mode"] == "claw" and automation_feature_enabled():
             result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
             result["automation_runs"] = []

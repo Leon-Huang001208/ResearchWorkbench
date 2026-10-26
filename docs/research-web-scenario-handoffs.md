@@ -82,3 +82,11 @@ JSON哈希；缺实际加载保持incomplete，资源／版本／合同变化为
 实际财务报告期使用Provider规范字段report_period，明确公开时间使用publication_date或published_at，
 两者任一已知晚于截止日均拒绝。未知期／未知公开日进入冻结缺口，不用取得时间、supplier_update_time
 或forecast_period代替；任意forecast标志不能豁免真实报告期的截止检查。
+
+会话详情、原交接回执查询及同键POST重放在投影冻结正文前重新验证完整祖先链。来源撤权或原件
+变化时，详情拒绝读取；回执只返回身份及 `context_unavailable`／原创建状态，不包含摘要、quote、
+草稿或lineage。未知创建回执始终仅含安全状态，查询不创建会话；恢复授权且原件未变后可重新读取。
+
+准备输入被服务端确定拒绝时，只有在创建锁内确认原key没有任何持久化intent，才返回
+`error.handoff_outcome=not_created`。界面据此保留输入并恢复编辑；错误码白名单、普通404、网络失败、
+已存在intent后的错误或同key内容冲突均不是未创建证明，仍须保留原key查询，不自动重发。

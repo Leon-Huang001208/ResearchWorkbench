@@ -120,6 +120,19 @@ try {
     await page.locator('[data-asset-research]').scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,`asset-workspace-${width}.png`),fullPage:true});
     await page.getByRole('button',{name:'用已确认资料准备研究',exact:true}).click();
+    const beforeMissing=await (await context.request.get(`${origin}/__fixture/state`)).json();
+    const beforeHandoffs=await (await context.request.get(`${origin}/__fixture/asset-workspace`)).json();
+    for(const id of fixture.peer_dataset_ids)await page.locator(`[name="scenario-material"][value="${id}"]`).uncheck();
+    const missingReply=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/research/handoffs');
+    await page.getByRole('button',{name:'冻结资料并准备草稿',exact:true}).click();
+    const missingResponse=await missingReply,missingResult=await missingResponse.json();
+    assert.equal(missingResponse.status(),422);assert.equal(missingResult.error.code,'scenario_comparison_material_missing');assert.equal(missingResult.error.handoff_outcome,'not_created');
+    const missingKey=missingResponse.request().headers()['idempotency-key'];
+    assert.equal((await context.request.get(`${origin}/api/research/handoff-requests/${missingKey}`)).status(),404);
+    const afterMissing=await (await context.request.get(`${origin}/__fixture/state`)).json();
+    assert.equal(afterMissing.sessions.length,beforeMissing.sessions.length);
+    assert.equal((await (await context.request.get(`${origin}/__fixture/asset-workspace`)).json()).handoff_count,beforeHandoffs.handoff_count);
+    for(const id of fixture.peer_dataset_ids)await page.locator(`[name="scenario-material"][value="${id}"]`).check();
     const assetReply=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/research/handoffs');
     await page.getByRole('button',{name:'冻结资料并准备草稿',exact:true}).click();
     const assetResponse=await assetReply, assetResult=await assetResponse.json();assert.equal(assetResponse.status(),201,JSON.stringify(assetResult));
@@ -132,7 +145,7 @@ try {
     await page.locator(`[data-workbench-handoff="fingpt"][data-source-session="${fixture.source_session_id}"]`).click();
     const legacyResponse=await oldReply, legacy=await legacyResponse.json();assert.equal(legacyResponse.status(),201,JSON.stringify(legacy));
     assert.equal(legacy.section,'funds');assert.equal(legacy.dataset_count,1);assert.equal(legacy.scenario_context,undefined);
-    checks.push({width,assetWorkspace:true,summary:true,comparisons:true,sourceLinkedRelation:true,realImport:true,legacyHandoff:true,searchEnterNoCreate:true,routeRaceNoCreate:true,desktopKeyboardEscapeAndTab:true,uniqueBareCodeNoCreate:true});
+    checks.push({width,assetWorkspace:true,summary:true,comparisons:true,sourceLinkedRelation:true,realImport:true,legacyHandoff:true,searchEnterNoCreate:true,routeRaceNoCreate:true,desktopKeyboardEscapeAndTab:true,uniqueBareCodeNoCreate:true,comparisonRejectionCorrectedWithoutCreation:true});
 
     await context.close();
   }
