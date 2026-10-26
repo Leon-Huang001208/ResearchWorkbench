@@ -217,7 +217,7 @@ jobs:
             tests/research_web/test_multiuser_runtime.py \
             tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
-            --confcutdir=tests/research_web -q
+            --confcutdir=tests/research_web -q -vv
           .venv/bin/python -m pytest \
             tests/unit/test_wind_excel_instances.py \
             --confcutdir=tests/unit -q

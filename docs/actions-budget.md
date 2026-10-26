@@ -354,3 +354,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 区间统计沿原Research Web Checks的research_web*.test.mjs通配符增加数学/控制器用例，Mac Bootstrap同一步校验两份新增mjs，不增加job、runner或timeout。新候选仍需原Constraints/Checks/Mac三门，公开仓库与checkout身份在发布前重验；本机与隔离浏览器不替代CI。
 
 2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
+
+
+2026-10-26 DSH资源队列后继保留原全部Python/JS/editorial测试、原runner/job和40分钟上限；仅在既有Python contracts命令追加-vv，保证取消前能留下实际nodeid而不是孤立F。前一候选Checks实际37m11s Python后超时且有F，无完整汇总；Mac为hosted runner通信丢失，不归因Node版本。离线deadline/drain夹具用100ms延迟重现旧30ms竞态，再以本模块局部时钟/事件控制过期顺序，真实线程/Future/取消/排空及独立准入前期限拒绝仍保留；80模块、31邻近与独评通过不替代新候选完整CI。输出增量预算预留原步骤30秒，不改时间上限、不重跑未修复旧候选，不引入真实模型/供应商。
