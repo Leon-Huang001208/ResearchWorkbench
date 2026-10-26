@@ -39,6 +39,7 @@ import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
+import { createScenarioController, renderScenarioPanel } from './scenarios.mjs';
 import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
 
 import { createMarketController, renderMarketPage } from './market.mjs';
@@ -165,6 +166,7 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
 const discoveryController = createDiscoveryController({ api, onChange: () => { if (state.route.page === 'intel' && state.route.intelTab === 'discovery') render(); }, onNavigate: (mode, sessionId) => { if (sessionId && ['fingpt', 'claw'].includes(mode)) location.hash = `#/${mode}?session=${encodeURIComponent(sessionId)}`; } });
 let dossierDraftOpening = 0;
 let dossierDraftOpeningGeneration = 0;
@@ -432,7 +434,7 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return `<button type="button" class="button" data-scenario-open>选择研究场景</button>` + renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
@@ -728,7 +730,9 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  root.querySelector('.app-shell').inert = scenarioController.state.open;
+  if (scenarioController.state.open && !document.activeElement?.closest?.('.scenario-panel')) root.querySelector('#scenario-query')?.focus({ preventScroll: true });
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
   executionEvidenceExpiry.sync();
   frameworkEmbedFrame = newFrameworkFrame;
@@ -1682,6 +1686,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
   if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
   if (event.target.closest?.('[data-dossier-workspace]')) { void dossierController.handle(event); return; }
 
@@ -1777,6 +1782,7 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (scenarioController.state.open && scenarioController.key(event)) return;
   if (event.target.closest?.('.discovery-page')) {
     if (event.isComposing || event.keyCode === 229) return;
     const drawerKind = discoveryController.state.drawer?.kind;
@@ -2030,6 +2036,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
 
@@ -2198,6 +2205,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
 
@@ -2636,6 +2644,21 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
+  const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
+  if (scenarioAction) {
+    event.preventDefault();
+    const observation = isAssetPage() ? assetState.observation : null;
+    await scenarioController.open({
+      session_id: observation?.session_id || state.detail?.id,
+      observation_id: observation?.id,
+      subject: observation ? { kind: observation.asset_type, identity: observation.asset } : undefined,
+      as_of: observation?.request_parameters?.end_date || state.researchAsOf || '',
+      datasets: observation ? Object.values(observation.blocks || {}).map(x => x.dataset).filter(Boolean) : state.detail?.datasets || [],
+      question: state.draft || '', mode: scenarioAction.dataset.workbenchHandoff || (state.route.page === 'claw' ? 'claw' : 'fingpt'),
+    });
+    return;
+  }
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleClick(event)) return;
   if (isAssetPage()) {

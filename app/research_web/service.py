@@ -2439,6 +2439,13 @@ class ResearchService(ModelProfilesMixin):
             )
         result["files"] = self.store.files(sid)
         result["datasets"] = self.datahub.summaries(sid)
+        scenario_record = self.store.data["handoffs"].get(row.get("scenario_handoff_id"), {})
+        if row.get("purpose") == "discovery_research":
+            scenario_record = self.store.data.get("discovery_handoffs", {}).get(
+                row.get("discovery_origin", {}).get("handoff_id"), {}
+            )
+        if scenario_record.get("session_id") == sid and scenario_record.get("scenario_context"):
+            result["scenario_context"] = scenario_record["scenario_context"]
         if row["mode"] == "claw" and automation_feature_enabled():
             result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
             result["automation_runs"] = []
@@ -2714,6 +2721,36 @@ class ResearchService(ModelProfilesMixin):
             row = self.store.session(sid)
             weekly_scope = None
             weekly_resume = False
+            from .scenario_handoffs import trusted_context as scenario_context_for
+
+            scenario_context = scenario_context_for(self, sid)
+            if scenario_context:
+                frozen = scenario_context["scenario"]
+                if dossier_handoff_id:
+                    raise StoreError(
+                        "场景已有独立冻结上下文，不能混入另一档案交接",
+                        "scenario_dossier_mismatch",
+                        409,
+                    )
+                primary = frozen["capabilities"][0]
+                if (
+                    (capability_id and capability_id != primary["id"])
+                    or (capability_version is not None and capability_version != primary["version"])
+                    or skill_id
+                    or method_ids
+                    or tool_ids
+                ):
+                    raise StoreError(
+                        "场景能力与冻结版本不一致", "scenario_capability_mismatch", 409
+                    )
+                if research_as_of is not None and research_as_of != frozen["inputs"]["as_of"]:
+                    raise StoreError("研究截止日与场景冻结不一致", "scenario_cutoff_mismatch", 409)
+                capability_id, capability_version = primary["id"], primary["version"]
+                research_requirements = [
+                    *scenario_context["requirements"],
+                    *(research_requirements or []),
+                ]
+                research_as_of = frozen["inputs"]["as_of"]
             if row.get("report_workflow", {}).get("quality_policy") and _weekly_run_id is None:
                 raise StoreError("周报须经受信运行入口提交", "weekly_scope_invalid", 409)
             if _weekly_run_id is not None:
@@ -2962,6 +2999,11 @@ class ResearchService(ModelProfilesMixin):
                 )
             if dossier_handoff_id is not None:
                 payload["dossier_handoff_id"] = dossier_handoff_id
+            if scenario_context:
+                from .scenario_handoffs import fingerprint as scenario_fingerprint
+
+                payload["scenario_context_sha256"] = scenario_fingerprint(scenario_context)
+                payload["source_scope"] = source_scope
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             if f"{sid}:{key}" in self.store.data["receipts"] and not weekly_resume:
                 self.store.reserve(sid, key, digest)
@@ -3090,6 +3132,7 @@ class ResearchService(ModelProfilesMixin):
             elif (
                 weekly_context
                 or discovery_context
+                or scenario_context
                 or (row["mode"] == "fingpt" and row.get("purpose") in {None, "research"})
             ):
                 try:
@@ -3110,7 +3153,9 @@ class ResearchService(ModelProfilesMixin):
                                 "保留陈旧资料、未知时间、来源与覆盖缺口，不将二手归档当网页全文。",
                             ]
                         )
-                        as_of, quality_mode = discovery_context["cutoff"], "deep"
+                        as_of, quality_mode = (
+                            research_as_of if scenario_context else discovery_context["cutoff"]
+                        ), "deep"
                     contract = prepare_contract(
                         self,
                         sid,
@@ -3154,6 +3199,13 @@ class ResearchService(ModelProfilesMixin):
             if weekly_scope:
                 weekly_runtime._update_run(_weekly_run_id, research_submission_state="prepared")
             prompt = text
+            if scenario_context:
+                prompt += "\n\nHost冻结场景要求：\n" + "\n".join(scenario_context["requirements"])
+                prompt += "\n核对冻结资料与上下文：" + (
+                    self.store.data["handoffs"][row["scenario_handoff_id"]]["context_file"]["path"]
+                    if row.get("scenario_handoff_id")
+                    else "inputs/discovery-context.json"
+                )
             if tabbit_markers:
                 prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
             prompt += "\n\n" + delivery["marker"]

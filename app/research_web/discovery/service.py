@@ -90,11 +90,14 @@ class DiscoveryService:
             "title",
             "code",
             "prepare_request",
+            "scenario_context",
         )
         value = {key: copy.deepcopy(record[key]) for key in keys if key in record}
         if "prepare_request" in value:
             try:
-                original = Prepare.model_validate(value["prepare_request"]).model_dump(mode="json")
+                original = Prepare.model_validate(value["prepare_request"]).model_dump(
+                    mode="json", exclude_none=True
+                )
             except ValueError as exc:
                 raise DiscoveryError(
                     "原始确认参数不可核验", "discovery_request_conflict", 409
@@ -408,7 +411,7 @@ class DiscoveryService:
     async def prepare(self, body, *, require_fresh=False):
         body = body if isinstance(body, Prepare) else Prepare.model_validate(body)
         async with self.lock:
-            request_hash = digest(body.model_dump())
+            request_hash = digest(body.model_dump(exclude_none=True))
             handoff_id = str(uuid5(UUID(body.request_id), "rwb-discovery-handoff"))
             existing = self._table().get(handoff_id)
             if existing:
@@ -507,6 +510,29 @@ class DiscoveryService:
                         }
                     )
             frozen_at = now()
+            scenario_context = None
+            if body.scenario_id:
+                from ..scenario_handoffs import fail, publication_date, requirements, selection
+
+                selected = selection(self.research, body.scenario_id, body.scenario_inputs)
+                if (
+                    selected["inputs"]["material_ids"] != body.material_ids
+                    or selected["inputs"]["question"] != body.question
+                ):
+                    fail("scenario_material_selection_mismatch", "场景选择与原资讯交接不一致", 422)
+                for material in materials.values():
+                    published = publication_date(material.get("published_at"))
+                    if published and published > selected["inputs"]["as_of"]:
+                        fail("scenario_cutoff_mismatch", "所选资讯晚于研究截止日")
+                if any(not row["available"] for row in selected["capabilities"]):
+                    fail("scenario_capability_unavailable", "场景所需能力当前不可执行")
+                scenario_context = {
+                    "scenario": selected,
+                    "requirements": requirements(selected),
+                    "source_scope": ["datahub"],
+                }
+            elif body.scenario_inputs is not None:
+                raise DiscoveryError("场景身份缺失", "scenario_inputs_invalid", 422)
             selection_hash = digest(
                 {
                     "feed_id": body.feed_id,
@@ -518,7 +544,7 @@ class DiscoveryService:
             record = {
                 "handoff_id": handoff_id,
                 "request_sha256": request_hash,
-                "prepare_request": body.model_dump(mode="json"),
+                "prepare_request": body.model_dump(mode="json", exclude_none=True),
                 "session_id": str(uuid4()),
                 "target_mode": body.target_mode,
                 "horizon": body.horizon,
@@ -539,6 +565,8 @@ class DiscoveryService:
                         for x in evidence[0]["detail"]["associations"]
                     ],
                 )
+            if scenario_context:
+                record["scenario_context"] = scenario_context
             had_table = "discovery_handoffs" in self.store.data
             table = self.store.data.setdefault("discovery_handoffs", {})
             table[handoff_id] = record
@@ -556,6 +584,11 @@ class DiscoveryService:
                 origin,
                 ("今日发现 · " + selected_theme["title"])[:120],
             )
+            if scenario_context:
+                self.store.session(record["session_id"])["source_scope"] = scenario_context[
+                    "source_scope"
+                ].copy()
+                self.store.save()
             bundle = {
                 "selection_sha256": selection_hash,
                 "cutoff": frozen_at,

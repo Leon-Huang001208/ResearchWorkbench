@@ -25,6 +25,8 @@ class Prepare(BaseModel):
     material_ids: list[str] = Field(min_length=1, max_length=20)
     target_mode: Literal["fingpt", "claw"] = "fingpt"
     question: str = Field(min_length=1, max_length=6000)
+    scenario_id: str | None = Field(default=None, max_length=80)
+    scenario_inputs: dict | None = None
 
     @field_validator("request_id", "feed_id")
     @classmethod

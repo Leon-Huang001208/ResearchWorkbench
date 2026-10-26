@@ -67,3 +67,12 @@ GET /api/research/discovery/association仅接受本人同一feed中的news_id和
 raw跟踪继续复用discovery-tracking-v1与原Automation，不更换调度器；批准news_id及显式关联事件范围绑定在锁定定义中，旧event任务的指纹/批准范围/冷恢复保持。原始资讯滚出/radar窗口时标不可观察，不报unchanged、不删除计划、不回退旧档当新观察。已登记的发现任务定义失效时分派直接拒绝，不回退通用执行器。无变化不模型、未知受理不重发、每日一次尝试、模型连接/工具范围与原精确版本质量门保持。
 
 本轮验证只使用隔离Store/DSH替身和只读来源，真实模型、生产跟踪启用及实际常驻切换分别保留NOT_RUN，不能由源码或CI通过推导。
+
+## 场景交接（2026-10-26）
+
+可选 `scenario_id/scenario_inputs` 通过Host纯目录和当前能力版本校验，绑定明确研究截止与
+完整所选资料身份；新上下文v3保存方法、输出要求、缺口和仅datahub来源范围。未提供场景时
+省略null字段，保留旧七字段请求摘要及v1/v2上下文字节。来源重要性只投影已给出的字段，
+日期按Asia/Shanghai自然日判断，不以取得时间替代发布时间。
+场景prepare仍不发送，execute和追问沿原send的能力、原生发现、幂等及质量合同。
+详见 `docs/research-web-scenario-handoffs.md`；完整资料选择不声称任意网页全文或字符选段功能。

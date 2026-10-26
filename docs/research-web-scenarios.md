@@ -72,3 +72,7 @@ result = select_scenario(
 聚焦测试为 `tests/research_web/test_research_scenarios_catalog.py`，兼容 stdlib unittest 与项目 pytest。验证覆盖原始名称／工具身份／费用／internal／参数／摘要，140 项静态边界与副本隔离，八场景选择、日期和资料输入，未知／缺失／他人资格，读取失败、超限与只读副作用边界。
 
 本模块不新增依赖、运行器、API、UI 或服务。Web 安装、原生页面与实际 DSH／MCP／供应商执行须由集成任务按原门另验。静态对照和本地测试不表示功能全量对齐或质量验收通过。
+
+## Host三页功能集成
+
+纯目录合同保持不变。实际场景选择、冻结、发送、资讯筛选及撤权边界见[三页场景交接](research-web-scenario-handoffs.md)，包版本与实际执行准入分别报告。

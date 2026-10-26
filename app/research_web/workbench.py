@@ -38,11 +38,35 @@ class DeskQuery(BaseModel):
 class Handoff(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    source_session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    source_session_id: str | None = Field(default=None, pattern=r"^[a-f0-9-]{36}$")
     target_mode: Literal["fingpt", "claw"]
     section: Section
     dataset_ids: list[str] = Field(default_factory=list, max_length=20)
     context: dict[str, Any] = Field(default_factory=dict)
+    scenario_id: str | None = Field(default=None, max_length=80)
+    scenario_inputs: dict[str, Any] = Field(default_factory=dict)
+    observation_id: str | None = Field(default=None, pattern=r"^[a-f0-9-]{36}$")
+
+
+@router.get("/scenarios")
+async def scenarios(request: Request):
+    from .scenario_handoffs import catalog
+
+    return catalog(request.app.state.research)
+
+
+@router.get("/handoff-requests/{request_key}")
+async def handoff_request(request_key: str, request: Request):
+    """Read original receipt only; unknown native creation is never retried."""
+    store = request.app.state.research.store
+    identifier = store.data["handoff_keys"].get(_key(request_key))
+    if not identifier:
+        raise StoreError("交接请求尚无回执", "handoff_not_found", 404)
+    return _public_handoff(store.data["handoffs"][identifier])
+
+
+def _public_handoff(record):
+    return {key: value for key, value in record.items() if key not in {"request_sha256", "copied"}}
 
 
 def _key(value: str) -> str:
@@ -264,21 +288,69 @@ async def create_handoff(
 ):
     service = request.app.state.research
     _validate_context(body.context)
-    service.store.session(body.source_session_id)
+    if body.source_session_id:
+        service.store.session(body.source_session_id)
+        from .scenario_handoffs import trusted_context
+
+        trusted_context(service, body.source_session_id, check_capabilities=False)
+    elif not body.scenario_id or body.dataset_ids or body.observation_id:
+        raise StoreError("来源会话缺失", "scenario_source_missing", 422)
     digest = _key(idempotency_key)
+    from .scenario_handoffs import fingerprint, prepare_context
+
+    request_hash = fingerprint(body.model_dump(mode="json"))
     async with service.workbench_lock:
         existing = service.store.data["handoff_keys"].get(digest)
         if existing:
-            return service.store.data["handoffs"][existing]
-        available = set(service.datahub.snapshots.ids(body.source_session_id))
+            record = service.store.data["handoffs"][existing]
+            if record.get("request_sha256") != request_hash:
+                raise StoreError("同一交接请求已绑定其他内容", "handoff_request_conflict", 409)
+            return _public_handoff(record)
+        available = (
+            set(service.datahub.snapshots.ids(body.source_session_id))
+            if body.source_session_id
+            else set()
+        )
         requested = set(body.dataset_ids)
         if not requested.issubset(available):
             raise StoreError("交接数据集不存在或不属于来源会话")
-        created = await service.create(body.target_mode, f"研究台交接 · {body.section}")
-        target = created["id"]
-        copied = service.datahub.copy_selected(body.source_session_id, target, body.dataset_ids)
-        context_file = _write_context(service, target, body, copied)
+        scenario = prepare_context(service, body) if body.scenario_id else None
+        if not body.scenario_id and (body.scenario_inputs or body.observation_id):
+            raise StoreError("场景身份缺失", "scenario_inputs_invalid", 422)
         handoff_id = str(uuid4())
+        if scenario:
+            # Persist BEFORE native create. service.create owns its identity; if
+            # its outcome is lost, this receipt must never create another one.
+            intent = {
+                "id": handoff_id,
+                "state": "creation_outcome_unknown",
+                "request_sha256": request_hash,
+                "mode": body.target_mode,
+                "scenario_context": scenario,
+            }
+            service.store.data["handoffs"][handoff_id] = intent
+            service.store.data["handoff_keys"][digest] = handoff_id
+            service.store.save()
+        created = await service.create(
+            body.target_mode,
+            f"研究台交接 · {body.section}",
+            **(
+                {
+                    "source_scope": scenario["source_scope"],
+                    "metadata": {"scenario_handoff_id": handoff_id},
+                }
+                if scenario
+                else {}
+            ),
+        )
+        target = created["id"]
+        copied = (
+            service.datahub.copy_selected(body.source_session_id, target, body.dataset_ids)
+            if body.source_session_id
+            else []
+        )
+        context_body = body.model_copy(update={"context": scenario}) if scenario else body
+        context_file = _write_context(service, target, context_body, copied)
         result = {
             "id": handoff_id,
             "session_id": target,
@@ -294,11 +366,15 @@ async def create_handoff(
                 + "；数据缺失、口径和截止时间必须在结论中明确说明。"
             ),
         }
+        result["request_sha256"] = request_hash
+        if scenario:
+            result.update(state="prepared", scenario_context=scenario, copied=copied)
+            result["draft"] = scenario["scenario"]["inputs"]["question"] + "\n\n" + result["draft"]
         service.store.data["handoffs"][handoff_id] = result
         service.store.data["handoff_keys"][digest] = handoff_id
         service.store.save()
     log.info("research_desk_handoff_created", mode=body.target_mode, datasets=len(copied))
-    return result
+    return _public_handoff(result)
 
 
 @router.get("/artifacts")

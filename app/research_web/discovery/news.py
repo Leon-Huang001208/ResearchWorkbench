@@ -120,6 +120,7 @@ def theme(item, acquired):
         "title": material["title"],
         "category": item["groups"][0] if item["groups"] else "未分类",
         "publisher": material["publisher"],
+        "importance": string(row.get("importance") or row.get("priority"), 80),
         "published_at": item["published_at"],
         "judgment_as_of": None,
         "state": "未形成研判",

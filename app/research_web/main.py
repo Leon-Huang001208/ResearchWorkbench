@@ -978,6 +978,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
         service = svc(request)
+        from .scenario_handoffs import trusted_context
+
+        trusted_context(service, sid, check_capabilities=False)
         relative = service.store.session(sid).get("files", {}).get(fid, "")
         receipt = service.store.data["receipts"].get(
             f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}

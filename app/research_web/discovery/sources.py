@@ -116,6 +116,7 @@ def display_fields(event):
             g if isinstance(g, str) else g.get("id") for g in groups if isinstance(g, (str, dict))
         ],
         "description": string(event.get("priority_reason") or event.get("last_change")),
+        "importance": string(event.get("importance") or event.get("priority"), 80),
         "state": string(verification.get("status") or extraction.get("confirmation")) or "待核实",
         "change": string(event.get("last_change")),
         "next": string(progression.get("next_action"))
@@ -201,6 +202,7 @@ def theme(event, retrieved_at, logic_names, counter=False):
             key: display[key]
             for key in (
                 "description",
+                "importance",
                 "state",
                 "change",
                 "next",
