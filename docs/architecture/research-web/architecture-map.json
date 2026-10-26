@@ -643,7 +643,8 @@
         "tests/javascript/research_web_scenarios.test.mjs",
         "tests/e2e/research_web_scenarios_real_backend.mjs",
         "tests/research_web/test_scenario_review_round2.py",
-        "tests/javascript/research_web_asset_research.test.mjs"
+        "tests/javascript/research_web_asset_research.test.mjs",
+        "tests/research_web/test_scenario_final_review.py"
       ]
     },
     {
