@@ -66,3 +66,35 @@ README复核回执更新，说明既有架构节点和图无变化理由。
 本地修复不证明镜像构建、健康或30分钟混合负载通过；GitHub及Windows/Linux仍NOT_RUN。
 未提交/push/prepare；独立评审、最新master集成及实际构建恢复由主任务继续。
 本轮记录时间：2026-10-26T02:09:15Z。
+
+## 2026-10-26 资产历史 deadline 夹具（本机，待独立评审）
+
+宿主macOS/arm64；只修复离线测试时序，不修改产品、SDK执行器、依赖或CI配置。
+Checks run40263343817在40分钟被取消，原日志只有F而无nodeid/traceback；
+`test_history_deadline_keeps_owned_call_draining_until_real_executor_exits[True]`
+仍是按事件顺序推断的候选，不能宣称本补丁已确认修复那次CI失败。
+
+RED在原30ms夹具中给真实`hub._query`注入100ms异步调度延迟，两个取消参数均在
+`entered.wait(2)`断言失败：2 failed/75 deselected，4.63s。finally执行release/settle/close。
+GREEN只在该测试将DataHub模块自身的time/asyncio引用换成窄代理，控制前台owner expiry发生在
+真实SDK线程entered之后；全局asyncio/time、真实owned task/Future、Provider、来源容量、取消与排空保持。
+真实execute仍收到0<budget<=0.03，非目标asyncio调用转发原实现；不提升TOTAL_DEADLINE或等待上限。
+100ms延迟仍存在，两种取消行为各覆盖正常退出与主动抛错提前退出；所有等待和中间断言在finally保全内，
+排空后仍检查终态/失败码/retry、child_call_id、真实Future、hub.tasks及不发布迟到数据。
+这只是排空用例的可控时序，并不表示产品总预算从SDK进入开始计算。
+另加独立测试：真实同步准入延迟100ms、总预算30ms，未经任何时钟/asyncio代理，验证
+`data_query_deadline`且SDK从未进入、无Future/owner/活动任务、无新数据发布。
+
+实际命令统一前缀：
+`PYTHONPATH=/Users/leon/.codex/automations/dsh-fork/qa-20261014/packages /Users/leon/.codex/automations/dsh-fork/native-validation-20261026/python/bin/python -m`。
+RED定点：`pytest --confcutdir=tests/research_web tests/research_web/test_asset_history.py -k test_history_deadline_keeps_owned_call_draining_until_real_executor_exits -q --tb=short`。
+最终GREEN：`pytest --confcutdir=tests/research_web tests/research_web/test_asset_history.py -k 'test_history_deadline_keeps_owned_call_draining_until_real_executor_exits or test_history_total_deadline_before_executor_entry' -q --tb=short`，5 PASS/75 deselected（1.13s），回执`green-target-final.log`。
+中间收紧remaining断言时，绝对monotonic浮点消减使4项失败（8.69s），原件`intermediate-float-clock-failure.log`保留；测试虚拟时钟改为精确零原点，未放宽断言/预算。
+完整模块：`pytest --confcutdir=tests/research_web tests/research_web/test_asset_history.py -q --tb=short --durations=8`，最终80 PASS/13.95s（`green-module-final.log`）。
+近邻：`pytest --confcutdir=tests/research_web tests/research_web/test_datahub_reliability.py tests/research_web/test_datahub_storage_activity.py tests/research_web/test_wind_recovery_activity.py -q --tb=short --durations=8`，31 PASS/1.88s（既有1条warning）。
+目标文件Ruff/Black/isort及git diff --check通过；Git safety check实际fsck PASS。
+首次Git入口误写`delivery ... check`导致CLI_OPTION_INVALID，仅诊断失败；随后正确`check --project ...`通过。
+证据：`/Users/leon/.codex/automations/dsh-fork/evidence/20261026-continuation/queue/deadline-fixture/`。
+未安装、调用网络/真实供应商/模型、运行Docker、prepare/提交/push/rerun/dispatch；
+不改Node/runner/原40分钟预算，不以本机80 PASS替代完整Source CI；CI未知和原取消状态保留。
+本轮记录时间：2026-10-26T05:34:33Z。
