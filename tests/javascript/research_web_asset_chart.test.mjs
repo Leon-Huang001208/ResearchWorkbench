@@ -818,3 +818,20 @@ test('all 15 panels render actual ECharts views and mounted light series remain 
   assert.match(css,/\.asset-market-terminal \.asset-terminal-chart\s*\{[^}]*max-height:none/);
  } finally {c.dispose();for(const timer of timers)clearTimeout(timer);}
 });
+
+test('minute chart releases drag on window blur and outside pointer completion',()=>{
+  for(const signal of ['blur','pointerup','pointercancel']){
+    const f=fakeDOM(),events=new Map(),view=f.node.ownerDocument.defaultView;
+    view.addEventListener=(name,fn)=>{if(!events.has(name))events.set(name,new Set());events.get(name).add(fn);};
+    view.removeEventListener=(name,fn)=>events.get(name)?.delete(fn);
+    const c=createAssetChartController();
+    c.configure(rows(300).map(r=>({...r,date:r.date+'T09:31:00+08:00'})),'minute-drag',{frequency:'minute',minute_k:true});
+    c.mount(f.node);f.flush();c.select(250);f.flush();
+    const main=f.instances[0];main.zrEvents.get('mousedown')({offsetX:400,event:{button:0,buttons:1}});
+    for(const handler of events.get(signal)||[])handler({type:signal});
+    main.zrEvents.get('mousemove')({offsetX:410,event:{buttons:0}});
+    main.events.get('updateAxisPointer')({axesInfo:[{axisDim:'x',value:200}]});f.flush();
+    assert.equal(c.getState().activeIndex,200,signal);
+    c.dispose();assert.equal([...events.values()].reduce((sum,set)=>sum+set.size,0),0);
+  }
+});
