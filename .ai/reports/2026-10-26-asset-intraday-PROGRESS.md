@@ -12,7 +12,7 @@ Mac功能开发，隔离worktree；用户已采用v0并授权验收后受控部�
 <!-- architecture-review {"group": "workbench", "structure": "unchanged", "reason": "分时为原Host资产区与DataHub固定来源快照链内的有界展示分支；没有新增节点、服务、数据库或研究引擎，原图的浏览器/Host/Provider/冻结边保持准确，新增HTTP逐项登记API Atlas。", "diagrams": []} -->
 <!-- architecture-review {"group": "datahub", "structure": "unchanged", "reason": "分时为原Host资产区与DataHub固定来源快照链内的有界展示分支；没有新增节点、服务、数据库或研究引擎，原图的浏览器/Host/Provider/冻结边保持准确，新增HTTP逐项登记API Atlas。", "diagrams": []} -->
 
-<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "仅在既有Checks步骤登记分钟回归并使用原JS通配符，不新增job、runner、依赖或超时；原Mac安装和仓库硬门保持，既有验收/交付拓扑不变。", "diagrams": []} -->
+<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "既有Checks步骤登记分钟回归并使用原JS通配符；在完整40分钟超时证据下仅把同一job预算有界改为45分钟，不新增job、runner、依赖或删减用例；原Mac安装与仓库硬门保持，验收/交付拓扑不变。", "diagrams": []} -->
 
 部署独立阻断：旧b800实际常驻仍由受控恢复任务处理合作接入/未知活动见证；本任务不附加进程、不清poison、不重启旧实例，也不以源码绿替代现场门。
 
