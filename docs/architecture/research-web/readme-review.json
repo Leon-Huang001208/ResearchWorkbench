@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核管理员Docker容量查询与持久构建队列入口",
-  "reason": "产品首页与业务安装入口不变；新增可选管理员CLI及12GiB维护边界在Docker/安装手册和03/04/05中维护，不增加包或产品API。"
+  "summary": "复核Docker队列归档权限与未知构建结果恢复修复",
+  "reason": "内部Git归档仅规范提交目录0755，私有上下文保持0700；缺失完成回执且owner已退出时阻断自动重建。沿用原管理员CLI、操作锁与持久队列，未新增架构节点或改变产品首页、业务安装入口及依赖；Docker手册已记录边界，README和架构图无需修改。"
 }

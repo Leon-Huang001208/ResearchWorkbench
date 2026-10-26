@@ -2,8 +2,10 @@
 
 import json
 import os
+import stat
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -79,7 +81,7 @@ def test_failed_build_is_not_retried_or_marked_complete(manager, monkeypatch):
     assert len(calls) == 1
 
 
-def test_live_claim_prevents_second_build_and_dead_claim_recovers(manager, monkeypatch):
+def test_live_claim_prevents_second_build_and_dead_claim_blocks(manager, monkeypatch):
     (manager.home / "operation.lock").mkdir()
     result = manager.submit("dsh-task", False)
     (manager.home / "operation.lock").rmdir()
@@ -89,7 +91,67 @@ def test_live_claim_prevents_second_build_and_dead_claim_recovers(manager, monke
     queue.save(path, job)
     assert manager.resume("dsh-task")["reason"] == "build_active"
     monkeypatch.setattr(manager, "owner", lambda _: "replacement-owner")
-    assert manager.resume("dsh-task")["status"] == "completed"
+    monkeypatch.setattr(manager, "execute", lambda _: pytest.fail("unknown outcome rebuilt"))
+    result = manager.resume("dsh-task")
+    assert result["status"] == "blocked"
+    assert result["reason"] == "build_outcome_unknown"
+    assert manager.resume("dsh-task")["reason"] == "build_outcome_unknown"
+
+
+@pytest.mark.parametrize("durable", [None, "failed", "completed"])
+def test_dead_helper_recovery_waits_for_legacy_lock_and_uses_durable_result(
+    manager, monkeypatch, durable
+):
+    lock = manager.home / "operation.lock"
+    lock.mkdir()
+    result = manager.submit("dsh-task", False)
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait(timeout=10)
+    path = manager.directory / (result["job_id"] + ".json")
+    job = queue.load(path)
+    job.update(status="running", owner_pid=child.pid, owner_stamp="departed-owner")
+    queue.save(path, job)
+    monkeypatch.setattr(manager, "owner", queue.BuildQueue.owner)
+    monkeypatch.setattr(manager, "execute", lambda _: pytest.fail("dead owner rebuilt"))
+    assert manager.resume("dsh-task")["reason"] == "operation_busy"
+    assert queue.load(path)["status"] == "running"
+    if durable:
+        completion = dict(
+            job, status=durable, reason="build_failed" if durable == "failed" else "completed"
+        )
+        queue.save(manager.directory / "results" / path.name, completion)
+    lock.rmdir()
+    result = manager.resume("dsh-task")
+    assert result["status"] == (durable or "blocked")
+    assert result["reason"] == (
+        "build_failed" if durable == "failed" else durable or "build_outcome_unknown"
+    )
+
+
+def test_unknown_outcome_source_change_still_invalidates(manager, monkeypatch):
+    (manager.home / "operation.lock").mkdir()
+    result = manager.submit("dsh-task", False)
+    (manager.home / "operation.lock").rmdir()
+    path = manager.directory / (result["job_id"] + ".json")
+    job = queue.load(path)
+    job.update(status="running", owner_pid=123, owner_stamp="departed-owner")
+    queue.save(path, job)
+    monkeypatch.setattr(manager, "owner", lambda _: None)
+    monkeypatch.setattr(manager, "source", lambda: "b" * 40)
+    monkeypatch.setattr(manager, "execute", lambda _: pytest.fail("changed source rebuilt"))
+    assert manager.resume("dsh-task")["reason"] == "source_changed"
+
+
+@pytest.mark.parametrize("kind", ["escape", "symlink", "device"])
+def test_source_filter_keeps_tar_data_protections(tmp_path, kind):
+    member = tarfile.TarInfo("../outside" if kind == "escape" else "entry")
+    if kind == "symlink":
+        member.type = tarfile.SYMTYPE
+        member.linkname = "/outside"
+    elif kind == "device":
+        member.type = tarfile.CHRTYPE
+    with pytest.raises(tarfile.FilterError):
+        queue.source_filter(member, str(tmp_path))
 
 
 def test_wait_notice_is_emitted_once_after_24_hours(manager, monkeypatch):
@@ -253,7 +315,13 @@ def test_archive_uses_committed_bytes_despite_concurrent_worktree_changes(tmp_pa
 
     run("init", "-q")
     (project / "source.txt").write_text("committed")
-    run("add", "source.txt")
+    nested = project / "package" / "resident"
+    nested.mkdir(parents=True)
+    (nested / "admission.py").write_text("# committed module\n")
+    script = nested / "entry.sh"
+    script.write_text("#!/bin/sh\nexit 0\n")
+    script.chmod(0o755)
+    run("add", ".")
     run(
         "-c",
         "user.name=Queue Test",
@@ -273,10 +341,20 @@ def test_archive_uses_committed_bytes_despite_concurrent_worktree_changes(tmp_pa
     def build(_job, context):
         assert (context / "source.txt").read_text() == "committed"
         assert not (context / "untracked.txt").exists()
+        assert stat.S_IMODE(context.parent.stat().st_mode) == 0o700
+        assert stat.S_IMODE(context.stat().st_mode) == 0o700
+        for directory in (context / "package", context / "package" / "resident"):
+            assert stat.S_IMODE(directory.stat().st_mode) == 0o755
+        assert stat.S_IMODE((context / "package/resident/admission.py").stat().st_mode) == 0o644
+        assert stat.S_IMODE((context / "package/resident/entry.sh").stat().st_mode) == 0o755
         return 0, "completed"
 
     monkeypatch.setattr(manager, "run_build", build)
-    assert manager.execute({"job_id": "a" * 64, "source_sha": sha}) == (0, "completed")
+    previous = os.umask(0o077)
+    try:
+        assert manager.execute({"job_id": "a" * 64, "source_sha": sha}) == (0, "completed")
+    finally:
+        os.umask(previous)
     assert not list((manager.directory / "contexts").iterdir())
 
 

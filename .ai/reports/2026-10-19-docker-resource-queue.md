@@ -35,3 +35,34 @@ Ruff/Black/isort、单模块mypy、文档治理、Py文件索引及项目约束P
 控制入口脚本也从提交归档执行；上下文准备/清理失败持久记录为blocked，不将已完成构建当作死请求重新执行。
 用户已单独明确授权安全维护窗口内调整12GiB及必要恢复；当前两个受保护容器仍运行，窗口未成立，尚未修改设置或重启。
 容量/维护方案及原配置备份在本自动化私有evidence/20261019-resource-queue目录，不能把授权当生效证据。
+
+## 2026-10-26 中断续跑修复（本地，待独立评审）
+
+宿主macOS/arm64，任务为既有管理员队列缺陷修复；本轮范围为Python本机离线验证。
+原真实冷构建日志`evidence/20261026/original-job-build.log`第6188-6189行记录最终非root导入
+`research_workbench_entrypoint.resident.admission`失败；保留的原上下文resident目录实际为0700。
+根因是tar data过滤器清空目录mode，提取继承队列umask077；Docker COPY保留该模式。
+修复在原data_filter安全检查之后仅将归档目录设0755，执行/普通文件位不变，私有父上下文0700不变。
+
+原队列owner退出不能证明legacy子进程没有完成。缺少持久结果时重建可能重复真实已结束的构建。
+持共享操作锁对账时，已退出owner且无结果的running请求改为blocked/build_outcome_unknown，
+不再execute；锁仍由legacy持有时只报告operation_busy，live owner仍build_active，
+有效failed/completed结果优先对账，源码改变仍invalidated/source_changed。
+原真实队列、锁、日志、上下文均未手改；未伪造原构建结果，未启动Docker构建或停止服务。
+
+RED：3失败27通过（2.68s），分别复现dead owner重建和077目录0700。
+GREEN：35通过（0.93s）；含实际Git archive、嵌套包读/遍历权限、执行文件保留、私有上下文，
+tar逃逸/外部符号链接/设备拒绝，真实短命helper进程及锁/持久结果恢复。
+近邻队列+docker_manager合计72通过（0.73s）；Ruff/Black/isort、文档治理和Py索引通过。
+检查均用`/opt/homebrew/bin/python3.12`，复用已授权qa-20261014/packages，未装依赖。
+初次项目mypy因QA目录缺pydantic插件无法启动；无插件且skip imports的单模块mypy通过，
+不以该定点检查替代项目配置门；随后复用主仓现有.venv/lib/python3.12/site-packages的pydantic，
+项目配置及插件下`mypy --follow-imports=skip research_workbench_entrypoint/docker_build_queue.py`通过。
+不加skip的项目mypy跨模块扫描超过145秒仍无结果，已停止本轮该检查进程，完整import扫描保持INCOMPLETE。
+README复核回执更新，说明既有架构节点和图无变化理由。
+
+证据目录：`/Users/leon/.codex/automations/dsh-fork/evidence/20261026-continuation/queue/`。
+原主工作区在修复前及修复后tracked/index diff均为空；预存untracked内容未触碰。
+本地修复不证明镜像构建、健康或30分钟混合负载通过；GitHub及Windows/Linux仍NOT_RUN。
+未提交/push/prepare；独立评审、最新master集成及实际构建恢复由主任务继续。
+本轮记录时间：2026-10-26T02:09:15Z。

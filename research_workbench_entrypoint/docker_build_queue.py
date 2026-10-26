@@ -42,6 +42,16 @@ class QueueError(RuntimeError):
     """Stable, non-sensitive refusal."""
 
 
+def source_filter(member: tarfile.TarInfo, destination: str) -> tarfile.TarInfo | None:
+    """Keep tar data protections and traversable committed source directories."""
+    filtered = tarfile.data_filter(member, destination)
+    if filtered is not None and filtered.isdir():
+        # data_filter clears directory modes, so extraction otherwise inherits
+        # the administrator's private umask; Docker COPY preserves those modes.
+        return filtered.replace(mode=0o755)
+    return filtered
+
+
 def call(*args: str) -> str:
     """Never expose raw daemon/Git errors, which can contain private data."""
     try:
@@ -327,7 +337,15 @@ class BuildQueue:
         """Consume every durable completion before FIFO, including dead owners."""
         for job in records:
             result_path = self.directory / "results" / (job["job_id"] + ".json")
-            if job["status"] != "running" or not result_path.exists():
+            if job["status"] != "running":
+                continue
+            if not result_path.exists():
+                if self.owner(job["owner_pid"]) != job["owner_stamp"]:
+                    # The legacy child may have finished after its queue owner
+                    # died. Absence of a result cannot authorize another build.
+                    job.update(status="blocked", reason="build_outcome_unknown")
+                    save(self.directory / (job["job_id"] + ".json"), job)
+                    LOG.warning("build_queue status=blocked reason=build_outcome_unknown")
                 continue
             result = load(result_path)
             if (
@@ -504,7 +522,7 @@ class BuildQueue:
                 source = context / "source"
                 source.mkdir(mode=0o700)
                 with tarfile.open(archive) as bundle:
-                    bundle.extractall(source, filter="data")
+                    bundle.extractall(source, filter=source_filter)
                 result = self.run_build(job, source)
         except OSError:
             if result is None:
