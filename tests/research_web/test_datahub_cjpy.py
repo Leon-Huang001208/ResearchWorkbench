@@ -777,3 +777,120 @@ async def test_snapshot_units_cross_real_broker_and_keep_old_frozen_bytes(
     finally:
         await workspace.close()
         await hub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cycle", ["1m", "5m", "15m", "30m", "60m", "120m"])
+@pytest.mark.parametrize("mode", ["none", "qfq", "hfq"])
+async def test_minute_k_real_workspace_broker_provider_and_cache_isolation(
+    tmp_path, monkeypatch, sdk, cycle, mode
+):
+    """Replace only SDK/network credentials; keep actual authorization and snapshots."""
+    from app.research_web.asset_routes import ObservationRequest
+    from app.research_web.asset_workspace import AssetWorkspace
+    from app.research_web.datahub import catalog
+    from app.research_web.datahub.intraday_contract import DEFINITIONS
+
+    package, calls, _ = sdk
+    package.__version__ = "0.5.2"
+    package.list_market_fields = lambda **kw: DEFINITIONS
+
+    def market(**kw):
+        calls.append(("minute-market", kw))
+        base = {
+            "代码": kw["code"],
+            "时间": "2026-10-23",
+            "open": 10,
+            "high": 12,
+            "low": 9,
+            "close": 11,
+            "vol": 100,
+            "amount": 1100,
+        }
+        if kw["cycle"] != "day":
+            assert kw["cycle"] == cycle and kw["rate"] == "不复权"
+            return [
+                {
+                    **base,
+                    "时间": "2026-10-23 11:30:00",
+                    "sectional_yclose": 10,
+                    "sectional_vol": 100,
+                    "sectional_amount": 1100,
+                }
+            ]
+        return [base]
+
+    def factors(**kw):
+        days = kw["date"] if isinstance(kw["date"], list) else [kw["date"]]
+        return [
+            {
+                "代码": "SZ000001",
+                "截止日": day.replace("-", ""),
+                "上市日期": "2020-01-02",
+                "复权因子": 1 if day == "2020-01-02" else 2,
+            }
+            for day in days
+        ]
+
+    package.get_factor_data = factors
+    package.get_market_data = market
+    monkeypatch.setattr(catalog, "_dependency_status", lambda *_: (True, None))
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "synthetic minute k")["id"]
+    hub = DataHub(store)
+    status = {"configured": True, "secret_configured": True}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": status})
+    monkeypatch.setattr(hub.connections, "source_status", lambda _: dict(status))
+    monkeypatch.setattr(hub.connections, "configuration_revision", lambda _: "synthetic-v1")
+    monkeypatch.setattr(hub.connections, "read_source_secret", lambda _: "synthetic-token")
+    workspace = AssetWorkspace(SimpleNamespace(store=store, datahub=hub, notify=lambda: None))
+    try:
+        observation = await workspace.create_observation(
+            ObservationRequest(
+                session_id=sid,
+                asset="000001.SZ",
+                asset_type="stock",
+                source="tinysoft",
+                sections=["overview"],
+            ),
+            "synthetic-minute-k",
+        )
+        await asyncio.gather(*list(workspace.tasks.values()))
+        first, second = await asyncio.gather(
+            workspace.minute_k.load(observation["id"], cycle, mode),
+            workspace.minute_k.load(observation["id"], cycle, mode),
+        )
+        assert first == second and first["rows"][0]["date"] == "2026-10-23T11:30:00+08:00"
+        frozen = hub.snapshots.detail(sid, first["dataset_id"])
+        assert frozen["snapshot_kind"] == "asset_history"
+        assert frozen["asset_history"]["canonical_version"] == "asset-minute-k-v1"
+        assert frozen["fields"]["volume"]["unit"] == "share"
+        assert first["rows"][0]["close"] == (22 if mode == "hfq" else 11)
+        assert first["rows"][0]["volume"] == 100
+        assert not workspace.tasks
+        # Ordinary Provider queries must not reuse normalized derived rows.
+        request = BusinessQuery.model_validate(frozen["query"])
+        ordinary = await hub.query(
+            sid,
+            "ordinary-minute-query",
+            request.model_copy(
+                update={
+                    "refresh": False,
+                    "parameters": {**request.parameters, "adjustment": "none"},
+                }
+            ),
+        )
+        native = json.loads(hub.snapshots.read(sid, ordinary["dataset_id"], "rows.json"))
+        assert "时间" in native[0] and "date" not in native[0]
+        first["rows"].clear()
+        assert len((await workspace.minute_k.load(observation["id"], cycle, mode))["rows"]) == 1
+
+        def deny(*_args):
+            raise StoreError("Synthetic frozen capability", "plugin_runtime_frozen", 409)
+
+        hub.admission = deny
+        with pytest.raises(StoreError, match="Synthetic frozen"):
+            await workspace.minute_k.load(observation["id"], cycle, mode)
+    finally:
+        await workspace.close()
+        await hub.close()

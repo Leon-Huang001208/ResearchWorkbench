@@ -61,7 +61,7 @@ const selectedIndex = (bars, state) => state.selectedDate ? nearestIndex(bars, s
 const identityFor = (metadata, key) => {
   const identity = metadata.assetIdentity;
   const asset=typeof identity === 'string' ? identity : identity && typeof identity === 'object' ? `${identity.code || identity.asset || ''}:${identity.asset_type || identity.type || 'stock'}` : String(key || '').split(':dataset:')[0];
-  return JSON.stringify([metadata.accountIdentity || 'single-user',asset]);
+  return JSON.stringify([metadata.accountIdentity || 'single-user',asset,metadata.chartIdentity || '']);
 };
 function chartLayout(state = {}) {
   const panels = panelsFor(state); const top = 26; const mainHeight = 300; const panelStep = 100;
@@ -76,7 +76,7 @@ function rangeFor(length, state = {}) {
   return { start, end, activeIndex };
 }
 function displayBars(rows, state, metadata) {
-  const bars = enrichMarketBars(rows); const source = sourceFrequency(metadata.frequency);
+  const bars = enrichMarketBars(rows, {timestamp: metadata.minute_k === true}); const source = sourceFrequency(metadata.frequency);
   return calculatePanelIndicators(source === 'day' && ['week', 'month'].includes(state.period) ? aggregateMarketBars(bars, state.period) : bars, state.indicatorSettings);
 }
 function priceDomain(bars, state) {
@@ -120,7 +120,7 @@ function readout(bar, previous, metadata = {}) {
   const volumeUnit = fieldUnit(metadata, 'volume') || '源单位'; const amountUnit = fieldUnit(metadata, 'amount') || fieldUnit(metadata, 'turnover') || '源单位';
   const volumeNote = typeof metadata.assetIdentity === 'string' && /^stock:\d{6}\.(?:SH|SZ|BJ)$/i.test(metadata.assetIdentity) && /股$/.test(volumeUnit) ? '成交量（手；1手=100股，仅展示换算）' : `成交量（${volumeUnit}；不推测未知单位）`;
   const values = [['收', fmt(bar.close), assetPriceClass(bar.close, base)], ['幅', movement, assetChangeClass(change)], ['开', fmt(bar.open), assetPriceClass(bar.open, base)], ['高', fmt(bar.high), assetPriceClass(bar.high, base)], ['低', fmt(bar.low), assetPriceClass(bar.low, base)], ['均', fmt(bar.vwap), assetPriceClass(bar.vwap, base)], ['量', formatAssetVolume(bar.volume, volumeUnit === '源单位' ? '' : volumeUnit, metadata.assetIdentity, { compact: true }), '', volumeNote], ['换', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`], ['振', amplitude === null ? '—' : `${fmt(amplitude)}%`], ['额', formatAssetMagnitude(bar.amount, amountUnit === '源单位' ? '' : amountUnit, '', { compact: true }), '', `成交额（${amountUnit}）`]];
-  return `<span class="asset-history-date"><strong>${e(bar.date)}</strong></span>${values.map(([label, value, tone, title]) => `<span${title ? ` title="${e(title)}"` : ''}>${e(label)} <strong${tone ? ` class="${tone}"` : ''}>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
+  return `<span class="asset-history-date"><strong>${e(metadata.minute_k ? bar.date.replace('T',' ').slice(0,16) : bar.date)}</strong></span>${values.map(([label, value, tone, title]) => `<span${title ? ` title="${e(title)}"` : ''}>${e(label)} <strong${tone ? ` class="${tone}"` : ''}>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
 }
 function overlayReadout(bar, state) {
   if (!bar) return '';
@@ -171,16 +171,20 @@ function controls(state, length, metadata) {
 function safeIndicatorSettings(settings) { try { return normalizeIndicatorSettings(settings || {}); } catch { safeLog('asset_indicator_settings_restore_failed', {status:'invalid'}); return normalizeIndicatorSettings(); } }
 function safeFavorites(favorites) { try { return normalizeFavorites(favorites); } catch { safeLog('asset_indicator_favorites_restore_failed', {status:'invalid'}); return [...DEFAULT_FAVORITES]; } }
 function safeChipSettings(settings) { try { return normalizeChipSettings(settings || {}); } catch { safeLog('asset_chip_settings_restore_failed', { status: 'invalid' }); return normalizeChipSettings(); } }
+export function minuteChipInputs(reference, selectedDate) {
+  if (reference?.cutoff_policy !== 'strictly_before_selected_minute_date') return [];
+  return enrichMarketBars(reference.rows || []).filter(row => row.date < String(selectedDate || '').slice(0,10));
+}
 function canonicalChip(daily, state, metadata) {
-  const input = daily.slice(0, nearestIndex(daily, state.selectedDate) + 1);
-  const contract = historyFor(metadata).chip_inputs;
+  const input = metadata.minute_k ? minuteChipInputs(metadata.daily_reference, state.selectedDate) : daily.slice(0, nearestIndex(daily, state.selectedDate) + 1);
+  const contract = (metadata.minute_k ? metadata.daily_reference?.asset_history : historyFor(metadata))?.chip_inputs;
   if (contract?.status !== 'complete' || contract.contract_version !== 'chip-turnover-1' || contract.turnover_unit !== 'percent') return unavailable('chip_inputs_not_loaded', input);
   return estimateChips(input, state.chipSettings);
 }
 const volumeTick = (value, metadata) => formatAssetVolume(value, fieldUnit(metadata,'volume') || '', metadata.assetIdentity, { compact: true });
 
 export function renderMarketTerminal(rows = [], state = {}, metadata = {}) {
-  const source = sourceFrequency(metadata.frequency); const daily = enrichMarketBars(rows);
+  const source = sourceFrequency(metadata.frequency); const daily = enrichMarketBars(rows, {timestamp: metadata.minute_k === true});
   const normalized = { indicatorSettings: safeIndicatorSettings(state.indicatorSettings), favorites: safeFavorites(state.favorites), activePanel: state.activePanel || panelsFor(state).at(-1) || '', overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: source, showAll: false, adjustment: adjustmentFor(metadata), ...state };
   normalized.indicatorSettings = safeIndicatorSettings(state.indicatorSettings); normalized.favorites = safeFavorites(state.favorites); normalized.panels = panelsFor(normalized); normalized.chipSettings = safeChipSettings(normalized.chipSettings); normalized.chipTab ||= 'statistics';
   const bars = displayBars(rows, normalized, metadata); Object.assign(normalized, rangeFor(bars.length, normalized));
@@ -220,7 +224,7 @@ export function buildMarketChartOption(bars, state = {}, metadata = {}, theme, c
   const [kdjMin, kdjMax] = kdjDomain(bars, state); const axes = layout.grid.map((grid, index) => index);
   const axisStyle = { axisLine: { onZero: false, lineStyle: { color: palette.grid } }, axisTick: { show: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' };
   return { backgroundColor: 'transparent', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', showContent: false, axisPointer: { type: 'cross', crossStyle: { color: palette.muted } }, backgroundColor: palette.surface, borderColor: palette.grid, textStyle: { color: palette.text, fontSize: 12 }, formatter: params => { const index = params?.[0]?.dataIndex; return index === undefined ? '' : readout(bars[index], bars[index - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: palette.muted }, label: { backgroundColor: palette.surface, color: palette.text } }, graphic: panelLabels(bars[selectedIndex(bars, state)], palette, state, metadata), grid: layout.grid,
-    xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisPointer: { label: { show: index === axes.length - 1 } }, axisLabel: { show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
+    xAxis: layout.grid.map((grid, index) => ({ ...axisStyle, type: 'category', gridIndex: index, data: dates, boundaryGap: true, axisPointer: { label: { show: index === axes.length - 1 } }, axisLabel: { ...(metadata.minute_k ? {formatter: value => `${value.slice(5,10)} ${value.slice(11,16)}`} : {}), show: index === axes.length - 1, color: palette.muted, fontSize: 12, hideOverlap: true } })),
     yAxis: layout.grid.map((grid, index) => { const id = panels[index - 1]; return { scale: !['rsi','wr','dmi'].includes(id), gridIndex: index, position: 'right', ...(index === 0 ? { min: domain[0], max: domain[1] } : id === 'kdj' ? { min: kdjMin, max: kdjMax } : ['rsi','wr','dmi'].includes(id) ? { min: 0, max: 100 } : {}), splitNumber: index === 0 ? 4 : 2, axisLabel: { color: palette.muted, fontSize: 12, formatter: index === 0 ? priceFmt : ['volume','obv'].includes(id) ? value => volumeTick(value, metadata) : undefined }, ...(index === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: id !== 'volume', lineStyle: { color: palette.grid } }, splitArea: { show: false } }; }),
     dataZoom: [{ type: 'inside', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: axes, startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, left: 8, right: 54, showDetail: false, borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.selected, dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } }, selectedDataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.selected } }, handleStyle: { color: palette.muted, borderColor: palette.surface }, moveHandleStyle: { color: palette.muted }, emphasis: { handleStyle: { color: palette.text }, moveHandleStyle: { color: palette.text } }, textStyle: { color: palette.muted, fontSize: 12 } }], series };
 }
@@ -245,6 +249,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   const selectedDailyIndex = () => nearestIndex(daily, state.selectedDate);
   const currentBar = () => bars[state.activeIndex];
   function rangeContext() {
+    if (metadata.minute_k) return null;
     const node = find('[data-asset-echarts]'); const hostRect = rangeHost?.getBoundingClientRect?.() || {left:0,top:0}; const rect = node?.getBoundingClientRect?.() || {left:0,top:0,width:800};
     // init() has no model until its first setOption(). Only a real grid
     // coordinate system permits ECharts conversions; layout geometry works
@@ -348,12 +353,12 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       const windowLabel = find('[data-asset-chip-window]'); if (windowLabel) windowLabel.textContent = chip.startDate ? `${chip.startDate}–${chip.endDate} · 累计${chip.validBars}条有效日线` : source !== 'day' ? '缺少日线底稿，累计筹码不可用' : '暂无有效窗口';
       const tabs = find('[data-asset-chip-tabs]'); for (const button of tabs?.querySelectorAll('[aria-pressed]') || []) button.setAttribute('aria-pressed', String(button.dataset.assetChartAction === `chip-tab-${state.chipTab}`));
       let overlay = null;
-      if (chip.status === 'ready' && state.chipSettings.overlayEnabled) {
+      if (chip.status === 'ready' && state.chipSettings.overlayEnabled && !metadata.minute_k) {
         const cutoff = selectedDailyIndex() - state.chipSettings.overlayDays;
         if (cutoff >= 4) overlay = estimateChips(daily.slice(0, cutoff + 1), state.chipSettings);
       }
       chips?.setOption(buildChipChartOption(chip, domain, library, theme, state.chipTab, overlay), true);
-      const note = find('.asset-chip-note'); if (note) note.textContent = `换手衰减估算，非实际持仓。${chip.status === 'ready' && chip.initialResidual > .01 ? `初始分布仍占 ${(chip.initialResidual * 100).toFixed(2)}%。` : ''}${state.chipSettings.overlayEnabled ? overlay?.status === 'ready' ? `历史叠加：${overlay.endDate}。` : '所选日期之前的历史不足，未绘制历史叠加。' : ''}`;
+      const note = find('.asset-chip-note'); if (note) note.textContent = `${metadata.minute_k ? '日线筹码截至所选分钟的前一交易日，未使用当日未来数据。' : ''}换手衰减估算，非实际持仓。${chip.status === 'ready' && chip.initialResidual > .01 ? `初始分布仍占 ${(chip.initialResidual * 100).toFixed(2)}%。` : ''}${state.chipSettings.overlayEnabled ? overlay?.status === 'ready' ? `历史叠加：${overlay.endDate}。` : '所选日期之前的历史不足，未绘制历史叠加。' : ''}`;
       syncLabels(); rangeController?.render();
     });
     needsFull = needsResize = false;
@@ -456,7 +461,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       const rangeVersion = value => JSON.stringify([value.asset_history?.canonical_version,value.asset_history?.factor_version,value.canonicalVersion,value.factorVersion,adjustmentFor(value)]);
       if(changedIdentity || changedRows || rangeVersion(metadata)!==rangeVersion(nextMetadata||{}))rangeController?.clear(false);
       rawRows = rows; identity = nextIdentity; datasetKey = key; metadata = nextMetadata || {}; source = sourceFrequency(metadata.frequency);
-      daily = enrichMarketBars(rawRows);
+      daily = enrichMarketBars(rawRows, {timestamp: metadata.minute_k === true});
       const period = changedIdentity || !previousBars.length || source !== previousSource ? source : source === 'day' ? state.period : source;
       bars = source === 'day' && ['week', 'month'].includes(period) ? aggregateMarketBars(daily, period) : daily;
       if (changedIdentity) {
@@ -685,7 +690,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       const rangeLayer='<div class="asset-range-layer" data-asset-range-layer hidden><div class="asset-range-selection" data-asset-range-selection hidden></div><section class="asset-range-card" data-asset-range-card role="region" aria-label="区间统计" hidden></section></div>';
       slot.innerHTML = renderMarketTerminal(rawRows, state, metadata).replace('<div class="asset-panel-controls">',`${rangeLayer}<div class="asset-panel-controls">`);
       rangeHost=find('.asset-kline-stage')||slot;
-      rangeController=createRangeController({host:rangeHost,getContext:rangeContext,logger});
+      rangeController=metadata.minute_k ? null : createRangeController({host:rangeHost,getContext:rangeContext,logger});
       const capture=event=>rangeController?.capture(event);
       for(const name of ['pointerdown','mousedown','contextmenu','click','lostpointercapture'])listen(slot,name,capture,true);
       for(const name of ['pointermove','mousemove','pointerup','mouseup','pointercancel','blur'])if(view?.addEventListener)listen(view,name,capture,true);
@@ -696,7 +701,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle); listen(slot, 'change', localHandle); listen(slot, 'input', localHandle); listen(slot, 'submit', localHandle);
       for (const selector of ['[data-asset-indicator-manager]','[data-asset-indicator-parameter-dialog]']) {const dialog=find(selector);if(dialog)listen(dialog,'cancel',localHandle);}
       for (const selector of ['[data-asset-echarts]', '[data-asset-chip-chart]']) { const node = find(selector); if (node) { listen(node, 'mouseleave', hidePointer); listen(node, 'pointerleave', hidePointer); } }
-      initCharts(); rangeController.restore(preservedRange); schedule(true); return true;
+      initCharts(); rangeController?.restore(preservedRange); schedule(true); return true;
     });
     if (result === false) release(); return result;
   }

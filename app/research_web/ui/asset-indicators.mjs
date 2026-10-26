@@ -12,13 +12,18 @@ const read = (row, keys, positive = false) => {
 };
 const validOHLC = b => [b.open, b.high, b.low, b.close].every(v => finite(v) !== null) && b.low <= Math.min(b.open, b.close) && b.high >= Math.max(b.open, b.close) && b.low <= b.high;
 
-function parseDate(raw) {
+function parseDate(raw, timestamp = false) {
   if (!['string', 'number'].includes(typeof raw)) return null;
   let text = String(raw).trim(); if (/^\d{8}$/.test(text)) text = `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6)}`;
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(text);
   if (!match) return null;
   const [year, month, day] = match.slice(1).map(Number); const stamp = Date.UTC(year, month - 1, day); const date = new Date(stamp);
   if (year < 1900 || year > 2200 || date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day || (text.length > 10 && !Number.isFinite(Date.parse(text)))) return null;
+  if (timestamp) {
+    // Closed minute snapshots carry an explicit exchange offset, never local time.
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\+08:00$/.test(text)) return null;
+    return { date: text, ordinal: Date.parse(text) / 86400000 };
+  }
   return { date: text.slice(0, 10), ordinal: stamp / 86400000 };
 }
 
@@ -62,12 +67,12 @@ export function calculateIndicators(normalized) {
   return bars;
 }
 
-export function enrichMarketBars(rows = []) {
+export function enrichMarketBars(rows = [], {timestamp = false} = {}) {
   const diagnostics = { invalidDates: 0, invalidRows: 0, duplicates: 0, truncated: 0, missingOHLC: 0, missingVolume: 0 };
   const dated = new Map();
   for (const row of Array.isArray(rows) ? rows : []) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) { diagnostics.invalidRows++; continue; }
-    const date = parseDate([row.date, row.trade_date, row.datetime, row.time, row['时间']].find(v => v !== null && v !== undefined && String(v).trim()));
+    const date = parseDate([row.date, row.trade_date, row.datetime, row.time, row['时间']].find(v => v !== null && v !== undefined && String(v).trim()), timestamp);
     if (!date) { diagnostics.invalidDates++; continue; }
     const bar = { ...date, asset: row.asset, open: read(row, ['open', '开盘'], true), high: read(row, ['high', '最高'], true), low: read(row, ['low', '最低'], true), close: read(row, ['close', '收盘', 'price', 'last'], true), volume: read(row, ['volume', 'vol', '成交量']), amount: read(row, ['amount', 'turnover', '成交额']), turnover_rate_pct: read(row, ['turnover_rate_pct', 'turnover_rate', '换手率']), vwap: read(row, ['vwap', 'avg_price', 'average_price'], true), gap: row.gap === true || row.missing === true };
     bar.validOHLC = validOHLC(bar);
@@ -81,6 +86,7 @@ export function enrichMarketBars(rows = []) {
 
 export function sourceFrequency(value) {
   const text = String(value || 'daily').toLowerCase();
+  if (text === 'minute') return 'minute';
   if (['daily', 'day', 'd', '1d', '日', '日线'].includes(text)) return 'day';
   if (['weekly', 'week', 'w', '1w', '周', '周线'].includes(text)) return 'week';
   if (['monthly', 'month', 'm', '1m', '月', '月线'].includes(text)) return 'month';

@@ -3185,6 +3185,41 @@ Functions:
   - Validate native per-minute volume and a fixed previous-day reference.
 
 
+## `app/research_web/asset_minute_k.py`
+
+Module docstring:
+> Closed minute-K snapshots, independent of daily history and intraday lines.
+
+Imports:
+- `__future__`
+- `asset_history`
+- `asset_intraday`
+- `asyncio`
+- `copy`
+- `core.observability`
+- `datahub.adjustment_contract`
+- `datahub.contracts`
+- `datahub.providers`
+- `datetime`
+- `hashlib`
+- `json`
+- `store`
+- `time`
+- `uuid`
+- `zoneinfo`
+
+Classes:
+- `MinuteK`
+  - Account-local coalescence and frozen derivation, without old-block writes.
+  - methods: __init__, hub, _authorize_manifest, load, _bounded, _load, close
+
+Functions:
+- `digest`
+- `normalize_bars`
+- `project_prices`
+- `rebase_chip_reference`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -3215,6 +3250,7 @@ Classes:
 - `AlertCreate`
 - `AlertPatch`
 - `IntradayRequest`
+- `MinuteKRequest`
 
 Functions:
 - `_default_sections`
@@ -3222,6 +3258,7 @@ Functions:
 - `search_assets`
 - `list_observations`
 - `observation`
+- `minute_bars`
 - `intraday`
 - `create_history_job`
 - `list_history_jobs`

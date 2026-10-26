@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+分钟K复用已锁定CJPY 0.5.2与本地图表库，无新增依赖。Mac Bootstrap原同源资源校验新增asset-minute-k.mjs及后端import；无凭据CI只验证依赖和离线合同。requirements/web.in、web.lock、scripts/setup_web.py入口未变，完整同候选Mac干净安装仍必需。
+
 本轮分时使用既有CJPY0.5.2、ECharts5.5.0及标准库，无新增依赖/配置/迁移。requirements/web.in、web.lock、setup_web.py及公开安装入口保持；新Python/静态模块仍须由同候选Mac Bootstrap证明随安装产物交付，现有天软配置复用且CI不调用供应商。
 
 报价单位修复沿用锁定CJPY0.5.2及三公开安装入口，无新依赖/配置/数据库迁移；只给已核实新响应附单位元数据。requirements/web.in、web.lock、setup_web.py、Bootstrap流程保持，最终同候选Mac干净安装/DSH/3081/8088/Doctor继续取证，不用既存venv或真实专业源通过替代安装CI。

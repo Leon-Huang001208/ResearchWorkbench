@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`POST /api/research/assets/observations/{observation_id}/minute-bars`：认证内封闭cycle=1m/5m/15m/30m/60m/120m、adjustment=none/qfq/hfq、严格布尔refresh。按账号观察身份选择最近市场日与固定有界窗口，经Workspace→DataHub→Broker→天软；不接受来源/任意公式/路径。派生快照复用asset_history隔离与哈希链，不能命中普通原生查询缓存。缓存60秒重验全部源及派生授权；任务计入原活动见证，取消消费者不伪报SDK空闲。
+
 `POST /api/research/assets/observations/{observation_id}/intraday`：认证内只接受可选严格布尔refresh；由当前账号观察解析证券和session，返回最近实际市场日分钟快照、单位、累计均价及覆盖说明。不接收任意日期、公式、来源、路径或账号；动态授权/维护准入每次复核。空成功清图，失败可重试并保留已显示旧快照。
 
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。

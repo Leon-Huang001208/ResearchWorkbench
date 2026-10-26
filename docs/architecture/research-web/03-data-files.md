@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+分钟K派生复用asset_history快照种类、独立version和asset-history.json哈希，不进入普通原生查询缓存。原始OHLCV、量额辅助字段、字段字典、因子与输入manifest摘要一同冻结；旧观察块/日线快照不覆盖。展示缓存每账号60秒/64项，命中复核全部输入与派生授权，配置修订/日期/原日线dataset参与键。
+
 分时新原件仍进入现有账号/session不可变DataHub快照；不写asset_history或旧观察块，不覆盖历史研究证据。60秒内存展示缓存有64项上限且命中仍重过动态授权；无业务index迁移。
 
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。

@@ -92,6 +92,7 @@ export function createAssetIntraday({api, echarts = () => globalThis.echarts}) {
       }
       mode(active);
     },
+    setActive: mode,
     dispose(){generation++;abort?.abort();loading=false;attempted=false;lastFailed=false;statusText='';release();data=null;identity='';observationId='';active=true;},
   };
 }
