@@ -19,3 +19,5 @@ macOS功能开发，task asset-minute-k-20261026，基线bb40c791。目标1/5/15
 本地阶段复核：完整Research Web JS1203通过、3原skip；近处Python306通过，新增严格请求/消费者取消见证另18项通过。Router15项本地门通过；Ruff/Black/isort近处通过。Python/JS独评前次问题已复核无新增高优先缺陷；浏览器六周期/三种复权真绘图，负例失败保留旧图及口径已验。最终CI与Mac安装仍待候选，常驻仍未切换。
 
 补充交互反例复现：分钟图拖动后窗口blur/外部pointerup/pointercancel没有终止拖动态，十字线停在旧索引250而非200。仅对分钟实例补齐三事件，随组件销毁解绑且隐藏图不刷新；原日周月Host监听不变。红/绿证据保留私有logs，最终候选重新执行Router/独评/三CI/Mac安装；e3d25431原Mac安装通过只属于旧候选，完整Checks未完成时不借用PASS。
+
+文档源链接核对：旧reading固定fa557ac不存在新增asset_minute_k.py（git cat-file实际拒绝）。将API Atlas阅读源码固定到已发布且已审6a227a07，其中包含全部本次产品实现；该提交作为最终祖先保留。重建两份阅读页，不改产品代码或测试门。
