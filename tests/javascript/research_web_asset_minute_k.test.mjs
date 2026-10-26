@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {enrichMarketBars, sourceFrequency} from '../../app/research_web/ui/asset-indicators.mjs';
 import {renderMarketTerminal, minuteChipInputs, createAssetChartController} from '../../app/research_web/ui/asset-chart.mjs';
-import {MINUTE_K_CYCLES} from '../../app/research_web/ui/asset-minute-k.mjs';
+import {MINUTE_K_CYCLES,createMinuteButtons} from '../../app/research_web/ui/asset-minute-k.mjs';
 const row=(date,close=10)=>({date,open:10,high:12,low:9,close,volume:100,amount:1000,vwap:10,turnover_rate_pct:2});
 test('minute timestamps never collapse and 1m retains legacy month meaning',()=>{
   const input=[row('2026-05-25T09:31:00+08:00'),row('2026-05-25T09:32:00+08:00',11)];
@@ -37,4 +37,13 @@ test('changing minute cycle resets visible window, adjustment keeps selection',(
   c.select(120);const date=c.getState().selectedDate;
   c.configure(input,'five-minute-qfq',{...meta,chartIdentity:'minute:5m',adjustment:'qfq'});
   assert.equal(c.getState().selectedDate,date);
+});
+
+test('six minute periods are direct inline buttons without menu/select',()=>{
+  const doc={createElement(tag){return {tag,dataset:{},attributes:{},children:[],setAttribute(k,v){this.attributes[k]=v;},append(child){this.children.push(child);}};}};
+  const group=createMinuteButtons(doc);
+  assert.equal(group.tag,'div');assert.equal(group.attributes['aria-label'],'分钟K周期');
+  assert.deepEqual(group.children.map(n=>n.tag),Array(6).fill('button'));
+  assert.deepEqual(group.children.map(n=>n.textContent),['1分','5分','15分','30分','60分','120分']);
+  assert.deepEqual(group.children.map(n=>n.dataset.minuteCycle),MINUTE_K_CYCLES);
 });
