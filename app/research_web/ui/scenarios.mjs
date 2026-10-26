@@ -1,12 +1,13 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
-import { cleanAsset } from './asset-navigation.mjs';
+import { selectAssetObservation } from './asset-navigation.mjs';
 const stateLabel = value => ({ incomplete:'证据不完整', ready_for_draft:'可准备草稿', unverified:'待核验', unavailable:'暂不可用', ready:'具备准入条件', prepared:'已准备草稿', creation_outcome_unknown:'创建结果尚未确认' })[value] || '待核验';
 const artifactLabel = value => ({ 'source-linked-research-draft':'带来源的研究草稿', 'coverage-and-missing-evidence-ledger':'覆盖与缺口台账' })[value] || value;
 
-export function scenarioLaunchContext({ assetPage, route, observation, detail, draft, researchAsOf }, data) {
+export function scenarioLaunchContext({ assetPage, route, observation, observations = [], detail, draft, researchAsOf }, data) {
   if ('workbenchHandoff' in data && !assetPage) return null;
-  if (assetPage && (!observation || route.asset && (cleanAsset(route.asset) !== cleanAsset(observation.asset) || (route.assetType || 'stock') !== observation.asset_type))) return { error: '当前证券观察尚未就绪，请等待切换完成；没有带入上一证券资料。' };
+  const matched = assetPage && selectAssetObservation(observations.length ? observations : observation ? [observation] : [], route);
+  if (assetPage && (!observation || !matched || matched.id !== observation.id || matched.asset !== observation.asset || matched.asset_type !== observation.asset_type)) return { error: '当前证券观察尚未就绪，请等待切换完成；没有带入上一证券资料。' };
   const current = assetPage ? observation : null;
   return { context: { session_id: current?.session_id || detail?.id, observation_id: current?.id,
     subject: current ? {kind:current.asset_type,identity:current.asset} : undefined,

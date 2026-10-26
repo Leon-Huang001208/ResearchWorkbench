@@ -44,8 +44,9 @@
 `GET /assets/research/catalog?observation_id=...` 列出当前账号有界观察及明确资料文件候选。
 `POST /assets/research/preview` 接受观察、比较观察列表及可选 `{source_session_id,file_id,sha256}`；
 首次选择可省略hash，由服务器读回当前版本，后续冻结必须提交该实际hash。JSON正文不得自报
-passed/incomplete/invalid；引用当前canonical `outputs/research-report.json` 时，展示质量取同任务
-Host当前重验回执，其余材料保持未评估。
+passed/incomplete/invalid。导入摘要始终未独立评估；引用当前canonical `outputs/research-report.json`
+时，每个引用分别附上Host当前重验的source_quality、source_contract、source_task_id与
+source_report_sha256。来源报告质量不转移给自由改写的摘要，多个来源不取最后一个或合并成摘要评级。
 
 原件查看走 `/assets/research/evidence/{sid}?type=...&id=...&sha256=...`，只读本地已取得原件，
 逐次鉴权和校验hash，不是URL代理；变化、撤权、缺失不替换为新版本。
@@ -62,3 +63,8 @@ subject/comparison/supporting_evidence角色；比较证券不能偷换为主体
 准备研究及原基金交接。截图页面明确标记“隔离验收样本”，其中关系与数据是合成测试材料。
 桌面键盘与窄视口已验；实体手机键盘、真实模型／供应商、生产常驻部署与跨平台保持NOT_RUN。
 这不是对原站私有知识库或专有数值模型的复刻认证。
+
+
+观察身份沿现有唯一别名解析器解析，合法六位证券别名仍可使用；不同主体和歧义代码拒绝。
+同一观察或已选择比较观察的区块／数据集版本变化会立即清除旧预览并重新读取，保留问题、
+截止日、比较选择与已勾选来源范围。迟到响应不能覆盖新版本；账户或主体变化不复用旧证据。

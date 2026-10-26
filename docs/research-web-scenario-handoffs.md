@@ -77,3 +77,8 @@ JSON哈希；缺实际加载保持incomplete，资源／版本／合同变化为
 原基金及其他非资产交接保留原数据属性和API路径；证券切换窗口不携带旧观察，搜索Enter不创建研究。
 筛选无匹配、来源空与没有可核验资产关联分别展示；自选只用源实际返回的规范asset_codes。
 资产研究工作区及严格资料格式见[资产研究资料](research-web-asset-research.md)。
+
+
+实际财务报告期使用Provider规范字段report_period，明确公开时间使用publication_date或published_at，
+两者任一已知晚于截止日均拒绝。未知期／未知公开日进入冻结缺口，不用取得时间、supplier_update_time
+或forecast_period代替；任意forecast标志不能豁免真实报告期的截止检查。

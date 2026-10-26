@@ -178,7 +178,7 @@ function paintAssetResearch() {
 }
 function syncAssetResearch() {
   if(!isAssetPage()){assetResearch.deactivate();return;}
-  void assetResearch.activate(assetState.observation,state.route);
+  void assetResearch.activate(assetState.observation,state.route,assetState.observations);
   paintAssetResearch();
 }
 const discoveryController = createDiscoveryController({ api, onChange: () => { if (state.route.page === 'intel' && state.route.intelTab === 'discovery') render(); }, onNavigate: (mode, sessionId) => { if (sessionId && ['fingpt', 'claw'].includes(mode)) location.hash = `#/${mode}?session=${encodeURIComponent(sessionId)}`; } });
@@ -2666,7 +2666,7 @@ root.addEventListener('click', async (event) => {
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
   if (scenarioAction) {
-    const launch = scenarioLaunchContext({ assetPage:isAssetPage(), route:state.route, observation:assetState.observation, detail:state.detail, draft:state.draft, researchAsOf:state.researchAsOf }, scenarioAction.dataset);
+    const launch = scenarioLaunchContext({ assetPage:isAssetPage(), route:state.route, observation:assetState.observation, observations:assetState.observations, detail:state.detail, draft:state.draft, researchAsOf:state.researchAsOf }, scenarioAction.dataset);
     if (launch) {
       event.preventDefault();
       if (launch.error) { state.error = launch.error; render(); }

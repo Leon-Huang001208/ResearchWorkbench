@@ -271,12 +271,30 @@ def verify_material(
         for identity in identities
     ):
         fail("scenario_subject_mismatch", "资料包含另一证券，须明确作为比较对象选择")
-    validate_dates(manifest, raw, values["as_of"])
+    metadata["date_gaps"] = validate_dates(manifest, raw, values["as_of"])
     return metadata, manifest
 
 
 def validate_dates(manifest, raw, as_of):
     rows = json.loads(raw)
+    gaps = set()
+    if manifest.get("capability") == "financials":
+        # The current financial providers normalize actual statement periods to
+        # report_period, and disclosure dates to publication_date or published_at.
+        # Forecast horizons and collection/update clocks are different fields.
+        for row in rows:
+            period = publication_date(row.get("report_period"))
+            published = [
+                publication_date(row.get(field)) for field in ("publication_date", "published_at")
+            ]
+            if period and period > as_of:
+                fail("scenario_cutoff_mismatch", "实际财务报告期晚于研究截止日")
+            if any(day and day > as_of for day in published):
+                fail("scenario_cutoff_mismatch", "财务资料明确公开日期晚于研究截止日")
+            if period is None:
+                gaps.add("financial_report_period_unknown")
+            if not any(published):
+                gaps.add("financial_publication_date_unknown")
     if manifest.get("capability") in {
         "search_news",
         "search_announcements",
@@ -292,6 +310,7 @@ def validate_dates(manifest, raw, as_of):
         actual_end = manifest.get("as_of")
     if publication_date(actual_end) and publication_date(actual_end) > as_of:
         fail("scenario_cutoff_mismatch", "选定快照包含研究截止日之后的数据，请重新选择资料")
+    return sorted(gaps)
 
 
 def prepare_context(service, body):
@@ -413,7 +432,7 @@ def prepare_context(service, body):
                 _meta, manifest, raw = resolve_reference(
                     service, ref["source_session_id"], ref["reference"], expected=ref
                 )
-                validate_dates(manifest, raw, values["as_of"])
+                ref["date_gaps"] = validate_dates(manifest, raw, values["as_of"])
             if (
                 publication_date(ref.get("published_at"))
                 and publication_date(ref["published_at"]) > values["as_of"]
@@ -431,6 +450,14 @@ def prepare_context(service, body):
         )
     references = list(unique_references.values())
     chosen = selection(service, body.scenario_id, values, evidence=evidence)
+    date_gaps = [
+        {"code": code, "id": ref["reference"]["id"]}
+        for ref in references
+        for code in ref.get("date_gaps", [])
+    ]
+    if date_gaps:
+        chosen["missing"].extend(date_gaps)
+        chosen.update(status="incomplete", eligible_for_draft=False)
     if any(not row["available"] for row in chosen["capabilities"]):
         fail(
             "scenario_capability_unavailable", "场景所需能力当前不可执行；保留输入并查看能力门状态"

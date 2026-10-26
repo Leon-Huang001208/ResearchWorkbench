@@ -1,27 +1,42 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
-import { cleanAsset } from './asset-navigation.mjs';
+import { selectAssetObservation } from './asset-navigation.mjs';
 
 const quality = value => ({passed:'当前报告质量通过',incomplete:'当前报告证据不完整',invalid:'当前报告无效',not_assessed:'未形成质量结论'})[value] || '尚未核验';
 const scopes = {datahub:'数据快照',uploads:'已有文件／上传资料',web:'联网与网页资料'};
 const valueText = value => value === null || value === undefined ? '未提供' : typeof value === 'object' ? JSON.stringify(value) : String(value);
-const keyFor = (observation, route) => observation && (!route.asset || cleanAsset(route.asset) === cleanAsset(observation.asset)) && (!route.assetType || route.assetType === observation.asset_type) ? `${observation.id}:${observation.asset}` : '';
+const keyFor = (observation, route, observations) => {
+  const matched=selectAssetObservation(observations.length?observations:observation?[observation]:[],route);
+  return observation && matched?.id===observation.id && matched.asset===observation.asset && matched.asset_type===observation.asset_type ? `${observation.id}:${observation.asset}` : '';
+};
+function snapshotVersion(observation) {
+  if(!observation)return null;
+  return [observation.id,observation.asset,observation.asset_type,observation.session_id,Object.entries(observation.blocks || {}).sort(([a],[b])=>a.localeCompare(b)).map(([name,block])=>[name,block.status,block.failure_code,block.dataset?.dataset_id,block.dataset?.manifest_sha256,block.dataset?.retrieved_at,block.dataset?.as_of,block.dataset?.status,block.dataset?.files])];
+}
+const versionFor=(observation,observations,peers)=>JSON.stringify([snapshotVersion(observation),...peers.map(id=>snapshotVersion(observations.find(item=>item.id===id)) || {missing:id})]);
 
 export function createAssetResearchController({api,changed=()=>{},onResearch,logger=safeLog,account=()=>String(globalThis.__RWB_USER_ID__ || 'local')}={}) {
-  const state={active:false,key:'',tab:'summaries',catalog:null,preview:null,material:null,comparisons:[],recordIndices:{},scope:['datahub'],asOf:'',question:'',loading:false,error:''};
-  const owner=account();let generation=0;
-  function deactivate(){generation++;state.active=false;state.key='';state.preview=null;state.catalog=null;state.error='';}
-  async function activate(observation,route={}) {
-    const key=keyFor(observation,route);
+  const state={active:false,key:'',version:'',tab:'summaries',catalog:null,preview:null,material:null,comparisons:[],recordIndices:{},scope:['datahub'],asOf:'',question:'',loading:false,error:''};
+  const owner=account();let generation=0;let knownObservations=[];
+  function deactivate(){generation++;state.active=false;state.key='';state.version='';state.preview=null;state.catalog=null;state.error='';}
+  async function activate(observation,route={},observations=[]) {
+    knownObservations=observations;
+    const key=keyFor(observation,route,observations);
     if(!key || account()!==owner){if(state.key)deactivate();return;}
-    if(state.active && state.key===key)return;
-    generation++;Object.assign(state,{active:true,key,observation,comparisons:[],material:null,preview:null,catalog:null,scope:['datahub'],recordIndices:{},asOf:observation.request_parameters?.end_date || '',question:`基于已选原件研究 ${observation.asset}，区分事实、观点与资料声明。`,error:''});
+    const version=versionFor(observation,observations,state.active && state.key===key?state.comparisons:[]);
+    if(state.active && state.key===key){
+      if(state.version===version)return;
+      state.observation=structuredClone(observation);state.version=version;state.preview=null;state.recordIndices={};
+      await refresh(true);return;
+    }
+    generation++;Object.assign(state,{active:true,key,version,observation:structuredClone(observation),comparisons:[],material:null,preview:null,catalog:null,scope:['datahub'],recordIndices:{},asOf:observation.request_parameters?.end_date || '',question:`基于已选原件研究 ${observation.asset}，区分事实、观点与资料声明。`,error:''});
     await refresh(true);
   }
   async function refresh(catalog=false) {
     if(!state.active || account()!==owner)return;
     const ticket=++generation, oid=state.observation.id;
-    state.loading=true;state.error='';changed();
+    state.version=versionFor(state.observation,knownObservations,state.comparisons);
+    state.preview=null;state.loading=true;state.error='';changed();
     try {
       if(catalog){const result=await api.assetResearchCatalog(oid);if(ticket!==generation || account()!==owner)return;state.catalog=result;}
       const result=await api.assetResearchPreview({observation_id:oid,comparison_observation_ids:[...state.comparisons],material:state.material});
@@ -71,9 +86,9 @@ export function createAssetResearchController({api,changed=()=>{},onResearch,log
 }
 
 function proofs(items) {
-  return `<ul class="ar-proofs">${items.map(item=>`<li><a href="${e(item.url)}" target="_blank" rel="noopener noreferrer">核对原件：${e(item.title || item.reference.id)}</a><blockquote>${e(item.locator.quote)}</blockquote><small>${e(item.source || '来源未命名')} · ${item.locator.kind==='json-cell'?`原始行 ${item.locator.row+1}／字段 ${e(item.locator.field)}`:`文本字符 ${item.locator.start}–${item.locator.end}`} · SHA-256 ${e(item.sha256)}</small></li>`).join('')}</ul>`;
+  return `<ul class="ar-proofs">${items.map(item=>`<li><a href="${e(item.url)}" target="_blank" rel="noopener noreferrer">核对原件：${e(item.title || item.reference.id)}</a><blockquote>${e(item.locator.quote)}</blockquote><small>${e(item.source || '来源未命名')} · ${item.locator.kind==='json-cell'?`原始行 ${item.locator.row+1}／字段 ${e(item.locator.field)}`:`文本字符 ${item.locator.start}–${item.locator.end}`} · SHA-256 ${e(item.sha256)}</small>${item.source_quality?`<p class="ar-state">来源报告：${quality(item.source_quality)}；仅指该引用原件，不是本条摘要的质量结论。</p><small>来源合同 ${e(item.source_contract || '未提供')} · 来源报告版本 ${e(item.source_report_sha256 || '未提供')}</small>`:''}</li>`).join('')}</ul>`;
 }
-function summaries(s){return s.preview.summaries.map(item=>`<article class="ar-card"><h3>${e(item.title)}</h3><p class="ar-state">分析观点／引用摘录 · ${quality(item.quality)}</p><p class="ar-summary">${e(item.text)}</p>${proofs(item.evidence)}${item.quality_contract?`<small>当前质量合同 ${e(item.quality_contract)}</small>`:''}</article>`).join('') || '<p>尚未选择带来源的研究摘要。可选择已保存资料，或下载模板后导入；不自动生成观点。</p>'}
+function summaries(s){return s.preview.summaries.map(item=>`<article class="ar-card"><h3>${e(item.title)}</h3><p class="ar-state">分析观点／引用摘录 · 本条摘要未独立评估</p><p class="ar-summary">${e(item.text)}</p>${proofs(item.evidence)}</article>`).join('') || '<p>尚未选择带来源的研究摘要。可选择已保存资料，或下载模板后导入；不自动生成观点。</p>'}
 function comparisons(s) {
   const items=s.preview.comparisons;
   const selected=items.map(item=>({...item,selected:item.records[s.recordIndices[item.observation_id] || 0]}));

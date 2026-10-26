@@ -395,18 +395,21 @@ async def preview(body: Preview, request: Request):
     )
     # A source file cannot declare its quality: only the exact current canonical
     # report and the Host's current revalidated receipt can supply that state.
-    for summary in rows["summaries"]:
-        for proof in summary["evidence"]:
+    for item in [*rows["summaries"], *rows["relations"]]:
+        for proof in item["evidence"]:
             if proof["reference"] == {"type": "file", "id": "outputs/research-report.json"}:
                 detail = await service.detail(proof["source_session_id"])
                 current = detail.get("research_quality") or {}
                 actual = service.dossiers._resolve(
                     proof["source_session_id"], proof["reference"], expected=proof
                 )[1]
-                if json.loads(actual).get("task_id") == current.get("contract", {}).get("task_id"):
-                    summary.update(
-                        quality=current.get("status", "not_assessed"),
-                        quality_contract=current.get("contract", {}).get("sha256"),
+                task_id = current.get("contract", {}).get("task_id")
+                if task_id and json.loads(actual).get("task_id") == task_id:
+                    proof.update(
+                        source_quality=current.get("status", "not_assessed"),
+                        source_contract=current.get("contract", {}).get("sha256"),
+                        source_task_id=task_id,
+                        source_report_sha256=proof["sha256"],
                     )
     return {
         **rows,

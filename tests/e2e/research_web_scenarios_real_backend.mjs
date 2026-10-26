@@ -69,6 +69,15 @@ try {
     const fixture=await (await context.request.get(`${origin}/__fixture/asset-workspace`)).json();
     await page.goto(`${origin}/#/assets?asset=600600.SH&asset_type=stock&view=financials`);
     await page.locator('[data-asset-research]').waitFor();
+    await page.goto(`${origin}/#/assets?asset=600600&asset_type=stock&view=financials`);
+    await page.waitForFunction(()=>!document.querySelector('#asset-research-import')?.disabled);
+    const aliasBefore=await (await context.request.get(`${origin}/__fixture/state`)).json();
+    await page.locator('[data-scenario-open]').click();
+    await page.locator('#scenario-identity').waitFor();
+    assert.equal(await page.locator('#scenario-identity').inputValue(),'600600.SH');
+    await page.keyboard.press('Escape');
+    const aliasAfter=await (await context.request.get(`${origin}/__fixture/state`)).json();
+    assert.equal(aliasAfter.sessions.length,aliasBefore.sessions.length);
     const raceBefore=await (await context.request.get(`${origin}/__fixture/state`)).json();
     await page.evaluate(()=>{
       globalThis.__scenarioRaceClick=false;
@@ -92,6 +101,8 @@ try {
     await page.waitForFunction(()=>{const field=document.querySelector('#asset-research-import');return field && !field.disabled;});
     await page.locator('#asset-research-import').setInputFiles({name:'workspace.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture.bundle))});
     await page.getByRole('heading',{name:'经营资料摘录',exact:true}).waitFor();
+    await page.getByRole('heading',{name:'经营资料摘录',exact:true}).scrollIntoViewIfNeeded();
+    await page.screenshot({path:path.join(output,`asset-summary-${width}.png`),fullPage:true});
     const savedMaterial=await page.locator('#asset-research-material').inputValue();
     await page.locator('#asset-research-material').selectOption('');
     await page.getByText('尚未选择带来源的研究摘要。可选择已保存资料，或下载模板后导入；不自动生成观点。',{exact:true}).waitFor();
@@ -121,7 +132,7 @@ try {
     await page.locator(`[data-workbench-handoff="fingpt"][data-source-session="${fixture.source_session_id}"]`).click();
     const legacyResponse=await oldReply, legacy=await legacyResponse.json();assert.equal(legacyResponse.status(),201,JSON.stringify(legacy));
     assert.equal(legacy.section,'funds');assert.equal(legacy.dataset_count,1);assert.equal(legacy.scenario_context,undefined);
-    checks.push({width,assetWorkspace:true,summary:true,comparisons:true,sourceLinkedRelation:true,realImport:true,legacyHandoff:true,searchEnterNoCreate:true,routeRaceNoCreate:true,desktopKeyboardEscapeAndTab:true});
+    checks.push({width,assetWorkspace:true,summary:true,comparisons:true,sourceLinkedRelation:true,realImport:true,legacyHandoff:true,searchEnterNoCreate:true,routeRaceNoCreate:true,desktopKeyboardEscapeAndTab:true,uniqueBareCodeNoCreate:true});
 
     await context.close();
   }

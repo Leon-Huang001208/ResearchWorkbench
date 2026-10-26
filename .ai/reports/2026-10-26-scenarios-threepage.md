@@ -139,3 +139,42 @@ Browser仍用原命令，内部改为 `tests/e2e/research_web_scenarios_backend.
 夹具。其余修改覆盖原workbench/scenario、Discovery源码投影、dossiers解析、Store保全、service/quality
 合同、主UI挂载及既有场景浏览器脚本。精确文件清单随本轮Git提交固定；原62/78目录未改。
 新增静态模块／样式及schema2消费者须由控制任务纳入完整Router、独立评审、原三CI与Mac安装。
+
+## 独立评审修复 round 2（2026-10-27）
+
+基线 `b8aa694aa80c601e4e05efaac3508ae0b9626b5a`。四项Important已修复并通过目标及受影响闭包，
+等待scoped re-review；不宣称独立评审批准、CI或真实模型质量通过。
+
+- 证券入口和工作区共同复用 `selectAssetObservation`：唯一六位别名返回真实规范身份；不同证券、
+  歧义代码仍拒绝，浏览／打开不创建会话。真实浏览器新增六位别名打开及零创建断言。
+- 工作区按主体及已选比较观察的block/dataset版本指纹刷新；先清除旧预览，迟到响应不能覆盖新版本。
+  同主体更新保留问题、截止、比较选择及来源同意；主体／账户变化不沿用旧授权或证据。
+- financials分别核验规范 `report_period` 与 `publication_date/published_at`，任一已知晚于截止均拒绝。
+  未知日期写入冻结缺口；不使用取得时间、更新时钟或forecast_period代替，forecast标志不豁免实际日期。
+- 导入摘要固定 `quality=not_assessed`。每份当前来源报告单独显示source_quality/source_contract/
+  source_task_id/source_report_sha256，不按最后一份来源覆盖摘要评级。真实Store、SDK HTML和Native
+  完成事件生成passed/incomplete来源，伪造新摘要、混合及反转引用顺序均不提升摘要质量；未mock Host质量。
+
+验证：新JS反例3 RED→5 GREEN；Python日期反例及未知缺口RED→GREEN，单独摘要反例以真实Host报告
+  复现评级继承后转GREEN。最终新Python5 PASS（含单一passed来源与混合/反转次序）；相关场景、工作区、
+  权限/保全、schema2/SDK和原workbench闭包 **54 PASS**，1条原Starlette弃用warning，75.71秒。
+  原节点回归含新增用例 **373 PASS**。当前Browser **4条组合旅程PASS**，保留route-race、搜索Enter、
+  桌面Tab/Escape、逐字输入、资料导入/重新选择、比较/产业边及legacy交接，并加合法别名零创建。
+  截图更新至当前字节，仍显示“隔离验收样本”；实体手机键盘NOT_RUN。
+
+日志：`logs/t2-r2-js-red.log`、`t2-r2-js-green.log`、`t2-r2-python-red.log`、
+`t2-r2-summary-red.log`、`t2-r2-python-final.log`、`t2-r2-python-closure.log`、
+`t2-r2-node-closure.log`、`t2-r2-browser.log`；Ruff/Black/isort均通过对应r2日志。
+初始摘要测试的格式和原生完成事件夹具修正后才取得真实passed来源，其后的RED是实际评级继承问题。
+原MyPy13条基线未重跑或伪标整体通过。没有运行未改的全库测试、真实供应商／模型、安装或发布。
+
+闭包命令（Python与缓存PYTHONPATH沿上文，不新增依赖）：
+
+```bash
+python -m pytest --confcutdir=tests/research_web tests/research_web/test_scenario_review_round2.py tests/research_web/test_scenario_review_regressions.py tests/research_web/test_scenario_handoffs.py tests/research_web/test_asset_research_workspace.py tests/research_web/test_workbench_operations.py -q
+node --test tests/javascript/research_web_scenarios.test.mjs tests/javascript/research_web_composer_menu.test.mjs tests/javascript/research_web_discovery.test.mjs tests/javascript/research_web_asset*.test.mjs tests/javascript/research_web_workbench.test.mjs tests/javascript/research_web_dossier*.test.mjs
+```
+
+本轮只改scenario_handoffs、asset_research、对应UI/主挂载、两篇owned功能文档、场景Browser脚本，
+新增 `test_scenario_review_round2.py` 与 `research_web_asset_research.test.mjs`。父任务所有workflow、
+共享架构/安装/额度文档及生成图、总计划/报告保持未stage；无新代理、worktree、模型或外部协调。
