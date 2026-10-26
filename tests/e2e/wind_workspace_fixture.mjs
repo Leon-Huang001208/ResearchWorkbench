@@ -5,7 +5,7 @@ import path from 'node:path';
 import { readFile, writeFile, appendFile, mkdir } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 
-const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-layout.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-range-statistics.mjs', 'asset-range-controller.mjs', 'asset-indicator-library.mjs', 'asset-panel-manager.mjs', 'asset-chips.mjs', 'asset-chip-panel.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-format.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
+const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-layout.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-intraday.mjs', 'asset-intraday-option.mjs', 'asset-range-statistics.mjs', 'asset-range-controller.mjs', 'asset-indicator-library.mjs', 'asset-panel-manager.mjs', 'asset-chips.mjs', 'asset-chip-panel.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-format.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
 const clone = value => structuredClone(value);
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 // Preview-container restrictions only. Product files and their hashes stay intact.
@@ -64,11 +64,21 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
         const blockLoadMatch = url.pathname.match(/^\/api\/research\/assets\/observations\/([^/]+)\/blocks\/([^/]+)\/load$/);
         const createObservation = request.method === 'POST' && url.pathname.endsWith('/assets/observations');
         const jobMatch = url.pathname.match(/^\/api\/research\/assets\/observations\/([^/]+)\/history-jobs(?:\/([^/]+))?(\/cancel)?$/);
-        const simulatedWrite = request.method === 'PUT' && preferencesRoute || request.method === 'POST' && jobMatch && (!jobMatch[2] || jobMatch[3]) || request.method === 'POST' && blockLoadMatch || createObservation;
+        const intradayMatch = url.pathname.match(/^\/api\/research\/assets\/observations\/([^/]+)\/intraday$/);
+        const simulatedWrite = request.method === 'PUT' && preferencesRoute || request.method === 'POST' && jobMatch && (!jobMatch[2] || jobMatch[3]) || request.method === 'POST' && blockLoadMatch || createObservation || request.method === 'POST' && intradayMatch;
         if (request.method !== 'GET' && !simulatedWrite) return send({ code: 'isolated_preview_read_only', error: '隔离预览禁用研究提交、刷新供应商和持久业务写入。' }, 403);
         if (request.method === 'GET' && jobMatch?.[3]) return send({ code: 'method_not_allowed', error: '取消模拟任务须使用 POST。' }, 405);
         let body = '';
         if (['POST', 'PUT'].includes(request.method)) { for await (const chunk of request) body += chunk; body = body ? JSON.parse(body) : {}; }
+        if (intradayMatch) {
+          const observation = [...current.values()].find(row=>row.id===intradayMatch[1]);
+          if (!observation) return send({code:'preview_observation_missing'},404);
+          const frozen = proof.intraday?.[observation.asset];
+          // Explicit synthetic negative cases; the source snapshot remains immutable.
+          if (state.intradayCase === 'failed') return send({error:{code:'synthetic_minute_failure',message:'隔离验收模拟失败'}},503);
+          if (state.intradayCase === 'empty' && frozen) return send({...clone(frozen),status:'empty',rows:[],previous_close:null});
+          return frozen ? send(clone(frozen)) : send({error:{code:'preview_minute_snapshot_missing',message:'未保存此资产的分钟快照'}},503);
+        }
         if (url.pathname.endsWith('/assets/search')) {
           const query = String(url.searchParams.get('q') || '').normalize('NFKC').trim().toLowerCase();
           const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit')) || 20));

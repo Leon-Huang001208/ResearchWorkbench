@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+分时正式接入沿原Checks步骤登记分钟合同回归，完整changed-set Router/独评/原三CI/同候选Mac安装不减。真实分时使用账号隔离DataHub快照，分钟K仅核验样本不冒充实现；受控部署仍等待实际空闲/保全/恢复门，旧Wind未知不能由本功能源码绿替代。
+
 全市场广度组合按用户批准纳入PR233/235/237，固定产品4c72ed43与实际前版b800e503；独立worktree实现封闭apply-market-breadth，完整Router/原三CI/同候选Mac安装及独评后才准入。旧active=null/Wind清理未确认继续阻断，不补假见证或清标记，不执行未实现恢复、周报重放、模型或日程；源码交付与现场上线分别留证。
 
 来源活动见证必须覆盖真实冷 Host，不能仅给 SimpleNamespace 补空属性而漏掉真实构造。先观察实际 HTTP `active=null` 的失败，再初始化原有来源登记表，联合 resident、来源生命周期和真实 API 回归；缺失或异常见证仍拒绝，不能改回宽泛 getattr 默认空。此修复不等于旧 Wind 现场恢复，也不授权部署或重试模型。

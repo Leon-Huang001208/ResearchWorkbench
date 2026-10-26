@@ -3155,6 +3155,36 @@ Functions:
 - `normalize_indicator_settings`
 
 
+## `app/research_web/asset_intraday.py`
+
+Module docstring:
+> Account-owned, bounded intraday display over immutable DataHub snapshots.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `copy`
+- `core.observability`
+- `datahub.contracts`
+- `datahub.providers`
+- `datetime`
+- `json`
+- `math`
+- `time`
+- `uuid`
+- `zoneinfo`
+
+Classes:
+- `Intraday`
+  - Per-workspace cache and coalescence; the workspace is account isolated.
+  - methods: __init__, load, _bounded_load, _load, close
+
+Functions:
+- `number`
+- `normalize_minutes`
+  - Validate native per-minute volume and a fixed previous-day reference.
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -3184,6 +3214,7 @@ Classes:
 - `NotePatch`
 - `AlertCreate`
 - `AlertPatch`
+- `IntradayRequest`
 
 Functions:
 - `_default_sections`
@@ -3191,6 +3222,7 @@ Functions:
 - `search_assets`
 - `list_observations`
 - `observation`
+- `intraday`
 - `create_history_job`
 - `list_history_jobs`
 - `get_history_job`
@@ -4212,6 +4244,20 @@ Functions:
 - `validate_bundle`
 - `build_archive`
   - No provider query is fabricated: this is a stored-evidence snapshot kind.
+
+
+## `app/research_web/datahub/intraday_contract.py`
+
+Module docstring:
+> CJPY 0.5.2 minute definitions verified from real vendor dictionary 2026-10-26.
+
+Imports:
+- `hashlib`
+- `json`
+- `providers`
+
+Functions:
+- `validate_definitions`
 
 
 ## `app/research_web/datahub/market_reader.py`

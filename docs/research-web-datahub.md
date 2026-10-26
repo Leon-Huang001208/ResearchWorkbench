@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+分时使用真实分钟时间，不复用daily日期去重。vol/amount为每分钟股/元，sectional_vol/amount为日内累计，sectional_yclose为前一交易日日收，yclose不是日昨收。现场字典与固定五字段定义逐项不符即拒绝。均价仅在当次样本累计字段和逐分钟量价尺度核验后算累计额/股，不扩充全市场价格币种/回测/PIT合同。空时段不补点，查询完整不代表全交易时段完整。
+
 ## 天软股票报价成交量单位（2026-10-25）
 
 实际 CJPY 0.5.2 `list_market_fields`（服务方法 `markettable_columns`）返回53字段，原生 `vol` 的股票单位明确为股，`amount` 为元；未声明 OHLC 币种。隔离真实查询经 AssetWorkspace→DataHub→Broker→Provider→快照，2026-10-23 `SH603986` 返回 vol=46,027,129，新增字段元数据为 share，展示为460,271.29手／46.03万手。样本和合成测试分开记录，不将测试输入称为厂商返回。
