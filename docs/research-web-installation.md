@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+本轮分时使用既有CJPY0.5.2、ECharts5.5.0及标准库，无新增依赖/配置/迁移。requirements/web.in、web.lock、setup_web.py及公开安装入口保持；新Python/静态模块仍须由同候选Mac Bootstrap证明随安装产物交付，现有天软配置复用且CI不调用供应商。
+
 报价单位修复沿用锁定CJPY0.5.2及三公开安装入口，无新依赖/配置/数据库迁移；只给已核实新响应附单位元数据。requirements/web.in、web.lock、setup_web.py、Bootstrap流程保持，最终同候选Mac干净安装/DSH/3081/8088/Doctor继续取证，不用既存venv或真实专业源通过替代安装CI。
 
 封闭apply-market-breadth/reviewed-market-breadth-v1固定b800e503前版和4c72ed43组合产品，沿现有安装锁与DSH，不新增依赖或初始化数据库。操作员最终候选必须重做同候选macos-14干净安装；旧产品CI不能认证新操作员。当前旧Host活动未知仍延期，不以安装通过代替现场空闲与保全。

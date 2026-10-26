@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+候选0e4ceeb2的Checks40262625759在40m上限取消：Python7109通过/72原skip/117subtests（2201.70s），另47通过（0.89s）；JS1199通过/3原skip（20.80s），但step因总时限取消，末尾固定编辑引擎检查NOT_RUN。完整日志18446774B保留原失败归属；只把原同一ubuntu-latest job有界延长40→45分钟（增加5分钟），不新增job/runner/依赖/跳过或删除用例，不改变permissions/concurrency。约132s依赖安装+约37m Python已耗尽旧预算；新增分钟合同本地亚秒，不把超时伪称功能通过。新候选重跑原三CI/Mac安装，不rerun旧run，CI不调用实际供应商或模型。
+
+分时初始候选在既有Checks登记test_asset_intraday.py并扩展test_datahub_cjpy.py；JS沿原通配符增加分钟图合同回归。无新job、runner、依赖或timeout，增量预留原步骤30秒，Mac Bootstrap原静态资源步骤追加两份分时模块字节校验与Python模块导入（预留10秒）；完整Router、原三CI与同候选Mac安装保持，实源与CI分离。
+
 2026-10-25报价成交量单位修复扩展原test_datahub_cjpy模块11例（本地61例1.45秒），JS沿原通配符新增1例（本文件8例）。不新增job/runner/依赖/timeout，原Python步骤预留10秒；完整Router/原三CI及同候选Mac安装不变，远端操作前实时核对PUBLIC/额度。真实字典+隔离单证券取数与离线回归、CI、常驻验收分开记录，模型调用0。
 
 PR240 候选 ecef 的 Checks40226600173 达40分钟上限取消；14.5MB完整日志显示Python仅57%且持续推进，无完整汇总。Mac40226753690/Constraints40226600281的通过保留原SHA归属。真实4项API profile显示目录880次保存/约1120万次JSON分片write为主要构造成本，模块扫描仅4次且缓存有效。本次仅优化原catalog.save为等字节单次写入，保留所有保存/同步/恢复语义，并在原步骤补登记6个字节及失败保全用例；不增job、runner、依赖或40分钟上限，不删用例/不rerun旧候选。新候选仍重新验证完整原三门及Mac安装。

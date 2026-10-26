@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+分时沿现有账号 Host/AssetWorkspace → DataHub → Broker → 天软 Provider → 不可变快照链读取；新增封闭 POST observations/{id}/intraday，不新增服务/数据库/凭据通道。独立分钟时间合同与日周月历史、筹码和副图隔离，CJPY厂商字典核验每次执行，60秒账号内缓存仍重过动态授权和维护准入，任务计入原空闲见证。图层只隐藏原K实例，切回不重建。
+
 天软报价单位修复只在 CJPY 0.5.2、显式沪深股票身份和实际 day 周期均核实时，为新 market_snapshot 原生 vol/amount 带出 share/元及独立字段字典证据。与原日线相同的100股/手仅在展示层执行；原始 rows/raw、旧冻结、其他SDK/资产/别名保持不变，无新节点、HTTP、依赖或研究引擎。
 
 全市场广度组合部署仅在原Native操作员新增封闭apply-market-breadth：前版b800e503、获批完整产品4c72ed43（PR233/235/237）。复用原三锁、BirthFence、全账号保全与回滚，无新增部署节点、业务API或引擎。当前旧Host的active=null仍拒绝停机；PR237诊断不是Wind恢复执行器，原图准确。
