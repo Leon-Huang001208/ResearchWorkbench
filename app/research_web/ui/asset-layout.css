@@ -188,4 +188,4 @@
 .intraday-readout strong{font-variant-numeric:tabular-nums}.intraday-readout .asset-price-up{color:var(--danger)}.intraday-readout .asset-price-down{color:var(--green)}
 .asset-intraday-status{font-size:12px;margin:8px 0;color:var(--muted)}.asset-intraday-status summary{cursor:pointer;min-height:32px}.asset-intraday-status p{line-height:1.6}
 [data-intraday-mode]{font:inherit;border:0;background:transparent;color:inherit;padding:4px 8px;cursor:pointer;min-height:32px;border-radius:4px}[data-intraday-mode].active{background:var(--hover)}
-.intraday-readout[hidden],.asset-intraday-stage[hidden]{display:none!important}@media(max-width:619px){[data-intraday-mode]{min-height:44px;min-width:44px}.intraday-canvas{height:560px}.intraday-readout{gap:4px 10px}.asset-intraday-status summary{min-height:44px}}
+.intraday-readout[hidden],.asset-intraday-stage[hidden]{display:none!important}@media(max-width:619px){[data-intraday-mode],[data-intraday-refresh]{min-height:44px;min-width:44px}.intraday-canvas{height:560px}.intraday-readout{gap:4px 10px}.asset-intraday-status summary{min-height:44px}}
