@@ -15,3 +15,5 @@ Mac功能开发，隔离worktree；用户已采用v0并授权验收后受控部�
 <!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "仅在既有Checks步骤登记分钟回归并使用原JS通配符，不新增job、runner、依赖或超时；原Mac安装和仓库硬门保持，既有验收/交付拓扑不变。", "diagrams": []} -->
 
 部署独立阻断：旧b800实际常驻仍由受控恢复任务处理合作接入/未知活动见证；本任务不附加进程、不清poison、不重启旧实例，也不以源码绿替代现场门。
+
+首个候选af334ccad：后端独评Approve；前端发现主题重挂载可能丢失empty/failed/pending状态，修复为当前状态统一渲染，不在异步闭包持有旧DOM节点。增加隔离fixture负例/延迟条件用于真实浏览器验收，原失败结论保留，不算最终通过。

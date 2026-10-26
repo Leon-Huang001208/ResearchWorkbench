@@ -9,7 +9,7 @@ const price = n => Number.isFinite(n) ? n.toFixed(2) : '—';
 export function createAssetIntraday({api, echarts = () => globalThis.echarts}) {
   let terminal, stage, readout, chart, resize, selectionObserver, abort, identity = '', observationId = '', data;
   let active = true, generation = 0, loading = false, attempted = false, lastFailed = false;
-  let loadedAt = 0;
+  let loadedAt = 0, statusText = '';
   const qty = value => formatAssetVolume(value, 'share', identity, {compact:true});
   const cash = value => formatAssetMagnitude(value, '元', '', {compact:true});
   function maskKSelection() {
@@ -32,6 +32,13 @@ export function createAssetIntraday({api, echarts = () => globalThis.echarts}) {
     chart.resize(); canvas.dataset.tradingDate=data.trading_date; canvas.dataset.points=data.rows.length;
     updateReadout(data.rows.length-1);
   }
+  function renderState() {
+    if(!stage||!readout)return;
+    const hasRows=Boolean(data?.rows?.length);
+    stage.querySelector('.intraday-canvas').hidden=!hasRows;
+    stage.querySelector('[data-intraday-status]').textContent=statusText;
+    if(hasRows)draw();else{chart?.clear();readout.textContent='';}
+  }
   function mode(value) {
     active=value; if(!terminal)return;
     terminal.classList.toggle('intraday-on',active); stage.hidden=!active; readout.hidden=!active;
@@ -41,22 +48,21 @@ export function createAssetIntraday({api, echarts = () => globalThis.echarts}) {
       if(active) { if(!Object.hasOwn(b.dataset,'kPressed'))b.dataset.kPressed=b.getAttribute('aria-pressed')||'false'; b.setAttribute('aria-pressed','false'); }
       else if(Object.hasOwn(b.dataset,'kPressed')) { b.setAttribute('aria-pressed',b.dataset.kPressed); delete b.dataset.kPressed; }
     }
-    if(active){draw();if((!attempted||(data&&!lastFailed&&Date.now()-loadedAt>=60000))&&!loading)void load();} else window.dispatchEvent(new Event('resize'));
+    renderState();
+    if(active){if((!attempted||(data&&!lastFailed&&Date.now()-loadedAt>=60000))&&!loading)void load();} else window.dispatchEvent(new Event('resize'));
   }
   async function load(refresh=false) {
     if(!observationId || !stage || loading)return;
     const ticket=++generation; abort?.abort(); abort=new AbortController(); loading=true;attempted=true;
-    const status=stage.querySelector('[data-intraday-status]');status.textContent=data?'更新中，保留上次快照':'正在加载最近交易日分时';
+    statusText=data?.rows?.length?'更新中，保留上次快照':'正在加载最近交易日分时';renderState();
     try {
       const result=await api.assetIntraday(observationId,{refresh},{signal:abort.signal});
       if(ticket!==generation)return;
       if(!Array.isArray(result.rows)||!['complete','empty'].includes(result.status))throw new Error('intraday_response_invalid');
       data=result; loadedAt=Date.now();lastFailed=false;
-      if(!result.rows.length){chart?.clear();readout.textContent='';stage.querySelector('.intraday-canvas').hidden=true;}
-      else stage.querySelector('.intraday-canvas').hidden=false;
-      status.textContent=result.rows.length?'分时快照 · 非持续实时行情':'最近交易日暂无分钟记录';draw();
-    }catch(error){if(ticket!==generation||error.name==='AbortError')return;lastFailed=true;if(!data?.rows?.length)stage.querySelector('.intraday-canvas').hidden=true;status.textContent=`${data?'更新失败，保留原快照；':''}分时未取得：${error.message}`;safeLog('asset_intraday_load_failed',{status:error.code||'request_failed'});}
-    finally {if(ticket===generation)loading=false;}
+      statusText=result.rows.length?'分时快照 · 非持续实时行情':'最近交易日暂无分钟记录';renderState();
+    }catch(error){if(ticket!==generation||error.name==='AbortError')return;lastFailed=true;statusText=`${data?.rows?.length?'更新失败，保留原快照；':''}分时未取得：${error.message}`;renderState();safeLog('asset_intraday_load_failed',{status:error.code||'request_failed'});}
+    finally {if(ticket===generation){loading=false;renderState();}}
   }
   function click(event) {
     if(event.target.closest('[data-intraday-mode]')){event.preventDefault();event.stopImmediatePropagation();mode(true);}
@@ -72,7 +78,7 @@ export function createAssetIntraday({api, echarts = () => globalThis.echarts}) {
     mount(page, observation, account='single-user') {
       const nextIdentity=`${observation?.asset_type||'stock'}:${observation?.asset||''}`,next=page?.querySelector('.asset-market-terminal');
       if(!next || !observation?.id || observation.asset_type!=='stock')return;
-      if(identity!==nextIdentity || observationId!==`${observation.id}` || this.account!==account){generation++;abort?.abort();loading=false;attempted=false;lastFailed=false;data=null;loadedAt=0;chart?.clear();if(readout)readout.textContent='';active=true;identity=nextIdentity;observationId=observation.id;this.account=account;}
+      if(identity!==nextIdentity || observationId!==`${observation.id}` || this.account!==account){generation++;abort?.abort();loading=false;attempted=false;lastFailed=false;data=null;loadedAt=0;statusText='';chart?.clear();if(readout)readout.textContent='';active=true;identity=nextIdentity;observationId=observation.id;this.account=account;}
       if(terminal!==next || !stage?.isConnected){
         release();terminal=next;
         const group=terminal.querySelector('.kline-period-group');if(!group)return;
@@ -86,6 +92,6 @@ export function createAssetIntraday({api, echarts = () => globalThis.echarts}) {
       }
       mode(active);
     },
-    dispose(){generation++;abort?.abort();loading=false;attempted=false;lastFailed=false;release();data=null;identity='';observationId='';active=true;},
+    dispose(){generation++;abort?.abort();loading=false;attempted=false;lastFailed=false;statusText='';release();data=null;identity='';observationId='';active=true;},
   };
 }

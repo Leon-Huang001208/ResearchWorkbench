@@ -75,8 +75,10 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
           if (!observation) return send({code:'preview_observation_missing'},404);
           const frozen = proof.intraday?.[observation.asset];
           // Explicit synthetic negative cases; the source snapshot remains immutable.
-          if (state.intradayCase === 'failed') return send({error:{code:'synthetic_minute_failure',message:'隔离验收模拟失败'}},503);
-          if (state.intradayCase === 'empty' && frozen) return send({...clone(frozen),status:'empty',rows:[],previous_close:null});
+          const intradayCase = state.intradayCase;
+          if (Number.isFinite(state.intradayDelay) && state.intradayDelay > 0) await new Promise(resolve=>setTimeout(resolve,Math.min(state.intradayDelay,10000)));
+          if (intradayCase === 'failed') return send({error:{code:'synthetic_minute_failure',message:'隔离验收模拟失败'}},503);
+          if (intradayCase === 'empty' && frozen) return send({...clone(frozen),status:'empty',rows:[],previous_close:null});
           return frozen ? send(clone(frozen)) : send({error:{code:'preview_minute_snapshot_missing',message:'未保存此资产的分钟快照'}},503);
         }
         if (url.pathname.endsWith('/assets/search')) {
