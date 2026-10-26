@@ -177,3 +177,15 @@
 .asset-observation-page .asset-basic-price .asset-price-down,
 .asset-observation-page .asset-history-readout .asset-price-down,
 .asset-observation-page .asset-wind-metrics .asset-price-down { color:var(--green); }
+
+/* Intraday shares the terminal; K controllers remain mounted while hidden. */
+
+.asset-market-terminal.intraday-on>.asset-history-readout,.asset-market-terminal.intraday-on>.kline-terminal-layout{display:none!important}
+.intraday-on .asset-chart-adjustment,.intraday-on .asset-overlay-controls,.intraday-on .asset-history-status,.intraday-on [data-asset-chart-action^="history-"]{display:none!important}
+.intraday-on .kline-period-group button:not([data-intraday-mode]){background:transparent!important}
+.intraday-readout{grid-column:1/-1;grid-row:2;display:flex;gap:4px 14px;flex-wrap:wrap;font-size:12px;padding:4px 0 8px}
+.asset-intraday-stage{grid-column:1;grid-row:3;min-width:0}.intraday-canvas{width:100%;height:560px;background:transparent;touch-action:none}
+.intraday-readout strong{font-variant-numeric:tabular-nums}.intraday-readout .asset-price-up{color:var(--danger)}.intraday-readout .asset-price-down{color:var(--green)}
+.asset-intraday-status{font-size:12px;margin:8px 0;color:var(--muted)}.asset-intraday-status summary{cursor:pointer;min-height:32px}.asset-intraday-status p{line-height:1.6}
+[data-intraday-mode]{font:inherit;border:0;background:transparent;color:inherit;padding:4px 8px;cursor:pointer;min-height:32px;border-radius:4px}[data-intraday-mode].active{background:var(--hover)}
+.intraday-readout[hidden],.asset-intraday-stage[hidden]{display:none!important}@media(max-width:619px){[data-intraday-mode]{min-height:44px;min-width:44px}.intraday-canvas{height:560px}.intraday-readout{gap:4px 10px}.asset-intraday-status summary{min-height:44px}}

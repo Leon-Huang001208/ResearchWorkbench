@@ -206,6 +206,39 @@ async def observation(observation_id: str, request: Request):
     return request.app.state.research.asset_workspace.observation(observation_id)
 
 
+class IntradayRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    refresh: bool = Field(default=False, strict=True)
+
+
+@router.post("/assets/observations/{observation_id}/intraday")
+async def intraday(observation_id: str, body: IntradayRequest, request: Request):
+    from .datahub.providers import ProviderError
+    from .store import StoreError
+
+    try:
+        return await request.app.state.research.asset_workspace.intraday.load(
+            observation_id, refresh=body.refresh
+        )
+    except (ValueError, ProviderError) as exc:
+        # Only stable, bounded validation codes are exposed; no provider text.
+        code = str(exc)
+        if not code.startswith("intraday_") or len(code) > 64:
+            code = "intraday_data_invalid"
+        message = {
+            "intraday_source_incomplete": "分钟来源未完整返回，请重试或检查来源权限。",
+            "intraday_units_unverified": "分钟数据单位尚未核实，暂不绘制。",
+            "intraday_field_definition_changed": "厂商分钟字段定义已变化，须重新核验。",
+            "intraday_vendor_permission_denied": "天软未授权此分钟数据，请检查数据权限。",
+            "intraday_vendor_auth_failed": "天软认证失败，请检查现有连接配置。",
+            "intraday_vendor_rate_limited": "天软请求频率受限，请稍后重试。",
+            "intraday_vendor_unreachable": "天软暂时无法连接，请稍后重试。",
+            "intraday_stock_required": "当前分时仅支持已核实的沪深股票。",
+            "intraday_data_invalid": "分时数据校验未通过，请查看来源口径后重试。",
+        }.get(code, "分时数据校验未通过，已保留原快照。")
+        raise StoreError(message, code, 422) from exc
+
+
 @router.post("/assets/observations/{observation_id}/history-jobs", status_code=202)
 async def create_history_job(
     observation_id: str,

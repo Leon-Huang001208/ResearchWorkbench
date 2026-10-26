@@ -138,6 +138,7 @@ jobs:
             tests/research_web/test_connection_center.py \
             tests/research_web/test_asset_workspace.py \
             tests/research_web/test_asset_history.py \
+            tests/research_web/test_asset_intraday.py \
             tests/research_web/test_asset_chip_inputs.py \
             tests/research_web/test_asset_indicator_preferences.py \
             tests/research_web/test_asset_directory.py \

@@ -160,6 +160,7 @@ class AssetWorkspace:
         self.closed = False
         from .asset_directory import AssetDirectory
         from .asset_history_jobs import HistoryJobs
+        from .asset_intraday import Intraday
 
         self.directory = AssetDirectory(
             self.store.root,
@@ -167,6 +168,7 @@ class AssetWorkspace:
             fingerprint=lambda: self.service.datahub.directory_fingerprint(),
         )
         self.history_jobs = HistoryJobs(self)
+        self.intraday = Intraday(self)
         interrupted = False
         for row in self.store.data["asset_observations"].values():
             if any(
@@ -862,6 +864,7 @@ class AssetWorkspace:
         self.closed = True
         await self.directory.close()
         await self.history_jobs.close()
+        await self.intraday.close()
         tasks = list(self.tasks.values())
         for task in tasks:
             task.cancel()

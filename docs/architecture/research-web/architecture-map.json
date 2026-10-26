@@ -584,7 +584,10 @@
         "app/research_web/ui/asset-chips.mjs",
         "app/research_web/ui/asset-chip-panel.mjs",
         "app/research_web/ui/asset-format.mjs",
-        "app/research_web/ui/asset-layout.css"
+        "app/research_web/ui/asset-layout.css",
+        "app/research_web/asset_intraday.py",
+        "app/research_web/ui/asset-intraday.mjs",
+        "app/research_web/ui/asset-intraday-option.mjs"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -620,7 +623,9 @@
         "tests/research_web/test_asset_indicator_preferences.py",
         "tests/javascript/research_web_asset_indicator_library.test.mjs",
         "tests/javascript/research_web_chip_distribution.test.mjs",
-        "tests/javascript/research_web_asset_format.test.mjs"
+        "tests/javascript/research_web_asset_format.test.mjs",
+        "tests/research_web/test_asset_intraday.py",
+        "tests/javascript/research_web_asset_intraday.test.mjs"
       ]
     },
     {
@@ -5262,6 +5267,13 @@
       "source": "app/research_web/discovery/routes.py",
       "declaredPath": "/association",
       "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/intraday",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/intraday",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

@@ -382,6 +382,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     assetObservations: (options = {}) => request('/assets/observations', options),
     searchAssets: (query = '', { limit = 20, ...options } = {}) => request(`/assets/search?q=${segment(query)}&limit=${segment(limit)}`, options),
     assetObservation: (id, options = {}) => request(`/assets/observations/${segment(id)}`, options),
+    assetIntraday: (id, body = {}, options = {}) => request(`/assets/observations/${segment(id)}/intraday`, { ...options, method: 'POST', body }),
     createAssetObservation: (body, key, options = {}) => request('/assets/observations', { ...options, method: 'POST', body, key }),
     refreshAssetBlock: (id, block, key) => request(`/assets/observations/${segment(id)}/blocks/${segment(block)}/refresh`, { method: 'POST', body: {}, key }),
     loadAssetBlock: (id, block, body, key, options = {}) => request(`/assets/observations/${segment(id)}/blocks/${segment(block)}/load`, { ...options, method: 'POST', body, key }),
