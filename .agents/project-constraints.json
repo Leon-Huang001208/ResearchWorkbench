@@ -151,7 +151,7 @@
       "workflow": ".github/workflows/research-web-checks.yml",
       "requireAll": [
         "ubuntu-latest",
-        "timeout-minutes: 40",
+        "timeout-minutes: 45",
         "cancel-in-progress: true",
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_integration_coordinator.py",

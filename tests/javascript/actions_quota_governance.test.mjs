@@ -349,6 +349,9 @@ test('automatic workflows cancel stale runs and use bounded jobs', () => {
     assert.match(source, /timeout-minutes:/);
   }
   assert.match(workflows.checks, /runs-on: ubuntu-latest/);
+  const checkBudget = workflows.checks.match(/^    timeout-minutes: (\d+)$/m);
+  assert.ok(checkBudget && Number(checkBudget[1]) > 0 && Number(checkBudget[1]) <= 45,
+    'the original complete Checks job must remain bounded to at most 45 minutes');
   assert.doesNotMatch(workflows.checks, /runs-on: (?:macos|windows)/);
   assert.match(workflows.checks, /python -m venv \.venv/);
   assert.doesNotMatch(
