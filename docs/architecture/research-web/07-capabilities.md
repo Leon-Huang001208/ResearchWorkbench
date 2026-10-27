@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+业务报告项目在独立“报告生产”入口管理；通用 Workflow 仍是能力中心步骤模板。现有原生绑定与报告运行复用唯一 DSH，界面分类不授予工具权限，不新增报告引擎。
+
 目录保存先生成与原 `json.dump(..., ensure_ascii=False)` 相同的 JSON 字节，再在同一个临时文件中一次写入；每次保存及同步、原子替换、失败清理时点保持。该优化减少真实 Host 重复冷构造中的 Python 逐片段写，不缓存验证、模块清单、权限或凭据，不改变任何包版本和准入。
 
 本次不修改document-reading/company-research的缺合同拒绝，也不替它们伪造数据需求。只有Host已核验的华安Report Workflow使用私有专属准入投影；普通通用能力仍按原data_contract_missing规则拒绝。投影不是新的可选Skill或Tool，不扩大租户、MCP和来源授权。

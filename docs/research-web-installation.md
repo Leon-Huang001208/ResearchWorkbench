@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+报告生产工作区新增 report-workspace.mjs/css 两个随原 Web 包交付的静态文件；requirements/web.in、web.lock 与 setup_web.py 无依赖或安装流程变化。原 Mac Bootstrap 同一步验证新静态文件的安装字节，未新增 job/runner/依赖。源码/浏览器夹具不认证常驻部署、模型、Office 或正式稿。
+
 研究场景及资产研究工作区（2026-10-27）随现有 Web 包和静态资源安装，无新增 Python／Node 依赖、服务或供应商凭据通道。原 Mac Bootstrap 同一步新增四个静态文件的 HTTP／源码字节核对，以及场景、原件和工作区模块导入／固定目录完整性检查。`requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`和公开一键入口不变；仍需同候选干净安装证明兼容。已发布能力、原生发现、来源权限与数据覆盖决定具体场景可用性，安装成功不等于供应商、模型或报告质量已验收。结构化研究资料由窄入口校验，不扩大通用上传白名单；原个人凭据和受管 MCP 的配置规则保持。
 
 分钟K复用已锁定CJPY 0.5.2与本地图表库，无新增依赖。Mac Bootstrap原同源资源校验新增asset-minute-k.mjs及后端import；无凭据CI只验证依赖和离线合同。requirements/web.in、web.lock、scripts/setup_web.py入口未变，完整同候选Mac干净安装仍必需。
