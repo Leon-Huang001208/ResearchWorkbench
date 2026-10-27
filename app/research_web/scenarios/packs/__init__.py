@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 
 from . import atoms, limited
-from .contracts import PackError, encoded, require, result, validate_inputs
+from .contracts import PackError, encoded, require, result, security, validate_inputs
 
 __all__ = ["PackError", "execute_atom", "execute_pack"]
 
@@ -180,6 +180,20 @@ def execute_pack(
             and keys <= set(parameters[method]) <= keys | OPTIONAL.get(method, set()),
             "parameters_invalid",
         )
+        if pack_id == "position-risk" and method == "join_risk_windows":
+            position_parameters = parameters.get("validate_positions")
+            require(isinstance(position_parameters, dict), "position_universe_required")
+            expected = position_parameters.get("expected_universe")
+            requested = parameters[method]["positions"]
+            require(
+                isinstance(expected, list) and isinstance(requested, list), "risk_universe_mismatch"
+            )
+            expected_keys = [security(item) for item in expected]
+            risk_keys = [security(item) for item in requested]
+            require(
+                len(risk_keys) == len(expected_keys) and set(risk_keys) == set(expected_keys),
+                "risk_universe_mismatch",
+            )
         sub = execute_atom(method, selected, {"as_of": parameters["as_of"], **parameters[method]})
         subresults.append(sub)
         missing.extend({"component": method, **x} for x in sub["missing"])

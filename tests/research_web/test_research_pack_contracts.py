@@ -341,3 +341,155 @@ def test_noncanonical_instant_rejected(stamp):
     v["parameters"]["as_of"] = stamp
     with pytest.raises(PackError):
         execute(v)
+
+
+@pytest.mark.parametrize("mode", ["empty", "omit_unknown_weight", "omit_missing_position"])
+def test_spec_risk_cannot_shrink_authoritative_position_universe(mode):
+    v = fixture(
+        "validate_positions.success"
+        if mode == "empty"
+        else (
+            "validate_positions.missing-weight"
+            if mode == "omit_unknown_weight"
+            else "validate_positions.missing"
+        )
+    )
+    universe = v["parameters"]["expected_universe"]
+    risk_positions = [] if mode == "empty" else universe[:1]
+    parameters = {
+        "as_of": v["parameters"]["as_of"],
+        "validate_positions": {
+            key: value for key, value in v["parameters"].items() if key != "as_of"
+        },
+        "join_risk_windows": {
+            "positions": risk_positions,
+            "category_coverage": [],
+            "window_start": "2026-01-01",
+            "window_end": "2026-01-12",
+        },
+    }
+    coverage = {
+        key: {"source_ref": key, "exhaustive": True}
+        for key in ("positions", "risk", "unlock", "insider")
+    }
+    with pytest.raises(PackError, match="risk_universe_mismatch"):
+        execute_pack(
+            "position-risk",
+            v["records_by_kind"] | {"risk-event": []},
+            parameters,
+            source_coverage=coverage,
+        )
+
+
+def multiplied_expectations(actual_count=25, forecast_count=25):
+    v = fixture("compare_qualified_expectations.success")
+    actual = v["records_by_kind"]["actual"][0]
+    forecast = v["records_by_kind"]["forecast"][0]
+    actuals, forecasts = [], []
+    for i in range(actual_count):
+        r = copy.deepcopy(actual)
+        r["row_id"] = f"actual-{i}"
+        r["disclosed_at"] = f"2026-01-10T00:{i:02d}:00Z"
+        actuals.append(r)
+    for i in range(forecast_count):
+        r = copy.deepcopy(forecast)
+        r["row_id"] = f"forecast-{i}"
+        r["consensus_id"] = f"independent-series-{i}"
+        r["vintage_at"] = "2026-01-05T00:00:00Z"
+        forecasts.append(r)
+    v["records_by_kind"] = {"actual": actuals, "forecast": forecasts}
+    return v
+
+
+def test_spec_derived_cardinality_rejected_before_arithmetic(monkeypatch):
+    from app.research_web.scenarios.packs import atoms, contracts
+
+    # Fifty accepted inputs imply 625 results. Lower only the budget for a cheap sentinel.
+    monkeypatch.setattr(contracts, "MAX_DERIVED_ROWS", 512, raising=False)
+    calls = []
+    original = atoms.number
+
+    def spy(value):
+        calls.append(value)
+        return original(value)
+
+    monkeypatch.setattr(atoms, "number", spy)
+    with pytest.raises(PackError, match="workload_too_large"):
+        execute(multiplied_expectations())
+    assert calls == []
+
+
+def test_spec_derived_bytes_stop_during_generation(monkeypatch):
+    from app.research_web.scenarios.packs import atoms, contracts
+
+    monkeypatch.setattr(contracts, "MAX_DERIVED_BYTES", 512, raising=False)
+    calls = []
+    original = atoms.number
+
+    def spy(value):
+        calls.append(value)
+        return original(value)
+
+    monkeypatch.setattr(atoms, "number", spy)
+    with pytest.raises(PackError, match="workload_too_large"):
+        execute(multiplied_expectations())
+    assert len(calls) < 25
+
+
+def test_spec_ownership_periods_are_chronological():
+    v = fixture("disclosed_ownership.success")
+    v["parameters"]["report_periods"].reverse()
+    r = execute(v)
+    by_period = {row["report_period"]: row for row in r["rows"]}
+    assert by_period["2025Q2"]["change_shares"] is None
+    assert by_period["2025Q3"]["change_shares"] == 10
+
+
+@pytest.mark.parametrize("periods", [["unknown", "2025Q3"], ["2025Q0"], ["2025Q4", "2025FY"]])
+def test_spec_unknown_or_ambiguous_period_order_rejected(periods):
+    v = fixture("disclosed_ownership.success")
+    v["parameters"]["report_periods"] = periods
+    with pytest.raises(PackError, match="report_periods_invalid"):
+        execute(v)
+
+
+def test_spec_missing_holder_period_is_explicit_and_not_zero():
+    v = fixture("disclosed_ownership.success")
+    v["records_by_kind"]["holder-disclosure"] = v["records_by_kind"]["holder-disclosure"][:1]
+    holder = v["records_by_kind"]["holder-disclosure"][0]["holder_id"]
+    v["parameters"]["disjoint_holder_ids"] = [holder]
+    r = execute(v)
+    assert r["status"] == "partial"
+    assert any(
+        x["code"] == "holder_period_missing"
+        and x["holder_id"] == holder
+        and x["report_period"] == "2025Q3"
+        for x in r["missing"]
+    )
+    assert all(x["report_period"] != "2025Q3" for x in r["rows"])
+
+
+def test_spec_ownership_does_not_bridge_missing_requested_period():
+    v = fixture("disclosed_ownership.success")
+    v["parameters"]["report_periods"] = ["2025Q1", "2025Q2", "2025Q3"]
+    v["records_by_kind"]["holder-disclosure"][0]["report_period"] = "2025Q1"
+    r = execute(v)
+    assert next(x for x in r["rows"] if x["report_period"] == "2025Q3")["change_shares"] is None
+    assert any(
+        x["code"] == "holder_period_missing" and x["report_period"] == "2025Q2"
+        for x in r["missing"]
+    )
+
+
+def test_spec_older_conflicting_vintage_cannot_hide_behind_newer_consensus():
+    v = fixture("compare_qualified_expectations.success")
+    f = copy.deepcopy(v["records_by_kind"]["forecast"][0])
+    f["row_id"], f["vintage_at"] = "old-conflict-a", "2025-12-01T00:00:00Z"
+    g = copy.deepcopy(f)
+    g["row_id"], g["value"] = "old-conflict-b", f["value"] + 5
+    # Origins describe these earlier forecast publications explicitly.
+    for row in (f, g):
+        row["origin"]["published_at"] = row["origin"]["observed_at"] = row["vintage_at"]
+    v["records_by_kind"]["forecast"].extend([f, g])
+    with pytest.raises(PackError, match="ambiguous_consensus"):
+        execute(v)

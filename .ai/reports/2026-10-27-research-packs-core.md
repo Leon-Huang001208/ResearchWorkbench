@@ -61,3 +61,39 @@ fu_DcTWXLXpDLR60及既有mypy_extensions/pathspec/pytokens/platformdirs缓存；
 - DSH/Native/UI接线、真实模型、真实供应商与比较回执、原件权限、报告质量、浏览器、常驻更新均NOT_RUN。
 - Windows/Linux适配、真机和同平台CI保持NOT_RUN交接。
 - 不能因为本层72测试或卡片存在，宣称九包整体或全部140项完成。没有push、PR、merge、部署、新依赖或业务数据操作。
+
+## SPEC round1：5 Important修复（2026-10-27）
+
+在初始8c1ac39上接受全部5项发现，没有改变Host/Native接口、原18算法门、来源资格或九包范围。
+先新增12个参数化回归，`logs/research-packs-spec-r1-red.log`实际12 failed（36 deselected）：
+1. 持仓包风险positions严格与完整expected_universe相等；删空、缺失仓位、未知权重证券遗漏均
+   risk_universe_mismatch；不能靠四份exhaustive声明减少待核风险证券。
+2. 预期差先用financial-key时点索引和bisect计数派生结果/拒绝项，50,000派生基数门在展开前执行。
+   DerivedBudget生成中对保留结果/拒绝/缺口共用16MiB字节账，超过即workload_too_large无截断成功。
+   50输入→625结果的小预算哨兵证明基数拒绝时没有执行算术；512-byte哨兵证明中途及时停止。
+3. 持股期间严格YYYYQ1–Q4或YYYYFY，按实际时间排序；未知格式、Q0及同截止Q4/FY歧义拒绝。
+   不再使用caller列表顺序计算反向变化，且不跨缺失的请求中间期间。
+4. 每个已知证券/holder及声明holder的全部请求期都要检查；缺披露明确holder_period_missing、partial，
+   不补0、不造缺期持有行。缺期网格也在分配交叉集合前检查基数、逐项登记缺口字节。
+5. 全部financial-key/series/vintage先验值一致性，旧vintage冲突不再被更新合法vintage掩盖。
+
+旧72断言和22向量保留不动；新增12项后聚焦84 passed。
+最终相邻回归实际命令为相同已批准venv、PYTHONDONTWRITEBYTECODE=1和已有pytest缓存执行：
+`python -m pytest --confcutdir=tests/research_web tests/research_web/test_research_pack_contracts.py
+ tests/research_web/test_research_pack_calculations.py tests/research_web/test_cpu_budget.py
+ tests/research_web/test_research_scenarios_catalog.py tests/research_web/test_scenario_handoffs.py
+ --basetemp=<下述新opaque目录> -q`。
+最终137 passed、16 subtests passed、1现有Starlette/anyio DeprecationWarning，32.61s。
+scoped Ruff、Black --check、isort --check-only及git diff --check均通过。
+
+最终日志 `logs/research-packs-spec-r1-verified.log`，SHA256
+`8c881e84e2c9c3736dcee175dd240e95a47102fdb8f9df1be372d73f3c22dd84`；
+`logs/research-packs-spec-r1-verified-receipt.json`保存完整命令、runner PID65196、pytest PID65197、UID501。
+临时目录 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-packs-spec-r1-verified-7bda5752-4ft9l43s`，
+因相邻场景夹具冻结目录为只读，逐目录验证本UID/非symlink后仅加本树owner权限并清理，receipt cleaned=true。
+此前相同137项首次通过后rmtree遭只读目录PermissionError，已如实保留初次日志；本任务精确临时树在
+cleanup PID64260复查归属并恢复owner目录权限后清理，见research-packs-spec-r1-cleanup-recovery.json。
+为补齐运行PID与成功清理回执，才执行上述最终一次相邻回归；未缩减测试或省略错误。
+
+本轮仍未执行CI/Mac安装、Host/Native/UI/DSH、真实模型/供应商/PIT/质量/部署；其他平台NOT_RUN。
+16MiB哨兵验证的是提前累计机制；没有生成625万行或做真实16MiB等号/+1大内存压力。

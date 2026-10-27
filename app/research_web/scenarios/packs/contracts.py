@@ -44,6 +44,29 @@ def number(value: Any) -> float:
     return result
 
 
+MAX_DERIVED_ROWS = 50_000
+MAX_DERIVED_BYTES = 16 * 1024 * 1024
+
+
+class DerivedBudget:
+    """Preflight cardinality and count serialized bytes before retaining each row."""
+
+    def __init__(self):
+        self.row_count = 0
+        self.byte_count = 2
+
+    def preflight(self, count):
+        require(count <= MAX_DERIVED_ROWS, "workload_too_large")
+
+    def append(self, destination, row):
+        self.preflight(self.row_count + 1)
+        size = len(encoded(row, MAX_DERIVED_BYTES)) + bool(self.row_count)
+        require(self.byte_count + size <= MAX_DERIVED_BYTES, "workload_too_large")
+        self.row_count += 1
+        self.byte_count += size
+        destination.append(row)
+
+
 def instant(value: Any) -> datetime:
     require(isinstance(value, str), "as_of_precision_required")
     require(

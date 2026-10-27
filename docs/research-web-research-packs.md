@@ -82,3 +82,21 @@ observed_no_match。包级 `source_coverage` 也只是来源范围声明，缺�
 项目完整changed-set Router、独立规格/Python质量评审、通用CI和同候选Mac干净安装由主控执行。
 Windows/Linux真机与同平台CI保持 NOT_RUN 交接；浏览器、DSH、真实模型、供应商等价、
 正式报告质量及常驻部署本子任务均 NOT_RUN。本层通过不能将组合包／cards 标为整体完成。
+
+## SPEC round1 修正（2026-10-27）
+
+持仓包的risk positions须与validate_positions.expected_universe规范身份全集严格一致，
+少一证券、额外证券或删空均risk_universe_mismatch，缺失或未知权重证券也不得省略。
+覆盖声明不能改变这个全集，固定三个风险类别仍逐证券核对。
+
+预期差在取最新之前，校验全部financial-key/consensus_id/vintage的值一致性，旧vintage
+冲突不能被更新值掩盖。所有actual到独立consensus的派生结果及拒绝项先按时点索引计数，
+派生基数上限50,000；在构造笛卡尔结果前超过上限即拒绝。生成时共用DerivedBudget逐行
+累计16MiB完整序列化字节，超过预算的行不保留，整个调用workload_too_large，不返回截断成功。
+最终64KiB封包门保持。小预算哨兵测试证明大派生先于算术拒绝及字节预算中途停止。
+
+持股期间只接受YYYYQ1–YYYYQ4或YYYYFY并按真实期间时间排序；未知格式或同一截止的
+Q4/FY歧义组合拒绝。变化只计算请求序列中相邻且都有披露的期间，缺中间期不跨过计算。
+逐已知证券/holder（含显式声明holder）检查全部请求期间，缺失列holder_period_missing，
+保持partial；不补0股、不生成缺期持有记录。检查缺期网格同样先验派生基数并累计缺口字节，
+防止证券×holder×期间的扩大分配。原22合成向量及72个旧断言不删改。

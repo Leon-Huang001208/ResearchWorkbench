@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from collections import defaultdict
 
-from .contracts import day, instant, number, require, security
+from .contracts import DerivedBudget, day, instant, number, require, security
 
 
 def validate_positions(records, p, cutoff):
@@ -240,11 +241,28 @@ def compare_qualified_expectations(records, p, cutoff):
     require(
         all(n <= (5000 if len(batch) == 1 else 1000) for n in batch.values()), "workload_too_large"
     )
+    vintage_values, earliest_series, all_vintages = {}, defaultdict(dict), defaultdict(list)
     for f in records.get("forecast", []):
-        require(instant(f["vintage_at"]) <= cutoff, "future_data")
-        forecasts[financial_key(f)].append(f)
+        vintage = instant(f["vintage_at"])
+        require(vintage <= cutoff, "future_data")
+        key = financial_key(f)
+        vintage_key = (key, f["consensus_id"], vintage)
+        require(
+            vintage_key not in vintage_values or vintage_values[vintage_key] == f["value"],
+            "ambiguous_consensus",
+        )
+        vintage_values[vintage_key] = f["value"]
+        earliest = earliest_series[key].get(f["consensus_id"])
+        earliest_series[key][f["consensus_id"]] = min(earliest, vintage) if earliest else vintage
+        all_vintages[key].append(vintage)
+        forecasts[key].append(f)
+    earliest_sorted = {key: sorted(series.values()) for key, series in earliest_series.items()}
+    for vintages in all_vintages.values():
+        vintages.sort()
     actuals = records.get("actual", []) + records.get("guidance", [])
-    seen = set()
+    budget, seen, derived_count = DerivedBudget(), set(), 0
+    # Count qualified series and late-forecast rejections without allocating their
+    # Cartesian products. This remains bounded by the number of accepted inputs.
     for r in actuals:
         disclosed = instant(r["disclosed_at"])
         require(disclosed <= cutoff, "future_data")
@@ -254,21 +272,32 @@ def compare_qualified_expectations(records, p, cutoff):
         seen.add((key, disclosed))
         lo, hi = (r["value"], r["value"]) if r["kind"] == "actual" else (r["lower"], r["upper"])
         require(lo <= hi, "guidance_range_invalid")
+        candidates_count = bisect_left(earliest_sorted.get(key, []), disclosed)
+        vintages = all_vintages.get(key, [])
+        late_count = len(vintages) - bisect_left(vintages, disclosed)
+        derived_count += max(1, candidates_count) + late_count
+        budget.preflight(derived_count)
+    for r in actuals:
+        disclosed = instant(r["disclosed_at"])
+        key = financial_key(r)
+        lo, hi = (r["value"], r["value"]) if r["kind"] == "actual" else (r["lower"], r["upper"])
         candidates = defaultdict(list)
         for f in forecasts[key]:
             if instant(f["vintage_at"]) < disclosed:
                 candidates[f["consensus_id"]].append(f)
             else:
-                rejected.append({"row_id": f["row_id"], "code": "vintage_not_before_disclosure"})
+                budget.append(
+                    rejected, {"row_id": f["row_id"], "code": "vintage_not_before_disclosure"}
+                )
         if not candidates:
-            missing.append({"code": "qualified_consensus_missing", "row_id": r["row_id"]})
+            budget.append(missing, {"code": "qualified_consensus_missing", "row_id": r["row_id"]})
         for series, fs in candidates.items():
             latest = max(instant(f["vintage_at"]) for f in fs)
             selected = [f for f in fs if instant(f["vintage_at"]) == latest]
-            require(len({f["value"] for f in selected}) == 1, "ambiguous_consensus")
             consensus = number(selected[0]["value"])
             low, high = number(lo - consensus), number(hi - consensus)
-            rows.append(
+            budget.append(
+                rows,
                 {
                     "row_id": r["row_id"],
                     "forecast_row_ids": [f["row_id"] for f in selected],
@@ -279,10 +308,10 @@ def compare_qualified_expectations(records, p, cutoff):
                     "relative_low": number(low / consensus) if consensus > 0 else None,
                     "relative_high": number(high / consensus) if consensus > 0 else None,
                     "relative_limitation": None if consensus > 0 else "nonpositive_consensus",
-                }
+                },
             )
     if not actuals:
-        missing.append({"code": "actual_or_guidance_missing"})
+        budget.append(missing, {"code": "actual_or_guidance_missing"})
     return rows, {"comparisons": len(rows)}, missing, rejected, ["no_surprise_score"]
 
 

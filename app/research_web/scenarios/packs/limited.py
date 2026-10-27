@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import math
+import re
 from collections import defaultdict
 from itertools import pairwise
 
-from .contracts import day, instant, number, require, security
+from .contracts import DerivedBudget, day, instant, number, require, security
 
 
 def sentiment_counts(records, p, cutoff):
@@ -52,6 +53,13 @@ def sentiment_counts(records, p, cutoff):
     )
 
 
+def report_period_key(period):
+    require(isinstance(period, str), "report_periods_invalid")
+    match = re.fullmatch(r"([0-9]{4})(?:Q([1-4])|(FY))", period)
+    require(match is not None and int(match[1]) >= 1, "report_periods_invalid")
+    return int(match[1]), int(match[2]) if match[2] else 4
+
+
 def disclosed_ownership(records, p, cutoff):
     periods = p["report_periods"]
     require(
@@ -60,6 +68,10 @@ def disclosed_ownership(records, p, cutoff):
         and len(set(periods)) == len(periods),
         "report_periods_invalid",
     )
+    keys = [report_period_key(period) for period in periods]
+    require(len(set(keys)) == len(keys), "report_periods_invalid")
+    periods = sorted(periods, key=report_period_key)
+    period_index = {period: index for index, period in enumerate(periods)}
     groups, seen, rows, missing = defaultdict(list), set(), [], []
     for r in records.get("holder-disclosure", []):
         require(instant(r["disclosed_at"]) <= cutoff, "future_data")
@@ -89,8 +101,13 @@ def disclosed_ownership(records, p, cutoff):
         groups[(key[0], r["holder_id"])].append(out)
         rows.append(out)
     for members in groups.values():
-        members.sort(key=lambda x: periods.index(x["report_period"]))
+        members.sort(key=lambda x: period_index[x["report_period"]])
         for previous, current in pairwise(members):
+            if (
+                period_index[current["report_period"]]
+                != period_index[previous["report_period"]] + 1
+            ):
+                continue
             current["change_shares"] = number(current["shares"] - previous["shares"])
             a, b = previous["disclosed_float_fraction"], current["disclosed_float_fraction"]
             if a is not None and b is not None:
@@ -102,6 +119,28 @@ def disclosed_ownership(records, p, cutoff):
         and len(set(declared)) == len(declared),
         "holder_disjointness_invalid",
     )
+    missing_budget = DerivedBudget()
+    identities = {identity for identity, _ in groups}
+    # Reject an oversized disclosure grid before allocating the cross product.
+    missing_budget.preflight(max(len(groups), len(identities) * len(declared)) * len(periods))
+    required_groups = set(groups)
+    for identity in identities:
+        for holder in declared:
+            if (identity, holder) not in required_groups:
+                missing_budget.preflight((len(required_groups) + 1) * len(periods))
+                required_groups.add((identity, holder))
+    for identity, holder in sorted(required_groups):
+        for period in periods:
+            if (identity, period, holder) not in seen:
+                missing_budget.append(
+                    missing,
+                    {
+                        "code": "holder_period_missing",
+                        "security": list(identity),
+                        "holder_id": holder,
+                        "report_period": period,
+                    },
+                )
     period_groups = defaultdict(list)
     for row in rows:
         period_groups[(security(row["security"]), row["report_period"])].append(row)
@@ -148,6 +187,7 @@ def disclosed_ownership(records, p, cutoff):
             "total_shares": number(math.fsum(x["shares"] for x in rows)),
             "aggregate_fraction": None,
             "period_totals": totals,
+            "report_period_order": periods,
         },
         missing,
         [],
