@@ -719,6 +719,7 @@ function render() {
   const assetMetricsOpen = keepAssetForms && assetPage.querySelector('.asset-wind-metrics')?.classList.contains('is-open');
   const assetDetails = keepAssetForms ? ['.asset-list-drawer', '.asset-personal-details', '.asset-source-summary', '.asset-identity-switch', '.asset-research-menu', ...(assetPage.dataset.assetView === (state.route.assetView || 'overview') ? ['.asset-chart-details', ...(assetPage.dataset.observationId ? ['.asset-query-controls'] : [])] : [])].map(selector => [selector, assetPage.querySelector(selector)?.open]) : [];
   const active = document.activeElement; const focusId = active?.id;
+  const scenarioNumberFocus = active?.tagName === 'INPUT' && active.type === 'number' && active.closest?.('.scenario-panel') ? active : null;
   const modelPanelFocus = modelSettingsPanel?.element.contains(active) ? {node:active,action:active.dataset?.mpAction,profile:active.dataset?.profile} : null;
   const activeQuestion = active?.closest?.('[data-question-form]');
   const questionFocus = activeQuestion ? { session: activeQuestion.dataset.qSession, id: activeQuestion.dataset.questionForm, index: activeQuestion.dataset.qIndex, legend: active.matches('legend'), name: active.name, value: active.value } : null;
@@ -726,6 +727,8 @@ function render() {
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
+  const scenarioBody = root.querySelector('.scenario-panel .d-drawer-body');
+  const scenarioScroll = { view: scenarioBody?.dataset?.scenarioView, top: scenarioBody?.scrollTop || 0 };
   const aihotArchiveScroll = root.querySelector('.aihot-archive-scroll')?.scrollTop || 0;
   const conversationScroller = root.querySelector('[data-conversation-scroll]');
   if (conversationScroller) conversationScrollPositions.set(conversationScroller.dataset.conversationScroll, conversationScroller.scrollTop);
@@ -810,6 +813,12 @@ function render() {
   accountMenu.sync();
   accountWorkspace.sync();
   pluginWorkspace.sync();
+  const freshScenarioBody = root.querySelector('.scenario-panel .d-drawer-body');
+  const sameScenarioView = typeof scenarioScroll.view === 'string' && freshScenarioBody?.dataset?.scenarioView === scenarioScroll.view;
+  if (sameScenarioView && scenarioNumberFocus) {
+    const replacement = document.getElementById(scenarioNumberFocus.id);
+    if (replacement && replacement.type === 'number' && !replacement.disabled) replacement.replaceWith(scenarioNumberFocus);
+  }
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
@@ -826,6 +835,7 @@ function render() {
     const replacement = questionFocus.legend ? form?.querySelector('legend') : [...(form?.querySelectorAll('input') || [])].find(item => item.name === questionFocus.name && item.value === questionFocus.value);
     replacement?.focus({ preventScroll: true });
   }
+  if (sameScenarioView) freshScenarioBody.scrollTop = scenarioScroll.top;
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
   const projectDialog = root.querySelector('.nav-project-dialog');
   if (projectDialog) {

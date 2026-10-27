@@ -56,3 +56,37 @@ NOT_RUN：真实模型、真实供应商／付费调用、生产个人登录、�
 | `browser/draft-1440.png` | `6e243c03ec91fa59029a225ab9261d6ee21e75e467081f8863df005e90360a6f` |
 
 已目视核对390暗色缺口和1440原草稿截图，布局／主题均沿原界面，partial与尚未验收保持可见。完整命令日志和其余截图逐项 hash 见 manifest；路径只用于任务证据，不写入产品配置。
+
+## TSQUALITY 逐键滚动修复（e9af3665 后继）
+
+独评发现最初20项浏览器旅程用 fill 一次赋值，未覆盖长表单逐键重绘。依 bugfix-minimal／ui-iterate，先新增真实 App + 临时 Host + Chrome390×1000 回归 `tests/e2e/research_web_packs_scroll_real_backend.mjs` 并观察 RED，随后才编辑实现。
+
+实际 RED：聚焦底部 post_sessions 后 scrollTop=1042，首键 `1` 后变675，字段底缘878.9375超出抽屉867；焦点仍在字段，证明是滚动／重绘缺陷。只加滚动恢复后，逐键又暴露原 number input 无 selectionStart 可恢复，`123` 被重绘为 `321`；中间失败也已保留，不拿 fill 掩盖光标问题。
+
+最小修复仅在 `app.mjs` 保存／恢复同一 `data-scenario-view` 的抽屉 scrollTop，并保留同场景、未禁用的活动 number INPUT 节点。文本仍用原焦点／selection 恢复；选择另一场景或关闭重开没有旧视图可复用，从顶部开始。未重构全 UI，不改 Send、preview、owner、IME、unknown、资格或权限路径。
+
+GREEN 真实逐键轨迹：post_sessions 五个键的 scrollTop 均1042，`1,2,3,ArrowLeft,4` 得 `1243`；release_at 六个键均1199，selection依次1/2/3/4/3/4，中间插入得到 `20276`；3000字问题末尾逐键 ABC 的 scrollTop 均496，selection为3001/3002/3003。每键同时核验焦点与字段上下缘均在抽屉可视区，另验 Tab、场景切换、Escape／重开。已目视核对首键截图。所有数据及账号为合成材料，0 次模型 prompt。
+
+实际执行：`RWB_SCROLL_PHASE=red|green` 加前述相同 Node/Python/cache 环境运行 `node tests/e2e/research_web_packs_scroll_real_backend.mjs`；最终 GREEN 4组检查通过。最终候选完整 `research_web*.test.mjs` **1238 passed／0 failed／0 skipped，13.700秒**；原20项旅程 **20 PASS**；原场景脚本副本仅改输出／日志路径，完整旧旅程 **4 PASS**。`git diff --check` 通过。
+
+Python／B1 本波未修改，不重复消耗原生测试。复用 e9 已通过的3项 Python及独评证据；`git rev-parse e9af3665:<path>` 与当前 `git hash-object <path>` 均一致：
+
+| 路径 | Git blob |
+| --- | --- |
+| `app/research_web/scenario_pack_ui.py` | `6b7e39d52870d257ee39c2db3151169a8746304d` |
+| `app/research_web/service.py` | `6abcf392230e835b7e93d0a5444942f24637ace3` |
+| `app/research_web/scenarios/pack_catalog.py` | `7a3fe4c90241f22e6432d80811f898df4ad7f5af` |
+| `tests/research_web/test_pack_ui_projection.py` | `3f1f57d7fe9e9e7d17d7fc44d0ced83faf0d75a6` |
+
+本波证据归档：`/Users/leon/.codex/artifacts/seek-packs-20261027-7bda5752/scroll-8e2652c589e2`。49份文件、2,419,975字节，逐文件hash／大小复制读回一致；fixture PID均已退出，保留RED／中间失败／GREEN／旧4旅程／20checks，带 synthetic／real_model=NOT_RUN 标签。验证归档后只清本任务两个 outputs 根与已复制的本波日志，首轮归档及其他任务资源未动。
+
+| 归档相对路径 | SHA-256 |
+| --- | --- |
+| `manifest.json` | `a6ae0cf0ff6af1f87dde80a57cbd24e2b369d9d33127949d9b20bb24b21a16e4` |
+| `logs/pack-scroll-red.log` | `484d55a174749f997fab79b5ec804c5af1a7619565dfde841e98428e8a170a08` |
+| `logs/pack-scroll-green.log` | `b666df862a645bacf4f8f5bcd4e6a3481abbea59a9c40bd20f8bb2742c5cbe65` |
+| `logs/pack-scroll-full-js.log` | `7c1f8fca826093ced9184a3073b8702f76879d78b070cf423c40f3d60b267002` |
+| `research-web-packs-scroll/green/result.json` | `125de9f74cd44c2a85973fc6ec5e0adf52baa9dcb98a3d62ecfa069abae199e8` |
+| `research-web-packs-scroll/green/post-first-key.png` | `da95491ce16b9e3d39c1b20c4673dd3c0a33202566ec38c725999880bb1b7238` |
+
+仍只作本地源码提交，待主任务复 TS／受影响 SPEC。未 push／合并／部署；真实模型／来源／生产、安装CI与其他平台仍 NOT_RUN，140及其余 Skill／Tool 后续工作未算完成。

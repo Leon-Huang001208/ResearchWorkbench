@@ -41,4 +41,6 @@ Host `pack_catalog.ui_methods` 是从固定方法合同派生的只读表单投�
 
 状态覆盖包含 loading、empty、error、stale、blocked、partial、unknown、not_created、invalid、当前账号变化和旧输入保留。生产登录、真实模型与供应商来源、常驻部署、Mac 安装 CI 及其他平台证据各自验收。
 
+场景抽屉由现 App 重绘时，同一场景保留独立滚动位置；正在编辑且未禁用的数字输入节点保留，避免数字框无法通过 selectionStart 恢复的光标倒序。文本继续使用原焦点／selection 恢复，切换场景或关闭重开从顶部开始。逐键浏览器回归 `tests/e2e/research_web_packs_scroll_real_backend.mjs` 使用真实临时 Host 与390px页面，断言每键的可见位置、scrollTop、焦点、数字中间插入、文本 selection、长文本、Tab、场景切换与关闭重开；不以一次 fill 替代输入旅程。
+
 验证入口：`tests/javascript/research_web_packs_ui.test.mjs`、`tests/research_web/test_pack_ui_projection.py`、`tests/e2e/research_web_packs_real_backend.mjs`。后者使用全新临时账号、真实 Host 与合成快照，拒绝非 loopback 网络；真实模型 NOT_RUN，截图始终标识合成验收材料。
