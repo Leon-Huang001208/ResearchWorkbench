@@ -254,7 +254,9 @@ class DossierService:
             raw = self._read_path(sid, relative)
             if hashlib.sha256(raw).hexdigest() != source.get("sha256"):
                 raise StoreError("来源正文已变化", "dossier_evidence_changed", 409)
-            from ..research_web_sources import publication_evidence
+            from ..research_web_sources import capture_proof, publication_evidence
+
+            capture_proof(self.store.root, sid, source, raw)
 
             evidence = [
                 *source.get("date_evidence", []),

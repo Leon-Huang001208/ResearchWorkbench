@@ -72,3 +72,17 @@ handoff只返回草稿：`{prompt,mode,auto_send:false,context,dossier_revision}
 
 
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+## Host原文capture证明
+
+新web capture的私有producer proof位于账号`.control/source-captures/<sid>/<webhash>.json`，
+绑定source记录（排除proof引用避免循环）、HTTP framing/响应体与UTF8正文hash、取得时点。
+`_resolve`先检查当前source/target权限，再读原文并复核proof；新proof缺失、损坏或marker/
+正文改变明确unavailable，不隐式联网修复。旧proofless原件保持既有可读性但不能认证capture
+完整；模型24k预览截断与落盘传输完整性独立。
+
+现snapshot_dossiers schema1.files也保全proof-only账号，不创建Dossier数据库。admin
+保全只输出私有proof与固定原文的SHA元数据；真实multiuser snapshot和resident
+asset_index_snapshot既有消费者均覆盖，正文-only改动/新proof缺坏必须拒绝。原文、原
+source记录和proof原bytes一同恢复后才可读；旧proofless仅沿原保全覆盖，不能冒称新proof
+保护。永久删除仍先过原Dossier/handoff引用围栏，再清除该SID proof，不清其他来源。

@@ -423,6 +423,7 @@ class Store:
             self.root / "sessions" / sid,
             self.root / ".control" / "snapshots" / sid,
             self.root / ".control" / "calls" / sid,
+            self.root / ".control" / "source-captures" / sid,
         ]
         try:
             for path in paths:

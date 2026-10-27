@@ -19,7 +19,7 @@ from urllib.parse import urldefrag, urljoin, urlsplit
 
 from core.observability import get_logger
 
-from .datahub.security import directory, write_new
+from .datahub.security import directory, read_file, sync_directory, unlink_file, write_new
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -209,6 +209,31 @@ def fetch_document(url):
                     raise rejected("research_source_content_unsupported")
                 if response.getheader("Content-Encoding", "identity").lower() != "identity":
                     raise rejected("research_source_encoding_unsupported")
+                if not isinstance(response, http.client.HTTPResponse):
+                    raise rejected("research_source_framing_unsupported")
+                declared = response.getheader("Content-Length")
+                transfer = response.getheader("Transfer-Encoding")
+                if transfer is not None:
+                    if (
+                        transfer.strip().lower() != "chunked"
+                        or not response.chunked
+                        or declared is not None
+                    ):
+                        raise rejected("research_source_framing_unsupported")
+                    framing, declared_length = "chunked_stdlib", None
+                elif declared is not None:
+                    if not re.fullmatch(r"[0-9]+", declared.strip()):
+                        raise rejected("research_source_framing_unsupported")
+                    declared_length = int(declared)
+                    if response.length != declared_length:
+                        raise rejected("research_source_framing_unsupported")
+                    if declared_length > MAX_BYTES:
+                        raise rejected("research_source_size_limit")
+                    framing = "content_length"
+                else:
+                    if response.chunked or response.length is not None:
+                        raise rejected("research_source_framing_unsupported")
+                    framing, declared_length = "close_delimited_eof", None
                 raw = bytearray()
                 while True:
                     remaining = deadline - time.monotonic()
@@ -222,6 +247,15 @@ def fetch_document(url):
                     raw.extend(chunk)
                     if len(raw) > MAX_BYTES:
                         raise rejected("research_source_size_limit")
+                if (
+                    framing == "content_length"
+                    and (len(raw) != declared_length or response.length != 0)
+                    or framing == "chunked_stdlib"
+                    and response.chunk_left is not None
+                    or not response.isclosed()
+                ):
+                    log.warning("research_public_source_incomplete")
+                    raise rejected("research_source_incomplete")
                 charset = response.headers.get_content_charset()
                 if not charset:
                     match = re.search(rb"charset\s*=\s*[\"']?([A-Za-z0-9_-]+)", raw[:4096])
@@ -241,15 +275,290 @@ def fetch_document(url):
                     "date_evidence": [*parser.date_evidence, *publication_evidence(text)],
                     "final_url": current,
                     "response_sha256": hashlib.sha256(raw).hexdigest(),
+                    "capture": {
+                        "schema": "research_web_http_capture_v1",
+                        "framing": framing,
+                        "declared_length": declared_length,
+                        "response_body_bytes": len(raw),
+                        "response_sha256": hashlib.sha256(raw).hexdigest(),
+                        "content_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                        "utf8_bytes": len(text.encode("utf-8")),
+                        "characters": len(text),
+                        "final_url": current,
+                    },
                 }
             finally:
                 connection.close()
         raise rejected("research_source_redirect_limit")
     except StoreError:
         raise
+    except http.client.IncompleteRead:
+        log.warning("research_public_source_incomplete")
+        raise rejected("research_source_incomplete") from None
     except (OSError, UnicodeError, LookupError, ValueError, http.client.HTTPException):
         log.warning("research_public_source_fetch_failed")
         raise rejected("research_source_fetch_failed") from None
+
+
+CAPTURE_SCHEMA = "research_web_capture_v1"
+PROOF_SCHEMA = "research_web_capture_proof_v1"
+MAX_CAPTURE_PROOF = 128 * 1024
+
+
+def _capture_json(value):
+    return json.dumps(
+        value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    ).encode()
+
+
+def _valid_capture(producer, source, raw=None):
+    """Validate the trusted worker protocol, never a completeness field from a request."""
+    try:
+        if (
+            not isinstance(producer, dict)
+            or set(producer)
+            != {
+                "schema",
+                "framing",
+                "declared_length",
+                "response_body_bytes",
+                "response_sha256",
+                "content_sha256",
+                "utf8_bytes",
+                "characters",
+                "final_url",
+            }
+            or producer["schema"] != "research_web_http_capture_v1"
+        ):
+            return False
+        if any(
+            type(producer[key]) is not int or not 0 < producer[key] <= limit
+            for key, limit in (
+                ("response_body_bytes", MAX_BYTES),
+                ("utf8_bytes", MAX_TEXT * 4),
+                ("characters", MAX_TEXT),
+            )
+        ):
+            return False
+        framing, declared = producer["framing"], producer["declared_length"]
+        if framing == "content_length":
+            if type(declared) is not int or declared != producer["response_body_bytes"]:
+                return False
+        elif framing not in {"chunked_stdlib", "close_delimited_eof"} or declared is not None:
+            return False
+        if (
+            producer["response_sha256"] != source["response_sha256"]
+            or producer["content_sha256"] != source["sha256"]
+            or producer["final_url"] != source["final_url"]
+            or any(
+                not isinstance(producer[key], str)
+                or not re.fullmatch(r"[a-f0-9]{64}", producer[key])
+                for key in ("response_sha256", "content_sha256")
+            )
+        ):
+            return False
+        if raw is not None:
+            text = raw.decode("utf-8", errors="strict")
+            if (
+                not text.strip()
+                or hashlib.sha256(raw).hexdigest() != producer["content_sha256"]
+                or len(raw) != producer["utf8_bytes"]
+                or len(text) != producer["characters"]
+            ):
+                return False
+        return True
+    except (KeyError, TypeError, ValueError, UnicodeError):
+        return False
+
+
+def capture_proof(root, sid, source, raw=None):
+    """Metadata-only unless authorized raw bytes are supplied; never opens a body.
+
+    A legacy cache has neither a new marker nor a private proof. Removing either
+    half of a published new proof is an integrity failure, never a legacy fallback.
+    """
+    try:
+        identifier = source["id"]
+        if not re.fullmatch(r"web:[a-f0-9]{24}", identifier):
+            raise ValueError("source identity")
+        marked = "capture_schema" in source or "capture_proof" in source
+        folder = root / ".control/source-captures"
+        proof_raw = None
+        if folder.exists() or folder.is_symlink():
+            with directory(root, (".control", "source-captures"), private=True) as fd:
+                has_session = sid in os.listdir(fd)
+            if has_session:
+                with directory(root, (".control", "source-captures", sid), private=True) as fd:
+                    name = identifier[4:] + ".json"
+                    if name in os.listdir(fd):
+                        proof_raw = read_file(fd, name, private=True, limit=MAX_CAPTURE_PROOF)
+        if (
+            source.get("capture_schema") == "research_web_capture_unverified_v1"
+            and "capture_proof" not in source
+            and proof_raw is None
+        ):
+            return None
+        if not marked and proof_raw is None:
+            return None
+        if (
+            source.get("capture_schema") != CAPTURE_SCHEMA
+            or proof_raw is None
+            or source.get("capture_proof")
+            != {"schema": PROOF_SCHEMA, "sha256": hashlib.sha256(proof_raw).hexdigest()}
+        ):
+            raise ValueError("proof reference changed")
+        proof = json.loads(proof_raw)
+        if (
+            set(proof) != {"schema", "source_session_id", "source_record", "producer"}
+            or proof["schema"] != PROOF_SCHEMA
+            or proof["source_session_id"] != sid
+            or proof["source_record"]
+            != {key: value for key, value in source.items() if key != "capture_proof"}
+            or _capture_json(proof) != proof_raw
+            or not _valid_capture(proof["producer"], source, raw)
+        ):
+            raise ValueError("capture changed")
+        return proof["producer"]
+    except (StoreError, OSError, ValueError, TypeError, KeyError, UnicodeError):
+        log.warning("research_source_capture_proof_rejected")
+        raise rejected("research_source_capture_changed") from None
+
+
+def _publish_source(service, sid, selected, document):
+    """Publish only after exclusive durable body/proof writes under the retention fence."""
+    from .dossiers.lock import retention_lock
+
+    store = service.store
+    row = store.session(sid)
+    identifier = selected["id"]
+    raw = document["content"].encode("utf-8")
+    relative = "inputs/web-" + identifier[4:] + ".txt"
+    fid = hashlib.sha256(relative.encode()).hexdigest()[:24]
+    source = {
+        "id": identifier,
+        "title": selected["title"],
+        "url": selected["url"],
+        "state": "available",
+        "file_id": fid,
+        "path": relative,
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "fetched_at": datetime.now(UTC).isoformat(),
+        "as_of": document["as_of"] or "unknown",
+        "date_evidence": document.get("date_evidence", []),
+        "final_url": document["final_url"],
+        "response_sha256": document["response_sha256"],
+    }
+    producer = document.get("capture")
+    if producer is not None and not _valid_capture(producer, source, raw):
+        log.warning("research_source_capture_producer_rejected")
+        raise rejected("research_source_capture_unverified")
+    source["capture_schema"] = (
+        CAPTURE_SCHEMA if producer is not None else "research_web_capture_unverified_v1"
+    )
+    with retention_lock(store.root):
+        if producer is not None:
+            proof = {
+                "schema": PROOF_SCHEMA,
+                "source_session_id": sid,
+                "source_record": dict(source),
+                "producer": producer,
+            }
+            proof_raw = _capture_json(proof)
+            if len(proof_raw) > MAX_CAPTURE_PROOF:
+                raise rejected("research_source_size_limit")
+            with directory(
+                store.root, (".control", "source-captures", sid), create=True, private=True
+            ) as folder:
+                name = identifier[4:] + ".json"
+                write_new(folder, name, proof_raw)
+                sync_directory(folder)
+                if read_file(folder, name, private=True, limit=MAX_CAPTURE_PROOF) != proof_raw:
+                    raise rejected("research_source_capture_changed")
+            source["capture_proof"] = {
+                "schema": PROOF_SCHEMA,
+                "sha256": hashlib.sha256(proof_raw).hexdigest(),
+            }
+        with directory(store.directory(sid), ("inputs",)) as folder:
+            write_new(folder, relative.split("/")[-1], raw)
+            sync_directory(folder)
+            if read_file(folder, relative.split("/")[-1], limit=MAX_TEXT * 4) != raw:
+                raise rejected("research_source_capture_changed")
+        previous_files = dict(row["files"])
+        row["files"][fid] = relative
+        row.setdefault("web_evidence", {})[identifier] = source
+        try:
+            store.save()
+        except Exception:
+            row["files"] = previous_files
+            row["web_evidence"].pop(identifier, None)
+            # The final body was exclusively created by this publication. A
+            # failed index commit must not reclassify it as a caller upload.
+            with directory(store.directory(sid), ("inputs",)) as folder:
+                unlink_file(folder, relative.split("/")[-1])
+                sync_directory(folder)
+            log.warning("research_source_capture_publish_failed")
+            raise
+    log.info("research_public_source_stored capture_verified=%s", producer is not None)
+
+
+def snapshot_capture_proofs(root):
+    """Hash private proof metadata only; caller holds the existing retention fence."""
+    folder = root / ".control/source-captures"
+    present = folder.exists() or folder.is_symlink()
+    index_path = root / "index.json"
+    if not index_path.exists() and not index_path.is_symlink() and not present:
+        return {}
+    try:
+        with directory(root) as fd:
+            index = json.loads(read_file(fd, "index.json", limit=64 * 1024 * 1024))
+        sessions = index.get("sessions", {})
+        if not isinstance(sessions, dict):
+            raise TypeError("source proof index invalid")
+        files = {}
+        for sid, row in sessions.items():
+            sources = row.get("web_evidence", {}) if isinstance(row, dict) else {}
+            if not isinstance(sources, dict):
+                continue
+            for source in sources.values():
+                if isinstance(source, dict) and (
+                    present or "capture_schema" in source or "capture_proof" in source
+                ):
+                    producer = capture_proof(root, sid, source)
+                    if producer is not None:
+                        name = "web-" + source["id"][4:] + ".txt"
+                        relative = "inputs/" + name
+                        fid = hashlib.sha256(relative.encode()).hexdigest()[:24]
+                        if (
+                            source.get("path") != relative
+                            or source.get("file_id") != fid
+                            or row.get("files", {}).get(fid) != relative
+                        ):
+                            raise ValueError("capture body identity changed")
+                        # This is the explicit admin preservation fence, not a
+                        # metadata list or a content API. Return only a digest.
+                        with directory(root, ("sessions", sid, "inputs")) as body_fd:
+                            body = read_file(body_fd, name, limit=MAX_TEXT * 4)
+                        capture_proof(root, sid, source, body)
+                        files[f"sessions/{sid}/{relative}"] = hashlib.sha256(body).hexdigest()
+        if not present:
+            return files
+        with directory(root, (".control", "source-captures"), private=True) as fd:
+            owners = os.listdir(fd)
+        for sid in owners:
+            if not re.fullmatch(r"[a-f0-9-]{36}", sid):
+                raise ValueError("source proof owner invalid")
+            with directory(root, (".control", "source-captures", sid), private=True) as fd:
+                for name in os.listdir(fd):
+                    if not re.fullmatch(r"[a-f0-9]{24}\.json", name):
+                        raise ValueError("source proof file invalid")
+                    raw = read_file(fd, name, private=True, limit=MAX_CAPTURE_PROOF)
+                    files[f".control/source-captures/{sid}/{name}"] = hashlib.sha256(
+                        raw
+                    ).hexdigest()
+        return files
+    except (StoreError, OSError, ValueError, TypeError, KeyError):
+        log.warning("research_source_capture_preservation_failed")
+        raise RuntimeError("source_capture_preservation_failed") from None
 
 
 def _stored_records(store, sid):
@@ -274,6 +583,7 @@ def _stored_records(store, sid):
         ):
             log.warning("research_web_source_metadata_changed")
             raise rejected("research_source_integrity_failed")
+        capture_proof(store.root, sid, source)
     return list(records.values())
 
 
@@ -289,13 +599,19 @@ def upload_evidence_files(store, sid, files):
 def stored_sources(store, sid):
     """Only Host metadata and unchanged owned input bytes can certify acquisition."""
     result = []
+    permitted = "web" in store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     for source in _stored_records(store, sid):
+        if not permitted:
+            # Revoked metadata remains visible to its owner; no body is opened.
+            result.append({**source, "state": "revoked"})
+            continue
         stream, _ = store.open_file(sid, source["file_id"])
         with stream:
             raw = stream.read(MAX_TEXT * 4 + 1)
         if len(raw) > MAX_TEXT * 4 or hashlib.sha256(raw).hexdigest() != source["sha256"]:
             log.warning("research_web_source_bytes_changed")
             raise rejected("research_source_integrity_failed")
+        capture_proof(store.root, sid, source, raw)
         projected = dict(source)
         evidence = [
             *source.get("date_evidence", []),
@@ -337,6 +653,15 @@ async def fetch_owned_document(url, timeout=25):
         result = json.loads(stdout)
         if process.returncode != 0 or not isinstance(result.get("content"), str):
             raise rejected("research_source_fetch_failed")
+        raw = result["content"].encode("utf-8")
+        source = {
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "response_sha256": result.get("response_sha256"),
+            "final_url": result.get("final_url"),
+        }
+        if not _valid_capture(result.get("capture"), source, raw):
+            log.warning("research_public_source_worker_capture_unverified")
+            raise rejected("research_source_capture_unverified")
         return result
     except (TimeoutError, ValueError, OSError):
         log.warning("research_public_source_worker_failed")
@@ -452,6 +777,10 @@ async def read_source(service, sid, operation, source_id=None, search_activities
             raise rejected("research_source_identity_unknown")
         selected = dict(sources[source_id])
         saved = row.get("web_evidence", {}).get(source_id)
+        if not saved:
+            # An orphaned immutable producer proof is unavailable, never a new
+            # fetch/replacement opportunity or a legacy-cache downgrade.
+            capture_proof(service.store.root, sid, {"id": source_id})
         if saved:
             body = saved
         else:
@@ -469,29 +798,7 @@ async def read_source(service, sid, operation, source_id=None, search_activities
         if source_id not in records:
             if len(records) >= 20:
                 raise rejected("research_source_count_limit")
-            raw = document["content"].encode("utf-8")
-            name = "web-" + source_id.split(":", 1)[1] + ".txt"
-            with directory(service.store.directory(sid), ("inputs",)) as folder:
-                write_new(folder, name, raw)
-            relative = "inputs/" + name
-            fid = hashlib.sha256(relative.encode()).hexdigest()[:24]
-            row["files"][fid] = relative
-            records[source_id] = {
-                "id": source_id,
-                "title": selected["title"],
-                "url": selected["url"],
-                "state": "available",
-                "file_id": fid,
-                "path": relative,
-                "sha256": hashlib.sha256(raw).hexdigest(),
-                "fetched_at": datetime.now(UTC).isoformat(),
-                "as_of": document["as_of"] or "unknown",
-                "date_evidence": document.get("date_evidence", []),
-                "final_url": document["final_url"],
-                "response_sha256": document["response_sha256"],
-            }
-            service.store.save()
-            log.info("research_public_source_stored", session_id=sid)
+            _publish_source(service, sid, selected, document)
         actual = next(
             source for source in stored_sources(service.store, sid) if source["id"] == source_id
         )
@@ -538,6 +845,15 @@ async def read_source(service, sid, operation, source_id=None, search_activities
         }
 
 
+def worker_document_bytes(document):
+    """Exact worker JSON protocol, including the producer manifest, without filtering."""
+    try:
+        return json.dumps(document, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (ValueError, TypeError, UnicodeError):
+        log.warning("research_public_source_worker_encode_failed")
+        raise rejected("research_source_capture_unverified") from None
+
+
 if __name__ == "__main__":
     # Only the URL from the authenticated parent is read. Logs cannot corrupt
     # the bounded JSON channel or expose upstream material in application logs.
@@ -552,7 +868,7 @@ if __name__ == "__main__":
             raise ValueError("invalid request")
         with contextlib.redirect_stdout(sys.stderr):
             document = fetch_document(request["url"])
-        sys.stdout.write(json.dumps(document, ensure_ascii=False))
+        sys.stdout.buffer.write(worker_document_bytes(document))
     except (StoreError, ValueError, TypeError, OSError, UnicodeError, RecursionError, KeyError):
         sys.stdout.write('{"error":"research_source_fetch_failed"}')
         raise SystemExit(1)

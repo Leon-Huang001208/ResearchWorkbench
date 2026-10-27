@@ -10646,6 +10646,15 @@ Functions:
   - Recognize publication-labelled header dates, never URL years or data periods.
 - `fetch_document`
   - No proxy, credentials, cookies, executable content, or unbounded redirects.
+- `_capture_json`
+- `_valid_capture`
+  - Validate the trusted worker protocol, never a completeness field from a request.
+- `capture_proof`
+  - Metadata-only unless authorized raw bytes are supplied; never opens a body.
+- `_publish_source`
+  - Publish only after exclusive durable body/proof writes under the retention fence.
+- `snapshot_capture_proofs`
+  - Hash private proof metadata only; caller holds the existing retention fence.
 - `_stored_records`
   - Validate Host provenance before classifying any input as an upload.
 - `upload_evidence_files`
@@ -10658,6 +10667,8 @@ Functions:
 - `cancel_source`
 - `execute_source`
 - `read_source`
+- `worker_document_bytes`
+  - Exact worker JSON protocol, including the producer manifest, without filtering.
 
 
 ## `app/research_web/resources/__init__.py`
@@ -11141,7 +11152,6 @@ Imports:
 - `__future__`
 - `core.observability`
 - `datetime`
-- `re`
 - `research_web_sources`
 - `scenarios.packs.contracts`
 - `store`

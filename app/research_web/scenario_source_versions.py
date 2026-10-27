@@ -6,32 +6,15 @@ A full saved capture is distinct from upstream completeness and the model previe
 
 from __future__ import annotations
 
-import re
 from datetime import date
 
 from core.observability import get_logger
 
-from .research_web_sources import MAX_TEXT
+from .research_web_sources import MAX_TEXT, capture_proof
 from .scenarios.packs.contracts import PackError, instant, validate_inputs
 from .store import StoreError
 
 log = get_logger(__name__)
-CAPTURE_FIELDS = frozenset(
-    {
-        "id",
-        "title",
-        "url",
-        "state",
-        "file_id",
-        "path",
-        "sha256",
-        "fetched_at",
-        "as_of",
-        "date_evidence",
-        "final_url",
-        "response_sha256",
-    }
-)
 
 
 def project_source_version(service, metadata, raw, cutoff, as_of):
@@ -74,20 +57,9 @@ def project_source_version(service, metadata, raw, cutoff, as_of):
             if published_day > date.fromisoformat(as_of):
                 log.warning("research_source_version_rejected code=source_after_cutoff")
                 raise StoreError("原文公开日期晚于研究截止", "pack_source_after_cutoff", 409)
-    # This schema is emitted by the actual Host reader, which rejects oversized
-    # and incomplete HTTP reads and saves the complete extracted capture before
-    # returning a separately truncated model preview. Legacy/extra claims cannot
-    # certify this property. We never copy request fields into these records.
+    # Only an immutable Host producer proof may certify a complete saved capture.
     complete_capture = (
-        set(source) == CAPTURE_FIELDS
-        and source.get("state") == "available"
-        and source.get("sha256") == metadata["sha256"]
-        and source.get("fetched_at") == metadata["acquired_at"]
-        and isinstance(source.get("final_url"), str)
-        and source["final_url"].startswith("https://")
-        and isinstance(source.get("response_sha256"), str)
-        and re.fullmatch(r"[a-f0-9]{64}", source["response_sha256"]) is not None
-        and isinstance(source.get("date_evidence"), list)
+        capture_proof(service.store.root, metadata["source_session_id"], source, raw) is not None
     )
     if not complete_capture:
         gap("source_capture_completeness_unknown")

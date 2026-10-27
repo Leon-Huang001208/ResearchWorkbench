@@ -78,6 +78,23 @@ def snapshot_dossiers(root: Path, *, create_lock: bool = True) -> dict | None:
     """
     folder = root / "dossiers"
     marker = root / ".dossiers-initialized"
+    has_dossiers = folder.exists() or folder.is_symlink() or marker.exists() or marker.is_symlink()
+    from .dossiers.lock import retention_lock
+    from .research_web_sources import snapshot_capture_proofs
+
+    if not has_dossiers:
+        # No Dossier database is initialized for source-proof-only accounts.
+        try:
+            proof_folder = root / ".control/source-captures"
+            if not proof_folder.exists() and not proof_folder.is_symlink():
+                files = snapshot_capture_proofs(root)
+                return {"schema_version": 1, "files": files} if files else None
+            with retention_lock(root, create=create_lock):
+                files = snapshot_capture_proofs(root)
+                return {"schema_version": 1, "files": files} if files else None
+        except Exception as exc:
+            log.error("dossier_preservation_failed", error_type=type(exc).__name__)
+            raise RuntimeError("dossier_preservation_failed") from exc
     if (
         not folder.exists()
         and not folder.is_symlink()
@@ -142,6 +159,7 @@ def snapshot_dossiers(root: Path, *, create_lock: bool = True) -> dict | None:
                 ) or (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
                     raise ValueError("dossier_preservation_file_changed")
                 files[path.relative_to(root).as_posix()] = digest.hexdigest()
+            files.update(snapshot_capture_proofs(root))
             return {"schema_version": 1, "files": files}
     except Exception as exc:
         log.error("dossier_preservation_failed", error_type=type(exc).__name__)

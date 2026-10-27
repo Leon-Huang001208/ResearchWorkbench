@@ -31,23 +31,9 @@ def captured_source(api, monkeypatch):
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     identifier = source_id(meta["origin"])
 
-    async def fetch(url):
-        assert url == meta["origin"]
-        return {
-            "content": raw.decode("utf-8"),
-            "as_of": meta["publication_date"],
-            "date_evidence": [
-                {
-                    "date": meta["publication_date"],
-                    "kind": "publication_meta",
-                    "text": meta["publication_date"],
-                }
-            ],
-            "final_url": url,
-            "response_sha256": hashlib.sha256(raw).hexdigest(),
-        }
+    from source_capture_fixture import fixed_response, offline_http
 
-    monkeypatch.setattr(reader, "fetch_owned_document", fetch)
+    offline_http(monkeypatch, fixed_response(raw))
     actual = asyncio.run(
         reader.read_source(
             service,
@@ -68,7 +54,12 @@ def captured_source(api, monkeypatch):
     )
     assert actual["source"]["sha256"] == meta["body_sha256"]
     metadata = resolve_reference(service, sid, {"type": "source", "id": identifier})[0]
-    day = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    day = (
+        datetime.fromisoformat(metadata["acquired_at"])
+        .astimezone(ZoneInfo("Asia/Shanghai"))
+        .date()
+        .isoformat()
+    )
     values = {
         "subject": {"kind": "stock", "identity": "600600.SH"},
         "as_of": day,
@@ -116,24 +107,12 @@ def test_owned_source_authority_and_capture_gaps(api, monkeypatch, change):
         metadata["source_session_id"] = str(uuid4())
     elif change == "unknown_observation":
         source["fetched_at"] = None
-        metadata = resolve_reference(service, sid, {"type": "source", "id": identifier})[0]
     elif change == "legacy_capture":
         source.pop("response_sha256")
     else:
         source["truncated"] = True
-    if change in {"revoked", "changed", "foreign"}:
-        with pytest.raises(StoreError):
-            qualify_pack_materials(service, "research-prep", values, [metadata])
-    else:
-        result = qualify_pack_materials(service, "research-prep", values, [metadata])
-        if change == "unknown_observation":
-            assert result.status == "blocked"
-            assert "source_observation_instant_unknown" in {gap["code"] for gap in result.missing}
-        else:
-            assert (
-                result.input["records_by_kind"]["source-version"][0]["full_text_available"] is False
-            )
-            assert "source_capture_completeness_unknown" in {gap["code"] for gap in result.missing}
+    with pytest.raises(StoreError):
+        qualify_pack_materials(service, "research-prep", values, [metadata])
 
 
 def source_handoff(api, monkeypatch, pack="research-prep", *, send=True):

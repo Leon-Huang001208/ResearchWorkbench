@@ -331,7 +331,7 @@ resource manifest及file_bindings读回合同，验证closure、引用hash和封
 
 `scenario_source_versions.py`只接受已由resolve_reference重读的本人source类型。当前
 Host web reader明确拒绝超限/失败响应，将完整可读capture保存后才截断模型预览；
-mapper核现行Host记录结构、UTF8/大小、hash/取得instant，full_text_available只表示该
+mapper核当前Host私有producer证明、UTF8/大小、hash/取得instant，full_text_available只表示该
 冻结capture可读，始终保留upstream_completeness_unverified。旧记录、额外完整性声明、
 真实落盘截断无法证明时保留false/缺口；模型返回truncated不表示落盘正文已截断。
 语言/地域/原创角色固定unknown，只有自然日的发表证据保留原件定位并记缺口，不补造
@@ -349,3 +349,27 @@ datahub/uploads/web三类scope；不新增八场景合同或API字段。现workb
 产物读回。它证明有界后端资料链，当前上游live取数、真实模型、供应商等价和报告质量仍
 NOT_RUN。source选择器及来源/结果可见的完整UI仍属C6；C3方法包、C4参数adapter、
 C5真实MCP和T4/T5未被此实现完成。
+
+## C1/C2 SPEC修复：传输完整性证明
+
+旧c92候选只认source字段结构，不能证明HTTP传输完整，已由Content-Length100/实读5字节
+的真HTTPResponse离线反例否定；旧局部测试不构成交付通过。reader现在显式核定长计数/
+剩余length、stdlib chunked终止/异常及close-delimited EOF；非法/未知framing拒绝。无长度
+EOF的declared_length为None，绝不捏造长度，仍不证明上游全文。大小/时间/编码原门保留。
+
+真实worker保留版本化capture manifest，分别绑定HTTPResponse返回的响应体bytes（已由
+stdlib去chunk，不含HTTP头/分块控制字节）与抽取后UTF8 bytes/hash；父端JSON解析后再
+校验。Host在retention fence内exclusive/fsync私有proof后保存原文并原子发布source记录。
+`capture_proof`引用从canonical source_record中排除，其他id/sid/url/时间/字段及正文hash
+全部绑定，无新密钥、供应商签章或全文覆盖认证。proof在`.control/source-captures/<sid>/`，
+不复制正文。新proof缺/坏、marker/字段/hash/正文改变均拒绝；旧proofless正文可读但
+完整性false+gap、不回填、不重抓。内部兼容旧producer无manifest时只能明确unverified。
+
+同SID的URL ID缓存只保存一次；proof exclusive不可覆盖。proof/index发布失败不返回
+完整成功，已有私有孤儿proof阻止隐式fetch替代或降级旧缓存。权限先于用户正文读取，
+普通撤权来源列表只校验metadata/privateproof并返回revoked，不打开正文。
+
+source proof纳入原snapshot_dossiers.files，proof-only不创建Dossier DB；现multiuser
+snapshot和resident @dossiers复用该结果。显式admin保全安全核对固定已证原文并只返回
+SHA元数据，body-only篡改拒绝；恢复须原source记录、正文、proof原bytes一致。Store.purge
+沿原引用/retention门仅删除该退休SID的proof目录。固定operator代码及SHA未改。
