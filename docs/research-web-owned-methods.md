@@ -124,3 +124,8 @@ UI/guard50项通过，包含仅wrapper目录掩蔽/恢复、cutoff和preset冲�
 原question textarea的required；同一前端谓词用于控制器校验。旧八场景和无有效预置仍保留必填，
 已有原题冲突仍明确拒绝，不关闭form原生校验。隔离Chrome实际renderer/controller验证三个preset-only
 各submit/handoff一次，空题/错配/空或URLquery受原生必填阻断，冲突题由控制器拒绝；不是完整HTTP旅程。
+
+目录回归固定保留原15个business工具并仅增加CLS wrapper（共16）；底层news未启用时不注册wrapper。
+内置Skill UI固定为旧39加三owned CID（共42），18个receipt-gated仍disabled，新三项当前v1仅表示
+目录版本与可准备草稿按钮，不授予来源或研究通过。closed script mode测试按四种互斥模式的精确拒绝合同
+核验空/mixed输入零spawn；这些测试更新不改变产品运行代码。

@@ -41,8 +41,11 @@ test('report plan keeps admission, bounded code transport and slot release',asyn
   apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/runner.py',researchRoot:root},spawn,async()=>scope);
   const exec={signal:new AbortController().signal,agent:{session:{header:{id:sid,cwd}}}};const tool=tools.get('research_run_script');
   const plan={title:'Test',sections:[],summary:[],missing:[]};
-  await assert.rejects(()=>tool.execute({code:'print(1)',report_plan:plan},exec));
-  await assert.rejects(()=>tool.execute({},exec),/only bounded code or a data report_plan/);
+  const closedMode={message:'research script accepts exactly one bounded code, report_plan, pack_execution or method_execution'};
+  await assert.rejects(()=>tool.execute({code:'print(1)',report_plan:plan},exec),closedMode);
+  await assert.rejects(()=>tool.execute({},exec),closedMode);
+  await assert.rejects(()=>tool.execute({report_plan:plan,method_execution:{}},exec),closedMode);
+  assert.equal(spawned,0);
   await assert.rejects(()=>tool.execute({report_plan:plan,report_context:context},exec));
   scope={admitted:false,read_paths:[],report_context:context};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/scope/);
   scope={admitted:true,read_paths:[]};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/contract/);

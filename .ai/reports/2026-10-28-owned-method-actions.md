@@ -176,3 +176,31 @@ backend-unchanged.json逐git blob核对除该UI外全部app/research_web文件�
 564cf6b980865d44f0e624fbc116d2d02b3450ee75557fd7209236f943c2a8fb），全部逐文件恢复核SHA通过。
 确认无进程占用且dev/inode匹配后，仅退休本轮fresh Chrome profile（2,686,620B），retirement.json为
 cleaned；保留全部必要证据，不触碰个人Chrome、metadata任务25个WIP或其他测试根。
+
+## JS QUALITY测试合同补齐（基线e5363aa8）
+
+仅修三个测试文件与本报告/module文档，不改产品源码。独立JS QUALITY发现public-data原15计数/子集
+断言漏掉新增fixedwrapper；method_tool旧错误文案已由7338（b840已有）改为四closed modes，属于
+existing-in-task测试欠账。主任务全JS诊断另发现capabilities UI旧39未计三owned方法，原诊断1528项
+1524PASS/4FAIL不冒充最终候选通过；本轮保留所有原测试/硬门而补齐精确期望。
+
+- public_data精确保留原15工具全集，加wrapper总16；enabledTools子集准确新增wrapper，未启用原news
+  或尝试只启wrapper仍拒。新增精确closed query/strictlimit schema、12类非法参数零HTTP，保留原news
+  start_date/end_date/source字段；真实guard在Host允许时可查询，scope/CLS local-ready撤销仅掩wrapper、
+  pre-execute拒绝且business HTTP不增加，原15仍可见，恢复准入后目录恢复。
+- method_tool精确断言四模式closed拒绝文案，空参数/code+plan/plan+method仍拒且spawn=0；原后续
+  admitted/contract/limit拒绝与有效plan/code成功保留。没有为满足旧regex回退产品合同。
+- capabilities UI用真实CapabilityCatalog固定旧39 ID全集加三owned CID总42，18个旧gated仍disabled；
+  新三项方法版本1.0.0、当前catalog v1/按钮启用逐项断言，不改为>=或删原39/18门。
+
+opaque根 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-js-contract-fix-6b6xl9sx` 事前owner登记
+task/slice/UID/PID/dev/inode/argv/candidate；TMPDIR仅指本根runs，未用共享默认临时根，未跑pytest/大Py/
+Native/model/source网络或安装依赖。red.log实际重现原两文件3FAIL，capability-red.log独立重现42!=39。
+green-final.log：三改动测试加既有guard共100PASS/0FAIL/0skip（15.14s），目标node--check/diff--check PASS。
+product-unchanged.json逐git blob证明1055个app/research_web文件均与e536一致。未宣称全JS通过；主任务
+将按最终干净exactcandidate重跑完整union并由原JS reviewer复验及SPEC确认测试scope。
+
+本轮115份regular证据与三份故意安全测试link元数据均不跟随外部目标，118项归档后逐文件恢复核SHA
+通过。evidence/js-contract-evidence.tar.gz为47,401B，SHA-256
+4931df7fd56b976ebb483edf68006848e5cbd707d5633391a3006532f841994b。重新核原文件身份/哈希及无进程占用后
+只回收本轮TMPDIR runs，retirement.json status=cleaned；top-level日志/owner/产品blob证明继续保留。
