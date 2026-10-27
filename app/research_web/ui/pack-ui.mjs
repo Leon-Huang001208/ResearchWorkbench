@@ -1,5 +1,17 @@
 import { escapeHTML as e } from './markdown.mjs';
 
+export const sourcePack = row => ['pack-research-prep','pack-global-opinion'].includes(row?.id);
+export const sourceKey = item => `${item.source_session_id}:${item.id}`;
+
+export function sourcePicker(s, row, locked) {
+  if (!sourcePack(row)) return '';
+  const constrained = s.context?.observation_id || s.context?.workspace_material;
+  const selected = s.source_ids || [], items = s.sourceItems || [];
+  const sessionTitle = id => (s.context?.material_sessions || []).find(item=>item.id === id)?.title || id;
+  const visible = items.filter(item=>item.source_session_id === s.sourceSession || selected.includes(sourceKey(item)));
+  return `<section class="pack-source-picker" aria-label="已保存原文选材"><h3>已保存原文</h3>${constrained ? '<p>当前资产观察或资料合同保持锁定。原文跨会话选材请从独立组合包入口配置。</p>' : `<label>材料模式<select id="scenario-material-mode" data-scenario-field="material_mode" ${locked ? 'disabled' : ''}><option value="datasets" ${s.material_mode !== 'sources' ? 'selected' : ''}>已取得数据快照</option><option value="sources" ${s.material_mode === 'sources' ? 'selected' : ''}>已保存原文（可跨本人会话）</option></select></label><p>两种模式独立保留勾选与参数，仅发送当前模式材料；切换后须重新预览。原文不会复制为上传附件。</p>${s.material_mode === 'sources' ? `<label>浏览本人已有原文的来源会话<select id="scenario-source-browse" data-scenario-field="source_browse" ${locked ? 'disabled' : ''}><option value="">选择来源会话</option>${(s.context?.material_sessions || []).map(item=>`<option value="${e(item.id)}" ${item.id === s.sourceSession ? 'selected' : ''}>${e(item.title || item.id)}</option>`).join('')}</select></label><p>只读已有来源，可跨会话勾选；不会抓取网页或开启权限。首份选中原文的会话必须已有 datahub／uploads／web 三项范围。</p>${s.materialLoading ? '<p role="status">正在核验已保存原文…</p>' : ''}${s.sourceError ? `<p role="alert" class="notice danger">${e(s.sourceError)} 旧选择与输入仍保留，不表示当前可用。</p>` : ''}<p role="status">已选 ${selected.length}／20 份原文</p>${s.sourceLoaded && !s.sourceError && !items.some(item=>item.source_session_id === s.sourceSession) ? '<p>此会话没有已保存原文；当前为空，未抓取新来源。</p>' : ''}${visible.map(item=>`<article class="pack-source-item"><label><input type="checkbox" name="scenario-source" data-scenario-field="source_ids" value="${e(sourceKey(item))}" ${selected.includes(sourceKey(item)) ? 'checked' : ''} ${locked || !item.selectable && !selected.includes(sourceKey(item)) ? 'disabled' : ''}><span>${e(item.title || item.id)}</span></label><p>来源会话：${e(sessionTitle(item.source_session_id))} <code>${e(item.source_session_id)}</code></p>${item.selectable ? `<p>${e(item.source_host || '来源域名未知')} · ${item.acquired_at ? `取得时刻：${e(item.acquired_at)}` : '取得时刻未知'}<br>日级发表：${e(item.publication_date || '未知')}；精确发表时刻未知</p><code>${e(item.sha256)}</code><p>${item.capture_status === 'host_verified' ? 'Host 捕获完整性已核验' : '捕获完整性待核验'}；上游完整性未知。语言／地域／原创角色／历史 PIT 尚未核验。</p>` : `<p class="notice warning">来源不可用：${e(item.reason_code || item.state || 'unknown')}；不会自动重抓。</p>`}</article>`).join('') || (s.sourceLoaded || s.sourceError ? '' : '<p>请选择本人来源会话，读取已保存原文。</p>')}` : ''}`}</section>`;
+}
+
 // Form controls are projected from the authenticated Host catalog. Neither form
 // values nor this projection provide source, ownership or quality authority.
 export function packScope(row, values = {}, locked = false) {
@@ -29,6 +41,7 @@ export function packQualification(context, stale = false) {
     transformations:(q.transformations || []).map(item=>pick(item,['mapping','dataset_id','source_sha256','manifest_sha256','unit_mapping','security_mapping','publication_time','historical_pit'])),
     capabilities:(context.scenario?.capabilities || []).map(item=>pick(item,['id','version','sha256','execution_status'])),
     input_sha256:q.input_sha256,closure_sha256:q.closure_sha256,
+    sources:(context.sources || []).map(item=>pick(item,['source_session_id','id','sha256','source_host','acquired_at','publication_date','capture_status','upstream_completeness'])),
   };
   return `<section class="pack-qualification" aria-label="Host 只读资格预览"><h3>Host 只读资格预览 · ${e(q.status)}</h3><p>可执行方法：${e(q.executable_methods?.join('、') || '无')}。${q.status === 'blocked' || !q.executable_methods?.length ? '当前不能准备可发送草稿。' : '仅具备部分计算输入，准备及发送仍将由 Host 重新核验。'}</p><p>计算准入、完整文件保存、研究质量分别验收。partial／blocked 不代表报告通过；事件收益、基金穿透、财报监控保持原门。</p><ul>${(q.missing || []).map(gap=>`<li>${e(gapLabels[gap.code] || gap.code)}${gap.kind || gap.component || gap.id ? ` · ${e(gap.kind || gap.component || gap.id)}` : ''}<code>${e(gap.code)}</code></li>`).join('')}</ul><details><summary>逐来源范围、时点、hash 与方法版本</summary><pre>${e(JSON.stringify(provenance,null,2))}</pre></details></section>`;
 }
@@ -55,7 +68,7 @@ export function packInputEdit(inputs, row, name, value) {
 
 export function packCapabilityGuide(item, busy = false) {
   if (!/^research-pack-(position-risk|expectation-gap|short-sentiment|research-prep|event-review|global-opinion|valuation-check|ownership-structure|earnings-preview)$/.test(item?.id || '')) return '';
-  return `<section class="pack-capability-guide" aria-label="组合包配置与结果合同"><h3>组合包方法与输入</h3><p>当前 Skill v${e(item.version || '未发布')}。打开配置后从当前账号 Host 目录读取方法版本、必要资料、类型化参数、限额与示例；选择不会创建会话或调用模型。</p><p>输出为受控 full-result.json、receipt.json 与 manifest.json。预览最多128行；全量条数、遗漏数与 hash 以真实回执为准。完整文件保存、真实计算和研究质量 passed／incomplete／invalid 分开核验。</p><p>来源映射目前仅有 BaoStock 不复权日线子集；其他原件格式、覆盖、披露时点缺失会保留 partial／blocked。用户声明资料不升格为核验来源。复制、编辑、检查与发布继续使用本页原有流程。</p><button type="button" class="button" data-pack-configure="${e(item.id.slice('research-'.length))}" ${busy ? 'disabled' : ''}>配置此组合包并查看方法</button></section>`;
+  return `<section class="pack-capability-guide" aria-label="组合包配置与结果合同"><h3>组合包方法与输入</h3><p>当前 Skill v${e(item.version || '未发布')}。打开配置后从当前账号 Host 目录读取方法版本、必要资料、类型化参数、限额与示例；选择不会创建会话或调用模型。</p><p>输出为受控 full-result.json、receipt.json 与 manifest.json。预览最多128行；全量条数、遗漏数与 hash 以真实回执为准。完整文件保存、真实计算和研究质量 passed／incomplete／invalid 分开核验。</p><p>受审映射包括 BaoStock 不复权日线子集，以及调研前置／海内外舆情的本人已保存原文版本；原件格式、上游完整性、覆盖或披露时点缺失仍保留 partial／blocked。用户声明资料不升格为核验来源。复制、编辑、检查与发布继续使用本页原有流程。</p><button type="button" class="button" data-pack-configure="${e(item.id.slice('research-'.length))}" ${busy ? 'disabled' : ''}>配置此组合包并查看方法</button></section>`;
 }
 
 export function packResults(detail) {
