@@ -39,6 +39,7 @@ import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
+import { packResults } from './pack-ui.mjs';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
 import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
@@ -471,7 +472,7 @@ function researchPage() {
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<div class="conversation-scroll" data-conversation-scroll="${e(detail.id)}"><header class="session-toolbar" aria-label="会话状态与资料"><div class="session-meta">${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}</div><div class="composer-dock">${composer()}</div>`;
+  return `<div class="conversation-scroll" data-conversation-scroll="${e(detail.id)}"><header class="session-toolbar" aria-label="会话状态与资料"><div class="session-meta">${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${packResults(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}</div><div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -2664,13 +2665,19 @@ root.addEventListener('pointerdown', event => {
 root.addEventListener('click', async (event) => {
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
+  const packConfigure = event.target.closest?.('[data-pack-configure]');
+  if (packConfigure?.dataset?.packConfigure) {
+    event.preventDefault();
+    await scenarioController.open({scenario:packConfigure.dataset.packConfigure,mode:'fingpt',question:'',as_of:'',material_sessions:catalog.sessions});
+    return;
+  }
   const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
   if (scenarioAction) {
     const launch = scenarioLaunchContext({ assetPage:isAssetPage(), route:state.route, observation:assetState.observation, observations:assetState.observations, detail:state.detail, draft:state.draft, researchAsOf:state.researchAsOf }, scenarioAction.dataset);
     if (launch) {
       event.preventDefault();
       if (launch.error) { state.error = launch.error; render(); }
-      else await scenarioController.open(launch.context);
+      else await scenarioController.open({...launch.context,material_sessions:catalog.sessions});
       return;
     }
   }

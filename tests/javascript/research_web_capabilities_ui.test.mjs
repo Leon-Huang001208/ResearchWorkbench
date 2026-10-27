@@ -62,9 +62,10 @@ function productCapabilityFixture() {
     'from pathlib import Path',
     'from app.research_web.capabilities.catalog import CapabilityCatalog',
     'from app.research_web.capabilities.seeds import RECEIPT_GATED_SKILLS, SKILL_SPECS',
+    'from app.research_web.capabilities.pack_resources import PACK_NAMES',
     'with tempfile.TemporaryDirectory(prefix="rwb-ui-capabilities-") as directory:',
     '    catalog = CapabilityCatalog(Path(directory))',
-    '    payload = {"items": catalog.list(kind="skill")["items"], "expected_skill_count": len(SKILL_SPECS), "receipt_gated": sorted(RECEIPT_GATED_SKILLS)}',
+    '    payload = {"items": catalog.list(kind="skill")["items"], "expected_skill_count": len(SKILL_SPECS) + len(PACK_NAMES), "receipt_gated": sorted(RECEIPT_GATED_SKILLS)}',
     `    print(${JSON.stringify(marker)} + json.dumps(payload, ensure_ascii=False))`,
   ].join('\n');
   const result = spawnSync(projectPython(), ['-c', script], {

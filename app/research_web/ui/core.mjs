@@ -405,6 +405,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
     scenarioCatalog: () => request('/scenarios'),
+    scenarioPrepare: (id, body) => request(`/scenarios/${segment(id)}/prepare`, { method: 'POST', body }),
     assetResearchCatalog: observationId => request(`/assets/research/catalog?observation_id=${segment(observationId)}`),
     assetResearchPreview: body => request('/assets/research/preview', { method:'POST', body }),
     assetResearchImport: (observationId, file) => { const body=new FormData(); body.append('file',file); return request(`/assets/research/import/${segment(observationId)}`,{method:'POST',body}); },

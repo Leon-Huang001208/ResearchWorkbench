@@ -2511,6 +2511,13 @@ class ResearchService(ModelProfilesMixin):
         result["datasets"] = self.datahub.summaries(sid)
         if frozen_scenario:
             result["scenario_context"] = frozen_scenario
+            from .scenario_pack_ui import project as pack_ui_projection
+
+            pack_ui = pack_ui_projection(
+                self, sid, latest_receipt, frozen_scenario, result["files"]
+            )
+            if pack_ui is not None:
+                result["research_pack"] = pack_ui
         if row["mode"] == "claw" and automation_feature_enabled():
             result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
             result["automation_runs"] = []

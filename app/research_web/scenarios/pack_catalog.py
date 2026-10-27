@@ -2,8 +2,62 @@
 
 from ..capabilities.pack_resources import PACK_NAMES
 from .catalog import _validate_inputs
-from .packs import PACKS, REQUIRED_COVERAGE
+from .packs import METHODS, PACKS, REQUIRED_COVERAGE
 from .packs.contracts import PackError, encoded
+
+
+def ui_methods(pack_id):
+    """Read-only form projection; never adds source or execution authority."""
+    labels = {
+        "validate_positions": "持仓范围核对",
+        "join_risk_windows": "风险窗口关联（完整覆盖仍由来源核验）",
+        "deduplicate_source_versions": "原件版本去重",
+        "compare_qualified_expectations": "同口径预期比较",
+        "compare_valuation_samples": "同口径估值样本比较",
+        "align_event_trading_day": "事件与交易日对齐",
+        "sentiment_counts": "舆情分层计数",
+        "disclosed_ownership": "已披露持有人比较",
+        "earnings_calendar": "财报日历核对",
+    }
+    fields = {
+        "expected_universe": ("研究证券范围", "securities"),
+        "positions": ("风险关联证券范围", "securities"),
+        "target_weight": ("目标总权重（比例，1代表100%）", "number"),
+        "window_start": ("比较窗口起点", "instant"),
+        "window_end": ("比较窗口终点", "instant"),
+        "current_row_id": ("当前估值样本原件行ID", "text"),
+        "minimum_samples": ("最少历史样本数", "integer"),
+        "release_at": ("事件发布时间", "instant"),
+        "pre_sessions": ("前置交易日数", "integer"),
+        "post_sessions": ("后置交易日数", "integer"),
+        "adjustment": ("价格复权口径", "adjustment"),
+        "report_periods": ("比较报告期（逗号分隔，如2025FY,2026Q1）", "periods"),
+        "report_period": ("目标报告期，如2026Q3", "text"),
+    }
+    result = []
+    for method in PACKS[pack_id]:
+        projected = []
+        for key in sorted(METHODS[method][2] - {"category_coverage"}):
+            label, kind = fields[key]
+            if method == "join_risk_windows" and key.startswith("window_"):
+                kind = "date"
+            field = {"name": key, "label": label, "type": kind, "required": True}
+            if kind in {"number", "integer"}:
+                field["min"] = 1 if key == "minimum_samples" else 0
+                if key in {"pre_sessions", "post_sessions"}:
+                    field["max"] = 5000
+            projected.append(field)
+        result.append(
+            {
+                "id": method,
+                "label": labels[method],
+                "version": "1.0.0",
+                "required_kinds": sorted(METHODS[method][1]),
+                "fields": projected,
+                "source_requirements": sorted(METHODS[method][2] & {"category_coverage"}),
+            }
+        )
+    return result
 
 
 def contracts():
@@ -14,6 +68,8 @@ def contracts():
             "name": title,
             "description": "受控确定性后端；完整来源、参数界面和研究质量另行验收",
             "pack_id": pack_id,
+            "ui_methods": ui_methods(pack_id),
+            "ui_limits": "只读预览不执行模型或供应商；预览行最多128，完整结果以实际文件回执为准。",
             "capability_ids": ["research-pack-" + pack_id],
             "subject_kinds": (
                 ["stock", "industry", "topic"]
