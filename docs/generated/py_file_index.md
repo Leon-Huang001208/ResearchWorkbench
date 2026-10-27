@@ -11061,6 +11061,8 @@ Imports:
 - `store`
 
 Functions:
+- `require_runtime_unfrozen`
+  - The explicit reader retains the same freeze gate as normal admission.
 - `records`
   - Use private sealed context plus original, non-id-deduplicated receipt refs.
 - `admit_snapshot`

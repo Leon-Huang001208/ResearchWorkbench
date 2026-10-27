@@ -16,6 +16,13 @@ log = get_logger(__name__)
 REF_KEYS = ("id", "version", "sha256", "native_name", "resource_path")
 
 
+def require_runtime_unfrozen(service):
+    """The explicit reader retains the same freeze gate as normal admission."""
+    if getattr(service, "plugin_runtime_frozen", False):
+        log.warning("pack_dossier_read_runtime_frozen")
+        raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
+
+
 def records(service, sid):
     """Use private sealed context plus original, non-id-deduplicated receipt refs.
 
@@ -38,6 +45,7 @@ def records(service, sid):
     is_pack = context and context.get("scenario", {}).get("contract", {}).get("pack_id")
     if not is_pack and not any(ref.get("id") in PACK_IDS for ref in refs):
         return None
+    require_runtime_unfrozen(service)
     # Copying into a newly created, not-yet-sealed draft is not a historical read.
     if is_pack and handoff.get("state") != "prepared" and not refs and not context.get("pack_seal"):
         return None
@@ -109,11 +117,13 @@ def records(service, sid):
             result.extend(service._effective_records([ref]))
         else:
             result.append(verify(service.capabilities, ref))
+    require_runtime_unfrozen(service)
     return result
 
 
 def admit_snapshot(service, sid, query, resolution, *, source_sid, dataset_id, manifest_sha256):
     """Requires actual existing snapshot identity; storage_read is never a bypass."""
+    require_runtime_unfrozen(service)
     from .datahub.snapshots import Snapshots
     from .dossiers import RetainedStore
 
@@ -154,4 +164,5 @@ def admit_snapshot(service, sid, query, resolution, *, source_sid, dataset_id, m
         if not scope["admitted"]:
             raise StoreError("历史读取的当前资料策略不可用", "capability_data_unavailable", 409)
     service._validate_data_query_scope(query, resolution, selected, catalog)
+    require_runtime_unfrozen(service)
     log.info("pack_dossier_snapshot_read_admitted session_id=%s", sid)

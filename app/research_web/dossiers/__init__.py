@@ -360,7 +360,8 @@ class DossierService:
                 )
                 code = (
                     exc.code
-                    if isinstance(exc, StoreError) and exc.code.startswith("dossier_raw_")
+                    if isinstance(exc, StoreError)
+                    and (exc.code.startswith("dossier_raw_") or exc.code == "plugin_runtime_frozen")
                     else (
                         "dossier_source_revoked"
                         if isinstance(exc, RegistryError)

@@ -216,3 +216,53 @@ def test_forged_owner_with_correct_self_digest_is_not_a_server_certificate(histo
     entries[value["digest"]] = value
     with pytest.raises(StoreError):
         read_selected(service, sid)
+
+
+@pytest.mark.parametrize("when", ["before", "during_raw"])
+def test_runtime_freeze_blocks_internal_history_before_and_during_read(history, monkeypatch, when):
+    _client, service, sid, _context, _descriptor, _headers, _before = history
+    if when == "before":
+        service.plugin_runtime_frozen = True
+    else:
+        original = service.dossiers._verify_raw
+
+        def freeze(*args, **kwargs):
+            original(*args, **kwargs)
+            service.plugin_runtime_frozen = True
+
+        monkeypatch.setattr(service.dossiers, "_verify_raw", freeze)
+    with pytest.raises(StoreError) as error:
+        read_selected(service, sid)
+    assert error.value.code == "plugin_runtime_frozen"
+
+
+def test_runtime_freeze_is_checked_by_read_adapter_and_legacy_callback(history):
+    from app.research_web.datahub.contracts import BusinessQuery
+
+    _client, service, sid, context, _descriptor, _headers, _before = history
+    reference = context["references"][0]
+    source_sid, did = reference["source_session_id"], reference["reference"]["id"]
+    manifest = service.datahub.snapshots.detail(source_sid, did)
+    query = BusinessQuery.model_validate(manifest["query"])
+    resolution = service.datahub._authorize_query(
+        source_sid,
+        query,
+        provider=manifest["provider"],
+        cached=True,
+        authorization_fingerprint=manifest["authorization_fingerprint"],
+        storage_read=True,
+    )
+    service.plugin_runtime_frozen = True
+    with pytest.raises(StoreError) as legacy:
+        service._data_query_admission(sid, query, resolution)
+    assert legacy.value.code == "plugin_runtime_frozen"
+    with pytest.raises(StoreError) as adapter:
+        service._admit_dossier_snapshot_read(
+            sid,
+            query,
+            resolution,
+            source_sid=source_sid,
+            dataset_id=did,
+            manifest_sha256=manifest["manifest_sha256"],
+        )
+    assert adapter.value.code == "plugin_runtime_frozen"

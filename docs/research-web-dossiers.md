@@ -7,6 +7,8 @@ scope/config/授权、manifest/rows/raw hash和PIT语义；source-only和target�
 无receipt的sealed handoff仍由私有context补权威，不递归重开trusted_context。多hop不得拼链，
 需新事务独立重验并签直接证；disabled/copy/code改/跨owner/假证/断证/撤权均拒绝。历史读不执行
 旧runtime、不重取供应商、不写原query/context/receipt/质量状态；旧send/load继续version_conflict。
+专用pack读取同时保留原`plugin_runtime_frozen`门：内部入口和raw读后的复验均拒绝冻结状态，
+沿用稳定409错误码，不依赖HTTP／tenant中间件，也不重新调用旧版本执行门替代等价只读。
 
 研究场景／资产资料的typed原件引用复用本档案解析器，读取时追溯衍生来源当前权限；软删可验证、祖先仍被引用则拒绝永久清理，未知或外部损坏不换新源。场景结果仍需用户预览后经原档案入口关联／修订，不自动修改观点。文件里的自报passed不改变摘要或档案报告状态，质量取实际版本回执；元数据、源摘要及保留引用继续纳入原备份恢复链，没有隐藏档案或新事实库。
 
