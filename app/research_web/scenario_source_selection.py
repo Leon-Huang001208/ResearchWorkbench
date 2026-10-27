@@ -28,6 +28,31 @@ LIMIT = 256 * 1024
 CONTROL = (".control", "source-selections")
 
 
+class _SourceSelectionPreflightFailure(StoreError):
+    """Internal marker: pure preflight failed before any prior/current publication."""
+
+
+def _has_prior_selection_request(service, body, key):
+    """An unreadable ledger is uncertain, never proof that publication is absent."""
+    try:
+        request_hash = fingerprint(_request(body))
+        selection_id = fingerprint(
+            {"request_sha256": request_hash, "preview_sha256": body.preview_sha256}
+        )
+        with directory(service.store.root) as fd:
+            if ".control" not in os.listdir(fd):
+                return False
+        with directory(service.store.root, (".control",), private=True) as fd:
+            if "source-selections" not in os.listdir(fd):
+                return False
+        with directory(service.store.root, CONTROL, private=True) as fd:
+            names = os.listdir(fd)
+        return "key-" + fingerprint(key) + ".json" in names or selection_id + ".json" in names
+    except (StoreError, OSError) as exc:
+        log.warning("research_source_selection_prior_state_unknown", error_type=type(exc).__name__)
+        return True
+
+
 def snapshot_selection_receipts(root):
     """Preserve even uncertain publication intents through the existing fence.
 
@@ -297,9 +322,15 @@ def freeze(service, body, key):
     from .dossiers.lock import retention_lock
 
     with retention_lock(service.store.root):
-        public, plan = preview(service, body)
-        if body.preview_sha256 != public["preview_sha256"]:
-            fail("source_selection_preview_changed", "资料或参数已变化，请重新预览")
+        prior = _has_prior_selection_request(service, body, key)
+        try:
+            public, plan = preview(service, body)
+            if body.preview_sha256 != public["preview_sha256"]:
+                fail("source_selection_preview_changed", "资料或参数已变化，请重新预览")
+        except StoreError as exc:
+            if prior:
+                raise
+            raise _SourceSelectionPreflightFailure(str(exc), exc.code, exc.status) from exc
         request_hash = plan["manifest"]["request_sha256"]
         selection_id = plan["manifest"]["selection_id"]
         key_name = "key-" + fingerprint(key) + ".json"

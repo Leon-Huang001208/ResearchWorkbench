@@ -11174,12 +11174,16 @@ Imports:
 - `urllib.parse`
 
 Classes:
+- `_SourceSelectionPreflightFailure`
+  - Internal marker: pure preflight failed before any prior/current publication.
 - `Closed`
 - `ManifestSource`
 - `Subject`
 - `SelectionManifest`
 
 Functions:
+- `_has_prior_selection_request`
+  - An unreadable ledger is uncertain, never proof that publication is absent.
 - `snapshot_selection_receipts`
   - Preserve even uncertain publication intents through the existing fence.
 - `_read_control`
@@ -12470,6 +12474,8 @@ Functions:
 - `_public_handoff`
 - `_copy_evidence`
 - `_key`
+- `_not_created_response`
+  - Caller holds the original creation lock; any persisted intent bars this proof.
 - `_public_query`
 - `_validate_context`
 - `_run_query`

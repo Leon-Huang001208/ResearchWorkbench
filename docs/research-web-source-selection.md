@@ -61,6 +61,14 @@ lineage 与封印重读链；普通 file 和旧 asset bundle 仍保留其原材�
 不存在或未登记则 `source_selection_write_unknown`，不补写、不换 key 或重复创建 Native。
 RPC outcome unknown 沿原 `/api/research/handoff-requests/{key}` 对账，同 key 重读保持 unknown。
 
+freeze 预检沿原 `workbench_lock → service.lock → retention_lock` 顺序，仅服务器内部标记
+尚未开始任何发布的纯预检失败。私有同 key/selection intent 已存在或无法安全读账时不标记。
+共享的原交接 helper 再在创建锁内核对本账号同 key 无任何 handoff intent，才返回原
+`error.handoff_outcome=not_created`；此前 accepted/unknown/prepared 均禁止该证明。
+文件/receipt 发布、IO 和未对账发布异常不获标记；lookup 404 本身从不证明未创建。
+外层创建锁及 service.lock 在调用原 create_handoff 前释放，旧 sender 自己的 hash/intent
+幂等锁保持。只有明确 not_created 才能保留输入后修正；未知仍用原 key 观测。
+
 选择文件不是 retention holder。只有原 handoff intent.lineage 持久化后，源及 manifest 会话
 才受原保全关系保护。文件发布到原 intent 之间若源被永久清理、撤权或改变，真实 prepare
 立即拒绝，不重抓、不默建档案、不伪造保全。freeze 成功才返回原 prepared；未知状态不承诺

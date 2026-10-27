@@ -112,6 +112,68 @@ def preview_freeze(client, body, *, key="source-selection-extra", preview=None):
     )
 
 
+@pytest.mark.parametrize("prior", ["fresh", "unknown", "prepared", "publishing"])
+def test_precreation_proof_never_reclassifies_prior_outcomes(api, monkeypatch, prior):
+    from app.research_web import scenario_source_selection as adapter
+    from app.research_web.client import RuntimeFailure
+    from app.research_web.store import StoreError
+
+    client, service, body = selection(api, monkeypatch)
+    preview = client.post("/api/research/source-selections/preview", json=body).json()[
+        "preview_sha256"
+    ]
+    calls = []
+    original_rpc = service.client.rpc
+
+    async def rpc(method, payload):
+        calls.append(method)
+        if prior == "unknown" and method == "session.create":
+            raise RuntimeFailure("offline lost Native result", "fixture_unknown")
+        return await original_rpc(method, payload)
+
+    monkeypatch.setattr(service.client, "rpc", rpc)
+    if prior == "publishing":
+        writer = adapter.write_new
+
+        def lost_file(fd, name, raw):
+            if json.loads(raw).get("schema") == adapter.SCHEMA:
+                raise StoreError(
+                    "offline publication unknown", "source_selection_write_unknown", 409
+                )
+            return writer(fd, name, raw)
+
+        monkeypatch.setattr(adapter, "write_new", lost_file)
+    target = None
+    if prior != "fresh":
+        first = preview_freeze(client, body, preview=preview)
+        if prior == "prepared":
+            assert first.status_code == 200, first.text
+            target = first.json()["session_id"]
+        else:
+            assert first.status_code >= 400, first.text
+            assert "handoff_outcome" not in first.json()["error"]
+    sid = body["handoff"]["source_session_id"]
+    service.store.session(sid)["source_scope"] = ["datahub", "uploads"]
+    response = preview_freeze(client, body, preview=preview)
+    assert response.status_code == 403, response.text
+    error = response.json()["error"]
+    if prior == "fresh":
+        assert error["handoff_outcome"] == "not_created"
+        assert not service.store.data["handoffs"]
+    else:
+        assert "handoff_outcome" not in error
+    lookup = client.get("/api/research/handoff-requests/source-selection-extra")
+    if prior == "unknown":
+        assert lookup.json()["state"] == "creation_outcome_unknown"
+    elif prior == "prepared":
+        assert lookup.json()["state"] == "context_unavailable"
+        assert next(iter(service.store.data["handoffs"].values()))["session_id"] == target
+    else:
+        assert lookup.status_code == 404
+        assert "handoff_outcome" not in lookup.json()["error"]
+    assert calls.count("session.create") == int(prior in {"unknown", "prepared"})
+
+
 def test_safe_list_duplicate_and_multi_session_captures(api, monkeypatch):
     client, service, body = selection(api, monkeypatch)
     _, _, second = selection(api, monkeypatch)

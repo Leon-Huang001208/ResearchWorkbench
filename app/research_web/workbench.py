@@ -97,12 +97,16 @@ async def source_selection_freeze(
     request: Request,
     idempotency_key: str = Header(min_length=8, max_length=128),
 ):
-    from .scenario_source_selection import freeze
+    from .scenario_source_selection import _SourceSelectionPreflightFailure, freeze
 
     service = request.app.state.research
     await service.ensure_owned()
-    async with service.lock:
-        prepared = freeze(service, body, idempotency_key)
+    digest = _key(idempotency_key)
+    async with service.workbench_lock, service.lock:
+        try:
+            prepared = freeze(service, body, idempotency_key)
+        except _SourceSelectionPreflightFailure as exc:
+            return _not_created_response(service, digest, exc)
     return await create_handoff(prepared, request, idempotency_key)
 
 
@@ -218,6 +222,17 @@ def _key(value: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", value):
         raise StoreError("Idempotency-Key 格式非法")
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _not_created_response(service, digest, exc):
+    """Caller holds the original creation lock; any persisted intent bars this proof."""
+    if digest in service.store.data["handoff_keys"] or not 400 <= exc.status < 500:
+        raise exc
+    log.warning("research_handoff_not_created", code=exc.code)
+    return JSONResponse(
+        {"error": {"code": exc.code, "message": str(exc), "handoff_outcome": "not_created"}},
+        status_code=exc.status,
+    )
 
 
 def _public_query(record: dict) -> dict:
@@ -505,19 +520,7 @@ async def create_handoff(
         except StoreError as exc:
             # This proof is issued only under the creation lock, before any
             # persisted intent. Existing/unknown outcomes must retain their key.
-            if digest in service.store.data["handoff_keys"] or not 400 <= exc.status < 500:
-                raise
-            log.warning("research_handoff_not_created", code=exc.code)
-            return JSONResponse(
-                {
-                    "error": {
-                        "code": exc.code,
-                        "message": str(exc),
-                        "handoff_outcome": "not_created",
-                    }
-                },
-                status_code=exc.status,
-            )
+            return _not_created_response(service, digest, exc)
         created = await service.create(
             body.target_mode,
             f"研究台交接 · {body.section}",

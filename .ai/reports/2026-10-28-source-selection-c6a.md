@@ -98,3 +98,30 @@ Ruff、Black/isort检查、py index --check、diff --check 通过；mypy 仍 NOT
 343,500 bytes，SHA256 `63046b7ebfd8b862f8d35feef61f67753e24fa5991095f7f82ed9bde5c494074`；
 同目录 `.tar.json` 记录各文件 SHA、owner 和 cleanup=cleaned。受保护的 reviewer 根及旧共享根
 未触碰。受影响 SPEC 复核→原 Python QUALITY 复核交主控；ROOT_PENDING 整批门保持。
+
+## C6b 接线前置：原 Native 创建未开始的锁内证明
+
+UI 只识别原 /handoffs 的未创建证明，source freeze 首次预检撤权/变更的普通 403/409 会让
+界面保守锁住 key；lookup 404 不能解除该锁。主控确认 UI writer 停止后，本轮仅修后端契约。
+
+workbench 将原内联 proof 提为私有共享 helper，原 error.code/message/handoff_outcome 结构
+保持。source freeze 按 workbench_lock→service.lock→原 retention_lock 执行；内部 marker 仅
+来自尚未进行本次 key/intent/文件发布的纯 preview/摘要预检失败。descriptor 只读查账发现
+同 key、同 selection intent 或账本不可读时，均不给 marker。共享 helper 还在原创建锁内
+核对 handoff_keys：任意既有 accepted/unknown/prepared 均不发 not_created，5xx 也不发。
+receipt/文件发布/IO 异常始终无 marker。外层锁在调用原 create_handoff 前释放，原 Native
+sender、request hash、durable intent、防重及模型发送均不改；404 本身仍没有证明字段。
+
+实际 RED：首次 source 撤权没有 not_created，1 failed/5.82s。GREEN 6 passed/35.94s：
+首次撤权 0 Native 可证明；此前 Native unknown 再撤权无证明且累计1；此前 prepared 再撤权
+无证明且保同 target；file publish unknown/已有私有 intent 但无 handoff，仍无证明且0 Native；
+原 /handoffs 缺比较→not_created→可修正链，以及原 unknown 永不重分类两例保持。
+Ruff/Black/isort、生成 py index、diff check 通过。原47/真实 Native 不重复，执行输入未改。
+未安装依赖、未调用网络/LLM、未部署；mypy 沿用 NOT_RUN。
+
+两次 pytest 均有新 opaque owner+显式 --basetemp；24文件归档逐项读回并回收两个自有根：
+`/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-c6b-proof-green-69762b37-evidence.tar.gz`，
+242,122 bytes，SHA256 `58f991243329de778608b3f264085077c58ea0934a7b4de26e6b5e28837b178c`。
+同目录 `.tar.json` 保存 owner/文件摘要/cleanup=cleaned；reviewer保护根和旧共享根未动。
+UI WIP 未读作实现依据、未修改、未暂存；原 SPEC 影响复核→原 Python QUALITY 及 UI 消费
+此确切证明路径由主控接续。ROOT_PENDING 整批验收不变。
