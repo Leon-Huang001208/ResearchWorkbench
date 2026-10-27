@@ -392,9 +392,11 @@ def regenerated_directory(previous, current, state):
                 if not callable(encoder):
                     log.error("iteration_regeneration code=closeout_bytecode_encoder_unavailable")
                     raise ResourceError("closeout_bytecode_encoder_unavailable")
-                # Match py_compile's encoding context: marshal reference flags
-                # can depend on the encoder's extra reference to the code object.
-                expected = encoder(compiled)[16:]
+                # CPython 3.14 borrows function-local call arguments. Keep an
+                # explicit second reference so marshal matches py_compile's
+                # shared code-object encoding, including reference-table IDs.
+                compiled_reference = (compiled,)
+                expected = encoder(compiled_reference[0])[16:]
                 if raw[16:] != expected:
                     raise ResourceError("closeout_regenerated_bytecode_unknown")
                 verified_manifest[cache.name] = hashlib.sha256(raw).hexdigest()

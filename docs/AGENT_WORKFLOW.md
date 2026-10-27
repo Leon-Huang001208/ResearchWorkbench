@@ -537,6 +537,6 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 ## 2026-10-27：再生字节码编码兼容
 
-`iteration_resources.regenerated_directory` 对可信源码重新编译后，通过当前解释器与 `py_compile` 相同的标准库编码器生成预期 payload，继续逐字节比较；marshal 的对象引用标记不能假定与直接 `dumps` 的调用上下文无关。编码器缺失时记录错误并拒绝回收，不解析或执行待回收缓存。源码跟踪、路径/身份、头部时效、大小、未知文件、最终清单及清理前复查保持原门；真实 `py_compile` 正例、异源 payload、尾随数据和竞态负例在近处测试覆盖。Mac Python 3.12 本地证据与 Ubuntu 系统 Python 的 CI 结果分别记录，未实测解释器版本不得从 runner 镜像推定为已验证。
+`iteration_resources.regenerated_directory` 对可信源码重新编译后，通过当前解释器与 `py_compile` 相同的标准库编码器生成预期 payload，继续逐字节比较。CPython 3.14 的函数局部借用引用使单纯更换编码器仍可能产生不同 marshal 引用标记；编码期间显式以 tuple 保持可信 code 的额外引用，匹配实测真实 py_compile 编码。Mac 隔离3.14.6的24组合（简单/嵌套、timestamp/hash、opt0/1/2、cold/warm）显示额外引用前全部字节不同、全部code字段相同，额外引用后全部字节相等；模块顶层实验不能替代函数域复现，不泛化认证未测解释器。编码器缺失时记录错误并拒绝回收，不解析或执行待回收缓存。源码跟踪、路径/身份、头部时效、大小、未知文件、最终清单及清理前复查保持原门；真实 `py_compile` 正例、异源 payload、尾随数据和竞态负例在近处测试覆盖。本机解释器证据与 Ubuntu 系统 Python 的 CI 结果分别记录，未实测解释器版本不得从 runner 镜像推定为已验证。
 
 资产区间统计的数学与DOM控制器先分别RED/GREEN及独立spec/JS评审，再用CUA支持的真实鼠标输入与冻结快照验证。Mac Bootstrap既有静态资源步骤只补两份本地mjs字节核对，原完整JS通配符、仓库门及同候选Mac安装不减；登录实页和运行未知安全门另证，不触发模型或分时供应商。
