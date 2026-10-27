@@ -677,6 +677,7 @@
         "tests/research_web/test_owned_company_policy.py",
         "tests/research_web/test_owned_method_compat.py",
         "tests/research_web/test_owned_news_native_sdk.py",
+        "tests/research_web/test_native_sdk_bootstrap_ci.py",
         "tests/research_web/test_owned_method_dedup.py",
         "tests/research_web/test_owned_method_execution.py",
         "tests/research_web/test_owned_method_preparation.py",

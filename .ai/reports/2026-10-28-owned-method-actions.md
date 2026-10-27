@@ -250,3 +250,33 @@ Python Ruff/Black/isort、生成索引--check、Node syntax/diff--check PASS，�
 13de2c310a2c49f5d41b805166186c90d6f706057e69c87da455a90af3427fb0，retirement.json=cleaned；恢复时每份
 完整文件写出核验后只移除恢复副本，控制磁盘峰值。原失败日志、纯观察脚本/JSON、owner、static和产品
 1055 blob不变证明另作metadata归档恢复核验，原top-level证据继续保留；不触root其他CAS/服务/SDK。
+
+## CI QUALITY两项独立修复（基线e919077d；取消源码未开始）
+
+e919不是Ready：HIGH为嵌入块误用不存在的WebInstaller，真实接口是SetupWebInstaller；MEDIUM为
+FAILED默认receipt/try太晚，导入/Git/RUNNER_TEMP前提失败无回执。原e919实际嵌入程序已在独立子进程
+复现非零ImportError且receipt不存在，不把AST通过或counterfactual下游分支当成e919成功。
+
+真实只读probe已实际import与构造SetupWebInstaller(project_root=当前WT)，公开签名与node_executable/
+dsh_source字段有效；实读Node24.19.0、SDK Git HEAD和三compiled文件均匹配，未调用安装/构建/服务/
+网络。probe证据根rwb-ci-installer-probe-vfmbjrcj保持，非mock不存在类。
+
+修复仅tests/CI/docs：最外层先用标准库在固定工作区绝对artifact路径写FAILED默认receipt，随后try
+包住所有应用import/环境/Git/owner/preflight/install/pytest。真实SetupWebInstaller替换错类名；缺
+RUNNER_TEMP明确失败，不借未登记临时目录。except记录稳定stage/code/error_type并原样重抛，finally
+总写回执；若已有installed基线，最后仍强核包字节与旧distributions，主异常不被最后检查错误覆盖。
+SDK pin/compiled、原dev两工具、pip替换/版本、installed bytes、pytest exit、JUnit exact1/0skip和
+最后完整性等下游硬门保留，无产品依赖/锁/job/runner/timeout变化。
+
+新增独立test_native_sdk_bootstrap_ci.py登记原Checks；真实构造与早期三失败共4PASS（0.19s），包括
+缺RUNNER_TEMP、受控import失败、真实非Git cwd失败，均非零、FAILED回执、稳定stage/code且不写私有
+sentinel。非Mac测试仅对平台门做明确counterfactual来验证回执，不认证Mac Native。CI governance19PASS，
+新增Python Ruff/Black/isort、YAML/bash/PythonAST、索引/diff PASS。证据根
+`/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-ci-early-receipt-fix-ntgmazxx`，各pytest事前opaque
+owner及显式basetemp；真正CI/pip/SDK构建/服务/模型/网络均NOT_RUN。取消产品修复仍排队，未混入本提交。
+
+最后原错误传播断言补齐后四例仍PASS（green-last.log，0.19s），原错误类型保留在stderr而不写私有正文
+入receipt。25份日志/owner/实际失败回执及pytest current元数据归档后逐项恢复核SHA通过，
+evidence/ci-early-failure-evidence.tar.gz为3,529B，SHA-256
+84f524f58cf9d8ccac488f028a79ec2523225072335339d25760a5529671e6b7；仅本轮五个测试/反例子目录退休，
+retirement.json=cleaned，必要top-level证据保留，未触其他任务资源。

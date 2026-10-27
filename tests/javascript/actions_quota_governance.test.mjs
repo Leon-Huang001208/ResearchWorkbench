@@ -387,6 +387,7 @@ test('Web evidence retention is short and full logs upload only on failure', () 
 test('existing Mac Bootstrap owns the mandatory built SDK test after clean installation evidence',()=>{
   const native='tests/research_web/test_owned_news_native_sdk.py';
   assert.ok(workflows.checks.includes('tests/research_web/test_owned_method_compat.py'));
+  assert.ok(workflows.checks.includes('tests/research_web/test_native_sdk_bootstrap_ci.py'));
   assert.ok(!workflows.checks.includes(native),'generic Checks does not own a built fixed SDK');
   for(const event of ['push','pull_request']) for(const file of [native,'tests/research_web/test_owned_method_compat.py','tests/javascript/helpers/owned-news-native-driver.mjs']) assert.equal(triggersForPath(workflows.bootstrap,event,file),true);
   const sdk=workflows.bootstrap.indexOf("argv = [sys.executable, '-m', 'pytest'");

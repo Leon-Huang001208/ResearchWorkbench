@@ -38,6 +38,7 @@ on:
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_native_sdk_bootstrap_ci.py"
       - "tests/research_web/test_runtime_contract.py"
       - "tests/research_web/test_owned_news_native_sdk.py"
       - "tests/research_web/test_owned_method_compat.py"
@@ -83,6 +84,7 @@ on:
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_native_sdk_bootstrap_ci.py"
       - "tests/research_web/test_runtime_contract.py"
       - "tests/research_web/test_owned_news_native_sdk.py"
       - "tests/research_web/test_owned_method_compat.py"
@@ -238,41 +240,57 @@ jobs:
           .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False and data['unavailable_count'] == 0, data"
 
           .venv/bin/python - <<'PY'
-          import importlib.metadata as metadata, json, os, re, subprocess, sys, tempfile, tomllib
+          import json
           from pathlib import Path
-          import xml.etree.ElementTree as ET
-          from scripts.setup_web import WebInstaller
-          from app.research_web import RUNTIME_CONTRACT
-          assert sys.platform == 'darwin', 'Native SDK contract belongs to macOS Bootstrap'
-          checkout = Path.cwd().resolve()
-          evidence = tempfile.mkdtemp(prefix='rwb-native-sdk-', dir=os.environ['RUNNER_TEMP'])
-          owned = Path(evidence).resolve()
-          identity = owned.stat()
-          installer = WebInstaller(project_root=checkout)
-          sdk, node = installer.dsh_source, installer.node_executable
-          argv = [sys.executable, '-m', 'pytest', '--confcutdir=tests/research_web', '--basetemp=' + str(owned / 'pytest'), '--junitxml=native-sdk-junit.xml', 'tests/research_web/test_owned_news_native_sdk.py']
-          candidate = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          owner = {'candidate': candidate, 'slice': 'owned-news-fixed-sdk', 'uid': os.getuid(), 'pid': os.getpid(), 'device': identity.st_dev, 'inode': identity.st_ino, 'argv': argv, 'path': str(owned)}
-          Path('native-sdk-owner.json').write_text(json.dumps(owner, indent=2))
-          (owned / 'owner.json').write_text(json.dumps(owner, indent=2))
-          receipt = {'status': 'FAILED', 'candidate': candidate, 'host_contract': 'checkout_test_fixture', 'installation_evidence': ['doctor.json', 'pack-resource-smoke.json'], 'sdk_contract': 'actual_fixed_sdk_no_model_or_provider_network'}
-          probe = "\n".join([
-              'import hashlib,json,sys; from pathlib import Path; import app.research_web',
-              'p=Path(app.research_web.__file__).resolve(); assert p.is_relative_to(Path(sys.prefix).resolve())',
-              'files={str(x.relative_to(p.parent)):hashlib.sha256(x.read_bytes()).hexdigest() for x in p.parent.rglob("*") if x.is_file() and "__pycache__" not in x.parts and x.suffix not in {".pyc",".pyo"}}',
-              'print(json.dumps({"file":str(p),"files":files},sort_keys=True))',
-          ])
-          def installed():
-              result = json.loads(subprocess.check_output([sys.executable, '-I', '-c', probe], text=True))
-              assert not Path(result['file']).is_relative_to(checkout / 'app'), 'installed probe must not import checkout'
-              return result
-          def versions():
-              return {re.sub(r'[-_.]+', '-', d.metadata['Name']).lower(): d.version for d in metadata.distributions()}
+          receipt_path = Path('native-sdk-receipt.json').absolute()
+          receipt = {'status': 'FAILED', 'stage': 'bootstrap_start', 'code': 'native_sdk_not_completed', 'host_contract': 'checkout_test_fixture', 'installation_evidence': ['doctor.json', 'pack-resource-smoke.json'], 'sdk_contract': 'actual_fixed_sdk_no_model_or_provider_network'}
+          receipt_path.write_text(json.dumps(receipt, indent=2))
+          before = distributions = None
+          primary_error = final_error = None
+          def stage(name, code):
+              receipt.update(stage=name, code=code)
           try:
+              stage('environment', 'native_sdk_environment_failed')
+              import importlib.metadata as metadata, os, re, subprocess, sys, tempfile, tomllib
+              import xml.etree.ElementTree as ET
+              assert sys.platform == 'darwin', 'Native SDK contract belongs to macOS Bootstrap'
+              runner_temp = os.environ.get('RUNNER_TEMP')
+              assert runner_temp and Path(runner_temp).is_dir(), 'RUNNER_TEMP must name the registered CI temporary directory'
+              checkout = Path.cwd().resolve()
+              stage('installer_import', 'native_sdk_installer_import_failed')
+              from scripts.setup_web import SetupWebInstaller
+              from app.research_web import RUNTIME_CONTRACT
+              stage('candidate_preflight', 'native_sdk_candidate_preflight_failed')
+              candidate = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+              receipt['candidate'] = candidate
+              stage('owner_preflight', 'native_sdk_owner_preflight_failed')
+              owned = Path(tempfile.mkdtemp(prefix='rwb-native-sdk-', dir=runner_temp)).resolve()
+              identity = owned.stat()
+              installer = SetupWebInstaller(project_root=checkout)
+              sdk, node = installer.dsh_source, installer.node_executable
+              argv = [sys.executable, '-m', 'pytest', '--confcutdir=tests/research_web', '--basetemp=' + str(owned / 'pytest'), '--junitxml=native-sdk-junit.xml', 'tests/research_web/test_owned_news_native_sdk.py']
+              owner = {'candidate': candidate, 'slice': 'owned-news-fixed-sdk', 'uid': os.getuid(), 'pid': os.getpid(), 'device': identity.st_dev, 'inode': identity.st_ino, 'argv': argv, 'path': str(owned)}
+              Path('native-sdk-owner.json').write_text(json.dumps(owner, indent=2))
+              (owned / 'owner.json').write_text(json.dumps(owner, indent=2))
+              receipt.update(sdk_pin=RUNTIME_CONTRACT.dsh_commit, test_fixture_root=str(owned))
+              probe = "\n".join([
+                  'import hashlib,json,sys; from pathlib import Path; import app.research_web',
+                  'p=Path(app.research_web.__file__).resolve(); assert p.is_relative_to(Path(sys.prefix).resolve())',
+                  'files={str(x.relative_to(p.parent)):hashlib.sha256(x.read_bytes()).hexdigest() for x in p.parent.rglob("*") if x.is_file() and "__pycache__" not in x.parts and x.suffix not in {".pyc",".pyo"}}',
+                  'print(json.dumps({"file":str(p),"files":files},sort_keys=True))',
+              ])
+              def installed():
+                  result = json.loads(subprocess.check_output([sys.executable, '-I', '-c', probe], text=True))
+                  assert not Path(result['file']).is_relative_to(checkout / 'app'), 'installed probe must not import checkout'
+                  return result
+              def versions():
+                  return {re.sub(r'[-_.]+', '-', d.metadata['Name']).lower(): d.version for d in metadata.distributions()}
+              stage('clean_install_evidence', 'native_sdk_clean_install_evidence_failed')
               for name in ('doctor.json', 'pack-resource-smoke.json'):
                   assert Path(name).is_file(), 'clean installation evidence must precede dev tools'
               before, distributions = installed(), versions()
               Path('native-sdk-installed-before.json').write_text(json.dumps(before, sort_keys=True))
+              stage('fixed_sdk_preflight', 'native_sdk_fixed_sdk_preflight_failed')
               assert subprocess.check_output([str(node), '--version'], text=True).strip() == 'v24.19.0'
               assert subprocess.check_output(['git', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', 'rev-parse', 'HEAD'], cwd=sdk, text=True).strip() == RUNTIME_CONTRACT.dsh_commit
               for name in ('packages/core/tools/lib/index.js', 'packages/core/system-prompt/lib/index.js', 'vendor/cordis/lib/index.js'):
@@ -281,6 +299,7 @@ jobs:
               tools = [item for item in dev if re.match(r'^(?:pytest|pytest-asyncio)(?=[<=>!~\[;]|$)', item)]
               assert len(tools) == 2
               Path('native-sdk-preflight.json').write_text(json.dumps({'platform': sys.platform, 'node': str(node), 'node_version': '24.19.0', 'sdk': str(sdk), 'sdk_pin': RUNTIME_CONTRACT.dsh_commit, 'declared_test_tools': tools, 'installed_distributions_before': distributions}, indent=2))
+              stage('declared_test_tools', 'native_sdk_test_tools_failed')
               # CI-only tools from the existing dev declaration; never install the editable project.
               subprocess.run([sys.executable, '-m', 'pip', 'install', '--report', 'native-sdk-tools-install.json', *tools], check=True)
               after_tools = versions()
@@ -289,6 +308,7 @@ jobs:
               installed_names = {re.sub(r'[-_.]+', '-', row['metadata']['name']).lower() for row in pip_report.get('install', [])}
               assert not installed_names.intersection(distributions), 'existing runtime distribution was replaced'
               assert installed() == before, 'dev tools changed installed app bytes'
+              stage('native_contract', 'native_sdk_contract_failed')
               env = {**os.environ, 'RWB_DSH_TEST_SOURCE': str(sdk), 'DSH_SOURCE_ROOT': str(sdk), 'RWB_TEST_NODE': str(node), 'RWB_TEST_PYTHON': sys.executable, 'PYTHONDONTWRITEBYTECODE': '1'}
               with Path('native-sdk.log').open('w') as output:
                   result = subprocess.run(argv, env=env, stdout=output, stderr=subprocess.STDOUT)
@@ -297,27 +317,29 @@ jobs:
               suites = list(ET.parse('native-sdk-junit.xml').getroot().iter('testsuite'))
               assert sum(int(s.get('tests', 0)) for s in suites) == 1
               assert all(int(s.get(k, 0)) == 0 for s in suites for k in ('failures', 'errors', 'skipped'))
-              receipt.update(status='PASS', added_test_distributions={name: version for name, version in after_tools.items() if name not in distributions})
+              receipt.update(status='PASS', stage='complete', code='native_sdk_verified', added_test_distributions={name: version for name, version in after_tools.items() if name not in distributions})
+          except BaseException as error:
+              primary_error = error
+              receipt.update(status='FAILED', error_type=type(error).__name__)
+              raise
           finally:
-              recorded = Path('native-sdk-installed-before.json').is_file()
-              completed = receipt['status'] == 'PASS'
-              receipt['status'] = 'FAILED'
-              try:
-                  if recorded:
+              if before is not None:
+                  try:
                       after = installed()
                       Path('native-sdk-installed-after.json').write_text(json.dumps(after, sort_keys=True))
                       receipt['installed_bytes_unchanged'] = after == before
                       after_test_versions = versions()
                       receipt['installed_distributions_unchanged'] = all(after_test_versions.get(name) == version for name, version in distributions.items())
-                      if after == before and receipt['installed_distributions_unchanged'] and completed:
-                          receipt['status'] = 'PASS'
-              finally:
-                  receipt['sdk_pin'] = RUNTIME_CONTRACT.dsh_commit
-                  receipt['test_fixture_root'] = str(owned)
-                  Path('native-sdk-receipt.json').write_text(json.dumps(receipt, indent=2))
-              if recorded:
-                  assert receipt['installed_bytes_unchanged'], 'Native test changed installed app bytes'
-                  assert receipt['installed_distributions_unchanged'], 'Native test changed installed runtime distributions'
+                      assert receipt['installed_bytes_unchanged'], 'Native test changed installed app bytes'
+                      assert receipt['installed_distributions_unchanged'], 'Native test changed installed runtime distributions'
+                  except BaseException as error:
+                      final_error = error
+                      receipt.update(status='FAILED', final_check_error_type=type(error).__name__)
+                      if primary_error is None:
+                          stage('final_installed_integrity', 'native_sdk_final_integrity_failed')
+              receipt_path.write_text(json.dumps(receipt, indent=2))
+              if primary_error is None and final_error is not None:
+                  raise final_error
           PY
 
       - name: Stop macOS services
