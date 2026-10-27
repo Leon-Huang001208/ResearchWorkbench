@@ -237,10 +237,14 @@ def read_artifacts(root, execution):
     values = {name: json.loads(content) for name, content in raw.items()}
     if any(not isinstance(value, dict) for value in values.values()):
         fail("pack_output_schema_invalid")
+    from .capabilities.pack_result_contracts import frozen_definitions
     from .capabilities.pack_result_contracts import validate as validate_output_contract
 
     validate_output_contract(
-        values["receipt"], values["full-result"], execution["binding"]["pack_id"]
+        values["receipt"],
+        values["full-result"],
+        execution["binding"]["pack_id"],
+        definitions=frozen_definitions(root, execution),
     )
     if any(canonical(values[name]) != content for name, content in raw.items()):
         fail("pack_output_json_invalid")

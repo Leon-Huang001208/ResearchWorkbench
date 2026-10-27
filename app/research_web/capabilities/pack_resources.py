@@ -12,6 +12,7 @@ from pathlib import Path
 
 from core.observability import get_logger
 
+from ..scenarios.packs.contracts import method_version
 from ..scenarios.packs.record_contracts import RECORD_SCHEMAS
 from .models import CapabilityError
 from .pack_dependencies import runtime_identity
@@ -79,9 +80,15 @@ def verify_pack_manifest(files):
             or sorted(entries, key=lambda item: item["path"]) != expected
             or any(f["sha256"] != hashlib.sha256(decode_file(f)).hexdigest() for f in files)
             or manifest["closure_sha256"] != closure(files)
-            or manifest["schema"] != "research_pack_code_manifest_v1"
+            or manifest["schema"]
+            not in {"research_pack_code_manifest_v1", "research_pack_code_manifest_v2"}
             or manifest["pack_id"] not in PACK_NAMES
-            or manifest["method_version"] != "1.0.0"
+            or manifest["method_version"]
+            != (
+                "1.0.0"
+                if manifest["schema"] == "research_pack_code_manifest_v1"
+                else method_version("pack:" + manifest["pack_id"])
+            )
             or {entry["path"] for entry in entries}
             != {
                 *("scripts/rwb_pack_core/" + name for name in CORE_FILES),
@@ -93,10 +100,25 @@ def verify_pack_manifest(files):
                 "references/synthetic-vectors.json",
                 "references/record-contracts.json",
                 "references/runtime.json",
-                "references/output-contracts-v1.json",
+                (
+                    "references/output-contracts-v1.json"
+                    if manifest["schema"] == "research_pack_code_manifest_v1"
+                    else "references/output-contracts-v2.json"
+                ),
             }
         ):
             raise ValueError("closure mismatch")
+        if manifest["schema"] == "research_pack_code_manifest_v2":
+            expected_output = next(
+                item for item in entries if item["path"] == "references/output-contracts-v2.json"
+            )
+            expected_records = next(
+                item for item in entries if item["path"] == "references/record-contracts.json"
+            )
+            if manifest.get("output_contract") != expected_output or manifest.get(
+                "record_contract"
+            ) != {**expected_records, "version": 2}:
+                raise ValueError("contract reference mismatch")
         return manifest
     except (KeyError, TypeError, ValueError) as exc:
         log.warning("research_pack_closure_rejected")
@@ -127,7 +149,7 @@ def pack_packages():
                 (Path(__file__).parent / "pack_import_policy.py").read_bytes(),
             ),
             encode_file("references/runtime.json", canonical(runtime_identity())),
-            encode_file("references/output-contracts-v1.json", canonical(output_contracts())),
+            encode_file("references/output-contracts-v2.json", canonical(output_contracts())),
             encode_file(
                 "references/synthetic-vectors.json", (root / "synthetic_vectors.json").read_bytes()
             ),
@@ -152,9 +174,19 @@ def execute(input_path, output_path, binding):
 '''
         files = [*core, *shared, encode_file("scripts/calculate.py", entry.encode())]
         manifest = {
-            "schema": "research_pack_code_manifest_v1",
+            "schema": "research_pack_code_manifest_v2",
             "pack_id": pack_id,
-            "method_version": "1.0.0",
+            "method_version": method_version("pack:" + pack_id),
+            "output_contract": next(
+                {"path": f["path"], "sha256": f["sha256"]}
+                for f in files
+                if f["path"] == "references/output-contracts-v2.json"
+            ),
+            "record_contract": next(
+                {"path": f["path"], "sha256": f["sha256"], "version": 2}
+                for f in files
+                if f["path"] == "references/record-contracts.json"
+            ),
             "authority": "app/research_web/scenarios/packs",
             "core_files": list(CORE_FILES),
             "logging_adapter": "stdlib_logging_v1",

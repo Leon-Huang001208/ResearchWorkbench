@@ -25,7 +25,9 @@ def test_nine_frozen_packages_have_complete_byte_identical_core():
         files = {f["path"]: decode_file(f) for f in draft["files"]}
         manifest = json.loads(files["references/pack-code-manifest.json"])
         assert manifest["pack_id"] == pack_id
-        assert manifest["method_version"] == "1.0.0"
+        assert manifest["method_version"] == (
+            "1.1.0" if pack_id in {"research-prep", "global-opinion"} else "1.0.0"
+        )
         for filename in CORE_FILES:
             assert (
                 files["scripts/rwb_pack_core/" + filename]

@@ -50,6 +50,9 @@ def test_native_writer_keeps_full_child_rows_and_bounded_stdout(tmp_path):
         "input_sha256": hashlib.sha256(input_path.read_bytes()).hexdigest(),
         "pack_id": "research-prep",
     }
+    from test_pack_source_versions import current_resources
+
+    scope = current_resources(tmp_path, binding)
     output_root = "outputs/scenario-results/" + "a" * 32
     target = tmp_path / output_root / "v1"
     target.parent.mkdir(parents=True)
@@ -66,7 +69,7 @@ def test_native_writer_keeps_full_child_rows_and_bounded_stdout(tmp_path):
 
     observed = read_artifacts(
         tmp_path,
-        {"output_root": output_root, "binding": binding, "scope": {"input_path": "input.json"}},
+        {"output_root": output_root, "binding": binding, "scope": scope},
     )
     assert observed["counts"] == {"root": 1, "components": {"deduplicate_source_versions": 256}}
     assert (
@@ -93,7 +96,7 @@ def test_native_writer_keeps_full_child_rows_and_bounded_stdout(tmp_path):
     with pytest.raises(StoreError) as counts:
         read_artifacts(
             tmp_path,
-            {"output_root": output_root, "binding": binding, "scope": {"input_path": "input.json"}},
+            {"output_root": output_root, "binding": binding, "scope": scope},
         )
     assert counts.value.code == "pack_output_count_or_schema_invalid"
     with pytest.raises(ValueError, match="output_exists"):

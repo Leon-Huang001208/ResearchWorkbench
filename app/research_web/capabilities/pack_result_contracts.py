@@ -1,12 +1,16 @@
 """Independent versioned audit contracts, never inferred from returned receipts."""
 
 import copy
+import hashlib
+import json
+from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
 from core.observability import get_logger
 
 from ..scenarios.packs import METHODS, PACKS
+from ..scenarios.packs.contracts import method_version
 from ..scenarios.packs.format_profile import format_checker, require_local_schema
 from .models import CapabilityError
 
@@ -192,7 +196,7 @@ def payload(method, *, full=False, pack=False):
     properties = {
         "schema_version": {"const": 1, "type": "integer"},
         "method": {"const": method},
-        "method_version": {"const": "1.0.0"},
+        "method_version": {"const": method_version(method)},
         "status": {"enum": ["complete", "partial", "insufficient_data"]},
         "host_qualification": {"const": "NOT_RUN"},
         "research_quality": {"const": "NOT_RUN"},
@@ -208,6 +212,29 @@ def payload(method, *, full=False, pack=False):
         "source_refs": array(LOCATOR),
         "limitations": {"const": limits},
     }
+    if not pack and method == "deduplicate_source_versions":
+        properties["rows"] = array(
+            obj(
+                {
+                    "content_sha256": SHA,
+                    "versions": array(
+                        obj(
+                            {
+                                "row_id": TEXT,
+                                "version_id": TEXT,
+                                "url_ref": TEXT,
+                                "language": TEXT,
+                                "region": TEXT,
+                                "source_role": {
+                                    "enum": ["original", "reprint", "translation", "unknown"]
+                                },
+                                "published_at": {"type": ["string", "null"], "format": "date-time"},
+                            }
+                        )
+                    ),
+                }
+            )
+        )
     if not pack and method == "align_event_trading_day":
         properties["limitations"] = {"enum": [limits, limits + ["old_event_return_blocked"]]}
     if full:
@@ -217,7 +244,13 @@ def payload(method, *, full=False, pack=False):
             canonical_input_sha256=SHA,
             legacy_normalized_input_sha256=SHA,
             receipt_sha256=SHA,
-            code_version=CODE_VERSION,
+            code_version={
+                **CODE_VERSION,
+                "properties": {
+                    **CODE_VERSION["properties"],
+                    "method_version": {"const": method_version(method)},
+                },
+            },
             source_locator_contract={"const": "host_frozen_snapshot_readback_required"},
         )
         if pack:
@@ -244,10 +277,26 @@ def payload(method, *, full=False, pack=False):
     return obj(properties)
 
 
-def contracts():
+def contracts(*, version=2):
+    if version == 1:
+        try:
+            raw = Path(__file__).with_name("pack-output-contracts-v1.json").read_bytes()
+        except OSError as exc:
+            log.warning("pack_historical_output_contract_unavailable")
+            raise CapabilityError("历史输出合同不可用", "pack_output_schema_invalid", 409) from exc
+        if (
+            hashlib.sha256(raw).hexdigest()
+            != "de146921f14565d590c988ab4711528759b2f7ad45c141487106d1fb470790fd"
+        ):
+            log.warning("pack_historical_output_contract_changed")
+            raise CapabilityError("历史输出合同已变化", "pack_output_schema_invalid", 409)
+        return json.loads(raw)
+    if version != 2:
+        log.warning("pack_output_contract_version_unknown")
+        raise CapabilityError("输出合同版本未知", "pack_output_schema_invalid", 409)
     return {
-        "schema": "research_pack_output_contracts_v1",
-        "version": 1,
+        "schema": "research_pack_output_contracts_v2",
+        "version": 2,
         "receipts": {pack: payload("pack:" + pack, pack=True) for pack in PACKS},
         "full_results": {
             pack: obj(
@@ -276,9 +325,9 @@ def contracts():
     }
 
 
-def validate(receipt, full, pack_id):
+def validate(receipt, full, pack_id, *, definitions=None):
     try:
-        definitions = contracts()
+        definitions = contracts() if definitions is None else definitions
         for value, schema in (
             (receipt, definitions["receipts"][pack_id]),
             (full, definitions["full_results"][pack_id]),
@@ -314,3 +363,102 @@ def validate(receipt, full, pack_id):
         raise CapabilityError(
             "组合包审计必需字段或结构非法", "pack_output_schema_invalid", 409
         ) from None
+
+
+def frozen_definitions(root, execution):
+    """Resolve only the independently sealed resource manifest's exact contract.
+
+    Legacy v1 has a fixed path; v2 declares its path/hash in the code manifest.
+    Neither the returned result nor a caller supplies a schema or schema URL.
+    Missing frozen bindings are rejected, including for standalone writer tests.
+    """
+    from .pack_native import read_regular
+    from .pack_resources import MANIFEST_PATH, canonical, closure
+
+    try:
+        binding = execution["binding"]
+        from .pack_resources import PACK_NAMES
+
+        cid, version = binding["capability_id"], binding["version"]
+        if (
+            cid != "research-pack-" + binding["pack_id"]
+            or binding["pack_id"] not in PACK_NAMES
+            or type(version) is not int
+            or version < 1
+        ):
+            raise ValueError("frozen contract identity invalid")
+        prefix = f"resources/capabilities/{cid}/{version}/"
+        files = execution["scope"]["file_bindings"]
+        paths = {item["path"]: item["sha256"] for item in files}
+        if len(paths) != len(files):
+            raise ValueError("duplicate frozen file")
+        raw = read_regular(root / (prefix + MANIFEST_PATH), 65536)
+        if hashlib.sha256(raw).hexdigest() != paths[prefix + MANIFEST_PATH]:
+            raise ValueError("frozen manifest changed")
+        manifest = json.loads(raw)
+        if (
+            manifest["pack_id"] != binding["pack_id"]
+            or manifest["closure_sha256"] != binding["closure_sha256"]
+            or closure(manifest["files"]) != binding["closure_sha256"]
+            or any(paths[prefix + item["path"]] != item["sha256"] for item in manifest["files"])
+        ):
+            raise ValueError("frozen closure changed")
+        if manifest["schema"] == "research_pack_code_manifest_v1":
+            contract_path, contract_version = "references/output-contracts-v1.json", 1
+            if manifest["method_version"] != "1.0.0":
+                raise ValueError("legacy method version changed")
+        elif manifest["schema"] == "research_pack_code_manifest_v2":
+            contract_path, contract_version = "references/output-contracts-v2.json", 2
+            if manifest["output_contract"] != {
+                "path": contract_path,
+                "sha256": paths[prefix + contract_path],
+            }:
+                raise ValueError("contract reference changed")
+            if manifest["method_version"] != method_version("pack:" + binding["pack_id"]):
+                raise ValueError("method version changed")
+        else:
+            raise ValueError("contract version unknown")
+        content = read_regular(root / (prefix + contract_path), 512 * 1024)
+        if hashlib.sha256(content).hexdigest() != paths[prefix + contract_path]:
+            raise ValueError("frozen contract changed")
+        definitions = contracts(version=contract_version)
+        records_path = "references/record-contracts.json"
+        records_raw = read_regular(root / (prefix + records_path), 128 * 1024)
+        if hashlib.sha256(records_raw).hexdigest() != paths[prefix + records_path]:
+            raise ValueError("frozen record contract changed")
+        if contract_version == 1:
+            record_schema_raw = (
+                Path(__file__).with_name("pack-record-contracts-v1.json").read_bytes()
+            )
+            if (
+                hashlib.sha256(record_schema_raw).hexdigest()
+                != "04f0970ff6aa798c28f5b65906f5eb5a94533882b595299f7b3f8116c804be53"
+            ):
+                raise ValueError("legacy record schema changed")
+        else:
+            from ..scenarios.packs.record_contracts import RECORD_SCHEMAS
+
+            record_schema_raw = canonical(RECORD_SCHEMAS)
+            if manifest["record_contract"] != {
+                "path": records_path,
+                "sha256": paths[prefix + records_path],
+                "version": 2,
+            }:
+                raise ValueError("record contract reference changed")
+        if records_raw != record_schema_raw:
+            raise ValueError("unreviewed record contract")
+        schemas = json.loads(record_schema_raw)
+        sealed_raw = read_regular(root / execution["scope"]["input_path"], 64 * 1024 * 1024)
+        if hashlib.sha256(sealed_raw).hexdigest() != binding["input_sha256"]:
+            raise ValueError("frozen input changed")
+        sealed = json.loads(sealed_raw)
+        for kind, records in sealed["records_by_kind"].items():
+            validator = Draft202012Validator(schemas[kind], format_checker=format_checker())
+            if any(next(validator.iter_errors(row), None) is not None for row in records):
+                raise ValueError("frozen input contract invalid")
+        if content != canonical(definitions):
+            raise ValueError("unreviewed output contract")
+        return definitions
+    except (OSError, ValueError, KeyError, TypeError, StopIteration):
+        log.warning("pack_frozen_output_contract_rejected")
+        raise CapabilityError("冻结输出合同无法核验", "pack_output_schema_invalid", 409) from None

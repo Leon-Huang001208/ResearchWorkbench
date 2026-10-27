@@ -38,6 +38,9 @@ def result(tmp_path):
         "pack_id": "research-prep",
         "input_sha256": hashlib.sha256(input.read_bytes()).hexdigest(),
     }
+    from test_pack_source_versions import current_resources
+
+    scope = current_resources(tmp_path, binding)
     output = "outputs/scenario-results/" + binding["execution_id"]
     target = tmp_path / output / "v1"
     target.parent.mkdir(parents=True)
@@ -45,7 +48,7 @@ def result(tmp_path):
     return (
         tmp_path,
         target,
-        {"output_root": output, "binding": binding, "scope": {"input_path": "input.json"}},
+        {"output_root": output, "binding": binding, "scope": scope},
     )
 
 

@@ -1,4 +1,4 @@
-"""Frozen v1 normalized record schemas; format is not Host authority."""
+"""Frozen v2 normalized record schemas (unknown source authorship); format is not Host authority."""
 
 RECORD_SCHEMAS = {
     "position": {
@@ -193,7 +193,7 @@ RECORD_SCHEMAS = {
                     {"type": "null"},
                 ]
             },
-            "source_role": {"enum": ["original", "reprint", "translation"]},
+            "source_role": {"enum": ["original", "reprint", "translation", "unknown"]},
             "parent_version_id": {
                 "anyOf": [{"type": "string", "minLength": 1, "maxLength": 4096}, {"type": "null"}]
             },

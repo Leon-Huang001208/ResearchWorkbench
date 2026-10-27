@@ -3886,6 +3886,7 @@ Imports:
 - `pack_result_contracts`
 - `packages`
 - `pathlib`
+- `scenarios.packs.contracts`
 - `scenarios.packs.record_contracts`
 
 Functions:
@@ -3904,9 +3905,13 @@ Module docstring:
 Imports:
 - `copy`
 - `core.observability`
+- `hashlib`
+- `json`
 - `jsonschema`
 - `models`
+- `pathlib`
 - `scenarios.packs`
+- `scenarios.packs.contracts`
 - `scenarios.packs.format_profile`
 
 Functions:
@@ -3915,6 +3920,8 @@ Functions:
 - `payload`
 - `contracts`
 - `validate`
+- `frozen_definitions`
+  - Resolve only the independently sealed resource manifest's exact contract.
 
 
 ## `app/research_web/capabilities/packages.py`
@@ -11109,6 +11116,22 @@ Functions:
   - Requires actual existing snapshot identity; storage_read is never a bypass.
 
 
+## `app/research_web/scenario_pack_ui.py`
+
+Module docstring:
+> Read-only public projection of privately bound pack execution receipts.
+
+Imports:
+- `core.observability`
+- `hashlib`
+- `json`
+- `store`
+
+Functions:
+- `project`
+  - Called only after detail's current-owner and ancestor authority checks.
+
+
 ## `app/research_web/scenarios/__init__.py`
 
 Module docstring:
@@ -11178,6 +11201,8 @@ Imports:
 - `packs.contracts`
 
 Functions:
+- `ui_methods`
+  - Read-only form projection; never adds source or execution authority.
 - `contracts`
 - `select`
 
@@ -11295,6 +11320,8 @@ Functions:
 - `validate_inputs`
 - `_component_previews`
   - Project child data rows while preserving every component audit field.
+- `method_version`
+  - Only source-version semantics and its two consuming packs changed.
 - `result`
 
 
@@ -11342,7 +11369,7 @@ Functions:
 ## `app/research_web/scenarios/packs/record_contracts.py`
 
 Module docstring:
-> Frozen v1 normalized record schemas; format is not Host authority.
+> Frozen v2 normalized record schemas (unknown source authorship); format is not Host authority.
 
 
 ## `app/research_web/service.py`

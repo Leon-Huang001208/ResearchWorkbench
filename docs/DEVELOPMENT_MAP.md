@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-27 C0：`scenarios/packs/contracts.py:method_version`仅提升deduplicate_source_versions及其两消费包；`pack_resources.py`冻结v2合同路径/hash，`pack_result_contracts.py:frozen_definitions`从私有封印资源读回固定v1/v2合同并核原输入schema，`scenario_pack_execution.py`沿原产物读回使用它。`pack-*-contracts-v1.json`保留633原字节，近测试`test_pack_source_versions.py`含真实633旧冻结writer产物与新unknown角色；其他七包版本、历史relocation及非pack档案保持原门。
+
 B1 验证依赖复核：`pack_dependencies.py`/`pack_import_policy.py` 负责 v3 实际导入身份与 Native 精确导入门；`scenarios/packs/format_profile.py` 为 Host 和冻结核心提供同一私有 date/date-time 校验。`contracts.py` 只改验证接线，`sandbox.py` 仅 pack literal 分支省去普通 report SDK 预载。测试增加 import/format 正反例，旧执行/输出/历史证书门保持。
 
 2026-10-27 B1 SPEC修波：`capabilities/pack_equivalence.py` 重验每用户直接old→current证书／完整endpoint事实，`scenario_pack_reads.py` 只服务Dossier现有snapshot读取；`service._validate_data_query_scope` 为无写声明检查，原三参callback／严格records保持。`capabilities/pack_result_contracts.py` 独立定义并冻结receipt/full/root/component全部审计必需结构，不从结果反推required。新增 `test_pack_history_read.py`／`test_pack_output_schema.py` 以及多hop直接证／事务磁盘故障／旧门回归。

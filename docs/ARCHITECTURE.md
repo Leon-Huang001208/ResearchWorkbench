@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-27 C0 在原Host冻结资源内区分旧v1与新v2来源/输出合同；仅来源去重及调研/舆情两包方法升为1.1.0，未知原创角色显式unknown。Host按封印manifest引用的原合同验证旧/新产物，不扩大历史版本执行或只读等价政策；没有新增引擎、服务、HTTP、数据库或依赖，原拓扑保持。
+
 2026-10-27 B1 验证依赖复核：runtime v3 绑定实际 optional 导入图与 idna 闭包，Host 只读验证 origin，Native 固定 launcher 用冻结 MetaPath 拒绝未绑定依赖；同一冻结 date/date-time profile 补齐原缺失 checker。仅验证层更正，不增引擎/服务/依赖，普通及 weekly sandbox 入口保持。
 
 2026-10-27 B1 SPEC修波仍沿原Host／唯一DSH拓扑：Catalog原pending发布事务提交仅九builtin pack的直接历史只读等价事实；Dossier专用内部adapter在当前来源授权与原件hash链上读取等价当前策略，不执行旧runtime、不向普通storage_read或执行门传递权限。版本化输出审计schema独立于返回receipt并进入Native资源闭包。无新服务、DB、秘密或引擎；旧send/load仍version_conflict，原八合同／基线字节不动。

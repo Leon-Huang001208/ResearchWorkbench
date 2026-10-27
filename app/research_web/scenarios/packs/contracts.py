@@ -183,6 +183,15 @@ def _component_previews(rows: list, sizes: list[int]) -> list:
     return projected
 
 
+def method_version(method: str) -> str:
+    """Only source-version semantics and its two consuming packs changed."""
+    return (
+        "1.1.0"
+        if method in {"deduplicate_source_versions", "pack:research-prep", "pack:global-opinion"}
+        else "1.0.0"
+    )
+
+
 def result(
     method: str,
     count: int,
@@ -216,7 +225,7 @@ def result(
     output = {
         "schema_version": 1,
         "method": method,
-        "method_version": "1.0.0",
+        "method_version": method_version(method),
         "status": status or ("partial" if missing else "complete"),
         "host_qualification": "NOT_RUN",
         "research_quality": "NOT_RUN",

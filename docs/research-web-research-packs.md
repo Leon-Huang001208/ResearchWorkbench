@@ -300,3 +300,21 @@ Host 决策、默认 private-bridge 产品代码和真实 macOS Seatbelt；测�
 独立摘要验证另有直接 writer／Native sandbox 测试。取消后恢复、未知不重发、跨来源撤权、
 篡改、失败和旧版本保全分别测试。UI／140全执行映射、真实模型选择、真实供应商等价、正式
 报告质量、常驻部署、跨平台仍是独立未完成项；本地通过不替代主控的完整 Router／独评／CI。
+
+## C0：来源版本合同的最小增量
+
+去重方法、research-prep与global-opinion方法版本为1.1.0；其余七包仍为1.0.0。
+来源角色新增`unknown`，必须产生`source_role_unknown`缺口，输出每个版本明确保留角色；
+没有把捕获到的原文等同于原创，没有推断转载时间差。既有original/reprint/translation的
+数学语义保持。语言、地域和发表时刻的可信来源投影属于下一切片，本步没有来源mapper。
+
+新资源manifest为`research_pack_code_manifest_v2`，明确绑定输出合同v2和记录合同版本2的
+路径及SHA256；旧v1输出/记录合同按633原字节保存在受管包内JSON。Host从已冻结
+resource manifest及file_bindings读回合同，验证closure、引用hash和封印输入；拒绝缺失
+能力绑定、未知合同版本、替换schema与旧v1下的unknown角色。返回产物不能自选schema。
+
+`fixtures/pack-633-v1/`来自633冻结package实际执行，保留package/input/execution及
+原receipt/full-result/manifest和来源SHA核对；是合成资料的离线真实计算产物，未调用模型
+或供应商，不是线上用户档案。旧v1可按原冻结合同只读检查，新v2须按新合同检查，彼此
+不能互换。旧版本继续执行、跨语义版本迁移/只读等价均未被授权；已有prefix-relocation
+政策和非pack档案门保持。新旧代码内容不同仍返回明确冲突，不伪造等价证书。

@@ -141,6 +141,8 @@ def deduplicate_source_versions(records, p, cutoff):
         require(r["version_id"] not in versions, "duplicate_version")
         versions[r["version_id"]] = r
         t = r["origin"]["published_at"]
+        if r["source_role"] == "unknown":
+            missing.append({"code": "source_role_unknown", "row_id": r["row_id"]})
         if r["event_at"] is not None:
             require(instant(r["event_at"]) <= cutoff, "future_data")
         if t is None or not r["full_text_available"]:
@@ -187,6 +189,7 @@ def deduplicate_source_versions(records, p, cutoff):
                         "url_ref": r["url_ref"],
                         "language": r["language"],
                         "region": r["region"],
+                        "source_role": r["source_role"],
                         "published_at": (
                             instant(r["origin"]["published_at"]).isoformat()
                             if r["origin"]["published_at"]
