@@ -5,6 +5,7 @@ from pathlib import Path
 from .methods import METHOD_SPECS
 from .pack_resources import pack_packages
 from .packages import encode_file
+from .scenario_method_packages import scenario_method_packages
 
 QUESTION_INPUT = {
     "name": "question",
@@ -686,6 +687,7 @@ def seed_packages():
         *(_workflow_package(spec) for spec in WORKFLOW_SPECS),
         *(_method_package(spec) for spec in METHOD_SPECS),
         *pack_packages(),
+        *scenario_method_packages(),
     ]
 
 
