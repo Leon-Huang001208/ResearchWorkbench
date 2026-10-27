@@ -54,6 +54,58 @@ class Handoff(BaseModel):
     )
 
 
+class SelectedSource(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    source_session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    id: str = Field(pattern=r"^web:[a-f0-9]{24}$")
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class SourceSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    handoff: Handoff
+    sources: list[SelectedSource] = Field(min_length=1, max_length=20)
+
+
+class FreezeSourceSelection(SourceSelection):
+    preview_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+@router.get("/source-selections/sessions/{session_id}")
+async def source_selection_list(session_id: str, request: Request):
+    from .scenario_source_selection import list_sources
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return list_sources(service, session_id)
+
+
+@router.post("/source-selections/preview")
+async def source_selection_preview(body: SourceSelection, request: Request):
+    from .scenario_source_selection import preview
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return preview(service, body)[0]
+
+
+@router.post("/source-selections/freeze")
+async def source_selection_freeze(
+    body: FreezeSourceSelection,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128),
+):
+    from .scenario_source_selection import freeze
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        prepared = freeze(service, body, idempotency_key)
+    return await create_handoff(prepared, request, idempotency_key)
+
+
 @router.get("/scenarios")
 async def scenarios(request: Request):
     from .scenario_handoffs import catalog

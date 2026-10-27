@@ -3,7 +3,7 @@
 from ..capabilities.pack_resources import PACK_NAMES
 from .catalog import _validate_inputs
 from .packs import METHODS, PACKS, REQUIRED_COVERAGE
-from .packs.contracts import PackError, encoded
+from .packs.contracts import PackError, encoded, method_version
 
 
 def ui_methods(pack_id):
@@ -51,7 +51,7 @@ def ui_methods(pack_id):
             {
                 "id": method,
                 "label": labels[method],
-                "version": "1.0.0",
+                "version": method_version(method),
                 "required_kinds": sorted(METHODS[method][1]),
                 "fields": projected,
                 "source_requirements": sorted(METHODS[method][2] & {"category_coverage"}),

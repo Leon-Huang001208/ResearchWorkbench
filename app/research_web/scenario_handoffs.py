@@ -344,7 +344,7 @@ def validate_dates(manifest, raw, as_of):
     return sorted(gaps)
 
 
-def prepare_context(service, body):
+def prepare_context(service, body, *, _workspace_reader=None):
     values = body.scenario_inputs
     # Validate exact input keys/types before examining any owned evidence.
     chosen = selection(service, body.scenario_id, values)
@@ -456,9 +456,17 @@ def prepare_context(service, body):
 
         if not body.workspace_material.get("sha256"):
             fail("scenario_workspace_unconfirmed", "请先核对选定研究资料的版本", 422)
-        workspace, selected_refs = read_bundle(
-            service, body.workspace_material, values["subject"]["identity"]
-        )
+        if _workspace_reader is not None:
+            workspace, selected_refs = _workspace_reader()
+        else:
+            from .scenario_source_selection import read_selection
+
+            selected = read_selection(service, body.workspace_material, body)
+            workspace, selected_refs = (
+                selected
+                if selected is not None
+                else read_bundle(service, body.workspace_material, values["subject"]["identity"])
+            )
         for ref in selected_refs:
             if ref["reference"]["type"] == "dataset":
                 _meta, manifest, raw = resolve_reference(

@@ -11154,6 +11154,50 @@ Functions:
   - Called only after detail's current-owner and ancestor authority checks.
 
 
+## `app/research_web/scenario_source_selection.py`
+
+Module docstring:
+> Inert, Host-constructed source selections for two research packs.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `json`
+- `os`
+- `pydantic`
+- `re`
+- `scenario_handoffs`
+- `store`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `Closed`
+- `ManifestSource`
+- `Subject`
+- `SelectionManifest`
+
+Functions:
+- `snapshot_selection_receipts`
+  - Preserve even uncertain publication intents through the existing fence.
+- `_read_control`
+- `_write_control`
+- `_request`
+- `_sources`
+- `_safe`
+- `list_sources`
+  - Read current owned source metadata; never scan/register uploaded files.
+- `_material`
+- `preview`
+  - Pure qualification, with no material file and no Native session creation.
+- `freeze`
+  - Publish once, then let the caller enter the existing durable handoff.
+- `read_selection`
+  - Exact dispatch by registered path; asset bundles retain their old reader.
+
+
 ## `app/research_web/scenario_source_versions.py`
 
 Module docstring:
@@ -12411,8 +12455,14 @@ Imports:
 Classes:
 - `DeskQuery`
 - `Handoff`
+- `SelectedSource`
+- `SourceSelection`
+- `FreezeSourceSelection`
 
 Functions:
+- `source_selection_list`
+- `source_selection_preview`
+- `source_selection_freeze`
 - `scenarios`
 - `prepare_scenario`
 - `handoff_request`
