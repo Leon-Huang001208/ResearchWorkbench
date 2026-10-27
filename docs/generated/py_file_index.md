@@ -5767,6 +5767,8 @@ Classes:
   - methods: __init__, snapshot, _candidates, _signature, _unverified_scope, current, begin, public, reconcile_cancel, refresh
 
 Functions:
+- `accepted_task_cancel`
+  - Pure server task identity; pending/foreign cancellations grant nothing.
 - `expected_formats`
 
 

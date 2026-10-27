@@ -688,6 +688,26 @@ def complete_execution(service, sid, execution_id, call_id, result):
     )
     if execution is None or execution["state"] != "started":
         fail("method_execution_unknown_do_not_retry")
+    from .delivery import accepted_task_cancel
+
+    key = service.store.session(sid).get("delivery_key")
+    delivery = service.delivery.current(sid)
+    contract = receipt.get("research_contract")
+    task_id = execution["binding"].get("task_id")
+    if (
+        not isinstance(delivery, dict)
+        or not isinstance(contract, dict)
+        or not isinstance(key, str)
+        or not key
+        or not isinstance(task_id, str)
+        or not task_id
+        or not isinstance(delivery.get("marker"), str)
+        or not delivery["marker"]
+        or receipt is not service.store.data["receipts"].get(f"{sid}:{key}")
+        or delivery.get("task_id") != execution["binding"]["task_id"]
+        or contract.get("task_id") != execution["binding"]["task_id"]
+    ):
+        fail("method_execution_unknown_do_not_retry")
     try:
         if (
             not isinstance(result, dict)
@@ -703,6 +723,11 @@ def complete_execution(service, sid, execution_id, call_id, result):
         ):
             fail("method_runner_result_invalid")
         execution["native_result"] = copy.deepcopy(result)
+        if accepted_task_cancel(receipt, delivery, key, task_id=execution["binding"]["task_id"]):
+            execution.update(state="cancelled", finished_at=time.time())
+            service.store.save()
+            log.info("research_owned_method_completion_cancelled", execution_id=execution_id)
+            return {"state": "cancelled", "research_quality": "NOT_RUN"}
         if (
             result["status"] != "completed"
             or result["exit_code"] != 0

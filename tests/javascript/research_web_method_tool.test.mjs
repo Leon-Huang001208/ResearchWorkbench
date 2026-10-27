@@ -7,6 +7,25 @@ import { spawnSync } from 'node:child_process';
 
 import { apply } from '../../app/research_web/runtime/research-tools.mjs';
 
+for(const kind of ['pack','method']) test(`${kind} rechecks caller abort after child close before completion client`,async t=>{
+  const {EventEmitter}=await import('node:events');const {createHash}=await import('node:crypto');const {lstat,rm}=await import('node:fs/promises');
+  const root=await realpath(await mkdtemp(join(tmpdir(),'rwb-close-cancel-')));t.after(()=>rm(root,{recursive:true}));
+  const sid='01234567-89ab-4cde-8fab-0123456789ab',cwd=join(root,'sessions',sid);await mkdir(cwd,{recursive:true});
+  const relative=kind==='method'?'inputs/methods/'+ 'a'.repeat(64)+'/source-context.bound':'inputs/scenarios/'+ 'a'.repeat(32)+'/input.json';
+  await mkdir(join(cwd,relative,'..'),{recursive:true});await writeFile(join(cwd,relative),'{}');
+  const info=await lstat(join(cwd,relative)),code='print(1)',python=process.env.RWB_TEST_PYTHON||'/usr/bin/python3';
+  const executable=await realpath(python);const output_root='outputs/'+(kind==='method'?'method-results/':'scenario-results/')+'b'.repeat(32);await mkdir(join(cwd,output_root),{recursive:true});
+  const scope={admitted:true,read_paths:[relative],file_bindings:[{path:relative,sha256:createHash('sha256').update('{}').digest('hex'),bytes:2,device:info.dev,inode:info.ino}],code,code_sha256:createHash('sha256').update(code).digest('hex'),input_policy:kind==='method'?'owned-method-frozen-inputs-v1':'scenario-frozen-inputs-v1',output_root,binding:{call_id:'child-close'},runtime:{python:executable,environment:await realpath(join(python,'..','..')),python_sha256:createHash('sha256').update(await readFile(executable)).digest('hex')}};
+  const controller=new AbortController(),reason=new DOMException('closed-child-cancel','AbortError');let completions=0,spawned=0;
+  const spawn=()=>{spawned++;const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.stdin=new EventEmitter();child.kill=()=>{};child.stdin.end=()=>{child.stdout.emit('data',Buffer.from(JSON.stringify({status:'completed',stdout:'fixture child result',stderr:'',exit_code:0,error:null})));child.emit('close',0);controller.abort(reason);};return child;};
+  const tools=new Map(),ctx={tools:{register:tool=>tools.set(tool.name,tool)},sessions:{get(){}},logger:{info(){},warn(){},error(){}}};
+  const completion=async()=>{completions++;return {state:'saved'};};
+  apply(ctx,{python,runnerPath:'/tmp/runner.py',researchRoot:root},spawn,async()=>scope,undefined,undefined,completion,completion);
+  const exec={agent:{session:{header:{id:sid,cwd}}},signal:controller.signal,callId:'child-close'};
+  await assert.rejects(tools.get('research_run_script').execute({[kind+'_execution']:{}},exec),error=>error===reason);
+  assert.equal(spawned,1);assert.equal(completions,0);
+});
+
 test('report plans become fixed code with Host-only binding and inert JSON', async () => {
   const mod = await import('../../app/research_web/runtime/research-tools.mjs');
   assert.equal(typeof mod.reportPlanCode, 'function');

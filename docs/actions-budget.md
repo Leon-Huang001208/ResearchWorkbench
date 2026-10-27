@@ -1,11 +1,11 @@
 # GitHub Actions 免费额度治理
 
-2026-10-28 owned CLS固定SDK专项移至既有Mac Bootstrap安装后原步骤硬执行一例，generic Checks保留全部
+2026-10-28 owned CLS固定SDK一例及pack/method取消六矩阵在既有Mac Bootstrap安装后原步骤硬执行七例，generic Checks保留全部
 compat Host参数/权限/取消，不以缺SDK自动skip。复用已构建pin与安装器Node24.19.0，CI临时venv只安装
 原dev声明pytest/pytest-asyncio，不editable安装产品；installed app字节与原runtime distributions前后不变
 为硬门。无新job/runner/timeout或产品依赖/锁变化，原artifact增加owner/JUnit/log/receipt与pip变更证据，
-保留3天。单例本机现成环境约5秒，连Host模块12例51.90秒；原Mac步骤为dev工具下载与该单例保守预留
-120秒，真实CI耗时尚NOT_RUN，不从本机或旧epoch宣称通过。远端前仍核实时visibility/额度，禁止rerun旧SHA。
+保留3天。单例本机现成环境约5秒，连Host模块12例51.90秒；原Mac步骤为dev工具下载与七个Native目标保守预留
+180秒（同一步新增pack/method真实取消六矩阵，本机首轮93.74秒），真实CI耗时尚NOT_RUN，不从本机或旧epoch宣称通过。远端前仍核实时visibility/额度，禁止rerun旧SHA。
 
 同批CI QUALITY修复仅将真实SetupWebInstaller接入，并前置最外层失败receipt；原Checks同一步登记四项
 轻量实际构造/早期失败回归，本机0.38秒，预算增量预留1秒。不运行pip/SDK构建/服务/网络，不扩job、

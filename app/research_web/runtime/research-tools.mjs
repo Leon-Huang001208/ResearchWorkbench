@@ -533,8 +533,9 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
           ...(packMode || methodMode ? {file_bindings:scope.file_bindings,output_root:scope.output_root} : {}) }));
         if (exec.signal.aborted) onAbort();
         });
+        if (packMode || methodMode) exec.signal.throwIfAborted();
         if (packMode) await packCompletionClient(ctx, exec, config, scope.binding, result);
-        if (methodMode) await methodCompletionClient(ctx, exec, config, scope.binding, exec.signal.aborted ? {...result,status:'cancelled',error:'research script cancelled'} : result);
+        if (methodMode) await methodCompletionClient(ctx, exec, config, scope.binding, result);
         return result;
       } finally {
         if (!childSpawned) release();

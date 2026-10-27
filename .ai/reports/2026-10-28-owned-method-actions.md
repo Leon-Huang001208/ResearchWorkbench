@@ -280,3 +280,43 @@ owner及显式basetemp；真正CI/pip/SDK构建/服务/模型/网络均NOT_RUN�
 evidence/ci-early-failure-evidence.tar.gz为3,529B，SHA-256
 84f524f58cf9d8ccac488f028a79ec2523225072335339d25760a5529671e6b7；仅本轮五个测试/反例子目录退休，
 retirement.json=cleaned，必要top-level证据保留，未触其他任务资源。
+
+## whole-review取消提交窗口单波修复（基线f76a2f30）
+
+只在原Host/Native完成链及Delivery共享纯判据修复，不改Store/SourceProof/DB/依赖/固定算法或第二引擎。
+原states仍saved/cancelled/failed/invalid；非started重复完成保持unknown_do_not_retry，已saved quality/
+readback不改，不新建幂等API。JS桥入口、真实trustedDirectory/privateControl两个await后及dispatch前
+均重验调用signal，合并exec.signal与原timeout；已wire中断仍未知，不自动换call重发。research-tools
+在child close后两模式对称复验caller信号，不再仅在method较早一次转换。
+
+Host在原service.lock内先核服务器当前key/receipt归属、本binding.task_id与delivery/contract一致，
+身份不明在写状态前保unknown。accepted_task_cancel纯函数抽原reconcile accepted receipt+acceptedTrue+
+key/task/marker强判并额外绑定本execution；reconcile的FINAL/ready与锁序保持。接受取消先于完成则
+execution cancelled，真实Native completed原结果仍保留，不新saved；acceptedfalse/foreign/newtask不误
+取消；不使用started_at时间比较放行早于start的同task已接受取消，无新status/binding/schema。
+
+opaque根 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-completion-cancel-2doqoja6`，本轮各pytest
+预建owner与显式basetemp，JS临时文件仅own TMPDIR。RED：桥true AbortController五阶段×两模式10例
+失败；Host实际service.cancel接受后、真实Native制品提交两模式仍saved，native-red.log 2FAIL/28.31s，
+pack取消特意早于execution start；method用真实锁acquire纯观察证实completion排在cancel接受之后。
+pure新判据先因缺函数RED。没有mock DataHub.query/ledger/报告通过，也不把fetch-only桥反例替代Host。
+
+GREEN：native-final.log 14PASS/101.10s，真实pack/method六矩阵、原SDK专项一例及pure七反例；六矩阵含
+接受先完成前/RPC拒绝/保存先取消后三种顺序，Host真实cancel RPC路径与真实sandbox产物、method两锁
+排队、pack取消早于start、foreign服务器task保持started未知且不改record、重复完成/newcall拒绝，旧saved
+source/readback不变。js-final.log 70PASS/0skip：两模式入口/两await/dispatch/已dispatch的真实AbortController
+（桥仅fetch mock），另前端fake-child close后零completion调用及原public/method/CI治理门。前端fake-child
+测试不冒充Native；真实制品由六矩阵独立验收。regression.log原cancel/reconcile正例与四缺证、Delivery
+unknown/idempotency、旧pack及method真实完成目标8PASS/90.21s，不机械重跑大组/原50PASS旧epoch。
+
+原Mac Bootstrap同一步强制SDK一例加六矩阵：明确选中exact7、JUnit0skip/error/failure门不减，原f76
+cleanDoctor/installed byte/version与FAILED最外层receipt保留；纯字段门登记原Checks，新Native文件无skip。
+现成环境逐项通过不等于真正CI已运行；没有本机pip/SDK构建/服务/模型/供应商网络操作，其他平台NOT_RUN。
+新增Python及产品目标Ruff/Black/isort、Node语法、YAML/bash/PythonAST、生成索引和diff检查PASS；mypy
+保既有librt缺失NOT_RUN。待原whole finding复验、SPEC及Python/JS QUALITY独评，未自行认证完成。
+
+本轮959MiB测试根中949,484,786原始字节/22,289项完整文件及link元数据逐项恢复核SHA，再核原dev/
+inode/hash及进程使用后，只退休本轮JS与四个pytest子根，retirement.json=cleaned。完整artifact archive
+322,871,617B，SHA-256 c79f88adfaedd5b0477eaa63d165411c82dab647a4f9916dea0d37e093f7935a；metadata
+日志/owner另档恢复核验，必要top-level证据保留。逐文件恢复后释放恢复副本控制峰值；未动其他任务/
+SDK/服务/Docker/工作树。无tmp_path的pure/collect未生成临时子树，不把不存在的root伪列为已清理。

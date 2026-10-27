@@ -4,7 +4,7 @@
 验收先保存，再在同一CI临时venv仅安装pyproject原已声明的pytest、pytest-asyncio测试工具（不editable
 安装根项目）。前后用隔离-I导入核installed app路径及全部非再生包资源字节，记录pip实际新增及既有
 runtime distributions版本不变；任何已有依赖替换仍失败。使用安装器实际Node24.19.0和已构建pin SDK，
-硬验Git HEAD/compiled libs并执行无skip的test_owned_news_native_sdk.py，owner/显式basetemp/JUnit/log/
+硬验Git HEAD/compiled libs并执行无skip的SDK一例与pack/method六取消矩阵（JUnit exact7），owner/显式basetemp/JUnit/log/
 receipt进入原成功或失败artifact。Host fixtures来自checkout、Native来自已构建SDK，安装证据与合同
 分别记录。通用Checks完整运行compat Host参数/权限/取消，不假称其具备SDK；无新增job/runner/timeout/
 产品依赖定义。本机不安装包，实际CI执行须另证。

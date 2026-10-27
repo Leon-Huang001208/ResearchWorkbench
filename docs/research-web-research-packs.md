@@ -185,6 +185,12 @@ wrapper.result是展示的有界投影，其result_sha256对该实际投影重�
 
 ## B1：Host／Native后端闭环
 
+完成桥的task取消沿原service.lock与Delivery强判串行：只有当前服务器receipt accepted及同key/task/
+marker的accepted cancel能阻止本execution新saved，状态复用cancelled并保留实际Native结果。已先保存的
+成果不因后续cancel重写；未知/重复完成与新call重试仍拒。JS completion每await及dispatch前重验调用
+signal并合并timeout；不把child close或客户端completed当作已提交，wire未知不自动重放。没有新引擎、
+Store/schema或算法变化，SourceProof/完整制品与质量读回门保持。
+
 `research-pack-<pack-id>` 是九个新增 Native Skill，不是原18算法的别名。`pack_resources.py`
 从精确 allowlist 复制已审纯核及显式验证 profile、合成向量、记录 schema、固定 entry/writer 和
 显式 stdlib logger adapter；源算法字节不重写、不 import 可变 Host 算法。全部资源逐文件

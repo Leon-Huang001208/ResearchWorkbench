@@ -388,6 +388,8 @@ test('existing Mac Bootstrap owns the mandatory built SDK test after clean insta
   const native='tests/research_web/test_owned_news_native_sdk.py';
   assert.ok(workflows.checks.includes('tests/research_web/test_owned_method_compat.py'));
   assert.ok(workflows.checks.includes('tests/research_web/test_native_sdk_bootstrap_ci.py'));
+  assert.ok(workflows.checks.includes('tests/research_web/test_execution_cancel_policy.py'));
+  assert.ok(!workflows.checks.includes('tests/research_web/test_execution_cancel_native.py'));
   assert.ok(!workflows.checks.includes(native),'generic Checks does not own a built fixed SDK');
   for(const event of ['push','pull_request']) for(const file of [native,'tests/research_web/test_owned_method_compat.py','tests/javascript/helpers/owned-news-native-driver.mjs']) assert.equal(triggersForPath(workflows.bootstrap,event,file),true);
   const sdk=workflows.bootstrap.indexOf("argv = [sys.executable, '-m', 'pytest'");
@@ -401,6 +403,8 @@ test('existing Mac Bootstrap owns the mandatory built SDK test after clean insta
   assert.match(workflows.bootstrap,/'RWB_DSH_TEST_SOURCE': str\(sdk\)/);
   assert.match(workflows.bootstrap,/'RWB_TEST_NODE': str\(node\)/);
   assert.match(workflows.bootstrap,/result\.returncode == 0/);
+  assert.match(workflows.bootstrap,/tests\/research_web\/test_execution_cancel_native\.py/);
+  assert.match(workflows.bootstrap,/sum\(int\(s\.get\('tests', 0\)\) for s in suites\) == 7/);
   assert.match(workflows.bootstrap,/\('failures', 'errors', 'skipped'\)/);
   const nativeSource=fs.readFileSync(new URL('../../'+native,import.meta.url),'utf8');
   assert.doesNotMatch(nativeSource,/pytest\.skip|pytest\.mark\.skip/);

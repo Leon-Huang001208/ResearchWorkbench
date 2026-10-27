@@ -1,5 +1,10 @@
 # 研究协议、执行状态与恢复
 
+pack/owned-method child close后的提交仍属于原任务：JS完成桥两次真实await后重验caller取消，并合并
+caller/timeout信号；Host在原service.lock下用当前receipt、key/task/marker及accepted true裁决取消是否
+先于新saved。原Delivery reconcile只抽共享纯强判，FINAL/ready与锁序不变；已先saved不倒改，未知不重发。
+无新状态、binding字段或执行节点，旧Native结果/质量readback保持，原拓扑图仍准确。
+
 场景仍由原DSH执行；Host只冻结资料／参数、核验每项必需能力和资源、维护原提交回执及质量合同。required、discovered、真实loaded分别记录，不能把要求列表算作执行；schema2仅加强场景身份，原schema1与历史回执保持。准备不发模型，已存在意图或未知创建不重建；只有服务器锁内证明not_created的输入拒绝才恢复编辑。来源撤权时详情和回执保留安全状态，摘录不继续输出。
 
 全市场广度组合固定升级不创建研究、模型或跟踪。Native/Host/全部账号任务必须明确空闲；active=null不能转换为空闲，旧周报结果未知及Wind清理缺证原样保留。不改变唯一DSH执行与恢复边界。

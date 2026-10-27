@@ -134,3 +134,11 @@ UI/guard50项通过，包含仅wrapper目录掩蔽/恢复、cutoff和preset冲�
 compat模块；原Mac Bootstrap在干净安装/Doctor/资源证明后，复用实际安装器Node与built pin执行SDK
 专项，已声明测试工具仅在CI临时venv准备，installed app字节与原runtime distributions保持。普通本机
 Node选择可用RWB_TEST_NODE或PATH，缺可执行明确失败；固定SDK须有正确Git HEAD及实际compiled libs。
+
+Native child close到私有完成桥之间仍可能收到取消。桥在入口、两次真实await后和dispatch前重验调用
+AbortSignal，组合原signal与有界timeout；wire已发送后的中断保持未知，不新call自动重试。Host在原
+service.lock内只信服务器当前receipt accepted、同key/task/marker且cancel_request.accepted严格true，
+再绑定本execution任务；取消先接受则state=cancelled，保真实Native completed原结果而不新saved。
+先已saved的成果及其独立readback不被后来取消倒改；acceptedfalse、foreign/newtask不误取消，身份不明
+在写状态前保持原unknown_do_not_retry，不增enum/binding/schema。时间早于execution start不能放行同一
+已取消任务。Mac Bootstrap同一步硬跑SDK一例加pack/method六种真实取消顺序，JUnit exact7且0skip。

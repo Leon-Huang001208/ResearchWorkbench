@@ -435,12 +435,17 @@ export async function nativeAdmission(ctx, exec, config, loaded = false, packSta
 
 /** Managed tool completion only; credentials never enter the Python process. */
 export async function completePackExecution(ctx, exec, config, binding, result) {
+  exec.signal.throwIfAborted();
   const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
   const control = await privateControl(config.researchRoot);
-  const signal = AbortSignal.timeout(4000);
+  exec.signal.throwIfAborted();
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
+  const body = JSON.stringify({session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result});
+  signal.throwIfAborted();
   const response = await globalThis.fetch(control.url + '/api/research/internal/data/pack-completion', {
     method: 'POST', headers: {'Content-Type':'application/json','X-Research-Data-Key':control.token},
-    body: JSON.stringify({session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result}),
+    body,
     redirect:'error',credentials:'omit',signal,
   });
   const value = await boundedJson(response, signal);
@@ -450,12 +455,17 @@ export async function completePackExecution(ctx, exec, config, binding, result) 
 
 /** Fixed owned-method completion uses the same private transport, separate ledger. */
 export async function completeMethodExecution(ctx, exec, config, binding, result) {
+  exec.signal.throwIfAborted();
   const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
   const control = await privateControl(config.researchRoot);
-  const signal = AbortSignal.timeout(4000);
+  exec.signal.throwIfAborted();
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
+  const body = JSON.stringify({kind:'owned-method',session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result});
+  signal.throwIfAborted();
   const response = await globalThis.fetch(control.url + '/api/research/internal/data/pack-completion', {
     method:'POST',headers:{'Content-Type':'application/json','X-Research-Data-Key':control.token},
-    body:JSON.stringify({kind:'owned-method',session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result}),
+    body,
     redirect:'error',credentials:'omit',signal,
   });
   const value = await boundedJson(response, signal);

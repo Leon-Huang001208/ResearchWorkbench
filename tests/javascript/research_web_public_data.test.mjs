@@ -137,6 +137,22 @@ test('enabledTools registers only fixed business tools and invalid configuration
   assert.equal(empty.tools.size,0);
 });
 
+for(const kind of ['pack','method']) for(const point of ['entry','first-await','second-await','dispatch','after-dispatch']) {
+  test(`${kind} completion observes cancellation at ${point} without replay`,async()=>{
+    const f=await fixture();const module=await import(moduleURL);const complete=kind==='pack'?module.completePackExecution:module.completeMethodExecution;
+    const controller=new AbortController();const reason=new DOMException('cancel-step','AbortError');let reads=0,calls=0;
+    const config={get researchRoot(){reads++;if((point==='first-await'&&reads===1)||(point==='second-await'&&reads===2))queueMicrotask(()=>controller.abort(reason));return f.root;}};
+    const binding={get execution_id(){if(point==='dispatch')controller.abort(reason);return 'a'.repeat(32);}};
+    const original=globalThis.fetch;
+    globalThis.fetch=async(_url,options)=>{calls++;assert.equal(options.signal.aborted,false);if(point==='after-dispatch')controller.abort(reason);return reply({state:'saved'});};
+    try {
+      if(point==='entry')controller.abort(reason);
+      await assert.rejects(complete(f.ctx,{...f.exec,signal:controller.signal},config,binding,{status:'completed',stdout:'actual',stderr:'',exit_code:0,error:null}),error=>error===reason);
+      assert.equal(controller.signal.aborted,true);assert.equal(calls,point==='after-dispatch'?1:0);
+    } finally {globalThis.fetch=original;}
+  });
+}
+
 test('fixed CLS wrapper has a closed bounded schema and rejects unknown arguments before any HTTP',async()=>{
   const f=await fixture();const wrapper=f.tools.get('rwb_query_latest_cls_news');
   assert.deepEqual(wrapper.parameters,{type:'object',properties:{query:{type:'string',maxLength:2000},limit:{type:'integer',minimum:1,maximum:100}},required:[],additionalProperties:false});

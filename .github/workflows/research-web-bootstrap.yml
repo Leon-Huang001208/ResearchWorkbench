@@ -41,6 +41,7 @@ on:
       - "tests/research_web/test_native_sdk_bootstrap_ci.py"
       - "tests/research_web/test_runtime_contract.py"
       - "tests/research_web/test_owned_news_native_sdk.py"
+      - "tests/research_web/test_execution_cancel_native.py"
       - "tests/research_web/test_owned_method_compat.py"
       - "tests/javascript/helpers/owned-news-native-driver.mjs"
       - "tests/research_web/test_runtime_mode.py"
@@ -87,6 +88,7 @@ on:
       - "tests/research_web/test_native_sdk_bootstrap_ci.py"
       - "tests/research_web/test_runtime_contract.py"
       - "tests/research_web/test_owned_news_native_sdk.py"
+      - "tests/research_web/test_execution_cancel_native.py"
       - "tests/research_web/test_owned_method_compat.py"
       - "tests/javascript/helpers/owned-news-native-driver.mjs"
       - "tests/research_web/test_runtime_mode.py"
@@ -268,7 +270,7 @@ jobs:
               identity = owned.stat()
               installer = SetupWebInstaller(project_root=checkout)
               sdk, node = installer.dsh_source, installer.node_executable
-              argv = [sys.executable, '-m', 'pytest', '--confcutdir=tests/research_web', '--basetemp=' + str(owned / 'pytest'), '--junitxml=native-sdk-junit.xml', 'tests/research_web/test_owned_news_native_sdk.py']
+              argv = [sys.executable, '-m', 'pytest', '--confcutdir=tests/research_web', '--basetemp=' + str(owned / 'pytest'), '--junitxml=native-sdk-junit.xml', 'tests/research_web/test_owned_news_native_sdk.py', 'tests/research_web/test_execution_cancel_native.py']
               owner = {'candidate': candidate, 'slice': 'owned-news-fixed-sdk', 'uid': os.getuid(), 'pid': os.getpid(), 'device': identity.st_dev, 'inode': identity.st_ino, 'argv': argv, 'path': str(owned)}
               Path('native-sdk-owner.json').write_text(json.dumps(owner, indent=2))
               (owned / 'owner.json').write_text(json.dumps(owner, indent=2))
@@ -315,7 +317,7 @@ jobs:
               receipt['pytest_exit'] = result.returncode
               assert result.returncode == 0, 'mandatory Native SDK test failed; inspect native-sdk.log'
               suites = list(ET.parse('native-sdk-junit.xml').getroot().iter('testsuite'))
-              assert sum(int(s.get('tests', 0)) for s in suites) == 1
+              assert sum(int(s.get('tests', 0)) for s in suites) == 7
               assert all(int(s.get(k, 0)) == 0 for s in suites for k in ('failures', 'errors', 'skipped'))
               receipt.update(status='PASS', stage='complete', code='native_sdk_verified', added_test_distributions={name: version for name, version in after_tools.items() if name not in distributions})
           except BaseException as error:
