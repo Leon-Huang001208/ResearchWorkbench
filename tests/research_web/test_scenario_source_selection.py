@@ -38,6 +38,19 @@ def test_ui_method_version_is_actual():
     assert ui_methods("research-prep")[0]["version"] == "1.1.0"
 
 
+def test_original_asset_bundle_file_stays_unsupported_analysis_material(api, monkeypatch):
+    _client, _service, _target, context, _source = owned.source_handoff(
+        api, monkeypatch, send=False
+    )
+    unsupported = {
+        gap["id"]
+        for gap in context["pack_qualification"]["missing"]
+        if gap["code"] == "material_schema_unsupported"
+    }
+    assert "inputs/owned-bundle.json" in unsupported
+    assert {ref["reference"]["type"] for ref in context["references"]} == {"source", "file"}
+
+
 @pytest.mark.parametrize(
     "kind,identity",
     [("stock", "600600.SH"), ("industry", "sw:801890"), ("topic", "中国制造业景气")],
@@ -67,6 +80,11 @@ def test_preview_read_only_and_freeze_original_handoff(api, monkeypatch, kind, i
     assert frozen.status_code == 200, frozen.text
     result = frozen.json()
     assert result["state"] == "prepared"
+    confirmed = preview.json()["qualification"]
+    actual = result["scenario_context"]["pack_qualification"]
+    for field in ("missing", "status", "executable_methods", "input_sha256"):
+        assert actual[field] == confirmed[field]
+    assert actual == confirmed
     assert result["scenario_context"]["scenario"]["inputs"]["subject"] == {
         "kind": kind,
         "identity": identity,

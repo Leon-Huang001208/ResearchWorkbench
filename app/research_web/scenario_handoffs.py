@@ -451,6 +451,7 @@ def prepare_context(service, body, *, _workspace_reader=None):
             # Do not infer PIT, corporate actions, accounting basis, relations or
             # disclosure completeness merely from a source or dataset name.
     workspace = None
+    selection_container = None
     if body.workspace_material:
         from .asset_research import read_bundle
 
@@ -462,11 +463,16 @@ def prepare_context(service, body, *, _workspace_reader=None):
             from .scenario_source_selection import read_selection
 
             selected = read_selection(service, body.workspace_material, body)
-            workspace, selected_refs = (
-                selected
-                if selected is not None
-                else read_bundle(service, body.workspace_material, values["subject"]["identity"])
-            )
+            if selected is not None:
+                workspace, selected_refs = selected
+                # Only the successful Host receipt reader identifies this exact
+                # envelope. It remains in all evidence/lineage/hash checks below.
+                envelope = selected_refs[0]
+                selection_container = (envelope["source_session_id"], envelope["reference"])
+            else:
+                workspace, selected_refs = read_bundle(
+                    service, body.workspace_material, values["subject"]["identity"]
+                )
         for ref in selected_refs:
             if ref["reference"]["type"] == "dataset":
                 _meta, manifest, raw = resolve_reference(
@@ -527,7 +533,14 @@ def prepare_context(service, body, *, _workspace_reader=None):
         from .scenario_pack_inputs import qualify_pack_materials
 
         qualified = qualify_pack_materials(
-            service, chosen["contract"]["pack_id"], values, references
+            service,
+            chosen["contract"]["pack_id"],
+            values,
+            [
+                ref
+                for ref in references
+                if (ref["source_session_id"], ref["reference"]) != selection_container
+            ],
         )
         from .scenarios.packs import METHODS, PACKS
 

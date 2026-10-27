@@ -71,3 +71,30 @@ freeze 时 send计数0；其后仅显式 offline NativeFixture admission，真�
 ROOT_PENDING：独立 SPEC→Python QUALITY；完整 changed-set Router/Harness receipt、API Atlas、
 架构图/七文档/CI 聚合；远端发布与整轮资源收尾。C6b UI/浏览器、其它方法/参数、T4/T5、
 真实模型/供应商、研究质量及部署继续未完成；本候选不授予这些动作权限。
+
+## QUALITY 1 MEDIUM：内部 envelope 缺口投影修复候选
+
+独立 SPEC 首轮 Approved、Python QUALITY 首轮 NeedsFixes：同请求纯 preview 只有 source refs，
+实际 prepare 的 refs 另含已验证选择 envelope，后者被资料 mapper 追加 unsupported 缺口，导致
+missing 6→7。原 source records、方法和 input SHA 本就一致；本项是资格缺口不一致，未改判为
+安全 HIGH 或输入 SHA 缺陷。原独立证据根 `rwb-c6a-quality-fr4az5k5` 保持只读未清理。
+
+本修复仅在 prepare_context 的真实 read_selection 成功后，记录其已核私有登记的精确
+`(source_session_id, reference)` container 身份；pack analysis refs 排除该一个 envelope。
+context.references、scope/hash检查、lineage、复制、保全和 seal_pack_inputs 的全部原件重读
+保留；无 filename/.json 豁免。旧 asset bundle 和其他 file 不获得该身份，仍 unsupported。
+未修改 scenario_pack_inputs、算法、执行输入或 Native；原47与原Native证据按未改范围复用，
+不冒充本轮重新执行。实际新交接仍完成 input SHA 和全部 references SHA 的封印核验。
+
+实际 RED：同请求 missing 相等断言失败，9.25s，确认为多出的 envelope unsupported。
+GREEN 五目标通过，44.17s：同请求预览/冻结字段及 input SHA；旧 asset bundle file 仍
+unsupported；manifest 改动及 self-rehash/target撤权；intent前永久清理；重复/多source SID及
+祖先保全。最终完整 qualification dict（含 transformations/closure）相等再验 1 passed，11.64s。
+Ruff、Black/isort检查、py index --check、diff --check 通过；mypy 仍 NOT_RUN，未安装依赖。
+
+每次 pytest 均在新 opaque 根先登记 task/UID/PID/device/inode、显式 --basetemp。
+三个本轮根的日志、原件/proof、私有登记及冻结输入共49文件已逐项归档读回并回收：
+`/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-c6a-fix-green-2sbfmct5-evidence.tar.gz`，
+343,500 bytes，SHA256 `63046b7ebfd8b862f8d35feef61f67753e24fa5991095f7f82ed9bde5c494074`；
+同目录 `.tar.json` 记录各文件 SHA、owner 和 cleanup=cleaned。受保护的 reviewer 根及旧共享根
+未触碰。受影响 SPEC 复核→原 Python QUALITY 复核交主控；ROOT_PENDING 整批门保持。

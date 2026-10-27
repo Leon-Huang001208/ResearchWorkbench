@@ -50,6 +50,9 @@ pack-only reader 按固定登记路径精确派发；原 asset bundle 仍走原 
 复制、封印、发送、Dossier 与删除 fence 保持 target/source 权限；不把网页改作 uploads。
 重算预览只发生在新的 prepare/交接准入。已冻结档案与结果读取的 `trusted_context` 沿原
 references/expected hash/target scope 复验，不调用此 reader、不按最新预览替换历史 context。
+只有实际成功的私有登记 reader 所确认的精确 envelope 身份，不作为研究原件映射；因此
+预览与冻结的 qualification 全字段一致。该文件继续完整保留在 references、hash、权限、
+lineage 与封印重读链；普通 file 和旧 asset bundle 仍保留其原材料缺口，不按扩展名豁免。
 
 ## 幂等、未知和保全时点
 
