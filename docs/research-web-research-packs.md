@@ -1,7 +1,7 @@
 # 研究组合包纯计算内核 v1
 
 macOS / Mac mini 的 Web 功能开发，T3-A 限于 `scenarios/packs/`。
-这是九包的限定确定性内核，尚未接 Host、Native Skill、DSH 或 UI；不是全部
+这是九包的限定确定性内核；下述 A/A2 段描述纯核自身，后端接线另见文末 B1。不是全部
 62 Skill／78 Tool 对齐完成，也不是供应商等价、真实来源或报告质量证明。
 原18个 gated 计算方法没有 import、复制、重命名或解锁。
 
@@ -182,3 +182,89 @@ wrapper.receipt_sha256固定引用原atom receipt，和full.components[*].receip
 wrapper.result是展示的有界投影，其result_sha256对该实际投影重新计算。这样缩预览不复用旧hash冒充
 改变后的字节，原计算回执身份也不会丢失。所有hash均仅计算层绑定，Host资格与质量仍NOT_RUN。
 原single-pass算法、完整artifact全部行/计数/bytes/hash与整个包16MiB预算保持。
+
+## B1：Host／Native后端闭环
+
+`research-pack-<pack-id>` 是九个新增 Native Skill，不是原18算法的别名。`pack_resources.py`
+从精确 allowlist 复制六个纯核 Python 源、合成向量、记录 schema、固定 entry/writer 和
+显式 stdlib logger adapter；源算法字节不重写、不 import 可变 Host 算法。全部资源逐文件
+SHA256 和排序清单组成 closure，manifest 自身不参与自己的摘要。相对 import 必须在有限
+`scripts/` 模块树内解析；动态 import、任意 app/宿主模块与未绑定第三方模块拒绝。
+内置只读、copy 清空 reviewed_scripts，编辑／检查／审查／发布仍走原目录；旧用户版本和
+原18回执门保留。用户副本不继承原内置包的受控执行身份。
+
+运行依赖沿已安装 Web Python，不安装依赖、不接受 caller PYTHONPATH。包内 lock 投影
+绑定现有 whole web.lock SHA 和六个依赖版本；Native 版本另冻结实际每个分发的文件闭包、
+origin、解释器真实字节、环境与 format checker 集合。Host 准入／完成重算，受管 JS 核对
+其配置解释器与该环境；依赖变化拒绝旧资源，不能只比较版本字符串。真实 wheel 的
+installed-like 读取不依赖 checkout 的 `requirements/`。
+
+运行指纹 schema v2 独立枚举六个已知 import/data 根及版本元数据，不能由 RECORD 决定代码全集；
+未列账簿的新代码也改变闭包。所有实际 `.py`、扩展、schema/data 和 `.pyc` 都参与摘要，外部
+pycache prefix 拒绝。仅排除固定解释器／模块入口不执行的外部 console scripts 和四个安装账簿
+RECORD、INSTALLER、direct_url.json、REQUESTED，排除路径／原因显式冻结；METADATA/WHEEL
+保留。任意别名、越界或假版本元数据拒绝，后续入口不能切为被排除的 console。
+
+仅九个明确 ID、source=builtin、全部元数据／工具／方法策略／指令／脚本／schema／golden／helper
+与 curated seed 精确相同且无草稿时，允许实际闭包、锁、解释器 bytes/version/ABI/platform 全相同的
+管理前缀 relocation 才可能生成新不可变版本。已启用／禁用原值保留；旧版本不写，用户 copy 不迁移。
+代码、依赖或解释器变化以及未知额外文件明确 blocked；重建 pyc 即使只改变路径字节也会阻断，
+不承诺任意重装自动兼容。发布新版本后旧封印继续 version_conflict，不自动发送；迁移器不写历史交接／结果／
+质量归档。
+
+**B1 必须补完项：历史只读等价证书尚未实现，生产自动 relocation 当前强制 blocked**
+（`pack_runtime_read_equivalence_pending`），不能通过设置或 API 开启，不发布新版本、不隐式改变旧研究。
+单测显式 override 私有未实现门只验证不可变发布机制，不是生产迁移／历史阅读验收。
+已观测在 fixture 允许迁移后，旧 active-session 的只读引用触发原 DataAdmission linked_version
+检查并包装为 dossier_evidence_missing。原 FAIL 和字节／状态保全证据保留；不以替换断言称已修。
+SPEC 须设计仅新九包、当前来源授权/hash不弱化的 read-operation／等价证书边界；原八场景、
+禁用、撤权、代码变更及旧版本执行门不放宽。本候选为 NEEDS_WORK，不是完整 B1 研究通过。
+
+`pack_catalog.py` 补九个 `pack-*` 场景；原八合同与140基线不改。准备只读；完整交接仍走原
+request-key 幂等／durable intent／来源祖先保全。调用者只能选择材料身份、对象和研究范围，
+不接收 records、owner、rights、provider、qualified、coverage 或 passed 声明。自然日 as_of
+保持原合同；内部 instant 由显式带时区 cutoff_at 无损映射并核对上海自然日，不补午夜／收盘。
+Host 通过原 `_resolve`／Snapshot read／当前 `_authorize_query(cached=True,storage_read=True)`
+重验本人原件、公开副本与私有 raw 的实际 SHA／大小、来源许可和配置摘要。
+
+当前唯一无损映射是 BaoStock 股票 daily/none 的 `daily-price`：证券来自已核 query／原行，
+币种／单位来自真实 fields.close，交易状态和复权逐行核对，原 raw 的 code/date/close/
+adjustflag/tradestatus 与规范行交叉读回。`retrieved_at` 仅作 observed_at，published_at 保持
+null，不补历史 PIT。未知/缺 raw、语义版本、币种、单位或截止逐项拒绝；原分页完整不证明
+日历／全集。真实财务披露时刻、交易时段、预期 vintage、全量风险、完整持有人等仍缺。
+source_coverage 因没有可信全量范围证据保持空，不能将当前子集称为九包完整数据支持。
+
+`inputs/scenarios/<handoff-id>/input.json` 保存完整规范输入与完整参数，另有只读 manifest。
+私有 handoff 记录拥有封印／上下文／原件／代码身份；manifest 不自证权利，也不构造摘要循环。
+读取、发送、Native 准入与质量均重读授权及摘要；全 blocked 或无完整可执行方法参数不发送。
+
+`research_run_script` 的 `pack_execution` 与 code/report_plan 互斥，仅包含 capability_id、
+version、context_sha256、input_manifest_sha256。guard 只读 preflight；受管工具体才通过同一
+私有桥以真实 call_id 登记唯一 started。Host 分配固定 launcher、逐文件清单和本次输出根；
+模型不能指定代码、输入／输出路径或通过状态。未知调用／Native 取消后的未知进程不重发，
+Store 恢复后换 call_id 也不能重开同 task/context。没有新推理循环、数据库或队列。
+
+`scenario-frozen-inputs-v1` 在 JS、Python supervisor 和固定 launcher 核对至多320个精确文件的
+路径、单链接普通文件、大小、device/inode 与 SHA，并检查打开前后身份。Python importlib
+仅取得这些脚本确切父目录的 literal 目录名读取，文件内容仍逐项授权，不开放整个 inputs／
+capabilities 子树。普通 code/report_plan 不能读取 sealed scenario input，也不能写
+`outputs/scenario-results`；受控调用只写 Host 分配的本次 execution 根，原 weekly policy 不改。
+
+冻结 writer 仅调用 execute_pack_bundle 一次，把完整 bytes、独立 receipt 和 manifest 写入
+staging，fsync／原子发布／读回，拒绝已有目标、链接及替换。输出为固定 full-result.json、
+receipt.json、manifest.json；stdout 只给≤64KiB envelope，完整结果仍≤16MiB。原 atom
+receipt_sha、展示投影 result_sha、实际完整文件 SHA 分开保留。Host 不使用 stdout 指定路径，
+只重开自己分配的文件；独立核对规范 JSON、实际 hash/bytes、所有 root/component 行数、
+输入行数、预览前缀和元数据，再登记 saved。私有完成回调来自受管 JS 的实际 supervisor 结果，
+普通 HTTP／研究 Python 无控制凭据；假 stdout、预写同名文件、篡改和退出失败不能登记 saved。
+
+schema2 沿原质量链继续区分 required/discovered/loaded、实际执行、文件保存、来源完整与报告
+质量。计算的 partial/insufficient_data、来源缺口、未加载、缺文件、取消或非零退出保持
+incomplete/invalid；saved 绝不改为研究 passed。纯核自身 NOT_RUN 字段不被改写。
+
+本地验收包括真实 pinned DSH ToolRuntime、原 tool-skill／filesystem provider／guard、真实
+Host 决策、默认 private-bridge 产品代码和真实 macOS Seatbelt；测试仅把 HTTP transport
+用管道接到 TestClient，不模拟准入决定，不调用 LLM／供应商。256行完整子结果、真实文件与
+独立摘要验证另有直接 writer／Native sandbox 测试。取消后恢复、未知不重发、跨来源撤权、
+篡改、失败和旧版本保全分别测试。UI／140全执行映射、真实模型选择、真实供应商等价、正式
+报告质量、常驻部署、跨平台仍是独立未完成项；本地通过不替代主控的完整 Router／独评／CI。

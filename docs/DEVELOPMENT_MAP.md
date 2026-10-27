@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-27 九包 B1：`capabilities/pack_resources.py` 冻结唯一纯核与资源闭包，`pack_dependencies.py` 和包内 `pack-runtime-lock.json` 绑定已安装锁定依赖，`pack_native.py` 只写单次 bundle；`scenario_pack_inputs.py` 负责真实原件映射与输入封印，`scenario_pack_execution.py` 负责原私有桥上的一次准入／完成及独立文件读回。`scenarios/pack_catalog.py` 补九包合同，原八合同／140 静态基线字节不变；`workbench.py`、`service.py`、Native JS 和 `sandbox.py` 接原交接／质量链。近测试为 `test_pack_*` 及无 LLM 的 `tests/javascript/helpers/pack-native-driver.mjs`。UI、140 完整执行映射、真实模型／供应商和跨平台仍是后续独立验收，不因文件保存通过。
+
 2026-10-27 研究场景首批：`app/research_web/scenarios/`维护固定 62／78 对照与八场景合同，`scenario_handoffs.py`与原`workbench.py`负责本人原件／身份／截止、完整请求幂等、来源链与未知创建；实际发送和质量绑定仍在`service.py`、`research_quality.py`及`research_quality_service.py`。`asset_research.py`与`ui/asset-research.mjs/css`投影已取得资料摘要、2–5 对象比较和资料声明；`ui/scenarios.mjs/css`串接原资产／资讯／FinGPT／Claw。新回归为`test_research_scenarios_catalog.py`、`test_scenario_handoffs.py`、`test_scenario_review_regressions.py`、`test_asset_research_workspace.py`及对应 Node／真实临时 Host 浏览器旅程。原禁用方法、质量门、资料／账号根和唯一 DSH 保持；[实施计划](plans/2026-10-26-seek-alpha-core-parity.md)保留后续组合包、深研、角色与资料跟踪范围。
 
 分钟K入口asset_routes.MinuteKRequest / observations/{id}/minute-bars，asset_workspace.MinuteK负责账号生命周期，asset_minute_k负责有界查询/规范化/复权/底稿桥接，ui/asset-minute-k独立画布。test_asset_minute_k、test_datahub_cjpy实际Broker链和research_web_asset_minute_k覆盖新合同；原intraday、日周月及安全排空保持。

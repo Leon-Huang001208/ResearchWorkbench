@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from .methods import METHOD_SPECS
+from .pack_resources import pack_packages
 from .packages import encode_file
 
 QUESTION_INPUT = {
@@ -684,6 +685,7 @@ def seed_packages():
         *(_skill_package(root, spec, protocol) for spec in SKILL_SPECS),
         *(_workflow_package(spec) for spec in WORKFLOW_SPECS),
         *(_method_package(spec) for spec in METHOD_SPECS),
+        *pack_packages(),
     ]
 
 

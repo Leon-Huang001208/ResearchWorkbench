@@ -100,8 +100,8 @@ DECLARATIONS = {
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
-        {"code": "string"},
-        ["code"],
+        {"code": "string", "report_plan": "object", "pack_execution": "object"},
+        [],
         "仅本会话，严格沙箱；不允许联网或安装依赖",
     ),
     "web_search": (
@@ -351,6 +351,9 @@ def tool_catalog(data_root: Path | None = None):
             source={"type": "string", "description": "目录来源 ID；默认 auto"},
             allow_fallback={"type": "boolean"},
             refresh={"type": "boolean"},
+            purpose={"type": "string", "enum": ["display", "research", "backtest"]},
+            quality={"type": "string", "enum": ["strict", "allow_stale"]},
+            as_of={"type": "string"},
         )
         if capability_id == "fund_data":
             properties["dataset"]["enum"] = [

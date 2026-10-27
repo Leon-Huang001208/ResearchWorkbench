@@ -72,15 +72,25 @@ def capability_facts(service, contract):
 
 
 def catalog(service):
+    from .scenarios.pack_catalog import contracts
+
     return {
         "items": [
-            {**row, "capabilities": capability_facts(service, row)} for row in read_scenarios()
+            {**row, "capabilities": capability_facts(service, row)}
+            for row in [*read_scenarios(), *contracts()]
         ]
     }
 
 
 def selection(service, scenario_id, values, *, evidence=None):
     """Only this Host constructs qualification flags; inputs cannot contain them."""
+    if isinstance(scenario_id, str) and scenario_id.startswith("pack-"):
+        from .scenarios.pack_catalog import select
+
+        try:
+            return select(service, scenario_id, values)
+        except ScenarioError as exc:
+            raise StoreError("场景输入或目录无效", exc.code, exc.status) from exc
     try:
         contract = get_scenario(scenario_id)
         capabilities = capability_facts(service, contract)
@@ -193,9 +203,25 @@ def execution_context(context, capabilities):
 
 
 def bound_capabilities(service, context):
+    if context.get("pack_qualification", {}).get("status") == "blocked":
+        fail("pack_inputs_blocked", "组合包缺少可核验输入，不能发送研究")
+    if context.get("pack_qualification") and not context["pack_qualification"].get(
+        "executable_methods"
+    ):
+        fail("pack_inputs_blocked", "组合包缺少完整的研究参数，不能发送研究")
     result = []
     for frozen in context["scenario"]["capabilities"]:
         actual = service.capabilities.selection(frozen["id"], frozen["version"])
+        if context.get("pack_seal"):
+            from .capabilities.pack_dependencies import runtime_identity
+            from .capabilities.pack_relocation import runtime_from
+
+            row = service.capabilities.row(actual["id"])
+            if (
+                row.get("runtime_binding", {}).get("status") == "blocked"
+                or runtime_from(row["versions"][str(actual["version"])]) != runtime_identity()
+            ):
+                fail("pack_runtime_changed", "组合包运行环境与冻结版本不一致")
         if any(
             frozen.get(key) != actual[key] for key in ("sha256", "native_name", "resource_path")
         ):
@@ -236,11 +262,16 @@ def verify_execution(service, sid, receipt):
         (item["id"], item["version"], item["sha256"])
         for item in receipt.get("native_capabilities", [])
     }
-    return [
+    issues = [
         "scenario_capability_not_loaded:" + item["id"]
         for item in required
         if (item["id"], item["version"], item["sha256"]) not in loaded
     ]
+    if context.get("pack_seal"):
+        from .scenario_pack_execution import quality_issues
+
+        issues.extend(quality_issues(service, sid, receipt, context))
+    return issues
 
 
 def verify_material(
@@ -314,9 +345,10 @@ def validate_dates(manifest, raw, as_of):
 
 
 def prepare_context(service, body):
-    values = copy.deepcopy(body.scenario_inputs)
+    values = body.scenario_inputs
     # Validate exact input keys/types before examining any owned evidence.
     chosen = selection(service, body.scenario_id, values)
+    values = chosen["inputs"]
     expected_materials = [*body.dataset_ids]
     if body.workspace_material:
         expected_materials.append("file:" + str(body.workspace_material.get("file_id", "")))
@@ -462,7 +494,7 @@ def prepare_context(service, body):
         fail(
             "scenario_capability_unavailable", "场景所需能力当前不可执行；保留输入并查看能力门状态"
         )
-    return {
+    context = {
         "scenario": chosen,
         "references": references,
         "source_session_id": body.source_session_id,
@@ -482,6 +514,35 @@ def prepare_context(service, body):
             ),
         ],
     }
+    if chosen["contract"].get("pack_id"):
+        from .capabilities.pack_resources import verify_pack_manifest
+        from .scenario_pack_inputs import qualify_pack_materials
+
+        qualified = qualify_pack_materials(
+            service, chosen["contract"]["pack_id"], values, references
+        )
+        from .scenarios.packs import METHODS, PACKS
+
+        parameters = qualified.input["parameters"]
+        context["pack_qualification"] = {
+            "status": qualified.status,
+            "missing": list(qualified.missing),
+            "transformations": list(qualified.transformations),
+            "input_sha256": fingerprint(qualified.input),
+            "closure_sha256": verify_pack_manifest(
+                service.capabilities.row(chosen["capabilities"][0]["id"])["versions"][
+                    str(chosen["capabilities"][0]["version"])
+                ]["files"]
+            )["closure_sha256"],
+            "executable_methods": [
+                method
+                for method in PACKS[chosen["contract"]["pack_id"]]
+                if method in parameters
+                and METHODS[method][2] <= set(parameters[method])
+                and any(qualified.input["records_by_kind"].get(kind) for kind in METHODS[method][1])
+            ],
+        }
+    return context
 
 
 def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _verified=None):
@@ -525,6 +586,8 @@ def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _veri
         fail("scenario_ancestor_unknown", "交接缺少可核验的原始归属链")
     if context and row.get("source_scope") != context["source_scope"]:
         fail("scenario_scope_changed", "场景会话来源范围已变化")
+    if context and context.get("pack_seal") and check_capabilities:
+        bound_capabilities(service, context)
     for reference in references:
         source_sid = reference.get("source_session_id")
         if not source_sid:
@@ -582,6 +645,10 @@ def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _veri
             raise ValueError("context_changed")
     except (OSError, ValueError, KeyError, TypeError):
         fail("scenario_context_changed", "冻结交接上下文已变化")
+    if context and context["scenario"]["contract"].get("pack_id"):
+        from .scenario_pack_inputs import verify_pack_seal
+
+        verify_pack_seal(service, sid, context)
     if context and check_capabilities:
         bound_capabilities(service, context)
     verified[sid] = context

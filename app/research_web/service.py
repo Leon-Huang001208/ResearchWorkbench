@@ -2065,8 +2065,11 @@ class ResearchService(ModelProfilesMixin):
         loaded: bool = False,
         source_operation: str | None = None,
         source_id: str | None = None,
+        pack_execution: dict | None = None,
+        call_id: str | None = None,
+        pack_start: bool = False,
     ) -> dict:
-        """Preflight is pure; only confirmed loading records a current task scope."""
+        """Preflight is pure; explicit Native load/start operations persist evidence."""
         if self.store.session(sid)["created"] is not True:
             raise CapabilityError("原生会话归属未确认", "session_create_failed", 409)
         from .report_workflows.weekly_execution import projection as weekly_projection
@@ -2097,6 +2100,14 @@ class ResearchService(ModelProfilesMixin):
                     409,
                 )
             selected = self.capabilities.selection(cid)
+            if cid.startswith("research-pack-"):
+                from .scenario_handoffs import trusted_context
+
+                context = trusted_context(self, sid)
+                if not context or context.get("pack_seal", {}).get("capability_id") != cid:
+                    raise CapabilityError(
+                        "组合包须使用Host封印的场景输入", "pack_input_unsealed", 409
+                    )
             refs.append(selected)
         records = self._effective_records(refs)
         scopes = [self.capability_readiness(ref["id"], sid, data_catalog=catalog) for ref in refs]
@@ -2275,6 +2286,19 @@ class ResearchService(ModelProfilesMixin):
                 scope["read_paths"] = [
                     "inputs/report-workflow/" + name for name in weekly_scope["inputs"]
                 ]
+        if tool_name == "research_run_script":
+            pack_refs = [ref for ref in refs if ref["id"].startswith("research-pack-")]
+            if pack_execution is not None:
+                if weekly_scope or not scope["admitted"] or not pack_refs:
+                    raise CapabilityError(
+                        "组合包执行范围不可用", "pack_execution_not_admitted", 409
+                    )
+                from .scenario_pack_execution import prepare_execution
+
+                return prepare_execution(self, sid, pack_execution, call_id, start=pack_start)
+            if pack_refs:
+                scope.update(status="unverified", admitted=False)
+                scope["missing"].append({"code": "pack_execution_descriptor_required"})
         return scope
 
     def _data_query_admission(self, sid: str, query: BusinessQuery, resolution: Resolution) -> None:
@@ -2361,6 +2385,11 @@ class ResearchService(ModelProfilesMixin):
         catalog = self.datahub.catalog() if data_catalog is None else data_catalog
         scope = self.capabilities.data_readiness(cid, catalog)
         row = self.capabilities.row(cid)
+        from .capabilities.pack_relocation import PACK_IDS
+
+        if cid in PACK_IDS and row.get("runtime_binding", {}).get("status") == "blocked":
+            scope.update(status="unverified", admitted=False)
+            scope["missing"].append({"code": row["runtime_binding"]["code"]})
         record = row["versions"].get(str(row["version"]), row["draft"])
         verified = self._model_tools_verified(sid)
         scope["model_tools"] = "verified" if verified else "unverified"
@@ -2948,6 +2977,17 @@ class ResearchService(ModelProfilesMixin):
                     self.capabilities.selection(selected_id, capability_version)
                     if selected_id
                     else None
+                )
+            if (
+                selection
+                and any(
+                    cid.startswith("research-pack-")
+                    for cid in [selection["id"], *[item["id"] for item in selection["bindings"]]]
+                )
+                and not (scenario_context and scenario_context.get("pack_seal"))
+            ):
+                raise CapabilityError(
+                    "组合包须先通过场景选择真实材料并封印输入", "pack_input_unsealed", 409
                 )
             defaults = selection["default_formats"] if selection else None
             if selection and selection["kind"] == "method":

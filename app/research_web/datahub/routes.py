@@ -91,6 +91,11 @@ class SkillAdmissionRequest(BaseModel):
         default=None, min_length=1, max_length=160, pattern=r"^[a-z0-9][a-z0-9_-]*$"
     )
     loaded: bool = False
+    pack_execution: dict | None = None
+    pack_start: bool = False
+    call_id: str | None = Field(
+        default=None, min_length=1, max_length=160, pattern=r"^[A-Za-z0-9_.:-]+$"
+    )
     source_operation: Literal["list", "read"] | None = None
     source_id: str | None = Field(
         default=None,
@@ -361,6 +366,29 @@ async def skill_preflight(body: SkillAdmissionRequest, request: Request):
             loaded=body.loaded,
             source_operation=body.source_operation,
             source_id=body.source_id,
+            pack_execution=body.pack_execution,
+            call_id=body.call_id,
+            pack_start=body.pack_start,
+        )
+
+
+class PackCompletionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    execution_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    call_id: str = Field(min_length=1, max_length=160, pattern=r"^[A-Za-z0-9_.:-]+$")
+    result: dict
+
+
+@router.post("/internal/data/pack-completion")
+async def pack_completion(body: PackCompletionRequest, request: Request):
+    from ..scenario_pack_execution import complete_execution
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return complete_execution(
+            service, body.session_id, body.execution_id, body.call_id, body.result
         )
 
 

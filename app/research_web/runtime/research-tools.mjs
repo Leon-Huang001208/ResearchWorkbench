@@ -1,7 +1,8 @@
 /** DSH native research tool. No model-provided paths, environment, or executables. */
 import { spawn } from 'node:child_process';
 import { constants } from 'node:fs';
-import { mkdir, open, realpath, lstat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, open, realpath, lstat, readFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve, dirname, basename } from 'node:path';
 
 export const name = 'research-tools';
@@ -10,17 +11,24 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const METHOD_IDS = new Set(['socratic-clarification','dual-layer-explanation','reverse-engineering','horizontal-vertical-analysis','fact-checking','expert-perspectives','first-principles','cross-domain-transfer','steelman-comparison','minimal-experiment']);
 const METHOD_SOURCES = new Set(['required','user-selected','recommended','model-supplemented']);
 const WEEKLY_INPUT_POLICY = 'weekly-frozen-inputs-v1';
+const SCENARIO_INPUT_POLICY = 'scenario-frozen-inputs-v1';
 
 async function validateScriptScope(scope, cwd) {
   if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
-      ![undefined, WEEKLY_INPUT_POLICY].includes(scope.input_policy)) throw Error('research_script_scope_unverified');
-  if (scope.input_policy !== WEEKLY_INPUT_POLICY) {
+      ![undefined, WEEKLY_INPUT_POLICY, SCENARIO_INPUT_POLICY].includes(scope.input_policy)) throw Error('research_script_scope_unverified');
+  const scenario = scope.input_policy === SCENARIO_INPUT_POLICY;
+  if (scope.input_policy !== WEEKLY_INPUT_POLICY && !scenario) {
     if (!scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
     return;
   }
   if (!scope.read_paths.length || new Set(scope.read_paths).size !== scope.read_paths.length) throw Error('research_script_scope_unverified');
-  for (const path of scope.read_paths) {
-    if (typeof path !== 'string' || path.length > 512 || !path.startsWith('inputs/report-workflow/') ||
+  if (scenario && (!Array.isArray(scope.file_bindings) || scope.file_bindings.length !== scope.read_paths.length ||
+      typeof scope.output_root !== 'string' || !/^outputs\/scenario-results\/[a-f0-9]{32}$/.test(scope.output_root) ||
+      typeof scope.code !== 'string' || Buffer.byteLength(scope.code)>65536 || createHash('sha256').update(scope.code).digest('hex') !== scope.code_sha256)) throw Error('research_script_scope_unverified');
+  for (const [fileIndex,path] of scope.read_paths.entries()) {
+    if (typeof path !== 'string' || path.length > 512 || !(scenario
+      ? /^(inputs\/scenarios\/(?:[a-f0-9]{32}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\/(input|manifest)\.json|resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*\/[A-Za-z0-9_./-]+)$/.test(path)
+      : path.startsWith('inputs/report-workflow/')) ||
         /[\\:\u0000-\u001f\u007f]/.test(path)) throw Error('research_script_scope_unverified');
     const parts = path.split('/');
     if (parts.some(part => !part || part.startsWith('.'))) throw Error('research_script_scope_unverified');
@@ -30,12 +38,32 @@ async function validateScriptScope(scope, cwd) {
       let info;
       try { info = await lstat(target); } catch { throw Error('research_script_scope_unverified'); }
       if (info.isSymbolicLink() || (index === parts.length - 1
-        ? !info.isFile() || info.nlink !== 1 || info.size > 32 * 1024 * 1024
+        ? !info.isFile() || info.nlink !== 1 || info.size > (scenario ? 64 : 32) * 1024 * 1024
         : !info.isDirectory())) throw Error('research_script_scope_unverified');
     }
     let canonical;
     try { canonical = await realpath(target); } catch { throw Error('research_script_scope_unverified'); }
     if (canonical !== target) throw Error('research_script_scope_unverified');
+    if (scenario) {
+      const binding = scope.file_bindings[fileIndex];
+      if (!binding || Object.keys(binding).sort().join(',') !== 'bytes,device,inode,path,sha256' || binding.path !== path) throw Error('research_script_scope_unverified');
+      const handle = await open(target, constants.O_RDONLY | constants.O_NOFOLLOW);
+      try {
+        const before = await handle.stat();
+        const hash = createHash('sha256');
+        const buffer = Buffer.alloc(65536);
+        let count = 0;
+        for (;;) {const {bytesRead} = await handle.read(buffer,0,buffer.length,null);if (!bytesRead) break;count+=bytesRead;if(count>binding.bytes)throw Error('research_script_scope_unverified');hash.update(buffer.subarray(0,bytesRead));}
+        const after = await handle.stat();
+        const current = await lstat(target);
+        const identity = info => [info.dev,info.ino,info.size,info.mtimeMs,info.ctimeMs,info.nlink].join(':');
+        if (identity(before)!==identity(after)||identity(after)!==identity(current)||!before.isFile()||before.nlink!==1||before.dev!==binding.device||before.ino!==binding.inode||before.size!==binding.bytes||count!==binding.bytes||hash.digest('hex')!==binding.sha256) throw Error('research_script_scope_unverified');
+      } finally {await handle.close();}
+    }
+  }
+  if (scenario) {
+    const output = join(cwd,scope.output_root);
+    if (await realpath(output) !== output || !(await lstat(output)).isDirectory()) throw Error('research_script_scope_unverified');
   }
 }
 let scriptRunning = false;
@@ -191,7 +219,12 @@ export async function trustedSearchActivities(ctx, exec, config) {
 /** Register a bounded, kernel-confined native tool without widening host tools. */
 async function defaultAdmission(ctx, exec, config) {
   const { nativeAdmission } = await import('./public-data.mjs');
-  return nativeAdmission(ctx, exec, config);
+  return nativeAdmission(ctx, exec, config, false, true);
+}
+
+async function defaultPackCompletion(ctx, exec, config, binding, result) {
+  const { completePackExecution } = await import('./public-data.mjs');
+  return completePackExecution(ctx, exec, config, binding, result);
 }
 
 async function defaultDraftClient(ctx, exec, config, args) {
@@ -218,7 +251,7 @@ function requireMatchingResearchTemplate(ctx, body) {
   }
 }
 
-export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient, actionClient = defaultActionClient) {
+export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient, actionClient = defaultActionClient, packCompletionClient = defaultPackCompletion) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
@@ -371,6 +404,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   // Numeric/string limits remain mandatory in fixed code and the Python SDK;
   // unsupported validation keywords must not silently degrade SDK generation.
   const scriptFields = {
+      pack_execution: {type:'object',description:'Execute only the Host sealed scenario package; mutually exclusive with code and report_plan.',properties:{capability_id:{type:'string'},version:{type:'integer'},context_sha256:{type:'string'},input_manifest_sha256:{type:'string'}},required:['capability_id','version','context_sha256','input_manifest_sha256'],additionalProperties:false},
       code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; mutually exclusive with report_plan.' },
       report_plan: { type: 'object', description: 'At most 32000 UTF-8 bytes and 40 total evidence references. Use actual evidence inventory; unknown/ambiguous references reject. Unverified analysis/proposals remain in Host-scored text.', properties: {
         title: { type: 'string' },
@@ -392,7 +426,8 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
     async execute(args, exec) {
       const codeMode = args && Object.keys(args).length === 1 && typeof args.code === 'string' && args.code.trim() && Buffer.byteLength(args.code) <= 65536;
       const planMode = args && Object.keys(args).length === 1 && args.report_plan && typeof args.report_plan === 'object' && !Array.isArray(args.report_plan);
-      if (!codeMode && !planMode) throw new Error('research script accepts only bounded code or a data report_plan');
+      const packMode = args && Object.keys(args).length === 1 && args.pack_execution && typeof args.pack_execution === 'object' && !Array.isArray(args.pack_execution);
+      if (!codeMode && !planMode && !packMode) throw new Error('research script accepts only bounded code or a data report_plan or pack_execution');
       let code = codeMode ? args.code : undefined;
       exec.signal.throwIfAborted();
       const release = await acquireScriptSlot(exec.signal, queueWaitSeconds, ctx.logger);
@@ -401,15 +436,21 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
       try {
         const cwd = await trustedDirectory(ctx, exec, config);
         exec.signal.throwIfAborted();
-        const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script' }, config);
+        const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script', arguments: args }, config);
         try { await validateScriptScope(scope, cwd); }
         catch { ctx.logger.warn('research_script_scope_denied'); throw Error('research_script_scope_unverified'); }
+        if (packMode) {
+          if (scope.input_policy !== SCENARIO_INPUT_POLICY || scope.binding?.call_id !== exec.callId) throw Error('pack_execution_unverified');
+          const executable = await realpath(config.python);
+          if (executable !== scope.runtime?.python || await realpath(dirname(dirname(config.python))) !== scope.runtime?.environment || createHash('sha256').update(await readFile(executable)).digest('hex') !== scope.runtime?.python_sha256) throw Error('pack_runtime_changed');
+          code = scope.code;
+        } else if (scope.input_policy === SCENARIO_INPUT_POLICY) throw Error('pack_execution_unverified');
         if (planMode) {
           code = reportPlanCode(args.report_plan, scope.report_context);
           ctx.logger.info('research_script_report_plan outcome=assembled');
         }
         ctx.logger.info('research_script_run outcome=started');
-        return await new Promise((resolveResult, reject) => {
+        const result = await new Promise((resolveResult, reject) => {
         const child = spawnProcess(config.python, ['-I', '-S', '-B', config.runnerPath, '--research-root', config.researchRoot, '--python', config.python, '--session', cwd, '--timeout', String(timeoutSeconds), '--max-output', String(maxOutputBytes)], {
           cwd, env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'],
         });
@@ -477,9 +518,12 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }
         });
         child.stdin.end(JSON.stringify({ code, read_paths: scope.read_paths,
-          ...(scope.input_policy === undefined ? {} : { input_policy: scope.input_policy }) }));
+          ...(scope.input_policy === undefined ? {} : { input_policy: scope.input_policy }),
+          ...(packMode ? {file_bindings:scope.file_bindings,output_root:scope.output_root} : {}) }));
         if (exec.signal.aborted) onAbort();
         });
+        if (packMode) await packCompletionClient(ctx, exec, config, scope.binding, result);
+        return result;
       } finally {
         if (!childSpawned) release();
       }

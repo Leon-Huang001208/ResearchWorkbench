@@ -61,6 +61,18 @@ async def scenarios(request: Request):
     return catalog(request.app.state.research)
 
 
+@router.post("/scenarios/{scenario_id}/prepare")
+async def prepare_scenario(scenario_id: str, body: Handoff, request: Request):
+    from .scenario_handoffs import prepare_context
+
+    if body.scenario_id != scenario_id:
+        raise StoreError("场景身份不一致", "scenario_inputs_invalid", 422)
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return prepare_context(service, body)
+
+
 @router.get("/handoff-requests/{request_key}")
 async def handoff_request(request_key: str, request: Request):
     """Read original receipt only; unknown native creation is never retried."""
@@ -90,7 +102,21 @@ def _public_handoff(service, record):
             "creation_state": record["state"],
             "code": exc.code,
         }
-    return {key: value for key, value in record.items() if key not in {"request_sha256", "copied"}}
+    result = {
+        key: value for key, value in record.items() if key not in {"request_sha256", "copied"}
+    }
+    context = record.get("scenario_context", {})
+    if context and context.get("pack_seal"):
+        from .scenario_handoffs import fingerprint
+
+        seal = context["pack_seal"]
+        result["pack_execution"] = {
+            "capability_id": seal["capability_id"],
+            "version": seal["version"],
+            "context_sha256": fingerprint(context),
+            "input_manifest_sha256": seal["manifest_sha256"],
+        }
+    return result
 
 
 def _copy_evidence(service, target, references):
@@ -453,9 +479,18 @@ async def create_handoff(
             metadata={"scenario_handoff_id" if scenario else "evidence_handoff_id": handoff_id},
         )
         target = created["id"]
+        if scenario and scenario["scenario"]["contract"].get("pack_id"):
+            # Once Native creation returned, later IO failure is a known-created
+            # observation. Preserve its identity without reopening the request.
+            service.store.data["handoffs"][handoff_id]["session_id"] = target
+            service.store.save()
         copied, copied_files = _copy_evidence(service, target, lineage)
         if scenario:
             scenario["frozen_files"] = copied_files
+            if scenario["scenario"]["contract"].get("pack_id"):
+                from .scenario_pack_inputs import seal_pack_inputs
+
+                scenario["pack_seal"] = seal_pack_inputs(service, target, handoff_id, scenario)
         context_body = body.model_copy(update={"context": scenario}) if scenario else body
         context_file = _write_context(service, target, context_body, copied, lineage)
         result = {

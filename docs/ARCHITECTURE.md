@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-27 九包 B1 沿同一 Host／唯一 DSH 的 Skill、guard、research_run_script 与 macOS sandbox 完成受控后端链。纯核逐文件冻结为版本资源，Host 从已授权原件投影并封印输入，受管 Native 层登记真实进程与文件读回；原报告 schema2 继续分别核验加载、计算、来源与研究质量。仅 BaoStock daily/none 具有当前无损 daily-price 子集，缺时段／披露／覆盖的九包仍 partial/blocked；不新增引擎、数据库、队列或供应商调用，原拓扑保持。详见[组合包](research-web-research-packs.md#b1hostnative后端闭环)。
+
 2026-10-27 首批研究场景沿既有 Host／工作台交接／DataHub／唯一 DSH 和原报告链运行。静态 62 Skill／78 Tool 对照不是执行权限；场景准备冻结本人对象、截止、原件引用与已发布方法，发送再过原生发现及资料准入。新场景质量合同 schema2 绑定全部必需能力，旧 schema1 保持；要求、发现与实际加载分开记录。资产研究工作区只投影本人已取得材料、不同口径可比观察和带原件定位的资料声明，不新建事实库或研究引擎；来源链的读取、导出、再交接及永久清理沿原权限和保全边界。源码、隔离浏览器、真实模型与常驻上线分别验收，参见[场景交接](research-web-scenario-handoffs.md)。
 
 资产分钟K由asset_minute_k.py与ui/asset-minute-k.mjs沿原账号Workspace/DataHub/Provider链实现，无新服务、引擎、依赖或凭据通道。因子统一OHLC/VWAP复权，量额原值冻结；派生用原asset_history种类隔离缓存。分钟筹码桥接已授权日线底稿，前日截止，旧证据不重写。

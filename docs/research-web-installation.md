@@ -1108,3 +1108,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。
+
+九包 B1（2026-10-27）复用当前 `mcp` 已锁定的 jsonschema 及其现有依赖，不安装新包。包内 `capabilities/pack-runtime-lock.json` 是真实 `requirements/web.lock` 的 whole-file SHA 和六依赖精确版本投影；源码环境强比原锁，wheel 不依赖源码 checkout。每个 Native 版本另绑定实际安装分发的逐文件闭包、origin、解释器／环境与校验器集合；准入和完成重新核验，依赖变化不能静默升级旧包。真实本地 wheel 已包含该 JSON，并有无 checkout 的安装形态读取测试；这不替代同候选 macOS 干净安装／3081、8088／Doctor CI。
+
+运行闭包独立扫描已知包／数据根和版本元数据，包含pyc，不只信任RECORD；外部console入口和固定安装账簿的排除列表／原因冻结，固定入口不执行它们。仅 actual bytes／锁／解释器 ABI 和平台完全相同的管理前缀 relocation 可为精确未改 builtin 创建新版本并保留disabled／旧历史；用户copy、代码／依赖变化、额外文件和重建后不同pyc均明确blocked，需受审升级，不能自动当作兼容。
+
+当前历史只读等价证书未闭合，生产自动relocation一律 `pack_runtime_read_equivalence_pending`，不创建新版本／不改原状态，避免隐式破坏旧研究读取。仅测试内部开启发布机制；不代表迁移可用或Mac安装已完整验收。该项为本B1候选明确NEEDS_WORK，需SPEC定义只读授权边界后再开启。

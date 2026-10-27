@@ -22,7 +22,9 @@
 5. 顶层 DSH session 的 `header.cwd` 必须为 `<researchRoot>/sessions/<UUID>`，必须是规范真实目录。工具不接收工作目录。原生子 Agent 必须沿 `header.parentSession` 链共享同一目录；祖先缺失、循环、超过 16 层或 cwd 不一致均拒绝。恢复冷会话前应先恢复其祖先，否则不会执行。
 6. 部署方负责创建会话并将输入及精选研究资源复制到该会话；不允许把宿主目录、符号链接或硬链接作为资源暴露。被允许的运行库和 venv 必须是管理员控制、无凭据的可信依赖；不执行 `.pth`、用户 site 启动文件或项目启动代码。不要把整个项目或用户目录列入白名单。
 
-工具参数仅为 `{"code": "..."}`。返回 `{status, stdout, stderr, exit_code, error}`；状态包括 `completed`、`failed`、`timed_out`、`output_limit`、`cancelled`。请求取消或 supervisor 协议失败会使原生工具报错，不伪装成功。最多 65,536 UTF-8 源码字节；stdout/stderr 合计最多配置字节数，截断的不完整 UTF-8 后缀会被丢弃。
+工具参数为互斥的 `code`、既有 `report_plan` 或 Host 封印的 `pack_execution`。返回 `{status, stdout, stderr, exit_code, error}`；状态包括 `completed`、`failed`、`timed_out`、`output_limit`、`cancelled`。请求取消或 supervisor 协议失败会使原生工具报错，不伪装成功。最多 65,536 UTF-8 源码字节；stdout/stderr 合计最多配置字节数，截断的不完整 UTF-8 后缀会被丢弃。
+
+`scenario-frozen-inputs-v1` 只接受 Host 给出的至多320个精确文件及摘要／大小／设备／inode，JS、supervisor 和固定 launcher 重读核对；拒绝链接、路径逃逸、替换和未列文件。只对这些脚本的确切父目录给 importlib 所需的 literal 目录名读取，不授予其子树内容读取。`inputs/scenarios` 不进入普通脚本的默认输入范围；`outputs/scenario-results` 也禁止普通 code/report_plan 写入。受控包只写 Host 新分配的本次 execution 输出根，旧 weekly policy 保持。
 
 宿主插件在任何脚本进程创建前使用进程级 FIFO 队列，全局只运行一个 `research_run_script`。
 排队默认最多 60 秒；超时返回稳定 `runtime_busy`，排队期间取消会从队列移除，之后不能启动。

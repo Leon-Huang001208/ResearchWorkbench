@@ -27,6 +27,7 @@ from core.observability import get_logger
 
 from .methods import ReasoningMethodSpec
 from .models import CapabilityError, Metadata, Step, data_preflight, issue
+from .pack_resources import verify_pack_manifest
 from .packages import decode_file, frontmatter, import_package, normalize_files
 from .seeds import (
     LEGACY_DATA_SCOPE_DRAFTS,
@@ -151,6 +152,7 @@ class CapabilityCatalog:
             self._migrate_stage2_builtins(dict(seed_packages()))
             self._migrate_stage3_builtins(dict(seed_packages()))
             self._migrate_data_scope_builtins(dict(seed_packages()))
+            self._migrate_pack_runtime_relocations(dict(seed_packages()))
             self._audit_enabled_receipt_gates()
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
@@ -396,6 +398,94 @@ class CapabilityCatalog:
                     version=row["version"],
                     receipt_error=exc.code,
                 )
+        if changed:
+            self.save()
+
+    def _pack_read_equivalence_ready(self, _row, _active, _curated):
+        """Fail closed until SPEC defines a verified historical-read certificate.
+
+        No user setting or API can enable this unfinished authorization boundary.
+        Unit tests override it only to exercise immutable publication mechanics.
+        """
+        return False
+
+    def _migrate_pack_runtime_relocations(self, builtins):
+        from .pack_relocation import (
+            PACK_IDS,
+            relocation_decision,
+            runtime_from,
+            verify_version_tree,
+        )
+
+        if self.data.get("pending"):
+            return
+        changed = False
+        for cid in sorted(PACK_IDS):
+            row = self.data["items"].get(cid)
+            if not row or not row.get("version"):
+                continue
+            active = row["versions"].get(str(row["version"]))
+            curated = self._draft(copy.deepcopy(builtins[cid]))
+            allowed, reason = relocation_decision(row, active or {}, curated)
+            info = {"status": "current" if reason == "current" else "blocked", "code": reason}
+            if allowed:
+                try:
+                    verify_version_tree(self, row, active)
+                except (CapabilityError, OSError, ValueError, KeyError, TypeError):
+                    allowed, reason = False, "pack_runtime_resource_changed"
+                    info = {"status": "blocked", "code": reason}
+            if allowed and not self._pack_read_equivalence_ready(row, active, curated):
+                allowed, reason = False, "pack_runtime_read_equivalence_pending"
+                info = {"status": "blocked", "code": reason}
+            if allowed:
+                previous, status = row["version"], row["status"]
+                row["draft"] = curated
+                row.update(has_draft=True, checks=None)
+                try:
+                    self.publish(cid, _allow_builtin_migration=True, _status=status)
+                except (CapabilityError, OSError, ValueError, KeyError, TypeError) as exc:
+                    current = self.data["items"][cid]
+                    current["runtime_binding"] = {
+                        "status": "blocked",
+                        "code": "pack_runtime_relocation_failed",
+                    }
+                    self.save()
+                    log.error(
+                        "capability_pack_runtime_relocation_failed",
+                        capability_id=cid,
+                        error_type=type(exc).__name__,
+                    )
+                    raise CapabilityError(
+                        "组合包运行环境迁移未完成；保留版本与原状态",
+                        "pack_runtime_relocation_failed",
+                        503,
+                    ) from exc
+                info = {
+                    "status": "relocated",
+                    "code": "pack_runtime_prefix_relocated",
+                    "previous_version": previous,
+                    "version": row["version"],
+                    "runtime_sha256": hashlib.sha256(
+                        json.dumps(
+                            runtime_from(curated), sort_keys=True, separators=(",", ":")
+                        ).encode()
+                    ).hexdigest(),
+                }
+                log.info(
+                    "capability_pack_runtime_relocated",
+                    capability_id=cid,
+                    version=row["version"],
+                    status=status,
+                )
+            elif reason != "current":
+                log.warning(
+                    "capability_pack_runtime_relocation_blocked", capability_id=cid, code=reason
+                )
+            if reason == "current" and row.get("runtime_binding", {}).get("status") == "relocated":
+                continue
+            if row.get("runtime_binding") != info:
+                row["runtime_binding"] = info
+                changed = True
         if changed:
             self.save()
 
@@ -796,6 +886,8 @@ class CapabilityCatalog:
         }
         if row["kind"] == "method":
             result["method_spec"] = copy.deepcopy((active or draft).get("method_spec"))
+        if row.get("runtime_binding"):
+            result["runtime_binding"] = copy.deepcopy(row["runtime_binding"])
         return result
 
     def list(self, kind=None):
@@ -974,6 +1066,11 @@ class CapabilityCatalog:
 
     def validate(self, kind, draft):
         issues = [*draft.get("import_issues", []), *draft.get("file_issues", [])]
+        try:
+            pack_manifest = verify_pack_manifest(draft["files"])
+        except CapabilityError:
+            pack_manifest = None
+            issues.append(issue("pack_closure_invalid", "组合包完整资源清单校验失败"))
         metadata = draft["metadata"]
         try:
             valid = Metadata.model_validate(metadata)
@@ -1096,6 +1193,12 @@ class CapabilityCatalog:
         for tool in required_tools:
             if not isinstance(tool, str) or tool not in allowed:
                 issues.append(issue("tool_unavailable", f"工具不在实际研究白名单：{tool}"))
+        python_modules = {
+            ".".join(f["path"][8:-3].split("/")).removesuffix(".__init__")
+            for f in draft["files"]
+            if f["path"].startswith("scripts/") and f["path"].endswith(".py")
+        }
+        local_roots = {module.split(".")[0] for module in python_modules}
         for file in draft["files"]:
             if file["path"].endswith(".py"):
                 if file["sha256"] not in draft.get("reviewed_scripts", []):
@@ -1108,10 +1211,58 @@ class CapabilityCatalog:
                     )
                 try:
                     tree = ast.parse(decode_file(file).decode())
+                    if pack_manifest and any(
+                        isinstance(node, ast.Call)
+                        and (
+                            isinstance(node.func, ast.Name)
+                            and node.func.id in {"__import__", "eval", "exec"}
+                            or isinstance(node.func, ast.Attribute)
+                            and node.func.attr in {"import_module", "load_module", "exec_module"}
+                        )
+                        for node in ast.walk(tree)
+                    ):
+                        issues.append(
+                            issue(
+                                "pack_dynamic_import_forbidden",
+                                "组合包资源不能动态导入或执行任意代码",
+                                file["path"],
+                            )
+                        )
+                    current = file["path"][8:-3].split("/")
+                    package = current[:-1]
+                    for node in ast.walk(tree):
+                        targets = []
+                        if isinstance(node, ast.ImportFrom) and node.level:
+                            if node.level > len(package):
+                                targets = ["<escape>"]
+                            else:
+                                parent = package[: len(package) - node.level + 1]
+                                targets = (
+                                    [".".join([*parent, *node.module.split(".")])]
+                                    if node.module
+                                    else [".".join([*parent, alias.name]) for alias in node.names]
+                                )
+                        elif isinstance(node, ast.ImportFrom) and node.module:
+                            if node.module.split(".")[0] in local_roots:
+                                targets = [node.module]
+                        elif isinstance(node, ast.Import):
+                            targets = [
+                                alias.name
+                                for alias in node.names
+                                if alias.name.split(".")[0] in local_roots
+                            ]
+                        if any(target not in python_modules for target in targets):
+                            issues.append(
+                                issue(
+                                    "script_import_unresolved",
+                                    "包内导入无法在冻结资源中解析",
+                                    file["path"],
+                                )
+                            )
                     modules = {
                         n.module.split(".")[0]
                         for n in ast.walk(tree)
-                        if isinstance(n, ast.ImportFrom) and n.module
+                        if isinstance(n, ast.ImportFrom) and n.module and not n.level
                     }
                     modules.update(
                         alias.name.split(".")[0]
@@ -1119,6 +1270,16 @@ class CapabilityCatalog:
                         if isinstance(n, ast.Import)
                         for alias in n.names
                     )
+                    if pack_manifest and modules - sys.stdlib_module_names - local_roots - {
+                        "jsonschema"
+                    }:
+                        issues.append(
+                            issue(
+                                "pack_import_forbidden",
+                                "组合包只能导入冻结闭包、标准库和绑定的schema验证依赖",
+                                file["path"],
+                            )
+                        )
                     strings = {
                         n.value
                         for n in ast.walk(tree)
@@ -1241,7 +1402,9 @@ class CapabilityCatalog:
                                 file["path"],
                             )
                         )
-                    external_modules = modules - sys.stdlib_module_names - {"research_helpers"}
+                    external_modules = (
+                        modules - sys.stdlib_module_names - {"research_helpers"} - local_roots
+                    )
                     installed_modules = (
                         self._installed_module_distributions() if external_modules else {}
                     )

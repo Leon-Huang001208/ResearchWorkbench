@@ -338,7 +338,18 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
     catalog = service.store.receipt(sid, "native-auto-skill")["capability_catalog"]
-    assert len(catalog) == 26
+    assert len([row for row in catalog if not row["id"].startswith("research-pack-")]) == 26
+    assert {row["id"] for row in catalog if row["id"].startswith("research-pack-")} == {
+        "research-pack-position-risk",
+        "research-pack-expectation-gap",
+        "research-pack-short-sentiment",
+        "research-pack-research-prep",
+        "research-pack-event-review",
+        "research-pack-global-opinion",
+        "research-pack-valuation-check",
+        "research-pack-ownership-structure",
+        "research-pack-earnings-preview",
+    }
     capability_ids = {row["id"] for row in catalog}
     assert {
         "finance-news-event-research",
@@ -697,6 +708,9 @@ def test_query_checks_actual_adjustment_and_cannot_execute_missing_optional_scop
     service.store.receipt(sid, "scope-callback")["capability"] = service.capabilities.selection(cid)
     current = _wind_scope_catalog()
     monkeypatch.setattr(service.datahub, "catalog", lambda: current)
+    # Query admission intentionally uses its separate probe-free catalog. Keep
+    # this offline fixture on the real call path instead of a production source.
+    monkeypatch.setattr(service.datahub, "admission_catalog", lambda: current)
     query = BusinessQuery(
         capability="market_bars",
         source="wind",
@@ -741,6 +755,7 @@ def test_workflow_bound_skill_blocks_undeclared_data_and_web_bypass(api, monkeyp
     service.store.reserve(sid, "scope-workflow", "b" * 64, {"status": "running"})
     service.store.receipt(sid, "scope-workflow")["capability"] = service.capabilities.selection(wid)
     monkeypatch.setattr(service.datahub, "catalog", _wind_scope_catalog)
+    monkeypatch.setattr(service.datahub, "admission_catalog", _wind_scope_catalog)
     assert service.native_admission(sid, tool_name="web_search")["admitted"] is False
     query = BusinessQuery(capability="search_news", source="cls", parameters={})
     with pytest.raises(CapabilityError, match="可用范围"):
@@ -815,16 +830,27 @@ def test_data_builtin_migration_preserves_any_published_customization(api, monke
 
 def test_owned_hot_snapshot_is_admitted_to_scripts_without_catalog_provider(api):
     from uuid import uuid4
+
     from test_hot_snapshot_publication import bundle
+
     client, _native, service = api
-    sid = client.post('/api/research/sessions', json={}).json()['id']
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
     row = service.store.session(sid)
     evidence = bundle(str(uuid4()), str(uuid4()))
     run = str(uuid4())
-    row.update(purpose='hot_research', hot_origin={'runId': run, 'instanceId': evidence['manifest']['instanceId'], 'manifestHash': evidence['manifestHash']})
+    row.update(
+        purpose="hot_research",
+        hot_origin={
+            "runId": run,
+            "instanceId": evidence["manifest"]["instanceId"],
+            "manifestHash": evidence["manifestHash"],
+        },
+    )
     service.store.save()
     snapshot = service.datahub.snapshots.publish_hot(sid, run, evidence)
-    expected = 'inputs/datasets/' + snapshot['dataset_id']
-    assert expected in service.native_admission(sid, tool_name='research_run_script')['read_paths']
-    row['hot_origin']['runId'] = str(uuid4())
-    assert expected not in service.native_admission(sid, tool_name='research_run_script')['read_paths']
+    expected = "inputs/datasets/" + snapshot["dataset_id"]
+    assert expected in service.native_admission(sid, tool_name="research_run_script")["read_paths"]
+    row["hot_origin"]["runId"] = str(uuid4())
+    assert (
+        expected not in service.native_admission(sid, tool_name="research_run_script")["read_paths"]
+    )

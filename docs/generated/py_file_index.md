@@ -3618,6 +3618,7 @@ Imports:
 - `methods`
 - `models`
 - `os`
+- `pack_resources`
 - `packages`
 - `packaging.requirements`
 - `pathlib`
@@ -3635,7 +3636,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _installed_module_distributions, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _migrate_data_scope_builtins, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, data_readiness, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _installed_module_distributions, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _migrate_data_scope_builtins, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, _pack_read_equivalence_ready, _migrate_pack_runtime_relocations, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, data_readiness, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -3698,6 +3699,130 @@ Functions:
 - `data_preflight`
   - Read fresh authoritative facts without querying vendors or inferring by name.
 - `issue`
+
+
+## `app/research_web/capabilities/pack_dependencies.py`
+
+Module docstring:
+> Bind a frozen pack to the installed, locked schema validator runtime.
+
+Imports:
+- `__future__`
+- `configparser`
+- `core.observability`
+- `csv`
+- `email.parser`
+- `hashlib`
+- `importlib.machinery`
+- `importlib.metadata`
+- `json`
+- `jsonschema`
+- `models`
+- `os`
+- `pathlib`
+- `platform`
+- `re`
+- `stat`
+- `sys`
+- `sysconfig`
+
+Functions:
+- `_read_dependency`
+- `_dependency_identity`
+  - Independently enumerate the complete managed import/data roots, including pyc.
+- `runtime_identity`
+  - Hash actual package files as well as metadata/version, interpreter and lock.
+
+
+## `app/research_web/capabilities/pack_logging.py`
+
+Module docstring:
+> Frozen structured logging adapter, with no Host configuration import.
+
+Imports:
+- `logging`
+
+Classes:
+- `Logger`
+  - methods: __init__, bind, _emit, debug, info, warning, error, exception
+
+Functions:
+- `get_logger`
+
+
+## `app/research_web/capabilities/pack_native.py`
+
+Module docstring:
+> Frozen stdlib-only writer around one approved pure calculation.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `stat`
+
+Functions:
+- `canonical`
+- `read_regular`
+  - Reject links, aliases and concurrent file replacement before/after read.
+- `write_new`
+- `run`
+  - Write complete, receipt and manifest once, then atomically publish v1.
+
+
+## `app/research_web/capabilities/pack_relocation.py`
+
+Module docstring:
+> Narrow builtin relocation eligibility; no dependency or code upgrade policy.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `json`
+- `models`
+- `pack_native`
+- `pack_resources`
+- `packages`
+- `pathlib`
+- `stat`
+
+Functions:
+- `runtime_from`
+- `_static_files`
+- `_relative`
+- `relocation_decision`
+  - Return an explicit reason; metadata and every reviewed byte must match.
+- `verify_version_tree`
+  - No healing of modified/unlisted files or native projections during migration.
+
+
+## `app/research_web/capabilities/pack_resources.py`
+
+Module docstring:
+> Build immutable Native resources from the single reviewed calculator source.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `json`
+- `models`
+- `pack_dependencies`
+- `packages`
+- `pathlib`
+- `scenarios.packs.record_contracts`
+
+Functions:
+- `canonical`
+- `closure`
+- `verify_pack_manifest`
+  - Check the entire resource set, including helper/schema/golden digests.
+- `pack_packages`
 
 
 ## `app/research_web/capabilities/packages.py`
@@ -3772,6 +3897,7 @@ Module docstring:
 
 Imports:
 - `methods`
+- `pack_resources`
 - `packages`
 - `pathlib`
 
@@ -5328,6 +5454,7 @@ Classes:
 - `NativeSearchActivity`
 - `SourceReadRequest`
 - `SourceCancelRequest`
+- `PackCompletionRequest`
 
 Functions:
 - `research_warehouse_status`
@@ -5351,6 +5478,7 @@ Functions:
 - `download`
 - `business_query`
 - `skill_preflight`
+- `pack_completion`
 - `research_quality`
 - `research_source`
 - `research_source_cancel`
@@ -10714,6 +10842,7 @@ Imports:
 - `argparse`
 - `dataclasses`
 - `functools`
+- `hashlib`
 - `json`
 - `logging`
 - `math`
@@ -10801,6 +10930,68 @@ Functions:
   - Validate every ancestor for scene and legacy copies, with cycle protection.
 
 
+## `app/research_web/scenario_pack_execution.py`
+
+Module docstring:
+> One-shot pack admission and artifact observation on the existing Native bridge.
+
+Imports:
+- `__future__`
+- `base64`
+- `capabilities.pack_dependencies`
+- `capabilities.pack_native`
+- `capabilities.pack_resources`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `json`
+- `re`
+- `store`
+- `time`
+- `uuid`
+
+Functions:
+- `fail`
+- `_file`
+- `launcher`
+  - Fixed code; only Host-validated identities, paths and digests are embedded.
+- `prepare_execution`
+- `read_artifacts`
+  - Independently reopen exact output names; no paths from stdout are used.
+- `complete_execution`
+- `quality_issues`
+
+
+## `app/research_web/scenario_pack_inputs.py`
+
+Module docstring:
+> Host-only deterministic snapshot qualification and immutable input sealing.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `json`
+- `os`
+- `scenarios.packs`
+- `scenarios.packs.contracts`
+- `store`
+- `zoneinfo`
+
+Classes:
+- `QualifiedPackInput`
+
+Functions:
+- `fail`
+- `qualify_pack_materials`
+  - Read selected originals again. Currently map the verified BaoStock subset.
+- `seal_pack_inputs`
+  - Seal after copying evidence; no hash includes itself or its descriptor.
+- `verify_pack_seal`
+  - A private handoff record owns this descriptor; JSON declarations do not.
+
+
 ## `app/research_web/scenarios/__init__.py`
 
 Module docstring:
@@ -10856,6 +11047,163 @@ Classes:
 - `ScenarioError`
   - Public code is stable and never contains private inputs or source contents.
   - methods: __init__
+
+
+## `app/research_web/scenarios/pack_catalog.py`
+
+Module docstring:
+> Additional pack contracts; the original eight frozen contracts stay intact.
+
+Imports:
+- `capabilities.pack_resources`
+- `catalog`
+- `packs`
+- `packs.contracts`
+
+Functions:
+- `contracts`
+- `select`
+
+
+## `app/research_web/scenarios/packs/__init__.py`
+
+Module docstring:
+> Versioned pure research checks. Inputs are declarations, never Host authority.
+
+Imports:
+- `__future__`
+- `bundles`
+- `contracts`
+- `hashlib`
+
+Functions:
+- `_calculate_atom`
+  - Compute a format-checked receipt. Never asserts rights or report quality.
+- `execute_atom`
+  - Return the compatible bounded receipt from one in-memory calculation.
+- `execute_atom_bundle`
+  - Return one calculation's receipt and immutable complete-result bytes.
+- `_calculate_pack`
+  - Limited nine-pack composition; source coverage remains a declaration.
+- `execute_pack`
+- `execute_pack_bundle`
+
+
+## `app/research_web/scenarios/packs/atoms.py`
+
+Module docstring:
+> Owned, public deterministic arithmetic; none of the 18 gated algorithms.
+
+Imports:
+- `__future__`
+- `bisect`
+- `collections`
+- `contracts`
+- `math`
+
+Functions:
+- `validate_positions`
+- `join_risk_windows`
+- `deduplicate_source_versions`
+- `financial_key`
+- `compare_qualified_expectations`
+- `compare_valuation_samples`
+- `align_event_trading_day`
+
+
+## `app/research_web/scenarios/packs/bundles.py`
+
+Module docstring:
+> IO-free complete results for a future reviewed Native writer.
+
+Imports:
+- `__future__`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `typing`
+
+Classes:
+- `FullResultArtifact`
+  - Immutable actual bytes and descriptors; never Host authority or a path.
+- `ExecutionBundle`
+- `_Calculation`
+- `FullClosureBudget`
+  - Count complete components before retaining the next component closure.
+  - methods: __init__, add
+
+Functions:
+- `canonical_json`
+- `capture_result`
+  - Capture pre-projection rows from the one calculation, without copying them.
+- `build_bundle`
+  - Serialize one complete closure under a single aggregate byte budget.
+
+
+## `app/research_web/scenarios/packs/contracts.py`
+
+Module docstring:
+> Strict in-memory contracts. No filesystem, network, or authority operations.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `jsonschema`
+- `math`
+- `re`
+- `record_contracts`
+- `typing`
+
+Classes:
+- `PackError`
+  - Content-free stable failure; callers must not expose private inputs.
+  - methods: __init__
+- `DerivedBudget`
+  - Preflight cardinality and count serialized bytes before retaining each row.
+  - methods: __init__, preflight, append
+
+Functions:
+- `require`
+- `number`
+- `instant`
+- `day`
+- `security`
+- `encoded`
+  - Stream encoding counts before allocating a full serialized copy.
+- `validate_inputs`
+- `_component_previews`
+  - Project child data rows while preserving every component audit field.
+- `result`
+
+
+## `app/research_web/scenarios/packs/limited.py`
+
+Module docstring:
+> Limited counts, disclosed holdings and calendar arithmetic, without scores.
+
+Imports:
+- `__future__`
+- `collections`
+- `contracts`
+- `itertools`
+- `math`
+- `re`
+
+Functions:
+- `sentiment_counts`
+- `report_period_key`
+- `disclosed_ownership`
+- `earnings_calendar`
+
+
+## `app/research_web/scenarios/packs/record_contracts.py`
+
+Module docstring:
+> Frozen v1 normalized record schemas; format is not Host authority.
 
 
 ## `app/research_web/service.py`
@@ -11836,6 +12184,7 @@ Classes:
 
 Functions:
 - `scenarios`
+- `prepare_scenario`
 - `handoff_request`
   - Read original receipt only; unknown native creation is never retried.
 - `_public_handoff`

@@ -304,6 +304,15 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "风格轮动研究",
         "平台突破研究",
         "缠论确认分型与笔研究",
+        "持仓排雷（确定性核验）",
+        "预期差（确定性核验）",
+        "短线情绪（确定性核验）",
+        "调研前置（确定性核验）",
+        "事件复盘（确定性核验）",
+        "海内外舆情（确定性核验）",
+        "估值体检（确定性核验）",
+        "筹码结构（确定性核验）",
+        "财报季前瞻（确定性核验）",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]

@@ -397,11 +397,16 @@ function smallResult(value) {
 }
 
 /** Same authenticated loopback channel; scope only, never credentials. */
-export async function nativeAdmission(ctx, exec, config, loaded = false) {
+export async function nativeAdmission(ctx, exec, config, loaded = false, packStart = false) {
   const cwd = await trustedDirectory(ctx, exec, config);
   const control = await privateControl(config.researchRoot);
   const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
   const body = { session_id: basename(cwd), tool_name: exec.name };
+  if (exec.name === 'research_run_script' && exec.arguments?.pack_execution !== undefined) {
+    body.pack_execution = exec.arguments.pack_execution;
+    body.call_id = exec.callId;
+    body.pack_start = packStart;
+  }
   if (exec.name === 'research_read_source') {
     if (['list','read'].includes(exec.arguments?.operation)) body.source_operation = exec.arguments.operation;
     if (typeof exec.arguments?.source_id === 'string') body.source_id = exec.arguments.source_id;
@@ -421,6 +426,21 @@ export async function nativeAdmission(ctx, exec, config, loaded = false) {
       typeof result.admitted !== 'boolean' || result.admitted !== ['available','limited'].includes(result.status) ||
       !Array.isArray(result.missing) || !Array.isArray(result.omitted_sections)) throw Error('skill_admission_state_invalid');
   return result;
+}
+
+/** Managed tool completion only; credentials never enter the Python process. */
+export async function completePackExecution(ctx, exec, config, binding, result) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.timeout(4000);
+  const response = await globalThis.fetch(control.url + '/api/research/internal/data/pack-completion', {
+    method: 'POST', headers: {'Content-Type':'application/json','X-Research-Data-Key':control.token},
+    body: JSON.stringify({session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result}),
+    redirect:'error',credentials:'omit',signal,
+  });
+  const value = await boundedJson(response, signal);
+  if (!value || !['saved','failed','cancelled'].includes(value.state)) throw Error('pack_completion_unverified');
+  return value;
 }
 
 export function apply(ctx, config) {
