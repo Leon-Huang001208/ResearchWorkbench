@@ -153,3 +153,26 @@ native1原atom原receipt对照暴露对象顺序依赖，native2随后被原sand
 真实quality正例仍incomplete，负基数未生成canonical保持incomplete/report_missing；叙事为scripted fixture，
 HTTP仅离线输送边界，真实模型/来源网络/正式报告接受/部署/他平台均NOT_RUN。本切片不等于整个T3完成，
 T4/T5及其后续门保留。
+
+## 独立SPEC表单P2最小修复（基线c453d9da）
+
+SPEC以真实Chrome复现：owned preset_query有效而原question为空时，控制器preview通过，但原textarea
+无条件required导致formValid=false、submitEvents=0。新增目标render断言先在原源码RED失败；修复只在
+当前owned场景的合法固定preset+有效query时移除原textarea的required，用同一窄谓词约束validInputs。
+旧八场景、无有效preset/query仍保留required，冲突原题与query仍控制器拒绝；没有form novalidate或
+绕过原生校验。产品源码仅ui/scenarios.mjs，其余变化为目标JS测试/浏览器helper及本module文档/报告。
+
+本轮opaque证据根 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-preset-formfix-x5kg6pq4`，
+owner事前登记task/slice/UID/PID/dev/inode/candidate/命令；未跑pytest或安装依赖。
+green.log：控制器/render与原source-picker共27PASS。browser.log/browser-results.json：全新隔离Chrome
+profile、file-only模块、禁DNS/后台网络，共9例实际renderer/controller PASS。三个合法preset-only均
+formValid=true、submitEvents=1、handoffs=1；旧8空题、owned无preset、空query、错配preset、URLquery
+均native form阻断；冲突题native可submit但控制器拒绝、handoffs=0。未使用个人Chrome或实际HTTP来源。
+backend-unchanged.json逐git blob核对除该UI外全部app/research_web文件与c453一致，不机械重跑六条
+后端Native/report链。目标JS/helper node--check及diff--check通过；本轮待主任务重新独立SPEC/QUALITY。
+
+本轮1054个非该UI的app/research_web git blobs与c453逐个一致。九份必要DOM/结果/日志/owner及blob证明
+归档为evidence/form-fix-evidence.tar.gz（47,374B，SHA-256
+564cf6b980865d44f0e624fbc116d2d02b3450ee75557fd7209236f943c2a8fb），全部逐文件恢复核SHA通过。
+确认无进程占用且dev/inode匹配后，仅退休本轮fresh Chrome profile（2,686,620B），retirement.json为
+cleaned；保留全部必要证据，不触碰个人Chrome、metadata任务25个WIP或其他测试根。

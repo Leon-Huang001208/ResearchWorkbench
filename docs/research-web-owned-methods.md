@@ -119,3 +119,8 @@ Host纯adapter、DataHub.query、原CLS parser及snapshot执行；HTTP仅MockTra
 已实际核验limit先行、casefold、empty/空query、strict参数、scope/CLS disabled与取消不落快照。
 UI/guard50项通过，包含仅wrapper目录掩蔽/恢复、cutoff和preset冲突/切换。独立评审、完整CI及
 同候选Mac干净安装由主任务另验；此代码切片不等于整个T3或62Skill/78Tool融合完成。
+
+独立SPEC发现的预置空原题表单P2已修复：仅当前owned场景的合法固定preset及有效query可替代
+原question textarea的required；同一前端谓词用于控制器校验。旧八场景和无有效预置仍保留必填，
+已有原题冲突仍明确拒绝，不关闭form原生校验。隔离Chrome实际renderer/controller验证三个preset-only
+各submit/handoff一次，空题/错配/空或URLquery受原生必填阻断，冲突题由控制器拒绝；不是完整HTTP旅程。
