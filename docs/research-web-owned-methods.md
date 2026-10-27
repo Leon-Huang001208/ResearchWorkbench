@@ -41,6 +41,12 @@ Host 从当前授权原件构造 `inputs/methods/<digest>/source-*.source` 和 `
 不开放父子树；原 weekly/pack 策略保持。实际 Host/Native 的原件、描述与全部资源合计上限为十六 MiB，
 还受单份八 MiB、二十份资料和原脚本预算的交集限制。
 
+准备阶段先验证来源、全部资源与闭包、数量、总字节、runtime 和固定 launcher 上界，再创建私有副本。
+准备事务只记录本次排他创建的文件/目录及其父目录、dev/inode；确定失败时只回滚身份仍匹配的文件和
+本次创建的空目录，已有文件、替换 inode、未知对象不删除。确认未写入执行回执且回滚成功的准备失败，
+没有启动 Native，可以显式重试；未知残留仍被原 method_input_unbound 拒绝。Store save 异常后读回
+同一 index 回执：新 ID 已提交或结果无法确认时保留 unknown，不返回执行 scope，不自动重跑。
+
 原私有 pack-completion 桥仅增加严格 `kind=owned-method` 变体；方法不写 pack 账本。真实 supervisor
 完成后，Host 重新授权并打开原件、冻结文件与实际台账，核验 dev/inode/nlink/hash，再用与已审资源
 字节完全相同的 Host 固定函数复算。只有这些检查通过才写 receipts.method_executions 的 saved；

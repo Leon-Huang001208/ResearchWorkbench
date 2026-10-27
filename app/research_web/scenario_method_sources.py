@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import sys
 import time
 from pathlib import Path
@@ -23,12 +24,106 @@ from .capabilities.pack_native import read_regular
 from .capabilities.pack_resources import canonical
 from .capabilities.packages import decode_file
 from .capabilities.scenario_method_packages import METHODS, scenario_method_packages
-from .datahub.security import directory, write_new
+from .datahub.security import directory
 from .scenario_handoffs import bound_capabilities, fingerprint, resolve_reference, trusted_context
 from .store import StoreError
 
 log = get_logger(__name__)
 POLICY = "owned-method-frozen-inputs-v1"
+MAX_METHOD_BYTES = 16 * 1024 * 1024
+
+
+class _Preparation:
+    """Own only exclusive births; rollback never removes a reused/replaced object."""
+
+    def __init__(self, root):
+        self.root, self.files, self.directories = root, [], []
+
+    def mkdir(self, parts, *, exclusive=False):
+        for index, name in enumerate(parts):
+            parent = tuple(parts[:index])
+            with directory(self.root, parent) as fd:
+                parent_id = self.identity(os.fstat(fd))
+                try:
+                    os.mkdir(name, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    if exclusive and index == len(parts) - 1:
+                        fail("method_output_exists")
+                else:
+                    info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                    self.directories.append((parent, parent_id, name, self.identity(info)))
+            with directory(self.root, (*parent, name)):
+                pass
+
+    @staticmethod
+    def identity(info):
+        return info.st_dev, info.st_ino
+
+    def write(self, relative, raw):
+        parts = tuple(relative.split("/"))
+        self.mkdir(parts[:-1])
+        with directory(self.root, parts[:-1]) as fd:
+            try:
+                handle = os.open(
+                    parts[-1],
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    0o600,
+                    dir_fd=fd,
+                )
+            except FileExistsError:
+                if read_regular(self.root / relative, MAX_METHOD_BYTES) != raw:
+                    fail("method_input_changed")
+                return
+            self.files.append(
+                (
+                    parts[:-1],
+                    self.identity(os.fstat(fd)),
+                    parts[-1],
+                    self.identity(os.fstat(handle)),
+                )
+            )
+            try:
+                stream = os.fdopen(handle, "wb")
+            except (OSError, ValueError):
+                os.close(handle)
+                raise
+            with stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+
+    def rollback(self):
+        safe = True
+        for records, directories in ((self.files, False), (self.directories, True)):
+            for parent, parent_id, name, identity in reversed(records):
+                try:
+                    with directory(self.root, parent) as fd:
+                        if self.identity(os.fstat(fd)) != parent_id:
+                            safe = False
+                            continue
+                        try:
+                            info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                        except FileNotFoundError:
+                            continue
+                        if (
+                            self.identity(info) != identity
+                            or (
+                                not directories
+                                and (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1)
+                            )
+                            or (directories and not stat.S_ISDIR(info.st_mode))
+                        ):
+                            safe = False
+                            continue
+                        if directories:
+                            os.rmdir(name, dir_fd=fd)
+                        else:
+                            os.unlink(name, dir_fd=fd)
+                except (OSError, StoreError):
+                    safe = False
+        if not safe:
+            log.warning("research_method_preparation_rollback_unverified")
+        return safe
 
 
 def fail(code):
@@ -274,7 +369,7 @@ def prepare_execution(service, sid, descriptor, call_id, *, start=False):
             "omitted_sections": [],
             "read_paths": [],
         }
-    executions = receipt.setdefault("method_executions", [])
+    executions = receipt.get("method_executions", [])
     if len(executions) >= 64 or any(
         item.get("call_id") == call_id
         or item["binding"].get("task_id") == contract["task_id"]
@@ -283,34 +378,83 @@ def prepare_execution(service, sid, descriptor, call_id, *, start=False):
     ):
         fail("method_execution_unknown_do_not_retry")
     root = service.store.root / "sessions" / sid
-    for relative, raw in bodies.items():
-        parts = relative.split("/")
-        with directory(service.store.root, ("sessions", sid, *parts[:-1]), create=True) as fd:
-            if parts[-1] in os.listdir(fd):
-                if read_regular(root / relative, 16 * 1024 * 1024) != raw:
-                    fail("method_input_changed")
-            else:
-                write_new(fd, parts[-1], raw)
-    files = [
+    resources = [
         {"path": selected["resource_path"] + "/SKILL.md", "sha256": selected["sha256"]},
         *[
             {"path": selected["resource_path"] + "/" + item["path"], "sha256": item["sha256"]}
             for item in version["files"]
         ],
-        *[
-            {"path": path, "sha256": hashlib.sha256(raw).hexdigest()}
-            for path, raw in bodies.items()
-        ],
     ]
-    if len(files) > 320:
+    if len(resources) + len(bodies) > 320:
         fail("method_resource_limit")
-    file_bindings = [_file(root, item["path"], item["sha256"]) for item in files]
-    if sum(item["bytes"] for item in file_bindings) > 16 * 1024 * 1024:
+    try:
+        resource_bindings = [_file(root, item["path"], item["sha256"]) for item in resources]
+        runtime = runtime_identity()
+    except OSError as exc:
+        log.warning("research_method_resource_preflight_failed", error_type=type(exc).__name__)
+        raise StoreError("方法资源预检失败", "method_preparation_failed", 409) from exc
+    if (
+        sum(item["bytes"] for item in resource_bindings) + sum(map(len, bodies.values()))
+        > MAX_METHOD_BYTES
+    ):
         fail("method_resource_limit")
+    receipt_key = next(
+        (key for key, value in service.store.data["receipts"].items() if value is receipt), None
+    )
+    if receipt_key is None:
+        fail("method_task_unverified")
+    return _freeze_preparation(
+        service,
+        sid,
+        receipt,
+        receipt_key,
+        executions,
+        selected,
+        context,
+        contract,
+        projected,
+        bodies,
+        input_path,
+        resource_bindings,
+        closure,
+        runtime,
+        call_id,
+    )
+
+
+def _save_outcome(service, receipt_key, previous, execution_id):
+    """A failed atomic save may have committed; uncertain commits stay unknown."""
+    try:
+        disk = json.loads(read_regular(service.store.index, 64 * 1024 * 1024))
+        actual = disk["receipts"][receipt_key].get("method_executions", [])
+        if any(item["binding"]["execution_id"] == execution_id for item in actual):
+            return "present"
+        return "absent" if actual == previous else "unknown"
+    except (OSError, StoreError, ValueError, KeyError, TypeError):
+        log.warning("research_method_preparation_save_unknown")
+        return "unknown"
+
+
+def _freeze_preparation(
+    service,
+    sid,
+    receipt,
+    receipt_key,
+    executions,
+    selected,
+    context,
+    contract,
+    projected,
+    bodies,
+    input_path,
+    resources,
+    closure,
+    runtime,
+    call_id,
+):
+    root = service.store.root / "sessions" / sid
     execution_id = uuid4().hex
     output_root = "outputs/method-results/" + execution_id
-    with directory(service.store.root, ("sessions", sid, "outputs", "method-results"), create=True):
-        (root / output_root).mkdir(mode=0o700)
     binding = {
         "execution_id": execution_id,
         "task_id": contract["task_id"],
@@ -328,20 +472,49 @@ def prepare_execution(service, sid, descriptor, call_id, *, start=False):
         "missing": context["scenario"]["missing"],
         "omitted_sections": [],
         "input_policy": POLICY,
-        "read_paths": [f["path"] for f in file_bindings],
-        "file_bindings": file_bindings,
         "output_root": output_root,
         "input_path": input_path,
         "scripts": selected["resource_path"] + "/scripts",
         "binding": binding,
-        "runtime": runtime_identity(),
+        "runtime": runtime,
     }
-    scope["code"] = launcher(root, scope)
-    scope["code_sha256"] = hashlib.sha256(scope["code"].encode()).hexdigest()
-    if len(scope["code"].encode()) > 65536:
+    # Upper bound the fixed launcher using 64-bit dev/inode placeholders before writes.
+    preview = [
+        *resources,
+        *[
+            {
+                "path": p,
+                "sha256": hashlib.sha256(raw).hexdigest(),
+                "bytes": len(raw),
+                "device": 2**64 - 1,
+                "inode": 2**64 - 1,
+            }
+            for p, raw in bodies.items()
+        ],
+    ]
+    if len(launcher(root, {**scope, "file_bindings": preview}).encode()) > 65536:
         fail("method_launcher_limit")
-    executions.append(
-        {
+    transaction = _Preparation(service.store.root)
+    retained = False
+    had_executions = "method_executions" in receipt
+    try:
+        for relative, raw in bodies.items():
+            transaction.write("sessions/" + sid + "/" + relative, raw)
+        inputs = [
+            _file(root, relative, hashlib.sha256(raw).hexdigest())
+            for relative, raw in bodies.items()
+        ]
+        # Recheck the same exact resource identities after input IO, before publication.
+        if any(_file(root, item["path"], item["sha256"]) != item for item in resources):
+            fail("method_resource_changed")
+        transaction.mkdir(tuple(("sessions/" + sid + "/" + output_root).split("/")), exclusive=True)
+        scope["file_bindings"] = [*resources, *inputs]
+        scope["read_paths"] = [item["path"] for item in scope["file_bindings"]]
+        scope["code"] = launcher(root, scope)
+        scope["code_sha256"] = hashlib.sha256(scope["code"].encode()).hexdigest()
+        if len(scope["code"].encode()) > 65536:
+            fail("method_launcher_limit")
+        record = {
             "schema": "research_owned_method_execution_v1",
             "state": "started",
             "started_at": time.time(),
@@ -350,8 +523,35 @@ def prepare_execution(service, sid, descriptor, call_id, *, start=False):
             "scope": copy.deepcopy(scope),
             "output_root": output_root,
         }
-    )
-    service.store.save()
+        receipt["method_executions"] = [*executions, record]
+        try:
+            service.store.save()
+        except (OSError, StoreError):
+            outcome = _save_outcome(service, receipt_key, executions, execution_id)
+            if outcome != "absent":
+                retained = True
+                if outcome == "unknown":
+                    if had_executions:
+                        receipt["method_executions"] = executions
+                    else:
+                        receipt.pop("method_executions", None)
+                fail("method_preparation_outcome_unknown")
+            raise
+    except (OSError, StoreError, ValueError) as exc:
+        if retained:
+            raise
+        if had_executions:
+            receipt["method_executions"] = executions
+        else:
+            receipt.pop("method_executions", None)
+        if not transaction.rollback():
+            raise StoreError(
+                "方法准备回滚无法确认，保留未知对象", "method_preparation_rollback_unverified", 409
+            ) from exc
+        log.warning("research_method_preparation_rolled_back", error_type=type(exc).__name__)
+        if isinstance(exc, StoreError) and exc.code.startswith("method_"):
+            raise
+        raise StoreError("方法准备失败，未启动Native", "method_preparation_failed", 409) from exc
     log.info("research_owned_method_started", execution_id=execution_id)
     return scope
 

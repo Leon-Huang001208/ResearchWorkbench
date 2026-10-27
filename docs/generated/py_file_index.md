@@ -3989,6 +3989,24 @@ Functions:
 - `version_detail`
 
 
+## `app/research_web/capabilities/scenario_method_packages.py`
+
+Module docstring:
+> Three owned evidence methods, frozen into ordinary versioned Native Skills.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `json`
+- `packages`
+- `pathlib`
+
+Functions:
+- `scenario_method_packages`
+  - Freeze the complete action source and a method-specific explicit entry.
+
+
 ## `app/research_web/capabilities/seeds.py`
 
 Module docstring:
@@ -3999,6 +4017,7 @@ Imports:
 - `pack_resources`
 - `packages`
 - `pathlib`
+- `scenario_method_packages`
 
 Functions:
 - `builtin_initial_status`
@@ -5554,6 +5573,7 @@ Classes:
 - `SourceReadRequest`
 - `SourceCancelRequest`
 - `PackCompletionRequest`
+- `MethodCompletionRequest`
 
 Functions:
 - `research_warehouse_status`
@@ -11051,6 +11071,59 @@ Functions:
   - Validate every ancestor for scene and legacy copies, with cycle protection.
 
 
+## `app/research_web/scenario_method_sources.py`
+
+Module docstring:
+> Closed owned-method inputs and real Native completion on the existing bridge.
+
+Imports:
+- `__future__`
+- `base64`
+- `capabilities.pack_native`
+- `capabilities.pack_resources`
+- `capabilities.packages`
+- `capabilities.scenario_method_packages`
+- `copy`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `scenario_handoffs`
+- `stat`
+- `store`
+- `sys`
+- `time`
+- `uuid`
+
+Classes:
+- `_Preparation`
+  - Own only exclusive births; rollback never removes a reused/replaced object.
+  - methods: __init__, mkdir, identity, write, rollback
+
+Functions:
+- `fail`
+- `runtime_identity`
+- `_file`
+- `source_context`
+  - Read selected original references; no caller content or source overrides.
+- `_resources`
+- `launcher`
+- `prepare_execution`
+- `_save_outcome`
+  - A failed atomic save may have committed; uncertain commits stay unknown.
+- `_freeze_preparation`
+- `_readback`
+- `complete_execution`
+- `quality_issues`
+- `validate_storage`
+  - An orphan or damaged private binding cannot become a new input alias.
+- `original_evidence_files`
+  - Exclude only privately registered generated inputs from source discovery.
+
+
 ## `app/research_web/scenario_pack_execution.py`
 
 Module docstring:
@@ -11290,6 +11363,23 @@ Functions:
   - Fail closed until a named, tested supplier argument adapter is registered.
 
 
+## `app/research_web/scenarios/method_catalog.py`
+
+Module docstring:
+> Three fixed owned-method scenarios alongside the original frozen eight.
+
+Imports:
+- `__future__`
+- `capabilities.scenario_method_packages`
+- `catalog`
+- `core.observability`
+- `models`
+
+Functions:
+- `contracts`
+- `select`
+
+
 ## `app/research_web/scenarios/models.py`
 
 Module docstring:
@@ -11299,6 +11389,31 @@ Classes:
 - `ScenarioError`
   - Public code is stable and never contains private inputs or source contents.
   - methods: __init__
+
+
+## `app/research_web/scenarios/native_argument_adapters.py`
+
+Module docstring:
+> Closed compatibility inputs for existing Native tools, without execution.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `re`
+
+Classes:
+- `ArgumentAdapterError`
+  - Stable adapter rejection; no original input appears in logs.
+
+Functions:
+- `_fail`
+- `_arguments`
+- `_text`
+- `adapt_query_news`
+  - Return only existing datahub_search_news inputs, never a source URL.
+- `adapt_research_question`
+  - Prepare an owned-method preset from a current Host selection.
 
 
 ## `app/research_web/scenarios/pack_catalog.py`
@@ -11705,6 +11820,40 @@ Functions:
   - Validate exact provenance references and reject look-ahead data.
 - `safe_error_payload`
   - Expose only stable error codes and explicitly safe budget metadata.
+
+
+## `app/research_web/skills/_shared/source_actions.py`
+
+Module docstring:
+> Frozen stdlib source checks; the Host owns selection and authorization.
+
+Imports:
+- `__future__`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+
+Functions:
+- `_fail`
+- `_closed`
+- `_day`
+- `_read`
+- `_inspect`
+- `_canonical`
+- `inspect_company_sources`
+  - Check original company materials without guessing financial facts.
+- `inspect_news_sources`
+  - Check acquired event bodies; transmission narratives remain conditional.
+- `inspect_research_materials`
+  - Inventory original research material; no invented interviews or answers.
+- `_run`
+- `save_ledger`
+  - Create a new analytical artifact; it is never an execution receipt.
 
 
 ## `app/research_web/skills/chanlun/scripts/calculate.py`

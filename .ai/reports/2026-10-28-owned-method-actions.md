@@ -71,3 +71,34 @@ SHA-256 `721d4377e10f3193b97a3f0704b55c9e81760bcb5b3839237243a82445ebe14c`。
 
 模块合同与边界见 `docs/research-web-owned-methods.md`。独立 SPEC/QUALITY、完整 Router、
 本地 CI、Mac 干净安装及发布交由主任务聚合，不由本切片自评替代。
+
+## Python QUALITY 准备原子性修复
+
+独立评审基7338仅发现准备阶段先写副本后检查资源/预算的问题；原SPEC与JS评审已通过，不以这些
+评审代替本轮Python复评。仅修改owned来源模块、相关新测试、模块文档、报告与生成Python索引。
+
+RED：`/tmp/rwb-method-atomic-62DCRqRZ/red.log` 在7338实际重现 `_file` 资源拒绝后私有副本残留。
+修复将全部可预检资源/闭包、源身份、数量、总字节（含上下文/资源）、runtime和launcher上界移到写入前。
+小准备事务记录本次exclusive出生的parent/dev/inode；只有身份一致的自有文件和自建空目录可以回滚。
+已有/复用、替换文件及替换父目录一律保留，不清未知，不伪造saved/started掩盖orphan。
+
+Store save异常通过原index读回判别：同一receipt明确没有新ID且原列表一致，才恢复内存旧列表并回滚；
+新ID已提交则保留真实durable prepare intent（没有native_result），无法确认也保留未知并拒绝重复调用。
+没有增加回执schema、恢复器、公开接口或新执行通道；普通来源/alias/Native与质量权限门均未放宽。
+
+GREEN：`final2.log` 11 tests PASS（57.75s）：实际资源拒绝、真实源与资源字节sum的限额-1/精确限额边界、
+write/fdopen/readback/save-before故障及显式重试、已有文件保护、文件/父inode替换保护、save-after真实
+原子发布后的未知不可重试。首轮8通过；补测首轮仅测试把已有directory包装的StoreError误认OSError，
+改为核验实际异常及cause，未放松产品拒绝。没有运行模型、来源child、供应商网络或安装依赖。
+
+原7338的53/25与真实Native链没有机械重跑：`unchanged-abi.json`逐函数AST比较确认 launcher、_file、
+source_context、_resources、_readback、complete_execution、quality_issues、validate_storage、
+original_evidence_files 九函数不变；Native JS、sandbox、固定Skill资源/入口、权限和报告实现未改。
+这仅说明可复用证据范围，不把旧SHA执行伪写成本候选执行。C2/C4/非正基数三个CODE pending保持。
+
+本轮两文件 Ruff/Black/isort 与生成Python索引 --check PASS，diff --check PASS。新证据根独立登记
+`/tmp/rwb-method-atomic-62DCRqRZ/owner.json`，未使用共享pytest根，也未写入独立评审的保护证据根。
+243份必要原件/index/故障回执与日志、共2,642,106原始字节逐项恢复核SHA-256通过后，保存为
+`evidence/preparation-evidence.tar.gz`（427,937 bytes，SHA-256
+`7a7d0e1d7e52e0b449dfb3f53b5b50ae8e036042bdd6cda19a49db7fb30d99eb`）。
+仅回收本轮四个登记pytest子目录，retirement.json status=cleaned，测试根从1.0 GiB降为1.2 MiB。
