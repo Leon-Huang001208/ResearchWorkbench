@@ -110,13 +110,14 @@ def security(value: Any) -> tuple[str, str, str, str]:
     return tuple(value[k] for k in ("security_id", "market", "asset_class", "currency"))
 
 
-def encoded(value: Any, limit: int = MAX_BYTES) -> bytes:
+def encoded(value: Any, limit: int | None = None, *, sort_keys: bool = False) -> bytes:
     """Stream encoding counts before allocating a full serialized copy."""
+    limit = MAX_BYTES if limit is None else limit
     size = 0
     parts = []
     try:
         for chunk in json.JSONEncoder(
-            allow_nan=False, ensure_ascii=False, separators=(",", ":")
+            allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=sort_keys
         ).iterencode(value):
             part = chunk.encode("utf-8")
             size += len(part)
@@ -216,9 +217,25 @@ def result(
         ]
         + (limitations or []),
     }
-    # Hash covers the receipt before its own digest. Not a signed execution authority.
-    output["result_sha256"] = hashlib.sha256(encoded(output, 65536)).hexdigest()
-    encoded(output, 65536)
+    # Only preview rows may shrink. Missing/rejected/source metadata stays complete.
+    inline_count = min(128, len(rows))
+    while True:
+        output.pop("result_sha256", None)
+        output["rows"] = rows[:inline_count]
+        output["row_delivery"] = {
+            "mode": "inline" if inline_count == len(rows) else "summary_with_source_refs",
+            "total_output_rows": len(rows),
+            "inline_output_rows": inline_count,
+            "omitted_output_rows": len(rows) - inline_count,
+        }
+        try:
+            output["result_sha256"] = hashlib.sha256(encoded(output, 65536)).hexdigest()
+            encoded(output, 65536)
+            break
+        except PackError as exc:
+            if exc.code != "workload_too_large" or inline_count == 0:
+                raise
+            inline_count //= 2
     log.info(
         "research_pack_calculated method=%s rows=%d status=%s", method, count, output["status"]
     )

@@ -125,3 +125,50 @@ git diff --check通过，未安装依赖。
 
 本轮无push、Host/Native/UI接口变动、模型/供应商/业务数据/部署；CI/Mac安装和真实来源/质量仍NOT_RUN。
 等待Root对新scope commit做Python QUALITY复评，不能将测试通过称为九包整体完成。
+
+## A2：IO-free完整制品接口（基于双Approved 4f357f2）
+
+新增execute_atom_bundle/execute_pack_bundle与frozen ExecutionBundle/FullResultArtifact；
+四个入口共用私有_calculate_atom/_calculate_pack，一次registered方法调用捕获投影前完整rows，
+没有重算、复制算法、旧18调用或全局缓存。旧公开接口仍返回dict且保留原receipt digest语义。
+包完整制品root.rows采用component_id引用，components包含各方法的全部rows/metrics/缺口/拒绝/
+source_refs、参数摘要、输入digest、NOT_RUN与明确计数；不会从128投影补行。
+完整canonical bytes为UTF-8/有限数/sort_keys/紧凑JSON，schema research_pack_full_result_v1，
+实际bytes计算sha256/byte_count，descriptor保存根和各component输出行数。
+
+full artifact总16MiB含完整root/components/metadata；每个component入闭包前累计全量字节，
+最终整个payload再核预算。原派生基数/生成中字节/输入及series门保留。receipt仅rows可自适应
+128→64→...→0以守64KiB，真实total/inline/omitted不变；missing/rejected/source_refs/metrics不删。
+metadata自身超64KiB仍拒绝。immutable artifact不含caller records引用，不写文件/不输出结果stdout，
+不接受路径、sink、passed、owner或rights。日志只计数/bytes/hash。
+
+full input_digest_kind明确normalized_canonical_json_v1；其SHA仅对规范内存输入，不是Host原件或
+未来封印文件SHA。旧receipt输入摘要另保留legacy_normalized_input_sha256，receipt_sha256单独引用。
+code_version保留method_version/source_binding=host_required，实际source_sha256和frozen_resource_version
+为null，留B绑定可信实际资源闭包；不自造已发布代码证明，不提升资格或质量。完整输入仍须独立封印保存。
+
+TDD：logs/research-packs-a2-red.log实际8 failed（缺新增接口）；后续捕获全量测试首次98通过、
+1失败源于测试fixture首个事件本为unlock而测试误写risk索引，核实原JSON后将期望定位到正确的
+unlock行，不改变原事件/算法/golden。原91断言不删改，A2新增11项，总聚焦102项。
+覆盖1000仓位尾项、128/872投影，包130仓位/390风险完整组件及根2行计数、每method spy恰一次，
+实际bytes/hash/canonical一致、immutable bytes、各child独立可用而整体超预算拒绝、完整artifact
+阈值等号/减1、>64KiB单行0预览且完整行保存、缺失/拒绝/source refs不丢、旧facade一致、
+canonical输入顺序不变性、非有限数/小输入阈值拒绝、不可信权限字段拒绝。
+
+最终同既有venv/pytest缓存/PYTHONDONTWRITEBYTECODE=1执行目标及相邻五文件：
+`python -m pytest --confcutdir=tests/research_web tests/research_web/test_research_pack_contracts.py
+ tests/research_web/test_research_pack_calculations.py tests/research_web/test_cpu_budget.py
+ tests/research_web/test_research_scenarios_catalog.py tests/research_web/test_scenario_handoffs.py
+ --basetemp=<新opaque目录> -q`。
+155 passed、16 subtests、1原Starlette/anyio弃用warning，33.54s；Ruff、Black --check、
+isort --check-only及git diff --check通过，8个Python文件。未安装新依赖。
+日志logs/research-packs-a2-verified.log SHA256
+`1722ebb22e645e177c94c30e87733cd944a83cec89f8a1c63153faddd43ebb35`。
+receipt logs/research-packs-a2-verified-receipt.json记录完整argv/runner PID4219/pytest PID4220/UID501。
+精确tempRoot `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-packs-a2-verified-7bda5752-mu9s5c5s`
+已在子进程终止后验证本UID/非symlink，仅调整本树owner目录权限并清理，cleaned=true。
+
+64MiB输入/16MiB真实大内存等号/+1压力仍NOT_RUN；受控小阈值覆盖实际预算路径。
+B的versioned staging/fsync/atomic publish、Host实际文件读回/hash/schema/count登记、Native运行、
+DSH/UI、CI/Mac安装、模型/供应商/真实来源/PIT/报告质量与部署均未执行。A2待独立SPEC/Python
+增量审查；不表示B或九包整体已完成，不push。

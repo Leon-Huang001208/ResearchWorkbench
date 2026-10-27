@@ -109,3 +109,62 @@ Q4/FY歧义组合拒绝。变化只计算请求序列中相邻且都有披露的
 不再每行扫描整个history。5000/5001、两个2501序列、重复版本及计数型比较哨兵均有回归。
 带时区instant转换UTC也在受控异常边界内，超出datetime最小/最大日期返回稳定instant_invalid，
 不泄漏裸OverflowError；原严格时区格式、naive拒绝和其他日期语义保持。
+
+## A2：单次计算的完整制品消费接口
+
+新增 `execute_atom_bundle(...)`、`execute_pack_bundle(...)`，参数完全复用各自既有接口，
+不能加owner/rights/passed、任意文件路径、sink或执行器参数。返回frozen dataclass：
+
+```python
+ExecutionBundle(receipt: dict, full_result: FullResultArtifact)
+FullResultArtifact(
+    canonical_json: bytes, sha256: str, byte_count: int,
+    root_row_count: int, component_row_counts: tuple[tuple[str, int], ...],
+)
+```
+
+既有execute_atom/execute_pack仍只返回dict。四个入口共用私有_calculate_atom/_calculate_pack；
+每个registered方法在一次请求里恰好计算一次，捕获投影前的fullrows，receipt和完整制品只是
+同一次结果的两种序列化。不调用旧18算法，不重跑来补行，不使用全局/线程缓存或上次结果。
+模块不写文件、不输出结果到stdout、不启动Native，不接受IO回调；日志仅含方法/计数/size/hash。
+
+完整canonical JSON固定为有限数、UTF-8、对象key排序、紧凑分隔符，schema名
+`research_pack_full_result_v1`，顶层字段如下：
+
+| 字段 | 合同 |
+|---|---|
+| schema/schema_version | 固定schema名/1 |
+| root_rows_kind | atom为calculation_rows，pack为component_references |
+| root | method/version、完整metrics/rows/missing/rejected_rows/source_refs/limitations、参数摘要、输入摘要与NOT_RUN状态 |
+| components | 包的每个已执行方法的完整payload；atom为空数组；没有投影截断 |
+| counts | root_output_rows与component_output_rows，后者以method为键 |
+
+root及每个component另含counts：processed_input_rows、total_output_rows、missing_count、
+rejected_count、source_ref_count。pack.root.rows每行仅`{component_id: method}`指向唯一完整组件，
+其根行数不冒充子计算行数；例如持仓130/风险390行，对应根2行与两个明确组件计数。
+缺数/阻断时也返回合法零/部分行制品及完整missing，不用空文件替代。未执行的方法没有假组件。
+
+full payload的input_digest_kind为normalized_canonical_json_v1，input_sha256与
+canonical_input_sha256均绑定规范内存输入；pack包含source_coverage声明。
+它不同于未来封印输入文件或Host原件的原始bytes SHA256，不能当PIT/来源/权限证据。
+legacy_normalized_input_sha256保留旧receipt输入摘要，receipt_sha256引用原有receipt结果hash。
+旧receipt的input_sha256与result_sha256计算语义保留。完整制品不复制64MiB原文输入；
+参数列表仍以完整集合hash/count引用，因此复算必须保留独立封印输入。
+source_refs保留完整locator，code_version包含method_version与source_binding=host_required，
+source_sha256/frozen_resource_version明确null，绝不自造实际发布版本/代码hash；
+B需要在可信资源闭包及外层执行manifest绑定实际代码版本和原件hash。
+
+full_result.sha256/byte_count均从实际canonical_json bytes计算，制品对象只持有不可变bytes与
+不可变计数tuple，不持有caller可变records引用。Host资格及研究质量仍NOT_RUN，旧组件block和
+包partial scope保持；类型对象本身不是任何授权。Host登记前还须重读真实发布文件、验证其实际
+hash/size/schema、根和每个组件的完整计数、来源与代码闭包，不信客户端descriptor声明。
+
+单个完整制品（含root、全部components及所有metadata）共用16MiB预算。包在保留下个组件前
+累计完整组件字节，最后对整个canonical封包再核16MiB；不能每个child各16MiB后累计绕门。
+原50k输入/派生基数、逐行派生字节、5k系列和64MiB输入门保持。receipt继续≤64KiB且rows≤128，
+必要时缩小到64/32/.../0行，total/inline/omitted真实；missing/rejected/source_refs/metrics不删。
+若非rows metadata本身超64KiB则稳定workload_too_large；不把16MiB bytes/base64塞进receipt。
+将来Native还需为自己的stdout manifest另行预留预算，原receipt可独立归档，不强塞更大envelope。
+
+本步没有staging/fsync/atomic publish实现；B只能原样写完整bytes并重新核验，不能跑算法补行。
+16MiB等号/+1及组合总额、64MiB拒绝路径使用受控小阈值验证，大内存实际压力仍NOT_RUN。

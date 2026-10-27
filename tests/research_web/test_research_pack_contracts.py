@@ -565,3 +565,254 @@ def test_quality_report_calendar_duplicate_checks_are_linear():
 def test_quality_datetime_utc_overflow_is_stable_pack_error(stamp):
     with pytest.raises(PackError, match="instant_invalid"):
         execute_atom("deduplicate_source_versions", {}, {"as_of": stamp})
+
+
+def bundle_positions(count=130):
+    v = fixture("validate_positions.success")
+    prototype = v["records_by_kind"]["position"][0]
+    records, universe = [], []
+    for index in range(count):
+        row = copy.deepcopy(prototype)
+        row["row_id"] = f"p-{index}"
+        row["security"]["security_id"] = f"SYN:BUNDLE{index}"
+        row["weight"], row["weight_unit"] = 1 / count, "fraction"
+        records.append(row)
+        universe.append(row["security"])
+    v["records_by_kind"] = {"position": records}
+    v["parameters"]["expected_universe"] = universe
+    return v
+
+
+def bundle_position_pack(count=130):
+    v = bundle_positions(count)
+    universe = v["parameters"]["expected_universe"]
+    p = {
+        "as_of": v["parameters"]["as_of"],
+        "validate_positions": {k: x for k, x in v["parameters"].items() if k != "as_of"},
+        "join_risk_windows": {
+            "positions": universe,
+            "category_coverage": [],
+            "window_start": "2026-01-01",
+            "window_end": "2026-01-12",
+        },
+    }
+    prototype = fixture("join_risk_windows.success")["records_by_kind"]["risk-event"][0]
+    events = []
+    for index, identity in enumerate(universe):
+        event = copy.deepcopy(prototype)
+        event["row_id"], event["event_id"], event["security"] = (
+            f"e-{index}",
+            f"event-{index}",
+            identity,
+        )
+        events.append(event)
+        for category in ("risk", "unlock", "insider"):
+            p["join_risk_windows"]["category_coverage"].append(
+                {
+                    "security": identity,
+                    "category": category,
+                    "source_ref": "scope-declaration",
+                    "exhaustive": True,
+                    "window_start": "2026-01-01",
+                    "window_end": "2026-01-12",
+                }
+            )
+    return v["records_by_kind"] | {"risk-event": events}, p
+
+
+def test_bundle_atom_full_tail_descriptor_and_one_calculation(monkeypatch):
+    import hashlib
+
+    from app.research_web.scenarios import packs
+
+    v = bundle_positions(1000)
+    function, kinds, keys = packs.METHODS["validate_positions"]
+    calls = []
+
+    def spy(*args):
+        calls.append(1)
+        return function(*args)
+
+    monkeypatch.setitem(packs.METHODS, "validate_positions", (spy, kinds, keys))
+    bundle = packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    assert calls == [1]
+    artifact = bundle.full_result
+    full = json.loads(artifact.canonical_json)
+    assert full["schema"] == "research_pack_full_result_v1"
+    assert artifact.root_row_count == 1000
+    assert artifact.component_row_counts == ()
+    assert full["root"]["rows"][-1]["row_id"] == "p-999"
+    assert len(bundle.receipt["rows"]) == 128
+    assert bundle.receipt["row_delivery"]["omitted_output_rows"] == 872
+    assert artifact.byte_count == len(artifact.canonical_json)
+    assert artifact.sha256 == hashlib.sha256(artifact.canonical_json).hexdigest()
+    assert full["root"]["input_digest_kind"] == "normalized_canonical_json_v1"
+    assert full["root"]["canonical_input_sha256"]
+    assert full["root"]["code_version"]["source_binding"] == "host_required"
+    assert full["root"]["source_refs"]
+    assert (
+        artifact.canonical_json
+        == json.dumps(
+            full, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":")
+        ).encode()
+    )
+
+
+def test_bundle_pack_keeps_every_component_and_calculates_once(monkeypatch):
+    from app.research_web.scenarios import packs
+
+    records, parameters = bundle_position_pack()
+    calls = []
+    for method in ("validate_positions", "join_risk_windows"):
+        function, kinds, keys = packs.METHODS[method]
+
+        def spy(*args, name=method, implementation=function):
+            calls.append(name)
+            return implementation(*args)
+
+        monkeypatch.setitem(packs.METHODS, method, (spy, kinds, keys))
+    bundle = packs.execute_pack_bundle("position-risk", records, parameters)
+    assert calls == ["validate_positions", "join_risk_windows"]
+    full = json.loads(bundle.full_result.canonical_json)
+    assert bundle.full_result.root_row_count == 2
+    assert dict(bundle.full_result.component_row_counts) == {
+        "validate_positions": 130,
+        "join_risk_windows": 390,
+    }
+    components = {component["method"]: component for component in full["components"]}
+    assert components["validate_positions"]["rows"][-1]["row_id"] == "p-129"
+    assert components["join_risk_windows"]["rows"][388]["events"][0]["event_id"] == "event-129"
+    assert full["root"]["rows"] == [
+        {"component_id": "validate_positions"},
+        {"component_id": "join_risk_windows"},
+    ]
+    assert len(bundle.receipt["rows"][1]["result"]["rows"]) <= 128
+    assert full["root"]["host_qualification"] == "NOT_RUN"
+    assert full["root"]["research_quality"] == "NOT_RUN"
+
+
+def test_bundle_aggregate_budget_includes_all_components(monkeypatch):
+    from app.research_web.scenarios import packs
+    from app.research_web.scenarios.packs import bundles
+
+    records, parameters = bundle_position_pack()
+    atom_sizes = []
+    for method in ("validate_positions", "join_risk_windows"):
+        subset = {k: x for k, x in records.items() if k in packs.METHODS[method][1]}
+        atom_sizes.append(
+            packs.execute_atom_bundle(
+                method, subset, {"as_of": parameters["as_of"], **parameters[method]}
+            ).full_result.byte_count
+        )
+    limit = max(atom_sizes) + 100
+    monkeypatch.setattr(bundles, "MAX_FULL_RESULT_BYTES", limit)
+    for method in ("validate_positions", "join_risk_windows"):
+        subset = {k: x for k, x in records.items() if k in packs.METHODS[method][1]}
+        assert (
+            packs.execute_atom_bundle(
+                method, subset, {"as_of": parameters["as_of"], **parameters[method]}
+            ).full_result.byte_count
+            < limit
+        )
+    with pytest.raises(PackError, match="workload_too_large"):
+        packs.execute_pack_bundle("position-risk", records, parameters)
+
+
+def test_bundle_byte_boundary_and_immutable_artifact(monkeypatch):
+    from app.research_web.scenarios import packs
+    from app.research_web.scenarios.packs import bundles
+
+    v = bundle_positions()
+    baseline = packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    monkeypatch.setattr(bundles, "MAX_FULL_RESULT_BYTES", baseline.full_result.byte_count)
+    assert (
+        packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"]).full_result
+        == baseline.full_result
+    )
+    monkeypatch.setattr(bundles, "MAX_FULL_RESULT_BYTES", baseline.full_result.byte_count - 1)
+    with pytest.raises(PackError, match="workload_too_large"):
+        packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    original_bytes = baseline.full_result.canonical_json
+    v["records_by_kind"]["position"][-1]["security"]["currency"] = "USD"
+    assert baseline.full_result.canonical_json == original_bytes
+
+
+def test_bundle_large_row_uses_short_preview_without_deleting_metadata():
+    from app.research_web.scenarios import packs
+
+    v = calendar_versions(1, 100)
+    for index, row in enumerate(v["records_by_kind"]["report-calendar"]):
+        row["row_id"] = str(index) + "x" * 1000
+    bundle = packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    assert len(bundle.receipt["rows"]) == 0
+    assert bundle.receipt["row_delivery"]["omitted_output_rows"] == 1
+    assert len(json.dumps(bundle.receipt, ensure_ascii=False).encode()) <= 65536
+    assert (
+        len(json.loads(bundle.full_result.canonical_json)["root"]["rows"][0]["history_row_ids"])
+        == 100
+    )
+
+
+@pytest.mark.parametrize("field", ["passed", "owner_id", "rights"])
+def test_bundle_rejects_new_authority_fields(field):
+    from app.research_web.scenarios import packs
+
+    v = bundle_positions()
+    v["parameters"][field] = True
+    with pytest.raises(PackError, match="parameters_invalid"):
+        packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+
+
+def test_bundle_full_missing_rejected_and_facade_compatibility():
+    from app.research_web.scenarios import packs
+
+    v = fixture("compare_qualified_expectations.success")
+    bundle = packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    root = json.loads(bundle.full_result.canonical_json)["root"]
+    assert root["rejected_rows"] == bundle.receipt["rejected_rows"]
+    assert root["source_refs"] == bundle.receipt["source_refs"]
+    assert root["counts"]["rejected_count"] == len(root["rejected_rows"])
+    assert packs.execute_atom(v["atom"], v["records_by_kind"], v["parameters"]) == bundle.receipt
+    missing = packs.execute_pack_bundle("event-review", {}, {"as_of": "2026-01-12T00:00:00Z"})
+    root = json.loads(missing.full_result.canonical_json)["root"]
+    assert root["missing"] == missing.receipt["missing"]
+    assert root["metrics"]["blocked_components"] == ["event_return_comparison_receipt_required"]
+    assert root["counts"]["total_output_rows"] == 0
+    assert root["status"] == "insufficient_data"
+
+
+def test_bundle_input_digest_is_canonical_and_not_original_file_sha():
+    import hashlib
+
+    from app.research_web.scenarios import packs
+
+    v = bundle_positions()
+    expected = hashlib.sha256(
+        json.dumps(
+            {"records": v["records_by_kind"], "parameters": v["parameters"]},
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    a = packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    v["parameters"] = dict(reversed(list(v["parameters"].items())))
+    b = packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    assert json.loads(a.full_result.canonical_json)["root"]["input_sha256"] == expected
+    assert json.loads(b.full_result.canonical_json)["root"]["input_sha256"] == expected
+    assert "original_file_sha256" not in json.loads(a.full_result.canonical_json)["root"]
+
+
+def test_bundle_input_budget_and_nonfinite_stay_strict(monkeypatch):
+    from app.research_web.scenarios import packs
+    from app.research_web.scenarios.packs import contracts
+
+    v = bundle_positions()
+    v["records_by_kind"]["position"][0]["weight"] = float("inf")
+    with pytest.raises(PackError):
+        packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+    v = bundle_positions()
+    monkeypatch.setattr(contracts, "MAX_BYTES", 256)
+    with pytest.raises(PackError, match="workload_too_large"):
+        packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])

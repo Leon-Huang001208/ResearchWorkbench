@@ -9,9 +9,25 @@ from __future__ import annotations
 import hashlib
 
 from . import atoms, limited
+from .bundles import (
+    ExecutionBundle,
+    FullClosureBudget,
+    FullResultArtifact,
+    build_bundle,
+    canonical_json,
+    capture_result,
+)
 from .contracts import PackError, encoded, require, result, security, validate_inputs
 
-__all__ = ["PackError", "execute_atom", "execute_pack"]
+__all__ = [
+    "ExecutionBundle",
+    "FullResultArtifact",
+    "PackError",
+    "execute_atom",
+    "execute_atom_bundle",
+    "execute_pack",
+    "execute_pack_bundle",
+]
 
 METHODS = {
     "validate_positions": (
@@ -78,7 +94,7 @@ REQUIRED_COVERAGE = {
 }
 
 
-def execute_atom(method: str, records_by_kind: dict, parameters: dict) -> dict:
+def _calculate_atom(method: str, records_by_kind: dict, parameters: dict):
     """Compute a format-checked receipt. Never asserts rights or report quality."""
     require(isinstance(method, str) and method in METHODS, "method_unknown")
     function, kinds, keys = METHODS[method]
@@ -111,7 +127,7 @@ def execute_atom(method: str, records_by_kind: dict, parameters: dict) -> dict:
         if missing and not rows and not metrics.get("percentile_interval")
         else None
     )
-    return result(
+    receipt = result(
         method,
         count,
         rows,
@@ -124,11 +140,31 @@ def execute_atom(method: str, records_by_kind: dict, parameters: dict) -> dict:
         parameters,
         hashlib.sha256(encoded({"records": records, "parameters": parameters})).hexdigest(),
     )
+    return capture_result(
+        receipt,
+        rows,
+        hashlib.sha256(canonical_json({"records": records, "parameters": parameters})).hexdigest(),
+    )
 
 
-def execute_pack(
-    pack_id: str, records_by_kind: dict, parameters: dict, *, source_coverage: dict | None = None
-) -> dict:
+def execute_atom(method: str, records_by_kind: dict, parameters: dict) -> dict:
+    """Return the compatible bounded receipt from one in-memory calculation."""
+    return _calculate_atom(method, records_by_kind, parameters).receipt
+
+
+def execute_atom_bundle(method: str, records_by_kind: dict, parameters: dict) -> ExecutionBundle:
+    """Return one calculation's receipt and immutable complete-result bytes."""
+    return build_bundle(_calculate_atom(method, records_by_kind, parameters))
+
+
+def _calculate_pack(
+    pack_id: str,
+    records_by_kind: dict,
+    parameters: dict,
+    *,
+    source_coverage: dict | None = None,
+    bundle_budget: bool = False,
+):
     """Limited nine-pack composition; source coverage remains a declaration.
 
     parameters contains as_of plus a method-named object for each chosen method.
@@ -166,7 +202,8 @@ def execute_pack(
         for c in REQUIRED_COVERAGE[pack_id]
         if not source_coverage.get(c, {}).get("exhaustive")
     ]
-    subresults, rows = [], []
+    subresults, rows, components = [], [], []
+    full_budget = FullClosureBudget() if bundle_budget else None
     for method in methods:
         _, kinds, keys = METHODS[method]
         selected = {k: v for k, v in records.items() if k in kinds}
@@ -194,7 +231,13 @@ def execute_pack(
                 len(risk_keys) == len(expected_keys) and set(risk_keys) == set(expected_keys),
                 "risk_universe_mismatch",
             )
-        sub = execute_atom(method, selected, {"as_of": parameters["as_of"], **parameters[method]})
+        calculation = _calculate_atom(
+            method, selected, {"as_of": parameters["as_of"], **parameters[method]}
+        )
+        if full_budget is not None:
+            full_budget.add(calculation.full)
+        components.append(calculation.full)
+        sub = calculation.receipt
         subresults.append(sub)
         missing.extend({"component": method, **x} for x in sub["missing"])
         # Retain child projection accounting; never pretend this is the full row set.
@@ -221,4 +264,34 @@ def execute_pack(
             )
         ).hexdigest(),
     )
-    return output
+    full_rows = [{"component_id": component["method"]} for component in components]
+    canonical_input = {
+        "records": records,
+        "parameters": parameters,
+        "source_coverage": source_coverage,
+    }
+    return capture_result(
+        output, full_rows, hashlib.sha256(canonical_json(canonical_input)).hexdigest(), components
+    )
+
+
+def execute_pack(
+    pack_id: str, records_by_kind: dict, parameters: dict, *, source_coverage: dict | None = None
+) -> dict:
+    return _calculate_pack(
+        pack_id, records_by_kind, parameters, source_coverage=source_coverage
+    ).receipt
+
+
+def execute_pack_bundle(
+    pack_id: str, records_by_kind: dict, parameters: dict, *, source_coverage: dict | None = None
+) -> ExecutionBundle:
+    return build_bundle(
+        _calculate_pack(
+            pack_id,
+            records_by_kind,
+            parameters,
+            source_coverage=source_coverage,
+            bundle_budget=True,
+        )
+    )
