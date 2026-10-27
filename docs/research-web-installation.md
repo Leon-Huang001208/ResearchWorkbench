@@ -1,5 +1,14 @@
 # Research Web Native / Docker 安装与运行
 
+固定SDK专项由原Mac Bootstrap强制承接：现有干净安装/固定DSH构建/3081及8088/Doctor与installed资源
+验收先保存，再在同一CI临时venv仅安装pyproject原已声明的pytest、pytest-asyncio测试工具（不editable
+安装根项目）。前后用隔离-I导入核installed app路径及全部非再生包资源字节，记录pip实际新增及既有
+runtime distributions版本不变；任何已有依赖替换仍失败。使用安装器实际Node24.19.0和已构建pin SDK，
+硬验Git HEAD/compiled libs并执行无skip的test_owned_news_native_sdk.py，owner/显式basetemp/JUnit/log/
+receipt进入原成功或失败artifact。Host fixtures来自checkout、Native来自已构建SDK，安装证据与合同
+分别记录。通用Checks完整运行compat Host参数/权限/取消，不假称其具备SDK；无新增job/runner/timeout/
+产品依赖定义。本机不安装包，实际CI执行须另证。
+
 研究场景及资产研究工作区（2026-10-27）随现有 Web 包和静态资源安装，无新增 Python／Node 依赖、服务或供应商凭据通道。原 Mac Bootstrap 同一步新增四个静态文件的 HTTP／源码字节核对，以及场景、原件和工作区模块导入／固定目录完整性检查。`requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`和公开一键入口不变；仍需同候选干净安装证明兼容。已发布能力、原生发现、来源权限与数据覆盖决定具体场景可用性，安装成功不等于供应商、模型或报告质量已验收。结构化研究资料由窄入口校验，不扩大通用上传白名单；原个人凭据和受管 MCP 的配置规则保持。
 
 分钟K复用已锁定CJPY 0.5.2与本地图表库，无新增依赖。Mac Bootstrap原同源资源校验新增asset-minute-k.mjs及后端import；无凭据CI只验证依赖和离线合同。requirements/web.in、web.lock、scripts/setup_web.py入口未变，完整同候选Mac干净安装仍必需。

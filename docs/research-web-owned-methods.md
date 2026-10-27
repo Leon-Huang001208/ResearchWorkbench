@@ -129,3 +129,8 @@ UI/guard50项通过，包含仅wrapper目录掩蔽/恢复、cutoff和preset冲�
 内置Skill UI固定为旧39加三owned CID（共42），18个receipt-gated仍disabled，新三项当前v1仅表示
 目录版本与可准备草稿按钮，不授予来源或研究通过。closed script mode测试按四种互斥模式的精确拒绝合同
 核验空/mixed输入零spawn；这些测试更新不改变产品运行代码。
+
+真实SDK wrapper合同现在独立为test_owned_news_native_sdk.py，无缺环境skip。通用Checks只跑完整Host
+compat模块；原Mac Bootstrap在干净安装/Doctor/资源证明后，复用实际安装器Node与built pin执行SDK
+专项，已声明测试工具仅在CI临时venv准备，installed app字节与原runtime distributions保持。普通本机
+Node选择可用RWB_TEST_NODE或PATH，缺可执行明确失败；固定SDK须有正确Git HEAD及实际compiled libs。

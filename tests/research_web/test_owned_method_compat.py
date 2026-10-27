@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import select
+import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,25 @@ import pytest
 import test_owned_method_execution as fixtures
 
 api = fixtures.api
+
+
+def _native_node_executable():
+    configured = os.environ.get("RWB_TEST_NODE") or "node"
+    resolved = shutil.which(configured)
+    assert resolved, "Native Node executable required via RWB_TEST_NODE or PATH"
+    return resolved
+
+
+def test_native_node_resolves_explicit_override_or_path_and_fails_if_absent(monkeypatch):
+    node = _native_node_executable()
+    monkeypatch.setenv("RWB_TEST_NODE", node)
+    assert _native_node_executable() == node
+    monkeypatch.delenv("RWB_TEST_NODE")
+    monkeypatch.setenv("PATH", str(Path(node).parent))
+    assert _native_node_executable() == node
+    monkeypatch.setenv("PATH", "")
+    with pytest.raises(AssertionError, match="Native Node executable required"):
+        _native_node_executable()
 
 
 @pytest.mark.parametrize(
@@ -107,7 +127,9 @@ def test_wrapper_rechecks_scope_source_and_actual_cancel_before_snapshot(api, mo
     assert not service.datahub.snapshots.ids(sid)
 
 
-def test_native_news_wrapper_real_host_provider_and_bounded_snapshot(api, monkeypatch, tmp_path):
+def _exercise_native_news_wrapper_real_host_provider_and_bounded_snapshot(
+    api, monkeypatch, tmp_path
+):
     client, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     calls = []
@@ -148,7 +170,7 @@ def test_native_news_wrapper_real_host_provider_and_bounded_snapshot(api, monkey
             }
         )
     )
-    node = os.environ["RWB_TEST_NODE"]
+    node = _native_node_executable()
     process = subprocess.Popen(
         [
             node,

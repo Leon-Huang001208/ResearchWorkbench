@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import re
+import time
 import zipfile
 
 import pytest
@@ -16,8 +17,10 @@ from app.research_web.capabilities.catalog import CapabilityCatalog
 from app.research_web.capabilities.models import CapabilityError, Metadata, Step
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+from core.observability import get_logger
 
 api = api_fixture
+log = get_logger(__name__)
 
 
 def test_pre_capability_receipt_still_replays_without_model(api):
@@ -218,7 +221,7 @@ def test_mutations_block_on_parent_child_uncertain_but_draft_is_retained(api, st
 
 
 @pytest.mark.asyncio
-async def test_send_and_publication_use_same_mutex(tmp_path):
+async def test_send_and_publication_use_same_mutex(tmp_path, monkeypatch):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     service.connected = {"mux", "host"}
@@ -229,6 +232,17 @@ async def test_send_and_publication_use_same_mutex(tmp_path):
     discovery(native, service)
     original = native.rpc
     entered, release = asyncio.Event(), asyncio.Event()
+    snapshot_ready = asyncio.Event()
+    snapshot_catalog = service.capabilities.snapshot_catalog
+
+    def observe_snapshot(root):
+        start = time.monotonic()
+        result = snapshot_catalog(root)
+        log.info("mutex_test_real_snapshot_complete", seconds=time.monotonic() - start)
+        snapshot_ready.set()
+        return result
+
+    monkeypatch.setattr(service.capabilities, "snapshot_catalog", observe_snapshot)
 
     async def rpc(method, payload):
         if method == "session.prompt":
@@ -242,15 +256,32 @@ async def test_send_and_publication_use_same_mutex(tmp_path):
             sid, "研究", "race-request", formats=[], capability_id=cid, capability_version=1
         )
     )
-    await asyncio.wait_for(entered.wait(), 2)
-    changing = asyncio.create_task(service.change_capability(cid, "disable"))
-    await asyncio.sleep(0)
-    assert not changing.done()
-    release.set()
-    await sending
-    with pytest.raises(CapabilityError, match="尚未确认"):
-        await changing
-    assert service.capabilities.row(cid)["status"] == "enabled"
+    preparing = asyncio.create_task(snapshot_ready.wait())
+    try:
+        completed, _ = await asyncio.wait(
+            {preparing, sending}, timeout=15, return_when=asyncio.FIRST_COMPLETED
+        )
+        if sending in completed:
+            await sending  # Propagate a real admission error instead of hiding it as a timeout.
+            pytest.fail("send returned before the Native prompt barrier")
+        assert preparing in completed, "real snapshot preparation did not complete"
+        await asyncio.wait_for(entered.wait(), 2)
+        changing = asyncio.create_task(service.change_capability(cid, "disable"))
+        await asyncio.sleep(0)
+        assert not changing.done()
+        release.set()
+        await sending
+        with pytest.raises(CapabilityError, match="尚未确认"):
+            await changing
+        assert service.capabilities.row(cid)["status"] == "enabled"
+    finally:
+        release.set()
+        if not preparing.done():
+            preparing.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await preparing
+        if not sending.done():
+            await asyncio.wait_for(sending, 15)
 
 
 def test_publication_io_failure_keeps_old_mapping_or_blocks(api, monkeypatch):
@@ -338,7 +369,57 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
     catalog = service.store.receipt(sid, "native-auto-skill")["capability_catalog"]
-    assert len([row for row in catalog if not row["id"].startswith("research-pack-")]) == 26
+    original_nonpack = {
+        "document-reading",
+        "company-research",
+        "industry-research",
+        "fund-evaluation",
+        "market-commentary",
+        "factor-database-research",
+        "sell-side-report-reader",
+        "finance-news-event-research",
+        "industry-chain-research",
+        "earnings-consensus-research",
+        "macro-asset-research",
+        "framework-research",
+        "market-commentary-workflow",
+        "fund-research-workflow",
+        "company-research-workflow",
+        "report-production-workflow",
+        "socratic-clarification",
+        "dual-layer-explanation",
+        "reverse-engineering",
+        "horizontal-vertical-analysis",
+        "fact-checking",
+        "expert-perspectives",
+        "first-principles",
+        "cross-domain-transfer",
+        "steelman-comparison",
+        "minimal-experiment",
+    }
+    owned = {"owned-company-evidence", "owned-news-evidence", "owned-research-prep"}
+    assert len(original_nonpack) == 26
+    actual_nonpack = {row["id"] for row in catalog if not row["id"].startswith("research-pack-")}
+    assert actual_nonpack == original_nonpack | owned
+    assert len(actual_nonpack) == 29
+    for row in catalog:
+        if row["id"] not in owned:
+            continue
+        assert row["version"] == 1
+        assert row["native_name"] == row["id"]
+        version = service.capabilities.row(row["id"])["versions"]["1"]
+        assert version["metadata"]["required_tools"] == [
+            "research_read_source",
+            "research_run_script",
+            "research_check_quality",
+        ]
+        folder = root / row["resource_path"]
+        assert hashlib.sha256((folder / "SKILL.md").read_bytes()).hexdigest() == row["sha256"]
+        for resource in version["files"]:
+            assert (
+                hashlib.sha256((folder / resource["path"]).read_bytes()).hexdigest()
+                == resource["sha256"]
+            )
     assert {row["id"] for row in catalog if row["id"].startswith("research-pack-")} == {
         "research-pack-position-risk",
         "research-pack-expectation-gap",

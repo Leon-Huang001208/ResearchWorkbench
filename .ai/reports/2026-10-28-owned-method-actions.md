@@ -204,3 +204,49 @@ product-unchanged.json逐git blob证明1055个app/research_web文件均与e536�
 通过。evidence/js-contract-evidence.tar.gz为47,401B，SHA-256
 4931df7fd56b976ebb483edf68006848e5cbd707d5633391a3006532f841994b。重新核原文件身份/哈希及无进程占用后
 只回收本轮TMPDIR runs，retirement.json status=cleaned；top-level日志/owner/产品blob证明继续保留。
+
+## Python计数/互斥测试协调及固定SDK CI前提（基线60c65397）
+
+只改tests/CI/docs，app/research_web产品字节保持。原root第一组535PASS/3FAIL不是本候选通过：
+tools精确集合缺wrapper、非pack快照旧26未加owned3、mutex准备阶段误占原2秒Native握手预算。
+新opaque根 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-python-contract-mutex-zdhltsdk` 的各pytest
+均事前owner登记task/slice/UID/PID/dev/inode/argv/candidate，显式basetemp/confcutdir；未用原root3.4GiB。
+
+原mutex单例孤立FAIL（7.93s），纯观察重复仍FAIL（8.29s）。独立diagnostic_only保留原2s FAIL：
+真实snapshot_catalog同步完整冻结2.688986s，send到原Native prompt barrier为2.702541s；2s回调在
+2.700642s返回Timeout，sending未done且无exception，await-chain是service.send→to_thread。
+约2ms后到达真实barrier，changing未提前done、release后disable仍拒且能力enabled。不能据此声称性能
+已修复或将诊断的迟到观测当原测试PASS。获准仅在测试用纯观察wrapper完整执行原snapshot_catalog，
+实际完成后set ready；准备独立有界15秒并同时监视send exception，之后仍原2秒Native barrier与全部
+互斥/未提前publish/disable拒绝断言。没有mock资源结果、跳I/O/准入或修改产品锁。
+
+原两计数目标RED 2FAIL；修后工具全集保持baseline|added精确集合，加wrapper独立required_tools/
+readonly/不可选/closed query+limit及native-policy conditions，原BUSINESS自动权限断言与完整集合保留。
+auto-snapshot固定旧26 IDs+owned3=29，九pack、旧六排除及既有require-tools门保留；三owned当前v1的
+SKILL.md及所有真实snapshot资源逐文件核SHA，不以count代替资源证明。target-green.log共5PASS/23.57s，
+包含原mutex保持2秒、Node override/PATH/缺失明确失败以及真实Native wrapper。
+
+root第二组39PASS/1FAIL属于旧epoch：专项硬取RWB_TEST_NODE导致KeyError，CI另无SDK。Node测试现在
+复用可执行override或PATH且缺失明确fail；实际SDK专项移至独立test_owned_news_native_sdk.py，无skip，
+硬验显式SDK、固定Git HEAD、compiled libs，调用原compat私有共享helper避免重复自动收集。旧compat
+完整Host参数/权限/取消留原Checks；Mac Bootstrap已有固定DSH构建，所以专项由原Mac安装后步骤强制
+承接，而非通用Checks重复安装DSH。sdk-extracted.log在现成环境显式unset Node override、使用Node24
+PATH与真实fixedSDK，独立专项加完整Host compat共12PASS/51.90s；未运行真实供应商/模型/网络。
+
+CI同一旧步骤先保留干净installed资源/Doctor/3081/8088/搜索证据，然后从pyproject原dev字符串仅取
+pytest/pytest-asyncio，在CI临时venv准备两个已声明工具；不editable安装项目、不改依赖定义/锁、不本机
+安装任何包。安装器实际Node24.19.0与已构建SDK pin/compiled libs强预检。-I导入记录installed app路径
+及全部非再生包资源bytes，pip实际新增报告、既有distributions版本/替换前后不变为硬门。测试使用
+checkout Host fixture+fixed SDK，与干净安装分别记；owner/显式basetemp/JUnit/log/失败默认receipt进入
+原success/failure artifact，失败或skip仍令job失败。同步原trigger、架构测试inventory、安装文档与预算，
+无新job/runner/timeout/产品依赖。真正CI及dev工具安装仍NOT_RUN，待主任务独立CI差异评审及exact SHA。
+
+ci-governance-final.log 19PASS；workflow YAML解析、5段bash -n、4段Python heredoc AST PASS；四个改动
+Python Ruff/Black/isort、生成索引--check、Node syntax/diff--check PASS，索引内容无需变化。未以本轮
+目标通过冒充完整Python/JS union、Mac干净安装或正式研究质量通过。
+
+本轮七个事前登记pytest根共665,183,652字节，17,668项逐文件完整恢复核SHA后重验原dev/inode/hash，
+仅回收本次七根。evidence/python-contract-evidence.tar.gz 189,589,925B，SHA-256
+13de2c310a2c49f5d41b805166186c90d6f706057e69c87da455a90af3427fb0，retirement.json=cleaned；恢复时每份
+完整文件写出核验后只移除恢复副本，控制磁盘峰值。原失败日志、纯观察脚本/JSON、owner、static和产品
+1055 blob不变证明另作metadata归档恢复核验，原top-level证据继续保留；不触root其他CAS/服务/SDK。

@@ -39,6 +39,9 @@ on:
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
       - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_owned_news_native_sdk.py"
+      - "tests/research_web/test_owned_method_compat.py"
+      - "tests/javascript/helpers/owned-news-native-driver.mjs"
       - "tests/research_web/test_runtime_mode.py"
       - "tests/research_web/test_docker_runtime.py"
       - "tests/research_web/test_platform_capabilities.py"
@@ -81,6 +84,9 @@ on:
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
       - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_owned_news_native_sdk.py"
+      - "tests/research_web/test_owned_method_compat.py"
+      - "tests/javascript/helpers/owned-news-native-driver.mjs"
       - "tests/research_web/test_runtime_mode.py"
       - "tests/research_web/test_docker_runtime.py"
       - "tests/research_web/test_platform_capabilities.py"
@@ -231,6 +237,89 @@ jobs:
           curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
           .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False and data['unavailable_count'] == 0, data"
 
+          .venv/bin/python - <<'PY'
+          import importlib.metadata as metadata, json, os, re, subprocess, sys, tempfile, tomllib
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          from scripts.setup_web import WebInstaller
+          from app.research_web import RUNTIME_CONTRACT
+          assert sys.platform == 'darwin', 'Native SDK contract belongs to macOS Bootstrap'
+          checkout = Path.cwd().resolve()
+          evidence = tempfile.mkdtemp(prefix='rwb-native-sdk-', dir=os.environ['RUNNER_TEMP'])
+          owned = Path(evidence).resolve()
+          identity = owned.stat()
+          installer = WebInstaller(project_root=checkout)
+          sdk, node = installer.dsh_source, installer.node_executable
+          argv = [sys.executable, '-m', 'pytest', '--confcutdir=tests/research_web', '--basetemp=' + str(owned / 'pytest'), '--junitxml=native-sdk-junit.xml', 'tests/research_web/test_owned_news_native_sdk.py']
+          candidate = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          owner = {'candidate': candidate, 'slice': 'owned-news-fixed-sdk', 'uid': os.getuid(), 'pid': os.getpid(), 'device': identity.st_dev, 'inode': identity.st_ino, 'argv': argv, 'path': str(owned)}
+          Path('native-sdk-owner.json').write_text(json.dumps(owner, indent=2))
+          (owned / 'owner.json').write_text(json.dumps(owner, indent=2))
+          receipt = {'status': 'FAILED', 'candidate': candidate, 'host_contract': 'checkout_test_fixture', 'installation_evidence': ['doctor.json', 'pack-resource-smoke.json'], 'sdk_contract': 'actual_fixed_sdk_no_model_or_provider_network'}
+          probe = "\n".join([
+              'import hashlib,json,sys; from pathlib import Path; import app.research_web',
+              'p=Path(app.research_web.__file__).resolve(); assert p.is_relative_to(Path(sys.prefix).resolve())',
+              'files={str(x.relative_to(p.parent)):hashlib.sha256(x.read_bytes()).hexdigest() for x in p.parent.rglob("*") if x.is_file() and "__pycache__" not in x.parts and x.suffix not in {".pyc",".pyo"}}',
+              'print(json.dumps({"file":str(p),"files":files},sort_keys=True))',
+          ])
+          def installed():
+              result = json.loads(subprocess.check_output([sys.executable, '-I', '-c', probe], text=True))
+              assert not Path(result['file']).is_relative_to(checkout / 'app'), 'installed probe must not import checkout'
+              return result
+          def versions():
+              return {re.sub(r'[-_.]+', '-', d.metadata['Name']).lower(): d.version for d in metadata.distributions()}
+          try:
+              for name in ('doctor.json', 'pack-resource-smoke.json'):
+                  assert Path(name).is_file(), 'clean installation evidence must precede dev tools'
+              before, distributions = installed(), versions()
+              Path('native-sdk-installed-before.json').write_text(json.dumps(before, sort_keys=True))
+              assert subprocess.check_output([str(node), '--version'], text=True).strip() == 'v24.19.0'
+              assert subprocess.check_output(['git', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', 'rev-parse', 'HEAD'], cwd=sdk, text=True).strip() == RUNTIME_CONTRACT.dsh_commit
+              for name in ('packages/core/tools/lib/index.js', 'packages/core/system-prompt/lib/index.js', 'vendor/cordis/lib/index.js'):
+                  assert (sdk / name).is_file(), 'fixed SDK must already be compiled'
+              dev = tomllib.loads(Path('pyproject.toml').read_text())['project']['optional-dependencies']['dev']
+              tools = [item for item in dev if re.match(r'^(?:pytest|pytest-asyncio)(?=[<=>!~\[;]|$)', item)]
+              assert len(tools) == 2
+              Path('native-sdk-preflight.json').write_text(json.dumps({'platform': sys.platform, 'node': str(node), 'node_version': '24.19.0', 'sdk': str(sdk), 'sdk_pin': RUNTIME_CONTRACT.dsh_commit, 'declared_test_tools': tools, 'installed_distributions_before': distributions}, indent=2))
+              # CI-only tools from the existing dev declaration; never install the editable project.
+              subprocess.run([sys.executable, '-m', 'pip', 'install', '--report', 'native-sdk-tools-install.json', *tools], check=True)
+              after_tools = versions()
+              assert all(after_tools.get(name) == version for name, version in distributions.items()), 'existing runtime distribution changed'
+              pip_report = json.loads(Path('native-sdk-tools-install.json').read_text())
+              installed_names = {re.sub(r'[-_.]+', '-', row['metadata']['name']).lower() for row in pip_report.get('install', [])}
+              assert not installed_names.intersection(distributions), 'existing runtime distribution was replaced'
+              assert installed() == before, 'dev tools changed installed app bytes'
+              env = {**os.environ, 'RWB_DSH_TEST_SOURCE': str(sdk), 'DSH_SOURCE_ROOT': str(sdk), 'RWB_TEST_NODE': str(node), 'RWB_TEST_PYTHON': sys.executable, 'PYTHONDONTWRITEBYTECODE': '1'}
+              with Path('native-sdk.log').open('w') as output:
+                  result = subprocess.run(argv, env=env, stdout=output, stderr=subprocess.STDOUT)
+              receipt['pytest_exit'] = result.returncode
+              assert result.returncode == 0, 'mandatory Native SDK test failed; inspect native-sdk.log'
+              suites = list(ET.parse('native-sdk-junit.xml').getroot().iter('testsuite'))
+              assert sum(int(s.get('tests', 0)) for s in suites) == 1
+              assert all(int(s.get(k, 0)) == 0 for s in suites for k in ('failures', 'errors', 'skipped'))
+              receipt.update(status='PASS', added_test_distributions={name: version for name, version in after_tools.items() if name not in distributions})
+          finally:
+              recorded = Path('native-sdk-installed-before.json').is_file()
+              completed = receipt['status'] == 'PASS'
+              receipt['status'] = 'FAILED'
+              try:
+                  if recorded:
+                      after = installed()
+                      Path('native-sdk-installed-after.json').write_text(json.dumps(after, sort_keys=True))
+                      receipt['installed_bytes_unchanged'] = after == before
+                      after_test_versions = versions()
+                      receipt['installed_distributions_unchanged'] = all(after_test_versions.get(name) == version for name, version in distributions.items())
+                      if after == before and receipt['installed_distributions_unchanged'] and completed:
+                          receipt['status'] = 'PASS'
+              finally:
+                  receipt['sdk_pin'] = RUNTIME_CONTRACT.dsh_commit
+                  receipt['test_fixture_root'] = str(owned)
+                  Path('native-sdk-receipt.json').write_text(json.dumps(receipt, indent=2))
+              if recorded:
+                  assert receipt['installed_bytes_unchanged'], 'Native test changed installed app bytes'
+                  assert receipt['installed_distributions_unchanged'], 'Native test changed installed runtime distributions'
+          PY
+
       - name: Stop macOS services
         if: always()
         shell: bash
@@ -247,6 +336,16 @@ jobs:
             app.mjs
             connections.json
             native-search-smoke.json
+            native-sdk-owner.json
+            native-sdk-preflight.json
+            native-sdk-installed-before.json
+            native-sdk-installed-after.json
+            native-sdk-tools-install.json
+            native-sdk-junit.xml
+            native-sdk.log
+            native-sdk-receipt.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/index.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/inputs/datasets/**
             asset-static-smoke.json
             pack-resource-smoke.json
           if-no-files-found: ignore
@@ -263,6 +362,16 @@ jobs:
             app.mjs
             connections.json
             native-search-smoke.json
+            native-sdk-owner.json
+            native-sdk-preflight.json
+            native-sdk-installed-before.json
+            native-sdk-installed-after.json
+            native-sdk-tools-install.json
+            native-sdk-junit.xml
+            native-sdk.log
+            native-sdk-receipt.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/index.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/inputs/datasets/**
             logs/setup-web.log
           if-no-files-found: ignore
           retention-days: 3

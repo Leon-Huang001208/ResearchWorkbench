@@ -1,5 +1,12 @@
 # GitHub Actions 免费额度治理
 
+2026-10-28 owned CLS固定SDK专项移至既有Mac Bootstrap安装后原步骤硬执行一例，generic Checks保留全部
+compat Host参数/权限/取消，不以缺SDK自动skip。复用已构建pin与安装器Node24.19.0，CI临时venv只安装
+原dev声明pytest/pytest-asyncio，不editable安装产品；installed app字节与原runtime distributions前后不变
+为硬门。无新job/runner/timeout或产品依赖/锁变化，原artifact增加owner/JUnit/log/receipt与pip变更证据，
+保留3天。单例本机现成环境约5秒，连Host模块12例51.90秒；原Mac步骤为dev工具下载与该单例保守预留
+120秒，真实CI耗时尚NOT_RUN，不从本机或旧epoch宣称通过。远端前仍核实时visibility/额度，禁止rerun旧SHA。
+
 2026-10-27首批原Checks `40384650069`在1898.78秒完成Python，7212通过、1失败；失败为未限定平台的真实Mac HTML交付测试，不是预算超时。修复保留Mac真实交付及全部原断言，另增通用未验证交付／自认证质量拒绝反例；该反例本机约2.08秒，原步骤预留5秒。原Constraints字节码兼容修复扩展原已登记unittest，不新增job／runner／依赖／timeout，不取消或绕过产品门，不rerun旧候选。最终候选重新取得原三CI及Mac安装；发布前核对当前PUBLIC资格。
 
 repair1的Checks `40440907774`完整Python7213通过／73条件跳过（1686.25秒），后续JS的10个失败均为MCP测试DOM缺既有页面容器。补齐fixture并新增一项inert回归，保留全部断言与原3个DSH源码条件skip；本机同CI通配符1225通过／0失败。修复不改workflow、job、runner、依赖或timeout，新断言预留原步骤1秒。本地闭包同步扩大到原完整JS通配符；下一最终候选走正常受管repair发布，不手动rerun旧run。
