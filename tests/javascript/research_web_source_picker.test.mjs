@@ -2,10 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createScenarioController, renderScenarioPanel } from '../../app/research_web/ui/scenarios.mjs';
 import { createAPI } from '../../app/research_web/ui/core.mjs';
+import { ownedMethodScene, sourcePack, packQualification } from '../../app/research_web/ui/pack-ui.mjs';
 
 const row = {id:'pack-research-prep',pack_id:'research-prep',name:'调研前置',description:'',coverage:[],steps:[],examples:[{question:'核验'}],expected_artifacts:[],required_inputs:[],subject_kinds:['stock','industry','topic'],capabilities:[],ui_methods:[{id:'deduplicate_source_versions',label:'来源去重',version:'1.1.0',fields:[]}]};
 const source = sid => ({source_session_id:sid,id:'same-id',sha256:'a'.repeat(64),title:'synthetic <正文不是标题>',source_host:'fixture.example',acquired_at:null,publication_date:'2026-10-27',capture_status:'host_verified',selectable:true,state:'available'});
 const context = {session_id:'first',material_sessions:[{id:'first'},{id:'second'}],subject:{kind:'topic',identity:'制造业'},as_of:'2026-10-28',question:'保留问题',datasets:[{dataset_id:'dataset'}]};
+
+test('owned method source targets are fixed and never imply pack completion',()=>{
+  assert.equal(sourcePack({id:'unknown',source_selection_kind:'owned-method'}),false);
+  assert.equal(ownedMethodScene({id:'owned-news-evidence'}),false);
+  for(const id of ['owned-company-evidence','owned-news-evidence','owned-research-prep']) assert.equal(sourcePack({id,source_selection_kind:'owned-method'}),true);
+  const html=packQualification({method_qualification:{kind:'owned-method',status:'incomplete',missing:[{code:'method_execution_not_verified'}]}});
+  assert.match(html,/method_execution_not_verified/);assert.doesNotMatch(html,/可执行方法|executable_methods|计算准入/);
+});
+
+test('owned source preview and freeze preserve question without pack qualification',async()=>{
+  const ownedRow={...row,id:'owned-news-evidence',pack_id:undefined,source_selection_kind:'owned-method',ui_methods:[]};
+  const {c,calls}=fixture({scenarioCatalog:async()=>({items:[ownedRow]}),sourceSelectionPreview:async body=>{calls.push(['preview',body]);return {preview_sha256:'c'.repeat(64),qualification:{kind:'owned-method',status:'incomplete',missing:[{code:'method_execution_not_verified'}]}};}});
+  await c.open({...context,scenario:ownedRow.id});c.edit('material_mode','sources');await c.selectSourceSession('first');c.edit('source_ids',['first:same-id']);
+  await c.prepare();assert.match(c.state.error,/只读预览/);assert.equal(c.state.request,null);
+  await c.preview();assert.equal(c.state.preview.pack_qualification,undefined);assert.equal(c.state.preview.method_qualification.kind,'owned-method');
+  assert.equal(c.state.inputs.question,'保留问题');assert.equal(calls[0][1].handoff.scenario_id,ownedRow.id);
+  await c.prepare();assert.equal(calls[1][0],'freeze');assert.equal(calls[1][1].preview_sha256,'c'.repeat(64));assert.equal(c.state.result.state,'creation_outcome_unknown');
+});
 function fixture(overrides={}) {
   const calls=[];
   const api={scenarioCatalog:async()=>({items:[row]}),detail:async id=>({id,source_scope:['datahub','uploads','web']}),sourceSelectionList:async sid=>({items:[source(sid)]}),sourceSelectionPreview:async body=>{calls.push(['preview',body]);return {preview_sha256:'b'.repeat(64),qualification:{status:'partial',executable_methods:['deduplicate_source_versions'],missing:[]},sources:body.sources};},sourceSelectionFreeze:async(body,key)=>{calls.push(['freeze',body,key]);return {state:'creation_outcome_unknown'};},handoffRequest:async key=>{calls.push(['lookup',key]);return {state:'creation_outcome_unknown'};},...overrides};

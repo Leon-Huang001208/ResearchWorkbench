@@ -220,6 +220,10 @@ class DossierService:
         source_pack = pack_reader(sid) if pack_reader else None
         target_pack = pack_reader(target_sid) if pack_reader and target_sid else None
         if kind == "file":
+            if PurePosixPath(ref).parts[:2] == ("inputs", "methods"):
+                raise StoreError(
+                    "内部方法原件必须沿已选来源读取", "dossier_evidence_alias_denied", 403
+                )
             if PurePosixPath(ref).parts[:2] == ("inputs", "datasets"):
                 raise StoreError(
                     "数据集材料必须使用原始数据集身份", "dossier_evidence_alias_denied", 403

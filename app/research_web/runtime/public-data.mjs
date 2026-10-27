@@ -407,6 +407,11 @@ export async function nativeAdmission(ctx, exec, config, loaded = false, packSta
     body.call_id = exec.callId;
     body.pack_start = packStart;
   }
+  if (exec.name === 'research_run_script' && exec.arguments?.method_execution !== undefined) {
+    body.method_execution = exec.arguments.method_execution;
+    body.call_id = exec.callId;
+    body.pack_start = packStart;
+  }
   if (exec.name === 'research_read_source') {
     if (['list','read'].includes(exec.arguments?.operation)) body.source_operation = exec.arguments.operation;
     if (typeof exec.arguments?.source_id === 'string') body.source_id = exec.arguments.source_id;
@@ -440,6 +445,21 @@ export async function completePackExecution(ctx, exec, config, binding, result) 
   });
   const value = await boundedJson(response, signal);
   if (!value || !['saved','failed','cancelled'].includes(value.state)) throw Error('pack_completion_unverified');
+  return value;
+}
+
+/** Fixed owned-method completion uses the same private transport, separate ledger. */
+export async function completeMethodExecution(ctx, exec, config, binding, result) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.timeout(4000);
+  const response = await globalThis.fetch(control.url + '/api/research/internal/data/pack-completion', {
+    method:'POST',headers:{'Content-Type':'application/json','X-Research-Data-Key':control.token},
+    body:JSON.stringify({kind:'owned-method',session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result}),
+    redirect:'error',credentials:'omit',signal,
+  });
+  const value = await boundedJson(response, signal);
+  if (!value || !['saved','failed','cancelled'].includes(value.state)) throw Error('method_completion_unverified');
   return value;
 }
 

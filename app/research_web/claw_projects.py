@@ -5,7 +5,7 @@ import hashlib
 import mimetypes
 import os
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 from core.observability import get_logger
@@ -184,6 +184,10 @@ class ClawProjects:
             raise StoreError("当前平台尚未验证安全文件引用", "reference_platform_unverified", 409)
         from .research_web_sources import source_file_identifier
 
+        if PurePosixPath(source["files"].get(file_id, "")).parts[:2] == ("inputs", "methods"):
+            raise StoreError(
+                "内部方法原件必须保持选中来源身份", "dossier_evidence_alias_denied", 403
+            )
         if source_file_identifier(source, source["files"].get(file_id, "")):
             raise StoreError("网页材料必须保持原来源身份交接", "dossier_evidence_alias_denied", 403)
         stream, source_name = self.store.open_file(source_sid, file_id)

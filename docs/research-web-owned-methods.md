@@ -22,16 +22,49 @@ provider、rights 或重新计算的哈希取得来源资格。
 证券错配和未知字段。最多二十份原件、单份八 MiB、总计三十二 MiB；非 UTF-8 原件需先经既有 reader，
 不安装 OCR，不把空页视为成功。完整原文不在台账中截断为所谓全文。
 
-台账保存在 `outputs/method-actions/<method-id>/<execution-id>.json`，排他创建并读回，包含源引用、
+台账保存在 `outputs/method-results/<execution-id>/ledger.json`，排他创建并读回，包含源引用、
 字节定位、输入哈希、实际读取计数、覆盖和缺失。`authority=analytical_output_only`、
 `research_quality=NOT_RUN`；它不能自证 `ran`、供应商可用性、来源权利或历史 PIT。
 Native 实际执行与 Host 独立读回属于单独验收。
+
+## Host、Native 与读取边界
+
+三份独立方法场景复用原 prepare/handoff/选材/发送，不修改原八合同。已保存原文选择器使用固定
+目标 registry 区分两个 pack 与三个 owned-method，后者不产生 pack_seal 或伪造 pack_qualification。
+Host 返回并提示 `method_execution={capability_id,version,context_sha256}`；它是预期绑定，不能包含
+源、路径、provider、rights、code 或输出覆盖。直接选 Skill 而没有其固定场景返回 missing_selection。
+
+Host 从当前授权原件构造 `inputs/methods/<digest>/source-*.source` 和 `source-context.bound`。
+这些是私有冻结副本，不能作为上传文件、档案 file 或 Claw 引用；相同前缀的旧缓存文件 ID 和半文件
+也拒绝。公开分析台账继续沿原来源权限读回。扩展名不是授权凭据；三个现有读取边界均做明确路径拒绝。
+普通 code 不获得 methods 子树读权，不能写 method-results。只有固定新策略逐文件授予 read-data，
+不开放父子树；原 weekly/pack 策略保持。实际 Host/Native 的原件、描述与全部资源合计上限为十六 MiB，
+还受单份八 MiB、二十份资料和原脚本预算的交集限制。
+
+原私有 pack-completion 桥仅增加严格 `kind=owned-method` 变体；方法不写 pack 账本。真实 supervisor
+完成后，Host 重新授权并打开原件、冻结文件与实际台账，核验 dev/inode/nlink/hash，再用与已审资源
+字节完全相同的 Host 固定函数复算。只有这些检查通过才写 receipts.method_executions 的 saved；
+其位置仍为原 Store `index.json`，随既有保全索引扫描，不新增数据库或账本系统。取消、未知和失败不会
+自动重跑，迟到结果不能变成 saved。每次质量检查继续验证来源和台账，动作缺失为 incomplete，
+完整性变化、撤权和未登记残留为 invalid。原 source/numeric/canonical 质量门保留。
+
+仅由私有 file_bindings 明确登记的内部副本从观察投影排除，原 selected/page-evidence 原件继续扫描。
+未知文件没有前缀豁免；这避免把同原文的内部复制认作独立事实，不削弱旧质量校验。
 
 公司方法不会自行解析通用财务报表或派生数值；财务单位、币种、口径不能在原文确认时保留缺口，
 可比性仍须现有 business observations 对齐证券、期间和单位。原 report_plan 配方执行派生计算。
 缺业务、竞争或估值材料不称完整公司报告。新闻方法保留全文、时间与反证缺口，条件传导由 DSH
 根据实际原文生成。调研方法只做材料准备，没有真实访谈不能生成伪造问答。版本去重继续使用既有
-source-version 制品，动作本身不重写去重算法。
+source-version 制品应继续复用，动作本身不重写去重算法。本切片尚未绑定实际 C2 去重制品，新闻/调研明确保留
+source_version_dedup_not_run，不能声称已去重或完整完成。PDF/OCR 自动接入也未实现，不可读原件拒绝。
+
+MSFT 原文仅沿原 business_observations/report_plan 复算已给定表格数据；现有解析器不认证公司实体、
+通用币种与 URI 等价，方法投影保留 unclassified/financials 缺口，未新增 MSFT URL 专用分类。
+DataHub 财务快照只从真实 manifest/query/规范 rows 保留证券与报告期；当前 Sina v3 的明确 rCurrency
+字段保留币种，单位与累计 reporting_basis 未明则保留未核验，不能据此认证全市场财务覆盖。
+当前原 report_plan 的 percent_change 仍没有 owned 方法的非正基数独立准入；本切片不修改通用数学。
+该硬门与 C2 制品消费、C4 实际参数入口均为 **CODE integration pending**，不归类为纯外部数据依赖。
+现有正基数示例及零分母回归不认证负基数门，不能据此升级完整财务方法或正式映射。
 
 ## 严格参数适配
 
@@ -48,5 +81,10 @@ bool、float、未知参数和 URL 均拒绝。输出为现有 `datahub_search_n
 
 目标测试实际覆盖严格参数、原件读回、哈希变化、日期、证券、未知字段、标题无正文、缺口保留、
 Catalog 发布及完整资源快照、冻结脚本实际执行与排他写入、未审核脚本拒绝发布。
-这些测试不认证 Native ToolRuntime 完成、真实模型、供应商网络、正式报告接受、常驻部署或其他平台。
-完整 Native→canonical→quality 证据必须另由当前执行链提供；不得以测试文字冒充模型生成。
+新执行测试实际使用已固定 DSH 的 FileSystemSkillProvider、ToolRuntime、skill/guard、原 Native
+runner 与 macOS sandbox、真实 Host private bridge；三方法分别原件读取→台账→Host 复算→原 report_plan
+生成 canonical/HTML/DOCX→真实 research_check_quality，缺证保持 incomplete。公司表格独立预期
+245122/211915，系统同比显示 15.67；未手填结果。另覆盖取消、未知不重跑、普通 code 禁读写、回执丢失、
+来源撤权、半文件与三个 file-alias 入口。未知普通文件仍可令实际质量返回 invalid。
+来源 HTTP 在输送边界用固定离线响应，叙事采用 scripted 测试文字；真实模型、供应商网络、正式报告接受、
+常驻部署与其他平台均 NOT_RUN，不把上述动作成功当模型能力通过。

@@ -1,6 +1,8 @@
 import { escapeHTML as e } from './markdown.mjs';
 
-export const sourcePack = row => ['pack-research-prep','pack-global-opinion'].includes(row?.id);
+const ownedMethodIds = new Set(['owned-company-evidence','owned-news-evidence','owned-research-prep']);
+export const ownedMethodScene = row => ownedMethodIds.has(row?.id) && row?.source_selection_kind === 'owned-method';
+export const sourcePack = row => ['pack-research-prep','pack-global-opinion'].includes(row?.id) || ownedMethodScene(row);
 export const sourceKey = item => `${item.source_session_id}:${item.id}`;
 
 export function sourcePicker(s, row, locked) {
@@ -33,6 +35,8 @@ function renderField(method, field, value, locked) {
 
 const gapLabels = {source_language_unknown:'来源语言尚未核验',source_region_unknown:'来源地域尚未核验',source_role_unknown:'来源原创角色尚未核验',source_publication_instant_unknown:'精确发表时刻未知',source_publication_date_unknown:'发表日期未知',source_capture_completeness_unknown:'原文捕获完整性未知',source_capture_mapping_unsupported:'此原文格式尚不支持',source_capture_body_unavailable:'已保存原文当前不可读取',source_version_contract_invalid:'原文版本不可核验',source_capture_utf8_required:'原文编码尚不支持',cutoff_timezone_required:'截止时点缺少有效时区',source_observed_after_cutoff:'材料取得时点晚于截止',required_kind_missing:'缺少必要资料类型',source_coverage_unverified:'来源完整覆盖尚未核验',dataset_mapping_unsupported:'此来源或资料类型尚无受审映射',material_schema_unsupported:'原件格式尚无受审映射',source_rows_truncated:'来源行被截断',price_unit_or_adjustment_unverified:'价格单位或复权口径未核验',source_observation_instant_unknown:'来源取得时点未知'};
 export function packQualification(context, stale = false) {
+  const method = context?.method_qualification;
+  if (method?.kind === 'owned-method') return `<section class="pack-qualification" aria-label="方法资料预览"><h3>方法资料预览 · ${e(method.status)}</h3><p>原文选择已经核对；实际方法执行、文件保存和报告质量仍分别验收。</p><ul>${(method.missing || []).map(gap=>`<li>${e(gap.code)}</li>`).join('')}</ul></section>`;
   const q = context?.pack_qualification;
   const sourcePreview = !!context?.qualification;
   if (!q) return stale ? '<p role="status" class="notice warning">参数或材料已变化，资格预览失效；请重新预览。输入已保留。</p>' : '';

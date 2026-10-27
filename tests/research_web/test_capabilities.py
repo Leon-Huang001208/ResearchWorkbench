@@ -313,6 +313,9 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "估值体检（确定性核验）",
         "筹码结构（确定性核验）",
         "财报季前瞻（确定性核验）",
+        "公司资料核验",
+        "新闻事实与条件传导",
+        "调研材料准备",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]

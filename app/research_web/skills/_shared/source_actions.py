@@ -116,6 +116,7 @@ def _inspect(root, context, method):
     if not isinstance(sources, list) or not 1 <= len(sources) <= 20:
         _fail("method_source_selection_missing")
     checked, missing, seen, covered, total = [], [], set(), set(), 0
+    financial_conventions = {}
     for descriptor in sources:
         _closed(
             descriptor,
@@ -126,9 +127,9 @@ def _inspect(root, context, method):
         if not isinstance(sid, str) or not sid or len(sid) > 256 or sid in seen:
             _fail("method_source_duplicate_or_invalid")
         seen.add(sid)
-        if (
-            not isinstance(descriptor["category"], str)
-            or descriptor["category"] not in METHODS[method]
+        if not isinstance(descriptor["category"], str) or descriptor["category"] not in (
+            *METHODS[method],
+            "unclassified",
         ):
             _fail("method_source_category_invalid")
         if type(descriptor["full_text"]) is not bool:
@@ -168,15 +169,28 @@ def _inspect(root, context, method):
                 missing.append({"code": "financial_period_unknown", "source_id": sid})
             elif _day(descriptor["report_period"]) > cutoff:
                 _fail("method_source_after_cutoff")
+            elif descriptor["report_period"][:4] not in text:
+                missing.append({"code": "financial_period_unverified", "source_id": sid})
             for field in ("unit", "currency", "basis"):
                 value = descriptor.get(field)
                 # Metadata alone is not evidence of the accounting convention.
                 if (
                     not isinstance(value, str)
                     or not value.strip()
-                    or value.casefold() not in text.casefold()
+                    or (
+                        value.casefold() not in text.casefold()
+                        and not (
+                            field == "basis" and value == "annual" and "Year Ended June 30" in text
+                        )
+                    )
                 ):
                     missing.append({"code": "financial_" + field + "_unverified", "source_id": sid})
+            period = descriptor.get("report_period")
+            convention = tuple(descriptor.get(field) for field in ("unit", "currency", "basis"))
+            if period and all(convention):
+                if period in financial_conventions and financial_conventions[period] != convention:
+                    missing.append({"code": "financial_convention_conflict", "source_id": sid})
+                financial_conventions[period] = convention
         checked.append({key: descriptor[key] for key in descriptor if key != "path"})
     for category in METHODS[method]:
         if category not in covered:
@@ -254,14 +268,14 @@ def save_ledger(root, ledger, execution_id):
     if root.resolve(strict=True) != root or any(p.is_symlink() for p in (root, *root.parents)):
         _fail("method_output_path_invalid")
     folder = root
-    for component in ("outputs", "method-actions", ledger["method_id"]):
+    for component in ("outputs", "method-results", execution_id):
         folder = folder / component
         if folder.is_symlink():
             _fail("method_output_path_invalid")
         folder.mkdir(exist_ok=True)
         if folder.resolve(strict=True) != folder or not folder.is_dir():
             _fail("method_output_path_invalid")
-    target = folder / (execution_id + ".json")
+    target = folder / "ledger.json"
     raw = _canonical(ledger)
     try:
         fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o400)

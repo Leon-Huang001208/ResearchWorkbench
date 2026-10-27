@@ -72,18 +72,28 @@ def capability_facts(service, contract):
 
 
 def catalog(service):
+    from .scenarios.method_catalog import contracts as method_contracts
     from .scenarios.pack_catalog import contracts
 
     return {
         "items": [
             {**row, "capabilities": capability_facts(service, row)}
-            for row in [*read_scenarios(), *contracts()]
+            for row in [*read_scenarios(), *contracts(), *method_contracts()]
         ]
     }
 
 
 def selection(service, scenario_id, values, *, evidence=None):
     """Only this Host constructs qualification flags; inputs cannot contain them."""
+    from .capabilities.scenario_method_packages import METHODS as OWNED_METHODS
+
+    if isinstance(scenario_id, str) and scenario_id in OWNED_METHODS:
+        from .scenarios.method_catalog import select
+
+        try:
+            return select(service, scenario_id, values)
+        except ScenarioError as exc:
+            raise StoreError("方法场景输入无效", exc.code, exc.status) from exc
     if isinstance(scenario_id, str) and scenario_id.startswith("pack-"):
         from .scenarios.pack_catalog import select
 
@@ -271,6 +281,9 @@ def verify_execution(service, sid, receipt):
         from .scenario_pack_execution import quality_issues
 
         issues.extend(quality_issues(service, sid, receipt, context))
+    from .scenario_method_sources import quality_issues as method_quality_issues
+
+    issues.extend(method_quality_issues(service, sid, receipt))
     return issues
 
 
@@ -528,6 +541,12 @@ def prepare_context(service, body, *, _workspace_reader=None):
             ),
         ],
     }
+    if chosen["contract"].get("source_selection_kind") == "owned-method":
+        context["method_qualification"] = {
+            "kind": "owned-method",
+            "status": "incomplete",
+            "missing": [*chosen["missing"], {"code": "method_execution_not_verified"}],
+        }
     if chosen["contract"].get("pack_id"):
         from .capabilities.pack_resources import verify_pack_manifest
         from .scenario_pack_inputs import qualify_pack_materials

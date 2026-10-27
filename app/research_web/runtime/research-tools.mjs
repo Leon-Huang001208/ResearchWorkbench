@@ -12,22 +12,25 @@ const METHOD_IDS = new Set(['socratic-clarification','dual-layer-explanation','r
 const METHOD_SOURCES = new Set(['required','user-selected','recommended','model-supplemented']);
 const WEEKLY_INPUT_POLICY = 'weekly-frozen-inputs-v1';
 const SCENARIO_INPUT_POLICY = 'scenario-frozen-inputs-v1';
+const OWNED_METHOD_INPUT_POLICY = 'owned-method-frozen-inputs-v1';
 
 async function validateScriptScope(scope, cwd) {
   if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
-      ![undefined, WEEKLY_INPUT_POLICY, SCENARIO_INPUT_POLICY].includes(scope.input_policy)) throw Error('research_script_scope_unverified');
-  const scenario = scope.input_policy === SCENARIO_INPUT_POLICY;
+      ![undefined, WEEKLY_INPUT_POLICY, SCENARIO_INPUT_POLICY, OWNED_METHOD_INPUT_POLICY].includes(scope.input_policy)) throw Error('research_script_scope_unverified');
+  const method = scope.input_policy === OWNED_METHOD_INPUT_POLICY;
+  const scenario = scope.input_policy === SCENARIO_INPUT_POLICY || method;
   if (scope.input_policy !== WEEKLY_INPUT_POLICY && !scenario) {
     if (!scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
     return;
   }
   if (!scope.read_paths.length || new Set(scope.read_paths).size !== scope.read_paths.length) throw Error('research_script_scope_unverified');
   if (scenario && (!Array.isArray(scope.file_bindings) || scope.file_bindings.length !== scope.read_paths.length ||
-      typeof scope.output_root !== 'string' || !/^outputs\/scenario-results\/[a-f0-9]{32}$/.test(scope.output_root) ||
+      typeof scope.output_root !== 'string' || !(method ? /^outputs\/method-results\/[a-f0-9]{32}$/ : /^outputs\/scenario-results\/[a-f0-9]{32}$/).test(scope.output_root) ||
       typeof scope.code !== 'string' || Buffer.byteLength(scope.code)>65536 || createHash('sha256').update(scope.code).digest('hex') !== scope.code_sha256)) throw Error('research_script_scope_unverified');
+  if (method && (scope.file_bindings.some(file=>!Number.isSafeInteger(file.bytes)||file.bytes<0) || scope.file_bindings.reduce((sum,file)=>sum+file.bytes,0)>16*1024*1024)) throw Error('research_script_scope_unverified');
   for (const [fileIndex,path] of scope.read_paths.entries()) {
     if (typeof path !== 'string' || path.length > 512 || !(scenario
-      ? /^(inputs\/scenarios\/(?:[a-f0-9]{32}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\/(input|manifest)\.json|resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*\/[A-Za-z0-9_./-]+)$/.test(path)
+      ? (method ? /^(inputs\/methods\/[a-f0-9]{64}\/(source-context\.bound|source-[0-9]+\.source)|resources\/capabilities\/owned-(company-evidence|news-evidence|research-prep)\/[1-9][0-9]*\/[A-Za-z0-9_./-]+)$/ : /^(inputs\/scenarios\/(?:[a-f0-9]{32}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\/(input|manifest)\.json|resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*\/[A-Za-z0-9_./-]+)$/).test(path)
       : path.startsWith('inputs/report-workflow/')) ||
         /[\\:\u0000-\u001f\u007f]/.test(path)) throw Error('research_script_scope_unverified');
     const parts = path.split('/');
@@ -38,7 +41,7 @@ async function validateScriptScope(scope, cwd) {
       let info;
       try { info = await lstat(target); } catch { throw Error('research_script_scope_unverified'); }
       if (info.isSymbolicLink() || (index === parts.length - 1
-        ? !info.isFile() || info.nlink !== 1 || info.size > (scenario ? 64 : 32) * 1024 * 1024
+        ? !info.isFile() || info.nlink !== 1 || info.size > (method ? 16 : scenario ? 64 : 32) * 1024 * 1024
         : !info.isDirectory())) throw Error('research_script_scope_unverified');
     }
     let canonical;
@@ -227,6 +230,11 @@ async function defaultPackCompletion(ctx, exec, config, binding, result) {
   return completePackExecution(ctx, exec, config, binding, result);
 }
 
+async function defaultMethodCompletion(ctx, exec, config, binding, result) {
+  const { completeMethodExecution } = await import('./public-data.mjs');
+  return completeMethodExecution(ctx, exec, config, binding, result);
+}
+
 async function defaultDraftClient(ctx, exec, config, args) {
   const { executeAutomationDraft } = await import('./public-data.mjs');
   return executeAutomationDraft(ctx, exec, config, args);
@@ -251,7 +259,7 @@ function requireMatchingResearchTemplate(ctx, body) {
   }
 }
 
-export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient, actionClient = defaultActionClient, packCompletionClient = defaultPackCompletion) {
+export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient, actionClient = defaultActionClient, packCompletionClient = defaultPackCompletion, methodCompletionClient = defaultMethodCompletion) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
@@ -404,6 +412,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   // Numeric/string limits remain mandatory in fixed code and the Python SDK;
   // unsupported validation keywords must not silently degrade SDK generation.
   const scriptFields = {
+      method_execution: {type:'object',description:'Run one Host-frozen owned evidence method; mutually exclusive with all other script modes.',properties:{capability_id:{type:'string',enum:['owned-company-evidence','owned-news-evidence','owned-research-prep']},version:{type:'integer'},context_sha256:{type:'string'}},required:['capability_id','version','context_sha256'],additionalProperties:false},
       pack_execution: {type:'object',description:'Execute only the Host sealed scenario package; mutually exclusive with code and report_plan.',properties:{capability_id:{type:'string'},version:{type:'integer'},context_sha256:{type:'string'},input_manifest_sha256:{type:'string'}},required:['capability_id','version','context_sha256','input_manifest_sha256'],additionalProperties:false},
       code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; mutually exclusive with report_plan.' },
       report_plan: { type: 'object', description: 'At most 32000 UTF-8 bytes and 40 total evidence references. Use actual evidence inventory; unknown/ambiguous references reject. Unverified analysis/proposals remain in Host-scored text.', properties: {
@@ -427,7 +436,8 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
       const codeMode = args && Object.keys(args).length === 1 && typeof args.code === 'string' && args.code.trim() && Buffer.byteLength(args.code) <= 65536;
       const planMode = args && Object.keys(args).length === 1 && args.report_plan && typeof args.report_plan === 'object' && !Array.isArray(args.report_plan);
       const packMode = args && Object.keys(args).length === 1 && args.pack_execution && typeof args.pack_execution === 'object' && !Array.isArray(args.pack_execution);
-      if (!codeMode && !planMode && !packMode) throw new Error('research script accepts only bounded code or a data report_plan or pack_execution');
+      const methodMode = args && Object.keys(args).length === 1 && args.method_execution && typeof args.method_execution === 'object' && !Array.isArray(args.method_execution);
+      if (!codeMode && !planMode && !packMode && !methodMode) throw new Error('research script accepts exactly one bounded code, report_plan, pack_execution or method_execution');
       let code = codeMode ? args.code : undefined;
       exec.signal.throwIfAborted();
       const release = await acquireScriptSlot(exec.signal, queueWaitSeconds, ctx.logger);
@@ -439,12 +449,12 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
         const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script', arguments: args }, config);
         try { await validateScriptScope(scope, cwd); }
         catch { ctx.logger.warn('research_script_scope_denied'); throw Error('research_script_scope_unverified'); }
-        if (packMode) {
-          if (scope.input_policy !== SCENARIO_INPUT_POLICY || scope.binding?.call_id !== exec.callId) throw Error('pack_execution_unverified');
+        if (packMode || methodMode) {
+          if (scope.input_policy !== (methodMode ? OWNED_METHOD_INPUT_POLICY : SCENARIO_INPUT_POLICY) || scope.binding?.call_id !== exec.callId) throw Error('research_execution_unverified');
           const executable = await realpath(config.python);
           if (executable !== scope.runtime?.python || await realpath(dirname(dirname(config.python))) !== scope.runtime?.environment || createHash('sha256').update(await readFile(executable)).digest('hex') !== scope.runtime?.python_sha256) throw Error('pack_runtime_changed');
           code = scope.code;
-        } else if (scope.input_policy === SCENARIO_INPUT_POLICY) throw Error('pack_execution_unverified');
+        } else if ([SCENARIO_INPUT_POLICY,OWNED_METHOD_INPUT_POLICY].includes(scope.input_policy)) throw Error('research_execution_unverified');
         if (planMode) {
           code = reportPlanCode(args.report_plan, scope.report_context);
           ctx.logger.info('research_script_report_plan outcome=assembled');
@@ -519,10 +529,11 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
         });
         child.stdin.end(JSON.stringify({ code, read_paths: scope.read_paths,
           ...(scope.input_policy === undefined ? {} : { input_policy: scope.input_policy }),
-          ...(packMode ? {file_bindings:scope.file_bindings,output_root:scope.output_root} : {}) }));
+          ...(packMode || methodMode ? {file_bindings:scope.file_bindings,output_root:scope.output_root} : {}) }));
         if (exec.signal.aborted) onAbort();
         });
         if (packMode) await packCompletionClient(ctx, exec, config, scope.binding, result);
+        if (methodMode) await methodCompletionClient(ctx, exec, config, scope.binding, exec.signal.aborted ? {...result,status:'cancelled',error:'research script cancelled'} : result);
         return result;
       } finally {
         if (!childSpawned) release();

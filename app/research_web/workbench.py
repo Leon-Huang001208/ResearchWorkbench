@@ -172,6 +172,19 @@ def _public_handoff(service, record):
             "context_sha256": fingerprint(context),
             "input_manifest_sha256": seal["manifest_sha256"],
         }
+    if context and context.get("scenario", {}).get("scenario_id") in {
+        "owned-company-evidence",
+        "owned-news-evidence",
+        "owned-research-prep",
+    }:
+        from .scenario_handoffs import fingerprint
+
+        selected = context["scenario"]["capabilities"][0]
+        result["method_execution"] = {
+            "capability_id": selected["id"],
+            "version": selected["version"],
+            "context_sha256": fingerprint(context),
+        }
     return result
 
 

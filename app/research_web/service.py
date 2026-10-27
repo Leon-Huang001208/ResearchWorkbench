@@ -2066,6 +2066,7 @@ class ResearchService(ModelProfilesMixin):
         source_operation: str | None = None,
         source_id: str | None = None,
         pack_execution: dict | None = None,
+        method_execution: dict | None = None,
         call_id: str | None = None,
         pack_start: bool = False,
     ) -> dict:
@@ -2078,6 +2079,17 @@ class ResearchService(ModelProfilesMixin):
         catalog = self.datahub.catalog()
         receipt, refs = self._task_capabilities(sid)
         refs = list(refs)
+        if any(
+            ref.get("id")
+            in {"owned-company-evidence", "owned-news-evidence", "owned-research-prep"}
+            for ref in refs
+        ):
+            from .scenario_handoffs import trusted_context
+
+            trusted_context(self, sid)
+            from .scenario_method_sources import validate_storage as validate_method_storage
+
+            validate_method_storage(self, sid)
         selected = None
         if native_name:
             cid = next(
@@ -2287,6 +2299,16 @@ class ResearchService(ModelProfilesMixin):
                     "inputs/report-workflow/" + name for name in weekly_scope["inputs"]
                 ]
         if tool_name == "research_run_script":
+            if method_execution is not None:
+                if weekly_scope or pack_execution is not None or not scope["admitted"]:
+                    raise CapabilityError(
+                        "方法执行范围不可用", "method_execution_not_admitted", 409
+                    )
+                from .scenario_method_sources import prepare_execution as prepare_method_execution
+
+                return prepare_method_execution(
+                    self, sid, method_execution, call_id, start=pack_start
+                )
             pack_refs = [ref for ref in refs if ref["id"].startswith("research-pack-")]
             if pack_execution is not None:
                 if weekly_scope or not scope["admitted"] or not pack_refs:
@@ -3027,6 +3049,16 @@ class ResearchService(ModelProfilesMixin):
                     "组合包须先通过场景选择真实材料并封印输入", "pack_input_unsealed", 409
                 )
             defaults = selection["default_formats"] if selection else None
+            if (
+                selection
+                and selection["id"]
+                in {"owned-company-evidence", "owned-news-evidence", "owned-research-prep"}
+                and (
+                    not scenario_context
+                    or scenario_context["scenario"]["scenario_id"] != selection["id"]
+                )
+            ):
+                raise CapabilityError("请先明确选择主体、截止与原件", "missing_selection", 409)
             if selection and selection["kind"] == "method":
                 raise CapabilityError(
                     "方法须通过 method_ids 选择，不能作为业务能力运行",
@@ -3320,6 +3352,26 @@ class ResearchService(ModelProfilesMixin):
             prompt = text
             if scenario_context:
                 prompt += "\n\nHost冻结场景要求：\n" + "\n".join(scenario_context["requirements"])
+                if scenario_context["scenario"]["scenario_id"] in {
+                    "owned-company-evidence",
+                    "owned-news-evidence",
+                    "owned-research-prep",
+                }:
+                    selected_method = scenario_selections[0]
+                    prompt += (
+                        "\nHost固定方法动作：调用research_run_script，唯一参数为"
+                        + json.dumps(
+                            {
+                                "method_execution": {
+                                    "capability_id": selected_method["id"],
+                                    "version": selected_method["version"],
+                                    "context_sha256": scenario_fingerprint(scenario_context),
+                                }
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "。实际完成动作后才叙事并交付原canonical报告，再检查研究质量。"
+                    )
                 prompt += "\n逐一读取并应用下列已冻结的必需能力；不能只执行第一项：\n" + "\n".join(
                     item["resource_path"] + "/SKILL.md SHA-256=" + item["sha256"]
                     for item in scenario_selections

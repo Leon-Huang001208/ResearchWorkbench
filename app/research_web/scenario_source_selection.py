@@ -23,6 +23,13 @@ from .store import StoreError
 
 log = get_logger(__name__)
 PACKS = {"pack-research-prep", "pack-global-opinion"}
+TARGETS = {
+    **{cid: "pack" for cid in PACKS},
+    **{
+        cid: "owned-method"
+        for cid in ("owned-company-evidence", "owned-news-evidence", "owned-research-prep")
+    },
+}
 SCHEMA = "research-pack-source-selection/v1"
 LIMIT = 256 * 1024
 CONTROL = (".control", "source-selections")
@@ -100,7 +107,13 @@ class SelectionManifest(Closed):
     schema_id: Literal["research-pack-source-selection/v1"] = Field(alias="schema")
     schema_version: Literal[1]
     selection_id: str = Field(pattern=r"^[a-f0-9]{64}$")
-    scenario_id: Literal["pack-research-prep", "pack-global-opinion"]
+    scenario_id: Literal[
+        "pack-research-prep",
+        "pack-global-opinion",
+        "owned-company-evidence",
+        "owned-news-evidence",
+        "owned-research-prep",
+    ]
     subject: Subject
     as_of: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     request_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -131,7 +144,7 @@ def _write_control(service, name, record):
 def _request(body):
     handoff = body.handoff
     if (
-        handoff.scenario_id not in PACKS
+        handoff.scenario_id not in TARGETS
         or not handoff.source_session_id
         or handoff.workspace_material is not None
         or handoff.context
@@ -143,7 +156,7 @@ def _request(body):
     ):
         fail(
             "source_selection_request_invalid",
-            "请选择两类原文研究包、真实来源会话及明确资料范围",
+            "请选择已登记原文场景、真实来源会话及明确资料范围",
             422,
         )
     sources = sorted(
@@ -274,7 +287,11 @@ def preview(service, body):
         {
             "request": request,
             "references": refs,
-            "qualification": context["pack_qualification"],
+            "qualification": (
+                context["pack_qualification"]
+                if handoff.scenario_id in PACKS
+                else context["method_qualification"]
+            ),
             "capabilities": chosen["capabilities"],
         }
     )
@@ -300,7 +317,11 @@ def preview(service, body):
         "preview_sha256": digest,
         "subject": chosen["inputs"]["subject"],
         "sources": [_safe(service, ref) for ref in refs],
-        "qualification": context["pack_qualification"],
+        "qualification": (
+            context["pack_qualification"]
+            if handoff.scenario_id in PACKS
+            else context["method_qualification"]
+        ),
         "frozen": False,
         "send_authorized": False,
     }, {
@@ -380,10 +401,10 @@ def read_selection(service, material, body):
     relative = session["files"].get(token.file_id, "")
     if not relative.startswith("inputs/source-selections/"):
         return None
-    if body.scenario_id not in PACKS or not re.fullmatch(
+    if body.scenario_id not in TARGETS or not re.fullmatch(
         r"inputs/source-selections/[a-f0-9]{64}\.json", relative
     ):
-        fail("source_selection_route_invalid", "此资料选择仅适用于两类原文研究包", 422)
+        fail("source_selection_route_invalid", "此资料选择仅适用于已登记原文场景", 422)
     metadata, _manifest, raw = resolve_reference(
         service, token.source_session_id, {"type": "file", "id": relative}
     )

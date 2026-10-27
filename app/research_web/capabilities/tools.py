@@ -100,7 +100,12 @@ DECLARATIONS = {
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
-        {"code": "string", "report_plan": "object", "pack_execution": "object"},
+        {
+            "code": "string",
+            "report_plan": "object",
+            "pack_execution": "object",
+            "method_execution": "object",
+        },
         [],
         "仅本会话，严格沙箱；不允许联网或安装依赖",
     ),
