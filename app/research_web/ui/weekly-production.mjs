@@ -17,7 +17,7 @@ const STATUS_LABEL = { blocked_dependency: 'Wind 数据依赖未就绪', unverif
 
 // Presentation only: the gateway independently enforces the account boundary.
 export function canUseReportWorkflows(userId, account) {
-  return !userId || (account?.role === 'admin' && account?.primary === true);
+  return account ? account.role === 'admin' && account.primary === true : !userId;
 }
 
 export function weeklyScheduleDefaults(detail) {

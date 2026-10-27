@@ -14,6 +14,7 @@ import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
+import { renderReportWorkspace, reportHref } from './report-workspace.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
 import { focusSidebarControl, renderGlobalResults, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
@@ -45,7 +46,7 @@ import { createDossierController, renderDossiers, isDossierRoute } from './dossi
 
 import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
-import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
+
 import { canUseReportWorkflows } from './weekly-production.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createExecutionEvidenceExpiry, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
 import { createModelSettings } from './model-settings.mjs';
@@ -132,6 +133,7 @@ let etfState = { readiness: {}, runs: [], result: null };
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
+let reportPageLoading = false; let reportPageError = ''; let reportReadGeneration = 0;
 let automationFormOpen = false; let automationBusy = false;
 let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = ''; let localCategory = 'all'; let officeConsentConfirmation = ''; let localStatusExpiryTimer = null;
 const executionEvidenceExpiry = createExecutionEvidenceExpiry({ getSources: () => catalog.connections.sources, isActive: () => Boolean(root.querySelector('[data-connection-workbench]')), onExpire: () => render() });
@@ -140,6 +142,18 @@ let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, 
 let closeFrameworkStream = () => {};
 const workflowVersions = new Map();
 let pageGeneration = 0;
+let reportRefreshTimer = null;
+function armReportRefresh(ticket) {
+  clearTimeout(reportRefreshTimer);
+  if (ticket !== pageGeneration || state.route.page !== 'reports' || state.route.reportTab !== 'production' || !reportWorkflowsAllowed || !reportWorkflowDetail?.runs?.some(run => !run.monitoring_disposition && ['queued', 'preparing_data', 'running', 'validating'].includes(run.status))) return;
+  reportRefreshTimer = setTimeout(async () => {
+    if (ticket !== pageGeneration) return;
+    if (document.visibilityState !== 'hidden' && !reportWorkflowBusy && !reportPageLoading && !document.activeElement?.matches('input, select, textarea')) await loadReportPage(ticket);
+    armReportRefresh(ticket);
+  }, 10000);
+}
+
+
 let renameDraft = null;
 let renameSession = null; let deleteSession = null; let purgeSession = null;
 const conversationScrollPositions = new Map();
@@ -507,6 +521,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
   if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
   if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
@@ -537,8 +552,40 @@ function clawMainPage() {
   const view = state.route.clawView || 'sessions';
   if (view === 'projects') return renderClawProject(clawWorkspace);
   if (view === 'skills') return renderClawConnections(catalog.capabilities, catalog.tools);
-  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '') + (reportWorkflowsAllowed ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : '');
+  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '') + (reportWorkflowsAllowed ? '<p><a class="text-button" href="#/reports">打开报告生产</a></p>' : '');
   return researchPage();
+}
+
+async function refreshReportMutation(ticket, workflowId) {
+  if (ticket !== pageGeneration) return false;
+  if (!workflowId) return true;
+  const detail = await api.reportWorkflow(workflowId);
+  if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return false;
+  reportWorkflowDetail = detail;
+  return true;
+}
+
+async function loadReportPage(ticket = pageGeneration) {
+  const generation = ++reportReadGeneration;
+  const projectId = state.route.reportProjectId;
+  if (state.route.page !== 'reports' || !reportWorkflowsAllowed || state.route.reportInvalid) {
+    reportWorkflowDetail = null; reportPageLoading = false; reportPageError = ''; return;
+  }
+  reportPageLoading = true; reportPageError = '';
+  if (reportWorkflowDetail?.id !== projectId) reportWorkflowDetail = null;
+  render();
+  try {
+    await loadCatalog(['reportWorkflows']);
+    const detail = projectId ? await api.reportWorkflow(projectId) : null;
+    if (ticket !== pageGeneration || generation !== reportReadGeneration || state.route.page !== 'reports' || state.route.reportProjectId !== projectId) return;
+    reportWorkflowDetail = detail;
+    reportPageError = catalog.errors.reportWorkflows || '';
+  } catch (error) {
+    if (ticket === pageGeneration && generation === reportReadGeneration) reportPageError = error.message || '报告项目读取失败。';
+    safeLog('report_workspace_read_failed', { code: error.code || 'request_failed' });
+  } finally {
+    if (ticket === pageGeneration && generation === reportReadGeneration) { reportPageLoading = false; render(); }
+  }
 }
 
 async function loadClawProjects() {
@@ -587,9 +634,8 @@ function capabilityPage() {
   if (cap.form === 'manage' && cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
   if (cap.form === 'manage' && cap.tool) return messages + renderToolDetail(cap.tool);
   if (cap.form === 'manage' && cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
-  if (reportWorkflowDetail) return messages + renderReportWorkflowDetail(reportWorkflowDetail, { busy: reportWorkflowBusy });
   const workspace = renderCapabilityWorkspace({
-    capabilities: catalog.capabilities, tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
+    capabilities: catalog.capabilities.filter(item => !item.metadata?.report_workflow), tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
     automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen,
     dataCatalog: catalog.dataCatalog, connections: catalog.connections, mcpMarketplace: mcpMarketplaceState, view: cap.view, kind: cap.kindFilter,
     source: cap.source, category: cap.category, status: cap.status, query: cap.query,
@@ -597,9 +643,7 @@ function capabilityPage() {
     busy: cap.busy || reportWorkflowBusy || automationBusy,
     error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
   });
-  const reports = reportWorkflowsAllowed && cap.kindFilter === 'workflow' && ['library', 'mine'].includes(cap.view)
-    ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : '';
-  return messages + reports + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
+  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
 
 function sidebar() {
@@ -839,7 +883,7 @@ function render() {
   mountAssetIndicators(Boolean(persistentAssetTerminal));
   const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
   if (assetSearchSlot) assetSearch = mountAssetSearch(assetSearchSlot, { api, account: () => globalThis.__RWB_USER_ID__ || 'local', asset: state.route.asset || assetState.observation?.asset || '', onSelect: item => { location.hash = assetHref(item.asset, 'stock', state.route.assetView || 'overview'); } });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1560,6 +1604,7 @@ async function showRoute() {
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
   composerMenu = closedComposerMenu();
+  clearTimeout(reportRefreshTimer);
   const ticket = ++pageGeneration; workbenchBusy = false; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
   if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
@@ -1572,6 +1617,7 @@ async function showRoute() {
   await loadWorkflowVersion();
   if (['claw', 'fingpt'].includes(state.route.page)) { sidebarCollapsed = conversationNavigation.state(state.route.page).view.collapsed; await conversationNavigation.load(state.route.page, true); }
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
+  if (state.route.page === 'reports') { await loadReportPage(ticket); armReportRefresh(ticket); }
   if (state.route.page === 'frameworks') await loadFrameworkPage(ticket);
   if (state.route.page === 'settings') {
     migrationOpen = false;
@@ -2053,6 +2099,13 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  // This local filter form is submitted explicitly; generic redraw would discard its values.
+  if (event.target.closest?.('[data-report-directory-filter]')) return;
+  if (event.target.matches?.('[data-report-run-select]')) {
+    history.pushState(null, '', reportHref(state.route.reportProjectId, 'production', event.target.value));
+    await showRoute(); return;
+  }
+
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
@@ -2223,6 +2276,12 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.matches?.('[data-report-directory-filter]')) {
+    event.preventDefault(); const values = new FormData(event.target);
+    const params = new URLSearchParams({ q: String(values.get('q') || '').slice(0, 120), status: String(values.get('status') || 'all') });
+    history.pushState(null, '', `#/reports?${params}`); await showRoute(); return;
+  }
+
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (event.target.closest?.('[data-dossier-workspace]') && await dossierController.handle(event)) return;
@@ -2427,7 +2486,7 @@ root.addEventListener('submit', async (event) => {
   }
   if (event.target.matches('[data-report-schedule-form]')) {
     if (reportWorkflowBusy) return;
-    const workflowId = event.target.dataset.reportScheduleForm;
+    const workflowId = event.target.dataset.reportScheduleForm; const ticket = pageGeneration;
     const values = new FormData(event.target);
     const kind = String(values.get('kind') || 'manual');
     const enabled = values.get('enabled') === 'on' && kind !== 'manual';
@@ -2441,9 +2500,9 @@ root.addEventListener('submit', async (event) => {
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
       await api.saveReportSchedule(workflowId, body);
-      reportWorkflowDetail = await api.reportWorkflow(workflowId);
+      if (!await refreshReportMutation(ticket, workflowId)) return;
       success = enabled ? '报告 Workflow 日程已启用。' : '报告 Workflow 日程已保存但未启用。';
-    } catch (error) { state.error = error.message; }
+    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_schedule_save_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return;
   }
@@ -3725,7 +3784,8 @@ async function handleCapabilityClick(data) {
     return true;
   }
   if ('capKind' in data) { cap.kind = data.capKind; cap.kindFilter = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
-  if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; render(); return true; }
+  if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; history.pushState(null, '', '#/reports'); await showRoute(); return true; }
+  if ('refreshReportWorkspace' in data) { if (!reportWorkflowBusy) await loadReportPage(); return true; }
   if ('prepareWeeklyProduction' in data) {
     if (reportWorkflowBusy) return true;
     const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
@@ -3755,34 +3815,31 @@ async function handleCapabilityClick(data) {
     return true;
   }
   if ('reportWorkflowDetail' in data) {
-    const ticket = pageGeneration;
-    cap.detail = null; cap.tool = null; cap.dataDetail = null; cap.form = '';
-    reportWorkflowBusy = true; state.error = ''; render();
-    try {
-      const detail = await api.reportWorkflow(data.reportWorkflowDetail);
-      if (ticket !== pageGeneration) return true;
-      reportWorkflowDetail = detail;
-      if (state.route.page !== 'skills') {
-        history.pushState(null, '', '#/skills?kind=workflow');
-        await showRoute();
-        reportWorkflowDetail = detail;
-      }
-    } catch (error) { state.error = error.message; }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
+    history.pushState(null, '', reportHref(data.reportWorkflowDetail));
+    await showRoute(); return true;
   }
   if ('runReportWorkflow' in data || 'runHistoricalReportWorkflow' in data) {
+    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
       let run = 'runHistoricalReportWorkflow' in data
         ? await api.runHistoricalReportWorkflow(data.runHistoricalReportWorkflow)
         : await api.runReportWorkflow(data.runReportWorkflow);
+      if (ticket !== pageGeneration) return true;
       for (let attempt = 0; attempt < 12 && !run.session_id && ['queued', 'preparing_data', 'running'].includes(run.status); attempt += 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
+        if (ticket !== pageGeneration) return true;
         run = await api.reportRun(run.id);
+        if (ticket !== pageGeneration) return true;
       }
       await loadCatalog(['reportWorkflows', 'sessions']);
-      if (run.session_id) {
+      if (ticket !== pageGeneration) return true;
+      if (state.route.page === 'reports') {
+        history.pushState(null, '', reportHref(run.workflow_id || state.route.reportProjectId, 'production', run.id));
+        await showRoute();
+        success = '已记录本次生产；执行、内容检查与文件交付分别确认。';
+      } else if (run.session_id) {
         history.pushState(null, '', `#/claw?session=${encodeURIComponent(run.session_id)}`);
         await showRoute();
         success = '已创建锁定报告 Workflow 版本的 Claw 会话。';
@@ -3791,39 +3848,45 @@ async function handleCapabilityClick(data) {
       } else {
         success = '报告 Workflow 已受理，正在准备 Excel 底稿。';
       }
-    } catch (error) { state.error = error.message; }
+    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
   if ('probeReportProvider' in data) {
+    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
       const result = await api.probeReportProvider(data.probeReportProvider, crypto.randomUUID());
+      if (!await refreshReportMutation(ticket, workflowId)) return true;
       success = result.ready
         ? `${data.probeReportProvider} 探测通过。`
         : `${data.probeReportProvider} 探测未通过：${result.code || '状态未知'}。`;
-      if (reportWorkflowDetail) reportWorkflowDetail = await api.reportWorkflow(reportWorkflowDetail.id);
-    } catch (error) { state.error = error.message; }
+    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
   if ('cancelReportRun' in data) {
+    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
     reportWorkflowBusy = true; state.error = ''; render();
     try {
-      await api.cancelReportRun(data.cancelReportRun);
-      if (reportWorkflowDetail) reportWorkflowDetail = await api.reportWorkflow(reportWorkflowDetail.id);
-      success = '报告运行已取消。';
-    } catch (error) { state.error = error.message; }
+      const cancelled = await api.cancelReportRun(data.cancelReportRun);
+      if (!await refreshReportMutation(ticket, workflowId)) return true;
+      success = cancelled.status === 'cancelled' && cancelled.monitoring_disposition !== 'ended_by_user' ? '运行记录已取消；实际执行及清理状态请查看原始证据。' : '取消结果尚未确认，请核对原运行状态。';
+    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
   if ('retryReportRun' in data) {
+    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
     reportWorkflowBusy = true; state.error = ''; render();
     try {
       const run = await api.retryReportRun(data.retryReportRun);
-      if (reportWorkflowDetail) reportWorkflowDetail = await api.reportWorkflow(reportWorkflowDetail.id);
-      success = `已创建重试运行 ${run.id}。`;
-    } catch (error) { state.error = error.message; }
+      if (!await refreshReportMutation(ticket, workflowId)) return true;
+      success = run.id === data.retryReportRun ? '已核对原运行记录，未创建新的执行。' : `已创建重试记录 ${run.id}；实际受理状态另行确认。`;
+    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
