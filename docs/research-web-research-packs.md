@@ -62,7 +62,7 @@ observed_no_match。包级 `source_coverage` 也只是来源范围声明，缺�
 
 ## 预算与版本冻结
 
-全部输入≤50,000行／64MiB，严格有限数字与派生溢出检查。单估值／日历序列≤5,000，
+全部输入≤50,000行／64MiB，严格有限数字与派生溢出检查。单估值序列、exchange-session交易所日历序列各≤5,000；report-calendar按security/report_period每序列≤5,000，
 目标和基准各≤5,000；预期比较最多50证券、多证券每证券≤1,000，单证券≤5,000。
 系列预算在分配计算结构前检查。完整派生 rows≤16MiB，输出含缺失、拒绝、来源、参数摘要、
 所有子回执≤64KiB，超限 `workload_too_large`，不丢字段挤预算。仅最终 rows 最多128条，
@@ -100,3 +100,12 @@ Q4/FY歧义组合拒绝。变化只计算请求序列中相邻且都有披露的
 逐已知证券/holder（含显式声明holder）检查全部请求期间，缺失列holder_period_missing，
 保持partial；不补0股、不生成缺期持有记录。检查缺期网格同样先验派生基数并累计缺口字节，
 防止证券×holder×期间的扩大分配。原22合成向量及72个旧断言不删改。
+
+## Python QUALITY wave2 修正（2026-10-27）
+
+财报report-calendar在挑选最新计划、建立history前先按规范security/report_period计数，
+单序列5,000可接受、5,001即workload_too_large；不同证券的多个合法序列仍共享总输入50,000
+上限，不用单序列上限误拒合计超过5,000的多序列。plan_version按该序列的set检查重复，
+不再每行扫描整个history。5000/5001、两个2501序列、重复版本及计数型比较哨兵均有回归。
+带时区instant转换UTC也在受控异常边界内，超出datetime最小/最大日期返回稳定instant_invalid，
+不泄漏裸OverflowError；原严格时区格式、naive拒绝和其他日期语义保持。

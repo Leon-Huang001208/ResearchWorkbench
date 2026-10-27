@@ -493,3 +493,75 @@ def test_spec_older_conflicting_vintage_cannot_hide_behind_newer_consensus():
     v["records_by_kind"]["forecast"].extend([f, g])
     with pytest.raises(PackError, match="ambiguous_consensus"):
         execute(v)
+
+
+def calendar_versions(series_count, rows_per_series):
+    v = fixture("earnings_calendar.success")
+    prototype = v["records_by_kind"]["report-calendar"][0]
+    records, universe = [], []
+    for series in range(series_count):
+        identity = dict(prototype["security"], security_id=f"SYN:CAL{series}")
+        universe.append(identity)
+        for version in range(rows_per_series):
+            r = copy.deepcopy(prototype)
+            r["row_id"] = str(len(records))
+            r["security"] = identity
+            r["plan_version"] = version + 1
+            records.append(r)
+    v["records_by_kind"] = {"report-calendar": records}
+    v["parameters"]["expected_universe"] = universe
+    return v
+
+
+@pytest.mark.parametrize("rows,accepted", [(5000, True), (5001, False)])
+def test_quality_report_calendar_series_budget_boundaries(rows, accepted):
+    v = calendar_versions(1, rows)
+    if accepted:
+        r = execute(v)
+        assert r["status"] == "complete"
+        assert r["processed_input_rows"] == 5000
+        assert len(r["rows"][0]["history_row_ids"]) == 5000
+    else:
+        with pytest.raises(PackError, match="workload_too_large"):
+            execute(v)
+
+
+def test_quality_report_calendar_budget_is_per_series():
+    r = execute(calendar_versions(2, 2501))
+    assert r["status"] == "complete"
+    assert r["processed_input_rows"] == 5002
+    assert [len(x["history_row_ids"]) for x in r["rows"]] == [2501, 2501]
+
+
+def test_quality_report_calendar_duplicate_plan_version():
+    v = calendar_versions(1, 3)
+    v["records_by_kind"]["report-calendar"][2]["plan_version"] = 1
+    with pytest.raises(PackError, match="duplicate_plan_version"):
+        execute(v)
+
+
+def test_quality_report_calendar_duplicate_checks_are_linear():
+    comparisons = []
+
+    class CountedVersion(int):
+        __hash__ = int.__hash__
+
+        def __eq__(self, other):
+            comparisons.append(1)
+            return int.__eq__(self, other)
+
+        def __ne__(self, other):
+            comparisons.append(1)
+            return int.__ne__(self, other)
+
+    v = calendar_versions(1, 300)
+    for row in v["records_by_kind"]["report-calendar"]:
+        row["plan_version"] = CountedVersion(row["plan_version"])
+    assert execute(v)["status"] == "complete"
+    assert len(comparisons) < 3000
+
+
+@pytest.mark.parametrize("stamp", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+def test_quality_datetime_utc_overflow_is_stable_pack_error(stamp):
+    with pytest.raises(PackError, match="instant_invalid"):
+        execute_atom("deduplicate_source_versions", {}, {"as_of": stamp})

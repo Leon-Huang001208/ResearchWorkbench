@@ -80,10 +80,12 @@ def instant(value: Any) -> datetime:
     )
     try:
         result = datetime.fromisoformat(value)
-    except ValueError as exc:
+        require(result.tzinfo is not None, "as_of_precision_required")
+        return result.astimezone(UTC)
+    except PackError:
+        raise
+    except (ValueError, OverflowError) as exc:
         raise PackError("instant_invalid") from exc
-    require(result.tzinfo is not None, "as_of_precision_required")
-    return result.astimezone(UTC)
 
 
 def day(value: str) -> date:

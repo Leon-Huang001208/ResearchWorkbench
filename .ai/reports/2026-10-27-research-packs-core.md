@@ -97,3 +97,31 @@ cleanup PID64260复查归属并恢复owner目录权限后清理，见research-pa
 
 本轮仍未执行CI/Mac安装、Host/Native/UI/DSH、真实模型/供应商/PIT/质量/部署；其他平台NOT_RUN。
 16MiB哨兵验证的是提前累计机制；没有生成625万行或做真实16MiB等号/+1大内存压力。
+
+## Python QUALITY fix wave2：2项修复（2026-10-27）
+
+接受HIGH财报日历单序列预算/O(n²)与MEDIUM UTC转换溢出两项，不改已Approved的SPEC五项。
+新增7 case，先运行 `test_research_pack_contracts.py -k test_quality_`：
+`logs/research-packs-quality-w2-red.log`记录4 failed、3 passed、48 deselected（2.24s）。
+真实失败为5001计划仍complete、300版本比较计数超线性上限，以及UTC日期上下界裸OverflowError；
+5000通过、两个合法2501序列合计5002通过、同序列重复版本拒绝三项原行为保留。
+
+实现：report-calendar先按规范security/report_period遍历计数≤5000再选最新计划/建立history，
+每序列set检查plan_version重复，expected universe membership亦用set，处理从历史扫描二次方
+恢复到线性；不同series合计沿原50000总输入门，不以5000总量误伤。instant解析和astimezone(UTC)
+共同捕获ValueError/OverflowError，稳定instant_invalid；PackError原码、严格时区格式与naive拒绝保持。
+模块文档明确exchange-session与report-calendar每series的不同预算范围。
+
+原84测试保持，新增7后的91聚焦包含在目标+相邻最终回归：144 passed、16 subtests passed、
+1原Starlette/anyio DeprecationWarning，33.45s。scoped Ruff、Black --check、isort --check-only、
+git diff --check通过，未安装依赖。
+实际命令沿上一波的相同五个测试文件、已批准venv/pytest缓存/PYTHONDONTWRITEBYTECODE=1，
+仍使用 `--confcutdir=tests/research_web` 与新opaque `--basetemp`；完整argv保存在receipt中。
+`logs/research-packs-quality-w2-verified.log` SHA256
+`d0959329fd6f87d84a2acb48f5e2aefb1a63231204e7f1bec310d8e2cd8c27ab`。
+`logs/research-packs-quality-w2-verified-receipt.json`：runner PID82061、pytest PID82062、UID501。
+本任务精确临时树 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-packs-quality-w2-verified-7bda5752-ml8km5o0`
+在进程终止后逐目录复核UID与非symlink，仅调整本树owner目录权限，已清理，cleaned=true。
+
+本轮无push、Host/Native/UI接口变动、模型/供应商/业务数据/部署；CI/Mac安装和真实来源/质量仍NOT_RUN。
+等待Root对新scope commit做Python QUALITY复评，不能将测试通过称为九包整体完成。

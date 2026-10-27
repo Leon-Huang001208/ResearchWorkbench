@@ -198,19 +198,25 @@ def disclosed_ownership(records, p, cutoff):
 def earnings_calendar(records, p, cutoff):
     expected = [security(s) for s in p["expected_universe"]]
     require(len(set(expected)) == len(expected), "duplicate_universe")
-    selected, history = {}, defaultdict(list)
-    for r in records.get("report-calendar", []):
+    expected_set = set(expected)
+    records = records.get("report-calendar", [])
+    series_counts = defaultdict(int)
+    for record in records:
+        key = (security(record["security"]), record["report_period"])
+        series_counts[key] += 1
+        require(series_counts[key] <= 5000, "workload_too_large")
+    selected, history, versions = {}, defaultdict(list), defaultdict(set)
+    for r in records:
         s = security(r["security"])
-        require(s in expected, "universe_mismatch")
+        require(s in expected_set, "universe_mismatch")
         require(r["report_period"] == p["report_period"], "report_period_mismatch")
         day(r["planned_date"])
         actual = r["actual_disclosed_at"]
         require(actual is None or instant(actual) <= cutoff, "future_data")
         require(r["origin"]["published_at"] is not None, "disclosure_time_unknown")
-        require(
-            all(x["plan_version"] != r["plan_version"] for x in history[s]),
-            "duplicate_plan_version",
-        )
+        version_key = (s, r["report_period"])
+        require(r["plan_version"] not in versions[version_key], "duplicate_plan_version")
+        versions[version_key].add(r["plan_version"])
         history[s].append(r)
         if s not in selected or selected[s]["plan_version"] < r["plan_version"]:
             selected[s] = r
