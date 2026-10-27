@@ -1,7 +1,7 @@
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
@@ -18,6 +18,14 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'reports') {
+    route.reportInvalid = Boolean(extraSegments.length || (sectionSegment && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sectionSegment)) || (params.has('run') && !/^[a-f0-9]{32}$/.test(params.get('run'))));
+    route.reportProjectId = !route.reportInvalid && sectionSegment || null;
+    route.reportTab = ['production', 'configuration', 'history'].includes(params.get('tab')) ? params.get('tab') : 'production';
+    route.reportRunId = /^[a-f0-9]{32}$/.test(params.get('run') || '') ? params.get('run') : '';
+    route.reportQuery = (params.get('q') || '').slice(0, 120);
+    route.reportStatus = ['enabled', 'needs_attention', 'draft', 'disabled'].includes(params.get('status')) ? params.get('status') : 'all';
+  }
   if (page === 'market') {
     route.marketView = ['overview', 'quotes', 'sectors'].includes(params.get('view')) ? params.get('view') : 'overview';
     route.marketBoardId = /^BK[0-9]{4,6}$/.test(params.get('board_id') || '') ? params.get('board_id') : null;
@@ -124,7 +132,7 @@ export function legacyRouteTarget(hash = '') {
     }
     return `${targets[route.section]}${params.size ? `?${params}` : ''}`;
   }
-  return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
+  return null;
 }
 
 export function isDataWorkspaceRoute(route) {

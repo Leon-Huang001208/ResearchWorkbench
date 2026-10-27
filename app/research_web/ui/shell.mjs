@@ -6,10 +6,12 @@ import { icon } from './icons.mjs';
 import { renderResearchPanel } from './research-report.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
 import { renderAccountTrigger } from './server/account-menu.mjs';
+import { canUseReportWorkflows } from './weekly-production.mjs';
 
 const navItems = [
   { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
+  { page: 'reports', glyph: 'document', title: '报告生产', href: '#/reports' },
   { page: 'market', glyph: 'chart', title: '全市场概览', href: '#/market' },
   { page: 'assets', glyph: 'chart', title: '资产观察', href: '#/assets' },
   { page: 'intel', glyph: 'activity', title: '研究情报', href: '#/intel/overview' },
@@ -87,7 +89,7 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
 
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false, account = null } = {}) {
   const primaryPage = page === 'workbench' ? ['market', 'industry', 'documents', 'hot'].includes(section) ? 'intel' : section === 'etf-paper' ? 'simulation' : 'assets' : page;
-  const links = navItems.map((item) => {
+  const links = navItems.filter(item => item.page !== 'reports' || canUseReportWorkflows(globalThis.__RWB_USER_ID__ || account?.id, account)).map((item) => {
     const active = primaryPage === item.page;
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');

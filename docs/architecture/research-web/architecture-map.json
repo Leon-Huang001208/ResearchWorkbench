@@ -523,7 +523,9 @@
         "app/research_web/report_studio.py",
         "app/research_web/ui/report-workflows.mjs",
         "app/research_web/report_documents.py",
-        "app/research_web/ui/weekly-production.mjs"
+        "app/research_web/ui/weekly-production.mjs",
+        "app/research_web/ui/report-workspace.mjs",
+        "app/research_web/ui/report-workspace.css"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -556,7 +558,8 @@
         "tests/research_web/test_datahub_wind_api.py",
         "tests/research_web/test_report_weekly_admission.py",
         "tests/research_web/test_legacy_weekly_monitoring.py",
-        "tests/research_web/test_report_weekly_historical_acceptance.py"
+        "tests/research_web/test_report_weekly_historical_acceptance.py",
+        "tests/javascript/research_web_reports_workspace.test.mjs"
       ]
     },
     {
@@ -5355,7 +5358,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "6a227a07682ac24f46ea11c485192334059c11b9"
+      "revision": "2e1a6bfe0880126e1b10da9fd8b9db8b754e4f95"
     },
     "levels": [
       {
