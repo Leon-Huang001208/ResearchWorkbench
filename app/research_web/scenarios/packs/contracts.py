@@ -9,10 +9,11 @@ import re
 from datetime import UTC, date, datetime
 from typing import Any
 
-from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema import Draft202012Validator
 
 from core.observability import get_logger
 
+from .format_profile import format_checker, require_local_schema, valid_instant
 from .record_contracts import RECORD_SCHEMAS
 
 log = get_logger(__name__)
@@ -79,6 +80,7 @@ def instant(value: Any) -> datetime:
         "as_of_precision_required",
     )
     try:
+        require(valid_instant(value), "instant_invalid")
         result = datetime.fromisoformat(value)
         require(result.tzinfo is not None, "as_of_precision_required")
         return result.astimezone(UTC)
@@ -143,7 +145,8 @@ def validate_inputs(records: dict, parameters: dict) -> tuple[dict, datetime, in
     cutoff = instant(parameters.get("as_of"))
     seen = set()
     for kind, rows in records.items():
-        validator = Draft202012Validator(RECORD_SCHEMAS[kind], format_checker=FormatChecker())
+        require_local_schema(RECORD_SCHEMAS[kind])
+        validator = Draft202012Validator(RECORD_SCHEMAS[kind], format_checker=format_checker())
         for row in rows:
             require(not any(validator.iter_errors(row)), "record_contract_invalid")
             require(row["row_id"] not in seen, "duplicate_row_id")

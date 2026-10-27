@@ -3719,9 +3719,12 @@ Imports:
 - `jsonschema`
 - `models`
 - `os`
+- `pack_import_policy`
 - `pathlib`
 - `platform`
 - `re`
+- `scenarios.packs.format_profile`
+- `scenarios.packs.record_contracts`
 - `stat`
 - `sys`
 - `sysconfig`
@@ -3759,6 +3762,41 @@ Functions:
 - `issue_for_publication`
   - Called inside the existing pending activation transaction, before its save.
 - `verify`
+
+
+## `app/research_web/capabilities/pack_import_policy.py`
+
+Module docstring:
+> Frozen stdlib-only import admission shared by Host and the Native launcher.
+
+Imports:
+- `__future__`
+- `ast`
+- `importlib.machinery`
+- `importlib.util`
+- `logging`
+- `pathlib`
+- `sys`
+- `sysconfig`
+- `types`
+
+Classes:
+- `_NativeImports`
+  - Per-process Native finder; never installed into the Host process.
+  - methods: __init__, find_spec
+
+Functions:
+- `module_files`
+- `build_policy`
+  - Bind module-time optional imports; block unbound lazy/dynamic imports.
+- `_stdlib_origin`
+- `_standard_check`
+- `_bound_module`
+- `_references`
+- `verify_policy`
+  - Check current search resolution and every already-loaded root/submodule.
+- `install_native`
+  - Called by the fixed launcher before calculate/jsonschema can execute.
 
 
 ## `app/research_web/capabilities/pack_logging.py`
@@ -3812,6 +3850,7 @@ Imports:
 - `hashlib`
 - `json`
 - `models`
+- `pack_dependencies`
 - `pack_native`
 - `pack_resources`
 - `packages`
@@ -3868,6 +3907,7 @@ Imports:
 - `jsonschema`
 - `models`
 - `scenarios.packs`
+- `scenarios.packs.format_profile`
 
 Functions:
 - `obj`
@@ -11227,6 +11267,7 @@ Imports:
 - `__future__`
 - `core.observability`
 - `datetime`
+- `format_profile`
 - `hashlib`
 - `json`
 - `jsonschema`
@@ -11255,6 +11296,27 @@ Functions:
 - `_component_previews`
   - Project child data rows while preserving every component audit field.
 - `result`
+
+
+## `app/research_web/scenarios/packs/format_profile.py`
+
+Module docstring:
+> Versioned strict date/instant validation; no optional third-party checker.
+
+Imports:
+- `__future__`
+- `datetime`
+- `jsonschema`
+- `logging`
+- `re`
+
+Functions:
+- `valid_date`
+- `valid_instant`
+- `format_checker`
+  - A private checker instance: never changes jsonschema's global registry.
+- `require_local_schema`
+  - The fixed pack schemas cannot request external resolution/dynamic schemas.
 
 
 ## `app/research_web/scenarios/packs/limited.py`

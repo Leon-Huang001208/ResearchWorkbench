@@ -2,11 +2,12 @@
 
 import copy
 
-from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema import Draft202012Validator
 
 from core.observability import get_logger
 
 from ..scenarios.packs import METHODS, PACKS
+from ..scenarios.packs.format_profile import format_checker, require_local_schema
 from .models import CapabilityError
 
 log = get_logger(__name__)
@@ -282,9 +283,12 @@ def validate(receipt, full, pack_id):
             (receipt, definitions["receipts"][pack_id]),
             (full, definitions["full_results"][pack_id]),
         ):
+            require_local_schema(schema)
             if (
                 next(
-                    Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(value),
+                    Draft202012Validator(schema, format_checker=format_checker()).iter_errors(
+                        value
+                    ),
                     None,
                 )
                 is not None

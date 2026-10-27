@@ -93,3 +93,52 @@ def test_unsafe_links_fake_identity_and_external_code_are_rejected(tmp_path, mon
             stream.write("\n../../../bin/not-a-console.py,,")
     with pytest.raises(ValueError):
         _dependency_identity("jsonschema", "4.26.0", env)
+
+
+@pytest.mark.parametrize("changed", ["source", "new_transitive", "pyc", "metadata", "symlink"])
+def test_real_locked_idna_runtime_data_and_unlisted_code_are_bound(tmp_path, monkeypatch, changed):
+    import shutil
+    from pathlib import Path
+
+    import idna
+
+    from app.research_web.capabilities.pack_dependencies import _dependency_identity
+
+    actual = importlib.metadata.distribution("idna")
+    env = tmp_path / "managed"
+    base = env / "site-packages"
+    base.mkdir(parents=True)
+    package = base / "idna"
+    shutil.copytree(Path(idna.__file__).parent, package)
+    metadata = base / Path(actual._path).name
+    shutil.copytree(actual._path, metadata)
+    original = importlib.metadata.distribution
+    monkeypatch.setattr(
+        importlib.metadata,
+        "distribution",
+        lambda name: (
+            importlib.metadata.PathDistribution(metadata) if name == "idna" else original(name)
+        ),
+    )
+    first = _dependency_identity("idna", actual.version, env)
+    if changed == "source":
+        with (package / "core.py").open("a") as stream:
+            stream.write("\nMARKER=True\n")
+    elif changed == "new_transitive":
+        (package / "unlisted.py").write_text("import unbound_transitive\n")
+    elif changed == "pyc":
+        (package / "__pycache__").mkdir(exist_ok=True)
+        (package / "__pycache__/unlisted.pyc").write_bytes(b"unlisted-runtime-cache")
+    elif changed == "metadata":
+        with (metadata / "METADATA").open("a") as stream:
+            stream.write("X-Untrusted: yes\n")
+    else:
+        (package / "external.py").symlink_to(Path(idna.__file__))
+    if changed == "symlink":
+        with pytest.raises(ValueError):
+            _dependency_identity("idna", actual.version, env)
+    else:
+        assert (
+            _dependency_identity("idna", actual.version, env)["closure_sha256"]
+            != first["closure_sha256"]
+        )

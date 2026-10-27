@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-27 B1 验证依赖复核：runtime v3 绑定实际 optional 导入图与 idna 闭包，Host 只读验证 origin，Native 固定 launcher 用冻结 MetaPath 拒绝未绑定依赖；同一冻结 date/date-time profile 补齐原缺失 checker。仅验证层更正，不增引擎/服务/依赖，普通及 weekly sandbox 入口保持。
+
 2026-10-27 B1 SPEC修波仍沿原Host／唯一DSH拓扑：Catalog原pending发布事务提交仅九builtin pack的直接历史只读等价事实；Dossier专用内部adapter在当前来源授权与原件hash链上读取等价当前策略，不执行旧runtime、不向普通storage_read或执行门传递权限。版本化输出审计schema独立于返回receipt并进入Native资源闭包。无新服务、DB、秘密或引擎；旧send/load仍version_conflict，原八合同／基线字节不动。
 
 2026-10-27 九包 B1 沿同一 Host／唯一 DSH 的 Skill、guard、research_run_script 与 macOS sandbox 完成受控后端链。纯核逐文件冻结为版本资源，Host 从已授权原件投影并封印输入，受管 Native 层登记真实进程与文件读回；原报告 schema2 继续分别核验加载、计算、来源与研究质量。仅 BaoStock daily/none 具有当前无损 daily-price 子集，缺时段／披露／覆盖的九包仍 partial/blocked；不新增引擎、数据库、队列或供应商调用，原拓扑保持。详见[组合包](research-web-research-packs.md#b1hostnative后端闭环)。

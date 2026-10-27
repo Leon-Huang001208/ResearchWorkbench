@@ -26,6 +26,7 @@ CORE_FILES = (
     "contracts.py",
     "limited.py",
     "record_contracts.py",
+    "format_profile.py",
 )
 PACK_NAMES = {
     "position-risk": "持仓排雷",
@@ -87,6 +88,7 @@ def verify_pack_manifest(files):
                 "scripts/core/__init__.py",
                 "scripts/core/observability.py",
                 "scripts/pack_native.py",
+                "scripts/pack_import_policy.py",
                 "scripts/calculate.py",
                 "references/synthetic-vectors.json",
                 "references/record-contracts.json",
@@ -119,6 +121,10 @@ def pack_packages():
             ),
             encode_file(
                 "scripts/pack_native.py", (Path(__file__).parent / "pack_native.py").read_bytes()
+            ),
+            encode_file(
+                "scripts/pack_import_policy.py",
+                (Path(__file__).parent / "pack_import_policy.py").read_bytes(),
             ),
             encode_file("references/runtime.json", canonical(runtime_identity())),
             encode_file("references/output-contracts-v1.json", canonical(output_contracts())),

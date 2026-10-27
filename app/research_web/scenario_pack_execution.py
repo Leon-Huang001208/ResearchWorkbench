@@ -60,6 +60,7 @@ def launcher(root, scope):
                 "input": scope["input_path"],
                 "output": scope["output_root"] + "/v1",
                 "binding": scope["binding"],
+                "runtime": scope["runtime"],
             }
         )
     ).decode()
@@ -73,6 +74,8 @@ for _f in _v['files']:
  if not stat.S_ISREG(_b.st_mode) or _b.st_nlink!=1 or (_b.st_dev,_b.st_ino,_b.st_size)!=(_f['device'],_f['inode'],_f['bytes']) or (_a.st_dev,_a.st_ino,_a.st_size,_a.st_mtime_ns,_a.st_ctime_ns)!=(_b.st_dev,_b.st_ino,_b.st_size,_b.st_mtime_ns,_b.st_ctime_ns) or _h!=_f['sha256']:
   raise ValueError('pack_resource_changed')
 sys.path.insert(0,_v['root']+'/'+_v['scripts'])
+from pack_import_policy import install_native
+install_native(_v['runtime']['import_policy'],_v['runtime']['dependencies'],_v['root']+'/'+_v['scripts'])
 from calculate import execute
 print(json.dumps(execute(Path(_v['root']+'/'+_v['input']),Path(_v['root']+'/'+_v['output']),_v['binding']),ensure_ascii=False,separators=(',',':')))
 """

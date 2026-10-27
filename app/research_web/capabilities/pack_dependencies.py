@@ -22,7 +22,10 @@ from jsonschema import FormatChecker
 
 from core.observability import get_logger
 
+from ..scenarios.packs.format_profile import PROFILE, format_checker, require_local_schema
+from ..scenarios.packs.record_contracts import RECORD_SCHEMAS
 from .models import CapabilityError
+from .pack_import_policy import build_policy, verify_policy
 
 log = get_logger(__name__)
 LOCK_PROJECTION = Path(__file__).with_name("pack-runtime-lock.json")
@@ -33,6 +36,7 @@ DEPENDENCIES = (
     "referencing",
     "rpds-py",
     "typing-extensions",
+    "idna",
 )
 PACKAGE_ROOTS = {
     "jsonschema": ("jsonschema",),
@@ -41,6 +45,7 @@ PACKAGE_ROOTS = {
     "referencing": ("referencing",),
     "rpds-py": ("rpds",),
     "typing-extensions": ("typing_extensions.py",),
+    "idna": ("idna",),
 }
 INSTALLATION_BOOKKEEPING = {"RECORD", "INSTALLER", "direct_url.json", "REQUESTED"}
 
@@ -216,7 +221,7 @@ def runtime_identity():
         projection = json.loads(LOCK_PROJECTION.read_bytes())
         if (
             set(projection) != {"schema", "lock_sha256", "versions"}
-            or projection["schema"] != "research_pack_runtime_lock_v1"
+            or projection["schema"] != "research_pack_runtime_lock_v2"
             or not re.fullmatch(r"[a-f0-9]{64}", projection["lock_sha256"])
             or set(projection["versions"]) != set(DEPENDENCIES)
         ):
@@ -242,9 +247,24 @@ def runtime_identity():
             packages.append(
                 _dependency_identity(name, version, Path(sys.prefix).resolve(strict=True))
             )
+        for schema in RECORD_SCHEMAS.values():
+            require_local_schema(schema)
+        policy = build_policy(packages)
+        verify_policy(policy, packages)
         executable = Path(sys.executable).resolve(strict=True)
         return {
-            "schema": "research_pack_runtime_v2",
+            "schema": "research_pack_runtime_v3",
+            "import_policy": policy,
+            "import_guard_sha256": hashlib.sha256(
+                Path(__file__).with_name("pack_import_policy.py").read_bytes()
+            ).hexdigest(),
+            "validation_profile": {
+                "schema": PROFILE,
+                "sha256": hashlib.sha256(
+                    (Path(__file__).parents[1] / "scenarios/packs/format_profile.py").read_bytes()
+                ).hexdigest(),
+                "formats": sorted(format_checker().checkers),
+            },
             "fingerprint_policy": "import_roots_and_metadata_including_pyc_v1",
             "pyc_policy": "package_caches_hashed_external_prefix_rejected_v1",
             "entry_policy": "managed_python_module_no_console_v1",
@@ -265,6 +285,8 @@ def runtime_identity():
         ValueError,
         KeyError,
         TypeError,
+        SyntaxError,
+        ImportError,
         csv.Error,
         ConfigError,
         importlib.metadata.PackageNotFoundError,

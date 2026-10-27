@@ -186,7 +186,7 @@ wrapper.result是展示的有界投影，其result_sha256对该实际投影重�
 ## B1：Host／Native后端闭环
 
 `research-pack-<pack-id>` 是九个新增 Native Skill，不是原18算法的别名。`pack_resources.py`
-从精确 allowlist 复制六个纯核 Python 源、合成向量、记录 schema、固定 entry/writer 和
+从精确 allowlist 复制已审纯核及显式验证 profile、合成向量、记录 schema、固定 entry/writer 和
 显式 stdlib logger adapter；源算法字节不重写、不 import 可变 Host 算法。全部资源逐文件
 SHA256 和排序清单组成 closure，manifest 自身不参与自己的摘要。相对 import 必须在有限
 `scripts/` 模块树内解析；动态 import、任意 app/宿主模块与未绑定第三方模块拒绝。
@@ -194,16 +194,35 @@ SHA256 和排序清单组成 closure，manifest 自身不参与自己的摘要�
 原18回执门保留。用户副本不继承原内置包的受控执行身份。
 
 运行依赖沿已安装 Web Python，不安装依赖、不接受 caller PYTHONPATH。包内 lock 投影
-绑定现有 whole web.lock SHA 和六个依赖版本；Native 版本另冻结实际每个分发的文件闭包、
+v2 绑定现有 whole web.lock SHA 和实际受管集合（当前七个已锁分发，含 jsonschema 可选导入的 idna）的精确版本；Native 版本另冻结实际每个分发的文件闭包、
 origin、解释器真实字节、环境与 format checker 集合。Host 准入／完成重算，受管 JS 核对
 其配置解释器与该环境；依赖变化拒绝旧资源，不能只比较版本字符串。真实 wheel 的
 installed-like 读取不依赖 checkout 的 `requirements/`。
 
-运行指纹 schema v2 独立枚举六个已知 import/data 根及版本元数据，不能由 RECORD 决定代码全集；
+运行指纹 schema v3 独立枚举受管分发的 import/data 根及版本元数据，不能由 RECORD 决定代码全集；
 未列账簿的新代码也改变闭包。所有实际 `.py`、扩展、schema/data 和 `.pyc` 都参与摘要，外部
 pycache prefix 拒绝。仅排除固定解释器／模块入口不执行的外部 console scripts 和四个安装账簿
 RECORD、INSTALLER、direct_url.json、REQUESTED，排除路径／原因显式冻结；METADATA/WHEEL
 保留。任意别名、越界或假版本元数据拒绝，后续入口不能切为被排除的 console。
+
+复 Python 审核发现旧六分发指纹未覆盖 `_format` 实际导入的 idna，且当前 jsonschema 的
+可选 `date-time` checker 原本缺失。本次明确授权的验证层修正新增 `format_profile.py`：
+Host 和冻结 Native 用相同私有实例 checker 验证每处 date/date-time，不改全局 registry。
+日期使用四位年严格 calendar；瞬时只接受显式 T/Z 或合法 offset、秒和至多六位小数，
+拒绝 naive/date-only/basic-date/空格、闰秒、非法日期/offset 和换算 UTC 超出1..9999。
+这是与既有 instant 同级的 RFC3339 严格子集，不宣称完整 RFC 闰秒支持。
+`contracts.py` 仅校验层接入该 profile，并为参数 instant 复用合法 offset 检查；数学算法、原 record schema、baseline/contracts 冻结文件不变。
+profile 和 import guard 自身 hash 进入资源与 runtime identity，旧 v2 不静默兼容或签等价证。
+
+固定 record/output schema 禁止 $ref/$dynamicRef/$recursiveRef/$id/$schema 及未支持 format，
+不接受动态 schema 或远程 resolver。导入策略从实际验证入口的递归 module-time imports 绑定
+optional/相对/transitive 模块，检查当前搜索路径和所有已加载依赖子模块的真实 origin/cache；
+标准库同名影子也拒绝；检查实际保留的模块／函数／类引用，不能靠恢复 module 表隐藏 shadow 对象。未锁 optional 出现不能只保持 checker 名称就认证。
+Native 固定 launcher 在 calculate/jsonschema 导入前安装精确模块/origin MetaPath 门；原本不存在的
+optional 仍不可用，但 date/date-time 已由冻结 profile 补齐。lazy/dynamic 中的 requests 等未绑定
+导入实际触发即稳定拒绝，不将其静态存在解释为安全或支持。Host 不修改全局 sys.path/modules/hooks。
+仅 pack literal policy 省去既有 report SDK 预载，普通/weekly bootstrap 仍保留；此处不扩大文件/输出权限。
+
 
 仅九个明确 ID、source=builtin、全部元数据／工具／方法策略／指令／脚本／schema／golden／helper
 与 curated seed 精确相同且无草稿时，允许实际闭包、锁、解释器 bytes/version/ABI/platform 全相同的

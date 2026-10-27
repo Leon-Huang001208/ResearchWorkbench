@@ -1109,7 +1109,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。
 
-九包 B1（2026-10-27）复用当前 `mcp` 已锁定的 jsonschema 及其现有依赖，不安装新包。包内 `capabilities/pack-runtime-lock.json` 是真实 `requirements/web.lock` 的 whole-file SHA 和六依赖精确版本投影；源码环境强比原锁，wheel 不依赖源码 checkout。每个 Native 版本另绑定实际安装分发的逐文件闭包、origin、解释器／环境与校验器集合；准入和完成重新核验，依赖变化不能静默升级旧包。真实本地 wheel 已包含该 JSON，并有无 checkout 的安装形态读取测试；这不替代同候选 macOS 干净安装／3081、8088／Doctor CI。
+九包 B1（2026-10-27）复用当前 `mcp` 已锁定的 jsonschema 及其现有依赖，不安装新包。包内 `capabilities/pack-runtime-lock.json` 是真实 `requirements/web.lock` 的 whole-file SHA 和受管验证依赖（当前含 idna 的七个现有锁定分发）精确版本投影；源码环境强比原锁，wheel 不依赖源码 checkout。每个 Native 版本另绑定实际安装分发的逐文件闭包、origin、解释器／环境与校验器集合；准入和完成重新核验，依赖变化不能静默升级旧包。真实本地 wheel 已包含该 JSON，并有无 checkout 的安装形态读取测试；这不替代同候选 macOS 干净安装／3081、8088／Doctor CI。
 
 运行闭包独立扫描已知包／数据根和版本元数据，包含pyc，不只信任RECORD；外部console入口和固定安装账簿的排除列表／原因冻结，固定入口不执行它们。仅 actual bytes／锁／解释器 ABI 和平台完全相同的管理前缀 relocation 可为精确未改 builtin 创建新版本并保留disabled／旧历史；用户copy、代码／依赖变化、额外文件和重建后不同pyc均明确blocked，需受审升级，不能自动当作兼容。
 
@@ -1118,3 +1118,5 @@ B1 SPEC修波的生产迁移只在Catalog现有pending发布事务里发放完�
 独立重验并发放的直接old→current证，不能传递拼接。无收据sealed context仍核私有权威，
 disabled／代码变化／撤权／跨owner／假证或事务不完整均拒绝；未执行旧runtime。详见组合包文档。
 当前修波须绑定新candidate的独评与Mac CI，首版NEEDS_WORK报告保留历史失败事实。
+
+九包 B1 复核更正：runtime v3／lock projection v2 绑定实际 optional 导入图、精确 Native import guard 及 date/date-time 严格子集 profile 的字节。旧指纹遗漏 idna、原环境无 date-time checker 的事实由此显式修正，不依赖新包、全局猴补或放宽 schema。固定 schema 不支持远程 resolver；未绑定 lazy/dynamic imports 实际触发拒绝。pack sandbox 不预载 report SDK；普通/weekly 入口不变。当前源码/轮装包路径以新候选本地测试留证，干净安装/CI未执行仍待 root。

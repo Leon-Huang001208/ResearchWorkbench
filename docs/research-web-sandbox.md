@@ -100,3 +100,5 @@ node --check app/research_web/runtime/research-tools.mjs
 ## 中文与空格路径
 
 Seatbelt 的受控路径 literal/subpath 保留 UTF-8，继续以 JSON 转义引号和反斜杠。SBPL 不按 JSON 解码 `\u` 序列，默认 ASCII 转义会让中文会话目录的已声明读写权限无法匹配。编码修正不增加允许根、执行文件或网络、fork、Mach 权限；原生内核回归覆盖中文、空格、引号目录，验证会话输入可读、输出可写且越界文件仍被拒绝。
+
+九包 scenario-frozen-inputs-v1 的固定 launcher 在 calculate/jsonschema 之前安装冻结的精确 import/origin guard。该分支只加入受管 site-packages 与现有会话资源，不预载普通 report SDK；普通/weekly 的 SDK bootstrap 保留。guard 拒绝未绑定 optional/lazy/dynamic 依赖和外部/预加载影子，未开放新目录、输出或网络权限。

@@ -116,6 +116,8 @@ def test_exact_curated_prefix_relocation_creates_version_and_preserves_old(
         "abi",
         "platform",
         "entry_policy",
+        "runtime_schema",
+        "validation_profile",
         "extra_file",
         "source",
         "draft",
@@ -149,11 +151,23 @@ def test_any_nonrelocation_change_blocks_without_overwriting_history(
                 )
                 for f in body["files"]
             ]
-    elif changed in {"dependency", "interpreter", "abi", "platform", "entry_policy"}:
+    elif changed in {
+        "dependency",
+        "interpreter",
+        "abi",
+        "platform",
+        "entry_policy",
+        "runtime_schema",
+        "validation_profile",
+    }:
         for body in (row["draft"], row["versions"]["1"]):
             runtime = runtime_value(body)
             if changed == "dependency":
                 runtime["dependencies"][0]["closure_sha256"] = "0" * 64
+            elif changed == "runtime_schema":
+                runtime["schema"] = "research_pack_runtime_v2"
+            elif changed == "validation_profile":
+                runtime["validation_profile"]["sha256"] = "0" * 64
             else:
                 runtime[
                     {

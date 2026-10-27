@@ -110,7 +110,8 @@ def test_native_writer_rejects_input_hash_change_before_calculation(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Native Seatbelt is macOS only")
-def test_frozen_resource_runs_in_real_native_sandbox_without_host_imports(tmp_path):
+@pytest.mark.parametrize("bad_timestamp", [None, "2026-02-30T12:00:00Z"])
+def test_frozen_resource_runs_in_real_native_sandbox_without_host_imports(tmp_path, bad_timestamp):
     from app.research_web.capabilities.catalog import CapabilityCatalog
     from app.research_web.sandbox import SandboxConfig, run_script
 
@@ -129,6 +130,22 @@ def test_frozen_resource_runs_in_real_native_sandbox_without_host_imports(tmp_pa
         "parameters": {"as_of": "2026-10-26T23:59:59+08:00"},
         "source_coverage": {},
     }
+    if bad_timestamp:
+        vectors = json.loads(
+            (
+                Path(__file__).parents[2]
+                / "app/research_web/scenarios/packs/synthetic_vectors.json"
+            ).read_bytes()
+        )
+        vector = next(
+            item for item in vectors if item["id"] == "deduplicate_source_versions.success"
+        )
+        source["records_by_kind"] = vector["records_by_kind"]
+        source["parameters"] = {
+            "as_of": vector["parameters"]["as_of"],
+            "deduplicate_source_versions": {},
+        }
+        source["records_by_kind"]["source-version"][0]["origin"]["observed_at"] = bad_timestamp
     input_path = session / "inputs" / "scenarios" / ("a" * 32) / "input.json"
     input_path.parent.mkdir(parents=True)
     input_path.write_text(json.dumps(source))
@@ -160,7 +177,21 @@ def test_frozen_resource_runs_in_real_native_sandbox_without_host_imports(tmp_pa
                 "inode": info.st_ino,
             }
         )
-    code = f"import sys,json\nfrom pathlib import Path\nsys.path.insert(0,{str(scripts)!r})\nfrom calculate import execute\nprint(json.dumps(execute(Path({str(input_path)!r}),Path({str(target)!r}),{binding!r})))\n"
+    from app.research_web.scenario_pack_execution import launcher
+
+    code = launcher(
+        session,
+        {
+            "file_bindings": bindings,
+            "scripts": str(scripts.relative_to(session)),
+            "input_path": str(input_path.relative_to(session)),
+            "output_root": output_root,
+            "binding": binding,
+            "runtime": json.loads(
+                (session / selected["resource_path"] / "references/runtime.json").read_bytes()
+            ),
+        },
+    )
     result = run_script(
         SandboxConfig(root, Path(sys.executable), timeout_seconds=15),
         session,
@@ -170,6 +201,11 @@ def test_frozen_resource_runs_in_real_native_sandbox_without_host_imports(tmp_pa
         file_bindings=bindings,
         output_root=output_root,
     )
+    if bad_timestamp:
+        assert result.status == "failed", (result.status, result.stderr, result.error)
+        assert "record_contract_invalid" in result.stderr
+        assert not (target / "full-result.json").exists()
+        return
     assert result.status == "completed", (result.status, result.stderr, result.error)
     envelope = json.loads(result.stdout)
     assert envelope["status"] == "insufficient_data"

@@ -11,6 +11,7 @@ from pathlib import Path
 from core.observability import get_logger
 
 from .models import CapabilityError
+from .pack_dependencies import DEPENDENCIES
 from .pack_native import read_regular
 from .pack_resources import MANIFEST_PATH, PACK_NAMES, verify_pack_manifest
 from .packages import decode_file
@@ -84,7 +85,7 @@ def verify_relocation_pair(active, curated):
             return False, "current"
         if (
             set(old) != set(new)
-            or old.get("schema") != "research_pack_runtime_v2"
+            or old.get("schema") != "research_pack_runtime_v3"
             or old.get("entry_policy") != "managed_python_module_no_console_v1"
         ):
             return False, "pack_runtime_policy_changed"
@@ -107,7 +108,9 @@ def verify_relocation_pair(active, curated):
         ):
             if old_normal.get(key) != new_normal.get(key):
                 return False, "pack_runtime_interpreter_changed"
-        if len(old_normal["dependencies"]) != 6 or len(new_normal["dependencies"]) != 6:
+        if len(old_normal["dependencies"]) != len(DEPENDENCIES) or len(
+            new_normal["dependencies"]
+        ) != len(DEPENDENCIES):
             return False, "pack_runtime_dependency_changed"
         for left, right in zip(old_normal["dependencies"], new_normal["dependencies"], strict=True):
             old_origin, new_origin = left.pop("origin"), right.pop("origin")

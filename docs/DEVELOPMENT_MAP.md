@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+B1 验证依赖复核：`pack_dependencies.py`/`pack_import_policy.py` 负责 v3 实际导入身份与 Native 精确导入门；`scenarios/packs/format_profile.py` 为 Host 和冻结核心提供同一私有 date/date-time 校验。`contracts.py` 只改验证接线，`sandbox.py` 仅 pack literal 分支省去普通 report SDK 预载。测试增加 import/format 正反例，旧执行/输出/历史证书门保持。
+
 2026-10-27 B1 SPEC修波：`capabilities/pack_equivalence.py` 重验每用户直接old→current证书／完整endpoint事实，`scenario_pack_reads.py` 只服务Dossier现有snapshot读取；`service._validate_data_query_scope` 为无写声明检查，原三参callback／严格records保持。`capabilities/pack_result_contracts.py` 独立定义并冻结receipt/full/root/component全部审计必需结构，不从结果反推required。新增 `test_pack_history_read.py`／`test_pack_output_schema.py` 以及多hop直接证／事务磁盘故障／旧门回归。
 
 2026-10-27 九包 B1：`capabilities/pack_resources.py` 冻结唯一纯核与资源闭包，`pack_dependencies.py` 和包内 `pack-runtime-lock.json` 绑定已安装锁定依赖，`pack_native.py` 只写单次 bundle；`scenario_pack_inputs.py` 负责真实原件映射与输入封印，`scenario_pack_execution.py` 负责原私有桥上的一次准入／完成及独立文件读回。`scenarios/pack_catalog.py` 补九包合同，原八合同／140 静态基线字节不变；`workbench.py`、`service.py`、Native JS 和 `sandbox.py` 接原交接／质量链。近测试为 `test_pack_*` 及无 LLM 的 `tests/javascript/helpers/pack-native-driver.mjs`。UI、140 完整执行映射、真实模型／供应商和跨平台仍是后续独立验收，不因文件保存通过。

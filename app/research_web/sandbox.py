@@ -449,8 +449,15 @@ def run_script(
     # site-packages, fixed packaged SDK literals and session resources use absolute
     # paths. The current SDK precedes legacy copies; no session file is replaced.
     # Only the four curated SDK files gain read-data, never their parent subtree.
-    site_paths = [sdk_root, *[path for path in reads if path.endswith("/site-packages")]]
+    site_paths = [path for path in reads if path.endswith("/site-packages")]
+    if input_policy != "scenario-frozen-inputs-v1":
+        site_paths.insert(0, sdk_root)
     site_paths.append(str(session / "resources"))
+    report_bootstrap = (
+        "import research_report;" + f"research_report._SESSION_ROOT={str(session)!r};"
+        if input_policy != "scenario-frozen-inputs-v1"
+        else ""
+    )
     bootstrap = (
         "import sys,resource,mimetypes;"
         f"resource.setrlimit(resource.RLIMIT_CPU,({math.ceil(config.timeout_seconds) + 1},)*2);"
@@ -458,8 +465,7 @@ def run_script(
         "resource.setrlimit(resource.RLIMIT_NOFILE,(64,)*2);"
         "mimetypes.knownfiles=[];mimetypes.init();"
         f"sys.path.extend({site_paths!r});"
-        "import research_report;"
-        f"research_report._SESSION_ROOT={str(session)!r};"
+        f"{report_bootstrap}"
         "exec(compile(sys.stdin.buffer.read(),'<research-script>','exec'),{'__name__':'__main__'})"
     )
     command = [
