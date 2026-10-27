@@ -10623,9 +10623,11 @@ Imports:
 - `ipaddress`
 - `json`
 - `os`
+- `pathlib`
 - `re`
 - `socket`
 - `ssl`
+- `stat`
 - `store`
 - `sys`
 - `threading`
@@ -10651,6 +10653,15 @@ Functions:
   - Validate the trusted worker protocol, never a completeness field from a request.
 - `capture_proof`
   - Metadata-only unless authorized raw bytes are supplied; never opens a body.
+- `source_file_identifier`
+  - Classify reserved captures without reading a body or trusting proof health.
+- `source_file_record`
+  - Authorize selected published source metadata before any body open.
+- `verify_source_file_bytes`
+- `_write_capture_body`
+  - Remember exclusive creation even if write/flush/fsync later raises.
+- `_rollback_capture_body`
+  - Never delete a pre-existing or replaced file, including cleanup failures.
 - `_publish_source`
   - Publish only after exclusive durable body/proof writes under the retention fence.
 - `snapshot_capture_proofs`

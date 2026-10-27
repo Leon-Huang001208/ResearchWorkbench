@@ -225,7 +225,9 @@ class DossierService:
                     "数据集材料必须使用原始数据集身份", "dossier_evidence_alias_denied", 403
                 )
             # A fetched webpage must keep its source identity and web authorization.
-            if ref in {item.get("path") for item in row.get("web_evidence", {}).values()}:
+            from ..research_web_sources import source_file_identifier
+
+            if source_file_identifier(row, ref):
                 raise StoreError(
                     "网页材料必须使用原始来源身份", "dossier_evidence_alias_denied", 403
                 )

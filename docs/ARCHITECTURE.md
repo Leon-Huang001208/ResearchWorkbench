@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-28 孤儿capture修复只在原Host发布事务与共用文件授权边界：异常回滚覆盖全部postproof阶段，metadata受管命名/来源标记独立于发布与proof健康，禁止孤儿从uploads/file-copy降级。合法source按原权限读，普通UUID上传保持；无新API、源身份系统、服务、数据库或引擎，原图拓扑保持。
+
 2026-10-28 C1/C2 SPEC修复在原web reader内增加真实HTTP framing与Host私有capture证明；Dossier在现鉴权后核正文/证明，既有保全消费者只收proof/固定原文SHA元数据，Store永久删除覆盖该SID证明。无新服务/数据库/密钥/公开API或执行引擎，固定operator字节不改，原图拓扑保持。
 
 2026-10-27 C1/C2仅在现Host资料边界增加原source capture→source-version v2投影，并沿原封印/唯一DSH/Native sandbox/独立产物读回运行两个包；140静态路由合同不注册工具或授予执行。来源完整性、模型预览、计算与报告质量仍分开，无新引擎、服务、数据库或HTTP；原UI选择器扩展另属C6。

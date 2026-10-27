@@ -23,10 +23,12 @@ def test_web_provenance_classification_is_session_bound_and_rejects_changed_mapp
     second = store.create("fingpt", "Unrelated upload")["id"]
     wid = source_id("https://example.org/source")
     relative = "inputs/web-" + wid[4:] + ".txt"
-    for sid in [first, second]:
-        (store.directory(sid) / relative).write_text("Actual source bytes", encoding="utf-8")
+    ordinary = "inputs/upload-web-" + wid[4:] + ".txt"
+    for sid, name in [(first, relative), (second, ordinary)]:
+        (store.directory(sid) / name).write_text("Actual source bytes", encoding="utf-8")
         store.files(sid)
     fid = hashlib.sha256(relative.encode()).hexdigest()[:24]
+    uploaded_fid = hashlib.sha256(ordinary.encode()).hexdigest()[:24]
     record = {
         "id": wid,
         "path": relative,
@@ -36,7 +38,7 @@ def test_web_provenance_classification_is_session_bound_and_rejects_changed_mapp
     store.session(first)["web_evidence"] = {wid: record}
     assert reader.upload_evidence_files(store, first, store.files(first)) == []
     assert [f["id"] for f in reader.upload_evidence_files(store, second, store.files(second))] == [
-        fid
+        uploaded_fid
     ]
     files = store.files(first)
     store.session(first)["files"][fid] = "inputs/changed.txt"

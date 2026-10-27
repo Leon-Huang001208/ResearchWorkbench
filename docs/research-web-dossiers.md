@@ -86,3 +86,8 @@ handoff只返回草稿：`{prompt,mode,auto_send:false,context,dossier_revision}
 asset_index_snapshot既有消费者均覆盖，正文-only改动/新proof缺坏必须拒绝。原文、原
 source记录和proof原bytes一同恢复后才可读；旧proofless仅沿原保全覆盖，不能冒称新proof
 保护。永久删除仍先过原Dossier/handoff引用围栏，再清除该SID proof，不清其他来源。
+
+受管`inputs/web-24hex.txt`身份在metadata分类中独立于发布索引/proof状态，崩溃孤儿或
+缺坏proof不能降为uploads。Dossier type=file固定拒绝该别名；普通HTTP文件读取共用
+Store授权点，在已发布且当前web允许时核原文/证明，未发布即使web-enabled也拒绝。
+Claw普通文件复制不改名转移受管源，改走原source交接；普通UUID前缀上传不受此分类影响。

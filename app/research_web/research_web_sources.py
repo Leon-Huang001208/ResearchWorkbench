@@ -10,11 +10,13 @@ import os
 import re
 import socket
 import ssl
+import stat
 import sys
 import threading
 import time
 from datetime import UTC, date, datetime
 from html.parser import HTMLParser
+from pathlib import Path
 from urllib.parse import urldefrag, urljoin, urlsplit
 
 from core.observability import get_logger
@@ -424,6 +426,112 @@ def capture_proof(root, sid, source, raw=None):
         raise rejected("research_source_capture_changed") from None
 
 
+def source_file_identifier(row, relative):
+    """Classify reserved captures without reading a body or trusting proof health."""
+    relative = str(relative).replace("\\", "/")
+    match = re.fullmatch(r"inputs/web-([a-f0-9]{24})\.txt", relative)
+    if match:
+        return "web:" + match[1]
+    records = row.get("web_evidence", {})
+    if isinstance(records, dict):
+        for identifier, source in records.items():
+            if isinstance(source, dict) and source.get("path") == relative:
+                return identifier
+    return None
+
+
+def source_file_record(store, sid, relative):
+    """Authorize selected published source metadata before any body open."""
+    row = store.session(sid)
+    relative = str(relative).replace("\\", "/")
+    identifier = source_file_identifier(row, relative)
+    if identifier is None:
+        return None
+    records = row.get("web_evidence", {})
+    source = records.get(identifier) if isinstance(records, dict) else None
+    fid = hashlib.sha256(relative.encode()).hexdigest()[:24]
+    if (
+        not isinstance(source, dict)
+        or source.get("id") != identifier
+        or source.get("path") != relative
+        or source.get("file_id") != fid
+        or row.get("files", {}).get(fid) != relative
+    ):
+        log.warning("research_source_file_unpublished")
+        raise rejected("research_source_capture_unavailable")
+    if "web" not in row.get("source_scope", ["uploads", "datahub", "web"]):
+        log.warning("research_source_file_scope_denied")
+        raise StoreError("网页正文需要当前来源权限", "research_source_scope_denied", 403)
+    capture_proof(store.root, sid, source)
+    return source
+
+
+def verify_source_file_bytes(store, sid, source, raw):
+    if source is not None:
+        if len(raw) > MAX_TEXT * 4 or hashlib.sha256(raw).hexdigest() != source.get("sha256"):
+            log.warning("research_source_file_changed")
+            raise rejected("research_source_integrity_failed")
+        capture_proof(store.root, sid, source, raw)
+
+
+def _write_capture_body(folder, name, raw, ownership):
+    """Remember exclusive creation even if write/flush/fsync later raises."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    handle = None
+    try:
+        parent = folder.stat() if isinstance(folder, Path) else os.fstat(folder)
+        handle = (
+            os.open(folder / name, flags, 0o600)
+            if isinstance(folder, Path)
+            else os.open(name, flags, 0o600, dir_fd=folder)
+        )
+        with os.fdopen(handle, "wb") as output:
+            handle = None
+            info = os.fstat(output.fileno())
+            ownership.update(
+                device=info.st_dev,
+                inode=info.st_ino,
+                parent_device=parent.st_dev,
+                parent_inode=parent.st_ino,
+            )
+            output.write(raw)
+            output.flush()
+            os.fsync(output.fileno())
+    except OSError:
+        log.warning("research_source_capture_body_write_failed")
+        raise rejected("research_source_capture_write_failed") from None
+    finally:
+        if handle is not None:
+            os.close(handle)
+
+
+def _rollback_capture_body(store, sid, name, ownership):
+    """Never delete a pre-existing or replaced file, including cleanup failures."""
+    if not ownership:
+        return
+    with directory(store.directory(sid), ("inputs",)) as folder:
+        parent = folder.stat() if isinstance(folder, Path) else os.fstat(folder)
+        try:
+            info = (
+                (folder / name).lstat()
+                if isinstance(folder, Path)
+                else os.stat(name, dir_fd=folder, follow_symlinks=False)
+            )
+        except FileNotFoundError:
+            return
+        if (
+            (parent.st_dev, parent.st_ino)
+            != (ownership["parent_device"], ownership["parent_inode"])
+            or (info.st_dev, info.st_ino) != (ownership["device"], ownership["inode"])
+            or not stat.S_ISREG(info.st_mode)
+            or info.st_nlink != 1
+        ):
+            log.warning("research_source_capture_cleanup_ownership_changed")
+            return
+        unlink_file(folder, name)
+        sync_directory(folder)
+
+
 def _publish_source(service, sid, selected, document):
     """Publish only after exclusive durable body/proof writes under the retention fence."""
     from .dossiers.lock import retention_lock
@@ -456,46 +564,50 @@ def _publish_source(service, sid, selected, document):
         CAPTURE_SCHEMA if producer is not None else "research_web_capture_unverified_v1"
     )
     with retention_lock(store.root):
-        if producer is not None:
-            proof = {
-                "schema": PROOF_SCHEMA,
-                "source_session_id": sid,
-                "source_record": dict(source),
-                "producer": producer,
-            }
-            proof_raw = _capture_json(proof)
-            if len(proof_raw) > MAX_CAPTURE_PROOF:
-                raise rejected("research_source_size_limit")
-            with directory(
-                store.root, (".control", "source-captures", sid), create=True, private=True
-            ) as folder:
-                name = identifier[4:] + ".json"
-                write_new(folder, name, proof_raw)
-                sync_directory(folder)
-                if read_file(folder, name, private=True, limit=MAX_CAPTURE_PROOF) != proof_raw:
-                    raise rejected("research_source_capture_changed")
-            source["capture_proof"] = {
-                "schema": PROOF_SCHEMA,
-                "sha256": hashlib.sha256(proof_raw).hexdigest(),
-            }
-        with directory(store.directory(sid), ("inputs",)) as folder:
-            write_new(folder, relative.split("/")[-1], raw)
-            sync_directory(folder)
-            if read_file(folder, relative.split("/")[-1], limit=MAX_TEXT * 4) != raw:
-                raise rejected("research_source_capture_changed")
         previous_files = dict(row["files"])
-        row["files"][fid] = relative
-        row.setdefault("web_evidence", {})[identifier] = source
+        previous_sources = dict(row.get("web_evidence", {}))
+        ownership = {}
         try:
+            if producer is not None:
+                proof = {
+                    "schema": PROOF_SCHEMA,
+                    "source_session_id": sid,
+                    "source_record": dict(source),
+                    "producer": producer,
+                }
+                proof_raw = _capture_json(proof)
+                if len(proof_raw) > MAX_CAPTURE_PROOF:
+                    raise rejected("research_source_size_limit")
+                with directory(
+                    store.root, (".control", "source-captures", sid), create=True, private=True
+                ) as folder:
+                    name = identifier[4:] + ".json"
+                    write_new(folder, name, proof_raw)
+                    sync_directory(folder)
+                    if read_file(folder, name, private=True, limit=MAX_CAPTURE_PROOF) != proof_raw:
+                        raise rejected("research_source_capture_changed")
+                source["capture_proof"] = {
+                    "schema": PROOF_SCHEMA,
+                    "sha256": hashlib.sha256(proof_raw).hexdigest(),
+                }
+            with directory(store.directory(sid), ("inputs",)) as folder:
+                _write_capture_body(folder, relative.split("/")[-1], raw, ownership)
+                sync_directory(folder)
+                if read_file(folder, relative.split("/")[-1], limit=MAX_TEXT * 4) != raw:
+                    raise rejected("research_source_capture_changed")
+            row["files"][fid] = relative
+            row.setdefault("web_evidence", {})[identifier] = source
             store.save()
         except Exception:
             row["files"] = previous_files
-            row["web_evidence"].pop(identifier, None)
-            # The final body was exclusively created by this publication. A
-            # failed index commit must not reclassify it as a caller upload.
-            with directory(store.directory(sid), ("inputs",)) as folder:
-                unlink_file(folder, relative.split("/")[-1])
-                sync_directory(folder)
+            row["web_evidence"] = previous_sources
+            try:
+                _rollback_capture_body(store, sid, relative.split("/")[-1], ownership)
+            except (StoreError, OSError, ValueError, TypeError, KeyError) as cleanup_error:
+                log.warning(
+                    "research_source_capture_cleanup_failed",
+                    error_type=type(cleanup_error).__name__,
+                )
             log.warning("research_source_capture_publish_failed")
             raise
     log.info("research_public_source_stored capture_verified=%s", producer is not None)
@@ -589,8 +701,15 @@ def _stored_records(store, sid):
 
 def upload_evidence_files(store, sid, files):
     """Host-fetched inputs keep their web identity, even when web scope is disabled."""
-    web_ids = {source["file_id"] for source in _stored_records(store, sid)}
-    result = [item for item in files if item.get("id") not in web_ids]
+    _stored_records(store, sid)
+    row = store.session(sid)
+    result = [
+        item
+        for item in files
+        if not source_file_identifier(
+            row, row.get("files", {}).get(item.get("id"), "inputs/" + item.get("name", ""))
+        )
+    ]
     if len(result) != len(files):
         log.info("research_web_upload_alias_excluded", count=len(files) - len(result))
     return result

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-28 alias修复：reader.source_file_identifier作纯metadata分类，source_file_record/verify_source_file_bytes由Store.files/file_path/open_file、Dossier file alias和Claw.reference共用；_publish_source覆盖postproof所有写/sync/readback/index异常，_write_capture_body/_rollback_capture_body保存并核exclusive inode。近测试test_capture_file_alias含真实失败注入/crash orphan/HTTP/Dossier/copy拒绝及真实上传/source正例。
+
 2026-10-28 capture SPEC修复：research_web_sources.fetch_document/worker_document_bytes/fetch_owned_document保留并校验framing producer，capture_proof由Host私有文件绑定source记录/正文；Dossier._resolve窄接点复验。snapshot_capture_proofs由原snapshot_dossiers消费，Store.purge增固定sid目录；近测试test_source_capture_proof、source_capture_fixture与原source/保全邻近。全部响应夹具离线真HTTPResponse，Native两例独立Darwin，旧证据不回填。
 
 2026-10-27 C1/C2：`scenarios/execution_bindings.py`及版本化JSON保存140/284闭合静态执行绑定，原参数未有alias全部拒绝；`scenario_source_versions.py`由`scenario_pack_inputs.py`在真实原件重读后投影已保存Host web capture，未知语义保留缺口。相同原sid/source ID引用复验后去重，不将同hash不同登记合成独立上游。近测试`test_execution_bindings.py`、`test_pack_owned_sources.py`含真实Native两包成功/撤权及原source资格反例；生产JS/旧八合同不改。

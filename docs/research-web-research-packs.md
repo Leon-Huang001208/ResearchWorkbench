@@ -373,3 +373,18 @@ source proof纳入原snapshot_dossiers.files，proof-only不创建Dossier DB；�
 snapshot和resident @dossiers复用该结果。显式admin保全安全核对固定已证原文并只返回
 SHA元数据，body-only篡改拒绝；恢复须原source记录、正文、proof原bytes一致。Store.purge
 沿原引用/retention门仅删除该退休SID的proof目录。固定operator代码及SHA未改。
+
+## SPEC二次修复：崩溃残留不降级为上传
+
+proof之后的正文exclusive创建、写入、目录sync、读回及index发布全部进入同一异常回滚；
+创建时保留文件/父目录dev+inode，即使中途抛错也只清本次同身份独立普通文件，不删已存在
+或被替换对象。cleanup失败保留原异常和日志，私有proof不覆写、不自动发布或重抓。
+
+安全性不依赖cleanup：metadata层将固定`inputs/web-24hex.txt`及原登记path识别为受管
+来源，不依赖proof健康或web_evidence已发布状态。Store.files不把未发布对象自动登记/
+展示为uploads；Dossier file alias与Claw generic file-copy固定拒绝受管源，须保持source
+身份。Store.file_path/open_file为HTTP预览/下载和现共用消费者先核发布/当前web权限及
+metadata/proof，再核实际正文hash；分类不读撤权body、不递归自身。即使旧files索引已
+登记孤儿、proof缺/坏或进程崩溃，uploads-only与web-enabled均不能将未发布源当普通文件。
+真实上传API的UUID前缀文件不匹配受管命名，普通上传/引用保留；已发布web源在原web权限
+下HTTP/source读取保留，Dossier/source交接仍引用原sid，不建立新源身份系统。

@@ -529,6 +529,8 @@ class Store:
         return receipt
 
     def files(self, sid: str) -> list[dict]:
+        from .research_web_sources import source_file_identifier
+
         row, root = self.session(sid), self.directory(sid)
         items = []
         changed = False
@@ -553,6 +555,13 @@ class Store:
                     or any(p.is_symlink() for p in (path, *path.parents) if p != self.root)
                     or not path.resolve().is_relative_to(base.resolve())
                 ):
+                    continue
+                source_id = source_file_identifier(row, relative)
+                source = row.get("web_evidence", {}).get(source_id) if source_id else None
+                if source_id and (
+                    not isinstance(source, dict) or source.get("path") != relative.as_posix()
+                ):
+                    # Orphaned captures are not discovered/registered as uploads.
                     continue
                 fid = hashlib.sha256(str(relative).encode()).hexdigest()[:24]
                 if row["files"].get(fid) != str(relative):
@@ -596,6 +605,15 @@ class Store:
             or not path.resolve().is_relative_to(root.resolve())
         ):
             raise StoreError("文件访问被拒绝")
+        from .research_web_sources import MAX_TEXT, source_file_record, verify_source_file_bytes
+
+        source = source_file_record(self, sid, relative)
+        if source is not None:
+            from .datahub.security import directory, read_file
+
+            with directory(self.root, ("sessions", sid, *relative.parts[:-1])) as fd:
+                raw = read_file(fd, relative.name, limit=MAX_TEXT * 4)
+            verify_source_file_bytes(self, sid, source, raw)
         return path
 
     def open_file(self, sid: str, fid: str):
@@ -614,6 +632,21 @@ class Store:
             or relative.parts[0] not in {"inputs", "outputs"}
         ):
             raise StoreError("文件访问被拒绝")
+        from .research_web_sources import MAX_TEXT, source_file_record, verify_source_file_bytes
+
+        source = source_file_record(self, sid, relative)
+
+        def verified(stream):
+            try:
+                if source is not None:
+                    raw = stream.read(MAX_TEXT * 4 + 1)
+                    verify_source_file_bytes(self, sid, source, raw)
+                    stream.seek(0)
+                return stream, relative.name
+            except Exception:
+                stream.close()
+                raise
+
         if os.name == "nt":
             path = self.file_path(sid, fid)
             try:
@@ -629,7 +662,7 @@ class Store:
                 if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
                     stream.close()
                     raise StoreError("仅允许下载独立普通文件")
-                return stream, relative.name
+                return verified(stream)
             except StoreError:
                 raise
             except OSError as exc:
@@ -655,7 +688,7 @@ class Store:
             if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
                 os.close(fd)
                 raise StoreError("仅允许下载独立普通文件")
-            return os.fdopen(fd, "rb"), relative.name
+            return verified(os.fdopen(fd, "rb"))
         except OSError as exc:
             log.warning("research_download_denied", session_id=sid, error_type=type(exc).__name__)
             raise StoreError("文件访问被拒绝") from exc

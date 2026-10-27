@@ -182,6 +182,10 @@ class ClawProjects:
             raise StoreError("归档项目只允许查看", "project_archived", 409)
         if os.name == "nt":
             raise StoreError("当前平台尚未验证安全文件引用", "reference_platform_unverified", 409)
+        from .research_web_sources import source_file_identifier
+
+        if source_file_identifier(source, source["files"].get(file_id, "")):
+            raise StoreError("网页材料必须保持原来源身份交接", "dossier_evidence_alias_denied", 403)
         stream, source_name = self.store.open_file(source_sid, file_id)
         suffix = Path(source_name).suffix.lower()
         if suffix not in REFERENCE_EXTENSIONS:
