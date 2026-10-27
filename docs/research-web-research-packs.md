@@ -212,13 +212,26 @@ RECORD、INSTALLER、direct_url.json、REQUESTED，排除路径／原因显式�
 不承诺任意重装自动兼容。发布新版本后旧封印继续 version_conflict，不自动发送；迁移器不写历史交接／结果／
 质量归档。
 
-**B1 必须补完项：历史只读等价证书尚未实现，生产自动 relocation 当前强制 blocked**
-（`pack_runtime_read_equivalence_pending`），不能通过设置或 API 开启，不发布新版本、不隐式改变旧研究。
-单测显式 override 私有未实现门只验证不可变发布机制，不是生产迁移／历史阅读验收。
-已观测在 fixture 允许迁移后，旧 active-session 的只读引用触发原 DataAdmission linked_version
-检查并包装为 dossier_evidence_missing。原 FAIL 和字节／状态保全证据保留；不以替换断言称已修。
-SPEC 须设计仅新九包、当前来源授权/hash不弱化的 read-operation／等价证书边界；原八场景、
-禁用、撤权、代码变更及旧版本执行门不放宽。本候选为 NEEDS_WORK，不是完整 B1 研究通过。
+B1 SPEC修波增加Dossier专用内部read adapter。只有已有snapshot的真实owner／manifest／query／provider
+核验和原source授权成功后，才用Catalog事务内生成的直接old→current证书读取当前等价策略。
+证书绑定每用户root、完整两端record/tree/manifest/runtime与当前实测运行环境；每次重算事实，
+不是信JSON self-hash或passed。尚无receipt时由private sealed context补权威；原receipt refs先
+查冲突／混合集合，不能被按ID去重吞掉。无ContextVar、无共享DataHub admission临时改写。
+source-only与target均检查pack当前enabled／builtin／无draft／空bindings／未撤权，raw读回后
+再检当前策略及source配置。旧8和普通源保持原三参callback；storage_read仓库查询不获豁免。
+
+发证复用原pending→immutable publish→native activate→catalog终态save，在同一次提交中发布
+证书，失败不留可用证。每个retained endpoint独立与当前target重验后才签直接证；v1→v2与
+v2→v3不能拼成v1→v3。disabled／copy／代码或metadata改动／extra file／假证／跨owner／runtime
+变动拒绝。历史读不执行旧runtime，不改原snapshot/query/context/receipt/质量状态；旧send/load
+仍真正version_conflict，不自动重发。原NEEDS_WORK与失败证据保留在首版任务报告，当前修波
+仍须独立SPEC／Python／TS复评，不将本地绿色直接称为正式研究质量通过。
+
+输出审计独立合同为`research_pack_output_contracts_v1`，随每版resource冻结完整JSON schema。
+receipt/full root/component所有必需字段、类型、版本、digest、计数、code信息、metrics、refs、
+missing/rejected及限定语都由独立表检验，禁止额外字段；不从返回receipt反推required。
+paired删字段并正确重hash仍拒绝；条件限定语与有限pack状态另检，输入参数投影与原完整封印
+独立比对。原64KiB／16MiB／128 preview等预算不变。
 
 `pack_catalog.py` 补九个 `pack-*` 场景；原八合同与140基线不改。准备只读；完整交接仍走原
 request-key 幂等／durable intent／来源祖先保全。调用者只能选择材料身份、对象和研究范围，

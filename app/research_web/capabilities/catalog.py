@@ -131,6 +131,7 @@ class CapabilityCatalog:
                     "comparison_receipts": {},
                 }
             self.data.setdefault("comparison_receipts", {})
+            self.data.setdefault("pack_read_equivalences", {})
             # Built-ins are additive so existing local catalogs receive newly
             # shipped reviewed capabilities without rewriting user packages.
             for cid, draft in seed_packages():
@@ -402,12 +403,17 @@ class CapabilityCatalog:
             self.save()
 
     def _pack_read_equivalence_ready(self, _row, _active, _curated):
-        """Fail closed until SPEC defines a verified historical-read certificate.
+        """Only the implemented direct certificate policy may enter publication."""
+        from .pack_dependencies import runtime_identity
+        from .pack_equivalence import POLICY
+        from .pack_relocation import runtime_from, verify_relocation_pair
 
-        No user setting or API can enable this unfinished authorization boundary.
-        Unit tests override it only to exercise immutable publication mechanics.
-        """
-        return False
+        allowed, _reason = verify_relocation_pair(_active, _curated)
+        return (
+            POLICY == "direct_pack_runtime_prefix_read_v1"
+            and allowed
+            and runtime_from(_curated) == runtime_identity()
+        )
 
     def _migrate_pack_runtime_relocations(self, builtins):
         from .pack_relocation import (
@@ -442,7 +448,12 @@ class CapabilityCatalog:
                 row["draft"] = curated
                 row.update(has_draft=True, checks=None)
                 try:
-                    self.publish(cid, _allow_builtin_migration=True, _status=status)
+                    self.publish(
+                        cid,
+                        _allow_builtin_migration=True,
+                        _status=status,
+                        _relocation_versions=sorted(map(int, row["versions"])),
+                    )
                 except (CapabilityError, OSError, ValueError, KeyError, TypeError) as exc:
                     current = self.data["items"][cid]
                     current["runtime_binding"] = {
@@ -1498,7 +1509,9 @@ class CapabilityCatalog:
         )
         return name, compiled
 
-    def publish(self, cid, *, _allow_builtin_migration=False, _status="enabled"):
+    def publish(
+        self, cid, *, _allow_builtin_migration=False, _status="enabled", _relocation_versions=None
+    ):
         self.assert_consistent()
         row = self.row(cid)
         if row["source"] == "builtin" and row["version"] and not _allow_builtin_migration:
@@ -1548,7 +1561,7 @@ class CapabilityCatalog:
                 "版本资源写入失败；草稿和旧版本保留，可重试发布", "publication_failed", 503
             ) from exc
         row["versions"][str(version)] = record
-        self._activate(cid, version, _status)
+        self._activate(cid, version, _status, _relocation_versions=_relocation_versions)
         row["has_draft"] = False
         self.save()
         return self.detail(cid)
@@ -1570,10 +1583,11 @@ class CapabilityCatalog:
             directory.chmod(0o555)
         path.chmod(0o555)
 
-    def _activate(self, cid, version, status):
+    def _activate(self, cid, version, status, *, _relocation_versions=None):
         row = self.row(cid)
         record = row["versions"][str(version)]
         old = copy.deepcopy(row)
+        old_certificates = copy.deepcopy(self.data.get("pack_read_equivalences", {}))
         self.data["pending"] = {"id": cid, "version": version, "status": status}
         self.save()  # durable intent precedes any native-visible mutation
         moved, installed = [], None
@@ -1594,9 +1608,15 @@ class CapabilityCatalog:
                 installed = self.native_root / record["native_name"]
                 os.replace(stage, installed)
             row.update(version=version, status=status, updated_at=time.time())
+            if _relocation_versions is not None:
+                from .pack_equivalence import issue_for_publication
+
+                issued = issue_for_publication(self, cid, _relocation_versions, version)
+                self.data.setdefault("pack_read_equivalences", {}).update(issued)
+                row["has_draft"] = False
             self.data["pending"] = None
             self.save()
-        except (OSError, CapabilityError) as exc:
+        except (OSError, CapabilityError, ValueError, KeyError, TypeError) as exc:
             self.data["pending"] = {"id": cid, "version": version, "status": "uncertain"}
             try:
                 if installed is not None and installed.exists():
@@ -1604,6 +1624,7 @@ class CapabilityCatalog:
                 for source, retired in moved:
                     os.replace(retired, source)
                 self.data["items"][cid] = old
+                self.data["pack_read_equivalences"] = old_certificates
                 self.data["pending"] = None
                 self.save()
             except (OSError, CapabilityError):

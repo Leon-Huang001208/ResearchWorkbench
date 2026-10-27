@@ -50,24 +50,13 @@ def _relative(path, root):
     return path.relative_to(root).as_posix()
 
 
-def relocation_decision(row, active, curated):
-    """Return an explicit reason; metadata and every reviewed byte must match."""
+def verify_relocation_pair(active, curated):
+    """Verify endpoint equivalence without manufacturing a mutable catalog row."""
     try:
         if (
-            row.get("id") not in PACK_IDS
-            or row.get("source") != "builtin"
-            or row.get("kind") != "skill"
-            or row.get("origin") is not None
-        ):
-            return False, "pack_runtime_source_untrusted"
-        if row.get("has_draft") or row.get("status") not in {"enabled", "disabled"}:
-            return False, "pack_runtime_draft_conflict"
-        if (
-            any(
-                active.get(key) != curated.get(key) or row["draft"].get(key) != curated.get(key)
-                for key in CONTENT_FIELDS
-            )
-            or active.get("bindings") != []
+            any(active.get(key) != curated.get(key) for key in CONTENT_FIELDS)
+            or active.get("bindings", []) != []
+            or curated.get("bindings", []) != []
         ):
             return False, "pack_runtime_content_changed"
         old_manifest, new_manifest = verify_pack_manifest(active["files"]), verify_pack_manifest(
@@ -88,9 +77,7 @@ def relocation_decision(row, active, curated):
             }
         ):
             return False, "pack_runtime_manifest_changed"
-        if _static_files(active) != _static_files(curated) or {
-            file["path"]: decode_file(file) for file in row["draft"]["files"]
-        } != {file["path"]: decode_file(file) for file in active["files"]}:
+        if _static_files(active) != _static_files(curated):
             return False, "pack_runtime_content_changed"
         old, new = runtime_from(active), runtime_from(curated)
         if old == new:
@@ -129,6 +116,36 @@ def relocation_decision(row, active, curated):
         if old_normal != new_normal:
             return False, "pack_runtime_policy_changed"
         return True, "relocation"
+    except (CapabilityError, OSError, ValueError, KeyError, TypeError, StopIteration):
+        log.warning("research_pack_relocation_unverified")
+        return False, "pack_runtime_manifest_invalid"
+
+
+def relocation_decision(row, active, curated):
+    """Return an explicit reason; metadata and every reviewed byte must match."""
+    try:
+        if (
+            row.get("id") not in PACK_IDS
+            or row.get("source") != "builtin"
+            or row.get("kind") != "skill"
+            or row.get("origin") is not None
+        ):
+            return False, "pack_runtime_source_untrusted"
+        if row.get("has_draft") or row.get("status") not in {"enabled", "disabled"}:
+            return False, "pack_runtime_draft_conflict"
+        if (
+            any(
+                active.get(key) != curated.get(key) or row["draft"].get(key) != curated.get(key)
+                for key in CONTENT_FIELDS
+            )
+            or active.get("bindings") != []
+        ):
+            return False, "pack_runtime_content_changed"
+        if {file["path"]: decode_file(file) for file in row["draft"]["files"]} != {
+            file["path"]: decode_file(file) for file in active["files"]
+        }:
+            return False, "pack_runtime_draft_conflict"
+        return verify_relocation_pair(active, curated)
     except (CapabilityError, OSError, ValueError, KeyError, TypeError, StopIteration):
         log.warning("research_pack_relocation_unverified")
         return False, "pack_runtime_manifest_invalid"
@@ -173,3 +190,42 @@ def verify_version_tree(catalog, row, active):
     check_tree(catalog.version_path(row["id"], version))
     if row["status"] == "enabled":
         check_tree(catalog.native_root / active["native_name"])
+
+
+def record_tree_hash(catalog, cid, version, record, *, native=False):
+    """Verify a retained immutable endpoint without changing the current row."""
+    if (
+        cid not in PACK_IDS
+        or type(version) is not int
+        or record["version"] != version
+        or record["native_name"] != cid
+    ):
+        raise ValueError("pack endpoint identity invalid")
+    verify_pack_manifest(record["files"])
+    expected = {
+        "SKILL.md": record["compiled_sha256"],
+        **{item["path"]: item["sha256"] for item in record["files"]},
+    }
+    root = catalog.native_root / cid if native else catalog.version_path(cid, version)
+    nodes = list(root.rglob("*"))
+    directories = {
+        parent.as_posix()
+        for name in expected
+        for parent in Path(name).parents
+        if parent != Path(".")
+    }
+    if (
+        any(
+            node.is_symlink() or not node.is_dir() and not stat.S_ISREG(node.lstat().st_mode)
+            for node in nodes
+        )
+        or {node.relative_to(root).as_posix() for node in nodes if node.is_file()} != set(expected)
+        or {node.relative_to(root).as_posix() for node in nodes if node.is_dir()} != directories
+    ):
+        raise ValueError("pack endpoint tree changed")
+    for name, digest in expected.items():
+        if hashlib.sha256(read_regular(root / name, 10 * 1024 * 1024)).hexdigest() != digest:
+            raise ValueError("pack endpoint bytes changed")
+    return hashlib.sha256(
+        json.dumps(sorted(expected.items()), separators=(",", ":")).encode()
+    ).hexdigest()

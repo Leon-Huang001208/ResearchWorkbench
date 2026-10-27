@@ -2318,6 +2318,10 @@ class ResearchService(ModelProfilesMixin):
                 raise CapabilityError(
                     "任务硬依赖已失效，保留已完成资料", "capability_data_unavailable", 409
                 )
+        self._validate_data_query_scope(query, resolution, records, catalog)
+
+    def _validate_data_query_scope(self, query, resolution, records, catalog):
+        """Read-only declaration checks shared with the explicit Dossier reader."""
         declared = [
             item for record in records for item in record["metadata"].get("data_requirements", [])
         ]
@@ -2377,6 +2381,32 @@ class ResearchService(ModelProfilesMixin):
                 raise CapabilityError(
                     "历史时点请求缺少明确日期", "data_semantics_not_equivalent", 409
                 )
+
+    def _pack_dossier_read_records(self, sid):
+        from .scenario_pack_reads import records
+
+        try:
+            return records(self, sid)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            log.warning("pack_dossier_read_policy_invalid", error_type=type(exc).__name__)
+            raise CapabilityError(
+                "历史组合包读取策略或封印非法", "pack_read_equivalence_invalid", 409
+            ) from exc
+
+    def _admit_dossier_snapshot_read(
+        self, sid, query, resolution, *, source_sid, dataset_id, manifest_sha256
+    ):
+        from .scenario_pack_reads import admit_snapshot
+
+        return admit_snapshot(
+            self,
+            sid,
+            query,
+            resolution,
+            source_sid=source_sid,
+            dataset_id=dataset_id,
+            manifest_sha256=manifest_sha256,
+        )
 
     def capability_readiness(
         self, cid: str, sid: str | None = None, *, data_catalog: dict | None = None

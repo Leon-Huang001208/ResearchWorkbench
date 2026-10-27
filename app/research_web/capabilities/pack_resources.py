@@ -15,6 +15,7 @@ from core.observability import get_logger
 from ..scenarios.packs.record_contracts import RECORD_SCHEMAS
 from .models import CapabilityError
 from .pack_dependencies import runtime_identity
+from .pack_result_contracts import contracts as output_contracts
 from .packages import decode_file, encode_file
 
 log = get_logger(__name__)
@@ -90,6 +91,7 @@ def verify_pack_manifest(files):
                 "references/synthetic-vectors.json",
                 "references/record-contracts.json",
                 "references/runtime.json",
+                "references/output-contracts-v1.json",
             }
         ):
             raise ValueError("closure mismatch")
@@ -119,6 +121,7 @@ def pack_packages():
                 "scripts/pack_native.py", (Path(__file__).parent / "pack_native.py").read_bytes()
             ),
             encode_file("references/runtime.json", canonical(runtime_identity())),
+            encode_file("references/output-contracts-v1.json", canonical(output_contracts())),
             encode_file(
                 "references/synthetic-vectors.json", (root / "synthetic_vectors.json").read_bytes()
             ),

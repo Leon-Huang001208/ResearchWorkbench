@@ -1,5 +1,13 @@
 # 长期研究档案
 
+九builtin pack的历史snapshot读取使用专用内部adapter；不改原三参执行/query admission，不把
+warehouse的storage_read当通用豁免。等价只读仅认可当前用户Catalog事务内发出的直接old→current
+事实证，逐次重验两端真实tree/record/runtime、当前enabled/no-draft/无插件冲突，以及现有source
+scope/config/授权、manifest/rows/raw hash和PIT语义；source-only和target都检查，raw读回后再检。
+无receipt的sealed handoff仍由私有context补权威，不递归重开trusted_context。多hop不得拼链，
+需新事务独立重验并签直接证；disabled/copy/code改/跨owner/假证/断证/撤权均拒绝。历史读不执行
+旧runtime、不重取供应商、不写原query/context/receipt/质量状态；旧send/load继续version_conflict。
+
 研究场景／资产资料的typed原件引用复用本档案解析器，读取时追溯衍生来源当前权限；软删可验证、祖先仍被引用则拒绝永久清理，未知或外部损坏不换新源。场景结果仍需用户预览后经原档案入口关联／修订，不自动修改观点。文件里的自报passed不改变摘要或档案报告状态，质量取实际版本回执；元数据、源摘要及保留引用继续纳入原备份恢复链，没有隐藏档案或新事实库。
 
 档案沿当前 ResearchService 的个人 Store.root 保存；没有公共档案根、第二研究引擎或 PostgreSQL 连接。公司使用市场代码，行业／主题保留独立 key；名称不是合并依据。Web 页面和后续机会扫描均复用这份元数据。

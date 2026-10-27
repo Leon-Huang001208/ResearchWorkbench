@@ -3734,6 +3734,33 @@ Functions:
   - Hash actual package files as well as metadata/version, interpreter and lock.
 
 
+## `app/research_web/capabilities/pack_equivalence.py`
+
+Module docstring:
+> Server-only direct relocation facts, revalidated for Dossier reads only.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `models`
+- `pack_relocation`
+- `pack_resources`
+- `packages`
+- `pathlib`
+
+Functions:
+- `digest`
+- `reject`
+- `normalized_runtime`
+- `facts`
+  - Recompute direct endpoint facts; never walks or composes a certificate chain.
+- `issue_for_publication`
+  - Called inside the existing pending activation transaction, before its save.
+- `verify`
+
+
 ## `app/research_web/capabilities/pack_logging.py`
 
 Module docstring:
@@ -3795,10 +3822,14 @@ Functions:
 - `runtime_from`
 - `_static_files`
 - `_relative`
+- `verify_relocation_pair`
+  - Verify endpoint equivalence without manufacturing a mutable catalog row.
 - `relocation_decision`
   - Return an explicit reason; metadata and every reviewed byte must match.
 - `verify_version_tree`
   - No healing of modified/unlisted files or native projections during migration.
+- `record_tree_hash`
+  - Verify a retained immutable endpoint without changing the current row.
 
 
 ## `app/research_web/capabilities/pack_resources.py`
@@ -3813,6 +3844,7 @@ Imports:
 - `json`
 - `models`
 - `pack_dependencies`
+- `pack_result_contracts`
 - `packages`
 - `pathlib`
 - `scenarios.packs.record_contracts`
@@ -3823,6 +3855,26 @@ Functions:
 - `verify_pack_manifest`
   - Check the entire resource set, including helper/schema/golden digests.
 - `pack_packages`
+
+
+## `app/research_web/capabilities/pack_result_contracts.py`
+
+Module docstring:
+> Independent versioned audit contracts, never inferred from returned receipts.
+
+Imports:
+- `copy`
+- `core.observability`
+- `jsonschema`
+- `models`
+- `scenarios.packs`
+
+Functions:
+- `obj`
+- `array`
+- `payload`
+- `contracts`
+- `validate`
 
 
 ## `app/research_web/capabilities/packages.py`
@@ -10992,6 +11044,29 @@ Functions:
   - A private handoff record owns this descriptor; JSON declarations do not.
 
 
+## `app/research_web/scenario_pack_reads.py`
+
+Module docstring:
+> Explicit Dossier-only pack read policy; no ambient permission or task rewrite.
+
+Imports:
+- `capabilities.pack_equivalence`
+- `capabilities.pack_native`
+- `capabilities.pack_relocation`
+- `capabilities.pack_resources`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `json`
+- `store`
+
+Functions:
+- `records`
+  - Use private sealed context plus original, non-id-deduplicated receipt refs.
+- `admit_snapshot`
+  - Requires actual existing snapshot identity; storage_read is never a bypass.
+
+
 ## `app/research_web/scenarios/__init__.py`
 
 Module docstring:
@@ -11249,7 +11324,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, _validate_data_query_scope, _pack_dossier_read_records, _admit_dossier_snapshot_read, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

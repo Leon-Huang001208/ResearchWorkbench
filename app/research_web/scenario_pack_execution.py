@@ -234,6 +234,11 @@ def read_artifacts(root, execution):
     values = {name: json.loads(content) for name, content in raw.items()}
     if any(not isinstance(value, dict) for value in values.values()):
         fail("pack_output_schema_invalid")
+    from .capabilities.pack_result_contracts import validate as validate_output_contract
+
+    validate_output_contract(
+        values["receipt"], values["full-result"], execution["binding"]["pack_id"]
+    )
     if any(canonical(values[name]) != content for name, content in raw.items()):
         fail("pack_output_json_invalid")
     manifest, receipt, full = values["manifest"], values["receipt"], values["full-result"]
@@ -280,6 +285,23 @@ def read_artifacts(root, execution):
     sealed = json.loads(input_raw)
     inputs = sealed["records_by_kind"]
     parameters = sealed["parameters"]
+
+    def project_parameter(value):
+        if isinstance(value, list):
+            return {
+                "input_collection_sha256": hashlib.sha256(
+                    json.dumps(
+                        value, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+                    ).encode()
+                ).hexdigest(),
+                "item_count": len(value),
+            }
+        if isinstance(value, dict):
+            return {key: project_parameter(item) for key, item in value.items()}
+        return value
+
+    if full["root"]["parameters"] != project_parameter(parameters):
+        fail("pack_output_input_binding_invalid")
     normalized = hashlib.sha256(
         canonical(
             {
@@ -311,6 +333,11 @@ def read_artifacts(root, execution):
                 }
             )
         ).hexdigest()
+        atom_parameters = {"as_of": parameters["as_of"], **parameters[component["method"]]}
+        if component["parameters"] != project_parameter(atom_parameters) or component["metrics"][
+            "input_counts"
+        ] != {kind: len(rows) for kind, rows in selected.items()}:
+            fail("pack_output_input_binding_invalid")
         if (
             component["input_sha256"] != expected_digest
             or component["canonical_input_sha256"] != expected_digest

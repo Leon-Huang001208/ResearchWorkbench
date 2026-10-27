@@ -1113,4 +1113,8 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 运行闭包独立扫描已知包／数据根和版本元数据，包含pyc，不只信任RECORD；外部console入口和固定安装账簿的排除列表／原因冻结，固定入口不执行它们。仅 actual bytes／锁／解释器 ABI 和平台完全相同的管理前缀 relocation 可为精确未改 builtin 创建新版本并保留disabled／旧历史；用户copy、代码／依赖变化、额外文件和重建后不同pyc均明确blocked，需受审升级，不能自动当作兼容。
 
-当前历史只读等价证书未闭合，生产自动relocation一律 `pack_runtime_read_equivalence_pending`，不创建新版本／不改原状态，避免隐式破坏旧研究读取。仅测试内部开启发布机制；不代表迁移可用或Mac安装已完整验收。该项为本B1候选明确NEEDS_WORK，需SPEC定义只读授权边界后再开启。
+B1 SPEC修波的生产迁移只在Catalog现有pending发布事务里发放完整直接只读等价证书；旧版本
+读取经Dossier专用adapter，保留当前source授权／原件hash／PIT与全部旧执行门。多hop只接受
+独立重验并发放的直接old→current证，不能传递拼接。无收据sealed context仍核私有权威，
+disabled／代码变化／撤权／跨owner／假证或事务不完整均拒绝；未执行旧runtime。详见组合包文档。
+当前修波须绑定新candidate的独评与Mac CI，首版NEEDS_WORK报告保留历史失败事实。

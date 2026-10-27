@@ -193,6 +193,7 @@ def test_production_relocation_is_blocked_until_historical_read_certificate_exis
     tmp_path, monkeypatch
 ):
     catalog = historical_catalog(tmp_path, monkeypatch)
+    monkeypatch.setattr(CapabilityCatalog, "_pack_read_equivalence_ready", lambda *_args: False)
     before = copy.deepcopy(catalog.row(CID)["versions"])
     restored = CapabilityCatalog(catalog.data_root)
     row = restored.row(CID)
@@ -202,3 +203,71 @@ def test_production_relocation_is_blocked_until_historical_read_certificate_exis
         "status": "blocked",
         "code": "pack_runtime_read_equivalence_pending",
     }
+
+
+def test_multiple_relocations_issue_direct_facts_and_never_accept_transitive_only(
+    tmp_path, monkeypatch
+):
+    from app.research_web.capabilities import pack_dependencies, pack_resources
+    from app.research_web.capabilities.models import CapabilityError
+    from app.research_web.capabilities.pack_equivalence import verify
+
+    original = historical_catalog(tmp_path, monkeypatch)
+    first = original.selection(CID)
+    first = {key: first[key] for key in ("id", "version", "sha256", "native_name", "resource_path")}
+    second = CapabilityCatalog(original.data_root)
+    assert second.row(CID)["version"] == 2
+    third_runtime = copy.deepcopy(pack_dependencies.runtime_identity())
+    prefix = Path(third_runtime["environment"])
+    new = tmp_path / "third-managed-prefix"
+    third_runtime["environment"] = str(new)
+    for dependency in third_runtime["dependencies"]:
+        dependency["origin"] = str(new / Path(dependency["origin"]).relative_to(prefix))
+    if Path(third_runtime["python"]).is_relative_to(prefix):
+        third_runtime["python"] = str(new / Path(third_runtime["python"]).relative_to(prefix))
+    monkeypatch.setattr(pack_dependencies, "runtime_identity", lambda: copy.deepcopy(third_runtime))
+    monkeypatch.setattr(pack_resources, "runtime_identity", lambda: copy.deepcopy(third_runtime))
+    third = CapabilityCatalog(original.data_root)
+    assert third.row(CID)["version"] == 3
+    assert verify(third, first)["version"] == 3
+    direct = next(
+        key
+        for key, value in third.data["pack_read_equivalences"].items()
+        if value["capability_id"] == CID and value["from_version"] == 1 and value["to_version"] == 3
+    )
+    del third.data["pack_read_equivalences"][direct]
+    with pytest.raises(CapabilityError):
+        verify(third, first)
+
+
+def test_terminal_certificate_commit_failure_leaves_no_usable_certificate(tmp_path, monkeypatch):
+    import app.research_web.capabilities.catalog as catalog_module
+    from app.research_web.capabilities.models import CapabilityError
+
+    catalog = historical_catalog(tmp_path, monkeypatch)
+    old = copy.deepcopy(catalog.row(CID)["versions"]["1"])
+    original = catalog_module.os.replace
+    failed = []
+
+    def fail_once(source, target, *args, **kwargs):
+        if (
+            Path(target) == catalog.index
+            and catalog.data.get("pending") is None
+            and catalog.data.get("pack_read_equivalences")
+            and not failed
+        ):
+            failed.append(True)
+            raise OSError("simulated terminal disk replace failure")
+        return original(source, target, *args, **kwargs)
+
+    monkeypatch.setattr(catalog_module.os, "replace", fail_once)
+    with pytest.raises(CapabilityError):
+        catalog._migrate_pack_runtime_relocations(dict(seeds.seed_packages()))
+    assert failed
+    on_disk = json.loads(catalog.index.read_bytes())
+    assert on_disk["items"][CID]["version"] == 1
+    assert on_disk["items"][CID]["versions"]["1"] == old
+    assert not on_disk["pack_read_equivalences"]
+    restored = CapabilityCatalog(catalog.data_root)
+    assert restored.row(CID)["version"] == 1
+    assert not restored.data["pack_read_equivalences"]
