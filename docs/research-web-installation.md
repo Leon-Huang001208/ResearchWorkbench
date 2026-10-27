@@ -1120,3 +1120,7 @@ disabled／代码变化／撤权／跨owner／假证或事务不完整均拒绝�
 当前修波须绑定新candidate的独评与Mac CI，首版NEEDS_WORK报告保留历史失败事实。
 
 九包 B1 复核更正：runtime v3／lock projection v2 绑定实际 optional 导入图、精确 Native import guard 及 date/date-time 严格子集 profile 的字节。旧指纹遗漏 idna、原环境无 date-time checker 的事实由此显式修正，不依赖新包、全局猴补或放宽 schema。固定 schema 不支持远程 resolver；未绑定 lazy/dynamic imports 实际触发拒绝。pack sandbox 不预载 report SDK；普通/weekly 入口不变。当前源码/轮装包路径以新候选本地测试留证，干净安装/CI未执行仍待 root。
+
+## 2026-10-28：T3组合包集成边界
+
+已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py和三公开入口，复用已锁jsonschema及闭包，无新依赖/服务/凭据/安装器修改。Mac Bootstrap原步骤补pack-ui.mjs HTTP/源码字节核对及离线构造九包/三方法资源，逐件核hash/闭包，不调供应商/模型。固定DSH、3081/8088、Doctor和最终macos-14干净安装仍须CI真实通过，旧venv和静态核对不认证安装成功。

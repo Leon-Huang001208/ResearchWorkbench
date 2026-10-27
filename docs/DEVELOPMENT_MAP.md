@@ -682,3 +682,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 # 区间统计实现定位（2026-10-25）
 
 `app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。
+
+## 2026-10-28：T3组合包集成边界
+
+六个Host新模块：scenario_source_selection负责安全列表/preview/freeze；scenario_method_dedup运行Host C2并冻结完整制品；scenario_method_sources与scenario_pack_execution分别准备/完成/复验原件台账及计算制品；scenario_pack_reads负责显式历史等价读回；scenario_pack_ui在原鉴权后投影。纯核在scenarios/packs，Native冻结/闭包/重定位在capabilities/pack_*，原件动作在skills/_shared/source_actions.py。见[组合包](research-web-research-packs.md)、[自有方法](research-web-owned-methods.md)、[来源选择](research-web-source-selection.md)。完整Router/评审/原CI/同候选Mac安装待最终候选，T4/T5未实施。

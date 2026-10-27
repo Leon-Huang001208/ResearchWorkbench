@@ -361,3 +361,7 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 区间统计沿原Research Web Checks的research_web*.test.mjs通配符增加数学/控制器用例，Mac Bootstrap同一步校验两份新增mjs，不增加job、runner或timeout。新候选仍需原Constraints/Checks/Mac三门，公开仓库与checkout身份在发布前重验；本机与隔离浏览器不替代CI。
 
 2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
+
+## 2026-10-28：T3既有验证通道
+
+T3组合包集成只扩充已有Checks测试参数及Mac Bootstrap原资源核对步骤，无新job/runner、依赖、超时或平台dispatch。只读安装资源构造复用原安装环境，不调用供应商/模型；完整候选CI仍须通过，预算与仓库visibility核对规则不变，元数据本地通过不授权远端运行。

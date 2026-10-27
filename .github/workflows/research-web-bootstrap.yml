@@ -159,12 +159,55 @@ jobs:
           PY
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3, app.research_web.asset_intraday, app.research_web.asset_minute_k, app.research_web.datahub.intraday_contract; assert m.version('cjpy') == '0.5.2'"
           .venv/bin/python -c "import app.research_web.asset_research, app.research_web.scenario_handoffs; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"
+          RWB_PACK_CHECKOUT="$PWD" .venv/bin/python -I - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          import app.research_web
+          from app.research_web.capabilities.pack_resources import pack_packages, verify_pack_manifest
+          from app.research_web.capabilities.scenario_method_packages import scenario_method_packages
+          from app.research_web.capabilities.packages import decode_file
+          checkout = Path(os.environ['RWB_PACK_CHECKOUT']).resolve()
+          installed = Path(app.research_web.__file__).resolve().parent
+          assert installed.is_relative_to(Path(sys.prefix).resolve()), installed
+          assert installed != checkout / 'app/research_web', installed
+          inputs = set()
+          for pattern in ('scenarios/packs/*', 'capabilities/pack_*.py', 'capabilities/pack-*.json', 'skills/_shared/*'):
+              inputs.update(p for p in (checkout / 'app/research_web').glob(pattern) if p.is_file())
+          inputs.update(checkout / 'app/research_web' / name for name in (
+              'capabilities/scenario_method_packages.py', 'scenario_method_dedup.py',
+              'scenario_method_sources.py', 'scenario_pack_execution.py', 'scenario_pack_reads.py',
+              'scenario_pack_ui.py', 'scenario_source_selection.py', 'scenario_source_versions.py',
+              'scenario_pack_inputs.py', 'scenarios/pack_catalog.py', 'scenarios/method_catalog.py',
+              'scenarios/native_argument_adapters.py'))
+          files = []
+          for source in sorted(inputs):
+              relative = source.relative_to(checkout / 'app/research_web')
+              actual = (installed / relative).read_bytes()
+              assert actual == source.read_bytes(), f'installed resource differs: {relative}'
+              files.append({'path': str(relative), 'sha256': hashlib.sha256(actual).hexdigest()})
+          packs, methods = list(pack_packages()), scenario_method_packages()
+          assert len(packs) == 9 and len(methods) == 3
+          resources = []
+          for cid, draft in [*packs, *methods]:
+              for item in draft['files']:
+                  assert hashlib.sha256(decode_file(item)).hexdigest() == item['sha256'], (cid, item['path'])
+              if cid.startswith('research-pack-'):
+                  manifest = verify_pack_manifest(draft['files'])
+                  assert manifest is not None, cid
+              else:
+                  manifest = json.loads(decode_file(next(f for f in draft['files'] if f['path'] == 'references/method-code-manifest.json')))
+                  entries = [{'path': f['path'], 'sha256': f['sha256']} for f in draft['files'] if f['path'] != 'references/method-code-manifest.json']
+                  assert manifest['files'] == entries, cid
+                  assert manifest['closure_sha256'] == hashlib.sha256(json.dumps(entries, sort_keys=True, separators=(',', ':')).encode()).hexdigest(), cid
+              resources.append({'id': cid, 'file_count': len(draft['files']), 'closure_sha256': manifest['closure_sha256']})
+          Path('pack-resource-smoke.json').write_text(json.dumps({'status': 'PASS', 'scope': 'installed-resource-construction-only', 'installed_files': files, 'packages': resources, 'execution': 'NOT_RUN', 'research_quality': 'NOT_RUN'}, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
           .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['schema_version'] == 2 and report['installation_ok'] is True and report['product_ready'] is True and all(report['services'][role]['ready'] is True for role in ('runtime', 'web')), report"
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/ > root.html
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/static/app.mjs > app.mjs
-          for asset_file in scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
+          for asset_file in pack-ui.mjs scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
 
             safe_name="${asset_file//\//_}"
             curl --noproxy '*' --fail --silent --show-error --max-time 15 "http://127.0.0.1:8088/static/$asset_file" > "$RUNNER_TEMP/rwb-asset-$safe_name"
@@ -172,7 +215,7 @@ jobs:
           .venv/bin/python - <<'PY'
           import hashlib, json, os
           from pathlib import Path
-          assets = ["scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
+          assets = ["pack-ui.mjs", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
 
           checks = []
           for name in assets:
@@ -205,6 +248,7 @@ jobs:
             connections.json
             native-search-smoke.json
             asset-static-smoke.json
+            pack-resource-smoke.json
           if-no-files-found: ignore
           retention-days: 3
 

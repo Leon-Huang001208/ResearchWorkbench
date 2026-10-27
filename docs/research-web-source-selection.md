@@ -1,9 +1,10 @@
 # 研究组合包原文选择合同
 
 `scenario_source_selection.py` 是 Host 的有限文件准备桥，仅供 `pack-research-prep`
-和 `pack-global-opinion`。不注册供应商工具，不抓取网页、不调用模型，不建立第二个研究引擎。
-公司 `stock`、行业 `industry`、主题 `topic` 均沿现 `pack_catalog.select` 校验，保留完整
-subject，包括合法 name；行业仍为真实分类身份（如 `sw:801890`），主题保留原中文文本。
+和 `pack-global-opinion`，以及固定 registry 中三个 `owned-*` 方法场景。后者按
+独立 method_execution 合同准备，不制造 pack_seal。均不注册供应商工具，不抓取网页、不调用模型，不建立第二个研究引擎。
+包的公司 `stock`、行业 `industry`、主题 `topic` 沿 `pack_catalog.select`；自有方法沿
+`method_catalog.select`，新闻方法允许三类，另外两个方法只允许stock。均保留完整subject及合法name；行业仍为真实分类身份（如 `sw:801890`），主题保留原中文文本。
 原八场景、资产 bundle、基金、日线和原 source/file 权限边界保持。
 
 ## HTTP 与只读边界
@@ -13,7 +14,7 @@ subject，包括合法 name；行业仍为真实分类身份（如 `sw:801890`�
   host、未知语言/地域/角色及 capture 状态。不返回正文、摘录、原文 path/下载 URL 或 proof。
 - `POST /api/research/source-selections/preview`：closed `{handoff, sources}`；sources 仅允许
   `{source_session_id,id,sha256}`，1–20 个，重复同 SID/ID 拒绝，同 URL/hash 不同 SID 保持独立。
-  handoff 为原 closed Handoff，必须是真实已有来源会话、两包之一、明确 datahub/uploads/web
+  handoff 为原 closed Handoff，必须是真实已有来源会话、上述固定 registry 目标之一、明确 datahub/uploads/web
   三 scope，`material_ids` 精确对应 dataset_ids；不得提供 workspace_material、context 或观察。
   纯内存复用原 prepare_context 的私有 reader，逐条重读已授权原文并提供真实 qualification。
   不创建文件/业务记录、Native 会话或模型请求。内部暂定 file token 只服务原材料一致性检查，
@@ -23,8 +24,8 @@ subject，包括合法 name；行业仍为真实分类身份（如 `sw:801890`�
   `create_handoff`，返回原 prepared/draft 或原 creation_outcome_unknown 结构，最终 Send 仍独立。
 
 预览 digest 绑定完整请求、当前 SourceMeta、原件 hash、真实资格和能力版本。所有客户端
-owner/rights/provider/coverage/rows/body/URL/path/module 自证字段拒绝；方法参数仅沿现
-scenario_inputs.research_scope 原校验，不从浏览器选择 reader 或执行模块。
+owner/rights/provider/coverage/rows/body/URL/path/module 自证字段拒绝；方法参数仅沿各固定场景schema校验：包使用scenario_inputs.research_scope，新闻/调研自有方法可显式cutoff_at；
+问题预置在Host核当前选择后形成question。不从浏览器选择reader或执行模块。
 
 ## 文件、私有登记与重验
 
@@ -82,6 +83,7 @@ freeze 预检沿原 `workbench_lock → service.lock → retention_lock` 顺序�
 及原交接/草稿、保全窗口和未知不重建；opt-in 测试复用 pinned DSH 的真实 ToolRuntime/
 FileSystemSkill/guard/macOS sandbox/Host 产物读回，供应商和 LLM 不执行。
 
-C6b UI、浏览器、真实模型、62/78 全项能力、其他方法、T4/T5、CI 和常驻部署均独立未完成。
-ROOT_PENDING：完整 changed-set Router、API Atlas、架构图/七文档聚合、CI/独立评审与交付收尾
-由主控完成，不能以本模块本机通过替代。
+C6b UI 已在本候选实现，浏览器证据见 [UI合同](research-web-pack-ui.md)；真实模型、62/78 全项能力、
+T4/T5、最终候选CI与常驻部署仍独立待验，静态映射不等于供应商 alias 已注册。
+API Atlas、架构图文和模块登记已在本轮集成元数据核对；完整changed-set Router、最终评审、CI与
+交付收尾由主控在最终候选认证，不能以本模块本机通过替代。

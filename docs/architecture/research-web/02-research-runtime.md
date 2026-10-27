@@ -791,3 +791,7 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+## 2026-10-28：T3组合包集成边界
+
+scenario_pack_execution与scenario_method_sources登记task/call/input/context及固定launcher。实际supervisor完成经私有pack-completion独立核schema、全量制品与来源hash后才记saved；取消、迟到及unknown不重跑。新闻/调研C2由Host先执行冻结、Native只消费，保存与原报告质量分别认证；历史版本仅在显式Dossier读回门验证等价。

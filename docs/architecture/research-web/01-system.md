@@ -641,3 +641,7 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+## 2026-10-28：T3组合包集成边界
+
+九包与三个自有方法扩展现有Host/能力目录/DSH职责：workbench核来源并封印，版本包固定代码、schema、解释器及依赖闭包，DSH supervisor经私有完成桥返回，Host独立重开原件和制品。无新进程、队列、数据库或第二引擎；新内部路径见[能力流](../../../outputs/research-web-architecture/05-capability-flow.html)。

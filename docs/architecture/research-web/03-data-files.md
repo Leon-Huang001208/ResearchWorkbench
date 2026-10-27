@@ -920,3 +920,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
 区间统计只读取当前账号已载入的同版本日线，日期选区与浮窗位置保存在页面生命周期中；不产生数据集、修改旧manifest或持久化原始行情。区间内部扫描、字段缺值与单位证据分别校验，缺证不回填，原DataHub与冻结文件边界保持。
+
+## 2026-10-28：T3组合包集成边界
+
+source-selection preview只在内存，freeze重算摘要后发布inputs/source-selections/<id>.json及私有intent，再走原handoff。选择文件不是retention holder，lineage持久化后才保护源。C2及owned-method副本绑定来源/目标会话、原hash、locator与闭包，不得转作上传或Claw file alias；pack receipt/full-result/manifest逐件读回，128行预览不代表全量。

@@ -357,3 +357,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+## 2026-10-28：T3九包与自有方法的执行闭环
+
+九包纯核、三owned原件动作和C2源版本预处理在现Host/能力目录内冻结，继续由唯一DSH与固定sandbox执行。新增私有完成桥将真实supervisor结果送回Host，独立读回原件/完整制品后才登记saved，原报告质量另验；C2由Host执行、Native消费。C6来源选择的preview为纯只读，freeze沿原intent/lineage，未知不重跑。05能力流图已补实际完成与验证关系；无新进程、队列、数据库或供应商alias，原八场景及18 gated保持。实现入口见[开发地图](DEVELOPMENT_MAP.md)及[组合包](research-web-research-packs.md)。T4/T5仍待实施，静态140映射不认证运行、真实来源、模型质量或最终CI。
