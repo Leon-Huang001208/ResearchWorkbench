@@ -1,5 +1,11 @@
 # GitHub Actions 免费额度治理
 
+2026-10-27首批原Checks `40384650069`在1898.78秒完成Python，7212通过、1失败；失败为未限定平台的真实Mac HTML交付测试，不是预算超时。修复保留Mac真实交付及全部原断言，另增通用未验证交付／自认证质量拒绝反例；该反例本机约2.08秒，原步骤预留5秒。原Constraints字节码兼容修复扩展原已登记unittest，不新增job／runner／依赖／timeout，不取消或绕过产品门，不rerun旧候选。最终候选重新取得原三CI及Mac安装；发布前核对当前PUBLIC资格。
+
+repair1的Checks `40440907774`完整Python7213通过／73条件跳过（1686.25秒），后续JS的10个失败均为MCP测试DOM缺既有页面容器。补齐fixture并新增一项inert回归，保留全部断言与原3个DSH源码条件skip；本机同CI通配符1225通过／0失败。修复不改workflow、job、runner、依赖或timeout，新断言预留原步骤1秒。本地闭包同步扩大到原完整JS通配符；下一最终候选走正常受管repair发布，不手动rerun旧run。
+
+2026-10-27 场景首批仅向原 Research Web Checks Python 步骤登记六个新回归模块，Node 沿原`research_web*.test.mjs`通配符；Mac Bootstrap 原步骤补四个静态文件同源字节与后端／固定目录导入检查。无新 workflow、job、runner、依赖、timeout 或他平台产品 dispatch。新增回归在本机同闭包225项耗时124.44秒（含原用例），后续定点54项75.71秒、最终修复闭包123项97.90秒；原步骤增量保守预留180秒，实际 CI 另证，不删测试换预算。源模型、供应商和生产数据库不进入 CI；公开仓库资格在每次远端写入前复核，原三门／同候选 Mac 安装及额度硬门保持。
+
 分钟K只在原Checks同一Python步骤追加test_asset_minute_k，JS沿原通配符；Mac Bootstrap原资源字节列表和模块import登记新分钟文件。无新增job/runner/依赖或timeout，保持既有45分钟原预算；合成近处93例约1秒，新增预算预留30秒。发布前实时核仓库visibility/额度，不rerun旧失败run、不从Mac dispatch其他平台。
 
 候选0e4ceeb2的Checks40262625759在40m上限取消：Python7109通过/72原skip/117subtests（2201.70s），另47通过（0.89s）；JS1199通过/3原skip（20.80s），但step因总时限取消，末尾固定编辑引擎检查NOT_RUN。完整日志18446774B保留原失败归属；只把原同一ubuntu-latest job有界延长40→45分钟（增加5分钟），不新增job/runner/依赖/跳过或删除用例，不改变permissions/concurrency。约132s依赖安装+约37m Python已耗尽旧预算；新增分钟合同本地亚秒，不把超时伪称功能通过。新候选重跑原三CI/Mac安装，不rerun旧run，CI不调用实际供应商或模型。

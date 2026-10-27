@@ -41,6 +41,10 @@ def context_bytes(record):
             source_kind="news",
             associations=record.get("associations", []),
         )
+    if "scenario_context" in record:
+        value.update(
+            schema_version="discovery-handoff-3", scenario_context=record["scenario_context"]
+        )
     return json_bytes(value)
 
 

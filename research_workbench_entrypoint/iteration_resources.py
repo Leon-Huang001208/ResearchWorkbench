@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib._bootstrap_external
 import importlib.util
 import json
 import logging
-import marshal
 import os
 import re
 import shutil
@@ -388,7 +388,15 @@ def regenerated_directory(previous, current, state):
                     dont_inherit=True,
                     optimize=int(match.group(2) or 0),
                 )
-                expected = marshal.dumps(compiled)
+                encoder = getattr(importlib._bootstrap_external, "_code_to_timestamp_pyc", None)
+                if not callable(encoder):
+                    log.error("iteration_regeneration code=closeout_bytecode_encoder_unavailable")
+                    raise ResourceError("closeout_bytecode_encoder_unavailable")
+                # CPython 3.14 borrows function-local call arguments. Keep an
+                # explicit second reference so marshal matches py_compile's
+                # shared code-object encoding, including reference-table IDs.
+                compiled_reference = (compiled,)
+                expected = encoder(compiled_reference[0])[16:]
                 if raw[16:] != expected:
                     raise ResourceError("closeout_regenerated_bytecode_unknown")
                 verified_manifest[cache.name] = hashlib.sha256(raw).hexdigest()

@@ -88,6 +88,12 @@ jobs:
           .venv/bin/python -m pytest \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
+            tests/research_web/test_research_scenarios_catalog.py \
+            tests/research_web/test_scenario_handoffs.py \
+            tests/research_web/test_scenario_review_regressions.py \
+            tests/research_web/test_scenario_review_round2.py \
+            tests/research_web/test_scenario_final_review.py \
+            tests/research_web/test_asset_research_workspace.py \
             tests/research_web/test_discovery.py \
             tests/research_web/test_discovery_tracking.py \
             tests/research_web/test_discovery_routes.py \

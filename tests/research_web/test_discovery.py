@@ -298,7 +298,16 @@ async def test_prepared_request_public_projection_survives_host_rebuild_without_
     first = await service.prepare(body)
     rebuilt = DiscoveryService(research, reader=service.reader)
     recovered = await rebuilt.get_handoff(first["handoff_id"])
-    assert recovered["prepare_request"] == body.model_dump(mode="json")
+    assert recovered["prepare_request"] == body.model_dump(mode="json", exclude_none=True)
+    assert set(recovered["prepare_request"]) == {
+        "request_id",
+        "feed_id",
+        "horizon",
+        "theme_id",
+        "material_ids",
+        "target_mode",
+        "question",
+    }
     assert recovered["state"] == "session_configuration_required"
     assert recovered["session_id"] == first["session_id"]
     assert recovered["context_sha256"] == first["context_sha256"]

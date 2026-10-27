@@ -5,7 +5,16 @@ from datetime import UTC, datetime, timedelta
 from core.observability import get_logger
 
 from .models import DiscoveryError
-from .sources import digest, display_fields, evidence_projection, objects, safe_url, stamp, string
+from .sources import (
+    canonical_assets,
+    digest,
+    display_fields,
+    evidence_projection,
+    objects,
+    safe_url,
+    stamp,
+    string,
+)
 
 log = get_logger(__name__)
 MAX_NEWS = 180
@@ -120,6 +129,7 @@ def theme(item, acquired):
         "title": material["title"],
         "category": item["groups"][0] if item["groups"] else "未分类",
         "publisher": material["publisher"],
+        "importance": string(row.get("importance") or row.get("priority"), 80),
         "published_at": item["published_at"],
         "judgment_as_of": None,
         "state": "未形成研判",
@@ -128,7 +138,7 @@ def theme(item, acquired):
         "next": "核对原始来源、关键事实与反证",
         "counter": [],
         "invalidation": [],
-        "assets": [],
+        "assets": canonical_assets(row.get("asset_codes")),
         "chain": [],
         "limitations": limitations,
         "materials": [material],

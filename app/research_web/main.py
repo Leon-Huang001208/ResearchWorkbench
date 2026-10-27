@@ -27,6 +27,7 @@ from research_workbench_entrypoint.resident.admission import MaintenanceBusy, ad
 from .ai_news_routes import router as ai_news_router
 from .ai_news_service import create_ai_news_service
 from .aihot_routes import router as aihot_router
+from .asset_research import router as asset_research_router
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
 from .automation.routes import router as automation_router
@@ -294,6 +295,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(dossier_signal_router)
     app.include_router(dossiers_router)
     app.include_router(asset_router)
+    app.include_router(asset_research_router)
     app.include_router(market_router)
     app.include_router(intel_router)
     app.include_router(discovery_router)
@@ -978,6 +980,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
         service = svc(request)
+        from .scenario_handoffs import trusted_context
+
+        trusted_context(service, sid, check_capabilities=False)
         relative = service.store.session(sid).get("files", {}).get(fid, "")
         receipt = service.store.data["receipts"].get(
             f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}

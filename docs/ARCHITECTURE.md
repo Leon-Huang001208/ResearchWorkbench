@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-27 首批研究场景沿既有 Host／工作台交接／DataHub／唯一 DSH 和原报告链运行。静态 62 Skill／78 Tool 对照不是执行权限；场景准备冻结本人对象、截止、原件引用与已发布方法，发送再过原生发现及资料准入。新场景质量合同 schema2 绑定全部必需能力，旧 schema1 保持；要求、发现与实际加载分开记录。资产研究工作区只投影本人已取得材料、不同口径可比观察和带原件定位的资料声明，不新建事实库或研究引擎；来源链的读取、导出、再交接及永久清理沿原权限和保全边界。源码、隔离浏览器、真实模型与常驻上线分别验收，参见[场景交接](research-web-scenario-handoffs.md)。
+
 资产分钟K由asset_minute_k.py与ui/asset-minute-k.mjs沿原账号Workspace/DataHub/Provider链实现，无新服务、引擎、依赖或凭据通道。因子统一OHLC/VWAP复权，量额原值冻结；派生用原asset_history种类隔离缓存。分钟筹码桥接已授权日线底稿，前日截止，旧证据不重写。
 
 分时沿现有账号 Host/AssetWorkspace → DataHub → Broker → 天软 Provider → 不可变快照链读取；新增封闭 POST observations/{id}/intraday，不新增服务/数据库/凭据通道。独立分钟时间合同与日周月历史、筹码和副图隔离，CJPY厂商字典核验每次执行，60秒账号内缓存仍重过动态授权和维护准入，任务计入原空闲见证。图层只隐藏原K实例，切回不重建。

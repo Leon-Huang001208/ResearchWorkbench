@@ -363,6 +363,9 @@ class Store:
 
     def _purge_retention_checked(self, sid: str) -> None:
         """Only called with the shared archive/native-deletion fence held."""
+        from .scenario_handoffs import assert_handoff_deletable
+
+        assert_handoff_deletable(self, sid)
         row = self.session(sid, include_deleted=True)
         if row.get("deleted_at") is None:
             raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)

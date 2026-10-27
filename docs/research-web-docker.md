@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-27资源回收兼容修复仅统一可信源码重编译结果与标准库`py_compile`的字节码编码上下文，编码时显式保留可信code额外引用，不读取执行待清理缓存。原任务登记、占用检查、源码跟踪、头部及逐字节验证、最终清单竞争检查保持；编码器不可用时拒绝回收。该纯文件资格修复不启动Docker、不清理卷／镜像／构建器，不改变20GiB缓存治理或双运行时选择。
+
 全市场广度组合的apply-market-breadth只走既有Mac Native主服务/网关事务，不新增Docker镜像、容器、卷或daemon权限。构建缓存仍沿两受管构建器合计20GiB及原操作锁治理；本mode不重置Docker，也不据停止状态清理未知资源。
 
 admission-v2只调整Mac Native维护事务内部顺序，不启动/更新Docker服务、卷、构建器或缓存。真实Primary/Host/Native/其它账号门保持，Mac通用Ubuntu CI不宣称Linux/Docker产品原生验收。

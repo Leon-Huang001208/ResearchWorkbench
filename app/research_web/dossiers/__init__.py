@@ -175,11 +175,30 @@ class DossierService:
             )
             raise StoreError("原始证据缺失或文件状态不安全", code, 409) from exc
 
-    def _resolve(self, sid, reference, *, expected=None, target_sid=None, manifest_out=None):
+    def _resolve(
+        self,
+        sid,
+        reference,
+        *,
+        expected=None,
+        target_sid=None,
+        manifest_out=None,
+        _lineage_checked=False,
+    ):
         try:
             row = self.store.session(sid, include_deleted=True)
         except StoreError as exc:
             raise StoreError("证据来源会话已缺失", "dossier_evidence_missing", 409) from exc
+        if not _lineage_checked and (
+            row.get("scenario_handoff_id")
+            or row.get("evidence_handoff_id")
+            or any(
+                record.get("session_id") == sid for record in self.store.data["handoffs"].values()
+            )
+        ):
+            from ..scenario_handoffs import trusted_context
+
+            trusted_context(self.research, sid, check_capabilities=False)
         if row.get("purge_started_at") is not None:
             raise StoreError("证据来源已开始永久删除", "dossier_evidence_missing", 409)
         kind, ref = reference["type"], reference["id"]
@@ -187,7 +206,7 @@ class DossierService:
         if scope not in row.get("source_scope", ["uploads", "datahub", "web"]):
             raise StoreError("证据来源授权已撤销", "dossier_source_revoked", 403)
         if target_sid:
-            target = self.store.session(target_sid)
+            target = self.store.session(target_sid, include_deleted=_lineage_checked)
             if scope not in target.get("source_scope", ["uploads", "datahub", "web"]):
                 raise StoreError("当前研究未获该类证据授权", "dossier_source_revoked", 403)
         metadata = {
@@ -270,7 +289,11 @@ class DossierService:
                         authorization_fingerprint=manifest.get("authorization_fingerprint"),
                         storage_read=True,
                     )
-                    if target_sid and getattr(self.research, "_data_query_admission", None):
+                    if (
+                        target_sid
+                        and getattr(self.research, "_data_query_admission", None)
+                        and not (_lineage_checked and target.get("deleted_at") is not None)
+                    ):
                         resolution = datahub._authorize_query(
                             target_sid,
                             BusinessQuery.model_validate(query),

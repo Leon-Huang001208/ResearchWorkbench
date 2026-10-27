@@ -91,7 +91,8 @@ async function createMarketplaceApp(fetchOverride = () => null) {
       windowHandlers.get('hashchange')?.();
     },
   });
-  const root = { _html: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const appShell = { inert: false };
+  const root = { _html: '', appShell, addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: selector => selector === '.app-shell' ? appShell : null };
   Object.defineProperty(root, 'innerHTML', {
     get() { return this._html; },
     set(value) {
@@ -508,7 +509,8 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
   const last = { focus() { documentState.activeElement = this; } };
   const dialog = { contains: value => value === first || value === last, querySelectorAll: () => [first, last] };
   const main = { scrollTop: 0, scrollTo() {} };
-  const root = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const appShell = { inert: false };
+  const root = { innerHTML: '', appShell, addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: selector => selector === '.app-shell' ? appShell : null };
   Object.assign(documentState, {
     querySelector: selector => selector === '#app' ? root : selector === '#main' ? main : selector === '.skip-link' ? { addEventListener() {} } : selector === '.mcp-server-dialog' ? dialog : selector === '.mcp-server-dialog [data-mcp-detail-close]' ? first : null,
     querySelectorAll: selector => selector === '[data-mcp-server-detail]' ? [trigger] : [],
@@ -532,8 +534,10 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
     console.info = () => {};
     await import(`../../app/research_web/ui/app.mjs?mcp-dialog=${Date.now()}`);
     assert.match(root.innerHTML, /data-mcp-server-detail/);
+    assert.equal(appShell.inert, false);
     await handlers.get('click')({ target: { closest: selector => selector === 'button' ? trigger : null, matches: () => false } });
     assert.match(root.innerHTML, /class="capability-preview-dialog mcp-server-dialog"/);
+    assert.equal(appShell.inert, false, 'MCP dialog keeps its existing focus-trap contract without opening a scenario');
     assert.equal(documentState.activeElement, first);
     documentState.activeElement = last;
     let trapped = false;
@@ -543,16 +547,35 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
     await handlers.get('click')({ target: { matches: selector => selector === '[data-mcp-dialog-backdrop]', closest: () => null } });
     assert.doesNotMatch(root.innerHTML, /mcp-server-dialog/);
     assert.equal(documentState.activeElement, trigger);
+    assert.equal(appShell.inert, false);
     await handlers.get('click')({ target: { closest: selector => selector === 'button' ? trigger : null, matches: () => false } });
     let escaped = false;
     handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() { escaped = true; } });
     assert.equal(escaped, true);
     assert.doesNotMatch(root.innerHTML, /mcp-server-dialog/);
     assert.equal(documentState.activeElement, trigger);
+    assert.equal(appShell.inert, false);
   } finally {
     console.info = originalLog;
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
   }
+});
+
+test('marketplace shell becomes inert only while the scenario panel is open', async () => {
+  const app = await createMarketplaceApp();
+  try {
+    assert.match(app.root.innerHTML, /class="app-shell /);
+    assert.equal(app.root.appShell.inert, false);
+    await app.handlers.get('click')({
+      target: { closest: selector => selector === '[data-scenario-open], [data-workbench-handoff]' ? { dataset: { scenarioOpen: '' } } : null },
+      preventDefault() {},
+    });
+    assert.match(app.root.innerHTML, /class="d-drawer-backdrop scenario-panel".*role="dialog" aria-modal="true"/s);
+    assert.equal(app.root.appShell.inert, true);
+    app.handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() {} });
+    assert.doesNotMatch(app.root.innerHTML, /class="d-drawer-backdrop scenario-panel"/);
+    assert.equal(app.root.appShell.inert, false);
+  } finally { app.cleanup(); }
 });
 
 test('market dialog is accessible, escapes details and disables unsupported install handoff', () => {

@@ -589,12 +589,18 @@
         "app/research_web/ui/asset-intraday.mjs",
         "app/research_web/ui/asset-intraday-option.mjs",
         "app/research_web/asset_minute_k.py",
-        "app/research_web/ui/asset-minute-k.mjs"
+        "app/research_web/ui/asset-minute-k.mjs",
+        "app/research_web/scenarios/",
+        "app/research_web/scenario_handoffs.py",
+        "app/research_web/asset_research.py"
       ],
       "documents": [
         "docs/research-web-ui.md",
         "docs/architecture/research-web/03-data-files.md",
-        "docs/architecture/research-web/04-api.md"
+        "docs/architecture/research-web/04-api.md",
+        "docs/research-web-scenarios.md",
+        "docs/research-web-scenario-handoffs.md",
+        "docs/research-web-asset-research.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -629,7 +635,16 @@
         "tests/research_web/test_asset_intraday.py",
         "tests/javascript/research_web_asset_intraday.test.mjs",
         "tests/research_web/test_asset_minute_k.py",
-        "tests/javascript/research_web_asset_minute_k.test.mjs"
+        "tests/javascript/research_web_asset_minute_k.test.mjs",
+        "tests/research_web/test_research_scenarios_catalog.py",
+        "tests/research_web/test_scenario_handoffs.py",
+        "tests/research_web/test_scenario_review_regressions.py",
+        "tests/research_web/test_asset_research_workspace.py",
+        "tests/javascript/research_web_scenarios.test.mjs",
+        "tests/e2e/research_web_scenarios_real_backend.mjs",
+        "tests/research_web/test_scenario_review_round2.py",
+        "tests/javascript/research_web_asset_research.test.mjs",
+        "tests/research_web/test_scenario_final_review.py"
       ]
     },
     {
@@ -5284,6 +5299,55 @@
       "path": "/api/research/assets/observations/{observation_id}/minute-bars",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/observations/{observation_id}/minute-bars",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/research/catalog",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/catalog",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/research/evidence/{source_session_id}",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/evidence/{source_session_id}",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/research/import/{observation_id}",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/import/{observation_id}",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/research/preview",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/preview",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/research/template/{observation_id}",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/template/{observation_id}",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/handoff-requests/{request_key}",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/handoff-requests/{request_key}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/scenarios",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/scenarios",
       "prefix": "/api/research"
     }
   ],

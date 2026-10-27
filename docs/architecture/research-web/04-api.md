@@ -1,5 +1,13 @@
 # Research Web 接口清单
 
+## 研究场景首批（2026-10-27）
+
+`GET /api/research/scenarios`只投影八场景及当前能力／执行准入；`POST /api/research/handoffs`保留原调用，新增明确场景、规范主体、截止、已取得资料／观察及研究问题；`GET /api/research/handoff-requests/{request_key}`只查询原意图。完整请求幂等，改变参数409；未知创建不自动重建，准备不调用研究模型。实际消息的场景回执由服务端核验并绑定到原原生提示及质量合同，不接受客户端自报资格。
+
+正文型详情、回执和幂等重放均重新核验来源链；撤权时返回不含摘要／摘录的安全状态，不更换原创建意图。仅在创建锁内确认不存在意图的输入拒绝，才返回`handoff_outcome=not_created`供客户端恢复编辑；普通404、网络未知或已有意图冲突不能据此重新创建。
+
+现有账号下新增资产研究资料域：`GET /api/research/assets/research/catalog`、`GET /evidence/{source_session_id}`、`POST /preview`、`POST /import/{observation_id}`、`GET /template/{observation_id}`（后四项同前缀`/api/research/assets/research`）。预览／原件／模板不执行模型；导入是明确用户动作，窄入口只接受有界结构化研究资料，不扩大通用上传类型。所有对象、引用、原件摘要和定位由服务器核对，权限未知或撤销拒绝。准确请求字段及错误见[场景合同](../../research-web-scenario-handoffs.md)、[资产研究资料](../../research-web-asset-research.md)；完整接口同步至API Atlas。
+
 `POST /api/research/assets/observations/{observation_id}/minute-bars`：认证内封闭cycle=1m/5m/15m/30m/60m/120m、adjustment=none/qfq/hfq、严格布尔refresh。按账号观察身份选择最近市场日与固定有界窗口，经Workspace→DataHub→Broker→天软；不接受来源/任意公式/路径。派生快照复用asset_history隔离与哈希链，不能命中普通原生查询缓存。缓存60秒重验全部源及派生授权；任务计入原活动见证，取消消费者不伪报SDK空闲。
 
 `POST /api/research/assets/observations/{observation_id}/intraday`：认证内只接受可选严格布尔refresh；由当前账号观察解析证券和session，返回最近实际市场日分钟快照、单位、累计均价及覆盖说明。不接收任意日期、公式、来源、路径或账号；动态授权/维护准入每次复核。空成功清图，失败可重试并保留已显示旧快照。

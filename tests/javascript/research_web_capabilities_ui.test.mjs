@@ -84,16 +84,25 @@ function productBuiltinResearchSkills() {
   return productCapabilityFixture().items;
 }
 
+function appRoot(handlers) {
+  const appShell = { inert: false };
+  return { innerHTML: '', appShell, addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: selector => selector === '.app-shell' ? appShell : null };
+}
+
+const appClickTarget = dataset => ({ closest: selector => selector === '[data-scenario-open], [data-workbench-handoff]' ? null : { dataset, disabled: false } });
+
 test('relative Python override resolves once against the caller cwd and runs from the worktree', () => {
-  const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
-  const ownerRoot = projectOwnerRoot;
-  const relativeOverride = path.join('.venv', executable);
+  const availablePython = projectPython();
+  const callerCwd = path.dirname(availablePython);
+  const relativeOverride = path.relative(callerCwd, availablePython);
   const resolved = projectPython({
-    callerCwd: ownerRoot,
+    callerCwd,
     environment: { ...process.env, RWB_TEST_PYTHON: relativeOverride },
   });
-  assert.equal(resolved, path.resolve(ownerRoot, relativeOverride));
+  assert.equal(resolved, path.resolve(callerCwd, relativeOverride));
+  assert.equal(resolved, availablePython);
   assert.equal(path.isAbsolute(resolved), true);
+  assert.throws(() => projectPython({ callerCwd, environment: { RWB_TEST_PYTHON: 'missing-python' } }), /not an executable file/);
   const probe = spawnSync(resolved, ['-c', 'print("rwb-relative-python-ok")'], {
     cwd: projectRoot,
     encoding: 'utf8',
@@ -468,7 +477,7 @@ test('connecting runtime is distinct from a settled offline runtime', () => {
 
 test('overlapping runtime refreshes stay pending and the latest request wins', async () => {
   const handlers = new Map(); const calls = []; const runtimeRequests = [];
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
@@ -498,8 +507,8 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
     const olderFailure = deferredResponse(); const newerSuccess = deferredResponse();
     runtimeRequests.push(olderFailure, newerSuccess);
-    const firstRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
-    const secondRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    const firstRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
+    const secondRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await tick();
     const cachedPendingHTML = rootElement.innerHTML;
     const cachedPendingSubmit = submitTag();
@@ -521,8 +530,8 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
     const olderStale = deferredResponse(); const latestSuccess = deferredResponse();
     runtimeRequests.push(olderStale, latestSuccess);
-    const olderRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
-    const latestRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    const olderRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
+    const latestRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await tick();
     latestSuccess.resolveJSON({ connected: true, credential_configured: true });
     await latestRefresh;
@@ -554,7 +563,7 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 test('real app event handlers close/select slash, search and drawers without any model or tool write', async () => {
   const handlers = new Map(); const calls = []; const logs = [];
   const viewportChanges = []; const windowHandlers = new Map(); const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const prompt = { id: 'prompt', focus() {} };
   let focused = '';
@@ -597,7 +606,7 @@ test('real app event handlers close/select slash, search and drawers without any
     assert.equal(focused, '', 'deliberately blurred visible sidebar controls must not reclaim focus');
     assert.match(rootElement.innerHTML, /aria-label="打开会话侧栏"/);
     const input = async (id, value, dataset = {}) => handlers.get('input')({ target: { id, value, dataset, closest: () => null } });
-    const click = async (dataset) => handlers.get('click')({ target: { closest: () => ({ dataset, disabled: false }) } });
+    const click = async (dataset) => handlers.get('click')({ target: appClickTarget(dataset) });
     const key = async (key) => handlers.get('keydown')({ key, target: { id: 'prompt' }, preventDefault() {}, isComposing: false });
     await input('prompt', '/'); assert.match(rootElement.innerHTML, /id="slash-options"/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /id="slash-options"/);
@@ -639,7 +648,7 @@ test('real app event handlers close/select slash, search and drawers without any
 
 test('real landing modes filter catalog categories and select Workflow or Skill drafts without writes', async () => {
   const handlers = new Map(); const windowHandlers = new Map(); const calls = [];
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
@@ -657,6 +666,13 @@ test('real landing modes filter catalog categories and select Workflow or Skill 
     } });
     console.info = () => {};
     await load(`app.mjs?landing-integration=${Date.now()}`);
+    assert.equal(rootElement.appShell.inert, false);
+    await handlers.get('click')({ target: { closest: selector => selector === '[data-scenario-open], [data-workbench-handoff]' ? { dataset: { scenarioOpen: '' } } : null }, preventDefault() {} });
+    assert.equal(rootElement.appShell.inert, true, 'open scenario dialog makes the app shell inert');
+    assert.match(rootElement.innerHTML, /class="d-drawer-backdrop scenario-panel".*role="dialog" aria-modal="true"/s);
+    handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() {} });
+    assert.equal(rootElement.appShell.inert, false, 'closing the scenario dialog restores the app shell');
+    assert.doesNotMatch(rootElement.innerHTML, /class="d-drawer-backdrop scenario-panel"/);
     const quickIDs = () => [...rootElement.innerHTML.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]);
     const change = (id, value, dataset = {}) => handlers.get('change')({ target: { id, value, dataset, closest: () => null } });
     assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类|claw-examples|claw-case-card|查看示例/);
@@ -706,7 +722,7 @@ test('publication adopts the confirmed mutation response instead of risking an u
 
 test('failed workflow version reads retry on explicit refresh and clear only the recovered version error', async () => {
   const handlers = new Map(); const calls = []; let versionReads = 0;
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const selectors = { '#app': rootElement, '#main': main, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch', 'EventSource'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -732,15 +748,15 @@ test('failed workflow version reads retry on explicit refresh and clear only the
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 1); assert.match(rootElement.innerHTML, /未能读取本次 Workflow/);
     assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 2, 'explicit refresh must retry the failed immutable-version read');
     assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/, 'research panel is collapsed by default');
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { toggleContext: '' }, disabled: false }) } });
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { contextTab: 'activity' }, disabled: false }) } });
+    await handlers.get('click')({ target: appClickTarget({ toggleContext: '' }) });
+    await handlers.get('click')({ target: appClickTarget({ contextTab: 'activity' }) });
     assert.match(rootElement.innerHTML, /版本恢复后的步骤/);
     assert.doesNotMatch(rootElement.innerHTML, /未能读取本次 Workflow/);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 2, 'successfully loaded immutable versions stay cached');
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
@@ -765,7 +781,7 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       ['ready-empty', {}, { connected: true }],
     ]) {
       const handlers = new Map(); const calls = [];
-      const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+      const rootElement = appRoot(handlers);
       const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {}, focus() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
       const detail = { id: 'retry-session', mode: 'fingpt', status: 'completed', messages: [{ id: 'u', role: 'user', text: '旧问题', seq: 1 }, { id: 'a', role: 'assistant', text: '既有正文', seq: 2 }], ...extra };
       Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
@@ -781,7 +797,7 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       console.info = () => {};
       await load(`app.mjs?retry-gate=${name}-${Date.now()}`);
       handlers.get('input')({ target: { id: 'prompt', value: name === 'ready-empty' ? '' : '保留现有草稿', dataset: {}, closest: () => null } });
-      await handlers.get('click')({ target: { closest: () => ({ dataset: { retryRound: 'u' }, disabled: false }) } });
+      await handlers.get('click')({ target: appClickTarget({ retryRound: 'u' }) });
       assert.equal(calls.filter(([, method]) => method !== 'GET').length, name === 'ready-empty' ? 1 : 0, name);
       if (name !== 'ready-empty') {
         assert.match(rootElement.innerHTML, /保留现有草稿/, name);

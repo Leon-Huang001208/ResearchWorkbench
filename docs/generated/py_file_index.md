@@ -3220,6 +3220,55 @@ Functions:
 - `rebase_chip_reference`
 
 
+## `app/research_web/asset_research.py`
+
+Module docstring:
+> Owned asset research projections over existing observations and evidence files.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `dossiers.models`
+- `fastapi`
+- `fastapi.responses`
+- `hashlib`
+- `json`
+- `pydantic`
+- `re`
+- `scenario_handoffs`
+- `store`
+- `typing`
+- `urllib.parse`
+- `uuid`
+
+Classes:
+- `Closed`
+- `Locator`
+- `Proof`
+- `Summary`
+- `Relation`
+- `Bundle`
+- `Material`
+- `Preview`
+
+Functions:
+- `reject`
+- `observation`
+- `cell_quote`
+- `evidence_url`
+- `proof_bytes`
+- `parse_bundle`
+- `read_bundle`
+- `compare_observations`
+- `catalog`
+- `read_evidence`
+- `preview`
+- `import_bundle`
+- `template`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -5266,6 +5315,7 @@ Imports:
 - `fastapi.responses`
 - `market_store`
 - `pydantic`
+- `scenario_handoffs`
 - `store`
 - `typing`
 
@@ -5693,6 +5743,8 @@ Functions:
   - Only explicit source timestamps become dates; never infer from a URL.
 - `safe_url`
 - `string`
+- `canonical_assets`
+  - Accept explicit source security identities only; names are not mappings.
 - `objects`
 - `statements`
 - `projection`
@@ -7152,6 +7204,7 @@ Imports:
 - `ai_news_routes`
 - `ai_news_service`
 - `aihot_routes`
+- `asset_research`
 - `asset_routes`
 - `asset_workspace`
 - `asyncio`
@@ -7178,8 +7231,7 @@ Imports:
 - `hashlib`
 - `hot_routes`
 - `hot_service`
-- `integrations.routes`
-- ... 32 more
+- ... 33 more
 
 Classes:
 - `NewSession`
@@ -10703,6 +10755,109 @@ Functions:
   - Single-request JSON supervisor used by the native DSH tool, not a server.
 
 
+## `app/research_web/scenario_handoffs.py`
+
+Module docstring:
+> Host-only scenario qualification, immutable evidence and send-time revalidation.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `json`
+- `scenarios`
+- `scenarios.models`
+- `store`
+- `zoneinfo`
+
+Functions:
+- `fail`
+- `fingerprint`
+- `publication_date`
+  - The UI's declared Asia/Shanghai natural day, never an acquisition time.
+- `capability_facts`
+  - Selection checks enabled version, packages, dependencies and existing gates.
+- `catalog`
+- `selection`
+  - Only this Host constructs qualification flags; inputs cannot contain them.
+- `requirements`
+- `resolve_reference`
+  - Follow the owned parent chain before reading a copied snapshot.
+- `resolve_material`
+- `freeze_lineage`
+- `assert_handoff_deletable`
+  - Called under the existing retention fence, before native or local purge.
+- `execution_context`
+  - Immutable requirements, distinct from native callbacks proving actual load.
+- `bound_capabilities`
+- `verify_execution`
+- `verify_material`
+- `validate_dates`
+- `prepare_context`
+- `trusted_context`
+  - Validate every ancestor for scene and legacy copies, with cycle protection.
+
+
+## `app/research_web/scenarios/__init__.py`
+
+Module docstring:
+> Pure static parity references and first-eight research scenario contracts.
+
+Imports:
+- `catalog`
+- `models`
+
+
+## `app/research_web/scenarios/catalog.py`
+
+Module docstring:
+> Frozen static references and pure selection; no provider, model or write path.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `copy`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `models`
+- `pathlib`
+- `re`
+- `typing`
+
+Functions:
+- `_fail`
+- `_read`
+- `read_catalog`
+  - Return a fresh static-only snapshot, bound to reviewed bytes and identities.
+- `read_scenarios`
+  - Return eight fresh contracts; reading does not qualify or execute them.
+- `get_scenario`
+  - Select an exact stable ID, without guessing from free text.
+- `_iso_date`
+- `_valid_text`
+- `_validate_inputs`
+- `_qualification_inputs`
+- `_check_facts`
+- `select_scenario`
+  - Prepare a contract only; eligibility is not freeze, send or quality approval.
+
+
+## `app/research_web/scenarios/models.py`
+
+Module docstring:
+> Stable dependency-free errors for the read-only scenario contracts.
+
+Classes:
+- `ScenarioError`
+  - Public code is stable and never contains private inputs or source contents.
+  - methods: __init__
+
+
 ## `app/research_web/service.py`
 
 Module docstring:
@@ -11663,6 +11818,7 @@ Imports:
 - `core.observability`
 - `datahub.contracts`
 - `fastapi`
+- `fastapi.responses`
 - `hashlib`
 - `json`
 - `os`
@@ -11679,6 +11835,11 @@ Classes:
 - `Handoff`
 
 Functions:
+- `scenarios`
+- `handoff_request`
+  - Read original receipt only; unknown native creation is never retried.
+- `_public_handoff`
+- `_copy_evidence`
 - `_key`
 - `_public_query`
 - `_validate_context`

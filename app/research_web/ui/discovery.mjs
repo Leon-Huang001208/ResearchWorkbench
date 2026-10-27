@@ -26,7 +26,27 @@ export function filterDiscoveryThemes(themes, query = '') {
 
 export function discoveryItems(s) {
   const source = Array.isArray(s.feed?.news) && Array.isArray(s.feed?.events) ? (s.view === 'events' ? s.feed.events : s.feed.news) : list(s.feed?.themes);
-  return filterDiscoveryThemes(source, s.query).filter(x => !s.publisher || (x.publisher || list(x.materials)[0]?.publisher) === s.publisher);
+  const f = s.filters || {};
+  const watch = list(s.watchlists).find(x => x.id === f.watchlist);
+  const assets = new Set(list(watch?.items).map(x => x.asset));
+  return filterDiscoveryThemes(source, s.query).filter(x => {
+    const published = x.published_at || list(x.materials)[0]?.published_at;
+    const knownDate = typeof published === 'string' && /^\d{4}-\d{2}-\d{2}/.test(published) && Number.isFinite(Date.parse(published));
+    const date = knownDate ? published.length === 10 ? published : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(published)) : '';
+    return (!s.publisher || (x.publisher || list(x.materials)[0]?.publisher) === s.publisher)
+      && (!f.category || x.category === f.category)
+      && (!f.importance || String(x.priority ?? x.importance ?? '') === f.importance)
+      && (!(f.from || f.to) || knownDate && (!f.from || date >= f.from) && (!f.to || date <= f.to))
+      && (!f.watchlist || list(x.assets).some(asset => assets.has(typeof asset === 'string' ? asset : asset?.asset || asset?.code)));
+  });
+}
+export function discoveryEmptyState(s) {
+  const lane = Array.isArray(s.feed?.news) && Array.isArray(s.feed?.events) ? (s.view === 'events' ? s.feed.events : s.feed.news) : list(s.feed?.themes);
+  if (s.loading) return {title:'正在读取线索…',code:'loading'};
+  if (s.error && !lane.length) return {title:'来源暂不可用',code:'source_error'};
+  if (!lane.length) return {title:'当前来源暂无资料',code:'source_empty'};
+  if (s.filters?.watchlist && !lane.some(item=>list(item.assets).length)) return {title:'来源未提供可核验资产关联',code:'association_unknown'};
+  return {title:'当前筛选没有匹配的资料',code:'filtered_empty'};
 }
 function selectedItem(s) {
   const items = discoveryItems(s); const item = items.find(x => x.id === s.selected) || items[0];
@@ -48,13 +68,14 @@ function displayedTrack(state, themeID) {
 }
 
 function prepareBody(draft) {
-  return { request_id: draft.request_id, feed_id: draft.feed_id, horizon: draft.horizon, theme_id: draft.theme_id, material_ids: [...draft.material_ids], target_mode: draft.target_mode, question: draft.question };
+  return { request_id: draft.request_id, feed_id: draft.feed_id, horizon: draft.horizon, theme_id: draft.theme_id, material_ids: [...draft.material_ids], target_mode: draft.target_mode, question: draft.question, ...(draft.scenario_id ? {scenario_id:draft.scenario_id, scenario_inputs:draft.scenario_inputs || {subject:{kind:draft.subject_kind || 'topic',identity:draft.subject_identity || draft.question.slice(0,160)},question:draft.question,as_of:draft.as_of,material_ids:[...draft.material_ids]}} : {}) };
 }
 
 function originalPrepareRequest(value) {
   const keys = ['request_id', 'feed_id', 'horizon', 'theme_id', 'material_ids', 'target_mode', 'question'];
+  if (value?.scenario_id) keys.push('scenario_id', 'scenario_inputs');
   if (!value || typeof value !== 'object' || Object.keys(value).length !== keys.length || keys.some(key => !(key in value))) return null;
-  if (keys.filter(key => key !== 'material_ids').some(key => typeof value[key] !== 'string' || !value[key])) return null;
+  if (keys.filter(key => !['material_ids', 'scenario_inputs'].includes(key)).some(key => typeof value[key] !== 'string' || !value[key])) return null;
   if (!['short', 'medium', 'long'].includes(value.horizon) || !['fingpt', 'claw'].includes(value.target_mode) || value.question.length > 6000) return null;
   if (!Array.isArray(value.material_ids) || !value.material_ids.length || value.material_ids.length > 20 || value.material_ids.some(id => typeof id !== 'string' || !id)) return null;
   return prepareBody(value);
@@ -67,7 +88,7 @@ function restorePrepareBody(draft, record) {
 }
 
 export function createDiscoveryController({ api, onChange = () => {}, onNavigate = () => {}, makeID = () => globalThis.crypto.randomUUID(), logger = safeLog } = {}) {
-  const state = { active: false, horizon: 'medium', feed: null, loading: false, error: '', query: '', view: 'news', publisher: '', associatedFeeds: {}, associationEvent: '', associationBusy: false, associationError: '', selected: '', chain: 0, tab: 'evidence', handoffs: [], historyError: '', tracks: [], tracksAvailable: null, tracksError: '', schedulerState: '', drawer: null, researchDrafts: {}, trackDrafts: {} };
+  const state = { filters: {}, watchlists: [], scenarios: [], scenarioError: '', active: false, horizon: 'medium', feed: null, loading: false, error: '', query: '', view: 'news', publisher: '', associatedFeeds: {}, associationEvent: '', associationBusy: false, associationError: '', selected: '', chain: 0, tab: 'evidence', handoffs: [], historyError: '', tracks: [], tracksAvailable: null, tracksError: '', schedulerState: '', drawer: null, researchDrafts: {}, trackDrafts: {} };
   let generation = 0;
   let feedAbort;
   let tracksAbort;
@@ -134,6 +155,7 @@ export function createDiscoveryController({ api, onChange = () => {}, onNavigate
   async function activate() {
     state.active = true;
     await load();
+    if (state.active && api.watchlists) { try { const result = await api.watchlists(); if (state.active) state.watchlists = list(result.items); } catch (error) { logger('discovery_watchlists_failed', {code:error.code || 'request_failed'}); } }
     if (state.active) await Promise.all([loadTracks(), loadHistory()]);
   }
   async function loadSelection(drawer = state.drawer) {
@@ -162,6 +184,7 @@ export function createDiscoveryController({ api, onChange = () => {}, onNavigate
     }
   }
   async function openResearch(fresh = false) {
+    if (api.scenarioCatalog) { try { const result = await api.scenarioCatalog(); if (!state.active) return; state.scenarios = result.items; state.scenarioError = ''; } catch (error) { state.scenarioError = error.message || '场景目录不可读取'; logger('discovery_scenarios_failed', {code:error.code || 'request_failed'}); } }
     const item = theme(); if (!item || item.actionable === false) return;
     state.selected = item.id;
     cancelSelection();
@@ -224,7 +247,7 @@ export function createDiscoveryController({ api, onChange = () => {}, onNavigate
       draft.prepared = result; draft.unknown = uncertain(result);
       if (!result.handoff_id) throw new Error('研究准备回执缺少标识，结果尚未确认。');
       if (result.state !== 'snapshot_ready' && !draft.unknown) draft.error = result.message || '研究资料尚未准备完成，请检查状态。';
-    } catch (error) { draft.unknown = true; draft.error = error.message || '准备结果尚未确认，请保留原请求核对。'; logger('discovery_prepare_unconfirmed', { code: error.code || 'request_failed' }); }
+    } catch (error) { draft.unknown = !(draft.scenario_id && ['scenario_inputs_invalid','scenario_material_selection_mismatch','scenario_cutoff_mismatch','scenario_capability_unavailable'].includes(error.code)); draft.error = error.message || '准备结果尚未确认，请保留原请求核对。'; logger('discovery_prepare_unconfirmed', { code: error.code || 'request_failed' }); }
     finally { draft.busy = false; changed(); }
   }
   async function readHandoff({ navigate = true } = {}) {
@@ -295,12 +318,13 @@ export function createDiscoveryController({ api, onChange = () => {}, onNavigate
     const target = event.target;
     if (!target?.closest?.('.discovery-page')) return false;
     if (target.matches?.('[data-discovery-query]') && ['input', 'compositionend'].includes(event.type)) { state.query = target.value; if (!event.isComposing) changed(); return true; }
+    if (event.type === 'change' && target.dataset?.discoveryFilter) { state.filters[target.dataset.discoveryFilter] = target.value; state.selected = ''; cancelSelection(); state.drawer = null; changed(); return true; }
     if (event.type === 'change' && target.matches?.('[data-discovery-publisher]')) { state.publisher = target.value; state.selected = ''; cancelSelection(); state.drawer = null; changed(); return true; }
     if (event.type === 'change' && target.matches?.('[data-discovery-association]')) { state.associationEvent = target.value; changed(); return true; }
     if (['input', 'change'].includes(event.type) && target.matches?.('[data-discovery-field]')) {
       const name = target.dataset.discoveryField;
       const value = name === 'material_ids' ? [...target.closest('form').querySelectorAll('[name="material_ids"]:checked')].map(input => input.value) : target.value;
-      editDraft(name, value); return true;
+      editDraft(name, value); if (['scenario_id','as_of','subject_kind','subject_identity'].includes(name)) changed(); return true;
     }
     if (event.type === 'keydown' && target.matches?.('[data-discovery-action="tab"]') && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       event.preventDefault(); const index = detailTabs.findIndex(([id]) => id === state.tab);
@@ -349,7 +373,7 @@ export function createDiscoveryController({ api, onChange = () => {}, onNavigate
 function materialRows(materials, selected = null, disabled = false, versionAction = true) {
   return list(materials).map(item => {
     const url = safeURL(item.url); const link = url && /^https?:\/\//i.test(url);
-    return `<article class="d-evidence"><div class="d-source-label">${selected ? `<input type="checkbox" name="material_ids" data-discovery-field="material_ids" value="${e(item.id)}" aria-label="选择 ${e(item.title)}" ${selected.includes(item.id) ? 'checked' : ''} ${disabled ? 'disabled' : ''}>` : `<span>${e(item.label || '事件资料包')}</span>`}<span>${e(item.kind || '事件汇总')}</span></div><div><strong>${e(item.title || '未命名资料')}</strong><p>${e(item.note || '选材时将核对归档原件；此处是现有事件摘要。')}</p><small>${e(item.publisher || '来源待核实')} · 发布 ${e(intelTime(item.published_at))} · 采集 ${e(intelTime(item.acquired_at))} · 版本 ${e(item.revision ?? '待核实')}</small>${link ? `<a class="d-text-button" href="${e(url)}" target="_blank" rel="noopener noreferrer">打开来源入口 ↗</a>` : ''}</div>${selected || !versionAction ? '' : `<button class="d-text-button" type="button" data-discovery-action="source" data-id="${e(item.id)}">${item.revision === null || item.revision === undefined ? '版本待核实' : `版本 ${e(item.revision)}`}</button>`}</article>`;
+    return `<article class="d-evidence"><div class="d-source-label">${selected ? `<input type="checkbox" name="material_ids" data-discovery-field="material_ids" value="${e(item.id)}" aria-label="选择 ${e(item.title)}" ${selected.includes(item.id) ? 'checked' : ''} ${disabled ? 'disabled' : ''}>` : `<span>${e(item.label || '事件资料包')}</span>`}<span>${e(item.kind || '事件汇总')}</span></div><div><strong>${e(item.title || '未命名资料')}</strong><p>${e(item.note || '选材时将核对归档原件；此处是现有事件摘要。')}</p><small>${e(item.publisher || '来源待核实')} · 发布 ${e(intelTime(item.published_at))} · 采集 ${e(intelTime(item.acquired_at))} · 版本 ${e(item.revision ?? '待核实')}</small><details><summary>完整资料身份与内容版本</summary><p>${e(item.id || '未提供')}</p><p>${e(item.content_sha256 || '内容哈希待核对')}</p></details>${link ? `<a class="d-text-button" href="${e(url)}" target="_blank" rel="noopener noreferrer">打开来源入口 ↗</a>` : ''}</div>${selected || !versionAction ? '' : `<button class="d-text-button" type="button" data-discovery-action="source" data-id="${e(item.id)}">${item.revision === null || item.revision === undefined ? '版本待核实' : `版本 ${e(item.revision)}`}</button>`}</article>`;
   }).join('');
 }
 function selectionStatus(draft, drawer) {
@@ -358,11 +382,21 @@ function selectionStatus(draft, drawer) {
   if (!draft.selection_ready) return '';
   return `<p class="d-inline-note">资料预览截至 ${e(intelTime(drawer.sourceFeed?.cutoff))} · 核对当前版本后再保存。</p>${drawer.sourceFeed?.stale ? '<p class="notice warning">来源标记此归档为旧资料，请核对截止时间与覆盖缺口。</p>' : ''}${renderAssociations(drawer.theme)}`;
 }
+
+function scenarioFields(s, draft) {
+  return `<section><h3>研究方法</h3>${s.scenarioError ? `<p role="alert">${e(s.scenarioError)}</p>` : ''}<label>场景<select id="discovery-scenario" data-discovery-field="scenario_id"><option value="">现有通用发现研究</option>${s.scenarios.filter(x=>['news-query','news-transmission','research-prep'].includes(x.id)).map(x=>`<option value="${e(x.id)}" ${draft.scenario_id===x.id?'selected':''}>${e(x.name)}${x.capabilities.some(c=>!c.available)?' · 能力不可用':''}</option>`).join('')}</select></label>${draft.scenario_id ? `<label>研究截止<input id="discovery-scenario-date" type="date" data-discovery-field="as_of" value="${e(draft.as_of || '')}" required></label><label>标的类型<select id="discovery-subject-kind" data-discovery-field="subject_kind">${['topic','stock','industry'].map(kind=>`<option value="${kind}" ${(draft.subject_kind || 'topic')===kind?'selected':''}>${kind}</option>`).join('')}</select></label><label>规范标的或独立主题<input id="discovery-subject-identity" data-discovery-field="subject_identity" value="${e(draft.subject_identity || '')}" required></label><p>采用完整已选资料包身份和内容Hash，不从浏览器提交正文或自报证据资格。</p>` : ''}</section>`;
+}
+function filterFields(s, lane) {
+  const f=s.filters || {};
+  const choices=(key,values,label)=>`<label>${label}<select id="discovery-filter-${key}" data-discovery-filter="${key}"><option value="">全部</option>${[...new Set(values.filter(x=>x!==undefined && x!==null && x!==''))].map(x=>`<option value="${e(String(x))}" ${f[key]===String(x)?'selected':''}>${e(String(x))}</option>`).join('')}</select></label>`;
+  return `${choices('category',lane.map(x=>x.category),'分类')}${choices('importance',lane.map(x=>x.priority ?? x.importance),'来源重要性')}<label>起始<input id="discovery-filter-from" type="date" data-discovery-filter="from" value="${e(f.from || '')}"></label><label>截止<input id="discovery-filter-to" type="date" data-discovery-filter="to" value="${e(f.to || '')}"></label><label>自选关联<select id="discovery-filter-watchlist" data-discovery-filter="watchlist"><option value="">全部</option>${list(s.watchlists).map(x=>`<option value="${e(x.id)}" ${f.watchlist===x.id?'selected':''}>${e(x.name)}</option>`).join('')}</select></label>`;
+}
+
 function researchDrawer(s, d) {
   const draft = s.researchDrafts[d.key]; const p = draft.prepared; const ready = p?.state === 'snapshot_ready' && !draft.unknown;
   const canResume = p?.state === 'session_configuration_required' && !draft.unknown && !!draft.prepare_body;
   const frozen = !!p || draft.unknown;
-  const body = frozen ? `<div class="d-steps"><span class="active">1 固定资料</span><span class="${ready ? 'active' : ''}">2 确认研究</span></div><div class="d-confirm-notice"><strong>${draft.unknown ? '操作结果尚未确认' : ready ? '资料已冻结 · 研究尚未提交' : '研究准备状态'}</strong><p>${e(p?.state || '结果未知')}。${draft.unknown ? '保留原请求，不会自动重发。' : canResume ? '原会话已存在，继续完成模型配置；这一步不提交研究。' : '确认后才调用现有研究流程。'}</p></div><dl class="d-review"><div><dt>研究方式</dt><dd>${draft.target_mode === 'claw' ? 'Claw' : 'FinGPT'}</dd></div><div><dt>资料截止</dt><dd>${e(intelTime(p?.cutoff || s.feed?.cutoff))}</dd></div><div><dt>选定资料</dt><dd>${draft.material_ids.length} 份 · 以冻结原件为准</dd></div><div><dt>质量状态</dt><dd>尚未检查；受理与执行完成不代表质量通过。</dd></div></dl><section class="d-review-question"><h3>研究问题</h3><p>${e(draft.question)}</p></section>${list(p?.materials).length ? `<details class="d-frozen-materials"><summary>本次实际冻结的资料 · ${list(p.materials).length} 项</summary>${materialRows(p.materials, null, false, false)}</details>` : ''}<details class="d-technical"><summary>请求与交接标识</summary><p>${e(draft.request_id || '请求标识请以原交接记录为准')}</p><p>${e(p?.handoff_id || '交接标识待确认')}</p>${p?.context_file ? `<p>${e(p.context_file)}</p>` : ''}</details>` : `${selectionStatus(draft, d)}<label class="d-field">研究方式<select id="discovery-research-mode" name="target_mode" data-discovery-field="target_mode" ${draft.busy ? 'disabled' : ''}><option value="fingpt" ${draft.target_mode === 'fingpt' ? 'selected' : ''}>FinGPT</option><option value="claw" ${draft.target_mode === 'claw' ? 'selected' : ''}>Claw</option></select></label><label class="d-field">研究问题<textarea id="discovery-research-question" name="question" data-discovery-field="question" rows="5" ${draft.busy ? 'disabled' : ''} required maxlength="6000">${e(draft.question)}</textarea></label><div class="d-source-heading"><h3>${d.theme.source_kind === 'news' ? '带入研究的原始资料包' : '带入研究的事件资料包'}</h3><span>选择 1–20 份，服务端核对原件</span></div><fieldset class="d-material-selection" ${draft.busy || !draft.selection_ready ? 'disabled' : ''}><legend class="sr-only">选择研究资料</legend>${draft.selection_ready ? materialRows(d.theme.materials, draft.material_ids, draft.busy) : '<p class="d-inline-note">当前资料核对完成后再选择研究依据。</p>'}</fieldset><p class="d-inline-note">原文不可用、版本变化、时间未知或证据不足时保留缺口。页面摘要不是研究结论。</p>`;
+  const body = frozen ? `<div class="d-steps"><span class="active">1 固定资料</span><span class="${ready ? 'active' : ''}">2 确认研究</span></div><div class="d-confirm-notice"><strong>${draft.unknown ? '操作结果尚未确认' : ready ? '资料已冻结 · 研究尚未提交' : '研究准备状态'}</strong><p>${e(p?.state || '结果未知')}。${draft.unknown ? '保留原请求，不会自动重发。' : canResume ? '原会话已存在，继续完成模型配置；这一步不提交研究。' : '确认后才调用现有研究流程。'}</p></div><dl class="d-review"><div><dt>研究方式</dt><dd>${draft.target_mode === 'claw' ? 'Claw' : 'FinGPT'}</dd></div><div><dt>资料截止</dt><dd>${e(intelTime(p?.cutoff || s.feed?.cutoff))}</dd></div><div><dt>选定资料</dt><dd>${draft.material_ids.length} 份 · 以冻结原件为准</dd></div><div><dt>质量状态</dt><dd>尚未检查；受理与执行完成不代表质量通过。</dd></div></dl><section class="d-review-question"><h3>研究问题</h3><p>${e(draft.question)}</p></section>${p?.scenario_context ? `<section><h3>场景 ${e(p.scenario_context.scenario.status === 'incomplete' ? '证据不完整' : '查看冻结要求')}</h3><ul>${p.scenario_context.requirements.map(x=>`<li>${e(x)}</li>`).join('')}</ul></section>` : ''}${list(p?.materials).length ? `<details class="d-frozen-materials"><summary>本次实际冻结的资料 · ${list(p.materials).length} 项</summary>${materialRows(p.materials, null, false, false)}</details>` : ''}<details class="d-technical"><summary>请求与交接标识</summary><p>${e(draft.request_id || '请求标识请以原交接记录为准')}</p><p>${e(p?.handoff_id || '交接标识待确认')}</p>${p?.context_file ? `<p>${e(p.context_file)}</p>` : ''}</details>` : `${selectionStatus(draft, d)}${scenarioFields(s, draft, frozen)}<label class="d-field">研究方式<select id="discovery-research-mode" name="target_mode" data-discovery-field="target_mode" ${draft.busy ? 'disabled' : ''}><option value="fingpt" ${draft.target_mode === 'fingpt' ? 'selected' : ''}>FinGPT</option><option value="claw" ${draft.target_mode === 'claw' ? 'selected' : ''}>Claw</option></select></label><label class="d-field">研究问题<textarea id="discovery-research-question" name="question" data-discovery-field="question" rows="5" ${draft.busy ? 'disabled' : ''} required maxlength="6000">${e(draft.question)}</textarea></label><div class="d-source-heading"><h3>${d.theme.source_kind === 'news' ? '带入研究的原始资料包' : '带入研究的事件资料包'}</h3><span>选择 1–20 份，服务端核对原件</span></div><fieldset class="d-material-selection" ${draft.busy || !draft.selection_ready ? 'disabled' : ''}><legend class="sr-only">选择研究资料</legend>${draft.selection_ready ? materialRows(d.theme.materials, draft.material_ids, draft.busy) : '<p class="d-inline-note">当前资料核对完成后再选择研究依据。</p>'}</fieldset><p class="d-inline-note">原文不可用、版本变化、时间未知或证据不足时保留缺口。页面摘要不是研究结论。</p>`;
   const footer = ready ? `<button class="button" type="button" data-discovery-action="research-new" ${draft.busy ? 'disabled' : ''}>返回修改</button><span class="d-footer-note">提交可能产生模型费用</span><button class="button primary" data-discovery-action="execute" ${draft.busy ? 'disabled' : ''}>${draft.busy ? '正在受理…' : '确认并开始研究'}</button>` : canResume ? `<button class="button" type="button" data-discovery-action="handoff-status" ${draft.busy ? 'disabled' : ''}>查询原交接状态</button><button class="button primary" type="button" data-discovery-action="prepare-resume" ${draft.busy ? 'disabled' : ''}>${draft.busy ? '继续配置中…' : '继续准备原会话'}</button>` : frozen ? `<button class="button" data-discovery-action="handoff-status" ${draft.busy ? 'disabled' : ''}>${draft.busy ? '查询中…' : '查询原交接状态'}</button>` : `<span class="d-footer-note">这一步不调用模型</span><button class="button primary" type="submit" ${draft.busy || !draft.selection_ready || draft.selection_loading ? 'disabled' : ''}>${draft.busy ? '核对并冻结中…' : '冻结资料，准备研究'}</button>`;
   return { title: '手动发起研究', subtitle: '先核对问题与资料，再明确提交。', form: 'research', body, footer, error: draft.error };
 }
@@ -420,5 +454,5 @@ export function renderDiscovery(s) {
   const themes = discoveryItems(s); const current = selectedItem(s);
   const lane = Array.isArray(s.feed?.news) ? (s.view === 'events' ? list(s.feed.events) : list(s.feed.news)) : list(s.feed?.themes);
   const publishers = [...new Set(lane.map(x=>x.publisher || list(x.materials)[0]?.publisher).filter(x=>typeof x==='string'))].sort();
-  return `<div class="intel-page discovery-page d-page"><header class="intel-page-header"><div><p class="d-breadcrumb">研究情报 / 今日发现</p><h1>今日发现</h1></div><button id="discovery-refresh-button" class="button" data-discovery-action="refresh" aria-disabled="${s.loading}">${icon('restore')}${s.loading?'读取中…':'刷新资讯'}</button></header>${renderIntelligenceNavigation('discovery')}${renderFreshness(s)}${s.error?`<p class="notice danger" role="alert">${e(s.error)} 旧资料如有保留，请留意截止时点。</p>`:''}<div class="d-toolbar"><div class="d-lane-switch" role="group" aria-label="资料类型"><button type="button" data-discovery-action="view" data-id="news" aria-pressed="${s.view!=='events'}">最新资讯 <small>${list(s.feed?.news).length}</small></button><button type="button" data-discovery-action="view" data-id="events" aria-pressed="${s.view==='events'}">事件与已有研判 <small>${list(s.feed?.events).length}</small></button></div><div class="d-filters"><label class="d-query">${icon('search')}<input id="discovery-query" type="search" data-discovery-query value="${e(s.query)}" aria-label="筛选研究命题" placeholder="搜索标题或来源"></label><select id="discovery-publisher" data-discovery-publisher aria-label="筛选来源"><option value="">全部来源</option>${publishers.map(x=>`<option ${s.publisher===x?'selected':''}>${e(x)}</option>`).join('')}</select><div class="d-horizons" role="group" aria-label="研究期限"><span>研究期限</span>${discoveryHorizons.map(([id,name,span])=>`<button type="button" title="${span}" data-discovery-action="horizon" data-id="${id}" aria-pressed="${s.horizon===id}">${name}</button>`).join('')}</div></div></div>${!current?`<section class="d-empty" role="status">${icon('search')}<h2>${s.loading?'正在读取线索…':s.error?'来源暂不可用':s.query||s.publisher?'没有匹配的命题':'当前来源暂无资料'}</h2><p>仅显示真实取得的资料；可调整筛选、刷新或切换资料类型，来源失败不会补造内容。</p></section>`:`<div class="d-workspace"><aside class="d-theme-column" aria-label="研究主题"><div class="d-column-title"><strong>按明确发布时间排序</strong><span>${themes.length} / ${lane.length} 条</span></div><div class="d-theme-list">${themes.map(item=>`<button type="button" class="d-theme ${current.id===item.id?'selected':''}" data-discovery-action="theme" data-id="${e(item.id)}" aria-pressed="${current.id===item.id}"><div class="d-row-meta"><span>${e(item.publisher || item.category || '来源未报告')}</span><span class="d-news-label">${item.source_kind==='news'?'未形成研判':'事件记录'}</span><time>${e(intelTime(item.published_at || list(item.materials)[0]?.published_at))}</time></div><strong>${e(item.name || item.title)}</strong>${item.change && item.change!==item.title ? `<span class="d-theme-question">${e(item.change)}</span>`:''}</button>`).join('')}</div><div class="d-list-foot">未知发布时间置后；不以本次读取时间补造发布日期。</div></aside>${renderFocus(s,current)}</div>`}<footer class="d-page-footer"><span>${e(s.feed?.source_label || 'Golddata / Vibe-Research')} · Asia/Shanghai</span><span>打开页面不调用模型 · 跟踪需单独开启</span></footer>${renderDrawer(s)}</div>`;
+  return `<div class="intel-page discovery-page d-page"><header class="intel-page-header"><div><p class="d-breadcrumb">研究情报 / 今日发现</p><h1>今日发现</h1></div><button id="discovery-refresh-button" class="button" data-discovery-action="refresh" aria-disabled="${s.loading}">${icon('restore')}${s.loading?'读取中…':'刷新资讯'}</button></header>${renderIntelligenceNavigation('discovery')}${renderFreshness(s)}${s.error?`<p class="notice danger" role="alert">${e(s.error)} 旧资料如有保留，请留意截止时点。</p>`:''}<div class="d-toolbar"><div class="d-lane-switch" role="group" aria-label="资料类型"><button type="button" data-discovery-action="view" data-id="news" aria-pressed="${s.view!=='events'}">最新资讯 <small>${list(s.feed?.news).length}</small></button><button type="button" data-discovery-action="view" data-id="events" aria-pressed="${s.view==='events'}">事件与已有研判 <small>${list(s.feed?.events).length}</small></button></div><div class="d-filters"><label class="d-query">${icon('search')}<input id="discovery-query" type="search" data-discovery-query value="${e(s.query)}" aria-label="筛选研究命题" placeholder="搜索标题或来源"></label><select id="discovery-publisher" data-discovery-publisher aria-label="筛选来源"><option value="">全部来源</option>${publishers.map(x=>`<option ${s.publisher===x?'selected':''}>${e(x)}</option>`).join('')}</select>${filterFields(s, lane)}<div class="d-horizons" role="group" aria-label="研究期限"><span>研究期限</span>${discoveryHorizons.map(([id,name,span])=>`<button type="button" title="${span}" data-discovery-action="horizon" data-id="${id}" aria-pressed="${s.horizon===id}">${name}</button>`).join('')}</div></div></div>${!current?`<section class="d-empty" role="status">${icon('search')}<h2>${discoveryEmptyState(s).title}</h2><p>${discoveryEmptyState(s).code === 'association_unknown' ? '无法据此判断是否涉及自选。可取消自选筛选阅读原始资讯，不把缺关联解释为没有自选资讯。' : '仅筛选本次实际返回的有界资料集，可调整筛选或切换资料类型。'}</p></section>`:`<div class="d-workspace"><aside class="d-theme-column" aria-label="研究主题"><div class="d-column-title"><strong>按明确发布时间排序</strong><span>${themes.length} / ${lane.length} 条</span></div><div class="d-theme-list">${themes.map(item=>`<button type="button" class="d-theme ${current.id===item.id?'selected':''}" data-discovery-action="theme" data-id="${e(item.id)}" aria-pressed="${current.id===item.id}"><div class="d-row-meta"><span>${e(item.publisher || item.category || '来源未报告')}</span><span class="d-news-label">${item.source_kind==='news'?'未形成研判':'事件记录'}</span><time>${e(intelTime(item.published_at || list(item.materials)[0]?.published_at))}</time></div><strong>${e(item.name || item.title)}</strong>${item.change && item.change!==item.title ? `<span class="d-theme-question">${e(item.change)}</span>`:''}</button>`).join('')}</div><div class="d-list-foot">仅筛选本次有界返回集；未知发布时间不进入日期筛选。来源未提供热度时不生成热门排行。</div></aside>${renderFocus(s,current)}</div>`}<footer class="d-page-footer"><span>${e(s.feed?.source_label || 'Golddata / Vibe-Research')} · Asia/Shanghai</span><span>打开页面不调用模型 · 跟踪需单独开启</span></footer>${renderDrawer(s)}</div>`;
 }

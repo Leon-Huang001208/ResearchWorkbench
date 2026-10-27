@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+当前场景首批见[场景交接](../../research-web-scenario-handoffs.md)与[资产研究资料](../../research-web-asset-research.md)：原Host冻结本人材料与方法，再由唯一DSH执行并经原质量／报告链。固定62／78参考不是可调用清单；源权限、资料声明和实际研究质量分别展示。新增逻辑属于现有Host／DataHub／文件节点内部，后续组合包／深研／角色／资料跟踪仍按[完整计划](../../plans/2026-10-26-seek-alpha-core-parity.md)分批，不以首批代替整站完成。
+
 来源状态初始化属于原 Host 内部生命周期修复：不增加 API、存储节点、依赖或执行器。真实冷启动和来源请求忙/取消状态由原 resident 投影观察，普通未知拒绝及独立维护恢复边界保持。
 
 最终v2源码检查点`fa557ac53cb2aed54fab6313bb8e2e5352000227`，完整产品祖先`d0e83e438`含已审运行组合、PR228及原单job40分钟预算；全部测试/断言保持。首候选7c的取消是30m0s超时，不是整套通过；新候选实际CI与live资格另验。
