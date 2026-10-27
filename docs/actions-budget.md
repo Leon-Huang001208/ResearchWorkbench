@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上限而回滚；本机源入口原为262004字节。修复仅拆出报告UI操作模块并补实际字节预算回归，同一Mac静态清单增加一份文件；无新job/runner/依赖/timeout，不rerun旧候选，完整原三CI随正常repair重新绑定。
+
 2026-10-27 报告生产 UI 复用现有 Checks JS 通配符，新增目录/路由/状态回归；Mac Bootstrap 原静态文件校验同一步新增两份文件，增量预留 10 秒，无新 job/runner/依赖或 timeout 变更。原 Constraints、Checks、同候选 Mac 干净安装门保持；真实模型、Wind/Office 和成稿验收不进入 CI，发布前实时核对 visibility/额度。
 
 2026-10-27首批原Checks `40384650069`在1898.78秒完成Python，7212通过、1失败；失败为未限定平台的真实Mac HTML交付测试，不是预算超时。修复保留Mac真实交付及全部原断言，另增通用未验证交付／自认证质量拒绝反例；该反例本机约2.08秒，原步骤预留5秒。原Constraints字节码兼容修复扩展原已登记unittest，不新增job／runner／依赖／timeout，不取消或绕过产品门，不rerun旧候选。最终候选重新取得原三CI及Mac安装；发布前核对当前PUBLIC资格。

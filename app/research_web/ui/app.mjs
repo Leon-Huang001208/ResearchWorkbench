@@ -15,6 +15,7 @@ import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderReportWorkspace, reportHref } from './report-workspace.mjs';
+import { createReportOperations } from './report-operations.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
 import { focusSidebarControl, renderGlobalResults, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
@@ -142,6 +143,16 @@ let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, 
 let closeFrameworkStream = () => {};
 const workflowVersions = new Map();
 let pageGeneration = 0;
+const reportOperations = createReportOperations({
+  api, scope: () => ({ generation: pageGeneration, page: state.route.page, projectId: state.route.reportProjectId }),
+  detail: () => reportWorkflowDetail, setDetail: value => { reportWorkflowDetail = value; },
+  allowed: () => reportWorkflowsAllowed, busy: () => reportWorkflowBusy,
+  setBusy: value => { reportWorkflowBusy = value; render(); },
+  feedback: value => { state.error = value.error || ''; success = value.success || ''; },
+  navigate: async href => { history.pushState(null, '', href); await showRoute(); },
+  refreshCatalog: () => loadCatalog(['reportWorkflows', 'sessions']),
+});
+
 let reportRefreshTimer = null;
 function armReportRefresh(ticket) {
   clearTimeout(reportRefreshTimer);
@@ -554,15 +565,6 @@ function clawMainPage() {
   if (view === 'skills') return renderClawConnections(catalog.capabilities, catalog.tools);
   if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '') + (reportWorkflowsAllowed ? '<p><a class="text-button" href="#/reports">打开报告生产</a></p>' : '');
   return researchPage();
-}
-
-async function refreshReportMutation(ticket, workflowId) {
-  if (ticket !== pageGeneration) return false;
-  if (!workflowId) return true;
-  const detail = await api.reportWorkflow(workflowId);
-  if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return false;
-  reportWorkflowDetail = detail;
-  return true;
 }
 
 async function loadReportPage(ticket = pageGeneration) {
@@ -2486,7 +2488,7 @@ root.addEventListener('submit', async (event) => {
   }
   if (event.target.matches('[data-report-schedule-form]')) {
     if (reportWorkflowBusy) return;
-    const workflowId = event.target.dataset.reportScheduleForm; const ticket = pageGeneration;
+    const workflowId = event.target.dataset.reportScheduleForm;
     const values = new FormData(event.target);
     const kind = String(values.get('kind') || 'manual');
     const enabled = values.get('enabled') === 'on' && kind !== 'manual';
@@ -2497,13 +2499,7 @@ root.addEventListener('submit', async (event) => {
       hour: kind === 'weekly' ? Number(values.get('hour')) : null,
       minute: kind === 'weekly' ? Number(values.get('minute')) : null,
     };
-    reportWorkflowBusy = true; state.error = ''; success = ''; render();
-    try {
-      await api.saveReportSchedule(workflowId, body);
-      if (!await refreshReportMutation(ticket, workflowId)) return;
-      success = enabled ? '报告 Workflow 日程已启用。' : '报告 Workflow 日程已保存但未启用。';
-    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_schedule_save_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
+    await reportOperations.saveSchedule(workflowId, body);
     return;
   }
   if (event.target.matches('[data-asset-observation]')) {
@@ -3786,109 +3782,10 @@ async function handleCapabilityClick(data) {
   if ('capKind' in data) { cap.kind = data.capKind; cap.kindFilter = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
   if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; history.pushState(null, '', '#/reports'); await showRoute(); return true; }
   if ('refreshReportWorkspace' in data) { if (!reportWorkflowBusy) await loadReportPage(); return true; }
-  if ('prepareWeeklyProduction' in data) {
-    if (reportWorkflowBusy) return true;
-    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
-    reportWorkflowBusy = true; state.error = ''; success = ''; render();
-    try {
-      const detail = await api.prepareWeeklyProduction(data.prepareWeeklyProduction);
-      if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return true;
-      reportWorkflowDetail = detail;
-      success = '已准备新的生产版本；数据与质量验收通过后才能启用日程。';
-    } catch (error) { if (ticket === pageGeneration && reportWorkflowDetail?.id === workflowId) state.error = error.message; safeLog('weekly_production_prepare_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
-  }
-  if ('publishWeeklyProduction' in data) {
-    if (reportWorkflowBusy || reportWorkflowDetail?.id !== 'huaan-etf-weekly') return true;
-    const version = Number(data.publishWeeklyProduction);
-    if (!Number.isInteger(version) || version < 1) { state.error = '生产版本无效。'; render(); return true; }
-    const ticket = pageGeneration; const workflowId = reportWorkflowDetail.id;
-    reportWorkflowBusy = true; state.error = ''; success = ''; render();
-    try {
-      const detail = await api.publishReportWorkflowVersion('huaan-etf-weekly', version);
-      if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return true;
-      reportWorkflowDetail = detail;
-      success = '生产合同已发布；首次手动定稿通过后才能启用日程。';
-    } catch (error) { if (ticket === pageGeneration && reportWorkflowDetail?.id === workflowId) state.error = error.message; safeLog('weekly_production_publish_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
-  }
+  if (reportOperations.matches(data)) return reportOperations.handle(data);
   if ('reportWorkflowDetail' in data) {
     history.pushState(null, '', reportHref(data.reportWorkflowDetail));
     await showRoute(); return true;
-  }
-  if ('runReportWorkflow' in data || 'runHistoricalReportWorkflow' in data) {
-    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
-    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
-    reportWorkflowBusy = true; state.error = ''; success = ''; render();
-    try {
-      let run = 'runHistoricalReportWorkflow' in data
-        ? await api.runHistoricalReportWorkflow(data.runHistoricalReportWorkflow)
-        : await api.runReportWorkflow(data.runReportWorkflow);
-      if (ticket !== pageGeneration) return true;
-      for (let attempt = 0; attempt < 12 && !run.session_id && ['queued', 'preparing_data', 'running'].includes(run.status); attempt += 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        if (ticket !== pageGeneration) return true;
-        run = await api.reportRun(run.id);
-        if (ticket !== pageGeneration) return true;
-      }
-      await loadCatalog(['reportWorkflows', 'sessions']);
-      if (ticket !== pageGeneration) return true;
-      if (state.route.page === 'reports') {
-        history.pushState(null, '', reportHref(run.workflow_id || state.route.reportProjectId, 'production', run.id));
-        await showRoute();
-        success = '已记录本次生产；执行、内容检查与文件交付分别确认。';
-      } else if (run.session_id) {
-        history.pushState(null, '', `#/claw?session=${encodeURIComponent(run.session_id)}`);
-        await showRoute();
-        success = '已创建锁定报告 Workflow 版本的 Claw 会话。';
-      } else if (['blocked_data', 'blocked_approval', 'delivery_incomplete', 'failed', 'cancelled', 'skipped_overlap'].includes(run.status)) {
-        state.error = `报告 Workflow 未进入 Claw：${run.failure_code || run.status}。`;
-      } else {
-        success = '报告 Workflow 已受理，正在准备 Excel 底稿。';
-      }
-    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
-  }
-  if ('probeReportProvider' in data) {
-    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
-    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
-    reportWorkflowBusy = true; state.error = ''; success = ''; render();
-    try {
-      const result = await api.probeReportProvider(data.probeReportProvider, crypto.randomUUID());
-      if (!await refreshReportMutation(ticket, workflowId)) return true;
-      success = result.ready
-        ? `${data.probeReportProvider} 探测通过。`
-        : `${data.probeReportProvider} 探测未通过：${result.code || '状态未知'}。`;
-    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
-  }
-  if ('cancelReportRun' in data) {
-    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
-    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
-    reportWorkflowBusy = true; state.error = ''; render();
-    try {
-      const cancelled = await api.cancelReportRun(data.cancelReportRun);
-      if (!await refreshReportMutation(ticket, workflowId)) return true;
-      success = cancelled.status === 'cancelled' && cancelled.monitoring_disposition !== 'ended_by_user' ? '运行记录已取消；实际执行及清理状态请查看原始证据。' : '取消结果尚未确认，请核对原运行状态。';
-    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
-  }
-  if ('retryReportRun' in data) {
-    if (reportWorkflowBusy || !reportWorkflowsAllowed) return true;
-    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
-    reportWorkflowBusy = true; state.error = ''; render();
-    try {
-      const run = await api.retryReportRun(data.retryReportRun);
-      if (!await refreshReportMutation(ticket, workflowId)) return true;
-      success = run.id === data.retryReportRun ? '已核对原运行记录，未创建新的执行。' : `已创建重试记录 ${run.id}；实际受理状态另行确认。`;
-    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('report_operation_failed', { code: error.code || 'request_failed' }); }
-    finally { reportWorkflowBusy = false; render(); }
-    return true;
   }
   if ('dataView' in data) { cap.dataView = data.dataView; cap.category = ''; cap.query = ''; cap.dataMarket = ''; cap.dataStatus = ''; cap.dataAuth = ''; render(); return true; }
   if ('dataCapabilityDetail' in data) {

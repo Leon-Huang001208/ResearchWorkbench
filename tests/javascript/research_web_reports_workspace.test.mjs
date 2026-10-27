@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { parseRoute, legacyRouteTarget } from '../../app/research_web/ui/core.mjs';
 import { renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
 import { reportHref, selectReportRun, reportRunStatus, renderReportWorkspace } from '../../app/research_web/ui/report-workspace.mjs';
+import { createReportOperations } from '../../app/research_web/ui/report-operations.mjs';
 
 const detail = { id: 'huaan-etf-weekly', name: '华安ETF周报', status: 'enabled', current_version: 6, delivery_formats: ['docx'], versions: [{ current: true, version: 6, manifest: { resources: [], blocks: [] } }], runs: [
   { id: 'a'.repeat(32), version: 6, status: 'failed', execution_purpose: 'historical_acceptance', quality_status: 'pending', finalization_status: 'blocked' },
@@ -64,21 +65,16 @@ test('invalidated quality blocks the same file in production and raw evidence', 
 });
 
 async function mutationHarness(kind, api) {
-  const source = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
-  const start = source.indexOf(kind === 'run' ? "  if ('runReportWorkflow' in data ||" : "  if ('cancelReportRun' in data) {");
-  const end = source.indexOf(kind === 'run' ? "  if ('probeReportProvider' in data) {" : "  if ('retryReportRun' in data) {", start);
-  assert.ok(start > 0 && end > start);
-  const helper = source.slice(source.indexOf('async function refreshReportMutation('), source.indexOf('async function loadReportPage('));
-  return new Function('api', 'reportHref', `
-    let pageGeneration=1; let reportWorkflowDetail={id:'a'}; let reportWorkflowBusy=false;
-    const reportWorkflowsAllowed=true; let success=''; const state={error:'',route:{page:'reports',reportProjectId:'a'}};
-    const navigations=[]; const history={pushState(...args){navigations.push(args)}};
-    const render=()=>{}; const safeLog=()=>{}; const loadCatalog=async()=>{}; const showRoute=async()=>{};
-    ${helper}
-    return {execute:async(data)=>{${source.slice(start,end)}},
-      move(){pageGeneration++;reportWorkflowDetail={id:'b'};state.route.reportProjectId='b'},
-      snapshot(){return {detail:reportWorkflowDetail,success,navigations,busy:reportWorkflowBusy}}};
-  `)(api, reportHref);
+  let generation=1; let reportDetail={id:'a'}; let busy=false; let success='';
+  const route={page:'reports',projectId:'a'}; const navigations=[];
+  const operations=createReportOperations({
+    api, scope:()=>({generation,...route}), detail:()=>reportDetail, setDetail:value=>{reportDetail=value},
+    allowed:()=>true, busy:()=>busy, setBusy:value=>{busy=value}, feedback:value=>{success=value.success||''},
+    navigate:async href=>{navigations.push(href)},refreshCatalog:async()=>{},delay:async()=>{},logger:()=>{},
+  });
+  return {execute:data=>operations.handle(data),
+    move(){generation++;reportDetail={id:'b'};route.projectId='b'},
+    snapshot(){return {detail:reportDetail,success,navigations,busy}}};
 }
 
 test('a late production response neither navigates away from another project nor submits twice', async () => {
@@ -99,4 +95,20 @@ test('a late detail read following cancellation cannot replace another project',
   await Promise.resolve(); assert.equal(typeof resolve,'function');
   harness.move(); resolve({id:'a'}); await action;
   assert.equal(harness.snapshot().detail.id,'b'); assert.equal(harness.snapshot().success,'');
+});
+
+
+test('shipped entry stays within the unchanged 256 KiB web readiness body contract', async () => {
+  const entry=await readFile(new URL('../../app/research_web/ui/app.mjs',import.meta.url));
+  const manager=await readFile(new URL('../../app/research_web/service_manager.py',import.meta.url),'utf8');
+  assert.match(manager,/WEB_TEXT_MAX_BYTES = min\(MAX_HTTP_BODY_BYTES, 256 \* 1024\)/);
+  assert.ok(entry.length<=256*1024,`entry exceeds health body limit: ${entry.length}`);
+  assert.match(entry.toString(),/const defaultCatalogNames =/);
+});
+
+test('uncertain cancellation and same-ID recheck never claim a new execution', async () => {
+  const cancelled=await mutationHarness('cancel',{cancelReportRun:async()=>({status:'needs_attention'}),reportWorkflow:async()=>({id:'a'})});
+  await cancelled.execute({cancelReportRun:'old'}); assert.match(cancelled.snapshot().success,/尚未确认/);
+  const retried=await mutationHarness('retry',{retryReportRun:async()=>({id:'old',status:'needs_attention'}),reportWorkflow:async()=>({id:'a'})});
+  await retried.execute({retryReportRun:'old'}); assert.match(retried.snapshot().success,/未创建新的执行/);
 });
