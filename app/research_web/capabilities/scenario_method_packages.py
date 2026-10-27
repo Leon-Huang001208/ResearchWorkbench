@@ -96,7 +96,11 @@ description: {description}
 
 动作后由原唯一DSH依据原文和台账写叙事。数值和派生引用原business observations→report_plan配方；不能手填数字或复制值绕业务模式。报告通过既有canonical writer生成outputs/research-report.json及原格式，再实际调用research_check_quality。缺材料保持incomplete，完整性错误保持invalid，模型不能自评passed；本动作research_quality=NOT_RUN不是报告验收。
 
-本版本尚未集成owned方法对非正基数百分比派生的独立准入硬门；遇此输入保留不支持，不调用百分比配方，也不能声称原算术工具已提供该硬门。既有C2去重制品消费与兼容参数实际入口仍是代码集成待办，不能把发现、加载或纯参数函数当成已完成。
+公司方法的可信冻结合同使原report_plan使用owned-company-positive-base-v1：percent_change的真实基数必须大于零；Summary的基数必须直接引用原始业务observation，不得用abs或步骤洗基数。需要绝对差额须显式选择difference，不能自动改公式；单位、期间及口径缺口仍保留。
+
+新闻与调研场景仅在用户显式填写带时区cutoff_at时，由Host用原source-version projector与deduplicate_source_versions 1.1.0实际执行C2，Native本方法读取并核验Host冻结的c2-dedup.bound。此身份是Host执行、Native消费，不是Native执行C2或运行供应商包。缺截止、未来取得、不可映射file/dataset、角色和发表时刻未知继续保留缺口。
+
+rwb_query_latest_cls_news是独立RWB工具，仅接受query与limit=1..100；CLS有界最新快照先limit再正文子串过滤，empty不证明全市场无新闻。company_one_pager、fundamental_analysis、research_outline只作为Host当前已选主体与原件的问题预置，不注册供应商同名工具，不自动解析证券或取数。准备成功不等于动作完成或报告通过。
 """
         packages.append(
             (

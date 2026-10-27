@@ -5572,6 +5572,7 @@ Classes:
 - `NativeSearchActivity`
 - `SourceReadRequest`
 - `SourceCancelRequest`
+- `OwnedLatestClsNews`
 - `PackCompletionRequest`
 - `MethodCompletionRequest`
 
@@ -11071,6 +11072,32 @@ Functions:
   - Validate every ancestor for scene and legacy copies, with cycle protection.
 
 
+## `app/research_web/scenario_method_dedup.py`
+
+Module docstring:
+> Host-only C2 preprocessing of currently authorized owned-method originals.
+
+Imports:
+- `__future__`
+- `capabilities.pack_dependencies`
+- `capabilities.pack_resources`
+- `core.observability`
+- `hashlib`
+- `json`
+- `pathlib`
+- `scenario_source_versions`
+- `scenarios.packs`
+- `scenarios.packs.contracts`
+- `store`
+- `zoneinfo`
+
+Functions:
+- `digest`
+- `cutoff_instant`
+- `build_artifact`
+  - Run the public atom once; freeze its exact receipt and full-result bytes.
+
+
 ## `app/research_web/scenario_method_sources.py`
 
 Module docstring:
@@ -11104,6 +11131,8 @@ Classes:
   - methods: __init__, mkdir, identity, write, rollback
 
 Functions:
+- `company_calculation_policy`
+  - Rebuild the policy from Host-owned handoff and frozen contract only.
 - `fail`
 - `runtime_identity`
 - `_file`
@@ -11354,6 +11383,8 @@ Imports:
 - `pathlib`
 
 Functions:
+- `owned_target`
+- `owned_parameter`
 - `_fail`
 - `read_execution_bindings`
   - Return a fresh closed inventory bound to the original immutable baseline.
@@ -11844,6 +11875,8 @@ Functions:
 - `_day`
 - `_read`
 - `_inspect`
+- `_consume_dedup`
+  - Consume only the artifact declared in the frozen Host context.
 - `_canonical`
 - `inspect_company_sources`
   - Check original company materials without guessing financial facts.
@@ -12618,6 +12651,8 @@ Functions:
 - `source_selection_freeze`
 - `scenarios`
 - `prepare_scenario`
+- `prepare_owned_question_preset`
+  - Closed owned-only preparation, before a new question/contract is frozen.
 - `handoff_request`
   - Read original receipt only; unknown native creation is never retried.
 - `_public_handoff`

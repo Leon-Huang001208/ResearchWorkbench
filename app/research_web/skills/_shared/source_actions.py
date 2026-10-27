@@ -96,7 +96,11 @@ def _read(root, relative, expected):
 
 
 def _inspect(root, context, method):
-    _closed(context, {"schema", "method_id", "method_version", "subject", "as_of", "sources"})
+    _closed(
+        context,
+        {"schema", "method_id", "method_version", "subject", "as_of", "sources"},
+        {"dedup_artifact"},
+    )
     if (
         context["schema"] != "research_method_source_context_v1"
         or context["method_id"] != method
@@ -196,7 +200,14 @@ def _inspect(root, context, method):
         if category not in covered:
             missing.append({"code": "required_material_missing", "category": category})
     if method in {"owned-news-evidence", "owned-research-prep"}:
-        missing.append({"code": "source_version_dedup_not_run"})
+        if "dedup_artifact" not in context:
+            missing.extend(
+                [{"code": "source_version_dedup_not_run"}, {"code": "cutoff_timezone_required"}]
+            )
+        else:
+            dedup = _consume_dedup(root, context)
+            missing.extend(dedup["projection_gaps"])
+            missing.extend(dedup["receipt"]["missing"])
     result = {
         "schema": "research_method_source_ledger_v1",
         "method_id": method,
@@ -220,6 +231,17 @@ def _inspect(root, context, method):
         "deduplication": "existing_source_version_artifact_required",
         "comparability": "unverified_until_business_observations_match_security_period_unit_currency_basis",
     }
+    if "dedup_artifact" in context:
+        if method == "owned-company-evidence":
+            _fail("method_dedup_unexpected")
+        result["deduplication"] = {
+            "execution": "host-c2-preprocess-native-consumed",
+            "artifact": dict(context["dedup_artifact"]),
+            "method_version": dedup["method_version"],
+            "source_set_sha256": dedup["source_set_sha256"],
+            "input_sha256": dedup["input_sha256"],
+            "metrics": dedup["receipt"]["metrics"],
+        }
     log.info(
         "research_method_sources_checked method=%s sources=%d missing=%d",
         method,
@@ -227,6 +249,109 @@ def _inspect(root, context, method):
         len(missing),
     )
     return result
+
+
+def _consume_dedup(root, context):
+    """Consume only the artifact declared in the frozen Host context."""
+    descriptor = context["dedup_artifact"]
+    _closed(descriptor, {"path", "sha256"})
+    text, _ = _read(root, descriptor["path"], descriptor["sha256"])
+    try:
+        value = json.loads(text)
+        _closed(
+            value,
+            {
+                "schema",
+                "producer",
+                "method_id",
+                "method",
+                "method_version",
+                "cutoff_at",
+                "as_of",
+                "projector",
+                "projector_sha256",
+                "core_sha256",
+                "dependency_closure_sha256",
+                "source_set",
+                "source_set_sha256",
+                "records",
+                "parameters",
+                "input_sha256",
+                "projection_gaps",
+                "receipt",
+                "full_result",
+                "full_result_sha256",
+                "full_result_bytes",
+            },
+        )
+        digest = lambda obj: hashlib.sha256(_canonical(obj)).hexdigest()
+        full_raw = value["full_result"].encode("utf-8")
+        full = json.loads(full_raw)
+        sources = value["source_set"]
+        expected = {item["source_id"]: item for item in context["sources"]}
+        if (
+            value["schema"] != "research_method_c2_dedup_v1"
+            or value["producer"] != "host-c2-preprocess"
+            or value["method_id"] != context["method_id"]
+            or value["method"] != "deduplicate_source_versions"
+            or value["method_version"] != "1.1.0"
+            or value["as_of"] != context["as_of"]
+            or value["projector"] != "host-web-capture-source-version-v2"
+            or any(
+                not re.fullmatch(r"[a-f0-9]{64}", value[key])
+                for key in ("projector_sha256", "core_sha256", "dependency_closure_sha256")
+            )
+            or digest(sources) != value["source_set_sha256"]
+            or len(sources) != len(expected)
+            or {item["source_id"] for item in sources} != set(expected)
+            or any(
+                any(item[key] != expected[item["source_id"]][key] for key in ("sha256", "locator"))
+                for item in sources
+            )
+            or any(
+                item["target_session_id"] != Path(root).name
+                or not re.fullmatch(r"[a-f0-9]{64}", item["owner_sha256"])
+                or item["published_at"] != expected[item["source_id"]]["publication_date"]
+                for item in sources
+            )
+            or value["parameters"] != {"as_of": value["cutoff_at"]}
+            or digest({"records": value["records"], "parameters": value["parameters"]})
+            != value["input_sha256"]
+            or len(full_raw) != value["full_result_bytes"]
+            or hashlib.sha256(full_raw).hexdigest() != value["full_result_sha256"]
+            or _canonical(full) != full_raw
+            or full["schema"] != "research_pack_full_result_v1"
+            or full["root_rows_kind"] != "calculation_rows"
+            or full["root"]["method_version"] != value["method_version"]
+            or full["root"]["method"] != value["method"]
+            or full["root"]["canonical_input_sha256"] != value["input_sha256"]
+            or full["root"]["receipt_sha256"] != value["receipt"]["result_sha256"]
+            or full["root"]["source_refs"] != value["receipt"]["source_refs"]
+            or set(value["records"]) != {"source-version"}
+            or {item["version_id"] for item in value["records"]["source-version"]}
+            != {item["version_id"] for item in sources if item["version_id"] is not None}
+            or {item["version_id"] for group in full["root"]["rows"] for item in group["versions"]}
+            != {item["version_id"] for item in value["records"]["source-version"]}
+            or full["root"]["rows"][: len(value["receipt"]["rows"])] != value["receipt"]["rows"]
+            or value["receipt"]["row_delivery"]["total_output_rows"] != len(full["root"]["rows"])
+            or value["receipt"]["processed_input_rows"] != len(value["records"]["source-version"])
+            or full["root"]["counts"]["processed_input_rows"]
+            != len(value["records"]["source-version"])
+        ):
+            _fail("method_dedup_artifact_invalid")
+        for record in value["records"]["source-version"]:
+            entry = next(item for item in sources if item["version_id"] == record["version_id"])
+            if (
+                record["content_sha256"] != entry["sha256"]
+                or record["origin"]["locator"]["source_ref"] != entry["sha256"]
+                or record["origin"]["observed_at"] != entry["observed_at"]
+                or record["origin"]["locator"]["resource_id"] != entry["source_id"]
+            ):
+                _fail("method_dedup_artifact_invalid")
+        log.info("research_method_c2_artifact_consumed")
+        return value
+    except (KeyError, TypeError, ValueError, StopIteration):
+        _fail("method_dedup_artifact_invalid")
 
 
 def _canonical(value):

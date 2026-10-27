@@ -24,7 +24,7 @@ def contracts():
                 ["stock"] if cid != "owned-news-evidence" else ["stock", "industry", "topic"]
             ),
             "required_inputs": ["subject", "as_of", "question", "material_ids"],
-            "optional_inputs": [],
+            "optional_inputs": [] if cid == "owned-company-evidence" else ["cutoff_at"],
             "required_data": [],
             "materials_required": True,
             "steps": [
@@ -56,6 +56,12 @@ def select(service, scenario_id, values):
         log.warning("research_method_scenario_unknown")
         raise ScenarioError("scenario_unknown")
     values = _validate_inputs(contract, values)
+    if "cutoff_at" in values:
+        from ..scenario_method_dedup import cutoff_instant
+
+        if not isinstance(values["cutoff_at"], str):
+            raise ScenarioError("scenario_inputs_invalid")
+        cutoff_instant(values["cutoff_at"], values["as_of"])
     capabilities = capability_facts(service, contract)
     missing = [
         {"code": "capability_unavailable", "id": row["id"]}

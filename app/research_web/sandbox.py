@@ -359,7 +359,7 @@ def run_script(
                 not isinstance(relative, str)
                 or not re.fullmatch(
                     (
-                        r"(?:inputs/methods/[a-f0-9]{64}/(?:source-context\.bound|source-[0-9]+\.source)|resources/capabilities/owned-(?:company-evidence|news-evidence|research-prep)/[1-9][0-9]*/[A-Za-z0-9_./-]+)"
+                        r"(?:inputs/methods/[a-f0-9]{64}/(?:source-context\.bound|c2-dedup\.bound|source-[0-9]+\.source)|resources/capabilities/owned-(?:company-evidence|news-evidence|research-prep)/[1-9][0-9]*/[A-Za-z0-9_./-]+)"
                         if method
                         else r"(?:inputs/scenarios/(?:[a-f0-9]{32}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})/(?:input|manifest)\.json|resources/capabilities/[a-z0-9_-]+/[1-9][0-9]*/[A-Za-z0-9_./-]+)"
                     ),

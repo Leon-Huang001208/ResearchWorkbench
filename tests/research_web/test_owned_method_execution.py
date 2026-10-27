@@ -30,7 +30,9 @@ api = scenario_fixtures.api
 FIXTURES = Path(__file__).parent / "fixtures" / "business-evidence"
 
 
-def prepared(api, monkeypatch, cid="owned-news-evidence"):
+def prepared(
+    api, monkeypatch, cid="owned-news-evidence", *, cutoff=False, preset=None, transform=None
+):
     client, service = api
     filename = {
         "owned-news-evidence": "fomc-september.txt",
@@ -44,6 +46,9 @@ def prepared(api, monkeypatch, cid="owned-news-evidence"):
     )
     raw = (FIXTURES / filename).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == meta["sha256"]
+    if transform is not None:
+        raw = transform(raw)
+    captured_sha256 = hashlib.sha256(raw).hexdigest()
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     identifier = source_id(meta["origin"])
     offline_http(monkeypatch, fixed_response(raw))
@@ -63,7 +68,7 @@ def prepared(api, monkeypatch, cid="owned-news-evidence"):
             ],
         )
     )
-    assert actual["source"]["sha256"] == meta["sha256"]
+    assert actual["source"]["sha256"] == captured_sha256
     metadata = resolve_reference(service, sid, {"type": "source", "id": identifier})[0]
     day = (
         datetime.fromisoformat(metadata["acquired_at"])
@@ -83,6 +88,12 @@ def prepared(api, monkeypatch, cid="owned-news-evidence"):
                 "as_of": day,
                 "question": "核验已取得原件与缺口",
                 "material_ids": [],
+                **({"cutoff_at": metadata["acquired_at"]} if cutoff else {}),
+                **(
+                    {"question_preset": preset, "preset_query": "核验已取得原件与缺口"}
+                    if preset
+                    else {}
+                ),
             },
         },
         "sources": [{"source_session_id": sid, "id": identifier, "sha256": metadata["sha256"]}],
@@ -414,18 +425,32 @@ def test_financial_snapshot_retains_real_reporting_period_and_unit_gaps(api, mon
     reason="actual pinned Native macOS execution",
 )
 @pytest.mark.parametrize(
-    "cid,cancel",
+    "cid,cancel,preset",
     [
-        ("owned-company-evidence", False),
-        ("owned-news-evidence", False),
-        ("owned-research-prep", False),
-        ("owned-company-evidence", True),
+        ("owned-company-evidence", False, None),
+        ("owned-news-evidence", False, None),
+        ("owned-research-prep", False, None),
+        ("owned-company-evidence", True, None),
+        ("owned-company-evidence", False, "company_one_pager"),
+        ("owned-company-evidence", False, "fundamental_analysis"),
+        ("owned-research-prep", False, "research_outline"),
+        ("owned-company-evidence", False, "negative_base_fixture"),
     ],
 )
 def test_company_actual_dsh_toolruntime_guard_and_method_completion(
-    api, monkeypatch, tmp_path, cid, cancel
+    api, monkeypatch, tmp_path, cid, cancel, preset
 ):
-    client, service, sid, _context, descriptor, headers, _source = prepared(api, monkeypatch, cid)
+    negative_base = preset == "negative_base_fixture"
+    client, service, sid, _context, descriptor, headers, _source = prepared(
+        api,
+        monkeypatch,
+        cid,
+        cutoff=cid != "owned-company-evidence",
+        preset=None if negative_base else preset,
+        transform=(
+            (lambda raw: raw.replace(b"| 211,915 |", b"| (211,915) |")) if negative_base else None
+        ),
+    )
     root = Path(__file__).parents[2]
     bundle = json.loads(
         (service.store.directory(sid) / "resources/research_evidence.json").read_bytes()
@@ -442,7 +467,9 @@ def test_company_actual_dsh_toolruntime_guard_and_method_completion(
     contract = service._task_capabilities(sid)[0]["research_contract"]
     if cid == "owned-company-evidence":
         assert {"2024", "2023"} <= revenues.keys()
-        assert revenues["2024"]["value"] == "245122" and revenues["2023"]["value"] == "211915"
+        assert revenues["2024"]["value"] == "245122" and revenues["2023"]["value"] == (
+            "-211915" if negative_base else "211915"
+        )
         current, previous = revenues["2024"]["id"], revenues["2023"]["id"]
         plan = {
             "title": "公司原件限定核验",
@@ -562,6 +589,15 @@ def test_company_actual_dsh_toolruntime_guard_and_method_completion(
             assert retry.status_code == 409
             return
         assert not final["actual"]["isError"], final["actual"]
+        if negative_base:
+            runner = json.loads(final["report"]["content"][0]["text"])
+            assert runner["status"] == "failed" and runner["exit_code"] == 1
+            assert json.loads(runner["stdout"])["error"] == "owned_percent_change_nonpositive_base"
+            assert not (service.store.directory(sid) / "outputs/research-report.json").exists()
+            assert (
+                service._task_capabilities(sid)[0]["quality_last_result"]["status"] == "incomplete"
+            )
+            return
         assert not final["report"]["isError"], final["report"]
         assert not final["quality"]["isError"], final["quality"]
         receipt, _ = service._task_capabilities(sid)

@@ -473,16 +473,22 @@ export function apply(ctx, config) {
     enabledTools.add(toolName);
   }
   const outputKeys=['dataset_id','source','status','manifest_json','files_json','sample_json'];
-  for (const [toolName,[capability,description,properties,required]] of Object.entries(BUSINESS)) {
-    if (!enabledTools.has(toolName)) continue;
+  const ownedNews = ['rwb_query_latest_cls_news',['search_news','读取CLS最新有界快照，先limit后按正文casefold子串过滤；empty仅表示当前有界快照无匹配，不证明全市场无新闻。',{query:{type:'string',maxLength:2000},limit:{type:'integer',minimum:1,maximum:100}},[]]];
+  for (const [toolName,[capability,description,properties,required]] of [...Object.entries(BUSINESS),ownedNews]) {
+    const owned = toolName === 'rwb_query_latest_cls_news';
+    if (!enabledTools.has(owned ? 'datahub_search_news' : toolName)) continue;
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'},purpose:{type:'string',enum:['display','research','backtest']},quality:{type:'string',enum:['strict','allow_stale']},as_of:{type:'string',description:'正式回测所需的历史可得时点，必须包含时区；不能用实时响应代替'}};
     ctx.tools.register({
       name:toolName,
       description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时须核对来源与参数；data_capability_not_integrated 表示来源尚未适配；data_capability_unavailable 表示当前来源条件未满足，不要重复相同请求或改写查询反复尝试，须说明缺口。其他工具仍须符合本任务批准范围，不得隐式扩大权限。`,
-      parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
+      parameters:{type:'object',properties:{...properties,...(owned ? {} : common)},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {
-        const query=stableBusinessQuery(capability,args,properties,required);exec.signal.throwIfAborted();
+        let query;
+        if (owned) {
+          if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key=>!['query','limit'].includes(key)) || (Object.hasOwn(args,'query') && (typeof args.query !== 'string' || args.query.length>2000 || /[\x00-\x1f]|:\/\//.test(args.query) || args.query.trim().toLowerCase().startsWith('www.'))) || (Object.hasOwn(args,'limit') && (!Number.isSafeInteger(args.limit) || args.limit<1 || args.limit>100))) throw Error('owned_news_arguments_invalid');
+        } else query=stableBusinessQuery(capability,args,properties,required);
+        exec.signal.throwIfAborted();
         const cwd=await trustedDirectory(ctx,exec,config);exec.signal.throwIfAborted();
         if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(exec.agent.session.header.id) || !/^[a-zA-Z0-9_.:-]{1,120}$/.test(exec.callId)) throw Error('Native call identity is invalid');
         const identity={session_id:basename(cwd),call_id:`${exec.agent.session.header.id}:${exec.callId}`};
@@ -494,7 +500,7 @@ export function apply(ctx, config) {
         signal.addEventListener('abort',cancel,{once:true});
         ctx.logger.info('business_data_request_started tool=%s',toolName);
         try {
-          const response=await globalThis.fetch(control.url+'/api/research/internal/data/business-query',{method:'POST',headers,body:JSON.stringify({...identity,query}),redirect:'error',credentials:'omit',signal});
+          const response=await globalThis.fetch(control.url+'/api/research/internal/data/business-query',{method:'POST',headers,body:JSON.stringify(owned ? {...identity,request_kind:'owned-latest-cls-news-v1',arguments:args} : {...identity,query}),redirect:'error',credentials:'omit',signal});
           const result=smallResult(await boundedJson(response,signal));
           ctx.logger.info('business_data_request_completed tool=%s',toolName);return result;
         } catch(error) {await cancel();ctx.logger.warn('business_data_request_failed tool=%s type=%s',toolName,error.name);throw error;}

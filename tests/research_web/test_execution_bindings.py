@@ -30,7 +30,7 @@ def test_exact_frozen_inventory_and_independent_evidence():
 def test_every_supplier_parameter_rejects_explicit_input():
     for row in read_execution_bindings()["bindings"]:
         for parameter in row["parameters"]:
-            assert parameter["support"] == "unsupported"
+            assert parameter["support"] in {"unsupported", "native_subset"}
             assert parameter["required"] == "unknown"
             with pytest.raises(ScenarioError) as error:
                 validate_supplier_arguments(row["original_id"], {parameter["name"]: None})
@@ -38,6 +38,19 @@ def test_every_supplier_parameter_rejects_explicit_input():
         with pytest.raises(ScenarioError) as error:
             validate_supplier_arguments(row["original_id"], {})
         assert error.value.code == "execution_alias_unregistered"
+    supported = {
+        (row["original_id"], parameter["name"])
+        for row in read_execution_bindings()["bindings"]
+        for parameter in row["parameters"]
+        if parameter["support"] == "native_subset"
+    }
+    assert supported == {
+        ("tool:company_one_pager", "query"),
+        ("tool:fundamental_analysis", "query"),
+        ("tool:research_outline", "query"),
+        ("tool:query_news", "query"),
+        ("tool:query_news", "limit"),
+    }
 
 
 @pytest.mark.parametrize("arguments", [{"module": "os"}, {"url": "https://example.org"}, [], None])

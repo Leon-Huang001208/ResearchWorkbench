@@ -60,17 +60,27 @@ Host 从当前授权原件构造 `inputs/methods/<digest>/source-*.source` 和 `
 公司方法不会自行解析通用财务报表或派生数值；财务单位、币种、口径不能在原文确认时保留缺口，
 可比性仍须现有 business observations 对齐证券、期间和单位。原 report_plan 配方执行派生计算。
 缺业务、竞争或估值材料不称完整公司报告。新闻方法保留全文、时间与反证缺口，条件传导由 DSH
-根据实际原文生成。调研方法只做材料准备，没有真实访谈不能生成伪造问答。版本去重继续使用既有
-source-version 制品应继续复用，动作本身不重写去重算法。本切片尚未绑定实际 C2 去重制品，新闻/调研明确保留
-source_version_dedup_not_run，不能声称已去重或完整完成。PDF/OCR 自动接入也未实现，不可读原件拒绝。
+根据实际原文生成。调研方法只做材料准备，没有真实访谈不能生成伪造问答。新闻/调研在显式带时区 `cutoff_at` 与上海 `as_of` 同日时，Host 从当前已授权原件调用
+`project_source_version` 与公共 `execute_atom_bundle` 的 `deduplicate_source_versions 1.1.0`，
+冻结原 receipt 与完整 full-result canonical 字节。其 legacy digest 对对象顺序敏感，调核前做 canonical
+JSON roundtrip固定顺序；不改原核算法。`research_method_c2_dedup_v1` 另绑定 core、依赖闭包、projector、
+完整 SourceSet（owner/来源与目标会话/原hash/locator/发表与取得时刻/映射及缺口）和 input digest。
+制品进入原16MiB合计、逐文件 file_bindings 和准备事务；Native只读取Host上下文固定声明的制品，
+核schema/hash/版本/SourceSet与输入覆盖后消费，Host completion/quality再重开来源、同投影与同atom复算。
+身份明确为Host执行C2、Native消费，不称Native运行C2或供应商包。缺cutoff保持cutoff_timezone_required
+及source_version_dedup_not_run；file/dataset不可映射、未来取得、角色/发表时刻/上游完整性未知仍保留gap。
+不从日期补造时刻。PDF/OCR 自动接入仍未实现，不可读原件拒绝。
 
 MSFT 原文仅沿原 business_observations/report_plan 复算已给定表格数据；现有解析器不认证公司实体、
 通用币种与 URI 等价，方法投影保留 unclassified/financials 缺口，未新增 MSFT URL 专用分类。
 DataHub 财务快照只从真实 manifest/query/规范 rows 保留证券与报告期；当前 Sina v3 的明确 rCurrency
 字段保留币种，单位与累计 reporting_basis 未明则保留未核验，不能据此认证全市场财务覆盖。
-当前原 report_plan 的 percent_change 仍没有 owned 方法的非正基数独立准入；本切片不修改通用数学。
-该硬门与 C2 制品消费、C4 实际参数入口均为 **CODE integration pending**，不归类为纯外部数据依赖。
-现有正基数示例及零分母回归不认证负基数门，不能据此升级完整财务方法或正式映射。
+公司冻结合同由Host独立投影 `calculation_policy=owned-company-positive-base-v1`；SDK与Host verifier
+都把它传到原recipe及Summary实际resolved operands处。percent_change基数非正拒
+`owned_percent_change_nonpositive_base`；Summary以$step/abs或派生observation作基数拒
+`owned_percent_change_derived_base_unsupported`。公司canonical必须有system_plan，调用方删policy或手写
+canonical不能跳过Host从原handoff/contract重建的门。正245122/211915仍为15.67，当前值为负但基数为正
+保持原语义；generic、旧八场景和weekly默认数学不变，difference必须显式选择。此门不清除原可比性缺口。
 
 ## 严格参数适配
 
@@ -80,8 +90,14 @@ bool、float、未知参数和 URL 均拒绝。输出为现有 `datahub_search_n
 
 `adapt_research_question` 只对 `company_one_pager`、`fundamental_analysis`、`research_outline` 提供
 `query→question` 预置。需要 Host 当前选择的规范主体、截止、材料和当前方法版本；缺失返回
-`missing_selection`。不能从自然语言抽取证券并自动取数。适配函数不是工具注册；实际入口尚未连接的
-参数继续保持 pending，`fetch_news_url.url` 也不接受替换为 read_source URL。
+`missing_selection`。不能从自然语言抽取证券并自动取数。适配的实际入口是固定RWB wrapper `rwb_query_latest_cls_news` 与owned准备区的三个问题预置。
+wrapper复用原private business-query的strict request_kind变体、身份/取消和真实DataHub.query/broker/
+provider/snapshot链；原datahub_search_news完整日期及通用schema保持。模型目录只对该wrapper独立
+查Host的CLS本地readiness与datahub scope，拒绝时仅掩蔽该工具，实际调用再次强鉴权；不运行网络probe。
+三个预置在新handoff/preview/request hash及contract形成前，由Host核当前规范对象/asof/资料与方法
+selection，实际调用adapt_research_question冻结question；已有question与preset_query冲突明确拒绝。
+不从query猜证券，不换旧任务问题，不注册供应商别名。C1仅这五个参数标native_subset，原别名仍拒调用；
+其他参数保持unsupported，`fetch_news_url.url` 不接受替换为 read_source URL。
 
 ## 验证状态
 
@@ -94,3 +110,12 @@ runner 与 macOS sandbox、真实 Host private bridge；三方法分别原件读
 来源撤权、半文件与三个 file-alias 入口。未知普通文件仍可令实际质量返回 invalid。
 来源 HTTP 在输送边界用固定离线响应，叙事采用 scripted 测试文字；真实模型、供应商网络、正式报告接受、
 常驻部署与其他平台均 NOT_RUN，不把上述动作成功当模型能力通过。
+
+2026-10-28 C3b/C4目标集实际34项通过；另六条正例完整Native/report/quality链复验通过，
+包含两个显式cutoff的C2实制品及三个问题预置。合成负基数原文另经真实Native report_plan拒绝：
+runner failed/exit1、稳定owned_percent_change_nonpositive_base、无canonical，quality保持incomplete。
+不能把ToolRuntime transport isError与子进程状态混为一谈。CLS wrapper由真实pinned ToolRuntime经
+Host纯adapter、DataHub.query、原CLS parser及snapshot执行；HTTP仅MockTransport，未mock DataHub.query。
+已实际核验limit先行、casefold、empty/空query、strict参数、scope/CLS disabled与取消不落快照。
+UI/guard50项通过，包含仅wrapper目录掩蔽/恢复、cutoff和preset冲突/切换。独立评审、完整CI及
+同候选Mac干净安装由主任务另验；此代码切片不等于整个T3或62Skill/78Tool融合完成。

@@ -250,6 +250,14 @@ def _material(request_hash, sid, raw):
 
 def preview(service, body):
     """Pure qualification, with no material file and no Native session creation."""
+    from .workbench import prepare_owned_question_preset
+
+    if {"question_preset", "preset_query"}.intersection(body.handoff.scenario_inputs):
+        # Authorize originals before adapting; the normalized question is the
+        # request hashed by both preview and the immutable selection receipt.
+        refs = _sources(service, [item.model_dump() for item in body.sources])
+        handoff = prepare_owned_question_preset(service, body.handoff, authorized_refs=refs)
+        body = body.model_copy(update={"handoff": handoff})
     request = _request(body)
     handoff = body.handoff
     service.store.session(handoff.source_session_id)

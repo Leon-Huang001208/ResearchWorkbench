@@ -102,3 +102,54 @@ original_evidence_files 九函数不变；Native JS、sandbox、固定Skill资�
 `evidence/preparation-evidence.tar.gz`（427,937 bytes，SHA-256
 `7a7d0e1d7e52e0b449dfb3f53b5b50ae8e036042bdd6cda19a49db7fb30d99eb`）。
 仅回收本轮四个登记pytest子目录，retirement.json status=cleaned，测试根从1.0 GiB降为1.2 MiB。
+
+## C3b/C4实际完成接点（基线b84020549f5c8e23253aabba7474b6cdfbb7421b）
+
+宿主macOS，Web功能开发，沿既有Harness与本任务独立worktree；无push/PR/merge、真实来源网络、
+供应商、模型、收费、秘密配置、依赖安装、部署、正式数据库或系统配置操作。
+
+1. 两owned场景显式timezone cutoff_at沿原输入冻结；严格上海日期一致，不从日期/当前时刻补值。
+   Host当前resolve_reference→原project_source_version→公共execute_atom_bundle执行deduplicate_source_versions
+   1.1.0，保存原receipt与完整canonical full_result字节。调用前canonical roundtrip稳定原legacy digest
+   的对象顺序，不改C2算法/record schema。新wrapper绑定core/dependency/projector、完整SourceSet、
+   owner/target/原hash/locator/发表与取得时间、输入digest和gaps，纳入原file_bindings/context hash/
+   16MiB合计和b840准备原子事务。Native只消费Host固定声明的c2-dedup.bound；Host completion/quality
+   重新授权、同投影、同atom复算。身份明确Host执行C2、Native消费。缺cutoff/unsupported/future/
+   unknownrole/pub/上游完整性缺口保留，不冒充运行原source pack。
+2. 公司Host-only policy owned-company-positive-base-v1由原handoff/冻结contract三元绑定重建；SDK和
+   Host report_projection各传入原recipe与Summary实际resolved operands。非正基数硬拒，Summary
+   derived/$step/abs基数拒绝；owned公司canonical必须system_plan，删policy/手写canonical不能绕过。
+   245122/211915仍15.67，generic负基数原-300.00不变，difference必须显式选择。
+3. 固定RWB wrapper rwb_query_latest_cls_news仅query/strict int limit=1..100；原datahub_search_news
+   日期/通用schema不变。原private business-query新增严格owned union，实际adapt_query_news→真实
+   DataHub.query/broker/CLS parser/snapshot/cancel；sourcecls、research、strict、allow_fallbackFalse固定。
+   wrapper自身目录只在Host本地CLSready及scope允许时可见，拒绝只掩蔽该wrapper，实际调用重复准入。
+   wrapper-only required_tools记录原datahub_search_news，不把CLS加成三原件方法强制依赖。
+   三question preset在owned prepare/create_handoff/source-selection同helper执行，Host先核当前选择，
+   冻结question后沿原handoff/send/Native方法/report/quality；冲突明确拒绝，不解析ticker取数、不改旧任务。
+   C1仅4个实接入口的5参数标native_subset；supplier alias仍拒，其他参数/旧18gate不放宽。
+
+证据根 `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-c3b-completion-ozn6fz5b`，每轮显式basetemp，
+owner登记task/slice/UID/PID/dev/inode/argv/candidate。首RED因dedup模块缺失失败；cutoff目标1PASS。
+native1原atom原receipt对照暴露对象顺序依赖，native2随后被原sandbox exactfilename门拒绝；修后native3
+两C2真实纵向PASS。未绕路径门，仅获准把固定c2-dedup.bound加入原METHOD_INPUT_POLICY两处regex。
+
+实际验证：
+
+- target.log：34 PASS/78.89s。C2未来取得、unsupported、完整SourceSet/版本/inputdigest变造；公司负零、
+  Summary direct/$step/abs、SDK删policy与手写canonical经真实Host quality invalid(report_invalid)；
+  wrapper严格Host参数、scope/CLS disabled、真实provider取消不落snapshot、C1原alias全拒。
+- presets.log：6 PASS/50.74s。原三方法及3preset各真实capture/Hostfreeze/handoff/send/pinned Skill/
+  ToolRuntime/guard/Native sandbox/completion/原report_plan/canonical/HTML/DOCX/research_check_quality。
+  final-native.log再复验六正例通过；新增负基数例产品已正确runner failed/exit1，首轮测试误认transport
+  isError，改按runnerstatus/stdout断言，final-neg.log 1PASS/8.26s，稳定owned错误且无canonical。
+- compat2.log：1PASS/5.23s。真实Native wrapper→Hostadapter→DataHub.query→MockTransport真实CLS
+  parser/snapshot；row_count[0,1,2]、真实rn[1,2,2]，验证limit先行/casefold/空query及原日期schema。
+- ui-guard.log：50 PASS，原picker、owned cutoff/preset冲突/切换无泄漏，wrapper目录mask恢复/撤销。
+- static.log：20个改动Python Ruff/Black/isort PASS；生成Python索引--check、改动JS/helper node--check、
+  diff--check PASS。mypy NOT_RUN（现成librt缺失，不安装）。完整changedset文档/API Atlas/Router/CI/
+  Mac干净安装与独立SPEC/Python/TS QUALITY由主任务继续，未以此自评替代。
+
+真实quality正例仍incomplete，负基数未生成canonical保持incomplete/report_missing；叙事为scripted fixture，
+HTTP仅离线输送边界，真实模型/来源网络/正式报告接受/部署/他平台均NOT_RUN。本切片不等于整个T3完成，
+T4/T5及其后续门保留。

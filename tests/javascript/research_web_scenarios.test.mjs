@@ -8,6 +8,24 @@ import { discoveryItems, discoveryEmptyState } from '../../app/research_web/ui/d
 const scenario = options => createScenarioController({storage:null,...options});
 const row = { id: 'company-onepager', name: '<公司>', description: '', coverage: ['风险'], steps: ['核对'], examples: [{question:'示例'}], expected_artifacts:['draft'], required_inputs:[], capabilities:[{id:'company-research', version:1, available:true}] };
 const frozen = { state:'prepared', session_id:'target', mode:'fingpt', draft:'新研究', scenario_context:{source_scope:['datahub'], scenario:{inputs:{as_of:'2026-01-01'}}} };
+test('owned explicit cutoff preserves bad input, invalidates preview, and never leaks into old scenarios',async()=>{
+  const owned={...row,id:'owned-news-evidence',source_selection_kind:'owned-method'};const calls=[];
+  const c=scenario({api:{scenarioCatalog:async()=>({items:[row,owned]}),scenarioPrepare:async(id,body)=>{calls.push(body);return {preview_sha256:'a'.repeat(64)};}}});
+  await c.open({scenario:owned.id,subject:{kind:'stock',identity:'600600.SH'},as_of:'2026-01-01',question:'核验'});
+  assert.equal(c.state.inputs.cutoff_at,undefined);assert.match(renderScenarioPanel(c.state),/资料截止时刻（含时区）/);
+  c.edit('cutoff_at','2026-01-01T12:00:00');await c.preview();assert.equal(calls.length,0);assert.equal(c.state.inputs.cutoff_at,'2026-01-01T12:00:00');
+  c.edit('cutoff_at','2026-01-01T12:00:00+08:00');await c.preview();assert.equal(calls[0].scenario_inputs.cutoff_at,'2026-01-01T12:00:00+08:00');
+  c.edit('cutoff_at','2026-01-01T13:00:00+08:00');assert.equal(c.state.preview,null);assert.equal(c.state.stale,true);
+  c.edit('scenario',row.id);assert.equal(c.state.inputs.cutoff_at,undefined);assert.doesNotMatch(renderScenarioPanel(c.state),/资料截止时刻（含时区）/);
+});
+test('owned question presets use explicit query and reject silently replacing an existing question',async()=>{
+  const owned={...row,id:'owned-company-evidence',source_selection_kind:'owned-method'};const calls=[];
+  const c=scenario({api:{scenarioCatalog:async()=>({items:[row,owned]}),scenarioPrepare:async(id,body)=>{calls.push(body);return {preview_sha256:'a'.repeat(64)};}}});
+  await c.open({scenario:owned.id,subject:{kind:'stock',identity:'600600.SH'},as_of:'2026-01-01',question:'原题'});
+  c.edit('question_preset','company_one_pager');c.edit('preset_query','新题');await c.preview();assert.equal(calls.length,0);assert.match(c.state.error,/冲突/);
+  c.edit('question','');await c.preview();assert.equal(calls[0].scenario_inputs.preset_query,'新题');assert.equal(calls[0].scenario_inputs.question_preset,'company_one_pager');
+  c.edit('scenario',row.id);assert.equal(c.state.inputs.question_preset,undefined);assert.equal(c.state.inputs.preset_query,undefined);
+});
 test('real delegated input, submit and open events freeze once and never send', async () => {
   const calls = [], opened = [];
   const c = scenario({ api:{scenarioCatalog:async()=>({items:[row]}), handoff:async(body,key)=>{calls.push({body,key});return frozen;}}, onOpen:r=>opened.push(r), makeID:()=> 'same-key' });

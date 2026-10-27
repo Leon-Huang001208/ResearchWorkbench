@@ -16,6 +16,13 @@ from .models import CapabilityError
 
 PIN = RUNTIME_CONTRACT.dsh_commit
 DECLARATIONS = {
+    "rwb_query_latest_cls_news": (
+        "CLS最新有界快照",
+        "runtime/public-data.mjs",
+        {"query": "string", "limit": "integer"},
+        [],
+        "仅底层datahub_search_news及CLS来源/任务scope获准时；limit先行再正文子串筛选，empty不等于全市场无新闻",
+    ),
     "rwb_prepare_automation": (
         "提出研究日程草稿",
         "runtime/research-tools.mjs",
@@ -319,6 +326,10 @@ def tool_catalog(data_root: Path | None = None):
         }
         if name == "web_search":
             parameters["properties"]["queries"]["items"] = {"type": "string"}
+        if name == "rwb_query_latest_cls_news":
+            parameters["additionalProperties"] = False
+            parameters["properties"]["query"]["maxLength"] = 2000
+            parameters["properties"]["limit"].update(minimum=1, maximum=100)
         items.append(
             {
                 "id": name,
@@ -338,6 +349,11 @@ def tool_catalog(data_root: Path | None = None):
                 "availability": "declared",
                 "execution_surface": "dsh_native",
                 "data_sources": {},
+                **(
+                    {"required_tools": ["datahub_search_news"]}
+                    if name == "rwb_query_latest_cls_news"
+                    else {}
+                ),
             }
         )
     statuses = MySQLConnectionStore(data_root).statuses() if data_root is not None else None

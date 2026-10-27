@@ -15,7 +15,7 @@ from .connections import (
     MySQLConfiguration,
     canonical_source_id,
 )
-from .contracts import InternalBusinessQuery, InternalCancel
+from .contracts import BusinessQuery, InternalBusinessQuery, InternalCancel
 
 router = APIRouter(prefix="/api/research")
 
@@ -335,12 +335,39 @@ async def download(
     )
 
 
+class OwnedLatestClsNews(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    request_kind: Literal["owned-latest-cls-news-v1"]
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
+    arguments: dict[str, Any]
+
+
 @router.post("/internal/data/business-query")
-async def business_query(body: InternalBusinessQuery, request: Request):
+async def business_query(body: InternalBusinessQuery | OwnedLatestClsNews, request: Request):
     service = request.app.state.research
     await service.ensure_owned()
+    query = body.query if isinstance(body, InternalBusinessQuery) else None
+    if isinstance(body, OwnedLatestClsNews):
+        from ..scenarios.native_argument_adapters import ArgumentAdapterError, adapt_query_news
+
+        try:
+            parameters = adapt_query_news(body.arguments)
+        except ArgumentAdapterError as exc:
+            raise StoreError("CLS最新快照参数非法", "owned_news_arguments_invalid", 422) from exc
+        admission = service.native_admission(body.session_id, tool_name="rwb_query_latest_cls_news")
+        if not admission["admitted"]:
+            raise StoreError("CLS最新快照尚未获准", "data_source_unavailable", 409)
+        query = BusinessQuery(
+            capability="search_news",
+            source="cls",
+            allow_fallback=False,
+            purpose="research",
+            quality="strict",
+            parameters=parameters,
+        )
     try:
-        result = await service.datahub.query(body.session_id, body.call_id, body.query)
+        result = await service.datahub.query(body.session_id, body.call_id, query)
         if service.store.session(body.session_id).get("report_workflow", {}).get("quality_policy"):
             from ..report_workflows.evidence import refresh_weekly_news_evidence
             from ..research_quality_service import latest_receipt, write_business_snapshot

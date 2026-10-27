@@ -2147,6 +2147,11 @@ class ResearchService(ModelProfilesMixin):
                 )
             ),
         }
+        if tool_name == "rwb_query_latest_cls_news":
+            cls = next((item for item in catalog["sources"] if item["id"] == "cls"), {})
+            if not cls.get("readiness", {}).get("callable"):
+                scope.update(status="unavailable", admitted=False)
+                scope["missing"].append({"code": "data_source_unavailable"})
         allowed_sources = self.store.session(sid).get("source_scope", ["datahub", "web", "uploads"])
         dossier_read = tool_name == "research_read_source" and self.dossiers.source_admitted(
             sid, operation=source_operation, source_id=source_id
@@ -2172,7 +2177,7 @@ class ResearchService(ModelProfilesMixin):
         }
         excluded_source = (
             tool_name
-            and tool_name.startswith("datahub_")
+            and (tool_name.startswith("datahub_") or tool_name == "rwb_query_latest_cls_news")
             and tool_name not in web_tools
             and "datahub" not in allowed_sources
         ) or (tool_name in web_tools and "web" not in allowed_sources and not dossier_read)
@@ -2219,6 +2224,13 @@ class ResearchService(ModelProfilesMixin):
                         required_report_formats(contract, (receipt or {}).get("delivery"))
                     ),
                 }
+                from .scenario_handoffs import trusted_context
+                from .scenario_method_sources import company_calculation_policy
+
+                calculation_policy = company_calculation_policy(self.store, sid, contract)
+                if calculation_policy is not None:
+                    trusted_context(self, sid)
+                    scope["report_context"]["calculation_policy"] = calculation_policy
                 body_target = required_body_target(contract)
                 if body_target is not None:
                     cast(dict[str, object], scope["report_context"])["body_target"] = body_target

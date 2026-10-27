@@ -15,7 +15,54 @@ from .catalog import BASELINE_SHA256, read_catalog
 from .models import ScenarioError
 
 log = logging.getLogger(__name__)
-BINDINGS_SHA256 = "2e3f0538ca35b148217223d87685ced717369c2cf7b85bfac236fab04c2f2868"
+OWNED_TARGETS = {
+    "tool:company_one_pager": "owned-company-evidence",
+    "tool:fundamental_analysis": "owned-company-evidence",
+    "tool:research_outline": "owned-research-prep",
+    "tool:query_news": "rwb_query_latest_cls_news",
+}
+
+
+def owned_target(original_id):
+    if original_id not in OWNED_TARGETS:
+        return None
+    news = original_id == "tool:query_news"
+    return {
+        "capability_id": OWNED_TARGETS[original_id],
+        "builder_id": (
+            "public-data.apply" if news else "scenario_method_packages.scenario_method_packages"
+        ),
+        "pack_id": None,
+        "version_policy": (
+            "fixed_host_wrapper_per_call_authorization"
+            if news
+            else "resolve_current_catalog_then_freeze_version_compiled_sha256_and_closure"
+        ),
+    }
+
+
+def owned_parameter(original_id, name):
+    if original_id not in OWNED_TARGETS or name not in (
+        {"query", "limit"} if original_id == "tool:query_news" else {"query"}
+    ):
+        return None
+    news = original_id == "tool:query_news"
+    return {
+        "support": "native_subset",
+        "native_target": name if news else "question",
+        "normalization": (
+            "host_cls_latest_snapshot" if news else "host_selected_owned_question_preset"
+        ),
+        "range": (
+            {"minimum": 1, "maximum": 100, "strict_integer": True}
+            if name == "limit"
+            else {"max_length": 2000, "url": False}
+        ),
+        "error_code": "owned_news_arguments_invalid" if news else "owned_question_preset_invalid",
+    }
+
+
+BINDINGS_SHA256 = "9ea0bfcdd26f33ca42c3ab298ba30ad4fb46a423e4ecc11462938c5dc8885e3b"
 ROUTES = frozenset(
     {
         "native_skill",
@@ -128,17 +175,37 @@ def read_execution_bindings():
                 ):
                     _fail("execution_bindings_invalid")
             target = row["native_target"]
-            if target is not None and (
-                set(target) != {"capability_id", "builder_id", "pack_id", "version_policy"}
-                or target["pack_id"] not in pack_ids
-                or target["capability_id"] != "research-pack-" + target["pack_id"]
-                or target["builder_id"] != "pack_resources.pack_packages"
-                or target["version_policy"]
-                != "resolve_current_catalog_then_freeze_version_compiled_sha256_and_closure"
-                or row["route"] != "native_skill"
+            owned = owned_target(row["original_id"])
+            if owned is not None and (
+                target != owned
+                or row["route"]
+                != ("typed_datahub" if row["original_id"] == "tool:query_news" else "native_skill")
+            ):
+                _fail("execution_bindings_invalid")
+            if (
+                owned is None
+                and target is not None
+                and (
+                    set(target) != {"capability_id", "builder_id", "pack_id", "version_policy"}
+                    or target["pack_id"] not in pack_ids
+                    or target["capability_id"] != "research-pack-" + target["pack_id"]
+                    or target["builder_id"] != "pack_resources.pack_packages"
+                    or target["version_policy"]
+                    != "resolve_current_catalog_then_freeze_version_compiled_sha256_and_closure"
+                    or row["route"] != "native_skill"
+                )
             ):
                 _fail("execution_bindings_invalid")
             for parameter in row["parameters"]:
+                subset = owned_parameter(row["original_id"], parameter["name"])
+                if subset is not None:
+                    if (
+                        set(parameter) != parameter_keys
+                        or parameter["required"] != "unknown"
+                        or any(parameter[key] != value for key, value in subset.items())
+                    ):
+                        _fail("execution_bindings_invalid")
+                    continue
                 if (
                     set(parameter) != parameter_keys
                     or parameter["required"] != "unknown"
@@ -159,14 +226,30 @@ def read_execution_bindings():
                     else "reference_only"
                 )
                 or row["native"]["action"]
-                != ("implemented_pack_subset" if target is not None else "pending_slice")
+                != (
+                    "implemented_owned_native_subset"
+                    if owned is not None
+                    else "implemented_pack_subset" if target is not None else "pending_slice"
+                )
                 or row["source_contract"]["authority"] != "current_owner_original_readback_only"
                 or row["source_contract"]["rights"] != "current_host_revalidation_required"
                 or row["source_contract"]["coverage"] != "unverified"
                 or row["source_contract"]["historical_pit"] != "NOT_RUN"
                 or row["source_contract"]["required_evidence"] != original["dependencies"]["data"]
                 or row["output_contract"]
-                != ("research_pack_full_result_v1" if target is not None else "pending_slice")
+                != (
+                    "datahub_snapshot"
+                    if row["original_id"] == "tool:query_news"
+                    else (
+                        "research_method_source_ledger_v1_and_canonical_report"
+                        if owned is not None
+                        else (
+                            "research_pack_full_result_v1"
+                            if target is not None
+                            else "pending_slice"
+                        )
+                    )
+                )
             ):
                 _fail("execution_bindings_invalid")
             expected_kind = "skill" if row["original_id"].startswith("skill:") else "tool"

@@ -33,6 +33,45 @@ POLICY = "owned-method-frozen-inputs-v1"
 MAX_METHOD_BYTES = 16 * 1024 * 1024
 
 
+def company_calculation_policy(store, sid, contract):
+    """Rebuild the policy from Host-owned handoff and frozen contract only."""
+    row = store.session(sid)
+    handoff_id = row.get("scenario_handoff_id") or row.get("evidence_handoff_id")
+    handoff = store.data.get("handoffs", {}).get(handoff_id, {})
+    context = handoff.get("scenario_context") or {}
+    if not isinstance(context, dict):
+        fail("method_company_policy_binding_invalid")
+    scenario = context.get("scenario", {})
+    if not isinstance(scenario, dict):
+        fail("method_company_policy_binding_invalid")
+    execution = (contract or {}).get("execution_context", {})
+    cid = "owned-company-evidence"
+    if scenario.get("scenario_id") != cid and execution.get("scenario_id") != cid:
+        return None
+    from .scenario_handoffs import execution_context
+
+    capabilities = scenario.get("capabilities", [])
+    if (
+        handoff.get("state") != "prepared"
+        or handoff.get("session_id") != sid
+        or scenario.get("scenario_id") != cid
+        or scenario.get("version") != "1.0.0"
+        or not isinstance(capabilities, list)
+        or len(capabilities) != 1
+        or not isinstance(capabilities[0], dict)
+        or capabilities[0].get("id") != cid
+        or not contract
+        or any(
+            key not in capabilities[0]
+            for key in ("version", "sha256", "native_name", "resource_path")
+        )
+        or execution != execution_context(context, capabilities)
+        or contract.get("as_of") != scenario.get("inputs", {}).get("as_of")
+    ):
+        fail("method_company_policy_binding_invalid")
+    return "owned-company-positive-base-v1"
+
+
 class _Preparation:
     """Own only exclusive births; rollback never removes a reused/replaced object."""
 
@@ -189,8 +228,16 @@ def source_context(service, sid, cid, context):
         "as_of": values["as_of"],
         "sources": [],
     }
-    bodies, total = {}, 0
+    bodies, total, originals, seen = {}, 0, [], set()
     for index, reference in enumerate(refs):
+        identity = (
+            reference["source_session_id"],
+            reference["reference"]["type"],
+            reference["reference"]["id"],
+        )
+        if identity in seen:
+            continue
+        seen.add(identity)
         metadata, manifest, raw = resolve_reference(
             service,
             reference["source_session_id"],
@@ -198,6 +245,7 @@ def source_context(service, sid, cid, context):
             expected=reference,
             target_sid=sid,
         )
+        originals.append((metadata, raw))
         total += len(raw)
         if len(raw) > 8 * 1024 * 1024 or total > 16 * 1024 * 1024:
             fail("method_source_limit")
@@ -270,6 +318,19 @@ def source_context(service, sid, cid, context):
             )
         result["sources"].append(source)
         bodies[path] = raw
+    if cid in {"owned-news-evidence", "owned-research-prep"}:
+        from .scenario_method_dedup import build_artifact
+
+        artifact = build_artifact(service, sid, cid, values, originals)
+        if artifact is not None:
+            artifact_raw = canonical(artifact)
+            artifact_path = base + "/c2-dedup.bound"
+            bodies[artifact_path] = artifact_raw
+            total += len(artifact_raw)
+            result["dedup_artifact"] = {
+                "path": artifact_path,
+                "sha256": hashlib.sha256(artifact_raw).hexdigest(),
+            }
     raw = canonical(result)
     if total + len(raw) > 16 * 1024 * 1024:
         fail("method_source_limit")

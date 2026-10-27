@@ -126,7 +126,66 @@ async def prepare_scenario(scenario_id: str, body: Handoff, request: Request):
     service = request.app.state.research
     await service.ensure_owned()
     async with service.lock:
+        body = prepare_owned_question_preset(service, body)
         return prepare_context(service, body)
+
+
+def prepare_owned_question_preset(service, body, *, authorized_refs=None):
+    """Closed owned-only preparation, before a new question/contract is frozen."""
+    from .scenario_handoffs import prepare_context, selection
+    from .scenarios.native_argument_adapters import (
+        QUESTION_METHODS,
+        ArgumentAdapterError,
+        adapt_research_question,
+    )
+
+    values = body.scenario_inputs
+    fields = {"question_preset", "preset_query"}
+    if not fields.intersection(values):
+        return body
+    preset, query = values.get("question_preset"), values.get("preset_query")
+    if (
+        not isinstance(preset, str)
+        or preset not in QUESTION_METHODS
+        or QUESTION_METHODS[preset] != body.scenario_id
+        or not fields <= set(values)
+    ):
+        raise StoreError("问题预置与当前自有方法不匹配", "owned_question_preset_invalid", 422)
+    if values.get("question") not in ("", query):
+        raise StoreError(
+            "已有研究问题与问题预置冲突，请明确选择", "owned_question_preset_conflict", 422
+        )
+    cleaned = {key: value for key, value in values.items() if key not in fields}
+    cleaned["question"] = query
+    proposed = body.model_copy(update={"scenario_inputs": cleaned})
+    chosen = selection(service, body.scenario_id, cleaned)
+    if any(not item.get("available") for item in chosen["capabilities"]):
+        raise StoreError("当前方法版本不可用", "missing_selection", 409)
+    refs = authorized_refs
+    if refs is None:
+        refs = prepare_context(service, proposed)["references"]
+    material_ids = [item["source_session_id"] + ":" + item["reference"]["id"] for item in refs]
+    capability = service.capabilities.selection(QUESTION_METHODS[preset])
+    try:
+        adapted = adapt_research_question(
+            preset,
+            {"query": query},
+            {
+                "subject": chosen["inputs"]["subject"],
+                "as_of": chosen["inputs"]["as_of"],
+                "material_ids": material_ids,
+                "capability": capability,
+            },
+        )
+    except ArgumentAdapterError as exc:
+        raise StoreError("问题预置缺少当前已核选择", "missing_selection", 409) from exc
+    cleaned["question"] = adapted["question"]
+    log.info(
+        "research_owned_question_preset_prepared",
+        preset=preset,
+        capability_id=adapted["capability_id"],
+    )
+    return body.model_copy(update={"scenario_inputs": cleaned})
 
 
 @router.get("/handoff-requests/{request_key}")
@@ -466,6 +525,7 @@ async def create_handoff(
     digest = _key(idempotency_key)
     from .scenario_handoffs import fingerprint, freeze_lineage, prepare_context
 
+    body = prepare_owned_question_preset(service, body)
     request_payload = body.model_dump(mode="json")
     for new_field in ("comparison_observation_ids", "workspace_material", "source_scope"):
         if request_payload[new_field] is None or request_payload[new_field] == []:

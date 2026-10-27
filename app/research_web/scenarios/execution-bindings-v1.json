@@ -3600,7 +3600,7 @@
         "live_source": "NOT_RUN"
       },
       "native": {
-        "action": "pending_slice",
+        "action": "implemented_owned_native_subset",
         "ready": "requires_current_host_evidence",
         "callable": "unverified",
         "runtime": "NOT_RUN",
@@ -3608,18 +3608,26 @@
         "fixture": "NOT_RUN",
         "live_source": "NOT_RUN"
       },
-      "native_target": null,
+      "native_target": {
+        "capability_id": "owned-company-evidence",
+        "builder_id": "scenario_method_packages.scenario_method_packages",
+        "pack_id": null,
+        "version_policy": "resolve_current_catalog_then_freeze_version_compiled_sha256_and_closure"
+      },
       "parameters": [
         {
           "name": "query",
           "type": "string",
           "required": "unknown",
-          "support": "unsupported",
-          "native_target": null,
-          "normalization": null,
-          "range": null,
-          "semantic_difference": "No original supplier alias is registered. RWB native inputs use separate Host contracts.",
-          "error_code": "execution_parameter_unsupported"
+          "support": "native_subset",
+          "native_target": "question",
+          "normalization": "host_selected_owned_question_preset",
+          "range": {
+            "max_length": 2000,
+            "url": false
+          },
+          "semantic_difference": "RWB Host-selected subject/materials and fixed question preset only; no supplier financial-analysis equivalence or inferred securities.",
+          "error_code": "owned_question_preset_invalid"
         }
       ],
       "source_contract": {
@@ -3634,7 +3642,7 @@
         "coverage": "unverified",
         "historical_pit": "NOT_RUN"
       },
-      "output_contract": "pending_slice",
+      "output_contract": "research_method_source_ledger_v1_and_canonical_report",
       "quality_contract": "canonical_report_hash_and_original_quality_gate",
       "limitation": "Owned subset is not supplier equivalence; static inventory grants no authorization."
     },
@@ -3656,7 +3664,7 @@
         "live_source": "NOT_RUN"
       },
       "native": {
-        "action": "pending_slice",
+        "action": "implemented_owned_native_subset",
         "ready": "requires_current_host_evidence",
         "callable": "unverified",
         "runtime": "NOT_RUN",
@@ -3664,18 +3672,26 @@
         "fixture": "NOT_RUN",
         "live_source": "NOT_RUN"
       },
-      "native_target": null,
+      "native_target": {
+        "capability_id": "owned-research-prep",
+        "builder_id": "scenario_method_packages.scenario_method_packages",
+        "pack_id": null,
+        "version_policy": "resolve_current_catalog_then_freeze_version_compiled_sha256_and_closure"
+      },
       "parameters": [
         {
           "name": "query",
           "type": "string",
           "required": "unknown",
-          "support": "unsupported",
-          "native_target": null,
-          "normalization": null,
-          "range": null,
-          "semantic_difference": "No original supplier alias is registered. RWB native inputs use separate Host contracts.",
-          "error_code": "execution_parameter_unsupported"
+          "support": "native_subset",
+          "native_target": "question",
+          "normalization": "host_selected_owned_question_preset",
+          "range": {
+            "max_length": 2000,
+            "url": false
+          },
+          "semantic_difference": "RWB Host-selected subject/materials and fixed question preset only; no supplier financial-analysis equivalence or inferred securities.",
+          "error_code": "owned_question_preset_invalid"
         }
       ],
       "source_contract": {
@@ -3690,7 +3706,7 @@
         "coverage": "unverified",
         "historical_pit": "NOT_RUN"
       },
-      "output_contract": "pending_slice",
+      "output_contract": "research_method_source_ledger_v1_and_canonical_report",
       "quality_contract": "canonical_report_hash_and_original_quality_gate",
       "limitation": "Owned subset is not supplier equivalence; static inventory grants no authorization."
     },
@@ -3769,7 +3785,7 @@
         "live_source": "NOT_RUN"
       },
       "native": {
-        "action": "pending_slice",
+        "action": "implemented_owned_native_subset",
         "ready": "requires_current_host_evidence",
         "callable": "unverified",
         "runtime": "NOT_RUN",
@@ -3777,18 +3793,26 @@
         "fixture": "NOT_RUN",
         "live_source": "NOT_RUN"
       },
-      "native_target": null,
+      "native_target": {
+        "capability_id": "owned-company-evidence",
+        "builder_id": "scenario_method_packages.scenario_method_packages",
+        "pack_id": null,
+        "version_policy": "resolve_current_catalog_then_freeze_version_compiled_sha256_and_closure"
+      },
       "parameters": [
         {
           "name": "query",
           "type": "string",
           "required": "unknown",
-          "support": "unsupported",
-          "native_target": null,
-          "normalization": null,
-          "range": null,
-          "semantic_difference": "No original supplier alias is registered. RWB native inputs use separate Host contracts.",
-          "error_code": "execution_parameter_unsupported"
+          "support": "native_subset",
+          "native_target": "question",
+          "normalization": "host_selected_owned_question_preset",
+          "range": {
+            "max_length": 2000,
+            "url": false
+          },
+          "semantic_difference": "RWB Host-selected subject/materials and fixed question preset only; no supplier financial-analysis equivalence or inferred securities.",
+          "error_code": "owned_question_preset_invalid"
         }
       ],
       "source_contract": {
@@ -3804,7 +3828,7 @@
         "coverage": "unverified",
         "historical_pit": "NOT_RUN"
       },
-      "output_contract": "pending_slice",
+      "output_contract": "research_method_source_ledger_v1_and_canonical_report",
       "quality_contract": "canonical_report_hash_and_original_quality_gate",
       "limitation": "Owned subset is not supplier equivalence; static inventory grants no authorization."
     },
@@ -8335,7 +8359,7 @@
         "live_source": "NOT_RUN"
       },
       "native": {
-        "action": "pending_slice",
+        "action": "implemented_owned_native_subset",
         "ready": "requires_current_host_evidence",
         "callable": "unverified",
         "runtime": "NOT_RUN",
@@ -8343,18 +8367,26 @@
         "fixture": "NOT_RUN",
         "live_source": "NOT_RUN"
       },
-      "native_target": null,
+      "native_target": {
+        "capability_id": "rwb_query_latest_cls_news",
+        "builder_id": "public-data.apply",
+        "pack_id": null,
+        "version_policy": "fixed_host_wrapper_per_call_authorization"
+      },
       "parameters": [
         {
           "name": "query",
           "type": "string",
           "required": "unknown",
-          "support": "unsupported",
-          "native_target": null,
-          "normalization": null,
-          "range": null,
-          "semantic_difference": "No original supplier alias is registered. RWB native inputs use separate Host contracts.",
-          "error_code": "execution_parameter_unsupported"
+          "support": "native_subset",
+          "native_target": "query",
+          "normalization": "host_cls_latest_snapshot",
+          "range": {
+            "max_length": 2000,
+            "url": false
+          },
+          "semantic_difference": "RWB fixed owned subset only; supplier alias remains unregistered. CLS limit precedes body substring filtering.",
+          "error_code": "owned_news_arguments_invalid"
         },
         {
           "name": "stock",
@@ -8382,12 +8414,16 @@
           "name": "limit",
           "type": "number",
           "required": "unknown",
-          "support": "unsupported",
-          "native_target": null,
-          "normalization": null,
-          "range": null,
-          "semantic_difference": "No original supplier alias is registered. RWB native inputs use separate Host contracts.",
-          "error_code": "execution_parameter_unsupported"
+          "support": "native_subset",
+          "native_target": "limit",
+          "normalization": "host_cls_latest_snapshot",
+          "range": {
+            "minimum": 1,
+            "maximum": 100,
+            "strict_integer": true
+          },
+          "semantic_difference": "RWB fixed owned subset only; supplier alias remains unregistered. CLS limit precedes body substring filtering.",
+          "error_code": "owned_news_arguments_invalid"
         },
         {
           "name": "sentiment",
@@ -8435,7 +8471,7 @@
         "coverage": "unverified",
         "historical_pit": "NOT_RUN"
       },
-      "output_contract": "pending_slice",
+      "output_contract": "datahub_snapshot",
       "quality_contract": "canonical_report_hash_and_original_quality_gate",
       "limitation": "Owned subset is not supplier equivalence; static inventory grants no authorization."
     },
