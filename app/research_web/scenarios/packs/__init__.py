@@ -241,7 +241,7 @@ def _calculate_pack(
         subresults.append(sub)
         missing.extend({"component": method, **x} for x in sub["missing"])
         # Retain child projection accounting; never pretend this is the full row set.
-        rows.append({"method": method, "result": sub})
+        rows.append({"method": method, "receipt_sha256": sub["result_sha256"], "result": sub})
     blocked = BLOCKED.get(pack_id, [])
     missing.extend({"code": x} for x in blocked)
     output = result(
@@ -263,6 +263,7 @@ def _calculate_pack(
                 {"records": records, "parameters": parameters, "source_coverage": source_coverage}
             )
         ).hexdigest(),
+        component_receipts=True,
     )
     full_rows = [{"component_id": component["method"]} for component in components]
     canonical_input = {

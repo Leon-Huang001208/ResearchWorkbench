@@ -161,10 +161,24 @@ hash/size/schema、根和每个组件的完整计数、来源与代码闭包，�
 
 单个完整制品（含root、全部components及所有metadata）共用16MiB预算。包在保留下个组件前
 累计完整组件字节，最后对整个canonical封包再核16MiB；不能每个child各16MiB后累计绕门。
-原50k输入/派生基数、逐行派生字节、5k系列和64MiB输入门保持。receipt继续≤64KiB且rows≤128，
-必要时缩小到64/32/.../0行，total/inline/omitted真实；missing/rejected/source_refs/metrics不删。
+原50k输入/派生基数、逐行派生字节、5k系列和64MiB输入门保持。receipt继续≤64KiB且逐级数据预览≤128行，
+atom数据预览必要时缩小到64/32/.../0行；pack所有component审计wrapper固定保留，只缩component内部的数据预览。
+total/inline/omitted真实；missing/rejected/source_refs/metrics不删。
 若非rows metadata本身超64KiB则稳定workload_too_large；不把16MiB bytes/base64塞进receipt。
 将来Native还需为自己的stdout manifest另行预留预算，原receipt可独立归档，不强塞更大envelope。
 
 本步没有staging/fsync/atomic publish实现；B只能原样写完整bytes并重新核验，不能跑算法补行。
 16MiB等号/+1及组合总额、64MiB拒绝路径使用受控小阈值验证，大内存实际压力仍NOT_RUN。
+
+## A2 SPEC fix1：组件审计不可裁
+
+pack.receipt.rows是组件审计wrapper，不能作为普通结果行删减。全部已执行component的方法、版本、
+原atom receipt hash、metrics、source_refs、missing、rejected_rows、参数/输入摘要等均固定保留。
+root.row_delivery的total/inline始终为全部component数，omitted=0；仅各result.rows数据预览可缩到0，
+各自row_delivery准确保留底层总行数/omitted。若全体fixed metadata超过64KiB，整个调用稳定拒绝，
+不把fullartifact当receipt审计信息的替代物，也不引入metadata单独artifact。
+
+wrapper.receipt_sha256固定引用原atom receipt，和full.components[*].receipt_sha256对应；
+wrapper.result是展示的有界投影，其result_sha256对该实际投影重新计算。这样缩预览不复用旧hash冒充
+改变后的字节，原计算回执身份也不会丢失。所有hash均仅计算层绑定，Host资格与质量仍NOT_RUN。
+原single-pass算法、完整artifact全部行/计数/bytes/hash与整个包16MiB预算保持。

@@ -159,6 +159,27 @@ def validate_inputs(records: dict, parameters: dict) -> tuple[dict, datetime, in
     return records, cutoff, count
 
 
+def _component_previews(rows: list, sizes: list[int]) -> list:
+    """Project child data rows while preserving every component audit field."""
+    projected = []
+    for row, size in zip(rows, sizes, strict=True):
+        original = row["result"]
+        child = {key: value for key, value in original.items() if key != "result_sha256"}
+        child["rows"] = original["rows"][:size]
+        total = original["row_delivery"]["total_output_rows"]
+        child["row_delivery"] = {
+            "mode": "inline" if size == total else "summary_with_source_refs",
+            "total_output_rows": total,
+            "inline_output_rows": size,
+            "omitted_output_rows": total - size,
+        }
+        child["result_sha256"] = hashlib.sha256(encoded(child, 65536)).hexdigest()
+        # The fixed receipt_sha256 in row references the original atom receipt;
+        # result.result_sha256 binds this displayed projection's actual bytes.
+        projected.append({**row, "result": child})
+    return projected
+
+
 def result(
     method: str,
     count: int,
@@ -171,6 +192,8 @@ def result(
     source_refs: list | None = None,
     parameters: dict | None = None,
     input_sha256: str | None = None,
+    *,
+    component_receipts: bool = False,
 ) -> dict:
     encoded(rows, 16 * 1024 * 1024)
     missing = missing or []
@@ -217,11 +240,18 @@ def result(
         ]
         + (limitations or []),
     }
-    # Only preview rows may shrink. Missing/rejected/source metadata stays complete.
-    inline_count = min(128, len(rows))
+    # Component wrappers are audit metadata and cannot be omitted. Only their
+    # internal data previews may shrink; oversized fixed metadata must fail.
+    require(not component_receipts or len(rows) <= 128, "workload_too_large")
+    inline_count = len(rows) if component_receipts else min(128, len(rows))
+    component_sizes = [len(row["result"]["rows"]) for row in rows] if component_receipts else []
     while True:
         output.pop("result_sha256", None)
-        output["rows"] = rows[:inline_count]
+        output["rows"] = (
+            _component_previews(rows, component_sizes)
+            if component_receipts
+            else rows[:inline_count]
+        )
         output["row_delivery"] = {
             "mode": "inline" if inline_count == len(rows) else "summary_with_source_refs",
             "total_output_rows": len(rows),
@@ -233,9 +263,13 @@ def result(
             encoded(output, 65536)
             break
         except PackError as exc:
-            if exc.code != "workload_too_large" or inline_count == 0:
+            remaining = max(component_sizes, default=0) if component_receipts else inline_count
+            if exc.code != "workload_too_large" or remaining == 0:
                 raise
-            inline_count //= 2
+            if component_receipts:
+                component_sizes = [size // 2 for size in component_sizes]
+            else:
+                inline_count //= 2
     log.info(
         "research_pack_calculated method=%s rows=%d status=%s", method, count, output["status"]
     )

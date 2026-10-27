@@ -172,3 +172,31 @@ receipt logs/research-packs-a2-verified-receipt.json记录完整argv/runner PID4
 B的versioned staging/fsync/atomic publish、Host实际文件读回/hash/schema/count登记、Native运行、
 DSH/UI、CI/Mac安装、模型/供应商/真实来源/PIT/报告质量与部署均未执行。A2待独立SPEC/Python
 增量审查；不表示B或九包整体已完成，不push。
+
+## A2 SPEC fix1 / overall wave3：组件审计元数据不可裁
+
+接受1e6b39的Important：原pack把整个child receipt当root.rows预览裁掉，可能丢组件审计。
+先新增真实RED：logs/research-packs-a2fix1-red.log实际2 failed（66 deselected，0.39s）。
+第一例两仓位/三个风险事件，每记录四locator字段4050字符，各atom单独合法，组合旧路径却漏掉
+risk方法；第二例calendar history约40KB、forecast IDs约50KB的合法child预览，旧包只保留一个component。
+
+修复后pack root.rows的全部component审计wrapper固定，不可删减（root omitted=0）；仅各child内部
+result.rows可降至0。method/version、metrics、参数/输入摘要、source_refs、missing/rejected等均保留；
+固定metadata合计仍>64KiB直接workload_too_large，不引入metadata单独artifact，也不以fullartifact替代审计。
+wrapper.receipt_sha256固定绑定原atom receipt并对应full.component.receipt_sha256；
+wrapper.result.result_sha256对实际展示的child投影重新计算，避免改变rows后继续冒用原hash。
+一次计算、完整制品所有组件/行数/hash/bytes与组合16MiB预算未改变，NOT_RUN/旧18门保持。
+
+旧102聚焦断言保留，新增两项验证metadata overflow明确拒绝、所有component metadata在0行预览时
+仍逐字段存在、原/展示两种hash各自绑定正确、full rows不丢。最终同venv/既有缓存、
+PYTHONDONTWRITEBYTECODE=1和前述相同五测试文件及--confcutdir=tests/research_web执行：
+157 passed、16 subtests passed、1原Starlette/anyio warning，37.72s。
+Ruff、Black --check、isort --check-only、git diff --check通过，未装依赖。
+日志logs/research-packs-a2fix1-verified.log SHA256
+`78a3c7d869c6509160fa8d6026028cb39d51a31b598813942e3ae8b3e9eb9442`。
+receipt logs/research-packs-a2fix1-verified-receipt.json保留完整argv/runner PID32303/pytest PID32304/UID501。
+精确tempRoot `/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/rwb-packs-a2fix1-verified-7bda5752-q8ii7698`
+在子进程结束后逐目录核实owner/非symlink，仅调整本任务树owner目录权限并清理，cleaned=true。
+
+待SPEC/Python QUALITY复评；无push、Host/UI/Native接线、外部模型/供应商/业务数据/部署操作。
+其他NOT_RUN边界和完整制品消费/Host真实读回资格保持，不表示B或整批完成。

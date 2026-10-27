@@ -816,3 +816,103 @@ def test_bundle_input_budget_and_nonfinite_stay_strict(monkeypatch):
     monkeypatch.setattr(contracts, "MAX_BYTES", 256)
     with pytest.raises(PackError, match="workload_too_large"):
         packs.execute_atom_bundle(v["atom"], v["records_by_kind"], v["parameters"])
+
+
+def test_a2fix_component_metadata_overflow_rejects_instead_of_dropping_method():
+    from app.research_web.scenarios import packs
+
+    records, parameters = bundle_position_pack(2)
+    extra = copy.deepcopy(records["risk-event"][0])
+    extra["row_id"], extra["event_id"] = "extra-risk-row", "extra-event"
+    records["risk-event"].append(extra)
+    for index, row in enumerate(records["position"] + records["risk-event"]):
+        for key in row["origin"]["locator"]:
+            row["origin"]["locator"][key] = f"{index}:{key}:".ljust(4050, "x")
+    # Each atom is legal; combined fixed source locators exceed 64KiB.
+    for method in ("validate_positions", "join_risk_windows"):
+        subset = {key: value for key, value in records.items() if key in packs.METHODS[method][1]}
+        assert (
+            packs.execute_atom(
+                method, subset, {"as_of": parameters["as_of"], **parameters[method]}
+            )["method"]
+            == method
+        )
+    with pytest.raises(PackError, match="workload_too_large"):
+        packs.execute_pack_bundle("position-risk", records, parameters)
+    with pytest.raises(PackError, match="workload_too_large"):
+        packs.execute_pack("position-risk", records, parameters)
+
+
+def pack_with_large_component_previews():
+    calendar = calendar_versions(1, 200)
+    identity = calendar["parameters"]["expected_universe"][0]
+    for index, row in enumerate(calendar["records_by_kind"]["report-calendar"]):
+        row["row_id"] = f"calendar-{index}:".ljust(200, "c")
+    expectation = fixture("compare_qualified_expectations.success")
+    actual = expectation["records_by_kind"]["actual"][0]
+    actual["row_id"], actual["security"], actual["report_period"] = (
+        "actual",
+        identity,
+        calendar["parameters"]["report_period"],
+    )
+    prototype = expectation["records_by_kind"]["forecast"][0]
+    forecasts = []
+    for index in range(500):
+        row = copy.deepcopy(prototype)
+        row["row_id"] = f"forecast-{index}:".ljust(100, "f")
+        row["security"], row["report_period"] = identity, actual["report_period"]
+        forecasts.append(row)
+    parameters = {
+        "as_of": expectation["parameters"]["as_of"],
+        "earnings_calendar": {
+            key: value for key, value in calendar["parameters"].items() if key != "as_of"
+        },
+        "compare_qualified_expectations": {},
+    }
+    return calendar["records_by_kind"] | {"actual": [actual], "forecast": forecasts}, parameters
+
+
+def test_a2fix_all_component_audit_metadata_survives_zero_row_previews():
+    import hashlib
+
+    from app.research_web.scenarios import packs
+    from app.research_web.scenarios.packs.contracts import encoded
+
+    records, parameters = pack_with_large_component_previews()
+    originals = {}
+    for method in ("earnings_calendar", "compare_qualified_expectations"):
+        subset = {key: value for key, value in records.items() if key in packs.METHODS[method][1]}
+        originals[method] = packs.execute_atom(
+            method, subset, {"as_of": parameters["as_of"], **parameters[method]}
+        )
+        assert len(originals[method]["rows"]) == 1
+    bundle = packs.execute_pack_bundle("earnings-preview", records, parameters)
+    receipt = bundle.receipt
+    assert [row["method"] for row in receipt["rows"]] == [
+        "earnings_calendar",
+        "compare_qualified_expectations",
+    ]
+    assert receipt["row_delivery"]["total_output_rows"] == 2
+    assert receipt["row_delivery"]["inline_output_rows"] == 2
+    assert receipt["row_delivery"]["omitted_output_rows"] == 0
+    assert len(encoded(receipt)) <= 65536
+    full = json.loads(bundle.full_result.canonical_json)
+    components = {component["method"]: component for component in full["components"]}
+    for row in receipt["rows"]:
+        method, child = row["method"], row["result"]
+        assert row["receipt_sha256"] == originals[method]["result_sha256"]
+        assert components[method]["receipt_sha256"] == row["receipt_sha256"]
+        assert child["rows"] == []
+        assert child["row_delivery"]["total_output_rows"] == 1
+        assert child["row_delivery"]["omitted_output_rows"] == 1
+        for key, value in originals[method].items():
+            if key not in ("rows", "row_delivery", "result_sha256"):
+                assert child[key] == value
+        assert (
+            hashlib.sha256(
+                encoded({key: value for key, value in child.items() if key != "result_sha256"})
+            ).hexdigest()
+            == child["result_sha256"]
+        )
+        assert len(components[method]["rows"]) == 1
+        assert components[method]["counts"]["total_output_rows"] == 1
