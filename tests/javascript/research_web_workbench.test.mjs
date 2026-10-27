@@ -31,7 +31,7 @@ test('business routes retain backend sections and fall back within their module'
 });
 
 test('legacy research desk URLs redirect with unrelated parameters and hot identity intact', async () => {
-  const { legacyRouteTarget } = await import(new URL('core.mjs', root));
+  const { legacyRouteTarget, parseRoute } = await import(new URL('core.mjs', root));
   const targets = {
     assets: '#/assets', funds: '#/assets/funds', market: '#/intel/search?kind=news',
     industry: '#/intel/search?kind=research', documents: '#/intel/search?kind=announcements',
@@ -51,14 +51,15 @@ test('legacy research desk URLs redirect with unrelated parameters and hot ident
   }
   assert.equal(legacyRouteTarget('#/workbench/market?section=funds&kind=research&limit=15'), '#/intel/search?kind=news&limit=15');
   assert.equal(legacyRouteTarget('#/assets'), null);
-  assert.equal(legacyRouteTarget('#/reports'), '#/skills?kind=workflow');
+  assert.equal(legacyRouteTarget('#/reports'), null);
+  assert.equal(parseRoute('#/reports').page, 'reports');
 });
 
 test('primary navigation exposes one active entry per business module in the agreed order', async () => {
   const { parseRoute } = await import(new URL('core.mjs', root));
   const shell = await import(new URL('shell.mjs', root));
   assert.equal(parseRoute('#/operations').page, 'operations');
-  const labels = ['FinGPT', 'Claw', '全市场概览', '资产观察', '研究情报', 'AI 资讯', '研究框架', '策略模拟', '能力中心', '运行与用量'];
+  const labels = ['FinGPT', 'Claw', '报告生产', '全市场概览', '资产观察', '研究情报', 'AI 资讯', '研究框架', '策略模拟', '能力中心', '运行与用量'];
   const rail = shell.renderPrimaryRail(parseRoute('#/assets'));
   assert.deepEqual([...rail.matchAll(/class="rail-label">([^<]+)<\/span>/g)].map(item => item[1]).slice(0, labels.length), labels);
   for (const [hash, activeHref] of [
@@ -70,7 +71,7 @@ test('primary navigation exposes one active entry per business module in the agr
     const active = [...html.matchAll(/href="([^"]+)" class="rail-link active"/g)].map(item => item[1]);
     assert.deepEqual(active, [activeHref], hash);
   }
-  assert.doesNotMatch(rail, /研究台|报告工作室|#\/reports|#\/workbench/);
+  assert.doesNotMatch(rail, /研究台|报告工作室|#\/workbench/);
 });
 
 test('asset module keeps only its two views and all four fund datasets with callable sources', async () => {
@@ -326,12 +327,12 @@ test('operations page makes unknown usage and missing pricing explicit', async (
   assert.doesNotMatch(html, /data-restart|data-stop|data-delete|清库/);
 });
 
-test('app uses dedicated workbench and operations modules without a report studio route', async () => {
+test('app uses dedicated workbench, operations and report production modules', async () => {
   const source = await readFile(new URL('app.mjs', root), 'utf8');
-  for (const expected of ['./workbench.mjs', './operations.mjs', 'workbenchPage', 'operationsPage']) {
+  for (const expected of ['./workbench.mjs', './operations.mjs', './report-workspace.mjs', 'workbenchPage', 'operationsPage']) {
     assert.ok(source.includes(expected));
   }
-  for (const removed of ['./report-studio.mjs', 'reportStudioPage', "state.route.page === 'reports'"]) assert.equal(source.includes(removed), false);
+  for (const removed of ['./report-studio.mjs', 'reportStudioPage']) assert.equal(source.includes(removed), false);
   assert.ok(source.includes('api.dataQueries(section)'));
   assert.ok(source.includes('loadAssetWorkspace'));
   assert.ok(source.includes('api.operationsSummary(operationsRange)'));

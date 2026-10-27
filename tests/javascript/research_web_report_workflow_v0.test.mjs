@@ -35,10 +35,11 @@ const reportWorkflow = () => ({
   ],
 });
 
-test('legacy report route redirects exactly to the Workflow capability view', async () => {
+test('report directory is now a first-class business route', async () => {
   const { parseRoute, legacyRouteTarget } = await import(new URL('core.mjs', root));
-  assert.equal(legacyRouteTarget('#/reports'), '#/skills?kind=workflow');
-  assert.equal(legacyRouteTarget('#/reports/'), '#/skills?kind=workflow');
+  assert.equal(legacyRouteTarget('#/reports'), null);
+  assert.equal(parseRoute('#/reports').page, 'reports');
+  assert.equal(legacyRouteTarget('#/reports/'), null);
   assert.equal(legacyRouteTarget('#/reports-old'), null);
   assert.equal(legacyRouteTarget('#/reports?project=huaan'), null);
   assert.deepEqual(parseRoute('#/skills?kind=workflow'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'workflow' });

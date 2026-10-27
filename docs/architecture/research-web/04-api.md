@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+报告生产新增前端 #/reports 与项目 tab/run/q/status 地址，不新增 HTTP。读取、历史验收、发布、探测、取消、受理核对和日程继续用原 report-workflows/report-runs API；后台准入和权限仍为权威。
+
 ## 研究场景首批（2026-10-27）
 
 `GET /api/research/scenarios`只投影八场景及当前能力／执行准入；`POST /api/research/handoffs`保留原调用，新增明确场景、规范主体、截止、已取得资料／观察及研究问题；`GET /api/research/handoff-requests/{request_key}`只查询原意图。完整请求幂等，改变参数409；未知创建不自动重建，准备不调用研究模型。实际消息的场景回执由服务端核验并绑定到原原生提示及质量合同，不接受客户端自报资格。
