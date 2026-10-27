@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import sys
 
 import pytest
 import test_workbench_operations as fixtures
@@ -98,7 +99,22 @@ def test_unknown_financial_dates_remain_gaps_and_future_forecast_horizon_is_not_
         assert missing == expected
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")
 def test_arbitrary_summary_does_not_inherit_mixed_real_source_report_quality(api, monkeypatch):
+    _assert_summary_source_quality(api, monkeypatch, delivery_available=True)
+
+
+def test_unverified_delivery_and_self_declared_quality_do_not_certify_summary(api, monkeypatch):
+    from app.research_web import sandbox
+
+    def unavailable(*_args, **_kwargs):
+        raise sandbox.SandboxError("strict sandbox unavailable for this delivery")
+
+    monkeypatch.setattr(sandbox, "run_script", unavailable)
+    _assert_summary_source_quality(api, monkeypatch, delivery_available=False)
+
+
+def _assert_summary_source_quality(api, monkeypatch, *, delivery_available):
     from test_research_quality import example
 
     from app.research_web.resources.research_report import write_research_report
@@ -138,6 +154,8 @@ def test_arbitrary_summary_does_not_inherit_mixed_real_source_report_quality(api
         report["notes"][0]["citations"] = [source_id]
         if status == "incomplete":
             report["coverage"] = []
+        if not delivery_available:
+            report["quality"] = "passed"
         write_research_report(service.store.directory(sid) / "outputs", report, formats=["html"])
         histories[sid] = [
             {
@@ -163,10 +181,33 @@ def test_arbitrary_summary_does_not_inherit_mixed_real_source_report_quality(api
         monkeypatch.setattr(service.client, "frames", native_frames)
         client.portal.call(service._consume, "fixture")
         detail = client.get(f"/api/research/sessions/{sid}").json()
-        assert detail["research_quality"]["status"] == status, detail["research_quality"]
+        expected_status = status if delivery_available else "incomplete"
+        assert detail["research_quality"]["status"] == expected_status, detail["research_quality"]
         path = service.store.directory(sid) / "outputs/research-report.json"
         raw = path.read_bytes()
         text = raw.decode()
+        artifact = json.loads(raw)["artifacts"][0]
+        delivery = detail["delivery"]
+        assert delivery["task_id"] == contract["task_id"]
+        assert delivery["required_formats"] == ["html"]
+        if delivery_available:
+            assert delivery["status"] == "completed", delivery
+            assert delivery["missing_formats"] == []
+            assert [
+                (item["name"], item["sha256"], item["valid"]) for item in delivery["files"]
+            ] == [(artifact["name"], artifact["sha256"], True)]
+            assert (
+                hashlib.sha256((path.parent / artifact["name"]).read_bytes()).hexdigest()
+                == artifact["sha256"]
+            )
+        else:
+            assert json.loads(raw)["quality"] == "passed"
+            assert delivery["status"] == "verification_failed", delivery
+            assert not any(item.get("valid") for item in delivery["files"])
+            assert (
+                "report_artifact_delivery_unverified:" + artifact["name"]
+                in detail["research_quality"]["issues"]
+            )
         quote = "存在经营不确定性。"
         start = text.index(quote)
         proofs.append(
@@ -182,7 +223,7 @@ def test_arbitrary_summary_does_not_inherit_mixed_real_source_report_quality(api
                 },
             }
         )
-        expected[sid] = (status, contract["sha256"], hashlib.sha256(raw).hexdigest())
+        expected[sid] = (expected_status, contract["sha256"], hashlib.sha256(raw).hexdigest())
     for order in [proofs[:1], proofs, list(reversed(proofs))]:
         value = {
             "schema": "asset-research-workspace/v1",
@@ -222,3 +263,16 @@ def test_arbitrary_summary_does_not_inherit_mixed_real_source_report_quality(api
                 proof["source_contract"],
                 proof["source_report_sha256"],
             ) == expected[proof["source_session_id"]]
+        if not delivery_available:
+            value["summaries"][0]["quality"] = "passed"
+            denied = client.post(
+                f"/api/research/assets/research/import/{oid}",
+                files={
+                    "file": (
+                        "self-certified-summary.json",
+                        json.dumps(value, ensure_ascii=False).encode(),
+                        "application/json",
+                    )
+                },
+            )
+            assert denied.status_code == 422, denied.text
