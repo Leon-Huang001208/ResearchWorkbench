@@ -11084,7 +11084,7 @@ Classes:
 Functions:
 - `fail`
 - `qualify_pack_materials`
-  - Read selected originals again. Currently map the verified BaoStock subset.
+  - Read selected originals again. Map only verified BaoStock prices and owned Host web captures.
 - `seal_pack_inputs`
   - Seal after copying evidence; no hash includes itself or its descriptor.
 - `verify_pack_seal`
@@ -11132,6 +11132,25 @@ Functions:
   - Called only after detail's current-owner and ancestor authority checks.
 
 
+## `app/research_web/scenario_source_versions.py`
+
+Module docstring:
+> Closed Host-web capture projection; neither source identity nor rights are inputs.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `re`
+- `research_web_sources`
+- `scenarios.packs.contracts`
+- `store`
+
+Functions:
+- `project_source_version`
+  - Map the exact saved capture, preserving unknown semantic qualifications.
+
+
 ## `app/research_web/scenarios/__init__.py`
 
 Module docstring:
@@ -11176,6 +11195,30 @@ Functions:
 - `_check_facts`
 - `select_scenario`
   - Prepare a contract only; eligibility is not freeze, send or quality approval.
+
+
+## `app/research_web/scenarios/execution_bindings.py`
+
+Module docstring:
+> Byte-bound routing inventory; never execute a supplier alias or grant rights.
+
+Imports:
+- `__future__`
+- `catalog`
+- `hashlib`
+- `json`
+- `logging`
+- `models`
+- `pathlib`
+
+Functions:
+- `_fail`
+- `read_execution_bindings`
+  - Return a fresh closed inventory bound to the original immutable baseline.
+- `binding_for`
+  - Lookup an exact source ID; free text and guessed aliases are rejected.
+- `validate_supplier_arguments`
+  - Fail closed until a named, tested supplier argument adapter is registered.
 
 
 ## `app/research_web/scenarios/models.py`

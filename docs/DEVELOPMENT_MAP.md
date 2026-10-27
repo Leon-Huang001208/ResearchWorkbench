@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-27 C1/C2：`scenarios/execution_bindings.py`及版本化JSON保存140/284闭合静态执行绑定，原参数未有alias全部拒绝；`scenario_source_versions.py`由`scenario_pack_inputs.py`在真实原件重读后投影已保存Host web capture，未知语义保留缺口。相同原sid/source ID引用复验后去重，不将同hash不同登记合成独立上游。近测试`test_execution_bindings.py`、`test_pack_owned_sources.py`含真实Native两包成功/撤权及原source资格反例；生产JS/旧八合同不改。
+
 2026-10-27 C0：`scenarios/packs/contracts.py:method_version`仅提升deduplicate_source_versions及其两消费包；`pack_resources.py`冻结v2合同路径/hash，`pack_result_contracts.py:frozen_definitions`从私有封印资源读回固定v1/v2合同并核原输入schema，`scenario_pack_execution.py`沿原产物读回使用它。`pack-*-contracts-v1.json`保留633原字节，近测试`test_pack_source_versions.py`含真实633旧冻结writer产物与新unknown角色；其他七包版本、历史relocation及非pack档案保持原门。
 
 B1 验证依赖复核：`pack_dependencies.py`/`pack_import_policy.py` 负责 v3 实际导入身份与 Native 精确导入门；`scenarios/packs/format_profile.py` 为 Host 和冻结核心提供同一私有 date/date-time 校验。`contracts.py` 只改验证接线，`sandbox.py` 仅 pack literal 分支省去普通 report SDK 预载。测试增加 import/format 正反例，旧执行/输出/历史证书门保持。

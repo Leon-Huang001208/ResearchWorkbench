@@ -36,7 +36,7 @@ class QualifiedPackInput:
 
 
 def qualify_pack_materials(service, pack_id, values, references):
-    """Read selected originals again. Currently map the verified BaoStock subset.
+    """Read selected originals again. Map only verified BaoStock prices and owned Host web captures.
 
     Unknown providers/kinds/units/financial dates remain explicit gaps. In particular
     no pagination flag, uploaded JSON field or acquisition clock certifies coverage.
@@ -59,6 +59,7 @@ def qualify_pack_materials(service, pack_id, values, references):
         ):
             fail("pack_scope_invalid")
     records, missing, checked, transforms = {}, [], [], []
+    source_versions_seen = set()
     cutoff = None
     try:
         cutoff = instant(scope.get("cutoff_at"))
@@ -72,6 +73,29 @@ def qualify_pack_materials(service, pack_id, values, references):
             service, reference["source_session_id"], reference["reference"], expected=reference
         )
         checked.append(metadata)
+        if reference["reference"]["type"] == "source" and "source-version" in needed:
+            from .scenario_source_versions import project_source_version
+
+            source_identity = (metadata["source_session_id"], metadata["reference"]["id"])
+            if source_identity in source_versions_seen:
+                transforms.append(
+                    {
+                        "mapping": "owned-source-reference-deduplicate-v1",
+                        "source_session_id": metadata["source_session_id"],
+                        "source_id": metadata["reference"]["id"],
+                        "source_sha256": metadata["sha256"],
+                    }
+                )
+                continue
+            source_versions_seen.add(source_identity)
+            record, transformation, gaps = project_source_version(
+                service, metadata, raw, cutoff, values["as_of"]
+            )
+            missing.extend(gaps)
+            if record is not None:
+                records.setdefault("source-version", []).append(record)
+                transforms.append(transformation)
+            continue
         if reference["reference"]["type"] != "dataset":
             missing.append(
                 {"code": "material_schema_unsupported", "id": reference["reference"]["id"]}

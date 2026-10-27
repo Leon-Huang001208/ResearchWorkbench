@@ -11,6 +11,8 @@ import {apply as applyResearch} from '../../../app/research_web/runtime/research
 import {apply as applyGuard} from '../../../app/research_web/runtime/guard.mjs';
 
 const config = JSON.parse(await readFile(process.argv[2],'utf8'));
+const capabilityIds = new Set(['position-risk','expectation-gap','short-sentiment','research-prep','event-review','global-opinion','valuation-check','ownership-structure','earnings-preview'].map(id=>'research-pack-'+id));
+if (!capabilityIds.has(config.descriptor?.capability_id)) throw new Error('invalid_frozen_pack_capability');
 const source = process.env.RWB_DSH_TEST_SOURCE;
 const require = createRequire(join(source,'packages/core/tools/package.json'));
 const {Context} = await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')));
@@ -47,7 +49,7 @@ try {
   applyResearch(adapter,config);
   applyGuard(adapter,{...config,enabled:true});
   const agent={ctx,session};
-  const loaded=await ctx.tools.execute({name:'skill',callId:'actual-native-load',arguments:{name:'research-pack-event-review'},agent,signal:controller.signal});
+  const loaded=await ctx.tools.execute({name:'skill',callId:'actual-native-load',arguments:{name:config.descriptor.capability_id},agent,signal:controller.signal});
   if(loaded.isError)throw Error('native_skill_load_failed:'+JSON.stringify(loaded));
   const actual=await ctx.tools.execute({name:'research_run_script',callId:'actual-native-pack',arguments:{pack_execution:config.descriptor},agent,signal:controller.signal});
   process.stdout.write(JSON.stringify({kind:'result',loaded,actual})+'\n');

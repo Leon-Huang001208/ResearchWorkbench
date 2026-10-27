@@ -592,7 +592,9 @@
         "app/research_web/ui/asset-minute-k.mjs",
         "app/research_web/scenarios/",
         "app/research_web/scenario_handoffs.py",
-        "app/research_web/asset_research.py"
+        "app/research_web/asset_research.py",
+        "app/research_web/scenario_source_versions.py",
+        "app/research_web/scenario_pack_inputs.py"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -600,7 +602,8 @@
         "docs/architecture/research-web/04-api.md",
         "docs/research-web-scenarios.md",
         "docs/research-web-scenario-handoffs.md",
-        "docs/research-web-asset-research.md"
+        "docs/research-web-asset-research.md",
+        "docs/research-web-research-packs.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -644,7 +647,9 @@
         "tests/e2e/research_web_scenarios_real_backend.mjs",
         "tests/research_web/test_scenario_review_round2.py",
         "tests/javascript/research_web_asset_research.test.mjs",
-        "tests/research_web/test_scenario_final_review.py"
+        "tests/research_web/test_scenario_final_review.py",
+        "tests/research_web/test_execution_bindings.py",
+        "tests/research_web/test_pack_owned_sources.py"
       ]
     },
     {

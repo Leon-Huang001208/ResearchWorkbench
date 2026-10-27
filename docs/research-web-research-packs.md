@@ -318,3 +318,34 @@ resource manifest及file_bindings读回合同，验证closure、引用hash和封
 或供应商，不是线上用户档案。旧v1可按原冻结合同只读检查，新v2须按新合同检查，彼此
 不能互换。旧版本继续执行、跨语义版本迁移/只读等价均未被授权；已有prefix-relocation
 政策和非pack档案门保持。新旧代码内容不同仍返回明确冲突，不伪造等价证书。
+
+## C1/C2：静态绑定与本人原文的后端限定子集
+
+`scenarios/execution-bindings-v1.json`逐项保留原62 Skill、78 Tool、284个原参数，绑定
+固定baseline SHA；`execution_bindings.py`只读、校验闭合字段/固定主路由并按确切ID查询。
+十八个九包关联有固定capability/builder身份，但不能从此表选择路径、模块、URL、Registry
+或版本，也没有注册任何供应商同名alias。全部原参数当前显式unsupported，包括传None；
+空参数仍拒绝未注册alias。参数required原资料不明，保持unknown，不补猜默认值。
+原源与自有native的action、ready、callable、fixture/live_source、runtime、quality分别保存，
+这是无会话的静态合同，动态运行真值仅来自实际Host回执，测试不把任何项升级为当前可调用。
+
+`scenario_source_versions.py`只接受已由resolve_reference重读的本人source类型。当前
+Host web reader明确拒绝超限/失败响应，将完整可读capture保存后才截断模型预览；
+mapper核现行Host记录结构、UTF8/大小、hash/取得instant，full_text_available只表示该
+冻结capture可读，始终保留upstream_completeness_unverified。旧记录、额外完整性声明、
+真实落盘截断无法证明时保留false/缺口；模型返回truncated不表示落盘正文已截断。
+语言/地域/原创角色固定unknown，只有自然日的发表证据保留原件定位并记缺口，不补造
+发表时刻、事件时刻、转载父关系、历史PIT或国内/海外覆盖。未知类型及file别名不投影。
+
+引用经现有workspace_material→版本化asset bundle→原source引用进入prepare，仍须显式
+datahub/uploads/web三类scope；不新增八场景合同或API字段。现workbench只把source raw
+复制到target的page-evidence文件，不注册target.web_evidence、也不替换原reference的sid。
+因此同一原capture通过多个bundle选中时，原sid/web ID在逐ref权限/expected复验后显式
+去重并记转换；同URL同hash、不同原始Host登记保持不同版本和取得时刻，字节分组不能
+证明独立上游。原件更新不得替换旧sealed bytes；冻结、执行前与结果再读均重验原权限。
+
+真实统计局正文fixture来自既有冻结归档，当前测试通过离线fetch替身走实际read_source
+保存，再沿真实Host封印、DSH ToolRuntime/FileSystemSkill/guard、macOS sandbox和独立
+产物读回。它证明有界后端资料链，当前上游live取数、真实模型、供应商等价和报告质量仍
+NOT_RUN。source选择器及来源/结果可见的完整UI仍属C6；C3方法包、C4参数adapter、
+C5真实MCP和T4/T5未被此实现完成。
