@@ -44,3 +44,11 @@
 新runner在启动前登记task／UID／PID／dev／inode，登记Host与Chrome进程；关闭自己持有的browser／child后核精确scratch身份，仅恢复自有临时只读目录的owner写权限，再删除。外部截图／日志／result按逐文件SHA-256读回。旧回归的独立scratch在进程清单确认无占用、46个证据文件hash读回后回收150827705字节；`c6b-regression-b6e18bfe/cleanup.json`与每个source run的cleanup.json保留。旧资源、其他worktree／缓存／Docker／常驻不清理。候选提交由主控按固定SHA独立评审。
 
 ROOT_PENDING：全changed-set Router、API Atlas、七文档／图聚合、独立评审、CI、最终交付与部署由主控维护；本报告不替代这些门。
+
+## SPEC P2修复：失败原因与用户语言
+
+原候选 `96b4593a213faafd99efe304bc7b7ac68a3e481c` 的SPEC指出：not_created已经恢复编辑，但文案仍说结果未确认／只能查询。现使用固定code／status原因与修正建议：403授权、409资料／方法版本变化、410删除／过期、422参数问题。只有精确4xx `not_created` 才显示未创建、保输入和修正后重新预览；无证明始终保原key/body、仅查询。lookup失败同样不使用private服务端文本，404不解锁。原授权／SourceScope／Sender／后台生产Python不变。
+
+原文主区改用金融数据／附件／网页资料、资料校验、资料去重与版本对照；完整SID、来源ID与64位hash保留在折叠校验详情。来源语言／地域／原创角色／时间／上游完整性缺口保持逐项说明，原缺口码仍可在详情核对；partial／blocked不改。其他组合包原预览标题保持，旧八场景与导航／布局没有新增流程。
+
+新增两个JS测试先RED（原因文案、折叠详情缺失），实现后相关32项GREEN；其中四种原因×两种proof状态分别核对preview说明、冻结提示、选择／问题保留、无证明lookup404不解锁和仅一次freeze／零自动重试。新真实Chrome单独run `c6b-specfix-12b9a722` **10 checks PASS**，增加403／409明确未创建与修正建议、真正unknown仅查原请求、主区无内部scope／长hash、展开校验详情读回完整SID／hash；390浅色与1440深色截图已实际查看。最终JS闭包 **1246通过、0失败、0跳过**（10421.28ms），同实际Python／固定DSH环境。原失败run与epoch不覆盖。此次测试Python夹具字节与96候选完全相同，Black／Ruff／isort及旧原4／B2的20＋4旅程按影响复用，不重复执行无关检查。本轮JS临时根额外回收232920字节，来源run自有根同原runner完成归档读回及回收；未触及其他资源。

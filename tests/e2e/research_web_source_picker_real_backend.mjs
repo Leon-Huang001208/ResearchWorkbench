@@ -64,7 +64,7 @@ try {
       const response=page.waitForResponse(r=>r.url().endsWith('/source-selections/preview'));
       await page.getByRole('button',{name:'只读资格预览',exact:true}).click();
       const actual=await response,result=await actual.json();assert.equal(actual.status(),200,JSON.stringify(result));
-      await page.getByRole('heading',{name:'Host 只读资格预览 · partial',exact:true}).waitFor();
+      await page.getByRole('heading',{name:'资料校验预览 · partial',exact:true}).waitFor();
       assert.ok(result.preview_sha256);assert.deepEqual(result.qualification.executable_methods,['deduplicate_source_versions']);
       assert.equal(result.frozen,false);assert.equal(result.send_authorized,false);return result;
     };
@@ -77,6 +77,8 @@ try {
         assert.equal(await page.locator('[name="scenario-source"]:checked').count(),2);
         assert.equal(await page.locator('.pack-source-picker').getByText(/上游完整性未知/).count(),2);
         assert.equal(await page.locator('.pack-source-picker script').count(),0);
+        const materialText=await page.locator('.pack-source-picker').innerText();assert.doesNotMatch(materialText,/datahub|uploads|Host|[a-f0-9]{64}/);assert.ok(!materialText.includes(fixture.sessions[0]));
+        const audit=page.locator('.pack-source-item details').first();await audit.locator('summary').click();assert.ok((await audit.innerText()).includes(fixture.sessions[0]));assert.match(await audit.innerText(),/[a-f0-9]{64}/);await audit.locator('summary').click();
         await page.locator('#scenario-question').fill('Synthetic 长问题与中文粘贴<安全>'.repeat(400).slice(0,6000));
         assert.equal((await page.locator('#scenario-question').inputValue()).length,6000);
         await page.locator('#scenario-question').focus();await page.keyboard.press('Home');await page.keyboard.type('IME');
@@ -124,6 +126,8 @@ try {
     await page.waitForFunction(()=>!document.querySelector('#scenario-question').disabled);
     assert.equal(await page.locator('#scenario-identity').inputValue(),`来源权限验收-${width}`);
     assert.equal(await page.getByRole('button',{name:'查询原请求',exact:true}).count(),0);
+    assert.match(await page.locator('.scenario-panel [role=alert]').first().innerText(),/来源授权.*未创建研究草稿.*恢复.*授权/);
+    assert.doesNotMatch(await page.locator('.scenario-panel [role=alert]').first().innerText(),/创建结果尚未确认/);
     await context.request.post(origin+'/__fixture/source-picker/restore');await preview();
     const rejectedFreezeCount=freezeRequests;
     // Lost freeze response after the real server created a draft: only original lookup may proceed.
@@ -151,12 +155,13 @@ try {
   await unknownPage.locator('#scenario-scenario').selectOption('pack-research-prep');await unknownPage.locator('#scenario-kind').selectOption('topic');await unknownPage.locator('#scenario-identity').fill('Synthetic 真正未知创建');
   await unknownPage.locator('#scenario-as_of').fill(unknownFixture.as_of);await unknownPage.locator('#scenario-cutoff_at').fill(unknownFixture.as_of+'T23:59:59+08:00');await unknownPage.locator('#scenario-question').fill('Synthetic 原请求只查询，不重发');
   await unknownPage.locator('#scenario-material-mode').selectOption('sources');await unknownPage.locator('#scenario-source-browse').selectOption(unknownFixture.sessions[0]);await unknownPage.locator('[name="scenario-source"]').check();
-  await unknownPage.getByRole('button',{name:'只读资格预览',exact:true}).click();await unknownPage.getByRole('heading',{name:'Host 只读资格预览 · partial',exact:true}).waitFor();
+  await unknownPage.getByRole('button',{name:'只读资格预览',exact:true}).click();await unknownPage.getByRole('heading',{name:'资料校验预览 · partial',exact:true}).waitFor();
   const creationBefore=await (await unknownContext.request.get(origin+'/__fixture/source-picker/creation-state')).json();
   await unknownContext.request.post(origin+'/__fixture/source-picker/unknown-next');
   const unknownReply=unknownPage.waitForResponse(r=>r.url().endsWith('/source-selections/freeze'));
   await unknownPage.getByRole('button',{name:'明确准备研究草稿',exact:true}).click();const unknownResponse=await unknownReply,unknownError=await unknownResponse.json();
   assert.ok(unknownResponse.status()>=400,JSON.stringify(unknownError));assert.equal(unknownError.error.handoff_outcome,undefined);
+  await unknownPage.getByRole('button',{name:'查询原请求',exact:true}).waitFor();assert.match(await unknownPage.locator('.scenario-panel [role=alert]').first().innerText(),/创建结果尚未确认.*仅查询原请求/);assert.doesNotMatch(await unknownPage.locator('.scenario-panel [role=alert]').first().innerText(),/未创建研究草稿/);
   const unknownLookup=unknownPage.waitForResponse(r=>r.url().includes('/handoff-requests/'));
   await unknownPage.getByRole('button',{name:'查询原请求',exact:true}).click();assert.equal((await (await unknownLookup).json()).state,'creation_outcome_unknown');
   await unknownPage.getByText('创建结果尚未确认；不自动重复创建',{exact:true}).waitFor();
@@ -174,13 +179,14 @@ try {
   await page.locator('#scenario-scenario').selectOption('pack-research-prep');await page.locator('#scenario-kind').selectOption('topic');await page.locator('#scenario-identity').fill('Synthetic 409输入保留');
   await page.locator('#scenario-as_of').fill(fixture.as_of);await page.locator('#scenario-cutoff_at').fill(fixture.as_of+'T23:59:59+08:00');await page.locator('#scenario-question').fill('Synthetic 来源变化后保留此问题');
   await page.locator('#scenario-material-mode').selectOption('sources');await page.locator('#scenario-source-browse').selectOption(fixture.sessions[0]);await page.locator('[name="scenario-source"]').check();
-  await page.getByRole('button',{name:'只读资格预览',exact:true}).click();await page.getByRole('heading',{name:'Host 只读资格预览 · partial',exact:true}).waitFor();
+  await page.getByRole('button',{name:'只读资格预览',exact:true}).click();await page.getByRole('heading',{name:'资料校验预览 · partial',exact:true}).waitFor();
   await context.request.post(origin+'/__fixture/source-picker/change');
   const freeze=page.waitForResponse(r=>r.url().endsWith('/source-selections/freeze'));
   await page.getByRole('button',{name:'明确准备研究草稿',exact:true}).click();const rejected=await freeze;assert.equal(rejected.status(),409);assert.equal((await rejected.json()).error.handoff_outcome,'not_created');
   await page.waitForFunction(()=>!document.querySelector('#scenario-question').disabled);
   assert.equal(await page.locator('#scenario-question').inputValue(),'Synthetic 来源变化后保留此问题');assert.equal(await page.locator('[name="scenario-source"]:checked').count(),1);
   assert.equal(await page.getByRole('button',{name:'查询原请求',exact:true}).count(),0);assert.equal(await page.locator('[data-scenario-freeze]').isDisabled(),true);
+  assert.match(await page.locator('.scenario-panel [role=alert]').first().innerText(),/资料或方法版本已变化.*未创建研究草稿.*重新选择.*来源/);assert.doesNotMatch(await page.locator('.scenario-panel [role=alert]').first().innerText(),/创建结果尚未确认/);
   await context.request.post(origin+'/__fixture/source-picker/delete-empty');await page.locator('#scenario-source-browse').selectOption(fixture.empty);
   await page.locator('.pack-source-picker [role=alert]').filter({hasText:'已删除或永久清理'}).waitFor();
   checks.push({status409:true,notCreatedProof:true,inputsPreserved:true,status410:true});await context.close();

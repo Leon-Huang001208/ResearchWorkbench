@@ -63,3 +63,23 @@ test('removed selected source remains visible as unavailable and may be explicit
   const html=renderScenarioPanel(c.state);assert.match(html,/source_missing/);assert.doesNotMatch(html,/value="first:same-id" checked disabled/);
   c.edit('source_ids',[]);assert.deepEqual(c.state.source_ids,[]);
 });
+test('four safe failure reasons distinguish preview, proven no-create and unknown without any retry',async()=>{
+  for(const [status,code,reason,correction] of [[403,'source_selection_scope_revoked',/来源授权/,/恢复.*授权/],[409,'research_source_capture_changed',/资料或方法版本已变化/,/重新选择.*来源/],[410,'session_deleted',/已删除或过期/,/重新选择.*来源/],[422,'scenario_inputs_invalid',/研究参数/,/修改参数/]]) {
+    for(const proof of [undefined,'not_created']) {
+      let freezes=0;
+      const error=()=>Object.assign(Error('PRIVATE path /control/secret'),{status,code,handoffOutcome:proof});
+      const {c}=fixture({sourceSelectionFreeze:async()=>{freezes++;throw error();},handoffRequest:async()=>{throw Object.assign(Error('PRIVATE lookup'),{status:404});}});
+      await c.open(context);c.edit('material_mode','sources');await c.selectSourceSession('first');c.edit('source_ids',['first:same-id']);c.edit('cutoff_at','2026-10-28T23:59:59+08:00');await c.preview();await c.prepare();
+      assert.match(c.state.error,reason);assert.doesNotMatch(c.state.error,/PRIVATE|control\/secret/);assert.equal(c.state.inputs.question,'保留问题');assert.deepEqual(c.state.source_ids,['first:same-id']);
+      if(proof){assert.equal(c.state.request,null);assert.equal(c.state.preview,null);assert.match(c.state.error,/未创建研究草稿/);assert.match(c.state.error,correction);assert.doesNotMatch(c.state.error,/只能查询|结果.*未确认/);}
+      else {const saved=structuredClone(c.state.request);assert.match(c.state.error,/仅查询原请求/);assert.doesNotMatch(c.state.error,/未创建研究草稿/);await c.lookup();assert.deepEqual(c.state.request,saved);assert.match(c.state.error,/仅查询原请求/);assert.doesNotMatch(c.state.error,/PRIVATE/);}
+      await c.prepare();assert.equal(freezes,1);
+      const failed=fixture({sourceSelectionPreview:async()=>{throw error();}}).c;await failed.open(context);failed.edit('material_mode','sources');await failed.selectSourceSession('first');failed.edit('source_ids',['first:same-id']);failed.edit('cutoff_at','2026-10-28T23:59:59+08:00');await failed.preview();assert.match(failed.state.error,reason);assert.match(failed.state.error,correction);assert.equal(failed.state.request,null);assert.doesNotMatch(failed.state.error,/PRIVATE/);
+    }
+  }
+});
+test('source material language keeps identifiers in collapsed audit details',async()=>{
+  const {c}=fixture();await c.open(context);c.edit('material_mode','sources');await c.selectSourceSession('first');c.edit('source_ids',['first:same-id']);c.edit('cutoff_at','2026-10-28T23:59:59+08:00');await c.preview();
+  const html=renderScenarioPanel(c.state);assert.match(html,/金融数据.*附件.*网页资料/);assert.match(html,/<details><summary>校验详情<\/summary>/);assert.match(html,/资料校验预览/);assert.match(html,/资料去重与版本对照/);
+  assert.doesNotMatch(html.replace(/<details>[\s\S]*?<\/details>/g,''),/datahub／uploads／web|Host 捕获|deduplicate_source_versions。/);
+});

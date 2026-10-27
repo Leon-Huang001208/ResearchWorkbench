@@ -37,6 +37,8 @@ Host `pack_catalog.ui_methods` 是从固定方法合同派生的只读表单投�
 
 403／409等错误只有携带后端锁内 `handoff_outcome=not_created` 证明才恢复编辑并清除旧预览，保留来源选择与其他输入。真正 Native 创建未知、文件发布未知、丢失响应或无证明错误保留完整原 key/body，刷新后仍只查原 `/handoff-requests/{key}`，不自动重发、换key或显示已冻结。
 
+错误提示按固定公开错误码／HTTP状态说明授权不可用、来源／版本变化、删除／过期或参数问题，不显示原服务端文本。只读预览直接给出修正建议并保留输入；冻结仅在精确未创建证明下显示“未创建研究草稿”和相应修正／重新预览建议。无证明时即使403／409／410／422也只说明安全原因并要求查询原请求，lookup404不解锁。列表主区使用金融数据／附件／网页资料、资料校验和资料去重与版本对照等用户语言；完整会话／来源标识、64位hash和原缺口码保留在折叠校验详情。partial／blocked与未知限制保持，不把资料校验写成研究通过。
+
 新验收入口为 `tests/javascript/research_web_source_picker.test.mjs` 与 `tests/e2e/research_web_source_picker_real_backend.mjs`；后者通过明确合成账号、真实Host、stdlib HTTPResponse同进程捕获和自有Chrome验证两宽度、深浅主题、三主体、跨会话、预览零创建、403／409／410、真正server unknown和丢响应lookup及原Send。所有材料为冻结fixture，不操作用户Chrome或真实账号；真实模型、生产服务、全62／78项、CI和跨平台继续独立验收。
 
 ## 计算回执、文件与质量

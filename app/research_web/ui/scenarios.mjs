@@ -5,6 +5,19 @@ import { packScope, packQualification, packInputEdit, sourcePicker, sourcePack, 
 const stateLabel = value => ({ incomplete:'证据不完整', ready_for_draft:'可准备草稿', unverified:'待核验', unavailable:'暂不可用', ready:'具备准入条件', prepared:'已准备草稿', context_unavailable:'来源暂不可读取，请恢复授权后查询', creation_outcome_unknown:'创建结果尚未确认' })[value] || '待核验';
 const artifactLabel = value => ({ 'source-linked-research-draft':'带来源的研究草稿', 'coverage-and-missing-evidence-ledger':'覆盖与缺口台账' })[value] || value;
 
+// Only closed, public reason categories are displayed; server text may contain
+// private details. Reasons never authorize a retry or change request ownership.
+function failureReason(error) {
+  const codes = {source_selection_scope_revoked:403,source_scope_denied:403,research_source_capture_changed:409,source_selection_preview_changed:409,source_selection_source_changed:409,session_deleted:410,scenario_inputs_invalid:422,source_selection_request_invalid:422};
+  return ({
+    403:['原会话的来源授权当前不可用。','请恢复原会话的来源授权后重新预览。'],
+    409:['所选资料或方法版本已变化。','请重新选择可用的已保存来源并重新预览。'],
+    410:['来源已删除或过期。','请重新选择仍可用的已保存来源并重新预览。'],
+    422:['研究参数不符合要求。','请修改参数后重新预览。'],
+    404:['来源或请求记录当前不可读取。','请核对并重新选择可用的已保存来源。'],
+  })[Object.hasOwn(codes,error.code) ? codes[error.code] : error.status] || ['资料校验或服务响应未确认。','请核对来源与参数后重新预览。'];
+}
+
 export function scenarioLaunchContext({ assetPage, route, observation, observations = [], detail, draft, researchAsOf }, data) {
   if ('workbenchHandoff' in data && !assetPage) return null;
   const matched = assetPage && selectAssetObservation(observations.length ? observations : observation ? [observation] : [], route);
@@ -115,7 +128,7 @@ export function createScenarioController({ api, changed = () => {}, onOpen, make
     const sources = state.source_ids.map(key=>state.sourceItems.find(item=>sourceKey(item) === key));
     if (state.sourceError || sources.some(item=>!item?.selectable)) throw Object.assign(new Error('所选来源当前不可读取；选择与输入已保留，请重新读取原会话。'),{sourceInput:true});
     const sid = sources[0].source_session_id;
-    if (!['datahub','uploads','web'].every(scope=>(state.sourceScopes[sid] || []).includes(scope))) throw Object.assign(new Error('首份所选原文的会话须已有数据快照、上传与网页三项范围授权；请在原会话确认，界面不会自动开启。'),{sourceInput:true});
+    if (!['datahub','uploads','web'].every(scope=>(state.sourceScopes[sid] || []).includes(scope))) throw Object.assign(new Error('首份所选原文的会话须已有金融数据、附件与网页资料三项权限；请在原会话确认，界面不会自动开启。'),{sourceInput:true});
     inputs.material_ids = [];
     const handoff = {...requestBody(inputs), source_session_id:sid, source_scope:state.sourceScopes[sid]};
     return {handoff,sources:sources.map(({source_session_id,id,sha256})=>({source_session_id,id,sha256}))};
@@ -177,7 +190,7 @@ export function createScenarioController({ api, changed = () => {}, onOpen, make
       const result = sourceMode() ? await api.sourceSelectionPreview(sourceBody(inputs)) : await api.scenarioPrepare(row.id, requestBody(inputs));
       if (current(ticket) && revision === inputRevision) { state.preview = sourceMode() ? {...result,pack_qualification:result.qualification} : result; state.stale = false; }
     } catch (error) {
-      if (current(ticket) && revision === inputRevision) state.error = error.sourceInput ? error.message : '资格预览未通过，请检查来源权限、材料原件、参数与方法版本后重试。';
+      if (current(ticket) && revision === inputRevision) state.error = error.sourceInput ? error.message : `${failureReason(error).join('')} 输入与选择已保留；只读预览未创建研究草稿。`;
       logger('scenario_pack_preview_failed', {code:error.code || 'request_failed'});
     } finally { if (current(ticket)) { state.previewing = false; changed(); } }
   }
@@ -196,10 +209,12 @@ export function createScenarioController({ api, changed = () => {}, onOpen, make
     state.request = { key: makeID(), body }; persist(); state.busy = true; changed();
     try { const result = sourceMode() ? await api.sourceSelectionFreeze(body, state.request.key) : await api.handoff(body, state.request.key); if (account() === owner) state.result = result; }
     catch (error) {
-      state.error = selected.pack_id ? '组合包准备未确认；请核对来源授权、原件与方法版本。结果未知时只能查询原请求。' : error.message || '冻结结果未知，请查询原请求';
       // Only a server proof made under the creation lock permits correction.
       // Error codes (including 404) alone say nothing about a prior intent.
-      if (error.handoffOutcome === 'not_created' && error.status >= 400 && error.status < 500) { state.request = null; state.preview = null; state.stale = true; }
+      const notCreated = error.handoffOutcome === 'not_created' && error.status >= 400 && error.status < 500;
+      const [reason, correction] = failureReason(error);
+      state.error = notCreated ? `${reason}未创建研究草稿，输入与选择已保留。${correction}` : `${reason}创建结果尚未确认，输入与原请求已保留；请仅查询原请求，不会自动重新提交。`;
+      if (notCreated) { state.request = null; state.preview = null; state.stale = true; }
       logger('scenario_prepare_failed', { code: error.code || 'request_failed' });
     } finally { state.busy = false; persist(); changed(); }
   }
@@ -207,7 +222,7 @@ export function createScenarioController({ api, changed = () => {}, onOpen, make
     if (!state.request || state.busy || account() !== owner) return;
     state.busy = true; changed();
     try { const result = await api.handoffRequest(state.request.key); if (account() === owner) state.result = result; state.error = ''; }
-    catch (error) { state.error = error.message || '原请求回执暂不可用'; logger('scenario_receipt_failed', { code: error.code || 'request_failed' }); }
+    catch (error) { state.error = `${failureReason(error)[0]}创建结果尚未确认，原请求已保留；请仅查询原请求，不会自动重新提交。`; logger('scenario_receipt_failed', { code: error.code || 'request_failed' }); }
     finally { state.busy = false; persist(); changed(); }
   }
   async function handle(event) {
