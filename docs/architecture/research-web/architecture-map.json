@@ -596,7 +596,9 @@
         "app/research_web/ui/asset-minute-k.mjs",
         "app/research_web/scenarios/",
         "app/research_web/scenario_handoffs.py",
-        "app/research_web/asset_research.py"
+        "app/research_web/asset_research.py",
+        "app/research_web/watchlist_import.py",
+        "app/research_web/ui/watchlist-import.mjs"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -604,7 +606,8 @@
         "docs/architecture/research-web/04-api.md",
         "docs/research-web-scenarios.md",
         "docs/research-web-scenario-handoffs.md",
-        "docs/research-web-asset-research.md"
+        "docs/research-web-asset-research.md",
+        "docs/research-web-watchlist-import.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -648,7 +651,15 @@
         "tests/e2e/research_web_scenarios_real_backend.mjs",
         "tests/research_web/test_scenario_review_round2.py",
         "tests/javascript/research_web_asset_research.test.mjs",
-        "tests/research_web/test_scenario_final_review.py"
+        "tests/research_web/test_scenario_final_review.py",
+        "tests/research_web/test_watchlist_import.py",
+        "tests/javascript/research_web_watchlist_import.test.mjs",
+        "tests/e2e/research_web_watchlist_import.mjs",
+        "tests/e2e/watchlist_import_host.py",
+        "tests/e2e/research_web_watchlist_import_lists.mjs",
+        "tests/e2e/watchlist-loopback.sb",
+        "tests/e2e/watchlist_network_probe.py",
+        "tests/e2e/research_web_watchlist_proxy.mjs"
       ]
     },
     {
@@ -5353,13 +5364,27 @@
       "source": "app/research_web/workbench.py",
       "declaredPath": "/scenarios",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/watchlists/{watchlist_id}/imports/preview",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/watchlists/{watchlist_id}/imports/preview",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/watchlists/{watchlist_id}/imports/{import_id}/confirm",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/watchlists/{watchlist_id}/imports/{import_id}/confirm",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "69b9ffa04b48e54aff0de487c441a25a781f91eb"
+      "revision": "6e85dc96e6e8b15352f31f2b920b915611ef606b"
     },
     "levels": [
       {

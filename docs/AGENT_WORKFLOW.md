@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+自选CSV有限slice在原Research Web Checks Python步骤追加test_watchlist_import.py，Node仍走原glob；Mac Bootstrap原静态清单加入watchlist-import.mjs及后端import，不新增job/runner/timeout/依赖。单Host线程屏障需真实Store.files/save的RED→GREEN与回滚保全；跨Host/断电不认证。完整Router/独评/同候选Mac安装及远端由任务回执另证，详见[合同](research-web-watchlist-import.md)。
+
 报告生产UI先在独立worktree绑定真实GET元数据的隔离预览，禁止该预览连接Native/供应商/Office/模型或提交生产；前端回归按完整changed-set Router与原三CI/同候选Mac安装完成。与旧b800恢复独立，unknown不补空闲，源码通过不替代常驻切换或Word/下载验收。
 
 研究场景首批在Mac隔离工作树完成源码／真实临时Host及Chrome旅程；全changed-set Router仍L4，所有平台总门保留。使用项目固定Node24.19及明确可执行的`RWB_TEST_PYTHON`复用已有测试环境，环境缺失不能伪造安装或跳过测试。五类目标／源权限／原件／未知创建／质量绑定与旧入口反例需先失败再修复；源码、原通用CI、同候选Mac安装及常驻登录页／真实模型单列，Windows/Linux按本章平台交接，不从本机dispatch。模块文档、README复核和每组结构决定必须随全变更集更新，不调整约束来隐藏遗漏。
@@ -542,3 +544,5 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 `iteration_resources.regenerated_directory` 对可信源码重新编译后，通过当前解释器与 `py_compile` 相同的标准库编码器生成预期 payload，继续逐字节比较。CPython 3.14 的函数局部借用引用使单纯更换编码器仍可能产生不同 marshal 引用标记；编码期间显式以 tuple 保持可信 code 的额外引用，匹配实测真实 py_compile 编码。Mac 隔离3.14.6的24组合（简单/嵌套、timestamp/hash、opt0/1/2、cold/warm）显示额外引用前全部字节不同、全部code字段相同，额外引用后全部字节相等；模块顶层实验不能替代函数域复现，不泛化认证未测解释器。编码器缺失时记录错误并拒绝回收，不解析或执行待回收缓存。源码跟踪、路径/身份、头部时效、大小、未知文件、最终清单及清理前复查保持原门；真实 `py_compile` 正例、异源 payload、尾随数据和竞态负例在近处测试覆盖。本机解释器证据与 Ubuntu 系统 Python 的 CI 结果分别记录，未实测解释器版本不得从 runner 镜像推定为已验证。
 
 资产区间统计的数学与DOM控制器先分别RED/GREEN及独立spec/JS评审，再用CUA支持的真实鼠标输入与冻结快照验证。Mac Bootstrap既有静态资源步骤只补两份本地mjs字节核对，原完整JS通配符、仓库门及同候选Mac安装不减；登录实页和运行未知安全门另证，不触发模型或分时供应商。
+
+真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。
