@@ -154,3 +154,40 @@ def test_native_control_admission_freezes_route_and_deduplicates_provider_step(a
     assert duplicate.status_code == 409
     assert len(ledger(service).read(sid)["model_requests"]) == 1
     assert sum(name == "session.prompt" for name, _ in native.calls) == 1
+
+
+def test_ordinary_passed_report_still_requires_bound_delivery(api, monkeypatch):
+    from app.research_web import service as service_module
+
+    client, _, service = api
+    response = client.post("/api/research/sessions", json={"research_mode": "quick"})
+    sid = response.json()["id"]
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        headers={"Idempotency-Key": "ordinary-bound-regression"},
+        json={"text": "核查证据", "expected_formats": []},
+    )
+    assert response.status_code == 202, response.text
+    service.events[sid] = {
+        0: {
+            "event": {
+                "seq": 0,
+                "type": "turn/end",
+                "data": {"turn": 1, "reason": {"kind": "completed"}},
+            }
+        }
+    }
+    service.loaded.add(sid)
+    service.running[sid] = False
+    monkeypatch.setattr(
+        service_module,
+        "quality_result",
+        lambda *a, **kw: {"status": "passed", "issues": [], "report": None},
+    )
+    monkeypatch.setattr(service_module, "quality_versions", lambda *a: [])
+    monkeypatch.setattr(service_module, "report_delivery", lambda *a: {"status": "unbound"})
+    detail = client.get(f"/api/research/sessions/{sid}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["research_quality"]["status"] == "passed"
+    assert detail.json()["status"] == "completed"
+    assert detail.json()["research_accepted"] is False

@@ -2696,7 +2696,9 @@ class ResearchService(ModelProfilesMixin):
         await specialist_service.reconcile(self, sid)
         if result.get("research_quality"):
             result["research_accepted"] = (
-                result["research_quality"]["status"] == "passed" and result["status"] == "completed"
+                result["research_quality"]["status"] == "passed"
+                and result["status"] == "completed"
+                and result.get("research_report_delivery", {}).get("status") == "bound"
             )
         specialist_service.project_detail(self, sid, result)
         return result

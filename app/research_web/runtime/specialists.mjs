@@ -37,8 +37,8 @@ export async function specialistControl(ctx, exec, config, operation, payload, n
 
 /** Model text is a candidate result; the Host independently verifies cited evidence. */
 export function parseSpecialistResult(blocks) {
-  if (!Array.isArray(blocks) || !blocks.length || blocks.some(block => block?.type !== 'text' || typeof block.text !== 'string')) throw Error('specialist_result_invalid');
-  const text = blocks.map(block => block.text).join('\n');
+  if (!Array.isArray(blocks) || !blocks.length || blocks.some(block => !['text', 'reasoning'].includes(block?.type) || (block.type === 'text' && typeof block.text !== 'string'))) throw Error('specialist_result_invalid');
+  const text = blocks.filter(block => block.type === 'text').map(block => block.text).join('\n');
   if (Buffer.byteLength(text) > 262144) throw Error('specialist_result_limit');
   let value;
   try { value = JSON.parse(text); } catch { throw Error('specialist_result_invalid'); }

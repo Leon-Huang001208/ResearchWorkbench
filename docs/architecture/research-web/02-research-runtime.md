@@ -791,3 +791,16 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+
+## 专业协作接入边界（2026-10-28）
+
+新增四个专业协作HTTP入口与私有账号账本，Host校验DAG和预算；现有Host→私有桥→唯一DSH结构保持，新增接口在API清单及Atlas逐项登记。
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+既有研究preset增加受控插件，继续使用原生continuable子会话和settlement；不改固定DSH、不创建进程或第二loop，原Native/Docker双进程边界保持。
+
+固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

@@ -217,3 +217,9 @@ test('registered specialist schemas conform to the fixed native DSH tool validat
   assert.deepEqual(validateJsonSchemaValue(h.tools.get('specialist_run').parameters, { node_id: 'industry', expected_version: 1 }), []);
   assert.ok(validateJsonSchemaValue(h.tools.get('specialist_run').parameters, { node_id: 'industry', expected_version: 1, child_id: 'forged' }).length);
 });
+
+test('native thinking blocks do not invalidate a strict visible JSON result', () => {
+  assert.deepEqual(parseSpecialistResult([{ type: 'reasoning', text: 'private native reasoning' }, { type: 'text', text: JSON.stringify(result) }]), result);
+  assert.throws(() => parseSpecialistResult([{ type: 'reasoning', text: JSON.stringify(result) }]), /invalid/);
+  assert.throws(() => parseSpecialistResult([{ type: 'tool-call', name: 'unsafe' }, { type: 'text', text: JSON.stringify(result) }]), /invalid/);
+});

@@ -183,7 +183,8 @@
         "app/research_web/warehouse_diagnostics.py",
         "app/research_web/market_analysis.py",
         "app/research_web/market_portfolio.py",
-        "app/research_web/market_indices.py"
+        "app/research_web/market_indices.py",
+        "app/research_web/specialists/"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -5353,13 +5354,41 @@
       "source": "app/research_web/workbench.py",
       "declaredPath": "/scenarios",
       "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/specialists",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/specialists",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/sessions/{sid}/specialist",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/sessions/{sid}/specialist",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{sid}/specialist/resume",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/sessions/{sid}/specialist/resume",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/specialist-control",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/internal/data/specialist-control",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "69b9ffa04b48e54aff0de487c441a25a781f91eb"
+      "revision": "b7a8c4589314b954e7d08139717d5386424d2f60"
     },
     "levels": [
       {

@@ -922,3 +922,16 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
 区间统计只读取当前账号已载入的同版本日线，日期选区与浮窗位置保存在页面生命周期中；不产生数据集、修改旧manifest或持久化原始行情。区间内部扫描、字段缺值与单位证据分别校验，缺证不回填，原DataHub与冻结文件边界保持。
+
+
+## 专业协作接入边界（2026-10-28）
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+专项质量门在原quality_result之后保留否决；新增账本位于账号私有根而非outputs，报告正文、导出版本和规范文件仍归原交付链。
+
+固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
