@@ -36,3 +36,5 @@ Node沿真实createAPI→controller→sameAsset activateView链先RED：首建�
 新增“首建metadata在File读取中到达”的真实失败回归（watchlist-spec-file-metadata-red.log），File读取独立于预览目标版本并通知当前mount后GREEN。真实浏览器首建旅程刻意延迟原已授权File.arrayBuffer，到A选项出现后释放原字节，再预览确认；不替换业务API。既有目标与File保持，显式换B后重冻规则不变。最终Node聚焦88项通过；新受限进程8旅程和边界负例分别如上，不挪用d246的旧Host零外网claim。Python产品源文件未改；本轮仅测试fixture/probe及JS，原74不同Python结果属于d246 epoch，不伪称已对新完整候选重跑。Black/isort/Ruff两fixture文件、架构/Atlas/Constraints/文档治理/diff-check最终结果在提交前记录。SPEC复核尚待，不进入quality/发布。
 
 最终本地闭包补充：Node88项通过（含首建metadata/File并发RED→GREEN），受Seatbelt真实Host的原5+新3旅程均以当前代码hash绑定通过；两份kernel-bound result共享12个源文件hash，独立运行器各自第13个hash。边界汇总logs/watchlist-spec-network-boundary.json SHA256 e17981ab80623a7254eb35b7e024e169d9c0c38ffffa61417d7db94b81f2961e；负例和旧epoch外网纠正不计入正常旅程的0尝试。Black/isort/Ruff两测试Python文件、架构/Atlas/Constraints/文档治理和diff-check通过；新增完整empty snapshot后截图无模型目录或研究资料API异常。原74不同Python结果仍属于d246且其产品Python字节未改，本轮不重复认证为新完整候选。未开始独立quality/发布，等待原SPEC复核。
+
+源码检查点 `55acc67a5d26b54f5cac69c1cd64e5221621fd6a` 已本地提交；两份新kernel-bound结果的13源文件hash逐一与该Git blob对齐通过。后续只固定源码阅读pin，不改产品或测试字节，不将源码提交当SPEC批准。
