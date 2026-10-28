@@ -26,3 +26,6 @@ The existing CI Python module gains two cases, with two seconds reserved in the
 existing step. No dependency, runner, job, timeout, product permission, native
 readiness assertion or actual service is changed. Full candidate verification
 remains pending. This is unit-model evidence, not real resident or Native evidence.
+
+Reviewed fixture source checkpoint: `45fdd4fbcc6e7fb07b390f983b6011c069bf75f1`. Architecture links bind this
+checkpoint; its complete product app tree is identical to the prior f034 candidate.
