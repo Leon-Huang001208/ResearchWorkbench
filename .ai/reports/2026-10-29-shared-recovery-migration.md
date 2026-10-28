@@ -14,7 +14,7 @@
 - 旧锁备份：~/.codex/backups/rwb-repository-lock-recovery-20261028/5670ffa2a15c4762a6c91406cb825647。对应结果及恢复证据在logs/recovery-unblock/old-lock-retirement-result.json。
 - 原控制器缺master回执，是因为PR244的真实ci_passed回执及PASS评审在独立checkout .codex/checkouts/report-production-workspace-20261027，原controller只查旧common。已用真实PR、merge/head、三CI最新run/checkout/tree和完整日志重新资格认证，不伪造PASS。
 - 新主仓库已完成上述原件的跨common登记，journal为verified。复制原始delivery/review字节与摘要，冲突不覆盖。尚未宣称原controller已使用新common。
-- 已盘点全部165条worktree注册，元数据复原后139项工作状态可读、16项READ_TIMEOUT、8项missing_or_alias、2项缺gitdir；全部仍protected，clean不等于可删。分支refs已可读；旧primary工作区状态仍READ_TIMEOUT，正式backup尝试返回COMMAND_FAILED。旧库尚未完成字节保全，不可切走或清理。
+- 已盘点全部165条worktree注册，首次元数据复原后139项工作状态可读、16项READ_TIMEOUT、8项missing_or_alias、2项缺gitdir；全部仍protected，clean不等于可删。旧primary最初READ_TIMEOUT、backup返回COMMAND_FAILED；下述现场保全进展已替代primary的旧状态，其他工作树未提交字节仍未因此认证。
 
 ## 代码与测试
 
@@ -55,3 +55,13 @@
 实际原件已在旧common与新主仓库分别登记为verified，来源与摘要保留；旧不可变controller未更新，仍可能因旧日志读取器报错，现场Wind状态仍未知。新主库尚未作为Codex项目或常驻source_common启用。
 
 最终独评再次拦住delivery_transfer共享reader尚未添加O_NONBLOCK；真实FIFO子进程先复现3秒超时，补齐非阻塞普通文件拒绝后226项通过（5.33秒）。原失败保留fifo-red.log。之前225项及汇总仅归属当时提交，不声明是最终发布验收。Atlas同时登记index和api-atlas两个生成物，不能遗漏后者形成脏候选。
+
+## 现场保全进展（2026-10-29）
+
+针对最初4299个离线tracked文件约143MB，先申请下载；发现低空间下再次回收后，使用Finder对核对容量的源码目录以及HEAD/index/config/packed-refs设置保留下载。最终6179个tracked文件全部本地化，status实测0.79秒完成；75条工作状态记录不发布。旧primary HEAD/master为bb40c791，和GitHub主线分别记录，不覆盖该现场。
+
+正式Git安全入口成功生成v2恢复点 `~/.codex/backups/rwb-git-safety/8a3c7d7f-1e89-4dfa-93d5-97b6c82e597c`：restoreVerified=true、fsck=PASS，222个引用、6179个tracked、75个untracked及分开的index/staged/unstaged均实际恢复校验。Git报告的164个worktree含primary，不包含两个HEAD/gitdir均缺失的注册。补充控制元数据归档在 `~/.codex/backups/rwb-source-migration/c874c9bc95d2402e8449cce5b9f5b802`，持相同managed锁、双次源清单比对和实际临时恢复，覆盖2111项及全部165条注册；archive sha256 430790009b0ff8c94fa25b838a937334e2e1e2ac539c17191f35e5e149fcbb08。它不认证其他worktree的工作副本内容，两个损坏注册继续保护。
+
+只对本任务已完成的五个pytest根做归档、实际恢复/哈希复核及占用重查后退休10843项，逻辑字节3531598388；117项外部符号链接/特殊测试夹具保留，备份在 `~/.codex/backups/rwb-shared-maintenance-tests-20261029`。剩余磁盘约8.8GiB，是当时观测，不保证未来容量。未删除其他任务、服务或业务数据。
+
+初候选e24420b6的Mac安装与Constraints已通过，实际checkout33a34112547165502932812fde30fb203e0a7e79的父提交和tree已本地核实。CI期间PR247合入使主线前进至07220cd2，必须刷新基线并给新候选重新绑定评审/全changed-set Router/原三CI；不得把旧候选通过提升给新候选。旧常驻仍b800e503/active=null，未切换服务或source_common；受控恢复执行器缺口保持。
