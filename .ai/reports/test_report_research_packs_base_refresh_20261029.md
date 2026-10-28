@@ -21,3 +21,7 @@ check and `git diff --check` passed. The failed attempts remain in the control w
 Full changed-set Router, local acceptance, Native7, independent review and candidate CI
 remain pending. This merge is not evidence of report quality, actual model/provider calls,
 resident deployment or Windows/Linux product acceptance. No dependency was installed.
+
+The subsequent reviewed source/Store publication fix is frozen at `db9075a64bbffed9dd06694956b2246ad860bf5f`.
+Architecture reading links now bind that source checkpoint, including both the packs
+and the merged stock-import implementation. This link update does not certify CI.
