@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 
 test('standard wheel builds offline without editable extras and owns pack resources', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-standard-wheel-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-standard-wheel-')));
   const project = fileURLToPath(new URL('../../', import.meta.url));
   const python = process.env.RWB_TEST_PYTHON || 'python3';
   const env = {...process.env, PIP_NO_INDEX: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_NO_CACHE_DIR: '1', PIP_CONFIG_FILE: process.platform === 'win32' ? 'NUL' : '/dev/null', PYTHONDONTWRITEBYTECODE: '1'};
@@ -63,7 +63,7 @@ test('Checks real Host and fresh Native admission reject optional environment po
   assert.ok(admission, 'installed-package admission must ignore cwd and PYTHONPATH');
   const flags = admission[1].split(' ');
   const code = admission[2].replace(/^          /gm, '');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-admission-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-admission-')));
   const project = fileURLToPath(new URL('../../', import.meta.url));
   try {
     fs.mkdirSync(path.join(root, 'logs'));

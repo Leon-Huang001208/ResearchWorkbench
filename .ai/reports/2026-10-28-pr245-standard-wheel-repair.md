@@ -93,4 +93,25 @@ bytes／type／no-links／UID／mode全部一致后才回收。清理中目录nl
 archive SHA256 `9805926785d4f2ab95fb276a999ed6b9b8c8906fba30bf1381a75a387339806c`保留；
 没有改变source checkout、系统、服务、其他任务树或任何业务资源权限。
 
+## a95全Node后的自建临时路径夹具修正
+
+原 `a95b8c60fa7b6d975ad7c4c5962f0d9e5422d64a` 首轮全Node实际为1560 tests、
+1559 pass／1 fail／0skip，Node119.893秒（controller墙钟119.919秒），完整原件
+`logs/pr245-repair3-current/node-full.log`保留。新wheel测试把自己创建的字面`/tmp`路径
+交给原严格runtime合同；macOS的`/tmp`祖先是指向`/private/tmp`的symlink，
+`runtime_contract._path_identity`正确拒绝`runtime_contract_unsafe_path`。
+同a95第二完整epoch为1560 pass／0skip、Node113.988秒（controller墙钟114.011秒），原件在`attempt2/node-full.log`；
+环境下该轮通过不消除第一轮暴露的fixture可移植性问题。第二轮自然退出前未编辑任何源码。
+
+仅对本测试两处自建临时根，在`mkdtempSync`成功后立即`fs.realpathSync`得到canonical
+owned路径。没有规范化用户参数、修改产品`_path_identity`、改变原symlink负测，
+也不要求调用者提供特殊TMPDIR。所有产品、workflow和依赖锁字节保持不变。
+
+在显式`TMPDIR=/tmp/<opaque>/tmp`别名环境做定点RED／GREEN：a95原测试稳定复现同一
+unsafe_path（1 fail／1 pass）；两行修正后相同两用例2 passed、0skip，3.949秒。
+使用原固定Node／Python／DSH，无安装。日志与命令／owner／archive回执为controller
+`logs/pr245-optional-import-repair/repair3-tmp-alias-{red,green}.{log,json}`；
+每组只有自己登记的临时根，归档实际恢复bytes／mode／type／UID相等及inode/lsof核对后精确回收。
+旧a95两个完整epoch与失败原件不改，新提交完整闭包及CI仍须另行重新验证。
+
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只将原Checks项目安装恢复为产品既有普通wheel路径并隔离已安装包准入，原job、runner、预算、锁、DSH与平台验收拓扑保持；真实构建回归进入既有Web通配符，轻量Constraints不增加产品依赖。","diagrams":[]} -->
