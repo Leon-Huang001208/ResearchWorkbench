@@ -53,7 +53,11 @@
         "research_workbench_entrypoint/resident/host_metadata.py",
         "research_workbench_entrypoint/resident/evidence.py",
         "research_workbench_entrypoint/resident/admission.py",
-        "research_workbench_entrypoint/builder_reconcile.py"
+        "research_workbench_entrypoint/builder_reconcile.py",
+        "research_workbench_entrypoint/resident/delivery_transfer.py",
+        "research_workbench_entrypoint/resident/source_inventory.py",
+        "research_workbench_entrypoint/resident/repository_lock_recovery.py",
+        "research_workbench_entrypoint/resident/maintenance_evidence.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -62,7 +66,8 @@
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/05-security-validation.md",
-        "docs/research-web-platform-support.md"
+        "docs/research-web-platform-support.md",
+        "docs/research-web-source-migration.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -5359,7 +5364,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "69b9ffa04b48e54aff0de487c441a25a781f91eb"
+      "revision": "213b12171fcf331f563c28b616b04cbfee86c1d3"
     },
     "levels": [
       {
