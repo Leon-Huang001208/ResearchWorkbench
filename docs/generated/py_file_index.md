@@ -3057,6 +3057,7 @@ Imports:
 - `__future__`
 - `asyncio`
 - `core.observability`
+- `hashlib`
 - `json`
 - `math`
 - `os`
@@ -3069,7 +3070,7 @@ Imports:
 Classes:
 - `AssetDirectory`
   - One cache and one refresh task per authenticated user's Store root.
-  - methods: __init__, active, _directory, _restore, _persist, _refresh, search, wait, close
+  - methods: __init__, active, _directory, _restore, offline_snapshot, _persist, _refresh, search, wait, close
 
 Functions:
 - `pinyin_abbr`
@@ -3294,6 +3295,10 @@ Classes:
   - methods: unique_panels
 - `WatchlistCreate`
 - `WatchlistItem`
+- `WatchlistImportPreview`
+  - methods: exact_version
+- `WatchlistImportConfirm`
+  - methods: exact_literals
 - `NoteCreate`
 - `NotePatch`
 - `AlertCreate`
@@ -3320,6 +3325,8 @@ Functions:
 - `watchlists`
 - `create_watchlist`
 - `add_watchlist_item`
+- `preview_watchlist_import`
+- `confirm_watchlist_import`
 - `notes`
 - `create_note`
 - `patch_note`
@@ -3356,7 +3363,7 @@ Classes:
 - `AssetWorkspaceError`
   - methods: __init__
 - `AssetWorkspace`
-  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _reserve_load_key, load_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _reserve_load_key, load_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, preview_watchlist_import, confirm_watchlist_import, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
 
 Functions:
 - `_recent_range`
@@ -11718,6 +11725,7 @@ Imports:
 - `shutil`
 - `stat`
 - `tempfile`
+- `threading`
 - `time`
 - `uuid`
 
@@ -11805,6 +11813,54 @@ Imports:
 Functions:
 - `warehouse_diagnostic`
   - Inspect only this instance's profile; never instantiate backend/keyring.
+
+
+## `app/research_web/watchlist_import.py`
+
+Module docstring:
+> Bounded offline CSV decisions and single-Host watchlist import transactions.
+
+Imports:
+- `__future__`
+- `base64`
+- `binascii`
+- `copy`
+- `core.observability`
+- `csv`
+- `hashlib`
+- `io`
+- `json`
+- `re`
+- `store`
+- `time`
+- `typing`
+- `unicodedata`
+- `uuid`
+
+Classes:
+- `CsvInput`
+- `CatalogItem`
+- `OfflineCatalog`
+- `PreviewRequest`
+- `ConfirmRequest`
+- `ImportRow`
+- `SavedWatchlistItem`
+- `WatchlistRecord`
+- `ImportReceipt`
+- `RowDecision`
+- `ImportManifest`
+- `IdempotencyBinding`
+- `KeyRecord`
+- `ImportNamespace`
+- `WatchlistImports`
+  - All entrypoints are synchronous and called under the workspace writer lock.
+  - methods: __init__, _target, _namespace, _budget, _save, _seal, preview, confirm
+
+Functions:
+- `digest`
+- `reject`
+- `parse_file`
+- `resolve_rows`
 
 
 ## `app/research_web/workbench.py`
