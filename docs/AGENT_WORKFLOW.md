@@ -546,3 +546,6 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 ## 2026-10-28：T3既有验证通道
 
 本批九包/三方法仅在原Research Web Checks Python步骤追加29个实际新增回归模块，JS保留原通配符。Mac Bootstrap原步骤增加pack-ui字节核对及python -I从已安装wheel逐件比对checkout后构造9+3资源/核闭包，保持原DSH/health/Doctor与Mac干净安装门；不增job/runner/deps/timeout、不发他平台dispatch，资源构造不认证执行或质量。
+
+
+2026-10-28：PR245 CI 修复保持原三门和原安装步骤：先核 whole-lock／投影并哈希安装七 runtime＋原三 renderer，再以纯版本 constraints 安装原 dev，最后核七项实装 metadata；本地只读 cache 测试不安装包。fixture 经真实范围 validator／声明／健康 probe 验证成功和拒绝，不重入执行投影。旧候选 Mac 绿不能替代新候选安装；常驻／模型和他平台门保持独立。

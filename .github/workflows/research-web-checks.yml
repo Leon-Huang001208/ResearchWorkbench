@@ -64,24 +64,71 @@ jobs:
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install -e ".[dev]"
-          # These renderer/workbook packages are already locked Web dependencies.
-          .venv/bin/python - <<'PY'
+          # Hash-install the existing frozen runtime and renderer dependencies first.
+          .venv/bin/python - <<'PY_LOCK'
+          import hashlib
+          import json
+          import logging
           import os
+          import re
           from pathlib import Path
-          lines = Path("requirements/web.lock").read_text().splitlines()
-          block = []
-          for package in ("reportlab", "openpyxl", "et-xmlfile"):
-              start = next(i for i, line in enumerate(lines) if line.startswith(package + "=="))
-              block.append(lines[start])
-              for line in lines[start + 1:]:
-                  if line and not line[0].isspace():
-                      break
-                  block.append(line)
-          target = Path(os.environ["RUNNER_TEMP"]) / "rwb-reportlab.lock"
-          target.write_text("\n".join(block) + "\n")
-          PY
-          .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-reportlab.lock"
+          Path("logs").mkdir(exist_ok=True)
+          logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
+          try:
+              lock_bytes = Path("requirements/web.lock").read_bytes()
+              projection = json.loads(Path("app/research_web/capabilities/pack-runtime-lock.json").read_bytes())
+              if projection["schema"] != "research_pack_runtime_lock_v2" or hashlib.sha256(lock_bytes).hexdigest() != projection["lock_sha256"]:
+                  raise ValueError("pack_runtime_lock_mismatch")
+              versions = projection["versions"]
+              if not isinstance(versions, dict) or not versions:
+                  raise ValueError("pack_runtime_versions_missing")
+              lines = lock_bytes.decode().splitlines()
+              blocks, constraints = [], []
+              for package in (*versions, "reportlab", "openpyxl", "et-xmlfile"):
+                  if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", package):
+                      raise ValueError("pack_runtime_package_invalid")
+                  starts = [i for i, line in enumerate(lines) if line.startswith(package + "==")]
+                  if len(starts) != 1:
+                      raise ValueError("pack_runtime_package_not_unique")
+                  start = starts[0]
+                  match = re.fullmatch(re.escape(package) + r"==([^\s;\\]+)\s*\\?", lines[start])
+                  if match is None or (package in versions and match[1] != versions[package]):
+                      raise ValueError("pack_runtime_version_mismatch")
+                  block = [lines[start]]
+                  for line in lines[start + 1:]:
+                      if line and not line[0].isspace():
+                          break
+                      block.append(line)
+                  if not any(re.fullmatch(r"\s+--hash=sha256:[0-9a-f]{64}\s*\\?", line) for line in block):
+                      raise ValueError("pack_runtime_hash_missing")
+                  blocks.extend(block)
+                  constraints.append(f"{package}=={match[1]}")
+              target = Path(os.environ["RUNNER_TEMP"])
+              (target / "rwb-pack-dependencies.lock").write_text("\n".join(blocks) + "\n")
+              (target / "rwb-pack-dependencies.constraints").write_text("\n".join(constraints) + "\n")
+              logging.info("ci_pack_dependencies_prepared count=%d", len(constraints))
+          except (OSError, ValueError, KeyError, TypeError):
+              logging.exception("ci_pack_dependencies_prepare_failed")
+              raise
+          PY_LOCK
+          .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-pack-dependencies.lock"
+          .venv/bin/python -m pip install -e ".[dev]" -c "$RUNNER_TEMP/rwb-pack-dependencies.constraints"
+          .venv/bin/python - <<'PY_VERIFY'
+          import json
+          import logging
+          from importlib.metadata import version
+          from pathlib import Path
+          logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
+          try:
+              versions = json.loads(Path("app/research_web/capabilities/pack-runtime-lock.json").read_bytes())["versions"]
+              for package, expected in versions.items():
+                  if version(package) != expected:
+                      raise ValueError("pack_runtime_installed_version_mismatch")
+              logging.info("ci_pack_dependencies_verified count=%d", len(versions))
+          except (OSError, ValueError, KeyError, TypeError, ImportError):
+              logging.exception("ci_pack_dependencies_verify_failed")
+              raise
+          PY_VERIFY
 
       - name: Run Research Web Python contracts
         run: |

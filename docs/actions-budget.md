@@ -380,3 +380,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 ## 2026-10-28：T3既有验证通道
 
 T3组合包集成只扩充已有Checks测试参数及Mac Bootstrap原资源核对步骤，无新job/runner、依赖、超时或平台dispatch。只读安装资源构造复用原安装环境，不调用供应商/模型；完整候选CI仍须通过，预算与仓库visibility核对规则不变，元数据本地通过不授权远端运行。
+
+
+2026-10-28 PR245 Checks 安装漂移修复只扩原 Install declared test dependencies 步骤：按未变的 web.lock 全文件摘要及 pack-runtime-lock v2 提取七个冻结分发与原三个 renderer/workbook 分发，先用原哈希安装，再以纯版本 constraints 约束原 editable dev 安装并核对七项实装版本。旧失败 40608520536 为 690.05 秒的版本／fixture 失败，不是 timeout；本次不增 job、runner、依赖或 timeout，不删／skip 测试。原安装步骤增量预留30秒，现有治理与 fixture 反例增量预留2秒。新候选必须重取原三 CI 与同候选 Mac 干净安装；远端操作前实时核验 PUBLIC／标准 runner 资格及额度，不 rerun 旧 run、不从 Mac dispatch 他平台产品任务。CI 不调用模型、厂商或正式库。

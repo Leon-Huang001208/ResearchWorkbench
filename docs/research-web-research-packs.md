@@ -205,6 +205,14 @@ origin、解释器真实字节、环境与 format checker 集合。Host 准入�
 其配置解释器与该环境；依赖变化拒绝旧资源，不能只比较版本字符串。真实 wheel 的
 installed-like 读取不依赖 checkout 的 `requirements/`。
 
+Checks 的开发依赖安装也遵守这个已有冻结集合：从未变 web.lock 的原哈希条目提取
+全部七个 runtime 分发及原 renderer/workbook 三项，核对 whole-lock 摘要和投影版本后
+先哈希安装，再向原 editable dev 安装传入不含 hash 的精确版本 constraints，最后核对
+全部七项实装 metadata。这样避免 hashed constraints 与 editable 安装冲突，也防止
+transitive 更新使 Catalog 在测试初始化时拒绝 runtime；不升级锁、改变产品依赖或放松
+运行身份门。准备／核验错误写入 `logs/ci-pack-dependencies.log` 并终止原步骤。
+
+
 运行指纹 schema v3 独立枚举受管分发的 import/data 根及版本元数据，不能由 RECORD 决定代码全集；
 未列账簿的新代码也改变闭包。所有实际 `.py`、扩展、schema/data 和 `.pyc` 都参与摘要，外部
 pycache prefix 拒绝。仅排除固定解释器／模块入口不执行的外部 console scripts 和四个安装账簿

@@ -201,3 +201,6 @@ NYFed SOFRAI v3只在原Host/DataHub/可选研究仓校准复合均值和指数�
 ## 2026-10-28：T3既有验证通道
 
 九包与三owned方法属于同一DSH链的确定性动作/原件核验，CLS固定wrapper不是供应商alias，C2由Host执行后供Native消费。现有比较worker、真实模型预算和质量oracle保持；140静态映射、构造资源或saved不能替代真实模型比较，T4/T5及最终CI仍待验。
+
+
+2026-10-28：PR245 Checks 安装漂移及旧 fixture 修复只约束已有冻结依赖并恢复离线合同测试，既不调用 FinGPT 模型／供应商，也不改变比较、预算或正式报告质量准入。本机 runtime／governance 通过不是模型效果或新候选 CI 的证明；原失败与新候选三 CI／Mac 安装分别保留。

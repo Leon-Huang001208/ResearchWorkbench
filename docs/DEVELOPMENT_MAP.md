@@ -690,3 +690,6 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 2026-10-28：T3组合包集成边界
 
 六个Host新模块：scenario_source_selection负责安全列表/preview/freeze；scenario_method_dedup运行Host C2并冻结完整制品；scenario_method_sources与scenario_pack_execution分别准备/完成/复验原件台账及计算制品；scenario_pack_reads负责显式历史等价读回；scenario_pack_ui在原鉴权后投影。纯核在scenarios/packs，Native冻结/闭包/重定位在capabilities/pack_*，原件动作在skills/_shared/source_actions.py。见[组合包](research-web-research-packs.md)、[自有方法](research-web-owned-methods.md)、[来源选择](research-web-source-selection.md)。完整Router/评审/原CI/同候选Mac安装待最终候选，T4/T5未实施。
+
+
+2026-10-28：PR245 的 pack runtime 版本漂移修复位于原 research-web-checks Install declared test dependencies heredoc；原 actions_quota_governance 执行真实提取／核验代码的成功和拒绝样例，test_datahub_execution_health 绑定真实 Host validator。web.lock、runtime lock、app 源码及运行身份门不变；准备／核验错误写 logs/ci-pack-dependencies.log，原三 CI／同候选 Mac 安装继续取证。

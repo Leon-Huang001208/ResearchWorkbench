@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import test from 'node:test';
 
 const readWorkflow = (name) => fs.readFileSync(
@@ -443,5 +447,84 @@ test('Docker CI is dispatched by the Linux device for an exact commit', () => {
       assert.equal(triggersForPath(workflows.bootstrap, event, file), true, `native ${event}: ${file}`);
     }
     assert.equal(triggersForPath(workflows.bootstrap, event, 'Dockerfile'), false);
+  }
+});
+
+
+test('Checks executes frozen dependency extraction and rejects inconsistent lock inputs', () => {
+  const match = workflows.checks.match(/          \.venv\/bin\/python - <<'PY_LOCK'\n([\s\S]*?)          PY_LOCK/);
+  assert.ok(match, 'actual install heredoc is required');
+  const code = match[1].replace(/^          /gm, '');
+  const projectionPath = 'app/research_web/capabilities/pack-runtime-lock.json';
+  const original = JSON.parse(fs.readFileSync(new URL('../../' + projectionPath, import.meta.url)));
+  const lock = fs.readFileSync(new URL('../../requirements/web.lock', import.meta.url), 'utf8');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-lock-'));
+  try {
+    for (const variant of ['valid', 'sha', 'missing', 'duplicate', 'version', 'hash']) {
+      const cwd = path.join(root, variant);
+      fs.mkdirSync(path.join(cwd, 'requirements'), {recursive: true});
+      fs.mkdirSync(path.join(cwd, path.dirname(projectionPath)), {recursive: true});
+      const projection = structuredClone(original);
+      let sample = lock;
+      if (variant === 'missing') sample = sample.replace(/^rpds-py==.*$/m, 'removed-rpds-py==1');
+      if (variant === 'duplicate') sample += '\nrpds-py==2026.6.3\n';
+      if (variant === 'version') projection.versions['rpds-py'] = '2026.9.1';
+      if (variant === 'hash') sample = sample.replace(/(rpds-py==[^\n]*\n)([\s\S]*?)(?=^[a-z])/m,
+        (_all, header, rest) => header.replace(/ \\$/, '') + '\n' + rest.replace(/^.*--hash=.*\n/gm, ''));
+      projection.lock_sha256 = variant === 'sha' ? '0'.repeat(64)
+        : createHash('sha256').update(sample).digest('hex');
+      fs.writeFileSync(path.join(cwd, 'requirements/web.lock'), sample);
+      fs.writeFileSync(path.join(cwd, projectionPath), JSON.stringify(projection));
+      const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', code], {
+        cwd, env: {...process.env, RUNNER_TEMP: cwd}, encoding: 'utf8', timeout: 10000,
+      });
+      assert.ifError(run.error);
+      assert.equal(run.status, variant === 'valid' ? 0 : 1, variant + ': ' + run.stderr);
+      const log = fs.readFileSync(path.join(cwd, 'logs/ci-pack-dependencies.log'), 'utf8');
+      assert.match(log, variant === 'valid' ? /ci_pack_dependencies_prepared/ : /ci_pack_dependencies_prepare_failed/);
+      if (variant !== 'valid') continue;
+      const constraints = fs.readFileSync(path.join(cwd, 'rwb-pack-dependencies.constraints'), 'utf8');
+      for (const [name, version] of Object.entries(original.versions)) {
+        assert.ok(constraints.split('\n').includes(`${name}==${version}`));
+      }
+      assert.equal(constraints.trim().split('\n').length, 10);
+      assert.doesNotMatch(constraints, /--hash|\\/);
+      const hashed = fs.readFileSync(path.join(cwd, 'rwb-pack-dependencies.lock'), 'utf8');
+      assert.match(hashed, /rpds-py==2026\.6\.3/);
+      assert.match(hashed, /idna==3\.19/);
+      assert.match(hashed, /--hash=sha256:[a-f0-9]{64}/);
+    }
+  } finally {
+    fs.rmSync(root, {recursive: true});
+  }
+  assert.match(workflows.checks, /pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-pack-dependencies\.lock"/);
+  assert.match(workflows.checks, /pip install -e "\.\[dev\]" -c "\$RUNNER_TEMP\/rwb-pack-dependencies\.constraints"/);
+});
+
+test('Checks post-install verification rejects drift in every frozen distribution', () => {
+  const match = workflows.checks.match(/          \.venv\/bin\/python - <<'PY_VERIFY'\n([\s\S]*?)          PY_VERIFY/);
+  assert.ok(match);
+  const code = match[1].replace(/^          /gm, '');
+  const projectionPath = 'app/research_web/capabilities/pack-runtime-lock.json';
+  const projection = JSON.parse(fs.readFileSync(new URL('../../' + projectionPath, import.meta.url)));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-verify-'));
+  try {
+    fs.mkdirSync(path.join(root, path.dirname(projectionPath)), {recursive: true});
+    fs.mkdirSync(path.join(root, 'logs'));
+    fs.writeFileSync(path.join(root, projectionPath), JSON.stringify(projection));
+    for (const drift of [null, ...Object.keys(projection.versions)]) {
+      const installed = {...projection.versions};
+      if (drift) installed[drift] = '0.0.0';
+      const wrapper = `import importlib.metadata\nimportlib.metadata.version = ${JSON.stringify(installed)}.__getitem__\n` + code;
+      const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', wrapper], {
+        cwd: root, encoding: 'utf8', timeout: 10000,
+      });
+      assert.ifError(run.error);
+      assert.equal(run.status, drift ? 1 : 0, String(drift) + ': ' + run.stderr);
+      if (drift) assert.match(run.stderr, /pack_runtime_installed_version_mismatch/);
+    }
+    assert.match(fs.readFileSync(path.join(root, 'logs/ci-pack-dependencies.log'), 'utf8'), /ci_pack_dependencies_verify_failed/);
+  } finally {
+    fs.rmSync(root, {recursive: true});
   }
 });
