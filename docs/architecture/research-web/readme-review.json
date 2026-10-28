@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "自选导入首建/新建列表metadata刷新及局部props同步修复，原入口和用户合同保持。",
-  "reason": "原README已经说明资产自选CSV入口，当前仅落实已有观察下的列表选项刷新与File/目标保留，不新增功能入口或部署承诺；模块合同与真实Host回归已同步。"
+  "summary": "导入质量修复：owner+draft控件隔离、完整typing与测试inbound-only网络边界。",
+  "reason": "用户入口与有限股票导入合同保持；账户切换清File控件、typing及fixture代理环境清理均不增加产品入口或依赖，模块合同和质量报告同步，README现有说明仍准确。"
 }

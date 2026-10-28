@@ -1,5 +1,7 @@
 # 研究框架
 
+导入账户切换只清UI私有草稿/待处理响应，不创建或发送研究；控件复用须owner+draft匹配。测试Host现仅允许loopback bind/inbound回包，删除outbound许可并清继承proxy/凭据目录，产品默认不变。
+
 自选创建成功的账户绑定事件只重新读取既有watchlists，不改sameAsset观察加载条件，不触发Provider/模型或重建观察。新列表是导入目标metadata，不获得研究能力授权。
 
 自选CSV只追加本账户股票列表，不创建FinGPT/Claw/报告/模型/观察；原唯一DSH及研究质量链保持。前端新组件沿原资产渲染和列表事件刷新，不扩大能力授权，见[合同](../../research-web-watchlist-import.md)。

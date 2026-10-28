@@ -1,5 +1,7 @@
 # 自选股票 CSV 导入
 
+账户切换时，导入原生FileList、Blob/File、编码字节、逐行选择、预览、确认键与回执均不继承。控件复用同时核owner与draft实例，旧异步读取、preview、metadata、confirm结果不会发布到新草稿；同owner metadata更新、File待完成读取及原选择继续保持。
+
 已有证券观察时，从原创建按钮首建或新建列表也会刷新可选目标。创建API成功后发出账户绑定metadata事件，controller只读取原watchlists；局部复用导入器前同步新data-lists。已有目标仍存在则保持选中，原已授权File与草稿保留；用户改选新目标后必须重新冻结，不能沿用旧预览。不改变sameAsset分支或调用供应商/模型。
 
 资产观察的“更多 → 自选与最近观察”内可选择目标列表和 CSV，预览全部行，选择规范实体或明确跳过，再重新冻结预览并确认追加。没有列表时先使用原“新建自选列表”。导入保留原项 ID、名称、顺序、时间与轮询设置；不创建研究、观察、提醒、调度或模型调用。
@@ -58,3 +60,5 @@ namespace 总预算为 8 MiB（包含活动/已提交记录和幂等键），最
 ## 离线浏览器验收的进程边界
 
 macOS测试夹具必须由tests/e2e/watchlist-loopback.sb的Seatbelt进程策略启动，只允许localhost网络，同时关闭夹具Framework自动collector并对httpx/requests/urllib/curl_cffi、Python socket与真实凭据后端计数拒绝；Python钩子本身不能覆盖C/native网络。该配置只属于测试，不改变产品默认采集行为。真实DataHub本地empty snapshot保留完整类型、原件和配置摘要，不能冒充真实行情。初版r9只覆盖browser/DataHub sentinel，发现外网后追加纠正；新受限epoch与独立native拒绝负例分开记录，供应商可用性、模型质量与部署仍另验。
+
+离线夹具进一步收窄：Host不需要outbound连接，所以Seatbelt取消所有outbound allow，仅保留localhost bind/inbound及已接收连接回包；运行器剔除所有大小写HTTP/HTTPS/ALL/FTP/NO_PROXY及RESEARCH_CREDENTIAL_HOME，内存backend与真实凭据拒绝保持，Chrome也使用清理后的环境及no-proxy-server。早前允许all localhost+继承环境的结果只能证明观测0，不能单靠该策略排除借本机代理；未见该epoch实际代理泄露，不伪报已发生。新受控inert proxy sink负例从不转发请求，不访问真实代理或生产服务；native connect被内核拒绝、sink连接/请求0与正常旅程计数分别取证，旧218记录不回填。

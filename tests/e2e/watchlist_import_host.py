@@ -100,6 +100,19 @@ def main():
     parser.add_argument("--empty-watchlists", action="store_true")
     parser.add_argument("--current-observation", action="store_true")
     args = parser.parse_args()
+    if any(
+        key.upper()
+        in {
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "FTP_PROXY",
+            "NO_PROXY",
+            "RESEARCH_CREDENTIAL_HOME",
+        }
+        for key in os.environ
+    ):
+        raise RuntimeError("fixture_inherited_proxy_or_credential_home")
     if os.environ.get("RWB_WATCHLIST_SEATBELT") != "1":
         raise RuntimeError("fixture_requires_parent_seatbelt_boundary")
     patch = pytest.MonkeyPatch()
@@ -218,6 +231,15 @@ def main():
             "watchlists": service.store.data["watchlists"],
             "external_calls": len(calls),
             "network_attempts": len(NETWORK_ATTEMPTS),
+            "proxy_environment_keys": [
+                key
+                for key in os.environ
+                if key.upper()
+                in {"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "FTP_PROXY", "NO_PROXY"}
+            ],
+            "credential_home_present": any(
+                key.upper() == "RESEARCH_CREDENTIAL_HOME" for key in os.environ
+            ),
             "http_client_counters": counters,
             "real_credential_attempts": len(credential_attempts),
             "framework_collectors_enabled": False,

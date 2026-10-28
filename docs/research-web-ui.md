@@ -1,5 +1,7 @@
 # Research Web 前端
 
+导入控件按owner与当前draft实例双重绑定；账户切换清空旧原生FileList、File/字节/选择/确认键，A→B→A不会恢复旧文件或接纳旧响应。同owner局部更新和未完成File读取仍保持。
+
 自选首建/新建列表成功后，通过账户绑定的原metadata读取刷新目标选项；即使同一证券观察走sameAsset路径也不会沿用空目录。局部更新保留导入节点前同步新data-lists，已有目标仍存在则保留，不自动切换到新列表；原File/草稿保持，切换目标必须重新冻结。
 
 自选CSV入口在资产观察“更多 → 自选与最近观察”，完整行预览后显式消歧/skip，再重新冻结确认追加。保留原自选、当前File和选择；状态/错误中文，390px浅深色和键盘均沿原样式，原More使用现有disclosure状态恢复，app.mjs入口不增长。完整格式/账户/并发及限制见[自选导入](research-web-watchlist-import.md)。

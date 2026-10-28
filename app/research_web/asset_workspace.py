@@ -10,7 +10,7 @@ import operator
 import re
 import time
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 from weakref import WeakValueDictionary
 from zoneinfo import ZoneInfo
@@ -19,6 +19,10 @@ from core.observability import get_logger
 
 from .datahub.contracts import CAPABILITY_PARAMETERS, BusinessQuery
 from .store import StoreError
+
+if TYPE_CHECKING:
+    from .watchlist_import import ConfirmRequest, ImportReceipt, PreviewRequest
+
 
 log = get_logger(__name__)
 
@@ -799,13 +803,15 @@ class AssetWorkspace:
 
     def preview_watchlist_import(self, watchlist_id: str, body: dict) -> dict:
         with self.watchlist_lock:
-            return self.watchlist_imports.preview(watchlist_id, body)
+            return self.watchlist_imports.preview(watchlist_id, cast("PreviewRequest", body))
 
     def confirm_watchlist_import(
         self, watchlist_id: str, import_id: str, body: dict, key: str
-    ) -> dict:
+    ) -> ImportReceipt:
         with self.watchlist_lock:
-            return self.watchlist_imports.confirm(watchlist_id, import_id, body, key)
+            return self.watchlist_imports.confirm(
+                watchlist_id, import_id, cast("ConfirmRequest", body), key
+            )
 
     def create_note(self, asset: str, text: str) -> dict:
         row = {

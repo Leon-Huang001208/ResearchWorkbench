@@ -166,3 +166,39 @@ test('first-list metadata arriving during File reading preserves the same author
   assert.equal(c.state.sourceFile, input); assert.ok(c.state.file?.file_base64);
   assert.equal(c.state.target, 'new-list'); assert.equal(c.state.busy, false);
 });
+
+test('retired account scope rejects delayed preview and confirm even after owner A returns', async () => {
+  let owner = 'A', active = true, previewResolve, confirmResolve;
+  let committed = 0;
+  const c = createWatchlistImportController({ account: () => owner, isCurrentScope: () => active,
+    onCommitted: () => { committed++; }, makeKey: () => 'owner-key',
+    api: { previewWatchlistImport: () => new Promise(resolve => { previewResolve = resolve; }),
+      confirmWatchlistImport: () => new Promise(resolve => { confirmResolve = resolve; }) } });
+  c.target('list-A'); await c.file(file()); const pending = c.preview();
+  owner = 'B'; active = false; owner = 'A'; previewResolve(frozen()); await pending;
+  assert.equal(c.state.preview, null);
+  active = true;
+  const second = createWatchlistImportController({ account: () => owner, isCurrentScope: () => active, onCommitted: () => { committed++; },
+    api: { previewWatchlistImport: async () => frozen(), confirmWatchlistImport: () => new Promise(resolve => { confirmResolve = resolve; }) } });
+  second.target('list-A'); await second.file(file()); await second.preview();
+  const confirmation = second.confirm(); owner = 'B'; active = false; owner = 'A'; confirmResolve({status:'committed'}); await confirmation;
+  assert.equal(second.state.receipt, null); assert.equal(committed, 0);
+});
+
+test('late owner A metadata and original create responses do not install into owner B', async () => {
+  const document = globalThis.document, user = globalThis.__RWB_USER_ID__;
+  globalThis.document = new EventTarget(); globalThis.__RWB_USER_ID__ = 'A';
+  let resolveList, resolveCreate, changes = 0;
+  try {
+    const controller = createAssetWorkspaceController({ api: { watchlists: () => new Promise(resolve => { resolveList = resolve; }) }, onChange: () => { changes++; } });
+    globalThis.document.dispatchEvent(new CustomEvent('rwb-watchlists-changed', { detail: { account: 'A' } }));
+    globalThis.__RWB_USER_ID__ = 'B'; resolveList({ items: [{id:'A-private',name:'A'}] });
+    await new Promise(resolve => setTimeout(resolve,0)); assert.deepEqual(controller.state.watchlists, []); assert.equal(changes,0);
+    globalThis.__RWB_USER_ID__ = 'A';
+    let notifications = 0; globalThis.document.addEventListener('rwb-watchlists-changed', () => { notifications++; });
+    const api = createAPI({ fetcher: () => new Promise(resolve => { resolveCreate = resolve; }), logger: () => {} });
+    const creating = api.createWatchlist({name:'A'}); globalThis.__RWB_USER_ID__ = 'B';
+    resolveCreate({ok:true,status:201,json:async()=>({id:'A-created',name:'A'})}); await creating;
+    assert.equal(notifications,0);
+  } finally { globalThis.document=document; if (user===undefined) delete globalThis.__RWB_USER_ID__; else globalThis.__RWB_USER_ID__=user; }
+});

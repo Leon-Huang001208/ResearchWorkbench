@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+本轮无新HTTP字段或路径；PreviewRequest/ConfirmRequest等为内部typing合同，API仍由原strict模型验证。客户端换账户不复用前账户File控件或响应，服务器认证与Idempotency-Key合同保持。
+
 自选原创建端点成功后，前端以账户绑定metadata事件重读原GET /watchlists；不增加HTTP路径、不改sameAsset分支或权限。首建与后续新建均进入导入目标选项，显式换目标仍需重新冻结。
 
 新增POST /api/research/watchlists/{watchlist_id}/imports/preview 与 /imports/{import_id}/confirm；严格JSON、不接受owner/root，确认要求Idempotency-Key与冻结digest，目录/目标/TTL变化409零新增；旧端点保持。API Atlas同步源码声明，完整请求/响应及预算见[自选导入](../../research-web-watchlist-import.md)。

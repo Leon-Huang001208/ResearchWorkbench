@@ -22,7 +22,10 @@ const profile = path.join(project, 'tests/e2e/watchlist-loopback.sb');
 const boundFiles = ['app/research_web/watchlist_import.py', 'app/research_web/asset_workspace.py', 'app/research_web/asset_routes.py', 'app/research_web/store.py', 'app/research_web/asset_directory.py', 'app/research_web/ui/core.mjs', 'app/research_web/ui/asset-controller.mjs', 'app/research_web/ui/asset-workspace.mjs', 'app/research_web/ui/watchlist-import.mjs', 'app/research_web/ui/asset-workspace.css', 'tests/e2e/watchlist_import_host.py', 'tests/e2e/watchlist-loopback.sb', path.relative(project, fileURLToPath(import.meta.url))];
 const sourceBinding = { base_commit: execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' }).trim(), sha256: Object.fromEntries(await Promise.all(boundFiles.map(async file => [file, createHash('sha256').update(await readFile(path.join(project, file))).digest('hex')]))) };
 
-const host = spawn('/usr/bin/sandbox-exec', ['-f', profile, python, 'tests/e2e/watchlist_import_host.py', '--root', path.join(root, 'account'), '--ready', path.join(root, 'ready.json')], { cwd: project, stdio: ['ignore', stream.fd, stream.fd], env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', RWB_WATCHLIST_SEATBELT: '1' } });
+const childEnvironment = { ...process.env, PYTHONDONTWRITEBYTECODE: '1', RWB_WATCHLIST_SEATBELT: '1', RESEARCH_FRAMEWORK_COLLECTORS_ENABLED: '0' };
+const sanitizedEnvironmentKeys = Object.keys(childEnvironment).filter(key => ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'NO_PROXY', 'RESEARCH_CREDENTIAL_HOME'].includes(key.toUpperCase()));
+for (const key of sanitizedEnvironmentKeys) { delete childEnvironment[key]; delete process.env[key]; }
+const host = spawn('/usr/bin/sandbox-exec', ['-f', profile, python, 'tests/e2e/watchlist_import_host.py', '--root', path.join(root, 'account'), '--ready', path.join(root, 'ready.json')], { cwd: project, stdio: ['ignore', stream.fd, stream.fd], env: childEnvironment });
 const started = performance.now(); let browser; let origin; let page; const failures = []; const errors = []; const external = []; const results = []; let hostBoundary;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function fixture() { return (await fetch(`${origin}/_fixture/state`)).json(); }
@@ -31,7 +34,7 @@ try {
   for (let n = 0; n < 100; n++) { try { ({ origin } = JSON.parse(await readFile(path.join(root, 'ready.json')))); const response = await fetch(`${origin}/api/research/watchlists`); if (response.ok) break; } catch { /* Fixture startup is bounded; full errors remain in host.log. */ } if (host.exitCode !== null) throw new Error(`Host exited ${host.exitCode}`); await wait(100); }
   assert.ok(origin, 'Host must publish a loopback origin');
   const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_CORE_PATH || '/Users/leon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright-core/index.mjs').href);
-  browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
+  browser = await chromium.launch({ headless: true, env: childEnvironment, args: ['--no-proxy-server'], executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.route('**/*', route => { const url = route.request().url(); if (url.startsWith(origin + '/') || url.startsWith('data:')) return route.continue(); external.push(url); return route.abort(); });
   page = await context.newPage(); page.setDefaultTimeout(15000);
@@ -122,8 +125,8 @@ try {
     await page.screenshot({ path: path.join(output, 'narrow-dark-long-text-keyboard.png') });
     assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--surface').trim()), '#222220');
   });
-  const boundary = await fixture(); hostBoundary = { kernel: 'macos-seatbelt-loopback-only', profile_sha256: sourceBinding.sha256['tests/e2e/watchlist-loopback.sb'], child_pid: host.pid, external_calls: boundary.external_calls, network_attempts: boundary.network_attempts, real_credential_attempts: boundary.real_credential_attempts, http_client_counters: boundary.http_client_counters, framework_collectors_enabled: boundary.framework_collectors_enabled };
-  assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.equal((await fixture()).external_calls, 0); assert.equal((await fixture()).network_attempts, 0); assert.equal((await fixture()).real_credential_attempts, 0); for (const counts of Object.values((await fixture()).http_client_counters)) assert.equal(counts.nonloopback_attempts || 0, 0); assert.equal((await fixture()).framework_collectors_enabled, false);
+  const boundary = await fixture(); hostBoundary = { kernel: 'macos-seatbelt-inbound-only', sanitized_environment_keys: sanitizedEnvironmentKeys, host_proxy_keys: boundary.proxy_environment_keys, credential_home_present: boundary.credential_home_present, profile_sha256: sourceBinding.sha256['tests/e2e/watchlist-loopback.sb'], child_pid: host.pid, external_calls: boundary.external_calls, network_attempts: boundary.network_attempts, real_credential_attempts: boundary.real_credential_attempts, http_client_counters: boundary.http_client_counters, framework_collectors_enabled: boundary.framework_collectors_enabled };
+  assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.equal((await fixture()).external_calls, 0); assert.equal((await fixture()).network_attempts, 0); assert.equal((await fixture()).real_credential_attempts, 0); for (const counts of Object.values((await fixture()).http_client_counters)) assert.equal(counts.nonloopback_attempts || 0, 0); assert.equal((await fixture()).framework_collectors_enabled, false); assert.deepEqual((await fixture()).proxy_environment_keys, []); assert.equal((await fixture()).credential_home_present, false);
 } catch (error) { failures.push(error.stack); if (page) await page.screenshot({ path: path.join(output, 'failed.png') }).catch(failure => errors.push(failure.message)); }
 finally {
   await browser?.close();

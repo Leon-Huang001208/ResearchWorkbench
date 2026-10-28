@@ -16,12 +16,140 @@ import json
 import re
 import time
 import unicodedata
-from typing import NoReturn
+from typing import TYPE_CHECKING, Literal, NoReturn, NotRequired, TypedDict, cast
 from uuid import uuid4
 
 from core.observability import get_logger
 
 from .store import StoreError
+
+if TYPE_CHECKING:
+    from .asset_workspace import AssetWorkspace
+
+
+class CsvInput(TypedDict):
+    asset: str
+    asset_type: str
+    name: str
+
+
+class CatalogItem(TypedDict):
+    asset: str
+    code: str
+    name: str
+    exchange: str
+    asset_type: str
+    pinyin_abbr: NotRequired[str]
+
+
+class OfflineCatalog(TypedDict):
+    items: tuple[CatalogItem, ...]
+    status: str
+    digest: str | None
+    failure_code: NotRequired[str | None]
+
+
+class PreviewRequest(TypedDict):
+    schema_version: Literal[1]
+    file_base64: str
+    file_sha256: str
+    selections: NotRequired[dict[str, str]]
+    skipped_rows: NotRequired[list[int]]
+
+
+class ConfirmRequest(TypedDict):
+    preview_digest: str
+    schema_version: NotRequired[Literal[1]]
+    confirmed: NotRequired[Literal[True]]
+
+
+class ImportRow(TypedDict):
+    row_number: int
+    line_number: int
+    input: CsvInput
+    status: NotRequired[str]
+    reason: NotRequired[str]
+    candidates: NotRequired[list[CatalogItem]]
+    candidate_count: NotRequired[int]
+    candidates_truncated: NotRequired[bool]
+    selected: NotRequired[str | None]
+    proposed_action: NotRequired[str]
+
+
+class SavedWatchlistItem(TypedDict):
+    id: str
+    asset: str
+    asset_type: str
+    name: str
+    created_at: float
+
+
+class WatchlistRecord(TypedDict):
+    id: str
+    name: str
+    polling_minutes: int | None
+    items: list[SavedWatchlistItem]
+    created_at: float
+    updated_at: float
+
+
+class ImportReceipt(TypedDict):
+    schema_version: Literal[1]
+    import_id: str
+    target_id: str
+    preview_digest: str
+    file_sha256: str
+    before_digest: str
+    after_digest: str
+    added_item_ids: list[str]
+    added_count: int
+    skipped_count: int
+    status: Literal["committed", "no_changes"]
+
+
+class RowDecision(TypedDict):
+    row_number: int
+    selected: str | None
+    action: str
+
+
+class ImportManifest(TypedDict):
+    schema_version: Literal[1]
+    import_id: str
+    scope: str
+    target_id: str
+    target_digest: str
+    file_sha256: str
+    catalog_digest: str | None
+    catalog_status: str
+    catalog_failure: str | None
+    rows: NotRequired[list[ImportRow]]
+    created_at: float
+    expires_at: float
+    can_confirm: bool
+    preview_digest: NotRequired[str]
+    superseded: NotRequired[bool]
+    receipt: NotRequired[ImportReceipt]
+    decisions: NotRequired[list[RowDecision]]
+
+
+class IdempotencyBinding(TypedDict):
+    scope: str
+    target_id: str
+    preview_digest: str
+    import_id: str
+
+
+class KeyRecord(TypedDict):
+    binding: IdempotencyBinding
+    receipt: ImportReceipt
+
+
+class ImportNamespace(TypedDict):
+    schema_version: Literal[1]
+    previews: dict[str, ImportManifest]
+    keys: dict[str, KeyRecord]
+
 
 log = get_logger(__name__)
 MAX_FILE_BYTES = 1024 * 1024
@@ -33,7 +161,7 @@ PREVIEW_TTL = 30 * 60
 NAMESPACE = "watchlist_imports"
 
 
-def digest(value) -> str:
+def digest(value: object) -> str:
     return hashlib.sha256(
         json.dumps(
             value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -41,12 +169,12 @@ def digest(value) -> str:
     ).hexdigest()
 
 
-def reject(code: str, status=409) -> NoReturn:
+def reject(code: str, status: int = 409) -> NoReturn:
     log.warning("watchlist_import_rejected", code=code)
     raise StoreError(code, code, status)
 
 
-def parse_file(body: dict) -> list[dict]:
+def parse_file(body: PreviewRequest) -> list[ImportRow]:
     encoded = body["file_base64"]
     if len(encoded) > 4 * ((MAX_FILE_BYTES + 2) // 3):
         reject("watchlist_import_file_limit", 413)
@@ -63,7 +191,7 @@ def parse_file(body: dict) -> list[dict]:
         reader = csv.reader(io.StringIO(text, newline=""), strict=True)
         if next(reader, None) != ["asset", "asset_type", "name"]:
             reject("watchlist_import_header_invalid", 422)
-        rows = []
+        rows: list[ImportRow] = []
         for number, fields in enumerate(reader, 1):
             if number > MAX_ROWS:
                 reject("watchlist_import_row_limit", 413)
@@ -80,7 +208,7 @@ def parse_file(body: dict) -> list[dict]:
                 {
                     "row_number": number,
                     "line_number": reader.line_num,
-                    "input": dict(zip(("asset", "asset_type", "name"), fields)),
+                    "input": {"asset": fields[0], "asset_type": fields[1], "name": fields[2]},
                 }
             )
         if not rows:
@@ -90,7 +218,13 @@ def parse_file(body: dict) -> list[dict]:
         reject("watchlist_import_csv_invalid", 422)
 
 
-def resolve_rows(rows, catalog, target, selections, skips):
+def resolve_rows(
+    rows: list[ImportRow],
+    catalog: OfflineCatalog,
+    target: WatchlistRecord,
+    selections: dict[str, str],
+    skips: list[int],
+) -> list[ImportRow]:
     valid_rows = {str(row["row_number"]) for row in rows}
     if (
         set(selections) - valid_rows
@@ -99,15 +233,18 @@ def resolve_rows(rows, catalog, target, selections, skips):
     ):
         reject("watchlist_import_selection_invalid", 422)
     items = catalog.get("items", ())
-    canonical = {row["asset"]: dict(row) for row in items}
-    codes, names = {}, {}
+    canonical: dict[str, CatalogItem] = {
+        row["asset"]: cast(CatalogItem, dict(row)) for row in items
+    }
+    codes: dict[str, list[CatalogItem]] = {}
+    names: dict[str, list[CatalogItem]] = {}
     for item in canonical.values():
         codes.setdefault(item["code"], []).append(item)
         names.setdefault(item["name"].casefold(), []).append(item)
-    existing = {}
-    for item in target["items"]:
-        existing.setdefault(str(item.get("asset", "")).upper(), []).append(item)
-    seen = set()
+    existing: dict[str, list[SavedWatchlistItem]] = {}
+    for existing_item in target["items"]:
+        existing.setdefault(str(existing_item.get("asset", "")).upper(), []).append(existing_item)
+    seen: set[str] = set()
     for row in rows:
         number, original = row["row_number"], row["input"]
         value, kind, name = (original[k].strip() for k in ("asset", "asset_type", "name"))
@@ -134,24 +271,32 @@ def resolve_rows(rows, catalog, target, selections, skips):
         if selected:
             status = "ready"
         elif status == "ready":
+            if exact is None:
+                reject("watchlist_import_selection_invalid", 422)
             selected = exact["asset"]
         row.update(
-            status=status,
-            reason=status,
-            candidates=candidates,
-            candidate_count=candidate_count if candidates else 0,
-            candidates_truncated=candidate_count > len(candidates) if candidates else False,
-            selected=selected,
-            proposed_action="blocked",
+            {
+                "status": status,
+                "reason": status,
+                "candidates": candidates,
+                "candidate_count": candidate_count if candidates else 0,
+                "candidates_truncated": candidate_count > len(candidates) if candidates else False,
+                "selected": selected,
+                "proposed_action": "blocked",
+            }
         )
         if number in skips:
-            row.update(status="skipped", proposed_action="skip_explicit")
+            row.update({"status": "skipped", "proposed_action": "skip_explicit"})
             continue
         if status != "ready":
             continue
+        if selected is None:
+            reject("watchlist_import_selection_invalid", 422)
         old = existing.get(selected, [])
         if len(old) > 1 or old and old[0].get("asset_type") != "stock":
-            row.update(status="target_integrity_conflict", reason="target_integrity_conflict")
+            row.update(
+                {"status": "target_integrity_conflict", "reason": "target_integrity_conflict"}
+            )
         elif old:
             row["proposed_action"] = "skip_existing"
         elif selected in seen:
@@ -165,21 +310,21 @@ def resolve_rows(rows, catalog, target, selections, skips):
 class WatchlistImports:
     """All entrypoints are synchronous and called under the workspace writer lock."""
 
-    def __init__(self, workspace):
+    def __init__(self, workspace: AssetWorkspace) -> None:
         self.workspace = workspace
         self.store = workspace.store
         self.clock = time.time
         self.scope = hashlib.sha256(str(self.store.root).encode()).hexdigest()
 
-    def _target(self, target_id):
+    def _target(self, target_id: str) -> WatchlistRecord:
         if (
             not re.fullmatch(r"[a-f0-9-]{36}", target_id)
             or target_id not in self.store.data["watchlists"]
         ):
             reject("watchlist_import_not_found", 404)
-        return self.store.data["watchlists"][target_id]
+        return cast(WatchlistRecord, self.store.data["watchlists"][target_id])
 
-    def _namespace(self):
+    def _namespace(self) -> ImportNamespace:
         value = self.store.data.get(NAMESPACE, {"schema_version": 1, "previews": {}, "keys": {}})
         if (
             not isinstance(value, dict)
@@ -188,17 +333,22 @@ class WatchlistImports:
             or not isinstance(value.get("keys"), dict)
         ):
             reject("watchlist_import_storage_invalid", 503)
-        return copy.deepcopy(value)
+        return copy.deepcopy(cast(ImportNamespace, value))
 
     @staticmethod
-    def _budget(namespace):
+    def _budget(namespace: ImportNamespace) -> None:
         if (
             len(json.dumps(namespace, ensure_ascii=False, allow_nan=False).encode())
             > MAX_NAMESPACE_BYTES
         ):
             reject("watchlist_import_storage_limit", 413)
 
-    def _save(self, namespace, target_id=None, target=None):
+    def _save(
+        self,
+        namespace: ImportNamespace,
+        target_id: str | None = None,
+        target: WatchlistRecord | None = None,
+    ) -> None:
         self._budget(namespace)
         absent = object()
         old_namespace = self.store.data.get(NAMESPACE, absent)
@@ -221,7 +371,7 @@ class WatchlistImports:
             ) from exc
 
     @staticmethod
-    def _seal(manifest):
+    def _seal(manifest: ImportManifest) -> str:
         return digest(
             {
                 k: v
@@ -230,10 +380,10 @@ class WatchlistImports:
             }
         )
 
-    def preview(self, target_id, body):
+    def preview(self, target_id: str, body: PreviewRequest) -> dict[str, object]:
         target = self._target(target_id)
         rows = parse_file(body)
-        catalog = self.workspace.directory.offline_snapshot()
+        catalog = cast(OfflineCatalog, self.workspace.directory.offline_snapshot())
         rows = resolve_rows(
             rows, catalog, target, body.get("selections", {}), body.get("skipped_rows", [])
         )
@@ -259,7 +409,7 @@ class WatchlistImports:
             >= MAX_ACTIVE_PREVIEWS
         ):
             reject("watchlist_import_preview_limit", 429)
-        manifest = {
+        manifest: ImportManifest = {
             "schema_version": 1,
             "import_id": str(uuid4()),
             "scope": self.scope,
@@ -283,10 +433,12 @@ class WatchlistImports:
         )
         return {k: copy.deepcopy(v) for k, v in manifest.items() if k != "scope"}
 
-    def confirm(self, target_id, import_id, body, key):
+    def confirm(
+        self, target_id: str, import_id: str, body: ConfirmRequest, key: str
+    ) -> ImportReceipt:
         self._target(target_id)
         # Recheck account authorization before serving even a committed receipt.
-        catalog = self.workspace.directory.offline_snapshot()
+        catalog = cast(OfflineCatalog, self.workspace.directory.offline_snapshot())
         if catalog.get("failure_code") in {
             "asset_directory_unauthorized",
             "asset_directory_closed",
@@ -294,7 +446,7 @@ class WatchlistImports:
             reject("watchlist_import_catalog_unauthorized", 409)
         namespace = self._namespace()
         key_hash = hashlib.sha256(key.encode()).hexdigest()
-        binding = {
+        binding: IdempotencyBinding = {
             "scope": self.scope,
             "target_id": target_id,
             "preview_digest": body["preview_digest"],
@@ -311,10 +463,10 @@ class WatchlistImports:
         if manifest["preview_digest"] != body["preview_digest"]:
             reject("watchlist_import_preview_mismatch")
         if manifest.get("receipt"):
-            receipt = manifest["receipt"]
-            namespace["keys"][key_hash] = {"binding": binding, "receipt": receipt}
+            prior_receipt = manifest["receipt"]
+            namespace["keys"][key_hash] = {"binding": binding, "receipt": prior_receipt}
             self._save(namespace)
-            return copy.deepcopy(receipt)
+            return copy.deepcopy(prior_receipt)
         if manifest.get("superseded") or self.clock() >= manifest["expires_at"]:
             reject("watchlist_import_preview_expired")
         if self._seal(manifest) != manifest["preview_digest"]:
@@ -326,12 +478,13 @@ class WatchlistImports:
             reject("watchlist_import_target_changed")
         if not manifest["can_confirm"]:
             reject("watchlist_import_unresolved")
-        target, added = copy.deepcopy(old), []
+        target = copy.deepcopy(old)
+        added: list[str] = []
         for row in manifest["rows"]:
             if row["proposed_action"] != "add":
                 continue
             candidate = next(item for item in row["candidates"] if item["asset"] == row["selected"])
-            item = {
+            item: SavedWatchlistItem = {
                 "id": str(uuid4()),
                 "asset": candidate["asset"],
                 "asset_type": "stock",
@@ -342,7 +495,7 @@ class WatchlistImports:
             added.append(item["id"])
         if added:
             target["updated_at"] = self.clock()
-        receipt = {
+        receipt: ImportReceipt = {
             "schema_version": 1,
             "import_id": import_id,
             "target_id": target_id,
@@ -356,17 +509,21 @@ class WatchlistImports:
             "status": "committed" if added else "no_changes",
         }
         # Committed manifests retain decisions/hashes, not the private CSV/candidate bodies.
-        namespace["previews"][import_id] = {k: v for k, v in manifest.items() if k != "rows"}
+        namespace["previews"][import_id] = cast(
+            ImportManifest, {k: v for k, v in manifest.items() if k != "rows"}
+        )
         namespace["previews"][import_id].update(
-            receipt=receipt,
-            decisions=[
-                {
-                    "row_number": r["row_number"],
-                    "selected": r["selected"],
-                    "action": r["proposed_action"],
-                }
-                for r in manifest["rows"]
-            ],
+            {
+                "receipt": receipt,
+                "decisions": [
+                    {
+                        "row_number": r["row_number"],
+                        "selected": r["selected"],
+                        "action": r["proposed_action"],
+                    }
+                    for r in manifest["rows"]
+                ],
+            }
         )
         namespace["keys"][key_hash] = {"binding": binding, "receipt": receipt}
         self._save(namespace, target_id, target)

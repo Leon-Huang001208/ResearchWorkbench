@@ -6,7 +6,10 @@ const owner = () => String(globalThis.__RWB_USER_ID__ || 'single-user');
 const fresh = () => ({ target: '', filename: '', sourceFile: null, file: null, selections: {}, skips: [], preview: null, dirty: true, busy: false, error: '', receipt: null, key: null, revision: 0 });
 let draftOwner; let draft;
 function accountDraft() {
-  if (draftOwner !== owner()) { draftOwner = owner(); draft = fresh(); }
+  if (draftOwner !== owner()) {
+    if (draft) { const revision = draft.revision + 1; Object.assign(draft, fresh(), { revision }); delete draft.renderDraft; }
+    draftOwner = owner(); draft = fresh();
+  }
   return draft;
 }
 const messages = {
@@ -61,24 +64,25 @@ export async function encodeWatchlistFile(file) {
   return { file_base64: globalThis.btoa(binary), file_sha256: [...hash].map(b => b.toString(16).padStart(2, '0')).join('') };
 }
 
-export function createWatchlistImportController({ api, onChange = () => {}, onCommitted = () => {}, state = fresh(), account = owner, makeKey = () => globalThis.crypto.randomUUID() } = {}) {
+export function createWatchlistImportController({ api, onChange = () => {}, onCommitted = () => {}, state = fresh(), account = owner, isCurrentScope = () => true, makeKey = () => globalThis.crypto.randomUUID() } = {}) {
   const scope = account();
-  const notify = () => { if (scope === account()) onChange(state); };
-  const current = revision => scope === account() && revision === state.revision;
+  const activeScope = () => scope === account() && isCurrentScope();
+  const notify = () => { if (activeScope()) onChange(state); };
+  const current = revision => activeScope() && revision === state.revision;
   function invalidate() { state.revision++; state.dirty = true; state.key = null; state.receipt = null; state.error = ''; }
-  function target(id) { if (state.busy) return; if (id !== state.target) { invalidate(); state.target = id; notify(); } }
+  function target(id) { if (state.busy || !activeScope()) return; if (id !== state.target) { invalidate(); state.target = id; notify(); } }
   async function file(input) {
-    if (state.busy) return;
+    if (state.busy || !activeScope()) return;
     invalidate(); state.filename = input?.name || ''; state.sourceFile = input || null; state.file = null; state.preview = null; state.selections = {}; state.skips = []; state.busy = true;
-    const currentFile = () => scope === account() && state.sourceFile === input; notify();
+    const currentFile = () => activeScope() && state.sourceFile === input; notify();
     try { const encoded = await encodeWatchlistFile(input); if (currentFile()) state.file = encoded; }
     catch (error) { if (currentFile()) state.error = '无法读取所选文件，请重新选择非空、最多 1 MiB 的 CSV 文件。'; safeLog('watchlist_import_file_rejected', { status: 'invalid' }); }
     finally { if (currentFile()) { state.busy = false; notify(); } }
   }
-  function choose(number, asset) { if (state.busy) return; invalidate(); state.selections[String(number)] = asset; notify(); }
-  function skip(number, yes) { if (state.busy) return; invalidate(); state.skips = state.skips.filter(n => n !== number); if (yes) state.skips.push(number); notify(); }
+  function choose(number, asset) { if (state.busy || !activeScope()) return; invalidate(); state.selections[String(number)] = asset; notify(); }
+  function skip(number, yes) { if (state.busy || !activeScope()) return; invalidate(); state.skips = state.skips.filter(n => n !== number); if (yes) state.skips.push(number); notify(); }
   async function preview() {
-    if (state.busy || !state.file || !state.target || scope !== account()) return;
+    if (state.busy || !state.file || !state.target || !activeScope()) return;
     state.busy = true; state.error = ''; const revision = state.revision; notify();
     try {
       const result = await api.previewWatchlistImport(state.target, { schema_version: 1, ...state.file, selections: Object.fromEntries(Object.entries(state.selections).filter(([, asset]) => asset)), skipped_rows: [...state.skips] });
@@ -89,7 +93,7 @@ export function createWatchlistImportController({ api, onChange = () => {}, onCo
     finally { if (current(revision)) { state.busy = false; notify(); } }
   }
   async function confirm() {
-    if (state.busy || state.dirty || !state.preview?.can_confirm || state.receipt || scope !== account()) return;
+    if (state.busy || state.dirty || !state.preview?.can_confirm || state.receipt || !activeScope()) return;
     const revision = state.revision, frozen = state.preview; state.busy = true; state.error = ''; notify();
     try {
       const receipt = await api.confirmWatchlistImport(state.target, frozen.import_id, { schema_version: 1, preview_digest: frozen.preview_digest, confirmed: true }, state.key);
@@ -113,13 +117,18 @@ if (globalThis.customElements && globalThis.HTMLElement && !globalThis.customEle
   globalThis.customElements.define('rwb-watchlist-import', class extends HTMLElement {
     connectedCallback() {
       try {
+        const mountOwner = owner();
         const state = accountDraft();
         const lists = updateWatchlistTargets(state, JSON.parse(this.getAttribute('data-lists') || '[]'));
-        const previousFileInput = this.querySelector('[data-wi-file]');
+        const existingFileInput = this.querySelector('[data-wi-file]');
+        const sameOwner = this.inputOwner === mountOwner && this.inputDraft === state;
+        const previousFileInput = sameOwner ? existingFileInput : null;
+        if (!sameOwner && existingFileInput) existingFileInput.value = '';
+        this.inputOwner = mountOwner; this.inputDraft = state;
         this.innerHTML = `<section class="watchlist-import"><h3>导入股票 CSV</h3><p class="muted small">仅本地已获准的沪深北股票目录；UTF-8 / BOM，最多1 MiB、1000行。固定表头：asset,asset_type,name。ETF、基金、指数、行业、主题逐行标为待支持。</p><label>目标自选<select data-wi-target>${lists.map(list => `<option value="${e(list.id)}">${e(list.name)}</option>`).join('')}</select></label><label>CSV 文件<input type="file" data-wi-file accept=".csv,text/csv"></label><p data-wi-filename class="muted small"></p>${!lists.length ? '<p class="notice warning">请先在上方创建自选列表。</p>' : ''}<div data-wi-results></div><div class="button-row"><button type="button" class="button small" data-wi-preview>冻结预览</button><button type="button" class="button small" data-wi-confirm>确认追加</button></div><p data-wi-loading role="status" aria-live="polite"></p></section>`;
         if (previousFileInput) this.querySelector('[data-wi-file]').replaceWith(previousFileInput);
         const draw = () => {
-          if (!this.isConnected) return;
+          if (!this.isConnected || owner() !== mountOwner || draft !== state) return;
           const active = this.ownerDocument.activeElement;
           const focus = active?.hasAttribute?.('data-wi-choice') ? ['data-wi-choice', active.getAttribute('data-wi-choice')] : active?.hasAttribute?.('data-wi-skip') ? ['data-wi-skip', active.getAttribute('data-wi-skip')] : null;
           this.querySelector('[data-wi-results]').innerHTML = renderWatchlistImportResults(state);
@@ -140,7 +149,7 @@ if (globalThis.customElements && globalThis.HTMLElement && !globalThis.customEle
         };
         // An in-flight File read notifies the current mount after a full render.
         this.drawDraft = draw; state.renderDraft = draw;
-        this.controller = createWatchlistImportController({ api: createAPI(), state, onChange: () => state.renderDraft?.(), onCommitted: receipt => this.ownerDocument.dispatchEvent(new CustomEvent('rwb-watchlist-import-committed', { detail: { receipt, account: owner() } })) });
+        this.controller = createWatchlistImportController({ api: createAPI(), state, isCurrentScope: () => draft === state && draftOwner === mountOwner, onChange: () => state.renderDraft?.(), onCommitted: receipt => this.ownerDocument.dispatchEvent(new CustomEvent('rwb-watchlist-import-committed', { detail: { receipt, account: mountOwner } })) });
         this.onChange = event => { const target = event.target; if (target.matches('[data-wi-file]')) void this.controller.file(target.files?.[0]); else if (target.matches('[data-wi-target]')) this.controller.target(target.value); else if (target.matches('[data-wi-choice]')) this.controller.choose(Number(target.dataset.wiChoice), target.value); else if (target.matches('[data-wi-skip]')) this.controller.skip(Number(target.dataset.wiSkip), target.checked); };
         this.onClick = event => { if (event.target.matches('[data-wi-preview]')) void this.controller.preview(); if (event.target.matches('[data-wi-confirm]')) void this.controller.confirm(); };
         this.addEventListener('change', this.onChange); this.addEventListener('click', this.onClick); draw();
