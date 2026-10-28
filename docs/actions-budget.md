@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+
 股票CSV导入只扩原Checks的Python合同名单与Mac Bootstrap同一步模块/资源核对，Node仍用原glob；不增job、runner、依赖、timeout或触发频率，不发Windows/Linux产品dispatch。实际Actions额度、同候选CI和发布仍按本治理核验，离线本机通过不替代远端。
 
 PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上限而回滚；本机源入口原为262004字节。修复仅拆出报告UI操作模块并补实际字节预算回归，同一Mac静态清单增加一份文件；无新job/runner/依赖/timeout，不rerun旧候选，完整原三CI随正常repair重新绑定。

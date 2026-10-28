@@ -180,6 +180,7 @@ jobs:
             tests/research_web/test_research_scenarios_catalog.py \
             tests/research_web/test_scenario_handoffs.py \
             tests/research_web/test_capture_file_alias.py \
+            tests/research_web/test_source_capture_store_interaction.py \
             tests/research_web/test_execution_bindings.py \
             tests/research_web/test_execution_cancel_policy.py \
             tests/research_web/test_native_argument_adapters.py \

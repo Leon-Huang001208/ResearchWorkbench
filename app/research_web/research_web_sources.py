@@ -537,7 +537,6 @@ def _publish_source(service, sid, selected, document):
     from .dossiers.lock import retention_lock
 
     store = service.store
-    row = store.session(sid)
     identifier = selected["id"]
     raw = document["content"].encode("utf-8")
     relative = "inputs/web-" + identifier[4:] + ".txt"
@@ -563,7 +562,10 @@ def _publish_source(service, sid, selected, document):
     source["capture_schema"] = (
         CAPTURE_SCHEMA if producer is not None else "research_web_capture_unverified_v1"
     )
-    with retention_lock(store.root):
+    # Other writers persist the whole Store index. Keep uncommitted source
+    # references private until save or rollback, including owned body cleanup.
+    with retention_lock(store.root), store.write_lock:
+        row = store.session(sid)
         previous_files = dict(row["files"])
         previous_sources = dict(row.get("web_evidence", {}))
         ownership = {}
