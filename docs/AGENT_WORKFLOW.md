@@ -547,6 +547,8 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 ## 2026-10-28：T3既有验证通道
 
+服务生命周期的顺序单测须显式隔离其虚拟系统事实。`virtual_native_listener_facts` 仅供原 readiness／spawn／browser 顺序用例 opt-in，提供 closed、unknown、listening＋inaccessible 三种低层观测；真实 quiescence、恢复证明、lease、内核端口选择和端点事务继续执行。两拒绝模型要求零 spawn/browser、零 bind、零端点发布。其他真实 busy-port／ownership 用例不使用此夹具；单元模型通过不认证真实 resident，也不能通过停止常驻端口或返回 `quiescent=True` 代替隔离。本机沙箱拒绝 setuid ps 的旧失败与只读诊断保留。
+
 本批九包/三方法仅在原Research Web Checks Python步骤追加29个实际新增回归模块，JS保留原通配符。Mac Bootstrap原步骤增加pack-ui字节核对及python -I从已安装wheel逐件比对checkout后构造9+3资源/核闭包，保持原DSH/health/Doctor与Mac干净安装门；不增job/runner/deps/timeout、不发他平台dispatch，资源构造不认证执行或质量。
 
 
