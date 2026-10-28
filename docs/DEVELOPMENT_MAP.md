@@ -1,6 +1,6 @@
 # Research Workbench Development Map
 
-2026-10-28 PR245 repair2 仅收敛 `.github/workflows/research-web-checks.yml` 的测试解释器安装边界：现有完整 Web 锁哈希安装、pyproject dev 工具独立解析、editable 根包 --no-deps，保留七项实装 metadata 并先实际运行 Host／fresh Native 导入准入。`tests/javascript/actions_quota_governance.test.mjs` 实际执行 stdlib-only 锁与工具解析矩阵；`research_web_ci_admission.test.mjs` 沿原 Checks JS 通配符在已有 Web 环境实际执行 optional 污染正反例，不向轻量 Constraints 引入产品依赖。不修改 pack 导入策略、依赖锁、唯一 DSH 或原完整测试清单。根包历史 langgraph→jsonpointer 链不再混入 Web 环境，用户额外SDK污染仍明确拒绝。
+2026-10-28 PR245 repair3 收敛 `.github/workflows/research-web-checks.yml` 的测试解释器安装边界：现有完整 Web 锁哈希安装、pyproject dev 工具独立解析，根包沿产品普通 wheel 路径 --no-index --no-deps --no-build-isolation，保留七项实装 metadata 并以 -I 从已安装包实际运行 Host／fresh Native 导入准入。`tests/javascript/actions_quota_governance.test.mjs` 实际执行 stdlib-only 锁与工具解析矩阵；`research_web_ci_admission.test.mjs` 沿原 Checks JS 通配符执行离线真实 wheel 构建／无 checkout 资源调用和 optional 污染正反例，不向轻量 Constraints 引入 Hatchling／产品依赖。包内投影、资源、唯一 DSH 和原完整测试清单不改；新 CI 实装／console script／全闭包仍须另验。根包历史 langgraph→jsonpointer 链及 editable 专用 editables 不再引入，用户额外SDK污染仍明确拒绝。
 
 报告操作HTTP接线提取为ui/report-operations.mjs，捕获页面代次、项目和单请求忙态，复用原端点；它不执行研究或替代DSH。app.mjs缩至260079字节，保持原256KiB健康正文上限。
 

@@ -502,8 +502,9 @@ test('Checks executes frozen dependency extraction and rejects inconsistent lock
   }
   assert.match(workflows.checks, /pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-pack-dependencies\.lock"/);
   assert.match(workflows.checks, /pip install -r "\$RUNNER_TEMP\/rwb-test-tools\.in" -c "\$RUNNER_TEMP\/rwb-pack-dependencies\.constraints"/);
-  assert.match(workflows.checks, /pip install --no-deps --no-build-isolation -e \./);
-  assert.doesNotMatch(workflows.checks, /pip install -e "\.\[dev\]"/);
+  assert.match(workflows.checks, /pip install --no-index --no-deps --no-build-isolation \./);
+  assert.doesNotMatch(workflows.checks, /pip install[^\n]* -e(?:\s|$)/);
+  assert.match(workflows.checks, /python -I -B - <<'PY_ADMISSION'/);
 });
 
 test('Checks actually extracts declared dev tools without root legacy dependencies', () => {

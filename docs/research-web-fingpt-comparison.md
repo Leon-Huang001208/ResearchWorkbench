@@ -1,6 +1,6 @@
 # FinGPT 三组隔离比较（macOS）
 
-PR245 repair2 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立声明的 dev 工具边界，并在完整测试前实际核验 Host／fresh Native 导入准入。未锁 jsonpointer 的真实 optional 引用及可发现性仍拒绝；不通过修改 policy、依赖锁或删测试降低门槛。本机治理与安装CI不认证FinGPT模型质量、真实报告或用户额外SDK环境兼容，本轮不执行模型对比、上游取数或常驻切换。
+PR245 repair3 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立声明的 dev 工具和普通 wheel 安装边界，并在完整测试前以 -I 实际核验已安装 Host／fresh Native 导入准入。未锁 jsonpointer 的真实 optional 引用及可发现性仍拒绝；不通过修改 policy、依赖锁或删测试降低门槛。离线 wheel／资源真调用不等于实际安装或console script通过；本机治理与安装CI不认证FinGPT模型质量、真实报告或用户额外SDK环境兼容，本轮不执行模型对比、上游取数或常驻切换。旧候选DSH下载超时不扩大重试、pin或模型预算。
 
 独立报告生产UI只展示原Run与交付状态，不参与三组FinGPT模型对照、预算或真实调用。本轮Node/隔离页面及安装检查不改变原模型试跑授权、质量判据或NOT_RUN记录。
 

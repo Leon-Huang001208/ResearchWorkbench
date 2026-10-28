@@ -117,7 +117,7 @@ jobs:
           PY_LOCK
           .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-pack-dependencies.lock"
           .venv/bin/python -m pip install -r "$RUNNER_TEMP/rwb-test-tools.in" -c "$RUNNER_TEMP/rwb-pack-dependencies.constraints"
-          .venv/bin/python -m pip install --no-deps --no-build-isolation -e .
+          .venv/bin/python -m pip install --no-index --no-deps --no-build-isolation .
           .venv/bin/python - <<'PY_VERIFY'
           import json
           import logging
@@ -134,7 +134,7 @@ jobs:
               logging.exception("ci_pack_dependencies_verify_failed")
               raise
           PY_VERIFY
-          .venv/bin/python -B - <<'PY_ADMISSION'
+          .venv/bin/python -I -B - <<'PY_ADMISSION'
           import json
           import logging
           import subprocess

@@ -208,8 +208,9 @@ installed-like 读取不依赖 checkout 的 `requirements/`。
 Checks 的开发依赖安装复用产品 Web 安装边界：核对未变 web.lock 的 whole-lock 摘要、
 七个 runtime 投影版本及原 renderer/workbook 三项哈希，再原字节哈希安装完整 Web 锁。
 从现 pyproject 的 dev 声明解析测试工具，以全 Web 锁的纯版本 constraints 安装；
-editable 根包使用 `--no-deps --no-build-isolation`，不引入其历史非 Web 运行栈。
-七项实装 metadata 之后还必须实际通过 Host runtime_identity 与 fresh `-I` Native
+根包沿产品安装器的普通 wheel 路径使用 `--no-index --no-deps --no-build-isolation .`，
+不引入其历史非 Web 运行栈或 editable 专用的未锁 editables。七项实装 metadata 之后
+还必须从 `-I` 已安装包实际通过 Host runtime_identity 与 fresh `-I` Native
 import guard／真实 jsonschema 导入，才进入原完整测试列表。准备、核验或准入失败记录于
 `logs/ci-pack-dependencies.log` 并终止原步骤，不卸库、补锁、放行或 skip。
 
@@ -218,6 +219,13 @@ PR245 第二候选的版本核验成功后，根 pyproject 的 langgraph→langc
 正确拒绝其实际引用。fresh Native 即使尚未导入该模块，也按 available optional 门提前
 拒绝。这不是七项版本漂移；clean Web 环境通过不表示支持用户额外 SDK 污染后的闭包，
 该情形仍明确失败。产品导入策略、冻结锁、旧资源／唯一 DSH 和各平台门保持原合同。
+
+普通 wheel 已包含 pack 投影、计算核、schema、技能与 runtimes 合同；真实无 checkout
+解包验证可构造七依赖运行身份、九包／三方法及完整 Catalog，不需要复制一份 whole-lock
+或扩大包数据。whole-lock 仅在源码存在时复核，已安装 wheel 沿原包内投影合同验证。
+离线 wheel 构建／解包调用与新 CI 的实际安装、console script／完整闭包分别取证；
+前者不能冒充后者通过。对应实际构建与资源回归只沿原 Web JS 通配符执行，不向轻量
+Constraints 引入 Hatchling／Web 依赖。DSH 下载的外部超时不改变 pin、hash 或重试预算。
 
 
 运行指纹 schema v3 独立枚举受管分发的 import/data 根及版本元数据，不能由 RECORD 决定代码全集；
