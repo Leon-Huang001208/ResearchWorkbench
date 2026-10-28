@@ -208,3 +208,9 @@ NYFed SOFRAI v3只在原Host/DataHub/可选研究仓校准复合均值和指数�
 
 
 2026-10-28：PR245 Checks 安装漂移及旧 fixture 修复只约束已有冻结依赖并恢复离线合同测试，既不调用 FinGPT 模型／供应商，也不改变比较、预算或正式报告质量准入。本机 runtime／governance 通过不是模型效果或新候选 CI 的证明；原失败与新候选三 CI／Mac 安装分别保留。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

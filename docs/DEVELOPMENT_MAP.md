@@ -703,3 +703,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 
 2026-10-28：PR245 的 pack runtime 版本漂移修复位于原 research-web-checks Install declared test dependencies heredoc；原 actions_quota_governance 执行真实提取／核验代码的成功和拒绝样例，test_datahub_execution_health 绑定真实 Host validator。web.lock、runtime lock、app 源码及运行身份门不变；准备／核验错误写 logs/ci-pack-dependencies.log，原三 CI／同候选 Mac 安装继续取证。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

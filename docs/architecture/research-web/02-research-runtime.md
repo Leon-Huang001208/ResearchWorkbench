@@ -800,3 +800,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 ## 2026-10-28：T3组合包集成边界
 
 scenario_pack_execution与scenario_method_sources登记task/call/input/context及固定launcher。实际supervisor完成经私有pack-completion独立核schema、全量制品与来源hash后才记saved；取消、迟到及unknown不重跑。新闻/调研C2由Host先执行冻结、Native只消费，保存与原报告质量分别认证；历史版本仅在显式Dossier读回门验证等价。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

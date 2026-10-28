@@ -645,3 +645,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 ## 2026-10-28：T3组合包集成边界
 
 九包与三个自有方法扩展现有Host/能力目录/DSH职责：workbench核来源并封印，版本包固定代码、schema、解释器及依赖闭包，DSH supervisor经私有完成桥返回，Host独立重开原件和制品。无新进程、队列、数据库或第二引擎；新内部路径见[能力流](../../../outputs/research-web-architecture/05-capability-flow.html)。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

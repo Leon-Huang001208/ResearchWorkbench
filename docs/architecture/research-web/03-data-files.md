@@ -936,3 +936,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 2026-10-28：T3组合包集成边界
 
 source-selection preview只在内存，freeze重算摘要后发布inputs/source-selections/<id>.json及私有intent，再走原handoff。选择文件不是retention holder，lineage持久化后才保护源。C2及owned-method副本绑定来源/目标会话、原hash、locator与闭包，不得转作上传或Claw file alias；pack receipt/full-result/manifest逐件读回，128行预览不代表全量。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

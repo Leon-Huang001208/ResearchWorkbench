@@ -556,4 +556,10 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 2026-10-28：PR245 CI 修复保持原三门和原安装步骤：先核 whole-lock／七 runtime 投影及原三 renderer 哈希，原字节哈希安装完整现有 Web 锁；从 pyproject 已声明 dev 解析测试工具并用全 Web 纯版本 constraints 约束，根包沿产品普通 wheel 路径使用 --no-index --no-deps --no-build-isolation，不混入 legacy langgraph→jsonpointer 链或 editable 专用未锁依赖。七项实装 metadata 后以 -I 从已安装包实际执行 Host 与 fresh Native 导入准入，再跑原完整测试。Host 已保留 optional 引用与 Native 尚未导入但可发现 optional 的失败分别取证；均不得放行、卸库或改锁。wheel-only 资源真调用和离线构建不等于新 CI 安装／console script通过，本机不安装包，未执行保持 NOT_RUN；不新增资源复制或更改包内投影合同。fixture 经真实范围 validator／声明／健康 probe 验证成功和拒绝，不重入执行投影。旧候选 Mac 绿不能替代新候选安装；CDN超时不改pin/hash/retry，常驻／模型和他平台门保持独立。
 
+## 共享恢复及源路径维护（2026-10-29）
+
+原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
 真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。

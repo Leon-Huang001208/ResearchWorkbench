@@ -843,3 +843,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 ## 2026-10-28：T3组合包集成边界
 
 来源选择拒绝客户端owner/rights/provider/coverage/正文/路径自证，列表不返回正文或proof。freeze重核当前授权、hash、capture proof及能力版本；只有锁内handoff_outcome=not_created才解锁编辑，404或403/409本身不是证明。capture正文与proof同事务，孤儿不降级上传；普通UUID上传保留。逐文件sandbox及Host复算不解除18个gated或原source/numeric/canonical质量门。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

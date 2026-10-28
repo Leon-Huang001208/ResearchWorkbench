@@ -1143,3 +1143,9 @@ disabled／代码变化／撤权／跨owner／假证或事务不完整均拒绝�
 ## 2026-10-28：T3组合包集成边界
 
 已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py和三公开入口，复用已锁jsonschema及闭包，无新依赖/服务/凭据/安装器修改。Mac Bootstrap原步骤补pack-ui.mjs HTTP/源码字节核对及离线构造九包/三方法资源，逐件核hash/闭包，不调供应商/模型。固定DSH、3081/8088、Doctor和最终macos-14干净安装仍须CI真实通过，旧venv和静态核对不认证安装成功。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

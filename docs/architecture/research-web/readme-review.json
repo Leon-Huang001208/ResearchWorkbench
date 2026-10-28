@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "README既有九包、三个自有原件方法与有限股票CSV导入范围继续适用；本次真实主线融合保留两边入口，来源发布追加同Store持久化临界区修复，不新增用户入口或执行引擎。",
-  "reason": "UI重组复用既有Host API和数据格式；旧未知Run、质量失效、普通租户权限及Excel日程限制不变，页面与源码检查不冒充正式周报或部署验收。现有Host/DataHub/唯一DSH及质量报告链保持，取消和完成按原锁及同任务归属判定；README不把内核、已保存或目录卡片当作整包生产验收、全部140项或真实模型通过。Mac安装CI、供应商实测与常驻部署仍分别留证。AST局部优化仍保留原检查顺序、六次freshness和保存checkpoint；memory fixture不改产品Keychain，不回填旧38 CI／历史凭据UNKNOWN，也不重置三次远端修补限额。 用户入口与有限股票导入合同保持；账户切换清File控件、typing及fixture代理环境清理均不增加产品入口或依赖，模块合同和质量报告同步，README现有说明仍准确。 本次来源stage/save/rollback与正文清理在既有retention fence内共享Store RLock，防止其他writer持久化未提交来源；这不构成跨进程事务或HTTP调度证明，实际三例和来源回归及未完成门见本轮报告。"
+  "summary": "九个纯核、三个自有原件方法、有限股票CSV导入及共享资格恢复维护入口沿既有Host／唯一DSH运行；README现有用户入口及范围说明仍适用。",
+  "reason": "来源选择、Host复算、UI、取消与证据读回属于有限真实Native与既有质量链；共享恢复维护CLI只预览／转移真实资格及盘点源码，不开放普通研究API，不切换运行服务。来源stage/save/rollback共享同Store RLock，防止其他writer持久化未提交引用，不构成跨进程事务。owner隔离、未知Run拒绝、旧凭据UNKNOWN、原18项gated及source/numeric/canonical质量门保持；不把内核、saved、卡片或140静态映射认证为九个完备生产包、62／78全覆盖或真实模型通过。原三次CI修补计数和失败事实保留，旧四项mypy medium债仍须如实记录。合入base84后最终候选Router、独立评审、原CI与同候选Mac干净安装须另行取证；真实模型、供应商、付费MCP、常驻部署及其他平台未执行保持未验证。原Mac本地17门结果不移标为本次合并后通过，六项Native CI门只由Mac Bootstrap证据认证。"
 }
