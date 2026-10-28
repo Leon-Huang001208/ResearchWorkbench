@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增报告生产主导航与独立目录，项目内分生产交付、配置和历史，保留通用Workflow与单一DSH。",
-  "reason": "UI重组复用既有Host API和数据格式；旧未知Run、质量失效、普通租户权限及Excel日程限制不变，页面与源码检查不冒充正式周报或部署验收。"
+  "disposition": "unchanged",
+  "summary": "导入质量修复：owner+draft控件隔离、完整typing与测试inbound-only网络边界。",
+  "reason": "用户入口与有限股票导入合同保持；账户切换清File控件、typing及fixture代理环境清理均不增加产品入口或依赖，模块合同和质量报告同步，README现有说明仍准确。"
 }

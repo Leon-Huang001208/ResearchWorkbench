@@ -11,6 +11,7 @@ import stat
 import tempfile
 import time
 from pathlib import Path
+from threading import RLock
 from uuid import uuid4
 
 from core.observability import get_logger
@@ -58,6 +59,8 @@ class StoreError(Exception):
 
 class Store:
     def __init__(self, root: Path):
+        # Shared by full save and watchlist snapshot/stage/rollback; one Store only.
+        self.write_lock = RLock()
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.index = self.root / "index.json"
@@ -96,32 +99,33 @@ class Store:
         self.data.setdefault("delivery_channels", {})
 
     def save(self):
-        # Startup may save unrelated services. Keep unused extensions in memory
-        # until first use, preserving the old on-disk missing/empty distinction.
-        payload = {
-            key: value
-            for key, value in self.data.items()
-            if key not in _OPTIONAL_ASSET_DEFAULTS
-            or key in self._persisted_asset_keys
-            or value != _OPTIONAL_ASSET_DEFAULTS[key]
-            # JSON distinguishes booleans from numeric defaults where Python == does not.
-            or json.dumps(value, sort_keys=True)
-            != json.dumps(_OPTIONAL_ASSET_DEFAULTS[key], sort_keys=True)
-        }
-        fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(payload, stream, ensure_ascii=False)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(name, self.index)
-            self._persisted_asset_keys = _OPTIONAL_ASSET_DEFAULTS.keys() & payload.keys()
-        except OSError as exc:
-            log.error("research_index_write_failed", error_type=type(exc).__name__)
-            raise StoreError("会话索引保存失败") from exc
-        finally:
-            if os.path.exists(name):
-                os.unlink(name)
+        with self.write_lock:
+            # Startup may save unrelated services. Keep unused extensions in memory
+            # until first use, preserving the old on-disk missing/empty distinction.
+            payload = {
+                key: value
+                for key, value in self.data.items()
+                if key not in _OPTIONAL_ASSET_DEFAULTS
+                or key in self._persisted_asset_keys
+                or value != _OPTIONAL_ASSET_DEFAULTS[key]
+                # JSON distinguishes booleans from numeric defaults where Python == does not.
+                or json.dumps(value, sort_keys=True)
+                != json.dumps(_OPTIONAL_ASSET_DEFAULTS[key], sort_keys=True)
+            }
+            fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    json.dump(payload, stream, ensure_ascii=False)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(name, self.index)
+                self._persisted_asset_keys = _OPTIONAL_ASSET_DEFAULTS.keys() & payload.keys()
+            except OSError as exc:
+                log.error("research_index_write_failed", error_type=type(exc).__name__)
+                raise StoreError("会话索引保存失败") from exc
+            finally:
+                if os.path.exists(name):
+                    os.unlink(name)
 
     def create(self, mode: str, title: str) -> dict:
         sid = str(uuid4())
