@@ -1,5 +1,7 @@
 # Research Web 前端
 
+自选CSV入口在资产观察“更多 → 自选与最近观察”，完整行预览后显式消歧/skip，再重新冻结确认追加。保留原自选、当前File和选择；状态/错误中文，390px浅深色和键盘均沿原样式，原More使用现有disclosure状态恢复，app.mjs入口不增长。完整格式/账户/并发及限制见[自选导入](research-web-watchlist-import.md)。
+
 报告操作接线由独立report-operations.mjs承担，防跨项目迟到响应及重复提交；主app.mjs必须保持在既有256KiB静态健康正文预算内，Node回归读取实际入口字节验证。
 
 独立“报告生产”主导航在 Claw 后，#/reports 为真实项目目录，可搜索/筛选；#/reports/:id 的 production/configuration/history 标签和 run 参数可刷新恢复。首版管理现有项目，无新建向导。目录状态不是本期验收；所选记录按其版本/来源/用途展示，未知受理即使已结束监控仍为未知。执行留在工作台，可跳转原 Claw 活动。失效/完整性无效文件在交付与证据区均禁止链接；能力中心移除独立报告区，Claw 计划页保留跳转。

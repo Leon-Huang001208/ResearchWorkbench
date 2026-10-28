@@ -1,5 +1,7 @@
 # 研究场景与 Seek Alpha 静态对照目录
 
+自选CSV仅维护原资产列表，不创建或发送研究场景；不把名称匹配、导入成功或列表轮询设置当作来源/模型/方法授权，见[自选导入](research-web-watchlist-import.md)。
+
 本模块位于 `app/research_web/scenarios/`，版本 `1.0.0`。它只提供只读参考与研究合同选择，执行、历史、冻结与报告质量仍归既有 ResearchService／能力目录／唯一 DSH。目录不调用供应商、模型、MCP，不创建会话、文件或投递任务。应用原有 logging handler 负责把标准 logger 事件写入 `logs/`，本模块不配置额外日志目的地。
 
 ## 参考证据范围

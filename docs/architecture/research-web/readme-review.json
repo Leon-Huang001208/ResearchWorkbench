@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增报告生产主导航与独立目录，项目内分生产交付、配置和历史，保留通用Workflow与单一DSH。",
-  "reason": "UI重组复用既有Host API和数据格式；旧未知Run、质量失效、普通租户权限及Excel日程限制不变，页面与源码检查不冒充正式周报或部署验收。"
+  "summary": "资产观察原自选入口增加股票CSV离线预览、显式消歧和幂等追加，保留原数据。",
+  "reason": "新增两端点和同index有界导入记录，单Store共享线程锁协调后台files保存；不扩大DSH、Provider、部署、跨Host或断电保证，完整边界见新模块合同。"
 }

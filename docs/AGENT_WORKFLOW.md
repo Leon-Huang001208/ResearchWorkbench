@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+自选CSV有限slice在原Research Web Checks Python步骤追加test_watchlist_import.py，Node仍走原glob；Mac Bootstrap原静态清单加入watchlist-import.mjs及后端import，不新增job/runner/timeout/依赖。单Host线程屏障需真实Store.files/save的RED→GREEN与回滚保全；跨Host/断电不认证。完整Router/独评/同候选Mac安装及远端由任务回执另证，详见[合同](research-web-watchlist-import.md)。
+
 报告生产UI先在独立worktree绑定真实GET元数据的隔离预览，禁止该预览连接Native/供应商/Office/模型或提交生产；前端回归按完整changed-set Router与原三CI/同候选Mac安装完成。与旧b800恢复独立，unknown不补空闲，源码通过不替代常驻切换或Word/下载验收。
 
 研究场景首批在Mac隔离工作树完成源码／真实临时Host及Chrome旅程；全changed-set Router仍L4，所有平台总门保留。使用项目固定Node24.19及明确可执行的`RWB_TEST_PYTHON`复用已有测试环境，环境缺失不能伪造安装或跳过测试。五类目标／源权限／原件／未知创建／质量绑定与旧入口反例需先失败再修复；源码、原通用CI、同候选Mac安装及常驻登录页／真实模型单列，Windows/Linux按本章平台交接，不从本机dispatch。模块文档、README复核和每组结构决定必须随全变更集更新，不调整约束来隐藏遗漏。

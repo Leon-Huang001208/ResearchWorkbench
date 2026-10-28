@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+新增POST /api/research/watchlists/{watchlist_id}/imports/preview 与 /imports/{import_id}/confirm；严格JSON、不接受owner/root，确认要求Idempotency-Key与冻结digest，目录/目标/TTL变化409零新增；旧端点保持。API Atlas同步源码声明，完整请求/响应及预算见[自选导入](../../research-web-watchlist-import.md)。
+
 报告生产新增前端 #/reports 与项目 tab/run/q/status 地址，不新增 HTTP。读取、历史验收、发布、探测、取消、受理核对和日程继续用原 report-workflows/report-runs API；后台准入和权限仍为权威。
 
 ## 研究场景首批（2026-10-27）
@@ -541,6 +543,8 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | GET | `/api/research/watchlists` | `app/research_web/asset_routes.py` |
 | POST | `/api/research/watchlists` | `app/research_web/asset_routes.py` |
 | POST | `/api/research/watchlists/{watchlist_id}/items` | `app/research_web/asset_routes.py` |
+| POST | `/api/research/watchlists/{watchlist_id}/imports/preview` | `app/research_web/asset_routes.py` |
+| POST | `/api/research/watchlists/{watchlist_id}/imports/{import_id}/confirm` | `app/research_web/asset_routes.py` |
 | GET | `/api/research/asset-notes` | `app/research_web/asset_routes.py` |
 | POST | `/api/research/asset-notes` | `app/research_web/asset_routes.py` |
 | PATCH | `/api/research/asset-notes/{note_id}` | `app/research_web/asset_routes.py` |

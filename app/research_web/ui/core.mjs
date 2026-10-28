@@ -406,6 +406,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     watchlists: (options = {}) => request('/watchlists', options),
     createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
     addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),
+    previewWatchlistImport: (id, body) => request(`/watchlists/${segment(id)}/imports/preview`, { method: 'POST', body }),
+    confirmWatchlistImport: (id, importId, body, key) => request(`/watchlists/${segment(id)}/imports/${segment(importId)}/confirm`, { method: 'POST', body, key }),
     assetNotes: (options = {}) => request('/asset-notes', options),
     createAssetNote: (body) => request('/asset-notes', { method: 'POST', body }),
     assetAlerts: (options = {}) => request('/asset-alerts', options),

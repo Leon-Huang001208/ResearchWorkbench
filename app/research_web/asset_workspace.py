@@ -158,16 +158,19 @@ class AssetWorkspace:
         self.tasks: dict[str, asyncio.Task] = {}
         self.block_lock = asyncio.Lock()
         self.closed = False
+        self.watchlist_lock = self.store.write_lock
         from .asset_directory import AssetDirectory
         from .asset_history_jobs import HistoryJobs
         from .asset_intraday import Intraday
         from .asset_minute_k import MinuteK
+        from .watchlist_import import WatchlistImports
 
         self.directory = AssetDirectory(
             self.store.root,
             loader=lambda: self.service.datahub.asset_directory(),
             fingerprint=lambda: self.service.datahub.directory_fingerprint(),
         )
+        self.watchlist_imports = WatchlistImports(self)
         self.history_jobs = HistoryJobs(self)
         self.intraday = Intraday(self)
         self.minute_k = MinuteK(self)
@@ -751,32 +754,58 @@ class AssetWorkspace:
         return sorted(rows, key=lambda row: row["updated_at"], reverse=True)
 
     def create_watchlist(self, name: str, polling_minutes: int | None) -> dict:
-        row: dict[str, Any] = {
-            "id": str(uuid4()),
-            "name": name.strip(),
-            "polling_minutes": polling_minutes,
-            "items": [],
-            "created_at": time.time(),
-            "updated_at": time.time(),
-        }
-        self.store.data["watchlists"][row["id"]] = row
-        self.store.save()
-        return row
+        with self.watchlist_lock:
+            row: dict[str, Any] = {
+                "id": str(uuid4()),
+                "name": name.strip(),
+                "polling_minutes": polling_minutes,
+                "items": [],
+                "created_at": time.time(),
+                "updated_at": time.time(),
+            }
+            self.store.data["watchlists"][row["id"]] = row
+            try:
+                self.store.save()
+            except Exception:
+                self.store.data["watchlists"].pop(row["id"], None)
+                log.error("asset_watchlist_create_failed")
+                raise
+            return row
 
     def add_watchlist_item(self, watchlist_id: str, item: dict) -> dict:
-        watchlist = _uuid_record(self.store.data["watchlists"], watchlist_id, "自选列表")
-        if any(entry["asset"] == item["asset"].upper() for entry in watchlist["items"]):
-            raise AssetWorkspaceError("资产已在自选列表中", 409)
-        row = {
-            "id": str(uuid4()),
-            **item,
-            "asset": item["asset"].upper(),
-            "created_at": time.time(),
-        }
-        watchlist["items"].append(row)
-        watchlist["updated_at"] = time.time()
-        self.store.save()
-        return row
+        with self.watchlist_lock:
+            original = _uuid_record(self.store.data["watchlists"], watchlist_id, "自选列表")
+            if any(
+                str(entry["asset"]).upper() == item["asset"].upper() for entry in original["items"]
+            ):
+                raise AssetWorkspaceError("资产已在自选列表中", 409)
+            watchlist = copy.deepcopy(original)
+            row = {
+                "id": str(uuid4()),
+                **item,
+                "asset": item["asset"].upper(),
+                "created_at": time.time(),
+            }
+            watchlist["items"].append(row)
+            watchlist["updated_at"] = time.time()
+            self.store.data["watchlists"][watchlist_id] = watchlist
+            try:
+                self.store.save()
+            except Exception:
+                self.store.data["watchlists"][watchlist_id] = original
+                log.error("asset_watchlist_write_failed")
+                raise
+            return row
+
+    def preview_watchlist_import(self, watchlist_id: str, body: dict) -> dict:
+        with self.watchlist_lock:
+            return self.watchlist_imports.preview(watchlist_id, body)
+
+    def confirm_watchlist_import(
+        self, watchlist_id: str, import_id: str, body: dict, key: str
+    ) -> dict:
+        with self.watchlist_lock:
+            return self.watchlist_imports.confirm(watchlist_id, import_id, body, key)
 
     def create_note(self, asset: str, text: str) -> dict:
         row = {
