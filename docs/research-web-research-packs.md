@@ -205,12 +205,19 @@ origin、解释器真实字节、环境与 format checker 集合。Host 准入�
 其配置解释器与该环境；依赖变化拒绝旧资源，不能只比较版本字符串。真实 wheel 的
 installed-like 读取不依赖 checkout 的 `requirements/`。
 
-Checks 的开发依赖安装也遵守这个已有冻结集合：从未变 web.lock 的原哈希条目提取
-全部七个 runtime 分发及原 renderer/workbook 三项，核对 whole-lock 摘要和投影版本后
-先哈希安装，再向原 editable dev 安装传入不含 hash 的精确版本 constraints，最后核对
-全部七项实装 metadata。这样避免 hashed constraints 与 editable 安装冲突，也防止
-transitive 更新使 Catalog 在测试初始化时拒绝 runtime；不升级锁、改变产品依赖或放松
-运行身份门。准备／核验错误写入 `logs/ci-pack-dependencies.log` 并终止原步骤。
+Checks 的开发依赖安装复用产品 Web 安装边界：核对未变 web.lock 的 whole-lock 摘要、
+七个 runtime 投影版本及原 renderer/workbook 三项哈希，再原字节哈希安装完整 Web 锁。
+从现 pyproject 的 dev 声明解析测试工具，以全 Web 锁的纯版本 constraints 安装；
+editable 根包使用 `--no-deps --no-build-isolation`，不引入其历史非 Web 运行栈。
+七项实装 metadata 之后还必须实际通过 Host runtime_identity 与 fresh `-I` Native
+import guard／真实 jsonschema 导入，才进入原完整测试列表。准备、核验或准入失败记录于
+`logs/ci-pack-dependencies.log` 并终止原步骤，不卸库、补锁、放行或 skip。
+
+PR245 第二候选的版本核验成功后，根 pyproject 的 langgraph→langchain-core→jsonpatch
+带入 jsonpointer 3.6；真实 jsonschema._format 随后保留该未锁 optional 模块，Host
+正确拒绝其实际引用。fresh Native 即使尚未导入该模块，也按 available optional 门提前
+拒绝。这不是七项版本漂移；clean Web 环境通过不表示支持用户额外 SDK 污染后的闭包，
+该情形仍明确失败。产品导入策略、冻结锁、旧资源／唯一 DSH 和各平台门保持原合同。
 
 
 运行指纹 schema v3 独立枚举受管分发的 import/data 根及版本元数据，不能由 RECORD 决定代码全集；

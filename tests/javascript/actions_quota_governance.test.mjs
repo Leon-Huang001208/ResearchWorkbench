@@ -458,6 +458,7 @@ test('Checks executes frozen dependency extraction and rejects inconsistent lock
   const projectionPath = 'app/research_web/capabilities/pack-runtime-lock.json';
   const original = JSON.parse(fs.readFileSync(new URL('../../' + projectionPath, import.meta.url)));
   const lock = fs.readFileSync(new URL('../../requirements/web.lock', import.meta.url), 'utf8');
+  const project = fs.readFileSync(new URL('../../pyproject.toml', import.meta.url), 'utf8');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-lock-'));
   try {
     for (const variant of ['valid', 'sha', 'missing', 'duplicate', 'version', 'hash']) {
@@ -474,6 +475,7 @@ test('Checks executes frozen dependency extraction and rejects inconsistent lock
       projection.lock_sha256 = variant === 'sha' ? '0'.repeat(64)
         : createHash('sha256').update(sample).digest('hex');
       fs.writeFileSync(path.join(cwd, 'requirements/web.lock'), sample);
+      fs.writeFileSync(path.join(cwd, 'pyproject.toml'), project);
       fs.writeFileSync(path.join(cwd, projectionPath), JSON.stringify(projection));
       const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', code], {
         cwd, env: {...process.env, RUNNER_TEMP: cwd}, encoding: 'utf8', timeout: 10000,
@@ -487,9 +489,10 @@ test('Checks executes frozen dependency extraction and rejects inconsistent lock
       for (const [name, version] of Object.entries(original.versions)) {
         assert.ok(constraints.split('\n').includes(`${name}==${version}`));
       }
-      assert.equal(constraints.trim().split('\n').length, 10);
+      assert.equal(constraints.trim().split('\n').length, lock.split('\n').filter(line => /^[a-z0-9][a-z0-9-]*==/.test(line)).length);
       assert.doesNotMatch(constraints, /--hash|\\/);
       const hashed = fs.readFileSync(path.join(cwd, 'rwb-pack-dependencies.lock'), 'utf8');
+      assert.equal(hashed, lock);
       assert.match(hashed, /rpds-py==2026\.6\.3/);
       assert.match(hashed, /idna==3\.19/);
       assert.match(hashed, /--hash=sha256:[a-f0-9]{64}/);
@@ -498,7 +501,39 @@ test('Checks executes frozen dependency extraction and rejects inconsistent lock
     fs.rmSync(root, {recursive: true});
   }
   assert.match(workflows.checks, /pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-pack-dependencies\.lock"/);
-  assert.match(workflows.checks, /pip install -e "\.\[dev\]" -c "\$RUNNER_TEMP\/rwb-pack-dependencies\.constraints"/);
+  assert.match(workflows.checks, /pip install -r "\$RUNNER_TEMP\/rwb-test-tools\.in" -c "\$RUNNER_TEMP\/rwb-pack-dependencies\.constraints"/);
+  assert.match(workflows.checks, /pip install --no-deps --no-build-isolation -e \./);
+  assert.doesNotMatch(workflows.checks, /pip install -e "\.\[dev\]"/);
+});
+
+test('Checks actually extracts declared dev tools without root legacy dependencies', () => {
+  const code = workflows.checks.match(/          \.venv\/bin\/python - <<'PY_LOCK'\n([\s\S]*?)          PY_LOCK/)[1].replace(/^          /gm, '');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-dev-'));
+  try {
+    fs.cpSync(new URL('../../requirements', import.meta.url), path.join(root, 'requirements'), {recursive: true});
+    const projection = 'app/research_web/capabilities/pack-runtime-lock.json';
+    fs.mkdirSync(path.join(root, path.dirname(projection)), {recursive: true});
+    fs.copyFileSync(new URL('../../' + projection, import.meta.url), path.join(root, projection));
+    for (const [name, dev] of [
+      ['valid', '["pytest>=7.4.0", "pytest-asyncio>=0.21.0", "httpx2>=2,<3"]'],
+      ['empty', '[]'], ['not-list', '"pytest"'], ['url', '["pytest @ https://example.invalid/tool"]'],
+      ['newline', '["pytest\\nlanggraph"]'], ['non-string', '[42]'],
+    ]) {
+      fs.writeFileSync(path.join(root, 'pyproject.toml'), `[project]\ndependencies = ["langgraph>=0.0.0", "jsonpointer>=3.2"]\n[project.optional-dependencies]\ndev = ${dev}\n`);
+      const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', code], {
+        cwd: root, env: {...process.env, RUNNER_TEMP: root}, encoding: 'utf8', timeout: 10000,
+      });
+      assert.ifError(run.error);
+      assert.equal(run.status, name === 'valid' ? 0 : 1, name + ': ' + run.stderr);
+      if (name === 'valid') {
+        const tools = fs.readFileSync(path.join(root, 'rwb-test-tools.in'), 'utf8');
+        assert.equal(tools, 'pytest>=7.4.0\npytest-asyncio>=0.21.0\nhttpx2>=2,<3\n');
+        assert.doesNotMatch(tools, /langgraph|jsonpointer/);
+      } else assert.match(run.stderr, /ci_test_tools_invalid/);
+    }
+  } finally {
+    fs.rmSync(root, {recursive: true});
+  }
 });
 
 test('Checks post-install verification rejects drift in every frozen distribution', () => {

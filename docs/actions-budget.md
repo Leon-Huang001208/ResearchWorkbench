@@ -383,3 +383,5 @@ T3组合包集成只扩充已有Checks测试参数及Mac Bootstrap原资源核�
 
 
 2026-10-28 PR245 Checks 安装漂移修复只扩原 Install declared test dependencies 步骤：按未变的 web.lock 全文件摘要及 pack-runtime-lock v2 提取七个冻结分发与原三个 renderer/workbook 分发，先用原哈希安装，再以纯版本 constraints 约束原 editable dev 安装并核对七项实装版本。旧失败 40608520536 为 690.05 秒的版本／fixture 失败，不是 timeout；本次不增 job、runner、依赖或 timeout，不删／skip 测试。原安装步骤增量预留30秒，现有治理与 fixture 反例增量预留2秒。新候选必须重取原三 CI 与同候选 Mac 干净安装；远端操作前实时核验 PUBLIC／标准 runner 资格及额度，不 rerun 旧 run、不从 Mac dispatch 他平台产品任务。CI 不调用模型、厂商或正式库。
+
+PR245 repair2 纠正上述 repair1 的安装范围：第二候选 bff0600 的七项版本核验已成功，Checks 40659261189 的完整 Python 步骤为 834.52 秒，197 failed／7088 passed／101 skipped／373 errors，主要因根包 legacy langgraph 链额外引入未锁 jsonpointer 3.6。改为哈希安装既有完整 Web 锁、独立解析已声明 dev 工具及 editable --no-deps，安装前保留原锁拒绝矩阵，安装后保留七项 metadata 并实际执行 Host／fresh Native 准入；不改锁、产品 policy、原测试列表或任何 job／runner／timeout。本地治理23项实测约1.85秒，新 CI 真安装耗时待同候选回填，不以本机已有环境冒充。原候选 Mac 固定 SDK 七项实际225.022秒、0skip；这是已运行候选的证据，不能替代后继安装或沿用旧180秒估算作通过证明。

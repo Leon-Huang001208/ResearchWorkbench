@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-28 PR245 repair2 仅收敛 `.github/workflows/research-web-checks.yml` 的测试解释器安装边界：现有完整 Web 锁哈希安装、pyproject dev 工具独立解析、editable 根包 --no-deps，保留七项实装 metadata 并先实际运行 Host／fresh Native 导入准入。`tests/javascript/actions_quota_governance.test.mjs` 实际执行 stdlib-only 锁与工具解析矩阵；`research_web_ci_admission.test.mjs` 沿原 Checks JS 通配符在已有 Web 环境实际执行 optional 污染正反例，不向轻量 Constraints 引入产品依赖。不修改 pack 导入策略、依赖锁、唯一 DSH 或原完整测试清单。根包历史 langgraph→jsonpointer 链不再混入 Web 环境，用户额外SDK污染仍明确拒绝。
+
 报告操作HTTP接线提取为ui/report-operations.mjs，捕获页面代次、项目和单请求忙态，复用原端点；它不执行研究或替代DSH。app.mjs缩至260079字节，保持原256KiB健康正文上限。
 
 报告生产 UI：ui/report-workspace.mjs 负责目录、所选 Run 状态和交付投影，report-workspace.css 沿原主题；core.mjs 解析 #/reports/:id?tab=&run=，app.mjs 接原 API 和带代次读取，shell.mjs 控制主导航权限。report-workflows.mjs 共享配置/历史区块和证据，weekly-production.mjs 保留原日程及来源合同；tests/javascript/research_web_reports_workspace.test.mjs 覆盖深链接、拒绝、历史未知和失效文件。

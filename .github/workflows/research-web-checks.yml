@@ -64,13 +64,14 @@ jobs:
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
-          # Hash-install the existing frozen runtime and renderer dependencies first.
+          # Use the production Web closure, excluding root legacy runtime extras.
           .venv/bin/python - <<'PY_LOCK'
           import hashlib
           import json
           import logging
           import os
           import re
+          import tomllib
           from pathlib import Path
           Path("logs").mkdir(exist_ok=True)
           logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
@@ -83,7 +84,6 @@ jobs:
               if not isinstance(versions, dict) or not versions:
                   raise ValueError("pack_runtime_versions_missing")
               lines = lock_bytes.decode().splitlines()
-              blocks, constraints = [], []
               for package in (*versions, "reportlab", "openpyxl", "et-xmlfile"):
                   if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", package):
                       raise ValueError("pack_runtime_package_invalid")
@@ -101,18 +101,23 @@ jobs:
                       block.append(line)
                   if not any(re.fullmatch(r"\s+--hash=sha256:[0-9a-f]{64}\s*\\?", line) for line in block):
                       raise ValueError("pack_runtime_hash_missing")
-                  blocks.extend(block)
-                  constraints.append(f"{package}=={match[1]}")
               target = Path(os.environ["RUNNER_TEMP"])
-              (target / "rwb-pack-dependencies.lock").write_text("\n".join(blocks) + "\n")
+              (target / "rwb-pack-dependencies.lock").write_bytes(lock_bytes)
+              constraints = [line.rstrip().removesuffix("\\").rstrip() for line in lines if re.match(r"^[a-z0-9][a-z0-9-]*==", line)]
               (target / "rwb-pack-dependencies.constraints").write_text("\n".join(constraints) + "\n")
+              project = tomllib.loads(Path("pyproject.toml").read_text())
+              tools = project["project"]["optional-dependencies"]["dev"]
+              if not isinstance(tools, list) or not tools or any(not isinstance(item, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:[<>=!~][A-Za-z0-9.*+!,<>=~-]+)?", item) for item in tools):
+                  raise ValueError("ci_test_tools_invalid")
+              (target / "rwb-test-tools.in").write_text("\n".join(tools) + "\n")
               logging.info("ci_pack_dependencies_prepared count=%d", len(constraints))
           except (OSError, ValueError, KeyError, TypeError):
               logging.exception("ci_pack_dependencies_prepare_failed")
               raise
           PY_LOCK
           .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-pack-dependencies.lock"
-          .venv/bin/python -m pip install -e ".[dev]" -c "$RUNNER_TEMP/rwb-pack-dependencies.constraints"
+          .venv/bin/python -m pip install -r "$RUNNER_TEMP/rwb-test-tools.in" -c "$RUNNER_TEMP/rwb-pack-dependencies.constraints"
+          .venv/bin/python -m pip install --no-deps --no-build-isolation -e .
           .venv/bin/python - <<'PY_VERIFY'
           import json
           import logging
@@ -129,6 +134,43 @@ jobs:
               logging.exception("ci_pack_dependencies_verify_failed")
               raise
           PY_VERIFY
+          .venv/bin/python -B - <<'PY_ADMISSION'
+          import json
+          import logging
+          import subprocess
+          import sys
+          from pathlib import Path
+          from app.research_web.capabilities import pack_import_policy
+          from app.research_web.capabilities.models import CapabilityError
+          from app.research_web.capabilities.pack_dependencies import runtime_identity
+          logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
+          try:
+              runtime = runtime_identity()
+              # The child loads only the frozen stdlib helper before its guard.
+              code = """import importlib.util,json,sys
+          from pathlib import Path
+          value=json.load(sys.stdin)
+          spec=importlib.util.spec_from_file_location('pack_import_policy',value['helper'])
+          helper=importlib.util.module_from_spec(spec)
+          sys.modules[spec.name]=helper
+          spec.loader.exec_module(helper)
+          runtime=value['runtime']
+          helper.install_native(runtime['import_policy'],runtime['dependencies'],Path(value['helper']).parent)
+          from jsonschema import FormatChecker
+          FormatChecker().check('example.com','idn-hostname')
+          print('ci_pack_native_admission_passed')
+          """
+              result = subprocess.run([sys.executable, "-I", "-B", "-c", code], input=json.dumps({"helper": pack_import_policy.__file__, "runtime": runtime}), text=True, capture_output=True, timeout=30, check=True)
+              if result.stdout.strip() != "ci_pack_native_admission_passed":
+                  raise ValueError("ci_pack_native_admission_missing")
+              logging.info("ci_pack_host_native_admission_passed schema=%s", runtime["schema"])
+          except subprocess.CalledProcessError as exc:
+              logging.exception("ci_pack_host_native_admission_failed native_stderr=%s", exc.stderr)
+              raise
+          except (OSError, ValueError, ImportError, CapabilityError, subprocess.SubprocessError):
+              logging.exception("ci_pack_host_native_admission_failed")
+              raise
+          PY_ADMISSION
 
       - name: Run Research Web Python contracts
         run: |
