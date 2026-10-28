@@ -291,7 +291,7 @@ async function responseErrorCode(response, signal) {
   finally { await discardErrorBody(reader, signal); }
 }
 
-async function boundedJson(response, signal) {
+export async function boundedJson(response, signal) {
   if (response.redirected || (response.status >= 300 && response.status < 400)) {
     await discardErrorBody(response.body, signal); throw Error(`DataHub request failed (HTTP ${response.status})`);
   }

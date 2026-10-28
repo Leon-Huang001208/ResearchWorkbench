@@ -81,6 +81,11 @@
       maxTokens: 4096
 - id: tool-subagent-control
   name: '@deepseek-ai/dsh-tool-subagent-control'
+- id: research-specialists
+  name: __SPECIALISTS_MODULE__
+  config:
+    researchRoot: __RESEARCH_ROOT__
+    nativeLlmModule: __NATIVE_LLM_MODULE__
 - id: tool-subagent-list-agents
   name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
 - id: compaction

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+专业协作入口沿 `specialists/routes.py` → `specialists/service.py` → 私有 `SpecialistLedger`，模型执行仍由 `runtime/specialists.mjs` 调用原生 continuable subagent；guard保留原子Agent配额。`main.py`／`service.py`复用原发送、截止、取消和详情，`research_quality_service.py`追加协作未完成门。UI入口与状态复用原会话，见[合同](research-web-specialists.md)。
+
 报告操作HTTP接线提取为ui/report-operations.mjs，捕获页面代次、项目和单请求忙态，复用原端点；它不执行研究或替代DSH。app.mjs缩至260079字节，保持原256KiB健康正文上限。
 
 报告生产 UI：ui/report-workspace.mjs 负责目录、所选 Run 状态和交付投影，report-workspace.css 沿原主题；core.mjs 解析 #/reports/:id?tab=&run=，app.mjs 接原 API 和带代次读取，shell.mjs 控制主导航权限。report-workflows.mjs 共享配置/历史区块和证据，weekly-production.mjs 保留原日程及来源合同；tests/javascript/research_web_reports_workspace.test.mjs 覆盖深链接、拒绝、历史未知和失效文件。

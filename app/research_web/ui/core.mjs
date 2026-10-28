@@ -1,3 +1,4 @@
+import { defaultSpecialistBudget, specialistBudgetError, specialistCanResume } from './specialist-panel.mjs';
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
@@ -474,6 +475,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     restoreSession: (id) => request(`${sessionPath(id)}/restore`, { method: 'POST', body: {} }),
     purgeSession: (id) => request(`${sessionPath(id)}/permanent`, { method: 'DELETE' }),
     cancel: (id) => request(`${sessionPath(id)}/cancel`, { method: 'POST', body: {} }),
+    specialistStatus: id => request(`${sessionPath(id)}/specialist`),
+    specialistResume: id => request(`${sessionPath(id)}/specialist/resume`, { method: 'POST', body: { confirmed: true }, userAction: true }),
     upgrade: (id) => request(`${sessionPath(id)}/upgrade`, { method: 'POST', body: {} }),
     files: (id) => request(`${sessionPath(id)}/files`),
     upload: (id, files) => { const body = new FormData(); for (const file of files) body.append('files', file); return request(`${sessionPath(id)}/uploads`, { method: 'POST', body }); },
@@ -506,14 +509,14 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, getAccount = () => globalThis.__RWB_USER_ID__ || 'local', confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', dossierHandoff: null, attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', researchMode: 'quick', researchAsOf: '', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', dossierHandoff: null, attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', researchMode: 'quick', researchAsOf: '', specialistBudget: defaultSpecialistBudget(), expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map(); const createdDraftOrigins = new Map(); const sendingSessions = new Set();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {}; let hasOpened = false;
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const researchMode = (value, depth) => ['quick', 'deep', 'agent'].includes(value) ? value : depth === 'deep' ? 'deep' : 'quick';
+  const researchMode = (value, depth) => ['quick', 'deep', 'agent', 'specialist'].includes(value) ? value : depth === 'deep' ? 'deep' : 'quick';
   const validResearchAsOf = value => value === '' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.startsWith('0000-') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
-  const draftState = () => ({ draft: state.draft, dossierHandoff: state.dossierHandoff, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats });
+  const draftState = () => ({ draft: state.draft, dossierHandoff: state.dossierHandoff, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, specialistBudget: { ...state.specialistBudget }, expectedFormats: state.expectedFormats });
   const controllerAccount = String(getAccount());
   let dossierScopeID = null;
   const validDossierHandoff = value => value == null || typeof value === 'object' && /^[a-f0-9]{32}$/.test(value.id || '') && /^[a-f0-9]{32}$/.test(value.dossierID || '') && Object.keys(value).every(key => ['id', 'dossierID'].includes(key));
@@ -547,6 +550,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     capability: value.capability ? { id: value.capability.id, version: value.capability.version, name: value.capability.name || value.capability.id } : null,
     toolIds: value.toolIds || [], methodIds: value.methodIds || [], expectedFormats: value.expectedFormats ?? null,
     ...(value.researchAsOf !== undefined ? { researchAsOf: value.researchAsOf } : {}),
+    ...(value.specialistBudget ? { specialistBudget: { ...value.specialistBudget } } : {}),
     ...(value.dossierHandoff ? { dossierHandoff: value.dossierHandoff } : {}),
     tabbitTabs: (value.tabbitTabs || []).map(({ tab_id, instance_id, title }) => ({ tab_id, instance_id, ...(typeof title === 'string' ? { title: title.slice(0, 500) } : {}) })),
   });
@@ -559,6 +563,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const request = JSON.parse(attempt.signature);
       if (typeof request?.text !== 'string' || (request.research_as_of !== undefined && !validResearchAsOf(request.research_as_of))) throw new Error('pending_request_invalid');
       const selection = attempt.selection;
+      if (request.research_mode === 'specialist' && (specialistBudgetError(request.specialist_budget) || JSON.stringify(request.specialist_budget) !== JSON.stringify(selection?.specialistBudget))) throw new Error('pending_specialist_budget_invalid');
       const identifiers = (value, max) => Array.isArray(value) && value.length <= max && value.every(identifier);
       if (!selection || (selection.skillId !== '' && !identifier(selection.skillId)) || !identifiers(selection.toolIds, 3) || !identifiers(selection.methodIds, 3)) throw new Error('pending_selection_invalid');
       if (selection.researchAsOf !== undefined && !validResearchAsOf(selection.researchAsOf)) throw new Error('pending_cutoff_invalid');
@@ -568,7 +573,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (!Array.isArray(selection.tabbitTabs) || selection.tabbitTabs.length > 8 || selection.tabbitTabs.some(tab => !Number.isInteger(tab?.tab_id) || tab.tab_id < 0 || !identifier(tab.instance_id))) throw new Error('pending_tabs_invalid');
       pending.set(id, { signature: attempt.signature, key: attempt.key, durable: true });
       logger('pending_submission_restored', {});
-      return { researchAsOf: request.research_as_of ?? '', ...pendingSelection(selection) };
+      return { researchAsOf: request.research_as_of ?? '', ...pendingSelection(selection), ...(request.research_mode === 'specialist' ? { researchMode: 'specialist', specialistBudget: { ...request.specialist_budget } } : {}) };
     } catch {
       logger('pending_submission_restore_failed', {});
       state.error = '未能恢复上次提交的重试凭据；草稿已保留，请先核对会话记录。';
@@ -580,7 +585,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     try {
       if (!validDraft(value)) throw new Error('draft_invalid');
       if (!validResearchAsOf(value.researchAsOf ?? '')) throw new Error('draft_cutoff_invalid');
-      const record = { draft: value.draft, attachments: value.attachments.map(draftAttachment), researchMode: researchMode(value.researchMode, value.researchDepth), researchAsOf: value.researchAsOf ?? '' };
+      const record = { draft: value.draft, attachments: value.attachments.map(draftAttachment), researchMode: researchMode(value.researchMode, value.researchDepth), researchAsOf: value.researchAsOf ?? '', specialistBudget: { ...defaultSpecialistBudget(), ...value.specialistBudget } };
       if (!validDossierHandoff(value.dossierHandoff)) throw new Error('draft_dossier_handoff_invalid');
       if (value.dossierHandoff) record.dossierHandoff = { ...value.dossierHandoff };
       if (JSON.stringify(record).length > 200000) throw new Error('draft_too_large');
@@ -610,7 +615,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const savedDate = Object.hasOwn(value, 'researchAsOf') ? { researchAsOf: validResearchAsOf(value.researchAsOf) ? value.researchAsOf : '' } : {};
       if (Object.hasOwn(value, 'researchAsOf') && !validResearchAsOf(value.researchAsOf)) { logger('draft_cutoff_restore_failed', {}); state.error = '草稿截止日期无效，已保留问题和附件，请重新选择日期。'; }
       if (JSON.stringify({ draft: value.draft, attachments: value.attachments }).length > 200000) throw new Error('draft_too_large');
-      return { draft: value.draft, dossierHandoff: value.dossierHandoff || null, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [], ...restorePending(id, value), ...savedDate, ...(value.researchMode !== undefined || value.researchDepth !== undefined ? { researchMode: mode, researchDepth: mode === 'quick' ? 'instant' : 'deep' } : {}) };
+      return { draft: value.draft, dossierHandoff: value.dossierHandoff || null, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [], specialistBudget: { ...defaultSpecialistBudget(), ...value.specialistBudget }, ...restorePending(id, value), ...savedDate, ...(value.researchMode !== undefined || value.researchDepth !== undefined ? { researchMode: mode, researchDepth: mode === 'quick' ? 'instant' : 'deep' } : {}) };
     } catch { logger('draft_storage_read_failed', {}); state.error = '草稿恢复副本无效；请重新选择附件。'; return undefined; }
   };
   const saveDraft = () => putDraft(draftKey(), draftState());
@@ -641,7 +646,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     if (hasOpened) saveDraft(); hasOpened = true; const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false; state.stopping = false;
     const savedDraft = readDraft(draftKey());
-    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', specialistBudget: defaultSpecialistBudget(), dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -676,6 +681,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     } else body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: [...state.toolIds] } : {}), ...(state.methodIds.length ? { method_ids: [...state.methodIds] } : {}), ...(state.expectedFormats !== null ? { expected_formats: [...state.expectedFormats] } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
     if (!execution && state.detail.mode === 'fingpt') {
       body.research_mode = state.researchMode;
+      if (state.researchMode === 'specialist') {
+        const error = specialistBudgetError(state.specialistBudget);
+        if (error) { logger('specialist_budget_rejected'); fail(new Error(error)); emit(); return; }
+        body.specialist_budget = { ...state.specialistBudget };
+      }
       if (state.researchAsOf) body.research_as_of = state.researchAsOf;
     }
     if (!execution && state.dossierHandoff) body.dossier_handoff_id = state.dossierHandoff.id;
@@ -684,6 +694,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     const tabIdentity = tab => JSON.stringify([tab.instance_id, tab.tab_id]);
     const tabIds = new Set((body.tabbit_tabs || []).map(tabIdentity));
     const acceptedDraft = value => ({ ...value, draft: value.draft === text ? '' : value.draft, dossierHandoff: value.dossierHandoff?.id === body.dossier_handoff_id ? null : value.dossierHandoff,
+      ...(body.specialist_budget ? { specialistBudget: { ...value.specialistBudget, confirmed: false } } : {}),
       attachments: value.attachments.filter(file => !attachmentIds.has(file.id)),
       tabbitTabs: (value.tabbitTabs || []).filter(tab => !tabIds.has(tabIdentity(tab))) });
     sendingSessions.add(id); state.busy = true; state.error = ''; emit();
@@ -751,10 +762,22 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     finally { if (ticket === generation) { state.stopping = false; emit(); } }
   }
   return {
+    resumeSpecialist: async (confirmed = false) => {
+      if (!confirmed || !accountCurrent() || !state.detail?.specialist) return null;
+      if (!specialistCanResume(state.detail.specialist)) { logger('specialist_resume_not_admitted'); fail(new Error('仍有在途或未知请求，请先核对状态，不能重发。')); emit(); return null; }
+      const id = state.detail.id; logger('specialist_resume_requested');
+      return action(() => api.specialistResume(id));
+    },
+    setSpecialistBudget: value => {
+      const current = defaultSpecialistBudget();
+      for (const key of Object.keys(current)) if (Object.hasOwn(value || {}, key)) current[key] = value[key];
+      current.confirmed = current.confirmed === true; state.specialistBudget = current;
+      logger('specialist_budget_changed', { confirmed: current.confirmed }); saveDraft(); emit();
+    },
     state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action, cancel,
     setSourceScope: (value) => { if (!Array.isArray(value) || !value.length || value.some(s => !["datahub", "web", "uploads"].includes(s))) throw new Error("至少选择一个资料范围"); state.sourceScope = [...new Set(value)]; saveDraft(); emit(); },
     setResearchDepth: (value) => { if (!["instant", "deep"].includes(value)) throw new Error("不支持的研究深度"); state.researchDepth = value; state.researchMode = value === 'deep' ? 'deep' : 'quick'; saveDraft(); emit(); },
-    setResearchMode: (value) => { if (!['quick', 'deep', 'agent'].includes(value)) throw new Error('不支持的研究模式'); state.researchMode = value; state.researchDepth = value === 'quick' ? 'instant' : 'deep'; logger('research_mode_selected', { mode: value }); saveDraft(); emit(); },
+    setResearchMode: (value) => { if (!['quick', 'deep', 'agent', 'specialist'].includes(value)) throw new Error('不支持的研究模式'); state.researchMode = value; state.specialistBudget = { ...state.specialistBudget, confirmed: false }; state.researchDepth = value === 'quick' ? 'instant' : 'deep'; logger('research_mode_selected', { mode: value }); saveDraft(); emit(); },
     setResearchAsOf: (value) => { if (!validResearchAsOf(value)) throw new Error('研究截止日期须为有效的 YYYY-MM-DD 日期；留空时新研究默认今日，续研沿用原截止日期。'); state.researchAsOf = value; logger('research_cutoff_selected', { configured: Boolean(value) }); saveDraft(); emit(); },
     setDraft: (value) => { state.draft = value; if (!value.trim()) { state.dossierHandoff = null; pending.delete(draftKey()); } saveDraft(); },
     setDossierDraft: (prompt, context) => {
@@ -795,6 +818,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     removeTabbit: (tabId) => { state.tabbitTabs = state.tabbitTabs.filter((item) => item.tab_id !== Number(tabId)); saveDraft(); emit(); },
     create: async (mode, workspaceId, projectId) => {
       if (!accountCurrent()) return null;
+      if (mode === 'fingpt' && state.researchMode === 'specialist' && specialistBudgetError(state.specialistBudget)) { fail(new Error(specialistBudgetError(state.specialistBudget))); emit(); return null; }
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
       const origin = !state.route.sessionId ? {key:draftKey(),draft:previousDraft.draft} : null;

@@ -87,6 +87,7 @@ from .research_quality_service import (
     source_context,
 )
 from .service_manager import WebServiceManager
+from .specialists import service as specialist_service
 from .store import Store, StoreError
 from .tabbit import TabbitIntegration
 from .tenant_policy import enabled as tenant_mode_enabled
@@ -1251,7 +1252,12 @@ class ResearchService(ModelProfilesMixin):
                 if project["archived"]:
                     raise StoreError("只能在本模式未归档的项目中新建研究", "project_archived", 409)
             if research_mode is not None:
-                if mode != "fingpt" or research_mode not in {"quick", "deep", "agent"}:
+                if mode != "fingpt" or research_mode not in {
+                    "quick",
+                    "deep",
+                    "agent",
+                    "specialist",
+                }:
                     raise StoreError("不支持的研究模式")
                 research_depth = "instant" if research_mode == "quick" else "deep"
             if research_depth not in {"instant", "deep"}:
@@ -2686,10 +2692,13 @@ class ResearchService(ModelProfilesMixin):
                 )
             elif result["method_trace"]["method_trace_incomplete"]:
                 result["method_trace_incomplete"] = True
+        await specialist_service.verify_cached(self, sid)
+        await specialist_service.reconcile(self, sid)
         if result.get("research_quality"):
             result["research_accepted"] = (
                 result["research_quality"]["status"] == "passed" and result["status"] == "completed"
             )
+        specialist_service.project_detail(self, sid, result)
         return result
 
     def _cancel_observation(self, sid):
@@ -2715,6 +2724,7 @@ class ResearchService(ModelProfilesMixin):
         research_requirements=None,
         research_as_of=None,
         dossier_handoff_id=None,
+        specialist_budget=None,
         _weekly_run_id=None,
         _weekly_resume=False,
     ):
@@ -2812,10 +2822,13 @@ class ResearchService(ModelProfilesMixin):
             )
             if weekly_scope:
                 chosen_mode = "deep"
-            if chosen_mode not in {"quick", "deep", "agent"} or (
+            if chosen_mode not in {"quick", "deep", "agent", "specialist"} or (
                 research_mode and row["mode"] != "fingpt"
             ):
                 raise StoreError("不支持的研究模式")
+            specialist_budget = specialist_service.validate_send(
+                self, sid, chosen_mode, specialist_budget
+            )
             depth = "instant" if chosen_mode == "quick" else "deep"
             if not row["created"]:
                 raise StoreError("会话尚未创建")
@@ -3009,6 +3022,8 @@ class ResearchService(ModelProfilesMixin):
                     research_requirements=research_requirements,
                     research_as_of=research_as_of,
                 )
+            if specialist_budget is not None:
+                payload["specialist_budget"] = specialist_budget
             if dossier_handoff_id is not None:
                 payload["dossier_handoff_id"] = dossier_handoff_id
             if scenario_context:
@@ -3165,7 +3180,7 @@ class ResearchService(ModelProfilesMixin):
                 try:
                     requirements = research_requirements
                     as_of = research_as_of
-                    quality_mode = chosen_mode
+                    quality_mode = "agent" if chosen_mode == "specialist" else chosen_mode
                     if weekly_context:
                         requirements = [item["text"] for item in weekly_context["requirements"]]
                         as_of, quality_mode = weekly_context["as_of"], "deep"
@@ -3241,6 +3256,8 @@ class ResearchService(ModelProfilesMixin):
             if weekly_scope:
                 weekly_runtime._update_run(_weekly_run_id, research_submission_state="prepared")
             prompt = text
+            if specialist_budget is not None:
+                prompt += specialist_service.prepare(self, sid, key, specialist_budget, contract)
             if scenario_context:
                 prompt += "\n\nHost冻结场景要求：\n" + "\n".join(scenario_context["requirements"])
                 prompt += "\n逐一读取并应用下列已冻结的必需能力；不能只执行第一项：\n" + "\n".join(
@@ -3750,6 +3767,7 @@ class ResearchService(ModelProfilesMixin):
         self.store.session(sid)
         self.plugins.cancel_hook(sid)
         async with self.lock:
+            specialist_service.cancel_requested(self, sid)
             return await self._cancel(sid)
 
     async def _cancel(self, sid):

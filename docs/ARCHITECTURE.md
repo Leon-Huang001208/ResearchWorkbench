@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+专业协作 MVP 复用现有能力中心的不可变版本与账号存储。Host 只保存并校验业务 DAG、计划版本、节点尝试、预算准入和验收；原生 DSH 主 Agent 负责规划调度及可继续子会话，运行时原生 settlement 唤醒父 Agent。无第二执行循环、聊天库或 PostgreSQL；私有控制回调沿既有 DataHub 认证，详见[专业协作合同](research-web-specialists.md)。
+
 报告生产的前端请求协调提取为report-operations.mjs，只连接既有Host API；唯一DSH、控制器和数据拓扑不变，未提高健康检查读取上限。
 
 独立报告生产工作区位于既有 Web UI，复用原 ReportWorkflowManager/Run、Host 质量门和唯一 DSH；新增前端 #/reports 深链接，不新增 HTTP、数据库、研究引擎或桌面打包。项目目录与每期生产分开，配置及历史分栏，能力中心不再拼接报告专属区域；租户权限与普通未知拒绝保持。
