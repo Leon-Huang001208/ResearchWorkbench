@@ -24,6 +24,28 @@ SKILL_DEFAULTS = {
 FINAL = {"completed", "incomplete", "not_required", "verification_failed"}
 
 
+def accepted_task_cancel(receipt, delivery, key, *, task_id=None):
+    """Pure server task identity; pending/foreign cancellations grant nothing."""
+    if not isinstance(receipt, dict) or not isinstance(delivery, dict):
+        return False
+    request = delivery.get("cancel_request", {})
+    return (
+        isinstance(request, dict)
+        and isinstance(key, str)
+        and bool(key)
+        and isinstance(delivery.get("task_id"), str)
+        and bool(delivery["task_id"])
+        and isinstance(delivery.get("marker"), str)
+        and bool(delivery["marker"])
+        and receipt.get("status") == "accepted"
+        and request.get("accepted") is True
+        and request.get("key") == key
+        and request.get("task_id") == delivery.get("task_id")
+        and request.get("marker") == delivery.get("marker")
+        and (task_id is None or task_id == delivery.get("task_id"))
+    )
+
+
 def expected_formats(explicit, skill_id):
     formats = explicit if explicit is not None else SKILL_DEFAULTS.get(skill_id, [])
     if any(value not in FORMATS for value in formats):
@@ -124,14 +146,7 @@ class Delivery:
             if not delivery or delivery["status"] in FINAL or not ready():
                 return None
             key = self.store.session(sid)["delivery_key"]
-            request = delivery.get("cancel_request", {})
-            if (
-                self.store.receipt(sid, key)["status"] != "accepted"
-                or request.get("accepted") is not True
-                or request.get("key") != key
-                or request.get("task_id") != delivery["task_id"]
-                or request.get("marker") != delivery["marker"]
-            ):
+            if not accepted_task_cancel(self.store.receipt(sid, key), delivery, key):
                 return None
             try:
                 entries = await client.history(sid)

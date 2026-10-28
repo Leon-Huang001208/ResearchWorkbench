@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/05-capability-flow.html",
-    "sha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
-    "bytes": 639651
+    "path": "/Users/leon/.codex/workspaces/rwb-seek-parity-control-3af31de6-worktrees/seek-packs-20261027-7bda5752/outputs/research-web-architecture/05-capability-flow.html",
+    "sha256": "9e4465d58bc29acb8f7f9cec6aedaa7458506ab835e1bf2cad45dabaade0f21c",
+    "bytes": 643734
   },
   "state": {
     "detail": "read",

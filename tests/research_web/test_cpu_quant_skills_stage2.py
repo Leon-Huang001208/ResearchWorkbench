@@ -225,7 +225,9 @@ def test_six_unique_builtin_packages_are_admitted_discoverable_and_disabled(tmp_
 
     catalog = CapabilityCatalog(tmp_path)
     rows = {row["id"]: row for row in catalog.list(kind="skill")["items"]}
-    assert len(rows) == 30
+    assert len(rows) == 42  # Thirty original Skills, nine packs and three owned methods.
+    assert {"owned-company-evidence", "owned-news-evidence", "owned-research-prep"} <= rows.keys()
+    assert sum(cid.startswith("research-pack-") for cid in rows) == 9
     for slug in SLUGS:
         row = rows[slug]
         assert row["source"] == "builtin"

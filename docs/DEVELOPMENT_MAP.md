@@ -4,6 +4,20 @@
 
 报告生产 UI：ui/report-workspace.mjs 负责目录、所选 Run 状态和交付投影，report-workspace.css 沿原主题；core.mjs 解析 #/reports/:id?tab=&run=，app.mjs 接原 API 和带代次读取，shell.mjs 控制主导航权限。report-workflows.mjs 共享配置/历史区块和证据，weekly-production.mjs 保留原日程及来源合同；tests/javascript/research_web_reports_workspace.test.mjs 覆盖深链接、拒绝、历史未知和失效文件。
 
+2026-10-28 alias修复：reader.source_file_identifier作纯metadata分类，source_file_record/verify_source_file_bytes由Store.files/file_path/open_file、Dossier file alias和Claw.reference共用；_publish_source覆盖postproof所有写/sync/readback/index异常，_write_capture_body/_rollback_capture_body保存并核exclusive inode。近测试test_capture_file_alias含真实失败注入/crash orphan/HTTP/Dossier/copy拒绝及真实上传/source正例。
+
+2026-10-28 capture SPEC修复：research_web_sources.fetch_document/worker_document_bytes/fetch_owned_document保留并校验framing producer，capture_proof由Host私有文件绑定source记录/正文；Dossier._resolve窄接点复验。snapshot_capture_proofs由原snapshot_dossiers消费，Store.purge增固定sid目录；近测试test_source_capture_proof、source_capture_fixture与原source/保全邻近。全部响应夹具离线真HTTPResponse，Native两例独立Darwin，旧证据不回填。
+
+2026-10-27 C1/C2：`scenarios/execution_bindings.py`及版本化JSON保存140/284闭合静态执行绑定，原参数未有alias全部拒绝；`scenario_source_versions.py`由`scenario_pack_inputs.py`在真实原件重读后投影已保存Host web capture，未知语义保留缺口。相同原sid/source ID引用复验后去重，不将同hash不同登记合成独立上游。近测试`test_execution_bindings.py`、`test_pack_owned_sources.py`含真实Native两包成功/撤权及原source资格反例；生产JS/旧八合同不改。
+
+2026-10-27 C0：`scenarios/packs/contracts.py:method_version`仅提升deduplicate_source_versions及其两消费包；`pack_resources.py`冻结v2合同路径/hash，`pack_result_contracts.py:frozen_definitions`从私有封印资源读回固定v1/v2合同并核原输入schema，`scenario_pack_execution.py`沿原产物读回使用它。`pack-*-contracts-v1.json`保留633原字节，近测试`test_pack_source_versions.py`含真实633旧冻结writer产物与新unknown角色；其他七包版本、历史relocation及非pack档案保持原门。
+
+B1 验证依赖复核：`pack_dependencies.py`/`pack_import_policy.py` 负责 v3 实际导入身份与 Native 精确导入门；`scenarios/packs/format_profile.py` 为 Host 和冻结核心提供同一私有 date/date-time 校验。`contracts.py` 只改验证接线，`sandbox.py` 仅 pack literal 分支省去普通 report SDK 预载。测试增加 import/format 正反例，旧执行/输出/历史证书门保持。
+
+2026-10-27 B1 SPEC修波：`capabilities/pack_equivalence.py` 重验每用户直接old→current证书／完整endpoint事实，`scenario_pack_reads.py` 只服务Dossier现有snapshot读取；`service._validate_data_query_scope` 为无写声明检查，原三参callback／严格records保持。`capabilities/pack_result_contracts.py` 独立定义并冻结receipt/full/root/component全部审计必需结构，不从结果反推required。新增 `test_pack_history_read.py`／`test_pack_output_schema.py` 以及多hop直接证／事务磁盘故障／旧门回归。
+
+2026-10-27 九包 B1：`capabilities/pack_resources.py` 冻结唯一纯核与资源闭包，`pack_dependencies.py` 和包内 `pack-runtime-lock.json` 绑定已安装锁定依赖，`pack_native.py` 只写单次 bundle；`scenario_pack_inputs.py` 负责真实原件映射与输入封印，`scenario_pack_execution.py` 负责原私有桥上的一次准入／完成及独立文件读回。`scenarios/pack_catalog.py` 补九包合同，原八合同／140 静态基线字节不变；`workbench.py`、`service.py`、Native JS 和 `sandbox.py` 接原交接／质量链。近测试为 `test_pack_*` 及无 LLM 的 `tests/javascript/helpers/pack-native-driver.mjs`。UI、140 完整执行映射、真实模型／供应商和跨平台仍是后续独立验收，不因文件保存通过。
+
 2026-10-27 研究场景首批：`app/research_web/scenarios/`维护固定 62／78 对照与八场景合同，`scenario_handoffs.py`与原`workbench.py`负责本人原件／身份／截止、完整请求幂等、来源链与未知创建；实际发送和质量绑定仍在`service.py`、`research_quality.py`及`research_quality_service.py`。`asset_research.py`与`ui/asset-research.mjs/css`投影已取得资料摘要、2–5 对象比较和资料声明；`ui/scenarios.mjs/css`串接原资产／资讯／FinGPT／Claw。新回归为`test_research_scenarios_catalog.py`、`test_scenario_handoffs.py`、`test_scenario_review_regressions.py`、`test_asset_research_workspace.py`及对应 Node／真实临时 Host 浏览器旅程。原禁用方法、质量门、资料／账号根和唯一 DSH 保持；[实施计划](plans/2026-10-26-seek-alpha-core-parity.md)保留后续组合包、深研、角色与资料跟踪范围。
 
 分钟K入口asset_routes.MinuteKRequest / observations/{id}/minute-bars，asset_workspace.MinuteK负责账号生命周期，asset_minute_k负责有界查询/规范化/复权/底稿桥接，ui/asset-minute-k独立画布。test_asset_minute_k、test_datahub_cjpy实际Broker链和research_web_asset_minute_k覆盖新合同；原intraday、日周月及安全排空保持。
@@ -672,3 +686,7 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 # 区间统计实现定位（2026-10-25）
 
 `app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。
+
+## 2026-10-28：T3组合包集成边界
+
+六个Host新模块：scenario_source_selection负责安全列表/preview/freeze；scenario_method_dedup运行Host C2并冻结完整制品；scenario_method_sources与scenario_pack_execution分别准备/完成/复验原件台账及计算制品；scenario_pack_reads负责显式历史等价读回；scenario_pack_ui在原鉴权后投影。纯核在scenarios/packs，Native冻结/闭包/重定位在capabilities/pack_*，原件动作在skills/_shared/source_actions.py。见[组合包](research-web-research-packs.md)、[自有方法](research-web-owned-methods.md)、[来源选择](research-web-source-selection.md)。完整Router/评审/原CI/同候选Mac安装待最终候选，T4/T5未实施。

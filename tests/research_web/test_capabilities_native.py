@@ -130,7 +130,7 @@ import { join } from 'node:path';
 const root=process.argv[1];
 const tools=[];
 const ctx={tools:{register(tool){tools.push(tool);return ()=>{};}},on(){return ()=>{};},effect(){},get(){return undefined;},logger:{info(){},warn(){}},systemPrompt:{section(){return ()=>{};},getSectionOrder(){return 0;}},sessionProjections:{register(){return ()=>{};}},subagents:{resolveMaxDepth(value){return value??1;},getProvider(){return {name:'spawn',capabilities:{depthLimit:true},prepareContinuable(){}};}}};
-for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/tool-subagent-control/src/index.ts','packages/subagent/tool-subagent-control/src/list-agents.ts']){
+for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/tool-subagent-control/src/index.ts','packages/subagent/tool-subagent-control/src/list-agents.ts','packages/interaction/tool-ask-user/src/index.ts']){
   (await import(pathToFileURL(join(process.cwd(),path)))).apply(ctx);
 }
 (await import(pathToFileURL(join(process.cwd(),'packages/subagent/tool-subagent/src/index.ts')))).apply(ctx,{provider:'spawn',maxDepth:1,backgroundMode:'continuable'});

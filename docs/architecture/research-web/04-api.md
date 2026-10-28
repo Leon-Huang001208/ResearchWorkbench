@@ -823,3 +823,7 @@ schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 右键区间统计没有新增HTTP接口或供应商查询。更多菜单的日期入口、右键坐标及浮窗操作均在现有页面处理；复用当前观察历史快照，身份/版本变化清除旧选区。认证、分页、历史任务和冻结交接API保持兼容。
+
+## 2026-10-28：T3组合包集成边界
+
+新增真实声明：POST /api/research/internal/data/pack-completion（私有supervisor完成桥，pack/owned-method严格变体）；GET /api/research/source-selections/sessions/{session_id}（安全metadata）；POST /api/research/source-selections/preview（零创建预览）；POST /api/research/source-selections/freeze（摘要重验、幂等发布/交接）；POST /api/research/scenarios/{scenario_id}/prepare（只读准备）。全部登记architecture-map并生成Atlas；CLS变体复用原business-query，不另算API。

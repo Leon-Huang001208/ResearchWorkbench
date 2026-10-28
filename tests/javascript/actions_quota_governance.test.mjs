@@ -384,6 +384,33 @@ test('Web evidence retention is short and full logs upload only on failure', () 
   assert.match(workflows.windows, /retention-days: 3/);
 });
 
+test('existing Mac Bootstrap owns the mandatory built SDK test after clean installation evidence',()=>{
+  const native='tests/research_web/test_owned_news_native_sdk.py';
+  assert.ok(workflows.checks.includes('tests/research_web/test_owned_method_compat.py'));
+  assert.ok(workflows.checks.includes('tests/research_web/test_native_sdk_bootstrap_ci.py'));
+  assert.ok(workflows.checks.includes('tests/research_web/test_execution_cancel_policy.py'));
+  assert.ok(!workflows.checks.includes('tests/research_web/test_execution_cancel_native.py'));
+  assert.ok(!workflows.checks.includes(native),'generic Checks does not own a built fixed SDK');
+  for(const event of ['push','pull_request']) for(const file of [native,'tests/research_web/test_owned_method_compat.py','tests/javascript/helpers/owned-news-native-driver.mjs']) assert.equal(triggersForPath(workflows.bootstrap,event,file),true);
+  const sdk=workflows.bootstrap.indexOf("argv = [sys.executable, '-m', 'pytest'");
+  assert.ok(sdk>workflows.bootstrap.indexOf('native-search-smoke.json'));
+  assert.ok(sdk>workflows.bootstrap.indexOf('product_ready'));
+  assert.match(workflows.bootstrap,/tomllib\.loads\(Path\('pyproject\.toml'\)/);
+  assert.match(workflows.bootstrap,/existing runtime distribution changed/);
+  assert.match(workflows.bootstrap,/existing runtime distribution was replaced/);
+  assert.match(workflows.bootstrap,/dev tools changed installed app bytes/);
+  assert.match(workflows.bootstrap,/Native test changed installed app bytes/);
+  assert.match(workflows.bootstrap,/'RWB_DSH_TEST_SOURCE': str\(sdk\)/);
+  assert.match(workflows.bootstrap,/'RWB_TEST_NODE': str\(node\)/);
+  assert.match(workflows.bootstrap,/result\.returncode == 0/);
+  assert.match(workflows.bootstrap,/tests\/research_web\/test_execution_cancel_native\.py/);
+  assert.match(workflows.bootstrap,/sum\(int\(s\.get\('tests', 0\)\) for s in suites\) == 7/);
+  assert.match(workflows.bootstrap,/\('failures', 'errors', 'skipped'\)/);
+  const nativeSource=fs.readFileSync(new URL('../../'+native,import.meta.url),'utf8');
+  assert.doesNotMatch(nativeSource,/pytest\.skip|pytest\.mark\.skip/);
+  for(const name of ['native-sdk-owner.json','native-sdk-receipt.json','native-sdk.log','native-sdk-junit.xml','native-sdk-installed-before.json','native-sdk-installed-after.json','native-sdk-tools-install.json']) assert.equal(workflows.bootstrap.split(name).length>2,true,name);
+});
+
 test('Docker CI is dispatched by the Linux device for an exact commit', () => {
   const docker = readWorkflow('research-web-docker.yml');
   assert.deepEqual(workflowTriggers(docker), ['workflow_dispatch']);

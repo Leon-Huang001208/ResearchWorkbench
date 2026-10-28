@@ -1,0 +1,9 @@
+{
+  "schema": "pack_owned_capture_fixture_v1",
+  "body_sha256": "77cbc8ffc5360717fbaa353b806f3a49f9c0f3792c46c182420a4ddd0da79e91",
+  "origin": "https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html#1",
+  "title": "中华人民共和国2025年国民经济和社会发展统计公报",
+  "publication_date": "2026-02-28",
+  "archive_source": "../fingpt-20261020/manifest.json",
+  "scope": "Exact acquired body from earlier frozen real source; current pipeline uses offline fetch substitute, no live source/model call; capture availability does not prove upstream completeness."
+}

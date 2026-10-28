@@ -216,13 +216,22 @@ class DossierService:
             "published_at": None,
             "acquired_at": None,
         }
+        pack_reader = getattr(self.research, "_pack_dossier_read_records", None)
+        source_pack = pack_reader(sid) if pack_reader else None
+        target_pack = pack_reader(target_sid) if pack_reader and target_sid else None
         if kind == "file":
+            if PurePosixPath(ref).parts[:2] == ("inputs", "methods"):
+                raise StoreError(
+                    "内部方法原件必须沿已选来源读取", "dossier_evidence_alias_denied", 403
+                )
             if PurePosixPath(ref).parts[:2] == ("inputs", "datasets"):
                 raise StoreError(
                     "数据集材料必须使用原始数据集身份", "dossier_evidence_alias_denied", 403
                 )
             # A fetched webpage must keep its source identity and web authorization.
-            if ref in {item.get("path") for item in row.get("web_evidence", {}).values()}:
+            from ..research_web_sources import source_file_identifier
+
+            if source_file_identifier(row, ref):
                 raise StoreError(
                     "网页材料必须使用原始来源身份", "dossier_evidence_alias_denied", 403
                 )
@@ -251,7 +260,9 @@ class DossierService:
             raw = self._read_path(sid, relative)
             if hashlib.sha256(raw).hexdigest() != source.get("sha256"):
                 raise StoreError("来源正文已变化", "dossier_evidence_changed", 409)
-            from ..research_web_sources import publication_evidence
+            from ..research_web_sources import capture_proof, publication_evidence
+
+            capture_proof(self.store.root, sid, source, raw)
 
             evidence = [
                 *source.get("date_evidence", []),
@@ -281,7 +292,7 @@ class DossierService:
 
                 query = manifest.get("query", {})
                 if "capability" in query and manifest.get("snapshot_kind") != "mcp_evidence":
-                    datahub._authorize_query(
+                    source_resolution = datahub._authorize_query(
                         sid,
                         BusinessQuery.model_validate(query),
                         provider=manifest.get("provider"),
@@ -289,9 +300,19 @@ class DossierService:
                         authorization_fingerprint=manifest.get("authorization_fingerprint"),
                         storage_read=True,
                     )
+                    read_adapter = getattr(self.research, "_admit_dossier_snapshot_read", None)
+                    if source_pack is not None and read_adapter:
+                        read_adapter(
+                            sid,
+                            BusinessQuery.model_validate(query),
+                            source_resolution,
+                            source_sid=sid,
+                            dataset_id=ref,
+                            manifest_sha256=manifest["manifest_sha256"],
+                        )
                     if (
                         target_sid
-                        and getattr(self.research, "_data_query_admission", None)
+                        and (read_adapter or getattr(self.research, "_data_query_admission", None))
                         and not (_lineage_checked and target.get("deleted_at") is not None)
                     ):
                         resolution = datahub._authorize_query(
@@ -302,18 +323,53 @@ class DossierService:
                             authorization_fingerprint=manifest.get("authorization_fingerprint"),
                             storage_read=True,
                         )
-                        self.research._data_query_admission(
-                            target_sid, BusinessQuery.model_validate(query), resolution
-                        )
+                        if read_adapter:
+                            read_adapter(
+                                target_sid,
+                                BusinessQuery.model_validate(query),
+                                resolution,
+                                source_sid=sid,
+                                dataset_id=ref,
+                                manifest_sha256=manifest["manifest_sha256"],
+                            )
+                        else:
+                            self.research._data_query_admission(
+                                target_sid, BusinessQuery.model_validate(query), resolution
+                            )
                 raw = snapshots.read(sid, ref, "rows.json")
                 self._verify_raw(sid, ref, manifest)
+                if (
+                    manifest.get("snapshot_kind") != "mcp_evidence"
+                    and "capability" in query
+                    and (source_pack is not None or target_pack is not None)
+                    and read_adapter
+                ):
+                    if source_pack is not None:
+                        read_adapter(
+                            sid,
+                            BusinessQuery.model_validate(query),
+                            source_resolution,
+                            source_sid=sid,
+                            dataset_id=ref,
+                            manifest_sha256=manifest["manifest_sha256"],
+                        )
+                    if target_pack is not None:
+                        read_adapter(
+                            target_sid,
+                            BusinessQuery.model_validate(query),
+                            source_resolution,
+                            source_sid=sid,
+                            dataset_id=ref,
+                            manifest_sha256=manifest["manifest_sha256"],
+                        )
             except (StoreError, RegistryError, ValueError, OSError) as exc:
                 log.warning(
                     "dossier_dataset_unavailable", session_id=sid, error_type=type(exc).__name__
                 )
                 code = (
                     exc.code
-                    if isinstance(exc, StoreError) and exc.code.startswith("dossier_raw_")
+                    if isinstance(exc, StoreError)
+                    and (exc.code.startswith("dossier_raw_") or exc.code == "plugin_runtime_frozen")
                     else (
                         "dossier_source_revoked"
                         if isinstance(exc, RegistryError)

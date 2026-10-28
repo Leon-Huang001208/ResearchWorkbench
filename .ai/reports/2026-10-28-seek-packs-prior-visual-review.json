@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/architecture/research-web/visual-review.json",
+  "supersededOnlyForCurrentArtifact": true,
+  "review": {
+    "id": "05-capability-flow",
+    "artifactSha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
+    "specificationSha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
+    "status": "reviewed",
+    "reviewer": "controller",
+    "date": "2026-09-03",
+    "captures": [
+      "05-capability-flow.visual-check.1440x900.dark.png",
+      "05-capability-flow.visual-check.2048x1320.light.png"
+    ],
+    "findings": [],
+    "notes": "已人工查看两张最终截图；发布与研究分层，无穿线/裁剪。图示为实际模块关系，不是另一个 Workflow 执行器。四视口自动检查独立记录；首次 Chrome load 超时，原样重验成功，未将失败回执算通过。"
+  }
+}

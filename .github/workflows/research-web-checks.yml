@@ -90,6 +90,37 @@ jobs:
             tests/research_web/test_api.py \
             tests/research_web/test_research_scenarios_catalog.py \
             tests/research_web/test_scenario_handoffs.py \
+            tests/research_web/test_capture_file_alias.py \
+            tests/research_web/test_execution_bindings.py \
+            tests/research_web/test_execution_cancel_policy.py \
+            tests/research_web/test_native_argument_adapters.py \
+            tests/research_web/test_native_sdk_bootstrap_ci.py \
+            tests/research_web/test_owned_company_policy.py \
+            tests/research_web/test_owned_method_compat.py \
+            tests/research_web/test_owned_method_dedup.py \
+            tests/research_web/test_owned_method_execution.py \
+            tests/research_web/test_owned_method_preparation.py \
+            tests/research_web/test_pack_dependency_closure.py \
+            tests/research_web/test_pack_execution_host.py \
+            tests/research_web/test_pack_format_profile.py \
+            tests/research_web/test_pack_history_read.py \
+            tests/research_web/test_pack_import_policy.py \
+            tests/research_web/test_pack_literal_scope.py \
+            tests/research_web/test_pack_native_resources.py \
+            tests/research_web/test_pack_native_writer.py \
+            tests/research_web/test_pack_output_schema.py \
+            tests/research_web/test_pack_owned_sources.py \
+            tests/research_web/test_pack_runtime_identity.py \
+            tests/research_web/test_pack_runtime_relocation.py \
+            tests/research_web/test_pack_source_inputs.py \
+            tests/research_web/test_pack_source_versions.py \
+            tests/research_web/test_pack_ui_projection.py \
+            tests/research_web/test_research_pack_calculations.py \
+            tests/research_web/test_research_pack_contracts.py \
+            tests/research_web/test_scenario_method_packages.py \
+            tests/research_web/test_scenario_method_sources.py \
+            tests/research_web/test_scenario_source_selection.py \
+            tests/research_web/test_source_capture_proof.py \
             tests/research_web/test_scenario_review_regressions.py \
             tests/research_web/test_scenario_review_round2.py \
             tests/research_web/test_scenario_final_review.py \

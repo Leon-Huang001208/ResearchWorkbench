@@ -303,7 +303,7 @@ def _report_evidence_limit(bundle):
     return 80 if weekly else 40
 
 
-def _summary_calculation(bundle, target, steps, budget, used):
+def _summary_calculation(bundle, target, steps, budget, used, *, calculation_policy=None):
     """Independent bounded arithmetic from primitives, not the target derived value."""
     if steps is None:
         value, unit, parents = _input_number(target, bundle)
@@ -372,6 +372,14 @@ def _summary_calculation(bundle, target, steps, budget, used):
             raise ValueError("research_report_plan_calculation_units")
         unit = resolved[0][1]
         numbers = [r[0] for r in resolved]
+        if calculation_policy == "owned-company-positive-base-v1" and operation == "percent_change":
+            if (
+                operands[1].startswith("$")
+                or _resolve(bundle, operands[1]).get("algorithm") != "business-excerpts-v1"
+            ):
+                raise ValueError("owned_percent_change_derived_base_unsupported")
+            if numbers[1] <= 0:
+                raise ValueError("owned_percent_change_nonpositive_base")
         with localcontext(Context(prec=96)):
             if operation == "identity":
                 value = numbers[0]
@@ -416,7 +424,7 @@ def build_business_report_plan(context, plan, bundle):
         _object(
             context,
             {"task_id", "contract_sha256", "as_of", "requirement_ids"},
-            {"formats", "body_target"},
+            {"formats", "body_target", "calculation_policy"},
         )
         if (
             not re.fullmatch(r"[a-f0-9]{24}", str(context["task_id"]))
@@ -432,6 +440,11 @@ def build_business_report_plan(context, plan, bundle):
             or not isinstance(bundle.get("observations"), list)
             or len(bundle["observations"]) > 200
             or any(bundle.get(k) != context[k] for k in ("task_id", "contract_sha256"))
+        ):
+            raise ValueError("research_report_plan_binding")
+        if (
+            "calculation_policy" in context
+            and context["calculation_policy"] != "owned-company-positive-base-v1"
         ):
             raise ValueError("research_report_plan_binding")
         _text(context["as_of"], 100)
@@ -457,6 +470,7 @@ def build_business_report_plan(context, plan, bundle):
             [r for r in bundle["observations"] if r.get("kind") == "business_numeric"],
             recipes,
             task_id=context["task_id"],
+            calculation_policy=context.get("calculation_policy"),
         )
         bundle = {**bundle, "observations": [*bundle["observations"], *derived]}
         sources = [canonical_source(bundle["sources"], s["id"]) for s in bundle["sources"]]
@@ -556,7 +570,12 @@ def build_business_report_plan(context, plan, bundle):
             ):
                 raise ValueError("research_report_plan_summary")
             value, unit, parents, trace = _summary_calculation(
-                bundle, observation, row.get("calculation"), calculation_budget, operands_used
+                bundle,
+                observation,
+                row.get("calculation"),
+                calculation_budget,
+                operands_used,
+                calculation_policy=context.get("calculation_policy"),
             )
             if unit != observation["unit"] or parents != set(observation["source_ids"]):
                 raise ValueError("research_report_plan_calculation_lineage")

@@ -304,6 +304,18 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "风格轮动研究",
         "平台突破研究",
         "缠论确认分型与笔研究",
+        "持仓排雷（确定性核验）",
+        "预期差（确定性核验）",
+        "短线情绪（确定性核验）",
+        "调研前置（确定性核验）",
+        "事件复盘（确定性核验）",
+        "海内外舆情（确定性核验）",
+        "估值体检（确定性核验）",
+        "筹码结构（确定性核验）",
+        "财报季前瞻（确定性核验）",
+        "公司资料核验",
+        "新闻事实与条件传导",
+        "调研材料准备",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]
@@ -364,6 +376,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "ask_user_question",
         "research_check_quality",
         "research_read_source",
+        "rwb_query_latest_cls_news",
     }
     assert {tool["id"] for tool in tools} == baseline_tool_ids | added_tool_ids
     assert all(
@@ -372,6 +385,24 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         if tool["id"] in {"research_check_quality", "research_read_source"}
     )
     assert len(tools) == len(baseline_tool_ids | added_tool_ids)
+    owned_news = next(tool for tool in tools if tool["id"] == "rwb_query_latest_cls_news")
+    assert owned_news["required_tools"] == ["datahub_search_news"]
+    assert owned_news["selectable"] is False
+    assert owned_news["read_only"] is True
+    assert owned_news["approval"] == "native-policy-unchanged"
+    assert owned_news["conditions"] == [
+        "需专属研究工具 preset，目录声明不代表实例在线或授权",
+        "仅底层datahub_search_news及CLS来源/任务scope获准时；limit先行再正文子串筛选，empty不等于全市场无新闻",
+    ]
+    assert owned_news["parameters"] == {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "maxLength": 2000},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        },
+        "required": [],
+        "additionalProperties": False,
+    }
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
     assert document_tool["read_only"] is False
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
@@ -387,7 +418,16 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     assert all(not t["selectable"] for t in tools if t["id"] in workflow_tools)
     assert sum(t["id"] == "datahub_get_fund_data" for t in tools) == 1
     assert all(t["parameters"] and t["source"] and t["conditions"] for t in tools)
-    datahub_tools = [t for t in tools if t["source"] == "runtime/public-data.mjs"]
+    datahub_tools = [
+        t
+        for t in tools
+        if t["source"] == "runtime/public-data.mjs" and t["id"] != "rwb_query_latest_cls_news"
+    ]
+    assert {tool["id"] for tool in datahub_tools} == {
+        identifier
+        for identifier in baseline_tool_ids | added_tool_ids
+        if identifier.startswith("datahub_")
+    }
     assert all(t["approval"] == "automatic" for t in datahub_tools)
     assert all(
         t["conditions"]

@@ -38,7 +38,12 @@ on:
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_native_sdk_bootstrap_ci.py"
       - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_owned_news_native_sdk.py"
+      - "tests/research_web/test_execution_cancel_native.py"
+      - "tests/research_web/test_owned_method_compat.py"
+      - "tests/javascript/helpers/owned-news-native-driver.mjs"
       - "tests/research_web/test_runtime_mode.py"
       - "tests/research_web/test_docker_runtime.py"
       - "tests/research_web/test_platform_capabilities.py"
@@ -80,7 +85,12 @@ on:
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_native_sdk_bootstrap_ci.py"
       - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_owned_news_native_sdk.py"
+      - "tests/research_web/test_execution_cancel_native.py"
+      - "tests/research_web/test_owned_method_compat.py"
+      - "tests/javascript/helpers/owned-news-native-driver.mjs"
       - "tests/research_web/test_runtime_mode.py"
       - "tests/research_web/test_docker_runtime.py"
       - "tests/research_web/test_platform_capabilities.py"
@@ -159,12 +169,55 @@ jobs:
           PY
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3, app.research_web.asset_intraday, app.research_web.asset_minute_k, app.research_web.datahub.intraday_contract; assert m.version('cjpy') == '0.5.2'"
           .venv/bin/python -c "import app.research_web.asset_research, app.research_web.scenario_handoffs; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"
+          RWB_PACK_CHECKOUT="$PWD" .venv/bin/python -I - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          import app.research_web
+          from app.research_web.capabilities.pack_resources import pack_packages, verify_pack_manifest
+          from app.research_web.capabilities.scenario_method_packages import scenario_method_packages
+          from app.research_web.capabilities.packages import decode_file
+          checkout = Path(os.environ['RWB_PACK_CHECKOUT']).resolve()
+          installed = Path(app.research_web.__file__).resolve().parent
+          assert installed.is_relative_to(Path(sys.prefix).resolve()), installed
+          assert installed != checkout / 'app/research_web', installed
+          inputs = set()
+          for pattern in ('scenarios/packs/*', 'capabilities/pack_*.py', 'capabilities/pack-*.json', 'skills/_shared/*'):
+              inputs.update(p for p in (checkout / 'app/research_web').glob(pattern) if p.is_file())
+          inputs.update(checkout / 'app/research_web' / name for name in (
+              'capabilities/scenario_method_packages.py', 'scenario_method_dedup.py',
+              'scenario_method_sources.py', 'scenario_pack_execution.py', 'scenario_pack_reads.py',
+              'scenario_pack_ui.py', 'scenario_source_selection.py', 'scenario_source_versions.py',
+              'scenario_pack_inputs.py', 'scenarios/pack_catalog.py', 'scenarios/method_catalog.py',
+              'scenarios/native_argument_adapters.py'))
+          files = []
+          for source in sorted(inputs):
+              relative = source.relative_to(checkout / 'app/research_web')
+              actual = (installed / relative).read_bytes()
+              assert actual == source.read_bytes(), f'installed resource differs: {relative}'
+              files.append({'path': str(relative), 'sha256': hashlib.sha256(actual).hexdigest()})
+          packs, methods = list(pack_packages()), scenario_method_packages()
+          assert len(packs) == 9 and len(methods) == 3
+          resources = []
+          for cid, draft in [*packs, *methods]:
+              for item in draft['files']:
+                  assert hashlib.sha256(decode_file(item)).hexdigest() == item['sha256'], (cid, item['path'])
+              if cid.startswith('research-pack-'):
+                  manifest = verify_pack_manifest(draft['files'])
+                  assert manifest is not None, cid
+              else:
+                  manifest = json.loads(decode_file(next(f for f in draft['files'] if f['path'] == 'references/method-code-manifest.json')))
+                  entries = [{'path': f['path'], 'sha256': f['sha256']} for f in draft['files'] if f['path'] != 'references/method-code-manifest.json']
+                  assert manifest['files'] == entries, cid
+                  assert manifest['closure_sha256'] == hashlib.sha256(json.dumps(entries, sort_keys=True, separators=(',', ':')).encode()).hexdigest(), cid
+              resources.append({'id': cid, 'file_count': len(draft['files']), 'closure_sha256': manifest['closure_sha256']})
+          Path('pack-resource-smoke.json').write_text(json.dumps({'status': 'PASS', 'scope': 'installed-resource-construction-only', 'installed_files': files, 'packages': resources, 'execution': 'NOT_RUN', 'research_quality': 'NOT_RUN'}, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
           .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['schema_version'] == 2 and report['installation_ok'] is True and report['product_ready'] is True and all(report['services'][role]['ready'] is True for role in ('runtime', 'web')), report"
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/ > root.html
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/static/app.mjs > app.mjs
-          for asset_file in report-operations.mjs report-workspace.mjs report-workspace.css scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
+          for asset_file in report-operations.mjs report-workspace.mjs report-workspace.css scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt pack-ui.mjs; do
 
             safe_name="${asset_file//\//_}"
             curl --noproxy '*' --fail --silent --show-error --max-time 15 "http://127.0.0.1:8088/static/$asset_file" > "$RUNNER_TEMP/rwb-asset-$safe_name"
@@ -172,7 +225,7 @@ jobs:
           .venv/bin/python - <<'PY'
           import hashlib, json, os
           from pathlib import Path
-          assets = ["report-operations.mjs", "report-workspace.mjs", "report-workspace.css", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
+          assets = ["report-operations.mjs", "report-workspace.mjs", "report-workspace.css", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt", "pack-ui.mjs"]
 
           checks = []
           for name in assets:
@@ -187,6 +240,109 @@ jobs:
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
           curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
           .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False and data['unavailable_count'] == 0, data"
+
+          .venv/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt_path = Path('native-sdk-receipt.json').absolute()
+          receipt = {'status': 'FAILED', 'stage': 'bootstrap_start', 'code': 'native_sdk_not_completed', 'host_contract': 'checkout_test_fixture', 'installation_evidence': ['doctor.json', 'pack-resource-smoke.json'], 'sdk_contract': 'actual_fixed_sdk_no_model_or_provider_network'}
+          receipt_path.write_text(json.dumps(receipt, indent=2))
+          before = distributions = None
+          primary_error = final_error = None
+          def stage(name, code):
+              receipt.update(stage=name, code=code)
+          try:
+              stage('environment', 'native_sdk_environment_failed')
+              import importlib.metadata as metadata, os, re, subprocess, sys, tempfile, tomllib
+              import xml.etree.ElementTree as ET
+              assert sys.platform == 'darwin', 'Native SDK contract belongs to macOS Bootstrap'
+              runner_temp = os.environ.get('RUNNER_TEMP')
+              assert runner_temp and Path(runner_temp).is_dir(), 'RUNNER_TEMP must name the registered CI temporary directory'
+              checkout = Path.cwd().resolve()
+              stage('installer_import', 'native_sdk_installer_import_failed')
+              from scripts.setup_web import SetupWebInstaller
+              from app.research_web import RUNTIME_CONTRACT
+              stage('candidate_preflight', 'native_sdk_candidate_preflight_failed')
+              candidate = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+              receipt['candidate'] = candidate
+              stage('owner_preflight', 'native_sdk_owner_preflight_failed')
+              owned = Path(tempfile.mkdtemp(prefix='rwb-native-sdk-', dir=runner_temp)).resolve()
+              identity = owned.stat()
+              installer = SetupWebInstaller(project_root=checkout)
+              sdk, node = installer.dsh_source, installer.node_executable
+              argv = [sys.executable, '-m', 'pytest', '--confcutdir=tests/research_web', '--basetemp=' + str(owned / 'pytest'), '--junitxml=native-sdk-junit.xml', 'tests/research_web/test_owned_news_native_sdk.py', 'tests/research_web/test_execution_cancel_native.py']
+              owner = {'candidate': candidate, 'slice': 'owned-news-fixed-sdk', 'uid': os.getuid(), 'pid': os.getpid(), 'device': identity.st_dev, 'inode': identity.st_ino, 'argv': argv, 'path': str(owned)}
+              Path('native-sdk-owner.json').write_text(json.dumps(owner, indent=2))
+              (owned / 'owner.json').write_text(json.dumps(owner, indent=2))
+              receipt.update(sdk_pin=RUNTIME_CONTRACT.dsh_commit, test_fixture_root=str(owned))
+              probe = "\n".join([
+                  'import hashlib,json,sys; from pathlib import Path; import app.research_web',
+                  'p=Path(app.research_web.__file__).resolve(); assert p.is_relative_to(Path(sys.prefix).resolve())',
+                  'files={str(x.relative_to(p.parent)):hashlib.sha256(x.read_bytes()).hexdigest() for x in p.parent.rglob("*") if x.is_file() and "__pycache__" not in x.parts and x.suffix not in {".pyc",".pyo"}}',
+                  'print(json.dumps({"file":str(p),"files":files},sort_keys=True))',
+              ])
+              def installed():
+                  result = json.loads(subprocess.check_output([sys.executable, '-I', '-c', probe], text=True))
+                  assert not Path(result['file']).is_relative_to(checkout / 'app'), 'installed probe must not import checkout'
+                  return result
+              def versions():
+                  return {re.sub(r'[-_.]+', '-', d.metadata['Name']).lower(): d.version for d in metadata.distributions()}
+              stage('clean_install_evidence', 'native_sdk_clean_install_evidence_failed')
+              for name in ('doctor.json', 'pack-resource-smoke.json'):
+                  assert Path(name).is_file(), 'clean installation evidence must precede dev tools'
+              before, distributions = installed(), versions()
+              Path('native-sdk-installed-before.json').write_text(json.dumps(before, sort_keys=True))
+              stage('fixed_sdk_preflight', 'native_sdk_fixed_sdk_preflight_failed')
+              assert subprocess.check_output([str(node), '--version'], text=True).strip() == 'v24.19.0'
+              assert subprocess.check_output(['git', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', 'rev-parse', 'HEAD'], cwd=sdk, text=True).strip() == RUNTIME_CONTRACT.dsh_commit
+              for name in ('packages/core/tools/lib/index.js', 'packages/core/system-prompt/lib/index.js', 'vendor/cordis/lib/index.js'):
+                  assert (sdk / name).is_file(), 'fixed SDK must already be compiled'
+              dev = tomllib.loads(Path('pyproject.toml').read_text())['project']['optional-dependencies']['dev']
+              tools = [item for item in dev if re.match(r'^(?:pytest|pytest-asyncio)(?=[<=>!~\[;]|$)', item)]
+              assert len(tools) == 2
+              Path('native-sdk-preflight.json').write_text(json.dumps({'platform': sys.platform, 'node': str(node), 'node_version': '24.19.0', 'sdk': str(sdk), 'sdk_pin': RUNTIME_CONTRACT.dsh_commit, 'declared_test_tools': tools, 'installed_distributions_before': distributions}, indent=2))
+              stage('declared_test_tools', 'native_sdk_test_tools_failed')
+              # CI-only tools from the existing dev declaration; never install the editable project.
+              subprocess.run([sys.executable, '-m', 'pip', 'install', '--report', 'native-sdk-tools-install.json', *tools], check=True)
+              after_tools = versions()
+              assert all(after_tools.get(name) == version for name, version in distributions.items()), 'existing runtime distribution changed'
+              pip_report = json.loads(Path('native-sdk-tools-install.json').read_text())
+              installed_names = {re.sub(r'[-_.]+', '-', row['metadata']['name']).lower() for row in pip_report.get('install', [])}
+              assert not installed_names.intersection(distributions), 'existing runtime distribution was replaced'
+              assert installed() == before, 'dev tools changed installed app bytes'
+              stage('native_contract', 'native_sdk_contract_failed')
+              env = {**os.environ, 'RWB_DSH_TEST_SOURCE': str(sdk), 'DSH_SOURCE_ROOT': str(sdk), 'RWB_TEST_NODE': str(node), 'RWB_TEST_PYTHON': sys.executable, 'PYTHONDONTWRITEBYTECODE': '1'}
+              with Path('native-sdk.log').open('w') as output:
+                  result = subprocess.run(argv, env=env, stdout=output, stderr=subprocess.STDOUT)
+              receipt['pytest_exit'] = result.returncode
+              assert result.returncode == 0, 'mandatory Native SDK test failed; inspect native-sdk.log'
+              suites = list(ET.parse('native-sdk-junit.xml').getroot().iter('testsuite'))
+              assert sum(int(s.get('tests', 0)) for s in suites) == 7
+              assert all(int(s.get(k, 0)) == 0 for s in suites for k in ('failures', 'errors', 'skipped'))
+              receipt.update(status='PASS', stage='complete', code='native_sdk_verified', added_test_distributions={name: version for name, version in after_tools.items() if name not in distributions})
+          except BaseException as error:
+              primary_error = error
+              receipt.update(status='FAILED', error_type=type(error).__name__)
+              raise
+          finally:
+              if before is not None:
+                  try:
+                      after = installed()
+                      Path('native-sdk-installed-after.json').write_text(json.dumps(after, sort_keys=True))
+                      receipt['installed_bytes_unchanged'] = after == before
+                      after_test_versions = versions()
+                      receipt['installed_distributions_unchanged'] = all(after_test_versions.get(name) == version for name, version in distributions.items())
+                      assert receipt['installed_bytes_unchanged'], 'Native test changed installed app bytes'
+                      assert receipt['installed_distributions_unchanged'], 'Native test changed installed runtime distributions'
+                  except BaseException as error:
+                      final_error = error
+                      receipt.update(status='FAILED', final_check_error_type=type(error).__name__)
+                      if primary_error is None:
+                          stage('final_installed_integrity', 'native_sdk_final_integrity_failed')
+              receipt_path.write_text(json.dumps(receipt, indent=2))
+              if primary_error is None and final_error is not None:
+                  raise final_error
+          PY
 
       - name: Stop macOS services
         if: always()
@@ -204,7 +360,18 @@ jobs:
             app.mjs
             connections.json
             native-search-smoke.json
+            native-sdk-owner.json
+            native-sdk-preflight.json
+            native-sdk-installed-before.json
+            native-sdk-installed-after.json
+            native-sdk-tools-install.json
+            native-sdk-junit.xml
+            native-sdk.log
+            native-sdk-receipt.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/index.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/inputs/datasets/**
             asset-static-smoke.json
+            pack-resource-smoke.json
           if-no-files-found: ignore
           retention-days: 3
 
@@ -219,6 +386,16 @@ jobs:
             app.mjs
             connections.json
             native-search-smoke.json
+            native-sdk-owner.json
+            native-sdk-preflight.json
+            native-sdk-installed-before.json
+            native-sdk-installed-after.json
+            native-sdk-tools-install.json
+            native-sdk-junit.xml
+            native-sdk.log
+            native-sdk-receipt.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/index.json
+            ${{ runner.temp }}/rwb-native-sdk-*/pytest/**/inputs/datasets/**
             logs/setup-web.log
           if-no-files-found: ignore
           retention-days: 3

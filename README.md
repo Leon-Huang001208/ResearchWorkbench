@@ -336,3 +336,7 @@ Hot冻结FinGPT研究现使用轻量DSH组合并有界核验原件；真实Markd
 研究情报新增“研究与报告”，可读取真实报告、核对原运行状态及下载MD/Word。运行失败但报告已生成的状态并列保留；页面刷新与导出不发送模型请求。
 
 Host元数据专项升级在用户单独授权后走显式、精确候选的兼容复核入口；原自动升级清单不变，活动研究延后，失败回滚且保留数据。命令与边界见[安装指南](docs/research-web-installation.md#macos-登录后常驻与自动部署)。
+
+## 2026-10-28：T3组合包集成边界
+
+九个组合包的确定性内核与三个自有原件方法在候选源码接入原抽屉、能力版本、Host冻结与唯一DSH；预览、草稿准备和Send分开。已接通的原件映射主要覆盖已核验日线与网页版本，其他财务、持仓、估值及预期输入继续逐项补齐；数据不足返回缺口，不视为整包生产验收完成。原八场景/18 gated保留，140静态对照不是全项运行能力，T4/T5仍待实施。见[组合包](docs/research-web-research-packs.md)、[自有方法](docs/research-web-owned-methods.md)、[来源选择](docs/research-web-source-selection.md)、[UI](docs/research-web-pack-ui.md)。最终CI/Mac干净安装、供应商/模型质量和部署分别验收。

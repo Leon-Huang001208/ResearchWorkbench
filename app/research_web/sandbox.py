@@ -7,6 +7,7 @@ a separate Seatbelt process with no network, fork, Mach lookup, or host data acc
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import math
@@ -27,6 +28,8 @@ from uuid import UUID
 LOGGER = logging.getLogger("research_web.sandbox")
 MAX_CODE_BYTES = 65_536
 WEEKLY_INPUT_POLICY = "weekly-frozen-inputs-v1"
+SCENARIO_INPUT_POLICY = "scenario-frozen-inputs-v1"
+METHOD_INPUT_POLICY = "owned-method-frozen-inputs-v1"
 _cancelled = False
 
 
@@ -160,16 +163,24 @@ def seatbelt_profile(
     read_files: tuple[str, ...] = (),
     permitted_paths: tuple[str, ...] = (),
     input_policy: str | None = None,
+    output_root: str | None = None,
 ) -> str:
     """Build a read-data allowlist and narrow mutation grants (metadata stays visible)."""
     read_paths = ["/System/Library", "/usr/lib", "/usr/bin", "/usr/share", "/bin", *read_roots]
-    read_paths.extend(str(session / name) for name in ("outputs", "tmp"))
+    read_paths.extend(
+        [
+            str(session / "tmp"),
+            str(session / output_root) if output_root else str(session / "outputs"),
+        ]
+    )
     read_paths.extend(permitted_paths)
     literals = [str(session / "inputs"), str(session / "resources")]
     for directory_name, excluded in [
-        ("inputs", {"datasets"}),
+        ("inputs", {"datasets", "scenarios", "methods"}),
         ("resources", {"capabilities", "skills"}),
     ]:
+        if input_policy in {SCENARIO_INPUT_POLICY, METHOD_INPUT_POLICY}:
+            continue
         if directory_name == "inputs" and input_policy == WEEKLY_INPUT_POLICY:
             continue
         for entry in (session / directory_name).iterdir():
@@ -189,7 +200,13 @@ def seatbelt_profile(
     )
     writes = " ".join(
         f"(subpath {json.dumps(str(session / name), ensure_ascii=False)})"
-        for name in ("outputs", "tmp")
+        for name in ((output_root, "tmp") if output_root else ("outputs", "tmp"))
+    )
+    protected_outputs = (
+        ""
+        if output_root
+        else f'(deny file-write* (subpath {json.dumps(str(session / "outputs/scenario-results"))}))'
+        f'(deny file-write* (subpath {json.dumps(str(session / "outputs/method-results"))}))'
     )
     exec_filters = " ".join(
         f"(literal {json.dumps(path, ensure_ascii=False)})" for path in executables
@@ -200,7 +217,8 @@ def seatbelt_profile(
         f'(allow file-read-data {read_filters} {file_filters} (literal "/") (literal "/dev/null") (literal "/dev/urandom") (literal "/dev/random"))'
         "(deny file-write*)"
         f'(allow file-write* {writes} (literal "/dev/null"))'
-        "(deny network*)(deny process-fork)(deny mach-lookup)(deny mach-register)"
+        + protected_outputs
+        + "(deny network*)(deny process-fork)(deny mach-lookup)(deny mach-register)"
         "(deny ipc-posix*)(deny process-info*)(deny signal)"
         f"(deny process-exec)(allow process-exec {exec_filters})"
     )
@@ -259,7 +277,14 @@ def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
 
 
 def run_script(
-    config: SandboxConfig, session: Path, code: str, *, read_paths=(), input_policy=None
+    config: SandboxConfig,
+    session: Path,
+    code: str,
+    *,
+    read_paths=(),
+    input_policy=None,
+    file_bindings=None,
+    output_root=None,
 ) -> ScriptResult:
     """Execute bounded Python source under kernel-enforced research capabilities."""
     if sys.platform != "darwin" or not Path("/usr/bin/sandbox-exec").is_file():
@@ -282,8 +307,44 @@ def run_script(
         raise SandboxError("research sandbox directories are unavailable") from exc
     if not isinstance(read_paths, (list, tuple)) or len(read_paths) > 320:
         raise SandboxError("invalid script resource scope")
-    if input_policy not in (None, WEEKLY_INPUT_POLICY):
+    if input_policy not in (None, WEEKLY_INPUT_POLICY, SCENARIO_INPUT_POLICY, METHOD_INPUT_POLICY):
         raise SandboxError("invalid script input policy")
+    method = input_policy == METHOD_INPUT_POLICY
+    scenario = input_policy in {SCENARIO_INPUT_POLICY, METHOD_INPUT_POLICY}
+    if scenario:
+        if (
+            not isinstance(file_bindings, list)
+            or len(file_bindings) != len(read_paths)
+            or not read_paths
+            or len(set(read_paths)) != len(read_paths)
+            or not isinstance(output_root, str)
+            or not re.fullmatch(
+                r"outputs/"
+                + ("method-results" if method else "scenario-results")
+                + r"/[a-f0-9]{32}",
+                output_root,
+            )
+        ):
+            raise SandboxError("invalid scenario resource scope")
+        if method and (
+            any(
+                not isinstance(item, dict)
+                or type(item.get("bytes")) is not int
+                or item["bytes"] < 0
+                for item in file_bindings
+            )
+            or sum(item["bytes"] for item in file_bindings) > 16 * 1024 * 1024
+        ):
+            raise SandboxError("invalid method resource budget")
+        output = session / output_root
+        if (
+            output.resolve(strict=True) != output
+            or not output.is_dir()
+            or any(p.is_symlink() for p in (output, *output.parents))
+        ):
+            raise SandboxError("unsafe scenario output scope")
+    elif file_bindings is not None or output_root is not None:
+        raise SandboxError("unexpected scenario resource scope")
     weekly = input_policy == WEEKLY_INPUT_POLICY
     if weekly and (
         not read_paths
@@ -292,7 +353,76 @@ def run_script(
     ):
         raise SandboxError("invalid weekly input scope")
     permitted = []
-    for relative in read_paths:
+    for file_index, relative in enumerate(read_paths):
+        if scenario:
+            if (
+                not isinstance(relative, str)
+                or not re.fullmatch(
+                    (
+                        r"(?:inputs/methods/[a-f0-9]{64}/(?:source-context\.bound|c2-dedup\.bound|source-[0-9]+\.source)|resources/capabilities/owned-(?:company-evidence|news-evidence|research-prep)/[1-9][0-9]*/[A-Za-z0-9_./-]+)"
+                        if method
+                        else r"(?:inputs/scenarios/(?:[a-f0-9]{32}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})/(?:input|manifest)\.json|resources/capabilities/[a-z0-9_-]+/[1-9][0-9]*/[A-Za-z0-9_./-]+)"
+                    ),
+                    relative,
+                )
+                or any(not part or part.startswith(".") for part in relative.split("/"))
+            ):
+                raise SandboxError("invalid scenario resource path")
+            binding = file_bindings[file_index]
+            if (
+                not isinstance(binding, dict)
+                or set(binding) != {"path", "sha256", "bytes", "device", "inode"}
+                or binding["path"] != relative
+            ):
+                raise SandboxError("invalid scenario resource binding")
+            target = session / relative
+            try:
+                for parent in (target, *target.parents):
+                    if parent.is_symlink():
+                        raise SandboxError("unsafe scenario resource scope")
+                if target.resolve(strict=True) != target:
+                    raise SandboxError("unsafe scenario resource scope")
+                before = target.lstat()
+                if (
+                    not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                    or before.st_size > (16 if method else 64) * 1024 * 1024
+                ):
+                    raise SandboxError("unsafe scenario resource scope")
+                with os.fdopen(os.open(target, os.O_RDONLY | os.O_NOFOLLOW), "rb") as stream:
+                    opened = os.fstat(stream.fileno())
+                    digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                    after = os.fstat(stream.fileno())
+                identities = lambda s: (
+                    s.st_dev,
+                    s.st_ino,
+                    s.st_size,
+                    s.st_mtime_ns,
+                    s.st_ctime_ns,
+                    s.st_nlink,
+                )
+                if (
+                    identities(before) != identities(opened)
+                    or identities(opened) != identities(after)
+                    or identities(after) != identities(target.lstat())
+                    or (before.st_dev, before.st_ino, before.st_size, digest)
+                    != (binding["device"], binding["inode"], binding["bytes"], binding["sha256"])
+                ):
+                    raise SandboxError("scenario resource changed")
+            except OSError as exc:
+                raise SandboxError("unsafe scenario resource scope") from exc
+            read_files = (*read_files, str(target))
+            if relative.startswith("resources/capabilities/") and "/scripts/" in relative:
+                # Importlib needs directory names, never a subtree read grant.
+                # Only exact reviewed files above receive read-data authority.
+                script_base = session / relative.split("/scripts/", 1)[0] / "scripts"
+                parent = target.parent
+                while parent.is_relative_to(script_base):
+                    read_files = (*read_files, str(parent))
+                    if parent == script_base:
+                        break
+                    parent = parent.parent
+            continue
         if weekly:
             if (
                 not isinstance(relative, str)
@@ -341,8 +471,15 @@ def run_script(
     # site-packages, fixed packaged SDK literals and session resources use absolute
     # paths. The current SDK precedes legacy copies; no session file is replaced.
     # Only the four curated SDK files gain read-data, never their parent subtree.
-    site_paths = [sdk_root, *[path for path in reads if path.endswith("/site-packages")]]
+    site_paths = [path for path in reads if path.endswith("/site-packages")]
+    if not scenario:
+        site_paths.insert(0, sdk_root)
     site_paths.append(str(session / "resources"))
+    report_bootstrap = (
+        "import research_report;" + f"research_report._SESSION_ROOT={str(session)!r};"
+        if not scenario
+        else ""
+    )
     bootstrap = (
         "import sys,resource,mimetypes;"
         f"resource.setrlimit(resource.RLIMIT_CPU,({math.ceil(config.timeout_seconds) + 1},)*2);"
@@ -350,14 +487,15 @@ def run_script(
         "resource.setrlimit(resource.RLIMIT_NOFILE,(64,)*2);"
         "mimetypes.knownfiles=[];mimetypes.init();"
         f"sys.path.extend({site_paths!r});"
-        "import research_report;"
-        f"research_report._SESSION_ROOT={str(session)!r};"
+        f"{report_bootstrap}"
         "exec(compile(sys.stdin.buffer.read(),'<research-script>','exec'),{'__name__':'__main__'})"
     )
     command = [
         "/usr/bin/sandbox-exec",
         "-p",
-        seatbelt_profile(session, reads, exec_paths, read_files, tuple(permitted), input_policy),
+        seatbelt_profile(
+            session, reads, exec_paths, read_files, tuple(permitted), input_policy, output_root
+        ),
         executable,
         "-I",
         "-S",
@@ -504,6 +642,7 @@ def main() -> int:
             {"code"},
             {"code", "read_paths"},
             {"code", "read_paths", "input_policy"},
+            {"code", "read_paths", "input_policy", "file_bindings", "output_root"},
         ):
             raise SandboxError("runner request accepts only code")
         result = run_script(
@@ -512,6 +651,8 @@ def main() -> int:
             request["code"],
             read_paths=request.get("read_paths", ()),
             input_policy=request.get("input_policy"),
+            file_bindings=request.get("file_bindings"),
+            output_root=request.get("output_root"),
         )
     except (SandboxError, OSError, ValueError) as exc:
         LOGGER.warning("research_sandbox_request_rejected: %s", type(exc).__name__)

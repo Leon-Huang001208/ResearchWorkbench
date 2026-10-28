@@ -4,6 +4,17 @@ PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上
 
 2026-10-27 报告生产 UI 复用现有 Checks JS 通配符，新增目录/路由/状态回归；Mac Bootstrap 原静态文件校验同一步新增两份文件，增量预留 10 秒，无新 job/runner/依赖或 timeout 变更。原 Constraints、Checks、同候选 Mac 干净安装门保持；真实模型、Wind/Office 和成稿验收不进入 CI，发布前实时核对 visibility/额度。
 
+2026-10-28 owned CLS固定SDK一例及pack/method取消六矩阵在既有Mac Bootstrap安装后原步骤硬执行七例，generic Checks保留全部
+compat Host参数/权限/取消，不以缺SDK自动skip。复用已构建pin与安装器Node24.19.0，CI临时venv只安装
+原dev声明pytest/pytest-asyncio，不editable安装产品；installed app字节与原runtime distributions前后不变
+为硬门。无新job/runner/timeout或产品依赖/锁变化，原artifact增加owner/JUnit/log/receipt与pip变更证据，
+保留3天。单例本机现成环境约5秒，连Host模块12例51.90秒；原Mac步骤为dev工具下载与七个Native目标保守预留
+180秒（同一步新增pack/method真实取消六矩阵，本机首轮93.74秒），真实CI耗时尚NOT_RUN，不从本机或旧epoch宣称通过。远端前仍核实时visibility/额度，禁止rerun旧SHA。
+
+同批CI QUALITY修复仅将真实SetupWebInstaller接入，并前置最外层失败receipt；原Checks同一步登记四项
+轻量实际构造/早期失败回归，本机0.38秒，预算增量预留1秒。不运行pip/SDK构建/服务/网络，不扩job、
+runner或timeout；e919的错误类名与过晚receipt均有原版本真实子进程反例，不把静态AST通过称CI成功。
+
 2026-10-27首批原Checks `40384650069`在1898.78秒完成Python，7212通过、1失败；失败为未限定平台的真实Mac HTML交付测试，不是预算超时。修复保留Mac真实交付及全部原断言，另增通用未验证交付／自认证质量拒绝反例；该反例本机约2.08秒，原步骤预留5秒。原Constraints字节码兼容修复扩展原已登记unittest，不新增job／runner／依赖／timeout，不取消或绕过产品门，不rerun旧候选。最终候选重新取得原三CI及Mac安装；发布前核对当前PUBLIC资格。
 
 repair1的Checks `40440907774`完整Python7213通过／73条件跳过（1686.25秒），后续JS的10个失败均为MCP测试DOM缺既有页面容器。补齐fixture并新增一项inert回归，保留全部断言与原3个DSH源码条件skip；本机同CI通配符1225通过／0失败。修复不改workflow、job、runner、依赖或timeout，新断言预留原步骤1秒。本地闭包同步扩大到原完整JS通配符；下一最终候选走正常受管repair发布，不手动rerun旧run。
@@ -365,3 +376,7 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 区间统计沿原Research Web Checks的research_web*.test.mjs通配符增加数学/控制器用例，Mac Bootstrap同一步校验两份新增mjs，不增加job、runner或timeout。新候选仍需原Constraints/Checks/Mac三门，公开仓库与checkout身份在发布前重验；本机与隔离浏览器不替代CI。
 
 2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
+
+## 2026-10-28：T3既有验证通道
+
+T3组合包集成只扩充已有Checks测试参数及Mac Bootstrap原资源核对步骤，无新job/runner、依赖、超时或平台dispatch。只读安装资源构造复用原安装环境，不调用供应商/模型；完整候选CI仍须通过，预算与仓库visibility核对规则不变，元数据本地通过不授权远端运行。
