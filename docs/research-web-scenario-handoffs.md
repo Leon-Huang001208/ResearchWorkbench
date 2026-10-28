@@ -1,5 +1,11 @@
 # 个股、资讯与问答场景交接
 
+跨账户导入控件必须清原生FileList及私有状态，不把旧preview/confirm/metadata异步响应带入新owner；这不改变原场景/DSH来源交接权限。
+
+自选列表metadata刷新不发送场景或复制资料；已有观察sameAsset路径保留，列表首建/新增不会绕开导入目标重新冻结。
+
+自选CSV只追加本账户原列表，既有场景草稿、冻结资料、来源scope和DSH发送保持；导入不自动创建会话或观察，不改变未知提交/质量门，见[导入合同](research-web-watchlist-import.md)。
+
 macOS Web 功能实现，复用现有 Host、DataHub、唯一 DSH 和报告质量链。八个合同取自
 `app/research_web/scenarios/`，不修改冻结目录，不引入模型调用、数据源、秘密或依赖。
 

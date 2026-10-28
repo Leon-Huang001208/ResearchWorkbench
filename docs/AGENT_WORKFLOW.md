@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+自选CSV有限slice在原Research Web Checks Python步骤追加test_watchlist_import.py，Node仍走原glob；Mac Bootstrap原静态清单加入watchlist-import.mjs及后端import，不新增job/runner/timeout/依赖。单Host线程屏障需真实Store.files/save的RED→GREEN与回滚保全；跨Host/断电不认证。完整Router/独评/同候选Mac安装及远端由任务回执另证，详见[合同](research-web-watchlist-import.md)。
+
 报告生产UI先在独立worktree绑定真实GET元数据的隔离预览，禁止该预览连接Native/供应商/Office/模型或提交生产；前端回归按完整changed-set Router与原三CI/同候选Mac安装完成。与旧b800恢复独立，unknown不补空闲，源码通过不替代常驻切换或Word/下载验收。
 
 研究场景首批在Mac隔离工作树完成源码／真实临时Host及Chrome旅程；全changed-set Router仍L4，所有平台总门保留。使用项目固定Node24.19及明确可执行的`RWB_TEST_PYTHON`复用已有测试环境，环境缺失不能伪造安装或跳过测试。五类目标／源权限／原件／未知创建／质量绑定与旧入口反例需先失败再修复；源码、原通用CI、同候选Mac安装及常驻登录页／真实模型单列，Windows/Linux按本章平台交接，不从本机dispatch。模块文档、README复核和每组结构决定必须随全变更集更新，不调整约束来隐藏遗漏。
@@ -549,3 +551,5 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 
 2026-10-28：PR245 CI 修复保持原三门和原安装步骤：先核 whole-lock／七 runtime 投影及原三 renderer 哈希，原字节哈希安装完整现有 Web 锁；从 pyproject 已声明 dev 解析测试工具并用全 Web 纯版本 constraints 约束，根包沿产品普通 wheel 路径使用 --no-index --no-deps --no-build-isolation，不混入 legacy langgraph→jsonpointer 链或 editable 专用未锁依赖。七项实装 metadata 后以 -I 从已安装包实际执行 Host 与 fresh Native 导入准入，再跑原完整测试。Host 已保留 optional 引用与 Native 尚未导入但可发现 optional 的失败分别取证；均不得放行、卸库或改锁。wheel-only 资源真调用和离线构建不等于新 CI 安装／console script通过，本机不安装包，未执行保持 NOT_RUN；不新增资源复制或更改包内投影合同。fixture 经真实范围 validator／声明／健康 probe 验证成功和拒绝，不重入执行投影。旧候选 Mac 绿不能替代新候选安装；CDN超时不改pin/hash/retry，常驻／模型和他平台门保持独立。
+
+真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。

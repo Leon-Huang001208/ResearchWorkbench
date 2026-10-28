@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+自选 CSV 导入复用浏览器 → 原 Host/AssetWorkspace → 既有 AssetDirectory/Store；新增两个封闭 HTTP 端点与同 index 的 watchlist_imports namespace。Store 实例共享 RLock 覆盖批次读取/CAS/stage/save/rollback及后台files保存，防止失败批次被线程偷发布；无跨 Host/跨进程或断电事务保证，不新增服务、DB、Provider或研究引擎。原聚合节点/连线拓扑保持，新增字段和API见[合同](research-web-watchlist-import.md)。
+
 报告生产的前端请求协调提取为report-operations.mjs，只连接既有Host API；唯一DSH、控制器和数据拓扑不变，未提高健康检查读取上限。
 
 独立报告生产工作区位于既有 Web UI，复用原 ReportWorkflowManager/Run、Host 质量门和唯一 DSH；新增前端 #/reports 深链接，不新增 HTTP、数据库、研究引擎或桌面打包。项目目录与每期生产分开，配置及历史分栏，能力中心不再拼接报告专属区域；租户权限与普通未知拒绝保持。

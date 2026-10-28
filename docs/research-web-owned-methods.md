@@ -1,5 +1,7 @@
 # 三个自有原件核验方法
 
+股票 CSV 导入与本方法共用原账户 Store；本次基线包含 `Store.save` 重入锁，不改变方法输入、发布版本或执行授权。方法完成与取消仍按原执行身份裁决，不能从保存锁推导整个研究任务具有事务性；交互回归绑定合并后的候选。
+
 macOS Web 源码切片，版本 `1.0.0`。普通 Catalog 发布三份 `kind=skill`：
 `owned-company-evidence`、`owned-news-evidence`、`owned-research-prep`。
 它们分别处理公司原件核验、新闻事实与条件传导、调研材料准备；不是供应商同名能力等价承诺。

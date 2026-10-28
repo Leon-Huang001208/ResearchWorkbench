@@ -1,5 +1,7 @@
 # 研究组合包原文选择合同
 
+与股票 CSV 导入合并后，原文冻结、发布和保留引用继续使用原账户 Store；导入自身的共享重入锁及仅回滚自选引用的边界不能代替本模块来源发布原子性。撤权、文件变化及发布失败仍按原合同拒绝，不因自选保存成功而通过来源核验。
+
 `scenario_source_selection.py` 是 Host 的有限文件准备桥，仅供 `pack-research-prep`
 和 `pack-global-opinion`，以及固定 registry 中三个 `owned-*` 方法场景。后者按
 独立 method_execution 合同准备，不制造 pack_seal。均不注册供应商工具，不抓取网页、不调用模型，不建立第二个研究引擎。

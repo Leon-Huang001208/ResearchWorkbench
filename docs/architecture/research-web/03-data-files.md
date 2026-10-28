@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+导入核心增加TypedDict与参数/返回注解，标准与check-untyped-defs均检查5源；仅类型与必要exact/selected收窄，不增加业务字段或更改持久schema。换账户清客户端File/字节/选择/键，后端账户root与回执隔离保持。
+
+自选创建后的前端metadata同步不增加持久键：创建仍走原Store API，原目标存在时保留选择与File；只有显式切换目标才使导入预览失效，重新冻结与提交仍沿原摘要校验。
+
+自选导入在原index.json增加有界watchlist_imports：30分钟预览、8MiB总预算/20活动预览、不可为腾空间删除的已提交幂等回执。目标与回执同save；Store实例共享RLock阻止后台files线程偷发布失败批次，回滚只恢复本批两个引用，保留其他文件/会话。原Store无父目录fsync、不保跨Host；完整JSON备份须验证字节/权限，SQLite备份不覆盖。详见[合同](../../research-web-watchlist-import.md)。
+
 报告生产新目录和标签仅投影既有 Report Workflow 索引、配置版本及 Run；无新数据文件或格式。深链接 run 标识属于当前项目才显示，缺失不会回退其他记录；旧记录不重写。
 
 Native实际产物与Host接纳分开：同task取消先接受时，原pack/method execution仅记cancelled及真实
