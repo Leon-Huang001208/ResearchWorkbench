@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import pytest
 import test_pack_execution_host as native_tests
 import test_scenario_handoffs as scenario_fixtures
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web import research_web_sources as reader
 from app.research_web.resources.research_report import source_id

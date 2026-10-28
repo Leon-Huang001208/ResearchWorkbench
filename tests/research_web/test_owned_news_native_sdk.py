@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 import test_owned_method_compat as compat
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web import RUNTIME_CONTRACT
 

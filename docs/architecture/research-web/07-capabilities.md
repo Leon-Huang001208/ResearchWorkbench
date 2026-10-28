@@ -1,5 +1,9 @@
 # 能力包、版本与原生调用
 
+`Catalog.validate` 每文件 fresh parse 后仅在局部保存 `tuple(ast.walk(tree))`，供原九处遍历使用；没有合并检查或改变 issue 顺序，没有跨文件／调用缓存。原六次 fresh runtime、版本／账户检查、旧结果验证不变；当前56内置包的冷目录样本仍有281次保存 checkpoint，未做批处理。49 个源字节向量保留完整有序结果 oracle，危险脚本仅解析、不执行；正常构造计时与 profiling、功能验收分别记录。
+
+共享离线 API fixture 必须显式在使用模块登记 function-scope 内存凭据，不能假设上游模块 autouse fixture 随别名传播。默认后端和公共测试 facade 使用同例 vault，真实系统／文件后端入口拒绝，退出恢复 patch；生产凭据协议、固定 MCP signing account 与唯一 DSH 不改。历史 Keychain 实际触达仍 UNKNOWN，新的零逃逸结果不回填旧 epoch。
+
 业务报告项目在独立“报告生产”入口管理；通用 Workflow 仍是能力中心步骤模板。现有原生绑定与报告运行复用唯一 DSH，界面分类不授予工具权限，不新增报告引擎。
 
 目录保存先生成与原 `json.dump(..., ensure_ascii=False)` 相同的 JSON 字节，再在同一个临时文件中一次写入；每次保存及同步、原子替换、失败清理时点保持。该优化减少真实 Host 重复冷构造中的 Python 逐片段写，不缓存验证、模块清单、权限或凭据，不改变任何包版本和准入。

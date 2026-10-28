@@ -1,6 +1,8 @@
 """BFF acceptance tests: native transport is replaced only for deterministic regressions."""
 
 import asyncio
+import logging
+import sys
 import time
 
 import pytest
@@ -14,10 +16,54 @@ from app.research_web.store import Store
 
 @pytest.fixture(autouse=True)
 def isolated_keyring(monkeypatch):
-    """Every test owns its credentials; never consult the host Keychain."""
+    """Own one memory vault per test; reject every real credential fallback."""
     import keyring
+    import keyring.core
 
-    values = {}
+    from app.research_web import credential_backend
+
+    monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
+    for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "FTP_PROXY", "NO_PROXY"):
+        monkeypatch.delenv(name, raising=False)
+        monkeypatch.delenv(name.lower(), raising=False)
+    monkeypatch.setenv("RESEARCH_FRAMEWORK_COLLECTORS_ENABLED", "0")
+
+    values: dict[tuple[str, str], str] = {}
+    real_attempts = []
+
+    class MemoryCredentials:
+        def get_password(self, service: str, account: str) -> str | None:
+            return values.get((service, account))
+
+        def set_password(self, service: str, account: str, password: str) -> None:
+            values[(service, account)] = password
+
+        def delete_password(self, service: str, account: str) -> None:
+            values.pop((service, account), None)
+
+    def deny_real_backend(*_args, **_kwargs):
+        real_attempts.append("real_credential_backend")
+        logging.getLogger(__name__).error("research_test_real_credential_backend_forbidden")
+        pytest.fail("test fixture must not access a real credential backend", pytrace=False)
+
+    # Existing aliases and later imports must resolve to the same case-owned vault.
+    for module in list(sys.modules.values()):
+        if (
+            module
+            and getattr(module, "__name__", "").startswith("app.research_web")
+            and hasattr(module, "default_credential_backend")
+        ):
+            monkeypatch.setattr(module, "default_credential_backend", MemoryCredentials)
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny_real_backend)
+        for method in ("get_password", "set_password", "delete_password"):
+            monkeypatch.setattr(backend, method, deny_real_backend)
+    monkeypatch.setattr(keyring, "get_keyring", deny_real_backend)
+    monkeypatch.setattr(keyring.core, "get_keyring", deny_real_backend)
+    # Keep the existing public test facade, sharing storage with explicit backends.
     monkeypatch.setattr(
         keyring, "get_password", lambda service, account: values.get((service, account))
     )
@@ -29,6 +75,11 @@ def isolated_keyring(monkeypatch):
     monkeypatch.setattr(
         keyring, "delete_password", lambda service, account: values.pop((service, account), None)
     )
+    try:
+        yield values
+    finally:
+        values.clear()
+        assert not real_attempts, "a real credential fallback was attempted during this test"
 
 
 class NativeFixture:

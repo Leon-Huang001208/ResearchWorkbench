@@ -2,6 +2,7 @@
 
 import pytest
 import test_owned_method_execution as fixtures
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web import scenario_method_sources as methods
 from app.research_web.store import StoreError

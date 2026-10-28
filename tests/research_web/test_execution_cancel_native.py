@@ -11,6 +11,7 @@ from threading import Event
 import pytest
 import test_owned_method_execution as method_fixture
 import test_pack_execution_host as pack_fixture
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.sandbox import SandboxConfig, run_script
 

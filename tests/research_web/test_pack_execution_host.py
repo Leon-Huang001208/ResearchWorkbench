@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import test_scenario_handoffs as scenario_fixtures
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.datahub.contracts import BusinessQuery
 from app.research_web.datahub.providers import Result

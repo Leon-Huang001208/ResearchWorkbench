@@ -1222,6 +1222,7 @@ class CapabilityCatalog:
                     )
                 try:
                     tree = ast.parse(decode_file(file).decode())
+                    nodes = tuple(ast.walk(tree))
                     if pack_manifest and any(
                         isinstance(node, ast.Call)
                         and (
@@ -1230,7 +1231,7 @@ class CapabilityCatalog:
                             or isinstance(node.func, ast.Attribute)
                             and node.func.attr in {"import_module", "load_module", "exec_module"}
                         )
-                        for node in ast.walk(tree)
+                        for node in nodes
                     ):
                         issues.append(
                             issue(
@@ -1241,7 +1242,7 @@ class CapabilityCatalog:
                         )
                     current = file["path"][8:-3].split("/")
                     package = current[:-1]
-                    for node in ast.walk(tree):
+                    for node in nodes:
                         targets = []
                         if isinstance(node, ast.ImportFrom) and node.level:
                             if node.level > len(package):
@@ -1272,12 +1273,12 @@ class CapabilityCatalog:
                             )
                     modules = {
                         n.module.split(".")[0]
-                        for n in ast.walk(tree)
+                        for n in nodes
                         if isinstance(n, ast.ImportFrom) and n.module and not n.level
                     }
                     modules.update(
                         alias.name.split(".")[0]
-                        for n in ast.walk(tree)
+                        for n in nodes
                         if isinstance(n, ast.Import)
                         for alias in n.names
                     )
@@ -1293,7 +1294,7 @@ class CapabilityCatalog:
                         )
                     strings = {
                         n.value
-                        for n in ast.walk(tree)
+                        for n in nodes
                         if isinstance(n, ast.Constant) and isinstance(n.value, str)
                     }
                     module_aliases = {}
@@ -1306,7 +1307,7 @@ class CapabilityCatalog:
                     # This publication check is deliberately conservative: an import
                     # binding remains trusted evidence after local reassignment because
                     # complete Python scope and control-flow resolution is out of scope.
-                    for node in ast.walk(tree):
+                    for node in nodes:
                         if isinstance(node, ast.Import):
                             for alias in node.names:
                                 if alias.name == "subprocess":
@@ -1358,13 +1359,13 @@ class CapabilityCatalog:
                             and isinstance(node.value, ast.Name)
                             and node.value.id in module_aliases
                             and _is_host_process_entry(module_aliases[node.value.id], node.attr)
-                            for node in ast.walk(tree)
+                            for node in nodes
                         )
                         or any(
                             isinstance(node, ast.Name)
                             and isinstance(node.ctx, ast.Load)
                             and node.id in imported_entries
-                            for node in ast.walk(tree)
+                            for node in nodes
                         )
                     )
                     uses_process_pool = any(
@@ -1383,7 +1384,7 @@ class CapabilityCatalog:
                                 and node.value.value.id == "concurrent"
                             )
                         )
-                        for node in ast.walk(tree)
+                        for node in nodes
                     )
                     if (
                         subprocess_imported

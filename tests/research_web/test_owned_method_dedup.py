@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 import test_owned_method_execution as fixtures
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.capabilities.pack_resources import canonical
 from app.research_web.sandbox import SandboxConfig, run_script

@@ -14,6 +14,7 @@ from threading import Event
 import httpx
 import pytest
 import test_owned_method_execution as fixtures
+from test_api import isolated_keyring  # noqa: F401
 
 api = fixtures.api
 

@@ -8,6 +8,7 @@ import sys
 
 import pytest
 import test_pack_owned_sources as owned
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.scenarios.pack_catalog import ui_methods
 

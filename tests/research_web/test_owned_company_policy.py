@@ -5,6 +5,7 @@ import json
 
 import pytest
 import test_owned_method_execution as fixtures
+from test_api import isolated_keyring  # noqa: F401
 from test_report_calculations import observation, recipe
 
 from app.research_web.resources.research_report_calculations import derive_business_observations

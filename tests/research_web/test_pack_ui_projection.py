@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 import test_pack_execution_host as native_fixtures
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.sandbox import SandboxConfig, run_script
 

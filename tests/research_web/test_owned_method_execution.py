@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 import pytest
 import test_scenario_handoffs as scenario_fixtures
 from source_capture_fixture import fixed_response, offline_http
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web import research_web_sources as reader
 from app.research_web.resources.research_report import source_id

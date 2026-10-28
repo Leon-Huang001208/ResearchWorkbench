@@ -5,6 +5,7 @@ import hashlib
 import pytest
 import test_source_capture_proof as source_fixtures
 from source_capture_fixture import fixed_response
+from test_api import isolated_keyring  # noqa: F401
 from test_source_capture_proof import owned_read
 
 from app.research_web import research_web_sources as reader
