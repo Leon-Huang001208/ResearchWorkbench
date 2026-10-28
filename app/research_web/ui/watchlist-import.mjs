@@ -38,6 +38,19 @@ const messages = {
 const reason = row => ({ ready: '身份已核验', ambiguous: '多个同码或同名实体，需选择', needs_selection: '需明确选择规范实体', unsupported_identity_catalog: '该类型尚无规范目录', catalog_unavailable: '本地目录不可用', unresolved: '目录未找到', target_integrity_conflict: '旧列表身份冲突', skipped: '显式跳过' })[row.status] || '状态待核对';
 const action = row => ({ add: '追加', skip_existing: '跳过：已在列表', skip_file_duplicate: '跳过：文件内重复', skip_explicit: '跳过：本人指定', blocked: '待处理' })[row.proposed_action] || '决定待核对';
 
+/** Sync actual list metadata without replacing the user's chosen target or File. */
+export function updateWatchlistTargets(state, lists) {
+  const current = Array.isArray(lists) ? lists.map(({ id, name }) => ({ id, name })) : [];
+  if (!current.some(list => list.id === state.target)) {
+    const target = current[0]?.id || '';
+    if (target !== state.target) {
+      state.target = target; state.preview = null; state.dirty = true; state.key = null;
+      state.receipt = null; state.revision++; state.busy = false;
+    }
+  }
+  return current;
+}
+
 export async function encodeWatchlistFile(file) {
   if (!file || file.size > LIMIT || file.size === 0) throw new Error('请选择非空 CSV 文件，最多 1 MiB。');
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -57,10 +70,10 @@ export function createWatchlistImportController({ api, onChange = () => {}, onCo
   async function file(input) {
     if (state.busy) return;
     invalidate(); state.filename = input?.name || ''; state.sourceFile = input || null; state.file = null; state.preview = null; state.selections = {}; state.skips = []; state.busy = true;
-    const revision = state.revision; notify();
-    try { const encoded = await encodeWatchlistFile(input); if (current(revision)) state.file = encoded; }
-    catch (error) { if (current(revision)) state.error = '无法读取所选文件，请重新选择非空、最多 1 MiB 的 CSV 文件。'; safeLog('watchlist_import_file_rejected', { status: 'invalid' }); }
-    finally { if (current(revision)) { state.busy = false; notify(); } }
+    const currentFile = () => scope === account() && state.sourceFile === input; notify();
+    try { const encoded = await encodeWatchlistFile(input); if (currentFile()) state.file = encoded; }
+    catch (error) { if (currentFile()) state.error = '无法读取所选文件，请重新选择非空、最多 1 MiB 的 CSV 文件。'; safeLog('watchlist_import_file_rejected', { status: 'invalid' }); }
+    finally { if (currentFile()) { state.busy = false; notify(); } }
   }
   function choose(number, asset) { if (state.busy) return; invalidate(); state.selections[String(number)] = asset; notify(); }
   function skip(number, yes) { if (state.busy) return; invalidate(); state.skips = state.skips.filter(n => n !== number); if (yes) state.skips.push(number); notify(); }
@@ -100,9 +113,8 @@ if (globalThis.customElements && globalThis.HTMLElement && !globalThis.customEle
   globalThis.customElements.define('rwb-watchlist-import', class extends HTMLElement {
     connectedCallback() {
       try {
-        const lists = JSON.parse(this.getAttribute('data-lists') || '[]');
         const state = accountDraft();
-        if (!lists.some(list => list.id === state.target)) { state.target = lists[0]?.id || ''; state.preview = null; state.dirty = true; state.key = null; }
+        const lists = updateWatchlistTargets(state, JSON.parse(this.getAttribute('data-lists') || '[]'));
         const previousFileInput = this.querySelector('[data-wi-file]');
         this.innerHTML = `<section class="watchlist-import"><h3>导入股票 CSV</h3><p class="muted small">仅本地已获准的沪深北股票目录；UTF-8 / BOM，最多1 MiB、1000行。固定表头：asset,asset_type,name。ETF、基金、指数、行业、主题逐行标为待支持。</p><label>目标自选<select data-wi-target>${lists.map(list => `<option value="${e(list.id)}">${e(list.name)}</option>`).join('')}</select></label><label>CSV 文件<input type="file" data-wi-file accept=".csv,text/csv"></label><p data-wi-filename class="muted small"></p>${!lists.length ? '<p class="notice warning">请先在上方创建自选列表。</p>' : ''}<div data-wi-results></div><div class="button-row"><button type="button" class="button small" data-wi-preview>冻结预览</button><button type="button" class="button small" data-wi-confirm>确认追加</button></div><p data-wi-loading role="status" aria-live="polite"></p></section>`;
         if (previousFileInput) this.querySelector('[data-wi-file]').replaceWith(previousFileInput);
@@ -126,12 +138,14 @@ if (globalThis.customElements && globalThis.HTMLElement && !globalThis.customEle
           this.querySelector('[data-wi-loading]').textContent = state.busy ? '正在处理导入，请稍候…' : '';
           if (focus) this.querySelector(`[${focus[0]}="${focus[1]}"]`)?.focus({ preventScroll: true });
         };
-        this.controller = createWatchlistImportController({ api: createAPI(), state, onChange: draw, onCommitted: receipt => this.ownerDocument.dispatchEvent(new CustomEvent('rwb-watchlist-import-committed', { detail: { receipt, account: owner() } })) });
+        // An in-flight File read notifies the current mount after a full render.
+        this.drawDraft = draw; state.renderDraft = draw;
+        this.controller = createWatchlistImportController({ api: createAPI(), state, onChange: () => state.renderDraft?.(), onCommitted: receipt => this.ownerDocument.dispatchEvent(new CustomEvent('rwb-watchlist-import-committed', { detail: { receipt, account: owner() } })) });
         this.onChange = event => { const target = event.target; if (target.matches('[data-wi-file]')) void this.controller.file(target.files?.[0]); else if (target.matches('[data-wi-target]')) this.controller.target(target.value); else if (target.matches('[data-wi-choice]')) this.controller.choose(Number(target.dataset.wiChoice), target.value); else if (target.matches('[data-wi-skip]')) this.controller.skip(Number(target.dataset.wiSkip), target.checked); };
         this.onClick = event => { if (event.target.matches('[data-wi-preview]')) void this.controller.preview(); if (event.target.matches('[data-wi-confirm]')) void this.controller.confirm(); };
         this.addEventListener('change', this.onChange); this.addEventListener('click', this.onClick); draw();
       } catch (error) { this.textContent = '导入组件暂不可用，请刷新重试。'; safeLog('watchlist_import_mount_failed', { status: 'error' }); }
     }
-    disconnectedCallback() { this.removeEventListener('change', this.onChange); this.removeEventListener('click', this.onClick); }
+    disconnectedCallback() { this.removeEventListener('change', this.onChange); this.removeEventListener('click', this.onClick); if (this.controller?.state.renderDraft === this.drawDraft) delete this.controller.state.renderDraft; }
   });
 }

@@ -42,3 +42,13 @@ Node聚焦闭包85项通过（watchlist-node-final2.log）；原测试的More精
 ## 自有资源保全
 
 8个已登记自有fixture根无活动lsof持有者，经归档后在新不透明临时根实际恢复，70,045条目逐项验证regular字节SHA256、原mode、符号链接目标及硬链接数；归档138,771,355字节，SHA256 `7742db67141104419661a4f79ed799e3324d7094c7ad8fe03739c4368fe6f92f`，恢复耗时27.634秒。完整manifest/receipt位于logs/watchlist-evidence-archive/。原fixture根、验证恢复根、必要日志/截图和恢复归档均保留；合并前不清理，不返回cleaned。最初两次未进入追加ledger的浏览器fixture根继续保护，不按目录名/时间推断退休。父协调任务在最终验收/合并后负责精确归属、日志归档与安全收尾；本工作树ignored证据必须先保全再回收。
+
+## 追加更正：旧浏览器fixture的外网边界
+
+复核原Host raw日志发现，旧r9和早期SPEC夹具只拦浏览器URL/DataHub调用，未关闭默认Framework定时collector；不能认证整个Host外部尝试/成功为0。两份自有raw Host log实见218条完成HTTP响应日志（含redirect），200条2xx，GLD.json8条，UTC范围2026-10-28T09:41:05.772342Z至11:15:30.111459Z；尝试至少218，异常无响应部分不能反推精确总数。原日志/原r9结果/原handoff与SHA保留，不回填更强结论。
+
+只读核对18个registered fixture或已验证archive内framework gold/dollar snapshot实际路径/字节hash；框架写入使用active Store.root/frameworks/{gold,dollar}/snapshot.json，HTTP helper原始响应在内存，派生数据落这些临时owner根。确切URL/时间/原log行号/hash与cache路径见ignored logs/watchlist-outbound-forensics/receipt.json；未读取生产数据或Keychain，早期未登记根未清理。此为已发生的公开网络访问，不是获准供应商实测或模型质量证据。
+
+修正后，测试子进程使用既有RESEARCH_FRAMEWORK_COLLECTORS_ENABLED=0，且实际由/usr/bin/sandbox-exec执行tests/e2e/watchlist-loopback.sb（deny network*，仅localhost bind/inbound/outbound）；不改产品默认。Python audit只是补强，httpx/requests/urllib/curl_cffi同步/异步方法均计数拒绝；内核限制同时约束native C连接，不能以Python monkeypatch冒充。真实系统凭据后端入口fail-on-call，模型目录仅返回协议正确的空metadata。当前观察使用真实DataHub Snapshots.publish的empty Result/完整manifest/原件/当前配置摘要，明确合成空数据，不造成功行情。
+
+新kernel-bound epoch原5+新增3旅程通过，result分别在logs/watchlist-import-e2e-kernel-bound/和watchlist-spec-lists-e2e-kernel-bound/；每个绑定13个实际执行源文件hash、profile hash、childPID与计数。旅程内受控客户端/Python socket的非loopback尝试、成功、Provider/模型和真实凭据调用均0；raw Host日志无外部HTTP、API异常或collector启动记录。独立6类HTTP负例均在客户端前置拒绝（各尝试1/成功0），2个手工sys.audit事件验证钩子；这些不是Host旅程的0计数。独立native curl负例返回7且Immediate connect fail Operation not permitted，未接收HTTP响应；正式回执logs/watchlist-native-kernel-negative.json，另保留先前两次ad-hoc内核拒绝。不能将网络封锁当作真实供应商可用性或授权。

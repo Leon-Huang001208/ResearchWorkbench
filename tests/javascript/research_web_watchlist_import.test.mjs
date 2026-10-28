@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createAPI } from '../../app/research_web/ui/core.mjs';
 import { createAssetWorkspaceController } from '../../app/research_web/ui/asset-controller.mjs';
 import { renderAssetWorkspace } from '../../app/research_web/ui/asset-workspace.mjs';
-import { createWatchlistImportController, encodeWatchlistFile, renderWatchlistImportResults } from '../../app/research_web/ui/watchlist-import.mjs';
+import { createWatchlistImportController, encodeWatchlistFile, renderWatchlistImportResults, updateWatchlistTargets } from '../../app/research_web/ui/watchlist-import.mjs';
 
 const text = 'asset,asset_type,name\r\n000001.SZ,stock,同名😀\r\n';
 const file = () => new File(['\ufeff' + text], '自选.csv');
@@ -108,4 +108,61 @@ test('known CSV errors are actionable Chinese and unknown errors never echo back
   c.target('list-id'); await c.file(file()); await c.preview();
   assert.match(c.state.error, /公式型字段/); assert.doesNotMatch(c.state.error, /watchlist_import_|Users/);
   await c.preview(); assert.match(c.state.error, /文件与选择已保留/); assert.doesNotMatch(c.state.error, /Users|credentials|internal/);
+});
+
+test('original create API refreshes personal metadata with current observation on the same asset', async () => {
+  const previous = globalThis.document;
+  globalThis.document = new EventTarget();
+  const lists = []; const requests = [];
+  try {
+    const api = createAPI({ fetcher: async (url, options) => {
+      requests.push([url, options.method]);
+      assert.equal(url, '/api/research/watchlists', 'metadata creation must not fetch provider/model/assets');
+      if (options.method === 'POST') { const row = { id: `list-${lists.length}`, ...JSON.parse(options.body), items: [] }; lists.push(row); return { ok: true, status: 201, json: async () => row }; }
+      return { ok: true, status: 200, json: async () => ({ items: structuredClone(lists) }) };
+    }, logger: () => {} });
+    const controller = createAssetWorkspaceController({ api });
+    controller.state.observation = { id: 'current-observation', asset: '600519.SH', asset_type: 'stock', blocks: {} };
+    controller.state.rows = { history: [{ close: 10 }] };
+    // Original button sequence: createWatchlist, then activateView for the same asset.
+    await api.createWatchlist({ name: '首个列表' });
+    await controller.activateView({ asset: '600519.SH', assetType: 'stock', assetView: 'news' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(controller.state.watchlists[0]?.name, '首个列表');
+    await api.createWatchlist({ name: '第二列表' });
+    await controller.activateView({ asset: '600519.SH', assetType: 'stock', assetView: 'news' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(controller.state.watchlists.map(row => row.name), ['首个列表', '第二列表']);
+    assert.equal(controller.state.observation.id, 'current-observation');
+    assert.equal(controller.state.rows.history[0].close, 10);
+    assert.equal(requests.filter(([, method]) => method === 'GET').length, 2);
+  } finally { globalThis.document = previous; }
+});
+
+
+test('full and preserved partial importer metadata use the same target sync without losing the File', async () => {
+  const { controller: c } = make();
+  const selected = file(); await c.file(selected);
+  const initial = updateWatchlistTargets(c.state, []);
+  assert.deepEqual(initial, []); assert.equal(c.state.target, '');
+  const a = { id: 'a', name: 'A' }, b = { id: 'b', name: 'B' };
+  assert.deepEqual(updateWatchlistTargets(c.state, [a]), [a]); assert.equal(c.state.target, 'a');
+  await c.preview(); const preview = c.state.preview, key = c.state.key;
+  // Both full rendering and the preserved node receive the actual fresh metadata.
+  assert.deepEqual(updateWatchlistTargets(c.state, [a, b]), [a, b]);
+  assert.equal(c.state.target, 'a'); assert.equal(c.state.preview, preview); assert.equal(c.state.key, key);
+  assert.equal(c.state.sourceFile, selected); assert.equal(c.state.dirty, false);
+  c.target('b'); assert.equal(c.state.dirty, true); assert.equal(c.state.key, null);
+  assert.equal(c.state.sourceFile, selected); await c.preview(); assert.equal(c.state.dirty, false);
+});
+
+test('first-list metadata arriving during File reading preserves the same authorized bytes', async () => {
+  let resolve;
+  const input = { name: '首建并发.csv', size: Buffer.byteLength(text), arrayBuffer: () => new Promise(done => { resolve = done; }) };
+  const { controller: c } = make();
+  const reading = c.file(input);
+  updateWatchlistTargets(c.state, [{ id: 'new-list', name: '新列表' }]);
+  resolve(new TextEncoder().encode(text).buffer); await reading;
+  assert.equal(c.state.sourceFile, input); assert.ok(c.state.file?.file_base64);
+  assert.equal(c.state.target, 'new-list'); assert.equal(c.state.busy, false);
 });

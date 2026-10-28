@@ -1,5 +1,7 @@
 # Research Web 前端
 
+自选首建/新建列表成功后，通过账户绑定的原metadata读取刷新目标选项；即使同一证券观察走sameAsset路径也不会沿用空目录。局部更新保留导入节点前同步新data-lists，已有目标仍存在则保留，不自动切换到新列表；原File/草稿保持，切换目标必须重新冻结。
+
 自选CSV入口在资产观察“更多 → 自选与最近观察”，完整行预览后显式消歧/skip，再重新冻结确认追加。保留原自选、当前File和选择；状态/错误中文，390px浅深色和键盘均沿原样式，原More使用现有disclosure状态恢复，app.mjs入口不增长。完整格式/账户/并发及限制见[自选导入](research-web-watchlist-import.md)。
 
 报告操作接线由独立report-operations.mjs承担，防跨项目迟到响应及重复提交；主app.mjs必须保持在既有256KiB静态健康正文预算内，Node回归读取实际入口字节验证。

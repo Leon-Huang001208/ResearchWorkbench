@@ -1,12 +1,15 @@
 /** Real localhost Host + original asset UI. No provider/model/network evidence. */
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFile, writeFile, appendFile, mkdir, mkdtemp, stat, open } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const output = path.join(project, 'logs/watchlist-import-e2e');
+const epoch = process.env.RWB_WATCHLIST_E2E_EPOCH || '';
+assert.match(epoch, /^[a-z0-9-]*$/);
+const output = path.join(project, 'logs', 'watchlist-import-e2e' + (epoch ? '-' + epoch : ''));
 await mkdir(output, { recursive: true });
 const root = await mkdtemp('/tmp/rwb-watchlist-browser-');
 const info = await stat(root);
@@ -15,8 +18,12 @@ await appendFile(path.join(output, 'root-identities.jsonl'), JSON.stringify({ ro
 const stream = await open(path.join(output, 'host.log'), 'a');
 const python = process.env.RWB_TEST_PYTHON;
 assert.ok(python, 'RWB_TEST_PYTHON must select the existing environment');
-const host = spawn(python, ['tests/e2e/watchlist_import_host.py', '--root', path.join(root, 'account'), '--ready', path.join(root, 'ready.json')], { cwd: project, stdio: ['ignore', stream.fd, stream.fd], env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
-const started = performance.now(); let browser; let origin; let page; const failures = []; const errors = []; const external = []; const results = [];
+const profile = path.join(project, 'tests/e2e/watchlist-loopback.sb');
+const boundFiles = ['app/research_web/watchlist_import.py', 'app/research_web/asset_workspace.py', 'app/research_web/asset_routes.py', 'app/research_web/store.py', 'app/research_web/asset_directory.py', 'app/research_web/ui/core.mjs', 'app/research_web/ui/asset-controller.mjs', 'app/research_web/ui/asset-workspace.mjs', 'app/research_web/ui/watchlist-import.mjs', 'app/research_web/ui/asset-workspace.css', 'tests/e2e/watchlist_import_host.py', 'tests/e2e/watchlist-loopback.sb', path.relative(project, fileURLToPath(import.meta.url))];
+const sourceBinding = { base_commit: execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' }).trim(), sha256: Object.fromEntries(await Promise.all(boundFiles.map(async file => [file, createHash('sha256').update(await readFile(path.join(project, file))).digest('hex')]))) };
+
+const host = spawn('/usr/bin/sandbox-exec', ['-f', profile, python, 'tests/e2e/watchlist_import_host.py', '--root', path.join(root, 'account'), '--ready', path.join(root, 'ready.json')], { cwd: project, stdio: ['ignore', stream.fd, stream.fd], env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', RWB_WATCHLIST_SEATBELT: '1' } });
+const started = performance.now(); let browser; let origin; let page; const failures = []; const errors = []; const external = []; const results = []; let hostBoundary;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function fixture() { return (await fetch(`${origin}/_fixture/state`)).json(); }
 async function check(name, run) { await run(); results.push({ name, status: 'PASS' }); console.log(`PASS: ${name}`); }
@@ -115,12 +122,13 @@ try {
     await page.screenshot({ path: path.join(output, 'narrow-dark-long-text-keyboard.png') });
     assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--surface').trim()), '#222220');
   });
-  assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.equal((await fixture()).external_calls, 0);
+  const boundary = await fixture(); hostBoundary = { kernel: 'macos-seatbelt-loopback-only', profile_sha256: sourceBinding.sha256['tests/e2e/watchlist-loopback.sb'], child_pid: host.pid, external_calls: boundary.external_calls, network_attempts: boundary.network_attempts, real_credential_attempts: boundary.real_credential_attempts, http_client_counters: boundary.http_client_counters, framework_collectors_enabled: boundary.framework_collectors_enabled };
+  assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.equal((await fixture()).external_calls, 0); assert.equal((await fixture()).network_attempts, 0); assert.equal((await fixture()).real_credential_attempts, 0); for (const counts of Object.values((await fixture()).http_client_counters)) assert.equal(counts.nonloopback_attempts || 0, 0); assert.equal((await fixture()).framework_collectors_enabled, false);
 } catch (error) { failures.push(error.stack); if (page) await page.screenshot({ path: path.join(output, 'failed.png') }).catch(failure => errors.push(failure.message)); }
 finally {
   await browser?.close();
   if (host.exitCode === null) { host.kill('SIGTERM'); await new Promise(resolve => host.once('exit', resolve)); }
   await stream.close();
-  await writeFile(path.join(output, 'result.json'), JSON.stringify({ status: failures.length ? 'FAIL' : 'PASS', results, failures, errors, external, durationMs: Math.round(performance.now() - started), root }, null, 2));
+  await writeFile(path.join(output, 'result.json'), JSON.stringify({ status: failures.length ? 'FAIL' : 'PASS', results, failures, errors, external, hostBoundary, sourceBinding, durationMs: Math.round(performance.now() - started), root }, null, 2));
 }
 if (failures.length) { console.error(failures.join('\n')); process.exitCode = 1; }

@@ -404,7 +404,14 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     assetChartPreferences: (options = {}) => request('/assets/chart-preferences', options),
     saveAssetChartPreferences: body => request('/assets/chart-preferences', { method: 'PUT', body }),
     watchlists: (options = {}) => request('/watchlists', options),
-    createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
+    createWatchlist: async body => {
+      const account = String(globalThis.__RWB_USER_ID__ || 'single-user');
+      const result = await request('/watchlists', { method: 'POST', body });
+      if (account === String(globalThis.__RWB_USER_ID__ || 'single-user')) {
+        globalThis.document?.dispatchEvent?.(new CustomEvent('rwb-watchlists-changed', { detail: { account } }));
+      }
+      return result;
+    },
     addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),
     previewWatchlistImport: (id, body) => request(`/watchlists/${segment(id)}/imports/preview`, { method: 'POST', body }),
     confirmWatchlistImport: (id, importId, body, key) => request(`/watchlists/${segment(id)}/imports/${segment(importId)}/confirm`, { method: 'POST', body, key }),

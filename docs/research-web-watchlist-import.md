@@ -1,5 +1,7 @@
 # 自选股票 CSV 导入
 
+已有证券观察时，从原创建按钮首建或新建列表也会刷新可选目标。创建API成功后发出账户绑定metadata事件，controller只读取原watchlists；局部复用导入器前同步新data-lists。已有目标仍存在则保持选中，原已授权File与草稿保留；用户改选新目标后必须重新冻结，不能沿用旧预览。不改变sameAsset分支或调用供应商/模型。
+
 资产观察的“更多 → 自选与最近观察”内可选择目标列表和 CSV，预览全部行，选择规范实体或明确跳过，再重新冻结预览并确认追加。没有列表时先使用原“新建自选列表”。导入保留原项 ID、名称、顺序、时间与轮询设置；不创建研究、观察、提醒、调度或模型调用。
 
 ## 文件与身份
@@ -52,3 +54,7 @@ namespace 总预算为 8 MiB（包含活动/已提交记录和幂等键），最
 真实临时 Store/ResearchService/create_app、后台 files 线程、有限写入故障、同键/多预览/旧 writer、重建读取及真实 tenant backend 隔离均由 `test_watchlist_import.py` 验证；新 Node 合同与原自选回归另验。loopback-only `tests/e2e/research_web_watchlist_import.mjs` 使用真实 Host 与 Chrome，验证全行预览、键盘消歧/skip/refreeze、原自选追加、冲突输入保留、中文错误、同 File 再预览和 390px 浅深色长文本；外部 URL/供应商/模型均拒绝。
 
 源码、本机证据、独立评审、完整 Router、同候选 macOS 干净安装与常驻部署分别认证；Windows/Linux 原生及真实供应商/模型、跨 Host 与断电恢复不由本批测试认定通过。它是 T5 股票导入有限 slice，不是全部 T5 或全资产目录完成。
+
+## 离线浏览器验收的进程边界
+
+macOS测试夹具必须由tests/e2e/watchlist-loopback.sb的Seatbelt进程策略启动，只允许localhost网络，同时关闭夹具Framework自动collector并对httpx/requests/urllib/curl_cffi、Python socket与真实凭据后端计数拒绝；Python钩子本身不能覆盖C/native网络。该配置只属于测试，不改变产品默认采集行为。真实DataHub本地empty snapshot保留完整类型、原件和配置摘要，不能冒充真实行情。初版r9只覆盖browser/DataHub sentinel，发现外网后追加纠正；新受限epoch与独立native拒绝负例分开记录，供应商可用性、模型质量与部署仍另验。

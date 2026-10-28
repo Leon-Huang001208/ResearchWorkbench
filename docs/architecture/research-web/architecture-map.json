@@ -655,7 +655,10 @@
         "tests/research_web/test_watchlist_import.py",
         "tests/javascript/research_web_watchlist_import.test.mjs",
         "tests/e2e/research_web_watchlist_import.mjs",
-        "tests/e2e/watchlist_import_host.py"
+        "tests/e2e/watchlist_import_host.py",
+        "tests/e2e/research_web_watchlist_import_lists.mjs",
+        "tests/e2e/watchlist-loopback.sb",
+        "tests/e2e/watchlist_network_probe.py"
       ]
     },
     {

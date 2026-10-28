@@ -47,19 +47,21 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   let generation = 0; let readAbort; let historyContext = null; let preferencesLoaded = false; let preferenceVersion = 0; let preferenceQueue = Promise.resolve(); let persistedPreferences = state.preferences;
   const currentHistory = context => account === currentAccount() && historyContext === context && !context.cancelled && state.observation?.id === context.observationId && identity(state.observation) === context.identity;
   const notify = () => onChange();
-  // Successful offline import only rereads the original personal list; no asset load.
-  globalThis.document?.addEventListener?.('rwb-watchlist-import-committed', async event => {
+  // Original list creation and offline import reread only personal metadata.
+  let watchlistRead = 0;
+  const refreshWatchlists = async event => {
     if (event.detail?.account !== account || account !== currentAccount()) return;
-    const epoch = accountEpoch;
+    const epoch = accountEpoch, version = ++watchlistRead;
     try {
       const result = await api.watchlists();
-      if (epoch !== accountEpoch || account !== currentAccount()) return;
+      if (epoch !== accountEpoch || account !== currentAccount() || version !== watchlistRead) return;
       state.watchlists = result.items || []; delete state.errors.watchlists; notify();
     } catch (error) {
-      if (epoch === accountEpoch && account === currentAccount()) { state.errors.watchlists = '导入已保存，自选列表读取失败，请刷新核对。'; notify(); }
+      if (epoch === accountEpoch && account === currentAccount() && version === watchlistRead) { state.errors.watchlists = '自选操作已保存，列表读取失败，请刷新核对。'; notify(); }
       safeLog('watchlist_import_list_refresh_failed', { status: error.code || 'request_failed' });
     }
-  });
+  };
+  for (const event of ['rwb-watchlists-changed', 'rwb-watchlist-import-committed']) globalThis.document?.addEventListener?.(event, refreshWatchlists);
   async function cancelCaptured(context) {
     if (!context?.job?.id || !ACTIVE.has(jobStatus(context.job))) return;
     try { await api.cancelAssetHistory(context.observationId, context.job.id); }

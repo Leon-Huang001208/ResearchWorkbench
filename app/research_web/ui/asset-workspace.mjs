@@ -305,7 +305,11 @@ export function updateAssetSummary(page, props = {}) {
       if (!old || !next) continue;
       if (selector === '.asset-list-drawer') next.open = old.open;
       const importer = old.querySelector('rwb-watchlist-import');
-      if (importer) next.querySelector('rwb-watchlist-import')?.replaceWith(importer);
+      const nextImporter = next.querySelector('rwb-watchlist-import');
+      if (importer && nextImporter) {
+        importer.setAttribute('data-lists', nextImporter.getAttribute('data-lists'));
+        nextImporter.replaceWith(importer);
+      }
       for (const form of old.querySelectorAll('form')) {
         const attribute = form.getAttributeNames().find(name => name.startsWith('data-'));
         if (attribute) next.querySelector(`[${attribute}]`)?.replaceWith(form);

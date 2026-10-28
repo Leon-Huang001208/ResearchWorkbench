@@ -1,5 +1,7 @@
 # 研究框架
 
+自选创建成功的账户绑定事件只重新读取既有watchlists，不改sameAsset观察加载条件，不触发Provider/模型或重建观察。新列表是导入目标metadata，不获得研究能力授权。
+
 自选CSV只追加本账户股票列表，不创建FinGPT/Claw/报告/模型/观察；原唯一DSH及研究质量链保持。前端新组件沿原资产渲染和列表事件刷新，不扩大能力授权，见[合同](../../research-web-watchlist-import.md)。
 
 报告生产独立业务导航只重组原报告项目UI，不改变研究框架、场景或通用Workflow步骤模板。模板项目的执行仍经原Claw/唯一DSH和Host，不由新导航增加框架权限。

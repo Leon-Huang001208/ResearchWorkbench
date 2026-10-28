@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "资产观察原自选入口增加股票CSV离线预览、显式消歧和幂等追加，保留原数据。",
-  "reason": "新增两端点和同index有界导入记录，单Store共享线程锁协调后台files保存；不扩大DSH、Provider、部署、跨Host或断电保证，完整边界见新模块合同。"
+  "disposition": "unchanged",
+  "summary": "自选导入首建/新建列表metadata刷新及局部props同步修复，原入口和用户合同保持。",
+  "reason": "原README已经说明资产自选CSV入口，当前仅落实已有观察下的列表选项刷新与File/目标保留，不新增功能入口或部署承诺；模块合同与真实Host回归已同步。"
 }
