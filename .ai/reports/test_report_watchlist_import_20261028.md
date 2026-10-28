@@ -2,6 +2,8 @@
 
 宿主 macOS，任务为 Web 功能开发。基线 1be480183187f181dbcee486d943aabb3559c9d5。本报告只认证下述实际本地证据；独立评审、完整Router、同候选远端CI/Mac干净安装和最终合并由协调任务另证，常驻部署不在本轮执行。
 
+源码阅读检查点 `137fafb58376da83cd3bc715463e872e0d32aaad` 已在本地提交；后续仅固定文档/Atlas的源码链接，不把阅读pin视为独立评审或远端验收。
+
 ## 变更与约束
 
 原资产观察自选入口增加严格 CSV → 全行预览 → 显式消歧/跳过 → 重新冻结 → 确认追加，支持既有本地已获准SH/SZ/BJ股票目录。ETFs、fund/index/industry/theme明确unsupported，不猜身份，不取数或模型。原导航、唯一DSH、观察/场景/报告/调度保持。
@@ -36,3 +38,7 @@ Node聚焦闭包85项通过（watchlist-node-final2.log）；原测试的More精
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"只在原Store实例和index.json内增加有界导入记录及线程共享写锁，批次不另落回执文件、不新增数据库或跨Host租约；原文件节点和聚合流向保持，schema及保存语义已在模块合同说明。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅在现有Research Web Checks合同名单和Mac Bootstrap静态文件/模块校验扩登记，不增加job、runner、触发器、timeout或依赖，原验证路由和交付图保持，真实模型/供应商与远端门另证。","diagrams":[]} -->
+
+## 自有资源保全
+
+8个已登记自有fixture根无活动lsof持有者，经归档后在新不透明临时根实际恢复，70,045条目逐项验证regular字节SHA256、原mode、符号链接目标及硬链接数；归档138,771,355字节，SHA256 `7742db67141104419661a4f79ed799e3324d7094c7ad8fe03739c4368fe6f92f`，恢复耗时27.634秒。完整manifest/receipt位于logs/watchlist-evidence-archive/。原fixture根、验证恢复根、必要日志/截图和恢复归档均保留；合并前不清理，不返回cleaned。最初两次未进入追加ledger的浏览器fixture根继续保护，不按目录名/时间推断退休。父协调任务在最终验收/合并后负责精确归属、日志归档与安全收尾；本工作树ignored证据必须先保全再回收。

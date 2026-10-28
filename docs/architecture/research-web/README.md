@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+自选CSV导入源码阅读检查点为 `137fafb58376da83cd3bc715463e872e0d32aaad`：原资产自选入口、离线目录、同Store线程批次/回执及两项API已在该提交。Atlas链接绑定该实际源码；本机测试与后续独评、完整Router、同候选CI/安装和常驻部署分别认证，跨Host与断电不在本批保证。详见[合同](../../research-web-watchlist-import.md)。
+
 报告生产作为独立业务入口管理既有报告项目和每期交付；通用Workflow仍在能力中心，Claw保留关联执行过程。新增前端路由与共享UI模块不新增Host API、数据库或研究引擎；详细交互见[前端合同](../../research-web-ui.md)。
 
 当前场景首批见[场景交接](../../research-web-scenario-handoffs.md)与[资产研究资料](../../research-web-asset-research.md)：原Host冻结本人材料与方法，再由唯一DSH执行并经原质量／报告链。固定62／78参考不是可调用清单；源权限、资料声明和实际研究质量分别展示。新增逻辑属于现有Host／DataHub／文件节点内部，后续组合包／深研／角色／资料跟踪仍按[完整计划](../../plans/2026-10-26-seek-alpha-core-parity.md)分批，不以首批代替整站完成。
