@@ -2,6 +2,8 @@
 
 共享恢复仅在原Checks Python步骤追加三项stdlib维护模块合同，无模型、厂商、runner/job或超时变更；新reader测试及转移/锁/盘点小闭包实测约6秒，原步骤预留30秒。Mac安装沿原公开流程，无新增依赖或他平台dispatch。发布前重查visibility与费用资格。
 
+股票CSV导入只扩原Checks的Python合同名单与Mac Bootstrap同一步模块/资源核对，Node仍用原glob；不增job、runner、依赖、timeout或触发频率，不发Windows/Linux产品dispatch。实际Actions额度、同候选CI和发布仍按本治理核验，离线本机通过不替代远端。
+
 PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上限而回滚；本机源入口原为262004字节。修复仅拆出报告UI操作模块并补实际字节预算回归，同一Mac静态清单增加一份文件；无新job/runner/依赖/timeout，不rerun旧候选，完整原三CI随正常repair重新绑定。
 
 2026-10-27 报告生产 UI 复用现有 Checks JS 通配符，新增目录/路由/状态回归；Mac Bootstrap 原静态文件校验同一步新增两份文件，增量预留 10 秒，无新 job/runner/依赖或 timeout 变更。原 Constraints、Checks、同候选 Mac 干净安装门保持；真实模型、Wind/Office 和成稿验收不进入 CI，发布前实时核对 visibility/额度。

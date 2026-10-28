@@ -1,5 +1,7 @@
 # Research Workbench
 
+资产观察可在“更多 → 自选与最近观察”[离线导入股票 CSV](docs/research-web-watchlist-import.md)：完整预览、显式消歧/跳过、重新冻结并确认追加，保留原自选。首批仅本地已获准沪深北股票目录；不取数、不调用模型，其他资产类型逐项待支持。源码、本机与部署状态分别验收。
+
 左侧新增独立“报告生产”工作区：先浏览真实报告项目，再管理每期生产与交付、模板配置及历史记录。通用 Workflow 仍在能力中心，报告执行复用原 Claw／唯一 DSH 和 Host 质量门；页面、源码、常驻部署及真实周报验收分别记录。使用与边界见[前端说明](docs/research-web-ui.md)。
 
 资产观察、研究情报和FinGPT／Claw新增[研究场景首批](docs/research-web-scenario-handoffs.md)：从规范对象、研究截止和本人已取得资料准备冻结草稿，再由原DSH执行并经原质量链；资产页可读[来源绑定摘要、可比对照与产业声明](docs/research-web-asset-research.md)。固定62个Skill／78个Tool对照是能力评估基线，不表示全部已可调用；既有禁用方法和供应商／模型／报告门保留。源码、本机隔离旅程、同候选安装及常驻上线分别验收，后续组合包／深研／角色／资料跟踪见[完整计划](docs/plans/2026-10-26-seek-alpha-core-parity.md)。

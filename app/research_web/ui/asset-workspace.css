@@ -239,3 +239,23 @@
   .asset-header-actions details > :not(summary) { position:fixed; top:145px; left:12px; right:12px; width:auto; max-width:none; max-height:65vh; overflow:auto; }
   .asset-header-actions .asset-watch-rail, .asset-header-actions .asset-identity-select, .asset-header-actions .asset-summary-actions { width:auto; }
 }
+
+.watchlist-import { display:grid; gap:10px; min-width:0; margin:14px 0; border-top:1px solid var(--line); padding-top:12px; }
+.watchlist-import h3 { margin:0; font-size:14px; }
+.watchlist-import label { display:grid; gap:6px; }
+.watchlist-import input, .watchlist-import select { min-width:0; max-width:100%; }
+.watchlist-import .asset-table-wrap { max-height:55vh; overflow:auto; }
+.watchlist-import td { white-space:normal; overflow-wrap:anywhere; max-width:240px; min-width:90px; }
+.watchlist-import td select { width:220px; }
+.watchlist-import td label { display:flex; align-items:center; }
+.watchlist-import .button-row { display:flex; flex-wrap:wrap; gap:8px; }
+.watchlist-import .button, .watchlist-import select, .watchlist-import input[type=file] { min-height:40px; }
+@media (max-width:760px) { .watchlist-import { width:100%; } .watchlist-import .button-row .button { flex:1; min-height:44px; } }
+
+.watchlist-import p, .watchlist-import h3 { overflow-wrap:anywhere; }
+rwb-watchlist-import { display:block; min-width:0; }
+.watchlist-import { grid-template-columns:minmax(0,1fr); }
+.watchlist-import > *, .watchlist-import label, .watchlist-import [data-wi-results] { min-width:0; max-width:100%; }
+.watchlist-import .asset-table-wrap { min-width:0; max-width:100%; }
+.asset-more-content:has(rwb-watchlist-import) { grid-template-columns:minmax(0,1fr); }
+.asset-more-content:has(rwb-watchlist-import) .asset-list-drawer, .asset-more-content:has(rwb-watchlist-import) .asset-watch-rail { min-width:0; }

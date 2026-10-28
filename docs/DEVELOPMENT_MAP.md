@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+quality收尾：watchlist-import.mjs按owner+draft保留/清空原生File控件并拒绝retired scope响应；watchlist_import.py核心函数与TypedDict注解补齐，asset_workspace仅作DTO边界cast/返回类型对齐，无新业务字段。research_web_watchlist_proxy.mjs以inert本地sink和合成proxy/凭据home挑战运行inbound-only夹具及native拒绝。
+
+SPEC P2目标metadata修复位于ui/core.createWatchlist成功事件、asset-controller列表metadata重读、asset-workspace局部props同步与watchlist-import.updateWatchlistTargets；app.mjs不变。research_web_watchlist_import_lists.mjs用真实current observation的原按钮验证零列表首建、A后新建B和真实partial同节点/File链。
+
+自选导入：watchlist_import.py负责严格CSV、精确目录决定、预览/回执预算与一次保存；asset_directory.offline_snapshot只读完整本地缓存；asset_workspace的原create/add及新preview/confirm共享Store.write_lock，store.save全段重入同锁。ui/watchlist-import.mjs接入既有自选抽屉，原controller只重读列表，不增app.mjs；原disclosure机制保留More状态。测试为test_watchlist_import.py、research_web_watchlist_import.test.mjs与同名真实Host浏览器旅程，边界见[合同](research-web-watchlist-import.md)。
+
 报告操作HTTP接线提取为ui/report-operations.mjs，捕获页面代次、项目和单请求忙态，复用原端点；它不执行研究或替代DSH。app.mjs缩至260079字节，保持原256KiB健康正文上限。
 
 报告生产 UI：ui/report-workspace.mjs 负责目录、所选 Run 状态和交付投影，report-workspace.css 沿原主题；core.mjs 解析 #/reports/:id?tab=&run=，app.mjs 接原 API 和带代次读取，shell.mjs 控制主导航权限。report-workflows.mjs 共享配置/历史区块和证据，weekly-production.mjs 保留原日程及来源合同；tests/javascript/research_web_reports_workspace.test.mjs 覆盖深链接、拒绝、历史未知和失效文件。
