@@ -28,3 +28,5 @@ app.mjs、Store保存算法、HTTP schema、目录/预算/事务语义、唯一D
 
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"只修客户端owner/draft文件隔离、补导入核心typing和必要收窄，既有HTTP/Store/目录与研究节点不新增；测试profile/proxy负例不改变产品拓扑或默认。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"原自选组件按owner和draft实例复用/销毁原生控件，保留同owner metadata/File场景，无新导航、API、服务或引擎，原UI到Host图保持。","diagrams":[]} -->
+
+源码检查点 `6e85dc96e6e8b15352f31f2b920b915611ef606b` 已本地提交；9浏览器旅程各13源hash与该Git blob逐一一致。三个相关Python文件Black/isort/Ruff、架构/Atlas/Constraints/文档治理、diff-check均PASS。后续仅固定阅读pin，不改app/tests，不伪改旧epoch；当前仍待原SPEC与两位原quality reviewer复核。

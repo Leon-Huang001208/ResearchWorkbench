@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+导入quality增量源码检查点为 `6e85dc96e6e8b15352f31f2b920b915611ef606b`：owner+draft隔离原生File与旧响应、完整核心typing、清proxy/credential-home继承且Host只允许inbound网络。74不同Python、Node90、9真实旅程及proxy负例属于本地证据；先经原SPEC确认未退规格，再由原Python/JS reviewer复核，不代表已批准发布或部署。旧218记录和各旧epoch保持原界限。
+
 自选SPEC P2及离线验收夹具源码阅读检查点为 `55acc67a5d26b54f5cac69c1cd64e5221621fd6a`。修复已有观察的首建/新增目标metadata与File保留，旧r9外网边界已追加纠正；新Seatbelt进程的8旅程通过并绑定实际源码hash。源代码、独立SPEC复核、quality、完整Router、同候选CI/安装和部署分别认证，尚未进入quality或发布。
 
 自选CSV导入源码阅读检查点为 `137fafb58376da83cd3bc715463e872e0d32aaad`：原资产自选入口、离线目录、同Store线程批次/回执及两项API已在该提交。Atlas链接绑定该实际源码；本机测试与后续独评、完整Router、同候选CI/安装和常驻部署分别认证，跨Host与断电不在本批保证。详见[合同](../../research-web-watchlist-import.md)。
