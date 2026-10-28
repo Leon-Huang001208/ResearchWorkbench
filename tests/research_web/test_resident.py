@@ -1347,3 +1347,30 @@ def test_archive_accepts_complete_large_ci_log_without_losing_checkout():
 def test_archive_rejects_log_above_new_fixed_capacity():
     with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
         evidence.archive_job_logs(log_archive("x" * 16_000_001), [{"id": 7, "name": "checks"}])
+
+
+def test_verified_pr244_sized_job_retains_full_tail_and_bound():
+    from research_workbench_entrypoint.resident import maintenance_evidence as maintenance
+
+    # The real PR244 job is 16,527,303 bytes; checkout facts may be at its tail.
+    tail = "\ngit log -1 --format=%H\n" + "c" * 40 + "\n"
+    body = "x" * (16_527_303 - len(tail)) + tail
+    assert maintenance.archive_job_logs(log_archive(body), [{"id": 7, "name": "checks"}])[7] == body
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        maintenance.archive_job_logs(
+            log_archive("x" * (20_000_000 + 1)), [{"id": 7, "name": "checks"}]
+        )
+
+
+def test_business_index_reader_accepts_large_owned_json_without_relaxing_metadata(tmp_path):
+    from research_workbench_entrypoint.resident import maintenance_evidence as maintenance
+
+    path = tmp_path / "index.json"
+    path.write_text(json.dumps({"sessions": {}, "padding": "x" * 20_000_000}))
+    with pytest.raises(evidence.UpdateBlocked):
+        evidence.read_json(path)
+    assert maintenance.read_business_index(path)["sessions"] == {}
+    with path.open("wb") as stream:
+        stream.truncate(64 * 1024 * 1024 + 1)
+    with pytest.raises(evidence.UpdateBlocked, match="business_index_invalid"):
+        maintenance.read_business_index(path)

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增报告生产主导航与独立目录，项目内分生产交付、配置和历史，保留通用Workflow与单一DSH。",
-  "reason": "UI重组复用既有Host API和数据格式；旧未知Run、质量失效、普通租户权限及Excel日程限制不变，页面与源码检查不冒充正式周报或部署验收。"
+  "disposition": "unchanged",
+  "summary": "源码迁出iCloud与共享资格恢复仅改变本机维护流程；既有Web/DSH和安装主入口准确。",
+  "reason": "新增维护CLI不开放普通研究API；现有主库、账号数据、模型配置与运行服务保持，路径切换及服务恢复仍受独立条件限制。"
 }

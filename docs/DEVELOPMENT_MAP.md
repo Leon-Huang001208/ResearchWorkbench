@@ -672,3 +672,10 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 # 区间统计实现定位（2026-10-25）
 
 `app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。
+
+
+## 共享恢复及源路径维护（2026-10-29）
+
+原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
