@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增报告生产主导航与独立目录，项目内分生产交付、配置和历史，保留通用Workflow与单一DSH。",
-  "reason": "UI重组复用既有Host API和数据格式；旧未知Run、质量失效、普通租户权限及Excel日程限制不变，页面与源码检查不冒充正式周报或部署验收。"
+  "disposition": "unchanged",
+  "summary": "专业协作在既有FinGPT会话增加显式入口；现有README Host/DSH与私网安装说明保持准确。",
+  "reason": "角色配置、DAG账本和受控原生子会话不创建新运行时或安装入口；详细合同与API Atlas同步，真实验收和部署仍受独立门控制。"
 }

@@ -64,6 +64,8 @@ from .report_studio import ReportStudioError
 from .report_workflow_routes import router as report_workflow_router
 from .report_workflows.models import WorkflowError
 from .service import ResearchService
+from .specialists.contracts import Budget as SpecialistBudget
+from .specialists.routes import router as specialists_router
 from .store import Store, StoreError
 from .tabbit import TabbitError
 from .tenant_policy import check_request as check_tenant_request
@@ -93,7 +95,7 @@ UPLOAD_EXTENSIONS = {
 class NewSession(BaseModel):
     mode: Literal["fingpt", "claw"] = "fingpt"
     research_depth: Literal["instant", "deep"] = "instant"
-    research_mode: Literal["quick", "deep", "agent"] | None = None
+    research_mode: Literal["quick", "deep", "agent", "specialist"] | None = None
     source_scope: list[Literal["datahub", "web", "uploads"]] = Field(
         default=["datahub", "web", "uploads"], min_length=1, max_length=3
     )
@@ -116,9 +118,10 @@ class TabbitTabRef(BaseModel):
 class Prompt(BaseModel):
     dossier_handoff_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     text: str = Field(min_length=1, max_length=100000)
-    research_mode: Literal["quick", "deep", "agent"] | None = None
+    research_mode: Literal["quick", "deep", "agent", "specialist"] | None = None
     research_requirements: list[str] | None = Field(default=None, min_length=1, max_length=30)
     research_as_of: date | None = None
+    specialist_budget: SpecialistBudget | None = None
 
     @field_validator("research_requirements")
     @classmethod
@@ -300,6 +303,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(intel_router)
     app.include_router(discovery_router)
     app.include_router(capabilities_router)
+    app.include_router(specialists_router)
     app.include_router(plugin_router)
     app.include_router(plugin_runtime_router)
     app.include_router(documentation_router)
@@ -840,6 +844,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             research_requirements=body.research_requirements,
             research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
             dossier_handoff_id=body.dossier_handoff_id,
+            specialist_budget=(
+                body.specialist_budget.model_dump() if body.specialist_budget else None
+            ),
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")

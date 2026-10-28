@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+专业协作 MVP 沿原 Research Web Checks Python 步骤登记三个离线测试模块，JS沿原通配符执行；Mac Bootstrap同一步增加模块导入和单个静态资源字节校验。不新增runner/job/依赖/超时或平台dispatch；新增测试预留60秒。2026-10-28 GitHub API核验仓库public、allow_auto_merge=false；模型／厂商请求不进入CI，真实小样本费用另行确认。
+
 PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上限而回滚；本机源入口原为262004字节。修复仅拆出报告UI操作模块并补实际字节预算回归，同一Mac静态清单增加一份文件；无新job/runner/依赖/timeout，不rerun旧候选，完整原三CI随正常repair重新绑定。
 
 2026-10-27 报告生产 UI 复用现有 Checks JS 通配符，新增目录/路由/状态回归；Mac Bootstrap 原静态文件校验同一步新增两份文件，增量预留 10 秒，无新 job/runner/依赖或 timeout 变更。原 Constraints、Checks、同候选 Mac 干净安装门保持；真实模型、Wind/Office 和成稿验收不进入 CI，发布前实时核对 visibility/额度。
