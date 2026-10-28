@@ -14,6 +14,8 @@
 
 该入口不伪造PASS，也不因为某个CI显示成功就创建评审。若未完成资格、文件离线、PR不一致或远端超时，明确BLOCKED。指向另一common的真实历史回执只能在重新认证后转移，不能让原controller偷偷搜索任意目录。
 
+回执先以非阻塞、拒绝符号链接方式打开，再检查普通文件和所有权；FIFO不能令维护调用等待外部writer。真实子进程有界测试覆盖该拒绝路径。
+
 ## 读取容量与诊断
 
 旧evidence.py、controller.py与host_metadata.py保留原字节及封闭profile。新容量和诊断只位于独立maintenance_evidence版本，由显式维护入口使用；不会自动注入旧controller.pyz。

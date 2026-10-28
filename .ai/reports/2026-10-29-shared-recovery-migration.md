@@ -53,3 +53,5 @@
 最终代码冻结后的维护/旧resident/协议闭包225项通过（5.70秒，1条既有弃用警告）；Router所选Node合同230项通过（6.34秒），四个维护模块mypy通过，相关Ruff及Python索引核验通过。3052项相邻闭包发生在最终CLI微调前，归属保留在candidate-frozen-final.log，不冒充最终提交的全量证据；该CLI微调已由最终225项再次覆盖。原三CI及Mac干净安装仍等待最终候选发布后取证。
 
 实际原件已在旧common与新主仓库分别登记为verified，来源与摘要保留；旧不可变controller未更新，仍可能因旧日志读取器报错，现场Wind状态仍未知。新主库尚未作为Codex项目或常驻source_common启用。
+
+最终独评再次拦住delivery_transfer共享reader尚未添加O_NONBLOCK；真实FIFO子进程先复现3秒超时，补齐非阻塞普通文件拒绝后226项通过（5.33秒）。原失败保留fifo-red.log。之前225项及汇总仅归属当时提交，不声明是最终发布验收。Atlas同时登记index和api-atlas两个生成物，不能遗漏后者形成脏候选。

@@ -306,3 +306,30 @@ def test_metadata_encoding_must_remain_readable_by_frozen_utf8_reader(roots):
     path.write_bytes(json.dumps({"reviewedCommit": HEAD, "status": "PASS"}).encode("utf16"))
     with pytest.raises(d.TransferBlocked):
         d.preview(src, dst, "real-task", SHA)
+
+
+def test_fifo_receipt_is_rejected_without_waiting_for_writer(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    fifo = tmp_path / "receipt.json"
+    os.mkfifo(fifo)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from pathlib import Path; import sys; "
+                "from research_workbench_entrypoint.resident.delivery_transfer import _read; "
+                "_read(Path(sys.argv[1]))"
+            ),
+            str(fifo),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=3,
+    )
+    assert result.returncode != 0
+    assert "evidence_record_invalid" in result.stderr
