@@ -9,7 +9,7 @@
 RWB 已主动拒绝该路径。原未发布刷新还要求 master 改变，无法收养同基线的生成索引修复。
 
 新增 `delivery --prepare --amend-prepared`，只收养原 integration 工作树中已正常提交的
-二父 merge（第一父=原候选，第二父=新 feature）。必须 prepared、显式 null 发布身份、
+二父 merge 链（第一父链回到原候选，第二父沿同任务 feature 严格前进）。必须 prepared、显式 null 发布身份、
 无 CI／发布／合并证据、原资源账本 inode、干净且明确空闲的原工作树／分支、正确祖先链。
 GitHub 只读观察 master、任务分支／PR、Actions 和可见提交的 checks/status；未知 HTTP
 或权限错误拒绝，仅显式提交404在已验证仓库权限后认作当前不可见。
@@ -46,7 +46,7 @@ GitHub 只读观察 master、任务分支／PR、Actions 和可见提交的 chec
 实际 GitHub／阻塞任务恢复为 NOT_RUN；未发布 SHA 的404、HTTP错误和本地并发由离线 HTTP
 夹具验证，不能替代现场恢复。Router 选择的 Project Constraints CI 未在本子任务执行，
 集成／独立评审由主任务完成，因此本报告不宣称 mergeReady、生产恢复或跨平台验收。
-仅接纳二父直接合并；在 merge 后额外提交的候选、历史不明或账本缺失均明确拒绝。
+当前接纳受限二父合并链；单父间隔、外源或不前进的 feature、历史不明或账本缺失均明确拒绝。
 adoption 是回执原子 rename 的提交点；若此后日志或资源登记失败，重试必须重新核验已采用
 epoch，不回退已提交回执或伪造未执行状态。
 
@@ -120,3 +120,34 @@ OBJECT_STORAGE_PATH被沙箱拒绝（无源码写入）；补全该环境及PDF�
 
 仅feature的workflow、预算文档和本报告修改；integration、受管交付回执及远端未操作。
 后续新候选收养由主任务使用正式入口完成，并重新绑定SPEC／CI；此前候选验收不冒充新候选。
+
+## 真实 canary 的422与未收养中间合并修订
+
+Root只读原始诊断证实GitHub `GET /commits/<未发布完整SHA>` 返回精确HTTP422缺SHA，
+不是初始夹具的404。首次实际canary因此安全停止，B回执、原候选dbc80d2d及所有资源保持；
+已有原位merge684142cc是未收养中间点。这里只读该诊断，没有代操作B或原CI throughput任务。
+
+四项新回归旧实现全部RED：真实422、同endpoint base缺失／错SHA、保留未收养中间merge后
+继续正常修复；修订首轮4/4 GREEN。只有同commit endpoint对原base已HTTP200且SHA匹配，
+才接受HTTP422／gh rc1及精确message／官方documentation_url／字符串status三字段；
+403、泛422、错SHA、错误返回码、超时、缺字段／未知字段均拒绝，404也须同endpoint可读证明。
+
+proof v2保存显式raw mergeChain：原工作树first-parent链到旧候选，每步真实二父、同任务
+feature严格递进，最终第二父为最新feature；每个中间候选及feature都校验不可见／无CI并作为
+独立备份anchors实际恢复。限制32步、单commit64KiB／全链256KiB，静态历史拒绝重复和环；
+单父间隔、错second parent、off-first-parent、feature重复、网络后链变化和锚点错配均拒绝。
+旧v1保持原单步及原64MiB命令预算，没有借v1绕过新收养上界。
+
+安全重试方案是Root在当前684上正常merge新的feature，再正式amend；不reset/remove/rewrite，
+不手改receipt。新入口会记录并保全dbc→684→新tip的全部中间证据，须先获得独立SPEC／JS认可。
+本轮完整原CI三文件219/219 PASS（112＋3＋104）、0失败／错误／跳过，194.972秒。
+原七文件Router九门全部PASS：policy74、receipt23、skill5、platform15、architecture84、
+full113、协议81、文档治理及生成索引。协议按20／20／20／20／1执行，精确并集81，
+无skip／错误，3.005秒，native网络拒绝及意外网络／进程／keyring调用0。
+本机Node24.19.0不冒充最终Ubuntu／Node20。原始结果、JUnit和计划位于同任务logs的
+`canary-fix/`；Python分批原件在`ci-wiring/canary-protocol-*`，均非产品源码。
+
+首轮扩展专项100项为99 PASS／1失败：HTTP无额外header的合法200被过严正则拒绝；
+修正只影响HTTP分隔解析，存在性谓词未放宽，随后API／中间节点／v1定点21/21 PASS，
+最终完整219全部通过。失败原件保留，没有以跳过代替修复。实际B仍为Root给定684142cc，
+原receipt／分支由本子任务保持未动；独立SPEC／JS复评及最终候选CI仍由主任务执行。
