@@ -398,7 +398,7 @@ node scripts/summarize_verification_delivery.mjs --project . \
 Research Web Checks 使用同一测试边界。这样本机 `.env`、根 `tests/conftest.py` 的兼容平台数据库
 fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非 Research Web 测试本身保持不变。
 
-Research Web Checks 将两条原 Python scope 交给 `scripts/run_ci_pytest_partitions.py` 调度；文件、nodeID、pytest 配置和第二条 unit scope 保持原选择。调度父进程先按真实收集结果生成含任务身份与摘要的分区计划，再独立启动并持有两个 worker 的 Popen；worker 各自核对完整收集、执行阶段与带 `rwb_nodeid` 属性的 JUnit。父进程按 PID、UID、根 inode、worker index、完整 schema 与计划摘要验证结果，并复核执行/报告 ID 的无交集完整并集。worker 的临时目录、pytest cache、JUnit、结果和日志分开保存。collection/test/worker/报告错误和中断均失败退出，skip 在 JUnit 保留；中断只通知并等待本调度器持有的 worker Popen。Artifact 由 `scripts/stage_ci_pytest_evidence.py` 在固定白名单内通过目录 FD 和 no-follow 打开，拒绝软链接、硬链接、文件类型/owner变化与目录替换；只重建脱敏的 JUnit/nodeID/manifest/摘要日志，不上传原始环境、错误正文、JUnit输出或 pytest stdout。该分片复用同一 Ubuntu job 与45分钟上限；CI 全程耗时仍须由候选运行实测，不由分区本机通过推断。
+Research Web Checks 将两条原 Python scope 交给 `scripts/run_ci_pytest_partitions.py` 调度；文件、nodeID、pytest 配置和第二条 unit scope 保持原选择。调度父进程先按真实收集结果生成含任务身份与摘要的分区计划，再独立启动并持有两个 worker 的 Popen；worker 各自核对完整收集、执行阶段与带 `rwb_nodeid` 属性的 JUnit。父进程按 PID、UID、根 inode、worker index、完整 schema 与计划摘要验证结果，并复核执行/报告 ID 的无交集完整并集。worker 的临时目录、pytest cache、JUnit、结果和日志分开保存。collection/test/worker/报告错误和中断均失败退出，skip 在 JUnit 保留；中断只通知并等待本调度器持有的 worker Popen。首个hosted失败定位为测试模块用frozenset生成23个参数的顺序跨独立Python进程变化；该模块现显式排序，保留全部案例与worker有序collection门。Worker result schema v3 为失败结果附加固定字段的 `phase/errorClass/errorCode`，stager 仅重建这组安全分类及脱敏 JUnit/nodeID/manifest/摘要日志；不上传原始环境、错误正文、JUnit输出或 pytest stdout。stager 仍通过固定白名单、目录 FD 和 no-follow 打开输入，拒绝软链接、硬链接、文件类型/owner变化与目录替换。该分片复用同一 Ubuntu job 与45分钟上限；CI 全程耗时仍须由候选运行实测，不由分区本机通过推断。
 
 ### L0-L4 分层
 

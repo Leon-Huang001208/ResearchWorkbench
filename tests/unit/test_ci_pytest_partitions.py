@@ -215,7 +215,7 @@ class FakeProcess:
             report = ET.fromstring(junit)
             report_nodeids = [prop.attrib['value'] for prop in report.findall('.//property')]
             result = {
-                'schemaVersion': 2,
+                'schemaVersion': 3,
                 'taskId': plan['taskId'],
                 'workerIndex': index,
                 'pid': worker_pid,
@@ -246,6 +246,7 @@ class FakeProcess:
                 },
                 'pytestExitCode': 0,
                 'status': 'passed',
+                'failureTaxonomy': None,
             }
             if sys.argv[3] == 'missing-schema' and index == 0: result.pop('schemaVersion')
             if sys.argv[3] == 'wrong-schema' and index == 0: result['schemaVersion'] = 99
@@ -442,7 +443,12 @@ def test_fails():
     assert exit_code != 0
     assert summary["status"] == "failed"
     assert any(result["junit"]["failures"] for result in results)
-    assert all(result["status"] == "passed" for result in results) is False
+    failed_result = next(result for result in results if result["status"] == "failed")
+    assert failed_result["failureTaxonomy"] == {
+        "phase": "call",
+        "errorClass": "AssertionError",
+        "errorCode": "pytest_call_failed",
+    }
 
 
 def test_setup_and_teardown_failures_keep_their_pytest_phases(tmp_path: Path) -> None:

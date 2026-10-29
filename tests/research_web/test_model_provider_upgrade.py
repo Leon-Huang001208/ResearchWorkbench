@@ -2325,7 +2325,7 @@ def test_market_history_profile_freezes_resident_and_reviewed_checkpoint():
     assert upgrade.MARKET_HISTORY_PAYLOAD == "4f0a248fc87249d41e1c3f75f700c17c8351ad95"
 
 
-@pytest.mark.parametrize("profile", [upgrade.MODE, *upgrade.ASSET_MODES])
+@pytest.mark.parametrize("profile", [upgrade.MODE, *sorted(upgrade.ASSET_MODES)])
 def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(profile):
     old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64, "installed_at": "old"}
     state = {"mode": profile, "manifest": old, "target": "b" * 40}

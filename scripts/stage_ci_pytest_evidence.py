@@ -46,7 +46,21 @@ WORKER_RESULT_FIELDS = {
     "pytestExitCode",
     "status",
     "error",
+    "failureTaxonomy",
 }
+FAILURE_CODES_BY_PHASE = {
+    "collection": {"pytest_collection_failed"},
+    "setup": {"pytest_setup_failed"},
+    "call": {"pytest_call_failed"},
+    "teardown": {"pytest_teardown_failed"},
+    "pytest": {"pytest_exit_nonzero"},
+    "worker": {
+        "pytest_runner_exception",
+        "worker_evidence_validation_failed",
+        "worker_result_serialization_failed",
+    },
+}
+SAFE_EXCEPTION_CLASS = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,79}$")
 SECRET_PATTERNS = (
     re.compile(rb"(?i)authorization\s*:\s*bearer\s+\S+"),
     re.compile(rb"\bsk-[A-Za-z0-9_-]{16,}\b"),
@@ -58,6 +72,40 @@ SECRET_PATTERNS = (
 
 class StagingError(RuntimeError):
     """Raised when evidence paths, ownership, identity, or content are unsafe."""
+
+
+def _validate_failure_taxonomy(value: Any, status: Any, index: int) -> None:
+    if status == "passed":
+        if value is not None:
+            raise StagingError(f"worker-{index} passing result contains failure taxonomy")
+        return
+    if (
+        status != "failed"
+        or not isinstance(value, dict)
+        or set(value)
+        != {
+            "phase",
+            "errorClass",
+            "errorCode",
+        }
+    ):
+        raise StagingError(f"worker-{index} failed result has no safe failure taxonomy")
+    phase = value["phase"]
+    error_class = value["errorClass"]
+    error_code = value["errorCode"]
+    if (
+        not isinstance(phase, str)
+        or phase not in FAILURE_CODES_BY_PHASE
+        or not isinstance(error_code, str)
+        or error_code not in FAILURE_CODES_BY_PHASE[phase]
+        or (
+            error_class is not None
+            and (
+                not isinstance(error_class, str) or not SAFE_EXCEPTION_CLASS.fullmatch(error_class)
+            )
+        )
+    ):
+        raise StagingError(f"worker-{index} failure taxonomy is invalid")
 
 
 def _secret_scan(data: bytes) -> None:
@@ -482,6 +530,7 @@ def _safe_worker_summary(
     junit_outcomes: dict[str, dict[str, bool]] = {}
     junit_bytes: bytes | None = None
     junit_sha256: str | None = None
+    failure_taxonomy: dict[str, str | None] | None = None
 
     if owner:
         required_owner = {
@@ -521,7 +570,7 @@ def _safe_worker_summary(
             raise StagingError(f"worker-{index} result has no registered owner")
         if (
             type(result.get("schemaVersion")) is not int
-            or result["schemaVersion"] != 2
+            or result["schemaVersion"] != 3
             or type(result.get("workerIndex")) is not int
             or result["workerIndex"] != index
             or result.get("taskId") != task_id
@@ -551,6 +600,8 @@ def _safe_worker_summary(
                 if isinstance(node_id, str):
                     execution_ids.append(node_id)
         status = result.get("status") if result.get("status") in {"passed", "failed"} else "invalid"
+        _validate_failure_taxonomy(result.get("failureTaxonomy"), status, index)
+        failure_taxonomy = result.get("failureTaxonomy")
         if type(result.get("pytestExitCode")) is not int:
             raise StagingError(f"worker-{index} exit code is invalid")
         if type(result.get("collectionFailures")) is not list:
@@ -606,6 +657,7 @@ def _safe_worker_summary(
         "executionNodeIds": execution_ids,
         "junit": junit_summary,
         "junitSha256": junit_sha256,
+        "failureTaxonomy": failure_taxonomy,
     }
     scope_files: dict[str, bytes] = {}
     if junit_bytes is not None:
@@ -625,6 +677,14 @@ def _safe_worker_summary(
                 f"junit failures: {junit_summary['failures']}",
                 f"junit errors: {junit_summary['errors']}",
                 f"junit skipped: {junit_summary['skipped']}",
+            ]
+        )
+    if failure_taxonomy is not None:
+        log_lines.extend(
+            [
+                f"failure phase: {failure_taxonomy['phase']}",
+                f"failure class: {failure_taxonomy['errorClass'] or 'unknown'}",
+                f"failure code: {failure_taxonomy['errorCode']}",
             ]
         )
     log_lines.extend(f"nodeid: {nodeid}" for nodeid in execution_ids)
