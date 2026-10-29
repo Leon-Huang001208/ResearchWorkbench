@@ -34,7 +34,7 @@ Purpose:
 Purpose:
 - Reads only the fixed Research Web Checks task roots and evidence filenames through owner-checked directory descriptors and `O_NOFOLLOW` file opens.
 - Rejects symlink, hardlink, non-regular, replaced, cross-device, or wrong-owner inputs. It verifies source inode/size/timestamps before staging and checks the parent directory identities again before returning.
-- Produces a fresh `artifacts/research-web-checks/` directory with sanitized JUnit nodeID properties, manifests, PID/status summaries, and redacted summary logs. It never stages the raw environment, full result errors, JUnit output bodies, or raw worker stdout.
+- Produces a fresh `artifacts/research-web-checks/` directory with sanitized JUnit nodeID properties, manifests, PID/status summaries, and redacted summary logs. For failed workers, it may include only the runner's fixed-schema `phase`, safe exception class name, and stable error code; raw result errors, JUnit output bodies, environment, and worker stdout remain unstaged.
 - Fails if staging paths already exist, if the output tree is replaced, or if sanitized evidence exceeds the 100 MiB per-run cap.
 
 `tests/unit/test_ci_pytest_evidence_staging.py` exercises ordinary staging, external symlinks, hardlinks, root symlinks, parent-directory replacement, and removal of canary fixture bodies from the artifact.

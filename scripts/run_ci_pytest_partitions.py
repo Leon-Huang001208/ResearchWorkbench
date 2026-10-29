@@ -7,6 +7,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import signal
 import stat
 import subprocess
@@ -23,7 +24,7 @@ PARTITION_COUNT = 2
 INTERNAL_PREFIX = "--rwb-internal-"
 ROOT_MARKER = ".rwb-ci-pytest-root.json"
 MANIFEST_SCHEMA_VERSION = 2
-WORKER_RESULT_SCHEMA_VERSION = 2
+WORKER_RESULT_SCHEMA_VERSION = 3
 WORKER_RESULT_FIELDS = {
     "schemaVersion",
     "taskId",
@@ -41,11 +42,77 @@ WORKER_RESULT_FIELDS = {
     "pytestExitCode",
     "status",
     "error",
+    "failureTaxonomy",
 }
+FAILURE_CODES_BY_PHASE = {
+    "collection": {"pytest_collection_failed"},
+    "setup": {"pytest_setup_failed"},
+    "call": {"pytest_call_failed"},
+    "teardown": {"pytest_teardown_failed"},
+    "pytest": {"pytest_exit_nonzero"},
+    "worker": {
+        "pytest_runner_exception",
+        "worker_evidence_validation_failed",
+        "worker_result_serialization_failed",
+    },
+}
+SAFE_EXCEPTION_CLASS = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,79}$")
 
 
 class PartitionError(RuntimeError):
     """Raised when a suite cannot be split or its evidence is incomplete."""
+
+
+def _safe_exception_class(value: Any) -> str | None:
+    if isinstance(value, BaseException):
+        candidate = type(value).__name__
+    elif isinstance(value, str):
+        candidate = value.strip().split(":", 1)[0].rsplit(".", 1)[-1]
+    else:
+        return None
+    return candidate if SAFE_EXCEPTION_CLASS.fullmatch(candidate) else None
+
+
+def _failure_taxonomy(phase: str, error_class: Any, error_code: str) -> dict[str, str | None]:
+    return {
+        "phase": phase,
+        "errorClass": _safe_exception_class(error_class),
+        "errorCode": error_code,
+    }
+
+
+def _validate_failure_taxonomy(value: Any, status: Any) -> None:
+    if status == "passed":
+        if value is not None:
+            raise PartitionError("passing worker contains failure taxonomy")
+        return
+    if (
+        status != "failed"
+        or not isinstance(value, dict)
+        or set(value)
+        != {
+            "phase",
+            "errorClass",
+            "errorCode",
+        }
+    ):
+        raise PartitionError("failed worker is missing safe failure taxonomy")
+    phase = value["phase"]
+    error_class = value["errorClass"]
+    error_code = value["errorCode"]
+    if (
+        not isinstance(phase, str)
+        or phase not in FAILURE_CODES_BY_PHASE
+        or not isinstance(error_code, str)
+        or error_code not in FAILURE_CODES_BY_PHASE[phase]
+        or (
+            error_class is not None
+            and (
+                not isinstance(error_class, str) or not SAFE_EXCEPTION_CLASS.fullmatch(error_class)
+            )
+        )
+    ):
+        raise PartitionError("worker failure taxonomy is invalid")
 
 
 def _canonical(path: Path) -> Path:
@@ -266,10 +333,18 @@ class WorkerPlugin:
         self.expected = list(self.manifest.get("nodeIds", []))
         self.assigned = list(self.manifest.get("partitions", [[], []])[self.worker_index])
         self.execution_reports: dict[str, list[dict[str, str]]] = {}
+        self.failure_taxonomy: dict[str, str | None] | None = None
 
     def pytest_collectreport(self, report: Any) -> None:
         if report.failed:
             self.collection_failures.append(str(report.longrepr))
+            if self.failure_taxonomy is None:
+                reprcrash = getattr(report.longrepr, "reprcrash", None)
+                self.failure_taxonomy = _failure_taxonomy(
+                    "collection",
+                    getattr(reprcrash, "message", None),
+                    "pytest_collection_failed",
+                )
 
     def pytest_collection_modifyitems(self, session: Any, config: Any, items: list[Any]) -> None:
         actual = [item.nodeid for item in items]
@@ -299,6 +374,12 @@ class WorkerPlugin:
     def pytest_runtest_logreport(self, report: Any) -> None:
         if report.when not in {"setup", "call", "teardown"}:
             return
+        if report.outcome == "failed" and self.failure_taxonomy is None:
+            self.failure_taxonomy = _failure_taxonomy(
+                report.when,
+                getattr(getattr(report.longrepr, "reprcrash", None), "message", None),
+                f"pytest_{report.when}_failed",
+            )
         self.execution_reports.setdefault(report.nodeid, []).append(
             {"phase": report.when, "outcome": report.outcome}
         )
@@ -493,6 +574,7 @@ def _validate_worker_result(
         )
     if result["schemaVersion"] != WORKER_RESULT_SCHEMA_VERSION:
         raise PartitionError(f"worker-{worker_index} result schema version is invalid")
+    _validate_failure_taxonomy(result["failureTaxonomy"], result["status"])
     if (
         not isinstance(result["taskId"], str)
         or result["taskId"] != task_id
@@ -628,6 +710,7 @@ def _worker_result(
         "pytestExitCode": exit_code,
         "status": "passed" if exit_code == 0 and error is None else "failed",
         "error": error,
+        "failureTaxonomy": plugin.failure_taxonomy,
     }
 
 
@@ -651,6 +734,13 @@ def _run_worker(plugin: WorkerPlugin, task_id: str, root_info: os.stat_result) -
         exit_code = int(
             pytest.main(_pytest_arguments(plugin.arguments, worker_dir), plugins=[plugin])
         )
+        if exit_code != 0 and plugin.failure_taxonomy is None:
+            if plugin.collection_failures:
+                plugin.failure_taxonomy = _failure_taxonomy(
+                    "collection", None, "pytest_collection_failed"
+                )
+            else:
+                plugin.failure_taxonomy = _failure_taxonomy("pytest", None, "pytest_exit_nonzero")
         if plugin.collection_failures:
             error = "pytest worker collection reported errors"
         if exit_code == 0 and error is None:
@@ -664,6 +754,16 @@ def _run_worker(plugin: WorkerPlugin, task_id: str, root_info: os.stat_result) -
     # Catch interrupts at the worker boundary so the failed result is still written for the parent.
     except BaseException as caught:  # noqa: BLE001
         error = f"{type(caught).__name__}: {caught}"
+        if plugin.failure_taxonomy is None:
+            plugin.failure_taxonomy = _failure_taxonomy(
+                "worker",
+                caught,
+                (
+                    "worker_evidence_validation_failed"
+                    if isinstance(caught, PartitionError)
+                    else "pytest_runner_exception"
+                ),
+            )
         if isinstance(caught, KeyboardInterrupt):
             exit_code = 130
         elif exit_code == 0:
@@ -698,6 +798,9 @@ def _run_worker(plugin: WorkerPlugin, task_id: str, root_info: os.stat_result) -
                 "pytestExitCode": exit_code,
                 "status": "failed",
                 "error": error,
+                "failureTaxonomy": _failure_taxonomy(
+                    "worker", caught, "worker_result_serialization_failed"
+                ),
             }
         _atomic_json(worker_dir / "result.json", result)
         os.environ.clear()

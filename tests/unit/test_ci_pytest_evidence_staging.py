@@ -91,7 +91,7 @@ def _write_runner_root(runner_temp: Path, scope: str = "research-web") -> Path:
         (worker / "result.json").write_text(
             json.dumps(
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "taskId": task_id,
                     "workerIndex": index,
                     "pid": 31000 + index,
@@ -124,6 +124,7 @@ def _write_runner_root(runner_temp: Path, scope: str = "research-web") -> Path:
                     "pytestExitCode": 0,
                     "status": "passed",
                     "error": None,
+                    "failureTaxonomy": None,
                 }
             ),
             encoding="utf-8",
@@ -309,6 +310,60 @@ def test_stages_only_sanitized_whitelisted_test_evidence(tmp_path: Path) -> None
     assert [item.attrib["value"] for item in safe_junit.findall(".//property")] == [
         "tests/research_web/test_fixture.py::test_one"
     ]
+
+
+def test_failed_worker_staging_keeps_safe_taxonomy_without_failure_body(tmp_path: Path) -> None:
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    result = _read_result(root)
+    failure_body = "PRIVATE_FAILURE_BODY_CANARY"
+    result["status"] = "failed"
+    result["pytestExitCode"] = 1
+    result["error"] = f"AssertionError: {failure_body}"
+    result["failureTaxonomy"] = {
+        "phase": "call",
+        "errorClass": "AssertionError",
+        "errorCode": "pytest_call_failed",
+    }
+    result["execution"][0]["phases"][1]["outcome"] = "failed"
+    junit_path = root / "worker-0" / "junit.xml"
+    junit_path.write_text(
+        junit_path.read_text(encoding="utf-8").replace(
+            "</testcase>", f'<failure message="{failure_body}" />\n</testcase>', 1
+        ),
+        encoding="utf-8",
+    )
+    junit_bytes = junit_path.read_bytes()
+    result["junit"].update({"sha256": hashlib.sha256(junit_bytes).hexdigest(), "failures": 1})
+    _write_result(root, result)
+    _write_scheduler_junit_summary(
+        root, 0, junit_bytes, {"tests": 1, "failures": 1, "errors": 0, "skipped": 0}
+    )
+    scheduler_path = root / "scheduler-result.json"
+    scheduler = json.loads(scheduler_path.read_text(encoding="utf-8"))
+    scheduler["status"] = "failed"
+    scheduler["actualNodeIds"] = []
+    scheduler["workers"][0].update({"status": "failed", "pytestExitCode": 1, "actualNodeIds": []})
+    scheduler_path.write_text(json.dumps(scheduler), encoding="utf-8")
+
+    output = _stage(tmp_path, root)
+
+    staged = [path for path in output.rglob("*") if path.is_file()]
+    staged_bytes = b"".join(path.read_bytes() for path in staged)
+    safe_worker = json.loads(
+        (output / "research-web" / "worker-0" / "result.json").read_text(encoding="utf-8")
+    )
+    safe_log = (output / "research-web" / "worker-0" / "pytest.log").read_text(encoding="utf-8")
+
+    assert safe_worker["failureTaxonomy"] == {
+        "phase": "call",
+        "errorClass": "AssertionError",
+        "errorCode": "pytest_call_failed",
+    }
+    assert "failure phase: call" in safe_log
+    assert "failure code: pytest_call_failed" in safe_log
+    assert failure_body.encode() not in staged_bytes
 
 
 def test_symlink_source_cannot_read_or_stage_external_sentinel(tmp_path: Path) -> None:

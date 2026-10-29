@@ -23461,6 +23461,7 @@ Imports:
 - `json`
 - `os`
 - `pathlib`
+- `re`
 - `signal`
 - `stat`
 - `subprocess`
@@ -23479,6 +23480,9 @@ Classes:
   - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems, pytest_runtest_logreport
 
 Functions:
+- `_safe_exception_class`
+- `_failure_taxonomy`
+- `_validate_failure_taxonomy`
 - `_canonical`
 - `_is_within`
 - `validate_selection`
@@ -23753,6 +23757,7 @@ Classes:
   - Raised when evidence paths, ownership, identity, or content are unsafe.
 
 Functions:
+- `_validate_failure_taxonomy`
 - `_secret_scan`
 - `_directory_flags`
 - `_same_file`
