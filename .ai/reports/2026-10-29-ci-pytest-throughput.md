@@ -39,6 +39,12 @@ A 10-case real-entrypoint fixture with an unordered set reproduced the original 
 
 The private reproduction used Python 3.12.13, pytest 9.2.0 and pluggy 1.7.0; CI used Python 3.12.15 with the same pytest/pluggy versions. Exact wheel SHAs, PyPI URL, private install process and module `__file__` checks are in `logs/ci-throughput/pytest92-pluggy17-87798093d4ee49cabe2e9721321fbeef/evidence/`. Three independently seeded collect-only runs were RED before the fix (23 IDs each; identical sets, different orders) and GREEN afterward (same 23 IDs, identical order, zero test bodies). After sorting the original parametrization, the full 7,381-ID, 144-path collection was GREEN in the parent and both real worker-plugin collect-only processes; both workers matched the parent order exactly and executed zero test bodies. The 23 test bodies passed on pytest 9.2.0 and on cached pytest 9.1.1 in batches of 20 and 3. The 41 partition/staging helper tests also passed on both versions in batches of 20, 11 and 10. No full hosted CI was rerun.
 
+### Execution SHA and source-blob provenance
+
+The full 7,381-node collect-only evidence at `logs/ci-throughput/pytest92-pluggy17-87798093d4ee49cabe2e9721321fbeef/fullscope-attempt3/evidence/full-scope-collection-comparison.json` records **Git HEAD `92b7fdc4214af1dbe10e4d1e334f5616e2d3ef77`**, not d55aa. It binds working-tree SHA-256 values for the runner, stager, two unit files, and workflow; that receipt does not list the changed `tests/research_web/test_model_provider_upgrade.py` blob. The separate `seeded-collection-after-fix.json` and `target23-results.json`/`old91-23-results.json` receipts bind that file's SHA-256 `58ebb7344f01462e7c034b81edebf6f0b72ba1a99140dac51ec4d9769e27ba77`. The current d55aa commit contains exactly those working bytes for all five modified Python files. Thus the 7,381 result is composite source-bound evidence from the 92b execution plus the separately bound parameter-file source; it must not be presented as a single execution performed at d55aa.
+
+The 41 helper test executions also ran with Git HEAD 92b7 and final uncommitted source bytes. Their receipts bind the four helper/test files' SHA-256 values shown below, which match the d55aa commit blobs. The 188 earlier protocol/local-integration tests remain attributed to their real execution candidate 28893d0; their exact selected modules and required app/config/dependency closure are separately mapped against later candidates. `tests/research_web` as a whole is no longer source-equal because the unrelated parameterized module changed, so the old 188 results are reused only for the exact `test_protocol.py` and `test_local_integrations.py` scopes whose blobs and dependency closure match.
+
 The generated Python source index was regenerated to include the new taxonomy helpers; its `--check` gate is part of the local post-change closure.
 
 The taxonomy regression RED was observed on the existing real-worker failure fixture (`KeyError: failureTaxonomy`) and on staging (`worker-0 result schema is invalid`). After the schema-v3 and ordering fix, all 41 helper cases passed under both pytest versions; the targeted 23 profile cases passed under both versions. Ruff, Black, isort, mypy for both scripts and tests, documentation governance, Python index verification, Project Constraints over the complete local changed set, and documentation sync passed. The local results do not replace a new hosted run; none was triggered.
@@ -62,7 +68,7 @@ The taxonomy regression RED was observed on the existing real-worker failure fix
 - Standard-library syntax, partition-union, exact-order rejection, input-path, and owned-root smoke checks — PASS (7 assertions).
 - `git diff --check` — PASS. Ruff, Black, isort, and mypy are not available in the specified existing environment; no packages were installed.
 
-Source identity (uncommitted worktree based on the recorded base above):
+Historical source identity — early pre-repair worktree snapshot (preserved; not the current d55aa/c783 source):
 
 - `scripts/run_ci_pytest_partitions.py` SHA-256: `b84a1aa11c8ab44bd8b488f079a4c15c42267c816fb3e67a637f4d7d397c0770`
 - `tests/unit/test_ci_pytest_partitions.py` SHA-256: `2ffc192c71770bf5ea5f9bd64786fc837cbaf0f44e467eb57f0799e00e20b5fb`
@@ -71,10 +77,16 @@ Source identity (uncommitted worktree based on the recorded base above):
 - `tests/unit/test_ci_pytest_evidence_staging.py` SHA-256: `7c78be6ca7ba48f3a1212f34aefabd7c39d6e35fa910ceb63c88bada91b7bf0e`
 - `tests/javascript/actions_quota_governance.test.mjs` SHA-256: `e3b610fba33e8eca758bb6cfe5b7814a04bcce6a6404838d2014038f2fead7ae`
 
-## Not run / limits
+## Historical limits at the 2cc / early 92b preparation stage
 
 - Full Research Web Checks candidate CI and the other required delivery gates: `NOT_RUN` by the parent task instruction; this worktree is intentionally not committed, pushed, or dispatched.
 - New master commit `270644bf1513e65c50859fb2e3baec6ce06ccfef` is not in this worktree; perform normal three-way latest-main integration and review that delta before commit/PR.
 - The plan selected L4 validations for larger policy/receipt/architecture/critical-smoke suites. Those were not run because each local test round is capped at 20 cases; they remain required for the normal delivery path.
 - The change is not evidence that the current suite will finish within 45 minutes. Exact CI runtime, complete artifact size, and acceptance remain to be measured on the first normally authorized candidate CI. PR245 repairAttempts and its existing history were not changed.
 - No pytest-cov/code-coverage measurement was added because it was not previously collected and would add runtime overhead.
+
+## Current source and delivery checkpoint (2026-10-30)
+
+The source repair is committed locally as `d55aa5870dcf3ac53094b5df82b71dcfd776e06e`, parent `92b7fdc4214af1dbe10e4d1e334f5616e2d3ef77`, tree `50cc9b2f6a0273277a7bade67fd91f4df010d9e5`. Current SHA-256 values are: runner `c3118830318500ac2eee2cd995e03109a4c65830ce5e50d99fb8f7cc846ce3ab`, stager `2a01a506cf3415b083d82617121c346799b5fe2c4edfb874349cdaa74b601a0f`, partition tests `92865ef1c97a0b1dcd119759e637eecf06068e85cdc0bc9744c3a72acb2ec005`, staging tests `9f58633d20b2b0c9c9698e6c4559d2e938c621f4d27f1550c767e37f6c8aef8c`, and the ordered parameter test `58ebb7344f01462e7c034b81edebf6f0b72ba1a99140dac51ec4d9769e27ba77`.
+
+The separate latest-main merge candidate is `c783bc9c4e30edf0aa9b5bba224e7aa44f7743fc`, base `5a0992944e60f93fa50d14b208695fb8a0f4eaca`, tree `6275d8888214e6df779fcdeef6f67f6ed5985d2b`, with a fresh Router plan over 16 changed paths. Its local package remains in progress under `logs/ci-throughput/c783bc9-final-local/`; no local-only receipt has been presented as final. The formal Git delivery receipt remains unchanged at published integration `4edbcf8b432f368424e80fc2f04da355b1d2ab2d`, PR252, `awaiting_ci`, repair count 1, receipt SHA-256 `5ab0cbce42a1398044643c87cf18cec69de6b050fa906ad5c3f9ac7c0a24c419`. The c783 candidate has not been published or run in hosted CI; no claim is made that it passes hosted checks or the 45-minute budget.
