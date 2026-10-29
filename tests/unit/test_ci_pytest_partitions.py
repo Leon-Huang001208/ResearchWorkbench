@@ -324,6 +324,23 @@ def test_task_root_is_fresh_owner_bound_and_inode_bound(tmp_path: Path) -> None:
         partitions.create_task_root(root, tmp_path, "task-test")
 
 
+def test_internal_worker_rejects_repository_path_outside_its_working_directory(
+    tmp_path: Path,
+) -> None:
+    argv = [
+        f"{partitions.INTERNAL_PREFIX}worker=0",
+        f"{partitions.INTERNAL_PREFIX}root={tmp_path / 'task-root'}",
+        f"{partitions.INTERNAL_PREFIX}repo={tmp_path / 'other-repository'}",
+        f"{partitions.INTERNAL_PREFIX}parent={tmp_path}",
+        f"{partitions.INTERNAL_PREFIX}plan={'a' * 64}",
+        "--",
+        "tests/test_fixture.py",
+    ]
+
+    with pytest.raises(partitions.PartitionError, match="repository path"):
+        partitions._internal_worker(argv)
+
+
 def _run_fixture_suite(tmp_path: Path, source: str) -> tuple[int, Path]:
     fixture_root = tmp_path / "fixture-project"
     test_root = fixture_root / "tests"
