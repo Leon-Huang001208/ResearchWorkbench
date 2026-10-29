@@ -23768,6 +23768,7 @@ Functions:
 - `_validate_selection`
 - `_validate_manifest`
 - `_sanitize_junit`
+- `_validate_passed_execution`
 - `_safe_worker_summary`
 - `_scope_artifacts`
 - `_load_source_root`
