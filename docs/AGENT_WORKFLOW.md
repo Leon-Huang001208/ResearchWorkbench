@@ -1,6 +1,6 @@
 # Agent 任务路由指南
 
-PR245 单次 runtime 导入事实回归只登记原 Checks 的同一 Python 显式清单，原本地验证→独立评审→最终候选 Router／CI 路由不变。一次带计数 Catalog 观察可认证 6／281／56 与 stable oracle 差异 0，不能替代完整 CI、Linux 成本或统计性能结论；原 45 分钟取消、mypy 17 项与三次修补预算保持原归属，本地元数据补齐不触发额外远端操作。
+PR245 pack runtime 性能回归只登记原 Checks 的同一 Python 显式清单，原本地验证→独立评审→最终候选 Router／CI 路由不变。进程内有界语法 facts LRU 只允许以完整 fresh bytes、module／package、绝对根、parser 对象和版本为键；每次依赖 identity、模块枚举、源码／metadata／权限／hash 读取、policy 与来源核验仍执行。Catalog cProfile 可认证本机实际 6 runtime／12 policy build／18 module inventory／281 save／56 check 及 ordered oracle，不替代完整 CI、Linux 成本或统计性能结论；原 45 分钟取消、mypy 17 项与三次修补预算保持原归属，本地修复不触发额外远端操作。
 
 自选CSV有限slice在原Research Web Checks Python步骤追加test_watchlist_import.py，Node仍走原glob；Mac Bootstrap原静态清单加入watchlist-import.mjs及后端import，不新增job/runner/timeout/依赖。单Host线程屏障需真实Store.files/save的RED→GREEN与回滚保全；跨Host/断电不认证。完整Router/独评/同候选Mac安装及远端由任务回执另证，详见[合同](research-web-watchlist-import.md)。
 

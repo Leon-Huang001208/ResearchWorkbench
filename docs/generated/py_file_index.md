@@ -3779,6 +3779,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `ast`
+- `functools`
 - `importlib.machinery`
 - `importlib.util`
 - `logging`
@@ -3794,8 +3795,11 @@ Classes:
 
 Functions:
 - `module_files`
-- `_import_facts`
+- `_parse_import_facts`
   - Return immutable syntax facts; current resolution is never captured here.
+- `_cached_import_facts`
+- `_import_facts`
+  - Cache only bounded syntax facts keyed by freshly read complete bytes.
 - `build_policy`
   - Bind module-time optional imports; block unbound lazy/dynamic imports.
 - `_stdlib_origin`

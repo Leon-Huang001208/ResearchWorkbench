@@ -13,11 +13,14 @@ import logging
 import sys
 import sysconfig
 import types
+from functools import lru_cache
 from importlib.machinery import EXTENSION_SUFFIXES, BuiltinImporter, FrozenImporter, PathFinder
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 SCHEMA = "research_pack_import_policy_v1"
+IMPORT_FACT_CACHE_ENTRIES = 64
+IMPORT_FACT_CACHE_SOURCE_LIMIT = 1024 * 1024
 LOCAL_MODULES = {
     "calculate": "calculate.py",
     "pack_native": "pack_native.py",
@@ -74,9 +77,9 @@ def module_files(dependencies):
     return modules
 
 
-def _import_facts(source, name, package, filename):
+def _parse_import_facts(source, name, package, filename, parser):
     """Return immutable syntax facts; current resolution is never captured here."""
-    tree = ast.parse(source, filename=filename)
+    tree = parser(source, filename=filename)
     imports = []
     dynamic = False
 
@@ -105,6 +108,33 @@ def _import_facts(source, name, package, filename):
 
     visit(tree)
     return tuple(imports), dynamic
+
+
+@lru_cache(maxsize=IMPORT_FACT_CACHE_ENTRIES)
+def _cached_import_facts(source, name, package, filename, parser, parser_identity):
+    # parser_identity participates in the cache key; parser performs the parse.
+    del parser_identity
+    return _parse_import_facts(source, name, package, filename, parser)
+
+
+def _import_facts(source, name, package, filename):
+    """Cache only bounded syntax facts keyed by freshly read complete bytes."""
+    parser = ast.parse
+    if len(source) > IMPORT_FACT_CACHE_SOURCE_LIMIT:
+        return _parse_import_facts(source, name, package, filename, parser)
+    parser_identity = (
+        sys.implementation.name,
+        sys.implementation.cache_tag,
+        sys.version_info[:3],
+    )
+    return _cached_import_facts(
+        source,
+        name,
+        package,
+        filename,
+        parser,
+        parser_identity,
+    )
 
 
 def build_policy(dependencies, *, _source_facts=None):

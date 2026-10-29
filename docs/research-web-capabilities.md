@@ -1,6 +1,6 @@
 # Research Web 能力包与版本
 
-单次 runtime 绑定的两遍 import policy 仅复用相同新读源码字节对应的不可变语法事实；当前模块、loaded／search／stdlib 来源核验不缓存。新本地 Catalog 观察保持 runtime=6、save=281、validate=56，stable oracle 差异 0；56 次凭据预检在 fail 边界拒绝，不代表零尝试或生产凭据可用。新回归沿原 Checks Python 清单运行，不新增工具、权限、引擎或 CI 步骤；完整 CI 仍须另证。
+pack runtime 的 import policy 只复用完整新读源码字节导出的不可变语法 facts：进程内 LRU 最多 64 项、单源码最多 1 MiB，键同时绑定 module／package、绝对安装根、当前 `ast.parse` 对象与 Python parser 版本。每次 runtime 的依赖 metadata／权限／hash、模块枚举、源码读取、policy 重建及 loaded／search／stdlib／optional 来源核验不缓存；identity、授权、验证 PASS 和完整 policy 也不缓存。本地 Catalog cProfile 保持 runtime=6、policy build=12、module inventory=18、save=281、check=56；实际 parse 270→45，但这不是 Linux CI 时长保证。新回归沿原 Checks Python 清单运行，不新增工具、权限、引擎或 CI 步骤；完整 CI 仍须另证。
 
 发布验证在每个 Python 文件重新解析后，只在本次调用内复用同一棵 AST 的节点枚举；原动态导入、相对导入、依赖、安装器和宿主进程检查仍按原顺序独立执行。不同文件、不同调用和改动后的字节不沿用上次枚举或验证结果；冷初始化六次依赖新鲜性检查和逐次持久化 checkpoint 保持。
 

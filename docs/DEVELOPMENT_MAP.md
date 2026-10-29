@@ -1,6 +1,6 @@
 # Research Workbench Development Map
 
-`pack_import_policy.py` 的纯语法事实仅由 `pack_dependencies.runtime_identity` 在同次 build／verify 之间共享；`tests/research_web/test_pack_import_facts.py` 覆盖当前字节、上下文、loaded／search、清理与重复隔离，并登记原 Checks Python 清单及能力架构测试索引。没有新模块边界、服务或 API；六次 freshness／281 个保存 checkpoint 保留，原 CI 取消与未验证门不由本地索引更新改写。
+`pack_import_policy.py` 以最多 64 项、每项源码不超过 1 MiB 的进程内 LRU 复用纯导入语法事实；键绑定完整 fresh bytes、module／package、绝对根、`ast.parse` 对象和 Python parser 版本。`pack_dependencies.runtime_identity` 的每次模块枚举、源码／metadata／权限／hash 读取、policy 重建及 loaded／search／stdlib／optional 核验保持；缓存不保存 identity、授权、PASS 或完整 policy。`tests/research_web/test_pack_import_facts.py` 覆盖 fresh map 复用、bytes/root/parser 失效、当前模块增删、同尺寸恢复 mtime、loaded／search、异常清理与返回等价。没有新模块边界、服务或 API；六次 runtime freshness、56 次验证与 281 个保存 checkpoint 保留，原 CI 取消与未验证门不由本地 profile 改写。
 
 PR245 限额后的本地候选只含测试隔离与验证器同树枚举：`test_api.isolated_keyring` 为同例共享、例间独立的 memory vault，并拒绝真实 credential fallback；12个CI模块和3个相关模块显式导入。`capabilities/catalog.py:validate` 在每次 fresh parse 后局部枚举一次，原九个检查源改用该 tuple，检查顺序／六次 freshness／逐次 save 不动。近回归为 `test_fixture_credentials.py` 与 `test_capabilities_ast.py`／冻结 ordered oracle；原38 CI不完整、首F和历史Keychain UNKNOWN保留，normal bench与功能证据分开。此候选没有远端发布权限，三次修补限额不重置，C/D仅为ignored原型／设计。
 
