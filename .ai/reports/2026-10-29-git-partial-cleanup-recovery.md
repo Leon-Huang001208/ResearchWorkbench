@@ -34,6 +34,13 @@ updateRefs 的 beforeOid/零 afterOid/force:false 已经官方文档及在线 sc
 完成后证书提交前中断；最终提交还须绑定候选评审和适用CI，再通过正式入口实际恢复。
 本任务没有调用模型或供应商，没有部署或修改业务数据。
 
+首候选61f55c42的Project Constraints通过后，应用前审计确认框架验证器隐式fetch
+需要继承普通交付的私有Git shim；已补同一进程内固定原生Git/过滤prune/恢复PATH，
+真实夹具验证通过；修补后Git/收尾全套115项通过（168.38秒）、L4合同113项通过
+（5.50秒），均无跳过。旧任务只读预览确认仅余本地/远端同SHA integration引用。
+修补将走同PR249正常repair并重新绑定完整验证/独评/CI，不提升
+首候选结果给修补候选；预览仍不创建shim、不fetch。
+
 维护线源 WIP 已由受管同 common 原入口从新 cwd 完成 check/backup/actual restore：
 7c2c7997-a47e-4605-941f-fef603da8fb4，HEAD4c72ed43、6161 tracked、70 untracked、
 217 refs，fsck PASS。原目录和其他工作树仍保护；该恢复点不等于执行器/现场准入完成。

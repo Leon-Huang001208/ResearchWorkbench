@@ -221,6 +221,24 @@ test('partial cleanup quota failure preserves references and original receipts',
   assert.deepEqual(fs.readFileSync(f.delivery),before);assert.equal(f.remoteRefs.size,2);
 });
 
+test('partial cleanup framework validation uses private native Git shim and restores PATH', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const capture=path.join(f.root,'fetch-args.json'), wrapper=path.join(f.root,'selected-git');
+  fs.writeFileSync(wrapper,`#!${process.execPath}\nconst fs=require('node:fs'),{spawnSync}=require('node:child_process');const a=process.argv.slice(2);if(a.includes('fetch')){fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify(a));process.exit(0);}const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});process.exit(r.status??1);\n`,{mode:0o700});
+  f.options.gitPath=wrapper;const validate=f.options.controller.validateCleanedDelivery, oldPath=process.env.PATH;
+  f.options.controller.validateCleanedDelivery=()=>{
+    assert.equal(process.env.PATH.split(path.delimiter)[0],path.join(f.projectRoot,'.git/leon-engineering/git-safety/bin'));
+    const r=spawnSync('git',['-C',f.projectRoot,'fetch','--prune','origin','refs/heads/master:refs/remotes/origin/master'],{encoding:'utf8'});assert.equal(r.status,0,r.stderr);
+    return validate();
+  };
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal(fs.existsSync(path.join(f.projectRoot,'.git/leon-engineering/git-safety/bin')),false);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const args=JSON.parse(fs.readFileSync(capture));assert.equal(args.includes('--prune'),false);assert.ok(args.includes('gc.auto=0'));assert.ok(args.includes('maintenance.auto=false'));
+  assert.equal(process.env.PATH,oldPath);
+});
+
 test('partial cleanup rejects reference loss during resource revalidation', async t=>{
   const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
   const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
