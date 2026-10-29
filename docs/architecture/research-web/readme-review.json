@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "九个纯核、三个自有原件方法、有限股票CSV导入及共享资格恢复维护入口沿既有Host／唯一DSH运行；单次runtime内纯导入语法事实复用不改变用户入口、能力或准入，README现有说明仍适用。",
-  "reason": "来源选择、Host复算、UI、取消与证据读回属于有限真实Native与既有质量链；共享恢复维护CLI只预览／转移真实资格及盘点源码，不开放普通研究API，不切换运行服务。来源stage/save/rollback共享同Store RLock，防止其他writer持久化未提交引用，不构成跨进程事务。owner隔离、未知Run拒绝、旧凭据UNKNOWN、原18项gated及source/numeric/canonical质量门保持；不把内核、saved、卡片或140静态映射认证为九个完备生产包、62／78全覆盖或真实模型通过。原三次CI修补计数和失败事实保留，旧四项mypy medium债仍须如实记录。合入base84后最终候选Router、独立评审、原CI与同候选Mac干净安装须另行取证；真实模型、供应商、付费MCP、常驻部署及其他平台未执行保持未验证。原Mac本地17门结果不移标为本次合并后通过，六项Native CI门只由Mac Bootstrap证据认证。"
+  "summary": "九个纯核、三个自有原件方法、有限股票CSV导入及共享资格恢复维护入口沿既有Host／唯一DSH运行；pack runtime有界纯语法facts复用不改变用户入口、能力或准入，README现有说明仍适用。",
+  "reason": "来源选择、Host复算、UI、取消与证据读回属于有限真实Native与既有质量链；共享恢复维护CLI只预览／转移真实资格及盘点源码，不开放普通研究API，不切换运行服务。pack runtime仍逐次读取完整源码、依赖metadata／权限／hash并核验当前loaded／search／stdlib／optional来源，仅以完整bytes、module／package、绝对根及parser身份为键复用最多64项不可变语法facts；不缓存identity、授权、PASS或完整policy，原6次runtime、56次check及281次save保持。README已经说明能力目录、唯一DSH及源码／CI／部署分层，内部性能实现无需新增用户入口说明。原三次CI修补计数、45分钟失败、mypy 17／7债务和未验证平台保持；最终候选Router、独立评审、原CI与同候选Mac干净安装须另行取证，真实模型、供应商、付费MCP及常驻部署未执行。"
 }

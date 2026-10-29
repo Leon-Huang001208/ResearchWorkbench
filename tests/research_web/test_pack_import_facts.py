@@ -1,4 +1,4 @@
-"""Reuse only pure source facts inside one fresh runtime admission pair."""
+"""Reuse only pure source facts while every runtime check observes current state."""
 
 import ast
 import importlib
@@ -25,29 +25,45 @@ def fixture_package(tmp_path, monkeypatch, source="import json\n"):
     return entry, [{"origin": str(tmp_path), "roots": ["facts_fixture"]}]
 
 
-def test_runtime_pair_parses_once_but_next_runtime_stays_fresh(monkeypatch):
+def test_runtime_checks_stay_fresh_while_reusing_bounded_syntax_facts(monkeypatch):
     import idna
 
-    entry = str(Path(idna.__file__))
+    entry_path = Path(idna.__file__)
+    entry = str(entry_path)
     calls = Counter()
+    reads, scans = [], []
     parse = ast.parse
     maps = []
     build = binding.build_policy
+    read = Path.read_bytes
+    modules = policy.module_files
 
     def observed_parse(source, filename="<unknown>", *args, **kwargs):
         if filename == entry:
             calls[filename] += 1
         return parse(source, filename, *args, **kwargs)
 
+    def observed_read(path):
+        if path == entry_path:
+            reads.append(path)
+        return read(path)
+
+    def observed_modules(value):
+        scans.append(1)
+        return modules(value)
+
     def observed_build(dependencies, **kwargs):
         maps.append(kwargs.get("_source_facts"))
         return build(dependencies, **kwargs)
 
     monkeypatch.setattr(ast, "parse", observed_parse)
+    monkeypatch.setattr(Path, "read_bytes", observed_read)
+    monkeypatch.setattr(policy, "module_files", observed_modules)
     monkeypatch.setattr(binding, "build_policy", observed_build)
     first = binding.runtime_identity()
     second = binding.runtime_identity()
-    assert calls[entry] == 2
+    assert calls[entry] == 1
+    assert len(reads) == 4 and len(scans) == 6
     assert first == second
     assert maps[0] is not maps[1]
     assert maps == [{}, {}]  # finally releases every retained source byte.
@@ -81,6 +97,76 @@ def test_same_bytes_reuse_facts_but_reread_and_enumerate(tmp_path, monkeypatch):
     assert all(isinstance(value, tuple) for value in facts.values())
     initial["stdlib_roots"].clear()
     assert policy.build_policy(dependencies, _source_facts=facts)["stdlib_roots"] == ["json"]
+
+
+def test_fresh_runtime_maps_reuse_only_same_root_syntax_facts(tmp_path, monkeypatch):
+    entry, dependencies = fixture_package(tmp_path, monkeypatch)
+    reads, scans, parses = [], [], []
+    read, modules, parse = Path.read_bytes, policy.module_files, ast.parse
+
+    def observed_read(path):
+        if path == entry:
+            reads.append(path)
+        return read(path)
+
+    def observed_modules(value):
+        scans.append(1)
+        return modules(value)
+
+    def observed_parse(source, *args, **kwargs):
+        parses.append(1)
+        return parse(source, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", observed_read)
+    monkeypatch.setattr(policy, "module_files", observed_modules)
+    monkeypatch.setattr(ast, "parse", observed_parse)
+    first_facts, second_facts = {}, {}
+    first = policy.build_policy(dependencies, _source_facts=first_facts)
+    second = policy.build_policy(dependencies, _source_facts=second_facts)
+    assert first == second
+    assert first_facts is not second_facts
+    assert len(reads) == 2 and len(scans) == 2
+    assert len(parses) == 1
+
+
+def test_syntax_fact_cache_invalidates_bytes_root_and_parser(tmp_path, monkeypatch):
+    entry, dependencies = fixture_package(tmp_path, monkeypatch)
+    parse = ast.parse
+    parses = []
+
+    def first_parser(source, *args, **kwargs):
+        parses.append("first")
+        return parse(source, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "parse", first_parser)
+    initial = policy.build_policy(dependencies, _source_facts={})
+    assert policy.build_policy(dependencies, _source_facts={}) == initial
+    assert parses == ["first"]
+
+    before = entry.stat()
+    entry.write_text("import math\n")
+    os.utime(entry, ns=(before.st_atime_ns, before.st_mtime_ns))
+    changed = policy.build_policy(dependencies, _source_facts={})
+    assert changed["stdlib_roots"] == ["math"]
+    assert parses == ["first", "first"]
+
+    alternate = tmp_path / "alternate"
+    alternate_entry = alternate / "facts_fixture" / "__init__.py"
+    alternate_entry.parent.mkdir(parents=True)
+    alternate_entry.write_text("import json\n")
+    alternate_dependencies = [{"origin": str(alternate), "roots": ["facts_fixture"]}]
+    assert policy.build_policy(alternate_dependencies, _source_facts={}) == initial
+    assert parses == ["first", "first", "first"]
+
+    other_parses = []
+
+    def second_parser(source, *args, **kwargs):
+        other_parses.append(1)
+        return parse(source, *args, **kwargs)
+
+    monkeypatch.setattr(ast, "parse", second_parser)
+    assert policy.build_policy(alternate_dependencies, _source_facts={}) == initial
+    assert other_parses == [1]
 
 
 def test_same_size_restored_mtime_change_is_not_reused(tmp_path, monkeypatch):
