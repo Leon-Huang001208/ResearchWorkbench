@@ -219,6 +219,7 @@ jobs:
             tests/research_web/test_resident.py \
             tests/research_web/test_delivery_transfer.py \
             tests/research_web/test_source_inventory.py \
+            tests/research_web/test_maintenance_job_identity_v3.py \
             tests/research_web/test_repository_lock_recovery.py \
             tests/research_web/test_wind_recovery_activity.py \
             tests/research_web/test_wind_cleanup_recovery.py \
