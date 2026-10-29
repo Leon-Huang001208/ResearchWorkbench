@@ -36,6 +36,8 @@ node scripts/git_safety.mjs closeout-recover --project /absolute/RWB \
 
 apply 持原仓库锁及备份锁，重新核验 plan、实际恢复、原 CI/评审/分支保护和 Actions
 费用资格。原 delivery 按原字节保存，intent 在任何删除前同步到磁盘。
+框架验证期间复用进程私有的不可变 Git shim，固定原生 Git、禁用自动维护并过滤
+fetch 的 prune 参数；退出成功或失败都恢复原 PATH，不修改全局工具或 PATH。
 
 远端使用 GitHub [`updateRefs`](https://docs.github.com/en/graphql/reference/git#updaterefs)，
 每个引用必须仍等于 `beforeOid`，`afterOid` 为零 OID，`force` 固定 false；一项变化即

@@ -1154,7 +1154,10 @@ export async function recoverCloseoutFinalization({projectRoot,taskId,backupDire
   };
   if(!apply)return perform(discover(projectRoot,options));
   return withRepositoryLock({projectRoot},async repository=>{
+    const directory=installShim(repository,options), previousPath=process.env.PATH;
+    process.env.PATH=directory+path.delimiter+(previousPath??'');
     try{return await perform(repository);}catch(error){log(repository,'closeout-recover','FAIL',error.code??'CLOSEOUT_RECOVERY_FAILED',{},options);throw error;}
+    finally {if(previousPath===undefined)delete process.env.PATH;else process.env.PATH=previousPath;}
   },options);
 }
 function assertNoIgnoredData(directory, options) {
