@@ -1,5 +1,11 @@
 # FinGPT 三组隔离比较（macOS）
 
+未发布 prepared 候选修订及其 Git 安全合同仅作用于既有交付控制面和 Project Constraints
+同一步测试登记，不启动本三组实验，不变更唯一DSH、冻结题目／模型／截止日、次数与费用授权、
+质量oracle或历史失败／NOT_RUN记录。Git安全本地219项、实际Node20测试step通过及真实备份
+恢复都不能认证FinGPT模型质量；整次CI还须满足完整源码／文档映射及结构决策门。
+已发布PR的元数据修复沿正常publish／repair重新取候选CI，不重用NeverPublished amend或旧实验票据。
+
 股票CSV自选导入的新增合同测试只使用真实临时Host与合成已授权目录，不调用模型或供应商，不启动FinGPT比较、不改变质量oracle/费用与显式重试规则。Checks/安装只扩原步骤名单，见[导入合同](research-web-watchlist-import.md)。
 
 独立报告生产UI只展示原Run与交付状态，不参与三组FinGPT模型对照、预算或真实调用。本轮Node/隔离页面及安装检查不改变原模型试跑授权、质量判据或NOT_RUN记录。
