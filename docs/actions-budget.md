@@ -7,6 +7,10 @@ PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除�
 PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。
 
 PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
+Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
+预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。
+合同／源码 CI 不代表实际 launchd、完整 CLI、旧实例退休、Wind 或部署验收。
 
 2026-10-29 真实canary的精确422及未收养merge链修订继续使用同一Git safety step，
 原三文件及全部旧用例保留，无job／runner／Node20／10分钟／频率或依赖变化。

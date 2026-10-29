@@ -367,3 +367,10 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 2026-10-28：T3九包与自有方法的执行闭环
 
 九包纯核、三owned原件动作和C2源版本预处理在现Host/能力目录内冻结，继续由唯一DSH与固定sandbox执行。新增私有完成桥将真实supervisor结果送回Host，独立读回原件/完整制品后才登记saved，原报告质量另验；C2由Host执行、Native消费。C6来源选择的preview为纯只读，freeze沿原intent/lineage，未知不重跑。05能力流图已补实际完成与验证关系；无新进程、队列、数据库或供应商alias，原八场景及18 gated保持。实现入口见[开发地图](DEVELOPMENT_MAP.md)及[组合包](research-web-research-packs.md)。T4/T5仍待实施，静态140映射不认证运行、真实来源、模型质量或最终CI。
+## 精确维护作业身份（2026-10-29）
+
+现有 resident 层新增只读 `ExactJobBinding`，固定原生产目标，或由已登记私有根及独立已审
+artifact 摘要绑定演练 label／plist／domain／端口。它不创建服务、分配端口或授予效果权限，
+生命周期仍由原维护上下文与 intent 执行；没有新 HTTP、数据库、研究引擎或编排循环。
+拓扑不变，旧实例的加载策略与 Wind 历史 UNKNOWN 不因此提高资格。
+合同与验收边界见 [维护作业身份 v3](research-web-maintenance-job-identity-v3.md)。

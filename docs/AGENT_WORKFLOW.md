@@ -178,6 +178,14 @@ master
 
 一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。2026-10-07已启用master保护：PR、最新基线和Actions check（app15368）强制通过，管理员也受约束；平台条件门继续由任务回执校验。禁止强推/删除主线及未解决讨论由远端保护执行；各平台条件 CI 与真机证据仍是项目任务合同，不能宣称全部被远端无条件强制。
 
+## 精确维护作业目标
+
+`ExactJobBinding` 仅绑定原生产目标或已登记私有演练根、label、plist、domain、端口及
+独立已审 artifact。效果前须在真实维护上下文中调用 `verify()`，并另证端口与进程归属；
+目标身份、JSON 和一次只读观察均不能授予注册／停止／恢复权限。先完成源码合同、完整
+changed-set Router、独立评审及同候选 CI，再由受控操作员完成私有正例和现场资格。
+具体接口及 UNKNOWN、disabled 三态边界见[维护身份合同](research-web-maintenance-job-identity-v3.md)。
+
 ## RWB Git 安全入口（macOS）
 
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
