@@ -765,6 +765,8 @@
         "scripts/plan_verification.mjs",
         "scripts/validate_verification_receipt.mjs",
         "scripts/summarize_verification_delivery.mjs",
+        "scripts/run_ci_pytest_partitions.py",
+        "scripts/stage_ci_pytest_evidence.py",
         ".agents/verification-policy.json",
         ".agents/research-web-stage.json",
         ".agents/runtime/leon-engineering/",
@@ -795,6 +797,8 @@
         "tests/javascript/verification_platform_task_entry.test.mjs",
         "tests/javascript/verification_delivery_summary.test.mjs",
         "tests/javascript/actions_quota_governance.test.mjs",
+        "tests/unit/test_ci_pytest_partitions.py",
+        "tests/unit/test_ci_pytest_evidence_staging.py",
         "tests/research_web/test_fingpt_comparison.py",
         "tests/javascript/research_web_fingpt_comparison.test.mjs"
       ]
