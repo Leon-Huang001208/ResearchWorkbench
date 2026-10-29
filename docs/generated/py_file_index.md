@@ -23454,10 +23454,10 @@ Module docstring:
 Imports:
 - `__future__`
 - `argparse`
+- `collections.abc`
 - `contextlib`
 - `dataclasses`
 - `hashlib`
-- `io`
 - `json`
 - `os`
 - `pathlib`
@@ -23467,7 +23467,6 @@ Imports:
 - `sys`
 - `tempfile`
 - `time`
-- `traceback`
 - `typing`
 - `xml.etree.ElementTree`
 
@@ -23739,13 +23738,13 @@ Module docstring:
 Imports:
 - `__future__`
 - `argparse`
+- `collections.abc`
 - `hashlib`
 - `json`
 - `os`
 - `pathlib`
 - `re`
 - `stat`
-- `sys`
 - `typing`
 - `xml.etree.ElementTree`
 
@@ -23768,6 +23767,7 @@ Functions:
 - `_validate_selection`
 - `_validate_manifest`
 - `_sanitize_junit`
+- `_validate_passed_execution`
 - `_safe_worker_summary`
 - `_scope_artifacts`
 - `_load_source_root`

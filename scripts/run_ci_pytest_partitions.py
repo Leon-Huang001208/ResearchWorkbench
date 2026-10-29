@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Run an existing pytest selection in two exact, isolated CI partitions."""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import hashlib
-import io
 import json
 import os
 import signal
@@ -15,12 +13,11 @@ import subprocess
 import sys
 import tempfile
 import time
-import traceback
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
-
+from typing import Any
 
 PARTITION_COUNT = 2
 INTERNAL_PREFIX = "--rwb-internal-"
@@ -133,9 +130,9 @@ def _plan_sha256(
         "nodeIds": list(nodeids),
         "partitions": [list(part) for part in partitions],
     }
-    encoded = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode("utf-8")
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -281,9 +278,7 @@ class WorkerPlugin:
 
             pytest.exit("pytest collection reported errors", returncode=2)
         try:
-            validate_partition_manifest(
-                self.manifest, actual, self.arguments, self.task_id
-            )
+            validate_partition_manifest(self.manifest, actual, self.arguments, self.task_id)
             assigned = set(self.assigned)
             for item in items:
                 existing = [name for name, _ in item.user_properties if name == "rwb_nodeid"]
@@ -295,7 +290,8 @@ class WorkerPlugin:
             items[:] = [item for item in items if item.nodeid in assigned]
             for item in items:
                 item.user_properties.append(("rwb_nodeid", item.nodeid))
-        except Exception as error:
+        # Any bad partition evidence must abort collection instead of selecting a partial suite.
+        except Exception as error:  # noqa: BLE001
             import pytest
 
             pytest.exit(str(error), returncode=2)
@@ -542,8 +538,7 @@ def _validate_worker_result(
         or type(junit_info["nodeIds"]) is not list
         or any(not isinstance(nodeid, str) for nodeid in junit_info["nodeIds"])
         or any(
-            type(junit_info[key]) is not int
-            for key in ("tests", "failures", "errors", "skipped")
+            type(junit_info[key]) is not int for key in ("tests", "failures", "errors", "skipped")
         )
     ):
         raise PartitionError(f"worker-{worker_index} JUnit summary types are invalid")
@@ -614,11 +609,7 @@ def _worker_result(
     junit_path = plugin.worker_dir / "junit.xml"
     if junit_path.is_file():
         parsed = _parse_junit(junit_path, plugin.assigned)
-        junit = {
-            key: value
-            for key, value in parsed.items()
-            if key != "caseOutcomes"
-        }
+        junit = {key: value for key, value in parsed.items() if key != "caseOutcomes"}
         junit["sha256"] = hashlib.sha256(junit_path.read_bytes()).hexdigest()
     return {
         "schemaVersion": WORKER_RESULT_SCHEMA_VERSION,
@@ -670,7 +661,8 @@ def _run_worker(plugin: WorkerPlugin, task_id: str, root_info: os.stat_result) -
                 if nodeid in plugin.execution_reports
             ]
             _validate_execution_records(execution, plugin.assigned, junit)
-    except BaseException as caught:
+    # Catch interrupts at the worker boundary so the failed result is still written for the parent.
+    except BaseException as caught:  # noqa: BLE001
         error = f"{type(caught).__name__}: {caught}"
         if isinstance(caught, KeyboardInterrupt):
             exit_code = 130
@@ -685,7 +677,8 @@ def _run_worker(plugin: WorkerPlugin, task_id: str, root_info: os.stat_result) -
                 exit_code=exit_code,
                 error=error,
             )
-        except BaseException as caught:
+        # Even serialization errors must produce a failed worker record rather than a silent exit.
+        except BaseException as caught:  # noqa: BLE001
             error = f"{type(caught).__name__}: {caught}"
             exit_code = 1
             result = {
@@ -731,8 +724,10 @@ def _internal_worker(argv: Sequence[str]) -> int:
         raise PartitionError("internal worker arguments are incomplete")
 
     root = Path(values["root"])
-    repo = Path(values["repo"])
+    repository = _canonical(Path(values["repo"]))
     allowed_parent = Path(values["parent"])
+    if repository != _canonical(Path.cwd()):
+        raise PartitionError("worker repository path does not match its working directory")
     if _canonical(root).parent != _canonical(allowed_parent):
         raise PartitionError("worker root does not belong to its registered task temp parent")
     marker = validate_task_root(root, allowed_parent)
@@ -778,8 +773,7 @@ def run_suite(
         signal_number = signum
 
     previous_handlers = {
-        number: signal.signal(number, stop_workers)
-        for number in (signal.SIGINT, signal.SIGTERM)
+        number: signal.signal(number, stop_workers) for number in (signal.SIGINT, signal.SIGTERM)
     }
     manifest: dict[str, Any] | None = None
     worker_processes: list[subprocess.Popen[bytes]] = []
@@ -793,22 +787,23 @@ def run_suite(
         previous_sys_path = list(sys.path)
         environment = dict(previous_environment)
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
-        environment["PYTHONPATH"] = _pythonpath(
-            repository, environment.get("PYTHONPATH", "")
-        )
+        environment["PYTHONPATH"] = _pythonpath(repository, environment.get("PYTHONPATH", ""))
         os.environ.update(environment)
         if not sys.path or _canonical(Path(sys.path[0] or ".")) != repository:
             sys.path.insert(0, str(repository))
         collection_plugin = CollectionPlugin()
         try:
-            with (scheduler_dir / "collect.log").open("w", encoding="utf-8") as log:
-                with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
-                    collection_code = int(
-                        pytest.main(
-                            _pytest_collection_arguments(arguments, scheduler_dir),
-                            plugins=[collection_plugin],
-                        )
+            with (
+                (scheduler_dir / "collect.log").open("w", encoding="utf-8") as log,
+                contextlib.redirect_stdout(log),
+                contextlib.redirect_stderr(log),
+            ):
+                collection_code = int(
+                    pytest.main(
+                        _pytest_collection_arguments(arguments, scheduler_dir),
+                        plugins=[collection_plugin],
                     )
+                )
         finally:
             os.environ.clear()
             os.environ.update(previous_environment)
@@ -832,9 +827,7 @@ def run_suite(
             _atomic_json(root / "partitions.json", manifest)
 
         if manifest is not None and collection_error is None:
-            environment["PYTHONPATH"] = _pythonpath(
-                repository, environment.get("PYTHONPATH", "")
-            )
+            environment["PYTHONPATH"] = _pythonpath(repository, environment.get("PYTHONPATH", ""))
             environment["PYTHONDONTWRITEBYTECODE"] = "1"
             for worker_index in range(PARTITION_COUNT):
                 worker_dir = root / f"worker-{worker_index}"
@@ -861,9 +854,7 @@ def run_suite(
                             start_new_session=True,
                         )
                     worker_processes.append(process)
-                    _register_process(
-                        root, f"worker-{worker_index}", process.pid, command
-                    )
+                    _register_process(root, f"worker-{worker_index}", process.pid, command)
                 except OSError as error:
                     startup_error = f"worker-{worker_index} could not start: {error}"
                     break
@@ -888,16 +879,13 @@ def run_suite(
 
         for process in worker_processes:
             try:
-                return_code = process.wait(
-                    timeout=10 if (startup_error or signal_number) else None
-                )
+                return_code = process.wait(timeout=10 if (startup_error or signal_number) else None)
             except subprocess.TimeoutExpired:
                 process.kill()
                 return_code = process.wait(timeout=5)
-            process_evidence.append(
-                {"pid": process.pid, "returnCode": return_code, "waited": True}
-            )
-    except BaseException as error:
+            process_evidence.append({"pid": process.pid, "returnCode": return_code, "waited": True})
+    # This boundary owns all Popen children and must reap them on interruption or internal failure.
+    except BaseException as error:  # noqa: BLE001
         if manifest is None:
             collection_error = f"{type(error).__name__}: {error}"
         else:
@@ -916,9 +904,7 @@ def run_suite(
             except subprocess.TimeoutExpired:
                 process.kill()
                 return_code = process.wait(timeout=5)
-            process_evidence.append(
-                {"pid": process.pid, "returnCode": return_code, "waited": True}
-            )
+            process_evidence.append({"pid": process.pid, "returnCode": return_code, "waited": True})
     finally:
         for number, handler in previous_handlers.items():
             signal.signal(number, handler)

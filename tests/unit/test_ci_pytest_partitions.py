@@ -53,9 +53,10 @@ def test_manifest_requires_exact_collection_order_and_full_disjoint_union() -> N
         "planSha256": partitions._plan_sha256("unit-test-task", selection, nodeids, split),
     }
 
-    assert partitions.validate_partition_manifest(
-        manifest, nodeids, selection, "unit-test-task"
-    ) == nodeids
+    assert (
+        partitions.validate_partition_manifest(manifest, nodeids, selection, "unit-test-task")
+        == nodeids
+    )
     with pytest.raises(partitions.PartitionError, match="exactly match"):
         partitions.validate_partition_manifest(
             manifest, list(reversed(nodeids)), selection, "unit-test-task"
@@ -99,29 +100,27 @@ def test_junit_requires_exact_nodeid_cases_not_just_a_lower_bound(tmp_path: Path
     ["missing-property", "duplicate-nodeid", "extra-case"],
     ids=["missing-nodeid", "duplicate-nodeid", "extra-case"],
 )
-def test_junit_rejects_missing_duplicate_or_extra_nodeid_cases(
-    tmp_path: Path, mode: str
-) -> None:
+def test_junit_rejects_missing_duplicate_or_extra_nodeid_cases(tmp_path: Path, mode: str) -> None:
     report = tmp_path / "junit.xml"
     first = (
-        "<testcase><properties><property name=\"rwb_nodeid\" value=\"node-a\" />"
+        '<testcase><properties><property name="rwb_nodeid" value="node-a" />'
         "</properties></testcase>"
     )
     second = (
-        "<testcase><properties><property name=\"rwb_nodeid\" value=\"node-a\" />"
+        '<testcase><properties><property name="rwb_nodeid" value="node-a" />'
         "</properties></testcase>"
         if mode == "duplicate-nodeid"
         else (
             "<testcase />"
             if mode == "missing-property"
             else (
-                "<testcase><properties><property name=\"rwb_nodeid\" value=\"node-b\" />"
+                '<testcase><properties><property name="rwb_nodeid" value="node-b" />'
                 "</properties></testcase>"
             )
         )
     )
     extra = (
-        "<testcase><properties><property name=\"rwb_nodeid\" value=\"node-extra\" />"
+        '<testcase><properties><property name="rwb_nodeid" value="node-extra" />'
         "</properties></testcase>"
         if mode == "extra-case"
         else ""
@@ -325,6 +324,23 @@ def test_task_root_is_fresh_owner_bound_and_inode_bound(tmp_path: Path) -> None:
         partitions.create_task_root(root, tmp_path, "task-test")
 
 
+def test_internal_worker_rejects_repository_path_outside_its_working_directory(
+    tmp_path: Path,
+) -> None:
+    argv = [
+        f"{partitions.INTERNAL_PREFIX}worker=0",
+        f"{partitions.INTERNAL_PREFIX}root={tmp_path / 'task-root'}",
+        f"{partitions.INTERNAL_PREFIX}repo={tmp_path / 'other-repository'}",
+        f"{partitions.INTERNAL_PREFIX}parent={tmp_path}",
+        f"{partitions.INTERNAL_PREFIX}plan={'a' * 64}",
+        "--",
+        "tests/test_fixture.py",
+    ]
+
+    with pytest.raises(partitions.PartitionError, match="repository path"):
+        partitions._internal_worker(argv)
+
+
 def _run_fixture_suite(tmp_path: Path, source: str) -> tuple[int, Path]:
     fixture_root = tmp_path / "fixture-project"
     test_root = fixture_root / "tests"
@@ -392,9 +408,8 @@ def test_explicit_skip():
     assert summary["actualNodeIds"] == manifest["nodeIds"]
     assert summary["partitionIntersection"] == []
     assert set(results[0]["assignedNodeIds"]).isdisjoint(results[1]["assignedNodeIds"])
-    assert (
-        set(results[0]["assignedNodeIds"]) | set(results[1]["assignedNodeIds"])
-        == set(manifest["nodeIds"])
+    assert set(results[0]["assignedNodeIds"]) | set(results[1]["assignedNodeIds"]) == set(
+        manifest["nodeIds"]
     )
     assert sum(result["junit"]["tests"] for result in results) == len(manifest["nodeIds"])
     assert sum(result["junit"]["skipped"] for result in results) == 1
@@ -553,9 +568,9 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
         assert all(item["waited"] and item["returnCode"] != 0 for item in worker_processes)
         assert all(
             item["pid"]
-            == json.loads(
-                (result_root / f"worker-{index}.owner.json").read_text(encoding="utf-8")
-            )["pid"]
+            == json.loads((result_root / f"worker-{index}.owner.json").read_text(encoding="utf-8"))[
+                "pid"
+            ]
             for index, item in enumerate(worker_processes)
         )
     finally:
