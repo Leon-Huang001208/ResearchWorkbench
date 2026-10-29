@@ -23454,10 +23454,10 @@ Module docstring:
 Imports:
 - `__future__`
 - `argparse`
+- `collections.abc`
 - `contextlib`
 - `dataclasses`
 - `hashlib`
-- `io`
 - `json`
 - `os`
 - `pathlib`
@@ -23467,7 +23467,6 @@ Imports:
 - `sys`
 - `tempfile`
 - `time`
-- `traceback`
 - `typing`
 - `xml.etree.ElementTree`
 
@@ -23739,13 +23738,13 @@ Module docstring:
 Imports:
 - `__future__`
 - `argparse`
+- `collections.abc`
 - `hashlib`
 - `json`
 - `os`
 - `pathlib`
 - `re`
 - `stat`
-- `sys`
 - `typing`
 - `xml.etree.ElementTree`
 

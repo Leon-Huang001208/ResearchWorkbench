@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Stage redacted CI pytest evidence through owner-bound, no-follow file handles."""
 
 from __future__ import annotations
@@ -9,11 +8,10 @@ import json
 import os
 import re
 import stat
-import sys
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
-
 
 SCOPES = ("research-web", "unit")
 ROOT_MARKER = ".rwb-ci-pytest-root.json"
@@ -32,9 +30,22 @@ SOURCE_ALLOWLIST = (
 )
 MAX_FILE_BYTES = 100 * 1024 * 1024
 WORKER_RESULT_FIELDS = {
-    "schemaVersion", "taskId", "workerIndex", "pid", "uid", "rootDevice", "rootInode",
-    "planSha256", "expectedNodeIds", "assignedNodeIds", "execution", "collectionFailures",
-    "junit", "pytestExitCode", "status", "error",
+    "schemaVersion",
+    "taskId",
+    "workerIndex",
+    "pid",
+    "uid",
+    "rootDevice",
+    "rootInode",
+    "planSha256",
+    "expectedNodeIds",
+    "assignedNodeIds",
+    "execution",
+    "collectionFailures",
+    "junit",
+    "pytestExitCode",
+    "status",
+    "error",
 }
 SECRET_PATTERNS = (
     re.compile(rb"(?i)authorization\s*:\s*bearer\s+\S+"),
@@ -214,9 +225,7 @@ def _read_relative(
                 os.stat(component, dir_fd=parent_fd, follow_symlinks=False)
             except FileNotFoundError:
                 return None
-            child_fd, _ = _open_directory_at(
-                parent_fd, component, device=root_device, uid=uid
-            )
+            child_fd, _ = _open_directory_at(parent_fd, component, device=root_device, uid=uid)
             descriptors.append(child_fd)
             parent_fd = child_fd
         return _read_file_at(parent_fd, parts[-1], device=root_device, uid=uid)
@@ -322,9 +331,9 @@ def _validate_manifest(manifest: dict[str, Any], task_id: str) -> dict[str, Any]
         "partitions": partitions,
     }
     digest = hashlib.sha256(
-        json.dumps(
-            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-        ).encode("utf-8")
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+            "utf-8"
+        )
     ).hexdigest()
     if manifest.get("planSha256") != digest:
         raise StagingError("partition manifest digest is invalid")
@@ -458,7 +467,7 @@ def _safe_worker_summary(
     task_id: str,
     root_info: os.stat_result,
     manifest: dict[str, Any] | None,
-    files: dict[str, bytes | None],
+    files: Mapping[str, bytes | None],
 ) -> tuple[dict[str, Any], dict[str, bytes]]:
     expected_ids = manifest["partitions"][index] if manifest else []
     result_data = files.get(f"worker-{index}/result.json")
@@ -476,17 +485,21 @@ def _safe_worker_summary(
 
     if owner:
         required_owner = {
-            "schemaVersion", "name", "pid", "uid", "device", "inode", "argv", "registeredAtNs"
+            "schemaVersion",
+            "name",
+            "pid",
+            "uid",
+            "device",
+            "inode",
+            "argv",
+            "registeredAtNs",
         }
         if set(owner) != required_owner or owner.get("name") != f"worker-{index}":
             raise StagingError(f"worker-{index} owner record schema is invalid")
         if (
             type(owner.get("schemaVersion")) is not int
             or owner["schemaVersion"] != 1
-            or (
-                owner.get("pid") is not None
-                and type(owner.get("pid")) is not int
-            )
+            or (owner.get("pid") is not None and type(owner.get("pid")) is not int)
             or type(owner.get("argv")) is not list
             or type(owner.get("registeredAtNs")) is not int
             or type(owner.get("uid")) is not int
@@ -495,7 +508,8 @@ def _safe_worker_summary(
             or owner["device"] != root_info.st_dev
             or type(owner.get("inode")) is not int
             or owner["inode"] != root_info.st_ino
-            or owner.get("pid") is not None and type(owner.get("pid")) is not int
+            or owner.get("pid") is not None
+            and type(owner.get("pid")) is not int
         ):
             raise StagingError(f"worker-{index} owner record identity is invalid")
         pid = owner.get("pid") if type(owner.get("pid")) is int else None
@@ -526,17 +540,16 @@ def _safe_worker_summary(
             raise StagingError(f"worker-{index} PID differs from its owner record")
         pid = result.get("pid") if type(result.get("pid")) is int else pid
         exit_code = (
-            result.get("pytestExitCode")
-            if type(result.get("pytestExitCode")) is int
-            else None
+            result.get("pytestExitCode") if type(result.get("pytestExitCode")) is int else None
         )
         raw_execution = result.get("execution")
         if isinstance(raw_execution, list):
-            execution_ids = [
-                item.get("nodeId")
-                for item in raw_execution
-                if isinstance(item, dict) and isinstance(item.get("nodeId"), str)
-            ]
+            for item in raw_execution:
+                if not isinstance(item, dict):
+                    continue
+                node_id = item.get("nodeId")
+                if isinstance(node_id, str):
+                    execution_ids.append(node_id)
         status = result.get("status") if result.get("status") in {"passed", "failed"} else "invalid"
         if type(result.get("pytestExitCode")) is not int:
             raise StagingError(f"worker-{index} exit code is invalid")
@@ -559,9 +572,7 @@ def _safe_worker_summary(
                 allow_partial=status != "passed",
             )
             result_junit = result.get("junit")
-            expected_count_fields = {
-                "sha256", "tests", "failures", "errors", "skipped", "nodeIds"
-            }
+            expected_count_fields = {"sha256", "tests", "failures", "errors", "skipped", "nodeIds"}
             if status == "passed" and not isinstance(result_junit, dict):
                 raise StagingError(f"worker-{index} passed without a JUnit summary")
             if result_junit is not None:
@@ -576,9 +587,7 @@ def _safe_worker_summary(
         ):
             raise StagingError(f"worker-{index} execution IDs are duplicated or unexpected")
         if status == "passed":
-            execution_ids = _validate_passed_execution(
-                raw_execution, expected_ids, junit_outcomes
-            )
+            execution_ids = _validate_passed_execution(raw_execution, expected_ids, junit_outcomes)
             if (
                 exit_code != 0
                 or result.get("error") is not None
@@ -643,7 +652,11 @@ def _scope_artifacts(
     )
     if scheduler_result is not None:
         required = {
-            "schemaVersion", "taskId", "selection", "status", "partitionSha256",
+            "schemaVersion",
+            "taskId",
+            "selection",
+            "status",
+            "partitionSha256",
             "expectedNodeIds",
             "actualNodeIds",
             "partitionIntersection",
@@ -660,17 +673,17 @@ def _scope_artifacts(
             raise StagingError("scheduler result identity/schema is invalid")
         if scheduler_result.get("status") not in {"passed", "failed"}:
             raise StagingError("scheduler result status is invalid")
-        if (
-            scheduler_result.get("status") == "passed"
-            and scheduler_result.get("error") is not None
-        ):
+        if scheduler_result.get("status") == "passed" and scheduler_result.get("error") is not None:
             raise StagingError("passing scheduler summary contains an error")
-    if manifest and scheduler_result:
-        if (
+    if (
+        manifest
+        and scheduler_result
+        and (
             scheduler_result.get("partitionSha256") != manifest["planSha256"]
             or scheduler_result.get("expectedNodeIds") != manifest["nodeIds"]
-        ):
-            raise StagingError("scheduler summary does not match the partition manifest")
+        )
+    ):
+        raise StagingError("scheduler summary does not match the partition manifest")
 
     safe_workers: list[dict[str, Any]] = []
     artifacts: dict[str, bytes] = {}
@@ -695,9 +708,9 @@ def _scope_artifacts(
         "planSha256": manifest.get("planSha256") if manifest else None,
         "expectedNodeCount": len(expected_ids),
         "actualNodeCount": len(actual_ids) if isinstance(actual_ids, list) else 0,
-        "partitionIntersectionCount": len(scheduler_result.get("partitionIntersection", []))
-        if scheduler_result
-        else 0,
+        "partitionIntersectionCount": (
+            len(scheduler_result.get("partitionIntersection", [])) if scheduler_result else 0
+        ),
         "workers": safe_workers,
     }
     artifacts["scheduler-result.json"] = (
@@ -819,6 +832,8 @@ def _load_source_root(
             raise StagingError(f"task root owner marker is missing: {scope}")
         marker_data, marker_stat = marker_loaded
         marker = _read_json(marker_data, "task root marker")
+        if marker is None:
+            raise StagingError(f"task root owner marker is invalid: {scope}")
         task_pattern = re.fullmatch(
             r"(?:github-[0-9]+-[0-9]+-(?:research-web|unit)"
             r"|fixture-[a-z0-9-]+|local-ci-validation)",
@@ -832,16 +847,16 @@ def _load_source_root(
             or type(marker.get("uid")) is not int
             or marker["uid"] != os.getuid()
             or type(marker.get("pid")) is not int
-        or marker["pid"] <= 0
+            or marker["pid"] <= 0
             or type(marker.get("device")) is not int
             or marker["device"] != root_info.st_dev
             or type(marker.get("inode")) is not int
             or marker["inode"] != root_info.st_ino
-        or type(marker.get("argv")) is not list
-        or any(not isinstance(argument, str) for argument in marker["argv"])
-        or type(marker.get("createdAtNs")) is not int
+            or type(marker.get("argv")) is not list
+            or any(not isinstance(argument, str) for argument in marker["argv"])
+            or type(marker.get("createdAtNs")) is not int
             or task_pattern is None
-        or not marker["taskId"].endswith(f"-{scope}")
+            or not marker["taskId"].endswith(f"-{scope}")
         ):
             raise StagingError(f"task root owner marker is invalid: {scope}")
 
@@ -894,11 +909,7 @@ def _write_file_at(parent_fd: int, name: str, content: bytes) -> os.stat_result:
     try:
         descriptor = os.open(
             name,
-            os.O_WRONLY
-            | os.O_CREAT
-            | os.O_EXCL
-            | os.O_NOFOLLOW
-            | getattr(os, "O_CLOEXEC", 0),
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0),
             0o600,
             dir_fd=parent_fd,
         )
@@ -977,9 +988,7 @@ def stage_evidence(
 
         scope_artifacts: dict[str, dict[str, bytes]] = {}
         for scope, root_fd, root_info, marker, raw_files, source_stats in roots:
-            artifacts = _scope_artifacts(
-                scope, root_fd, root_info, source_stats, raw_files, marker
-            )
+            artifacts = _scope_artifacts(scope, root_fd, root_info, source_stats, raw_files, marker)
             for content in artifacts.values():
                 _secret_scan(content)
             scope_artifacts[scope] = artifacts
@@ -1032,12 +1041,9 @@ def stage_evidence(
         _write_tree(stage_fd, entries)
 
         current_artifacts = os.stat("artifacts", dir_fd=workspace_fd, follow_symlinks=False)
-        current_stage = os.stat(
-            "research-web-checks", dir_fd=artifacts_fd, follow_symlinks=False
-        )
-        if (
-            not _same_dir(artifacts_info, current_artifacts)
-            or not _same_dir(stage_info, current_stage)
+        current_stage = os.stat("research-web-checks", dir_fd=artifacts_fd, follow_symlinks=False)
+        if not _same_dir(artifacts_info, current_artifacts) or not _same_dir(
+            stage_info, current_stage
         ):
             raise StagingError("artifact parent directory changed during staging")
         _reopen_same_directory(canonical_temp, temp_info)

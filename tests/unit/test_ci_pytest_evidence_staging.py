@@ -9,12 +9,12 @@ import json
 import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from scripts import run_ci_pytest_partitions as partitions
 from scripts import stage_ci_pytest_evidence as staging
-
 
 CANARY = "BUSINESS_BODY_CANARY_DO_NOT_STAGE"
 SECRET_CANARY = "sk-TEST_SECRET_CANARY_DO_NOT_STAGE_12345"
@@ -155,8 +155,7 @@ def _write_runner_root(runner_temp: Path, scope: str = "research-web") -> Path:
                 "actualNodeIds": nodeids,
                 "partitionIntersection": [],
                 "workerProcesses": [
-                    {"pid": 31000 + index, "returnCode": 0, "waited": True}
-                    for index in range(2)
+                    {"pid": 31000 + index, "returnCode": 0, "waited": True} for index in range(2)
                 ],
                 "workers": [
                     {
@@ -194,15 +193,13 @@ def _stage(tmp_path: Path, root: Path) -> Path:
     return Path(result["outputPath"])
 
 
-def _read_result(root: Path, index: int = 0) -> dict[str, object]:
+def _read_result(root: Path, index: int = 0) -> dict[str, Any]:
     path = root / f"worker-{index}" / "result.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _write_result(root: Path, result: dict[str, object], index: int = 0) -> None:
-    (root / f"worker-{index}" / "result.json").write_text(
-        json.dumps(result), encoding="utf-8"
-    )
+def _write_result(root: Path, result: dict[str, Any], index: int = 0) -> None:
+    (root / f"worker-{index}" / "result.json").write_text(json.dumps(result), encoding="utf-8")
 
 
 def _write_scheduler_junit_summary(
@@ -268,7 +265,7 @@ def test_passed_xfail_remains_a_visible_skip(tmp_path: Path) -> None:
     junit_path = root / "worker-0" / "junit.xml"
     junit_path.write_text(
         junit_path.read_text(encoding="utf-8").replace(
-            "</testcase>", "<skipped message=\"xfail\" /></testcase>", 1
+            "</testcase>", '<skipped message="xfail" /></testcase>', 1
         ),
         encoding="utf-8",
     )
