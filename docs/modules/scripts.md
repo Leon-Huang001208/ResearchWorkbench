@@ -19,6 +19,26 @@
 
 ## Files
 
+### `scripts/run_ci_pytest_partitions.py`
+
+Purpose:
+- Schedules the two preselected Python pytest scopes in the existing Research Web Checks job as two independent processes.
+- Collects the scope's actual node IDs, deterministically partitions them with a disjoint complete union, and has both workers verify that their collection matches the parent manifest before execution.
+- Keeps each worker's basetemp, pytest cache, JUnit XML, result record, and stdout/stderr log under an owner-checked private task temp root. The scheduler holds both worker Popen objects and validates their PID, UID, root inode, worker index, schema, plan digest, exact execution IDs, and exact JUnit `rwb_nodeid` mapping before reporting PASS. Collection errors, missing/changed nodes, test failures, worker errors, malformed results, and interruption fail closed; skips remain in JUnit.
+- Does not change selected test paths/configuration, add jobs/runners/dependencies, or infer that the 45-minute GitHub timeout will pass. The exact candidate CI duration is still measured remotely.
+
+`tests/unit/test_ci_pytest_partitions.py` exercises partition integrity, independent worker evidence, visible skip/failure, collection failure, and interruption behavior.
+
+### `scripts/stage_ci_pytest_evidence.py`
+
+Purpose:
+- Reads only the fixed Research Web Checks task roots and evidence filenames through owner-checked directory descriptors and `O_NOFOLLOW` file opens.
+- Rejects symlink, hardlink, non-regular, replaced, cross-device, or wrong-owner inputs. It verifies source inode/size/timestamps before staging and checks the parent directory identities again before returning.
+- Produces a fresh `artifacts/research-web-checks/` directory with sanitized JUnit nodeID properties, manifests, PID/status summaries, and redacted summary logs. It never stages the raw environment, full result errors, JUnit output bodies, or raw worker stdout.
+- Fails if staging paths already exist, if the output tree is replaced, or if sanitized evidence exceeds the 100 MiB per-run cap.
+
+`tests/unit/test_ci_pytest_evidence_staging.py` exercises ordinary staging, external symlinks, hardlinks, root symlinks, parent-directory replacement, and removal of canary fixture bodies from the artifact.
+
 ### `scripts/setup_web.py`
 
 Optional Hot installation consumes only `services/hot/package-lock.json` using the
