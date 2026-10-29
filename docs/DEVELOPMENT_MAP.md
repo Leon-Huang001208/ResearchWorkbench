@@ -695,3 +695,10 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+### 精确维护作业身份
+
+`research_workbench_entrypoint/resident/maintenance_job_identity_v3.py` 定义只读精确目标、
+严格登记与 artifact/目录重验；`tests/research_web/test_maintenance_job_identity_v3.py`
+覆盖固定生产目标、私有演练绑定、变更与文件系统反例。没有注册／停止／恢复效果入口。
+Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity-v3.md`。

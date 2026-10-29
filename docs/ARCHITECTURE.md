@@ -349,3 +349,11 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+## 精确维护作业身份（2026-10-29）
+
+现有 resident 层新增只读 `ExactJobBinding`，固定原生产目标，或由已登记私有根及独立已审
+artifact 摘要绑定演练 label／plist／domain／端口。它不创建服务、分配端口或授予效果权限，
+生命周期仍由原维护上下文与 intent 执行；没有新 HTTP、数据库、研究引擎或编排循环。
+拓扑不变，旧实例的加载策略与 Wind 历史 UNKNOWN 不因此提高资格。
+合同与验收边界见 [维护作业身份 v3](research-web-maintenance-job-identity-v3.md)。

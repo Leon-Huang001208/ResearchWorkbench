@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
+Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
+预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。
+合同／源码 CI 不代表实际 launchd、完整 CLI、旧实例退休、Wind 或部署验收。
+
 2026-10-29 真实canary的精确422及未收养merge链修订继续使用同一Git safety step，
 原三文件及全部旧用例保留，无job／runner／Node20／10分钟／频率或依赖变化。
 本机Node24.19.0完整三文件219项（112＋3＋104）实测194.972秒、0失败／跳过，

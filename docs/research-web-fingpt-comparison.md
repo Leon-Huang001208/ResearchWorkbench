@@ -216,3 +216,10 @@ NYFed SOFRAI v3只在原Host/DataHub/可选研究仓校准复合均值和指数�
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## 精确维护作业身份（2026-10-29）
+
+新增内部只读目标合同以支持隔离演练的完整 label／路径／端口绑定，沿原受控维护层使用。
+它不新增 FinGPT／Claw／DSH 研究引擎、模型调用或普通研究工具权限；文件合同测试和源码 CI
+不提高研究质量、旧实例加载策略或 Wind 历史清理结论。完整 CLI／私有 launchd／原实例
+退役及新实例验收继续分别执行，未知结果保留。见[合同与消费者边界](research-web-maintenance-job-identity-v3.md)。
