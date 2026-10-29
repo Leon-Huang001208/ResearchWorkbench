@@ -7,6 +7,9 @@ PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除�
 PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。
 
 PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+部分Git收尾恢复仅扩原Project Constraints步骤已登记的git_safety Node合同；无新job、
+runner、依赖或timeout，不触发供应商/模型及其他平台产品dispatch。新增故障闭包本机
+约50秒，原10分钟约束job预留60秒增量；最终整套时间和候选CI另证，不省略旧用例。
 
 共享恢复仅在原Checks Python步骤追加三项stdlib维护模块合同，无模型、厂商、runner/job或超时变更；新reader测试及转移/锁/盘点小闭包实测约6秒，原步骤预留30秒。Mac安装沿原公开流程，无新增依赖或他平台dispatch。发布前重查visibility与费用资格。
 

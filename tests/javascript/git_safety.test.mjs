@@ -31,6 +31,262 @@ function fixture(t) {
   return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups'), backupVersion: 1}};
 }
 
+async function partialCleanupFixture(t) {
+  const f=cleanupFixture(t), {projectRoot,receipt}=f;
+  fs.appendFileSync(path.join(projectRoot,'.git/info/exclude'),'\nlogs/\n');
+  receipt.schemaVersion=1;receipt.mode='pr';receipt.verification={status:'passed'};
+  receipt.pullRequest={number:1,url:'https://github.com/fixture/repo/pull/1'};
+  git(projectRoot,['commit','--allow-empty','-m','merged task']);
+  const merge=git(projectRoot,['rev-parse','HEAD']);
+  git(projectRoot,['push','origin','master']);git(projectRoot,['update-ref','refs/remotes/origin/master',merge]);
+  receipt.remoteUrl='https://github.com/fixture/repo.git';git(projectRoot,['remote','set-url','origin',receipt.remoteUrl]);
+  const beforeRefs=Object.fromEntries(git(projectRoot,['for-each-ref','--format=%(refname) %(objectname)']).split('\n').map(line=>line.split(' ')));
+  const backup=backupRepository({projectRoot},{...f.options,backupVersion:2,worktreePaths:[projectRoot,receipt.featureWorktree,receipt.integrationWorktree],preservationRefs:beforeRefs});
+  const state=path.join(projectRoot,'.git/leon-engineering/resource-closeout/task');fs.mkdirSync(state,{recursive:true});
+  const managed=[{branch:receipt.featureBranch,worktree:receipt.featureWorktree,commit:receipt.featureCommit},{branch:receipt.integrationBranch,worktree:receipt.integrationWorktree,commit:receipt.integrationCommit}];
+  const beforeWorktrees=managed.map(row=>({worktree:row.worktree,HEAD:row.commit,branch:`refs/heads/${row.branch}`}));
+  fs.writeFileSync(path.join(state,'git-finalization.json'),JSON.stringify({taskId:'task',candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired:true,restoreVerified:true,beforeRefs,beforeWorktrees,managed,verifiedPreservationRefs:beforeRefs}),{mode:0o600});
+  fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'blocked',blocked:[{phase:'git',code:'DELIVERY_FAILED'}]}),{mode:0o600});
+  const delivery=path.join(projectRoot,'.git/leon-engineering/deliveries/task.json');fs.mkdirSync(path.dirname(delivery),{recursive:true});
+  fs.writeFileSync(delivery,JSON.stringify(receipt),{mode:0o600});
+  for(const item of managed)git(projectRoot,['worktree','remove',item.worktree]);
+  git(projectRoot,['branch','-d',receipt.featureBranch]);
+  const remoteRefs=new Map(managed.map(row=>[`refs/heads/${row.branch}`,row.commit])), calls=[], server={};
+  const controller={readDeliveryReceipt:()=>JSON.parse(fs.readFileSync(delivery)),validateCleanedDelivery:()=>{
+    const value=JSON.parse(fs.readFileSync(delivery));assert.equal(value.status,'cleaned');
+    for(const row of managed){assert.equal(fs.existsSync(row.worktree),false);assert.equal(remoteRefs.has(`refs/heads/${row.branch}`),false);assert.equal(spawnSync(gitPath,['-C',projectRoot,'show-ref','--verify','--quiet',`refs/heads/${row.branch}`]).status,1);}
+    return value;
+  }};
+  const githubRunner=(_exe,args)=>{
+    calls.push(args);
+    let value;
+    if(args[0]==='pr')value={state:'MERGED',headRefOid:receipt.integrationCommit,baseRefName:'master',reviewDecision:'',statusCheckRollup:[{name:'check',status:'COMPLETED',conclusion:'SUCCESS'}],mergeCommit:{oid:merge}};
+    else if(args[1]==='graphql'){
+      const body=JSON.parse(fs.readFileSync(args[args.indexOf('--input')+1]));
+      const updates=body.variables.input.refUpdates;
+      server.beforeMutation?.();
+      for(const row of updates){assert.equal(row.force,false);assert.equal(row.afterOid,'0'.repeat(40));}
+      if(updates.some(row=>remoteRefs.get(row.name)!==row.beforeOid))value={errors:[{type:'STALE_DATA'}]};
+      else{for(const row of updates)remoteRefs.delete(row.name);value={data:{updateRefs:{clientMutationId:body.variables.input.clientMutationId}}};}
+    } else {
+      const route=args[1];
+      if(route.endsWith('/protection'))value={required_status_checks:{strict:true,checks:[{context:'check'}]},required_pull_request_reviews:{required_approving_review_count:0},enforce_admins:{enabled:true},required_conversation_resolution:{enabled:true}};
+      else if(route.endsWith('/check-runs'))value=[{check_runs:[{name:'check',head_sha:receipt.integrationCommit,status:'completed',conclusion:'success'}]}];
+      else if(route.endsWith('/status'))value={sha:receipt.integrationCommit,statuses:[]};
+      else if(route.endsWith('/commits/'+merge))value={sha:merge,parents:[{sha:receipt.integrationCommit}]};
+      else if(route.endsWith('/git/ref/heads/master'))value={object:{sha:merge}};
+      else if(route.includes('/git/matching-refs/heads/')){const name='refs/heads/'+route.split('/git/matching-refs/heads/')[1];value=remoteRefs.has(name)?[{ref:name,object:{sha:remoteRefs.get(name)}}]:[];server.afterRemoteRead?.(name);}
+      else if(route==='repos/fixture/repo')value={node_id:'R_fixture'};
+      else throw new Error('unexpected GitHub request '+route);
+    }
+    return {status:0,stdout:JSON.stringify(value)};
+  };
+  const resourceRevalidationProbe=()=>({ok:true,taskId:'task',candidateCommit:receipt.integrationCommit,cache:{ok:true},previousReceiptSha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(state,'receipt.json'))).digest('hex')});
+  return {...f,state,backup,delivery,managed,remoteRefs,calls,merge,server,options:{...f.options,controller,githubRunner,resourceRevalidationProbe,quotaProbe:()=>({allowed:true})}};
+}
+
+test('partial cleanup recovers retired worktrees without forging the original pending proof', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), original=fs.readFileSync(path.join(f.state,'git-finalization.json'));
+  const input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal(preview.kind,'partial_cleanup');assert.equal(JSON.parse(fs.readFileSync(f.delivery)).status,'ci_passed');
+  const result=await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  assert.equal(result.status,'cleaned');assert.equal(JSON.parse(fs.readFileSync(f.delivery)).status,'cleaned');
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'complete');
+});
+
+test('partial cleanup preserves a recreated worktree before any local reference deletion', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  f.options.afterPartialRemoteRetired=()=>{
+    git(f.projectRoot,['worktree','add',f.receipt.integrationWorktree,f.receipt.integrationBranch]);
+    fs.writeFileSync(path.join(f.receipt.integrationWorktree,'new-user-work.txt'),'keep');
+  };
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'PARTIAL_CLEANUP_WORKTREE_PRESENT'});
+  assert.equal(git(f.projectRoot,['rev-parse',`refs/heads/${f.receipt.integrationBranch}`]),f.receipt.integrationCommit);
+  assert.equal(fs.readFileSync(path.join(f.receipt.integrationWorktree,'new-user-work.txt'),'utf8'),'keep');
+});
+
+test('partial cleanup checks worktrees after the last remote observation', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);let emptyReads=0;
+  f.server.afterRemoteRead=()=>{
+    if(f.remoteRefs.size===0 && ++emptyReads===4){
+      const other=path.join(f.root,'new-user-checkout');git(f.projectRoot,['worktree','add',other,f.receipt.integrationBranch]);
+      fs.writeFileSync(path.join(other,'new-user-work.txt'),'keep');
+    }
+  };
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'PARTIAL_CLEANUP_WORKTREE_PRESENT'});
+  assert.equal(git(f.projectRoot,['rev-parse',`refs/heads/${f.receipt.integrationBranch}`]),f.receipt.integrationCommit);
+  assert.equal(fs.readFileSync(path.join(f.root,'new-user-checkout/new-user-work.txt'),'utf8'),'keep');
+});
+
+test('partial cleanup never certifies a concurrently modified delivery', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  f.options.afterPartialReceiptCommitted=()=>{const v=JSON.parse(fs.readFileSync(f.delivery));v.newUserWork='keep';fs.writeFileSync(f.delivery,JSON.stringify(v));};
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+  assert.equal(JSON.parse(fs.readFileSync(f.delivery)).newUserWork,'keep');
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+});
+
+test('partial cleanup rechecks delivery after final network observations', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);let emptyReads=0;
+  f.server.afterRemoteRead=()=>{
+    if(f.remoteRefs.size===0 && ++emptyReads===6){const value=JSON.parse(fs.readFileSync(f.delivery));value.newUserWork='keep';fs.writeFileSync(f.delivery,JSON.stringify(value));}
+  };
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+  assert.equal(JSON.parse(fs.readFileSync(f.delivery)).newUserWork,'keep');
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+});
+
+test('partial cleanup completion preview never invokes the fetching validator', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  f.options.controller.validateCleanedDelivery=()=>{throw new Error('unexpected fetching validator');};
+  assert.equal((await recoverCloseoutFinalization(input,f.options)).status,'cleaned');
+});
+
+test('partial cleanup rejects stale preview and missing review before mutations', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:'0'.repeat(64)},f.options),{code:'CLOSEOUT_RECOVERY_STALE'});
+  fs.unlinkSync(path.join(f.projectRoot,'.git/leon-engineering/git-safety/reviews/task.json'));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'REVIEW_NOT_ATTESTED'});
+  assert.equal(f.remoteRefs.size,2);assert.equal(JSON.parse(fs.readFileSync(f.delivery)).status,'ci_passed');
+  assert.equal(fs.existsSync(path.join(f.state,'partial-cleanup-intent.json')),false);
+});
+
+test('partial cleanup remote compare-and-delete rejects new work atomically', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  f.server.beforeMutation=()=>f.remoteRefs.set(`refs/heads/${f.receipt.integrationBranch}`,f.merge);
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'PARTIAL_CLEANUP_REMOTE_UPDATE_UNCONFIRMED'});
+  assert.equal(f.remoteRefs.get(`refs/heads/${f.receipt.featureBranch}`),f.receipt.featureCommit);
+  assert.equal(f.remoteRefs.get(`refs/heads/${f.receipt.integrationBranch}`),f.merge);
+  assert.equal(git(f.projectRoot,['rev-parse',`refs/heads/${f.receipt.integrationBranch}`]),f.receipt.integrationCommit);
+});
+
+test('partial cleanup local compare-and-delete never erases a new commit', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  f.options.afterPartialRemoteRetired=()=>git(f.projectRoot,['update-ref',`refs/heads/${f.receipt.integrationBranch}`,f.merge]);
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'COMMAND_FAILED'});
+  assert.equal(git(f.projectRoot,['rev-parse',`refs/heads/${f.receipt.integrationBranch}`]),f.merge);
+  assert.equal(JSON.parse(fs.readFileSync(f.delivery)).status,'ci_passed');
+});
+
+test('partial cleanup observes accepted remote retirement after interruption without resending', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  let preview=await recoverCloseoutFinalization(input,f.options);
+  f.options.afterPartialRemoteRetired=()=>{throw new Error('interrupted');};
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),/interrupted/);
+  assert.equal(f.remoteRefs.size,0);delete f.options.afterPartialRemoteRetired;
+  preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal((await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options)).status,'cleaned');
+  assert.equal(f.calls.filter(args=>args[1]==='graphql').length,1);
+});
+
+test('partial cleanup resumes a receipt commit interrupted before completion certificate', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  let preview=await recoverCloseoutFinalization(input,f.options);
+  f.options.afterPartialReceiptCommitted=()=>{throw new Error('interrupted');};
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),/interrupted/);
+  assert.equal(JSON.parse(fs.readFileSync(f.delivery)).status,'cleaned');
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+  delete f.options.afterPartialReceiptCommitted;preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal((await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options)).status,'cleaned');
+});
+
+test('partial cleanup quota failure preserves references and original receipts', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options), before=fs.readFileSync(f.delivery);
+  f.options.quotaProbe=()=>({allowed:false});
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'ACTIONS_BUDGET_BLOCKED'});
+  assert.deepEqual(fs.readFileSync(f.delivery),before);assert.equal(f.remoteRefs.size,2);
+});
+
+test('partial cleanup framework validation uses private native Git shim and restores PATH', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const capture=path.join(f.root,'fetch-args.json'), wrapper=path.join(f.root,'selected-git');
+  fs.writeFileSync(wrapper,`#!${process.execPath}\nconst fs=require('node:fs'),{spawnSync}=require('node:child_process');const a=process.argv.slice(2);if(a.includes('fetch')){fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify(a));process.exit(0);}const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});process.exit(r.status??1);\n`,{mode:0o700});
+  f.options.gitPath=wrapper;const validate=f.options.controller.validateCleanedDelivery, oldPath=process.env.PATH;
+  f.options.controller.validateCleanedDelivery=()=>{
+    assert.equal(process.env.PATH.split(path.delimiter)[0],path.join(f.projectRoot,'.git/leon-engineering/git-safety/bin'));
+    const r=spawnSync('git',['-C',f.projectRoot,'fetch','--prune','origin','refs/heads/master:refs/remotes/origin/master'],{encoding:'utf8'});assert.equal(r.status,0,r.stderr);
+    return validate();
+  };
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  assert.equal(fs.existsSync(path.join(f.projectRoot,'.git/leon-engineering/git-safety/bin')),false);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const args=JSON.parse(fs.readFileSync(capture));assert.equal(args.includes('--prune'),false);assert.ok(args.includes('gc.auto=0'));assert.ok(args.includes('maintenance.auto=false'));
+  assert.equal(process.env.PATH,oldPath);
+});
+
+test('partial cleanup rejects reference loss during resource revalidation', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options), original=fs.readFileSync(path.join(f.state,'git-finalization.json'));
+  const revalidate=f.options.resourceRevalidationProbe;
+  f.options.resourceRevalidationProbe=(...args)=>{const result=revalidate(...args);git(f.projectRoot,['update-ref','-d','refs/remotes/origin/master']);return result;};
+  await assert.rejects(recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options),{code:'BRANCH_UNMERGED'});
+  assert.equal(fs.existsSync(path.join(f.state,'git-finalization-recovery.json')),false);
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
+});
+
+test('partial cleanup completed preview retains full object integrity checks', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const blob=git(f.projectRoot,['rev-parse','HEAD:tracked.txt']);fs.unlinkSync(path.join(f.projectRoot,'.git/objects',blob.slice(0,2),blob.slice(2)));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'OBJECT_INTEGRITY_FAILED'});
+});
+
+test('partial cleanup completed preview retains independent review binding', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  fs.unlinkSync(path.join(f.projectRoot,'.git/leon-engineering/git-safety/reviews/task.json'));
+  await assert.rejects(recoverCloseoutFinalization(input,f.options),{code:'REVIEW_NOT_ATTESTED'});
+});
+
+test('partial cleanup rejects FIFO metadata without blocking the child process', async t=>{
+  const f=await partialCleanupFixture(t), proof=path.join(f.state,'git-finalization.json');
+  fs.unlinkSync(proof);assert.equal(spawnSync('/usr/bin/mkfifo',[proof]).status,0);
+  const modulePath=pathToFileURL(path.resolve('scripts/git_safety.mjs')).href;
+  const body=`import fs from 'node:fs';import {recoverCloseoutFinalization} from ${JSON.stringify(modulePath)};const input=${JSON.stringify({projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory})};const controller={readDeliveryReceipt:()=>JSON.parse(fs.readFileSync(${JSON.stringify(f.delivery)}))};try{await recoverCloseoutFinalization(input,{controller});process.exitCode=9;}catch(error){process.stderr.write(error.code??'unknown');process.exitCode=3;}`;
+  const r=spawnSync(process.execPath,['--input-type=module','-e',body],{encoding:'utf8',timeout:3000});
+  assert.equal(r.error,undefined);assert.equal(r.status,3);assert.match(r.stderr,/CLOSEOUT_RECOVERY_RECORD_INVALID/);
+});
+
+test('partial cleanup refuses invalid or foreign branch namespaces', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), v=JSON.parse(fs.readFileSync(f.delivery));
+  v.integrationBranch='master';fs.writeFileSync(f.delivery,JSON.stringify(v));
+  const proof=JSON.parse(fs.readFileSync(path.join(f.state,'git-finalization.json')));proof.managed[1].branch='master';
+  fs.writeFileSync(path.join(f.state,'git-finalization.json'),JSON.stringify(proof));
+  await assert.rejects(recoverCloseoutFinalization({projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory},f.options),{code:'TASK_OWNERSHIP_MISMATCH'});
+  assert.equal(git(f.projectRoot,['rev-parse','master']),f.merge);assert.equal(f.remoteRefs.size,2);
+});
+
 test('macOS always selects native Git; unsupported production mutations fail closed', () => {
   assert.equal(selectGitPath({platform: 'darwin'}), '/usr/bin/git');
   assert.throws(() => selectGitPath({platform: 'linux', mutate: true}), {code: 'HOST_UNSUPPORTED'});
