@@ -249,8 +249,14 @@ def runtime_identity():
             )
         for schema in RECORD_SCHEMAS.values():
             require_local_schema(schema)
-        policy = build_policy(packages)
-        verify_policy(policy, packages)
+        # Reuse only immutable syntax facts within this one fresh binding.
+        # Both passes still read current bytes and verify all resolution state.
+        source_facts = {}
+        try:
+            policy = build_policy(packages, _source_facts=source_facts)
+            verify_policy(policy, packages, _source_facts=source_facts)
+        finally:
+            source_facts.clear()
         executable = Path(sys.executable).resolve(strict=True)
         return {
             "schema": "research_pack_runtime_v3",

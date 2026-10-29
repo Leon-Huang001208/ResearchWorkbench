@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+单次 runtime 绑定的两遍 import policy 仅复用相同新读源码字节对应的不可变语法事实；当前模块、loaded／search／stdlib 来源核验不缓存。新本地 Catalog 观察保持 runtime=6、save=281、validate=56，stable oracle 差异 0；56 次凭据预检在 fail 边界拒绝，不代表零尝试或生产凭据可用。新回归沿原 Checks Python 清单运行，不新增工具、权限、引擎或 CI 步骤；完整 CI 仍须另证。
+
 发布验证在每个 Python 文件重新解析后，只在本次调用内复用同一棵 AST 的节点枚举；原动态导入、相对导入、依赖、安装器和宿主进程检查仍按原顺序独立执行。不同文件、不同调用和改动后的字节不沿用上次枚举或验证结果；冷初始化六次依赖新鲜性检查和逐次持久化 checkpoint 保持。
 
 借用通用 Host API 的离线测试模块显式使用各自 function-scope 内存凭据。继承的文件凭据根／代理被清除，真实后端 fallback 拒绝；同例重开保留合成签名，例间隔离并恢复 patch。背景采集用原测试开关关闭，业务仍由真实 Host 与已声明 HTTPMockTransport／离线原件验证。此测试隔离不改变产品 Keychain 行为，也不能证明历史测试未曾触达系统凭据。

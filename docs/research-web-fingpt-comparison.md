@@ -1,5 +1,7 @@
 # FinGPT 三组隔离比较（macOS）
 
+PR245 的 runtime 导入事实定点验证只补入既有 Checks Python 清单，保护同次绑定的字节新鲜性与导入守卫；一次本地 Catalog 的 6／281／56 和 stable oracle 差异 0 不属于三组模型比较，也不产生模型、来源或报告质量通过证据。4b38 Checks 45 分钟取消与 mypy 原 17 项错误保持，未发送新 CI 或模型请求。
+
 PR245 repair3 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立声明的 dev 工具和普通 wheel 安装边界，并在完整测试前以 -I 实际核验已安装 Host／fresh Native 导入准入。未锁 jsonpointer 的真实 optional 引用及可发现性仍拒绝；不通过修改 policy、依赖锁或删测试降低门槛。离线 wheel／资源真调用不等于实际安装或console script通过；本机治理与安装CI不认证FinGPT模型质量、真实报告或用户额外SDK环境兼容，本轮不执行模型对比、上游取数或常驻切换。旧候选DSH下载超时不扩大重试、pin或模型预算。
 
 股票CSV自选导入的新增合同测试只使用真实临时Host与合成已授权目录，不调用模型或供应商，不启动FinGPT比较、不改变质量oracle/费用与显式重试规则。Checks/安装只扩原步骤名单，见[导入合同](research-web-watchlist-import.md)。

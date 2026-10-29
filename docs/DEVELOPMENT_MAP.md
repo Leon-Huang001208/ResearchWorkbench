@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`pack_import_policy.py` 的纯语法事实仅由 `pack_dependencies.runtime_identity` 在同次 build／verify 之间共享；`tests/research_web/test_pack_import_facts.py` 覆盖当前字节、上下文、loaded／search、清理与重复隔离，并登记原 Checks Python 清单及能力架构测试索引。没有新模块边界、服务或 API；六次 freshness／281 个保存 checkpoint 保留，原 CI 取消与未验证门不由本地索引更新改写。
+
 PR245 限额后的本地候选只含测试隔离与验证器同树枚举：`test_api.isolated_keyring` 为同例共享、例间独立的 memory vault，并拒绝真实 credential fallback；12个CI模块和3个相关模块显式导入。`capabilities/catalog.py:validate` 在每次 fresh parse 后局部枚举一次，原九个检查源改用该 tuple，检查顺序／六次 freshness／逐次 save 不动。近回归为 `test_fixture_credentials.py` 与 `test_capabilities_ast.py`／冻结 ordered oracle；原38 CI不完整、首F和历史Keychain UNKNOWN保留，normal bench与功能证据分开。此候选没有远端发布权限，三次修补限额不重置，C/D仅为ignored原型／设计。
 
 2026-10-28 PR245 repair3 收敛 `.github/workflows/research-web-checks.yml` 的测试解释器安装边界：现有完整 Web 锁哈希安装、pyproject dev 工具独立解析，根包沿产品普通 wheel 路径 --no-index --no-deps --no-build-isolation，保留七项实装 metadata 并以 -I 从已安装包实际运行 Host／fresh Native 导入准入。`tests/javascript/actions_quota_governance.test.mjs` 实际执行 stdlib-only 锁与工具解析矩阵；`research_web_ci_admission.test.mjs` 沿原 Checks JS 通配符执行离线真实 wheel 构建／无 checkout 资源调用和 optional 污染正反例，不向轻量 Constraints 引入 Hatchling／产品依赖。包内投影、资源、唯一 DSH 和原完整测试清单不改；新 CI 实装／console script／全闭包仍须另验。根包历史 langgraph→jsonpointer 链及 editable 专用 editables 不再引入，用户额外SDK污染仍明确拒绝。

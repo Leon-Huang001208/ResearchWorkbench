@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+PR245 单次 runtime 导入语法事实复用只在原 Checks 同一 Python 显式名单登记 `test_pack_import_facts.py`，本机 15 例 0.44 秒，原步骤增量保守预留 5 秒；不新增 job、runner、timeout、依赖或触发，不发送 CI。新候选一次带计数观察的 Catalog 真实保持 6 次 runtime／281 次 save／56 次 validate，stable oracle 字段差异 0；56 次凭据预检由 fail 边界拒绝，不是零尝试，也不访问实际 Keychain。该单样本带计数 wrapper，不能直接与旧无 wrapper 样本计算统计加速。4b38 原 Constraints／Mac Bootstrap 成功、Checks 45 分钟取消及 mypy 原 17 项错误保持原归属，不重置 repairAttempts=3、不额外 rerun；Linux 成本及完整 CI 仍未验证，远端操作前仍须实时核对 visibility／额度。
+
 PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除旧局部 helper，不增删用例或 CI 清单；原22例真实通过42.19秒，独立安全／纯上下文16例通过。没有新增 job、runner、依赖、timeout 或模型／供应商请求；旧 teardown 真实失败及计数保留，测试工具分组粒度修正不削减闭包。
 
 PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。

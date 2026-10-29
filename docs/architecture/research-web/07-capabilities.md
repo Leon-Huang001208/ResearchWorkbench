@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+`runtime_identity` 只在同一次绑定的 policy build／verify 两遍之间复用不可变导入语法事实，键使用模块／package 上下文与每遍新读取的完整源码字节。模块枚举、源码读取、policy 重建及 loaded／search／stdlib 来源核验仍逐遍执行；同尺寸且恢复 mtime 的源码变更不会命中旧事实。局部字典在成功或异常后清空，不跨六次 fresh runtime、目录、账户或测试共享。冻结 helper 源码及其派生 guard／资源摘要会变化，不能声称修改前后的冻结包全字节相同；原六次重验与 281 个保存 checkpoint 保留。本轮仅有本地定点证据，不能推导 Linux CI 或 45 分钟门已通过。
+
 `Catalog.validate` 每文件 fresh parse 后仅在局部保存 `tuple(ast.walk(tree))`，供原九处遍历使用；没有合并检查或改变 issue 顺序，没有跨文件／调用缓存。原六次 fresh runtime、版本／账户检查、旧结果验证不变；当前56内置包的冷目录样本仍有281次保存 checkpoint，未做批处理。49 个源字节向量保留完整有序结果 oracle，危险脚本仅解析、不执行；正常构造计时与 profiling、功能验收分别记录。
 
 共享离线 API fixture 必须显式在使用模块登记 function-scope 内存凭据，不能假设上游模块 autouse fixture 随别名传播。默认后端和公共测试 facade 使用同例 vault，真实系统／文件后端入口拒绝，退出恢复 patch；生产凭据协议、固定 MCP signing account 与唯一 DSH 不改。历史 Keychain 实际触达仍 UNKNOWN，新的零逃逸结果不回填旧 epoch。

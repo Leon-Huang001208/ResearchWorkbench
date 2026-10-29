@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+PR245 单次 runtime 导入事实回归只登记原 Checks 的同一 Python 显式清单，原本地验证→独立评审→最终候选 Router／CI 路由不变。一次带计数 Catalog 观察可认证 6／281／56 与 stable oracle 差异 0，不能替代完整 CI、Linux 成本或统计性能结论；原 45 分钟取消、mypy 17 项与三次修补预算保持原归属，本地元数据补齐不触发额外远端操作。
+
 自选CSV有限slice在原Research Web Checks Python步骤追加test_watchlist_import.py，Node仍走原glob；Mac Bootstrap原静态清单加入watchlist-import.mjs及后端import，不新增job/runner/timeout/依赖。单Host线程屏障需真实Store.files/save的RED→GREEN与回滚保全；跨Host/断电不认证。完整Router/独评/同候选Mac安装及远端由任务回执另证，详见[合同](research-web-watchlist-import.md)。
 
 报告生产UI先在独立worktree绑定真实GET元数据的隔离预览，禁止该预览连接Native/供应商/Office/模型或提交生产；前端回归按完整changed-set Router与原三CI/同候选Mac安装完成。与旧b800恢复独立，unknown不补空闲，源码通过不替代常驻切换或Word/下载验收。

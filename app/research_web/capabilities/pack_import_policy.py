@@ -74,7 +74,40 @@ def module_files(dependencies):
     return modules
 
 
-def build_policy(dependencies):
+def _import_facts(source, name, package, filename):
+    """Return immutable syntax facts; current resolution is never captured here."""
+    tree = ast.parse(source, filename=filename)
+    imports = []
+    dynamic = False
+
+    def visit(node, lazy=False):
+        nonlocal dynamic
+        lazy = lazy or isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))
+        if isinstance(node, ast.Import):
+            imports.extend((alias.name, lazy) for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            if node.level:
+                base = importlib.util.resolve_name("." * node.level + base, package)
+            imports.append((base, lazy))
+            imports.extend((base + "." + alias.name, lazy) for alias in node.names)
+        elif isinstance(node, ast.Call) and (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "__import__"
+            or isinstance(node.func, ast.Attribute)
+            and node.func.attr == "import_module"
+        ):
+            if not lazy:
+                raise ValueError("dynamic module-time import is not closed")
+            dynamic = True
+        for child in ast.iter_child_nodes(node):
+            visit(child, lazy)
+
+    visit(tree)
+    return tuple(imports), dynamic
+
+
+def build_policy(dependencies, *, _source_facts=None):
     """Bind module-time optional imports; block unbound lazy/dynamic imports.
 
     Function bodies are inspected for managed/stdlib reachability too, but an
@@ -93,33 +126,18 @@ def build_policy(dependencies):
         path, is_package = modules[name]
         if path.suffix != ".py":
             continue
-        tree = ast.parse(path.read_bytes(), filename=str(path))
+        # Always observe current bytes, even inside the same admission pair.
+        source = path.read_bytes()
         package = name if is_package else name.rpartition(".")[0]
-        imports = []
-
-        def visit(node, lazy=False, imports=imports, package=package, name=name):
-            lazy = lazy or isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))
-            if isinstance(node, ast.Import):
-                imports.extend((alias.name, lazy) for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                base = node.module or ""
-                if node.level:
-                    base = importlib.util.resolve_name("." * node.level + base, package)
-                imports.append((base, lazy))
-                imports.extend((base + "." + alias.name, lazy) for alias in node.names)
-            elif isinstance(node, ast.Call) and (
-                isinstance(node.func, ast.Name)
-                and node.func.id == "__import__"
-                or isinstance(node.func, ast.Attribute)
-                and node.func.attr == "import_module"
-            ):
-                if not lazy:
-                    raise ValueError("dynamic module-time import is not closed")
-                dynamic.add(name)
-            for child in ast.iter_child_nodes(node):
-                visit(child, lazy)
-
-        visit(tree)
+        key = (name, package, source)
+        facts = None if _source_facts is None else _source_facts.get(key)
+        if facts is None:
+            facts = _import_facts(source, name, package, str(path))
+            if _source_facts is not None:
+                _source_facts[key] = facts
+        imports, has_dynamic = facts
+        if has_dynamic:
+            dynamic.add(name)
         for imported, lazy in imports:
             root = imported.split(".")[0]
             if root in roots:
@@ -234,14 +252,16 @@ def _references(module, modules, roots, checked_code):
                 checked_code.add(filename)
 
 
-def verify_policy(policy, dependencies):
+def verify_policy(policy, dependencies, *, _source_facts=None):
     """Check current search resolution and every already-loaded root/submodule.
 
     This runs before Native calculation imports and again on Host binding. A
     removed shadow sys.path entry does not hide a previously imported module.
     """
     try:
-        if policy.get("schema") != SCHEMA or policy != build_policy(dependencies):
+        if policy.get("schema") != SCHEMA or policy != build_policy(
+            dependencies, _source_facts=_source_facts
+        ):
             raise ValueError("dependency import policy changed")
         modules = module_files(dependencies)
         for name in policy["roots"]:

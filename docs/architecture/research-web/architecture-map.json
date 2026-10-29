@@ -520,6 +520,7 @@
         "tests/research_web/test_pack_dependency_closure.py",
         "tests/research_web/test_pack_format_profile.py",
         "tests/research_web/test_pack_import_policy.py",
+        "tests/research_web/test_pack_import_facts.py",
         "tests/research_web/test_pack_native_resources.py",
         "tests/research_web/test_pack_native_writer.py",
         "tests/research_web/test_pack_output_schema.py",

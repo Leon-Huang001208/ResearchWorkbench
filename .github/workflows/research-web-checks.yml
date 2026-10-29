@@ -195,6 +195,7 @@ jobs:
             tests/research_web/test_pack_format_profile.py \
             tests/research_web/test_pack_history_read.py \
             tests/research_web/test_pack_import_policy.py \
+            tests/research_web/test_pack_import_facts.py \
             tests/research_web/test_pack_literal_scope.py \
             tests/research_web/test_pack_native_resources.py \
             tests/research_web/test_pack_native_writer.py \

@@ -3794,6 +3794,8 @@ Classes:
 
 Functions:
 - `module_files`
+- `_import_facts`
+  - Return immutable syntax facts; current resolution is never captured here.
 - `build_policy`
   - Bind module-time optional imports; block unbound lazy/dynamic imports.
 - `_stdlib_origin`
