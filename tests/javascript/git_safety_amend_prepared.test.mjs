@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {runDelivery, parseCli} from '../../scripts/git_safety.mjs';
-import {withBackupLock, fingerprint} from '../../scripts/git_backup_store.mjs';
+import {runDelivery, parseCli, backupRepository} from '../../scripts/git_safety.mjs';
+import {withBackupLock, fingerprint, readManifest} from '../../scripts/git_backup_store.mjs';
 
 function git(root, args) {
   const result = spawnSync('/usr/bin/git', ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', root, ...args], {encoding:'utf8'});
@@ -44,13 +44,15 @@ function fixture(t) {
     const endpoint=args[1]; let value;
     if(args.includes('--include')) {
       const sha=endpoint.split('/').at(-1);
+      if(sha===base)return server.baseCommitResponse??{status:0,stdout:`HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify({sha})}`,stderr:''};
+      if(server.commitResponse)return server.commitResponse(sha);
       if(server.commitError)return {status:1,stdout:`HTTP/2.0 ${server.commitError}\r\ncontent-type: application/json\r\n\r\n{"message":"Not Found"}`,stderr:''};
       return server.commitKnown?{status:0,stdout:`HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify({sha})}`,stderr:''}:{status:1,stdout:'HTTP/2.0 404 Not Found\r\ncontent-type: application/json\r\n\r\n{"message":"Not Found"}',stderr:''};
     }
     if (endpoint==='repos/fixture/repo/git/ref/heads/master') value={object:{sha:server.base}};
     else if (endpoint.startsWith('repos/fixture/repo/git/matching-refs/heads/')) value=server.published?[{ref:'published'}]:[];
     else if (endpoint.startsWith('repos/fixture/repo/pulls?')) value=server.published?[{number:1}]:[];
-    else if (endpoint.includes('/actions/runs?')) value={total_count:server.runs?1:0,workflow_runs:[]};
+    else if (endpoint.includes('/actions/runs?')) value={total_count:server.runs||[...(server.runCommits??[])].some(sha=>endpoint.includes(sha))?1:0,workflow_runs:[]};
     else if (endpoint.endsWith('/check-runs')) value={total_count:server.runs?1:0,check_runs:[]};
     else if (endpoint.endsWith('/status')) value={total_count:server.runs?1:0,statuses:[]};
     else assert.fail('unexpected remote operation '+args.join(' '));
@@ -283,4 +285,146 @@ for(const name of ['info/grafts','shallow']) test('raw graph guard rejects netwo
   const f=fixture(t),before=fs.readFileSync(f.filename),target=path.join(f.projectRoot,'.git',name);let changed=false;
   f.options.beforePreparedAmendAdopt=()=>{f.server.beforeRead=()=>{if(!changed){changed=true;fs.writeFileSync(target,f.base+'\n');}};};
   await assert.rejects(amend(f),{code:'PREPARED_AMEND_GRAPH_UNPROVEN'});assert.deepEqual(fs.readFileSync(f.filename),before);assert.equal(fs.readFileSync(target,'utf8'),f.base+'\n');
+});
+
+function missingCommit422(sha, patch={}) {
+  const body={message:`No commit found for SHA: ${sha}`,documentation_url:'https://docs.github.com/rest/commits/commits#get-a-commit',status:'422',...patch};
+  return {status:1,stdout:`HTTP/2.0 422 Unprocessable Entity\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(body)}`,stderr:`gh: No commit found for SHA: ${sha} (HTTP 422)\n`};
+}
+
+test('canary regression: exact live-format 422 is absent only after readable base from the same commit endpoint', async t=>{
+  const f=fixture(t);f.server.commitResponse=sha=>missingCommit422(sha);
+  const result=await amend(f);assert.equal(result.integrationCommit,f.candidate);
+  const includes=f.calls.filter(args=>args.includes('--include')).map(args=>args[1]);
+  assert.equal(includes[0],`repos/fixture/repo/commits/${f.base}`);
+});
+
+for(const response of [{status:1,stdout:'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Not Found"}'},{status:0,stdout:'HTTP/2.0 200 OK\r\n\r\n{"sha":"1111111111111111111111111111111111111111"}'}]) test('canary regression: commit-endpoint base proof cannot be replaced by a readable ref '+response.status, async t=>{
+  const f=fixture(t);f.server.baseCommitResponse=response;const before=fs.readFileSync(f.filename);
+  await assert.rejects(amend(f),{code:'UNPUBLISHED_REMOTE_UNPROVEN'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+function advanceFeatureAndMerge(f, label='later-repair') {
+  fs.writeFileSync(path.join(f.feature,label+'.txt'),label);git(f.feature,['add','.']);git(f.feature,['commit','-m',label]);
+  const feature=git(f.feature,['rev-parse','HEAD']);git(f.integration,['merge','--no-ff','--no-edit',feature]);return {feature,candidate:git(f.integration,['rev-parse','HEAD'])};
+}
+
+test('canary regression: interrupted unadopted merge is retained as a raw first-parent intermediate', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);
+  f.options.beforePreparedAmendAdopt=()=>{throw Object.assign(new Error('interrupted'),{code:'INTERRUPTED'});};
+  await assert.rejects(amend(f),{code:'INTERRUPTED'});assert.deepEqual(fs.readFileSync(f.filename),before);
+  delete f.options.beforePreparedAmendAdopt;const next=advanceFeatureAndMerge(f);
+  const result=await amend(f);assert.equal(result.integrationCommit,next.candidate);assert.equal(result.featureCommit,next.feature);
+  assert.equal(result.preparedAmendment.schemaVersion,2);
+  assert.deepEqual(result.preparedAmendment.mergeChain,[{commit:f.candidate,firstParent:f.previous,featureCommit:f.newFeature},{commit:next.candidate,firstParent:f.candidate,featureCommit:next.feature}]);
+  const manifest=JSON.parse(fs.readFileSync(path.join(result.preparedAmendment.backupDirectory,'manifest.json')));
+  for(const [index,step] of result.preparedAmendment.mergeChain.entries()){
+    assert.equal(manifest.preservationRefs[`refs/rwb-amend/merge-chain/${index}/candidate`],step.commit);
+    assert.equal(manifest.preservationRefs[`refs/rwb-amend/merge-chain/${index}/feature`],step.featureCommit);
+  }
+  assert.deepEqual(await amend(f),result);
+});
+
+for(const [name,build] of [
+  ['wrong-sha',sha=>missingCommit422(sha,{message:'No commit found for SHA: '+'1'.repeat(40)})],
+  ['generic-422',sha=>missingCommit422(sha,{message:'Validation Failed'})],
+  ['wrong-doc',sha=>missingCommit422(sha,{documentation_url:'https://example.invalid'})],
+  ['numeric-status',sha=>missingCommit422(sha,{status:422})],
+  ['missing-status',sha=>missingCommit422(sha,{status:undefined})],
+  ['extra-side-field',sha=>missingCommit422(sha,{publication:'unknown'})],
+  ['wrong-exit',sha=>({...missingCommit422(sha),status:0})],
+  ['403',sha=>{const r=missingCommit422(sha);r.stdout=r.stdout.replace('422 Unprocessable Entity','403 Forbidden');return r;}],
+  ['timeout',()=>({status:null,stdout:'',stderr:'timeout'})],
+  ['null-body',()=>({status:1,stdout:'HTTP/2.0 422 Unprocessable Entity\r\n\r\nnull',stderr:''})],
+]) test('strict 422 absence refuses '+name, async t=>{
+  const f=fixture(t);f.server.commitResponse=build;const before=fs.readFileSync(f.filename);
+  await assert.rejects(amend(f),{code:'UNPUBLISHED_REMOTE_UNPROVEN'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const kind of ['single-parent-gap','foreign-second-parent','repeated-feature','wrong-first-parent']) test('raw merge chain rejects '+kind, async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);
+  if(kind==='single-parent-gap')git(f.integration,['commit','--allow-empty','-m','gap']);
+  if(kind==='foreign-second-parent'){
+    const foreign=git(f.projectRoot,['commit-tree',git(f.projectRoot,['rev-parse','HEAD^{tree}']),'-p',f.base,'-m','foreign']);
+    git(f.integration,['merge','--no-ff','--no-edit',foreign]);
+  }
+  if(kind==='repeated-feature'){
+    const duplicate=git(f.integration,['commit-tree',git(f.integration,['rev-parse','HEAD^{tree}']),'-p',f.candidate,'-p',f.newFeature,'-m','same feature again']);
+    git(f.integration,['checkout','-B',f.receipt.integrationBranch,duplicate]);
+  }
+  if(kind==='wrong-first-parent'){
+    git(f.feature,['merge','--no-ff','--no-edit',f.previous]);
+    git(f.integration,['checkout','-B',f.receipt.integrationBranch,f.base]);
+  }
+  advanceFeatureAndMerge(f,kind);
+  await assert.rejects(amend(f),{code:'PREPARED_AMEND_ANCESTRY_INVALID'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+test('raw merge chain rejects more than 32 actual committed steps', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);
+  for(let index=0;index<32;index++)advanceFeatureAndMerge(f,'step-'+index);
+  await assert.rejects(amend(f),{code:'PREPARED_AMEND_CHAIN_LIMIT'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const total of [false,true]) test('raw merge chain enforces '+(total?'256KiB cumulative':'64KiB individual')+' raw commit byte limit', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename),message=path.join(f.root,'message.txt');fs.writeFileSync(message,'x'.repeat(total?60*1024:65*1024));
+  if(total)for(let index=0;index<5;index++){advanceFeatureAndMerge(f,'large-'+index);git(f.integration,['commit','--amend','-F',message]);}
+  else git(f.integration,['commit','--amend','-F',message]);
+  await assert.rejects(amend(f),{code:'PREPARED_AMEND_CHAIN_LIMIT'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const kind of ['duplicate','cycle']) test('v2 immutable history refuses a declared '+kind+' chain', async t=>{
+  const f=fixture(t),first=await amend(f),proof=structuredClone(first.preparedAmendment);
+  if(kind==='duplicate')proof.mergeChain.push({...proof.mergeChain[0]});else proof.mergeChain[0].firstParent=proof.mergeChain[0].commit;
+  const record={...first,preparedAmendment:proof,preparedAmendmentHistory:[proof]};fs.writeFileSync(f.filename,JSON.stringify(record));const before=fs.readFileSync(f.filename);
+  await assert.rejects(amend(f),{code:'PREPARED_AMEND_HISTORY_INVALID'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const kind of ['visible','ci']) test('unadopted intermediate with '+kind+' evidence cannot be admitted', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);advanceFeatureAndMerge(f);
+  if(kind==='visible')f.server.commitResponse=sha=>sha===f.candidate?{status:0,stdout:`HTTP/2.0 200 OK\r\n\r\n${JSON.stringify({sha})}`,stderr:''}:missingCommit422(sha);
+  else f.server.runCommits=new Set([f.candidate]);
+  await assert.rejects(amend(f),{code:kind==='visible'?'UNPUBLISHED_STATE_INVALID':'UNPUBLISHED_CI_PRESENT'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const kind of ['visible','ci']) test('unadopted intermediate feature with '+kind+' evidence cannot be admitted', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);advanceFeatureAndMerge(f);
+  if(kind==='visible')f.server.commitResponse=sha=>sha===f.newFeature?{status:0,stdout:`HTTP/2.0 200 OK\r\n\r\n${JSON.stringify({sha})}`,stderr:''}:missingCommit422(sha);
+  else f.server.runCommits=new Set([f.newFeature]);
+  await assert.rejects(amend(f),{code:kind==='visible'?'UNPUBLISHED_STATE_INVALID':'UNPUBLISHED_CI_PRESENT'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+test('every intermediate merge anchor must match the actually restored sealed backup', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);advanceFeatureAndMerge(f);
+  f.options.afterPreparedAmendBackup=backup=>{
+    const file=path.join(backup.directory,'manifest.json'),manifest=JSON.parse(fs.readFileSync(file));delete manifest.preservationRefs['refs/rwb-amend/merge-chain/0/candidate'];
+    manifest.stateHash=fingerprint(manifest,manifest.protection);const bytes=JSON.stringify(manifest,null,2)+'\n';fs.writeFileSync(file,bytes);
+    fs.writeFileSync(path.join(backup.directory,'seal.json'),JSON.stringify({manifestSha256:crypto.createHash('sha256').update(bytes).digest('hex')})+'\n');
+  };
+  await assert.rejects(amend(f));assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+test('network-time normal merge chain advance is preserved but cannot be adopted by a stale observation', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);advanceFeatureAndMerge(f);let changed=false;
+  f.options.beforePreparedAmendAdopt=()=>{f.server.beforeRead=()=>{if(!changed){changed=true;advanceFeatureAndMerge(f,'concurrent-normal-merge');}};};
+  await assert.rejects(amend(f),{code:'DELIVERY_RECORD_CHANGED'});assert.equal(changed,true);assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+test('legacy v1 single-step history remains restorable without a v2 chain field', async t=>{
+  const f=fixture(t),first=await amend(f),proof={...first.preparedAmendment,schemaVersion:1};delete proof.mergeChain;
+  fs.writeFileSync(path.join(path.dirname(proof.receiptSnapshot),'proof.json'),JSON.stringify(proof,null,2)+'\n');
+  const legacy={...first,preparedAmendment:proof,preparedAmendmentHistory:[proof]};fs.writeFileSync(f.filename,JSON.stringify(legacy));
+  assert.deepEqual(await amend(f),legacy);
+});
+
+test('legacy v1 keeps its original single-step command byte budget rather than the new v2 bound', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename),message=path.join(f.root,'legacy-message.txt');fs.writeFileSync(message,'x'.repeat(65*1024));git(f.integration,['commit','--amend','-F',message]);
+  const candidate=git(f.integration,['rev-parse','HEAD']),preservationRefs={'refs/rwb-amend/old-feature':f.oldFeature,'refs/rwb-amend/old-candidate':f.previous};
+  const backup=backupRepository({projectRoot:f.projectRoot},{...f.options,backupVersion:2,worktreePaths:[f.feature,f.integration],preservationRefs});
+  const epoch=crypto.randomUUID(),directory=path.join(f.projectRoot,'.git/leon-engineering/git-safety/prepared-amend/task',epoch);fs.mkdirSync(directory,{recursive:true,mode:0o700});
+  const snapshot=path.join(directory,'receipt.json');fs.writeFileSync(snapshot,before,{mode:0o600});
+  const proof={schemaVersion:1,epoch,previousCandidate:f.previous,previousFeature:f.oldFeature,candidateCommit:candidate,featureCommit:f.newFeature,baseCommit:f.base,receiptSnapshot:snapshot,receiptSha256:crypto.createHash('sha256').update(before).digest('hex'),backupDirectory:backup.directory,backupManifestSha256:readManifest(backup.directory).hash,restoreVerified:true};
+  fs.writeFileSync(path.join(directory,'proof.json'),JSON.stringify(proof,null,2)+'\n',{mode:0o600});
+  const legacy={...f.receipt,integrationCommit:candidate,featureCommit:f.newFeature,verification:null,review:null,preparedAmendment:proof,preparedAmendmentHistory:[proof]};fs.writeFileSync(f.filename,JSON.stringify(legacy));
+  assert.deepEqual(await amend(f),legacy);
 });
