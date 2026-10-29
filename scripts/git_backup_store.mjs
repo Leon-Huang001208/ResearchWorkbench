@@ -88,9 +88,13 @@ export function withBackupLock(root,callback) {
   const lock=path.join(root,'.backup.lock');
   try {fs.mkdirSync(lock,{mode:0o700});} catch(error) {if(error.code==='EEXIST')fail('BACKUP_STORE_LOCKED');throw error;}
   const before=fs.lstatSync(lock);
-  try{return callback();}finally{
-    const current=fs.lstatSync(lock);
-    if(current.ino!==before.ino || current.dev!==before.dev || current.isSymbolicLink())fail('BACKUP_LOCK_CHANGED');
+  let held=true;
+  const assertHeld=()=>{
+    const current=fs.lstatSync(lock,{throwIfNoEntry:false});
+    if(!held || !current?.isDirectory() || current.ino!==before.ino || current.dev!==before.dev || current.isSymbolicLink())fail('BACKUP_LOCK_CHANGED');
+  };
+  try{return callback(assertHeld);}finally{
+    assertHeld();held=false;
     fs.rmdirSync(lock);
   }
 }
