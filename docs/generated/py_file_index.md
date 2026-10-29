@@ -23461,7 +23461,6 @@ Imports:
 - `json`
 - `os`
 - `pathlib`
-- `re`
 - `signal`
 - `stat`
 - `subprocess`

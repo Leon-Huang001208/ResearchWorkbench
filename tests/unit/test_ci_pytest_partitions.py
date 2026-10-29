@@ -16,6 +16,17 @@ import pytest
 from scripts import run_ci_pytest_partitions as partitions
 
 
+def test_safe_exception_class_rejects_identifier_shaped_failure_body() -> None:
+    assert partitions._safe_exception_class("PRIVATE_FAILURE_BODY_CANARY") is None
+    assert partitions._safe_exception_class(AssertionError()) == "AssertionError"
+    assert partitions._safe_exception_class(partitions.PartitionError()) == "PartitionError"
+
+    class PrivateFailureBodyCanary(Exception):
+        pass
+
+    assert partitions._safe_exception_class(PrivateFailureBodyCanary()) == "UnknownError"
+
+
 def test_split_round_robins_nodeids_from_large_modules() -> None:
     nodeids = [f"tests/test_api.py::test_api[{index}]" for index in range(120)]
     nodeids += [f"tests/test_other.py::test_other[{index}]" for index in range(31)]
