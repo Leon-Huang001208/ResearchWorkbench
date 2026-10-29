@@ -60,6 +60,36 @@ loaded policy、审批、排空与退役等仍由调用上下文独立核验；�
 该原语任务完成，历史清理失败维持 UNKNOWN；不得据此提升其资格。Windows/Linux 及
 Docker 产品验收未由该原语执行，原未验证状态保留。
 
+## 2026-10-30 原任务基线恢复与本地复验
+
+沿用原任务 `controlled-job-identity-20261029-569b85cd` 和会话
+`569b85cdfbe26bf8222e38d5a9f2a7c3`，没有新建任务或重置修补计数。原交付回执仍为
+`awaiting_ci`、`repairAttempts=0`，原字节 SHA-256 为
+`abf9f6920b8f5b91bf89fe16213d3560c6797f5aef4dc4387108c85d6164ca21`。
+本轮只读检查确认 Git fsck 通过、没有原生／仓库锁，远端 master 为
+`7a282c0a1de85440c859933122446ba8742e3ba7`，仓库当前 PUBLIC。本地 master 未移动。
+
+在正式 `withRepositoryLock` 内将明确基线普通 merge 到原功能分支，唯一冲突为
+`docs/actions-budget.md`；两侧预算记录均保留。合并检查点为
+`841898919e671dac57758b6abab0b7ec5bd9afef`。业务模块 SHA-256 仍为上述 `de2d09a1...`，
+测试模块 SHA-256 仍为 `790dd391b0b2dc47422917d32db548b6ef9df51eba5d3267a4105fd265ffb93a`。
+源模块、测试及新增工作流登记未在此恢复步骤中修改；原 51 条事件／15 次 launchctl 的
+私有原语证据边界保持。
+
+完整 12 文件 changed set 的 Router 仍为 L4，14 份受管 runtime 文件摘要均匹配 manifest。
+原 11 个本地门全部通过，墙钟 43.456 秒；身份合同 43 例按 20/20/3 分批，零失败、错误、
+跳过；协议合同 81 例通过；本机集成 107 例含原 Windows-only 条件跳过 1 例，未认证该平台。
+Node JUnit 合计 315 例、零失败／错误／跳过。原离线保护拒绝网络及秘密读取，批次守卫
+零违规；仅原白名单的监督读取与 Foundation 子进程各一次，不调用 Office 应用。
+Ruff、Black、isort 及使用项目配置、正常 import 跟随的 mypy 均通过，没有安装依赖。
+原始命令、JUnit、离线守卫、计数证明及运行状态均保存于 `logs/pr250-baseline-7a/`。
+
+以上完整复验绑定合并检查点；本报告差量另做文档治理和完整 changed-set 约束检查，
+最终 plan／receipt 绑定报告检查点并明确复用已验证源码字节。当前仅完成本地阶段；
+独立 SPEC／Python QUALITY、新候选三 CI 和同候选 Mac 干净安装待后续正式交付，
+不能复用旧取消的 Checks 或把本地通过写成总体验收通过。完整 CLI、旧实例准入／退役、
+Wind／Office、生产切换、认证页面、真实模型及 Windows／Linux 产品验收仍未在本轮执行。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","diagrams":[],"reason":"仅增加维护内部只读目标身份与文件合同，不新增运行节点、服务、执行循环或DSH权限；实际生命周期仍由现有维护上下文承担。"} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","diagrams":[],"reason":"只绑定原生产网关或已登记私有演练目标，不新增账号或权限通道，不把target identity当作效果authority或旧实例证明。"} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","diagrams":[],"reason":"复用原Checks Python步骤登记只读合同回归，并在原Mac安装检查追加无效果模块导入；runner、job、触发频率、依赖、超时和原有验收断言均保留。测试与源码CI只认证各自冻结候选，实际launchd、完整CLI、退役和Wind保全继续由独立现场证据验收。"} -->
