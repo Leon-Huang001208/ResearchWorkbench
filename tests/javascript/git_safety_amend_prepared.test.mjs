@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {runDelivery, parseCli} from '../../scripts/git_safety.mjs';
+import {withBackupLock} from '../../scripts/git_backup_store.mjs';
 
 function git(root, args) {
   const result = spawnSync('/usr/bin/git', ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', root, ...args], {encoding:'utf8'});
@@ -156,4 +157,58 @@ test('an accessible GitHub commit also requires empty check and status evidence;
   for(const status of ['403 Forbidden','500 Internal Server Error','000 Network failure']){
     const other=fixture(t);other.server.commitError=status;const before=fs.readFileSync(other.filename);await assert.rejects(amend(other),{code:'UNPUBLISHED_REMOTE_UNPROVEN'});assert.deepEqual(fs.readFileSync(other.filename),before);
   }
+});
+
+for(const patch of [{checkRuns:[{id:123}]},{ciResult:{status:'passed',runs:[123]}},{rollback:{status:'not_run',workflowRun:123}}]) test('review regression: refuses unknown side metadata '+JSON.stringify(patch), async t=>{
+  const f=fixture(t);fs.writeFileSync(f.filename,JSON.stringify({...f.receipt,...patch}));const before=fs.readFileSync(f.filename);
+  await assert.rejects(amend(f),{code:'UNPUBLISHED_STATE_INVALID'});assert.deepEqual(fs.readFileSync(f.filename),before);assert.equal(f.calls.length,0);
+});
+
+for(const name of ['repository','backup']) for(const action of ['remove','replace']) test(`review regression: ${name} lock ${action} during final network wait preserves original receipt`, async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);let changed=false;
+  f.options.beforePreparedAmendAdopt=()=>{
+    f.server.beforeRead=()=>{
+      if(changed)return;changed=true;
+      const target=name==='repository'?path.join(f.projectRoot,'.git/leon-engineering/git-safety/repository.lock'):path.join(f.options.backupRoot,'.backup.lock');
+      if(action==='replace') {fs.renameSync(target,target+'.saved');if(name==='repository')fs.writeFileSync(target,'foreign');else fs.mkdirSync(target,{mode:0o700});}
+      else if(name==='repository')fs.unlinkSync(target);else fs.rmdirSync(target);
+    };
+  };
+  await assert.rejects(amend(f));assert.equal(changed,true);assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const kind of ['snapshot','proof','backup','chain']) test('review regression: prior '+kind+' corruption refuses a new descendant', async t=>{
+  const f=fixture(t),first=await amend(f),proof=first.preparedAmendment;
+  if(kind==='snapshot')fs.appendFileSync(proof.receiptSnapshot,' ');
+  if(kind==='proof')fs.writeFileSync(path.join(path.dirname(proof.receiptSnapshot),'proof.json'),'{}');
+  if(kind==='backup')fs.renameSync(path.join(proof.backupDirectory,'manifest.json'),path.join(proof.backupDirectory,'manifest.saved'));
+  if(kind==='chain') {first.preparedAmendmentHistory[0]={...proof,previousCandidate:f.base};fs.writeFileSync(f.filename,JSON.stringify(first));}
+  fs.writeFileSync(path.join(f.feature,'next.txt'),'next');git(f.feature,['add','.']);git(f.feature,['commit','-m','later repair']);
+  git(f.integration,['merge','--no-ff','--no-edit',git(f.feature,['rev-parse','HEAD'])]);
+  const before=fs.readFileSync(f.filename);await assert.rejects(amend(f));assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+test('backup lock optional witness keeps existing callbacks compatible and expires on release', t=>{
+  const f=fixture(t),root=f.options.backupRoot;let witness;
+  assert.equal(withBackupLock(root,()=>42),42);
+  assert.equal(withBackupLock(root,assertHeld=>{witness=assertHeld;assert.equal(typeof witness,'function');witness();return 'held';}),'held');
+  assert.throws(()=>witness(),{code:'BACKUP_LOCK_CHANGED'});assert.equal(fs.existsSync(path.join(root,'.backup.lock')),false);
+});
+
+for(const action of ['remove','replace']) test('backup lock acquired witness detects '+action+' before callback effects', t=>{
+  const f=fixture(t),root=f.options.backupRoot;let effect=false;
+  assert.throws(()=>withBackupLock(root,assertHeld=>{
+    const lock=path.join(root,'.backup.lock');
+    if(action==='replace'){fs.renameSync(lock,lock+'.saved');fs.mkdirSync(lock,{mode:0o700});}else fs.rmdirSync(lock);
+    assertHeld();effect=true;
+  }),{code:'BACKUP_LOCK_CHANGED'});
+  assert.equal(effect,false);
+});
+
+test('history verification covers the oldest epoch before a third descendant', async t=>{
+  const f=fixture(t),first=await amend(f);
+  const advance=label=>{fs.writeFileSync(path.join(f.feature,label+'.txt'),label);git(f.feature,['add','.']);git(f.feature,['commit','-m',label]);git(f.integration,['merge','--no-ff','--no-edit',git(f.feature,['rev-parse','HEAD'])]);};
+  advance('second');const second=await amend(f);assert.equal(second.preparedAmendmentHistory.length,2);
+  fs.appendFileSync(path.join(path.dirname(first.preparedAmendment.receiptSnapshot),'proof.json'),' ');
+  advance('third');const before=fs.readFileSync(f.filename);await assert.rejects(amend(f),{code:'PREPARED_AMEND_HISTORY_INVALID'});assert.deepEqual(fs.readFileSync(f.filename),before);
 });

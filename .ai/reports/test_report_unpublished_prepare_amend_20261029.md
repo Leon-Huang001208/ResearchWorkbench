@@ -49,3 +49,24 @@ GitHub 只读观察 master、任务分支／PR、Actions 和可见提交的 chec
 仅接纳二父直接合并；在 merge 后额外提交的候选、历史不明或账本缺失均明确拒绝。
 adoption 是回执原子 rename 的提交点；若此后日志或资源登记失败，重试必须重新核验已采用
 epoch，不回退已提交回执或伪造未执行状态。
+
+## SPEC 修订（基于 e1c8f403 的独立复现）
+
+三项评审逐项核实后，在旧实现新增11个测试全部RED：未知 checkRuns／ciResult／rollback
+workflowRun 被接纳；最终网络等待中仓库锁／备份锁被移除或替换后先写回执再报错；
+旧 snapshot／proof／backup／history 损坏后仍能追加新 descendant。
+日志 `logs/unpublished-prepare-amend-20261029-f66ce16a/spec-red.log`，11失败／0通过。
+
+修订使用 schema1 精确允许字段与嵌套验证；仓库锁从实际取得的 inode／nonce 派生闭包，
+备份锁以兼容可选回调参数传出当次 inode 的校验闭包。最终 CAS 前验证两者，拒绝写后才报错。
+每次修订和重放逐个校验所有 epoch 的 snapshot 哈希、proof 精确字节、历史前缀、immutable
+身份字段、sealed manifest 和旧提交 preservation anchors；持备份锁实际恢复全部历史，
+不是只核对最新 epoch 或仅在 replay 验证。备份模块 scope 扩展已经主任务明确授权。
+
+新增备份锁无参回调兼容、闭包过期／漂移、两次有效修订后最早 epoch 损坏的测试。
+专项第一轮56/56 GREEN（88.63秒）；补最早 epoch 字节损坏用例后，最终原112项＋专用57项
+联合169/169 PASS，0跳过（183.00秒），日志 `spec-full-final.log`。本轮 Router 本地合同113/113
+PASS（5.49秒），两份 mjs 语法检查、文档治理、Python生成索引及 diff 检查通过。
+最终五文件 changed-set plan 为 `spec-verification-plan.json`，仍为L4；Project Constraints
+CI 未执行，mergeReady 不声明通过。正式 `/usr/local/bin/node ... check` 留档于
+`spec-precommit-check.json`；父 checkout 源码保持干净。没有修改实际阻塞任务或全局 runtime。

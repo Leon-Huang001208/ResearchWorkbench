@@ -147,14 +147,17 @@ export function withRepositoryLock({projectRoot}, callback, options = {}) {
   const nonce = crypto.randomUUID();
   fs.writeFileSync(fd, JSON.stringify({pid: process.pid, nonce}));
   const owned = fs.fstatSync(fd);
-  const release = () => {
-    fs.closeSync(fd);
+  let held=true;
+  const assertHeld = () => {
     const current = fs.lstatSync(target, {throwIfNoEntry: false});
-    if (!current || current.isSymbolicLink() || current.ino !== owned.ino || current.dev !== owned.dev) fail('LOCK_OWNERSHIP_CHANGED');
+    if (!held || !current?.isFile() || current.isSymbolicLink() || current.nlink!==1 || current.ino !== owned.ino || current.dev !== owned.dev) fail('LOCK_OWNERSHIP_CHANGED');
     let record;
     try { record = JSON.parse(fs.readFileSync(target, 'utf8')); } catch { fail('LOCK_OWNERSHIP_CHANGED'); }
     if (record.nonce !== nonce || record.pid !== process.pid) fail('LOCK_OWNERSHIP_CHANGED');
-    fs.unlinkSync(target);
+  };
+  Object.defineProperty(repository,'assertLockOwned',{value:assertHeld});
+  const release = () => {
+    try {assertHeld();fs.unlinkSync(target);} finally {held=false;fs.closeSync(fd);}
   };
   let result;
   try { result = callback(repository); }
@@ -624,13 +627,38 @@ function refreshFeatureRecord(repository, receipt, options) {
     fs.unlinkSync(lock);
   }
 }
+// This admission contract is deliberately closed and versioned independently of
+// published refresh: new shared-controller metadata requires explicit review.
+const AMEND_RECEIPT_FIELDS_V1 = ['schemaVersion','taskId','repositoryRoot','remote','remoteUrl','defaultBranch','baseCommit','featureBranch','featureWorktree','featureCommit','integrationBranch','integrationWorktree','integrationCommit','integrationHistory','remoteCommit','mode','pullRequest','verification','ci','repairAttempts','rollback','cleanup','status','createdAt','updatedAt','baseRefreshPublishedHead','review','preparedAmendment','preparedAmendmentHistory'];
+const AMEND_PROOF_FIELDS_V1 = ['schemaVersion','epoch','previousCandidate','previousFeature','candidateCommit','featureCommit','baseCommit','receiptSnapshot','receiptSha256','backupDirectory','backupManifestSha256','restoreVerified'];
+function exactFields(value, fields, required = fields) {
+  return value && typeof value==='object' && !Array.isArray(value) && Object.keys(value).every(key=>fields.includes(key)) && required.every(key=>Object.hasOwn(value,key));
+}
+function validateAmendReceipt(receipt) {
+  const verification=receipt.verification;
+  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) ||
+      receipt.status!=='prepared' || receipt.mode!==null || receipt.pullRequest!==null || receipt.remoteCommit!==null ||
+      Object.hasOwn(receipt,'baseRefreshPublishedHead') && receipt.baseRefreshPublishedHead!==null ||
+      Object.hasOwn(receipt,'review') && receipt.review!==null ||
+      !exactFields(receipt.ci,['status','runs']) || !['pending','not_configured'].includes(receipt.ci.status) || !Array.isArray(receipt.ci.runs) || receipt.ci.runs.length ||
+      !exactFields(receipt.rollback,['status']) || receipt.rollback.status!=='not_run' ||
+      !exactFields(receipt.cleanup,['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted']) || Object.values(receipt.cleanup).some(value=>value!==false) ||
+      verification!==null && (!exactFields(verification,['status','command','durationSeconds','recordedAt'],['status']) || !['not_run','passed','failed'].includes(verification.status) ||
+        Object.hasOwn(verification,'command') && (typeof verification.command!=='string' || !verification.command.trim()) ||
+        Object.hasOwn(verification,'durationSeconds') && (!Number.isSafeInteger(verification.durationSeconds) || verification.durationSeconds<0) ||
+        Object.hasOwn(verification,'recordedAt') && !Number.isFinite(Date.parse(verification.recordedAt))) ||
+      ['createdAt','updatedAt'].some(key=>Object.hasOwn(receipt,key) && !Number.isFinite(Date.parse(receipt[key]))) ||
+      !Number.isSafeInteger(receipt.repairAttempts) || receipt.repairAttempts<0 || !Array.isArray(receipt.integrationHistory) || receipt.integrationHistory.length) fail('UNPUBLISHED_STATE_INVALID');
+  const history=receipt.preparedAmendmentHistory;
+  if(history===undefined && receipt.preparedAmendment===undefined) return;
+  if(!Array.isArray(history) || !history.length || JSON.stringify(history.at(-1))!==JSON.stringify(receipt.preparedAmendment)) fail('PREPARED_AMEND_HISTORY_INVALID');
+  for(const proof of history) if(!exactFields(proof,AMEND_PROOF_FIELDS_V1) || proof.schemaVersion!==1 || proof.restoreVerified!==true ||
+      !/^[a-f0-9-]{36}$/.test(proof.epoch??'') || !/^[a-f0-9]{64}$/.test(proof.receiptSha256??'') || !/^[a-f0-9]{64}$/.test(proof.backupManifestSha256??'') ||
+      ['previousCandidate','previousFeature','candidateCommit','featureCommit','baseCommit'].some(key=>!/^[a-f0-9]{40}$/.test(proof[key]??''))) fail('PREPARED_AMEND_HISTORY_INVALID');
+}
 /** Adopt only an already committed, never-published merge in the original worktree. */
 function amendPrepared(repository, receipt, taskId, options) {
-  if (receipt.status !== 'prepared' || receipt.mode !== null || receipt.pullRequest !== null || receipt.remoteCommit !== null ||
-      receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit|merge.?commit/i.test(key) && !['pullRequest','remoteCommit','baseRefreshPublishedHead'].includes(key)) ||
-      !receipt.ci || !['pending','not_configured'].includes(receipt.ci.status) || !Array.isArray(receipt.ci.runs) || receipt.ci.runs.length || Object.keys(receipt.ci).some(key => !['status','runs'].includes(key)) ||
-      receipt.rollback?.status !== 'not_run' || !receipt.cleanup || Object.values(receipt.cleanup).some(value => value !== false) ||
-      !Number.isSafeInteger(receipt.repairAttempts) || receipt.repairAttempts < 0 || !Array.isArray(receipt.integrationHistory) || receipt.integrationHistory.length) fail('UNPUBLISHED_STATE_INVALID');
+  validateAmendReceipt(receipt);
   if (receipt.schemaVersion !== 1 || receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' ||
       !receipt.featureBranch?.startsWith(`codex/${taskId}-`) || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '') ||
       [receipt.baseCommit,receipt.featureCommit,receipt.integrationCommit].some(value => !/^[a-f0-9]{40}$/.test(value ?? ''))) fail('TASK_OWNERSHIP_MISMATCH');
@@ -657,6 +685,28 @@ function amendPrepared(repository, receipt, taskId, options) {
       const actual=identity(filename);
       if(actual.dev!==expected.dev || actual.ino!==expected.ino || !actual.bytes.equals(expected.bytes)) fail('DELIVERY_RECORD_CHANGED');
     };
+    const history=receipt.preparedAmendmentHistory??[], historicalFiles=[], backupRoot=path.resolve(options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'));
+    let assertBackupHeld;
+    const validateHistory = (restore=false) => {
+      for(const [index,proof] of history.entries()) {
+        const directory=path.join(state(repository),'prepared-amend',taskId,proof.epoch);
+        if(proof.receiptSnapshot!==path.join(directory,'receipt.json') || typeof proof.backupDirectory!=='string' || path.dirname(proof.backupDirectory)!==backupRoot || !/^[a-f0-9-]{36}$/.test(path.basename(proof.backupDirectory))) fail('PREPARED_AMEND_HISTORY_INVALID');
+        const saved=identity(proof.receiptSnapshot), storedProof=identity(path.join(directory,'proof.json'));
+        const previous=JSON.parse(saved.bytes); validateAmendReceipt(previous);
+        const manifest=readManifest(proof.backupDirectory);
+        if(sha256(saved.bytes)!==proof.receiptSha256 || !storedProof.bytes.equals(Buffer.from(JSON.stringify(proof,null,2)+'\n')) || manifest.hash!==proof.backupManifestSha256 ||
+            manifest.manifest.preservationRefs?.['refs/rwb-amend/old-feature']!==proof.previousFeature || manifest.manifest.preservationRefs?.['refs/rwb-amend/old-candidate']!==proof.previousCandidate ||
+            previous.integrationCommit!==proof.previousCandidate || previous.featureCommit!==proof.previousFeature || previous.baseCommit!==proof.baseCommit ||
+            ['taskId','repositoryRoot','remote','remoteUrl','defaultBranch','featureWorktree','integrationWorktree','featureBranch','integrationBranch','baseCommit','repairAttempts'].some(key=>previous[key]!==receipt[key]) ||
+            JSON.stringify(previous.preparedAmendmentHistory??[])!==JSON.stringify(history.slice(0,index)) ||
+            index>0 && (proof.previousCandidate!==history[index-1].candidateCommit || proof.previousFeature!==history[index-1].featureCommit) ||
+            index===history.length-1 && (proof.candidateCommit!==receipt.integrationCommit || proof.featureCommit!==receipt.featureCommit)) fail('PREPARED_AMEND_HISTORY_INVALID');
+        if(!historicalFiles[index]) historicalFiles[index]=[saved,storedProof];
+        else {unchanged(proof.receiptSnapshot,historicalFiles[index][0]);unchanged(path.join(directory,'proof.json'),historicalFiles[index][1]);}
+        if(restore) {assertBackupHeld();verifyBackupDirectory(proof.backupDirectory,options);assertBackupHeld();}
+      }
+    };
+    validateHistory();
     const prior=receipt.preparedAmendment;
     const replay=prior?.candidateCommit===receipt.integrationCommit && prior?.featureCommit===receipt.featureCommit &&
       output(git(receipt.integrationWorktree,['rev-parse','HEAD'],options))===receipt.integrationCommit && output(git(receipt.featureWorktree,['rev-parse','HEAD'],options))===receipt.featureCommit;
@@ -664,6 +714,7 @@ function amendPrepared(repository, receipt, taskId, options) {
     const oldFeature=replay ? prior.previousFeature : receipt.featureCommit;
     let captured;
     const candidateState = () => {
+      repository.assertLockOwned(); if(assertBackupHeld) assertBackupHeld(); validateHistory();
       assertNativeUnlocked(repository); unchanged(destination,original); unchanged(ledgerPath,ledger);
       for(const lock of locks) unchanged(lock.filename,lock);
       if(output(git(repository.repositoryRoot,['remote','get-url','origin'],options))!==receipt.remoteUrl || output(git(repository.repositoryRoot,['rev-parse','refs/remotes/origin/master'],options))!==receipt.baseCommit) fail('REMOTE_IDENTITY_CHANGED');
@@ -729,14 +780,9 @@ function amendPrepared(repository, receipt, taskId, options) {
     };
     remoteState();
     if(replay) {
-      const snapshot=identity(prior.receiptSnapshot);
-      const previous=JSON.parse(snapshot.bytes);
-      if(sha256(snapshot.bytes)!==prior.receiptSha256 || prior.restoreVerified!==true || readManifest(prior.backupDirectory).hash!==prior.backupManifestSha256 ||
-          previous.integrationCommit!==oldCandidate || previous.featureCommit!==oldFeature || previous.taskId!==taskId || previous.baseCommit!==receipt.baseCommit ||
-          previous.mode!==null || previous.pullRequest!==null || previous.remoteCommit!==null || receipt.verification!==null || receipt.review!==null ||
-          JSON.stringify(receipt.preparedAmendmentHistory?.at(-1))!==JSON.stringify(prior)) fail('PREPARED_AMEND_HISTORY_INVALID');
-      return withBackupLock(path.dirname(prior.backupDirectory),()=>{
-        verifyBackupDirectory(prior.backupDirectory,options); remoteState();
+      if(receipt.verification!==null || receipt.review!==null) fail('PREPARED_AMEND_HISTORY_INVALID');
+      return withBackupLock(backupRoot,assertHeld=>{
+        assertBackupHeld=assertHeld; validateHistory(true); remoteState();
         log(repository,'delivery-prepared-amend-replay','PASS',undefined,{candidate},options);
         return receipt;
       });
@@ -747,7 +793,8 @@ function amendPrepared(repository, receipt, taskId, options) {
     const preserved=refs(repository,options);
     const backup=backupUnlocked(repository,{...options,backupVersion:2,preservationRefs:{...preserved,'refs/rwb-amend/old-feature':receipt.featureCommit,'refs/rwb-amend/old-candidate':receipt.integrationCommit},worktreePaths:[receipt.featureWorktree,receipt.integrationWorktree]});
     if(backup.restoreVerified!==true) fail('RESTORE_UNVERIFIED');
-    return withBackupLock(path.dirname(backup.directory),()=>{
+    return withBackupLock(path.dirname(backup.directory),assertHeld=>{
+    assertBackupHeld=assertHeld; validateHistory(true);
     verifyBackupDirectory(backup.directory,options);
     options.afterPreparedAmendBackup?.(backup);
     candidateState(); remoteState();
@@ -762,6 +809,7 @@ function amendPrepared(repository, receipt, taskId, options) {
     remoteState(); candidateState();
     const remaining=fs.statfsSync(repository.repositoryRoot);
     if(remaining.bavail*remaining.bsize<2*1024**3) fail('PREPARED_AMEND_DISK_BUDGET');
+    repository.assertLockOwned(); assertBackupHeld();
     fs.renameSync(temporary,destination);
     log(repository,'delivery-prepared-amend','PASS',undefined,{candidate,previousCandidate:receipt.integrationCommit,receiptSnapshot:snapshot,backup:backup.directory},options);
     return updated;
