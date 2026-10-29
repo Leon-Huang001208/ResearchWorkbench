@@ -547,6 +547,13 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 ## 共享恢复及源路径维护（2026-10-29）
 
+Git cleanup 已退休全部工作树但账本仍ci_passed时，使用既有closeout-recover的新
+partial_cleanup分支：原pending proof、独评/CI/真实合并、全部工作树的v2实际恢复及
+原namespace准确SHA仍是必需门。原证明不改，远端beforeOid与本地expected SHA条件
+删除后再复核资源/引用/实际delivery，最后提交epoch证书。路径重现或新提交拒绝，
+不得手改cleanup字段。该新预览仅增加只读GitHub观察、不fetch；详见
+[部分收尾恢复](git-partial-cleanup-recovery.md)。旧历史引用退休恢复路径保持原合同。
+
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

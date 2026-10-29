@@ -774,6 +774,8 @@ function validateCompletedCloseout(repository,taskId,receipt,options) {
   if (fs.lstatSync(pending).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
   const proof=JSON.parse(fs.readFileSync(pending,'utf8'));
   if (proof.taskId!==taskId || proof.candidateCommit!==receipt.integrationCommit || !proof.restoreVerified) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const partialIntent=path.join(path.dirname(pending),'partial-cleanup-intent.json');
+  if(fs.existsSync(partialIntent) && !fs.existsSync(path.join(path.dirname(pending),'git-finalization-recovery.json')))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
   if (fs.existsSync(path.join(path.dirname(pending),'git-finalization-recovery.json'))) {
     validateRecoveryCompletion(repository,taskId,receipt);
     return;
@@ -831,7 +833,7 @@ function retirementWorktreeMatches(worktree,ref,records) {
 }
 function recoveryJson(filename) {
   assertNoSymlinkAncestors(filename);
-  const fd=fs.openSync(filename,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+  const fd=fs.openSync(filename,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW|(fs.constants.O_NONBLOCK??0));
   try {
     const info=fs.fstatSync(fd);
     if(!info.isFile() || info.nlink!==1 || info.mode&0o077 || info.size>16*1024*1024 || typeof process.getuid==='function' && info.uid!==process.getuid())fail('CLOSEOUT_RECOVERY_RECORD_INVALID');
@@ -848,7 +850,16 @@ function validateRecoveryCompletion(repository,taskId,receipt) {
   const record=recoveryJson(path.join(directory,certificate.epoch));
   const saved=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-proof.json'));
   const epoch=record.value;
-  if(record.sha256!==certificate.epochSha256 || saved.sha256!==proof.sha256 || epoch.originalProofSha256!==proof.sha256 || epoch.taskId!==taskId || epoch.candidateCommit!==receipt.integrationCommit || epoch.status!=='complete' || epoch.restoreVerified!==true || !/^[a-f0-9]{64}$/.test(epoch.backupManifestSha256??'') || !Array.isArray(epoch.retiredSnapshots) || !Array.isArray(epoch.retiredDeliveries) || !Array.isArray(epoch.retiredWorktrees) || (!epoch.retiredSnapshots.length && !epoch.retiredDeliveries.length && !epoch.retiredWorktrees.length) || epoch.retiredSnapshots.some(row=>!retiredSnapshotRef(row.ref) || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  if(record.sha256!==certificate.epochSha256 || saved.sha256!==proof.sha256 || epoch.originalProofSha256!==proof.sha256 || epoch.taskId!==taskId || epoch.candidateCommit!==receipt.integrationCommit || epoch.status!=='complete' || epoch.restoreVerified!==true || !/^[a-f0-9]{64}$/.test(epoch.backupManifestSha256??'') || !Array.isArray(epoch.retiredSnapshots) || !Array.isArray(epoch.retiredDeliveries) || !Array.isArray(epoch.retiredWorktrees) || (!epoch.retiredSnapshots.length && !epoch.retiredDeliveries.length && !epoch.retiredWorktrees.length && epoch.kind!=='partial_cleanup') || epoch.retiredSnapshots.some(row=>!retiredSnapshotRef(row.ref) || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  if(epoch.kind==='partial_cleanup') {
+    const intentRecord=recoveryJson(path.join(directory,'partial-cleanup-intent.json')), intent=intentRecord.value;
+    const originalDelivery=recoveryJson(path.join(directory,'partial-cleanup-original-delivery.json'));
+    const actual=recoveryJson(path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json'));
+    if(intent.taskId!==taskId || intent.candidateCommit!==receipt.integrationCommit || intent.originalProofSha256!==proof.sha256 || intent.originalDeliverySha256!==originalDelivery.sha256 || epoch.originalDeliverySha256!==originalDelivery.sha256 || intentRecord.sha256!==epoch.originalIntentSha256 || !sameCleanupDelivery(actual.value,originalDelivery.value) || actual.sha256!==epoch.finalDeliverySha256 || JSON.stringify(actual.value)!==JSON.stringify(receipt))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    const manifest=readManifest(epoch.backupDirectory);
+    if(manifest.hash!==epoch.backupManifestSha256 || manifest.manifest.repositoryKey!==repositoryKey(repository.commonDirectory))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    assertPartialPathsAbsent(repository,receipt,{});
+  }
   for(const [row,isWorktree] of [...epoch.retiredDeliveries.map(row=>[row,false]),...epoch.retiredWorktrees.map(row=>[row,true])]) {
     if(!ID.test(row.ownerTaskId??'') || row.ancestorVerified!==true || proof.value.verifiedPreservationRefs?.[row.ref]!==row.oid || proof.value.beforeRefs?.[row.ref]!==row.oid)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
     const retirementDirectory=path.join(path.dirname(path.join(directory,certificate.epoch)),'retired-deliveries',row.ownerTaskId);
@@ -862,6 +873,165 @@ function validateRecoveryCompletion(repository,taskId,receipt) {
   const originalResource=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-resource-receipt.json'));
   const revalidation=epoch.resourceRevalidation;
   if(!revalidation?.ok || revalidation.taskId!==taskId || revalidation.candidateCommit!==receipt.integrationCommit || !revalidation.cache?.ok || revalidation.previousReceiptSha256!==originalResource.sha256 || JSON.stringify(resource.revalidation)!==JSON.stringify(revalidation) || JSON.stringify(resource.cache)!==JSON.stringify(revalidation.cache))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+}
+
+function sameCleanupDelivery(current,original) {
+  if(current.status!=='cleaned' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>current.cleanup?.[key]===true) || !Number.isFinite(Date.parse(current.updatedAt)))return false;
+  const normalized={...current,status:original.status};
+  for(const key of ['cleanup','updatedAt']) {
+    if(Object.hasOwn(original,key))normalized[key]=original[key];else delete normalized[key];
+  }
+  return JSON.stringify(normalized)===JSON.stringify(original);
+}
+function syncRecoveryPath(filename, directory=false) {
+  const fd=fs.openSync(filename,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW|(directory?fs.constants.O_DIRECTORY:0));
+  try {fs.fsyncSync(fd);} finally {fs.closeSync(fd);}
+}
+function writeRecoveryJson(filename,value) {
+  writePrivateJson(filename,value);syncRecoveryPath(filename);syncRecoveryPath(path.dirname(filename),true);
+}
+function assertPartialWorktreesRetired(repository,receipt,options) {
+  const registered=worktrees(repository,options);
+  for(const row of managed(receipt)) {
+    if(row.worktree===repository.repositoryRoot || fs.lstatSync(row.worktree,{throwIfNoEntry:false}) || registered.some(item=>item.worktree===row.worktree || item.branch===`refs/heads/${row.branch}`))fail('PARTIAL_CLEANUP_WORKTREE_PRESENT');
+  }
+}
+function assertPartialPathsAbsent(repository,receipt,options) {
+  assertPartialWorktreesRetired(repository,receipt,options);
+  const current=refs(repository,options);
+  for(const row of managed(receipt)) {
+    if(current[`refs/heads/${row.branch}`])fail('PARTIAL_CLEANUP_REF_PRESENT');
+  }
+}
+function partialRemoteRefs(repository,receipt,options) {
+  const repo=githubRepo(receipt), result={};
+  for(const row of managed(receipt)) {
+    const ref=`refs/heads/${row.branch}`;
+    const matches=githubJson(['api',`repos/${repo}/git/matching-refs/heads/${row.branch}`],repository,options);
+    if(!Array.isArray(matches))fail('PARTIAL_CLEANUP_REMOTE_UNPROVEN');
+    const exact=matches.filter(item=>item.ref===ref);
+    if(exact.length>1 || exact.length && exact[0].object?.sha!==row.commit)fail('REMOTE_TASK_COMMIT_MISMATCH');
+    if(exact.length)result[ref]=row.commit;
+  }
+  return result;
+}
+function partialCleanupPlan(repository,taskId,backupDirectory,current,options) {
+  const directory=path.dirname(closeoutFinalization(repository,taskId));
+  const deliveryFile=path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json');
+  const delivery=recoveryJson(deliveryFile), proof=recoveryJson(closeoutFinalization(repository,taskId));
+  if(JSON.stringify(delivery.value)!==JSON.stringify(current))fail('DELIVERY_RECORD_CHANGED');
+  const intentFile=path.join(directory,'partial-cleanup-intent.json');
+  const intent=fs.existsSync(intentFile)?recoveryJson(intentFile).value:null;
+  const original=intent?recoveryJson(path.join(directory,'partial-cleanup-original-delivery.json')):delivery;
+  const receipt=original.value;
+  if(receipt.schemaVersion!==1 || receipt.status!=='ci_passed' || receipt.ci?.status!=='passed' || receipt.verification?.status!=='passed' || receipt.mode!=='pr' || receipt.taskId!==taskId || receipt.repositoryRoot!==repository.repositoryRoot)fail('CLOSEOUT_RECOVERY_NOT_PENDING');
+  if(intent && (intent.taskId!==taskId || intent.candidateCommit!==receipt.integrationCommit || intent.originalDeliverySha256!==original.sha256 || intent.originalProofSha256!==proof.sha256 || delivery.sha256!==original.sha256 && !sameCleanupDelivery(current,receipt)))fail('CLOSEOUT_RECOVERY_STALE');
+  assertReviewed(repository,receipt);
+  const owned=managed(receipt), local=refs(repository,options), registered=worktrees(repository,options);
+  if(proof.value.taskId!==taskId || proof.value.status!=='pending' || !proof.value.restoreVerified || proof.value.candidateCommit!==receipt.integrationCommit || !proof.value.beforeRefs || !Array.isArray(proof.value.beforeWorktrees) || !Array.isArray(proof.value.managed) || owned.length>128 || new Set(owned.map(row=>row.branch)).size!==owned.length || new Set(owned.map(row=>row.worktree)).size!==owned.length || proof.value.managed.length!==owned.length || proof.value.managed.some(row=>!owned.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  for(const row of owned) {
+    if(!row.branch?.startsWith(`codex/${taskId}-`) && !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(row.branch??''))fail('TASK_OWNERSHIP_MISMATCH');
+    if(!path.isAbsolute(row.worktree??'') || !/^[a-f0-9]{40}$/.test(row.commit??'') || git(repository.repositoryRoot,['check-ref-format',`refs/heads/${row.branch}`],options,{allowFailure:true}).status!==0)fail('TASK_OWNERSHIP_MISMATCH');
+    if(row.worktree===repository.repositoryRoot || fs.lstatSync(row.worktree,{throwIfNoEntry:false}) || registered.some(item=>item.worktree===row.worktree || item.branch===`refs/heads/${row.branch}`))fail('PARTIAL_CLEANUP_WORKTREE_PRESENT');
+    const ref=`refs/heads/${row.branch}`;
+    if(proof.value.beforeRefs?.[ref]!==row.commit || local[ref] && local[ref]!==row.commit)fail('TASK_COMMIT_MISMATCH');
+    if(output(git(repository.repositoryRoot,['cat-file','-t',row.commit],options))!=='commit' || git(repository.repositoryRoot,['merge-base','--is-ancestor',row.commit,'refs/remotes/origin/master'],options,{allowFailure:true}).status!==0)fail('BRANCH_UNMERGED');
+  }
+  preservationAudit(repository,proof.value.beforeRefs,proof.value.beforeWorktrees,owned,options,proof.value.verifiedPreservationRefs);
+  const backup=path.resolve(backupDirectory??''), root=path.resolve(options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'));
+  assertNoSymlinkAncestors(backup);
+  if(path.dirname(backup)!==root || !/^[a-f0-9-]{36}$/.test(path.basename(backup)))fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+  const manifest=readManifest(backup);
+  if(manifest.manifest.schemaVersion!==2 || manifest.manifest.repositoryKey!==repositoryKey(repository.commonDirectory) || !manifest.manifest.restoreVerified || Object.entries(proof.value.beforeRefs).some(([ref,oid])=>manifest.manifest.preservationRefs?.[ref]!==oid) || !manifest.manifest.worktrees.some(row=>row.path===repository.repositoryRoot) || owned.some(row=>!proof.value.beforeWorktrees.some(saved=>saved.worktree===row.worktree && saved.HEAD===row.commit && saved.branch===`refs/heads/${row.branch}`) || !manifest.manifest.worktrees.some(saved=>saved.path===row.worktree && saved.head===row.commit && saved.branch===`refs/heads/${row.branch}`)))fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+  const resource=recoveryJson(path.join(directory,'receipt.json'));
+  if(resource.value.taskId!==taskId || !resource.value.ok || !resource.value.cache?.ok || !Array.isArray(resource.value.blocked) || resource.value.blocked.some(row=>row.phase!=='git'))fail('RESOURCE_CLOSEOUT_BLOCKED');
+  const summary=githubJson(['pr','view',receipt.pullRequest.url,'--repo',githubRepo(receipt),'--json','state,headRefOid,baseRefName,mergeCommit'],repository,options);
+  if(summary.state!=='MERGED' || summary.headRefOid!==receipt.integrationCommit || summary.baseRefName!=='master' || !/^[a-f0-9]{40}$/.test(summary.mergeCommit?.oid??''))fail('MERGE_IDENTITY_UNPROVEN');
+  if(git(repository.repositoryRoot,['merge-base','--is-ancestor',summary.mergeCommit.oid,'refs/remotes/origin/master'],options,{allowFailure:true}).status!==0)fail('MERGE_IDENTITY_UNPROVEN');
+  const remote=partialRemoteRefs(repository,receipt,options);
+  if(current.status==='cleaned' && (Object.keys(remote).length || owned.some(row=>local[`refs/heads/${row.branch}`])))fail('CLOSEOUT_RECOVERY_STALE');
+  const plan={schemaVersion:1,kind:'partial_cleanup',taskId,candidateCommit:receipt.integrationCommit,originalProofSha256:proof.sha256,originalDeliverySha256:original.sha256,currentDeliverySha256:delivery.sha256,backupDirectory:backup,backupManifestSha256:manifest.hash,resourceSha256:resource.sha256,localRefs:Object.fromEntries(owned.filter(row=>local[`refs/heads/${row.branch}`]).map(row=>[`refs/heads/${row.branch}`,row.commit])),remoteRefs:remote};
+  return {plan,previewSha256:sha256(JSON.stringify(plan)),proof,original,deliveryFile,directory,receipt};
+}
+async function recoverPartialCleanup(repository,input,controller,options) {
+  const {taskId,backupDirectory,apply,previewSha256}=input;
+  const read=()=>partialCleanupPlan(repository,taskId,backupDirectory,controller.readDeliveryReceipt({projectRoot:repository.repositoryRoot,taskId}),options);
+  const first=read();
+  if(!apply)return {...first.plan,status:'preview',previewSha256:first.previewSha256};
+  if(previewSha256!==first.previewSha256)fail('CLOSEOUT_RECOVERY_STALE');
+  return withBackupLock(path.dirname(first.plan.backupDirectory),()=>{
+    verifyBackupDirectory(first.plan.backupDirectory,options);
+    options.afterPartialBackupVerified?.();
+    if(read().previewSha256!==previewSha256)fail('CLOSEOUT_RECOVERY_STALE');
+    const ci=reviewedStatus(repository,first.receipt,undefined,options);
+    if(ci.status!=='passed')fail('MERGE_GATES_NOT_PASSED');
+    quota(repository,options);
+    const intentPath=path.join(first.directory,'partial-cleanup-intent.json');
+    const originalPath=path.join(first.directory,'partial-cleanup-original-delivery.json');
+    if(!fs.existsSync(originalPath))fs.writeFileSync(originalPath,first.original.bytes,{flag:'wx',mode:0o600});
+    if(recoveryJson(originalPath).sha256!==first.original.sha256)fail('CLOSEOUT_RECOVERY_STALE');
+    syncRecoveryPath(originalPath);syncRecoveryPath(first.directory,true);
+    if(!fs.existsSync(intentPath))writeRecoveryJson(intentPath,{schemaVersion:1,taskId,candidateCommit:first.receipt.integrationCommit,originalProofSha256:first.proof.sha256,originalDeliverySha256:first.original.sha256});
+    const acceptedIntent=recoveryJson(intentPath);
+    const updates=Object.entries(first.plan.remoteRefs).map(([name,beforeOid])=>({name,beforeOid,afterOid:'0'.repeat(40),force:false}));
+    if(updates.length) {
+      const repo=githubRepo(first.receipt), identity=githubJson(['api',`repos/${repo}`],repository,options);
+      if(typeof identity.node_id!=='string' || !identity.node_id)fail('REMOTE_IDENTITY_CHANGED');
+      const request=path.join(first.directory,'partial-remote-update-'+crypto.randomUUID()+'.json');
+      writeRecoveryJson(request,{query:'mutation($input: UpdateRefsInput!) { updateRefs(input: $input) { clientMutationId } }',variables:{input:{repositoryId:identity.node_id,clientMutationId:crypto.randomUUID(),refUpdates:updates}}});
+      const result=githubJson(['api','graphql','--input',request],repository,options);
+      if(result.errors?.length || !result.data?.updateRefs)fail('PARTIAL_CLEANUP_REMOTE_UPDATE_UNCONFIRMED');
+    }
+    if(Object.keys(partialRemoteRefs(repository,first.receipt,options)).length)fail('PARTIAL_CLEANUP_REMOTE_UPDATE_UNCONFIRMED');
+    options.afterPartialRemoteRetired?.();
+    if(recoveryJson(first.deliveryFile).sha256!==first.plan.currentDeliverySha256 || recoveryJson(closeoutFinalization(repository,taskId)).sha256!==first.proof.sha256)fail('CLOSEOUT_RECOVERY_STALE');
+    if(Object.keys(partialRemoteRefs(repository,first.receipt,options)).length)fail('PARTIAL_CLEANUP_REMOTE_UPDATE_UNCONFIRMED');
+    assertPartialWorktreesRetired(repository,first.receipt,options);
+    const local=Object.entries(first.plan.localRefs);
+    if(local.length)git(repository.repositoryRoot,['update-ref','--no-deref','--stdin'],options,{input:'start\n'+local.map(([ref,oid])=>`delete ${ref} ${oid}\n`).join('')+'prepare\ncommit\n'});
+    assertPartialPathsAbsent(repository,first.receipt,options);
+    preservationAudit(repository,first.proof.value.beforeRefs,first.proof.value.beforeWorktrees,managed(first.receipt),options,first.proof.value.verifiedPreservationRefs);
+    const epochs=path.join(first.directory,'recovery-epochs');privateDirectory(epochs);syncRecoveryPath(first.directory,true);
+    const id=crypto.randomUUID(), directory=path.join(epochs,id);fs.mkdirSync(directory,{mode:0o700});
+    syncRecoveryPath(epochs,true);
+    fs.writeFileSync(path.join(directory,'original-proof.json'),first.proof.bytes,{flag:'wx',mode:0o600});
+    syncRecoveryPath(path.join(directory,'original-proof.json'));
+    const beforeResource=recoveryJson(path.join(first.directory,'receipt.json'));
+    fs.writeFileSync(path.join(directory,'original-resource-receipt.json'),beforeResource.bytes,{flag:'wx',mode:0o600});
+    syncRecoveryPath(path.join(directory,'original-resource-receipt.json'));syncRecoveryPath(directory,true);
+    const cleaned={...first.receipt,status:'cleaned',cleanup:{...first.receipt.cleanup,...Object.fromEntries(['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].map(key=>[key,true]))},updatedAt:new Date().toISOString()};
+    if(recoveryJson(first.deliveryFile).sha256!==first.plan.currentDeliverySha256)fail('CLOSEOUT_RECOVERY_STALE');
+    writeRecoveryJson(first.deliveryFile,cleaned);
+    const committed=recoveryJson(first.deliveryFile);
+    options.afterPartialReceiptCommitted?.();
+    const actual=controller.validateCleanedDelivery({projectRoot:repository.repositoryRoot,taskId});
+    if(recoveryJson(first.deliveryFile).sha256!==committed.sha256 || JSON.stringify(actual)!==JSON.stringify(cleaned))fail('CLOSEOUT_RECOVERY_STALE');
+    const resources=resourcePhase(repository,taskId,'revalidate',options);
+    if(!resources?.ok || resources.taskId!==taskId || resources.candidateCommit!==cleaned.integrationCommit || !resources.cache?.ok || resources.previousReceiptSha256!==beforeResource.sha256)fail('RESOURCE_CLOSEOUT_BLOCKED');
+    fsck(repository,options);
+    const validateFinal=()=>{
+      const observed=read();
+      if(observed.proof.sha256!==first.proof.sha256 || observed.original.sha256!==first.original.sha256 || observed.plan.backupManifestSha256!==first.plan.backupManifestSha256 || observed.plan.currentDeliverySha256!==committed.sha256 || recoveryJson(intentPath).sha256!==acceptedIntent.sha256)fail('CLOSEOUT_RECOVERY_STALE');
+      // read() finishes with network observations. Recheck local paths and refs
+      // afterwards; fsck alone does not prove preservation of reference names.
+      assertPartialPathsAbsent(repository,first.receipt,options);
+      preservationAudit(repository,first.proof.value.beforeRefs,first.proof.value.beforeWorktrees,managed(first.receipt),options,first.proof.value.verifiedPreservationRefs);
+      if(recoveryJson(first.deliveryFile).sha256!==committed.sha256 || recoveryJson(closeoutFinalization(repository,taskId)).sha256!==first.proof.sha256 || recoveryJson(intentPath).sha256!==acceptedIntent.sha256 || readManifest(first.plan.backupDirectory).hash!==first.plan.backupManifestSha256)fail('CLOSEOUT_RECOVERY_STALE');
+    };
+    validateFinal();
+    const epoch={...first.plan,status:'complete',restoreVerified:true,originalDeliverySha256:first.original.sha256,originalIntentSha256:acceptedIntent.sha256,finalDeliverySha256:committed.sha256,retiredSnapshots:[],retiredDeliveries:[],retiredWorktrees:[],resourceRevalidation:resources,verifiedAt:new Date().toISOString()};
+    const payload=JSON.stringify(epoch,null,2)+'\n';fs.writeFileSync(path.join(directory,'epoch.json'),payload,{flag:'wx',mode:0o600});
+    syncRecoveryPath(path.join(directory,'epoch.json'));syncRecoveryPath(directory,true);
+    finishResourceReceipt(repository,taskId,true,resources);
+    syncRecoveryPath(path.join(first.directory,'receipt.json'));syncRecoveryPath(first.directory,true);
+    validateFinal();
+    const certificate=path.join(first.directory,'git-finalization-recovery.json');
+    if(fs.lstatSync(certificate,{throwIfNoEntry:false}))fail('CLOSEOUT_RECOVERY_STALE');
+    writeRecoveryJson(certificate,{schemaVersion:1,taskId,candidateCommit:cleaned.integrationCommit,originalProofSha256:first.proof.sha256,epoch:`recovery-epochs/${id}/epoch.json`,epochSha256:sha256(payload)});
+    validateRecoveryCompletion(repository,taskId,recoveryJson(first.deliveryFile).value);
+    log(repository,'closeout-partial-recover','PASS',undefined,{backup:first.plan.backupDirectory},options);
+    return {taskId,status:'cleaned',restoreVerified:true,kind:'partial_cleanup'};
+  });
 }
 function recoveryPlan(repository,taskId,backupDirectory,receipt,options) {
   if(receipt.status!=='cleaned' || receipt.ci?.status!=='passed' || receipt.verification?.status!=='passed' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>receipt.cleanup?.[key]===true))fail('CLOSEOUT_RECOVERY_NOT_PENDING');
@@ -922,11 +1092,23 @@ export async function recoverCloseoutFinalization({projectRoot,taskId,backupDire
     const common={projectRoot:repository.repositoryRoot,taskId};
     const local=controller.readDeliveryReceipt(common);
     if(local.repositoryRoot!==repository.repositoryRoot || local.remote!=='origin' || local.defaultBranch!=='master' || output(git(repository.repositoryRoot,['remote','get-url',local.remote],options))!==local.remoteUrl)fail('REMOTE_IDENTITY_CHANGED');
+    assertReviewed(repository,local);
+    fsck(repository,options);
+    const partialIntent=path.join(path.dirname(closeoutFinalization(repository,taskId)),'partial-cleanup-intent.json');
+    if(local.status==='ci_passed' || fs.existsSync(partialIntent)) {
+      const certificate=path.join(path.dirname(closeoutFinalization(repository,taskId)),'git-finalization-recovery.json');
+      if(local.status==='cleaned' && fs.existsSync(certificate)) {
+        const actual=apply?controller.validateCleanedDelivery(common):local;
+        validateRecoveryCompletion(repository,taskId,actual);
+        if(!apply && Object.keys(partialRemoteRefs(repository,actual,options)).length)fail('PARTIAL_CLEANUP_REMOTE_UPDATE_UNCONFIRMED');
+        return {taskId,status:'cleaned',restoreVerified:true};
+      }
+      return recoverPartialCleanup(repository,{taskId,backupDirectory,apply,previewSha256},controller,options);
+    }
     // The shared validateCleanedDelivery performs fetch: only the locked apply
     // lane may use it. Preview reads local records and audits local Git only.
     const receipt=apply?controller.validateCleanedDelivery(common):local;
     assertReviewed(repository,receipt);
-    fsck(repository,options);
     const certificate=path.join(path.dirname(closeoutFinalization(repository,taskId)),'git-finalization-recovery.json');
     if(fs.existsSync(certificate)){validateRecoveryCompletion(repository,taskId,receipt);return {taskId,status:'cleaned',restoreVerified:true};}
     const first=recoveryPlan(repository,taskId,backupDirectory,receipt,options);
