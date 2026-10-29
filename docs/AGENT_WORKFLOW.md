@@ -223,6 +223,55 @@ head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进�
 对应候选的CI与独立评审，再用正常 `--publish` 更新同一PR。`--replace-prepared` 及已完成交付的
 重建仍拒绝。全局运行时、系统PATH、分支保护和资源/Git恢复备份硬门保持。
 
+首次发布前，若原回执仍为 `prepared`、主线未变，但 feature 的生成索引等内容需要修复，
+在原 feature 分支正常提交，再在原 integration 工作树执行普通 `git merge --no-ff`，
+使新候选保留原集成第一父链、第二父提交是最新 feature。一次未收养的合并因门失败保留时，
+继续在同一 feature 正常提交，再在同一 integration 正常 merge；不回退中间合并或修改旧回执。
+完成本地提交后显式收养：
+
+```bash
+/usr/local/bin/node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --prepare --amend-prepared
+```
+
+此入口不执行 merge、reset、rebase、删除或重建工作树，也不 push。它要求原资源账本记录的
+两个工作树 inode、分支、common directory、原提交祖先链、干净状态和明确无进程占用；
+`mode`／`pullRequest`／`remoteCommit` 必须明确为 null，无发布／合并痕迹、CI runs 或退休记录。
+GitHub 的 master 必须仍是原基线，任务两分支和 PR 必须缺席，原／新候选均没有 Actions 执行；
+GitHub 可见的提交还须无 check-run/status。已确认仓库权限后，提交端点明确 HTTP 404 可证明该
+SHA 当前在 GitHub 不可见。同一 `/commits/<原base>` endpoint 还须 HTTP200 且 SHA 精确匹配；
+在此已知可读前提下，HTTP422／gh rc1 只有精确三字段错误才表示缺失：message 必须为
+`No commit found for SHA: <本次请求的完整SHA>`、status 为字符串422、documentation_url
+为官方 get-a-commit 地址。泛422、错SHA、403、超时和不明确响应均拒绝。观察期间持仓库、integration
+和任务锁，网络等待后再次核对回执／账本字节与 inode、全部原 refs、目录和进程，最后 CAS 收养。
+schema1 使用精确允许字段及嵌套契约，未知 CI 侧字段或 rollback／verification 等嵌套字段直接拒绝。
+仓库锁及备份锁的校验闭包来自当次真实取得的锁身份，最终 rename 前再次调用；不能用重新读取
+当前锁或序列化字段代替原身份。备份锁回调可接收此可选闭包，原无参回调保持原调用行为。
+本入口的 Git 检查禁用 replacement 与隐式 lazy fetch，merge 父提交直接读取原始 commit 对象；
+grafts、shallow 边界及自定义 graft／shallow 环境存在时拒绝，不删除任何 refs 或元数据。
+无关 replacement 引用可保留，但不参与资格图。网络等待后再次检查 graft／shallow 状态。
+
+收养前对本任务两工作树进行 v2 备份及真实独立恢复，旧 feature／候选作为 preservation
+anchors 保存在封印备份中，不移动原 refs。旧完整回执与 proof 以0600追加到 common directory 的
+`leon-engineering/git-safety/prepared-amend/TASK/EPOCH/`，每次保留历史、修补计数及原工作树。
+开始至少3GiB、收养前至少2GiB可用空间；备份或任一前置失败保留原回执和全部工作资源。
+收养后 verification／CI／回执 review 清空，旧独评文件保留但因候选 SHA 不同不能认证新候选；
+必须重新执行完整验证及独评。收养后的同候选重试重新检查远端、历史和实际恢复，不重复添加
+epoch；下一次真实 descendant 修订可追加新 epoch。
+每次修订及重放都逐 epoch 检查原回执哈希、私有 proof 精确字节、前缀链及 sealed manifest，
+在持备份锁时实际恢复所有既有 epoch；旧证据损坏或缺失时不得追加新历史。
+本次新建的 snapshot／proof／临时回执也须在最后网络观察后核对原 inode 和预期字节；
+proof 固定对应本轮实际恢复的 manifest／seal、旧提交锚点、两工作树 tip 和原 master。
+新文件缺失、损坏或同字节替换，以及备份重封印或错配，都在原回执 rename 前拒绝。
+新 proof version2 显式记录按时间排序的 mergeChain。从旧候选到新 tip 的每一步必须是原始
+二父合并，第一父沿原 integration 回到旧候选，第二父沿本任务 feature 严格递进，最终为最新
+feature；旧 base、原工作树身份和全部原门保持。最多32步，单提交原始字节最多64KiB、累计
+最多256KiB，拒绝重复、环声明、单父间隔、外源／重复 feature 及链漂移。每步候选与 feature
+都入独立 preservation anchors 并实际恢复；未收养中间节点必须在GitHub不可见、无CI。
+最终网络观察后再次验证整链、refs及证据。旧 v1 保留原单步和原命令读取上界，不借v1收养多步。
+`--replace-prepared` 继续拒绝；已发布刷新、完成交付和生产恢复边界保持原门。
+已有私有 Git shim 绑定 `/usr/local/bin/node` 的正式入口须
+继续使用该解释器，不为运行测试而替换 shim 或修改全局 PATH。
+
 `backup` 也可独立创建当前 checkout 的恢复证据；清理时捕获本任务受管 worktree 和调用 checkout，其他任务的工作区文件不被读取或导出，历史失效注册不被删除。备份位于 `~/.codex/backups/rwb-git-safety/`，目录 `0700`、普通文件 `0600`，v2使用独立共享Git pack和按SHA-256寻址的文件内容，恢复点以seal绑定全部元数据，相同现场复用既有点；v1读取继续兼容。仍保存分开的暂存／未暂存二进制补丁、tracked 普通文件的原始工作副本字节、未被忽略的未跟踪文件、快照引用及其对象闭包。在自己的临时仓库中实际恢复并校验对象链、文件哈希和普通文件权限：Git 只记录 executable 位，还可能按属性转换换行，不能用 checkout 的默认字节或 `0644` 替代原本的 LF／CRLF 工作副本及 `0600` 等权限。恢复字节和权限只作用于临时恢复仓库中的已验证普通文件，不跟随符号链接或修改源文件。恢复前保存未认证的 draft metadata；失败备份保留诊断状态，不产生成功认证。发现备份期间目标变化、缺失对象、明确敏感文件或失败时停止，不能静默省略后继续清理。不读取凭据库或忽略的运行时秘密文件；合法报告名出现 token 不视为凭据文件。
 
 清理前必须确认所有拟处理的分支均已归并、worktree 共用同一 Git 目录且匹配任务账本、工作区干净、没有进程占用，并完成可恢复备份。ignored 文件不会因为 Git status 干净就变成可删除数据：只要拟删除工作区仍有 ignored 路径，入口就拒绝清理，且不读取或导出它们。操作者可将明确由本任务产生的验证日志保留到私有证据目录，其他缓存、数据和秘密必须保留并单独处理。清理后检查对象完整性和其他任务资源保留情况。遇到 Git 锁或仓库级入口锁时停止，不自动删除遗留锁。只允许移除本任务已归并资源，不接受任意 shell 命令，也不提供 GC／prune 接口。

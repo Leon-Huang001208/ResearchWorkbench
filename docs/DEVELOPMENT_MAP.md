@@ -241,6 +241,15 @@ fingpt_compare.py/worker.py/node.mjs/html属于有限的隔离验收控制面：
 
 Git安全备份：`scripts/git_safety.mjs`保持原Git交付、完整恢复及v1读取边界，`scripts/git_backup_store.mjs`提供独立v2共享pack/文件载荷、元数据seal、备份锁及原子迁移。普通恢复点按7天和最新2个有效点轮转，未归并/未提交/活动/隔离及独有锚点保留；不维护活动Git对象。恢复、复用、损坏拒绝、迁移中断与轮转回归位于`tests/javascript/git_safety.test.mjs`，仍由原Project Constraints步骤执行。入口与保留合同见[Agent任务指南](AGENT_WORKFLOW.md#去重备份迁移与自动轮转2026-10-19)。
 
+未发布 prepared 修订沿上述 Git 入口和备份库收养原工作树中的有界 raw mergeChain，
+v2 proof 绑定每步候选／feature 的恢复锚点、同 endpoint 的 base200与精确缺SHA证明及最终CAS。
+近处合同为 `tests/javascript/git_safety_amend_prepared.test.mjs`，在既有 Project Constraints
+同一 Git safety step 与原 `git_safety.test.mjs`、`iteration_closeout.test.mjs` 一同执行。
+发布后的同base修复继续走原 publish／repair，不复用仅首次发布前适用的 amend。
+模块文档和结构决策还须用真实 `.agents/project-constraints.mjs` 对完整 changed set 校验；
+文档治理、Router 本地门或单一测试step成功不替代该门及整次CI。原08迭代图仍准确，未增加
+job、runner、依赖、产品运行节点或DSH执行链，源验收与真实候选收养／CI分别取证。
+
 报告恢复：quality_service在冻结要求时由实际允许上传字节生成resources/research_evidence.json，SDK load_business_evidence按task/contract读取；它不参与Host评分。source_references核对规范ID、准确Host标题及明确定位；Decimal算术和claim操作数保持精确JSON字符串。近处原两个测试模块覆盖伪造副本仍拒绝。
 
 research_business_evidence.py是原Host观测路径内的受限业务摘录规范化与复算；quality_service读取实际输入/重验SHA与缓存身份，research_evidence校验所有父来源，resources/research_report.py只序列化实际返回观测。近处test_research_business_evidence.py覆盖肯定句、表头结构、精确解析、真Store链与隔离负例；质量算法仍在原research_quality.py，不以规范句自动认证中文推断。

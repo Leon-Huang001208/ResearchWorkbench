@@ -7,6 +7,21 @@ PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除�
 PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。
 
 PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+
+2026-10-29 真实canary的精确422及未收养merge链修订继续使用同一Git safety step，
+原三文件及全部旧用例保留，无job／runner／Node20／10分钟／频率或依赖变化。
+本机Node24.19.0完整三文件219项（112＋3＋104）实测194.972秒、0失败／跳过，
+此前188项177.636秒仅为旧源码阶段证据；新增合同仍在原180秒增量预留内规划。
+600秒为整job上限，Mac本机耗时不替代最终Ubuntu／Node20 CI及其余步骤的实际预算证据。
+
+2026-10-29 未发布 prepared 修订仅在原 Project Constraints 的 Git safety step 追加
+`git_safety_amend_prepared.test.mjs`，保留 `git_safety.test.mjs` 与 `iteration_closeout.test.mjs`。
+同一 job／runner／Node20／触发频率和10分钟上限保持，不新增依赖。此前本机185项
+联合回归178.71秒未包含原 closeout 三项；本轮完整三文件188项、0失败／跳过，
+本机Node24实测177.64秒，小于原600秒job上限，不能冒充最终Ubuntu／Node20 CI。
+原10分钟job内为新增73项预留180秒增量，
+不减少旧用例；正式发布前仍实时核对仓库visibility／额度及同候选CI。
+
 部分Git收尾恢复仅扩原Project Constraints步骤已登记的git_safety Node合同；无新job、
 runner、依赖或timeout，不触发供应商/模型及其他平台产品dispatch。新增故障闭包本机
 约50秒，原10分钟约束job预留60秒增量；最终整套时间和候选CI另证，不省略旧用例。
