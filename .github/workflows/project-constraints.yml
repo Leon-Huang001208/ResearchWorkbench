@@ -29,7 +29,7 @@ jobs:
         run: node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/research_web_tabbit_workflow.test.mjs tests/javascript/actions_quota_governance.test.mjs
 
       - name: Test Git safety with temporary repositories
-        run: node --test tests/javascript/git_safety.test.mjs tests/javascript/iteration_closeout.test.mjs
+        run: node --test tests/javascript/git_safety.test.mjs tests/javascript/iteration_closeout.test.mjs tests/javascript/git_safety_amend_prepared.test.mjs
 
       - name: Test iteration resource safety without Docker
         run: |
