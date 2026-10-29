@@ -33,6 +33,33 @@ runner/依赖/timeout。完整 changed-set Router、源码 CI 与同候选 Mac �
 真实 launchd、完整 apply/resume、旧实例退役、Wind/Office 与部署均 NOT_RUN；Windows/Linux
 产品验收 NOT_RUN。此源码任务的通过不能提高旧 b800 现场资格。
 
+## 后续独立物理原语验收（同日追加，不改写上述时点）
+
+最终已发布源码候选 `a582267b8611b2be9334e68de87613290672e961` 的完整本地 11 门已通过；
+macOS 干净安装 CI `40845740831` 通过，实际 checkout `c9464bca330026c5aafb2241f586dd5f949c6197`
+的双亲及 tree 已与该候选核对。Checks `40845740855` 因原 45 分钟上限取消，保留失败，
+不能用 Mac 安装成功替代；尚待正常性能修复基线与新候选验收，不重跑空候选或延长时限。
+
+另一个受控维护验收任务实际使用的本模块 SHA-256 为
+`de2d09a1d8bf470ae85ca8b99e6f12f78bf6e81cd10483cd2c74b7664c6c6ca7`，
+与本源码完全相同。其私有作业原语在真实 macOS 27.0.1 / arm64 / 24 GiB 完成：
+一次 bootstrap、nonce 健康检查、一次精确 PID/birth 的正常 TERM，确认 exit 0、完整
+`ready → term_observed → closed`、PID 消失和端口关闭后才 bootout；15 次 launchctl 均已回收。
+独立最终只读复核再次确认目标缺席、PID 消失和端口拒绝连接。没有强杀、enable/disable、
+供应商、Office、真实模型或生产动作。完整 51 条事件摘要为
+`0186e2992c1159b9dc0ab02309bb3f6dd86da62f640318a1d210f9de380abe17`。
+
+原语所用驱动/计划经过独立 SPEC 与 Python QUALITY，最终 20 项纯函数测试和固定 Python
+只读预检实际通过。其早先两个真实失败均在 bootstrap 前，源码、计划、批准、完整日志及
+原流保留；只有精确未提交证明核验后显式创建新 epoch 续跑，未重发已受理或未知效果。
+完整原始证据及字节/权限恢复验证留在本地受控备份中，不提交包含本机域信息的原流。
+
+这些证据只认证本模块在私有维护原语中的一次真实使用。App 映像、真实 kernel argv、
+loaded policy、审批、排空与退役等仍由调用上下文独立核验；本模块本身不授予效果权限。
+完整 RWB apply/resume、旧实例首次准入/退役、外部 Wind 清理、生产切换与认证页面仍未在
+该原语任务完成，历史清理失败维持 UNKNOWN；不得据此提升其资格。Windows/Linux 及
+Docker 产品验收未由该原语执行，原未验证状态保留。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","diagrams":[],"reason":"仅增加维护内部只读目标身份与文件合同，不新增运行节点、服务、执行循环或DSH权限；实际生命周期仍由现有维护上下文承担。"} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","diagrams":[],"reason":"只绑定原生产网关或已登记私有演练目标，不新增账号或权限通道，不把target identity当作效果authority或旧实例证明。"} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","diagrams":[],"reason":"复用原Checks Python步骤登记只读合同回归，并在原Mac安装检查追加无效果模块导入；runner、job、触发频率、依赖、超时和原有验收断言均保留。测试与源码CI只认证各自冻结候选，实际launchd、完整CLI、退役和Wind保全继续由独立现场证据验收。"} -->
