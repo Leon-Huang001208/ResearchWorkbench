@@ -93,3 +93,30 @@ inode替换均被收养；临时回执损坏或替换被收养，临时回执删
 语法和 diff 检查通过，正式 check 记录 `quality-precommit-check.json`。
 父 checkout 源码仍干净，未修改实际任务、远端或全局 runtime。SPEC／QUALITY 独立复评由
 主任务在新候选上重新执行；本地测试通过不能冒充评审或生产恢复通过。
+
+## CI 登记及完整七文件闭包
+
+发布前确认原 Project Constraints Git safety step 只显式运行 `git_safety.test.mjs` 与
+`iteration_closeout.test.mjs`，没有间接包含新 amend 文件。该 SAME step 现追加
+`git_safety_amend_prepared.test.mjs`，保留原两文件；job、runner、Node20、10分钟上限、
+触发频率与依赖完全不变。功能源码及测试内容与已独评 d585e6f5 保持相同字节。
+
+本机固定Node24的完整同命令三文件实际188/188 PASS，0失败／错误／跳过，177.636秒，
+JUnit及原始输出见 `logs/unpublished-prepare-amend-20261029-f66ce16a/ci-wiring/`。
+此前185项包含Git安全112＋新73，但未包含原iteration_closeout三项，不是原CI全部门。
+预算说明按本次188项实测记录；本机结果不替代Ubuntu／Node20及最终候选CI。
+
+完整七文件 Router 选取L4，新增 CI／critical-chain 所需本地门均已执行：policy74、receipt23、
+incremental skill5、platform／delivery15、architecture84、原full Router113全部通过，
+文档治理与Python生成索引通过。协议 smoke 先收集81个nodeID，再按20／20／20／20／1
+分五批执行，81/81 PASS，JUnit精确并集，无遗漏或异步skip，合计2.454秒。
+
+协议使用主任务批准的既有release Python与UV缓存pytest／pytest_asyncio，源码cwd优先、
+`-B`、显式异步插件及`--confcutdir=tests/research_web`，没有安装依赖。任务局部Seatbelt
+禁止网络和日志私有根外写入，native TCP负例确认内核拒绝；真实keyring／进程／网络
+哨兵全为0，数据／日志／缓存／空配置仅位于任务logs。第一次收集因未重定向
+OBJECT_STORAGE_PATH被沙箱拒绝（无源码写入）；补全该环境及PDF路径后重新收集与执行，
+失败原件与成功证据分别保留。没有放宽测试或产品边界。
+
+仅feature的workflow、预算文档和本报告修改；integration、受管交付回执及远端未操作。
+后续新候选收养由主任务使用正式入口完成，并重新绑定SPEC／CI；此前候选验收不冒充新候选。
