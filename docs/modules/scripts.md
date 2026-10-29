@@ -1,5 +1,14 @@
 # Module: scripts
 
+The optional `backup_fd_clone.mjs` / `backup_fd_clone.py` primitive only copies
+from an already-open source FD into a private directory FD on supported Darwin
+systems. The fixed standard-library helper accepts no arbitrary command; Node
+rechecks full bytes, identities and privacy before reporting success. It neither
+falls back nor removes data. The backup caller retains path/race guards, capacity
+admission, fsck and actual restore. No existing backup call site is switched by
+this first checkpoint; unsupported/error/unknown and platform limits are explicit
+in the [task report](../../.ai/reports/test_report_backup_cow_admission_20261030.md).
+
 ## Responsibility
 
 `scripts` provides operational scripts, database bootstrap, backup/restore, smoke tests, and development governance checks.
