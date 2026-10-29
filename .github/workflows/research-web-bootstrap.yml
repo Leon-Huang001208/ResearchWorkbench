@@ -158,6 +158,7 @@ jobs:
               assert len(read_upgrade_journal(record)["padding"]) == 1_100_000
           PY
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3, app.research_web.asset_intraday, app.research_web.asset_minute_k, app.research_web.datahub.intraday_contract; assert m.version('cjpy') == '0.5.2'"
+          .venv/bin/python -c "from research_workbench_entrypoint.resident.maintenance_job_identity_v3 import ExactJobBinding; assert callable(ExactJobBinding.production) and callable(ExactJobBinding.rehearsal)"
           .venv/bin/python -c "import app.research_web.watchlist_import, app.research_web.asset_research, app.research_web.scenario_handoffs; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json

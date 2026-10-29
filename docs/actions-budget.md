@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
+Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
+预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。
+合同／源码 CI 不代表实际 launchd、完整 CLI、旧实例退休、Wind 或部署验收。
+
 部分Git收尾恢复仅扩原Project Constraints步骤已登记的git_safety Node合同；无新job、
 runner、依赖或timeout，不触发供应商/模型及其他平台产品dispatch。新增故障闭包本机
 约50秒，原10分钟约束job预留60秒增量；最终整套时间和候选CI另证，不省略旧用例。
