@@ -1,7 +1,7 @@
 # 未发布 prepared 候选的原位修订（2026-10-29）
 
 任务：`unpublished-prepare-amend-20261029-f66ce16a`。宿主 macOS，Git 工具源码修复，
-独立 worktree；本任务没有执行实际阻塞交付的 receipt 修订、push、PR、merge、部署或全局配置变更。
+独立 worktree；本实施子任务没有执行实际阻塞交付的 receipt 修订、push、PR、merge、部署或全局配置变更。
 
 ## 问题与变更
 
@@ -151,3 +151,24 @@ full113、协议81、文档治理及生成索引。协议按20／20／20／20／
 修正只影响HTTP分隔解析，存在性谓词未放宽，随后API／中间节点／v1定点21/21 PASS，
 最终完整219全部通过。失败原件保留，没有以跳过代替修复。实际B仍为Root给定684142cc，
 原receipt／分支由本子任务保持未动；独立SPEC／JS复评及最终候选CI仍由主任务执行。
+
+## PR251 原CI失败与模块文档修复
+
+原run `40852059181`／head `16c2b9f7969f8ff598c5e227362734ad7389f0ec` 结论为FAILURE，
+实际SourceCheckout日志为 `43461400bf77af35b918aa7957ba0512278b0331`。
+完整原始日志只读证实Ubuntu Node `v20.20.2` 的既有Git safety step为219/219通过、
+0失败／取消／跳过，50776.018067ms；这仅是该step结果，不能把整体CI涂绿。
+最后Enforce project constraints明确失败：缺 DEVELOPMENT_MAP、FinGPT comparison两份
+模块文档及verification-workflow有意义结构决策。相同入口本机原七文件亦复现3项失败，
+保存 `pr251-metadata-repair/constraints-local-fail.json`，不删除或改写此历史。
+
+本次仅补两份模块说明及本报告的结构决策，功能代码、断言、工作流、预算与skip均不修改。
+完整Git changed set实际为九文件；使用真实 `.agents/project-constraints.mjs` 和完整Router
+再次检查，结果另保留在同一私有证据目录。原run／原checkout仍失败，新的候选CI待Root执行。
+修复后的实际九文件约束为0 violations；本轮Router九门全部PASS，policy74／receipt23／
+skill5／platform15／architecture84／full113及文档治理／生成索引通过，协议81项按
+20／20／20／20／1执行、精确并集且无skip，2.788秒。此结果不覆盖原失败run，也不替代repair1 CI。
+发布后仅由Root正常merge到原integration，再用既有publish／repair重验发布；不再调用
+只适用于NeverPublished的amend，原真实canary epoch及恢复原件继续保留。
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"本次Git候选收养与备份证明仍在既有交付控制面，CI只在原Project Constraints同一步登记近处合同并同步模块说明；不新增job、runner、依赖、产品运行节点或DSH引擎，原08迭代图的源码映射、文档决策、回归、离线约束和CI连线保持准确。","diagrams":[]} -->
