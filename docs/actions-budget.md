@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-29 CI Python 分片调度器只替换原 Research Web Checks job 中的两条 pytest 调用：原测试路径、node 级选择、pytest 配置参数、job、runner、45 分钟 timeout、触发与平台路由保持；调度器按真实 collection nodeID 确定性轮询为两个不重叠分区，两 worker 各自复核完整 collection 与分配清单，父进程按持有的 Popen 身份核验最终执行证明。安全证据由标准库 staging helper 经 task-root 目录 FD/no-follow 路径读取，拒绝软/硬链接、非普通文件、owner/inode变化及目录替换；artifact 仅含脱敏 JUnit/nodeID/manifest/摘要日志，不包含环境、原始错误正文、JUnit输出正文或pytest原始stdout。使用仓库已有 `actions/upload-artifact@v4`、3 天保留，并以每次运行 100 MiB 封顶；不启用代码覆盖率、不新增依赖。分片与staging合同测试纳入原 unit scope。此次本机夹具验证不等于完整候选 CI 实测，也不声称能保证 45 分钟内通过；真实时长和新候选全部原门另行记录，PR245 repairAttempts 保持原值。
+
 共享恢复仅在原Checks Python步骤追加三项stdlib维护模块合同，无模型、厂商、runner/job或超时变更；新reader测试及转移/锁/盘点小闭包实测约6秒，原步骤预留30秒。Mac安装沿原公开流程，无新增依赖或他平台dispatch。发布前重查visibility与费用资格。
 
 股票CSV导入只扩原Checks的Python合同名单与Mac Bootstrap同一步模块/资源核对，Node仍用原glob；不增job、runner、依赖、timeout或触发频率，不发Windows/Linux产品dispatch。实际Actions额度、同候选CI和发布仍按本治理核验，离线本机通过不替代远端。
@@ -228,7 +230,7 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 
 Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`。Windows Web workflow 只保留 `workflow_dispatch`：policy 对 platform-sensitive changed set 选择 Windows gate 后，Windows 真机 checkout 待验 ref，以该机 `git rev-parse HEAD` 得到的 exact SHA 发起 `windows-2022`。Mac PR/push 不触发 Windows workflow。普通 UI、文档、纯 framework/DataHub 业务代码不选择 Windows gate。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未从 Windows 真机执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows GitHub CI 也不能替代同一或另一 Windows 真机上的安装、升级、真实用户目录或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
 Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop、setup contracts、local-integration contracts 和 loopback smoke；路径触发本身不能替代这些真实 job steps。
-Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
+Research Web Checks 的 Python scope 以 `.github/workflows/research-web-checks.yml` 中两条原 pytest 命令的显式文件与 node 选择为准，并非整个 `tests/research_web/`；JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 
