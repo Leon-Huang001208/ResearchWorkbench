@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+部分Git收尾恢复仅扩原Project Constraints步骤已登记的git_safety Node合同；无新job、
+runner、依赖或timeout，不触发供应商/模型及其他平台产品dispatch。新增故障闭包本机
+约50秒，原10分钟约束job预留60秒增量；最终整套时间和候选CI另证，不省略旧用例。
+
 共享恢复仅在原Checks Python步骤追加三项stdlib维护模块合同，无模型、厂商、runner/job或超时变更；新reader测试及转移/锁/盘点小闭包实测约6秒，原步骤预留30秒。Mac安装沿原公开流程，无新增依赖或他平台dispatch。发布前重查visibility与费用资格。
 
 股票CSV导入只扩原Checks的Python合同名单与Mac Bootstrap同一步模块/资源核对，Node仍用原glob；不增job、runner、依赖、timeout或触发频率，不发Windows/Linux产品dispatch。实际Actions额度、同候选CI和发布仍按本治理核验，离线本机通过不替代远端。
