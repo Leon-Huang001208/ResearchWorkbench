@@ -28,6 +28,10 @@ Wind 恢复准备的分项见证、只读预检和私有停止构件是运维安
 
 Checks预算30→40分钟只为保留原完整合同矩阵，不运行FinGPT比较、不扩大真实模型或供应商授权。旧候选30m0s取消仍非PASS，不能用Mac安装或本机结果替代新提交完整CI；Source/安装/真实研究与Word门保持独立，质量合同和全部测试不减少。
 
+2026-10-29 Research Web Checks 的两条既有 Python scope 在原 Ubuntu job 内分成两个独立 pytest worker，并上传短期保存的 JUnit/nodeID/log 证据；原选择、CI 门和45分钟上限不变。该实现只调整测试执行吞吐，不运行FinGPT比较、不改变模型次数/费用/质量判据，也不把本机合同通过当成新候选CI或真实模型质量。
+
+首个4ed hosted候选的分区CI收集7,381项后两个worker均在测试执行前失败。实际根因为被参数化的frozenset跨进程顺序不稳定，导致worker完整nodeID顺序与父manifest不一致；对应测试现按稳定排序收集，23个案例保持不变。worker安全taxonomy固定为phase/code映射及producer/stager相同的异常类枚举；未知identifier形失败正文归零、私有异常类名不进入artifact。定向回归只用于定位/验证测试调度与证据隐私，不认证FinGPT质量、模型调用或新的hosted CI已通过。
+
 周报专属准入不运行FinGPT模型比较，也不为普通研究解除数据合同要求。新增测试通过真实Sender和原质量合同验证，外部响应/凭据隔离；本机/CI/真实模型及Word交付分别留证，不能把scope PASS当成模型效果提升。
 
 华安历史验收不运行或重试FinGPT三组比较，也不扩展其模型/供应商预算授权。新增历史反例只纳入原Checks步骤，历史周报仍经同一DSH与Host质量门，结果不得认证正式稿或比较模型优劣；本机、CI、实际运行分别留证。

@@ -24269,6 +24269,72 @@ Functions:
 - `main`
 
 
+## `scripts/run_ci_pytest_partitions.py`
+
+Module docstring:
+> Run an existing pytest selection in two exact, isolated CI partitions.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `contextlib`
+- `dataclasses`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `signal`
+- `stat`
+- `subprocess`
+- `sys`
+- `tempfile`
+- `time`
+- `typing`
+- `xml.etree.ElementTree`
+
+Classes:
+- `PartitionError`
+  - Raised when a suite cannot be split or its evidence is incomplete.
+- `CollectionPlugin`
+  - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems
+- `WorkerPlugin`
+  - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems, pytest_runtest_logreport
+
+Functions:
+- `_safe_exception_class`
+- `_failure_taxonomy`
+- `_validate_failure_taxonomy`
+- `_canonical`
+- `_is_within`
+- `validate_selection`
+  - Accept only test paths and the selection options used by the CI contract.
+- `split_nodeids`
+  - Round-robin the real collection order to balance even large single modules.
+- `_plan_sha256`
+- `validate_partition_manifest`
+  - Require exact ordered collection equality and a disjoint two-way union.
+- `create_task_root`
+  - Create a fresh, owner-checked task directory under its allowed temp parent.
+- `validate_task_root`
+  - Reject symlinks, foreign roots, and roots whose registered inode changed.
+- `_atomic_json`
+- `_pythonpath`
+- `_register_process`
+- `_worker_command`
+- `_pytest_arguments`
+- `_pytest_collection_arguments`
+- `_parse_junit`
+- `_validate_execution_records`
+- `_validate_worker_result`
+- `_validate_worker_owner`
+- `_worker_result`
+- `_run_worker`
+- `_internal_worker`
+- `run_suite`
+- `main`
+
+
 ## `scripts/run_official_index_structure_ingestion.py`
 
 Module docstring:
@@ -24487,6 +24553,57 @@ Classes:
   - methods: __init__, draw
 
 Functions:
+- `main`
+
+
+## `scripts/stage_ci_pytest_evidence.py`
+
+Module docstring:
+> Stage redacted CI pytest evidence through owner-bound, no-follow file handles.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `typing`
+- `xml.etree.ElementTree`
+
+Classes:
+- `StagingError`
+  - Raised when evidence paths, ownership, identity, or content are unsafe.
+
+Functions:
+- `_validate_failure_taxonomy`
+- `_secret_scan`
+- `_directory_flags`
+- `_same_file`
+- `_same_dir`
+- `_open_owned_directory`
+- `_open_directory_at`
+- `_read_file_at`
+- `_read_relative`
+- `_verify_directory_entry`
+- `_verify_relative`
+- `_read_json`
+- `_validate_selection`
+- `_validate_manifest`
+- `_sanitize_junit`
+- `_validate_passed_execution`
+- `_safe_worker_summary`
+- `_scope_artifacts`
+- `_load_source_root`
+- `_reopen_same_directory`
+- `_mkdir_at`
+- `_write_file_at`
+- `_write_tree`
+- `stage_evidence`
+  - Validate task roots, create sanitized evidence, and publish one fresh artifact dir.
 - `main`
 
 

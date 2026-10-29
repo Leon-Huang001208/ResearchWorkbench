@@ -564,3 +564,23 @@ test('Checks post-install verification rejects drift in every frozen distributio
     fs.rmSync(root, {recursive: true});
   }
 });
+
+test('pytest evidence staging uses the no-follow allowlist helper and exact artifact directory', () => {
+  for (const event of ['pull_request', 'push']) {
+    assert.equal(
+      triggersForPath(workflows.checks, event, 'scripts/stage_ci_pytest_evidence.py'),
+      true,
+      `${event}: staging helper must trigger checks`,
+    );
+    assert.equal(
+      triggersForPath(workflows.checks, event, 'tests/unit/test_ci_pytest_evidence_staging.py'),
+      true,
+      `${event}: staging security contracts must trigger checks`,
+    );
+  }
+  assert.match(workflows.checks, /scripts\/stage_ci_pytest_evidence\.py/);
+  assert.match(workflows.checks, /if: always\(\) && steps\.stage-safe-evidence\.outcome == 'success'/);
+  assert.match(workflows.checks, /path: artifacts\/research-web-checks\n/);
+  assert.doesNotMatch(workflows.checks, /cp "\$root\/\$relative"/);
+  assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
+});
