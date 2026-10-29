@@ -7,6 +7,8 @@ import hashlib
 import io
 import json
 import os
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -214,6 +216,38 @@ def _write_scheduler_junit_summary(
     path.write_text(json.dumps(scheduler), encoding="utf-8")
 
 
+def _mark_worker_failed(root: Path, failure_body: str, error_class: str) -> None:
+    result = _read_result(root)
+    result["status"] = "failed"
+    result["pytestExitCode"] = 1
+    result["error"] = f"{error_class}: {failure_body}"
+    result["failureTaxonomy"] = {
+        "phase": "call",
+        "errorClass": error_class,
+        "errorCode": "pytest_call_failed",
+    }
+    result["execution"][0]["phases"][1]["outcome"] = "failed"
+    junit_path = root / "worker-0" / "junit.xml"
+    junit_path.write_text(
+        junit_path.read_text(encoding="utf-8").replace(
+            "</testcase>", f'<failure message="{failure_body}" />\n</testcase>', 1
+        ),
+        encoding="utf-8",
+    )
+    junit_bytes = junit_path.read_bytes()
+    result["junit"].update({"sha256": hashlib.sha256(junit_bytes).hexdigest(), "failures": 1})
+    _write_result(root, result)
+    _write_scheduler_junit_summary(
+        root, 0, junit_bytes, {"tests": 1, "failures": 1, "errors": 0, "skipped": 0}
+    )
+    scheduler_path = root / "scheduler-result.json"
+    scheduler = json.loads(scheduler_path.read_text(encoding="utf-8"))
+    scheduler["status"] = "failed"
+    scheduler["actualNodeIds"] = []
+    scheduler["workers"][0].update({"status": "failed", "pytestExitCode": 1, "actualNodeIds": []})
+    scheduler_path.write_text(json.dumps(scheduler), encoding="utf-8")
+
+
 def test_rejects_passed_result_with_failed_phase(tmp_path: Path) -> None:
     runner_temp = tmp_path / "runner-temp"
     runner_temp.mkdir()
@@ -316,36 +350,8 @@ def test_failed_worker_staging_keeps_safe_taxonomy_without_failure_body(tmp_path
     runner_temp = tmp_path / "runner-temp"
     runner_temp.mkdir()
     root = _write_runner_root(runner_temp)
-    result = _read_result(root)
     failure_body = "PRIVATE_FAILURE_BODY_CANARY"
-    result["status"] = "failed"
-    result["pytestExitCode"] = 1
-    result["error"] = f"AssertionError: {failure_body}"
-    result["failureTaxonomy"] = {
-        "phase": "call",
-        "errorClass": "AssertionError",
-        "errorCode": "pytest_call_failed",
-    }
-    result["execution"][0]["phases"][1]["outcome"] = "failed"
-    junit_path = root / "worker-0" / "junit.xml"
-    junit_path.write_text(
-        junit_path.read_text(encoding="utf-8").replace(
-            "</testcase>", f'<failure message="{failure_body}" />\n</testcase>', 1
-        ),
-        encoding="utf-8",
-    )
-    junit_bytes = junit_path.read_bytes()
-    result["junit"].update({"sha256": hashlib.sha256(junit_bytes).hexdigest(), "failures": 1})
-    _write_result(root, result)
-    _write_scheduler_junit_summary(
-        root, 0, junit_bytes, {"tests": 1, "failures": 1, "errors": 0, "skipped": 0}
-    )
-    scheduler_path = root / "scheduler-result.json"
-    scheduler = json.loads(scheduler_path.read_text(encoding="utf-8"))
-    scheduler["status"] = "failed"
-    scheduler["actualNodeIds"] = []
-    scheduler["workers"][0].update({"status": "failed", "pytestExitCode": 1, "actualNodeIds": []})
-    scheduler_path.write_text(json.dumps(scheduler), encoding="utf-8")
+    _mark_worker_failed(root, failure_body, "AssertionError")
 
     output = _stage(tmp_path, root)
 
@@ -364,6 +370,83 @@ def test_failed_worker_staging_keeps_safe_taxonomy_without_failure_body(tmp_path
     assert "failure phase: call" in safe_log
     assert "failure code: pytest_call_failed" in safe_log
     assert failure_body.encode() not in staged_bytes
+
+
+def test_rejects_identifier_shaped_error_class_in_raw_schema_v3_result(tmp_path: Path) -> None:
+    assert staging.SAFE_EXCEPTION_CLASSES == partitions.SAFE_EXCEPTION_CLASSES
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    _mark_worker_failed(root, "private failure body", "PRIVATE_FAILURE_BODY_CANARY")
+
+    with pytest.raises(staging.StagingError, match="failure taxonomy is invalid"):
+        _stage(tmp_path, root)
+
+    assert not (tmp_path / "workspace" / "artifacts" / "research-web-checks").exists()
+
+
+def test_real_worker_private_exception_name_never_reaches_staged_artifact(tmp_path: Path) -> None:
+    fixture_root = tmp_path / "fixture-project"
+    test_root = fixture_root / "tests" / "research_web"
+    test_root.mkdir(parents=True)
+    test_root.joinpath("test_fixture.py").write_text(
+        """
+class PRIVATE_FAILURE_BODY_CANARY(Exception):
+    pass
+
+def test_private_failure():
+    raise PRIVATE_FAILURE_BODY_CANARY()
+
+def test_passes():
+    assert True
+""",
+        encoding="utf-8",
+    )
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = runner_temp / "rwb-ci-pytest-research-web"
+    command = [
+        sys.executable,
+        "-P",
+        str(Path(partitions.__file__).resolve()),
+        "--task-root",
+        str(root),
+        "--allowed-parent",
+        str(runner_temp),
+        "--task-id",
+        "fixture-research-web",
+        "--",
+        "tests/research_web/test_fixture.py",
+        "--confcutdir=tests/research_web",
+        "-q",
+    ]
+    environment = dict(os.environ)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONPATH"] = partitions._pythonpath(
+        fixture_root, environment.get("PYTHONPATH", "")
+    )
+
+    completed = subprocess.run(
+        command,
+        cwd=fixture_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode != 0
+    failed_results = [
+        _read_result(root, index)
+        for index in range(2)
+        if _read_result(root, index)["status"] == "failed"
+    ]
+    assert len(failed_results) == 1
+
+    output = _stage(tmp_path, root)
+    staged_bytes = b"".join(path.read_bytes() for path in output.rglob("*") if path.is_file())
+
+    assert b"PRIVATE_FAILURE_BODY_CANARY" not in staged_bytes
+    assert failed_results[0]["failureTaxonomy"]["errorClass"] is None
 
 
 def test_symlink_source_cannot_read_or_stage_external_sentinel(tmp_path: Path) -> None:

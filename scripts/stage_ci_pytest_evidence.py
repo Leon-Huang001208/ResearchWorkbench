@@ -60,7 +60,47 @@ FAILURE_CODES_BY_PHASE = {
         "worker_result_serialization_failed",
     },
 }
-SAFE_EXCEPTION_CLASS = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,79}$")
+SAFE_EXCEPTION_CLASSES = frozenset(
+    {
+        "AssertionError",
+        "AttributeError",
+        "BaseException",
+        "ConnectionError",
+        "EOFError",
+        "Exception",
+        "FileExistsError",
+        "FileNotFoundError",
+        "ImportError",
+        "IndexError",
+        "InterruptedError",
+        "IsADirectoryError",
+        "KeyError",
+        "KeyboardInterrupt",
+        "MemoryError",
+        "ModuleNotFoundError",
+        "NameError",
+        "NotADirectoryError",
+        "NotImplementedError",
+        "OSError",
+        "OverflowError",
+        "PartitionError",
+        "PermissionError",
+        "RecursionError",
+        "RuntimeError",
+        "StopAsyncIteration",
+        "StopIteration",
+        "SyntaxError",
+        "SystemError",
+        "SystemExit",
+        "TimeoutError",
+        "TypeError",
+        "UnboundLocalError",
+        "UnicodeError",
+        "UnknownError",
+        "ValueError",
+        "ZeroDivisionError",
+    }
+)
 SECRET_PATTERNS = (
     re.compile(rb"(?i)authorization\s*:\s*bearer\s+\S+"),
     re.compile(rb"\bsk-[A-Za-z0-9_-]{16,}\b"),
@@ -100,9 +140,7 @@ def _validate_failure_taxonomy(value: Any, status: Any, index: int) -> None:
         or error_code not in FAILURE_CODES_BY_PHASE[phase]
         or (
             error_class is not None
-            and (
-                not isinstance(error_class, str) or not SAFE_EXCEPTION_CLASS.fullmatch(error_class)
-            )
+            and (not isinstance(error_class, str) or error_class not in SAFE_EXCEPTION_CLASSES)
         )
     ):
         raise StagingError(f"worker-{index} failure taxonomy is invalid")

@@ -7,7 +7,6 @@ import contextlib
 import hashlib
 import json
 import os
-import re
 import signal
 import stat
 import subprocess
@@ -56,7 +55,47 @@ FAILURE_CODES_BY_PHASE = {
         "worker_result_serialization_failed",
     },
 }
-SAFE_EXCEPTION_CLASS = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,79}$")
+SAFE_EXCEPTION_CLASSES = frozenset(
+    {
+        "AssertionError",
+        "AttributeError",
+        "BaseException",
+        "ConnectionError",
+        "EOFError",
+        "Exception",
+        "FileExistsError",
+        "FileNotFoundError",
+        "ImportError",
+        "IndexError",
+        "InterruptedError",
+        "IsADirectoryError",
+        "KeyError",
+        "KeyboardInterrupt",
+        "MemoryError",
+        "ModuleNotFoundError",
+        "NameError",
+        "NotADirectoryError",
+        "NotImplementedError",
+        "OSError",
+        "OverflowError",
+        "PartitionError",
+        "PermissionError",
+        "RecursionError",
+        "RuntimeError",
+        "StopAsyncIteration",
+        "StopIteration",
+        "SyntaxError",
+        "SystemError",
+        "SystemExit",
+        "TimeoutError",
+        "TypeError",
+        "UnboundLocalError",
+        "UnicodeError",
+        "UnknownError",
+        "ValueError",
+        "ZeroDivisionError",
+    }
+)
 
 
 class PartitionError(RuntimeError):
@@ -66,11 +105,12 @@ class PartitionError(RuntimeError):
 def _safe_exception_class(value: Any) -> str | None:
     if isinstance(value, BaseException):
         candidate = type(value).__name__
+        return candidate if candidate in SAFE_EXCEPTION_CLASSES else "UnknownError"
     elif isinstance(value, str):
         candidate = value.strip().split(":", 1)[0].rsplit(".", 1)[-1]
     else:
         return None
-    return candidate if SAFE_EXCEPTION_CLASS.fullmatch(candidate) else None
+    return candidate if candidate in SAFE_EXCEPTION_CLASSES else None
 
 
 def _failure_taxonomy(phase: str, error_class: Any, error_code: str) -> dict[str, str | None]:
@@ -107,9 +147,7 @@ def _validate_failure_taxonomy(value: Any, status: Any) -> None:
         or error_code not in FAILURE_CODES_BY_PHASE[phase]
         or (
             error_class is not None
-            and (
-                not isinstance(error_class, str) or not SAFE_EXCEPTION_CLASS.fullmatch(error_class)
-            )
+            and (not isinstance(error_class, str) or error_class not in SAFE_EXCEPTION_CLASSES)
         )
     ):
         raise PartitionError("worker failure taxonomy is invalid")
