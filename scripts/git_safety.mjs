@@ -624,6 +624,157 @@ function refreshFeatureRecord(repository, receipt, options) {
     fs.unlinkSync(lock);
   }
 }
+/** Adopt only an already committed, never-published merge in the original worktree. */
+function amendPrepared(repository, receipt, taskId, options) {
+  if (receipt.status !== 'prepared' || receipt.mode !== null || receipt.pullRequest !== null || receipt.remoteCommit !== null ||
+      receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit|merge.?commit/i.test(key) && !['pullRequest','remoteCommit','baseRefreshPublishedHead'].includes(key)) ||
+      !receipt.ci || !['pending','not_configured'].includes(receipt.ci.status) || !Array.isArray(receipt.ci.runs) || receipt.ci.runs.length || Object.keys(receipt.ci).some(key => !['status','runs'].includes(key)) ||
+      receipt.rollback?.status !== 'not_run' || !receipt.cleanup || Object.values(receipt.cleanup).some(value => value !== false) ||
+      !Number.isSafeInteger(receipt.repairAttempts) || receipt.repairAttempts < 0 || !Array.isArray(receipt.integrationHistory) || receipt.integrationHistory.length) fail('UNPUBLISHED_STATE_INVALID');
+  if (receipt.schemaVersion !== 1 || receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' ||
+      !receipt.featureBranch?.startsWith(`codex/${taskId}-`) || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '') ||
+      [receipt.baseCommit,receipt.featureCommit,receipt.integrationCommit].some(value => !/^[a-f0-9]{40}$/.test(value ?? ''))) fail('TASK_OWNERSHIP_MISMATCH');
+  const repo = githubRepo(receipt), locks = [];
+  const identity = filename => {
+    assertNoSymlinkAncestors(path.dirname(filename));
+    const stat = fs.lstatSync(filename);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.uid !== process.getuid()) fail('DELIVERY_RECORD_INVALID');
+    return {dev:stat.dev,ino:stat.ino,bytes:fs.readFileSync(filename)};
+  };
+  const destination = path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json');
+  const ledgerPath = path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'resources.json');
+  let temporary;
+  try {
+    for (const name of ['integration',taskId]) {
+      const filename=path.join(repository.commonDirectory,'leon-engineering/locks',name+'.lock');
+      try { privateWrite(filename,String(process.pid)+'\n'); } catch(error) { if(error.code==='EEXIST') fail('TASK_LOCKED'); throw error; }
+      locks.push({filename,...identity(filename)});
+    }
+    const original=identity(destination), ledger=identity(ledgerPath), ownership=JSON.parse(ledger.bytes);
+    if (JSON.stringify(JSON.parse(original.bytes)) !== JSON.stringify(receipt)) fail('DELIVERY_RECORD_CHANGED');
+    if (ownership.taskId !== taskId) fail('TASK_OWNERSHIP_MISMATCH');
+    const unchanged = (filename, expected) => {
+      const actual=identity(filename);
+      if(actual.dev!==expected.dev || actual.ino!==expected.ino || !actual.bytes.equals(expected.bytes)) fail('DELIVERY_RECORD_CHANGED');
+    };
+    const prior=receipt.preparedAmendment;
+    const replay=prior?.candidateCommit===receipt.integrationCommit && prior?.featureCommit===receipt.featureCommit &&
+      output(git(receipt.integrationWorktree,['rev-parse','HEAD'],options))===receipt.integrationCommit && output(git(receipt.featureWorktree,['rev-parse','HEAD'],options))===receipt.featureCommit;
+    const oldCandidate=replay ? prior.previousCandidate : receipt.integrationCommit;
+    const oldFeature=replay ? prior.previousFeature : receipt.featureCommit;
+    let captured;
+    const candidateState = () => {
+      assertNativeUnlocked(repository); unchanged(destination,original); unchanged(ledgerPath,ledger);
+      for(const lock of locks) unchanged(lock.filename,lock);
+      if(output(git(repository.repositoryRoot,['remote','get-url','origin'],options))!==receipt.remoteUrl || output(git(repository.repositoryRoot,['rev-parse','refs/remotes/origin/master'],options))!==receipt.baseCommit) fail('REMOTE_IDENTITY_CHANGED');
+      const entries=worktrees(repository,options), result=[];
+      for(const [directory,branch] of [[receipt.featureWorktree,receipt.featureBranch],[receipt.integrationWorktree,receipt.integrationBranch]]) {
+        assertNoSymlinkAncestors(directory);
+        const stat=fs.lstatSync(directory), registered=entries.find(row=>row.worktree===directory);
+        if(!stat.isDirectory() || stat.isSymbolicLink() || stat.uid!==process.getuid() || fs.realpathSync(directory)!==directory || directory===repository.repositoryRoot ||
+            JSON.stringify(ownership.roots?.[directory])!==JSON.stringify([stat.dev,stat.ino]) || !registered || registered.branch!==`refs/heads/${branch}` || registered.locked || registered.prunable ||
+            discover(directory,options).commonDirectory!==repository.commonDirectory || output(git(directory,['symbolic-ref','--short','HEAD'],options))!==branch) fail('TASK_OWNERSHIP_MISMATCH');
+        if((options.processProbe??occupied)(directory)) fail('WORKTREE_IN_USE');
+        if(output(git(directory,['status','--porcelain','--untracked-files=all'],options))) fail('WORKTREE_DIRTY');
+        for(const operation of ['MERGE_HEAD','CHERRY_PICK_HEAD','REVERT_HEAD','rebase-merge','rebase-apply']) {
+          const operationPath=output(git(directory,['rev-parse','--git-path',operation],options));
+          if(fs.existsSync(path.resolve(directory,operationPath))) fail('INTEGRATION_NOT_COMMITTED');
+        }
+        const dotgit=identity(path.join(directory,'.git'));
+        const admin=path.resolve(directory,output(git(directory,['rev-parse','--git-dir'],options))), adminStat=fs.lstatSync(admin);
+        if(!adminStat.isDirectory() || adminStat.isSymbolicLink()) fail('TASK_OWNERSHIP_MISMATCH');
+        result.push({head:registered.HEAD,branch,directory,dev:stat.dev,ino:stat.ino,gitFile:sha256(dotgit.bytes),gitInode:dotgit.ino,admin,adminDev:adminStat.dev,adminIno:adminStat.ino});
+      }
+      if(result[0].directory===result[1].directory) fail('TASK_OWNERSHIP_MISMATCH');
+      const feature=result[0].head, candidate=result[1].head;
+      const ancestor=(a,b)=>/^[a-f0-9]{40}$/.test(a??'') && git(repository.repositoryRoot,['merge-base','--is-ancestor',a,b],options,{allowFailure:true}).status===0;
+      const parents=output(git(repository.repositoryRoot,['rev-list','--parents','-n','1',candidate],options)).split(' ').slice(1);
+      if(feature===oldFeature || candidate===oldCandidate || !ancestor(oldFeature,feature) || !ancestor(oldCandidate,candidate) || !ancestor(feature,candidate) || !ancestor(receipt.baseCommit,candidate) ||
+          !ancestor(receipt.baseCommit,oldCandidate) || !ancestor(oldFeature,oldCandidate) || ancestor(oldCandidate,receipt.baseCommit) || ancestor(candidate,receipt.baseCommit) ||
+          parents.length!==2 || parents[0]!==oldCandidate || parents[1]!==feature) fail('PREPARED_AMEND_ANCESTRY_INVALID');
+      const value=JSON.stringify({result,refs:refs(repository,options)});
+      if(captured && value!==captured) fail('DELIVERY_RECORD_CHANGED');
+      captured=value;
+      return {feature,candidate};
+    };
+    const {feature,candidate}=candidateState();
+    const remoteState = () => {
+      const base=githubJson(['api',`repos/${repo}/git/ref/heads/master`],repository,options)?.object?.sha;
+      if(base!==receipt.baseCommit) fail('REMOTE_BASE_CHANGED');
+      for(const branch of [receipt.featureBranch,receipt.integrationBranch]) {
+        const remote=githubJson(['api',`repos/${repo}/git/matching-refs/heads/${branch}`],repository,options);
+        const prs=githubJson(['api',`repos/${repo}/pulls?state=all&head=${repo.split('/')[0]}:${branch}&per_page=1`],repository,options);
+        if(!Array.isArray(remote) || remote.length || !Array.isArray(prs) || prs.length) fail('UNPUBLISHED_STATE_INVALID');
+      }
+      for(const commit of new Set([oldCandidate,candidate])) {
+        // A genuinely unpushed commit is absent from GitHub. Distinguish its
+        // explicit HTTP 404 from authentication, transport and malformed errors;
+        // repository access was proven above. Actions can still address its SHA.
+        const response=(options.githubRunner??((exe,args,extra)=>command(exe,args,extra)))('gh',['api',`repos/${repo}/commits/${commit}`,'--include'],{cwd:repository.repositoryRoot,allowFailure:true});
+        const raw=response.stdout.toString(), match=raw.match(/^HTTP\/[\d.]+ (\d{3})[^\r\n]*\r?\n[\s\S]*?\r?\n\r?\n([\s\S]*)$/);
+        let body;
+        try { body=JSON.parse(match?.[2]??''); } catch { fail('UNPUBLISHED_REMOTE_UNPROVEN'); }
+        const absent=match[1]==='404' && response.status===1 && body.message==='Not Found';
+        if(!absent && (match[1]!=='200' || response.status!==0 || body.sha!==commit)) fail('UNPUBLISHED_REMOTE_UNPROVEN');
+        const endpoints=[`actions/runs?head_sha=${commit}&per_page=1`,...(absent?[]:[`commits/${commit}/check-runs`,`commits/${commit}/status`])];
+        for(const endpoint of endpoints) {
+          const value=githubJson(['api',`repos/${repo}/${endpoint}`],repository,options);
+          const rows=endpoint.startsWith('actions/')?value.workflow_runs:endpoint.endsWith('check-runs')?value.check_runs:value.statuses;
+          if(value.total_count!==0 || !Array.isArray(rows) || rows.length) fail('UNPUBLISHED_CI_PRESENT');
+        }
+      }
+      // Last network observation precedes the synchronous local CAS revalidation.
+      if(githubJson(['api',`repos/${repo}/git/ref/heads/master`],repository,options)?.object?.sha!==receipt.baseCommit) fail('REMOTE_BASE_CHANGED');
+      candidateState();
+    };
+    remoteState();
+    if(replay) {
+      const snapshot=identity(prior.receiptSnapshot);
+      const previous=JSON.parse(snapshot.bytes);
+      if(sha256(snapshot.bytes)!==prior.receiptSha256 || prior.restoreVerified!==true || readManifest(prior.backupDirectory).hash!==prior.backupManifestSha256 ||
+          previous.integrationCommit!==oldCandidate || previous.featureCommit!==oldFeature || previous.taskId!==taskId || previous.baseCommit!==receipt.baseCommit ||
+          previous.mode!==null || previous.pullRequest!==null || previous.remoteCommit!==null || receipt.verification!==null || receipt.review!==null ||
+          JSON.stringify(receipt.preparedAmendmentHistory?.at(-1))!==JSON.stringify(prior)) fail('PREPARED_AMEND_HISTORY_INVALID');
+      return withBackupLock(path.dirname(prior.backupDirectory),()=>{
+        verifyBackupDirectory(prior.backupDirectory,options); remoteState();
+        log(repository,'delivery-prepared-amend-replay','PASS',undefined,{candidate},options);
+        return receipt;
+      });
+    }
+    if(feature===receipt.featureCommit || candidate===receipt.integrationCommit) fail('PREPARED_AMEND_NOT_NEEDED');
+    const disk=fs.statfsSync(repository.repositoryRoot);
+    if(disk.bavail*disk.bsize<3*1024**3) fail('PREPARED_AMEND_DISK_BUDGET');
+    const preserved=refs(repository,options);
+    const backup=backupUnlocked(repository,{...options,backupVersion:2,preservationRefs:{...preserved,'refs/rwb-amend/old-feature':receipt.featureCommit,'refs/rwb-amend/old-candidate':receipt.integrationCommit},worktreePaths:[receipt.featureWorktree,receipt.integrationWorktree]});
+    if(backup.restoreVerified!==true) fail('RESTORE_UNVERIFIED');
+    return withBackupLock(path.dirname(backup.directory),()=>{
+    verifyBackupDirectory(backup.directory,options);
+    options.afterPreparedAmendBackup?.(backup);
+    candidateState(); remoteState();
+    const epoch=crypto.randomUUID(), directory=path.join(state(repository),'prepared-amend',taskId,epoch);
+    const snapshot=path.join(directory,'receipt.json'); privateWrite(snapshot,original.bytes);
+    const proof={schemaVersion:1,epoch,previousCandidate:receipt.integrationCommit,previousFeature:receipt.featureCommit,candidateCommit:candidate,featureCommit:feature,baseCommit:receipt.baseCommit,receiptSnapshot:snapshot,receiptSha256:sha256(original.bytes),backupDirectory:backup.directory,backupManifestSha256:readManifest(backup.directory).hash,restoreVerified:true};
+    // The sealed external backup anchors both old commits without moving any ref.
+    privateWrite(path.join(directory,'proof.json'),JSON.stringify(proof,null,2)+'\n');
+    const updated={...receipt,featureCommit:feature,integrationCommit:candidate,verification:null,ci:{status:'pending',runs:[]},review:null,preparedAmendment:proof,preparedAmendmentHistory:[...(receipt.preparedAmendmentHistory??[]),proof],updatedAt:new Date().toISOString()};
+    temporary=destination+'.'+epoch+'.tmp';privateWrite(temporary,JSON.stringify(updated,null,2)+'\n');
+    options.beforePreparedAmendAdopt?.();
+    remoteState(); candidateState();
+    const remaining=fs.statfsSync(repository.repositoryRoot);
+    if(remaining.bavail*remaining.bsize<2*1024**3) fail('PREPARED_AMEND_DISK_BUDGET');
+    fs.renameSync(temporary,destination);
+    log(repository,'delivery-prepared-amend','PASS',undefined,{candidate,previousCandidate:receipt.integrationCommit,receiptSnapshot:snapshot,backup:backup.directory},options);
+    return updated;
+    });
+  } finally {
+    if(temporary && fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    for(const lock of locks.reverse()) {
+      const current=identity(lock.filename);
+      if(current.dev!==lock.dev || current.ino!==lock.ino || !current.bytes.equals(lock.bytes)) fail('LOCK_OWNERSHIP_CHANGED');
+      fs.unlinkSync(lock.filename);
+    }
+  }
+}
 function refreshPublishedBase(repository, receipt, taskId, options) {
   // The shared controller rebuilds worktrees for remote_moved. RWB instead admits
   // an already committed descendant, preserving every ref and any existing PR.
@@ -1381,7 +1532,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         const receipt = controller.readDeliveryReceipt(common);
         if (receipt.status === 'ci_passed') fail('PREPARE_REMOVAL_BLOCKED');
         const refreshBase = receipt.status === 'remote_moved' || receipt.mode === 'pr' && ['awaiting_ci', 'ci_failed'].includes(receipt.status);
-        result = refreshBase
+        result = params.amendPrepared ? amendPrepared(repository, receipt, taskId, options) : refreshBase
           ? refreshPublishedBase(repository, receipt, taskId, options)
           : controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
         resourcePhase(repository, taskId, 'record', options);
@@ -1492,6 +1643,7 @@ export function parseCli(args) {
     else if (item === '--apply') options.apply = true;
     else if (item === '--repair') options.repair = true;
     else if (item === '--replace-prepared') options.replacePrepared = true;
+    else if (item === '--amend-prepared') options.amendPrepared = true;
     else if (values.has(item) && rest[index + 1] && !rest[index + 1].startsWith('--')) options[values.get(item)] = rest[++index];
     else fail('CLI_OPTION_INVALID');
   }
@@ -1507,6 +1659,7 @@ export function parseCli(args) {
   if(maintenance)options.action=subcommand;
   if (options.reviewedCommit && (options.action !== 'status' || !/^[a-f0-9]{40}$/.test(options.reviewedCommit))) fail('CLI_REVIEW_INVALID');
   if (options.replacePrepared && options.action !== 'prepare' || options.repair && options.action !== 'publish') fail('CLI_OPTION_INVALID');
+  if (options.amendPrepared && (options.action !== 'prepare' || options.replacePrepared || options.worktreeRoot)) fail('CLI_OPTION_INVALID');
   if (options.action === 'publish') {
     const durationSeconds = Number(options.verificationDuration);
     if (!options.verificationCommand || options.verificationStatus !== 'passed' || !Number.isInteger(durationSeconds) || durationSeconds < 0) fail('VERIFICATION_REQUIRED');
@@ -1522,7 +1675,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
-      'safetyAutoMergeDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances'
+      'safetyAutoMergeDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment'
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');
