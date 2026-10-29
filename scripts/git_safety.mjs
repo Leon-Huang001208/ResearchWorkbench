@@ -658,6 +658,7 @@ function validateAmendReceipt(receipt) {
 }
 /** Adopt only an already committed, never-published merge in the original worktree. */
 function amendPrepared(repository, receipt, taskId, options) {
+  options={...options,readOnlyGit:true};
   validateAmendReceipt(receipt);
   if (receipt.schemaVersion !== 1 || receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' ||
       !receipt.featureBranch?.startsWith(`codex/${taskId}-`) || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '') ||
@@ -667,11 +668,17 @@ function amendPrepared(repository, receipt, taskId, options) {
     assertNoSymlinkAncestors(path.dirname(filename));
     const stat = fs.lstatSync(filename);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.uid !== process.getuid()) fail('DELIVERY_RECORD_INVALID');
-    return {dev:stat.dev,ino:stat.ino,bytes:fs.readFileSync(filename)};
+    const fd=fs.openSync(filename,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+    try {
+      const opened=fs.fstatSync(fd),bytes=fs.readFileSync(fd),after=fs.fstatSync(fd),current=fs.lstatSync(filename);
+      if(!opened.isFile() || opened.nlink!==1 || opened.dev!==stat.dev || opened.ino!==stat.ino || opened.uid!==stat.uid ||
+          after.size!==opened.size || after.mtimeMs!==opened.mtimeMs || after.ctimeMs!==opened.ctimeMs || current.isSymbolicLink() || current.nlink!==1 || current.dev!==opened.dev || current.ino!==opened.ino) fail('DELIVERY_RECORD_CHANGED');
+      return {dev:opened.dev,ino:opened.ino,bytes};
+    } finally {fs.closeSync(fd);}
   };
   const destination = path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json');
   const ledgerPath = path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'resources.json');
-  let temporary;
+  let temporary,temporaryIdentity;
   try {
     for (const name of ['integration',taskId]) {
       const filename=path.join(repository.commonDirectory,'leon-engineering/locks',name+'.lock');
@@ -712,9 +719,21 @@ function amendPrepared(repository, receipt, taskId, options) {
       output(git(receipt.integrationWorktree,['rev-parse','HEAD'],options))===receipt.integrationCommit && output(git(receipt.featureWorktree,['rev-parse','HEAD'],options))===receipt.featureCommit;
     const oldCandidate=replay ? prior.previousCandidate : receipt.integrationCommit;
     const oldFeature=replay ? prior.previousFeature : receipt.featureCommit;
-    let captured;
+    let captured, assertCurrentBackup, pendingEpoch;
+    const assertRawGraph = () => {
+      if(process.env.GIT_GRAFT_FILE || process.env.GIT_SHALLOW_FILE) fail('PREPARED_AMEND_GRAPH_UNPROVEN');
+      for(const directory of [repository.repositoryRoot,receipt.featureWorktree,receipt.integrationWorktree]) {
+        if(output(git(directory,['rev-parse','--is-shallow-repository'],options))!=='false') fail('PREPARED_AMEND_GRAPH_UNPROVEN');
+        for(const name of ['info/grafts','shallow']) {
+          const filename=path.resolve(directory,output(git(directory,['rev-parse','--git-path',name],options)));
+          if(fs.lstatSync(filename,{throwIfNoEntry:false})) fail('PREPARED_AMEND_GRAPH_UNPROVEN');
+        }
+      }
+    };
     const candidateState = () => {
       repository.assertLockOwned(); if(assertBackupHeld) assertBackupHeld(); validateHistory();
+      assertRawGraph(); if(assertCurrentBackup) assertCurrentBackup();
+      if(pendingEpoch) for(const [filename,saved] of pendingEpoch) unchanged(filename,saved);
       assertNativeUnlocked(repository); unchanged(destination,original); unchanged(ledgerPath,ledger);
       for(const lock of locks) unchanged(lock.filename,lock);
       if(output(git(repository.repositoryRoot,['remote','get-url','origin'],options))!==receipt.remoteUrl || output(git(repository.repositoryRoot,['rev-parse','refs/remotes/origin/master'],options))!==receipt.baseCommit) fail('REMOTE_IDENTITY_CHANGED');
@@ -739,7 +758,7 @@ function amendPrepared(repository, receipt, taskId, options) {
       if(result[0].directory===result[1].directory) fail('TASK_OWNERSHIP_MISMATCH');
       const feature=result[0].head, candidate=result[1].head;
       const ancestor=(a,b)=>/^[a-f0-9]{40}$/.test(a??'') && git(repository.repositoryRoot,['merge-base','--is-ancestor',a,b],options,{allowFailure:true}).status===0;
-      const parents=output(git(repository.repositoryRoot,['rev-list','--parents','-n','1',candidate],options)).split(' ').slice(1);
+      const parents=git(repository.repositoryRoot,['cat-file','commit',candidate],options).stdout.toString('utf8').split('\n\n',1)[0].split('\n').filter(line=>line.startsWith('parent ')).map(line=>line.slice(7));
       if(feature===oldFeature || candidate===oldCandidate || !ancestor(oldFeature,feature) || !ancestor(oldCandidate,candidate) || !ancestor(feature,candidate) || !ancestor(receipt.baseCommit,candidate) ||
           !ancestor(receipt.baseCommit,oldCandidate) || !ancestor(oldFeature,oldCandidate) || ancestor(oldCandidate,receipt.baseCommit) || ancestor(candidate,receipt.baseCommit) ||
           parents.length!==2 || parents[0]!==oldCandidate || parents[1]!==feature) fail('PREPARED_AMEND_ANCESTRY_INVALID');
@@ -796,15 +815,29 @@ function amendPrepared(repository, receipt, taskId, options) {
     return withBackupLock(path.dirname(backup.directory),assertHeld=>{
     assertBackupHeld=assertHeld; validateHistory(true);
     verifyBackupDirectory(backup.directory,options);
+    const restored=readManifest(backup.directory), manifestFile=path.join(backup.directory,'manifest.json'), sealFile=path.join(backup.directory,'seal.json');
+    const restoredManifest=identity(manifestFile), restoredSeal=identity(sealFile);
+    assertCurrentBackup=()=>{
+      unchanged(manifestFile,restoredManifest);unchanged(sealFile,restoredSeal);
+      const current=readManifest(backup.directory), value=current.manifest;
+      if(current.hash!==restored.hash || value.preservationRefs?.['refs/rwb-amend/old-feature']!==receipt.featureCommit || value.preservationRefs?.['refs/rwb-amend/old-candidate']!==receipt.integrationCommit ||
+          value.refs?.[`refs/heads/${receipt.featureBranch}`]!==feature || value.refs?.[`refs/heads/${receipt.integrationBranch}`]!==candidate || value.refs?.['refs/remotes/origin/master']!==receipt.baseCommit ||
+          value.worktrees.length!==2 || value.worktrees.find(row=>row.path===receipt.featureWorktree)?.head!==feature || value.worktrees.find(row=>row.path===receipt.integrationWorktree)?.head!==candidate) fail('PREPARED_AMEND_HISTORY_INVALID');
+    };
+    assertCurrentBackup();
     options.afterPreparedAmendBackup?.(backup);
     candidateState(); remoteState();
     const epoch=crypto.randomUUID(), directory=path.join(state(repository),'prepared-amend',taskId,epoch);
     const snapshot=path.join(directory,'receipt.json'); privateWrite(snapshot,original.bytes);
-    const proof={schemaVersion:1,epoch,previousCandidate:receipt.integrationCommit,previousFeature:receipt.featureCommit,candidateCommit:candidate,featureCommit:feature,baseCommit:receipt.baseCommit,receiptSnapshot:snapshot,receiptSha256:sha256(original.bytes),backupDirectory:backup.directory,backupManifestSha256:readManifest(backup.directory).hash,restoreVerified:true};
+    const proof={schemaVersion:1,epoch,previousCandidate:receipt.integrationCommit,previousFeature:receipt.featureCommit,candidateCommit:candidate,featureCommit:feature,baseCommit:receipt.baseCommit,receiptSnapshot:snapshot,receiptSha256:sha256(original.bytes),backupDirectory:backup.directory,backupManifestSha256:restored.hash,restoreVerified:true};
     // The sealed external backup anchors both old commits without moving any ref.
     privateWrite(path.join(directory,'proof.json'),JSON.stringify(proof,null,2)+'\n');
     const updated={...receipt,featureCommit:feature,integrationCommit:candidate,verification:null,ci:{status:'pending',runs:[]},review:null,preparedAmendment:proof,preparedAmendmentHistory:[...(receipt.preparedAmendmentHistory??[]),proof],updatedAt:new Date().toISOString()};
     temporary=destination+'.'+epoch+'.tmp';privateWrite(temporary,JSON.stringify(updated,null,2)+'\n');
+    pendingEpoch=[[snapshot,original.bytes],[path.join(directory,'proof.json'),Buffer.from(JSON.stringify(proof,null,2)+'\n')],[temporary,Buffer.from(JSON.stringify(updated,null,2)+'\n')]].map(([filename,bytes])=>{
+      const saved=identity(filename);if(!saved.bytes.equals(bytes)) fail('DELIVERY_RECORD_CHANGED');return [filename,saved];
+    });
+    temporaryIdentity=pendingEpoch.at(-1)[1];
     options.beforePreparedAmendAdopt?.();
     remoteState(); candidateState();
     const remaining=fs.statfsSync(repository.repositoryRoot);
@@ -815,7 +848,11 @@ function amendPrepared(repository, receipt, taskId, options) {
     return updated;
     });
   } finally {
-    if(temporary && fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    if(temporary && temporaryIdentity && fs.lstatSync(temporary,{throwIfNoEntry:false})) {
+      const current=fs.lstatSync(temporary);
+      if(current.isFile() && !current.isSymbolicLink() && current.nlink===1 && current.dev===temporaryIdentity.dev && current.ino===temporaryIdentity.ino && identity(temporary).bytes.equals(temporaryIdentity.bytes)) fs.unlinkSync(temporary);
+      else log(repository,'delivery-prepared-amend-temporary','RETAINED','TEMPORARY_IDENTITY_CHANGED',{},options);
+    }
     for(const lock of locks.reverse()) {
       const current=identity(lock.filename);
       if(current.dev!==lock.dev || current.ino!==lock.ino || !current.bytes.equals(lock.bytes)) fail('LOCK_OWNERSHIP_CHANGED');

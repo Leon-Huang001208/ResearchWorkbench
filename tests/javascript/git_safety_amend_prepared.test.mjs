@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {runDelivery, parseCli} from '../../scripts/git_safety.mjs';
-import {withBackupLock} from '../../scripts/git_backup_store.mjs';
+import {withBackupLock, fingerprint} from '../../scripts/git_backup_store.mjs';
 
 function git(root, args) {
   const result = spawnSync('/usr/bin/git', ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', root, ...args], {encoding:'utf8'});
@@ -211,4 +212,75 @@ test('history verification covers the oldest epoch before a third descendant', a
   advance('second');const second=await amend(f);assert.equal(second.preparedAmendmentHistory.length,2);
   fs.appendFileSync(path.join(path.dirname(first.preparedAmendment.receiptSnapshot),'proof.json'),' ');
   advance('third');const before=fs.readFileSync(f.filename);await assert.rejects(amend(f),{code:'PREPARED_AMEND_HISTORY_INVALID'});assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+for(const name of ['snapshot','proof','temporary']) for(const action of ['delete','corrupt','replace']) test(`quality regression: new ${name} ${action} during final network wait preserves original receipt`, async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);let changed=false,changedTarget;
+  f.options.beforePreparedAmendAdopt=()=>{
+    const epochs=path.join(f.projectRoot,'.git/leon-engineering/git-safety/prepared-amend/task');
+    const epoch=path.join(epochs,fs.readdirSync(epochs)[0]);
+    const temporary=fs.readdirSync(path.dirname(f.filename)).find(value=>value.startsWith('task.json.')&&value.endsWith('.tmp'));
+    const target=name==='snapshot'?path.join(epoch,'receipt.json'):name==='proof'?path.join(epoch,'proof.json'):path.join(path.dirname(f.filename),temporary);
+    changedTarget=target;
+    f.server.beforeRead=()=>{
+      if(changed)return;changed=true;
+      if(action==='delete')fs.unlinkSync(target);
+      if(action==='corrupt')fs.writeFileSync(target,'{}\n');
+      if(action==='replace'){const bytes=fs.readFileSync(target);fs.renameSync(target,target+'.saved');fs.writeFileSync(target,bytes,{mode:0o600});}
+    };
+  };
+  await assert.rejects(amend(f));assert.equal(changed,true);assert.deepEqual(fs.readFileSync(f.filename),before);
+  if(name==='temporary' && action!=='delete')assert.equal(fs.existsSync(changedTarget),true,'changed temporary must be retained, not deleted as owned');
+});
+
+for(const mechanism of ['replace','graft','shallow']) test('quality regression: raw graph rejects real '+mechanism+' ambiguity without deleting metadata', async t=>{
+  const f=fixture(t);let metadata;
+  if(mechanism==='shallow'){
+    metadata=path.join(f.projectRoot,'.git/shallow');fs.writeFileSync(metadata,f.base+'\n');
+    assert.equal(git(f.projectRoot,['rev-parse','--is-shallow-repository']),'true');
+  } else {
+    const tree=git(f.integration,['rev-parse','HEAD^{tree}']);
+    const single=git(f.integration,['commit-tree',tree,'-p',f.previous,'-m','single parent repair']);
+    git(f.integration,['checkout','-B',f.receipt.integrationBranch,single]);
+    if(mechanism==='replace'){
+      const fake=git(f.integration,['commit-tree',tree,'-p',f.previous,'-p',f.newFeature,'-m','synthetic merge']);
+      git(f.projectRoot,['replace',single,fake]);metadata=path.join(f.projectRoot,'.git/refs/replace',single);
+    } else {
+      metadata=path.join(f.projectRoot,'.git/info/grafts');fs.writeFileSync(metadata,`${single} ${f.previous} ${f.newFeature}\n`);
+    }
+    const projected=git(f.projectRoot,['rev-list','--parents','-n','1',single]).split(' ').slice(1);
+    assert.deepEqual(projected,[f.previous,f.newFeature]);
+    const raw=spawnSync('/usr/bin/git',['--no-replace-objects','-C',f.projectRoot,'cat-file','commit',single],{encoding:'utf8',env:{...process.env,GIT_GRAFT_FILE:'/dev/null'}});
+    assert.equal(raw.status,0,raw.stderr);assert.equal(raw.stdout.split('\n').filter(line=>line.startsWith('parent ')).length,1);
+  }
+  const bytes=fs.readFileSync(metadata),before=fs.readFileSync(f.filename),refs=git(f.projectRoot,['show-ref']);
+  await assert.rejects(amend(f),error=>['PREPARED_AMEND_ANCESTRY_INVALID','PREPARED_AMEND_GRAPH_UNPROVEN'].includes(error.code));
+  assert.deepEqual(fs.readFileSync(f.filename),before);assert.deepEqual(fs.readFileSync(metadata),bytes);assert.equal(git(f.projectRoot,['show-ref']),refs);
+});
+
+test('quality regression: a newly resealed backup must correspond to the new proof and its actual restored anchors', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename);
+  f.options.afterPreparedAmendBackup=backup=>{
+    const filename=path.join(backup.directory,'manifest.json'),manifest=JSON.parse(fs.readFileSync(filename));
+    manifest.preservationRefs['refs/rwb-amend/old-feature']=f.base;manifest.stateHash=fingerprint(manifest,manifest.protection);
+    const bytes=JSON.stringify(manifest,null,2)+'\n';fs.writeFileSync(filename,bytes);
+    fs.writeFileSync(path.join(backup.directory,'seal.json'),JSON.stringify({manifestSha256:crypto.createHash('sha256').update(bytes).digest('hex')})+'\n');
+  };
+  await assert.rejects(amend(f));assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
+test('raw graph checks preserve legitimate unrelated refs and ignore an unrelated replacement mapping', async t=>{
+  const f=fixture(t),tree=git(f.projectRoot,['rev-parse','HEAD^{tree}']);
+  const other=git(f.projectRoot,['commit-tree',tree,'-p',f.base,'-m','other source']);
+  const replacement=git(f.projectRoot,['commit-tree',tree,'-m','other replacement']);
+  git(f.projectRoot,['branch','unrelated-keep',other]);git(f.projectRoot,['replace',other,replacement]);
+  const before=git(f.projectRoot,['show-ref']),result=await amend(f);
+  assert.equal(result.integrationCommit,f.candidate);assert.equal(git(f.projectRoot,['show-ref']),before);
+  assert.equal(git(f.projectRoot,['rev-parse',`refs/replace/${other}`]),replacement);
+});
+
+for(const name of ['info/grafts','shallow']) test('raw graph guard rejects network-time '+name+' metadata without deleting it', async t=>{
+  const f=fixture(t),before=fs.readFileSync(f.filename),target=path.join(f.projectRoot,'.git',name);let changed=false;
+  f.options.beforePreparedAmendAdopt=()=>{f.server.beforeRead=()=>{if(!changed){changed=true;fs.writeFileSync(target,f.base+'\n');}};};
+  await assert.rejects(amend(f),{code:'PREPARED_AMEND_GRAPH_UNPROVEN'});assert.deepEqual(fs.readFileSync(f.filename),before);assert.equal(fs.readFileSync(target,'utf8'),f.base+'\n');
 });

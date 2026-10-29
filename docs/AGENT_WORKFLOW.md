@@ -239,6 +239,9 @@ SHA 当前在 GitHub 不可见；403、网络失败和不明确响应不当作 4
 schema1 使用精确允许字段及嵌套契约，未知 CI 侧字段或 rollback／verification 等嵌套字段直接拒绝。
 仓库锁及备份锁的校验闭包来自当次真实取得的锁身份，最终 rename 前再次调用；不能用重新读取
 当前锁或序列化字段代替原身份。备份锁回调可接收此可选闭包，原无参回调保持原调用行为。
+本入口的 Git 检查禁用 replacement 与隐式 lazy fetch，merge 父提交直接读取原始 commit 对象；
+grafts、shallow 边界及自定义 graft／shallow 环境存在时拒绝，不删除任何 refs 或元数据。
+无关 replacement 引用可保留，但不参与资格图。网络等待后再次检查 graft／shallow 状态。
 
 收养前对本任务两工作树进行 v2 备份及真实独立恢复，旧 feature／候选作为 preservation
 anchors 保存在封印备份中，不移动原 refs。旧完整回执与 proof 以0600追加到 common directory 的
@@ -249,6 +252,9 @@ anchors 保存在封印备份中，不移动原 refs。旧完整回执与 proof 
 epoch；下一次真实 descendant 修订可追加新 epoch。
 每次修订及重放都逐 epoch 检查原回执哈希、私有 proof 精确字节、前缀链及 sealed manifest，
 在持备份锁时实际恢复所有既有 epoch；旧证据损坏或缺失时不得追加新历史。
+本次新建的 snapshot／proof／临时回执也须在最后网络观察后核对原 inode 和预期字节；
+proof 固定对应本轮实际恢复的 manifest／seal、旧提交锚点、两工作树 tip 和原 master。
+新文件缺失、损坏或同字节替换，以及备份重封印或错配，都在原回执 rename 前拒绝。
 `--replace-prepared` 继续拒绝；已发布刷新、完成交付和生产恢复边界保持原门。
 已有私有 Git shim 绑定 `/usr/local/bin/node` 的正式入口须
 继续使用该解释器，不为运行测试而替换 shim 或修改全局 PATH。

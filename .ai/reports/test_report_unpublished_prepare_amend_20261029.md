@@ -70,3 +70,26 @@ PASS（5.49秒），两份 mjs 语法检查、文档治理、Python生成索引�
 最终五文件 changed-set plan 为 `spec-verification-plan.json`，仍为L4；Project Constraints
 CI 未执行，mergeReady 不声明通过。正式 `/usr/local/bin/node ... check` 留档于
 `spec-precommit-check.json`；父 checkout 源码保持干净。没有修改实际阻塞任务或全局 runtime。
+
+## QUALITY 修订（基于 d4458d30 的实际复现）
+
+新增12个针对性用例，在旧实现11 RED／1控制PASS：snapshot／proof 的删除、损坏及同字节
+inode替换均被收养；临时回执损坏或替换被收养，临时回执删除原本由 rename 失败拒绝。
+真实 Git fixture 的单父候选通过 `refs/replace` 或 `info/grafts` 投影成二父后，旧入口完整
+收养成功；原本已是 root 的 base 写为 shallow marker 也被成功接纳。日志 `quality-red.log`。
+另单独复现了已实际恢复后重封印的错误 old-feature anchor 被新 proof 绑定：1 RED，
+日志 `quality-backup-red.log`。这些不是仅 mock 的静态推断。
+
+修订使本入口沿用 readOnlyGit 的 NO_REPLACE／NO_LAZY 进程环境，merge 父提交从原始 commit
+对象直接提取，拒绝 graft／shallow 文件或对应环境歧义；元数据在网络后复查，原 refs 不删。
+文件身份读取使用 NOFOLLOW／descriptor 并前后复查。新 snapshot／proof／临时回执在创建时
+绑定预期字节与 inode，最后观察后再次 CAS；新 proof 绑定本轮实际恢复的 manifest／seal
+身份与哈希、原提交 anchors、两工作树 tip 与原 master，拒绝重封印错配。
+
+新增合法无关 replacement／引用保全、等待期间 graft／shallow 出现的实际 fixture 正反例。
+专项73/73 GREEN（145.32秒）；随后补临时回执被替换／损坏时保留证据的精确归属清理及
+断言后，完整原112项＋专项73项联合185/185 PASS，0跳过（178.71秒），日志
+`quality-full-final.log`。本轮 Router 本地合同113/113 PASS（6.16秒），文档治理、生成索引、
+语法和 diff 检查通过，正式 check 记录 `quality-precommit-check.json`。
+父 checkout 源码仍干净，未修改实际任务、远端或全局 runtime。SPEC／QUALITY 独立复评由
+主任务在新候选上重新执行；本地测试通过不能冒充评审或生产恢复通过。
