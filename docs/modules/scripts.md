@@ -5,9 +5,15 @@ from an already-open source FD into a private directory FD on supported Darwin
 systems. The fixed standard-library helper accepts no arbitrary command; Node
 rechecks full bytes, identities and privacy before reporting success. It neither
 falls back nor removes data. The backup caller retains path/race guards, capacity
-admission, fsck and actual restore. No existing backup call site is switched by
-this first checkpoint; unsupported/error/unknown and platform limits are explicit
+admission, fsck and actual restore. The snapshot caller now uses the optional
+primitive; unsupported/error/unknown and platform limits are explicit
 in the [task report](../../.ai/reports/test_report_backup_cow_admission_20261030.md).
+
+Snapshot events are written to the current owned backup point's private logs,
+so logging cannot itself alter the captured source worktree. The closed journal
+is hashed into manifest.files and follows the existing V2 migration/shared-blob
+and actual restoration checks. Final project-level backup logging is unchanged;
+no CLI-selected journal destination or new logging service is added.
 
 The snapshot integration adds single ordinary-file stream admission in
 `backup_capacity.mjs`; it reads the actual destination filesystem's available

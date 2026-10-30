@@ -147,11 +147,46 @@ function assertRepositoryIdentity(repository, options) {
   const identityRoot = options.identityRoot ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   if (discover(identityRoot, options).commonDirectory !== repository.commonDirectory) fail('REPOSITORY_IDENTITY_MISMATCH');
 }
-function log(repository, action, status, code, details = {}, options = {}) {
+// This scope is created only for the current owned backup point. It is never
+// selected by options/CLI input and never substitutes for the source repository.
+function snapshotLogDirectory(journal, create = false) {
+  if (journal.sealed) fail('LOG_FILE_INVALID');
+  assertNoSymlinkAncestors(journal.root);
+  const valid = (value, expected) => value?.isDirectory() && !value.isSymbolicLink() && value.dev === expected.dev && value.ino === expected.ino && value.uid === expected.uid && value.uid === process.getuid() && (value.mode & 0o7777) === 0o700;
+  if (!valid(fs.lstatSync(journal.root, {throwIfNoEntry: false}), journal.rootIdentity)) fail('LOG_DIRECTORY_INVALID');
+  const directory = path.join(journal.root, 'logs');
+  if (!journal.directoryIdentity) {
+    if (!create) fail('LOG_DIRECTORY_INVALID');
+    try {fs.mkdirSync(directory, {mode: 0o700});} catch {fail('LOG_DIRECTORY_INVALID');}
+    journal.directoryIdentity = fs.lstatSync(directory);
+  }
+  if (!valid(fs.lstatSync(directory, {throwIfNoEntry: false}), journal.directoryIdentity)) fail('LOG_DIRECTORY_INVALID');
+  return directory;
+}
+function sealSnapshotLog(journal, manifest) {
+  if (!journal.fileIdentity) return;
+  const directory = snapshotLogDirectory(journal), filename = path.join(directory, 'git-safety.jsonl');
+  const checkFile = () => {
+    const value = fs.lstatSync(filename, {throwIfNoEntry: false});
+    if (!value?.isFile() || value.isSymbolicLink() || value.dev !== journal.fileIdentity.dev || value.ino !== journal.fileIdentity.ino || value.uid !== process.getuid() || value.nlink !== 1 || (value.mode & 0o7777) !== 0o600) fail('LOG_FILE_INVALID');
+  };
+  checkFile();
+  const hash = fileHash(filename);
+  checkFile();
+  for (const [target, expected] of [[journal.root, journal.rootIdentity], [directory, journal.directoryIdentity]]) {
+    const fd = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    try {const actual = fs.fstatSync(fd); if (!actual.isDirectory() || actual.dev !== expected.dev || actual.ino !== expected.ino) fail('LOG_DIRECTORY_INVALID'); fs.fsyncSync(fd);}
+    finally {fs.closeSync(fd);}
+  }
+  snapshotLogDirectory(journal);
+  journal.sealed = true;
+  manifest.files.push({path: 'logs/git-safety.jsonl', sha256: hash});
+}
+function log(repository, action, status, code, details = {}, options = {}, snapshotJournal) {
   if (options.logFailureCode) fail(options.logFailureCode);
   let descriptor;
   try {
-  const dir = path.join(repository.repositoryRoot, 'logs');
+  const dir = snapshotJournal ? snapshotLogDirectory(snapshotJournal, true) : path.join(repository.repositoryRoot, 'logs');
   assertNoSymlinkAncestors(dir);
   if (fs.existsSync(dir) && (!fs.lstatSync(dir).isDirectory() || fs.lstatSync(dir).isSymbolicLink())) fail('LOG_DIRECTORY_INVALID');
   fs.mkdirSync(dir, {recursive: true});
@@ -159,6 +194,7 @@ function log(repository, action, status, code, details = {}, options = {}) {
   const target = path.join(dir, 'git-safety.jsonl');
   const before = fs.lstatSync(target, {throwIfNoEntry: false});
   if (before && (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1)) fail('LOG_FILE_INVALID');
+  if (snapshotJournal && (before && ((before.mode & 0o7777) !== 0o600 || !snapshotJournal.fileIdentity || before.dev !== snapshotJournal.fileIdentity.dev || before.ino !== snapshotJournal.fileIdentity.ino))) fail('LOG_FILE_INVALID');
   const version = output(command(selectGitPath(options), ['--version']));
   const head = output(git(repository.repositoryRoot, ['rev-parse', 'HEAD'], options, {allowFailure: true}));
   const flags = fs.constants.O_WRONLY | fs.constants.O_APPEND | fs.constants.O_NOFOLLOW | (before ? 0 : fs.constants.O_CREAT | fs.constants.O_EXCL);
@@ -168,7 +204,9 @@ function log(repository, action, status, code, details = {}, options = {}) {
   const parentAfter = fs.lstatSync(dir);
   const current = fs.lstatSync(target, {throwIfNoEntry: false});
   if (!opened.isFile() || opened.nlink !== 1 || (typeof process.getuid === 'function' && (opened.uid !== process.getuid() || parentAfter.uid !== process.getuid())) || !current || current.isSymbolicLink() || current.nlink !== 1 || current.ino !== opened.ino || current.dev !== opened.dev || before && (opened.ino !== before.ino || opened.dev !== before.dev) || parentBefore.ino !== parentAfter.ino || parentBefore.dev !== parentAfter.dev || parentAfter.isSymbolicLink()) fail('LOG_FILE_INVALID');
+  if (snapshotJournal) {snapshotLogDirectory(snapshotJournal); if ((opened.mode & 0o7777) !== 0o600) fail('LOG_FILE_INVALID');}
   fs.writeSync(descriptor, JSON.stringify({time: new Date().toISOString(), action, status, gitPath: selectGitPath(options), gitVersion: /^git version [\w .()+-]+$/.test(version) ? version : 'UNKNOWN', head: /^[a-f0-9]{40,64}$/.test(head) ? head : null, durationMs: Math.max(0, Date.now() - (options.startedAt ?? Date.now())), ...details, ...(code ? {code} : {})}) + '\n');
+  if (snapshotJournal) {fs.fsyncSync(descriptor); snapshotJournal.fileIdentity = opened;}
   } catch (error) { options.logFailureCode = error.code ?? 'LOG_FILE_INVALID'; throw error; }
   finally { if (descriptor !== undefined) fs.closeSync(descriptor); }
 }
@@ -578,6 +616,7 @@ function backupLegacyUnlocked(repository, options) {
   privateDirectory(root);
   const directory = path.join(root, crypto.randomUUID());
   privateDirectory(directory);
+  const snapshotJournal = {root: directory, rootIdentity: fs.lstatSync(directory), sealed: false};
   const preservationRefs = {...(options.preservationRefs ?? {})};
   if (Object.entries(preservationRefs).some(([ref, oid]) => !ref.startsWith('refs/') || !/^[a-f0-9]{40,64}$/.test(oid))) fail('PRESERVATION_REFS_INVALID');
   const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, ...(options.stageV2 ? {objectOnly:true,createdAt:new Date(options.now??Date.now()).toISOString()} : {}), preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
@@ -599,10 +638,11 @@ function backupLegacyUnlocked(repository, options) {
       const item = before.worktrees[index];
       saveArtifact(directory, `worktrees/${index}/staged.patch`, git(item.path, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout, manifest);
       saveArtifact(directory, `worktrees/${index}/unstaged.patch`, git(item.path, ['diff', '--binary', '--full-index', '--'], options).stdout, manifest);
-      const snapshotContext = {onEvent: event => log(repository, 'backup-snapshot', event.status, event.code, event, options), [snapshotToolchainKey]: () => inheritedSnapshotToolchain(repository)};
+      const snapshotContext = {onEvent: event => log(repository, 'backup-snapshot', event.status, event.code, event, options, snapshotJournal), [snapshotToolchainKey]: () => inheritedSnapshotToolchain(repository)};
       item.tracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/tracked/${itemIndex}`, manifest, snapshotContext); });
       item.untracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/untracked/${itemIndex}`, manifest, snapshotContext); });
     }
+    sealSnapshotLog(snapshotJournal, manifest);
     saveArtifact(directory, 'manifest-draft.json', JSON.stringify(manifest, null, 2) + '\n', {files: []});
     if (JSON.stringify(targetFootprint(capture(repository, options))) !== JSON.stringify(targetFootprint(before))) fail('BACKUP_RACE');
     restoreBackup(directory, manifest, options);

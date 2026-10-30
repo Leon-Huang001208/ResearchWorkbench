@@ -352,6 +352,13 @@ test('backup actually restores commits, binary staged/unstaged patches, untracke
   const manifest = JSON.parse(fs.readFileSync(path.join(result.directory, 'manifest.json')));
   assert.equal(manifest.worktrees[0].untracked.length, 2);
   assert.ok(manifest.files.every(item => /^[a-f0-9]{64}$/.test(item.sha256)));
+  const journal = path.join(result.directory, 'logs/git-safety.jsonl');
+  assert.equal(fs.statSync(path.dirname(journal)).mode & 0o777, 0o700);
+  assert.equal(fs.statSync(journal).mode & 0o777, 0o600);
+  assert.equal(fs.statSync(journal).nlink, 1);
+  assert.equal(manifest.files.find(item => item.path === 'logs/git-safety.jsonl')?.sha256, crypto.createHash('sha256').update(fs.readFileSync(journal)).digest('hex'));
+  assert.ok(fs.readFileSync(journal, 'utf8').trim().split('\n').every(line => JSON.parse(line).action === 'backup-snapshot'));
+  assert.ok(!fs.readFileSync(path.join(projectRoot, 'logs/git-safety.jsonl'), 'utf8').includes('backup-snapshot'));
   assert.ok(!fs.readFileSync(path.join(projectRoot, 'logs/git-safety.jsonl'), 'utf8').includes('untracked evidence'));
 });
 
@@ -1215,7 +1222,7 @@ test('resource revalidation accepts only cleaned pending deliveries without repl
 test('enabled resource contract receives revalidate through the Python process boundary', async t => {
   const f=await pendingSnapshotCloseout(t), root=f.projectRoot;
   fs.mkdirSync(path.join(root,'scripts'));fs.mkdirSync(path.join(root,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
   fs.writeFileSync(path.join(root,'.agents/resource-closeout.json'),'{}');
   const python=spawnSync('python3',['-c','import sys;print(sys.executable)'],{encoding:'utf8'});
   assert.equal(python.status,0,python.stderr);
@@ -1605,6 +1612,8 @@ test('v2 preserves binary index/worktree, non-Git permissions, missing and symli
 test('v1 migration previews without writes, preserves point path, verifies v2 and resumes', t => {
   const {projectRoot,options}=fixture(t);
   const old=backupRepository({projectRoot},options);
+  const journal=JSON.parse(fs.readFileSync(path.join(old.directory,'manifest.json'))).files.find(item=>item.path==='logs/git-safety.jsonl');
+  assert.ok(journal);
   const before=treeBytes(options.backupRoot);
   const preview=maintainBackups({projectRoot,action:'backup-migrate'},options);
   assert.equal(preview.status,'preview');
@@ -1612,6 +1621,9 @@ test('v1 migration previews without writes, preserves point path, verifies v2 an
   const migrated=maintainBackups({projectRoot,action:'backup-migrate',apply:true},options);
   assert.equal(migrated.items.find(x=>x.id===path.basename(old.directory)).status,'migrated');
   assert.equal(JSON.parse(fs.readFileSync(path.join(old.directory,'manifest.json'))).schemaVersion,2);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(old.directory,'manifest.json'))).files.find(item=>item.path===journal.path)?.sha256,journal.sha256);
+  const sharedJournal=path.join(options.backupRoot,'.v2-store/files',journal.sha256.slice(0,2),journal.sha256.slice(2));
+  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(sharedJournal)).digest('hex'),journal.sha256);
   assert.equal(verifyBackupDirectory(old.directory,options).restoreVerified,true);
   assert.equal(fs.existsSync(path.join(old.directory,'objects.pack')),false);
   assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));

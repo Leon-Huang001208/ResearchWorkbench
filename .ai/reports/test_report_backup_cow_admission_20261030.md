@@ -2,8 +2,9 @@
 
 Date: 2026-10-30. Host: macOS. Task:
 `backup-cow-admission-20261030-7c9d4f2a`.
-Status: SNAPSHOT_PRESPAWN_REPAIR_LOCAL_GREEN; new exact integration reviews and
-routed closure pending. Complete backup phase admission remains unimplemented/unverified.
+Status: SOURCE_LOG_REPAIR_UNVERIFIED; the original Git contract suite exposed
+regressions after the earlier local slice passed. New execution is capacity-blocked.
+Complete backup phase admission remains unimplemented/unverified.
 
 This task does not replay PR250 cleanup, modify its receipt or alter recovery
 point 51b/shared storage. The earlier COMMAND_FAILED lacks an observed underlying
@@ -123,6 +124,31 @@ exact-candidate quality remain separate from the earlier failed invocation.
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"This slice adds optional FD-backed data copying and explicit single-file admission within the existing managed Git delivery toolchain. It retains all existing backup/restoration gates and reuses existing CI steps; no service, research engine, workflow runner, model authorization or deployment topology is added. Whole-phase capacity and real cleanup remain unqualified.","diagrams":[]} -->
 
 ## Remaining design gate
+
+The additional unchanged three-file Git suite actually executed 219 cases with
+exact Node 24.19.0: 199 PASS, 20 FAIL, zero skips, 425.97 seconds. Nineteen
+failures exposed a real regression: per-file snapshot events wrote into the
+source worktree before the final capture comparison, producing BACKUP_RACE.
+The other failure exposed an incomplete real Python-boundary fixture copy after
+new static imports were added. Logs and source hashes are retained under
+`logs/backup-cow-admission/old-git-contracts-b74/`; the peak synthetic footprint
+was 780,661 bytes and the owned process group was confirmed absent afterwards.
+
+The narrow repair directs snapshot events into the current private backup
+point's logs directory, preserving the original repository/HEAD metadata. The
+internal destination is not accepted through CLI/options. Root/directory/file
+identities, privacy and no-alias checks apply, writes are fsynced and closed,
+then the journal hash enters manifest.files. Existing V2 migration imports those
+bytes into its shared store and restore/hash chain. Original source capture,
+restoration and final project PASS/FAIL logging remain in place. The fixture
+copies its three new static dependencies; original assertions remain, with
+additional journal isolation and migration checks.
+
+The attempted focused pre-repair rerun was refused before spawning: free space
+had fallen below the 3 GiB start floor, then below the 2 GiB run reserve. Test
+child count was zero. This source repair and its new assertions are NOT_RUN;
+neither the earlier 11 local gates nor static reviews certify the changed code.
+No full backup, protected point 51b, shared pool or production operation was run.
 
 Existing store copyChecked already uses a clone hint, which can silently fall
 back. The V1 snapshot now attempts an optional pinned-FD clone and admits its
