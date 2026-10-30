@@ -120,6 +120,28 @@ def _accounts(db: Path) -> tuple[set[str], dict]:
     return ids, identity
 
 
+def _catalog_state(root: Path) -> tuple[dict, int]:
+    folder = root / "report-workflows"
+    if not folder.exists() and not folder.is_symlink():
+        return {"status": "missing", "directory": "missing"}, 0
+    folder_info = _directory(folder)
+    directory_identity = [folder_info.st_dev, folder_info.st_ino]
+    path = folder / "catalog.json"
+    if not path.exists() and not path.is_symlink():
+        return {"status": "missing", "directory_identity": directory_identity}, 0
+    catalog, _, identity = _json(path, MAX_ASSET_INDEX_BYTES)
+    workflows, runs = catalog.get("workflows"), catalog.get("runs")
+    if not isinstance(workflows, dict) or not isinstance(runs, dict):
+        raise TrialBackupBlocked("trial_catalog_invalid")
+    return {
+        "status": "present",
+        "directory_identity": directory_identity,
+        "identity": identity,
+        "workflow_count": len(workflows),
+        "run_count": len(runs),
+    }, identity["size"]
+
+
 def preview(home: Path) -> dict:
     """Return only identity, counts, statuses and hashes; never session/model content."""
     try:
@@ -155,9 +177,20 @@ def preview(home: Path) -> dict:
             if not root.exists() and not root.is_symlink():
                 if kind == "primary":
                     raise TrialBackupBlocked("trial_primary_root_missing")
-                result.append({"account_id": account_id, "kind": kind, "index": "missing"})
+                result.append(
+                    {
+                        "account_id": account_id,
+                        "kind": kind,
+                        "index": "missing",
+                        "catalog": {"status": "missing", "directory": "missing"},
+                    }
+                )
                 continue
             root_id = _directory(root)
+            catalog, catalog_bytes = _catalog_state(root)
+            total_bytes += catalog_bytes
+            if total_bytes > MAX_TOTAL_BYTES:
+                raise TrialBackupBlocked("trial_total_budget_exceeded")
             path = root / "index.json"
             if not path.exists() and not path.is_symlink():
                 result.append(
@@ -166,6 +199,7 @@ def preview(home: Path) -> dict:
                         "kind": kind,
                         "index": "missing",
                         "root_identity": [root_id.st_dev, root_id.st_ino],
+                        "catalog": catalog,
                     }
                 )
                 continue
@@ -212,6 +246,7 @@ def preview(home: Path) -> dict:
                     "index_identity": identity,
                     "session_count": len(sessions),
                     "sessions": statuses,
+                    "catalog": catalog,
                     "model_settings_sha256": hashlib.sha256(
                         json.dumps(
                             models, sort_keys=True, ensure_ascii=False, allow_nan=False
@@ -346,13 +381,15 @@ def backup(home: Path, backup_parent: Path, expected_seal: str) -> dict:
             try:
                 files = {"server/accounts.sqlite3": DB_LIMIT, "server/resident.json": RECORD_LIMIT}
                 for row in before["roots"]:
+                    prefix = (
+                        "research-web"
+                        if row["kind"] == "primary"
+                        else f"server/users/{row['account_id']}/research-web"
+                    )
                     if row["index"] == "present":
-                        prefix = (
-                            "research-web"
-                            if row["kind"] == "primary"
-                            else f"server/users/{row['account_id']}/research-web"
-                        )
                         files[f"{prefix}/index.json"] = MAX_ASSET_INDEX_BYTES
+                    if row["catalog"]["status"] == "present":
+                        files[f"{prefix}/report-workflows/catalog.json"] = MAX_ASSET_INDEX_BYTES
                 manifest = {"version": 1, "source_seal": expected_seal, "files": {}}
                 copied_bytes = 0
                 for relative, limit in files.items():

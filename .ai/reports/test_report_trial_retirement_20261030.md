@@ -15,7 +15,7 @@ verified; original receipts remain protected.
 
 The new backup helper is a maintenance library, without deletion or deployment
 authority. Independent review found and closed pinned-path, directory durability,
-aggregate-capacity and same-FD free-space defects. Thirteen offline tests pass;
+aggregate-capacity and same-FD free-space defects. The initial thirteen offline tests passed;
 Black, Ruff, syntax and diff checks pass. A real read-only preview confirmed
 15 account roots, 13 indices and 113 trial sessions, with 2 absent indices.
 The sealed observation is stored privately in the resident logs. No account,
@@ -25,7 +25,30 @@ Backup must run under the maintenance exclusion after verified old writers
 have stopped. It preserves account DB, binding and indices/model settings;
 session artifacts are outside this helper's receipt. Source Router, exact CI,
 actual backup, trial disposal, version switch and authenticated acceptance are
-not yet complete. Original peer owns the unreviewed c819 controller work and
-its remaining P1 repairs; it must not be used for production yet.
+not yet complete. Original peer owns the separate unreviewed c819 controller work;
+this operator uses the existing maintenance transaction instead of that WIP.
 
-<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"This helper supplies bounded configuration preservation to the existing resident maintenance transaction. It adds no service, runtime, research API, deletion authority or alternate deployment engine.","diagrams":[]} -->
+The helper now includes report-workflows catalogs in its seal and backup; nineteen
+tests pass. The offline retirement module has thirty-four tests, including actual
+automation/report recovery interfaces with model callbacks trapped to prove no
+replay, directory replacement ownership, legal termination drift, and manual
+restore boundaries. Initial existing-operator plus new wiring regression passed
+2791 cases; subsequent wiring and terminal recovery cases passed in scoped runs.
+The frozen wiring adds 48 scoped cases; together with 34 retirement and 19 backup
+cases, 101 pass. Independent SPEC and Python quality reviewers report no open
+P1/P2 for wiring b1266407, trial 8ffdbd38 and backup 86d7c21e. The final full
+regression and candidate-bound Router/CI are still pending.
+
+Independent review found a completion-journal retention defect and a subsequent
+terminal-recovery conflict; both were repaired with durable terminal intent and
+immutable completed receipts. The terminal BirthFence release defect was also
+repaired and tested through real outer fence acquisition, including a second
+account's reservation. Recovery clears only this exact transaction; wrong-owner
+cases retain journals and fencing. No unfinished review is marked PASS.
+The existing recovery fixture's missing data_layer dependency reproduced against
+the unmodified db2 operator; its explicit copied closure was minimally corrected,
+with original failing logs retained and assertions unchanged.
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"A fixed operator-authorized trial-discard profile extends the existing Native maintenance transaction, recovery and process identity checks; product and executor identities remain distinct. No service, DSH runtime or alternate deployment engine is added.","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"The privileged offline operator binds existing account roots and preserves account/model configuration while retiring explicitly authorized trial state; no public cross-tenant research API is added.","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"Three offline test modules and a maintenance import smoke are added to existing CI steps without new jobs, runners, dependencies or timeouts.","diagrams":[]} -->

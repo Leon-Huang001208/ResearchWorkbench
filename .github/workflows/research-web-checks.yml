@@ -238,6 +238,9 @@ jobs:
             tests/research_web/test_repository_lock_recovery.py \
             tests/research_web/test_wind_recovery_activity.py \
             tests/research_web/test_wind_cleanup_recovery.py \
+            tests/research_web/test_trial_discard_backup.py \
+            tests/research_web/test_trial_retirement.py \
+            tests/research_web/test_trial_retirement_upgrade.py \
             tests/research_web/test_gateway_upgrade.py tests/research_web/test_model_provider_upgrade.py \
             tests/research_web/test_multiuser_accounts.py \
             tests/research_web/test_multiuser_gateway.py \

@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+2026-10-30 授权试验退役在原 Research Web Checks Python 清单增加三份离线模块，
+Mac Bootstrap原安装步骤增加维护模块导入。没有新job、runner、依赖或超时，CI不接触
+真实模型、Wind或账号数据。新增模块局部用例约一秒，旧操作员全回归约四分钟，保留
+原45分钟总限额并以同候选实际日志核验；Windows/Linux产品交对应设备，Mac不dispatch。
+
 专业协作 MVP 沿原 Research Web Checks Python 步骤登记三个离线测试模块，JS沿原通配符执行；Mac Bootstrap同一步增加模块导入和单个静态资源字节校验。不新增runner/job/依赖/超时或平台dispatch；新增测试预留60秒。2026-10-28 GitHub API核验仓库public、allow_auto_merge=false；模型／厂商请求不进入CI，真实小样本费用另行确认。
 
 备份 FD clone 与单文件快照容量合同沿既有 Project Constraints 的 Git safety step

@@ -247,3 +247,102 @@ def test_backup_parent_swap_refuses_receipt_and_does_not_write_new_target(tmp_pa
         backup(home, safe, seal)
     assert list(outside.iterdir()) == []
     assert len(list(moved.iterdir())) == 1
+
+
+def _catalog(root: Path) -> Path:
+    folder = root / "report-workflows"
+    folder.mkdir()
+    path = folder / "catalog.json"
+    path.write_text(
+        json.dumps(
+            {
+                "workflows": {"weekly": {"prompt": "private schedule prompt"}},
+                "runs": {"run-1": {"status": "completed"}},
+            }
+        )
+    )
+    return path
+
+
+def test_catalog_preview_and_backup_bytes_for_primary_and_account(tmp_path):
+    home, safe, account_id = _fixture(tmp_path)
+    primary_catalog = _catalog(home / "research-web")
+    account_catalog = _catalog(home / "server/users" / account_id / "research-web")
+    state = preview(home)
+    assert [row["catalog"]["status"] for row in state["roots"]] == ["present", "present"]
+    assert state["roots"][0]["catalog"]["workflow_count"] == 1
+    assert state["roots"][1]["catalog"]["run_count"] == 1
+    assert "private schedule prompt" not in json.dumps(state)
+    result = backup(home, safe, state["seal"])
+    assert result["status"] == "restore_verified"
+    point = Path(result["backup"])
+    assert (
+        point / "research-web/report-workflows/catalog.json"
+    ).read_bytes() == primary_catalog.read_bytes()
+    assert (
+        point / "server/users" / account_id / "research-web/report-workflows/catalog.json"
+    ).read_bytes() == account_catalog.read_bytes()
+    assert result["file_count"] == 6
+
+
+def test_missing_catalog_is_sealed_and_creation_causes_drift(tmp_path):
+    home, safe, account_id = _fixture(tmp_path)
+    first = preview(home)
+    assert [row["catalog"]["status"] for row in first["roots"]] == ["missing", "missing"]
+    _catalog(home / "server/users" / account_id / "research-web")
+    with pytest.raises(TrialBackupBlocked, match="trial_preview_drift"):
+        backup(home, safe, first["seal"])
+    assert list(safe.iterdir()) == []
+
+
+def test_catalog_change_refuses_backup_before_point(tmp_path):
+    home, safe, _ = _fixture(tmp_path)
+    path = _catalog(home / "research-web")
+    seal = preview(home)["seal"]
+    path.write_text(path.read_text().replace("completed", "running"))
+    with pytest.raises(TrialBackupBlocked, match="trial_preview_drift"):
+        backup(home, safe, seal)
+    assert list(safe.iterdir()) == []
+
+
+def test_catalog_counts_toward_aggregate_budget(tmp_path, monkeypatch):
+    home, safe, _ = _fixture(tmp_path)
+    base_size = preview(home)["total_bytes"]
+    path = _catalog(home / "research-web")
+    import research_workbench_entrypoint.resident.trial_discard_backup as module
+
+    monkeypatch.setattr(module, "MAX_TOTAL_BYTES", base_size + path.stat().st_size - 1)
+    with pytest.raises(TrialBackupBlocked, match="trial_total_budget_exceeded"):
+        preview(home)
+    assert list(safe.iterdir()) == []
+
+
+def test_empty_catalog_directory_has_distinct_sealed_state(tmp_path):
+    home, safe, account_id = _fixture(tmp_path)
+    first = preview(home)
+    folder = home / "server/users" / account_id / "research-web/report-workflows"
+    folder.mkdir()
+    second = preview(home)
+    assert second["roots"][1]["catalog"]["status"] == "missing"
+    assert "directory_identity" in second["roots"][1]["catalog"]
+    assert first["seal"] != second["seal"]
+    with pytest.raises(TrialBackupBlocked, match="trial_preview_drift"):
+        backup(home, safe, first["seal"])
+
+
+def test_catalog_symlink_and_oversize_refused(tmp_path, monkeypatch):
+    home, _, _ = _fixture(tmp_path)
+    path = _catalog(home / "research-web")
+    import research_workbench_entrypoint.resident.trial_discard_backup as module
+
+    monkeypatch.setattr(module, "MAX_ASSET_INDEX_BYTES", 32)
+    with pytest.raises(TrialBackupBlocked, match="trial_file_unsafe_or_oversize"):
+        preview(home)
+    monkeypatch.setattr(module, "MAX_ASSET_INDEX_BYTES", 64 * 1024 * 1024)
+    content = path.read_bytes()
+    path.unlink()
+    other = home / "research-web/report-workflows/other.json"
+    other.write_bytes(content)
+    path.symlink_to(other)
+    with pytest.raises(TrialBackupBlocked):
+        preview(home)
