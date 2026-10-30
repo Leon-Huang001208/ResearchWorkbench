@@ -64,6 +64,19 @@ review. The final candidate will rebind the complete changed set and rerun its
 selected gates. The feature has incorporated reviewed master c6e24e after PR254;
 the deployed product target remains db2ae9a, distinct from the operator executor.
 
+PR255 first candidate 2a293632 passed Mac install and Project Constraints, but
+Checks41041863263 failed four new terminal-resume test parameters. Its complete
+7609-node research scope executed: 7532 passed, 73 skipped, 4 failed, zero errors;
+later unit/JavaScript/editorial steps did not run. Original raw and safe evidence
+remain retained. The sanitized artifacts do not include an original traceback.
+Source inspection and an isolated Linux-entry experiment showed those four
+fixtures omitted the Mac-only operator admission substitute. Repair1 changes
+only their local `u.sys` proxy; it keeps real gateway/BirthFence host backends and
+the production non-Mac rejection, with no skips or production source changes.
+The four failing parameters plus three protection regressions pass locally;
+all three new modules pass 104 cases. Independent review reports no P1/P2 for
+the test-only repair. Actual repaired Ubuntu CI remains to be executed.
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"A fixed operator-authorized trial-discard profile extends the existing Native maintenance transaction, recovery and process identity checks; product and executor identities remain distinct. No service, DSH runtime or alternate deployment engine is added.","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"The privileged offline operator binds existing account roots and preserves account/model configuration while retiring explicitly authorized trial state; no public cross-tenant research API is added.","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"Three offline test modules and a maintenance import smoke are added to existing CI steps without new jobs, runners, dependencies or timeouts.","diagrams":[]} -->

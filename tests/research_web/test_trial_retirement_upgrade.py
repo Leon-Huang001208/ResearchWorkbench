@@ -1,6 +1,7 @@
 """Synthetic operator transactions: no live home, process signals or providers."""
 
 import signal
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -820,6 +821,8 @@ def prepare_real_operate_terminal(f, monkeypatch, result, damage=None):
 
     from app.research_web import service_manager
 
+    # Model only the operator's macOS admission; native fence code keeps the host sys.
+    monkeypatch.setattr(u, "sys", SimpleNamespace(**{**vars(sys), "platform": "darwin"}))
     ops, state = f.ops, f.ops.state
     primary = ops.root / "transaction.json"
     unlink = Path.unlink
@@ -953,3 +956,35 @@ def test_real_operate_terminal_resume_protects_changed_birth_ownership(
     assert marker.exists()
     if damage == "owner":
         assert marker.read_text() == "foreign-owner-token"
+
+
+def test_real_operate_fixture_sys_proxy_preserves_native_host(finish_home, monkeypatch):
+    from research_workbench_entrypoint.resident import gateway_fence
+
+    prepare_real_operate_terminal(finish_home, monkeypatch, "deployed")
+    assert u.sys is not sys
+    assert u.sys.platform == "darwin"
+    assert u.g.sys is sys and gateway_fence.sys is sys
+    assert u.sys.prefix is sys.prefix
+    assert u.sys.path is sys.path
+    assert u.sys.argv is sys.argv
+    assert u.sys.modules is sys.modules
+
+
+@pytest.mark.parametrize("platform", ["linux", "win32"])
+def test_production_non_macos_admission_still_refuses_before_home_read(
+    tmp_path, monkeypatch, platform
+):
+    from research_workbench_entrypoint.resident import gateway_fence
+
+    real_platform = sys.platform
+    monkeypatch.setattr(u, "sys", SimpleNamespace(**{**vars(sys), "platform": platform}))
+    monkeypatch.setattr(
+        u.c,
+        "configured",
+        lambda *args: pytest.fail("non-macOS admission must reject before reading home"),
+    )
+    with pytest.raises(u.UpdateBlocked, match="^model_upgrade_macos_only$"):
+        u.operate(tmp_path, recovering=True)
+    assert sys.platform == real_platform
+    assert u.g.sys is sys and gateway_fence.sys is sys
