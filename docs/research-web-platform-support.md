@@ -1,5 +1,11 @@
 # Research Web 能力与平台证据
 
+## 试验退役的本平台范围（2026-10-30）
+
+历史试验退役是 macOS Native 维护操作员的封闭模式，固定前版与产品，执行器独立评审；不新增桌面打包、Docker、Windows 或 Linux 产品能力。Windows/Linux 产品验收保持 `NOT_RUN`，由对应设备接手；Ubuntu 通用仓库检查不算它们的产品证据。
+
+三份离线模块与既有步骤的维护 import 检查无新 job、依赖或超时；离线通过不能替代最终候选 Router／CI、Mac Native 实际备份和切换及登录后验收。目前不据此宣称现场已更新，详见[试验退役合同](research-web-trial-discard.md)。
+
 2026-10-27资源回收兼容修复由Mac本机Python3.12及用户授权的隔离3.14.6验证真实`py_compile`正例、未知字节／异源payload／尾随业务内容及编码器缺失拒绝。3.14.6函数域真实复现引用标记差异，显式保留可信code额外引用后24组合逐字节相等；临时解释器不成为产品依赖。ubuntu-26.04通用Constraints原失败仍保留，最终候选CI才能证明其修复效果。此修改不扩大Windows／Linux原生或Docker产品支持声明；同候选Mac安装、通用CI、实际资源清理和常驻部署分别留证。
 
 全市场广度组合操作员为Mac Native固定profile：本机与同候选Mac安装CI分别认证，源码通过不认证真实上线。Windows/Linux原生及对应设备验收继续交接未执行，不从Mac发产品dispatch；原跨平台支持矩阵不因新CLI扩大。

@@ -12,6 +12,7 @@ import logging
 import os
 import plistlib
 import re
+import signal
 import socket
 import stat
 import sys
@@ -187,6 +188,9 @@ ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba78
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
 CONTROLLER_SHA256 = "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
 CONTROLLER_MODULE_SHA256 = "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
+TRIAL_MODE = "operator-authorized-trial-retirement-v1"
+TRIAL_PREVIOUS = "b800e50366d1a0868372bbf173822976066c143f"
+TRIAL_PAYLOAD = "db2ae9a48ceca365852072e622aa6627aa7d0b83"
 TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 FORWARD = (
     "stop_gateway",
@@ -208,6 +212,14 @@ BACKWARD = (
 
 def execute(ops, state, *, recovering=False):
     """Keep every signal/install behind durable intent; uncertain drains stay fenced."""
+    if recovering and state.get("mode") == TRIAL_MODE:
+        try:
+            terminal = ops.recover_trial_terminal(state)
+            if terminal is not None:
+                return terminal
+        except Exception:
+            log.exception("trial_retirement_terminal_recovery_pending")
+            return {"status": "recovery_required"}
     if not recovering:
         try:
             idle = ops.idle()
@@ -248,6 +260,8 @@ def execute(ops, state, *, recovering=False):
 
 
 def previous_for(mode):
+    if mode == TRIAL_MODE:
+        return TRIAL_PREVIOUS
     if mode == MODE:
         return PREVIOUS
     if mode == ASSET_MODE:
@@ -704,6 +718,11 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
 def review(source: Path, target: str, mode=MODE):
     """Only the reviewed model payload plus this operator, its test and documentation."""
     previous_for(mode)
+    if mode == TRIAL_MODE:
+        if target != TRIAL_PAYLOAD:
+            raise UpdateBlocked("trial_retirement_product_changed")
+        c.clean(source, target)
+        return {"product_tree": c.git(source, "rev-parse", f"{target}^{{tree}}")}
     if mode in ASSET_MODES:
         return review_assets(source, target, mode)
     c.clean(source, target)
@@ -938,7 +957,7 @@ def activate_recovery_source(home: Path) -> None:
         private_artifact(artifact)
         if (
             state.get("version") != 4
-            or state.get("mode") not in {MODE, *ASSET_MODES}
+            or state.get("mode") not in {MODE, TRIAL_MODE, *ASSET_MODES}
             or str(artifact) != state["recovery"]["artifact"]
             or c.digest(artifact) != state["recovery"]["sha256"]
             or not re.fullmatch(r"[a-f0-9]{40}", state["target"])
@@ -948,39 +967,62 @@ def activate_recovery_source(home: Path) -> None:
             if archive.getinfo("manifest.json").file_size > 65536:
                 raise ValueError("manifest budget")
             manifest = json.loads(archive.read("manifest.json"))
-        source = home / "resident/artifacts" / state["target"] / "source"
+        source = Path(state.get("executor_source", state["source"]))
+        expected_source = (
+            home
+            / "resident/artifacts"
+            / state["target"]
+            / ("executor" if state.get("mode") == TRIAL_MODE else "source")
+        )
         if (
-            not isinstance(manifest, dict)
-            or set(manifest) != {"target", "modules", "source"}
+            source != expected_source
+            or Path(state["source"]) != home / "resident/artifacts" / state["target"] / "source"
+            or not isinstance(manifest, dict)
+            or set(manifest)
+            != (
+                {"target", "modules", "source", "executor_revision"}
+                if state.get("mode") == TRIAL_MODE
+                else {"target", "modules", "source"}
+            )
             or manifest.get("target") != state["target"]
             or manifest.get("source") != str(source)
-            or state["source"] != str(source)
+            or manifest.get("executor_revision", state["target"])
+            != state.get("executor_revision", state["target"])
             or source.resolve(strict=True) != source
             or source.stat().st_uid != os.getuid()
         ):
             raise ValueError("source identity")
-        c.clean(source, state["target"])
+        c.clean(source, state.get("executor_revision", state["target"]))
         # Parent-only import path: child services must still load their installed wheel.
-        sys.path.insert(0, str(source))
+        product_source = Path(state["source"])
+        c.clean(product_source, state["target"])
+        sys.path.insert(0, str(product_source))
         log.info("model_recovery_source_verified target=%s", state["target"])
     except Exception as error:
         log.error("model_recovery_source_unavailable error_type=%s", type(error).__name__)
         raise UpdateBlocked("model_upgrade_recovery_source_unavailable") from error
 
 
-def install_recovery(home, source, target, python):
+def install_recovery(home, source, target, python, *, executor_revision=None):
     """Freeze all operator modules from Git, before either journal or service mutation."""
     g.run(["/usr/bin/env", "PATH=" + g.RECOVERY_PATH, "/usr/bin/git", "lfs", "version"])
-    modules = g.module_blobs(source, target)
+    revision = executor_revision or target
+    modules = g.module_blobs(source, revision)
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
         for name in sorted(modules):
-            z.writestr("resident/" + name, g.git_bytes(source, target, name))
+            z.writestr("resident/" + name, g.git_bytes(source, revision, name))
         z.writestr("__main__.py", ENTRY)
         z.writestr(
             "manifest.json",
             json.dumps(
-                {"target": target, "modules": modules, "source": str(source)}, sort_keys=True
+                {
+                    "target": target,
+                    "modules": modules,
+                    "source": str(source),
+                    **({"executor_revision": executor_revision} if executor_revision else {}),
+                },
+                sort_keys=True,
             ),
         )
     raw = buffer.getvalue()
@@ -1051,7 +1093,7 @@ def validate_state(home, state, *, executor_source=None):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     if (
         state.get("version") != 4
-        or state.get("mode") not in {MODE, *ASSET_MODES}
+        or state.get("mode") not in {MODE, TRIAL_MODE, *ASSET_MODES}
         or state.get("previous") != previous_for(state["mode"])
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
@@ -1065,7 +1107,13 @@ def validate_state(home, state, *, executor_source=None):
     validate_asset_snapshot(state)
     source = Path(state["source"])
     validate_executor(
-        executor_source if executor_source is not None else source, state["target"], state
+        (
+            executor_source
+            if executor_source is not None
+            else Path(state.get("executor_source", source))
+        ),
+        state.get("executor_revision", state["target"]),
+        state,
     )
     expected = home / "resident/artifacts" / state["target"] / "source"
     if (
@@ -1074,9 +1122,10 @@ def validate_state(home, state, *, executor_source=None):
         or review(source, state["target"], state["mode"]) != state["reviewed"]
     ):
         raise UpdateBlocked("model_upgrade_source_changed")
-    if (
-        c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir")
-        != state["config"]["source_common"]
+    if c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") != (
+        validate_trial_rebind(state)["source_common"]
+        if state.get("mode") == TRIAL_MODE
+        else state["config"]["source_common"]
     ):
         raise UpdateBlocked("model_upgrade_source_changed")
     if (
@@ -1091,6 +1140,18 @@ def validate_state(home, state, *, executor_source=None):
     private_artifact(artifact)
     if artifact.parent != home / "server/run" or c.digest(artifact) != recovery["sha256"]:
         raise UpdateBlocked("model_upgrade_artifact_changed")
+    module_source = Path(state.get("executor_source", source))
+    module_revision = state.get("executor_revision", state["target"])
+    if state.get("mode") == TRIAL_MODE:
+        c.clean(module_source, module_revision)
+        if (
+            module_source != home / "resident/artifacts" / state["target"] / "executor"
+            or c.git(module_source, "rev-parse", "--path-format=absolute", "--git-common-dir")
+            != validate_trial_rebind(state)["source_common"]
+        ):
+            raise UpdateBlocked("trial_retirement_executor_changed")
+        if not g.SHA.fullmatch(module_revision):
+            raise UpdateBlocked("trial_retirement_executor_changed")
     with zipfile.ZipFile(artifact) as z:
         manifest = json.loads(z.read("manifest.json"))
         expected_manifest = {"target": state["target"], "modules": recovery["modules"]}
@@ -1102,13 +1163,15 @@ def validate_state(home, state, *, executor_source=None):
             ETF_WEEKLY_ADMISSION_MODE,
             ETF_WEEKLY_ADMISSION_V2_MODE,
         }:
-            expected_manifest["source"] = state["source"]
+            expected_manifest["source"] = str(module_source)
+        if state.get("mode") == TRIAL_MODE:
+            expected_manifest["executor_revision"] = module_revision
         if manifest != expected_manifest or z.read("__main__.py").decode() != ENTRY:
             raise UpdateBlocked("model_upgrade_artifact_changed")
-        if recovery["modules"] != g.module_blobs(source, state["target"]):
+        if recovery["modules"] != g.module_blobs(module_source, module_revision):
             raise UpdateBlocked("model_upgrade_artifact_changed")
         for name in recovery["modules"]:
-            if z.read("resident/" + name) != g.git_bytes(source, state["target"], name):
+            if z.read("resident/" + name) != g.git_bytes(module_source, module_revision, name):
                 raise UpdateBlocked("model_upgrade_artifact_changed")
     if c.digest(Path(recovery["plist"])) != recovery["plist_sha256"]:
         raise UpdateBlocked("model_upgrade_recovery_job_changed")
@@ -1133,6 +1196,10 @@ def validate_state(home, state, *, executor_source=None):
         c.clean(p, actual)
     if c.digest(Path(state["gateway_plist"])) != state["gateway_plist_sha256"]:
         raise UpdateBlocked("model_upgrade_job_changed")
+    if state.get("mode") == TRIAL_MODE and "trial_retirement" in state:
+        from . import trial_retirement as trial
+
+        trial.validate_record(state["trial_retirement"])
     validate_configuration(home, state)
 
 
@@ -1203,7 +1270,10 @@ def target_manifest(state):
 
 def validate_configuration(home, state):
     actual = read_json(home / "resident/config.json")
-    if actual not in (state["config"], {**state["config"], "baseline": state["target"]}):
+    next_config = (
+        validate_trial_rebind(state) if state.get("mode") == TRIAL_MODE else state["config"]
+    )
+    if actual not in (state["config"], next_config, {**next_config, "baseline": state["target"]}):
         raise UpdateBlocked("model_upgrade_configuration_changed")
     manifest = read_json(home / "install/manifest.json")
     if manifest not in (state["manifest"], target_manifest(state)):
@@ -1221,6 +1291,47 @@ def validate_configuration(home, state):
             raise UpdateBlocked("model_upgrade_primary_journal_changed")
 
 
+def trial_primary_identity(home, expected, state):
+    """Observe identity and readiness, preserving unknown trial activity as unknown."""
+    c.clean(Path(state["primary_project"]), expected)
+    observed = request_json(f"http://127.0.0.1:{state['config']['web_port']}/api/research/resident")
+    if observed.get("enabled") is not True or observed.get("revision") != expected:
+        raise UpdateBlocked("trial_retirement_primary_identity_unknown")
+    return observed
+
+
+def trial_rebind(source, config):
+    """Only the explicitly authorized old Desktop to new Main Git identity pair."""
+    old = Path("/Users/leon/Desktop/Projects/ResearchWorkbench/.git")
+    new = Path("/Users/leon/Developer/ResearchWorkbench-main/.git")
+    if config["source_common"] != str(old):
+        raise UpdateBlocked("trial_retirement_source_transition_unknown")
+    before = repository_identity(old.parent, config["repository"])
+    after = repository_identity(source, config["repository"])
+    if before["common"] != str(old) or after["common"] != str(new):
+        raise UpdateBlocked("trial_retirement_source_transition_unknown")
+    return {"before": before, "after": after}
+
+
+def validate_trial_rebind(state):
+    transition = state["source_transition"]
+    if transition != trial_rebind(Path(transition["after"]["common"]).parent, state["config"]):
+        raise UpdateBlocked("trial_retirement_source_transition_changed")
+    for role, expected in transition.items():
+        if (
+            role not in {"before", "after"}
+            or repository_identity(Path(expected["common"]).parent, state["config"]["repository"])
+            != expected
+        ):
+            raise UpdateBlocked("trial_retirement_source_transition_changed")
+    if (
+        set(transition) != {"before", "after"}
+        or transition["before"]["common"] != state["config"]["source_common"]
+    ):
+        raise UpdateBlocked("trial_retirement_source_transition_changed")
+    return {**state["config"], "source_common": transition["after"]["common"]}
+
+
 class Operations:
     def __init__(self, home, state, manager, lease, fence):
         self.home, self.state, self.manager, self.lease, self.fence = (
@@ -1231,11 +1342,315 @@ class Operations:
             fence,
         )
         self.root, self.server = home / "resident", home / "server"
+        self._trial_owned_birth_journal = (
+            copy.deepcopy(read_json(fence.journal))
+            if state.get("mode") == TRIAL_MODE
+            and isinstance(fence, BirthFence)
+            and fence.owns_journal
+            else None
+        )
+        self._trial_terminal_resume = False
+
+    def capture_trial_processes(self, roles=("web", "runtime", "gateway")):
+        from research_workbench_entrypoint.web_contract import probe_process, signature_matches_argv
+
+        identities = dict(self.state.get("trial_processes", {}))
+        original_identities = copy.deepcopy(identities)
+        processes = {p.role: p for p in self.manager._processes()}
+        probes = list(self.manager._service_probes())
+        if {p.role for p in probes} != {"web", "runtime"}:
+            raise UpdateBlocked("trial_retirement_process_unknown")
+        for probe in probes:
+            if probe.role not in roles:
+                continue
+            if (
+                probe.process != "alive"
+                or probe.ownership != "owned"
+                or probe.port_state != "listening"
+            ):
+                raise UpdateBlocked("trial_retirement_process_unknown")
+            original = self.manager._probe_state(processes[probe.role])
+            observed = probe_process(probe.pid)
+            if (
+                original.state != "valid"
+                or original.pid != probe.pid
+                or observed.state != "alive"
+                or observed.issue is not None
+                or observed.started_at is None
+                or not signature_matches_argv(original.signature, observed.argv)
+            ):
+                raise UpdateBlocked("trial_retirement_process_unknown")
+            identities[probe.role] = self.trial_process_identity(probe.pid, observed)
+        if "gateway" in roles:
+            pid = g.job_pid()
+            if (
+                pid is None
+                or not self.loaded_job_matches(g.job_state() or "")
+                or g.listener_pids() != {pid}
+            ):
+                raise UpdateBlocked("trial_retirement_gateway_unknown")
+            observed = probe_process(pid)
+            expected = plistlib.loads(Path(self.state["gateway_plist"]).read_bytes())[
+                "ProgramArguments"
+            ]
+            if tuple(expected[1:]) != (observed.argv or ())[1:] or g.native_image(
+                pid
+            ) != g.native_image(os.getpid()):
+                raise UpdateBlocked("trial_retirement_gateway_argv_unknown")
+            identities["gateway"] = self.trial_process_identity(pid, observed)
+        changed_roles = {
+            role for role in roles if identities.get(role) != original_identities.get(role)
+        }
+        self.state["trial_signal_intents"] = [
+            value
+            for value in self.state.get("trial_signal_intents", [])
+            if value.split(":", 1)[0] not in changed_roles
+        ]
+        self.state["trial_processes"] = identities
+        if self.lease is not None:
+            self.checkpoint(self.state, self.state["phase"])
+
+    def trial_process_identity(self, pid, observed):
+        if (
+            observed.state != "alive"
+            or observed.issue is not None
+            or observed.started_at is None
+            or not observed.argv
+            or int(g.run(["/bin/ps", "-p", str(pid), "-o", "uid="]).strip()) != os.getuid()
+        ):
+            raise UpdateBlocked("trial_retirement_process_unknown")
+        full_signature = g.process(pid)
+        if not full_signature:
+            raise UpdateBlocked("trial_retirement_process_signature_unknown")
+        return {
+            "pid": pid,
+            "birth": observed.started_at,
+            "argv": list(observed.argv),
+            "signature": full_signature,
+            "image": str(g.native_image(pid)),
+            "uid": os.getuid(),
+        }
+
+    def trial_unknown(self, role, observed, *, observed_pids=()):
+        """Keep the original start intent and identity; never adopt a crash-window PID."""
+        phase = self.state.get("phase", "unprepared")
+        identity = self.state.get("trial_processes", {}).get(role, {})
+        self.state["trial_unknown_observation"] = {
+            "role": role,
+            "phase": phase,
+            "expected_pid": identity.get("pid"),
+            "observed_pids": list(observed_pids),
+            "observed_state": observed.state,
+            "observed_birth": getattr(observed, "started_at", None),
+            "observed_argv_sha256": hashlib.sha256(
+                json.dumps(
+                    list(getattr(observed, "argv", None) or ()), separators=(",", ":")
+                ).encode()
+            ).hexdigest(),
+            "disposition": "UNKNOWN_MANUAL_RECONCILIATION_REQUIRED",
+        }
+        if self.fence is not None:
+            self.fence.retain = True
+        journal = self.server / "run/gateway-upgrade.json"
+        if journal.is_file() and not journal.is_symlink():
+            from . import trial_retirement as trial
+
+            for path in (
+                self.root / "supervisor.lock",
+                self.root / "admission.lock",
+                self.server / "run/operator.lock",
+            ):
+                trial._held(path)
+            g.write_upgrade_journal(journal, self.state)
+        log.error(
+            "trial_retirement_process_unknown role=%s phase=%s manual_reconciliation_required=true",
+            role,
+            phase,
+        )
+        raise UpdateBlocked("trial_retirement_unknown:" + role + ":" + phase)
+
+    def check_trial_processes(self):
+        from research_workbench_entrypoint.web_contract import (
+            PROCESS_START_TOLERANCE_SECONDS,
+            listener_pids,
+            probe_process,
+            signature_matches_argv,
+        )
+
+        state = self.state
+        if state.get("mode") != TRIAL_MODE or state.get("target") != TRIAL_PAYLOAD:
+            raise UpdateBlocked("trial_retirement_profile_changed")
+        validate_trial_rebind(state)
+        home_info = self.home.lstat()
+        if [home_info.st_dev, home_info.st_ino] != state["trial_authorization"]["home_identity"]:
+            raise UpdateBlocked("trial_retirement_home_changed")
+        g.no_private_processes(self.server)
+        for role in ("primary", "gateway"):
+            project = Path(state[role + "_project"])
+            if [project.stat().st_dev, project.stat().st_ino] != state[role + "_identity"]:
+                raise UpdateBlocked("trial_retirement_root_changed")
+            verify_release_repository(state, role)
+        if c.digest(Path(state["gateway_plist"])) != state["gateway_plist_sha256"]:
+            raise UpdateBlocked("trial_retirement_gateway_job_changed")
+        identities = state.get("trial_processes", {})
+        if set(identities) != {"web", "runtime", "gateway"}:
+            raise UpdateBlocked("trial_retirement_process_unknown")
+        processes = {p.role: p for p in self.manager._processes()}
+        for role, identity in identities.items():
+            pid = identity["pid"]
+            observed = probe_process(pid)
+            if observed.state != "missing":
+                try:
+                    matches = self.trial_process_identity(pid, observed) == identity
+                except (UpdateBlocked, OSError, ValueError):
+                    matches = False
+                if not matches:
+                    self.trial_unknown(role, observed)
+            if role == "gateway":
+                listeners = g.listener_pids()
+                loaded = g.job_state()
+                if (
+                    listeners - {pid}
+                    or (observed.state != "missing" and (loaded is None or g.job_pid() != pid))
+                    or (loaded is not None and not self.loaded_job_matches(loaded))
+                    or g.job_pid() not in (None, pid)
+                ):
+                    self.trial_unknown(role, observed)
+            else:
+                process = processes[role]
+                listeners = listener_pids(process.port)
+                if listeners.state not in {"closed", "listening"} or set(listeners.pids) - {pid}:
+                    self.trial_unknown(role, observed, observed_pids=listeners.pids)
+                original = self.manager._probe_state(process)
+                if original.pid not in (None, pid) or (
+                    observed.state != "missing"
+                    and (
+                        original.state != "valid"
+                        or original.started_at is None
+                        or abs(original.started_at - identity["birth"])
+                        > PROCESS_START_TOLERANCE_SECONDS
+                        or not signature_matches_argv(original.signature, tuple(identity["argv"]))
+                    )
+                ):
+                    self.trial_unknown(
+                        role,
+                        observed,
+                        observed_pids=(() if original.pid is None else (original.pid,)),
+                    )
+
+    def assert_trial_control_scope(self):
+        from . import trial_retirement as trial
+
+        for path in (
+            self.root / "supervisor.lock",
+            self.root / "admission.lock",
+            self.server / "run/operator.lock",
+        ):
+            trial._held(path)
+        self.manager._assert_installation_scope(self.lease)
+        if (
+            self.fence is None
+            or self.fence.retain is not True
+            or not (self.root / "transaction.json").is_file()
+        ):
+            raise UpdateBlocked("trial_retirement_control_scope_required")
+        validate_configuration(self.home, self.state)
+
+    def trial_signal(self, role, number):
+        from research_workbench_entrypoint.web_contract import probe_process
+
+        self.assert_trial_control_scope()
+        if number not in (signal.SIGTERM, signal.SIGKILL) or (
+            number == signal.SIGKILL
+            and role + ":" + str(signal.SIGTERM) not in self.state.get("trial_signal_intents", [])
+        ):
+            raise UpdateBlocked("trial_retirement_signal_sequence_invalid")
+        self.check_trial_processes()
+        identity = self.state["trial_processes"][role]
+        if probe_process(identity["pid"]).state == "missing":
+            return
+        g.no_children(identity["pid"])
+        key = role + ":" + str(number)
+        attempted = self.state.setdefault("trial_signal_intents", [])
+        if key in attempted:
+            raise MaintenanceBusy("trial_retirement_signal_outcome_unknown")
+        attempted.append(key)
+        self.state["trial_outcome"] = "USER_AUTHORIZED_TRIAL_ABORT"
+        self.checkpoint(self.state, self.state["phase"])
+        self.assert_trial_control_scope()
+        self.check_trial_processes()
+        g.no_children(identity["pid"])
+        os.kill(identity["pid"], number)
+        log.warning("trial_retirement_authorized_abort role=%s signal=%s", role, number)
+
+    def retire_trial_process(self, role):
+        from research_workbench_entrypoint.web_contract import probe_process
+
+        pid = self.state["trial_processes"][role]["pid"]
+        if probe_process(pid).state == "missing":
+            return
+        if role + ":" + str(signal.SIGTERM) not in self.state.get("trial_signal_intents", []):
+            self.trial_signal(role, signal.SIGTERM)
+        for number, seconds in ((signal.SIGTERM, 10), (signal.SIGKILL, 5)):
+            deadline = time.monotonic() + seconds
+            while probe_process(pid).state != "missing":
+                self.check_trial_processes()
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(0.1)
+            if probe_process(pid).state == "missing":
+                return
+            if number == signal.SIGTERM and role + ":" + str(signal.SIGKILL) not in self.state.get(
+                "trial_signal_intents", []
+            ):
+                self.trial_signal(role, signal.SIGKILL)
+        raise MaintenanceBusy("trial_retirement_process_not_retired")
+
+    def stop_trial_gateway(self):
+        self.assert_trial_control_scope()
+        self.retire_trial_process("gateway")
+        self.check_trial_processes()
+        if g.job_state() is not None:
+            self.assert_trial_control_scope()
+            self.check_trial_processes()
+            g.bootout_after_drain(Path(self.state["gateway_plist"]))
+        if g.job_state() is not None or g.listener_pids():
+            raise MaintenanceBusy("trial_retirement_gateway_not_retired")
+
+    def stop_trial_primary(self):
+        for role in ("web", "runtime"):
+            self.retire_trial_process(role)
+        from . import trial_retirement as trial
+
+        trial.stopped(self)
+
+    def verify_preservation(self, previous):
+        if self.state.get("mode") != TRIAL_MODE:
+            g.preserved(self.home, self.state["before"])
+            return
+        from . import trial_retirement as trial
+
+        before = self.state["before"]
+        record = self.state.get("trial_retirement")
+        if record is not None:
+            before = trial.preservation_baseline(before, record)
+        discarded = record is not None and record.get("data_retirement_committed") is True
+        expected = trial.preservation_delta(before) if discarded or not previous else before
+        g.preserved(self.home, expected)
+        asset = (
+            record["stopped_asset_index"]
+            if record is not None
+            else self.state["asset_index_before"]
+        )
+        if asset_index_snapshot(self.home) != (
+            trial.asset_delta(asset, record) if discarded or not previous else asset
+        ):
+            raise UpdateBlocked("trial_retirement_non_session_data_changed")
 
     def prepare_fence(self, state):
         """Publish recoverable ownership before any reservation side effects."""
         state["before"] = g.preservation(self.home)
-        if state.get("mode") in ASSET_MODES:
+        if state.get("mode") in ASSET_MODES or state.get("mode") == TRIAL_MODE:
             state["asset_index_before"] = asset_index_snapshot(self.home)
         state["phase"] = "preparing"
         verify_serve(state["config"]["private_origin"])
@@ -1244,6 +1659,9 @@ class Operations:
 
     def idle(self):
         """A proved stopped role is safe; any live/unknown native or Host work is not."""
+        if self.state.get("mode") == TRIAL_MODE:
+            self.check_trial_processes()
+            return True  # Authorization to abort; never an assertion of idle.
         if self.state.get("mode") in {
             DISCOVERY_MODE,
             ASSET_V8_MODE,
@@ -1351,6 +1769,9 @@ class Operations:
         log.info("model_upgrade_checkpoint", extra={"phase": phase})
 
     def stop_gateway(self):
+        if self.state.get("mode") == TRIAL_MODE:
+            self.stop_trial_gateway()
+            return
         if c.digest(Path(self.state["gateway_plist"])) != self.state["gateway_plist_sha256"]:
             raise UpdateBlocked("model_upgrade_job_changed")
         loaded = g.job_state()
@@ -1426,12 +1847,20 @@ class Operations:
         )
 
     def start_primary(self, previous):
+        if self.state.get("mode") == TRIAL_MODE:
+            from . import trial_retirement as trial
+
+            trial.validate_retired(
+                self.home, self.state["trial_retirement"], transaction=self.state["transaction"]
+            )
         os.environ["RESEARCH_RESIDENT_REVISION"] = (
             previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
         )
         ports = self.state["config"]["web_port"], self.state["config"]["runtime_port"]
         with c.fixed_ports(self.manager, ports):
             self.manager._start_installed(self.lease, open_browser=False)
+        if self.state.get("mode") == TRIAL_MODE:
+            self.capture_trial_processes(("web", "runtime"))
 
     def start_gateway(self, previous):
         from app.research_web.multiuser.resident_binding import LegacyBinding
@@ -1448,19 +1877,30 @@ class Operations:
         if config != gateway_configuration(self.state, previous):
             raise UpdateBlocked("model_upgrade_binding_changed")
         c.atomic(self.server / "resident.json", config)
+        if self.state.get("mode") == TRIAL_MODE:
+            from . import trial_retirement as trial
+
+            trial.validate_retired(
+                self.home, self.state["trial_retirement"], transaction=self.state["transaction"]
+            )
         self.fence.release_database()
         BirthFence.recover(self.server, expected=self.state["transaction"])
         g.bootstrap(Path(self.state["gateway_plist"]))
         g.wait_health(config, fenced=True)
+        if self.state.get("mode") == TRIAL_MODE:
+            self.capture_trial_processes(("gateway",))
 
     def verify(self, previous):
         sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
-        verify_primary(self.home, sha, self.state.get("mode", MODE))
+        if self.state.get("mode") == TRIAL_MODE:
+            trial_primary_identity(self.home, sha, self.state)
+        else:
+            verify_primary(self.home, sha, self.state.get("mode", MODE))
         g.health(read_json(self.server / "resident.json"), fenced=True)
         remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
             raise UpdateBlocked("model_upgrade_private_health_failed")
-        g.preserved(self.home, self.state["before"])
+        self.verify_preservation(previous)
         verify_asset_index(self.home, self.state)
         if model_metadata(self.state["config"]) != self.state["model_before"]:
             raise UpdateBlocked("model_upgrade_credential_metadata_changed")
@@ -1484,9 +1924,33 @@ class Operations:
         elif name in ("stop_primary", "rollback_primary"):
             if self.idle() is not True:
                 raise MaintenanceBusy("research_active_or_unknown")
-            self.manager._stop_locked()
+            if state.get("mode") == TRIAL_MODE:
+                self.stop_trial_primary()
+            else:
+                self.manager._stop_locked()
         elif name in ("activate_sources_and_wheel", "restore_sources_and_wheel"):
+            if state.get("mode") == TRIAL_MODE:
+                from . import trial_retirement as trial
+
+                # Code rollback retains the user's committed discard intent.
+                # Manual original-byte data restore is a separate offline action.
+                if "trial_retirement" not in state:
+                    trial.prepare(
+                        self,
+                        state["trial_authorization"],
+                        state["trial_authorization_sha256"],
+                        Path(state["trial_backup_parent"]),
+                    )
+                trial.apply(self)
+                trial.validate_retired(
+                    self.home, state["trial_retirement"], transaction=state["transaction"]
+                )
             self.install(name.startswith("restore"))
+            if state.get("mode") == TRIAL_MODE:
+                c.atomic(
+                    self.root / "config.json",
+                    state["config"] if name.startswith("restore") else validate_trial_rebind(state),
+                )
         elif name in ("start_primary", "start_previous_primary"):
             self.start_primary("previous" in name)
         elif name in ("start_gateway", "start_previous_gateway"):
@@ -1495,6 +1959,250 @@ class Operations:
             self.verify(name.endswith("previous"))
         else:
             raise UpdateBlocked("model_upgrade_action_unknown")
+
+    def archive_trial_completion(self, state, result):
+        """Publish an immutable full receipt before removing recoverable ownership."""
+        from . import trial_discard_backup as backup
+        from . import trial_retirement as trial
+
+        if state.get("mode") != TRIAL_MODE or result["status"] not in {"deployed", "rolled_back"}:
+            raise UpdateBlocked("trial_retirement_completion_scope_invalid")
+        transaction = state["transaction"]
+        if str(UUID(transaction)) != transaction:
+            raise UpdateBlocked("trial_retirement_completion_transaction_invalid")
+        trial.validate_retired(self.home, state["trial_retirement"], transaction=transaction)
+        self.verify_preservation(result["status"] == "rolled_back")
+        retirement = state["trial_retirement"]
+        point = Path(retirement["backup"]["backup"])
+        if point.parent != Path(state["trial_backup_parent"]) or not re.fullmatch(
+            r"[a-f0-9]{32}", point.name
+        ):
+            raise UpdateBlocked("trial_retirement_completion_backup_scope_invalid")
+        saved_raw, _ = backup._read(point / "manifest.json", backup.RECORD_LIMIT)
+        if hashlib.sha256(saved_raw).hexdigest() != retirement["backup"]["manifest_sha256"]:
+            raise UpdateBlocked("trial_retirement_completion_backup_changed")
+        saved = json.loads(saved_raw)
+        allowed = {"server/accounts.sqlite3", "server/resident.json"}
+        for row in retirement["plan"]:
+            if row["index_present"]:
+                allowed.add(row["index"])
+            if row["catalog_present"]:
+                allowed.add(str(Path(row["index"]).parent / "report-workflows/catalog.json"))
+        if set(saved["files"]) != allowed:
+            raise UpdateBlocked("trial_retirement_completion_backup_changed")
+        total = 0
+        for relative, expected in saved["files"].items():
+            path = Path(relative)
+            if path.is_absolute() or ".." in path.parts:
+                raise UpdateBlocked("trial_retirement_completion_backup_scope_invalid")
+            data, actual = backup._read(point / path, backup.MAX_ASSET_INDEX_BYTES)
+            total += len(data)
+            if total > backup.MAX_TOTAL_BYTES or any(
+                actual[key] != expected[key] for key in ("sha256", "size", "mode")
+            ):
+                raise UpdateBlocked("trial_retirement_completion_backup_changed")
+        receipt = {
+            "version": 1,
+            "kind": "completed-trial-retirement",
+            "mode": TRIAL_MODE,
+            "transaction": transaction,
+            "previous": state["previous"],
+            "payload": state["target"],
+            "executor_revision": state["executor_revision"],
+            "result": result,
+            "manual_data_restore": "OFFLINE_FENCED_ONLY_NO_SERVICE_START",
+            "journal": {
+                key: value for key, value in state.items() if key != "trial_terminal_intent"
+            },
+        }
+        raw = json.dumps(
+            receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+        ).encode()
+        if len(raw) > g.JOURNAL_MAX_BYTES + 65536:
+            raise UpdateBlocked("trial_retirement_completion_oversized")
+        name = transaction + ".json"
+        intent = {"result": result["status"], "sha256": hashlib.sha256(raw).hexdigest()}
+        previous_intent = state.get("trial_terminal_intent")
+        if previous_intent is not None and previous_intent != intent:
+            raise UpdateBlocked("trial_retirement_terminal_intent_conflict")
+        if previous_intent is None:
+            state["trial_terminal_intent"] = intent
+            # This immutable-byte commitment precedes publishing the receipt.
+            g.write_upgrade_journal(self.server / "run/gateway-upgrade.json", state)
+        try:
+            with backup._anchored_parent(self.root) as (parent, _chain):
+                try:
+                    os.mkdir("trial-retirements", mode=0o700, dir_fd=parent)
+                    os.fsync(parent)
+                except FileExistsError:
+                    pass
+                directory = backup._open_child(parent, "trial-retirements", create=False)
+                temporary, fd = ".receipt-" + uuid4().hex, None
+                identity = None
+                try:
+                    try:
+                        existing, mode = backup._read_at(directory, name, len(raw) + 1)
+                    except FileNotFoundError:
+                        fd = os.open(
+                            temporary,
+                            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                            0o600,
+                            dir_fd=directory,
+                        )
+                        opened = os.fstat(fd)
+                        identity = (opened.st_dev, opened.st_ino)
+                        view = memoryview(raw)
+                        while view:
+                            count = os.write(fd, view)
+                            if count <= 0:
+                                raise UpdateBlocked("trial_retirement_completion_write_failed")
+                            view = view[count:]
+                        os.fchmod(fd, 0o600)
+                        os.fsync(fd)
+                        try:
+                            os.link(
+                                temporary,
+                                name,
+                                src_dir_fd=directory,
+                                dst_dir_fd=directory,
+                                follow_symlinks=False,
+                            )
+                        except FileExistsError:
+                            pass
+                        info = os.stat(temporary, dir_fd=directory, follow_symlinks=False)
+                        if (info.st_dev, info.st_ino) != identity:
+                            raise UpdateBlocked("trial_retirement_completion_changed")
+                        os.unlink(temporary, dir_fd=directory)
+                        identity = None
+                        os.fsync(directory)
+                        existing, mode = backup._read_at(directory, name, len(raw) + 1)
+                    info = os.stat(name, dir_fd=directory, follow_symlinks=False)
+                    if (
+                        existing != raw
+                        or mode != 0o600
+                        or info.st_uid != os.getuid()
+                        or info.st_nlink != 1
+                    ):
+                        raise UpdateBlocked("trial_retirement_completion_conflict")
+                    final_fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+                    try:
+                        final_info = os.fstat(final_fd)
+                        if (final_info.st_dev, final_info.st_ino) != (info.st_dev, info.st_ino):
+                            raise UpdateBlocked("trial_retirement_completion_changed")
+                        os.fsync(final_fd)
+                    finally:
+                        os.close(final_fd)
+                    os.fsync(directory)
+                    os.fsync(parent)
+                    linked = os.stat("trial-retirements", dir_fd=parent, follow_symlinks=False)
+                    opened = os.fstat(directory)
+                    if (linked.st_dev, linked.st_ino) != (opened.st_dev, opened.st_ino):
+                        raise UpdateBlocked("trial_retirement_completion_directory_changed")
+                finally:
+                    if fd is not None:
+                        os.close(fd)
+                    if identity is not None:
+                        current = os.stat(temporary, dir_fd=directory, follow_symlinks=False)
+                        if (current.st_dev, current.st_ino) == identity:
+                            os.unlink(temporary, dir_fd=directory)
+                            os.fsync(directory)
+                    os.close(directory)
+        except (OSError, backup.TrialBackupBlocked) as error:
+            log.error(
+                "trial_retirement_completion_archive_failed error_type=%s", type(error).__name__
+            )
+            raise UpdateBlocked("trial_retirement_completion_archive_failed") from error
+        log.info("trial_retirement_completion_archived transaction=%s", transaction)
+        return {
+            "path": str(self.root / "trial-retirements" / name),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+
+    def release_trial_terminal_fence(self, state):
+        """Release only the exact BirthFence acquired by this controlled invocation."""
+        fence = self.fence
+        expected = self._trial_owned_birth_journal
+        if (
+            not isinstance(fence, BirthFence)
+            or not fence.owns_journal
+            or fence.root != self.server
+            or fence.transaction != state["transaction"]
+            or expected is None
+            or read_json(fence.journal) != expected
+        ):
+            raise UpdateBlocked("trial_retirement_terminal_fence_changed")
+        try:
+            fence.release_database()
+            fence.retain = False
+            fence.__exit__(None, None, None)
+            if fence.journal.exists() or fence.journal.is_symlink():
+                raise UpdateBlocked("trial_retirement_terminal_fence_not_released")
+            for slot in expected["slots"]:
+                for path in (
+                    self.server / "run" / slot["stage"],
+                    self.server / "users" / slot["user"] / "state/owner.json",
+                ):
+                    if path.exists() or path.is_symlink():
+                        raise UpdateBlocked("trial_retirement_terminal_fence_not_released")
+            fence.owns_journal = False
+        except Exception:
+            fence.retain = True
+            log.exception("trial_retirement_terminal_fence_release_failed")
+            raise
+
+    def recover_trial_terminal(self, state):
+        """An intended terminal result resumes finalization, never reverse actions."""
+        from . import trial_discard_backup as backup
+
+        transaction = state.get("transaction")
+        if not isinstance(transaction, str):
+            return None
+        if str(UUID(transaction)) != transaction:
+            raise UpdateBlocked("trial_retirement_completion_transaction_invalid")
+        path = self.root / "trial-retirements" / (transaction + ".json")
+        intent = state.get("trial_terminal_intent")
+        present = path.exists() or path.is_symlink()
+        if intent is None and not present:
+            return None
+        if (
+            not isinstance(intent, dict)
+            or set(intent) != {"result", "sha256"}
+            or intent["result"] not in {"deployed", "rolled_back"}
+            or not re.fullmatch(r"[a-f0-9]{64}", intent["sha256"])
+        ):
+            raise UpdateBlocked("trial_retirement_terminal_intent_invalid")
+        if self.fence is not None:
+            self.fence.retain = True
+        if present:
+            raw, identity = backup._read(path, g.JOURNAL_MAX_BYTES + 65536)
+            if (
+                identity["mode"] != 0o600
+                or path.lstat().st_nlink != 1
+                or hashlib.sha256(raw).hexdigest() != intent["sha256"]
+            ):
+                raise UpdateBlocked("trial_retirement_terminal_receipt_changed")
+            receipt = json.loads(raw)
+            expected_state = {
+                key: value for key, value in state.items() if key != "trial_terminal_intent"
+            }
+            if (
+                receipt.get("mode") != TRIAL_MODE
+                or receipt.get("transaction") != transaction
+                or receipt.get("journal") != expected_state
+                or receipt.get("executor_revision") != state["executor_revision"]
+                or receipt.get("payload") != state["target"]
+                or receipt.get("previous") != state["previous"]
+                or receipt.get("result", {}).get("status") != intent["result"]
+            ):
+                raise UpdateBlocked("trial_retirement_terminal_receipt_changed")
+        # Re-verify the exact running revision and fenced private health before
+        # touching final records. This performs no stop, spawn, model or restore.
+        self.verify(intent["result"] == "rolled_back")
+        self._trial_terminal_resume = True
+        try:
+            return self.finish(state, intent["result"])
+        finally:
+            self._trial_terminal_resume = False
 
     def finish(self, state, result):
         validate_configuration(self.home, state)
@@ -1514,7 +2222,10 @@ class Operations:
                 self.root / "baseline-reviews" / (state["target"] + ".json"),
                 candidate["compatibility_review"],
             )
-            c.atomic(self.root / "config.json", {**state["config"], "baseline": state["target"]})
+            next_config = (
+                validate_trial_rebind(state) if state.get("mode") == TRIAL_MODE else state["config"]
+            )
+            c.atomic(self.root / "config.json", {**next_config, "baseline": state["target"]})
         else:
             c.atomic(self.root / "config.json", state["config"])
             c.atomic(self.root / "accepted.json", state["accepted"])
@@ -1526,14 +2237,34 @@ class Operations:
             "revision": (
                 state["target"] if result == "deployed" else previous_for(state.get("mode", MODE))
             ),
-            "preserved": True,
+            "preserved": state.get("mode") != TRIAL_MODE,
+            **(
+                {
+                    "manual_reconciliation_limit": "crash_after_spawn_before_durable_pid",
+                    "preservation": "accounts_models_non_session_data",
+                    "trial_outcome": "USER_AUTHORIZED_TRIAL_ABORT",
+                    "native_cleanup": "UNKNOWN",
+                }
+                if state.get("mode") == TRIAL_MODE
+                else {}
+            ),
         }
+        if state.get("mode") == TRIAL_MODE:
+            record["trial_completion_receipt"] = self.archive_trial_completion(state, record.copy())
+            if self._trial_terminal_resume:
+                self.release_trial_terminal_fence(state)
         c.atomic(self.server / "run/model-upgrade-result.json", record)
         c.record(self.root, result, deployed=record["revision"])
         log.info("model_upgrade_finished", extra={"result": result})
-        (self.root / "transaction.json").unlink()
+        if state.get("mode") == TRIAL_MODE:
+            (self.root / "transaction.json").unlink(missing_ok=True)
+        else:
+            (self.root / "transaction.json").unlink()
         c.sync_directory(self.root)
-        (self.server / "run/gateway-upgrade.json").unlink()
+        if state.get("mode") == TRIAL_MODE:
+            (self.server / "run/gateway-upgrade.json").unlink(missing_ok=True)
+        else:
+            (self.server / "run/gateway-upgrade.json").unlink()
         c.sync_directory(self.server / "run")
         return record
 
@@ -1916,6 +2647,9 @@ def operate(
     mode=MODE,
     end_weekly_waiting=False,
     weekly_monitoring_action=None,
+    trial_manifest=None,
+    trial_manifest_sha256=None,
+    trial_backup_parent=None,
 ):
     if (end_weekly_waiting or weekly_monitoring_action is not None) and (
         recovering or mode not in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
@@ -1927,6 +2661,11 @@ def operate(
         and (end_weekly_waiting is not True or weekly_monitoring_action is None)
     ):
         raise UpdateBlocked("weekly_monitoring_authorization_required")
+    trial_flags = (trial_manifest, trial_manifest_sha256, trial_backup_parent)
+    if any(value is not None for value in trial_flags) and (recovering or mode != TRIAL_MODE):
+        raise UpdateBlocked("trial_retirement_flags_forbidden")
+    if not recovering and mode == TRIAL_MODE and any(value is None for value in trial_flags):
+        raise UpdateBlocked("trial_retirement_authorization_required")
     previous = previous_for(mode)
     if sys.platform != "darwin":
         raise UpdateBlocked("model_upgrade_macos_only")
@@ -1971,14 +2710,17 @@ def operate(
                 raise UpdateBlocked("model_upgrade_recovery_required")
             if source is None:
                 raise UpdateBlocked("model_upgrade_source_required")
-            target = c.git(source, "rev-parse", "HEAD")
-            validate_executor(source, target)
-            if (
-                c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir")
-                != config["source_common"]
+            executor_revision = c.git(source, "rev-parse", "HEAD")
+            target = TRIAL_PAYLOAD if mode == TRIAL_MODE else executor_revision
+            validate_executor(source, executor_revision)
+            source_transition = trial_rebind(source, config) if mode == TRIAL_MODE else None
+            if c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") != (
+                source_transition["after"]["common"]
+                if source_transition
+                else config["source_common"]
             ):
                 raise UpdateBlocked("model_upgrade_source_changed")
-            reviewed = review(source, target, mode)
+            reviewed = review(source, target, mode) if mode != TRIAL_MODE else None
             if c.digest(root / "controller.pyz") != CONTROLLER_SHA256:
                 raise UpdateBlocked("model_upgrade_controller_unreviewed")
             with zipfile.ZipFile(root / "controller.pyz") as original:
@@ -1991,11 +2733,18 @@ def operate(
             verify_retention(home)
             supervisor_hash = verify_supervisor(home, config)
             github = GitHubEvidence(
-                Path(config["gh"]), config["repository"], Path(config["source_common"])
+                Path(config["gh"]),
+                config["repository"],
+                Path(
+                    source_transition["after"]["common"]
+                    if source_transition
+                    else config["source_common"]
+                ),
             )
-            if github.latest() != target:
+            if github.latest() != (executor_revision if mode == TRIAL_MODE else target):
                 raise UpdateBlocked("resident_master_moved")
             proof = github.qualify(target)
+            executor_proof = github.qualify(executor_revision) if mode == TRIAL_MODE else proof
             if (root / "quarantine.json").exists() and read_json(root / "quarantine.json").get(
                 "sha"
             ) == target:
@@ -2012,7 +2761,7 @@ def operate(
                 raise UpdateBlocked("model_upgrade_previous_changed")
             if mode == ETF_WEEKLY_ADMISSION_V2_MODE:
                 weekly_primary_identity_precheck(home, previous)
-            else:
+            elif mode != TRIAL_MODE:
                 verify_primary(home, previous, mode)
             g.no_private_processes(server)
             directory = root / "artifacts" / target
@@ -2021,6 +2770,8 @@ def operate(
             if not artifact_source.exists():
                 c.git(source, "worktree", "add", "--detach", str(artifact_source), target)
             c.clean(artifact_source, target)
+            if mode == TRIAL_MODE:
+                reviewed = review(artifact_source, target, mode)
             old_wheel = c.build_wheel(primary, primary, directory / "old" / previous)
             new_wheel = c.build_wheel(primary, artifact_source, directory / "new" / target)
             plist = Path.home() / "Library/LaunchAgents" / (g.LABEL + ".plist")
@@ -2082,7 +2833,33 @@ def operate(
                 state[role + "_identity"] = [info.st_dev, info.st_ino]
                 state[role + "_repository"] = repository_identity(project, config["repository"])
                 c.git(project, "cat-file", "-e", f"{target}^{{commit}}")
-            state["recovery"] = install_recovery(home, artifact_source, target, python)
+            if mode == TRIAL_MODE:
+                from . import trial_retirement as trial
+
+                manifest_value = read_json(trial_manifest)
+                trial.authorize(home, manifest_value, trial_manifest_sha256)
+                executor_path = directory / "executor"
+                if not executor_path.exists():
+                    c.git(
+                        source, "worktree", "add", "--detach", str(executor_path), executor_revision
+                    )
+                c.clean(executor_path, executor_revision)
+                state.update(
+                    executor_revision=executor_revision,
+                    executor_proof=executor_proof,
+                    executor_source=str(executor_path),
+                    source_transition=source_transition,
+                    trial_authorization=manifest_value,
+                    trial_authorization_sha256=trial_manifest_sha256,
+                    trial_backup_parent=str(trial_backup_parent),
+                )
+            state["recovery"] = install_recovery(
+                home,
+                Path(state.get("executor_source", artifact_source)),
+                target,
+                python,
+                **({"executor_revision": executor_revision} if mode == TRIAL_MODE else {}),
+            )
             # Exercise the exact recovery identity contract before any fence
             # publication or stop; an apply-only proof cannot protect rollback.
             validate_state(home, state, executor_source=source)
@@ -2125,7 +2902,14 @@ def operate(
         # In the gateway-only crash window a local primary caller could have
         # started work before a durable primary journal existed. Do not create
         # that journal or reservations until this real activity check is idle.
-        if Operations(home, state, manager, None, None).idle() is not True:
+        if not recovering and state["mode"] == TRIAL_MODE:
+            Operations(home, state, manager, None, None).capture_trial_processes()
+        terminal_pending = (
+            recovering
+            and state["mode"] == TRIAL_MODE
+            and state.get("trial_terminal_intent") is not None
+        )
+        if not terminal_pending and Operations(home, state, manager, None, None).idle() is not True:
             return {"status": "recovery_required" if recovering else "deferred"}
         if not recovering:
             # Establish recovery ownership BEFORE BirthFence publishes any
@@ -2134,7 +2918,8 @@ def operate(
         elif state["phase"] == "preparing":
             # No service/source effect is possible before checkpoint prepared.
             validate_configuration(home, state)
-            verify_primary(home, previous, state["mode"] if recovering else mode)
+            if state["mode"] != TRIAL_MODE:
+                verify_primary(home, previous, state["mode"] if recovering else mode)
             g.preserved(home, state["before"])
             verify_asset_index(home, state)
             journal.unlink()
@@ -2150,8 +2935,12 @@ def operate(
         )
         lease = stack.enter_context(manager._installation_start_scope())
         ops = Operations(home, state, manager, lease, fence)
-        if not recovering and (github.latest() != target or github.qualify(target) != proof):
-            raise UpdateBlocked("resident_master_or_evidence_moved")
+        if not recovering:
+            latest_expected = executor_revision if mode == TRIAL_MODE else target
+            if github.latest() != latest_expected or github.qualify(target) != proof:
+                raise UpdateBlocked("resident_master_or_evidence_moved")
+            if mode == TRIAL_MODE and github.qualify(executor_revision) != executor_proof:
+                raise UpdateBlocked("resident_executor_evidence_moved")
         return execute(ops, state, recovering=recovering)
 
 
@@ -2176,6 +2965,7 @@ def main(argv=None):
             "apply-market-terminal",
             "apply-market-preview",
             "apply-market-breadth",
+            "apply-trial-retirement",
             "apply-etf-weekly",
             "apply-dossiers",
             "apply-discovery",
@@ -2190,6 +2980,9 @@ def main(argv=None):
     parser.add_argument("--source", type=Path)
     parser.add_argument("--end-weekly-waiting", action="store_true")
     parser.add_argument("--weekly-monitoring-action", type=Path)
+    parser.add_argument("--trial-manifest", type=Path)
+    parser.add_argument("--trial-manifest-sha256")
+    parser.add_argument("--trial-backup-parent", type=Path)
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/model-upgrade.log", level=logging.INFO)
     try:
@@ -2223,6 +3016,7 @@ def main(argv=None):
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-market-preview": MARKET_PREVIEW_MODE,
                 "apply-market-breadth": MARKET_BREADTH_MODE,
+                "apply-trial-retirement": TRIAL_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
@@ -2231,6 +3025,22 @@ def main(argv=None):
                 "apply-etf-weekly-admission": ETF_WEEKLY_ADMISSION_MODE,
                 "apply-etf-weekly-admission-v2": ETF_WEEKLY_ADMISSION_V2_MODE,
             }.get(args.command, MODE),
+            **(
+                {
+                    "trial_manifest": args.trial_manifest,
+                    "trial_manifest_sha256": args.trial_manifest_sha256,
+                    "trial_backup_parent": args.trial_backup_parent,
+                }
+                if any(
+                    v is not None
+                    for v in (
+                        args.trial_manifest,
+                        args.trial_manifest_sha256,
+                        args.trial_backup_parent,
+                    )
+                )
+                else {}
+            ),
             **(
                 {
                     "end_weekly_waiting": True,
