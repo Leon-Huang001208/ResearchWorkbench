@@ -22,6 +22,19 @@ def ledger(service):
     return value
 
 
+def current_run(service, sid):
+    """A retained run participates only in its current Host delivery receipt."""
+    state = ledger(service).read(sid)
+    if state is None:
+        return None
+    row = service.store.session(sid)
+    receipt = service.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
+    if receipt.get("specialist_run_id") != state["id"]:
+        log.debug("specialist_historical_context_skipped", session_id=sid)
+        return None
+    return state
+
+
 def validate_send(service, sid, mode, budget):
     """No mode switch may silently escape an unresolved specialist run."""
     current = ledger(service).read(sid)
@@ -88,7 +101,7 @@ def prepare(service, sid, key, budget, contract):
 
 
 def cancel_requested(service, sid):
-    if ledger(service).read(sid) is not None:
+    if current_run(service, sid) is not None:
         ledger(service).apply(sid, "cancel", {}, agent_id=sid, call_id=f"host-cancel:{uuid4().hex}")
 
 
@@ -209,7 +222,7 @@ async def qualify_terminal(service, sid, payload):
 async def verify_cached(service, sid):
     from .evidence import verify_snapshots
 
-    state = ledger(service).read(sid)
+    state = current_run(service, sid)
     if state is None:
         return
     for frozen in state.get("skills", {}).values():
@@ -241,7 +254,7 @@ async def verify_cached(service, sid):
 
 async def reconcile(service, sid):
     """Observe owned native child history; never submit or resume a model request."""
-    state = ledger(service).read(sid)
+    state = current_run(service, sid)
     if state is None:
         return None
     from ..client import RuntimeFailure
@@ -422,7 +435,7 @@ async def reconcile(service, sid):
 
 
 def project_detail(service, sid, detail):
-    state = ledger(service).read(sid)
+    state = current_run(service, sid)
     if state is None:
         return
     state["revision"] = state["active_plan"]["version"]
@@ -459,7 +472,7 @@ def project_detail(service, sid, detail):
 
 
 def quality_issues(service, sid):
-    state = ledger(service).read(sid)
+    state = current_run(service, sid)
     if state is not None and not state.get("finalization_ready"):
         return ["specialist_collaboration_incomplete"]
     return []

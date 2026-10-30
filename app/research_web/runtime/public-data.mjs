@@ -291,7 +291,10 @@ async function responseErrorCode(response, signal) {
   finally { await discardErrorBody(reader, signal); }
 }
 
-export async function boundedJson(response, signal) {
+export async function boundedJson(response, signal, maxBytes = MAX_BYTES) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 4 * 1024 * 1024) {
+    await response.body?.cancel(); throw Error('DataHub response size limit is invalid');
+  }
   if (response.redirected || (response.status >= 300 && response.status < 400)) {
     await discardErrorBody(response.body, signal); throw Error(`DataHub request failed (HTTP ${response.status})`);
   }
@@ -299,10 +302,10 @@ export async function boundedJson(response, signal) {
     const code = await responseErrorCode(response, signal);
     throw Error(`DataHub request failed (HTTP ${response.status})${code ? `: ${code}` : ''}`);
   }
-  if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}
+  if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > maxBytes) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}
   const reader=response.body.getReader();const chunks=[];let size=0;
   try {
-    while(true) {signal.throwIfAborted();const {done,value}=await readResponsePart(reader, signal);if(done)break;size+=value.byteLength;if(size>MAX_BYTES)throw Error('DataHub response size exceeds limit');chunks.push(value);}
+    while(true) {signal.throwIfAborted();const {done,value}=await readResponsePart(reader, signal);if(done)break;size+=value.byteLength;if(size>maxBytes)throw Error('DataHub response size exceeds limit');chunks.push(value);}
   } finally {await reader.cancel();}
   signal.throwIfAborted();
   const value=JSON.parse(Buffer.concat(chunks).toString('utf8'));

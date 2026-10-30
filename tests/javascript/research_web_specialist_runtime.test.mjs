@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { apply, specialistControl, parseSpecialistResult } from '../../app/research_web/runtime/specialists.mjs';
 import { apply as applyGuard } from '../../app/research_web/runtime/guard.mjs';
+import { boundedJson } from '../../app/research_web/runtime/public-data.mjs';
 
 const result = { conclusion: 'Evidence remains limited', evidence_ids: ['e1'], as_of_date: '2026-10-28', limitations: ['No predictive claim'], artifact_ids: [] };
 
@@ -205,6 +206,13 @@ test('control bridge derives session/actor identity and sends only to authentica
   };
   const exec = { agent: { session: { header: { id: sid, cwd } } }, callId: 'native-call', signal: new AbortController().signal };
   assert.equal((await specialistControl({}, exec, { researchRoot: root }, 'status', {})).status, 'needs_attention');
+  const large = JSON.stringify({ status: 'running', plan_history: ['x'.repeat(1_573_842)] });
+  const response = () => new Response(large, { headers: { 'Content-Type': 'application/json' } });
+  await assert.rejects(boundedJson(response(), exec.signal), /size/);
+  globalThis.fetch = async () => response();
+  assert.equal((await specialistControl({}, exec, { researchRoot: root }, 'status', {})).plan_history[0].length, 1_573_842);
+  globalThis.fetch = async () => new Response(JSON.stringify({ value: 'x'.repeat(4 * 1024 * 1024) }), { headers: { 'Content-Type': 'application/json' } });
+  await assert.rejects(specialistControl({}, exec, { researchRoot: root }, 'status', {}), /size/);
 });
 
 test('registered specialist schemas conform to the fixed native DSH tool validator', { skip: !process.env.DSH_SOURCE_ROOT }, async () => {

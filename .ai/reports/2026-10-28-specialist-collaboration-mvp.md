@@ -96,3 +96,26 @@ API 清单合并为 415 声明／412 唯一接口，生成物固定到上述已�
 源码合并与隔离 Native／Docker、真实模型及常驻部署分别留证；完整 apply/resume、
 私有 launchd、旧实例首次准入／退役和 Wind 当前清理未验收前不得切换。历史 Wind
 无归属记录保留 UNKNOWN。当前任务不是生产验收完成或 cleaned。
+
+### 刷新候选独评修复
+
+对 `822b34f9` 的 Python／JS 独评各发现一个 P2，均已在原 feature 分支修复，尚待
+最终候选重新独评：普通回合取消会误取消历史协作；合法多版计划可能超过适配器的
+1 MiB 回执限制。前者按当前 Host 回执 `specialist_run_id` 绑定校验、对账、取消及
+质量投影；仍绑定的协作不因 UI 切换模式而解门。后者只对固定协作端点使用 4 MiB
+读取，并在写入前同时检查持久账本及回执投影；普通 DataHub 默认限制保持 1 MiB。
+超限拒绝，不截断、不删除历史、不自动重发。
+
+实际 RED：普通取消回归 1 fail／1 pass；大回执 bridge 1 fail。修复后专项 Python
+83 pass，运行在既有系统网络沙箱下且显式禁用 Framework collectors；固定 DSH
+`7ecf564f2e09b829240c5553687223bdd1e2df73` 安装闭包经原验证器核对 16098 文件，
+摘要 `5ad78f676fbff7455085d1695bdd7816f552298a00fe1bfb886d41448916045a`。
+指定该固定闭包及原任务解释器后，相邻 Node 专项 81 pass／0 skip；最初未指定它们的
+56 pass／2 skip 保留原记录，不替换为“原轮通过”。完整 16 节点、每节点约32 KiB、
+三版计划也在真实临时 Store／SpecialistLedger 中通过，回执超过1 MiB且低于4 MiB。
+
+独评期间一次未加载完整隔离 fixture 的临时 API probe 意外调度了 Framework
+collector，随后正常关闭；未保留完整 PID／临时根及系统网络见证，外部副作用为
+UNKNOWN。该轮不能用作无外部请求或现场验收证明。后续正式 Python 回归加载原
+fixture、显式关闭 collector 并使用既有系统网络沙箱；不重放该裸 probe，不读取
+生产账号或业务数据以补证。原审查日志保留在原 integration 的 `logs/pr246-refresh/`。

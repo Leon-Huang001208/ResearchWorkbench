@@ -1,7 +1,9 @@
 """Offline business-contract and crash-boundary tests; no model/provider calls."""
 
+import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -617,6 +619,76 @@ def complete_research(setup, *, settle_usage=True):
             setup, "model_usage", {"request_id": "root", "input_tokens": 30, "output_tokens": 40}
         )
     return state, industry, quant, reviewer
+
+
+def test_ordinary_delivery_cancel_preserves_completed_specialist_history(setup):
+    from app.research_web.specialists import service as specialist_service
+
+    state, *_ = complete_research(setup)
+    store, sid, current, *_ = setup
+    service = SimpleNamespace(store=store, specialist_ledger=current)
+    store.reserve(sid, "ordinary-followup", "ordinary", delivery={"task_id": "ordinary"})
+    store.session(sid)["research_mode"] = "quick"
+    store.save()
+    before = current.read(sid)
+
+    specialist_service.cancel_requested(service, sid)
+    assert current.read(sid) == before
+    assert specialist_service.validate_send(service, sid, "quick", None) is None
+    assert state["finalization_ready"]
+    assert specialist_service.quality_issues(service, sid) == []
+    detail = {"research_accepted": True}
+    specialist_service.project_detail(service, sid, detail)
+    assert detail == {"research_accepted": True}
+    asyncio.run(specialist_service.verify_cached(service, sid))
+    assert asyncio.run(specialist_service.reconcile(service, sid)) is None
+    assert current.read(sid) == before
+
+
+def test_receipt_binding_keeps_current_specialist_gate_after_ui_mode_change(setup):
+    from app.research_web.specialists import service as specialist_service
+
+    store, sid, current, _, state, _ = setup
+    service = SimpleNamespace(store=store, specialist_ledger=current)
+    store.reserve(sid, "bound-specialist", "specialist", delivery={"task_id": "specialist"})
+    store.receipt(sid, "bound-specialist")["specialist_run_id"] = state["id"]
+    store.session(sid)["research_mode"] = "quick"
+    store.save()
+
+    assert specialist_service.quality_issues(service, sid) == [
+        "specialist_collaboration_incomplete"
+    ]
+    detail = {"research_accepted": True}
+    specialist_service.project_detail(service, sid, detail)
+    assert detail["research_accepted"] is False
+    specialist_service.cancel_requested(service, sid)
+    assert current.read(sid)["cancel_requested"] is True
+    with pytest.raises(SpecialistError, match="尚未结束"):
+        specialist_service.validate_send(service, sid, "quick", None)
+
+
+def test_full_legal_plan_history_fits_fixed_control_limit(setup):
+    values = [
+        {"id": f"sector-{i}", "role": "industry", "input": {"padding": "x" * 32700}}
+        for i in range(14)
+    ]
+    values += [
+        {"id": "quant", "role": "quant", "input": {"padding": "x" * 32700}},
+        {
+            "id": "review",
+            "role": "review",
+            "depends_on": [row["id"] for row in values] + ["quant"],
+            "input": {"padding": "x" * 32700},
+        },
+    ]
+    for version in range(3):
+        values[0]["input"]["revision"] = version
+        state = plan(setup, values, version=version)
+    encoded = json.dumps(state, ensure_ascii=False).encode()
+    assert 1024 * 1024 < len(encoded) < 4 * 1024 * 1024
+    assert state["active_plan"]["version"] == 3
+    assert len(state["plan_history"]) >= 2
+    assert setup[2].read(setup[1])["active_plan"] == state["active_plan"]
 
 
 def test_completed_in_time_remains_ready_after_deadline_and_recovery(setup):

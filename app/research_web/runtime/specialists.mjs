@@ -11,6 +11,7 @@ const ID = /^[A-Za-z0-9_.:-]{1,160}$/;
 const NODE = /^[a-z][a-z0-9_-]{0,63}$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const OUTPUT_LIMIT = 4096;
+const CONTROL_MAX_BYTES = 4 * 1024 * 1024;
 const RESULT_KEYS = 'artifact_ids,as_of_date,conclusion,evidence_ids,limitations';
 const TERMINALS = new Set(['completed', 'aborted', 'error', 'max-tokens', 'refusal']);
 
@@ -30,7 +31,7 @@ export async function specialistControl(ctx, exec, config, operation, payload, n
     body: JSON.stringify({ session_id: basename(cwd), operation, payload, agent_id: agentId, call_id: callId }),
     redirect: 'error', credentials: 'omit', signal,
   });
-  const value = await boundedJson(response, signal);
+  const value = await boundedJson(response, signal, CONTROL_MAX_BYTES);
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('specialist_control_invalid');
   return value;
 }

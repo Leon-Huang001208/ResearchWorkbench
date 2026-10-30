@@ -199,9 +199,14 @@ class SpecialistLedger:
                 "协作记录损坏；未覆盖", "specialist_storage_unavailable", 503
             ) from exc
 
-    @staticmethod
-    def _save(fd, envelope):
-        if len(json.dumps(envelope, ensure_ascii=False).encode()) > 4 * 1024 * 1024:
+    def _save(self, fd, envelope, *, result=None):
+        limit = 4 * 1024 * 1024
+        if (
+            len(json.dumps(envelope, ensure_ascii=False).encode()) > limit
+            or len(json.dumps(self._view(envelope, result=result), ensure_ascii=False).encode())
+            > limit
+        ):
+            log.warning("specialist_storage_limit")
             raise SpecialistError("协作记录达到容量上限", "specialist_storage_limit", 409)
         atomic_json(fd, "ledger.json", envelope)
 
@@ -557,7 +562,7 @@ class SpecialistLedger:
                 raise SpecialistError("协作合同校验失败") from exc
             self._refresh(run)
             run["receipts"][call_id] = {"digest": digest, "result": result}
-            self._save(fd, envelope)
+            self._save(fd, envelope, result=result)
             log.info("specialist_operation_recorded", operation=operation, run_id=run["id"])
             return self._view(envelope, result=result)
 

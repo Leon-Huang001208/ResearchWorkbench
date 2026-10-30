@@ -11851,6 +11851,8 @@ Imports:
 
 Functions:
 - `ledger`
+- `current_run`
+  - A retained run participates only in its current Host delivery receipt.
 - `validate_send`
   - No mode switch may silently escape an unresolved specialist run.
 - `prepare`
