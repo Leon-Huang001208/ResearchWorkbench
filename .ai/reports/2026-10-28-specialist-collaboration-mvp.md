@@ -75,3 +75,24 @@
 独立评审发现并修复两项P1：保留原research_report_delivery=bound接受门，以及解析原生reasoning+可见JSON文本。API8项与运行时19项定点通过；评审复核未发现新明确P1/P2。补齐角色源码文档映射、四项API清单、API Atlas、README复核和Python索引；项目约束检查通过。
 
 Router选中其余本地回归536通过/1原有跳过。现场常驻仍为b800e503，active=null，拒绝切换；doctor还报告旧现场环境及端口归属不明，不能从健康HTTP推断可部署。Docker原先未运行，已启动现有Docker应用但尚未完成产品验收。真实小样本按官方Flash高峰价估算三次约$0.36，本轮$1总上限请求已提出，尚未获得费用确认，未调用模型。
+
+## 2026-10-30 原 PR 刷新记录
+
+已核对本聊天原任务、原 common、原 feature 与 integration 身份。原账本仍为
+`specialist-collaboration-20261028`，修补计数为 0；原 PR #246 未关闭或重建。
+从 GitHub 正常获取主线 `cf7ffa267cf68de0d56e37af60a05d057fb37753`，在原 integration
+保留旧候选 `d8e36d8545ddcbc56f87a4e8c5b869d7203eaf4b` 为第一父提交，创建合并源提交
+`53cecb924e4ee22e2f31db412eaccaa2e93141b7`。15 项冲突限于文档、生成物和原 Mac
+安装 workflow；双方新增合同、维护检查与 API 均保留，没有业务源码冲突。
+
+原 Mac workflow 只下载 specialist-panel.mjs，未把它纳入后续字节摘要清单；本次补齐
+同一步实际字节比较，同时保留主线的 watchlist-import、维护作业身份和原全部检查。
+API 清单合并为 415 声明／412 唯一接口，生成物固定到上述已存在的合并源提交。
+没有新增 job、runner、依赖或时限。
+
+用户后续已批准真实模型验收总额 $1；早期“待批准”段落保留历史时间归属。当前刷新
+尚未发起真实模型请求，不追加额度，不自动重放已受理或接受未知的请求。刷新后的
+完整 Router、本地验证、独立评审及同候选原三 CI 仍待执行，旧绿色结果不认证新候选。
+源码合并与隔离 Native／Docker、真实模型及常驻部署分别留证；完整 apply/resume、
+私有 launchd、旧实例首次准入／退役和 Wind 当前清理未验收前不得切换。历史 Wind
+无归属记录保留 UNKNOWN。当前任务不是生产验收完成或 cleaned。
