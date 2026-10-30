@@ -691,6 +691,28 @@ def test_full_legal_plan_history_fits_fixed_control_limit(setup):
     assert setup[2].read(setup[1])["active_plan"] == state["active_plan"]
 
 
+def test_dense_structured_plan_capacity_rejection_preserves_readable_ledger(setup):
+    store, sid, current, *_ = setup
+    values = nodes()
+    values[0]["input"] = {"dense": [{} for _ in range(8000)]}
+    for i in range(13):
+        values.append({"id": f"extra-{i}", "role": "industry", "input": values[0]["input"]})
+    record = store.root / "specialists" / sid / "ledger.json"
+    for version in range(3):
+        before = record.read_bytes()
+        try:
+            plan(setup, values, version=version)
+        except SpecialistError as exc:
+            assert exc.code == "specialist_storage_limit"
+            assert record.read_bytes() == before
+            assert len(before) <= 4 * 1024 * 1024
+            assert current.read(sid)["active_plan"]["version"] == version
+            break
+        assert len(record.read_bytes()) <= 4 * 1024 * 1024
+    else:
+        pytest.fail("dense plan history must hit its actual on-disk capacity bound")
+
+
 def test_completed_in_time_remains_ready_after_deadline_and_recovery(setup):
     state, *_ = complete_research(setup)
     completed = state["completed_at"]
