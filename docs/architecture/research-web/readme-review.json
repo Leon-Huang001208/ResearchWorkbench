@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "专业协作在既有FinGPT会话增加显式入口；现有README Host/DSH与私网安装说明保持准确。",
-  "reason": "角色配置、DAG账本和受控原生子会话不创建新运行时或安装入口；详细合同与API Atlas同步，真实验收和部署仍受独立门控制。"
+  "summary": "复核专业协作显式入口、共享恢复及精确维护作业合同；README的唯一DSH与现有安装入口仍准确。",
+  "reason": "专业协作复用账号隔离、现有Host和原生DSH，不新增服务或安装步骤；维护链保持原权限与历史UNKNOWN。新功能、离线检查、真实模型、完整恢复及常驻部署分别验收，细节由专项合同和任务报告记录。"
 }

@@ -12,6 +12,12 @@ FinGPT 原研究模式选择增加“专业协作研究”（`research_mode=spec
 
 离线行为回归见 `tests/javascript/research_web_specialist_ui.test.mjs`，覆盖预算准入、未知提交恢复、账号／导航隔离、显式续跑、真实账本形状与安全展示；这些测试不替代真实 DSH、浏览器、供应商费用及 Native/Docker 验收。
 
+导入控件按owner与当前draft实例双重绑定；账户切换清空旧原生FileList、File/字节/选择/确认键，A→B→A不会恢复旧文件或接纳旧响应。同owner局部更新和未完成File读取仍保持。
+
+自选首建/新建列表成功后，通过账户绑定的原metadata读取刷新目标选项；即使同一证券观察走sameAsset路径也不会沿用空目录。局部更新保留导入节点前同步新data-lists，已有目标仍存在则保留，不自动切换到新列表；原File/草稿保持，切换目标必须重新冻结。
+
+自选CSV入口在资产观察“更多 → 自选与最近观察”，完整行预览后显式消歧/skip，再重新冻结确认追加。保留原自选、当前File和选择；状态/错误中文，390px浅深色和键盘均沿原样式，原More使用现有disclosure状态恢复，app.mjs入口不增长。完整格式/账户/并发及限制见[自选导入](research-web-watchlist-import.md)。
+
 报告操作接线由独立report-operations.mjs承担，防跨项目迟到响应及重复提交；主app.mjs必须保持在既有256KiB静态健康正文预算内，Node回归读取实际入口字节验证。
 
 独立“报告生产”主导航在 Claw 后，#/reports 为真实项目目录，可搜索/筛选；#/reports/:id 的 production/configuration/history 标签和 run 参数可刷新恢复。首版管理现有项目，无新建向导。目录状态不是本期验收；所选记录按其版本/来源/用途展示，未知受理即使已结束监控仍为未知。执行留在工作台，可跳转原 Claw 活动。失效/完整性无效文件在交付与证据区均禁止链接；能力中心移除独立报告区，Claw 计划页保留跳转。

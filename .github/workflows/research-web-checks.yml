@@ -7,7 +7,11 @@ on:
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
+      - "scripts/run_ci_pytest_partitions.py"
+      - "scripts/stage_ci_pytest_evidence.py"
       - "tests/research_web/**"
+      - "tests/unit/test_ci_pytest_partitions.py"
+      - "tests/unit/test_ci_pytest_evidence_staging.py"
       - "tests/javascript/research_web*.test.mjs"
       - "requirements/web.in"
       - "requirements/web.lock"
@@ -23,7 +27,11 @@ on:
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
+      - "scripts/run_ci_pytest_partitions.py"
+      - "scripts/stage_ci_pytest_evidence.py"
       - "tests/research_web/**"
+      - "tests/unit/test_ci_pytest_partitions.py"
+      - "tests/unit/test_ci_pytest_evidence_staging.py"
       - "tests/javascript/research_web*.test.mjs"
       - "requirements/web.in"
       - "requirements/web.lock"
@@ -85,7 +93,11 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
-          .venv/bin/python -m pytest \
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+            --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+            --allowed-parent "$RUNNER_TEMP" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+            -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
             tests/research_web/test_research_scenarios_catalog.py \
@@ -146,6 +158,7 @@ jobs:
             tests/research_web/test_integration_coordinator.py \
             tests/research_web/test_connection_center.py \
             tests/research_web/test_asset_workspace.py \
+            tests/research_web/test_watchlist_import.py \
             tests/research_web/test_asset_history.py \
             tests/research_web/test_asset_intraday.py \
             tests/research_web/test_asset_minute_k.py \
@@ -219,6 +232,10 @@ jobs:
             tests/research_web/test_ai_news_eval.py \
             tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
+            tests/research_web/test_delivery_transfer.py \
+            tests/research_web/test_source_inventory.py \
+            tests/research_web/test_maintenance_job_identity_v3.py \
+            tests/research_web/test_repository_lock_recovery.py \
             tests/research_web/test_wind_recovery_activity.py \
             tests/research_web/test_wind_cleanup_recovery.py \
             tests/research_web/test_gateway_upgrade.py tests/research_web/test_model_provider_upgrade.py \
@@ -228,8 +245,14 @@ jobs:
             tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
             --confcutdir=tests/research_web -q
-          .venv/bin/python -m pytest \
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+            --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
+            --allowed-parent "$RUNNER_TEMP" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
+            -- \
             tests/unit/test_wind_excel_instances.py \
+            tests/unit/test_ci_pytest_partitions.py \
+            tests/unit/test_ci_pytest_evidence_staging.py \
             --confcutdir=tests/unit -q
 
       - name: Run Research Web JavaScript contracts
@@ -240,3 +263,22 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
+
+      - name: Stage safe pytest evidence
+        id: stage-safe-evidence
+        if: always()
+        shell: bash
+        run: |
+          .venv/bin/python scripts/stage_ci_pytest_evidence.py \
+            --runner-temp "$RUNNER_TEMP" \
+            --workspace "$GITHUB_WORKSPACE" \
+            --max-bytes 104857600
+
+      - name: Upload safe pytest evidence
+        if: always() && steps.stage-safe-evidence.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/research-web-checks
+          if-no-files-found: ignore
+          retention-days: 3

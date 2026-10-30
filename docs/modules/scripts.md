@@ -1,5 +1,41 @@
 # Module: scripts
 
+The optional `backup_fd_clone.mjs` / `backup_fd_clone.py` primitive only copies
+from an already-open source FD into a private directory FD on supported Darwin
+systems. The fixed standard-library helper accepts no arbitrary command; Node
+rechecks full bytes, identities and privacy before reporting success. It neither
+falls back nor removes data. The backup caller retains path/race guards, capacity
+admission, fsck and actual restore. The snapshot caller now uses the optional
+primitive; unsupported/error/unknown and platform limits are explicit
+in the [task report](../../.ai/reports/test_report_backup_cow_admission_20261030.md).
+
+Snapshot events are written to the current owned backup point's private logs,
+so logging cannot itself alter the captured source worktree. The closed journal
+is authenticated as per-point snapshotJournal metadata, outside the deduplicated
+payload pool. Its original point is checked before/after actual restoration;
+V2 seals include that metadata. Final project-level backup logging is unchanged;
+no CLI-selected journal destination or new logging service is added.
+
+The existing delivery status operation accepts explicit --defer-cleanup to
+postpone its automatic cleanup after CI passes. Review, CI and merge checks
+remain; this is not read-only and does not mark resources cleaned. Default
+status/explicit cleanup behavior and their safety checks are retained.
+
+The snapshot integration adds single ordinary-file stream admission in
+`backup_capacity.mjs`; it reads the actual destination filesystem's available
+capacity and rejects unknown/invalid/insufficient measurements. It does not bound
+all Git phases. Optional clone reuse may inherit only the same process and
+operation's already-required successful resourcePhase toolchain selection;
+generic resolver rules and standalone behavior are not relaxed. No runtime
+registry, new CLI interpreter setting or whole-backup certification is introduced.
+
+The trusted pre-spawn rejection hook runs after complete source hashing, directly
+before the fixed helper invocation. Its only effect is refusing an invocation;
+possibly executed outcomes still require the caller's post-check and cannot be
+stream retried. Direct tests use an explicit test-only Python path supplied by
+the existing CI environment. No other host runtime path or product setting is
+inferred from this test input.
+
 ## Responsibility
 
 `scripts` provides operational scripts, database bootstrap, backup/restore, smoke tests, and development governance checks.
@@ -18,6 +54,27 @@
 ---
 
 ## Files
+
+### `scripts/run_ci_pytest_partitions.py`
+
+Purpose:
+- Schedules the two preselected Python pytest scopes in the existing Research Web Checks job as two independent processes.
+- Collects the scope's actual node IDs, deterministically partitions them with a disjoint complete union, and has both workers verify that their collection matches the parent manifest before execution.
+- Keeps each worker's basetemp, pytest cache, JUnit XML, result record, and stdout/stderr log under an owner-checked private task temp root. The scheduler holds both worker Popen objects and validates their PID, UID, root inode, worker index, schema, plan digest, exact execution IDs, and exact JUnit `rwb_nodeid` mapping before reporting PASS. Collection errors, missing/changed nodes, test failures, worker errors, malformed results, and interruption fail closed; skips remain in JUnit.
+- Limits failure `errorClass` to the same fixed built-in/`PartitionError`/`UnknownError` enumeration used by the artifact stager. Unknown identifier-shaped pytest messages become `null`; unknown exception objects become `UnknownError`, so a private failure body or custom class name cannot become public taxonomy.
+- Does not change selected test paths/configuration, add jobs/runners/dependencies, or infer that the 45-minute GitHub timeout will pass. The exact candidate CI duration is still measured remotely.
+
+`tests/unit/test_ci_pytest_partitions.py` exercises partition integrity, independent worker evidence, visible skip/failure, collection failure, and interruption behavior.
+
+### `scripts/stage_ci_pytest_evidence.py`
+
+Purpose:
+- Reads only the fixed Research Web Checks task roots and evidence filenames through owner-checked directory descriptors and `O_NOFOLLOW` file opens.
+- Rejects symlink, hardlink, non-regular, replaced, cross-device, or wrong-owner inputs. It verifies source inode/size/timestamps before staging and checks the parent directory identities again before returning.
+- Produces a fresh `artifacts/research-web-checks/` directory with sanitized JUnit nodeID properties, manifests, PID/status summaries, and redacted summary logs. For failed workers, it may include only the runner's fixed-schema `phase`, fixed-enumeration exception class (or `null`), and stable error code; arbitrary identifier-shaped classes are rejected. Raw result errors, JUnit output bodies, environment, and worker stdout remain unstaged.
+- Fails if staging paths already exist, if the output tree is replaced, or if sanitized evidence exceeds the 100 MiB per-run cap.
+
+`tests/unit/test_ci_pytest_evidence_staging.py` exercises ordinary staging, external symlinks, hardlinks, root symlinks, parent-directory replacement, raw schema-v3 taxonomy rejection, and a real worker failure whose private custom exception name must not reach the artifact.
 
 ### `scripts/setup_web.py`
 

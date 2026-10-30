@@ -28,7 +28,7 @@ test('existing fields remain available in their topics while every route retains
 test('compact header keeps menus closed and original metrics sit beside the chart', () => {
   const html = renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock' }, rows: { overview: [{ name: '贵州茅台', price: 10, open: 0, high: 11, low: 9, volume: 0, amount: 0, turnover_rate_pct: 0, date: '2026-10-21' }] } });
   const hero = html.slice(html.indexOf('<section class="asset-basic-card'), html.indexOf('<section class="asset-market-full"'));
-  assert.match(hero, /<details class="asset-more-menu">/);
+  assert.match(hero, /<details class="asset-more-menu" data-disclosure-key="asset-more:stock:600519.SH">/);
   assert.match(hero, /data-asset-search-slot/);
   const metrics = html.slice(html.indexOf('<aside class="asset-wind-metrics"'), html.indexOf('</aside>', html.indexOf('<aside class="asset-wind-metrics"')));
   assert.ok(html.indexOf('data-asset-chart-slot') < html.indexOf('<aside class="asset-wind-metrics"'));

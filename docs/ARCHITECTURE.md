@@ -2,6 +2,8 @@
 
 专业协作 MVP 复用现有能力中心的不可变版本与账号存储。Host 只保存并校验业务 DAG、计划版本、节点尝试、预算准入和验收；原生 DSH 主 Agent 负责规划调度及可继续子会话，运行时原生 settlement 唤醒父 Agent。无第二执行循环、聊天库或 PostgreSQL；私有控制回调沿既有 DataHub 认证，详见[专业协作合同](research-web-specialists.md)。
 
+自选 CSV 导入复用浏览器 → 原 Host/AssetWorkspace → 既有 AssetDirectory/Store；新增两个封闭 HTTP 端点与同 index 的 watchlist_imports namespace。Store 实例共享 RLock 覆盖批次读取/CAS/stage/save/rollback及后台files保存，防止失败批次被线程偷发布；无跨 Host/跨进程或断电事务保证，不新增服务、DB、Provider或研究引擎。原聚合节点/连线拓扑保持，新增字段和API见[合同](research-web-watchlist-import.md)。
+
 报告生产的前端请求协调提取为report-operations.mjs，只连接既有Host API；唯一DSH、控制器和数据拓扑不变，未提高健康检查读取上限。
 
 独立报告生产工作区位于既有 Web UI，复用原 ReportWorkflowManager/Run、Host 质量门和唯一 DSH；新增前端 #/reports 深链接，不新增 HTTP、数据库、研究引擎或桌面打包。项目目录与每期生产分开，配置及历史分栏，能力中心不再拼接报告专属区域；租户权限与普通未知拒绝保持。
@@ -349,3 +351,11 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+## 精确维护作业身份（2026-10-29）
+
+现有 resident 层新增只读 `ExactJobBinding`，固定原生产目标，或由已登记私有根及独立已审
+artifact 摘要绑定演练 label／plist／domain／端口。它不创建服务、分配端口或授予效果权限，
+生命周期仍由原维护上下文与 intent 执行；没有新 HTTP、数据库、研究引擎或编排循环。
+拓扑不变，旧实例的加载策略与 Wind 历史 UNKNOWN 不因此提高资格。
+合同与验收边界见 [维护作业身份 v3](research-web-maintenance-job-identity-v3.md)。

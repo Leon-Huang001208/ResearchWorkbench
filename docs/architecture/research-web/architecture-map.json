@@ -53,7 +53,11 @@
         "research_workbench_entrypoint/resident/host_metadata.py",
         "research_workbench_entrypoint/resident/evidence.py",
         "research_workbench_entrypoint/resident/admission.py",
-        "research_workbench_entrypoint/builder_reconcile.py"
+        "research_workbench_entrypoint/builder_reconcile.py",
+        "research_workbench_entrypoint/resident/delivery_transfer.py",
+        "research_workbench_entrypoint/resident/source_inventory.py",
+        "research_workbench_entrypoint/resident/repository_lock_recovery.py",
+        "research_workbench_entrypoint/resident/maintenance_evidence.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -62,7 +66,8 @@
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/05-security-validation.md",
-        "docs/research-web-platform-support.md"
+        "docs/research-web-platform-support.md",
+        "docs/research-web-source-migration.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -597,7 +602,9 @@
         "app/research_web/ui/asset-minute-k.mjs",
         "app/research_web/scenarios/",
         "app/research_web/scenario_handoffs.py",
-        "app/research_web/asset_research.py"
+        "app/research_web/asset_research.py",
+        "app/research_web/watchlist_import.py",
+        "app/research_web/ui/watchlist-import.mjs"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -605,7 +612,8 @@
         "docs/architecture/research-web/04-api.md",
         "docs/research-web-scenarios.md",
         "docs/research-web-scenario-handoffs.md",
-        "docs/research-web-asset-research.md"
+        "docs/research-web-asset-research.md",
+        "docs/research-web-watchlist-import.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -649,7 +657,15 @@
         "tests/e2e/research_web_scenarios_real_backend.mjs",
         "tests/research_web/test_scenario_review_round2.py",
         "tests/javascript/research_web_asset_research.test.mjs",
-        "tests/research_web/test_scenario_final_review.py"
+        "tests/research_web/test_scenario_final_review.py",
+        "tests/research_web/test_watchlist_import.py",
+        "tests/javascript/research_web_watchlist_import.test.mjs",
+        "tests/e2e/research_web_watchlist_import.mjs",
+        "tests/e2e/watchlist_import_host.py",
+        "tests/e2e/research_web_watchlist_import_lists.mjs",
+        "tests/e2e/watchlist-loopback.sb",
+        "tests/e2e/watchlist_network_probe.py",
+        "tests/e2e/research_web_watchlist_proxy.mjs"
       ]
     },
     {
@@ -750,6 +766,8 @@
         "scripts/plan_verification.mjs",
         "scripts/validate_verification_receipt.mjs",
         "scripts/summarize_verification_delivery.mjs",
+        "scripts/run_ci_pytest_partitions.py",
+        "scripts/stage_ci_pytest_evidence.py",
         ".agents/verification-policy.json",
         ".agents/research-web-stage.json",
         ".agents/runtime/leon-engineering/",
@@ -780,6 +798,8 @@
         "tests/javascript/verification_platform_task_entry.test.mjs",
         "tests/javascript/verification_delivery_summary.test.mjs",
         "tests/javascript/actions_quota_governance.test.mjs",
+        "tests/unit/test_ci_pytest_partitions.py",
+        "tests/unit/test_ci_pytest_evidence_staging.py",
         "tests/research_web/test_fingpt_comparison.py",
         "tests/javascript/research_web_fingpt_comparison.test.mjs"
       ]
@@ -5356,6 +5376,20 @@
       "prefix": "/api/research"
     },
     {
+      "method": "POST",
+      "path": "/api/research/watchlists/{watchlist_id}/imports/preview",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/watchlists/{watchlist_id}/imports/preview",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/watchlists/{watchlist_id}/imports/{import_id}/confirm",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/watchlists/{watchlist_id}/imports/{import_id}/confirm",
+      "prefix": "/api/research"
+    },
+    {
       "method": "GET",
       "path": "/api/research/specialists",
       "source": "app/research_web/specialists/routes.py",
@@ -5388,7 +5422,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "b7a8c4589314b954e7d08139717d5386424d2f60"
+      "revision": "cf7ffa267cf68de0d56e37af60a05d057fb37753"
     },
     "levels": [
       {

@@ -3057,6 +3057,7 @@ Imports:
 - `__future__`
 - `asyncio`
 - `core.observability`
+- `hashlib`
 - `json`
 - `math`
 - `os`
@@ -3069,7 +3070,7 @@ Imports:
 Classes:
 - `AssetDirectory`
   - One cache and one refresh task per authenticated user's Store root.
-  - methods: __init__, active, _directory, _restore, _persist, _refresh, search, wait, close
+  - methods: __init__, active, _directory, _restore, offline_snapshot, _persist, _refresh, search, wait, close
 
 Functions:
 - `pinyin_abbr`
@@ -3294,6 +3295,10 @@ Classes:
   - methods: unique_panels
 - `WatchlistCreate`
 - `WatchlistItem`
+- `WatchlistImportPreview`
+  - methods: exact_version
+- `WatchlistImportConfirm`
+  - methods: exact_literals
 - `NoteCreate`
 - `NotePatch`
 - `AlertCreate`
@@ -3320,6 +3325,8 @@ Functions:
 - `watchlists`
 - `create_watchlist`
 - `add_watchlist_item`
+- `preview_watchlist_import`
+- `confirm_watchlist_import`
 - `notes`
 - `create_note`
 - `patch_note`
@@ -3356,7 +3363,7 @@ Classes:
 - `AssetWorkspaceError`
   - methods: __init__
 - `AssetWorkspace`
-  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _reserve_load_key, load_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _reserve_load_key, load_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, preview_watchlist_import, confirm_watchlist_import, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
 
 Functions:
 - `_recent_range`
@@ -11907,6 +11914,7 @@ Imports:
 - `shutil`
 - `stat`
 - `tempfile`
+- `threading`
 - `time`
 - `uuid`
 
@@ -11994,6 +12002,54 @@ Imports:
 Functions:
 - `warehouse_diagnostic`
   - Inspect only this instance's profile; never instantiate backend/keyring.
+
+
+## `app/research_web/watchlist_import.py`
+
+Module docstring:
+> Bounded offline CSV decisions and single-Host watchlist import transactions.
+
+Imports:
+- `__future__`
+- `base64`
+- `binascii`
+- `copy`
+- `core.observability`
+- `csv`
+- `hashlib`
+- `io`
+- `json`
+- `re`
+- `store`
+- `time`
+- `typing`
+- `unicodedata`
+- `uuid`
+
+Classes:
+- `CsvInput`
+- `CatalogItem`
+- `OfflineCatalog`
+- `PreviewRequest`
+- `ConfirmRequest`
+- `ImportRow`
+- `SavedWatchlistItem`
+- `WatchlistRecord`
+- `ImportReceipt`
+- `RowDecision`
+- `ImportManifest`
+- `IdempotencyBinding`
+- `KeyRecord`
+- `ImportNamespace`
+- `WatchlistImports`
+  - All entrypoints are synchronous and called under the workspace writer lock.
+  - methods: __init__, _target, _namespace, _budget, _save, _seal, preview, confirm
+
+Functions:
+- `digest`
+- `reject`
+- `parse_file`
+- `resolve_rows`
 
 
 ## `app/research_web/workbench.py`
@@ -22516,6 +22572,40 @@ Functions:
 - `main`
 
 
+## `scripts/backup_fd_clone.py`
+
+Module docstring:
+> Narrow optional Darwin clone bridge; only inherited FDs 3/4 are accepted.
+
+Imports:
+- `__future__`
+- `ctypes`
+- `errno`
+- `json`
+- `logging`
+- `os`
+- `stat`
+- `sys`
+- `typing`
+
+Classes:
+- `Refusal`
+  - A stable, non-sensitive outcome before any copy attempt.
+  - methods: __init__
+
+Functions:
+- `facts`
+  - Losslessly represent the same identity/state fields as Node bigint stat.
+- `validate_request`
+- `system_library`
+- `require_plain_metadata`
+  - Reject rather than inherit ACLs, xattrs or flags into a private payload.
+- `destination_present`
+- `clone`
+  - Attempt at most one clone; any uncertain effect is preserved as unknown.
+- `main`
+
+
 ## `scripts/bootstrap_db.py`
 
 Module docstring:
@@ -23579,6 +23669,72 @@ Functions:
 - `main`
 
 
+## `scripts/run_ci_pytest_partitions.py`
+
+Module docstring:
+> Run an existing pytest selection in two exact, isolated CI partitions.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `contextlib`
+- `dataclasses`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `signal`
+- `stat`
+- `subprocess`
+- `sys`
+- `tempfile`
+- `time`
+- `typing`
+- `xml.etree.ElementTree`
+
+Classes:
+- `PartitionError`
+  - Raised when a suite cannot be split or its evidence is incomplete.
+- `CollectionPlugin`
+  - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems
+- `WorkerPlugin`
+  - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems, pytest_runtest_logreport
+
+Functions:
+- `_safe_exception_class`
+- `_failure_taxonomy`
+- `_validate_failure_taxonomy`
+- `_canonical`
+- `_is_within`
+- `validate_selection`
+  - Accept only test paths and the selection options used by the CI contract.
+- `split_nodeids`
+  - Round-robin the real collection order to balance even large single modules.
+- `_plan_sha256`
+- `validate_partition_manifest`
+  - Require exact ordered collection equality and a disjoint two-way union.
+- `create_task_root`
+  - Create a fresh, owner-checked task directory under its allowed temp parent.
+- `validate_task_root`
+  - Reject symlinks, foreign roots, and roots whose registered inode changed.
+- `_atomic_json`
+- `_pythonpath`
+- `_register_process`
+- `_worker_command`
+- `_pytest_arguments`
+- `_pytest_collection_arguments`
+- `_parse_junit`
+- `_validate_execution_records`
+- `_validate_worker_result`
+- `_validate_worker_owner`
+- `_worker_result`
+- `_run_worker`
+- `_internal_worker`
+- `run_suite`
+- `main`
+
+
 ## `scripts/run_official_index_structure_ingestion.py`
 
 Module docstring:
@@ -23797,6 +23953,57 @@ Classes:
   - methods: __init__, draw
 
 Functions:
+- `main`
+
+
+## `scripts/stage_ci_pytest_evidence.py`
+
+Module docstring:
+> Stage redacted CI pytest evidence through owner-bound, no-follow file handles.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `typing`
+- `xml.etree.ElementTree`
+
+Classes:
+- `StagingError`
+  - Raised when evidence paths, ownership, identity, or content are unsafe.
+
+Functions:
+- `_validate_failure_taxonomy`
+- `_secret_scan`
+- `_directory_flags`
+- `_same_file`
+- `_same_dir`
+- `_open_owned_directory`
+- `_open_directory_at`
+- `_read_file_at`
+- `_read_relative`
+- `_verify_directory_entry`
+- `_verify_relative`
+- `_read_json`
+- `_validate_selection`
+- `_validate_manifest`
+- `_sanitize_junit`
+- `_validate_passed_execution`
+- `_safe_worker_summary`
+- `_scope_artifacts`
+- `_load_source_root`
+- `_reopen_same_directory`
+- `_mkdir_at`
+- `_write_file_at`
+- `_write_tree`
+- `stage_evidence`
+  - Validate task roots, create sanitized evidence, and publish one fresh artifact dir.
 - `main`
 
 

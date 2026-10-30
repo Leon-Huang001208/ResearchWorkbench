@@ -2,6 +2,55 @@
 
 专业协作 MVP 沿原 Research Web Checks Python 步骤登记三个离线测试模块，JS沿原通配符执行；Mac Bootstrap同一步增加模块导入和单个静态资源字节校验。不新增runner/job/依赖/超时或平台dispatch；新增测试预留60秒。2026-10-28 GitHub API核验仓库public、allow_auto_merge=false；模型／厂商请求不进入CI，真实小样本费用另行确认。
 
+备份 FD clone 与单文件快照容量合同沿既有 Project Constraints 的 Git safety step
+登记两份直接 Node 测试；真实 Darwin 小数据 clone/stdlib helper 检查沿既有 Mac Bootstrap
+环境检查步骤运行，使用该次干净安装的 Python，不依赖本机 Homebrew 路径。不新增
+job、runner、依赖、timeout 或 Windows/Linux 产品 dispatch；新增执行暂在原步骤预留
+15 秒，最终以同候选实际日志核对。局部合同不声称整体备份峰值、PR250 Git 收尾或
+生产恢复通过，既有 219 项 Git 安全合同和全部旧步骤保留。
+
+本轮新增每point审计认证与显式status收尾延期合同，仍在同一Git safety step，
+不移除旧dedup断言、不新增job／依赖／runner／timeout。中间249项本机全量实跑
+247通过／1失败／1条件skip、256.455秒，失败的日志去重修复保留原记录，最终候选另验。
+发布预检API为PUBLIC；最近5个成功Mac job实际493／524／759／625／514秒
+（run40953393259／40947833188／40936193009／40928979775／40921680476），仅作预算参考，
+不冒充本候选安装证据或备份峰值准入。Windows/Linux产品仍由对应设备交接。
+
+最终源码e5a422fd的完整五文件Node24本机闭包253项实际252通过／0失败／1条件skip，
+248.523秒；原三文件及新增直接合同全部保留。该耗时与先前串行失败样本不作因果比较，
+亦不代替Ubuntu/Node20整job的600秒上限或本候选Mac安装CI实测；最终集成候选重新验证。
+
+精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
+Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
+预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。
+合同／源码 CI 不代表实际 launchd、完整 CLI、旧实例退休、Wind 或部署验收。
+
+2026-10-29 真实canary的精确422及未收养merge链修订继续使用同一Git safety step，
+原三文件及全部旧用例保留，无job／runner／Node20／10分钟／频率或依赖变化。
+本机Node24.19.0完整三文件219项（112＋3＋104）实测194.972秒、0失败／跳过，
+此前188项177.636秒仅为旧源码阶段证据；新增合同仍在原180秒增量预留内规划。
+600秒为整job上限，Mac本机耗时不替代最终Ubuntu／Node20 CI及其余步骤的实际预算证据。
+
+2026-10-29 未发布 prepared 修订仅在原 Project Constraints 的 Git safety step 追加
+`git_safety_amend_prepared.test.mjs`，保留 `git_safety.test.mjs` 与 `iteration_closeout.test.mjs`。
+同一 job／runner／Node20／触发频率和10分钟上限保持，不新增依赖。此前本机185项
+联合回归178.71秒未包含原 closeout 三项；本轮完整三文件188项、0失败／跳过，
+本机Node24实测177.64秒，小于原600秒job上限，不能冒充最终Ubuntu／Node20 CI。
+原10分钟job内为新增73项预留180秒增量，
+不减少旧用例；正式发布前仍实时核对仓库visibility／额度及同候选CI。
+
+部分Git收尾恢复仅扩原Project Constraints步骤已登记的git_safety Node合同；无新job、
+runner、依赖或timeout，不触发供应商/模型及其他平台产品dispatch。新增故障闭包本机
+约50秒，原10分钟约束job预留60秒增量；最终整套时间和候选CI另证，不省略旧用例。
+
+2026-10-29 CI Python 分片调度器只替换原 Research Web Checks job 中的两条 pytest 调用：原测试路径、node 级选择、pytest 配置参数、job、runner、45 分钟 timeout、触发与平台路由保持；调度器按真实 collection nodeID 确定性轮询为两个不重叠分区，两 worker 各自复核完整 collection 与分配清单，父进程按持有的 Popen 身份核验最终执行证明。安全证据由标准库 staging helper 经 task-root 目录 FD/no-follow 路径读取，拒绝软/硬链接、非普通文件、owner/inode变化及目录替换；artifact 仅含脱敏 JUnit/nodeID/manifest/摘要日志，以及 worker 失败时的固定 `phase/errorClass/errorCode` 分类。producer与stager只接受同一固定内建异常／`PartitionError`／`UnknownError`枚举，未知identifier形消息归零、未知异常对象泛化，枚举外raw schema值拒绝；环境、原始错误正文、私有异常类名、JUnit输出正文或pytest原始stdout均不进入artifact。使用仓库已有 `actions/upload-artifact@v4`、3 天保留，并以每次运行 100 MiB 封顶；不启用代码覆盖率、不新增依赖。分片与staging合同测试纳入原 unit scope。此次本机夹具验证不等于完整候选 CI 实测，也不声称能保证 45 分钟内通过；真实时长和新候选全部原门另行记录，PR245 repairAttempts 保持原值。
+
+PR252 首次 Research Web Checks run `40894321756` 收集到 7,381 个 node ID，但两个 worker 分别获分配 3,691/3,690 项后均未执行测试。目标pytest9.2.0/pluggy1.7.0私有复现定位到 `test_model_provider_upgrade.py` 把 `frozenset` `upgrade.ASSET_MODES` 直接传给参数化测试；父/worker三次收集的ID集合相同，但该函数23个ID的顺序受独立Python hash seed影响，导致有序分片校验拒绝worker。真实worker fixture还复现了exit1/JUnit0：pytest在collection mismatch返回后，worker序列化器因零case JUnit发生fallback并将诊断退出码记录为1。最小修复对测试参数排序，保留全部23项和严格的worker匹配门，不改变job/runner/timeout。失败artifact仍按安全策略不公开正文；同时worker result schema v3只增加phase、异常类和稳定code白名单。目标版本与缓存pytest9.1.1的23个实际用例均按20+3通过，helper合同41项按20/11/10通过；这些本机结果不代替新候选CI。原`40894321756`失败记录保留且未重跑。
+
+共享恢复仅在原Checks Python步骤追加三项stdlib维护模块合同，无模型、厂商、runner/job或超时变更；新reader测试及转移/锁/盘点小闭包实测约6秒，原步骤预留30秒。Mac安装沿原公开流程，无新增依赖或他平台dispatch。发布前重查visibility与费用资格。
+
+股票CSV导入只扩原Checks的Python合同名单与Mac Bootstrap同一步模块/资源核对，Node仍用原glob；不增job、runner、依赖、timeout或触发频率，不发Windows/Linux产品dispatch。实际Actions额度、同候选CI和发布仍按本治理核验，离线本机通过不替代远端。
+
 PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上限而回滚；本机源入口原为262004字节。修复仅拆出报告UI操作模块并补实际字节预算回归，同一Mac静态清单增加一份文件；无新job/runner/依赖/timeout，不rerun旧候选，完整原三CI随正常repair重新绑定。
 
 2026-10-27 报告生产 UI 复用现有 Checks JS 通配符，新增目录/路由/状态回归；Mac Bootstrap 原静态文件校验同一步新增两份文件，增量预留 10 秒，无新 job/runner/依赖或 timeout 变更。原 Constraints、Checks、同候选 Mac 干净安装门保持；真实模型、Wind/Office 和成稿验收不进入 CI，发布前实时核对 visibility/额度。
@@ -226,7 +275,7 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 
 Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`。Windows Web workflow 只保留 `workflow_dispatch`：policy 对 platform-sensitive changed set 选择 Windows gate 后，Windows 真机 checkout 待验 ref，以该机 `git rev-parse HEAD` 得到的 exact SHA 发起 `windows-2022`。Mac PR/push 不触发 Windows workflow。普通 UI、文档、纯 framework/DataHub 业务代码不选择 Windows gate。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未从 Windows 真机执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows GitHub CI 也不能替代同一或另一 Windows 真机上的安装、升级、真实用户目录或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
 Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop、setup contracts、local-integration contracts 和 loopback smoke；路径触发本身不能替代这些真实 job steps。
-Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
+Research Web Checks 的 Python scope 以 `.github/workflows/research-web-checks.yml` 中两条原 pytest 命令的显式文件与 node 选择为准，并非整个 `tests/research_web/`；JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 
@@ -367,3 +416,10 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 区间统计沿原Research Web Checks的research_web*.test.mjs通配符增加数学/控制器用例，Mac Bootstrap同一步校验两份新增mjs，不增加job、runner或timeout。新候选仍需原Constraints/Checks/Mac三门，公开仓库与checkout身份在发布前重验；本机与隔离浏览器不替代CI。
 
 2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
+
+
+## 共享恢复及源路径维护（2026-10-29）
+
+原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

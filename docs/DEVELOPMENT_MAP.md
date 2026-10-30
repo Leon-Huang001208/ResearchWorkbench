@@ -2,6 +2,21 @@
 
 专业协作入口沿 `specialists/routes.py` → `specialists/service.py` → 私有 `SpecialistLedger`，模型执行仍由 `runtime/specialists.mjs` 调用原生 continuable subagent；guard保留原子Agent配额。`main.py`／`service.py`复用原发送、截止、取消和详情，`research_quality_service.py`追加协作未完成门。UI入口与状态复用原会话，见[合同](research-web-specialists.md)。
 
+备份快照链：`scripts/backup_fd_clone.mjs/.py` 实现可选 Darwin FD 原语，
+`backup_capacity.mjs` 仅测量实际目标 FS 的已知单文件流预算，`git_safety.mjs`
+保留原快照身份与恢复校验并在必要 resourcePhase 后限定复用既有工具链选择。
+直接回归为 `backup_fd_clone.test.mjs`、`backup_snapshot_capacity.test.mjs` 与
+`test_backup_fd_clone.py`；CI 沿原 Git safety / Mac 环境检查步骤登记，无新服务。
+整体 Git 阶段峰值仍独立未闭，见[计划](plans/2026-10-30-backup-cow-admission.md)。
+快照审计日志独立为恢复点metadata，不进入共享载荷池；`delivery --status --defer-cleanup`
+只显式延期自动收尾，原评审／CI／合并与显式cleanup检查不变，也不签发阶段准入。
+
+quality收尾：watchlist-import.mjs按owner+draft保留/清空原生File控件并拒绝retired scope响应；watchlist_import.py核心函数与TypedDict注解补齐，asset_workspace仅作DTO边界cast/返回类型对齐，无新业务字段。research_web_watchlist_proxy.mjs以inert本地sink和合成proxy/凭据home挑战运行inbound-only夹具及native拒绝。
+
+SPEC P2目标metadata修复位于ui/core.createWatchlist成功事件、asset-controller列表metadata重读、asset-workspace局部props同步与watchlist-import.updateWatchlistTargets；app.mjs不变。research_web_watchlist_import_lists.mjs用真实current observation的原按钮验证零列表首建、A后新建B和真实partial同节点/File链。
+
+自选导入：watchlist_import.py负责严格CSV、精确目录决定、预览/回执预算与一次保存；asset_directory.offline_snapshot只读完整本地缓存；asset_workspace的原create/add及新preview/confirm共享Store.write_lock，store.save全段重入同锁。ui/watchlist-import.mjs接入既有自选抽屉，原controller只重读列表，不增app.mjs；原disclosure机制保留More状态。测试为test_watchlist_import.py、research_web_watchlist_import.test.mjs与同名真实Host浏览器旅程，边界见[合同](research-web-watchlist-import.md)。
+
 报告操作HTTP接线提取为ui/report-operations.mjs，捕获页面代次、项目和单请求忙态，复用原端点；它不执行研究或替代DSH。app.mjs缩至260079字节，保持原256KiB健康正文上限。
 
 报告生产 UI：ui/report-workspace.mjs 负责目录、所选 Run 状态和交付投影，report-workspace.css 沿原主题；core.mjs 解析 #/reports/:id?tab=&run=，app.mjs 接原 API 和带代次读取，shell.mjs 控制主导航权限。report-workflows.mjs 共享配置/历史区块和证据，weekly-production.mjs 保留原日程及来源合同；tests/javascript/research_web_reports_workspace.test.mjs 覆盖深链接、拒绝、历史未知和失效文件。
@@ -216,6 +231,15 @@ fingpt_compare.py/worker.py/node.mjs/html属于有限的隔离验收控制面：
 脚本故障回归：report_revision覆盖重复父来源、观测ID误用、完整斜杠来源与原子Summary写入；select_business_evidence将选择与映射合并且拒绝歧义。business_evidence覆盖CPI真实月列/百分点及完整肯定同比段落，NIST原文走原source_quote；service按冻结要求限定治理提示。research_quality.py规则未改。
 
 Git安全备份：`scripts/git_safety.mjs`保持原Git交付、完整恢复及v1读取边界，`scripts/git_backup_store.mjs`提供独立v2共享pack/文件载荷、元数据seal、备份锁及原子迁移。普通恢复点按7天和最新2个有效点轮转，未归并/未提交/活动/隔离及独有锚点保留；不维护活动Git对象。恢复、复用、损坏拒绝、迁移中断与轮转回归位于`tests/javascript/git_safety.test.mjs`，仍由原Project Constraints步骤执行。入口与保留合同见[Agent任务指南](AGENT_WORKFLOW.md#去重备份迁移与自动轮转2026-10-19)。
+
+未发布 prepared 修订沿上述 Git 入口和备份库收养原工作树中的有界 raw mergeChain，
+v2 proof 绑定每步候选／feature 的恢复锚点、同 endpoint 的 base200与精确缺SHA证明及最终CAS。
+近处合同为 `tests/javascript/git_safety_amend_prepared.test.mjs`，在既有 Project Constraints
+同一 Git safety step 与原 `git_safety.test.mjs`、`iteration_closeout.test.mjs` 一同执行。
+发布后的同base修复继续走原 publish／repair，不复用仅首次发布前适用的 amend。
+模块文档和结构决策还须用真实 `.agents/project-constraints.mjs` 对完整 changed set 校验；
+文档治理、Router 本地门或单一测试step成功不替代该门及整次CI。原08迭代图仍准确，未增加
+job、runner、依赖、产品运行节点或DSH执行链，源验收与真实候选收养／CI分别取证。
 
 报告恢复：quality_service在冻结要求时由实际允许上传字节生成resources/research_evidence.json，SDK load_business_evidence按task/contract读取；它不参与Host评分。source_references核对规范ID、准确Host标题及明确定位；Decimal算术和claim操作数保持精确JSON字符串。近处原两个测试模块覆盖伪造副本仍拒绝。
 
@@ -488,6 +512,7 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - `.agents/runtime/leon-engineering/manifest.json`：共享验收内核固定版本、source commit、协议和受管文件哈希；不拥有项目策略。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
+- `scripts/run_ci_pytest_partitions.py`、`scripts/stage_ci_pytest_evidence.py`、`tests/unit/test_ci_pytest_partitions.py`、`tests/unit/test_ci_pytest_evidence_staging.py`：调度父进程在原 Research Web Checks job 内按实际 pytest nodeID 确定两个分区并持有 worker Popen；精确验证执行记录、JUnit node 属性、PID/UID/root inode 和 plan digest。失败RED定位到 `test_model_provider_upgrade.py` 对 `frozenset` 参数的非确定顺序，现按排序方式参数化并保留原23项；Worker result schema v3 为失败结果记录固定 phase、固定安全枚举 exception class 和稳定 code。任意 identifier 形 pytest 消息不再成为分类，未知异常对象泛化为 `UnknownError`，stager 只接受与 producer 相同的枚举。Artifact helper只输出分类和脱敏证据，不传输错误正文或私有类名；不增加 job/runner、依赖或超时，真实候选 CI 时长仍由远端证据判定。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。
 - `Research Web Tabbit Verify` 当前仅手动触发；Tabbit 契约变化或平台支持声明必须显式运行双平台工作流，自动 Project Constraints 继续检查其触发器契约。
@@ -674,3 +699,17 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 # 区间统计实现定位（2026-10-25）
 
 `app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。
+
+
+## 共享恢复及源路径维护（2026-10-29）
+
+原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+### 精确维护作业身份
+
+`research_workbench_entrypoint/resident/maintenance_job_identity_v3.py` 定义只读精确目标、
+严格登记与 artifact/目录重验；`tests/research_web/test_maintenance_job_identity_v3.py`
+覆盖固定生产目标、私有演练绑定、变更与文件系统反例。没有注册／停止／恢复效果入口。
+Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity-v3.md`。

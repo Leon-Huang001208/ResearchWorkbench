@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import math
 import os
@@ -197,6 +198,50 @@ class AssetDirectory:
                 self.record = record
         finally:
             os.close(parent)
+
+    def offline_snapshot(self) -> dict:
+        """Read a detached full cache; never refresh or mutate the online search reader."""
+        try:
+            revision = self.fingerprint()
+        except Exception as exc:  # noqa: BLE001 - authorization fails closed
+            log.warning("asset_directory_offline_unauthorized", error_type=type(exc).__name__)
+            return {
+                "items": (),
+                "status": "unavailable",
+                "digest": None,
+                "failure_code": "asset_directory_unauthorized",
+            }
+        if self.closed:
+            return {
+                "items": (),
+                "status": "unavailable",
+                "digest": None,
+                "failure_code": "asset_directory_closed",
+            }
+        reader = AssetDirectory(self.root.parent, loader=None, fingerprint=None, clock=self.clock)
+        try:
+            reader._restore(revision)
+            record = reader.record
+            if record is None:
+                raise ValueError("asset_directory_missing")
+            fresh = 0 <= self.clock() - record["loaded_at"] < TTL
+            payload = json.dumps(
+                record, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode()
+            return {
+                "items": tuple(dict(row) for row in record["items"]) if fresh else (),
+                "status": "ready" if fresh else "stale",
+                "digest": hashlib.sha256(payload).hexdigest(),
+                "failure_code": None if fresh else "asset_directory_stale",
+            }
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            log.warning("asset_directory_offline_unavailable", error_type=type(exc).__name__)
+            return {
+                "items": (),
+                "status": "unavailable",
+                "digest": None,
+                "failure_code": "asset_directory_cache_unavailable",
+            }
 
     def _persist(self, record):
         payload = json.dumps(record, ensure_ascii=False, allow_nan=False).encode()

@@ -2,6 +2,8 @@
 
 专业协作 MVP 不新增产品依赖或服务，requirements/web.in、web.lock和scripts/setup_web.py保持；运行时插件及状态模块随原包安装。公开三入口与固定DSH不变。原macOS Bootstrap同一步导入specialists.routes并逐字节核验specialist-panel.mjs，仍须同候选Mac干净安装及3081/8088/Doctor证据；本地JS通过不替代安装或模型验收。
 
+自选CSV导入只使用既有Web栈和Python标准库，无新增依赖/凭据/服务。已核requirements/web.in、web.lock、setup_web.py及三公开入口无需改动；Mac Bootstrap原步骤核后端模块与watchlist-import.mjs HTTP/源码字节。仍须最终同候选macos-14干净安装、固定DSH、3081/8088与Doctor；本机既有环境及离线浏览器不代替该门，见[导入合同](research-web-watchlist-import.md)。
+
 Mac首次候选40464598312真实失败于web_static_asset_failed：app.mjs超过原256KiB正文上限。修复拆出前端报告操作，不修改上限；原Bootstrap同一步校验三份新静态模块，实际新候选安装仍待CI重证。
 
 报告生产工作区新增 report-workspace.mjs/css 两个随原 Web 包交付的静态文件；requirements/web.in、web.lock 与 setup_web.py 无依赖或安装流程变化。原 Mac Bootstrap 同一步验证新静态文件的安装字节，未新增 job/runner/依赖。源码/浏览器夹具不认证常驻部署、模型、Office 或正式稿。
@@ -1114,3 +1116,10 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。
+
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

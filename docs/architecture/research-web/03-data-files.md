@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+导入核心增加TypedDict与参数/返回注解，标准与check-untyped-defs均检查5源；仅类型与必要exact/selected收窄，不增加业务字段或更改持久schema。换账户清客户端File/字节/选择/键，后端账户root与回执隔离保持。
+
+自选创建后的前端metadata同步不增加持久键：创建仍走原Store API，原目标存在时保留选择与File；只有显式切换目标才使导入预览失效，重新冻结与提交仍沿原摘要校验。
+
+自选导入在原index.json增加有界watchlist_imports：30分钟预览、8MiB总预算/20活动预览、不可为腾空间删除的已提交幂等回执。目标与回执同save；Store实例共享RLock阻止后台files线程偷发布失败批次，回滚只恢复本批两个引用，保留其他文件/会话。原Store无父目录fsync、不保跨Host；完整JSON备份须验证字节/权限，SQLite备份不覆盖。详见[合同](../../research-web-watchlist-import.md)。
+
 报告生产新目录和标签仅投影既有 Report Workflow 索引、配置版本及 Run；无新数据文件或格式。深链接 run 标识属于当前项目才显示，缺失不会回退其他记录；旧记录不重写。
 
 ## 研究场景与来源链（2026-10-27）
@@ -935,3 +941,9 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。

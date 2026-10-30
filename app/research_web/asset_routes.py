@@ -6,7 +6,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 router = APIRouter(prefix="/api/research")
 
@@ -151,6 +151,37 @@ class WatchlistItem(BaseModel):
     asset: str = Field(min_length=2, max_length=32, pattern=r"^[A-Za-z0-9._-]+$")
     asset_type: AssetType
     name: str = Field(min_length=1, max_length=120)
+
+
+class WatchlistImportPreview(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    schema_version: Literal[1]
+    file_base64: str = Field(max_length=1398104)
+    file_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    selections: dict[str, str] = Field(default_factory=dict, max_length=1000)
+    skipped_rows: list[int] = Field(default_factory=list, max_length=1000)
+
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def exact_version(cls, value):
+        if type(value) is not int:
+            raise ValueError("schema_version must be integer 1")
+        return value
+
+
+class WatchlistImportConfirm(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    schema_version: Literal[1]
+    preview_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    confirmed: Literal[True]
+
+    @field_validator("schema_version", "confirmed", mode="before")
+    @classmethod
+    def exact_literals(cls, value, info):
+        expected = int if info.field_name == "schema_version" else bool
+        if type(value) is not expected:
+            raise ValueError("literal type is invalid")
+        return value
 
 
 class NoteCreate(BaseModel):
@@ -349,6 +380,28 @@ async def create_watchlist(body: WatchlistCreate, request: Request):
 async def add_watchlist_item(watchlist_id: str, body: WatchlistItem, request: Request):
     return request.app.state.research.asset_workspace.add_watchlist_item(
         watchlist_id, body.model_dump()
+    )
+
+
+@router.post("/watchlists/{watchlist_id}/imports/preview")
+async def preview_watchlist_import(
+    watchlist_id: str, body: WatchlistImportPreview, request: Request
+):
+    return request.app.state.research.asset_workspace.preview_watchlist_import(
+        watchlist_id, body.model_dump()
+    )
+
+
+@router.post("/watchlists/{watchlist_id}/imports/{import_id}/confirm")
+async def confirm_watchlist_import(
+    watchlist_id: str,
+    import_id: str,
+    body: WatchlistImportConfirm,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$"),
+):
+    return request.app.state.research.asset_workspace.confirm_watchlist_import(
+        watchlist_id, import_id, body.model_dump(), idempotency_key
     )
 
 

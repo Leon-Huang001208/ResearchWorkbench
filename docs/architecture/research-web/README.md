@@ -1,5 +1,11 @@
 # Research Workbench Research Web 当前架构
 
+导入quality增量源码检查点为 `6e85dc96e6e8b15352f31f2b920b915611ef606b`：owner+draft隔离原生File与旧响应、完整核心typing、清proxy/credential-home继承且Host只允许inbound网络。74不同Python、Node90、9真实旅程及proxy负例属于本地证据；先经原SPEC确认未退规格，再由原Python/JS reviewer复核，不代表已批准发布或部署。旧218记录和各旧epoch保持原界限。
+
+自选SPEC P2及离线验收夹具源码阅读检查点为 `55acc67a5d26b54f5cac69c1cd64e5221621fd6a`。修复已有观察的首建/新增目标metadata与File保留，旧r9外网边界已追加纠正；新Seatbelt进程的8旅程通过并绑定实际源码hash。源代码、独立SPEC复核、quality、完整Router、同候选CI/安装和部署分别认证，尚未进入quality或发布。
+
+自选CSV导入源码阅读检查点为 `137fafb58376da83cd3bc715463e872e0d32aaad`：原资产自选入口、离线目录、同Store线程批次/回执及两项API已在该提交。Atlas链接绑定该实际源码；本机测试与后续独评、完整Router、同候选CI/安装和常驻部署分别认证，跨Host与断电不在本批保证。详见[合同](../../research-web-watchlist-import.md)。
+
 报告生产作为独立业务入口管理既有报告项目和每期交付；通用Workflow仍在能力中心，Claw保留关联执行过程。新增前端路由与共享UI模块不新增Host API、数据库或研究引擎；详细交互见[前端合同](../../research-web-ui.md)。
 
 当前场景首批见[场景交接](../../research-web-scenario-handoffs.md)与[资产研究资料](../../research-web-asset-research.md)：原Host冻结本人材料与方法，再由唯一DSH执行并经原质量／报告链。固定62／78参考不是可调用清单；源权限、资料声明和实际研究质量分别展示。新增逻辑属于现有Host／DataHub／文件节点内部，后续组合包／深研／角色／资料跟踪仍按[完整计划](../../plans/2026-10-26-seek-alpha-core-parity.md)分批，不以首批代替整站完成。
