@@ -32,6 +32,10 @@ defaults／kwdefaults及closure cell identity，不信任`__module__`自报。�
 - 无声明时沿stdlib的RECORD／installed-files／SOURCES选择，逐行复现PackagePath、FileHash、size及
   arity构造错误，只对候选top-level路径做存在性检查；
 - namespace 多发行包、缺失文件、下一次 metadata/路径变化及异常不缓存；
+- 独立评审发现不相关发行包的损坏 `METADATA` 会被投影跳过；修复后，声明式包始终读取
+  `Name`，推断式包在无指定模块命中时也读取 `Name`，仅当读取失败时检查不相关文件是否实际
+  存在，以保持公共 API 的异常传播，同时正常路径仍不对不相关 RECORD 文件做 stat。
+  新增声明、推断和缺失推断文件三例同旧公共 API 对照；最终候选分批运行 Catalog 51 例通过。
 - unsupported primitive或custom finder回退原`packages_distributions()`。
 
 没有缓存 dependency/permission/identity/PASS/policy，也没有改变检查和 issue 顺序。
@@ -77,6 +81,8 @@ defaults／kwdefaults及closure cell identity，不信任`__module__`自报。�
 - 最终profile中完整`packages_distributions`仍为1次/0.305秒，11次fresh投影合计0.737秒，
   `validate=108`累计2.394秒。相对冻结9.518秒同样本减少约26.3%；epoch2严格profile 6.761秒及其他
   中间epoch均保留但不冒充最终字节性能；不保证Linux／CI提速。
+- 上述 profile 属于修复不相关 `METADATA` 错误前的 epoch7 字节；本次修复后的耗时尚未重测，
+  不能将 26.3% 作为新候选的性能验收结论。
 - `git diff --check`：PASS。
 
 ## 缺 final 的安全 worker 诊断

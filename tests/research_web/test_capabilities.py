@@ -329,6 +329,46 @@ def test_external_module_inventory_preserves_real_record_errors(
         CapabilityCatalog._project_installed_module_distributions({"requested_pkg"})
 
 
+@pytest.mark.parametrize("source", ["declared", "inferred", "missing-inferred"])
+def test_external_module_inventory_preserves_unrelated_metadata_failure(
+    tmp_path, monkeypatch, source
+):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    requested = site / "requested_pkg"
+    requested.mkdir(parents=True)
+    (requested / "__init__.py").write_text("", encoding="utf-8")
+    valid = site / "requested_dist-1.0.dist-info"
+    valid.mkdir()
+    (valid / "METADATA").write_text("Name: requested-dist\nVersion: 1.0\n")
+    (valid / "top_level.txt").write_text("requested_pkg\n")
+    damaged = site / "damaged_dist-1.0.dist-info"
+    damaged.mkdir()
+    (damaged / "METADATA").write_bytes(b"Name: damaged-dist\n\xff\n")
+    if source == "declared":
+        (damaged / "top_level.txt").write_text("unrelated_pkg\n")
+    else:
+        (damaged / "RECORD").write_text("unrelated_pkg/__init__.py,,0\n")
+        if source == "inferred":
+            unrelated = site / "unrelated_pkg"
+            unrelated.mkdir()
+            (unrelated / "__init__.py").write_text("")
+    monkeypatch.setattr(sys, "path", [str(site)])
+
+    if source == "missing-inferred":
+        assert importlib.metadata.packages_distributions() == {"requested_pkg": ["requested-dist"]}
+        assert CapabilityCatalog._project_installed_module_distributions({"requested_pkg"}) == {
+            "requested_pkg": ["requested-dist"]
+        }
+    else:
+        with pytest.raises(UnicodeDecodeError):
+            importlib.metadata.packages_distributions()
+        with pytest.raises(UnicodeDecodeError):
+            CapabilityCatalog._project_installed_module_distributions({"requested_pkg"})
+
+
 def test_external_module_inventory_tracks_real_dist_info_record_changes(tmp_path, monkeypatch):
     import importlib.metadata
     import sys

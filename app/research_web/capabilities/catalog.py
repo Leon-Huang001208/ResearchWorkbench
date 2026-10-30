@@ -534,9 +534,13 @@ class CapabilityCatalog:
                 )
             declared = list(importlib.metadata._top_level_declared(distribution))
             if declared:
+                # The stdlib reads Name for every declared top-level package,
+                # including packages outside the requested projection.
+                name = distribution.metadata["Name"]
                 matches = [module for module in declared if module in requested]
             else:
                 matches = set()
+                unrelated_paths = []
                 rows = (
                     distribution._read_files_distinfo()
                     or distribution._read_files_egginfo_installed()
@@ -548,12 +552,23 @@ class CapabilityCatalog:
                     path = CapabilityCatalog._metadata_package_path(distribution, *row)
                     module = path.parts[0] if len(path.parts) > 1 else inspect.getmodulename(path)
                     if module not in requested:
+                        if module is not None and "." not in module:
+                            unrelated_paths.append(path)
                         continue
                     if path.locate().exists():
                         matches.add(module)
+                if matches:
+                    name = distribution.metadata["Name"]
+                elif unrelated_paths:
+                    try:
+                        distribution.metadata["Name"]
+                    except Exception:
+                        # Only propagate an unrelated metadata error when the
+                        # stdlib would have found an importable installed file.
+                        if any(path.locate().exists() for path in unrelated_paths):
+                            raise
             if not matches:
                 continue
-            name = distribution.metadata["Name"]
             for module in matches:
                 projected.setdefault(module, []).append(name)
         return projected
