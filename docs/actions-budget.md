@@ -14,6 +14,10 @@ job、runner、依赖、timeout 或 Windows/Linux 产品 dispatch；新增执行
 （run40953393259／40947833188／40936193009／40928979775／40921680476），仅作预算参考，
 不冒充本候选安装证据或备份峰值准入。Windows/Linux产品仍由对应设备交接。
 
+最终源码e5a422fd的完整五文件Node24本机闭包253项实际252通过／0失败／1条件skip，
+248.523秒；原三文件及新增直接合同全部保留。该耗时与先前串行失败样本不作因果比较，
+亦不代替Ubuntu/Node20整job的600秒上限或本候选Mac安装CI实测；最终集成候选重新验证。
+
 精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
 Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
 预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。

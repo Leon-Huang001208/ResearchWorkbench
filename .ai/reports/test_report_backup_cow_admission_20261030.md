@@ -2,8 +2,9 @@
 
 Date: 2026-10-30. Host: macOS. Task:
 `backup-cow-admission-20261030-7c9d4f2a`.
-Status: FOCUSED_JOURNAL_AND_DEFERRAL_GREEN; final full-suite and routed
-verification are pending for the changed source. Capacity has recovered.
+Status: SOURCE_LOCAL_CONTRACTS_PASS; merged integration and same-candidate CI
+remain pending. Capacity has recovered; complete backup phase admission remains
+unimplemented/unverified.
 Complete backup phase admission remains unimplemented/unverified.
 
 This task does not replay PR250 cleanup, modify its receipt or alter recovery
@@ -187,6 +188,32 @@ The earlier report incorrectly named the single generic-runtime integration skip
 as a production-inheritance skip. This is corrected against the actual test name;
 production inheritance remains independently NOT_RUN. All historical results
 remain tied to their original source and are not promoted to the final candidate.
+
+## Final source checkpoint e5a422fd
+
+The exact frozen source actually passed the complete five-file direct closure:
+253 cases, 252 PASS, zero FAIL, one generic-runtime snapshot-clone integration
+skip, 248.523 seconds with Node 24.19.0. Original Git cases and all assertions were
+retained; new journal and deferral cases add coverage. Peak owned sample bytes
+were 847,506, minimum available bytes 17,524,637,696; PID40150 and its group were
+confirmed terminal and the owned scratch was empty. Full tracked source hashes
+and HEAD remained unchanged throughout; see `logs/backup-cow-admission/direct-e5a/`.
+
+Fresh full changed-set Router execution covered all 19 paths: manifest 14/14,
+11/11 local gates PASS, Node315 PASS, Python187 PASS plus one original native
+Windows skip. Every Python batch contained at most 20 cases and the exact
+collection/JUnit union matched. All 26 gate/receipt processes were reaped;
+maximum batch sample 10,396,914 bytes, minimum free 16.334 GiB. The validated
+receipt remains BLOCKED pending its selected CI gates, not merge/release ready.
+See `logs/backup-cow-admission/router-e5a/`.
+
+Independent exact e5a SPEC and TypeScript/JavaScript quality each found no
+P1/P2. The Python helper/test blobs remain unchanged from their prior Python
+quality approval; the public stdlib unittest invocation also actually passed
+7 cases. Official native Git check on the ledger-owning primary returned fsck
+PASS with no native/repository lock. These source results do not certify an
+entire V2 backup, production toolchain inheritance, PR250 cleanup, full private
+maintenance qualification, old-instance retirement or Wind cleanup.
 
 Existing store copyChecked already uses a clone hint, which can silently fall
 back. The V1 snapshot now attempts an optional pinned-FD clone and admits its
