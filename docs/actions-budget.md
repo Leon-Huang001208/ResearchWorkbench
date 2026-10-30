@@ -1,5 +1,23 @@
 # GitHub Actions 免费额度治理
 
+备份 FD clone 与单文件快照容量合同沿既有 Project Constraints 的 Git safety step
+登记两份直接 Node 测试；真实 Darwin 小数据 clone/stdlib helper 检查沿既有 Mac Bootstrap
+环境检查步骤运行，使用该次干净安装的 Python，不依赖本机 Homebrew 路径。不新增
+job、runner、依赖、timeout 或 Windows/Linux 产品 dispatch；新增执行暂在原步骤预留
+15 秒，最终以同候选实际日志核对。局部合同不声称整体备份峰值、PR250 Git 收尾或
+生产恢复通过，既有 219 项 Git 安全合同和全部旧步骤保留。
+
+本轮新增每point审计认证与显式status收尾延期合同，仍在同一Git safety step，
+不移除旧dedup断言、不新增job／依赖／runner／timeout。中间249项本机全量实跑
+247通过／1失败／1条件skip、256.455秒，失败的日志去重修复保留原记录，最终候选另验。
+发布预检API为PUBLIC；最近5个成功Mac job实际493／524／759／625／514秒
+（run40953393259／40947833188／40936193009／40928979775／40921680476），仅作预算参考，
+不冒充本候选安装证据或备份峰值准入。Windows/Linux产品仍由对应设备交接。
+
+最终源码e5a422fd的完整五文件Node24本机闭包253项实际252通过／0失败／1条件skip，
+248.523秒；原三文件及新增直接合同全部保留。该耗时与先前串行失败样本不作因果比较，
+亦不代替Ubuntu/Node20整job的600秒上限或本候选Mac安装CI实测；最终集成候选重新验证。
+
 精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
 Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
 预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。

@@ -7,11 +7,83 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {withBackupLock, repositoryKey, fingerprint, findReusable, convertToV2, finishMigration, readManifest, materializeV2, hydrateV2, listPoints, sweepPayloads, fileHash} from './git_backup_store.mjs';
+import {clonePinnedFile, sourceFacts} from './backup_fd_clone.mjs';
+import {admitFileStream} from './backup_capacity.mjs';
 
 const CONTROLLER = path.join(os.homedir(), '.agents/leon-engineering/runtime/iteration-delivery.mjs');
 const FORBIDDEN = new Set(['gc', 'prune', 'repack', 'maintenance', 'prune-packed']);
 const ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+// Only runDelivery/resourcePhase can populate this process-private scope. It
+// reuses the existing CLI toolchain TCB; it does not certify Python's kernel
+// loaded image, standard library, ACLs, or all effective host writers.
+const deliveryToolchains = new WeakMap();
+const snapshotToolchainKey = Symbol('delivery-selected-executable-reference');
+const EXECUTABLE_FACTS = ['dev', 'ino', 'uid', 'gid', 'mode', 'nlink', 'size', 'mtimeNs', 'ctimeNs'];
+const lexicalFactKey = key => 'lexical' + key[0].toUpperCase() + key.slice(1);
+const EXECUTABLE_FIELDS = ['lexicalPath', 'canonicalPath', 'sha256', 'lexicalLink', ...EXECUTABLE_FACTS, ...EXECUTABLE_FACTS.map(lexicalFactKey)];
+const BINDING_FIELDS = ['repositoryRoot', 'commonDirectory', 'taskId', 'operationToken'];
+/** Read-only launcher facts for the internal direct-test seam. No record or
+ * runtime authority is created by observing a file, executable or otherwise.
+ */
+export function selectedExecutableReference(lexicalPath) {
+  let fd, reference;
+  try {
+    if (!path.isAbsolute(lexicalPath)) return undefined;
+    const lexicalBefore = fs.lstatSync(lexicalPath, {bigint: true});
+    if (!lexicalBefore.isFile() && !lexicalBefore.isSymbolicLink()) return undefined;
+    // Preserve the original link text losslessly as hex bytes; do not follow
+    // the final lexical entry when recording its own metadata/link identity.
+    const linkText = () => fs.lstatSync(lexicalPath).isSymbolicLink() ? fs.readlinkSync(lexicalPath, {encoding: 'buffer'}).toString('hex') : '';
+    const lexicalLink = linkText();
+    const canonicalPath = fs.realpathSync(lexicalPath);
+    const prior = fs.lstatSync(canonicalPath, {bigint: true});
+    if (!prior.isFile() || prior.isSymbolicLink() || prior.size > BigInt(Number.MAX_SAFE_INTEGER)) return undefined;
+    fd = fs.openSync(canonicalPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    const before = fs.fstatSync(fd, {bigint: true});
+    if (!before.isFile() || before.dev !== prior.dev || before.ino !== prior.ino) return undefined;
+    const hash = crypto.createHash('sha256'), buffer = Buffer.allocUnsafe(1024 * 1024);
+    let count, total = 0n;
+    while ((count = fs.readSync(fd, buffer, 0, buffer.length, null))) {
+      total += BigInt(count);
+      if (total > before.size) return undefined;
+      hash.update(buffer.subarray(0, count));
+    }
+    const after = fs.fstatSync(fd, {bigint: true}), current = fs.lstatSync(canonicalPath, {bigint: true});
+    if (total !== before.size || !current.isFile() || current.isSymbolicLink() || fs.realpathSync(lexicalPath) !== canonicalPath || EXECUTABLE_FACTS.some(key => before[key] !== after[key] || before[key] !== current[key])) return undefined;
+    const lexicalAfter = fs.lstatSync(lexicalPath, {bigint: true});
+    if (EXECUTABLE_FACTS.some(key => lexicalBefore[key] !== lexicalAfter[key]) || linkText() !== lexicalLink) return undefined;
+    const lexicalFinal = fs.lstatSync(lexicalPath, {bigint: true});
+    if (EXECUTABLE_FACTS.some(key => lexicalBefore[key] !== lexicalFinal[key])) return undefined;
+    reference = {lexicalPath, canonicalPath, sha256: hash.digest('hex'), lexicalLink, ...Object.fromEntries(EXECUTABLE_FACTS.map(key => [key, String(before[key])])), ...Object.fromEntries(EXECUTABLE_FACTS.map(key => [lexicalFactKey(key), String(lexicalBefore[key])]))};
+  } catch {return undefined;}
+  finally {if (fd !== undefined) {try {fs.closeSync(fd);} catch {reference = undefined;}}}
+  return reference;
+}
+function executableReferencesEqual(left, right) {
+  return !!left && !!right && Object.keys(left).length === EXECUTABLE_FIELDS.length && Object.keys(right).length === EXECUTABLE_FIELDS.length && EXECUTABLE_FIELDS.every(key => typeof left[key] === 'string' && left[key] === right[key]);
+}
+/** Pure decision/test seam only: no record creation, mutation or execution.
+ * Production inputs come exclusively from the private WeakMap and fresh file
+ * observations, never from caller dictionaries or child stdout.
+ */
+export function toolchainReuseDecision({expectedBinding, observedBinding, expectedReference, currentReference, invoked = false} = {}) {
+  const validBinding = value => value && typeof value.repositoryRoot === 'string' && path.isAbsolute(value.repositoryRoot) && typeof value.commonDirectory === 'string' && path.isAbsolute(value.commonDirectory) && ID.test(value.taskId ?? '') && typeof value.operationToken === 'symbol';
+  const matched = validBinding(expectedBinding) && validBinding(observedBinding) && BINDING_FIELDS.every(key => expectedBinding[key] === observedBinding[key]) && executableReferencesEqual(expectedReference, currentReference);
+  return matched ? 'available' : invoked ? 'unknown' : 'unavailable';
+}
+function toolchainBinding(scope) {
+  return Object.fromEntries(BINDING_FIELDS.map(key => [key, scope[key]]));
+}
+function inheritedSnapshotToolchain(repository) {
+  const scope = deliveryToolchains.get(repository), record = scope?.record;
+  if (!record) return undefined;
+  const check = invoked => {
+    const current = deliveryToolchains.get(repository);
+    return toolchainReuseDecision({expectedBinding: record.binding, observedBinding: current === scope && current.active && current.record === record ? toolchainBinding(current) : undefined, expectedReference: record.reference, currentReference: selectedExecutableReference(record.reference.lexicalPath), invoked});
+  };
+  return {lexicalPath: record.reference.lexicalPath, check};
+}
 function hashFile(filename) {
   const hash = crypto.createHash('sha256');
   const fd = fs.openSync(filename, 'r');
@@ -75,11 +147,87 @@ function assertRepositoryIdentity(repository, options) {
   const identityRoot = options.identityRoot ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   if (discover(identityRoot, options).commonDirectory !== repository.commonDirectory) fail('REPOSITORY_IDENTITY_MISMATCH');
 }
-function log(repository, action, status, code, details = {}, options = {}) {
+// This scope is created only for the current owned backup point. It is never
+// selected by options/CLI input and never substitutes for the source repository.
+function snapshotLogDirectory(journal, create = false) {
+  if (journal.sealed) fail('LOG_FILE_INVALID');
+  assertNoSymlinkAncestors(journal.root);
+  const valid = (value, expected) => value?.isDirectory() && !value.isSymbolicLink() && value.dev === expected.dev && value.ino === expected.ino && value.uid === expected.uid && value.uid === process.getuid() && (value.mode & 0o7777) === 0o700;
+  if (!valid(fs.lstatSync(journal.root, {throwIfNoEntry: false}), journal.rootIdentity)) fail('LOG_DIRECTORY_INVALID');
+  const directory = path.join(journal.root, 'logs');
+  if (!journal.directoryIdentity) {
+    if (!create) fail('LOG_DIRECTORY_INVALID');
+    try {fs.mkdirSync(directory, {mode: 0o700});} catch {fail('LOG_DIRECTORY_INVALID');}
+    journal.directoryIdentity = fs.lstatSync(directory);
+  }
+  if (!valid(fs.lstatSync(directory, {throwIfNoEntry: false}), journal.directoryIdentity)) fail('LOG_DIRECTORY_INVALID');
+  return directory;
+}
+function sealSnapshotLog(journal, manifest) {
+  if (!journal.fileIdentity) return;
+  const directory = snapshotLogDirectory(journal), filename = path.join(directory, 'git-safety.jsonl');
+  const checkFile = () => {
+    const value = fs.lstatSync(filename, {throwIfNoEntry: false});
+    if (!value?.isFile() || value.isSymbolicLink() || value.dev !== journal.fileIdentity.dev || value.ino !== journal.fileIdentity.ino || value.uid !== process.getuid() || value.nlink !== 1 || (value.mode & 0o7777) !== 0o600) fail('LOG_FILE_INVALID');
+  };
+  checkFile();
+  const hash = fileHash(filename);
+  checkFile();
+  for (const [target, expected] of [[journal.root, journal.rootIdentity], [directory, journal.directoryIdentity]]) {
+    const fd = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    try {const actual = fs.fstatSync(fd); if (!actual.isDirectory() || actual.dev !== expected.dev || actual.ino !== expected.ino) fail('LOG_DIRECTORY_INVALID'); fs.fsyncSync(fd);}
+    finally {fs.closeSync(fd);}
+  }
+  snapshotLogDirectory(journal);
+  journal.sealed = true;
+  // Per-point audit metadata is authenticated by the manifest/seal but is not a
+  // deduplicated business restore payload or an execution authority.
+  manifest.snapshotJournal = {path: 'logs/git-safety.jsonl', sha256: hash};
+}
+function verifySnapshotJournal(originalPoint, manifest) {
+  const journal = manifest.snapshotJournal;
+  if (journal === undefined) return; // Earlier manifests have no audit contract.
+  if (!journal || Array.isArray(journal) || Object.keys(journal).length !== 2 || journal.path !== 'logs/git-safety.jsonl' || typeof journal.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(journal.sha256)) fail('BACKUP_JOURNAL_INVALID');
+  const directories = [originalPoint, path.join(originalPoint, 'logs')], filename = path.join(originalPoint, journal.path), descriptors = [];
+  let failure;
+  try {
+    assertNoSymlinkAncestors(originalPoint);
+    const uid = BigInt(process.getuid()), same = (left, right) => EXECUTABLE_FACTS.every(key => left[key] === right[key]);
+    const beforeDirectories = directories.map(directory => fs.lstatSync(directory, {bigint: true}));
+    for (let index = 0; index < directories.length; index++) {
+      const before = beforeDirectories[index];
+      if (!before.isDirectory() || before.isSymbolicLink() || before.uid !== uid || (before.mode & 0o7777n) !== 0o700n) fail('BACKUP_JOURNAL_INVALID');
+      const fd = fs.openSync(directories[index], fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+      descriptors.push(fd);
+      if (!same(before, fs.fstatSync(fd, {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    }
+    const before = fs.lstatSync(filename, {bigint: true});
+    if (!before.isFile() || before.isSymbolicLink() || before.uid !== uid || before.nlink !== 1n || (before.mode & 0o7777n) !== 0o600n) fail('BACKUP_JOURNAL_INVALID');
+    const fd = fs.openSync(filename, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    descriptors.push(fd);
+    if (!same(before, fs.fstatSync(fd, {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    const hash = crypto.createHash('sha256'), buffer = Buffer.allocUnsafe(1024 * 1024);
+    let remaining = before.size;
+    while (remaining > 0n) {
+      const length = remaining > BigInt(buffer.length) ? buffer.length : Number(remaining), count = fs.readSync(fd, buffer, 0, length, null);
+      if (!count) fail('BACKUP_JOURNAL_INVALID');
+      remaining -= BigInt(count); hash.update(buffer.subarray(0, count));
+    }
+    if (fs.readSync(fd, buffer, 0, 1, null) || !same(before, fs.fstatSync(fd, {bigint: true})) || !same(before, fs.lstatSync(filename, {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    assertNoSymlinkAncestors(originalPoint);
+    for (let index = 0; index < directories.length; index++) {
+      if (!same(beforeDirectories[index], fs.fstatSync(descriptors[index], {bigint: true})) || !same(beforeDirectories[index], fs.lstatSync(directories[index], {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    }
+    if (hash.digest('hex') !== journal.sha256) fail('BACKUP_JOURNAL_HASH_MISMATCH');
+  } catch (error) {failure = Object.assign(new Error(error.code === 'BACKUP_JOURNAL_HASH_MISMATCH' ? error.code : 'BACKUP_JOURNAL_INVALID'), {code: error.code === 'BACKUP_JOURNAL_HASH_MISMATCH' ? error.code : 'BACKUP_JOURNAL_INVALID'});}
+  finally {for (const fd of descriptors.reverse()) {try {fs.closeSync(fd);} catch {failure ??= Object.assign(new Error('BACKUP_JOURNAL_INVALID'), {code: 'BACKUP_JOURNAL_INVALID'});}}}
+  if (failure) throw failure;
+}
+function log(repository, action, status, code, details = {}, options = {}, snapshotJournal) {
   if (options.logFailureCode) fail(options.logFailureCode);
   let descriptor;
   try {
-  const dir = path.join(repository.repositoryRoot, 'logs');
+  const dir = snapshotJournal ? snapshotLogDirectory(snapshotJournal, true) : path.join(repository.repositoryRoot, 'logs');
   assertNoSymlinkAncestors(dir);
   if (fs.existsSync(dir) && (!fs.lstatSync(dir).isDirectory() || fs.lstatSync(dir).isSymbolicLink())) fail('LOG_DIRECTORY_INVALID');
   fs.mkdirSync(dir, {recursive: true});
@@ -87,6 +235,7 @@ function log(repository, action, status, code, details = {}, options = {}) {
   const target = path.join(dir, 'git-safety.jsonl');
   const before = fs.lstatSync(target, {throwIfNoEntry: false});
   if (before && (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1)) fail('LOG_FILE_INVALID');
+  if (snapshotJournal && (before && ((before.mode & 0o7777) !== 0o600 || !snapshotJournal.fileIdentity || before.dev !== snapshotJournal.fileIdentity.dev || before.ino !== snapshotJournal.fileIdentity.ino))) fail('LOG_FILE_INVALID');
   const version = output(command(selectGitPath(options), ['--version']));
   const head = output(git(repository.repositoryRoot, ['rev-parse', 'HEAD'], options, {allowFailure: true}));
   const flags = fs.constants.O_WRONLY | fs.constants.O_APPEND | fs.constants.O_NOFOLLOW | (before ? 0 : fs.constants.O_CREAT | fs.constants.O_EXCL);
@@ -96,7 +245,9 @@ function log(repository, action, status, code, details = {}, options = {}) {
   const parentAfter = fs.lstatSync(dir);
   const current = fs.lstatSync(target, {throwIfNoEntry: false});
   if (!opened.isFile() || opened.nlink !== 1 || (typeof process.getuid === 'function' && (opened.uid !== process.getuid() || parentAfter.uid !== process.getuid())) || !current || current.isSymbolicLink() || current.nlink !== 1 || current.ino !== opened.ino || current.dev !== opened.dev || before && (opened.ino !== before.ino || opened.dev !== before.dev) || parentBefore.ino !== parentAfter.ino || parentBefore.dev !== parentAfter.dev || parentAfter.isSymbolicLink()) fail('LOG_FILE_INVALID');
+  if (snapshotJournal) {snapshotLogDirectory(snapshotJournal); if ((opened.mode & 0o7777) !== 0o600) fail('LOG_FILE_INVALID');}
   fs.writeSync(descriptor, JSON.stringify({time: new Date().toISOString(), action, status, gitPath: selectGitPath(options), gitVersion: /^git version [\w .()+-]+$/.test(version) ? version : 'UNKNOWN', head: /^[a-f0-9]{40,64}$/.test(head) ? head : null, durationMs: Math.max(0, Date.now() - (options.startedAt ?? Date.now())), ...details, ...(code ? {code} : {})}) + '\n');
+  if (snapshotJournal) {fs.fsyncSync(descriptor); snapshotJournal.fileIdentity = opened;}
   } catch (error) { options.logFailureCode = error.code ?? 'LOG_FILE_INVALID'; throw error; }
   finally { if (descriptor !== undefined) fs.closeSync(descriptor); }
 }
@@ -255,11 +406,21 @@ function saveArtifact(directory, relative, bytes, manifest) {
   privateWrite(path.join(directory, relative), bytes);
   manifest.files.push({path: relative, sha256: sha256(bytes)});
 }
-function copyDescriptors(sourceFd, targetFd) {
+function copyDescriptors(sourceFd, targetFd, maximumBytes) {
   const digest = crypto.createHash('sha256');
   const buffer = Buffer.allocUnsafe(1024 * 1024);
-  let count;
-  while ((count = fs.readSync(sourceFd, buffer, 0, buffer.length, null))) {
+  let count, copied = 0n;
+  while (true) {
+    // Snapshot stream writes cannot exceed their admitted pinned size, even if
+    // a concurrent writer grows the source before the final race check.
+    const remaining = maximumBytes === undefined ? undefined : maximumBytes - copied;
+    const length = remaining === undefined || remaining >= BigInt(buffer.length) ? buffer.length : Number(remaining);
+    if (length === 0) {
+      if (fs.readSync(sourceFd, buffer, 0, 1, null)) fail('BACKUP_RACE');
+      break;
+    }
+    count = fs.readSync(sourceFd, buffer, 0, length, null);
+    if (!count) break;
     digest.update(buffer.subarray(0, count));
     let written = 0;
     while (written < count) {
@@ -267,31 +428,141 @@ function copyDescriptors(sourceFd, targetFd) {
       if (size <= 0) fail('BACKUP_WRITE_FAILED');
       written += size;
     }
+    copied += BigInt(count);
   }
+  if (maximumBytes !== undefined && copied !== maximumBytes) fail('BACKUP_RACE');
   return digest.digest('hex');
 }
-function snapshotRegularFile(sourceRoot, item, directory, relative, manifest) {
+function trustedRuntimePath(candidate, executable = false) {
+  try {
+    if (!path.isAbsolute(candidate) || typeof process.getuid !== 'function') return undefined;
+    const resolved = fs.realpathSync(candidate), owner = process.getuid();
+    const trusted = value => (value.uid === 0 || value.uid === owner) && !(value.mode & 0o022);
+    const file = fs.statSync(resolved);
+    if (!file.isFile() || !trusted(file) || executable && !(file.mode & 0o111)) return undefined;
+    // Check both the selected path and its resolved target: symlinks may only
+    // lead through directories that another user cannot replace or modify.
+    for (const start of [path.dirname(candidate), path.dirname(resolved)]) {
+      for (let current = start;; current = path.dirname(current)) {
+        const value = fs.statSync(current);
+        if (!value.isDirectory() || !trusted(value)) return undefined;
+        if (current === path.dirname(current)) break;
+      }
+    }
+    if (executable) fs.accessSync(resolved, fs.constants.X_OK);
+    return resolved;
+  } catch {return undefined;}
+}
+/** Static reuse of the existing resource-phase Python selection policy. No
+ * interpreter probe/which, new setting, CLI override, or PATH execution occurs.
+ * Missing/untrusted optional optimization leaves the original stream eligible.
+ */
+export function resolveSnapshotPython(sourceRoot, {searchPath = process.env.PATH ?? ''} = {}) {
+  const venv = path.join(sourceRoot, '.venv');
+  if (trustedRuntimePath(path.join(venv, 'pyvenv.cfg'))) {
+    const python = trustedRuntimePath(path.join(venv, 'bin/python'), true);
+    if (python) return python;
+  }
+  for (const entry of searchPath.split(path.delimiter)) {
+    if (!entry || !path.isAbsolute(entry)) continue;
+    const python = trustedRuntimePath(path.join(entry, 'python3.12'), true);
+    if (python) return python;
+  }
+  return undefined;
+}
+/** Internal direct-test seam; production callers provide only the event sink.
+ * This admits one known stream file, never the complete backup/restore peak.
+ */
+export function snapshotRegularFile(sourceRoot, item, directory, relative, manifest, context = {}) {
   const source = path.resolve(sourceRoot, item.path);
   if (!source.startsWith(path.resolve(sourceRoot) + path.sep) || item.type !== 'file') fail('BACKUP_RACE');
   assertNoSymlinkAncestors(path.dirname(source));
   const before = fs.lstatSync(source, {throwIfNoEntry: false});
   if (!before?.isFile() || before.isSymbolicLink() || (before.mode & 0o777) !== item.mode) fail('BACKUP_RACE');
-  let sourceFd, targetFd;
+  let sourceFd, targetFd, directoryFd;
   try {
     try { sourceFd = fs.openSync(source, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); } catch { fail('BACKUP_RACE'); }
     const opened = fs.fstatSync(sourceFd);
     if (!opened.isFile() || opened.ino !== before.ino || opened.dev !== before.dev || opened.uid !== before.uid) fail('BACKUP_RACE');
-    const target = path.join(directory, relative);
-    privateDirectory(path.dirname(target));
-    assertNoSymlinkAncestors(path.dirname(target));
-    targetFd = fs.openSync(target, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
-    const hash = copyDescriptors(sourceFd, targetFd);
+    const expectedSource = sourceFacts(sourceFd);
+    const target = path.resolve(directory, relative), targetDirectory = path.dirname(target);
+    if (!target.startsWith(path.resolve(directory) + path.sep)) fail('BACKUP_RACE');
+    privateDirectory(targetDirectory);
+    assertNoSymlinkAncestors(targetDirectory);
+    directoryFd = fs.openSync(targetDirectory, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    const pinnedDirectory = fs.fstatSync(directoryFd);
+    const checkDirectory = () => {
+      assertNoSymlinkAncestors(targetDirectory);
+      const current = fs.lstatSync(targetDirectory), actual = fs.fstatSync(directoryFd);
+      if (!actual.isDirectory() || current.isSymbolicLink() || actual.dev !== pinnedDirectory.dev || actual.ino !== pinnedDirectory.ino || current.dev !== actual.dev || current.ino !== actual.ino || (actual.mode & 0o7777) !== 0o700 || actual.uid !== process.getuid()) fail('BACKUP_RACE');
+    };
+    const checkSource = () => {
+      const current = fs.lstatSync(source, {throwIfNoEntry: false});
+      assertNoSymlinkAncestors(path.dirname(source));
+      if (!current?.isFile() || current.isSymbolicLink() || current.ino !== opened.ino || current.dev !== opened.dev || current.uid !== opened.uid || JSON.stringify(sourceFacts(sourceFd)) !== JSON.stringify(expectedSource)) fail('BACKUP_RACE');
+    };
+    checkDirectory();
+    if (fs.lstatSync(target, {throwIfNoEntry: false})) fail('BACKUP_TARGET_EXISTS');
+    let runtimeProfile = 'generic-strict';
+    const onEvent = event => (context.onEvent ?? (() => {}))({phase: 'snapshot-clone', ...(event.event === 'backup_fd_clone' ? {runtimeProfile, executableScope: 'selected-executable-reference'} : {}), ...event});
+    const eligible = process.platform === 'darwin' && opened.nlink === 1 && opened.uid === process.getuid() && !(opened.mode & 0o7000) && BigInt(expectedSource.size) <= BigInt(Number.MAX_SAFE_INTEGER);
+    let pythonPath = eligible ? (context.resolvePython ?? resolveSnapshotPython)(sourceRoot) : undefined;
+    const inherited = eligible && !pythonPath ? context[snapshotToolchainKey]?.() : undefined;
+    if (inherited) {
+      runtimeProfile = 'existing-resource-phase-tcb';
+      if (inherited.check(false) === 'available') pythonPath = inherited.lexicalPath;
+    }
+    let outcome;
+    if (pythonPath) {
+      let spawnVetoed = false;
+      const beforeSpawn = inherited ? () => {
+        // The primitive calls this only after its full source hash, immediately
+        // before spawn. A refused/unavailable check means no helper ran.
+        spawnVetoed = true;
+        if (inherited.check(false) !== 'available') return false;
+        spawnVetoed = false;
+        return true;
+      } : undefined;
+      try {outcome = (context.clone ?? clonePinnedFile)({sourceFd, directoryFd, destinationDirectory: targetDirectory, destinationName: path.basename(target), expectedSource, expectedSha256: item.sha256, pythonPath, beforeSpawn, onEvent});}
+      catch {outcome = {status: 'unknown', code: 'CLONE_HELPER_UNVERIFIED'}; onEvent({event: 'backup_fd_clone', ...outcome});}
+      finally {
+        if (inherited && !spawnVetoed && inherited.check(true) !== 'available') {
+          outcome = {status: 'unknown', code: 'CLONE_TOOLCHAIN_CHANGED'};
+          onEvent({event: 'backup_fd_clone', ...outcome});
+        }
+      }
+    }
+    else {
+      outcome = {status: 'unsupported', code: inherited ? 'CLONE_TOOLCHAIN_UNAVAILABLE' : eligible ? 'CLONE_PYTHON_UNAVAILABLE' : 'CLONE_SOURCE_INELIGIBLE'};
+      onEvent({event: 'backup_fd_clone', ...outcome});
+    }
+    if (!outcome || !['cloned', 'unsupported', 'error', 'unknown'].includes(outcome.status)) fail('CLONE_HELPER_UNVERIFIED');
+    if (outcome.status === 'error' || outcome.status === 'unknown') fail(/^CLONE_[A-Z_]+$/.test(outcome.code ?? '') ? outcome.code : 'CLONE_HELPER_UNVERIFIED');
+    checkDirectory(); checkSource();
+    let hash;
+    if (outcome.status === 'cloned') {
+      if (outcome.sha256 !== item.sha256) fail('CLONE_HELPER_UNVERIFIED');
+      hash = outcome.sha256;
+    } else {
+      // Unsupported is not permission to overwrite an uncertain helper effect.
+      if (fs.lstatSync(target, {throwIfNoEntry: false})) fail('BACKUP_TARGET_EXISTS');
+      admitFileStream({directory: targetDirectory, fileBytes: BigInt(expectedSource.size), measure: context.measure, onEvent});
+      checkDirectory(); checkSource();
+      targetFd = fs.openSync(target, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
+      const pinnedTarget = fs.fstatSync(targetFd);
+      checkDirectory(); checkSource();
+      hash = copyDescriptors(sourceFd, targetFd, BigInt(expectedSource.size));
+      fs.fsyncSync(targetFd); fs.fsyncSync(directoryFd);
+      const actual = fs.fstatSync(targetFd), current = fs.lstatSync(target, {throwIfNoEntry: false});
+      if (!actual.isFile() || actual.nlink !== 1 || actual.uid !== process.getuid() || (actual.mode & 0o7777) !== 0o600 || actual.dev !== pinnedTarget.dev || actual.ino !== pinnedTarget.ino || !current?.isFile() || current.isSymbolicLink() || current.dev !== actual.dev || current.ino !== actual.ino || current.nlink !== 1) fail('BACKUP_RACE');
+    }
     const after = fs.fstatSync(sourceFd);
     const current = fs.lstatSync(source, {throwIfNoEntry: false});
     assertNoSymlinkAncestors(path.dirname(source));
     if (hash !== item.sha256 || !current?.isFile() || current.isSymbolicLink() || current.ino !== opened.ino || current.dev !== opened.dev || current.uid !== opened.uid || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs || after.nlink !== before.nlink || (after.mode & 0o777) !== item.mode) fail('BACKUP_RACE');
+    checkDirectory(); checkSource();
     manifest.files.push({path: relative, sha256: hash});
-  } finally { if (sourceFd !== undefined) fs.closeSync(sourceFd); if (targetFd !== undefined) fs.closeSync(targetFd); }
+  } finally { if (sourceFd !== undefined) fs.closeSync(sourceFd); if (targetFd !== undefined) fs.closeSync(targetFd); if (directoryFd !== undefined) fs.closeSync(directoryFd); }
 }
 function restoreFileMode(scratch, restored, item, rawArtifact) {
   const target = path.resolve(restored, item.path);
@@ -328,6 +599,7 @@ function restoreFileMode(scratch, restored, item, rawArtifact) {
   } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 function restoreBackup(directory, manifest, options, storedDirectory = directory) {
+  verifySnapshotJournal(storedDirectory, manifest);
   const scratch = fs.mkdtempSync(path.join(directory, '.restore-'));
   const bare = path.join(scratch, 'restored.git');
   try {
@@ -373,6 +645,7 @@ function restoreBackup(directory, manifest, options, storedDirectory = directory
     for (const oid of anchors) if (git(bare, ['cat-file', '-e', oid], options, {allowFailure: true}).status !== 0) fail('RESTORE_REF_MISMATCH');
     if (anchors.length && git(bare, ['fsck', '--connectivity-only', '--no-reflogs', ...anchors], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const item of manifest.files) if (hashFile(path.join(directory, item.path)) !== item.sha256) fail('BACKUP_HASH_MISMATCH');
+    verifySnapshotJournal(storedDirectory, manifest);
   } finally { fs.rmSync(scratch, {recursive: true, force: true}); }
 }
 function backupLegacyUnlocked(repository, options) {
@@ -386,6 +659,7 @@ function backupLegacyUnlocked(repository, options) {
   privateDirectory(root);
   const directory = path.join(root, crypto.randomUUID());
   privateDirectory(directory);
+  const snapshotJournal = {root: directory, rootIdentity: fs.lstatSync(directory), sealed: false};
   const preservationRefs = {...(options.preservationRefs ?? {})};
   if (Object.entries(preservationRefs).some(([ref, oid]) => !ref.startsWith('refs/') || !/^[a-f0-9]{40,64}$/.test(oid))) fail('PRESERVATION_REFS_INVALID');
   const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, ...(options.stageV2 ? {objectOnly:true,createdAt:new Date(options.now??Date.now()).toISOString()} : {}), preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
@@ -407,9 +681,11 @@ function backupLegacyUnlocked(repository, options) {
       const item = before.worktrees[index];
       saveArtifact(directory, `worktrees/${index}/staged.patch`, git(item.path, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout, manifest);
       saveArtifact(directory, `worktrees/${index}/unstaged.patch`, git(item.path, ['diff', '--binary', '--full-index', '--'], options).stdout, manifest);
-      item.tracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/tracked/${itemIndex}`, manifest); });
-      item.untracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/untracked/${itemIndex}`, manifest); });
+      const snapshotContext = {onEvent: event => log(repository, 'backup-snapshot', event.status, event.code, event, options, snapshotJournal), [snapshotToolchainKey]: () => inheritedSnapshotToolchain(repository)};
+      item.tracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/tracked/${itemIndex}`, manifest, snapshotContext); });
+      item.untracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/untracked/${itemIndex}`, manifest, snapshotContext); });
     }
+    sealSnapshotLog(snapshotJournal, manifest);
     saveArtifact(directory, 'manifest-draft.json', JSON.stringify(manifest, null, 2) + '\n', {files: []});
     if (JSON.stringify(targetFootprint(capture(repository, options))) !== JSON.stringify(targetFootprint(before))) fail('BACKUP_RACE');
     restoreBackup(directory, manifest, options);
@@ -430,6 +706,7 @@ function backupLegacyUnlocked(repository, options) {
 }
 export function verifyBackupDirectory(directory, options = {}) {
   const {manifest}=readManifest(directory);
+  verifySnapshotJournal(directory, manifest);
   for(const row of manifest.files) {
     if(typeof row.path!=='string' || path.isAbsolute(row.path) || row.path.split('/').some(x=>!x || x==='.' || x==='..'))fail('BACKUP_PATH_INVALID');
     if(manifest.schemaVersion===1 && fileHash(path.join(directory,row.path))!==row.sha256)fail('BACKUP_HASH_MISMATCH');
@@ -460,7 +737,7 @@ function backupUnlocked(repository,options) {
     const savedHash=fingerprint(saved,protection);
     const checkTarget=()=>{if(JSON.stringify(targetFootprint(capture(repository,options)))!==JSON.stringify(targetFootprint(saved)))fail('BACKUP_RACE');};
     checkTarget();
-    const result=convertToV2(legacy.directory,key,{gitPath:selectGitPath(options),now:options.now,protection,stateHash:savedHash,verify:(dir,m)=>materializeV2(dir,m,tmp=>restoreBackup(tmp,m,options,dir)),afterVerified:checkTarget});
+    const result=convertToV2(legacy.directory,key,{gitPath:selectGitPath(options),now:options.now,protection,stateHash:savedHash,verify:(dir,m)=>{verifySnapshotJournal(dir,m);return materializeV2(dir,m,tmp=>restoreBackup(tmp,m,options,dir));},afterVerified:checkTarget});
     log(repository,'backup-v2','PASS',undefined,{backup:result.directory},options);
     const completed={...legacy,...result};
     Object.defineProperty(completed,'verifiedPreservationRefs',{value:legacy.verifiedPreservationRefs});
@@ -499,7 +776,7 @@ export function maintainBackups({projectRoot,action='backup-audit',apply=false},
         if(m.worktrees.some(saved=>saved.index===undefined)){item.reason='legacy_index_unrecorded';continue;}
         item.status=apply?'migrated':'would_migrate';
         if(apply) {
-          const converted=convertToV2(p.directory,key,{gitPath:selectGitPath(options),now,verify:(dir,manifest)=>materializeV2(dir,manifest,tmp=>restoreBackup(tmp,manifest,options,dir)),afterVerified:options.afterMigrationVerified,afterPendingWritten:options.afterMigrationPending});
+          const converted=convertToV2(p.directory,key,{gitPath:selectGitPath(options),now,verify:(dir,manifest)=>{verifySnapshotJournal(dir,manifest);return materializeV2(dir,manifest,tmp=>restoreBackup(tmp,manifest,options,dir));},afterVerified:options.afterMigrationVerified,afterPendingWritten:options.afterMigrationPending});
           item.restoreVerified=converted.restoreVerified;
           log(repository,'backup-migrate','PASS',undefined,{backup:p.directory},options);
         }
@@ -581,11 +858,31 @@ function closeoutEnabled(repository) {
   return fs.existsSync(path.join(source, '.agents/resource-closeout.json')) && discover(source).commonDirectory === repository.commonDirectory;
 }
 
+function selectResourcePython(repository) {
+  const installed = path.join(repository.repositoryRoot, '.venv/bin/python');
+  if (fs.existsSync(installed)) return installed;
+  // Match the existing fixed-name PATH choice before execution, including PATH
+  // entries relative to the command's existing repository cwd. This is not a
+  // trust certificate; the original resource command already uses this TCB.
+  if (process.env.PATH === undefined) return 'python3.12';
+  for (const entry of process.env.PATH.split(path.delimiter)) {
+    // Keep lexical '..' components: collapsing one across a symlink can change
+    // which executable the existing PATH entry actually names in the kernel.
+    const prefix = path.isAbsolute(entry) ? entry : repository.repositoryRoot + path.sep + (entry || '.');
+    const candidate = prefix + path.sep + 'python3.12';
+    try {if (fs.statSync(candidate).isFile()) {fs.accessSync(candidate, fs.constants.X_OK); return candidate;}} catch { /* continue the existing PATH search */ }
+  }
+  return 'python3.12'; // Preserve the existing command failure if none is found.
+}
+
 function resourcePhase(repository, taskId, phase, options) {
+  const scope = deliveryToolchains.get(repository);
+  if (scope) scope.record = undefined;
   if (!closeoutEnabled(repository)) return options.resourceRevalidationProbe?.(repository,taskId,phase);
   const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const installedPython = path.join(repository.repositoryRoot, '.venv/bin/python');
-  const python = fs.existsSync(installedPython) ? installedPython : 'python3.12';
+  const python = selectResourcePython(repository);
+  const canRecord = scope?.active && scope.taskId === taskId && !options.controller && !options.resourceRevalidationProbe;
+  const beforeReference = canRecord ? selectedExecutableReference(python) : undefined;
   const result = command(python, ['-P', '-m', 'research_workbench_entrypoint.iteration_resources', '--project', repository.repositoryRoot, '--task-id', taskId, '--phase', phase], {
     cwd: repository.repositoryRoot,
     env: {...process.env, PYTHONPATH:source, PYTHONDONTWRITEBYTECODE:'1'}, allowFailure:true,
@@ -596,9 +893,13 @@ function resourcePhase(repository, taskId, phase, options) {
     fail(code);
   }
   log(repository, 'resource-' + phase, 'PASS', undefined, {}, options);
+  let revalidation;
   if(phase==='revalidate') {
-    try{return JSON.parse(result.stdout.toString('utf8'));}catch{fail('RESOURCE_CLOSEOUT_BLOCKED');}
+    try{revalidation = JSON.parse(result.stdout.toString('utf8'));}catch{fail('RESOURCE_CLOSEOUT_BLOCKED');}
   }
+  const afterReference = canRecord && beforeReference ? selectedExecutableReference(python) : undefined;
+  if (canRecord && deliveryToolchains.get(repository) === scope && executableReferencesEqual(beforeReference, afterReference)) scope.record = {binding: toolchainBinding(scope), reference: beforeReference};
+  return revalidation;
 }
 
 function refreshFeatureRecord(repository, receipt, options) {
@@ -1635,14 +1936,18 @@ function preservationAudit(repository, beforeRefs, beforeWorktrees, targets, opt
   return advances;
 }
 export async function runDelivery({projectRoot, taskId, action, reviewedCommit, ...params}, options = {}) {
+  if (Object.hasOwn(params, 'deferCleanup') && (params.deferCleanup !== true || action !== 'status')) fail('DELIVERY_ARGUMENT_INVALID');
   options = {...options, startedAt: Date.now()};
   selectGitPath({...options, mutate: true});
   if (!ID.test(taskId ?? '') || !['start', 'prepare', 'publish', 'status', 'cleanup'].includes(action)) fail('DELIVERY_ARGUMENT_INVALID');
+  let safetyCleanupDeferred = false;
   const result = await withRepositoryLock({projectRoot}, async repository => {
     fsck(repository, options);
     const directory = installShim(repository, options);
     const previousPath = process.env.PATH;
     process.env.PATH = directory + path.delimiter + (previousPath ?? '');
+    const toolchainScope = {repositoryRoot: repository.repositoryRoot, commonDirectory: repository.commonDirectory, taskId, operationToken: Symbol('delivery-operation'), active: true, record: undefined};
+    deliveryToolchains.set(repository, toolchainScope);
     try {
       const controller = options.controller ?? await import(pathToFileURL(CONTROLLER).href);
       const common = {projectRoot: repository.repositoryRoot, taskId};
@@ -1736,6 +2041,11 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         const finalization=closeoutFinalization(repository,taskId);
         if (fs.existsSync(finalization)) writePrivateJson(finalization,{...JSON.parse(fs.readFileSync(finalization,'utf8')),status:'complete'});
       }
+      if (action === 'status' && result.status === 'ci_passed' && params.deferCleanup === true && closeoutEnabled(repository)) {
+        log(repository, 'delivery-cleanup-deferred', 'DEFERRED', undefined, {safetyCleanupDeferred: true, readOnly: false}, options);
+        safetyCleanupDeferred = true;
+        result = {...result, safetyCleanupDeferred: true};
+      }
       log(repository, 'delivery-' + action, 'PASS', undefined, result?.safetyBackup ? {backup: result.safetyBackup, concurrentRefAdvances: result.concurrentRefAdvances} : {}, options);
       return result;
     } catch (error) {
@@ -1754,10 +2064,16 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
       if (!error.code) fail(code);
       throw error;
     }
-    finally { if (previousPath === undefined) delete process.env.PATH; else process.env.PATH = previousPath; }
+    finally {
+      toolchainScope.active = false;
+      toolchainScope.record = undefined;
+      deliveryToolchains.delete(repository);
+      if (previousPath === undefined) delete process.env.PATH; else process.env.PATH = previousPath;
+    }
   }, options);
   // Finish resource/Git cleanup only after releasing the repository lock; recursive
   // cleanup must not deadlock or run while CI/merge is still pending.
+  if (safetyCleanupDeferred) return result;
   if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(discover(projectRoot, options))) {
     return runDelivery({projectRoot, taskId, action:'cleanup'}, options);
   }
@@ -1775,10 +2091,12 @@ export function parseCli(args) {
     else if (item === '--repair') options.repair = true;
     else if (item === '--replace-prepared') options.replacePrepared = true;
     else if (item === '--amend-prepared') options.amendPrepared = true;
+    else if (item === '--defer-cleanup') options.deferCleanup = true;
     else if (values.has(item) && rest[index + 1] && !rest[index + 1].startsWith('--')) options[values.get(item)] = rest[++index];
     else fail('CLI_OPTION_INVALID');
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
+  if (options.deferCleanup !== undefined && (subcommand !== 'delivery' || options.action !== 'status')) fail('CLI_OPTION_INVALID');
   if(subcommand==='closeout-recover') {
     if(!options.taskId || !options.backupDirectory || Object.keys(options).some(key=>!['projectRoot','taskId','backupDirectory','previewSha256','apply'].includes(key)) || options.apply && !/^[a-f0-9]{64}$/.test(options.previewSha256??'') || !options.apply && options.previewSha256)fail('CLI_ARGUMENT_REQUIRED');
     return {subcommand,options};
@@ -1806,7 +2124,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
-      'safetyAutoMergeDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment'
+      'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment'
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');

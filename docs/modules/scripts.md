@@ -1,5 +1,41 @@
 # Module: scripts
 
+The optional `backup_fd_clone.mjs` / `backup_fd_clone.py` primitive only copies
+from an already-open source FD into a private directory FD on supported Darwin
+systems. The fixed standard-library helper accepts no arbitrary command; Node
+rechecks full bytes, identities and privacy before reporting success. It neither
+falls back nor removes data. The backup caller retains path/race guards, capacity
+admission, fsck and actual restore. The snapshot caller now uses the optional
+primitive; unsupported/error/unknown and platform limits are explicit
+in the [task report](../../.ai/reports/test_report_backup_cow_admission_20261030.md).
+
+Snapshot events are written to the current owned backup point's private logs,
+so logging cannot itself alter the captured source worktree. The closed journal
+is authenticated as per-point snapshotJournal metadata, outside the deduplicated
+payload pool. Its original point is checked before/after actual restoration;
+V2 seals include that metadata. Final project-level backup logging is unchanged;
+no CLI-selected journal destination or new logging service is added.
+
+The existing delivery status operation accepts explicit --defer-cleanup to
+postpone its automatic cleanup after CI passes. Review, CI and merge checks
+remain; this is not read-only and does not mark resources cleaned. Default
+status/explicit cleanup behavior and their safety checks are retained.
+
+The snapshot integration adds single ordinary-file stream admission in
+`backup_capacity.mjs`; it reads the actual destination filesystem's available
+capacity and rejects unknown/invalid/insufficient measurements. It does not bound
+all Git phases. Optional clone reuse may inherit only the same process and
+operation's already-required successful resourcePhase toolchain selection;
+generic resolver rules and standalone behavior are not relaxed. No runtime
+registry, new CLI interpreter setting or whole-backup certification is introduced.
+
+The trusted pre-spawn rejection hook runs after complete source hashing, directly
+before the fixed helper invocation. Its only effect is refusing an invocation;
+possibly executed outcomes still require the caller's post-check and cannot be
+stream retried. Direct tests use an explicit test-only Python path supplied by
+the existing CI environment. No other host runtime path or product setting is
+inferred from this test input.
+
 ## Responsibility
 
 `scripts` provides operational scripts, database bootstrap, backup/restore, smoke tests, and development governance checks.
