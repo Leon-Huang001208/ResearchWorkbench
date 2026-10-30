@@ -7,6 +7,13 @@ job、runner、依赖、timeout 或 Windows/Linux 产品 dispatch；新增执行
 15 秒，最终以同候选实际日志核对。局部合同不声称整体备份峰值、PR250 Git 收尾或
 生产恢复通过，既有 219 项 Git 安全合同和全部旧步骤保留。
 
+本轮新增每point审计认证与显式status收尾延期合同，仍在同一Git safety step，
+不移除旧dedup断言、不新增job／依赖／runner／timeout。中间249项本机全量实跑
+247通过／1失败／1条件skip、256.455秒，失败的日志去重修复保留原记录，最终候选另验。
+发布预检API为PUBLIC；最近5个成功Mac job实际493／524／759／625／514秒
+（run40953393259／40947833188／40936193009／40928979775／40921680476），仅作预算参考，
+不冒充本候选安装证据或备份峰值准入。Windows/Linux产品仍由对应设备交接。
+
 精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
 Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
 预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。

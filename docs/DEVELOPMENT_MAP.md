@@ -6,6 +6,8 @@
 直接回归为 `backup_fd_clone.test.mjs`、`backup_snapshot_capacity.test.mjs` 与
 `test_backup_fd_clone.py`；CI 沿原 Git safety / Mac 环境检查步骤登记，无新服务。
 整体 Git 阶段峰值仍独立未闭，见[计划](plans/2026-10-30-backup-cow-admission.md)。
+快照审计日志独立为恢复点metadata，不进入共享载荷池；`delivery --status --defer-cleanup`
+只显式延期自动收尾，原评审／CI／合并与显式cleanup检查不变，也不签发阶段准入。
 
 quality收尾：watchlist-import.mjs按owner+draft保留/清空原生File控件并拒绝retired scope响应；watchlist_import.py核心函数与TypedDict注解补齐，asset_workspace仅作DTO边界cast/返回类型对齐，无新业务字段。research_web_watchlist_proxy.mjs以inert本地sink和合成proxy/凭据home挑战运行inbound-only夹具及native拒绝。
 

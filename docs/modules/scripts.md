@@ -11,9 +11,15 @@ in the [task report](../../.ai/reports/test_report_backup_cow_admission_20261030
 
 Snapshot events are written to the current owned backup point's private logs,
 so logging cannot itself alter the captured source worktree. The closed journal
-is hashed into manifest.files and follows the existing V2 migration/shared-blob
-and actual restoration checks. Final project-level backup logging is unchanged;
+is authenticated as per-point snapshotJournal metadata, outside the deduplicated
+payload pool. Its original point is checked before/after actual restoration;
+V2 seals include that metadata. Final project-level backup logging is unchanged;
 no CLI-selected journal destination or new logging service is added.
+
+The existing delivery status operation accepts explicit --defer-cleanup to
+postpone its automatic cleanup after CI passes. Review, CI and merge checks
+remain; this is not read-only and does not mark resources cleaned. Default
+status/explicit cleanup behavior and their safety checks are retained.
 
 The snapshot integration adds single ordinary-file stream admission in
 `backup_capacity.mjs`; it reads the actual destination filesystem's available

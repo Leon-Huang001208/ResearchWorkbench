@@ -220,6 +220,13 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --st
 node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
 ```
 
+`--status` 可能在评审／CI满足后执行普通合并，并在 `ci_passed` 后自动进入资源与Git收尾，
+不能当成纯观察。当整体备份阶段尚未取得实际准入时，可显式使用
+`--status --defer-cleanup`：原评审、CI、合并与状态记录要求保持，只延期最后的自动收尾，
+返回 `safetyCleanupDeferred: true`，不把回执或资源标为 `cleaned`。该参数仅可与
+`delivery --status` 同用；后续显式 `--cleanup` 仍须全部原安全前提，不能用延期替代验收。
+仅读CI使用GitHub只读API；其他common directory必须通过正式Git交付采用已审入口，不复制脚本。
+
 发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
 
 本任务因 `master` 前进进入 `remote_moved` 时，先在原集成工作树合入

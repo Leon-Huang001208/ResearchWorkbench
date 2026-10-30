@@ -180,7 +180,48 @@ function sealSnapshotLog(journal, manifest) {
   }
   snapshotLogDirectory(journal);
   journal.sealed = true;
-  manifest.files.push({path: 'logs/git-safety.jsonl', sha256: hash});
+  // Per-point audit metadata is authenticated by the manifest/seal but is not a
+  // deduplicated business restore payload or an execution authority.
+  manifest.snapshotJournal = {path: 'logs/git-safety.jsonl', sha256: hash};
+}
+function verifySnapshotJournal(originalPoint, manifest) {
+  const journal = manifest.snapshotJournal;
+  if (journal === undefined) return; // Earlier manifests have no audit contract.
+  if (!journal || Array.isArray(journal) || Object.keys(journal).length !== 2 || journal.path !== 'logs/git-safety.jsonl' || typeof journal.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(journal.sha256)) fail('BACKUP_JOURNAL_INVALID');
+  const directories = [originalPoint, path.join(originalPoint, 'logs')], filename = path.join(originalPoint, journal.path), descriptors = [];
+  let failure;
+  try {
+    assertNoSymlinkAncestors(originalPoint);
+    const uid = BigInt(process.getuid()), same = (left, right) => EXECUTABLE_FACTS.every(key => left[key] === right[key]);
+    const beforeDirectories = directories.map(directory => fs.lstatSync(directory, {bigint: true}));
+    for (let index = 0; index < directories.length; index++) {
+      const before = beforeDirectories[index];
+      if (!before.isDirectory() || before.isSymbolicLink() || before.uid !== uid || (before.mode & 0o7777n) !== 0o700n) fail('BACKUP_JOURNAL_INVALID');
+      const fd = fs.openSync(directories[index], fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+      descriptors.push(fd);
+      if (!same(before, fs.fstatSync(fd, {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    }
+    const before = fs.lstatSync(filename, {bigint: true});
+    if (!before.isFile() || before.isSymbolicLink() || before.uid !== uid || before.nlink !== 1n || (before.mode & 0o7777n) !== 0o600n) fail('BACKUP_JOURNAL_INVALID');
+    const fd = fs.openSync(filename, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    descriptors.push(fd);
+    if (!same(before, fs.fstatSync(fd, {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    const hash = crypto.createHash('sha256'), buffer = Buffer.allocUnsafe(1024 * 1024);
+    let remaining = before.size;
+    while (remaining > 0n) {
+      const length = remaining > BigInt(buffer.length) ? buffer.length : Number(remaining), count = fs.readSync(fd, buffer, 0, length, null);
+      if (!count) fail('BACKUP_JOURNAL_INVALID');
+      remaining -= BigInt(count); hash.update(buffer.subarray(0, count));
+    }
+    if (fs.readSync(fd, buffer, 0, 1, null) || !same(before, fs.fstatSync(fd, {bigint: true})) || !same(before, fs.lstatSync(filename, {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    assertNoSymlinkAncestors(originalPoint);
+    for (let index = 0; index < directories.length; index++) {
+      if (!same(beforeDirectories[index], fs.fstatSync(descriptors[index], {bigint: true})) || !same(beforeDirectories[index], fs.lstatSync(directories[index], {bigint: true}))) fail('BACKUP_JOURNAL_INVALID');
+    }
+    if (hash.digest('hex') !== journal.sha256) fail('BACKUP_JOURNAL_HASH_MISMATCH');
+  } catch (error) {failure = Object.assign(new Error(error.code === 'BACKUP_JOURNAL_HASH_MISMATCH' ? error.code : 'BACKUP_JOURNAL_INVALID'), {code: error.code === 'BACKUP_JOURNAL_HASH_MISMATCH' ? error.code : 'BACKUP_JOURNAL_INVALID'});}
+  finally {for (const fd of descriptors.reverse()) {try {fs.closeSync(fd);} catch {failure ??= Object.assign(new Error('BACKUP_JOURNAL_INVALID'), {code: 'BACKUP_JOURNAL_INVALID'});}}}
+  if (failure) throw failure;
 }
 function log(repository, action, status, code, details = {}, options = {}, snapshotJournal) {
   if (options.logFailureCode) fail(options.logFailureCode);
@@ -558,6 +599,7 @@ function restoreFileMode(scratch, restored, item, rawArtifact) {
   } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 function restoreBackup(directory, manifest, options, storedDirectory = directory) {
+  verifySnapshotJournal(storedDirectory, manifest);
   const scratch = fs.mkdtempSync(path.join(directory, '.restore-'));
   const bare = path.join(scratch, 'restored.git');
   try {
@@ -603,6 +645,7 @@ function restoreBackup(directory, manifest, options, storedDirectory = directory
     for (const oid of anchors) if (git(bare, ['cat-file', '-e', oid], options, {allowFailure: true}).status !== 0) fail('RESTORE_REF_MISMATCH');
     if (anchors.length && git(bare, ['fsck', '--connectivity-only', '--no-reflogs', ...anchors], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const item of manifest.files) if (hashFile(path.join(directory, item.path)) !== item.sha256) fail('BACKUP_HASH_MISMATCH');
+    verifySnapshotJournal(storedDirectory, manifest);
   } finally { fs.rmSync(scratch, {recursive: true, force: true}); }
 }
 function backupLegacyUnlocked(repository, options) {
@@ -663,6 +706,7 @@ function backupLegacyUnlocked(repository, options) {
 }
 export function verifyBackupDirectory(directory, options = {}) {
   const {manifest}=readManifest(directory);
+  verifySnapshotJournal(directory, manifest);
   for(const row of manifest.files) {
     if(typeof row.path!=='string' || path.isAbsolute(row.path) || row.path.split('/').some(x=>!x || x==='.' || x==='..'))fail('BACKUP_PATH_INVALID');
     if(manifest.schemaVersion===1 && fileHash(path.join(directory,row.path))!==row.sha256)fail('BACKUP_HASH_MISMATCH');
@@ -693,7 +737,7 @@ function backupUnlocked(repository,options) {
     const savedHash=fingerprint(saved,protection);
     const checkTarget=()=>{if(JSON.stringify(targetFootprint(capture(repository,options)))!==JSON.stringify(targetFootprint(saved)))fail('BACKUP_RACE');};
     checkTarget();
-    const result=convertToV2(legacy.directory,key,{gitPath:selectGitPath(options),now:options.now,protection,stateHash:savedHash,verify:(dir,m)=>materializeV2(dir,m,tmp=>restoreBackup(tmp,m,options,dir)),afterVerified:checkTarget});
+    const result=convertToV2(legacy.directory,key,{gitPath:selectGitPath(options),now:options.now,protection,stateHash:savedHash,verify:(dir,m)=>{verifySnapshotJournal(dir,m);return materializeV2(dir,m,tmp=>restoreBackup(tmp,m,options,dir));},afterVerified:checkTarget});
     log(repository,'backup-v2','PASS',undefined,{backup:result.directory},options);
     const completed={...legacy,...result};
     Object.defineProperty(completed,'verifiedPreservationRefs',{value:legacy.verifiedPreservationRefs});
@@ -732,7 +776,7 @@ export function maintainBackups({projectRoot,action='backup-audit',apply=false},
         if(m.worktrees.some(saved=>saved.index===undefined)){item.reason='legacy_index_unrecorded';continue;}
         item.status=apply?'migrated':'would_migrate';
         if(apply) {
-          const converted=convertToV2(p.directory,key,{gitPath:selectGitPath(options),now,verify:(dir,manifest)=>materializeV2(dir,manifest,tmp=>restoreBackup(tmp,manifest,options,dir)),afterVerified:options.afterMigrationVerified,afterPendingWritten:options.afterMigrationPending});
+          const converted=convertToV2(p.directory,key,{gitPath:selectGitPath(options),now,verify:(dir,manifest)=>{verifySnapshotJournal(dir,manifest);return materializeV2(dir,manifest,tmp=>restoreBackup(tmp,manifest,options,dir));},afterVerified:options.afterMigrationVerified,afterPendingWritten:options.afterMigrationPending});
           item.restoreVerified=converted.restoreVerified;
           log(repository,'backup-migrate','PASS',undefined,{backup:p.directory},options);
         }
@@ -1892,9 +1936,11 @@ function preservationAudit(repository, beforeRefs, beforeWorktrees, targets, opt
   return advances;
 }
 export async function runDelivery({projectRoot, taskId, action, reviewedCommit, ...params}, options = {}) {
+  if (Object.hasOwn(params, 'deferCleanup') && (params.deferCleanup !== true || action !== 'status')) fail('DELIVERY_ARGUMENT_INVALID');
   options = {...options, startedAt: Date.now()};
   selectGitPath({...options, mutate: true});
   if (!ID.test(taskId ?? '') || !['start', 'prepare', 'publish', 'status', 'cleanup'].includes(action)) fail('DELIVERY_ARGUMENT_INVALID');
+  let safetyCleanupDeferred = false;
   const result = await withRepositoryLock({projectRoot}, async repository => {
     fsck(repository, options);
     const directory = installShim(repository, options);
@@ -1995,6 +2041,11 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         const finalization=closeoutFinalization(repository,taskId);
         if (fs.existsSync(finalization)) writePrivateJson(finalization,{...JSON.parse(fs.readFileSync(finalization,'utf8')),status:'complete'});
       }
+      if (action === 'status' && result.status === 'ci_passed' && params.deferCleanup === true && closeoutEnabled(repository)) {
+        log(repository, 'delivery-cleanup-deferred', 'DEFERRED', undefined, {safetyCleanupDeferred: true, readOnly: false}, options);
+        safetyCleanupDeferred = true;
+        result = {...result, safetyCleanupDeferred: true};
+      }
       log(repository, 'delivery-' + action, 'PASS', undefined, result?.safetyBackup ? {backup: result.safetyBackup, concurrentRefAdvances: result.concurrentRefAdvances} : {}, options);
       return result;
     } catch (error) {
@@ -2022,6 +2073,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
   }, options);
   // Finish resource/Git cleanup only after releasing the repository lock; recursive
   // cleanup must not deadlock or run while CI/merge is still pending.
+  if (safetyCleanupDeferred) return result;
   if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(discover(projectRoot, options))) {
     return runDelivery({projectRoot, taskId, action:'cleanup'}, options);
   }
@@ -2039,10 +2091,12 @@ export function parseCli(args) {
     else if (item === '--repair') options.repair = true;
     else if (item === '--replace-prepared') options.replacePrepared = true;
     else if (item === '--amend-prepared') options.amendPrepared = true;
+    else if (item === '--defer-cleanup') options.deferCleanup = true;
     else if (values.has(item) && rest[index + 1] && !rest[index + 1].startsWith('--')) options[values.get(item)] = rest[++index];
     else fail('CLI_OPTION_INVALID');
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
+  if (options.deferCleanup !== undefined && (subcommand !== 'delivery' || options.action !== 'status')) fail('CLI_OPTION_INVALID');
   if(subcommand==='closeout-recover') {
     if(!options.taskId || !options.backupDirectory || Object.keys(options).some(key=>!['projectRoot','taskId','backupDirectory','previewSha256','apply'].includes(key)) || options.apply && !/^[a-f0-9]{64}$/.test(options.previewSha256??'') || !options.apply && options.previewSha256)fail('CLI_ARGUMENT_REQUIRED');
     return {subcommand,options};
@@ -2070,7 +2124,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
-      'safetyAutoMergeDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment'
+      'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment'
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');

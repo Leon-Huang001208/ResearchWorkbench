@@ -2,8 +2,8 @@
 
 Date: 2026-10-30. Host: macOS. Task:
 `backup-cow-admission-20261030-7c9d4f2a`.
-Status: SOURCE_LOG_REPAIR_UNVERIFIED; the original Git contract suite exposed
-regressions after the earlier local slice passed. New execution is capacity-blocked.
+Status: FOCUSED_JOURNAL_AND_DEFERRAL_GREEN; final full-suite and routed
+verification are pending for the changed source. Capacity has recovered.
 Complete backup phase admission remains unimplemented/unverified.
 
 This task does not replay PR250 cleanup, modify its receipt or alter recovery
@@ -67,7 +67,9 @@ may use the original stream after sufficient single-file admission. Existing sou
 FD/path/mode/identity/race/hash and private-target/fsync checks remain required.
 
 The final direct integration sample ran with exact Node 24.19.0: 20 PASS and one
-explicit NOT_RUN for real production toolchain inheritance. Earlier Node25 runs
+explicit skip of the real snapshot-clone integration because the existing generic
+Python parent chain failed the optional trust policy. Production toolchain
+inheritance is a separate NOT_RUN. Earlier Node25 runs
 were retained as auxiliary evidence and were not relabelled Node24. All 23 tiny
 fixture roots were reclaimed; total logical sample bytes were 25,901, maximum
 retained bytes 2,400, and the test/worker PIDs exited. Source and runtime files
@@ -92,7 +94,8 @@ Two plain-data RED cases used a nonexistent interpreter path, so no helper or
 changed executable ran. The former API ignored the new veto, producing the
 wrong unavailable classification; those failures remain in `p2-red-node24.log`.
 GREEN ran with exact Node 24.19.0 over the two direct suites: 29 PASS, one explicit
-NOT_RUN for production inheritance. Test/worker PIDs exited, 35 tiny fixtures
+generic-runtime snapshot integration skip. Production inheritance remains separate
+and NOT_RUN. Test/worker PIDs exited, 35 tiny fixtures
 were retired, retained logical bytes totalled 44,800 and peak retained bytes were
 3,072. Python helper/test blobs did not change and their earlier exact evidence
 is retained, not relabelled as newly rerun Python acceptance.
@@ -134,12 +137,11 @@ new static imports were added. Logs and source hashes are retained under
 `logs/backup-cow-admission/old-git-contracts-b74/`; the peak synthetic footprint
 was 780,661 bytes and the owned process group was confirmed absent afterwards.
 
-The narrow repair directs snapshot events into the current private backup
+The first repair directed snapshot events into the current private backup
 point's logs directory, preserving the original repository/HEAD metadata. The
 internal destination is not accepted through CLI/options. Root/directory/file
-identities, privacy and no-alias checks apply, writes are fsynced and closed,
-then the journal hash enters manifest.files. Existing V2 migration imports those
-bytes into its shared store and restore/hash chain. Original source capture,
+identities, privacy and no-alias checks applied, writes were fsynced and closed,
+then the journal hash entered manifest.files. Original source capture,
 restoration and final project PASS/FAIL logging remain in place. The fixture
 copies its three new static dependencies; original assertions remain, with
 additional journal isolation and migration checks.
@@ -149,6 +151,42 @@ had fallen below the 3 GiB start floor, then below the 2 GiB run reserve. Test
 child count was zero. This source repair and its new assertions are NOT_RUN;
 neither the earlier 11 local gates nor static reviews certify the changed code.
 No full backup, protected point 51b, shared pool or production operation was run.
+
+After capacity recovered, exact 1f7 source passed three actual positive cases
+(backup/raw restoration, the real Python process boundary, and V1-to-V2 migration)
+and all 11 routed local gates. An additional full five-file run executed 249
+cases: 247 PASS, one FAIL, one generic-runtime integration skip, 256.455 seconds.
+The remaining failure preserved the original identical-payload/no-pool-growth
+assertion: time-varying journal blobs grew the shared pool from 3,583 to 5,342
+bytes. The failed run and its empty owned process group remain recorded under
+`logs/backup-cow-admission/actual-contracts-1f7/`.
+
+The current repair stores the closed journal as optional per-point
+`snapshotJournal` metadata with a fixed path and SHA, outside manifest.files and
+the shared payload pool. V2's manifest seal binds this metadata. Verification
+checks the retained original point through private directory and no-follow file
+FD/path/identity/mode/nlink/full-hash checks before and after actual restoration.
+Earlier manifests without this optional field retain their existing contract.
+This audit metadata grants no execution authority. Source store code and the
+original no-growth assertion are unchanged. Four focused cases actually went
+RED 4F to GREEN 4P, including V1/V2 journal corruption/missing-file refusal and
+payload deduplication; no real protected recovery point was used.
+
+The formal status operation may merge and automatically enter cleanup. An
+explicit status-only-in-combination `--defer-cleanup` option now preserves all
+existing review/CI/ordinary merge checks but postpones that final recursive
+cleanup. It is a state-changing operation, not a read-only query. The deferred
+event and return marker are produced inside the original repository lock;
+receipt cleanup flags are not rewritten and no cleaned result is certified.
+Other actions/non-true programmatic values reject before repository access.
+The normal status and explicit cleanup safety paths remain intact. Four focused
+cases passed after RED and again after moving the deferred log inside the lock.
+Default-path coverage proves entry into cleanup, not successful real cleanup.
+
+The earlier report incorrectly named the single generic-runtime integration skip
+as a production-inheritance skip. This is corrected against the actual test name;
+production inheritance remains independently NOT_RUN. All historical results
+remain tied to their original source and are not promoted to the final candidate.
 
 Existing store copyChecked already uses a clone hint, which can silently fall
 back. The V1 snapshot now attempts an optional pinned-FD clone and admits its
@@ -162,7 +200,7 @@ repair marks those five branch cases NOT_RUN outside Darwin, preserves the
 portable stream/arithmetic/capacity/TCB tests, and asserts the platform's actual
 unavailable classification. No product guard, CI step or old test was removed.
 The exact Node 24.19.0 Mac integration rerun passed 20 cases with one explicit
-production-inheritance NOT_RUN; all 23 fixtures and both owned PIDs finished,
+generic-runtime integration skip; all 23 fixtures and both owned PIDs finished,
 maximum fixture size 2,400 bytes. Linux/Node20 execution remains NOT_RUN until
 the unchanged standard Ubuntu CI actually runs the new candidate.
 
