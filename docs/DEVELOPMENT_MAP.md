@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+试验退役保全辅助库 `resident/trial_discard_backup.py` 提供有界账号映射预览和
+账号／模型配置文件备份、临时恢复核验；由现有受管维护事务在确认停写后调用。
+范围与限制见[操作说明](research-web-trial-discard.md)，不自行授予删除或部署权限。
+
 专业协作入口沿 `specialists/routes.py` → `specialists/service.py` → 私有 `SpecialistLedger`，模型执行仍由 `runtime/specialists.mjs` 调用原生 continuable subagent；guard保留原子Agent配额。`main.py`／`service.py`复用原发送、截止、取消和详情，`research_quality_service.py`追加协作未完成门。UI入口与状态复用原会话，见[合同](research-web-specialists.md)。
 
 备份快照链：`scripts/backup_fd_clone.mjs/.py` 实现可选 Darwin FD 原语，
