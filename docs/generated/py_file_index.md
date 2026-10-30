@@ -3615,10 +3615,13 @@ Imports:
 - `ast`
 - `copy`
 - `core.observability`
+- `csv`
 - `datetime`
 - `hashlib`
 - `hmac`
+- `importlib.machinery`
 - `importlib.metadata`
+- `inspect`
 - `io`
 - `json`
 - `math`
@@ -3639,13 +3642,17 @@ Imports:
 - `tools`
 - `uuid`
 - `yaml`
-- `zipfile`
+- ... 1 more
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _installed_module_distributions, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _migrate_data_scope_builtins, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, _pack_read_equivalence_ready, _migrate_pack_runtime_relocations, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, data_readiness, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _installed_module_distributions, _stock_distribution_projection_supported, _stock_meta_path_resolvers_supported, _project_installed_module_distributions, _metadata_package_path, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _migrate_data_scope_builtins, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, _pack_read_equivalence_ready, _migrate_pack_runtime_relocations, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, data_readiness, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
+- `_function_fingerprint`
+- `_function_matches`
+- `_descriptor_function`
+- `_optional_function_fingerprint`
 - `_is_host_process_entry`
 
 
@@ -24303,7 +24310,7 @@ Classes:
 - `CollectionPlugin`
   - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems
 - `WorkerPlugin`
-  - methods: __post_init__, pytest_collectreport, pytest_collection_modifyitems, pytest_runtest_logreport
+  - methods: __post_init__, _disable_progress, _progress_counters, write_progress, observe_progress, pytest_collectreport, pytest_collection_modifyitems, pytest_runtest_logreport
 
 Functions:
 - `_safe_exception_class`
@@ -24599,6 +24606,7 @@ Functions:
 - `_validate_manifest`
 - `_sanitize_junit`
 - `_validate_passed_execution`
+- `_safe_worker_progress`
 - `_safe_worker_summary`
 - `_scope_artifacts`
 - `_load_source_root`

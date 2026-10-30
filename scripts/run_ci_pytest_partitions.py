@@ -24,6 +24,24 @@ INTERNAL_PREFIX = "--rwb-internal-"
 ROOT_MARKER = ".rwb-ci-pytest-root.json"
 MANIFEST_SCHEMA_VERSION = 2
 WORKER_RESULT_SCHEMA_VERSION = 3
+WORKER_PROGRESS_SCHEMA_VERSION = 1
+WORKER_PROGRESS_FIELDS = {
+    "schemaVersion",
+    "phase",
+    "workerIndex",
+    "planSha256",
+    "nodeId",
+    "outcome",
+    "elapsedSeconds",
+    "counters",
+}
+WORKER_PROGRESS_PHASES = frozenset({"startup", "collection", "setup", "call", "teardown"})
+WORKER_PROGRESS_OUTCOMES = frozenset({"passed", "skipped", "failed"})
+WORKER_PROGRESS_COUNTERS = frozenset(
+    {"collected", "selected", "started", "completed", "passed", "skipped", "failed"}
+)
+MAX_PROGRESS_ELAPSED_SECONDS = 7 * 24 * 60 * 60
+PROGRESS_WRITE_INTERVAL_SECONDS = 5.0
 WORKER_RESULT_FIELDS = {
     "schemaVersion",
     "taskId",
@@ -367,11 +385,110 @@ class WorkerPlugin:
     task_id: str
 
     def __post_init__(self) -> None:
+        self.started_at = time.monotonic()
         self.collection_failures: list[str] = []
         self.expected = list(self.manifest.get("nodeIds", []))
         self.assigned = list(self.manifest.get("partitions", [[], []])[self.worker_index])
+        self.assigned_set = set(self.assigned)
         self.execution_reports: dict[str, list[dict[str, str]]] = {}
         self.failure_taxonomy: dict[str, str | None] | None = None
+        self.progress_nodes: dict[str, dict[str, Any]] = {}
+        self.progress_disabled = False
+        self.progress_error_code: str | None = None
+        self.progress_last_write_at: float | None = None
+        self.progress_write_count = 0
+        self.progress_execution_written = False
+        self.progress_collected = False
+        self.progress_phase = "startup"
+        self.progress_node_id: str | None = None
+
+    def _disable_progress(self, code: str) -> None:
+        self.progress_disabled = True
+        self.progress_error_code = code
+
+    def _progress_counters(self) -> dict[str, int]:
+        outcomes = {name: 0 for name in WORKER_PROGRESS_OUTCOMES}
+        completed = 0
+        for state in self.progress_nodes.values():
+            outcomes[state["outcome"]] += 1
+            completed += "teardown" in state["phases"]
+        return {
+            "collected": len(self.expected) if self.progress_collected else 0,
+            "selected": len(self.assigned) if self.progress_collected else 0,
+            "started": len(self.progress_nodes),
+            "completed": completed,
+            **outcomes,
+        }
+
+    def write_progress(
+        self, phase: str, node_id: str | None = None, *, force: bool = False
+    ) -> bool:
+        if self.progress_disabled:
+            return False
+        if phase not in WORKER_PROGRESS_PHASES:
+            self._disable_progress("state_unavailable")
+            return False
+        if node_id is not None and node_id not in self.assigned_set:
+            self._disable_progress("node_unavailable")
+            return False
+        self.progress_phase = phase
+        self.progress_node_id = node_id
+        now = time.monotonic()
+        if (
+            not force
+            and self.progress_last_write_at is not None
+            and now - self.progress_last_write_at < PROGRESS_WRITE_INTERVAL_SECONDS
+        ):
+            return False
+        state = self.progress_nodes.get(node_id) if node_id is not None else None
+        try:
+            _atomic_json(
+                self.worker_dir / "progress.json",
+                {
+                    "schemaVersion": WORKER_PROGRESS_SCHEMA_VERSION,
+                    "phase": phase,
+                    "workerIndex": self.worker_index,
+                    "planSha256": self.manifest["planSha256"],
+                    "nodeId": node_id,
+                    "outcome": state["outcome"] if state is not None else None,
+                    "elapsedSeconds": min(
+                        MAX_PROGRESS_ELAPSED_SECONDS,
+                        max(0, int(now - self.started_at)),
+                    ),
+                    "counters": self._progress_counters(),
+                },
+            )
+        except OSError:
+            self._disable_progress("write_unavailable")
+            return False
+        except Exception:  # noqa: BLE001 - optional diagnostics must not change pytest verdicts
+            self._disable_progress("state_unavailable")
+            return False
+        self.progress_last_write_at = now
+        self.progress_write_count += 1
+        return True
+
+    def observe_progress(self, phase: str, node_id: str, outcome: str) -> None:
+        if self.progress_disabled:
+            return
+        if phase not in {"setup", "call", "teardown"} or outcome not in WORKER_PROGRESS_OUTCOMES:
+            self._disable_progress("report_unavailable")
+            return
+        if node_id not in self.assigned_set:
+            self._disable_progress("node_unavailable")
+            return
+        try:
+            state = self.progress_nodes.setdefault(node_id, {"phases": set(), "outcome": "passed"})
+            state["phases"].add(phase)
+            if {state["outcome"], outcome} & {"failed"}:
+                state["outcome"] = "failed"
+            elif {state["outcome"], outcome} & {"skipped"}:
+                state["outcome"] = "skipped"
+            force = not self.progress_execution_written
+            if self.write_progress(phase, node_id, force=force):
+                self.progress_execution_written = True
+        except Exception:  # noqa: BLE001 - optional diagnostics must not change pytest verdicts
+            self._disable_progress("state_unavailable")
 
     def pytest_collectreport(self, report: Any) -> None:
         if report.failed:
@@ -403,6 +520,8 @@ class WorkerPlugin:
             items[:] = [item for item in items if item.nodeid in assigned]
             for item in items:
                 item.user_properties.append(("rwb_nodeid", item.nodeid))
+            self.progress_collected = True
+            self.write_progress("collection", force=True)
         # Any bad partition evidence must abort collection instead of selecting a partial suite.
         except Exception as error:  # noqa: BLE001
             import pytest
@@ -421,6 +540,7 @@ class WorkerPlugin:
         self.execution_reports.setdefault(report.nodeid, []).append(
             {"phase": report.when, "outcome": report.outcome}
         )
+        self.observe_progress(report.when, report.nodeid, report.outcome)
 
 
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
@@ -757,6 +877,7 @@ def _run_worker(plugin: WorkerPlugin, task_id: str, root_info: os.stat_result) -
     worker_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     (worker_dir / "basetemp").mkdir(mode=0o700, exist_ok=True)
     (worker_dir / "pytest-cache").mkdir(mode=0o700, exist_ok=True)
+    plugin.write_progress("startup", force=True)
     import pytest
 
     previous_environment = os.environ.copy()

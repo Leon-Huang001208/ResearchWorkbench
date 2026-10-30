@@ -427,3 +427,10 @@ PR245 repair3 仅将原同一步根包安装改为产品已有的普通 wheel --
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+2026-10-30 PR245 后继不新增 workflow、job、runner、worker、依赖或 timeout。Catalog 对非初始化
+外部模块检查改为完整默认动态委托闭包证明内的fresh指定top-level metadata投影，本机最终字节固定oracle
+cProfile从9.518秒降至7.016秒，但不据此认证Linux CI时长。原两分区worker只增加5秒节流的私有
+安全进度；7,919-node／23,757 hook等价本机模拟开启中位墙钟0.00884秒、最多6次实际原子写，关闭
+中位0.000709秒，该lower-bound仍不保证runner或完整CI。缺final时artifact保留固定phase/outcome／plan／
+已分配nodeID／有限计数诊断，仍缺final/JUnit/union并保持失败。旧45分钟取消、
+两worker final MISSING及修补计数不改写，最终候选仍运行原Project Constraints、Checks与Mac门。

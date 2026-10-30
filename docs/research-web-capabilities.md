@@ -1,5 +1,15 @@
 # Research Web 能力包与版本
 
+Catalog 对脚本外部模块的存在性检查仍在每次非初始化验证时读取 fresh metadata；当前调用只请求
+本次实际导入的 top-level 模块。快路径只接受stock公共API、Distribution discover／resolver、默认
+PathFinder descriptor、动态MetadataPathFinder类／descriptor、PathDistribution类和files/readers；
+这些命名Python callable另绑定function/code/defaults/closure指纹。真实custom finder在枚举前回原完整API，枚举后身份变化或未知Distribution类型失败关闭且不二次枚举。标准路径复现所有RECORD／
+egg-info行的arity、hash与size构造错误，只跳过无关路径的`stat`；重复namespace、缺失文件、下一次
+metadata/路径变化与异常传播保持；必需私有primitive缺失时模块仍可导入并单次调用公共API。初始化
+事务仍只共享一次完整清单，并在成功或异常后清空。严格语义、完整动态委托与code/defaults闭包证明
+后的最终字节固定AST oracle本机cProfile从9.518秒降至7.016秒，原12次完整清单变为一次完整清单加
+11次fresh投影；这是本机诊断，不认证Linux CI或45分钟门。
+
 pack runtime 的 import policy 只复用完整新读源码字节导出的不可变语法 facts：进程内 LRU 最多 64 项、单源码最多 1 MiB，键同时绑定 module／package、绝对安装根、当前 `ast.parse` 对象与 Python parser 版本。每次 runtime 的依赖 metadata／权限／hash、模块枚举、源码读取、policy 重建及 loaded／search／stdlib／optional 来源核验不缓存；identity、授权、验证 PASS 和完整 policy 也不缓存。本地 Catalog cProfile 保持 runtime=6、policy build=12、module inventory=18、save=281、check=56；实际 parse 270→45，但这不是 Linux CI 时长保证。新回归沿原 Checks Python 清单运行，不新增工具、权限、引擎或 CI 步骤；完整 CI 仍须另证。
 
 发布验证在每个 Python 文件重新解析后，只在本次调用内复用同一棵 AST 的节点枚举；原动态导入、相对导入、依赖、安装器和宿主进程检查仍按原顺序独立执行。不同文件、不同调用和改动后的字节不沿用上次枚举或验证结果；冷初始化六次依赖新鲜性检查和逐次持久化 checkpoint 保持。
