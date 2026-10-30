@@ -12,6 +12,17 @@ DataHub storage primitives. Corruption, symlinks and failed writes fail closed.
 No PostgreSQL, provider connection, new dependency, scheduler or execution loop
 is introduced.
 
+The Host binds current verification, reconciliation, cancellation and report
+projection to the active receipt's `specialist_run_id`. After a completed run
+hands off to an ordinary delivery, its retained ledger is historical; ordinary
+cancellation cannot mutate it or block that ordinary report. Switching a UI mode
+alone does not detach a still-bound unresolved run or authorize a new send.
+
+The persisted envelope and projected control response are both checked against
+the fixed 4 MiB capacity before a new write. The specialist bridge uses that
+same bounded limit; ordinary DataHub responses keep their 1 MiB default. Full
+legal plan histories remain complete rather than silently truncated.
+
 ## Contracts
 
 - `create(sid, budget, as_of, model, request_id, skills=...)` freezes explicitly confirmed

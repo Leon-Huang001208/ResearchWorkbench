@@ -23,6 +23,12 @@
 `POST /api/research/internal/data/specialist-control`，使用现有
 `X-Research-Data-Key`。该路径复用租户 callback 边界，不开放任意 URL。
 
+协作控制回执使用固定 4 MiB 有界读取，与 Host 账本及提交前回执投影检查一致，支持
+合法的完整计划修订历史；普通 DataHub 仍默认 1 MiB。超限明确拒绝，不截断或自动重发。
+当前交付参与账本校验、对账、取消和质量投影时还须匹配 Host 回执的
+`specialist_run_id`；完成后切入普通交付不会让普通取消改写历史协作。只改界面模式不能
+解除仍绑定交付的协作质量门，未解决协作仍禁止普通发送。
+
 ## 提交与真实终态
 
 Host `reserve` 在原生调用前写入 attempt、child UUID 和冻结 prompt。只有 Host 返回的
