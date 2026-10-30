@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+专业协作 MVP 沿原 Research Web Checks Python 步骤登记三个离线测试模块，JS沿原通配符执行；Mac Bootstrap同一步增加模块导入和单个静态资源字节校验。不新增runner/job/依赖/超时或平台dispatch；新增测试预留60秒。2026-10-28 GitHub API核验仓库public、allow_auto_merge=false；模型／厂商请求不进入CI，真实小样本费用另行确认。
+
 备份 FD clone 与单文件快照容量合同沿既有 Project Constraints 的 Git safety step
 登记两份直接 Node 测试；真实 Darwin 小数据 clone/stdlib helper 检查沿既有 Mac Bootstrap
 环境检查步骤运行，使用该次干净安装的 Python，不依赖本机 Homebrew 路径。不新增

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+专业协作入口沿 `specialists/routes.py` → `specialists/service.py` → 私有 `SpecialistLedger`，模型执行仍由 `runtime/specialists.mjs` 调用原生 continuable subagent；guard保留原子Agent配额。`main.py`／`service.py`复用原发送、截止、取消和详情，`research_quality_service.py`追加协作未完成门。UI入口与状态复用原会话，见[合同](research-web-specialists.md)。
+
 备份快照链：`scripts/backup_fd_clone.mjs/.py` 实现可选 Darwin FD 原语，
 `backup_capacity.mjs` 仅测量实际目标 FS 的已知单文件流预算，`git_safety.mjs`
 保留原快照身份与恢复校验并在必要 resourcePhase 后限定复用既有工具链选择。

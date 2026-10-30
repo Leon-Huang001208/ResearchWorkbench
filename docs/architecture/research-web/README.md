@@ -242,3 +242,10 @@ FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03
 本轮新增个人长期研究档案、确定性机会／风险扫描及受管 MCP 候选证据分支，优先阅读[档案合同](../../research-web-dossiers.md)、[扫描合同](../../research-web-dossier-scans.md)、[UI 交接](../../research-web-dossiers-ui.md)与[小创候选](../../research-web-seek-alpha.md)。02 模块图与 04 资料图的新增 Host 内模块／元数据引用由主任务更新并绑定收据；01 部署与 12 私网／资讯服务拓扑保持。个人 SQLite 不存原文，Prompt-only 交接仍进入唯一 DSH；候选 Registry 未核验、真实收费与部署未执行，不能把文档或离线结构认证为已上线。
 
 今日发现原始资讯沿原 Automation research_task 跟踪，批准范围绑定原始资讯及精确核对的事件归档。已登记但核对失效的任务在调度入口拒绝，不回退通用模型执行；默认禁用、独立启用及原质量门保持。详见[发现合同](../../research-web-discovery.md)。
+
+
+## 专业协作接入边界（2026-10-28）
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

@@ -618,6 +618,13 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 资产区间统计的数学与DOM控制器先分别RED/GREEN及独立spec/JS评审，再用CUA支持的真实鼠标输入与冻结快照验证。Mac Bootstrap既有静态资源步骤只补两份本地mjs字节核对，原完整JS通配符、仓库门及同候选Mac安装不减；登录实页和运行未知安全门另证，不触发模型或分时供应商。
 
+
+## 专业协作接入边界（2026-10-28）
+
+既有Checks追加三项离线模块，Mac安装同一步追加导入及资源核验；不增runner/job/依赖/时限，Router完整L4及原三门不变。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
 ## 共享恢复及源路径维护（2026-10-29）
 
 Git cleanup 已退休全部工作树但账本仍ci_passed时，使用既有closeout-recover的新

@@ -290,3 +290,18 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
 个股右键区间统计属于资产浏览器交互，不触发ETF周报、Wind Excel、模型或定时任务；浮窗结果不写入周报冻结输入。区间极值回撤和原始成交均价不替代周报既有风险、复权或同源口径，原生产/准入门保持。
+
+
+## 专业协作接入边界（2026-10-28）
+
+专业协作仅在原FinGPT模式选择和会话内增加预算及状态投影；布局模块分离，沿既有详情和消息生命周期，没有新增工作台或浏览器执行循环。
+
+新增四个专业协作HTTP入口与私有账号账本，Host校验DAG和预算；现有Host→私有桥→唯一DSH结构保持，新增接口在API清单及Atlas逐项登记。
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+专项质量门在原quality_result之后保留否决；新增账本位于账号私有根而非outputs，报告正文、导出版本和规范文件仍归原交付链。
+
+固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

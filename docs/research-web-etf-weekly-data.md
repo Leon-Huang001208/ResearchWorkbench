@@ -364,3 +364,10 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 官方首次正式发布2020-03-02与2018指数基准分开；SOFRAI在自身value date发布，普通隔夜SOFR在其value date下一营业日发布。约08:00ET后发布及约14:30ET同日修订只是规则，不证明任一历史API记录的真实可得瞬时或vintage；revisionIndicator保留供应商原字符串。当前捕获仍first_observed、非历史PIT/正式回测不可用。
 
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
+
+
+## 专业协作接入边界（2026-10-28）
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

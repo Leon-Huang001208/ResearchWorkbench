@@ -108,6 +108,7 @@ export const RESEARCH_TOOLS = new Set([
   'research_check_quality',
   'research_read_source',
   'rwb_record_method_use',
+  'specialist_plan', 'specialist_run', 'specialist_status', 'specialist_cancel',
   'rwb_prepare_automation',
   'rwb_list_automations', 'rwb_prepare_automation_update', 'rwb_run_automation', 'ask_user_question',
   'datahub_search_assets', 'datahub_get_trading_calendar', 'datahub_get_market_bars',
@@ -369,7 +370,7 @@ export function apply(ctx, config = {}) {
       let budget = calls.get(execution.agent);
       if (!budget || budget.turn !== turn) { budget = { turn, calls: 0, children: 0 }; calls.set(execution.agent, budget); }
       budget.calls++;
-      if (execution.name === 'subagent') budget.children++;
+      if (execution.name === 'subagent' || execution.name === 'specialist_run') budget.children++;
       if (budget.calls <= 48 && budget.children <= 4) return undefined;
       ctx.logger.warn('Research Workbench denied tool budget overflow');
       return 'Research tool budget exhausted. Report partial findings and missing work.';

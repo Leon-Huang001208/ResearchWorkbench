@@ -820,6 +820,8 @@ def _prepare_runtime(
             "__PUBLIC_DATA_MODULE__": package / "public-data.mjs",
             "__MCP_TOOLS_MODULE__": package / "mcp-adapter.mjs",
             "__PLUGINS_MODULE__": package / "plugins.mjs",
+            "__SPECIALISTS_MODULE__": package / "specialists.mjs",
+            "__NATIVE_LLM_MODULE__": source / "packages/llm/llm/lib/index.js",
             "__PYTHON__": Path(sys.executable),
             "__RUNNER__": runner,
             "__RESEARCH_ROOT__": data,
