@@ -1434,6 +1434,74 @@ test('remote advance recovery supports another advance before the prepared candi
   assert.equal(fs.readdirSync(path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task')).length, 2);
 });
 
+function secondPublishedBaseAdvance(f) {
+  fs.writeFileSync(path.join(f.projectRoot, 'second-upstream.txt'), 'second upstream\n');
+  git(f.projectRoot, ['add', '.']); git(f.projectRoot, ['commit', '-m', 'second upstream']);
+  const latest = git(f.projectRoot, ['rev-parse', 'HEAD']);
+  git(f.projectRoot, ['update-ref', 'refs/remotes/origin/master', latest]);
+  git(f.receipt.integrationWorktree, ['merge', '--no-ff', '--no-edit', latest]);
+  f.setRemoteBase(latest);
+  return {latest, candidate: git(f.receipt.integrationWorktree, ['rev-parse', 'HEAD'])};
+}
+
+test('published PR prepared receipt admits a second base advance without changing its PR, budget or earlier snapshot', async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.repairAttempts = 3; fs.writeFileSync(f.filename, JSON.stringify(f.receipt));
+  await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  const first = fs.readFileSync(f.filename, 'utf8');
+  const {latest, candidate} = secondPublishedBaseAdvance(f);
+  const refs = git(f.projectRoot, ['show-ref']);
+  const result = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  assert.equal(result.status, 'prepared'); assert.equal(result.baseCommit, latest);
+  assert.equal(result.integrationCommit, candidate); assert.equal(result.baseRefreshPublishedHead, f.receipt.integrationCommit);
+  assert.equal(result.repairAttempts, 3); assert.deepEqual(result.pullRequest, f.receipt.pullRequest);
+  assert.deepEqual(result.ci, {status: 'pending', runs: []}); assert.equal(result.verification, null);
+  assert.equal(git(f.projectRoot, ['show-ref']), refs);
+  const snapshots = path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task');
+  const saved = fs.readdirSync(snapshots).map(file => fs.readFileSync(path.join(snapshots, file), 'utf8'));
+  assert.equal(saved.length, 2); assert.ok(saved.includes(first));
+});
+
+for (const issue of ['wrong-pr', 'unpublished-candidate-pr', 'stale-base', 'dirty', 'removed-candidate', 'wrong-feature', 'wrong-common', 'changed-receipt', 'competing-lock']) test(`published PR prepared second refresh rejects ${issue}`, async t => {
+  const f = baseRefreshFixture(t);
+  await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  secondPublishedBaseAdvance(f);
+  if (issue === 'wrong-pr') f.pr.headRefOid = f.latest;
+  if (issue === 'unpublished-candidate-pr') f.pr.headRefOid = f.candidate;
+  if (issue === 'stale-base') f.setRemoteBase(f.latest);
+  if (issue === 'dirty') fs.writeFileSync(path.join(f.receipt.integrationWorktree, 'untracked'), 'keep');
+  if (issue === 'removed-candidate') {const current = JSON.parse(fs.readFileSync(f.filename)); current.integrationCommit = '1'.repeat(40); fs.writeFileSync(f.filename, JSON.stringify(current));}
+  if (issue === 'wrong-feature') git(f.receipt.featureWorktree, ['switch', '-c', 'codex/other']);
+  if (issue === 'wrong-common') {const current = JSON.parse(fs.readFileSync(f.filename)); current.integrationWorktree = f.projectRoot; fs.writeFileSync(f.filename, JSON.stringify(current));}
+  if (issue === 'changed-receipt') {let reads = 0; f.onRead(() => {if (++reads === 3) {const current = JSON.parse(fs.readFileSync(f.filename)); current.repairAttempts = 4; fs.writeFileSync(f.filename, JSON.stringify(current));}});}
+  if (issue === 'competing-lock') {const lock = path.join(f.projectRoot, '.git/leon-engineering/locks/integration.lock'); fs.writeFileSync(lock, '99999999');}
+  const before = fs.readFileSync(f.filename);
+  const snapshots = path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task');
+  const priorSnapshots = issue === 'unpublished-candidate-pr' ? fs.readdirSync(snapshots).map(file => [file, fs.readFileSync(path.join(snapshots, file))]) : null;
+  const expected = {'wrong-pr': 'PR_HEAD_MISMATCH', 'unpublished-candidate-pr': 'PR_HEAD_MISMATCH', 'stale-base': 'BASE_REFRESH_NOT_NEEDED', dirty: 'WORKTREE_DIRTY', 'removed-candidate': 'BASE_REFRESH_ANCESTRY_INVALID', 'wrong-feature': 'FEATURE_REPAIR_UNVERIFIED', 'wrong-common': 'TASK_OWNERSHIP_MISMATCH', 'changed-receipt': 'DELIVERY_RECORD_CHANGED', 'competing-lock': 'TASK_LOCKED'};
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: expected[issue]});
+  if (issue !== 'changed-receipt') assert.deepEqual(fs.readFileSync(f.filename), before);
+  if (priorSnapshots) assert.deepEqual(fs.readdirSync(snapshots).map(file => [file, fs.readFileSync(path.join(snapshots, file))]), priorSnapshots);
+  assert.notEqual(JSON.parse(fs.readFileSync(f.filename)).baseCommit, git(f.projectRoot, ['rev-parse', 'HEAD']));
+});
+
+for (const issue of ['remote', 'pr']) test(`published PR prepared second refresh rechecks ${issue} after its private snapshot`, async t => {
+  const f = baseRefreshFixture(t);
+  await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  secondPublishedBaseAdvance(f);
+  const before = fs.readFileSync(f.filename);
+  let reads = 0;
+  f.onRead(args => {
+    if (args[0] === (issue === 'remote' ? 'api' : 'pr') && args[1] === (issue === 'remote' ? 'repos/fixture/repo/git/ref/heads/master' : 'view') && ++reads === 3) {
+      if (issue === 'remote') f.setRemoteBase('1'.repeat(40));
+      else f.pr.headRefOid = f.latest;
+    }
+  });
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: issue === 'remote' ? 'REMOTE_BASE_CHANGED' : 'PR_HEAD_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(fs.readdirSync(path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task')).length, 2);
+});
+
 test('remote advance recovery rejects a moving remote base and never removes an existing integration lock', async t => {
   const f = baseRefreshFixture(t), before = fs.readFileSync(f.filename);
   let reads = 0;

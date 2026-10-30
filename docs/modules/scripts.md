@@ -1,5 +1,11 @@
 # Module: scripts
 
+Published PRs whose refreshed candidate is still prepared may adopt a second
+real master advance through the existing prepare operation. The recorded
+published PR head, prior candidate ancestry, clean owned worktrees and receipt
+identity are rechecked before publication of the new prepared record; repair
+counts and previous snapshots are retained.
+
 The optional `backup_fd_clone.mjs` / `backup_fd_clone.py` primitive only copies
 from an already-open source FD into a private directory FD on supported Darwin
 systems. The fixed standard-library helper accepts no arbitrary command; Node
