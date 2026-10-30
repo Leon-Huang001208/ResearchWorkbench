@@ -9,6 +9,14 @@ admission, fsck and actual restore. No existing backup call site is switched by
 this first checkpoint; unsupported/error/unknown and platform limits are explicit
 in the [task report](../../.ai/reports/test_report_backup_cow_admission_20261030.md).
 
+The snapshot integration adds single ordinary-file stream admission in
+`backup_capacity.mjs`; it reads the actual destination filesystem's available
+capacity and rejects unknown/invalid/insufficient measurements. It does not bound
+all Git phases. Optional clone reuse may inherit only the same process and
+operation's already-required successful resourcePhase toolchain selection;
+generic resolver rules and standalone behavior are not relaxed. No runtime
+registry, new CLI interpreter setting or whole-backup certification is introduced.
+
 ## Responsibility
 
 `scripts` provides operational scripts, database bootstrap, backup/restore, smoke tests, and development governance checks.
