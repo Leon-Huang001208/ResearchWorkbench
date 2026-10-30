@@ -22383,6 +22383,40 @@ Functions:
 - `main`
 
 
+## `scripts/backup_fd_clone.py`
+
+Module docstring:
+> Narrow optional Darwin clone bridge; only inherited FDs 3/4 are accepted.
+
+Imports:
+- `__future__`
+- `ctypes`
+- `errno`
+- `json`
+- `logging`
+- `os`
+- `stat`
+- `sys`
+- `typing`
+
+Classes:
+- `Refusal`
+  - A stable, non-sensitive outcome before any copy attempt.
+  - methods: __init__
+
+Functions:
+- `facts`
+  - Losslessly represent the same identity/state fields as Node bigint stat.
+- `validate_request`
+- `system_library`
+- `require_plain_metadata`
+  - Reject rather than inherit ACLs, xattrs or flags into a private payload.
+- `destination_present`
+- `clone`
+  - Attempt at most one clone; any uncertain effect is preserved as unknown.
+- `main`
+
+
 ## `scripts/bootstrap_db.py`
 
 Module docstring:

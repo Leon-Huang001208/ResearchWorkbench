@@ -1,5 +1,12 @@
 # Agent 任务路由指南
 
+备份快照的可选 FD clone 与单文件容量门仍属于既有 Git 交付工具链。只有同一次
+受管操作中原本必要且成功的 resourcePhase 可复用其确切绝对 Python 选择；通用
+解析器、standalone、跳过／失败或测试替身不由此取得新凭证。源哈希后、helper
+spawn 紧前还须拒绝式复核，可能执行后的漂移保持 unknown 且不流式重试。所有
+原 FD/path/hash/fsync/fsck/实际还原门保留；pack／checkout 整体峰值和 PR250
+实际 Git 清理不由局部数据测试证明。详见[计划](plans/2026-10-30-backup-cow-admission.md)。
+
 自选CSV有限slice在原Research Web Checks Python步骤追加test_watchlist_import.py，Node仍走原glob；Mac Bootstrap原静态清单加入watchlist-import.mjs及后端import，不新增job/runner/timeout/依赖。单Host线程屏障需真实Store.files/save的RED→GREEN与回滚保全；跨Host/断电不认证。完整Router/独评/同候选Mac安装及远端由任务回执另证，详见[合同](research-web-watchlist-import.md)。
 
 报告生产UI先在独立worktree绑定真实GET元数据的隔离预览，禁止该预览连接Native/供应商/Office/模型或提交生产；前端回归按完整changed-set Router与原三CI/同候选Mac安装完成。与旧b800恢复独立，unknown不补空闲，源码通过不替代常驻切换或Word/下载验收。
@@ -212,6 +219,13 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --st
   --reviewed-commit EXACT_REVIEWED_PR_HEAD_SHA
 node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
 ```
+
+`--status` 可能在评审／CI满足后执行普通合并，并在 `ci_passed` 后自动进入资源与Git收尾，
+不能当成纯观察。当整体备份阶段尚未取得实际准入时，可显式使用
+`--status --defer-cleanup`：原评审、CI、合并与状态记录要求保持，只延期最后的自动收尾，
+返回 `safetyCleanupDeferred: true`，不把回执或资源标为 `cleaned`。该参数仅可与
+`delivery --status` 同用；后续显式 `--cleanup` 仍须全部原安全前提，不能用延期替代验收。
+仅读CI使用GitHub只读API；其他common directory必须通过正式Git交付采用已审入口，不复制脚本。
 
 发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
 
