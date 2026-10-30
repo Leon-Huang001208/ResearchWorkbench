@@ -18,7 +18,7 @@ from pydantic import ValidationError
 
 from core.observability import get_logger
 
-from ..datahub.security import atomic_json, directory, read_file, sync_directory
+from ..datahub.security import atomic_json, directory, json_bytes, read_file, sync_directory
 from ..report_workflows.catalog import _lock_file, _unlock_file
 from .contracts import Budget, NodeResult, PlanUpdate, SpecialistError
 from .registry import catalog
@@ -202,7 +202,7 @@ class SpecialistLedger:
     def _save(self, fd, envelope, *, result=None):
         limit = 4 * 1024 * 1024
         if (
-            len(json.dumps(envelope, ensure_ascii=False).encode()) > limit
+            len(json_bytes(envelope)) > limit
             or len(json.dumps(self._view(envelope, result=result), ensure_ascii=False).encode())
             > limit
         ):
