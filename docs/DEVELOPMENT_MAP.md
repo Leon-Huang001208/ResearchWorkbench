@@ -6,6 +6,15 @@ PR245 限额后的本地候选只含测试隔离与验证器同树枚举：`test
 
 2026-10-28 PR245 repair3 收敛 `.github/workflows/research-web-checks.yml` 的测试解释器安装边界：现有完整 Web 锁哈希安装、pyproject dev 工具独立解析，根包沿产品普通 wheel 路径 --no-index --no-deps --no-build-isolation，保留七项实装 metadata 并以 -I 从已安装包实际运行 Host／fresh Native 导入准入。`tests/javascript/actions_quota_governance.test.mjs` 实际执行 stdlib-only 锁与工具解析矩阵；`research_web_ci_admission.test.mjs` 沿原 Checks JS 通配符执行离线真实 wheel 构建／无 checkout 资源调用和 optional 污染正反例，不向轻量 Constraints 引入 Hatchling／产品依赖。包内投影、资源、唯一 DSH 和原完整测试清单不改；新 CI 实装／console script／全闭包仍须另验。根包历史 langgraph→jsonpointer 链及 editable 专用 editables 不再引入，用户额外SDK污染仍明确拒绝。
 
+备份快照链：`scripts/backup_fd_clone.mjs/.py` 实现可选 Darwin FD 原语，
+`backup_capacity.mjs` 仅测量实际目标 FS 的已知单文件流预算，`git_safety.mjs`
+保留原快照身份与恢复校验并在必要 resourcePhase 后限定复用既有工具链选择。
+直接回归为 `backup_fd_clone.test.mjs`、`backup_snapshot_capacity.test.mjs` 与
+`test_backup_fd_clone.py`；CI 沿原 Git safety / Mac 环境检查步骤登记，无新服务。
+整体 Git 阶段峰值仍独立未闭，见[计划](plans/2026-10-30-backup-cow-admission.md)。
+快照审计日志独立为恢复点metadata，不进入共享载荷池；`delivery --status --defer-cleanup`
+只显式延期自动收尾，原评审／CI／合并与显式cleanup检查不变，也不签发阶段准入。
+
 quality收尾：watchlist-import.mjs按owner+draft保留/清空原生File控件并拒绝retired scope响应；watchlist_import.py核心函数与TypedDict注解补齐，asset_workspace仅作DTO边界cast/返回类型对齐，无新业务字段。research_web_watchlist_proxy.mjs以inert本地sink和合成proxy/凭据home挑战运行inbound-only夹具及native拒绝。
 
 SPEC P2目标metadata修复位于ui/core.createWatchlist成功事件、asset-controller列表metadata重读、asset-workspace局部props同步与watchlist-import.updateWatchlistTargets；app.mjs不变。research_web_watchlist_import_lists.mjs用真实current observation的原按钮验证零列表首建、A后新建B和真实partial同节点/File链。

@@ -5,6 +5,14 @@ on:
     paths:
       - "setup-web.sh"
       - "scripts/setup_web.py"
+      - "scripts/git_safety.mjs"
+      - "scripts/git_backup_store.mjs"
+      - "scripts/backup_capacity.mjs"
+      - "scripts/backup_fd_clone.mjs"
+      - "scripts/backup_fd_clone.py"
+      - "tests/javascript/backup_fd_clone.test.mjs"
+      - "tests/javascript/backup_snapshot_capacity.test.mjs"
+      - "tests/unit/test_backup_fd_clone.py"
       - "requirements/web.in"
       - "requirements/web.lock"
       - "requirements/**"
@@ -53,6 +61,14 @@ on:
     paths:
       - "setup-web.sh"
       - "scripts/setup_web.py"
+      - "scripts/git_safety.mjs"
+      - "scripts/git_backup_store.mjs"
+      - "scripts/backup_capacity.mjs"
+      - "scripts/backup_fd_clone.mjs"
+      - "scripts/backup_fd_clone.py"
+      - "tests/javascript/backup_fd_clone.test.mjs"
+      - "tests/javascript/backup_snapshot_capacity.test.mjs"
+      - "tests/unit/test_backup_fd_clone.py"
       - "requirements/web.in"
       - "requirements/web.lock"
       - "requirements/**"
@@ -147,6 +163,8 @@ jobs:
         run: |
           set -euo pipefail
           test -x .venv/bin/python
+          RWB_BACKUP_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/backup_fd_clone.test.mjs tests/javascript/backup_snapshot_capacity.test.mjs
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m unittest tests.unit.test_backup_fd_clone
           "$PWD/.venv/bin/python" -c "import os,sys; from pathlib import Path; from research_workbench_entrypoint.resident.gateway_upgrade import native_image, process; command=process(os.getpid()).split(maxsplit=5)[-1]; assert any(command.startswith(str(p)+' ') for p in (native_image(os.getpid()),sys.executable,Path(sys.executable).resolve()))"
           "$PWD/.venv/bin/python" - <<'PY'
           import json, subprocess, sys, tempfile, threading, time
