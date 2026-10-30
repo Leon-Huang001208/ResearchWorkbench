@@ -205,6 +205,31 @@ def _write_result(root: Path, result: dict[str, Any], index: int = 0) -> None:
     (root / f"worker-{index}" / "result.json").write_text(json.dumps(result), encoding="utf-8")
 
 
+def _write_progress(root: Path, index: int = 0) -> dict[str, Any]:
+    manifest = json.loads((root / "partitions.json").read_text(encoding="utf-8"))
+    assigned = manifest["partitions"][index]
+    progress = {
+        "schemaVersion": 1,
+        "phase": "setup",
+        "workerIndex": index,
+        "planSha256": manifest["planSha256"],
+        "nodeId": assigned[0],
+        "outcome": "passed",
+        "elapsedSeconds": 17,
+        "counters": {
+            "collected": len(manifest["nodeIds"]),
+            "selected": len(assigned),
+            "started": 1,
+            "completed": 0,
+            "passed": 1,
+            "skipped": 0,
+            "failed": 0,
+        },
+    }
+    (root / f"worker-{index}" / "progress.json").write_text(json.dumps(progress), encoding="utf-8")
+    return progress
+
+
 def _write_scheduler_junit_summary(
     root: Path, index: int, junit_bytes: bytes, counts: dict[str, int]
 ) -> None:
@@ -370,6 +395,214 @@ def test_failed_worker_staging_keeps_safe_taxonomy_without_failure_body(tmp_path
     assert "failure phase: call" in safe_log
     assert "failure code: pytest_call_failed" in safe_log
     assert failure_body.encode() not in staged_bytes
+
+
+def test_missing_final_stages_only_closed_safe_progress_diagnostic(tmp_path: Path) -> None:
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    expected = _write_progress(root)
+    (root / "worker-0" / "result.json").unlink()
+    scheduler_path = root / "scheduler-result.json"
+    scheduler = json.loads(scheduler_path.read_text(encoding="utf-8"))
+    scheduler.update(status="failed", actualNodeIds=[], workers=[])
+    scheduler_path.write_text(json.dumps(scheduler), encoding="utf-8")
+
+    output = _stage(tmp_path, root)
+    progress = json.loads(
+        (output / "research-web" / "worker-0" / "progress.json").read_text(encoding="utf-8")
+    )
+    safe_result = json.loads(
+        (output / "research-web" / "worker-0" / "result.json").read_text(encoding="utf-8")
+    )
+
+    assert progress == expected
+    assert safe_result["status"] == "missing"
+    assert safe_result["progress"] == expected
+
+
+def test_missing_final_accepts_bounded_startup_lower_bound(tmp_path: Path) -> None:
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    manifest = json.loads((root / "partitions.json").read_text(encoding="utf-8"))
+    startup = {
+        "schemaVersion": 1,
+        "phase": "startup",
+        "workerIndex": 0,
+        "planSha256": manifest["planSha256"],
+        "nodeId": None,
+        "outcome": None,
+        "elapsedSeconds": 0,
+        "counters": {name: 0 for name in staging.WORKER_PROGRESS_COUNTERS},
+    }
+    (root / "worker-0" / "progress.json").write_text(json.dumps(startup), encoding="utf-8")
+    (root / "worker-0" / "result.json").unlink()
+    scheduler_path = root / "scheduler-result.json"
+    scheduler = json.loads(scheduler_path.read_text(encoding="utf-8"))
+    scheduler.update(status="failed", actualNodeIds=[], workers=[])
+    scheduler_path.write_text(json.dumps(scheduler), encoding="utf-8")
+
+    output = _stage(tmp_path, root)
+    safe_result = json.loads(
+        (output / "research-web" / "worker-0" / "result.json").read_text(encoding="utf-8")
+    )
+    assert safe_result["progress"] == startup
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "unknown-field",
+        "elapsed-bool",
+        "elapsed-float",
+        "elapsed-large",
+        "counter-bool",
+        "counter-large",
+        "foreign-node",
+        "wrong-plan",
+    ],
+)
+def test_progress_diagnostic_rejects_unknown_or_private_fields(tmp_path: Path, tamper: str) -> None:
+    assert staging.WORKER_PROGRESS_FIELDS == partitions.WORKER_PROGRESS_FIELDS
+    assert staging.WORKER_PROGRESS_PHASES == partitions.WORKER_PROGRESS_PHASES
+    assert staging.WORKER_PROGRESS_OUTCOMES == partitions.WORKER_PROGRESS_OUTCOMES
+    assert staging.WORKER_PROGRESS_COUNTERS == partitions.WORKER_PROGRESS_COUNTERS
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    progress = _write_progress(root)
+    (root / "worker-0" / "result.json").unlink()
+    scheduler_path = root / "scheduler-result.json"
+    scheduler = json.loads(scheduler_path.read_text(encoding="utf-8"))
+    scheduler.update(status="failed", actualNodeIds=[], workers=[])
+    scheduler_path.write_text(json.dumps(scheduler), encoding="utf-8")
+    if tamper == "unknown-field":
+        progress["stdout"] = "PRIVATE_PROGRESS_BODY"
+    elif tamper == "elapsed-bool":
+        progress["elapsedSeconds"] = True
+    elif tamper == "elapsed-float":
+        progress["elapsedSeconds"] = 1.5
+    elif tamper == "elapsed-large":
+        progress["elapsedSeconds"] = staging.MAX_PROGRESS_ELAPSED_SECONDS + 1
+    elif tamper == "counter-bool":
+        progress["counters"]["failed"] = True
+    elif tamper == "counter-large":
+        progress["counters"]["started"] = 1_000_000
+    elif tamper == "foreign-node":
+        progress["nodeId"] = "/private/user/path::test_secret"
+    else:
+        progress["planSha256"] = "f" * 64
+    (root / "worker-0" / "progress.json").write_text(json.dumps(progress), encoding="utf-8")
+
+    with pytest.raises(staging.StagingError, match="progress|execution"):
+        _stage(tmp_path, root)
+
+
+def test_valid_final_ignores_even_malformed_optional_progress(tmp_path: Path) -> None:
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    (root / "worker-0" / "progress.json").write_text(
+        json.dumps({"stdout": "PRIVATE_PROGRESS_BODY", "unknown": True}), encoding="utf-8"
+    )
+
+    output = _stage(tmp_path, root)
+    safe_result = json.loads(
+        (output / "research-web" / "worker-0" / "result.json").read_text(encoding="utf-8")
+    )
+
+    assert safe_result["status"] == "passed"
+    assert safe_result["progress"] is None
+    assert not (output / "research-web" / "worker-0" / "progress.json").exists()
+
+
+def test_valid_final_does_not_open_unsafe_optional_progress(tmp_path: Path) -> None:
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = _write_runner_root(runner_temp)
+    outside = tmp_path / "outside-progress.json"
+    outside.write_text('"PRIVATE_PROGRESS_BODY"', encoding="utf-8")
+    (root / "worker-0" / "progress.json").symlink_to(outside)
+
+    output = _stage(tmp_path, root)
+    staged_bytes = b"".join(path.read_bytes() for path in output.rglob("*") if path.is_file())
+
+    assert b"PRIVATE_PROGRESS_BODY" not in staged_bytes
+    assert not (output / "research-web" / "worker-0" / "progress.json").exists()
+
+
+@pytest.mark.parametrize("failed_subtest", [False, True], ids=["pass-skip", "failed"])
+def test_real_pytest9_subtests_keep_final_authoritative_for_staging(
+    tmp_path: Path, failed_subtest: bool
+) -> None:
+    fixture_root = tmp_path / "fixture-project"
+    test_root = fixture_root / "tests" / "research_web"
+    test_root.mkdir(parents=True)
+    failure = (
+        "self.assertEqual(value, 99)" if failed_subtest else "self.assertGreaterEqual(value, 0)"
+    )
+    test_root.joinpath("test_fixture.py").write_text(
+        f"""
+import unittest
+
+class TestSubtests(unittest.TestCase):
+    def test_many(self):
+        for value in range(9):
+            with self.subTest(value=value):
+                if value == 7 and not {failed_subtest!r}:
+                    self.skipTest('subtest skip')
+                {failure}
+
+    def test_other(self):
+        self.assertTrue(True)
+""",
+        encoding="utf-8",
+    )
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    root = runner_temp / "rwb-ci-pytest-research-web"
+    command = [
+        sys.executable,
+        "-P",
+        str(Path(partitions.__file__).resolve()),
+        "--task-root",
+        str(root),
+        "--allowed-parent",
+        str(runner_temp),
+        "--task-id",
+        "fixture-research-web",
+        "--",
+        "tests/research_web/test_fixture.py",
+        "--confcutdir=tests/research_web",
+        "-q",
+    ]
+    environment = dict(os.environ)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONPATH"] = partitions._pythonpath(
+        fixture_root, environment.get("PYTHONPATH", "")
+    )
+    completed = subprocess.run(
+        command,
+        cwd=fixture_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    summary = json.loads((root / "scheduler-result.json").read_text(encoding="utf-8"))
+    if failed_subtest:
+        assert completed.returncode != 0
+        assert summary["status"] == "failed"
+    else:
+        assert completed.returncode == 0
+        assert summary["status"] == "passed"
+
+    output = _stage(tmp_path, root)
+    safe_summary = json.loads(
+        (output / "research-web" / "scheduler-result.json").read_text(encoding="utf-8")
+    )
+    assert safe_summary["status"] == summary["status"]
 
 
 def test_rejects_identifier_shaped_error_class_in_raw_schema_v3_result(tmp_path: Path) -> None:

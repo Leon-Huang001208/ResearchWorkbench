@@ -424,6 +424,17 @@ fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非
 
 Research Web Checks 将两条原 Python scope 交给 `scripts/run_ci_pytest_partitions.py` 调度；文件、nodeID、pytest 配置和第二条 unit scope 保持原选择。调度父进程先按真实收集结果生成含任务身份与摘要的分区计划，再独立启动并持有两个 worker 的 Popen；worker 各自核对完整收集、执行阶段与带 `rwb_nodeid` 属性的 JUnit。父进程按 PID、UID、根 inode、worker index、完整 schema 与计划摘要验证结果，并复核执行/报告 ID 的无交集完整并集。worker 的临时目录、pytest cache、JUnit、结果和日志分开保存。collection/test/worker/报告错误和中断均失败退出，skip 在 JUnit 保留；中断只通知并等待本调度器持有的 worker Popen。首个hosted失败定位为测试模块用frozenset生成23个参数的顺序跨独立Python进程变化；该模块现显式排序，保留全部案例与worker有序collection门。Worker result schema v3 为失败结果附加固定字段的 `phase/errorClass/errorCode`；producer 与 stager 共用同一固定内建异常／`PartitionError`／`UnknownError` 枚举，未知 identifier 形消息归零、未知异常对象泛化，stager 拒绝枚举外值。它仅重建这组安全分类及脱敏 JUnit/nodeID/manifest/摘要日志；不上传原始环境、错误正文、私有异常类名、JUnit输出或 pytest stdout。stager 仍通过固定白名单、目录 FD 和 no-follow 打开输入，拒绝软链接、硬链接、文件类型/owner变化与目录替换。该分片复用同一 Ubuntu job 与45分钟上限；CI 全程耗时仍须由候选运行实测，不由分区本机通过推断。
 
+每个worker另在startup、collection、首次执行阶段及其后最多每5秒原子更新私有同目录
+`progress.json`。hook只更新内存中唯一assigned node的最坏outcome和单次teardown完成；持久快照是
+事件驱动的last-persisted lower-bound；`elapsedSeconds`只标记该次落盘相对worker启动的时间。5秒是写入
+频率上限，不是新鲜度保证；没有新hook事件或单次调用较长时，快照可任意更旧，绝不代表当前或最终
+结果。schema只含固定phase/outcome、worker index、plan SHA、已分配相对nodeID和有限整数计数；不含
+stdout、异常正文或私有绝对路径。普通诊断写／状态异常
+只置固定disabled/error code，不改变原pytest pass/fail/skip或critical final；BaseException不由诊断层
+吞掉。stager只有在final `result.json`缺失时才解析并严格校验owner、完整字段、plan、node白名单、
+类型与边界；合法final存在时完全忽略progress。progress不满足final、JUnit或exact-union，也不能把
+worker/scheduler状态提升为PASS。
+
 ### L0-L4 分层
 
 | 等级 | 最小验收语义 | 典型证据 |

@@ -28,7 +28,24 @@ SOURCE_ALLOWLIST = (
     "worker-1/junit.xml",
     "worker-1/pytest.log",
 )
+PROGRESS_ALLOWLIST = ("worker-0/progress.json", "worker-1/progress.json")
 MAX_FILE_BYTES = 100 * 1024 * 1024
+WORKER_PROGRESS_FIELDS = {
+    "schemaVersion",
+    "phase",
+    "workerIndex",
+    "planSha256",
+    "nodeId",
+    "outcome",
+    "elapsedSeconds",
+    "counters",
+}
+WORKER_PROGRESS_PHASES = frozenset({"startup", "collection", "setup", "call", "teardown"})
+WORKER_PROGRESS_OUTCOMES = frozenset({"passed", "skipped", "failed"})
+WORKER_PROGRESS_COUNTERS = frozenset(
+    {"collected", "selected", "started", "completed", "passed", "skipped", "failed"}
+)
+MAX_PROGRESS_ELAPSED_SECONDS = 7 * 24 * 60 * 60
 WORKER_RESULT_FIELDS = {
     "schemaVersion",
     "taskId",
@@ -431,14 +448,14 @@ def _sanitize_junit(
     assigned: list[str],
     *,
     allow_partial: bool,
-) -> tuple[bytes, dict[str, Any], dict[str, dict[str, bool]]]:
+) -> tuple[bytes, dict[str, Any], dict[str, dict[str, int]]]:
     try:
         root = ET.fromstring(data)
     except ET.ParseError as error:
         raise StagingError("JUnit XML is malformed") from error
     cases = root.findall(".//testcase")
     nodeids: list[str] = []
-    outcomes: dict[str, dict[str, bool]] = {}
+    outcomes: dict[str, dict[str, int]] = {}
     for case in cases:
         values = [
             prop.attrib.get("value")
@@ -452,9 +469,9 @@ def _sanitize_junit(
             raise StagingError("JUnit case is outside its assigned partition")
         nodeids.append(nodeid)
         outcomes[nodeid] = {
-            "failure": bool(case.findall("failure")),
-            "error": bool(case.findall("error")),
-            "skipped": bool(case.findall("skipped")),
+            "failure": len(case.findall("failure")),
+            "error": len(case.findall("error")),
+            "skipped": len(case.findall("skipped")),
         }
     if len(set(nodeids)) != len(nodeids):
         raise StagingError("JUnit case node IDs are duplicated")
@@ -464,9 +481,9 @@ def _sanitize_junit(
     summary = {
         "nodeIds": nodeids,
         "tests": len(nodeids),
-        "failures": sum(int(item["failure"]) for item in outcomes.values()),
-        "errors": sum(int(item["error"]) for item in outcomes.values()),
-        "skipped": sum(int(item["skipped"]) for item in outcomes.values()),
+        "failures": sum(item["failure"] for item in outcomes.values()),
+        "errors": sum(item["error"] for item in outcomes.values()),
+        "skipped": sum(item["skipped"] for item in outcomes.values()),
     }
     safe_root = ET.Element(
         "testsuite",
@@ -484,11 +501,11 @@ def _sanitize_junit(
         )
         properties = ET.SubElement(safe_case, "properties")
         ET.SubElement(properties, "property", {"name": "rwb_nodeid", "value": nodeid})
-        if outcomes[nodeid]["failure"]:
+        for _ in range(outcomes[nodeid]["failure"]):
             ET.SubElement(safe_case, "failure", {"type": "failure"})
-        if outcomes[nodeid]["error"]:
+        for _ in range(outcomes[nodeid]["error"]):
             ET.SubElement(safe_case, "error", {"type": "error"})
-        if outcomes[nodeid]["skipped"]:
+        for _ in range(outcomes[nodeid]["skipped"]):
             ET.SubElement(safe_case, "skipped")
     return ET.tostring(safe_root, encoding="utf-8", xml_declaration=True), summary, outcomes
 
@@ -496,7 +513,7 @@ def _sanitize_junit(
 def _validate_passed_execution(
     execution: Any,
     assigned: list[str],
-    junit_outcomes: dict[str, dict[str, bool]],
+    junit_outcomes: dict[str, dict[str, int]],
 ) -> list[str]:
     if not isinstance(execution, list) or len(execution) != len(assigned):
         raise StagingError("passing worker execution records are incomplete")
@@ -537,7 +554,7 @@ def _validate_passed_execution(
         if junit_outcome is None:
             raise StagingError("passing worker node ID is missing from JUnit")
         phase_skipped = any(phase["outcome"] == "skipped" for phase in phases)
-        if junit_outcome["skipped"] != phase_skipped:
+        if bool(junit_outcome["skipped"]) != phase_skipped:
             raise StagingError("JUnit skip does not match pytest phase outcomes")
         if junit_outcome["failure"] or junit_outcome["error"]:
             raise StagingError("passing worker JUnit contains a failure or error")
@@ -545,6 +562,76 @@ def _validate_passed_execution(
     if nodeids != assigned or len(set(nodeids)) != len(nodeids):
         raise StagingError("passing worker execution IDs do not exactly match its assignment")
     return nodeids
+
+
+def _safe_worker_progress(
+    value: Any, *, index: int, manifest: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != WORKER_PROGRESS_FIELDS:
+        raise StagingError(f"worker-{index} progress schema is invalid")
+    if manifest is None:
+        raise StagingError(f"worker-{index} progress has no partition manifest")
+    phase = value.get("phase")
+    node_id = value.get("nodeId")
+    outcome = value.get("outcome")
+    elapsed = value.get("elapsedSeconds")
+    counters = value.get("counters")
+    assigned = manifest["partitions"][index]
+    if (
+        type(value.get("schemaVersion")) is not int
+        or value["schemaVersion"] != 1
+        or type(value.get("workerIndex")) is not int
+        or value["workerIndex"] != index
+        or value.get("planSha256") != manifest["planSha256"]
+        or not isinstance(phase, str)
+        or phase not in WORKER_PROGRESS_PHASES
+        or type(elapsed) is not int
+        or not 0 <= elapsed <= MAX_PROGRESS_ELAPSED_SECONDS
+        or not isinstance(counters, dict)
+        or set(counters) != WORKER_PROGRESS_COUNTERS
+        or any(type(count) is not int or count < 0 for count in counters.values())
+    ):
+        raise StagingError(f"worker-{index} progress identity or types are invalid")
+    if (
+        counters["collected"] > len(manifest["nodeIds"])
+        or counters["selected"] > len(assigned)
+        or any(
+            counters[name] > len(assigned)
+            for name in ("started", "completed", "passed", "skipped", "failed")
+        )
+        or counters["completed"] > counters["started"]
+        or counters["passed"] + counters["skipped"] + counters["failed"] != counters["started"]
+    ):
+        raise StagingError(f"worker-{index} progress counters are out of bounds")
+    if phase == "startup":
+        if node_id is not None or outcome is not None or any(counters.values()):
+            raise StagingError(f"worker-{index} startup progress is inconsistent")
+    elif phase == "collection":
+        if (
+            node_id is not None
+            or outcome is not None
+            or counters["collected"] != len(manifest["nodeIds"])
+            or counters["selected"] != len(assigned)
+            or any(
+                counters[name] for name in ("started", "completed", "passed", "skipped", "failed")
+            )
+        ):
+            raise StagingError(f"worker-{index} collection progress is inconsistent")
+    elif (
+        not isinstance(node_id, str)
+        or node_id not in assigned
+        or outcome not in WORKER_PROGRESS_OUTCOMES
+        or counters["collected"] != len(manifest["nodeIds"])
+        or counters["selected"] != len(assigned)
+        or counters["started"] < 1
+        or counters[outcome] < 1
+        or phase == "teardown"
+        and counters["completed"] < 1
+    ):
+        raise StagingError(f"worker-{index} execution progress is inconsistent")
+    return value
 
 
 def _safe_worker_summary(
@@ -558,6 +645,17 @@ def _safe_worker_summary(
     expected_ids = manifest["partitions"][index] if manifest else []
     result_data = files.get(f"worker-{index}/result.json")
     result = _read_json(result_data, f"worker-{index} result", required=False)
+    progress = None
+    if result is None:
+        progress = _safe_worker_progress(
+            _read_json(
+                files.get(f"worker-{index}/progress.json"),
+                f"worker-{index} progress",
+                required=False,
+            ),
+            index=index,
+            manifest=manifest,
+        )
     owner_data = files.get(f"worker-{index}.owner.json")
     owner = _read_json(owner_data, f"worker-{index} owner", required=False)
     status = "missing"
@@ -565,7 +663,7 @@ def _safe_worker_summary(
     exit_code: int | None = None
     execution_ids: list[str] = []
     junit_summary: dict[str, Any] | None = None
-    junit_outcomes: dict[str, dict[str, bool]] = {}
+    junit_outcomes: dict[str, dict[str, int]] = {}
     junit_bytes: bytes | None = None
     junit_sha256: str | None = None
     failure_taxonomy: dict[str, str | None] | None = None
@@ -600,6 +698,8 @@ def _safe_worker_summary(
         ):
             raise StagingError(f"worker-{index} owner record identity is invalid")
         pid = owner.get("pid") if type(owner.get("pid")) is int else None
+    if progress is not None and owner is None:
+        raise StagingError(f"worker-{index} progress has no registered owner")
 
     if result:
         if set(result) != WORKER_RESULT_FIELDS:
@@ -696,10 +796,15 @@ def _safe_worker_summary(
         "junit": junit_summary,
         "junitSha256": junit_sha256,
         "failureTaxonomy": failure_taxonomy,
+        "progress": progress if result is None else None,
     }
     scope_files: dict[str, bytes] = {}
     if junit_bytes is not None:
         scope_files[f"worker-{index}/junit.xml"] = junit_bytes
+    if result is None and progress is not None:
+        scope_files[f"worker-{index}/progress.json"] = (
+            json.dumps(progress, sort_keys=True, ensure_ascii=False) + "\n"
+        ).encode("utf-8")
     log_lines = [
         f"worker: {index}",
         f"pid: {pid if pid is not None else 'not-started'}",
@@ -708,6 +813,14 @@ def _safe_worker_summary(
         f"assigned node count: {len(expected_ids)}",
         f"executed node count: {len(execution_ids)}",
     ]
+    if result is None and progress is not None:
+        log_lines.extend(
+            [
+                f"progress phase: {progress['phase']}",
+                f"progress nodeid: {progress['nodeId'] or 'none'}",
+                f"progress elapsed seconds: {progress['elapsedSeconds']}",
+            ]
+        )
     if junit_summary:
         log_lines.extend(
             [
@@ -961,6 +1074,15 @@ def _load_source_root(
         raw_files: dict[str, bytes] = {}
         source_stats: dict[str, os.stat_result] = {ROOT_MARKER: marker_stat}
         for relative in SOURCE_ALLOWLIST:
+            loaded = _read_relative(
+                root_fd, relative, root_device=root_info.st_dev, uid=os.getuid()
+            )
+            if loaded is None:
+                continue
+            raw_files[relative], source_stats[relative] = loaded
+        for index, relative in enumerate(PROGRESS_ALLOWLIST):
+            if f"worker-{index}/result.json" in raw_files:
+                continue
             loaded = _read_relative(
                 root_fd, relative, root_device=root_info.st_dev, uid=os.getuid()
             )

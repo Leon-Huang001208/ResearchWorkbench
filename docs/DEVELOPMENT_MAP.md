@@ -1,5 +1,18 @@
 # Research Workbench Development Map
 
+`capabilities/catalog.py` 的非初始化脚本依赖检查仍逐次读取当前发行包 metadata，但只投影本次
+脚本实际导入的 top-level 模块。仅当公共metadata API、Distribution.discover／resolver、默认
+PathFinder descriptor、其动态读取的MetadataPathFinder类／find descriptor、PathDistribution类及
+Distribution.files/readers及其function/code/defaults/closure指纹全部仍为stock primitive时走快路径；真实custom finder在任何枚举前回到
+`packages_distributions()`，不双重消费。标准路径复现每个 RECORD／egg-info 行的 arity、hash、size
+构造错误，只省略无关路径的 `stat`。namespace 多发行包、缺失文件、metadata/路径更新及异常保持
+fresh；必需私有primitive在模块导入时以sentinel安全捕获，缺失直接走公共API；枚举后委托身份变化
+或未知Distribution类型失败关闭且不二次枚举。初始化事务原单次清单及
+`finally`清空不变。
+近回归位于 `test_capabilities.py`；完整有序验证 oracle、6 次 runtime、12 次 policy build、18 次
+module inventory、56 次 check、56 次 publish 与 281 次 save 保持；profile 中 `validate=108` 是调用
+事实，不降为 check 数。本机单例 profile 不是 Linux CI 通过声明。
+
 `pack_import_policy.py` 以最多 64 项、每项源码不超过 1 MiB 的进程内 LRU 复用纯导入语法事实；键绑定完整 fresh bytes、module／package、绝对根、`ast.parse` 对象和 Python parser 版本。`pack_dependencies.runtime_identity` 的每次模块枚举、源码／metadata／权限／hash 读取、policy 重建及 loaded／search／stdlib／optional 核验保持；缓存不保存 identity、授权、PASS 或完整 policy。`tests/research_web/test_pack_import_facts.py` 覆盖 fresh map 复用、bytes/root/parser 失效、当前模块增删、同尺寸恢复 mtime、loaded／search、异常清理与返回等价。没有新模块边界、服务或 API；六次 runtime freshness、56 次验证与 281 个保存 checkpoint 保留，原 CI 取消与未验证门不由本地 profile 改写。
 
 PR245 限额后的本地候选只含测试隔离与验证器同树枚举：`test_api.isolated_keyring` 为同例共享、例间独立的 memory vault，并拒绝真实 credential fallback；12个CI模块和3个相关模块显式导入。`capabilities/catalog.py:validate` 在每次 fresh parse 后局部枚举一次，原九个检查源改用该 tuple，检查顺序／六次 freshness／逐次 save 不动。近回归为 `test_fixture_credentials.py` 与 `test_capabilities_ast.py`／冻结 ordered oracle；原38 CI不完整、首F和历史Keychain UNKNOWN保留，normal bench与功能证据分开。此候选没有远端发布权限，三次修补限额不重置，C/D仅为ignored原型／设计。
@@ -531,6 +544,15 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
 - `scripts/run_ci_pytest_partitions.py`、`scripts/stage_ci_pytest_evidence.py`、`tests/unit/test_ci_pytest_partitions.py`、`tests/unit/test_ci_pytest_evidence_staging.py`：调度父进程在原 Research Web Checks job 内按实际 pytest nodeID 确定两个分区并持有 worker Popen；精确验证执行记录、JUnit node 属性、PID/UID/root inode 和 plan digest。失败RED定位到 `test_model_provider_upgrade.py` 对 `frozenset` 参数的非确定顺序，现按排序方式参数化并保留原23项；Worker result schema v3 为失败结果记录固定 phase、固定安全枚举 exception class 和稳定 code。任意 identifier 形 pytest 消息不再成为分类，未知异常对象泛化为 `UnknownError`，stager 只接受与 producer 相同的枚举。Artifact helper只输出分类和脱敏证据，不传输错误正文或私有类名；不增加 job/runner、依赖或超时，真实候选 CI 时长仍由远端证据判定。
+- 同一 worker 在 startup、collection、首次执行阶段及其后最多每5秒，以私有同目录原子写 schema v1
+  `progress.json`；每个hook只更新内存中的唯一assigned node状态、最坏outcome与单次teardown完成。
+  字段仅含固定phase/outcome、worker index、plan SHA、已分配nodeID和有限整数lower-bound计数；
+  `elapsedSeconds`只标记last persisted快照相对worker启动的时间。5秒仅限制事件驱动写入频率；无新hook
+  事件或单次调用较长时可任意更旧，绝不作为当前或最终结果。普通诊断异常只置固定disabled/error code，
+  不含正文且不改变pytest
+  verdict；BaseException不被诊断层吞掉。stager仅在final缺失时解析并严格核schema/owner/plan/node/
+  bounds；合法final存在时完全忽略progress。真实pytest9 subtest、逐阶段OSError、SIGTERM与恶意字段
+  回归位于上述unit模块。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。
 - `Research Web Tabbit Verify` 当前仅手动触发；Tabbit 契约变化或平台支持声明必须显式运行双平台工作流，自动 Project Constraints 继续检查其触发器契约。

@@ -392,6 +392,113 @@ def _run_fixture_suite(tmp_path: Path, source: str) -> tuple[int, Path]:
     return completed.returncode, result_root
 
 
+def _run_worker_with_progress_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, phase: str, outcome: str
+) -> tuple[int, dict, partitions.WorkerPlugin]:
+    fixture_root = tmp_path / "fixture-project"
+    tests = fixture_root / "tests"
+    tests.mkdir(parents=True)
+    statement = {
+        "passed": "assert True",
+        "failed": "assert False, 'original failure'",
+        "skipped": "import pytest; pytest.skip('original skip')",
+    }[outcome]
+    filename = f"test_progress_{phase}_{outcome}.py"
+    module_name = filename.removesuffix(".py")
+    (tests / filename).write_text(
+        f"def test_target(): {statement}\ndef test_other(): assert True\n", encoding="utf-8"
+    )
+    arguments = [f"tests/{filename}", "--confcutdir=tests", "-q"]
+    nodeids = [f"tests/{filename}::test_target", f"tests/{filename}::test_other"]
+    task_id = "progress-write-failure"
+    split = partitions.split_nodeids(nodeids)
+    manifest = {
+        "schemaVersion": partitions.MANIFEST_SCHEMA_VERSION,
+        "taskId": task_id,
+        "selection": arguments,
+        "nodeIds": nodeids,
+        "partitions": split,
+        "planSha256": partitions._plan_sha256(task_id, arguments, nodeids, split),
+    }
+    root = tmp_path / "worker-root"
+    root.mkdir(mode=0o700)
+    worker_dir = root / "worker-0"
+    plugin = partitions.WorkerPlugin(0, worker_dir, manifest, arguments, task_id)
+    original = partitions._atomic_json
+
+    def fail_selected_progress(path: Path, value: dict) -> None:
+        if path.name == "progress.json" and value.get("phase") == phase:
+            raise OSError("PRIVATE_PROGRESS_WRITE_FAILURE")
+        original(path, value)
+
+    monkeypatch.setattr(partitions, "_atomic_json", fail_selected_progress)
+    monkeypatch.setattr(partitions, "PROGRESS_WRITE_INTERVAL_SECONDS", 0)
+    monkeypatch.chdir(fixture_root)
+    exit_code = partitions._run_worker(plugin, task_id, root.stat())
+    sys.modules.pop(module_name, None)
+    result = json.loads((worker_dir / "result.json").read_text(encoding="utf-8"))
+    return exit_code, result, plugin
+
+
+@pytest.mark.parametrize("phase", ["startup", "collection", "setup", "call", "teardown"])
+def test_progress_write_oserror_never_changes_passing_worker_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str
+) -> None:
+    exit_code, result, plugin = _run_worker_with_progress_failure(
+        tmp_path, monkeypatch, phase=phase, outcome="passed"
+    )
+
+    assert exit_code == 0
+    assert result["status"] == "passed"
+    assert result["pytestExitCode"] == 0
+    assert result["failureTaxonomy"] is None
+    assert plugin.progress_disabled
+    assert plugin.progress_error_code == "write_unavailable"
+    assert "PRIVATE_PROGRESS_WRITE_FAILURE" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("outcome", ["failed", "skipped"])
+def test_progress_write_oserror_preserves_original_failed_or_skipped_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    exit_code, result, plugin = _run_worker_with_progress_failure(
+        tmp_path, monkeypatch, phase="call", outcome=outcome
+    )
+
+    assert plugin.progress_disabled
+    assert plugin.progress_error_code == "write_unavailable"
+    if outcome == "failed":
+        assert exit_code == 1
+        assert result["status"] == "failed"
+        assert result["failureTaxonomy"]["errorCode"] == "pytest_call_failed"
+    else:
+        assert exit_code == 0
+        assert result["status"] == "passed"
+        assert result["junit"]["skipped"] == 1
+    assert "PRIVATE_PROGRESS_WRITE_FAILURE" not in json.dumps(result)
+
+
+def test_progress_does_not_swallow_baseexception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest = {
+        "nodeIds": ["tests/test_fixture.py::test_one", "tests/test_fixture.py::test_two"],
+        "partitions": [
+            ["tests/test_fixture.py::test_one"],
+            ["tests/test_fixture.py::test_two"],
+        ],
+        "planSha256": "a" * 64,
+    }
+    plugin = partitions.WorkerPlugin(0, tmp_path, manifest, [], "baseexception")
+
+    def interrupt(*_args, **_kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(partitions, "_atomic_json", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        plugin.write_progress("startup")
+
+
 def test_two_workers_execute_exact_partition_and_keep_skip_visible(tmp_path: Path) -> None:
     exit_code, root = _run_fixture_suite(
         tmp_path,
@@ -431,6 +538,24 @@ def test_explicit_skip():
     assert all((root / f"worker-{index}" / "pytest-cache").is_dir() for index in range(2))
     assert ET.parse(root / "worker-0" / "junit.xml").getroot().findall(".//testcase")
     assert ET.parse(root / "worker-1" / "junit.xml").getroot().findall(".//testcase")
+    progress = [
+        json.loads((root / f"worker-{index}" / "progress.json").read_text(encoding="utf-8"))
+        for index in range(2)
+    ]
+    for index, item in enumerate(progress):
+        assert set(item) == partitions.WORKER_PROGRESS_FIELDS
+        assert item["schemaVersion"] == partitions.WORKER_PROGRESS_SCHEMA_VERSION
+        assert item["workerIndex"] == index
+        assert item["planSha256"] == manifest["planSha256"]
+        assert item["phase"] in {"setup", "call", "teardown"}
+        assert item["nodeId"] in manifest["partitions"][index]
+        assert item["counters"]["selected"] == len(manifest["partitions"][index])
+        assert 1 <= item["counters"]["started"] <= len(manifest["partitions"][index])
+        assert item["counters"]["completed"] <= item["counters"]["started"]
+        assert (
+            sum(item["counters"][name] for name in ("passed", "skipped", "failed"))
+            == item["counters"]["started"]
+        )
 
 
 def test_original_worker_failure_cannot_be_reported_as_pass(tmp_path: Path) -> None:
@@ -575,6 +700,26 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
                     break
             time.sleep(0.02)
         assert child_started, log_path.read_text(encoding="utf-8")
+        progress = []
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            progress_paths = [
+                result_root / f"worker-{index}" / "progress.json" for index in range(2)
+            ]
+            if all(path.is_file() for path in progress_paths):
+                progress = [json.loads(path.read_text(encoding="utf-8")) for path in progress_paths]
+                if all(item["phase"] in {"setup", "call"} for item in progress):
+                    break
+            time.sleep(0.02)
+        assert len(progress) == 2
+        assert all(
+            item["nodeId"] in item_ids
+            for item, item_ids in zip(
+                progress,
+                json.loads((result_root / "partitions.json").read_text())["partitions"],
+                strict=True,
+            )
+        )
         process.send_signal(signal.SIGTERM)
         assert process.wait(timeout=5) == 143
         summary = json.loads((result_root / "scheduler-result.json").read_text(encoding="utf-8"))

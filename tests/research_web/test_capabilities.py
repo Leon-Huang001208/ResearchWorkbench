@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
 from app.research_web.capabilities.catalog import CapabilityCatalog
+from app.research_web.capabilities.models import CapabilityError
 from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
@@ -191,6 +192,643 @@ def test_builtin_dependency_inventory_is_scoped_to_initialization(tmp_path, monk
         interrupted.__init__(tmp_path / "interrupted")
     assert not interrupted._initializing
     assert interrupted._initial_module_distributions is None
+
+
+def test_external_module_inventory_projects_only_requested_fresh_metadata(tmp_path, monkeypatch):
+    import importlib.metadata
+
+    class Distribution:
+        def __init__(self, name, *, declared=None, record=None, existing=()):
+            self.name = name
+            self.declared = declared
+            self.record = record
+            self.existing = set(existing)
+            self.located = []
+
+        @property
+        def metadata(self):
+            return {"Name": self.name}
+
+        def read_text(self, filename):
+            if filename == "top_level.txt":
+                return self.declared
+            if filename == "RECORD":
+                return self.record
+            return None
+
+        def locate_file(self, filename):
+            value = str(filename)
+            self.located.append(value)
+            return tmp_path / ("present" if value in self.existing else "missing")
+
+        def _read_files_distinfo(self):
+            return self.record and self.record.splitlines()
+
+        def _read_files_egginfo_installed(self):
+            return None
+
+        def _read_files_egginfo_sources(self):
+            return None
+
+    (tmp_path / "present").write_text("present", encoding="utf-8")
+    declared = Distribution("declared-dist", declared="shared\nexplicit\n")
+    first_namespace = Distribution(
+        "namespace-one",
+        record="shared/one.py,,\nunrelated/large.py,,\n",
+        existing={"shared/one.py", "unrelated/large.py"},
+    )
+    second_namespace = Distribution(
+        "namespace-two", record="shared/two.py,,\n", existing={"shared/two.py"}
+    )
+    missing = Distribution("missing-dist", record="gone.py,,\n")
+    current = [declared, first_namespace, second_namespace, missing]
+    monkeypatch.setattr(importlib.metadata, "distributions", lambda: iter(current))
+
+    inventory = CapabilityCatalog._project_installed_module_distributions({"shared", "gone"})
+
+    assert inventory == {"shared": ["declared-dist", "namespace-one", "namespace-two"]}
+    assert first_namespace.located == ["shared/one.py"]
+    assert second_namespace.located == ["shared/two.py"]
+    assert missing.located == ["gone.py"]
+
+    first_namespace.record = "replacement.py,,\n"
+    second_namespace.record = "shared/two.py,,\n"
+    second_namespace.existing.clear()
+    assert CapabilityCatalog._project_installed_module_distributions({"shared"}) == {
+        "shared": ["declared-dist"]
+    }
+
+
+def test_external_module_inventory_preserves_monkeypatched_api_semantics(monkeypatch):
+    import importlib.metadata
+
+    calls = []
+
+    def inventory():
+        calls.append(True)
+        return {"custom_finder_module": ["custom-finder-dist"], "other": ["ignored"]}
+
+    monkeypatch.setattr(importlib.metadata, "packages_distributions", inventory)
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"custom_finder_module"}) == {
+        "custom_finder_module": ["custom-finder-dist"]
+    }
+    assert calls == [True]
+
+
+def test_external_module_inventory_matches_real_api_and_propagates_scan_failure(monkeypatch):
+    import importlib.metadata
+
+    requested = {"jsonschema", "yaml", "requests", "module_that_is_not_installed"}
+    expected = importlib.metadata.packages_distributions()
+    assert CapabilityCatalog._project_installed_module_distributions(requested) == {
+        module: expected[module] for module in requested if module in expected
+    }
+
+    def fail_scan():
+        raise OSError("synthetic metadata scan failure")
+
+    monkeypatch.setattr(importlib.metadata, "distributions", fail_scan)
+    with pytest.raises(OSError, match="synthetic metadata scan failure"):
+        CapabilityCatalog._project_installed_module_distributions({"jsonschema"})
+
+
+@pytest.mark.parametrize(
+    "malformed_row",
+    [
+        "unrelated.py,,not-an-integer",
+        "unrelated.py,,,unexpected-column",
+    ],
+    ids=["invalid-size", "extra-column"],
+)
+def test_external_module_inventory_preserves_real_record_errors(
+    tmp_path, monkeypatch, malformed_row
+):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    package = site / "requested_pkg"
+    metadata = site / "fixture_dist-1.0.dist-info"
+    package.mkdir(parents=True)
+    metadata.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (site / "unrelated.py").write_text("", encoding="utf-8")
+    (metadata / "METADATA").write_text("Name: fixture-dist\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / "RECORD").write_text(
+        f"{malformed_row}\nrequested_pkg/__init__.py,,0\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(sys, "path", [str(site)])
+
+    with pytest.raises((TypeError, ValueError)):
+        importlib.metadata.packages_distributions()
+    with pytest.raises((TypeError, ValueError)):
+        CapabilityCatalog._project_installed_module_distributions({"requested_pkg"})
+
+
+def test_external_module_inventory_tracks_real_dist_info_record_changes(tmp_path, monkeypatch):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    shared = site / "shared"
+    shared.mkdir(parents=True)
+    (shared / "__init__.py").write_text("", encoding="utf-8")
+    declared = site / "declared_dist-1.0.dist-info"
+    inferred = site / "inferred_dist-1.0.dist-info"
+    declared.mkdir()
+    inferred.mkdir()
+    (declared / "METADATA").write_text("Name: declared-dist\nVersion: 1.0\n", encoding="utf-8")
+    (declared / "top_level.txt").write_text("shared\n", encoding="utf-8")
+    (declared / "RECORD").write_text("declared_dist-1.0.dist-info/METADATA,,\n")
+    (inferred / "METADATA").write_text("Name: inferred-dist\nVersion: 1.0\n", encoding="utf-8")
+    record = inferred / "RECORD"
+    record.write_text("shared/__init__.py,,0\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "path", [str(site)])
+
+    requested = {"shared"}
+    assert CapabilityCatalog._project_installed_module_distributions(requested) == {
+        "shared": ["declared-dist", "inferred-dist"]
+    }
+    assert CapabilityCatalog._project_installed_module_distributions(requested) == {
+        module: values
+        for module, values in importlib.metadata.packages_distributions().items()
+        if module in requested
+    }
+
+    record.write_text("replacement/__init__.py,,0\n", encoding="utf-8")
+    assert CapabilityCatalog._project_installed_module_distributions(requested) == {
+        "shared": ["declared-dist"]
+    }
+
+
+def test_external_module_inventory_falls_back_before_real_custom_finder_is_consumed(
+    tmp_path, monkeypatch
+):
+    import importlib.metadata
+    import sys
+
+    package = tmp_path / "custom_finder_module"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    calls = []
+
+    class CustomDistribution(importlib.metadata.Distribution):
+        @property
+        def metadata(self):
+            return {"Name": "custom-finder-dist"}
+
+        def read_text(self, filename):
+            return None
+
+        def locate_file(self, path):
+            return tmp_path / str(path)
+
+        @property
+        def files(self):
+            path = importlib.metadata.PackagePath("custom_finder_module/__init__.py")
+            path.dist = self
+            return [path]
+
+    class CustomFinder:
+        def find_distributions(self, context=None):
+            calls.append(context)
+            return iter([CustomDistribution()])
+
+    monkeypatch.setattr(sys, "meta_path", [CustomFinder(), *sys.meta_path])
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"custom_finder_module"}) == {
+        "custom_finder_module": ["custom-finder-dist"]
+    }
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("metadata_file", "entry"),
+    [("installed-files.txt", "../eggmod.py"), ("SOURCES.txt", "eggmod.py")],
+    ids=["installed-files", "sources"],
+)
+def test_external_module_inventory_matches_real_egg_info_layout(
+    tmp_path, monkeypatch, metadata_file, entry
+):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    metadata = site / "fixture.egg-info"
+    metadata.mkdir(parents=True)
+    (site / "eggmod.py").write_text("", encoding="utf-8")
+    (metadata / "PKG-INFO").write_text("Name: fixture-egg\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / metadata_file).write_text(entry + "\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "path", [str(site)])
+
+    requested = {"eggmod"}
+    expected = {
+        module: values
+        for module, values in importlib.metadata.packages_distributions().items()
+        if module in requested
+    }
+    assert expected == {"eggmod": ["fixture-egg"]}
+    assert CapabilityCatalog._project_installed_module_distributions(requested) == expected
+
+
+def test_external_module_inventory_falls_back_before_dynamic_metadata_finder_delegate(
+    tmp_path, monkeypatch
+):
+    import importlib.metadata
+
+    calls = []
+    package = tmp_path / "dynamic_delegate"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+
+    class CustomDistribution(importlib.metadata.Distribution):
+        @property
+        def metadata(self):
+            return {"Name": "dynamic-delegate-dist"}
+
+        def read_text(self, filename):
+            return None
+
+        def locate_file(self, path):
+            return tmp_path / str(path)
+
+        @property
+        def files(self):
+            path = importlib.metadata.PackagePath("dynamic_delegate/__init__.py")
+            path.dist = self
+            return [path]
+
+    class DynamicMetadataFinder:
+        @classmethod
+        def find_distributions(cls, context=None):
+            calls.append(context)
+            return iter([CustomDistribution()])
+
+    monkeypatch.setattr(importlib.metadata, "MetadataPathFinder", DynamicMetadataFinder)
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"dynamic_delegate"}) == {
+        "dynamic_delegate": ["dynamic-delegate-dist"]
+    }
+    assert len(calls) == 1
+
+
+def test_external_module_inventory_falls_back_before_dynamic_finder_descriptor(
+    tmp_path, monkeypatch
+):
+    import importlib.metadata
+
+    calls = []
+    package = tmp_path / "descriptor_delegate"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+
+    class CustomDistribution(importlib.metadata.Distribution):
+        @property
+        def metadata(self):
+            return {"Name": "descriptor-delegate-dist"}
+
+        def read_text(self, filename):
+            return None
+
+        def locate_file(self, path):
+            return tmp_path / str(path)
+
+        @property
+        def files(self):
+            path = importlib.metadata.PackagePath("descriptor_delegate/__init__.py")
+            path.dist = self
+            return [path]
+
+    def find_distributions(cls, context=None):
+        calls.append(context)
+        return iter([CustomDistribution()])
+
+    monkeypatch.setattr(
+        importlib.metadata.MetadataPathFinder,
+        "find_distributions",
+        classmethod(find_distributions),
+    )
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"descriptor_delegate"}) == {
+        "descriptor_delegate": ["descriptor-delegate-dist"]
+    }
+    assert len(calls) == 1
+
+
+def test_external_module_inventory_does_not_bind_unknown_path_finder_descriptor_twice(
+    tmp_path, monkeypatch
+):
+    import importlib.machinery
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    metadata = site / "path_finder_dist-1.0.dist-info"
+    package = site / "path_finder_module"
+    metadata.mkdir(parents=True)
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (metadata / "METADATA").write_text("Name: path-finder-dist\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / "RECORD").write_text("path_finder_module/__init__.py,,0\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "path", [str(site)])
+    original = importlib.machinery.PathFinder.find_distributions
+    calls = []
+
+    class StatefulDescriptor:
+        def __get__(self, instance, owner):
+            calls.append((instance, owner))
+            return original
+
+    monkeypatch.setattr(
+        importlib.machinery.PathFinder,
+        "find_distributions",
+        StatefulDescriptor(),
+    )
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"path_finder_module"}) == {
+        "path_finder_module": ["path-finder-dist"]
+    }
+    assert len(calls) == 1
+
+
+def test_external_module_inventory_preserves_unknown_package_path_locate_error(
+    tmp_path, monkeypatch
+):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    metadata = site / "locate_dist-1.0.dist-info"
+    package = site / "locate_module"
+    metadata.mkdir(parents=True)
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (metadata / "METADATA").write_text("Name: locate-dist\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / "RECORD").write_text(
+        "locate_module/__init__.py,,0\nunrelated_module.py,,0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sys, "path", [str(site)])
+    original = importlib.metadata.PackagePath.locate
+    class_accesses = []
+    instance_accesses = []
+
+    class StatefulDescriptor:
+        def __get__(self, instance, owner):
+            if instance is None:
+                class_accesses.append(owner)
+                return original
+            instance_accesses.append(str(instance))
+
+            def locate():
+                if str(instance) == "unrelated_module.py":
+                    raise OSError("synthetic unrelated locate failure")
+                return original(instance)
+
+            return locate
+
+    monkeypatch.setattr(importlib.metadata.PackagePath, "locate", StatefulDescriptor())
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    with pytest.raises(OSError, match="synthetic unrelated locate failure"):
+        catalog._installed_module_distributions({"locate_module"})
+    assert class_accesses == []
+    assert instance_accesses == ["locate_module/__init__.py", "unrelated_module.py"]
+
+
+def test_external_module_inventory_fails_closed_on_post_projection_delegate_change(
+    tmp_path, monkeypatch
+):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    metadata = site / "stable_dist-1.0.dist-info"
+    package = site / "stable_module"
+    metadata.mkdir(parents=True)
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (metadata / "METADATA").write_text("Name: stable-dist\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / "RECORD").write_text("stable_module/__init__.py,,0\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "path", [str(site)])
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+    original_project = catalog._project_installed_module_distributions
+    original_path_distribution = importlib.metadata.PathDistribution
+
+    def change_after_projection(requested, *, require_stock=False):
+        result = original_project(requested, require_stock=require_stock)
+
+        class ChangedPathDistribution(original_path_distribution):
+            pass
+
+        monkeypatch.setattr(importlib.metadata, "PathDistribution", ChangedPathDistribution)
+        return result
+
+    monkeypatch.setattr(catalog, "_project_installed_module_distributions", change_after_projection)
+    with pytest.raises(CapabilityError) as error:
+        catalog._installed_module_distributions({"stable_module"})
+    assert error.value.code == "dependency_inventory_changed"
+
+
+def test_external_module_inventory_does_not_call_unknown_resolver_before_single_fallback(
+    tmp_path, monkeypatch
+):
+    import importlib.machinery
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    metadata = site / "stateful_dist-1.0.dist-info"
+    package = site / "stateful_module"
+    metadata.mkdir(parents=True)
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (metadata / "METADATA").write_text("Name: stateful-dist\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / "RECORD").write_text("stateful_module/__init__.py,,0\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "path", [str(site)])
+    calls = []
+
+    def stateful_resolvers():
+        calls.append(True)
+        return iter([importlib.machinery.PathFinder.find_distributions])
+
+    monkeypatch.setattr(
+        importlib.metadata.Distribution,
+        "_discover_resolvers",
+        staticmethod(stateful_resolvers),
+    )
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"stateful_module"}) == {
+        "stateful_module": ["stateful-dist"]
+    }
+    assert calls == [True]
+
+
+def test_external_module_inventory_detects_in_place_public_api_code_change(monkeypatch):
+    import importlib.metadata
+
+    calls = []
+    monkeypatch.setitem(importlib.metadata.__dict__, "_rwb_inplace_calls", calls)
+
+    def replacement():
+        _rwb_inplace_calls.append(True)  # noqa: F821
+        return {"inplace_public_module": ["inplace-public-dist"]}
+
+    monkeypatch.setattr(importlib.metadata.packages_distributions, "__code__", replacement.__code__)
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"inplace_public_module"}) == {
+        "inplace_public_module": ["inplace-public-dist"]
+    }
+    assert calls == [True]
+
+
+def test_external_module_inventory_detects_in_place_inferred_helper_code_change(
+    tmp_path, monkeypatch
+):
+    import importlib.metadata
+    import sys
+
+    site = tmp_path / "site"
+    metadata = site / "helper_dist-1.0.dist-info"
+    metadata.mkdir(parents=True)
+    (metadata / "METADATA").write_text("Name: helper-dist\nVersion: 1.0\n", encoding="utf-8")
+    (metadata / "RECORD").write_text("helper_dist-1.0.dist-info/METADATA,,0\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "path", [str(site)])
+    calls = []
+    monkeypatch.setitem(importlib.metadata.__dict__, "_rwb_helper_calls", calls)
+
+    def replacement(_distribution):
+        _rwb_helper_calls.append(True)  # noqa: F821
+        return ["inplace_helper_module"]
+
+    monkeypatch.setattr(importlib.metadata._top_level_inferred, "__code__", replacement.__code__)
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    assert catalog._installed_module_distributions({"inplace_helper_module"}) == {
+        "inplace_helper_module": ["helper-dist"]
+    }
+    assert calls == [True]
+
+
+def test_catalog_import_survives_missing_private_metadata_primitive(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    script = """
+import importlib.metadata as metadata
+delattr(metadata.Distribution, '_read_files_egginfo_installed')
+calls = []
+def fallback():
+    calls.append(True)
+    return {'fallback_module': ['fallback-dist']}
+metadata.packages_distributions = fallback
+from app.research_web.capabilities import catalog
+assert catalog._READ_FILES_EGGINFO_INSTALLED is catalog._MISSING
+instance = catalog.CapabilityCatalog.__new__(catalog.CapabilityCatalog)
+instance._initializing = False
+instance._initial_module_distributions = None
+assert instance._installed_module_distributions({'fallback_module'}) == {
+    'fallback_module': ['fallback-dist'],
+}
+assert calls == [True]
+print('missing-primitive-fallback-ok')
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "missing-primitive-fallback-ok"
+
+
+@pytest.mark.parametrize("mode", ["hide", "expose", "error"])
+def test_external_module_inventory_falls_back_before_dynamic_path_distribution(
+    tmp_path, monkeypatch, mode
+):
+    import importlib.metadata
+    import sys
+
+    original = importlib.metadata.PathDistribution
+    site = tmp_path / "site"
+    metadata = site / "dynamic_dist-1.0.dist-info"
+    metadata.mkdir(parents=True)
+    (metadata / "METADATA").write_text("Name: dynamic-dist\nVersion: 1.0\n", encoding="utf-8")
+    raw_module = site / "raw_module.py"
+    exposed_module = site / "exposed_module.py"
+    raw_module.write_text("", encoding="utf-8")
+    exposed_module.write_text("", encoding="utf-8")
+    (metadata / "RECORD").write_text(
+        ("raw_module.py,,0\n" if mode == "hide" else "dynamic_dist-1.0.dist-info/METADATA,,0\n"),
+        encoding="utf-8",
+    )
+    instances = []
+
+    class DynamicPathDistribution(original):
+        def __init__(self, path):
+            instances.append(path)
+            super().__init__(path)
+
+        @property
+        def files(self):
+            if mode == "error":
+                raise ValueError("custom files failure")
+            if mode == "hide":
+                return []
+            path = importlib.metadata.PackagePath("exposed_module.py")
+            path.dist = self
+            return [path]
+
+    monkeypatch.setattr(importlib.metadata, "PathDistribution", DynamicPathDistribution)
+    monkeypatch.setattr(sys, "path", [str(site)])
+    catalog = CapabilityCatalog.__new__(CapabilityCatalog)
+    catalog._initializing = False
+    catalog._initial_module_distributions = None
+
+    requested = {"raw_module" if mode == "hide" else "exposed_module"}
+    if mode == "error":
+        with pytest.raises(ValueError, match="custom files failure"):
+            catalog._installed_module_distributions(requested)
+    elif mode == "hide":
+        assert catalog._installed_module_distributions(requested) == {}
+    else:
+        assert catalog._installed_module_distributions(requested) == {
+            "exposed_module": ["dynamic-dist"]
+        }
+    assert len(instances) == 1
 
 
 @pytest.mark.parametrize(
