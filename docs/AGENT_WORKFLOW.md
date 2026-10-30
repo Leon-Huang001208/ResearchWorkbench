@@ -1,5 +1,11 @@
 # Agent 任务路由指南
 
+## 授权历史试验退役的维护路由（2026-10-30）
+
+本次是 macOS Native 受控维护；用户明确授权丢弃历史 RWB 试验会话和 Wind UNKNOWN，保留账号与模型配置。仅封闭 `apply-trial-retirement` 模式中，这些历史状态及旧 `active: null` 不再独立否决切换，不能据此签发普通空闲证明或扩大其他模式权限。执行复用原三锁、BirthFence、`recover` 和精确进程身份复核；未知归属或中途崩溃保留栅栏，不自动重试。
+
+既有 CI 步骤覆盖三份离线测试模块与维护 import 检查，无新增 job、依赖或超时。离线结果与最终候选的完整本地回归、Router、CI、实际备份／退役／切换及认证验收分别记录；未执行保持未完成。Windows/Linux 产品验收仍由对应设备负责。完整入口与恢复要求见[试验退役合同](research-web-trial-discard.md)。
+
 备份快照的可选 FD clone 与单文件容量门仍属于既有 Git 交付工具链。只有同一次
 受管操作中原本必要且成功的 resourcePhase 可复用其确切绝对 Python 选择；通用
 解析器、standalone、跳过／失败或测试替身不由此取得新凭证。源哈希后、helper

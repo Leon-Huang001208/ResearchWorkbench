@@ -1,8 +1,11 @@
 # Research Workbench Development Map
 
-试验退役保全辅助库 `resident/trial_discard_backup.py` 提供有界账号映射预览和
-账号／模型配置文件备份、临时恢复核验；由现有受管维护事务在确认停写后调用。
-范围与限制见[操作说明](research-web-trial-discard.md)，不自行授予删除或部署权限。
+试验退役入口 `resident/model_provider_upgrade.py` 的 `apply-trial-retirement` 在既有
+Native 维护事务内固定 b800e503 前版与 db2ae9a4 产品，执行器评审身份另行绑定。
+`resident/trial_discard_backup.py` 负责账号数据库／绑定／索引／报告目录的有界保全和恢复核验；
+`resident/trial_retirement.py` 负责归属复核、会话目录归档、关联生产者退役及恢复日志。
+既有 `recover`、三锁与 BirthFence 继续生效；源码测试不代表现场已停写或切换。
+完整授权与异常恢复边界见[操作说明](research-web-trial-discard.md)。
 
 专业协作入口沿 `specialists/routes.py` → `specialists/service.py` → 私有 `SpecialistLedger`，模型执行仍由 `runtime/specialists.mjs` 调用原生 continuable subagent；guard保留原子Agent配额。`main.py`／`service.py`复用原发送、截止、取消和详情，`research_quality_service.py`追加协作未完成门。UI入口与状态复用原会话，见[合同](research-web-specialists.md)。
 

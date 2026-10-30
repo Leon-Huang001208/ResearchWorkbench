@@ -14,6 +14,7 @@ import sqlite3
 import stat
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TypedDict
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
@@ -25,6 +26,18 @@ RECORD_LIMIT = 1024 * 1024
 MAX_ACCOUNT_ROOTS = 64
 MAX_TOTAL_BYTES = 512 * 1024 * 1024
 FREE_RESERVE_BYTES = 2 * 1024 * 1024 * 1024
+
+
+class _BackupFile(TypedDict):
+    sha256: str
+    size: int
+    mode: int
+
+
+class _BackupManifest(TypedDict):
+    version: int
+    source_seal: str
+    files: dict[str, _BackupFile]
 
 
 class TrialBackupBlocked(RuntimeError):
@@ -390,7 +403,11 @@ def backup(home: Path, backup_parent: Path, expected_seal: str) -> dict:
                         files[f"{prefix}/index.json"] = MAX_ASSET_INDEX_BYTES
                     if row["catalog"]["status"] == "present":
                         files[f"{prefix}/report-workflows/catalog.json"] = MAX_ASSET_INDEX_BYTES
-                manifest = {"version": 1, "source_seal": expected_seal, "files": {}}
+                manifest: _BackupManifest = {
+                    "version": 1,
+                    "source_seal": expected_seal,
+                    "files": {},
+                }
                 copied_bytes = 0
                 for relative, limit in files.items():
                     raw, identity = _read(home / relative, limit)

@@ -15,6 +15,7 @@ import stat
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TypedDict, cast
 
 from . import trial_discard_backup as backup
 from .evidence import UpdateBlocked
@@ -50,6 +51,14 @@ STOP_FIELDS = frozenset(
         "monitoring_disposition",
     }
 )
+
+
+class _DirectoryPlan(TypedDict):
+    relative: str
+    identity: list[int]
+    files: dict[str, dict]
+    replacement_identity: list[int] | None
+    replacement_mode: int
 
 
 def _rows(index: dict, name: str) -> dict:
@@ -172,14 +181,14 @@ def _scope_content(
 
 
 def _native_scope(root: Path) -> dict:
-    result = {}
+    result: dict[str, dict] = {}
     for relative in ("sessions", "runtime/home/sessions"):
         path = root / relative
         if not path.exists() and not path.is_symlink():
             result[relative] = {"status": "missing"}
             continue
         info = backup._directory(path)
-        entries = {}
+        entries: dict[str, str] = {}
         with backup._anchored_parent(path) as (fd, _), os.scandir(fd) as listing:
             for entry in listing:
                 item = entry.stat(follow_symlinks=False)
@@ -206,7 +215,7 @@ def scope_snapshot(home: Path) -> dict:
     for row in inventory["roots"]:
         relative = _index_relative(row)
         root = home / relative.parent
-        index = {}
+        index: dict = {}
         if row["index"] == "present":
             index, _, identity = backup._json(home / relative, backup.MAX_ASSET_INDEX_BYTES)
             if identity != row["index_identity"]:
@@ -456,7 +465,7 @@ def _index_relative(row: dict) -> Path:
 
 def _tree(path: Path) -> dict:
     """Bounded no-follow file inventory; unknown filesystem objects block."""
-    files = {}
+    files: dict[str, dict] = {}
     total = 0
 
     def scan_failed(error):
@@ -552,7 +561,7 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
             if catalog_id != row["catalog"]["identity"]:
                 raise UpdateBlocked("trial_retirement_inventory_drift")
         present = row["index"] == "present"
-        index = {}
+        index: dict = {}
         if present:
             index, raw, identity = backup._json(ops.home / relative, backup.MAX_ASSET_INDEX_BYTES)
             if identity != row["index_identity"]:
@@ -577,7 +586,7 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
             scope.update({key: digest(value) for key, value in projected.items()})
         # Session file directories remain intact, with original inode/modes,
         # in the same parent. No non-session directory is moved or removed.
-        directories = []
+        directories: list[_DirectoryPlan] = []
         for directory in (relative.parent / "sessions", relative.parent / "runtime/home/sessions"):
             path = ops.home / directory
             if path.exists() or path.is_symlink():
@@ -605,10 +614,14 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
                 "session_count": len(index["sessions"]) if present else 0,
                 "catalog_present": catalog_present,
                 "catalog_before_sha256": (
-                    hashlib.sha256(catalog_raw).hexdigest() if catalog_present else None
+                    hashlib.sha256(cast(bytes, catalog_raw)).hexdigest()
+                    if catalog_present
+                    else None
                 ),
                 "catalog_after_sha256": (
-                    hashlib.sha256(catalog_after).hexdigest() if catalog_present else None
+                    hashlib.sha256(cast(bytes, catalog_after)).hexdigest()
+                    if catalog_present
+                    else None
                 ),
                 "directories": directories,
             }
