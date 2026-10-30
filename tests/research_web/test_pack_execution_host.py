@@ -210,13 +210,23 @@ def test_actual_host_admission_real_sandbox_completion_and_no_retry(api, monkeyp
         "call_id": "actual-pack-call",
         "result": asdict(result),
     }
-    assert (
-        client.post("/api/research/internal/data/pack-completion", json=completion).status_code
-        == 403
-    )
-    saved = client.post(
-        "/api/research/internal/data/pack-completion", json=completion, headers=headers
-    )
+    with monkeypatch.context() as tenant:
+        tenant.setenv("RWB_TENANT_MODE", "1")
+        assert (
+            client.post("/api/research/internal/data/pack-completion", json=completion).status_code
+            == 403
+        )
+        assert (
+            client.post(
+                "/api/research/internal/data/pack-completion",
+                json=completion,
+                headers={"X-Research-Data-Key": "wrong"},
+            ).status_code
+            == 403
+        )
+        saved = client.post(
+            "/api/research/internal/data/pack-completion", json=completion, headers=headers
+        )
     assert saved.status_code == 200, saved.text
     assert saved.json()["state"] == "saved"
     assert saved.json()["computation_status"] != "complete"
