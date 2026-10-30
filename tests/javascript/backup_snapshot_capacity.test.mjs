@@ -11,6 +11,7 @@ const project = fileURLToPath(new URL('../../', import.meta.url));
 const logRoot = path.join(project, 'logs/backup-cow-admission/integration');
 fs.mkdirSync(logRoot, {recursive: true});
 const trustedHostPython = resolveSnapshotPython(project);
+const darwinCloneSkip = process.platform !== 'darwin' ? 'NOT_RUN: snapshot clone branch requires Darwin' : false;
 const free = () => {const s = fs.statfsSync(logRoot, {bigint: true}); return s.bavail * s.bsize;};
 assert.ok(free() >= 3n * 1024n ** 3n, 'start free space below 3 GiB');
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -102,7 +103,7 @@ test('source special mode retains original stream compatibility and is not clone
   assert.equal(fs.statSync(path.join(f.directory, 'payload/file')).mode & 0o7777, 0o600);
 }));
 
-test('error or unknown clone effects retain target and forbid stream admission', () => {
+test('error or unknown clone effects retain target and forbid stream admission', {skip: darwinCloneSkip}, () => {
   for (const status of ['error', 'unknown', 'unsupported']) fixture(f => {
     assert.throws(() => snapshot(f, {
       resolvePython: () => '/never/executed',
@@ -113,12 +114,12 @@ test('error or unknown clone effects retain target and forbid stream admission',
   });
 });
 
-test('unsupported clone with absent target preserves source offset and falls back', () => fixture(f => {
+test('unsupported clone with absent target preserves source offset and falls back', {skip: darwinCloneSkip}, () => fixture(f => {
   snapshot(f, {resolvePython: () => '/never/executed', clone: () => ({status: 'unsupported', code: 'CLONE_SYNTHETIC'})});
   assert.deepEqual(fs.readFileSync(path.join(f.directory, 'payload/file')), f.bytes);
 }));
 
-test('same-byte source inode replacement after clone outcome is rejected', () => fixture(f => {
+test('same-byte source inode replacement after clone outcome is rejected', {skip: darwinCloneSkip}, () => fixture(f => {
   assert.throws(() => snapshot(f, {resolvePython: () => '/never/executed', clone: () => {
     fs.renameSync(f.source, path.join(f.sourceRoot, 'retired'));
     fs.writeFileSync(f.source, f.bytes, {mode: 0o640});
@@ -127,7 +128,7 @@ test('same-byte source inode replacement after clone outcome is rejected', () =>
   assert.deepEqual(f.manifest.files, []);
 }));
 
-test('source mode/nlink and pinned destination directory races reject before stream', () => {
+test('source mode/nlink and pinned destination directory races reject before stream', {skip: darwinCloneSkip}, () => {
   for (const mutate of [f => fs.chmodSync(f.source, 0o600), f => fs.linkSync(f.source, path.join(f.sourceRoot, 'new-alias')), f => {
     fs.renameSync(path.join(f.directory, 'payload'), path.join(f.directory, 'retired'));
     fs.mkdirSync(path.join(f.directory, 'payload'), {mode: 0o700});
@@ -182,7 +183,7 @@ test('static optional Python resolution accepts only trusted absolute existing p
   assert.equal(resolveSnapshotPython(f.sourceRoot, {searchPath: bin}), undefined);
 }));
 
-test('verified clone result is recorded without entering stream admission', () => fixture(f => {
+test('verified clone result is recorded without entering stream admission', {skip: darwinCloneSkip}, () => fixture(f => {
   snapshot(f, {resolvePython: () => '/never/executed', clone: ({destinationDirectory, destinationName, expectedSha256}) => {
     // Branch-only protocol test. The primitive owns real clone verification.
     fs.writeFileSync(path.join(destinationDirectory, destinationName), f.bytes, {mode: 0o600, flag: 'wx'});
@@ -227,17 +228,17 @@ test('no-follow lexical link replacement to the same launcher is reference drift
 test('standalone snapshot ignores forged caller toolchain records and uses admitted stream', () => fixture(f => {
   snapshot(f, {toolchainRecord: {trusted: true, pythonPath: '/never/executed'}, trusted: true, clone: () => {assert.fail('forged record reached helper');}});
   assert.deepEqual(fs.readFileSync(path.join(f.directory, 'payload/file')), f.bytes);
-  assert.ok(f.events.some(event => event.code === 'CLONE_PYTHON_UNAVAILABLE'));
+  assert.ok(f.events.some(event => event.code === (process.platform === 'darwin' ? 'CLONE_PYTHON_UNAVAILABLE' : 'CLONE_SOURCE_INELIGIBLE')));
 }));
 
-test('actual standalone host with unavailable optional runtime uses measured target-FS stream', {skip: trustedHostPython ? 'host has a generic strict runtime instead' : false}, () => fixture(f => {
+test('actual standalone host without eligible clone uses measured target-FS stream', {skip: process.platform === 'darwin' && trustedHostPython ? 'host has a generic strict runtime instead' : false}, () => fixture(f => {
   snapshotRegularFile(f.sourceRoot, f.item, f.directory, 'payload/file', f.manifest, {onEvent: event => f.events.push(event)});
   assert.deepEqual(fs.readFileSync(path.join(f.directory, 'payload/file')), f.bytes);
-  assert.ok(f.events.some(event => event.code === 'CLONE_PYTHON_UNAVAILABLE'));
+  assert.ok(f.events.some(event => event.code === (process.platform === 'darwin' ? 'CLONE_PYTHON_UNAVAILABLE' : 'CLONE_SOURCE_INELIGIBLE')));
   assert.ok(f.events.some(event => event.event === 'backup_capacity' && event.status === 'PASS' && event.device === String(fs.statSync(path.join(f.directory, 'payload'), {bigint: true}).dev)));
 }));
 
-test('small real Darwin clone preserves source independence through snapshot integration', {skip: process.platform !== 'darwin' ? 'Darwin evidence only' : !trustedHostPython ? 'NOT_RUN: existing Python parent chain fails optional runtime trust policy' : false}, () => fixture(f => {
+test('small real Darwin clone preserves source independence through snapshot integration', {skip: darwinCloneSkip || (!trustedHostPython ? 'NOT_RUN: existing Python parent chain fails optional runtime trust policy' : false)}, () => fixture(f => {
   const pythonPath = resolveSnapshotPython(project);
   assert.ok(pythonPath);
   snapshot(f, {resolvePython: () => pythonPath});

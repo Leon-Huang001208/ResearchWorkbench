@@ -125,10 +125,20 @@ exact-candidate quality remain separate from the earlier failed invocation.
 ## Remaining design gate
 
 Existing store copyChecked already uses a clone hint, which can silently fall
-back. The V1 snapshot still streams pinned FD bytes. Integration must preserve
-all FD/path/hash/mode/race/fsync checks, fsck and actual restoration, and explicitly
-admit fallback capacity. Unknown checkout transforms/hooks/templates, pack growth
+back. The V1 snapshot now attempts an optional pinned-FD clone and admits its
+single-file stream fallback. It retains the FD/path/hash/mode/race/fsync checks,
+fsck and actual restoration. Unknown checkout transforms/hooks/templates, pack growth
 or temporary allocation cannot become a guessed total from pack/payload length.
+
+Independent b74 JavaScript quality found one P2 in the new tests: Darwin-only
+clone branch assertions had also been registered in Ubuntu CI. The test-only
+repair marks those five branch cases NOT_RUN outside Darwin, preserves the
+portable stream/arithmetic/capacity/TCB tests, and asserts the platform's actual
+unavailable classification. No product guard, CI step or old test was removed.
+The exact Node 24.19.0 Mac integration rerun passed 20 cases with one explicit
+production-inheritance NOT_RUN; all 23 fixtures and both owned PIDs finished,
+maximum fixture size 2,400 bytes. Linux/Node20 execution remains NOT_RUN until
+the unchanged standard Ubuntu CI actually runs the new candidate.
 
 Read-only audits are under the canonical project's
 `logs/controlled-recovery-coordination/backup-cow-admission/`. This checkpoint
