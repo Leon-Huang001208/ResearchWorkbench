@@ -1212,7 +1212,9 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
   // an already committed descendant, preserving every ref and any existing PR.
   // A never-published candidate must retain explicit null publication identities.
   const unpublished = receipt.mode === null && receipt.pullRequest === null && receipt.remoteCommit === null;
-  const refreshable = unpublished ? ['remote_moved'] : ['remote_moved', 'awaiting_ci', 'ci_failed'];
+  const publishedPrepared = receipt.mode === 'pr' && receipt.status === 'prepared' &&
+    /^[a-f0-9]{40}$/.test(receipt.baseRefreshPublishedHead ?? '') && receipt.baseRefreshPublishedHead !== receipt.integrationCommit;
+  const refreshable = unpublished ? ['remote_moved'] : ['remote_moved', 'awaiting_ci', 'ci_failed', ...(publishedPrepared ? ['prepared'] : [])];
   if ((!unpublished && receipt.mode !== 'pr') || !refreshable.includes(receipt.status) || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
   if (unpublished && (receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit/i.test(key) && !['pullRequest', 'remoteCommit', 'baseRefreshPublishedHead'].includes(key)) || receipt.cleanup?.remoteBranchDeleted === true || receipt.rollback && receipt.rollback.status !== 'not_run')) fail('UNPUBLISHED_STATE_INVALID');
   if (receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '')) fail('TASK_OWNERSHIP_MISMATCH');
@@ -1239,7 +1241,7 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
       const pr = githubJson(['pr', 'view', receipt.pullRequest.url, '--repo', repo, '--json', 'state,headRefOid,headRefName,baseRefName'], repository, options);
       // A second advance may happen before the newly prepared tip is pushed.
       // Admit only that explicitly recorded published tip, never an arbitrary ancestor.
-      const allowed = [receipt.integrationCommit, receipt.baseRefreshPublishedHead].filter(Boolean);
+      const allowed = publishedPrepared ? [receipt.baseRefreshPublishedHead] : [receipt.integrationCommit, receipt.baseRefreshPublishedHead].filter(Boolean);
       if (allowed.some(value => !/^[a-f0-9]{40}$/.test(value)) || pr.state !== 'OPEN' || !allowed.includes(pr.headRefOid) || pr.headRefName !== receipt.integrationBranch || pr.baseRefName !== 'master' || git(repository.repositoryRoot, ['merge-base', '--is-ancestor', pr.headRefOid, receipt.integrationCommit], options, {allowFailure: true}).status !== 0) fail('PR_HEAD_MISMATCH');
       return pr.headRefOid;
     };
@@ -1248,9 +1250,9 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
     if (output(git(repository.repositoryRoot, ['rev-parse', 'refs/remotes/origin/master'], options)) !== base) fail('REMOTE_BASE_NOT_FETCHED');
     let latestFeature;
     const checkCandidate = () => {
+      if (output(git(repository.repositoryRoot, ['remote', 'get-url', 'origin'], options)) !== receipt.remoteUrl) fail('REMOTE_IDENTITY_CHANGED');
+      if (output(git(repository.repositoryRoot, ['rev-parse', 'refs/remotes/origin/master'], options)) !== base) fail('REMOTE_BASE_NOT_FETCHED');
       if (unpublished) {
-        if (output(git(repository.repositoryRoot, ['remote', 'get-url', 'origin'], options)) !== receipt.remoteUrl) fail('REMOTE_IDENTITY_CHANGED');
-        if (output(git(repository.repositoryRoot, ['rev-parse', 'refs/remotes/origin/master'], options)) !== base) fail('REMOTE_BASE_NOT_FETCHED');
         assertNoSymlinkAncestors(receipt.featureWorktree);
         const featureDirectory = fs.realpathSync(receipt.featureWorktree);
         const feature = worktrees(repository, options).find(item => item.worktree === featureDirectory);
@@ -1290,10 +1292,9 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
     const updated = {...receipt, baseCommit: base, remoteCommit: unpublished ? null : base, integrationCommit: candidate, ...(unpublished ? {featureCommit: latestFeature} : {baseRefreshPublishedHead: publishedHead}), verification: null, ci: {status: 'pending', runs: []}, status: 'prepared', updatedAt: new Date().toISOString()};
     temporary = destination + '.' + crypto.randomUUID() + '.tmp';
     privateWrite(temporary, JSON.stringify(updated, null, 2) + '\n');
-    if (unpublished) {
-      if (readBase() !== base) fail('REMOTE_BASE_CHANGED');
-      if (checkCandidate() !== candidate) fail('DELIVERY_RECORD_CHANGED');
-    }
+    if (readBase() !== base) fail('REMOTE_BASE_CHANGED');
+    if (!unpublished && checkPR() !== publishedHead) fail('PR_HEAD_MISMATCH');
+    if (checkCandidate() !== candidate) fail('DELIVERY_RECORD_CHANGED');
     unchanged();
     fs.renameSync(temporary, destination);
     log(repository, 'delivery-base-refresh', 'PASS', undefined, {previousBase: receipt.baseCommit, base, previousCandidate: receipt.integrationCommit, publishedHead, candidate, receiptSnapshot: snapshot}, options);
@@ -1967,7 +1968,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (params.replacePrepared) fail('PREPARE_REMOVAL_BLOCKED');
         const receipt = controller.readDeliveryReceipt(common);
         if (receipt.status === 'ci_passed') fail('PREPARE_REMOVAL_BLOCKED');
-        const refreshBase = receipt.status === 'remote_moved' || receipt.mode === 'pr' && ['awaiting_ci', 'ci_failed'].includes(receipt.status);
+        const refreshBase = receipt.status === 'remote_moved' || receipt.mode === 'pr' && (['awaiting_ci', 'ci_failed'].includes(receipt.status) || receipt.status === 'prepared' && receipt.baseRefreshPublishedHead != null);
         result = params.amendPrepared ? amendPrepared(repository, receipt, taskId, options) : refreshBase
           ? refreshPublishedBase(repository, receipt, taskId, options)
           : controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
