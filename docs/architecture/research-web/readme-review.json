@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核专业协作显式入口、共享恢复及精确维护作业合同；README的唯一DSH与现有安装入口仍准确。",
-  "reason": "专业协作复用账号隔离、现有Host和原生DSH，不新增服务或安装步骤；维护链保持原权限与历史UNKNOWN。新功能、离线检查、真实模型、完整恢复及常驻部署分别验收，细节由专项合同和任务报告记录。"
+  "summary": "2026-10-30复核授权历史试验退役模式；README的唯一DSH、Host及现有安装入口仍准确。",
+  "reason": "apply-trial-retirement仅扩展既有Native维护事务及recover，固定b800e503前版与db2ae9a4产品，执行器独立评审；不新增服务、HTTP、引擎、依赖或安装步骤。用户授权历史试验及Wind UNKNOWN丢弃的窄例外、账号和模型保全、防重放与失败留栅栏详见docs/research-web-trial-discard.md，普通未知拒绝保持。离线测试不能证明现场部署或认证验收完成，因此README高层架构及安装说明无需改变。"
 }

@@ -2670,7 +2670,8 @@ def test_real_recovery_zip_preserves_dossiers_with_old_wheel(tmp_path, monkeypat
             or (Path(folder, name).is_file() and Path(name).suffix not in {".py", ".json"})
         ]
 
-    for name in ("app", "core", "research_workbench_entrypoint", "runtimes"):
+    # Dossier preservation imports the bounded iFinD exception vocabulary through DataHub.
+    for name in ("app", "core", "data_layer", "research_workbench_entrypoint", "runtimes"):
         shutil.copytree(project / name, authority / name, ignore=only_python_and_contracts)
 
     def git(where, *args):
