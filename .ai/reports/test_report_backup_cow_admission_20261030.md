@@ -114,6 +114,14 @@ product dispatch was added. New test-only `RWB_BACKUP_TEST_PYTHON` is explicit
 and absolute; no Homebrew path is treated as portable or as production TCB input.
 The successful execution of these edited workflows is still NOT_RUN.
 
+The first full changed-set Project Constraints invocation retained four failures:
+three missing verification-workflow module documents and its missing structure
+decision. Those documents and this explicit decision were then supplied without
+removing any changed path or altering the policy. Final constraint execution and
+exact-candidate quality remain separate from the earlier failed invocation.
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"This slice adds optional FD-backed data copying and explicit single-file admission within the existing managed Git delivery toolchain. It retains all existing backup/restoration gates and reuses existing CI steps; no service, research engine, workflow runner, model authorization or deployment topology is added. Whole-phase capacity and real cleanup remain unqualified.","diagrams":[]} -->
+
 ## Remaining design gate
 
 Existing store copyChecked already uses a clone hint, which can silently fall

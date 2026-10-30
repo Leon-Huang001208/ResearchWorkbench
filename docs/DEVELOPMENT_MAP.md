@@ -1,5 +1,12 @@
 # Research Workbench Development Map
 
+备份快照链：`scripts/backup_fd_clone.mjs/.py` 实现可选 Darwin FD 原语，
+`backup_capacity.mjs` 仅测量实际目标 FS 的已知单文件流预算，`git_safety.mjs`
+保留原快照身份与恢复校验并在必要 resourcePhase 后限定复用既有工具链选择。
+直接回归为 `backup_fd_clone.test.mjs`、`backup_snapshot_capacity.test.mjs` 与
+`test_backup_fd_clone.py`；CI 沿原 Git safety / Mac 环境检查步骤登记，无新服务。
+整体 Git 阶段峰值仍独立未闭，见[计划](plans/2026-10-30-backup-cow-admission.md)。
+
 quality收尾：watchlist-import.mjs按owner+draft保留/清空原生File控件并拒绝retired scope响应；watchlist_import.py核心函数与TypedDict注解补齐，asset_workspace仅作DTO边界cast/返回类型对齐，无新业务字段。research_web_watchlist_proxy.mjs以inert本地sink和合成proxy/凭据home挑战运行inbound-only夹具及native拒绝。
 
 SPEC P2目标metadata修复位于ui/core.createWatchlist成功事件、asset-controller列表metadata重读、asset-workspace局部props同步与watchlist-import.updateWatchlistTargets；app.mjs不变。research_web_watchlist_import_lists.mjs用真实current observation的原按钮验证零列表首建、A后新建B和真实partial同节点/File链。
