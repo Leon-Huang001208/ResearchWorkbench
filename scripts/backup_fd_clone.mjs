@@ -52,13 +52,15 @@ function privateDirectory(directoryPath, directoryFd) {
 /** The Python path is an absolute trusted caller choice, never a PATH lookup.
  * Only a fixed helper file, isolated stdlib Python, FDs 3/4 and JSON are passed.
  * onEvent receives stable non-sensitive results for the caller's logs/ facility.
+ * beforeSpawn is rejection-only: after all source hashing, only literal true
+ * continues the original checks/attempt. It grants no runtime/record authority.
  */
-export function clonePinnedFile({sourceFd, directoryFd, destinationDirectory, destinationName, expectedSource, expectedSha256, pythonPath, onEvent = () => {}} = {}) {
+export function clonePinnedFile({sourceFd, directoryFd, destinationDirectory, destinationName, expectedSource, expectedSha256, pythonPath, beforeSpawn = () => true, onEvent = () => {}} = {}) {
   let attempted = false;
   let targetFd;
   let outcome;
   try {
-    if (!Number.isInteger(sourceFd) || sourceFd < 0 || !Number.isInteger(directoryFd) || directoryFd < 0 || sourceFd === directoryFd || typeof onEvent !== 'function') fail('CLONE_REQUEST_INVALID');
+    if (!Number.isInteger(sourceFd) || sourceFd < 0 || !Number.isInteger(directoryFd) || directoryFd < 0 || sourceFd === directoryFd || typeof onEvent !== 'function' || typeof beforeSpawn !== 'function') fail('CLONE_REQUEST_INVALID');
     if (typeof destinationName !== 'string' || !destinationName || ['.', '..'].includes(destinationName) || /[/\0]/u.test(destinationName) || Buffer.byteLength(destinationName) > 255) fail('CLONE_NAME_INVALID');
     if (typeof pythonPath !== 'string' || !path.isAbsolute(pythonPath) || typeof expectedSha256 !== 'string' || !HASH.test(expectedSha256)) fail('CLONE_REQUEST_INVALID');
     if (process.platform !== 'darwin') fail('CLONE_PLATFORM_UNSUPPORTED');
@@ -71,6 +73,9 @@ export function clonePinnedFile({sourceFd, directoryFd, destinationDirectory, de
     if (hashFd(sourceFd) !== expectedSha256 || !sameFacts(sourceFacts(sourceFd), expectedSource)) {
       fail('CLONE_SOURCE_CHANGED');
     } else {
+      let maySpawn = false;
+      try {maySpawn = beforeSpawn() === true;} catch {maySpawn = false;}
+      if (!maySpawn) fail('CLONE_TOOLCHAIN_UNAVAILABLE');
       attempted = true;
       const child = spawnSync(pythonPath, ['-I', '-S', '-B', HELPER], {
         input: JSON.stringify({name: destinationName, expectedSource}),
@@ -108,7 +113,7 @@ export function clonePinnedFile({sourceFd, directoryFd, destinationDirectory, de
       }
     }
   } catch (error) {
-    outcome = {status: attempted ? 'unknown' : error.code === 'CLONE_PLATFORM_UNSUPPORTED' ? 'unsupported' : 'error', code: /^CLONE_[A-Z_]+$/u.test(error.code ?? '') ? error.code : 'CLONE_IO_FAILED'};
+    outcome = {status: attempted ? 'unknown' : ['CLONE_PLATFORM_UNSUPPORTED', 'CLONE_TOOLCHAIN_UNAVAILABLE'].includes(error.code) ? 'unsupported' : 'error', code: /^CLONE_[A-Z_]+$/u.test(error.code ?? '') ? error.code : 'CLONE_IO_FAILED'};
   } finally {
     if (targetFd !== undefined) {
       try { fs.closeSync(targetFd); } catch { outcome = {status: 'unknown', code: 'CLONE_CLOSE_FAILED'}; }

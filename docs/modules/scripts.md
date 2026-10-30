@@ -17,6 +17,13 @@ operation's already-required successful resourcePhase toolchain selection;
 generic resolver rules and standalone behavior are not relaxed. No runtime
 registry, new CLI interpreter setting or whole-backup certification is introduced.
 
+The trusted pre-spawn rejection hook runs after complete source hashing, directly
+before the fixed helper invocation. Its only effect is refusing an invocation;
+possibly executed outcomes still require the caller's post-check and cannot be
+stream retried. Direct tests use an explicit test-only Python path supplied by
+the existing CI environment. No other host runtime path or product setting is
+inferred from this test input.
+
 ## Responsibility
 
 `scripts` provides operational scripts, database bootstrap, backup/restore, smoke tests, and development governance checks.

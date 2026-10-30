@@ -435,10 +435,19 @@ export function snapshotRegularFile(sourceRoot, item, directory, relative, manif
     }
     let outcome;
     if (pythonPath) {
-      try {outcome = (context.clone ?? clonePinnedFile)({sourceFd, directoryFd, destinationDirectory: targetDirectory, destinationName: path.basename(target), expectedSource, expectedSha256: item.sha256, pythonPath, onEvent});}
+      let spawnVetoed = false;
+      const beforeSpawn = inherited ? () => {
+        // The primitive calls this only after its full source hash, immediately
+        // before spawn. A refused/unavailable check means no helper ran.
+        spawnVetoed = true;
+        if (inherited.check(false) !== 'available') return false;
+        spawnVetoed = false;
+        return true;
+      } : undefined;
+      try {outcome = (context.clone ?? clonePinnedFile)({sourceFd, directoryFd, destinationDirectory: targetDirectory, destinationName: path.basename(target), expectedSource, expectedSha256: item.sha256, pythonPath, beforeSpawn, onEvent});}
       catch {outcome = {status: 'unknown', code: 'CLONE_HELPER_UNVERIFIED'}; onEvent({event: 'backup_fd_clone', ...outcome});}
       finally {
-        if (inherited && inherited.check(true) !== 'available') {
+        if (inherited && !spawnVetoed && inherited.check(true) !== 'available') {
           outcome = {status: 'unknown', code: 'CLONE_TOOLCHAIN_CHANGED'};
           onEvent({event: 'backup_fd_clone', ...outcome});
         }

@@ -1,5 +1,12 @@
 # GitHub Actions 免费额度治理
 
+备份 FD clone 与单文件快照容量合同沿既有 Project Constraints 的 Git safety step
+登记两份直接 Node 测试；真实 Darwin 小数据 clone/stdlib helper 检查沿既有 Mac Bootstrap
+环境检查步骤运行，使用该次干净安装的 Python，不依赖本机 Homebrew 路径。不新增
+job、runner、依赖、timeout 或 Windows/Linux 产品 dispatch；新增执行暂在原步骤预留
+15 秒，最终以同候选实际日志核对。局部合同不声称整体备份峰值、PR250 Git 收尾或
+生产恢复通过，既有 219 项 Git 安全合同和全部旧步骤保留。
+
 精确作业身份 v3 只在原 Research Web Checks Python 步骤登记 43 个只读合同用例，并在原
 Mac Bootstrap 的安装检查步骤增加 stdlib 模块导入；本机分三批合计不足 1 秒，原步骤
 预留 5 秒。没有新 job、runner、依赖、timeout、触发频率或 Windows/Linux 产品 dispatch。

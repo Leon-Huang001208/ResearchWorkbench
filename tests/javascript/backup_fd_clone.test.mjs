@@ -7,13 +7,28 @@ import {fileURLToPath} from 'node:url';
 
 const project = fileURLToPath(new URL('../../', import.meta.url));
 const logRoot = path.join(project, 'logs/backup-cow-admission/fd-primitive');
-const pythonPath = '/opt/homebrew/bin/python3.12';
+// Test-only runtime input; CI supplies its already installed Python. Product
+// resolver/TCB records do not read or acquire authority from this variable.
+const configuredPython = process.env.RWB_BACKUP_TEST_PYTHON;
+if (configuredPython !== undefined && !path.isAbsolute(configuredPython)) throw new Error('RWB_BACKUP_TEST_PYTHON_MUST_BE_ABSOLUTE');
+const pythonPath = configuredPython ?? path.join(logRoot, 'unconfigured-test-python');
+const nativeCloneSkip = process.platform !== 'darwin' ? 'NOT_RUN: native Darwin clone evidence only' : !configuredPython ? 'NOT_RUN: explicit RWB_BACKUP_TEST_PYTHON is not configured' : false;
 fs.mkdirSync(logRoot, {recursive: true});
 function freeFloor(gib) {
   const space = fs.statfsSync(logRoot, {bigint: true});
   assert.ok(space.bavail * space.bsize >= BigInt(gib) * 1024n ** 3n, `free space below ${gib} GiB`);
 }
 freeFloor(3);
+const sampleFootprints = [];
+function retainedBytes(directory) {
+  return fs.readdirSync(directory, {withFileTypes: true}).reduce((total, entry) => {
+    const filename = path.join(directory, entry.name);
+    return total + (entry.isDirectory() ? retainedBytes(filename) : fs.lstatSync(filename).size);
+  }, 0);
+}
+process.on('exit', () => {
+  fs.writeFileSync(path.join(logRoot, `p2-footprint-${process.pid}.json`), JSON.stringify({samples: sampleFootprints.length, maxRetainedLogicalBytes: Math.max(0, ...sampleFootprints), totalRetainedLogicalBytes: sampleFootprints.reduce((a, b) => a + b, 0), remainingSampleDirectories: fs.readdirSync(logRoot).filter(name => name.startsWith('sample-')).length}) + '\n', {flag: 'wx', mode: 0o600});
+});
 
 function fixture(callback) {
   freeFloor(2);
@@ -28,6 +43,7 @@ function fixture(callback) {
   const directoryFd = fs.openSync(directory, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
   try { return callback({root, source, directory, bytes, sourceFd, directoryFd}); }
   finally {
+    sampleFootprints.push(retainedBytes(root));
     fs.closeSync(directoryFd);
     fs.closeSync(sourceFd);
     fs.rmSync(root, {recursive: true});
@@ -52,7 +68,7 @@ test('pinned descriptor clone API is available', async () => {
   assert.equal(typeof api?.clonePinnedFile, 'function');
 });
 
-test('Darwin clone inherits the pinned FD and has independent bytes, mode and inode', {skip: process.platform !== 'darwin'}, async () => {
+test('Darwin clone inherits the pinned FD and has independent bytes, mode and inode', {skip: nativeCloneSkip}, async () => {
   const api = await import('../../scripts/backup_fd_clone.mjs');
   fixture(f => {
     fs.renameSync(f.source, path.join(f.root, 'old.data'));
@@ -75,7 +91,7 @@ test('Darwin clone inherits the pinned FD and has independent bytes, mode and in
   });
 });
 
-test('destination regular, symbolic and hardlink entries remain untouched', {skip: process.platform !== 'darwin'}, async () => {
+test('destination regular, symbolic and hardlink entries remain untouched', {skip: nativeCloneSkip}, async () => {
   const api = await import('../../scripts/backup_fd_clone.mjs');
   for (const kind of ['file', 'symlink', 'hardlink']) fixture(f => {
     const target = path.join(f.directory, 'copy.data');
@@ -94,6 +110,7 @@ test('destination regular, symbolic and hardlink entries remain untouched', {ski
 test('unsafe basenames, mismatched source facts and hash fail before creating data', async () => {
   const api = await import('../../scripts/backup_fd_clone.mjs');
   fixture(f => {
+    assert.equal(api.clonePinnedFile(args(api, f, {beforeSpawn: 'invalid'})).code, 'CLONE_REQUEST_INVALID');
     for (const destinationName of ['', '.', '..', '../copy.data', 'a/b', 'a\0b']) {
       assert.equal(api.clonePinnedFile(args(api, f, {destinationName})).code, 'CLONE_NAME_INVALID');
     }
@@ -136,12 +153,44 @@ test('missing interpreter is explicitly unsupported with no fallback side effect
   });
 });
 
-test('uncertain logging after a clone retains its target and never retries', {skip: process.platform !== 'darwin'}, async () => {
+test('uncertain logging after a clone retains its target and never retries', {skip: nativeCloneSkip}, async () => {
   const api = await import('../../scripts/backup_fd_clone.mjs');
   fixture(f => {
     const result = api.clonePinnedFile(args(api, f, {onEvent: () => { throw new Error('synthetic log failure'); }}));
     assert.deepEqual(result, {status: 'unknown', code: 'CLONE_LOG_FAILED'});
     assert.deepEqual(fs.readFileSync(path.join(f.directory, 'copy.data')), f.bytes);
     assert.deepEqual(fs.readdirSync(f.directory), ['copy.data']);
+  });
+});
+
+test('rejection-only callback runs after the complete source hash and before any helper execution', {skip: process.platform !== 'darwin' ? 'NOT_RUN: Darwin pre-spawn boundary only' : false}, async () => {
+  const api = await import('../../scripts/backup_fd_clone.mjs');
+  fixture(f => {
+    const read = fs.readSync;
+    let hashedBytes = 0, callbacks = 0, bytesAtCallback;
+    try {
+      fs.readSync = (...values) => {
+        const count = read(...values);
+        if (values[0] === f.sourceFd) hashedBytes += count;
+        return count;
+      };
+      const result = api.clonePinnedFile(args(api, f, {
+        // This path does not exist. Even a RED implementation ignoring the
+        // veto cannot execute a child; no executable/payload is manufactured.
+        pythonPath: path.join(f.root, 'absent-before-spawn-python'),
+        beforeSpawn: () => {callbacks++; bytesAtCallback = hashedBytes; return false;},
+      }));
+      assert.deepEqual(result, {status: 'unsupported', code: 'CLONE_TOOLCHAIN_UNAVAILABLE'});
+      assert.equal(callbacks, 1); assert.equal(bytesAtCallback, f.bytes.length); assert.deepEqual(fs.readdirSync(f.directory), []);
+    } finally {fs.readSync = read;}
+  });
+});
+
+test('throwing or nonboolean pre-spawn checks refuse without helper effects', {skip: process.platform !== 'darwin' ? 'NOT_RUN: Darwin pre-spawn boundary only' : false}, async () => {
+  const api = await import('../../scripts/backup_fd_clone.mjs');
+  for (const beforeSpawn of [() => {throw new Error('plain fact unavailable');}, () => undefined, () => ({available: true})]) fixture(f => {
+    const result = api.clonePinnedFile(args(api, f, {pythonPath: path.join(f.root, 'absent-before-spawn-python'), beforeSpawn}));
+    assert.deepEqual(result, {status: 'unsupported', code: 'CLONE_TOOLCHAIN_UNAVAILABLE'});
+    assert.deepEqual(fs.readdirSync(f.directory), []);
   });
 });

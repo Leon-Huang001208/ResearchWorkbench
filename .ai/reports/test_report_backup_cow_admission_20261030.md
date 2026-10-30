@@ -2,8 +2,8 @@
 
 Date: 2026-10-30. Host: macOS. Task:
 `backup-cow-admission-20261030-7c9d4f2a`.
-Status: SNAPSHOT_INTEGRATION_LOCAL_GREEN; exact integration reviews and routed
-closure pending. Complete backup phase admission remains unimplemented/unverified.
+Status: SNAPSHOT_PRESPAWN_REPAIR_LOCAL_GREEN; new exact integration reviews and
+routed closure pending. Complete backup phase admission remains unimplemented/unverified.
 
 This task does not replay PR250 cleanup, modify its receipt or alter recovery
 point 51b/shared storage. The earlier COMMAND_FAILED lacks an observed underlying
@@ -76,6 +76,43 @@ outside this isolated fix were not changed. Logs are under
 Independent exact integration SPEC and quality, complete changed-set Router,
 full backup capacity admission, production inheritance and PR250 cleanup remain
 open. No claim of a completed whole-backup fix is made from these local results.
+
+## Integration SPEC correction and real regression
+
+The b84 checkpoint's independent SPEC found a P2: the inherited launcher check
+preceded the primitive's complete source hash, leaving an observable pre-spawn
+drift window. The fixed primitive now invokes a trusted rejection-only
+`beforeSpawn` guard after that hash and immediately before spawning. Only literal
+true proceeds; an explicit veto occurs before helper execution and may lose the
+optimization, while possibly executed outcomes retain post-check unknown and no
+retry. The callback cannot create toolchain records or grant authority.
+
+Two plain-data RED cases used a nonexistent interpreter path, so no helper or
+changed executable ran. The former API ignored the new veto, producing the
+wrong unavailable classification; those failures remain in `p2-red-node24.log`.
+GREEN ran with exact Node 24.19.0 over the two direct suites: 29 PASS, one explicit
+NOT_RUN for production inheritance. Test/worker PIDs exited, 35 tiny fixtures
+were retired, retained logical bytes totalled 44,800 and peak retained bytes were
+3,072. Python helper/test blobs did not change and their earlier exact evidence
+is retained, not relabelled as newly rerun Python acceptance.
+
+The RED/GREEN tool call completed before a later pause message was delivered.
+That ordering is recorded exactly; no log was rewritten to imply a subsequent
+window ACK preceded execution, and no repeat was performed merely to change the
+timestamp. The prior bounded-data authorization and actual free-space floors
+remained satisfied. The independent execution-sentinel lane blocked by provider
+safety review remains stopped and is not substituted by these refusal tests.
+
+## Same-candidate CI registration
+
+The original Project Constraints Git safety step retains all existing files and
+adds the two direct Node suites. The original macOS Bootstrap environment step
+runs those small suites using its own freshly installed venv Python, plus the
+standard-library unittest helper checks. Relevant maintenance file paths select
+that existing Mac workflow. No job, runner, dependency, timeout or other-platform
+product dispatch was added. New test-only `RWB_BACKUP_TEST_PYTHON` is explicit
+and absolute; no Homebrew path is treated as portable or as production TCB input.
+The successful execution of these edited workflows is still NOT_RUN.
 
 ## Remaining design gate
 
