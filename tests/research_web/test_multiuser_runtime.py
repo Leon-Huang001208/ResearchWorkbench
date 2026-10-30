@@ -526,6 +526,50 @@ async def test_tenant_requires_gateway_key_and_rejects_native_and_ssrf(tmp_path,
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("native_name", "kind"),
+    [
+        ("research-pack-event-review", "research-pack"),
+        ("owned-method-fixture", "owned-method"),
+    ],
+)
+async def test_tenant_pack_completion_requires_datahub_auth_after_preflight(
+    monkeypatch, native_name, kind
+):
+    monkeypatch.setenv("RWB_TENANT_MODE", "1")
+    data_headers = [(b"x-research-data-key", b"data-secret")]
+    preflight = request(
+        "/api/research/internal/data/skill-preflight",
+        "POST",
+        data_headers,
+        json.dumps({"native_name": native_name, "session_id": "session-1"}).encode(),
+    )
+    preflight.app.state.research.capabilities = SimpleNamespace(
+        list=lambda: {
+            "items": [
+                {
+                    "native_name": "research-pack-event-review",
+                    "builtin": True,
+                    "enabled": True,
+                }
+            ]
+        }
+    )
+    preflight.app.state.research.plugins = SimpleNamespace(
+        native_authorized=lambda name, _session: name == "owned-method-fixture"
+    )
+    assert await tenant_policy.check_request(preflight) is None
+
+    path = "/api/research/internal/data/pack-completion"
+    body = json.dumps({"kind": kind, "session_id": "session-1"}).encode()
+    assert await tenant_policy.check_request(request(path, "POST", data_headers, body)) is None
+    for headers in ((), [(b"x-research-data-key", b"wrong")]):
+        denied = await tenant_policy.check_request(request(path, "POST", headers, body))
+        assert denied.status_code == 403
+        assert json.loads(denied.body)["error"]["code"] == "tenant_backend_auth_denied"
+
+
+@pytest.mark.asyncio
 async def test_cancelled_start_retires_created_children(tmp_path, fake_processes, monkeypatch):
     pool = runtime.RuntimePool(config(tmp_path))
     reached = asyncio.Event()
