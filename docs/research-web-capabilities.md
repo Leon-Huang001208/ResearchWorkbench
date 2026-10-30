@@ -567,3 +567,12 @@ report_plan 只在原 research_run_script 中替代代码输入，沿同一准�
 六类档案研究方法只补充现有能力中心的输入、输出和限制，继续使用原已发布版本与原 DSH 工具；档案交接句柄需由实际 Prompt 绑定后才能读取，方法介绍不授予来源／MCP 权限。个人凭据和固定评估操作复用受管插件审批／status；小创候选缺已核验 Registry 身份，导入不等于安装或可配置，54 子弹只为另行确认前的估算。能力发布／发现拓扑与原报告质量门保持，详见[档案方法](research-web-dossiers-ui.md)、[扫描边界](research-web-dossier-scans.md)及[候选合同](research-web-seek-alpha.md)。
 
 今日发现原始资讯沿原 Automation research_task 跟踪，批准范围绑定原始资讯及精确核对的事件归档。已登记但核对失效的任务在调度入口拒绝，不回退通用模型执行；默认禁用、独立启用及原质量门保持。详见[发现合同](research-web-discovery.md)。
+
+
+## 专业协作接入边界（2026-10-28）
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+四个协作工具在原目录投影，不直接可选；角色冻结现有Skill版本及资源摘要，原能力发布、数据授权和原生审批保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

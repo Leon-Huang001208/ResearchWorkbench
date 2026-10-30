@@ -348,3 +348,9 @@ FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调
 ## 2026-10-28：T3组合包集成边界
 
 九包/owned读取Host已授权已保存材料；C6列表与preview/freeze不调用Tabbit或抓网页。capture proof绑定真实HTTP framing/取得字节，不代表实时标签、上游全文/海外覆盖或来源权利。CLS wrapper沿DataHub，query/URL不能变成Tabbit授权，原claim与实时DOM质量链保持。
+
+## 专业协作接入边界（2026-10-28）
+
+既有研究preset增加受控插件，继续使用原生continuable子会话和settlement；不改固定DSH、不创建进程或第二loop，原Native/Docker双进程边界保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

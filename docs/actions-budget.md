@@ -7,6 +7,7 @@ PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除�
 PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。
 
 PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+专业协作 MVP 沿原 Research Web Checks Python 步骤登记三个离线测试模块，JS沿原通配符执行；Mac Bootstrap同一步增加模块导入和单个静态资源字节校验。不新增runner/job/依赖/超时或平台dispatch；新增测试预留60秒。2026-10-28 GitHub API核验仓库public、allow_auto_merge=false；模型／厂商请求不进入CI，真实小样本费用另行确认。
 
 备份 FD clone 与单文件快照容量合同沿既有 Project Constraints 的 Git safety step
 登记两份直接 Node 测试；真实 Darwin 小数据 clone/stdlib helper 检查沿既有 Mac Bootstrap

@@ -642,6 +642,12 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 2026-10-28：PR245 CI 修复保持原三门和原安装步骤：先核 whole-lock／七 runtime 投影及原三 renderer 哈希，原字节哈希安装完整现有 Web 锁；从 pyproject 已声明 dev 解析测试工具并用全 Web 纯版本 constraints 约束，根包沿产品普通 wheel 路径使用 --no-index --no-deps --no-build-isolation，不混入 legacy langgraph→jsonpointer 链或 editable 专用未锁依赖。七项实装 metadata 后以 -I 从已安装包实际执行 Host 与 fresh Native 导入准入，再跑原完整测试。Host 已保留 optional 引用与 Native 尚未导入但可发现 optional 的失败分别取证；均不得放行、卸库或改锁。wheel-only 资源真调用和离线构建不等于新 CI 安装／console script通过，本机不安装包，未执行保持 NOT_RUN；不新增资源复制或更改包内投影合同。fixture 经真实范围 validator／声明／健康 probe 验证成功和拒绝，不重入执行投影。旧候选 Mac 绿不能替代新候选安装；CDN超时不改pin/hash/retry，常驻／模型和他平台门保持独立。
 
+## 专业协作接入边界（2026-10-28）
+
+既有Checks追加三项离线模块，Mac安装同一步追加导入及资源核验；不增runner/job/依赖/时限，Router完整L4及原三门不变。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
 ## 共享恢复及源路径维护（2026-10-29）
 
 Git cleanup 已退休全部工作树但账本仍ci_passed时，使用既有closeout-recover的新

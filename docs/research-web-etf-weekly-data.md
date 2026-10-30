@@ -368,3 +368,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 2026-10-28：T3组合包集成边界
 
 九包的期间/币种/单位/取得与披露时刻不替代周报底稿。owned-company仅对原业务观察/表格走report_plan，非正同比基数拒绝，口径未知仍缺证；generic/weekly默认数学保持。C2去重及Host capture proof只绑定已捕获字节，不证明Wind/Office、历史PIT或ETF数据完整。
+
+## 专业协作接入边界（2026-10-28）
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

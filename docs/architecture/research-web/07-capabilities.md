@@ -331,3 +331,9 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 ## 2026-10-28：T3组合包集成边界
 
 pack_resources从唯一packs源冻结record/output schema、golden、runtime/import闭包；pack_relocation与pack_equivalence仅允许显式历史读回的受审等价，不重写旧包或绕当前授权/运行冻结。三owned Skill冻结共享原件动作与独立入口，Host按同资源字节复算台账。C1静态参数标记与CLS固定wrapper不注册供应商alias，不代表62/78全可用。
+
+## 专业协作接入边界（2026-10-28）
+
+四个协作工具在原目录投影，不直接可选；角色冻结现有Skill版本及资源摘要，原能力发布、数据授权和原生审批保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

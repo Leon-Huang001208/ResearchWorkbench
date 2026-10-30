@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+专业协作 MVP 不新增产品依赖或服务，requirements/web.in、web.lock和scripts/setup_web.py保持；运行时插件及状态模块随原包安装。公开三入口与固定DSH不变。原macOS Bootstrap同一步导入specialists.routes并逐字节核验specialist-panel.mjs，仍须同候选Mac干净安装及3081/8088/Doctor证据；本地JS通过不替代安装或模型验收。
+
 自选CSV导入只使用既有Web栈和Python标准库，无新增依赖/凭据/服务。已核requirements/web.in、web.lock、setup_web.py及三公开入口无需改动；Mac Bootstrap原步骤核后端模块与watchlist-import.mjs HTTP/源码字节。仍须最终同候选macos-14干净安装、固定DSH、3081/8088与Doctor；本机既有环境及离线浏览器不代替该门，见[导入合同](research-web-watchlist-import.md)。
 
 Mac首次候选40464598312真实失败于web_static_asset_failed：app.mjs超过原256KiB正文上限。修复拆出前端报告操作，不修改上限；原Bootstrap同一步校验三份新静态模块，实际新候选安装仍待CI重证。

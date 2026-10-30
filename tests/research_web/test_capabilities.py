@@ -1015,6 +1015,10 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "research_check_quality",
         "research_read_source",
         "rwb_query_latest_cls_news",
+        "specialist_plan",
+        "specialist_run",
+        "specialist_status",
+        "specialist_cancel",
     }
     assert {tool["id"] for tool in tools} == baseline_tool_ids | added_tool_ids
     assert all(

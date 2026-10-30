@@ -7501,7 +7501,7 @@ Imports:
 - `hashlib`
 - `hot_routes`
 - `hot_service`
-- ... 33 more
+- ... 35 more
 
 Classes:
 - `NewSession`
@@ -11688,7 +11688,7 @@ Imports:
 - `hashlib`
 - `integrations`
 - `json`
-- ... 34 more
+- ... 35 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
@@ -12502,6 +12502,197 @@ Functions:
 - `_series_identity`
 - `calculate`
 - `main`
+
+
+## `app/research_web/specialists/__init__.py`
+
+Module docstring:
+> Business state for DSH-owned specialist collaboration; no execution loop.
+
+Imports:
+- `contracts`
+- `ledger`
+- `registry`
+
+
+## `app/research_web/specialists/contracts.py`
+
+Module docstring:
+> Strict business contracts; none of these objects authorize native execution.
+
+Imports:
+- `datetime`
+- `json`
+- `pydantic`
+- `re`
+- `store`
+- `typing`
+
+Classes:
+- `SpecialistError`
+  - methods: __init__
+- `StrictContract`
+- `Budget`
+  - methods: explicit_confirmation
+- `PlanNode`
+  - methods: bounded_input
+- `PlanUpdate`
+  - methods: valid_graph
+- `NodeResult`
+  - methods: references
+
+
+## `app/research_web/specialists/evidence.py`
+
+Module docstring:
+> Bind node references to owned bytes and provenance, never path identities alone.
+
+Imports:
+- `__future__`
+- `contracts`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `json`
+- `ledger`
+- `re`
+- `research_web_sources`
+- `store`
+- `typing`
+
+Classes:
+- `_ReadBudget`
+  - methods: __init__, accept
+
+Functions:
+- `_digest`
+- `_dates`
+  - Acquisition time is not publication time or historical PIT proof.
+- `_file_snapshot`
+- `_dataset_snapshot`
+- `evidence_snapshot`
+  - Freeze reference hashes from current owned bytes under the original cutoff.
+- `verify_snapshots`
+  - Return completed attempt IDs whose immutable evidence cannot be re-proven.
+
+
+## `app/research_web/specialists/ledger.py`
+
+Module docstring:
+> Private, durable collaboration business ledger. DSH owns all execution/history.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `contracts`
+- `copy`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `json`
+- `os`
+- `pydantic`
+- `re`
+- `registry`
+- `report_workflows.catalog`
+- `stat`
+- `threading`
+- `time`
+- `uuid`
+
+Classes:
+- `SpecialistLedger`
+  - An account Store is the authority; callers never supply a directory or owner.
+  - methods: __init__, _exclusive, _load, _save, _view, read, create, confirm_not_submitted, resume, _current, _successful, _snapshot_valid, _structurally_ready, invalidate_evidence, _root, _role, _actor, apply, _admitting, _op_plan, _op_reserve, _attempt, _op_accepted, _op_dispatch, _op_submission_unknown, _op_submission_rejected, _op_terminal, _op_cancel, _op_recover, _usage, _op_model_request, _op_model_usage, _refresh
+
+Functions:
+- `_digest`
+- `_fields`
+- `_frozen_skills`
+
+
+## `app/research_web/specialists/registry.py`
+
+Module docstring:
+> Maintainer-published, immutable logical roles over existing capabilities.
+
+Imports:
+- `contracts`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `json`
+
+Functions:
+- `catalog`
+- `role`
+
+
+## `app/research_web/specialists/routes.py`
+
+Module docstring:
+> Owned-session views and authenticated native-only specialist control.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `fastapi`
+- `pydantic`
+- `registry`
+- `service`
+- `time`
+- `typing`
+
+Classes:
+- `NativeControl`
+- `Resume`
+
+Functions:
+- `roles`
+- `status`
+- `resume_task`
+- `control`
+
+
+## `app/research_web/specialists/service.py`
+
+Module docstring:
+> Host integration only: native DSH owns all execution and conversation history.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `hashlib`
+- `json`
+- `ledger`
+- `projection`
+- `registry`
+- `store`
+- `uuid`
+
+Functions:
+- `ledger`
+- `current_run`
+  - A retained run participates only in its current Host delivery receipt.
+- `validate_send`
+  - No mode switch may silently escape an unresolved specialist run.
+- `prepare`
+- `cancel_requested`
+- `_native_end`
+- `_reconcile_usage`
+- `validate_result_references`
+  - Existence is required; evidence correctness remains the original quality gate.
+- `qualify_terminal`
+  - Only actual native Skill reads and current evidence bytes qualify results.
+- `verify_cached`
+- `reconcile`
+  - Observe owned native child history; never submit or resume a model request.
+- `project_detail`
+- `quality_issues`
+- `resume`
+  - One explicit new grant; existing delivery ledger still owns prompt admission.
 
 
 ## `app/research_web/staged_runtime.py`

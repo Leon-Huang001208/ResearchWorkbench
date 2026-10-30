@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+专业协作原生控制只接受既有DataHub私有密钥认证的固定/internal/data/specialist-control；浏览器不得提交执行完成或用量。模型仅提出DAG，程序校验角色、依赖与预算；尝试、子会话及请求turn/step在原生提交前留痕。账本位于账号根的私有specialists目录，脱离模型可写workspace；角色不授予额外工具权限，原租户与守卫边界保持。
+
 独立报告入口沿原 canUseReportWorkflows 主管理员展示约束，未认证/普通租户手填新路由无操作与数据投影，后端权限保持独立。旧受理未知只走原显式核对接口，不自动重发；质量 invalid 或定稿 invalidated 时交付及证据链接均关闭。
 
 完成回执不能跨取消窗口取得新saved：每个JS await后与dispatch前检查调用signal，Host在原锁内核

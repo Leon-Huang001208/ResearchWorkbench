@@ -937,6 +937,18 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 source-selection preview只在内存，freeze重算摘要后发布inputs/source-selections/<id>.json及私有intent，再走原handoff。选择文件不是retention holder，lineage持久化后才保护源。C2及owned-method副本绑定来源/目标会话、原hash、locator与闭包，不得转作上传或Claw file alias；pack receipt/full-result/manifest逐件读回，128行预览不代表全量。
 
+## 专业协作接入边界（2026-10-28）
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+专项质量门在原quality_result之后保留否决；新增账本位于账号私有根而非outputs，报告正文、导出版本和规范文件仍归原交付链。
+
+固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
 ## 共享恢复及源路径维护（2026-10-29）
 
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。

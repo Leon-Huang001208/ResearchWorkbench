@@ -835,3 +835,15 @@ schema4 来源合同将本期伦敦金历史的单点补查作为独立版本资
 ## 2026-10-28：T3组合包集成边界
 
 新增真实声明：POST /api/research/internal/data/pack-completion（私有supervisor完成桥，pack/owned-method严格变体）；GET /api/research/source-selections/sessions/{session_id}（安全metadata）；POST /api/research/source-selections/preview（零创建预览）；POST /api/research/source-selections/freeze（摘要重验、幂等发布/交接）；POST /api/research/scenarios/{scenario_id}/prepare（只读准备）。全部登记architecture-map并生成Atlas；CLS变体复用原business-query，不另算API。
+
+## 专业协作接入边界（2026-10-28）
+
+新增四个专业协作HTTP入口与私有账号账本，Host校验DAG和预算；现有Host→私有桥→唯一DSH结构保持，新增接口在API清单及Atlas逐项登记。
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+既有研究preset增加受控插件，继续使用原生continuable子会话和settlement；不改固定DSH、不创建进程或第二loop，原Native/Docker双进程边界保持。
+
+固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

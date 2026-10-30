@@ -244,6 +244,9 @@ jobs:
             tests/research_web/test_fingpt_dsh_fusion.py \
             tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \
+            tests/research_web/test_specialists.py \
+            tests/research_web/test_specialists_api.py \
+            tests/research_web/test_specialist_evidence.py \
             tests/research_web/test_research_arithmetic.py \
             tests/research_web/test_report_delivery_links.py \
             tests/research_web/test_fingpt_evidence_contract.py \

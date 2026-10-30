@@ -477,6 +477,9 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         log.warning("research_business_input_changed_during_verification")
     status = assessment.get("status", "incomplete")
     issues = assessment.get("issues", ["report_missing"])
+    from .specialists.service import quality_issues as specialist_quality_issues
+
+    scenario_issues.extend(specialist_quality_issues(service, sid))
     if scenario_issues:
         status = "invalid" if scenario_invalid or status == "invalid" else "incomplete"
         issues = list(dict.fromkeys([*issues, *scenario_issues]))

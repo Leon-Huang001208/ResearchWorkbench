@@ -200,3 +200,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 2026-10-28：T3组合包集成边界
 
 C2 source-version由当前原件/hash/proof及发表/取得时刻投影，未知语言/地区/原创角色/上游完整性保留，不从自然日补时刻。新闻/调研冻结去重receipt/full-result及SourceSet供Native消费，Host再复验；同URL新hash保留版本，同hash跨会话不合并权限。C1映射/CLS wrapper不代表供应商alias或全来源等价。
+
+## 专业协作接入边界（2026-10-28）
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

@@ -354,3 +354,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 2026-10-28：T3组合包集成边界
 
 rwb_query_latest_cls_news经原私有business-query、身份/取消、DataHub.query/broker/provider/snapshot链。仅query与严格整数limit，limit先于当前有界最新快照正文子串过滤；不支持历史/全库/任意URL，也不做网络probe。来源选择只读本人已取得原文，不新增协调器、供应商配置或fallback。
+
+## 专业协作接入边界（2026-10-28）
+
+私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。

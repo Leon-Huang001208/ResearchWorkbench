@@ -246,3 +246,9 @@ FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03
 ## 2026-10-28：T3组合包集成边界
 
 本轮登记九包、三自有方法、Host C2冻结、CLS有限wrapper与C6来源选择。六新Host模块归workbench，五真实API进入生成清单；能力流补supervisor→私有完成桥→Host独立读回。部署节点/唯一DSH保持，静态映射、Native夹具、来源实测、模型质量和CI分开留证，T4/T5未实施。
+
+## 专业协作接入边界（2026-10-28）
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
