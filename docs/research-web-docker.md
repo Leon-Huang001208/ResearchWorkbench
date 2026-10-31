@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+## 构建缓存与测试临时根分界（2026-10-31）
+
+本轮只调整本机 pytest 根及 Git 交付日志的证据留存；不触碰 Docker 运行容器、业务卷、镜像或 BuildKit 原件。测试根通过外部 JUnit 后可立即回收，Docker 对象仍经 `rwb-docker` 操作锁、租约和现有 20 GiB 受管缓存预算。磁盘准入读取宿主 `df`，不得把旧夹具的 `du` 总量或逻辑镜像大小算作实际可用空间；Docker 业务验收与用户要求的容器运行方式另行验证。见[留存规则](research-web-storage-retention.md)。
+
 ## Native successor 与容器资源隔离（2026-10-31）
 
 固定 90e 的 v5 handoff、小型恢复 pyz 和显式 fresh retry 只作用于既有 macOS Native 操作员；不创建镜像、容器、卷、Docker job 或第二执行引擎，也不改变本章构建器预算、资源锁和恢复验证规则。Native 的三锁＋lease＋DB EX／spawn 未知保护不能用容器健康代替，Ubuntu 通用单测也不是 Linux／Docker 产品物理证据。

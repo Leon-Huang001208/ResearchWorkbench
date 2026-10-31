@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "2026-10-31复核版本化试验恢复交接和显式重试；README的唯一DSH、Host与公开安装入口保持准确。",
-  "reason": "本轮在既有Native维护事务加入固定90e前驱交接、已审小pyz、同父目录退役容量和完成回执约束的fresh重试，产品固定b800到db2；未新增研究引擎、服务、业务HTTP、依赖或安装步骤。新控制协议与原件保留、防重发、已持久化但身份未确认的启动保护详见docs/research-web-trial-successor-handoff.md。原15账号和模型在当前恢复事务保全，之后按用户选择单独清理到admin与新test。源码、合成CLI、同候选CI和实际部署登录分别验收；README无需承载现场恢复指令或改写为已上线。"
+  "summary": "2026-10-31复核存储留存控制面：README的Host、唯一DSH和公开安装入口仍适用；测试临时根及任务证据的选择性回收详见专项文档。",
+  "reason": "本轮新增的本机测试根登记/回收脚本使用标准库，不增加线上研究引擎、业务HTTP、模型权限、依赖或公开安装入口。iteration_resources仅使新交付任务在最终收尾时逐文件选择证据并限制保留字节，旧任务继续按原回执保全；失败/未知、生产恢复和Git备份不由新规则自动删除。README无需承载临时根、JUnit和证据选择清单细节，具体合同见docs/research-web-storage-retention.md。原试验恢复交接的阶段性设计与现场验收分别见docs/research-web-trial-successor-handoff.md及受管回执；本次不变更平台支持声明。"
 }

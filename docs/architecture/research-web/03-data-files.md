@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+## 交付日志与业务文件分离（2026-10-31）
+
+`logs/evidence-retention.json` 对新交付任务的测试输出逐文件声明保留/丢弃，丢弃只接受通过的 JUnit 与固定哈希；归档保留集上限 128 MiB。它不扫描或删除 DataHub 原件、报告、会话、用户资料、数据库、供应商数据、Git 恢复点或 Native/Docker 生产恢复目录。历史任务缺新模式仍按原 ledger 保留，未登记业务路径不得以“旧日志”名义清理。
+
 ## v5 handoff 制品与业务文件分界（2026-10-31）
 
 后继在原私有维护根保存 `resident/artifacts/<db2>/executors/<sha>/stage.json`、小型 pyz、`resident/handoffs/<txn>/` 的原 journal／身份／意图和完整终态回执；不复用或覆盖旧 executor、旧 source 与旧恢复原件。大 predecessor／handoff envelope 保留原 16 MB journal 例外，stage 和小控制记录仍受 1 MiB 门限制。历史目录 rename-only 预算与配置 copy 512 MiB 门分开，不能只提高备份常量。

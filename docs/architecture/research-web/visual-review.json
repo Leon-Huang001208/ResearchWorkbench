@@ -4,17 +4,17 @@
   "diagrams": [
     {
       "id": "08-iteration-docs",
-      "artifactSha256": "675cc55e53e7ad1eef1b0bdc587d620bbe673b6112bc6c55534222d698824ce9",
-      "specificationSha256": "eb7fbcc5f6a7f6218954a8e24e9617ea9ccb883a9b0c09197a37322b165fc234",
+      "artifactSha256": "d527966ae90f583ce5aa4ef64143b366270bbb39cf6b9749dc1970c832e3b8e7",
+      "specificationSha256": "fd33880e3289f757f178224e1d4d0c3f283a0424618f8e3433cc5bd7df30d7a7",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "codex-root",
+      "date": "2026-10-31",
       "captures": [
-        "08-iteration-docs.visual-check.1440x900.dark.png",
-        "08-iteration-docs.visual-check.2048x1320.light.png"
+        "08-iteration-docs.visual-check.1440x900.light.png",
+        "08-iteration-docs.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
+      "notes": "已实际查看同哈希的1440浅色和2048深色截图；新增测试根即时回收、选择性证据归档与本地/CI门的节点和关系可读，未见线条穿越节点、标签遮挡或裁剪。自动四视口无溢出、9项showcase 0错误0警告；图文检查不代表产品或模型验收。"
     },
     {
       "id": "05-capability-flow",

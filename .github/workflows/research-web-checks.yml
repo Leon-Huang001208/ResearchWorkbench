@@ -9,6 +9,7 @@ on:
       - "research_workbench_entrypoint/**"
       - "scripts/run_ci_pytest_partitions.py"
       - "scripts/stage_ci_pytest_evidence.py"
+      - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
       - "tests/unit/test_ci_pytest_partitions.py"
       - "tests/unit/test_ci_pytest_evidence_staging.py"
@@ -29,6 +30,7 @@ on:
       - "research_workbench_entrypoint/**"
       - "scripts/run_ci_pytest_partitions.py"
       - "scripts/stage_ci_pytest_evidence.py"
+      - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
       - "tests/unit/test_ci_pytest_partitions.py"
       - "tests/unit/test_ci_pytest_evidence_staging.py"
@@ -182,6 +184,7 @@ jobs:
             tests/research_web/test_market_terminal.py \
             tests/research_web/test_builder_reconcile.py \
             tests/research_web/test_iteration_resources.py \
+            tests/research_web/test_test_artifact_retention.py \
             tests/research_web/test_docker_resources.py \
             tests/research_web/test_market_provider.py \
             tests/research_web/test_market_service.py \

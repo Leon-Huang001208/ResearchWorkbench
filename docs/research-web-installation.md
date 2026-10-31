@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+## 开发测试产物留存（2026-10-31）
+
+`scripts/test_artifact_retention.py` 是 checkout 中的本机测试/交付辅助入口，使用标准库，不进入 Web 用户配置、模型链或 Docker 镜像运行时。新任务的 `iteration_resources` 选择性归档也不增加产品依赖；已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 无需修改，公开一键安装入口保持。由于本轮修改 `research_workbench_entrypoint/`，仍须由同候选 Mac Bootstrap 证明干净安装和固定 DSH 构建兼容；本机源码导入不能替代该 CI。具体身份、证据和空间门见[留存规则](research-web-storage-retention.md)。
+
 ## Native successor 的安装制品边界（2026-10-31）
 
 `trial_successor` 随原 Web 包安装，由原 Mac Bootstrap import 步骤覆盖；不增加依赖、安装入口或固定 DSH 构建分支。新执行器使用内盘原维护根中的小型内容寻址 pyz 与版本化 stage receipt，不复用旧 executor 缓存；开发 worktree 不成为生产依赖，已保留的固定 db2 product source 仍须单独核验。固定 90e 的 v4→v5 交接与后续 fresh retry 是 Native 维护入口，不是重新安装许可。
