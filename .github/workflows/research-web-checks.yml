@@ -93,6 +93,12 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
+          # The exact-handoff fixture verifies these historical objects offline.
+          # Keep checkout shallow and fetch only the three fixed source commits.
+          git -c gc.auto=0 -c maintenance.auto=false fetch --no-tags --no-write-fetch-head --no-auto-maintenance --depth=1 origin \
+            b800e50366d1a0868372bbf173822976066c143f \
+            db2ae9a48ceca365852072e622aa6627aa7d0b83 \
+            1529c3189b008b9861a2bee1511f051feefa76eb
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
             --allowed-parent "$RUNNER_TEMP" \

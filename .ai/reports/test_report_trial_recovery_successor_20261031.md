@@ -75,6 +75,29 @@ transaction are the maximum; exceeding that bound does not silently retry.
 Ruff and project-config mypy for model/trial source pass in the recorded existing
 tool environment. Public CI and live recovery have not been inferred from this.
 
+## First published candidate and repair1
+
+PR256 candidate eee74222d79ac2fd8e8a2db54c438bd9197f3838 passed Project
+Constraints 41169984767 and Mac Bootstrap 41169984799. The Mac safe artifact
+doctor reports installation_ok/product_ready true, model_ready false, zero
+issues and valid owned 3081/8088 services; those services were subsequently
+stopped. Actual checkout 50124ba07caf8a1cbccf760ed13865b8267c5f86 has parents
+1529c3189b008b9861a2bee1511f051feefa76eb and the candidate, tree
+5f0f42f3a792a751535b52a1e61ac7e04b0084d3. Mac artifact SHA-256:
+6024695a647d57f45882664d7e3b856f90706e809341edd0aced008e9357e1ec.
+
+Checks 41169984771 failed after running all 7,675 research nodes: 7,596 passed,
+73 skipped, six setup errors in the new genuine CLI fixture. Unit/JS/editorial
+did not run. The old safe artifact and mapping of sanitized case ordinals are
+retained under integration logs/successor-amended/. The fixture assumed the
+current Git object alternate contained fixed b800/db2/1529 commits; the hosted
+checkout is shallow. A real offline depth=1 clone reproduced exact invalid
+reference for db2. The repair fetches only those three fixed source commits in
+the existing CI preparation step and makes missing objects an explicit fixture
+failure. It does not skip the CLI positives or relax the production operator.
+Repair1 requires new local verification, independent review and all three new
+same-candidate CI results. None of these source results closes live deployment.
+
 A new read-only live scan reports 15 roots, 26 session directories, 15,424 nested
 entries, 887,252,773 logical bytes and 32,274,183 configuration copy bytes. The
 directory portion of the compact plan, including maximum future replacement

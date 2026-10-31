@@ -126,3 +126,15 @@ The b800 recovery receipt and later db2 deployment receipt represent separate re
 outcomes. Local synthetic tests, source/CI success, and staged artifacts do not
 prove the live site, authenticated entry parity, native cleanup acknowledgment,
 model output quality, or account-cleanup completion. Those remain separate evidence.
+
+## Historical Git witnesses for the synthetic CLI fixture
+
+The genuine-CLI fixture uses the real fixed b800, db2, and 1529 commit/module
+objects through a read-only alternate in a temporary repository. A default
+depth-one CI checkout does not supply these historical commits. CI preparation
+must make those three exact witnesses available before the existing test step;
+the checkout may remain shallow. The fixture performs no network fetch and does
+not skip the CLI: an unavailable commit fails before setup with
+`genuine_cli_required_object_missing:<sha>`. Local depth-one reproduction and
+an exact local witness fetch test this prerequisite, without changing product
+pins, recovery guards, or the evidence-sanitization contract.

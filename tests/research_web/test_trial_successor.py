@@ -999,6 +999,35 @@ def test_fresh_gateway_changed_birth_is_never_booted_out(fresh_actions):
     assert ("bootout", successor.g.LABEL) not in f.events
 
 
+def _require_genuine_cli_history(checkout, revisions):
+    """Fail clearly before fixture setup; CI supplies only the exact historical witnesses."""
+    import os
+    import subprocess
+
+    for revision in revisions:
+        result = subprocess.run(
+            [
+                "/usr/bin/git",
+                "-c",
+                "gc.auto=0",
+                "-c",
+                "maintenance.auto=false",
+                "-C",
+                str(checkout),
+                "cat-file",
+                "-e",
+                revision + "^{commit}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+            env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_OPTIONAL_LOCKS": "0"},
+        )
+        if result.returncode:
+            pytest.fail("genuine_cli_required_object_missing:" + revision, pytrace=False)
+
+
 @pytest.fixture
 def genuine_cli(qualified_source, monkeypatch):
     """Real main/stage/legacy Git/bundle/CAS/data engine; synthetic OS/service adapters."""
@@ -1025,6 +1054,10 @@ def genuine_cli(qualified_source, monkeypatch):
         path.chmod(0o700)
     (home / "server/accounts.sqlite3").chmod(0o600)
     (home / "logs").mkdir(mode=0o700)
+    # The canonical checkout may stay shallow; the existing CI step supplies
+    # these exact commits. Fixtures never fetch network history or skip the CLI.
+    checkout_root = Path(successor.__file__).parents[2]
+    _require_genuine_cli_history(checkout_root, (pkg.PAYLOAD, pkg.PREDECESSOR, pkg.PREVIOUS))
     # These temporary repositories share only a read-only object alternate.
     common = subprocess.check_output(
         [
@@ -1633,3 +1666,81 @@ def test_large_handoff_envelope_requires_explicit_reader_exception(tmp_path):
     with pytest.raises(UpdateBlocked, match="private_record_unreadable"):
         successor.reference(ref, path)
     assert successor.reference(ref, path, successor.g.JOURNAL_MAX_BYTES) == value
+
+
+@pytest.fixture
+def depth_one_cli_history(tmp_path):
+    """Tiny local smart-transport clone; no application history or network is copied."""
+    import subprocess
+
+    seed, shallow = tmp_path / "history-seed", tmp_path / "depth-one"
+    seed.mkdir()
+
+    def git(where, *args):
+        return subprocess.check_output(
+            [
+                "/usr/bin/git",
+                "-c",
+                "gc.auto=0",
+                "-c",
+                "maintenance.auto=false",
+                "-C",
+                str(where),
+                *args,
+            ],
+            text=True,
+            stderr=subprocess.PIPE,
+        ).strip()
+
+    git(seed, "init", "-q")
+    git(seed, "config", "user.name", "Synthetic History")
+    git(seed, "config", "user.email", "history@example.invalid")
+    (seed / "history.txt").write_text("old witness\n")
+    git(seed, "add", ".")
+    git(seed, "commit", "-qm", "historical witness")
+    old = git(seed, "rev-parse", "HEAD")
+    (seed / "history.txt").write_text("new checkout\n")
+    git(seed, "add", ".")
+    git(seed, "commit", "-qm", "current checkout")
+    current = git(seed, "rev-parse", "HEAD")
+    subprocess.run(
+        ["/usr/bin/git", "clone", "--depth=1", "--no-checkout", seed.as_uri(), str(shallow)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert git(shallow, "rev-parse", "--is-shallow-repository") == "true"
+    return SimpleNamespace(seed=seed, shallow=shallow, old=old, current=current, git=git)
+
+
+def test_genuine_cli_shallow_missing_witness_has_explicit_failure(depth_one_cli_history, tmp_path):
+    import subprocess
+
+    f = depth_one_cli_history
+    missing = subprocess.run(
+        [
+            "/usr/bin/git",
+            "-C",
+            str(f.shallow),
+            "worktree",
+            "add",
+            "--detach",
+            "--no-checkout",
+            str(tmp_path / "unavailable-history"),
+            f.old,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 128
+    assert "invalid reference: " + f.old in missing.stderr
+    with pytest.raises(pytest.fail.Exception, match="genuine_cli_required_object_missing:" + f.old):
+        _require_genuine_cli_history(f.shallow, (f.current, f.old))
+
+
+def test_genuine_cli_exact_local_witness_fetch_preserves_shallow_checkout(depth_one_cli_history):
+    f = depth_one_cli_history
+    f.git(f.shallow, "fetch", "--no-tags", "--depth=1", f.seed.as_uri(), f.old)
+    _require_genuine_cli_history(f.shallow, (f.current, f.old))
+    assert f.git(f.shallow, "rev-parse", "--is-shallow-repository") == "true"
