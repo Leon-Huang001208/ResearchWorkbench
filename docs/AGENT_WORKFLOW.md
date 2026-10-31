@@ -247,7 +247,7 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 master及PR head须匹配，并在写入前再次核对。脏目录、未提交合并、改动中的回执、未知PR
 head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进；只接受明确登记的已发布tip，
 不接受任意祖先。成功发布后会把该tip推进到实际发布候选，禁止沿用更老的tip。
-首次发布前恢复要求 `mode`、`pullRequest`、`remoteCommit` 三项明确为 null；不查询不存在的 PR。已发布任务继续验证原 PR 身份，不接受部分发布字段或未知远端 tip。
+首次发布前恢复要求 `mode`、`pullRequest`、`remoteCommit` 三项明确为 null；不查询不存在的 PR。原回执仍为 `prepared`、但主线已前进时也可直接走原 `--prepare`，无须为了标记 `remote_moved` 调用发布；若 `mergeSourceCommit` 存在，刷新前必须等于旧 `featureCommit`，刷新后随最新 feature 一起推进。主线未变时仍拒绝重复刷新。已发布任务继续验证原 PR 身份，不接受部分发布字段或未知远端 tip。
 已发布 PR 处于 `awaiting_ci` 或 `ci_failed`、而真实主线已经前进时，也可在原工作树提交合并后直接 `--prepare`；不要求先发起一次 CI 修补来获得 `remote_moved` 标记。已刷新至 `prepared` 但新候选尚未发布时，主线再次前进也走同一入口；此时 PR head 必须仍等于明确登记的 `baseRefreshPublishedHead`，不能改指上一轮未发布候选。该入口仍必须证明新主线、旧候选、原 PR 和工作树身份，保留全部修补计数；主线未变仍拒绝，不能用刷新基线重试同候选或重置配额。
 恢复将旧完整回执以0600存于Git common dir的 `leon-engineering/git-safety/base-refresh/TASK/`，
 保留原PR、原工作树、所有引用和修补计数；不调用共享控制器的删除/重建分支，也不执行push。

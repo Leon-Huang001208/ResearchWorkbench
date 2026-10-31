@@ -1215,9 +1215,10 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
   const unpublished = receipt.mode === null && receipt.pullRequest === null && receipt.remoteCommit === null;
   const publishedPrepared = receipt.mode === 'pr' && receipt.status === 'prepared' &&
     /^[a-f0-9]{40}$/.test(receipt.baseRefreshPublishedHead ?? '') && receipt.baseRefreshPublishedHead !== receipt.integrationCommit;
-  const refreshable = unpublished ? ['remote_moved'] : ['remote_moved', 'awaiting_ci', 'ci_failed', ...(publishedPrepared ? ['prepared'] : [])];
+  const refreshable = unpublished ? ['remote_moved', 'prepared'] : ['remote_moved', 'awaiting_ci', 'ci_failed', ...(publishedPrepared ? ['prepared'] : [])];
   if ((!unpublished && receipt.mode !== 'pr') || !refreshable.includes(receipt.status) || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
   if (unpublished && (receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit/i.test(key) && !['pullRequest', 'remoteCommit', 'baseRefreshPublishedHead'].includes(key)) || receipt.cleanup?.remoteBranchDeleted === true || receipt.rollback && receipt.rollback.status !== 'not_run')) fail('UNPUBLISHED_STATE_INVALID');
+  if (unpublished && Object.hasOwn(receipt, 'mergeSourceCommit') && receipt.mergeSourceCommit !== receipt.featureCommit) fail('UNPUBLISHED_STATE_INVALID');
   if (receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '')) fail('TASK_OWNERSHIP_MISMATCH');
   const repo = githubRepo(receipt);
   if (!unpublished && (!Number.isSafeInteger(receipt.pullRequest?.number) || receipt.pullRequest.number < 1 || receipt.pullRequest.url !== `https://github.com/${repo}/pull/${receipt.pullRequest.number}`)) fail('TASK_OWNERSHIP_MISMATCH');
@@ -1290,7 +1291,7 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
     unchanged();
     const snapshot = path.join(state(repository), 'base-refresh', taskId, crypto.randomUUID() + '.json');
     privateWrite(snapshot, before);
-    const updated = {...receipt, baseCommit: base, remoteCommit: unpublished ? null : base, integrationCommit: candidate, ...(unpublished ? {featureCommit: latestFeature} : {baseRefreshPublishedHead: publishedHead}), verification: null, ci: {status: 'pending', runs: []}, status: 'prepared', updatedAt: new Date().toISOString()};
+    const updated = {...receipt, baseCommit: base, remoteCommit: unpublished ? null : base, integrationCommit: candidate, ...(unpublished ? {featureCommit: latestFeature, ...(Object.hasOwn(receipt, 'mergeSourceCommit') ? {mergeSourceCommit: latestFeature} : {})} : {baseRefreshPublishedHead: publishedHead}), verification: null, ci: {status: 'pending', runs: []}, status: 'prepared', updatedAt: new Date().toISOString()};
     temporary = destination + '.' + crypto.randomUUID() + '.tmp';
     privateWrite(temporary, JSON.stringify(updated, null, 2) + '\n');
     if (readBase() !== base) fail('REMOTE_BASE_CHANGED');
@@ -1969,7 +1970,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (params.replacePrepared) fail('PREPARE_REMOVAL_BLOCKED');
         const receipt = controller.readDeliveryReceipt(common);
         if (receipt.status === 'ci_passed') fail('PREPARE_REMOVAL_BLOCKED');
-        const refreshBase = receipt.status === 'remote_moved' || receipt.mode === 'pr' && (['awaiting_ci', 'ci_failed'].includes(receipt.status) || receipt.status === 'prepared' && receipt.baseRefreshPublishedHead != null);
+        const refreshBase = receipt.status === 'remote_moved' || receipt.mode === null && receipt.status === 'prepared' || receipt.mode === 'pr' && (['awaiting_ci', 'ci_failed'].includes(receipt.status) || receipt.status === 'prepared' && receipt.baseRefreshPublishedHead != null);
         result = params.amendPrepared ? amendPrepared(repository, receipt, taskId, options) : refreshBase
           ? refreshPublishedBase(repository, receipt, taskId, options)
           : controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
