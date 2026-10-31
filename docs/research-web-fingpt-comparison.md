@@ -9,6 +9,13 @@ PR245 的 runtime 导入事实定点验证只补入既有 Checks Python 清单�
 
 PR245 repair3 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立声明的 dev 工具和普通 wheel 安装边界，并在完整测试前以 -I 实际核验已安装 Host／fresh Native 导入准入。未锁 jsonpointer 的真实 optional 引用及可发现性仍拒绝；不通过修改 policy、依赖锁或删测试降低门槛。离线 wheel／资源真调用不等于实际安装或console script通过；本机治理与安装CI不认证FinGPT模型质量、真实报告或用户额外SDK环境兼容，本轮不执行模型对比、上游取数或常驻切换。旧候选DSH下载超时不扩大重试、pin或模型预算。
 
+## 试验丢弃与质量证据分离（2026-10-30）
+
+本次 Native 维护模式接受用户明确授权的历史试验及 Wind UNKNOWN 丢弃；它不运行 FinGPT 比较、不产生模型质量结论、不把未知执行改为成功。历史试验不再独立否决该固定模式的部署，但普通未知拒绝与本章冻结质量门保持。
+
+账号和模型配置受保护，已提交丢弃随代码回滚继续生效，关联生产者不在重启时重放。离线模块和既有 CI import 检查只证明维护合同，最终候选 CI、真实维护及认证页面另行取证。见[试验退役与恢复合同](research-web-trial-discard.md)。
+
+
 备份 FD clone／单文件快照预算修复不执行本比较、DSH 模型、Office 或付费源，
 也不把备份工具链 Python 选择复用当成模型或生产权限。小数据 clone、CI 和
 Source 审查只认证各自候选；完整恢复、未知请求不重发、预算与质量 oracle 保持。

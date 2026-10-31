@@ -1,5 +1,11 @@
 # 安全边界与验证方法
 
+## 用户授权丢弃的窄例外（2026-10-30）
+
+用户明确授权历史 RWB 试验及 Wind UNKNOWN 丢弃，仅封闭维护模式不再以旧未知状态独立否决部署；这不将 `active: null` 认证为空闲，也不取消普通模式的未知拒绝。账号、模型设置和非试验配置受保护；只对重新验证身份的已知 RWB 进程执行授权停止，不终止外部 Wind Terminal。
+
+三锁、BirthFence、停写后保全、归属／inode 复核及完整终态回执构成原维护边界。错误 owner、无法确认停止、spawn 身份未落盘或未知目录创建结果保持栅栏且不自动重试。三份离线模块与既有 CI import 检查不调用模型，不能替代 exact-SHA CI、真实备份、常驻切换和登录后验收；详见[试验退役合同](../../research-web-trial-discard.md)。
+
 专业协作原生控制只接受既有DataHub私有密钥认证的固定/internal/data/specialist-control；浏览器不得提交执行完成或用量。模型仅提出DAG，程序校验角色、依赖与预算；尝试、子会话及请求turn/step在原生提交前留痕。账本位于账号根的私有specialists目录，脱离模型可写workspace；角色不授予额外工具权限，原租户与守卫边界保持。
 
 独立报告入口沿原 canUseReportWorkflows 主管理员展示约束，未认证/普通租户手填新路由无操作与数据投影，后端权限保持独立。旧受理未知只走原显式核对接口，不自动重发；质量 invalid 或定稿 invalidated 时交付及证据链接均关闭。

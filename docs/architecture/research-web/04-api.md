@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+## 试验退役属于维护 CLI（2026-10-30）
+
+历史试验退役不新增 HTTP、研究工具或跨租户 API。既有 Native 操作员的 `apply-trial-retirement` 接收 `--home`、`--source`、私有 `--trial-manifest`、维护模块规范 JSON 的 `--trial-manifest-sha256` 和私有 `--trial-backup-parent`；摘要用于绑定复核内容，不接受模型输出自声明授权。目标产品固定，执行器另行评审，恢复沿既有 `recover`。
+
+普通账号请求不能通过此模式取得维护权限；账号根、会话及受保护配置须匹配明确授权。具体 CLI 前提与失败状态见[维护合同](../../research-web-trial-discard.md)，接口清单不表示该模式已经现场验收。
+
 本轮无新HTTP字段或路径；PreviewRequest/ConfirmRequest等为内部typing合同，API仍由原strict模型验证。客户端换账户不复用前账户File控件或响应，服务器认证与Idempotency-Key合同保持。
 
 自选原创建端点成功后，前端以账户绑定metadata事件重读原GET /watchlists；不增加HTTP路径、不改sameAsset分支或权限。首建与后续新建均进入导入目标选项，显式换目标仍需重新冻结。

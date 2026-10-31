@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+授权试验退役使用现有 Native 操作员与恢复事务，产品目标和执行器版本分别固定并核验。
+公开安装入口、Web锁和固定DSH不变，无新依赖；Mac Bootstrap原步骤核验维护模块可导入。
+操作员的适用范围、配置保全及人工恢复边界见[试验退役说明](research-web-trial-discard.md)。
+
 专业协作 MVP 不新增产品依赖或服务，requirements/web.in、web.lock和scripts/setup_web.py保持；运行时插件及状态模块随原包安装。公开三入口与固定DSH不变。原macOS Bootstrap同一步导入specialists.routes并逐字节核验specialist-panel.mjs，仍须同候选Mac干净安装及3081/8088/Doctor证据；本地JS通过不替代安装或模型验收。
 
 自选CSV导入只使用既有Web栈和Python标准库，无新增依赖/凭据/服务。已核requirements/web.in、web.lock、setup_web.py及三公开入口无需改动；Mac Bootstrap原步骤核后端模块与watchlist-import.mjs HTTP/源码字节。仍须最终同候选macos-14干净安装、固定DSH、3081/8088与Doctor；本机既有环境及离线浏览器不代替该门，见[导入合同](research-web-watchlist-import.md)。
