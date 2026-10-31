@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+## v5 handoff 制品与业务文件分界（2026-10-31）
+
+后继在原私有维护根保存 `resident/artifacts/<db2>/executors/<sha>/stage.json`、小型 pyz、`resident/handoffs/<txn>/` 的原 journal／身份／意图和完整终态回执；不复用或覆盖旧 executor、旧 source 与旧恢复原件。大 predecessor／handoff envelope 保留原 16 MB journal 例外，stage 和小控制记录仍受 1 MiB 门限制。历史目录 rename-only 预算与配置 copy 512 MiB 门分开，不能只提高备份常量。
+
+当前 account DB、binding、索引及 catalog 仍按原冻结的 15 账号保全，模型和非试验业务值不因 fresh retry 重置。缩减到 admin＋新 test 不是 v5 数据迁移，须在本事务终态后独立操作；不把资料归档当作 Word／模型质量或现场恢复证据。文件身份、容量和恢复范围见[successor 合同](../../research-web-trial-successor-handoff.md)。
+
 ## 试验退役保全文件（2026-10-30）
 
 `trial_discard_backup` 按已验证账号映射保全账号数据库、resident 绑定、业务索引（含模型设置）及存在的 `report-workflows/catalog.json`；只读预览不输出模型值或正文。使用固定目录描述符与 no-follow 校验，最多 64 个账号根、512 MiB 聚合源文件，备份后保留 2 GiB 空间并实际恢复比对。该辅助库自身不覆盖会话目录。

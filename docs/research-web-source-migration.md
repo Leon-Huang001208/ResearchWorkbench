@@ -1,5 +1,11 @@
 # 共享部署资格恢复与源仓库迁移
 
+## 小型 executor provenance 与原源绑定（2026-10-31）
+
+新 successor 使用独立 `executors/<sha>/stage.json` 与内盘原维护根的小型 pyz，不覆盖冻结 1529 source／旧 pyz，也不复用旧 `artifacts/<db2>/executor`。stage 分别绑定 executor 和固定 db2 资格，运行依赖仍来自已保留且验证干净的 db2 product source；开发 worktree 不成为 production 依赖。固定 90e 的 journal 字节＋inode 交接为 v5，不等于可以任意改 `source_common`，原 before／after 双态仍须核验。
+
+原 15 账号、模型、业务及恢复归档保持原址；admin＋新 test 的账号清理只能在维护终态后独立执行，不是源码迁移的附带动作。fresh retry 依据明确 terminal receipt 开新事务，不借迁移静默清 quarantine、重发未知 spawn 或改变其他平台职责。入口及同事务续行见[successor handoff 合同](research-web-trial-successor-handoff.md)。
+
 ## 授权试验退役的来源重绑定（2026-10-30）
 
 固定 `apply-trial-retirement` 沿原 Native 事务，将旧 Desktop common → 新主仓库 common 的 before／after 双状态写入日志并严格复核；新主仓库准备好或资格转移完成，均不等于现场绑定已经改变。产品 b800e503 → db2ae9a4 与受审执行器身份分别认证，回滚／恢复复用既有入口及锁，不任意搜索替代源码。

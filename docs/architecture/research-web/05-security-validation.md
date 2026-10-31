@@ -1,5 +1,11 @@
 # 安全边界与验证方法
 
+## v5 handoff 的授权与未知保护（2026-10-31）
+
+新模式只接受固定 90e predecessor 的原字节、inode、源码、旧 pyz／job、冻结 consent 与新资格绑定，先持久化意图再交接；小型恢复 pyz 不授予任意源码／PID／账号接管权限。fresh retry 仅以已退役的 immutable rollback 回执、无新工作和固定 db2 quarantine 原件授权新事务，不清除隔离标记或放宽普通重启。
+
+真实三 EX 锁、安装 lease、BirthFence DB EX 与已知 PID birth／argv／UID／image／PGID／port 证据仍必需。每事务最多 8 项 spawn 意图，pending 不得按 missing probe 自动再启动；未知 job 停止／owner／mkdir 结果留栅栏，终态只释放本事务 namespace。原 15 账号及模型／业务范围不变，admin＋新 test 的账号缩减须在终态后单独授权执行，不能改当前 consent。合成测试、原 CI import 与源码资格不替代真实 quiescence、认证页面或 Docker／Windows／Linux 物理证据，见[安全交接合同](../../research-web-trial-successor-handoff.md)。
+
 ## 用户授权丢弃的窄例外（2026-10-30）
 
 用户明确授权历史 RWB 试验及 Wind UNKNOWN 丢弃，仅封闭维护模式不再以旧未知状态独立否决部署；这不将 `active: null` 认证为空闲，也不取消普通模式的未知拒绝。账号、模型设置和非试验配置受保护；只对重新验证身份的已知 RWB 进程执行授权停止，不终止外部 Wind Terminal。

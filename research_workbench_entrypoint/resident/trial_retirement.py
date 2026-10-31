@@ -22,9 +22,16 @@ from .evidence import UpdateBlocked
 
 log = logging.getLogger(__name__)
 MODE = "operator-authorized-trial-retirement-v1"
+SUCCESSOR_MODE = "operator-authorized-trial-retirement-v2"
 PREVIOUS = "b800e50366d1a0868372bbf173822976066c143f"
 PAYLOAD = "db2ae9a48ceca365852072e622aa6627aa7d0b83"
 CONSENT = "USER_AUTHORIZED_DISCARD"
+ARCHIVE_POLICY_V2 = {
+    "id": "rename-only-v2",
+    "max_bytes": 2 * 1024**3,
+    "max_entries": 32768,
+    "max_manifest_bytes": 8 * 1024**2,
+}
 ACTIVE_REPORT = {
     "queued",
     "preparing_data",
@@ -344,7 +351,9 @@ def validate_record(record: dict) -> None:
             ).encode()
         ).hexdigest()
         if (
-            record["version"] != 1
+            record["version"] not in (1, 2)
+            or (record["version"] == 1 and "archive_policy" in record)
+            or (record["version"] == 2 and record.get("archive_policy") != ARCHIVE_POLICY_V2)
             or record["status"] not in {"staging", "prepared", "retired_offline", "restored"}
             or record["native_cleanup"] != "UNKNOWN"
             or record["trial_outcome"] != CONSENT
@@ -374,6 +383,8 @@ def validate_record(record: dict) -> None:
             != record["baselines_sha256"]
         ):
             raise ValueError
+        if record["version"] == 2:
+            _archive_budget(record["plan"], ARCHIVE_POLICY_V2)
     except (KeyError, TypeError, ValueError) as exc:
         log.warning("trial_retirement_record_invalid")
         raise UpdateBlocked("trial_retirement_record_invalid") from exc
@@ -428,7 +439,10 @@ def stopped(ops) -> None:
     from . import gateway_upgrade as gateway
     from . import model_provider_upgrade as upgrade
 
-    if not isinstance(ops, upgrade.Operations) or ops.state.get("mode") != MODE:
+    if not isinstance(ops, upgrade.Operations) or ops.state.get("mode") not in (
+        MODE,
+        SUCCESSOR_MODE,
+    ):
         raise UpdateBlocked("trial_retirement_operator_required")
     for path in (
         ops.root / "supervisor.lock",
@@ -533,8 +547,46 @@ def _replace(path: Path, raw: bytes, expected: str) -> None:
         os.fsync(fd)
 
 
-def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> dict:
+def _archive_budget(plan: list, policy: dict) -> None:
+    """Rename capacity is separate from the unchanged configuration copy budget."""
+    directories = [directory for row in plan for directory in row["directories"]]
+    entries = sum(len(directory["files"]) for directory in directories)
+    size = sum(value["size"] for directory in directories for value in directory["files"].values())
+    encoded = json.dumps(
+        plan, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+    ).encode("utf-8")
+    if size > policy["max_bytes"] or entries > policy["max_entries"]:
+        raise UpdateBlocked("trial_retirement_archive_budget_exceeded")
+    if len(encoded) > policy["max_manifest_bytes"]:
+        raise UpdateBlocked("trial_retirement_manifest_budget_exceeded")
+
+
+def _reject_hardlinks(path: Path) -> None:
+    """A renamed archive must not retain an untracked writable file alias."""
+
+    def failed(error):
+        raise UpdateBlocked("trial_retirement_archive_unreadable") from error
+
+    for folder, _, names in os.walk(path, followlinks=False, onerror=failed):
+        for name in names:
+            if (Path(folder) / name).lstat().st_nlink != 1:
+                raise UpdateBlocked("trial_retirement_archive_hardlink")
+
+
+def prepare(
+    ops,
+    manifest: dict,
+    expected_digest: str,
+    backup_parent: Path,
+    *,
+    archive_policy: str | None = None,
+) -> dict:
     """Stage a verified backup and journal its exact plan before changing data."""
+    if archive_policy not in (None, ARCHIVE_POLICY_V2["id"]):
+        raise UpdateBlocked("trial_retirement_archive_policy_invalid")
+    version = 2 if archive_policy else 1
+    if version == 2 and ops.state.get("mode") != SUCCESSOR_MODE:
+        raise UpdateBlocked("trial_retirement_archive_policy_mode_mismatch")
     stopped(ops)
     inventory = authorize(ops.home, manifest, expected_digest, stopped_snapshot=True)
     from . import model_provider_upgrade as upgrade
@@ -543,7 +595,7 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
     stopped_assets = upgrade.asset_index_snapshot(ops.home)
     planned_assets = deepcopy(stopped_assets)
     stopped_scope = scope_snapshot(ops.home)
-    receipt = backup.backup(ops.home, backup_parent, inventory["seal"])
+    receipt = backup.backup(ops.home, backup_parent, inventory["seal"]) if version == 1 else None
     plan = []
     archive_bytes = inventory["total_bytes"]
     archive_files = 0
@@ -592,6 +644,8 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
             if path.exists() or path.is_symlink():
                 backup._ancestors(path / "placeholder")
                 info = backup._directory(path)
+                if version == 2:
+                    _reject_hardlinks(path)
                 directories.append(
                     {
                         "relative": str(directory),
@@ -603,7 +657,9 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
                 )
                 archive_bytes += sum(value["size"] for value in directories[-1]["files"].values())
                 archive_files += len(directories[-1]["files"])
-                if archive_bytes > backup.MAX_TOTAL_BYTES or archive_files > 10000:
+                if version == 1 and (
+                    archive_bytes > backup.MAX_TOTAL_BYTES or archive_files > 10000
+                ):
                     raise UpdateBlocked("trial_retirement_archive_budget_exceeded")
         plan.append(
             {
@@ -627,7 +683,7 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
             }
         )
     retirement = {
-        "version": 1,
+        "version": version,
         "authorization": manifest,
         "authorization_sha256": expected_digest,
         "backup": receipt,
@@ -652,6 +708,24 @@ def prepare(ops, manifest: dict, expected_digest: str, backup_parent: Path) -> d
         "native_cleanup": "UNKNOWN",
         "trial_outcome": CONSENT,
     }
+    if version == 2:
+        retirement["archive_policy"] = deepcopy(ARCHIVE_POLICY_V2)
+        _archive_budget(plan, ARCHIVE_POLICY_V2)
+        prospective = deepcopy(ops.state)
+        # Fixed upper bound for the small backup receipt before any copy/mkdir.
+        prospective["trial_retirement"] = {**deepcopy(retirement), "backup": "x" * 16384}
+        for row in prospective["trial_retirement"]["plan"]:
+            for directory in row["directories"]:
+                directory["replacement_identity"] = [2**64 - 1, 2**64 - 1]
+        _archive_budget(prospective["trial_retirement"]["plan"], ARCHIVE_POLICY_V2)
+        upgrade.g.journal_preflight(prospective)
+        stopped(ops)
+        retirement["backup"] = backup.backup(ops.home, backup_parent, inventory["seal"])
+        if len(json.dumps(retirement["backup"], indent=2).encode("utf-8")) > 16384:
+            raise UpdateBlocked("trial_retirement_backup_receipt_oversized")
+        prospective["trial_retirement"] = retirement
+        upgrade.g.journal_preflight(prospective)
+        log.info("trial_retirement_v2_admitted roots=%s entries=%s", len(plan), archive_files)
     ops.state["trial_retirement"] = retirement
     ops.checkpoint(ops.state, "stop_primary")
     log.info("trial_retirement_plan_persisted roots=%s", len(plan))
@@ -715,6 +789,8 @@ def _archive_directory(ops, directory: dict, *, restoring: bool, verify: bool = 
             raise UpdateBlocked("trial_retirement_directory_state_unknown")
         if _tree(original) != directory["files"]:
             raise UpdateBlocked("trial_retirement_archive_changed")
+        if ops.state["trial_retirement"]["version"] == 2:
+            _reject_hardlinks(original)
         replacement_info = backup._directory(replacement)
         if stat.S_IMODE(replacement_info.st_mode) != directory["replacement_mode"] or _tree(
             replacement
@@ -744,7 +820,9 @@ def validate_retired(home: Path, record: dict, *, transaction: str) -> None:
     _verify_record_roots(Path(home), record)
     if record["status"] != "retired_offline":
         raise UpdateBlocked("trial_retirement_not_committed")
-    view = SimpleNamespace(home=Path(home), state={"transaction": transaction})
+    view = SimpleNamespace(
+        home=Path(home), state={"transaction": transaction, "trial_retirement": record}
+    )
     for row in record["plan"]:
         relative = Path(row["index"])
         if relative.is_absolute() or ".." in relative.parts:

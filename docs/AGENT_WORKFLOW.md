@@ -2,6 +2,12 @@
 
 PR245 pack runtime 性能回归只登记原 Checks 的同一 Python 显式清单，原本地验证→独立评审→最终候选 Router／CI 路由不变。进程内有界语法 facts LRU 只允许以完整 fresh bytes、module／package、绝对根、parser 对象和版本为键；每次依赖 identity、模块枚举、源码／metadata／权限／hash 读取、policy 与来源核验仍执行。Catalog cProfile 可认证本机实际 6 runtime／12 policy build／18 module inventory／281 save／56 check 及 ordered oracle，不替代完整 CI、Linux 成本或统计性能结论；原 45 分钟取消、mypy 17 项与三次修补预算保持原归属，本地修复不触发额外远端操作。
 
+## successor 的交付与现场证据分层（2026-10-31）
+
+该任务按高风险 macOS Native 维护路由隔离开发与完整交付：`handoff-trial-retirement` 只交接固定 90e 的旧 journal／phase／执行器，v5 小型 pyz 仍走原 `Operations/execute/recover`；fresh retry 另以已完成退役的 b800 rollback 回执和 db2 新资格开事务，不泛开旧 quarantine。不得修改冻结原件、借未准入控制器或用开发 worktree 替代生产依赖。
+
+三 EX 锁、安装 lease、BirthFence DB EX、精确 job／managed PID 终态和实际 bind 释放须有真实证据；每事务最多 8 项 spawn 意图，任一 pending 保持 UNKNOWN，不能把上限当自动重试额度。原 15 账号 consent 当前不变，终态后再单独清理到 admin＋新 test；不能重开 seal 来掩盖当前恢复失败。原步骤的测试／import、完整 Router、独评、最终 SHA 的 CI／Mac 安装与实际常驻全入口分别记录，未执行继续 NOT_RUN，不能据通用检查宣称 Docker／Windows／Linux 实机通过。详见[handoff 与 fresh retry 合同](research-web-trial-successor-handoff.md)。
+
 ## 授权历史试验退役的维护路由（2026-10-30）
 
 本次是 macOS Native 受控维护；用户明确授权丢弃历史 RWB 试验会话和 Wind UNKNOWN，保留账号与模型配置。仅封闭 `apply-trial-retirement` 模式中，这些历史状态及旧 `active: null` 不再独立否决切换，不能据此签发普通空闲证明或扩大其他模式权限。执行复用原三锁、BirthFence、`recover` 和精确进程身份复核；未知归属或中途崩溃保留栅栏，不自动重试。

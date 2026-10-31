@@ -1,5 +1,11 @@
 # Research Web 能力与平台证据
 
+## successor 的证据归属（2026-10-31）
+
+固定 90e→v5 handoff 和后续 fresh retry 属于 macOS Native 维护；小型 pyz／stage 替代的是执行器交接方式，不新增 DSH、研究引擎、业务 HTTP、依赖或 Docker／Windows／Linux 产品能力。通用 Ubuntu 单测保留真实宿主文件／UID／SQLite 后端，只为操作员入口设置局部平台视图，不能冒充 Linux 产品或 macOS Native 真机证据。
+
+最终候选 Router／CI、同候选 Mac 干净安装、三锁＋lease＋DB EX／spawn 未知保护，以及实际备份、切换与认证全入口分别留证；每事务 8 项 spawn 上限不允许重发 pending。原 15 账号当前冻结，admin＋新 test 清理是终态后另项操作，不能据计划先改支持矩阵或账号范围。详见[successor 维护合同](research-web-trial-successor-handoff.md)；本段不新增任何物理验收 PASS。
+
 ## 试验退役的本平台范围（2026-10-30）
 
 历史试验退役是 macOS Native 维护操作员的封闭模式，固定前版与产品，执行器独立评审；不新增桌面打包、Docker、Windows 或 Linux 产品能力。Windows/Linux 产品验收保持 `NOT_RUN`，由对应设备接手；Ubuntu 通用仓库检查不算它们的产品证据。

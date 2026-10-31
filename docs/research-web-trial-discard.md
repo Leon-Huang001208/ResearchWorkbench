@@ -29,6 +29,42 @@ spawn but before its identity is durably recorded remains fenced for operator
 reconciliation; it does not trigger a second spawn. Manual restoration of trial
 data stays offline and fenced. Source tests and CI are not live deployment proof.
 
+## Versioned rename capacity
+
+The successor execution mode `operator-authorized-trial-retirement-v2` can select
+the fixed `rename-only-v2` archive policy. Consent remains bound to the original
+v1 authorization profile and digest; changing execution policy does not create
+new user consent. The original execution mode cannot select the new policy.
+Its v2 retirement record freezes 2 GiB of aggregate renamed session files,
+32,768 nested file/directory entries, and an 8 MiB canonical compact plan limit.
+The original per-tree 512 MiB/10,000-entry and 64 MiB single-file limits remain.
+Configuration copying still uses the original 512 MiB budget and held-directory
+free-space admission of 2 GiB plus twice the copied configuration bytes.
+
+Before creating a backup or replacement directory, v2 scans the stopped trees,
+rejects hardlinked files, checks aggregate/manifest capacity, and checks the
+complete encoded journal against its unchanged 16,000,000-byte limit and reserve.
+The preflight includes a bounded backup receipt and future replacement identities.
+Resume checks the frozen policy and capacity again; archive verification also
+rejects newly introduced hardlinks. Retirement is a same-parent rename preserving
+the original inode and content for protected offline recovery. It removes trials
+from active research, without erasing the recovery archive or inventing a Wind
+acknowledgement. Deployment and authenticated product acceptance remain separate.
+
+After the exact predecessor transaction has committed retirement and actually
+rolled back to the preserved old code, `apply-trial-retirement-v2` is the explicit
+new deployment attempt. It requires the same trial authorization flags and
+`--trial-terminal-receipt` pointing to the private immutable completion receipt
+for transaction `90e13d10-96c2-4115-a062-c79d760b8fdd`. The completed successor
+handoff, committed retirement, unchanged retired data/no-new-work boundary and
+fixed db2 failed-candidate marker are verified before staging. The new qualified
+executor uses its sealed small recovery bundle, retaining the old executor and
+all original failure evidence. The failed-candidate marker remains preserved;
+this explicit receipt-bound attempt does not enable automatic retry. A receipt
+from another transaction, an unfinished rollback, changed trial data or changed
+failed target rejects admission. Recovery references the frozen receipt rather
+than replaying the initial authorization or old stop requests.
+
 ## Preservation helper
 
 `research_workbench_entrypoint.resident.trial_discard_backup` provides a bounded preview and an exact-file, same-filesystem backup for a separately authorized retirement of historical trial sessions. It is a library for the existing resident maintenance transaction, not a deploy command or a deletion engine.

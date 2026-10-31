@@ -11,6 +11,12 @@ PR245 的 runtime 导入事实定点验证只补入既有 Checks Python 清单�
 
 PR245 repair3 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立声明的 dev 工具和普通 wheel 安装边界，并在完整测试前以 -I 实际核验已安装 Host／fresh Native 导入准入。未锁 jsonpointer 的真实 optional 引用及可发现性仍拒绝；不通过修改 policy、依赖锁或删测试降低门槛。离线 wheel／资源真调用不等于实际安装或console script通过；本机治理与安装CI不认证FinGPT模型质量、真实报告或用户额外SDK环境兼容，本轮不执行模型对比、上游取数或常驻切换。旧候选DSH下载超时不扩大重试、pin或模型预算。
 
+## successor 不产生比较验收（2026-10-31）
+
+固定 90e→v5 的小型 Native pyz 与 fresh retry 仅恢复原部署链；FinGPT 仍是唯一 DSH 上的既有模式，不新增研究引擎、业务 HTTP、依赖或比较运行。三锁、lease、DB EX／有界 spawn 意图不能替代本章冻结问题、模型／次数／费用和质量 oracle；pending 或历史 UNKNOWN 不转为 accepted，也不重发试验来填质量缺口。
+
+当前原 15 账号的模型配置与比较证据保全范围不变；已提交历史弃置与正式质量结论分开，admin＋新 test 清理待终态后独立进行。源码／CI／Mac 安装、真实维护与模型比较分别取证，不据此新增 Docker／Windows／Linux 物理 PASS。维护重入与终态语义见[successor 合同](research-web-trial-successor-handoff.md)。
+
 ## 试验丢弃与质量证据分离（2026-10-30）
 
 本次 Native 维护模式接受用户明确授权的历史试验及 Wind UNKNOWN 丢弃；它不运行 FinGPT 比较、不产生模型质量结论、不把未知执行改为成功。历史试验不再独立否决该固定模式的部署，但普通未知拒绝与本章冻结质量门保持。

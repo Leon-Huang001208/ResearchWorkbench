@@ -120,6 +120,167 @@ def test_actual_offline_apply_resume_restore(stopped_home):
     assert trial.apply(f.ops, restoring=True)["status"] == "restored"
 
 
+def test_v2_actual_retirement_preserves_config_and_resumes(stopped_home):
+    f = stopped_home
+    f.ops.state["mode"] = trial.SUCCESSOR_MODE
+    accounts = (f.ops.server / "accounts.sqlite3").read_bytes()
+    record = trial.prepare(
+        f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+    )
+    assert record["version"] == 2
+    trial.validate_record(record)
+    trial.apply(f.ops)
+    trial.validate_retired(f.ops.home, record, transaction=f.ops.state["transaction"])
+    assert trial.apply(f.ops)["status"] == "retired_offline"
+    assert (f.ops.server / "accounts.sqlite3").read_bytes() == accounts
+    assert json.loads((f.data / "index.json").read_bytes()) == {**f.original, "sessions": {}}
+    trial.apply(f.ops, restoring=True)
+    assert (f.data / "sessions/trial.json").is_file()
+
+
+def test_v2_oversized_journal_rejected_before_backup(stopped_home):
+    f = stopped_home
+    f.ops.state["mode"] = trial.SUCCESSOR_MODE
+    f.ops.state["synthetic_large_field"] = "x" * 16_000_000
+    with pytest.raises(UpdateBlocked, match="journal_oversized"):
+        trial.prepare(
+            f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+        )
+    assert list(f.safe.iterdir()) == []
+    assert "trial_retirement" not in f.ops.state
+
+
+def test_v2_rejects_hardlinked_trial_file_before_backup(stopped_home):
+    import os
+
+    f = stopped_home
+    f.ops.state["mode"] = trial.SUCCESSOR_MODE
+    os.link(f.data / "sessions/trial.json", f.data / "sessions/alias.json")
+    f.manifest["scope_sha256"] = trial.digest(trial.scope_snapshot(f.ops.home))
+    with pytest.raises(UpdateBlocked, match="hardlink"):
+        trial.prepare(
+            f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+        )
+    assert list(f.safe.iterdir()) == []
+
+
+def test_v2_policy_cannot_be_selected_by_old_operator(stopped_home):
+    f = stopped_home
+    with pytest.raises(UpdateBlocked, match="policy_mode_mismatch"):
+        trial.prepare(
+            f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+        )
+    assert list(f.safe.iterdir()) == []
+
+
+def test_v2_rename_budget_covers_large_aggregate_without_raising_copy_cap():
+    original_copy_cap = backup.MAX_TOTAL_BYTES
+    plan = [
+        {
+            "directories": [
+                {"files": {str(i): {"size": 60000} for i in range(6000)}} for _ in range(2)
+            ]
+        }
+    ]
+    trial._archive_budget(plan, trial.ARCHIVE_POLICY_V2)
+    assert original_copy_cap == backup.MAX_TOTAL_BYTES == 512 * 1024**2
+    plan[0]["directories"][0]["files"]["0"]["size"] = 2 * 1024**3
+    with pytest.raises(UpdateBlocked, match="archive_budget_exceeded"):
+        trial._archive_budget(plan, trial.ARCHIVE_POLICY_V2)
+
+
+def test_v2_real_sparse_archives_exceed_old_aggregate_without_copying(stopped_home):
+    """Real filesystem reads/rename, with sparse fixtures avoiding disk allocation."""
+    f = stopped_home
+    sources = []
+    for folder in (f.data / "sessions", f.data / "runtime/home/sessions"):
+        for number in range(8):
+            path = folder / f"sparse-{number}.bin"
+            with path.open("wb") as stream:
+                stream.truncate(40 * 1024**2)
+            sources.append((path, path.stat().st_ino))
+    f.manifest["scope_sha256"] = trial.digest(trial.scope_snapshot(f.ops.home))
+    with pytest.raises(UpdateBlocked, match="archive_budget_exceeded"):
+        trial.prepare(f.ops, f.manifest, trial.digest(f.manifest), f.safe)
+    assert "trial_retirement" not in f.ops.state
+    f.ops.state["mode"] = trial.SUCCESSOR_MODE
+    record = trial.prepare(
+        f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+    )
+    assert (
+        sum(
+            value["size"]
+            for row in record["plan"]
+            for directory in row["directories"]
+            for value in directory["files"].values()
+        )
+        > backup.MAX_TOTAL_BYTES
+    )
+    trial.apply(f.ops)
+    trial.validate_retired(f.ops.home, record, transaction=f.ops.state["transaction"])
+    for path, inode in sources:
+        archived = path.parent.with_name(".trial-retired-" + f.ops.state["transaction"]) / path.name
+        assert archived.stat().st_ino == inode
+        assert archived.stat().st_size == 40 * 1024**2
+        assert not path.exists()
+
+
+@pytest.mark.parametrize("change", ["policy", "version", "late_hardlink"])
+def test_v2_resume_does_not_accept_changed_policy_or_file_alias(stopped_home, change):
+    import os
+
+    f = stopped_home
+    f.ops.state["mode"] = trial.SUCCESSOR_MODE
+    record = trial.prepare(
+        f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+    )
+    if change == "policy":
+        record["archive_policy"]["max_entries"] += 1
+    elif change == "version":
+        record["version"] = 1
+    else:
+        os.link(f.data / "sessions/trial.json", f.data / "outside-trial.json")
+    with pytest.raises(UpdateBlocked):
+        trial.apply(f.ops)
+    assert json.loads((f.data / "index.json").read_bytes()) == f.original
+
+
+def test_v2_manifest_limit_and_entry_limit_are_independent():
+    plan = [{"directories": [{"files": {"x" * (8 * 1024**2): {"size": 0}}}]}]
+    with pytest.raises(UpdateBlocked, match="manifest_budget_exceeded"):
+        trial._archive_budget(plan, trial.ARCHIVE_POLICY_V2)
+    plan = [{"directories": [{"files": {str(i): {"size": 0} for i in range(32769)}}]}]
+    with pytest.raises(UpdateBlocked, match="archive_budget_exceeded"):
+        trial._archive_budget(plan, trial.ARCHIVE_POLICY_V2)
+
+
+def test_v2_manifest_accounts_for_future_replacement_identity_before_copy(
+    stopped_home, monkeypatch
+):
+    f = stopped_home
+    f.ops.state["mode"] = trial.SUCCESSOR_MODE
+    real_budget = trial._archive_budget
+    observed = []
+
+    def boundary_budget(plan, policy):
+        real_budget(plan, policy)
+        identities = [d["replacement_identity"] for row in plan for d in row["directories"]]
+        observed.append(identities)
+        if any(identity is not None for identity in identities):
+            raise UpdateBlocked("trial_retirement_manifest_budget_exceeded")
+
+    monkeypatch.setattr(trial, "_archive_budget", boundary_budget)
+    with pytest.raises(UpdateBlocked, match="manifest_budget_exceeded"):
+        trial.prepare(
+            f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+        )
+    assert len(observed) == 2
+    assert all(value is None for value in observed[0])
+    assert all(value is not None for value in observed[1])
+    assert list(f.safe.iterdir()) == []
+    assert not list(f.data.glob(".trial-*"))
+
+
 @pytest.mark.parametrize(
     "field,value",
     [

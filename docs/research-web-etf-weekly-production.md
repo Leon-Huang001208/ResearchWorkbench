@@ -1,5 +1,11 @@
 # 华安 ETF 周报自动生产
 
+## successor 的周报恢复边界（2026-10-31）
+
+固定 90e→v5 handoff／fresh retry 由原 Native 操作员和小型恢复 pyz 执行，不新增周报执行引擎、HTTP、依赖或正式 Run。原 15 账号的 index／catalog／模型配置继续保全；只退役已证明关联的历史试验生产者，不因代码 rollback 恢复其 enabled 资格，也不重发旧 unknown 模型／Wind 请求。admin＋新 test 的账号清理在本事务终态后另行处理。
+
+三锁、lease、DB EX、最多 8 项有界 spawn 意图及 pending 未知保护只约束维护过程，不补齐本章数据、正式稿质量、Office／Word、日程或认证下载验收。原恢复 b800 与新 apply db2 的回执分开，Docker／Windows／Linux 物理状态仍由各自证据决定。详见[successor 合同](research-web-trial-successor-handoff.md)，不得以部署资格代替周报 accepted。
+
 ## 历史试验退役不重放周报（2026-10-30）
 
 用户授权丢弃历史 RWB 试验及 Wind UNKNOWN 后，Native 维护操作员必须在保全账号／模型配置、索引和报告 catalog 后，归档已验证会话并停用关联试验报告生产者。重启与代码回滚均不恢复已提交丢弃的生产者，不重发未知模型请求；手工原始恢复只能离线并持栅栏。

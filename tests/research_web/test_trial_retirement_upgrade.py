@@ -1,5 +1,6 @@
 """Synthetic operator transactions: no live home, process signals or providers."""
 
+import json
 import signal
 import sys
 from pathlib import Path
@@ -11,8 +12,257 @@ from test_trial_retirement import stopped_home
 from research_workbench_entrypoint import web_contract as native
 from research_workbench_entrypoint.resident import model_provider_upgrade as u
 from research_workbench_entrypoint.resident import trial_retirement as trial
+from research_workbench_entrypoint.resident import trial_successor as successor
 
 __all__ = ["stopped_home"]
+
+
+@pytest.fixture
+def retired_retry_home(stopped_home, monkeypatch):
+    f = stopped_home
+    f.ops.state.update(
+        mode=u.TRIAL_SUCCESSOR_MODE,
+        transaction=successor.TRANSACTION,
+        previous=trial.PREVIOUS,
+        target=trial.PAYLOAD,
+    )
+    record = trial.prepare(
+        f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+    )
+    trial.apply(f.ops)
+    receipt = {
+        "version": 1,
+        "kind": "completed-trial-retirement",
+        "mode": u.TRIAL_SUCCESSOR_MODE,
+        "transaction": successor.TRANSACTION,
+        "previous": trial.PREVIOUS,
+        "payload": trial.PAYLOAD,
+        "result": {"status": "rolled_back", "revision": trial.PREVIOUS},
+        "journal": f.ops.state,
+    }
+    folder = f.ops.root / "trial-retirements"
+    folder.mkdir(mode=0o700)
+    path = folder / (successor.TRANSACTION + ".json")
+    u.c.atomic(path, receipt)
+    u.c.atomic(f.ops.root / "quarantine.json", {"sha": trial.PAYLOAD})
+    # These unit cases isolate retry binding; full stage/CLI tests own provenance.
+    monkeypatch.setattr(successor, "verify_handoff", lambda *_: None)
+    return f, path, record
+
+
+def test_fresh_retry_requires_completed_retirement_and_preserves_failed_marker(retired_retry_home):
+    from uuid import uuid4
+
+    f, path, _ = retired_retry_home
+    marker = f.ops.root / "quarantine.json"
+    original = marker.read_bytes(), marker.stat().st_ino
+    retry = u.trial_successor_retry_preflight(f.ops.home, path)
+    state = {
+        "version": 5,
+        "mode": u.TRIAL_SUCCESSOR_MODE,
+        "previous": trial.PREVIOUS,
+        "target": trial.PAYLOAD,
+        "transaction": str(uuid4()),
+        "executor_revision": "e" * 40,
+        "trial_authorization_sha256": "a" * 64,
+        "successor": {**retry, "authorization_sha256": "a" * 64},
+    }
+    u.verify_trial_successor_fresh(f.ops.home, state, {"executor_revision": "e" * 40})
+    assert (marker.read_bytes(), marker.stat().st_ino) == original
+
+
+@pytest.mark.parametrize("damage", ["path", "result", "new_work", "quarantine"])
+def test_fresh_retry_rejects_unclosed_or_changed_objects(retired_retry_home, damage):
+    f, path, _ = retired_retry_home
+    if damage == "path":
+        path = path.with_name("wrong.json")
+    elif damage == "result":
+        receipt = json.loads(path.read_bytes())
+        receipt["result"]["status"] = "deployed"
+        u.c.atomic(path, receipt)
+    elif damage == "new_work":
+        (f.data / "sessions/new-work.json").write_text("new research")
+    else:
+        u.c.atomic(f.ops.root / "quarantine.json", {"sha": "f" * 40})
+    with pytest.raises(u.UpdateBlocked):
+        u.trial_successor_retry_preflight(f.ops.home, path)
+
+
+def test_fresh_retry_receipt_required_before_reading_home(tmp_path, monkeypatch):
+    monkeypatch.setattr(u.c, "configured", lambda *_: pytest.fail("home was read"))
+    with pytest.raises(u.UpdateBlocked, match="retry_receipt_required"):
+        u.operate(tmp_path, mode=u.TRIAL_SUCCESSOR_MODE)
+
+
+def test_fresh_retry_cli_forwards_exact_admission_flags(tmp_path, monkeypatch):
+    (tmp_path / "logs").mkdir()
+    captured = {}
+    output = []
+    monkeypatch.setattr(u, "print", output.append, raising=False)
+
+    def operate(home, source, **kwargs):
+        captured.update(home=home, source=source, **kwargs)
+        return {"status": "deployed"}
+
+    monkeypatch.setattr(u, "operate", operate)
+    assert (
+        u.main(
+            [
+                "apply-trial-retirement-v2",
+                "--home",
+                str(tmp_path),
+                "--source",
+                str(tmp_path),
+                "--trial-terminal-receipt",
+                str(tmp_path / "completed.json"),
+                "--trial-manifest",
+                str(tmp_path / "consent.json"),
+                "--trial-manifest-sha256",
+                "a" * 64,
+                "--trial-backup-parent",
+                str(tmp_path / "backups"),
+            ]
+        )
+        == 0
+    )
+    assert json.loads(output[0])["status"] == "deployed"
+    assert captured["mode"] == u.TRIAL_SUCCESSOR_MODE
+    assert captured["trial_terminal_receipt"] == tmp_path / "completed.json"
+    assert captured["trial_manifest_sha256"] == "a" * 64
+
+
+def test_old_cli_cannot_use_new_retry_receipt(tmp_path, monkeypatch):
+    (tmp_path / "logs").mkdir()
+    output = []
+    monkeypatch.setattr(u, "print", output.append, raising=False)
+    monkeypatch.setattr(u.c, "configured", lambda *_: pytest.fail("home was read"))
+    assert (
+        u.main(
+            [
+                "apply-trial-retirement",
+                "--home",
+                str(tmp_path),
+                "--trial-terminal-receipt",
+                str(tmp_path / "completed.json"),
+            ]
+        )
+        == 1
+    )
+    assert json.loads(output[0]) == {
+        "status": "blocked",
+        "reason": "trial_successor_retry_flags_forbidden",
+    }
+
+
+def test_module_cli_uses_same_guarded_operations_class_before_home_read():
+    import subprocess
+
+    code = """
+import argparse, importlib, json, runpy, sys
+name = 'research_workbench_entrypoint.resident.model_provider_upgrade'
+def parse(self, *args, **kwargs):
+    canonical = importlib.import_module(name)
+    print(json.dumps({'same': canonical.Operations is sys.modules['__main__'].Operations}))
+    raise SystemExit(0)
+argparse.ArgumentParser.parse_args = parse
+runpy.run_module(name, run_name='__main__', alter_sys=True)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=Path(__file__).resolve().parents[2],
+        text=True,
+        capture_output=True,
+        timeout=15,
+        check=True,
+    )
+    assert json.loads(result.stdout) == {"same": True}
+
+
+def test_fresh_forward_uses_quiesce_and_graceful_actions_instead_of_legacy_signals(
+    tmp_path, monkeypatch
+):
+    state = {
+        "mode": u.TRIAL_SUCCESSOR_MODE,
+        "target": trial.PAYLOAD,
+        "successor": {"origin": "fresh_apply", "observe_only": False},
+    }
+    ops = u.Operations(tmp_path, state, None, None, None)
+    calls = []
+    monkeypatch.setattr(
+        successor, "stop_fresh_gateway", lambda owner: calls.append("gateway"), raising=False
+    )
+    monkeypatch.setattr(
+        successor, "stop_fresh_primary", lambda owner: calls.append("primary"), raising=False
+    )
+    monkeypatch.setattr(ops, "idle", lambda: True)
+    monkeypatch.setattr(
+        ops, "retire_trial_process", lambda *_: pytest.fail("legacy signal sequence")
+    )
+    for action in ("stop_gateway", "stop_primary", "rollback_gateway", "rollback_primary"):
+        ops.action(action, state)
+    assert calls == ["gateway", "primary", "gateway", "primary"]
+
+
+def test_successor_spawn_identity_and_observation_flag_commit_together(stopped_home, monkeypatch):
+    from contextlib import nullcontext
+
+    f = stopped_home
+    f.ops.state.update(mode=u.TRIAL_SUCCESSOR_MODE, target=trial.PAYLOAD)
+    trial.prepare(
+        f.ops, f.manifest, trial.digest(f.manifest), f.safe, archive_policy="rename-only-v2"
+    )
+    trial.apply(f.ops)
+    f.ops.state["successor"] = {"origin": "handoff", "observe_only": True}
+    calls = []
+    f.ops.manager._start_installed = lambda *args, **kwargs: calls.append("spawn")
+    monkeypatch.setattr(u.c, "fixed_ports", lambda *_: nullcontext())
+    monkeypatch.setenv("RESEARCH_RESIDENT_REVISION", "synthetic-before")
+
+    def capture(roles):
+        assert roles == ("web", "runtime")
+        assert f.ops.state["successor"]["observe_only"] is False
+        f.ops.state["trial_processes"] = {"web": {"pid": 12345}}
+        f.ops.confirm_successor_spawn(roles)
+        f.ops.checkpoint(f.ops.state, "start_primary")
+        calls.append("identity-and-flag")
+
+    monkeypatch.setattr(f.ops, "capture_trial_processes", capture)
+    f.ops.start_primary(False)
+    saved = json.loads((f.ops.server / "run/gateway-upgrade.json").read_bytes())
+    assert saved["successor"]["observe_only"] is False
+    assert saved["trial_processes"]["web"]["pid"] == 12345
+    assert calls == ["spawn", "identity-and-flag"]
+
+
+@pytest.mark.parametrize(
+    "operation", ["check_trial_processes", "stop_gateway", "stop_trial_primary"]
+)
+def test_successor_unconfirmed_spawn_never_interprets_missing_probe_as_absence(
+    tmp_path, monkeypatch, operation
+):
+    state = {
+        "mode": u.TRIAL_SUCCESSOR_MODE,
+        "phase": "start_primary",
+        "successor": {
+            "origin": "fresh_apply",
+            "spawn_attempts": [{"roles": ["web", "runtime"], "status": "pending"}],
+        },
+    }
+    ops = u.Operations(tmp_path, state, None, None, None)
+    monkeypatch.setattr(
+        successor,
+        "stop_fresh_gateway",
+        lambda *_: pytest.fail("unknown spawn mutated gateway"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        successor,
+        "stop_fresh_primary",
+        lambda *_: pytest.fail("unknown spawn mutated primary"),
+        raising=False,
+    )
+    with pytest.raises(u.UpdateBlocked, match="spawn_identity_unconfirmed"):
+        getattr(ops, operation)()
 
 
 def test_fixed_product_is_separate_from_executor_and_old_profiles():

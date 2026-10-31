@@ -10,6 +10,18 @@ PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，�
 
 PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
 
+PR256 首轮 Checks 41169984771 的全部 7,675 个 research 节点已执行，
+6 个新 CLI fixture setup 错误来自浅 checkout 缺少三个固定历史源对象；
+不是 45 分钟超时。repair1 只在原 Python 步骤前从 canonical origin
+按完整 SHA、depth=1 取 b800/db2/1529，不拉全历史、不在离线测试隐藏联网，
+为该有界准备预留原 job 内 60 秒，实际耗时由新同候选 CI 留证。
+原 45 分钟、job/runner/依赖和失败归档保持，旧 Mac/Constraints 成功不认证修后候选。
+
+2026-10-31 试验清理容量后继沿原 Checks Python 步骤增加精确交接离线合同，
+保留原操作员、退役及备份测试；不新增 job、runner、依赖、timeout 或平台 dispatch。
+新增合同预留原步骤 30 秒，完整候选以实际 CI 用例及耗时为准。Mac 干净安装继续
+使用原 Bootstrap；本机真实恢复、账号保全和登录后验收分别留证，不进入公共产物。
+
 2026-10-30 授权试验退役在原 Research Web Checks Python 清单增加三份离线模块，
 Mac Bootstrap原安装步骤增加维护模块导入。没有新job、runner、依赖或超时，CI不接触
 真实模型、Wind或账号数据。新增模块局部用例约一秒，旧操作员全回归约四分钟，保留
