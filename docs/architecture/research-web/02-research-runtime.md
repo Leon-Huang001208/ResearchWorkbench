@@ -1,5 +1,11 @@
 # 研究协议、执行状态与恢复
 
+## successor 的恢复协议与 spawn 未知（2026-10-31）
+
+固定 90e 从旧 v4／1529 执行器交接到受审 v5，仅接续原恢复事务；完成退役并恢复 b800 代码与随后 fresh apply db2 是两个终态，不合并为一次部署成功。新 pyz 使用原恢复入口，研究仍由唯一 DSH 执行；job／TERM 意图已持久化而结果未明时只观察，不重发信号、模型或研究请求。
+
+三 EX 锁、安装 lease、BirthFence DB EX 下，每事务最多记录 8 项 spawn 意图；这不是 8 次自动重试额度。任一 pending 必须保持 UNKNOWN，不能从暂时无 PID 文件或端口空闲推断可以再 spawn；已确认 PID 与其 acceptance 在同一 checkpoint 提交。当前原 15 账号 consent 和非试验状态受保护，admin＋新 test 清理在终态后独立进行。详见[handoff／fresh retry 协议](../../research-web-trial-successor-handoff.md)，不由合成协议测试推定 Docker／Windows／Linux 实机行为。
+
 ## 历史试验丢弃与恢复（2026-10-30）
 
 用户授权的历史试验丢弃由离线 Native 操作员执行，研究会话仍使用唯一 DSH。停止前重新核实已知 RWB 进程身份；外部 Wind Terminal 不在退役范围内。归档会话同时停用关联自动化／报告生产者，重启不重放模型请求；账号和模型配置保持。

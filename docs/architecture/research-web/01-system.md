@@ -1,5 +1,11 @@
 # 部署与模块职责
 
+## 版本化 Native 交接的职责（2026-10-31）
+
+`trial_successor` 是原 `model_provider_upgrade` 的交接辅助模块：封印小型 pyz／stage、验证固定 90e predecessor、持久化 v5 handoff 与精确 job 意图；实际退役、安装、恢复和终态仍由原 `Operations/execute` 执行。fresh retry 另建事务，绑定已完成退役的 b800 rollback 回执及固定 db2 资格，不新增 controller、研究引擎、依赖或业务 HTTP 节点，现有拓扑保持。
+
+原 15 账号根的归属与保全范围不因 executor 更新改变；账号缩减到 admin＋新 test 是终态后的独立操作。三锁、lease、DB EX 和 pending spawn 的失败栅栏仍属于原 Native 控制面；平台物理验收不由这张职责图推定。路径与状态合同见[successor handoff](../../research-web-trial-successor-handoff.md)。
+
 ## 授权试验退役与既有拓扑（2026-10-30）
 
 `apply-trial-retirement` 在原 Native 维护操作员内固定 b800e50366d1a0868372bbf173822976066c143f → db2ae9a48ceca365852072e622aa6627aa7d0b83 产品；受审执行器与产品版本分别认证。沿原 Host／网关／账号根、三锁、BirthFence 和恢复事务运行，没有新增服务、HTTP 或研究引擎，原系统拓扑保持。

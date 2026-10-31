@@ -55,6 +55,10 @@ cases in 273.80 s (one original warning). Latest combined retirement/backup/
 wiring tests passed 128 cases in 3.07 s. These are development-source runs;
 final integration and CI evidence must bind the final candidate separately.
 
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"The fixed Native operator reuses the existing supervisor, maintenance transaction, BirthFence and recovery job family. Versioned handoff and a sealed small Python closure alter internal recovery protocol, not Host/DSH or Native/Docker runtime topology. Docker physical acceptance remains separate and no alternate deployment engine is introduced.","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"The existing changed-set Router, original Checks Python step, original Mac bootstrap import step, independent review and exact-candidate three-CI chain are retained. Only offline cases and a module import are appended; there is no new runner, job, timeout or product platform dispatch. CI remains source evidence rather than live recovery acceptance.","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"The same server account store, per-user roots, three operator locks and SQLite/BirthFence exclusions protect the frozen fifteen-account recovery. Explicit historical discard does not invent native acknowledgements; later removal of disabled trial accounts and creation of test is a separate authorized operation after terminal recovery. No research HTTP privilege, tenant routing layer or new database is added.","diagrams":[]} -->
+
 The explicit fresh attempt requires the exact immutable completed predecessor
 receipt, committed retirement/no-new-work verification and the fixed failed
 target marker; automatic retry remains forbidden and the marker is retained.
