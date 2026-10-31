@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-31 试验清理容量后继仍位于原 Native 操作员事务：版本化执行模式将历史会话的同父目录 rename 预算与配置复制预算分开，保持原三锁、BirthFence、账号保全和恢复归档。未新增研究引擎或业务权限；新执行器对旧事务的接管、源码交付和真实部署各自留证，不能以历史 UNKNOWN 或源码测试结果代替现场状态。容量合同见[试验退役](research-web-trial-discard.md)。
+
 专业协作 MVP 复用现有能力中心的不可变版本与账号存储。Host 只保存并校验业务 DAG、计划版本、节点尝试、预算准入和验收；原生 DSH 主 Agent 负责规划调度及可继续子会话，运行时原生 settlement 唤醒父 Agent。无第二执行循环、聊天库或 PostgreSQL；私有控制回调沿既有 DataHub 认证，详见[专业协作合同](research-web-specialists.md)。
 
 自选 CSV 导入复用浏览器 → 原 Host/AssetWorkspace → 既有 AssetDirectory/Store；新增两个封闭 HTTP 端点与同 index 的 watchlist_imports namespace。Store 实例共享 RLock 覆盖批次读取/CAS/stage/save/rollback及后台files保存，防止失败批次被线程偷发布；无跨 Host/跨进程或断电事务保证，不新增服务、DB、Provider或研究引擎。原聚合节点/连线拓扑保持，新增字段和API见[合同](research-web-watchlist-import.md)。

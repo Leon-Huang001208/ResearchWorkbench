@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-31：`resident/trial_retirement.py` 的固定 `rename-only-v2` 容量策略仅由新 successor 执行模式选择，原授权 digest 和 v1 保持；退役记录 v2 在复制前检查完整 journal 与 rename-only 总量，恢复时复核策略及硬链接。`resident/trial_successor.py` 为原 `model_provider_upgrade.py` 提供固定90e交接、小恢复包、精确job暂停/恢复及逐代单PID排空；原操作员提供 `handoff-trial-retirement` 和完成回执约束的 `apply-trial-retirement-v2`，不另建执行循环。回归在 `test_trial_retirement.py`、`test_trial_retirement_upgrade.py` 与 `test_trial_successor.py`，保全 helper 测试保持；现有 Native 维护拓扑不变，不从容量测试或合成CLI推断现场部署成功。
+
 试验退役入口 `resident/model_provider_upgrade.py` 的 `apply-trial-retirement` 在既有
 Native 维护事务内固定 b800e503 前版与 db2ae9a4 产品，执行器评审身份另行绑定。
 `resident/trial_discard_backup.py` 负责账号数据库／绑定／索引／报告目录的有界保全和恢复核验；
