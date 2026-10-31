@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-31起，GitHub干净安装门使用标准`macos-15`镜像；原`macos-14`正在官方brownout且将于11月2日退役。安装、固定DSH构建、3081/8088及Doctor检查保持不变。下文较早迭代中出现的macos-14描述保留其历史语境，新候选统一按本段及“后续迭代门禁”验收。
+
 ## Native successor 的安装制品边界（2026-10-31）
 
 `trial_successor` 随原 Web 包安装，由原 Mac Bootstrap import 步骤覆盖；不增加依赖、安装入口或固定 DSH 构建分支。新执行器使用内盘原维护根中的小型内容寻址 pyz 与版本化 stage receipt，不复用旧 executor 缓存；开发 worktree 不成为生产依赖，已保留的固定 db2 product source 仍须单独核验。固定 90e 的 v4→v5 交接与后续 fresh retry 是 Native 维护入口，不是重新安装许可。
@@ -923,7 +925,7 @@ SOCKS 代理，pip 与 Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。�
 
 任何 Web 功能、Python/Node 依赖、DSH、CJPY、启动或配置流程变更，都必须重新核对本文件、
 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 和 Doctor。仓库级
-`.github/workflows/research-web-bootstrap.yml` 对相关 PR 与主分支更新在干净的 GitHub `macos-14`
+`.github/workflows/research-web-bootstrap.yml` 对相关 PR 与主分支更新在干净的 GitHub `macos-15`
 runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检查 Doctor，并验证无凭据天软不会
 误报可调用。本机 macOS 验证必须先通过，但不能替代该远端干净环境门。Windows Web workflow 仅
 保留手动入口：当 policy 选择 Windows gate 时，必须在 Windows 真机 checkout 待验 ref，从该机以

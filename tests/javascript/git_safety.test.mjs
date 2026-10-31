@@ -665,7 +665,7 @@ test('status cleanup deferral preserves CI guards and receipt while default stat
   receipt.cleanup={featureWorktreeRemoved:false,integrationWorktreeRemoved:false,localBranchDeleted:false,remoteBranchDeleted:false};
   git(projectRoot,['remote','set-url','origin',receipt.remoteUrl]);
   fs.mkdirSync(path.join(projectRoot,'scripts'));fs.mkdirSync(path.join(projectRoot,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(projectRoot,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(projectRoot,'scripts',name));
   fs.writeFileSync(path.join(projectRoot,'.agents/resource-closeout.json'),'{}');
   const delivery=path.join(projectRoot,'.git/leon-engineering/deliveries/task.json');fs.mkdirSync(path.dirname(delivery),{recursive:true});fs.writeFileSync(delivery,JSON.stringify(receipt),{mode:0o600});
   const before=fs.readFileSync(delivery),calls=[];let reads=0,cleanupCalls=0;
@@ -1271,7 +1271,7 @@ test('resource revalidation accepts only cleaned pending deliveries without repl
 test('enabled resource contract receives revalidate through the Python process boundary', async t => {
   const f=await pendingSnapshotCloseout(t), root=f.projectRoot;
   fs.mkdirSync(path.join(root,'scripts'));fs.mkdirSync(path.join(root,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
   fs.writeFileSync(path.join(root,'.agents/resource-closeout.json'),'{}');
   const python=spawnSync('python3',['-c','import sys;print(sys.executable)'],{encoding:'utf8'});
   assert.equal(python.status,0,python.stderr);
@@ -1747,16 +1747,18 @@ test('v1 migration previews without writes, preserves point path, verifies v2 an
   assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
 });
 
-test('rotation retains seven days and latest two points and does not mutate the live Git objects', t => {
+test('event rotation immediately retires superseded points, keeps latest two and never mutates live Git objects', t => {
   const {projectRoot,options}=v2Fixture(t); const points=[];
-  const day=86400000, now=Date.now();
+  const now=Date.now();
   for(let i=0;i<4;i++) {
     fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'version '+i+'\n');
     git(projectRoot,['add','.']);git(projectRoot,['commit','-m','change '+i]);
-    points.push(backupRepository({projectRoot},{...options,now:now-(10-i)*day}));
+    points.push(backupRepository({projectRoot},{...options,now:now-(4-i)*1000}));
   }
   const before=fs.readFileSync(path.join(projectRoot,'.git/config'));
-  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  const legacy=maintainBackups({projectRoot,action:'backup-prune'},{...options,now});
+  assert.equal(legacy.items.filter(x=>x.reason==='legacy_policy_review_required').length,2);
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now,retirementIds:new Set(points.map(p=>path.basename(p.directory)))});
   assert.equal(result.items.filter(x=>x.status==='expired').length,2);
   assert.equal(fs.existsSync(points[0].directory),false);
   assert.equal(fs.existsSync(points[1].directory),false);
@@ -1876,15 +1878,15 @@ test('metadata partial-write failure keeps the original and resumes without a tr
 });
 
 test('failed v1 diagnostic remains protected while independent expired v2 points can be collected', t => {
-  const {projectRoot,options}=v2Fixture(t);const now=Date.now();
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now(),points=[];
   for(let i=0;i<3;i++) {
     fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'version '+i);git(projectRoot,['add','.']);git(projectRoot,['commit','-m','version '+i]);
-    backupRepository({projectRoot},{...options,now:now-(20-i)*86400000});
+    points.push(backupRepository({projectRoot},{...options,now:now-(20-i)*86400000}));
   }
   const failed=path.join(options.backupRoot,crypto.randomUUID());fs.mkdirSync(failed,{mode:0o700});
   fs.writeFileSync(path.join(failed,'manifest-draft.json'),JSON.stringify({schemaVersion:1,restoreVerified:false}),{mode:0o600});
   fs.writeFileSync(path.join(failed,'failure-status.json'),JSON.stringify({status:'FAIL',restoreVerified:false}),{mode:0o600});
-  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now,retirementIds:new Set(points.map(p=>path.basename(p.directory)))});
   assert.equal(result.collection.status,'complete');
   assert.equal(result.items.filter(x=>x.status==='expired').length,1);
   assert.equal(fs.existsSync(failed),true);

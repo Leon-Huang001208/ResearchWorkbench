@@ -111,8 +111,8 @@ concurrency:
 
 jobs:
   clean-install:
-    name: Clean Web install (macos-14)
-    runs-on: macos-14
+    name: Clean Web install (macos-15)
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
@@ -217,7 +217,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-bootstrap-macos-14-${{ github.run_id }}
+          name: research-web-bootstrap-macos-15-${{ github.run_id }}
           path: |
             doctor.json
             root.html
@@ -232,7 +232,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-bootstrap-failure-macos-14-${{ github.run_id }}
+          name: research-web-bootstrap-failure-macos-15-${{ github.run_id }}
           path: |
             doctor.json
             root.html

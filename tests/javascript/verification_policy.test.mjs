@@ -1081,7 +1081,7 @@ test("service lifecycle changes require the focused test and native macOS plus W
   ]));
   assert.equal(
     plan.ci.find(item => item.id === "research-web-bootstrap").value,
-    ".github/workflows/research-web-bootstrap.yml#macos-14",
+    ".github/workflows/research-web-bootstrap.yml#macos-15",
   );
 });
 
@@ -1155,7 +1155,7 @@ for (const file of [
     "research-web-windows-verify",
       ]));
     const bootstrap = plan.ci.find((item) => item.id === "research-web-bootstrap");
-    assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-14");
+    assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-15");
     assert.equal(bootstrap.lane, "ci");
   });
 }

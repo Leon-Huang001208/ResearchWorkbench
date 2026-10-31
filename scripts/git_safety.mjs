@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {withBackupLock, repositoryKey, fingerprint, findReusable, convertToV2, finishMigration, readManifest, materializeV2, hydrateV2, listPoints, sweepPayloads, fileHash} from './git_backup_store.mjs';
+import {finalizeLifecycle} from './resource_lifecycle.mjs';
 import {clonePinnedFile, sourceFacts} from './backup_fd_clone.mjs';
 import {admitFileStream} from './backup_capacity.mjs';
 
@@ -745,11 +746,29 @@ function backupUnlocked(repository,options) {
   });
 }
 
+function registeredLifecycleBackups(repository,root) {
+  const directory=path.join(repository.commonDirectory,'leon-engineering/resource-closeout'),ids=new Set();
+  if(!fs.existsSync(directory))return ids;
+  if(fs.lstatSync(directory).isSymbolicLink())fail('LIFECYCLE_BACKUP_INVALID');
+  for(const entry of fs.readdirSync(directory,{withFileTypes:true})) {
+    if(!entry.isDirectory() || !ID.test(entry.name))continue;
+    const filename=path.join(directory,entry.name,'lifecycle-backup.json');
+    if(!fs.existsSync(filename))continue;
+    if(fs.lstatSync(filename).isSymbolicLink())fail('LIFECYCLE_BACKUP_INVALID');
+    const saved=JSON.parse(fs.readFileSync(filename,'utf8'));
+    if(saved.taskId!==entry.name || !/^[a-f0-9-]{36}$/.test(saved.id))fail('LIFECYCLE_BACKUP_INVALID');
+    const point=path.join(root,saved.id);
+    if(fs.existsSync(point) && readManifest(point).hash===saved.manifestHash)ids.add(saved.id);
+  }
+  return ids;
+}
+
 /** Preview is read-only; apply serializes archive changes without maintaining the live Git database. */
 export function maintainBackups({projectRoot,action='backup-audit',apply=false},options={}) {
   const repository=discover(projectRoot,options);assertRepositoryIdentity(repository,options);
   if(!['backup-audit','backup-migrate','backup-prune'].includes(action) || action==='backup-audit'&&apply)fail('CLI_OPTION_INVALID');
   const root=options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'),key=repositoryKey(repository.commonDirectory),now=options.now??Date.now();
+  const retirementIds=options.retirementIds??registeredLifecycleBackups(repository,root);
   const run=()=>{
     const points=listPoints(root),items=[];
     const sameRepo=m=>m.schemaVersion===2 ? m.repositoryKey===key : m.registeredWorktrees?.some(x=>path.resolve(x.worktree)===repository.repositoryRoot);
@@ -804,9 +823,9 @@ export function maintainBackups({projectRoot,action='backup-audit',apply=false},
       }
       if(reason){item.reason=reason;continue;}
       if(newest.has(p.id)){item.reason='latest_two';continue;}
+      if(!retirementIds.has(p.id)){item.reason='legacy_policy_review_required';continue;}
       const created=Date.parse(m.createdAt);
       if(!Number.isFinite(created) || created>now){item.reason='unknown_age';continue;}
-      if(now-created<=7*86400000){item.reason='seven_days';continue;}
       item.status=action==='backup-prune'?(apply?'expired':'would_expire'):'retained';
       if(item.status==='expired') {
         if(readManifest(p.directory).hash!==p.hash)fail('BACKUP_MANIFEST_CHANGED');
@@ -814,7 +833,7 @@ export function maintainBackups({projectRoot,action='backup-audit',apply=false},
         log(repository,'backup-expire','PASS',undefined,{backup:p.directory},options);
       }
     }
-    const result={status:apply?'complete':'preview',retentionDays:7,minimumRecoveryPoints:2,items};
+    const result={status:apply?'complete':'preview',retentionDays:0,minimumRecoveryPoints:2,trigger:'lifecycle-event',items};
     if(apply && action==='backup-prune') {
       result.collection=sweepPayloads(root,listPoints(root));
       if(result.collection.status==='blocked')result.status='blocked';
@@ -2034,10 +2053,18 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         }
         for (const item of validated.managed) if (fs.existsSync(item.worktree)) assertNoIgnoredData(item.worktree, options);
         if (resourceContractRequired) writePrivateJson(closeoutFinalization(repository,taskId),{taskId,candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired,restoreVerified:backup.restoreVerified,beforeRefs,beforeWorktrees,managed:validated.managed,verifiedPreservationRefs:backup.verifiedPreservationRefs});
-        result = controller.cleanupDelivery(common);
+        result = controller.cleanupDelivery({...common,deferResourceCleanup:true});
+        if(result.status!=='cleaned') {
+          log(repository,'delivery-cleanup','FAIL','RESOURCE_CLEANUP_PENDING',{},options);
+          return {...result,safetyBackup:backup.directory};
+        }
         fsck(repository, options);
         const concurrentRefAdvances = preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options, backup.verifiedPreservationRefs);
         result = {...result, safetyBackup: backup.directory, safetyFsck: 'PASS', concurrentRefAdvances};
+        if(fs.existsSync(path.join(repository.repositoryRoot,'.agents/resource-lifecycle.json'))) {
+          writePrivateJson(path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'lifecycle-backup.json'),
+            {taskId,id:path.basename(backup.directory),manifestHash:readManifest(backup.directory).hash});
+        }
         finishResourceReceipt(repository,taskId,resourceContractRequired);
         const finalization=closeoutFinalization(repository,taskId);
         if (fs.existsSync(finalization)) writePrivateJson(finalization,{...JSON.parse(fs.readFileSync(finalization,'utf8')),status:'complete'});
@@ -2077,6 +2104,29 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
   if (safetyCleanupDeferred) return result;
   if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(discover(projectRoot, options))) {
     return runDelivery({projectRoot, taskId, action:'cleanup'}, options);
+  }
+  if (['status','cleanup'].includes(action) && result.status==='cleaned') {
+    const repository=discover(projectRoot,options),policy=path.join(repository.repositoryRoot,'.agents/resource-lifecycle.json');
+    if(fs.existsSync(policy)) {
+      let lifecycle;
+      try {
+        if(fs.lstatSync(policy).isSymbolicLink())fail('LIFECYCLE_POLICY_INVALID');
+        const value=JSON.parse(fs.readFileSync(policy,'utf8'));
+        if(value.schemaVersion!==1 || value.enabled!==true)fail('LIFECYCLE_POLICY_INVALID');
+        lifecycle=await finalizeLifecycle({projectRoot:repository.repositoryRoot,commonDirectory:repository.commonDirectory,taskId,receipt:result});
+        const retirementIds=registeredLifecycleBackups(repository,options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'));
+        const preview=maintainBackups({projectRoot:repository.repositoryRoot,action:'backup-prune'}, {...options,retirementIds});
+        lifecycle.backups=preview.items.some(item=>item.status==='would_expire')
+          ?maintainBackups({projectRoot:repository.repositoryRoot,action:'backup-prune',apply:true},{...options,retirementIds}):preview;
+        if(lifecycle.backups.status==='blocked')lifecycle.status='blocked';
+      } catch(error) {lifecycle={status:'blocked',code:error.code??'LIFECYCLE_CLOSEOUT_FAILED'};}
+      writePrivateJson(path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'lifecycle.json'),lifecycle);
+      log(repository,'resource-lifecycle',lifecycle.status==='cleaned'?'PASS':'FAIL',lifecycle.code,{},options);
+      return {...result,gitStatus:result.status,status:lifecycle.status==='cleaned'?'cleaned':'cleanup_pending',
+        lifecycleCloseout:{status:lifecycle.status,code:lifecycle.code,notify:lifecycle.notify,
+          reclaimed:lifecycle.reclaimed?.length??0,retained:lifecycle.items?.filter(i=>i.action==='retain').length??0,
+          backups:lifecycle.backups?.items?.length??0,detail:path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'lifecycle.json')}};
+    }
   }
   return result;
 }
@@ -2125,9 +2175,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
-      'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment'
+      'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment', 'gitStatus', 'lifecycleCloseout'
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');
+    if(result.status==='cleanup_pending')process.exitCode=2;
   } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED',...(error.integrity?{integrity:error.integrity}:{})}) + '\n'); process.exitCode = 1; }
 }
