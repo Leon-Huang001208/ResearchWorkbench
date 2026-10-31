@@ -32,6 +32,7 @@ def test_cutoff_requires_explicit_timezone_and_matching_shanghai_day():
             cutoff_instant(value, "2026-10-28")
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="Native macOS sandbox evidence")
 @pytest.mark.parametrize("cid", ["owned-news-evidence", "owned-research-prep"])
 def test_real_source_c2_bundle_native_consumption_and_host_recompute(api, monkeypatch, cid):
     client, service, sid, context, descriptor, headers, _source = fixtures.prepared(
