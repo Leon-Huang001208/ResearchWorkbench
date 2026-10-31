@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-11-01 prepared-amend 回执字段兼容在既有 Project Constraints 的 Git安全测试步骤增加2个正反例，不增workflow/job/runner/依赖/timeout。原测试文件本机完整106项通过，实测约275秒；这不是远端同候选CI或生产维护成功。项目入口对合法 `mergeSourceCommit` 只接受其等于旧feature，并在正式收养后推进到新feature；错误绑定继续失败关闭。
+
 2026-10-31 存储留存调整复用原 Research Web Checks 的 Python 步骤：新增 `test_test_artifact_retention.py` 21 项，并在既有 `test_iteration_resources.py` 增加 10 项（原 15 项保留），完整局部集合共46项；不增加 job、runner、timeout、依赖、模型或供应商请求。功能/文档候选`13a1ae58`与正式集成候选`5dc24828`共享树`fa49985e`，各自在干净工作树以exact模式按20/1/20/5执行46项、0失败/0错误，四个临时根逐批回收；协议81项在两候选各按20/20/20/20/1执行，通过且真实Keychain调用0。本段归属到这两个已测SHA；后续文档修订产生的新候选仍须独立Router/评审/CI，不把旧SHA回执写成新候选PASS。原job对新增31项保守预留30秒，远端实际耗时另证。选择性归档只移除同批已退休、exact checkout回执明确绑定的成功stdout/stderr，旧任务历史证据不由新代码静默删除。
 
 PR256 首轮 Checks 41169984771 的全部 7,675 个 research 节点已执行，

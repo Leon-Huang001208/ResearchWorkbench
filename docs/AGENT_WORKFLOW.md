@@ -265,6 +265,8 @@ head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进�
 /usr/local/bin/node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --prepare --amend-prepared
 ```
 
+共享交付控制器的 prepared 回执若带 `mergeSourceCommit`，项目安全入口只接受它与旧 `featureCommit` 精确相等；正式收养后同步推进到新 feature 提交。缺字段的旧回执沿原合同继续可读，错绑字段和其它未知字段仍拒绝；不得手改 ledger 或绕开恢复备份与远端不可见性证明。
+
 此入口不执行 merge、reset、rebase、删除或重建工作树，也不 push。它要求原资源账本记录的
 两个工作树 inode、分支、common directory、原提交祖先链、干净状态和明确无进程占用；
 `mode`／`pullRequest`／`remoteCommit` 必须明确为 null，无发布／合并痕迹、CI runs 或退休记录。
