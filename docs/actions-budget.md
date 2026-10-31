@@ -1,6 +1,6 @@
 # GitHub Actions 免费额度治理
 
-2026-10-31 存储留存调整复用原 Research Web Checks 的 Python 步骤：新增 `test_test_artifact_retention.py` 21 项，并在既有 `test_iteration_resources.py` 增加 10 项（原 15 项保留），完整局部集合共46项；不增加 job、runner、timeout、依赖、模型或供应商请求。前一WIP候选实际执行20/20/5零失败且临时根逐批回收；最终源码新增了exact checkout漂移反例，46项须在冻结候选上按20/1/20/5重新执行，不能沿用旧45项回执。原job保守预留30秒，完整CI耗时另证。选择性归档只移除同批已退休、exact checkout回执明确绑定的成功stdout/stderr，旧任务的历史证据不由新代码静默删除。
+2026-10-31 存储留存调整复用原 Research Web Checks 的 Python 步骤：新增 `test_test_artifact_retention.py` 21 项，并在既有 `test_iteration_resources.py` 增加 10 项（原 15 项保留），完整局部集合共46项；不增加 job、runner、timeout、依赖、模型或供应商请求。源码候选`22bd700f`本机exact模式实际按20/1/20/5执行46项、0失败/0错误，四个临时根逐批回收；相关协议81项另按20/20/20/20/1执行，通过且真实Keychain调用0。以上不替代最终PR合成checkout或完整CI，原job对新增26项保守预留30秒，远端实际耗时另证。选择性归档只移除同批已退休、exact checkout回执明确绑定的成功stdout/stderr，旧任务历史证据不由新代码静默删除。
 
 PR256 首轮 Checks 41169984771 的全部 7,675 个 research 节点已执行，
 6 个新 CLI fixture setup 错误来自浅 checkout 缺少三个固定历史源对象；
