@@ -193,7 +193,7 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), true, file);
     assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), true, file);
   }
-  assert.match(workflows.bootstrap, /macos-14/);
+  assert.match(workflows.bootstrap, /macos-15/);
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
   for (const file of ['setup-web.cmd', 'rwb.cmd']) {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), false, file);
@@ -256,7 +256,7 @@ test('Bootstrap has exactly one macOS clean-install job and its intended trigger
     ['pull_request', 'push', 'workflow_dispatch'],
   );
   assert.deepEqual(workflowJobs(workflows.bootstrap), [
-    {id: 'clean-install', runsOn: 'macos-14'},
+    {id: 'clean-install', runsOn: 'macos-15'},
   ]);
 });
 

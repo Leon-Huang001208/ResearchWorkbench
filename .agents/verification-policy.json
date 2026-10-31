@@ -370,7 +370,7 @@
         "platforms": [
           "macos"
         ],
-        "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+        "value": ".github/workflows/research-web-bootstrap.yml#macos-15"
       },
       "research-web-docker": {
         "level": "L4",

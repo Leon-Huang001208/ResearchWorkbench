@@ -45,7 +45,7 @@
   必须同步核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、
   `docs/research-web-installation.md` 和 `.github/workflows/research-web-bootstrap.yml`；无须改变的文件应由
   安装 CI 证明仍兼容，不能仅凭本机已有环境判断。
-- Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-14` 干净安装、固定 DSH 构建、
+- Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-15` 干净安装、固定 DSH 构建、
   3081/8088 健康检查和 `rwb web doctor --json` 通过；本机成功不能替代 GitHub Mac。安装、共享 runtime、
   Windows launcher、路径/编码/进程和本机集成等平台敏感改动由 Router 标记为需要 GitHub
   `windows-2022`，但 Mac PR/push 不自动触发；必须在 Windows 真机 checkout 待验 commit 后，从该机
@@ -99,7 +99,7 @@
 - macOS 受管交付通过 `node scripts/git_safety.mjs delivery --project <RWB绝对路径> --task-id <任务ID> <动作参数>` 执行，使用 `/usr/bin/git`，不直接修改全局 `leon-engineering` 安装或系统 PATH。开始任务先运行该入口的 `check`；具体流程见 `docs/AGENT_WORKFLOW.md`。
 - RWB 共用 Git 目录的本地 `gc.auto=0`、`maintenance.auto=false` 由 `configure` 备份原值后设置。维护与并行开发分开；禁止在有并发写入时执行立即 prune、repack 或直接删除 `.git` 内容。入口不执行对象维护，也不因遇到锁而自动删锁或终止进程。
 - 清理前必须验证任务提交、未提交修改、未跟踪文件及相关 Git 快照的可恢复备份，再复查归并状态、worktree 归属、工作区干净和进程占用。仅安全清理本任务资源，禁止直接删除 worktree 目录、强删未归并分支或整体覆盖旧 `.git` 元数据。
-- Git 安全备份保存在 `~/.codex/backups/rwb-git-safety/`。依据用户2026-10-19授权，普通恢复点保留7天，并始终保留最新2个验证通过的恢复点；使用v2独立共享对象/文件存储，相同现场复用已验证恢复点。迁移和轮转经正式入口先预览、持备份锁、完整恢复验证后自动执行；未提交、未归并、活动、未知归属及独有保护锚点继续保留。2026-10-14对象修复隔离备份不迁移、不删除，仍须另行明确授权；对象丢失原因仍未确定。
+- Git 安全备份保存在 `~/.codex/backups/rwb-git-safety/`。依据用户2026-10-31事件清理方案，新登记且完成交付的普通恢复点不再等待7天，满足全部保护检查后轮转，并始终保留最新2个验证通过的恢复点；未登记历史存量先核对并逐类批准。使用v2独立共享对象/文件存储，相同现场复用已验证恢复点。轮转经正式入口预览、持备份锁、完整恢复验证；未提交、未归并、活动、未知归属及独有保护锚点继续保留。2026-10-14对象修复隔离备份不迁移、不删除，仍须另行明确授权；对象丢失原因仍未确定。交付与清理状态分开，欠账后续事件补清；完整协议见`docs/resource-lifecycle.md`。
 - 该入口的仓库级锁只约束采用入口的操作；Codex 内部 Git 操作和直接执行的人工命令不因此被完全接管。仓库迁移、全局工具配置和常驻服务更新仍须单独授权。
 
 ## Reusable workflows
