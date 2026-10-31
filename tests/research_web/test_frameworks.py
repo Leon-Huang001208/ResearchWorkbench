@@ -7,7 +7,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from test_capabilities import isolate_keyring
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.frameworks.base import FrameworkError
@@ -59,7 +59,6 @@ class NativeFixture:
 
 @pytest.fixture
 def framework_api(tmp_path, monkeypatch, request):
-    isolate_keyring(monkeypatch)
     declared_web_only = getattr(request, "param", None) == "declared_web_only"
     if declared_web_only:
         # Preserve the production package for other tests; this fixture owns a

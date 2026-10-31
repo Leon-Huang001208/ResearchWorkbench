@@ -1,10 +1,13 @@
 # Agent 任务路由指南
 
+PR245 pack runtime 性能回归只登记原 Checks 的同一 Python 显式清单，原本地验证→独立评审→最终候选 Router／CI 路由不变。进程内有界语法 facts LRU 只允许以完整 fresh bytes、module／package、绝对根、parser 对象和版本为键；每次依赖 identity、模块枚举、源码／metadata／权限／hash 读取、policy 与来源核验仍执行。Catalog cProfile 可认证本机实际 6 runtime／12 policy build／18 module inventory／281 save／56 check 及 ordered oracle，不替代完整 CI、Linux 成本或统计性能结论；原 45 分钟取消、mypy 17 项与三次修补预算保持原归属，本地修复不触发额外远端操作。
+
 ## 授权历史试验退役的维护路由（2026-10-30）
 
 本次是 macOS Native 受控维护；用户明确授权丢弃历史 RWB 试验会话和 Wind UNKNOWN，保留账号与模型配置。仅封闭 `apply-trial-retirement` 模式中，这些历史状态及旧 `active: null` 不再独立否决切换，不能据此签发普通空闲证明或扩大其他模式权限。执行复用原三锁、BirthFence、`recover` 和精确进程身份复核；未知归属或中途崩溃保留栅栏，不自动重试。
 
 既有 CI 步骤覆盖三份离线测试模块与维护 import 检查，无新增 job、依赖或超时。离线结果与最终候选的完整本地回归、Router、CI、实际备份／退役／切换及认证验收分别记录；未执行保持未完成。Windows/Linux 产品验收仍由对应设备负责。完整入口与恢复要求见[试验退役合同](research-web-trial-discard.md)。
+
 
 备份快照的可选 FD clone 与单文件容量门仍属于既有 Git 交付工具链。只有同一次
 受管操作中原本必要且成功的 resourcePhase 可复用其确切绝对 Python 选择；通用
@@ -426,7 +429,18 @@ node scripts/summarize_verification_delivery.mjs --project . \
 Research Web Checks 使用同一测试边界。这样本机 `.env`、根 `tests/conftest.py` 的兼容平台数据库
 fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非 Research Web 测试本身保持不变。
 
-Research Web Checks 将两条原 Python scope 交给 `scripts/run_ci_pytest_partitions.py` 调度；文件、nodeID、pytest 配置和第二条 unit scope 保持原选择。调度父进程先按真实收集结果生成含任务身份与摘要的分区计划，再独立启动并持有两个 worker 的 Popen；worker 各自核对完整收集、执行阶段与带 `rwb_nodeid` 属性的 JUnit。父进程按 PID、UID、根 inode、worker index、完整 schema 与计划摘要验证结果，并复核执行/报告 ID 的无交集完整并集。worker 的临时目录、pytest cache、JUnit、结果和日志分开保存。collection/test/worker/报告错误和中断均失败退出，skip 在 JUnit 保留；中断只通知并等待本调度器持有的 worker Popen。首个hosted失败定位为测试模块用frozenset生成23个参数的顺序跨独立Python进程变化；该模块现显式排序，保留全部案例与worker有序collection门。Worker result schema v3 为失败结果附加固定字段的 `phase/errorClass/errorCode`；producer 与 stager 共用同一固定内建异常／`PartitionError`／`UnknownError` 枚举，未知 identifier 形消息归零、未知异常对象泛化，stager 拒绝枚举外值。它仅重建这组安全分类及脱敏 JUnit/nodeID/manifest/摘要日志；不上传原始环境、错误正文、私有异常类名、JUnit输出或 pytest stdout。stager 仍通过固定白名单、目录 FD 和 no-follow 打开输入，拒绝软链接、硬链接、文件类型/owner变化与目录替换。该分片复用同一 Ubuntu job 与45分钟上限；CI 全程耗时仍须由候选运行实测，不由分区本机通过推断。
+Research Web Checks 将两条原 Python scope 交给 `scripts/run_ci_pytest_partitions.py` 调度；文件、nodeID、pytest 配置和第二条 unit scope 保持原选择。两个并行 Ubuntu job 各自完整收集同一 ordered node 集合，先按 `suite[index::2]` 取得自己的 job shard，再由原父进程确定性分成两个 worker；因此每个 job 仍只持有两个 Popen，峰值合计四个 pytest worker，原 45 分钟 job 上限不延长。worker 各自核对完整 suite collection、job/worker 两层分配、执行阶段与带 `rwb_nodeid` 属性的 JUnit；父进程按 PID、UID、根 inode、worker index、完整 schema 与计划摘要验证本 job 的无交叉完整并集。最终同名 `checks` 门下载两份短期安全 artifact；每份必须含 `status.json`、`research-web` 与 `unit` 两 scope，再验证两 job 对各自原 suite 的精确无交叉并集，并逐 worker 要求 final、JUnit、退出码与真实 PASS。最终 artifact 根、scope、worker 和文件沿 owner/device/inode 绑定 dirfd、`O_NOFOLLOW` 与单链接/大小限制读取，并在 held fd 期间及成功前复核路径身份；根/中间/文件 symlink、hardlink、替换或超限均拒绝。JS/editorial 仅在 shard 0 执行一次且位于 Python 前；普通失败仍继续收集后续合同，取消不强行起跑后续大步骤，matrix 任一失败也会使统一门失败。worker 的临时目录、pytest cache、JUnit、结果和日志分开保存；collection/test/worker/报告错误和中断均失败退出，skip 在 JUnit 保留。首个 hosted 失败定位为测试模块用 frozenset 生成 23 个参数的顺序跨独立 Python 进程变化；该模块现显式排序并保留全部案例与有序 collection 门。Worker result schema v3 为失败结果附加固定字段的 `phase/errorClass/errorCode`；producer 与 stager 共用同一固定内建异常／`PartitionError`／`UnknownError` 枚举，未知 identifier 形消息归零、未知异常对象泛化，stager 拒绝枚举外值。stager 不读取或上传原始 `pytest.log`；已有 final 时只重建安全分类及脱敏 JUnit/nodeID/manifest/摘要日志，没有 final 时也不打开可能仍在写的 JUnit，只允许原子 progress 诊断。缺 final/JUnit、progress-only、目录/文件身份变化、软硬链接或任一非 PASS 均不能通过最终门。完整 CI 时长、两 runner 成本和统一门仍须由候选运行实测，不由本机夹具或 progress 推断。
+
+每个worker另在startup、collection、首次执行阶段及其后最多每5秒原子更新私有同目录
+`progress.json`。hook只更新内存中唯一assigned node的最坏outcome和单次teardown完成；持久快照是
+事件驱动的last-persisted lower-bound；`elapsedSeconds`只标记该次落盘相对worker启动的时间。5秒是写入
+频率上限，不是新鲜度保证；没有新hook事件或单次调用较长时，快照可任意更旧，绝不代表当前或最终
+结果。schema只含固定phase/outcome、worker index、plan SHA、已分配相对nodeID和有限整数计数；不含
+stdout、异常正文或私有绝对路径。普通诊断写／状态异常
+只置固定disabled/error code，不改变原pytest pass/fail/skip或critical final；BaseException不由诊断层
+吞掉。stager只有在final `result.json`缺失时才解析并严格校验owner、完整字段、plan、node白名单、
+类型与边界；合法final存在时完全忽略progress。progress不满足final、JUnit或exact-union，也不能把
+worker/scheduler状态提升为PASS。
 
 ### L0-L4 分层
 
@@ -624,6 +638,16 @@ NYFed SOFRAI v3沿默认Host/可选ResearchWarehouse，使用一次固定日匿�
 
 资产区间统计的数学与DOM控制器先分别RED/GREEN及独立spec/JS评审，再用CUA支持的真实鼠标输入与冻结快照验证。Mac Bootstrap既有静态资源步骤只补两份本地mjs字节核对，原完整JS通配符、仓库门及同候选Mac安装不减；登录实页和运行未知安全门另证，不触发模型或分时供应商。
 
+## 2026-10-28：T3既有验证通道
+
+服务生命周期的顺序单测须显式隔离其虚拟系统事实。`virtual_native_listener_facts` 仅供原 readiness／spawn／browser 顺序用例 opt-in，提供 closed、unknown、listening＋inaccessible 三种低层观测；真实 quiescence、恢复证明、lease、内核端口选择和端点事务继续执行。两拒绝模型要求零 spawn/browser、零 bind、零端点发布。其他真实 busy-port／ownership 用例不使用此夹具；单元模型通过不认证真实 resident，也不能通过停止常驻端口或返回 `quiescent=True` 代替隔离。本机沙箱拒绝 setuid ps 的旧失败与只读诊断保留。
+
+框架测试模块统一导入原 `test_api.isolated_keyring` 函数作用域 autouse vault，替代仅在 `framework_api` 内替换公共 facade 的旧 helper。Host 构造和纯上下文测试均隔离默认 factory、已加载别名和公共方法，并保留真实后端失败哨兵及 teardown；不改变产品凭据策略或业务断言。验证日志按实际 case 数记录；误将22例整文件提交给单组的历史执行保留为22，不移标为20，后续按精确节点分组。
+
+本批九包/三方法仅在原Research Web Checks Python步骤追加29个实际新增回归模块，JS保留原通配符。Mac Bootstrap原步骤增加pack-ui字节核对及python -I从已安装wheel逐件比对checkout后构造9+3资源/核闭包，保持原DSH/health/Doctor与Mac干净安装门；不增job/runner/deps/timeout、不发他平台dispatch，资源构造不认证执行或质量。
+
+
+2026-10-28：PR245 CI 修复保持原三门和原安装步骤：先核 whole-lock／七 runtime 投影及原三 renderer 哈希，原字节哈希安装完整现有 Web 锁；从 pyproject 已声明 dev 解析测试工具并用全 Web 纯版本 constraints 约束，根包沿产品普通 wheel 路径使用 --no-index --no-deps --no-build-isolation，不混入 legacy langgraph→jsonpointer 链或 editable 专用未锁依赖。七项实装 metadata 后以 -I 从已安装包实际执行 Host 与 fresh Native 导入准入，再跑原完整测试。Host 已保留 optional 引用与 Native 尚未导入但可发现 optional 的失败分别取证；均不得放行、卸库或改锁。wheel-only 资源真调用和离线构建不等于新 CI 安装／console script通过，本机不安装包，未执行保持 NOT_RUN；不新增资源复制或更改包内投影合同。fixture 经真实范围 validator／声明／健康 probe 验证成功和拒绝，不重入执行投影。旧候选 Mac 绿不能替代新候选安装；CDN超时不改pin/hash/retry，常驻／模型和他平台门保持独立。
 
 ## 专业协作接入边界（2026-10-28）
 

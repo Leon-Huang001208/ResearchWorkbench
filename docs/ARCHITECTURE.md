@@ -8,6 +8,20 @@
 
 独立报告生产工作区位于既有 Web UI，复用原 ReportWorkflowManager/Run、Host 质量门和唯一 DSH；新增前端 #/reports 深链接，不新增 HTTP、数据库、研究引擎或桌面打包。项目目录与每期生产分开，配置及历史分栏，能力中心不再拼接报告专属区域；租户权限与普通未知拒绝保持。
 
+2026-10-28 孤儿capture修复只在原Host发布事务与共用文件授权边界：异常回滚覆盖全部postproof阶段，metadata受管命名/来源标记独立于发布与proof健康，禁止孤儿从uploads/file-copy降级。合法source按原权限读，普通UUID上传保持；无新API、源身份系统、服务、数据库或引擎，原图拓扑保持。
+
+2026-10-28 C1/C2 SPEC修复在原web reader内增加真实HTTP framing与Host私有capture证明；Dossier在现鉴权后核正文/证明，既有保全消费者只收proof/固定原文SHA元数据，Store永久删除覆盖该SID证明。无新服务/数据库/密钥/公开API或执行引擎，固定operator字节不改，原图拓扑保持。
+
+2026-10-27 C1/C2仅在现Host资料边界增加原source capture→source-version v2投影，并沿原封印/唯一DSH/Native sandbox/独立产物读回运行两个包；140静态路由合同不注册工具或授予执行。来源完整性、模型预览、计算与报告质量仍分开，无新引擎、服务、数据库或HTTP；原UI选择器扩展另属C6。
+
+2026-10-27 C0 在原Host冻结资源内区分旧v1与新v2来源/输出合同；仅来源去重及调研/舆情两包方法升为1.1.0，未知原创角色显式unknown。Host按封印manifest引用的原合同验证旧/新产物，不扩大历史版本执行或只读等价政策；没有新增引擎、服务、HTTP、数据库或依赖，原拓扑保持。
+
+2026-10-27 B1 验证依赖复核：runtime v3 绑定实际 optional 导入图与 idna 闭包，Host 只读验证 origin，Native 固定 launcher 用冻结 MetaPath 拒绝未绑定依赖；同一冻结 date/date-time profile 补齐原缺失 checker。仅验证层更正，不增引擎/服务/依赖，普通及 weekly sandbox 入口保持。
+
+2026-10-27 B1 SPEC修波仍沿原Host／唯一DSH拓扑：Catalog原pending发布事务提交仅九builtin pack的直接历史只读等价事实；Dossier专用内部adapter在当前来源授权与原件hash链上读取等价当前策略，不执行旧runtime、不向普通storage_read或执行门传递权限。版本化输出审计schema独立于返回receipt并进入Native资源闭包。无新服务、DB、秘密或引擎；旧send/load仍version_conflict，原八合同／基线字节不动。
+
+2026-10-27 九包 B1 沿同一 Host／唯一 DSH 的 Skill、guard、research_run_script 与 macOS sandbox 完成受控后端链。纯核逐文件冻结为版本资源，Host 从已授权原件投影并封印输入，受管 Native 层登记真实进程与文件读回；原报告 schema2 继续分别核验加载、计算、来源与研究质量。仅 BaoStock daily/none 具有当前无损 daily-price 子集，缺时段／披露／覆盖的九包仍 partial/blocked；不新增引擎、数据库、队列或供应商调用，原拓扑保持。详见[组合包](research-web-research-packs.md#b1hostnative后端闭环)。
+
 2026-10-27 首批研究场景沿既有 Host／工作台交接／DataHub／唯一 DSH 和原报告链运行。静态 62 Skill／78 Tool 对照不是执行权限；场景准备冻结本人对象、截止、原件引用与已发布方法，发送再过原生发现及资料准入。新场景质量合同 schema2 绑定全部必需能力，旧 schema1 保持；要求、发现与实际加载分开记录。资产研究工作区只投影本人已取得材料、不同口径可比观察和带原件定位的资料声明，不新建事实库或研究引擎；来源链的读取、导出、再交接及永久清理沿原权限和保全边界。源码、隔离浏览器、真实模型与常驻上线分别验收，参见[场景交接](research-web-scenario-handoffs.md)。
 
 资产分钟K由asset_minute_k.py与ui/asset-minute-k.mjs沿原账号Workspace/DataHub/Provider链实现，无新服务、引擎、依赖或凭据通道。因子统一OHLC/VWAP复权，量额原值冻结；派生用原asset_history种类隔离缓存。分钟筹码桥接已授权日线底稿，前日截止，旧证据不重写。
@@ -352,6 +366,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
+## 2026-10-28：T3九包与自有方法的执行闭环
+
+九包纯核、三owned原件动作和C2源版本预处理在现Host/能力目录内冻结，继续由唯一DSH与固定sandbox执行。新增私有完成桥将真实supervisor结果送回Host，独立读回原件/完整制品后才登记saved，原报告质量另验；C2由Host执行、Native消费。C6来源选择的preview为纯只读，freeze沿原intent/lineage，未知不重跑。05能力流图已补实际完成与验证关系；无新进程、队列、数据库或供应商alias，原八场景及18 gated保持。实现入口见[开发地图](DEVELOPMENT_MAP.md)及[组合包](research-web-research-packs.md)。T4/T5仍待实施，静态140映射不认证运行、真实来源、模型质量或最终CI。
 ## 精确维护作业身份（2026-10-29）
 
 现有 resident 层新增只读 `ExactJobBinding`，固定原生产目标，或由已登记私有根及独立已审

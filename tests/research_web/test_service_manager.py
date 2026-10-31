@@ -3,6 +3,7 @@ import json
 import multiprocessing
 import os
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -4739,7 +4740,34 @@ def test_web_probe_preserves_specific_readiness_issue(manager, monkeypatch):
     assert probe.issues == ("web_static_asset_failed",)
 
 
-def test_start_waits_for_runtime_readiness_before_web_spawn_and_browser(manager, monkeypatch):
+@pytest.fixture
+def virtual_native_listener_facts(monkeypatch, request):
+    """Only the explicit sequencing model opts in; real busy-port tests stay real."""
+    model = request.param
+    if model == "closed":
+        fact = ListenerFact("closed", (), None)
+    elif model == "unknown":
+        fact = ListenerFact("unknown", (), "fixture_listener_unverified")
+    else:
+        assert model == "listening_inaccessible"
+        fact = ListenerFact("listening", (987654321,), None)
+        monkeypatch.setattr(
+            service_manager_module,
+            "probe_process",
+            lambda _pid: ProcessFact("inaccessible", None, "fixture_process_unverified"),
+        )
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda _port: fact)
+    return model
+
+
+@pytest.mark.parametrize(
+    "virtual_native_listener_facts",
+    ["closed", "unknown", "listening_inaccessible"],
+    indirect=True,
+)
+def test_start_waits_for_runtime_readiness_before_web_spawn_and_browser(
+    manager, monkeypatch, virtual_native_listener_facts
+):
     processes = {process.role: process for process in manager._processes()}
     probes = {
         role: _service_probe(
@@ -4785,6 +4813,29 @@ def test_start_waits_for_runtime_readiness_before_web_spawn_and_browser(manager,
         "open",
         lambda url: events.append(f"browser:{url}") or True,
     )
+
+    bindings, publications = [], []
+    actual_bind = socket.socket.bind
+    actual_publish = manager.endpoint_store.publish
+
+    def bind(sock, address):
+        bindings.append(address)
+        return actual_bind(sock, address)
+
+    def publish(*args, **kwargs):
+        publications.append(True)
+        return actual_publish(*args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "bind", bind)
+    monkeypatch.setattr(manager.endpoint_store, "publish", publish)
+
+    if virtual_native_listener_facts != "closed":
+        with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+            manager.start(open_browser=True)
+        assert events == []
+        assert bindings == []
+        assert publications == []
+        return
 
     result = manager.start(open_browser=True)
 

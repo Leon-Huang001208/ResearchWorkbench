@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.main import create_app
 from app.research_web.operations import _managed_state

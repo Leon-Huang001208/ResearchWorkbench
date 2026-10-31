@@ -297,6 +297,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 个股右键区间统计属于资产浏览器交互，不触发ETF周报、Wind Excel、模型或定时任务；浮窗结果不写入周报冻结输入。区间极值回撤和原始成交均价不替代周报既有风险、复权或同源口径，原生产/准入门保持。
 
+## 2026-10-28：T3组合包集成边界
+
+九包与三owned方法仅扩普通研究场景，原weekly策略、固定资源预算、工具集合、未知不重跑、质量门和日程不扩大。公司正基数policy只由Host重建的新方法合同生效；普通/weekly默认数学保持。freeze、Native saved或可下载不代表周报正式通过，Office/Wind、真实模型与常驻另验。
 
 ## 专业协作接入边界（2026-10-28）
 

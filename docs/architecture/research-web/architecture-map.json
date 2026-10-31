@@ -159,7 +159,9 @@
         "tests/javascript/research_web_asset_search.test.mjs",
         "tests/javascript/research_web_asset_tabs.test.mjs",
         "tests/javascript/research_web_asset_loading.test.mjs",
-        "tests/e2e/research_web_asset_interactions.mjs"
+        "tests/e2e/research_web_asset_interactions.mjs",
+        "tests/javascript/research_web_packs_ui.test.mjs",
+        "tests/javascript/research_web_source_picker.test.mjs"
       ]
     },
     {
@@ -475,7 +477,8 @@
         "03-research-sequence",
         "04-data-file-flow",
         "06-run-state",
-        "09-report-workflow-sequence"
+        "09-report-workflow-sequence",
+        "05-capability-flow"
       ],
       "tests": [
         "tests/research_web/test_runtime_launch.py",
@@ -514,7 +517,17 @@
         "tests/research_web/test_capabilities_admission.py",
         "tests/research_web/test_capabilities_native.py",
         "tests/research_web/test_capabilities_safety.py",
-        "tests/research_web/test_capabilities_review.py"
+        "tests/research_web/test_capabilities_review.py",
+        "tests/research_web/test_pack_dependency_closure.py",
+        "tests/research_web/test_pack_format_profile.py",
+        "tests/research_web/test_pack_import_policy.py",
+        "tests/research_web/test_pack_import_facts.py",
+        "tests/research_web/test_pack_native_resources.py",
+        "tests/research_web/test_pack_native_writer.py",
+        "tests/research_web/test_pack_output_schema.py",
+        "tests/research_web/test_pack_runtime_identity.py",
+        "tests/research_web/test_pack_runtime_relocation.py",
+        "tests/research_web/test_scenario_method_packages.py"
       ]
     },
     {
@@ -603,6 +616,14 @@
         "app/research_web/scenarios/",
         "app/research_web/scenario_handoffs.py",
         "app/research_web/asset_research.py",
+        "app/research_web/scenario_source_versions.py",
+        "app/research_web/scenario_pack_inputs.py",
+        "app/research_web/scenario_method_dedup.py",
+        "app/research_web/scenario_method_sources.py",
+        "app/research_web/scenario_pack_execution.py",
+        "app/research_web/scenario_pack_reads.py",
+        "app/research_web/scenario_pack_ui.py",
+        "app/research_web/scenario_source_selection.py",
         "app/research_web/watchlist_import.py",
         "app/research_web/ui/watchlist-import.mjs"
       ],
@@ -613,12 +634,17 @@
         "docs/research-web-scenarios.md",
         "docs/research-web-scenario-handoffs.md",
         "docs/research-web-asset-research.md",
+        "docs/research-web-research-packs.md",
+        "docs/research-web-owned-methods.md",
+        "docs/research-web-source-selection.md",
+        "docs/research-web-pack-ui.md",
         "docs/research-web-watchlist-import.md"
       ],
       "diagrams": [
         "02-module-dependencies",
         "03-research-sequence",
-        "04-data-file-flow"
+        "04-data-file-flow",
+        "05-capability-flow"
       ],
       "tests": [
         "tests/research_web/test_workbench_operations.py",
@@ -658,6 +684,30 @@
         "tests/research_web/test_scenario_review_round2.py",
         "tests/javascript/research_web_asset_research.test.mjs",
         "tests/research_web/test_scenario_final_review.py",
+        "tests/research_web/test_execution_bindings.py",
+        "tests/research_web/test_pack_owned_sources.py",
+        "tests/research_web/test_capture_file_alias.py",
+        "tests/research_web/test_native_argument_adapters.py",
+        "tests/research_web/test_owned_company_policy.py",
+        "tests/research_web/test_owned_method_compat.py",
+        "tests/research_web/test_owned_news_native_sdk.py",
+        "tests/research_web/test_execution_cancel_native.py",
+        "tests/research_web/test_execution_cancel_policy.py",
+        "tests/research_web/test_native_sdk_bootstrap_ci.py",
+        "tests/research_web/test_owned_method_dedup.py",
+        "tests/research_web/test_owned_method_execution.py",
+        "tests/research_web/test_owned_method_preparation.py",
+        "tests/research_web/test_pack_execution_host.py",
+        "tests/research_web/test_pack_history_read.py",
+        "tests/research_web/test_pack_literal_scope.py",
+        "tests/research_web/test_pack_source_inputs.py",
+        "tests/research_web/test_pack_source_versions.py",
+        "tests/research_web/test_pack_ui_projection.py",
+        "tests/research_web/test_research_pack_calculations.py",
+        "tests/research_web/test_research_pack_contracts.py",
+        "tests/research_web/test_scenario_method_sources.py",
+        "tests/research_web/test_scenario_source_selection.py",
+        "tests/research_web/test_source_capture_proof.py",
         "tests/research_web/test_watchlist_import.py",
         "tests/javascript/research_web_watchlist_import.test.mjs",
         "tests/e2e/research_web_watchlist_import.mjs",
@@ -665,7 +715,8 @@
         "tests/e2e/research_web_watchlist_import_lists.mjs",
         "tests/e2e/watchlist-loopback.sb",
         "tests/e2e/watchlist_network_probe.py",
-        "tests/e2e/research_web_watchlist_proxy.mjs"
+        "tests/e2e/research_web_watchlist_proxy.mjs",
+        "tests/research_web/test_source_capture_store_interaction.py"
       ]
     },
     {
@@ -1908,10 +1959,50 @@
             "discover-load"
           ],
           "source": "app/research_web/runtime/research.cordis.yml"
+        },
+        {
+          "subjects": [
+            "readonly-resources",
+            "version-resource"
+          ],
+          "source": "app/research_web/capabilities/pack_resources.py"
+        },
+        {
+          "subjects": [
+            "readonly-resources"
+          ],
+          "source": "app/research_web/scenario_method_dedup.py"
+        },
+        {
+          "subjects": [
+            "native-completion",
+            "native-complete"
+          ],
+          "source": "app/research_web/runtime/research-tools.mjs"
+        },
+        {
+          "subjects": [
+            "native-completion",
+            "completion-verify"
+          ],
+          "source": "app/research_web/datahub/routes.py"
+        },
+        {
+          "subjects": [
+            "result-verification",
+            "completion-verify"
+          ],
+          "source": "app/research_web/scenario_pack_execution.py"
+        },
+        {
+          "subjects": [
+            "result-verification"
+          ],
+          "source": "app/research_web/scenario_method_sources.py"
         }
       ],
       "level": "subsystems",
-      "summary": "Skill / Tool / Workflow 版本与受控调用。"
+      "summary": "九包及三个自有方法的版本冻结、唯一DSH执行、私有完成桥与Host独立读回；文件保存与报告质量分开。"
     },
     {
       "id": "06-run-state",
@@ -2253,15 +2344,17 @@
         {
           "subjects": [
             "gate-ci",
+            "python-jobs",
+            "python-checks",
             "ci"
           ],
-          "source": ".agents/project-constraints.mjs"
+          "source": ".github/workflows/research-web-checks.yml"
         },
         {
           "subjects": [
             "ci"
           ],
-          "source": ".github/workflows/project-constraints.yml"
+          "source": "scripts/stage_ci_pytest_evidence.py"
         },
         {
           "subjects": [
@@ -2272,7 +2365,7 @@
         }
       ],
       "level": "details",
-      "summary": "源码、图文、测试和离线门禁。"
+      "summary": "源码、图文、测试、双job合同执行和统一证据门。"
     },
     {
       "id": "11-hot-events",
@@ -5377,6 +5470,41 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/internal/data/pack-completion",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/pack-completion",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/source-selections/sessions/{session_id}",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/source-selections/sessions/{session_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/source-selections/preview",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/source-selections/preview",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/source-selections/freeze",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/source-selections/freeze",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/scenarios/{scenario_id}/prepare",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/scenarios/{scenario_id}/prepare",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/watchlists/{watchlist_id}/imports/preview",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/watchlists/{watchlist_id}/imports/preview",
@@ -5422,7 +5550,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "4e91693a6d3a4ef15fd049377e312445c60679e4"
+      "revision": "945747b9e89aa8ee637ec2eadeac948541ffe63b"
     },
     "levels": [
       {
@@ -5553,14 +5681,14 @@
         "id": "runtime",
         "group": "runtime",
         "title": "专属 DSH",
-        "summary": "唯一研究循环，原生历史、Skill、Tool 和子 Agent。",
+        "summary": "唯一DSH执行Skill、Tool和子Agent；固定launcher与sandbox、Host完成桥和独立读回，unknown不重跑。",
         "category": "研究会话与 Runtime"
       },
       {
         "id": "capabilities",
         "group": "capabilities",
         "title": "能力中心",
-        "summary": "不可变 Skill、Method、Tool、Workflow 版本与发现。",
+        "summary": "不可变能力版本；九包及自有方法冻结代码、schema与运行闭包，未注册供应商别名。",
         "category": "能力中心"
       },
       {
@@ -5574,7 +5702,7 @@
         "id": "workbench",
         "group": "workbench",
         "title": "资产观察",
-        "summary": "单A股目录搜索、专题按需区块与历史任务；目录按账号／授权缓存，规范快照及研究交接可复核。",
+        "summary": "资产观察与研究交接；原八场景、九包和三个自有方法经来源重验、只读预览和冻结准备进入唯一DSH。",
         "category": "资产观察"
       },
       {

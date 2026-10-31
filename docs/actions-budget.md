@@ -1,5 +1,15 @@
 # GitHub Actions 免费额度治理
 
+PR245 的 45 分钟 Checks 容量修复将原完整 Python node 集合按真实 collection 顺序确定性拆成两个并行 job shard；每个 job 仍运行原有两个有界 worker，因此峰值为两个标准 Ubuntu runner／四个 pytest worker，单 job timeout 仍为 45 分钟。两个 shard 各自安装同一冻结依赖，runner-minutes 可能高于旧单 job；另增加一个最多 5 分钟、只用标准库复核两份安全 artifact 的统一 `checks` 门。该门要求每份下载物同时含 `research-web`／`unit` 与完整 staging status，两个 job 集合为各 scope 原集合的精确无交叉并集，并逐 worker 复核 final、JUnit、退出码和真实 PASS；缺 artifact/scope/final/JUnit、目录或文件软硬链接、替换/超限均失败。JS 与 editorial 只在 shard 0 执行一次，并移到 Python 前；先前步骤失败时后续合同用 `success() || failure()` 继续，取消时不强行续跑。取消中的 staging 不再打开正在写入的原始 `pytest.log`，仅可读取原子替换的 progress；progress 从不构成 PASS。旧 41041540250／旧 b4 取消及无 artifact 记录保留，repairAttempts=3 不重置；本地小夹具和最终同候选 CI 结果另证，不因源码设计宣称 45 分钟必过。
+
+PR245 单次 runtime 导入语法事实复用只在原 Checks 同一 Python 显式名单登记 `test_pack_import_facts.py`，本机 15 例 0.44 秒，原步骤增量保守预留 5 秒；不新增 job、runner、timeout、依赖或触发，不发送 CI。新候选一次带计数观察的 Catalog 真实保持 6 次 runtime／281 次 save／56 次 validate，stable oracle 字段差异 0；56 次凭据预检由 fail 边界拒绝，不是零尝试，也不访问实际 Keychain。该单样本带计数 wrapper，不能直接与旧无 wrapper 样本计算统计加速。4b38 原 Constraints／Mac Bootstrap 成功、Checks 45 分钟取消及 mypy 原 17 项错误保持原归属，不重置 repairAttempts=3、不额外 rerun；Linux 成本及完整 CI 仍未验证，远端操作前仍须实时核对 visibility／额度。
+
+PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除旧局部 helper，不增删用例或 CI 清单；原22例真实通过42.19秒，独立安全／纯上下文16例通过。没有新增 job、runner、依赖、timeout 或模型／供应商请求；旧 teardown 真实失败及计数保留，测试工具分组粒度修正不削减闭包。
+
+PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。
+
+PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+
 2026-10-30 授权试验退役在原 Research Web Checks Python 清单增加三份离线模块，
 Mac Bootstrap原安装步骤增加维护模块导入。没有新job、runner、依赖或超时，CI不接触
 真实模型、Wind或账号数据。新增模块局部用例约一秒，旧操作员全回归约四分钟，保留
@@ -59,6 +69,17 @@ PR252 首次 Research Web Checks run `40894321756` 收集到 7,381 个 node ID�
 PR244首候选Mac40464598312因app.mjs为266724字节超过262144健康读取上限而回滚；本机源入口原为262004字节。修复仅拆出报告UI操作模块并补实际字节预算回归，同一Mac静态清单增加一份文件；无新job/runner/依赖/timeout，不rerun旧候选，完整原三CI随正常repair重新绑定。
 
 2026-10-27 报告生产 UI 复用现有 Checks JS 通配符，新增目录/路由/状态回归；Mac Bootstrap 原静态文件校验同一步新增两份文件，增量预留 10 秒，无新 job/runner/依赖或 timeout 变更。原 Constraints、Checks、同候选 Mac 干净安装门保持；真实模型、Wind/Office 和成稿验收不进入 CI，发布前实时核对 visibility/额度。
+
+2026-10-28 owned CLS固定SDK一例及pack/method取消六矩阵在既有Mac Bootstrap安装后原步骤硬执行七例，generic Checks保留全部
+compat Host参数/权限/取消，不以缺SDK自动skip。复用已构建pin与安装器Node24.19.0，CI临时venv只安装
+原dev声明pytest/pytest-asyncio，不editable安装产品；installed app字节与原runtime distributions前后不变
+为硬门。无新job/runner/timeout或产品依赖/锁变化，原artifact增加owner/JUnit/log/receipt与pip变更证据，
+保留3天。单例本机现成环境约5秒，连Host模块12例51.90秒；原Mac步骤为dev工具下载与七个Native目标保守预留
+180秒（同一步新增pack/method真实取消六矩阵，本机首轮93.74秒），真实CI耗时尚NOT_RUN，不从本机或旧epoch宣称通过。远端前仍核实时visibility/额度，禁止rerun旧SHA。
+
+同批CI QUALITY修复仅将真实SetupWebInstaller接入，并前置最外层失败receipt；原Checks同一步登记四项
+轻量实际构造/早期失败回归，本机0.38秒，预算增量预留1秒。不运行pip/SDK构建/服务/网络，不扩job、
+runner或timeout；e919的错误类名与过晚receipt均有原版本真实子进程反例，不把静态AST通过称CI成功。
 
 2026-10-27首批原Checks `40384650069`在1898.78秒完成Python，7212通过、1失败；失败为未限定平台的真实Mac HTML交付测试，不是预算超时。修复保留Mac真实交付及全部原断言，另增通用未验证交付／自认证质量拒绝反例；该反例本机约2.08秒，原步骤预留5秒。原Constraints字节码兼容修复扩展原已登记unittest，不新增job／runner／依赖／timeout，不取消或绕过产品门，不rerun旧候选。最终候选重新取得原三CI及Mac安装；发布前核对当前PUBLIC资格。
 
@@ -422,9 +443,26 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 2026-10-26全市场广度组合固定操作员只扩展既有test_model_provider_upgrade矩阵，保留旧profile和原三CI/同候选Mac安装。新增回归预留原步骤60秒，无新workflow/job/runner/依赖/timeout；真实Office、上游、模型和正式库不进入CI。本机用已有批准测试工具只读overlay，首次云端导入阻塞留证，不删测试或断言。远端操作前实时复核PUBLIC与标准runner资格。
 
+## 2026-10-28：T3既有验证通道
+
+T3组合包集成只扩充已有Checks测试参数及Mac Bootstrap原资源核对步骤，无新job/runner、依赖、超时或平台dispatch。只读安装资源构造复用原安装环境，不调用供应商/模型；完整候选CI仍须通过，预算与仓库visibility核对规则不变，元数据本地通过不授权远端运行。
+
+
+2026-10-28 PR245 Checks 安装漂移修复只扩原 Install declared test dependencies 步骤：按未变的 web.lock 全文件摘要及 pack-runtime-lock v2 提取七个冻结分发与原三个 renderer/workbook 分发，先用原哈希安装，再以纯版本 constraints 约束原 editable dev 安装并核对七项实装版本。旧失败 40608520536 为 690.05 秒的版本／fixture 失败，不是 timeout；本次不增 job、runner、依赖或 timeout，不删／skip 测试。原安装步骤增量预留30秒，现有治理与 fixture 反例增量预留2秒。新候选必须重取原三 CI 与同候选 Mac 干净安装；远端操作前实时核验 PUBLIC／标准 runner 资格及额度，不 rerun 旧 run、不从 Mac dispatch 他平台产品任务。CI 不调用模型、厂商或正式库。
+
+PR245 repair2 纠正上述 repair1 的安装范围：第二候选 bff0600 的七项版本核验已成功，Checks 40659261189 的完整 Python 步骤为 834.52 秒，197 failed／7088 passed／101 skipped／373 errors，主要因根包 legacy langgraph 链额外引入未锁 jsonpointer 3.6。改为哈希安装既有完整 Web 锁、独立解析已声明 dev 工具及 editable --no-deps，安装前保留原锁拒绝矩阵，安装后保留七项 metadata 并实际执行 Host／fresh Native 准入；不改锁、产品 policy、原测试列表或任何 job／runner／timeout。本地治理23项实测约1.85秒，新 CI 真安装耗时待同候选回填，不以本机已有环境冒充。原候选 Mac 固定 SDK 七项实际225.022秒、0skip；这是已运行候选的证据，不能替代后继安装或沿用旧180秒估算作通过证明。
+
+PR245 repair3 仅将原同一步根包安装改为产品已有的普通 wheel --no-index --no-deps --no-build-isolation，并以 -I 核已安装 Host，避免editable构建要求未锁 editables。181 的Checks40664733092在editable元数据阶段失败，后续metadata／准入／Python／JS均NOT_RUN；同181 Mac40664733223独立因官方SheetJS tarball两次Timeout失败，health／Doctor／SDK均NOT_RUN。源码修复不改变CDN／pin／hash／retry、workflow/job/runner/timeout或锁。离线真实标准wheel构建1.841秒、仅现锁build闭包构建1.423秒同字节；既有Web JS步骤新增该真实构建／wheel-only资源回归，增量预留10秒，实际CI耗时待回填。原三门及同候选Mac自然重建保持，旧绿、archive metadata或本机解包真调用均不替代新候选实装／console script／完整闭包证据。
 
 ## 共享恢复及源路径维护（2026-10-29）
 
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+2026-10-30 PR245 后继不新增 workflow、job、runner、worker、依赖或 timeout。Catalog 对非初始化
+外部模块检查改为完整默认动态委托闭包证明内的fresh指定top-level metadata投影，本机最终字节固定oracle
+cProfile从9.518秒降至7.016秒，但不据此认证Linux CI时长。原两分区worker只增加5秒节流的私有
+安全进度；7,919-node／23,757 hook等价本机模拟开启中位墙钟0.00884秒、最多6次实际原子写，关闭
+中位0.000709秒，该lower-bound仍不保证runner或完整CI。缺final时artifact保留固定phase/outcome／plan／
+已分配nodeID／有限计数诊断，仍缺final/JUnit/union并保持失败。旧45分钟取消、
+两worker final MISSING及修补计数不改写，最终候选仍运行原Project Constraints、Checks与Mac门。

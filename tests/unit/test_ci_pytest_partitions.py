@@ -41,6 +41,135 @@ def test_split_round_robins_nodeids_from_large_modules() -> None:
     assert second[0].startswith("tests/test_api.py::")
 
 
+def test_ci_job_shards_form_a_deterministic_exact_union_before_worker_split() -> None:
+    suite = [f"tests/test_api.py::test_api[{index}]" for index in range(12)]
+
+    jobs = [partitions.split_job_nodeids(suite, job_index=index, job_count=2) for index in range(2)]
+
+    assert jobs == [suite[0::2], suite[1::2]]
+    assert set(jobs[0]).isdisjoint(jobs[1])
+    assert set(jobs[0]) | set(jobs[1]) == set(suite)
+    assert all(len(partitions.split_nodeids(job)) == 2 for job in jobs)
+
+
+def _workflow_job(source: str, job_id: str) -> str:
+    lines = source.splitlines()
+    start = lines.index(f"  {job_id}:")
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":"):
+            end = index
+            break
+    return "\n".join(lines[start:end])
+
+
+def _workflow_step(job: str, step_name: str) -> str:
+    lines = job.splitlines()
+    start = lines.index(f"      - name: {step_name}")
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if lines[index].startswith("      - name: "):
+            end = index
+            break
+    return "\n".join(lines[start:end])
+
+
+def _assert_research_web_workflow_contract(workflow: str) -> None:
+    jobs_source = workflow.split("\njobs:\n", 1)[1]
+    job_ids = [
+        line[2:-1]
+        for line in jobs_source.splitlines()
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":")
+    ]
+    assert job_ids == ["python-contracts", "checks"]
+    python_job = _workflow_job(workflow, "python-contracts")
+    checks_job = _workflow_job(workflow, "checks")
+    assert "    name: Python contracts (shard ${{ matrix.pytest_shard }})" in python_job
+    assert "      fail-fast: false" in python_job
+    assert "      max-parallel: 2" in python_job
+    assert "        pytest_shard: [0, 1]" in python_job
+    assert '--job-shard-index "${{ matrix.pytest_shard }}"' in python_job
+    assert python_job.count("--job-shard-count 2") == 2
+
+    javascript = _workflow_step(python_job, "Run Research Web JavaScript contracts")
+    editorial = _workflow_step(
+        python_job, "Verify pinned editorial engine without model or paid requests"
+    )
+    python = _workflow_step(python_job, "Run Research Web Python contracts")
+    upload = _workflow_step(python_job, "Upload safe pytest evidence")
+    assert "        if: matrix.pytest_shard == 0" in javascript
+    assert "        if: (success() || failure()) && matrix.pytest_shard == 0" in editorial
+    assert "        if: success() || failure()" in python
+    assert python_job.index(javascript) < python_job.index(python)
+    assert python_job.index(editorial) < python_job.index(python)
+    assert "        uses: actions/upload-artifact@v4" in upload
+    assert (
+        "          name: research-web-checks-${{ github.run_id }}-"
+        "${{ github.run_attempt }}-shard-${{ matrix.pytest_shard }}" in upload
+    )
+
+    assert "    if: always()" in checks_job
+    assert "    needs: python-contracts" in checks_job
+    assert not any(line.startswith("    name:") for line in checks_job.splitlines())
+    first_download = _workflow_step(checks_job, "Download Python shard 0 evidence")
+    second_download = _workflow_step(checks_job, "Download Python shard 1 evidence")
+    assert "        uses: actions/download-artifact@v4" in first_download
+    assert "        uses: actions/download-artifact@v4" in second_download
+    assert "-shard-0" in first_download and "path: artifacts/shard-0" in first_download
+    assert "-shard-1" in second_download and "path: artifacts/shard-1" in second_download
+    verify = _workflow_step(checks_job, "Verify exact Python shard union and worker evidence")
+    assert "--verify-shards artifacts/shard-0 artifacts/shard-1" in verify
+    guard = _workflow_step(checks_job, "Require Python, JavaScript, and editorial job success")
+    assert "PYTHON_CONTRACTS_RESULT: ${{ needs.python-contracts.result }}" in guard
+    assert 'if [[ "$PYTHON_CONTRACTS_RESULT" != "success" ]]; then' in guard
+    assert "exit 1" in guard
+
+
+def test_research_web_workflow_keeps_four_bounded_workers_and_one_checks_gate() -> None:
+    workflow = (
+        Path(__file__).resolve().parents[2] / ".github/workflows/research-web-checks.yml"
+    ).read_text(encoding="utf-8")
+
+    _assert_research_web_workflow_contract(workflow)
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "repeat-javascript",
+        "repeat-editorial",
+        "artifact-collision",
+        "missing-second-download",
+        "missing-result-guard",
+    ],
+)
+def test_research_web_workflow_contract_rejects_cost_or_gate_regressions(tamper: str) -> None:
+    workflow = (
+        Path(__file__).resolve().parents[2] / ".github/workflows/research-web-checks.yml"
+    ).read_text(encoding="utf-8")
+    if tamper == "repeat-javascript":
+        workflow = workflow.replace("        if: matrix.pytest_shard == 0\n", "", 1)
+    elif tamper == "repeat-editorial":
+        workflow = workflow.replace(
+            "        if: (success() || failure()) && matrix.pytest_shard == 0\n", "", 1
+        )
+    elif tamper == "artifact-collision":
+        workflow = workflow.replace("-shard-${{ matrix.pytest_shard }}", "-shard")
+    elif tamper == "missing-second-download":
+        workflow = workflow.replace("-shard-1", "-shard-0").replace(
+            "path: artifacts/shard-1", "path: artifacts/shard-0"
+        )
+    else:
+        workflow = workflow.replace(
+            'if [[ "$PYTHON_CONTRACTS_RESULT" != "success" ]]; then',
+            'if [[ "$PYTHON_CONTRACTS_RESULT" == "success" ]]; then',
+        )
+
+    with pytest.raises(AssertionError):
+        _assert_research_web_workflow_contract(workflow)
+
+
 @pytest.mark.parametrize(
     "nodeids",
     [[], ["one::test"], ["same::test", "same::test"]],
@@ -59,6 +188,9 @@ def test_manifest_requires_exact_collection_order_and_full_disjoint_union() -> N
         "schemaVersion": partitions.MANIFEST_SCHEMA_VERSION,
         "taskId": "unit-test-task",
         "selection": selection,
+        "suiteNodeIds": nodeids,
+        "jobShardIndex": 0,
+        "jobShardCount": 1,
         "nodeIds": nodeids,
         "partitions": split,
         "planSha256": partitions._plan_sha256("unit-test-task", selection, nodeids, split),
@@ -197,9 +329,12 @@ class FakeProcess:
             nodeids = ['tests/test_fixture.py::test_one', 'tests/test_fixture.py::test_two']
             partitions = runner.split_nodeids(nodeids)
             plan = {
-                'schemaVersion': 2,
+                'schemaVersion': 3,
                 'taskId': 'forged-result-red',
                 'selection': ['tests/test_fixture.py', '--confcutdir=tests', '-q'],
+                'suiteNodeIds': nodeids,
+                'jobShardIndex': 0,
+                'jobShardCount': 1,
                 'nodeIds': nodeids,
                 'partitions': partitions,
                 'planSha256': 'a' * 64,
@@ -392,6 +527,116 @@ def _run_fixture_suite(tmp_path: Path, source: str) -> tuple[int, Path]:
     return completed.returncode, result_root
 
 
+def _run_worker_with_progress_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, phase: str, outcome: str
+) -> tuple[int, dict, partitions.WorkerPlugin]:
+    fixture_root = tmp_path / "fixture-project"
+    tests = fixture_root / "tests"
+    tests.mkdir(parents=True)
+    statement = {
+        "passed": "assert True",
+        "failed": "assert False, 'original failure'",
+        "skipped": "import pytest; pytest.skip('original skip')",
+    }[outcome]
+    filename = f"test_progress_{phase}_{outcome}.py"
+    module_name = filename.removesuffix(".py")
+    (tests / filename).write_text(
+        f"def test_target(): {statement}\ndef test_other(): assert True\n", encoding="utf-8"
+    )
+    arguments = [f"tests/{filename}", "--confcutdir=tests", "-q"]
+    nodeids = [f"tests/{filename}::test_target", f"tests/{filename}::test_other"]
+    task_id = "progress-write-failure"
+    split = partitions.split_nodeids(nodeids)
+    manifest = {
+        "schemaVersion": partitions.MANIFEST_SCHEMA_VERSION,
+        "taskId": task_id,
+        "selection": arguments,
+        "suiteNodeIds": nodeids,
+        "jobShardIndex": 0,
+        "jobShardCount": 1,
+        "nodeIds": nodeids,
+        "partitions": split,
+        "planSha256": partitions._plan_sha256(task_id, arguments, nodeids, split),
+    }
+    root = tmp_path / "worker-root"
+    root.mkdir(mode=0o700)
+    worker_dir = root / "worker-0"
+    plugin = partitions.WorkerPlugin(0, worker_dir, manifest, arguments, task_id)
+    original = partitions._atomic_json
+
+    def fail_selected_progress(path: Path, value: dict) -> None:
+        if path.name == "progress.json" and value.get("phase") == phase:
+            raise OSError("PRIVATE_PROGRESS_WRITE_FAILURE")
+        original(path, value)
+
+    monkeypatch.setattr(partitions, "_atomic_json", fail_selected_progress)
+    monkeypatch.setattr(partitions, "PROGRESS_WRITE_INTERVAL_SECONDS", 0)
+    monkeypatch.chdir(fixture_root)
+    exit_code = partitions._run_worker(plugin, task_id, root.stat())
+    sys.modules.pop(module_name, None)
+    result = json.loads((worker_dir / "result.json").read_text(encoding="utf-8"))
+    return exit_code, result, plugin
+
+
+@pytest.mark.parametrize("phase", ["startup", "collection", "setup", "call", "teardown"])
+def test_progress_write_oserror_never_changes_passing_worker_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str
+) -> None:
+    exit_code, result, plugin = _run_worker_with_progress_failure(
+        tmp_path, monkeypatch, phase=phase, outcome="passed"
+    )
+
+    assert exit_code == 0
+    assert result["status"] == "passed"
+    assert result["pytestExitCode"] == 0
+    assert result["failureTaxonomy"] is None
+    assert plugin.progress_disabled
+    assert plugin.progress_error_code == "write_unavailable"
+    assert "PRIVATE_PROGRESS_WRITE_FAILURE" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("outcome", ["failed", "skipped"])
+def test_progress_write_oserror_preserves_original_failed_or_skipped_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    exit_code, result, plugin = _run_worker_with_progress_failure(
+        tmp_path, monkeypatch, phase="call", outcome=outcome
+    )
+
+    assert plugin.progress_disabled
+    assert plugin.progress_error_code == "write_unavailable"
+    if outcome == "failed":
+        assert exit_code == 1
+        assert result["status"] == "failed"
+        assert result["failureTaxonomy"]["errorCode"] == "pytest_call_failed"
+    else:
+        assert exit_code == 0
+        assert result["status"] == "passed"
+        assert result["junit"]["skipped"] == 1
+    assert "PRIVATE_PROGRESS_WRITE_FAILURE" not in json.dumps(result)
+
+
+def test_progress_does_not_swallow_baseexception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest = {
+        "nodeIds": ["tests/test_fixture.py::test_one", "tests/test_fixture.py::test_two"],
+        "partitions": [
+            ["tests/test_fixture.py::test_one"],
+            ["tests/test_fixture.py::test_two"],
+        ],
+        "planSha256": "a" * 64,
+    }
+    plugin = partitions.WorkerPlugin(0, tmp_path, manifest, [], "baseexception")
+
+    def interrupt(*_args, **_kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(partitions, "_atomic_json", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        plugin.write_progress("startup")
+
+
 def test_two_workers_execute_exact_partition_and_keep_skip_visible(tmp_path: Path) -> None:
     exit_code, root = _run_fixture_suite(
         tmp_path,
@@ -431,6 +676,24 @@ def test_explicit_skip():
     assert all((root / f"worker-{index}" / "pytest-cache").is_dir() for index in range(2))
     assert ET.parse(root / "worker-0" / "junit.xml").getroot().findall(".//testcase")
     assert ET.parse(root / "worker-1" / "junit.xml").getroot().findall(".//testcase")
+    progress = [
+        json.loads((root / f"worker-{index}" / "progress.json").read_text(encoding="utf-8"))
+        for index in range(2)
+    ]
+    for index, item in enumerate(progress):
+        assert set(item) == partitions.WORKER_PROGRESS_FIELDS
+        assert item["schemaVersion"] == partitions.WORKER_PROGRESS_SCHEMA_VERSION
+        assert item["workerIndex"] == index
+        assert item["planSha256"] == manifest["planSha256"]
+        assert item["phase"] in {"setup", "call", "teardown"}
+        assert item["nodeId"] in manifest["partitions"][index]
+        assert item["counters"]["selected"] == len(manifest["partitions"][index])
+        assert 1 <= item["counters"]["started"] <= len(manifest["partitions"][index])
+        assert item["counters"]["completed"] <= item["counters"]["started"]
+        assert (
+            sum(item["counters"][name] for name in ("passed", "skipped", "failed"))
+            == item["counters"]["started"]
+        )
 
 
 def test_original_worker_failure_cannot_be_reported_as_pass(tmp_path: Path) -> None:
@@ -575,6 +838,26 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
                     break
             time.sleep(0.02)
         assert child_started, log_path.read_text(encoding="utf-8")
+        progress = []
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            progress_paths = [
+                result_root / f"worker-{index}" / "progress.json" for index in range(2)
+            ]
+            if all(path.is_file() for path in progress_paths):
+                progress = [json.loads(path.read_text(encoding="utf-8")) for path in progress_paths]
+                if all(item["phase"] in {"setup", "call"} for item in progress):
+                    break
+            time.sleep(0.02)
+        assert len(progress) == 2
+        assert all(
+            item["nodeId"] in item_ids
+            for item, item_ids in zip(
+                progress,
+                json.loads((result_root / "partitions.json").read_text())["partitions"],
+                strict=True,
+            )
+        )
         process.send_signal(signal.SIGTERM)
         assert process.wait(timeout=5) == 143
         summary = json.loads((result_root / "scheduler-result.json").read_text(encoding="utf-8"))

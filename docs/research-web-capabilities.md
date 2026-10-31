@@ -1,5 +1,23 @@
 # Research Web 能力包与版本
 
+Catalog 对脚本外部模块的存在性检查仍在每次非初始化验证时读取 fresh metadata；当前调用只请求
+本次实际导入的 top-level 模块。快路径只接受stock公共API、Distribution discover／resolver、默认
+PathFinder descriptor、动态MetadataPathFinder类／descriptor、PathDistribution类和files/readers；
+这些命名Python callable另绑定function/code/defaults/closure指纹。真实custom finder在枚举前回原完整API，枚举后身份变化或未知Distribution类型失败关闭且不二次枚举。标准路径复现所有RECORD／
+egg-info行的arity、hash与size构造错误，只跳过无关路径的`stat`；重复namespace、缺失文件、下一次
+metadata/路径变化与异常传播保持；必需私有primitive缺失时模块仍可导入并单次调用公共API。初始化
+事务仍只共享一次完整清单，并在成功或异常后清空。严格语义、完整动态委托与code/defaults闭包证明
+后的最终字节固定AST oracle本机cProfile从9.518秒降至7.016秒，原12次完整清单变为一次完整清单加
+11次fresh投影；这是本机诊断，不认证Linux CI或45分钟门。
+
+pack runtime 的 import policy 只复用完整新读源码字节导出的不可变语法 facts：进程内 LRU 最多 64 项、单源码最多 1 MiB，键同时绑定 module／package、绝对安装根、当前 `ast.parse` 对象与 Python parser 版本。每次 runtime 的依赖 metadata／权限／hash、模块枚举、源码读取、policy 重建及 loaded／search／stdlib／optional 来源核验不缓存；identity、授权、验证 PASS 和完整 policy 也不缓存。本地 Catalog cProfile 保持 runtime=6、policy build=12、module inventory=18、save=281、check=56；实际 parse 270→45，但这不是 Linux CI 时长保证。新回归沿原 Checks Python 清单运行，不新增工具、权限、引擎或 CI 步骤；完整 CI 仍须另证。
+
+发布验证在每个 Python 文件重新解析后，只在本次调用内复用同一棵 AST 的节点枚举；原动态导入、相对导入、依赖、安装器和宿主进程检查仍按原顺序独立执行。不同文件、不同调用和改动后的字节不沿用上次枚举或验证结果；冷初始化六次依赖新鲜性检查和逐次持久化 checkpoint 保持。
+
+借用通用 Host API 的离线测试模块显式使用各自 function-scope 内存凭据。继承的文件凭据根／代理被清除，真实后端 fallback 拒绝；同例重开保留合成签名，例间隔离并恢复 patch。背景采集用原测试开关关闭，业务仍由真实 Host 与已声明 HTTPMockTransport／离线原件验证。此测试隔离不改变产品 Keychain 行为，也不能证明历史测试未曾触达系统凭据。
+
+九个 `research-pack-*` Skill 的详情沿原复制、编辑、检查、发布与版本路径，新增“配置此组合包并查看方法”入口读取当前 Host 的方法／必要材料／参数／版本投影。只读配置不创建会话、不查询来源、不调用模型；缺数保持 partial／blocked，真实结果与正式质量分别显示，见[九包前端合同](research-web-pack-ui.md)。
+
 首批八场景复用已发布能力，不把62个Skill名称或78个工具描述自动变成可执行版本。发送逐项检查必需能力原生发现、实际编译资源、来源准入和冻结版本；要求与真实加载回调分开。旧禁用／比较回执、插件授权和发布冲突门保持；静态候选或成功准备不准许调用MCP。场景质量schema2绑定全部要求，旧schema1不变，摘要不因引用已通过报告获得自身passed。
 
 能力目录索引保存使用相同 UTF-8 JSON 的单次写入，保留原逐次保存、临时文件同步与原子替换。序列化、fsync 或替换失败仍保留上一索引并清理临时文件；未绕过冷启动、依赖新鲜性或能力验证。
@@ -137,7 +155,7 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 `datahub_index_data` 的 points 口径查询。Capabilities 目录展示这一受支持子集，不因六位代码形式
 推断或扩展 Wind 的可调用资产范围。
 
-当前目录包含 30 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+当前目录包含原 30 个内置 Skill、9 个 `research-pack-*` 确定性包和 4 个内置 Workflow。九包的来源覆盖与完整研究状态见[组合包后端合同](research-web-research-packs.md#b1hostnative后端闭环)；其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
@@ -558,3 +576,7 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 四个协作工具在原目录投影，不直接可选；角色冻结现有Skill版本及资源摘要，原能力发布、数据授权和原生审批保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+多用户后端把研究包与自有方法的 `pack-completion` 列为固定内部回调；进入业务处理前仍须通过
+DataHub 回调密钥鉴权。内置 Skill 预检通过只允许开始执行，完成、失败和取消必须由同一受认证
+回调登记，不能从预检或专业协作状态推断完成。

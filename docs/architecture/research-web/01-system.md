@@ -648,6 +648,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
+## 2026-10-28：T3组合包集成边界
+
+九包与三个自有方法扩展现有Host/能力目录/DSH职责：workbench核来源并封印，版本包固定代码、schema、解释器及依赖闭包，DSH supervisor经私有完成桥返回，Host独立重开原件和制品。无新进程、队列、数据库或第二引擎；新内部路径见[能力流](../../../outputs/research-web-architecture/05-capability-flow.html)。
 
 ## 专业协作接入边界（2026-10-28）
 

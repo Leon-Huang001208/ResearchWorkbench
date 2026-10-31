@@ -400,11 +400,21 @@ function smallResult(value) {
 }
 
 /** Same authenticated loopback channel; scope only, never credentials. */
-export async function nativeAdmission(ctx, exec, config, loaded = false) {
+export async function nativeAdmission(ctx, exec, config, loaded = false, packStart = false) {
   const cwd = await trustedDirectory(ctx, exec, config);
   const control = await privateControl(config.researchRoot);
   const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
   const body = { session_id: basename(cwd), tool_name: exec.name };
+  if (exec.name === 'research_run_script' && exec.arguments?.pack_execution !== undefined) {
+    body.pack_execution = exec.arguments.pack_execution;
+    body.call_id = exec.callId;
+    body.pack_start = packStart;
+  }
+  if (exec.name === 'research_run_script' && exec.arguments?.method_execution !== undefined) {
+    body.method_execution = exec.arguments.method_execution;
+    body.call_id = exec.callId;
+    body.pack_start = packStart;
+  }
   if (exec.name === 'research_read_source') {
     if (['list','read'].includes(exec.arguments?.operation)) body.source_operation = exec.arguments.operation;
     if (typeof exec.arguments?.source_id === 'string') body.source_id = exec.arguments.source_id;
@@ -426,6 +436,46 @@ export async function nativeAdmission(ctx, exec, config, loaded = false) {
   return result;
 }
 
+/** Managed tool completion only; credentials never enter the Python process. */
+export async function completePackExecution(ctx, exec, config, binding, result) {
+  exec.signal.throwIfAborted();
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  exec.signal.throwIfAborted();
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
+  const body = JSON.stringify({session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result});
+  signal.throwIfAborted();
+  const response = await globalThis.fetch(control.url + '/api/research/internal/data/pack-completion', {
+    method: 'POST', headers: {'Content-Type':'application/json','X-Research-Data-Key':control.token},
+    body,
+    redirect:'error',credentials:'omit',signal,
+  });
+  const value = await boundedJson(response, signal);
+  if (!value || !['saved','failed','cancelled'].includes(value.state)) throw Error('pack_completion_unverified');
+  return value;
+}
+
+/** Fixed owned-method completion uses the same private transport, separate ledger. */
+export async function completeMethodExecution(ctx, exec, config, binding, result) {
+  exec.signal.throwIfAborted();
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  exec.signal.throwIfAborted();
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
+  const body = JSON.stringify({kind:'owned-method',session_id:basename(cwd),execution_id:binding.execution_id,call_id:exec.callId,result});
+  signal.throwIfAborted();
+  const response = await globalThis.fetch(control.url + '/api/research/internal/data/pack-completion', {
+    method:'POST',headers:{'Content-Type':'application/json','X-Research-Data-Key':control.token},
+    body,
+    redirect:'error',credentials:'omit',signal,
+  });
+  const value = await boundedJson(response, signal);
+  if (!value || !['saved','failed','cancelled'].includes(value.state)) throw Error('method_completion_unverified');
+  return value;
+}
+
 export function apply(ctx, config) {
   if (typeof config?.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('Public data requires an absolute research root');
   if (!Array.isArray(config.enabledTools)) throw Error('Public data enabledTools must be an array');
@@ -436,16 +486,22 @@ export function apply(ctx, config) {
     enabledTools.add(toolName);
   }
   const outputKeys=['dataset_id','source','status','manifest_json','files_json','sample_json'];
-  for (const [toolName,[capability,description,properties,required]] of Object.entries(BUSINESS)) {
-    if (!enabledTools.has(toolName)) continue;
+  const ownedNews = ['rwb_query_latest_cls_news',['search_news','读取CLS最新有界快照，先limit后按正文casefold子串过滤；empty仅表示当前有界快照无匹配，不证明全市场无新闻。',{query:{type:'string',maxLength:2000},limit:{type:'integer',minimum:1,maximum:100}},[]]];
+  for (const [toolName,[capability,description,properties,required]] of [...Object.entries(BUSINESS),ownedNews]) {
+    const owned = toolName === 'rwb_query_latest_cls_news';
+    if (!enabledTools.has(owned ? 'datahub_search_news' : toolName)) continue;
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'},purpose:{type:'string',enum:['display','research','backtest']},quality:{type:'string',enum:['strict','allow_stale']},as_of:{type:'string',description:'正式回测所需的历史可得时点，必须包含时区；不能用实时响应代替'}};
     ctx.tools.register({
       name:toolName,
       description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时须核对来源与参数；data_capability_not_integrated 表示来源尚未适配；data_capability_unavailable 表示当前来源条件未满足，不要重复相同请求或改写查询反复尝试，须说明缺口。其他工具仍须符合本任务批准范围，不得隐式扩大权限。`,
-      parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
+      parameters:{type:'object',properties:{...properties,...(owned ? {} : common)},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {
-        const query=stableBusinessQuery(capability,args,properties,required);exec.signal.throwIfAborted();
+        let query;
+        if (owned) {
+          if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key=>!['query','limit'].includes(key)) || (Object.hasOwn(args,'query') && (typeof args.query !== 'string' || args.query.length>2000 || /[\x00-\x1f]|:\/\//.test(args.query) || args.query.trim().toLowerCase().startsWith('www.'))) || (Object.hasOwn(args,'limit') && (!Number.isSafeInteger(args.limit) || args.limit<1 || args.limit>100))) throw Error('owned_news_arguments_invalid');
+        } else query=stableBusinessQuery(capability,args,properties,required);
+        exec.signal.throwIfAborted();
         const cwd=await trustedDirectory(ctx,exec,config);exec.signal.throwIfAborted();
         if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(exec.agent.session.header.id) || !/^[a-zA-Z0-9_.:-]{1,120}$/.test(exec.callId)) throw Error('Native call identity is invalid');
         const identity={session_id:basename(cwd),call_id:`${exec.agent.session.header.id}:${exec.callId}`};
@@ -457,7 +513,7 @@ export function apply(ctx, config) {
         signal.addEventListener('abort',cancel,{once:true});
         ctx.logger.info('business_data_request_started tool=%s',toolName);
         try {
-          const response=await globalThis.fetch(control.url+'/api/research/internal/data/business-query',{method:'POST',headers,body:JSON.stringify({...identity,query}),redirect:'error',credentials:'omit',signal});
+          const response=await globalThis.fetch(control.url+'/api/research/internal/data/business-query',{method:'POST',headers,body:JSON.stringify(owned ? {...identity,request_kind:'owned-latest-cls-news-v1',arguments:args} : {...identity,query}),redirect:'error',credentials:'omit',signal});
           const result=smallResult(await boundedJson(response,signal));
           ctx.logger.info('business_data_request_completed tool=%s',toolName);return result;
         } catch(error) {await cancel();ctx.logger.warn('business_data_request_failed tool=%s type=%s',toolName,error.name);throw error;}

@@ -1,5 +1,22 @@
 # 能力包、版本与原生调用
 
+脚本依赖检查的非初始化路径继续逐次读取当前发行包 metadata，只把本次外部导入的 top-level
+模块作为 fresh 投影目标。只有stock API、Distribution discover／resolver、默认PathFinder descriptor、
+动态MetadataPathFinder类／find descriptor、PathDistribution类和Distribution.files/readers全部
+匹配，且实际命名Python callable的function/code/defaults/closure指纹不变，才启用快路径；真实custom finder在任何枚举前回原API，避免双重消费。枚举后身份变化或未知
+Distribution类型失败关闭，不再fallback二次枚举。标准路径
+复现所有RECORD／egg-info行的arity、hash与size构造错误，只省略无关路径stat；多个发行包共享
+namespace、文件缺失、下一次metadata/路径变化和异常传播保持。初始化事务的单清单缓存和异常后
+清空保持；必需私有primitive使用sentinel安全捕获，缺失时模块导入不失败并走公共API。因此优化不缓存 dependency PASS、发行包身份、权限或运行时 policy，也不改变
+问题顺序、6 次 runtime、12 次 policy build、18 次 inventory、56 次 check、56 次 publish、281 次
+save 及 frozen pack 字节；profile 的 `validate=108` 仅是实际调用计数。
+
+`runtime_identity` 的每一遍仍重新枚举模块、读取完整当前源码与依赖 metadata／权限／hash，重建 policy，并核验 loaded／search／stdlib／optional 来源。只有由当前源码字节导出的不可变语法事实可进入进程内有界 LRU：最多 64 项，单源码最多 1 MiB；键同时包含完整源码 bytes、module／package、绝对安装根、当前 `ast.parse` 对象及 Python parser 版本身份。源码同尺寸且恢复 mtime、安装根、package、parser 或 import 字节任一变化均不能命中；大源码直接 fresh parse。局部 build／verify 字典在成功或异常后仍清空，LRU 不保存 runtime identity、依赖身份、授权、验证 PASS 或完整 policy。冻结 helper 源码及其派生 guard／资源摘要会变化，不能声称修改前后的冻结包全字节相同；原六次 fresh runtime、56 次 check、56 次 publish 与 281 个保存 checkpoint 保留。本轮只有本地 cProfile／定点证据，不能推导 Linux CI 或 45 分钟门已通过。
+
+`Catalog.validate` 每文件 fresh parse 后仅在局部保存 `tuple(ast.walk(tree))`，供原九处遍历使用；没有合并检查或改变 issue 顺序，没有跨文件／调用缓存。原六次 fresh runtime、版本／账户检查、旧结果验证不变；当前56内置包的冷目录样本仍有281次保存 checkpoint，未做批处理。49 个源字节向量保留完整有序结果 oracle，危险脚本仅解析、不执行；正常构造计时与 profiling、功能验收分别记录。
+
+共享离线 API fixture 必须显式在使用模块登记 function-scope 内存凭据，不能假设上游模块 autouse fixture 随别名传播。默认后端和公共测试 facade 使用同例 vault，真实系统／文件后端入口拒绝，退出恢复 patch；生产凭据协议、固定 MCP signing account 与唯一 DSH 不改。历史 Keychain 实际触达仍 UNKNOWN，新的零逃逸结果不回填旧 epoch。
+
 业务报告项目在独立“报告生产”入口管理；通用 Workflow 仍是能力中心步骤模板。现有原生绑定与报告运行复用唯一 DSH，界面分类不授予工具权限，不新增报告引擎。
 
 目录保存先生成与原 `json.dump(..., ensure_ascii=False)` 相同的 JSON 字节，再在同一个临时文件中一次写入；每次保存及同步、原子替换、失败清理时点保持。该优化减少真实 Host 重复冷构造中的 Python 逐片段写，不缓存验证、模块清单、权限或凭据，不改变任何包版本和准入。
@@ -311,6 +328,9 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 
 能力中心为公司／行业研究、调研准备、研报增量、预期差和风险检查补输入／输出／限制说明，仍引用原发布能力版本；固定方法说明本身不授予工具或来源权限。档案句柄在实际 Prompt 绑定后走既有 research_read_source 的 Host 分支，DSH 仍是唯一执行器。小创一方包仅可沿原导入预览，真实 Registry 身份未核验而保持 unsupported／未就绪；配置状态复用原插件 status，无合法安装时不开放个人凭据配置。见[方法与 UI](../../research-web-dossiers-ui.md)及[候选合同](../../research-web-seek-alpha.md)，原能力发布拓扑保持。
 
+## 2026-10-28：T3组合包集成边界
+
+pack_resources从唯一packs源冻结record/output schema、golden、runtime/import闭包；pack_relocation与pack_equivalence仅允许显式历史读回的受审等价，不重写旧包或绕当前授权/运行冻结。三owned Skill冻结共享原件动作与独立入口，Host按同资源字节复算台账。C1静态参数标记与CLS固定wrapper不注册供应商alias，不代表62/78全可用。
 
 ## 专业协作接入边界（2026-10-28）
 

@@ -62,9 +62,11 @@ function productCapabilityFixture() {
     'from pathlib import Path',
     'from app.research_web.capabilities.catalog import CapabilityCatalog',
     'from app.research_web.capabilities.seeds import RECEIPT_GATED_SKILLS, SKILL_SPECS',
+    'from app.research_web.capabilities.pack_resources import PACK_NAMES',
+    'from app.research_web.capabilities.scenario_method_packages import METHODS, METHOD_VERSION',
     'with tempfile.TemporaryDirectory(prefix="rwb-ui-capabilities-") as directory:',
     '    catalog = CapabilityCatalog(Path(directory))',
-    '    payload = {"items": catalog.list(kind="skill")["items"], "expected_skill_count": len(SKILL_SPECS), "receipt_gated": sorted(RECEIPT_GATED_SKILLS)}',
+    '    payload = {"items": catalog.list(kind="skill")["items"], "expected_skill_count": len(SKILL_SPECS) + len(PACK_NAMES) + len(METHODS), "baseline_skill_ids": sorted([row["slug"] for row in SKILL_SPECS] + ["research-pack-" + key for key in PACK_NAMES]), "owned_method_ids": sorted(METHODS), "owned_method_version": METHOD_VERSION, "receipt_gated": sorted(RECEIPT_GATED_SKILLS)}',
     `    print(${JSON.stringify(marker)} + json.dumps(payload, ensure_ascii=False))`,
   ].join('\n');
   const result = spawnSync(projectPython(), ['-c', script], {
@@ -206,16 +208,30 @@ test('capability center renders every built-in Skill and disables receipt-gated 
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
   const fixture = productCapabilityFixture();
   const builtinResearchSkills = fixture.items;
+  const ownedIDs=['owned-company-evidence','owned-news-evidence','owned-research-prep'];
+  assert.equal(fixture.expected_skill_count,42);
+  assert.equal(fixture.baseline_skill_ids.length,39);
+  assert.deepEqual(fixture.owned_method_ids,ownedIDs);
+  assert.equal(fixture.owned_method_version,'1.0.0');
+  assert.deepEqual(builtinResearchSkills.filter(item=>!ownedIDs.includes(item.id)).map(item=>item.id).sort(),fixture.baseline_skill_ids);
   assert.equal(builtinResearchSkills.length, fixture.expected_skill_count);
   assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, fixture.expected_skill_count);
   assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin), true);
   const receiptGated = new Set(fixture.receipt_gated);
+  assert.equal(receiptGated.size,18);
   assert.deepEqual(builtinResearchSkills.filter(item => !item.enabled).map(item => item.id).sort(), [...receiptGated].sort());
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });
   const selectableIDs = [...catalog.matchAll(/data-use-skill="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(selectableIDs, builtinResearchSkills.map(item => item.id));
   for (const id of receiptGated) assert.match(catalog, new RegExp(`data-use-skill="${id}"[^>]*disabled`));
+  for(const id of ownedIDs){
+    const item=builtinResearchSkills.find(item=>item.id===id);
+    assert.equal(item.version,1);assert.equal(item.enabled,true);assert.equal(item.status,'enabled');
+    const button=catalog.match(new RegExp(`<button[^>]*data-use-skill="${id}"[^>]*>`))?.[0];
+    assert.ok(button);assert.doesNotMatch(button,/\bdisabled\b/);
+    const detail=renderCapabilityDetail(item);assert.match(detail,/v1/);assert.match(detail,new RegExp(`data-use-skill="${id}"`));
+  }
   for (const item of builtinResearchSkills) {
     assert.ok(catalog.includes(item.name));
     assert.ok(catalog.includes(`<option value="${item.category}"`));

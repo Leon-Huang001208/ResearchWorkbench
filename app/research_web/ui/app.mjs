@@ -42,6 +42,7 @@ import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
+import { packResults } from './pack-ui.mjs';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
 import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
@@ -497,8 +498,7 @@ function researchPage() {
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<div class="conversation-scroll" data-conversation-scroll="${e(detail.id)}"><header class="session-toolbar" aria-label="会话状态与资料"><div class="session-meta">${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${renderSpecialistPanel(detail, state.busy || state.stopping)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}</div><div class="composer-dock">${composer()}</div>`;
-}
+  return `<div class="conversation-scroll" data-conversation-scroll="${e(detail.id)}"><header class="session-toolbar" aria-label="会话状态与资料"><div class="session-meta">${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${renderSpecialistPanel(detail, state.busy || state.stopping)}${packResults(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}</div><div class="composer-dock">${composer()}</div>`;}
 
 function settingsPage() {
   return renderSettingsPage({
@@ -765,6 +765,7 @@ function render() {
   const assetMetricsOpen = keepAssetForms && assetPage.querySelector('.asset-wind-metrics')?.classList.contains('is-open');
   const assetDetails = keepAssetForms ? ['.asset-list-drawer', '.asset-personal-details', '.asset-source-summary', '.asset-identity-switch', '.asset-research-menu', ...(assetPage.dataset.assetView === (state.route.assetView || 'overview') ? ['.asset-chart-details', ...(assetPage.dataset.observationId ? ['.asset-query-controls'] : [])] : [])].map(selector => [selector, assetPage.querySelector(selector)?.open]) : [];
   const active = document.activeElement; const focusId = active?.id;
+  const scenarioNumberFocus = active?.tagName === 'INPUT' && active.type === 'number' && active.closest?.('.scenario-panel') ? active : null;
   const modelPanelFocus = modelSettingsPanel?.element.contains(active) ? {node:active,action:active.dataset?.mpAction,profile:active.dataset?.profile} : null;
   const activeQuestion = active?.closest?.('[data-question-form]');
   const questionFocus = activeQuestion ? { session: activeQuestion.dataset.qSession, id: activeQuestion.dataset.questionForm, index: activeQuestion.dataset.qIndex, legend: active.matches('legend'), name: active.name, value: active.value } : null;
@@ -772,6 +773,8 @@ function render() {
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
+  const scenarioBody = root.querySelector('.scenario-panel .d-drawer-body');
+  const scenarioScroll = { view: scenarioBody?.dataset?.scenarioView, top: scenarioBody?.scrollTop || 0 };
   const aihotArchiveScroll = root.querySelector('.aihot-archive-scroll')?.scrollTop || 0;
   const conversationScroller = root.querySelector('[data-conversation-scroll]');
   if (conversationScroller) conversationScrollPositions.set(conversationScroller.dataset.conversationScroll, conversationScroller.scrollTop);
@@ -856,6 +859,12 @@ function render() {
   accountMenu.sync();
   accountWorkspace.sync();
   pluginWorkspace.sync();
+  const freshScenarioBody = root.querySelector('.scenario-panel .d-drawer-body');
+  const sameScenarioView = typeof scenarioScroll.view === 'string' && freshScenarioBody?.dataset?.scenarioView === scenarioScroll.view;
+  if (sameScenarioView && scenarioNumberFocus) {
+    const replacement = document.getElementById(scenarioNumberFocus.id);
+    if (replacement && replacement.type === 'number' && !replacement.disabled) replacement.replaceWith(scenarioNumberFocus);
+  }
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
@@ -872,6 +881,7 @@ function render() {
     const replacement = questionFocus.legend ? form?.querySelector('legend') : [...(form?.querySelectorAll('input') || [])].find(item => item.name === questionFocus.name && item.value === questionFocus.value);
     replacement?.focus({ preventScroll: true });
   }
+  if (sameScenarioView) freshScenarioBody.scrollTop = scenarioScroll.top;
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
   const projectDialog = root.querySelector('.nav-project-dialog');
   if (projectDialog) {
@@ -2721,13 +2731,19 @@ root.addEventListener('pointerdown', event => {
 root.addEventListener('click', async (event) => {
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
+  const packConfigure = event.target.closest?.('[data-pack-configure]');
+  if (packConfigure?.dataset?.packConfigure) {
+    event.preventDefault();
+    await scenarioController.open({scenario:packConfigure.dataset.packConfigure,mode:'fingpt',question:'',as_of:'',material_sessions:catalog.sessions});
+    return;
+  }
   const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
   if (scenarioAction) {
     const launch = scenarioLaunchContext({ assetPage:isAssetPage(), route:state.route, observation:assetState.observation, observations:assetState.observations, detail:state.detail, draft:state.draft, researchAsOf:state.researchAsOf }, scenarioAction.dataset);
     if (launch) {
       event.preventDefault();
       if (launch.error) { state.error = launch.error; render(); }
-      else await scenarioController.open(launch.context);
+      else await scenarioController.open({...launch.context,material_sessions:catalog.sessions});
       return;
     }
   }

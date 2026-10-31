@@ -54,11 +54,138 @@ class Handoff(BaseModel):
     )
 
 
+class SelectedSource(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    source_session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    id: str = Field(pattern=r"^web:[a-f0-9]{24}$")
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class SourceSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    handoff: Handoff
+    sources: list[SelectedSource] = Field(min_length=1, max_length=20)
+
+
+class FreezeSourceSelection(SourceSelection):
+    preview_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+@router.get("/source-selections/sessions/{session_id}")
+async def source_selection_list(session_id: str, request: Request):
+    from .scenario_source_selection import list_sources
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return list_sources(service, session_id)
+
+
+@router.post("/source-selections/preview")
+async def source_selection_preview(body: SourceSelection, request: Request):
+    from .scenario_source_selection import preview
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return preview(service, body)[0]
+
+
+@router.post("/source-selections/freeze")
+async def source_selection_freeze(
+    body: FreezeSourceSelection,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128),
+):
+    from .scenario_source_selection import _SourceSelectionPreflightFailure, freeze
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    digest = _key(idempotency_key)
+    async with service.workbench_lock, service.lock:
+        try:
+            prepared = freeze(service, body, idempotency_key)
+        except _SourceSelectionPreflightFailure as exc:
+            return _not_created_response(service, digest, exc)
+    return await create_handoff(prepared, request, idempotency_key)
+
+
 @router.get("/scenarios")
 async def scenarios(request: Request):
     from .scenario_handoffs import catalog
 
     return catalog(request.app.state.research)
+
+
+@router.post("/scenarios/{scenario_id}/prepare")
+async def prepare_scenario(scenario_id: str, body: Handoff, request: Request):
+    from .scenario_handoffs import prepare_context
+
+    if body.scenario_id != scenario_id:
+        raise StoreError("场景身份不一致", "scenario_inputs_invalid", 422)
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        body = prepare_owned_question_preset(service, body)
+        return prepare_context(service, body)
+
+
+def prepare_owned_question_preset(service, body, *, authorized_refs=None):
+    """Closed owned-only preparation, before a new question/contract is frozen."""
+    from .scenario_handoffs import prepare_context, selection
+    from .scenarios.native_argument_adapters import (
+        QUESTION_METHODS,
+        ArgumentAdapterError,
+        adapt_research_question,
+    )
+
+    values = body.scenario_inputs
+    fields = {"question_preset", "preset_query"}
+    if not fields.intersection(values):
+        return body
+    preset, query = values.get("question_preset"), values.get("preset_query")
+    if (
+        not isinstance(preset, str)
+        or preset not in QUESTION_METHODS
+        or QUESTION_METHODS[preset] != body.scenario_id
+        or not fields <= set(values)
+    ):
+        raise StoreError("问题预置与当前自有方法不匹配", "owned_question_preset_invalid", 422)
+    if values.get("question") not in ("", query):
+        raise StoreError(
+            "已有研究问题与问题预置冲突，请明确选择", "owned_question_preset_conflict", 422
+        )
+    cleaned = {key: value for key, value in values.items() if key not in fields}
+    cleaned["question"] = query
+    proposed = body.model_copy(update={"scenario_inputs": cleaned})
+    chosen = selection(service, body.scenario_id, cleaned)
+    if any(not item.get("available") for item in chosen["capabilities"]):
+        raise StoreError("当前方法版本不可用", "missing_selection", 409)
+    refs = authorized_refs
+    if refs is None:
+        refs = prepare_context(service, proposed)["references"]
+    material_ids = [item["source_session_id"] + ":" + item["reference"]["id"] for item in refs]
+    capability = service.capabilities.selection(QUESTION_METHODS[preset])
+    try:
+        adapted = adapt_research_question(
+            preset,
+            {"query": query},
+            {
+                "subject": chosen["inputs"]["subject"],
+                "as_of": chosen["inputs"]["as_of"],
+                "material_ids": material_ids,
+                "capability": capability,
+            },
+        )
+    except ArgumentAdapterError as exc:
+        raise StoreError("问题预置缺少当前已核选择", "missing_selection", 409) from exc
+    cleaned["question"] = adapted["question"]
+    log.info(
+        "research_owned_question_preset_prepared",
+        preset=preset,
+        capability_id=adapted["capability_id"],
+    )
+    return body.model_copy(update={"scenario_inputs": cleaned})
 
 
 @router.get("/handoff-requests/{request_key}")
@@ -90,7 +217,34 @@ def _public_handoff(service, record):
             "creation_state": record["state"],
             "code": exc.code,
         }
-    return {key: value for key, value in record.items() if key not in {"request_sha256", "copied"}}
+    result = {
+        key: value for key, value in record.items() if key not in {"request_sha256", "copied"}
+    }
+    context = record.get("scenario_context", {})
+    if context and context.get("pack_seal"):
+        from .scenario_handoffs import fingerprint
+
+        seal = context["pack_seal"]
+        result["pack_execution"] = {
+            "capability_id": seal["capability_id"],
+            "version": seal["version"],
+            "context_sha256": fingerprint(context),
+            "input_manifest_sha256": seal["manifest_sha256"],
+        }
+    if context and context.get("scenario", {}).get("scenario_id") in {
+        "owned-company-evidence",
+        "owned-news-evidence",
+        "owned-research-prep",
+    }:
+        from .scenario_handoffs import fingerprint
+
+        selected = context["scenario"]["capabilities"][0]
+        result["method_execution"] = {
+            "capability_id": selected["id"],
+            "version": selected["version"],
+            "context_sha256": fingerprint(context),
+        }
+    return result
 
 
 def _copy_evidence(service, target, references):
@@ -140,6 +294,17 @@ def _key(value: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", value):
         raise StoreError("Idempotency-Key 格式非法")
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _not_created_response(service, digest, exc):
+    """Caller holds the original creation lock; any persisted intent bars this proof."""
+    if digest in service.store.data["handoff_keys"] or not 400 <= exc.status < 500:
+        raise exc
+    log.warning("research_handoff_not_created", code=exc.code)
+    return JSONResponse(
+        {"error": {"code": exc.code, "message": str(exc), "handoff_outcome": "not_created"}},
+        status_code=exc.status,
+    )
 
 
 def _public_query(record: dict) -> dict:
@@ -360,6 +525,7 @@ async def create_handoff(
     digest = _key(idempotency_key)
     from .scenario_handoffs import fingerprint, freeze_lineage, prepare_context
 
+    body = prepare_owned_question_preset(service, body)
     request_payload = body.model_dump(mode="json")
     for new_field in ("comparison_observation_ids", "workspace_material", "source_scope"):
         if request_payload[new_field] is None or request_payload[new_field] == []:
@@ -427,19 +593,7 @@ async def create_handoff(
         except StoreError as exc:
             # This proof is issued only under the creation lock, before any
             # persisted intent. Existing/unknown outcomes must retain their key.
-            if digest in service.store.data["handoff_keys"] or not 400 <= exc.status < 500:
-                raise
-            log.warning("research_handoff_not_created", code=exc.code)
-            return JSONResponse(
-                {
-                    "error": {
-                        "code": exc.code,
-                        "message": str(exc),
-                        "handoff_outcome": "not_created",
-                    }
-                },
-                status_code=exc.status,
-            )
+            return _not_created_response(service, digest, exc)
         created = await service.create(
             body.target_mode,
             f"研究台交接 · {body.section}",
@@ -453,9 +607,18 @@ async def create_handoff(
             metadata={"scenario_handoff_id" if scenario else "evidence_handoff_id": handoff_id},
         )
         target = created["id"]
+        if scenario and scenario["scenario"]["contract"].get("pack_id"):
+            # Once Native creation returned, later IO failure is a known-created
+            # observation. Preserve its identity without reopening the request.
+            service.store.data["handoffs"][handoff_id]["session_id"] = target
+            service.store.save()
         copied, copied_files = _copy_evidence(service, target, lineage)
         if scenario:
             scenario["frozen_files"] = copied_files
+            if scenario["scenario"]["contract"].get("pack_id"):
+                from .scenario_pack_inputs import seal_pack_inputs
+
+                scenario["pack_seal"] = seal_pack_inputs(service, target, handoff_id, scenario)
         context_body = body.model_copy(update={"context": scenario}) if scenario else body
         context_file = _write_context(service, target, context_body, copied, lineage)
         result = {

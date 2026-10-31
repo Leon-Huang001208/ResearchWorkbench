@@ -644,6 +644,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 生产和入仓共享严格JSON原件投影与固定字段/依据；拒绝重复键、错误类型/日期/字段scope、深层递归、超限、被篡改的行/字段/元数据/来源，拒绝时保留已有好版本。源数值不重算；只有NYFed旧v2缓存失效，旧显式证据保留。五份官方HTML/YAML原件随私有证据归档，引用元数据随原生冻结/恢复保存；未新增表、HTTP、服务、依赖或执行引擎，原拓扑仍准确。
 
+## 2026-10-28：T3组合包集成边界
+
+CLS固定wrapper复用BusinessQuery(search_news, source=cls, allow_fallback=False, quality=strict)和原权限/取消/snapshot链，仅过滤有界最新快照，供应商query_news别名仍拒调用。私有pack-completion接收执行结果而非新数据源；pack输入按真实manifest/query/原件映射，已取得不等于已适配，未知单位/累计/披露时刻/PIT保留缺口。
 
 ## 专业协作接入边界（2026-10-28）
 

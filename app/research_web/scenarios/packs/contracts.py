@@ -1,0 +1,288 @@
+"""Strict in-memory contracts. No filesystem, network, or authority operations."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import re
+from datetime import UTC, date, datetime
+from typing import Any
+
+from jsonschema import Draft202012Validator
+
+from core.observability import get_logger
+
+from .format_profile import format_checker, require_local_schema, valid_instant
+from .record_contracts import RECORD_SCHEMAS
+
+log = get_logger(__name__)
+MAX_ROWS = 50_000
+MAX_BYTES = 64 * 1024 * 1024
+
+
+class PackError(ValueError):
+    """Content-free stable failure; callers must not expose private inputs."""
+
+    def __init__(self, code: str):
+        self.code = code
+        log.warning("research_pack_rejected code=%s", code)
+        super().__init__(code)
+
+
+def require(condition: bool, code: str) -> None:
+    if not condition:
+        raise PackError(code)
+
+
+def number(value: Any) -> float:
+    require(not isinstance(value, bool) and isinstance(value, (int, float)), "number_invalid")
+    try:
+        result = float(value)
+    except (ValueError, OverflowError) as exc:
+        raise PackError("number_invalid") from exc
+    require(math.isfinite(result), "number_nonfinite")
+    return result
+
+
+MAX_DERIVED_ROWS = 50_000
+MAX_DERIVED_BYTES = 16 * 1024 * 1024
+
+
+class DerivedBudget:
+    """Preflight cardinality and count serialized bytes before retaining each row."""
+
+    def __init__(self):
+        self.row_count = 0
+        self.byte_count = 2
+
+    def preflight(self, count):
+        require(count <= MAX_DERIVED_ROWS, "workload_too_large")
+
+    def append(self, destination, row):
+        self.preflight(self.row_count + 1)
+        size = len(encoded(row, MAX_DERIVED_BYTES)) + bool(self.row_count)
+        require(self.byte_count + size <= MAX_DERIVED_BYTES, "workload_too_large")
+        self.row_count += 1
+        self.byte_count += size
+        destination.append(row)
+
+
+def instant(value: Any) -> datetime:
+    require(isinstance(value, str), "as_of_precision_required")
+    require(
+        bool(
+            re.fullmatch(
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})",
+                value,
+            )
+        ),
+        "as_of_precision_required",
+    )
+    try:
+        require(valid_instant(value), "instant_invalid")
+        result = datetime.fromisoformat(value)
+        require(result.tzinfo is not None, "as_of_precision_required")
+        return result.astimezone(UTC)
+    except PackError:
+        raise
+    except (ValueError, OverflowError) as exc:
+        raise PackError("instant_invalid") from exc
+
+
+def day(value: str) -> date:
+    try:
+        result = date.fromisoformat(value)
+    except (ValueError, TypeError) as exc:
+        raise PackError("date_invalid") from exc
+    require(result.isoformat() == value, "date_invalid")
+    return result
+
+
+def security(value: Any) -> tuple[str, str, str, str]:
+    require(
+        isinstance(value, dict)
+        and set(value) == {"security_id", "market", "asset_class", "currency"},
+        "security_invalid",
+    )
+    require(
+        all(isinstance(x, str) and 0 < len(x) <= 4096 for x in value.values()), "security_invalid"
+    )
+    require(value["asset_class"] in {"equity", "index", "fund"}, "security_invalid")
+    return tuple(value[k] for k in ("security_id", "market", "asset_class", "currency"))
+
+
+def encoded(value: Any, limit: int | None = None, *, sort_keys: bool = False) -> bytes:
+    """Stream encoding counts before allocating a full serialized copy."""
+    limit = MAX_BYTES if limit is None else limit
+    size = 0
+    parts = []
+    try:
+        for chunk in json.JSONEncoder(
+            allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=sort_keys
+        ).iterencode(value):
+            part = chunk.encode("utf-8")
+            size += len(part)
+            require(size <= limit, "workload_too_large")
+            parts.append(part)
+    except (ValueError, TypeError, OverflowError, RecursionError) as exc:
+        if isinstance(exc, PackError):
+            raise
+        raise PackError("json_invalid") from exc
+    return b"".join(parts)
+
+
+def validate_inputs(records: dict, parameters: dict) -> tuple[dict, datetime, int]:
+    require(isinstance(records, dict) and isinstance(parameters, dict), "input_invalid")
+    require(set(records) <= set(RECORD_SCHEMAS), "unknown_record_kind")
+    require(all(isinstance(rows, list) for rows in records.values()), "records_invalid")
+    for kind in ("valuation", "exchange-session"):
+        require(len(records.get(kind, [])) <= 5000, "workload_too_large")
+    require(len(records.get("daily-price", [])) <= 10000, "workload_too_large")
+    count = sum(len(rows) for rows in records.values())
+    require(count <= MAX_ROWS, "workload_too_large")
+    encoded({"records": records, "parameters": parameters})
+    cutoff = instant(parameters.get("as_of"))
+    seen = set()
+    for kind, rows in records.items():
+        require_local_schema(RECORD_SCHEMAS[kind])
+        validator = Draft202012Validator(RECORD_SCHEMAS[kind], format_checker=format_checker())
+        for row in rows:
+            require(not any(validator.iter_errors(row)), "record_contract_invalid")
+            require(row["row_id"] not in seen, "duplicate_row_id")
+            seen.add(row["row_id"])
+            require(instant(row["origin"]["observed_at"]) <= cutoff, "future_data")
+            published = row["origin"]["published_at"]
+            require(published is None or instant(published) <= cutoff, "future_data")
+            if "security" in row:
+                security(row["security"])
+            for key in ("value", "lower", "upper", "weight", "close", "shares", "float_shares"):
+                if key in row and row[key] is not None:
+                    number(row[key])
+    return records, cutoff, count
+
+
+def _component_previews(rows: list, sizes: list[int]) -> list:
+    """Project child data rows while preserving every component audit field."""
+    projected = []
+    for row, size in zip(rows, sizes, strict=True):
+        original = row["result"]
+        child = {key: value for key, value in original.items() if key != "result_sha256"}
+        child["rows"] = original["rows"][:size]
+        total = original["row_delivery"]["total_output_rows"]
+        child["row_delivery"] = {
+            "mode": "inline" if size == total else "summary_with_source_refs",
+            "total_output_rows": total,
+            "inline_output_rows": size,
+            "omitted_output_rows": total - size,
+        }
+        child["result_sha256"] = hashlib.sha256(encoded(child, 65536)).hexdigest()
+        # The fixed receipt_sha256 in row references the original atom receipt;
+        # result.result_sha256 binds this displayed projection's actual bytes.
+        projected.append({**row, "result": child})
+    return projected
+
+
+def method_version(method: str) -> str:
+    """Only source-version semantics and its two consuming packs changed."""
+    return (
+        "1.1.0"
+        if method in {"deduplicate_source_versions", "pack:research-prep", "pack:global-opinion"}
+        else "1.0.0"
+    )
+
+
+def result(
+    method: str,
+    count: int,
+    rows: list,
+    metrics: dict,
+    missing: list | None = None,
+    rejected: list | None = None,
+    limitations: list | None = None,
+    status: str | None = None,
+    source_refs: list | None = None,
+    parameters: dict | None = None,
+    input_sha256: str | None = None,
+    *,
+    component_receipts: bool = False,
+) -> dict:
+    encoded(rows, 16 * 1024 * 1024)
+    missing = missing or []
+    full_parameters = parameters or {}
+
+    def project_parameter(value):
+        if isinstance(value, list):
+            return {
+                "input_collection_sha256": hashlib.sha256(encoded(value)).hexdigest(),
+                "item_count": len(value),
+            }
+        if isinstance(value, dict):
+            return {key: project_parameter(item) for key, item in value.items()}
+        return value
+
+    parameter_projection = project_parameter(full_parameters)
+    output = {
+        "schema_version": 1,
+        "method": method,
+        "method_version": method_version(method),
+        "status": status or ("partial" if missing else "complete"),
+        "host_qualification": "NOT_RUN",
+        "research_quality": "NOT_RUN",
+        "parameters": parameter_projection,
+        "input_sha256": input_sha256,
+        "parameter_delivery": "collections_bound_by_input_digest",
+        "method_source_binding": "host_required",
+        "processed_input_rows": count,
+        "metrics": metrics,
+        "rows": rows[:128],
+        "row_delivery": {
+            "mode": "inline" if len(rows) <= 128 else "summary_with_source_refs",
+            "total_output_rows": len(rows),
+            "inline_output_rows": min(128, len(rows)),
+            "omitted_output_rows": max(0, len(rows) - 128),
+        },
+        "missing": missing,
+        "rejected_rows": rejected or [],
+        "source_refs": source_refs or [],
+        "limitations": [
+            "source_format_not_authority",
+            "host_readback_rights_pit_required",
+            "not_vendor_equivalence",
+        ]
+        + (limitations or []),
+    }
+    # Component wrappers are audit metadata and cannot be omitted. Only their
+    # internal data previews may shrink; oversized fixed metadata must fail.
+    require(not component_receipts or len(rows) <= 128, "workload_too_large")
+    inline_count = len(rows) if component_receipts else min(128, len(rows))
+    component_sizes = [len(row["result"]["rows"]) for row in rows] if component_receipts else []
+    while True:
+        output.pop("result_sha256", None)
+        output["rows"] = (
+            _component_previews(rows, component_sizes)
+            if component_receipts
+            else rows[:inline_count]
+        )
+        output["row_delivery"] = {
+            "mode": "inline" if inline_count == len(rows) else "summary_with_source_refs",
+            "total_output_rows": len(rows),
+            "inline_output_rows": inline_count,
+            "omitted_output_rows": len(rows) - inline_count,
+        }
+        try:
+            output["result_sha256"] = hashlib.sha256(encoded(output, 65536)).hexdigest()
+            encoded(output, 65536)
+            break
+        except PackError as exc:
+            remaining = max(component_sizes, default=0) if component_receipts else inline_count
+            if exc.code != "workload_too_large" or remaining == 0:
+                raise
+            if component_receipts:
+                component_sizes = [size // 2 for size in component_sizes]
+            else:
+                inline_count //= 2
+    log.info(
+        "research_pack_calculated method=%s rows=%d status=%s", method, count, output["status"]
+    )
+    return output

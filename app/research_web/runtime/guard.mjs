@@ -114,7 +114,7 @@ export const RESEARCH_TOOLS = new Set([
   'datahub_search_assets', 'datahub_get_trading_calendar', 'datahub_get_market_bars',
   'datahub_get_market_snapshot', 'datahub_get_index_data', 'datahub_get_financials',
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',
-  'datahub_search_news', 'datahub_search_announcements', 'datahub_search_research', 'datahub_search_web',
+  'rwb_query_latest_cls_news', 'datahub_search_news', 'datahub_search_announcements', 'datahub_search_research', 'datahub_search_web',
   'datahub_get_database_schema', 'datahub_query_table', 'datahub_get_external_data',
   'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents', 'rwb_plugin_instructions', 'rwb_plugin_agent',
 ]);
@@ -128,6 +128,7 @@ export function apply(ctx, config = {}) {
   if (config.researchRoot !== undefined) {
     if (typeof config.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('skill_admission_root_invalid');
     const catalogScoped = new WeakSet();
+    const ownedNewsMasks = new WeakMap();
     const pending = new Map();
     const registrations = new Map();
     const uncertain = new Set();
@@ -181,6 +182,15 @@ export function apply(ctx, config = {}) {
     // invocation. Inspect the authoritative injected source, not user prose.
     ctx.on('agent/pre-step', async (options, next) => {
       if (config.tenantMode === true && pluginRuntimeFrozen(config.researchRoot)) return { kind: 'reject' };
+      if (config.enabled && ctx.tools.get?.('rwb_query_latest_cls_news')) {
+        let admitted = false;
+        try {
+          admitted = (await nativeAdmission(ctx, {name:'rwb_query_latest_cls_news',agent:options.agent,signal:options.signal}, config)).admitted === true;
+        } catch { ctx.logger.warn('research_owned_news_catalog_unavailable'); }
+        const release = ownedNewsMasks.get(options.agent);
+        if (admitted && release) { release(); ownedNewsMasks.delete(options.agent); }
+        else if (!admitted && !release) ownedNewsMasks.set(options.agent, options.agent.ctx.tools.restrict({deny:['rwb_query_latest_cls_news']}));
+      }
       if (config.enabled && !catalogScoped.has(options.agent)) {
         try {
           const scope = await nativeAdmission(ctx, {name:'agent_step',agent:options.agent,signal:options.signal}, config);

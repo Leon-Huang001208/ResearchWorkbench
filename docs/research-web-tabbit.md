@@ -345,6 +345,9 @@ FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调
 
 2026-10-24：今日发现raw/事件GET与归档URL关系不是Tabbit实时网页取证，不生成web_evidence收据，也不提升原文核验等级。Tabbit的浏览器授权、实时标记和同会话质量绑定保持。
 
+## 2026-10-28：T3组合包集成边界
+
+九包/owned读取Host已授权已保存材料；C6列表与preview/freeze不调用Tabbit或抓网页。capture proof绑定真实HTTP framing/取得字节，不代表实时标签、上游全文/海外覆盖或来源权利。CLS wrapper沿DataHub，query/URL不能变成Tabbit授权，原claim与实时DOM质量链保持。
 
 ## 专业协作接入边界（2026-10-28）
 

@@ -1,5 +1,15 @@
 # 长期研究档案
 
+九builtin pack的历史snapshot读取使用专用内部adapter；不改原三参执行/query admission，不把
+warehouse的storage_read当通用豁免。等价只读仅认可当前用户Catalog事务内发出的直接old→current
+事实证，逐次重验两端真实tree/record/runtime、当前enabled/no-draft/无插件冲突，以及现有source
+scope/config/授权、manifest/rows/raw hash和PIT语义；source-only和target都检查，raw读回后再检。
+无receipt的sealed handoff仍由私有context补权威，不递归重开trusted_context。多hop不得拼链，
+需新事务独立重验并签直接证；disabled/copy/code改/跨owner/假证/断证/撤权均拒绝。历史读不执行
+旧runtime、不重取供应商、不写原query/context/receipt/质量状态；旧send/load继续version_conflict。
+专用pack读取同时保留原`plugin_runtime_frozen`门：内部入口和raw读后的复验均拒绝冻结状态，
+沿用稳定409错误码，不依赖HTTP／tenant中间件，也不重新调用旧版本执行门替代等价只读。
+
 研究场景／资产资料的typed原件引用复用本档案解析器，读取时追溯衍生来源当前权限；软删可验证、祖先仍被引用则拒绝永久清理，未知或外部损坏不换新源。场景结果仍需用户预览后经原档案入口关联／修订，不自动修改观点。文件里的自报passed不改变摘要或档案报告状态，质量取实际版本回执；元数据、源摘要及保留引用继续纳入原备份恢复链，没有隐藏档案或新事实库。
 
 档案沿当前 ResearchService 的个人 Store.root 保存；没有公共档案根、第二研究引擎或 PostgreSQL 连接。公司使用市场代码，行业／主题保留独立 key；名称不是合并依据。Web 页面和后续机会扫描均复用这份元数据。
@@ -62,3 +72,22 @@ handoff只返回草稿：`{prompt,mode,auto_send:false,context,dossier_revision}
 
 
 档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+## Host原文capture证明
+
+新web capture的私有producer proof位于账号`.control/source-captures/<sid>/<webhash>.json`，
+绑定source记录（排除proof引用避免循环）、HTTP framing/响应体与UTF8正文hash、取得时点。
+`_resolve`先检查当前source/target权限，再读原文并复核proof；新proof缺失、损坏或marker/
+正文改变明确unavailable，不隐式联网修复。旧proofless原件保持既有可读性但不能认证capture
+完整；模型24k预览截断与落盘传输完整性独立。
+
+现snapshot_dossiers schema1.files也保全proof-only账号，不创建Dossier数据库。admin
+保全只输出私有proof与固定原文的SHA元数据；真实multiuser snapshot和resident
+asset_index_snapshot既有消费者均覆盖，正文-only改动/新proof缺坏必须拒绝。原文、原
+source记录和proof原bytes一同恢复后才可读；旧proofless仅沿原保全覆盖，不能冒称新proof
+保护。永久删除仍先过原Dossier/handoff引用围栏，再清除该SID proof，不清其他来源。
+
+受管`inputs/web-24hex.txt`身份在metadata分类中独立于发布索引/proof状态，崩溃孤儿或
+缺坏proof不能降为uploads。Dossier type=file固定拒绝该别名；普通HTTP文件读取共用
+Store授权点，在已发布且当前web允许时核原文/证明，未发布即使web-enabled也拒绝。
+Claw普通文件复制不改名转移受管源，改走原source交接；普通UUID前缀上传不受此分类影响。

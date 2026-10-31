@@ -178,6 +178,9 @@ def report_projection(
         business_calculation_observations = []
         current_key = store.session(sid).get("delivery_key", "")
         frozen_receipt = store.data.get("receipts", {}).get(f"{sid}:{current_key}", {})
+        from .scenario_method_sources import company_calculation_policy
+
+        calculation_policy = company_calculation_policy(store, sid, contract)
         binding_required = frozen_receipt.get("report_binding_policy") == "bound-analysis-v1"
         if "system_plan" in payload:
             if contract is None:
@@ -188,6 +191,8 @@ def report_projection(
                 "as_of": contract["as_of"],
                 "requirement_ids": [r["id"] for r in contract["requirements"]],
             }
+            if calculation_policy is not None:
+                context["calculation_policy"] = calculation_policy
             target = required_body_target(contract)
             if target is not None:
                 context["body_target"] = target
@@ -218,7 +223,12 @@ def report_projection(
                     or hashlib.sha256(body).hexdigest() != attachment["sha256"]
                 ):
                     raise ValueError("research_report_audit_changed")
-        elif "presentation" in payload or "audit_attachment" in payload or binding_required:
+        elif (
+            "presentation" in payload
+            or "audit_attachment" in payload
+            or binding_required
+            or calculation_policy is not None
+        ):
             # A new explicit Chinese-body request cannot downgrade to a hand-built
             # payload to bypass quantity bindings or the frozen length requirement.
             raise ValueError("research_report_system_plan_required")
@@ -228,6 +238,7 @@ def report_projection(
                 [row for row in observations or [] if row.get("kind") == "business_numeric"],
                 payload["business_calculations"],
                 task_id=contract["task_id"],
+                calculation_policy=calculation_policy,
             )
             observations = [*(observations or []), *business_calculation_observations]
         if payload.get("business_calculation_trace", []) != [

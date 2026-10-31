@@ -9,6 +9,8 @@
 macOS Web 功能实现，复用现有 Host、DataHub、唯一 DSH 和报告质量链。八个合同取自
 `app/research_web/scenarios/`，不修改冻结目录，不引入模型调用、数据源、秘密或依赖。
 
+九包 B1 另由 `pack_catalog.py` 增加 `pack-*` 合同，不改原八合同或140静态基线。`POST /api/research/scenarios/{id}/prepare` 使用与交接相同的严格输入，仅读取资格与缺口；`research_scope.cutoff_at` 必须为与上海自然日截止一致的显式带时区时点，`methods` 只选择固定方法及研究参数。创建交接后才写只读 `inputs/scenarios/<handoff-id>/input.json` 和 manifest；私有 handoff 记录是权限权威，公开 JSON 不能自证 owner、provider、完整覆盖或通过。全缺数／缺完整方法参数时禁止发送；输入、来源、版本或许可变化在原读取／发送／原生准入／质量门重新拒绝。
+
 ## 用户流程
 
 FinGPT／Claw 输入区和个股页标题提供“研究场景”。原个股“交给 FinGPT／Claw”按钮进入同一实际

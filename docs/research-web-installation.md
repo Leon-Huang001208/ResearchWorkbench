@@ -12,6 +12,19 @@ Mac首次候选40464598312真实失败于web_static_asset_failed：app.mjs超过
 
 报告生产工作区新增 report-workspace.mjs/css 两个随原 Web 包交付的静态文件；requirements/web.in、web.lock 与 setup_web.py 无依赖或安装流程变化。原 Mac Bootstrap 同一步验证新静态文件的安装字节，未新增 job/runner/依赖。源码/浏览器夹具不认证常驻部署、模型、Office 或正式稿。
 
+固定SDK专项由原Mac Bootstrap强制承接：现有干净安装/固定DSH构建/3081及8088/Doctor与installed资源
+验收先保存，再在同一CI临时venv仅安装pyproject原已声明的pytest、pytest-asyncio测试工具（不editable
+安装根项目）。前后用隔离-I导入核installed app路径及全部非再生包资源字节，记录pip实际新增及既有
+runtime distributions版本不变；任何已有依赖替换仍失败。使用安装器实际Node24.19.0和已构建pin SDK，
+硬验Git HEAD/compiled libs并执行无skip的SDK一例与pack/method六取消矩阵（JUnit exact7），owner/显式basetemp/JUnit/log/
+receipt进入原成功或失败artifact。Host fixtures来自checkout、Native来自已构建SDK，安装证据与合同
+分别记录。通用Checks完整运行compat Host参数/权限/取消，不假称其具备SDK；无新增job/runner/timeout/
+产品依赖定义。本机不安装包，实际CI执行须另证。
+
+SDK CI使用真实公开接口SetupWebInstaller。SDK块在任何应用import、Git与RUNNER_TEMP访问前，先于
+固定artifact路径写FAILED默认receipt；外层try/finally记录稳定stage/code并重抛原异常。缺临时目录不
+借用未登记路径；早期导入/候选Git失败也保留失败回执，原安装字节/依赖不变及Native无skip门保持。
+
 研究场景及资产研究工作区（2026-10-27）随现有 Web 包和静态资源安装，无新增 Python／Node 依赖、服务或供应商凭据通道。原 Mac Bootstrap 同一步新增四个静态文件的 HTTP／源码字节核对，以及场景、原件和工作区模块导入／固定目录完整性检查。`requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`和公开一键入口不变；仍需同候选干净安装证明兼容。已发布能力、原生发现、来源权限与数据覆盖决定具体场景可用性，安装成功不等于供应商、模型或报告质量已验收。结构化研究资料由窄入口校验，不扩大通用上传白名单；原个人凭据和受管 MCP 的配置规则保持。
 
 分钟K复用已锁定CJPY 0.5.2与本地图表库，无新增依赖。Mac Bootstrap原同源资源校验新增asset-minute-k.mjs及后端import；无凭据CI只验证依赖和离线合同。requirements/web.in、web.lock、scripts/setup_web.py入口未变，完整同候选Mac干净安装仍必需。
@@ -1121,6 +1134,21 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 区间统计静态组件（2026-10-25）：`asset-range-statistics.mjs`和`asset-range-controller.mjs`随现有UI资源安装，不增加Python或Node依赖。原macOS Bootstrap同一步骤核对HTTP可读和源码字节一致；公开setup入口、固定DSH、requirements及凭据流程保持，真实安装结果另见同候选CI。
 
+九包 B1（2026-10-27）复用当前 `mcp` 已锁定的 jsonschema 及其现有依赖，不安装新包。包内 `capabilities/pack-runtime-lock.json` 是真实 `requirements/web.lock` 的 whole-file SHA 和受管验证依赖（当前含 idna 的七个现有锁定分发）精确版本投影；源码环境强比原锁，wheel 不依赖源码 checkout。每个 Native 版本另绑定实际安装分发的逐文件闭包、origin、解释器／环境与校验器集合；准入和完成重新核验，依赖变化不能静默升级旧包。真实本地 wheel 已包含该 JSON，并有无 checkout 的安装形态读取测试；这不替代同候选 macOS 干净安装／3081、8088／Doctor CI。
+
+运行闭包独立扫描已知包／数据根和版本元数据，包含pyc，不只信任RECORD；外部console入口和固定安装账簿的排除列表／原因冻结，固定入口不执行它们。仅 actual bytes／锁／解释器 ABI 和平台完全相同的管理前缀 relocation 可为精确未改 builtin 创建新版本并保留disabled／旧历史；用户copy、代码／依赖变化、额外文件和重建后不同pyc均明确blocked，需受审升级，不能自动当作兼容。
+
+B1 SPEC修波的生产迁移只在Catalog现有pending发布事务里发放完整直接只读等价证书；旧版本
+读取经Dossier专用adapter，保留当前source授权／原件hash／PIT与全部旧执行门。多hop只接受
+独立重验并发放的直接old→current证，不能传递拼接。无收据sealed context仍核私有权威，
+disabled／代码变化／撤权／跨owner／假证或事务不完整均拒绝；未执行旧runtime。详见组合包文档。
+当前修波须绑定新candidate的独评与Mac CI，首版NEEDS_WORK报告保留历史失败事实。
+
+九包 B1 复核更正：runtime v3／lock projection v2 绑定实际 optional 导入图、精确 Native import guard 及 date/date-time 严格子集 profile 的字节。旧指纹遗漏 idna、原环境无 date-time checker 的事实由此显式修正，不依赖新包、全局猴补或放宽 schema。固定 schema 不支持远程 resolver；未绑定 lazy/dynamic imports 实际触发拒绝。pack sandbox 不预载 report SDK；普通/weekly 入口不变。当前源码/轮装包路径以新候选本地测试留证，干净安装/CI未执行仍待 root。
+
+## 2026-10-28：T3组合包集成边界
+
+已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py和三公开入口，复用已锁jsonschema及闭包，无新依赖/服务/凭据/安装器修改。Mac Bootstrap原步骤补pack-ui.mjs HTTP/源码字节核对及离线构造九包/三方法资源，逐件核hash/闭包，不调供应商/模型。固定DSH、3081/8088、Doctor和最终macos-14干净安装仍须CI真实通过，旧venv和静态核对不认证安装成功。
 
 ## 共享恢复及源路径维护（2026-10-29）
 

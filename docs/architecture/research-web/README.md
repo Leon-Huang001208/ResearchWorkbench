@@ -243,6 +243,9 @@ FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03
 
 今日发现原始资讯沿原 Automation research_task 跟踪，批准范围绑定原始资讯及精确核对的事件归档。已登记但核对失效的任务在调度入口拒绝，不回退通用模型执行；默认禁用、独立启用及原质量门保持。详见[发现合同](../../research-web-discovery.md)。
 
+## 2026-10-28：T3组合包集成边界
+
+本轮登记九包、三自有方法、Host C2冻结、CLS有限wrapper与C6来源选择。六新Host模块归workbench，五真实API进入生成清单；能力流补supervisor→私有完成桥→Host独立读回。部署节点/唯一DSH保持，静态映射、Native夹具、来源实测、模型质量和CI分开留证，T4/T5未实施。
 
 ## 专业协作接入边界（2026-10-28）
 

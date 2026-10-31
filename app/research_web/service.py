@@ -2071,8 +2071,12 @@ class ResearchService(ModelProfilesMixin):
         loaded: bool = False,
         source_operation: str | None = None,
         source_id: str | None = None,
+        pack_execution: dict | None = None,
+        method_execution: dict | None = None,
+        call_id: str | None = None,
+        pack_start: bool = False,
     ) -> dict:
-        """Preflight is pure; only confirmed loading records a current task scope."""
+        """Preflight is pure; explicit Native load/start operations persist evidence."""
         if self.store.session(sid)["created"] is not True:
             raise CapabilityError("原生会话归属未确认", "session_create_failed", 409)
         from .report_workflows.weekly_execution import projection as weekly_projection
@@ -2081,6 +2085,17 @@ class ResearchService(ModelProfilesMixin):
         catalog = self.datahub.catalog()
         receipt, refs = self._task_capabilities(sid)
         refs = list(refs)
+        if any(
+            ref.get("id")
+            in {"owned-company-evidence", "owned-news-evidence", "owned-research-prep"}
+            for ref in refs
+        ):
+            from .scenario_handoffs import trusted_context
+
+            trusted_context(self, sid)
+            from .scenario_method_sources import validate_storage as validate_method_storage
+
+            validate_method_storage(self, sid)
         selected = None
         if native_name:
             cid = next(
@@ -2103,6 +2118,14 @@ class ResearchService(ModelProfilesMixin):
                     409,
                 )
             selected = self.capabilities.selection(cid)
+            if cid.startswith("research-pack-"):
+                from .scenario_handoffs import trusted_context
+
+                context = trusted_context(self, sid)
+                if not context or context.get("pack_seal", {}).get("capability_id") != cid:
+                    raise CapabilityError(
+                        "组合包须使用Host封印的场景输入", "pack_input_unsealed", 409
+                    )
             refs.append(selected)
         records = self._effective_records(refs)
         scopes = [self.capability_readiness(ref["id"], sid, data_catalog=catalog) for ref in refs]
@@ -2130,6 +2153,11 @@ class ResearchService(ModelProfilesMixin):
                 )
             ),
         }
+        if tool_name == "rwb_query_latest_cls_news":
+            cls = next((item for item in catalog["sources"] if item["id"] == "cls"), {})
+            if not cls.get("readiness", {}).get("callable"):
+                scope.update(status="unavailable", admitted=False)
+                scope["missing"].append({"code": "data_source_unavailable"})
         allowed_sources = self.store.session(sid).get("source_scope", ["datahub", "web", "uploads"])
         dossier_read = tool_name == "research_read_source" and self.dossiers.source_admitted(
             sid, operation=source_operation, source_id=source_id
@@ -2155,7 +2183,7 @@ class ResearchService(ModelProfilesMixin):
         }
         excluded_source = (
             tool_name
-            and tool_name.startswith("datahub_")
+            and (tool_name.startswith("datahub_") or tool_name == "rwb_query_latest_cls_news")
             and tool_name not in web_tools
             and "datahub" not in allowed_sources
         ) or (tool_name in web_tools and "web" not in allowed_sources and not dossier_read)
@@ -2202,6 +2230,13 @@ class ResearchService(ModelProfilesMixin):
                         required_report_formats(contract, (receipt or {}).get("delivery"))
                     ),
                 }
+                from .scenario_handoffs import trusted_context
+                from .scenario_method_sources import company_calculation_policy
+
+                calculation_policy = company_calculation_policy(self.store, sid, contract)
+                if calculation_policy is not None:
+                    trusted_context(self, sid)
+                    scope["report_context"]["calculation_policy"] = calculation_policy
                 body_target = required_body_target(contract)
                 if body_target is not None:
                     cast(dict[str, object], scope["report_context"])["body_target"] = body_target
@@ -2281,6 +2316,29 @@ class ResearchService(ModelProfilesMixin):
                 scope["read_paths"] = [
                     "inputs/report-workflow/" + name for name in weekly_scope["inputs"]
                 ]
+        if tool_name == "research_run_script":
+            if method_execution is not None:
+                if weekly_scope or pack_execution is not None or not scope["admitted"]:
+                    raise CapabilityError(
+                        "方法执行范围不可用", "method_execution_not_admitted", 409
+                    )
+                from .scenario_method_sources import prepare_execution as prepare_method_execution
+
+                return prepare_method_execution(
+                    self, sid, method_execution, call_id, start=pack_start
+                )
+            pack_refs = [ref for ref in refs if ref["id"].startswith("research-pack-")]
+            if pack_execution is not None:
+                if weekly_scope or not scope["admitted"] or not pack_refs:
+                    raise CapabilityError(
+                        "组合包执行范围不可用", "pack_execution_not_admitted", 409
+                    )
+                from .scenario_pack_execution import prepare_execution
+
+                return prepare_execution(self, sid, pack_execution, call_id, start=pack_start)
+            if pack_refs:
+                scope.update(status="unverified", admitted=False)
+                scope["missing"].append({"code": "pack_execution_descriptor_required"})
         return scope
 
     def _data_query_admission(self, sid: str, query: BusinessQuery, resolution: Resolution) -> None:
@@ -2300,6 +2358,10 @@ class ResearchService(ModelProfilesMixin):
                 raise CapabilityError(
                     "任务硬依赖已失效，保留已完成资料", "capability_data_unavailable", 409
                 )
+        self._validate_data_query_scope(query, resolution, records, catalog)
+
+    def _validate_data_query_scope(self, query, resolution, records, catalog):
+        """Read-only declaration checks shared with the explicit Dossier reader."""
         declared = [
             item for record in records for item in record["metadata"].get("data_requirements", [])
         ]
@@ -2360,6 +2422,32 @@ class ResearchService(ModelProfilesMixin):
                     "历史时点请求缺少明确日期", "data_semantics_not_equivalent", 409
                 )
 
+    def _pack_dossier_read_records(self, sid):
+        from .scenario_pack_reads import records
+
+        try:
+            return records(self, sid)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            log.warning("pack_dossier_read_policy_invalid", error_type=type(exc).__name__)
+            raise CapabilityError(
+                "历史组合包读取策略或封印非法", "pack_read_equivalence_invalid", 409
+            ) from exc
+
+    def _admit_dossier_snapshot_read(
+        self, sid, query, resolution, *, source_sid, dataset_id, manifest_sha256
+    ):
+        from .scenario_pack_reads import admit_snapshot
+
+        return admit_snapshot(
+            self,
+            sid,
+            query,
+            resolution,
+            source_sid=source_sid,
+            dataset_id=dataset_id,
+            manifest_sha256=manifest_sha256,
+        )
+
     def capability_readiness(
         self, cid: str, sid: str | None = None, *, data_catalog: dict | None = None
     ) -> dict:
@@ -2367,6 +2455,11 @@ class ResearchService(ModelProfilesMixin):
         catalog = self.datahub.catalog() if data_catalog is None else data_catalog
         scope = self.capabilities.data_readiness(cid, catalog)
         row = self.capabilities.row(cid)
+        from .capabilities.pack_relocation import PACK_IDS
+
+        if cid in PACK_IDS and row.get("runtime_binding", {}).get("status") == "blocked":
+            scope.update(status="unverified", admitted=False)
+            scope["missing"].append({"code": row["runtime_binding"]["code"]})
         record = row["versions"].get(str(row["version"]), row["draft"])
         verified = self._model_tools_verified(sid)
         scope["model_tools"] = "verified" if verified else "unverified"
@@ -2458,6 +2551,13 @@ class ResearchService(ModelProfilesMixin):
         result["datasets"] = self.datahub.summaries(sid)
         if frozen_scenario:
             result["scenario_context"] = frozen_scenario
+            from .scenario_pack_ui import project as pack_ui_projection
+
+            pack_ui = pack_ui_projection(
+                self, sid, latest_receipt, frozen_scenario, result["files"]
+            )
+            if pack_ui is not None:
+                result["research_pack"] = pack_ui
         if row["mode"] == "claw" and automation_feature_enabled():
             result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
             result["automation_runs"] = []
@@ -2964,7 +3064,28 @@ class ResearchService(ModelProfilesMixin):
                     if selected_id
                     else None
                 )
+            if (
+                selection
+                and any(
+                    cid.startswith("research-pack-")
+                    for cid in [selection["id"], *[item["id"] for item in selection["bindings"]]]
+                )
+                and not (scenario_context and scenario_context.get("pack_seal"))
+            ):
+                raise CapabilityError(
+                    "组合包须先通过场景选择真实材料并封印输入", "pack_input_unsealed", 409
+                )
             defaults = selection["default_formats"] if selection else None
+            if (
+                selection
+                and selection["id"]
+                in {"owned-company-evidence", "owned-news-evidence", "owned-research-prep"}
+                and (
+                    not scenario_context
+                    or scenario_context["scenario"]["scenario_id"] != selection["id"]
+                )
+            ):
+                raise CapabilityError("请先明确选择主体、截止与原件", "missing_selection", 409)
             if selection and selection["kind"] == "method":
                 raise CapabilityError(
                     "方法须通过 method_ids 选择，不能作为业务能力运行",
@@ -3262,6 +3383,26 @@ class ResearchService(ModelProfilesMixin):
                 prompt += specialist_service.prepare(self, sid, key, specialist_budget, contract)
             if scenario_context:
                 prompt += "\n\nHost冻结场景要求：\n" + "\n".join(scenario_context["requirements"])
+                if scenario_context["scenario"]["scenario_id"] in {
+                    "owned-company-evidence",
+                    "owned-news-evidence",
+                    "owned-research-prep",
+                }:
+                    selected_method = scenario_selections[0]
+                    prompt += (
+                        "\nHost固定方法动作：调用research_run_script，唯一参数为"
+                        + json.dumps(
+                            {
+                                "method_execution": {
+                                    "capability_id": selected_method["id"],
+                                    "version": selected_method["version"],
+                                    "context_sha256": scenario_fingerprint(scenario_context),
+                                }
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "。实际完成动作后才叙事并交付原canonical报告，再检查研究质量。"
+                    )
                 prompt += "\n逐一读取并应用下列已冻结的必需能力；不能只执行第一项：\n" + "\n".join(
                     item["resource_path"] + "/SKILL.md SHA-256=" + item["sha256"]
                     for item in scenario_selections

@@ -172,7 +172,9 @@ def source_context(service, sid, files, sources=()):
     """Return canonical owned identities and whole-file hashes, not guessed aliases."""
     identities = []
     total = 0
-    files = upload_evidence_files(service.store, sid, files)
+    from .scenario_method_sources import original_evidence_files
+
+    files = original_evidence_files(service, sid, upload_evidence_files(service.store, sid, files))
     if service.store.session(sid).get("report_workflow", {}).get("quality_policy"):
         from .report_workflows.evidence import weekly_research_inputs
 
@@ -247,7 +249,9 @@ def source_context(service, sid, files, sources=()):
 def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
     """Only actual session input/snapshot bytes become numeric evidence."""
     result, complete = [], []
-    files = upload_evidence_files(service.store, sid, files)
+    from .scenario_method_sources import original_evidence_files
+
+    files = original_evidence_files(service, sid, upload_evidence_files(service.store, sid, files))
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     for item in files if "uploads" in scope else []:
         if item.get("kind") != "inputs" or not item.get("name", "").endswith(
@@ -376,9 +380,22 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
             scenario_invalid = True
             scenario_issues = ["scenario_execution_changed"]
             log.warning("research_scenario_execution_rejected", session_id=sid)
+    else:
+        from .scenario_method_sources import quality_issues as method_quality_issues
+
+        try:
+            scenario_issues.extend(method_quality_issues(service, sid, receipt))
+        except (StoreError, ValueError, OSError, KeyError, TypeError):
+            scenario_invalid = True
+            scenario_issues.append("method_execution_changed")
+            log.warning("research_method_execution_rejected", session_id=sid)
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     kinds = {"file": "uploads", "dataset": "datahub", "web": "web"}
-    upload_files = upload_evidence_files(service.store, sid, files)
+    from .scenario_method_sources import original_evidence_files
+
+    upload_files = original_evidence_files(
+        service, sid, upload_evidence_files(service.store, sid, files)
+    )
     web_ids = {item["id"] for item in files} - {item["id"] for item in upload_files}
     sources = [
         source

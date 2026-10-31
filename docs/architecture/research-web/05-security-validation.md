@@ -10,6 +10,11 @@
 
 独立报告入口沿原 canUseReportWorkflows 主管理员展示约束，未认证/普通租户手填新路由无操作与数据投影，后端权限保持独立。旧受理未知只走原显式核对接口，不自动重发；质量 invalid 或定稿 invalidated 时交付及证据链接均关闭。
 
+完成回执不能跨取消窗口取得新saved：每个JS await后与dispatch前检查调用signal，Host在原锁内核
+服务器accepted receipt及同key/task/marker的accepted true，并精确绑定本execution任务。客户端status、
+单sid flag、时间先后推断不授予取消或完成权；未知身份保unknown，已saved历史不回退。Mac真实Native
+六矩阵覆盖接受/拒绝/先保存顺序、真实锁排队及早于start的取消，纯字段反例与原取消门独立验证。
+
 研究场景首批（2026-10-27）保留原账号、DataHub、能力原生发现和报告质量边界；不接受客户端owner／资格表／任意源路径授权。身份不符、已知数据越过截止、原件变更、撤权或未知来源链硬拒；种类或PIT缺口仅能形成明确不完整草稿，不能绕禁用或比较证据门。来源链在多跳／旧式交接和读取／导出／发送重验，祖先保全沿原锁；新质量schema2只加强场景绑定，旧schema1字节和历史回执兼容。摘要文字及关系声明没有因引用一份报告就自动获得该报告的质量等级。
 
 邻近反例覆盖多跳撤权、软删及拒永久清理、未来日期、正式assets参数误配、缺第二原生能力、搜索Enter零创建、证券切换窗口、旧基金交接及结构化资料原件定位。Mac临时Host／Native替身和桌面Chrome视口用于本机合同验证；真实模型、供应商、常驻登录页和实体移动设备分别验收，不能由fixture通过推导。当前源码／测试及结果见[本轮报告](../../../.ai/reports/2026-10-26-seek-alpha-core-parity.md)。
@@ -843,6 +848,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
+## 2026-10-28：T3组合包集成边界
+
+来源选择拒绝客户端owner/rights/provider/coverage/正文/路径自证，列表不返回正文或proof。freeze重核当前授权、hash、capture proof及能力版本；只有锁内handoff_outcome=not_created才解锁编辑，404或403/409本身不是证明。capture正文与proof同事务，孤儿不降级上传；普通UUID上传保留。逐文件sandbox及Host复算不解除18个gated或原source/numeric/canonical质量门。
 
 ## 共享恢复及源路径维护（2026-10-29）
 

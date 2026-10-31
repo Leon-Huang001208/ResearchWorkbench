@@ -991,6 +991,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
         trusted_context(service, sid, check_capabilities=False)
         relative = service.store.session(sid).get("files", {}).get(fid, "")
+        from pathlib import PurePosixPath
+
+        if PurePosixPath(relative).parts[:2] == ("inputs", "methods"):
+            raise StoreError("内部方法原件不能作为上传文件读取", "method_source_alias_denied", 403)
         receipt = service.store.data["receipts"].get(
             f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}
         )

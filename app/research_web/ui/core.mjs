@@ -236,7 +236,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     if (!response.ok) {
       const error = new Error(data?.error?.message || `请求失败（HTTP ${response.status}）`);
       error.code = data?.error?.code || 'request_failed'; error.status = response.status;
-      if (method === 'POST' && path === '/handoffs' && response.status >= 400 && response.status < 500 && data?.error?.handoff_outcome === 'not_created') error.handoffOutcome = 'not_created';
+      if (method === 'POST' && ['/handoffs', '/source-selections/freeze'].includes(path) && response.status >= 400 && response.status < 500 && data?.error?.handoff_outcome === 'not_created') error.handoffOutcome = 'not_created';
       throw error;
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('服务响应格式异常，请检查后端日志。');
@@ -423,6 +423,10 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
     scenarioCatalog: () => request('/scenarios'),
+    scenarioPrepare: (id, body) => request(`/scenarios/${segment(id)}/prepare`, { method: 'POST', body }),
+    sourceSelectionList: id => request(`/source-selections/sessions/${segment(id)}`),
+    sourceSelectionPreview: body => request('/source-selections/preview', { method: 'POST', body }),
+    sourceSelectionFreeze: (body, key) => request('/source-selections/freeze', { method: 'POST', body, key }),
     assetResearchCatalog: observationId => request(`/assets/research/catalog?observation_id=${segment(observationId)}`),
     assetResearchPreview: body => request('/assets/research/preview', { method:'POST', body }),
     assetResearchImport: (observationId, file) => { const body=new FormData(); body.append('file',file); return request(`/assets/research/import/${segment(observationId)}`,{method:'POST',body}); },

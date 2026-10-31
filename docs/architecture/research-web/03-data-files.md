@@ -14,6 +14,10 @@
 
 报告生产新目录和标签仅投影既有 Report Workflow 索引、配置版本及 Run；无新数据文件或格式。深链接 run 标识属于当前项目才显示，缺失不会回退其他记录；旧记录不重写。
 
+Native实际产物与Host接纳分开：同task取消先接受时，原pack/method execution仅记cancelled及真实
+Native completed原结果，不发布新的saved资格；现有文件不删除。先已saved的记录及制品hash/readback
+不被后来取消倒改。共享判据只消费服务器当前任务回执，不增Store/SourceProof/schema或第二事实库。
+
 ## 研究场景与来源链（2026-10-27）
 
 八场景沿现有工作台交接写入本人会话的冻结上下文；62／78 对照仅为静态参考。资料、实际原件和衍生报告继续留在原文件／DataHub存储，不建设第二正文库。新交接记录完整来源链；多次及旧式衍生交接、发送、行读取、文件预览与下载均重新核验祖先权限、版本和原件。软删除保留验证，仍被引用的祖先由既有保全锁阻止永久清理；未知或外部缺失明确报错，不取新材料替换。
@@ -935,6 +939,9 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 区间统计只读取当前账号已载入的同版本日线，日期选区与浮窗位置保存在页面生命周期中；不产生数据集、修改旧manifest或持久化原始行情。区间内部扫描、字段缺值与单位证据分别校验，缺证不回填，原DataHub与冻结文件边界保持。
 
+## 2026-10-28：T3组合包集成边界
+
+source-selection preview只在内存，freeze重算摘要后发布inputs/source-selections/<id>.json及私有intent，再走原handoff。选择文件不是retention holder，lineage持久化后才保护源。C2及owned-method副本绑定来源/目标会话、原hash、locator与闭包，不得转作上传或Claw file alias；pack receipt/full-result/manifest逐件读回，128行预览不代表全量。
 
 ## 专业协作接入边界（2026-10-28）
 

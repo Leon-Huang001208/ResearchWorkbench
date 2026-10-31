@@ -49,9 +49,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  python-contracts:
+    name: Python contracts (shard ${{ matrix.pytest_shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        pytest_shard: [0, 1]
 
     steps:
       - name: Checkout
@@ -72,36 +78,172 @@ jobs:
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install -e ".[dev]"
-          # These renderer/workbook packages are already locked Web dependencies.
-          .venv/bin/python - <<'PY'
+          # Use the production Web closure, excluding root legacy runtime extras.
+          .venv/bin/python - <<'PY_LOCK'
+          import hashlib
+          import json
+          import logging
           import os
+          import re
+          import tomllib
           from pathlib import Path
-          lines = Path("requirements/web.lock").read_text().splitlines()
-          block = []
-          for package in ("reportlab", "openpyxl", "et-xmlfile"):
-              start = next(i for i, line in enumerate(lines) if line.startswith(package + "=="))
-              block.append(lines[start])
-              for line in lines[start + 1:]:
-                  if line and not line[0].isspace():
-                      break
-                  block.append(line)
-          target = Path(os.environ["RUNNER_TEMP"]) / "rwb-reportlab.lock"
-          target.write_text("\n".join(block) + "\n")
-          PY
-          .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-reportlab.lock"
+          Path("logs").mkdir(exist_ok=True)
+          logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
+          try:
+              lock_bytes = Path("requirements/web.lock").read_bytes()
+              projection = json.loads(Path("app/research_web/capabilities/pack-runtime-lock.json").read_bytes())
+              if projection["schema"] != "research_pack_runtime_lock_v2" or hashlib.sha256(lock_bytes).hexdigest() != projection["lock_sha256"]:
+                  raise ValueError("pack_runtime_lock_mismatch")
+              versions = projection["versions"]
+              if not isinstance(versions, dict) or not versions:
+                  raise ValueError("pack_runtime_versions_missing")
+              lines = lock_bytes.decode().splitlines()
+              for package in (*versions, "reportlab", "openpyxl", "et-xmlfile"):
+                  if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", package):
+                      raise ValueError("pack_runtime_package_invalid")
+                  starts = [i for i, line in enumerate(lines) if line.startswith(package + "==")]
+                  if len(starts) != 1:
+                      raise ValueError("pack_runtime_package_not_unique")
+                  start = starts[0]
+                  match = re.fullmatch(re.escape(package) + r"==([^\s;\\]+)\s*\\?", lines[start])
+                  if match is None or (package in versions and match[1] != versions[package]):
+                      raise ValueError("pack_runtime_version_mismatch")
+                  block = [lines[start]]
+                  for line in lines[start + 1:]:
+                      if line and not line[0].isspace():
+                          break
+                      block.append(line)
+                  if not any(re.fullmatch(r"\s+--hash=sha256:[0-9a-f]{64}\s*\\?", line) for line in block):
+                      raise ValueError("pack_runtime_hash_missing")
+              target = Path(os.environ["RUNNER_TEMP"])
+              (target / "rwb-pack-dependencies.lock").write_bytes(lock_bytes)
+              constraints = [line.rstrip().removesuffix("\\").rstrip() for line in lines if re.match(r"^[a-z0-9][a-z0-9-]*==", line)]
+              (target / "rwb-pack-dependencies.constraints").write_text("\n".join(constraints) + "\n")
+              project = tomllib.loads(Path("pyproject.toml").read_text())
+              tools = project["project"]["optional-dependencies"]["dev"]
+              if not isinstance(tools, list) or not tools or any(not isinstance(item, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:[<>=!~][A-Za-z0-9.*+!,<>=~-]+)?", item) for item in tools):
+                  raise ValueError("ci_test_tools_invalid")
+              (target / "rwb-test-tools.in").write_text("\n".join(tools) + "\n")
+              logging.info("ci_pack_dependencies_prepared count=%d", len(constraints))
+          except (OSError, ValueError, KeyError, TypeError):
+              logging.exception("ci_pack_dependencies_prepare_failed")
+              raise
+          PY_LOCK
+          .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-pack-dependencies.lock"
+          .venv/bin/python -m pip install -r "$RUNNER_TEMP/rwb-test-tools.in" -c "$RUNNER_TEMP/rwb-pack-dependencies.constraints"
+          .venv/bin/python -m pip install --no-index --no-deps --no-build-isolation .
+          .venv/bin/python - <<'PY_VERIFY'
+          import json
+          import logging
+          from importlib.metadata import version
+          from pathlib import Path
+          logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
+          try:
+              versions = json.loads(Path("app/research_web/capabilities/pack-runtime-lock.json").read_bytes())["versions"]
+              for package, expected in versions.items():
+                  if version(package) != expected:
+                      raise ValueError("pack_runtime_installed_version_mismatch")
+              logging.info("ci_pack_dependencies_verified count=%d", len(versions))
+          except (OSError, ValueError, KeyError, TypeError, ImportError):
+              logging.exception("ci_pack_dependencies_verify_failed")
+              raise
+          PY_VERIFY
+          .venv/bin/python -I -B - <<'PY_ADMISSION'
+          import json
+          import logging
+          import subprocess
+          import sys
+          from pathlib import Path
+          from app.research_web.capabilities import pack_import_policy
+          from app.research_web.capabilities.models import CapabilityError
+          from app.research_web.capabilities.pack_dependencies import runtime_identity
+          logging.basicConfig(filename="logs/ci-pack-dependencies.log", level=logging.INFO)
+          try:
+              runtime = runtime_identity()
+              # The child loads only the frozen stdlib helper before its guard.
+              code = """import importlib.util,json,sys
+          from pathlib import Path
+          value=json.load(sys.stdin)
+          spec=importlib.util.spec_from_file_location('pack_import_policy',value['helper'])
+          helper=importlib.util.module_from_spec(spec)
+          sys.modules[spec.name]=helper
+          spec.loader.exec_module(helper)
+          runtime=value['runtime']
+          helper.install_native(runtime['import_policy'],runtime['dependencies'],Path(value['helper']).parent)
+          from jsonschema import FormatChecker
+          FormatChecker().check('example.com','idn-hostname')
+          print('ci_pack_native_admission_passed')
+          """
+              result = subprocess.run([sys.executable, "-I", "-B", "-c", code], input=json.dumps({"helper": pack_import_policy.__file__, "runtime": runtime}), text=True, capture_output=True, timeout=30, check=True)
+              if result.stdout.strip() != "ci_pack_native_admission_passed":
+                  raise ValueError("ci_pack_native_admission_missing")
+              logging.info("ci_pack_host_native_admission_passed schema=%s", runtime["schema"])
+          except subprocess.CalledProcessError as exc:
+              logging.exception("ci_pack_host_native_admission_failed native_stderr=%s", exc.stderr)
+              raise
+          except (OSError, ValueError, ImportError, CapabilityError, subprocess.SubprocessError):
+              logging.exception("ci_pack_host_native_admission_failed")
+              raise
+          PY_ADMISSION
+
+      - name: Run Research Web JavaScript contracts
+        if: matrix.pytest_shard == 0
+        shell: bash
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+
+      - name: Verify pinned editorial engine without model or paid requests
+        if: (success() || failure()) && matrix.pytest_shard == 0
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
+          node --test services/ai_news/tests/*.test.mjs
 
       - name: Run Research Web Python contracts
+        if: success() || failure()
         run: |
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
             --allowed-parent "$RUNNER_TEMP" \
-            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-shard-${{ matrix.pytest_shard }}-research-web" \
+            --job-shard-index "${{ matrix.pytest_shard }}" \
+            --job-shard-count 2 \
             -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
             tests/research_web/test_research_scenarios_catalog.py \
             tests/research_web/test_scenario_handoffs.py \
+            tests/research_web/test_capture_file_alias.py \
+            tests/research_web/test_source_capture_store_interaction.py \
+            tests/research_web/test_execution_bindings.py \
+            tests/research_web/test_execution_cancel_policy.py \
+            tests/research_web/test_native_argument_adapters.py \
+            tests/research_web/test_native_sdk_bootstrap_ci.py \
+            tests/research_web/test_owned_company_policy.py \
+            tests/research_web/test_owned_method_compat.py \
+            tests/research_web/test_owned_method_dedup.py \
+            tests/research_web/test_owned_method_execution.py \
+            tests/research_web/test_owned_method_preparation.py \
+            tests/research_web/test_pack_dependency_closure.py \
+            tests/research_web/test_pack_execution_host.py \
+            tests/research_web/test_pack_format_profile.py \
+            tests/research_web/test_pack_history_read.py \
+            tests/research_web/test_pack_import_policy.py \
+            tests/research_web/test_pack_import_facts.py \
+            tests/research_web/test_pack_literal_scope.py \
+            tests/research_web/test_pack_native_resources.py \
+            tests/research_web/test_pack_native_writer.py \
+            tests/research_web/test_pack_output_schema.py \
+            tests/research_web/test_pack_owned_sources.py \
+            tests/research_web/test_pack_runtime_identity.py \
+            tests/research_web/test_pack_runtime_relocation.py \
+            tests/research_web/test_pack_source_inputs.py \
+            tests/research_web/test_pack_source_versions.py \
+            tests/research_web/test_pack_ui_projection.py \
+            tests/research_web/test_research_pack_calculations.py \
+            tests/research_web/test_research_pack_contracts.py \
+            tests/research_web/test_scenario_method_packages.py \
+            tests/research_web/test_scenario_method_sources.py \
+            tests/research_web/test_scenario_source_selection.py \
+            tests/research_web/test_source_capture_proof.py \
             tests/research_web/test_scenario_review_regressions.py \
             tests/research_web/test_scenario_review_round2.py \
             tests/research_web/test_scenario_final_review.py \
@@ -251,21 +393,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
             --allowed-parent "$RUNNER_TEMP" \
-            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-shard-${{ matrix.pytest_shard }}-unit" \
+            --job-shard-index "${{ matrix.pytest_shard }}" \
+            --job-shard-count 2 \
             -- \
             tests/unit/test_wind_excel_instances.py \
             tests/unit/test_ci_pytest_partitions.py \
             tests/unit/test_ci_pytest_evidence_staging.py \
             --confcutdir=tests/unit -q
-
-      - name: Run Research Web JavaScript contracts
-        shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
-
-      - name: Verify pinned editorial engine without model or paid requests
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
-          node --test services/ai_news/tests/*.test.mjs
 
       - name: Stage safe pytest evidence
         id: stage-safe-evidence
@@ -281,7 +416,42 @@ jobs:
         if: always() && steps.stage-safe-evidence.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.pytest_shard }}
           path: artifacts/research-web-checks
           if-no-files-found: ignore
           retention-days: 3
+
+  checks:
+    if: always()
+    needs: python-contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download Python shard 0 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}-shard-0
+          path: artifacts/shard-0
+
+      - name: Download Python shard 1 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}-shard-1
+          path: artifacts/shard-1
+
+      - name: Verify exact Python shard union and worker evidence
+        run: |
+          python3 scripts/stage_ci_pytest_evidence.py \
+            --verify-shards artifacts/shard-0 artifacts/shard-1
+
+      - name: Require Python, JavaScript, and editorial job success
+        env:
+          PYTHON_CONTRACTS_RESULT: ${{ needs.python-contracts.result }}
+        run: |
+          if [[ "$PYTHON_CONTRACTS_RESULT" != "success" ]]; then
+            echo "python-contracts matrix result: $PYTHON_CONTRACTS_RESULT" >&2
+            exit 1
+          fi

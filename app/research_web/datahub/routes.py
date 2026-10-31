@@ -15,7 +15,7 @@ from .connections import (
     MySQLConfiguration,
     canonical_source_id,
 )
-from .contracts import InternalBusinessQuery, InternalCancel
+from .contracts import BusinessQuery, InternalBusinessQuery, InternalCancel
 
 router = APIRouter(prefix="/api/research")
 
@@ -91,6 +91,12 @@ class SkillAdmissionRequest(BaseModel):
         default=None, min_length=1, max_length=160, pattern=r"^[a-z0-9][a-z0-9_-]*$"
     )
     loaded: bool = False
+    pack_execution: dict | None = None
+    method_execution: dict | None = None
+    pack_start: bool = False
+    call_id: str | None = Field(
+        default=None, min_length=1, max_length=160, pattern=r"^[A-Za-z0-9_.:-]+$"
+    )
     source_operation: Literal["list", "read"] | None = None
     source_id: str | None = Field(
         default=None,
@@ -329,12 +335,39 @@ async def download(
     )
 
 
+class OwnedLatestClsNews(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    request_kind: Literal["owned-latest-cls-news-v1"]
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
+    arguments: dict[str, Any]
+
+
 @router.post("/internal/data/business-query")
-async def business_query(body: InternalBusinessQuery, request: Request):
+async def business_query(body: InternalBusinessQuery | OwnedLatestClsNews, request: Request):
     service = request.app.state.research
     await service.ensure_owned()
+    query = body.query if isinstance(body, InternalBusinessQuery) else None
+    if isinstance(body, OwnedLatestClsNews):
+        from ..scenarios.native_argument_adapters import ArgumentAdapterError, adapt_query_news
+
+        try:
+            parameters = adapt_query_news(body.arguments)
+        except ArgumentAdapterError as exc:
+            raise StoreError("CLS最新快照参数非法", "owned_news_arguments_invalid", 422) from exc
+        admission = service.native_admission(body.session_id, tool_name="rwb_query_latest_cls_news")
+        if not admission["admitted"]:
+            raise StoreError("CLS最新快照尚未获准", "data_source_unavailable", 409)
+        query = BusinessQuery(
+            capability="search_news",
+            source="cls",
+            allow_fallback=False,
+            purpose="research",
+            quality="strict",
+            parameters=parameters,
+        )
     try:
-        result = await service.datahub.query(body.session_id, body.call_id, body.query)
+        result = await service.datahub.query(body.session_id, body.call_id, query)
         if service.store.session(body.session_id).get("report_workflow", {}).get("quality_policy"):
             from ..report_workflows.evidence import refresh_weekly_news_evidence
             from ..research_quality_service import latest_receipt, write_business_snapshot
@@ -361,6 +394,40 @@ async def skill_preflight(body: SkillAdmissionRequest, request: Request):
             loaded=body.loaded,
             source_operation=body.source_operation,
             source_id=body.source_id,
+            pack_execution=body.pack_execution,
+            method_execution=body.method_execution,
+            call_id=body.call_id,
+            pack_start=body.pack_start,
+        )
+
+
+class PackCompletionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    execution_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    call_id: str = Field(min_length=1, max_length=160, pattern=r"^[A-Za-z0-9_.:-]+$")
+    result: dict
+
+
+class MethodCompletionRequest(PackCompletionRequest):
+    kind: Literal["owned-method"]
+
+
+@router.post("/internal/data/pack-completion")
+async def pack_completion(body: PackCompletionRequest | MethodCompletionRequest, request: Request):
+    from ..scenario_pack_execution import complete_execution
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        if isinstance(body, MethodCompletionRequest):
+            from ..scenario_method_sources import complete_execution as complete_method_execution
+
+            return complete_method_execution(
+                service, body.session_id, body.execution_id, body.call_id, body.result
+            )
+        return complete_execution(
+            service, body.session_id, body.execution_id, body.call_id, body.result
         )
 
 

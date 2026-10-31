@@ -82,3 +82,7 @@ result = select_scenario(
 ## Host三页功能集成
 
 纯目录合同保持不变。实际场景选择、冻结、发送、资讯筛选及撤权边界见[三页场景交接](research-web-scenario-handoffs.md)，包版本与实际执行准入分别报告。
+
+## 2026-10-28：T3组合包集成边界
+
+当前Host catalog在原八场景外组合九个pack-*和三个owned-*合同；62Skill/78Tool静态对照不等于全可执行。纯核不读文件/网络，Host映射封印后才执行；三方法使用method_execution而非pack_seal。prepare仅预览、原Send才执行，18个gated保持。详见[组合包](research-web-research-packs.md)、[自有方法](research-web-owned-methods.md)、[来源选择](research-web-source-selection.md)。

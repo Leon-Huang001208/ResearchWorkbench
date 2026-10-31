@@ -1,10 +1,16 @@
 # 研究协议、执行状态与恢复
 
+pack/owned-method child close后的提交仍属于原任务：JS完成桥两次真实await后重验caller取消，并合并
+caller/timeout信号；Host在原service.lock下用当前receipt、key/task/marker及accepted true裁决取消是否
+先于新saved。原Delivery reconcile只抽共享纯强判，FINAL/ready与锁序不变；已先saved不倒改，未知不重发。
+无新状态、binding字段或执行节点，旧Native结果/质量readback保持，原拓扑图仍准确。
+
 ## 历史试验丢弃与恢复（2026-10-30）
 
 用户授权的历史试验丢弃由离线 Native 操作员执行，研究会话仍使用唯一 DSH。停止前重新核实已知 RWB 进程身份；外部 Wind Terminal 不在退役范围内。归档会话同时停用关联自动化／报告生产者，重启不重放模型请求；账号和模型配置保持。
 
 已提交的丢弃决定在代码回滚后继续有效，原始试验数据只允许离线、持栅栏的人工恢复。`recover` 保留完整不可变终态回执，只释放本事务的 BirthFence；错误 owner、spawn 后尚未记录 PID 或未知 mkdir 崩溃均保留未知及栅栏，须人工核对，禁止自动再 spawn。见[维护与恢复合同](../../research-web-trial-discard.md)。
+
 
 场景仍由原DSH执行；Host只冻结资料／参数、核验每项必需能力和资源、维护原提交回执及质量合同。required、discovered、真实loaded分别记录，不能把要求列表算作执行；schema2仅加强场景身份，原schema1与历史回执保持。准备不发模型，已存在意图或未知创建不重建；只有服务器锁内证明not_created的输入拒绝才恢复编辑。来源撤权时详情和回执保留安全状态，摘录不继续输出。
 
@@ -798,6 +804,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
+## 2026-10-28：T3组合包集成边界
+
+scenario_pack_execution与scenario_method_sources登记task/call/input/context及固定launcher。实际supervisor完成经私有pack-completion独立核schema、全量制品与来源hash后才记saved；取消、迟到及unknown不重跑。新闻/调研C2由Host先执行冻结、Native只消费，保存与原报告质量分别认证；历史版本仅在显式Dossier读回门验证等价。
 
 ## 专业协作接入边界（2026-10-28）
 

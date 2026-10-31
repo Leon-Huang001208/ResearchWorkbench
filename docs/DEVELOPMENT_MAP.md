@@ -1,5 +1,24 @@
 # Research Workbench Development Map
 
+`capabilities/catalog.py` 的非初始化脚本依赖检查仍逐次读取当前发行包 metadata，但只投影本次
+脚本实际导入的 top-level 模块。仅当公共metadata API、Distribution.discover／resolver、默认
+PathFinder descriptor、其动态读取的MetadataPathFinder类／find descriptor、PathDistribution类及
+Distribution.files/readers及其function/code/defaults/closure指纹全部仍为stock primitive时走快路径；真实custom finder在任何枚举前回到
+`packages_distributions()`，不双重消费。标准路径复现每个 RECORD／egg-info 行的 arity、hash、size
+构造错误，只省略无关路径的 `stat`。namespace 多发行包、缺失文件、metadata/路径更新及异常保持
+fresh；必需私有primitive在模块导入时以sentinel安全捕获，缺失直接走公共API；枚举后委托身份变化
+或未知Distribution类型失败关闭且不二次枚举。初始化事务原单次清单及
+`finally`清空不变。
+近回归位于 `test_capabilities.py`；完整有序验证 oracle、6 次 runtime、12 次 policy build、18 次
+module inventory、56 次 check、56 次 publish 与 281 次 save 保持；profile 中 `validate=108` 是调用
+事实，不降为 check 数。本机单例 profile 不是 Linux CI 通过声明。
+
+`pack_import_policy.py` 以最多 64 项、每项源码不超过 1 MiB 的进程内 LRU 复用纯导入语法事实；键绑定完整 fresh bytes、module／package、绝对根、`ast.parse` 对象和 Python parser 版本。`pack_dependencies.runtime_identity` 的每次模块枚举、源码／metadata／权限／hash 读取、policy 重建及 loaded／search／stdlib／optional 核验保持；缓存不保存 identity、授权、PASS 或完整 policy。`tests/research_web/test_pack_import_facts.py` 覆盖 fresh map 复用、bytes/root/parser 失效、当前模块增删、同尺寸恢复 mtime、loaded／search、异常清理与返回等价。没有新模块边界、服务或 API；六次 runtime freshness、56 次验证与 281 个保存 checkpoint 保留，原 CI 取消与未验证门不由本地 profile 改写。
+
+PR245 限额后的本地候选只含测试隔离与验证器同树枚举：`test_api.isolated_keyring` 为同例共享、例间独立的 memory vault，并拒绝真实 credential fallback；12个CI模块和3个相关模块显式导入。`capabilities/catalog.py:validate` 在每次 fresh parse 后局部枚举一次，原九个检查源改用该 tuple，检查顺序／六次 freshness／逐次 save 不动。近回归为 `test_fixture_credentials.py` 与 `test_capabilities_ast.py`／冻结 ordered oracle；原38 CI不完整、首F和历史Keychain UNKNOWN保留，normal bench与功能证据分开。此候选没有远端发布权限，三次修补限额不重置，C/D仅为ignored原型／设计。
+
+2026-10-28 PR245 repair3 收敛 `.github/workflows/research-web-checks.yml` 的测试解释器安装边界：现有完整 Web 锁哈希安装、pyproject dev 工具独立解析，根包沿产品普通 wheel 路径 --no-index --no-deps --no-build-isolation，保留七项实装 metadata 并以 -I 从已安装包实际运行 Host／fresh Native 导入准入。`tests/javascript/actions_quota_governance.test.mjs` 实际执行 stdlib-only 锁与工具解析矩阵；`research_web_ci_admission.test.mjs` 沿原 Checks JS 通配符执行离线真实 wheel 构建／无 checkout 资源调用和 optional 污染正反例，不向轻量 Constraints 引入 Hatchling／产品依赖。包内投影、资源、唯一 DSH 和原完整测试清单不改；新 CI 实装／console script／全闭包仍须另验。根包历史 langgraph→jsonpointer 链及 editable 专用 editables 不再引入，用户额外SDK污染仍明确拒绝。
+
 试验退役入口 `resident/model_provider_upgrade.py` 的 `apply-trial-retirement` 在既有
 Native 维护事务内固定 b800e503 前版与 db2ae9a4 产品，执行器评审身份另行绑定。
 `resident/trial_discard_backup.py` 负责账号数据库／绑定／索引／报告目录的有界保全和恢复核验；
@@ -27,6 +46,20 @@ SPEC P2目标metadata修复位于ui/core.createWatchlist成功事件、asset-con
 报告操作HTTP接线提取为ui/report-operations.mjs，捕获页面代次、项目和单请求忙态，复用原端点；它不执行研究或替代DSH。app.mjs缩至260079字节，保持原256KiB健康正文上限。
 
 报告生产 UI：ui/report-workspace.mjs 负责目录、所选 Run 状态和交付投影，report-workspace.css 沿原主题；core.mjs 解析 #/reports/:id?tab=&run=，app.mjs 接原 API 和带代次读取，shell.mjs 控制主导航权限。report-workflows.mjs 共享配置/历史区块和证据，weekly-production.mjs 保留原日程及来源合同；tests/javascript/research_web_reports_workspace.test.mjs 覆盖深链接、拒绝、历史未知和失效文件。
+
+2026-10-28 alias修复：reader.source_file_identifier作纯metadata分类，source_file_record/verify_source_file_bytes由Store.files/file_path/open_file、Dossier file alias和Claw.reference共用；_publish_source覆盖postproof所有写/sync/readback/index异常，_write_capture_body/_rollback_capture_body保存并核exclusive inode。近测试test_capture_file_alias含真实失败注入/crash orphan/HTTP/Dossier/copy拒绝及真实上传/source正例。
+
+2026-10-28 capture SPEC修复：research_web_sources.fetch_document/worker_document_bytes/fetch_owned_document保留并校验framing producer，capture_proof由Host私有文件绑定source记录/正文；Dossier._resolve窄接点复验。snapshot_capture_proofs由原snapshot_dossiers消费，Store.purge增固定sid目录；近测试test_source_capture_proof、source_capture_fixture与原source/保全邻近。全部响应夹具离线真HTTPResponse，Native两例独立Darwin，旧证据不回填。
+
+2026-10-27 C1/C2：`scenarios/execution_bindings.py`及版本化JSON保存140/284闭合静态执行绑定，原参数未有alias全部拒绝；`scenario_source_versions.py`由`scenario_pack_inputs.py`在真实原件重读后投影已保存Host web capture，未知语义保留缺口。相同原sid/source ID引用复验后去重，不将同hash不同登记合成独立上游。近测试`test_execution_bindings.py`、`test_pack_owned_sources.py`含真实Native两包成功/撤权及原source资格反例；生产JS/旧八合同不改。
+
+2026-10-27 C0：`scenarios/packs/contracts.py:method_version`仅提升deduplicate_source_versions及其两消费包；`pack_resources.py`冻结v2合同路径/hash，`pack_result_contracts.py:frozen_definitions`从私有封印资源读回固定v1/v2合同并核原输入schema，`scenario_pack_execution.py`沿原产物读回使用它。`pack-*-contracts-v1.json`保留633原字节，近测试`test_pack_source_versions.py`含真实633旧冻结writer产物与新unknown角色；其他七包版本、历史relocation及非pack档案保持原门。
+
+B1 验证依赖复核：`pack_dependencies.py`/`pack_import_policy.py` 负责 v3 实际导入身份与 Native 精确导入门；`scenarios/packs/format_profile.py` 为 Host 和冻结核心提供同一私有 date/date-time 校验。`contracts.py` 只改验证接线，`sandbox.py` 仅 pack literal 分支省去普通 report SDK 预载。测试增加 import/format 正反例，旧执行/输出/历史证书门保持。
+
+2026-10-27 B1 SPEC修波：`capabilities/pack_equivalence.py` 重验每用户直接old→current证书／完整endpoint事实，`scenario_pack_reads.py` 只服务Dossier现有snapshot读取；`service._validate_data_query_scope` 为无写声明检查，原三参callback／严格records保持。`capabilities/pack_result_contracts.py` 独立定义并冻结receipt/full/root/component全部审计必需结构，不从结果反推required。新增 `test_pack_history_read.py`／`test_pack_output_schema.py` 以及多hop直接证／事务磁盘故障／旧门回归。
+
+2026-10-27 九包 B1：`capabilities/pack_resources.py` 冻结唯一纯核与资源闭包，`pack_dependencies.py` 和包内 `pack-runtime-lock.json` 绑定已安装锁定依赖，`pack_native.py` 只写单次 bundle；`scenario_pack_inputs.py` 负责真实原件映射与输入封印，`scenario_pack_execution.py` 负责原私有桥上的一次准入／完成及独立文件读回。`scenarios/pack_catalog.py` 补九包合同，原八合同／140 静态基线字节不变；`workbench.py`、`service.py`、Native JS 和 `sandbox.py` 接原交接／质量链。近测试为 `test_pack_*` 及无 LLM 的 `tests/javascript/helpers/pack-native-driver.mjs`。UI、140 完整执行映射、真实模型／供应商和跨平台仍是后续独立验收，不因文件保存通过。
 
 2026-10-27 研究场景首批：`app/research_web/scenarios/`维护固定 62／78 对照与八场景合同，`scenario_handoffs.py`与原`workbench.py`负责本人原件／身份／截止、完整请求幂等、来源链与未知创建；实际发送和质量绑定仍在`service.py`、`research_quality.py`及`research_quality_service.py`。`asset_research.py`与`ui/asset-research.mjs/css`投影已取得资料摘要、2–5 对象比较和资料声明；`ui/scenarios.mjs/css`串接原资产／资讯／FinGPT／Claw。新回归为`test_research_scenarios_catalog.py`、`test_scenario_handoffs.py`、`test_scenario_review_regressions.py`、`test_asset_research_workspace.py`及对应 Node／真实临时 Host 浏览器旅程。原禁用方法、质量门、资料／账号根和唯一 DSH 保持；[实施计划](plans/2026-10-26-seek-alpha-core-parity.md)保留后续组合包、深研、角色与资料跟踪范围。
 
@@ -519,7 +552,16 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - `.agents/runtime/leon-engineering/manifest.json`：共享验收内核固定版本、source commit、协议和受管文件哈希；不拥有项目策略。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
-- `scripts/run_ci_pytest_partitions.py`、`scripts/stage_ci_pytest_evidence.py`、`tests/unit/test_ci_pytest_partitions.py`、`tests/unit/test_ci_pytest_evidence_staging.py`：调度父进程在原 Research Web Checks job 内按实际 pytest nodeID 确定两个分区并持有 worker Popen；精确验证执行记录、JUnit node 属性、PID/UID/root inode 和 plan digest。失败RED定位到 `test_model_provider_upgrade.py` 对 `frozenset` 参数的非确定顺序，现按排序方式参数化并保留原23项；Worker result schema v3 为失败结果记录固定 phase、固定安全枚举 exception class 和稳定 code。任意 identifier 形 pytest 消息不再成为分类，未知异常对象泛化为 `UnknownError`，stager 只接受与 producer 相同的枚举。Artifact helper只输出分类和脱敏证据，不传输错误正文或私有类名；不增加 job/runner、依赖或超时，真实候选 CI 时长仍由远端证据判定。
+- `scripts/run_ci_pytest_partitions.py`、`scripts/stage_ci_pytest_evidence.py`、`tests/unit/test_ci_pytest_partitions.py`、`tests/unit/test_ci_pytest_evidence_staging.py`：Research Web Checks 的两个并行 Python job 对同一实际 pytest collection 先做确定性 job shard，每个 job 再由原父进程持有两个 worker Popen；manifest v3 同时绑定 suite、job、worker、selection 与 plan digest。各 job 精确验证执行记录、JUnit node 属性、PID/UID/root inode 和本 job 并集，最终 `checks` 要求两份下载 artifact 均含 `status.json`、`research-web`、`unit`，再核两 job 为各 scope 原 suite 的无交叉完整并集并逐 worker 要求 final/JUnit/PASS。最终读取复用 owner/device/inode 绑定 dirfd、`O_NOFOLLOW`、单链接和大小门，并持有 root/scope/worker fd 到语义核验完成；根、文件、中间 symlink、hardlink、inode swap 与超限均拒绝。失败 RED 曾定位到 `test_model_provider_upgrade.py` 对 `frozenset` 参数的非确定顺序，排序后仍保留原 23 项。Worker result schema v3 的固定 phase／安全异常类／稳定 code 保持；未知 identifier 形消息归零、未知异常对象泛化为 `UnknownError`。stager 不读取原始 `pytest.log`；取消且缺 final 时只取原子 progress，也不打开可能正在写的 JUnit，progress 永不构成 PASS。workflow 合同固定 fail-fast、两个 artifact 唯一名／下载路径、matrix-result guard 及 JS/editorial 仅 shard 0；原测试选择、依赖、45 分钟单 job 上限和平台归属不变，但峰值增加为两个标准 runner／四个 pytest worker，真实时长与成本由远端候选证据判定。
+- 同一 worker 在 startup、collection、首次执行阶段及其后最多每5秒，以私有同目录原子写 schema v1
+  `progress.json`；每个hook只更新内存中的唯一assigned node状态、最坏outcome与单次teardown完成。
+  字段仅含固定phase/outcome、worker index、plan SHA、已分配nodeID和有限整数lower-bound计数；
+  `elapsedSeconds`只标记last persisted快照相对worker启动的时间。5秒仅限制事件驱动写入频率；无新hook
+  事件或单次调用较长时可任意更旧，绝不作为当前或最终结果。普通诊断异常只置固定disabled/error code，
+  不含正文且不改变pytest
+  verdict；BaseException不被诊断层吞掉。stager仅在final缺失时解析并严格核schema/owner/plan/node/
+  bounds；合法final存在时完全忽略progress。真实pytest9 subtest、逐阶段OSError、SIGTERM与恶意字段
+  回归位于上述unit模块。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。
 - `Research Web Tabbit Verify` 当前仅手动触发；Tabbit 契约变化或平台支持声明必须显式运行双平台工作流，自动 Project Constraints 继续检查其触发器契约。
@@ -707,6 +749,12 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 `app/research_web/ui/asset-range-statistics.mjs`负责同版本日线区间的纯计算、单位与覆盖诊断；`asset-range-controller.mjs`负责单选区和可拖动浮窗。`asset-chart.mjs`仅提供主图坐标和生命周期，不借用筹码selectedDate或可见窗口作为统计区间。回归分别位于`research_web_asset_range.test.mjs`和`research_web_asset_range_controller.test.mjs`；完整方案见[设计](superpowers/specs/2026-10-25-wind-range-statistics-design.md)。统计缺口和真实部署状态需按本任务报告复核，不由此定位说明宣称上线。
 
+## 2026-10-28：T3组合包集成边界
+
+六个Host新模块：scenario_source_selection负责安全列表/preview/freeze；scenario_method_dedup运行Host C2并冻结完整制品；scenario_method_sources与scenario_pack_execution分别准备/完成/复验原件台账及计算制品；scenario_pack_reads负责显式历史等价读回；scenario_pack_ui在原鉴权后投影。纯核在scenarios/packs，Native冻结/闭包/重定位在capabilities/pack_*，原件动作在skills/_shared/source_actions.py。见[组合包](research-web-research-packs.md)、[自有方法](research-web-owned-methods.md)、[来源选择](research-web-source-selection.md)。完整Router/评审/原CI/同候选Mac安装待最终候选，T4/T5未实施。
+
+
+2026-10-28：PR245 的 pack runtime 版本漂移修复位于原 research-web-checks Install declared test dependencies heredoc；原 actions_quota_governance 执行真实提取／核验代码的成功和拒绝样例，test_datahub_execution_health 绑定真实 Host validator。web.lock、runtime lock、app 源码及运行身份门不变；准备／核验错误写 logs/ci-pack-dependencies.log，原三 CI／同候选 Mac 安装继续取证。
 
 ## 共享恢复及源路径维护（2026-10-29）
 

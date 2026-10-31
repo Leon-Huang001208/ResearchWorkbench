@@ -2,9 +2,12 @@
 
 import ast
 import copy
+import csv
 import hashlib
 import hmac
+import importlib.machinery
 import importlib.metadata
+import inspect
 import io
 import json
 import math
@@ -27,6 +30,7 @@ from core.observability import get_logger
 
 from .methods import ReasoningMethodSpec
 from .models import CapabilityError, Metadata, Step, data_preflight, issue
+from .pack_resources import verify_pack_manifest
 from .packages import decode_file, frontmatter, import_package, normalize_files
 from .seeds import (
     LEGACY_DATA_SCOPE_DRAFTS,
@@ -39,6 +43,138 @@ from .seeds import (
 from .tools import tool_catalog
 
 log = get_logger(__name__)
+
+
+def _function_fingerprint(function):
+    defaults = function.__defaults__
+    keyword_defaults = function.__kwdefaults__
+    closure = function.__closure__
+    return (
+        function,
+        function.__code__,
+        defaults,
+        None if defaults is None else tuple(id(value) for value in defaults),
+        keyword_defaults,
+        (
+            None
+            if keyword_defaults is None
+            else tuple(sorted((key, id(value)) for key, value in keyword_defaults.items()))
+        ),
+        closure,
+        None if closure is None else tuple(id(cell.cell_contents) for cell in closure),
+    )
+
+
+def _function_matches(function, fingerprint):
+    try:
+        current = _function_fingerprint(function)
+        return (
+            current[0] is fingerprint[0]
+            and current[1] is fingerprint[1]
+            and current[2] is fingerprint[2]
+            and current[3] == fingerprint[3]
+            and current[4] is fingerprint[4]
+            and current[5] == fingerprint[5]
+            and current[6] is fingerprint[6]
+            and current[7] == fingerprint[7]
+        )
+    except Exception:  # noqa: BLE001 - unknown callable state is never trusted
+        return False
+
+
+_MISSING = object()
+
+
+def _descriptor_function(descriptor):
+    if isinstance(descriptor, (classmethod, staticmethod)):
+        return descriptor.__func__
+    return descriptor if inspect.isfunction(descriptor) else _MISSING
+
+
+def _optional_function_fingerprint(function):
+    return None if function is _MISSING else _function_fingerprint(function)
+
+
+_PACKAGES_DISTRIBUTIONS_API = importlib.metadata.packages_distributions
+_DISTRIBUTIONS_API = importlib.metadata.distributions
+_DEFAULT_DISTRIBUTION_RESOLVER_DESCRIPTOR = inspect.getattr_static(
+    importlib.machinery.PathFinder, "find_distributions", _MISSING
+)
+_DEFAULT_DISTRIBUTION_RESOLVER = _descriptor_function(_DEFAULT_DISTRIBUTION_RESOLVER_DESCRIPTOR)
+_DISTRIBUTION_CLASS = importlib.metadata.Distribution
+_DISTRIBUTION_DISCOVER = inspect.getattr_static(importlib.metadata.Distribution, "discover")
+_DISTRIBUTION_DISCOVER_RESOLVERS = inspect.getattr_static(
+    importlib.metadata.Distribution, "_discover_resolvers"
+)
+_DISTRIBUTION_FINDER_CLASS = importlib.metadata.DistributionFinder
+_DISTRIBUTION_CONTEXT_CLASS = importlib.metadata.DistributionFinder.Context
+_METADATA_PATH_FINDER_CLASS = importlib.metadata.MetadataPathFinder
+_METADATA_PATH_FINDER_FIND_DISTRIBUTIONS = inspect.getattr_static(
+    importlib.metadata.MetadataPathFinder, "find_distributions"
+)
+_PATH_DISTRIBUTION_CLASS = importlib.metadata.PathDistribution
+_DISTRIBUTION_FILES = inspect.getattr_static(importlib.metadata.Distribution, "files", _MISSING)
+_READ_FILES_DISTINFO_DESCRIPTOR = inspect.getattr_static(
+    importlib.metadata.Distribution, "_read_files_distinfo", _MISSING
+)
+_READ_FILES_EGGINFO_INSTALLED_DESCRIPTOR = inspect.getattr_static(
+    importlib.metadata.Distribution, "_read_files_egginfo_installed", _MISSING
+)
+_READ_FILES_EGGINFO_SOURCES_DESCRIPTOR = inspect.getattr_static(
+    importlib.metadata.Distribution, "_read_files_egginfo_sources", _MISSING
+)
+_READ_FILES_DISTINFO = _descriptor_function(_READ_FILES_DISTINFO_DESCRIPTOR)
+_READ_FILES_EGGINFO_INSTALLED = _descriptor_function(_READ_FILES_EGGINFO_INSTALLED_DESCRIPTOR)
+_READ_FILES_EGGINFO_SOURCES = _descriptor_function(_READ_FILES_EGGINFO_SOURCES_DESCRIPTOR)
+_PATH_DISTRIBUTION_READ_TEXT_DESCRIPTOR = inspect.getattr_static(
+    importlib.metadata.PathDistribution, "read_text", _MISSING
+)
+_PATH_DISTRIBUTION_LOCATE_FILE_DESCRIPTOR = inspect.getattr_static(
+    importlib.metadata.PathDistribution, "locate_file", _MISSING
+)
+_PATH_DISTRIBUTION_READ_TEXT = _descriptor_function(_PATH_DISTRIBUTION_READ_TEXT_DESCRIPTOR)
+_PATH_DISTRIBUTION_LOCATE_FILE = _descriptor_function(_PATH_DISTRIBUTION_LOCATE_FILE_DESCRIPTOR)
+_PACKAGE_PATH = importlib.metadata.PackagePath
+_PACKAGE_PATH_LOCATE_DESCRIPTOR = inspect.getattr_static(
+    importlib.metadata.PackagePath, "locate", _MISSING
+)
+_PACKAGE_PATH_LOCATE = _descriptor_function(_PACKAGE_PATH_LOCATE_DESCRIPTOR)
+_FILE_HASH = getattr(importlib.metadata, "FileHash", _MISSING)
+_TOP_LEVEL_DECLARED = getattr(importlib.metadata, "_top_level_declared", _MISSING)
+_TOP_LEVEL_INFERRED = getattr(importlib.metadata, "_top_level_inferred", _MISSING)
+_DEFAULTDICT = getattr(importlib.metadata.collections, "defaultdict", _MISSING)
+_ITERTOOLS_CHAIN = getattr(importlib.metadata.itertools, "chain", _MISSING)
+_STARMAP = getattr(importlib.metadata, "starmap", _MISSING)
+_CSV_READER = getattr(importlib.metadata.csv, "reader", _MISSING)
+_ALWAYS_ITERABLE = getattr(importlib.metadata, "always_iterable", _MISSING)
+_PASS_NONE = getattr(importlib.metadata, "pass_none", _MISSING)
+_GETMODULENAME = getattr(importlib.metadata.inspect, "getmodulename", _MISSING)
+_PACKAGES_DISTRIBUTIONS_FINGERPRINT = _function_fingerprint(_PACKAGES_DISTRIBUTIONS_API)
+_DISTRIBUTIONS_FINGERPRINT = _function_fingerprint(_DISTRIBUTIONS_API)
+_DEFAULT_DISTRIBUTION_RESOLVER_FINGERPRINT = _function_fingerprint(_DEFAULT_DISTRIBUTION_RESOLVER)
+_DISTRIBUTION_DISCOVER_FINGERPRINT = _function_fingerprint(_DISTRIBUTION_DISCOVER.__func__)
+_DISTRIBUTION_DISCOVER_RESOLVERS_FINGERPRINT = _function_fingerprint(
+    _DISTRIBUTION_DISCOVER_RESOLVERS.__func__
+)
+_METADATA_PATH_FINDER_FIND_DISTRIBUTIONS_FINGERPRINT = _function_fingerprint(
+    _METADATA_PATH_FINDER_FIND_DISTRIBUTIONS.__func__
+)
+_DISTRIBUTION_FILES_FINGERPRINT = _function_fingerprint(_DISTRIBUTION_FILES.fget)
+_READ_FILES_DISTINFO_FINGERPRINT = _optional_function_fingerprint(_READ_FILES_DISTINFO)
+_READ_FILES_EGGINFO_INSTALLED_FINGERPRINT = _optional_function_fingerprint(
+    _READ_FILES_EGGINFO_INSTALLED
+)
+_READ_FILES_EGGINFO_SOURCES_FINGERPRINT = _optional_function_fingerprint(
+    _READ_FILES_EGGINFO_SOURCES
+)
+_PATH_DISTRIBUTION_READ_TEXT_FINGERPRINT = _function_fingerprint(_PATH_DISTRIBUTION_READ_TEXT)
+_PATH_DISTRIBUTION_LOCATE_FILE_FINGERPRINT = _function_fingerprint(_PATH_DISTRIBUTION_LOCATE_FILE)
+_PACKAGE_PATH_LOCATE_FINGERPRINT = _function_fingerprint(_PACKAGE_PATH_LOCATE)
+_TOP_LEVEL_DECLARED_FINGERPRINT = _optional_function_fingerprint(_TOP_LEVEL_DECLARED)
+_TOP_LEVEL_INFERRED_FINGERPRINT = _optional_function_fingerprint(_TOP_LEVEL_INFERRED)
+_ALWAYS_ITERABLE_FINGERPRINT = _optional_function_fingerprint(_ALWAYS_ITERABLE)
+_PASS_NONE_FINGERPRINT = _optional_function_fingerprint(_PASS_NONE)
+_GETMODULENAME_FINGERPRINT = _optional_function_fingerprint(_GETMODULENAME)
 
 LEGACY_SCRIPT_TOOL = "af_run_script"
 LEGACY_PUBLIC_DATA_TOOL = "af_public_data"
@@ -130,6 +266,7 @@ class CapabilityCatalog:
                     "comparison_receipts": {},
                 }
             self.data.setdefault("comparison_receipts", {})
+            self.data.setdefault("pack_read_equivalences", {})
             # Built-ins are additive so existing local catalogs receive newly
             # shipped reviewed capabilities without rewriting user packages.
             for cid, draft in seed_packages():
@@ -151,6 +288,7 @@ class CapabilityCatalog:
             self._migrate_stage2_builtins(dict(seed_packages()))
             self._migrate_stage3_builtins(dict(seed_packages()))
             self._migrate_data_scope_builtins(dict(seed_packages()))
+            self._migrate_pack_runtime_relocations(dict(seed_packages()))
             self._audit_enabled_receipt_gates()
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
@@ -161,12 +299,289 @@ class CapabilityCatalog:
             self._initializing = False
             self._initial_module_distributions = None
 
-    def _installed_module_distributions(self):
+    def _installed_module_distributions(self, modules=None):
         if not self._initializing:
-            return importlib.metadata.packages_distributions()
+            requested = frozenset(modules or ())
+            if not requested:
+                return importlib.metadata.packages_distributions()
+            # Fall back before enumeration when any finder/API primitive is custom.
+            # This avoids consuming a stateful finder and then invoking it a second time.
+            if not self._stock_distribution_projection_supported():
+                inventory = importlib.metadata.packages_distributions()
+                return {module: inventory[module] for module in requested if module in inventory}
+            projected = self._project_installed_module_distributions(requested, require_stock=True)
+            if not self._stock_distribution_projection_supported():
+                raise CapabilityError(
+                    "依赖元数据发现器在检查期间发生变化",
+                    "dependency_inventory_changed",
+                    503,
+                )
+            return projected
         if self._initial_module_distributions is None:
             self._initial_module_distributions = importlib.metadata.packages_distributions()
         return self._initial_module_distributions
+
+    @staticmethod
+    def _stock_distribution_projection_supported():
+        required_primitives = (
+            _READ_FILES_DISTINFO,
+            _READ_FILES_EGGINFO_INSTALLED,
+            _READ_FILES_EGGINFO_SOURCES,
+            _FILE_HASH,
+            _TOP_LEVEL_DECLARED,
+            _TOP_LEVEL_INFERRED,
+            _DEFAULTDICT,
+            _ITERTOOLS_CHAIN,
+            _STARMAP,
+            _CSV_READER,
+            _ALWAYS_ITERABLE,
+            _PASS_NONE,
+            _GETMODULENAME,
+        )
+        if any(primitive is _MISSING for primitive in required_primitives):
+            return False
+        try:
+            path_finder_descriptor = inspect.getattr_static(
+                importlib.machinery.PathFinder, "find_distributions", _MISSING
+            )
+            distribution_files = inspect.getattr_static(
+                importlib.metadata.Distribution, "files", _MISSING
+            )
+            read_files_distinfo_descriptor = inspect.getattr_static(
+                importlib.metadata.Distribution, "_read_files_distinfo", _MISSING
+            )
+            read_files_egginfo_installed_descriptor = inspect.getattr_static(
+                importlib.metadata.Distribution,
+                "_read_files_egginfo_installed",
+                _MISSING,
+            )
+            read_files_egginfo_sources_descriptor = inspect.getattr_static(
+                importlib.metadata.Distribution,
+                "_read_files_egginfo_sources",
+                _MISSING,
+            )
+            path_distribution_read_text_descriptor = inspect.getattr_static(
+                importlib.metadata.PathDistribution, "read_text", _MISSING
+            )
+            path_distribution_locate_file_descriptor = inspect.getattr_static(
+                importlib.metadata.PathDistribution, "locate_file", _MISSING
+            )
+            package_path_locate_descriptor = inspect.getattr_static(
+                importlib.metadata.PackagePath, "locate", _MISSING
+            )
+            identities_match = (
+                importlib.metadata.packages_distributions is _PACKAGES_DISTRIBUTIONS_API
+                and importlib.metadata.distributions is _DISTRIBUTIONS_API
+                and path_finder_descriptor is _DEFAULT_DISTRIBUTION_RESOLVER_DESCRIPTOR
+                and importlib.metadata.Distribution is _DISTRIBUTION_CLASS
+                and inspect.getattr_static(importlib.metadata.Distribution, "discover")
+                is _DISTRIBUTION_DISCOVER
+                and inspect.getattr_static(importlib.metadata.Distribution, "_discover_resolvers")
+                is _DISTRIBUTION_DISCOVER_RESOLVERS
+                and importlib.metadata.DistributionFinder is _DISTRIBUTION_FINDER_CLASS
+                and importlib.metadata.DistributionFinder.Context is _DISTRIBUTION_CONTEXT_CLASS
+                and importlib.metadata.MetadataPathFinder is _METADATA_PATH_FINDER_CLASS
+                and inspect.getattr_static(
+                    importlib.metadata.MetadataPathFinder, "find_distributions"
+                )
+                is _METADATA_PATH_FINDER_FIND_DISTRIBUTIONS
+                and importlib.metadata.PathDistribution is _PATH_DISTRIBUTION_CLASS
+                and distribution_files is _DISTRIBUTION_FILES
+                and inspect.getattr_static(importlib.metadata.PathDistribution, "files")
+                is _DISTRIBUTION_FILES
+                and read_files_distinfo_descriptor is _READ_FILES_DISTINFO_DESCRIPTOR
+                and read_files_egginfo_installed_descriptor
+                is _READ_FILES_EGGINFO_INSTALLED_DESCRIPTOR
+                and read_files_egginfo_sources_descriptor is _READ_FILES_EGGINFO_SOURCES_DESCRIPTOR
+                and path_distribution_read_text_descriptor
+                is _PATH_DISTRIBUTION_READ_TEXT_DESCRIPTOR
+                and path_distribution_locate_file_descriptor
+                is _PATH_DISTRIBUTION_LOCATE_FILE_DESCRIPTOR
+                and importlib.metadata.PackagePath is _PACKAGE_PATH
+                and package_path_locate_descriptor is _PACKAGE_PATH_LOCATE_DESCRIPTOR
+                and importlib.metadata.FileHash is _FILE_HASH
+                and importlib.metadata._top_level_declared is _TOP_LEVEL_DECLARED
+                and importlib.metadata._top_level_inferred is _TOP_LEVEL_INFERRED
+                and importlib.metadata.collections.defaultdict is _DEFAULTDICT
+                and importlib.metadata.itertools.chain is _ITERTOOLS_CHAIN
+                and importlib.metadata.starmap is _STARMAP
+                and importlib.metadata.csv.reader is _CSV_READER
+                and importlib.metadata.always_iterable is _ALWAYS_ITERABLE
+                and importlib.metadata.pass_none is _PASS_NONE
+                and importlib.metadata.inspect.getmodulename is _GETMODULENAME
+            )
+            if not identities_match:
+                return False
+            functions_match = (
+                _function_matches(
+                    importlib.metadata.packages_distributions,
+                    _PACKAGES_DISTRIBUTIONS_FINGERPRINT,
+                )
+                and _function_matches(importlib.metadata.distributions, _DISTRIBUTIONS_FINGERPRINT)
+                and _function_matches(
+                    _descriptor_function(path_finder_descriptor),
+                    _DEFAULT_DISTRIBUTION_RESOLVER_FINGERPRINT,
+                )
+                and _function_matches(
+                    inspect.getattr_static(importlib.metadata.Distribution, "discover").__func__,
+                    _DISTRIBUTION_DISCOVER_FINGERPRINT,
+                )
+                and _function_matches(
+                    inspect.getattr_static(
+                        importlib.metadata.Distribution, "_discover_resolvers"
+                    ).__func__,
+                    _DISTRIBUTION_DISCOVER_RESOLVERS_FINGERPRINT,
+                )
+                and _function_matches(
+                    inspect.getattr_static(
+                        importlib.metadata.MetadataPathFinder, "find_distributions"
+                    ).__func__,
+                    _METADATA_PATH_FINDER_FIND_DISTRIBUTIONS_FINGERPRINT,
+                )
+                and _function_matches(
+                    distribution_files.fget,
+                    _DISTRIBUTION_FILES_FINGERPRINT,
+                )
+                and _function_matches(
+                    _descriptor_function(read_files_distinfo_descriptor),
+                    _READ_FILES_DISTINFO_FINGERPRINT,
+                )
+                and _function_matches(
+                    _descriptor_function(read_files_egginfo_installed_descriptor),
+                    _READ_FILES_EGGINFO_INSTALLED_FINGERPRINT,
+                )
+                and _function_matches(
+                    _descriptor_function(read_files_egginfo_sources_descriptor),
+                    _READ_FILES_EGGINFO_SOURCES_FINGERPRINT,
+                )
+                and _function_matches(
+                    _descriptor_function(path_distribution_read_text_descriptor),
+                    _PATH_DISTRIBUTION_READ_TEXT_FINGERPRINT,
+                )
+                and _function_matches(
+                    _descriptor_function(path_distribution_locate_file_descriptor),
+                    _PATH_DISTRIBUTION_LOCATE_FILE_FINGERPRINT,
+                )
+                and _function_matches(
+                    _descriptor_function(package_path_locate_descriptor),
+                    _PACKAGE_PATH_LOCATE_FINGERPRINT,
+                )
+                and _function_matches(
+                    importlib.metadata._top_level_declared,
+                    _TOP_LEVEL_DECLARED_FINGERPRINT,
+                )
+                and _function_matches(
+                    importlib.metadata._top_level_inferred,
+                    _TOP_LEVEL_INFERRED_FINGERPRINT,
+                )
+                and _function_matches(
+                    importlib.metadata.always_iterable,
+                    _ALWAYS_ITERABLE_FINGERPRINT,
+                )
+                and _function_matches(
+                    importlib.metadata.pass_none,
+                    _PASS_NONE_FINGERPRINT,
+                )
+                and _function_matches(
+                    importlib.metadata.inspect.getmodulename,
+                    _GETMODULENAME_FINGERPRINT,
+                )
+            )
+            return functions_match and CapabilityCatalog._stock_meta_path_resolvers_supported()
+        except Exception:  # noqa: BLE001 - unsupported metadata machinery uses public fallback
+            return False
+
+    @staticmethod
+    def _stock_meta_path_resolvers_supported():
+        resolver_count = 0
+        for finder in sys.meta_path:
+            descriptor = inspect.getattr_static(finder, "find_distributions", _MISSING)
+            if descriptor is _MISSING:
+                owner = type(finder)
+                if isinstance(finder, type):
+                    if (
+                        inspect.getattr_static(owner, "__getattribute__", None)
+                        is not type.__getattribute__
+                        or inspect.getattr_static(owner, "__getattr__", None) is not None
+                    ):
+                        return False
+                elif (
+                    inspect.getattr_static(owner, "__getattribute__", None)
+                    is not object.__getattribute__
+                    or inspect.getattr_static(owner, "__getattr__", None) is not None
+                ):
+                    return False
+                continue
+            if (
+                finder is not importlib.machinery.PathFinder
+                or descriptor is not _DEFAULT_DISTRIBUTION_RESOLVER_DESCRIPTOR
+            ):
+                return False
+            resolver_count += 1
+        return resolver_count == 1
+
+    @staticmethod
+    def _project_installed_module_distributions(requested, *, require_stock=False):
+        """Build a fresh stdlib-equivalent projection without statting unrelated RECORD paths."""
+
+        projected = {}
+        for distribution in importlib.metadata.distributions():
+            if require_stock and type(distribution) is not _PATH_DISTRIBUTION_CLASS:
+                raise CapabilityError(
+                    "依赖元数据发现器返回未知发行包类型",
+                    "dependency_inventory_changed",
+                    503,
+                )
+            declared = list(importlib.metadata._top_level_declared(distribution))
+            if declared:
+                # The stdlib reads Name for every declared top-level package,
+                # including packages outside the requested projection.
+                name = distribution.metadata["Name"]
+                matches = [module for module in declared if module in requested]
+            else:
+                matches = set()
+                unrelated_paths = []
+                rows = (
+                    distribution._read_files_distinfo()
+                    or distribution._read_files_egginfo_installed()
+                    or distribution._read_files_egginfo_sources()
+                )
+                if rows is None:
+                    continue
+                for row in csv.reader(rows):
+                    path = CapabilityCatalog._metadata_package_path(distribution, *row)
+                    module = path.parts[0] if len(path.parts) > 1 else inspect.getmodulename(path)
+                    if module not in requested:
+                        if module is not None and "." not in module:
+                            unrelated_paths.append(path)
+                        continue
+                    if path.locate().exists():
+                        matches.add(module)
+                if matches:
+                    name = distribution.metadata["Name"]
+                elif unrelated_paths:
+                    try:
+                        distribution.metadata["Name"]
+                    except Exception:
+                        # Only propagate an unrelated metadata error when the
+                        # stdlib would have found an importable installed file.
+                        if any(path.locate().exists() for path in unrelated_paths):
+                            raise
+            if not matches:
+                continue
+            for module in matches:
+                projected.setdefault(module, []).append(name)
+        return projected
+
+    @staticmethod
+    def _metadata_package_path(distribution, name, hash_value=None, size_value=None):
+        """Mirror Distribution.files row construction, including malformed-row failures."""
+
+        path = importlib.metadata.PackagePath(name)
+        path.hash = importlib.metadata.FileHash(hash_value) if hash_value else None
+        path.size = int(size_value) if size_value else None
+        path.dist = distribution
+        return path
 
     @staticmethod
     def _replace_script_tool(value):
@@ -396,6 +811,104 @@ class CapabilityCatalog:
                     version=row["version"],
                     receipt_error=exc.code,
                 )
+        if changed:
+            self.save()
+
+    def _pack_read_equivalence_ready(self, _row, _active, _curated):
+        """Only the implemented direct certificate policy may enter publication."""
+        from .pack_dependencies import runtime_identity
+        from .pack_equivalence import POLICY
+        from .pack_relocation import runtime_from, verify_relocation_pair
+
+        allowed, _reason = verify_relocation_pair(_active, _curated)
+        return (
+            POLICY == "direct_pack_runtime_prefix_read_v1"
+            and allowed
+            and runtime_from(_curated) == runtime_identity()
+        )
+
+    def _migrate_pack_runtime_relocations(self, builtins):
+        from .pack_relocation import (
+            PACK_IDS,
+            relocation_decision,
+            runtime_from,
+            verify_version_tree,
+        )
+
+        if self.data.get("pending"):
+            return
+        changed = False
+        for cid in sorted(PACK_IDS):
+            row = self.data["items"].get(cid)
+            if not row or not row.get("version"):
+                continue
+            active = row["versions"].get(str(row["version"]))
+            curated = self._draft(copy.deepcopy(builtins[cid]))
+            allowed, reason = relocation_decision(row, active or {}, curated)
+            info = {"status": "current" if reason == "current" else "blocked", "code": reason}
+            if allowed:
+                try:
+                    verify_version_tree(self, row, active)
+                except (CapabilityError, OSError, ValueError, KeyError, TypeError):
+                    allowed, reason = False, "pack_runtime_resource_changed"
+                    info = {"status": "blocked", "code": reason}
+            if allowed and not self._pack_read_equivalence_ready(row, active, curated):
+                allowed, reason = False, "pack_runtime_read_equivalence_pending"
+                info = {"status": "blocked", "code": reason}
+            if allowed:
+                previous, status = row["version"], row["status"]
+                row["draft"] = curated
+                row.update(has_draft=True, checks=None)
+                try:
+                    self.publish(
+                        cid,
+                        _allow_builtin_migration=True,
+                        _status=status,
+                        _relocation_versions=sorted(map(int, row["versions"])),
+                    )
+                except (CapabilityError, OSError, ValueError, KeyError, TypeError) as exc:
+                    current = self.data["items"][cid]
+                    current["runtime_binding"] = {
+                        "status": "blocked",
+                        "code": "pack_runtime_relocation_failed",
+                    }
+                    self.save()
+                    log.error(
+                        "capability_pack_runtime_relocation_failed",
+                        capability_id=cid,
+                        error_type=type(exc).__name__,
+                    )
+                    raise CapabilityError(
+                        "组合包运行环境迁移未完成；保留版本与原状态",
+                        "pack_runtime_relocation_failed",
+                        503,
+                    ) from exc
+                info = {
+                    "status": "relocated",
+                    "code": "pack_runtime_prefix_relocated",
+                    "previous_version": previous,
+                    "version": row["version"],
+                    "runtime_sha256": hashlib.sha256(
+                        json.dumps(
+                            runtime_from(curated), sort_keys=True, separators=(",", ":")
+                        ).encode()
+                    ).hexdigest(),
+                }
+                log.info(
+                    "capability_pack_runtime_relocated",
+                    capability_id=cid,
+                    version=row["version"],
+                    status=status,
+                )
+            elif reason != "current":
+                log.warning(
+                    "capability_pack_runtime_relocation_blocked", capability_id=cid, code=reason
+                )
+            if reason == "current" and row.get("runtime_binding", {}).get("status") == "relocated":
+                continue
+            if row.get("runtime_binding") != info:
+                row["runtime_binding"] = info
+                changed = True
         if changed:
             self.save()
 
@@ -796,6 +1309,8 @@ class CapabilityCatalog:
         }
         if row["kind"] == "method":
             result["method_spec"] = copy.deepcopy((active or draft).get("method_spec"))
+        if row.get("runtime_binding"):
+            result["runtime_binding"] = copy.deepcopy(row["runtime_binding"])
         return result
 
     def list(self, kind=None):
@@ -974,6 +1489,11 @@ class CapabilityCatalog:
 
     def validate(self, kind, draft):
         issues = [*draft.get("import_issues", []), *draft.get("file_issues", [])]
+        try:
+            pack_manifest = verify_pack_manifest(draft["files"])
+        except CapabilityError:
+            pack_manifest = None
+            issues.append(issue("pack_closure_invalid", "组合包完整资源清单校验失败"))
         metadata = draft["metadata"]
         try:
             valid = Metadata.model_validate(metadata)
@@ -1096,6 +1616,12 @@ class CapabilityCatalog:
         for tool in required_tools:
             if not isinstance(tool, str) or tool not in allowed:
                 issues.append(issue("tool_unavailable", f"工具不在实际研究白名单：{tool}"))
+        python_modules = {
+            ".".join(f["path"][8:-3].split("/")).removesuffix(".__init__")
+            for f in draft["files"]
+            if f["path"].startswith("scripts/") and f["path"].endswith(".py")
+        }
+        local_roots = {module.split(".")[0] for module in python_modules}
         for file in draft["files"]:
             if file["path"].endswith(".py"):
                 if file["sha256"] not in draft.get("reviewed_scripts", []):
@@ -1108,20 +1634,79 @@ class CapabilityCatalog:
                     )
                 try:
                     tree = ast.parse(decode_file(file).decode())
+                    nodes = tuple(ast.walk(tree))
+                    if pack_manifest and any(
+                        isinstance(node, ast.Call)
+                        and (
+                            isinstance(node.func, ast.Name)
+                            and node.func.id in {"__import__", "eval", "exec"}
+                            or isinstance(node.func, ast.Attribute)
+                            and node.func.attr in {"import_module", "load_module", "exec_module"}
+                        )
+                        for node in nodes
+                    ):
+                        issues.append(
+                            issue(
+                                "pack_dynamic_import_forbidden",
+                                "组合包资源不能动态导入或执行任意代码",
+                                file["path"],
+                            )
+                        )
+                    current = file["path"][8:-3].split("/")
+                    package = current[:-1]
+                    for node in nodes:
+                        targets = []
+                        if isinstance(node, ast.ImportFrom) and node.level:
+                            if node.level > len(package):
+                                targets = ["<escape>"]
+                            else:
+                                parent = package[: len(package) - node.level + 1]
+                                targets = (
+                                    [".".join([*parent, *node.module.split(".")])]
+                                    if node.module
+                                    else [".".join([*parent, alias.name]) for alias in node.names]
+                                )
+                        elif isinstance(node, ast.ImportFrom) and node.module:
+                            if node.module.split(".")[0] in local_roots:
+                                targets = [node.module]
+                        elif isinstance(node, ast.Import):
+                            targets = [
+                                alias.name
+                                for alias in node.names
+                                if alias.name.split(".")[0] in local_roots
+                            ]
+                        if any(target not in python_modules for target in targets):
+                            issues.append(
+                                issue(
+                                    "script_import_unresolved",
+                                    "包内导入无法在冻结资源中解析",
+                                    file["path"],
+                                )
+                            )
                     modules = {
                         n.module.split(".")[0]
-                        for n in ast.walk(tree)
-                        if isinstance(n, ast.ImportFrom) and n.module
+                        for n in nodes
+                        if isinstance(n, ast.ImportFrom) and n.module and not n.level
                     }
                     modules.update(
                         alias.name.split(".")[0]
-                        for n in ast.walk(tree)
+                        for n in nodes
                         if isinstance(n, ast.Import)
                         for alias in n.names
                     )
+                    if pack_manifest and modules - sys.stdlib_module_names - local_roots - {
+                        "jsonschema"
+                    }:
+                        issues.append(
+                            issue(
+                                "pack_import_forbidden",
+                                "组合包只能导入冻结闭包、标准库和绑定的schema验证依赖",
+                                file["path"],
+                            )
+                        )
                     strings = {
                         n.value
-                        for n in ast.walk(tree)
+                        for n in nodes
                         if isinstance(n, ast.Constant) and isinstance(n.value, str)
                     }
                     module_aliases = {}
@@ -1134,7 +1719,7 @@ class CapabilityCatalog:
                     # This publication check is deliberately conservative: an import
                     # binding remains trusted evidence after local reassignment because
                     # complete Python scope and control-flow resolution is out of scope.
-                    for node in ast.walk(tree):
+                    for node in nodes:
                         if isinstance(node, ast.Import):
                             for alias in node.names:
                                 if alias.name == "subprocess":
@@ -1186,13 +1771,13 @@ class CapabilityCatalog:
                             and isinstance(node.value, ast.Name)
                             and node.value.id in module_aliases
                             and _is_host_process_entry(module_aliases[node.value.id], node.attr)
-                            for node in ast.walk(tree)
+                            for node in nodes
                         )
                         or any(
                             isinstance(node, ast.Name)
                             and isinstance(node.ctx, ast.Load)
                             and node.id in imported_entries
-                            for node in ast.walk(tree)
+                            for node in nodes
                         )
                     )
                     uses_process_pool = any(
@@ -1211,7 +1796,7 @@ class CapabilityCatalog:
                                 and node.value.value.id == "concurrent"
                             )
                         )
-                        for node in ast.walk(tree)
+                        for node in nodes
                     )
                     if (
                         subprocess_imported
@@ -1241,9 +1826,13 @@ class CapabilityCatalog:
                                 file["path"],
                             )
                         )
-                    external_modules = modules - sys.stdlib_module_names - {"research_helpers"}
+                    external_modules = (
+                        modules - sys.stdlib_module_names - {"research_helpers"} - local_roots
+                    )
                     installed_modules = (
-                        self._installed_module_distributions() if external_modules else {}
+                        self._installed_module_distributions(external_modules)
+                        if external_modules
+                        else {}
                     )
                     for module in external_modules:
                         if module not in installed_modules and f"scripts/{module}.py" not in {
@@ -1335,7 +1924,9 @@ class CapabilityCatalog:
         )
         return name, compiled
 
-    def publish(self, cid, *, _allow_builtin_migration=False, _status="enabled"):
+    def publish(
+        self, cid, *, _allow_builtin_migration=False, _status="enabled", _relocation_versions=None
+    ):
         self.assert_consistent()
         row = self.row(cid)
         if row["source"] == "builtin" and row["version"] and not _allow_builtin_migration:
@@ -1385,7 +1976,7 @@ class CapabilityCatalog:
                 "版本资源写入失败；草稿和旧版本保留，可重试发布", "publication_failed", 503
             ) from exc
         row["versions"][str(version)] = record
-        self._activate(cid, version, _status)
+        self._activate(cid, version, _status, _relocation_versions=_relocation_versions)
         row["has_draft"] = False
         self.save()
         return self.detail(cid)
@@ -1407,10 +1998,11 @@ class CapabilityCatalog:
             directory.chmod(0o555)
         path.chmod(0o555)
 
-    def _activate(self, cid, version, status):
+    def _activate(self, cid, version, status, *, _relocation_versions=None):
         row = self.row(cid)
         record = row["versions"][str(version)]
         old = copy.deepcopy(row)
+        old_certificates = copy.deepcopy(self.data.get("pack_read_equivalences", {}))
         self.data["pending"] = {"id": cid, "version": version, "status": status}
         self.save()  # durable intent precedes any native-visible mutation
         moved, installed = [], None
@@ -1431,9 +2023,15 @@ class CapabilityCatalog:
                 installed = self.native_root / record["native_name"]
                 os.replace(stage, installed)
             row.update(version=version, status=status, updated_at=time.time())
+            if _relocation_versions is not None:
+                from .pack_equivalence import issue_for_publication
+
+                issued = issue_for_publication(self, cid, _relocation_versions, version)
+                self.data.setdefault("pack_read_equivalences", {}).update(issued)
+                row["has_draft"] = False
             self.data["pending"] = None
             self.save()
-        except (OSError, CapabilityError) as exc:
+        except (OSError, CapabilityError, ValueError, KeyError, TypeError) as exc:
             self.data["pending"] = {"id": cid, "version": version, "status": "uncertain"}
             try:
                 if installed is not None and installed.exists():
@@ -1441,6 +2039,7 @@ class CapabilityCatalog:
                 for source, retired in moved:
                     os.replace(retired, source)
                 self.data["items"][cid] = old
+                self.data["pack_read_equivalences"] = old_certificates
                 self.data["pending"] = None
                 self.save()
             except (OSError, CapabilityError):
