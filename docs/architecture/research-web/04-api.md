@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+## successor 是封闭维护 CLI（2026-10-31）
+
+新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。
+
+三锁、lease、DB EX 和每事务 8 项有界 spawn 意图由操作员验证，普通请求不能自报已排空或补写 acceptance。原 15 账号授权仍冻结；终态后 admin＋新 test 的账号清理沿独立受控操作，不混入 handoff 参数。精确参数和错误恢复语义见[successor CLI 合同](../../research-web-trial-successor-handoff.md)，接口存在不代表现场或跨平台验收完成。
+
 ## 试验退役属于维护 CLI（2026-10-30）
 
 历史试验退役不新增 HTTP、研究工具或跨租户 API。既有 Native 操作员的 `apply-trial-retirement` 接收 `--home`、`--source`、私有 `--trial-manifest`、维护模块规范 JSON 的 `--trial-manifest-sha256` 和私有 `--trial-backup-parent`；摘要用于绑定复核内容，不接受模型输出自声明授权。目标产品固定，执行器另行评审，恢复沿既有 `recover`。

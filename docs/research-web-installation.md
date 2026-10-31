@@ -1,5 +1,11 @@
 # Research Web Native / Docker 安装与运行
 
+## Native successor 的安装制品边界（2026-10-31）
+
+`trial_successor` 随原 Web 包安装，由原 Mac Bootstrap import 步骤覆盖；不增加依赖、安装入口或固定 DSH 构建分支。新执行器使用内盘原维护根中的小型内容寻址 pyz 与版本化 stage receipt，不复用旧 executor 缓存；开发 worktree 不成为生产依赖，已保留的固定 db2 product source 仍须单独核验。固定 90e 的 v4→v5 交接与后续 fresh retry 是 Native 维护入口，不是重新安装许可。
+
+安装／import 成功不替代三 EX 锁、安装 lease、BirthFence DB EX、进程终态和同事务最多 8 项 spawn 意图的未知保护。当前 consent 仍冻结原 15 账号；清理到 admin＋新建普通 test 账号须待本次终态后独立执行，不能改安装配置来重开当前 seal。完整制品和入口合同见[successor handoff](research-web-trial-successor-handoff.md)；不据本段声明 Docker、Windows 或 Linux 物理验收通过。
+
 授权试验退役使用现有 Native 操作员与恢复事务，产品目标和执行器版本分别固定并核验。
 公开安装入口、Web锁和固定DSH不变，无新依赖；Mac Bootstrap原步骤核验维护模块可导入。
 操作员的适用范围、配置保全及人工恢复边界见[试验退役说明](research-web-trial-discard.md)。

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "2026-10-30复核授权历史试验退役模式；README的唯一DSH、Host及现有安装入口仍准确。",
-  "reason": "apply-trial-retirement仅扩展既有Native维护事务及recover，固定b800e503前版与db2ae9a4产品，执行器独立评审；不新增服务、HTTP、引擎、依赖或安装步骤。用户授权历史试验及Wind UNKNOWN丢弃的窄例外、账号和模型保全、防重放与失败留栅栏详见docs/research-web-trial-discard.md，普通未知拒绝保持。离线测试不能证明现场部署或认证验收完成，因此README高层架构及安装说明无需改变。"
+  "summary": "2026-10-31复核版本化试验恢复交接和显式重试；README的唯一DSH、Host与公开安装入口保持准确。",
+  "reason": "本轮在既有Native维护事务加入固定90e前驱交接、已审小pyz、同父目录退役容量和完成回执约束的fresh重试，产品固定b800到db2；未新增研究引擎、服务、业务HTTP、依赖或安装步骤。新控制协议与原件保留、防重发、已持久化但身份未确认的启动保护详见docs/research-web-trial-successor-handoff.md。原15账号和模型在当前恢复事务保全，之后按用户选择单独清理到admin与新test。源码、合成CLI、同候选CI和实际部署登录分别验收；README无需承载现场恢复指令或改写为已上线。"
 }

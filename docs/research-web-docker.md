@@ -1,5 +1,11 @@
 # Mac mini Docker 开发与独立部署
 
+## Native successor 与容器资源隔离（2026-10-31）
+
+固定 90e 的 v5 handoff、小型恢复 pyz 和显式 fresh retry 只作用于既有 macOS Native 操作员；不创建镜像、容器、卷、Docker job 或第二执行引擎，也不改变本章构建器预算、资源锁和恢复验证规则。Native 的三锁＋lease＋DB EX／spawn 未知保护不能用容器健康代替，Ubuntu 通用单测也不是 Linux／Docker 产品物理证据。
+
+当前保全对象仍是原 15 账号及其模型／业务数据；后续 admin＋新 test 的账号清理不授权清理同名 Docker 资源，须在本事务终态后另行确认归属。Native 交接与部署证据边界见[successor handoff](research-web-trial-successor-handoff.md)。
+
 ## Native 历史试验退役边界（2026-10-30）
 
 新 `apply-trial-retirement` 仅扩展既有 macOS Native 操作员，固定 b800e503 → db2ae9a4 产品及独立受审执行器；不新增 Docker 操作、镜像、服务或部署引擎，也不改变本章容器资源预算与保护规则。原三锁、BirthFence、保全和恢复仍须满足。
