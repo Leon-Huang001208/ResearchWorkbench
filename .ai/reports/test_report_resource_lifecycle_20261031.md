@@ -36,6 +36,13 @@ protected. This does not run Git object maintenance or change a business service
 
 ## Evidence boundaries
 
+The macOS 14 bootstrap jobs were cancelled before runner startup by GitHub's
+announced image brownout. The image retires on November 2, 2026. The same
+clean-install job now uses the officially recommended macOS 15 image, retaining
+the original job count, timeout, installation, DSH build, health and Doctor gates.
+Current installation instructions supersede dated macOS 14 evidence; historical
+records are preserved. Reference: https://github.com/actions/runner-images/issues/13518.
+
 The final repaired candidate requires fresh Project Constraints CI. No prior
 failed or cancelled run is certified as passing. Shared framework publication,
 managed local installation and event activation are individually checked;

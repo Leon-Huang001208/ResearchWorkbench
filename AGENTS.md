@@ -45,7 +45,7 @@
   必须同步核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、
   `docs/research-web-installation.md` 和 `.github/workflows/research-web-bootstrap.yml`；无须改变的文件应由
   安装 CI 证明仍兼容，不能仅凭本机已有环境判断。
-- Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-14` 干净安装、固定 DSH 构建、
+- Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-15` 干净安装、固定 DSH 构建、
   3081/8088 健康检查和 `rwb web doctor --json` 通过；本机成功不能替代 GitHub Mac。安装、共享 runtime、
   Windows launcher、路径/编码/进程和本机集成等平台敏感改动由 Router 标记为需要 GitHub
   `windows-2022`，但 Mac PR/push 不自动触发；必须在 Windows 真机 checkout 待验 commit 后，从该机

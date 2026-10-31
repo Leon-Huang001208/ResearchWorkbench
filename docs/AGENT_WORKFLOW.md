@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-31起Mac干净安装CI沿原单job切换至`macos-15`，保留全部原安装与健康门；macos-14因官方brownout在启动前取消的旧记录保持CANCELLED。较早迭代的镜像名称只描述当时证据，现行要求以AGENTS及安装文档为准。
+
 ## successor 的交付与现场证据分层（2026-10-31）
 
 该任务按高风险 macOS Native 维护路由隔离开发与完整交付：`handoff-trial-retirement` 只交接固定 90e 的旧 journal／phase／执行器，v5 小型 pyz 仍走原 `Operations/execute/recover`；fresh retry 另以已完成退役的 b800 rollback 回执和 db2 新资格开事务，不泛开旧 quarantine。不得修改冻结原件、借未准入控制器或用开发 worktree 替代生产依赖。

@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+2026-10-31 PR257 的两次Mac安装作业因GitHub官方macOS14镜像brownout在runner启动前取消，
+注释确认该镜像将于11月2日退役。依据runner-images#13518的迁移指引，同一个clean-install
+job切换到标准macos-15；runner数量、60分钟上限、触发、固定DSH构建、3081/8088与Doctor
+检查全部保留，不增加Windows/Linux dispatch。旧cancelled记录不认证为通过，修后候选须重新取证。
+
 2026-10-31 开发产物生命周期沿原Project Constraints Git safety步骤增加Node桥合同，
 保留全部原Git安全/快照/修订合同；不新增job、runner、依赖、timeout或平台dispatch。
 新增桥合同本机亚秒，原备份完整回归另留耗时；缺少共用runtime安装授权时不冒充已启用。
