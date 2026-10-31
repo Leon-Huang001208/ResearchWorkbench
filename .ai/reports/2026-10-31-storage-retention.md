@@ -26,5 +26,7 @@
 
 随后原集成工作树保留合并链并形成未收养候选`0de64927306e78a2396e5a1c132fc7db14302130`，与最新feature的树一致。正式`--prepare --amend-prepared`在备份和收养前返回`REMOTE_BASE_CHANGED`：远端`master`已从原`911dfee9`推进到`1fe40cd237251deb91ceb1bb6ec87c65a3e79135`，旧prepared回执保持原样。针对这一实际门缺口，给尚未发布且处于`prepared`的任务增加直接基线刷新；刷新仍要求旧候选、新基线和最新feature均为当前候选祖先、工作树干净、远端主线经实时复查。`mergeSourceCommit`若存在必须与旧feature相等，收养时同步推进。合法刷新、错绑拒绝、主线未变拒绝三例使用真实夹具验证；前两例在修复前先失败。本次不通过发布来伪造`remote_moved`，也不修改旧回执或远端分支。
 
+随后通过正式`--prepare`把基线刷新至`1fe40cd2`，原未发布任务状态仍为`prepared`，接纳的中间候选为`c086796a0019658b1e46c1d11d9925eaaef58f4c`。该候选的Node本地回归470/470、Python `test_iteration_resources.py` unittest25/25、文档治理950文件零违规及索引检查已通过；全部本地和同候选CI仍需在最终文档修订后重新绑定。独立评审发现本文档误写普通Git恢复点仍保留7天，与新主线资源生命周期合同冲突；已改为新登记成功点按保护检查即时轮转并保留最新两份，未登记历史逐类审核。
+
 <!-- architecture-review {"group":"verification-workflow","structure":"changed","reason":"新任务证据收尾由全量logs复制改为显式选择并限制保留字节；新增本机测试临时根的身份登记、PASS证据封存和提前安全回收。08图源新增即时回收与选择性归档节点，并连接实际回执门。","diagrams":["08-iteration-docs"]} -->
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新增回收只操作登记过的本机pytest临时根与交付日志清单；Docker的容器、镜像、业务卷、BuildKit锁与预算均未变，Native/Host/DSH产品部署拓扑保持由各自任务管理。","diagrams":[]} -->
