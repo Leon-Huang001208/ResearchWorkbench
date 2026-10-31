@@ -18,5 +18,11 @@
 - 完整变更集Router为L4；33文件Project Constraints为0违规，文档治理、Python索引和架构一致性检查均通过。Archify图08通过9项showcase、0错误/警告，四视口截图无溢出，实际看过1440浅色及2048深色。L1验证策略/回执/Skill/平台/架构Node合同及L4本地组合均实际退出0。Ruff、isort、`git diff --check`通过；Black对新脚本、新测试和修改的资源模块通过，既有`test_iteration_resources.py`的master原版单独做Black检查亦会报would-reformat，未借本任务大面积改写旧格式。独立Python审查在最近的源码版未发现P1/P2；最终文档提交后的Router及同候选GitHub CI、Mac干净安装仍待执行。现有缓存中的mypy因缺`librt`无法启动，本轮不安装新包，类型检查记为NOT_RUN。历史task archive的期限性轮转未在本次自动删除范围；现有未知或未归并任务需要逐项身份与恢复引用审计。Windows/Linux产品门保持`NOT_RUN`，不能从Mac单测推定。
 - 后续精确归属：特性提交`13a1ae58fc0a24f26f8fa0387ad150c3aae7b19a`与受管集成提交`5dc24828a749852ecb6c7c5a5ac8670b5c611afa`的树同为`fa49985ec09b0a63913b969dee2ada41e55a04dd`；两处干净工作树分别以自己的HEAD跑过46/46局部用例和81/81协议用例，均零失败/错误，五批协议的真实Keychain调用均为0。集成候选的本地回执位于`logs/storage-retention-integration/`，局部/协议manifest SHA-256分别为`82a340e1cbc97404a06cf25a9c3fa549d67157ca5c2287a90ea7d870059f0b54`与`50093f912775d51925827bf3788b334b1b65cd4421837d56a5497b5b0e07e830`；该归属不把随后文档修订生成的新提交说成已跑过同SHA测试。最终PR合成checkout、Project Constraints CI及Mac干净安装仍须用最终SHA另证。
 
+## 2026-11-01 prepared-amend 兼容回归
+
+为修正上段验收归属，特性分支新增了仅文档提交，旧prepared回执仍固定`5dc24828`、尚无CI/PR。项目入口按设计拒绝`--replace-prepared`；原`--amend-prepared`在备份前返回`UNPUBLISHED_STATE_INVALID`，因为共享控制器的回执多了`mergeSourceCommit=旧feature`而安全入口允许字段未同步。旧回执未手改，旧集成的94份原始日志经hash验证归档到仍受管的feature日志，四份可再生依赖/空目录由项目资源入口清理。原integration按安全合同继续提交了第一父链为`5dc24828`、第二父为新feature的合并提交，保留原refs与候选身份。
+
+窄修复只在严格回执允许字段中加入`mergeSourceCommit`，要求它精确等于旧`featureCommit`，正式收养时推进到新feature。新增合法/错绑两例先真实RED（1失败、1通过），修复后2/2GREEN，完整`git_safety_amend_prepared.test.mjs` 106/106通过（约274.8秒）；缺字段旧回执、恶意扩权字段和恢复失败合同仍在原完整集合。安全入口再次收养、备份恢复与最终同候选CI仍未运行，本段不把单测说成受管交付成功。
+
 <!-- architecture-review {"group":"verification-workflow","structure":"changed","reason":"新任务证据收尾由全量logs复制改为显式选择并限制保留字节；新增本机测试临时根的身份登记、PASS证据封存和提前安全回收。08图源新增即时回收与选择性归档节点，并连接实际回执门。","diagrams":["08-iteration-docs"]} -->
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新增回收只操作登记过的本机pytest临时根与交付日志清单；Docker的容器、镜像、业务卷、BuildKit锁与预算均未变，Native/Host/DSH产品部署拓扑保持由各自任务管理。","diagrams":[]} -->
