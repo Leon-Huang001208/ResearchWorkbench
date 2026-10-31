@@ -131,10 +131,22 @@
       ]
     },
     {
+      "id": "python-jobs",
+      "type": "external",
+      "label": "双 Job 合同执行",
+      "sublabel": "各 2 worker · shard 0 含 JS/编辑",
+      "row": 2,
+      "col": 0,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
       "id": "ci",
       "type": "external",
-      "label": "本地与 CI 约束",
-      "sublabel": "同一规则 · 错误阻止交付",
+      "label": "统一 checks 门",
+      "sublabel": "精确并集 · final/JUnit/PASS",
       "row": 2,
       "col": 1,
       "size": [
@@ -222,11 +234,17 @@
     {
       "id": "gate-ci",
       "from": "gate",
-      "to": "ci",
-      "label": "退出码与报告",
+      "to": "python-jobs",
+      "label": "完整候选",
       "fromSide": "bottom",
       "toSide": "top",
       "labelDy": 24
+    },
+    {
+      "id": "python-checks",
+      "from": "python-jobs",
+      "to": "ci",
+      "label": "两份安全证据"
     },
     {
       "id": "html-entry",
@@ -252,7 +270,7 @@
       "title": "失败不放行",
       "items": [
         "仅改源码、图源与旧HTML不一致、断链均返回错误",
-        "CI核对既有产物，不依赖开发机Archify安装"
+        "缺 shard、final 或 JUnit 时统一 checks 门失败"
       ]
     },
     {

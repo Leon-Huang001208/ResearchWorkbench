@@ -5,6 +5,8 @@ PR245 后继的stock边界Catalog metadata投影与5秒节流worker安全进度�
 完全不参与验收，缺final/JUnit/exact-union时仍失败。固定oracle本机profile及7,919-node写盘模拟
 不能认证模型、报告、真实候选CI、真实DSH研究或盲评。
 
+PR245 的容量闭环把同一完整 Python collection 确定性拆给两个并行 Ubuntu job，每个 job 仍只有原两个 worker；最终 `checks` 只在两份安全 artifact 上核验跨 job 精确并集及逐 worker final/JUnit/PASS。JS/editorial 只执行一次，单 job 仍为 45 分钟；这不删测试、不增加模型／供应商调用或改变 FinGPT 题目、费用与质量 oracle。progress-only、旧取消或本机静态检查均不能认证真实候选 CI，更不能认证模型效果。
+
 PR245 的 runtime 导入事实定点验证只补入既有 Checks Python 清单，保护同次绑定的字节新鲜性与导入守卫；一次本地 Catalog 的 6／281／56 和 stable oracle 差异 0 不属于三组模型比较，也不产生模型、来源或报告质量通过证据。4b38 Checks 45 分钟取消与 mypy 原 17 项错误保持，未发送新 CI 或模型请求。
 
 PR245 repair3 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立声明的 dev 工具和普通 wheel 安装边界，并在完整测试前以 -I 实际核验已安装 Host／fresh Native 导入准入。未锁 jsonpointer 的真实 optional 引用及可发现性仍拒绝；不通过修改 policy、依赖锁或删测试降低门槛。离线 wheel／资源真调用不等于实际安装或console script通过；本机治理与安装CI不认证FinGPT模型质量、真实报告或用户额外SDK环境兼容，本轮不执行模型对比、上游取数或常驻切换。旧候选DSH下载超时不扩大重试、pin或模型预算。
@@ -44,7 +46,7 @@ Wind 恢复准备的分项见证、只读预检和私有停止构件是运维安
 
 Checks预算30→40分钟只为保留原完整合同矩阵，不运行FinGPT比较、不扩大真实模型或供应商授权。旧候选30m0s取消仍非PASS，不能用Mac安装或本机结果替代新提交完整CI；Source/安装/真实研究与Word门保持独立，质量合同和全部测试不减少。
 
-2026-10-29 Research Web Checks 的两条既有 Python scope 在原 Ubuntu job 内分成两个独立 pytest worker，并上传短期保存的 JUnit/nodeID/log 证据；原选择、CI 门和45分钟上限不变。该实现只调整测试执行吞吐，不运行FinGPT比较、不改变模型次数/费用/质量判据，也不把本机合同通过当成新候选CI或真实模型质量。
+2026-10-29 Research Web Checks 的两条既有 Python scope 最初在单一 Ubuntu job 内分成两个独立 pytest worker，并上传短期保存的脱敏 JUnit/nodeID/摘要日志证据；后继容量修复保留该层，再在 job 层确定性二分并由统一 `checks` 门核验。原选择、每 job 两 worker 和 45 分钟上限不变；峰值 runner 与总 runner-minutes 的变化单独记入 Actions 预算。该实现只调整测试执行吞吐，不运行 FinGPT 比较、不改变模型次数／费用／质量判据，也不把本机合同或 progress 当成新候选 CI 或真实模型质量。
 
 首个4ed hosted候选的分区CI收集7,381项后两个worker均在测试执行前失败。实际根因为被参数化的frozenset跨进程顺序不稳定，导致worker完整nodeID顺序与父manifest不一致；对应测试现按稳定排序收集，23个案例保持不变。worker安全taxonomy固定为phase/code映射及producer/stager相同的异常类枚举；未知identifier形失败正文归零、私有异常类名不进入artifact。定向回归只用于定位/验证测试调度与证据隐私，不认证FinGPT质量、模型调用或新的hosted CI已通过。
 

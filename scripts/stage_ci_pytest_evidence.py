@@ -9,7 +9,7 @@ import os
 import re
 import stat
 import xml.etree.ElementTree as ET
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -22,12 +22,9 @@ SOURCE_ALLOWLIST = (
     "worker-0.owner.json",
     "worker-1.owner.json",
     "worker-0/result.json",
-    "worker-0/junit.xml",
-    "worker-0/pytest.log",
     "worker-1/result.json",
-    "worker-1/junit.xml",
-    "worker-1/pytest.log",
 )
+JUNIT_ALLOWLIST = ("worker-0/junit.xml", "worker-1/junit.xml")
 PROGRESS_ALLOWLIST = ("worker-0/progress.json", "worker-1/progress.json")
 MAX_FILE_BYTES = 100 * 1024 * 1024
 WORKER_PROGRESS_FIELDS = {
@@ -316,6 +313,7 @@ def _read_relative(
     *,
     root_device: int,
     uid: int,
+    private: bool = True,
 ) -> tuple[bytes, os.stat_result] | None:
     parts = relative.split("/")
     if any(not part or part in {".", ".."} for part in parts):
@@ -328,7 +326,13 @@ def _read_relative(
                 os.stat(component, dir_fd=parent_fd, follow_symlinks=False)
             except FileNotFoundError:
                 return None
-            child_fd, _ = _open_directory_at(parent_fd, component, device=root_device, uid=uid)
+            child_fd, _ = _open_directory_at(
+                parent_fd,
+                component,
+                device=root_device,
+                uid=uid,
+                private=private,
+            )
             descriptors.append(child_fd)
             parent_fd = child_fd
         return _read_file_at(parent_fd, parts[-1], device=root_device, uid=uid)
@@ -402,20 +406,44 @@ def _validate_selection(selection: Any) -> list[str]:
 
 
 def _validate_manifest(manifest: dict[str, Any], task_id: str) -> dict[str, Any]:
-    fields = {"schemaVersion", "taskId", "selection", "nodeIds", "partitions", "planSha256"}
+    fields = {
+        "schemaVersion",
+        "taskId",
+        "selection",
+        "suiteNodeIds",
+        "jobShardIndex",
+        "jobShardCount",
+        "nodeIds",
+        "partitions",
+        "planSha256",
+    }
     if (
         set(manifest) != fields
         or type(manifest.get("schemaVersion")) is not int
-        or manifest["schemaVersion"] != 2
+        or manifest["schemaVersion"] != 3
     ):
         raise StagingError("partition manifest schema is invalid")
     if manifest.get("taskId") != task_id:
         raise StagingError("partition manifest task identity is invalid")
     selection = _validate_selection(manifest.get("selection"))
+    suite_nodeids = manifest.get("suiteNodeIds")
+    job_index = manifest.get("jobShardIndex")
+    job_count = manifest.get("jobShardCount")
     nodeids = manifest.get("nodeIds")
     partitions = manifest.get("partitions")
     if (
-        not isinstance(nodeids, list)
+        not isinstance(suite_nodeids, list)
+        or not suite_nodeids
+        or any(
+            not isinstance(nodeid, str) or not nodeid.startswith("tests/")
+            for nodeid in suite_nodeids
+        )
+        or len(set(suite_nodeids)) != len(suite_nodeids)
+        or type(job_index) is not int
+        or type(job_count) is not int
+        or job_count not in {1, 2}
+        or job_index not in range(job_count)
+        or not isinstance(nodeids, list)
         or not nodeids
         or any(not isinstance(nodeid, str) or not nodeid.startswith("tests/") for nodeid in nodeids)
         or len(set(nodeids)) != len(nodeids)
@@ -424,12 +452,17 @@ def _validate_manifest(manifest: dict[str, Any], task_id: str) -> dict[str, Any]
         or any(not isinstance(partition, list) for partition in partitions)
     ):
         raise StagingError("partition manifest node ID data is invalid")
+    if nodeids != suite_nodeids[job_index::job_count]:
+        raise StagingError("partition manifest job shard is not deterministic")
     expected = [nodeids[index::2] for index in range(2)]
     if partitions != expected or any(not partition for partition in partitions):
         raise StagingError("partition manifest is not a complete deterministic split")
     payload = {
         "taskId": task_id,
         "selection": selection,
+        "suiteNodeIds": suite_nodeids,
+        "jobShardIndex": job_index,
+        "jobShardCount": job_count,
         "nodeIds": nodeids,
         "partitions": partitions,
     }
@@ -795,6 +828,9 @@ def _safe_worker_summary(
         "executionNodeIds": execution_ids,
         "junit": junit_summary,
         "junitSha256": junit_sha256,
+        "artifactJunitSha256": (
+            hashlib.sha256(junit_bytes).hexdigest() if junit_bytes is not None else None
+        ),
         "failureTaxonomy": failure_taxonomy,
         "progress": progress if result is None else None,
     }
@@ -932,6 +968,9 @@ def _scope_artifacts(
             "schemaVersion": manifest["schemaVersion"],
             "taskId": task_id,
             "selection": manifest["selection"],
+            "suiteNodeIds": manifest["suiteNodeIds"],
+            "jobShardIndex": manifest["jobShardIndex"],
+            "jobShardCount": manifest["jobShardCount"],
             "nodeIds": manifest["nodeIds"],
             "partitions": manifest["partitions"],
             "planSha256": manifest["planSha256"],
@@ -1046,7 +1085,7 @@ def _load_source_root(
         if marker is None:
             raise StagingError(f"task root owner marker is invalid: {scope}")
         task_pattern = re.fullmatch(
-            r"(?:github-[0-9]+-[0-9]+-(?:research-web|unit)"
+            r"(?:github-[0-9]+-[0-9]+(?:-shard-[01])?-(?:research-web|unit)"
             r"|fixture-[a-z0-9-]+|local-ci-validation)",
             marker.get("taskId", "") if isinstance(marker.get("taskId"), str) else "",
         )
@@ -1074,6 +1113,15 @@ def _load_source_root(
         raw_files: dict[str, bytes] = {}
         source_stats: dict[str, os.stat_result] = {ROOT_MARKER: marker_stat}
         for relative in SOURCE_ALLOWLIST:
+            loaded = _read_relative(
+                root_fd, relative, root_device=root_info.st_dev, uid=os.getuid()
+            )
+            if loaded is None:
+                continue
+            raw_files[relative], source_stats[relative] = loaded
+        for index, relative in enumerate(JUNIT_ALLOWLIST):
+            if f"worker-{index}/result.json" not in raw_files:
+                continue
             loaded = _read_relative(
                 root_fd, relative, root_device=root_info.st_dev, uid=os.getuid()
             )
@@ -1183,6 +1231,264 @@ def _write_tree(root_fd: int, entries: dict[str, bytes]) -> int:
         return total
     finally:
         for descriptor in reversed(owned_fds):
+            os.close(descriptor)
+
+
+SAFE_WORKER_ARTIFACT_FIELDS = {
+    "workerIndex",
+    "pid",
+    "status",
+    "pytestExitCode",
+    "assignedNodeCount",
+    "executionNodeIds",
+    "junit",
+    "junitSha256",
+    "artifactJunitSha256",
+    "failureTaxonomy",
+    "progress",
+}
+
+SAFE_ARTIFACT_STATUS_FIELDS = {
+    "schemaVersion",
+    "status",
+    "scopes",
+    "files",
+    "contentBytes",
+}
+
+
+def _read_artifact_file(root_fd: int, root_info: os.stat_result, relative: str) -> bytes:
+    loaded = _read_relative(
+        root_fd,
+        relative,
+        root_device=root_info.st_dev,
+        uid=os.getuid(),
+        private=False,
+    )
+    if loaded is None:
+        raise StagingError(f"missing shard artifact file: {relative}")
+    return loaded[0]
+
+
+def _read_artifact_json(root_fd: int, root_info: os.stat_result, relative: str) -> dict[str, Any]:
+    try:
+        value = json.loads(_read_artifact_file(root_fd, root_info, relative))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise StagingError(f"invalid shard artifact JSON: {relative}") from error
+    if not isinstance(value, dict):
+        raise StagingError(f"shard artifact JSON root is not an object: {relative}")
+    return value
+
+
+def _validate_artifact_status(
+    root_fd: int, root_info: os.stat_result, scopes: Sequence[str]
+) -> None:
+    status = _read_artifact_json(root_fd, root_info, "status.json")
+    files = status.get("files")
+    if (
+        set(status) != SAFE_ARTIFACT_STATUS_FIELDS
+        or status.get("schemaVersion") != 1
+        or status.get("status") != "staged"
+        or status.get("scopes") != list(scopes)
+        or not isinstance(files, list)
+        or not files
+        or any(not isinstance(path, str) or not path for path in files)
+        or len(files) != len(set(files))
+        or files != sorted(files)
+        or "status.json" not in files
+        or type(status.get("contentBytes")) is not int
+        or status["contentBytes"] < 0
+    ):
+        raise StagingError("shard artifact staging status is incomplete or invalid")
+    required = {
+        f"{scope}/{relative}"
+        for scope in scopes
+        for relative in (
+            "partitions.json",
+            "scheduler-result.json",
+            "worker-0/result.json",
+            "worker-0/junit.xml",
+            "worker-1/result.json",
+            "worker-1/junit.xml",
+        )
+    }
+    if not required <= set(files):
+        raise StagingError("shard artifact staging status omits required final evidence")
+
+
+def _validate_shard_scope(
+    root_fd: int, root_info: os.stat_result, scope: str
+) -> tuple[dict[str, Any], list[str]]:
+    scope_fd, scope_info = _open_directory_at(
+        root_fd,
+        scope,
+        device=root_info.st_dev,
+        uid=os.getuid(),
+        private=False,
+    )
+    try:
+        manifest_raw = _read_artifact_json(scope_fd, scope_info, "partitions.json")
+        task_id = manifest_raw.get("taskId")
+        if not isinstance(task_id, str):
+            raise StagingError(f"{scope} shard manifest task identity is missing")
+        manifest = _validate_manifest(manifest_raw, task_id)
+        if manifest["jobShardCount"] != 2:
+            raise StagingError(f"{scope} shard artifact is not one half of the two-job plan")
+        scheduler = _read_artifact_json(scope_fd, scope_info, "scheduler-result.json")
+        return _validate_open_shard_scope(scope_fd, scope_info, scope, manifest, scheduler)
+    finally:
+        try:
+            _verify_directory_entry(root_fd, scope, scope_info)
+        finally:
+            os.close(scope_fd)
+
+
+def _validate_open_shard_scope(
+    scope_fd: int,
+    scope_info: os.stat_result,
+    scope: str,
+    manifest: dict[str, Any],
+    scheduler: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    task_id = manifest["taskId"]
+    required_scheduler = {
+        "schemaVersion",
+        "taskId",
+        "scope",
+        "status",
+        "planSha256",
+        "expectedNodeCount",
+        "actualNodeCount",
+        "partitionIntersectionCount",
+        "workers",
+    }
+    if (
+        set(scheduler) != required_scheduler
+        or scheduler.get("schemaVersion") != 1
+        or scheduler.get("taskId") != task_id
+        or scheduler.get("scope") != scope
+        or scheduler.get("status") != "passed"
+        or scheduler.get("planSha256") != manifest["planSha256"]
+        or scheduler.get("expectedNodeCount") != len(manifest["nodeIds"])
+        or scheduler.get("actualNodeCount") != len(manifest["nodeIds"])
+        or scheduler.get("partitionIntersectionCount") != 0
+        or not isinstance(scheduler.get("workers"), list)
+        or len(scheduler["workers"]) != 2
+    ):
+        raise StagingError(f"{scope} shard scheduler is not a complete PASS")
+
+    executed: list[str] = []
+    for worker_index, assigned in enumerate(manifest["partitions"]):
+        worker_name = f"worker-{worker_index}"
+        worker_fd, worker_info = _open_directory_at(
+            scope_fd,
+            worker_name,
+            device=scope_info.st_dev,
+            uid=os.getuid(),
+            private=False,
+        )
+        try:
+            result = _read_artifact_json(worker_fd, worker_info, "result.json")
+            junit_bytes = _read_artifact_file(worker_fd, worker_info, "junit.xml")
+            if (
+                set(result) != SAFE_WORKER_ARTIFACT_FIELDS
+                or result.get("workerIndex") != worker_index
+                or type(result.get("pid")) is not int
+                or result["pid"] <= 0
+                or result.get("status") != "passed"
+                or result.get("pytestExitCode") != 0
+                or result.get("assignedNodeCount") != len(assigned)
+                or result.get("executionNodeIds") != assigned
+                or result.get("failureTaxonomy") is not None
+                or result.get("progress") is not None
+                or not isinstance(result.get("junitSha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", result["junitSha256"])
+            ):
+                raise StagingError(f"{scope} shard worker-{worker_index} lacks an exact final PASS")
+            _, junit_summary, _ = _sanitize_junit(junit_bytes, assigned, allow_partial=False)
+            if (
+                result.get("junit") != junit_summary
+                or junit_summary["failures"] != 0
+                or junit_summary["errors"] != 0
+                or result.get("artifactJunitSha256") != hashlib.sha256(junit_bytes).hexdigest()
+                or scheduler["workers"][worker_index] != result
+            ):
+                raise StagingError(
+                    f"{scope} shard worker-{worker_index} final and JUnit ownership differ"
+                )
+            executed.extend(assigned)
+        finally:
+            try:
+                _verify_directory_entry(scope_fd, worker_name, worker_info)
+            finally:
+                os.close(worker_fd)
+    if executed != [nodeid for part in manifest["partitions"] for nodeid in part]:
+        raise StagingError(f"{scope} shard worker execution order is invalid")
+    if len(executed) != len(set(executed)) or set(executed) != set(manifest["nodeIds"]):
+        raise StagingError(f"{scope} shard worker evidence is not an exact union")
+    return manifest, executed
+
+
+def verify_shard_evidence(
+    shard_roots: Sequence[Path], *, scopes: Sequence[str] = SCOPES
+) -> dict[str, Any]:
+    """Verify two staged job artifacts cover each original suite exactly once."""
+    if len(shard_roots) != 2:
+        raise StagingError("the checks gate requires exactly two shard artifacts")
+    if not scopes or any(scope not in SCOPES for scope in scopes):
+        raise StagingError("the checks gate scope list is invalid")
+    roots: list[tuple[int, os.stat_result, Path]] = []
+    try:
+        for root in shard_roots:
+            roots.append(_open_owned_directory(root))
+        identities = [(info.st_dev, info.st_ino) for _, info, _ in roots]
+        if len(set(identities)) != 2:
+            raise StagingError("the checks gate received duplicate shard artifacts")
+
+        summary: dict[str, dict[str, int]] = {}
+        artifact_indices: list[int | None] = [None, None]
+        for root_fd, root_info, _ in roots:
+            _validate_artifact_status(root_fd, root_info, scopes)
+        for scope in scopes:
+            by_index: dict[int, tuple[dict[str, Any], list[str]]] = {}
+            for root_position, (root_fd, root_info, _) in enumerate(roots):
+                manifest, executed = _validate_shard_scope(root_fd, root_info, scope)
+                index = manifest["jobShardIndex"]
+                if artifact_indices[root_position] not in {None, index}:
+                    raise StagingError(
+                        "one artifact contains inconsistent shard indices across scopes"
+                    )
+                artifact_indices[root_position] = index
+                if index in by_index:
+                    raise StagingError(f"{scope} has duplicate job shard evidence")
+                by_index[index] = (manifest, executed)
+            if set(by_index) != {0, 1}:
+                raise StagingError(f"{scope} does not contain both job shards")
+            first, second = by_index[0][0], by_index[1][0]
+            suite = first["suiteNodeIds"]
+            if (
+                second["suiteNodeIds"] != suite
+                or second["selection"] != first["selection"]
+                or first["nodeIds"] != suite[0::2]
+                or second["nodeIds"] != suite[1::2]
+            ):
+                raise StagingError(f"{scope} job shards do not bind the same original collection")
+            job_nodes = [first["nodeIds"], second["nodeIds"]]
+            if (
+                set(job_nodes[0]) & set(job_nodes[1])
+                or set(job_nodes[0]) | set(job_nodes[1]) != set(suite)
+                or len(job_nodes[0]) + len(job_nodes[1]) != len(suite)
+            ):
+                raise StagingError(f"{scope} job shards are not an exact disjoint union")
+            summary[scope] = {
+                "suiteNodeCount": len(suite),
+                "executedNodeCount": sum(len(by_index[index][1]) for index in (0, 1)),
+            }
+        for _, root_info, canonical_root in roots:
+            _reopen_same_directory(canonical_root, root_info)
+        return {"status": "passed", "jobShardCount": 2, "scopes": summary}
+    finally:
+        for descriptor, _, _ in roots:
             os.close(descriptor)
 
 
@@ -1299,12 +1605,20 @@ def stage_evidence(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runner-temp", type=Path, required=True)
-    parser.add_argument("--workspace", type=Path, required=True)
+    parser.add_argument("--runner-temp", type=Path)
+    parser.add_argument("--workspace", type=Path)
     parser.add_argument("--max-bytes", type=int, default=MAX_FILE_BYTES)
+    parser.add_argument("--verify-shards", nargs=2, type=Path)
     args = parser.parse_args(argv)
     try:
-        result = stage_evidence(args.runner_temp, args.workspace, max_bytes=args.max_bytes)
+        if args.verify_shards is not None:
+            if args.runner_temp is not None or args.workspace is not None:
+                raise StagingError("shard verification cannot also stage runner evidence")
+            result = verify_shard_evidence(args.verify_shards)
+        else:
+            if args.runner_temp is None or args.workspace is None:
+                raise StagingError("staging requires --runner-temp and --workspace")
+            result = stage_evidence(args.runner_temp, args.workspace, max_bytes=args.max_bytes)
         print(json.dumps(result, sort_keys=True))
         return 0
     except (OSError, StagingError, json.JSONDecodeError) as error:

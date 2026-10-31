@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+PR245 的 45 分钟 Checks 容量修复将原完整 Python node 集合按真实 collection 顺序确定性拆成两个并行 job shard；每个 job 仍运行原有两个有界 worker，因此峰值为两个标准 Ubuntu runner／四个 pytest worker，单 job timeout 仍为 45 分钟。两个 shard 各自安装同一冻结依赖，runner-minutes 可能高于旧单 job；另增加一个最多 5 分钟、只用标准库复核两份安全 artifact 的统一 `checks` 门。该门要求每份下载物同时含 `research-web`／`unit` 与完整 staging status，两个 job 集合为各 scope 原集合的精确无交叉并集，并逐 worker 复核 final、JUnit、退出码和真实 PASS；缺 artifact/scope/final/JUnit、目录或文件软硬链接、替换/超限均失败。JS 与 editorial 只在 shard 0 执行一次，并移到 Python 前；先前步骤失败时后续合同用 `success() || failure()` 继续，取消时不强行续跑。取消中的 staging 不再打开正在写入的原始 `pytest.log`，仅可读取原子替换的 progress；progress 从不构成 PASS。旧 41041540250／旧 b4 取消及无 artifact 记录保留，repairAttempts=3 不重置；本地小夹具和最终同候选 CI 结果另证，不因源码设计宣称 45 分钟必过。
+
 PR245 单次 runtime 导入语法事实复用只在原 Checks 同一 Python 显式名单登记 `test_pack_import_facts.py`，本机 15 例 0.44 秒，原步骤增量保守预留 5 秒；不新增 job、runner、timeout、依赖或触发，不发送 CI。新候选一次带计数观察的 Catalog 真实保持 6 次 runtime／281 次 save／56 次 validate，stable oracle 字段差异 0；56 次凭据预检由 fail 边界拒绝，不是零尝试，也不访问实际 Keychain。该单样本带计数 wrapper，不能直接与旧无 wrapper 样本计算统计加速。4b38 原 Constraints／Mac Bootstrap 成功、Checks 45 分钟取消及 mypy 原 17 项错误保持原归属，不重置 repairAttempts=3、不额外 rerun；Linux 成本及完整 CI 仍未验证，远端操作前仍须实时核对 visibility／额度。
 
 PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除旧局部 helper，不增删用例或 CI 清单；原22例真实通过42.19秒，独立安全／纯上下文16例通过。没有新增 job、runner、依赖、timeout 或模型／供应商请求；旧 teardown 真实失败及计数保留，测试工具分组粒度修正不削减闭包。

@@ -22,7 +22,7 @@ from typing import Any
 PARTITION_COUNT = 2
 INTERNAL_PREFIX = "--rwb-internal-"
 ROOT_MARKER = ".rwb-ci-pytest-root.json"
-MANIFEST_SCHEMA_VERSION = 2
+MANIFEST_SCHEMA_VERSION = 3
 WORKER_RESULT_SCHEMA_VERSION = 3
 WORKER_PROGRESS_SCHEMA_VERSION = 1
 WORKER_PROGRESS_FIELDS = {
@@ -241,15 +241,39 @@ def split_nodeids(nodeids: Sequence[str], count: int = PARTITION_COUNT) -> list[
     return partitions
 
 
+def split_job_nodeids(nodeids: Sequence[str], *, job_index: int, job_count: int) -> list[str]:
+    """Select one deterministic CI-job shard before its two worker partitions."""
+    if type(job_count) is not int or job_count not in {1, 2}:
+        raise PartitionError("this runner supports one local job or exactly two CI job shards")
+    if type(job_index) is not int or job_index not in range(job_count):
+        raise PartitionError("CI job shard index is outside its declared shard count")
+    if not nodeids or any(not isinstance(nodeid, str) or not nodeid for nodeid in nodeids):
+        raise PartitionError("pytest collection returned an invalid node ID")
+    if len(set(nodeids)) != len(nodeids):
+        raise PartitionError("pytest collection returned duplicate node IDs")
+    selected = list(nodeids[job_index::job_count])
+    if len(selected) < PARTITION_COUNT:
+        raise PartitionError("each CI job shard needs at least two collected node IDs")
+    return selected
+
+
 def _plan_sha256(
     task_id: str,
     selection: Sequence[str],
     nodeids: Sequence[str],
     partitions: Sequence[Sequence[str]],
+    *,
+    suite_nodeids: Sequence[str] | None = None,
+    job_shard_index: int = 0,
+    job_shard_count: int = 1,
 ) -> str:
+    suite = list(nodeids if suite_nodeids is None else suite_nodeids)
     payload = {
         "taskId": task_id,
         "selection": list(selection),
+        "suiteNodeIds": suite,
+        "jobShardIndex": job_shard_index,
+        "jobShardCount": job_shard_count,
         "nodeIds": list(nodeids),
         "partitions": [list(part) for part in partitions],
     }
@@ -270,6 +294,9 @@ def validate_partition_manifest(
         "schemaVersion",
         "taskId",
         "selection",
+        "suiteNodeIds",
+        "jobShardIndex",
+        "jobShardCount",
         "nodeIds",
         "partitions",
         "planSha256",
@@ -283,12 +310,17 @@ def validate_partition_manifest(
         raise PartitionError("unsupported or missing partition manifest schema")
     if manifest.get("taskId") != task_id:
         raise PartitionError("partition manifest task identity does not match its root")
+    suite_nodeids = manifest.get("suiteNodeIds")
     expected = manifest.get("nodeIds")
     partitions = manifest.get("partitions")
     if manifest.get("selection") != list(selection):
         raise PartitionError("worker selection does not match the parent selection")
-    if not isinstance(expected, list) or list(actual_nodeids) != expected:
+    if not isinstance(suite_nodeids, list) or list(actual_nodeids) != suite_nodeids:
         raise PartitionError("worker collection does not exactly match the parent node IDs")
+    job_index = manifest.get("jobShardIndex")
+    job_count = manifest.get("jobShardCount")
+    if expected != split_job_nodeids(suite_nodeids, job_index=job_index, job_count=job_count):
+        raise PartitionError("job shard is not the deterministic split of the parent collection")
     if not isinstance(partitions, list) or len(partitions) != PARTITION_COUNT:
         raise PartitionError("partition manifest must contain exactly two partitions")
     if any(not isinstance(part, list) for part in partitions):
@@ -304,7 +336,15 @@ def validate_partition_manifest(
         raise PartitionError("partition assignments do not cover the parent collection")
     if partitions != split_nodeids(expected):
         raise PartitionError("partition assignments are not the deterministic split")
-    if manifest.get("planSha256") != _plan_sha256(task_id, selection, expected, partitions):
+    if manifest.get("planSha256") != _plan_sha256(
+        task_id,
+        selection,
+        expected,
+        partitions,
+        suite_nodeids=suite_nodeids,
+        job_shard_index=job_index,
+        job_shard_count=job_count,
+    ):
         raise PartitionError("partition plan digest does not match its selection and node IDs")
     return list(expected)
 
@@ -1016,6 +1056,9 @@ def run_suite(
     allowed_parent: Path,
     repository_root: Path,
     task_id: str,
+    *,
+    job_shard_index: int = 0,
+    job_shard_count: int = 1,
 ) -> int:
     validate_selection(arguments, repository_root)
     root = create_task_root(task_root, allowed_parent, task_id)
@@ -1077,14 +1120,28 @@ def run_suite(
         elif collection_code != 0 or collection_plugin.failures:
             collection_error = "pytest collection failed; see scheduler/collect.log"
         else:
-            partitions = split_nodeids(nodeids)
+            job_nodeids = split_job_nodeids(
+                nodeids, job_index=job_shard_index, job_count=job_shard_count
+            )
+            partitions = split_nodeids(job_nodeids)
             manifest = {
                 "schemaVersion": MANIFEST_SCHEMA_VERSION,
                 "taskId": task_id,
                 "selection": list(arguments),
-                "nodeIds": nodeids,
+                "suiteNodeIds": nodeids,
+                "jobShardIndex": job_shard_index,
+                "jobShardCount": job_shard_count,
+                "nodeIds": job_nodeids,
                 "partitions": partitions,
-                "planSha256": _plan_sha256(task_id, arguments, nodeids, partitions),
+                "planSha256": _plan_sha256(
+                    task_id,
+                    arguments,
+                    job_nodeids,
+                    partitions,
+                    suite_nodeids=nodeids,
+                    job_shard_index=job_shard_index,
+                    job_shard_count=job_shard_count,
+                ),
             }
             _atomic_json(root / "partitions.json", manifest)
 
@@ -1285,13 +1342,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--task-id", default=os.environ.get("RWB_DELIVERY_TASK_ID", "local-ci-validation")
     )
+    parser.add_argument("--job-shard-index", type=int, default=0)
+    parser.add_argument("--job-shard-count", type=int, default=1)
     parser.add_argument("selection", nargs=argparse.REMAINDER)
     options = parser.parse_args(provided)
     selection = list(options.selection)
     if selection and selection[0] == "--":
         selection.pop(0)
     return run_suite(
-        selection, options.task_root, options.allowed_parent, Path.cwd(), options.task_id
+        selection,
+        options.task_root,
+        options.allowed_parent,
+        Path.cwd(),
+        options.task_id,
+        job_shard_index=options.job_shard_index,
+        job_shard_count=options.job_shard_count,
     )
 
 

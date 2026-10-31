@@ -4,17 +4,19 @@
   "diagrams": [
     {
       "id": "08-iteration-docs",
-      "artifactSha256": "675cc55e53e7ad1eef1b0bdc587d620bbe673b6112bc6c55534222d698824ce9",
-      "specificationSha256": "eb7fbcc5f6a7f6218954a8e24e9617ea9ccb883a9b0c09197a37322b165fc234",
+      "artifactSha256": "25fe44806dec8b12ffb85dfb3d339a3460dbd6ebef022bccd429e40e124baee8",
+      "specificationSha256": "49e757cb85aee5434f2c3025e0aefd8a475e676a8762658de455e25ae81a0198",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-31",
       "captures": [
+        "08-iteration-docs.visual-check.1440x900.light.png",
         "08-iteration-docs.visual-check.1440x900.dark.png",
-        "08-iteration-docs.visual-check.2048x1320.light.png"
+        "08-iteration-docs.visual-check.2048x1320.light.png",
+        "08-iteration-docs.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
+      "notes": "已实际查看最终 1440 与 2048 的浅色/深色四张同哈希截图；新增双 Job 合同执行到统一 checks 门的节点、两份安全证据连线及缺 shard/final/JUnit 失败说明清晰，未见标签或箭头重叠、穿线、裁剪及显著空白失衡。自动四视口包含性与本次图像检查分开记录；不是用户或真人批准，也不认证 hosted CI、模型或产品旅程。"
     },
     {
       "id": "05-capability-flow",
