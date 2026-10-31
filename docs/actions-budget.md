@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+2026-10-31 开发产物生命周期沿原Project Constraints Git safety步骤增加Node桥合同，
+保留全部原Git安全/快照/修订合同；不新增job、runner、依赖、timeout或平台dispatch。
+新增桥合同本机亚秒，原备份完整回归另留耗时；缺少共用runtime安装授权时不冒充已启用。
+
 PR256 首轮 Checks 41169984771 的全部 7,675 个 research 节点已执行，
 6 个新 CLI fixture setup 错误来自浅 checkout 缺少三个固定历史源对象；
 不是 45 分钟超时。repair1 只在原 Python 步骤前从 canonical origin

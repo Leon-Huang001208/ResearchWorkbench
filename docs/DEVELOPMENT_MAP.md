@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+开发产物生命周期：`scripts/resource_lifecycle.mjs`验证共用runtime及原Git/资源最终认证，登记任务证据并向宿主预算报告BuildKit观测；`git_safety.mjs`在成功收尾事件接入，登记恢复点、按原保护门轮转并保留cleanup_pending欠账。桥合同为`tests/javascript/resource_lifecycle.test.mjs`，详见[协议](resource-lifecycle.md)。
+
 2026-10-31：`resident/trial_retirement.py` 的固定 `rename-only-v2` 容量策略仅由新 successor 执行模式选择，原授权 digest 和 v1 保持；退役记录 v2 在复制前检查完整 journal 与 rename-only 总量，恢复时复核策略及硬链接。`resident/trial_successor.py` 为原 `model_provider_upgrade.py` 提供固定90e交接、小恢复包、精确job暂停/恢复及逐代单PID排空；原操作员提供 `handoff-trial-retirement` 和完成回执约束的 `apply-trial-retirement-v2`，不另建执行循环。回归在 `test_trial_retirement.py`、`test_trial_retirement_upgrade.py` 与 `test_trial_successor.py`，保全 helper 测试保持；现有 Native 维护拓扑不变，不从容量测试或合成CLI推断现场部署成功。
 
 试验退役入口 `resident/model_provider_upgrade.py` 的 `apply-trial-retirement` 在既有
