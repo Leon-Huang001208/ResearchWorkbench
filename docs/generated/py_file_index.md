@@ -24322,6 +24322,8 @@ Functions:
   - Accept only test paths and the selection options used by the CI contract.
 - `split_nodeids`
   - Round-robin the real collection order to balance even large single modules.
+- `split_job_nodeids`
+  - Select one deterministic CI-job shard before its two worker partitions.
 - `_plan_sha256`
 - `validate_partition_manifest`
   - Require exact ordered collection equality and a disjoint two-way union.
@@ -24614,6 +24616,13 @@ Functions:
 - `_mkdir_at`
 - `_write_file_at`
 - `_write_tree`
+- `_read_artifact_file`
+- `_read_artifact_json`
+- `_validate_artifact_status`
+- `_validate_shard_scope`
+- `_validate_open_shard_scope`
+- `verify_shard_evidence`
+  - Verify two staged job artifacts cover each original suite exactly once.
 - `stage_evidence`
   - Validate task roots, create sanitized evidence, and publish one fresh artifact dir.
 - `main`

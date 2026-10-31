@@ -49,9 +49,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  python-contracts:
+    name: Python contracts (shard ${{ matrix.pytest_shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        pytest_shard: [0, 1]
 
     steps:
       - name: Checkout
@@ -180,12 +186,26 @@ jobs:
               raise
           PY_ADMISSION
 
+      - name: Run Research Web JavaScript contracts
+        if: matrix.pytest_shard == 0
+        shell: bash
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+
+      - name: Verify pinned editorial engine without model or paid requests
+        if: (success() || failure()) && matrix.pytest_shard == 0
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
+          node --test services/ai_news/tests/*.test.mjs
+
       - name: Run Research Web Python contracts
+        if: success() || failure()
         run: |
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
             --allowed-parent "$RUNNER_TEMP" \
-            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-shard-${{ matrix.pytest_shard }}-research-web" \
+            --job-shard-index "${{ matrix.pytest_shard }}" \
+            --job-shard-count 2 \
             -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
@@ -366,21 +386,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
             --allowed-parent "$RUNNER_TEMP" \
-            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-shard-${{ matrix.pytest_shard }}-unit" \
+            --job-shard-index "${{ matrix.pytest_shard }}" \
+            --job-shard-count 2 \
             -- \
             tests/unit/test_wind_excel_instances.py \
             tests/unit/test_ci_pytest_partitions.py \
             tests/unit/test_ci_pytest_evidence_staging.py \
             --confcutdir=tests/unit -q
-
-      - name: Run Research Web JavaScript contracts
-        shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
-
-      - name: Verify pinned editorial engine without model or paid requests
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
-          node --test services/ai_news/tests/*.test.mjs
 
       - name: Stage safe pytest evidence
         id: stage-safe-evidence
@@ -396,7 +409,42 @@ jobs:
         if: always() && steps.stage-safe-evidence.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.pytest_shard }}
           path: artifacts/research-web-checks
           if-no-files-found: ignore
           retention-days: 3
+
+  checks:
+    if: always()
+    needs: python-contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Download Python shard 0 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}-shard-0
+          path: artifacts/shard-0
+
+      - name: Download Python shard 1 evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}-shard-1
+          path: artifacts/shard-1
+
+      - name: Verify exact Python shard union and worker evidence
+        run: |
+          python3 scripts/stage_ci_pytest_evidence.py \
+            --verify-shards artifacts/shard-0 artifacts/shard-1
+
+      - name: Require Python, JavaScript, and editorial job success
+        env:
+          PYTHON_CONTRACTS_RESULT: ${{ needs.python-contracts.result }}
+        run: |
+          if [[ "$PYTHON_CONTRACTS_RESULT" != "success" ]]; then
+            echo "python-contracts matrix result: $PYTHON_CONTRACTS_RESULT" >&2
+            exit 1
+          fi

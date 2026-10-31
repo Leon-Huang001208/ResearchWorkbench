@@ -41,6 +41,135 @@ def test_split_round_robins_nodeids_from_large_modules() -> None:
     assert second[0].startswith("tests/test_api.py::")
 
 
+def test_ci_job_shards_form_a_deterministic_exact_union_before_worker_split() -> None:
+    suite = [f"tests/test_api.py::test_api[{index}]" for index in range(12)]
+
+    jobs = [partitions.split_job_nodeids(suite, job_index=index, job_count=2) for index in range(2)]
+
+    assert jobs == [suite[0::2], suite[1::2]]
+    assert set(jobs[0]).isdisjoint(jobs[1])
+    assert set(jobs[0]) | set(jobs[1]) == set(suite)
+    assert all(len(partitions.split_nodeids(job)) == 2 for job in jobs)
+
+
+def _workflow_job(source: str, job_id: str) -> str:
+    lines = source.splitlines()
+    start = lines.index(f"  {job_id}:")
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":"):
+            end = index
+            break
+    return "\n".join(lines[start:end])
+
+
+def _workflow_step(job: str, step_name: str) -> str:
+    lines = job.splitlines()
+    start = lines.index(f"      - name: {step_name}")
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if lines[index].startswith("      - name: "):
+            end = index
+            break
+    return "\n".join(lines[start:end])
+
+
+def _assert_research_web_workflow_contract(workflow: str) -> None:
+    jobs_source = workflow.split("\njobs:\n", 1)[1]
+    job_ids = [
+        line[2:-1]
+        for line in jobs_source.splitlines()
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":")
+    ]
+    assert job_ids == ["python-contracts", "checks"]
+    python_job = _workflow_job(workflow, "python-contracts")
+    checks_job = _workflow_job(workflow, "checks")
+    assert "    name: Python contracts (shard ${{ matrix.pytest_shard }})" in python_job
+    assert "      fail-fast: false" in python_job
+    assert "      max-parallel: 2" in python_job
+    assert "        pytest_shard: [0, 1]" in python_job
+    assert '--job-shard-index "${{ matrix.pytest_shard }}"' in python_job
+    assert python_job.count("--job-shard-count 2") == 2
+
+    javascript = _workflow_step(python_job, "Run Research Web JavaScript contracts")
+    editorial = _workflow_step(
+        python_job, "Verify pinned editorial engine without model or paid requests"
+    )
+    python = _workflow_step(python_job, "Run Research Web Python contracts")
+    upload = _workflow_step(python_job, "Upload safe pytest evidence")
+    assert "        if: matrix.pytest_shard == 0" in javascript
+    assert "        if: (success() || failure()) && matrix.pytest_shard == 0" in editorial
+    assert "        if: success() || failure()" in python
+    assert python_job.index(javascript) < python_job.index(python)
+    assert python_job.index(editorial) < python_job.index(python)
+    assert "        uses: actions/upload-artifact@v4" in upload
+    assert (
+        "          name: research-web-checks-${{ github.run_id }}-"
+        "${{ github.run_attempt }}-shard-${{ matrix.pytest_shard }}" in upload
+    )
+
+    assert "    if: always()" in checks_job
+    assert "    needs: python-contracts" in checks_job
+    assert not any(line.startswith("    name:") for line in checks_job.splitlines())
+    first_download = _workflow_step(checks_job, "Download Python shard 0 evidence")
+    second_download = _workflow_step(checks_job, "Download Python shard 1 evidence")
+    assert "        uses: actions/download-artifact@v4" in first_download
+    assert "        uses: actions/download-artifact@v4" in second_download
+    assert "-shard-0" in first_download and "path: artifacts/shard-0" in first_download
+    assert "-shard-1" in second_download and "path: artifacts/shard-1" in second_download
+    verify = _workflow_step(checks_job, "Verify exact Python shard union and worker evidence")
+    assert "--verify-shards artifacts/shard-0 artifacts/shard-1" in verify
+    guard = _workflow_step(checks_job, "Require Python, JavaScript, and editorial job success")
+    assert "PYTHON_CONTRACTS_RESULT: ${{ needs.python-contracts.result }}" in guard
+    assert 'if [[ "$PYTHON_CONTRACTS_RESULT" != "success" ]]; then' in guard
+    assert "exit 1" in guard
+
+
+def test_research_web_workflow_keeps_four_bounded_workers_and_one_checks_gate() -> None:
+    workflow = (
+        Path(__file__).resolve().parents[2] / ".github/workflows/research-web-checks.yml"
+    ).read_text(encoding="utf-8")
+
+    _assert_research_web_workflow_contract(workflow)
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        "repeat-javascript",
+        "repeat-editorial",
+        "artifact-collision",
+        "missing-second-download",
+        "missing-result-guard",
+    ],
+)
+def test_research_web_workflow_contract_rejects_cost_or_gate_regressions(tamper: str) -> None:
+    workflow = (
+        Path(__file__).resolve().parents[2] / ".github/workflows/research-web-checks.yml"
+    ).read_text(encoding="utf-8")
+    if tamper == "repeat-javascript":
+        workflow = workflow.replace("        if: matrix.pytest_shard == 0\n", "", 1)
+    elif tamper == "repeat-editorial":
+        workflow = workflow.replace(
+            "        if: (success() || failure()) && matrix.pytest_shard == 0\n", "", 1
+        )
+    elif tamper == "artifact-collision":
+        workflow = workflow.replace("-shard-${{ matrix.pytest_shard }}", "-shard")
+    elif tamper == "missing-second-download":
+        workflow = workflow.replace("-shard-1", "-shard-0").replace(
+            "path: artifacts/shard-1", "path: artifacts/shard-0"
+        )
+    else:
+        workflow = workflow.replace(
+            'if [[ "$PYTHON_CONTRACTS_RESULT" != "success" ]]; then',
+            'if [[ "$PYTHON_CONTRACTS_RESULT" == "success" ]]; then',
+        )
+
+    with pytest.raises(AssertionError):
+        _assert_research_web_workflow_contract(workflow)
+
+
 @pytest.mark.parametrize(
     "nodeids",
     [[], ["one::test"], ["same::test", "same::test"]],
@@ -59,6 +188,9 @@ def test_manifest_requires_exact_collection_order_and_full_disjoint_union() -> N
         "schemaVersion": partitions.MANIFEST_SCHEMA_VERSION,
         "taskId": "unit-test-task",
         "selection": selection,
+        "suiteNodeIds": nodeids,
+        "jobShardIndex": 0,
+        "jobShardCount": 1,
         "nodeIds": nodeids,
         "partitions": split,
         "planSha256": partitions._plan_sha256("unit-test-task", selection, nodeids, split),
@@ -197,9 +329,12 @@ class FakeProcess:
             nodeids = ['tests/test_fixture.py::test_one', 'tests/test_fixture.py::test_two']
             partitions = runner.split_nodeids(nodeids)
             plan = {
-                'schemaVersion': 2,
+                'schemaVersion': 3,
                 'taskId': 'forged-result-red',
                 'selection': ['tests/test_fixture.py', '--confcutdir=tests', '-q'],
+                'suiteNodeIds': nodeids,
+                'jobShardIndex': 0,
+                'jobShardCount': 1,
                 'nodeIds': nodeids,
                 'partitions': partitions,
                 'planSha256': 'a' * 64,
@@ -416,6 +551,9 @@ def _run_worker_with_progress_failure(
         "schemaVersion": partitions.MANIFEST_SCHEMA_VERSION,
         "taskId": task_id,
         "selection": arguments,
+        "suiteNodeIds": nodeids,
+        "jobShardIndex": 0,
+        "jobShardCount": 1,
         "nodeIds": nodeids,
         "partitions": split,
         "planSha256": partitions._plan_sha256(task_id, arguments, nodeids, split),

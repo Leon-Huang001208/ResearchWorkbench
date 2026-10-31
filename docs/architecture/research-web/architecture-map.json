@@ -2343,15 +2343,17 @@
         {
           "subjects": [
             "gate-ci",
+            "python-jobs",
+            "python-checks",
             "ci"
           ],
-          "source": ".agents/project-constraints.mjs"
+          "source": ".github/workflows/research-web-checks.yml"
         },
         {
           "subjects": [
             "ci"
           ],
-          "source": ".github/workflows/project-constraints.yml"
+          "source": "scripts/stage_ci_pytest_evidence.py"
         },
         {
           "subjects": [
@@ -2362,7 +2364,7 @@
         }
       ],
       "level": "details",
-      "summary": "源码、图文、测试和离线门禁。"
+      "summary": "源码、图文、测试、双job合同执行和统一证据门。"
     },
     {
       "id": "11-hot-events",
