@@ -6,7 +6,7 @@ PR245 pack runtime 性能回归只登记原 Checks 的同一 Python 显式清单
 
 该任务按高风险 macOS Native 维护路由隔离开发与完整交付：`handoff-trial-retirement` 只交接固定 90e 的旧 journal／phase／执行器，v5 小型 pyz 仍走原 `Operations/execute/recover`；fresh retry 另以已完成退役的 b800 rollback 回执和 db2 新资格开事务，不泛开旧 quarantine。不得修改冻结原件、借未准入控制器或用开发 worktree 替代生产依赖。
 
-三 EX 锁、安装 lease、BirthFence DB EX、精确 job／managed PID 终态和实际 bind 释放须有真实证据；每事务最多 8 项 spawn 意图，任一 pending 保持 UNKNOWN，不能把上限当自动重试额度。原 15 账号 consent 当前不变，终态后再单独清理到 admin＋新 test；不能重开 seal 来掩盖当前恢复失败。原步骤的测试／import、完整 Router、独评、最终 SHA 的 CI／Mac 安装与实际常驻全入口分别记录，未执行继续 NOT_RUN，不能据通用检查宣称 Docker／Windows／Linux 实机通过。详见[handoff 与 fresh retry 合同](research-web-trial-successor-handoff.md)。
+三 EX 锁、安装 lease、BirthFence DB EX、精确 job／managed PID 终态和实际 bind 释放须有真实证据；每事务最多 8 项 spawn 意图，任一 pending 保持 UNKNOWN，不能把上限当自动重试额度。原 15 账号 consent 在交接事务中冻结，终态前不得清理或重开 seal；2026-10-31 现场任务已在终态后独立清理为 admin＋新 test，并核对原 admin 凭据及模型配置。原步骤的测试／import、完整 Router、独评、最终 SHA 的 CI／Mac 安装与实际常驻全入口分别记录，未执行继续 NOT_RUN，不能据通用检查宣称 Docker／Windows／Linux 实机通过。详见[handoff 与 fresh retry 合同](research-web-trial-successor-handoff.md)。
 
 ## 授权历史试验退役的维护路由（2026-10-30）
 

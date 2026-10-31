@@ -15,7 +15,7 @@ PR245 repair3 只将 Checks 测试解释器恢复到既有 Web 全锁＋独立�
 
 固定 90e→v5 的小型 Native pyz 与 fresh retry 仅恢复原部署链；FinGPT 仍是唯一 DSH 上的既有模式，不新增研究引擎、业务 HTTP、依赖或比较运行。三锁、lease、DB EX／有界 spawn 意图不能替代本章冻结问题、模型／次数／费用和质量 oracle；pending 或历史 UNKNOWN 不转为 accepted，也不重发试验来填质量缺口。
 
-当前原 15 账号的模型配置与比较证据保全范围不变；已提交历史弃置与正式质量结论分开，admin＋新 test 清理待终态后独立进行。源码／CI／Mac 安装、真实维护与模型比较分别取证，不据此新增 Docker／Windows／Linux 物理 PASS。维护重入与终态语义见[successor 合同](research-web-trial-successor-handoff.md)。
+交接时原 15 账号的模型配置与比较证据保全范围不变；已提交历史弃置与正式质量结论分开。2026-10-31 现场任务在恢复终态后独立清理为 admin＋新 test，原模型配置经核对保留；这不产生三组模型比较或质量通过证据。源码／CI／Mac 安装、真实维护与模型比较分别取证，不据此新增 Docker／Windows／Linux 物理 PASS。维护重入与终态语义见[successor 合同](research-web-trial-successor-handoff.md)。
 
 ## 试验丢弃与质量证据分离（2026-10-30）
 
