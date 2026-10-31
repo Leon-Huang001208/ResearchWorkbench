@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+2026-10-31 试验清理容量后继沿原 Checks Python 步骤增加精确交接离线合同，
+保留原操作员、退役及备份测试；不新增 job、runner、依赖、timeout 或平台 dispatch。
+新增合同预留原步骤 30 秒，完整候选以实际 CI 用例及耗时为准。Mac 干净安装继续
+使用原 Bootstrap；本机真实恢复、账号保全和登录后验收分别留证，不进入公共产物。
+
 2026-10-30 授权试验退役在原 Research Web Checks Python 清单增加三份离线模块，
 Mac Bootstrap原安装步骤增加维护模块导入。没有新job、runner、依赖或超时，CI不接触
 真实模型、Wind或账号数据。新增模块局部用例约一秒，旧操作员全回归约四分钟，保留
