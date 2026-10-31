@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+## 交付证据与临时资源职责（2026-10-31）
+
+`scripts/test_artifact_retention.py` 只管理登记过的本机测试临时根，终态 PASS 与外部 JUnit/stdout/stderr 复核后可提前回收；`iteration_resources` 在最终 Git 交付收尾时为新任务选择不超过 128 MiB 的日志证据。两个入口不操作 Host、DSH、Docker 运行资源或生产数据，不构成第二研究/部署控制器。旧任务、失败/未知及恢复原件保持原保全链；图 08 仅更新交付证据流程。
+
 ## 版本化 Native 交接的职责（2026-10-31）
 
 `trial_successor` 是原 `model_provider_upgrade` 的交接辅助模块：封印小型 pyz／stage、验证固定 90e predecessor、持久化 v5 handoff 与精确 job 意图；实际退役、安装、恢复和终态仍由原 `Operations/execute` 执行。fresh retry 另建事务，绑定已完成退役的 b800 rollback 回执及固定 db2 资格，不新增 controller、研究引擎、依赖或业务 HTTP 节点，现有拓扑保持。

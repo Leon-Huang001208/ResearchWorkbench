@@ -1,5 +1,9 @@
 # 共享部署资格恢复与源仓库迁移
 
+## 源与恢复原件的留存边界（2026-10-31）
+
+本轮可回收对象限于登记过的本机测试根和新任务选择清单中由通过 JUnit 证明的交付原始输出。Git 对象、已审源码快照、固定执行器、迁移前后源身份、恢复 journal、业务/账号/模型配置不随日志清单删除；源迁移和生产恢复仍走原 exact SHA、备份与锁合同。旧任务没有新 ledger 模式时保持原证据字节，不静默套用新清理规则。
+
 ## 小型 executor provenance 与原源绑定（2026-10-31）
 
 新 successor 使用独立 `executors/<sha>/stage.json` 与内盘原维护根的小型 pyz，不覆盖冻结 1529 source／旧 pyz，也不复用旧 `artifacts/<db2>/executor`。stage 分别绑定 executor 和固定 db2 资格，运行依赖仍来自已保留且验证干净的 db2 product source；开发 worktree 不成为 production 依赖。固定 90e 的 journal 字节＋inode 交接为 v5，不等于可以任意改 `source_common`，原 before／after 双态仍须核验。
