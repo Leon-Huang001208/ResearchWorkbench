@@ -24080,6 +24080,65 @@ Imports:
 - `sys`
 
 
+## `scripts/test_artifact_retention.py`
+
+Module docstring:
+> Register and retire local pytest temp roots after independent PASS evidence is sealed.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections`
+- `contextlib`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `signal`
+- `stat`
+- `subprocess`
+- `sys`
+- `tempfile`
+- `time`
+- `uuid`
+- `xml.etree`
+
+Classes:
+- `RetentionError`
+  - A stable fail-closed reason for an unretired test root.
+
+Functions:
+- `_now`
+- `_free`
+- `_task_lock`
+- `_save`
+- `_phase`
+- `_load`
+- `_owner`
+- `_evidence`
+- `_junit_passed`
+- `_batch_result`
+- `_has_open_files`
+- `_scan`
+- `_assert_contents`
+- `_make_writable`
+- `create_root`
+- `admit_batch`
+- `_usage_bytes`
+- `_bounded_hash`
+- `_capacity_reason`
+- `_checkout_identity`
+- `_terminate_owned`
+- `run_batch`
+- `_retire_root_under_lock`
+- `retire_root`
+- `main`
+
+
 ## `scripts/test_asset_analysis.py`
 
 Module docstring:

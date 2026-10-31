@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+## 本机存储回收的证据归属（2026-10-31）
+
+新 pytest 根回收工具在当前 Mac 宿主使用本机 inode、UID、`lsof` 和安全 `rmtree` 验证；它不认证 Docker、Windows 或 Linux 产品运行。新日志选择合同可由通用仓库 CI 验证，但其他平台的临时根清理仍须对应设备按本机路径和占用机制适配，未执行保持 `NOT_RUN`。宿主 `df` 的物理空间证据与 CI、产品验收分开记录，见[留存规则](research-web-storage-retention.md)。
+
 ## successor 的证据归属（2026-10-31）
 
 固定 90e→v5 handoff 和后续 fresh retry 属于 macOS Native 维护；小型 pyz／stage 替代的是执行器交接方式，不新增 DSH、研究引擎、业务 HTTP、依赖或 Docker／Windows／Linux 产品能力。通用 Ubuntu 单测保留真实宿主文件／UID／SQLite 后端，只为操作员入口设置局部平台视图，不能冒充 Linux 产品或 macOS Native 真机证据。

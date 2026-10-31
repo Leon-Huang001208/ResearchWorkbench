@@ -4918,11 +4918,15 @@
         <path data-edge-from="change" data-edge-to="tests" data-edge-label="实际回归" data-edge-key="3" data-edge-id="source-tests" data-composition-points="140,156;140,291" d="M 140 156 L 140 291" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="mapping" data-edge-to="gate" data-edge-label="覆盖与接口" data-edge-key="4" data-edge-id="map-gate" data-composition-points="455,156;455,291" d="M 455 156 L 455 291" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="tests" data-edge-to="gate" data-edge-label="负向用例" data-edge-key="5" data-edge-id="tests-gate" data-composition-points="240,334;355,334" d="M 240 334 L 355 334" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="graph" data-edge-to="html" data-edge-label="生成并校验" data-edge-key="6" data-edge-id="graph-html" data-composition-points="1085,156;1085,291" d="M 1085 156 L 1085 291" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="html" data-edge-to="evidence" data-edge-label="截图与检查" data-edge-key="7" data-edge-id="html-visual" data-composition-points="985,334;870,334" d="M 985 334 L 870 334" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="evidence" data-edge-to="gate" data-edge-label="比对字节" data-edge-key="8" data-edge-id="visual-gate" data-composition-points="670,334;555,334" d="M 670 334 L 555 334" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="gate" data-edge-to="ci" data-edge-label="退出码与报告" data-edge-key="9" data-edge-id="gate-ci" data-composition-points="455,377;455,512" d="M 455 377 L 455 512" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="html" data-edge-to="entry" data-edge-label="受限只读" data-edge-key="10" data-edge-id="html-entry" data-composition-points="1085,377;1085,512" d="M 1085 377 L 1085 512" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="tests" data-edge-to="temp-retirement" data-edge-label="封存后回收" data-edge-key="6" data-edge-id="tests-temp-retirement" data-composition-points="140,377;140,512" d="M 140 377 L 140 512" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="temp-retirement" data-edge-to="ci" data-edge-label="回收回执" data-edge-key="7" data-edge-id="temp-retirement-ci" data-composition-points="240,555;355,555" d="M 240 555 L 355 555" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="graph" data-edge-to="html" data-edge-label="生成并校验" data-edge-key="8" data-edge-id="graph-html" data-composition-points="1085,156;1085,291" d="M 1085 156 L 1085 291" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="html" data-edge-to="evidence" data-edge-label="截图与检查" data-edge-key="9" data-edge-id="html-visual" data-composition-points="985,334;870,334" d="M 985 334 L 870 334" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="evidence" data-edge-to="gate" data-edge-label="比对字节" data-edge-key="10" data-edge-id="visual-gate" data-composition-points="670,334;555,334" d="M 670 334 L 555 334" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="evidence" data-edge-to="selected-evidence" data-edge-label="来源哈希" data-edge-key="11" data-edge-id="evidence-selection" data-composition-points="770,377;770,512" d="M 770 377 L 770 512" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="selected-evidence" data-edge-to="ci" data-edge-label="保留清单" data-edge-key="12" data-edge-id="selection-ci" data-composition-points="670,555;555,555" d="M 670 555 L 555 555" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="gate" data-edge-to="ci" data-edge-label="退出码与报告" data-edge-key="13" data-edge-id="gate-ci" data-composition-points="455,377;455,512" d="M 455 377 L 455 512" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="html" data-edge-to="entry" data-edge-label="受限只读" data-edge-key="14" data-edge-id="html-entry" data-composition-points="1085,377;1085,512" d="M 1085 377 L 1085 512" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
         <g id="node-change" data-node-id="change" data-node-label="代码与迭代变更" tabindex="0" role="button" aria-label="Focus 代码与迭代变更, Git base · staged · 工作区, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="Git base · staged · 工作区" data-node-context="Architecture component">
@@ -5025,6 +5029,17 @@
         <text data-detail="context" x="1085" y="348" class="t-muted" font-size="9" text-anchor="middle">固定十图 · deliver 回执</text>
         </g>
 
+        <g id="node-temp-retirement" data-node-id="temp-retirement" data-node-label="测试根即时回收" tabindex="0" role="button" aria-label="Focus 测试根即时回收, PASS · inode · 无占用, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="PASS · inode · 无占用" data-node-context="Architecture component">
+          <title>测试根即时回收 · PASS · inode · 无占用 · Architecture component</title>
+          <rect x="40" y="512" width="200" height="86" rx="6" class="c-mask"/>
+          <rect x="40" y="512" width="200" height="86" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 518) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-detail-anchor x="140" y="553" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">测试根即时回收</text>
+        <text data-detail="context" x="140" y="569" class="t-muted" font-size="9" text-anchor="middle">PASS · inode · 无占用</text>
+        </g>
+
         <g id="node-ci" data-node-id="ci" data-node-label="本地与 CI 约束" tabindex="0" role="button" aria-label="Focus 本地与 CI 约束, 同一规则 · 错误阻止交付, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="同一规则 · 错误阻止交付" data-node-context="Architecture component">
           <title>本地与 CI 约束 · 同一规则 · 错误阻止交付 · Architecture component</title>
           <rect x="355" y="512" width="200" height="86" rx="6" class="c-mask"/>
@@ -5035,6 +5050,18 @@
           </g>
           <text data-detail-anchor x="455" y="553" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">本地与 CI 约束</text>
         <text data-detail="context" x="455" y="569" class="t-muted" font-size="9" text-anchor="middle">同一规则 · 错误阻止交付</text>
+        </g>
+
+        <g id="node-selected-evidence" data-node-id="selected-evidence" data-node-label="选择性证据归档" tabindex="0" role="button" aria-label="Focus 选择性证据归档, 完整清单 · 128 MiB 门, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="完整清单 · 128 MiB 门" data-node-context="Architecture component">
+          <title>选择性证据归档 · 完整清单 · 128 MiB 门 · Architecture component</title>
+          <rect x="670" y="512" width="200" height="86" rx="6" class="c-mask"/>
+          <rect x="670" y="512" width="200" height="86" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(676 518) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-detail-anchor x="770" y="553" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">选择性证据归档</text>
+        <text data-detail="context" x="770" y="569" class="t-muted" font-size="9" text-anchor="middle">完整清单 · 128 MiB 门</text>
         </g>
 
         <g id="node-entry" data-node-id="entry" data-node-label="产品文档入口" tabindex="0" role="button" aria-label="Focus 产品文档入口, 固定文件名 · 隔离 CSP, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="固定文件名 · 隔离 CSP" data-node-context="Architecture component">
@@ -5073,23 +5100,39 @@
           <rect x="273.3" y="314" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="297.5" y="324" class="t-muted" font-size="8" text-anchor="middle">负向用例</text>
         </g>
-        <g data-detail="context" data-edge-from="graph" data-edge-to="html" data-edge-label="生成并校验" data-edge-key="6" data-edge-id="graph-html">
+        <g data-detail="context" data-edge-from="tests" data-edge-to="temp-retirement" data-edge-label="封存后回收" data-edge-key="6" data-edge-id="tests-temp-retirement">
+          <rect x="111" y="381" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="140" y="391" class="t-muted" font-size="8" text-anchor="middle">封存后回收</text>
+        </g>
+        <g data-detail="context" data-edge-from="temp-retirement" data-edge-to="ci" data-edge-label="回收回执" data-edge-key="7" data-edge-id="temp-retirement-ci">
+          <rect x="273.3" y="535" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="297.5" y="545" class="t-muted" font-size="8" text-anchor="middle">回收回执</text>
+        </g>
+        <g data-detail="context" data-edge-from="graph" data-edge-to="html" data-edge-label="生成并校验" data-edge-key="8" data-edge-id="graph-html">
           <rect x="1056" y="160" width="58" height="14" rx="3" class="c-mask"/>
           <text x="1085" y="170" class="t-muted" font-size="8" text-anchor="middle">生成并校验</text>
         </g>
-        <g data-detail="context" data-edge-from="html" data-edge-to="evidence" data-edge-label="截图与检查" data-edge-key="7" data-edge-id="html-visual">
+        <g data-detail="context" data-edge-from="html" data-edge-to="evidence" data-edge-label="截图与检查" data-edge-key="9" data-edge-id="html-visual">
           <rect x="898.5" y="314" width="58" height="14" rx="3" class="c-mask"/>
           <text x="927.5" y="324" class="t-muted" font-size="8" text-anchor="middle">截图与检查</text>
         </g>
-        <g data-detail="context" data-edge-from="evidence" data-edge-to="gate" data-edge-label="比对字节" data-edge-key="8" data-edge-id="visual-gate">
+        <g data-detail="context" data-edge-from="evidence" data-edge-to="gate" data-edge-label="比对字节" data-edge-key="10" data-edge-id="visual-gate">
           <rect x="588.3" y="314" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="612.5" y="324" class="t-muted" font-size="8" text-anchor="middle">比对字节</text>
         </g>
-        <g data-detail="context" data-edge-from="gate" data-edge-to="ci" data-edge-label="退出码与报告" data-edge-key="9" data-edge-id="gate-ci">
+        <g data-detail="context" data-edge-from="evidence" data-edge-to="selected-evidence" data-edge-label="来源哈希" data-edge-key="11" data-edge-id="evidence-selection">
+          <rect x="745.8" y="381" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="770" y="391" class="t-muted" font-size="8" text-anchor="middle">来源哈希</text>
+        </g>
+        <g data-detail="context" data-edge-from="selected-evidence" data-edge-to="ci" data-edge-label="保留清单" data-edge-key="12" data-edge-id="selection-ci">
+          <rect x="588.3" y="535" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="612.5" y="545" class="t-muted" font-size="8" text-anchor="middle">保留清单</text>
+        </g>
+        <g data-detail="context" data-edge-from="gate" data-edge-to="ci" data-edge-label="退出码与报告" data-edge-key="13" data-edge-id="gate-ci">
           <rect x="421.2" y="381" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="455" y="391" class="t-muted" font-size="8" text-anchor="middle">退出码与报告</text>
         </g>
-        <g data-detail="context" data-edge-from="html" data-edge-to="entry" data-edge-label="受限只读" data-edge-key="10" data-edge-id="html-entry">
+        <g data-detail="context" data-edge-from="html" data-edge-to="entry" data-edge-label="受限只读" data-edge-key="14" data-edge-id="html-entry">
           <rect x="1060.8" y="381" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="1085" y="391" class="t-muted" font-size="8" text-anchor="middle">受限只读</text>
         </g>

@@ -2244,6 +2244,22 @@
         },
         {
           "subjects": [
+            "temp-retirement",
+            "tests-temp-retirement",
+            "temp-retirement-ci"
+          ],
+          "source": "scripts/test_artifact_retention.py"
+        },
+        {
+          "subjects": [
+            "selected-evidence",
+            "evidence-selection",
+            "selection-ci"
+          ],
+          "source": "research_workbench_entrypoint/iteration_resources.py"
+        },
+        {
+          "subjects": [
             "html",
             "evidence",
             "html-visual"

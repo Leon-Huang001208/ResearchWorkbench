@@ -1583,6 +1583,47 @@ function unpublishedBaseRefreshFixture(t, settings = {}) {
   return f;
 }
 
+test('unpublished prepared candidate refreshes an advanced master and binds the latest feature merge source', async t => {
+  const f = unpublishedBaseRefreshFixture(t);
+  f.receipt.status = 'prepared';
+  f.receipt.mergeSourceCommit = f.receipt.featureCommit;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt), {mode: 0o600});
+  fs.writeFileSync(path.join(f.receipt.featureWorktree, 'repair.txt'), 'latest feature repair\n');
+  git(f.receipt.featureWorktree, ['add', '.']); git(f.receipt.featureWorktree, ['commit', '-m', 'feature repair']);
+  const feature = git(f.receipt.featureWorktree, ['rev-parse', 'HEAD']);
+  git(f.receipt.integrationWorktree, ['merge', '--no-ff', '--no-edit', feature]);
+  const candidate = git(f.receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+  const result = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  assert.equal(result.status, 'prepared');
+  assert.equal(result.baseCommit, f.latest);
+  assert.equal(result.integrationCommit, candidate);
+  assert.equal(result.featureCommit, feature);
+  assert.equal(result.mergeSourceCommit, feature);
+  assert.equal(result.remoteCommit, null);
+  assert.equal(result.verification, null);
+  assert.deepEqual(result.ci, {status: 'pending', runs: []});
+});
+
+test('unpublished prepared refresh refuses a mismatched merge source without changing its receipt', async t => {
+  const f = unpublishedBaseRefreshFixture(t);
+  f.receipt.status = 'prepared';
+  f.receipt.mergeSourceCommit = f.receipt.baseCommit;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt), {mode: 0o600});
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'UNPUBLISHED_STATE_INVALID'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+});
+
+test('unpublished prepared refresh refuses an unchanged master without changing its receipt', async t => {
+  const f = unpublishedBaseRefreshFixture(t);
+  f.receipt.status = 'prepared';
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt), {mode: 0o600});
+  f.setRemoteBase(f.receipt.baseCommit);
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'BASE_REFRESH_NOT_NEEDED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+});
+
 test('unpublished remote advance preserves all refs and null publication identity, snapshots privately and invalidates evidence', async t => {
   const f = unpublishedBaseRefreshFixture(t);
   fs.writeFileSync(path.join(f.receipt.featureWorktree, 'repair.txt'), 'latest feature repair\n');

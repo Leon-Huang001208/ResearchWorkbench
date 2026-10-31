@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+2026-10-31 存储留存：本机 `scripts/test_artifact_retention.py run` 亲自执行一批最多20个固定用例，记录真实退出码、JUnit/stdout/stderr与批次nonce，再做同inode隔离回收和中断重入；低级create/admit/retire供受审执行器使用。`research_workbench_entrypoint/iteration_resources.py` 的 `selected_evidence` 仅允许同批退休回执列出的成功输出不归档，`record_task/closeout` 对新任务固定完整选择清单和128MiB保留门，旧ledger仍走legacy-full。回归分别在 `tests/research_web/test_test_artifact_retention.py` 和 `test_iteration_resources.py`，工作流显式登记前者。完整格式、证据与失败边界见[留存规则](research-web-storage-retention.md)。
+
+同日 `scripts/git_safety.mjs` prepared-amend 字段兼容只允许受管控制器新增的 `mergeSourceCommit` 等于旧feature身份，收养时原子推进为新feature身份；正反例和旧回执恢复仍在既有 `tests/javascript/git_safety_amend_prepared.test.mjs`。远端主线在首次发布前推进时，原 `prepared` 回执可经 `refreshPublishedBase` 精确收养已提交的祖先候选，刷新后的merge source绑定见 `tests/javascript/git_safety.test.mjs`；两路径均不改变分支保护、备份或发布门。
+
 开发产物生命周期：`scripts/resource_lifecycle.mjs`验证共用runtime及原Git/资源最终认证，登记任务证据并向宿主预算报告BuildKit观测；`git_safety.mjs`在成功收尾事件接入，登记恢复点、按原保护门轮转并保留cleanup_pending欠账。桥合同为`tests/javascript/resource_lifecycle.test.mjs`，详见[协议](resource-lifecycle.md)。
 
 2026-10-31：`resident/trial_retirement.py` 的固定 `rename-only-v2` 容量策略仅由新 successor 执行模式选择，原授权 digest 和 v1 保持；退役记录 v2 在复制前检查完整 journal 与 rename-only 总量，恢复时复核策略及硬链接。`resident/trial_successor.py` 为原 `model_provider_upgrade.py` 提供固定90e交接、小恢复包、精确job暂停/恢复及逐代单PID排空；原操作员提供 `handoff-trial-retirement` 和完成回执约束的 `apply-trial-retirement-v2`，不另建执行循环。回归在 `test_trial_retirement.py`、`test_trial_retirement_upgrade.py` 与 `test_trial_successor.py`，保全 helper 测试保持；现有 Native 维护拓扑不变，不从容量测试或合成CLI推断现场部署成功。

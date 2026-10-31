@@ -1,24 +1,86 @@
 """Iteration closeout must be bounded, recoverable and task-specific."""
 
-import json
 import copy
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from research_workbench_entrypoint import iteration_resources as resources
+from research_workbench_entrypoint.iteration_cache import ManagedCaches
 from research_workbench_entrypoint.iteration_resources import (
     GIB,
     ResourceError,
     cache_budget,
     clean_dependencies,
-    register_directory,
-    preserve_evidence,
-    task_resource_plan,
     occupied,
+    preserve_evidence,
+    record_task,
+    register_directory,
+    task_resource_plan,
 )
-from research_workbench_entrypoint.iteration_cache import ManagedCaches
+from scripts.test_artifact_retention import create_root, retire_root
+
+
+def passed_bundle(root: Path, logs: Path, *, exact_checkout: bool = True) -> dict:
+    logs.mkdir()
+    lease = logs / "batch-lease.json"
+    with patch(
+        "scripts.test_artifact_retention._checkout_identity", return_value=root
+    ):
+        create_root(
+            root / "pytest-temp",
+            lease,
+            task_id="retention-test",
+            candidate="a" * 40,
+            batch_id="batch-01",
+            node_ids=["tests/research_web/test_fixture.py::test_pass"],
+            _exact_checkout=exact_checkout,
+        )
+    owner = json.loads(lease.read_text())
+    junit = logs / "passed.xml"
+    junit.write_text(
+        '<testsuites><testsuite tests="1" failures="0" errors="0">'
+        '<testcase name="test_pass"/></testsuite></testsuites>'
+    )
+    raw = logs / "raw.log"
+    raw.write_text("reproducible local pass output")
+    stderr = logs / "stderr.log"
+    stderr.write_text("")
+    result = logs / "batch-result.json"
+    result.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "taskId": "retention-test",
+                "candidate": "a" * 40,
+                "rootNonce": owner["nonce"],
+                "batchId": "batch-01",
+                "nodeIds": ["tests/research_web/test_fixture.py::test_pass"],
+                "exitCode": 0,
+                "junitSha256": hashlib.sha256(junit.read_bytes()).hexdigest(),
+                "stdoutSha256": hashlib.sha256(raw.read_bytes()).hexdigest(),
+                "stderrSha256": hashlib.sha256(stderr.read_bytes()).hexdigest(),
+            }
+        )
+    )
+    with patch("scripts.test_artifact_retention._checkout_identity", return_value=root):
+        retire_root(lease, junit, raw, stderr, result, open_files=lambda _path: False)
+    return {"lease": lease, "junit": junit, "raw": raw, "stderr": stderr, "result": result}
+
+
+def discard_row(bundle: dict, path: Path) -> dict:
+    return {
+        "path": path.name,
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "proof": bundle["junit"].name,
+        "proofSha256": hashlib.sha256(bundle["junit"].read_bytes()).hexdigest(),
+        "batchReceipt": bundle["lease"].name,
+        "batchReceiptSha256": hashlib.sha256(bundle["lease"].read_bytes()).hexdigest(),
+    }
 
 
 class CacheDriver:
@@ -37,6 +99,25 @@ class CacheDriver:
 
 
 class IterationResourceTests(unittest.TestCase):
+    def test_new_task_requires_selective_evidence_while_legacy_record_keeps_its_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            state = root / "state"
+            state.mkdir()
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.state_paths",
+                return_value=(root, state, {}),
+            ):
+                record_task(root, "retention-test")
+                first = json.loads((state / "resources.json").read_text())
+                self.assertEqual(first["evidencePolicy"], "selective-v1")
+                (state / "resources.json").write_text(
+                    json.dumps({"taskId": "retention-test", "roots": {}, "directories": []})
+                )
+                record_task(root, "retention-test")
+                legacy = json.loads((state / "resources.json").read_text())
+                self.assertNotIn("evidencePolicy", legacy)
+
     def test_controller_argv_is_exempt_but_other_process_and_cwd_remain_protected(self):
         clear=SimpleNamespace(returncode=1,stderr='',stdout='')
         own=SimpleNamespace(stdout='100 99 python -m controller\n99 1 node /task/scripts/git_safety.mjs\n1 0 init\n')
@@ -95,10 +176,9 @@ class IterationResourceTests(unittest.TestCase):
                     if args[0]=='stop':self.current['State']['Running']=False
                     return ''
             driver=Fake()
-            with self.assertRaisesRegex(ResourceError,'fixture_gc_failure'):
-                with driver.maintenance():
-                    self.assertEqual(driver.current['HostConfig']['Memory'],2*GIB)
-                    raise ResourceError('fixture_gc_failure')
+            with self.assertRaisesRegex(ResourceError,'fixture_gc_failure'), driver.maintenance():
+                self.assertEqual(driver.current['HostConfig']['Memory'],2*GIB)
+                raise ResourceError('fixture_gc_failure')
             self.assertEqual(driver.current,original)
             self.assertFalse((root/'operation.lock').exists())
 
@@ -106,8 +186,8 @@ class IterationResourceTests(unittest.TestCase):
         from research_workbench_entrypoint.iteration_cache import operation_lock
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory).resolve();lock=root/'operation.lock';lock.mkdir();(lock/'proof').write_text('active build')
-            with self.assertRaises(ResourceError):
-                with operation_lock(root):self.fail('must refuse concurrent maintenance')
+            with self.assertRaises(ResourceError), operation_lock(root):
+                self.fail('must refuse concurrent maintenance')
             self.assertEqual((lock/'proof').read_text(),'active build')
 
     def test_rebound_builder_is_rejected_even_if_old_container_exists(self):
@@ -127,9 +207,8 @@ class IterationResourceTests(unittest.TestCase):
                 def partial_copy(source, destination, **kwargs):
                     destination.write(b'partial-proof')
                     raise OSError('fixture disk full after partial write')
-                with patch('research_workbench_entrypoint.iteration_resources.shutil.copyfileobj', side_effect=partial_copy):
-                    with self.assertRaises(OSError):
-                        preserve_evidence([record], root/'archive')
+                with patch('research_workbench_entrypoint.iteration_resources.shutil.copyfileobj', side_effect=partial_copy), self.assertRaises(OSError):
+                    preserve_evidence([record], root/'archive')
                 self.assertTrue((logs/'report.md').exists())
                 result = preserve_evidence([record], root/'archive')
                 self.assertEqual(result[0]['status'], 'preserved')
@@ -140,12 +219,274 @@ class IterationResourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory).resolve(); logs=root/'logs'; logs.mkdir(); (logs/'proof').write_text('original')
             record=register_directory(root,logs,'evidence')
-            with patch('research_workbench_entrypoint.iteration_resources.occupied',return_value=False), patch('research_workbench_entrypoint.iteration_resources.shutil.copyfileobj',side_effect=OSError('fixture')):
-                with self.assertRaises(OSError): preserve_evidence([record],root/'archive')
+            with patch('research_workbench_entrypoint.iteration_resources.occupied',return_value=False), patch('research_workbench_entrypoint.iteration_resources.shutil.copyfileobj',side_effect=OSError('fixture')), self.assertRaises(OSError):
+                preserve_evidence([record],root/'archive')
             target=next((root/'archive').iterdir())/'logs/proof';target.write_text('changed')
             with patch('research_workbench_entrypoint.iteration_resources.occupied',return_value=False), self.assertRaises(ResourceError):
                 preserve_evidence([record],root/'archive')
             self.assertEqual((logs/'proof').read_text(),'original')
+
+    def test_selected_evidence_discards_only_passed_raw_log(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            bundle = passed_bundle(root, logs)
+            (logs / "final.json").write_text('{"status":"PASS"}')
+            selection = {
+                "schemaVersion": 1,
+                "keep": sorted(path.name for path in logs.iterdir() if path.name != "raw.log"),
+                "discard": [discard_row(bundle, bundle["raw"])],
+            }
+            (logs / "evidence-retention.json").write_text(json.dumps(selection))
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ):
+                result = preserve_evidence(
+                    [record], root / "archive", policy="selective-v1", task_id="retention-test"
+                )
+            archive = next((root / "archive").iterdir()) / "logs"
+            self.assertEqual(result[0]["discardedFiles"], 1)
+            self.assertFalse(logs.exists())
+            self.assertTrue((archive / "final.json").exists())
+            self.assertTrue((archive / "passed.xml").exists())
+            self.assertTrue((archive / "batch-lease.json").exists())
+            self.assertTrue((archive / "evidence-retention.json").exists())
+            self.assertFalse((archive / "raw.log").exists())
+            self.assertEqual(
+                preserve_evidence(
+                    [record], root / "archive", policy="selective-v1", task_id="retention-test"
+                )[0]["status"],
+                "already_preserved",
+            )
+            lease_path = archive / "batch-lease.json"
+            lease = json.loads(lease_path.read_text())
+            lease["status"] = "active"
+            lease_path.write_text(json.dumps(lease))
+            selection_path = archive / "evidence-retention.json"
+            selection = json.loads(selection_path.read_text())
+            selection["discard"][0]["batchReceiptSha256"] = hashlib.sha256(
+                lease_path.read_bytes()
+            ).hexdigest()
+            selection_path.write_text(json.dumps(selection))
+            manifest_path = archive.parent / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["batch-lease.json"] = hashlib.sha256(lease_path.read_bytes()).hexdigest()
+            manifest["evidence-retention.json"] = hashlib.sha256(
+                selection_path.read_bytes()
+            ).hexdigest()
+            manifest_path.write_text(json.dumps(manifest))
+            with self.assertRaises(ResourceError):
+                preserve_evidence(
+                    [record], root / "archive", policy="selective-v1", task_id="retention-test"
+                )
+
+    def test_selected_evidence_cannot_discard_final_receipt_using_passed_batch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            bundle = passed_bundle(root, logs)
+            final = logs / "final.json"
+            final.write_text('{"status":"PASS","candidate":"final"}')
+            (logs / "evidence-retention.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "keep": sorted(
+                            path.name for path in logs.iterdir() if path.name != "final.json"
+                        ),
+                        "discard": [discard_row(bundle, final)],
+                    }
+                )
+            )
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaisesRegex(ResourceError, "closeout_evidence_not_batch_output"):
+                preserve_evidence(
+                    [record], root / "archive", policy="selective-v1", task_id="retention-test"
+                )
+            self.assertTrue(final.exists())
+
+    def test_wip_batch_cannot_authorize_automatic_log_discard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            bundle = passed_bundle(root, logs, exact_checkout=False)
+            (logs / "evidence-retention.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "keep": sorted(
+                            path.name for path in logs.iterdir() if path.name != "raw.log"
+                        ),
+                        "discard": [discard_row(bundle, bundle["raw"])],
+                    }
+                )
+            )
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaisesRegex(ResourceError, "closeout_evidence_batch_unverified"):
+                preserve_evidence(
+                    [record], root / "archive", policy="selective-v1", task_id="retention-test"
+                )
+            self.assertTrue(bundle["raw"].exists())
+
+    def test_selected_evidence_rejects_unlisted_file_and_keeps_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            logs.mkdir()
+            (logs / "final.json").write_text("proof")
+            (logs / "unlisted.raw").write_text("must not disappear")
+            (logs / "evidence-retention.json").write_text(
+                json.dumps({"schemaVersion": 1, "keep": ["final.json"], "discard": []})
+            )
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaises(ResourceError):
+                preserve_evidence([record], root / "archive", policy="selective-v1")
+            self.assertEqual((logs / "unlisted.raw").read_text(), "must not disappear")
+
+    def test_selected_evidence_rejects_failed_junit_and_keeps_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            bundle = passed_bundle(root, logs)
+            junit = bundle["junit"]
+            junit.write_text(
+                '<testsuites><testsuite tests="1" failures="0" errors="0">'
+                '<testcase name="test_failed"><failure>real failure</failure></testcase>'
+                '</testsuite></testsuites>'
+            )
+            raw = bundle["raw"]
+            (logs / "evidence-retention.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "keep": sorted(
+                            path.name for path in logs.iterdir() if path.name != "raw.log"
+                        ),
+                        "discard": [discard_row(bundle, raw)],
+                    }
+                )
+            )
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaisesRegex(ResourceError, "closeout_evidence_proof_not_passed"):
+                preserve_evidence(
+                    [record], root / "archive", policy="selective-v1", task_id="retention-test"
+                )
+            self.assertEqual(raw.read_text(), "reproducible local pass output")
+
+    def test_new_evidence_policy_requires_explicit_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            logs.mkdir()
+            (logs / "proof").write_text("keep")
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaises(ResourceError):
+                preserve_evidence([record], root / "archive", policy="selective-v1")
+            self.assertTrue((logs / "proof").exists())
+
+    def test_selected_evidence_budget_blocks_oversized_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            logs = root / "logs"
+            logs.mkdir()
+            (logs / "proof").write_text("keep")
+            (logs / "evidence-retention.json").write_text(
+                json.dumps({"schemaVersion": 1, "keep": ["proof"], "discard": []})
+            )
+            record = register_directory(root, logs, "evidence")
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.EVIDENCE_ARCHIVE_MAX_BYTES",
+                1,
+            ), patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaisesRegex(ResourceError, "closeout_evidence_budget_exceeded"):
+                preserve_evidence([record], root / "archive", policy="selective-v1")
+            self.assertTrue((logs / "proof").exists())
+
+    def test_selected_budget_is_aggregate_across_worktrees_before_any_delete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            records = []
+            roots = []
+            for number in (1, 2):
+                root = base / f"worktree-{number}"
+                logs = root / "logs"
+                logs.mkdir(parents=True)
+                (logs / "proof").write_text("same essential evidence")
+                (logs / "evidence-retention.json").write_text(
+                    json.dumps({"schemaVersion": 1, "keep": ["proof"], "discard": []})
+                )
+                records.append(register_directory(root, logs, "evidence"))
+                roots.append(logs)
+            single = sum(path.stat().st_size for path in roots[0].iterdir())
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.EVIDENCE_ARCHIVE_MAX_BYTES",
+                single + 1,
+            ), patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaisesRegex(ResourceError, "closeout_evidence_budget_exceeded"):
+                preserve_evidence(
+                    records,
+                    base / "archive",
+                    policy="selective-v1",
+                    task_id="retention-test",
+                )
+            self.assertTrue(all((logs / "proof").exists() for logs in roots))
+            self.assertFalse((base / "archive").exists())
+
+    def test_selected_budget_rejects_source_growth_after_preflight(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            records = []
+            logs_roots = []
+            for number in (1, 2):
+                root = base / f"worktree-{number}"
+                logs = root / "logs"
+                logs.mkdir(parents=True)
+                (logs / "proof").write_text("essential")
+                (logs / "evidence-retention.json").write_text(
+                    json.dumps({"schemaVersion": 1, "keep": ["proof"], "discard": []})
+                )
+                records.append(register_directory(root, logs, "evidence"))
+                logs_roots.append(logs)
+            original_total = sum(
+                path.stat().st_size for logs in logs_roots for path in logs.iterdir()
+            )
+            original_manifest = resources.file_manifest
+            first_root_reads = 0
+
+            def growing_manifest(path):
+                nonlocal first_root_reads
+                if Path(path) == logs_roots[0]:
+                    first_root_reads += 1
+                    if first_root_reads == 2:
+                        (logs_roots[1] / "proof").write_text("essential" + "x" * 11)
+                return original_manifest(path)
+
+            with patch(
+                "research_workbench_entrypoint.iteration_resources.EVIDENCE_ARCHIVE_MAX_BYTES",
+                original_total + 10,
+            ), patch(
+                "research_workbench_entrypoint.iteration_resources.file_manifest",
+                side_effect=growing_manifest,
+            ), patch(
+                "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+            ), self.assertRaisesRegex(ResourceError, "closeout_evidence_source_changed"):
+                preserve_evidence(
+                    records, base / "archive", policy="selective-v1", task_id="retention-test"
+                )
+            self.assertTrue((logs_roots[1] / "proof").exists())
 
     def test_budget_is_aggregate_and_oldest_builder_is_reclaimed_first(self):
         driver = CacheDriver({"a": 18 * GIB, "b": 12 * GIB})

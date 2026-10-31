@@ -249,7 +249,7 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 master及PR head须匹配，并在写入前再次核对。脏目录、未提交合并、改动中的回执、未知PR
 head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进；只接受明确登记的已发布tip，
 不接受任意祖先。成功发布后会把该tip推进到实际发布候选，禁止沿用更老的tip。
-首次发布前恢复要求 `mode`、`pullRequest`、`remoteCommit` 三项明确为 null；不查询不存在的 PR。已发布任务继续验证原 PR 身份，不接受部分发布字段或未知远端 tip。
+首次发布前恢复要求 `mode`、`pullRequest`、`remoteCommit` 三项明确为 null；不查询不存在的 PR。原回执仍为 `prepared`、但主线已前进时也可直接走原 `--prepare`，无须为了标记 `remote_moved` 调用发布；若 `mergeSourceCommit` 存在，刷新前必须等于旧 `featureCommit`，刷新后随最新 feature 一起推进。主线未变时仍拒绝重复刷新。已发布任务继续验证原 PR 身份，不接受部分发布字段或未知远端 tip。
 已发布 PR 处于 `awaiting_ci` 或 `ci_failed`、而真实主线已经前进时，也可在原工作树提交合并后直接 `--prepare`；不要求先发起一次 CI 修补来获得 `remote_moved` 标记。已刷新至 `prepared` 但新候选尚未发布时，主线再次前进也走同一入口；此时 PR head 必须仍等于明确登记的 `baseRefreshPublishedHead`，不能改指上一轮未发布候选。该入口仍必须证明新主线、旧候选、原 PR 和工作树身份，保留全部修补计数；主线未变仍拒绝，不能用刷新基线重试同候选或重置配额。
 恢复将旧完整回执以0600存于Git common dir的 `leon-engineering/git-safety/base-refresh/TASK/`，
 保留原PR、原工作树、所有引用和修补计数；不调用共享控制器的删除/重建分支，也不执行push。
@@ -266,6 +266,8 @@ head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进�
 ```bash
 /usr/local/bin/node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --prepare --amend-prepared
 ```
+
+共享交付控制器的 prepared 回执若带 `mergeSourceCommit`，项目安全入口只接受它与旧 `featureCommit` 精确相等；正式收养后同步推进到新 feature 提交。缺字段的旧回执沿原合同继续可读，错绑字段和其它未知字段仍拒绝；不得手改 ledger 或绕开恢复备份与远端不可见性证明。
 
 此入口不执行 merge、reset、rebase、删除或重建工作树，也不 push。它要求原资源账本记录的
 两个工作树 inode、分支、common directory、原提交祖先链、干净状态和明确无进程占用；
@@ -338,9 +340,9 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 
 项目规则固定`.agents/resource-closeout.json`的两个受管构建器合计20 GiB。Git入口在start/prepare/publish登记任务目录身份；publish修补只允许把已完整包含在候选中的干净feature tip更新到受管记录，保留CI计数和基线，不接受未提交或其他分支身份。资源登记/回执保存在Git common directory的`leon-engineering/resource-closeout/<task-id>/`，不放在将删除的worktree中。
 
-`status`确认已审查候选实际合并且CI通过后，释放仓库锁再进入既有`cleanup`流程。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
+`status`确认已审查候选实际合并且CI通过后，释放仓库锁再进入既有`cleanup`流程。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
 
-临时测试资源用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付；没有关联的历史资源保留。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2 GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20 GiB或恢复失败，回执为blocked。
+本机pytest优先用 `scripts/test_artifact_retention.py run` 管理同任务唯一活动根：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复；前一根回收后才创建下一批，无须等Git合并。失败/未知保留最小复现及原始回执；没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
 
 每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。普通Git恢复点按用户2026-10-31方案，在已登记且交付成功后轮转保留最新2个有效点，不再等待7天；未登记存量先核对逐类批准；未提交、未归并、活动、未知归属和独有保护锚点不自动淘汰，修复隔离备份仍单独保护。
 

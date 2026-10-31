@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+## 开发测试产物留存（2026-10-31）
+
+`scripts/test_artifact_retention.py` 是 checkout 中的本机测试/交付辅助入口，使用标准库，不进入 Web 用户配置、模型链或 Docker 镜像运行时。新任务的 `iteration_resources` 选择性归档也不增加产品依赖；已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 无需修改，公开一键安装入口保持。由于本轮修改 `research_workbench_entrypoint/`，仍须由同候选 Mac Bootstrap 证明干净安装和固定 DSH 构建兼容；本机源码导入不能替代该 CI。具体身份、证据和空间门见[留存规则](research-web-storage-retention.md)。
+
 2026-10-31起，GitHub干净安装门使用标准`macos-15`镜像；原`macos-14`正在官方brownout且将于11月2日退役。安装、固定DSH构建、3081/8088及Doctor检查保持不变。下文较早迭代中出现的macos-14描述保留其历史语境，新候选统一按本段及“后续迭代门禁”验收。
 
 ## Native successor 的安装制品边界（2026-10-31）

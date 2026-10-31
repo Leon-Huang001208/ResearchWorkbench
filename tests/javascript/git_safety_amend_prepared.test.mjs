@@ -75,6 +75,24 @@ test('explicit prepared amendment adopts a same-base descendant with real restor
   assert.equal(git(f.integration,['rev-parse','HEAD']),f.candidate);
 });
 
+test('prepared amendment accepts controller mergeSourceCommit only when bound to the old feature', async t=>{
+  const f=fixture(t),withSource={...f.receipt,mergeSourceCommit:f.oldFeature};
+  fs.writeFileSync(f.filename,JSON.stringify(withSource));
+  const result=await amend(f);
+  assert.equal(result.status,'prepared');
+  assert.equal(result.featureCommit,f.newFeature);
+  assert.equal(result.mergeSourceCommit,f.newFeature);
+  assert.equal(result.integrationCommit,f.candidate);
+});
+
+test('prepared amendment rejects controller mergeSourceCommit inconsistent with old feature', async t=>{
+  const f=fixture(t),withSource={...f.receipt,mergeSourceCommit:'f'.repeat(40)};
+  fs.writeFileSync(f.filename,JSON.stringify(withSource));
+  const before=fs.readFileSync(f.filename);
+  await assert.rejects(amend(f),{code:'UNPUBLISHED_STATE_INVALID'});
+  assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
 test('CLI accepts only the explicit prepare amendment combination and leaves replacement blocked', async t=>{
   assert.equal(parseCli(['delivery','--project','/repo','--task-id','task','--prepare','--amend-prepared']).options.amendPrepared,true);
   for(const args of [['--publish','--amend-prepared'],['--prepare','--amend-prepared','--replace-prepared']]) assert.throws(()=>parseCli(['delivery','--project','/repo','--task-id','task',...args]));
