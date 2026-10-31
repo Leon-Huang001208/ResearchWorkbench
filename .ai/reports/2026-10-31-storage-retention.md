@@ -28,5 +28,7 @@
 
 随后通过正式`--prepare`把基线刷新至`1fe40cd2`，原未发布任务状态仍为`prepared`，接纳的中间候选为`c086796a0019658b1e46c1d11d9925eaaef58f4c`。该候选的Node本地回归470/470、Python `test_iteration_resources.py` unittest25/25、文档治理950文件零违规及索引检查已通过；全部本地和同候选CI仍需在最终文档修订后重新绑定。独立评审发现本文档误写普通Git恢复点仍保留7天，与新主线资源生命周期合同冲突；已改为新登记成功点按保护检查即时轮转并保留最新两份，未登记历史逐类审核。
 
+独立完整变更评审确认代码无P1/P2，另指出与PR257事件驱动退休的第二处文档边界：128MiB选择性归档是Git最终认证前的暂存，不是永久日志仓库；只有原恢复、资源和占用保护门均通过才登记退休事件并保留有界摘要，`cleanup_pending`原目录继续保留。已在项目规则及留存文档写明，最终候选仍须重做精确绑定。
+
 <!-- architecture-review {"group":"verification-workflow","structure":"changed","reason":"新任务证据收尾由全量logs复制改为显式选择并限制保留字节；新增本机测试临时根的身份登记、PASS证据封存和提前安全回收。08图源新增即时回收与选择性归档节点，并连接实际回执门。","diagrams":["08-iteration-docs"]} -->
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新增回收只操作登记过的本机pytest临时根与交付日志清单；Docker的容器、镜像、业务卷、BuildKit锁与预算均未变，Native/Host/DSH产品部署拓扑保持由各自任务管理。","diagrams":[]} -->
