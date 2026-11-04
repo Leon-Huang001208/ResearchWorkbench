@@ -1,6 +1,9 @@
 """Offline upgrade/rollback preserves account records and independent grant semantics."""
 
+import importlib.metadata
+import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 from test_mcp_facade_store import CLIENT, ORIGIN, PASSWORD, exchange, request
@@ -24,6 +27,29 @@ class NoResearchPool:
 
     async def backend_for(self, *args):
         pytest.fail("lifecycle must not start a research runtime")
+
+
+@pytest.mark.asyncio
+async def test_sdk_route_inventory_matches_documented_conditional_contract(tmp_path):
+    """Compare actual pinned library routes, not inferred FastAPI decorators."""
+    accounts = AccountStore(tmp_path / "server")
+    app = create_gateway(accounts, NoResearchPool(), origin=ORIGIN, mcp_enabled=True)
+    async with app.router.lifespan_context(app):
+        facade = app.state.mcp_facade
+        contract = json.loads(
+            (
+                Path(__file__).parents[2] / "docs/architecture/research-web/architecture-map.json"
+            ).read_text()
+        )["libraryRouteContract"]
+        assert importlib.metadata.version(contract["sdk"]) == contract["version"] == "2.2.0"
+        assert contract["condition"] == "mcp-enabled"
+        actual = {
+            route.path: sorted(route.methods) if route.methods is not None else None
+            for route in [*facade.routes, *facade.app.app.routes]
+        }
+        assert actual == {route["path"]: route["methods"] for route in contract["routes"]}
+        assert len(actual) == len(contract["routes"]) == 8
+        assert "/register" not in actual
 
 
 @pytest.mark.asyncio
