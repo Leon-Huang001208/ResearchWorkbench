@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+可选[入站 MCP 只读服务](research-web-mcp-facade.md)沿既有私网账号网关使用 `RWB_MCP_READONLY_ENABLED=1` 显式开启，默认关闭。公开安装入口与 Web 锁保持；已核对锁内 SDK 2.2.0、multipart 0.0.32、Starlette 1.6.0，本次无新依赖。Mac 干净安装兼容、实际部署和原生宿主 OAuth 仍分别待验证。`server doctor --json` 新增 `mcp_readonly` 的开关和包元数据检查，即使开启也不建授权表或连接网络；`configuration_pending`、连接 `not_checked`、原生验收 `NOT_RUN` 不能写成已连接。配置示例与批准／撤权／回滚步骤见专项合同，示例尚未执行。
+
 ## 开发测试产物留存（2026-10-31）
 
 `scripts/test_artifact_retention.py` 是 checkout 中的本机测试/交付辅助入口，使用标准库，不进入 Web 用户配置、模型链或 Docker 镜像运行时。新任务的 `iteration_resources` 选择性归档也不增加产品依赖；已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 无需修改，公开一键安装入口保持。由于本轮修改 `research_workbench_entrypoint/`，仍须由同候选 Mac Bootstrap 证明干净安装和固定 DSH 构建兼容；本机源码导入不能替代该 CI。具体身份、证据和空间门见[留存规则](research-web-storage-retention.md)。

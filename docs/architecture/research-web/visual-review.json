@@ -3,6 +3,20 @@
   "status": "reviewed",
   "diagrams": [
     {
+      "id": "15-inbound-mcp",
+      "artifactSha256": "441065a19fed6dca7d072e06aadbc2cea3f6fd54d1a41ff804e5024d166ad345",
+      "specificationSha256": "7464abbe95a024da7771619cc21fd038105c99ba6f4e396e29edbab209bd74d4",
+      "status": "reviewed",
+      "reviewer": "codex-root",
+      "date": "2026-11-04",
+      "captures": [
+        "15-inbound-mcp.visual-check.1440x900.light.png",
+        "15-inbound-mcp.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Codex 主代理实际查看最终同哈希小视口浅色与大视口深色截图；节点、标签、授权/读取边可辨，无穿越、遮挡或裁剪。自动9项showcase零错误零警告，四视口无溢出。图描述默认关闭的首版边界，不证明服务部署或原生宿主已接通。"
+    },
+    {
       "id": "08-iteration-docs",
       "artifactSha256": "d527966ae90f583ce5aa4ef64143b366270bbb39cf6b9749dc1970c832e3b8e7",
       "specificationSha256": "fd33880e3289f757f178224e1d4d0c3f283a0424618f8e3433cc5bd7df30d7a7",

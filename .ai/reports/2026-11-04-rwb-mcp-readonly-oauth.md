@@ -6,7 +6,7 @@
 
 - 基线：GitHub 与共享 Git 对象均确认 `87b6cd99653d9f8160dc7eb0b3bea8d5d9ea93db`。
 - 工作区：Codex 原生登记的独立 `codex/mcp-readonly-oauth-stage` 分支；原工作区未修改。正式 GitSafety start 因 GitHub SSH 认证失败而未创建交付回执。不能以原生工作区替代正式发布流程。
-- 授权存储已提交 `0c00e6bd14a6bb0e57d383d90b6cdb06c78b6900`；独立 Python/规格评审 Approved。四项工具、HTTP 集成、全量适用 Router、同候选 CI 与最终交付尚待完成；本记录会随真实证据更新。
+- 授权存储已提交 `0c00e6bd14a6bb0e57d383d90b6cdb06c78b6900`；独立 Python/规格评审 Approved。OAuth ec425b5→d494a1b→c911b3b、工具8b8a012→ea530f3已独评 Approved；Task3源码 c615b8b63498619adc173901f70bf45518b5f870 已提交，最终全量Router/评审、同候选CI与发布尚待完成。
 - 常驻更新、Codex 私网双设备实链、官方 DSH 与 WorkBuddy 原生 OAuth：`NOT_RUN`；本地通过不提升这些状态。
 
 ## 已冻结合同
@@ -28,3 +28,32 @@
 Task1 WIP：16 项授权存储测试、17 项既有账户回归和 3 项后补边界测试通过；Ruff、Black、isort、Mypy 和 diff 检查通过。独立评审复核规格、事务和日志边界，没有重跑行为测试。这些回执不代表 exact-SHA、HTTP 或 CI 验收。
 
 任务日志位于 `logs/rwb-mcp-readonly-oauth-20261104/`，最终须生成逐文件保留清单。最终候选认证将在完成后补入，不预填结果。
+
+## Task3 集成与证据
+
+Doctor 使用标准库环境开关和 distribution metadata，不初始化 SDK/AccountStore/授权表，不读取凭据或历史正文；安装版本与连接状态明确分离。离线升级在临时账号库验证原 accounts/sessions 行、cookie 和 history 不变；授权跨重启，关闭入口＋显式撤权＋重开不复活旧 token，logout 独立而 reset/disable 撤权。固定图15阅读只增一项名称，不放宽路径。
+
+Task3最初3个 strict XFAIL 受日志夹具污染，不能作为有效行为RED。首轮实际10项为3FAIL/7PASS，因账户创建日志混入测试stdout导致JSON解析失败；修夹具后沿同一lease/nonce/root恢复10PASS，原失败输出保留，正式retired。随后在finally逐字节恢复保护下以旧Doctor基线补做1个strict KeyError XFAIL：这是事后基线回归，不是先写测试的证据。最终focused14项PASS（1.81秒；既有Starlette/AnyIO弃用警告1项），root retired；其中含6 Doctor、4生命周期、1固定图及3既有只读合同。记录在doctor-lifecycle-green-fixture-repair-01和task3-focused-final。
+
+新增L4 Router测试初次因非法文件prefix失败，改成六个精确test路径后1PASS（三类路径均保留全部门）。Doctor文本输出的dict推导导致一次mypy错误，改成本地已知dict后2文件mypy通过。Ruff、Black、isort和diff检查通过；完整本机Router、全分支独评和同候选CI由主任务完成，不预填。
+
+CI不增加job/runner/deps/timeout；MacBootstrap新增SDK导入与enabled Doctor无创建目录断言。requirements/web.in、web.lock、setup_web.py与安装workflow已核对，锁内SDK2.2/multipart0.0.32/Starlette1.6，本机不安装依赖；干净安装兼容NOT_RUN。原生Codex/DSH/WorkBuddy/privateTLS、真实用户授权/报告、Provider/model、常驻更新与部署全部NOT_RUN。源代码与示例均不等于外部已启用。
+
+<!-- architecture-review {"group": "inbound-mcp-readonly", "structure": "changed", "diagrams": ["15-inbound-mcp"], "reason": "新增可选入站OAuth与四项读取边界，原账户授权表和存活后端调用在专用图15完整表达。"} -->
+<!-- architecture-review {"group": "private-multiuser", "structure": "changed", "diagrams": ["15-inbound-mcp"], "reason": "私网网关可选挂载OAuth和MCP，独立授权及存活账户后端分支连接原账户与RuntimePool；原登录及生命周期保留。"} -->
+<!-- architecture-review {"group": "datahub", "structure": "changed", "diagrams": ["15-inbound-mcp"], "reason": "既有GET增加受信只读探测和严格交接拒绝分支，在图15体现固定冻结读取，原DataHub数据拓扑与Provider保持。"} -->
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "diagrams": [], "reason": "现有账号菜单按服务器开关增加应用入口，登录回跳和同意页仍属原网关；研究工作台和主题拓扑保持。"} -->
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "diagrams": [], "reason": "原Host GET内部新增严格只读早拒绝和协议探测，保留原路径与浏览器语义，外部网关新边界由专用组图15表达。"} -->
+<!-- architecture-review {"group": "workbench", "structure": "unchanged", "diagrams": [], "reason": "trusted_context只读参数在既有交接入口提前拒绝副作用链，不增加研究工作台节点或更换原场景执行器。"} -->
+<!-- architecture-review {"group": "documentation", "structure": "unchanged", "diagrams": [], "reason": "阅读器固定白名单追加已审图15，原受限目录读取及CSP不变，入口与Atlas仍由同一生成器维护。"} -->
+<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "diagrams": [], "reason": "既有Checks和Bootstrap步骤扩充离线测试与元数据断言，L4保留原全部门，不改变runner或交付生命周期。"} -->
+
+补充 stdlib 独立检查：`RWB_MCP_READONLY_ENABLED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" /opt/homebrew/bin/python3.12 -S -m app.research_web.multiuser doctor --root <本任务日志下不存在的doctor-no-create> --json` 实际退出0，JSON可解析、SDK未安装状态明确，目标根仍不存在；未接触真实服务或用户配置。
+
+## 条件路由与合成浏览器补证
+
+文档门发现原decorator扫描漏掉Gateway新增add_api_route条件块。没有删原6项catchall；新受限collector只接受该网关、唯一6-method literal及完整off/on块，动态路径／别名／额外方法／分支漂移失败关闭。新增12项条件代理，SDK机器和RWB浏览器8项单列libraryRouteContract，不伪称静态扫描事实。实际锁定SDK构造路由集合与声明精确比对1PASS（task3-sdk-routes，root retired），无网络或真实后端。独立源码检查点 222049521ddbb91199c494382d354bed78b3f24e。
+
+Parser新增测试先实际2FAIL（缺collector），实现后2PASS；完整architecture JS最终88PASS/6.68秒，随后新增Atlas分层标签合同1PASS。原baseline图、未知语法负例、源码映射完整性和静态API数量语义保持；这89项不是native业务验收。文档与架构检查0 violations，Atlas生成427条静态声明/424个操作，另列SDK条件合同。
+
+父会话补充实际Chromium Gateway合成链：authorize→真实auth网页登录→唯一synthetic选材同意→loopback callback→SDK token交换及subject→modern initialize counteroffer2025-11-25→四工具列表，cap/source-list零backendlookup；source_read原件hash验证、1次readonlylookup/2个固定GET，应用页一次撤权后token失效且真实MCP401。证据gateway-browser-result-01.json与apps-revoked.png；source ea530f3，gateway/tools字节未改变。一次精确locator因listitem含button未匹配而timeout，未重复点击，随后DOM“已撤销”和401独立确认。两个临时server及任务tabs已关闭。Backend为MockTransport，此证据只认证wholeGateway syntheticbrowser；privateTLS、CodexDesktop、DSH、WorkBuddy、真实Pool/Provider/model/常驻仍NOT_RUN。

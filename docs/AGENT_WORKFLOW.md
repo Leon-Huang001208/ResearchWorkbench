@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+入站 MCP 源码、六份 focused测试与 DataHub frozen-read 边界显式路由 L4/full-delivery；保留 Project Constraints、Research Web Checks、Mac Bootstrap 和其他平台交接。Mac任务最终绑定 exact candidate/base 与 hostPlatform/taskKind；离线通过不能代替私网部署或原生 OAuth。
+
 2026-10-31起Mac干净安装CI沿原单job切换至`macos-15`，保留全部原安装与健康门；macos-14因官方brownout在启动前取消的旧记录保持CANCELLED。较早迭代的镜像名称只描述当时证据，现行要求以AGENTS及安装文档为准。
 
 ## successor 的交付与现场证据分层（2026-10-31）

@@ -6,6 +6,33 @@
   "artifactRoot": "outputs/research-web-architecture",
   "groups": [
     {
+      "id": "inbound-mcp-readonly",
+      "sources": [
+        "app/research_web/mcp_facade/"
+      ],
+      "documents": [
+        "docs/research-web-mcp-facade.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/architecture/research-web/07-capabilities.md",
+        "docs/research-web-installation.md"
+      ],
+      "diagrams": [
+        "15-inbound-mcp"
+      ],
+      "tests": [
+        "tests/research_web/test_mcp_facade_store.py",
+        "tests/research_web/test_mcp_facade_oauth.py",
+        "tests/research_web/test_mcp_facade_read_policy.py",
+        "tests/research_web/test_mcp_facade_http.py",
+        "tests/research_web/test_mcp_facade_tools.py",
+        "tests/research_web/test_mcp_facade_lifecycle.py"
+      ]
+    },
+    {
       "id": "dual-runtime",
       "sources": [
         "research_workbench_entrypoint/resident/model_provider_upgrade.py",
@@ -280,7 +307,8 @@
         "03-research-sequence",
         "04-data-file-flow",
         "11-hot-events",
-        "13-market-overview"
+        "13-market-overview",
+        "15-inbound-mcp"
       ],
       "tests": [
         "tests/research_web/test_datahub.py",
@@ -956,7 +984,8 @@
       ],
       "diagrams": [
         "01-deployment",
-        "12-ai-news"
+        "12-ai-news",
+        "15-inbound-mcp"
       ]
     },
     {
@@ -1013,6 +1042,73 @@
     }
   ],
   "diagrams": [
+    {
+      "id": "15-inbound-mcp",
+      "source": "docs/architecture/research-web/diagrams/15-inbound-mcp.json",
+      "artifact": "outputs/research-web-architecture/15-inbound-mcp.html",
+      "receipt": "outputs/research-web-architecture/15-inbound-mcp.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/15-inbound-mcp.visual-check.json",
+      "level": "subsystems",
+      "summary": "可选私网 MCP 的独立应用授权、逐对象批准和既有冻结读取；实现与各宿主实链分别取证。",
+      "evidence": [
+        {
+          "subjects": [
+            "host"
+          ],
+          "source": "docs/research-web-mcp-facade.md"
+        },
+        {
+          "subjects": [
+            "browser",
+            "browser-consent"
+          ],
+          "source": "app/research_web/mcp_facade/oauth_views.py"
+        },
+        {
+          "subjects": [
+            "gateway",
+            "native-connect",
+            "oauth-discovery",
+            "bearer-identity"
+          ],
+          "source": "app/research_web/multiuser/gateway.py"
+        },
+        {
+          "subjects": [
+            "authorization",
+            "persist-authorization"
+          ],
+          "source": "app/research_web/mcp_facade/oauth.py"
+        },
+        {
+          "subjects": [
+            "accounts",
+            "check-authorization"
+          ],
+          "source": "app/research_web/mcp_facade/authorization_store.py"
+        },
+        {
+          "subjects": [
+            "tools",
+            "route-account"
+          ],
+          "source": "app/research_web/mcp_facade/tools.py"
+        },
+        {
+          "subjects": [
+            "pool"
+          ],
+          "source": "app/research_web/multiuser/runtime.py"
+        },
+        {
+          "subjects": [
+            "frozen",
+            "frozen-get"
+          ],
+          "source": "app/research_web/mcp_facade/backend.py"
+        }
+      ]
+    },
     {
       "id": "00-system-overview",
       "source": "docs/architecture/research-web/diagrams/00-system-overview.json",
@@ -4664,48 +4760,6 @@
       "prefix": ""
     },
     {
-      "method": "DELETE",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "GET",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "HEAD",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "PATCH",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "POST",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "PUT",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
       "method": "POST",
       "path": "/api/research/assets/observations/{observation_id}/history-jobs",
       "source": "app/research_web/asset_routes.py",
@@ -5432,13 +5486,157 @@
       "source": "app/research_web/specialists/routes.py",
       "declaredPath": "/internal/data/specialist-control",
       "prefix": "/api/research"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "GET",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "POST",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PUT",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PATCH",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "DELETE",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "HEAD",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "GET",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "POST",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PUT",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PATCH",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "DELETE",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "HEAD",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "GET",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "POST",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PUT",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PATCH",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "DELETE",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "HEAD",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "4e91693a6d3a4ef15fd049377e312445c60679e4"
+      "revision": "222049521ddbb91199c494382d354bed78b3f24e"
     },
     "levels": [
       {
@@ -5463,6 +5661,13 @@
       }
     ],
     "modules": [
+      {
+        "id": "inbound-mcp-readonly",
+        "group": "inbound-mcp-readonly",
+        "title": "入站 MCP 私网只读",
+        "summary": "默认关闭；独立 OAuth 授权与批准公开/合成冻结材料，沿存活账户后端读取，不冷启动研究。原生宿主与私网验收待执行。",
+        "category": "研究会话与 Runtime"
+      },
       {
         "id": "dual-runtime",
         "group": "dual-runtime",
@@ -5689,5 +5894,88 @@
       "entrypointSha256": "70c77afcb6f6dd2d7af0dfbf6120a544fb1dea5ac00515ddbe1b2fda6faaf443",
       "input": "docs/architecture/research-web/diagrams/00-system-overview.json"
     }
+  },
+  "libraryRouteContract": {
+    "sdk": "mcp",
+    "version": "2.2.0",
+    "condition": "mcp-enabled",
+    "verification": "tests/research_web/test_mcp_facade_lifecycle.py::test_sdk_route_inventory_matches_documented_conditional_contract",
+    "status": "source-contract-not-deployment",
+    "routes": [
+      {
+        "path": "/.well-known/oauth-authorization-server",
+        "methods": [
+          "GET",
+          "HEAD",
+          "OPTIONS"
+        ],
+        "source": "app/research_web/mcp_facade/oauth_routes.py",
+        "origin": "sdk-generated-rwb-wrapper"
+      },
+      {
+        "path": "/authorize",
+        "methods": [
+          "GET",
+          "HEAD",
+          "POST"
+        ],
+        "source": "app/research_web/mcp_facade/oauth_routes.py",
+        "origin": "sdk-generated-rwb-wrapper"
+      },
+      {
+        "path": "/token",
+        "methods": [
+          "OPTIONS",
+          "POST"
+        ],
+        "source": "app/research_web/mcp_facade/oauth_routes.py",
+        "origin": "sdk-generated-rwb-wrapper"
+      },
+      {
+        "path": "/revoke",
+        "methods": [
+          "OPTIONS",
+          "POST"
+        ],
+        "source": "app/research_web/mcp_facade/oauth_routes.py",
+        "origin": "sdk-generated-rwb-wrapper"
+      },
+      {
+        "path": "/mcp/consent",
+        "methods": [
+          "GET",
+          "HEAD",
+          "POST"
+        ],
+        "source": "app/research_web/mcp_facade/oauth_views.py",
+        "origin": "rwb-browser"
+      },
+      {
+        "path": "/mcp/applications",
+        "methods": [
+          "GET",
+          "HEAD",
+          "POST"
+        ],
+        "source": "app/research_web/mcp_facade/oauth_views.py",
+        "origin": "rwb-browser"
+      },
+      {
+        "path": "/mcp",
+        "methods": null,
+        "source": "app/research_web/mcp_facade/server.py",
+        "origin": "sdk-generated-asgi"
+      },
+      {
+        "path": "/.well-known/oauth-protected-resource/mcp",
+        "methods": [
+          "GET",
+          "HEAD",
+          "OPTIONS"
+        ],
+        "source": "app/research_web/mcp_facade/server.py",
+        "origin": "sdk-generated-asgi"
+      }
+    ]
   }
 }

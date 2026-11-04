@@ -1,5 +1,9 @@
 # Research Web 文档门禁与安全入口
 
+API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项research/framework代理，逐条标记条件。检查器仅接受原Gateway固定literal方法、路径和完整条件块，动态表达式／别名／新增语法失败关闭。另列8项锁定SDK2.2与RWB浏览器路由合同，由隔离Python测试精确比较实际整套路由集合；ASGI methods=null不等于全部HTTP操作获准，该声明不计入静态扫描或部署验收。
+
+架构阅读器新增固定 `15-inbound-mcp.html`，保持名称白名单、目录无跟随、安全 CSP 和未知名拒绝；新模块卡片连接授权读取图。SDK 条件路由与静态 FastAPI 清单需分别保留真实来源，文档包存在不证明原生 OAuth 成功。
+
 2026-10-22 插件契约新增固定包/权限/原生能力映射与支持限制；静态API扫描仍需真实CLI网关，再逐一验证其相对router import与include，未挂载保持拒绝。新模块、路由、Python索引与API Atlas已登记；无新任意文档文件入口或图阅读权限。见[插件合同](research-web-plugins.md)。
 
 架构阅读器增加固定全市场概览视图 `13-market-overview.html`，说明公开源、无会话刷新、用户缓存和只读导出关系；继续由既有名称白名单与隔离CSP保护，不提供任意文件浏览。

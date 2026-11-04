@@ -1,5 +1,7 @@
 # 研究框架
 
+入站 MCP 仅读取批准冻结材料；发现和调用不触发框架采集器、scheduler、模型或研究。已有 RuntimePool 冷启动会恢复生产者，因此首版仅取存活后端；Gold/Dollar 等原框架工作流保持原授权。
+
 导入账户切换只清UI私有草稿/待处理响应，不创建或发送研究；控件复用须owner+draft匹配。测试Host现仅允许loopback bind/inbound回包，删除outbound许可并清继承proxy/凭据目录，产品默认不变。
 
 自选创建成功的账户绑定事件只重新读取既有watchlists，不改sameAsset观察加载条件，不触发Provider/模型或重建观察。新列表是导入目标metadata，不获得研究能力授权。

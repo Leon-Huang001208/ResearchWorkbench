@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项research/framework代理，逐条标记条件。检查器仅接受原Gateway固定literal方法、路径和完整条件块，动态表达式／别名／新增语法失败关闭。另列8项锁定SDK2.2与RWB浏览器路由合同，由隔离Python测试精确比较实际整套路由集合；ASGI methods=null不等于全部HTTP操作获准，该声明不计入静态扫描或部署验收。
+
+## 可选私网入站 MCP
+
+启用后提供 `/mcp`，授权服务元数据、`/.well-known/oauth-protected-resource/mcp`、`/authorize`、`/token`、`/revoke` 及浏览器同意/应用撤权页面。固定公开客户端 `rwb-codex-native`、scope `rwb.read`，不开放 DCR/CIMD。四工具为 `rwb_capabilities_list`、`rwb_datasets_list`、`rwb_dataset_read`、`rwb_source_read`；请求 64 KiB、响应 256 KiB、默认 100/最多 500 行、文本最多 12000 字符。OAuth 与对象合同见[入站 MCP](../../research-web-mcp-facade.md)，不能用浏览器 Cookie 冒充 bearer。
+
 ## successor 是封闭维护 CLI（2026-10-31）
 
 新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。

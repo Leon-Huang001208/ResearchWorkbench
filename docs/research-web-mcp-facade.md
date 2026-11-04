@@ -34,6 +34,8 @@ RWB 保留账户与权限、DataHub/Provider、冻结数据、来源证据、档
 
 批准是服务器受信管理操作，不能通过四个 MCP 工具、授权请求或模型文本完成。用户同意只能缩小到该账户当前批准材料的子集。更换摘要、撤销批准、缺失来源、路径越界或原质量门判为 invalid 时拒绝读取；旧 invalid 产物不能通过新入口导出。
 
+首版的严格只读模式进一步拒绝需解析 discovery/scenario/evidence 交接链的上下文，以及 `outputs/` 产物；来源仅接受已登记在 `inputs/` 的冻结 UTF-8 文本。原因是既有 GET 的交接验证和报告 detail 可能写 readiness/delivery 回执或协调子任务。受信只读模式在同一既有 GET 上提前拒绝这些情形，原浏览器行为和原质量门保持。批准记录也不能覆盖此限制；未来输出交接需要独立无副作用的质量读取设计。
+
 ## 四项工具
 
 协议使用锁定 `mcp==2.2.0` 的 MCPServer 与标准 OAuth 路由，2025-11-25 Tools 基线、无服务端会话状态的 HTTP。SDK 内部格式和密码学不另写一套。只启用四个只读工具，不启用 Prompts、Tasks、Skills 或 Apps 扩展。
@@ -48,6 +50,28 @@ RWB 保留账户与权限、DataHub/Provider、冻结数据、来源证据、档
 HTTP 请求最大 64 KiB，响应最大 256 KiB。分页、截断、coverage、缺失、来源和时点明确返回；空值和未知状态不能补成已覆盖。行数上限不保证字节上限，大行或大 manifest 必须明确拒绝或缩小分页，不能静默丢弃字段。
 
 账户由服务器验证令牌确定，客户端参数不能选择账户。只调用固定的既有后端 GET 路径；禁止任意路径、URL、SQL 或命令代理。内部实例控制 key、Cookie、浏览器 Authorization 和用户自选租户头不交给外部宿主。后端选择遵守现有 RuntimePool 容量，超限返回明确忙碌，不扩大运行池。
+
+首版只选择原生命周期中**已运行**的账户后端。MCP 请求不冷启动 Web/DSH pair：现有冷启动会恢复框架采集、发现及报告 scheduler，可能触发取数或研究。缺少存活后端、维护冻结、旧后端缺少只读协议时明确拒绝，不回退到普通 `backend_for` 或关闭已有用户任务。连接、发现和列表不分配实例；批准元数据的可见性也不等于原件已现场核验。取消这一限制需要后续独立、无业务恢复副作用的读取服务设计。
+
+## 安装与操作示例（未执行）
+
+公开安装入口 `./setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 继续使用已有 Web 锁；本次未引入依赖。已核对 `mcp==2.2.0`、`python-multipart==0.0.32`、`starlette==1.6.0` 与安装器；兼容性仍需同候选 Mac Bootstrap 干净安装证明，当前 `NOT_RUN`。
+
+只有网关进程环境中的 `RWB_MCP_READONLY_ENABLED=1` 开启入口；缺省、`0` 或其他值均关闭。既有服务须在独立授权部署后按原受管方式更新，不能因修改当前 shell 自动认定常驻已开启。以下配置例子未执行：
+
+```bash
+RWB_MCP_READONLY_ENABLED=1 ./rwb server doctor --json
+codex mcp add rwb --url https://research.tailXXXX.ts.net/mcp --oauth-client-id rwb-codex-native --oauth-resource https://research.tailXXXX.ts.net/mcp
+codex mcp login rwb
+```
+
+Origin 和 resource 必须换成同一个已批准私网规范地址。GUI 原生 MCP 配置填同一 URL、公开 client ID 与 resource，客户端密码留空；由宿主完成 loopback callback 和 PKCE，不能手填 bearer 或改用代理绕过 OAuth。上述 CLI 语法仅由本机 help 核对，尚未修改真实 Codex 配置或执行登录。
+
+服务器登录后在同意页核对账户、应用和逐项材料；在“已授权应用”撤销。材料批准只能由受信操作员调用 `AuthorizationStore.approve_material(user_id=..., context_id=..., kind=..., object_id=..., sha256=..., classification=...)`，classification 仅 `public` 或 `synthetic`；没有批准 HTTP 端点。批准必须先核实原件和来源许可，不从文件名、客户端声明或可下载性推断公开。
+
+`rwb_dataset_read` 的 `view="manifest"` 返回原 manifest，`view="rows"` 读取已冻结 rows；manifest 原件摘要与 rows 文件摘要各自校验。`rwb_source_read` 省略 `file_id` 时仅列该上下文批准来源；片段摘要不替代来源原件摘要。两项列表基于批准元数据，不表示底层原件现场通过。
+
+`server doctor --json` 中 `mcp_readonly` 只读环境开关和分发包元数据：`disabled` 或 `configuration_pending`，授权／连接 `not_checked`，原生 Codex／DSH／WorkBuddy／私网 TLS 均 `NOT_RUN`。安装包存在或版本匹配不等于连接成功；即使启用也不初始化 SDK、授权表、后端或模型，不读取凭据和历史正文。
 
 ## 验收与回滚
 
