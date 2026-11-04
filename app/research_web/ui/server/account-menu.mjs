@@ -13,7 +13,8 @@ export function renderAccountTrigger(user) {
 }
 
 export function renderAccountMenu(user, { busy = false, error = '' } = {}) {
-  return `<a class="account-identity account-profile-link" href="#/account" role="menuitem" tabindex="-1" aria-label="查看 ${e(user.username || '当前账号')} 的账号资料">${avatar(user)}<span><strong>${e(user.username || '当前账号')}</strong><small>${user.role === 'admin' ? '管理员' : '用户'}</small></span></a><div class="account-actions" role="presentation"><a role="menuitem" tabindex="-1" href="#/settings/general">${icon('settings')}<span>设置</span></a><div class="account-divider" role="separator"></div><button type="button" role="menuitem" tabindex="-1" data-account-logout ${busy ? 'disabled aria-disabled="true"' : ''}>${icon('logout')}<span>${busy ? '正在退出…' : '退出登录'}</span></button></div>${error ? `<p class="account-error" role="alert">${e(error)}</p>` : ''}`;
+  const applications = user.mcp_readonly_enabled === true ? '<a role="menuitem" tabindex="-1" href="/mcp/applications">已授权应用</a>' : '';
+  return `<a class="account-identity account-profile-link" href="#/account" role="menuitem" tabindex="-1" aria-label="查看 ${e(user.username || '当前账号')} 的账号资料">${avatar(user)}<span><strong>${e(user.username || '当前账号')}</strong><small>${user.role === 'admin' ? '管理员' : '用户'}</small></span></a><div class="account-actions" role="presentation"><a role="menuitem" tabindex="-1" href="#/settings/general">${icon('settings')}<span>设置</span></a>${applications}<div class="account-divider" role="separator"></div><button type="button" role="menuitem" tabindex="-1" data-account-logout ${busy ? 'disabled aria-disabled="true"' : ''}>${icon('logout')}<span>${busy ? '正在退出…' : '退出登录'}</span></button></div>${error ? `<p class="account-error" role="alert">${e(error)}</p>` : ''}`;
 }
 
 /** One body-level overlay survives shell redraws and escapes the rail's clipping. */

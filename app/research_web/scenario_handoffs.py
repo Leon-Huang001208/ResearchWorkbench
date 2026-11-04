@@ -484,7 +484,9 @@ def prepare_context(service, body):
     }
 
 
-def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _verified=None):
+def trusted_context(
+    service, sid, *, check_capabilities=True, read_only=False, _visited=(), _verified=None
+):
     """Validate every ancestor for scene and legacy copies, with cycle protection."""
     if sid in _visited or len(_visited) >= 64:
         fail("scenario_lineage_cycle", "资料来源链循环或过深，不能读取或继续交接")
@@ -498,6 +500,28 @@ def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _veri
         row = service.store.session(sid, include_deleted=True)
     except StoreError:
         fail("scenario_ancestor_unknown", "原始来源会话已缺失，不能用副本获得授权")
+    if read_only:
+        from .mcp_facade.read_policy import reject
+
+        if (
+            row.get("deleted_at") is not None
+            or row.get("purpose") == "discovery_research"
+            or row.get("scenario_handoff_id")
+            or row.get("evidence_handoff_id")
+            or row.get("discovery_handoff_id")
+            or any(
+                record.get("session_id") == sid
+                for record in service.store.data["handoffs"].values()
+            )
+            or any(
+                record.get("session_id") == sid
+                for record in service.store.data.get("discovery_handoffs", {}).values()
+            )
+        ):
+            reject()
+        # The original no-handoff branch is a pure ownership check. Never
+        # descend into lineage, capability admission, or discovery reconciliation.
+        return None
     if row.get("purpose") == "discovery_research":
         discovery = service.discovery.trusted_context(sid)
         record = service.store.data.get("discovery_handoffs", {}).get(discovery["handoff_id"], {})

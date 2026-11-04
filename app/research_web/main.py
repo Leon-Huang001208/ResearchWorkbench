@@ -987,10 +987,14 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
         service = svc(request)
+        from .mcp_facade.read_policy import HEADER, VERSION, input_text, strict_read
         from .scenario_handoffs import trusted_context
 
-        trusted_context(service, sid, check_capabilities=False)
+        readonly = strict_read(request)
+        trusted_context(service, sid, check_capabilities=False, read_only=readonly)
         relative = service.store.session(sid).get("files", {}).get(fid, "")
+        if readonly:
+            input_text(relative)
         receipt = service.store.data["receipts"].get(
             f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}
         )
@@ -1035,6 +1039,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             chunks(),
             media_type=media_type,
             headers={
+                **({HEADER: VERSION} if readonly else {}),
                 "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'",
                 "X-Content-Type-Options": "nosniff",
                 "Content-Disposition": f"{'attachment' if action == 'download' else 'inline'}; filename*=utf-8''{quote(name)}",
