@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {pathToFileURL} from 'node:url';
+import {validateCloseoutRecovery} from './git_safety.mjs';
 
 const fail=code=>{throw Object.assign(new Error(code),{code});};
 const evidenceProtection='rwb-required-verification-recovery-originals';
@@ -67,7 +68,6 @@ export async function finalizeLifecycle({projectRoot,commonDirectory,taskId,rece
   if(finalization.status!=='complete') {
     if(finalization.status!=='pending')fail('LIFECYCLE_RECOVERY_UNVERIFIED');
     try {
-      const {validateCloseoutRecovery}=await import('./git_safety.mjs');
       validateCloseoutRecovery({projectRoot,commonDirectory,taskId,receipt});
     } catch(error) {
       throw Object.assign(new Error('LIFECYCLE_RECOVERY_UNVERIFIED',{cause:error}),{code:'LIFECYCLE_RECOVERY_UNVERIFIED'});
