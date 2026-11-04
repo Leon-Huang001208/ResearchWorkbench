@@ -32,4 +32,3 @@
 # 验证通道补充
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"事件功能仅扩展既有Checks分区的定点测试和原Mac Bootstrap静态资源核对，沿原runner、job、45分钟时限和受管临时根；不增加CI执行节点或放宽验收、额度、来源及模型权限。新领域数据流在14图单独展开，源码与真实运行仍分开认证。","diagrams":[]} -->
-
