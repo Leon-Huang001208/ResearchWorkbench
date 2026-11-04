@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {pathToFileURL} from 'node:url';
+import {spawnSync} from 'node:child_process';
 import {finalizeLifecycle} from '../../../scripts/resource_lifecycle.mjs';
 
 const kernel=path.join(os.homedir(),'.agents/leon-engineering/runtime/lib/resources/lifecycle.mjs');
@@ -131,4 +132,38 @@ test('real kernel another RWB project cannot lose required originals to this del
   await assert.rejects(f.finalize(),{code:'LIFECYCLE_REQUIRED_EVIDENCE_UNPROTECTED'});
   assert.equal(fs.readFileSync(original,'utf8'),'required other-project proof');
   assert.equal(f.api.status().tasks.find(row=>row.project===f.projectRoot && row.task==='task').phase,'active');
+});
+
+test('real kernel cache delegation preserves its single owner and keeps accepted evidence with the reporter',async t=>{
+  const kernelBefore=hash(kernel),f=fixture(t),owner=path.join(f.root,'cache-owner'),origin='https://example.invalid/kernel-fixture.git';
+  fs.mkdirSync(owner);
+  for(const directory of [owner,f.projectRoot])for(const args of [['init','--quiet'],['remote','add','origin',origin]]) {
+    const result=spawnSync('/usr/bin/git',['-c','gc.auto=0','-c','maintenance.auto=false','-C',directory,...args],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);
+  }
+  const ownerRoot=path.join(owner,'cache-root');fs.mkdirSync(ownerRoot);f.api.enroll({project:owner,roots:[ownerRoot]});
+  f.api.reportCache({project:owner,adapter:'rwb-buildkit',bytes:532,receiptSha256:'b'.repeat(64)});
+  const resourceFile=path.join(f.state,'receipt.json'),resource=JSON.parse(fs.readFileSync(resourceFile));
+  resource.cache.afterBytes=375;resource.cache.builders={'desktop-linux':{bytes:200},'rwb-dev-builder':{bytes:175}};
+  fs.writeFileSync(resourceFile,JSON.stringify(resource));fs.chmodSync(resourceFile,0o600);
+  const frozen=fs.readFileSync(resourceFile),evidence=hash(path.join(f.evidence,'recovery-proof.json'));
+  await assert.rejects(f.finalize(),{code:'CACHE_ADAPTER_OWNERSHIP_CONFLICT'});
+  assert.equal(f.api.status().externalCaches['rwb-buildkit'].bytes,532);
+  // An independently authorized owner-side report has already established the
+  // frozen observation. The bridge may only reuse that authorized chain.
+  f.api.reportCache({project:owner,adapter:'rwb-buildkit',bytes:375,receiptSha256:hash(resourceFile)});
+  const identity=directory=>{const stat=fs.statSync(directory,{bigint:true});return {path:directory,dev:String(stat.dev),ino:String(stat.ino)};};
+  const project=directory=>({projectRoot:identity(directory),commonDirectory:identity(path.join(directory,'.git')),originSha256:crypto.createHash('sha256').update(origin).digest('hex')});
+  const grant={schemaVersion:1,adapter:'rwb-buildkit',authorization:{source:'explicit-user',date:'2026-11-05',scope:'report-frozen-cache-observation'},owner:project(owner),reporter:project(f.projectRoot),tasks:[{taskId:'task',receiptSha256:hash(resourceFile),afterBytes:375}]};
+  const filename=path.join(f.commonDirectory,'leon-engineering/cache-report-delegation.json');fs.writeFileSync(filename,JSON.stringify(grant),{mode:0o600});
+  const result=await f.finalize(),status=f.api.status();
+  assert.equal(result.status,'cleaned');assert.equal(result.cacheReport.owner,owner);assert.equal(result.cacheReport.reporter,f.projectRoot);
+  assert.deepEqual(Object.keys(status.externalCaches),['rwb-buildkit']);assert.equal(status.externalCaches['rwb-buildkit'].project,owner);assert.equal(status.externalCaches['rwb-buildkit'].bytes,375);
+  assert.equal(status.tasks.find(row=>row.task==='task').project,f.projectRoot);
+  assert.equal(status.resources.find(row=>row.path===f.evidence).owners[0].project,f.projectRoot);
+  assert.equal(hash(path.join(f.evidence,'recovery-proof.json')),evidence);assert.deepEqual(fs.readFileSync(resourceFile),frozen);
+  assert.equal((await f.finalize()).cacheReport.previousBytes,375);
+  assert.deepEqual(Object.keys(f.api.status().externalCaches),['rwb-buildkit']);
+  f.api.reportCache({project:owner,adapter:'rwb-buildkit',bytes:375,receiptSha256:'f'.repeat(64)});
+  await assert.rejects(f.finalize(),{code:'LIFECYCLE_CACHE_DELEGATION_OBSERVATION'});
+  assert.equal(f.api.status().externalCaches['rwb-buildkit'].receiptSha256,'f'.repeat(64));assert.equal(hash(kernel),kernelBefore);
 });
