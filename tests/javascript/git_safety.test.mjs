@@ -114,6 +114,50 @@ test('lifecycle accepts a valid partial cleanup recovery without rewriting its p
   assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
 });
 
+test('CLI pending recovery respects native host gating without an unsettled entrypoint await',async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const original=fs.readFileSync(path.join(f.state,'git-finalization.json'));
+  assert.equal(JSON.parse(original).status,'pending');
+  const scripts=path.join(f.projectRoot,'scripts');fs.mkdirSync(scripts);
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(scripts,name));
+  fs.mkdirSync(path.join(f.projectRoot,'.agents'));
+  fs.writeFileSync(path.join(f.projectRoot,'.agents/resource-lifecycle.json'),JSON.stringify({schemaVersion:1,enabled:true}));
+  const home=path.join(f.root,'cli-home'),runtime=path.join(home,'.agents/leon-engineering/runtime');fs.mkdirSync(runtime,{recursive:true});
+  // Only the controller's read-only remote boundary is synthetic. The child
+  // enters the unmodified production CLI and complete recovery validator.
+  fs.writeFileSync(path.join(runtime,'iteration-delivery.mjs'),`import fs from 'node:fs';\nexport function readDeliveryReceipt(){return JSON.parse(fs.readFileSync(${JSON.stringify(f.delivery)},'utf8'));}\nexport const validateCleanedDelivery=readDeliveryReceipt;\n`);
+  const runCli=()=>spawnSync(process.execPath,[path.join(scripts,'git_safety.mjs'),'delivery','--project',f.projectRoot,'--task-id','task','--status'],
+    {encoding:'utf8',env:{...process.env,HOME:home},timeout:15000,maxBuffer:1024*1024});
+  const child=runCli();
+  assert.equal(child.signal,null,child.stderr);
+  if(process.platform!=='darwin') {
+    assert.equal(child.status,1,child.stderr);
+    assert.equal(JSON.parse(child.stderr).code,'HOST_UNSUPPORTED');
+    assert.doesNotMatch(child.stderr,/unsettled top-level await/i);
+    assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
+    return;
+  }
+  assert.equal(child.status,2,child.stderr);
+  assert.doesNotMatch(child.stderr,/unsettled top-level await/i);
+  const result=JSON.parse(child.stdout);
+  assert.equal(result.gitStatus,'cleaned');assert.equal(result.status,'cleanup_pending');
+  assert.equal(result.lifecycleCloseout.code,'ENOENT','validated recovery must reach the intentionally absent runtime manifest');
+  await t.test('CLI still rejects a changed recovery certificate',()=>{
+    const filename=path.join(f.state,'git-finalization-recovery.json'),saved=fs.readFileSync(filename);
+    try {
+      const certificate=JSON.parse(saved);certificate.candidateCommit='f'.repeat(40);fs.writeFileSync(filename,JSON.stringify(certificate));
+      const rejected=runCli();
+      assert.equal(rejected.status,1,rejected.stderr);
+      assert.doesNotMatch(rejected.stderr,/unsettled top-level await/i);
+      assert.equal(JSON.parse(rejected.stderr).code,'CLOSEOUT_FINALIZATION_UNVERIFIED');
+    } finally {fs.writeFileSync(filename,saved);}
+  });
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
+});
+
 test('lifecycle refuses incomplete, stale or changed partial cleanup recovery evidence before events', async t=>{
   const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
   const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
