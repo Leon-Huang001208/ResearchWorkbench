@@ -41,6 +41,36 @@ CLI 子进程与普通模块调用分别留证；模块导入测试不能替代�
 不删除底层snapshot/blob。观测来自最近一次工具回执，未刷新不能当成实时空间证明。
 总量超限则记欠账，不停止使用中的资源来达标。
 
+## 单一缓存 adapter 的私有委托报告
+
+默认不存在 `Git common/leon-engineering/cache-report-delegation.json`，报告行为及返回结构保持原样。
+跨 checkout 只能由已获明确用户授权的本机操作者在源码交付后建立该私有配置；不从 HTTP、库参数
+或业务配置接收 grant。文件里的授权来源/日期是审计元数据，不能自行证明用户已许可。
+固定 schema 如下，各层未知字段拒绝，最多 32 个不重复任务：
+
+| 字段 | 固定含义 |
+| --- | --- |
+| `schemaVersion` / `adapter` | `1` / `rwb-buildkit` |
+| `authorization` | `source: explicit-user`、真实日历日期 `date: YYYY-MM-DD`、`scope: report-frozen-cache-observation` |
+| `owner` / `reporter` | 各自含 `projectRoot: {path,dev,ino}`、`commonDirectory: {path,dev,ino}` 及 `originSha256`；dev/ino 为十进制字符串 |
+| `tasks` | 每项只含 `taskId`、冻结资源回执原字节的 `receiptSha256`、`afterBytes` |
+
+配置须为当前用户拥有、0600、单硬链接、无别名的普通文件，上限 64 KiB；FD 有界读取并检查前后身份。
+委托绑定时的资源回执也按私有 FD 快照读取（上限 16 MiB）。两侧真实 root/common 的路径与 dev/ino 均须匹配；
+固定系统 Git 只读复核仓库及 origin，清除继承的 `GIT_*` 覆盖，禁用系统/全局 Git 配置与惰性 fetch/replace。
+`originSha256` 为该边界下 `remote get-url origin` 去首尾空白结果的 SHA-256，两侧 digest 必须相同；不输出 URL。
+
+当前任务须匹配冻结回执 SHA 与字节数；builders 必须恰为 `desktop-linux`、`rwb-dev-builder`，
+各分项 bytes 为安全非负整数、安全求和后等于 afterBytes。原 owner 须已 enrolled，单一 adapter 仍属于它；
+当前 ledger 的 bytes/SHA 须属于 grant 的获准冻结观察链，且 bytes 等于本任务值。桥不执行任意旧值的首次替换，
+首次更新须由获授权操作者单独完成。配置、回执、双侧身份/origin、当前 owner 与观察链在报告前再核对；复核时发现漂移即拒绝，不发事件。
+
+只有 `reportCache.project` 使用 owner；enroll/register/交付事件继续归 reporter，不迁移 owner 或新增 adapter。
+委托返回 `cacheReport`，仅含 owner/reporter、回执/配置 SHA、字节数及冻结观察标记；previousBytes/sequence 仅作审计。
+该委托上报路径不测量 Docker、不调用 builder maintenance/GC、不改服务，复用已获准的冻结观测，不声称实时或最新。
+其他既有 Git、资源、预算和缓存安全门保持。原 API 仍是 last-observation 写入，只会原子拒绝跨 owner 变化；
+没有 CAS，不能保证阻止最后复核到写入之间的同 owner 并发观测变化或覆盖，不能把审计快照写成 CAS。
+
 ## 备份退出
 
 新任务成功清理时登记其恢复点ID和认证manifest哈希。后续交付/恢复事件使用原正式
