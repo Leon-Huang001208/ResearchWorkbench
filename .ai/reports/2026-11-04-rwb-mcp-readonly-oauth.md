@@ -67,3 +67,5 @@ Important2：永久领域错误采用明确白名单。兑换／刷新事务的�
 Minor3 与两项 exact-check 发现：UI文档开关改为 mcp_readonly_enabled===true；Node仅更新focused catalog19及DataHub routes明确入站MCP规则的预期，同时保留L4/full-delivery/所有平台门和其余unknown fallback；原FIFO测试仅增加自身创建FIFO的finally unlink，原子进程、2秒超时和断言保持。原exact-local-integrations批次04为20PASS而cleanup初次blocked，父会话已完成窄范围缺失teardown恢复；不能把该事件描述为业务测试失败。
 
 本轮WIP证据：final-fix-red初次4FAIL中GET断言错把Gateway Host403当421，另外3项是有效错误映射RED；仅修正测试后同root red-get-01实际4FAIL（GET超时、兑换400、刷新400、authorize302 access_denied）。green-01为3PASS/1FAIL，揭示SDK authorize catch-all；改用SDK temporary错误后同root green-02为4PASS并正式retired。原各次失败与结果哈希保持。后续final-fix-focused-01/02/03明确20/20/5个展开node IDs，完整HTTP/OAuth＋FIFO＋8路由合同共45PASS，三root均retired；manifest及所有controller/stdout/JUnit/result在任务logs。Node final-fix-node-L1为75PASS，Ruff/Black/isort/Mypy（3源码文件）和diff检查通过。以上不是最终exact candidate、全Router、独评、CI或生产验收；剩余闭包由父会话绑定最终HEAD完成。
+
+统一修复源码已本地提交 `aea209e8790b6f5a7c6c34de6ea361438ced8515`；阅读检查点与既有生成器的Atlas/Python索引随此提交同步，独立文档提交另记，不构造自引用SHA。完整feature基线87b6cd9的文档与架构检查通过；e47仅为本次fixdiff评审基线，其要求重改六份模块文档的结果保留，不据此机械扩大修改范围。冻结图15保持原source/HTML哈希。最终独评、完整local/Router、CI、正式交付及真实原生验收仍待主任务完成。

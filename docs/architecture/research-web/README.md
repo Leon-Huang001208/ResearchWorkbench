@@ -1,6 +1,6 @@
 # Research Workbench Research Web 当前架构
 
-源码阅读检查点：`222049521ddbb91199c494382d354bed78b3f24e`，包括已评审授权/工具及本轮 Doctor/生命周期/CI 接线及受限条件路由扫描；该提交仅本地存在，GitHub链接在受管发布完成前可能不可访问。此源码 pin 不认证最终文档提交、CI、常驻或原生宿主。
+源码阅读检查点：`aea209e8790b6f5a7c6c34de6ea361438ced8515`，包含授权/工具、Doctor/生命周期/CI 接线、受限条件路由扫描及本轮 GET/临时 OAuth 故障修复；该提交仅本地存在，GitHub链接在受管发布完成前可能不可访问。最终修复仍待独立复核；此源码 pin 不认证最终文档提交、CI、常驻或原生宿主。
 
 可选[入站 MCP 访问图](../../../outputs/research-web-architecture/15-inbound-mcp.html)说明原私网网关中的应用授权、逐对象审批、四项读取工具和原 RuntimePool/冻结原件链。默认关闭；没有另建研究循环或身份服务。现有执行与报告图继续描述原 DSH 链；原生宿主实链、源码和部署验收各自记录，详见[入站合同](../../research-web-mcp-facade.md)。
 

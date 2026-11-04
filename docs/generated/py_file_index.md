@@ -7663,13 +7663,19 @@ Module docstring:
 Imports:
 - `config`
 - `core.observability`
+- `mcp.server.auth.middleware.bearer_auth`
+- `mcp.server.transport_security`
 - `mcp.types`
 - `multiuser.accounts`
 - `pydantic`
 - `starlette.responses`
+- `starlette.routing`
 
 Classes:
 - `LimitExceeded`
+- `BoundedMCPMethods`
+  - Keep SDK dispatch/auth, but decline its unbounded GET event stream.
+  - methods: __init__, __call__
 - `BoundedHTTP`
   - methods: __init__, __call__
 
@@ -7824,6 +7830,8 @@ Imports:
 - `mcp.types`
 - `models`
 - `oauth`
+- `pydantic`
+- `starlette.routing`
 - `tools`
 - `urllib.parse`
 
