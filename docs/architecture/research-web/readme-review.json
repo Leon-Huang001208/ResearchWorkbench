@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "2026-10-31复核存储留存控制面：README的Host、唯一DSH和公开安装入口仍适用；测试临时根及任务证据的选择性回收详见专项文档。",
-  "reason": "本轮新增的本机测试根登记/回收脚本使用标准库，不增加线上研究引擎、业务HTTP、模型权限、依赖或公开安装入口。iteration_resources仅使新交付任务在最终收尾时逐文件选择证据并限制保留字节，旧任务继续按原回执保全；失败/未知、生产恢复和Git备份不由新规则自动删除。README无需承载临时根、JUnit和证据选择清单细节，具体合同见docs/research-web-storage-retention.md。原试验恢复交接的阶段性设计与现场验收分别见docs/research-web-trial-successor-handoff.md及受管回执；本次不变更平台支持声明。"
+  "disposition": "updated",
+  "summary": "新增事件时间线、日历效应与六维研究评分入口及验收边界。",
+  "reason": "增加个人事件与固定研究/代理模拟能力，README补充新入口和数据/PIT/生产状态边界；唯一DSH、公开安装器和各平台验收门不变。"
 }

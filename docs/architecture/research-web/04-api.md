@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+事件研究API分为 `/api/research/events`、`/api/research/event-studies` 与
+`/api/research/market-scores`。事件／日历／代理／因子注册仅接收账号已有原件引用，写操作需要
+明确用户动作、固定长度且不超过64KiB的请求，并使用相应幂等／版本合同。封存与独立评估、
+描述统计及已存结果读取／导出分别操作；历史研究分不启用生产分或仓位。精确路径由API Atlas
+按源码列出，字段与权限见[集成合同](../../research-web-event-research.md)。
+
 ## successor 是封闭维护 CLI（2026-10-31）
 
 新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。

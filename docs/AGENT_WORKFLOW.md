@@ -1,5 +1,11 @@
 # Agent 任务路由指南
 
+事件／日历研究在隔离worktree开发，新增个人SQLite、原件、固定回测与六维资格时执行完整
+changed-set Router、独评及同候选Mac安装门。测试用获准独立环境和受管≤20用例批次，失败后
+沿原receipt/root重跑、保留原proof，真实成功才按身份退役；不以语法或合成分数代替业务接受。
+来源采集使用原Automation调度器，需宿主Native通用开关和逐源确认；tenant原禁用通道不放开。
+真实源失败、历史PIT缺口、生产启用和跨平台层级分别记录。详见[事件研究](research-web-event-research.md)。
+
 2026-10-31起Mac干净安装CI沿原单job切换至`macos-15`，保留全部原安装与健康门；macos-14因官方brownout在启动前取消的旧记录保持CANCELLED。较早迭代的镜像名称只描述当时证据，现行要求以AGENTS及安装文档为准。
 
 ## successor 的交付与现场证据分层（2026-10-31）

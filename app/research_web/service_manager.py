@@ -3062,6 +3062,7 @@ class WebServiceManager:
         """Return a path-free, credential-free Web installation diagnosis."""
         from research_workbench_entrypoint.resident.admission import diagnostic
 
+        from .event_diagnostics import event_diagnostic
         from .mcp_runtime.managed_sandbox import POLICY_VERSION, available
         from .warehouse_diagnostics import warehouse_diagnostic
 
@@ -3131,6 +3132,7 @@ class WebServiceManager:
             "weekly_report": self._weekly_report_diagnostic(),
             "ai_news": self._ai_news_diagnostic(),
             "research_warehouse": warehouse_diagnostic(self.data_root),
+            "event_research": event_diagnostic(self.data_root),
             "mcp_managed_local_sandbox": {
                 "available": available(),
                 "policy": POLICY_VERSION,

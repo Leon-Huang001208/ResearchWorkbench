@@ -537,6 +537,16 @@ def asset_index_snapshot(home: Path):
             if "@dossiers" in index:
                 raise UpdateBlocked("dossier_preservation_key_conflict")
             index = {**index, "@dossiers": dossier_state}
+        from app.research_web.event_preservation import snapshot_events
+
+        try:
+            event_state = snapshot_events(path.parent)
+        except RuntimeError as exc:
+            raise UpdateBlocked("event_preservation_failed") from exc
+        if event_state is not None:
+            if "@events" in index:
+                raise UpdateBlocked("event_preservation_key_conflict")
+            index = {**index, "@events": event_state}
         return {
             key: hashlib.sha256(
                 json.dumps(

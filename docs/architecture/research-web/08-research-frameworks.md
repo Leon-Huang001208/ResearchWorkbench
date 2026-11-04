@@ -1,5 +1,11 @@
 # 研究框架
 
+## 事件／日历研究与领域框架的分界（2026-11-04）
+
+新事件模块是原Host内的时间线、确定性研究及市场评分候选，新增API与个人版本存储见[图14](../../../outputs/research-web-architecture/14-event-research.html)。它不注册或自动发布Gold／Dollar框架，不修改其方法快照、Bot绑定与原质量门；模型解释仍由唯一DSH执行。
+
+历史统计、事件确认和研究评分分别有证据资格，尚无合格输入时允许全部因子未准入；原ETF工程模拟与正式交易也不因新页面而获得资格。详细输入／区间合同见[事件研究](../../research-web-event-studies.md)，当前来源和平台限制不能由框架名称推定通过。
+
 导入账户切换只清UI私有草稿/待处理响应，不创建或发送研究；控件复用须owner+draft匹配。测试Host现仅允许loopback bind/inbound回包，删除outbound许可并清继承proxy/凭据目录，产品默认不变。
 
 自选创建成功的账户绑定事件只重新读取既有watchlists，不改sameAsset观察加载条件，不触发Provider/模型或重建观察。新列表是导入目标metadata，不获得研究能力授权。

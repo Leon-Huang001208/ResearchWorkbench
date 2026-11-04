@@ -594,6 +594,9 @@ def test_lifecycle_lock_rejects_non_exact_existing_owner_modes(tmp_path, owner_m
     assert captured.value.code == "lifecycle_busy"
     assert stat.S_IMODE(owner.stat().st_mode) == owner_mode
     assert path.exists()
+    # Preserve the assertion, then make successful synthetic fixtures hashable
+    # by the managed test-root retirement gate (no product permission change).
+    owner.chmod(0o600)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
@@ -1014,9 +1017,16 @@ def test_lifecycle_guard_requires_exact_private_posix_mode(tmp_path, guard_mode)
     reason="requires the real macOS /var system alias",
 )
 def test_lifecycle_lock_accepts_system_alias_above_explicit_trusted_root(tmp_path):
-    resolved = str(tmp_path)
-    assert resolved.startswith("/private/var/")
-    lexical_tmp = Path("/var") / Path(resolved).relative_to("/private/var")
+    resolved = tmp_path.resolve()
+    system_aliases = ((Path("/var"), Path("/private/var")), (Path("/tmp"), Path("/private/tmp")))
+    alias, physical = next(
+        (alias, physical)
+        for alias, physical in system_aliases
+        if resolved.is_relative_to(physical) and alias.is_symlink() and alias.resolve() == physical
+    )
+    lexical_tmp = alias / resolved.relative_to(physical)
+    assert lexical_tmp != resolved
+    assert lexical_tmp.resolve() == resolved
     trusted_root = lexical_tmp / "managed"
     trusted_root.mkdir(mode=0o700)
     path = trusted_root / "run" / "lifecycle.lock"
