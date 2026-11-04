@@ -7,7 +7,8 @@
 
 2026-10-31 本机测试产物与交付证据分层：`scripts/test_artifact_retention.py` 在测试开始登记临时根的任务、候选及 inode，通过的外部 JUnit/stdout/stderr 冻结后可提前清理根目录；`iteration_resources.py` 对新任务要求完整的 `logs/evidence-retention.json`，仅把显式保留且不超过 128 MiB 的证据归档。未分类、失败/未知或来源变更均拒绝清理；旧任务沿原合同，生产恢复与 Git 备份由各自保全链管理。没有新增线上研究、模型或部署节点，见[存储留存规则](research-web-storage-retention.md)。
 
-开发产物在原Git/Docker安全收尾后经`resource_lifecycle.mjs`桥接共用事件内核，独立记录交付与清理欠账；普通备份按登记的交付事件退休，完整日志只保留有界摘要。不新增业务服务或部署节点，见[生命周期](resource-lifecycle.md)。
+开发产物在原Git/Docker安全收尾后经`resource_lifecycle.mjs`桥接共用事件内核，独立记录交付与清理欠账；普通备份按登记的交付事件退休。测试输出先按已核验选择清单处置，必要证据归档原件由桥显式保护，摘要不能替代原件。不新增业务服务或部署节点，见[生命周期](resource-lifecycle.md)。
+恢复后的桥接复用项目只读 `validateCloseoutRecovery`，同时核对完整恢复证书链、实际交付、资源复核和引用/路径保全；原 pending 证明保持原字节，不新增恢复执行器或研究节点。
 
 2026-10-31 试验清理容量后继仍位于原 Native 操作员事务：版本化执行模式将历史会话的同父目录 rename 预算与配置复制预算分开，保持原三锁、BirthFence、账号保全和恢复归档。未新增研究引擎或业务权限；新执行器对旧事务的接管、源码交付和真实部署各自留证，不能以历史 UNKNOWN 或源码测试结果代替现场状态。容量合同见[试验退役](research-web-trial-discard.md)。
 
