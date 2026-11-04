@@ -1,11 +1,13 @@
-# 事件时间线／日历效应／六维评分：本地候选验证完成，待精确提交交付
+# 事件时间线／日历效应／六维评分：CI夹具修补完成，待重新验收
 
 - 任务：`events-calendar-20261104`；宿主macOS，Web功能开发。
 - 基线：GitHub `master` `87b6cd99653d9f8160dc7eb0b3bea8d5d9ea93db`。
 - 独立checkout：`/Users/leon/.codex/worktrees/rwb-events-source-20261104`。
 - 受管分支：`codex/events-calendar-20261104-events-calendar`。
 - 工作树：`/Users/leon/.codex/worktrees/rwb-events-source-20261104-worktrees/events-calendar-20261104`。
-- 当前状态：未提交的实现候选；本机WIP验证通过，尚无同候选提交／CI／PR／合并身份。
+- 当前状态：PR #264首轮候选`16451d02...`完成939项exact验证（938通过、1项原生Windows跳过）；
+  Mac安装与Project Constraints通过，Checks在7897项中发现4个旧夹具活动见证失败。
+  repair1仅修两测试模块及本报告，130项WIP回归通过；后继1069项exact及新候选CI待执行，尚未合并。
   源码、本机技术验证、真实业务接受与生产激活分别记录，不能互相替代。
 
 ## 现场与权限
@@ -21,7 +23,7 @@ pytest／pytest-asyncio／ruff／black／isort／mypy。实际环境为
 产品依赖清单、生产环境与原项目环境没有因此变更。
 
 已执行有界公开来源预检，未调用付费模型、读取供应商秘密、启用实际采集日程、修改生产库、
-更新常驻服务或执行Windows/Linux产品dispatch。未push、创建PR、合并或发布。
+更新常驻服务或执行Windows/Linux产品dispatch。已按持续授权push并创建PR #264，尚未合并或发布版本。
 当前仓库规则的Mac安装CI为macos-15。测试及浏览器使用合成账号／输入，真实研究仍为NOT_RUN。
 
 ## 已写入候选
@@ -44,6 +46,8 @@ pytest／pytest-asyncio／ruff／black／isort／mypy。实际环境为
 - 描述统计明确使用指数日历／价格／范围，ETF仅用于可成交重放；缺指数证据拒绝代理回退。
 
 ## 实际验证
+
+下表保留首轮提交前的本地检查点；其后的exact、CI与修补证据见文末追加记录，旧通过不认证新候选。
 
 | 检查 | 结果 |
 |---|---|
@@ -122,3 +126,34 @@ macos-15干净安装、分支保护与最新基线校验，再依持续授权合
 不能把基线HEAD或此WIP规划当作干净候选的验收证明。
 Windows/Linux原生与对应设备dispatch保持NOT_RUN交接；本Mac任务不替它们签发PASS。
 执行期间继续保护原仓库锁、其他任务、研究数据、服务和恢复证据；部署和日程启用仍另行授权。
+
+## CI repair1：补齐既有活动见证夹具（2026-11-04）
+
+上述正文保留首次发布前的阶段记录；本段追加远端失败后的实际修复，不改写旧证明。
+Research Web Checks run `41839575009`实际执行7897个用例，两个worker各返回2个断言失败，
+不是timeout、基础设施失败或未执行。安全产物按原策略去除断言正文，保留精确nodeID与失败
+分类；实际诊断在原integration的`logs/event-delivery/ci/41839575009-failure-diagnosis.json`。
+
+对feature提交`c9e0953a4d189aa2db8351870189375461b27983`，在既有授权测试环境用原正式
+`run_batch`、同任务唯一临时父目录、WIP模式及四个精确nodeID实际复现4/4失败。两个原idle
+用例得到active=None；两个Wind poison用例的其他checks出现None。根因为旧测试stub缺少
+`event_timeline`、`event_collection`、`studies`与`event_inputs`，新增三个见证正确地将
+AttributeError记为UNKNOWN；生产拒绝未知是预期行为，无需生产修复。
+
+本轮仅修改`test_resident.py`与`test_wind_recovery_activity.py`：完整空闲夹具明确提供四个
+active=False组件；新增20个参数覆盖逐组件活动和缺字段UNKNOWN，真实cold Host另核对
+event_sources／event_studies／event_inputs均明确False。原Wind cleanup_unconfirmed与全部
+原断言保留，没有把UNKNOWN改成idle，也没有降低维护／保全门或修改生产源码。
+
+原四例同receipt／root重跑4/4通过并退役，原RED的result／JUnit／stdout／stderr全部保留。
+两完整模块实际收集130个唯一用例，按≤20分为七批执行，130/130通过、无skip、七批均退役；
+`logs/event-ci-repair1/summary.json`和`reported-failures-retry-green-01.result.json`分别记录
+完整模块与定点修复证明。两文件ruff／black／isort／AST通过。此次仍为WIP证据，不能把旧
+integration的exact回执改成修复候选PASS；后续由主任务提交、受管repair交付并等待新候选
+原必需CI。尚未合并，未执行任何工作树／分支交付清理、生产部署或日程激活。
+
+后继exact选择另存`logs/event-ci-repair1/neighbor-nodeids-880.json`：原冻结750与完整修复
+模块130无重叠，合计880邻接；加189新功能共1069项。原750 manifest与旧939 exact证明
+完整保留，不把新增选择回填到旧候选。root另在旧干净integration `16451d02...`实际执行
+完整CI JavaScript glob，1302项中1298通过、4个条件skip、零失败；见该树
+`logs/event-delivery/ci-js-preflight.log`。这证明JS预检实际运行，不能代替后继修复候选CI。
