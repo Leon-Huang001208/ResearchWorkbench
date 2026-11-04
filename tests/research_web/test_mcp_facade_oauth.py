@@ -523,3 +523,42 @@ def test_revoke_transaction_rollback_is_503(http_env, monkeypatch):
         assert response.status_code == 503
         assert response.json() == {"error": "temporarily_unavailable"}
         store.verify_access(pair["access_token"], resource=store.resource)
+
+
+def test_browser_referrer_policy_preserves_exact_origin_csrf(http_env):
+    client, store, _, sessions, _ = http_env
+    started = client.get("/authorize", params=params(), headers=browser(client, sessions[0]))
+    location = started.headers["location"]
+    page = client.get(location, headers=browser(client, sessions[0]))
+    assert page.headers["referrer-policy"] == "same-origin"
+    request_id = parse_qs(urlsplit(location).query)["request_id"][0]
+    consent = {"request_id": request_id, "decision": "allow"}
+    for origin in (None, "null", "https://evil.example"):
+        response = client.post(
+            "/mcp/consent", data=consent, headers=browser(client, sessions[0], origin)
+        )
+        assert response.status_code == 403
+    accepted = client.post(
+        "/mcp/consent", data=consent, headers=browser(client, sessions[0], store.issuer)
+    )
+    assert accepted.status_code == 302
+    assert accepted.headers["referrer-policy"] == "no-referrer"
+    code = parse_qs(urlsplit(accepted.headers["location"]).query)["code"][0]
+    pair = exchange(client, code).json()
+    grant_id = store.verify_access(pair["access_token"], resource=store.resource).grant_id
+    page = client.get("/mcp/applications", headers=browser(client, sessions[0]))
+    assert page.headers["referrer-policy"] == "same-origin"
+    for origin in (None, "null", "https://evil.example"):
+        response = client.post(
+            "/mcp/applications",
+            data={"grant_id": grant_id},
+            headers=browser(client, sessions[0], origin),
+        )
+        assert response.status_code == 403
+        store.verify_access(pair["access_token"], resource=store.resource)
+    response = client.post(
+        "/mcp/applications",
+        data={"grant_id": grant_id},
+        headers=browser(client, sessions[0], store.issuer),
+    )
+    assert response.status_code == 303

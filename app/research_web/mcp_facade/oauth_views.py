@@ -20,6 +20,9 @@ HEADERS = {
     "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
     "X-Content-Type-Options": "nosniff",
 }
+# Keep Origin available on same-origin browser form POSTs. Cross-origin
+# callbacks still receive no Referer; machine responses retain no-referrer.
+BROWSER_HEADERS = {**HEADERS, "Referrer-Policy": "same-origin"}
 
 
 def validated_login_return(value: str | None) -> str | None:
@@ -97,7 +100,7 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
             # policy. Permit only this validated callback (including exact port),
             # while retaining self for the local consent POST.
             consent_headers = {
-                **HEADERS,
+                **BROWSER_HEADERS,
                 "Content-Security-Policy": HEADERS["Content-Security-Policy"].replace(
                     "form-action 'self';", f"form-action 'self' {pending.redirect_uri};"
                 ),
@@ -154,7 +157,7 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 + "</p><ul>"
                 + rows
                 + "</ul></html>",
-                headers=HEADERS,
+                headers=BROWSER_HEADERS,
             )
         except AccountError as exc:
             return error(exc)
