@@ -92,6 +92,16 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                     store, pending.redirect_uri, state=pending.state, code=code
                 )
             materials = store.list_materials(user.id)
+            store.validate_redirect(pending.redirect_uri)
+            # Chromium checks the form's redirect target against the document's
+            # policy. Permit only this validated callback (including exact port),
+            # while retaining self for the local consent POST.
+            consent_headers = {
+                **HEADERS,
+                "Content-Security-Policy": HEADERS["Content-Security-Policy"].replace(
+                    "form-action 'self';", f"form-action 'self' {pending.redirect_uri};"
+                ),
+            }
             choices = "".join(
                 '<label><input type="checkbox" name="material_id" value="'
                 + escape(item.id, quote=True)
@@ -111,7 +121,7 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 + choices
                 + '<button name="decision" value="allow">允许所选资料</button>'
                 '<button name="decision" value="deny">拒绝</button></form></html>',
-                headers=HEADERS,
+                headers=consent_headers,
             )
         except AccountError as exc:
             return error(exc)

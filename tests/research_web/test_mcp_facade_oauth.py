@@ -448,3 +448,78 @@ def test_browser_authorize_post_csrf_and_host(http_env):
         ).status_code
         == 400
     )
+
+
+def test_consent_csp_exact_callback_allows_success_and_denial(http_env):
+    client, store, _, sessions, _ = http_env
+    for port, decision in ((43210, "allow"), (43211, "deny")):
+        callback = f"http://127.0.0.1:{port}/callback"
+        started = client.get(
+            "/authorize", params=params(redirect_uri=callback), headers=browser(client, sessions[0])
+        )
+        location = started.headers["location"]
+        page = client.get(location, headers=browser(client, sessions[0]))
+        policy = page.headers["content-security-policy"]
+        assert f"form-action 'self' {callback};" in policy
+        assert "*" not in policy
+        request_id = parse_qs(urlsplit(location).query)["request_id"][0]
+        result = client.post(
+            "/mcp/consent",
+            data={"request_id": request_id, "decision": decision},
+            headers=browser(client, sessions[0], store.issuer),
+        )
+        assert result.status_code == 302
+        assert result.headers["location"].startswith(callback + "?")
+        query = parse_qs(urlsplit(result.headers["location"]).query)
+        assert query["iss"] == [store.issuer]
+        assert ("code" in query) if decision == "allow" else query["error"] == ["access_denied"]
+    apps = client.get("/mcp/applications", headers=browser(client, sessions[0]))
+    assert "form-action 'self';" in apps.headers["content-security-policy"]
+    assert "127.0.0.1" not in apps.headers["content-security-policy"]
+
+
+def test_revoke_token_load_storage_failure_is_503(http_env, monkeypatch):
+    from app.research_web.multiuser.accounts import AccountError
+
+    client, store, *_ = http_env
+    for method, hint in (("verify_access", "access_token"), ("load_refresh", "refresh_token")):
+        for error_code in ("account_store_failed", "account_store_unsafe"):
+            pair = exchange(client, authorize(http_env)).json()
+
+            def failed_load(*args, code=error_code, **kwargs):
+                raise AccountError(code, 503)
+
+            with monkeypatch.context() as patch:
+                patch.setattr(store, method, failed_load)
+                response = client.post(
+                    "/revoke",
+                    data={"client_id": CLIENT, "token": pair[hint], "token_type_hint": hint},
+                )
+            assert response.status_code == 503
+            assert response.json() == {"error": "temporarily_unavailable"}
+            store.verify_access(pair["access_token"], resource=store.resource)
+
+
+def test_revoke_transaction_rollback_is_503(http_env, monkeypatch):
+    from app.research_web.multiuser.accounts import AccountError
+
+    client, store, *_ = http_env
+    for hint in ("access_token", "refresh_token"):
+        pair = exchange(client, authorize(http_env)).json()
+
+        def failed_revoke(grant_id, *, user_id):
+            with store.accounts._connection() as db:
+                db.execute(
+                    "UPDATE mcp_oauth_grants SET revoked=1 WHERE id=? AND user_id=?",
+                    (grant_id, user_id),
+                )
+                raise AccountError("account_store_failed", 503)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(store, "revoke_grant", failed_revoke)
+            response = client.post(
+                "/revoke", data={"client_id": CLIENT, "token": pair[hint], "token_type_hint": hint}
+            )
+        assert response.status_code == 503
+        assert response.json() == {"error": "temporarily_unavailable"}
+        store.verify_access(pair["access_token"], resource=store.resource)

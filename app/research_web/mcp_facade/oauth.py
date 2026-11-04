@@ -79,6 +79,15 @@ def _token_error(exc: AccountError) -> TokenError:
     return TokenError("invalid_grant")
 
 
+def _definitely_invalid_token(exc: AccountError) -> bool:
+    """Storage/security failures do not prove absence or successful revocation."""
+    return exc.status < 500 and exc.code in {
+        "invalid_grant",
+        "access_denied",
+        "account_not_found",
+    }
+
+
 class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToken, AccessToken]):
     def __init__(self, store: AuthorizationStore):
         self.store = store
@@ -151,7 +160,9 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
     ) -> AuthorizationCode | None:
         try:
             record = self.store.load_code(raw, client_id=client.client_id)
-        except AccountError:
+        except AccountError as exc:
+            if not _definitely_invalid_token(exc):
+                raise
             return None
         req = record.request
         return AuthorizationCode(
@@ -208,7 +219,9 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
             return None
         try:
             record = self.store.load_refresh(raw, client_id=client.client_id)
-        except AccountError:
+        except AccountError as exc:
+            if not _definitely_invalid_token(exc):
+                raise
             return None
         return RefreshToken(
             token=raw,
@@ -252,7 +265,9 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
                 else self.store.load_refresh(token.token, client_id=token.client_id)
             )
             self.store.revoke_grant(record.grant_id, user_id=record.user_id)
-        except AccountError:
+        except AccountError as exc:
+            if not _definitely_invalid_token(exc):
+                raise
             # RFC 7009 success for an already invalid/revoked token.
             log.info("mcp_oauth_revoke_already_invalid")
 
@@ -264,7 +279,9 @@ class OAuthVerifier(TokenVerifier):
     async def verify_token(self, token: str) -> AccessToken | None:
         try:
             record = self.store.verify_access(token, resource=self.store.resource)
-        except AccountError:
+        except AccountError as exc:
+            if not _definitely_invalid_token(exc):
+                raise
             return None
         if (record.issuer, record.resource, record.client_id, record.scopes) != (
             self.store.issuer,
