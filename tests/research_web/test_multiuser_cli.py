@@ -107,6 +107,73 @@ def snapshot(root):
     }
 
 
+@pytest.mark.parametrize("switch", [None, "0", "1"])
+def test_doctor_mcp_is_metadata_only_and_preserves_private_state(
+    tmp_path, monkeypatch, output, switch
+):
+    import builtins
+    import importlib.metadata
+
+    root = tmp_path / "server"
+    accounts = AccountStore(root)
+    accounts.create_user("admin", PASSWORD, "admin")
+    output.readouterr()
+    for name in ("browser-cookie", "history.json", "resident.pid", "credentials.json"):
+        (root / name).write_bytes(b"private-state-do-not-read-or-rewrite")
+    before = snapshot(root)
+    if switch is None:
+        monkeypatch.delenv("RWB_MCP_READONLY_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", switch)
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "2.2.0")
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        assert name not in {"mcp", "fastapi", "httpx", "uvicorn"}
+        assert not name.endswith(("authorization_store", "accounts", "service", "server"))
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    report = json.loads(output.readouterr().out)["mcp_readonly"]
+    assert report["enabled"] is (switch == "1")
+    assert report["status"] == ("configuration_pending" if switch == "1" else "disabled")
+    assert report["sdk"] == {"status": "installed", "version": "2.2.0", "matches_lock": True}
+    assert report["authorization"] == "not_checked"
+    assert report["connection"] == "not_checked"
+    assert report["actual_verification"] == {
+        "codex": "NOT_RUN",
+        "dsh": "NOT_RUN",
+        "workbuddy": "NOT_RUN",
+        "private_tls": "NOT_RUN",
+    }
+    assert snapshot(root) == before
+
+
+@pytest.mark.parametrize("failure", ["missing", "corrupt", "mismatch"])
+def test_doctor_mcp_missing_or_unknown_sdk_never_claims_connection(monkeypatch, failure):
+    import importlib.metadata
+
+    def version(name):
+        if failure == "missing":
+            raise importlib.metadata.PackageNotFoundError(name)
+        if failure == "corrupt":
+            raise OSError("private metadata details")
+        return "9.0.0"
+
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    monkeypatch.setattr(importlib.metadata, "version", version)
+    report = cli._inspect_mcp()
+    assert (
+        report["sdk"]["status"]
+        == {"missing": "not_installed", "corrupt": "unknown", "mismatch": "installed"}[failure]
+    )
+    assert report["sdk"]["matches_lock"] is False
+    assert report["status"] == "configuration_pending"
+    assert report["connection"] == "not_checked"
+    assert "private metadata details" not in json.dumps(report)
+
+
 def test_help_does_not_import_runtime_or_create_paths(tmp_path, monkeypatch, output):
     monkeypatch.setenv("HOME", str(tmp_path))
     with pytest.raises(SystemExit) as result:

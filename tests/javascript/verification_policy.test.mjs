@@ -2184,6 +2184,17 @@ test("reopened platform scope retains Windows handoff without dropping generic C
   assert.equal(reopened.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
 });
 
+test("inbound MCP and frozen DataHub boundary retain L4 and every platform gate", () => {
+  for (const file of ["app/research_web/mcp_facade/server.py", "app/research_web/datahub/routes.py", "tests/research_web/test_mcp_facade_lifecycle.py"]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.requiredLevel, "L4");
+    assert.ok(plan.receiptTemplate.requiredValidationIds.includes("research-web-inbound-mcp"));
+    for (const id of ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-docker", "research-web-windows-verify"]) {
+      assert.ok(plan.receiptTemplate.externalGateIds.includes(id), `${file}: ${id}`);
+    }
+  }
+});
+
 test("durable acceptance budgets require ledger, guard and full platform handoffs", () => {
   const plan = success(run(repositoryRoot, ["app/research_web/live_acceptance_budget.py"]));
   assert.equal(plan.requiredLevel, "L4");
