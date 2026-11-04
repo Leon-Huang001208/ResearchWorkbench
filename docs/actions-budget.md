@@ -16,6 +16,10 @@ Bootstrap静态资源校验加入两份mjs；不新增job、runner、超时或�
 真实市场有效性。新模块初步预留原步骤180秒，最终实际耗时与候选CI另绑，不能用估计替代通过。
 发布前仍须实时复核visibility/额度和标准runner资格；不重跑旧候选或从Mac派发Windows/Linux产品。
 
+2026-11-04 最终候选本机 L4 检查发现入站 MCP 规则已要求 Mac Bootstrap，但该 workflow 的 PR/push 路径过滤尚未覆盖新规则。修复仅在两个既有事件中补齐该规则的全部七个精确文件及一个源码目录选择器；既有路径、单一 macos-15 job、60分钟上限、依赖及 Windows 手动交接保持。新增的是必需门的路径覆盖，不修改策略或削弱匹配测试；远端 CI 仍 NOT_RUN，SSH 发布阻断仍保留。
+
+2026-11-04 入站 MCP 沿原 Research Web Checks Python 步骤增加 store/oauth/http/read_policy/tools/lifecycle 六模块，账号菜单 JS 沿原 research_web 通配；原 Bootstrap 安装检查增加锁定 SDK 导入和 enabled Doctor 只读断言。无新 job、runner、依赖、timeout、触发频率或产品 dispatch；Checks45分钟及Mac标准macos-15/原60分钟保持。原步骤增量保守预留90秒，Task3 focused14项本机约2秒，完整候选实际CI耗时待证；现因GitSafety SSH认证阻断未发布，不把本机耗时当作远端预算通过。
+
 2026-11-01 prepared-amend 回执字段兼容在既有 Project Constraints 的 Git安全测试步骤增加2个正反例，首次发布前主线前进又增加3个直接刷新正反例；不增workflow/job/runner/依赖/timeout。原amend测试文件本机完整106项通过，实测约275秒；新刷新用例所在Git安全文件的10项unpublished定点测试通过。这些结果不是远端同候选CI或生产维护成功。项目入口对合法 `mergeSourceCommit` 只接受其等于旧feature，并在正式收养或主线刷新后推进到新feature；错误绑定继续失败关闭。
 
 2026-10-31 存储留存调整复用原 Research Web Checks 的 Python 步骤：新增 `test_test_artifact_retention.py` 21 项，并在既有 `test_iteration_resources.py` 增加 10 项（原 15 项保留），完整局部集合共46项；不增加 job、runner、timeout、依赖、模型或供应商请求。功能/文档候选`13a1ae58`与正式集成候选`5dc24828`共享树`fa49985e`，各自在干净工作树以exact模式按20/1/20/5执行46项、0失败/0错误，四个临时根逐批回收；协议81项在两候选各按20/20/20/20/1执行，通过且真实Keychain调用0。本段归属到这两个已测SHA；后续文档修订产生的新候选仍须独立Router/评审/CI，不把旧SHA回执写成新候选PASS。原job对新增31项保守预留30秒，远端实际耗时另证。选择性归档只移除同批已退休、exact checkout回执明确绑定的成功stdout/stderr，旧任务历史证据不由新代码静默删除。

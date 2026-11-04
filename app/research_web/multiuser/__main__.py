@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import getpass
+import importlib.metadata
 import importlib.util
 import json
 import logging
@@ -216,8 +217,38 @@ def _inspect_capacity(root: Path) -> dict:
             os.close(descriptor)
 
 
+def _inspect_mcp() -> dict:
+    """Inspect configuration and distribution metadata, never initialize OAuth/SDK."""
+    from ..mcp_facade.config import enabled
+
+    sdk = {"status": "not_installed", "version": None, "matches_lock": False}
+    try:
+        version = importlib.metadata.version("mcp")
+        sdk = {"status": "installed", "version": version, "matches_lock": version == "2.2.0"}
+    except importlib.metadata.PackageNotFoundError:
+        pass
+    except (OSError, ValueError, TypeError):
+        log.warning("server_mcp_metadata_inspection_failed")
+        sdk["status"] = "unknown"
+    configured = enabled()
+    return {
+        "enabled": configured,
+        "status": "configuration_pending" if configured else "disabled",
+        "sdk": sdk,
+        "authorization": "not_checked",
+        "connection": "not_checked",
+        "actual_verification": {
+            "codex": "NOT_RUN",
+            "dsh": "NOT_RUN",
+            "workbuddy": "NOT_RUN",
+            "private_tls": "NOT_RUN",
+        },
+    }
+
+
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     accounts = _inspect_accounts(root)
+    mcp = _inspect_mcp()
     source = _source_status(arguments.source)
     python_matches = sys.version_info[:2] == (
         RUNTIME_CONTRACT.python_major,
@@ -241,12 +272,13 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         },
         "runtime": "not_checked",
         "model": "not_checked",
+        "mcp_readonly": mcp,
     }
     if arguments.json:
         print(json.dumps(report, ensure_ascii=False))
     else:
         print(
-            f"server: {report['status']}; accounts: {accounts['status']}; source: {source['status']}; runtime: not_checked"
+            f"server: {report['status']}; accounts: {accounts['status']}; source: {source['status']}; runtime: not_checked; mcp: {mcp['status']}"
         )
     return 0
 

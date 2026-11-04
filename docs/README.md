@@ -2,6 +2,8 @@
 
 [事件与日历研究](research-web-event-research.md)是本轮候选的总入口，连接[事件时间线](research-web-event-timeline.md)、[固定研究与独立测试](research-web-event-studies.md)、[市场研究评分](research-web-market-scoring.md)和[图14数据流](../outputs/research-web-architecture/14-event-research.html)。文档区分来源覆盖、描述研究、正式准入与实际部署；入口存在不表示1990全覆盖、真实PIT或平台验收已完成。
 
+新增 [入站 MCP 私网只读合同](research-web-mcp-facade.md)及固定 [授权读取图](../outputs/research-web-architecture/15-inbound-mcp.html)：默认关闭，批准材料、独立 OAuth 与存活后端读取；原生宿主和私网部署尚未验收。
+
 [自选股票 CSV 导入](research-web-watchlist-import.md)记录严格文件格式、规范身份、账户边界、同 Host 共享锁/一次保存、幂等及恢复限制；首批仅已获准本地沪深北股票目录。
 
 2026-10-22 插件契约新增固定包/权限/原生能力映射与支持限制；静态API扫描仍需真实CLI网关，再逐一验证其相对router import与include，未挂载保持拒绝。新模块、路由、Python索引与API Atlas已登记；无新任意文档文件入口或图阅读权限。见[插件合同](research-web-plugins.md)。

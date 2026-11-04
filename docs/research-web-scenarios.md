@@ -1,5 +1,7 @@
 # 研究场景与 Seek Alpha 静态对照目录
 
+MCP 严格读取在执行交接解析前拒绝 scenario/discovery/evidence 上下文；此限制避免只读请求触发 readiness/delivery 写入。原研究场景发送和质量链保持，外部 OAuth 不能启动场景。
+
 导入账户切换销毁旧UI私有File/选择和响应scope，不发送或改变研究场景；A→B→A也不能让旧确认回调进入新草稿。
 
 首建自选或新增导入目标只刷新当前账户列表metadata，保留原观察/草稿，不创建场景或触发额外取数、模型。
