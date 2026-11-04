@@ -44,6 +44,10 @@ def _idle_research(**values):
     """Explicit otherwise-idle service facts; absent production witnesses are unknown."""
     fields = {
         "source_requests": {},
+        "event_timeline": SimpleNamespace(active=False),
+        "event_collection": SimpleNamespace(active=False),
+        "studies": SimpleNamespace(active=False),
+        "event_inputs": SimpleNamespace(active=False),
         "report_workflows": SimpleNamespace(
             runtime=SimpleNamespace(tasks={}), catalog=SimpleNamespace(data={"runs": {}})
         ),
@@ -113,6 +117,8 @@ def test_real_cold_host_source_state_exists_before_first_source_call(cold_servic
     actual = _resident_for_real_service(cold_service)
     assert actual["active"] is False
     assert actual["activity_witness"]["checks"]["source_requests"] is False
+    for name in ("event_sources", "event_studies", "event_inputs"):
+        assert actual["activity_witness"]["checks"][name] is False
     assert cold_service.source_requests == {}
     assert cold_service.source_cancellations == {}
     assert cold_service.source_requests is requests
@@ -440,6 +446,14 @@ def test_resident_accumulates_all_known_activity_without_skipping_witnesses(monk
         "market",
         "missing_directory",
         "missing_directory_tasks",
+        "event_timeline",
+        "event_collection",
+        "studies",
+        "event_inputs",
+        "missing_event_timeline",
+        "missing_event_collection",
+        "missing_studies",
+        "missing_event_inputs",
     ],
 )
 def test_resident_preserves_all_activity_witnesses_and_rejects_unknown(monkeypatch, busy):
@@ -473,12 +487,31 @@ def test_resident_preserves_all_activity_witnesses_and_rejects_unknown(monkeypat
             catalog=SimpleNamespace(data={"runs": {}}),
         ),
     )
+    event_checks = {
+        "event_timeline": "event_sources",
+        "event_collection": "event_sources",
+        "studies": "event_studies",
+        "event_inputs": "event_inputs",
+    }
+    for field in event_checks:
+        if busy == field:
+            getattr(service, field).active = True
+        elif busy == f"missing_{field}":
+            delattr(service, field)
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": busy == "wind"})
     app = create_app()
     app.state.research = service
-    result = TestClient(app).get("/api/research/resident").json()["active"]
+    actual = TestClient(app).get("/api/research/resident").json()
+    result = actual["active"]
     assert result is (None if busy.startswith("missing_") else busy != "idle")
+    for name in set(event_checks.values()):
+        expected = (
+            True
+            if event_checks.get(busy) == name
+            else None if event_checks.get(busy.removeprefix("missing_")) == name else False
+        )
+        assert actual["activity_witness"]["checks"][name] is expected
 
 
 def test_lock_symlink_and_hardlink_are_rejected(resident, tmp_path):
