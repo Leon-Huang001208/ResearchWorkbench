@@ -16,6 +16,7 @@ DataHub 日线／日历引用，`event_preservation.py`／`event_diagnostics.py`
 保留 pending 的恢复证书由 `git_safety.mjs::validateCloseoutRecovery` 只读复用完整恢复校验及引用保全；真实 Git/v2 证书桥的正反例复用 `tests/javascript/git_safety.test.mjs` 现有恢复夹具，不调用交付入口形成递归。
 桥使用静态 ESM live binding，`git_safety.test.mjs` 的真实 Node 子进程以生产 `git_safety.mjs` 作为 CLI 入口，验证 pending 证书能越过恢复门抵达运行时门、坏证书仍拒绝且没有 unsettled top-level await。
 桥以共用内核现有 `protection` 保存上游已选择并验证的必要原件归档；已登记保护身份用项目只读指纹复核，旧未保护/隔离中登记拒绝继续事件。`tests/javascript/fixtures/resource_lifecycle_kernel_contract.mjs` 为显式宿主真实内核临时 store 合同，不修改共享源码或真实宿主 ledger。
+同桥读取私有 `cache-report-delegation.json`，只委托 `rwb-buildkit` 的冻结统计报告；默认路径不变。双 Git、私有 FD、授权观察链与报告前漂移反例在 `resource_lifecycle.test.mjs`，真实单 adapter/owner 保持在原显式 kernel 合同。
 
 2026-10-31：`resident/trial_retirement.py` 的固定 `rename-only-v2` 容量策略仅由新 successor 执行模式选择，原授权 digest 和 v1 保持；退役记录 v2 在复制前检查完整 journal 与 rename-only 总量，恢复时复核策略及硬链接。`resident/trial_successor.py` 为原 `model_provider_upgrade.py` 提供固定90e交接、小恢复包、精确job暂停/恢复及逐代单PID排空；原操作员提供 `handoff-trial-retirement` 和完成回执约束的 `apply-trial-retirement-v2`，不另建执行循环。回归在 `test_trial_retirement.py`、`test_trial_retirement_upgrade.py` 与 `test_trial_successor.py`，保全 helper 测试保持；现有 Native 维护拓扑不变，不从容量测试或合成CLI推断现场部署成功。
 
