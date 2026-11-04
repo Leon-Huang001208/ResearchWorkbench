@@ -23,4 +23,4 @@
 - **待验证**：本人身份与标签准入、重复事件去重、GitHub Issue 与 Paperclip 任务关联、开发与独立评审闭环、PR 创建及同候选 CI、飞书实际送达和失败恢复。当前提供的材料不足以证明这些环节端到端通过。
 - **证据要求**：每项能力应保留关联 Issue、任务、候选提交、独立评审、PR/CI 或通知回执；仅有设计说明、快速回执或任务状态不足以证明通过。
 
-本轮仅涉及文档，不进行 Linux/Windows 原生产品验收或 workflow dispatch。GitHub Issue #262 原文未包含在当前可用材料中，交付前仍须由受管集成流程核对其原要求；本文不据此推定额外能力已验证。
+本轮仅涉及文档，不进行 Linux/Windows 原生产品验收或 workflow dispatch。已依据本轮提供且核验匹配的 [GitHub Issue #262 原文](https://github.com/Leon-Huang001208/ResearchWorkbench/issues/262)逐项核对本文的流程说明和交付边界；需求核对不代表 PR/CI、运行验收或飞书送达已通过。
