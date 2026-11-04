@@ -276,6 +276,12 @@ jobs:
             tests/research_web/test_multiuser_runtime.py \
             tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
+            tests/research_web/test_mcp_facade_store.py \
+            tests/research_web/test_mcp_facade_oauth.py \
+            tests/research_web/test_mcp_facade_http.py \
+            tests/research_web/test_mcp_facade_read_policy.py \
+            tests/research_web/test_mcp_facade_tools.py \
+            tests/research_web/test_mcp_facade_lifecycle.py \
             --confcutdir=tests/research_web -q
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
