@@ -1,5 +1,11 @@
 # Research Workbench Research Web 当前架构
 
+## 事件与日历研究候选（2026-11-04）
+
+[图14：事件研究数据流](../../../outputs/research-web-architecture/14-event-research.html)展开既有Host内新增的来源采集、个人事件版本、人工确认／冻结、确定性研究、独立测试及评分资格。原系统图的宿主、tenant、唯一DSH和安装角色保持；本次确有新增业务API、持久记录及心跳分支，不用粗粒度图不变概括为没有接口或存储变化。
+
+从[集成合同](../../research-web-event-research.md)进入[时间线](../../research-web-event-timeline.md)、[事件研究](../../research-web-event-studies.md)和[评分](../../research-web-market-scoring.md)。来源就绪、Native／Docker业务、CI和部署仍由实际回执分别认证，图册可读不意味着全部计划完成。
+
 导入quality增量源码检查点为 `6e85dc96e6e8b15352f31f2b920b915611ef606b`：owner+draft隔离原生File与旧响应、完整核心typing、清proxy/credential-home继承且Host只允许inbound网络。74不同Python、Node90、9真实旅程及proxy负例属于本地证据；先经原SPEC确认未退规格，再由原Python/JS reviewer复核，不代表已批准发布或部署。旧218记录和各旧epoch保持原界限。
 
 自选SPEC P2及离线验收夹具源码阅读检查点为 `55acc67a5d26b54f5cac69c1cd64e5221621fd6a`。修复已有观察的首建/新增目标metadata与File保留，旧r9外网边界已追加纠正；新Seatbelt进程的8旅程通过并绑定实际源码hash。源代码、独立SPEC复核、quality、完整Router、同候选CI/安装和部署分别认证，尚未进入quality或发布。

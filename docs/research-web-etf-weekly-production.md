@@ -1,5 +1,11 @@
 # 华安 ETF 周报自动生产
 
+## 事件研究候选与周报生产隔离（2026-11-04）
+
+事件时间线、日历统计和市场研究评分使用新增的账户API与不可变记录；它们不替换华安周报的DataHub取数、Wind／Excel原件、DSH正文、Host质量、Word或正式定稿流程。事件分或图14完成不能作为周报accepted或新一期数据就绪的证据。
+
+来源采集计划与周报日程分别授权、分别记录；Native通用Automation和逐源启用条件不开放tenant采集，也不授予今日发现跟踪之外的权限。本候选不启用周报、不重发旧未知模型或供应商请求，新增模块见[事件集成合同](research-web-event-research.md)，周报的既有验收与恢复门保持。
+
 ## successor 的周报恢复边界（2026-10-31）
 
 固定 90e→v5 handoff／fresh retry 由原 Native 操作员和小型恢复 pyz 执行，不新增周报执行引擎、HTTP、依赖或正式 Run。原 15 账号的 index／catalog／模型配置继续保全；只退役已证明关联的历史试验生产者，不因代码 rollback 恢复其 enabled 资格，也不重发旧 unknown 模型／Wind 请求。admin＋新 test 的账号清理在本事务终态后另行处理。

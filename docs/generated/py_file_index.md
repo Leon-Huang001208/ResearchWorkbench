@@ -3566,7 +3566,7 @@ Imports:
 Classes:
 - `AutomationService`
   - Keep Automation/Run JSON as the fact source and schedule only next fires.
-  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, arm_collection, _collection_fire, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
 
 Functions:
 - `_definition_transaction`
@@ -6056,6 +6056,616 @@ Functions:
 - `identifier`
 
 
+## `app/research_web/event_datahub_bridge.py`
+
+Module docstring:
+> Explicit account-owned DataHub imports are research inputs, never historical PIT grants.
+
+Imports:
+- `core.observability`
+- `datahub.snapshots`
+- `datetime`
+- `decimal`
+- `dossiers.lock`
+- `event_studies.registry`
+- `fastapi`
+- `hashlib`
+- `json`
+- `pydantic`
+- `starlette.concurrency`
+- `store`
+- `zoneinfo`
+
+Classes:
+- `ImportReference`
+- `FrozenRecordReference`
+- `NativeInputReference`
+- `LinkInputReference`
+- `CalendarReference`
+
+Functions:
+- `reject`
+- `host_operation`
+- `snapshot_identity`
+- `available_sources`
+  - Bounded catalogue of retained account data, not a source/PIT acceptance claim.
+- `normalize_rows`
+  - Preserve native values; reject ambiguous/missing/duplicate dates rather than filling.
+- `import_reference`
+- `import_calendar`
+  - Native trading-day facts support descriptive holiday studies, not PIT certification.
+- `register_calendar`
+- `register_native_input`
+- `input_choices`
+- `link_inputs`
+- `register_source`
+
+
+## `app/research_web/event_diagnostics.py`
+
+Module docstring:
+> Path-free Doctor facts; no collection, SQL recovery, provider or model calls.
+
+Imports:
+- `core.observability`
+- `event_preservation`
+- `event_timeline.storage`
+- `store`
+
+Functions:
+- `event_diagnostic`
+
+
+## `app/research_web/event_host_inputs.py`
+
+Module docstring:
+> Executable, account-bound adapters for archived DataHub event-study inputs.
+
+Imports:
+- `contextlib`
+- `copy`
+- `core.observability`
+- `datetime`
+- `event_studies.contracts`
+- `event_studies.registry`
+- `event_studies.service`
+- `functools`
+- `json`
+- `market_scoring`
+- `market_scoring.contracts`
+- `market_scoring.engine`
+- `market_scoring.matrix`
+- `market_scoring.native_inputs`
+- `market_scoring.profiles`
+- `sqlite3`
+- `store`
+- `threading`
+- `zoneinfo`
+
+Classes:
+- `EventInputHost`
+  - methods: __init__, active, activity, events, records, _qualified, _reference, _record, _node, _calendar, _proxy, _native_holidays, _factors, register_native, choices, link_bundle, source_verifier, _matrix, resolve_market_factor_point, factor_signals, resolve_market_scoring_context, _prices, _main_index, _calendar_link, resolve_event_study_bundle, resolve_market_overlay_context
+
+Functions:
+- `native_boundary`
+  - Bound malformed supplier data without exposing its values or traceback.
+
+
+## `app/research_web/event_preservation.py`
+
+Module docstring:
+> Read-only identities for account-local event, trial and score evidence.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `datahub.security`
+- `dossiers.lock`
+- `event_timeline.storage`
+- `hashlib`
+- `pathlib`
+- `sqlite3`
+- `stat`
+- `store`
+
+Functions:
+- `snapshot_events`
+  - Never initialize metadata; inspect SQLite in memory to avoid recovery writes.
+
+
+## `app/research_web/event_studies/__init__.py`
+
+Module docstring:
+> Deterministic event/calendar research alongside the existing DSH research engine.
+
+Imports:
+- `service`
+
+
+## `app/research_web/event_studies/backtest.py`
+
+Module docstring:
+> Long-only/cash daily replay; historical qualification is verified before calling.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `decimal`
+- `math`
+- `statistics`
+
+Functions:
+- `metrics`
+- `replay`
+  - Signals known after session t affect only session t+1 open.
+
+
+## `app/research_web/event_studies/calendars.py`
+
+Module docstring:
+> Fixed calendar/event windows over explicit exchange sessions only.
+
+Imports:
+- `bisect`
+- `contracts`
+- `datetime`
+
+Functions:
+- `calendar_knowledge_gaps`
+  - Require published boundary sessions; capture timestamps grant no PIT proof.
+- `_window`
+- `annotate_overlaps`
+- `_episodes`
+- `event_windows`
+- `calendar_windows`
+
+
+## `app/research_web/event_studies/contracts.py`
+
+Module docstring:
+> Strict internal study inputs. HTTP accepts evidence references, never these arrays.
+
+Imports:
+- `core.observability`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `itertools`
+- `pydantic`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `StudyError`
+  - methods: __init__
+- `Contract`
+- `Session`
+  - methods: coherent
+- `Calendar`
+  - methods: coherent
+- `TradingRule`
+  - methods: coherent
+- `Proxy`
+  - methods: coherent
+- `StudySpec`
+  - methods: coherent
+
+Functions:
+- `rule_contract`
+- `execution_contract`
+- `proxy_identity`
+- `stamp`
+- `number`
+
+
+## `app/research_web/event_studies/events.py`
+
+Module docstring:
+> Shared temporal projection from server-owned event versions, without I/O.
+
+Imports:
+- `contracts`
+- `datetime`
+- `registry`
+- `zoneinfo`
+
+Functions:
+- `availability_floor`
+  - An exact revision's recording time is mandatory; payload dates are not receipts.
+- `project_event`
+  - Project exact day/minute evidence; never manufacture historical availability.
+- `forecast_window_gaps`
+  - A retrospective return is predictive only if its context was known at its start price.
+
+
+## `app/research_web/event_studies/prediction.py`
+
+Module docstring:
+> Independent index-event prediction tests, separate from tradable proxy returns.
+
+Imports:
+- `collections`
+- `contracts`
+- `core.observability`
+- `events`
+- `hashlib`
+- `json`
+- `math`
+- `random`
+- `research`
+- `validation`
+
+Functions:
+- `fingerprint`
+- `prepare_prediction`
+  - Match without looking beyond the event's information cutoff.
+- `cluster_pairs`
+  - Shared event identity or overlapping outcomes/control windows move together.
+- `validate_prediction_family`
+  - Frozen-family, one-sided cluster-bootstrap test of signed index excess.
+
+
+## `app/research_web/event_studies/registry.py`
+
+Module docstring:
+> Provider-neutral index identities, not claims of historical availability.
+
+
+## `app/research_web/event_studies/research.py`
+
+Module docstring:
+> Reproducible descriptive returns and pre-event matched controls.
+
+Imports:
+- `bisect`
+- `collections`
+- `contracts`
+- `datetime`
+- `math`
+- `statistics`
+- `types`
+
+Functions:
+- `observed_calendar`
+  - Actual price dates for descriptive windows, never a verified calendar.
+- `independent_episodes`
+  - Connected overlapping intervals are a single statistical episode.
+- `window_returns`
+- `summaries`
+- `matched_controls`
+  - Same-year ordinary windows, matched on *prior* 20-session trend/volatility.
+
+
+## `app/research_web/event_studies/routes.py`
+
+Module docstring:
+> Bounded reference-only user endpoints; no provider/model calls from this router.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `pydantic`
+- `service`
+- `starlette.concurrency`
+- `store`
+
+Functions:
+- `service`
+- `operation`
+- `studies`
+- `create`
+- `seal`
+- `evaluate`
+- `run_detail`
+- `export`
+- `detail`
+- `preflight`
+- `runs`
+- `analyze`
+
+
+## `app/research_web/event_studies/service.py`
+
+Module docstring:
+> Host-owned evidence resolution, immutable trials and one-use validation batches.
+
+Imports:
+- `backtest`
+- `calendars`
+- `contextlib`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `events`
+- `hashlib`
+- `json`
+- `pathlib`
+- `prediction`
+- `registry`
+- `research`
+- `store`
+- `threading`
+- `validation`
+
+Classes:
+- `StudyBundle`
+  - Only a trusted Host adapter may construct a qualified bundle.
+- `StudyService`
+  - methods: __init__, active, activity, events, records, catalog, list, get, run, runs, export, _source_summary, create, _archive, _frozen_events, _resolve, analyze, _report, seal, evaluate, preflight, _windows, _calendar_knowledge_gaps, _index_rows, _index_calendar, _index_digest, _index_calendar_basis, _index_inputs_digest, _index_history_gaps, _exclusions, _profile, _endpoint_gaps, _forecast_gaps, _qualification_status, _qualification_guard
+
+Functions:
+- `implementation_sources`
+  - Bound the real deterministic research and default Host compilation code.
+- `implementation_digest`
+  - Re-read path-bound source hashes before opening any sealed holdout.
+- `digest`
+
+
+## `app/research_web/event_studies/validation.py`
+
+Module docstring:
+> Frozen chronological validation policy; failed trials stay in the test family.
+
+Imports:
+- `collections`
+- `contracts`
+- `datetime`
+- `math`
+- `random`
+
+Functions:
+- `chronological_split`
+- `holm`
+- `_sharpe`
+- `bootstrap_family`
+  - Paired centred block bootstrap with synchronous draws across the family.
+- `sample_gaps`
+- `assess`
+  - Pure final gate; caller supplies host-reconstructed, frozen test results.
+
+
+## `app/research_web/event_timeline/__init__.py`
+
+Module docstring:
+> Account-local event timeline; deterministic data work never starts research models.
+
+Imports:
+- `asyncio`
+- `calendar`
+- `contextvars`
+- `core.observability`
+- `datetime`
+- `dossiers.lock`
+- `evidence`
+- `hashlib`
+- `research_workbench_entrypoint.resident.admission`
+- `routes`
+- `storage`
+- `store`
+- `threading`
+
+Classes:
+- `TimelineService`
+  - methods: __init__, active, close, archive_evidence, read_evidence, _request, create, detail, revise, _selected, decide, freeze, merge, split, timeline, source_catalog, coverage, schedule, _process_source, refresh
+
+
+## `app/research_web/event_timeline/evidence.py`
+
+Module docstring:
+> Private immutable source bytes with server-owned provenance and hash revalidation.
+
+Imports:
+- `core.observability`
+- `datahub.security`
+- `dossiers.lock`
+- `hashlib`
+- `json`
+- `re`
+- `storage`
+- `store`
+
+Classes:
+- `EvidenceArchive`
+  - methods: __init__, archive, read
+
+
+## `app/research_web/event_timeline/models.py`
+
+Module docstring:
+> Public event mutations contain intent, never trusted provenance or permissions.
+
+Imports:
+- `datetime`
+- `pydantic`
+- `typing`
+
+Classes:
+- `Closed`
+- `Key`
+- `Mutation`
+- `EventFields`
+  - methods: valid_dates
+- `Create`
+- `Revise`
+- `VersionRef`
+- `Decision`
+- `Freeze`
+- `Merge`
+- `Split`
+- `Refresh`
+- `Schedule`
+
+
+## `app/research_web/event_timeline/preservation.py`
+
+Module docstring:
+> Bounded read-only inventory and explicit complete event archive backup/restore.
+
+Imports:
+- `core.observability`
+- `datahub.security`
+- `dossiers.lock`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `research_workbench_entrypoint.resident.admission`
+- `sqlite3`
+- `stat`
+- `storage`
+- `store`
+- `uuid`
+
+Functions:
+- `_database`
+- `_capture`
+- `_authority`
+  - The restored state must retain every current decision and idempotency receipt.
+- `export_manifest`
+  - Never creates locks, SQLite sidecars, directories or missing markers.
+- `backup_to`
+- `restore_from`
+
+
+## `app/research_web/event_timeline/relevance.py`
+
+Module docstring:
+> Auditable source-context heuristics; no price-impact or causality assertion.
+
+Imports:
+- `re`
+
+Functions:
+- `candidate_relevance`
+
+
+## `app/research_web/event_timeline/routes.py`
+
+Module docstring:
+> Explicit authenticated event actions; generic trusted records remain server-only.
+
+Imports:
+- `fastapi`
+- `store`
+
+Functions:
+- `_service`
+- `_action`
+- `timeline`
+- `coverage`
+- `catalog`
+- `jobs`
+- `refresh`
+- `schedule`
+- `create`
+- `decide`
+- `freeze`
+- `merge`
+- `frozen`
+- `detail`
+- `versions`
+- `revise`
+- `split`
+
+
+## `app/research_web/event_timeline/scheduler.py`
+
+Module docstring:
+> Source collection on the existing Automation heartbeat; no timer or model loop.
+
+Imports:
+- `asyncio`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `sources`
+- `storage`
+- `store`
+
+Classes:
+- `CollectionScheduler`
+  - methods: __init__, events, active, has_enabled, bind, definition, _request, _guard, _run, tick, _finished, wait_for_idle, close
+
+
+## `app/research_web/event_timeline/sources.py`
+
+Module docstring:
+> Fixed public source adapters; observations are candidates, never PIT assertions.
+
+Imports:
+- `asyncio`
+- `calendar`
+- `core.observability`
+- `csv`
+- `datetime`
+- `html.parser`
+- `httpx`
+- `io`
+- `json`
+- `re`
+- `relevance`
+- `storage`
+- `store`
+- `urllib.parse`
+- `zipfile`
+
+Classes:
+- `ReleaseTables`
+  - Only known BLS regular-data release tables, never footer or body prose.
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+- `FedMeetings`
+  - Extract native meeting rows; minutes release dates are separate evidence.
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `_bls_calendar`
+- `endpoint`
+- `_download`
+- `fetch`
+- `_event`
+- `_calendar`
+- `_gdelt`
+- `parse`
+  - Return explicit candidates and coverage, never infer completeness from HTTP 200.
+
+
+## `app/research_web/event_timeline/storage.py`
+
+Module docstring:
+> Lazy account-bound append-only records; public routes never expose this store.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `dossiers.lock`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `sqlite3`
+- `stat`
+- `store`
+- `threading`
+- `uuid`
+
+Classes:
+- `RecordStore`
+  - methods: __init__, _kind, qualification_status, mark_reconciliation_required, _identifier, _safe_file, _state, connection, _decode, _get, revision_recorded_at, get, versions, list, create, update, cached, batch, claim_once, claim_study_ranges, export_manifest, backup_to, restore_from
+
+Functions:
+- `canonical`
+- `now`
+- `fail`
+
+
 ## `app/research_web/frameworks/__init__.py`
 
 Module docstring:
@@ -7229,16 +7839,16 @@ Imports:
 - `documentation`
 - `dossier_signal_routes`
 - `dossiers.routes`
+- `event_datahub_bridge`
+- `event_studies.routes`
+- `event_timeline.routes`
 - `fastapi`
 - `fastapi.exceptions`
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
-- `hashlib`
-- `hot_routes`
-- `hot_service`
-- ... 35 more
+- ... 39 more
 
 Classes:
 - `NewSession`
@@ -7386,6 +7996,214 @@ Functions:
 - `_import_body`
 - `preview_portfolio`
 - `commit_portfolio`
+
+
+## `app/research_web/market_scoring/__init__.py`
+
+Module docstring:
+> Frozen six-axis research scoring; production activation remains separate.
+
+Imports:
+- `contracts`
+- `engine`
+- `profiles`
+- `service`
+
+
+## `app/research_web/market_scoring/applicability.py`
+
+Module docstring:
+> Reconstruct overlay activity from a trusted versioned calendar and events.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `engine`
+- `profiles`
+
+Classes:
+- `OverlayApplicability`
+
+Functions:
+- `applicability_for`
+- `applicability_reasons`
+
+
+## `app/research_web/market_scoring/contracts.py`
+
+Module docstring:
+> Trusted Host contexts and stable validation identities, never HTTP payloads.
+
+Imports:
+- `dataclasses`
+- `engine`
+- `profiles`
+- `zoneinfo`
+
+Classes:
+- `ScoreContext`
+- `FactorPoint`
+- `OverlayContext`
+
+Functions:
+- `qualified_receipts`
+- `scoring_identity`
+  - Derive structural identity; training bytes and today's data are separate.
+- `context_identity`
+
+
+## `app/research_web/market_scoring/engine.py`
+
+Module docstring:
+> Deterministic research scores from receipt-bound observations and holdouts.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `math`
+- `profiles`
+- `re`
+- `zoneinfo`
+
+Functions:
+- `digest`
+- `stamp`
+- `_number`
+- `_ref`
+- `_validate_observation`
+- `_historical_values`
+- `_axis_score`
+- `validation_reasons`
+- `compute_score`
+  - Compute from Host-verified inputs; this function performs no I/O or activation.
+- `study_signals`
+  - Compile a trusted frozen series for evaluation; never enables a live score.
+
+
+## `app/research_web/market_scoring/matrix.py`
+
+Module docstring:
+> Bounded causal factor matrices; histories are reconstructed, never duplicated.
+
+Imports:
+- `engine`
+- `math`
+- `native_inputs`
+- `profiles`
+- `statistics`
+- `zoneinfo`
+
+Functions:
+- `validate_matrix`
+- `observation`
+- `receipt`
+- `point`
+- `stream_signals`
+  - O(rows²) scalar filtering, O(rows) storage, no duplicated histories/JSON.
+
+
+## `app/research_web/market_scoring/native_inputs.py`
+
+Module docstring:
+> Re-open account DataHub facts and the canonical warehouse proof, never flags.
+
+Imports:
+- `core.observability`
+- `dataclasses`
+- `datahub.contracts`
+- `datahub.security`
+- `datahub.snapshots`
+- `datetime`
+- `hashlib`
+- `json`
+- `market_store.models`
+- `re`
+- `store`
+
+Classes:
+- `NativeInput`
+  - methods: floor
+
+Functions:
+- `reject`
+- `_warehouse_proof`
+  - Provider-native snapshots cannot pass by declaring historical/PIT fields.
+- `load_native`
+  - Read actual private/public twins and recheck current source admission.
+- `registered_event_projection`
+  - One shared exact-revision clock for historical and current overlays.
+
+
+## `app/research_web/market_scoring/profiles.py`
+
+Module docstring:
+> Frozen market-specific definitions; equal scales do not imply comparability.
+
+Imports:
+- `copy`
+- `core.observability`
+
+Functions:
+- `_axis`
+- `profile_for`
+  - Return independent definitions; a listed provider is not source approval.
+- `profiles`
+
+
+## `app/research_web/market_scoring/routes.py`
+
+Module docstring:
+> Read profiles and explicitly run research scores using immutable record IDs.
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `pydantic`
+- `starlette.concurrency`
+- `typing`
+
+Classes:
+- `RunRequest`
+
+Functions:
+- `tracked`
+- `overview`
+- `profiles`
+- `runs`
+- `create_run`
+- `get_run`
+
+
+## `app/research_web/market_scoring/service.py`
+
+Module docstring:
+> Account-scoped score runs resolve immutable Host evidence, never browser scores.
+
+Imports:
+- `__future__`
+- `applicability`
+- `contracts`
+- `copy`
+- `core.observability`
+- `datetime`
+- `engine`
+- `json`
+- `native_inputs`
+- `profiles`
+- `re`
+- `store`
+
+Classes:
+- `ScoreService`
+  - methods: __init__, records, profiles, register_inputs, _bundle, _source_receipts, _validation, _context, _overlay, _public_result, _compute, create, get, list, preview
+
+Functions:
+- `_error`
+- `_identifier`
 
 
 ## `app/research_web/market_service.py`
@@ -10908,7 +11726,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

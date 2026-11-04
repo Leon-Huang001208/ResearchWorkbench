@@ -25,7 +25,8 @@ test('one research intelligence entry preserves external tabs and frozen Hot dee
   assert.match(external, /研究情报/);
   assert.match(external, /href="#\/intel\/hot"/);
   assert.match(external, /Golddata/);
-  assert.equal(intelTabs.length, 6);
+  assert.equal(intelTabs.length, 7);
+  assert.ok(intelTabs.some(([tab]) => tab === 'timeline'));
   assert.ok(!intelTabs.some(([tab]) => ['news', 'filings'].includes(tab)));
 });
 

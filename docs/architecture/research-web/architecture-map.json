@@ -376,7 +376,8 @@
         "docs/architecture/research-web/05-security-validation.md"
       ],
       "diagrams": [
-        "02-module-dependencies"
+        "02-module-dependencies",
+        "14-event-research"
       ],
       "tests": [
         "tests/research_web/test_automation_schedule.py",
@@ -1009,6 +1010,54 @@
       "diagrams": [
         "02-module-dependencies",
         "04-data-file-flow"
+      ]
+    },
+    {
+      "id": "event-research",
+      "sources": [
+        "app/research_web/event_timeline/",
+        "app/research_web/event_studies/",
+        "app/research_web/market_scoring/",
+        "app/research_web/event_host_inputs.py",
+        "app/research_web/event_datahub_bridge.py",
+        "app/research_web/event_preservation.py",
+        "app/research_web/event_diagnostics.py",
+        "app/research_web/ui/event-lab.mjs",
+        "app/research_web/ui/event-lab-controls.mjs"
+      ],
+      "documents": [
+        "docs/research-web-event-research.md",
+        "docs/research-web-event-timeline.md",
+        "docs/research-web-event-studies.md",
+        "docs/research-web-market-scoring.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "14-event-research"
+      ],
+      "tests": [
+        "tests/research_web/test_event_api.py",
+        "tests/research_web/test_event_datahub_bridge.py",
+        "tests/research_web/test_event_studies.py",
+        "tests/research_web/test_event_studies_events.py",
+        "tests/research_web/test_event_studies_forecast.py",
+        "tests/research_web/test_event_studies_index_description.py",
+        "tests/research_web/test_event_studies_prediction.py",
+        "tests/research_web/test_event_studies_scoring.py",
+        "tests/research_web/test_event_studies_service.py",
+        "tests/research_web/test_event_studies_validation.py",
+        "tests/research_web/test_event_timeline.py",
+        "tests/research_web/test_event_timeline_relevance.py",
+        "tests/research_web/test_event_timeline_scheduler.py",
+        "tests/research_web/test_event_timeline_storage.py",
+        "tests/research_web/test_market_scoring.py",
+        "tests/research_web/test_market_scoring_native_inputs.py",
+        "tests/research_web/test_market_scoring_native_matrix.py",
+        "tests/research_web/test_market_scoring_native_temporal.py",
+        "tests/research_web/test_market_scoring_service.py",
+        "tests/javascript/research_web_event_lab.test.mjs"
       ]
     }
   ],
@@ -2523,6 +2572,61 @@
             "publicMarket"
           ],
           "source": "app/research_web/market_indices.py"
+        }
+      ]
+    },
+    {
+      "id": "14-event-research",
+      "source": "docs/architecture/research-web/diagrams/14-event-research.json",
+      "artifact": "outputs/research-web-architecture/14-event-research.html",
+      "receipt": "outputs/research-web-architecture/14-event-research.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/14-event-research.visual-check.json",
+      "level": "flows",
+      "summary": "账号事件与不可变证据、原生时点资格、固定研究、指数/代理独立验证及有界研究分；生产启用分开。",
+      "evidence": [
+        {
+          "subjects": [
+            "sources",
+            "collect",
+            "timeline",
+            "confirm",
+            "freeze",
+            "frozenStudy"
+          ],
+          "source": "app/research_web/event_timeline/__init__.py"
+        },
+        {
+          "subjects": [
+            "datahub",
+            "archive",
+            "retain",
+            "verify",
+            "inputs",
+            "pricedStudy"
+          ],
+          "source": "app/research_web/event_host_inputs.py"
+        },
+        {
+          "subjects": [
+            "study",
+            "validation",
+            "evaluate",
+            "scoreAdmission"
+          ],
+          "source": "app/research_web/event_studies/service.py"
+        },
+        {
+          "subjects": [
+            "score"
+          ],
+          "source": "app/research_web/market_scoring/service.py"
+        },
+        {
+          "subjects": [
+            "dsh",
+            "explain"
+          ],
+          "source": "app/research_web/ui/event-lab.mjs"
         }
       ]
     }
@@ -5432,6 +5536,265 @@
       "source": "app/research_web/specialists/routes.py",
       "declaredPath": "/internal/data/specialist-control",
       "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/timeline",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/timeline",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/coverage",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/coverage",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/sources",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/jobs",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/jobs",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/sources/refresh",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources/refresh",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/sources/backfill",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources/backfill",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/sources/{source}/schedule",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources/{source}/schedule",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/decisions",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/decisions",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/freeze",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/freeze",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/merge",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/merge",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/frozen/{identifier}",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/frozen/{identifier}",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/{identifier}",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/{identifier}/versions",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}/versions",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/events/{identifier}",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/{identifier}/split",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}/split",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/validation-batches",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/validation-batches",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/validation-batches/{batch_id}/evaluate",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/validation-batches/{batch_id}/evaluate",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/runs/{run_id}",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/runs/{run_id}/export",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/runs/{run_id}/export",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/{study_id}",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/{study_id}/preflight",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}/preflight",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/{study_id}/runs",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}/runs",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/{study_id}/analyze",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}/analyze",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/profiles",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/profiles",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/runs",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market-scores/runs",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/runs/{run_id}",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources/calendar",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/calendar",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources/native",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/native",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/sources/choices",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/choices",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources/link",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/link",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "",
+      "prefix": "/api/research/event-studies/sources"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -5680,6 +6043,16 @@
         "diagrams": [
           "02-module-dependencies",
           "04-data-file-flow"
+        ]
+      },
+      {
+        "id": "event-research",
+        "group": "event-research",
+        "title": "事件、日历效应与六维评分",
+        "summary": "账户事件版本、固定窗口与代理账本；独立指数与样本外检验，六维和当期有界修正分别准入。",
+        "category": "事件与日历研究",
+        "diagrams": [
+          "14-event-research"
         ]
       }
     ],

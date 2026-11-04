@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+事件研究新增账号内 Timeline／Study／Score 领域：事件版本与原件进入个人 SQLite／私有归档；
+已有 DataHub 日线须显式登记为研究输入，发生、公开和取得时间分别保存。确定性计算不创建AI
+研究引擎，解释仍使用唯一 DSH。来源采集复用 Automation 心跳且默认关闭，历史评分验证不
+启用生产总分。实现与真实验收限制见[事件研究集成](research-web-event-research.md)。
+
 2026-10-31 本机测试产物与交付证据分层：`scripts/test_artifact_retention.py` 在测试开始登记临时根的任务、候选及 inode，通过的外部 JUnit/stdout/stderr 冻结后可提前清理根目录；`iteration_resources.py` 对新任务要求完整的 `logs/evidence-retention.json`，仅把显式保留且不超过 128 MiB 的证据归档。未分类、失败/未知或来源变更均拒绝清理；旧任务沿原合同，生产恢复与 Git 备份由各自保全链管理。没有新增线上研究、模型或部署节点，见[存储留存规则](research-web-storage-retention.md)。
 
 开发产物在原Git/Docker安全收尾后经`resource_lifecycle.mjs`桥接共用事件内核，独立记录交付与清理欠账；普通备份按登记的交付事件退休，完整日志只保留有界摘要。不新增业务服务或部署节点，见[生命周期](resource-lifecycle.md)。

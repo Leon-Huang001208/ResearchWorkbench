@@ -1,5 +1,11 @@
 # 部署与模块职责
 
+## 事件与日历研究的 Host 内部职责（2026-11-04）
+
+Host 新增事件、研究与市场评分三组 API，以及账户绑定的事件／试验元数据和原件存储。它们连接来源、确认冻结、确定性研究、测试区间账本和评分资格；这些新增边在[图14](../../../outputs/research-web-architecture/14-event-research.html)展开，原部署图的浏览器→Host→账号根／唯一DSH粗粒度角色保持。DSH仍承担模型研究，确定性计算不创建第二Agent循环。
+
+原生来源计划须同时满足通用 Automation 开关与逐源启用；tenant 自动采集通道保持关闭，不能借今日发现跟踪权限启动事件采集或其他历史任务。数据权限、保全／恢复、当前资格、实际安装与平台验收分别核验，详见[集成合同](../../research-web-event-research.md)。
+
 ## 交付证据与临时资源职责（2026-10-31）
 
 `scripts/test_artifact_retention.py` 只管理登记过的本机测试临时根，终态 PASS 与外部 JUnit/stdout/stderr 复核后可提前回收；`iteration_resources` 在最终 Git 交付收尾时为新任务选择不超过 128 MiB 的日志证据。两个入口不操作 Host、DSH、Docker 运行资源或生产数据，不构成第二研究/部署控制器。旧任务、失败/未知及恢复原件保持原保全链；图 08 仅更新交付证据流程。

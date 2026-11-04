@@ -46,7 +46,7 @@ export function parseRoute(hash = '') {
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
   if (page === 'intel') {
-    const tabs = new Set(['discovery', 'hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events', 'signals']);
+    const tabs = new Set(['discovery', 'hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events', 'signals', 'timeline']);
 
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
     if (route.intelTab === 'search') {
@@ -102,7 +102,10 @@ export function parseRoute(hash = '') {
     route.assetView = params.get('view') === 'dossiers' && page === 'assets' ? 'dossiers' : ASSET_VIEWS.includes(params.get('view')) ? params.get('view') : 'overview';
     if (route.assetView === 'dossiers') route.dossierId = /^[a-f0-9]{32}$/.test(params.get('dossier') || '') ? params.get('dossier') : null;
   }
-  if (page === 'simulation') route.section = 'etf-paper';
+  if (page === 'simulation') {
+    if (!extraSegments.length && ['events', 'scores'].includes(sectionSegment)) route.simulationView = sectionSegment;
+    route.section = route.simulationView || 'etf-paper';
+  }
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
     route.frameworkTab = frameworkTabs.has(params.get('tab')) ? params.get('tab') : 'overview';
@@ -137,7 +140,7 @@ export function legacyRouteTarget(hash = '') {
 }
 
 export function isDataWorkspaceRoute(route) {
-  return ['assets', 'simulation', 'workbench'].includes(route?.page) || (route?.page === 'intel' && route?.intelTab === 'search');
+  return ['assets', 'workbench'].includes(route?.page) || (route?.page === 'simulation' && (!route.simulationView || route.simulationView === 'etf')) || (route?.page === 'intel' && route?.intelTab === 'search');
 }
 export async function prepareClawExampleDraft(controller, prompt, { navigate, currentGeneration }) {
   const pending = navigate();

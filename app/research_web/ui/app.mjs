@@ -41,6 +41,7 @@ import { mountCapitalFlow } from './asset-workspace.mjs';
 import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createEventLab, renderEventLab } from './event-lab.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
@@ -193,6 +194,11 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const eventLab = createEventLab({ request: (...args) => api.request(...args), onChange: () => { if (isEventLabRoute()) render(); } });
+function isEventLabRoute() {
+  return (state.route.page === 'intel' && state.route.intelTab === 'timeline') ||
+    (state.route.page === 'simulation' && ['events', 'scores'].includes(state.route.simulationView));
+}
 const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
 const assetResearch = createAssetResearchController({api,changed:()=>paintAssetResearch(),onResearch:context=>scenarioController.open(context)});
 function paintAssetResearch() {
@@ -533,6 +539,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (isEventLabRoute()) return renderEventLab(eventLab.state);
   if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
   if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
@@ -794,6 +801,7 @@ function render() {
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
   root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   syncAssetResearch();
+  if (isEventLabRoute()) eventLab.restore(root);
   root.querySelector('.app-shell').inert = scenarioController.state.open;
   if (scenarioController.state.open && !document.activeElement?.closest?.('.scenario-panel')) root.querySelector('#scenario-query')?.focus({ preventScroll: true });
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
@@ -1589,6 +1597,7 @@ async function showRoute() {
   assetTopicNavigation = 0;
   if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
   intelController.cancel();
+  eventLab.deactivate();
   discoveryController.deactivate();
   dossierController.cancel();
 
@@ -1675,8 +1684,10 @@ async function showRoute() {
   if (state.route.page === 'operations') await loadOperations();
   if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
+  if (isEventLabRoute()) await eventLab.activate(state.route.page === 'intel' ? 'timeline' : state.route.simulationView === 'events' ? 'studies' : 'scores');
   if (state.route.page === 'intel') {
-    if (state.route.intelTab === 'discovery') await discoveryController.activate();
+    if (state.route.intelTab === 'timeline') { /* Event lab owns this tab. */ }
+    else if (state.route.intelTab === 'discovery') await discoveryController.activate();
     else if (state.route.intelTab === 'hot') await hotController.activate(state.route);
     else if (state.route.intelTab === 'signals') await dossierController.activate(state.route);
 
@@ -1751,6 +1762,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('.event-lab')) { void eventLab.handle(event); return; }
   if (event.target.closest?.('[data-asset-research]')) { void assetResearch.handle(event); return; }
   if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
   if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
@@ -2102,6 +2114,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   // This local filter form is submitted explicitly; generic redraw would discard its values.
   if (event.target.closest?.('[data-report-directory-filter]')) return;
   if (event.target.matches?.('[data-report-run-select]')) {
@@ -2280,6 +2293,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if (event.target.matches?.('[data-report-directory-filter]')) {
     event.preventDefault(); const values = new FormData(event.target);
     const params = new URLSearchParams({ q: String(values.get('q') || '').slice(0, 120), status: String(values.get('status') || 'all') });
@@ -2719,6 +2733,7 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');

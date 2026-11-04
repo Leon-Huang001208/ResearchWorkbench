@@ -101,13 +101,32 @@ jobs:
             b800e50366d1a0868372bbf173822976066c143f \
             db2ae9a48ceca365852072e622aa6627aa7d0b83 \
             1529c3189b008b9861a2bee1511f051feefa76eb
-          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+          PYTEST_PLUGINS=tests.research_web.event_test_support PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
             --allowed-parent "$RUNNER_TEMP" \
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
             -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
+            tests/research_web/test_event_api.py \
+            tests/research_web/test_event_datahub_bridge.py \
+            tests/research_web/test_event_studies.py \
+            tests/research_web/test_event_studies_events.py \
+            tests/research_web/test_event_studies_forecast.py \
+            tests/research_web/test_event_studies_index_description.py \
+            tests/research_web/test_event_studies_prediction.py \
+            tests/research_web/test_event_studies_scoring.py \
+            tests/research_web/test_event_studies_service.py \
+            tests/research_web/test_event_studies_validation.py \
+            tests/research_web/test_event_timeline.py \
+            tests/research_web/test_event_timeline_relevance.py \
+            tests/research_web/test_event_timeline_scheduler.py \
+            tests/research_web/test_event_timeline_storage.py \
+            tests/research_web/test_market_scoring.py \
+            tests/research_web/test_market_scoring_native_inputs.py \
+            tests/research_web/test_market_scoring_native_matrix.py \
+            tests/research_web/test_market_scoring_native_temporal.py \
+            tests/research_web/test_market_scoring_service.py \
             tests/research_web/test_research_scenarios_catalog.py \
             tests/research_web/test_scenario_handoffs.py \
             tests/research_web/test_scenario_review_regressions.py \
