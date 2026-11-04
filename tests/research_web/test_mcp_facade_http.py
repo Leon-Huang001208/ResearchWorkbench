@@ -193,6 +193,49 @@ def test_gateway_sdk_bearer_and_discovery(environment):
     assert s.lookups == [] and s.calls == []
 
 
+def test_get_event_stream_is_bounded_inside_sdk_auth(environment, monkeypatch):
+    s = environment
+    token, _ = approved(s)
+    client = s.env[0]
+    headers = {"Accept": "text/event-stream", "MCP-Protocol-Version": "2025-11-25"}
+    for credentials in (
+        {},
+        {"Cookie": "rwb_session=" + s.env[3][0]},
+        {"Authorization": "Bearer invalid"},
+    ):
+        response = client.get("/mcp", headers={**headers, **credentials}, timeout=1)
+        assert response.status_code == 401
+        assert "resource_metadata=" in response.headers["www-authenticate"]
+    authenticated = {**headers, "Authorization": "Bearer " + token}
+    # Exercise the SDK's insufficient-scope response independently of the
+    # stricter durable verifier, without parsing client credentials ourselves.
+    from app.research_web.mcp_facade.oauth import OAuthVerifier
+
+    verify = OAuthVerifier.verify_token
+
+    async def without_scope(self, raw):
+        result = await verify(self, raw)
+        return result.model_copy(update={"scopes": []}) if result else None
+
+    with monkeypatch.context() as patch:
+        patch.setattr(OAuthVerifier, "verify_token", without_scope)
+        response = client.get("/mcp", headers=authenticated, timeout=1)
+    assert response.status_code == 403
+    assert "insufficient_scope" in response.headers["www-authenticate"]
+    for extra, status in (
+        ({"Host": "evil.invalid"}, 403),
+        ({"Origin": "https://evil.invalid"}, 403),
+    ):
+        response = client.get("/mcp", headers={**authenticated, **extra}, timeout=1)
+        assert response.status_code == status
+    started = time.monotonic()
+    response = client.get("/mcp", headers=authenticated, timeout=1)
+    assert time.monotonic() - started < 1
+    assert response.status_code == 405 and response.headers["allow"] == "POST"
+    assert "result" in rpc(s, token).json()
+    assert s.lookups == [] and s.calls == []
+
+
 def test_initialize_newer_offer_and_version_gate(environment):
     s = environment
     token, _ = approved(s)

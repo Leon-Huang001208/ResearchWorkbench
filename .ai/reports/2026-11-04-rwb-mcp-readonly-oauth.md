@@ -57,3 +57,13 @@ CI不增加job/runner/deps/timeout；MacBootstrap新增SDK导入与enabled Docto
 Parser新增测试先实际2FAIL（缺collector），实现后2PASS；完整architecture JS最终88PASS/6.68秒，随后新增Atlas分层标签合同1PASS。原baseline图、未知语法负例、源码映射完整性和静态API数量语义保持；这89项不是native业务验收。文档与架构检查0 violations，Atlas生成427条静态声明/424个操作，另列SDK条件合同。
 
 父会话补充实际Chromium Gateway合成链：authorize→真实auth网页登录→唯一synthetic选材同意→loopback callback→SDK token交换及subject→modern initialize counteroffer2025-11-25→四工具列表，cap/source-list零backendlookup；source_read原件hash验证、1次readonlylookup/2个固定GET，应用页一次撤权后token失效且真实MCP401。证据gateway-browser-result-01.json与apps-revoked.png；source ea530f3，gateway/tools字节未改变。一次精确locator因listitem含button未匹配而timeout，未重复点击，随后DOM“已撤销”和401独立确认。两个临时server及任务tabs已关闭。Backend为MockTransport，此证据只认证wholeGateway syntheticbrowser；privateTLS、CodexDesktop、DSH、WorkBuddy、真实Pool/Provider/model/常驻仍NOT_RUN。
+
+## 最终审查统一修复（基线 e47f0e8）
+
+Important1：持久 GET SSE 与完整响应缓冲不兼容，真实 HTTP 复现 ReadTimeout。现在使用公开 Starlette Route 与 SDK RequireAuthMiddleware/TransportSecurityMiddleware 组合，仅拒绝 GET；保留 SDK 全局 bearer 验证、401/403 challenge、Host/Origin 和原 POST 分派。合法 GET 返回 405/Allow POST；8项路由注册与 methods=null 保持，文档明确注册方法与允许方法的差别，后端调用计数为零。
+
+Important2：永久领域错误采用明确白名单。兑换／刷新事务的临时故障交原 HTTP guard 返回503；authorize 因 SDK 自带 catch-all，使用其公开 AuthorizeError temporarily_unavailable 返回合法回调＋state＋issuer，避免永久 access_denied 和 SDK 意外异常日志。真实写入后分别注入安全拒绝、SQLite忙碌和I/O故障，验证原授权码、refresh、access及grant状态与行数回滚保全；未自动重试未知结果。
+
+Minor3 与两项 exact-check 发现：UI文档开关改为 mcp_readonly_enabled===true；Node仅更新focused catalog19及DataHub routes明确入站MCP规则的预期，同时保留L4/full-delivery/所有平台门和其余unknown fallback；原FIFO测试仅增加自身创建FIFO的finally unlink，原子进程、2秒超时和断言保持。原exact-local-integrations批次04为20PASS而cleanup初次blocked，父会话已完成窄范围缺失teardown恢复；不能把该事件描述为业务测试失败。
+
+本轮WIP证据：final-fix-red初次4FAIL中GET断言错把Gateway Host403当421，另外3项是有效错误映射RED；仅修正测试后同root red-get-01实际4FAIL（GET超时、兑换400、刷新400、authorize302 access_denied）。green-01为3PASS/1FAIL，揭示SDK authorize catch-all；改用SDK temporary错误后同root green-02为4PASS并正式retired。原各次失败与结果哈希保持。后续final-fix-focused-01/02/03明确20/20/5个展开node IDs，完整HTTP/OAuth＋FIFO＋8路由合同共45PASS，三root均retired；manifest及所有controller/stdout/JUnit/result在任务logs。Node final-fix-node-L1为75PASS，Ruff/Black/isort/Mypy（3源码文件）和diff检查通过。以上不是最终exact candidate、全Router、独评、CI或生产验收；剩余闭包由父会话绑定最终HEAD完成。

@@ -525,6 +525,101 @@ def test_revoke_transaction_rollback_is_503(http_env, monkeypatch):
         store.verify_access(pair["access_token"], resource=store.resource)
 
 
+@pytest.mark.parametrize("fault", ["unsafe", "busy", "io"])
+@pytest.mark.parametrize("grant_type", ["authorization_code", "refresh_token"])
+def test_token_exchange_storage_rollback_is_503(http_env, monkeypatch, grant_type, fault):
+    import sqlite3
+
+    from app.research_web.multiuser.accounts import AccountError
+
+    client, store, users, *_ = http_env
+    code = authorize(http_env)
+    pair = exchange(client, code).json() if grant_type == "refresh_token" else None
+    before_grants = store.list_grants(users[0].id)
+    before_record = (
+        store.load_refresh(pair["refresh_token"], client_id=CLIENT)
+        if pair
+        else store.load_code(code, client_id=CLIENT)
+    )
+    issue = store._issue_tokens
+    mutations = []
+
+    def fail_after_issue(db, grant):
+        issue(db, grant)
+        mutations.append(db.total_changes)
+        if fault == "unsafe":
+            raise AccountError("account_store_unsafe", 503)
+        if fault == "busy":
+            raise sqlite3.OperationalError("database is locked")
+        raise OSError("synthetic I/O failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_issue_tokens", fail_after_issue)
+        response = refresh(client, pair["refresh_token"]) if pair else exchange(client, code)
+    assert mutations == [3]  # consumed marker plus two inserted token digests
+    assert response.status_code == 503
+    assert response.json() == {"error": "temporarily_unavailable"}
+    after_record = (
+        store.load_refresh(pair["refresh_token"], client_id=CLIENT)
+        if pair
+        else store.load_code(code, client_id=CLIENT)
+    )
+    assert after_record == before_record
+    assert store.list_grants(users[0].id) == before_grants
+    with store.accounts._connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM mcp_oauth_tokens").fetchone()[0] == (
+            2 if pair else 0
+        )
+    if pair:
+        store.verify_access(pair["access_token"], resource=store.resource)
+
+
+@pytest.mark.parametrize("fault", ["unsafe", "busy", "io"])
+def test_authorize_storage_rollback_is_temporary(http_env, monkeypatch, fault):
+    import sqlite3
+    from contextlib import contextmanager
+
+    from app.research_web.multiuser.accounts import AccountError
+
+    client, store, users, sessions, _ = http_env
+    existing_code = authorize(http_env)
+    before_grants = store.list_grants(users[0].id)
+    before_code = store.load_code(existing_code, client_id=CLIENT)
+    connection = store.accounts._connection
+    with connection() as db:
+        before_requests = db.execute("SELECT * FROM mcp_oauth_requests").fetchall()
+    mutations = []
+
+    @contextmanager
+    def fail_after_write():
+        with connection() as db:
+            yield db
+            if db.total_changes:
+                mutations.append(db.total_changes)
+                if fault == "unsafe":
+                    raise AccountError("account_store_unsafe", 503)
+                if fault == "busy":
+                    raise sqlite3.OperationalError("database is locked")
+                raise OSError("synthetic I/O failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store.accounts, "_connection", fail_after_write)
+        response = client.get("/authorize", params=params(), headers=browser(client, sessions[0]))
+    assert mutations == [1]
+    assert response.status_code == 302
+    location = urlsplit(response.headers["location"])
+    assert location._replace(query="").geturl() == CALLBACK
+    assert parse_qs(location.query) == {
+        "error": ["temporarily_unavailable"],
+        "state": ["opaque-state"],
+        "iss": [store.issuer],
+    }
+    assert store.load_code(existing_code, client_id=CLIENT) == before_code
+    assert store.list_grants(users[0].id) == before_grants
+    with connection() as db:
+        assert db.execute("SELECT * FROM mcp_oauth_requests").fetchall() == before_requests
+
+
 def test_browser_referrer_policy_preserves_exact_origin_csrf(http_env):
     client, store, _, sessions, _ = http_env
     started = client.get("/authorize", params=params(), headers=browser(client, sessions[0]))

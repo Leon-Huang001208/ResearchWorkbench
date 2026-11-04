@@ -6,6 +6,8 @@ API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项re
 
 启用后提供 `/mcp`，授权服务元数据、`/.well-known/oauth-protected-resource/mcp`、`/authorize`、`/token`、`/revoke` 及浏览器同意/应用撤权页面。固定公开客户端 `rwb-codex-native`、scope `rwb.read`，不开放 DCR/CIMD。四工具为 `rwb_capabilities_list`、`rwb_datasets_list`、`rwb_dataset_read`、`rwb_source_read`；请求 64 KiB、响应 256 KiB、默认 100/最多 500 行、文本最多 12000 字符。OAuth 与对象合同见[入站 MCP](../../research-web-mcp-facade.md)，不能用浏览器 Cookie 冒充 bearer。
 
+`/mcp` 的协议消息使用 POST；GET 在 SDK bearer/scope 和 Host/Origin 检查后及时返回 405、`Allow: POST`，不启动持久 SSE。8 项路由注册合同保持，`methods=null` 不代表允许所有动词。OAuth 授权码兑换和刷新轮换的临时存储故障返回 503 `temporarily_unavailable`；授权请求创建故障由 SDK 返回带同名错误、state 和 issuer 的已验证回调，不伪装为用户拒绝或无效授权，不自动重试未知结果。
+
 ## successor 是封闭维护 CLI（2026-10-31）
 
 新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。

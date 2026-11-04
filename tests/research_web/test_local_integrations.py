@@ -1950,20 +1950,24 @@ def test_office_phase_fifo_cannot_block_parent_supervision(tmp_path):
 
     run = tmp_path / ("f" * 32)
     run.mkdir()
-    os.mkfifo(run / "word-phases.jsonl")
+    fifo = run / "word-phases.jsonl"
+    os.mkfifo(fifo)
     code = (
         "import sys; from pathlib import Path; "
         "from app.research_web.local_integrations.verifiers import _read_office_phases; "
         "print(_read_office_phases('word', Path(sys.argv[1])))"
     )
-    result = subprocess.run(
-        [sys.executable, "-c", code, str(run)],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=2,
-    )
-    assert result.stdout.strip() == "[]"
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", code, str(run)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        assert result.stdout.strip() == "[]"
+    finally:
+        fifo.unlink()
 
 
 @pytest.mark.parametrize(

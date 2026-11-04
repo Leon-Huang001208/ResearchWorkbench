@@ -72,11 +72,15 @@ def _pair(pair: TokenPair) -> OAuthToken:
 
 
 def _token_error(exc: AccountError) -> TokenError:
-    if exc.code == "invalid_target":
+    if exc.status < 500 and exc.code == "invalid_target":
         return TokenError("invalid_target")
-    if exc.code == "invalid_scope":
+    if exc.status < 500 and exc.code == "invalid_scope":
         return TokenError("invalid_scope")
-    return TokenError("invalid_grant")
+    if _definitely_invalid_token(exc):
+        return TokenError("invalid_grant")
+    # A failed transaction does not prove an invalid credential. The HTTP
+    # storage guard logs a stable event and emits 503 without redirect/retry.
+    raise exc
 
 
 def _definitely_invalid_token(exc: AccountError) -> bool:
@@ -149,11 +153,16 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
             )
             return "/mcp/consent?" + urlencode({"request_id": pending.id})
         except AccountError as exc:
-            if exc.code == "invalid_target":
+            if exc.status < 500 and exc.code == "invalid_target":
                 raise AuthorizeError("invalid_target") from exc
-            if exc.code == "invalid_scope":
+            if exc.status < 500 and exc.code == "invalid_scope":
                 raise AuthorizeError("invalid_scope") from exc
-            raise AuthorizeError("access_denied") from exc
+            if _definitely_invalid_token(exc):
+                raise AuthorizeError("access_denied") from exc
+            if exc.status < 500 and exc.code == "invalid_request":
+                raise AuthorizeError("invalid_request") from exc
+            log.warning("mcp_oauth_authorization_storage_unavailable")
+            raise AuthorizeError("temporarily_unavailable") from exc
 
     async def load_authorization_code(
         self, client: OAuthClientInformationFull, raw: str

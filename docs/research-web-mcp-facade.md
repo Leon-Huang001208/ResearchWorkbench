@@ -28,6 +28,8 @@ RWB 保留账户与权限、DataHub/Provider、冻结数据、来源证据、档
 
 授权存储使用现有账户 SQLite 的增量表，不复制用户库。已有浏览器会话和凭据保持原语义。新表的部分损坏不能被误判为旧版本无表而跳过撤权。
 
+存储安全检查、忙碌或 I/O 故障在授权码兑换与刷新轮换阶段返回 HTTP 503 `temporarily_unavailable`；授权请求创建阶段通过 SDK 返回带 `temporarily_unavailable`、state 和规范 issuer 的已验证回调。不能改写为永久 `invalid_grant` 或用户 `access_denied`。事务失败保留回滚后的原授权状态，服务端不自动重试结果未知的兑换或刷新。
+
 ## 选材白名单
 
 首批只允许操作员明确批准的 `public` 或 `synthetic` 冻结材料。批准记录绑定账户、上下文、对象种类、对象引用和原件 SHA-256；默认没有批准材料。客户端声明“公开”、拥有会话、可下载或同意 OAuth 均不能自行赋予外发资格。
@@ -48,6 +50,8 @@ RWB 保留账户与权限、DataHub/Provider、冻结数据、来源证据、档
 | `rwb_source_read` | 未指定来源时列批准来源；指定后只读取已有冻结文本，每次最多 12000 字符 |
 
 HTTP 请求最大 64 KiB，响应最大 256 KiB。分页、截断、coverage、缺失、来源和时点明确返回；空值和未知状态不能补成已覆盖。行数上限不保证字节上限，大行或大 manifest 必须明确拒绝或缩小分页，不能静默丢弃字段。
+
+`/mcp` 仅通过 POST 执行协议消息，不提供持久 GET SSE 流。GET 先经过 SDK bearer/scope 认证及 Host/Origin 边界，合法请求及时返回 405 和 `Allow: POST`；缺少令牌、Cookie 单独认证或无效令牌仍返回 SDK 401 challenge，scope 不足返回 SDK 403。SDK 的 ASGI 路由登记为 `methods=null`，仅表示交由处理器判断方法，不声明全部动词可用。
 
 账户由服务器验证令牌确定，客户端参数不能选择账户。只调用固定的既有后端 GET 路径；禁止任意路径、URL、SQL 或命令代理。内部实例控制 key、Cookie、浏览器 Authorization 和用户自选租户头不交给外部宿主。后端选择遵守现有 RuntimePool 容量，超限返回明确忙碌，不扩大运行池。
 

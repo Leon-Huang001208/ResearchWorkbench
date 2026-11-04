@@ -15,10 +15,12 @@ from mcp.types import (
     ListToolsResult,
     ServerCapabilities,
 )
+from pydantic import AnyHttpUrl
+from starlette.routing import Route
 
 from .authorization_store import AuthorizationStore
 from .backend import FrozenBackend
-from .http_policy import BoundedHTTP
+from .http_policy import BoundedHTTP, BoundedMCPMethods
 from .models import SCOPE
 from .oauth import OAuthProvider, OAuthVerifier, create_oauth_routes
 from .tools import TOOL_ARGUMENTS, register_tools
@@ -84,14 +86,37 @@ class Facade:
         self.backend = FrozenBackend(pool, self.client)
         register_tools(self.server, self.store, self.backend)
         self.routes = create_oauth_routes(OAuthProvider(self.store))
+        security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[urlsplit(origin).netloc],
+            allowed_origins=[origin],
+        )
         app = self.server.streamable_http_app(
             streamable_http_path="/mcp",
             stateless_http=True,
             json_response=True,
-            transport_security=TransportSecuritySettings(
-                enable_dns_rebinding_protection=True,
-                allowed_hosts=[urlsplit(origin).netloc],
-                allowed_origins=[origin],
-            ),
+            transport_security=security,
         )
+        # Compose the public Starlette route without changing SDK middleware,
+        # POST dispatch, session management, or private SDK implementation.
+        app.routes[:] = [
+            (
+                Route(
+                    route.path,
+                    BoundedMCPMethods(
+                        route.app,
+                        security,
+                        required_scopes=[SCOPE],
+                        resource_metadata_url=AnyHttpUrl(
+                            origin + "/.well-known/oauth-protected-resource/mcp"
+                        ),
+                    ),
+                    methods=route.methods,
+                    name=route.name,
+                )
+                if isinstance(route, Route) and route.path == "/mcp"
+                else route
+            )
+            for route in app.routes
+        ]
         self.app = BoundedHTTP(app)

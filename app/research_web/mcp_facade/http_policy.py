@@ -1,5 +1,7 @@
 """Bound entire SDK HTTP envelopes before disclosing any response bytes."""
 
+from mcp.server.auth.middleware.bearer_auth import RequireAuthMiddleware
+from mcp.server.transport_security import TransportSecurityMiddleware
 from mcp.types import (
     ErrorData,
     InitializeRequest,
@@ -9,6 +11,7 @@ from mcp.types import (
 )
 from pydantic import ValidationError
 from starlette.responses import JSONResponse
+from starlette.routing import request_response
 
 from core.observability import get_logger
 
@@ -20,6 +23,34 @@ log = get_logger(__name__)
 
 class LimitExceeded(Exception):
     pass
+
+
+class BoundedMCPMethods:
+    """Keep SDK dispatch/auth, but decline its unbounded GET event stream."""
+
+    def __init__(self, app, security, *, required_scopes, resource_metadata_url):
+        self.app = app
+        transport = TransportSecurityMiddleware(security)
+
+        async def reject_get(request):
+            rejected = await transport.validate_request(request)
+            if rejected is not None:
+                return rejected
+            log.info("mcp_get_stream_not_supported")
+            return JSONResponse(
+                {"error": "method_not_allowed"}, status_code=405, headers={"Allow": "POST"}
+            )
+
+        # AuthenticationMiddleware on the SDK Starlette app still verifies the
+        # bearer. Its public required-scope middleware retains 401/403 challenges.
+        self.get = RequireAuthMiddleware(
+            request_response(reject_get), required_scopes, resource_metadata_url
+        )
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["method"] == "GET":
+            return await self.get(scope, receive, send)
+        return await self.app(scope, receive, send)
 
 
 class BoundedHTTP:

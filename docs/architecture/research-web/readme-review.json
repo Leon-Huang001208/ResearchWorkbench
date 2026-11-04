@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "2026-11-04 README 新增默认关闭的私网入站 MCP 与产品边界。",
-  "reason": "用户可见新能力需要说明公开或合成材料白名单、独立 OAuth、既有 DSH 与原生宿主未验收；未宣称上线或替代已有研究入口。"
+  "summary": "2026-11-04 README 已新增默认关闭的私网入站 MCP 与产品边界；最终修复后复核仍准确。",
+  "reason": "公开或合成材料白名单、独立 OAuth、既有 DSH 与原生宿主未验收仍保持；GET拒绝及临时存储故障的精确语义在入站MCP/API合同同步，不扩大README的支持或上线声明。"
 }
