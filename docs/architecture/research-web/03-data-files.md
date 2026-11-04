@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+事件研究在个人根新增 `event_timeline/` SQLite／不可变原件与初始化标记。归档、试验、封存、
+打开记录、紧凑六维历史和来源任务随同保全；恢复不能回退既有holdout历史，未知来源恢复增加
+资格对账标记并保持正式准入关闭。DataHub原件注册只收本账号引用，不接收客户端PIT声明。
+数据流见[事件研究图](../../../outputs/research-web-architecture/14-event-research.html)及
+[集成合同](../../research-web-event-research.md)。
+
 ## 交付日志与业务文件分离（2026-10-31）
 
 `logs/evidence-retention.json` 对新交付任务的测试输出逐文件声明保留/丢弃，丢弃只接受通过的 JUnit 与固定哈希；归档保留集上限 128 MiB。它不扫描或删除 DataHub 原件、报告、会话、用户资料、数据库、供应商数据、Git 恢复点或 Native/Docker 生产恢复目录。历史任务缺新模式仍按原 ledger 保留，未登记业务路径不得以“旧日志”名义清理。

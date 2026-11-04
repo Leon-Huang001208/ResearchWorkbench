@@ -1,5 +1,13 @@
 # Research Workbench Development Map
 
+事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
+`event_studies/` 管理固定窗口、对照、代理账本、试验与一次性验证；`market_scoring/` 管理
+六维配置、证据时点、研究总分和当期事件适用性。`event_datahub_bridge.py` 只登记当前账号
+DataHub 日线／日历引用，`event_preservation.py`／`event_diagnostics.py` 纳入保全与Doctor，
+`ui/event-lab.mjs` 复用研究情报及策略模拟入口。回归为 `test_event_timeline*`、
+`test_event_studies*`、`test_market_scoring*` 及 `research_web_event_lab.test.mjs`。
+详见[集成合同](research-web-event-research.md)，缺少测试环境、真实来源或PIT证据不得报已验收。
+
 2026-10-31 存储留存：本机 `scripts/test_artifact_retention.py run` 亲自执行一批最多20个固定用例，记录真实退出码、JUnit/stdout/stderr与批次nonce，再做同inode隔离回收和中断重入；低级create/admit/retire供受审执行器使用。`research_workbench_entrypoint/iteration_resources.py` 的 `selected_evidence` 仅允许同批退休回执列出的成功输出不归档，`record_task/closeout` 对新任务固定完整选择清单和128MiB保留门，旧ledger仍走legacy-full。回归分别在 `tests/research_web/test_test_artifact_retention.py` 和 `test_iteration_resources.py`，工作流显式登记前者。完整格式、证据与失败边界见[留存规则](research-web-storage-retention.md)。
 
 同日 `scripts/git_safety.mjs` prepared-amend 字段兼容只允许受管控制器新增的 `mergeSourceCommit` 等于旧feature身份，收养时原子推进为新feature身份；正反例和旧回执恢复仍在既有 `tests/javascript/git_safety_amend_prepared.test.mjs`。远端主线在首次发布前推进时，原 `prepared` 回执可经 `refreshPublishedBase` 精确收养已提交的祖先候选，刷新后的merge source绑定见 `tests/javascript/git_safety.test.mjs`；两路径均不改变分支保护、备份或发布门。

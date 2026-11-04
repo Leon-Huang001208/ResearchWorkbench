@@ -86,6 +86,8 @@ class AutomationService:
         self.scheduler = scheduler
         self.eligibility = eligibility
         self.resume_executor = resume_executor
+        self.collection_tick = None
+        self.collection_enabled = None
         self.now = now or (lambda: datetime.now(UTC))
         self.sleep = sleep
         self.tasks: dict[str, asyncio.Task] = {}
@@ -782,6 +784,8 @@ class AutomationService:
     @research_admission
     async def tick(self, now: datetime | None = None) -> None:
         now = now or self.now()
+        if self.collection_tick is not None:
+            await self.collection_tick(now)
         due = [
             row
             for row in self.store.data["automations"].values()
@@ -845,6 +849,43 @@ class AutomationService:
                 self._arm(row)
             if not self.scheduler.running:
                 self.scheduler.start()
+            self.arm_collection()
+
+    def arm_collection(self):
+        """Use the existing APScheduler only after a source plan is explicitly enabled."""
+        if (
+            self.scheduler in (None, False)
+            or self.collection_tick is None
+            or self.collection_enabled is None
+        ):
+            return
+        identity = "event-source-collection-heartbeat"
+        if self.scheduler.get_job(identity) is not None:
+            self.scheduler.remove_job(identity)
+        if (
+            self.collection_tick is not None
+            and self.collection_enabled is not None
+            and self.collection_enabled()
+        ):
+            self.scheduler.add_job(
+                self._collection_fire,
+                "interval",
+                seconds=60,
+                id=identity,
+                max_instances=1,
+                coalesce=True,
+                replace_existing=True,
+            )
+            log.info("event_collection_heartbeat_armed")
+
+    @research_admission
+    async def _collection_fire(self):
+        if (
+            self.collection_tick is not None
+            and self.collection_enabled is not None
+            and self.collection_enabled()
+        ):
+            await self.collection_tick(self.now())
 
     async def close(self) -> None:
         if self.scheduler not in (None, False) and self.scheduler.running:

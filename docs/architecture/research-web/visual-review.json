@@ -210,6 +210,20 @@
       "findings": [],
       "notes": "通过CUA读取四桌面视口DOM，宽高均无溢出；实际查看1440浅/深两截图，Host抽象中的24/12分集、双公开来源、用户文件及证据门可辨，未见节点/线/标签遮挡。2048两主题亦已采集。未运行CLI visual-check，不把图册作为实际产品或来源验收。",
       "correction_rounds": 3
+    },
+    {
+      "id": "14-event-research",
+      "artifactSha256": "4672d1e941238d82a9bcdd54d2598f08e2b4e80edef6b4fef846957c7582c964",
+      "specificationSha256": "30d7636cea819042b7f3b73628c6653b05b1357ec47b752e7195cb8519981c55",
+      "status": "reviewed",
+      "reviewer": "codex-root",
+      "date": "2026-11-04",
+      "captures": [
+        "14-event-research.visual-check.1440x900.light.png",
+        "14-event-research.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "实际查看1440浅色和2048深色：一次修复viewBox空白后，阶段/连线/标签与卡片可读、无裁剪；四尺寸自动包含验证通过。证据解释由显式导出及原DSH资料链完成，不表示自动模型调用或生产验收。"
     }
   ]
 }

@@ -1,5 +1,11 @@
 # GitHub Actions 免费额度治理
 
+2026-11-04事件研究候选仅向既有Research Web Checks分区步骤登记新领域/ASGI测试，并在原Mac
+Bootstrap静态资源校验加入两份mjs；不新增job、runner、超时或平台dispatch。现有串行本机WIP
+已运行真实窗口、回测/封存/评分互操作及原生资料测试，修复期间失败证据保留；合成正链不代表
+真实市场有效性。新模块初步预留原步骤180秒，最终实际耗时与候选CI另绑，不能用估计替代通过。
+发布前仍须实时复核visibility/额度和标准runner资格；不重跑旧候选或从Mac派发Windows/Linux产品。
+
 2026-11-01 prepared-amend 回执字段兼容在既有 Project Constraints 的 Git安全测试步骤增加2个正反例，首次发布前主线前进又增加3个直接刷新正反例；不增workflow/job/runner/依赖/timeout。原amend测试文件本机完整106项通过，实测约275秒；新刷新用例所在Git安全文件的10项unpublished定点测试通过。这些结果不是远端同候选CI或生产维护成功。项目入口对合法 `mergeSourceCommit` 只接受其等于旧feature，并在正式收养或主线刷新后推进到新feature；错误绑定继续失败关闭。
 
 2026-10-31 存储留存调整复用原 Research Web Checks 的 Python 步骤：新增 `test_test_artifact_retention.py` 21 项，并在既有 `test_iteration_resources.py` 增加 10 项（原 15 项保留），完整局部集合共46项；不增加 job、runner、timeout、依赖、模型或供应商请求。功能/文档候选`13a1ae58`与正式集成候选`5dc24828`共享树`fa49985e`，各自在干净工作树以exact模式按20/1/20/5执行46项、0失败/0错误，四个临时根逐批回收；协议81项在两候选各按20/20/20/20/1执行，通过且真实Keychain调用0。本段归属到这两个已测SHA；后续文档修订产生的新候选仍须独立Router/评审/CI，不把旧SHA回执写成新候选PASS。原job对新增31项保守预留30秒，远端实际耗时另证。选择性归档只移除同批已退休、exact checkout回执明确绑定的成功stdout/stderr，旧任务历史证据不由新代码静默删除。

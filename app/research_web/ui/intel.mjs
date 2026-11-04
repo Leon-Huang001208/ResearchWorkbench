@@ -3,6 +3,7 @@ import { safeLog } from './core.mjs';
 import { icon } from './icons.mjs';
 
 export const intelTabs = [
+  ['timeline', '事件时间线'],
   ['overview', '事件总览'], ['research-reports', '研究报告'],
   ['investment-news', 'Investment News'], ['wsc', '见闻快讯'],
   ['social', '社交媒体监控'], ['events', '事件概率'],

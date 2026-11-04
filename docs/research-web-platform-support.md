@@ -1,5 +1,11 @@
 # Research Web 能力与平台证据
 
+## 事件与日历研究的证据归属（2026-11-04）
+
+本轮为Mac上的Web功能候选：时间线、确定性研究和评分接入沿原Host与账户隔离，未新增桌面打包目标。源码、隔离测试、真实公开来源、浏览器、Native集成与GitHub Mac干净安装各有独立证据，均不能替代常驻部署或正式因子准入。
+
+Docker、Windows／Linux原生、对应设备及CI证据仍按原矩阵记录；没有执行的层级保持NOT_RUN，不因Python共享实现或图14生成宣称支持。覆盖年份、来源受限与PIT缺口见[事件研究合同](research-web-event-research.md)。
+
 ## 本机存储回收的证据归属（2026-10-31）
 
 新 pytest 根回收工具在当前 Mac 宿主使用本机 inode、UID、`lsof` 和安全 `rmtree` 验证；它不认证 Docker、Windows 或 Linux 产品运行。新日志选择合同可由通用仓库 CI 验证，但其他平台的临时根清理仍须对应设备按本机路径和占用机制适配，未执行保持 `NOT_RUN`。宿主 `df` 的物理空间证据与 CI、产品验收分开记录，见[留存规则](research-web-storage-retention.md)。

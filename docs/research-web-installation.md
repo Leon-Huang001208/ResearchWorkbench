@@ -1,5 +1,11 @@
 # Research Web Native / Docker 安装与运行
 
+事件时间线／日历效应／六维研究评分沿用现有 Web 依赖，不要求外部 PostgreSQL、独立服务或
+新增 Python 包。个人元数据与证据在账号数据根的 `event_timeline/` 懒创建；Doctor 的
+`event_research` 只报告本地保全状态，不访问来源或启用采集。默认不启动定时采集、付费模型
+或生产评分。升级前后必须保留初始化标记、SQLite和原件，不能只复制数据库或重置损坏状态。
+当前候选的来源、回测与安装验收限制见[集成合同](research-web-event-research.md)。
+
 ## 开发测试产物留存（2026-10-31）
 
 `scripts/test_artifact_retention.py` 是 checkout 中的本机测试/交付辅助入口，使用标准库，不进入 Web 用户配置、模型链或 Docker 镜像运行时。新任务的 `iteration_resources` 选择性归档也不增加产品依赖；已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 无需修改，公开一键安装入口保持。由于本轮修改 `research_workbench_entrypoint/`，仍须由同候选 Mac Bootstrap 证明干净安装和固定 DSH 构建兼容；本机源码导入不能替代该 CI。具体身份、证据和空间门见[留存规则](research-web-storage-retention.md)。
