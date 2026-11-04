@@ -69,3 +69,19 @@ Minor3 与两项 exact-check 发现：UI文档开关改为 mcp_readonly_enabled=
 本轮WIP证据：final-fix-red初次4FAIL中GET断言错把Gateway Host403当421，另外3项是有效错误映射RED；仅修正测试后同root red-get-01实际4FAIL（GET超时、兑换400、刷新400、authorize302 access_denied）。green-01为3PASS/1FAIL，揭示SDK authorize catch-all；改用SDK temporary错误后同root green-02为4PASS并正式retired。原各次失败与结果哈希保持。后续final-fix-focused-01/02/03明确20/20/5个展开node IDs，完整HTTP/OAuth＋FIFO＋8路由合同共45PASS，三root均retired；manifest及所有controller/stdout/JUnit/result在任务logs。Node final-fix-node-L1为75PASS，Ruff/Black/isort/Mypy（3源码文件）和diff检查通过。以上不是最终exact candidate、全Router、独评、CI或生产验收；剩余闭包由父会话绑定最终HEAD完成。
 
 统一修复源码已本地提交 `aea209e8790b6f5a7c6c34de6ea361438ced8515`；阅读检查点与既有生成器的Atlas/Python索引随此提交同步，独立文档提交另记，不构造自引用SHA。完整feature基线87b6cd9的文档与架构检查通过；e47仅为本次fixdiff评审基线，其要求重改六份模块文档的结果保留，不据此机械扩大修改范围。冻结图15保持原source/HTML哈希。最终独评、完整local/Router、CI、正式交付及真实原生验收仍待主任务完成。
+
+## PR268 Mac 安装 CI 修补1（2026-11-05）
+
+修补基线为受管 integration `9b1cf46966d5fed40180fdba1128310f2fdaf82b`，对应失败 run41934434968/job126939222918。功能 worktree 保持 `77750578d52c2b6796b9173254b17d80ef357e41`，修补只提交到原 integration，交回父任务通过原 publish --repair 发布新候选，不重跑旧失败候选、不修改常驻或用户配置。
+
+实际日志显示安装已成功提供mcp2.2.0与CJPY0.5.2；Verify macOS environment and start services内Node29PASS/1可选clone NOT_RUN、unittest7PASS后，在23:39:47Z出现单行Python AssertionError。原bash没有逐命令执行标记，单凭<string>:1不能唯一定位是哪条静默python -c；本机只读检查首个native_image/process自检通过，静态目录62skills/78tools/8scenarios及ExactJobBinding接口正确。旧可读测试环境无CJPY，不冒充完整安装步骤已本地复跑。
+
+确定的产品缺陷通过同prepared源码独立复现：公开 `./rwb server doctor` 经 `server.dispatch` 调用 `native_environment(minimal=True)`，丢掉显式 `RWB_MCP_READONLY_ENABLED=1`。原环境direct Doctor显示enabled=true，而真实dispatcher子进程环境缺开关，Doctor显示enabled=false/status=disabled、SDK2.2仍匹配；因此原workflow的enabled断言必失败。此问题同时影响公开server serve的配置交接。
+
+最小修复仅在server dispatcher额外传递规范字符串0/1；其他值关闭并记录固定事件multiuser_mcp_switch_invalid，不记录原值。共享minimal_environment、任意RWB开关、模型／供应商秘密过滤和原错误处理保持；没有绕过workflow Doctor断言或改变SDK/OAuth/后端语义、公开路由、依赖、runner和时限。
+
+新增实际dispatch Doctor子进程合同覆盖unset/0/1/true/空白前缀/换行六种输入，测试仅在子进程命令中加入-B以避免只读环境产生字节码，完整保留待测环境。每种输入检查现存账户SQLite/history/credentials/pid/cookie的字节和mtime不变，并确认不存在的目标根仍未创建；connection not_checked/native NOT_RUN保持。serve只截获生产dispatch的command/cwd/env，不运行服务；明确断言未知RWB/OPENAI/WIND凭据键均未传递。三项原Doctor无SDK服务导入合同同时保留。
+
+正式留存：`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" <existing-local-models-fusion-python> scripts/test_artifact_retention.py run --parent /private/var/tmp --task-id rwb-mcp-readonly-oauth-20261104 --candidate 9b1cf46966d5fed40180fdba1128310f2fdaf82b --mode wip`，每批显式展开节点<=20，唯一活动根沿512MiB/64MiB输出及3GiB宿主空间门。ci-repair1-dispatch-red为实际enabled断言strictXFAIL1项；去掉标记后ci-repair1-dispatch-green为15PASS/1.53s。补充显式秘密键拒绝断言后ci-repair1-dispatch-final再次运行同15项，15PASS/2.08s；各批真实result/JUnit/stdout和receipt都保留并正式retired，无手动删除、放宽扫描或flags归一化。结果属于WIP，不能认证最终提交或新版CI。
+
+Ruff/isort、1源码文件mypy、Python索引检查通过；Black初次报告后补断言需换行，格式化后复核。`node scripts/check_documentation_governance.mjs --project .` 与 `node scripts/check_research_architecture.mjs --project . --base 87b6cd99653d9f8160dc7eb0b3bea8d5d9ea93db` 均退出0、零违规；`node --test tests/javascript/actions_quota_governance.test.mjs` 为19PASS/68.525ms，`git diff --check`通过；源阅读pin和冻结图15未改。修后最终exact核验、scoped评审、PR新候选CI及受管交付由父任务完成；真实TLS/nativehosts/Provider/model/常驻仍NOT_RUN。

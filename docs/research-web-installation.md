@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+`./rwb server doctor` 与 `./rwb server serve` 的子进程交接只额外保留显式 `RWB_MCP_READONLY_ENABLED=0|1`；缺省或其他拼写保持关闭，并记录不含输入值的稳定告警。共享最小环境白名单保持，其他 `RWB_*`、模型及供应商凭据不会因此传递。Doctor 检查仍不创建账号根、初始化 SDK 或启动后端。此开关修复来自 Mac Bootstrap 的实际失败复现，修后候选安装 CI 须重新验证；不代表常驻已启用。
+
 事件时间线／日历效应／六维研究评分沿用现有 Web 依赖，不要求外部 PostgreSQL、独立服务或
 新增 Python 包。个人元数据与证据在账号数据根的 `event_timeline/` 懒创建；Doctor 的
 `event_research` 只报告本地保全状态，不访问来源或启用采集。默认不启动定时采集、付费模型

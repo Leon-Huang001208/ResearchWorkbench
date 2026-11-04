@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-11-05 PR268 首次 Mac Bootstrap run41934434968 的安装与前置29项Node／7项unittest通过（另1项可选clone为NOT_RUN），后续验证步骤出现 AssertionError。只读复现确定公开 server dispatcher 的最小环境丢失显式 MCP 开关，使新增 Doctor 的 enabled 断言失败；SDK2.2及CJPY0.5.2安装已有该run日志证据。修补限定该dispatcher规范0/1传递，保留原Doctor断言、全部job／runner／timeout；不重跑旧候选或放宽全局环境白名单。修后新候选仍须受管发布并取得自身CI证据，原失败保留。
+
 2026-11-05实际CLI入口修补只将恢复校验器绑定改为静态ESM导入，原项目校验与保护规则不变。
 近处新增真实CLI子进程正反例，原四套回归及宿主kernel合同共279项在Node24.22实际通过，
 317.581秒；保留原CI job、runner、时限和平台归属，不新增依赖或全局框架变更。

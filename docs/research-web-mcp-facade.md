@@ -63,6 +63,8 @@ HTTP 请求最大 64 KiB，响应最大 256 KiB。分页、截断、coverage、�
 
 只有网关进程环境中的 `RWB_MCP_READONLY_ENABLED=1` 开启入口；缺省、`0` 或其他值均关闭。既有服务须在独立授权部署后按原受管方式更新，不能因修改当前 shell 自动认定常驻已开启。以下配置例子未执行：
 
+公开 `./rwb server` dispatcher 在既有最小环境上仅传递规范 `0`／`1` 字符串；不传递其他 RWB 开关或模型／供应商秘密。Doctor 也走该实际交接，因此能如实检查显式开关，仍不初始化 SDK 服务或创建账号根。
+
 ```bash
 RWB_MCP_READONLY_ENABLED=1 ./rwb server doctor --json
 codex mcp add rwb --url https://research.tailXXXX.ts.net/mcp --oauth-client-id rwb-codex-native --oauth-resource https://research.tailXXXX.ts.net/mcp
