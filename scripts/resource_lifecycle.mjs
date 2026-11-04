@@ -30,8 +30,17 @@ export async function finalizeLifecycle({projectRoot,commonDirectory,taskId,rece
   const resource=privateJson(path.join(state,'receipt.json'));
   const finalization=privateJson(path.join(state,'git-finalization.json'));
   if(resource.taskId!==taskId || resource.status!=='complete' || resource.ok!==true || resource.cache?.ok!==true
-    || resource.blocked?.length || finalization.taskId!==taskId || finalization.status!=='complete'
+    || resource.blocked?.length || finalization.taskId!==taskId
     || finalization.restoreVerified!==true || finalization.candidateCommit!==receipt.integrationCommit)fail('LIFECYCLE_RECOVERY_UNVERIFIED');
+  if(finalization.status!=='complete') {
+    if(finalization.status!=='pending')fail('LIFECYCLE_RECOVERY_UNVERIFIED');
+    try {
+      const {validateCloseoutRecovery}=await import('./git_safety.mjs');
+      validateCloseoutRecovery({projectRoot,commonDirectory,taskId,receipt});
+    } catch(error) {
+      throw Object.assign(new Error('LIFECYCLE_RECOVERY_UNVERIFIED',{cause:error}),{code:'LIFECYCLE_RECOVERY_UNVERIFIED'});
+    }
+  }
   const engine=runtime??await loadRuntime(),api=engine.createLifecycle();
   const project=fs.realpathSync(projectRoot);
   const roots=api.isEnrolled(project)?api.status().projects[project].roots:[];

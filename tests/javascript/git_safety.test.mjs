@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli, maintainBackups, verifyBackupDirectory} from '../../scripts/git_safety.mjs';
+import {finalizeLifecycle} from '../../scripts/resource_lifecycle.mjs';
 
 const gitPath = '/usr/bin/git';
 function git(root, args) {
@@ -95,6 +96,66 @@ test('partial cleanup recovers retired worktrees without forging the original pe
   assert.equal(result.status,'cleaned');assert.equal(JSON.parse(fs.readFileSync(f.delivery)).status,'cleaned');
   assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
   assert.equal(JSON.parse(fs.readFileSync(path.join(f.state,'receipt.json'))).status,'complete');
+});
+
+test('lifecycle accepts a valid partial cleanup recovery without rewriting its pending proof', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), original=fs.readFileSync(path.join(f.state,'git-finalization.json'));
+  const input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const events=[];
+  const api={isEnrolled:()=>false,enroll:()=>{},reportCache:()=>{},event:value=>{events.push(value);return {status:'cleaned'};}};
+  const result=await finalizeLifecycle({projectRoot:f.projectRoot,commonDirectory:path.join(f.projectRoot,'.git'),taskId:'task',
+    receipt:JSON.parse(fs.readFileSync(f.delivery)),runtime:{createLifecycle:()=>api}});
+  assert.equal(result.status,'cleaned');
+  assert.equal(events.length,1);
+  assert.equal(events[0].type,'delivery-accepted');
+  assert.deepEqual(fs.readFileSync(path.join(f.state,'git-finalization.json')),original);
+});
+
+test('lifecycle refuses incomplete, stale or changed partial cleanup recovery evidence before events', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await partialCleanupFixture(t), input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  const receipt=JSON.parse(fs.readFileSync(f.delivery)), certificate=path.join(f.state,'git-finalization-recovery.json');
+  const epoch=path.join(f.state,JSON.parse(fs.readFileSync(certificate)).epoch);
+  let engineCalls=0;
+  const refused=()=>assert.rejects(finalizeLifecycle({projectRoot:f.projectRoot,commonDirectory:path.join(f.projectRoot,'.git'),taskId:'task',receipt,
+    runtime:{createLifecycle:()=>{engineCalls++;throw new Error('must not reach lifecycle engine');}}}),{code:'LIFECYCLE_RECOVERY_UNVERIFIED'});
+  const changed=async(name,filename,mutate)=>t.test(name,async()=>{
+    const saved=fs.readFileSync(filename);
+    try {mutate(filename,saved);await refused();}
+    finally {fs.writeFileSync(filename,saved,{mode:0o600});}
+  });
+  const edit=(filename,mutate)=>{const value=JSON.parse(fs.readFileSync(filename));mutate(value);fs.writeFileSync(filename,JSON.stringify(value));};
+  await changed('pending proof without certificate',certificate,filename=>fs.unlinkSync(filename));
+  await changed('malformed certificate',certificate,filename=>fs.writeFileSync(filename,'{'));
+  await changed('wrong candidate certificate',certificate,filename=>edit(filename,value=>{value.candidateCommit='f'.repeat(40);}));
+  await changed('wrong task certificate',certificate,filename=>edit(filename,value=>{value.taskId='other';}));
+  await changed('stale epoch digest',epoch,filename=>edit(filename,value=>{value.verifiedAt='2000-01-01T00:00:00.000Z';}));
+  await changed('changed original pending proof',path.join(f.state,'git-finalization.json'),filename=>edit(filename,value=>{value.restoreVerified=false;}));
+  await changed('changed committed delivery',f.delivery,filename=>edit(filename,value=>{value.newUserWork='keep';}));
+  await changed('changed resource revalidation',path.join(f.state,'receipt.json'),filename=>edit(filename,value=>{value.revalidation.previousReceiptSha256='f'.repeat(64);}));
+  await changed('changed backup manifest',path.join(f.backup.directory,'manifest.json'),filename=>edit(filename,value=>{value.restoreVerified=false;}));
+  await t.test('missing retained reference',async()=>{
+    const ref='refs/remotes/origin/master', oid=git(f.projectRoot,['rev-parse',ref]);
+    try {git(f.projectRoot,['update-ref','-d',ref]);await refused();}
+    finally {git(f.projectRoot,['update-ref',ref,oid]);}
+  });
+  await t.test('rewound retained reference',async()=>{
+    const ref='refs/remotes/origin/master', oid=git(f.projectRoot,['rev-parse',ref]);
+    try {git(f.projectRoot,['update-ref',ref,receipt.integrationCommit]);await refused();}
+    finally {git(f.projectRoot,['update-ref',ref,oid]);}
+  });
+  await t.test('recreated managed path is preserved',async()=>{
+    fs.mkdirSync(receipt.integrationWorktree);const filename=path.join(receipt.integrationWorktree,'new-user-work.txt');
+    fs.writeFileSync(filename,'keep');
+    try {await refused();assert.equal(fs.readFileSync(filename,'utf8'),'keep');}
+    finally {fs.rmSync(receipt.integrationWorktree,{recursive:true});}
+  });
+  assert.equal(engineCalls,0);
 });
 
 test('partial cleanup preserves a recreated worktree before any local reference deletion', async t=>{
@@ -1136,6 +1197,25 @@ async function pendingSnapshotCloseout(t, {otherRetirement=false}={}) {
   };
   return {...f,state,snapshot,tree,backup,other,otherState,retiredRefs,options:{...f.options,controller,resourceRevalidationProbe}};
 }
+
+test('lifecycle accepts certified historical retirements and rejects recreated task paths', async t=>{
+  const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
+  const f=await pendingSnapshotCloseout(t,{otherRetirement:true});
+  const delivery=path.join(f.projectRoot,'.git/leon-engineering/deliveries/task.json');
+  fs.writeFileSync(delivery,JSON.stringify(f.receipt),{mode:0o600});
+  const input={projectRoot:f.projectRoot,taskId:'task',backupDirectory:f.backup.directory};
+  const preview=await recoverCloseoutFinalization(input,f.options);
+  await recoverCloseoutFinalization({...input,apply:true,previewSha256:preview.previewSha256},f.options);
+  let events=0;
+  const api={isEnrolled:()=>false,enroll:()=>{},reportCache:()=>{},event:()=>{events++;return {status:'cleaned'};}};
+  const finalize=()=>finalizeLifecycle({projectRoot:f.projectRoot,commonDirectory:path.join(f.projectRoot,'.git'),taskId:'task',receipt:f.receipt,runtime:{createLifecycle:()=>api}});
+  assert.equal((await finalize()).status,'cleaned');
+  fs.mkdirSync(f.receipt.integrationWorktree);
+  const filename=path.join(f.receipt.integrationWorktree,'new-user-work.txt');fs.writeFileSync(filename,'keep');
+  await assert.rejects(finalize(),{code:'LIFECYCLE_RECOVERY_UNVERIFIED'});
+  assert.equal(fs.readFileSync(filename,'utf8'),'keep');
+  assert.equal(events,1);
+});
 
 test('explicit recovery keeps the pending proof and accepts only restore-verified retired Codex snapshots', async t => {
   const {recoverCloseoutFinalization}=await import('../../scripts/git_safety.mjs');
