@@ -1478,6 +1478,27 @@ function validateRecoveryCompletion(repository,taskId,receipt) {
   const originalResource=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-resource-receipt.json'));
   const revalidation=epoch.resourceRevalidation;
   if(!revalidation?.ok || revalidation.taskId!==taskId || revalidation.candidateCommit!==receipt.integrationCommit || !revalidation.cache?.ok || revalidation.previousReceiptSha256!==originalResource.sha256 || JSON.stringify(resource.revalidation)!==JSON.stringify(revalidation) || JSON.stringify(resource.cache)!==JSON.stringify(revalidation.cache))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  return {proof:proof.value,epoch};
+}
+
+/** Read-only lifecycle admission. Reuse the complete recovery chain without
+ * fetching, replaying cleanup, rewriting the pending proof or emitting events.
+ */
+export function validateCloseoutRecovery({projectRoot,commonDirectory,taskId,receipt}) {
+  const options={readOnlyGit:true}, repository=discover(projectRoot,options);
+  if(!ID.test(taskId??'') || receipt.taskId!==taskId || receipt.status!=='cleaned' || receipt.ci?.status!=='passed' || receipt.verification?.status!=='passed' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>receipt.cleanup?.[key]===true) || receipt.repositoryRoot!==repository.repositoryRoot || commonDirectory!==repository.commonDirectory)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const actual=recoveryJson(path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json'));
+  if(JSON.stringify(actual.value)!==JSON.stringify(receipt))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  assertReviewed(repository,receipt);
+  const {proof,epoch}=validateRecoveryCompletion(repository,taskId,receipt);
+  assertPartialPathsAbsent(repository,receipt,options);
+  const owned=managed(receipt);
+  if(!proof.beforeRefs || !Array.isArray(proof.beforeWorktrees) || !Array.isArray(proof.managed) || proof.managed.length!==owned.length || proof.managed.some(row=>!owned.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const manifest=readManifest(epoch.backupDirectory);
+  if(manifest.hash!==epoch.backupManifestSha256 || manifest.manifest.repositoryKey!==repositoryKey(repository.commonDirectory) || manifest.manifest.restoreVerified!==true)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const retired=new Set([...epoch.retiredSnapshots,...epoch.retiredDeliveries].map(row=>row.ref));
+  preservationAudit(repository,Object.fromEntries(Object.entries(proof.beforeRefs).filter(([ref])=>!retired.has(ref))),proof.beforeWorktrees.filter(row=>!epoch.retiredWorktrees.some(retired=>retired.worktree===row.worktree)),owned,options,proof.verifiedPreservationRefs);
+  return {restoreVerified:true};
 }
 
 function sameCleanupDelivery(current,original) {

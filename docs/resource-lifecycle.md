@@ -10,6 +10,12 @@
 登记进共用生命周期，保留校验摘要后删除完整内容。业务数据、凭据、正式报告和未知文件不纳入。
 源码交付不发部署成功事件；实际部署工具必须在其健康验收通过后提交独立的部署事件。
 
+`git-finalization.json` 为 `complete` 时沿用原桥合同；受管恢复保留原 `pending` 时，
+桥调用项目 `validateCloseoutRecovery`，复用完整恢复证书校验，核对原证明、epoch、
+实际 delivery、独评、v2 备份 manifest 与资源重新验证链，再检查本任务路径及分支仍缺席、
+其余保留引用及工作树仍满足原保全审计。缺失、漂移或不匹配证据均在创建生命周期引擎前拒绝，
+不改原证明，不递归调用交付入口，也不重放 Git、资源删除或实际恢复。
+
 共享运行时须由受管安装器安装并校验，manifest必须包含资源内核。缺失或漂移返回
 `cleanup_pending`，不伪报cleaned。该状态保留Git成功信息，后续status/cleanup事件可补清。
 全局安装、宿主重载及实际启用需要对应授权；源码存在不等于已启用。
@@ -39,5 +45,8 @@ Git common dir的`leon-engineering/resource-closeout/<task>/lifecycle.json`，�
 
 本机执行原Git安全、prepared修订、原迭代收尾与新增生命周期桥合同。
 Project Constraints沿同一Git safety步骤增加桥合同，不新增job、runner或依赖。
+真实临时 Git/v2 备份及正式恢复生成的证书桥回归位于 `tests/javascript/git_safety.test.mjs`；
+覆盖 partial cleanup 与历史退休证书、坏/缺/错候选/过期摘要、delivery/资源/备份漂移、
+保留引用缺失或倒退及任务路径重现。原 `complete` 桥回归保持在 `resource_lifecycle.test.mjs`。
 共用框架独立覆盖三次迭代、部署轮转、引用、预算、摘要读取、SIGKILL恢复和真实macOS占用。
 没有Windows/Linux本机证据时保持NOT_RUN；未更新常驻服务或执行生产部署。
