@@ -73,13 +73,18 @@ class FrozenBackend:
             log.warning("mcp_frozen_backend_unavailable")
             raise ReadError("frozen_read_unavailable") from None
 
-    async def read(self, user_id, material, *, offset=0, limit=100):
+    async def read(self, user_id, material, *, offset=0, limit=100, view="rows"):
+        if view not in {"manifest", "rows"}:
+            raise ReadError("unsupported_dataset_view")
         sid = canonical_id(material.context_id)
         oid = canonical_id(material.object_id, file=material.kind == "source")
         if material.kind not in {"dataset", "source"}:
             raise ReadError("unsupported_material_kind")
+        lookup = getattr(self.pool, "backend_for_readonly", None)
+        if not callable(lookup):
+            raise ReadError("readonly_runtime_lookup_required")
         try:
-            backend = await self.pool.backend_for(user_id)
+            backend = await lookup(user_id)
         except RuntimeErrorSafe as exc:
             log.warning("mcp_runtime_busy", code=exc.code)
             raise ReadError(exc.code) from None
@@ -118,6 +123,20 @@ class FrozenBackend:
         manifest = decode(manifest_raw)
         if not isinstance(manifest, dict) or manifest.get("dataset_id") != oid:
             raise ReadError("frozen_manifest_invalid")
+        if view == "manifest":
+            try:
+                original = manifest_raw.decode("utf-8", errors="strict")
+            except UnicodeError:
+                raise ReadError("manifest_not_utf8") from None
+            return {
+                "view": "manifest",
+                "manifest": manifest,
+                "original_manifest": original,
+                "manifest_sha256": digest(manifest_raw),
+                "representation": "original_manifest_json_utf8",
+                "original_bytes": len(manifest_raw),
+                "partial": False,
+            }
         files = manifest.get("files", [])
         entries = (
             [item for item in files if isinstance(item, dict) and item.get("name") == "rows.json"]
@@ -135,6 +154,7 @@ class FrozenBackend:
         selected = rows[offset : offset + limit]
         fragment = json.dumps(selected, ensure_ascii=False, separators=(",", ":")).encode()
         return {
+            "view": "rows",
             "items": selected,
             "offset": offset,
             "limit": limit,

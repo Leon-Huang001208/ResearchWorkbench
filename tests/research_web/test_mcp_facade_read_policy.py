@@ -1,7 +1,11 @@
 """Actual frozen routes reject write-capable contexts before any reconciliation."""
 
 import hashlib
+import json
+from types import SimpleNamespace
+from uuid import uuid4
 
+import pytest
 import test_workbench_operations as fixtures
 from test_api import isolated_keyring  # noqa: F401
 
@@ -142,3 +146,124 @@ def test_probe_does_not_read_business_catalog(api, monkeypatch):
     response = client.get("/api/research/data/catalog", headers={"X-RWB-Frozen-Read": "probe-v1"})
     assert response.status_code == 200
     assert response.headers["X-RWB-Frozen-Read"] == "v1"
+
+
+@pytest.mark.asyncio
+async def test_actual_runtime_readonly_lookup_never_starts_or_mutates(tmp_path, monkeypatch):
+    from app.research_web.multiuser.runtime import (
+        Backend,
+        RuntimeConfig,
+        RuntimeErrorSafe,
+        RuntimePool,
+        _Instance,
+    )
+
+    pool = RuntimePool(
+        RuntimeConfig(
+            tmp_path / "server",
+            tmp_path,
+            tmp_path,
+            "/synthetic/python",
+            "/synthetic/node",
+            max_instances=1,
+        )
+    )
+    user = str(uuid4())
+    forbidden_calls = []
+
+    def forbidden(*args, **kwargs):
+        forbidden_calls.append(True)
+        raise AssertionError("readonly lookup must never start business lifecycle")
+
+    for name in ("_start", "_spawn", "backend_for", "restore_discovery_tracks"):
+        monkeypatch.setattr(pool, name, forbidden)
+
+    def hashes():
+        return {
+            str(p.relative_to(pool.config.root)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in pool.config.root.rglob("*")
+            if p.is_file()
+        }
+
+    try:
+        before = hashes()
+        with pytest.raises(RuntimeErrorSafe, match="runtime_not_running"):
+            await pool.backend_for_readonly(user)
+        assert before == hashes() and not pool._instances
+        state = pool.config.root / "users" / user / "state"
+        state.mkdir(mode=0o700, parents=True)
+        generation = "a" * 32
+        child = SimpleNamespace(pid=101, poll=lambda: None)
+        web = SimpleNamespace(pid=102, poll=lambda: None)
+        backend = Backend("http://127.0.0.1:19999", "synthetic-key", generation, child.pid)
+        entry = _Instance(user, state, backend, [child, web], generation)
+        pool._instances[user] = entry
+        pool._record(entry, create=True)
+        before = hashes()
+        assert await pool.backend_for_readonly(user) == backend
+        assert before == hashes()
+        with pytest.raises(RuntimeErrorSafe, match="runtime_capacity_exceeded"):
+            await pool.backend_for_readonly(str(uuid4()))
+        pool._plugin_frozen.add(user)
+        with pytest.raises(RuntimeErrorSafe, match="runtime_restart_deferred"):
+            await pool.backend_for_readonly(user)
+        pool._plugin_frozen.clear()
+        child.poll = lambda: 1
+        with pytest.raises(RuntimeErrorSafe, match="runtime_process_exited"):
+            await pool.backend_for_readonly(user)
+        child.poll = lambda: None
+        owner = json.loads((state / "owner.json").read_bytes())
+        owner["user"] = str(uuid4())
+        (state / "owner.json").write_text(json.dumps(owner))
+        with pytest.raises(RuntimeErrorSafe, match="runtime_instance_unverified"):
+            await pool.backend_for_readonly(user)
+        pool._closing = True
+        with pytest.raises(RuntimeErrorSafe, match="runtime_pool_closed"):
+            await pool.backend_for_readonly(user)
+        assert forbidden_calls == []
+    finally:
+        pool._plugin_frozen.clear()
+        pool._instances.clear()
+        await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_attached_readonly_routes_primary_and_private_without_fallback(tmp_path):
+    from app.research_web.multiuser.resident_binding import AttachedPool
+    from app.research_web.multiuser.runtime import Backend, RuntimeErrorSafe
+
+    primary, private_id = str(uuid4()), str(uuid4())
+    calls = []
+
+    def verify():
+        calls.append("verify")
+        return {"ready": True}
+
+    def forbidden(*args):
+        raise AssertionError("must not use starting lookup")
+
+    async def private_lookup(user):
+        calls.append(user)
+        return Backend("http://127.0.0.1:19998", "synthetic-private")
+
+    private = SimpleNamespace(backend_for=forbidden, backend_for_readonly=private_lookup)
+    accounts = SimpleNamespace(
+        get_user=lambda _: SimpleNamespace(id=primary, role="admin", enabled=True)
+    )
+    binding = SimpleNamespace(
+        primary_user_id=primary, project=tmp_path, web_port=19999, verify=verify
+    )
+    pool = AttachedPool(accounts, private, binding, "synthetic")
+    assert await pool.backend_for_readonly(primary) == Backend("http://127.0.0.1:19999", "")
+    assert (await pool.backend_for_readonly(private_id)).key == "synthetic-private"
+    assert calls == ["verify", private_id]
+    del private.backend_for_readonly
+    with pytest.raises(RuntimeErrorSafe, match="readonly_runtime_lookup_required"):
+        await pool.backend_for_readonly(private_id)
+
+    def unavailable():
+        raise RuntimeErrorSafe("legacy_instance_unverified")
+
+    binding.verify = unavailable
+    with pytest.raises(RuntimeErrorSafe, match="legacy_instance_unverified"):
+        await pool.backend_for_readonly(primary)

@@ -66,7 +66,7 @@ async def test_backend_rejects_oversize_binary_and_invalid_identifiers_before_re
     state = SimpleNamespace(calls=0, raw=b"\xff")
 
     class Pool:
-        async def backend_for(self, user):
+        async def backend_for_readonly(self, user):
             return SimpleNamespace(url="http://synthetic.invalid", key="")
 
     async def respond(request):
@@ -96,3 +96,25 @@ async def test_backend_rejects_oversize_binary_and_invalid_identifiers_before_re
         with pytest.raises(ReadError, match="invalid_material_identifier"):
             await backend.read("owned", material)
         assert state.calls == before
+
+
+@pytest.mark.asyncio
+async def test_backend_with_legacy_pool_cannot_fallback_to_starting_lookup():
+    async def forbidden(*args):
+        raise AssertionError("legacy backend_for must never be called")
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _: (_ for _ in ()).throw(AssertionError("no HTTP before safe lookup"))
+        ),
+        trust_env=False,
+    ) as client:
+        backend = FrozenBackend(SimpleNamespace(backend_for=forbidden), client)
+        material = SimpleNamespace(
+            kind="source",
+            context_id="00000000-0000-0000-0000-000000000000",
+            object_id="a" * 24,
+            sha256="a" * 64,
+        )
+        with pytest.raises(ReadError, match="readonly_runtime_lookup_required"):
+            await backend.read("owned", material)

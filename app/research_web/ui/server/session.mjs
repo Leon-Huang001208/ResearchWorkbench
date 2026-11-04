@@ -9,7 +9,7 @@ const identityData = await identity.json();
 const user = { ...identityData.user, primary: identityData.primary === true };
 globalThis.__RWB_USER_ID__ = user.id;
 globalThis.__RWB_USER_ROLE__ = user.role;
-globalThis.__RWB_ACCOUNT__ = Object.freeze({ username: user.username, role: user.role, primary: user.primary === true });
+globalThis.__RWB_ACCOUNT__ = Object.freeze({ username: user.username, role: user.role, primary: user.primary === true, ...(user.mcp_readonly_enabled === true ? { mcp_readonly_enabled: true } : {}) });
 const profileStyle = document.createElement('link');
 profileStyle.rel = 'stylesheet'; profileStyle.href = '/server-static/profile.css'; document.head.append(profileStyle);
 const accountStyle = document.createElement('link');

@@ -25,13 +25,11 @@ def environment(tmp_path):
     accounts = AccountStore(tmp_path / "accounts")
     users = [accounts.create_user(f"user{i:02d}", PASSWORD) for i in range(10)]
     sessions = [accounts.login(u.username, PASSWORD)[0] for u in users]
-    state = SimpleNamespace(
-        calls=[], busy=False, ack=True, mutation=None, assets={}, allocations=[]
-    )
+    state = SimpleNamespace(calls=[], busy=False, ack=True, mutation=None, assets={}, lookups=[])
 
     class Pool:
-        async def backend_for(self, user_id):
-            state.allocations.append(user_id)
+        async def backend_for_readonly(self, user_id):
+            state.lookups.append(user_id)
             if state.busy:
                 raise RuntimeErrorSafe("capacity_exceeded")
             return SimpleNamespace(
@@ -161,7 +159,7 @@ def value(response):
 
 def test_gateway_sdk_bearer_and_discovery(environment):
     s = environment
-    token, _ = approved(s)
+    token, material = approved(s)
     metadata = s.env[0].get("/.well-known/oauth-protected-resource/mcp").json()
     assert metadata["resource"] == s.env[1].resource
     assert metadata["authorization_servers"] == [s.env[1].issuer]
@@ -184,8 +182,15 @@ def test_gateway_sdk_bearer_and_discovery(environment):
     )
     assert all(t["inputSchema"]["additionalProperties"] is False for t in result)
     assert value(call(s, token, "rwb_capabilities_list"))["execution"] is False
-    assert len(value(call(s, token, "rwb_datasets_list"))["items"]) == 1
-    assert s.allocations == [] and s.calls == []
+    assert value(call(s, token, "rwb_datasets_list", context_id=material.context_id))["items"] == []
+    assert (
+        len(value(call(s, token, "rwb_source_read", context_id=material.context_id))["items"]) == 1
+    )
+    schemas = {tool["name"]: tool["inputSchema"] for tool in result}
+    assert schemas["rwb_datasets_list"]["required"] == ["context_id"]
+    assert "file_id" not in schemas["rwb_source_read"]["required"]
+    assert set(schemas["rwb_dataset_read"]["properties"]["view"]["enum"]) == {"manifest", "rows"}
+    assert s.lookups == [] and s.calls == []
 
 
 def test_initialize_newer_offer_and_version_gate(environment):
@@ -257,7 +262,7 @@ def test_four_sequential_accounts_and_ten_concurrent_same_client(environment):
         read(i)
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         list(executor.map(read, range(10)))
-    assert set(s.allocations) == {u.id for u in s.env[2]}
+    assert set(s.lookups) == {u.id for u in s.env[2]}
     for request in s.calls:
         expected = request.url.host.removesuffix(".invalid")
         assert request.headers.get("x-rwb-tenant-gateway-key", "") == (
@@ -312,7 +317,7 @@ def test_mcp_caps_paths_and_authorization_store_503(environment, monkeypatch):
     assert call(
         s, token, "rwb_source_read", context_id="../../private", file_id=m.object_id
     ).json()["result"]["isError"]
-    assert s.allocations == []
+    assert s.lookups == []
     client = s.env[0]
     response = client.post(
         "/mcp",
@@ -436,3 +441,118 @@ def test_browser_oauth_headers_survive_gateway(environment):
         client.post("/mcp/consent", data={}, headers={**headers, "Origin": "null"}).status_code
         == 403
     )
+
+
+def multi_context_grant(s):
+    _, first = approved(s, kind="dataset", raw=b'[{"n":1}]')
+    _, second = approved(s, kind="dataset", raw=b'[{"n":2}]')
+    store = s.env[1]
+    source = store.approve_material(
+        user_id=first.user_id,
+        context_id=first.context_id,
+        kind="source",
+        object_id="b" * 24,
+        sha256="a" * 64,
+        classification="synthetic",
+    )
+    token = exchange(
+        s.env[0], authorize(s.env, material_ids=[first.id, second.id, source.id])
+    ).json()["access_token"]
+    return token, first, second, source
+
+
+def test_capabilities_exposes_only_approved_data_context_metadata(environment):
+    s = environment
+    token, first, second, source = multi_context_grant(s)
+    result = value(call(s, token, "rwb_capabilities_list"))
+    assert {c["context_id"] for c in result["contexts"]} == {first.context_id, second.context_id}
+    listed = [m for c in result["contexts"] for m in c["materials"]]
+    assert {(m["kind"], m["object_id"], m["sha256"], m["classification"]) for m in listed} == {
+        (m.kind, m.object_id, m.sha256, "synthetic") for m in (first, second, source)
+    }
+    assert all(
+        m["metadata"]["status"] == "missing"
+        and m["metadata"]["as_of"] is None
+        and m["metadata"]["provider"] is None
+        for m in listed
+    )
+    assert all(
+        m["digest_status"] == "approved_expected_original"
+        and m["availability"] == "not_checked"
+        and m["physical_verification"] == "not_checked"
+        for m in listed
+    )
+    assert {c["kind"] for c in result["data_capabilities"]} == {"dataset", "source"}
+    assert s.lookups == [] and s.calls == []
+
+
+def test_datasets_requires_context_and_excludes_sources(environment):
+    s = environment
+    token, first, second, _ = multi_context_grant(s)
+    for material in (first, second):
+        result = value(call(s, token, "rwb_datasets_list", context_id=material.context_id))
+        assert [item["object_id"] for item in result["items"]] == [material.object_id]
+        assert all(item["kind"] == "dataset" for item in result["items"])
+    assert call(s, token, "rwb_datasets_list").json()["result"]["isError"]
+    assert call(s, token, "rwb_datasets_list", context_id=str(uuid4())).json()["result"]["isError"]
+    assert s.lookups == [] and s.calls == []
+
+
+def test_manifest_view_verifies_original_without_downloading_large_rows(environment):
+    s = environment
+    token, material = approved(
+        s, kind="dataset", raw=json.dumps([{"text": "x" * (5 * 1024 * 1024)}]).encode()
+    )
+    result = value(
+        call(
+            s,
+            token,
+            "rwb_dataset_read",
+            context_id=material.context_id,
+            dataset_id=material.object_id,
+            view="manifest",
+        )
+    )
+    assert result["view"] == "manifest"
+    assert (
+        hashlib.sha256(result["original_manifest"].encode()).hexdigest()
+        == material.sha256
+        == result["manifest_sha256"]
+    )
+    assert not result["partial"] and "rows_sha256" not in result
+    assert [r.url.path.rsplit("/", 1)[-1] for r in s.calls] == ["catalog", "manifest.json"]
+    response = call(
+        s,
+        token,
+        "rwb_dataset_read",
+        context_id=material.context_id,
+        dataset_id=material.object_id,
+        view="rows",
+    )
+    assert response.json()["result"]["isError"] and "frozen_material_too_large" in response.text
+    for key in s.assets:
+        if material.context_id in key[1] and key[1].endswith("manifest.json"):
+            s.assets[key] += b" "
+    assert (
+        "frozen_material_changed"
+        in call(
+            s,
+            token,
+            "rwb_dataset_read",
+            context_id=material.context_id,
+            dataset_id=material.object_id,
+            view="manifest",
+        ).text
+    )
+
+
+def test_source_without_file_lists_only_context_approved_sources(environment):
+    s = environment
+    token, first, second, source = multi_context_grant(s)
+    result = value(call(s, token, "rwb_source_read", context_id=first.context_id))
+    assert [item["object_id"] for item in result["items"]] == [source.object_id]
+    assert value(call(s, token, "rwb_source_read", context_id=second.context_id))["items"] == []
+    assert call(s, token, "rwb_source_read", context_id=str(uuid4())).json()["result"]["isError"]
+    s.env[1].revoke_material(source.id)
+    assert value(call(s, token, "rwb_source_read", context_id=first.context_id))["items"] == []
+    assert s.lookups == [] and s.calls == []

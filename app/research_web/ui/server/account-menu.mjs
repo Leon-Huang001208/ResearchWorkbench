@@ -111,6 +111,8 @@ export function createAccountMenu({ root, user, document = globalThis.document, 
   return { sync };
 }
 
+const legacyAdapters = new WeakMap();
+
 /** New gateway sessions also support the deliberately preserved old primary shell. */
 export function mountLegacyAccountMenu({ root, user, document = globalThis.document, Observer = globalThis.MutationObserver, ...options } = {}) {
   if (!root || !user || root.dataset?.accountWorkspaceNative === '1') return;
@@ -118,20 +120,39 @@ export function mountLegacyAccountMenu({ root, user, document = globalThis.docum
   if (existing) {
     // Keep the old controller's logout, keyboard and redraw ownership. Only
     // normalize its rendered identity/link contract after each old paint.
-    if (existing.dataset.profileAdapter) return;
+    const previous = legacyAdapters.get(existing);
+    if (previous) { previous.user = user; previous.reconcile(); return; }
     existing.dataset.profileAdapter = '1';
+    const state = { user, identity: null, signature: null, reconcile: null };
     const reconcileExisting = () => {
+      const currentUser = state.user;
       const identity = existing.querySelector('.account-identity');
       const oldLink = existing.querySelector('a[href="/account"]');
       const restoreFocus = oldLink && oldLink === document.activeElement;
-      if (identity && !identity.matches('a.account-profile-link')) {
+      const signature = JSON.stringify([currentUser.id, currentUser.username, currentUser.role]);
+      if (identity && (!identity.matches('a.account-profile-link') || state.identity !== identity || state.signature !== signature)) {
         const template = document.createElement('template');
-        template.innerHTML = renderAccountMenu(user);
-        identity.replaceWith(template.content.firstElementChild);
+        template.innerHTML = renderAccountMenu(currentUser);
+        const replacement = template.content.firstElementChild;
+        identity.replaceWith(replacement);
+        state.identity = replacement; state.signature = signature;
       }
       oldLink?.remove();
+      const applications = [...(existing.querySelectorAll?.('a[href="/mcp/applications"]') || [])];
+      if (currentUser.mcp_readonly_enabled !== true) applications.forEach(link => link.remove());
+      else {
+        applications.slice(1).forEach(link => link.remove());
+        const actions = existing.querySelector('.account-actions');
+        if (!applications.length && actions?.append) {
+          const link = document.createElement('a');
+          link.setAttribute('href', '/mcp/applications'); link.setAttribute('role', 'menuitem'); link.setAttribute('tabindex', '-1');
+          link.textContent = '已授权应用'; actions.append(link);
+        }
+      }
       if (restoreFocus) existing.querySelector('.account-profile-link')?.focus({ preventScroll: true });
     };
+    state.reconcile = reconcileExisting;
+    legacyAdapters.set(existing, state);
     new Observer(reconcileExisting).observe(existing, { childList: true, subtree: true });
     reconcileExisting();
     options.logger?.('account_legacy_menu_adapted');
