@@ -16,6 +16,6 @@
 
 ## 固定身份与证据边界
 
-前版固定 `db2ae9a48ceca365852072e622aa6627aa7d0b83`，事件功能固定 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`，基础闭包为 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。用户后来明确批准一并部署 `58ad352eeb925805ff00f46139a073fda15163d3` 新主线且 MCP 保持关闭，65a关闭安全代码在新合并中保留。随后依同一最新主线授权纳入 `54610625d4f736cd807fdd50eaf2e1f22a557ae5` 的能力分类／进展UI，固定MAIN_BASE为546、最终PAYLOAD为 `e9cb46e1387f07275200c9062994d82873591e42`；MCP_BASE→MAIN_BASE→PAYLOAD保持祖先链，未知业务差异仍由并集/blob/mode拒绝。配置持久严格 false，并以实际 Facade 健康布尔确认；回滚还原原字段缺席。这些变化不新增运行节点，操作员资格与产品身份仍分别核验。采集保持 off，不使用 TRIAL 丢弃权限，不删除账号／历史，不修改 controller、自动白名单、依赖或固定 DSH，不启用真实模型调用。
+前版固定 `db2ae9a48ceca365852072e622aa6627aa7d0b83`，事件功能固定 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`，基础闭包为 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。用户后来明确批准一并部署 `58ad352eeb925805ff00f46139a073fda15163d3` 新主线且 MCP 保持关闭，65a关闭安全代码在新合并中保留。随后依同一最新主线授权纳入 `54610625d4f736cd807fdd50eaf2e1f22a557ae5` 的能力分类／进展UI，固定MAIN_BASE为546、最终PAYLOAD为 `32b21c4e892da4bf4b05518296ce72fe7d6b52bc`（保留e9cb产品合并并固定受审的交付恢复工具修复）；MCP_BASE→MAIN_BASE→PAYLOAD保持祖先链，未知业务差异仍由并集/blob/mode拒绝。配置持久严格 false，并以实际 Facade 健康布尔确认；回滚还原原字段缺席。这些变化不新增运行节点，操作员资格与产品身份仍分别核验。采集保持 off，不使用 TRIAL 丢弃权限，不删除账号／历史，不修改 controller、自动白名单、依赖或固定 DSH，不启用真实模型调用。
 
 最终候选原三项 CI、同候选 Mac 干净安装、真实切换与认证页面仍需各自证据。Docker 产品及 Windows／Linux 原生验收本轮未执行；原 integration 的 Constraints FAIL 作为历史证据保留，后续完整 changed-set 的文档校验结果单独保存在 `logs/doc-compliance/`，不得改写原失败。

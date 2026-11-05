@@ -6,7 +6,11 @@
 
 实现：封闭 apply-events；原 g.verify_primary 后新增严格空 Native list 与全账号事件采集关闭证明；准备、idle、验证及恢复重查冻结证明。事件原件由 retention lock／snapshot_events 校验后仅在内存 SQLite query_only 查询最新版本，WAL/SHM/journal／孤儿／enabled/unknown／未决采集均拒绝。保全仍使用原 @events。
 
-## 当前e9cb最新主线pin更新
+## 当前32b交付恢复检查点
+
+最终EVENT_PAYLOAD固定32b21c4e892da4bf4b05518296ce72fe7d6b52bc，保留e9cb产品树及MCP关闭安全代码，并纳入独立静态评审通过的正式base-refresh／amendment衔接修复。该修复不改真实回执、不安装全局工具、不增加权限；完整Node回归、最终exact闭包、CI及实际部署分别留证，未完成前不宣称通过。
+
+## e9cb最新主线pin历史更新
 
 新增EVENT_MAIN_BASE=54610625d4f736cd807fdd50eaf2e1f22a557ae5，EVENT_PAYLOAD=e9cb46e1387f07275200c9062994d82873591e42；MCP_BASE→MAIN_BASE→PAYLOAD逐段祖先验证，原完整union/blob/mode和所有保全／MCP off／采集 off／PIT接受门不改。546能力分类／进展UI来自用户已授权最新主线，未新增依赖。
 

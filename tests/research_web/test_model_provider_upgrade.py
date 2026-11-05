@@ -4409,7 +4409,7 @@ def test_event_profile_freezes_authorized_product_and_current_resident():
     assert upgrade.EVENT_BASE == "60416994f88eeead8a3891dbe9a7dfd617c566fc"
     assert upgrade.EVENT_MCP_BASE == "58ad352eeb925805ff00f46139a073fda15163d3"
     assert upgrade.EVENT_MAIN_BASE == "54610625d4f736cd807fdd50eaf2e1f22a557ae5"
-    assert upgrade.EVENT_PAYLOAD == "e9cb46e1387f07275200c9062994d82873591e42"
+    assert upgrade.EVENT_PAYLOAD == "32b21c4e892da4bf4b05518296ce72fe7d6b52bc"
     assert upgrade.EVENT_MODE in upgrade.ASSET_MODES
     assert upgrade.EVENT_MODE not in upgrade.TRIAL_MODES
 
