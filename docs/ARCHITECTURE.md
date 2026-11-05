@@ -1,12 +1,14 @@
 # Research Workbench 架构总览
 
-2026-11-05 事件封闭 Native 部署沿原 v4 三锁／BirthFence／全账号 @events 保全与恢复；新增 apply-events 固定 db2→604 受审闭包及 a398 功能祖先，不进入 TRIAL。所有账号来源日程须由无写入原件读取证明关闭，未知／WAL／并发漂移拒绝；原 Host／Native／后台／市场空闲门保持。没有新运行节点、研究引擎或网关路由，真实切换与业务验收另证，见[部署合同](research-web-gateway-upgrade.md)。
+2026-11-05 事件封闭Native部署沿原v4三锁／BirthFence／全账号@events保全与恢复，固定db2前版及a398→604→58ad→65a安全组合链；仅a398→604要求app树相同。MCP源码随用户授权主线纳入，EVENT目标配置持久False，并以原fenced双入口health实际Facade布尔、原PID/启动/源码身份前后复核接受；回滚保留旧字段缺席。全账号采集关闭／严格Native与既有后台门保持，不进入TRIAL、不开MCP/OAuth或研究引擎，实际切换另证，见[部署合同](research-web-gateway-upgrade.md)。
 
 
 事件研究新增账号内 Timeline／Study／Score 领域：事件版本与原件进入个人 SQLite／私有归档；
 已有 DataHub 日线须显式登记为研究输入，发生、公开和取得时间分别保存。确定性计算不创建AI
 研究引擎，解释仍使用唯一 DSH。来源采集复用 Automation 心跳且默认关闭，历史评分验证不
 启用生产总分。实现与真实验收限制见[事件研究集成](research-web-event-research.md)。
+
+可选入站 MCP 在原私网多用户网关中分开授权服务与资源服务，复用账户 SQLite 增量授权表、原 RuntimePool 和固定冻结 GET；不增加研究执行循环。首版默认关闭，仅四项批准公开/合成材料读取；浏览器登录不等于外部应用授权。FinGPT/Claw 通用 Agent 功能停止扩建，既有入口兼容维护。访问边界见[入站 MCP 合同](research-web-mcp-facade.md)和[只读授权图](../outputs/research-web-architecture/15-inbound-mcp.html)；源码、隔离 HTTP、私网部署和原生宿主验收分别留证。
 
 2026-10-31 本机测试产物与交付证据分层：`scripts/test_artifact_retention.py` 在测试开始登记临时根的任务、候选及 inode，通过的外部 JUnit/stdout/stderr 冻结后可提前清理根目录；`iteration_resources.py` 对新任务要求完整的 `logs/evidence-retention.json`，仅把显式保留且不超过 128 MiB 的证据归档。未分类、失败/未知或来源变更均拒绝清理；旧任务沿原合同，生产恢复与 Git 备份由各自保全链管理。没有新增线上研究、模型或部署节点，见[存储留存规则](research-web-storage-retention.md)。
 

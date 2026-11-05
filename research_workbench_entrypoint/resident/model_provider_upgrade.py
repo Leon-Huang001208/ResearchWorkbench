@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import copy
 import hashlib
+import http.client
 import io
 import json
 import logging
@@ -24,6 +25,7 @@ import zipfile
 from contextlib import ExitStack, closing
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from . import controller as c
@@ -127,7 +129,9 @@ MARKET_BREADTH_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 EVENT_MODE = "reviewed-event-research-v1"
 EVENT_PREVIOUS = "db2ae9a48ceca365852072e622aa6627aa7d0b83"
 EVENT_FEATURE = "a398a29429a1c0bdddd34ce50bc336fd6e20f2ee"
-EVENT_PAYLOAD = "60416994f88eeead8a3891dbe9a7dfd617c566fc"
+EVENT_BASE = "60416994f88eeead8a3891dbe9a7dfd617c566fc"
+EVENT_MCP_BASE = "58ad352eeb925805ff00f46139a073fda15163d3"
+EVENT_PAYLOAD = "65a016b3525f0a395ee221bf44f1b208818b03e8"
 EVENT_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 EVENT_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR198's merged Excel-first weekly product; previous is the registered resident.
@@ -730,9 +734,14 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
     if mode == EVENT_MODE:
-        c.git(source, "merge-base", "--is-ancestor", EVENT_FEATURE, payload)
+        for ancestor, descendant in (
+            (EVENT_FEATURE, EVENT_BASE),
+            (EVENT_BASE, EVENT_MCP_BASE),
+            (EVENT_MCP_BASE, payload),
+        ):
+            c.git(source, "merge-base", "--is-ancestor", ancestor, descendant)
         if c.git(source, "rev-parse", f"{EVENT_FEATURE}:app") != c.git(
-            source, "rev-parse", f"{payload}:app"
+            source, "rev-parse", f"{EVENT_BASE}:app"
         ):
             raise UpdateBlocked("event_upgrade_feature_changed")
     paths = {MODULE, TEST, ASSET_EVIDENCE}
@@ -1415,7 +1424,40 @@ def gateway_configuration(state, previous=False):
         **old,
         "revision": state["target"],
         "binding": {**old["binding"], "revision": state["target"]},
+        **({"mcp_readonly_enabled": False} if state.get("mode") == EVENT_MODE else {}),
     }
+
+
+def gateway_configuration_matches(state, actual, previous):
+    expected = gateway_configuration(state, previous)
+    if state.get("mode") != EVENT_MODE:
+        return actual == expected
+    # JSON equality preserves boolean/number distinctions and missing fields.
+    return json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
+        expected, sort_keys=True, allow_nan=False
+    )
+
+
+def read_event_gateway_health(config):
+    """Read actual local Facade state from the existing fenced health endpoint."""
+    connection = http.client.HTTPConnection("127.0.0.1", 8089, timeout=5)
+    try:
+        connection.request(
+            "GET", "/api/server/health", headers={"Host": urlsplit(config["origin"]).netloc}
+        )
+        response = connection.getresponse()
+        raw = response.read(65537)
+        if response.status != 200 or len(raw) > 65536:
+            raise UpdateBlocked("event_upgrade_mcp_health_unknown")
+        value = json.loads(raw)
+        if not isinstance(value, dict):
+            raise UpdateBlocked("event_upgrade_mcp_health_unknown")
+        return value
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        log.warning("event_upgrade_mcp_health_unverified error_type=%s", type(error).__name__)
+        raise UpdateBlocked("event_upgrade_mcp_health_unknown") from error
+    finally:
+        connection.close()
 
 
 def target_manifest(state):
@@ -1458,7 +1500,9 @@ def validate_configuration(home, state):
     if manifest not in (state["manifest"], target_manifest(state)):
         raise UpdateBlocked("model_upgrade_manifest_changed")
     gateway = read_json(home / "server/resident.json")
-    if gateway not in (gateway_configuration(state, True), gateway_configuration(state)):
+    if not any(
+        gateway_configuration_matches(state, gateway, previous) for previous in (True, False)
+    ):
         raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
     pending = home / "resident/transaction.json"
     if pending.exists():
@@ -2153,7 +2197,9 @@ class Operations:
                 revision=self.state["target"],
                 binding=json.loads(json.dumps(binding.public_config())),
             )
-        if config != gateway_configuration(self.state, previous):
+            if self.state.get("mode") == EVENT_MODE:
+                config["mcp_readonly_enabled"] = False
+        if not gateway_configuration_matches(self.state, config, previous):
             raise UpdateBlocked("model_upgrade_binding_changed")
         c.atomic(self.server / "resident.json", config)
         if self.state.get("mode") in TRIAL_MODES:
@@ -2170,16 +2216,68 @@ class Operations:
         if self.state.get("mode") in TRIAL_MODES:
             self.capture_trial_processes(("gateway",))
 
+    def event_gateway_identity(self):
+        """Bind the health observation to the original launchd/source/PID identity."""
+        if c.digest(Path(self.state["gateway_plist"])) != self.state["gateway_plist_sha256"]:
+            raise UpdateBlocked("model_upgrade_job_changed")
+        project = Path(self.state["gateway_project"])
+        info = project.lstat()
+        if project.is_symlink() or [info.st_dev, info.st_ino] != self.state["gateway_identity"]:
+            raise UpdateBlocked("model_upgrade_project_changed")
+        verify_release_repository(self.state, "gateway")
+        loaded, pid = g.job_state(), g.job_pid()
+        signature = g.process(pid) if type(pid) is int and pid > 0 else None
+        if (
+            loaded is None
+            or not self.loaded_job_matches(loaded)
+            or signature is None
+            or signature.split(maxsplit=5)[-1] != self.state["gateway_command"]
+            or g.listener_pids() != {pid}
+            or g.native_image(pid) != g.native_image(os.getpid())
+        ):
+            raise UpdateBlocked("event_upgrade_gateway_identity_unknown")
+        g.no_children(pid)
+        return pid, signature
+
     def verify(self, previous):
         sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
         if self.state.get("mode") in TRIAL_MODES:
             trial_primary_identity(self.home, sha, self.state)
         else:
             verify_primary(self.home, sha, self.state.get("mode", MODE))
-        g.health(read_json(self.server / "resident.json"), fenced=True)
+        gateway = read_json(self.server / "resident.json")
+        if self.state.get("mode") == EVENT_MODE:
+            validate_configuration(self.home, self.state)
+            if not gateway_configuration_matches(self.state, gateway, previous):
+                raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
+            gateway_identity = self.event_gateway_identity()
+        g.health(gateway, fenced=True)
         remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
             raise UpdateBlocked("model_upgrade_private_health_failed")
+        if self.state.get("mode") == EVENT_MODE:
+            if not previous:
+                local = read_event_gateway_health(gateway)
+                for value in (local, remote):
+                    if (
+                        not isinstance(value, dict)
+                        or value.get("status") != "ready"
+                        or value.get("revision") != sha
+                        or value.get("deployment_fenced") is not True
+                        or value.get("primary_last_verified") is not True
+                        or value.get("mcp_readonly_enabled") is not False
+                    ):
+                        raise UpdateBlocked("event_upgrade_mcp_runtime_not_disabled")
+            if (
+                not gateway_configuration_matches(
+                    self.state, read_json(self.server / "resident.json"), previous
+                )
+                or self.event_gateway_identity() != gateway_identity
+            ):
+                raise UpdateBlocked("event_upgrade_gateway_observation_changed")
+            log.info(
+                "event_upgrade_gateway_verified revision=%s mcp_off_certified=%s", sha, not previous
+            )
         self.verify_preservation(previous)
         verify_asset_index(self.home, self.state)
         if self.state.get("mode") == EVENT_MODE:

@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def run(root: Path) -> int:
-    from .__main__ import PROJECT, _configured_capacity, _server_context
+    from .__main__ import PROJECT, _configured_capacity, _configured_mcp_enabled, _server_context
 
     with _server_context(root):
         import uvicorn
@@ -31,6 +31,7 @@ def run(root: Path) -> int:
         if platform.system() != "Darwin":
             raise RuntimeErrorSafe("server_platform_unsupported")
         config = read_json(root / "resident.json")
+        mcp_enabled = _configured_mcp_enabled(config)
         revision = subprocess.check_output(
             ["/usr/bin/git", "-C", str(PROJECT), "rev-parse", "HEAD"],
             text=True,
@@ -69,7 +70,7 @@ def run(root: Path) -> int:
             pool = AttachedPool(accounts, private, binding, revision)
             pool.maintenance_path = root / "run/cutover.json"
             pool.deployment_path = root / "run/gateway-upgrade.json"
-            app = create_gateway(accounts, pool, origin=config["origin"])
+            app = create_gateway(accounts, pool, origin=config["origin"], mcp_enabled=mcp_enabled)
             uvicorn.run(
                 app,
                 host="127.0.0.1",

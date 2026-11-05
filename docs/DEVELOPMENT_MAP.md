@@ -1,6 +1,6 @@
 # Research Workbench Development Map
 
-2026-11-05：`resident/model_provider_upgrade.py` 新增 EVENT 封闭 profile／apply-events 和无写入的全账号日程证明；原真实 Git 冻结、完整 primary gate、阶段恢复矩阵及新增 Native falsey／日程 unknown／SQLite sidecar 反例均在 `test_model_provider_upgrade.py`。固定 db2→604 受审闭包及 a398 功能祖先，最终资格与真实部署另证；不改 controller、白名单或采集日程，见[部署合同](research-web-gateway-upgrade.md)。
+2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→65a，原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
 
 
 事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
@@ -10,6 +10,8 @@ DataHub 日线／日历引用，`event_preservation.py`／`event_diagnostics.py`
 `ui/event-lab.mjs` 复用研究情报及策略模拟入口。回归为 `test_event_timeline*`、
 `test_event_studies*`、`test_market_scoring*` 及 `research_web_event_lab.test.mjs`。
 详见[集成合同](research-web-event-research.md)，缺少测试环境、真实来源或PIT证据不得报已验收。
+
+入站私网只读 MCP 位于 `app/research_web/mcp_facade/`，与出站 `mcp_runtime/` 分开。`authorization_store.py` 复用账户库，`multiuser/accounts.py` 负责改密/禁用的同事务撤权，OAuth 与固定后端读取由 facade 分层适配并接原网关。四项工具只读操作员批准的冻结材料；不得调用来源抓取、会话创建或通用代理。接口和失败合同见[入站 MCP](research-web-mcp-facade.md)，定点回归为 `test_mcp_facade_*.py`；Doctor、安装与真机状态不能从静态目录或有令牌推断。
 
 2026-10-31 存储留存：本机 `scripts/test_artifact_retention.py run` 亲自执行一批最多20个固定用例，记录真实退出码、JUnit/stdout/stderr与批次nonce，再做同inode隔离回收和中断重入；低级create/admit/retire供受审执行器使用。`research_workbench_entrypoint/iteration_resources.py` 的 `selected_evidence` 仅允许同批退休回执列出的成功输出不归档，`record_task/closeout` 对新任务固定完整选择清单和128MiB保留门，旧ledger仍走legacy-full。回归分别在 `tests/research_web/test_test_artifact_retention.py` 和 `test_iteration_resources.py`，工作流显式登记前者。完整格式、证据与失败边界见[留存规则](research-web-storage-retention.md)。
 

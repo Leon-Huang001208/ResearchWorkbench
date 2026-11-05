@@ -216,6 +216,18 @@ class AttachedPool:
             return Backend(f"http://127.0.0.1:{self.binding.web_port}", "")
         return await self.private_pool.backend_for(user_id)
 
+    async def backend_for_readonly(self, user_id: str) -> Backend:
+        """Reverify the existing primary or use the private pool's no-start lookup."""
+        if user_id == self.primary_user_id:
+            async with self._verification_lock:
+                await asyncio.to_thread(self.binding.verify)
+            return Backend(f"http://127.0.0.1:{self.binding.web_port}", "")
+        lookup = getattr(self.private_pool, "backend_for_readonly", None)
+        if not callable(lookup):
+            log.warning("multiuser_readonly_lookup_unavailable")
+            raise RuntimeErrorSafe("readonly_runtime_lookup_required")
+        return await lookup(user_id)
+
     async def health(self) -> dict:
         # Anonymous probes must never run subprocesses or touch the old runtime.
         return {
