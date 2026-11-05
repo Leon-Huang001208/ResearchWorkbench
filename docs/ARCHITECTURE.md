@@ -1,6 +1,6 @@
 # Research Workbench 架构总览
 
-2026-11-05 事件封闭 Native 部署沿原 v4 三锁／BirthFence／全账号 @events 保全与恢复；新增 apply-events 固定 db2→604 受审闭包及 a398 功能祖先，不进入 TRIAL。所有账号来源日程须由无写入原件读取证明关闭，未知／WAL／并发漂移拒绝；原 Host／Native／后台／市场空闲门保持。没有新运行节点、研究引擎或网关路由，真实切换与业务验收另证，见[部署合同](research-web-gateway-upgrade.md)。
+2026-11-05 事件封闭Native部署沿原v4三锁／BirthFence／全账号@events保全与恢复，固定db2前版及a398→604→58ad→65a安全组合链；仅a398→604要求app树相同。MCP源码随用户授权主线纳入，EVENT目标配置持久False，并以原fenced双入口health实际Facade布尔、原PID/启动/源码身份前后复核接受；回滚保留旧字段缺席。全账号采集关闭／严格Native与既有后台门保持，不进入TRIAL、不开MCP/OAuth或研究引擎，实际切换另证，见[部署合同](research-web-gateway-upgrade.md)。
 
 
 事件研究新增账号内 Timeline／Study／Score 领域：事件版本与原件进入个人 SQLite／私有归档；

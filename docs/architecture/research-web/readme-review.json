@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "合并保留事件研究、默认关闭的只读MCP入口及固定部署边界。",
-  "reason": "README已包含事件时间线、日历研究及只读MCP的独立入口与验收边界；本次增加受控Native部署及持久关闭证明，仍由最终候选三CI、Mac安装、实际切换和页面另证，不把源码说明当作生产已验收。"
+  "disposition": "unchanged",
+  "summary": "复核58ad后的事件组合部署与持久MCP关闭安全闭包，README现有入口及部署边界无需额外改动。",
+  "reason": "README已介绍事件研究及默认关闭的MCP；本次仅在既有维护入口增加固定载荷和明确关闭证明，配置优先级与运行态健康语义在安装及MCP合同中同步，未宣称真实部署或连接验收。"
 }

@@ -1,6 +1,6 @@
 # Research Workbench Development Map
 
-2026-11-05：`resident/model_provider_upgrade.py` 新增 EVENT 封闭 profile／apply-events 和无写入的全账号日程证明；原真实 Git 冻结、完整 primary gate、阶段恢复矩阵及新增 Native falsey／日程 unknown／SQLite sidecar 反例均在 `test_model_provider_upgrade.py`。固定 db2→604 受审闭包及 a398 功能祖先，最终资格与真实部署另证；不改 controller、白名单或采集日程，见[部署合同](research-web-gateway-upgrade.md)。
+2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→65a，原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
 
 
 事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；

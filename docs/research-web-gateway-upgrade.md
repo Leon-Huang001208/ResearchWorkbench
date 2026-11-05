@@ -3,14 +3,26 @@
 ## 事件研究封闭部署（2026-11-05）
 
 `apply-events`／`reviewed-event-research-v1` 固定前版
-`db2ae9a48ceca365852072e622aa6627aa7d0b83`、固定受审完整闭包
-`60416994f88eeead8a3891dbe9a7dfd617c566fc`，另固定事件功能祖先
-`a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`（PR264）；a398 必须是604的祖先，
-两者整个 `app` Git tree 必须相同。它覆盖事件时间线、日历研究、
-六维评分及该祖先已有的已审维护变更；完整前后差异不能表述为纯 UI。
-最终目标必须保留该祖先、通过原路径并集／Git blob／文件模式冻结，并具有最终已合并
-SHA 的完整资格及原三 CI／Mac 干净安装证据。PR264 或旧工具的通过记录不能代替最终目标。
-操作员、原操作员测试与既有文档／报告豁免不授予任意新产品或任意测试代码变更权限。
+`db2ae9a48ceca365852072e622aa6627aa7d0b83`。用户已明确授权一并部署最新主线，MCP继续关闭；
+固定组合链为事件功能 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee` → 维护基线
+`60416994f88eeead8a3891dbe9a7dfd617c566fc` → MCP主线
+`58ad352eeb925805ff00f46139a073fda15163d3` → 安全闭包
+`65a016b3525f0a395ee221bf44f1b208818b03e8` → 最终工具目标。每段都须保留真实祖先关系；
+只有事件功能到604的整个 `app` Git tree 要求相同，58ad及65a的已审业务／关闭能力不被抹去。
+65a包含持久关闭MCP、health实际Facade布尔投影及已审容量扫描修复；最终资格必须绑定新的
+已合并目标、完整路径并集／Git blob／文件模式及原三CI／Mac安装，不能借用旧产品或工具回执。
+最终65a之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
+
+仅EVENT前进时在网关 `resident.json` 持久保存严格布尔 `mcp_readonly_enabled: false`。
+65a驻留入口在accounts/runtime构造前校验该字段，False优先于环境开启；本部署不创建MCP
+Facade或初始化OAuth库。最终接受同时读取本机与私有入口既有fenced health实际返回，字段必须
+`is False`，并维持ready、revision、primary_last_verified及deployment_fenced原门；缺字段、None、
+0、True以及401／404都不能替代关闭证明。读取前后还复核原plist／loaded job、gateway目录／
+仓库、PID及birth/command、listener与native image，配置或观察中漂移均拒绝。
+
+EVENT配置用规范JSON比较，区分False、0及缺席；恢复入口沿原配置验证重查。
+rollback逐字段恢复原gateway_config，db2原先缺字段时仍保持缺席；旧版preflight／回滚可使用
+原health协议，不冒充已提供MCP实际布尔证明。源码／本机测试、最终CI、真实切换与业务验收仍分开。
 
 本 profile 不进入 TRIAL，不取消、删除或退休研究任务。沿原 v4 三锁、BirthFence、
 严格 64 MiB 业务索引、完整 CI reader、原安装锁和全账号 `@events` 原件保全／恢复。
@@ -30,7 +42,8 @@ WAL／SHM／journal，再将精确哈希绑定的原件反序列化到内存 `qu
 日程证明在初次主实例验证、准备前、每次空闲门、切换后及恢复／回滚对应边界重查；冻结的
 全账号原件哈希和明确缺席记录必须保持，账号新增、并发日程／原件变化或缺证阻止切换。
 本入口只作原件读取与既有受管切换，不启用来源采集、改采集日程、调用模型／厂商或改变
-网关路由。db2 原网关已支持 `/api/research/*` 与主实例静态资源透传，无新路径授权。
+网关路由。db2 原网关已支持 `/api/research/*` 与主实例静态资源透传；本操作员不扩大路径授权，
+本组合源码中的MCP入口保持关闭。
 
 源码准备／本机回归、最终 CI 资格、真实 Mac mini 切换、认证页面／业务验收和资源收尾
 分别记录；本节不能证明已部署。Windows/Linux 原生验收仍由对应设备负责。

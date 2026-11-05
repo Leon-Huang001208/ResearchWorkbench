@@ -19,6 +19,9 @@ from research_workbench_entrypoint.resident import model_provider_upgrade as upg
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
+REAL_GATEWAY_HEALTH = upgrade.g.health
+REAL_EVENT_GATEWAY_HEALTH = upgrade.read_event_gateway_health
+
 ASSET_PROFILES = (
     upgrade.ASSET_MODE,
     upgrade.ASSET_V2_MODE,
@@ -245,6 +248,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     if profile == "reviewed-event-research-v1":
         monkeypatch.setattr(upgrade, "EVENT_FEATURE", base if bad == "feature-app" else payload)
+        monkeypatch.setattr(upgrade, "EVENT_BASE", payload)
+        monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", payload)
     evidence_constant = (
         "ASSET_V7_EVIDENCE_SHA256"
         if profile == upgrade.ASSET_V7_MODE
@@ -329,6 +334,12 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         (tmp_path / "untracked.txt").write_text("unreviewed checkout state")
     if bad == "feature-ancestry":
         monkeypatch.setattr(upgrade, "EVENT_FEATURE", target)
+    if bad == "event-base-before-feature":
+        monkeypatch.setattr(upgrade, "EVENT_BASE", base)
+    if bad == "event-mcp-before-base":
+        monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", base)
+    if bad == "event-mcp-after-payload":
+        monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", target)
     if bad is None:
         result = upgrade.review(tmp_path, target, profile)
         assert name in result and upgrade.MODULE in result
@@ -1278,12 +1289,18 @@ def real_operations(tmp_path, monkeypatch, request):
             return {"items": [{"active": True, **state["model_before"]}]}
         if url.endswith("/api/server/health"):
             return {
+                "status": "ready",
+                "primary_last_verified": True,
                 "revision": system["gateway"],
                 "deployment_fenced": (server / "run/gateway-upgrade.json").exists(),
+                **({"mcp_readonly_enabled": False} if mode == "reviewed-event-research-v1" else {}),
             }
         return {"enabled": True, "revision": system["primary"], "active": system["active"]}
 
     monkeypatch.setattr(upgrade, "request_json", request)
+    monkeypatch.setattr(
+        upgrade, "read_event_gateway_health", lambda _config: request("/api/server/health")
+    )
     fake_binding = SimpleNamespace(
         verify=lambda: {"revision": system["primary"]},
         public_config=lambda: {
@@ -1333,6 +1350,8 @@ def real_operations(tmp_path, monkeypatch, request):
     config["repository"] = "fixture"
     upgrade.c.atomic(root / "config.json", config)
     for role in ("primary", "gateway"):
+        project_info = (home / role).stat()
+        state[role + "_identity"] = [project_info.st_dev, project_info.st_ino]
         state[role + "_repository"] = {"common": str(home / role / ".git"), "identity": [1, 2]}
     monkeypatch.setattr(
         upgrade,
@@ -1383,6 +1402,13 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     expected = state["target"] if failed is None else state["previous"]
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
+    if state["mode"] == "reviewed-event-research-v1":
+        gateway = upgrade.read_json(home / "server/resident.json")
+        if failed is None:
+            assert gateway["mcp_readonly_enabled"] is False
+        else:
+            assert "mcp_readonly_enabled" not in gateway
+            assert gateway == state["gateway_config"]
     expected_manifest = {**state["manifest"], "code_commit": expected}
     if failed is None and state["mode"] in {
         upgrade.ASSET_V5_MODE,
@@ -4375,7 +4401,9 @@ def test_event_profile_freezes_authorized_product_and_current_resident():
     assert upgrade.EVENT_MODE == "reviewed-event-research-v1"
     assert upgrade.previous_for(upgrade.EVENT_MODE) == "db2ae9a48ceca365852072e622aa6627aa7d0b83"
     assert upgrade.EVENT_FEATURE == "a398a29429a1c0bdddd34ce50bc336fd6e20f2ee"
-    assert upgrade.EVENT_PAYLOAD == "60416994f88eeead8a3891dbe9a7dfd617c566fc"
+    assert upgrade.EVENT_BASE == "60416994f88eeead8a3891dbe9a7dfd617c566fc"
+    assert upgrade.EVENT_MCP_BASE == "58ad352eeb925805ff00f46139a073fda15163d3"
+    assert upgrade.EVENT_PAYLOAD == "65a016b3525f0a395ee221bf44f1b208818b03e8"
     assert upgrade.EVENT_MODE in upgrade.ASSET_MODES
     assert upgrade.EVENT_MODE not in upgrade.TRIAL_MODES
 
@@ -4628,3 +4656,162 @@ def test_event_unknown_storage_schema_refuses_disabled_assertion(tmp_path):
         database.execute("PRAGMA user_version=2")
     with pytest.raises(upgrade.UpdateBlocked):
         upgrade.event_schedules_disabled(tmp_path)
+
+
+def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence():
+    old = {"revision": upgrade.EVENT_PREVIOUS, "binding": {"revision": upgrade.EVENT_PREVIOUS}}
+    original = json.dumps(old, sort_keys=True)
+    state = {"mode": upgrade.EVENT_MODE, "target": "b" * 40, "gateway_config": old}
+    target = upgrade.gateway_configuration(state)
+    assert target["mcp_readonly_enabled"] is False
+    assert upgrade.gateway_configuration(state, previous=True) == old
+    assert "mcp_readonly_enabled" not in upgrade.gateway_configuration(state, previous=True)
+    assert json.dumps(old, sort_keys=True) == original
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+def test_event_actual_health_unknown_refuses_target(real_operations, monkeypatch):
+    home, state, system, make, _uid = real_operations
+    system["primary"] = system["gateway"] = state["target"]
+    upgrade.c.atomic(
+        home / "server/resident.json",
+        {**upgrade.gateway_configuration(state), "mcp_readonly_enabled": False},
+    )
+    upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
+    original_request = upgrade.request_json
+
+    def missing_health(url):
+        value = original_request(url)
+        if url.endswith("/api/server/health"):
+            value.pop("mcp_readonly_enabled", None)
+        return value
+
+    monkeypatch.setattr(upgrade, "request_json", missing_health)
+    with pytest.raises(upgrade.UpdateBlocked):
+        make(None).verify(False)
+
+
+@pytest.fixture
+def event_mcp_health_protocol(real_operations, monkeypatch):
+    """Real Operations.verify, real g.health and local reader; only HTTP/OS transport faked."""
+    home, state, system, make, _uid = real_operations
+    system["primary"] = system["gateway"] = state["target"]
+    upgrade.c.atomic(home / "server/resident.json", upgrade.gateway_configuration(state))
+    upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
+    control = {"local": False, "remote": False, "on_local_read": None, "reads": 0}
+
+    def value(which):
+        body = {
+            "status": "ready",
+            "revision": system["gateway"],
+            "primary_last_verified": True,
+            "deployment_fenced": True,
+        }
+        if control[which] != "missing":
+            body["mcp_readonly_enabled"] = control[which]
+        return body
+
+    class Connection:
+        def __init__(self, host, port, **_kw):
+            assert (host, port) == ("127.0.0.1", 8089)
+
+        def request(self, method, path, headers):
+            assert (method, path) == ("GET", "/api/server/health")
+            assert headers == {"Host": "fixture.tail.ts.net"}
+
+        def getresponse(self):
+            control["reads"] += 1
+            if control["on_local_read"] is not None:
+                control["on_local_read"]()
+            body = json.dumps(value("local")).encode()
+            return SimpleNamespace(status=200, read=lambda limit: body[:limit])
+
+        def close(self):
+            pass
+
+    old_request = upgrade.request_json
+    monkeypatch.setattr(
+        upgrade,
+        "request_json",
+        lambda url: value("remote") if url.endswith("/api/server/health") else old_request(url),
+    )
+    monkeypatch.setattr(upgrade.http.client, "HTTPConnection", Connection)
+    monkeypatch.setattr(upgrade.g, "health", REAL_GATEWAY_HEALTH)
+    monkeypatch.setattr(upgrade, "read_event_gateway_health", REAL_EVENT_GATEWAY_HEALTH)
+    return home, state, system, make(None), control
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize("where", ["local", "remote"])
+@pytest.mark.parametrize("bad", ["missing", None, 0, True])
+def test_event_verify_requires_actual_strict_false_health(event_mcp_health_protocol, where, bad):
+    _home, _state, _system, ops, control = event_mcp_health_protocol
+    control[where] = bad
+    with pytest.raises(upgrade.UpdateBlocked, match="event_upgrade_mcp_runtime_not_disabled"):
+        ops.verify(False)
+    assert control["reads"] == 2
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+def test_event_verify_real_health_accepts_false_and_old_rollback_missing(event_mcp_health_protocol):
+    home, state, system, ops, control = event_mcp_health_protocol
+    ops.verify(False)
+    assert control["reads"] == 2
+    system["primary"] = system["gateway"] = state["previous"]
+    upgrade.c.atomic(home / "server/resident.json", upgrade.gateway_configuration(state, True))
+    control["local"] = control["remote"] = "missing"
+    ops.verify(True)
+    assert control["reads"] == 3
+    assert "mcp_readonly_enabled" not in upgrade.read_json(home / "server/resident.json")
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize("drift", ["pid", "birth", "config"])
+def test_event_health_window_binds_process_birth_and_config(
+    event_mcp_health_protocol, monkeypatch, drift
+):
+    home, _state, system, ops, control = event_mcp_health_protocol
+    if drift == "pid":
+        control["on_local_read"] = lambda: system.update(pid=900003)
+    elif drift == "birth":
+        original = upgrade.g.process
+        stamp = {"changed": False}
+        monkeypatch.setattr(
+            upgrade.g,
+            "process",
+            lambda pid: original(pid).replace("Wed", "Thu") if stamp["changed"] else original(pid),
+        )
+        control["on_local_read"] = lambda: stamp.update(changed=True)
+    else:
+
+        def change_config():
+            value = upgrade.read_json(home / "server/resident.json")
+            value["mcp_readonly_enabled"] = 0
+            upgrade.c.atomic(home / "server/resident.json", value)
+
+        control["on_local_read"] = change_config
+    with pytest.raises(upgrade.UpdateBlocked):
+        ops.verify(False)
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize("value", ["missing", None, 0, True])
+def test_event_configuration_and_recovery_reject_falsey_mcp_drift(real_operations, value):
+    home, state, _system, _make, _uid = real_operations
+    config = upgrade.gateway_configuration(state)
+    if value == "missing":
+        config.pop("mcp_readonly_enabled")
+    else:
+        config["mcp_readonly_enabled"] = value
+    upgrade.c.atomic(home / "server/resident.json", config)
+    with pytest.raises(upgrade.UpdateBlocked, match="gateway_configuration_changed"):
+        upgrade.validate_configuration(home, state)
+
+
+@pytest.mark.parametrize(
+    "bad", ["event-base-before-feature", "event-mcp-before-base", "event-mcp-after-payload"]
+)
+def test_event_combination_ancestry_is_fixed_with_real_git(tmp_path, monkeypatch, bad):
+    test_asset_review_uses_real_git_and_frozen_product(
+        tmp_path, monkeypatch, bad, upgrade.EVENT_MODE
+    )

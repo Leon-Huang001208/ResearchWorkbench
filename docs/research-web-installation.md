@@ -1153,6 +1153,8 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 事件研究常驻部署边界
 
 事件时间线、日历研究与六维评分通过独立封闭的 `apply-events` 操作员部署，固定 db2 前版、
-a398 功能祖先和 60416994 已审维护闭包；最终操作员仍须同候选三 CI 与 Mac 干净安装。
+a398 功能祖先、60416994 基础闭包、58ad352e 已授权主线及 65a016b3 关闭安全检查点；
+最终操作员仍须同候选三 CI 与 Mac 干净安装。目标常驻配置写入严格布尔
+`mcp_readonly_enabled: false`，并从实际网关健康检查验证 Facade 未创建；旧版回滚保留原字段缺席。
 该入口复用原全账号保全、恢复与空闲事务，并独立证明事件来源日程关闭；不修改自动兼容
 白名单或安装新依赖。详见[受控部署合同](research-web-gateway-upgrade.md)。
