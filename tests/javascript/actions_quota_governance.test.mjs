@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 const readWorkflow = (name) => fs.readFileSync(
@@ -150,6 +153,35 @@ function policyRuleMatches(rule, file) {
 function policyRequiresGate(file, gate) {
   return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
 }
+
+test('Checks extracts exact hashed Web SDK blocks while preserving renderer pins', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-lock-contract-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const lock=fs.readFileSync(new URL('../../requirements/web.lock',import.meta.url),'utf8');
+  fs.mkdirSync(path.join(root,'requirements'));
+  fs.writeFileSync(path.join(root,'requirements/web.lock'),lock);
+  const step=workflows.checks.split('      - name: Install declared test dependencies\n')[1]?.split('\n      - name:')[0];
+  assert.ok(step,'existing dependency step must remain');
+  const heredoc=step.match(/          \.venv\/bin\/python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(heredoc,'existing lock extraction script must remain');
+  const code=heredoc[1].split('\n').map(line=>line.slice(10)).join('\n');
+  const result=spawnSync(process.env.RWB_TEST_PYTHON || 'python3',['-B','-c',code],{
+    cwd:root,env:{...process.env,RUNNER_TEMP:root,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8',timeout:10000,
+  });
+  assert.equal(result.status,0,result.stderr);
+  const extracted=fs.readFileSync(path.join(root,'rwb-reportlab.lock'),'utf8');
+  const entries=extracted.split(/\n(?=[a-z0-9])/).filter(Boolean);
+  assert.equal(entries.length,5);
+  for(const packageName of ['reportlab','openpyxl','et-xmlfile','mcp','mcp-types']) {
+    const entry=entries.find(value=>value.startsWith(`${packageName}==`));
+    assert.ok(entry,packageName);
+    const original=lock.split(/\n(?=[a-z0-9])/).find(value=>value.startsWith(`${packageName}==`));
+    assert.equal(entry.trimEnd(),original.trimEnd(),`${packageName} block must retain all original hashes`);
+    assert.match(entry,/--hash=sha256:[a-f0-9]{64}/);
+  }
+  assert.match(step,/pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-reportlab\.lock"/);
+  for(const packageName of ['mcp','mcp-types']) assert.ok(step.includes(`m.version('${packageName}') == '2.2.0'`),`${packageName} installed metadata must be checked`);
+});
 
 test('Docker runtime test paths retain required Native bootstrap coverage', () => {
   const policy = JSON.parse(fs.readFileSync(

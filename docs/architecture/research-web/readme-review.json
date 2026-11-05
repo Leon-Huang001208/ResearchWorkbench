@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "能力中心收敛为技能、连接器、插件三分类，并复核共享本地测试环境的使用入口及安装边界。",
-  "reason": "README的产品入口、唯一DSH及公开安装命令仍准确；本轮不新增服务或公开安装选项。具体三分类和开发测试环境复用已在能力合同及AGENT_WORKFLOW更新。"
+  "summary": "在已涵盖事件研究和默认关闭入站MCP的README基础上，复核能力中心三分类及共享本地测试环境。",
+  "reason": "当前README已保留事件/PIT/生产边界和独立OAuth的只读材料出口；本次分类与测试环境不新增服务或公开安装选项，唯一DSH与原安装入口仍准确。模块合同及AGENT_WORKFLOW更新，集成源码仍不认证常驻或跨平台实机。"
 }

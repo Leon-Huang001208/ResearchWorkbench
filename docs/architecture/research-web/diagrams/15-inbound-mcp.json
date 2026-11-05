@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RWB 私网只读 MCP · 授权与材料边界",
+    "output": "15-inbound-mcp.html",
+    "quality_profile": "showcase",
+    "viewBox": [1510, 650],
+    "views": [
+      {"id": "read", "label": "批准材料读取", "focus": ["host", "gateway", "tools", "pool", "frozen"], "note": "只暴露四项冻结读取工具；不触发取数、模型或新研究。"},
+      {"id": "authorization", "label": "原生 OAuth 授权", "focus": ["host", "browser", "authorization", "accounts", "tools"], "note": "现有账户登录与显式同意；持久摘要、PKCE、逐对象授权和即时撤权。"}
+    ]
+  },
+  "components": [
+    {"id": "host", "type": "external", "label": "成熟 Agent 应用", "sublabel": "Codex 首验 · 其他宿主另验", "pos": [30, 285], "size": [210, 95]},
+    {"id": "browser", "type": "frontend", "label": "现有 RWB 登录", "sublabel": "网页同意与已授权应用", "pos": [30, 70], "size": [210, 90]},
+    {"id": "gateway", "type": "security", "label": "私网 HTTPS 网关", "sublabel": "规范 Origin · 默认关闭", "pos": [335, 285], "size": [210, 95]},
+    {"id": "authorization", "type": "security", "label": "OAuth 授权服务", "sublabel": "公开客户端 · PKCE S256", "pos": [335, 70], "size": [210, 90]},
+    {"id": "accounts", "type": "database", "label": "原账户 SQLite", "sublabel": "增量授权表 · 材料审批摘要", "pos": [650, 70], "size": [210, 90]},
+    {"id": "tools", "type": "backend", "label": "MCP 资源服务", "sublabel": "四项只读工具 · 对象白名单", "pos": [650, 285], "size": [210, 95]},
+    {"id": "pool", "type": "backend", "label": "原 RuntimePool", "sublabel": "账户路由 · 既有容量门", "pos": [965, 285], "size": [210, 95]},
+    {"id": "frozen", "type": "database", "label": "本人冻结原件", "sublabel": "DataHub · 来源 · 原质量门", "pos": [1280, 285], "size": [210, 95]}
+  ],
+  "connections": [
+    {"id": "native-connect", "from": "host", "to": "gateway", "label": "原生直连 /mcp"},
+    {"id": "browser-consent", "from": "browser", "to": "authorization", "label": "登录后显式同意"},
+    {"id": "persist-authorization", "from": "authorization", "to": "accounts", "label": "授权摘要与撤权"},
+    {"id": "oauth-discovery", "from": "gateway", "to": "authorization", "label": "标准 OAuth 发现"},
+    {"id": "bearer-identity", "from": "gateway", "to": "tools", "label": "独立 bearer 身份"},
+    {"id": "check-authorization", "from": "tools", "to": "accounts", "label": "逐次授权复验"},
+    {"id": "route-account", "from": "tools", "to": "pool", "label": "可信账户路由"},
+    {"id": "frozen-get", "from": "pool", "to": "frozen", "label": "固定只读 GET"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "同一进程，分开授权职责", "items": ["授权与资源服务共用原网关", "Cookie 不能单独调用 MCP", "不增加代理、用户库或执行内核"]},
+    {"dot": "emerald", "title": "原件验证后返回", "items": ["仅批准公开或合成材料", "完整摘要、来源和原质量门", "返回前复验撤权；明确分页与截断"]},
+    {"dot": "amber", "title": "实施与上线分层", "items": ["本图描述首版合同", "源码、HTTP、干净安装分别取证", "私网部署和各宿主 OAuth 另验"]}
+  ]
+}

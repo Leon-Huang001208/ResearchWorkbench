@@ -21,6 +21,19 @@ def test_api_atlas_is_a_fixed_read_only_document(docs):
     assert "Research Web API Atlas" in response.text
 
 
+def test_inbound_mcp_diagram_is_fixed_and_unknown_neighbors_remain_rejected(docs):
+    client, root = docs
+    (root / "15-inbound-mcp.html").write_text("<h1>Private read-only MCP</h1>", encoding="utf-8")
+    response = client.get("/api/research/documentation/15-inbound-mcp.html")
+    assert response.status_code == 200
+    assert "Private read-only MCP" in response.text
+    assert "allow-same-origin" not in response.headers["content-security-policy"]
+    (root / "15-inbound-secret.html").write_text("private-neighbor", encoding="utf-8")
+    response = client.get("/api/research/documentation/15-inbound-secret.html")
+    assert response.status_code == 404
+    assert "private-neighbor" not in response.text
+
+
 def test_registered_product_overview_has_safe_return_navigation(docs):
     client, root = docs
     (root / "00-system-overview.html").write_text(

@@ -7,6 +7,8 @@
 回测有效性与模型预算分别认证。新增来源轮询默认关闭，不将工程合成测试当作真实模型比较，
 具体边界见[事件研究](research-web-event-research.md)。
 
+本次入站 MCP 离线合同只证明账号、授权和冻结读取边界，不运行 FinGPT 比较或模型。通用 Agent 功能停止扩建、既有入口兼容维护；Codex／DSH／WorkBuddy 原生报告质量仍 NOT_RUN。
+
 ## 留存规则不产生模型质量结论（2026-10-31）
 
 本机测试夹具回收和交付日志选择只减少可再生测试文件占用；冻结的 FinGPT 题目、模型、费用、来源、报告和质量 oracle 均未执行或改写。通过的 pytest JUnit 只能证明清理工具与归档合同；失败/未知的模型请求、比较原件和最终报告不在 `discard` 范围，见[留存规则](research-web-storage-retention.md)。

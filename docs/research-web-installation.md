@@ -1,10 +1,14 @@
 # Research Web Native / Docker 安装与运行
 
+`./rwb server doctor` 与 `./rwb server serve` 的子进程交接只额外保留显式 `RWB_MCP_READONLY_ENABLED=0|1`；缺省或其他拼写保持关闭，并记录不含输入值的稳定告警。共享最小环境白名单保持，其他 `RWB_*`、模型及供应商凭据不会因此传递。Doctor 检查仍不创建账号根、初始化 SDK 或启动后端。此开关修复来自 Mac Bootstrap 的实际失败复现，修后候选安装 CI 须重新验证；不代表常驻已启用。
+
 事件时间线／日历效应／六维研究评分沿用现有 Web 依赖，不要求外部 PostgreSQL、独立服务或
 新增 Python 包。个人元数据与证据在账号数据根的 `event_timeline/` 懒创建；Doctor 的
 `event_research` 只报告本地保全状态，不访问来源或启用采集。默认不启动定时采集、付费模型
 或生产评分。升级前后必须保留初始化标记、SQLite和原件，不能只复制数据库或重置损坏状态。
 当前候选的来源、回测与安装验收限制见[集成合同](research-web-event-research.md)。
+
+可选[入站 MCP 只读服务](research-web-mcp-facade.md)沿既有私网账号网关使用 `RWB_MCP_READONLY_ENABLED=1` 显式开启，默认关闭。公开安装入口与 Web 锁保持；已核对锁内 SDK 2.2.0、multipart 0.0.32、Starlette 1.6.0，本次无新依赖。Mac 干净安装兼容、实际部署和原生宿主 OAuth 仍分别待验证。`server doctor --json` 新增 `mcp_readonly` 的开关和包元数据检查，即使开启也不建授权表或连接网络；`configuration_pending`、连接 `not_checked`、原生验收 `NOT_RUN` 不能写成已连接。配置示例与批准／撤权／回滚步骤见专项合同，示例尚未执行。
 
 ## 开发测试产物留存（2026-10-31）
 

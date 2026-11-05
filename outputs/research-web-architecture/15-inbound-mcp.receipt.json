@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/.codex/worktrees/rwb-mcp-readonly-oauth/ResearchWorkbench/docs/architecture/research-web/diagrams/15-inbound-mcp.json",
+  "output": "/Users/leon/.codex/worktrees/rwb-mcp-readonly-oauth/ResearchWorkbench/outputs/research-web-architecture/15-inbound-mcp.html",
+  "specification": {
+    "sha256": "7464abbe95a024da7771619cc21fd038105c99ba6f4e396e29edbab209bd74d4",
+    "bytes": 3386
+  },
+  "artifact": {
+    "sha256": "441065a19fed6dca7d072e06aadbc2cea3f6fd54d1a41ff804e5024d166ad345",
+    "bytes": 636445
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

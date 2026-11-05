@@ -8,6 +8,14 @@
 描述统计及已存结果读取／导出分别操作；历史研究分不启用生产分或仓位。精确路径由API Atlas
 按源码列出，字段与权限见[集成合同](../../research-web-event-research.md)。
 
+API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项research/framework代理，逐条标记条件。检查器仅接受原Gateway固定literal方法、路径和完整条件块，动态表达式／别名／新增语法失败关闭。另列8项锁定SDK2.2与RWB浏览器路由合同，由隔离Python测试精确比较实际整套路由集合；ASGI methods=null不等于全部HTTP操作获准，该声明不计入静态扫描或部署验收。
+
+## 可选私网入站 MCP
+
+启用后提供 `/mcp`，授权服务元数据、`/.well-known/oauth-protected-resource/mcp`、`/authorize`、`/token`、`/revoke` 及浏览器同意/应用撤权页面。固定公开客户端 `rwb-codex-native`、scope `rwb.read`，不开放 DCR/CIMD。四工具为 `rwb_capabilities_list`、`rwb_datasets_list`、`rwb_dataset_read`、`rwb_source_read`；请求 64 KiB、响应 256 KiB、默认 100/最多 500 行、文本最多 12000 字符。OAuth 与对象合同见[入站 MCP](../../research-web-mcp-facade.md)，不能用浏览器 Cookie 冒充 bearer。
+
+`/mcp` 的协议消息使用 POST；GET 在 SDK bearer/scope 和 Host/Origin 检查后及时返回 405、`Allow: POST`，不启动持久 SSE。8 项路由注册合同保持，`methods=null` 不代表允许所有动词。OAuth 授权码兑换和刷新轮换的临时存储故障返回 503 `temporarily_unavailable`；授权请求创建故障由 SDK 返回带同名错误、state 和 issuer 的已验证回调，不伪装为用户拒绝或无效授权，不自动重试未知结果。
+
 ## successor 是封闭维护 CLI（2026-10-31）
 
 新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。
