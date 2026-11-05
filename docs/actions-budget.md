@@ -2,6 +2,8 @@
 
 2026-11-05研发进展仅在原macOS Bootstrap静态资源步骤追加progress.mjs、progress.css、progress-data.json的下载及源码字节核对；原Web Checks通配符执行新Node测试。无新job、runner、依赖、timeout或他平台dispatch，增量预留原步骤10秒。实际候选须重新取得原Constraints、Checks与macos-15安装证据；远端操作前复核PUBLIC。
 
+2026-11-05能力中心三分类仅在既有Research Web Checks步骤追加方法兼容和共享测试环境离线测试；不增加job、runner、超时、依赖安装步骤或产品平台dispatch。局部方法9例约11秒、环境10例不足1秒，在原步骤预留30秒增量；CI结果须绑定最终候选。共享环境仅供本地开发复用，不替代原Mac干净锁安装与Doctor检查。操作前只读API核对仓库仍为PUBLIC，并有当前标准runner运行证据；发布前仍须重新核对，不能沿用本段结论。
+
 2026-11-05 PR268 Checks run41944970627 已通过全部Python分片并核实锁定SDK2.2；JavaScript阶段1305PASS、3FAIL、4SKIP，三个失败均来自旧登录VM夹具未提供浏览器URLSearchParams。修补3仅补该夹具的原生URL API和空location.search，并保持严格请求体断言（无回跳参数时return_to:null）；不改产品、依赖、job/runner/timeout或环境边界。旧登录、MCP登录、账号菜单与会话包装完整组合本机24PASS；默认Node25.9.0结果69.396ms保留，既有固定Node24.19.0补跑24PASS／105.226ms，未安装或更改Node配置。新候选仍须重新取得原全部CI证据。
 
 2026-11-05 PR268 第二次 Checks run41938174449/head ddb24917 在开发依赖安装中实际取得 mcp/mcp-types 2.3.0，与已锁定 Web 2.2.0 的路由合同不符。CI修补2沿原精选Web锁步骤加入这两个已声明包的完整哈希块，继续 `--require-hashes --no-deps`，并在同一步校验已安装版本；保留原 reportlab/openpyxl/et-xmlfile、开发依赖声明和SDK合同。不增加job、runner、时限或新依赖，不安装本机包；修后新候选CI须重新取证，旧候选成功的Mac/Constraints不移记为新候选通过。

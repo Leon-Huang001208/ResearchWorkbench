@@ -251,6 +251,7 @@ jobs:
             tests/research_web/test_market_store_operation.py \
             tests/research_web/test_market_store_live_postgres.py \
             tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
+            tests/research_web/test_methods.py \
             tests/research_web/test_capabilities.py::test_catalog_save_uses_one_write_with_identical_json \
             tests/research_web/test_capabilities.py::test_catalog_save_failure_preserves_previous_index \
             tests/research_web/test_documentation.py \
@@ -291,6 +292,7 @@ jobs:
             -- \
             tests/unit/test_wind_excel_instances.py \
             tests/unit/test_ci_pytest_partitions.py \
+            tests/unit/test_research_web_test_env.py \
             tests/unit/test_ci_pytest_evidence_staging.py \
             --confcutdir=tests/unit -q
 

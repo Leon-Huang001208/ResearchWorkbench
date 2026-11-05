@@ -19,6 +19,7 @@ const navItems = [
   { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
   { page: 'simulation', glyph: 'chart', title: '策略模拟', href: '#/simulation/etf' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
+  { page: 'automations', glyph: 'activity', title: '定时任务', href: '#/automations' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
 ];
 
@@ -87,8 +88,8 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
   return heading + status + results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-global-result-key="session:${e(item.id)}" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span>${snippets.has(item.id) ? `<span class="native-search-snippet">${e(snippets.get(item.id))}</span>` : ''}</a>` : `<button type="button" role="option" data-global-result="${kind}" data-global-result-key="${kind}:${e(item.id)}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
 }
 
-export function renderPrimaryRail({ page, section = '', secondaryOpen = false, account = null } = {}) {
-  const primaryPage = page === 'workbench' ? ['market', 'industry', 'documents', 'hot'].includes(section) ? 'intel' : section === 'etf-paper' ? 'simulation' : 'assets' : page;
+export function renderPrimaryRail({ page, section = '', capabilityView = '', secondaryOpen = false, account = null } = {}) {
+  const primaryPage = page === 'skills' && capabilityView === 'plans' ? 'automations' : page === 'workbench' ? ['market', 'industry', 'documents', 'hot'].includes(section) ? 'intel' : section === 'etf-paper' ? 'simulation' : 'assets' : page;
   const links = navItems.filter(item => item.page !== 'reports' || canUseReportWorkflows(globalThis.__RWB_USER_ID__ || account?.id, account)).map((item) => {
     const active = primaryPage === item.page;
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
