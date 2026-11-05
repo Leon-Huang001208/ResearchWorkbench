@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+2026-11-05事件研究常驻部署新增封闭profile，沿原Research Web Checks的
+test_model_provider_upgrade.py参数与近处反例验证，不增加job、runner、依赖或时限。
+新增用例暂在原步骤预留120秒，最终候选以实测为准；操作员仍需原三CI及Mac干净安装。
+真实日程关闭、全账号保全和页面验收另取现场证据，不能以CI代替；不派发他平台产品CI。
+
 2026-11-05共享缓存报告委托沿原Project Constraints的资源生命周期Node合同追加正反例，
 不增加job、runner、时限、依赖或平台dispatch；在原步骤预留30秒增量，并由最终候选实测。
 新委托目标与真实内核合同68项在Node24.22.1通过，实测6.566秒；不代替冻结候选完整回归或CI。

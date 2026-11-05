@@ -1,5 +1,8 @@
 # Research Workbench 架构总览
 
+2026-11-05 事件封闭 Native 部署沿原 v4 三锁／BirthFence／全账号 @events 保全与恢复；新增 apply-events 固定 db2→604 受审闭包及 a398 功能祖先，不进入 TRIAL。所有账号来源日程须由无写入原件读取证明关闭，未知／WAL／并发漂移拒绝；原 Host／Native／后台／市场空闲门保持。没有新运行节点、研究引擎或网关路由，真实切换与业务验收另证，见[部署合同](research-web-gateway-upgrade.md)。
+
+
 事件研究新增账号内 Timeline／Study／Score 领域：事件版本与原件进入个人 SQLite／私有归档；
 已有 DataHub 日线须显式登记为研究输入，发生、公开和取得时间分别保存。确定性计算不创建AI
 研究引擎，解释仍使用唯一 DSH。来源采集复用 Automation 心跳且默认关闭，历史评分验证不
