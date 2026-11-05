@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+研发进展由 `ui/progress.mjs`／`progress.css` 渲染，`ui/progress-data.json` 提供版本内内容，
+原 `core.mjs`、`shell.mjs`、`app.mjs` 接入路由、底部入口及生命周期。
+`scripts/check_product_progress.mjs` 校验内容、交付字段与 Changelog 生成区，
+`tests/javascript/research_web_progress.test.mjs` 覆盖路由、证据缺项、过滤定位、安全与加载失败。
+无新 Python、业务 API 或依赖；合同见[前端](research-web-ui.md#研发进展与更新日志)。
+
 事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
 `event_studies/` 管理固定窗口、对照、代理账本、试验与一次性验证；`market_scoring/` 管理
 六维配置、证据时点、研究总分和当期事件适用性。`event_datahub_bridge.py` 只登记当前账号

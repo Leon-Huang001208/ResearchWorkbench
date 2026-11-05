@@ -2,7 +2,7 @@ import { defaultSpecialistBudget, specialistBudgetError, specialistCanResume } f
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot', 'progress']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
@@ -19,6 +19,15 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'progress') {
+    route.progressTab = sectionSegment === 'changelog' ? 'changelog' : 'overview';
+    route.progressInvalid = Boolean(extraSegments.length || (sectionSegment && sectionSegment !== 'changelog'));
+    route.progressStatus = ['planned', 'developing', 'validating', 'delivered', 'paused', 'cancelled'].includes(params.get('status')) ? params.get('status') : 'all';
+    route.progressKind = ['new', 'improvement', 'fix', 'removal', 'announcement'].includes(params.get('kind')) ? params.get('kind') : 'all';
+    route.progressModule = (params.get('module') || '').slice(0, 80);
+    route.progressItem = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.get('item') || '') && params.get('item').length <= 80 ? params.get('item') : '';
+    route.progressMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(params.get('month') || '') ? params.get('month') : '';
+  }
   if (page === 'reports') {
     route.reportInvalid = Boolean(extraSegments.length || (sectionSegment && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sectionSegment)) || (params.has('run') && !/^[a-f0-9]{32}$/.test(params.get('run'))));
     route.reportProjectId = !route.reportInvalid && sectionSegment || null;
