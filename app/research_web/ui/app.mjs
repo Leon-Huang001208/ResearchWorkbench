@@ -49,6 +49,7 @@ import { createDossierController, renderDossiers, isDossierRoute } from './dossi
 
 import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
+import { createProgressWorkspace } from './progress.mjs';
 
 import { canUseReportWorkflows } from './weekly-production.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createExecutionEvidenceExpiry, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
@@ -78,6 +79,7 @@ const conversationNavigation = createConversationNavigation({ api, notify: () =>
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+const progress = createProgressWorkspace({root, route:()=>state.route, notify:render, logger:safeLog});
 root.setAttribute?.('data-account-workspace-native', '1');
 const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
 const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
@@ -554,6 +556,7 @@ function mainPage() {
   if (state.route.page === 'operations') return operationsPage();
   if (state.route.page === 'intel') return state.route.intelTab === 'discovery' ? renderDiscovery(discoveryController.state) : state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'aihot') return renderAihot(aihotController.state);
+  if (state.route.page === 'progress') return progress.render();
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
@@ -894,7 +897,7 @@ function render() {
   mountAssetIndicators(Boolean(persistentAssetTerminal));
   const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
   if (assetSearchSlot) assetSearch = mountAssetSearch(assetSearchSlot, { api, account: () => globalThis.__RWB_USER_ID__ || 'local', asset: state.route.asset || assetState.observation?.asset || '', onSelect: item => { location.hash = assetHref(item.asset, 'stock', state.route.assetView || 'overview'); } });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料', progress: '研发进展' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1623,6 +1626,7 @@ async function showRoute() {
   cancelProjectMenuTimers();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
+  if (state.route.page === 'progress') return progress.open();
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
