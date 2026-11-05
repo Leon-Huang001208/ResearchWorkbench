@@ -1,6 +1,6 @@
 # Research Workbench 架构总览
 
-2026-11-05 事件封闭Native部署沿原v4三锁／BirthFence／全账号@events保全与恢复，固定db2前版及a398→604→58ad→65a安全组合链；仅a398→604要求app树相同。MCP源码随用户授权主线纳入，EVENT目标配置持久False，并以原fenced双入口health实际Facade布尔、原PID/启动/源码身份前后复核接受；回滚保留旧字段缺席。全账号采集关闭／严格Native与既有后台门保持，不进入TRIAL、不开MCP/OAuth或研究引擎，实际切换另证，见[部署合同](research-web-gateway-upgrade.md)。
+2026-11-05 事件封闭Native部署沿原v4三锁／BirthFence／全账号@events保全与恢复，固定db2前版及a398→604→58ad→546→e9（保留65a关闭安全）安全组合链；仅a398→604要求app树相同。MCP源码随用户授权主线纳入，EVENT目标配置持久False，并以原fenced双入口health实际Facade布尔、原PID/启动/源码身份前后复核接受；回滚保留旧字段缺席。全账号采集关闭／严格Native与既有后台门保持，不进入TRIAL、不开MCP/OAuth或研究引擎，实际切换另证，见[部署合同](research-web-gateway-upgrade.md)。
 
 研发进展沿原生 UI 与现有静态资源服务读取版本内 JSON，展示功能最新状态及交付时间线，
 不新增 API、数据库、任务执行器、外部同步或研究引擎。同源内容生成 Changelog 受管区块；

@@ -131,7 +131,8 @@ EVENT_PREVIOUS = "db2ae9a48ceca365852072e622aa6627aa7d0b83"
 EVENT_FEATURE = "a398a29429a1c0bdddd34ce50bc336fd6e20f2ee"
 EVENT_BASE = "60416994f88eeead8a3891dbe9a7dfd617c566fc"
 EVENT_MCP_BASE = "58ad352eeb925805ff00f46139a073fda15163d3"
-EVENT_PAYLOAD = "65a016b3525f0a395ee221bf44f1b208818b03e8"
+EVENT_MAIN_BASE = "54610625d4f736cd807fdd50eaf2e1f22a557ae5"
+EVENT_PAYLOAD = "e9cb46e1387f07275200c9062994d82873591e42"
 EVENT_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 EVENT_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR198's merged Excel-first weekly product; previous is the registered resident.
@@ -737,7 +738,8 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         for ancestor, descendant in (
             (EVENT_FEATURE, EVENT_BASE),
             (EVENT_BASE, EVENT_MCP_BASE),
-            (EVENT_MCP_BASE, payload),
+            (EVENT_MCP_BASE, EVENT_MAIN_BASE),
+            (EVENT_MAIN_BASE, payload),
         ):
             c.git(source, "merge-base", "--is-ancestor", ancestor, descendant)
         if c.git(source, "rev-parse", f"{EVENT_FEATURE}:app") != c.git(

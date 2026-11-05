@@ -1,6 +1,6 @@
 # Research Workbench Development Map
 
-2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→65a，原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
+2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→546→e9（保留65a关闭安全），原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
 
 研发进展由 `ui/progress.mjs`／`progress.css` 渲染，`ui/progress-data.json` 提供版本内内容，
 原 `core.mjs`、`shell.mjs`、`app.mjs` 接入路由、底部入口及生命周期。

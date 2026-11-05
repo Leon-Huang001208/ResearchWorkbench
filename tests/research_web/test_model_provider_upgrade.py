@@ -250,6 +250,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         monkeypatch.setattr(upgrade, "EVENT_FEATURE", base if bad == "feature-app" else payload)
         monkeypatch.setattr(upgrade, "EVENT_BASE", payload)
         monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", payload)
+        monkeypatch.setattr(upgrade, "EVENT_MAIN_BASE", payload)
     evidence_constant = (
         "ASSET_V7_EVIDENCE_SHA256"
         if profile == upgrade.ASSET_V7_MODE
@@ -340,6 +341,10 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", base)
     if bad == "event-mcp-after-payload":
         monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", target)
+    if bad == "event-main-before-mcp":
+        monkeypatch.setattr(upgrade, "EVENT_MAIN_BASE", base)
+    if bad == "event-main-after-payload":
+        monkeypatch.setattr(upgrade, "EVENT_MAIN_BASE", target)
     if bad is None:
         result = upgrade.review(tmp_path, target, profile)
         assert name in result and upgrade.MODULE in result
@@ -4403,7 +4408,8 @@ def test_event_profile_freezes_authorized_product_and_current_resident():
     assert upgrade.EVENT_FEATURE == "a398a29429a1c0bdddd34ce50bc336fd6e20f2ee"
     assert upgrade.EVENT_BASE == "60416994f88eeead8a3891dbe9a7dfd617c566fc"
     assert upgrade.EVENT_MCP_BASE == "58ad352eeb925805ff00f46139a073fda15163d3"
-    assert upgrade.EVENT_PAYLOAD == "65a016b3525f0a395ee221bf44f1b208818b03e8"
+    assert upgrade.EVENT_MAIN_BASE == "54610625d4f736cd807fdd50eaf2e1f22a557ae5"
+    assert upgrade.EVENT_PAYLOAD == "e9cb46e1387f07275200c9062994d82873591e42"
     assert upgrade.EVENT_MODE in upgrade.ASSET_MODES
     assert upgrade.EVENT_MODE not in upgrade.TRIAL_MODES
 
@@ -4812,6 +4818,13 @@ def test_event_configuration_and_recovery_reject_falsey_mcp_drift(real_operation
     "bad", ["event-base-before-feature", "event-mcp-before-base", "event-mcp-after-payload"]
 )
 def test_event_combination_ancestry_is_fixed_with_real_git(tmp_path, monkeypatch, bad):
+    test_asset_review_uses_real_git_and_frozen_product(
+        tmp_path, monkeypatch, bad, upgrade.EVENT_MODE
+    )
+
+
+@pytest.mark.parametrize("bad", ["event-main-before-mcp", "event-main-after-payload"])
+def test_event_latest_main_ancestry_is_frozen_with_real_git(tmp_path, monkeypatch, bad):
     test_asset_review_uses_real_git_and_frozen_product(
         tmp_path, monkeypatch, bad, upgrade.EVENT_MODE
     )
