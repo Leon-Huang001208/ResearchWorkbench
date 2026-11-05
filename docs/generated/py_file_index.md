@@ -9654,6 +9654,10 @@ Functions:
 - `_source_status`
 - `_configured_capacity`
   - Explicit private pair limit; older installations retain one extra pair.
+- `_configured_mcp_enabled`
+  - Missing retains legacy environment behavior; persisted values are strict bools.
+- `_read_resident_configuration`
+  - Read only bounded private metadata, without importing a runtime or SDK.
 - `_inspect_capacity`
   - Inspect private configuration without importing or starting a runtime.
 - `_inspect_mcp`
@@ -25243,6 +25247,7 @@ Imports:
 - `collections`
 - `contextlib`
 - `datetime`
+- `errno`
 - `hashlib`
 - `json`
 - `logging`
