@@ -134,6 +134,9 @@ test('clicking the current detail link reopens it without requiring hashchange',
     createProgressWorkspace({ root, route: () => parseRoute(hash), notify() {}, logger() {} });
     events.click({ target: { closest: selector => selector === '[data-progress-target]' ? { hash } : null }, preventDefault: () => { prevented = true; } });
     assert.equal(prevented, true); assert.equal(detail.open, true);
+    prevented = false; detail.open = false;
+    events.click({ ctrlKey: true, button: 0, target: { closest: selector => selector === '[data-progress-target]' ? { hash } : null }, preventDefault: () => { prevented = true; } });
+    assert.equal(prevented, false); assert.equal(detail.open, false);
   } finally { if (previous === undefined) delete globalThis.window; else globalThis.window = previous; }
 });
 test('changelog generation preserves historical bytes and refuses stale or broken sections', async t => {

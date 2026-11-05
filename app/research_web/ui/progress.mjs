@@ -142,7 +142,8 @@ export function createProgressWorkspace({ root, route, notify, logger }) {
   });
   root.addEventListener('click', event => {
     const link = event.target.closest?.('[data-progress-target]');
-    if (route().page === 'progress' && link?.hash === window.location.hash) { event.preventDefault(); focusProgressTarget(root, route()); }
+    const ordinary = !event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && (event.button === undefined || event.button === 0);
+    if (ordinary && route().page === 'progress' && link?.hash === window.location.hash) { event.preventDefault(); focusProgressTarget(root, route()); }
     if (route().page === 'progress' && event.target.closest?.('[data-progress-retry]')) void controller.load({ retry: true });
   });
   globalThis.addEventListener?.('resize', () => {
