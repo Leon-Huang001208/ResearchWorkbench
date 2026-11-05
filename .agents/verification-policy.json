@@ -313,6 +313,15 @@
           "generic"
         ],
         "value": "node --test tests/javascript/research_web_guard.test.mjs"
+      },
+      "research-web-inbound-mcp": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_mcp_facade_store.py tests/research_web/test_mcp_facade_oauth.py tests/research_web/test_mcp_facade_http.py tests/research_web/test_mcp_facade_read_policy.py tests/research_web/test_mcp_facade_tools.py tests/research_web/test_mcp_facade_lifecycle.py tests/research_web/test_multiuser_cli.py --confcutdir=tests/research_web"
       }
     },
     "documentation": {
@@ -443,6 +452,57 @@
     }
   },
   "rules": [
+    {
+      "id": "research-web-inbound-mcp",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "private_inbound_oauth_readonly_boundary",
+      "impact": [
+        "security-boundary",
+        "research-web-runtime"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/datahub/routes.py",
+          "tests/research_web/test_mcp_facade_store.py",
+          "tests/research_web/test_mcp_facade_oauth.py",
+          "tests/research_web/test_mcp_facade_http.py",
+          "tests/research_web/test_mcp_facade_read_policy.py",
+          "tests/research_web/test_mcp_facade_tools.py",
+          "tests/research_web/test_mcp_facade_lifecycle.py"
+        ],
+        "prefixes": [
+          "app/research_web/mcp_facade/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "linux",
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-inbound-mcp",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-docker",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
     {
       "id": "research-web-live-acceptance-budget",
       "risk": "full-delivery",

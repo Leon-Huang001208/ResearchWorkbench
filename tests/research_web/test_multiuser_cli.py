@@ -16,6 +16,104 @@ from app.research_web.multiuser.accounts import AccountStore
 
 PASSWORD = "long private admin password"
 
+_MCP_SWITCHES = [None, "0", "1", "true", " 1", "1\n"]
+_MCP_SWITCH_IDS = ["unset", "zero", "one", "text", "space", "newline"]
+
+
+@pytest.mark.parametrize("switch", _MCP_SWITCHES, ids=_MCP_SWITCH_IDS)
+def test_server_dispatch_doctor_preserves_only_canonical_switch(tmp_path, monkeypatch, switch):
+    from research_workbench_entrypoint import bootstrap, server
+
+    project = Path(__file__).resolve().parents[2]
+    monkeypatch.setattr(bootstrap, "native_python", lambda root: Path(sys.executable))
+    monkeypatch.delenv("RWB_MCP_READONLY_ENABLED", raising=False)
+    if switch is not None:
+        monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", switch)
+    for key in ("RWB_UNAPPROVED_FLAG", "OPENAI_API_KEY", "WIND_API_KEY"):
+        monkeypatch.setenv(key, "synthetic-secret-never-forward")
+    root = tmp_path / "server"
+    accounts = AccountStore(root)
+    accounts.create_user("admin", PASSWORD, "admin")
+    for name in ("history.json", "credentials.json", "resident.pid", "browser-cookie"):
+        (root / name).write_bytes(b"private-synthetic-state")
+    before = snapshot(root)
+    baseline = bootstrap.native_environment(project, minimal=True)
+    original_run = server.subprocess.run
+    results = []
+
+    def run_doctor(command, **kwargs):
+        expected = dict(baseline)
+        if switch in {"0", "1"}:
+            expected["RWB_MCP_READONLY_ENABLED"] = switch
+        # Execute the real dispatcher child with only bytecode creation disabled
+        # by this test; never replace the environment under test.
+        result = original_run(
+            [command[0], "-B", *command[1:]],
+            **kwargs,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        results.append((result, kwargs["env"], expected))
+        return result
+
+    monkeypatch.setattr(server.subprocess, "run", run_doctor)
+    for target in (root, tmp_path / "missing-server"):
+        assert server.dispatch(["doctor", "--root", str(target), "--json"], project) == 0
+    for result, actual_env, expected_env in results:
+        report = json.loads(result.stdout)["mcp_readonly"]
+        assert report["enabled"] is (switch == "1")
+        assert report["status"] == ("configuration_pending" if switch == "1" else "disabled")
+        assert actual_env == expected_env
+        assert not {"RWB_UNAPPROVED_FLAG", "OPENAI_API_KEY", "WIND_API_KEY"}.intersection(
+            actual_env
+        )
+        assert report["connection"] == "not_checked"
+        assert all(value == "NOT_RUN" for value in report["actual_verification"].values())
+        assert "synthetic-secret-never-forward" not in result.stdout + result.stderr
+    assert snapshot(root) == before
+    assert not (tmp_path / "missing-server").exists()
+
+
+@pytest.mark.parametrize("switch", _MCP_SWITCHES, ids=_MCP_SWITCH_IDS)
+def test_server_dispatch_serve_keeps_environment_boundary_without_starting(
+    tmp_path, monkeypatch, switch
+):
+    from research_workbench_entrypoint import bootstrap, server
+
+    project = Path(__file__).resolve().parents[2]
+    monkeypatch.setattr(bootstrap, "native_python", lambda root: Path(sys.executable))
+    monkeypatch.delenv("RWB_MCP_READONLY_ENABLED", raising=False)
+    if switch is not None:
+        monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", switch)
+    for key in ("RWB_UNAPPROVED_FLAG", "OPENAI_API_KEY", "WIND_API_KEY"):
+        monkeypatch.setenv(key, "synthetic-secret-never-forward")
+    expected = bootstrap.native_environment(project, minimal=True)
+    if switch in {"0", "1"}:
+        expected["RWB_MCP_READONLY_ENABLED"] = switch
+    captured = []
+
+    def no_service(command, **kwargs):
+        captured.append((command, kwargs))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(server.subprocess, "run", no_service)
+    assert server.dispatch(["serve", "--root", str(tmp_path / "missing")], project) == 0
+    assert captured[0][0] == [
+        str(Path(sys.executable)),
+        "-m",
+        "app.research_web.multiuser",
+        "serve",
+        "--root",
+        str(tmp_path / "missing"),
+    ]
+    assert captured[0][1]["env"] == expected
+    assert not {"RWB_UNAPPROVED_FLAG", "OPENAI_API_KEY", "WIND_API_KEY"}.intersection(
+        captured[0][1]["env"]
+    )
+    assert captured[0][1]["cwd"] == project
+    assert not (tmp_path / "missing").exists()
+
 
 @pytest.mark.parametrize("value", [0, 5, True, False, "3", None, 2.5])
 def test_resident_capacity_rejects_invalid_or_unbounded_settings(value):
@@ -105,6 +203,73 @@ def snapshot(root):
         )
         for path in root.rglob("*")
     }
+
+
+@pytest.mark.parametrize("switch", [None, "0", "1"])
+def test_doctor_mcp_is_metadata_only_and_preserves_private_state(
+    tmp_path, monkeypatch, output, switch
+):
+    import builtins
+    import importlib.metadata
+
+    root = tmp_path / "server"
+    accounts = AccountStore(root)
+    accounts.create_user("admin", PASSWORD, "admin")
+    output.readouterr()
+    for name in ("browser-cookie", "history.json", "resident.pid", "credentials.json"):
+        (root / name).write_bytes(b"private-state-do-not-read-or-rewrite")
+    before = snapshot(root)
+    if switch is None:
+        monkeypatch.delenv("RWB_MCP_READONLY_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", switch)
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "2.2.0")
+    original_import = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        assert name not in {"mcp", "fastapi", "httpx", "uvicorn"}
+        assert not name.endswith(("authorization_store", "accounts", "service", "server"))
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    report = json.loads(output.readouterr().out)["mcp_readonly"]
+    assert report["enabled"] is (switch == "1")
+    assert report["status"] == ("configuration_pending" if switch == "1" else "disabled")
+    assert report["sdk"] == {"status": "installed", "version": "2.2.0", "matches_lock": True}
+    assert report["authorization"] == "not_checked"
+    assert report["connection"] == "not_checked"
+    assert report["actual_verification"] == {
+        "codex": "NOT_RUN",
+        "dsh": "NOT_RUN",
+        "workbuddy": "NOT_RUN",
+        "private_tls": "NOT_RUN",
+    }
+    assert snapshot(root) == before
+
+
+@pytest.mark.parametrize("failure", ["missing", "corrupt", "mismatch"])
+def test_doctor_mcp_missing_or_unknown_sdk_never_claims_connection(monkeypatch, failure):
+    import importlib.metadata
+
+    def version(name):
+        if failure == "missing":
+            raise importlib.metadata.PackageNotFoundError(name)
+        if failure == "corrupt":
+            raise OSError("private metadata details")
+        return "9.0.0"
+
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    monkeypatch.setattr(importlib.metadata, "version", version)
+    report = cli._inspect_mcp()
+    assert (
+        report["sdk"]["status"]
+        == {"missing": "not_installed", "corrupt": "unknown", "mismatch": "installed"}[failure]
+    )
+    assert report["sdk"]["matches_lock"] is False
+    assert report["status"] == "configuration_pending"
+    assert report["connection"] == "not_checked"
+    assert "private metadata details" not in json.dumps(report)
 
 
 def test_help_does_not_import_runtime_or_create_paths(tmp_path, monkeypatch, output):

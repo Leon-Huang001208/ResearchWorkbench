@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "2026-11-05复核事件固定部署操作员：README已有事件入口及源码、业务、生产评分分层边界，本次无需改动。",
-  "reason": "apply-events仅增加既有Native维护链的固定身份与全账号事件保全、日程关闭证明；README事件说明、安装入口与唯一DSH合同仍适用。新操作员最终CI、Mac安装及真实常驻切换仍需另证，不在README宣称部署成功。"
+  "disposition": "updated",
+  "summary": "合并保留事件研究、默认关闭的只读MCP入口及固定部署边界。",
+  "reason": "README已包含事件时间线、日历研究及只读MCP的独立入口与验收边界；本次增加受控Native部署及持久关闭证明，仍由最终候选三CI、Mac安装、实际切换和页面另证，不把源码说明当作生产已验收。"
 }

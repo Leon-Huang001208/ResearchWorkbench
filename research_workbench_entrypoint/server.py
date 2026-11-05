@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -25,6 +26,11 @@ def dispatch(argv: list[str], project: Path) -> int:
         python = Path(sys.executable)
     environment = native_environment(project, minimal=True)
     environment["RESEARCH_RUN_MODE"] = "web-prod"
+    mcp_switch = os.environ.get("RWB_MCP_READONLY_ENABLED")
+    if mcp_switch in {"0", "1"}:
+        environment["RWB_MCP_READONLY_ENABLED"] = mcp_switch
+    elif mcp_switch is not None:
+        log.warning("multiuser_mcp_switch_invalid")
     try:
         result = subprocess.run(
             [str(python), "-m", "app.research_web.multiuser", *argv],

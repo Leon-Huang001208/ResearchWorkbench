@@ -1,5 +1,7 @@
 # 自选股票 CSV 导入
 
+MCP 首版四项读取工具不包含自选 CSV 上传、预览或确认；外部 OAuth 不继承浏览器写权限。原 owner/draft、显式确认及幂等合同保持；入站严格上下文读取不执行导入。
+
 账户切换时，导入原生FileList、Blob/File、编码字节、逐行选择、预览、确认键与回执均不继承。控件复用同时核owner与draft实例，旧异步读取、preview、metadata、confirm结果不会发布到新草稿；同owner metadata更新、File待完成读取及原选择继续保持。
 
 已有证券观察时，从原创建按钮首建或新建列表也会刷新可选目标。创建API成功后发出账户绑定metadata事件，controller只读取原watchlists；局部复用导入器前同步新data-lists。已有目标仍存在则保持选中，原已授权File与草稿保留；用户改选新目标后必须重新冻结，不能沿用旧预览。不改变sameAsset分支或调用供应商/模型。

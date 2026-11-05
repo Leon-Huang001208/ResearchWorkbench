@@ -11,6 +11,8 @@ DataHub 日线／日历引用，`event_preservation.py`／`event_diagnostics.py`
 `test_event_studies*`、`test_market_scoring*` 及 `research_web_event_lab.test.mjs`。
 详见[集成合同](research-web-event-research.md)，缺少测试环境、真实来源或PIT证据不得报已验收。
 
+入站私网只读 MCP 位于 `app/research_web/mcp_facade/`，与出站 `mcp_runtime/` 分开。`authorization_store.py` 复用账户库，`multiuser/accounts.py` 负责改密/禁用的同事务撤权，OAuth 与固定后端读取由 facade 分层适配并接原网关。四项工具只读操作员批准的冻结材料；不得调用来源抓取、会话创建或通用代理。接口和失败合同见[入站 MCP](research-web-mcp-facade.md)，定点回归为 `test_mcp_facade_*.py`；Doctor、安装与真机状态不能从静态目录或有令牌推断。
+
 2026-10-31 存储留存：本机 `scripts/test_artifact_retention.py run` 亲自执行一批最多20个固定用例，记录真实退出码、JUnit/stdout/stderr与批次nonce，再做同inode隔离回收和中断重入；低级create/admit/retire供受审执行器使用。`research_workbench_entrypoint/iteration_resources.py` 的 `selected_evidence` 仅允许同批退休回执列出的成功输出不归档，`record_task/closeout` 对新任务固定完整选择清单和128MiB保留门，旧ledger仍走legacy-full。回归分别在 `tests/research_web/test_test_artifact_retention.py` 和 `test_iteration_resources.py`，工作流显式登记前者。完整格式、证据与失败边界见[留存规则](research-web-storage-retention.md)。
 
 同日 `scripts/git_safety.mjs` prepared-amend 字段兼容只允许受管控制器新增的 `mergeSourceCommit` 等于旧feature身份，收养时原子推进为新feature身份；正反例和旧回执恢复仍在既有 `tests/javascript/git_safety_amend_prepared.test.mjs`。远端主线在首次发布前推进时，原 `prepared` 回执可经 `refreshPublishedBase` 精确收养已提交的祖先候选，刷新后的merge source绑定见 `tests/javascript/git_safety.test.mjs`；两路径均不改变分支保护、备份或发布门。
