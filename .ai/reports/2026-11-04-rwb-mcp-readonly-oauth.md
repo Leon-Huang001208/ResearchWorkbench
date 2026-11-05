@@ -95,3 +95,13 @@ Ruff/isort、1源码文件mypy、Python索引检查通过；Black初次报告后
 新增既有Actions契约测试实际执行workflow中的原提取heredoc，使用自身新建的临时目录和标准库Python，仅复制锁文本；验证五个包的完整块与原Web锁逐字一致、哈希存在、原三个包保留，且pip仍要求哈希／无依赖解析、SDK两包均有安装后版本断言。RED实际失败3!=5；修补后完整Actions套件通过。测试不运行pip，不伪造已安装版本；临时夹具由该测试正常teardown删除，未启用pytest根或资源扫描豁免。
 
 使用只读已有local-models-fusion环境执行workflow中同一安装metadata断言：mcp2.2.0、mcp-types2.2.0通过，已有reportlab4.5.1/openpyxl3.1.5/et-xmlfile2.0.0确认；未执行本机安装或升级。这只能证明提取和已有环境检查，修后LinuxCI实际安装仍须新候选日志证实。实际命令 `RWB_TEST_PYTHON=<existing-local-models-fusion-python> node --test tests/javascript/actions_quota_governance.test.mjs` 为20PASS/68.801ms（ci-repair2-actions-green.log），本机metadata原样执行记录ci-repair2-local-metadata.json；`node scripts/check_documentation_governance.mjs --project .` 及 `node scripts/check_research_architecture.mjs --project . --base 87b6cd99653d9f8160dc7eb0b3bea8d5d9ea93db` 均退出0／零违规，`git diff --check`通过。仅四个拥有文件提交到integration，feature777与常驻不变；此本机验证不替代修后候选CI。
+
+## PR268 旧登录VM夹具修补3（2026-11-05）
+
+修补基线为原integration `9a3ce55bf32de99d3fab57ce5a8f003e9428f679`。父任务提供的实际Checks run41944970627：Python全部分片通过，SDK2.2安装校验通过；JS汇总1305PASS／3FAIL／4SKIP，失败均在旧 `research_web_login.test.mjs` 的pending、认证失败重试、网络失败三项。产品accounts.mjs合法使用浏览器URLSearchParams，新的MCP登录VM已提供该API，旧VM没有；本机先运行原旧套件，真实1PASS／3FAIL，后两项收到URLSearchParams未定义而非原预期错误，pending项未发出请求。原RED保存在ci-js-harness-red.stdout/stderr，不把它标成产品密码或网络逻辑故障。
+
+仅在该旧VM传入Node已有的原生URLSearchParams，并给无query的/auth提供location.search=''。严格deepEqual仍检查整个用户名／密码请求体，追加已存在产品合同的return_to:null；未改成部分匹配，未删断言。pending状态、重复提交、清密码、失败重试、错误文本、秘密不入日志和旧/account跳转断言全部保留。没有产品源码变更、广泛polyfill、依赖或Node/CI runner改动；服务器回跳白名单仍由原HTTP合同校验。
+
+实际GREEN命令：`node --test tests/javascript/research_web_login.test.mjs tests/javascript/research_web_mcp_login.test.mjs tests/javascript/research_web_account_menu.test.mjs tests/javascript/research_web_multiuser_session.test.mjs`。完整四文件24PASS／0FAIL／0SKIP，69.395667ms，日志ci-js-harness-green.stdout/stderr。本机实际默认Node为v25.9.0；不冒充固定CI Node验证。没有Python修改或pytest临时根，本轮无需重复Python分片。本机组合通过不替代修后候选全套CI；原其他门通过仍只归旧候选，新head交由父任务独评及publish --repair取得新证据，feature777和常驻服务保持不变。
+
+按父任务要求另用既有 `/Users/leon/.research-workbench/toolchain/node-v24.19.0-darwin-arm64/bin/node --version` 确认v24.19.0；以该绝对解释器路径执行上面相同的 `--test` 四文件完整组合，24PASS／0FAIL／0SKIP，105.226375ms。ci-js-harness-node24-version.txt与ci-js-harness-node24-green.stdout/stderr保留实际结果；没有安装、配置或runner变更。固定Node本地结果仍是提交前验证，不声称全CI JavaScript套件已重跑。

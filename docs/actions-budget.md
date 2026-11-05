@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-11-05 PR268 Checks run41944970627 已通过全部Python分片并核实锁定SDK2.2；JavaScript阶段1305PASS、3FAIL、4SKIP，三个失败均来自旧登录VM夹具未提供浏览器URLSearchParams。修补3仅补该夹具的原生URL API和空location.search，并保持严格请求体断言（无回跳参数时return_to:null）；不改产品、依赖、job/runner/timeout或环境边界。旧登录、MCP登录、账号菜单与会话包装完整组合本机24PASS；默认Node25.9.0结果69.396ms保留，既有固定Node24.19.0补跑24PASS／105.226ms，未安装或更改Node配置。新候选仍须重新取得原全部CI证据。
+
 2026-11-05 PR268 第二次 Checks run41938174449/head ddb24917 在开发依赖安装中实际取得 mcp/mcp-types 2.3.0，与已锁定 Web 2.2.0 的路由合同不符。CI修补2沿原精选Web锁步骤加入这两个已声明包的完整哈希块，继续 `--require-hashes --no-deps`，并在同一步校验已安装版本；保留原 reportlab/openpyxl/et-xmlfile、开发依赖声明和SDK合同。不增加job、runner、时限或新依赖，不安装本机包；修后新候选CI须重新取证，旧候选成功的Mac/Constraints不移记为新候选通过。
 
 2026-11-05 PR268 首次 Mac Bootstrap run41934434968 的安装与前置29项Node／7项unittest通过（另1项可选clone为NOT_RUN），后续验证步骤出现 AssertionError。只读复现确定公开 server dispatcher 的最小环境丢失显式 MCP 开关，使新增 Doctor 的 enabled 断言失败；SDK2.2及CJPY0.5.2安装已有该run日志证据。修补限定该dispatcher规范0/1传递，保留原Doctor断言、全部job／runner／timeout；不重跑旧候选或放宽全局环境白名单。修后新候选仍须受管发布并取得自身CI证据，原失败保留。
