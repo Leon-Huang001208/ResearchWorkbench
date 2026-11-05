@@ -1,5 +1,11 @@
 # Research Web 能力与平台证据
 
+## 事件固定部署操作员的验收范围（2026-11-05）
+
+本次为 macOS Mac mini 的 Web 功能部署准备，`apply-events` 仅作用于既有 Native 常驻实例。固定旧版 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 的空闲检查不能认证新操作员或新产品已上线；最终候选仍需原三项 CI、同候选 Mac bootstrap，以及现场切换、认证入口和全账号保全证据。采集日程保持关闭，模型调用与生产评分准入分别验收。
+
+Docker 产品、Windows／Linux 原生设备与对应 CI 本轮未执行，保持 `NOT_RUN`；通用 Ubuntu 仓库门不作为 Linux 产品验收，其他平台待验不冒充 Mac 任务失败。固定版本和恢复范围见[事件部署合同](research-web-gateway-upgrade.md)。
+
 ## 事件与日历研究的证据归属（2026-11-04）
 
 本轮为Mac上的Web功能候选：时间线、确定性研究和评分接入沿原Host与账户隔离，未新增桌面打包目标。源码、隔离测试、真实公开来源、浏览器、Native集成与GitHub Mac干净安装各有独立证据，均不能替代常驻部署或正式因子准入。

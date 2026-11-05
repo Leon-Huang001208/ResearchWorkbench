@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增事件时间线、日历效应与六维研究评分入口及验收边界。",
-  "reason": "增加个人事件与固定研究/代理模拟能力，README补充新入口和数据/PIT/生产状态边界；唯一DSH、公开安装器和各平台验收门不变。"
+  "disposition": "unchanged",
+  "summary": "2026-11-05复核事件固定部署操作员：README已有事件入口及源码、业务、生产评分分层边界，本次无需改动。",
+  "reason": "apply-events仅增加既有Native维护链的固定身份与全账号事件保全、日程关闭证明；README事件说明、安装入口与唯一DSH合同仍适用。新操作员最终CI、Mac安装及真实常驻切换仍需另证，不在README宣称部署成功。"
 }
