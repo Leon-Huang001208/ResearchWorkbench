@@ -47,3 +47,9 @@
 首轮候选 `af68d83cda9970fa51f85f188c612f1cada2b5af` 的 Mac Bootstrap run `41949651395` 在 `web_health_timeout:web_static_asset_failed` 失败。真实 app.mjs 为262703字节，超过原256KiB（262144）读取上限；基线为261755字节。失败日志与制品保留，不自动rerun。
 
 将能力页纯渲染移入既有 capability-workspace，将MCP安装状态纯投影移入既有 mcp-marketplace；app.mjs降至258875字节，保留3269字节余量。原静态标记与 service_manager 源码、读取上限均不变。新增真实产品字节、恰好上限和超限1字节的离线边界测试，沿原 _text_request → _web_ready 验证有界读取和关闭；近处Python17项、完整JS172项通过，独立Python/JS评审批准此修复。新模块导入的run-5隔离浏览器已完整通过，10张截图，零模型调用、零页面异常，fixture及浏览器已退出；修复候选CI仍待实际回执。
+
+## 第二轮 CI 的邻接断言补齐
+
+修复候选 `52ceb3783229ad2bb127529146411931b1978dab` 的 Mac Bootstrap `41951936091` 和 Project Constraints `41951936086` 均成功；Mac制品app.mjs的258875字节及SHA-256与候选一致。Checks `41951936147` 的Python合同7929项无失败/错误、其中73项条件跳过，unit101项全部通过；随后Web JS1312项有3项旧预期失败，分别为插件data顶类、独立能力/方法文案、未加入定时任务的主导航顺序。
+
+仅更新3个邻接JS测试，保留并加强旧data上下文、权限、不发送、统一技能及定时/Claw日程分别激活断言；未改产品源码、跳过或CI门。完整本机Web JS再次执行：1312项，1308通过、4项原有可选固定DSH检查跳过、零失败。原CI失败与本机红绿日志均保留。修补后的最终候选仍须重新绑定同候选原三项CI。
