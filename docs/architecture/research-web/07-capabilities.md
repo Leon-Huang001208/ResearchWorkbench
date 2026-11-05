@@ -65,7 +65,7 @@ Native/Docker 共用能力目录、不可变版本、工具风险等级与 Autom
 | `seeds.py` | 三十个研究 Skill、四个步骤式 Workflow、十个 Method 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
-| `ui/capability-workspace.mjs` | 三分类、关联工具详情、连接摘要和旧链接兼容；渲染快览 dialog | 创建第二份目录、推断热门排序或执行能力 |
+| `ui/capability-workspace.mjs` | 三分类页面及快览渲染、关联工具详情、连接摘要和旧链接兼容；从 app.mjs 分离纯页面渲染以保持原静态健康读取上限 | 创建第二份目录、推断热门排序或执行能力 |
 | `ui/mcp-marketplace.mjs` | 在连接器的 `view=market` 浏览只读 Registry，管理原安装、授权与生命周期；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
 | `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
 | `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、缺少 pip 时的受限 uv 离线回退、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动安装 uv、自动授权、无人值守高风险或 Registry 发布 |

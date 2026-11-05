@@ -41,3 +41,9 @@
 <!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "在原Research Web Checks的两段pytest清单追加离线兼容测试，不新增job、runner、安装步骤、平台dispatch、工作流依赖或降低原门，现有验证图节点和连线准确。", "diagrams": []} -->
 
 基线导出原 tar 返回元数据恢复错误，未隐藏失败；随后独立核对全部1760个Python源文件与基线Git blob一致才运行两项对照。对照只用于界定既有失败，不作为恢复归档成功认证。
+
+## 首轮 CI 失败与受限修复
+
+首轮候选 `af68d83cda9970fa51f85f188c612f1cada2b5af` 的 Mac Bootstrap run `41949651395` 在 `web_health_timeout:web_static_asset_failed` 失败。真实 app.mjs 为262703字节，超过原256KiB（262144）读取上限；基线为261755字节。失败日志与制品保留，不自动rerun。
+
+将能力页纯渲染移入既有 capability-workspace，将MCP安装状态纯投影移入既有 mcp-marketplace；app.mjs降至258875字节，保留3269字节余量。原静态标记与 service_manager 源码、读取上限均不变。新增真实产品字节、恰好上限和超限1字节的离线边界测试，沿原 _text_request → _web_ready 验证有界读取和关闭；近处Python17项、完整JS172项通过，独立Python/JS评审批准此修复。新模块导入的run-5隔离浏览器已完整通过，10张截图，零模型调用、零页面异常，fixture及浏览器已退出；修复候选CI仍待实际回执。

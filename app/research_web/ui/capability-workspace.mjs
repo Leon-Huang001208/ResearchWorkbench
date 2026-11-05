@@ -1,9 +1,10 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { icon } from './icons.mjs';
+import { renderCapabilityEditor, renderCreationForm, renderCopyForm } from './capability-editor.mjs';
 import { empty } from './views.mjs';
-import { capabilityStatus, reportWorkflowEligibility } from './capabilities.mjs';
-import { renderDataCatalog } from './data-catalog.mjs';
-import { renderMCPMarketplace } from './mcp-marketplace.mjs';
+import { capabilityStatus, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail } from './capabilities.mjs';
+import { renderDataCatalog, renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
+import { renderMCPMarketplace, renderMCPServerDialog } from './mcp-marketplace.mjs';
 
 const list = (value) => Array.isArray(value) ? value : [];
 const views = ['library', 'mine', 'plans', 'connections', 'market'];
@@ -256,4 +257,27 @@ export function renderCapabilityPreviewDialog(state = {}) {
   const inputText = item.inputs.map(input => `${input.label || input.name || '参数'}（${input.type || '参数'}${input.required ? ' · 必填' : ''}）`);
   const linked = item.kind === 'method' ? `<div><dt>关联业务能力</dt><dd>${item.linkedCapabilities.length ? e(item.linkedCapabilities.map(value => `${value.name}（${value.source === 'required' ? '必需' : '推荐'}）`).join('、')) : '尚未进入默认策略，可手动选择'}</dd></div>` : '';
   return `<div class="capability-dialog-backdrop" data-capability-dialog-backdrop><section class="capability-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="capability-preview-title" aria-describedby="capability-preview-description"><header><span class="skill-icon">${icon(entryIcon(item))}</span><div><span class="eyebrow">${e(kindLabels[item.kind])} · ${e(item.source)}</span><h2 id="capability-preview-title">${e(item.name)}</h2><span class="badge ${item.available ? 'live' : 'danger'}">${e(item.statusLabel)}</span></div><button type="button" class="icon-button" data-cap-close aria-label="关闭能力快览">×</button></header><p id="capability-preview-description" class="capability-preview-description">${e(item.description || '尚未提供简介')}</p><dl class="capability-preview-grid"><div><dt>适用场景</dt><dd>${join(item.scenarios)}</dd></div><div><dt>输入</dt><dd>${join(inputText)}</dd></div><div><dt>输出</dt><dd>${join(item.formats, item.kind === 'data' ? '结构化数据' : '无需文件')}</dd></div><div><dt>所需工具</dt><dd>${item.tools.length ? item.tools.map(id => `<button type="button" class="button small" data-tool-detail="${e(id)}">${e(list(state.tools).find(tool => tool.id === id)?.name || id)}</button>`).join('') : '无显式工具要求'}</dd></div><div><dt>依赖</dt><dd>${join(item.dependencies, '无额外依赖')}</dd></div>${linked}<div><dt>状态说明</dt><dd>${e(item.reason || '可加入草稿；实际调用仍按会话权限与运行时状态核验')}</dd></div></dl><footer><button type="button" class="button" data-cap-close>取消</button>${['skill', 'workflow', 'method', 'tool', 'data'].includes(item.kind) ? `<button type="button" class="button" data-cap-manage="${e(item.id)}">进入管理</button>` : ''}<button type="button" class="button primary" ${useAttribute(item)} ${state.busy || !item.available ? 'disabled' : ''}>立即使用</button></footer></section></div>`;
+}
+
+export function renderCapabilityPage({ cap, catalog, messages = '', conversationBusy = false, workspaceBusy = false, running = false, automationFormOpen = false, mcpMarketplace, currentSessionId = null }) {
+  if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy, announcement: cap.stepAnnouncement || '' });
+  if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, conversationBusy);
+  if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
+  if (cap.form === 'manage' && cap.dataDetail) {
+    const tools = (cap.dataDetail.bindings || []).map(binding => binding.capability?.tool_id || catalog.dataCatalog.capabilities?.find(item => item.id === binding.capability?.id)?.tool_id).filter(Boolean);
+    const provided = cap.dataDetailKind === 'source' && tools.length ? `<details><summary>提供的工具</summary>${[...new Set(tools)].map(id => `<button type="button" class="button small" data-tool-detail="${e(id)}">${e(id)}</button>`).join('')}</details>` : '';
+    return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) + provided : renderDataCapabilityDetail(cap.dataDetail));
+  }
+  if (cap.form === 'manage' && cap.tool) return messages + renderToolDetail(cap.tool);
+  if (cap.form === 'manage' && cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: running });
+  const workspace = renderCapabilityWorkspace({
+    capabilities: catalog.capabilities.filter(item => !item.metadata?.report_workflow), tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
+    automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen,
+    dataCatalog: catalog.dataCatalog, connections: catalog.connections, mcpMarketplace: mcpMarketplace, view: cap.view, kind: cap.kindFilter, context: cap.context,
+    source: cap.source, category: cap.category, status: cap.status, query: cap.query,
+    dataMarket: cap.dataMarket, dataStatus: cap.dataStatus, dataAuth: cap.dataAuth, probe: cap.probe,
+    busy: cap.busy || workspaceBusy,
+    error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
+  });
+  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, tools: catalog.tools, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplace.detail, { ...mcpMarketplace.installation, runtimeAvailable: mcpMarketplace.runtimeAvailable, currentSessionId: currentSessionId });
 }

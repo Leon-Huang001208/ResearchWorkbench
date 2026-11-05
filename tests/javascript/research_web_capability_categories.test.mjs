@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createCapabilityController } from '../../app/research_web/ui/capability-controller.mjs';
 import { renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
 import { parseRoute, createController } from '../../app/research_web/ui/core.mjs';
@@ -77,4 +78,12 @@ test('local connector search uses the connection-center display label', () => {
   const html = renderCapabilityWorkspace({ kind: 'connector', query: 'Excel', connections: { sources: [{ id: 'office_local', label: 'Excel 与本机工作流', group: 'local' }] } });
   assert.match(html, /<strong>Excel 与本机工作流<\/strong>/);
   assert.doesNotMatch(html, /没有匹配的本机集成/);
+});
+
+test('product capability modules leave room below the bounded web health response limit', async () => {
+  const maxBytes = 256 * 1024;
+  for (const name of ['app.mjs', 'capability-workspace.mjs', 'mcp-marketplace.mjs']) {
+    const bytes = await readFile(new URL(`../../app/research_web/ui/${name}`, import.meta.url));
+    assert.ok(bytes.length <= maxBytes - 2048, `${name}: ${bytes.length} bytes must leave 2 KiB below the health response limit`);
+  }
 });

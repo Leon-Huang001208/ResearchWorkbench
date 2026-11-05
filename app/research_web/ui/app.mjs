@@ -22,12 +22,11 @@ import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, 
 import { focusSidebarControl, renderGlobalResults, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
-import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
-import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
+import { capabilityTabKey, reportWorkflowEligibility, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { capabilityWorkspaceKindKey, renderCapabilityPage } from './capability-workspace.mjs';
 import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
-import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
-import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
-import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
+import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, emptyMCPInstallation, mcpInstallationFor, mcpInstallationState } from './mcp-marketplace.mjs';
+import { readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation, updateAssetSummary, updateAssetTopic } from './asset-workspace.mjs';
 import { assetHref, assetTopicKey, selectAssetObservation } from './asset-navigation.mjs';
@@ -172,7 +171,7 @@ const conversationScrollPositions = new Map();
 let sessionMenu = null; let sessionActionBusy = false; let sessionActionError = '';
 let capabilityDialogReturnSelector = '';
 let mcpCatalogGeneration = 0; let mcpDetailGeneration = 0; let mcpPublisherGeneration = 0; let mcpInstallGeneration = 0; let mcpDetailRequestIdentity = ''; let pendingMCPMarketTabFocus = '';
-const emptyMCPInstallation = () => ({ target: '', preview: null, confirmationToken: '', installationId: '', installStatus: 'not_installed', probeStatus: 'not_run', enableStatus: 'disabled', authorizationStatus: 'not_authorized', capabilities: null, record: null, busy: '', error: '' });
+
 let mcpMarketplaceState = { registries: [], installations: [], approvals: [], approvalBusy: '', runtimeAvailable: null, runtimeError: '', selectedRegistryId: '', query: '', page: null, detail: null, returnIdentity: null, loading: false, syncing: false, error: '', installation: emptyMCPInstallation(), publisher: { source: '', result: null, resultSource: '', error: '', busy: false } };
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
@@ -635,28 +634,12 @@ function operationsPage() {
 }
 
 function capabilityPage() {
-  const cap = capabilityState;
-  const messages = notice(cap.error) + notice(cap.success, 'success');
-  if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy, announcement: cap.stepAnnouncement || '' });
-  if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, state.busy);
-  if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
-  if (cap.form === 'manage' && cap.dataDetail) {
-    const tools = (cap.dataDetail.bindings || []).map(binding => binding.capability?.tool_id || catalog.dataCatalog.capabilities?.find(item => item.id === binding.capability?.id)?.tool_id).filter(Boolean);
-    const provided = cap.dataDetailKind === 'source' && tools.length ? `<details><summary>提供的工具</summary>${[...new Set(tools)].map(id => `<button type="button" class="button small" data-tool-detail="${e(id)}">${e(id)}</button>`).join('')}</details>` : '';
-    return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) + provided : renderDataCapabilityDetail(cap.dataDetail));
-  }
-  if (cap.form === 'manage' && cap.tool) return messages + renderToolDetail(cap.tool);
-  if (cap.form === 'manage' && cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
-  const workspace = renderCapabilityWorkspace({
-    capabilities: catalog.capabilities.filter(item => !item.metadata?.report_workflow), tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
-    automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen,
-    dataCatalog: catalog.dataCatalog, connections: catalog.connections, mcpMarketplace: mcpMarketplaceState, view: cap.view, kind: cap.kindFilter, context: cap.context,
-    source: cap.source, category: cap.category, status: cap.status, query: cap.query,
-    dataMarket: cap.dataMarket, dataStatus: cap.dataStatus, dataAuth: cap.dataAuth, probe: cap.probe,
-    busy: cap.busy || reportWorkflowBusy || automationBusy,
-    error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
+  return renderCapabilityPage({
+    cap: capabilityState, catalog, messages: notice(capabilityState.error) + notice(capabilityState.success, 'success'),
+    conversationBusy: state.busy, workspaceBusy: reportWorkflowBusy || automationBusy,
+    running: catalog.sessions.some(session => isRunning(session.status)), automationFormOpen,
+    mcpMarketplace: mcpMarketplaceState, currentSessionId: researchDraftRoute.sessionId,
   });
-  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, tools: catalog.tools, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
 
 function sidebar() {
@@ -1099,29 +1082,6 @@ async function verifyFrameworkQuestion(question) {
   } finally { if (botOwner === frameworkBot) { frameworkBot.busy = false; updateFrameworkBotSlot(); } }
 }
 
-function mcpInstallationFor(identity) {
-  return mcpMarketplaceState.installations.find((item) => {
-    const plan = item?.plan || {};
-    return plan.registry_id === identity.registryId
-      && plan.server_name === identity.serverName
-      && plan.server_version === identity.version;
-  }) || null;
-}
-
-function mcpInstallationState(record) {
-  if (!record?.id) return emptyMCPInstallation();
-  const runtimeStatus = String(record.runtime_status || 'installed');
-  const probeStatus = ['ready', 'enabled', 'disabled'].includes(runtimeStatus) ? 'ready'
-    : runtimeStatus === 'health_failed' ? 'failed' : 'not_run';
-  return {
-    ...emptyMCPInstallation(),
-    installationId: record.id,
-    installStatus: 'installed',
-    probeStatus,
-    enableStatus: record.active === true || runtimeStatus === 'enabled' ? 'enabled' : 'disabled',
-    record: structuredClone(record),
-  };
-}
 
 function replaceMCPInstallation(record) {
   if (!record?.id) return;
@@ -1221,7 +1181,7 @@ async function openMCPServerDetail(identity) {
     if (!current()) return;
     mcpMarketplaceState.detail = detail;
     mcpMarketplaceState.returnIdentity = requested;
-    const existing = mcpInstallationFor(requested);
+    const existing = mcpInstallationFor(requested, mcpMarketplaceState.installations);
     if (existing) {
       mcpMarketplaceState.installation = mcpInstallationState(existing);
       if (mcpMarketplaceState.installation.probeStatus === 'ready') {
