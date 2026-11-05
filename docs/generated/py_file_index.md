@@ -24450,6 +24450,41 @@ Functions:
   - Create a Word document whose chart placeholders are native Office charts.
 
 
+## `scripts/research_web_test_env.py`
+
+Module docstring:
+> Prepare a project-shared test environment without touching resident environments.
+
+Imports:
+- `__future__`
+- `argparse`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `platform`
+- `re`
+- `subprocess`
+- `sys`
+- `time`
+- `uuid`
+
+Classes:
+- `EnvError`
+  - A safe, stable error code; child output remains in private logs.
+
+Functions:
+- `fingerprint`
+- `interpreter`
+- `health`
+- `private_write`
+- `run_logged`
+- `record`
+- `inspect`
+- `prepare`
+- `main`
+
+
 ## `scripts/reset_demo.py`
 
 Module docstring:

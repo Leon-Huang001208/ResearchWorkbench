@@ -7,15 +7,13 @@ import { renderMCPMarketplace } from './mcp-marketplace.mjs';
 
 const list = (value) => Array.isArray(value) ? value : [];
 const views = ['library', 'mine', 'plans', 'connections', 'market'];
-const kinds = ['skill', 'method', 'tool', 'workflow', 'data', 'plugin'];
-const kindLabels = { skill: 'Skill', method: '方法', tool: 'Tool', workflow: 'Workflow', data: '数据', plugin: '插件' };
+const kinds = ['skill', 'connector', 'plugin'];
+const kindLabels = { skill: '技能', connector: '连接器', plugin: '插件', method: '研究方法', workflow: '步骤模板', tool: '工具', data: '数据能力' };
+const primaryKind = kind => ['method', 'workflow'].includes(kind) ? 'skill' : ['tool', 'data'].includes(kind) ? 'connector' : kinds.includes(kind) ? kind : 'skill';
 const subviews = {
-  skill: [['library', '能力库'], ['mine', '我的 Skill']],
-  method: [['library', '方法库']],
-  tool: [['library', '工具目录'], ['market', 'MCP 市场'], ['connections', '连接状态']],
-  workflow: [['library', '能力库'], ['mine', '我的 Workflow'], ['plans', '运行计划']],
-  data: [['library', '数据能力'], ['connections', '数据源与连接']],
-  plugin: [['library', '插件管理']],
+  skill: [['library', '全部技能'], ['mine', '我的技能']],
+  connector: [['library', '全部连接器'], ['market', '添加 MCP'], ['connections', '连接状态']],
+  plugin: [],
 };
 const statusLabels = {
   enabled: '已启用', disabled: '已停用', draft: '草稿', invalid: '检查未通过', blocked_dependencies: '依赖不足',
@@ -28,16 +26,17 @@ const attrKey = (kind, id) => `${kind}:${id}`;
 
 export function capabilityWorkspaceKindKey(key, current = 'skill') {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return { handled: false };
-  const index = Math.max(0, kinds.indexOf(current));
+  const index = Math.max(0, kinds.indexOf(primaryKind(current)));
   const next = key === 'Home' ? 0 : key === 'End' ? kinds.length - 1 : (index + (key === 'ArrowRight' ? 1 : -1) + kinds.length) % kinds.length;
   return { handled: true, kind: kinds[next] };
 }
 
 export function capabilityWorkspaceHash(kind = 'skill', view = 'library') {
-  const safeKind = kinds.includes(kind) ? kind : 'skill';
-  const allowedViews = subviews[safeKind].map(([value]) => value);
+  const safeKind = primaryKind(kind);
+  const allowedViews = [...subviews[safeKind].map(([value]) => value), ...(safeKind === 'skill' ? ['plans'] : [])];
   const safeView = views.includes(view) && allowedViews.includes(view) ? view : 'library';
   const params = new URLSearchParams({ kind: safeKind });
+  if (kind !== safeKind && ['method', 'workflow', 'tool', 'data'].includes(kind)) params.set('kind', kind);
   if (safeView !== 'library') params.set('view', safeView);
   return `#/skills?${params.toString()}`;
 }
@@ -48,7 +47,7 @@ function capabilityEntry(item) {
   return {
     raw: item, id: item.id, kind: item.kind, name: item.name, description: item.description || '', category: item.category || '未分类',
     source: item.builtin ? '内置' : '我的', sourceKey: item.builtin ? 'builtin' : 'mine', status: item.status || (available ? 'enabled' : 'disabled'),
-    statusLabel: capabilityStatus(item.status), available, version: item.version || null, formats: list(item.metadata?.default_formats),
+    statusLabel: capabilityStatus(item.status || (available ? 'enabled' : 'disabled')), available, version: item.version || null, formats: list(item.metadata?.default_formats),
     scenarios: list(item.metadata?.scenarios), inputs: list(item.metadata?.inputs), tools: list(item.metadata?.required_tools),
     dependencies: list(item.metadata?.dependencies), linkedCapabilities: list(item.linked_capabilities), reason: eligibility.reason || (!item.version ? '尚未发布可调用版本' : item.enabled ? '' : '能力已停用'),
   };
@@ -94,10 +93,10 @@ export function filterCapabilityWorkspaceEntries(entries = [], { view = 'library
   const q = normalizeText(query);
   return list(entries).filter((item) => {
     if (view === 'mine' && (item.sourceKey !== 'mine' || !['skill', 'workflow'].includes(item.kind))) return false;
-    return item.kind === kind
+    return (primaryKind(kind) === 'skill' ? ['skill', 'workflow', 'method'].includes(item.kind) : item.kind === kind)
       && (source === 'all' || item.sourceKey === source)
       && (!category || item.category === category)
-      && (status === 'all' || (status === 'available' ? item.available : !item.available))
+      && (status === 'all' || (status === 'published' ? Boolean(item.version) : status === 'available' ? item.available : !item.available))
       && (!q || normalizeText(`${item.name} ${item.description} ${item.category} ${item.source} ${item.id}`).includes(q));
   });
 }
@@ -107,7 +106,7 @@ function workspaceKindNav(kind) {
 }
 
 function workspaceSubviewNav(kind, view) {
-  const roving = kind === 'tool';
+  const roving = kind === 'connector';
   return `<nav class="capability-workspace-subnav" ${roving ? 'role="tablist"' : ''} aria-label="${kindLabels[kind]} 视图">${subviews[kind].map(([value, label]) => `<a ${roving ? `id="capability-tool-tab-${value}"` : ''} href="${capabilityWorkspaceHash(kind, value)}" aria-current="${view === value ? 'page' : 'false'}" ${roving ? `role="tab" tabindex="${view === value ? '0' : '-1'}" aria-selected="${view === value}" data-mcp-market-tab="${value}"` : ''}>${label}</a>`).join('')}</nav>`;
 }
 
@@ -117,7 +116,7 @@ function filters(entries, state) {
     return `<div class="capability-workspace-filters tool-filters"><label class="search-box"><span aria-hidden="true">⌕</span><input id="cap-search" data-cap-query type="search" aria-label="搜索 Tool" value="${e(state.query)}" placeholder="搜索名称、简介或技术 ID"></label></div>`;
   }
   const source = ['skill', 'workflow'].includes(state.kind) && state.view === 'library' ? `<label><span>来源</span><select data-cap-source><option value="all" ${state.source === 'all' ? 'selected' : ''}>全部来源</option><option value="builtin" ${state.source === 'builtin' ? 'selected' : ''}>内置</option><option value="mine" ${state.source === 'mine' ? 'selected' : ''}>我的</option></select></label>` : '';
-  return `<div class="capability-workspace-filters"><label class="search-box"><span aria-hidden="true">⌕</span><input id="cap-search" data-cap-query type="search" aria-label="搜索 ${kindLabels[state.kind]}" value="${e(state.query)}" placeholder="搜索名称、简介或技术 ID"></label>${source}<label><span>分类</span><select data-cap-category><option value="">全部分类</option>${categories.map(value => `<option value="${e(value)}" ${state.category === value ? 'selected' : ''}>${e(value)}</option>`).join('')}</select></label><label><span>状态</span><select data-cap-status><option value="all" ${state.status === 'all' ? 'selected' : ''}>全部状态</option><option value="available" ${state.status === 'available' ? 'selected' : ''}>可调用</option><option value="unavailable" ${state.status === 'unavailable' ? 'selected' : ''}>不可调用</option></select></label></div>`;
+  return `<div class="capability-workspace-filters"><label class="search-box"><span aria-hidden="true">⌕</span><input id="cap-search" data-cap-query type="search" aria-label="搜索 ${kindLabels[state.kind]}" value="${e(state.query)}" placeholder="搜索名称、简介或技术 ID"></label>${source}<label><span>分类</span><select data-cap-category><option value="">全部分类</option>${categories.map(value => `<option value="${e(value)}" ${state.category === value ? 'selected' : ''}>${e(value)}</option>`).join('')}</select></label><label><span>状态</span><select data-cap-status><option value="all" ${state.status === 'all' ? 'selected' : ''}>全部状态</option><option value="published" ${state.status === 'published' ? 'selected' : ''}>已有发布版本</option><option value="available" ${state.status === 'available' ? 'selected' : ''}>可加入草稿</option><option value="unavailable" ${state.status === 'unavailable' ? 'selected' : ''}>暂不可选</option></select></label></div>`;
 }
 
 function detailAttribute(item) {
@@ -150,9 +149,9 @@ function catalogView(entries, state, busy, error) {
   const typeName = kindLabels[state.kind];
   const heading = owned
     ? [`我的 ${typeName}`, `集中管理你创建、复制和导入的 ${typeName}。`]
-    : [state.kind === 'tool' ? '工具目录' : state.kind === 'method' ? '方法能力库' : `${typeName} 能力库`, state.kind === 'tool' ? '只展示本机真实 Tool 声明、调用状态和授权原因，不与其他能力类型混排。' : `只展示本机已审查的 ${typeName}，不会与其他能力类型混排。`];
+    : [state.kind === 'tool' ? '工具目录' : state.kind === 'method' ? '方法能力库' : `${typeName} 能力库`, state.kind === 'tool' ? '只展示本机真实 Tool 声明、调用状态和授权原因，不与其他能力类型混排。' : '统一浏览技能、步骤模板与研究方法；选择后放入研究草稿。'];
   const actions = ['skill', 'workflow'].includes(state.kind) ? `<div class="button-row capability-create-actions"><button type="button" class="button primary" data-cap-create="conversation" ${busy ? 'disabled' : ''}>对话创建</button><button type="button" class="button" data-cap-create="manual" ${busy ? 'disabled' : ''}>手动新建</button><button type="button" class="button" data-cap-import ${busy ? 'disabled' : ''}>导入 ${typeName}</button><input id="cap-import-file" type="file" accept=".md,.zip" hidden></div>` : '';
-  const scopedEntries = entries.filter(item => item.kind === state.kind);
+  const scopedEntries = entries.filter(item => primaryKind(item.kind) === state.kind);
   return `<div class="capability-view-heading"><div><span class="eyebrow">${owned ? 'OWNED CAPABILITIES' : 'LOCAL CATALOG'}</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${actions}</div>${filters(scopedEntries, state)}${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<p class="capability-result-count" role="status">${results.length} 项真实目录记录</p>${results.length ? `<div class="capability-workspace-grid">${results.map(item => capabilityCard(item, busy)).join('')}</div>` : empty(`没有匹配的 ${typeName}`, '调整搜索或筛选；目录不会补充演示内容。')}`;
 }
 
@@ -191,7 +190,7 @@ function plansView(automations, runs, legacyItems, capabilities, deliveryChannel
   const recentRuns = list(runs).slice(0, 12);
   const runHistory = `<section><div class="section-heading"><div><h3>最近运行记录</h3><p class="muted small">研究状态与交付状态分别记录；失败研究仅支持显式手动重试。</p></div></div>${recentRuns.length ? `<div class="connection-tool-list">${recentRuns.map(run => `<article><div><strong>${e(run.id)}</strong><small>${e(runLabel(run.research_status))} · 交付 ${e(run.delivery_status || '未请求')} · ${e(formatTime(run.scheduled_for || run.created_at * 1000))}</small></div>${['failed', 'interrupted', 'blocked_version'].includes(run.research_status) ? `<button type="button" class="button small" data-retry-automation-run="${e(run.id)}" ${busy ? 'disabled' : ''}>手动重试</button>` : ''}</article>`).join('')}</div>` : '<p class="muted">暂无运行记录。</p>'}</section>`;
   const legacySection = `<section class="legacy-schedule-section"><div class="section-heading"><div><h3>旧报告日程</h3><p class="muted small">迁移前旧接口持续可用；仅在对应 Automation 保存成功后停用旧日程。</p></div></div>${legacy.length ? `<div class="connection-tool-list">${legacy.map(item => `<article><div><strong>${e(item.name)}</strong><small>v${e(item.current_version || '—')} · 下次 ${e(formatTime(item.next_run_at))}</small></div><button type="button" class="button small" data-report-workflow-detail="${e(item.id)}" ${busy ? 'disabled' : ''}>查看</button><button type="button" class="button small primary" data-migrate-report-schedule="${e(item.id)}" ${busy ? 'disabled' : ''}>迁移</button></article>`).join('')}</div>` : '<p class="muted">没有待迁移的旧报告日程。</p>'}</section>`;
-  return `<div class="capability-view-heading"><div><span class="eyebrow">AUTOMATIONS</span><h2>运行计划</h2><p class="muted">通用 Automation 聚合锁定版本、最近运行、下一次执行和独立交付状态。</p></div><button type="button" class="button primary" data-create-automation ${busy ? 'disabled' : ''}>新建计划</button></div><section class="notice"><h3>Hot 周期简报</h3><p>由 Hot 的 PostgreSQL 队列管理计划与运行，保存后另行启用。</p><a class="button" href="#/intel/hot?view=plans">管理频道周期简报</a></section>${formOpen ? automationForm(capabilities, legacyItems, deliveryChannels, busy) : ''}${deliveryChannelPanel(deliveryChannels, busy)}<section><div class="section-heading"><div><h3>通用 Automation</h3><p class="muted small">研究失败只允许手动重试；外发失败不会改变研究结果。</p></div></div>${cards}</section>${runHistory}${legacySection}`;
+  return `<div class="capability-view-heading"><div><span class="eyebrow">AUTOMATIONS</span><h2>定时任务</h2><p class="muted">通用 Automation 聚合锁定版本、最近运行、下一次执行和独立交付状态。</p></div><button type="button" class="button primary" data-create-automation ${busy ? 'disabled' : ''}>新建计划</button></div><section class="notice"><h3>Hot 周期简报</h3><p>由 Hot 的 PostgreSQL 队列管理计划与运行，保存后另行启用。</p><a class="button" href="#/intel/hot?view=plans">管理频道周期简报</a></section>${formOpen ? automationForm(capabilities, legacyItems, deliveryChannels, busy) : ''}${deliveryChannelPanel(deliveryChannels, busy)}<section><div class="section-heading"><div><h3>通用 Automation</h3><p class="muted small">研究失败只允许手动重试；外发失败不会改变研究结果。</p></div></div>${cards}</section>${runHistory}${legacySection}`;
 }
 
 function connectionState(source) {
@@ -201,29 +200,36 @@ function connectionState(source) {
   return ['待检测', ''];
 }
 
-function toolConnectionsView(connections, tools) {
-  const sources = list(connections?.sources).filter(source => source.group === 'local');
-  return `<div class="capability-view-heading"><div><span class="eyebrow">LOCAL CONNECTIONS</span><h2>Tool 连接状态</h2><p class="muted">查看本机集成与 Tool 的真实调用状态；凭据配置继续在设置中完成。</p></div><div class="button-row"><a class="button" href="#/skills?kind=data&view=connections">查看数据源</a><a class="button" href="#/settings/local">打开本机连接设置</a></div></div><section class="connection-tool-summary" aria-label="Tool 连接状态汇总"><div><strong>${sources.length}</strong><span>本机集成</span></div><div><strong>${sources.filter(item => item.callable === true).length}</strong><span>当前可调用</span></div><div><strong>${list(tools).length}</strong><span>Tool 声明</span></div><div><strong>${list(tools).filter(item => item.selectable === true).length}</strong><span>可加入草稿</span></div></section><div class="connection-tool-sections"><section><div class="section-heading"><div><h3>本机集成</h3><p class="muted small">这里只展示本机连接；数据源在“数据”分区单独管理。</p></div></div>${sources.length ? `<div class="connection-tool-list">${sources.map(source => { const [label, tone] = connectionState(source); return `<article><div><strong>${e(source.name || source.label || source.id)}</strong><small>${e(source.description || source.id)}</small></div><span class="badge ${tone}">${e(label)}</span><a class="button small" href="#/settings/local?connection=${encodeURIComponent(source.id)}">配置</a></article>`; }).join('')}</div>` : empty('没有本机连接记录', '刷新目录后仍为空时，请检查连接服务。')}</section><section><div class="section-heading"><div><h3>研究 Tool</h3><p class="muted small">安装、启用与会话授权仍是独立状态。</p></div></div>${list(tools).length ? `<div class="connection-tool-list">${list(tools).map(tool => `<article><div><strong>${e(tool.name)}</strong><small>${e(tool.description || tool.id)}</small></div><span class="badge ${tool.selectable ? 'live' : ''}">${tool.selectable ? '可加入草稿' : '内部控制'}</span><button type="button" class="button small" data-tool-detail="${e(tool.id)}" data-cap-preview-trigger="${e(attrKey('tool', tool.id))}">快览</button></article>`).join('')}</div>` : empty('没有 Tool 声明', '刷新目录后仍为空时，请检查工具目录。')}</section></div>`;
+function toolConnectionsView(connections, tools, { legacyTools = false, query = '' } = {}) {
+  const q = normalizeText(query);
+  const sources = list(connections?.sources).filter(source => source.group === 'local' && (!q || normalizeText(`${source.name || source.label || ''} ${source.id} ${source.description}`).includes(q)));
+  const toolRows = list(tools).filter(tool => !q || normalizeText(`${tool.name} ${tool.id} ${tool.description}`).includes(q));
+  const legacy = legacyTools ? `<details open><summary>旧工具链接 · 工具声明</summary><p class="muted small">选择仅加入草稿；实际调用仍需运行时与原生审批。</p>${toolRows.map(tool => `<p><button type="button" class="button small" data-tool-detail="${e(tool.id)}" data-cap-preview-trigger="tool:${e(tool.id)}">${e(tool.name)}</button> <span class="badge">${tool.selectable ? '可加入草稿' : '内部控制'}</span></p>`).join('')}</details>` : '';
+  return `<section aria-label="本机连接器"><div class="capability-view-heading"><div><h2>本机集成</h2><p class="muted">配置、启用与实际可调用分别核验。</p></div><a class="button" href="#/settings/local">配置本机集成</a></div>${sources.length ? `<div class="connection-tool-list">${sources.map(source => { const [label, tone] = connectionState(source); const provided = list(source.tools || source.tool_ids); return `<article><div><strong>${e(source.name || source.label || source.id)}</strong><small>${e(source.description || source.id)}</small>${provided.length ? `<details><summary>提供的工具</summary>${provided.map(tool => `<button type="button" class="button small" data-tool-detail="${e(typeof tool === 'string' ? tool : tool.id)}">${e(typeof tool === 'string' ? tool : tool.name || tool.id)}</button>`).join('')}</details>` : ''}</div><span class="badge ${tone}">${e(label)}</span><a class="button small" href="#/settings/local?connection=${encodeURIComponent(source.id)}">配置</a></article>`; }).join('')}</div>` : empty('没有匹配的本机集成', '请在本机连接设置中查看配置。')}${legacy}</section>`;
 }
 
-export function renderCapabilityWorkspace({ capabilities = [], tools = [], reportWorkflows = [], automations = [], automationRuns = [], deliveryChannels = [], automationFormOpen = false, dataCatalog = {}, connections = {}, mcpMarketplace = {}, view = 'library', kind = 'skill', source = 'all', category = '', status = 'all', query = '', dataMarket = '', dataStatus = '', dataAuth = '', probe = null, busy = false, error = '' } = {}) {
-  const safeKind = kinds.includes(kind) ? kind : 'skill';
-  const allowedViews = subviews[safeKind].map(([value]) => value);
+function installedMCPView(state, query) {
+  const q = normalizeText(query);
+  const rows = list(state.installations).filter(item => !q || normalizeText(`${item.plan?.server_name} ${item.id}`).includes(q));
+  return `<section aria-label="MCP 连接器"><div class="capability-view-heading"><h2>MCP 连接器</h2><a class="button" href="#/skills?kind=connector&view=market">添加 MCP</a></div>${state.runtimeError ? `<p class="muted" role="status">${e(state.runtimeError)}</p>` : ''}${state.error ? `<p class="notice error" role="alert">${e(state.error)}</p>` : ''}${rows.length ? `<div class="connection-tool-list">${rows.map(item => `<article><div><strong>${e(item.plan?.server_name || item.id)}</strong><small>MCP · ${e(item.plan?.server_version || '版本未知')}</small></div><span class="badge">${e(item.runtime_status || '状态未知')}${item.active === true ? ' · 已启用' : ''}</span><button type="button" class="button small" data-mcp-server-detail data-registry-id="${e(item.plan?.registry_id)}" data-server-name="${e(item.plan?.server_name)}" data-server-version="${e(item.plan?.server_version)}">查看连接与工具</button></article>`).join('')}</div>` : empty('没有匹配的 MCP 连接器', '安装、启用与实际调用权限分别确认。')}</section>`;
+}
+
+export function renderCapabilityWorkspace({ capabilities = [], tools = [], reportWorkflows = [], automations = [], automationRuns = [], deliveryChannels = [], automationFormOpen = false, dataCatalog = {}, connections = {}, mcpMarketplace = {}, view = 'library', kind = 'skill', context = '', source = 'all', category = '', status = 'all', query = '', dataMarket = '', dataStatus = '', dataAuth = '', probe = null, busy = false, error = '' } = {}) {
+  const safeKind = primaryKind(kind);
+  const legacyContext = context || (kind !== safeKind ? kind : '');
+  const allowedViews = [...subviews[safeKind].map(([value]) => value), ...(safeKind === 'skill' ? ['plans'] : [])];
   const safeView = views.includes(view) && allowedViews.includes(view) ? view : 'library';
   const entries = collectCapabilityWorkspaceEntries({ capabilities, tools, dataCatalog });
   let body;
   if (safeKind === 'plugin') body = '<div data-plugin-workspace></div>';
-  else if (safeKind === 'workflow' && safeView === 'plans') body = plansView(automations, automationRuns, reportWorkflows, capabilities, deliveryChannels, busy, automationFormOpen);
-  else if (safeKind === 'tool' && safeView === 'market') body = renderMCPMarketplace(mcpMarketplace);
-  else if (safeKind === 'tool' && safeView === 'connections') body = toolConnectionsView(connections, tools);
-  else if (safeKind === 'data') {
-    const dataView = safeView === 'connections' ? 'sources' : 'capabilities';
-    const heading = dataView === 'sources'
-      ? ['数据源与连接', '查看真实接入、配置和健康状态；连接设置继续在设置页完成。']
-      : ['数据能力', '按可解决的研究问题浏览数据能力，不与 Tool 声明混排。'];
-    body = `<div class="capability-view-heading"><div><span class="eyebrow">DATA CATALOG</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${dataView === 'sources' ? '<a class="button" href="#/settings/data">打开数据连接设置</a>' : ''}</div>${renderDataCatalog({ catalog: dataCatalog, view: dataView, query, category, market: dataMarket, status: dataStatus, auth: dataAuth, busy, error, probe, showViewSwitch: false })}`;
+  else if (safeKind === 'skill' && safeView === 'plans') body = plansView(automations, automationRuns, reportWorkflows, capabilities, deliveryChannels, busy, automationFormOpen);
+  else if (safeKind === 'connector' && safeView === 'market') body = renderMCPMarketplace(mcpMarketplace);
+  else if (safeKind === 'connector') {
+    const sources = renderDataCatalog({ catalog: dataCatalog, view: legacyContext === 'data' && safeView === 'library' ? 'capabilities' : 'sources', query, category, market: dataMarket, status: dataStatus, auth: dataAuth, busy, error, probe, showViewSwitch: false, embedded: true });
+    body = `<label class="search-box"><input id="cap-search" data-cap-query type="search" aria-label="搜索连接器" value="${e(query)}" placeholder="搜索连接器"></label>${installedMCPView(mcpMarketplace, query)}${toolConnectionsView(connections, tools, { legacyTools: legacyContext === 'tool', query })}<section aria-label="DataHub 来源与能力"><h2>${legacyContext === 'data' && safeView === 'library' ? 'DataHub 数据能力' : 'DataHub 数据源'}</h2>${sources}</section>`;
   } else body = catalogView(entries, { view: safeView, kind: safeKind, source, category, status, query }, busy, error);
-  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">Skill、方法、Tool、Workflow、数据与插件分区浏览；按已授权范围执行，新增权限另行确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
+  if (safeView === 'plans') return `<section class="capability-workspace"><header class="capability-workspace-header"><h1>定时任务</h1><a class="button" href="#/skills">能力中心</a></header>${body}</section>`;
+  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><h1>能力中心</h1><p class="muted">选择技能，接入连接器，管理插件。</p></div><div class="button-row"><a class="button" href="#/automations">${icon('activity')}定时任务</a><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></div></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
 }
 
 function previewFromState({ detail, tool, dataDetail, dataDetailKind, capabilities }) {
@@ -249,5 +255,5 @@ export function renderCapabilityPreviewDialog(state = {}) {
   if (!item) return '';
   const inputText = item.inputs.map(input => `${input.label || input.name || '参数'}（${input.type || '参数'}${input.required ? ' · 必填' : ''}）`);
   const linked = item.kind === 'method' ? `<div><dt>关联业务能力</dt><dd>${item.linkedCapabilities.length ? e(item.linkedCapabilities.map(value => `${value.name}（${value.source === 'required' ? '必需' : '推荐'}）`).join('、')) : '尚未进入默认策略，可手动选择'}</dd></div>` : '';
-  return `<div class="capability-dialog-backdrop" data-capability-dialog-backdrop><section class="capability-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="capability-preview-title" aria-describedby="capability-preview-description"><header><span class="skill-icon">${icon(entryIcon(item))}</span><div><span class="eyebrow">${e(kindLabels[item.kind])} · ${e(item.source)}</span><h2 id="capability-preview-title">${e(item.name)}</h2><span class="badge ${item.available ? 'live' : 'danger'}">${e(item.statusLabel)}</span></div><button type="button" class="icon-button" data-cap-close aria-label="关闭能力快览">×</button></header><p id="capability-preview-description" class="capability-preview-description">${e(item.description || '尚未提供简介')}</p><dl class="capability-preview-grid"><div><dt>适用场景</dt><dd>${join(item.scenarios)}</dd></div><div><dt>输入</dt><dd>${join(inputText)}</dd></div><div><dt>输出</dt><dd>${join(item.formats, item.kind === 'data' ? '结构化数据' : '无需文件')}</dd></div><div><dt>所需工具</dt><dd>${join(item.tools, '无显式工具要求')}</dd></div><div><dt>依赖</dt><dd>${join(item.dependencies, '无额外依赖')}</dd></div>${linked}<div><dt>状态说明</dt><dd>${e(item.reason || '当前目录状态允许加入研究草稿')}</dd></div></dl><footer><button type="button" class="button" data-cap-close>取消</button>${['skill', 'workflow'].includes(item.kind) ? `<button type="button" class="button" data-cap-manage="${e(item.id)}">进入管理</button>` : ''}<button type="button" class="button primary" ${useAttribute(item)} ${state.busy || !item.available ? 'disabled' : ''}>立即使用</button></footer></section></div>`;
+  return `<div class="capability-dialog-backdrop" data-capability-dialog-backdrop><section class="capability-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="capability-preview-title" aria-describedby="capability-preview-description"><header><span class="skill-icon">${icon(entryIcon(item))}</span><div><span class="eyebrow">${e(kindLabels[item.kind])} · ${e(item.source)}</span><h2 id="capability-preview-title">${e(item.name)}</h2><span class="badge ${item.available ? 'live' : 'danger'}">${e(item.statusLabel)}</span></div><button type="button" class="icon-button" data-cap-close aria-label="关闭能力快览">×</button></header><p id="capability-preview-description" class="capability-preview-description">${e(item.description || '尚未提供简介')}</p><dl class="capability-preview-grid"><div><dt>适用场景</dt><dd>${join(item.scenarios)}</dd></div><div><dt>输入</dt><dd>${join(inputText)}</dd></div><div><dt>输出</dt><dd>${join(item.formats, item.kind === 'data' ? '结构化数据' : '无需文件')}</dd></div><div><dt>所需工具</dt><dd>${item.tools.length ? item.tools.map(id => `<button type="button" class="button small" data-tool-detail="${e(id)}">${e(list(state.tools).find(tool => tool.id === id)?.name || id)}</button>`).join('') : '无显式工具要求'}</dd></div><div><dt>依赖</dt><dd>${join(item.dependencies, '无额外依赖')}</dd></div>${linked}<div><dt>状态说明</dt><dd>${e(item.reason || '可加入草稿；实际调用仍按会话权限与运行时状态核验')}</dd></div></dl><footer><button type="button" class="button" data-cap-close>取消</button>${['skill', 'workflow', 'method', 'tool', 'data'].includes(item.kind) ? `<button type="button" class="button" data-cap-manage="${e(item.id)}">进入管理</button>` : ''}<button type="button" class="button primary" ${useAttribute(item)} ${state.busy || !item.available ? 'disabled' : ''}>立即使用</button></footer></section></div>`;
 }
