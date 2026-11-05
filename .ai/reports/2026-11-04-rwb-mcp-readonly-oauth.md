@@ -85,3 +85,13 @@ Minor3 与两项 exact-check 发现：UI文档开关改为 mcp_readonly_enabled=
 正式留存：`PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" <existing-local-models-fusion-python> scripts/test_artifact_retention.py run --parent /private/var/tmp --task-id rwb-mcp-readonly-oauth-20261104 --candidate 9b1cf46966d5fed40180fdba1128310f2fdaf82b --mode wip`，每批显式展开节点<=20，唯一活动根沿512MiB/64MiB输出及3GiB宿主空间门。ci-repair1-dispatch-red为实际enabled断言strictXFAIL1项；去掉标记后ci-repair1-dispatch-green为15PASS/1.53s。补充显式秘密键拒绝断言后ci-repair1-dispatch-final再次运行同15项，15PASS/2.08s；各批真实result/JUnit/stdout和receipt都保留并正式retired，无手动删除、放宽扫描或flags归一化。结果属于WIP，不能认证最终提交或新版CI。
 
 Ruff/isort、1源码文件mypy、Python索引检查通过；Black初次报告后补断言需换行，格式化后复核。`node scripts/check_documentation_governance.mjs --project .` 与 `node scripts/check_research_architecture.mjs --project . --base 87b6cd99653d9f8160dc7eb0b3bea8d5d9ea93db` 均退出0、零违规；`node --test tests/javascript/actions_quota_governance.test.mjs` 为19PASS/68.525ms，`git diff --check`通过；源阅读pin和冻结图15未改。修后最终exact核验、scoped评审、PR新候选CI及受管交付由父任务完成；真实TLS/nativehosts/Provider/model/常驻仍NOT_RUN。
+
+## PR268 Checks SDK版本锁修补2（2026-11-05）
+
+修补基线为原受管integration `ddb24917ebcd2b28ca5b88dee23b1c838c581735`。run41938174449/job126952200830 的实际安装日志：00:02:38下载mcp-2.3.0，00:02:43收集mcp-types==2.3.0，00:05:10 Successfully installed确认两者均2.3.0。原 `pip install -e ".[dev]"` 按pyproject的mcp>=2,<3解析最新版本；后续精选锁步骤原本只覆盖reportlab/openpyxl/et-xmlfile。项目Web锁已经是mcp2.2.0/mcp-types2.2.0，因此整套路由合同的精确版本断言失败，不能改测试或伪造包版本绕过。原安装证据保存在ci-repair2-install-version-evidence.log，失败分片证据由父任务保留；旧MacBootstrap及Constraints成功不认证后继SHA。
+
+本次只把这两个既有已声明包加入原hash-block提取tuple，并保持原三个renderer/workbook包与全部锁哈希，沿既有 `pip install --require-hashes --no-deps` 回钉；同一步新增真实importlib.metadata版本断言。requirements、pyproject版本范围、SDK/业务实现、路由合同及原job/runner/timeout均未改。不安装任何本机包，不扩展其他开发依赖版本治理或触发常驻更新。
+
+新增既有Actions契约测试实际执行workflow中的原提取heredoc，使用自身新建的临时目录和标准库Python，仅复制锁文本；验证五个包的完整块与原Web锁逐字一致、哈希存在、原三个包保留，且pip仍要求哈希／无依赖解析、SDK两包均有安装后版本断言。RED实际失败3!=5；修补后完整Actions套件通过。测试不运行pip，不伪造已安装版本；临时夹具由该测试正常teardown删除，未启用pytest根或资源扫描豁免。
+
+使用只读已有local-models-fusion环境执行workflow中同一安装metadata断言：mcp2.2.0、mcp-types2.2.0通过，已有reportlab4.5.1/openpyxl3.1.5/et-xmlfile2.0.0确认；未执行本机安装或升级。这只能证明提取和已有环境检查，修后LinuxCI实际安装仍须新候选日志证实。实际命令 `RWB_TEST_PYTHON=<existing-local-models-fusion-python> node --test tests/javascript/actions_quota_governance.test.mjs` 为20PASS/68.801ms（ci-repair2-actions-green.log），本机metadata原样执行记录ci-repair2-local-metadata.json；`node scripts/check_documentation_governance.mjs --project .` 及 `node scripts/check_research_architecture.mjs --project . --base 87b6cd99653d9f8160dc7eb0b3bea8d5d9ea93db` 均退出0／零违规，`git diff --check`通过。仅四个拥有文件提交到integration，feature777与常驻不变；此本机验证不替代修后候选CI。

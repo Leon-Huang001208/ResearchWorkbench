@@ -75,13 +75,13 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install -e ".[dev]"
-          # These renderer/workbook packages are already locked Web dependencies.
+          # Renderer/workbook and MCP SDK packages are already locked Web dependencies.
           .venv/bin/python - <<'PY'
           import os
           from pathlib import Path
           lines = Path("requirements/web.lock").read_text().splitlines()
           block = []
-          for package in ("reportlab", "openpyxl", "et-xmlfile"):
+          for package in ("reportlab", "openpyxl", "et-xmlfile", "mcp", "mcp-types"):
               start = next(i for i, line in enumerate(lines) if line.startswith(package + "=="))
               block.append(lines[start])
               for line in lines[start + 1:]:
@@ -92,6 +92,7 @@ jobs:
           target.write_text("\n".join(block) + "\n")
           PY
           .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-reportlab.lock"
+          .venv/bin/python -c "import importlib.metadata as m; assert m.version('mcp') == '2.2.0' and m.version('mcp-types') == '2.2.0'"
 
       - name: Run Research Web Python contracts
         run: |
