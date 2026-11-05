@@ -1,5 +1,11 @@
 # 部署与模块职责
 
+## 事件固定部署的职责复核（2026-11-05）
+
+`reviewed-event-research-v1`／`apply-events` 位于既有 Native 维护操作员内，固定从 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 更新至产品 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。事件功能身份为 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`；操作员核对其祖先关系和相同 app 树，工程闭包与功能身份分别保留。
+
+该 profile 沿原 Host、网关、账号根、三锁和 BirthFence 切换，不新增运行节点、研究引擎或资讯队列。复核现有 01 部署图与 12 资讯图后，粗粒度角色和连接仍成立，无须重画；事件业务细节继续由图 14 表达。源码与操作员验证不代表已部署，最终 CI、Mac 安装和现场证据另验，见[部署合同](../../research-web-gateway-upgrade.md)。
+
 ## 事件与日历研究的 Host 内部职责（2026-11-04）
 
 Host 新增事件、研究与市场评分三组 API，以及账户绑定的事件／试验元数据和原件存储。它们连接来源、确认冻结、确定性研究、测试区间账本和评分资格；这些新增边在[图14](../../../outputs/research-web-architecture/14-event-research.html)展开，原部署图的浏览器→Host→账号根／唯一DSH粗粒度角色保持。DSH仍承担模型研究，确定性计算不创建第二Agent循环。

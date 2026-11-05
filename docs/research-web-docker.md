@@ -1,5 +1,11 @@
 # Mac mini Docker 开发与独立部署
 
+## 事件研究固定部署的 Native 范围（2026-11-05）
+
+`apply-events`／`reviewed-event-research-v1` 只扩展既有 macOS Native 操作员，将事件时间线、日历效应与六维研究评分组合纳入固定部署。它不构建或切换 Docker 镜像，不操作容器、业务卷或构建器；本章的双运行时互斥、资源锁及 20 GiB 缓存预算继续适用。Native 事务沿原三锁、BirthFence、全账号业务保全和恢复运行，采集日程必须保持关闭。
+
+新操作员最终候选仍须完成原三项 CI、同候选 Mac 干净安装及真实切换验收；共享 Python 合同和 Native 空闲见证不认证 Docker 产品。固定版本和失败恢复见[事件部署合同](research-web-gateway-upgrade.md)。
+
 ## 事件研究候选的运行与保全边界（2026-11-04）
 
 事件时间线、日历研究和市场研究评分新增于既有 Host，个人事件 SQLite、原件及资格对账标记随账户业务根保全；Native／Docker 仍复用原产品协议与互斥写入规则，没有新增容器角色、端口、数据库服务或研究引擎。来源采集只复用原 Automation 心跳，构造和页面读取不启用计划。
