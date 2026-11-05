@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+研发进展沿原生 UI 与现有静态资源服务读取版本内 JSON，展示功能最新状态及交付时间线，
+不新增 API、数据库、任务执行器、外部同步或研究引擎。同源内容生成 Changelog 受管区块；
+交付、版本包含、平台及启用分别说明，旧主实例固定 UI 和常驻边界不变。
+详见[前端合同](research-web-ui.md#研发进展与更新日志)，既有部署及研究拓扑仍适用。
+
 能力中心界面仅保留技能、连接器、插件；方法与通用步骤模板并入技能，工具进入关联详情，旧类型/版本/权限合同继续兼容。方法复制只产生普通 Skill 草稿，不改写历史采用记录。详见[能力合同](architecture/research-web/07-capabilities.md)。本地测试通过 `scripts/research_web_test_env.py --check --json` 查找项目共享环境，准备与复用边界见[开发流程](AGENT_WORKFLOW.md#复用研究-web-测试环境)。
 
 事件研究新增账号内 Timeline／Study／Score 领域：事件版本与原件进入个人 SQLite／私有归档；

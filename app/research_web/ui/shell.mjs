@@ -94,7 +94,8 @@ export function renderPrimaryRail({ page, section = '', capabilityView = '', sec
     const active = primaryPage === item.page;
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
-  const footer = account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`;
+  const progress = `<a class="rail-link rail-progress ${page === 'progress' ? 'active' : ''}" href="#/progress" title="研发进展" ${page === 'progress' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('activity')}</span><span class="rail-label">研发进展</span></a>`;
+  const footer = progress + (account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`);
   return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer">${footer}</div></nav>`;
 }
 

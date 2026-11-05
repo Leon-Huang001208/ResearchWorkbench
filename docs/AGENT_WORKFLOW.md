@@ -1,5 +1,18 @@
 # Agent 任务路由指南
 
+## 研发进展维护
+
+用户可见迭代须同步维护 `app/research_web/ui/progress-data.json`，核对日期、来源、负责人、范围和实际状态。
+PR 合并不能替代必需验收；环境启用、业务验收和他平台支持分别记录。当前任务交付前保持开发中或待验收，
+不得用尚未运行的 CI 自证已交付，也不得只改快照日期充当内容更新。
+
+执行 `node scripts/check_product_progress.mjs --write` 并提交生成的 Changelog 区块；再执行
+`node scripts/check_product_progress.mjs --base <任务基线完整SHA>` 验证维护义务。
+无用户可见变化时，在本任务 `.ai/reports/` Markdown 独立记录一行
+`Product-Progress: not-required — <至少十二字的具体理由>`；无内容更新且无解释时检查器拒绝通过。
+仅展示经过核对的公开说明，不包含私有路径、账号、业务数据、凭据或完整工程流水。
+内容契约见[前端](research-web-ui.md#研发进展与更新日志)。
+
 事件／日历研究在隔离worktree开发，新增个人SQLite、原件、固定回测与六维资格时执行完整
 changed-set Router、独评及同候选Mac安装门。测试用获准独立环境和受管≤20用例批次，失败后
 沿原receipt/root重跑、保留原proof，真实成功才按身份退役；不以语法或合成分数代替业务接受。

@@ -1,5 +1,17 @@
 # Changelog
 
+<!-- product-progress:generated:start -->
+## 产品交付快照（自动生成）
+
+进展截至 2026-11-05。以下记录来自版本内结构化内容；源码交付不等于当前环境已启用。
+
+- 2026-11-05 **新增 · 事件时间线与日历研究**：将事件线索、人工确认和日历研究串联，明确展示证据覆盖与研究资格。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/264)）
+- 2026-11-05 **新增 · 只读研究资料接入**：通过受控授权向兼容客户端提供只读研究资料，支持查看和撤销应用授权。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/268)）
+- 2026-10-30 **新增 · 专业协作研究**：在 FinGPT 内提供有预算边界的专业协作入口，并分别显示节点、尝试与用量状态。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/246)）
+- 2026-10-29 **新增 · 从本地 CSV 导入自选**：先预览、处理重复与同名证券，再确认批量追加到自选列表。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/247)）
+
+<!-- product-progress:generated:end -->
+
 - 2026-10-19 报告恢复：支持精确Decimal参数和JSON操作数、准确来源定位，增加task/contract绑定的只读证据便利投影；Host独立评分及真实失败状态保持。
 
 本文件只记录用户可见的现役产品变化。实现过程、任务状态、架构评审流水和验收细节进入 `.ai/reports/`；2026-09-17 以前的完整历史流水保存在 [历史 Changelog](archive/history/changelog-through-2026-09-17.md)。
