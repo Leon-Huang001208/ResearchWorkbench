@@ -2,6 +2,13 @@
 
 2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→65a，原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
 
+研发进展由 `ui/progress.mjs`／`progress.css` 渲染，`ui/progress-data.json` 提供版本内内容，
+原 `core.mjs`、`shell.mjs`、`app.mjs` 接入路由、底部入口及生命周期。
+`scripts/check_product_progress.mjs` 校验内容、交付字段与 Changelog 生成区，
+`tests/javascript/research_web_progress.test.mjs` 覆盖路由、证据缺项、过滤定位、安全与加载失败。
+无新 Python、业务 API 或依赖；合同见[前端](research-web-ui.md#研发进展与更新日志)。
+
+能力中心界面仅保留技能、连接器、插件；方法与通用步骤模板并入技能，工具进入关联详情，旧类型/版本/权限合同继续兼容。方法复制只产生普通 Skill 草稿，不改写历史采用记录。详见[能力合同](architecture/research-web/07-capabilities.md)。本地测试通过 `scripts/research_web_test_env.py --check --json` 查找项目共享环境，准备与复用边界见[开发流程](AGENT_WORKFLOW.md#复用研究-web-测试环境)。
 
 事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
 `event_studies/` 管理固定窗口、对照、代理账本、试验与一次性验证；`market_scoring/` 管理
