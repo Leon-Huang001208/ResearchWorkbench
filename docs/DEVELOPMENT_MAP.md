@@ -1,5 +1,8 @@
 # Research Workbench Development Map
 
+2026-11-05：`resident/model_provider_upgrade.py` 新增 EVENT 封闭 profile／apply-events 和无写入的全账号日程证明；原真实 Git 冻结、完整 primary gate、阶段恢复矩阵及新增 Native falsey／日程 unknown／SQLite sidecar 反例均在 `test_model_provider_upgrade.py`。固定 db2→604 受审闭包及 a398 功能祖先，最终资格与真实部署另证；不改 controller、白名单或采集日程，见[部署合同](research-web-gateway-upgrade.md)。
+
+
 事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
 `event_studies/` 管理固定窗口、对照、代理账本、试验与一次性验证；`market_scoring/` 管理
 六维配置、证据时点、研究总分和当期事件适用性。`event_datahub_bridge.py` 只登记当前账号

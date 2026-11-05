@@ -1,5 +1,41 @@
 # Mac mini 空私有池网关升级
 
+## 事件研究封闭部署（2026-11-05）
+
+`apply-events`／`reviewed-event-research-v1` 固定前版
+`db2ae9a48ceca365852072e622aa6627aa7d0b83`、固定受审完整闭包
+`60416994f88eeead8a3891dbe9a7dfd617c566fc`，另固定事件功能祖先
+`a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`（PR264）；a398 必须是604的祖先，
+两者整个 `app` Git tree 必须相同。它覆盖事件时间线、日历研究、
+六维评分及该祖先已有的已审维护变更；完整前后差异不能表述为纯 UI。
+最终目标必须保留该祖先、通过原路径并集／Git blob／文件模式冻结，并具有最终已合并
+SHA 的完整资格及原三 CI／Mac 干净安装证据。PR264 或旧工具的通过记录不能代替最终目标。
+操作员、原操作员测试与既有文档／报告豁免不授予任意新产品或任意测试代码变更权限。
+
+本 profile 不进入 TRIAL，不取消、删除或退休研究任务。沿原 v4 三锁、BirthFence、
+严格 64 MiB 业务索引、完整 CI reader、原安装锁和全账号 `@events` 原件保全／恢复。
+原完整 `g.verify_primary` 及 Host 明确空闲必须通过，额外 Native 观察必须严格为 `list`
+且为空；`None`、`False`、`0`、空字符串和字典都不能证明空闲。Discovery／Automation／
+Workflow 后台与市场 inflight、资产查询保持原空闲门；既有其他产品日程不得被擅自停止。
+
+事件采集日程继续关闭，独立证明来自全部账号个人 root 原件：原件目录、初始化 marker 和
+资格 marker 全部缺席才能证明尚未初始化；孤儿原件／marker、损坏及未知状态均拒绝。
+已有事件库时在原 retention lock 下使用 `snapshot_events` 验证身份、一致性和无 SQLite
+WAL／SHM／journal，再将精确哈希绑定的原件反序列化到内存 `query_only` 数据库；不打开
+个人 SQLite 写连接、不创建空库，也不以 Doctor 的 `collection_enabled=None` 证明关闭。
+全部最新 `source_schedule.enabled` 必须严格为 `False`；存在的采集 claim 和 source job
+必须明确 `completed`。`failed`／`interrupted` 属于待核对结果，本入口拒绝，不自动重试。
+最新关闭版本可以覆盖旧历史开启版本，但任何未决最新版本均拒绝。
+
+日程证明在初次主实例验证、准备前、每次空闲门、切换后及恢复／回滚对应边界重查；冻结的
+全账号原件哈希和明确缺席记录必须保持，账号新增、并发日程／原件变化或缺证阻止切换。
+本入口只作原件读取与既有受管切换，不启用来源采集、改采集日程、调用模型／厂商或改变
+网关路由。db2 原网关已支持 `/api/research/*` 与主实例静态资源透传，无新路径授权。
+
+源码准备／本机回归、最终 CI 资格、真实 Mac mini 切换、认证页面／业务验收和资源收尾
+分别记录；本节不能证明已部署。Windows/Linux 原生验收仍由对应设备负责。
+
+
 ## CI容量修复固定部署V9（2026-10-24）
 
 封闭 `apply-assets-v9`／`reviewed-asset-observation-v9`。资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。

@@ -1145,3 +1145,10 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## 事件研究常驻部署边界
+
+事件时间线、日历研究与六维评分通过独立封闭的 `apply-events` 操作员部署，固定 db2 前版、
+a398 功能祖先和 60416994 已审维护闭包；最终操作员仍须同候选三 CI 与 Mac 干净安装。
+该入口复用原全账号保全、恢复与空闲事务，并独立证明事件来源日程关闭；不修改自动兼容
+白名单或安装新依赖。详见[受控部署合同](research-web-gateway-upgrade.md)。
