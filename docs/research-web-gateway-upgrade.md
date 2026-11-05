@@ -6,15 +6,17 @@
 `db2ae9a48ceca365852072e622aa6627aa7d0b83`。用户已明确授权一并部署最新主线，MCP继续关闭；
 固定组合链为事件功能 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee` → 维护基线
 `60416994f88eeead8a3891dbe9a7dfd617c566fc` → MCP主线
-`58ad352eeb925805ff00f46139a073fda15163d3` → 安全闭包
-`65a016b3525f0a395ee221bf44f1b208818b03e8` → 最终工具目标。每段都须保留真实祖先关系；
-只有事件功能到604的整个 `app` Git tree 要求相同，58ad及65a的已审业务／关闭能力不被抹去。
-65a包含持久关闭MCP、health实际Facade布尔投影及已审容量扫描修复；最终资格必须绑定新的
+`58ad352eeb925805ff00f46139a073fda15163d3` → 已授权最新主线
+`54610625d4f736cd807fdd50eaf2e1f22a557ae5` → 合并安全检查点
+`e9cb46e1387f07275200c9062994d82873591e42` → 最终工具目标。每段都须保留真实祖先关系；
+只有事件功能到604的整个 `app` Git tree 要求相同。546的能力分类／进展UI随用户最新主线授权纳入，
+没有新增依赖；e9保留65a引入的持久关闭MCP、health实际Facade布尔及容量扫描安全修复。
+最终资格必须绑定新的
 已合并目标、完整路径并集／Git blob／文件模式及原三CI／Mac安装，不能借用旧产品或工具回执。
-最终65a之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
+最终e9之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
 
 仅EVENT前进时在网关 `resident.json` 持久保存严格布尔 `mcp_readonly_enabled: false`。
-65a驻留入口在accounts/runtime构造前校验该字段，False优先于环境开启；本部署不创建MCP
+e9保留65a驻留入口在accounts/runtime构造前校验该字段，False优先于环境开启；本部署不创建MCP
 Facade或初始化OAuth库。最终接受同时读取本机与私有入口既有fenced health实际返回，字段必须
 `is False`，并维持ready、revision、primary_last_verified及deployment_fenced原门；缺字段、None、
 0、True以及401／404都不能替代关闭证明。读取前后还复核原plist／loaded job、gateway目录／

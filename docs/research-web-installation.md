@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+研发进展随现有UI目录安装，包含progress.mjs、progress.css及progress-data.json，无新Python／Node依赖或设置项。安装CI沿原健康与Doctor步骤逐字节核对新增资源；本机已有环境不替代干净安装证据。
+
 `./rwb server doctor` 与 `./rwb server serve` 的子进程交接只额外保留显式 `RWB_MCP_READONLY_ENABLED=0|1`；缺省或其他拼写保持关闭，并记录不含输入值的稳定告警。共享最小环境白名单保持，其他 `RWB_*`、模型及供应商凭据不会因此传递。Doctor 检查仍不创建账号根、初始化 SDK 或启动后端。此开关修复来自 Mac Bootstrap 的实际失败复现，修后候选安装 CI 须重新验证；不代表常驻已启用。
 
 事件时间线／日历效应／六维研究评分沿用现有 Web 依赖，不要求外部 PostgreSQL、独立服务或
@@ -1153,7 +1155,8 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 ## 事件研究常驻部署边界
 
 事件时间线、日历研究与六维评分通过独立封闭的 `apply-events` 操作员部署，固定 db2 前版、
-a398 功能祖先、60416994 基础闭包、58ad352e 已授权主线及 65a016b3 关闭安全检查点；
+a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新主线及 e9cb46e1
+合并安全检查点（保留65a关闭安全代码）；最新能力分类／进展UI同属授权范围，无新增依赖；
 最终操作员仍须同候选三 CI 与 Mac 干净安装。目标常驻配置写入严格布尔
 `mcp_readonly_enabled: false`，并从实际网关健康检查验证 Facade 未创建；旧版回滚保留原字段缺席。
 该入口复用原全账号保全、恢复与空闲事务，并独立证明事件来源日程关闭；不修改自动兼容

@@ -59,10 +59,12 @@ test('primary navigation exposes one active entry per business module in the agr
   const { parseRoute } = await import(new URL('core.mjs', root));
   const shell = await import(new URL('shell.mjs', root));
   assert.equal(parseRoute('#/operations').page, 'operations');
-  const labels = ['FinGPT', 'Claw', '报告生产', '全市场概览', '资产观察', '研究情报', 'AI 资讯', '研究框架', '策略模拟', '能力中心', '运行与用量'];
+  const labels = ['FinGPT', 'Claw', '报告生产', '全市场概览', '资产观察', '研究情报', 'AI 资讯', '研究框架', '策略模拟', '能力中心', '定时任务', '运行与用量'];
   const rail = shell.renderPrimaryRail(parseRoute('#/assets'));
   assert.deepEqual([...rail.matchAll(/class="rail-label">([^<]+)<\/span>/g)].map(item => item[1]).slice(0, labels.length), labels);
   for (const [hash, activeHref] of [
+    ['#/automations', '#/automations'], ['#/skills?kind=workflow&view=plans', '#/automations'],
+    ['#/skills?kind=plugin', '#/skills'], ['#/claw?view=plans', '#/claw'],
     ['#/assets', '#/assets'], ['#/assets/funds', '#/assets'], ['#/intel/search?kind=research', '#/intel/overview'],
     ['#/intel/hot', '#/intel/overview'], ['#/frameworks/gold', '#/frameworks'], ['#/simulation/etf', '#/simulation/etf'],
     ['#/workbench/assets', '#/assets'], ['#/workbench/industry', '#/intel/overview'], ['#/workbench/etf-paper', '#/simulation/etf'],

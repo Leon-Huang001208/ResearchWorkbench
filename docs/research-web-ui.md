@@ -1,5 +1,26 @@
 # Research Web 前端
 
+## 研发进展与更新日志
+
+侧栏底部的“研发进展”对普通模式与账号模式用户提供只读入口：`#/progress` 展示各功能最新进展，
+`#/progress/changelog` 展示历次交付。沿用现有主题，按日期倒序分组，提供状态／类型、模块筛选及月份索引；
+窄屏收起索引。查询参数 `status`、`kind`、`module`、`item`、`month` 保留筛选、详情与定位，支持刷新和返回。
+
+`app/research_web/ui/progress-data.json` 是随静态资源交付的内容真源，不在线查询 GitHub 或任务账本，
+不运行研究。顶部标注快照日期；功能最新状态与历次交付通过稳定 ID 关联。计划中、开发中、待验收、已交付
+为主状态，暂停／取消保留记录，阻塞另说明原因和下一步。条目包含来源、负责人、范围与用户收益。
+
+“已交付”须有 PR 合并及 Constraints、Web Checks、macOS 安装依据；缺项不能认定交付。
+详情分别说明版本包含实现、适用平台、启用情况和业务限制，不认证真实模型、环境启用或其他平台支持。
+首批核对 PR #247、#246、#264、#268 及成功 checks；本页面首版自身保持开发中快照，后续才据正式回执更新。
+
+`progress.mjs` 负责验证、筛选和纯文本渲染，通过原 `safeLog` 记录脱敏加载状态。加载失败支持显式重试，
+无效内容拒绝展示，未知条目与筛选无结果分别提示。只允许本仓库 PR、CI 和文档链接，不执行 HTML，
+不展示本机绝对路径或秘密。字段完整性检查不能替代人工核对证据。
+`node scripts/check_product_progress.mjs` 校验内容与 Changelog 生成区，`--write` 仅更新该区并保留旧历史；
+维护要求见[任务流程](AGENT_WORKFLOW.md#研发进展维护)。安装 CI 核对新增资源字节。
+账号主实例若仍固定旧 UI，须受控升级才有新入口；本任务不改变其固定资源或常驻服务。
+
 ## 事件时间线与策略研究入口（2026-11-04）
 
 原研究情报增加时间线视图，策略模拟增加事件研究和研究评分视图；复用产品壳、认证请求和账户生命周期。界面分别展示来源／相关性待核验、人工确认与冻结、输入覆盖、独立测试和当期资格，不把历史下跌频数显示为预测概率，也不把缺项当中性分。
@@ -148,7 +169,7 @@ FinGPT 与 Claw 收起桌面会话栏后，展开按钮位于主内容区左上�
 
 新系统报告的报告页/HTML/Word显示Host绑定的中文presentation与去重数据表；逐节引用映射为来源序号，英文原文与工作笔记保留在同版本审计附件。Host核对文件区域提供真实绑定附件下载，未绑定/invalid不显示可下载为已验收；历史与旧报告fallback维持原读取。正文约中文字数不包含审计底稿，质量状态保持原判据。
 
-Claw 的＋与 / 使用同一列表浮层及原目录：一级操作进入原浮层内二级能力、方法、格式或模型页，返回不丢选择；方法最多三个，格式保留自动/显式空数组语义，模型仅影响新研究。斜杠搜索覆盖全部匹配能力并分组，不截取六项；取消不改草稿，选择仅消费首行命令，后续正文保留。FinGPT、原生执行协议及固定日程范围保持原行为。
+Claw 的＋与 / 使用同一列表浮层及原目录：一级操作进入原浮层内二级技能、格式或模型页，返回不丢选择；方法与普通技能共用列表，历史方法最多三个，格式保留自动/显式空数组语义，模型仅影响新研究。斜杠搜索覆盖全部匹配能力并分组，不截取六项；取消不改草稿，选择仅消费首行命令，后续正文保留。FinGPT、原生执行协议及固定日程范围保持原行为。
 
 本轮没有新增页面或状态库。原生HTML/Word报告用规范声明形成真实数值表，并展示系统生成的公式/操作数及来源日期；Host独立重建底稿和绑定当前归档。UI仍分别显示执行、文件、质量，部分可用报告不冒充验收通过。
 
@@ -381,11 +402,11 @@ UUID与原body，未知回执只允许明确原参数重试。未提交DOM表单
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 的真实模型与浏览器旅程已移入[历史验收](archive/acceptance/research-web-acceptance-2026-09-02.md)，只证明当时环境。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`、`#/frameworks`、`#/frameworks/gold`、`#/frameworks/dollar`、`#/history`、`#/skills`、`#/operations` 与设置子路由。黄金和美元流动性详情各是一张带七个语义锚点的连续画布；旧 `?tab=` 地址继续定位相应锚点。框架间切换时，renderer 只接受与目标 slug 一致的快照；旧快照被丢弃并显示目标框架加载态。Dollar 的 SOFR−IORB 图显示最近 30 期，完整 60 期仍保留在快照用于研究状态。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察、研究情报与策略模拟使用各自规范入口，旧研究台路径按下文映射兼容。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`、`#/frameworks`、`#/frameworks/gold`、`#/frameworks/dollar`、`#/history`、`#/skills`、`#/operations` 与设置子路由。黄金和美元流动性详情各是一张带七个语义锚点的连续画布；旧 `?tab=` 地址继续定位相应锚点。框架间切换时，renderer 只接受与目标 slug 一致的快照；旧快照被丢弃并显示目标框架加载态。Dollar 的 SOFR−IORB 图显示最近 30 期，完整 60 期仍保留在快照用于研究状态。能力中心规范入口为 `#/skills?kind=skill|connector|plugin`，仅显示技能、连接器、插件三类。方法与通用 Workflow 进入技能列表，Tool 在关联详情显示；连接器复用 MCP、DataHub 与本机配置，插件保留原受审安装流程。旧 method/workflow/tool/data 深链保留上下文兼容；旧 plans 进入原定时任务，新增 `#/automations` 仅复用原计划管理。安装、启用、可加入草稿与实际可调用分别显示，不因分类变化授予权限。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察、研究情报与策略模拟使用各自规范入口，旧研究台路径按下文映射兼容。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
-Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可见；部署可分别用三个 `RESEARCH_*_ENABLED=0` 环境变量关闭。该默认值变化不改变四类能力主导航、深链、弹窗或草稿不自动发送契约。
+Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可见；部署可分别用三个 `RESEARCH_*_ENABLED=0` 环境变量关闭。该默认值变化不改变深链兼容、弹窗或草稿不自动发送契约。
 
 当前产品身份统一为 **Research Workbench**。浏览器标题、favicon 与品牌图片从现行中性品牌资产读取；消息不显示可见署名，其辅助名称按当前会话模式生成。主题偏好使用 `research-web.appearance.v1`。产品壳不再发布旧名称或旧命令，但 `/api/research/*` 与现有 hash 路由保持稳定。
 

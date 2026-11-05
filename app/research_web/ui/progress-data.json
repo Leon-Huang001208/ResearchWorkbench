@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-11-05",
+  "features": [
+    {
+      "id": "readonly-research-mcp",
+      "module": "研究与报告",
+      "title": "只读研究资料接入",
+      "summary": "通过受控授权向兼容客户端提供只读研究资料，支持查看和撤销应用授权。",
+      "scope": "只读接口、原生 OAuth、选材同意与撤权。",
+      "next": "实际宿主连接、客户端兼容和启用需单独验证。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/268",
+      "updated": "2026-11-05",
+      "status": "delivered",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "disabled",
+      "limitations": "默认关闭；真实 TLS、客户端、模型及常驻环境验收仍有缺口。",
+      "evidence": [
+        {
+          "kind": "merge",
+          "label": "PR #268 · 已合并",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/268"
+        },
+        {
+          "kind": "validation",
+          "gate": "constraints",
+          "result": "passed",
+          "label": "仓库约束检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41949858516/job/126990965685"
+        },
+        {
+          "kind": "validation",
+          "gate": "web",
+          "result": "passed",
+          "label": "Web 回归检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41949858444/job/126990964947"
+        },
+        {
+          "kind": "validation",
+          "gate": "macos",
+          "result": "passed",
+          "label": "macOS 干净安装",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41949858600/job/126990965265"
+        }
+      ]
+    },
+    {
+      "id": "event-research",
+      "module": "数据与资产",
+      "title": "事件时间线与日历研究",
+      "summary": "将事件线索、人工确认和日历研究串联，明确展示证据覆盖与研究资格。",
+      "scope": "事件时间线、日历研究、重大事件研究与六维资格。",
+      "next": "继续核验真实来源覆盖与历史时点证据。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/264",
+      "updated": "2026-11-05",
+      "status": "delivered",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "disabled",
+      "limitations": "生产评分默认关闭；Windows/Linux 原生未验证，统计研究不表示预测有效。",
+      "evidence": [
+        {
+          "kind": "merge",
+          "label": "PR #264 · 已合并",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/264"
+        },
+        {
+          "kind": "validation",
+          "gate": "constraints",
+          "result": "passed",
+          "label": "仓库约束检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41849189263/job/126640583232"
+        },
+        {
+          "kind": "validation",
+          "gate": "web",
+          "result": "passed",
+          "label": "Web 回归检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41849189219/job/126676999944"
+        },
+        {
+          "kind": "validation",
+          "gate": "macos",
+          "result": "passed",
+          "label": "macOS 干净安装",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41849188987/job/126640581939"
+        }
+      ]
+    },
+    {
+      "id": "specialist-research",
+      "module": "研究与报告",
+      "title": "专业协作研究",
+      "summary": "在 FinGPT 内提供有预算边界的专业协作入口，并分别显示节点、尝试与用量状态。",
+      "scope": "预算确认、原生 DSH 专业协作及受控续跑。",
+      "next": "真实模型使用与费用须在单独授权和预算内验收。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/246",
+      "updated": "2026-10-30",
+      "status": "delivered",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "代码与离线合同验收不等于真实模型研究验收；其他平台原生支持未确认。",
+      "evidence": [
+        {
+          "kind": "merge",
+          "label": "PR #246 · 已合并",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/246"
+        },
+        {
+          "kind": "validation",
+          "gate": "constraints",
+          "result": "passed",
+          "label": "仓库约束检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41019681773/job/123943913395"
+        },
+        {
+          "kind": "validation",
+          "gate": "web",
+          "result": "passed",
+          "label": "Web 回归检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41019681774/job/123943913276"
+        },
+        {
+          "kind": "validation",
+          "gate": "macos",
+          "result": "passed",
+          "label": "macOS 干净安装",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/41019681771/job/123943913906"
+        }
+      ]
+    },
+    {
+      "id": "watchlist-csv",
+      "module": "数据与资产",
+      "title": "从本地 CSV 导入自选",
+      "summary": "先预览、处理重复与同名证券，再确认批量追加到自选列表。",
+      "scope": "沪深北股票 CSV 离线预览、身份选择、显式跳过与确认追加。",
+      "next": "其他资产类型继续按明确支持范围显示。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/247",
+      "updated": "2026-10-29",
+      "status": "delivered",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "不支持基金、ETF、指数或主题导入；Windows/Linux 产品原生验收未执行。",
+      "evidence": [
+        {
+          "kind": "merge",
+          "label": "PR #247 · 已合并",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/247"
+        },
+        {
+          "kind": "validation",
+          "gate": "constraints",
+          "result": "passed",
+          "label": "仓库约束检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/40733363395/job/122975291107"
+        },
+        {
+          "kind": "validation",
+          "gate": "web",
+          "result": "passed",
+          "label": "Web 回归检查",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/40733363327/job/122975290534"
+        },
+        {
+          "kind": "validation",
+          "gate": "macos",
+          "result": "passed",
+          "label": "macOS 干净安装",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/40733363443/job/122975294139"
+        }
+      ]
+    },
+    {
+      "id": "product-progress",
+      "module": "产品体验",
+      "title": "研发进展与更新日志",
+      "summary": "在产品内集中查看功能最新进展及历次交付变化，按状态、模块和月份浏览。",
+      "scope": "只读时间线、更新日志与版本内进展快照；不包含实时同步或任务编辑。",
+      "next": "完成本轮独立评审、必需验证和主线合并；后续快照再确认交付状态。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-ui.md#研发进展与更新日志",
+      "updated": "2026-11-05",
+      "status": "developing",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "本条记录冻结于本轮交付之前，不用页面自身展示提前证明验收或部署完成。Windows/Linux 原生验收未执行。",
+      "evidence": []
+    }
+  ],
+  "releases": [
+    {
+      "id": "readonly-research-mcp-delivery",
+      "featureId": "readonly-research-mcp",
+      "date": "2026-11-05",
+      "kind": "new",
+      "title": "只读研究资料接入",
+      "summary": "通过受控授权向兼容客户端提供只读研究资料，支持查看和撤销应用授权。"
+    },
+    {
+      "id": "event-research-delivery",
+      "featureId": "event-research",
+      "date": "2026-11-05",
+      "kind": "new",
+      "title": "事件时间线与日历研究",
+      "summary": "将事件线索、人工确认和日历研究串联，明确展示证据覆盖与研究资格。"
+    },
+    {
+      "id": "specialist-research-delivery",
+      "featureId": "specialist-research",
+      "date": "2026-10-30",
+      "kind": "new",
+      "title": "专业协作研究",
+      "summary": "在 FinGPT 内提供有预算边界的专业协作入口，并分别显示节点、尝试与用量状态。"
+    },
+    {
+      "id": "watchlist-csv-delivery",
+      "featureId": "watchlist-csv",
+      "date": "2026-10-29",
+      "kind": "new",
+      "title": "从本地 CSV 导入自选",
+      "summary": "先预览、处理重复与同名证券，再确认批量追加到自选列表。"
+    }
+  ]
+}

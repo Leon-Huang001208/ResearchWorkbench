@@ -1,5 +1,18 @@
 # Agent 任务路由指南
 
+## 研发进展维护
+
+用户可见迭代须同步维护 `app/research_web/ui/progress-data.json`，核对日期、来源、负责人、范围和实际状态。
+PR 合并不能替代必需验收；环境启用、业务验收和他平台支持分别记录。当前任务交付前保持开发中或待验收，
+不得用尚未运行的 CI 自证已交付，也不得只改快照日期充当内容更新。
+
+执行 `node scripts/check_product_progress.mjs --write` 并提交生成的 Changelog 区块；再执行
+`node scripts/check_product_progress.mjs --base <任务基线完整SHA>` 验证维护义务。
+无用户可见变化时，在本任务 `.ai/reports/` Markdown 独立记录一行
+`Product-Progress: not-required — <至少十二字的具体理由>`；无内容更新且无解释时检查器拒绝通过。
+仅展示经过核对的公开说明，不包含私有路径、账号、业务数据、凭据或完整工程流水。
+内容契约见[前端](research-web-ui.md#研发进展与更新日志)。
+
 事件／日历研究在隔离worktree开发，新增个人SQLite、原件、固定回测与六维资格时执行完整
 changed-set Router、独评及同候选Mac安装门。测试用获准独立环境和受管≤20用例批次，失败后
 沿原receipt/root重跑、保留原proof，真实成功才按身份退役；不以语法或合成分数代替业务接受。
@@ -214,6 +227,12 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 具体接口及 UNKNOWN、disabled 三态边界见[维护身份合同](research-web-maintenance-job-identity-v3.md)。
 
 ## RWB Git 安全入口（macOS）
+
+### 复用研究 Web 测试环境
+
+开始本地测试前先用当前 Python 执行 `python scripts/research_web_test_env.py --check --json`，读取健康解释器路径并设置 `RWB_TEST_PYTHON`，Python 测试直接用该解释器执行。环境固定在 `~/.research-workbench/test-envs/`，指纹由 Python 实现、版本、平台及 `requirements/web.lock`、`requirements/research-test.in` 决定；同依赖的 worktree 共用一次安装，不属于任务临时资源，收尾不删除。
+
+健康检查不安装依赖。仅在缺少健康环境且已获得依赖安装授权时执行 `--prepare --json`；健康环境直接复用并跳过 pip。新环境只安装锁定 Web 依赖和已声明测试工具，不改全局 Python、产品 `.venv`、模型依赖或常驻服务。准备失败保留私有日志和现场，未知锁、损坏目录不自动覆盖；依赖或 Python 变化产生新指纹。该机制只统一本地测试环境，不替代 CI 干净安装验收。
 
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
 
