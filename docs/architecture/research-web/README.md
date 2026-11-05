@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+能力中心界面收敛为技能／连接器／插件，方法并入技能、工具进入关联详情；原Host／唯一DSH、目录及调度拓扑不变，详见[能力合同](07-capabilities.md)。
+
 ## 事件与日历研究候选（2026-11-04）
 
 [图14：事件研究数据流](../../../outputs/research-web-architecture/14-event-research.html)展开既有Host内新增的来源采集、个人事件版本、人工确认／冻结、确定性研究、独立测试及评分资格。原系统图的宿主、tenant、唯一DSH和安装角色保持；本次确有新增业务API、持久记录及心跳分支，不用粗粒度图不变概括为没有接口或存储变化。

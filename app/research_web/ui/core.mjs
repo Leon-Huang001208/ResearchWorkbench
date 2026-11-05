@@ -7,13 +7,13 @@ const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'doc
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
-const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data', 'plugin']);
+const capabilityKinds = new Set(['skill', 'connector', 'method', 'tool', 'workflow', 'data', 'plugin']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const [pageSegment, sectionSegment, ...extraSegments] = path.split('/');
-  const page = pages.has(pageSegment) ? pageSegment : 'fingpt';
+  const page = pageSegment === 'automations' ? 'skills' : pages.has(pageSegment) ? pageSegment : 'fingpt';
   const params = new URLSearchParams(query);
   const route = {
     page,
@@ -67,14 +67,15 @@ export function parseRoute(hash = '') {
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
   }
   if (page === 'skills') {
-    const requestedView = capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
+    const requestedView = pageSegment === 'automations' ? 'plans' : capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
     const requestedKind = capabilityKinds.has(params.get('kind')) ? params.get('kind') : null;
-    route.capabilityKind = requestedKind || (requestedView === 'plans' ? 'workflow' : ['connections', 'market'].includes(requestedView) ? 'tool' : 'skill');
+    const context = requestedKind || (requestedView === 'plans' ? 'workflow' : ['connections', 'market'].includes(requestedView) ? 'tool' : 'skill');
+    route.capabilityKind = ['method', 'workflow'].includes(context) ? 'skill' : ['tool', 'data'].includes(context) ? 'connector' : context;
+    if (context !== route.capabilityKind) route.capabilityContext = context;
     route.capabilityView = requestedView;
-    if (requestedView === 'mine' && !['skill', 'workflow'].includes(route.capabilityKind)) route.capabilityView = 'library';
-    if (requestedView === 'plans' && route.capabilityKind !== 'workflow') route.capabilityView = 'library';
-    if (requestedView === 'connections' && !['tool', 'data'].includes(route.capabilityKind)) route.capabilityView = 'library';
-    if (requestedView === 'market' && route.capabilityKind !== 'tool') route.capabilityView = 'library';
+    if (['mine', 'plans'].includes(requestedView) && route.capabilityKind !== 'skill') route.capabilityView = 'library';
+    if (['connections', 'market'].includes(requestedView) && route.capabilityKind !== 'connector') route.capabilityView = 'library';
+    if (requestedView === 'market' && context === 'data') route.capabilityView = 'library';
   }
   if (page === 'settings') {
     const connection = params.get('connection');
@@ -802,6 +803,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     setSkill: (value) => { state.skillId = value; state.capability = null; saveDraft(); },
     setCapability: (value) => {
       if (value && (value.enabled !== true || !Number.isInteger(value.version) || value.version < 1)) throw new Error('只能选择已启用的已发布能力版本。');
+      if (value?.kind === 'method') {
+        const ids = [...new Set([...state.methodIds, value.id])];
+        if (ids.length > 3) throw new Error('最多选择三个方法');
+        state.methodIds = ids; logger('capability_method_selected'); saveDraft(); return;
+      }
       state.capability = value ? structuredClone(value) : null; state.skillId = value?.id || ''; saveDraft();
     },
     setTools: (values) => { state.toolIds = [...new Set(values)]; saveDraft(); },

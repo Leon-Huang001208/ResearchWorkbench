@@ -1,5 +1,9 @@
 # 能力包、版本与原生调用
 
+能力中心的用户分类固定为 **技能、连接器、插件**：技能统一展示 Skill、通用步骤模板和历史方法；连接器管理现有 MCP、DataHub 来源和本机集成；插件沿用受审业务包管理。Tool 在关联条目详情展示 ID、权限和可选状态，不再作为主分类。MCP 是连接器的一种协议，插件是可含技能与连接器的分发包，两者不重复安装或复制凭据。
+
+方法不再有独立页面或选择器。历史 `kind=method`、稳定 ID、不可变版本、`method_ids`、最多三项组合、采用记录和权限门继续有效；复制内置方法生成普通 Skill 草稿，保留程序、输入输出和检查标准，须经原检查与发布流程。副本不继承方法采用记录身份，原版本不改写。普通 Workflow 在技能中展示，报告专属流程仍从报告生产进入；定时任务以 `#/automations` 薄入口复用原调度。
+
 业务报告项目在独立“报告生产”入口管理；通用 Workflow 仍是能力中心步骤模板。现有原生绑定与报告运行复用唯一 DSH，界面分类不授予工具权限，不新增报告引擎。
 
 目录保存先生成与原 `json.dump(..., ensure_ascii=False)` 相同的 JSON 字节，再在同一个临时文件中一次写入；每次保存及同步、原子替换、失败清理时点保持。该优化减少真实 Host 重复冷构造中的 Python 逐片段写，不缓存验证、模块清单、权限或凭据，不改变任何包版本和准入。
@@ -61,8 +65,8 @@ Native/Docker 共用能力目录、不可变版本、工具风险等级与 Autom
 | `seeds.py` | 三十个研究 Skill、四个步骤式 Workflow、十个 Method 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
-| `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、Method、数据组织为五个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
-| `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览只读 Registry，并管理完整安装确认、探测、启停、移除、OAuth、风险分级、会话授权和一次性审批；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
+| `ui/capability-workspace.mjs` | 三分类、关联工具详情、连接摘要和旧链接兼容；渲染快览 dialog | 创建第二份目录、推断热门排序或执行能力 |
+| `ui/mcp-marketplace.mjs` | 在连接器的 `view=market` 浏览只读 Registry，管理原安装、授权与生命周期；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
 | `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
 | `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、缺少 pip 时的受限 uv 离线回退、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动安装 uv、自动授权、无人值守高风险或 Registry 发布 |
 | `automation/` | 锁定版本任务、IANA 日程、独立 Claw Run、恢复、显式旧日程迁移和独立投递状态 | 静默升级、研究自动重试、重叠运行或高风险无人值守调用 |

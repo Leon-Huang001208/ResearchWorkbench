@@ -943,12 +943,39 @@ class CapabilityCatalog:
 
     def copy(self, cid, name, slug):
         row = self.row(cid)
-        if row["kind"] == "method":
-            raise CapabilityError("内置方法只读，首版不允许复制或创建", "method_read_only", 409)
         value = copy.deepcopy(row["versions"].get(str(row["version"])) or row["draft"])
         value.update(kind=row["kind"], reviewed_scripts=[])
+        if row["kind"] == "method":
+            if (
+                value.get("files")
+                or value["metadata"].get("required_tools")
+                or value["metadata"].get("dependencies")
+                or not self.validate("method", value)["valid"]
+            ):
+                log.warning("method_copy_rejected capability=%s", cid)
+                raise CapabilityError("方法源规范检查未通过", "method_invalid", 422)
+            spec = ReasoningMethodSpec.model_validate(value.pop("method_spec"))
+            sections = [f"# {spec.title}", "这是普通技能副本，不授予工具权限。"]
+            for title, items in (
+                ("适用", spec.triggers),
+                ("不适用", spec.anti_triggers),
+                ("输入", spec.input_contract),
+                ("程序", spec.procedure),
+                ("可观察输出", spec.output_contract),
+                ("检查标准", spec.evaluation_rubric),
+            ):
+                sections.append(f"## {title}\n" + "\n".join(f"- {item}" for item in items))
+            value.update(
+                kind="skill",
+                instructions="---\n"
+                + yaml.safe_dump(
+                    {"name": slug, "description": spec.description}, allow_unicode=True
+                )
+                + "---\n"
+                + "\n\n".join(sections),
+            )
         value["metadata"].update(name=name, slug=slug)
-        if row["kind"] == "skill":
+        if value["kind"] == "skill":
             header, body = frontmatter(value["instructions"])
             header["name"] = slug
             value["instructions"] = (
