@@ -5321,6 +5321,7 @@ Imports:
 - `fastapi`
 - `fastapi.responses`
 - `market_store`
+- `mcp_facade.read_policy`
 - `pydantic`
 - `scenario_handoffs`
 - `store`
@@ -8389,6 +8390,300 @@ Classes:
   - methods: __init__, _check, read_range, find_gaps, commit_batch, version, freeze, export_restore, merge_snapshots
 
 
+## `app/research_web/mcp_facade/__init__.py`
+
+Module docstring:
+> Private read-only MCP facade; importing this package starts no runtime or SDK.
+
+
+## `app/research_web/mcp_facade/authorization_store.py`
+
+Module docstring:
+> Durable OAuth policy in the existing private account SQLite transaction.
+
+Imports:
+- `__future__`
+- `base64`
+- `collections.abc`
+- `core.observability`
+- `hashlib`
+- `hmac`
+- `models`
+- `multiuser.accounts`
+- `multiuser.origin`
+- `re`
+- `secrets`
+- `sqlite3`
+- `typing`
+- `urllib.parse`
+- `uuid`
+
+Classes:
+- `AuthorizationStore`
+  - All writes use AccountStore's identity-checked BEGIN IMMEDIATE connection.
+  - methods: __init__, load_client, validate_redirect, _resource, _scopes, _account, _bound, _current, _grant, create_request, _request, load_request, issue_code, _code, load_code, exchange_code, _issue_tokens, _token, verify_access, load_refresh, _refresh, rotate_refresh, revoke_grant, list_grants, approve_material, revoke_material, list_materials, list_grant_materials, authorize_material
+
+Functions:
+- `_reject`
+- `_digest`
+- `_label`
+- `_consent`
+- `_material`
+- `_grant_record`
+
+
+## `app/research_web/mcp_facade/backend.py`
+
+Module docstring:
+> Fixed frozen GET adapter. No discovery, arbitrary URL, or execution fallback.
+
+Imports:
+- `config`
+- `core.observability`
+- `hashlib`
+- `httpx`
+- `json`
+- `multiuser.runtime`
+- `re`
+- `read_policy`
+- `uuid`
+
+Classes:
+- `ReadError`
+  - Stable safe error; never carry upstream bodies or credentials.
+- `FrozenBackend`
+  - methods: __init__, _get, read
+
+Functions:
+- `canonical_id`
+- `digest`
+- `decode`
+
+
+## `app/research_web/mcp_facade/config.py`
+
+Module docstring:
+> Dependency-free facade switch and fixed transport limits, shared with Doctor.
+
+Imports:
+- `os`
+
+Functions:
+- `enabled`
+  - Only explicit 1 enables production; tests can supply an explicit bool.
+
+
+## `app/research_web/mcp_facade/http_policy.py`
+
+Module docstring:
+> Bound entire SDK HTTP envelopes before disclosing any response bytes.
+
+Imports:
+- `config`
+- `core.observability`
+- `mcp.server.auth.middleware.bearer_auth`
+- `mcp.server.transport_security`
+- `mcp.types`
+- `multiuser.accounts`
+- `pydantic`
+- `starlette.responses`
+- `starlette.routing`
+
+Classes:
+- `LimitExceeded`
+- `BoundedMCPMethods`
+  - Keep SDK dispatch/auth, but decline its unbounded GET event stream.
+  - methods: __init__, __call__
+- `BoundedHTTP`
+  - methods: __init__, __call__
+
+
+## `app/research_web/mcp_facade/models.py`
+
+Module docstring:
+> Framework-neutral OAuth records and additive AccountStore schema.
+
+Imports:
+- `dataclasses`
+
+Classes:
+- `FixedClient`
+- `ConsentRequest`
+- `Grant`
+- `CodeRecord`
+  - methods: code_challenge
+- `TokenRecord`
+- `TokenPair`
+- `ApprovedMaterial`
+
+
+## `app/research_web/mcp_facade/oauth.py`
+
+Module docstring:
+> SDK OAuth provider and bearer verifier over the reviewed durable store.
+
+Imports:
+- `app.research_web.multiuser.accounts`
+- `authorization_store`
+- `contextvars`
+- `core.observability`
+- `mcp.server.auth.handlers.token`
+- `mcp.server.auth.provider`
+- `mcp.shared.auth`
+- `models`
+- `pydantic`
+- `urllib.parse`
+
+Classes:
+- `NativeClient`
+  - RFC 8252 loopback port variation, with exactly one approved host/path.
+  - methods: validate_redirect_uri
+- `OAuthProvider`
+  - methods: __init__, get_client, register_client, authorize, load_authorization_code, exchange_authorization_code, load_refresh_token, exchange_refresh_token, load_access_token, revoke_token
+- `OAuthVerifier`
+  - methods: __init__, verify_token
+
+Functions:
+- `_access`
+- `_pair`
+- `_token_error`
+- `_definitely_invalid_token`
+  - Storage/security failures do not prove absence or successful revocation.
+- `create_oauth_routes`
+  - AS and browser routes only; mount before MCP's root app. No lifespan.
+
+
+## `app/research_web/mcp_facade/oauth_routes.py`
+
+Module docstring:
+> Thin SDK route adapters for fixed-client policy and known SDK 2.2 gaps.
+
+Imports:
+- `app.research_web.multiuser.accounts`
+- `core.observability`
+- `json`
+- `mcp.server.auth.handlers.authorize`
+- `mcp.server.auth.handlers.revoke`
+- `mcp.server.auth.handlers.token`
+- `mcp.server.auth.middleware.client_auth`
+- `mcp.server.auth.routes`
+- `mcp.server.auth.settings`
+- `mcp.server.transport_security`
+- `models`
+- `oauth`
+- `oauth_views`
+- `pydantic`
+- `starlette.datastructures`
+- `starlette.exceptions`
+- `starlette.middleware.cors`
+- `starlette.requests`
+- `starlette.responses`
+- `starlette.routing`
+- `urllib.parse`
+
+Classes:
+- `_PublicRevocationRequest`
+  - SDK 2.2 requires a nullable client_secret field even for public clients.
+  - methods: form
+
+Functions:
+- `_error`
+- `_safe_sdk_response`
+  - SDK validation descriptions can contain input values; never echo them.
+- `create_routes`
+
+
+## `app/research_web/mcp_facade/oauth_views.py`
+
+Module docstring:
+> Account-bound consent and app revocation, using existing browser sessions.
+
+Imports:
+- `app.research_web.multiuser.accounts`
+- `authorization_store`
+- `core.observability`
+- `html`
+- `starlette.requests`
+- `starlette.responses`
+- `starlette.routing`
+- `urllib.parse`
+
+Functions:
+- `validated_login_return`
+  - Narrow existing /auth UI handoff; SDK revalidates all OAuth parameters.
+- `callback_response`
+- `create_browser_routes`
+
+
+## `app/research_web/mcp_facade/read_policy.py`
+
+Module docstring:
+> Frozen GET protocol: reject unsupported reads before business reconciliation.
+
+Imports:
+- `core.observability`
+- `pathlib`
+- `store`
+
+Functions:
+- `strict_read`
+- `reject`
+- `input_text`
+
+
+## `app/research_web/mcp_facade/server.py`
+
+Module docstring:
+> SDK resource server assembly. Created only after the explicit feature gate.
+
+Imports:
+- `authorization_store`
+- `backend`
+- `http_policy`
+- `httpx`
+- `mcp.server`
+- `mcp.server.auth.settings`
+- `mcp.server.transport_security`
+- `mcp.shared.exceptions`
+- `mcp.types`
+- `models`
+- `oauth`
+- `pydantic`
+- `starlette.routing`
+- `tools`
+- `urllib.parse`
+
+Classes:
+- `Facade`
+  - methods: __init__
+
+Functions:
+- `tools_only`
+  - Use the SDK public middleware hook to narrow its default capabilities.
+
+
+## `app/research_web/mcp_facade/tools.py`
+
+Module docstring:
+> Four account-bound readonly tools. Identity comes exclusively from SDK bearer context.
+
+Imports:
+- `backend`
+- `config`
+- `core.observability`
+- `json`
+- `mcp.server.auth.middleware.auth_context`
+- `mcp.server.mcpserver.exceptions`
+- `mcp.types`
+- `models`
+- `multiuser.accounts`
+- `pydantic`
+- `typing`
+
+Functions:
+- `register_tools`
+
+
 ## `app/research_web/mcp_registry/__init__.py`
 
 Module docstring:
@@ -9330,6 +9625,7 @@ Imports:
 - `collections.abc`
 - `contextlib`
 - `getpass`
+- `importlib.metadata`
 - `importlib.util`
 - `json`
 - `logging`
@@ -9360,6 +9656,8 @@ Functions:
   - Explicit private pair limit; older installations retain one extra pair.
 - `_inspect_capacity`
   - Inspect private configuration without importing or starting a runtime.
+- `_inspect_mcp`
+  - Inspect configuration and distribution metadata, never initialize OAuth/SDK.
 - `_doctor`
 - `_confirmed_password`
 - `_server_context`
@@ -9403,7 +9701,7 @@ Classes:
   - methods: public
 - `AccountStore`
   - One server's private account database; never stores research transcripts.
-  - methods: __init__, _identity, _failed, _prepare_root, _validate_paths, _connection, _rollback, _now, _find, create_user, list_users, get_user, set_enabled, reset_password, _bucket, _token_hash, _verify, login, authenticate, logout
+  - methods: __init__, _identity, _failed, _prepare_root, _validate_paths, _connection, _rollback, _now, _find, create_user, list_users, get_user, _revoke_oauth, set_enabled, reset_password, _bucket, _token_hash, _verify, login, authenticate, logout
 
 Functions:
 - `_username`
@@ -9431,6 +9729,7 @@ Imports:
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `httpx`
+- `mcp_facade.config`
 - `origin`
 - `pathlib`
 - `plugin_routes`
@@ -9576,7 +9875,7 @@ Classes:
   - methods: data_root, public_config, from_config, discover, verify
 - `AttachedPool`
   - Primary keeps its original directory and key namespace; others use the private pool.
-  - methods: __init__, _verify, start, backend_for, health, stop, close
+  - methods: __init__, _verify, start, backend_for, backend_for_readonly, health, stop, close
 
 Functions:
 - `read_json`
@@ -9644,7 +9943,7 @@ Classes:
 - `_Instance`
 - `RuntimePool`
   - Never adopt old processes or evict an active user's research for capacity.
-  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, _has_enabled_discovery, restore_discovery_tracks, backend_for, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, request_started, request_finished, _restart_identity, _plugin_control, _replace_dsh, _wait_plugin_guard, restart_runtime, stop, close, _close_owned
+  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, _has_enabled_discovery, restore_discovery_tracks, backend_for, backend_for_readonly, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, request_started, request_finished, _restart_identity, _plugin_control, _replace_dsh, _wait_plugin_guard, restart_runtime, stop, close, _close_owned
 
 Functions:
 - `_directory`

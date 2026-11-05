@@ -6,6 +6,10 @@
 数据流见[事件研究图](../../../outputs/research-web-architecture/14-event-research.html)及
 [集成合同](../../research-web-event-research.md)。
 
+## 批准冻结材料的外部读取
+
+入站 MCP 白名单绑定账户、上下文、对象和完整原件 SHA256，只允许明确批准公开/合成冻结材料。原 manifest 摘要、行文件摘要和文本片段摘要分开，保留来源、时点、coverage 和缺失状态；不将拥有会话或能下载当作外发资格。避开会写索引的通用文件列表及缺档时抓网的来源读取；只经固定既有 GET、完整核摘要并复验撤权后返回。首版没有 OCR、转码或二进制导出。见[合同](../../research-web-mcp-facade.md)。
+
 ## 交付日志与业务文件分离（2026-10-31）
 
 `logs/evidence-retention.json` 对新交付任务的测试输出逐文件声明保留/丢弃，丢弃只接受通过的 JUnit 与固定哈希；归档保留集上限 128 MiB。它不扫描或删除 DataHub 原件、报告、会话、用户资料、数据库、供应商数据、Git 恢复点或 Native/Docker 生产恢复目录。历史任务缺新模式仍按原 ledger 保留，未登记业务路径不得以“旧日志”名义清理。

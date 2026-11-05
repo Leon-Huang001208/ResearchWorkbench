@@ -1,5 +1,11 @@
 # GitHub Actions 免费额度治理
 
+2026-11-05 PR268 Checks run41944970627 已通过全部Python分片并核实锁定SDK2.2；JavaScript阶段1305PASS、3FAIL、4SKIP，三个失败均来自旧登录VM夹具未提供浏览器URLSearchParams。修补3仅补该夹具的原生URL API和空location.search，并保持严格请求体断言（无回跳参数时return_to:null）；不改产品、依赖、job/runner/timeout或环境边界。旧登录、MCP登录、账号菜单与会话包装完整组合本机24PASS；默认Node25.9.0结果69.396ms保留，既有固定Node24.19.0补跑24PASS／105.226ms，未安装或更改Node配置。新候选仍须重新取得原全部CI证据。
+
+2026-11-05 PR268 第二次 Checks run41938174449/head ddb24917 在开发依赖安装中实际取得 mcp/mcp-types 2.3.0，与已锁定 Web 2.2.0 的路由合同不符。CI修补2沿原精选Web锁步骤加入这两个已声明包的完整哈希块，继续 `--require-hashes --no-deps`，并在同一步校验已安装版本；保留原 reportlab/openpyxl/et-xmlfile、开发依赖声明和SDK合同。不增加job、runner、时限或新依赖，不安装本机包；修后新候选CI须重新取证，旧候选成功的Mac/Constraints不移记为新候选通过。
+
+2026-11-05 PR268 首次 Mac Bootstrap run41934434968 的安装与前置29项Node／7项unittest通过（另1项可选clone为NOT_RUN），后续验证步骤出现 AssertionError。只读复现确定公开 server dispatcher 的最小环境丢失显式 MCP 开关，使新增 Doctor 的 enabled 断言失败；SDK2.2及CJPY0.5.2安装已有该run日志证据。修补限定该dispatcher规范0/1传递，保留原Doctor断言、全部job／runner／timeout；不重跑旧候选或放宽全局环境白名单。修后新候选仍须受管发布并取得自身CI证据，原失败保留。
+
 2026-11-05共享缓存报告委托沿原Project Constraints的资源生命周期Node合同追加正反例，
 不增加job、runner、时限、依赖或平台dispatch；在原步骤预留30秒增量，并由最终候选实测。
 新委托目标与真实内核合同68项在Node24.22.1通过，实测6.566秒；不代替冻结候选完整回归或CI。
@@ -21,6 +27,10 @@ Bootstrap静态资源校验加入两份mjs；不新增job、runner、超时或�
 已运行真实窗口、回测/封存/评分互操作及原生资料测试，修复期间失败证据保留；合成正链不代表
 真实市场有效性。新模块初步预留原步骤180秒，最终实际耗时与候选CI另绑，不能用估计替代通过。
 发布前仍须实时复核visibility/额度和标准runner资格；不重跑旧候选或从Mac派发Windows/Linux产品。
+
+2026-11-04 最终候选本机 L4 检查发现入站 MCP 规则已要求 Mac Bootstrap，但该 workflow 的 PR/push 路径过滤尚未覆盖新规则。修复仅在两个既有事件中补齐该规则的全部七个精确文件及一个源码目录选择器；既有路径、单一 macos-15 job、60分钟上限、依赖及 Windows 手动交接保持。新增的是必需门的路径覆盖，不修改策略或削弱匹配测试；远端 CI 仍 NOT_RUN，SSH 发布阻断仍保留。
+
+2026-11-04 入站 MCP 沿原 Research Web Checks Python 步骤增加 store/oauth/http/read_policy/tools/lifecycle 六模块，账号菜单 JS 沿原 research_web 通配；原 Bootstrap 安装检查增加锁定 SDK 导入和 enabled Doctor 只读断言。无新 job、runner、依赖、timeout、触发频率或产品 dispatch；Checks45分钟及Mac标准macos-15/原60分钟保持。原步骤增量保守预留90秒，Task3 focused14项本机约2秒，完整候选实际CI耗时待证；现因GitSafety SSH认证阻断未发布，不把本机耗时当作远端预算通过。
 
 2026-11-01 prepared-amend 回执字段兼容在既有 Project Constraints 的 Git安全测试步骤增加2个正反例，首次发布前主线前进又增加3个直接刷新正反例；不增workflow/job/runner/依赖/timeout。原amend测试文件本机完整106项通过，实测约275秒；新刷新用例所在Git安全文件的10项unpublished定点测试通过。这些结果不是远端同候选CI或生产维护成功。项目入口对合法 `mergeSourceCommit` 只接受其等于旧feature，并在正式收养或主线刷新后推进到新feature；错误绑定继续失败关闭。
 

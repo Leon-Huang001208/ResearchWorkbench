@@ -771,7 +771,8 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 18);
+  assert.equal(catalogs.length, 19);
+  assert.ok(catalogs.some(([id]) => id === "research-web-inbound-mcp"));
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -1510,7 +1511,7 @@ test("AKShare plus asset UI escalates to the bounded L3 user path", () => {
   );
 });
 
-test("unregistered DataHub boundaries remain L4 fallback paths", () => {
+test("DataHub routes use inbound MCP policy and unregistered boundaries remain L4 fallback", () => {
   const currentDataHubPythonFiles = fs.readdirSync(
     path.join(repositoryRoot, "app/research_web/datahub"),
     {withFileTypes: true},
@@ -1533,6 +1534,22 @@ test("unregistered DataHub boundaries remain L4 fallback paths", () => {
     const plan = success(run(repositoryRoot, [changedFile]));
     assert.equal(plan.risk, "full-delivery", changedFile);
     assert.equal(plan.requiredLevel, "L4", changedFile);
+    if (changedFile === "app/research_web/datahub/routes.py") {
+      assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-inbound-mcp"]);
+      assert.deepEqual(plan.reasons, [{
+        path: changedFile,
+        rule: "research-web-inbound-mcp",
+        code: "private_inbound_oauth_readonly_boundary",
+      }]);
+      assert.deepEqual(plan.uncoveredRisks, []);
+      for (const id of ["research-web-inbound-mcp", "research-web-architecture", "project-constraints-local", "research-web-verification-full", "documentation-governance", "python-file-index"]) {
+        assert.ok(plan.receiptTemplate.requiredValidationIds.includes(id), id);
+      }
+      for (const id of ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-docker", "research-web-windows-verify"]) {
+        assert.ok(plan.receiptTemplate.externalGateIds.includes(id), id);
+      }
+      continue;
+    }
     assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], changedFile);
     assert.deepEqual(plan.reasons, [{
       path: changedFile,
@@ -2182,6 +2199,17 @@ test("reopened platform scope retains Windows handoff without dropping generic C
   }
   const reopened = success(run(fixture(t, restored), files));
   assert.equal(reopened.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
+});
+
+test("inbound MCP and frozen DataHub boundary retain L4 and every platform gate", () => {
+  for (const file of ["app/research_web/mcp_facade/server.py", "app/research_web/datahub/routes.py", "tests/research_web/test_mcp_facade_lifecycle.py"]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.requiredLevel, "L4");
+    assert.ok(plan.receiptTemplate.requiredValidationIds.includes("research-web-inbound-mcp"));
+    for (const id of ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-docker", "research-web-windows-verify"]) {
+      assert.ok(plan.receiptTemplate.externalGateIds.includes(id), `${file}: ${id}`);
+    }
+  }
 });
 
 test("durable acceptance budgets require ledger, guard and full platform handoffs", () => {
