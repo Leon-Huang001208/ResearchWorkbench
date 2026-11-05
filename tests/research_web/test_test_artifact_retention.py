@@ -1,5 +1,6 @@
 """Successful test fixtures retire early without weakening evidence or ownership checks."""
 
+import errno
 import hashlib
 import json
 import os
@@ -18,6 +19,54 @@ from scripts.test_artifact_retention import create_root as product_create_root
 from scripts.test_artifact_retention import retire_root as product_retire_root
 
 CANDIDATE = "a" * 40
+
+
+def test_usage_probe_accepts_disappeared_child_but_counts_remaining_files(tmp_path, monkeypatch):
+    root = tmp_path / "scan"
+    root.mkdir()
+    (root / "kept").write_bytes(b"still-counted")
+
+    def walk(path, *, followlinks, onerror):
+        assert path == root and followlinks is False
+        onerror(FileNotFoundError(errno.ENOENT, "disappeared", str(root / "gone")))
+        yield str(root), [], ["kept"]
+
+    monkeypatch.setattr(retention.os, "walk", walk)
+    assert retention._usage_bytes(root) == len(b"still-counted")
+
+
+@pytest.mark.parametrize("kind", ["root-missing", "permission", "io", "outside"])
+def test_usage_probe_keeps_unknown_walk_errors_closed(tmp_path, monkeypatch, kind):
+    root = tmp_path / "scan"
+    root.mkdir()
+    error = {
+        "root-missing": FileNotFoundError(errno.ENOENT, "missing", str(root)),
+        "permission": PermissionError(errno.EACCES, "denied", str(root / "child")),
+        "io": OSError(errno.EIO, "io", str(root / "child")),
+        "outside": FileNotFoundError(errno.ENOENT, "missing", str(tmp_path / "outside")),
+    }[kind]
+
+    def walk(path, *, followlinks, onerror):
+        onerror(error)
+        yield str(path), [], []
+
+    monkeypatch.setattr(retention.os, "walk", walk)
+    with pytest.raises(OSError):
+        retention._usage_bytes(root)
+
+
+def test_usage_probe_rejects_root_replacement_during_scan(tmp_path, monkeypatch):
+    root = tmp_path / "scan"
+    root.mkdir()
+
+    def walk(path, *, followlinks, onerror):
+        root.rename(tmp_path / "previous")
+        root.mkdir()
+        yield str(path), [], []
+
+    monkeypatch.setattr(retention.os, "walk", walk)
+    with pytest.raises(RetentionError, match="usage_root_changed"):
+        retention._usage_bytes(root)
 
 
 def create_root(parent, receipt, *, task_id, candidate):

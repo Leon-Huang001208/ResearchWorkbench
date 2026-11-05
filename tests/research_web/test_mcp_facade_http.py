@@ -15,9 +15,61 @@ import pytest
 import uvicorn
 from test_mcp_facade_oauth import PASSWORD, authorize, exchange, params
 
+from app.research_web.mcp_facade.config import MACHINE_PATHS
 from app.research_web.multiuser.accounts import AccountError, AccountStore
-from app.research_web.multiuser.gateway import create_gateway
+from app.research_web.multiuser.gateway import COOKIE, create_gateway
 from app.research_web.multiuser.runtime import RuntimeErrorSafe
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("pool_health", [False, True])
+def test_gateway_health_reports_actual_facade_over_pool_claim(
+    tmp_path, monkeypatch, enabled, pool_health
+):
+    from fastapi.testclient import TestClient
+
+    accounts = AccountStore(tmp_path / "accounts")
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    backend_calls = []
+
+    class Pool:
+        async def backend_for(self, user_id):
+            backend_calls.append(user_id)
+            raise AssertionError("disabled_machine_endpoint_allocated_backend")
+
+        async def close(self):
+            pass
+
+    pool = Pool()
+    if pool_health:
+
+        async def health():
+            return {"status": "ready", "mcp_readonly_enabled": not enabled}
+
+        pool.health = health
+    app = create_gateway(accounts, pool, origin="http://localhost", mcp_enabled=enabled)
+    with TestClient(app, base_url="http://localhost") as client:
+        result = client.get("/api/server/health")
+        assert result.status_code == 200
+        assert result.json()["mcp_readonly_enabled"] is enabled
+        assert hasattr(app.state, "mcp_facade") is enabled
+        if not enabled:
+            user = accounts.create_user("browser-user", PASSWORD)
+            token, _ = accounts.login(user.username, PASSWORD)
+            client.cookies.set(COOKIE, token)
+            assert client.get("/api/server/me").json()["user"]["id"] == user.id
+            # Exercise actual routing after successful browser authentication;
+            # login-required/Host denial cannot mask an included OAuth route.
+            for path in sorted(MACHINE_PATHS):
+                for method in ("GET", "POST"):
+                    response = client.request(method, path, headers={"Origin": "http://localhost"})
+                    assert response.status_code == 404, (method, path, response.text)
+                    assert response.json()["error"]["code"] == "not_found"
+            assert backend_calls == []
+            with accounts._connection() as db:
+                assert not db.execute(
+                    "SELECT name FROM sqlite_master WHERE name LIKE 'mcp_%'"
+                ).fetchall()
 
 
 @pytest.fixture

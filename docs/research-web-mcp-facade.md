@@ -61,7 +61,7 @@ HTTP 请求最大 64 KiB，响应最大 256 KiB。分页、截断、coverage、�
 
 公开安装入口 `./setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 继续使用已有 Web 锁；本次未引入依赖。已核对 `mcp==2.2.0`、`python-multipart==0.0.32`、`starlette==1.6.0` 与安装器；兼容性仍需同候选 Mac Bootstrap 干净安装证明，当前 `NOT_RUN`。
 
-只有网关进程环境中的 `RWB_MCP_READONLY_ENABLED=1` 开启入口；缺省、`0` 或其他值均关闭。既有服务须在独立授权部署后按原受管方式更新，不能因修改当前 shell 自动认定常驻已开启。以下配置例子未执行：
+常驻私有 `resident.json` 可选配置 `mcp_readonly_enabled`，只接受 JSON 布尔值。显式 `false` 优先于进程环境中的 `RWB_MCP_READONLY_ENABLED=1`，不创建 Facade、OAuth 路由或授权表；非法值在账号库或 RuntimePool 初始化前拒绝启动。旧配置缺少该字段时保持环境语义：只有规范 `1` 开启入口，缺省、`0` 或其他值均关闭。此可选字段不自动写入既有配置，不改变启用默认值。既有服务须在独立授权部署后按原受管方式更新，不能因修改当前 shell 自动认定常驻已开启。以下配置例子未执行：
 
 公开 `./rwb server` dispatcher 在既有最小环境上仅传递规范 `0`／`1` 字符串；不传递其他 RWB 开关或模型／供应商秘密。Doctor 也走该实际交接，因此能如实检查显式开关，仍不初始化 SDK 服务或创建账号根。
 
@@ -77,7 +77,7 @@ Origin 和 resource 必须换成同一个已批准私网规范地址。GUI 原�
 
 `rwb_dataset_read` 的 `view="manifest"` 返回原 manifest，`view="rows"` 读取已冻结 rows；manifest 原件摘要与 rows 文件摘要各自校验。`rwb_source_read` 省略 `file_id` 时仅列该上下文批准来源；片段摘要不替代来源原件摘要。两项列表基于批准元数据，不表示底层原件现场通过。
 
-`server doctor --json` 中 `mcp_readonly` 只读环境开关和分发包元数据：`disabled` 或 `configuration_pending`，授权／连接 `not_checked`，原生 Codex／DSH／WorkBuddy／私网 TLS 均 `NOT_RUN`。安装包存在或版本匹配不等于连接成功；即使启用也不初始化 SDK、授权表、后端或模型，不读取凭据和历史正文。
+`server doctor --json` 中 `mcp_readonly` 只读受私有文件安全门保护的常驻配置、环境开关和分发包元数据。`configuration_source` 区分 `resident`、`environment` 或 `unknown`，`environment_enabled` 单列当前检查进程的环境；合法配置状态为 `disabled` 或 `configuration_pending`，非法或无法安全读取的配置为 `invalid` 且 `enabled:null`，不能据此宣称关闭。Doctor 的 `runtime_verification` 始终为 `NOT_RUN`，授权／连接 `not_checked`，原生 Codex／DSH／WorkBuddy／私网 TLS 均 `NOT_RUN`。安装包存在或版本匹配不等于连接成功；即使启用也不初始化 SDK、授权表、后端或模型，不读取凭据和历史正文。实际网关 `/api/server/health` 的 `mcp_readonly_enabled` 为严格布尔值，来自当前进程是否实际创建 Facade，不采信上游运行池声明；部署须独立检查这个实际运行状态。
 
 ## 验收与回滚
 
