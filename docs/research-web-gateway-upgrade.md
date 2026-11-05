@@ -8,12 +8,14 @@
 `60416994f88eeead8a3891dbe9a7dfd617c566fc` → MCP主线
 `58ad352eeb925805ff00f46139a073fda15163d3` → 已授权最新主线
 `54610625d4f736cd807fdd50eaf2e1f22a557ae5` → 合并安全检查点
-`e9cb46e1387f07275200c9062994d82873591e42` → 最终工具目标。每段都须保留真实祖先关系；
+`e9cb46e1387f07275200c9062994d82873591e42` → 交付恢复工具检查点
+`32b21c4e892da4bf4b05518296ce72fe7d6b52bc` → 最终工具目标。每段都须保留真实祖先关系；
 只有事件功能到604的整个 `app` Git tree 要求相同。546的能力分类／进展UI随用户最新主线授权纳入，
 没有新增依赖；e9保留65a引入的持久关闭MCP、health实际Facade布尔及容量扫描安全修复。
 最终资格必须绑定新的
 已合并目标、完整路径并集／Git blob／文件模式及原三CI／Mac安装，不能借用旧产品或工具回执。
-最终e9之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
+32b21c4e固定包含已审的未发布amendment跨正式base-refresh验证修复，不新增运行服务或权限。
+最终32b之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
 
 仅EVENT前进时在网关 `resident.json` 持久保存严格布尔 `mcp_readonly_enabled: false`。
 e9保留65a驻留入口在accounts/runtime构造前校验该字段，False优先于环境开启；本部署不创建MCP

@@ -322,6 +322,14 @@ anchors 保存在封印备份中，不移动原 refs。旧完整回执与 proof 
 epoch；下一次真实 descendant 修订可追加新 epoch。
 每次修订及重放都逐 epoch 检查原回执哈希、私有 proof 精确字节、前缀链及 sealed manifest，
 在持备份锁时实际恢复所有既有 epoch；旧证据损坏或缺失时不得追加新历史。
+当同一未发布任务已正式 base-refresh，再修补生成索引时，旧 amendment 按自身冻结 base epoch
+验证；不得要求旧末端等于已刷新后的候选，也不得删除旧历史。仅有 base/candidate 断点时，
+从同 task 私有 `base-refresh/` 查找唯一匹配旧末端及 history prefix 的正式快照，严格证明
+刷新允许字段投影（base/integration/feature/mergeSource、verification=null、CI=pending、
+status=prepared、updatedAt），其他任务身份、发布null、修补计数、rollback/cleanup和历史保持。
+逐条验证原始Git祖先及候选包含feature，快照集合／私有权限／字节／inode纳入同次CAS。
+缺席、多匹配、篡改或身份漂移拒绝；本能力不扩展至已发布修复，原epoch实际恢复和新备份门不变。
+
 本次新建的 snapshot／proof／临时回执也须在最后网络观察后核对原 inode 和预期字节；
 proof 固定对应本轮实际恢复的 manifest／seal、旧提交锚点、两工作树 tip 和原 master。
 新文件缺失、损坏或同字节替换，以及备份重封印或错配，都在原回执 rename 前拒绝。
