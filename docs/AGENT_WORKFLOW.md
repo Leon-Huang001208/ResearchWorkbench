@@ -215,6 +215,12 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 
 ## RWB Git 安全入口（macOS）
 
+### 复用研究 Web 测试环境
+
+开始本地测试前先用当前 Python 执行 `python scripts/research_web_test_env.py --check --json`，读取健康解释器路径并设置 `RWB_TEST_PYTHON`，Python 测试直接用该解释器执行。环境固定在 `~/.research-workbench/test-envs/`，指纹由 Python 实现、版本、平台及 `requirements/web.lock`、`requirements/research-test.in` 决定；同依赖的 worktree 共用一次安装，不属于任务临时资源，收尾不删除。
+
+健康检查不安装依赖。仅在缺少健康环境且已获得依赖安装授权时执行 `--prepare --json`；健康环境直接复用并跳过 pip。新环境只安装锁定 Web 依赖和已声明测试工具，不改全局 Python、产品 `.venv`、模型依赖或常驻服务。准备失败保留私有日志和现场，未知锁、损坏目录不自动覆盖；依赖或 Python 变化产生新指纹。该机制只统一本地测试环境，不替代 CI 干净安装验收。
+
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
 
 在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：

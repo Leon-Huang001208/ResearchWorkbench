@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+能力中心界面仅保留技能、连接器、插件；方法与通用步骤模板并入技能，工具进入关联详情，旧类型/版本/权限合同继续兼容。方法复制只产生普通 Skill 草稿，不改写历史采用记录。详见[能力合同](architecture/research-web/07-capabilities.md)。本地测试通过 `scripts/research_web_test_env.py --check --json` 查找项目共享环境，准备与复用边界见[开发流程](AGENT_WORKFLOW.md#复用研究-web-测试环境)。
+
 事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
 `event_studies/` 管理固定窗口、对照、代理账本、试验与一次性验证；`market_scoring/` 管理
 六维配置、证据时点、研究总分和当期事件适用性。`event_datahub_bridge.py` 只登记当前账号

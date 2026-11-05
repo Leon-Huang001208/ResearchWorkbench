@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "合并保留事件时间线、日历研究与默认关闭的私网入站 MCP 两项独立入口及验收边界。",
-  "reason": "事件研究保留个人元数据、来源及PIT/生产状态；MCP保留公开或合成冻结材料审批、独立OAuth和既有存活后端读取。集成源码不认证常驻、原生宿主或跨平台实机。"
+  "disposition": "unchanged",
+  "summary": "在已涵盖事件研究和默认关闭入站MCP的README基础上，复核能力中心三分类及共享本地测试环境。",
+  "reason": "当前README已保留事件/PIT/生产边界和独立OAuth的只读材料出口；本次分类与测试环境不新增服务或公开安装选项，唯一DSH与原安装入口仍准确。模块合同及AGENT_WORKFLOW更新，集成源码仍不认证常驻或跨平台实机。"
 }
