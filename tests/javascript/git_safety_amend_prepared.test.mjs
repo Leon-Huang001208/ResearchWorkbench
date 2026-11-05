@@ -446,3 +446,78 @@ test('legacy v1 keeps its original single-step command byte budget rather than t
   const legacy={...f.receipt,integrationCommit:candidate,featureCommit:f.newFeature,verification:null,review:null,preparedAmendment:proof,preparedAmendmentHistory:[proof]};fs.writeFileSync(f.filename,JSON.stringify(legacy));
   assert.deepEqual(await amend(f),legacy);
 });
+
+async function amendmentThenBaseRefresh(t) {
+  const f=fixture(t), amended=await amend(f);
+  fs.writeFileSync(path.join(f.projectRoot,'upstream-next.txt'),'new upstream\n');
+  git(f.projectRoot,['add','.']);git(f.projectRoot,['commit','-m','new upstream']);
+  const base=git(f.projectRoot,['rev-parse','HEAD']);
+  git(f.projectRoot,['update-ref','refs/remotes/origin/master',base]);
+  git(f.feature,['merge','--no-ff','--no-edit',base]);
+  const feature=git(f.feature,['rev-parse','HEAD']);
+  git(f.integration,['merge','--no-ff','--no-edit',feature]);
+  f.server.base=base;
+  f.server.commitResponse=sha=>sha===f.server.base
+    ? {status:0,stdout:`HTTP/2.0 200 OK\r\n\r\n${JSON.stringify({sha})}`,stderr:''}
+    : {status:1,stdout:'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Not Found"}',stderr:''};
+  const refreshed=await runDelivery({projectRoot:f.projectRoot,taskId:'task',action:'prepare'},f.options);
+  assert.deepEqual(refreshed.preparedAmendmentHistory,amended.preparedAmendmentHistory);
+  assert.equal(refreshed.baseCommit,base);
+  const snapshots=path.join(f.projectRoot,'.git/leon-engineering/git-safety/base-refresh/task');
+  return {...f,amended,refreshed,snapshots};
+}
+
+test('prepared amendment bridges its immutable epoch across a formal base refresh', async t=>{
+  const f=await amendmentThenBaseRefresh(t), before=fs.readFileSync(f.filename);
+  const next=advanceFeatureAndMerge(f,'index-after-refresh');
+  const result=await amend(f);
+  assert.equal(result.integrationCommit,next.candidate);assert.equal(result.featureCommit,next.feature);
+  assert.equal(result.baseCommit,f.refreshed.baseCommit);
+  assert.equal(result.preparedAmendmentHistory.length,2);
+  assert.deepEqual(result.preparedAmendmentHistory[0],f.amended.preparedAmendment);
+  assert.deepEqual(fs.readFileSync(result.preparedAmendment.receiptSnapshot),before);
+  assert.deepEqual(await amend(f),result);
+});
+
+for(const fault of ['missing','duplicate','corrupt','task','unknown','published','cleanup','prefix','remote','candidate','verification','missing-updated','permissions','symlink']) test('formal base-refresh bridge rejects '+fault+' evidence without changing its receipt',async t=>{
+  const f=await amendmentThenBaseRefresh(t);
+  advanceFeatureAndMerge(f,'after-refresh-'+fault);
+  const file=path.join(f.snapshots,fs.readdirSync(f.snapshots)[0]);
+  if(fault==='missing')fs.unlinkSync(file);
+  else if(fault==='duplicate')fs.copyFileSync(file,path.join(f.snapshots,crypto.randomUUID()+'.json'));
+  else if(fault==='corrupt')fs.writeFileSync(file,'{');
+  else if(fault==='permissions')fs.chmodSync(file,0o644);
+  else if(fault==='symlink'){const original=path.join(f.root,'original-refresh.json');fs.renameSync(file,original);fs.symlinkSync(original,file);}
+  else if(fault==='candidate'||fault==='verification'||fault==='missing-updated'){
+    const value=JSON.parse(fs.readFileSync(f.filename));
+    if(fault==='candidate')value.integrationCommit=f.server.base;
+    else if(fault==='verification')value.verification={status:'passed'};
+    else delete value.updatedAt;
+    fs.writeFileSync(f.filename,JSON.stringify(value));
+  }else{
+    const value=JSON.parse(fs.readFileSync(file));
+    if(fault==='task')value.taskId='another-task';
+    if(fault==='unknown')value.unregistered=true;
+    if(fault==='published')value.mode='pr';
+    if(fault==='cleanup')value.cleanup.localBranchDeleted=true;
+    if(fault==='prefix'){value.preparedAmendmentHistory=[];delete value.preparedAmendment;}
+    if(fault==='remote')value.remoteUrl='https://github.com/other/repo.git';
+    fs.writeFileSync(file,JSON.stringify(value));
+  }
+  const before=fs.readFileSync(f.filename), refs=git(f.projectRoot,['show-ref']);
+  await assert.rejects(amend(f));
+  assert.deepEqual(fs.readFileSync(f.filename),before);
+  assert.equal(git(f.projectRoot,['show-ref']),refs);
+});
+
+for(const fault of ['replace','corrupt','duplicate']) test('formal refresh snapshot '+fault+' during final observation cannot cross CAS',async t=>{
+  const f=await amendmentThenBaseRefresh(t);advanceFeatureAndMerge(f,'late-refresh-'+fault);
+  const before=fs.readFileSync(f.filename),file=path.join(f.snapshots,fs.readdirSync(f.snapshots)[0]);let changed=false;
+  f.options.beforePreparedAmendAdopt=()=>{f.server.beforeRead=()=>{
+    if(changed)return;changed=true;
+    if(fault==='replace'){const bytes=fs.readFileSync(file);fs.renameSync(file,path.join(f.root,'original-refresh-bytes.json'));fs.writeFileSync(file,bytes,{mode:0o600});}
+    if(fault==='corrupt')fs.appendFileSync(file,' ');
+    if(fault==='duplicate')fs.copyFileSync(file,path.join(f.snapshots,crypto.randomUUID()+'.json'));
+  };};
+  await assert.rejects(amend(f));assert.equal(changed,true);assert.deepEqual(fs.readFileSync(f.filename),before);
+});
