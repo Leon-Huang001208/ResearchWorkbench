@@ -272,6 +272,62 @@ def test_doctor_mcp_missing_or_unknown_sdk_never_claims_connection(monkeypatch, 
     assert "private metadata details" not in json.dumps(report)
 
 
+@pytest.mark.parametrize("value", [False, True, 0, 1, None, "false"])
+def test_doctor_mcp_persisted_switch_is_strict_and_metadata_only(
+    tmp_path, monkeypatch, output, value
+):
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    path = root / "resident.json"
+    path.write_text(json.dumps({"mcp_readonly_enabled": value, "private": "never-print"}))
+    path.chmod(0o600)
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    before = snapshot(root)
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    captured = output.readouterr()
+    report = json.loads(captured.out)["mcp_readonly"]
+    valid = type(value) is bool
+    assert report["enabled"] is (value if valid else None)
+    assert report["status"] == (
+        ("configuration_pending" if value else "disabled") if valid else "invalid"
+    )
+    assert report["configuration_source"] == ("resident" if valid else "unknown")
+    assert report["environment_enabled"] is True
+    assert report["runtime_verification"] == "NOT_RUN"
+    assert report["authorization"] == report["connection"] == "not_checked"
+    assert snapshot(root) == before
+    assert "never-print" not in captured.out + captured.err
+
+
+@pytest.mark.parametrize("case", ["permissions", "link", "large", "invalid"])
+def test_doctor_mcp_unsafe_persisted_configuration_is_unknown(tmp_path, monkeypatch, output, case):
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    path = root / "resident.json"
+    path.write_text('{"mcp_readonly_enabled":false,"private":"never-print"}')
+    path.chmod(0o600)
+    if case == "permissions":
+        path.chmod(0o644)
+    elif case == "link":
+        target = tmp_path / "target"
+        path.rename(target)
+        path.symlink_to(target)
+    elif case == "large":
+        path.write_text("never-print" * 7000)
+    else:
+        path.write_text("never-print")
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "0")
+    before = snapshot(root)
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    captured = output.readouterr()
+    report = json.loads(captured.out)["mcp_readonly"]
+    assert report["enabled"] is None and report["status"] == "invalid"
+    assert report["configuration_source"] == "unknown"
+    assert report["runtime_verification"] == "NOT_RUN"
+    assert snapshot(root) == before
+    assert "never-print" not in captured.out + captured.err
+
+
 def test_help_does_not_import_runtime_or_create_paths(tmp_path, monkeypatch, output):
     monkeypatch.setenv("HOME", str(tmp_path))
     with pytest.raises(SystemExit) as result:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import logging
@@ -467,10 +468,25 @@ def admit_batch(receipt: Path) -> dict:
 
 
 def _usage_bytes(root: Path) -> int:
+    root = Path(os.path.abspath(root))
+    before = root.lstat()
+    if not stat.S_ISDIR(before.st_mode):
+        raise RetentionError("usage_root_changed")
     seen = set()
     total = 0
 
     def onerror(error: OSError) -> None:
+        # Passed tmp_path fixtures may disappear while the producer is running.
+        # Only a missing descendant is safe to omit; the root and all other
+        # scan failures remain unknown and must stop the managed test process.
+        if (
+            isinstance(error, FileNotFoundError)
+            and error.errno == errno.ENOENT
+            and error.filename is not None
+        ):
+            missing = Path(os.path.abspath(error.filename))
+            if missing != root and missing.is_relative_to(root):
+                return
         raise error
 
     for folder, _dirs, files in os.walk(root, followlinks=False, onerror=onerror):
@@ -483,6 +499,12 @@ def _usage_bytes(root: Path) -> int:
             if stat.S_ISREG(info.st_mode) and identity not in seen:
                 seen.add(identity)
                 total += info.st_size
+    after = root.lstat()
+    if not stat.S_ISDIR(after.st_mode) or (before.st_dev, before.st_ino) != (
+        after.st_dev,
+        after.st_ino,
+    ):
+        raise RetentionError("usage_root_changed")
     return total
 
 

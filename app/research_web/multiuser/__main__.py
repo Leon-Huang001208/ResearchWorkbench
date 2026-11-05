@@ -179,15 +179,26 @@ def _configured_capacity(config: dict) -> int:
     return value
 
 
-def _inspect_capacity(root: Path) -> dict:
-    """Inspect private configuration without importing or starting a runtime."""
+def _configured_mcp_enabled(config: dict) -> bool | None:
+    """Missing retains legacy environment behavior; persisted values are strict bools."""
+    if "mcp_readonly_enabled" not in config:
+        return None
+    value = config["mcp_readonly_enabled"]
+    if type(value) is not bool:
+        log.warning("server_mcp_configuration_invalid")
+        raise ServerCommandError("server_mcp_configuration_invalid")
+    return value
+
+
+def _read_resident_configuration(root: Path) -> dict | None:
+    """Read only bounded private metadata, without importing a runtime or SDK."""
     descriptor = None
     try:
         if not _directory(root):
-            return {"status": "not_configured"}
+            return None
         path = root / "resident.json"
         if not path.exists() and not path.is_symlink():
-            return {"status": "not_configured"}
+            return None
         before = _private_file(path)
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         actual = os.fstat(descriptor)
@@ -200,9 +211,24 @@ def _inspect_capacity(root: Path) -> dict:
             and (actual.st_uid != os.getuid() or stat.S_IMODE(actual.st_mode) != 0o600)
         ):
             raise ServerCommandError("server_path_unsafe")
-        config = json.loads(os.read(descriptor, 65537))
+        raw = os.read(descriptor, 65537)
+        if len(raw) > 65536:
+            raise ServerCommandError("server_path_unsafe")
+        config = json.loads(raw)
         if not isinstance(config, dict):
-            raise ServerCommandError("server_capacity_invalid")
+            raise ServerCommandError("server_configuration_invalid")
+        return config
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _inspect_capacity(root: Path) -> dict:
+    """Inspect private configuration without importing or starting a runtime."""
+    try:
+        config = _read_resident_configuration(root)
+        if config is None:
+            return {"status": "not_configured"}
         additional = _configured_capacity(config)
         return {
             "status": "configured",
@@ -212,12 +238,9 @@ def _inspect_capacity(root: Path) -> dict:
     except (OSError, ValueError, RecursionError, ServerCommandError):
         log.warning("server_capacity_inspection_failed")
         return {"status": "invalid"}
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
 
 
-def _inspect_mcp() -> dict:
+def _inspect_mcp(root: Path | None = None) -> dict:
     """Inspect configuration and distribution metadata, never initialize OAuth/SDK."""
     from ..mcp_facade.config import enabled
 
@@ -230,10 +253,25 @@ def _inspect_mcp() -> dict:
     except (OSError, ValueError, TypeError):
         log.warning("server_mcp_metadata_inspection_failed")
         sdk["status"] = "unknown"
-    configured = enabled()
+    environment_enabled = enabled()
+    configured: bool | None = environment_enabled
+    source = "environment"
+    status = None
+    if root is not None:
+        try:
+            config = _read_resident_configuration(root)
+            override = _configured_mcp_enabled(config) if config is not None else None
+            if override is not None:
+                configured, source = override, "resident"
+        except (OSError, ValueError, RecursionError, ServerCommandError):
+            log.warning("server_mcp_configuration_inspection_failed")
+            configured, source, status = None, "unknown", "invalid"
     return {
         "enabled": configured,
-        "status": "configuration_pending" if configured else "disabled",
+        "status": status or ("configuration_pending" if configured else "disabled"),
+        "environment_enabled": environment_enabled,
+        "configuration_source": source,
+        "runtime_verification": "NOT_RUN",
         "sdk": sdk,
         "authorization": "not_checked",
         "connection": "not_checked",
@@ -248,7 +286,7 @@ def _inspect_mcp() -> dict:
 
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     accounts = _inspect_accounts(root)
-    mcp = _inspect_mcp()
+    mcp = _inspect_mcp(root)
     source = _source_status(arguments.source)
     python_matches = sys.version_info[:2] == (
         RUNTIME_CONTRACT.python_major,

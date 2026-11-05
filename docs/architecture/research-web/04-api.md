@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+## 事件部署与既有网关代理（2026-11-05）
+
+事件产品 API 继续经过现有通用 `/api/research/*` 网关代理，认证、账号后端选择与 Host 写操作合同保持；此次维护 profile 不增加网关路由许可，也不将事件 API 提升为维护权限。`apply-events` 是显式 Native 维护 CLI，不能从浏览器请求、事件材料或模型输出触发部署。
+
+事件、日历与六维评分的源码入口可用不表示当前常驻已切换；登录后各入口、数据保全和采集日程关闭需要现场验收，详见[部署合同](../../research-web-gateway-upgrade.md)。
+
 能力中心三分类不新增API。旧kind查询、method_ids和插件/MCP接口兼容；原copy操作对历史method生成普通skill草稿，需经原检查发布，原method版本不改写。
 
 事件研究API分为 `/api/research/events`、`/api/research/event-studies` 与

@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import copy
 import hashlib
+import http.client
 import io
 import json
 import logging
@@ -14,15 +15,17 @@ import plistlib
 import re
 import signal
 import socket
+import sqlite3
 import stat
 import sys
 import time
 import urllib.error
 import urllib.request
 import zipfile
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from . import controller as c
@@ -122,6 +125,16 @@ MARKET_BREADTH_PREVIOUS = "b800e50366d1a0868372bbf173822976066c143f"
 MARKET_BREADTH_PAYLOAD = "4c72ed4349c087cf0b7d037d7133b84201a76d5f"
 MARKET_BREADTH_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
 MARKET_BREADTH_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
+# Fixed event timeline/calendar/score product; never an abort/retirement profile.
+EVENT_MODE = "reviewed-event-research-v1"
+EVENT_PREVIOUS = "db2ae9a48ceca365852072e622aa6627aa7d0b83"
+EVENT_FEATURE = "a398a29429a1c0bdddd34ce50bc336fd6e20f2ee"
+EVENT_BASE = "60416994f88eeead8a3891dbe9a7dfd617c566fc"
+EVENT_MCP_BASE = "58ad352eeb925805ff00f46139a073fda15163d3"
+EVENT_MAIN_BASE = "54610625d4f736cd807fdd50eaf2e1f22a557ae5"
+EVENT_PAYLOAD = "32b21c4e892da4bf4b05518296ce72fe7d6b52bc"
+EVENT_WEB_LOCK_SHA256 = ASSET_V9_WEB_LOCK_SHA256
+EVENT_EVIDENCE_SHA256 = ASSET_V9_EVIDENCE_SHA256
 # PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
@@ -174,6 +187,7 @@ ASSET_MODES = frozenset(
         MARKET_TERMINAL_MODE,
         MARKET_PREVIEW_MODE,
         MARKET_BREADTH_MODE,
+        EVENT_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
@@ -294,6 +308,8 @@ def previous_for(mode):
         return MARKET_TERMINAL_PREVIOUS
     if mode == MARKET_PREVIEW_MODE:
         return MARKET_PREVIEW_PREVIOUS
+    if mode == EVENT_MODE:
+        return EVENT_PREVIOUS
     if mode == MARKET_BREADTH_MODE:
         return MARKET_BREADTH_PREVIOUS
     if mode == DOSSIERS_MODE:
@@ -457,6 +473,90 @@ def discovery_background_idle(home):
         return False
 
 
+def event_schedules_disabled(home: Path):
+    """Prove every account's collectors disabled without opening its SQLite for writes.
+
+    Missing event originals/markers are an explicit pre-initialization proof. For
+    initialized stores the existing retention fence and preservation validator
+    reject WAL, recovery journals, owner mismatch and orphan metadata; only its
+    exact validated bytes are deserialized into an in-memory query-only database.
+    """
+    from app.research_web.datahub.security import directory, read_file
+    from app.research_web.dossiers.lock import retention_lock
+    from app.research_web.event_preservation import MAX_FILE, snapshot_events
+    from app.research_web.event_timeline.storage import RecordStore
+    from app.research_web.store import StoreError
+
+    def inspect(root):
+        if root.is_symlink() or (root.exists() and not root.is_dir()):
+            raise UpdateBlocked("event_upgrade_schedule_unknown")
+        records = RecordStore(root)
+        markers = (records.marker, records.folder, records.qualification_marker)
+        if not any(path.exists() or path.is_symlink() for path in markers):
+            return None
+        with retention_lock(root, create=False):
+            frozen = snapshot_events(root, create_lock=False)
+            if frozen is None:
+                raise UpdateBlocked("event_upgrade_schedule_unknown")
+            with directory(records.folder, private=True) as fd:
+                raw = read_file(fd, records.path.name, private=True, limit=MAX_FILE)
+            if hashlib.sha256(raw).hexdigest() != frozen["files"].get(
+                "event_timeline/metadata.sqlite3"
+            ):
+                raise UpdateBlocked("event_upgrade_schedule_changed")
+            with closing(sqlite3.connect(":memory:")) as database:
+                database.deserialize(raw)
+                database.execute("PRAGMA query_only=ON")
+                if database.execute("PRAGMA user_version").fetchone() != (1,):
+                    raise UpdateBlocked("event_upgrade_schedule_unknown")
+                rows = database.execute(
+                    "SELECT r.kind,r.payload FROM records r JOIN "
+                    "(SELECT kind,id,MAX(revision) revision FROM records "
+                    "WHERE kind IN ('source_schedule','source_job') GROUP BY kind,id) latest "
+                    "ON r.kind=latest.kind AND r.id=latest.id AND r.revision=latest.revision"
+                ).fetchall()
+                for kind, payload_raw in rows:
+                    payload = json.loads(payload_raw)
+                    if not isinstance(payload, dict):
+                        raise UpdateBlocked("event_upgrade_schedule_unknown")
+                    if kind == "source_schedule":
+                        if payload.get("enabled") is not False:
+                            raise UpdateBlocked("event_upgrade_schedule_enabled_or_unknown")
+                        if "collection_claim" in payload:
+                            claim = payload["collection_claim"]
+                            if not isinstance(claim, dict) or claim.get("state") != "completed":
+                                raise UpdateBlocked("event_upgrade_collection_unresolved")
+                    elif payload.get("state") != "completed":
+                        raise UpdateBlocked("event_upgrade_collection_unresolved")
+            if snapshot_events(root, create_lock=False) != frozen:
+                raise UpdateBlocked("event_upgrade_schedule_changed")
+            return frozen
+
+    try:
+        users = home / "server/users"
+        if users.is_symlink() or not users.is_dir():
+            raise UpdateBlocked("event_upgrade_schedule_unknown")
+        private = {}
+        for folder in sorted(users.iterdir()):
+            if folder.is_symlink() or not folder.is_dir():
+                raise UpdateBlocked("event_upgrade_schedule_unknown")
+            private[folder.name] = inspect(folder / "research-web")
+        result = {"primary": inspect(home / "research-web"), "private": private}
+        log.info("event_upgrade_schedules_disabled accounts=%s", len(private) + 1)
+        return result
+    except (OSError, ValueError, TypeError, sqlite3.Error, RuntimeError, StoreError) as exc:
+        log.warning("event_upgrade_schedules_unverified error_type=%s", type(exc).__name__)
+        raise UpdateBlocked("event_upgrade_schedule_unknown") from exc
+
+
+def verify_event_schedules(home, state):
+    """The frozen absence/disabled proof is mandatory in forward and recovery paths."""
+    if "event_schedules_before" not in state:
+        raise UpdateBlocked("event_upgrade_schedule_proof_missing")
+    if event_schedules_disabled(home) != state["event_schedules_before"]:
+        raise UpdateBlocked("event_upgrade_schedule_changed")
+
+
 def verify_primary(home, expected, mode):
     if mode in {
         MARKET_MODE,
@@ -465,6 +565,7 @@ def verify_primary(home, expected, mode):
         MARKET_TERMINAL_MODE,
         MARKET_PREVIEW_MODE,
         MARKET_BREADTH_MODE,
+        EVENT_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
         ASSET_V7_MODE,
@@ -478,7 +579,13 @@ def verify_primary(home, expected, mode):
         ETF_WEEKLY_ADMISSION_MODE,
         ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
-        return g.verify_primary(home, expected, index_reader=read_business_index)
+        result = g.verify_primary(home, expected, index_reader=read_business_index)
+        if mode == EVENT_MODE:
+            observed = weekly_primary_identity_precheck(home, expected)
+            if observed.get("active") is not False:
+                raise MaintenanceBusy("research_active_or_unknown")
+            event_schedules_disabled(home)
+        return result
     return g.verify_primary(home, expected)
 
 
@@ -615,6 +722,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         MARKET_PREVIEW_MODE: MARKET_PREVIEW_PAYLOAD,
+        EVENT_MODE: EVENT_PAYLOAD,
         MARKET_BREADTH_MODE: MARKET_BREADTH_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
         DOSSIERS_MODE: DOSSIERS_PAYLOAD,
@@ -626,6 +734,18 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
+    if mode == EVENT_MODE:
+        for ancestor, descendant in (
+            (EVENT_FEATURE, EVENT_BASE),
+            (EVENT_BASE, EVENT_MCP_BASE),
+            (EVENT_MCP_BASE, EVENT_MAIN_BASE),
+            (EVENT_MAIN_BASE, payload),
+        ):
+            c.git(source, "merge-base", "--is-ancestor", ancestor, descendant)
+        if c.git(source, "rev-parse", f"{EVENT_FEATURE}:app") != c.git(
+            source, "rev-parse", f"{EVENT_BASE}:app"
+        ):
+            raise UpdateBlocked("event_upgrade_feature_changed")
     paths = {MODULE, TEST, ASSET_EVIDENCE}
     if mode == MARKET_MODE:
         paths.add(MARKET_GATEWAY)
@@ -646,6 +766,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 {
                     ASSET_V9_MODE: ASSET_V9_EVIDENCE_SHA256,
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
+                    EVENT_MODE: EVENT_EVIDENCE_SHA256,
                     MARKET_BREADTH_MODE: MARKET_BREADTH_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256,
@@ -655,6 +776,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     ASSET_V9_MODE,
                     MARKET_PREVIEW_MODE,
                     MARKET_BREADTH_MODE,
+                    EVENT_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
                 }
@@ -701,7 +823,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             if actual_mode != "100644":
                 raise UpdateBlocked("asset_upgrade_payload_changed")
         elif (
-            mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE}
+            mode in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE, EVENT_MODE}
             and name not in {MODULE, TEST}
             and not name.startswith(("docs/", ".ai/reports/"))
         ):
@@ -1150,6 +1272,8 @@ def validate_state(home, state, *, executor_source=None):
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     validate_asset_snapshot(state)
+    if state.get("mode") == EVENT_MODE:
+        verify_event_schedules(home, state)
     source = Path(state["source"])
     if (
         state.get("mode") == TRIAL_SUCCESSOR_MODE
@@ -1219,6 +1343,7 @@ def validate_state(home, state, *, executor_source=None):
             manifest = json.loads(z.read("manifest.json"))
             expected_manifest = {"target": state["target"], "modules": recovery["modules"]}
             if "source" in manifest or state["mode"] in {
+                EVENT_MODE,
                 DOSSIERS_MODE,
                 DISCOVERY_MODE,
                 ETF_WEEKLY_V2_MODE,
@@ -1301,7 +1426,40 @@ def gateway_configuration(state, previous=False):
         **old,
         "revision": state["target"],
         "binding": {**old["binding"], "revision": state["target"]},
+        **({"mcp_readonly_enabled": False} if state.get("mode") == EVENT_MODE else {}),
     }
+
+
+def gateway_configuration_matches(state, actual, previous):
+    expected = gateway_configuration(state, previous)
+    if state.get("mode") != EVENT_MODE:
+        return actual == expected
+    # JSON equality preserves boolean/number distinctions and missing fields.
+    return json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
+        expected, sort_keys=True, allow_nan=False
+    )
+
+
+def read_event_gateway_health(config):
+    """Read actual local Facade state from the existing fenced health endpoint."""
+    connection = http.client.HTTPConnection("127.0.0.1", 8089, timeout=5)
+    try:
+        connection.request(
+            "GET", "/api/server/health", headers={"Host": urlsplit(config["origin"]).netloc}
+        )
+        response = connection.getresponse()
+        raw = response.read(65537)
+        if response.status != 200 or len(raw) > 65536:
+            raise UpdateBlocked("event_upgrade_mcp_health_unknown")
+        value = json.loads(raw)
+        if not isinstance(value, dict):
+            raise UpdateBlocked("event_upgrade_mcp_health_unknown")
+        return value
+    except (OSError, ValueError, http.client.HTTPException) as error:
+        log.warning("event_upgrade_mcp_health_unverified error_type=%s", type(error).__name__)
+        raise UpdateBlocked("event_upgrade_mcp_health_unknown") from error
+    finally:
+        connection.close()
 
 
 def target_manifest(state):
@@ -1322,6 +1480,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
+    elif state.get("mode") == EVENT_MODE:
+        manifest["web_lock_sha256"] = EVENT_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_BREADTH_MODE:
         manifest["web_lock_sha256"] = MARKET_BREADTH_WEB_LOCK_SHA256
     if state.get("mode") == ETF_WEEKLY_ADMISSION_MODE:
@@ -1342,7 +1502,9 @@ def validate_configuration(home, state):
     if manifest not in (state["manifest"], target_manifest(state)):
         raise UpdateBlocked("model_upgrade_manifest_changed")
     gateway = read_json(home / "server/resident.json")
-    if gateway not in (gateway_configuration(state, True), gateway_configuration(state)):
+    if not any(
+        gateway_configuration_matches(state, gateway, previous) for previous in (True, False)
+    ):
         raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
     pending = home / "resident/transaction.json"
     if pending.exists():
@@ -1783,6 +1945,8 @@ class Operations:
 
     def prepare_fence(self, state):
         """Publish recoverable ownership before any reservation side effects."""
+        if state.get("mode") == EVENT_MODE:
+            verify_event_schedules(self.home, state)
         state["before"] = g.preservation(self.home)
         if state.get("mode") in ASSET_MODES or state.get("mode") in TRIAL_MODES:
             state["asset_index_before"] = asset_index_snapshot(self.home)
@@ -1793,6 +1957,8 @@ class Operations:
 
     def idle(self):
         """A proved stopped role is safe; any live/unknown native or Host work is not."""
+        if self.state.get("mode") == EVENT_MODE:
+            verify_event_schedules(self.home, self.state)
         if self.state.get("mode") in TRIAL_MODES:
             self.check_trial_processes()
             return True  # Authorization to abort; never an assertion of idle.
@@ -1802,6 +1968,7 @@ class Operations:
             ASSET_V9_MODE,
             MARKET_PREVIEW_MODE,
             MARKET_BREADTH_MODE,
+            EVENT_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
             ETF_WEEKLY_ADMISSION_V2_MODE,
@@ -1821,9 +1988,10 @@ class Operations:
         ):
             return False
         if running["runtime"]["running"]:
-            if not running["runtime"]["healthy"] or self.manager._active_research_read_only(
-                runtime
-            ):
+            if not running["runtime"]["healthy"]:
+                return False
+            native = self.manager._active_research_read_only(runtime)
+            if native or (self.state.get("mode") == EVENT_MODE and type(native) is not list):
                 return False
         elif running["web"]["running"]:
             return False
@@ -1853,6 +2021,7 @@ class Operations:
             MARKET_TERMINAL_MODE,
             MARKET_PREVIEW_MODE,
             MARKET_BREADTH_MODE,
+            EVENT_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
@@ -2030,7 +2199,9 @@ class Operations:
                 revision=self.state["target"],
                 binding=json.loads(json.dumps(binding.public_config())),
             )
-        if config != gateway_configuration(self.state, previous):
+            if self.state.get("mode") == EVENT_MODE:
+                config["mcp_readonly_enabled"] = False
+        if not gateway_configuration_matches(self.state, config, previous):
             raise UpdateBlocked("model_upgrade_binding_changed")
         c.atomic(self.server / "resident.json", config)
         if self.state.get("mode") in TRIAL_MODES:
@@ -2047,18 +2218,72 @@ class Operations:
         if self.state.get("mode") in TRIAL_MODES:
             self.capture_trial_processes(("gateway",))
 
+    def event_gateway_identity(self):
+        """Bind the health observation to the original launchd/source/PID identity."""
+        if c.digest(Path(self.state["gateway_plist"])) != self.state["gateway_plist_sha256"]:
+            raise UpdateBlocked("model_upgrade_job_changed")
+        project = Path(self.state["gateway_project"])
+        info = project.lstat()
+        if project.is_symlink() or [info.st_dev, info.st_ino] != self.state["gateway_identity"]:
+            raise UpdateBlocked("model_upgrade_project_changed")
+        verify_release_repository(self.state, "gateway")
+        loaded, pid = g.job_state(), g.job_pid()
+        signature = g.process(pid) if type(pid) is int and pid > 0 else None
+        if (
+            loaded is None
+            or not self.loaded_job_matches(loaded)
+            or signature is None
+            or signature.split(maxsplit=5)[-1] != self.state["gateway_command"]
+            or g.listener_pids() != {pid}
+            or g.native_image(pid) != g.native_image(os.getpid())
+        ):
+            raise UpdateBlocked("event_upgrade_gateway_identity_unknown")
+        g.no_children(pid)
+        return pid, signature
+
     def verify(self, previous):
         sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
         if self.state.get("mode") in TRIAL_MODES:
             trial_primary_identity(self.home, sha, self.state)
         else:
             verify_primary(self.home, sha, self.state.get("mode", MODE))
-        g.health(read_json(self.server / "resident.json"), fenced=True)
+        gateway = read_json(self.server / "resident.json")
+        if self.state.get("mode") == EVENT_MODE:
+            validate_configuration(self.home, self.state)
+            if not gateway_configuration_matches(self.state, gateway, previous):
+                raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
+            gateway_identity = self.event_gateway_identity()
+        g.health(gateway, fenced=True)
         remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
             raise UpdateBlocked("model_upgrade_private_health_failed")
+        if self.state.get("mode") == EVENT_MODE:
+            if not previous:
+                local = read_event_gateway_health(gateway)
+                for value in (local, remote):
+                    if (
+                        not isinstance(value, dict)
+                        or value.get("status") != "ready"
+                        or value.get("revision") != sha
+                        or value.get("deployment_fenced") is not True
+                        or value.get("primary_last_verified") is not True
+                        or value.get("mcp_readonly_enabled") is not False
+                    ):
+                        raise UpdateBlocked("event_upgrade_mcp_runtime_not_disabled")
+            if (
+                not gateway_configuration_matches(
+                    self.state, read_json(self.server / "resident.json"), previous
+                )
+                or self.event_gateway_identity() != gateway_identity
+            ):
+                raise UpdateBlocked("event_upgrade_gateway_observation_changed")
+            log.info(
+                "event_upgrade_gateway_verified revision=%s mcp_off_certified=%s", sha, not previous
+            )
         self.verify_preservation(previous)
         verify_asset_index(self.home, self.state)
+        if self.state.get("mode") == EVENT_MODE:
+            verify_event_schedules(self.home, self.state)
         if model_metadata(self.state["config"]) != self.state["model_before"]:
             raise UpdateBlocked("model_upgrade_credential_metadata_changed")
         if not previous:
@@ -3035,6 +3260,7 @@ def operate(
                 weekly_primary_identity_precheck(home, previous)
             elif mode not in TRIAL_MODES:
                 verify_primary(home, previous, mode)
+            event_before = event_schedules_disabled(home) if mode == EVENT_MODE else None
             g.no_private_processes(server)
             directory = root / "artifacts" / target
             g.private_root(directory)
@@ -3097,6 +3323,9 @@ def operate(
                 "controller_sha256": c.digest(root / "controller.pyz"),
                 "supervisor_plist_sha256": supervisor_hash,
             }
+            if mode == EVENT_MODE:
+                state["event_schedules_before"] = event_before
+                verify_event_schedules(home, state)
             if mode in ASSET_MODES:
                 state["asset_index_before"] = asset_index_snapshot(home)
             for role in ("primary", "gateway"):
@@ -3215,6 +3444,8 @@ def operate(
                 verify_primary(home, previous, state["mode"] if recovering else mode)
             g.preserved(home, state["before"])
             verify_asset_index(home, state)
+            if state["mode"] == EVENT_MODE:
+                verify_event_schedules(home, state)
             journal.unlink()
             c.sync_directory(journal.parent)
             return {"status": "aborted_before_signal"}
@@ -3370,6 +3601,7 @@ def main(argv=None):
             "apply-market-terminal",
             "apply-market-preview",
             "apply-market-breadth",
+            "apply-events",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
             "handoff-trial-retirement",
@@ -3454,6 +3686,7 @@ def main(argv=None):
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-market-preview": MARKET_PREVIEW_MODE,
                 "apply-market-breadth": MARKET_BREADTH_MODE,
+                "apply-events": EVENT_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,

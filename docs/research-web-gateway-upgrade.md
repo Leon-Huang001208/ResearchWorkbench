@@ -1,5 +1,58 @@
 # Mac mini 空私有池网关升级
 
+## 事件研究封闭部署（2026-11-05）
+
+`apply-events`／`reviewed-event-research-v1` 固定前版
+`db2ae9a48ceca365852072e622aa6627aa7d0b83`。用户已明确授权一并部署最新主线，MCP继续关闭；
+固定组合链为事件功能 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee` → 维护基线
+`60416994f88eeead8a3891dbe9a7dfd617c566fc` → MCP主线
+`58ad352eeb925805ff00f46139a073fda15163d3` → 已授权最新主线
+`54610625d4f736cd807fdd50eaf2e1f22a557ae5` → 合并安全检查点
+`e9cb46e1387f07275200c9062994d82873591e42` → 交付恢复工具检查点
+`32b21c4e892da4bf4b05518296ce72fe7d6b52bc` → 最终工具目标。每段都须保留真实祖先关系；
+只有事件功能到604的整个 `app` Git tree 要求相同。546的能力分类／进展UI随用户最新主线授权纳入，
+没有新增依赖；e9保留65a引入的持久关闭MCP、health实际Facade布尔及容量扫描安全修复。
+最终资格必须绑定新的
+已合并目标、完整路径并集／Git blob／文件模式及原三CI／Mac安装，不能借用旧产品或工具回执。
+32b21c4e固定包含已审的未发布amendment跨正式base-refresh验证修复，不新增运行服务或权限。
+最终32b之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
+
+仅EVENT前进时在网关 `resident.json` 持久保存严格布尔 `mcp_readonly_enabled: false`。
+e9保留65a驻留入口在accounts/runtime构造前校验该字段，False优先于环境开启；本部署不创建MCP
+Facade或初始化OAuth库。最终接受同时读取本机与私有入口既有fenced health实际返回，字段必须
+`is False`，并维持ready、revision、primary_last_verified及deployment_fenced原门；缺字段、None、
+0、True以及401／404都不能替代关闭证明。读取前后还复核原plist／loaded job、gateway目录／
+仓库、PID及birth/command、listener与native image，配置或观察中漂移均拒绝。
+
+EVENT配置用规范JSON比较，区分False、0及缺席；恢复入口沿原配置验证重查。
+rollback逐字段恢复原gateway_config，db2原先缺字段时仍保持缺席；旧版preflight／回滚可使用
+原health协议，不冒充已提供MCP实际布尔证明。源码／本机测试、最终CI、真实切换与业务验收仍分开。
+
+本 profile 不进入 TRIAL，不取消、删除或退休研究任务。沿原 v4 三锁、BirthFence、
+严格 64 MiB 业务索引、完整 CI reader、原安装锁和全账号 `@events` 原件保全／恢复。
+原完整 `g.verify_primary` 及 Host 明确空闲必须通过，额外 Native 观察必须严格为 `list`
+且为空；`None`、`False`、`0`、空字符串和字典都不能证明空闲。Discovery／Automation／
+Workflow 后台与市场 inflight、资产查询保持原空闲门；既有其他产品日程不得被擅自停止。
+
+事件采集日程继续关闭，独立证明来自全部账号个人 root 原件：原件目录、初始化 marker 和
+资格 marker 全部缺席才能证明尚未初始化；孤儿原件／marker、损坏及未知状态均拒绝。
+已有事件库时在原 retention lock 下使用 `snapshot_events` 验证身份、一致性和无 SQLite
+WAL／SHM／journal，再将精确哈希绑定的原件反序列化到内存 `query_only` 数据库；不打开
+个人 SQLite 写连接、不创建空库，也不以 Doctor 的 `collection_enabled=None` 证明关闭。
+全部最新 `source_schedule.enabled` 必须严格为 `False`；存在的采集 claim 和 source job
+必须明确 `completed`。`failed`／`interrupted` 属于待核对结果，本入口拒绝，不自动重试。
+最新关闭版本可以覆盖旧历史开启版本，但任何未决最新版本均拒绝。
+
+日程证明在初次主实例验证、准备前、每次空闲门、切换后及恢复／回滚对应边界重查；冻结的
+全账号原件哈希和明确缺席记录必须保持，账号新增、并发日程／原件变化或缺证阻止切换。
+本入口只作原件读取与既有受管切换，不启用来源采集、改采集日程、调用模型／厂商或改变
+网关路由。db2 原网关已支持 `/api/research/*` 与主实例静态资源透传；本操作员不扩大路径授权，
+本组合源码中的MCP入口保持关闭。
+
+源码准备／本机回归、最终 CI 资格、真实 Mac mini 切换、认证页面／业务验收和资源收尾
+分别记录；本节不能证明已部署。Windows/Linux 原生验收仍由对应设备负责。
+
+
 ## CI容量修复固定部署V9（2026-10-24）
 
 封闭 `apply-assets-v9`／`reviewed-asset-observation-v9`。资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。

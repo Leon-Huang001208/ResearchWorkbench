@@ -399,10 +399,14 @@ def create_gateway(
                 deployment = getattr(pool, "deployment_path", None)
                 if deployment is not None:
                     value["deployment_fenced"] = deployment.exists() or deployment.is_symlink()
-                return value
+                return {**value, "mcp_readonly_enabled": facade is not None}
             except RuntimeErrorSafe as exc:
                 return error(exc.code, exc.status)
-        return {"status": "ready", "runtime": "not_started_by_health"}
+        return {
+            "status": "ready",
+            "runtime": "not_started_by_health",
+            "mcp_readonly_enabled": facade is not None,
+        }
 
     @app.get("/api/server/users")
     async def users(request: Request):

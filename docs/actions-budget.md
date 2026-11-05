@@ -1,5 +1,10 @@
 # GitHub Actions 免费额度治理
 
+2026-11-05事件研究常驻部署新增封闭profile，沿原Research Web Checks的
+test_model_provider_upgrade.py参数与近处反例验证，不增加job、runner、依赖或时限。
+新增用例暂在原步骤预留120秒，最终候选以实测为准；操作员仍需原三CI及Mac干净安装。
+真实日程关闭、全账号保全和页面验收另取现场证据，不能以CI代替；不派发他平台产品CI。
+
 2026-11-05研发进展仅在原macOS Bootstrap静态资源步骤追加progress.mjs、progress.css、progress-data.json的下载及源码字节核对；原Web Checks通配符执行新Node测试。无新job、runner、依赖、timeout或他平台dispatch，增量预留原步骤10秒。实际候选须重新取得原Constraints、Checks与macos-15安装证据；远端操作前复核PUBLIC。
 
 2026-11-05能力中心三分类仅在既有Research Web Checks步骤追加方法兼容和共享测试环境离线测试；不增加job、runner、超时、依赖安装步骤或产品平台dispatch。局部方法9例约11秒、环境10例不足1秒，在原步骤预留30秒增量；CI结果须绑定最终候选。共享环境仅供本地开发复用，不替代原Mac干净锁安装与Doctor检查。操作前只读API核对仓库仍为PUBLIC，并有当前标准runner运行证据；发布前仍须重新核对，不能沿用本段结论。
