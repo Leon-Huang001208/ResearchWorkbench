@@ -1,0 +1,102 @@
+/* One shared shell: the primary rail never participates in secondary collapse. */
+#app .app-shell { --primary-width: 204px; --secondary-width: 216px; }
+#app .app-shell.claw-shell { --secondary-width: 280px; }
+#app .app-shell, #app .app-shell.wide-page, #app .app-shell.claw-shell,
+#app .app-shell.has-secondary, #app .app-shell.has-secondary.wide-page, #app .app-shell.claw-shell.has-secondary {
+  grid-template-columns: calc(var(--primary-width) + var(--secondary-width)) minmax(0, 1fr);
+  grid-template-rows: 64px minmax(0, 1fr);
+  grid-template-areas: 'navigation top' 'navigation main';
+}
+#app .app-shell.context-open, #app .app-shell.has-secondary.context-open, #app .app-shell.claw-shell.has-secondary.context-open {
+  grid-template-columns: calc(var(--primary-width) + var(--secondary-width)) minmax(0, 1fr) 300px;
+  grid-template-areas: 'navigation top top' 'navigation main context';
+}
+#app .app-shell.sidebar-collapsed, #app .app-shell.sidebar-collapsed.wide-page, #app .app-shell.claw-shell.sidebar-collapsed {
+  grid-template-columns: var(--primary-width) minmax(0, 1fr);
+}
+#app .app-shell.sidebar-collapsed.context-open, #app .app-shell.claw-shell.sidebar-collapsed.context-open {
+  grid-template-columns: var(--primary-width) minmax(0, 1fr) 300px;
+}
+#app .app-shell .navigation-column { display: flex; position: static; grid-area: navigation; flex-direction: row; min-height: 0; min-width: 0; padding: 0; width: auto; border: 0; background: var(--sidebar); }
+#app .app-shell .navigation-column .primary-rail { display: flex; flex-direction: column; flex: 0 0 var(--primary-width); width: var(--primary-width); height: 100%; min-height: 0; padding: 18px 10px 12px; border-right: 1px solid var(--line); }
+#app .app-shell .primary-rail .rail-brand { width: 100%; display: flex; justify-content: flex-start; gap: 9px; padding: 0 8px; margin: 0 0 20px; min-height: 40px; }
+#app .app-shell .primary-rail .brand-name { display: block; font-size: 13px; white-space: normal; }
+#app .app-shell .primary-rail .brand-mark { width: 25px; height: 28px; flex-basis: 25px; }
+#app .app-shell .primary-rail .primary-nav { display: grid; align-content: start; flex: 1 1 auto; min-height: 0; width: 100%; overflow-y: auto; gap: 3px; scrollbar-width: thin; }
+#app .app-shell .primary-rail .rail-link { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; width: 100%; min-height: 40px; padding: 9px 12px; gap: 11px; border-radius: 8px; }
+#app .app-shell .primary-rail .rail-icon { display: flex; width: 21px; flex: 0 0 21px; align-items: center; justify-content: center; }
+#app .app-shell .primary-rail .rail-icon svg { width: 21px; height: 21px; }
+#app .app-shell .primary-rail .rail-label { display: block; padding: 0; font-size: 13px; line-height: 1.4; }
+#app .app-shell .primary-rail .search-trigger { display: flex; flex-direction: row; justify-content: flex-start; width: 100%; padding: 8px 12px; gap: 11px; margin-bottom: 10px; }
+#app .app-shell .primary-rail .search-trigger span { display: inline; font-size: 13px; }
+#app .app-shell .primary-rail .navigation-footer { position: static; display: flex; flex-direction: column; flex: 0 0 auto; width: 100%; border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+#app .app-shell .primary-rail .rail-toggle, #app .app-shell .primary-rail .rail-mobile-close { display: none; }
+#app .app-shell .navigation-column .secondary-sidebar { display: flex; flex: 1 1 auto; width: var(--secondary-width); min-width: 0; height: 100%; padding: 22px 12px 14px; position: static; background: var(--surface); border-right: 1px solid var(--line); overflow: auto; }
+#app .app-shell .navigation-column .secondary-sidebar.collapsed { display: none; }
+#app .app-shell .secondary-sidebar .sidebar-top { display: flex; align-items: center; margin: 0 2px 22px 8px; min-height: 40px; gap: 8px; }
+#app .app-shell .secondary-sidebar .sidebar-top h2 { font-size: 14px; margin: 0; }
+#app .app-shell .secondary-sidebar .sidebar-collapse { display: inline-flex; flex-shrink: 0; margin-left: auto; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 7px; color: var(--muted); }
+.module-links { display: grid; align-content: start; gap: 5px; }
+.module-links a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 12px; min-height: 40px; font-size: 13px; line-height: 1.5; border-radius: 7px; color: var(--muted); overflow-wrap: anywhere; }
+.module-links a:hover { color: var(--text); background: var(--hover); text-decoration: none; }
+.module-links a[aria-current='page'] { background: var(--selected); color: var(--text); font-weight: 600; }
+.module-links a[aria-current='page']::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: 0 0 5px; }
+#app .app-shell .topbar { min-height: 64px; display: flex; padding: 0 24px; }
+#app .app-shell .topbar .sidebar-reopen { display: none; }
+#app .app-shell.sidebar-collapsed .topbar .sidebar-reopen { display: inline-flex; }
+#app .app-shell .topbar .menu-toggle { display: none; }
+/* Legacy standalone renderers keep their contract; the shell owns module switches. */
+#app .app-shell #main .progress-tabs, #app .app-shell #main .settings-navigation,
+#app .app-shell #main .intel-tabs, #app .app-shell #main .market-tabs,
+#app .app-shell #main .workbench-tabs[aria-label='资产观察视图'],
+#app .app-shell #main .capability-workspace-nav, #app .app-shell #main .capability-workspace-subnav,
+#app .app-shell #main .capability-tabs, #app .app-shell #main .history-tabs,
+#app .app-shell #main .aihot-module-bar nav[aria-label='AIHOT 栏目'],
+#app .app-shell #main .aihot-module-bar a[href='#/aihot/manage'],
+#app .app-shell #main .aihot-module-bar a[href='#/aihot/daily']:not([data-aihot-back]),
+#app .app-shell #main .aihot-module-bar a[href='#/aihot/hot'],
+#app .app-shell #main .aihot-kind-switch { display: none; }
+#app .app-shell #main .settings-layout { grid-template-columns: minmax(0, 1fr); }
+#app .app-shell #main .settings-page { min-width: 0; }
+#app .app-shell .page-content { min-width: 0; }
+@media (min-width: 1051px) and (max-width: 1250px) {
+  #app .app-shell { --primary-width: 184px; --secondary-width: 194px; }
+  #app .app-shell.claw-shell { --secondary-width: 260px; }
+}
+@media (max-width: 1050px) {
+  #app .app-shell { --primary-width: 64px; }
+  #app .app-shell, #app .app-shell.wide-page, #app .app-shell.has-secondary, #app .app-shell.has-secondary.wide-page,
+  #app .app-shell.context-open, #app .app-shell.has-secondary.context-open, #app .app-shell.sidebar-collapsed,
+  #app .app-shell.sidebar-collapsed.wide-page, #app .app-shell.sidebar-collapsed.context-open,
+  #app .app-shell.claw-shell, #app .app-shell.claw-shell.has-secondary, #app .app-shell.claw-shell.has-secondary.context-open,
+  #app .app-shell.claw-shell.sidebar-collapsed, #app .app-shell.claw-shell.sidebar-collapsed.context-open {
+    grid-template-columns: var(--primary-width) minmax(0, 1fr);
+    grid-template-areas: 'navigation top' 'navigation main';
+  }
+  #app .app-shell .navigation-column, #app .app-shell.navigation-open .navigation-column { display: flex; position: static; width: var(--primary-width); max-width: none; padding: 0; height: 100%; box-shadow: none; }
+  #app .app-shell .navigation-column .primary-rail, #app .app-shell.navigation-open .navigation-column .primary-rail { display: flex; flex-basis: var(--primary-width); width: var(--primary-width); position: relative; height: 100%; padding: 12px 5px; z-index: 47; }
+  #app .app-shell .primary-rail .rail-brand, #app .app-shell .primary-rail .rail-link { justify-content: center; padding-left: 0; padding-right: 0; }
+  #app .app-shell .primary-rail .brand-name, #app .app-shell .primary-rail .rail-label, #app .app-shell .primary-rail .search-trigger span { display: none; }
+  #app .app-shell .primary-rail .search-trigger { justify-content: center; padding-left: 0; padding-right: 0; }
+  #app .app-shell .primary-rail .rail-link { min-height: 44px; }
+  #app .app-shell .navigation-column .secondary-sidebar, #app .app-shell .navigation-column .secondary-sidebar.collapsed { display: none; }
+  #app .app-shell.navigation-open .navigation-column .secondary-sidebar,
+  #app .app-shell.navigation-open .navigation-column .secondary-sidebar.collapsed {
+    display: flex; visibility: visible; position: fixed; left: var(--primary-width); top: 0; bottom: 0; width: 248px; max-width: calc(100vw - var(--primary-width)); padding: 18px 12px; z-index: 47; box-shadow: var(--shadow);
+  }
+  #app .app-shell .topbar .sidebar-reopen, #app .app-shell.sidebar-collapsed .topbar .sidebar-reopen { display: none; }
+  #app .app-shell .topbar .menu-toggle { display: inline-flex; }
+  .mobile-backdrop { left: 64px; }
+  #app .app-shell .context-panel { max-width: calc(100vw - 64px); }
+  #app .app-shell .module-links a { min-height: 44px; }
+}
+@media (max-width: 600px) {
+  #app .app-shell { grid-template-rows: 56px minmax(0, 1fr); }
+  #app .app-shell .topbar { min-height: 56px; padding: 0 12px; }
+  #app .app-shell .page-content { padding-left: 16px; padding-right: 16px; }
+  #app .app-shell .progress-heading h1 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .module-links a, .secondary-sidebar, .primary-rail a { transition: none; } }
+
+/* Native file inputs have a UA intrinsic width larger than the narrow content pane. */
+#app .workbench-query-form input[type="file"] { width: 100%; max-width: 100%; min-width: 0; }

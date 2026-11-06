@@ -594,7 +594,7 @@ test('real app event handlers close/select slash, search and drawers without any
     windowHandlers.get('focusout')({ target: { matches: () => true, getClientRects: () => [{}] } });
     viewportChanges[0]({ matches: true });
     assert.equal(focused, '', 'deliberately blurred visible sidebar controls must not reclaim focus');
-    assert.match(rootElement.innerHTML, /aria-label="打开会话侧栏"/);
+    assert.match(rootElement.innerHTML, /aria-label="展开二级导航"/);
     const input = async (id, value, dataset = {}) => handlers.get('input')({ target: { id, value, dataset, closest: () => null } });
     const click = async (dataset) => handlers.get('click')({ target: appClickTarget(dataset) });
     const key = async (key) => handlers.get('keydown')({ key, target: { id: 'prompt' }, preventDefault() {}, isComposing: false });

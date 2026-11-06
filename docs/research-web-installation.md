@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+统一导航v4维护profile不增加产品依赖或重新安装第三方包；只用现有主实例解释器构建／安装本项目wheel，并保留原web.lock、固定DSH、CJPY和immutable controller。仅冻结5ff→b192产品与后继受审操作员，不使用宽松静态更新流程；Mac安装CI与实际部署Doctor各自验证。
+
+2026-11-06统一导航新增三个随产品打包的本地静态资源，原安装器和web依赖锁保持；Mac干净安装CI须从实际服务下载并与checkout核对字节，不能用开发目录中存在文件替代已安装资源证明。此迭代无新Python/Node依赖、配置或Doctor能力。
+
 研发进展随现有UI目录安装，包含progress.mjs、progress.css及progress-data.json，无新Python／Node依赖或设置项。安装CI沿原健康与Doctor步骤逐字节核对新增资源；本机已有环境不替代干净安装证据。
 
 `./rwb server doctor` 与 `./rwb server serve` 的子进程交接只额外保留显式 `RWB_MCP_READONLY_ENABLED=0|1`；缺省或其他拼写保持关闭，并记录不含输入值的稳定告警。共享最小环境白名单保持，其他 `RWB_*`、模型及供应商凭据不会因此传递。Doctor 检查仍不创建账号根、初始化 SDK 或启动后端。此开关修复来自 Mac Bootstrap 的实际失败复现，修后候选安装 CI 须重新验证；不代表常驻已启用。

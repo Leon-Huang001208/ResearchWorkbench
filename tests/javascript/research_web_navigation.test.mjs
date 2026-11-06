@@ -8,9 +8,10 @@ test('research reopen control belongs to the topbar while rail search keeps its 
     const rail = renderPrimaryRail({ page });
     assert.doesNotMatch(rail, /rail-toggle/);
     assert.match(rail, /<span>搜索<\/span>/);
-    assert.match(renderTopbar({ page }), /class="icon-button sidebar-reopen"[^>]*data-toggle-sidebar[^>]*aria-label="打开会话侧栏"[^>]*aria-expanded="false"/);
+    assert.match(renderTopbar({ page }), /class="icon-button sidebar-reopen"[^>]*data-toggle-sidebar[^>]*aria-label="展开二级导航"[^>]*aria-expanded="false"/);
   }
-  assert.doesNotMatch(renderTopbar({ page: 'settings' }), /sidebar-reopen/);
+  assert.match(renderTopbar({ page: 'settings' }), /sidebar-reopen/);
+  assert.match(renderTopbar({ page: 'settings', secondaryOpen: true }), /aria-label="打开二级导航"[^>]*aria-expanded="true"/);
 });
 
 const metadata = mode => ({ mode, revision: 1, pinned: [], project_order: [] });
