@@ -39,6 +39,7 @@ ASSET_PROFILES = (
     "reviewed-market-preview-v1",
     "reviewed-market-breadth-v1",
     "reviewed-event-research-v1",
+    "reviewed-market-overview-live-v1",
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
@@ -84,6 +85,7 @@ def test_discovery_profile_freezes_authorized_combination():
         "reviewed-market-preview-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ETF_HISTORICAL_MODE,
@@ -126,7 +128,7 @@ def test_discovery_deploy_rechecks_all_background_work_without_writes(
         lambda *_: pytest.fail("process or HTTP probe before background gate"),
     )
     state = {"mode": profile}
-    if profile == "reviewed-event-research-v1":
+    if profile in upgrade.EVENT_PRESERVATION_MODES:
         state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     assert upgrade.Operations(home, state, None, None, None).idle() is False
     assert {str(p): p.read_bytes() for p in home.rglob("*") if p.is_file()} == before
@@ -243,10 +245,11 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-preview-v1": "MARKET_PREVIEW",
         "reviewed-market-breadth-v1": "MARKET_BREADTH",
         "reviewed-event-research-v1": "EVENT",
+        "reviewed-market-overview-live-v1": "MARKET_LIVE",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
-    if profile == "reviewed-event-research-v1":
+    if profile == upgrade.EVENT_MODE:
         monkeypatch.setattr(upgrade, "EVENT_FEATURE", base if bad == "feature-app" else payload)
         monkeypatch.setattr(upgrade, "EVENT_BASE", payload)
         monkeypatch.setattr(upgrade, "EVENT_MCP_BASE", payload)
@@ -284,8 +287,12 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         evidence_constant = "ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256"
     if profile == "reviewed-etf-weekly-admission-v2":
         evidence_constant = "ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256"
-    if profile == "reviewed-event-research-v1":
-        evidence_constant = "EVENT_EVIDENCE_SHA256"
+    if profile in upgrade.EVENT_PRESERVATION_MODES:
+        evidence_constant = (
+            "EVENT_EVIDENCE_SHA256"
+            if profile == upgrade.EVENT_MODE
+            else "MARKET_LIVE_EVIDENCE_SHA256"
+        )
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
@@ -323,6 +330,21 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         (tmp_path / name).chmod(0o755)
     if bad == "deleted":
         (tmp_path / name).unlink()
+    if bad in {"extra-script", "extra-test", "extra-readme", "extra-output"}:
+        extra = {
+            "extra-script": "scripts/extra.py",
+            "extra-test": "tests/extra.py",
+            "extra-readme": "README.md",
+            "extra-output": "outputs/research-web-architecture/index.html",
+        }[bad]
+        path = tmp_path / extra
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("unreviewed")
+    if bad == "allowed-operator":
+        for allowed in (upgrade.TEST, "docs/upgrade.md", ".ai/reports/upgrade.md"):
+            path = tmp_path / allowed
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("reviewed operator documentation")
     if bad == "extra":
         (tmp_path / "app/research_web/ui/extra.mjs").write_text("extra")
     git("add", ".")
@@ -333,6 +355,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     target = git("rev-parse", "HEAD")
     if bad == "untracked":
         (tmp_path / "untracked.txt").write_text("unreviewed checkout state")
+    if bad == "previous-ancestry":
+        monkeypatch.setattr(upgrade, "MARKET_LIVE_PREVIOUS", target)
     if bad == "feature-ancestry":
         monkeypatch.setattr(upgrade, "EVENT_FEATURE", target)
     if bad == "event-base-before-feature":
@@ -345,7 +369,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         monkeypatch.setattr(upgrade, "EVENT_MAIN_BASE", base)
     if bad == "event-main-after-payload":
         monkeypatch.setattr(upgrade, "EVENT_MAIN_BASE", target)
-    if bad is None:
+    if bad in (None, "allowed-operator"):
         result = upgrade.review(tmp_path, target, profile)
         assert name in result and upgrade.MODULE in result
     else:
@@ -578,6 +602,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-preview", "reviewed-market-preview-v1"),
         ("apply-market-breadth", "reviewed-market-breadth-v1"),
         ("apply-market", "reviewed-market-overview-v1"),
+        ("apply-market-live", upgrade.MARKET_LIVE_MODE),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -598,6 +623,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
 @pytest.mark.parametrize(
     "profile,previous",
     [
+        (upgrade.MARKET_LIVE_MODE, upgrade.EVENT_PREVIOUS),
+        (upgrade.MARKET_LIVE_MODE, upgrade.MARKET_LIVE_PAYLOAD),
         (upgrade.ASSET_MODE, upgrade.PREVIOUS),
         (upgrade.ASSET_V2_MODE, upgrade.PREVIOUS),
         (upgrade.ASSET_V2_MODE, upgrade.ASSET_PREVIOUS),
@@ -1177,7 +1204,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "credential_configured": True,
         "credential_storage": "system_keychain",
     }
-    if mode == "reviewed-event-research-v1":
+    if mode in upgrade.EVENT_PRESERVATION_MODES:
         state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     if mode in upgrade.ASSET_MODES:
         state["asset_index_before"] = upgrade.asset_index_snapshot(home)
@@ -1298,7 +1325,11 @@ def real_operations(tmp_path, monkeypatch, request):
                 "primary_last_verified": True,
                 "revision": system["gateway"],
                 "deployment_fenced": (server / "run/gateway-upgrade.json").exists(),
-                **({"mcp_readonly_enabled": False} if mode == "reviewed-event-research-v1" else {}),
+                **(
+                    {"mcp_readonly_enabled": False}
+                    if mode in upgrade.EVENT_PRESERVATION_MODES
+                    else {}
+                ),
             }
         return {"enabled": True, "revision": system["primary"], "active": system["active"]}
 
@@ -1332,7 +1363,7 @@ def real_operations(tmp_path, monkeypatch, request):
             return [SimpleNamespace(role="runtime")]
 
         def _active_research_read_only(self, _runtime):
-            if mode == "reviewed-event-research-v1":
+            if mode in upgrade.EVENT_PRESERVATION_MODES:
                 return ["active"] if system["active"] is not False else []
             return system["active"] is not False
 
@@ -1365,7 +1396,7 @@ def real_operations(tmp_path, monkeypatch, request):
             ("primary" if project == primary else "gateway") + "_repository"
         ],
     )
-    if mode == "reviewed-event-research-v1":
+    if mode in upgrade.EVENT_PRESERVATION_MODES:
         # This phase/recovery fixture already substitutes g.verify_primary;
         # actual operate protocol tests below retain both real primary verifiers.
         monkeypatch.setattr(
@@ -1407,7 +1438,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     expected = state["target"] if failed is None else state["previous"]
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
-    if state["mode"] == "reviewed-event-research-v1":
+    if state["mode"] in upgrade.EVENT_PRESERVATION_MODES:
         gateway = upgrade.read_json(home / "server/resident.json")
         if failed is None:
             assert gateway["mcp_readonly_enabled"] is False
@@ -1426,6 +1457,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         "reviewed-market-preview-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
     }:
@@ -1631,6 +1663,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-preview-v1": "MARKET_PREVIEW_PREVIOUS",
         "reviewed-market-breadth-v1": "MARKET_BREADTH_PREVIOUS",
         "reviewed-event-research-v1": "EVENT_PREVIOUS",
+        "reviewed-market-overview-live-v1": "MARKET_LIVE_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
@@ -1697,7 +1730,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.g.private_root(home / "server/users")
         upgrade.c.atomic(home / "research-web/index.json", {"notes": {}})
         state["asset_index_before"] = upgrade.asset_index_snapshot(home)
-        if profile == "reviewed-event-research-v1":
+        if profile in upgrade.EVENT_PRESERVATION_MODES:
             state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     for path, value in [
         (home / "resident/config.json", config),
@@ -1721,6 +1754,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         if profile in {
             "reviewed-research-dossiers-v1",
             "reviewed-event-research-v1",
+            "reviewed-market-overview-live-v1",
             "reviewed-discovery-v1",
             "reviewed-etf-weekly-v2",
             "reviewed-etf-historical-v1",
@@ -1752,6 +1786,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     if profile in {
         "reviewed-research-dossiers-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
@@ -2260,6 +2295,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         "reviewed-market-preview-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ASSET_V5_MODE,
@@ -2292,7 +2328,7 @@ def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
         assert kwargs["index_reader"](path)["sessions"] == {}
 
     monkeypatch.setattr(upgrade.g, "verify_primary", verify)
-    if profile == "reviewed-event-research-v1":
+    if profile in upgrade.EVENT_PRESERVATION_MODES:
         # Only isolate the reader dispatch in this transport-free unit test;
         # the actual operate tests retain the complete real primary gates.
         monkeypatch.setattr(
@@ -2341,6 +2377,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-preview-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ASSET_V7_MODE,
@@ -2410,6 +2447,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         "reviewed-market-preview-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
     }:
@@ -2536,6 +2574,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-etf-weekly-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
@@ -2570,6 +2609,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-etf-weekly-v1",
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
+        "reviewed-market-overview-live-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
@@ -4492,40 +4532,50 @@ def test_event_schedule_orphans_and_sqlite_sidecars_are_unknown(tmp_path, orphan
 
 
 @pytest.mark.parametrize("native", [None, False, 0, {}, "", ["active"]])
+@pytest.mark.parametrize("mode", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE])
 def test_event_actual_operate_rejects_unknown_native_before_prepare(
-    weekly_operate_protocol, monkeypatch, native
+    mode, weekly_operate_protocol, monkeypatch, native
 ):
     f, control, events = weekly_operate_protocol
-    monkeypatch.setattr(upgrade, "EVENT_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    monkeypatch.setattr(
+        upgrade,
+        "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
+        upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
+    )
     control["active_override"] = False
     control["native"] = native
     before = f.index.read_bytes()
     with pytest.raises(MaintenanceBusy):
-        upgrade.operate(f.home, f.home / "source", mode=upgrade.EVENT_MODE)
+        upgrade.operate(f.home, f.home / "source", mode=mode)
     assert "fence-would-start" not in events
     assert f.index.read_bytes() == before
     assert not (f.home / "server/run/gateway-upgrade.json").exists()
 
 
 @pytest.mark.parametrize("host_active", [True, None])
+@pytest.mark.parametrize("mode", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE])
 def test_event_actual_operate_preserves_original_primary_gate(
-    weekly_operate_protocol, monkeypatch, host_active
+    mode, weekly_operate_protocol, monkeypatch, host_active
 ):
     f, control, events = weekly_operate_protocol
-    monkeypatch.setattr(upgrade, "EVENT_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    monkeypatch.setattr(
+        upgrade,
+        "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
+        upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
+    )
     control["active_override"] = host_active
     with pytest.raises(MaintenanceBusy):
-        upgrade.operate(f.home, f.home / "source", mode=upgrade.EVENT_MODE)
+        upgrade.operate(f.home, f.home / "source", mode=mode)
     assert "/api/research/resident" in events
     assert "fence-would-start" not in events
 
 
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 def test_event_idle_preserves_real_native_and_background_gates(real_operations, monkeypatch):
-    home, state, system, make, _uid = real_operations
-    state["mode"] = upgrade.EVENT_MODE
-    state["previous"] = upgrade.EVENT_PREVIOUS
+    home, state, _system, make, _uid = real_operations
     state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
-    system["primary"] = system["gateway"] = upgrade.EVENT_PREVIOUS
     # Idle runs the real original Operations method; Native unknown cannot pass.
     ops = make(None)
     monkeypatch.setattr(ops.manager, "_active_research_read_only", lambda _: None)
@@ -4558,11 +4608,13 @@ def test_event_latest_disabled_revision_and_frozen_proof_detect_drift(tmp_path):
         upgrade.verify_event_schedules(tmp_path, {})
 
 
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 def test_event_prepare_rechecks_schedule_before_journal_or_fence(real_operations):
     from app.research_web.event_timeline.storage import RecordStore
 
     home, state, _system, make, _uid = real_operations
-    state["mode"] = upgrade.EVENT_MODE
     state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     records = RecordStore(home / "research-web")
     records.create("source_schedule", {"enabled": True}, "concurrent-on")
@@ -4580,16 +4632,23 @@ def test_event_cli_uses_closed_profile(tmp_path, monkeypatch):
     assert seen[0]["mode"] == upgrade.EVENT_MODE
 
 
-def test_event_actual_operate_proves_idle_before_prepare(weekly_operate_protocol, monkeypatch):
+@pytest.mark.parametrize("mode", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE])
+def test_event_actual_operate_proves_idle_before_prepare(
+    mode, weekly_operate_protocol, monkeypatch
+):
     f, control, events = weekly_operate_protocol
-    monkeypatch.setattr(upgrade, "EVENT_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    monkeypatch.setattr(
+        upgrade,
+        "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
+        upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
+    )
     control["active_override"] = False
     catalog = json.loads(f.index.read_text())
     catalog["runs"][f.rid]["status"] = "completed"
     upgrade.c.atomic(f.index, catalog)
     before = f.index.read_bytes()
     with pytest.raises(SystemExit, match="observed-idle-no-service-effects"):
-        upgrade.operate(f.home, f.home / "source", mode=upgrade.EVENT_MODE)
+        upgrade.operate(f.home, f.home / "source", mode=mode)
     assert "native" in events
     assert "fence-would-start" in events
     assert f.index.read_bytes() == before
@@ -4605,27 +4664,39 @@ def test_event_actual_operate_proves_idle_before_prepare(weekly_operate_protocol
         ("source_job", {}),
     ],
 )
+@pytest.mark.parametrize("mode", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE])
 def test_event_actual_operate_rejects_collection_before_preparation(
-    weekly_operate_protocol, monkeypatch, kind, payload
+    mode, weekly_operate_protocol, monkeypatch, kind, payload
 ):
     from app.research_web.event_timeline.storage import RecordStore
 
     f, control, events = weekly_operate_protocol
-    monkeypatch.setattr(upgrade, "EVENT_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    monkeypatch.setattr(
+        upgrade,
+        "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
+        upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
+    )
     control["active_override"] = False
     RecordStore(f.home / "research-web").create(kind, payload, "fixture-record")
     with pytest.raises(upgrade.UpdateBlocked):
-        upgrade.operate(f.home, f.home / "source", mode=upgrade.EVENT_MODE)
+        upgrade.operate(f.home, f.home / "source", mode=mode)
     assert "native" in events
     assert "fence-would-start" not in events
     assert not (f.home / "server/run/gateway-upgrade.json").exists()
 
 
-def test_event_actual_operate_native_drift_at_original_idle(weekly_operate_protocol, monkeypatch):
+@pytest.mark.parametrize("mode", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE])
+def test_event_actual_operate_native_drift_at_original_idle(
+    mode, weekly_operate_protocol, monkeypatch
+):
     from app.research_web import service_manager
 
     f, control, events = weekly_operate_protocol
-    monkeypatch.setattr(upgrade, "EVENT_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    monkeypatch.setattr(
+        upgrade,
+        "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
+        upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
+    )
     control["active_override"] = False
     catalog = json.loads(f.index.read_text())
     catalog["runs"][f.rid]["status"] = "completed"
@@ -4636,9 +4707,7 @@ def test_event_actual_operate_native_drift_at_original_idle(weekly_operate_proto
         "_active_research_read_only",
         lambda *_: next(reads),
     )
-    assert upgrade.operate(f.home, f.home / "source", mode=upgrade.EVENT_MODE) == {
-        "status": "deferred"
-    }
+    assert upgrade.operate(f.home, f.home / "source", mode=mode) == {"status": "deferred"}
     assert "fence-would-start" not in events
     assert not (f.home / "server/run/gateway-upgrade.json").exists()
 
@@ -4664,10 +4733,16 @@ def test_event_unknown_storage_schema_refuses_disabled_assertion(tmp_path):
         upgrade.event_schedules_disabled(tmp_path)
 
 
-def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence():
-    old = {"revision": upgrade.EVENT_PREVIOUS, "binding": {"revision": upgrade.EVENT_PREVIOUS}}
+@pytest.mark.parametrize("mode", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE])
+def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence(
+    mode,
+):
+    old = {
+        "revision": upgrade.previous_for(mode),
+        "binding": {"revision": upgrade.previous_for(mode)},
+    }
     original = json.dumps(old, sort_keys=True)
-    state = {"mode": upgrade.EVENT_MODE, "target": "b" * 40, "gateway_config": old}
+    state = {"mode": mode, "target": "b" * 40, "gateway_config": old}
     target = upgrade.gateway_configuration(state)
     assert target["mcp_readonly_enabled"] is False
     assert upgrade.gateway_configuration(state, previous=True) == old
@@ -4675,7 +4750,9 @@ def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence():
     assert json.dumps(old, sort_keys=True) == original
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 def test_event_actual_health_unknown_refuses_target(real_operations, monkeypatch):
     home, state, system, make, _uid = real_operations
     system["primary"] = system["gateway"] = state["target"]
@@ -4747,7 +4824,9 @@ def event_mcp_health_protocol(real_operations, monkeypatch):
     return home, state, system, make(None), control
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 @pytest.mark.parametrize("where", ["local", "remote"])
 @pytest.mark.parametrize("bad", ["missing", None, 0, True])
 def test_event_verify_requires_actual_strict_false_health(event_mcp_health_protocol, where, bad):
@@ -4758,7 +4837,9 @@ def test_event_verify_requires_actual_strict_false_health(event_mcp_health_proto
     assert control["reads"] == 2
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 def test_event_verify_real_health_accepts_false_and_old_rollback_missing(event_mcp_health_protocol):
     home, state, system, ops, control = event_mcp_health_protocol
     ops.verify(False)
@@ -4771,7 +4852,9 @@ def test_event_verify_real_health_accepts_false_and_old_rollback_missing(event_m
     assert "mcp_readonly_enabled" not in upgrade.read_json(home / "server/resident.json")
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 @pytest.mark.parametrize("drift", ["pid", "birth", "config"])
 def test_event_health_window_binds_process_birth_and_config(
     event_mcp_health_protocol, monkeypatch, drift
@@ -4800,7 +4883,9 @@ def test_event_health_window_binds_process_birth_and_config(
         ops.verify(False)
 
 
-@pytest.mark.parametrize("real_operations", ["reviewed-event-research-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE], indirect=True
+)
 @pytest.mark.parametrize("value", ["missing", None, 0, True])
 def test_event_configuration_and_recovery_reject_falsey_mcp_drift(real_operations, value):
     home, state, _system, _make, _uid = real_operations
@@ -4827,4 +4912,46 @@ def test_event_combination_ancestry_is_fixed_with_real_git(tmp_path, monkeypatch
 def test_event_latest_main_ancestry_is_frozen_with_real_git(tmp_path, monkeypatch, bad):
     test_asset_review_uses_real_git_and_frozen_product(
         tmp_path, monkeypatch, bad, upgrade.EVENT_MODE
+    )
+
+
+def test_market_live_profile_freezes_current_resident_and_reviewed_product():
+    assert upgrade.MARKET_LIVE_MODE == "reviewed-market-overview-live-v1"
+    assert (
+        upgrade.previous_for(upgrade.MARKET_LIVE_MODE) == "5ffecb5219d46a5d3e4148a4ddb630f23a09ab3b"
+    )
+    assert upgrade.MARKET_LIVE_PAYLOAD == "a2ee934f026d9f174d948a2f748213d0d5021f5b"
+    assert upgrade.MARKET_LIVE_WEB_LOCK_SHA256 == upgrade.EVENT_WEB_LOCK_SHA256
+    assert upgrade.MARKET_LIVE_EVIDENCE_SHA256 == upgrade.EVENT_EVIDENCE_SHA256
+    assert upgrade.EVENT_PRESERVATION_MODES == frozenset(
+        {upgrade.EVENT_MODE, upgrade.MARKET_LIVE_MODE}
+    )
+    assert upgrade.MARKET_LIVE_MODE in upgrade.ASSET_MODES
+    assert upgrade.MARKET_LIVE_MODE not in upgrade.TRIAL_MODES
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "previous-ancestry",
+        "ancestry",
+        "reverted",
+        "deleted",
+        "mode",
+        "extra",
+        "extra-script",
+        "extra-test",
+        "extra-readme",
+        "extra-output",
+    ],
+)
+def test_market_live_real_git_rejects_unfrozen_product(tmp_path, monkeypatch, bad):
+    test_asset_review_uses_real_git_and_frozen_product(
+        tmp_path, monkeypatch, bad, upgrade.MARKET_LIVE_MODE
+    )
+
+
+def test_market_live_real_git_accepts_operator_documentation_extensions(tmp_path, monkeypatch):
+    test_asset_review_uses_real_git_and_frozen_product(
+        tmp_path, monkeypatch, "allowed-operator", upgrade.MARKET_LIVE_MODE
     )

@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+三地综合总览本轮由 macOS Mac mini 开发并验收 Web 与固定 Native 部署 profile。
+代码、真实公开源、离线浏览器、同候选 macos-15 安装、常驻切换及认证页面分别留证；
+Windows/Linux 原生交接保持 NOT_RUN，不把通用 Ubuntu 仓库检查称为 Linux 产品验收。
+
 ## 事件固定部署操作员的验收范围（2026-11-05）
 
 本次为 macOS Mac mini 的 Web 功能部署准备，`apply-events` 仅作用于既有 Native 常驻实例。固定旧版 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 的空闲检查不能认证新操作员或新产品已上线；最终候选仍需原三项 CI、同候选 Mac bootstrap，以及现场切换、认证入口和全账号保全证据。采集日程保持关闭，模型调用与生产评分准入分别验收。

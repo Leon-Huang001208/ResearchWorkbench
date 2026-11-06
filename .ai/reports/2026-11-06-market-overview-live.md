@@ -39,3 +39,5 @@
 <!-- architecture-review {"group":"datahub","structure":"changed","reason":"原公开来源适配增加腾讯九指数原生OHLCV与独立缓存分集，13图标明三地来源及旧目录并存；固定12指数仓桥、研究仓格式、供应商权限和正式PIT门不变。","diagrams":["13-market-overview"]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks步骤增选九指数离线模块，Mac Bootstrap现有步骤增加四静态资产及Provider导入；原Runner、安装健康、Doctor和CI拓扑保留，未增加平台dispatch或依赖。","diagrams":["08-iteration-docs"]} -->
 <!-- architecture-review {"group":"ui","structure":"changed","reason":"综合总览作为默认市场首页读取既有行情、事件与评分领域，原行情分析同页保留；13图更新首页和来源口径，未新增研究执行节点或独立前端运行服务。","diagrams":["13-market-overview"]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新固定market-live模式只在既有Native操作员内复用事件关闭、三锁、BirthFence及全账号保全恢复，不增加部署节点、不切换Docker、不改双运行时互斥或平台权限。","diagrams":["01-deployment"]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"Mac mini切换沿原primary与gateway独立源身份、全账号业务快照、实际空闲及双健康门，MCP持久False且事件采集关闭；没有新网关、路由授权或用户数据格式。","diagrams":["01-deployment"]} -->
