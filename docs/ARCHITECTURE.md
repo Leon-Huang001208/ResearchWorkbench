@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+## WeKnora 资料边界（2026-11-06）
+
+可选 `knowledge_backend/` 在既有账号 Host 中提供设置绑定、原文检索和独立证据冻结，新增到外部 WeKnora 的受控网络边；[图04](../outputs/research-web-architecture/04-data-file-flow.html)明确展示此边。WeKnora 作为研究原件与索引的目标底座，RWB 继续拥有金融快照、模板底稿、正式稿及冻结证据；不是增加 Agent、调度器或第二套报告运行状态机。当前只有源码候选，默认 `RESEARCH_WEKNORA_ORIGIN` 为空。显式只检索 profile 已有源码补丁，Go、服务及界面零生成尚未验收，部署与迁移不得由适配代码通过推定。完整身份、时点和失败边界见[资料合同](research-web-weknora.md)。
+
 2026-11-06统一导航部署采用既有v4联合事务的 reviewed-unified-navigation-v1／apply-navigation-ui，固定5ffecb52旧版及b192dd1a产品。完整union/blob/mode冻结，仅操作员及其专用测试／文档可随后变化；全账号64MiB索引、事件／档案保全、空闲、BirthFence和恢复源码绑定不变，NAV前进及回滚均验证MCP实际严格False。旧static-ui分步流程不用于本次联合保全。
 
 统一导航由 UI 中 navigation-catalog.mjs／module-navigation.mjs/css 管理入口、独立图标、模块侧栏及浏览器偏好；app／shell 保留原研究与数据生命周期，不新增后端、数据库或运行节点。详见 [前端导航合同](research-web-ui.md#统一模块导航2026-11-06)。

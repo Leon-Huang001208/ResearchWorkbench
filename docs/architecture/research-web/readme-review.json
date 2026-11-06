@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核统一导航固定Native部署，README产品与安装入口保持。",
-  "reason": "仅新增封闭维护profile及恢复校验，不增加业务页面、公开API或安装依赖；真实Mac部署、MCP/采集关闭和其他平台未验状态分别由部署合同及任务报告记录。"
+  "disposition": "updated",
+  "summary": "README新增可选WeKnora资料适配候选入口，说明默认未配置及真实验收缺口。",
+  "reason": "新增资料公开接口、用户绑定和外部服务边界；用户须了解RWB与WeKnora职责以及未部署、未迁移、UI零生成受阻状态，安装入口与依赖锁保持。"
 }

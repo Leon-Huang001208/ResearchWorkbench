@@ -229,6 +229,29 @@
           "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/.ai/reports/2026-11-06-unified-navigation.md"
         }
       ]
+    },
+    {
+      "id": "weknora-material-backend",
+      "module": "研究与报告",
+      "title": "WeKnora 研究资料接入",
+      "summary": "提供个人资料绑定、原文检索和报告证据冻结候选，保留原金融数据与报告生产边界。",
+      "scope": "固定版本资料薄适配、严格用户权限与截止范围、不可变原件和分块证据。",
+      "next": "完成必需验证及只检索profile的Go、服务和界面验证，再分别验收独立服务、检索对照及报告接入。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-weknora.md",
+      "updated": "2026-11-06",
+      "status": "developing",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "disabled",
+      "limitations": "当前未部署或迁移资料；实例级只检索源码补丁已准备，真实Go、管理界面零生成、模型、宿主与报告链尚未验证。",
+      "blocked": {
+        "reason": "实例级只检索策略尚缺Go、服务及管理界面运行证据。",
+        "next": "保留原链并完成独立候选的实际零生成验证。"
+      },
+      "evidence": []
     }
   ],
   "releases": [

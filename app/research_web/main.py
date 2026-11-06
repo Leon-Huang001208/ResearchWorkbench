@@ -52,6 +52,7 @@ from .hot_routes import router as hot_router
 from .hot_service import HotWebError, HotWebService
 from .integrations.routes import router as integrations_router
 from .intel_routes import router as intel_router
+from .knowledge_backend.routes import router as knowledge_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
 from .market_routes import router as market_router
@@ -299,6 +300,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
     app.include_router(datahub_router)
+    app.include_router(knowledge_router)
     app.include_router(dossier_signal_router)
     app.include_router(dossiers_router)
     app.include_router(events_router)

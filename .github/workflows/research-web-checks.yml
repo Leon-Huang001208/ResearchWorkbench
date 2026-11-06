@@ -109,6 +109,13 @@ jobs:
             -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
+            tests/research_web/test_weknora_client.py \
+            tests/research_web/test_weknora_service.py \
+            tests/research_web/test_weknora_api.py \
+            tests/research_web/test_weknora_integrity.py \
+            tests/research_web/test_weknora_candidate.py \
+            tests/research_web/test_weknora_upstream_patch.py \
+            tests/research_web/test_weknora_retrieval_profile.py \
             tests/research_web/test_event_api.py \
             tests/research_web/test_event_datahub_bridge.py \
             tests/research_web/test_event_studies.py \

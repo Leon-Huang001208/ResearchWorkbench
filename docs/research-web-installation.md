@@ -1,5 +1,11 @@
 # Research Web Native / Docker 安装与运行
 
+## 可选 WeKnora 资料入口（2026-11-06）
+
+现有一键安装只随产品打包薄适配与设置卡片，不安装 WeKnora、数据库、模型或 Go，Web 依赖锁保持。操作员可提供非秘密 `RESEARCH_WEKNORA_ORIGIN`；缺省为空，入口停用。地址仅接受无凭据、查询及片段的 HTTPS origin，HTTP 只接受 localhost／回环；不从用户请求接受任意上游 URL。tenant 子进程只传递操作员显式 origin，用户 JWT 仅由本机设置页进入受保护凭据后端，不放环境、锁、日志或模型。
+
+Doctor 的 `knowledge_backend` 只检查账号内绑定与保全完整性，不读凭据、不联网、不创建资料根或认证成功状态；`connectivity=not_verified` 和真实模型／报告 `NOT_RUN` 保留。Mac 干净安装沿原步骤下载并逐字节比对 `knowledge-settings.mjs`，另验证默认未配置状态；本地代码存在不等于已安装。新增独立服务仍先核算镜像、原件、数据库、索引、解析及恢复峰值，不能借此任务停止既有服务。[详细合同](research-web-weknora.md)
+
 统一导航v4维护profile不增加产品依赖或重新安装第三方包；只用现有主实例解释器构建／安装本项目wheel，并保留原web.lock、固定DSH、CJPY和immutable controller。仅冻结5ff→b192产品与后继受审操作员，不使用宽松静态更新流程；Mac安装CI与实际部署Doctor各自验证。
 
 2026-11-06统一导航新增三个随产品打包的本地静态资源，原安装器和web依赖锁保持；Mac干净安装CI须从实际服务下载并与checkout核对字节，不能用开发目录中存在文件替代已安装资源证明。此迭代无新Python/Node依赖、配置或Doctor能力。
