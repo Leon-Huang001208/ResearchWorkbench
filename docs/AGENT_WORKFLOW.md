@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+综合总览本轮在独立 worktree 接入真实九指数和原事件／评分读取；Node 离线浏览器与真实
+公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
+导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
+
 2026-11-06统一导航验收使用独立worktree、项目共享测试Python及固定Node；复用已有Playwright/Chrome启动owned loopback夹具，真实前端只访问合成空API，真实数据／模型／常驻服务均不参与。沿完整changed-set Router、独立评审、原三CI和macos-15安装，不在Mac派发其他平台产品任务；浏览器进程与临时服务在finally关闭。
 
 ## 研发进展维护

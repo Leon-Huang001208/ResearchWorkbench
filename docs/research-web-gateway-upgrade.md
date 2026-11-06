@@ -1,5 +1,33 @@
 # Mac mini 空私有池网关升级
 
+## 市场综合总览封闭部署（2026-11-06）
+
+`apply-market-live`／`reviewed-market-overview-live-v1` 独立固定现场已核验前版
+`5ffecb5219d46a5d3e4148a4ddb630f23a09ab3b`，产品检查点固定为
+`a2ee934f026d9f174d948a2f748213d0d5021f5b`。用户已授权真实市场综合总览集成及 Mac mini
+常驻切换；源码准备和本节记录不构成部署成功。旧 `apply-events` 的前版、产品和组合祖先链保持。
+
+新 profile 复用原 version4 三锁、BirthFence、全账号64MiB严格业务索引及 `@events` 原件保全、
+内容寻址恢复和原安装锁。`EVENT_PRESERVATION_MODES` 仅含旧事件和新市场两个封闭身份，
+共享原 Native 严格列表、Host／后台任务／Workflow／市场 inflight 空闲门及全账号日程关闭证明。
+日程证明在准备、空闲、切换及恢复边界保持原件哈希和缺席状态；不采集、不启用日程、不调用模型，
+不进入 TRIAL、不取消任务、不变更账号、会话、数据、模型、凭据、权限或历史。
+目标配置持久写入 `mcp_readonly_enabled=false`，原双入口 fenced health 必须报告实际 Facade
+严格布尔 false，配置及 PID／出生身份观察窗保持；回滚精确恢复旧配置，不补写旧字段。
+
+资格要求固定前版是产品祖先、产品是最终工具目标祖先。`review_assets` 对
+`PREVIOUS..PAYLOAD` 与 `PREVIOUS..target` 的完整路径并集逐一核对 Git blob 和文件模式；
+即使产品文件回退至前版而从目标 diff 消失，也必须核对。产品检查点后只允许操作员自身、
+原操作员测试文件、`docs/` 和 `.ai/reports/` 变化；额外 app、scripts、其他 tests、README、
+架构输出、依赖及 workflow 改动均拒绝，非普通 Git 文件模式或删除同样拒绝。
+原 evidence 摘要固定 `193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7dad6bb8ce63988`，
+web.lock 摘要固定 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`。
+
+最终操作员须从干净、最新已合并且独评及必需 CI／Mac 干净安装通过的同候选执行。
+主实例和网关可以使用独立 Git common；二者须分别通过仓库身份检查并具有最终目标 commit，
+不能用源工作树存在对象代替。现场版本、健康、MCP关闭、采集关闭、全账号保全、认证浏览器业务
+验收及资源收尾分别留证；Windows／Linux 原生验收由对应设备负责，未执行保留 NOT_RUN。
+
 ## 事件研究封闭部署（2026-11-05）
 
 `apply-events`／`reviewed-event-research-v1` 固定前版

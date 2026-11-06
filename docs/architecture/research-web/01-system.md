@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+三地综合总览由原 Web 壳读取 MarketService、Timeline 与 Score 领域，旧行情分析同页保留。
+global-v1 是现有公开来源适配中的独立九指数合同，不新增服务、守护进程或研究引擎；
+数据流见13图，研究资格仍见14图。Mac mini 切换必须另经原维护保全和实际健康门。
+
 ## 事件固定部署的职责复核（2026-11-05）
 
 `reviewed-event-research-v1`／`apply-events` 位于既有 Native 维护操作员内，固定从 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 更新至产品 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。事件功能身份为 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`；操作员核对其祖先关系和相同 app 树，工程闭包与功能身份分别保留。

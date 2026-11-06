@@ -165,6 +165,12 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 ## 全市场概览接口
 
+综合总览复用原接口：`POST /market/refresh` 的版本化 `index_set=global-v1` 只采集固定三地
+九指数，GET `/market` 从 `sections["indices:global-v1"]` 读取独立缓存。旧 core-v1／terminal-v2
+不变；原生 OHLCV、未完成日线与来源单位分别保留，详见[九指数合同](../../research-web-global-indices.md)。
+评分读取 `/market-scores/runs` 后必须经单项 GET 的 `current_eligibility` 重新核验，列表历史记录
+不是当期总分；时间线使用原 `/events/timeline` 的日期筛选和游标。没有新增首页写入或自动采集接口。
+
 2026-10-23不新增路径：报价行/CSV追加`limit_up_price/limit_down_price/limit_status`，summary追加`limit_up/limit_down/limit_covered/limit_unknown`，未知不补0。`previous_amount`返回本次已上市池的上一交易日全天金额、日期、scope_count/missing_count、source_snapshot_id/retrieved_at或不可用reason；内部逐股基线不进入公开投影。资金`row_count/provider_total`保持本次返回行数，`history_rows/history_count`是本账号实取留存，每日有来源/采集时间，30日目标与实际缺口分开。历史日线不随板块今日/5日/10日开关变化，不等价为分时。详情见[数据口径](../../research-web-datahub.md#无会话全市场数据)。
 
 indices响应可附加`warehouse`对象：status、persisted、hit、source=eastmoney、source_count=1、version（本次写入返回版本）、snapshot_sha256/observed_at/display_cache_ttl_seconds（仓命中证据）及固定False的quality_accepted/formal_backtest_eligible。原响应字段含义和HTTP请求不变；仓不可用而上游成功时明确persisted=False，授权失败不降级取数。GET仍零上游调用，POST显式刷新不冒充仓命中刷新；内部缓存读不是新HTTP入口。

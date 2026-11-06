@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "全市场终端：行情、证据分析与个人组合",
+    "title": "市场概览：三地行情与原有分析",
     "quality_profile": "showcase",
     "viewBox": [
       1100,
@@ -30,8 +30,8 @@
     {
       "id": "marketPage",
       "type": "frontend",
-      "label": "三个行情页签",
-      "sublabel": "可见刷新 / 手动暂停",
+      "label": "综合总览与行情分析",
+      "sublabel": "浏览缓存 / 明确刷新",
       "stage": 0,
       "row": 0
     },
@@ -55,7 +55,7 @@
       "id": "publicMarket",
       "type": "cloud",
       "label": "公开行情来源",
-      "sublabel": "东财行情 / 新浪日线",
+      "sublabel": "东财 / 新浪 / 腾讯九指数",
       "stage": 2,
       "row": 2
     },
@@ -201,8 +201,8 @@
       "dot": "emerald",
       "title": "数据口径",
       "items": [
-        "原12与新24指数分集",
-        "新浪日线核对东财昨收",
+        "12/24与三地9指数分集",
+        "分源报价与原生日线核对",
         "首次观察不冒充历史PIT"
       ]
     },
@@ -210,7 +210,7 @@
       "dot": "amber",
       "title": "刷新与恢复",
       "items": [
-        "行情30秒、板块资金60秒",
+        "新总览手动 / 旧行情自动",
         "GET只读 / 隐藏停止订阅",
         "失败保留旧版 / 不重分权重"
       ]

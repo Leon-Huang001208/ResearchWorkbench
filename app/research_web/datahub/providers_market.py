@@ -24,6 +24,7 @@ from ..market_indices import (
     CATALOG_VERSION,
     CORE,
     CORE_INDEXES,
+    GLOBAL,
     TERMINAL,
     public_catalog,
     selected_indexes,
@@ -265,7 +266,7 @@ class MarketProvider:
     ) -> dict:
         if (
             section not in SECTIONS
-            or index_set not in {CORE, TERMINAL}
+            or index_set not in {CORE, TERMINAL, GLOBAL}
             or kind not in {"industry", "concept"}
             or period not in FLOW_FIELDS
         ):
@@ -283,7 +284,12 @@ class MarketProvider:
                 if section == "quotes":
                     result = await self._quotes(reader)
                 elif section == "indices":
-                    result = await self._indices(reader, index_set)
+                    if index_set == GLOBAL:
+                        from .providers_global_indices import fetch_global_indices
+
+                        result = await fetch_global_indices(self._client, self._semaphore)
+                    else:
+                        result = await self._indices(reader, index_set)
                 elif section in {"industry", "concept"}:
                     result = await self._boards(reader, section)
                 elif section == "flows":
