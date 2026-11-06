@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+三地综合总览的 `apply-market-live` 是固定5ff→a2ee产品的 Native 维护 profile，不切换
+Docker 镜像或卷。仍遵守原双运行时互斥、三锁、BirthFence和保全恢复；采集日程与
+入站 MCP 保持关闭。Mac Docker、Windows/Linux 产品证据不由 Native 切换代替。
+
 统一导航 apply-navigation-ui 是macOS Native联合维护，沿原v4而非Docker构建／部署；不启动、重建或重启Docker服务，不认定Docker产品已验收。项目通用Ubuntu CI仍是仓库门，与Linux/Docker产品真机证据分开。
 
 ## 事件研究固定部署的 Native 范围（2026-11-05）

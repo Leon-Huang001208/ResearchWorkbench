@@ -231,7 +231,7 @@ test('research replies reject stale relative and API aliases and expose the exac
 test('routing accepts only product routes and safely round trips session identifiers', () => {
   assert.equal(typeof core.parseRoute, 'function');
   assert.deepEqual(core.parseRoute('#/claw?session=a%2Fb'), { page: 'claw', sessionId: 'a/b' });
-  assert.deepEqual(core.parseRoute('#/market'), { page: 'market', sessionId: null, marketView: 'overview', marketBoardId: null });
+  assert.deepEqual(core.parseRoute('#/market'), { page: 'market', sessionId: null, marketView: 'dashboard', marketBoardId: null });
   assert.deepEqual(core.parseRoute('#/unknown-product-route'), { page: 'fingpt', sessionId: null });
   assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
   assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });

@@ -210,19 +210,17 @@
     },
     {
       "id": "13-market-overview",
-      "artifactSha256": "4ecd0e404a2e87af02cfa7bffd572e4705551d65e89a9bef8c2fa2bf1e9fdac3",
-      "specificationSha256": "f9e54cc0dbc4d7909eec828fa171bbaa49a8db40b1360c1ee0ce62d2add1b65c",
+      "artifactSha256": "173e10ab6086b8ac8e8264e21037d021a8479a6f1c0a782a4649ed37c06c5ce3",
+      "specificationSha256": "5a9e049fe497957389728738a54b1bf564e630d9eac99d6e6e45fc3e04b8f113",
       "status": "reviewed",
       "reviewer": "codex-root",
-      "date": "2026-10-23",
+      "date": "2026-11-06",
       "captures": [
-        "13-market-overview.v2-1440-dark.png",
-        "13-market-overview.v2-1440-light.png",
-        "13-market-overview.v2-2048-dark.png",
-        "13-market-overview.v2-2048-light.png"
+        "13-market-overview.visual-check.1440x900.dark.png",
+        "13-market-overview.visual-check.1440x900.light.png"
       ],
       "findings": [],
-      "notes": "通过CUA读取四桌面视口DOM，宽高均无溢出；实际查看1440浅/深两截图，Host抽象中的24/12分集、双公开来源、用户文件及证据门可辨，未见节点/线/标签遮挡。2048两主题亦已采集。未运行CLI visual-check，不把图册作为实际产品或来源验收。",
+      "notes": "Archify deliver实际9/9 showcase零错误零警告，visual-check四视口包含检查及四截图通过。主代理实际查看最终哈希1440浅/深截图，三地九指数与旧12/24分集、来源、缓存及完整性门清晰，未见节点/线/标签遮挡。图仅描述行情与原分析，事件/评分领域另见14图；此证据不替代真实产品、来源或部署验收。",
       "correction_rounds": 3
     },
     {

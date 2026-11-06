@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+三地综合总览沿账号隔离、同源、明确用户动作与幂等刷新；浏览器不传任意来源 URL、
+价格数组或可信准入声明。迟到响应受路由与账号身份保护，事件事实、研究分及正式启用
+分别核验；采集日程和入站 MCP 不因首页浏览或部署自动开启。
+
 统一导航profile固定5ff→b192及独立常量，完整union/blob/mode冻结；额外tests/README/workflow拒绝。NAV旧cfg必须严格False，升级和回滚实际local/private health均要求MCP=False；Native未知假值不是空闲。controller/evidence/自动名单不变，三锁、全账号保全、BirthFence、永久source及失败恢复门保持。
 
 ## 事件部署的封闭授权与拒绝条件（2026-11-05）

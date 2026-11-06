@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+三地综合总览：`ui/market-dashboard*.mjs` 负责只读投影和用户显式操作；原 `market.mjs` 完整保留
+行情分析、沪深北行情和板块资金。`market_indices.py`／`providers_global_indices.py` 定义 global-v1
+九指数真实报价与原生 OHLCV，MarketService 保留独立缓存；评分和事件仍由原领域核验。
+模块边界与验收见[综合总览合同](research-web-market-dashboard.md)。
+
 统一导航封闭部署位于resident/model_provider_upgrade.py，使用UNIFIED_NAVIGATION_*独立常量，不覆盖旧PR168 NAVIGATION_PAYLOAD；原test_model_provider_upgrade覆盖真实Git范围、实际operate及v4恢复矩阵。产品5ff→b192、执行器及三CI、实际服务切换分别核验；不改controller/evidence/自动名单。
 
 统一导航：ui/navigation-catalog.mjs 共享一级入口与原设置／情报／资产子项，module-navigation.mjs/css 处理选中、独立折叠、账号命名空间与窄屏焦点；app/shell/conversation-navigation 接原会话链。回归为 research_web_module_navigation.test.mjs 和 tests/e2e/research_web_module_navigation.mjs；只读夹具页面不认证实际服务或业务数据。
