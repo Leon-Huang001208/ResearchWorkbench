@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增事件时间线、日历效应与六维研究评分入口及验收边界。",
-  "reason": "增加个人事件与固定研究/代理模拟能力，README补充新入口和数据/PIT/生产状态边界；唯一DSH、公开安装器和各平台验收门不变。"
+  "disposition": "unchanged",
+  "summary": "复核 Markdown 代码块关闭围栏修复，README 现有产品入口与使用方式保持适用。",
+  "reason": "修改仅限既有 Markdown 渲染器对代码块关闭行的识别及回归测试；不新增产品入口、部署节点、研究框架或依赖。具体行为和证据记录在 UI 文档及本次架构评审记录。PR/CI 通过与部署、业务验收分别核实。"
 }
