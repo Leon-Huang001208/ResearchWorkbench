@@ -88,6 +88,8 @@ python scripts/weknora_candidate.py benchmark /explicit/gold.json /explicit/actu
 
 ### 显式资料盘点
 
+旧底座分为会话inputs/outputs、网页取证、DataHub快照及Dossiers/固定Workflow资源四层，并非单一原件仓库。Store的附件ID来自相对路径摘要，不是原件内容哈希；网页取证和DataHub另有内容哈希合同。盘点必须区分这些身份，保留旧引用解析；模板、底稿、输出与金融快照继续由RWB管理。现场有界引用审计仅观察当前文件哈希，不能补造缺失的历史哈希；真人及WeKnora用户/空间未映射的资料保持原状。
+
 清单 `schema_version=1`、`owner_id` 明确，`materials` 每项包含同一 `owner_id`、唯一 `source_id`、`kind=research_material`、根内规范 `relative_path`、历史 `legacy_ref`；可选 `original_sha256` 用于复核已知原件。函数 `inventory(root, manifest)` 只打开列出的文件，输出原件 SHA-256、大小、逻辑身份和旧引用，不保存正文或复制资料。
 
 未知／其他归属、金融快照、模板、工作底稿、正式报告，以及 `snapshots/templates/workbooks/outputs` 路径拒绝纳入。符号链接、硬链接、根外／遍历路径、非普通文件、读取期间变化和超过容量上限均拒绝。单件上限 128 MiB、每清单上限 512 MiB／200件；超限须分批，不放宽门槛。盘点通过不表示已迁移，旧引用和原件继续保留。
