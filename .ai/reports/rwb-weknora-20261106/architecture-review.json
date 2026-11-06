@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "taskId": "rwb-weknora-20261106",
-  "sourceCommit": "e06c884fbe38d15a6c03f5a4421013b794992172",
+  "sourceCommit": "26e730cbf73d2edcce753d7f84c4f49cf68ec68c",
   "sourcePinStatus": "verified_existing_source_checkpoint",
   "groups": [
     {
