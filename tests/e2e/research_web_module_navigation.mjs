@@ -35,7 +35,7 @@ const server=http.createServer(async(req,res)=>{
   }
   const relative=url.pathname==='/'?'index.html':url.pathname.replace(/^\/static\//,'');const file=path.resolve(ui,relative);
   if(!file.startsWith(ui+path.sep))throw Error('unsafe_static_path');
-  const content=await readFile(file);res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream','cache-control':'no-store'});res.end(content);
+  let content=await readFile(file);if(relative==='index.html') content=Buffer.from(content.toString().replace('</head>','<link rel="stylesheet" href="/static/server/account-menu.css"></head>'));res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream','cache-control':'no-store'});res.end(content);
  }catch(error){res.writeHead(500);res.end('fixture_failure');errors.push('fixture:'+error.code);}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -82,10 +82,10 @@ try{
  });
  await check('themes, responsive layout, reduced motion and screenshots',async()=>{
   for(const theme of ['dark','light'])for(const [width,height] of [[1440,900],[1280,720],[768,1024],[390,844]]){
-   await page.setViewportSize({width,height});for(const [label,hash] of [['progress','#/progress'],['assets','#/assets'],['settings','#/settings/general']]){
+   await page.setViewportSize({width,height});for(const [label,hash] of [...PRIMARY_NAVIGATION.map(x=>[x.page,x.href]),['progress','#/progress'],['settings','#/settings/general'],['account','#/account'],['history','#/history']]){
     await go(hash);await page.evaluate(t=>window.ResearchWebTheme.controller.setPreference(t),theme);await visiblePrimary();
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1||document.querySelector('#main').scrollWidth>document.querySelector('#main').clientWidth+1);assert.equal(overflow,false,`${label}/${theme}/${width}`);
-    await page.screenshot({path:path.join(output,`${label}-${theme}-${width}.png`)});
+    await page.mouse.move(width-8,10);assert((await page.locator('.account-trigger').boundingBox()).width<=44,'authenticated avatar retains its original size');await page.screenshot({path:path.join(output,`${label}-${theme}-${width}.png`)});
    }
   }
   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.menu-toggle').click();assert(await page.locator('.secondary-sidebar').isVisible());assert.equal(await page.locator('.module-links a').first().evaluate(el=>getComputedStyle(el).transitionDuration),'0s');await page.keyboard.press('Escape');
