@@ -335,3 +335,8 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+
+## Markdown 围栏识别修复（2026-11-06）
+
+ETF 周报若经既有 Markdown 视图展示，代码块内带非空白后缀的围栏行保留为代码正文，不误吞后续内容。修复仅涉及展示解析，不改变周报生产、数据核对、冻结证据或正式交付门。未执行真实周报生产验收。
