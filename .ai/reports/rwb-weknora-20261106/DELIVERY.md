@@ -1,6 +1,6 @@
 # WeKnora 资料与报告证据候选：交付映射
 
-Host: macOS / Mac mini；任务类型：feature-development。源码检查点：e06c884fbe38d15a6c03f5a4421013b794992172。
+Host: macOS / Mac mini；任务类型：feature-development。Python产品测试检查点：e06c884fbe38d15a6c03f5a4421013b794992172；合流Node检查点：8563c2dc619aadcef91508cee23daa037f165fe4。最终交付身份以受管回执及同候选CI为准。
 
 | 源变更 | 验证与文档 | 实际状态 |
 | --- | --- | --- |
@@ -18,8 +18,12 @@ Host: macOS / Mac mini；任务类型：feature-development。源码检查点：
 - WeKnora九模块及原multiuser_cli定点133项：133 PASS。
 - 必需Node十一文件组合：325 PASS，Node24.22.1，显式RWB_TEST_PYTHON共享健康环境，30.378秒；先前错误环境超时回执保留。
 - 设置卡片相关组合25 PASS；上游编辑器纯Node8 PASS。
+- 合流候选8563的必需Node与设置卡片组合350/350 PASS，34.026秒；不把此前325与25的独立运行简单拼接为本次回执。
+- Git安全四套完整回归338/338 PASS，495.262秒；修复前RED、首轮600秒超时及取消证据保留。原测试回执没有exact-SHA声明，另核对feature ddb1d5ac与合流8563的脚本及四个测试模块blob一致。
+- 正式prepared amend已通过恢复备份核验并收养8563；该事实不是发布、CI、业务接受或清理完成。随后结构检查发现Python生成索引过期，按合流源码重新生成；原FAIL保留，修后检查独立记录。
 - Black/isort/Ruff、相关mypy、项目约束、架构/文档/进展检查实际通过。
 - 以上本地Python均按WIP记录其真实候选、blob映射、用例集合及过程SHA，不改称最终候选执行；最终Mac CI与远端交付仍需独立证据。
+- 本地结果摘要见两工作树logs/weknora-local-delivery-summary.json；有界旧资料引用审计见integration的logs/weknora-legacy-inventory-audit.json。后者仅观察当前原件哈希，未找到既有内容哈希可比，归属和空间未映射，不能作为自动迁移清单。
 
 ## 待验与权限边界
 

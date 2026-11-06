@@ -6,7 +6,7 @@ market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平�
 
 ## Git prepared 冲突诊断前置修复预算（2026-11-06）
 
-本轮只在原 Project Constraints 的 Git safety Node 步骤增加10个快速定点用例，验证历史六字段 `mergeFailure` 的严格有界读取与拒绝反例。复用原 job、runner、执行入口和超时，不新增依赖、workflow或平台dispatch；原步骤增量预留10秒，最终四套GitSafety的实际结果与耗时由任务回执记录，不能用定点绿或修复前RED代替整套验收。诊断可读取不授予published／CI资格，远端动作仍按原实时visibility／额度和保护门执行。
+本轮只在原 Project Constraints 的 Git safety Node 步骤增加11个快速定点用例，验证历史六字段 `mergeFailure` 的严格有界读取与拒绝反例。复用原 job、runner、执行入口和超时，不新增依赖、workflow或平台dispatch；原步骤增量预留10秒，最终四套GitSafety的实际结果与耗时由任务回执记录，不能用定点绿或修复前RED代替整套验收。诊断可读取不授予published／CI资格，远端动作仍按原实时visibility／额度和保护门执行。
 
 ## WeKnora 资料适配预算（2026-11-06）
 
