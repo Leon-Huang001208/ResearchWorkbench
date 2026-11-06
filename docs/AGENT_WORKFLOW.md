@@ -4,6 +4,16 @@
 公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
 导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
 
+## prepared 冲突恢复诊断兼容（2026-11-06）
+
+本轮交付遇到受管 prepare 已保留真实 `mergeFailure`、而 prepared amend 严格读取器不识别该诊断字段的前置缺陷。修复只让正式入口识别并原样保留有界的历史合并冲突诊断，不手改实际回执，不把冲突、未发布或待 CI 状态改成通过；WeKnora 源码、部署和业务报告完成仍分别取证。
+
+可选诊断存在时必须恰为六字段：`classification=merge_conflict`，非零整数 `exitStatus`（1–255），`signal=null`、`errorCode=null`，整数 `stderrBytes`（0–4 MiB）和小写64位十六进制**字符串** `stderrSha256`。字节数为0当且仅当哈希为实际空字节 SHA-256；额外字段、异常类型、信号退出、越界预算或非字符串哈希继续拒绝。保留诊断不授予发布、CI、备份替代或清理权限，原 SHA／common directory／干净工作树／远端未发布／PR 与 CI 状态等全部拒绝门保持；后续只能沿原正式 prepared amend 与验证流程推进。
+
+## WeKnora 候选交付路由（2026-11-06）
+
+本轮为 macOS Web 功能开发，涉及公开接口、身份与持久证据，使用隔离 worktree、完整 changed-set Router、独立语言／安全评审及原三 CI／同候选 Mac 安装。九份 WeKnora 离线测试加入原 Checks 清单，JS 沿原通配符，Mac 原静态资源检查核对 `knowledge-settings.mjs`；无新增 job、runner、依赖或超时。真实服务、免费模型、20题业务金标、原报告窗口交接、迁移和部署分别登记，不能以 mock 或补丁可应用证明完成替换。0002只检索profile已实现为源码补丁，UI上传／重解析零生成验收仍 BLOCKED，Go目标用例NOT_RUN（原生初始化崩溃，运行BLOCKED）；成功测试临时根仍按原同批身份回收，失败原件保留。[资料合同](research-web-weknora.md)
+
 2026-11-06导航部署为macOS Native维护，沿独立worktree、共享测试环境、受管20节点临时根、完整Router／独立Python评审及同候选原三CI。固定5ff旧版、b192产品，受审执行源码必须保留在resident/artifacts/<target>/source，不能以待清理工作树作为恢复依赖。必须在锁内复核活动、全账号保全、采集off及双向实际MCP=False；Windows/Linux产品仍交对应设备。
 
 2026-11-06统一导航验收使用独立worktree、项目共享测试Python及固定Node；复用已有Playwright/Chrome启动owned loopback夹具，真实前端只访问合成空API，真实数据／模型／常驻服务均不参与。沿完整changed-set Router、独立评审、原三CI和macos-15安装，不在Mac派发其他平台产品任务；浏览器进程与临时服务在finally关闭。
@@ -698,3 +708,5 @@ partial_cleanup分支：原pending proof、独评/CI/真实合并、全部工作
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。
+
+冷Doctor的真实“禁止导入server启动模块”回归通过后，origin校验提取到共用stdlib helper，公开dispatch与Doctor均显式调用。该兼容修复不安装依赖、不扩大环境白名单；原失败按同根保留，后续通过不能改写原失败身份。

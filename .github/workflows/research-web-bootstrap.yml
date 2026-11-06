@@ -196,14 +196,15 @@ jobs:
           .venv/bin/python -c "import research_workbench_entrypoint.resident.trial_retirement, research_workbench_entrypoint.resident.trial_discard_backup, research_workbench_entrypoint.resident.trial_successor"
           .venv/bin/python -c "import app.research_web.datahub.providers_global_indices, app.research_web.watchlist_import, app.research_web.asset_research, app.research_web.scenario_handoffs, app.research_web.specialists.routes; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"
           .venv/bin/python -c "import importlib.metadata as m; from app.research_web.mcp_facade.server import Facade; assert m.version('mcp') == '2.2.0' and callable(Facade)"
-          RWB_MCP_READONLY_ENABLED=1 ./rwb server doctor --root "$RUNNER_TEMP/rwb-mcp-doctor-unused" --json > "$RUNNER_TEMP/mcp-doctor.json"
+          RWB_MCP_READONLY_ENABLED=1 RESEARCH_WEKNORA_ORIGIN=https://knowledge.example.invalid ./rwb server doctor --root "$RUNNER_TEMP/rwb-mcp-doctor-unused" --json > "$RUNNER_TEMP/mcp-doctor.json"
           .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['mcp_readonly']; assert d['enabled'] is True and d['sdk']['matches_lock'] is True and d['status']=='configuration_pending' and d['connection']=='not_checked' and all(v=='NOT_RUN' for v in d['actual_verification'].values()) and not (r/'rwb-mcp-doctor-unused').exists()"
+          .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['knowledge_backend']; assert d['enabled'] is True and d['status']=='configuration_pending' and d['authorization']=='not_checked' and d['connection']=='not_checked' and d['runtime_verification']=='NOT_RUN' and not (r/'rwb-mcp-doctor-unused').exists()"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
           .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['schema_version'] == 2 and report['installation_ok'] is True and report['product_ready'] is True and all(report['services'][role]['ready'] is True for role in ('runtime', 'web')), report"
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/ > root.html
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/static/app.mjs > app.mjs
-          for asset_file in module-navigation.mjs navigation-catalog.mjs module-navigation.css progress.mjs progress.css progress-data.json event-lab.mjs event-lab-controls.mjs specialist-panel.mjs report-operations.mjs report-workspace.mjs report-workspace.css scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css market-dashboard.mjs market-dashboard-model.mjs market-dashboard-view.mjs market-dashboard.css watchlist-import.mjs asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
+          for asset_file in module-navigation.mjs navigation-catalog.mjs module-navigation.css progress.mjs progress.css progress-data.json knowledge-settings.mjs event-lab.mjs event-lab-controls.mjs specialist-panel.mjs report-operations.mjs report-workspace.mjs report-workspace.css scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css market-dashboard.mjs market-dashboard-model.mjs market-dashboard-view.mjs market-dashboard.css watchlist-import.mjs asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
 
             safe_name="${asset_file//\//_}"
             curl --noproxy '*' --fail --silent --show-error --max-time 15 "http://127.0.0.1:8088/static/$asset_file" > "$RUNNER_TEMP/rwb-asset-$safe_name"
@@ -211,7 +212,7 @@ jobs:
           .venv/bin/python - <<'PY'
           import hashlib, json, os
           from pathlib import Path
-          assets = ["module-navigation.mjs", "navigation-catalog.mjs", "module-navigation.css", "progress.mjs", "progress.css", "progress-data.json", "event-lab.mjs", "event-lab-controls.mjs", "specialist-panel.mjs", "report-operations.mjs", "report-workspace.mjs", "report-workspace.css", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "market-dashboard.mjs", "market-dashboard-model.mjs", "market-dashboard-view.mjs", "market-dashboard.css", "watchlist-import.mjs", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
+          assets = ["module-navigation.mjs", "navigation-catalog.mjs", "module-navigation.css", "progress.mjs", "progress.css", "progress-data.json", "knowledge-settings.mjs", "event-lab.mjs", "event-lab-controls.mjs", "specialist-panel.mjs", "report-operations.mjs", "report-workspace.mjs", "report-workspace.css", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "market-dashboard.mjs", "market-dashboard-model.mjs", "market-dashboard-view.mjs", "market-dashboard.css", "watchlist-import.mjs", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
 
           checks = []
           for name in assets:
@@ -222,6 +223,8 @@ jobs:
           Path("asset-static-smoke.json").write_text(json.dumps({"status": "PASS", "assets": checks}), encoding="utf-8")
           PY
           .venv/bin/python -c "from pathlib import Path; assert 'Research Workbench · Research' in Path('root.html').read_text(encoding='utf-8'); assert 'const defaultCatalogNames =' in Path('app.mjs').read_text(encoding='utf-8')"
+          curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/api/research/knowledge > knowledge-status-smoke.json
+          .venv/bin/python -c "import json; d=json.load(open('knowledge-status-smoke.json', encoding='utf-8')); assert d['enabled'] is False and d['configured'] is False and d['connectivity']=='not_verified' and d['live_acceptance']=='NOT_RUN', d"
           curl --fail --silent http://127.0.0.1:8088/api/research/data/connections > connections.json
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
           curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
@@ -243,6 +246,7 @@ jobs:
             app.mjs
             connections.json
             native-search-smoke.json
+            knowledge-status-smoke.json
             asset-static-smoke.json
           if-no-files-found: ignore
           retention-days: 3
@@ -258,6 +262,7 @@ jobs:
             app.mjs
             connections.json
             native-search-smoke.json
+            knowledge-status-smoke.json
             logs/setup-web.log
           if-no-files-found: ignore
           retention-days: 3

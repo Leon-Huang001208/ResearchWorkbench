@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+## WeKnora 资料 API（2026-11-06）
+
+新增认证域 `/api/research/knowledge` 的状态、绑定、库列表、范围、检索、读取及证据冻结／下载；详见[完整接口表](../../research-web-weknora.md#接口与权限)。状态不探测上游，绑定／scope／freeze 要求明确用户动作；仅回环或原认证网关的当前账号可调用，不接受任意 owner、root 或上游地址。内部 `/api/research/internal/data/knowledge-query` 与 `/knowledge-read` 由原 DataKey 门保护且 scope 必填，不能调用其他写入口。现有四项只读 MCP 不变，不因新增 HTTP 扩大 OAuth scope。[API Atlas](../../../outputs/research-web-architecture/api-atlas.html)从字面量路由清单生成。
+
 统一导航只增加显式本机维护CLI apply-navigation-ui，不增加HTTP业务接口、代理路径或权限。导航产品API保持b192字节；source/tool资格、双向实际MCP关闭和账号数据保全均由原v4维护链认证。
 
 ## 事件部署与既有网关代理（2026-11-05）

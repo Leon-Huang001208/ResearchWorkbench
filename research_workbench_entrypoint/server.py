@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .knowledge_configuration import knowledge_origin
+
 log = logging.getLogger(__name__)
 
 
@@ -31,6 +33,13 @@ def dispatch(argv: list[str], project: Path) -> int:
         environment["RWB_MCP_READONLY_ENABLED"] = mcp_switch
     elif mcp_switch is not None:
         log.warning("multiuser_mcp_switch_invalid")
+    try:
+        origin = knowledge_origin()
+        if origin:
+            environment["RESEARCH_WEKNORA_ORIGIN"] = origin
+    except ValueError:
+        # Optional integration fails closed without echoing userinfo/query secrets.
+        log.warning("multiuser_knowledge_origin_not_forwarded")
     try:
         result = subprocess.run(
             [str(python), "-m", "app.research_web.multiuser", *argv],

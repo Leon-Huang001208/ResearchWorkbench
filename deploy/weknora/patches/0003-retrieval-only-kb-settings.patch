@@ -1,0 +1,476 @@
+diff --git a/frontend/src/api/initialization/index.ts b/frontend/src/api/initialization/index.ts
+--- a/frontend/src/api/initialization/index.ts
++++ b/frontend/src/api/initialization/index.ts
+@@ -14,10 +14,12 @@
+     secretKey?: boolean;
+ }
+ 
+ // 初始化配置数据类型
+ export interface InitializationConfig {
++    /** Read-only operator profile, never accepted as a request privilege. */
++    retrievalOnly?: boolean;
+     llm: {
+         source: string;
+         modelName: string;
+         baseUrl?: string;
+         /** @deprecated Use credentials.apiKey from GET responses */
+diff --git a/frontend/src/utils/retrievalOnlyKBSettings.d.mts b/frontend/src/utils/retrievalOnlyKBSettings.d.mts
+--- /dev/null
++++ b/frontend/src/utils/retrievalOnlyKBSettings.d.mts
+@@ -0,0 +1,2 @@
++export function requiresKBChatModel(retrievalOnly: unknown, modelID: unknown): boolean;
++export function retrievalOnlySubmitFields(data: Record<string, any>, retrievalOnly: unknown): Record<string, any>;
+diff --git a/frontend/src/utils/retrievalOnlyKBSettings.mjs b/frontend/src/utils/retrievalOnlyKBSettings.mjs
+--- /dev/null
++++ b/frontend/src/utils/retrievalOnlyKBSettings.mjs
+@@ -0,0 +1,20 @@
++// The mode comes only from the server's read-only configuration response.
++export function requiresKBChatModel(retrievalOnly, modelID) {
++  return retrievalOnly !== true && !modelID;
++}
++
++export function retrievalOnlySubmitFields(data, retrievalOnly) {
++  if (retrievalOnly !== true) return data;
++  return {
++    ...data,
++    summary_model_id: '',
++    vlm_config: {enabled: false},
++    asr_config: {enabled: false},
++    extract_config: {enabled: false},
++    question_generation_config: {enabled: false},
++    auto_tag_config: {enabled: false},
++    profile_config: {enabled: false},
++    indexing_strategy: {...data.indexing_strategy, wiki_enabled: false, graph_enabled: false},
++    image_processing_config: {...data.image_processing_config, image_attrs_enabled: false, image_vector_enabled: false},
++  };
++}
+diff --git a/frontend/src/views/knowledge/KnowledgeBaseEditorModal.test.mjs b/frontend/src/views/knowledge/KnowledgeBaseEditorModal.test.mjs
+--- a/frontend/src/views/knowledge/KnowledgeBaseEditorModal.test.mjs
++++ b/frontend/src/views/knowledge/KnowledgeBaseEditorModal.test.mjs
+@@ -48,5 +48,35 @@
+     /(\/\/ 编辑模式：分别更新基本信息[\s\S]*?await updateKnowledgeBase\(kbId, \{)/
+   )?.[1]
+   assert.ok(editBranch, 'expected to find the edit-mode update block')
+   assert.match(editBranch, /if \(data\.image_processing_config\) \{\s*updateConfig\.image_processing_config = data\.image_processing_config\s*\}/)
+ })
++
++
++test('retrieval-only editing uses server marker after the current-load guard', () => {
++  const guard=source.indexOf('if (!isCurrentKBLoad(generation, kbId)) return',source.indexOf('const loadKBData'))
++  const marker=source.indexOf('retrievalOnly.value = serverConfig.retrievalOnly === true',source.indexOf('const loadKBData'))
++  assert.ok(guard>=0 && marker>guard)
++  assert.match(source,/getCurrentConfigByKB\(kbId\)/)
++  assert.match(source,/requiresKBChatModel\(retrievalOnly.value, formData.value.modelConfig.llmModelId\)/)
++  assert.match(source,/retrievalOnlySubmitFields\(data, retrievalOnly.value\)/)
++})
++
++test('retrieval-only form policy preserves basic settings and cannot enable generation', async () => {
++  const {requiresKBChatModel,retrievalOnlySubmitFields}=await import('../../utils/retrievalOnlyKBSettings.mjs')
++  assert.equal(requiresKBChatModel(false,''),true)
++  assert.equal(requiresKBChatModel(undefined,''),true)
++  assert.equal(requiresKBChatModel('true',''),true)
++  assert.equal(requiresKBChatModel(true,''),false)
++  const original={name:'Name',embedding_model_id:'embedding',summary_model_id:'chat',chunking_config:{chunk_size:512},indexing_strategy:{vector_enabled:true,keyword_enabled:true,wiki_enabled:true,graph_enabled:true},vlm_config:{enabled:true,model_id:'vision'},question_generation_config:{enabled:true}}
++  assert.equal(retrievalOnlySubmitFields(original,false),original)
++  const safe=retrievalOnlySubmitFields(original,true)
++  assert.equal(safe.name,'Name')
++  assert.equal(safe.embedding_model_id,'embedding')
++  assert.equal(safe.summary_model_id,'')
++  assert.equal(safe.vlm_config.enabled,false)
++  assert.equal(safe.question_generation_config.enabled,false)
++  assert.equal(safe.indexing_strategy.wiki_enabled,false)
++  assert.equal(safe.indexing_strategy.vector_enabled,true)
++  assert.equal(original.summary_model_id,'chat')
++  assert.equal(original.indexing_strategy.wiki_enabled,true)
++})
+diff --git a/frontend/src/views/knowledge/KnowledgeBaseEditorModal.vue b/frontend/src/views/knowledge/KnowledgeBaseEditorModal.vue
+--- a/frontend/src/views/knowledge/KnowledgeBaseEditorModal.vue
++++ b/frontend/src/views/knowledge/KnowledgeBaseEditorModal.vue
+@@ -156,11 +156,11 @@
+                 :autosize="{ minRows: 3, maxRows: 6 }"
+               />
+             </div>
+ 
+             <!-- AI 生成的知识库描述（仅编辑模式、文档型知识库） -->
+-            <div v-if="editorMode === 'edit' && !isFAQ" class="form-item">
++            <div v-if="editorMode === 'edit' && !isFAQ && !retrievalOnly" class="form-item">
+               <label class="form-label">{{ $t('knowledgeEditor.basic.profile.title') }}</label>
+               <div class="kb-profile-card" :class="{ 'is-empty': !generatedProfileHasText }">
+                 <template v-if="generatedProfileHasText">
+                   <p v-if="generatedProfile?.gist" class="kb-profile-gist">{{ generatedProfile.gist }}</p>
+                   <div v-if="generatedProfile?.topics?.length" class="kb-profile-topics">
+@@ -245,10 +245,11 @@
+         <KBModelConfig
+           ref="modelConfigRef"
+           v-if="formData"
+           :config="formData.modelConfig"
+           :has-files="hasFiles"
++          :retrieval-only="retrievalOnly"
+           :wiki-enabled="formData.indexingStrategy?.wikiEnabled"
+           :rag-enabled="formData.indexingStrategy?.vectorEnabled || formData.indexingStrategy?.keywordEnabled"
+           :all-models="allModels"
+           @update:config="handleModelConfigUpdate"
+         />
+@@ -643,11 +644,12 @@
+     imageAttrSchema.value = await fetchImageAttrSchema(kbId)
+   } catch {
+     imageAttrSchema.value = null
+   }
+ }
+-import { updateKBConfig, type KBModelConfigRequest } from '@/api/initialization'
++import { getCurrentConfigByKB, updateKBConfig, type KBModelConfigRequest } from '@/api/initialization'
++import { requiresKBChatModel, retrievalOnlySubmitFields } from '@/utils/retrievalOnlyKBSettings.mjs'
+ import { useChatResourcesStore } from '@/stores/chatResources'
+ import { selectInitialModelId } from '@/utils/modelDefaults'
+ import { copyWithToast } from '@/utils/clipboard'
+ import { useEditorResourcesStore } from '@/stores/editorResources'
+ import { useUIStore } from '@/stores/ui'
+@@ -735,10 +737,11 @@
+ })
+ const saving = ref(false)
+ const loading = ref(false)
+ const allModels = ref<any[]>([])
+ const hasFiles = ref(false)
++const retrievalOnly = ref(false)
+ // AI-generated knowledge-base description (edit mode only). Kept outside
+ // formData because it is never submitted: the backend owns it.
+ const generatedProfile = ref<KnowledgeBaseProfile | null>(null)
+ const generatingProfile = ref(false)
+ const generatedProfileHasText = computed(() => {
+@@ -850,11 +853,11 @@
+ 
+ // 左侧导航分组（与 AgentEditorModal 对齐）
+ const navGroups = computed(() => {
+   const itemMap = new Map(navItems.value.map((item) => [item.key, item]))
+   const pickItems = (keys: string[]) =>
+-    keys.map((key) => itemMap.get(key)).filter(Boolean) as typeof navItems.value
++    keys.filter((key) => !retrievalOnly.value || !['parser', 'multimodal', 'asr', 'graph', 'advanced'].includes(key)).map((key) => itemMap.get(key)).filter(Boolean) as typeof navItems.value
+   return [
+     {
+       key: 'basic',
+       label: t('knowledgeEditor.navGroups.basic'),
+       items: pickItems(['basic', 'models', 'vectorStore', 'faq']),
+@@ -1084,21 +1087,23 @@
+   const kbId = kbIdOverride ?? activeKbId.value
+   if (editorMode.value !== 'edit' || !kbId) return
+   
+   loading.value = true
+   try {
+-    const [kbInfo, filesResult] = await Promise.all([
++    const [kbInfo, filesResult, serverConfig] = await Promise.all([
+       getKnowledgeBaseById(kbId),
+-      listKnowledgeFiles(kbId, { page: 1, page_size: 1 })
++      listKnowledgeFiles(kbId, { page: 1, page_size: 1 }),
++      getCurrentConfigByKB(kbId)
+     ])
+ 
+     if (!isCurrentKBLoad(generation, kbId)) return
+     
+     if (!kbInfo || !kbInfo.data) {
+       throw new Error(t('knowledgeEditor.messages.notFound'))
+     }
+ 
++    retrievalOnly.value = serverConfig.retrievalOnly === true
+     const kb = kbInfo.data
+     hasFiles.value = (filesResult as any)?.total > 0
+     generatedProfile.value = (kb as any).generated_profile || null
+     kbCreatorId.value = (kb as any).creator_id || ''
+     kbTenantId.value = Number((kb as any).tenant_id || 0)
+@@ -1298,11 +1303,11 @@
+   formData.value.indexingStrategy.keywordEnabled = next
+ }
+ 
+ const toggleWikiIndexing = () => {
+   if (!formData.value) return
+-  if (isIndexingLocked.value) return
++  if (isIndexingLocked.value || retrievalOnly.value) return
+   formData.value.indexingStrategy.wikiEnabled = !formData.value.indexingStrategy.wikiEnabled
+ }
+ 
+ const handleChunkingConfigUpdate = (config: any) => {
+   if (formData.value) {
+@@ -1498,11 +1503,11 @@
+     MessagePlugin.warning(t('knowledgeEditor.indexing.embeddingRequired'))
+     currentSection.value = 'models'
+     return false
+   }
+ 
+-  if (!formData.value.modelConfig.llmModelId) {
++  if (requiresKBChatModel(retrievalOnly.value, formData.value.modelConfig.llmModelId)) {
+     MessagePlugin.warning(t('knowledgeEditor.messages.summaryRequired'))
+     currentSection.value = 'models'
+     return false
+   }
+ 
+@@ -1693,11 +1698,11 @@
+       relations: formData.value.nodeExtractConfig.relations || [],
+       custom_instructions: formData.value.nodeExtractConfig.customInstructions || ''
+     }
+   }
+ 
+-  return data
++  return retrievalOnlySubmitFields(data, retrievalOnly.value)
+ }
+ 
+ // 提交表单
+ const handleSubmit = async () => {
+   if (!validateForm()) {
+@@ -1908,10 +1913,11 @@
+ const resetState = () => {
+   savedKbId.value = null
+   currentSection.value = 'basic'
+   formData.value = null
+   hasFiles.value = false
++  retrievalOnly.value = false
+   initialStorageProvider.value = ''
+   tenantDefaultStorageProvider.value = 'local'
+   initialIndexingStrategy.value = null
+   saving.value = false
+   loading.value = false
+diff --git a/frontend/src/views/knowledge/settings/KBModelConfig.vue b/frontend/src/views/knowledge/settings/KBModelConfig.vue
+--- a/frontend/src/views/knowledge/settings/KBModelConfig.vue
++++ b/frontend/src/views/knowledge/settings/KBModelConfig.vue
+@@ -5,11 +5,11 @@
+       <p class="section-description">{{ $t('knowledgeEditor.models.description') }}</p>
+     </div>
+ 
+     <div class="settings-group">
+       <!-- LLM 大语言模型 -->
+-      <div class="setting-row" data-guide="kb-create-llm">
++      <div v-if="!retrievalOnly" class="setting-row" data-guide="kb-create-llm">
+         <div class="setting-info">
+           <label>{{ $t('knowledgeEditor.models.llmLabel') }} <span class="required">*</span></label>
+           <p class="desc">{{ $t('knowledgeEditor.models.llmDesc') }}</p>
+         </div>
+         <div class="setting-control">
+@@ -95,10 +95,11 @@
+ }
+ 
+ interface Props {
+   config: ModelConfig
+   hasFiles: boolean
++  retrievalOnly?: boolean
+   wikiEnabled?: boolean
+   ragEnabled?: boolean
+   allModels?: any[]
+ }
+ 
+diff --git a/internal/handler/initialization.go b/internal/handler/initialization.go
+--- a/internal/handler/initialization.go
++++ b/internal/handler/initialization.go
+@@ -95,11 +95,11 @@
+ 	}
+ }
+ 
+ // KBModelConfigRequest 知识库模型配置请求（简化版，只传模型ID）
+ type KBModelConfigRequest struct {
+-	LLMModelID       string           `json:"llmModelId"       binding:"required"`
++	LLMModelID       string           `json:"llmModelId"`
+ 	EmbeddingModelID string           `json:"embeddingModelId"` // optional when RAG indexing is disabled
+ 	VLMConfig        *types.VLMConfig `json:"vlm_config"`
+ 	ASRConfig        *types.ASRConfig `json:"asr_config"`
+ 
+ 	// 文档分块配置
+@@ -246,10 +246,14 @@
+ 		logger.Error(ctx, "Failed to parse KB config request", err)
+ 		c.Error(errors.NewBadRequestError(err.Error()))
+ 		return
+ 	}
+ 
++	if err := normalizeKBSettingsProfile(ctx, &req); err != nil {
++		_ = c.Error(err)
++		return
++	}
+ 	// 获取知识库信息
+ 	kb, err := h.kbService.GetKnowledgeBaseByID(ctx, kbIdStr)
+ 	if err != nil || kb == nil {
+ 		logger.ErrorWithFields(ctx, err, map[string]interface{}{"kbId": utils.SanitizeForLog(kbIdStr)})
+ 		c.Error(errors.NewNotFoundError("知识库不存在"))
+@@ -275,21 +279,24 @@
+ 			return
+ 		}
+ 	}
+ 
+ 	// 从数据库获取模型详情并验证
+-	llmModel, err := h.modelService.GetModelByID(ctx, req.LLMModelID)
+-	if err != nil || llmModel == nil {
+-		logger.Error(ctx, "LLM model not found")
+-		c.Error(errors.NewBadRequestError("LLM模型不存在"))
+-		return
++	if req.LLMModelID != "" {
++		llmModel, err := h.modelService.GetModelByID(ctx, req.LLMModelID)
++		if err != nil || llmModel == nil {
++			logger.Error(ctx, "LLM model not found")
++			c.Error(errors.NewBadRequestError("LLM模型不存在"))
++			return
++		}
+ 	}
+ 
+ 	// Embedding模型仅在需要时验证（RAG检索启用时）
+ 	if req.EmbeddingModelID != "" {
+ 		embeddingModel, err := h.modelService.GetModelByID(ctx, req.EmbeddingModelID)
+-		if err != nil || embeddingModel == nil {
++		if err != nil || embeddingModel == nil ||
++			(os.Getenv("WEKNORA_RETRIEVAL_ONLY") == "1" && embeddingModel.Type != types.ModelTypeEmbedding) {
+ 			logger.Error(ctx, "Embedding model not found")
+ 			c.Error(errors.NewBadRequestError("Embedding模型不存在"))
+ 			return
+ 		}
+ 	}
+@@ -441,10 +448,11 @@
+ 	if err := validateKnowledgeBasePromptInstructions(kb); err != nil {
+ 		c.Error(err)
+ 		return
+ 	}
+ 
++	enforceKBSettingsProfile(kb)
+ 	// 保存更新后的知识库
+ 	if err := h.kbRepository.UpdateKnowledgeBase(ctx, kb); err != nil {
+ 		logger.Error(ctx, "Failed to update knowledge base", err)
+ 		c.Error(errors.NewInternalServerError("更新知识库失败: " + err.Error()))
+ 		return
+@@ -1550,11 +1558,12 @@
+ // buildConfigResponse 构建配置响应数据
+ func (h *InitializationHandler) buildConfigResponse(ctx context.Context, models []*types.Model,
+ 	kb *types.KnowledgeBase, hasFiles bool,
+ ) map[string]interface{} {
+ 	config := map[string]interface{}{
+-		"hasFiles": hasFiles,
++		"hasFiles":      hasFiles,
++		"retrievalOnly": os.Getenv("WEKNORA_RETRIEVAL_ONLY") == "1",
+ 	}
+ 	// Integration details describe the owning workspace's infrastructure. A
+ 	// share receiver — even an admin of its own workspace — only learns
+ 	// whether credentials are configured.
+ 	ownWorkspace := kb != nil && kb.TenantID == types.CallerFromContext(ctx).TenantID
+diff --git a/internal/handler/retrieval_only_kb_settings.go b/internal/handler/retrieval_only_kb_settings.go
+--- /dev/null
++++ b/internal/handler/retrieval_only_kb_settings.go
+@@ -0,0 +1,48 @@
++package handler
++
++import (
++	"context"
++	"github.com/Tencent/WeKnora/internal/errors"
++	"github.com/Tencent/WeKnora/internal/logger"
++	"github.com/Tencent/WeKnora/internal/types"
++	"os"
++)
++
++func normalizeKBSettingsProfile(ctx context.Context, req *KBModelConfigRequest) error {
++	if os.Getenv("WEKNORA_RETRIEVAL_ONLY") != "1" {
++		if req.LLMModelID == "" {
++			return errors.NewBadRequestError("llmModelId is required")
++		}
++		return nil
++	}
++	req.LLMModelID = ""
++	req.VLMConfig = nil
++	req.ASRConfig = nil
++	req.Multimodal.Enabled = false
++	req.NodeExtract.Enabled = false
++	req.QuestionGeneration.Enabled = false
++	req.DocumentSplitting.ParserEngineRules = nil
++	logger.Info(ctx, "retrieval_only_kb_settings_enforced")
++	return nil
++}
++
++func enforceKBSettingsProfile(kb *types.KnowledgeBase) {
++	if os.Getenv("WEKNORA_RETRIEVAL_ONLY") != "1" {
++		return
++	}
++	kb.SummaryModelID = ""
++	kb.VLMConfig = types.VLMConfig{}
++	kb.ASRConfig = types.ASRConfig{}
++	kb.IndexingStrategy.WikiEnabled = false
++	kb.IndexingStrategy.GraphEnabled = false
++	kb.AutoTagConfig = nil
++	kb.ProfileConfig = nil
++	if kb.ExtractConfig != nil {
++		kb.ExtractConfig.Enabled = false
++	}
++	if kb.QuestionGenerationConfig != nil {
++		kb.QuestionGenerationConfig.Enabled = false
++	}
++	kb.ImageProcessingConfig.ImageAttrsEnabled = false
++	kb.ImageProcessingConfig.ImageVectorEnabled = false
++}
+diff --git a/internal/handler/retrieval_only_kb_settings_test.go b/internal/handler/retrieval_only_kb_settings_test.go
+--- /dev/null
++++ b/internal/handler/retrieval_only_kb_settings_test.go
+@@ -0,0 +1,39 @@
++package handler
++
++import (
++	"context"
++	"github.com/Tencent/WeKnora/internal/types"
++	"github.com/stretchr/testify/require"
++	"testing"
++)
++
++func TestRetrievalOnlyKBSettingsPolicy(t *testing.T) {
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "0")
++	require.Error(t, normalizeKBSettingsProfile(context.Background(), &KBModelConfigRequest{}))
++	standard := &KBModelConfigRequest{LLMModelID: "chat", EmbeddingModelID: "embedding"}
++	require.NoError(t, normalizeKBSettingsProfile(context.Background(), standard))
++	require.Equal(t, "chat", standard.LLMModelID)
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "1")
++	request := &KBModelConfigRequest{LLMModelID: "unapproved-chat", EmbeddingModelID: "embedding", VLMConfig: &types.VLMConfig{Enabled: true}}
++	request.Multimodal.Enabled = true
++	request.NodeExtract.Enabled = true
++	request.QuestionGeneration.Enabled = true
++	require.NoError(t, normalizeKBSettingsProfile(context.Background(), request))
++	require.Empty(t, request.LLMModelID)
++	require.Nil(t, request.VLMConfig)
++	require.False(t, request.Multimodal.Enabled)
++	require.False(t, request.NodeExtract.Enabled)
++	require.False(t, request.QuestionGeneration.Enabled)
++	require.Equal(t, "embedding", request.EmbeddingModelID)
++	kb := &types.KnowledgeBase{ID: "kb", Name: "name", EmbeddingModelID: "embedding", SummaryModelID: "chat", IndexingStrategy: types.IndexingStrategy{VectorEnabled: true, KeywordEnabled: true, WikiEnabled: true, GraphEnabled: true}, ExtractConfig: &types.ExtractConfig{Enabled: true}, QuestionGenerationConfig: &types.QuestionGenerationConfig{Enabled: true}}
++	enforceKBSettingsProfile(kb)
++	require.Empty(t, kb.SummaryModelID)
++	require.Equal(t, "name", kb.Name)
++	require.Equal(t, "embedding", kb.EmbeddingModelID)
++	require.True(t, kb.IndexingStrategy.VectorEnabled)
++	require.True(t, kb.IndexingStrategy.KeywordEnabled)
++	require.False(t, kb.IndexingStrategy.WikiEnabled)
++	require.False(t, kb.IndexingStrategy.GraphEnabled)
++	require.False(t, kb.ExtractConfig.Enabled)
++	require.False(t, kb.QuestionGenerationConfig.Enabled)
++}
+diff --git a/internal/router/retrieval_only.go b/internal/router/retrieval_only.go
+--- a/internal/router/retrieval_only.go
++++ b/internal/router/retrieval_only.go
+@@ -23,11 +23,11 @@
+ 	p := strings.TrimPrefix(path, "/api/v1/")
+ 	if strings.Contains(p, "regenerate") || strings.Contains(p, "/wiki") || strings.Contains(p, "/profile/generate") || strings.HasSuffix(p, "/debug") || strings.HasSuffix(p, "/test") && p != "initialization/embedding/test" {
+ 		return false
+ 	}
+ 	if strings.HasPrefix(p, "initialization/") {
+-		return method == http.MethodGet && strings.HasPrefix(p, "initialization/config/") || method == http.MethodPost && p == "initialization/embedding/test"
++		return (method == http.MethodGet || method == http.MethodPut) && strings.HasPrefix(p, "initialization/config/") || method == http.MethodPost && p == "initialization/embedding/test"
+ 	}
+ 	segment := strings.SplitN(p, "/", 2)[0]
+ 	switch segment {
+ 	case "auth", "users", "tenants", "organizations", "kb-shares", "shared-knowledge-bases", "knowledge-bases", "knowledge", "chunks", "models", "knowledge-search", "files", "resources", "storage-backends", "storage-providers", "vector-stores":
+ 		return true
+diff --git a/internal/router/retrieval_only_kb_settings_test.go b/internal/router/retrieval_only_kb_settings_test.go
+--- /dev/null
++++ b/internal/router/retrieval_only_kb_settings_test.go
+@@ -0,0 +1,16 @@
++package router
++
++import (
++	"github.com/stretchr/testify/require"
++	"net/http"
++	"testing"
++)
++
++func TestRetrievalOnlyKBConfigRouteAdmission(t *testing.T) {
++	path := "/api/v1/initialization/config/kb"
++	require.True(t, retrievalOnlyRouteAllowed(http.MethodGet, path))
++	require.True(t, retrievalOnlyRouteAllowed(http.MethodPut, path))
++	require.False(t, retrievalOnlyRouteAllowed(http.MethodPost, path))
++	require.False(t, retrievalOnlyRouteAllowed(http.MethodPost, "/api/v1/initialization/initialize/kb"))
++	require.False(t, retrievalOnlyRouteAllowed(http.MethodPost, "/api/v1/initialization/remote/check"))
++}

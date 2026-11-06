@@ -7534,6 +7534,185 @@ Functions:
 - `announcements`
 
 
+## `app/research_web/knowledge_backend/__init__.py`
+
+Module docstring:
+> Optional research-material service; no agent, scheduler or model execution.
+
+Imports:
+- `service`
+
+
+## `app/research_web/knowledge_backend/client.py`
+
+Module docstring:
+> Bounded user-JWT reads for the pinned WeKnora 0.9.0 HTTP protocol.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `base64`
+- `binascii`
+- `core.observability`
+- `functools`
+- `httpx`
+- `json`
+- `math`
+- `re`
+- `store`
+- `time`
+- `urllib.parse`
+
+Classes:
+- `WeKnoraClient`
+  - No API-key fallback, refresh, redirects, ambient proxy or automatic retry.
+  - methods: __init__, _check_token, _request, identity, knowledge_bases, _ids, _chunk, search, document, chunks, original
+
+Functions:
+- `_fail`
+- `_identifier`
+- `_workspace`
+- `_text`
+- `_integer`
+- `_operation`
+- `_json_object`
+- `_json_constant`
+
+
+## `app/research_web/knowledge_backend/configuration.py`
+
+Module docstring:
+> Operator-owned upstream origin validation without credentials or network access.
+
+Imports:
+- `core.observability`
+- `ipaddress`
+- `store`
+- `urllib.parse`
+
+Functions:
+- `checked_origin`
+
+
+## `app/research_web/knowledge_backend/diagnostics.py`
+
+Module docstring:
+> Credential-free, network-free diagnosis of the optional material backend.
+
+Imports:
+- `core.observability`
+- `service`
+- `storage`
+- `store`
+
+Functions:
+- `knowledge_diagnostic`
+
+
+## `app/research_web/knowledge_backend/models.py`
+
+Module docstring:
+> Small explicit contracts; report approval cannot be supplied by a tool callback.
+
+Imports:
+- `datetime`
+- `pydantic`
+
+Classes:
+- `StrictModel`
+- `Binding`
+- `Search`
+- `SourceApproval`
+  - methods: aware_time
+- `Scope`
+- `Read`
+- `Freeze`
+
+
+## `app/research_web/knowledge_backend/routes.py`
+
+Module docstring:
+> Authenticated settings and explicit evidence writes, separate from read-only MCP.
+
+Imports:
+- `fastapi`
+- `pydantic`
+- `store`
+
+Functions:
+- `service`
+- `body`
+- `status`
+- `bind`
+- `bases`
+- `scope`
+- `query`
+- `read`
+- `freeze`
+- `evidence`
+- `original`
+
+
+## `app/research_web/knowledge_backend/service.py`
+
+Module docstring:
+> WeKnora material facade; current user authorization precedes every upstream read.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `client`
+- `configuration`
+- `core.observability`
+- `credential_backend`
+- `datetime`
+- `functools`
+- `os`
+- `research_workbench_entrypoint.resident.admission`
+- `storage`
+- `store`
+- `uuid`
+
+Classes:
+- `KnowledgeService`
+  - methods: __init__, status, _credentials, _client, _authorized, _still_authorized, bind, bases, _scope, create_scope, _ready, _verify_document, search, read, freeze
+
+Functions:
+- `bounded`
+- `chunk_fingerprint`
+- `timestamp`
+
+
+## `app/research_web/knowledge_backend/storage.py`
+
+Module docstring:
+> Account-bound, content-addressed evidence using the existing private IO boundary.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datahub.security`
+- `dossiers.lock`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `store`
+- `typing`
+- `uuid`
+
+Classes:
+- `KnowledgeStore`
+  - methods: __init__, binding, check_binding_budget, save_binding, create, read, original, preservation
+
+Functions:
+- `digest`
+- `canonical`
+- `fail`
+
+
 ## `app/research_web/launch_runtime.py`
 
 Module docstring:
@@ -7886,7 +8065,7 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
-- ... 39 more
+- ... 40 more
 
 Classes:
 - `NewSession`
@@ -9862,6 +10041,7 @@ Imports:
 - `json`
 - `pathlib`
 - `stat`
+- `store`
 
 Functions:
 - `_digest`
@@ -25549,4 +25729,52 @@ Functions:
   - 查询股票分析数据
 - `run_custom_query`
   - 运行自定义SQL查询
+
+
+## `scripts/weknora_candidate.py`
+
+Module docstring:
+> Read-only WeKnora candidate, explicit inventory and frozen-benchmark checks.
+
+Imports:
+- `__future__`
+- `argparse`
+- `contextlib`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `sys`
+- `typing`
+
+Classes:
+- `CandidateError`
+  - Only a stable code is exposed; inputs may contain private references.
+
+Functions:
+- `_reject`
+- `_object`
+- `_integer`
+- `_id`
+- `_hash`
+- `canonical_sha256`
+  - Bind a complete JSON contract without relying on whitespace or key order.
+- `_schema`
+- `capacity_plan`
+  - Check explicit peak estimates and declared immutable artifact evidence.
+- `_file_identity`
+- `_directory`
+- `_inventory_root`
+- `_relative_path`
+- `_hash_beneath`
+- `inventory`
+  - Hash explicitly owned research documents without scanning or copying.
+- `_citation_key`
+- `benchmark`
+  - Score supplied frozen artifacts, never create or infer golden answers.
+- `_read_json`
+- `main`
 
