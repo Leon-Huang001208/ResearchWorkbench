@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "asOf": "2026-11-05",
+  "asOf": "2026-11-06",
   "features": [
     {
       "id": "readonly-research-mcp",
@@ -204,6 +204,31 @@
       "activation": "unknown",
       "limitations": "本条记录冻结于本轮交付之前，不用页面自身展示提前证明验收或部署完成。Windows/Linux 原生验收未执行。",
       "evidence": []
+    },
+    {
+      "id": "unified-module-navigation",
+      "module": "产品体验",
+      "title": "统一模块导航与独立图标",
+      "summary": "所有页面使用可独立收起的二级导航，一级入口持续可见，每个模块拥有独立图标。",
+      "scope": "全模块子页面切换、按账号与模块记忆、窄屏抽屉和键盘焦点。",
+      "next": "完成同候选必需CI与macOS安装验证；实际环境部署另行核对。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/.ai/reports/2026-11-06-unified-navigation.md",
+      "updated": "2026-11-06",
+      "status": "validating",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "本机夹具浏览器通过不表示常驻已更新；Windows/Linux原生尚未验证。",
+      "evidence": [
+        {
+          "kind": "reference",
+          "label": "统一导航范围与验收记录",
+          "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/.ai/reports/2026-11-06-unified-navigation.md"
+        }
+      ]
     }
   ],
   "releases": [

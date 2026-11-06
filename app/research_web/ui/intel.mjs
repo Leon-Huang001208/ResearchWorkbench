@@ -2,12 +2,8 @@ import { escapeHTML as e, safeURL, renderMarkdown } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { icon } from './icons.mjs';
 
-export const intelTabs = [
-  ['timeline', '事件时间线'],
-  ['overview', '事件总览'], ['research-reports', '研究报告'],
-  ['investment-news', 'Investment News'], ['wsc', '见闻快讯'],
-  ['social', '社交媒体监控'], ['events', '事件概率'],
-];
+export { intelTabs } from './navigation-catalog.mjs';
+import { intelTabs } from './navigation-catalog.mjs';
 const list = value => Array.isArray(value) ? value : [];
 const text = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 export const validStockCode = value => /^[0-9]{6}$/.test(value);

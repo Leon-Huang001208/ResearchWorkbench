@@ -1,3 +1,4 @@
+import { moduleKey, renderModuleSidebar, createModulePreferences, trapSecondaryFocus, closesSecondaryDrawer, focusModuleSelection } from './module-navigation.mjs';
 import { renderSpecialistPanel, handleSpecialistBudgetChange } from './specialist-panel.mjs';
 import { closedComposerMenu, openComposerMenu, composerMenuRows, composerMenuKey, composerSlashQuery, consumeComposerSlash, nextComposerFormats } from './composer-menu.mjs';
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
@@ -120,6 +121,7 @@ function finishCatalogRequest(name) {
     catalog.pending.delete(name);
   }
 }
+const modulePreferences = createModulePreferences();
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let researchStage = null; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 const answerFeedback = new Map(); let copiedTransient = '';
@@ -646,6 +648,7 @@ function capabilityPage() {
 }
 
 function sidebar() {
+  if (!['fingpt','claw'].includes(state.route.page)) return renderModuleSidebar({ route: state.route, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, canManageNews: aihotController.state.canManage !== false, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '' });
   return renderSidebar({ page: state.route.page, clawView: state.route.clawView, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
 }
 
@@ -675,16 +678,6 @@ function sessionActionsLayer() {
   return menu + dialog + renderProjectEditor(conversationNavigation.state(state.route.page));
 }
 
-function primaryRail() {
-  const narrow = window.matchMedia('(max-width: 1050px)').matches;
-  return renderPrimaryRail({
-    page: state.route.page,
-    section: state.route.section,
-    capabilityView: state.route.capabilityView,
-    secondaryOpen: narrow ? sidebarOpen : !sidebarCollapsed,
-    account: globalThis.__RWB_ACCOUNT__,
-  });
-}
 
 function contextPanel() {
   return renderContextPanel({ detail: state.detail, selectedTab: contextTab, researchStage, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
@@ -776,7 +769,6 @@ function render() {
   const renderedMode = root.querySelector('[data-nav-mode]')?.dataset.navMode;
   if (navigationList?.clientHeight > 0 && conversationNavigation.state(renderedMode)) conversationNavigation.state(renderedMode).scrollTop = navigationList.scrollTop;
   const research = ['fingpt', 'claw'].includes(state.route.page);
-  const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = searchableCapabilityList();
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
@@ -789,7 +781,7 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__ })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   syncAssetResearch();
   if (isEventLabRoute()) eventLab.restore(root);
   root.querySelector('.app-shell').inert = scenarioController.state.open;
@@ -1585,7 +1577,7 @@ async function showRoute() {
   composerMenu = closedComposerMenu();
   clearTimeout(reportRefreshTimer);
   const ticket = ++pageGeneration; workbenchBusy = false; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
-  if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
+  sidebarCollapsed = ['claw','fingpt'].includes(requestedRoute.page) ? conversationNavigation.state(requestedRoute.page).view.collapsed : modulePreferences.get(moduleKey(requestedRoute));
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
   cancelProjectMenuTimers();
   await controller.open(requestedRoute);
@@ -1830,6 +1822,7 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (sidebarOpen) { trapSecondaryFocus(event, root); if (event.defaultPrevented) return; }
   if (scenarioController.state.open && scenarioController.key(event)) return;
   if (event.target.closest?.('.discovery-page')) {
     if (event.isComposing || event.keyCode === 229) return;
@@ -1956,7 +1949,7 @@ root.addEventListener('keydown', (event) => {
   }
   const legacyComposerMenu = root.querySelector('.composer-more[open]');
   if (event.key === 'Escape' && legacyComposerMenu) { event.preventDefault(); legacyComposerMenu.open = false; legacyComposerMenu.querySelector('summary')?.focus(); return; }
-  if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
+  if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); focusModuleSelection(document); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
     const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
@@ -2697,6 +2690,7 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (sidebarOpen && closesSecondaryDrawer(event)) { sidebarOpen=false; render(); focusSidebarControl(document,true); return; }
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
@@ -2885,7 +2879,7 @@ root.addEventListener('click', async (event) => {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
     if (await intelController.handle(event)) {
       if (['event', 'report'].includes(action)) document.querySelector('#intel-detail-title')?.focus({ preventScroll: true });
-      if (action === 'close') document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true });
+      if (action === 'close') document.querySelector('.secondary-sidebar [aria-current="page"]')?.focus({ preventScroll: true });
       return;
     }
   }
@@ -3445,14 +3439,15 @@ root.addEventListener('click', async (event) => {
     const narrow = window.matchMedia('(max-width: 1050px)').matches;
     if (narrow) sidebarOpen = !sidebarOpen;
     else sidebarCollapsed = !sidebarCollapsed;
-    conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    if (!narrow && ['claw','fingpt'].includes(state.route.page)) conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    else if (!narrow) modulePreferences.set(moduleKey(state.route), sidebarCollapsed);
     contextOpen = false; render(); focusSidebarControl(document, narrow, narrow ? sidebarOpen : !sidebarCollapsed);
   }
   if ('toggleContext' in data) { if (window.matchMedia('(max-width: 1050px)').matches) contextOpen = !contextOpen; else contextCollapsed = !contextCollapsed; sidebarOpen = false; render(); }
   if ('collapseSidebar' in data) {
-    if (window.matchMedia('(max-width: 1050px)').matches) sidebarOpen = false;
-    else sidebarCollapsed = true;
-    conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    const narrow = window.matchMedia('(max-width: 1050px)').matches;
+    if (narrow) sidebarOpen = false;
+    else { sidebarCollapsed = true; if (['claw','fingpt'].includes(state.route.page)) conversationNavigation.view(state.route.page, { collapsed: true }); else modulePreferences.set(moduleKey(state.route), true); }
     render(); focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }
   if ('clawSidebarView' in data) {
