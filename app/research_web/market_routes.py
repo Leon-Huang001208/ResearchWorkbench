@@ -30,7 +30,7 @@ class RefreshRequest(BaseModel):
     board_id: str | None = Field(default=None, pattern=r"^BK[0-9]{4,6}$")
     kind: Literal["industry", "concept"] = "industry"
     period: Literal["today", "5d", "10d"] = "today"
-    index_set: Literal["core-v1", "terminal-v2"] = "core-v1"
+    index_set: Literal["core-v1", "terminal-v2", "global-v1"] = "core-v1"
 
 
 class QuoteFilters(BaseModel):

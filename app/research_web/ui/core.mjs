@@ -13,7 +13,7 @@ const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positi
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const [pageSegment, sectionSegment, ...extraSegments] = path.split('/');
-  const page = pageSegment === 'automations' ? 'skills' : pages.has(pageSegment) ? pageSegment : 'fingpt';
+  const page = !pageSegment ? 'market' : pageSegment === 'automations' ? 'skills' : pages.has(pageSegment) ? pageSegment : 'fingpt';
   const params = new URLSearchParams(query);
   const route = {
     page,
@@ -37,7 +37,7 @@ export function parseRoute(hash = '') {
     route.reportStatus = ['enabled', 'needs_attention', 'draft', 'disabled'].includes(params.get('status')) ? params.get('status') : 'all';
   }
   if (page === 'market') {
-    route.marketView = ['overview', 'quotes', 'sectors'].includes(params.get('view')) ? params.get('view') : 'overview';
+    route.marketView = ['overview', 'quotes', 'sectors', 'workbench'].includes(params.get('view')) ? params.get('view') : params.has('view') ? 'overview' : 'dashboard';
     route.marketBoardId = /^BK[0-9]{4,6}$/.test(params.get('board_id') || '') ? params.get('board_id') : null;
   }
   if (page === 'aihot') {

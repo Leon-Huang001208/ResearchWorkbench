@@ -3,6 +3,23 @@
   "asOf": "2026-11-06",
   "features": [
     {
+      "id": "global-market-dashboard",
+      "module": "数据与资产",
+      "title": "三地市场综合总览",
+      "summary": "整合九指数行情、六维资格与事件时间线，原行情分析同页完整保留。",
+      "scope": "真实行情、评分证据、事件浏览、首页导航及研究工作台。",
+      "next": "完成整体验证与常驻部署后进行实际页面验收。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-market-dashboard.md",
+      "updated": "2026-11-06",
+      "status": "validating",
+      "platforms": ["macos"],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "正式评分需独立准入；采集日程与入站 MCP 保持关闭，实际部署和页面验收另证。",
+      "evidence": []
+    },
+    {
       "id": "readonly-research-mcp",
       "module": "研究与报告",
       "title": "只读研究资料接入",

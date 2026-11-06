@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+2026-11-06 综合总览将三地九指数、六维资格和个人事件时间线投影到同一市场首页；旧行情分析、
+沪深北行情与板块资金同页保留。浏览只读，明确刷新沿原 MarketService／DataHub，独立 global-v1
+不覆盖既有中国指数目录；研究工作台复用 Timeline／Study／Score 与唯一 DSH，不新建研究引擎。
+来源、时间、缺项与未启用状态分别呈现，详见[综合总览合同](research-web-market-dashboard.md)。
+
 统一导航由 UI 中 navigation-catalog.mjs／module-navigation.mjs/css 管理入口、独立图标、模块侧栏及浏览器偏好；app／shell 保留原研究与数据生命周期，不新增后端、数据库或运行节点。详见 [前端导航合同](research-web-ui.md#统一模块导航2026-11-06)。
 
 2026-11-05 事件封闭Native部署沿原v4三锁／BirthFence／全账号@events保全与恢复，固定db2前版及a398→604→58ad→546→e9→32b（保留65a关闭安全及受审交付恢复修复）安全组合链；仅a398→604要求app树相同。MCP源码随用户授权主线纳入，EVENT目标配置持久False，并以原fenced双入口health实际Facade布尔、原PID/启动/源码身份前后复核接受；回滚保留旧字段缺席。全账号采集关闭／严格Native与既有后台门保持，不进入TRIAL、不开MCP/OAuth或研究引擎，实际切换另证，见[部署合同](research-web-gateway-upgrade.md)。

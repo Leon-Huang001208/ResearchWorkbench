@@ -4823,6 +4823,43 @@ Functions:
 - `fetch`
 
 
+## `app/research_web/datahub/providers_global_indices.py`
+
+Module docstring:
+> Bounded native public quotes and bars for nine selected price indices.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `httpx`
+- `json`
+- `market_indices`
+- `math`
+- `re`
+- `urllib.parse`
+- `zoneinfo`
+
+Classes:
+- `GlobalIndexError`
+  - Stable non-sensitive upstream failure code.
+  - methods: __init__
+
+Functions:
+- `_number`
+- `_stamp`
+- `empty_row`
+- `parse_chart`
+  - Validate provider identity, ascending local dates and genuine unadjusted OHLCV.
+- `fetch_global_indices`
+  - One bounded Tencent native price-index request per fixed identity.
+- `_tencent_number`
+- `parse_tencent_chart`
+  - Validate Tencent's envelope and native identity before shared OHLC checks.
+
+
 ## `app/research_web/datahub/providers_kapsarc.py`
 
 Module docstring:
@@ -7923,6 +7960,7 @@ Imports:
 Functions:
 - `selected_indexes`
 - `public_catalog`
+- `global_catalog`
 
 
 ## `app/research_web/market_portfolio.py`

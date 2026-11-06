@@ -201,6 +201,8 @@ jobs:
             tests/research_web/test_cjpy_asset_data.py \
             tests/research_web/test_datahub_broker.py \
             tests/research_web/test_market_indices.py \
+            tests/research_web/test_global_market_indices.py \
+            tests/research_web/test_market_dashboard_http_contract.py \
             tests/research_web/test_market_terminal.py \
             tests/research_web/test_builder_reconcile.py \
             tests/research_web/test_iteration_resources.py \

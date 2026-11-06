@@ -220,10 +220,13 @@ class MarketService:
                     continue
                 current = record.get("current")
                 previous = record.get("previous")
-                if key == "indices:terminal-v2":
-                    if isinstance(current, dict) and current.get("index_set") != "terminal-v2":
+                if key in {"indices:terminal-v2", "indices:global-v1"}:
+                    if isinstance(current, dict) and current.get("index_set") != key.split(":")[1]:
                         current = None
-                    if isinstance(previous, dict) and previous.get("index_set") != "terminal-v2":
+                    if (
+                        isinstance(previous, dict)
+                        and previous.get("index_set") != key.split(":")[1]
+                    ):
                         previous = None
                 if self._complete_snapshot(current):
                     self._snapshots[key] = current
@@ -250,7 +253,10 @@ class MarketService:
 
     @staticmethod
     def _valid_key(key: str) -> bool:
-        return key in (SECTIONS - {"flows", "members"}) | {"indices:terminal-v2"} or bool(
+        return key in (SECTIONS - {"flows", "members"}) | {
+            "indices:terminal-v2",
+            "indices:global-v1",
+        } or bool(
             re.fullmatch(r"flows:(industry|concept):(today|5d|10d)|members:BK[0-9]{4,6}", key)
         )
 
@@ -569,8 +575,9 @@ class MarketService:
         stale = (
             retrieved is None or (self.now() - retrieved).total_seconds() > self._interval(key) * 2
         )
-        if key in {"quotes", "indices", "industry", "concept"} or key.startswith(
-            ("flows:", "indices:")
+        if key != "indices:global-v1" and (
+            key in {"quotes", "indices", "industry", "concept"}
+            or key.startswith(("flows:", "indices:"))
         ):
             market = self.market_state()
             as_of = _iso(snapshot.get("as_of"))
@@ -752,7 +759,7 @@ class MarketService:
         if (
             kind not in KINDS
             or period not in PERIODS
-            or index_set not in {"core-v1", "terminal-v2"}
+            or index_set not in {"core-v1", "terminal-v2", "global-v1"}
         ):
             raise MarketError("market_parameters_invalid", "市场查询参数无效。")
         if "members" in sections:
@@ -891,7 +898,10 @@ class MarketService:
             if len(raw.encode()) > MAX_RECORD_BYTES:
                 raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)
             snapshot = deepcopy(payload)
-            if key == "indices:terminal-v2" and snapshot.get("index_set") != "terminal-v2":
+            if (
+                key in {"indices:terminal-v2", "indices:global-v1"}
+                and snapshot.get("index_set") != key.split(":")[1]
+            ):
                 raise MarketError("market_response_invalid", "指数目录与响应身份不一致。", 502)
             if section == "quotes" and snapshot.get("complete") is True:
                 self._quote_history(snapshot, self._previous.get(key))

@@ -1,5 +1,11 @@
 # Research Web Native / Docker 安装与运行
 
+三地综合总览复用锁内 httpx 与既有腾讯公开来源，不新增依赖或安装选项。四个本地资源
+`market-dashboard.mjs`、`market-dashboard-model.mjs`、`market-dashboard-view.mjs`、
+`market-dashboard.css` 随 UI 目录打包；原 Mac Bootstrap 对实际服务下载逐字节核对，另导入
+九指数 Provider。已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py`
+无需修改，兼容结论须等待同候选干净安装；Doctor、采集开关和入站 MCP 默认状态不变。
+
 2026-11-06统一导航新增三个随产品打包的本地静态资源，原安装器和web依赖锁保持；Mac干净安装CI须从实际服务下载并与checkout核对字节，不能用开发目录中存在文件替代已安装资源证明。此迭代无新Python/Node依赖、配置或Doctor能力。
 
 研发进展随现有UI目录安装，包含progress.mjs、progress.css及progress-data.json，无新Python／Node依赖或设置项。安装CI沿原健康与Doctor步骤逐字节核对新增资源；本机已有环境不替代干净安装证据。
