@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+统一导航部署任务归macOS Native维护；本机操作员、同候选Mac干净安装和实际部署各自认证。Ubuntu Constraints/Checks只提供通用仓库证据，不宣称Linux产品或Windows原生支持，不从Mac dispatch他平台产品。
+
 ## 事件固定部署操作员的验收范围（2026-11-05）
 
 本次为 macOS Mac mini 的 Web 功能部署准备，`apply-events` 仅作用于既有 Native 常驻实例。固定旧版 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 的空闲检查不能认证新操作员或新产品已上线；最终候选仍需原三项 CI、同候选 Mac bootstrap，以及现场切换、认证入口和全账号保全证据。采集日程保持关闭，模型调用与生产评分准入分别验收。

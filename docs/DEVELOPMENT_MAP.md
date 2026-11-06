@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+统一导航封闭部署位于resident/model_provider_upgrade.py，使用UNIFIED_NAVIGATION_*独立常量，不覆盖旧PR168 NAVIGATION_PAYLOAD；原test_model_provider_upgrade覆盖真实Git范围、实际operate及v4恢复矩阵。产品5ff→b192、执行器及三CI、实际服务切换分别核验；不改controller/evidence/自动名单。
+
 统一导航：ui/navigation-catalog.mjs 共享一级入口与原设置／情报／资产子项，module-navigation.mjs/css 处理选中、独立折叠、账号命名空间与窄屏焦点；app/shell/conversation-navigation 接原会话链。回归为 research_web_module_navigation.test.mjs 和 tests/e2e/research_web_module_navigation.mjs；只读夹具页面不认证实际服务或业务数据。
 
 2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→546→e9→32b（保留65a关闭安全及受审交付恢复修复），原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
