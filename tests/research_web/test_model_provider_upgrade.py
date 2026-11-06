@@ -1161,6 +1161,8 @@ def real_operations(tmp_path, monkeypatch, request):
         "binding": binding,
         "origin": config["private_origin"],
     }
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        gw["mcp_readonly_enabled"] = False
     manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
@@ -1443,7 +1445,10 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         if failed is None:
             assert gateway["mcp_readonly_enabled"] is False
         else:
-            assert "mcp_readonly_enabled" not in gateway
+            if state["mode"] == upgrade.EVENT_MODE:
+                assert "mcp_readonly_enabled" not in gateway
+            else:
+                assert gateway["mcp_readonly_enabled"] is False
             assert gateway == state["gateway_config"]
     expected_manifest = {**state["manifest"], "code_commit": expected}
     if failed is None and state["mode"] in {
@@ -1724,6 +1729,8 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "revision": target,
         "binding": {},
     }
+    if profile in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        state["gateway_config"]["mcp_readonly_enabled"] = False
     state["manifest"] = {"code_commit": target}
     if profile in upgrade.ASSET_MODES:
         upgrade.g.private_root(home / "server")
@@ -4537,6 +4544,10 @@ def test_event_actual_operate_rejects_unknown_native_before_prepare(
     mode, weekly_operate_protocol, monkeypatch, native
 ):
     f, control, events = weekly_operate_protocol
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        gateway = upgrade.read_json(f.home / "server/resident.json")
+        gateway["mcp_readonly_enabled"] = False
+        upgrade.c.atomic(f.home / "server/resident.json", gateway)
     monkeypatch.setattr(
         upgrade,
         "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
@@ -4558,6 +4569,10 @@ def test_event_actual_operate_preserves_original_primary_gate(
     mode, weekly_operate_protocol, monkeypatch, host_active
 ):
     f, control, events = weekly_operate_protocol
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        gateway = upgrade.read_json(f.home / "server/resident.json")
+        gateway["mcp_readonly_enabled"] = False
+        upgrade.c.atomic(f.home / "server/resident.json", gateway)
     monkeypatch.setattr(
         upgrade,
         "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
@@ -4637,6 +4652,10 @@ def test_event_actual_operate_proves_idle_before_prepare(
     mode, weekly_operate_protocol, monkeypatch
 ):
     f, control, events = weekly_operate_protocol
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        gateway = upgrade.read_json(f.home / "server/resident.json")
+        gateway["mcp_readonly_enabled"] = False
+        upgrade.c.atomic(f.home / "server/resident.json", gateway)
     monkeypatch.setattr(
         upgrade,
         "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
@@ -4671,6 +4690,10 @@ def test_event_actual_operate_rejects_collection_before_preparation(
     from app.research_web.event_timeline.storage import RecordStore
 
     f, control, events = weekly_operate_protocol
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        gateway = upgrade.read_json(f.home / "server/resident.json")
+        gateway["mcp_readonly_enabled"] = False
+        upgrade.c.atomic(f.home / "server/resident.json", gateway)
     monkeypatch.setattr(
         upgrade,
         "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
@@ -4692,6 +4715,10 @@ def test_event_actual_operate_native_drift_at_original_idle(
     from app.research_web import service_manager
 
     f, control, events = weekly_operate_protocol
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        gateway = upgrade.read_json(f.home / "server/resident.json")
+        gateway["mcp_readonly_enabled"] = False
+        upgrade.c.atomic(f.home / "server/resident.json", gateway)
     monkeypatch.setattr(
         upgrade,
         "EVENT_PREVIOUS" if mode == upgrade.EVENT_MODE else "MARKET_LIVE_PREVIOUS",
@@ -4741,12 +4768,17 @@ def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence(
         "revision": upgrade.previous_for(mode),
         "binding": {"revision": upgrade.previous_for(mode)},
     }
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        old["mcp_readonly_enabled"] = False
     original = json.dumps(old, sort_keys=True)
     state = {"mode": mode, "target": "b" * 40, "gateway_config": old}
     target = upgrade.gateway_configuration(state)
     assert target["mcp_readonly_enabled"] is False
     assert upgrade.gateway_configuration(state, previous=True) == old
-    assert "mcp_readonly_enabled" not in upgrade.gateway_configuration(state, previous=True)
+    if mode == upgrade.EVENT_MODE:
+        assert "mcp_readonly_enabled" not in upgrade.gateway_configuration(state, previous=True)
+    else:
+        assert upgrade.gateway_configuration(state, previous=True)["mcp_readonly_enabled"] is False
     assert json.dumps(old, sort_keys=True) == original
 
 
@@ -4846,10 +4878,15 @@ def test_event_verify_real_health_accepts_false_and_old_rollback_missing(event_m
     assert control["reads"] == 2
     system["primary"] = system["gateway"] = state["previous"]
     upgrade.c.atomic(home / "server/resident.json", upgrade.gateway_configuration(state, True))
-    control["local"] = control["remote"] = "missing"
-    ops.verify(True)
-    assert control["reads"] == 3
-    assert "mcp_readonly_enabled" not in upgrade.read_json(home / "server/resident.json")
+    if state["mode"] in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+        ops.verify(True)
+        assert control["reads"] == 4
+        assert upgrade.read_json(home / "server/resident.json")["mcp_readonly_enabled"] is False
+    else:
+        control["local"] = control["remote"] = "missing"
+        ops.verify(True)
+        assert control["reads"] == 3
+        assert "mcp_readonly_enabled" not in upgrade.read_json(home / "server/resident.json")
 
 
 @pytest.mark.parametrize(
@@ -4955,3 +4992,54 @@ def test_market_live_real_git_accepts_operator_documentation_extensions(tmp_path
     test_asset_review_uses_real_git_and_frozen_product(
         tmp_path, monkeypatch, "allowed-operator", upgrade.MARKET_LIVE_MODE
     )
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.MARKET_LIVE_MODE], indirect=True)
+@pytest.mark.parametrize("bad", ["missing", None, 0, True])
+def test_market_live_recovery_rejects_old_mcp_not_disabled(real_operations, bad):
+    home, state, _system, _make, _uid = real_operations
+    if bad == "missing":
+        state["gateway_config"].pop("mcp_readonly_enabled")
+    else:
+        state["gateway_config"]["mcp_readonly_enabled"] = bad
+    for validate in (upgrade.validate_configuration, upgrade.validate_state):
+        with pytest.raises(
+            upgrade.UpdateBlocked, match="market_live_upgrade_mcp_config_not_disabled"
+        ):
+            validate(home, state)
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.MARKET_LIVE_MODE], indirect=True)
+@pytest.mark.parametrize("which", ["local", "remote"])
+@pytest.mark.parametrize("bad", ["missing", None, 0, True])
+def test_market_live_rollback_requires_actual_mcp_disabled(event_mcp_health_protocol, which, bad):
+    home, state, system, ops, control = event_mcp_health_protocol
+    system["primary"] = system["gateway"] = state["previous"]
+    upgrade.c.atomic(home / "server/resident.json", upgrade.gateway_configuration(state, True))
+    control[which] = bad
+    with pytest.raises(upgrade.UpdateBlocked, match="event_upgrade_mcp_runtime_not_disabled"):
+        ops.verify(True)
+
+
+@pytest.mark.parametrize(
+    "weekly_bridge,bad",
+    [("reviewed-etf-weekly-admission-v1", bad) for bad in ("missing", None, 0, True)],
+    indirect=["weekly_bridge"],
+    ids=["missing", "None", "0", "True"],
+)
+def test_market_live_actual_operate_rejects_old_mcp_before_prepare(
+    weekly_operate_protocol, monkeypatch, bad
+):
+    f, control, events = weekly_operate_protocol
+    monkeypatch.setattr(upgrade, "MARKET_LIVE_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    control["active_override"] = False
+    gateway = upgrade.read_json(f.home / "server/resident.json")
+    if bad == "missing":
+        gateway.pop("mcp_readonly_enabled", None)
+    else:
+        gateway["mcp_readonly_enabled"] = bad
+    upgrade.c.atomic(f.home / "server/resident.json", gateway)
+    with pytest.raises(upgrade.UpdateBlocked, match="market_live_upgrade_mcp_config_not_disabled"):
+        upgrade.operate(f.home, f.home / "source", mode=upgrade.MARKET_LIVE_MODE)
+    assert "fence-would-start" not in events
+    assert not (f.home / "server/run/gateway-upgrade.json").exists()

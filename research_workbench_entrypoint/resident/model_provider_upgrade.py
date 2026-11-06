@@ -142,6 +142,7 @@ MARKET_LIVE_PAYLOAD = "a2ee934f026d9f174d948a2f748213d0d5021f5b"
 MARKET_LIVE_WEB_LOCK_SHA256 = EVENT_WEB_LOCK_SHA256
 MARKET_LIVE_EVIDENCE_SHA256 = EVENT_EVIDENCE_SHA256
 EVENT_PRESERVATION_MODES = frozenset({EVENT_MODE, MARKET_LIVE_MODE})
+MCP_DISABLED_ROLLBACK_MODES = frozenset({MARKET_LIVE_MODE})
 # PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
@@ -1289,6 +1290,7 @@ def validate_state(home, state, *, executor_source=None):
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     validate_asset_snapshot(state)
+    verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
     if state.get("mode") in EVENT_PRESERVATION_MODES:
         verify_event_schedules(home, state)
     source = Path(state["source"])
@@ -1436,6 +1438,15 @@ def verify_release_repository(state, role):
         raise UpdateBlocked("model_upgrade_repository_changed")
 
 
+def verify_rollback_mcp_disabled(mode, gateway):
+    """The 5ff rollback baseline already exposes MCP state; absence is not off."""
+    if mode in MCP_DISABLED_ROLLBACK_MODES and (
+        not isinstance(gateway, dict) or gateway.get("mcp_readonly_enabled") is not False
+    ):
+        log.warning("market_live_upgrade_old_mcp_not_disabled")
+        raise UpdateBlocked("market_live_upgrade_mcp_config_not_disabled")
+
+
 def gateway_configuration(state, previous=False):
     old = state["gateway_config"]
     if previous:
@@ -1514,6 +1525,7 @@ def target_manifest(state):
 
 
 def validate_configuration(home, state):
+    verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
     actual = read_json(home / "resident/config.json")
     next_config = (
         validate_trial_rebind(state) if state.get("mode") in TRIAL_MODES else state["config"]
@@ -2284,7 +2296,8 @@ class Operations:
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
             raise UpdateBlocked("model_upgrade_private_health_failed")
         if self.state.get("mode") in EVENT_PRESERVATION_MODES:
-            if not previous:
+            certify_mcp_off = not previous or self.state.get("mode") in MCP_DISABLED_ROLLBACK_MODES
+            if certify_mcp_off:
                 local = read_event_gateway_health(gateway)
                 for value in (local, remote):
                     if (
@@ -2304,7 +2317,9 @@ class Operations:
             ):
                 raise UpdateBlocked("event_upgrade_gateway_observation_changed")
             log.info(
-                "event_upgrade_gateway_verified revision=%s mcp_off_certified=%s", sha, not previous
+                "event_upgrade_gateway_verified revision=%s mcp_off_certified=%s",
+                sha,
+                certify_mcp_off,
             )
         self.verify_preservation(previous)
         verify_asset_index(self.home, self.state)
@@ -3273,6 +3288,7 @@ def operate(
             ):
                 raise UpdateBlocked("resident_failed_candidate_requires_retry")
             primary, gateway = Path(config["project"]), read_json(server / "resident.json")
+            verify_rollback_mcp_disabled(mode, gateway)
             for project in (primary, Path(gateway["project"])):
                 c.clean(project, previous)
             if (

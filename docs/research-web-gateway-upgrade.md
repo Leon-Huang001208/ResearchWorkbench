@@ -13,7 +13,10 @@
 日程证明在准备、空闲、切换及恢复边界保持原件哈希和缺席状态；不采集、不启用日程、不调用模型，
 不进入 TRIAL、不取消任务、不变更账号、会话、数据、模型、凭据、权限或历史。
 目标配置持久写入 `mcp_readonly_enabled=false`，原双入口 fenced health 必须报告实际 Facade
-严格布尔 false，配置及 PID／出生身份观察窗保持；回滚精确恢复旧配置，不补写旧字段。
+严格布尔 false，配置及 PID／出生身份观察窗保持。市场 live 固定5ff前版已支持 MCP 状态，
+初次准备、配置验证及恢复 journal 均要求旧配置字段严格 false，前进和回滚都读取 local/private
+实际 health 并要求严格 false；回滚精确恢复原 false，不补写或修正旧配置。
+旧 EVENT/db2 的字段缺席回滚豁免仅保留在旧 EVENT，不扩展到市场 live。
 
 资格要求固定前版是产品祖先、产品是最终工具目标祖先。`review_assets` 对
 `PREVIOUS..PAYLOAD` 与 `PREVIOUS..target` 的完整路径并集逐一核对 Git blob 和文件模式；
