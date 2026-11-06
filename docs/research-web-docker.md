@@ -1,5 +1,8 @@
 # Mac mini Docker 开发与独立部署
 
+私网明确动作后继补丁只针对当前Native常驻，不切换Docker产品或停止其他服务；
+双运行时互斥、三锁、保全恢复及受管缓存预算不变，通用CI不替代Docker实机证据。
+
 三地综合总览的 `apply-market-live` 是固定5ff→a2ee产品的 Native 维护 profile，不切换
 Docker 镜像或卷。仍遵守原双运行时互斥、三锁、BirthFence和保全恢复；采集日程与
 入站 MCP 保持关闭。Mac Docker、Windows/Linux 产品证据不由 Native 切换代替。

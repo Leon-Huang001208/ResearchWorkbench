@@ -1,5 +1,9 @@
 # 共享部署资格恢复与源仓库迁移
 
+明确动作补丁从已接受a76版本建立独立后继身份，旧EVENT/NAV/LIVE1常量和恢复原件保持。
+同一GitHub目标须进入三个实际Git common并核验，受审执行源码继续留在永久artifact/source，
+不为部署恢复主工作区的无关删除或用开发worktree作恢复依赖。
+
 `apply-market-live` 固定当前前版5ff及三地总览产品检查点a2ee；最终已合并目标必须包含
 该产品并严格匹配全部产品 blob／文件模式，后继只允许操作员、原测试、文档与报告变化。
 primary与gateway独立Git common均须拥有目标对象，不能复制Git元数据、迁移源归属或

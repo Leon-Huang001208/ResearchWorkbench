@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+私网事件明确动作修补：`multiuser/gateway.py` 的请求头允许集保留客户端已有意图；
+`test_multiuser_gateway.py` 通过真实账号网关及Host中间件验证合法、缺失、非法与跨源情况。
+不改变事件/评分Host的准入校验或采集计划，实页403复现和版本证据见同日任务报告。
+
 三地综合总览：`ui/market-dashboard*.mjs` 负责只读投影和用户显式操作；原 `market.mjs` 完整保留
 行情分析、沪深北行情和板块资金。`market_indices.py`／`providers_global_indices.py` 定义 global-v1
 九指数真实报价与原生 OHLCV，MarketService 保留独立缓存；评分和事件仍由原领域核验。

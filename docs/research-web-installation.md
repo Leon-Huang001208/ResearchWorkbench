@@ -1,5 +1,8 @@
 # Research Web Native / Docker 安装与运行
 
+私网明确操作修补沿现有Web依赖和安装器，只调整网关既有头转发；未增加依赖、设置或
+Doctor能力。已核对web.in/web.lock/setup_web无需修改；同候选Mac安装与实际补丁部署分别留证。
+
 三地综合总览复用锁内 httpx 与既有腾讯公开来源，不新增依赖或安装选项。四个本地资源
 `market-dashboard.mjs`、`market-dashboard-model.mjs`、`market-dashboard-view.mjs`、
 `market-dashboard.css` 随 UI 目录打包；原 Mac Bootstrap 对实际服务下载逐字节核对，另导入
