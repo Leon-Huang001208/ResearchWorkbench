@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+global-v1 九指数保存于原账号 market-cache 的独立分集，不写入固定12指数仓桥，也不改变
+研究仓 schema。腾讯原生 OHLCV、未完成日线、源量单位及取得时间保留；本币价格指数
+和今日取回的历史行不获得股息、汇率或历史 PIT 资格。事件与评分原件沿原个人归档。
+
 ## WeKnora 资料证据（2026-11-06）
 
 账号数据根的 `knowledge-backend/` 惰性保存绑定元数据、内容寻址 scopes 及 evidence；owner 由服务端 Store 根摘要派生，不接收客户端 owner／root。JWT 只进入独立凭据后端。scope 绑定上游 origin、用户／空间、报告期、显式确认的时间证据、下载原件 SHA-256 与完整分块指纹；上游 file_hash 是 MD5，不能冒充此 SHA。

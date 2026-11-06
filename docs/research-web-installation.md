@@ -1,5 +1,11 @@
 # Research Web Native / Docker 安装与运行
 
+三地综合总览复用锁内 httpx 与既有腾讯公开来源，不新增依赖或安装选项。四个本地资源
+`market-dashboard.mjs`、`market-dashboard-model.mjs`、`market-dashboard-view.mjs`、
+`market-dashboard.css` 随 UI 目录打包；原 Mac Bootstrap 对实际服务下载逐字节核对，另导入
+九指数 Provider。已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py`
+无需修改，兼容结论须等待同候选干净安装；Doctor、采集开关和入站 MCP 默认状态不变。
+
 ## 可选 WeKnora 资料入口（2026-11-06）
 
 现有一键安装只随产品打包薄适配与设置卡片，不安装 WeKnora、数据库、模型或 Go，Web 依赖锁保持。操作员可提供非秘密 `RESEARCH_WEKNORA_ORIGIN`；缺省为空，入口停用。地址仅接受无凭据、查询及片段的 HTTPS origin，HTTP 只接受 localhost／回环；不从用户请求接受任意上游 URL。tenant 子进程只传递操作员显式 origin，用户 JWT 仅由本机设置页进入受保护凭据后端，不放环境、锁、日志或模型。

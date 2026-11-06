@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+2026-11-06 综合总览将三地九指数、六维资格和个人事件时间线投影到同一市场首页；旧行情分析、
+沪深北行情与板块资金同页保留。浏览只读，明确刷新沿原 MarketService／DataHub，独立 global-v1
+不覆盖既有中国指数目录；研究工作台复用 Timeline／Study／Score 与唯一 DSH，不新建研究引擎。
+来源、时间、缺项与未启用状态分别呈现，详见[综合总览合同](research-web-market-dashboard.md)。
+
 ## WeKnora 资料边界（2026-11-06）
 
 可选 `knowledge_backend/` 在既有账号 Host 中提供设置绑定、原文检索和独立证据冻结，新增到外部 WeKnora 的受控网络边；[图04](../outputs/research-web-architecture/04-data-file-flow.html)明确展示此边。WeKnora 作为研究原件与索引的目标底座，RWB 继续拥有金融快照、模板底稿、正式稿及冻结证据；不是增加 Agent、调度器或第二套报告运行状态机。当前只有源码候选，默认 `RESEARCH_WEKNORA_ORIGIN` 为空。显式只检索 profile 已有源码补丁，Go、服务及界面零生成尚未验收，部署与迁移不得由适配代码通过推定。完整身份、时点和失败边界见[资料合同](research-web-weknora.md)。

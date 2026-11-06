@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+三地综合总览本轮由 macOS Mac mini 开发并验收 Web 与固定 Native 部署 profile。
+代码、真实公开源、离线浏览器、同候选 macos-15 安装、常驻切换及认证页面分别留证；
+Windows/Linux 原生交接保持 NOT_RUN，不把通用 Ubuntu 仓库检查称为 Linux 产品验收。
+
 统一导航部署任务归macOS Native维护；本机操作员、同候选Mac干净安装和实际部署各自认证。Ubuntu Constraints/Checks只提供通用仓库证据，不宣称Linux产品或Windows原生支持，不从Mac dispatch他平台产品。
 
 ## 事件固定部署操作员的验收范围（2026-11-05）

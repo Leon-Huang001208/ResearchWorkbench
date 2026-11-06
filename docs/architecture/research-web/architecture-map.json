@@ -2671,7 +2671,7 @@
       "receipt": "outputs/research-web-architecture/13-market-overview.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/13-market-overview.visual-check.json",
       "level": "flows",
-      "summary": "Host内版本化行情、三周期六维画像与个人组合；东财报价与新浪日线分源，旧12研究仓及证据门保持。",
+      "summary": "Host内综合总览与原行情分析；腾讯九指数独立缓存，东财/新浪旧目录与12指数研究仓保留，事件/评分复用14领域。",
       "evidence": [
         {
           "subjects": [
@@ -2747,6 +2747,10 @@
             "publicMarket"
           ],
           "source": "app/research_web/market_indices.py"
+        },
+        {
+          "subjects": ["publicMarket", "marketFetch", "marketNormalize"],
+          "source": "app/research_web/datahub/providers_global_indices.py"
         }
       ]
     },

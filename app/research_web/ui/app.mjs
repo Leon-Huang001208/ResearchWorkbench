@@ -48,7 +48,7 @@ import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } 
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
 import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
 
-import { createMarketController, renderMarketPage } from './market.mjs';
+import { createMarketWorkspace, renderMarketWorkspace } from './market-dashboard.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { createProgressWorkspace } from './progress.mjs';
 
@@ -243,7 +243,7 @@ const dossierController = createDossierController({ api, onChange: () => { if (i
     }
   }
 } });
-const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
+const marketController = createMarketWorkspace({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets' && state.route.assetView !== 'dossiers';
 const assetIntraday = createAssetIntraday({api});
 const assetChartOptions = {
@@ -546,7 +546,7 @@ function mainPage() {
   if (isEventLabRoute()) return renderEventLab(eventLab.state);
   if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
-  if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
+  if (state.route.page === 'market') return renderMarketWorkspace(marketController, state.route);
   if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
     return clawMainPage();
