@@ -105,3 +105,5 @@ python scripts/weknora_candidate.py benchmark /explicit/gold.json /explicit/actu
 按顺序进行：显式盘点 → 候选容量及版本核验 → 隔离资料管理／检索 → 截至2026-10-30华安ETF周报固定资料对照 → 原窗口明确交接 → 同一 Workflow 的 Word／Excel 集成 → 按资料库分批切换。原窗口继续生产，不平行生成另一份周报。
 
 本合同和只读工具不证明已部署 WeKnora、已迁移资料、已发生真实 Embedding 调用或已取得原报告材料。上述真实链路、双用户共享撤权、原生宿主、完整报告、正式部署和其他平台在取得对应证据前保持 `NOT_RUN`／`BLOCKED`。源码验证、同候选 CI、本机服务、宿主调用、业务报告和部署分别记录。新依赖、凭据处理、生产迁移及常驻服务更新仍需按项目规则单独落实。
+
+非秘密origin的stdlib校验由 `research_workbench_entrypoint/knowledge_configuration.py` 供公开dispatcher和冷Doctor共用，冷诊断不导入server启动模块或访问凭据。该修复与资料网络／存储admission仍使用原账号及维护边界，没有新增服务或执行角色。

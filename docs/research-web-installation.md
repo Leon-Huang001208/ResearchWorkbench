@@ -1174,3 +1174,5 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 白名单或安装新依赖。详见[受控部署合同](research-web-gateway-upgrade.md)。
 
 公开 `./rwb server` 入口现在由stdlib先校验显式 `RESEARCH_WEKNORA_ORIGIN`，仅把合格的非秘密origin加入原最小子环境；无效输入不转发、不回显，其他模型或供应商环境仍不继承。冷启动 `server doctor` 增加可选知识库事实，配置只显示 `configuration_pending`，授权／连接 `not_checked`、运行 `NOT_RUN`，不读凭据、不联网或创建账户根。Mac原冷Doctor冒烟验证该真实交接。0003原生知识库设置只检索模式仍要求API先建库；完整Vue、服务与实际界面待验收。
+
+冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。

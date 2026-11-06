@@ -892,3 +892,5 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 资料异步操作复用既有resident admission覆盖网络与存储发布；维护冻结拒绝新操作，不让只读查询绕开活动／保全门。绑定元数据写前和读取均限制16 KiB。stdlib公开server入口只转发通过校验的操作员origin，冷Doctor仅报告可选配置事实，不接触JWT、网络或账号初始化。0003的认证服务端profile标记不能由客户端开启；Node纯函数验证不等于上游UI或Go运行验证。
+
+origin校验共享helper只依赖stdlib，冷Doctor不反向导入server启动模块；它与真实dispatcher使用同一限制，避免诊断读取引入启动／凭据副作用。新helper没有新增配置权限、环境前缀继承或网络出口。
