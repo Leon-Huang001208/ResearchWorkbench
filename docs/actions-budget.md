@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-11-06统一导航只在原Mac Bootstrap静态资源步骤补module-navigation.mjs、navigation-catalog.mjs、module-navigation.css下载及源码字节核验；新Node合同沿原Web Checks通配符。无新job、runner、依赖、timeout或平台dispatch，原步骤增量预留5秒。浏览器在本机已有Chrome/Playwright完成，发布前重新核对仓库PUBLIC和标准runner状态。
+
 2026-11-05事件研究常驻部署新增封闭profile，沿原Research Web Checks的
 test_model_provider_upgrade.py参数与近处反例验证，不增加job、runner、依赖或时限。
 新增用例暂在原步骤预留120秒，最终候选以实测为准；操作员仍需原三CI及Mac干净安装。
