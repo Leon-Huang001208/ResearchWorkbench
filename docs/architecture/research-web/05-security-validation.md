@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+统一导航profile固定5ff→b192及独立常量，完整union/blob/mode冻结；额外tests/README/workflow拒绝。NAV旧cfg必须严格False，升级和回滚实际local/private health均要求MCP=False；Native未知假值不是空闲。controller/evidence/自动名单不变，三锁、全账号保全、BirthFence、永久source及失败恢复门保持。
+
 ## 事件部署的封闭授权与拒绝条件（2026-11-05）
 
 用户授权 Mac mini 部署事件时间线、日历效应与六维研究评分，采集日程保持 off；`apply-events` 不继承 TRIAL 的历史丢弃权限，不删账号、事件或研究历史，不更改 controller、自动升级白名单、依赖或固定 DSH，不开启实际模型调用。
