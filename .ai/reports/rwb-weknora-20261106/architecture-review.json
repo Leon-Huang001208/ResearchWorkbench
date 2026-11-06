@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "taskId": "rwb-weknora-20261106",
-  "sourceCommit": null,
-  "sourcePinStatus": "awaiting_first_source_commit",
+  "sourceCommit": "f1939eccdcfe924ed661cff7314ccb8ddf7eebc4",
+  "sourcePinStatus": "awaiting_refresh_after_required_source_fixes",
   "groups": [
     {
       "group": "knowledge-backend",
@@ -31,7 +31,7 @@
     {
       "group": "private-multiuser",
       "structure": "changed",
-      "reason": "原私网账号Host新增操作员origin传递和knowledge-backend保全，资料读取由当前WeKnora用户权限限定；图04展开新跨服务资料边，不新增身份提供方或将空间Key当作个人身份。",
+      "reason": "原私网账号Host新增操作员origin传递和knowledge-backend保全，资料读取由当前WeKnora用户权限限定；图04展开新跨服务资料边，不新增身份提供方或将空间Key当作个人身份。 stdlib公开入口验证origin交接，冷Doctor不读凭据或联网；原维护admission覆盖资料网络和提交。",
       "diagrams": [
         "04-data-file-flow"
       ]
@@ -51,7 +51,7 @@
     {
       "group": "verification-workflow",
       "structure": "unchanged",
-      "reason": "七份离线资料测试加入原Checks列表，设置模块加入原Mac静态资源核对；无新job、runner、时限、依赖或跨平台产品dispatch，原验证与费用门保持。",
+      "reason": "九份离线资料测试加入原Checks列表，设置模块加入原Mac静态资源核对；无新job、runner、时限、依赖或跨平台产品dispatch，原验证与费用门保持。",
       "diagrams": []
     }
   ],
@@ -65,5 +65,12 @@
     "compositionWarnings": 0,
     "containment": "PASS_4_VIEWPORTS",
     "screenshotInspection": "Codex child agent, 1440 light and 2048 dark; not business acceptance"
-  }
+  },
+  "candidateBaseCommit": "46d86544097a04f2404fe0599f90d3553dc0c028",
+  "sourcePinMeaning": "Existing RWB source checkpoint retained temporarily; current required fixes await next real source SHA",
+  "pendingSourceChanges": [
+    "stdlib operator origin handoff and cold Doctor",
+    "resident admission across knowledge network/storage",
+    "16KiB binding prewrite limit"
+  ]
 }

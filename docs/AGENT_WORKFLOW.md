@@ -2,7 +2,7 @@
 
 ## WeKnora 候选交付路由（2026-11-06）
 
-本轮为 macOS Web 功能开发，涉及公开接口、身份与持久证据，使用隔离 worktree、完整 changed-set Router、独立语言／安全评审及原三 CI／同候选 Mac 安装。七份 WeKnora 离线测试加入原 Checks 清单，JS 沿原通配符，Mac 原静态资源检查核对 `knowledge-settings.mjs`；无新增 job、runner、依赖或超时。真实服务、免费模型、20题业务金标、原报告窗口交接、迁移和部署分别登记，不能以 mock 或补丁可应用证明完成替换。0002只检索profile已实现为源码补丁，UI上传／重解析零生成验收仍 BLOCKED，Go NOT_RUN；成功测试临时根仍按原同批身份回收，失败原件保留。[资料合同](research-web-weknora.md)
+本轮为 macOS Web 功能开发，涉及公开接口、身份与持久证据，使用隔离 worktree、完整 changed-set Router、独立语言／安全评审及原三 CI／同候选 Mac 安装。九份 WeKnora 离线测试加入原 Checks 清单，JS 沿原通配符，Mac 原静态资源检查核对 `knowledge-settings.mjs`；无新增 job、runner、依赖或超时。真实服务、免费模型、20题业务金标、原报告窗口交接、迁移和部署分别登记，不能以 mock 或补丁可应用证明完成替换。0002只检索profile已实现为源码补丁，UI上传／重解析零生成验收仍 BLOCKED，Go目标用例NOT_RUN（原生初始化崩溃，运行BLOCKED）；成功测试临时根仍按原同批身份回收，失败原件保留。[资料合同](research-web-weknora.md)
 
 2026-11-06导航部署为macOS Native维护，沿独立worktree、共享测试环境、受管20节点临时根、完整Router／独立Python评审及同候选原三CI。固定5ff旧版、b192产品，受审执行源码必须保留在resident/artifacts/<target>/source，不能以待清理工作树作为恢复依赖。必须在锁内复核活动、全账号保全、采集off及双向实际MCP=False；Windows/Linux产品仍交对应设备。
 

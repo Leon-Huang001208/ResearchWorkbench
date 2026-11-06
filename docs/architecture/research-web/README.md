@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-11-06 WeKnora资料适配的源码阅读及Atlas链接固定到实际提交 `f1939eccdcfe924ed661cff7314ccb8ddf7eebc4`。该检查点包含RWB薄适配与接口，不证明最终文档候选CI、上游Go、第三方运行版本、资料替换或报告接受。
+
 ## WeKnora 资料候选（2026-11-06）
 
 [资料合同](../../research-web-weknora.md)描述当前新增的薄适配、严格身份与独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)新增外部 WeKnora 节点及认证／证据分支，目标存储边界与实际启用分开。当前未部署、未迁移、未完成 UI 零生成或真实周报验收；原运行与报告图继续描述原生产链。

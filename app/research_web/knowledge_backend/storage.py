@@ -11,10 +11,12 @@ from typing import NoReturn
 from uuid import uuid4
 
 from core.observability import get_logger
+from research_workbench_entrypoint.resident.admission import admission
 
 from ..datahub.security import (
     atomic_json,
     directory,
+    json_bytes,
     make_directory,
     read_file,
     rename_directory,
@@ -28,6 +30,7 @@ log = get_logger(__name__)
 FOLDER = "knowledge-backend"
 SHA = re.compile(r"[a-f0-9]{64}\Z")
 MANIFEST_LIMIT = 256 * 1024
+BINDING_LIMIT = 16 * 1024
 
 
 def digest(raw: bytes) -> str:
@@ -58,7 +61,7 @@ class KnowledgeStore:
             if "binding.json" not in os.listdir(fd):
                 return None
             try:
-                value = json.loads(read_file(fd, "binding.json", private=True, limit=16384))
+                value = json.loads(read_file(fd, "binding.json", private=True, limit=BINDING_LIMIT))
             except (ValueError, UnicodeError):
                 fail("knowledge_binding_invalid")
         if (
@@ -69,12 +72,20 @@ class KnowledgeStore:
             fail("knowledge_binding_invalid")
         return value
 
+    def check_binding_budget(self, value: dict) -> None:
+        payload = {**value, "schema": 1, "owner": self.owner}
+        if len(json_bytes(payload)) > BINDING_LIMIT:
+            fail("knowledge_binding_budget", 413)
+
     def save_binding(self, value: dict) -> None:
+        self.check_binding_budget(value)
+        payload = {**value, "schema": 1, "owner": self.owner}
         with (
+            admission(),
             retention_lock(self.root),
             directory(self.root, (FOLDER,), create=True, private=True) as fd,
         ):
-            atomic_json(fd, "binding.json", {**value, "schema": 1, "owner": self.owner})
+            atomic_json(fd, "binding.json", payload)
 
     def create(self, kind: str, payload: dict, files: dict[str, bytes] | None = None) -> dict:
         if kind not in {"scopes", "evidence"}:
@@ -96,6 +107,7 @@ class KnowledgeStore:
             fail("knowledge_manifest_budget", 413)
         identifier = digest(raw)
         with (
+            admission(),
             retention_lock(self.root),
             directory(self.root, (FOLDER, kind), create=True, private=True) as fd,
         ):

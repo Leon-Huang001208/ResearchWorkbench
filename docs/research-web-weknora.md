@@ -19,9 +19,21 @@ WeKnora 普通初始化向导要求配置 LLM，且摘要默认开启。固定�
 
 **WeKnora 界面的上传／重解析零生成上线仍为 `BLOCKED`。** 在0001之后，`0002-retrieval-only-profile.patch` 已提供实例级服务端策略源码：仅在专用全新候选实例显式 `WEKNORA_RETRIEVAL_ONLY=1` 时生效，缺省关闭。它强制关闭入库生成增强，即使界面省略或传入 true；使用内置确定性解析，阻止表格／画像／图像及后处理生成队列，并以固定允许列表拒绝其他生成 API。该配置不负责接收或清理既有生成任务、旧队列或正式资料。
 
-源码实现状态为 `IMPLEMENTED / AWAITING_VERIFICATION`，Go 测试、真实服务、管理界面和零生成调用计数仍 `NOT_RUN`，实际结果记录在任务回执，不改写固定补丁 manifest 自证。只有这些门全部有真实证据后，才能将 WeKnora 界面认作本轮可用入库路径；不能用虚假 LLM、自动收费回退或绕过界面声明完成替换。真实免费 Embedding 亦独立验收。
+源码实现状态为 `IMPLEMENTED / AWAITING_VERIFICATION`；Go 原生编译已完成，但目标用例因上游初始化崩溃未开始，Go运行为 `BLOCKED`。真实服务、管理界面和零生成调用计数仍 `NOT_RUN`，实际结果记录在任务回执，不改写固定补丁 manifest 自证。只有这些门全部有真实证据后，才能将 WeKnora 界面认作本轮可用入库路径；不能用虚假 LLM、自动收费回退或绕过界面声明完成替换。真实免费 Embedding 亦独立验收。
+
+### 配置模板与补丁链
+
+`deploy/weknora/embedding-only.json` 是0001阶段的逐文档显式 opt-out API 模板，整份JSON不是API请求；其历史 `NOT_IMPLEMENTED`／BLOCKED字段不描述0002的源码状态。严格实例候选以[retrieval-only manifest](../deploy/weknora/patches/retrieval-only-manifest.json)为准，按固定release → 0001 → 0002 → 0003顺序绑定前后像与补丁哈希，再显式设置 `WEKNORA_RETRIEVAL_ONLY=1`。0001模板不能独自放行原UI上传／重解析。该链仍只适用于全新隔离候选，Go／服务／UI验证未完成前不启用生产，也不把manifest中的NOT_RUN改写为通过。
+
+### 原生知识库设置补丁0003与当前验证
+
+`0003-retrieval-only-kb-settings.patch` 在0002之后增加只检索模式的原生知识库设置：先由 API 建立文档库，再从原界面编辑；首个知识库创建向导仍未支持该模式。认证服务端标记决定 profile，客户端请求不能自行开启该权限；普通模式继续校验真实 Chat 模型。补丁及前后像绑定见[kb-settings manifest](../deploy/weknora/patches/kb-settings-manifest.json)。固定 manifest 的 `NOT_RUN` 不由任务验收回填。
+
+当前独立上游 Node 纯函数8项通过，只证明设置逻辑；完整 Vue 构建、真实 WeKnora 服务及浏览器入库仍未验证。原生 Go 可以完成编译，但测试初始化在上游 `go-m1cpu` 崩溃；两次 Docker 编译受容量门阻断，未进入测试。上述均不能写成 Go runtime PASS。RWB 自身隔离浏览器通过，也不替代上游 UI、免费 Embedding 或业务报告接受。
 
 ## 接口与权限
+
+状态和Doctor中的 `expected_release`／`expected_source_commit` 是本适配要求的目标版本，不是已连接服务的运行版本证明。绑定状态还提供 `credential_cleanup_pending`：为 true 表示旧凭据槽保留待处理，不能把新绑定成功解释为旧凭据已全部清理；不会返回凭据内容。
 
 以下路径均位于现有 Host／认证网关边界；调用方不能选择 RWB owner、数据根或上游 URL。默认 `RESEARCH_WEKNORA_ORIGIN` 为空，状态读取不联网。操作员设置仅接受无凭据、路径、查询和片段的 HTTPS origin，HTTP 限回环／localhost。配置无效或缺少授权时拒绝，不降级空间 Key。
 
@@ -38,6 +50,8 @@ WeKnora 普通初始化向导要求配置 LLM，且摘要默认开启。固定�
 | `GET /api/research/knowledge/evidence/{identifier}/original/{sha}` | 当前 RWB 账号下载该证据实际包含的原件，不解析任意路径。 |
 | `POST /api/research/internal/data/knowledge-query` | 原 DataKey 回调，仅查询；必须带已有 `scope_id`。 |
 | `POST /api/research/internal/data/knowledge-read` | 原 DataKey 回调，仅读取；必须带已有 `scope_id`。 |
+
+资料异步操作在网络读取、授权复核和存储提交全过程持有既有 resident `admission`；维护冻结生效时拒绝新操作，返回 `knowledge_maintenance_busy`，不通过查询通道绕过停机门。绑定元数据写前及读取同为16 KiB上限，超限不写入不可恢复的大记录。
 
 绑定、scope 与 freeze 要求 `X-Research-User-Action: ?1`，不授予内部工具写权限。JSON 请求有明确长度且不超过64 KiB，验证失败不回显 JWT。浏览器输入提交即清空，卡片不缓存凭据、原始响应错误或向宿主转发秘密。失效、撤权、身份改变及空间变化均要求重新核对，不自动续令牌或回退管理员。
 

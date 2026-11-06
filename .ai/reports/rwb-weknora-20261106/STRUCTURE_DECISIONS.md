@@ -1,5 +1,7 @@
 # WeKnora 资料适配结构决策
 
+源码阅读与Atlas链接检查点为 `f1939eccdcfe924ed661cff7314ccb8ddf7eebc4`，基线为 `46d86544097a04f2404fe0599f90d3553dc0c028`。它是已存在的RWB源码提交，后续文档或上游补丁制品提交不改称在该SHA执行CI；最终候选、上游Go、服务与业务验收另记。
+
 新增外部资料网络边和本地不可变证据，不增加研究执行器、调度器或第二套报告生命周期。WeKnora界面零生成、真实服务、宿主与业务报告验收分别记录；当前未完成底座替换。
 
 <!-- architecture-review {"group":"knowledge-backend","structure":"changed","reason":"新增到固定外部WeKnora的原生用户认证和文档范围读取，以及账号根内内容寻址原件/分块证据；图04明确展示新网络与冻结数据边，不将待验服务或报告宿主画成已部署执行器。","diagrams":["04-data-file-flow"]} -->
@@ -14,4 +16,7 @@
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"新资料模块组、API分类与图04内容继续沿原字面量扫描、确定性Atlas、固定HTML白名单和同哈希图文门；未增文档服务、任意文件读取或另一生成管线。","diagrams":[]} -->
 
-<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"七份离线资料测试加入原Checks列表，设置模块加入原Mac静态资源核对；无新job、runner、时限、依赖或跨平台产品dispatch，原验证与费用门保持。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"九份离线资料测试加入原Checks列表，设置模块加入原Mac静态资源核对；无新job、runner、时限、依赖或跨平台产品dispatch，原验证与费用门保持。","diagrams":[]} -->
+
+
+新增stdlib origin校验和冷Doctor、完整资料admission及16KiB绑定写前门，仍属于图04原认证／存储节点内部；不是新执行或部署角色。当前保留旧真实源码pin，最终由新实际提交更新，不把后续修复冒充已在旧SHA验收。

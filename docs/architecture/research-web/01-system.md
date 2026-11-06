@@ -700,3 +700,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+公开server入口经stdlib校验后只传递操作员origin；冷Doctor提供无网络可选事实，不创建WeKnora、账号根或第二服务。资料操作加入原维护admission，不改变原生／容器归属与原恢复事务。上游0003仅是API建库后使用原设置页的源码候选，完整前端及实际服务另验。

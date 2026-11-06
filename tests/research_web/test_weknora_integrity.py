@@ -97,3 +97,58 @@ def test_orphan_staging_is_unknown_to_doctor(tmp_path):
     store = Store(tmp_path / "owner")
     (store.root / "knowledge-backend").mkdir(mode=0o700)
     assert knowledge_diagnostic(store.root)["state"] == "needs_attention"
+
+
+@pytest.mark.asyncio
+async def test_maintenance_fence_precedes_remote_reads_and_evidence_writes(
+    knowledge, tmp_path, monkeypatch
+):
+    from research_workbench_entrypoint.resident.admission import file_lock
+
+    service, upstream, _ = knowledge
+    home = tmp_path / "resident"
+    monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(home))
+    upstream.calls.clear()
+    with file_lock(home, "admission.lock", exclusive=True), pytest.raises(StoreError) as error:
+        await service.create_scope(approved())
+    assert error.value.code == "knowledge_maintenance_busy"
+    assert upstream.calls == []
+    assert not (service.store.root / "knowledge-backend/scopes").exists()
+
+
+@pytest.mark.asyncio
+async def test_active_material_read_keeps_resident_shared_lease(knowledge, tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident.admission import MaintenanceBusy, file_lock
+
+    service, upstream, _ = knowledge
+    home = tmp_path / "resident"
+    monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(home))
+    entered, released = asyncio.Event(), asyncio.Event()
+
+    async def delayed_bases():
+        entered.set()
+        await released.wait()
+        return []
+
+    upstream.knowledge_bases = delayed_bases
+    pending = asyncio.create_task(service.bases())
+    await entered.wait()
+    try:
+        with pytest.raises(MaintenanceBusy), file_lock(home, "admission.lock", exclusive=True):
+            pass
+    finally:
+        released.set()
+        await pending
+    with file_lock(home, "admission.lock", exclusive=True):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_binding_budget_preserves_previous_readable_binding(knowledge):
+    service, _, _ = knowledge
+    previous = service.store.binding()
+    oversized = {**previous, "retained_credentials": ["a" * 32] * 1000}
+    with pytest.raises(StoreError) as error:
+        service.store.save_binding(oversized)
+    assert error.value.code == "knowledge_binding_budget"
+    assert service.store.binding() == previous

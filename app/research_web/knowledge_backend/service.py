@@ -9,6 +9,7 @@ from functools import wraps
 from uuid import uuid4
 
 from core.observability import get_logger
+from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
 
 from ..credential_backend import default_credential_backend
 from ..store import StoreError
@@ -26,10 +27,13 @@ def bounded(operation):
     @wraps(operation)
     async def execute(*args, **kwargs):
         try:
-            async with asyncio.timeout(OPERATION_TIMEOUT):
-                return await operation(*args, **kwargs)
+            with admission():
+                async with asyncio.timeout(OPERATION_TIMEOUT):
+                    return await operation(*args, **kwargs)
         except TimeoutError:
             fail("knowledge_operation_timeout", 504)
+        except MaintenanceBusy:
+            fail("knowledge_maintenance_busy", 409)
 
     return execute
 
@@ -142,6 +146,7 @@ class KnowledgeService:
                 "credential_ref": reference,
                 "retained_credentials": retained,
             }
+            self.store.check_binding_budget(new_binding)
             backend = self._credentials()
             try:
                 backend.set_password(self.namespace, reference, token)

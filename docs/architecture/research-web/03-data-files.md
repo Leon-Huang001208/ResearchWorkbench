@@ -989,3 +989,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+绑定元数据独立16 KiB写前检查与读取上限保持一致；超限拒绝新写入。网络操作与原件／范围／证据发布全过程纳入既有resident admission，维护冻结不能在资料操作尚在进行时把它当作空闲；原retention锁、原子发布、未知staging保护与64 MiB保全门保持。

@@ -983,7 +983,8 @@
         "tests/research_web/test_multiuser_cli.py",
         "tests/javascript/research_web_multiuser_storage.test.mjs",
         "tests/javascript/research_web_multiuser_policy.test.mjs",
-        "tests/research_web/test_multiuser_resident.py"
+        "tests/research_web/test_multiuser_resident.py",
+        "tests/research_web/test_weknora_cli.py"
       ],
       "diagrams": [
         "01-deployment",
@@ -1097,7 +1098,8 @@
       "sources": [
         "app/research_web/knowledge_backend/",
         "scripts/weknora_candidate.py",
-        "deploy/weknora/patches/"
+        "deploy/weknora/patches/",
+        "research_workbench_entrypoint/server.py"
       ],
       "documents": [
         "docs/research-web-weknora.md",
@@ -1116,7 +1118,9 @@
         "tests/research_web/test_weknora_integrity.py",
         "tests/research_web/test_weknora_candidate.py",
         "tests/research_web/test_weknora_upstream_patch.py",
-        "tests/research_web/test_weknora_retrieval_profile.py"
+        "tests/research_web/test_weknora_retrieval_profile.py",
+        "tests/research_web/test_weknora_cli.py",
+        "tests/research_web/test_weknora_kb_settings_patch.py"
       ]
     }
   ],
@@ -6149,7 +6153,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "8b31439d46dc0b1329fa238153183e02dacbc055"
+      "revision": "f1939eccdcfe924ed661cff7314ccb8ddf7eebc4"
     },
     "levels": [
       {

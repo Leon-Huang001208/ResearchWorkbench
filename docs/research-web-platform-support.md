@@ -291,3 +291,7 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## WeKnora 候选的当前平台证据（2026-11-06）
+
+本轮为Mac上的Web源码与隔离RWB浏览器候选。上游Node纯函数8项通过；Go完成编译但测试初始化在上游go-m1cpu崩溃，Docker两次受容量门拒绝、未执行测试，不认证Go runtime通过。完整WeKnora Vue、独立服务、真实模型、迁移与报告未验；Windows/Linux原生和各自CI仍由对应设备负责，不从Mac派发他平台产品任务。[资料合同](research-web-weknora.md)
