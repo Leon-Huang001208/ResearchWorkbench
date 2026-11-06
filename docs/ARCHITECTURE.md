@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+2026-11-06 综合总览将三地九指数、六维资格和个人事件时间线投影到同一市场首页；旧行情分析、
+沪深北行情与板块资金同页保留。浏览只读，明确刷新沿原 MarketService／DataHub，独立 global-v1
+不覆盖既有中国指数目录；研究工作台复用 Timeline／Study／Score 与唯一 DSH，不新建研究引擎。
+来源、时间、缺项与未启用状态分别呈现，详见[综合总览合同](research-web-market-dashboard.md)。
+
 2026-11-06统一导航部署采用既有v4联合事务的 reviewed-unified-navigation-v1／apply-navigation-ui，固定5ffecb52旧版及b192dd1a产品。完整union/blob/mode冻结，仅操作员及其专用测试／文档可随后变化；全账号64MiB索引、事件／档案保全、空闲、BirthFence和恢复源码绑定不变，NAV前进及回滚均验证MCP实际严格False。旧static-ui分步流程不用于本次联合保全。
 
 统一导航由 UI 中 navigation-catalog.mjs／module-navigation.mjs/css 管理入口、独立图标、模块侧栏及浏览器偏好；app／shell 保留原研究与数据生命周期，不新增后端、数据库或运行节点。详见 [前端导航合同](research-web-ui.md#统一模块导航2026-11-06)。

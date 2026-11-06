@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核统一导航固定Native部署，README产品与安装入口保持。",
-  "reason": "仅新增封闭维护profile及恢复校验，不增加业务页面、公开API或安装依赖；真实Mac部署、MCP/采集关闭和其他平台未验状态分别由部署合同及任务报告记录。"
+  "disposition": "updated",
+  "summary": "更新三地综合总览默认首页，保留统一导航与旧行情分析。",
+  "reason": "README同步说明九指数真实行情、事件及六维资格和只读刷新边界；同时核对统一导航封闭维护与严格关闭/保全恢复。公开安装与依赖锁保持，最终合流候选的CI及实际部署分别取证。"
 }

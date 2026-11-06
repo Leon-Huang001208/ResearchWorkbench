@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+综合总览沿原三项 CI：Checks 追加九指数离线测试，Mac Bootstrap 原静态步骤核对四个
+market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平台 dispatch；增量预算
+为原测试步骤15秒、静态步骤10秒。发布前仍须核对当前 visibility／额度，不能沿用旧快照。
+
 2026-11-06统一导航v4封闭操作员只在原test_model_provider_upgrade.py增加模式和正反例，沿原Research Web Checks清单及原Mac安装门。无新workflow/job/runner/依赖/timeout或平台dispatch；原步骤为新增矩阵预留90秒，最终候选实测与实际CI分别取证。源UI候选CI不能代替新操作员CI，发布前重新核对PUBLIC及当前标准runner运行证据。
 
 2026-11-06统一导航只在原Mac Bootstrap静态资源步骤补module-navigation.mjs、navigation-catalog.mjs、module-navigation.css下载及源码字节核验；新Node合同沿原Web Checks通配符。无新job、runner、依赖、timeout或平台dispatch，原步骤增量预留5秒。浏览器在本机已有Chrome/Playwright完成，发布前重新核对仓库PUBLIC和标准runner状态。

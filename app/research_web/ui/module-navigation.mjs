@@ -38,7 +38,7 @@ export function secondaryEntries(route = {}, { account = null, canManageNews = t
     rows = [['discovery','今日发现'],['hot','本地热点与事件'],['signals','机会与风险'],['search','主题检索'],...intelTabs.map(([id,label])=>[id,id==='overview'?'外部事件总览':id==='research-reports'?'外部研报':label])].map(([id,label])=>[id,label,`#/intel/${id}`]);
     selected = route.intelTab || (route.section === 'hot' ? 'hot' : 'search');
   } else if (key === 'market') {
-    rows = [['overview','总览'],['quotes','沪深北行情'],['sectors','板块与资金']].map(([id,label])=>[id,label,`#/market${id==='overview'?'':`?view=${id}`}`]); selected=route.marketView || 'overview';
+    rows = [['dashboard','市场总览','#/market'],['workbench','研究工作台','#/market?view=workbench']]; selected=route.marketView === 'workbench' ? 'workbench' : 'dashboard';
   } else if (key === 'simulation') {
     rows = [['etf','ETF 模拟','#/simulation/etf'],['events','事件与日历研究','#/simulation/events'],['scores','六维评分','#/simulation/scores']]; selected = route.simulationView || 'etf';
   } else if (key === 'skills') {

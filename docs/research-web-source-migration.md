@@ -1,5 +1,10 @@
 # 共享部署资格恢复与源仓库迁移
 
+`apply-market-live` 固定当前前版5ff及三地总览产品检查点a2ee；最终已合并目标必须包含
+该产品并严格匹配全部产品 blob／文件模式，后继只允许操作员、原测试、文档与报告变化。
+primary与gateway独立Git common均须拥有目标对象，不能复制Git元数据、迁移源归属或
+用开发目录替代已验证常驻依赖；原恢复链和旧profile身份不变。
+
 统一导航维护不迁移仓库：沿配置source_common核对受审源码、两角色repo/目录身份、完整冻结产品及三CI；执行器以Git保留在resident/artifacts/<target>/source，不能引用将清理的开发worktree。不复制Finder源码、不删锁、不改变未知归属资源。
 
 ## 事件固定部署的源身份与恢复范围（2026-11-05）
