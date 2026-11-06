@@ -1,6 +1,6 @@
 # WeKnora 资料适配结构决策
 
-源码阅读与Atlas链接检查点为 `f1939eccdcfe924ed661cff7314ccb8ddf7eebc4`，基线为 `46d86544097a04f2404fe0599f90d3553dc0c028`。它是已存在的RWB源码提交，后续文档或上游补丁制品提交不改称在该SHA执行CI；最终候选、上游Go、服务与业务验收另记。
+源码阅读与Atlas链接检查点为 `e06c884fbe38d15a6c03f5a4421013b794992172`，基线为 `46d86544097a04f2404fe0599f90d3553dc0c028`。它是已存在的RWB源码提交，后续文档或上游补丁制品提交不改称在该SHA执行CI；最终候选、上游Go、服务与业务验收另记。
 
 新增外部资料网络边和本地不可变证据，不增加研究执行器、调度器或第二套报告生命周期。WeKnora界面零生成、真实服务、宿主与业务报告验收分别记录；当前未完成底座替换。
 
@@ -19,4 +19,7 @@
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"九份离线资料测试加入原Checks列表，设置模块加入原Mac静态资源核对；无新job、runner、时限、依赖或跨平台产品dispatch，原验证与费用门保持。","diagrams":[]} -->
 
 
-新增stdlib origin校验和冷Doctor、完整资料admission及16KiB绑定写前门，仍属于图04原认证／存储节点内部；不是新执行或部署角色。当前保留旧真实源码pin，最终由新实际提交更新，不把后续修复冒充已在旧SHA验收。
+新增stdlib origin校验和冷Doctor、完整资料admission及16KiB绑定写前门，仍属于图04原认证／存储节点内部；不是新执行或部署角色。最终源码pin已核对到e06c884fbe38d15a6c03f5a4421013b794992172，本机早先WIP验证保留真实回执及blob映射，不改称在该SHA当时exact执行。
+
+
+共享origin校验helper只将现有非秘密配置规则从server启动模块分离，cold Doctor与dispatcher调用同一stdlib实现；图04的角色和边保持，不新增Actor或权限。检查点e06c884fbe38d15a6c03f5a4421013b794992172已包括0003、admission、绑定16KiB门；已实际核对共享helper属于该提交，后续文档提交继续采用此源码检查点，不改变早先验证的真实执行身份。

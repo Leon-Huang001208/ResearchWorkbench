@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "taskId": "rwb-weknora-20261106",
-  "sourceCommit": "f1939eccdcfe924ed661cff7314ccb8ddf7eebc4",
-  "sourcePinStatus": "awaiting_refresh_after_required_source_fixes",
+  "sourceCommit": "e06c884fbe38d15a6c03f5a4421013b794992172",
+  "sourcePinStatus": "verified_existing_source_checkpoint",
   "groups": [
     {
       "group": "knowledge-backend",
@@ -31,7 +31,7 @@
     {
       "group": "private-multiuser",
       "structure": "changed",
-      "reason": "原私网账号Host新增操作员origin传递和knowledge-backend保全，资料读取由当前WeKnora用户权限限定；图04展开新跨服务资料边，不新增身份提供方或将空间Key当作个人身份。 stdlib公开入口验证origin交接，冷Doctor不读凭据或联网；原维护admission覆盖资料网络和提交。",
+      "reason": "原私网账号Host新增操作员origin传递和knowledge-backend保全，资料读取由当前WeKnora用户权限限定；图04展开新跨服务资料边，不新增身份提供方或将空间Key当作个人身份。 stdlib公开入口验证origin交接，冷Doctor不读凭据或联网；原维护admission覆盖资料网络和提交。 origin校验经共用stdlib helper，冷Doctor不反向导入启动模块，未新增角色或权限。",
       "diagrams": [
         "04-data-file-flow"
       ]
@@ -67,10 +67,5 @@
     "screenshotInspection": "Codex child agent, 1440 light and 2048 dark; not business acceptance"
   },
   "candidateBaseCommit": "46d86544097a04f2404fe0599f90d3553dc0c028",
-  "sourcePinMeaning": "Existing RWB source checkpoint retained temporarily; current required fixes await next real source SHA",
-  "pendingSourceChanges": [
-    "stdlib operator origin handoff and cold Doctor",
-    "resident admission across knowledge network/storage",
-    "16KiB binding prewrite limit"
-  ]
+  "sourcePinMeaning": "Verified existing RWB source checkpoint includes 0003, CLI, admission, 16KiB binding and shared stdlib helper. Earlier WIP tests keep their actual receipts and blob mapping; not rewritten as exact-SHA execution."
 }
