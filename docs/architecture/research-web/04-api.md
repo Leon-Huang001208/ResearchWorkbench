@@ -1,5 +1,8 @@
 # Research Web 接口清单
 
+私网事件写操作保留已有 `X-Research-User-Action: ?1` 到Host；缺失/非法值不转换成合法意图，
+认证及同源/账号绑定不变。没有新增HTTP方法、路径或请求字段，Host原明确动作校验仍是最终门。
+
 统一导航只增加显式本机维护CLI apply-navigation-ui，不增加HTTP业务接口、代理路径或权限。导航产品API保持b192字节；source/tool资格、双向实际MCP关闭和账号数据保全均由原v4维护链认证。
 
 ## 事件部署与既有网关代理（2026-11-05）

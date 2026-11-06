@@ -145,9 +145,19 @@ MARKET_LIVE_PREVIOUS = "5ffecb5219d46a5d3e4148a4ddb630f23a09ab3b"
 MARKET_LIVE_PAYLOAD = "a2ee934f026d9f174d948a2f748213d0d5021f5b"
 MARKET_LIVE_WEB_LOCK_SHA256 = EVENT_WEB_LOCK_SHA256
 MARKET_LIVE_EVIDENCE_SHA256 = EVENT_EVIDENCE_SHA256
-EVENT_SAFETY_MODES = frozenset({EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE})
+# The manual event intent fix is a separate sealed successor from the accepted a76 resident.
+MARKET_LIVE_V2_MODE = "reviewed-market-overview-live-v2"
+MARKET_LIVE_V2_PREVIOUS = "a76ecfdfb1b1b7a35c508d15ccf16222ed20423c"
+MARKET_LIVE_V2_PAYLOAD = "974628a808627a68d732f8d620c4b34ae10a9b3e"
+MARKET_LIVE_V2_WEB_LOCK_SHA256 = MARKET_LIVE_WEB_LOCK_SHA256
+MARKET_LIVE_V2_EVIDENCE_SHA256 = MARKET_LIVE_EVIDENCE_SHA256
+EVENT_SAFETY_MODES = frozenset(
+    {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}
+)
 EVENT_PRESERVATION_MODES = EVENT_SAFETY_MODES
-MCP_DISABLED_ROLLBACK_MODES = frozenset({UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE})
+MCP_DISABLED_ROLLBACK_MODES = frozenset(
+    {UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}
+)
 # PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
 ETF_WEEKLY_MODE = "reviewed-etf-weekly-v1"
@@ -202,6 +212,7 @@ ASSET_MODES = frozenset(
         MARKET_BREADTH_MODE,
         EVENT_MODE,
         MARKET_LIVE_MODE,
+        MARKET_LIVE_V2_MODE,
         UNIFIED_NAVIGATION_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
@@ -325,6 +336,8 @@ def previous_for(mode):
         return MARKET_PREVIEW_PREVIOUS
     if mode == UNIFIED_NAVIGATION_MODE:
         return UNIFIED_NAVIGATION_PREVIOUS
+    if mode == MARKET_LIVE_V2_MODE:
+        return MARKET_LIVE_V2_PREVIOUS
     if mode == MARKET_LIVE_MODE:
         return MARKET_LIVE_PREVIOUS
     if mode == EVENT_MODE:
@@ -586,6 +599,7 @@ def verify_primary(home, expected, mode):
         MARKET_BREADTH_MODE,
         EVENT_MODE,
         MARKET_LIVE_MODE,
+        MARKET_LIVE_V2_MODE,
         UNIFIED_NAVIGATION_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
@@ -745,6 +759,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_PREVIEW_MODE: MARKET_PREVIEW_PAYLOAD,
         EVENT_MODE: EVENT_PAYLOAD,
         MARKET_LIVE_MODE: MARKET_LIVE_PAYLOAD,
+        MARKET_LIVE_V2_MODE: MARKET_LIVE_V2_PAYLOAD,
         UNIFIED_NAVIGATION_MODE: UNIFIED_NAVIGATION_PAYLOAD,
         MARKET_BREADTH_MODE: MARKET_BREADTH_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
@@ -757,7 +772,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
-    if mode == MARKET_LIVE_MODE:
+    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}:
         c.git(source, "merge-base", "--is-ancestor", previous, payload)
     if mode == EVENT_MODE:
         for ancestor, descendant in (
@@ -793,6 +808,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     MARKET_PREVIEW_MODE: MARKET_PREVIEW_EVIDENCE_SHA256,
                     EVENT_MODE: EVENT_EVIDENCE_SHA256,
                     MARKET_LIVE_MODE: MARKET_LIVE_EVIDENCE_SHA256,
+                    MARKET_LIVE_V2_MODE: MARKET_LIVE_V2_EVIDENCE_SHA256,
                     UNIFIED_NAVIGATION_MODE: UNIFIED_NAVIGATION_EVIDENCE_SHA256,
                     MARKET_BREADTH_MODE: MARKET_BREADTH_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
@@ -805,6 +821,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     MARKET_BREADTH_MODE,
                     EVENT_MODE,
                     MARKET_LIVE_MODE,
+                    MARKET_LIVE_V2_MODE,
                     UNIFIED_NAVIGATION_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
@@ -1376,6 +1393,7 @@ def validate_state(home, state, *, executor_source=None):
             if "source" in manifest or state["mode"] in {
                 EVENT_MODE,
                 MARKET_LIVE_MODE,
+                MARKET_LIVE_V2_MODE,
                 UNIFIED_NAVIGATION_MODE,
                 DOSSIERS_MODE,
                 DISCOVERY_MODE,
@@ -1452,7 +1470,7 @@ def verify_release_repository(state, role):
 
 
 def verify_rollback_mcp_disabled(mode, gateway):
-    """Both 5ff rollback profiles expose MCP state; absence is not off."""
+    """The sealed 5ff/a76 rollback profiles expose MCP state; absence is not off."""
     if mode in MCP_DISABLED_ROLLBACK_MODES and (
         not isinstance(gateway, dict) or gateway.get("mcp_readonly_enabled") is not False
     ):
@@ -1528,6 +1546,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
+    elif state.get("mode") == MARKET_LIVE_V2_MODE:
+        manifest["web_lock_sha256"] = MARKET_LIVE_V2_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_LIVE_MODE:
         manifest["web_lock_sha256"] = MARKET_LIVE_WEB_LOCK_SHA256
     elif state.get("mode") in {EVENT_MODE, UNIFIED_NAVIGATION_MODE}:
@@ -2021,6 +2041,7 @@ class Operations:
             MARKET_BREADTH_MODE,
             EVENT_MODE,
             MARKET_LIVE_MODE,
+            MARKET_LIVE_V2_MODE,
             UNIFIED_NAVIGATION_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
@@ -2078,6 +2099,7 @@ class Operations:
             MARKET_BREADTH_MODE,
             EVENT_MODE,
             MARKET_LIVE_MODE,
+            MARKET_LIVE_V2_MODE,
             UNIFIED_NAVIGATION_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
@@ -3666,6 +3688,7 @@ def main(argv=None):
             "apply-market-breadth",
             "apply-events",
             "apply-market-live",
+            "apply-market-live-v2",
             "apply-navigation-ui",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
@@ -3753,6 +3776,7 @@ def main(argv=None):
                 "apply-market-breadth": MARKET_BREADTH_MODE,
                 "apply-events": EVENT_MODE,
                 "apply-market-live": MARKET_LIVE_MODE,
+                "apply-market-live-v2": MARKET_LIVE_V2_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,

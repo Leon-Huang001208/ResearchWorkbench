@@ -65,6 +65,7 @@ ASSET_PROFILES = (
     "reviewed-market-breadth-v1",
     "reviewed-event-research-v1",
     "reviewed-market-overview-live-v1",
+    "reviewed-market-overview-live-v2",
     "reviewed-unified-navigation-v1",
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
@@ -112,6 +113,7 @@ def test_discovery_profile_freezes_authorized_combination():
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -273,6 +275,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-breadth-v1": "MARKET_BREADTH",
         "reviewed-event-research-v1": "EVENT",
         "reviewed-market-overview-live-v1": "MARKET_LIVE",
+        "reviewed-market-overview-live-v2": "MARKET_LIVE_V2",
         "reviewed-unified-navigation-v1": "UNIFIED_NAVIGATION",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
@@ -319,6 +322,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         evidence_constant = {
             upgrade.EVENT_MODE: "EVENT_EVIDENCE_SHA256",
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_EVIDENCE_SHA256",
+            upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_EVIDENCE_SHA256",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_EVIDENCE_SHA256",
         }[profile]
     if profile == upgrade.ASSET_V8_MODE:
@@ -393,7 +397,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     if bad == "untracked":
         (tmp_path / "untracked.txt").write_text("unreviewed checkout state")
     if bad == "previous-ancestry":
-        monkeypatch.setattr(upgrade, "MARKET_LIVE_PREVIOUS", target)
+        monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", target)
     if bad == "feature-ancestry":
         monkeypatch.setattr(upgrade, "EVENT_FEATURE", target)
     if bad == "event-base-before-feature":
@@ -640,6 +644,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-breadth", "reviewed-market-breadth-v1"),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-live", upgrade.MARKET_LIVE_MODE),
+        ("apply-market-live-v2", upgrade.MARKET_LIVE_V2_MODE),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -660,6 +665,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
 @pytest.mark.parametrize(
     "profile,previous",
     [
+        (upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_LIVE_PREVIOUS),
+        (upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_LIVE_V2_PAYLOAD),
         (upgrade.MARKET_LIVE_MODE, upgrade.EVENT_PREVIOUS),
         (upgrade.MARKET_LIVE_MODE, upgrade.MARKET_LIVE_PAYLOAD),
         (upgrade.ASSET_MODE, upgrade.PREVIOUS),
@@ -1500,6 +1507,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -1707,6 +1715,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-breadth-v1": "MARKET_BREADTH_PREVIOUS",
         "reviewed-event-research-v1": "EVENT_PREVIOUS",
         "reviewed-market-overview-live-v1": "MARKET_LIVE_PREVIOUS",
+        "reviewed-market-overview-live-v2": "MARKET_LIVE_V2_PREVIOUS",
         "reviewed-unified-navigation-v1": "UNIFIED_NAVIGATION_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
@@ -1801,6 +1810,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-research-dossiers-v1",
             "reviewed-event-research-v1",
             "reviewed-market-overview-live-v1",
+            "reviewed-market-overview-live-v2",
             "reviewed-unified-navigation-v1",
             "reviewed-discovery-v1",
             "reviewed-etf-weekly-v2",
@@ -1834,6 +1844,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-research-dossiers-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
@@ -2344,6 +2355,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -2427,6 +2439,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -2498,6 +2511,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -2626,6 +2640,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
@@ -2662,6 +2677,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-market-breadth-v1",
         "reviewed-event-research-v1",
         "reviewed-market-overview-live-v1",
+        "reviewed-market-overview-live-v2",
         "reviewed-unified-navigation-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
@@ -4586,7 +4602,13 @@ def test_event_schedule_orphans_and_sqlite_sidecars_are_unknown(tmp_path, orphan
 
 @pytest.mark.parametrize("native", [None, False, 0, {}, "", ["active"]])
 @pytest.mark.parametrize(
-    "mode", [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE]
+    "mode",
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
 )
 def test_event_actual_operate_rejects_unknown_native_before_prepare(
     mode, weekly_operate_protocol, monkeypatch, native
@@ -4602,6 +4624,7 @@ def test_event_actual_operate_rejects_unknown_native_before_prepare(
             upgrade.EVENT_MODE: "EVENT_PREVIOUS",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_PREVIOUS",
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_PREVIOUS",
+            upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_PREVIOUS",
         }[mode],
         upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
     )
@@ -4617,7 +4640,13 @@ def test_event_actual_operate_rejects_unknown_native_before_prepare(
 
 @pytest.mark.parametrize("host_active", [True, None])
 @pytest.mark.parametrize(
-    "mode", [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE]
+    "mode",
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
 )
 def test_event_actual_operate_preserves_original_primary_gate(
     mode, weekly_operate_protocol, monkeypatch, host_active
@@ -4633,6 +4662,7 @@ def test_event_actual_operate_preserves_original_primary_gate(
             upgrade.EVENT_MODE: "EVENT_PREVIOUS",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_PREVIOUS",
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_PREVIOUS",
+            upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_PREVIOUS",
         }[mode],
         upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
     )
@@ -4645,7 +4675,12 @@ def test_event_actual_operate_preserves_original_primary_gate(
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 def test_event_idle_preserves_real_native_and_background_gates(real_operations, monkeypatch):
@@ -4685,7 +4720,12 @@ def test_event_latest_disabled_revision_and_frozen_proof_detect_drift(tmp_path):
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 def test_event_prepare_rechecks_schedule_before_journal_or_fence(real_operations):
@@ -4710,7 +4750,13 @@ def test_event_cli_uses_closed_profile(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "mode", [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE]
+    "mode",
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
 )
 def test_event_actual_operate_proves_idle_before_prepare(
     mode, weekly_operate_protocol, monkeypatch
@@ -4726,6 +4772,7 @@ def test_event_actual_operate_proves_idle_before_prepare(
             upgrade.EVENT_MODE: "EVENT_PREVIOUS",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_PREVIOUS",
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_PREVIOUS",
+            upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_PREVIOUS",
         }[mode],
         upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
     )
@@ -4752,7 +4799,13 @@ def test_event_actual_operate_proves_idle_before_prepare(
     ],
 )
 @pytest.mark.parametrize(
-    "mode", [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE]
+    "mode",
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
 )
 def test_event_actual_operate_rejects_collection_before_preparation(
     mode, weekly_operate_protocol, monkeypatch, kind, payload
@@ -4770,6 +4823,7 @@ def test_event_actual_operate_rejects_collection_before_preparation(
             upgrade.EVENT_MODE: "EVENT_PREVIOUS",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_PREVIOUS",
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_PREVIOUS",
+            upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_PREVIOUS",
         }[mode],
         upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
     )
@@ -4783,7 +4837,13 @@ def test_event_actual_operate_rejects_collection_before_preparation(
 
 
 @pytest.mark.parametrize(
-    "mode", [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE]
+    "mode",
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
 )
 def test_event_actual_operate_native_drift_at_original_idle(
     mode, weekly_operate_protocol, monkeypatch
@@ -4801,6 +4861,7 @@ def test_event_actual_operate_native_drift_at_original_idle(
             upgrade.EVENT_MODE: "EVENT_PREVIOUS",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_PREVIOUS",
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_PREVIOUS",
+            upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_PREVIOUS",
         }[mode],
         upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS,
     )
@@ -4841,7 +4902,13 @@ def test_event_unknown_storage_schema_refuses_disabled_assertion(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "mode", [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE]
+    "mode",
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
 )
 def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence(
     mode,
@@ -4866,7 +4933,12 @@ def test_event_gateway_target_persists_mcp_off_and_rollback_keeps_absence(
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 def test_event_actual_health_unknown_refuses_target(real_operations, monkeypatch):
@@ -4942,7 +5014,12 @@ def event_mcp_health_protocol(real_operations, monkeypatch):
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize("where", ["local", "remote"])
@@ -4957,7 +5034,12 @@ def test_event_verify_requires_actual_strict_false_health(event_mcp_health_proto
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 def test_event_verify_real_health_accepts_false_and_old_rollback_missing(event_mcp_health_protocol):
@@ -4979,7 +5061,12 @@ def test_event_verify_real_health_accepts_false_and_old_rollback_missing(event_m
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize("drift", ["pid", "birth", "config"])
@@ -5012,7 +5099,12 @@ def test_event_health_window_binds_process_birth_and_config(
 
 @pytest.mark.parametrize(
     "real_operations",
-    [upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE],
+    [
+        upgrade.EVENT_MODE,
+        upgrade.UNIFIED_NAVIGATION_MODE,
+        upgrade.MARKET_LIVE_MODE,
+        upgrade.MARKET_LIVE_V2_MODE,
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize("value", ["missing", None, 0, True])
@@ -5053,11 +5145,16 @@ def test_market_live_profile_freezes_current_resident_and_reviewed_product():
     assert upgrade.MARKET_LIVE_WEB_LOCK_SHA256 == upgrade.EVENT_WEB_LOCK_SHA256
     assert upgrade.MARKET_LIVE_EVIDENCE_SHA256 == upgrade.EVENT_EVIDENCE_SHA256
     assert upgrade.EVENT_PRESERVATION_MODES == frozenset(
-        {upgrade.EVENT_MODE, upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE}
+        {
+            upgrade.EVENT_MODE,
+            upgrade.UNIFIED_NAVIGATION_MODE,
+            upgrade.MARKET_LIVE_MODE,
+            upgrade.MARKET_LIVE_V2_MODE,
+        }
     )
     assert upgrade.EVENT_PRESERVATION_MODES is upgrade.EVENT_SAFETY_MODES
     assert upgrade.MCP_DISABLED_ROLLBACK_MODES == frozenset(
-        {upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE}
+        {upgrade.UNIFIED_NAVIGATION_MODE, upgrade.MARKET_LIVE_MODE, upgrade.MARKET_LIVE_V2_MODE}
     )
     assert upgrade.MARKET_LIVE_MODE in upgrade.ASSET_MODES
     assert upgrade.MARKET_LIVE_MODE not in upgrade.TRIAL_MODES
@@ -5090,7 +5187,9 @@ def test_market_live_real_git_accepts_operator_documentation_extensions(tmp_path
     )
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.MARKET_LIVE_MODE], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.MARKET_LIVE_MODE, upgrade.MARKET_LIVE_V2_MODE], indirect=True
+)
 @pytest.mark.parametrize("bad", ["missing", None, 0, True])
 def test_market_live_recovery_rejects_old_mcp_not_disabled(real_operations, bad):
     home, state, _system, _make, _uid = real_operations
@@ -5105,7 +5204,9 @@ def test_market_live_recovery_rejects_old_mcp_not_disabled(real_operations, bad)
             validate(home, state)
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.MARKET_LIVE_MODE], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.MARKET_LIVE_MODE, upgrade.MARKET_LIVE_V2_MODE], indirect=True
+)
 @pytest.mark.parametrize("which", ["local", "remote"])
 @pytest.mark.parametrize("bad", ["missing", None, 0, True])
 def test_market_live_rollback_requires_actual_mcp_disabled(event_mcp_health_protocol, which, bad):
@@ -5192,3 +5293,69 @@ def test_navigation_rollback_requires_real_mcp_disabled(event_mcp_health_protoco
     control[which] = bad
     with pytest.raises(upgrade.UpdateBlocked, match="event_upgrade_mcp_runtime_not_disabled"):
         ops.verify(True)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "previous-ancestry",
+        "ancestry",
+        "reverted",
+        "deleted",
+        "mode",
+        "extra",
+        "extra-script",
+        "extra-test",
+        "extra-readme",
+        "extra-output",
+    ],
+)
+def test_market_live_v2_real_git_rejects_unfrozen_product(tmp_path, monkeypatch, bad):
+    test_asset_review_uses_real_git_and_frozen_product(
+        tmp_path, monkeypatch, bad, upgrade.MARKET_LIVE_V2_MODE
+    )
+
+
+def test_market_live_v2_real_git_accepts_operator_documentation_extensions(tmp_path, monkeypatch):
+    test_asset_review_uses_real_git_and_frozen_product(
+        tmp_path, monkeypatch, "allowed-operator", upgrade.MARKET_LIVE_V2_MODE
+    )
+
+
+@pytest.mark.parametrize(
+    "weekly_bridge,bad",
+    [("reviewed-etf-weekly-admission-v1", bad) for bad in ("missing", None, 0, True)],
+    indirect=["weekly_bridge"],
+    ids=["missing", "None", "0", "True"],
+)
+def test_market_live_v2_actual_operate_rejects_old_mcp_before_prepare(
+    weekly_operate_protocol, monkeypatch, bad
+):
+    f, control, events = weekly_operate_protocol
+    monkeypatch.setattr(upgrade, "MARKET_LIVE_V2_PREVIOUS", upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS)
+    control["active_override"] = False
+    gateway = upgrade.read_json(f.home / "server/resident.json")
+    if bad == "missing":
+        gateway.pop("mcp_readonly_enabled", None)
+    else:
+        gateway["mcp_readonly_enabled"] = bad
+    upgrade.c.atomic(f.home / "server/resident.json", gateway)
+    with pytest.raises(upgrade.UpdateBlocked, match="market_live_upgrade_mcp_config_not_disabled"):
+        upgrade.operate(f.home, f.home / "source", mode=upgrade.MARKET_LIVE_V2_MODE)
+    assert "fence-would-start" not in events
+    assert not (f.home / "server/run/gateway-upgrade.json").exists()
+
+
+def test_market_live_v2_profile_freezes_accepted_resident_and_intent_fix():
+    assert upgrade.MARKET_LIVE_V2_MODE == "reviewed-market-overview-live-v2"
+    assert (
+        upgrade.previous_for(upgrade.MARKET_LIVE_V2_MODE)
+        == "a76ecfdfb1b1b7a35c508d15ccf16222ed20423c"
+    )
+    assert upgrade.MARKET_LIVE_V2_PAYLOAD == "974628a808627a68d732f8d620c4b34ae10a9b3e"
+    assert upgrade.MARKET_LIVE_V2_WEB_LOCK_SHA256 == upgrade.MARKET_LIVE_WEB_LOCK_SHA256
+    assert upgrade.MARKET_LIVE_V2_EVIDENCE_SHA256 == upgrade.MARKET_LIVE_EVIDENCE_SHA256
+    assert upgrade.MARKET_LIVE_V2_MODE in upgrade.ASSET_MODES
+    assert upgrade.MARKET_LIVE_V2_MODE in upgrade.EVENT_SAFETY_MODES
+    assert upgrade.MARKET_LIVE_V2_MODE in upgrade.MCP_DISABLED_ROLLBACK_MODES
+    assert upgrade.MARKET_LIVE_V2_MODE not in upgrade.TRIAL_MODES
