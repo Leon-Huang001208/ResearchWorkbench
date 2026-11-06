@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+统一导航只增加显式本机维护CLI apply-navigation-ui，不增加HTTP业务接口、代理路径或权限。导航产品API保持b192字节；source/tool资格、双向实际MCP关闭和账号数据保全均由原v4维护链认证。
+
 ## 事件部署与既有网关代理（2026-11-05）
 
 事件产品 API 继续经过现有通用 `/api/research/*` 网关代理，认证、账号后端选择与 Host 写操作合同保持；此次维护 profile 不增加网关路由许可，也不将事件 API 提升为维护权限。`apply-events` 是显式 Native 维护 CLI，不能从浏览器请求、事件材料或模型输出触发部署。

@@ -31,6 +31,10 @@ web.lock 摘要固定 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb
 不能用源工作树存在对象代替。现场版本、健康、MCP关闭、采集关闭、全账号保全、认证浏览器业务
 验收及资源收尾分别留证；Windows／Linux 原生验收由对应设备负责，未执行保留 NOT_RUN。
 
+## 统一导航固定部署（2026-11-06）
+
+统一导航 apply-navigation-ui 使用 reviewed-unified-navigation-v1，旧版固定5ffecb5219d46a5d3e4148a4ddb630f23a09ab3b，产品固定b192dd1a7d71080a1a4d83ade02102a15cd9f365。新UNIFIED_NAVIGATION_*与旧PR168 NAVIGATION_PAYLOAD独立。完整previous→payload/target路径并集、blob和mode冻结；仅原操作员、其原专用测试及文档／报告例外，额外tests、README、workflow及任意产品变化拒绝。保留193f4fcc证据reader、7c631d4f安装锁、controller字节和自动名单。沿原v4三锁、BirthFence、全账号索引／档案／事件保全与恢复，所有后台及Native必须明确空闲。NAV旧网关配置必须已有严格False，前进及回滚均检查local/private实际health的MCP=False、进程出生/命令/listener/plist/repo身份不漂移；不继承EVENT对db2缺字段回滚的豁免。最终执行器须最新已合并且独评/原三CI/Mac安装通过，并保存永久恢复源码；源码交付、实际切换和认证页面各自取证。
+
 ## 事件研究封闭部署（2026-11-05）
 
 `apply-events`／`reviewed-event-research-v1` 固定前版

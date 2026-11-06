@@ -4,6 +4,8 @@
 Docker 镜像或卷。仍遵守原双运行时互斥、三锁、BirthFence和保全恢复；采集日程与
 入站 MCP 保持关闭。Mac Docker、Windows/Linux 产品证据不由 Native 切换代替。
 
+统一导航 apply-navigation-ui 是macOS Native联合维护，沿原v4而非Docker构建／部署；不启动、重建或重启Docker服务，不认定Docker产品已验收。项目通用Ubuntu CI仍是仓库门，与Linux/Docker产品真机证据分开。
+
 ## 事件研究固定部署的 Native 范围（2026-11-05）
 
 `apply-events`／`reviewed-event-research-v1` 只扩展既有 macOS Native 操作员，将事件时间线、日历效应与六维研究评分组合纳入固定部署。它不构建或切换 Docker 镜像，不操作容器、业务卷或构建器；本章的双运行时互斥、资源锁及 20 GiB 缓存预算继续适用。Native 事务沿原三锁、BirthFence、全账号业务保全和恢复运行，采集日程必须保持关闭。

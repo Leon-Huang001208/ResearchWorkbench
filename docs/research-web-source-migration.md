@@ -5,6 +5,8 @@
 primary与gateway独立Git common均须拥有目标对象，不能复制Git元数据、迁移源归属或
 用开发目录替代已验证常驻依赖；原恢复链和旧profile身份不变。
 
+统一导航维护不迁移仓库：沿配置source_common核对受审源码、两角色repo/目录身份、完整冻结产品及三CI；执行器以Git保留在resident/artifacts/<target>/source，不能引用将清理的开发worktree。不复制Finder源码、不删锁、不改变未知归属资源。
+
 ## 事件固定部署的源身份与恢复范围（2026-11-05）
 
 `apply-events` 固定前版为 `db2ae9a48ceca365852072e622aa6627aa7d0b83`，事件功能为 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`，产品载荷为 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。后两者 app 树相同，载荷包含已审工程闭包；仍须验证祖先关系、固定源身份及新操作员自身资格，不从开发 worktree 或旧 CI 继承部署许可。
