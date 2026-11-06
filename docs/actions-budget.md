@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-11-06统一导航v4封闭操作员只在原test_model_provider_upgrade.py增加模式和正反例，沿原Research Web Checks清单及原Mac安装门。无新workflow/job/runner/依赖/timeout或平台dispatch；原步骤为新增矩阵预留90秒，最终候选实测与实际CI分别取证。源UI候选CI不能代替新操作员CI，发布前重新核对PUBLIC及当前标准runner运行证据。
+
 2026-11-06统一导航只在原Mac Bootstrap静态资源步骤补module-navigation.mjs、navigation-catalog.mjs、module-navigation.css下载及源码字节核验；新Node合同沿原Web Checks通配符。无新job、runner、依赖、timeout或平台dispatch，原步骤增量预留5秒。浏览器在本机已有Chrome/Playwright完成，发布前重新核对仓库PUBLIC和标准runner状态。
 
 2026-11-05事件研究常驻部署新增封闭profile，沿原Research Web Checks的

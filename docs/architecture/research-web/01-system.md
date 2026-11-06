@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+统一导航固定profile复用既有Native primary、私网gateway和恢复事务；只在原操作员加入5ff→b192身份，不新增服务／端口／运行节点。controller及自动名单不变；不采用缺全账号原子保全的旧static-ui分步路径。
+
 ## 事件固定部署的职责复核（2026-11-05）
 
 `reviewed-event-research-v1`／`apply-events` 位于既有 Native 维护操作员内，固定从 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 更新至产品 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。事件功能身份为 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`；操作员核对其祖先关系和相同 app 树，工程闭包与功能身份分别保留。
