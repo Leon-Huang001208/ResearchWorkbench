@@ -4,6 +4,12 @@ global-v1 九指数保存于原账号 market-cache 的独立分集，不写入�
 研究仓 schema。腾讯原生 OHLCV、未完成日线、源量单位及取得时间保留；本币价格指数
 和今日取回的历史行不获得股息、汇率或历史 PIT 资格。事件与评分原件沿原个人归档。
 
+## WeKnora 资料证据（2026-11-06）
+
+账号数据根的 `knowledge-backend/` 惰性保存绑定元数据、内容寻址 scopes 及 evidence；owner 由服务端 Store 根摘要派生，不接收客户端 owner／root。JWT 只进入独立凭据后端。scope 绑定上游 origin、用户／空间、报告期、显式确认的时间证据、下载原件 SHA-256 与完整分块指纹；上游 file_hash 是 MD5，不能冒充此 SHA。
+
+证据冻结独立写入所选原件及精确分块，先复核范围和字节，再原子发布 manifest；后续删除／重解析不改旧证据。原件每件8 MiB、事务32 MiB、manifest256 KiB，保全总量64 MiB；超限拒绝，pending 中断目录按未知保护。现有私网全账号保全包括这些记录和文件；Doctor 不创建根、不读凭据或联网。旧会话附件、DataHub、档案与报告资源不自动迁移。[合同](../../research-web-weknora.md)
+
 统一导航v4保留64MiB严格业务索引、全部账号、@events及@dossiers原件和原模型配置；不迁移数据库或删除历史。固定previous与payload的产品字节，永久恢复源码不可随开发worktree清理；旧网关配置和双向实际MCP=False分别核验。
 
 ## 固定事件部署的全账号保全（2026-11-05）
@@ -987,3 +993,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+绑定元数据独立16 KiB写前检查与读取上限保持一致；超限拒绝新写入。网络操作与原件／范围／证据发布全过程纳入既有resident admission，维护冻结不能在资料操作尚在进行时把它当作空闲；原retention锁、原子发布、未知staging保护与64 MiB保全门保持。

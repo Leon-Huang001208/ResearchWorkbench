@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "https://github.com/Tencent/WeKnora",
+    "release_tag": "v0.9.0",
+    "release_sha": "f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7"
+  },
+  "patch": {
+    "path": "0001-respect-table-summary-opt-out.patch",
+    "sha256": "7aa3ac0ea294eec9bc020a69d787a8eaf424d31a6e3e040dd86b64983162c3aa"
+  },
+  "files": [
+    {
+      "path": "internal/application/service/extract.go",
+      "preimage_sha256": "6e1be1dfdf61061b0f9b5fd289a717fa3dcc577d1c534022b0b4702da304d2e7",
+      "postimage_sha256": "626f231d28811b977558773a9bcf15a67aedb85a1f0d8bea770295f650afaf26",
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/extract.go"
+    },
+    {
+      "path": "internal/application/service/knowledge_create.go",
+      "preimage_sha256": "16967c599a2a1543fb00754af3ef5b9f7f07866d39f5ae46aea60aba647036e2",
+      "postimage_sha256": "6e67aaa741223582769db2a250e1fa153e6cff2e4ed4d692f351e0c8125bca0d",
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledge_create.go"
+    },
+    {
+      "path": "internal/application/service/knowledge_process.go",
+      "preimage_sha256": "ed446b7eb0bdaeddc5fe19f3ac154e0ef626718dfbc7f27e22527caae2b5a9fd",
+      "postimage_sha256": "15ad5ea17fe87caa3222f97e1f281babbd4bd7d2559b497115d43e68b9081c39",
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledge_process.go"
+    },
+    {
+      "path": "internal/application/service/extract_data_table_summary_test.go",
+      "preimage_sha256": "60d54626e53e452d07ac5e4f509ace40508a0a7371d96e6244817b8f4b857db3",
+      "postimage_sha256": "63dd0fd0644d03c74ea77c460aaf8816dea7f086a95b65cf1ae9ad2a22d73902",
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/extract_data_table_summary_test.go"
+    }
+  ],
+  "license": {
+    "spdx": "MIT",
+    "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/LICENSE",
+    "upstream_file_sha256": "5935f49975d7daf97857d7053b6fe45500a3b2ec31cc92a42a89a5fd98a86cea",
+    "notice": "Tencent is pleased to support the open source community by making  WeKnora available. \n\nCopyright (C) 2026 Tencent.  All rights reserved. \n\nThe open-source software included in this distribution may have been modified by Tencent (“Tencent Modifications”). All Tencent Modifications are Copyright (C) Tencent. \n\n WeKnora is licensed under the MIT except for the third-party components listed below.\n\n\nTerms of the MIT:\n--------------------------------------------------------------------\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.\nIN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY\nCLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\nTORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\nSOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+    "third_party_components": "Excluded from this patch; retain the upstream distribution notices."
+  },
+  "behavior": {
+    "explicit_summary_disabled": "Do not enqueue the independent spreadsheet-summary task on upload, file-URL import, or either reparse path.",
+    "default": "Preserve upstream behavior when the override or summary_enabled is omitted, or true.",
+    "scope": "This patch controls table-summary enqueue only; all other LLM enhancements require their separate documented opt-outs.",
+    "ui_upload_reparse": "BLOCKED: this explicit opt-out patch does not enforce an instance-wide zero-generation profile, and the unmodified UI defaults document summaries to enabled."
+  },
+  "verification": {
+    "artifact_tests": "tests/research_web/test_weknora_upstream_patch.py",
+    "go_runtime_tests": "NOT_RUN",
+    "actual_service": "NOT_RUN",
+    "instance_zero_generation_enforcement": "NOT_IMPLEMENTED",
+    "go_runtime_command": "go test ./internal/application/service -run '^TestEnqueueDataTableSummaryHonorsExplicitOptOut$' -count=1"
+  }
+}

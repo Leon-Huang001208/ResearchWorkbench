@@ -4,6 +4,10 @@
 market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平台 dispatch；增量预算
 为原测试步骤15秒、静态步骤10秒。发布前仍须核对当前 visibility／额度，不能沿用旧快照。
 
+## WeKnora 资料适配预算（2026-11-06）
+
+本轮只在原 Research Web Checks 的 Python 清单增加九份 `test_weknora_{client,service,api,integrity,candidate,upstream_patch,retrieval_profile,cli,kb_settings_patch}.py`，JS 仍由现有通配符执行；Mac Bootstrap 原静态资源下载与字节比对加入 `knowledge-settings.mjs`。不增加 workflow/job/runner、依赖、超时或平台 dispatch，原步骤增量预留60秒，实际时长由最终候选回执记录。CI 不连接 WeKnora、厂商或模型，也不安装 Go；补丁应用夹具不等于 Go 运行验证。远端操作前仍实时核对 visibility／额度，真实服务与业务验收独立记录。
+
 2026-11-06统一导航v4封闭操作员只在原test_model_provider_upgrade.py增加模式和正反例，沿原Research Web Checks清单及原Mac安装门。无新workflow/job/runner/依赖/timeout或平台dispatch；原步骤为新增矩阵预留90秒，最终候选实测与实际CI分别取证。源UI候选CI不能代替新操作员CI，发布前重新核对PUBLIC及当前标准runner运行证据。
 
 2026-11-06统一导航只在原Mac Bootstrap静态资源步骤补module-navigation.mjs、navigation-catalog.mjs、module-navigation.css下载及源码字节核验；新Node合同沿原Web Checks通配符。无新job、runner、依赖、timeout或平台dispatch，原步骤增量预留5秒。浏览器在本机已有Chrome/Playwright完成，发布前重新核对仓库PUBLIC和标准runner状态。
@@ -45,7 +49,7 @@ Bootstrap静态资源校验加入两份mjs；不新增job、runner、超时或�
 真实市场有效性。新模块初步预留原步骤180秒，最终实际耗时与候选CI另绑，不能用估计替代通过。
 发布前仍须实时复核visibility/额度和标准runner资格；不重跑旧候选或从Mac派发Windows/Linux产品。
 
-2026-11-04 最终候选本机 L4 检查发现入站 MCP 规则已要求 Mac Bootstrap，但该 workflow 的 PR/push 路径过滤尚未覆盖新规则。修复仅在两个既有事件中补齐该规则的全部七个精确文件及一个源码目录选择器；既有路径、单一 macos-15 job、60分钟上限、依赖及 Windows 手动交接保持。新增的是必需门的路径覆盖，不修改策略或削弱匹配测试；远端 CI 仍 NOT_RUN，SSH 发布阻断仍保留。
+2026-11-04 最终候选本机 L4 检查发现入站 MCP 规则已要求 Mac Bootstrap，但该 workflow 的 PR/push 路径过滤尚未覆盖新规则。修复仅在两个既有事件中补齐该规则的全部九个精确文件及一个源码目录选择器；既有路径、单一 macos-15 job、60分钟上限、依赖及 Windows 手动交接保持。新增的是必需门的路径覆盖，不修改策略或削弱匹配测试；远端 CI 仍 NOT_RUN，SSH 发布阻断仍保留。
 
 2026-11-04 入站 MCP 沿原 Research Web Checks Python 步骤增加 store/oauth/http/read_policy/tools/lifecycle 六模块，账号菜单 JS 沿原 research_web 通配；原 Bootstrap 安装检查增加锁定 SDK 导入和 enabled Doctor 只读断言。无新 job、runner、依赖、timeout、触发频率或产品 dispatch；Checks45分钟及Mac标准macos-15/原60分钟保持。原步骤增量保守预留90秒，Task3 focused14项本机约2秒，完整候选实际CI耗时待证；现因GitSafety SSH认证阻断未发布，不把本机耗时当作远端预算通过。
 
