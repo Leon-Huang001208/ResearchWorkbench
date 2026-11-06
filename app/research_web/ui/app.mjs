@@ -2879,7 +2879,7 @@ root.addEventListener('click', async (event) => {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
     if (await intelController.handle(event)) {
       if (['event', 'report'].includes(action)) document.querySelector('#intel-detail-title')?.focus({ preventScroll: true });
-      if (action === 'close') document.querySelector('.secondary-sidebar [aria-current="page"]')?.focus({ preventScroll: true });
+      if (action === 'close') focusModuleSelection(document);
       return;
     }
   }
