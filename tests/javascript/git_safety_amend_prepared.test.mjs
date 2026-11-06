@@ -93,6 +93,27 @@ test('prepared amendment rejects controller mergeSourceCommit inconsistent with 
   assert.deepEqual(fs.readFileSync(f.filename),before);
 });
 
+test('prepared amendment preserves the bounded recovered merge-conflict diagnostic', async t=>{
+  const f=fixture(t);
+  const diagnostic={classification:'merge_conflict',exitStatus:1,signal:null,errorCode:null,stderrBytes:0,stderrSha256:crypto.createHash('sha256').update('').digest('hex')};
+  fs.writeFileSync(f.filename,JSON.stringify({...f.receipt,mergeFailure:diagnostic}));
+  const before=fs.readFileSync(f.filename);
+  const result=await amend(f);
+  assert.deepEqual(result.mergeFailure,diagnostic);
+  assert.deepEqual(fs.readFileSync(result.preparedAmendment.receiptSnapshot),before);
+  assert.equal(result.preparedAmendment.restoreVerified,true);
+  assert.equal(result.mode,null);
+});
+
+for(const patch of [{exitStatus:0},{signal:'SIGKILL'},{errorCode:'EIO'},{classification:'command_failed'},{stderrBytes:-1},{stderrBytes:4194305},{stderrSha256:'invalid'},{stderrSha256:'a'.repeat(64)},{stderrBytes:1,stderrSha256:['a'.repeat(64)]},{publication:'unknown'}]) test('recovered merge-conflict diagnostic rejects '+JSON.stringify(patch),async t=>{
+  const f=fixture(t);
+  const diagnostic={classification:'merge_conflict',exitStatus:1,signal:null,errorCode:null,stderrBytes:0,stderrSha256:crypto.createHash('sha256').update('').digest('hex'),...patch};
+  fs.writeFileSync(f.filename,JSON.stringify({...f.receipt,mergeFailure:diagnostic}));
+  const before=fs.readFileSync(f.filename);
+  await assert.rejects(amend(f),{code:'UNPUBLISHED_STATE_INVALID'});
+  assert.deepEqual(fs.readFileSync(f.filename),before);
+});
+
 test('CLI accepts only the explicit prepare amendment combination and leaves replacement blocked', async t=>{
   assert.equal(parseCli(['delivery','--project','/repo','--task-id','task','--prepare','--amend-prepared']).options.amendPrepared,true);
   for(const args of [['--publish','--amend-prepared'],['--prepare','--amend-prepared','--replace-prepared']]) assert.throws(()=>parseCli(['delivery','--project','/repo','--task-id','task',...args]));

@@ -4,6 +4,12 @@
 公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
 导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
 
+## prepared 冲突恢复诊断兼容（2026-11-06）
+
+本轮交付遇到受管 prepare 已保留真实 `mergeFailure`、而 prepared amend 严格读取器不识别该诊断字段的前置缺陷。修复只让正式入口识别并原样保留有界的历史合并冲突诊断，不手改实际回执，不把冲突、未发布或待 CI 状态改成通过；WeKnora 源码、部署和业务报告完成仍分别取证。
+
+可选诊断存在时必须恰为六字段：`classification=merge_conflict`，非零整数 `exitStatus`（1–255），`signal=null`、`errorCode=null`，整数 `stderrBytes`（0–4 MiB）和小写64位十六进制**字符串** `stderrSha256`。字节数为0当且仅当哈希为实际空字节 SHA-256；额外字段、异常类型、信号退出、越界预算或非字符串哈希继续拒绝。保留诊断不授予发布、CI、备份替代或清理权限，原 SHA／common directory／干净工作树／远端未发布／PR 与 CI 状态等全部拒绝门保持；后续只能沿原正式 prepared amend 与验证流程推进。
+
 ## WeKnora 候选交付路由（2026-11-06）
 
 本轮为 macOS Web 功能开发，涉及公开接口、身份与持久证据，使用隔离 worktree、完整 changed-set Router、独立语言／安全评审及原三 CI／同候选 Mac 安装。九份 WeKnora 离线测试加入原 Checks 清单，JS 沿原通配符，Mac 原静态资源检查核对 `knowledge-settings.mjs`；无新增 job、runner、依赖或超时。真实服务、免费模型、20题业务金标、原报告窗口交接、迁移和部署分别登记，不能以 mock 或补丁可应用证明完成替换。0002只检索profile已实现为源码补丁，UI上传／重解析零生成验收仍 BLOCKED，Go目标用例NOT_RUN（原生初始化崩溃，运行BLOCKED）；成功测试临时根仍按原同批身份回收，失败原件保留。[资料合同](research-web-weknora.md)
