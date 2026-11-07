@@ -14,3 +14,6 @@ Product-Progress: updated — 市场逐日交互和明确的首批数据操作�
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"首批资料复用已有公开来源与账号原件归档，显示的原值与原生资格核验不混用，不增加数据服务。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow","11-hot-events","13-market-overview","15-inbound-mcp"]} -->
 <!-- architecture-review {"group":"event-research","structure":"unchanged","reason":"原事件与评分域增加明确的预检和一次性操作，候选事实、原值、研究资格及正式开关分离。","diagrams":["14-event-research"]} -->
+
+首轮本机回归在 `311a283a` 发现 NYSE 同一脚注换行导致错误拒绝，保留原失败批次和临时根。
+修复只归一化同一文本节点中的空白；新载荷以新候选验证，不改写旧回执。
