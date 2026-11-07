@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+私网明确动作和旧行情入口补丁沿原Gateway Python清单、Node模块导航合同及Mac静态安装步骤；
+不新增workflow/job/runner/依赖/timeout或平台dispatch。后继profile增量在原步骤预留90秒，
+最终候选实测另记；发布前重新核对PUBLIC和当前标准runner，不借已部署a76的CI。
+
 综合总览沿原三项 CI：Checks 追加九指数离线测试，Mac Bootstrap 原静态步骤核对四个
 market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平台 dispatch；增量预算
 为原测试步骤15秒、静态步骤10秒。发布前仍须核对当前 visibility／额度，不能沿用旧快照。

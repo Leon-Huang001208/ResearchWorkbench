@@ -45,6 +45,7 @@ REQUEST_HEADERS = {
     "range",
     "if-none-match",
     "idempotency-key",
+    "x-research-user-action",
 }
 RESPONSE_HEADERS = {
     "content-type",
