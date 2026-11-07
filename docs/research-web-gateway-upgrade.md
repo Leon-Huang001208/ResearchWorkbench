@@ -4,7 +4,8 @@
 
 `apply-market-live-v2`／`reviewed-market-overview-live-v2` 固定已验收前版
 `a76ecfdfb1b1b7a35c508d15ccf16222ed20423c`，产品检查点固定
-`974628a808627a68d732f8d620c4b34ae10a9b3e`。该产品修复真实认证网关遗漏已有
+`15c24b7ec59685735f8af75b8e9f5dc86830d694`（P2，包含用户2026-11-07明确授权的
+PR278最新主线代码；WeKnora保持未配置，不启动其服务或模型）。该产品修复真实认证网关遗漏已有
 `X-Research-User-Action` 头导致事件手动 POST 被原 Host 意图门拒绝的问题；仅在原认证同源链
 转发已有意图，不移除 Host 门。产品同时补齐原市场sidebar的dashboard／workbench／overview／quotes／sectors
 五个可见入口，避免原tabs隐藏后旧内容失去可见入口；不自动采集、不启用日程、MCP或模型。
@@ -26,7 +27,9 @@ Workflow／市场inflight空闲及全账号采集日程关闭原件证明。
 V2尚未发布前，产品冻结从仅gateway的P0 `a2e97c3110b4495a0ae00df1123da400ab8a15e8`
 更新为包含gateway与sidebar的P1 `974628a808627a68d732f8d620c4b34ae10a9b3e`；仅新V2自己的
 PAYLOAD／固定值测试随之更新，所有历史profile身份保持。P0的20项WIP通过原件保留，不作为P1最终证据。
-本次须取得P1新组合候选的独评、必需CI及Mac干净安装，不能借用旧a76部署或旧782CI。
+2026-11-07用户明确授权带入最新主线PR278后，产品进一步冻结为P2 `15c24b7ec59685735f8af75b8e9f5dc86830d694`，
+保留P1、原已准备候选362b及全部历史回执；旧profile、前版、锁、reader与路径冻结门不变。
+本次须取得P2新组合候选的独评、必需CI及Mac干净安装，不能借用旧a76部署或旧782CI。
 实际常驻切换、双health／MCP关闭／采集关闭、真实认证手动操作、保全和资源收尾另证；
 源码准备不是部署完成，其他平台原生仍由对应设备验收。
 
