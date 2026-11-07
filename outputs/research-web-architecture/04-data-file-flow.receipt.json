@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-20261023-e2a3b9d1-integration/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-20261023-e2a3b9d1-integration/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-20261106/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-20261106/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "0b381d402e302fd073791dc72f91556005f1ea6fec4dc70b011edd1fe3550a75",
-    "bytes": 10438
+    "sha256": "14511c1848032dc6daffb3e081b4e00599adefec38bf1796c1c293f397511be8",
+    "bytes": 12914
   },
   "artifact": {
-    "sha256": "b0e71a97a5c4e3749d8662f3f4d80df27e1c95bc0dd94d795e6826db25b55290",
-    "bytes": 657344
+    "sha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
+    "bytes": 668032
   },
   "validation": {
     "checksPassed": 9,

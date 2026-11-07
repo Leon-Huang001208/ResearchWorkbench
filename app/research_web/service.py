@@ -314,6 +314,9 @@ class ResearchService(ModelProfilesMixin):
         market_store_bridge=None,
     ):
         self.client, self.store, self.owned = client, store, owned
+        from .knowledge_backend import KnowledgeService
+
+        self.knowledge = KnowledgeService(store)
         from .dossiers import DossierService
 
         self.dossiers = DossierService(self)

@@ -9,6 +9,12 @@ Doctor能力。已核对web.in/web.lock/setup_web无需修改；同候选Mac安�
 九指数 Provider。已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py`
 无需修改，兼容结论须等待同候选干净安装；Doctor、采集开关和入站 MCP 默认状态不变。
 
+## 可选 WeKnora 资料入口（2026-11-06）
+
+现有一键安装只随产品打包薄适配与设置卡片，不安装 WeKnora、数据库、模型或 Go，Web 依赖锁保持。操作员可提供非秘密 `RESEARCH_WEKNORA_ORIGIN`；缺省为空，入口停用。地址仅接受无凭据、查询及片段的 HTTPS origin，HTTP 只接受 localhost／回环；不从用户请求接受任意上游 URL。tenant 子进程只传递操作员显式 origin，用户 JWT 仅由本机设置页进入受保护凭据后端，不放环境、锁、日志或模型。
+
+Doctor 的 `knowledge_backend` 只检查账号内绑定与保全完整性，不读凭据、不联网、不创建资料根或认证成功状态；`expected_release`／`expected_source_commit` 仅为目标版本要求，不能当作实际服务身份；`connectivity=not_verified` 和真实模型／报告 `NOT_RUN` 保留。Mac 干净安装沿原步骤下载并逐字节比对 `knowledge-settings.mjs`，另验证默认未配置状态；本地代码存在不等于已安装。新增独立服务仍先核算镜像、原件、数据库、索引、解析及恢复峰值，不能借此任务停止既有服务。[详细合同](research-web-weknora.md)
+
 统一导航v4维护profile不增加产品依赖或重新安装第三方包；只用现有主实例解释器构建／安装本项目wheel，并保留原web.lock、固定DSH、CJPY和immutable controller。仅冻结5ff→b192产品与后继受审操作员，不使用宽松静态更新流程；Mac安装CI与实际部署Doctor各自验证。
 
 2026-11-06统一导航新增三个随产品打包的本地静态资源，原安装器和web依赖锁保持；Mac干净安装CI须从实际服务下载并与checkout核对字节，不能用开发目录中存在文件替代已安装资源证明。此迭代无新Python/Node依赖、配置或Doctor能力。
@@ -1175,3 +1181,7 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 `mcp_readonly_enabled: false`，并从实际网关健康检查验证 Facade 未创建；旧版回滚保留原字段缺席。
 该入口复用原全账号保全、恢复与空闲事务，并独立证明事件来源日程关闭；不修改自动兼容
 白名单或安装新依赖。详见[受控部署合同](research-web-gateway-upgrade.md)。
+
+公开 `./rwb server` 入口现在由stdlib先校验显式 `RESEARCH_WEKNORA_ORIGIN`，仅把合格的非秘密origin加入原最小子环境；无效输入不转发、不回显，其他模型或供应商环境仍不继承。冷启动 `server doctor` 增加可选知识库事实，配置只显示 `configuration_pending`，授权／连接 `not_checked`、运行 `NOT_RUN`，不读凭据、不联网或创建账户根。Mac原冷Doctor冒烟验证该真实交接。0003原生知识库设置只检索模式仍要求API先建库；完整Vue、服务与实际界面待验收。
+
+冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。

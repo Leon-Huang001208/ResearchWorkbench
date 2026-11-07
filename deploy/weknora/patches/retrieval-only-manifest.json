@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "https://github.com/Tencent/WeKnora",
+    "release_tag": "v0.9.0",
+    "release_sha": "f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7"
+  },
+  "profile": {
+    "environment": "WEKNORA_RETRIEVAL_ONLY",
+    "enabled_value": "1",
+    "default": "disabled",
+    "scope": "dedicated fresh candidate instance only; no imported jobs or old generation queues"
+  },
+  "predecessor": {
+    "path": "0001-respect-table-summary-opt-out.patch",
+    "sha256": "7aa3ac0ea294eec9bc020a69d787a8eaf424d31a6e3e040dd86b64983162c3aa"
+  },
+  "patch": {
+    "path": "0002-retrieval-only-profile.patch",
+    "sha256": "2a333bfd2071358dfd16dc20acb5448b2c5b670c5d6902a5548a9dcd923f9ab9"
+  },
+  "files": [
+    {
+      "path": "internal/application/service/extract.go",
+      "preimage_sha256": "626f231d28811b977558773a9bcf15a67aedb85a1f0d8bea770295f650afaf26",
+      "postimage_sha256": "f862b8adc827e05e136b89a095cd2a9df2188f2ebf71fbb9f7ffa680b9aa48a3",
+      "predecessor": "0001",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/extract.go"
+    },
+    {
+      "path": "internal/application/service/knowledge_post_process.go",
+      "preimage_sha256": "e69a9313be5688a942a47f870e1aafdec4a15ea3903f9cb2d560366a3703cb5e",
+      "postimage_sha256": "af6abde98065ef6a0600b9503c287a090286eaaaa490868d12d50cd8b7273c06",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledge_post_process.go"
+    },
+    {
+      "path": "internal/application/service/knowledge_process.go",
+      "preimage_sha256": "15ad5ea17fe87caa3222f97e1f281babbd4bd7d2559b497115d43e68b9081c39",
+      "postimage_sha256": "2c7959d3b5bc4c20fa3ef6cf5408c68de729594dc96e6da7aee9c4fa4e339d32",
+      "predecessor": "0001",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledge_process.go"
+    },
+    {
+      "path": "internal/application/service/knowledge_process_config.go",
+      "preimage_sha256": "309fed16d8b3788d9c969bb8fd4e84ff5fea814f42c98a6a1487e8f6242eec4a",
+      "postimage_sha256": "0e7e8d2b1bd0907ff6ccfa65dc806054448bc80af7ff362bb2a89c36a8840b71",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledge_process_config.go"
+    },
+    {
+      "path": "internal/application/service/knowledgebase.go",
+      "preimage_sha256": "41b31c81f0cbde00f91d472f4d1a32a19e687b7fd817f31153d125240a37617c",
+      "postimage_sha256": "28327d22ae8fea002f1e075a0bf244171983045dd54d6e119845eb2a4366c1b1",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledgebase.go"
+    },
+    {
+      "path": "internal/application/service/knowledgebase_profile.go",
+      "preimage_sha256": "59af6001cd65c029d531e5ba96517da76c2400369328e39b761cc41a5ef75cae",
+      "postimage_sha256": "38ab1ed5632761aa2c22cd7a0cb293d9be55572c138099198fb818cc9c14b9ec",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledgebase_profile.go"
+    },
+    {
+      "path": "internal/application/service/knowledgebase_search_rerank.go",
+      "preimage_sha256": "7e3435c5221aa3508b6002f04033af6a43c579971ba154412539240c2c9417af",
+      "postimage_sha256": "5e9e879dbceb31a6cf9f7143e23716b9fa0be9cc01a22f3096492219a27ed388",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/knowledgebase_search_rerank.go"
+    },
+    {
+      "path": "internal/application/service/retrieval_only.go",
+      "preimage_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "postimage_sha256": "13ca53438f82825e95c5a483a987b359f153587686569d75fe279cb317889634",
+      "predecessor": "new",
+      "introduced_by_patch": true,
+      "upstream_url": null
+    },
+    {
+      "path": "internal/application/service/retrieval_only_test.go",
+      "preimage_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "postimage_sha256": "93c7c40f02c2c54d0404905b9aec91fbf57dde63ca29cfb046f6b4f3dbab01c7",
+      "predecessor": "new",
+      "introduced_by_patch": true,
+      "upstream_url": null
+    },
+    {
+      "path": "internal/application/service/session_knowledge_qa.go",
+      "preimage_sha256": "5602a4a20c39b1d558d16fe9f298379757e3415beb776ee15bf36c8a87f98b23",
+      "postimage_sha256": "89eb5097040217c270883dfe3dca7c59396c800696373b487734ae82ea7cf53d",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/application/service/session_knowledge_qa.go"
+    },
+    {
+      "path": "internal/router/retrieval_only.go",
+      "preimage_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "postimage_sha256": "9d96d1339cde29253b84c1bbbb00adf5f97e9fd6143f2f6b8ff4637bd1e92671",
+      "predecessor": "new",
+      "introduced_by_patch": true,
+      "upstream_url": null
+    },
+    {
+      "path": "internal/router/retrieval_only_test.go",
+      "preimage_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "postimage_sha256": "7aa90f3840bd75c1ca29c636f6a71c56937e7aae6d8a2f54cdf367fd593fd1e2",
+      "predecessor": "new",
+      "introduced_by_patch": true,
+      "upstream_url": null
+    },
+    {
+      "path": "internal/router/router.go",
+      "preimage_sha256": "16ae61067cd7315d5fc1835b05d6ee92bef98f8e2cfadb9f86a89b6deb0c9bc8",
+      "postimage_sha256": "66bc6352c5c6ee4d381a11c8378629569b34017931ff7b702775b5c645058461",
+      "predecessor": "stable",
+      "introduced_by_patch": false,
+      "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/internal/router/router.go"
+    }
+  ],
+  "license": {
+    "spdx": "MIT",
+    "upstream_url": "https://github.com/Tencent/WeKnora/blob/f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7/LICENSE",
+    "upstream_file_sha256": "5935f49975d7daf97857d7053b6fe45500a3b2ec31cc92a42a89a5fd98a86cea",
+    "notice": "Tencent is pleased to support the open source community by making  WeKnora available. \n\nCopyright (C) 2026 Tencent.  All rights reserved. \n\nThe open-source software included in this distribution may have been modified by Tencent (“Tencent Modifications”). All Tencent Modifications are Copyright (C) Tencent. \n\n WeKnora is licensed under the MIT except for the third-party components listed below.\n\n\nTerms of the MIT:\n--------------------------------------------------------------------\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.\nIN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY\nCLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\nTORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\nSOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+    "third_party_components": "Excluded from this patch; retain the upstream distribution notices."
+  },
+  "verification": {
+    "python_patch_artifact": "NOT_RUN",
+    "go_runtime_tests": "NOT_RUN",
+    "actual_service": "NOT_RUN",
+    "management_ui": "NOT_RUN",
+    "zero_generation_calls": "NOT_RUN"
+  },
+  "limitations": [
+    "No existing instance or queue migration; isolated fresh app/worker state required.",
+    "Management API allowlist may require narrowly reviewed additions after real UI verification.",
+    "Scanned/image/audio document support is outside the text-only acceptance profile."
+  ],
+  "combined_source_binding_sha256": "478c502bc37332f9efed40f410ad134425b59c5982ec8ccb451545d5186e464a"
+}

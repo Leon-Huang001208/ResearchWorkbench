@@ -62,17 +62,19 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "b0e71a97a5c4e3749d8662f3f4d80df27e1c95bc0dd94d795e6826db25b55290",
-      "specificationSha256": "0b381d402e302fd073791dc72f91556005f1ea6fec4dc70b011edd1fe3550a75",
+      "artifactSha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
+      "specificationSha256": "14511c1848032dc6daffb3e081b4e00599adefec38bf1796c1c293f397511be8",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-10-23",
+      "reviewer": "Codex child agent (actual screenshot inspection, not business acceptance)",
+      "date": "2026-11-06",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
         "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已实际查看最终1440浅色与2048深色同哈希截图，保留新主线今日发现与档案引用两条路径；模块、原件快照与SQLite交接文字无重叠、穿线或裁剪。showcase9项与四视口包含性均通过，图册证据不代替业务研究或生产部署验收。"
+      "findings": [
+        "原完整总览细字需缩放；WeKnora专用focus视图可单独阅读。"
+      ],
+      "notes": "已实际查看最终同哈希1440浅色与2048深色截图；新增资料入口、用户JWT薄适配、外部WeKnora、独立冻结和待验报告宿主分支可定位，未见穿线/遮挡/裁剪。9项showcase零错误零警告，四视口无溢出。第一次小视口29px纵向溢出经移除图底空白后重验通过，原失败回执保留于任务logs；未缩字或隐藏溢出。图只说明源码/候选边界，不认证部署、UI零生成或业务报告。"
     },
     {
       "id": "06-run-state",

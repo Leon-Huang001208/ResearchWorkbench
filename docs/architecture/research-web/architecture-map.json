@@ -140,7 +140,8 @@
         "02-module-dependencies",
         "03-research-sequence",
         "12-ai-news",
-        "13-market-overview"
+        "13-market-overview",
+        "04-data-file-flow"
       ],
       "tests": [
         "tests/javascript/research_web_ui.test.mjs",
@@ -232,7 +233,8 @@
         "06-run-state",
         "11-hot-events",
         "12-ai-news",
-        "13-market-overview"
+        "13-market-overview",
+        "04-data-file-flow"
       ],
       "tests": [
         "tests/research_web/test_api.py",
@@ -960,7 +962,8 @@
         "research_workbench_entrypoint/resident/gateway_upgrade.py",
         "app/research_web/multiuser/",
         "app/research_web/tenant_policy.py",
-        "research_workbench_entrypoint/server.py"
+        "research_workbench_entrypoint/server.py",
+        "research_workbench_entrypoint/knowledge_configuration.py"
       ],
       "documents": [
         "docs/research-web-ai-news.md",
@@ -981,12 +984,14 @@
         "tests/research_web/test_multiuser_cli.py",
         "tests/javascript/research_web_multiuser_storage.test.mjs",
         "tests/javascript/research_web_multiuser_policy.test.mjs",
-        "tests/research_web/test_multiuser_resident.py"
+        "tests/research_web/test_multiuser_resident.py",
+        "tests/research_web/test_weknora_cli.py"
       ],
       "diagrams": [
         "01-deployment",
         "12-ai-news",
-        "15-inbound-mcp"
+        "15-inbound-mcp",
+        "04-data-file-flow"
       ]
     },
     {
@@ -1087,6 +1092,37 @@
         "tests/research_web/test_market_scoring_native_temporal.py",
         "tests/research_web/test_market_scoring_service.py",
         "tests/javascript/research_web_event_lab.test.mjs"
+      ]
+    },
+    {
+      "id": "knowledge-backend",
+      "sources": [
+        "app/research_web/knowledge_backend/",
+        "scripts/weknora_candidate.py",
+        "deploy/weknora/patches/",
+        "research_workbench_entrypoint/server.py",
+        "research_workbench_entrypoint/knowledge_configuration.py"
+      ],
+      "documents": [
+        "docs/research-web-weknora.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/research-web-installation.md"
+      ],
+      "diagrams": [
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_weknora_client.py",
+        "tests/research_web/test_weknora_service.py",
+        "tests/research_web/test_weknora_api.py",
+        "tests/research_web/test_weknora_integrity.py",
+        "tests/research_web/test_weknora_candidate.py",
+        "tests/research_web/test_weknora_upstream_patch.py",
+        "tests/research_web/test_weknora_retrieval_profile.py",
+        "tests/research_web/test_weknora_cli.py",
+        "tests/research_web/test_weknora_kb_settings_patch.py"
       ]
     }
   ],
@@ -2002,6 +2038,49 @@
             "handoff"
           ],
           "source": "app/research_web/dossiers/storage.py"
+        },
+        {
+          "subjects": [
+            "knowledgeUser",
+            "knowledgeRequest"
+          ],
+          "source": "app/research_web/ui/knowledge-settings.mjs"
+        },
+        {
+          "subjects": [
+            "knowledgeFacade",
+            "knowledgeRequest"
+          ],
+          "source": "app/research_web/knowledge_backend/routes.py"
+        },
+        {
+          "subjects": [
+            "weknora",
+            "knowledgeRetrieve"
+          ],
+          "source": "app/research_web/knowledge_backend/client.py"
+        },
+        {
+          "subjects": [
+            "knowledgeFacade",
+            "knowledgeFreeze"
+          ],
+          "source": "app/research_web/knowledge_backend/service.py"
+        },
+        {
+          "subjects": [
+            "knowledgeEvidence",
+            "knowledgeFreeze",
+            "knowledgeReport"
+          ],
+          "source": "app/research_web/knowledge_backend/storage.py"
+        },
+        {
+          "subjects": [
+            "knowledgeConsumer",
+            "knowledgeReport"
+          ],
+          "source": "docs/research-web-weknora.md"
         }
       ],
       "level": "flows",
@@ -2937,6 +3016,20 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/assets/chart-preferences",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/chart-preferences",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/assets/chart-preferences",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/chart-preferences",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/assets/observations",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/observations",
@@ -2958,9 +3051,100 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/blocks/{block}/load",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/blocks/{block}/load",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/assets/observations/{observation_id}/blocks/{block}/refresh",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/observations/{observation_id}/blocks/{block}/refresh",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs/{job_id}",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs/{job_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs/{job_id}/cancel",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs/{job_id}/cancel",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/intraday",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/intraday",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/minute-bars",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/minute-bars",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/research/catalog",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/catalog",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/research/evidence/{source_session_id}",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/evidence/{source_session_id}",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/research/import/{observation_id}",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/import/{observation_id}",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/research/preview",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/preview",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/research/template/{observation_id}",
+      "source": "app/research_web/asset_research.py",
+      "declaredPath": "/template/{observation_id}",
+      "prefix": "/api/research/assets/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/search",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/search",
       "prefix": "/api/research"
     },
     {
@@ -3301,9 +3485,30 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/data/sources/{source_id}/configuration/verify",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/{source_id}/configuration/verify",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/data/sources/{source_id}/probes",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/data/sources/{source_id}/probes",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/warehouse",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/warehouse",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/warehouse",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/warehouse",
       "prefix": "/api/research"
     },
     {
@@ -3322,10 +3527,430 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/discovery/association",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/association",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/feed",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/feed",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/handoffs",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/handoffs",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/handoffs/{handoff_id}",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/handoffs/{handoff_id}",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/handoffs/{handoff_id}/execute",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/handoffs/{handoff_id}/execute",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/prepare",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/prepare",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/requests/{request_id}",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/requests/{request_id}",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/selection",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/selection",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/tracks",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks/{track_id}/disable",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks/{track_id}/disable",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks/{track_id}/enable",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks/{track_id}/enable",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/documentation/{name}",
       "source": "app/research_web/documentation.py",
       "declaredPath": "/documentation/{name}",
       "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/signals",
+      "source": "app/research_web/dossier_signal_routes.py",
+      "declaredPath": "/signals",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/dossiers/{did}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/evidence",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/evidence",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}/evidence/{eid}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/evidence/{eid}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/handoff",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/handoff",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/links",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/links",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}/links/{lid}",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/links/{lid}",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{did}/records",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/records",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/dossiers/{did}/timeline",
+      "source": "app/research_web/dossiers/routes.py",
+      "declaredPath": "/{did}/timeline",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/dossiers/{dossier_id}/scan",
+      "source": "app/research_web/dossier_signal_routes.py",
+      "declaredPath": "/{dossier_id}/scan",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/dossiers/{dossier_id}/tracking",
+      "source": "app/research_web/dossier_signal_routes.py",
+      "declaredPath": "/{dossier_id}/tracking",
+      "prefix": "/api/research/dossiers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/runs/{run_id}",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/runs/{run_id}/export",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/runs/{run_id}/export",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources/calendar",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/calendar",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/sources/choices",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/choices",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources/link",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/link",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/sources/native",
+      "source": "app/research_web/event_datahub_bridge.py",
+      "declaredPath": "/native",
+      "prefix": "/api/research/event-studies/sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/validation-batches",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/validation-batches",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/validation-batches/{batch_id}/evaluate",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/validation-batches/{batch_id}/evaluate",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/{study_id}",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/event-studies/{study_id}/analyze",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}/analyze",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/{study_id}/preflight",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}/preflight",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/event-studies/{study_id}/runs",
+      "source": "app/research_web/event_studies/routes.py",
+      "declaredPath": "/{study_id}/runs",
+      "prefix": "/api/research/event-studies"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/coverage",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/coverage",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/decisions",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/decisions",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/freeze",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/freeze",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/frozen/{identifier}",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/frozen/{identifier}",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/jobs",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/jobs",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/merge",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/merge",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/sources",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/sources/backfill",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources/backfill",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/sources/refresh",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources/refresh",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/sources/{source}/schedule",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/sources/{source}/schedule",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/timeline",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/timeline",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/{identifier}",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/events/{identifier}",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/{identifier}/split",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}/split",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/events/{identifier}/versions",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/{identifier}/versions",
+      "prefix": "/api/research/events"
     },
     {
       "method": "GET",
@@ -3361,6 +3986,13 @@
       "source": "app/research_web/frameworks/routes.py",
       "declaredPath": "/{slug}/sessions/{sid}/verify",
       "prefix": "/api/research/frameworks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/handoff-requests/{request_key}",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/handoff-requests/{request_key}",
+      "prefix": "/api/research"
     },
     {
       "method": "POST",
@@ -3713,6 +4345,20 @@
       "prefix": "/api/research/internal/data"
     },
     {
+      "method": "POST",
+      "path": "/api/research/internal/data/knowledge-query",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/internal/data/knowledge-query",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/knowledge-read",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/internal/data/knowledge-read",
+      "prefix": ""
+    },
+    {
       "method": "GET",
       "path": "/api/research/internal/data/model-connection",
       "source": "app/research_web/datahub/routes.py",
@@ -3749,10 +4395,108 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/internal/data/specialist-control",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/internal/data/specialist-control",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/internal/mcp/tools/call",
       "source": "app/research_web/mcp_runtime/routes.py",
       "declaredPath": "/mcp/tools/call",
       "prefix": "/api/research/internal"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/commit",
+      "declaredPath": "/commit",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/freeze",
+      "declaredPath": "/freeze",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/rollback",
+      "declaredPath": "/rollback",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/unfreeze",
+      "declaredPath": "/unfreeze",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/knowledge",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/knowledge/bases",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/bases",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/binding",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/binding",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/knowledge/evidence/{identifier}",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/evidence/{identifier}",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/knowledge/evidence/{identifier}/original/{sha}",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/evidence/{identifier}/original/{sha}",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/freeze",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/freeze",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/read",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/read",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/scopes",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/scopes",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/search",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/search",
+      "prefix": ""
     },
     {
       "method": "GET",
@@ -3794,6 +4538,83 @@
       "path": "/api/research/market",
       "source": "app/research_web/market_routes.py",
       "declaredPath": "",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/profiles",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/profiles",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/runs",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market-scores/runs",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/runs/{run_id}",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/analysis",
+      "declaredPath": "/analysis",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/indices/catalog",
+      "declaredPath": "/indices/catalog",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/portfolios",
+      "declaredPath": "/portfolios",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "POST",
+      "path": "/api/research/market/portfolios",
+      "declaredPath": "/portfolios",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "POST",
+      "path": "/api/research/market/portfolios/preview",
+      "declaredPath": "/portfolios/preview",
+      "prefix": "/api/research/market"
+    },
+    {
+      "source": "app/research_web/market_routes.py",
+      "method": "GET",
+      "path": "/api/research/market/portfolios/readiness",
+      "declaredPath": "/portfolios/readiness",
       "prefix": "/api/research/market"
     },
     {
@@ -4119,6 +4940,195 @@
       "prefix": "/api/research/operations"
     },
     {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/research/plugins",
+      "declaredPath": "",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/plugins/candidates/seek-alpha",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/candidates/seek-alpha",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/preview",
+      "declaredPath": "/preview",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "DELETE",
+      "path": "/api/research/plugins/{digest}",
+      "declaredPath": "/{digest}",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/research/plugins/{digest}",
+      "declaredPath": "/{digest}",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/disable",
+      "declaredPath": "/{digest}/disable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/enable",
+      "declaredPath": "/{digest}/enable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/research/plugins/{digest}/files/{name:path}",
+      "declaredPath": "/{digest}/files/{name:path}",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/approvals",
+      "declaredPath": "/{digest}/mcp/{key}/approvals",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/authorize",
+      "declaredPath": "/{digest}/mcp/{key}/authorize",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/classify",
+      "declaredPath": "/{digest}/mcp/{key}/classify",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-delete",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/credential-delete",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-save",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/credential-save",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-status",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/credential-status",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/decide",
+      "declaredPath": "/{digest}/mcp/{key}/decide",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/disable",
+      "declaredPath": "/{digest}/mcp/{key}/disable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/enable",
+      "declaredPath": "/{digest}/mcp/{key}/enable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-authorize",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-authorize",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-call",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-call",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-candidate",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-candidate",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-preview",
+      "source": "app/research_web/plugin_routes.py",
+      "declaredPath": "/{digest}/mcp/{key}/evaluation-preview",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/install",
+      "declaredPath": "/{digest}/mcp/{key}/install",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/preview",
+      "declaredPath": "/{digest}/mcp/{key}/preview",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/probe",
+      "declaredPath": "/{digest}/mcp/{key}/probe",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/review",
+      "declaredPath": "/{digest}/mcp/{key}/review",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/status",
+      "declaredPath": "/{digest}/mcp/{key}/status",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/review",
+      "declaredPath": "/{digest}/review",
+      "prefix": "/api/research/plugins"
+    },
+    {
       "method": "GET",
       "path": "/api/research/portfolio-decisions/readiness",
       "source": "app/research_web/portfolio_decisions/routes.py",
@@ -4365,13 +5375,6 @@
     },
     {
       "method": "POST",
-      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
-      "source": "app/research_web/report_workflow_routes.py",
-      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
       "path": "/api/research/report-workflows/{workflow_id}/copy",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}/copy",
@@ -4393,6 +5396,13 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/historical-acceptance-runs",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/historical-acceptance-runs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/report-workflows/{workflow_id}/resources",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}/resources",
@@ -4410,13 +5420,6 @@
       "path": "/api/research/report-workflows/{workflow_id}/runs",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}/runs",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/report-workflows/{workflow_id}/historical-acceptance-runs",
-      "source": "app/research_web/report_workflow_routes.py",
-      "declaredPath": "/report-workflows/{workflow_id}/historical-acceptance-runs",
       "prefix": "/api/research"
     },
     {
@@ -4483,6 +5486,13 @@
       "prefix": "/api/research"
     },
     {
+      "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
+      "prefix": "/api/research"
+    },
+    {
       "method": "GET",
       "path": "/api/research/resident",
       "source": "app/research_web/main.py",
@@ -4523,6 +5533,13 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/runtime/tabbit",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/scenarios",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/scenarios",
+      "prefix": "/api/research"
     },
     {
       "method": "GET",
@@ -4721,6 +5738,20 @@
       "prefix": ""
     },
     {
+      "method": "GET",
+      "path": "/api/research/sessions/{sid}/specialist",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/sessions/{sid}/specialist",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{sid}/specialist/resume",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/sessions/{sid}/specialist/resume",
+      "prefix": "/api/research"
+    },
+    {
       "method": "POST",
       "path": "/api/research/sessions/{sid}/tabbit-access",
       "source": "app/research_web/main.py",
@@ -4757,6 +5788,13 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/specialists",
+      "source": "app/research_web/specialists/routes.py",
+      "declaredPath": "/specialists",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/tools",
       "source": "app/research_web/capabilities/routes.py",
       "declaredPath": "/tools",
@@ -4778,6 +5816,20 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/watchlists/{watchlist_id}/imports/preview",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/watchlists/{watchlist_id}/imports/preview",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/watchlists/{watchlist_id}/imports/{import_id}/confirm",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/watchlists/{watchlist_id}/imports/{import_id}/confirm",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/watchlists/{watchlist_id}/items",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/watchlists/{watchlist_id}/items",
@@ -4795,6 +5847,61 @@
       "path": "/api/research/workspaces",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/workspaces",
+      "prefix": ""
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "DELETE",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "GET",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "HEAD",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PATCH",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "POST",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PUT",
+      "path": "/api/research/{path:path}",
+      "declaredPath": "/api/research/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/discovery-tracking-status",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/discovery-tracking-status",
       "prefix": ""
     },
     {
@@ -4824,6 +5931,90 @@
       "source": "app/research_web/multiuser/gateway.py",
       "declaredPath": "/api/server/me",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/plugins/candidate/seek-alpha",
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "declaredPath": "/candidate/seek-alpha",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/mcp/{digest}/{key}/{action}",
+      "declaredPath": "/mcp/{digest}/{key}/{action}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/server/plugins/reviews/pending",
+      "declaredPath": "/reviews/pending",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/reviews/{review_id}/approve",
+      "declaredPath": "/reviews/{review_id}/approve",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/runtime/refresh",
+      "declaredPath": "/runtime/refresh",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/server/plugins/{scope}",
+      "declaredPath": "/{scope}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/preview",
+      "declaredPath": "/{scope}/preview",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "DELETE",
+      "path": "/api/server/plugins/{scope}/{digest}",
+      "declaredPath": "/{scope}/{digest}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/{digest}/disable",
+      "declaredPath": "/{scope}/{digest}/disable",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/{digest}/enable",
+      "declaredPath": "/{scope}/{digest}/enable",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/server/plugins/{scope}/{digest}/files/{name:path}",
+      "declaredPath": "/{scope}/{digest}/files/{name:path}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/{digest}/review",
+      "declaredPath": "/{scope}/{digest}/review",
+      "prefix": "/api/server/plugins"
     },
     {
       "method": "GET",
@@ -4868,1027 +6059,64 @@
       "prefix": ""
     },
     {
-      "method": "POST",
-      "path": "/api/research/assets/observations/{observation_id}/history-jobs",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/history-jobs",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/observations/{observation_id}/history-jobs",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/history-jobs",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/observations/{observation_id}/history-jobs/{job_id}",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/history-jobs/{job_id}",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/assets/observations/{observation_id}/history-jobs/{job_id}/cancel",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/history-jobs/{job_id}/cancel",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/chart-preferences",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/chart-preferences",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/research/assets/chart-preferences",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/chart-preferences",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/data/warehouse",
-      "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/warehouse",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/data/warehouse",
-      "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/warehouse",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/data/sources/{source_id}/configuration/verify",
-      "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/sources/{source_id}/configuration/verify",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/search",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/search",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/assets/observations/{observation_id}/blocks/{block}/load",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/blocks/{block}/load",
-      "prefix": "/api/research"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "GET",
-      "path": "/api/research/plugins",
-      "declaredPath": "",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "GET",
-      "path": "/api/research/plugins/{digest}",
-      "declaredPath": "/{digest}",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "GET",
-      "path": "/api/research/plugins/{digest}/files/{name:path}",
-      "declaredPath": "/{digest}/files/{name:path}",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/preview",
-      "declaredPath": "/preview",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/review",
-      "declaredPath": "/{digest}/review",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/enable",
-      "declaredPath": "/{digest}/enable",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/disable",
-      "declaredPath": "/{digest}/disable",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
+      "source": "app/research_web/multiuser/gateway.py",
       "method": "DELETE",
-      "path": "/api/research/plugins/{digest}",
-      "declaredPath": "/{digest}",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/preview",
-      "declaredPath": "/{digest}/mcp/{key}/preview",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/install",
-      "declaredPath": "/{digest}/mcp/{key}/install",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/probe",
-      "declaredPath": "/{digest}/mcp/{key}/probe",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/review",
-      "declaredPath": "/{digest}/mcp/{key}/review",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/status",
-      "declaredPath": "/{digest}/mcp/{key}/status",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/enable",
-      "declaredPath": "/{digest}/mcp/{key}/enable",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/disable",
-      "declaredPath": "/{digest}/mcp/{key}/disable",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/classify",
-      "declaredPath": "/{digest}/mcp/{key}/classify",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/authorize",
-      "declaredPath": "/{digest}/mcp/{key}/authorize",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/approvals",
-      "declaredPath": "/{digest}/mcp/{key}/approvals",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/decide",
-      "declaredPath": "/{digest}/mcp/{key}/decide",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/mcp/{digest}/{key}/{action}",
-      "declaredPath": "/mcp/{digest}/{key}/{action}",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/runtime/refresh",
-      "declaredPath": "/runtime/refresh",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "GET",
-      "path": "/api/server/plugins/reviews/pending",
-      "declaredPath": "/reviews/pending",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/reviews/{review_id}/approve",
-      "declaredPath": "/reviews/{review_id}/approve",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "GET",
-      "path": "/api/server/plugins/{scope}",
-      "declaredPath": "/{scope}",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "GET",
-      "path": "/api/server/plugins/{scope}/{digest}/files/{name:path}",
-      "declaredPath": "/{scope}/{digest}/files/{name:path}",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/{scope}/preview",
-      "declaredPath": "/{scope}/preview",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/{scope}/{digest}/review",
-      "declaredPath": "/{scope}/{digest}/review",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/{scope}/{digest}/enable",
-      "declaredPath": "/{scope}/{digest}/enable",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "POST",
-      "path": "/api/server/plugins/{scope}/{digest}/disable",
-      "declaredPath": "/{scope}/{digest}/disable",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "method": "DELETE",
-      "path": "/api/server/plugins/{scope}/{digest}",
-      "declaredPath": "/{scope}/{digest}",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "source": "app/research_web/plugins/runtime_restart.py",
-      "method": "POST",
-      "path": "/api/research/internal/plugin-runtime/freeze",
-      "declaredPath": "/freeze",
-      "prefix": "/api/research/internal/plugin-runtime"
-    },
-    {
-      "source": "app/research_web/plugins/runtime_restart.py",
-      "method": "POST",
-      "path": "/api/research/internal/plugin-runtime/rollback",
-      "declaredPath": "/rollback",
-      "prefix": "/api/research/internal/plugin-runtime"
-    },
-    {
-      "source": "app/research_web/plugins/runtime_restart.py",
-      "method": "POST",
-      "path": "/api/research/internal/plugin-runtime/commit",
-      "declaredPath": "/commit",
-      "prefix": "/api/research/internal/plugin-runtime"
-    },
-    {
-      "source": "app/research_web/plugins/runtime_restart.py",
-      "method": "POST",
-      "path": "/api/research/internal/plugin-runtime/unfreeze",
-      "declaredPath": "/unfreeze",
-      "prefix": "/api/research/internal/plugin-runtime"
-    },
-    {
-      "source": "app/research_web/market_routes.py",
-      "method": "GET",
-      "path": "/api/research/market/indices/catalog",
-      "declaredPath": "/indices/catalog",
-      "prefix": "/api/research/market"
-    },
-    {
-      "source": "app/research_web/market_routes.py",
-      "method": "GET",
-      "path": "/api/research/market/analysis",
-      "declaredPath": "/analysis",
-      "prefix": "/api/research/market"
-    },
-    {
-      "source": "app/research_web/market_routes.py",
-      "method": "GET",
-      "path": "/api/research/market/portfolios",
-      "declaredPath": "/portfolios",
-      "prefix": "/api/research/market"
-    },
-    {
-      "source": "app/research_web/market_routes.py",
-      "method": "POST",
-      "path": "/api/research/market/portfolios/preview",
-      "declaredPath": "/portfolios/preview",
-      "prefix": "/api/research/market"
-    },
-    {
-      "source": "app/research_web/market_routes.py",
-      "method": "POST",
-      "path": "/api/research/market/portfolios",
-      "declaredPath": "/portfolios",
-      "prefix": "/api/research/market"
-    },
-    {
-      "source": "app/research_web/market_routes.py",
-      "method": "GET",
-      "path": "/api/research/market/portfolios/readiness",
-      "declaredPath": "/portfolios/readiness",
-      "prefix": "/api/research/market"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/feed",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/feed",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/discovery/prepare",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/prepare",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/handoffs",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/handoffs",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/requests/{request_id}",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/requests/{request_id}",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/handoffs/{handoff_id}",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/handoffs/{handoff_id}",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/discovery/handoffs/{handoff_id}/execute",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/handoffs/{handoff_id}/execute",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/tracks",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/tracks",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/discovery/tracks",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/tracks",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/discovery/tracks/{track_id}/enable",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/tracks/{track_id}/enable",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/discovery/tracks/{track_id}/disable",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/tracks/{track_id}/disable",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "GET",
-      "path": "/api/server/discovery-tracking-status",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/api/server/discovery-tracking-status",
-      "prefix": ""
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/selection",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/selection",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers/",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers/",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers/{did}",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/research/dossiers/{did}",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers/{did}/evidence",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/evidence",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers/{did}/evidence/{eid}",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/evidence/{eid}",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers/{did}/handoff",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/handoff",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers/{did}/links",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/links",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers/{did}/records",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/records",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers/{did}/timeline",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/timeline",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/dossiers/{dossier_id}/scan",
-      "source": "app/research_web/dossier_signal_routes.py",
-      "declaredPath": "/{dossier_id}/scan",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/research/dossiers/{dossier_id}/tracking",
-      "source": "app/research_web/dossier_signal_routes.py",
-      "declaredPath": "/{dossier_id}/tracking",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers/signals",
-      "source": "app/research_web/dossier_signal_routes.py",
-      "declaredPath": "/signals",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-delete",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/credential-delete",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-save",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/credential-save",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/credential-status",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/credential-status",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-authorize",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/evaluation-authorize",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-call",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/evaluation-call",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-candidate",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/evaluation-candidate",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/plugins/{digest}/mcp/{key}/evaluation-preview",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/{digest}/mcp/{key}/evaluation-preview",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/plugins/candidates/seek-alpha",
-      "source": "app/research_web/plugin_routes.py",
-      "declaredPath": "/candidates/seek-alpha",
-      "prefix": "/api/research/plugins"
-    },
-    {
-      "method": "GET",
-      "path": "/api/server/plugins/candidate/seek-alpha",
-      "source": "app/research_web/multiuser/plugin_routes.py",
-      "declaredPath": "/candidate/seek-alpha",
-      "prefix": "/api/server/plugins"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/dossiers/{did}/links/{lid}",
-      "source": "app/research_web/dossiers/routes.py",
-      "declaredPath": "/{did}/links/{lid}",
-      "prefix": "/api/research/dossiers"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/discovery/association",
-      "source": "app/research_web/discovery/routes.py",
-      "declaredPath": "/association",
-      "prefix": "/api/research/discovery"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/assets/observations/{observation_id}/intraday",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/intraday",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/assets/observations/{observation_id}/minute-bars",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/assets/observations/{observation_id}/minute-bars",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/research/catalog",
-      "source": "app/research_web/asset_research.py",
-      "declaredPath": "/catalog",
-      "prefix": "/api/research/assets/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/research/evidence/{source_session_id}",
-      "source": "app/research_web/asset_research.py",
-      "declaredPath": "/evidence/{source_session_id}",
-      "prefix": "/api/research/assets/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/assets/research/import/{observation_id}",
-      "source": "app/research_web/asset_research.py",
-      "declaredPath": "/import/{observation_id}",
-      "prefix": "/api/research/assets/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/assets/research/preview",
-      "source": "app/research_web/asset_research.py",
-      "declaredPath": "/preview",
-      "prefix": "/api/research/assets/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/assets/research/template/{observation_id}",
-      "source": "app/research_web/asset_research.py",
-      "declaredPath": "/template/{observation_id}",
-      "prefix": "/api/research/assets/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/handoff-requests/{request_key}",
-      "source": "app/research_web/workbench.py",
-      "declaredPath": "/handoff-requests/{request_key}",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/scenarios",
-      "source": "app/research_web/workbench.py",
-      "declaredPath": "/scenarios",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/watchlists/{watchlist_id}/imports/preview",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/watchlists/{watchlist_id}/imports/preview",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/watchlists/{watchlist_id}/imports/{import_id}/confirm",
-      "source": "app/research_web/asset_routes.py",
-      "declaredPath": "/watchlists/{watchlist_id}/imports/{import_id}/confirm",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/specialists",
-      "source": "app/research_web/specialists/routes.py",
-      "declaredPath": "/specialists",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/sessions/{sid}/specialist",
-      "source": "app/research_web/specialists/routes.py",
-      "declaredPath": "/sessions/{sid}/specialist",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/sessions/{sid}/specialist/resume",
-      "source": "app/research_web/specialists/routes.py",
-      "declaredPath": "/sessions/{sid}/specialist/resume",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/internal/data/specialist-control",
-      "source": "app/research_web/specialists/routes.py",
-      "declaredPath": "/internal/data/specialist-control",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/timeline",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/timeline",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/coverage",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/coverage",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/sources",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/sources",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/jobs",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/jobs",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/sources/refresh",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/sources/refresh",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/sources/backfill",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/sources/backfill",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/sources/{source}/schedule",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/sources/{source}/schedule",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/decisions",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/decisions",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/freeze",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/freeze",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/merge",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/merge",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/frozen/{identifier}",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/frozen/{identifier}",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/{identifier}",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/{identifier}",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/events/{identifier}/versions",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/{identifier}/versions",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/research/events/{identifier}",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/{identifier}",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/events/{identifier}/split",
-      "source": "app/research_web/event_timeline/routes.py",
-      "declaredPath": "/{identifier}/split",
-      "prefix": "/api/research/events"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/validation-batches",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/validation-batches",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/validation-batches/{batch_id}/evaluate",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/validation-batches/{batch_id}/evaluate",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies/runs/{run_id}",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/runs/{run_id}",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies/runs/{run_id}/export",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/runs/{run_id}/export",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies/{study_id}",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/{study_id}",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies/{study_id}/preflight",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/{study_id}/preflight",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies/{study_id}/runs",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/{study_id}/runs",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/{study_id}/analyze",
-      "source": "app/research_web/event_studies/routes.py",
-      "declaredPath": "/{study_id}/analyze",
-      "prefix": "/api/research/event-studies"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/market-scores",
-      "source": "app/research_web/market_scoring/routes.py",
-      "declaredPath": "",
-      "prefix": "/api/research/market-scores"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/market-scores/profiles",
-      "source": "app/research_web/market_scoring/routes.py",
-      "declaredPath": "/profiles",
-      "prefix": "/api/research/market-scores"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/market-scores/runs",
-      "source": "app/research_web/market_scoring/routes.py",
-      "declaredPath": "/runs",
-      "prefix": "/api/research/market-scores"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/market-scores/runs",
-      "source": "app/research_web/market_scoring/routes.py",
-      "declaredPath": "/runs",
-      "prefix": "/api/research/market-scores"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/market-scores/runs/{run_id}",
-      "source": "app/research_web/market_scoring/routes.py",
-      "declaredPath": "/runs/{run_id}",
-      "prefix": "/api/research/market-scores"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/sources/calendar",
-      "source": "app/research_web/event_datahub_bridge.py",
-      "declaredPath": "/calendar",
-      "prefix": "/api/research/event-studies/sources"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/sources/native",
-      "source": "app/research_web/event_datahub_bridge.py",
-      "declaredPath": "/native",
-      "prefix": "/api/research/event-studies/sources"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/event-studies/sources/choices",
-      "source": "app/research_web/event_datahub_bridge.py",
-      "declaredPath": "/choices",
-      "prefix": "/api/research/event-studies/sources"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/sources/link",
-      "source": "app/research_web/event_datahub_bridge.py",
-      "declaredPath": "/link",
-      "prefix": "/api/research/event-studies/sources"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/event-studies/sources",
-      "source": "app/research_web/event_datahub_bridge.py",
-      "declaredPath": "",
-      "prefix": "/api/research/event-studies/sources"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "GET",
-      "path": "/{path:path}",
-      "declaredPath": "/{path:path}",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
       "prefix": "",
-      "condition": "mcp-disabled"
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "GET",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "HEAD",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "PATCH",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
+      "prefix": "",
+      "condition": "mcp-enabled"
     },
     {
       "source": "app/research_web/multiuser/gateway.py",
       "method": "POST",
-      "path": "/{path:path}",
-      "declaredPath": "/{path:path}",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
       "prefix": "",
-      "condition": "mcp-disabled"
+      "condition": "mcp-enabled"
     },
     {
       "source": "app/research_web/multiuser/gateway.py",
       "method": "PUT",
-      "path": "/{path:path}",
-      "declaredPath": "/{path:path}",
+      "path": "/frameworks-embed/{path:path}",
+      "declaredPath": "/frameworks-embed/{path:path}",
       "prefix": "",
-      "condition": "mcp-disabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "PATCH",
-      "path": "/{path:path}",
-      "declaredPath": "/{path:path}",
-      "prefix": "",
-      "condition": "mcp-disabled"
+      "condition": "mcp-enabled"
     },
     {
       "source": "app/research_web/multiuser/gateway.py",
       "method": "DELETE",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
+      "prefix": "",
+      "condition": "mcp-disabled"
+    },
+    {
+      "source": "app/research_web/multiuser/gateway.py",
+      "method": "GET",
       "path": "/{path:path}",
       "declaredPath": "/{path:path}",
       "prefix": "",
@@ -5904,106 +6132,34 @@
     },
     {
       "source": "app/research_web/multiuser/gateway.py",
-      "method": "GET",
-      "path": "/api/research/{path:path}",
-      "declaredPath": "/api/research/{path:path}",
+      "method": "PATCH",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
       "prefix": "",
-      "condition": "mcp-enabled"
+      "condition": "mcp-disabled"
     },
     {
       "source": "app/research_web/multiuser/gateway.py",
       "method": "POST",
-      "path": "/api/research/{path:path}",
-      "declaredPath": "/api/research/{path:path}",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
       "prefix": "",
-      "condition": "mcp-enabled"
+      "condition": "mcp-disabled"
     },
     {
       "source": "app/research_web/multiuser/gateway.py",
       "method": "PUT",
-      "path": "/api/research/{path:path}",
-      "declaredPath": "/api/research/{path:path}",
+      "path": "/{path:path}",
+      "declaredPath": "/{path:path}",
       "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "PATCH",
-      "path": "/api/research/{path:path}",
-      "declaredPath": "/api/research/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "DELETE",
-      "path": "/api/research/{path:path}",
-      "declaredPath": "/api/research/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "HEAD",
-      "path": "/api/research/{path:path}",
-      "declaredPath": "/api/research/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "GET",
-      "path": "/frameworks-embed/{path:path}",
-      "declaredPath": "/frameworks-embed/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "POST",
-      "path": "/frameworks-embed/{path:path}",
-      "declaredPath": "/frameworks-embed/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "PUT",
-      "path": "/frameworks-embed/{path:path}",
-      "declaredPath": "/frameworks-embed/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "PATCH",
-      "path": "/frameworks-embed/{path:path}",
-      "declaredPath": "/frameworks-embed/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "DELETE",
-      "path": "/frameworks-embed/{path:path}",
-      "declaredPath": "/frameworks-embed/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
-    },
-    {
-      "source": "app/research_web/multiuser/gateway.py",
-      "method": "HEAD",
-      "path": "/frameworks-embed/{path:path}",
-      "declaredPath": "/frameworks-embed/{path:path}",
-      "prefix": "",
-      "condition": "mcp-enabled"
+      "condition": "mcp-disabled"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "8b31439d46dc0b1329fa238153183e02dacbc055"
+      "revision": "26e730cbf73d2edcce753d7f84c4f49cf68ec68c"
     },
     "levels": [
       {
@@ -6262,6 +6418,16 @@
         "category": "事件与日历研究",
         "diagrams": [
           "14-event-research"
+        ]
+      },
+      {
+        "id": "knowledge-backend",
+        "group": "knowledge-backend",
+        "title": "研究资料与证据",
+        "summary": "可选WeKnora用户认证、原文检索及独立冻结；UI零生成、真实服务与报告接入仍待验收。",
+        "category": "研究资料与证据",
+        "diagrams": [
+          "04-data-file-flow"
         ]
       }
     ],

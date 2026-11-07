@@ -399,6 +399,12 @@ class RuntimePool:
             "RESEARCH_AUTOMATIONS_ENABLED": "0",
             "RWB_DISCOVERY_TRACKING_ENABLED": "1",
             "RESEARCH_MCP_RUNTIME_ENABLED": "1",
+            # Non-secret, operator-owned fixed origin; user requests cannot select endpoints.
+            **(
+                {"RESEARCH_WEKNORA_ORIGIN": os.environ["RESEARCH_WEKNORA_ORIGIN"]}
+                if os.environ.get("RESEARCH_WEKNORA_ORIGIN")
+                else {}
+            ),
         }
 
     def _has_enabled_discovery(self, user_id: str) -> bool:

@@ -5352,7 +5352,7 @@ def test_market_live_v2_profile_freezes_accepted_resident_and_intent_fix():
         upgrade.previous_for(upgrade.MARKET_LIVE_V2_MODE)
         == "a76ecfdfb1b1b7a35c508d15ccf16222ed20423c"
     )
-    assert upgrade.MARKET_LIVE_V2_PAYLOAD == "974628a808627a68d732f8d620c4b34ae10a9b3e"
+    assert upgrade.MARKET_LIVE_V2_PAYLOAD == "15c24b7ec59685735f8af75b8e9f5dc86830d694"
     assert upgrade.MARKET_LIVE_V2_WEB_LOCK_SHA256 == upgrade.MARKET_LIVE_WEB_LOCK_SHA256
     assert upgrade.MARKET_LIVE_V2_EVIDENCE_SHA256 == upgrade.MARKET_LIVE_EVIDENCE_SHA256
     assert upgrade.MARKET_LIVE_V2_MODE in upgrade.ASSET_MODES

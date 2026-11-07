@@ -949,7 +949,7 @@ function refreshFeatureRecord(repository, receipt, options) {
 }
 // This admission contract is deliberately closed and versioned independently of
 // published refresh: new shared-controller metadata requires explicit review.
-const AMEND_RECEIPT_FIELDS_V1 = ['schemaVersion','taskId','repositoryRoot','remote','remoteUrl','defaultBranch','baseCommit','featureBranch','featureWorktree','featureCommit','integrationBranch','integrationWorktree','integrationCommit','integrationHistory','mergeSourceCommit','remoteCommit','mode','pullRequest','verification','ci','repairAttempts','rollback','cleanup','status','createdAt','updatedAt','baseRefreshPublishedHead','review','preparedAmendment','preparedAmendmentHistory'];
+const AMEND_RECEIPT_FIELDS_V1 = ['schemaVersion','taskId','repositoryRoot','remote','remoteUrl','defaultBranch','baseCommit','featureBranch','featureWorktree','featureCommit','integrationBranch','integrationWorktree','integrationCommit','integrationHistory','mergeSourceCommit','remoteCommit','mode','pullRequest','verification','ci','repairAttempts','rollback','cleanup','status','createdAt','updatedAt','baseRefreshPublishedHead','review','preparedAmendment','preparedAmendmentHistory','mergeFailure'];
 const AMEND_PROOF_FIELDS_V1 = ['schemaVersion','epoch','previousCandidate','previousFeature','candidateCommit','featureCommit','baseCommit','receiptSnapshot','receiptSha256','backupDirectory','backupManifestSha256','restoreVerified'];
 const AMEND_PROOF_FIELDS_V2 = [...AMEND_PROOF_FIELDS_V1,'mergeChain'];
 const AMEND_CHAIN_LIMIT = 32, AMEND_COMMIT_BYTES = 64*1024, AMEND_CHAIN_BYTES = 256*1024;
@@ -957,8 +957,16 @@ function exactFields(value, fields, required = fields) {
   return value && typeof value==='object' && !Array.isArray(value) && Object.keys(value).every(key=>fields.includes(key)) && required.every(key=>Object.hasOwn(value,key));
 }
 function validateAmendReceipt(receipt) {
+  const diagnostic=receipt.mergeFailure;
+  const emptyHash=crypto.createHash('sha256').update('').digest('hex');
+  const recoveredConflict=!Object.hasOwn(receipt,'mergeFailure') || (
+    exactFields(diagnostic,['classification','exitStatus','signal','errorCode','stderrBytes','stderrSha256']) &&
+    diagnostic.classification==='merge_conflict' && Number.isInteger(diagnostic.exitStatus) && diagnostic.exitStatus>0 && diagnostic.exitStatus<=255 &&
+    diagnostic.signal===null && diagnostic.errorCode===null && Number.isSafeInteger(diagnostic.stderrBytes) && diagnostic.stderrBytes>=0 && diagnostic.stderrBytes<=4*1024*1024 &&
+    typeof diagnostic.stderrSha256==='string' && /^[a-f0-9]{64}$/.test(diagnostic.stderrSha256) && (diagnostic.stderrBytes===0)===(diagnostic.stderrSha256===emptyHash)
+  );
   const verification=receipt.verification;
-  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) ||
+  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) || !recoveredConflict ||
       receipt.status!=='prepared' || receipt.mode!==null || receipt.pullRequest!==null || receipt.remoteCommit!==null ||
       Object.hasOwn(receipt,'mergeSourceCommit') && receipt.mergeSourceCommit!==receipt.featureCommit ||
       Object.hasOwn(receipt,'baseRefreshPublishedHead') && receipt.baseRefreshPublishedHead!==null ||

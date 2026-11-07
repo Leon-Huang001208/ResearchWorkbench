@@ -9,6 +9,8 @@ from pathlib import Path
 
 from core.observability import get_logger
 
+from ..store import StoreError
+
 log = get_logger(__name__)
 
 
@@ -31,10 +33,14 @@ def snapshot(root: Path, *, create_dossier_lock: bool = True) -> dict:
             raise TypeError("preservation_index_invalid")
         files = {}
         from ..dossier_preservation import snapshot_dossiers
+        from ..knowledge_backend.storage import KnowledgeStore
 
         dossiers = snapshot_dossiers(root, create_lock=create_dossier_lock)
         if dossiers is not None:
             files.update(dossiers["files"])
+        knowledge = KnowledgeStore(root).preservation(create_lock=create_dossier_lock)
+        if knowledge is not None:
+            files.update(knowledge["files"])
         folders = [root / "sessions", root / "runtime/home/sessions"]
         if dossiers is not None:
             # Pinned public material and its private originals form one proof.
@@ -73,7 +79,7 @@ def snapshot(root: Path, *, create_dossier_lock: bool = True) -> dict:
             "models_hash": _digest(models),
             "files": files,
         }
-    except (OSError, ValueError, TypeError, RuntimeError) as exc:
+    except (OSError, ValueError, TypeError, RuntimeError, StoreError) as exc:
         log.error("multiuser_preservation_snapshot_failed", error_type=type(exc).__name__)
         raise RuntimeError("preservation_snapshot_failed") from exc
 
