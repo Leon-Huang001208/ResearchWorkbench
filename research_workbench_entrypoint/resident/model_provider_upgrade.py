@@ -151,6 +151,7 @@ MARKET_LIVE_V2_PREVIOUS = "a76ecfdfb1b1b7a35c508d15ccf16222ed20423c"
 MARKET_LIVE_V2_PAYLOAD = "cd09e2af70544abc4270c676b58e7f8cc2651773"
 MARKET_LIVE_V2_WEB_LOCK_SHA256 = MARKET_LIVE_WEB_LOCK_SHA256
 MARKET_LIVE_V2_EVIDENCE_SHA256 = MARKET_LIVE_EVIDENCE_SHA256
+MARKET_LIVE_V2_GIT_SWITCH_TIMEOUT = 120
 EVENT_SAFETY_MODES = frozenset(
     {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}
 )
@@ -2221,7 +2222,47 @@ class Operations:
             if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
-            c.git(p, "switch", "--detach", sha)
+            if self.state.get("mode") == MARKET_LIVE_V2_MODE:
+                started = time.monotonic()
+                log.info(
+                    "market_live_git_switch_started role=%s restoring=%s timeout_s=%d",
+                    role,
+                    previous,
+                    MARKET_LIVE_V2_GIT_SWITCH_TIMEOUT,
+                )
+                try:
+                    c.run(
+                        [
+                            "/usr/bin/git",
+                            "-c",
+                            "gc.auto=0",
+                            "-c",
+                            "maintenance.auto=false",
+                            "switch",
+                            "--detach",
+                            sha,
+                        ],
+                        cwd=p,
+                        timeout=MARKET_LIVE_V2_GIT_SWITCH_TIMEOUT,
+                    )
+                    c.clean(p, sha)
+                except UpdateBlocked as exc:
+                    log.error(
+                        "market_live_git_switch_failed role=%s restoring=%s elapsed_ms=%d code=%s",
+                        role,
+                        previous,
+                        int((time.monotonic() - started) * 1000),
+                        str(exc),
+                    )
+                    raise
+                log.info(
+                    "market_live_git_switch_completed role=%s restoring=%s elapsed_ms=%d",
+                    role,
+                    previous,
+                    int((time.monotonic() - started) * 1000),
+                )
+            else:
+                c.git(p, "switch", "--detach", sha)
         wheel = self.state["old_wheel" if previous else "new_wheel"]
         c.run(
             [
