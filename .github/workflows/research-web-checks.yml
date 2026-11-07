@@ -132,7 +132,9 @@ jobs:
             tests/research_web/test_event_timeline_relevance.py \
             tests/research_web/test_event_timeline_scheduler.py \
             tests/research_web/test_event_timeline_storage.py \
+            tests/research_web/test_market_daily_sources.py \
             tests/research_web/test_market_scoring.py \
+            tests/research_web/test_market_daily_scores.py \
             tests/research_web/test_market_scoring_native_inputs.py \
             tests/research_web/test_market_scoring_native_matrix.py \
             tests/research_web/test_market_scoring_native_temporal.py \

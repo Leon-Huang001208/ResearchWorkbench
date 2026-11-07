@@ -4,7 +4,7 @@ import { createAPI, parseRoute } from '../../app/research_web/ui/core.mjs';
 import { renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
 import { createMarketDashboard, createMarketWorkspace, renderMarketWorkspace } from '../../app/research_web/ui/market-dashboard.mjs';
 import { dashboardPage } from '../../app/research_web/ui/market-dashboard-view.mjs';
-import { closedBars, indexQuote, scoreProjection, timelineRange, eventLane, timelineTicks, eventSourceDetails, eventPointDate } from '../../app/research_web/ui/market-dashboard-model.mjs';
+import { closedBars, indexQuote, scoreProjection, timelineRange, eventLane, timelineTicks, eventSourceDetails, eventPointDate, exchangeClosure, closeSeries, eventDays, eventsOnDay, AXIS_LABELS } from '../../app/research_web/ui/market-dashboard-model.mjs';
 
 const now = () => new Date('2026-11-06T12:00:00Z');
 const bar = (date, close) => ({ date, timestamp: `${date}T16:00:00Z`, open: close - 1, high: close + 2, low: close - 2, close, volume: 100 });
@@ -12,7 +12,7 @@ const row = { index_id: 'SSE', market: 'CN', name: '上证综指', price: 4000, 
 const result = { version: 'market-six-axis-v1', index_id: 'SSE', as_of: '2026-11-04', research_score: 72, effective_score: null, total_score: null, formal_score_enabled: false, production_enabled: false, activation_status: 'NOT_ACTIVATED', axes: { trend: { score: 85, status: 'available' } } };
 function mockAPI(overrides = {}) {
   const calls = [];
-  return { calls, async request(path, options = {}) { calls.push({ path, options }); if (overrides[path]) return overrides[path](options); if (path === '/market') return { sections: { 'indices:global-v1': { rows: [row], stale: true } } }; if (path === '/market-scores/profiles') return { items: [] }; if (path.startsWith('/market-scores/runs?')) return { historical_only: true, items: [{ id: 'saved', payload: { request: { index_id: 'SSE' }, result: { research_score: 99 } } }] }; if (path === '/market-scores/runs/saved') return { id: 'saved', current_eligibility: result, payload: { result: { research_score: 99 } } }; if (path.startsWith('/events/timeline?')) return { items: [], next_cursor: null }; throw new Error(`unexpected ${path}`); } };
+  return { calls, async request(path, options = {}) { calls.push({ path, options }); if (overrides[path]) return overrides[path](options); if (path === '/market') return { sections: { 'indices:global-v1': { rows: [row], stale: true } } }; if (['/market-scores/profiles','/market-scores/initial-evidence','/events/coverage'].includes(path)) return { items: [] }; if (path.startsWith('/market-scores/runs?')) return { historical_only: true, items: [{ id: 'saved', payload: { request: { index_id: 'SSE' }, result: { research_score: 99 } } }] }; if (path === '/market-scores/runs/saved') return { id: 'saved', current_eligibility: result, payload: { result: { research_score: 99 } } }; if (path.startsWith('/events/timeline?')) return { items: [], next_cursor: null }; throw new Error(`unexpected ${path}`); } };
 }
 const click = dataset => ({ preventDefault() {}, target: { closest: () => ({ dataset }) } });
 
@@ -63,7 +63,7 @@ test('scores never promote list/original results, alternate engines, missing axe
   assert.equal(scoreProjection({ payload: { result } }, row).value, null);
   assert.equal(scoreProjection({ current_eligibility: { ...result, version: 'market-observed-v1' } }, row).value, null);
   const research = scoreProjection({ current_eligibility: result }, row);
-  assert.equal(research.value, 72); assert.equal(research.historical, true); assert.deepEqual(research.axes.breadth, {});
+  assert.equal(research.value, null); assert.equal(research.historical, true); assert.deepEqual(research.axes.breadth, {});
   assert.equal(scoreProjection({ current_eligibility: result }, row, 'formal').value, null);
   assert.equal(scoreProjection({ current_eligibility: result }, row, 'research', '2026-11-03').value, null);
 });
@@ -122,7 +122,7 @@ test('timeline distinguishes continuous events, scenarios and calendar effects; 
 });
 
 test('auto selects formal only on current server activation and preserves explicit research choice', () => {
-  const current = { ...result, as_of: row.quote_trade_date, formal_score_enabled: true, production_enabled: true, activation_status: 'ACTIVATED', effective_score: 70 };
+  const current = { ...result, axes: Object.fromEntries(Object.keys(AXIS_LABELS).map(key => [key, { score: 72 }])), as_of: row.quote_trade_date, formal_score_enabled: true, production_enabled: true, activation_status: 'ACTIVATED', effective_score: 70 };
   assert.equal(scoreProjection({ current_eligibility: current }, row).mode, 'formal');
   assert.equal(scoreProjection({ current_eligibility: current }, row).value, 70);
   assert.equal(scoreProjection({ current_eligibility: current }, row, 'research').value, 72);
@@ -256,7 +256,7 @@ test('filter first-page pending invalidates old cursor and rejects more until th
   const dashboard = createMarketDashboard({ api, now }); await dashboard.activate();
   const us = dashboard.handleChange({ target: { dataset: { mdFilter: 'market' }, value: 'US' } });
   assert.equal(dashboard.state.nextCursor, ''); assert.deepEqual(dashboard.state.events, []);
-  await dashboard.handleClick(click({ mdAction: 'more' })); assert.equal(reads.length, 2);
+  await dashboard.handleClick(click({ mdAction: 'more' })); assert.equal(reads.length, 3);
   const hk = dashboard.handleChange({ target: { dataset: { mdFilter: 'market' }, value: 'HK' } });
   pending[1]({ items: [{ id: 'hk', payload: { markets: ['HK'] } }], next_cursor: 'hk-next' }); await hk;
   pending[0]({ items: [{ id: 'us', payload: { markets: ['US'] } }], next_cursor: 'us-next' }); await us;
@@ -279,4 +279,61 @@ test('confirmed reader cancellation retires its idempotency intent before return
   assert.equal(polling, true); dashboard.cancel(); await first;
   await dashboard.activate(); await dashboard.refresh();
   assert.deepEqual(keys, ['cancellation-key-1', 'cancellation-key-2']); dashboard.cancel();
+});
+
+test('daily axis includes every date; a day without a closed bar has no replay quote', () => {
+  const dates = timelineTicks(timelineRange('month', now()));
+  assert.equal(dates.length, 61);
+  assert.equal(dates[1].date, '2026-10-08');
+  assert.equal(dates[30].date, '2026-11-06');
+  assert.equal(indexQuote(row, '2026-11-06').price, null);
+  assert.equal(indexQuote(row, '2026-11-06').quote_trade_date, '');
+});
+
+test('selecting a date only navigates events; replay is explicit and cannot use future dates', async () => {
+  const dashboard = createMarketDashboard({ api: mockAPI(), now });
+  await dashboard.activate();
+  await dashboard.handleClick(click({ mdAction: 'day', date: '2026-11-04' }));
+  assert.equal(dashboard.state.selectedDate, '2026-11-04');
+  assert.equal(dashboard.state.replay, '');
+  await dashboard.handleClick(click({ mdAction: 'view-day' }));
+  assert.equal(dashboard.state.replay, '2026-11-04');
+  await dashboard.handleClick(click({ mdAction: 'exit-replay' }));
+  assert.equal(dashboard.state.selectedDate, '2026-11-04');
+  await dashboard.handleClick(click({ mdAction: 'day', date: '2026-11-09' }));
+  await dashboard.handleClick(click({ mdAction: 'view-day' }));
+  assert.equal(dashboard.state.replay, '');
+  dashboard.cancel();
+});
+
+test('venue calendar is attributed, never hides actual closes or qualifies gaps on other venues', async () => {
+  const date = '2026-11-04';
+  const closure = { id: 'sse-holiday', payload: { title: '上交所公告休市', category: 'calendar', markets: ['CN'], calendar_status: 'closed', occurrence_start: date, source: 'sse_trading_calendar' } };
+  const bars = [bar('2026-11-03', 3000), bar('2026-11-05', 3050)];
+  assert.equal(exchangeClosure([closure], { index_id: 'SSE' }, date), closure);
+  assert.equal(exchangeClosure([closure], { index_id: 'CHINEXT' }, date), null);
+  assert.equal(exchangeClosure([{ ...closure, payload: { ...closure.payload, admission: 'rejected' } }], row, date), null);
+  assert.equal(closeSeries(bars, row, [closure]).breaks.size, 0);
+  assert.deepEqual([...closeSeries(bars, { index_id: 'CHINEXT', market: 'CN' }, [closure]).breaks], [1]);
+  assert.deepEqual([...closeSeries(bars, { ...row, gaps: [{ date }] }, [closure]).breaks], [1]);
+  const dashboard = createMarketDashboard({ api: mockAPI(), now });
+  await dashboard.activate();
+  dashboard.state.replay = date;
+  dashboard.state.replayCalendar = [closure];
+  dashboard.state.sources = [{ id: 'sse_trading_calendar', label: '上交所', url: 'https://www.sse.com.cn/' }];
+  const html = dashboardPage(dashboard.state);
+  assert.match(html, /3,030\.00/);
+  assert.match(html, /上交所：休市 · 与日线记录存在差异，保留实际来源点位/);
+  dashboard.state.selected.CN = 'CHINEXT';
+  assert.doesNotMatch(dashboardPage(dashboard.state), /官方日历：所选日期休市/);
+  dashboard.cancel();
+});
+
+test('precise interval endpoints appear on inclusive days but never fabricate a point marker', () => {
+  const record = { id: 'interval-1', payload: { date_precision: 'interval', occurrence_start: '2026-11-04', occurrence_end: '2026-11-06', category: 'policy', lifecycle: 'ongoing' } };
+  assert.equal(eventPointDate(record), null);
+  assert.deepEqual(eventDays(record), { start: '2026-11-04', end: '2026-11-06' });
+  assert.deepEqual(eventsOnDay([record], '2026-11-05'), [record]);
+  assert.deepEqual(eventsOnDay([record], '2026-11-06'), [record]);
+  assert.deepEqual(eventsOnDay([record], '2026-11-07'), []);
 });

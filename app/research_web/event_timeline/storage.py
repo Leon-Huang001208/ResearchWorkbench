@@ -31,6 +31,7 @@ KINDS = frozenset(
         "study",
         "admission",
         "score",
+        "market_daily_evidence",
         "protocol",
         "calendar",
         "trial",
