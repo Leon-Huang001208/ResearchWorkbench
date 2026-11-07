@@ -6490,6 +6490,10 @@ Classes:
 - `TimelineService`
   - methods: __init__, active, close, archive_evidence, read_evidence, _request, create, detail, revise, _selected, decide, freeze, merge, split, timeline, source_catalog, coverage, schedule, _process_source, refresh
 
+Functions:
+- `_manual_event`
+  - A human-edited event cannot inherit an exact exchange schedule assertion.
+
 
 ## `app/research_web/event_timeline/evidence.py`
 
@@ -6509,6 +6513,64 @@ Imports:
 Classes:
 - `EvidenceArchive`
   - methods: __init__, archive, read
+
+
+## `app/research_web/event_timeline/exchange_calendars.py`
+
+Module docstring:
+> Fixed exchange publications; dates are announced exceptions, not a PIT calendar.
+
+Imports:
+- `bs4`
+- `calendar`
+- `datetime`
+- `io`
+- `json`
+- `re`
+
+Functions:
+- `_record`
+- `_sse`
+- `_english_date`
+- `_nyse`
+- `_hkex_pdf`
+- `_hkex_html`
+- `parse_calendar`
+
+
+## `app/research_web/event_timeline/initial_batch.py`
+
+Module docstring:
+> Explicit one-shot import of fixed official sources; never arms a collector.
+
+Imports:
+- `asyncio`
+- `calendar`
+- `core.observability`
+- `datetime`
+- `exchange_calendars`
+- `hashlib`
+- `research_workbench_entrypoint.resident.admission`
+- `storage`
+- `store`
+- `time`
+- `uuid`
+- `zoneinfo`
+
+Functions:
+- `date_window`
+- `overlapping`
+- `_schedules_enabled`
+- `_item`
+- `_failure`
+- `preview`
+  - Read the actual official documents without an archive, job or store write.
+- `_public`
+- `_checkpoint`
+- `_save_gap`
+- `_ingest`
+- `execute`
+  - Replay completed or unknown requests by key; a fresh intent can re-fetch.
 
 
 ## `app/research_web/event_timeline/models.py`
@@ -6535,6 +6597,8 @@ Classes:
 - `Merge`
 - `Split`
 - `Refresh`
+- `InitialSourceRefresh`
+  - Server-side fixed batch; not a public arbitrary-source input.
 - `Schedule`
 
 
@@ -6597,6 +6661,8 @@ Functions:
 - `coverage`
 - `catalog`
 - `jobs`
+- `preview_initial_batch`
+- `run_initial_batch`
 - `refresh`
 - `schedule`
 - `create`
@@ -6640,6 +6706,7 @@ Imports:
 - `core.observability`
 - `csv`
 - `datetime`
+- `exchange_calendars`
 - `html.parser`
 - `httpx`
 - `io`
@@ -8302,6 +8369,50 @@ Functions:
   - Compile a trusted frozen series for evaluation; never enables a live score.
 
 
+## `app/research_web/market_scoring/initial_evidence.py`
+
+Module docstring:
+> Explicit, account-owned observations for the three default dashboard indices.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datahub.providers_global_indices`
+- `datetime`
+- `engine`
+- `httpx`
+- `itertools`
+- `json`
+- `market_indices`
+- `math`
+- `profiles`
+- `statistics`
+- `store`
+- `threading`
+- `urllib.parse`
+- `zoneinfo`
+
+Functions:
+- `source_url`
+- `_parse_eastmoney`
+- `_closed_bars`
+- `_axis`
+- `_empty`
+- `_observation`
+- `_fetch`
+- `_collect_one`
+- `collect`
+- `_metadata`
+- `_project`
+- `read_initial`
+- `_cached`
+- `_attempt_current_runs`
+  - Only existing, current-day registered inputs may reach the v1 engine.
+- `_persist`
+- `collect_initial`
+
+
 ## `app/research_web/market_scoring/matrix.py`
 
 Module docstring:
@@ -8380,15 +8491,23 @@ Module docstring:
 Imports:
 - `core.observability`
 - `fastapi`
+- `initial_evidence`
 - `pydantic`
 - `starlette.concurrency`
+- `store`
 - `typing`
 
 Classes:
 - `RunRequest`
+- `InitialEvidencePreview`
+- `InitialEvidenceRequest`
 
 Functions:
 - `tracked`
+- `_initial_action`
+- `initial_evidence`
+- `preview_initial_evidence`
+- `save_initial_evidence`
 - `overview`
 - `profiles`
 - `runs`
@@ -8417,7 +8536,7 @@ Imports:
 
 Classes:
 - `ScoreService`
-  - methods: __init__, records, profiles, register_inputs, _bundle, _source_receipts, _validation, _context, _overlay, _public_result, _compute, create, get, list, preview
+  - methods: __init__, records, profiles, register_inputs, _bundle, _source_receipts, _validation, _context, _overlay, _public_result, _compute, run_initial_if_qualified, create, get, list, preview
 
 Functions:
 - `_error`

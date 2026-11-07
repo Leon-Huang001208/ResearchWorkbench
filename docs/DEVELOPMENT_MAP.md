@@ -1,5 +1,8 @@
 # Research Workbench Development Map
 
+全市场逐日交互在 `ui/market-dashboard*`，首批操作在 `ui/market-daily-bootstrap.mjs`；事件与日历由原
+`event_timeline` 保存事实及原件，`market_scoring` 提供真实原值与原资格缺口。显示证据不替代评分准入。
+
 市场联合V2的双仓库切换在`resident/model_provider_upgrade.py`的`Operations.install`，
 独立120秒上限并记录角色和耗时；既有真实事务夹具覆盖45秒成功及121秒回滚保全，未改通用命令读取器。
 

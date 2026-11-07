@@ -348,6 +348,16 @@ class ScoreService:
                 result["validation_reasons"].append("validation_expired_now")
         return self._public_result(result)
 
+    def run_initial_if_qualified(self, body):
+        """Try a current registered input without admitting a provider or enabling production."""
+        result = self._compute(body)
+        if not any(
+            axis.get("status") == "QUALIFIED" and axis.get("score") is not None
+            for axis in result.get("axes", {}).values()
+        ):
+            return None
+        return self.create(body)
+
     def create(self, body):
         if not isinstance(body, dict):
             _error("market_score_request_invalid")

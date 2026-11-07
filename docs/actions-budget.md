@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+逐日市场与首批资料沿原 Checks 加入官方资料／研究证据离线合同，沿原 Node 通配符覆盖日期、图表及明确导入，
+Mac Bootstrap 在原静态资产步骤增加 `market-daily-bootstrap.mjs`。原三CI、作业、依赖、runner、时限不变；
+原步骤增量预留120秒含 Native 新封闭模式回归，实际按候选记录。真实取源、导入和常驻验收单独执行。
+
 市场Native V2切换补丁仅沿原`test_model_provider_upgrade.py`增加两项有界完成／原回滚合同，
 复用现有三CI和Mac安装，无新workflow/job/runner/依赖/CI超时或平台dispatch，原步骤增量预留5秒。
 120秒是该Native步骤的本机Git命令上限，实际服务接受另证，不用旧9a97168e候选CI认证新版本。

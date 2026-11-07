@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
+
 市场V2切换等待仅发生在Native操作员，不增加接口、请求字段或权限；原手动事件明确意图和Host校验不变。
 
 私网事件写操作保留已有 `X-Research-User-Action: ?1` 到Host；缺失/非法值不转换成合法意图，

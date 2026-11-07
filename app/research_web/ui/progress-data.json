@@ -1,7 +1,26 @@
 {
   "schemaVersion": 1,
-  "asOf": "2026-11-06",
+  "asOf": "2026-11-08",
   "features": [
+    {
+      "id": "market-daily-evidence",
+      "module": "数据与资产",
+      "title": "市场逐日时间线与真实研究证据",
+      "summary": "逐日滚动和选日、可读收盘线、三地首批日历与研究证据明确导入。",
+      "scope": "市场综合总览、研究工作台、三地主指数证据；旧行情入口保留。",
+      "next": "通过同候选验证和Mac常驻切换后，核验实际资料、逐日操作与关闭状态。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-market-dashboard.md",
+      "updated": "2026-11-08",
+      "status": "validating",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "来源缺口不填造；正式分、采集日程、入站MCP保持关闭。",
+      "evidence": []
+    },
     {
       "id": "global-market-dashboard",
       "module": "数据与资产",
