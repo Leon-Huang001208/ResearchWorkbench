@@ -1298,13 +1298,20 @@ def real_operations(tmp_path, monkeypatch, request):
     )
     monkeypatch.setattr(upgrade.g, "bootstrap", lambda _p: system.update(loaded=True, pid=900002))
 
-    def git(project, *args):
+    def git(project, *args, timeout=30):
         role = "primary" if Path(project) == primary else "gateway"
         if args == ("rev-parse", "HEAD"):
             return system[role]
         if args[:2] == ("switch", "--detach"):
             assert not system["loaded"] and not system["running"]
             system[role] = args[2]
+            system.setdefault("checkout_attempts", []).append((role, args[2], timeout))
+            if (
+                role == "gateway"
+                and args[2] == state["target"]
+                and system.get("checkout_completion_seconds", 0) > timeout
+            ):
+                raise upgrade.UpdateBlocked("resident_command_unavailable")
             return ""
         pytest.fail("unexpected fixture Git operation")
 
@@ -1317,8 +1324,18 @@ def real_operations(tmp_path, monkeypatch, request):
         ),
     )
 
-    def install(*_args, **_kwargs):
+    def install(argv, *, cwd=None, timeout=30):
         assert not system["loaded"] and not system["running"]
+        if argv[0] == "/usr/bin/git":
+            assert argv[:6] == [
+                "/usr/bin/git",
+                "-c",
+                "gc.auto=0",
+                "-c",
+                "maintenance.auto=false",
+                "switch",
+            ]
+            return git(cwd, *argv[5:], timeout=timeout)
         system["events"].append("pip-no-deps")
 
     monkeypatch.setattr(upgrade.c, "run", install)
@@ -1472,6 +1489,28 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
     assert not (home / "server/run/gateway-upgrade.json").exists()
     assert not (home / "server/run/birth-fence.json").exists()
     assert json.loads((home / "install/manifest.json").read_text())["code_commit"] == expected
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.MARKET_LIVE_V2_MODE], indirect=True)
+@pytest.mark.parametrize("completion,expected", [(45, "deployed"), (121, "rolled_back")])
+def test_market_live_v2_checkout_has_its_own_bounded_completion(
+    real_operations, completion, expected
+):
+    home, state, system, make, uid = real_operations
+    system["checkout_completion_seconds"] = completion
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == expected and result["preserved"] is True
+    attempts = [
+        ("primary", state["target"], 120),
+        ("gateway", state["target"], 120),
+    ]
+    if expected == "rolled_back":
+        attempts.extend([("primary", state["previous"], 120), ("gateway", state["previous"], 120)])
+    assert system["checkout_attempts"] == attempts
+    revision = state["target"] if expected == "deployed" else state["previous"]
+    assert system["primary"] == system["gateway"] == revision
+    assert upgrade.read_json(home / "server/resident.json")["mcp_readonly_enabled"] is False
 
 
 @pytest.mark.parametrize("real_operations", ASSET_PROFILES, indirect=True)

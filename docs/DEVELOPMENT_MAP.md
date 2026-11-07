@@ -1,5 +1,8 @@
 # Research Workbench Development Map
 
+市场联合V2的双仓库切换在`resident/model_provider_upgrade.py`的`Operations.install`，
+独立120秒上限并记录角色和耗时；既有真实事务夹具覆盖45秒成功及121秒回滚保全，未改通用命令读取器。
+
 市场旧页可发现性：`ui/module-navigation.mjs`保留五个市场子页，原`market.mjs`业务不改；
 `research_web_module_navigation.test.mjs`与真实壳层e2e共同覆盖内部tabs隐藏时的可见链接和选中。
 
