@@ -160,7 +160,7 @@ def _nyse(source, raw):
         # Only equity closure time, excluding the options/extended session time.
         early = re.match(
             r"\**\s*Each market will close early at 1:00 p\.m\. \(1:15 p\.m\. for eligible options\) on (.+)",
-            str(node).strip(),
+            " ".join(str(node).split()),
         )
         if not early:
             raise ValueError("nyse_early_close_unrecognized")
