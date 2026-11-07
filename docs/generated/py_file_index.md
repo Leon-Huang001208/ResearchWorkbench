@@ -4933,6 +4933,27 @@ Functions:
   - Closed prior sessions only; never treat today's partial daily bar as final.
 
 
+## `app/research_web/datahub/providers_market_calendar.py`
+
+Module docstring:
+> Fixed public economic schedules projected from reviewed official parsers.
+
+Imports:
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `event_timeline`
+- `hashlib`
+- `store`
+
+Classes:
+- `CalendarEvent`
+- `CalendarCapture`
+
+Functions:
+- `fetch_official_schedule`
+
+
 ## `app/research_web/datahub/providers_mysql.py`
 
 Module docstring:
@@ -8128,6 +8149,39 @@ Functions:
 - `analyze`
 
 
+## `app/research_web/market_financial_calendar.py`
+
+Module docstring:
+> Account Host calendar reads, short snapshots and bounded source acquisition.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections`
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `datahub.providers_market_calendar`
+- `datetime`
+- `event_timeline`
+- `market_service`
+- `pydantic`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `FinancialCalendarQuery`
+  - methods: check_page, check_scope, filters
+- `SourceState`
+- `EventSnapshot`
+- `MarketFinancialCalendar`
+  - Read only fixed public sources; snapshots never cross Host instances.
+  - methods: __init__, _unavailable, _fetch, _refresh, _refresh_done, _readings, _event, _status, _project, read, close
+
+
 ## `app/research_web/market_indices.py`
 
 Module docstring:
@@ -8188,6 +8242,7 @@ Imports:
 - `core.observability`
 - `fastapi`
 - `json`
+- `market_financial_calendar`
 - `market_portfolio`
 - `market_service`
 - `pydantic`
@@ -8202,6 +8257,7 @@ Classes:
 Functions:
 - `_failure`
 - `overview`
+- `financial_calendar`
 - `refresh`
 - `refresh_status`
 - `cancel`
@@ -12240,7 +12296,7 @@ Imports:
 - `hashlib`
 - `integrations`
 - `json`
-- ... 35 more
+- ... 36 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

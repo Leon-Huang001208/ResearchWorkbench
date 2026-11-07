@@ -213,6 +213,7 @@
         "app/research_web/aihot_content.py",
         "app/research_web/market_service.py",
         "app/research_web/market_routes.py",
+        "app/research_web/market_financial_calendar.py",
         "app/research_web/warehouse_diagnostics.py",
         "app/research_web/market_analysis.py",
         "app/research_web/market_portfolio.py",
@@ -254,6 +255,7 @@
         "tests/research_web/test_claw_projects.py",
         "tests/research_web/test_aihot.py",
         "tests/research_web/test_market_service.py",
+        "tests/research_web/test_market_financial_calendar.py",
         "tests/e2e/market_authenticated.py",
         "tests/research_web/test_warehouse_diagnostics.py",
         "tests/research_web/test_market_reader.py",
@@ -2671,7 +2673,7 @@
       "receipt": "outputs/research-web-architecture/13-market-overview.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/13-market-overview.visual-check.json",
       "level": "flows",
-      "summary": "Host内综合总览与原行情分析；腾讯九指数独立缓存，东财/新浪旧目录与12指数研究仓保留，事件/评分复用14领域。",
+      "summary": "Host 内综合总览与行情分析；财经日历单独经同源 GET 读取固定官方宏观排期和账号内短快照。",
       "evidence": [
         {
           "subjects": [
@@ -2680,6 +2682,31 @@
             "marketRefresh"
           ],
           "source": "app/research_web/ui/market.mjs"
+        },
+        {
+          "subjects": [
+            "calendarPage"
+          ],
+          "source": "app/research_web/ui/market-calendar.mjs"
+        },
+        {
+          "subjects": [
+            "calendarRead"
+          ],
+          "source": "app/research_web/market_routes.py"
+        },
+        {
+          "subjects": [
+            "calendarHost"
+          ],
+          "source": "app/research_web/market_financial_calendar.py"
+        },
+        {
+          "subjects": [
+            "calendarSources",
+            "calendarFetch"
+          ],
+          "source": "app/research_web/datahub/providers_market_calendar.py"
         },
         {
           "subjects": [
@@ -4538,6 +4565,13 @@
       "path": "/api/research/market",
       "source": "app/research_web/market_routes.py",
       "declaredPath": "",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market/financial-calendar",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/financial-calendar",
       "prefix": "/api/research/market"
     },
     {

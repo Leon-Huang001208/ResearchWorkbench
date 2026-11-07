@@ -212,18 +212,20 @@
     },
     {
       "id": "13-market-overview",
-      "artifactSha256": "173e10ab6086b8ac8e8264e21037d021a8479a6f1c0a782a4649ed37c06c5ce3",
-      "specificationSha256": "5a9e049fe497957389728738a54b1bf564e630d9eac99d6e6e45fc3e04b8f113",
+      "artifactSha256": "75d847a5fd5ef205a35f8b9c7cbfb93060269c8a113bad77e125b8d23a21bc4c",
+      "specificationSha256": "930f33213dba66f7049827bbe48b1f67eef7b8ab403a11d5f71743841483ee04",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-11-06",
+      "reviewer": "codex-architecture",
+      "date": "2026-11-08",
       "captures": [
+        "13-market-overview.visual-check.1440x900.light.png",
         "13-market-overview.visual-check.1440x900.dark.png",
-        "13-market-overview.visual-check.1440x900.light.png"
+        "13-market-overview.visual-check.2048x1320.light.png",
+        "13-market-overview.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Archify deliver实际9/9 showcase零错误零警告，visual-check四视口包含检查及四截图通过。主代理实际查看最终哈希1440浅/深截图，三地九指数与旧12/24分集、来源、缓存及完整性门清晰，未见节点/线/标签遮挡。图仅描述行情与原分析，事件/评分领域另见14图；此证据不替代真实产品、来源或部署验收。",
-      "correction_rounds": 3
+      "notes": "Archify 实际通过 9/9 showcase，零错误、零警告；四视口无溢出。架构评审代理实际查看同一哈希的 1440×900、2048×1320 浅色及深色四张截图，财经日历同源读取与官方按需链路独立呈现，节点、标签和箭头清晰。此评审只覆盖架构图，不能替代登录态产品对照、真实数据或部署验收。",
+      "correction_rounds": 0
     },
     {
       "id": "14-event-research",

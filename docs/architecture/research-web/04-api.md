@@ -174,6 +174,14 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 既有 `GET /api/research/resident` 的 `active` 同时包含真实 CJPY Future和历史任务非终态，无法读取witness为未知，不伪报false。操作员只在研究/观察/DataHub/历史任务全部明确空闲后允许切换；`cancelled`查询终态不抵消仍运行的Future。
 
+## 财经日历接口
+
+`GET /api/research/market/financial-calendar` 走现有同源账号路由。必填 `view=summary|events`、
+`start`、`end`，自然日区间最多 31 天；明细另需 `category=economic|ipo|notify|report|inst`，
+子类、市场、机构方向和集合取固定枚举。每日期最多返回 20 行；后续页需同一查询身份和
+`snapshot_id` 并收窄到单日。返回 `days`、`sources` 和 `snapshot_id`；覆盖未知时不返回确定的零。
+此独立 GET 可对已接入宏观官方源按需取数，其他类别不触发外部采集，不改变原市场 GET 缓存合同。
+
 ## 全市场概览接口
 
 综合总览复用原接口：`POST /market/refresh` 的版本化 `index_set=global-v1` 只采集固定三地

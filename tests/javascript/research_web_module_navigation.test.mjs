@@ -23,12 +23,13 @@ test('legacy routes map to canonical module and active section', () => {
     const r = parseRoute(href); assert.equal(moduleKey(r), key); assert.equal(secondaryEntries(r).filter(x => x.active).length, 1, href);
   }
 });
-test('market sidebar preserves five discoverable destinations when duplicate inner tabs are hidden', () => {
+test('market sidebar preserves discoverable destinations when duplicate inner tabs are hidden', () => {
   const destinations = [
     ['dashboard', '综合总览', '#/market'],
     ['overview', '行情分析', '#/market?view=overview'],
     ['quotes', '沪深北行情', '#/market?view=quotes'],
     ['sectors', '板块与资金', '#/market?view=sectors'],
+    ['calendar', '财经日历', '#/market?view=calendar'],
     ['workbench', '研究工作台', '#/market?view=workbench'],
   ];
   for (const [id, label, href] of destinations) {
@@ -37,7 +38,7 @@ test('market sidebar preserves five discoverable destinations when duplicate inn
     assert.deepEqual(items.filter(item => item.active).map(item => item.id), [id], href);
     const html = renderModuleSidebar({ route, account: { role: 'user' } });
     assert.match(html, new RegExp(`href="${href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" aria-current="page">${label}</a>`));
-    assert.equal((html.match(/<a href=/g) || []).length, 5);
+    assert.equal((html.match(/<a href=/g) || []).length, destinations.length);
   }
 });
 test('progress navigation preserves compatible filters and clears incompatible detail/month', () => {

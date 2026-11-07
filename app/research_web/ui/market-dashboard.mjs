@@ -1,23 +1,33 @@
 import { safeLog } from './core.mjs';
 import { createMarketController, renderMarketPage } from './market.mjs';
+import { createFinancialCalendarController, renderFinancialCalendar } from './market-calendar.mjs';
 import { GLOBAL_MARKETS, payload, timelineRange } from './market-dashboard-model.mjs';
 import { dashboardPage, dashboardTabs, workbenchPage } from './market-dashboard-view.mjs';
 
 export function createMarketWorkspace(options = {}) {
   const legacy = createMarketController(options), dashboard = createMarketDashboard(options);
+  const calendar = createFinancialCalendarController(options);
   let view = 'dashboard';
-  return { legacy, dashboard, get state() { return view === 'dashboard' || view === 'workbench' ? dashboard.state : legacy.state; },
-    cancel() { legacy.cancel(); dashboard.cancel(); },
-    async activate(route = {}) { view = route.marketView || 'dashboard'; if (view === 'dashboard') await dashboard.activate(); else if (view !== 'workbench') await legacy.activate(route); },
-    handleInput(event) { return view === 'dashboard' ? false : legacy.handleInput(event); },
-    handleChange(event) { return view === 'dashboard' ? dashboard.handleChange(event) : legacy.handleChange(event); },
-    handleSubmit(event) { return view === 'dashboard' ? dashboard.handleSubmit(event) : legacy.handleSubmit(event); },
-    handleClick(event) { return view === 'dashboard' ? dashboard.handleClick(event) : legacy.handleClick(event); },
+  const cancel = () => { legacy.cancel(); dashboard.cancel(); calendar.cancel(); };
+  const current = () => view === 'dashboard' || view === 'workbench' ? dashboard : view === 'calendar' ? calendar : legacy;
+  return { legacy, dashboard, calendar, get state() { return current().state; },
+    cancel,
+    async activate(route = {}) {
+      const nextView = route.marketView || 'dashboard';
+      if (view !== nextView) cancel();
+      view = nextView;
+      if (view !== 'workbench') await current().activate(route);
+    },
+    handleInput(event) { return current().handleInput?.(event) || false; },
+    handleChange(event) { return current().handleChange?.(event) || false; },
+    handleSubmit(event) { return current().handleSubmit?.(event) || false; },
+    handleClick(event) { return current().handleClick?.(event) || false; },
   };
 }
 export function renderMarketWorkspace(controller, route = {}) {
   if ((route.marketView || 'dashboard') === 'dashboard') return dashboardPage(controller.dashboard.state);
   if (route.marketView === 'workbench') return workbenchPage();
+  if (route.marketView === 'calendar') return `<div class="market-page" data-market-page>${dashboardTabs('calendar')}${renderFinancialCalendar(controller.calendar.state)}</div>`;
   // Keep the complete existing analysis/quotes/funds implementation and actions.
   return renderMarketPage(controller.legacy.state, route).replace(/<nav class="market-tabs"[^>]*>.*?<\/nav>/s, dashboardTabs(route.marketView));
 }
