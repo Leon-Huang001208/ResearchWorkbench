@@ -5489,7 +5489,7 @@ def test_market_live_v2_profile_freezes_accepted_resident_and_intent_fix():
 def test_market_daily_profile_uses_accepted_resident_and_original_safety_family():
     mode = upgrade.MARKET_DAILY_MODE
     assert mode == "reviewed-market-daily-v1"
-    assert upgrade.MARKET_DAILY_PAYLOAD == "cc04fc37bfba4920416eab0cddb407a62e80cc82"
+    assert upgrade.MARKET_DAILY_PAYLOAD == "2d441b53367a05e4e868750a341ac1d9eddadc7e"
     assert upgrade.previous_for(mode) == "37051f8fb9a5680082923f845444d4bc59cff33a"
     assert mode in upgrade.EVENT_SAFETY_MODES
     assert mode in upgrade.EVENT_PRESERVATION_MODES
