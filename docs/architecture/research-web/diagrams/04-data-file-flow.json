@@ -2,13 +2,12 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "DataHub 冻结证据与长期研究档案",
+    "title": "DataHub、WeKnora 与冻结研究证据",
     "output": "04-data-file-flow.html",
     "quality_profile": "showcase",
     "viewBox": [
       1900,
-      940
-
+      1080
     ],
     "views": [
       {
@@ -62,7 +61,18 @@
           "web"
         ],
         "note": "预览绑定事件版本，正文取证时冻结；档案原件逐次鉴权与Hash复核，用户实际发送Prompt后绑定DSH；golddata_intel不伪装网页全文。"
-
+      },
+      {
+        "id": "weknora",
+        "label": "研究资料与报告证据",
+        "focus": [
+          "knowledgeUser",
+          "knowledgeFacade",
+          "weknora",
+          "knowledgeEvidence",
+          "knowledgeConsumer"
+        ],
+        "note": "可选WeKnora资料服务通过原生用户认证与已批准文档范围读取；冻结在RWB。界面零生成和真实报告接入尚未验收。"
       }
     ]
   },
@@ -224,6 +234,56 @@
       "width": 124,
       "tag": "显式用户动作",
       "yOffset": 114
+    },
+    {
+      "id": "knowledgeUser",
+      "type": "frontend",
+      "label": "资料读取入口",
+      "sublabel": "设置 / 有界工具回调",
+      "stage": 0,
+      "row": 4,
+      "tag": "默认未配置",
+      "yOffset": 228
+    },
+    {
+      "id": "knowledgeFacade",
+      "type": "security",
+      "label": "RWB 资料薄适配",
+      "sublabel": "用户JWT / 文档白名单",
+      "stage": 1,
+      "row": 4,
+      "tag": "逐次授权与时点确认",
+      "yOffset": 228
+    },
+    {
+      "id": "weknora",
+      "type": "cloud",
+      "label": "WeKnora v0.9.0",
+      "sublabel": "原件 / 分块 / 混合检索",
+      "stage": 2,
+      "row": 4,
+      "tag": "外部服务 NOT_RUN",
+      "yOffset": 228
+    },
+    {
+      "id": "knowledgeEvidence",
+      "type": "database",
+      "label": "RWB 冻结证据",
+      "sublabel": "原件SHA / 分块SHA / 时点",
+      "stage": 3,
+      "row": 4,
+      "tag": "明确写入与账号保全",
+      "yOffset": 228
+    },
+    {
+      "id": "knowledgeConsumer",
+      "type": "external",
+      "label": "报告宿主交接",
+      "sublabel": "原 Workflow / 质量门",
+      "stage": 4,
+      "row": 4,
+      "tag": "真实链路 NOT_RUN",
+      "yOffset": 228
     }
   ],
   "flows": [
@@ -414,6 +474,38 @@
         625,
         680
       ]
+    },
+    {
+      "id": "knowledgeRequest",
+      "from": "knowledgeUser",
+      "to": "knowledgeFacade",
+      "label": "当前身份",
+      "classification": "authenticated",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeRetrieve",
+      "from": "knowledgeFacade",
+      "to": "weknora",
+      "label": "限定文档",
+      "classification": "JWT / scope",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeFreeze",
+      "from": "weknora",
+      "to": "knowledgeEvidence",
+      "label": "核验后冻结",
+      "classification": "explicit write",
+      "variant": "emphasis"
+    },
+    {
+      "id": "knowledgeReport",
+      "from": "knowledgeEvidence",
+      "to": "knowledgeConsumer",
+      "label": "证据句柄",
+      "classification": "candidate / NOT_RUN",
+      "variant": "dashed"
     }
   ],
   "cards": [
@@ -435,10 +527,10 @@
     },
     {
       "dot": "emerald",
-      "title": "迁移与回测",
+      "title": "替换与报告边界",
       "items": [
-        "原件与SQLite引用分别保全，历史可得时点不补造",
-        "档案只存引用和修订；不启用PG或迁移旧交接"
+        "金融快照、模板底稿和正式报告保留RWB",
+        "WeKnora UI零生成、迁移及报告链尚待验收"
       ]
     }
   ]

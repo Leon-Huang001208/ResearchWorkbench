@@ -285,6 +285,8 @@ def _inspect_mcp(root: Path | None = None) -> dict:
 
 
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
+    from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
+
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
     source = _source_status(arguments.source)
@@ -295,6 +297,23 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     modules = {
         name: importlib.util.find_spec(name) is not None for name in ("uvicorn", "fastapi", "httpx")
     }
+    knowledge = {
+        "optional": True,
+        "enabled": False,
+        "status": "disabled",
+        "expected_release": "v0.9.0",
+        "authorization": "not_checked",
+        "connection": "not_checked",
+        "runtime_verification": "NOT_RUN",
+    }
+    try:
+        configured_origin = knowledge_origin()
+        knowledge.update(
+            enabled=bool(configured_origin),
+            status="configuration_pending" if configured_origin else "disabled",
+        )
+    except ValueError:
+        knowledge.update(enabled=None, status="invalid")
     report = {
         "schema_version": 1,
         # Artifact presence does not establish pinned-source or model readiness.
@@ -311,6 +330,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         "runtime": "not_checked",
         "model": "not_checked",
         "mcp_readonly": mcp,
+        "knowledge_backend": knowledge,
     }
     if arguments.json:
         print(json.dumps(report, ensure_ascii=False))

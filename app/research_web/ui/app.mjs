@@ -7,6 +7,7 @@ import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStat
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createWarehousePanel } from './research-warehouse.mjs';
+import { mountKnowledgeSettings } from './knowledge-settings.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createAccountMenu } from './server/account-menu.mjs';
 import { createPluginWorkspace } from './plugins-workspace.mjs';
@@ -75,6 +76,7 @@ import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 const api = createAPI();
 let modelSettingsPanel = null;
 let warehousePanel = null;
+let knowledgeSettingsPanel = null;
 const conversationNavigation = createConversationNavigation({ api, notify: () => render(), changed: () => loadCatalog(['sessions']) });
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
@@ -811,6 +813,7 @@ function render() {
     if (!warehousePanel) warehousePanel = createWarehousePanel({api,logger:safeLog,onValidated:()=>loadCatalog(['connections','dataCatalog'])});
     warehouseMount.replaceWith(warehousePanel.element);
   } else if (warehousePanel) { warehousePanel.dispose(); warehousePanel = null; }
+  knowledgeSettingsPanel = mountKnowledgeSettings(root,knowledgeSettingsPanel,{api,logger:safeLog});
   if (modelPanelMount) {
     const props = {runtime:catalog.runtime || {},models:catalog.models,busy:state.busy};
     if (!modelSettingsPanel) modelSettingsPanel = createModelSettings({api,...props,changed:()=>loadCatalog(['runtime','models']),logger:safeLog});
