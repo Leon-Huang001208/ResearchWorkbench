@@ -8,7 +8,12 @@ export function createMarketWorkspace(options = {}) {
   const legacy = createMarketController(options), dashboard = createMarketDashboard(options);
   const bootstrap = createMarketDailyBootstrap(options);
   let view = 'dashboard';
-  return { legacy, dashboard, bootstrap, capturePresentation: dashboard.capturePresentation, restorePresentation: dashboard.restorePresentation, get state() { return view === 'dashboard' || view === 'workbench' ? dashboard.state : legacy.state; },
+  return { legacy, dashboard, bootstrap, get state() { return view === 'dashboard' || view === 'workbench' ? dashboard.state : legacy.state; },
+    paint(page, render) {
+      if (page !== 'market') return render();
+      dashboard.capturePresentation();
+      try { render(); } finally { dashboard.restorePresentation(); }
+    },
     cancel() { legacy.cancel(); dashboard.cancel(); bootstrap.dispose(); },
     async activate(route = {}) { view = route.marketView || 'dashboard'; if (view === 'dashboard') await dashboard.activate(); else if (view !== 'workbench') await legacy.activate(route); },
     handleInput(event) { return view === 'dashboard' ? dashboard.handleInput(event) : legacy.handleInput(event); },
