@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+市场Native V2切换补丁仅沿原`test_model_provider_upgrade.py`增加两项有界完成／原回滚合同，
+复用现有三CI和Mac安装，无新workflow/job/runner/依赖/CI超时或平台dispatch，原步骤增量预留5秒。
+120秒是该Native步骤的本机Git命令上限，实际服务接受另证，不用旧9a97168e候选CI认证新版本。
+
 私网明确动作和旧行情入口补丁沿原Gateway Python清单、Node模块导航合同及Mac静态安装步骤；
 不新增workflow/job/runner/依赖/timeout或平台dispatch。后继profile增量在原步骤预留90秒，
 最终候选实测另记；发布前重新核对PUBLIC和当前标准runner，不借已部署a76的CI。

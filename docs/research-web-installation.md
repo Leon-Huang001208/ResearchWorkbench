@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+市场V2切换使用既有依赖与安装入口；Native Git切换上限120秒，切后复核再安装原锁轮子，同候选Mac干净安装另验。
+
 私网明确操作修补沿现有Web依赖和安装器，只调整网关既有头转发；未增加依赖、设置或
 Doctor能力。已核对web.in/web.lock/setup_web无需修改；同候选Mac安装与实际补丁部署分别留证。
 

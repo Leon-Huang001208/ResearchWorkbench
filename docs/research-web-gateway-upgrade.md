@@ -1,5 +1,12 @@
 # Mac mini 空私有池网关升级
 
+2026-11-07：V2候选9a97168e在两个Git角色已写入目标HEAD后，`switch --detach`仍未在原通用30秒内完成，
+原事务自动回滚至a76ecfdf、保全通过，失败目标隔离。隔离网关同common及原hook复测0.236秒成功，
+未复现现场尾部拖延，不将其归因到具体hook。后继只为V2的目标/恢复Git切换提供独立120秒上限，
+保留原Git命令和hook，切换成功后再核对SHA及干净状态才进入wheel步骤，按角色记录完成或拒绝耗时。
+只读Git／其他profile／CI时限不变；超限仍进入原保全恢复。不删除旧隔离、不以同SHA重试，
+新合并版本须重新通过独评、本地Router、完整三CI及实际Native验收。
+
 ## 事件手动意图与市场入口修复封闭部署V2（2026-11-06）
 
 `apply-market-live-v2`／`reviewed-market-overview-live-v2` 固定已验收前版
