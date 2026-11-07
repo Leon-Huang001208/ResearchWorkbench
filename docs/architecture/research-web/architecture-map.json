@@ -2749,7 +2749,11 @@
           "source": "app/research_web/market_indices.py"
         },
         {
-          "subjects": ["publicMarket", "marketFetch", "marketNormalize"],
+          "subjects": [
+            "publicMarket",
+            "marketFetch",
+            "marketNormalize"
+          ],
           "source": "app/research_web/datahub/providers_global_indices.py"
         }
       ]
@@ -3953,6 +3957,20 @@
       "prefix": "/api/research/events"
     },
     {
+      "method": "POST",
+      "path": "/api/research/events/initial-batch/preview",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/initial-batch/preview",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/initial-batch",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/initial-batch",
+      "prefix": "/api/research/events"
+    },
+    {
       "method": "GET",
       "path": "/api/research/frameworks",
       "source": "app/research_web/frameworks/routes.py",
@@ -4573,6 +4591,27 @@
       "path": "/api/research/market-scores/runs/{run_id}",
       "source": "app/research_web/market_scoring/routes.py",
       "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/initial-evidence",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/initial-evidence",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market-scores/initial-evidence/preview",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/initial-evidence/preview",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market-scores/initial-evidence",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/initial-evidence",
       "prefix": "/api/research/market-scores"
     },
     {
@@ -6159,7 +6198,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "26e730cbf73d2edcce753d7f84c4f49cf68ec68c"
+      "revision": "10854029c7ec0cfc31d1522c7dc08acedf3b1769"
     },
     "levels": [
       {

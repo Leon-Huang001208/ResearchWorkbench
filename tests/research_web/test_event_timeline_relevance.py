@@ -124,14 +124,27 @@ class EventRelevanceTests(unittest.TestCase):
         invalid = candidate_relevance("ucdp", violence_type=True)
         self.assertEqual(invalid["markets"], [])
 
-    def test_empty_timeline_exposes_actual_five_source_states_without_writes(self):
+    def test_empty_timeline_exposes_registered_source_states_without_writes(self):
         with TemporaryDirectory(prefix="rwb-event-relevance-") as temporary:
             service = TimelineService(
                 SimpleNamespace(store=Store(Path(temporary).resolve() / "personal"))
             )
             before = set(service.records.root.rglob("*"))
             response = service.timeline()
-            self.assertEqual(len(response["sources"]), 5)
+            self.assertCountEqual(
+                [source["id"] for source in response["sources"]],
+                [
+                    "fed_fomc",
+                    "bls_cpi",
+                    "bls_jobs",
+                    "gdelt",
+                    "ucdp",
+                    "sse_trading_calendar",
+                    "nyse_trading_calendar",
+                    "hkex_securities_2026",
+                    "hkex_securities_calendar",
+                ],
+            )
             self.assertTrue(all(source["enabled"] is False for source in response["sources"]))
             self.assertEqual(before, set(service.records.root.rglob("*")))
 

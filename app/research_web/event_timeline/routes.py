@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query, Request
 
 from ..store import StoreError
-from . import models
+from . import initial_batch, models, sources
 
 router = APIRouter(prefix="/api/research/events", tags=["events"])
 
@@ -63,6 +63,18 @@ async def jobs(
     return _service(request).records.list("source_job", limit, cursor)
 
 
+@router.post("/initial-batch/preview")
+async def preview_initial_batch(request: Request):
+    _action(request)
+    return await initial_batch.preview(_service(request))
+
+
+@router.post("/initial-batch")
+async def run_initial_batch(body: models.Key, request: Request):
+    _action(request)
+    return await initial_batch.execute(_service(request), body.idempotency_key)
+
+
 @router.post("/sources/refresh")
 @router.post("/sources/backfill")
 async def refresh(body: models.Refresh, request: Request):
@@ -73,6 +85,8 @@ async def refresh(body: models.Refresh, request: Request):
 @router.post("/sources/{source}/schedule")
 async def schedule(source: str, body: models.Schedule, request: Request):
     _action(request)
+    if sources.CATALOG.get(source, {}).get("manual_only"):
+        raise StoreError("该交易所来源仅支持一次性导入", "event_source_manual_only", 409)
     research = request.app.state.research
     if body.enabled:
         await research.ensure_event_scheduler()

@@ -23,6 +23,7 @@ import urllib.error
 import urllib.request
 import zipfile
 from contextlib import ExitStack, closing
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
@@ -152,12 +153,16 @@ MARKET_LIVE_V2_PAYLOAD = "cd09e2af70544abc4270c676b58e7f8cc2651773"
 MARKET_LIVE_V2_WEB_LOCK_SHA256 = MARKET_LIVE_WEB_LOCK_SHA256
 MARKET_LIVE_V2_EVIDENCE_SHA256 = MARKET_LIVE_EVIDENCE_SHA256
 MARKET_LIVE_V2_GIT_SWITCH_TIMEOUT = 120
+# This successor preserves the last accepted market runtime and all historical profiles.
+MARKET_DAILY_MODE = "reviewed-market-daily-v1"
+MARKET_DAILY_PREVIOUS = "37051f8fb9a5680082923f845444d4bc59cff33a"
+MARKET_DAILY_PAYLOAD = "2d441b53367a05e4e868750a341ac1d9eddadc7e"
 EVENT_SAFETY_MODES = frozenset(
-    {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}
+    {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}
 )
 EVENT_PRESERVATION_MODES = EVENT_SAFETY_MODES
 MCP_DISABLED_ROLLBACK_MODES = frozenset(
-    {UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}
+    {UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}
 )
 # PR198's merged Excel-first weekly product; previous is the registered resident.
 # This source profile does not authorize a resident switch or arbitrary runtime SHAs.
@@ -214,6 +219,7 @@ ASSET_MODES = frozenset(
         EVENT_MODE,
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
+        MARKET_DAILY_MODE,
         UNIFIED_NAVIGATION_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
@@ -337,6 +343,8 @@ def previous_for(mode):
         return MARKET_PREVIEW_PREVIOUS
     if mode == UNIFIED_NAVIGATION_MODE:
         return UNIFIED_NAVIGATION_PREVIOUS
+    if mode == MARKET_DAILY_MODE:
+        return MARKET_DAILY_PREVIOUS
     if mode == MARKET_LIVE_V2_MODE:
         return MARKET_LIVE_V2_PREVIOUS
     if mode == MARKET_LIVE_MODE:
@@ -506,6 +514,40 @@ def discovery_background_idle(home):
         return False
 
 
+def initial_import_writer_drained(payload):
+    """Accept only a terminal, fixed-source one-shot receipt, not old failures."""
+    source, state = payload.get("source"), payload.get("state")
+    if not isinstance(source, str) or not isinstance(state, str):
+        return False
+    if payload.get("drain_receipt") != {"format": "initial-import-drain-v1", "state": state}:
+        return False
+    try:
+        start, end = (date.fromisoformat(payload[key]) for key in ("start", "end"))
+        if start > end or (start.isoformat(), end.isoformat()) != (
+            payload["start"],
+            payload["end"],
+        ):
+            return False
+    except (KeyError, ValueError, TypeError):
+        return False
+    if source == "initial_batch":
+        items = payload.get("items")
+        return (
+            state in {"complete", "partial", "failed", "interrupted"}
+            and isinstance(items, list)
+            and len(items) <= 7
+        )
+    return state in {"failed", "interrupted"} and source in {
+        "sse_trading_calendar",
+        "nyse_trading_calendar",
+        "hkex_securities_2026",
+        "hkex_securities_calendar",
+        "fed_fomc",
+        "bls_cpi",
+        "bls_jobs",
+    }
+
+
 def event_schedules_disabled(home: Path):
     """Prove every account's collectors disabled without opening its SQLite for writes.
 
@@ -559,7 +601,9 @@ def event_schedules_disabled(home: Path):
                             claim = payload["collection_claim"]
                             if not isinstance(claim, dict) or claim.get("state") != "completed":
                                 raise UpdateBlocked("event_upgrade_collection_unresolved")
-                    elif payload.get("state") != "completed":
+                    elif payload.get("state") != "completed" and not initial_import_writer_drained(
+                        payload
+                    ):
                         raise UpdateBlocked("event_upgrade_collection_unresolved")
             if snapshot_events(root, create_lock=False) != frozen:
                 raise UpdateBlocked("event_upgrade_schedule_changed")
@@ -601,6 +645,7 @@ def verify_primary(home, expected, mode):
         EVENT_MODE,
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
+        MARKET_DAILY_MODE,
         UNIFIED_NAVIGATION_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
@@ -761,6 +806,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         EVENT_MODE: EVENT_PAYLOAD,
         MARKET_LIVE_MODE: MARKET_LIVE_PAYLOAD,
         MARKET_LIVE_V2_MODE: MARKET_LIVE_V2_PAYLOAD,
+        MARKET_DAILY_MODE: MARKET_DAILY_PAYLOAD,
         UNIFIED_NAVIGATION_MODE: UNIFIED_NAVIGATION_PAYLOAD,
         MARKET_BREADTH_MODE: MARKET_BREADTH_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
@@ -773,7 +819,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
-    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE}:
+    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
         c.git(source, "merge-base", "--is-ancestor", previous, payload)
     if mode == EVENT_MODE:
         for ancestor, descendant in (
@@ -810,6 +856,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     EVENT_MODE: EVENT_EVIDENCE_SHA256,
                     MARKET_LIVE_MODE: MARKET_LIVE_EVIDENCE_SHA256,
                     MARKET_LIVE_V2_MODE: MARKET_LIVE_V2_EVIDENCE_SHA256,
+                    MARKET_DAILY_MODE: MARKET_LIVE_V2_EVIDENCE_SHA256,
                     UNIFIED_NAVIGATION_MODE: UNIFIED_NAVIGATION_EVIDENCE_SHA256,
                     MARKET_BREADTH_MODE: MARKET_BREADTH_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
@@ -823,6 +870,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     EVENT_MODE,
                     MARKET_LIVE_MODE,
                     MARKET_LIVE_V2_MODE,
+                    MARKET_DAILY_MODE,
                     UNIFIED_NAVIGATION_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
@@ -1395,6 +1443,7 @@ def validate_state(home, state, *, executor_source=None):
                 EVENT_MODE,
                 MARKET_LIVE_MODE,
                 MARKET_LIVE_V2_MODE,
+                MARKET_DAILY_MODE,
                 UNIFIED_NAVIGATION_MODE,
                 DOSSIERS_MODE,
                 DISCOVERY_MODE,
@@ -1547,7 +1596,7 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
-    elif state.get("mode") == MARKET_LIVE_V2_MODE:
+    elif state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
         manifest["web_lock_sha256"] = MARKET_LIVE_V2_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_LIVE_MODE:
         manifest["web_lock_sha256"] = MARKET_LIVE_WEB_LOCK_SHA256
@@ -2043,6 +2092,7 @@ class Operations:
             EVENT_MODE,
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
+            MARKET_DAILY_MODE,
             UNIFIED_NAVIGATION_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
@@ -2101,6 +2151,7 @@ class Operations:
             EVENT_MODE,
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
+            MARKET_DAILY_MODE,
             UNIFIED_NAVIGATION_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
@@ -2222,7 +2273,7 @@ class Operations:
             if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
-            if self.state.get("mode") == MARKET_LIVE_V2_MODE:
+            if self.state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
                 started = time.monotonic()
                 log.info(
                     "market_live_git_switch_started role=%s restoring=%s timeout_s=%d",
@@ -3730,6 +3781,7 @@ def main(argv=None):
             "apply-events",
             "apply-market-live",
             "apply-market-live-v2",
+            "apply-market-daily",
             "apply-navigation-ui",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
@@ -3818,6 +3870,7 @@ def main(argv=None):
                 "apply-events": EVENT_MODE,
                 "apply-market-live": MARKET_LIVE_MODE,
                 "apply-market-live-v2": MARKET_LIVE_V2_MODE,
+                "apply-market-daily": MARKET_DAILY_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,

@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。
+
 市场V2后继修复只验证Mac Native及同候选macos-15安装；通用Ubuntu检查不冒充Linux产品支持，Windows/Linux原生保持交接。
 
 本次私网手动事件补丁为Mac功能修复；本机真实网关/Host合同、三CI、Mac安装和实际

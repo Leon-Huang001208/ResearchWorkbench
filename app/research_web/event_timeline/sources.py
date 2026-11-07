@@ -16,6 +16,7 @@ import httpx
 from core.observability import get_logger
 
 from ..store import StoreError
+from .exchange_calendars import EXCHANGE_SOURCES, parse_calendar
 from .relevance import candidate_relevance
 from .storage import fail
 
@@ -65,6 +66,19 @@ CATALOG = {
         "documentation_url": "https://ucdp.uu.se/apidocs/",
     },
 }
+CATALOG.update(
+    {
+        key: {
+            **value,
+            "category": "calendar",
+            "history": "official_exchange_publication",
+            "future_supported": True,
+            "occurrence_evidence": "schedule_only",
+            "manual_only": True,
+        }
+        for key, value in EXCHANGE_SOURCES.items()
+    }
+)
 MAX_RESPONSE = 16 * 1024 * 1024
 MAX_EXPANDED = 32 * 1024 * 1024
 MAX_EVENTS = 1000
@@ -460,6 +474,8 @@ def parse(source, raw, *, offset=0, page=0):
                 )
         elif source in {"fed_fomc", "bls_cpi", "bls_jobs"}:
             events = _calendar(source, raw)
+        elif source in EXCHANGE_SOURCES:
+            events = parse_calendar(source, raw)
         else:
             fail("event_source_invalid", 422)
     except (ValueError, KeyError, TypeError, UnicodeError, zipfile.BadZipFile, OSError) as exc:

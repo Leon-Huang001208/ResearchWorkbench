@@ -90,8 +90,10 @@ def empty_row(index_id):
     }
 
 
-def parse_chart(payload, index_id, *, now=None):
+def parse_chart(payload, index_id, *, now=None, max_bars=MAX_BARS):
     """Validate provider identity, ascending local dates and genuine unadjusted OHLCV."""
+    if type(max_bars) is not int or not 1 <= max_bars <= 600:
+        raise GlobalIndexError("invalid_series_budget")
     row = empty_row(index_id)
     now = now or datetime.now(UTC)
     tz = ZoneInfo(row["timezone"])
@@ -112,7 +114,7 @@ def parse_chart(payload, index_id, *, now=None):
             raise GlobalIndexError("index_identity_mismatch")
         timestamps = result["timestamp"]
         quotes = result["indicators"]["quote"]
-        if not isinstance(timestamps, list) or not 1 <= len(timestamps) <= MAX_BARS:
+        if not isinstance(timestamps, list) or not 1 <= len(timestamps) <= max_bars:
             raise GlobalIndexError("invalid_series_shape")
         if not isinstance(quotes, list) or len(quotes) != 1:
             raise GlobalIndexError("invalid_series_shape")
