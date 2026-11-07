@@ -8,6 +8,12 @@
 价格数组或可信准入声明。迟到响应受路由与账号身份保护，事件事实、研究分及正式启用
 分别核验；采集日程和入站 MCP 不因首页浏览或部署自动开启。
 
+## WeKnora 身份、时点与冻结门（2026-11-06）
+
+薄适配仅向操作员指定 origin 发送原生用户 JWT，逐请求校验当前身份／空间及共享权限，不降级管理员或空间 Key。绑定 owner 来自当前 Store 根，跨账号复制的元数据和证据拒绝；密钥仅走受保护后端，验证错误不回显 token／响应体。原件与分块均固定指纹，报告 scope 的明确时间批准不能由模型或内部工具创建，晚于截止和未知日期在检索前拒绝。证据写权限与读取权限分开，旧四工具只读 MCP 不扩权。
+
+双用户、撤权、过期、白名单逃逸、原件及分块漂移、篡改和保全失败分别回归；合成门不证明真实 WeKnora／宿主／报告已通过。上游0001仅控制表格摘要显式 opt-out，0002以默认关闭的实例级只检索profile补充服务端强制约束；Go／真实服务／UI上传及重解析零生成仍未验收，上线 BLOCKED；不提供虚假 LLM、自动收费回退或未经批准的部署。[合同](../../research-web-weknora.md)
+
 统一导航profile固定5ff→b192及独立常量，完整union/blob/mode冻结；额外tests/README/workflow拒绝。NAV旧cfg必须严格False，升级和回滚实际local/private health均要求MCP=False；Native未知假值不是空闲。controller/evidence/自动名单不变，三锁、全账号保全、BirthFence、永久source及失败恢复门保持。
 
 ## 事件部署的封闭授权与拒绝条件（2026-11-05）
@@ -892,3 +898,7 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+资料异步操作复用既有resident admission覆盖网络与存储发布；维护冻结拒绝新操作，不让只读查询绕开活动／保全门。绑定元数据写前和读取均限制16 KiB。stdlib公开server入口只转发通过校验的操作员origin，冷Doctor仅报告可选配置事实，不接触JWT、网络或账号初始化。0003的认证服务端profile标记不能由客户端开启；Node纯函数验证不等于上游UI或Go运行验证。
+
+origin校验共享helper只依赖stdlib，冷Doctor不反向导入server启动模块；它与真实dispatcher使用同一限制，避免诊断读取引入启动／凭据副作用。新helper没有新增配置权限、环境前缀继承或网络出口。

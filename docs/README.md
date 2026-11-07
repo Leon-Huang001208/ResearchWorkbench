@@ -1,5 +1,9 @@
 # Research Workbench 文档门户
 
+## WeKnora 资料候选
+
+[WeKnora 研究资料与报告证据](research-web-weknora.md)：固定版本、个人身份绑定、批准时点、原件／分块冻结、只读候选盘点和20题检索对照。当前默认关闭；UI上传／重解析零生成仍 BLOCKED，真实服务、迁移和报告链未验收。
+
 [事件与日历研究](research-web-event-research.md)是本轮候选的总入口，连接[事件时间线](research-web-event-timeline.md)、[固定研究与独立测试](research-web-event-studies.md)、[市场研究评分](research-web-market-scoring.md)和[图14数据流](../outputs/research-web-architecture/14-event-research.html)。文档区分来源覆盖、描述研究、正式准入与实际部署；入口存在不表示1990全覆盖、真实PIT或平台验收已完成。
 
 新增 [入站 MCP 私网只读合同](research-web-mcp-facade.md)及固定 [授权读取图](../outputs/research-web-architecture/15-inbound-mcp.html)：默认关闭，批准材料、独立 OAuth 与存活后端读取；原生宿主和私网部署尚未验收。
