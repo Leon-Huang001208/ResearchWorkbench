@@ -50,7 +50,16 @@ try{
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin){external.push(u.origin);await route.abort();}else await route.continue();});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
  async function go(hash){await page.goto(origin+'/'+hash);await page.locator('.primary-rail').waitFor();await page.locator('.secondary-sidebar').waitFor({state:'attached'});await page.waitForFunction(()=>document.querySelector('.secondary-sidebar [aria-current="page"],.codex-sidebar'));}
- async function visiblePrimary(){assert(await page.locator('.primary-rail').isVisible());assert(await page.locator('.primary-rail .rail-brand').isVisible());}
+ async function visiblePrimary(){
+  assert(await page.locator('.primary-rail').isVisible());assert(await page.locator('.primary-rail .rail-brand').isVisible());
+  // Theme/account updates can replace the shell; observe connected geometry
+  // atomically rather than measuring a detached node from the previous render.
+  await page.waitForFunction(()=>{
+   const rail=document.querySelector('.primary-rail'),link=rail?.querySelector('.primary-nav .rail-link');
+   const expected=innerWidth>1050&&document.querySelector('.app-shell.claw-shell')?72:68;
+   return rail?.getBoundingClientRect().width===expected&&link&&getComputedStyle(link).flexDirection==='column';
+  },null,{timeout:5000});
+ }
  await check('all canonical modules render secondary navigation',async()=>{
   for(const hash of [...PRIMARY_NAVIGATION.map(x=>x.href),'#/progress','#/settings/general','#/account','#/history?mode=claw']){await go(hash);await visiblePrimary();assert(await page.locator('.secondary-sidebar').isVisible(),hash);assert.equal(await page.locator('#main .progress-tabs:visible,#main .intel-tabs:visible,#main .settings-navigation:visible,#main .market-tabs:visible,#main .capability-workspace-nav:visible').count(),0,hash);}
  });
