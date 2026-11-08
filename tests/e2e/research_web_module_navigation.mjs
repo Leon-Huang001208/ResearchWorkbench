@@ -8,6 +8,7 @@ import { PRIMARY_NAVIGATION, secondaryEntries } from '../../app/research_web/ui/
 import { parseRoute } from '../../app/research_web/ui/core.mjs';
 
 const output=path.resolve(process.env.RWB_NAV_OUTPUT || 'logs/module-navigation-browser');
+const checkFilter=process.env.RWB_NAV_CHECK_FILTER || '';
 const ui=path.resolve('app/research_web/ui');
 await mkdir(output,{recursive:true});
 const errors=[], external=[], writes=[], requests=[], refreshRequests=[], checks=[], consoleErrors=[];
@@ -41,7 +42,7 @@ const server=http.createServer(async(req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin=`http://127.0.0.1:${server.address().port}`;
 let browser;
-async function check(label, fn){await fn();checks.push(label);await appendFile(path.join(output,'checks.jsonl'),JSON.stringify({label,status:'PASS'})+'\n');}
+async function check(label, fn){if(checkFilter&&!label.includes(checkFilter))return;await fn();checks.push(label);await appendFile(path.join(output,'checks.jsonl'),JSON.stringify({label,status:'PASS'})+'\n');}
 try{
  const {chromium}=await import(pathToFileURL(process.env.PLAYWRIGHT_CORE_PATH).href);
  browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
@@ -50,7 +51,38 @@ try{
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin){external.push(u.origin);await route.abort();}else await route.continue();});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
  async function go(hash){await page.goto(origin+'/'+hash);await page.locator('.primary-rail').waitFor();await page.locator('.secondary-sidebar').waitFor({state:'attached'});await page.waitForFunction(()=>document.querySelector('.secondary-sidebar [aria-current="page"],.codex-sidebar'));}
- async function visiblePrimary(){assert(await page.locator('.primary-rail').isVisible());assert(await page.locator('.primary-rail .rail-brand').isVisible());}
+ async function visiblePrimary(){
+  assert(await page.locator('.primary-rail').isVisible());assert(await page.locator('.primary-rail .rail-brand').isVisible());
+  // Theme/account updates can replace the shell; observe connected geometry
+  // atomically rather than measuring a detached node from the previous render.
+  await page.waitForFunction(()=>{
+   const rail=document.querySelector('.primary-rail'),link=rail?.querySelector('.primary-nav .rail-link');
+   const expected=innerWidth>1050&&document.querySelector('.app-shell.claw-shell')?72:68;
+   return rail?.getBoundingClientRect().width===expected&&link&&getComputedStyle(link).flexDirection==='column';
+  },null,{timeout:5000});
+ }
+ await check('market sidebar retains five visible clickable destinations under the actual full-shell CSS',async()=>{
+  const destinations=[['综合总览','#/market'],['行情分析','#/market?view=overview'],['沪深北行情','#/market?view=quotes'],['板块与资金','#/market?view=sectors'],['研究工作台','#/market?view=workbench']];
+  await go('#/market');
+  const pane=page.getByLabel('全市场概览子页面',{exact:true});
+  assert.equal(await pane.getByRole('link').count(),5);
+  assert.equal(await page.locator('#main .market-tabs').evaluate(el=>getComputedStyle(el).display),'none','real module-navigation CSS hides the duplicate content tabs');
+  for(const [label,href] of destinations){
+   const link=pane.getByRole('link',{name:label,exact:true});assert(await link.isVisible(),label);assert.equal(await link.getAttribute('href'),href);
+   await link.click();await page.waitForFunction(expected=>location.hash===expected&&document.querySelector('.module-links [aria-current="page"]')?.getAttribute('href')===expected,href);
+   assert.equal(await pane.locator('[aria-current="page"]').textContent(),label);assert.equal(await page.locator('#main .market-tabs:visible').count(),0);
+  }
+  await page.goBack();await page.waitForFunction(()=>location.hash==='#/market?view=sectors');assert.equal(await pane.locator('[aria-current="page"]').textContent(),'板块与资金');
+  await page.reload();await pane.waitFor();assert.equal(await pane.locator('[aria-current="page"]').textContent(),'板块与资金');
+  await page.screenshot({path:path.join(output,'market-five-destinations-desktop.png')});
+  await pane.locator('[data-collapse-sidebar]').click();assert(!(await pane.isVisible()));await visiblePrimary();await page.locator('.sidebar-reopen').click();assert(await pane.isVisible());
+  await page.setViewportSize({width:390,height:844});await page.locator('.menu-toggle').click();assert(await pane.isVisible());
+  for(const [label] of destinations)assert(await pane.getByRole('link',{name:label,exact:true}).isVisible(),label);
+  await page.screenshot({path:path.join(output,'market-five-destinations-mobile.png')});
+  await pane.getByRole('link',{name:'沪深北行情',exact:true}).click();await page.waitForFunction(()=>location.hash==='#/market?view=quotes');assert(!(await pane.isVisible()));
+  await page.locator('.menu-toggle').click();assert.equal(await pane.locator('[aria-current="page"]').textContent(),'沪深北行情');await page.keyboard.press('Escape');assert(!(await pane.isVisible()));assert(await page.locator('.menu-toggle').evaluate(el=>el===document.activeElement));
+  await page.setViewportSize({width:1440,height:900});
+ });
  await check('all canonical modules render secondary navigation',async()=>{
   for(const hash of [...PRIMARY_NAVIGATION.map(x=>x.href),'#/progress','#/settings/general','#/account','#/history?mode=claw']){await go(hash);await visiblePrimary();assert(await page.locator('.secondary-sidebar').isVisible(),hash);assert.equal(await page.locator('#main .progress-tabs:visible,#main .intel-tabs:visible,#main .settings-navigation:visible,#main .market-tabs:visible,#main .capability-workspace-nav:visible').count(),0,hash);}
  });
@@ -97,7 +129,7 @@ try{
   await ordinary.route('**/*',async r=>{if(new URL(r.request().url()).origin!==origin){external.push(r.request().url());await r.abort();}else await r.continue();});
   const other=await ordinary.newPage();other.on('pageerror',e=>errors.push(e.message));await other.goto(origin+'/#/settings/general');await other.locator('.module-links').waitFor();assert(await other.locator('.secondary-sidebar').isVisible());assert.equal(await other.locator('.module-links a[href="#/settings/users"]').count(),0);assert.equal(await other.locator('.primary-nav a[href="#/reports"]').count(),0);await ordinary.close();
  });
- assert.deepEqual(errors,[],'browser runtime errors');assert.deepEqual(consoleErrors,[],'browser console errors');assert.deepEqual(external,[],'no external requests');assert.deepEqual(writes,[],'no business writes');
+ assert(checks.length>0,'at least one selected browser check must run');assert.deepEqual(errors,[],'browser runtime errors');assert.deepEqual(consoleErrors,[],'browser console errors');assert.deepEqual(external,[],'no external requests');assert.deepEqual(writes,[],'no business writes');
  const result={status:'PASS',origin,checks,requests:requests.length,browserErrors:errors,consoleErrors,externalRequests:external,businessWrites:writes,stubbedMarketRefreshes:refreshRequests.length,fixture:'isolated empty API; real checked-out UI; no resident or data collectors'};
  await writeFile(path.join(output,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }catch(error){await writeFile(path.join(output,'failure.json'),JSON.stringify({status:'FAIL',message:error.message,stack:error.stack,errors,checks,external,writes},null,2));throw error;}

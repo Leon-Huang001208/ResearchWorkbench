@@ -63,7 +63,9 @@ const api = { async request(path, options = {}) {
   if (url.pathname === '/market') return { sections: {} };
   if (url.pathname === '/market-scores/profiles') return profiles;
   if (url.pathname === '/market-scores/runs') return { items: [], next_cursor: null, historical_only: true, production_enabled: false };
+  if (url.pathname === '/market-scores/initial-evidence') return { items: [], production_enabled: false };
   if (url.pathname === '/events/timeline') return { items: [], next_cursor: null, sources: [], coverage: 'not_loaded' };
+  if (url.pathname === '/events/coverage') return { items: [], complete: false };
   throw new Error('Unexpected dashboard read: ' + path);
 }};
 const dashboard = createMarketDashboard({ api, documentRef: null,
@@ -108,10 +110,22 @@ def test_actual_dashboard_mount_get_paths_pass_real_fastapi_without_store_writes
         assert any(call["path"] == "/market-scores/profiles" for call in calls)
         assert any(call["path"].startswith("/market-scores/runs?") for call in calls)
         assert any(call["path"].startswith("/events/timeline?") for call in calls)
+        assert any(call["path"] == "/market-scores/initial-evidence" for call in calls)
+        assert any(call["path"] == "/events/coverage" for call in calls)
         with TestClient(app) as client:
             for call in calls:
                 response = client.request(call["method"], "/api/research" + call["path"])
                 assert response.status_code == 200, (call["path"], response.text)
+                if call["path"] == "/market-scores/initial-evidence":
+                    assert response.json()["production_enabled"] is False
+                    assert {item["index_id"] for item in response.json()["items"]} == {
+                        "SSE",
+                        "SP500",
+                        "HSI",
+                    }
+                elif call["path"] == "/events/coverage":
+                    assert response.json()["complete"] is False
+                    assert response.json()["items"] == []
         assert research.store.data == before_store
         assert _file_hashes(research.store.root) == before_files
         assert research.market.overview()["inflight"] == []

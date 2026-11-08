@@ -213,6 +213,7 @@
         "app/research_web/aihot_content.py",
         "app/research_web/market_service.py",
         "app/research_web/market_routes.py",
+        "app/research_web/market_financial_calendar.py",
         "app/research_web/warehouse_diagnostics.py",
         "app/research_web/market_analysis.py",
         "app/research_web/market_portfolio.py",
@@ -254,6 +255,7 @@
         "tests/research_web/test_claw_projects.py",
         "tests/research_web/test_aihot.py",
         "tests/research_web/test_market_service.py",
+        "tests/research_web/test_market_financial_calendar.py",
         "tests/e2e/market_authenticated.py",
         "tests/research_web/test_warehouse_diagnostics.py",
         "tests/research_web/test_market_reader.py",
@@ -2671,7 +2673,7 @@
       "receipt": "outputs/research-web-architecture/13-market-overview.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/13-market-overview.visual-check.json",
       "level": "flows",
-      "summary": "Host内综合总览与原行情分析；腾讯九指数独立缓存，东财/新浪旧目录与12指数研究仓保留，事件/评分复用14领域。",
+      "summary": "Host 内综合总览与行情分析；财经日历单独经同源 GET 读取固定官方宏观排期和账号内短快照。",
       "evidence": [
         {
           "subjects": [
@@ -2680,6 +2682,31 @@
             "marketRefresh"
           ],
           "source": "app/research_web/ui/market.mjs"
+        },
+        {
+          "subjects": [
+            "calendarPage"
+          ],
+          "source": "app/research_web/ui/market-calendar.mjs"
+        },
+        {
+          "subjects": [
+            "calendarRead"
+          ],
+          "source": "app/research_web/market_routes.py"
+        },
+        {
+          "subjects": [
+            "calendarHost"
+          ],
+          "source": "app/research_web/market_financial_calendar.py"
+        },
+        {
+          "subjects": [
+            "calendarSources",
+            "calendarFetch"
+          ],
+          "source": "app/research_web/datahub/providers_market_calendar.py"
         },
         {
           "subjects": [
@@ -2749,7 +2776,11 @@
           "source": "app/research_web/market_indices.py"
         },
         {
-          "subjects": ["publicMarket", "marketFetch", "marketNormalize"],
+          "subjects": [
+            "publicMarket",
+            "marketFetch",
+            "marketNormalize"
+          ],
           "source": "app/research_web/datahub/providers_global_indices.py"
         }
       ]
@@ -3953,6 +3984,20 @@
       "prefix": "/api/research/events"
     },
     {
+      "method": "POST",
+      "path": "/api/research/events/initial-batch/preview",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/initial-batch/preview",
+      "prefix": "/api/research/events"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/events/initial-batch",
+      "source": "app/research_web/event_timeline/routes.py",
+      "declaredPath": "/initial-batch",
+      "prefix": "/api/research/events"
+    },
+    {
       "method": "GET",
       "path": "/api/research/frameworks",
       "source": "app/research_web/frameworks/routes.py",
@@ -4542,6 +4587,13 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/market/financial-calendar",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/financial-calendar",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/market-scores",
       "source": "app/research_web/market_scoring/routes.py",
       "declaredPath": "",
@@ -4573,6 +4625,27 @@
       "path": "/api/research/market-scores/runs/{run_id}",
       "source": "app/research_web/market_scoring/routes.py",
       "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market-scores/initial-evidence",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/initial-evidence",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market-scores/initial-evidence/preview",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/initial-evidence/preview",
+      "prefix": "/api/research/market-scores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market-scores/initial-evidence",
+      "source": "app/research_web/market_scoring/routes.py",
+      "declaredPath": "/initial-evidence",
       "prefix": "/api/research/market-scores"
     },
     {
@@ -6159,7 +6232,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "26e730cbf73d2edcce753d7f84c4f49cf68ec68c"
+      "revision": "7cfe3a3540f3a9d50c424e4583cb1f8d58c90708"
     },
     "levels": [
       {

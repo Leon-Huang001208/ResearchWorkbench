@@ -48,6 +48,7 @@ from .discovery.tracking import DiscoveryTracking
 from .frameworks import FrameworkService
 from .integrations import IntegrationCoordinator
 from .local_integrations import LocalIntegrationManager
+from .market_financial_calendar import MarketFinancialCalendar
 from .market_service import MarketService
 from .mcp_registry import MCPRegistryService
 from .mcp_runtime.authorization import AuthorizationManager
@@ -372,6 +373,7 @@ class ResearchService(ModelProfilesMixin):
         from .datahub.market_reader import MarketReader
 
         self.market = MarketService(store.root, market_reader=MarketReader(self.datahub))
+        self.market_financial_calendar = MarketFinancialCalendar()
         self.frameworks = FrameworkService(self, store.root / "frameworks")
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
@@ -581,6 +583,7 @@ class ResearchService(ModelProfilesMixin):
         await self.event_timeline.close()
         await self.report_workflows.close()
         await self.asset_workspace.close()
+        await self.market_financial_calendar.close()
         await self.market.close()
         await self.integrations.close()
         await self.local_integrations.close()

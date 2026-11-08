@@ -1,5 +1,18 @@
 # Research Workbench Development Map
 
+全市场逐日交互在 `ui/market-dashboard*`，首批操作在 `ui/market-daily-bootstrap.mjs`；事件与日历由原
+`event_timeline` 保存事实及原件，`market_scoring` 提供真实原值与原资格缺口。显示证据不替代评分准入。
+
+市场联合V2的双仓库切换在`resident/model_provider_upgrade.py`的`Operations.install`，
+独立120秒上限并记录角色和耗时；既有真实事务夹具覆盖45秒成功及121秒回滚保全，未改通用命令读取器。
+
+市场旧页可发现性：`ui/module-navigation.mjs`保留五个市场子页，原`market.mjs`业务不改；
+`research_web_module_navigation.test.mjs`与真实壳层e2e共同覆盖内部tabs隐藏时的可见链接和选中。
+
+私网事件明确动作修补：`multiuser/gateway.py` 的请求头允许集保留客户端已有意图；
+`test_multiuser_gateway.py` 通过真实账号网关及Host中间件验证合法、缺失、非法与跨源情况。
+不改变事件/评分Host的准入校验或采集计划，实页403复现和版本证据见同日任务报告。
+
 三地综合总览：`ui/market-dashboard*.mjs` 负责只读投影和用户显式操作；原 `market.mjs` 完整保留
 行情分析、沪深北行情和板块资金。`market_indices.py`／`providers_global_indices.py` 定义 global-v1
 九指数真实报价与原生 OHLCV，MarketService 保留独立缓存；评分和事件仍由原领域核验。
@@ -221,6 +234,10 @@ SDK可导入、离线合成通过与真实连续运行分别取证。
 最后核对：2026-10-22。Wind工作区：`asset_history.py` 负责日线规范化/重叠校验/固定锚点复权；`asset_history_jobs.py` 负责持久任务/分块缓存/显式重试/取消排空/规范快照CAS发布；`asset_routes.py` 声明6个历史任务与账号偏好API；`asset_workspace.py`、`store.py`、`service.py` 负责观察投影、旧索引缺省、任务清理和服务关闭。DataHub `adjustment_contract.py`、`contracts.py`、`catalog.py`、`providers_cjpy.py`、`broker.py`、`__init__.py`、`snapshots.py` 负责封闭三种复权查询、真实Future占用、metadata和自包含交接；`main.py`与`resident/model_provider_upgrade.py`合并任务/真实Future空闲证明。UI仍在`app.mjs`、`core.mjs`及`asset-controller/chart/workspace`模块，动态副图偏好、历史任务轮询及日线前缀筹码互相独立。权威文档为[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产历史任务与固定复权)、架构03/04章和[批准计划](plans/2026-10-22-wind-asset-workspace.md)。定点回归新增`test_asset_history.py`，扩展原DataHub/catalog/CJPY/broker模块，保留原资产/Provider/空闲/JS/E2E测试；真实厂商、几何浏览器与同候选Mac安装CI分别取证，不能用预检替代最终验收。
 
 全市场概览由 `market_service.py` 管无会话缓存、合并刷新、取消和关闭，`market_routes.py` 管固定 HTTP 参数；`datahub/providers_market.py` 管沪深北分页、来源字段与完整性。前端 `ui/market.mjs`／`market.css` 负责三页签和可见页刷新。定点回归为 `test_market_provider.py`、`test_market_service.py` 和 `research_web_market*.test.mjs`；数据流见[市场概览](../outputs/research-web-architecture/13-market-overview.html)。
+
+财经日历以独立 `ui/market-calendar.mjs` 和样式接到市场页，Host 固定枚举路由读取
+账号内短快照，DataHub 复用官方排期解析。原交易日历仍用于判断是否开市。定点合同见
+`test_market_financial_calendar.py` 与 `research_web_market_calendar.test.mjs`，与真实来源和登录态参考视觉分别验收。
 
 真实源及正式登录验收入口为 `tests/e2e/market_authenticated.py` 与 `research_web_market_authenticated.mjs`：临时私有根、合成测试账号、正式网关与候选用户实例，不注入cookie或替换Provider。连接路径、官网范围及未来上市排除由provider回归固定；独立源调查在[任务报告](../.ai/reports/2026-10-22-market-data-sources.md)中分开记录可达、覆盖与授权状态。
 

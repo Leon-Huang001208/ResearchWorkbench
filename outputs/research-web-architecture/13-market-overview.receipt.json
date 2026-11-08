@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Developer/ResearchWorkbench-main-worktrees/market-overview-live-20261106/docs/architecture/research-web/diagrams/13-market-overview.json",
-  "output": "/Users/leon/Developer/ResearchWorkbench-main-worktrees/market-overview-live-20261106/outputs/research-web-architecture/13-market-overview.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-financial-calendar-20261108/docs/architecture/research-web/diagrams/13-market-overview.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-financial-calendar-20261108/outputs/research-web-architecture/13-market-overview.html",
   "specification": {
-    "sha256": "5a9e049fe497957389728738a54b1bf564e630d9eac99d6e6e45fc3e04b8f113",
-    "bytes": 5111
+    "sha256": "930f33213dba66f7049827bbe48b1f67eef7b8ab403a11d5f71743841483ee04",
+    "bytes": 5990
   },
   "artifact": {
-    "sha256": "173e10ab6086b8ac8e8264e21037d021a8479a6f1c0a782a4649ed37c06c5ce3",
-    "bytes": 640934
+    "sha256": "75d847a5fd5ef205a35f8b9c7cbfb93060269c8a113bad77e125b8d23a21bc4c",
+    "bytes": 645912
   },
   "validation": {
     "checksPassed": 9,

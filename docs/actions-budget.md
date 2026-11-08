@@ -1,5 +1,17 @@
 # GitHub Actions 免费额度治理
 
+逐日市场与首批资料沿原 Checks 加入官方资料／研究证据离线合同，沿原 Node 通配符覆盖日期、图表及明确导入，
+Mac Bootstrap 在原静态资产步骤增加 `market-daily-bootstrap.mjs`。原三CI、作业、依赖、runner、时限不变；
+原步骤增量预留120秒含 Native 新封闭模式回归，实际按候选记录。真实取源、导入和常驻验收单独执行。
+
+市场Native V2切换补丁仅沿原`test_model_provider_upgrade.py`增加两项有界完成／原回滚合同，
+复用现有三CI和Mac安装，无新workflow/job/runner/依赖/CI超时或平台dispatch，原步骤增量预留5秒。
+120秒是该Native步骤的本机Git命令上限，实际服务接受另证，不用旧9a97168e候选CI认证新版本。
+
+私网明确动作和旧行情入口补丁沿原Gateway Python清单、Node模块导航合同及Mac静态安装步骤；
+不新增workflow/job/runner/依赖/timeout或平台dispatch。后继profile增量在原步骤预留90秒，
+最终候选实测另记；发布前重新核对PUBLIC和当前标准runner，不借已部署a76的CI。
+
 综合总览沿原三项 CI：Checks 追加九指数离线测试，Mac Bootstrap 原静态步骤核对四个
 market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平台 dispatch；增量预算
 为原测试步骤15秒、静态步骤10秒。发布前仍须核对当前 visibility／额度，不能沿用旧快照。
@@ -20,6 +32,10 @@ market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平�
 test_model_provider_upgrade.py参数与近处反例验证，不增加job、runner、依赖或时限。
 新增用例暂在原步骤预留120秒，最终候选以实测为准；操作员仍需原三CI及Mac干净安装。
 真实日程关闭、全账号保全和页面验收另取现场证据，不能以CI代替；不派发他平台产品CI。
+
+2026-11-08 财经日历在原 Research Web Checks 加入离线 Python 合同（JS 沿原通配符），
+在原 macOS Bootstrap 步骤核对两份静态文件。没有新 job、runner、依赖、超时或跨平台 dispatch。
+实际运行须绑定最终候选；远端操作前复核仓库公开状态。
 
 2026-11-05研发进展仅在原macOS Bootstrap静态资源步骤追加progress.mjs、progress.css、progress-data.json的下载及源码字节核对；原Web Checks通配符执行新Node测试。无新job、runner、依赖、timeout或他平台dispatch，增量预留原步骤10秒。实际候选须重新取得原Constraints、Checks与macos-15安装证据；远端操作前复核PUBLIC。
 

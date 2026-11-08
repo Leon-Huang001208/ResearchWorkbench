@@ -19,6 +19,15 @@ from .storage import RecordStore, canonical, fail, now
 log = get_logger(__name__)
 
 
+def _manual_event(payload):
+    """A human-edited event cannot inherit an exact exchange schedule assertion."""
+    if payload.pop("calendar_status", None) is not None:
+        payload.pop("calendar_close_local", None)
+        payload.pop("calendar_timezone", None)
+        payload["occurrence_evidence"] = "manual_revision"
+    return payload
+
+
 class TimelineService:
     def __init__(self, research, *, fetcher=None, schedule_binder=None):
         self.research = research
@@ -29,6 +38,7 @@ class TimelineService:
         self.schedule_binder = schedule_binder
         self._active = set()
         self._import_slots = asyncio.Semaphore(2)
+        self._initial_batch_lock = asyncio.Lock()
         self._closed = False
 
     @property
@@ -103,6 +113,7 @@ class TimelineService:
         payload.update(
             admission="candidate", revision_reason=body["reason"], formal_backtest_eligible=False
         )
+        _manual_event(payload)
         return self.records.batch(
             [
                 {
@@ -208,6 +219,7 @@ class TimelineService:
             "parent_refs": body["events"],
             "formal_backtest_eligible": False,
         }
+        _manual_event(payload)
         payload["evidence_refs"] = list(
             {
                 ref["id"]: ref for row in rows for ref in row["payload"].get("evidence_refs", [])
@@ -254,13 +266,15 @@ class TimelineService:
             ops.append(
                 {
                     "kind": "event",
-                    "payload": {
-                        **row["payload"],
-                        **child,
-                        "admission": "candidate",
-                        "parent_refs": [{"id": identifier, "revision": row["revision"]}],
-                        "formal_backtest_eligible": False,
-                    },
+                    "payload": _manual_event(
+                        {
+                            **row["payload"],
+                            **child,
+                            "admission": "candidate",
+                            "parent_refs": [{"id": identifier, "revision": row["revision"]}],
+                            "formal_backtest_eligible": False,
+                        }
+                    ),
                 }
             )
         result = self.records.batch(ops, key, intent=intent, scope="timeline-split")
@@ -354,8 +368,10 @@ class TimelineService:
                     **value,
                     "schedule": schedules.get(key),
                     "enabled": self.schedule_binder is not None
+                    and not value.get("manual_only")
                     and bool(schedules.get(key, {}).get("payload", {}).get("enabled", False)),
-                    "scheduling_ready": self.schedule_binder is not None,
+                    "scheduling_ready": self.schedule_binder is not None
+                    and not value.get("manual_only"),
                 }
                 for key, value in sources.CATALOG.items()
             ],
@@ -385,6 +401,8 @@ class TimelineService:
     def schedule(self, source, body):
         if source not in sources.CATALOG:
             fail("event_source_invalid", 422)
+        if sources.CATALOG[source].get("manual_only"):
+            fail("event_source_manual_only", 409)
         body = {"interval_hours": 1 if source in {"gdelt", "ucdp"} else 24, **body}
         body = models.Schedule.model_validate(body).model_dump(mode="json")
         intent = {"source": source, **body}
@@ -442,7 +460,7 @@ class TimelineService:
             scope="timeline-schedule",
         )[0]
 
-    def _process_source(self, job, body, url, raw, guard, cancelled):
+    def _process_source(self, job, body, url, raw, guard, cancelled, date_window=None):
         """Bounded worker retains its lease until all accepted writes have drained."""
 
         def check():
@@ -453,8 +471,14 @@ class TimelineService:
 
         check()
         intent = {k: body[k] for k in ("source", "year", "page", "offset")}
+        if date_window is not None:
+            intent.update(start=date_window[0], end=date_window[1])
         reference = self.archive_evidence(raw, source=body["source"], url=url, guard=check)
         parsed = sources.parse(body["source"], raw, offset=body["offset"], page=body["page"])
+        if date_window is not None:
+            from .initial_batch import overlapping
+
+            parsed["events"] = overlapping(parsed["events"], date_window)
         next_year = body["year"]
         if body["source"] == "gdelt":
             if parsed["next_offset"] is not None:
@@ -557,7 +581,7 @@ class TimelineService:
                     "url": url,
                     "raw_ref": reference,
                     "event_count": len(imported),
-                    "state": "partial_page",
+                    "state": "source_scoped_partial" if date_window else "partial_page",
                     "bounded": parsed["bounded"],
                     "observed_at": now(),
                     "historical_pit": False,
@@ -591,13 +615,16 @@ class TimelineService:
                 guard=check,
             )
 
-    async def refresh(self, body, *, guard=None):
-        body = models.Refresh.model_validate(body).model_dump(mode="json")
+    async def refresh(self, body, *, guard=None, date_window=None):
+        model = models.InitialSourceRefresh if date_window is not None else models.Refresh
+        body = model.model_validate(body).model_dump(mode="json")
         if self._closed:
             fail("event_host_closed", 503)
         url = sources.endpoint(body["source"], body["year"], body["page"])
         key = "source-request:" + body["idempotency_key"]
         intent = {k: body[k] for k in ("source", "year", "page", "offset")}
+        if date_window is not None:
+            intent.update(start=date_window[0], end=date_window[1])
         previous = self.records.cached("source_job", key, intent)
         if previous:
             return self.records.get("source_job", previous[0]["id"])
@@ -648,6 +675,7 @@ class TimelineService:
                 raw,
                 guard,
                 cancelled,
+                date_window,
             )
             try:
                 return await asyncio.shield(worker)
@@ -665,10 +693,17 @@ class TimelineService:
                 raise
         except asyncio.CancelledError:
             job = self.records.get("source_job", job["id"])
+            payload = {**job["payload"], "state": "interrupted", "code": "event_source_cancelled"}
+            if date_window is not None:
+                # The shielded writer has already drained before reaching here.
+                payload["drain_receipt"] = {
+                    "format": "initial-import-drain-v1",
+                    "state": "interrupted",
+                }
             self.records.update(
                 "source_job",
                 job["id"],
-                {**job["payload"], "state": "interrupted", "code": "event_source_cancelled"},
+                payload,
                 job["revision"],
                 f"source-interrupted:{job['id']}",
             )
@@ -678,14 +713,17 @@ class TimelineService:
                 "event_refresh_failed", source=body["source"], error_type=type(exc).__name__
             )
             job = self.records.get("source_job", job["id"])
+            payload = {
+                **job["payload"],
+                "state": "failed",
+                "code": getattr(exc, "code", "event_source_failed"),
+            }
+            if date_window is not None:
+                payload["drain_receipt"] = {"format": "initial-import-drain-v1", "state": "failed"}
             return self.records.update(
                 "source_job",
                 job["id"],
-                {
-                    **job["payload"],
-                    "state": "failed",
-                    "code": getattr(exc, "code", "event_source_failed"),
-                },
+                payload,
                 job["revision"],
                 f"source-failed:{job['id']}",
             )

@@ -1,5 +1,12 @@
 # Mac mini Docker 开发与独立部署
 
+逐日市场本轮验收落在已授权Mac Native；外置开发工作区不搬移Docker数据盘，不操作其他容器。
+
+市场V2的Git切换预算只适用于已授权Mac Native事务，不切换Docker、改其他容器或扩大资源清理范围。
+
+私网明确动作后继补丁只针对当前Native常驻，不切换Docker产品或停止其他服务；
+双运行时互斥、三锁、保全恢复及受管缓存预算不变，通用CI不替代Docker实机证据。
+
 三地综合总览的 `apply-market-live` 是固定5ff→a2ee产品的 Native 维护 profile，不切换
 Docker 镜像或卷。仍遵守原双运行时互斥、三锁、BirthFence和保全恢复；采集日程与
 入站 MCP 保持关闭。Mac Docker、Windows/Linux 产品证据不由 Native 切换代替。

@@ -1,5 +1,53 @@
 # Mac mini 空私有池网关升级
 
+逐日市场用 `apply-market-daily`，从已接受 `37051f8f` 进入操作员内 `MARKET_DAILY_PAYLOAD` 固定的载荷；复用市场 V2 的 120 秒切换预算、
+切后干净树、原保全与恢复。首批操作的固定来源在写者排空后记录明确终态证明；旧失败、运行中、
+未知状态、无证明或日程非严格关闭仍拒绝切换。不得清除历史失败隔离以便重试。
+
+2026-11-07：V2候选9a97168e在两个Git角色已写入目标HEAD后，`switch --detach`仍未在原通用30秒内完成，
+原事务自动回滚至a76ecfdf、保全通过，失败目标隔离。隔离网关同common及原hook复测0.236秒成功，
+未复现现场尾部拖延，不将其归因到具体hook。后继只为V2的目标/恢复Git切换提供独立120秒上限，
+保留原Git命令和hook，切换成功后再核对SHA及干净状态才进入wheel步骤，按角色记录完成或拒绝耗时。
+只读Git／其他profile／CI时限不变；超限仍进入原保全恢复。不删除旧隔离、不以同SHA重试，
+新合并版本须重新通过独评、本地Router、完整三CI及实际Native验收。
+
+## 事件手动意图与市场入口修复封闭部署V2（2026-11-06）
+
+`apply-market-live-v2`／`reviewed-market-overview-live-v2` 固定已验收前版
+`a76ecfdfb1b1b7a35c508d15ccf16222ed20423c`，产品检查点固定
+`cd09e2af70544abc4270c676b58e7f8cc2651773`（P3，包含用户2026-11-07明确授权的
+PR278代码及PR279窄一级栏修复；WeKnora保持未配置，不启动其服务或模型）。该产品修复真实认证网关遗漏已有
+`X-Research-User-Action` 头导致事件手动 POST 被原 Host 意图门拒绝的问题；仅在原认证同源链
+转发已有意图，不移除 Host 门。产品同时补齐原市场sidebar的dashboard／workbench／overview／quotes／sectors
+五个可见入口，避免原tabs隐藏后旧内容失去可见入口；不自动采集、不启用日程、MCP或模型。
+
+新 profile 复用原 version4、三锁、BirthFence、永久恢复 source、独立主实例／网关仓库身份、
+全账号64MiB业务索引、@events／@dossiers／会话／模型配置保全与恢复。
+EVENT_SAFETY_MODES 当前仅四个封闭mode：EVENT、统一导航、市场LIVE1及LIVE2；
+EVENT_PRESERVATION_MODES 是同一集合别名。严格MCP回滚子集仅导航／LIVE1／LIVE2，
+新旧配置与恢复journal要求原字段严格 false，前进及回滚均读取 local/private 实际 health 的
+严格 false，并保留 loaded／PID／出生／源码／配置观察窗。EVENT/db2历史缺字段回滚豁免、
+所有旧前版／产品常量与组合链保持，不进入 TRIAL、不取消任务、不改账号／秘密／权限。
+
+固定前版须为产品祖先，产品须为最终工具目标祖先；两份 previous..payload 与 previous..target
+完整路径并集的 blob／文件模式逐一冻结。产品后仅 MODULE、原 TEST、docs／报告可变，
+额外app／scripts／其他tests／README／outputs／依赖／workflow一律拒绝；不放宽索引、
+证据reader或安装锁。每次准备／空闲／切换／恢复复核严格 Native 空列表、Host／后台／
+Workflow／市场inflight空闲及全账号采集日程关闭原件证明。
+
+V2尚未发布前，产品冻结从仅gateway的P0 `a2e97c3110b4495a0ae00df1123da400ab8a15e8`
+更新为包含gateway与sidebar的P1 `974628a808627a68d732f8d620c4b34ae10a9b3e`；仅新V2自己的
+PAYLOAD／固定值测试随之更新，所有历史profile身份保持。P0的20项WIP通过原件保留，不作为P1最终证据。
+2026-11-07用户明确授权带入最新主线PR278后，产品进一步冻结为P2 `15c24b7ec59685735f8af75b8e9f5dc86830d694`，
+保留P1、原已准备候选362b及全部历史回执；旧profile、前版、锁、reader与路径冻结门不变。
+P2阶段要求新组合候选的独评、必需CI及Mac干净安装，不能借用旧a76部署或旧782CI。
+同日用户在导航窗口明确要求一级栏保持原宽；P3纳入受审c34e093b候选的普通68px／Claw桌面72px窄栏，
+完整保留二级独立逻辑及市场五入口。P3固定为`cd09e2af70544abc4270c676b58e7f8cc2651773`，
+P2及此前候选、失败和恢复原件继续保留；最终须等待PR279正常合并、刷新基线及新联合候选三CI，
+不能把任何P2或PR279单独结果当成联合上线证明。仅本轮未发布V2的PAYLOAD／固定值测试／文档随阶段推进，旧profile不变。
+实际常驻切换、双health／MCP关闭／采集关闭、真实认证手动操作、保全和资源收尾另证；
+源码准备不是部署完成，其他平台原生仍由对应设备验收。
+
 ## 市场综合总览封闭部署（2026-11-06）
 
 `apply-market-live`／`reviewed-market-overview-live-v1` 独立固定现场已核验前版

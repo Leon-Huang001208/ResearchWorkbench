@@ -99,10 +99,37 @@ class Split(Mutation):
 
 
 class Refresh(Key):
-    source: Literal["fed_fomc", "bls_cpi", "bls_jobs", "gdelt", "ucdp"]
+    source: Literal[
+        "fed_fomc",
+        "bls_cpi",
+        "bls_jobs",
+        "gdelt",
+        "ucdp",
+        "sse_trading_calendar",
+        "nyse_trading_calendar",
+        "hkex_securities_2026",
+        "hkex_securities_calendar",
+    ]
     year: int | None = Field(default=None, ge=1990, le=2200)
     page: int = Field(default=0, ge=0, le=10000)
     offset: int = Field(default=0, ge=0, le=50000000)
+
+
+class InitialSourceRefresh(Key):
+    """Server-side fixed batch; not a public arbitrary-source input."""
+
+    source: Literal[
+        "fed_fomc",
+        "bls_cpi",
+        "bls_jobs",
+        "sse_trading_calendar",
+        "nyse_trading_calendar",
+        "hkex_securities_2026",
+        "hkex_securities_calendar",
+    ]
+    year: None = None
+    page: Literal[0] = 0
+    offset: Literal[0] = 0
 
 
 class Schedule(Mutation):

@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+首批资料将官方公告与原生日线原件和显示原值分开；趋势、风险原值不自动提升为合格六维证据。
+
 综合总览新增独立 global-v1 九指数公开适配，复用已注册腾讯历史端点和 httpx，固定身份、
 响应容量、日线及报价交叉核验；旧12/24指数和仓桥合同保持。GET 只读，刷新沿原显式
 POST；源量单位未知、今日取得历史不具备 PIT 的限制见[九指数合同](research-web-global-indices.md)。
@@ -127,6 +129,19 @@ BaoStock 0.9.4支持公开沪深股票原始日线、股票目录和交易日历
 原始块、因子与来源 manifest 不可变，并按账号保存缓存、配置摘要与因子版本。每次发布把全部累计规范行和同版本 metadata 一起写成新快照，再比较观察代次与旧 dataset 指针并原子切换；不能拼接不同锚点下的已复权块。重试只有显式请求才发生，复用缓存仍复验授权、来源 hash 与因子；旧观察与旧研究冻结材料继续可读。研究交接复制规范行、原始响应、因子和 metadata，脱离原任务后仍可复核。
 
 取消将子 DataHub `call_id` 联动取消，但同步SDK的真实 Future 结束前仍为 `cancelling/draining`，不释放来源容量、不发布迟到结果。Host关闭、会话取消/清理及恢复都覆盖历史任务；遗留无owner任务恢复为 `interrupted`，不自动重试。常驻空闲证明同时检查 Store 非终态任务和真实 CJPY Future，未知 witness 保持未知并阻止切换。API、持久化及UI合同分别见[接口](architecture/research-web/04-api.md#资产历史任务与图表偏好)、[文件](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)与[工作台](research-web-ui.md#资产观察工作台)。
+
+## 无会话财经日历
+
+全市场财经日历仅通过 RWB Host 读取固定 DataHub 来源。首批复用事件来源的 Fed FOMC、BLS CPI、
+BLS Employment Situation 下载限制和纯解析器，不读可人工编辑的事件列表、不创建研究会话或采集任务。
+账号 Host 内有界缓存合并并发读取，返回来源、观测时间与是否过期。官方 HTML 排期只证明该日程已在
+该页面被观察，粒度为日；无实际值、预期、前值、重要性或历史时点保证。跨日会议按开始日期分组，
+单条记录保留结束日期。
+
+参考页面同源 `/api/finance-calendar` 与 `/api/finance-calendar/institutions` 仅用于确认界面契约。
+东方财富 IPO 目录、交易所/巨潮公司日程、Forex Factory 本周排期是待验证候选，须先核实字段、
+区间覆盖及展示授权。机构持仓披露不得当作真实成交日；未接入的类别返回缺覆盖。无定时、
+Wind/Office、付费调用或参考站运行时依赖。
 
 ## 无会话全市场数据
 

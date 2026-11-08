@@ -1,5 +1,12 @@
 # Research Web 接口清单
 
+`POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
+
+市场V2切换等待仅发生在Native操作员，不增加接口、请求字段或权限；原手动事件明确意图和Host校验不变。
+
+私网事件写操作保留已有 `X-Research-User-Action: ?1` 到Host；缺失/非法值不转换成合法意图，
+认证及同源/账号绑定不变。没有新增HTTP方法、路径或请求字段，Host原明确动作校验仍是最终门。
+
 ## WeKnora 资料 API（2026-11-06）
 
 新增认证域 `/api/research/knowledge` 的状态、绑定、库列表、范围、检索、读取及证据冻结／下载；详见[完整接口表](../../research-web-weknora.md#接口与权限)。状态不探测上游，绑定／scope／freeze 要求明确用户动作；仅回环或原认证网关的当前账号可调用，不接受任意 owner、root 或上游地址。内部 `/api/research/internal/data/knowledge-query` 与 `/knowledge-read` 由原 DataKey 门保护且 scope 必填，不能调用其他写入口。现有四项只读 MCP 不变，不因新增 HTTP 扩大 OAuth scope。[API Atlas](../../../outputs/research-web-architecture/api-atlas.html)从字面量路由清单生成。
@@ -168,6 +175,14 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 `recent` 取截止前2自然年；`older` 在已扫描最早日向前4年；`all` 从近到远分块至上市日或明确声明的1990-01-01下界。每块Provider限制保持，规范总行数不受5000行的单次Provider上限截断。完整数据与同版本 metadata 原子切换、旧材料兼容和复权失败关闭见[文件合同](03-data-files.md#资产历史与图表偏好存储)及[DataHub](../../research-web-datahub.md#资产历史任务与固定复权)。
 
 既有 `GET /api/research/resident` 的 `active` 同时包含真实 CJPY Future和历史任务非终态，无法读取witness为未知，不伪报false。操作员只在研究/观察/DataHub/历史任务全部明确空闲后允许切换；`cancelled`查询终态不抵消仍运行的Future。
+
+## 财经日历接口
+
+`GET /api/research/market/financial-calendar` 走现有同源账号路由。必填 `view=summary|events`、
+`start`、`end`，自然日区间最多 31 天；明细另需 `category=economic|ipo|notify|report|inst`，
+子类、市场、机构方向和集合取固定枚举。每日期最多返回 20 行；后续页需同一查询身份和
+`snapshot_id` 并收窄到单日。返回 `days`、`sources` 和 `snapshot_id`；覆盖未知时不返回确定的零。
+此独立 GET 可对已接入宏观官方源按需取数，其他类别不触发外部采集，不改变原市场 GET 缓存合同。
 
 ## 全市场概览接口
 
