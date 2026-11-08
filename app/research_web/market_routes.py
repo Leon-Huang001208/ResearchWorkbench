@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse
 
 from core.observability import get_logger
 
+from .market_financial_calendar import FinancialCalendarQuery
 from .market_portfolio import MAX_IMPORT_BYTES, PortfolioStore
 from .market_service import DEFAULT_SECTIONS, MarketError
 
@@ -82,6 +83,22 @@ def _failure(exc: MarketError) -> JSONResponse:
 @router.get("")
 async def overview(request: Request):
     return request.app.state.research.market.overview()
+
+
+@router.get("/financial-calendar")
+async def financial_calendar(
+    query: Annotated[FinancialCalendarQuery, Query()], request: Request, response: Response
+):
+    raw = request.query_params.multi_items()
+    if len(raw) != len(request.query_params):
+        return _failure(MarketError("market_calendar_query_invalid", "财经日历参数不能重复。", 422))
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await request.app.state.research.market_financial_calendar.read(query)
+    except MarketError as exc:
+        error = _failure(exc)
+        error.headers["Cache-Control"] = "no-store"
+        return error
 
 
 @router.post("/refresh", status_code=202)

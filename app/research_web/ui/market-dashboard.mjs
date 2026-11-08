@@ -1,5 +1,6 @@
 import { safeLog } from './core.mjs';
 import { createMarketController, renderMarketPage } from './market.mjs';
+import { createFinancialCalendarController, renderFinancialCalendar } from './market-calendar.mjs';
 import { GLOBAL_MARKETS, calendarToday, offsetDay, offsetMonth, payload, timelineRange, validDate, validTimelineRange } from './market-dashboard-model.mjs';
 import { dashboardPage, dashboardTabs, workbenchPage } from './market-dashboard-view.mjs';
 import { createMarketDailyBootstrap } from './market-daily-bootstrap.mjs';
@@ -7,20 +8,43 @@ import { createMarketDailyBootstrap } from './market-daily-bootstrap.mjs';
 export function createMarketWorkspace(options = {}) {
   const legacy = createMarketController(options), dashboard = createMarketDashboard(options);
   const bootstrap = createMarketDailyBootstrap(options);
+  const calendar = createFinancialCalendarController(options);
   let view = 'dashboard';
-  return { legacy, dashboard, bootstrap, get state() { return view === 'dashboard' || view === 'workbench' ? dashboard.state : legacy.state; },
+  const cancel = () => { legacy.cancel(); dashboard.cancel(); bootstrap.dispose(); calendar.cancel(); };
+  return { legacy, dashboard, bootstrap, calendar,
+    get state() {
+      if (view === 'calendar') return calendar.state;
+      return view === 'dashboard' || view === 'workbench' ? dashboard.state : legacy.state;
+    },
     paint(page, render) {
       if (page !== 'market') return render();
       dashboard.capturePresentation();
       try { render(); } finally { dashboard.restorePresentation(); }
     },
-    cancel() { legacy.cancel(); dashboard.cancel(); bootstrap.dispose(); },
-    async activate(route = {}) { view = route.marketView || 'dashboard'; if (view === 'dashboard') await dashboard.activate(); else if (view !== 'workbench') await legacy.activate(route); },
-    handleInput(event) { return view === 'dashboard' ? dashboard.handleInput(event) : legacy.handleInput(event); },
-    handleChange(event) { return view === 'dashboard' ? dashboard.handleChange(event) : legacy.handleChange(event); },
-    handleSubmit(event) { return view === 'dashboard' ? dashboard.handleSubmit(event) : legacy.handleSubmit(event); },
+    cancel,
+    async activate(route = {}) {
+      const nextView = route.marketView || 'dashboard';
+      if (view !== nextView && (view === 'calendar' || nextView === 'calendar')) cancel();
+      view = nextView;
+      if (view === 'calendar') await calendar.activate();
+      else if (view === 'dashboard') await dashboard.activate();
+      else if (view !== 'workbench') await legacy.activate(route);
+    },
+    handleInput(event) {
+      if (view === 'calendar') return false;
+      return view === 'dashboard' ? dashboard.handleInput(event) : legacy.handleInput(event);
+    },
+    handleChange(event) {
+      if (view === 'calendar') return calendar.handleChange(event);
+      return view === 'dashboard' ? dashboard.handleChange(event) : legacy.handleChange(event);
+    },
+    handleSubmit(event) {
+      if (view === 'calendar') return false;
+      return view === 'dashboard' ? dashboard.handleSubmit(event) : legacy.handleSubmit(event);
+    },
     handleClick(event) {
       if (event.target?.closest?.('[data-market-daily-action]')) return view === 'workbench' ? bootstrap.handleClick(event) : false;
+      if (view === 'calendar') return calendar.handleClick(event);
       return view === 'dashboard' ? dashboard.handleClick(event) : legacy.handleClick(event);
     },
   };
@@ -28,6 +52,7 @@ export function createMarketWorkspace(options = {}) {
 export function renderMarketWorkspace(controller, route = {}) {
   if ((route.marketView || 'dashboard') === 'dashboard') return dashboardPage(controller.dashboard.state);
   if (route.marketView === 'workbench') return workbenchPage(controller.bootstrap.render());
+  if (route.marketView === 'calendar') return `<div class="market-page" data-market-page>${dashboardTabs('calendar')}${renderFinancialCalendar(controller.calendar.state)}</div>`;
   // Keep the complete existing analysis/quotes/funds implementation and actions.
   return renderMarketPage(controller.legacy.state, route).replace(/<nav class="market-tabs"[^>]*>.*?<\/nav>/s, dashboardTabs(route.marketView));
 }
