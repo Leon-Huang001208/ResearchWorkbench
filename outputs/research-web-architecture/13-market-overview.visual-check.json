@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Developer/ResearchWorkbench-main-worktrees/market-overview-live-20261106/outputs/research-web-architecture/13-market-overview.html",
-    "sha256": "173e10ab6086b8ac8e8264e21037d021a8479a6f1c0a782a4649ed37c06c5ce3",
-    "bytes": 640934
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-financial-calendar-20261108/outputs/research-web-architecture/13-market-overview.html",
+    "sha256": "75d847a5fd5ef205a35f8b9c7cbfb93060269c8a113bad77e125b8d23a21bc4c",
+    "bytes": 645912
   },
   "state": {
     "detail": "read",

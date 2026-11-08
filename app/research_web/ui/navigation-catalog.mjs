@@ -32,3 +32,12 @@ export const intelTabs = [
 ];
 
 export const assetTabs = [['assets', '行情与基本面', '#/assets'], ['funds', '基金数据', '#/assets/funds'], ['dossiers', '研究档案', '#/assets?view=dossiers']];
+
+export const marketTabs = [
+  ['dashboard', '综合总览', '#/market'],
+  ['overview', '行情分析', '#/market?view=overview'],
+  ['quotes', '沪深北行情', '#/market?view=quotes'],
+  ['sectors', '板块与资金', '#/market?view=sectors'],
+  ['calendar', '财经日历', '#/market?view=calendar'],
+  ['workbench', '研究工作台', '#/market?view=workbench'],
+];

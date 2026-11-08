@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。
+每账号保留有界内存快照；未接入类别不会访问上游，不引入进程、数据库、定时或第二研究引擎。
+见[市场数据流](../outputs/research-web-architecture/13-market-overview.html)及[接口合同](architecture/research-web/04-api.md#财经日历接口)。
+
 全市场逐日时间线与收盘图复用现有 Web 壳和缓存投影；首批资料由账号内 Host 的明确操作沿原事件仓与证据归档写入。
 现有账户、归档、评分资格和部署节点不变；不在浏览时取源，也不启用采集日程、入站 MCP 或生产评分。
 

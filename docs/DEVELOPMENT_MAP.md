@@ -235,6 +235,10 @@ SDK可导入、离线合成通过与真实连续运行分别取证。
 
 全市场概览由 `market_service.py` 管无会话缓存、合并刷新、取消和关闭，`market_routes.py` 管固定 HTTP 参数；`datahub/providers_market.py` 管沪深北分页、来源字段与完整性。前端 `ui/market.mjs`／`market.css` 负责三页签和可见页刷新。定点回归为 `test_market_provider.py`、`test_market_service.py` 和 `research_web_market*.test.mjs`；数据流见[市场概览](../outputs/research-web-architecture/13-market-overview.html)。
 
+财经日历以独立 `ui/market-calendar.mjs` 和样式接到市场页，Host 固定枚举路由读取
+账号内短快照，DataHub 复用官方排期解析。原交易日历仍用于判断是否开市。定点合同见
+`test_market_financial_calendar.py` 与 `research_web_market_calendar.test.mjs`，与真实来源和登录态参考视觉分别验收。
+
 真实源及正式登录验收入口为 `tests/e2e/market_authenticated.py` 与 `research_web_market_authenticated.mjs`：临时私有根、合成测试账号、正式网关与候选用户实例，不注入cookie或替换Provider。连接路径、官网范围及未来上市排除由provider回归固定；独立源调查在[任务报告](../.ai/reports/2026-10-22-market-data-sources.md)中分开记录可达、覆盖与授权状态。
 
 `resident/model_provider_upgrade.py` 的 `ASSET_V2_MODE/ASSET_V2_PREVIOUS/ASSET_V2_PAYLOAD` 与 `previous_for/review_assets` 增加封闭 v2 身份：`apply-assets-v2` 固定旧版 `9bc12355` 与 PR175 产品 `93d62be6`；v1 和模型常量保持。两资产 mode 共享原索引冻结、空闲、状态校验及 v4 恢复，动态读取所选固定常量而不接受运行时任意版本。近处 `test_model_provider_upgrade.py` 覆盖真实 Git 范围、完整恢复与错误 previous 拒绝；执行合同见[部署说明](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。无新服务、HTTP 字段、数据迁移或依赖。

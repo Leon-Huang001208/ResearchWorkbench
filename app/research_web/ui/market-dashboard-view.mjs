@@ -1,4 +1,5 @@
 import { escapeHTML as e } from './markdown.mjs';
+import { marketTabs } from './navigation-catalog.mjs';
 import { AXIS_LABELS, GLOBAL_MARKETS, CATEGORIES, numeric, payload, closedBars, indexQuote, scoreProjection, eventLane, timelineRange, timelineTicks, eventSourceDetails, eventPointDate, DAY_WIDTH, DAY_MS, FIRST_DAY, LAST_DAY, eventDays, eventsOnDay, calendarStatus, exchangeClosure, CALENDAR_LABELS, closeSeries } from './market-dashboard-model.mjs';
 
 const n = (value, digits = 2) => numeric(value) === null ? '—' : value.toLocaleString('zh-CN', { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -16,7 +17,7 @@ function scoreEvidence(state, index) {
   return { status: 'EMPTY', reason: '完整历史读取后未发现该指数的已保存运行。' };
 }
 export function dashboardTabs(view = 'dashboard') {
-  return `<nav class="market-tabs md-tabs" aria-label="全市场概览页面">${[['dashboard', '综合总览'], ['overview', '行情分析'], ['quotes', '沪深北行情'], ['sectors', '板块与资金'], ['workbench', '研究工作台']].map(([id, label]) => `<a href="#/market${id === 'dashboard' ? '' : `?view=${id}`}" ${view === id ? 'class="active" aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
+  return `<nav class="market-tabs md-tabs" aria-label="全市场概览页面">${marketTabs.map(([id, label, href]) => `<a href="${e(href)}" ${view === id ? 'class="active" aria-current="page"' : ''}>${e(label)}</a>`).join('')}</nav>`;
 }
 function header(view, actions = '') {
   return `<header class="market-page-heading md-heading"><div><p class="market-eyebrow">GLOBAL MARKET OBSERVATORY</p><h1>全市场概览</h1><p class="market-subtitle">市场状态、研究证据与事件脉络</p></div><div class="market-actions">${actions}</div></header>${dashboardTabs(view)}`;

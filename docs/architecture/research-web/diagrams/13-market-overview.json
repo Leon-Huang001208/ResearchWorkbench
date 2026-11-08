@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "市场概览：三地行情与原有分析",
+    "title": "市场概览：三地行情与财经日历",
     "quality_profile": "showcase",
     "viewBox": [
       1100,
@@ -11,7 +11,7 @@
   },
   "stages": [
     {
-      "label": "行情页面"
+      "label": "市场页面"
     },
     {
       "label": "请求与生命周期"
@@ -98,6 +98,30 @@
       "sublabel": "持仓估值 / 证据缺口",
       "stage": 4,
       "row": 2
+    },
+    {
+      "id": "calendarPage",
+      "type": "frontend",
+      "label": "财经日历",
+      "sublabel": "周历 / 月历 / 分类筛选",
+      "stage": 0,
+      "row": 3
+    },
+    {
+      "id": "calendarHost",
+      "type": "backend",
+      "label": "账号内日历服务",
+      "sublabel": "短快照 / 覆盖与来源",
+      "stage": 1,
+      "row": 3
+    },
+    {
+      "id": "calendarSources",
+      "type": "cloud",
+      "label": "官方宏观排期",
+      "sublabel": "FOMC / BLS CPI / 就业",
+      "stage": 2,
+      "row": 3
     }
   ],
   "flows": [
@@ -194,6 +218,20 @@
       "to": "marketRead",
       "label": "失败保留旧版",
       "variant": "dashed"
+    },
+    {
+      "id": "calendarRead",
+      "from": "calendarPage",
+      "to": "calendarHost",
+      "label": "同源 GET",
+      "variant": "security"
+    },
+    {
+      "id": "calendarFetch",
+      "from": "calendarHost",
+      "to": "calendarSources",
+      "label": "按需读",
+      "variant": "security"
     }
   ],
   "cards": [
@@ -211,8 +249,8 @@
       "title": "刷新与恢复",
       "items": [
         "新总览手动 / 旧行情自动",
-        "GET只读 / 隐藏停止订阅",
-        "失败保留旧版 / 不重分权重"
+        "行情 GET 读缓存；日历按需读",
+        "行情隐藏停订阅；失败留旧版"
       ]
     },
     {

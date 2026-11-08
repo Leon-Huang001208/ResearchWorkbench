@@ -1,4 +1,4 @@
-import { PRIMARY_NAVIGATION, settingsSections, intelTabs, assetTabs } from './navigation-catalog.mjs';
+import { PRIMARY_NAVIGATION, settingsSections, intelTabs, assetTabs, marketTabs } from './navigation-catalog.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { icon, hasIcon } from './icons.mjs';
 import { safeLog } from './core.mjs';
@@ -38,7 +38,7 @@ export function secondaryEntries(route = {}, { account = null, canManageNews = t
     rows = [['discovery','今日发现'],['hot','本地热点与事件'],['signals','机会与风险'],['search','主题检索'],...intelTabs.map(([id,label])=>[id,id==='overview'?'外部事件总览':id==='research-reports'?'外部研报':label])].map(([id,label])=>[id,label,`#/intel/${id}`]);
     selected = route.intelTab || (route.section === 'hot' ? 'hot' : 'search');
   } else if (key === 'market') {
-    rows = [['dashboard','综合总览','#/market'],['overview','行情分析','#/market?view=overview'],['quotes','沪深北行情','#/market?view=quotes'],['sectors','板块与资金','#/market?view=sectors'],['workbench','研究工作台','#/market?view=workbench']]; selected=route.marketView || 'dashboard';
+    rows = marketTabs; selected = route.marketView || 'dashboard';
   } else if (key === 'simulation') {
     rows = [['etf','ETF 模拟','#/simulation/etf'],['events','事件与日历研究','#/simulation/events'],['scores','六维评分','#/simulation/scores']]; selected = route.simulationView || 'etf';
   } else if (key === 'skills') {

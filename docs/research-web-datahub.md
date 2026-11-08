@@ -130,6 +130,19 @@ BaoStock 0.9.4支持公开沪深股票原始日线、股票目录和交易日历
 
 取消将子 DataHub `call_id` 联动取消，但同步SDK的真实 Future 结束前仍为 `cancelling/draining`，不释放来源容量、不发布迟到结果。Host关闭、会话取消/清理及恢复都覆盖历史任务；遗留无owner任务恢复为 `interrupted`，不自动重试。常驻空闲证明同时检查 Store 非终态任务和真实 CJPY Future，未知 witness 保持未知并阻止切换。API、持久化及UI合同分别见[接口](architecture/research-web/04-api.md#资产历史任务与图表偏好)、[文件](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)与[工作台](research-web-ui.md#资产观察工作台)。
 
+## 无会话财经日历
+
+全市场财经日历仅通过 RWB Host 读取固定 DataHub 来源。首批复用事件来源的 Fed FOMC、BLS CPI、
+BLS Employment Situation 下载限制和纯解析器，不读可人工编辑的事件列表、不创建研究会话或采集任务。
+账号 Host 内有界缓存合并并发读取，返回来源、观测时间与是否过期。官方 HTML 排期只证明该日程已在
+该页面被观察，粒度为日；无实际值、预期、前值、重要性或历史时点保证。跨日会议按开始日期分组，
+单条记录保留结束日期。
+
+参考页面同源 `/api/finance-calendar` 与 `/api/finance-calendar/institutions` 仅用于确认界面契约。
+东方财富 IPO 目录、交易所/巨潮公司日程、Forex Factory 本周排期是待验证候选，须先核实字段、
+区间覆盖及展示授权。机构持仓披露不得当作真实成交日；未接入的类别返回缺覆盖。无定时、
+Wind/Office、付费调用或参考站运行时依赖。
+
 ## 无会话全市场数据
 
 2026-10-23：同批列表新增f350涨停价/f351跌停价和`limit_status=up/down/none/unknown/not_applicable`。仅同日有效现价在正数限价区间内才比较相等；缺失/非正/冲突/无现价记未知，停牌/未上市/退市不参与，不套固定涨跌幅或ST名称规则。总览与CSV明示确认值及覆盖缺口。

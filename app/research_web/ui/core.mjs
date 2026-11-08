@@ -37,7 +37,7 @@ export function parseRoute(hash = '') {
     route.reportStatus = ['enabled', 'needs_attention', 'draft', 'disabled'].includes(params.get('status')) ? params.get('status') : 'all';
   }
   if (page === 'market') {
-    route.marketView = ['overview', 'quotes', 'sectors', 'workbench'].includes(params.get('view')) ? params.get('view') : params.has('view') ? 'overview' : 'dashboard';
+    route.marketView = ['overview', 'quotes', 'sectors', 'calendar', 'workbench'].includes(params.get('view')) ? params.get('view') : params.has('view') ? 'overview' : 'dashboard';
     route.marketBoardId = /^BK[0-9]{4,6}$/.test(params.get('board_id') || '') ? params.get('board_id') : null;
   }
   if (page === 'aihot') {
