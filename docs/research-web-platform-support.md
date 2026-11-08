@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+财经日历固定切换只以 macOS Native 运行与对应 CI 为证。其他平台的安装、切换与业务验收不从此推导。
+
 市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。
 
 市场V2后继修复只验证Mac Native及同候选macos-15安装；通用Ubuntu检查不冒充Linux产品支持，Windows/Linux原生保持交接。
