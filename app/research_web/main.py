@@ -121,6 +121,7 @@ class TabbitTabRef(BaseModel):
 
 
 class Prompt(BaseModel):
+    knowledge_scope_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     dossier_handoff_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     text: str = Field(min_length=1, max_length=100000)
     research_mode: Literal["quick", "deep", "agent", "specialist"] | None = None
@@ -885,6 +886,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     ):
         if not body.text.strip():
             raise StoreError("问题不能为空")
+        if body.knowledge_scope_id and request.headers.get("X-Research-User-Action") != "?1":
+            raise StoreError("需要明确用户操作", "knowledge_user_action_required", 403)
         return await svc(request).send(
             sid,
             body.text,
@@ -902,6 +905,14 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             research_requirements=body.research_requirements,
             research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
             dossier_handoff_id=body.dossier_handoff_id,
+            knowledge_scope_id=body.knowledge_scope_id,
+            knowledge_request_digest=(
+                hashlib.sha256(
+                    json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()
+                ).hexdigest()
+                if body.knowledge_scope_id
+                else None
+            ),
             specialist_budget=(
                 body.specialist_budget.model_dump() if body.specialist_budget else None
             ),
@@ -922,7 +933,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.post("/api/research/sessions/{sid}/upgrade")
     async def upgrade(sid: str, request: Request):
         service = svc(request)
+        if service.store.session(sid).get("knowledge_single_turn"):
+            raise StoreError("资料会话仅可回看", "knowledge_session_sealed", 409)
         old = await service.detail(sid)
+        if service.store.session(sid).get("knowledge_single_turn"):
+            raise StoreError("资料会话仅可回看", "knowledge_session_sealed", 409)
         new = await service.create("claw", old["title"])
         # Draft is carried into the composer, not submitted or forked across cwd boundaries.
         new["draft"] = "继续研究以下会话：\n" + "\n\n".join(

@@ -4404,6 +4404,13 @@
       "prefix": ""
     },
     {
+      "method": "POST",
+      "path": "/api/research/internal/data/knowledge-tool",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/internal/data/knowledge-tool",
+      "prefix": ""
+    },
+    {
       "method": "GET",
       "path": "/api/research/internal/data/model-connection",
       "source": "app/research_web/datahub/routes.py",

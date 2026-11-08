@@ -62,11 +62,11 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
-      "specificationSha256": "14511c1848032dc6daffb3e081b4e00599adefec38bf1796c1c293f397511be8",
+      "artifactSha256": "706b0ce7469e9cc2933bd5642022839ef8a58fc1a0cd3461d05d42965834d9e1",
+      "specificationSha256": "43ff0cf79473198ae90b5515a01960a687eb097d6436f521772bdabb58c4b21c",
       "status": "reviewed",
-      "reviewer": "Codex child agent (actual screenshot inspection, not business acceptance)",
-      "date": "2026-11-06",
+      "reviewer": "Codex 实际截图检查",
+      "date": "2026-11-08",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
         "04-data-file-flow.visual-check.2048x1320.dark.png"
@@ -74,7 +74,7 @@
       "findings": [
         "原完整总览细字需缩放；WeKnora专用focus视图可单独阅读。"
       ],
-      "notes": "已实际查看最终同哈希1440浅色与2048深色截图；新增资料入口、用户JWT薄适配、外部WeKnora、独立冻结和待验报告宿主分支可定位，未见穿线/遮挡/裁剪。9项showcase零错误零警告，四视口无溢出。第一次小视口29px纵向溢出经移除图底空白后重验通过，原失败回执保留于任务logs；未缩字或隐藏溢出。图只说明源码/候选边界，不认证部署、UI零生成或业务报告。"
+      "notes": "已实际检查同哈希1440浅色与2048深色截图，资料、冻结和报告交接节点均在图内。1440全览文字较小，专用视图从可横向滚动的导航进入。四视口自动检查通过。仅核对图形交付。"
     },
     {
       "id": "06-run-state",

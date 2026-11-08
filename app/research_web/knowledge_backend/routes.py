@@ -3,8 +3,10 @@
 from fastapi import APIRouter, Request, Response
 from pydantic import ValidationError
 
+from ..delivery import FINAL
 from ..store import StoreError
 from . import models
+from .storage import fail
 
 router = APIRouter(tags=["knowledge"])
 PUBLIC = "/api/research/knowledge"
@@ -71,6 +73,71 @@ async def read(request: Request):
     if request.url.path.startswith(INTERNAL) and value.scope_id is None:
         raise StoreError("报告读取需要已批准的范围", "knowledge_scope_required", 403)
     return await service(request).read(value)
+
+
+def current_grant(host, sid):
+    row = host.store.session(sid)
+    receipt = host.store.data["receipts"].get(f"{sid}:{row.get('delivery_key')}", {})
+    scope = receipt.get("knowledge_scope_id")
+    delivery = receipt.get("delivery", {})
+    if (
+        not row.get("knowledge_single_turn")
+        or not scope
+        or receipt.get("status") not in {"pending", "accepted"}
+        or delivery.get("status") in FINAL
+        or delivery.get("cancel_request")
+        or host.connected != {"mux", "host"}
+    ):
+        fail("knowledge_run_not_authorized", 403)
+    return scope, delivery.get("task_id")
+
+
+async def active_scope(host, sid):
+    await host.ensure_owned()
+    grant = current_grant(host, sid)
+    entries = await host.client.history(sid)
+    native = await host.client.rpc("session.list", {})
+    items = native.get("items")
+    parents = (
+        [item for item in items if isinstance(item, dict) and item.get("sessionId") == sid]
+        if isinstance(items, list)
+        else []
+    )
+    if native.get("diagnostics") or len(parents) != 1 or parents[0].get("running") is not True:
+        fail("knowledge_run_not_active", 403)
+    scope, request_id = current_grant(host, sid)
+    if (scope, request_id) != grant:
+        fail("knowledge_run_not_authorized", 403)
+    events = [entry["event"] for entry in entries]
+    boundaries = [event for event in events if event["type"] in {"turn/start", "turn/end"}]
+    messages = [event for event in events if event["type"] == "user/message"]
+    if (
+        len(boundaries) != 1
+        or boundaries[0]["type"] != "turn/start"
+        or boundaries[0]["data"].get("turn") != 1
+        or len(messages) != 1
+        or not request_id
+        or (messages[0]["data"].get("source") or {}).get("rpcId") != request_id
+    ):
+        fail("knowledge_native_turn_unverified", 403)
+    return scope
+
+
+@router.post("/api/research/internal/data/knowledge-tool")
+async def research_tool(request: Request):
+    value = await body(request, models.ResearchTool)
+    supplied = value.model_fields_set - {"session_id", "operation"}
+    if value.operation == "search":
+        if supplied != {"query"} or not (value.query or "").strip():
+            fail("knowledge_tool_arguments_invalid", 422)
+    elif supplied != {"document_id", "chunk_id"} or not (value.document_id and value.chunk_id):
+        fail("knowledge_tool_arguments_invalid", 422)
+    host = request.app.state.research
+    scope = await active_scope(host, value.session_id)
+    result = await host.knowledge.research_tool(scope, value)
+    if await active_scope(host, value.session_id) != scope:
+        fail("knowledge_run_not_authorized", 403)
+    return result
 
 
 @router.post("/api/research/knowledge/freeze")

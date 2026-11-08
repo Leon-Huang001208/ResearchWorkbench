@@ -102,6 +102,13 @@ DECLARATIONS = {
         ["operation"],
         "本会话登记的公开HTTPS来源，或用户通过冻结交接显式绑定的档案证据；逐次鉴权，拒绝私网、凭据、任意路径与伪造正文",
     ),
+    "research_read_knowledge": (
+        "读取本轮批准的研究资料",
+        "runtime/research-tools.mjs",
+        {"operation": "string", "query": "string", "document_id": "string", "chunk_id": "string"},
+        ["operation"],
+        "仅全新会话已批准的一轮，逐次复核权限，最多八条检索定位或一个原文分块",
+    ),
     "research_document_operation": (
         "Office 文档操作",
         "runtime/research-tools.mjs",

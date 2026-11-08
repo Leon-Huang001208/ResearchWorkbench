@@ -129,3 +129,143 @@ def test_authenticated_gateway_routes_knowledge_by_cookie_not_owner(gateway):
     browser.post("/api/server/logout")
     login(browser, "bobby", "a safe bobby password")
     assert browser.get("/api/research/knowledge").json()["owner"] == bob.id
+
+
+def test_native_knowledge_grant_is_explicit_once_and_revocable(api):
+    from hashlib import sha256
+
+    from tests.research_web.test_weknora_service import approved
+
+    client, host, upstream, native = api
+    action = {"X-Research-User-Action": "?1"}
+    assert (
+        client.post(
+            "/api/research/knowledge/binding",
+            json={"token": "user-jwt-a", "workspace_id": "101"},
+            headers=action,
+        ).status_code
+        == 200
+    )
+    scope = client.post(
+        "/api/research/knowledge/scopes", json=approved().model_dump(), headers=action
+    ).json()
+    sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    other = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    endpoint = f"/api/research/sessions/{sid}/messages"
+    submission = {"text": "读取资料分块", "knowledge_scope_id": scope["id"]}
+    headers = {"Idempotency-Key": "one-native-knowledge-turn"}
+    assert client.post(endpoint, json=submission, headers=headers).status_code == 403
+
+    callback = "/api/research/internal/data/knowledge-tool"
+    key = {"X-Research-Data-Key": host.datahub.control["token"]}
+    search = {"session_id": sid, "operation": "search", "query": "source"}
+    assert client.post(callback, json=search).status_code == 403
+    assert client.post(callback, json=search, headers=key).status_code == 403
+
+    started = client.post(endpoint, json=submission, headers=headers | action)
+    assert started.status_code == 202, started.text
+    assert client.post(endpoint, json=submission, headers=headers | action).status_code == 202
+    assert sum(method == "session.prompt" for method, _ in native.calls) == 1
+    assert host.store.receipt(sid, headers["Idempotency-Key"])["knowledge_scope_id"] == scope["id"]
+    assert (
+        client.post(
+            endpoint, json={"text": "follow up"}, headers={"Idempotency-Key": "separate-followup"}
+        ).status_code
+        == 409
+    )
+    assert client.post(f"/api/research/sessions/{sid}/upgrade").status_code == 409
+
+    prompt = next(payload for method, payload in native.calls if method == "session.prompt")
+    native_events = [
+        {"event": {"seq": 1, "type": "turn/start", "data": {"turn": 1}}},
+        {
+            "event": {
+                "seq": 2,
+                "type": "user/message",
+                "data": {"content": prompt["content"], "source": {"rpcId": prompt["requestId"]}},
+            }
+        },
+    ]
+
+    async def history(requested_sid):
+        return native_events if requested_sid == sid else []
+
+    native.history = history
+    native.running.update({sid, other})
+    assert (
+        client.post(callback, json=search | {"session_id": other}, headers=key).status_code == 403
+    )
+    assert (
+        client.post(callback, json=search | {"scope_id": scope["id"]}, headers=key).status_code
+        == 422
+    )
+    hit = client.post(callback, json=search, headers=key).json()["items"][0]
+    assert "content" not in hit
+    assert ("search", "source", ["kb1"], ["d1"], 8) in upstream.calls
+    read = {"session_id": sid, "operation": "read", "document_id": "d1", "chunk_id": "c1"}
+    chunk = client.post(callback, json=read, headers=key).json()
+    assert chunk["content"] == upstream.hit["content"]
+    assert chunk["original_sha256"] == sha256(upstream.original_bytes).hexdigest()
+    assert chunk["content_sha256"] == sha256(chunk["content"].encode()).hexdigest()
+    assert (
+        client.post(callback, json=read | {"document_id": "outside"}, headers=key).status_code
+        == 403
+    )
+
+    native_events.append({"event": {"seq": 3, "type": "turn/end", "data": {"turn": 1}}})
+    assert client.post(callback, json=read, headers=key).status_code == 403
+    native_events.pop()
+
+    upstream.download_allowed = False
+    assert client.post(callback, json=read, headers=key).status_code == 403
+    upstream.download_allowed = True
+    native.running.remove(sid)
+    assert client.post(callback, json=read, headers=key).status_code == 403
+    native.running.add(sid)
+    assert client.post(f"/api/research/sessions/{sid}/cancel").status_code == 200
+    assert client.post(callback, json=read, headers=key).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scope_checks_exact_native_request_and_rechecks_after_await():
+    from types import SimpleNamespace
+
+    from app.research_web.knowledge_backend.routes import active_scope
+    from app.research_web.store import StoreError
+
+    sid = "session"
+    row = {"knowledge_single_turn": True, "delivery_key": "key"}
+    delivery = {"task_id": "approved", "status": "pending"}
+    receipt = {"knowledge_scope_id": "scope", "status": "accepted", "delivery": delivery}
+    entries = [
+        {"event": {"type": "turn/start", "data": {"turn": 1}}},
+        {"event": {"type": "user/message", "data": {"source": {"rpcId": "different"}}}},
+    ]
+    cancel_during_observation = False
+
+    async def owned():
+        return None
+
+    async def history(_):
+        return entries
+
+    async def rpc(*_):
+        if cancel_during_observation:
+            delivery["cancel_request"] = {"requested_at": 1}
+        return {"items": [{"sessionId": sid, "running": True}]}
+
+    host = SimpleNamespace(
+        ensure_owned=owned,
+        store=SimpleNamespace(session=lambda _: row, data={"receipts": {"session:key": receipt}}),
+        client=SimpleNamespace(history=history, rpc=rpc),
+        connected={"mux", "host"},
+    )
+    with pytest.raises(StoreError, match="资料操作") as mismatch:
+        await active_scope(host, sid)
+    assert mismatch.value.code == "knowledge_native_turn_unverified"
+    entries[1]["event"]["data"]["source"]["rpcId"] = "approved"
+    assert await active_scope(host, sid) == "scope"
+    cancel_during_observation = True
+    with pytest.raises(StoreError, match="资料操作") as cancelled:
+        await active_scope(host, sid)
+    assert cancelled.value.code == "knowledge_run_not_authorized"

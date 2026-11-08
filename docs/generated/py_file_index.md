@@ -7705,6 +7705,7 @@ Module docstring:
 Imports:
 - `datetime`
 - `pydantic`
+- `typing`
 
 Classes:
 - `StrictModel`
@@ -7715,6 +7716,7 @@ Classes:
 - `Scope`
 - `Read`
 - `Freeze`
+- `ResearchTool`
 
 
 ## `app/research_web/knowledge_backend/routes.py`
@@ -7723,8 +7725,10 @@ Module docstring:
 > Authenticated settings and explicit evidence writes, separate from read-only MCP.
 
 Imports:
+- `delivery`
 - `fastapi`
 - `pydantic`
+- `storage`
 - `store`
 
 Functions:
@@ -7736,6 +7740,9 @@ Functions:
 - `scope`
 - `query`
 - `read`
+- `current_grant`
+- `active_scope`
+- `research_tool`
 - `freeze`
 - `evidence`
 - `original`
@@ -7755,15 +7762,17 @@ Imports:
 - `credential_backend`
 - `datetime`
 - `functools`
+- `models`
 - `os`
 - `research_workbench_entrypoint.resident.admission`
 - `storage`
 - `store`
 - `uuid`
+- `zoneinfo`
 
 Classes:
 - `KnowledgeService`
-  - methods: __init__, status, _credentials, _client, _authorized, _still_authorized, bind, bases, _scope, create_scope, _ready, _verify_document, search, read, freeze
+  - methods: __init__, status, _credentials, _client, _authorized, _still_authorized, bind, bases, _scope, research_scope, research_tool, create_scope, _ready, _verify_document, search, read, freeze
 
 Functions:
 - `bounded`

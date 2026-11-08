@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "README 同时记录主线逐日市场时间线与新增财经日历，分开说明入口、数据覆盖和验收范围。",
-  "reason": "逐日时间线和研究工作台保留已有一次性流程；财经日历独立读取固定官方排期、保留来源缺口，不开启评分、采集日程或入站 MCP。"
+  "disposition": "unchanged",
+  "summary": "README 的 Web 安装及产品概览继续适用，WeKnora 单轮工具的接口与运行范围写入专项合同。",
+  "reason": "能力使用现有账号 Host、DSH 和安装锁。首轮以认证 API 授权，实际 WeKnora 与 DSH 验收须单独取证。"
 }

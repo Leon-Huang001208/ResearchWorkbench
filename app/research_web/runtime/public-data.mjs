@@ -229,6 +229,39 @@ export async function executeResearchSource(ctx, exec, config, args) {
   } finally { signal.removeEventListener('abort', cancel); if (cancellation) await cancellation; }
 }
 
+/** Read scoped material over the instance-private bridge. */
+export async function executeResearchKnowledge(ctx, exec, config, args) {
+  const keys = args && typeof args === 'object' && !Array.isArray(args)
+    ? Object.keys(args).sort().join(',') : '';
+  const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+  const search = keys === 'operation,query' && args.operation === 'search' &&
+    typeof args.query === 'string' && args.query.trim().length > 0 && [...args.query].length <= 2000;
+  const read = keys === 'chunk_id,document_id,operation' && args.operation === 'read' &&
+    identifier(args.document_id) && identifier(args.chunk_id);
+  if (!search && !read) throw Error('knowledge_tool_arguments_invalid');
+
+  const cwd = await trustedDirectory(ctx, exec, config);
+  const session_id = basename(cwd);
+  const header = exec.agent.session.header;
+  const boundary = exec.agent.session.snapshotEvents?.().findLast(
+    event => event.type === 'turn/start' || event.type === 'turn/end',
+  );
+  if (header.parentSession !== undefined || header.id !== session_id ||
+      boundary?.type !== 'turn/start' || boundary.data?.turn !== 1) {
+    throw Error('knowledge_run_not_authorized');
+  }
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(65000)]);
+  const response = await fetch(control.url + '/api/research/internal/data/knowledge-tool', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify({ ...args, session_id }),
+    redirect: 'error', credentials: 'omit', signal,
+  });
+  return await boundedJson(response, signal, 128 * 1024);
+}
+
 /** Check Host-observed evidence; model arguments cannot control quality state. */
 export async function executeResearchQuality(ctx, exec, config) {
   const cwd = await trustedDirectory(ctx, exec, config);
