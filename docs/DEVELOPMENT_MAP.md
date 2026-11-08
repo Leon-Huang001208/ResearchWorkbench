@@ -18,6 +18,10 @@
 九指数真实报价与原生 OHLCV，MarketService 保留独立缓存；评分和事件仍由原领域核验。
 模块边界与验收见[综合总览合同](research-web-market-dashboard.md)。
 
+DSH 单轮资料授权沿现有消息受理、原生运行和私有 DataKey 桥。回调复用
+`knowledge_backend` 的身份与版本检查。测试沿原 WeKnora API 与原生桥用例，
+见[资料合同](research-web-weknora.md#dsh-单轮只读资料)。
+
 ## WeKnora 资料适配（2026-11-06）
 
 `app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由。`ui/knowledge-settings.mjs` 在既有数据设置区挂载独立卡片；`scripts/weknora_candidate.py` 只读核对显式盘点、容量声明与20题对照。回归为 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 及 `research_web_knowledge.test.mjs`。原上传、DataHub、档案及报告链不迁移；上游0001是显式表格摘要 opt-out，0002增加默认关闭的实例级只检索 profile；Go、真实服务及 UI零生成尚未验证，上线仍 BLOCKED。见[资料合同](research-web-weknora.md)。

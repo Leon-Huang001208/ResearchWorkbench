@@ -112,8 +112,9 @@ class Store:
                 or json.dumps(value, sort_keys=True)
                 != json.dumps(_OPTIONAL_ASSET_DEFAULTS[key], sort_keys=True)
             }
-            fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
+            name = None
             try:
+                fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
                 with os.fdopen(fd, "w", encoding="utf-8") as stream:
                     json.dump(payload, stream, ensure_ascii=False)
                     stream.flush()
@@ -124,8 +125,13 @@ class Store:
                 log.error("research_index_write_failed", error_type=type(exc).__name__)
                 raise StoreError("会话索引保存失败") from exc
             finally:
-                if os.path.exists(name):
-                    os.unlink(name)
+                if name is not None and os.path.exists(name):
+                    try:
+                        os.unlink(name)
+                    except OSError as exc:
+                        log.warning(
+                            "research_index_temp_cleanup_failed", error_type=type(exc).__name__
+                        )
 
     def create(self, mode: str, title: str) -> dict:
         sid = str(uuid4())
@@ -510,18 +516,44 @@ class Store:
             raise StoreError("非法会话目录")
         return path
 
-    def reserve(self, sid: str, key: str, digest: str, delivery: dict | None = None) -> bool:
-        self.session(sid)
+    def reserve(
+        self,
+        sid: str,
+        key: str,
+        digest: str,
+        delivery: dict | None = None,
+        *,
+        knowledge_scope_id: str | None = None,
+        knowledge_request_digest: str | None = None,
+    ) -> bool:
+        session = self.session(sid)
         name = f"{sid}:{key}"
         if name in self.data["receipts"]:
             if self.data["receipts"][name]["digest"] != digest:
                 raise StoreError("幂等键不能用于不同问题")
             return False
+        previous = session.get("delivery_key")
         self.data["receipts"][name] = {"digest": digest, "status": "pending"}
         if delivery is not None:
             self.data["receipts"][name]["delivery"] = delivery
-            self.session(sid)["delivery_key"] = key
-        self.save()
+            session["delivery_key"] = key
+        if knowledge_scope_id is not None:
+            self.data["receipts"][name].update(
+                knowledge_scope_id=knowledge_scope_id,
+                knowledge_request_digest=knowledge_request_digest,
+            )
+            session["knowledge_single_turn"] = True
+        try:
+            self.save()
+        except StoreError:
+            if knowledge_scope_id is not None:
+                self.data["receipts"].pop(name)
+                session.pop("knowledge_single_turn")
+                if previous is None:
+                    session.pop("delivery_key", None)
+                else:
+                    session["delivery_key"] = previous
+            raise
         return True
 
     def receipt(self, sid, key, status=None):

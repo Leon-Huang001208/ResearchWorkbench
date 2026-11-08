@@ -107,6 +107,7 @@ export const RESEARCH_TOOLS = new Set([
   'research_document_operation',
   'research_check_quality',
   'research_read_source',
+  'research_read_knowledge',
   'rwb_record_method_use',
   'specialist_plan', 'specialist_run', 'specialist_status', 'specialist_cancel',
   'rwb_prepare_automation',

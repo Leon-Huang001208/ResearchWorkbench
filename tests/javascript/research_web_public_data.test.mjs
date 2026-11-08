@@ -506,3 +506,32 @@ test('manifest keeps query identity and bounded business error code',async()=>{
     });
   } finally {globalThis.fetch=original;}
 });
+
+test('knowledge bridge passes only root session identity and strict read-only arguments', async () => {
+  const f = await fixture();
+  const { executeResearchKnowledge } = await import(moduleURL);
+  const original = globalThis.fetch;
+  const config = { researchRoot: f.root };
+  const events = [{ type: 'turn/start', data: { turn: 1 } }];
+  f.exec.agent.session.snapshotEvents = () => events;
+  let calls = 0;
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, 'http://127.0.0.1:18088/api/research/internal/data/knowledge-tool');
+    assert.equal(options.headers['X-Research-Data-Key'], 't'.repeat(43));
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert.deepEqual(JSON.parse(options.body), { operation: 'search', query: 'ETF', session_id: f.sid });
+    return reply({ items: [] });
+  };
+  try {
+    assert.deepEqual(await executeResearchKnowledge(f.ctx, f.exec, config, { operation: 'search', query: 'ETF' }), { items: [] });
+    await assert.rejects(executeResearchKnowledge(f.ctx, f.exec, config, { operation: 'search', query: 'ETF', scope_id: 'forged' }), /arguments_invalid/);
+    events.push({ type: 'turn/end', data: { turn: 1 } }, { type: 'turn/start', data: { turn: 2 } });
+    await assert.rejects(executeResearchKnowledge(f.ctx, f.exec, config, { operation: 'search', query: 'ETF' }), /not_authorized/);
+    f.ctx.sessions.get = () => ({ header: { id: f.sid, cwd: f.cwd } });
+    f.exec.agent.session.header = { id: randomUUID(), cwd: f.cwd, parentSession: f.sid };
+    await assert.rejects(executeResearchKnowledge(f.ctx, f.exec, config, { operation: 'search', query: 'ETF' }), /not_authorized/);
+    assert.equal(calls, 1);
+  } finally { globalThis.fetch = original; }
+});

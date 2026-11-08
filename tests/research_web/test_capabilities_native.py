@@ -155,3 +155,25 @@ console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))))
         for key, value in schema["properties"].items():
             # DataHub has additional business validation layered over native JSON schema.
             assert value["type"] == properties[key]["type"]
+
+
+def test_scoped_knowledge_tool_catalog_matches_native_registration(source):
+    script = r"""
+import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+const root = process.argv[1];
+const tools = new Map();
+const ctx = {tools:{register(tool){tools.set(tool.name, tool);}},logger:{info(){},warn(){}}};
+const plugin = await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')));
+plugin.apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used'});
+console.log(JSON.stringify(tools.get('research_read_knowledge').parameters));
+"""
+    native = json.loads(node(source, script, Path(__file__).parents[2]))
+    entry = next(
+        item for item in tool_catalog()["items"] if item["id"] == "research_read_knowledge"
+    )
+    assert entry["selectable"] is False
+    assert entry["parameters"]["required"] == native["required"]
+    assert {name: value["type"] for name, value in entry["parameters"]["properties"].items()} == {
+        name: value["type"] for name, value in native["properties"].items()
+    }

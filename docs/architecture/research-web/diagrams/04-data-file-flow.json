@@ -72,7 +72,7 @@
           "knowledgeEvidence",
           "knowledgeConsumer"
         ],
-        "note": "可选WeKnora资料服务通过原生用户认证与已批准文档范围读取；冻结在RWB。界面零生成和真实报告接入尚未验收。"
+        "note": "可选WeKnora资料服务按原生用户权限与批准范围读取。固定DSH通过DataKey和原生首轮受理回执取单块；RWB独立冻结证据。"
       }
     ]
   },

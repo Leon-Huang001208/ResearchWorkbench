@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+WeKnora 单轮资料读取复用当前 DSH 研究运行。scope、原生请求与证据的关系见[资料合同](../../research-web-weknora.md#dsh-单轮只读资料)。
+
 2026-11-06 WeKnora资料适配的源码阅读及Atlas链接固定到实际提交 `26e730cbf73d2edcce753d7f84c4f49cf68ec68c`。该检查点包含RWB薄适配与接口，不证明最终文档候选CI、上游Go、第三方运行版本、资料替换或报告接受。
 
 ## WeKnora 资料候选（2026-11-06）
