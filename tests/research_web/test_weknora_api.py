@@ -151,6 +151,9 @@ def test_native_knowledge_grant_is_explicit_once_and_revocable(api):
     ).json()
     sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
     other = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    copied_helper = host.store.directory(sid) / "resources" / "research_helpers.py"
+    assert copied_helper.is_file()
+    assert getattr(copied_helper.stat(), "st_flags", 0) == 0
     endpoint = f"/api/research/sessions/{sid}/messages"
     submission = {"text": "读取资料分块", "knowledge_scope_id": scope["id"]}
     headers = {"Idempotency-Key": "one-native-knowledge-turn"}

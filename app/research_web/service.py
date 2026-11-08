@@ -1337,6 +1337,7 @@ class ResearchService(ModelProfilesMixin):
                 Path(__file__).parent / "resources",
                 self.store.directory(sid) / "resources",
                 ignore=shutil.ignore_patterns("__pycache__"),
+                copy_function=shutil.copy,
                 dirs_exist_ok=True,
             )
             try:
@@ -1443,6 +1444,7 @@ class ResearchService(ModelProfilesMixin):
                     Path(__file__).parent / "resources",
                     destination,
                     ignore=shutil.ignore_patterns("__pycache__"),
+                    copy_function=shutil.copy,
                     dirs_exist_ok=True,
                 )
                 row["hot_creation_state"] = "creating"
