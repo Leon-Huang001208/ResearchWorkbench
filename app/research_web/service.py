@@ -2806,6 +2806,8 @@ class ResearchService(ModelProfilesMixin):
                     not knowledge_request_digest
                     or row["mode"] != "fingpt"
                     or row.get("purpose", "research") != "research"
+                    or row.get("scenario_handoff_id")
+                    or row.get("evidence_handoff_id")
                     or research_mode in {"agent", "specialist"}
                     or row.get("research_mode") in {"agent", "specialist"}
                     or _weekly_run_id is not None

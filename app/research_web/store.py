@@ -112,8 +112,9 @@ class Store:
                 or json.dumps(value, sort_keys=True)
                 != json.dumps(_OPTIONAL_ASSET_DEFAULTS[key], sort_keys=True)
             }
-            fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
+            name = None
             try:
+                fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
                 with os.fdopen(fd, "w", encoding="utf-8") as stream:
                     json.dump(payload, stream, ensure_ascii=False)
                     stream.flush()
@@ -124,7 +125,7 @@ class Store:
                 log.error("research_index_write_failed", error_type=type(exc).__name__)
                 raise StoreError("会话索引保存失败") from exc
             finally:
-                if os.path.exists(name):
+                if name is not None and os.path.exists(name):
                     os.unlink(name)
 
     def create(self, mode: str, title: str) -> dict:

@@ -158,6 +158,14 @@ def test_native_knowledge_grant_is_explicit_once_and_revocable(api):
     submission = {"text": "读取资料分块", "knowledge_scope_id": scope["id"]}
     headers = {"Idempotency-Key": "one-native-knowledge-turn"}
     assert client.post(endpoint, json=submission, headers=headers).status_code == 403
+    host.store.session(other)["scenario_handoff_id"] = "fixed-scenario"
+    rejected = client.post(
+        f"/api/research/sessions/{other}/messages",
+        json=submission,
+        headers=headers | action,
+    )
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "knowledge_session_not_fresh"
 
     callback = "/api/research/internal/data/knowledge-tool"
     key = {"X-Research-Data-Key": host.datahub.control["token"]}

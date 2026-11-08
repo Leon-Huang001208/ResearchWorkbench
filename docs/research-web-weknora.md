@@ -64,7 +64,8 @@ RWB owner 是当前 `Store.root` 的摘要，绑定及证据复制到其他账�
 普通研究的认证消息入口可在全新 FinGPT 会话中附带 `knowledge_scope_id` 与
 `X-Research-User-Action: ?1`。提交即确认当前运行可将所选原文交给会话模型。
 Host 在派发前复核范围，持久化 scope 与幂等指纹，并封存会话。相同幂等请求复用受理
-回执。受理未知、历史续发与升级复制会话均拒绝。浏览器本轮仍使用既有界面，授权由认证 API 完成。
+回执。索引写入失败时回滚未派发的授权。受理未知、历史续发与升级复制会话均拒绝。
+场景及证据交接会话沿各自冻结范围和截止点。普通研究的资料授权由认证 API 完成。
 
 固定 DSH 工具 `research_read_knowledge` 支持 `search(query)` 和
 `read(document_id, chunk_id)`。工具使用实例私有 DataKey 回调。Host 通过当前
