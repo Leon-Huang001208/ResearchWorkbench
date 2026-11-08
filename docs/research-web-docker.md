@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+财经日历的 MCP 保全切换是 macOS Native 事务。Docker 安装、容器、镜像和验收仍按原合同独立处理。
+
 逐日市场本轮验收落在已授权Mac Native；外置开发工作区不搬移Docker数据盘，不操作其他容器。
 
 市场V2的Git切换预算只适用于已授权Mac Native事务，不切换Docker、改其他容器或扩大资源清理范围。

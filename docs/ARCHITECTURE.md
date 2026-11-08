@@ -1,5 +1,8 @@
 # Research Workbench 架构总览
 
+财经日历固定切换沿原 Native 主实例和私网网关事务；只增加版本入口与原 MCP 值的双入口核验。
+账户库、运行节点和恢复拓扑不变。见[切换合同](research-web-gateway-upgrade.md#财经日历固定切换保留-mcp)。
+
 财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。
 每账号保留有界内存快照；未接入类别不会访问上游，不引入进程、数据库、定时或第二研究引擎。
 见[市场数据流](../outputs/research-web-architecture/13-market-overview.html)及[接口合同](architecture/research-web/04-api.md#财经日历接口)。

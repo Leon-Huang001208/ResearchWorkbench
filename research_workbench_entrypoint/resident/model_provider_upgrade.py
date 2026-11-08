@@ -157,8 +157,19 @@ MARKET_LIVE_V2_GIT_SWITCH_TIMEOUT = 120
 MARKET_DAILY_MODE = "reviewed-market-daily-v1"
 MARKET_DAILY_PREVIOUS = "37051f8fb9a5680082923f845444d4bc59cff33a"
 MARKET_DAILY_PAYLOAD = "00690f0e4f8678f64aba20eb4991a3f232897664"
+# The financial-calendar successor preserves the existing, explicitly known Facade setting.
+MARKET_CALENDAR_MODE = "reviewed-market-financial-calendar-v1"
+MARKET_CALENDAR_PREVIOUS = "1315d11a5b82be563b6031593a3bfa5e6e092acd"
+MARKET_CALENDAR_PAYLOAD = "79102a95a267044c4a28b1818a9181f788be77fd"
 EVENT_SAFETY_MODES = frozenset(
-    {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}
+    {
+        EVENT_MODE,
+        UNIFIED_NAVIGATION_MODE,
+        MARKET_LIVE_MODE,
+        MARKET_LIVE_V2_MODE,
+        MARKET_DAILY_MODE,
+        MARKET_CALENDAR_MODE,
+    }
 )
 EVENT_PRESERVATION_MODES = EVENT_SAFETY_MODES
 MCP_DISABLED_ROLLBACK_MODES = frozenset(
@@ -220,6 +231,7 @@ ASSET_MODES = frozenset(
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
         MARKET_DAILY_MODE,
+        MARKET_CALENDAR_MODE,
         UNIFIED_NAVIGATION_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
@@ -343,6 +355,8 @@ def previous_for(mode):
         return MARKET_PREVIEW_PREVIOUS
     if mode == UNIFIED_NAVIGATION_MODE:
         return UNIFIED_NAVIGATION_PREVIOUS
+    if mode == MARKET_CALENDAR_MODE:
+        return MARKET_CALENDAR_PREVIOUS
     if mode == MARKET_DAILY_MODE:
         return MARKET_DAILY_PREVIOUS
     if mode == MARKET_LIVE_V2_MODE:
@@ -646,6 +660,7 @@ def verify_primary(home, expected, mode):
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
         MARKET_DAILY_MODE,
+        MARKET_CALENDAR_MODE,
         UNIFIED_NAVIGATION_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
@@ -807,6 +822,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_LIVE_MODE: MARKET_LIVE_PAYLOAD,
         MARKET_LIVE_V2_MODE: MARKET_LIVE_V2_PAYLOAD,
         MARKET_DAILY_MODE: MARKET_DAILY_PAYLOAD,
+        MARKET_CALENDAR_MODE: MARKET_CALENDAR_PAYLOAD,
         UNIFIED_NAVIGATION_MODE: UNIFIED_NAVIGATION_PAYLOAD,
         MARKET_BREADTH_MODE: MARKET_BREADTH_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
@@ -819,7 +835,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
-    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
+    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE, MARKET_CALENDAR_MODE}:
         c.git(source, "merge-base", "--is-ancestor", previous, payload)
     if mode == EVENT_MODE:
         for ancestor, descendant in (
@@ -857,6 +873,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     MARKET_LIVE_MODE: MARKET_LIVE_EVIDENCE_SHA256,
                     MARKET_LIVE_V2_MODE: MARKET_LIVE_V2_EVIDENCE_SHA256,
                     MARKET_DAILY_MODE: MARKET_LIVE_V2_EVIDENCE_SHA256,
+                    MARKET_CALENDAR_MODE: MARKET_LIVE_V2_EVIDENCE_SHA256,
                     UNIFIED_NAVIGATION_MODE: UNIFIED_NAVIGATION_EVIDENCE_SHA256,
                     MARKET_BREADTH_MODE: MARKET_BREADTH_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
@@ -871,6 +888,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     MARKET_LIVE_MODE,
                     MARKET_LIVE_V2_MODE,
                     MARKET_DAILY_MODE,
+                    MARKET_CALENDAR_MODE,
                     UNIFIED_NAVIGATION_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
@@ -1368,7 +1386,7 @@ def validate_state(home, state, *, executor_source=None):
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     validate_asset_snapshot(state)
-    verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
+    verify_rollback_mcp_policy(state.get("mode"), state.get("gateway_config"))
     if state.get("mode") in EVENT_PRESERVATION_MODES:
         verify_event_schedules(home, state)
     source = Path(state["source"])
@@ -1444,6 +1462,7 @@ def validate_state(home, state, *, executor_source=None):
                 MARKET_LIVE_MODE,
                 MARKET_LIVE_V2_MODE,
                 MARKET_DAILY_MODE,
+                MARKET_CALENDAR_MODE,
                 UNIFIED_NAVIGATION_MODE,
                 DOSSIERS_MODE,
                 DISCOVERY_MODE,
@@ -1532,8 +1551,59 @@ def verify_rollback_mcp_disabled(mode, gateway):
         )
 
 
+def verify_calendar_mcp_config(gateway):
+    if not isinstance(gateway, dict) or type(gateway.get("mcp_readonly_enabled")) is not bool:
+        log.warning("market_calendar_mcp_config_unknown")
+        raise UpdateBlocked("market_calendar_mcp_config_unknown")
+    return gateway["mcp_readonly_enabled"]
+
+
+def verify_rollback_mcp_policy(mode, gateway):
+    if mode == MARKET_CALENDAR_MODE:
+        verify_calendar_mcp_config(gateway)
+    else:
+        verify_rollback_mcp_disabled(mode, gateway)
+
+
+def verify_calendar_mcp_health(gateway, observations, revision, *, fenced):
+    enabled = verify_calendar_mcp_config(gateway)
+    if (
+        not isinstance(observations, (tuple, list))
+        or len(observations) != 2
+        or any(
+            not isinstance(value, dict)
+            or value.get("status") != "ready"
+            or value.get("revision") != revision
+            or value.get("deployment_fenced") is not fenced
+            or value.get("primary_last_verified") is not True
+            or value.get("mcp_readonly_enabled") is not enabled
+            for value in observations
+        )
+    ):
+        log.warning("market_calendar_mcp_health_changed fenced=%s", fenced)
+        raise UpdateBlocked("market_calendar_mcp_health_changed")
+    log.info(
+        "market_calendar_mcp_verified revision=%s enabled=%s fenced=%s",
+        revision,
+        enabled,
+        fenced,
+    )
+
+
+def verify_calendar_account_sidecars(server: Path):
+    # The existing binary preservation digest covers accounts.sqlite3, including
+    # MCP authorization tables. A live SQLite journal/WAL is not in that digest.
+    for suffix in ("-wal", "-shm", "-journal"):
+        path = server / ("accounts.sqlite3" + suffix)
+        if path.exists() or path.is_symlink():
+            log.warning("market_calendar_mcp_account_store_unsettled")
+            raise UpdateBlocked("market_calendar_mcp_account_store_unsettled")
+
+
 def gateway_configuration(state, previous=False):
     old = state["gateway_config"]
+    if state.get("mode") == MARKET_CALENDAR_MODE:
+        verify_calendar_mcp_config(old)
     if previous:
         return old
     return {
@@ -1541,7 +1611,10 @@ def gateway_configuration(state, previous=False):
         "revision": state["target"],
         "binding": {**old["binding"], "revision": state["target"]},
         **(
-            {"mcp_readonly_enabled": False} if state.get("mode") in EVENT_PRESERVATION_MODES else {}
+            {"mcp_readonly_enabled": False}
+            if state.get("mode") in EVENT_PRESERVATION_MODES
+            and state.get("mode") != MARKET_CALENDAR_MODE
+            else {}
         ),
     }
 
@@ -1596,7 +1669,7 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_PREVIEW_MODE:
         manifest["web_lock_sha256"] = MARKET_PREVIEW_WEB_LOCK_SHA256
-    elif state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
+    elif state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE, MARKET_CALENDAR_MODE}:
         manifest["web_lock_sha256"] = MARKET_LIVE_V2_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_LIVE_MODE:
         manifest["web_lock_sha256"] = MARKET_LIVE_WEB_LOCK_SHA256
@@ -1612,7 +1685,7 @@ def target_manifest(state):
 
 
 def validate_configuration(home, state):
-    verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
+    verify_rollback_mcp_policy(state.get("mode"), state.get("gateway_config"))
     actual = read_json(home / "resident/config.json")
     next_config = (
         validate_trial_rebind(state) if state.get("mode") in TRIAL_MODES else state["config"]
@@ -2043,7 +2116,12 @@ class Operations:
 
     def verify_preservation(self, previous):
         if self.state.get("mode") not in TRIAL_MODES:
+            calendar = self.state.get("mode") == MARKET_CALENDAR_MODE
+            if calendar:
+                verify_calendar_account_sidecars(self.server)
             g.preserved(self.home, self.state["before"])
+            if calendar:
+                verify_calendar_account_sidecars(self.server)
             return
         from . import trial_retirement as trial
 
@@ -2068,7 +2146,12 @@ class Operations:
         """Publish recoverable ownership before any reservation side effects."""
         if state.get("mode") in EVENT_PRESERVATION_MODES:
             verify_event_schedules(self.home, state)
+        calendar = state.get("mode") == MARKET_CALENDAR_MODE
+        if calendar:
+            verify_calendar_account_sidecars(self.server)
         state["before"] = g.preservation(self.home)
+        if calendar:
+            verify_calendar_account_sidecars(self.server)
         if state.get("mode") in ASSET_MODES or state.get("mode") in TRIAL_MODES:
             state["asset_index_before"] = asset_index_snapshot(self.home)
         state["phase"] = "preparing"
@@ -2093,6 +2176,7 @@ class Operations:
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
             MARKET_DAILY_MODE,
+            MARKET_CALENDAR_MODE,
             UNIFIED_NAVIGATION_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
@@ -2152,6 +2236,7 @@ class Operations:
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
             MARKET_DAILY_MODE,
+            MARKET_CALENDAR_MODE,
             UNIFIED_NAVIGATION_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
@@ -2273,7 +2358,11 @@ class Operations:
             if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
-            if self.state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
+            if self.state.get("mode") in {
+                MARKET_LIVE_V2_MODE,
+                MARKET_DAILY_MODE,
+                MARKET_CALENDAR_MODE,
+            }:
                 started = time.monotonic()
                 log.info(
                     "market_live_git_switch_started role=%s restoring=%s timeout_s=%d",
@@ -2370,7 +2459,10 @@ class Operations:
                 revision=self.state["target"],
                 binding=json.loads(json.dumps(binding.public_config())),
             )
-            if self.state.get("mode") in EVENT_PRESERVATION_MODES:
+            if (
+                self.state.get("mode") in EVENT_PRESERVATION_MODES
+                and self.state.get("mode") != MARKET_CALENDAR_MODE
+            ):
                 config["mcp_readonly_enabled"] = False
         if not gateway_configuration_matches(self.state, config, previous):
             raise UpdateBlocked("model_upgrade_binding_changed")
@@ -2430,7 +2522,12 @@ class Operations:
             raise UpdateBlocked("model_upgrade_private_health_failed")
         if self.state.get("mode") in EVENT_PRESERVATION_MODES:
             certify_mcp_off = not previous or self.state.get("mode") in MCP_DISABLED_ROLLBACK_MODES
-            if certify_mcp_off:
+            if self.state.get("mode") == MARKET_CALENDAR_MODE:
+                certify_mcp_off = gateway["mcp_readonly_enabled"] is False
+                verify_calendar_mcp_health(
+                    gateway, (read_event_gateway_health(gateway), remote), sha, fenced=True
+                )
+            elif certify_mcp_off:
                 local = read_event_gateway_health(gateway)
                 for value in (local, remote):
                     if (
@@ -3421,7 +3518,7 @@ def operate(
             ):
                 raise UpdateBlocked("resident_failed_candidate_requires_retry")
             primary, gateway = Path(config["project"]), read_json(server / "resident.json")
-            verify_rollback_mcp_disabled(mode, gateway)
+            verify_rollback_mcp_policy(mode, gateway)
             for project in (primary, Path(gateway["project"])):
                 c.clean(project, previous)
             if (
@@ -3439,6 +3536,17 @@ def operate(
                 event_schedules_disabled(home) if mode in EVENT_PRESERVATION_MODES else None
             )
             g.no_private_processes(server)
+            if mode == MARKET_CALENDAR_MODE:
+                verify_calendar_account_sidecars(server)
+                verify_calendar_mcp_health(
+                    gateway,
+                    (
+                        read_event_gateway_health(gateway),
+                        request_json(config["private_origin"] + "/api/server/health"),
+                    ),
+                    previous,
+                    fenced=False,
+                )
             directory = root / "artifacts" / target
             g.private_root(directory)
             artifact_source = directory / "source"
@@ -3616,13 +3724,25 @@ def operate(
             Operations(home, state, manager, None, None).prepare_fence(state)
         elif state["phase"] == "preparing":
             # No service/source effect is possible before checkpoint prepared.
-            validate_configuration(home, state)
-            if state["mode"] not in TRIAL_MODES:
-                verify_primary(home, previous, state["mode"] if recovering else mode)
-            g.preserved(home, state["before"])
-            verify_asset_index(home, state)
-            if state["mode"] in EVENT_PRESERVATION_MODES:
-                verify_event_schedules(home, state)
+            if state["mode"] == MARKET_CALENDAR_MODE:
+                birth_journal = server / "run/birth-fence.json"
+                with BirthFence(
+                    server,
+                    state["gateway_config"]["binding"]["primary_user_id"],
+                    resume=birth_journal.exists() or birth_journal.is_symlink(),
+                    transaction=state["transaction"],
+                ) as preparing_fence:
+                    # A surviving journal does not prove the old live Facade.
+                    # Keep admission fenced until its identity and data match.
+                    Operations(home, state, manager, None, preparing_fence).verify(previous=True)
+            else:
+                validate_configuration(home, state)
+                if state["mode"] not in TRIAL_MODES:
+                    verify_primary(home, previous, state["mode"] if recovering else mode)
+                g.preserved(home, state["before"])
+                verify_asset_index(home, state)
+                if state["mode"] in EVENT_PRESERVATION_MODES:
+                    verify_event_schedules(home, state)
             journal.unlink()
             c.sync_directory(journal.parent)
             return {"status": "aborted_before_signal"}
@@ -3653,6 +3773,10 @@ def operate(
                 raise UpdateBlocked("resident_master_or_evidence_moved")
             if mode in TRIAL_MODES and github.qualify(executor_revision) != executor_proof:
                 raise UpdateBlocked("resident_executor_evidence_moved")
+            if state["mode"] == MARKET_CALENDAR_MODE:
+                # Recheck under BirthFence's SQLite EX lock. An OAuth writer
+                # admitted before the fence must not drift past the snapshot.
+                ops.verify(previous=True)
         return execute(ops, state, recovering=recovering)
 
 
@@ -3782,6 +3906,7 @@ def main(argv=None):
             "apply-market-live",
             "apply-market-live-v2",
             "apply-market-daily",
+            "apply-market-financial-calendar",
             "apply-navigation-ui",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
@@ -3871,6 +3996,7 @@ def main(argv=None):
                 "apply-market-live": MARKET_LIVE_MODE,
                 "apply-market-live-v2": MARKET_LIVE_V2_MODE,
                 "apply-market-daily": MARKET_DAILY_MODE,
+                "apply-market-financial-calendar": MARKET_CALENDAR_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,

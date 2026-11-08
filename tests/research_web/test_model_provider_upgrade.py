@@ -19,6 +19,8 @@ from research_workbench_entrypoint.resident import model_provider_upgrade as upg
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
+CALENDAR_MODE = "reviewed-market-financial-calendar-v1"
+REAL_GATEWAY_PRESERVED = upgrade.g.preserved
 REAL_GATEWAY_HEALTH = upgrade.g.health
 REAL_EVENT_GATEWAY_HEALTH = upgrade.read_event_gateway_health
 
@@ -67,6 +69,7 @@ ASSET_PROFILES = (
     "reviewed-market-overview-live-v1",
     "reviewed-market-overview-live-v2",
     "reviewed-market-daily-v1",
+    CALENDAR_MODE,
     "reviewed-unified-navigation-v1",
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
@@ -116,6 +119,7 @@ def test_discovery_profile_freezes_authorized_combination():
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -279,6 +283,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-overview-live-v1": "MARKET_LIVE",
         "reviewed-market-overview-live-v2": "MARKET_LIVE_V2",
         "reviewed-market-daily-v1": "MARKET_DAILY",
+        CALENDAR_MODE: "MARKET_CALENDAR",
         "reviewed-unified-navigation-v1": "UNIFIED_NAVIGATION",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
@@ -327,6 +332,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
             upgrade.MARKET_LIVE_MODE: "MARKET_LIVE_EVIDENCE_SHA256",
             upgrade.MARKET_LIVE_V2_MODE: "MARKET_LIVE_V2_EVIDENCE_SHA256",
             upgrade.MARKET_DAILY_MODE: "MARKET_LIVE_V2_EVIDENCE_SHA256",
+            CALENDAR_MODE: "MARKET_LIVE_V2_EVIDENCE_SHA256",
             upgrade.UNIFIED_NAVIGATION_MODE: "UNIFIED_NAVIGATION_EVIDENCE_SHA256",
         }[profile]
     if profile == upgrade.ASSET_V8_MODE:
@@ -650,6 +656,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-live", upgrade.MARKET_LIVE_MODE),
         ("apply-market-live-v2", upgrade.MARKET_LIVE_V2_MODE),
         ("apply-market-daily", upgrade.MARKET_DAILY_MODE),
+        ("apply-market-financial-calendar", CALENDAR_MODE),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -670,6 +677,7 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
 @pytest.mark.parametrize(
     "profile,previous",
     [
+        (CALENDAR_MODE, upgrade.MARKET_DAILY_PREVIOUS),
         (upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_LIVE_PREVIOUS),
         (upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_LIVE_V2_PAYLOAD),
         (upgrade.MARKET_LIVE_MODE, upgrade.EVENT_PREVIOUS),
@@ -1210,7 +1218,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "binding": binding,
         "origin": config["private_origin"],
     }
-    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+    if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES or mode == CALENDAR_MODE:
         gw["mcp_readonly_enabled"] = False
     manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
@@ -1497,7 +1505,9 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
 
 
 @pytest.mark.parametrize(
-    "real_operations", [upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_DAILY_MODE], indirect=True
+    "real_operations",
+    [upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_DAILY_MODE, CALENDAR_MODE],
+    indirect=True,
 )
 @pytest.mark.parametrize("completion,expected", [(45, "deployed"), (121, "rolled_back")])
 def test_market_live_v2_checkout_has_its_own_bounded_completion(
@@ -1555,6 +1565,7 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -1764,6 +1775,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-overview-live-v1": "MARKET_LIVE_PREVIOUS",
         "reviewed-market-overview-live-v2": "MARKET_LIVE_V2_PREVIOUS",
         "reviewed-market-daily-v1": "MARKET_DAILY_PREVIOUS",
+        CALENDAR_MODE: "MARKET_CALENDAR_PREVIOUS",
         "reviewed-unified-navigation-v1": "UNIFIED_NAVIGATION_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
@@ -1825,7 +1837,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "revision": target,
         "binding": {},
     }
-    if profile in upgrade.MCP_DISABLED_ROLLBACK_MODES:
+    if profile in upgrade.MCP_DISABLED_ROLLBACK_MODES or profile == CALENDAR_MODE:
         state["gateway_config"]["mcp_readonly_enabled"] = False
     state["manifest"] = {"code_commit": target}
     if profile in upgrade.ASSET_MODES:
@@ -1860,6 +1872,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-market-overview-live-v1",
             "reviewed-market-overview-live-v2",
             "reviewed-market-daily-v1",
+            CALENDAR_MODE,
             "reviewed-unified-navigation-v1",
             "reviewed-discovery-v1",
             "reviewed-etf-weekly-v2",
@@ -1895,6 +1908,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
@@ -2407,6 +2421,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -2492,6 +2507,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -2565,6 +2581,7 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
@@ -2695,6 +2712,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
@@ -2733,6 +2751,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-market-overview-live-v1",
         "reviewed-market-overview-live-v2",
         "reviewed-market-daily-v1",
+        CALENDAR_MODE,
         "reviewed-unified-navigation-v1",
         "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
@@ -4786,6 +4805,7 @@ def test_event_actual_operate_preserves_original_primary_gate(
         upgrade.MARKET_LIVE_MODE,
         upgrade.MARKET_LIVE_V2_MODE,
         upgrade.MARKET_DAILY_MODE,
+        CALENDAR_MODE,
     ],
     indirect=True,
 )
@@ -4832,6 +4852,7 @@ def test_event_latest_disabled_revision_and_frozen_proof_detect_drift(tmp_path):
         upgrade.MARKET_LIVE_MODE,
         upgrade.MARKET_LIVE_V2_MODE,
         upgrade.MARKET_DAILY_MODE,
+        CALENDAR_MODE,
     ],
     indirect=True,
 )
@@ -5270,6 +5291,7 @@ def test_market_live_profile_freezes_current_resident_and_reviewed_product():
             upgrade.MARKET_LIVE_MODE,
             upgrade.MARKET_LIVE_V2_MODE,
             upgrade.MARKET_DAILY_MODE,
+            CALENDAR_MODE,
         }
     )
     assert upgrade.EVENT_PRESERVATION_MODES is upgrade.EVENT_SAFETY_MODES
@@ -5503,3 +5525,397 @@ def test_market_daily_scope_freezes_product_with_real_git(tmp_path, monkeypatch,
     test_asset_review_uses_real_git_and_frozen_product(
         tmp_path, monkeypatch, bad, upgrade.MARKET_DAILY_MODE
     )
+
+
+def test_financial_calendar_profile_freezes_product_and_preserves_mcp():
+    mode = upgrade.MARKET_CALENDAR_MODE
+    assert mode == "reviewed-market-financial-calendar-v1"
+    assert upgrade.previous_for(mode) == "1315d11a5b82be563b6031593a3bfa5e6e092acd"
+    assert upgrade.MARKET_CALENDAR_PAYLOAD == "79102a95a267044c4a28b1818a9181f788be77fd"
+    assert mode in upgrade.ASSET_MODES
+    assert mode in upgrade.EVENT_PRESERVATION_MODES
+    assert mode not in upgrade.MCP_DISABLED_ROLLBACK_MODES
+    assert mode not in upgrade.TRIAL_MODES
+
+
+def calendar_health(revision, enabled, fenced):
+    return {
+        "status": "ready",
+        "revision": revision,
+        "deployment_fenced": fenced,
+        "primary_last_verified": True,
+        "mcp_readonly_enabled": enabled,
+    }
+
+
+@pytest.mark.parametrize("enabled,fenced", [(True, True), (False, False)])
+def test_financial_calendar_accepts_two_exact_mcp_health_observations(enabled, fenced):
+    gateway = {"mcp_readonly_enabled": enabled}
+    ready = calendar_health("a" * 40, enabled, fenced)
+    upgrade.verify_calendar_mcp_health(gateway, (ready, dict(ready)), "a" * 40, fenced=fenced)
+
+
+@pytest.mark.parametrize("bad", ["missing", None, 0, 1, "false"])
+def test_financial_calendar_refuses_unknown_mcp_config(bad):
+    gateway = {} if bad == "missing" else {"mcp_readonly_enabled": bad}
+    ready = calendar_health("a" * 40, False, True)
+    with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_config_unknown"):
+        upgrade.verify_calendar_mcp_health(gateway, (ready, ready), "a" * 40, fenced=True)
+
+
+@pytest.mark.parametrize("side", [0, 1], ids=["local", "private"])
+@pytest.mark.parametrize(
+    "field,bad",
+    [
+        ("status", "starting"),
+        ("revision", "b" * 40),
+        ("deployment_fenced", 1),
+        ("primary_last_verified", 1),
+        ("mcp_readonly_enabled", "missing"),
+        ("mcp_readonly_enabled", 1),
+        ("mcp_readonly_enabled", False),
+    ],
+)
+def test_financial_calendar_refuses_changed_mcp_health(side, field, bad):
+    gateway = {"mcp_readonly_enabled": True}
+    observations = [calendar_health("a" * 40, True, True) for _ in range(2)]
+    if bad == "missing":
+        observations[side].pop(field)
+    else:
+        observations[side][field] = bad
+    with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_health_changed"):
+        upgrade.verify_calendar_mcp_health(gateway, tuple(observations), "a" * 40, fenced=True)
+
+
+@pytest.mark.parametrize("suffix", ["wal", "shm", "journal", "dangling-wal"])
+def test_financial_calendar_refuses_unsettled_accounts_sidecars(tmp_path, suffix):
+    upgrade.verify_calendar_account_sidecars(tmp_path)
+    sidecar = tmp_path / f"accounts.sqlite3-{suffix.removeprefix('dangling-')}"
+    if suffix.startswith("dangling-"):
+        sidecar.symlink_to(tmp_path / "missing")
+    else:
+        sidecar.write_bytes(b"fixture")
+    with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_account_store_unsettled"):
+        upgrade.verify_calendar_account_sidecars(tmp_path)
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_financial_calendar_gateway_config_keeps_strict_mcp_state(enabled):
+    old = {
+        "revision": "a" * 40,
+        "binding": {"revision": "a" * 40, "primary_user_id": "fixture"},
+        "mcp_readonly_enabled": enabled,
+    }
+    original = json.dumps(old, sort_keys=True)
+    state = {"mode": CALENDAR_MODE, "target": "b" * 40, "gateway_config": old}
+    assert upgrade.gateway_configuration(state) == {
+        **old,
+        "revision": state["target"],
+        "binding": {**old["binding"], "revision": state["target"]},
+    }
+    assert upgrade.gateway_configuration(state, previous=True) == old
+    for previous in (False, True):
+        config = upgrade.gateway_configuration(state, previous=previous)
+        assert config["mcp_readonly_enabled"] is enabled
+        assert not upgrade.gateway_configuration_matches(
+            state, {**config, "mcp_readonly_enabled": int(enabled)}, previous
+        )
+    assert json.dumps(old, sort_keys=True) == original
+
+
+def seed_calendar_account_preservation(home, state, uid, monkeypatch):
+    from contextlib import closing
+
+    from app.research_web.mcp_facade.models import CLIENT_ID, SCHEMA, SCOPE
+
+    database = home / "server/accounts.sqlite3"
+    with closing(sqlite3.connect(database)) as db, db:
+        db.executescript(SCHEMA)
+        db.execute(
+            "INSERT INTO mcp_oauth_grants VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                "fixture-grant",
+                uid,
+                CLIENT_ID,
+                "https://fixture.tail.ts.net",
+                "https://fixture.tail.ts.net/mcp",
+                SCOPE,
+                1,
+                2,
+                0,
+            ),
+        )
+        db.execute(
+            "INSERT INTO mcp_oauth_tokens VALUES (?,?,?,?,?,?)",
+            ("a" * 64, "refresh", "fixture-grant", 1, 2, 0),
+        )
+    primary_index = home / "research-web/index.json"
+    upgrade.c.atomic(primary_index, {"automation_runs": {}, "sessions": {"fixture": {"v": 1}}})
+    state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    state["before"] = upgrade.g.preservation(home)
+    monkeypatch.setattr(upgrade.g, "preserved", REAL_GATEWAY_PRESERVED)
+    return database, database.read_bytes()
+
+
+@pytest.mark.parametrize("real_operations", [CALENDAR_MODE], indirect=True)
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("rollback", [False, True], ids=["forward", "rollback"])
+def test_financial_calendar_real_switch_preserves_mcp_and_oauth(
+    real_operations, monkeypatch, enabled, rollback
+):
+    home, state, system, make, uid = real_operations
+    state["gateway_config"]["mcp_readonly_enabled"] = enabled
+    gateway_file = home / "server/resident.json"
+    upgrade.c.atomic(gateway_file, state["gateway_config"])
+    original = gateway_file.read_bytes()
+    database, account_bytes = seed_calendar_account_preservation(home, state, uid, monkeypatch)
+    system["fail"] = "verify_target" if rollback else None
+    original_request = upgrade.request_json
+
+    def observe(url):
+        payload = original_request(url)
+        if url.endswith("/api/server/health"):
+            payload["mcp_readonly_enabled"] = enabled
+        return payload
+
+    monkeypatch.setattr(upgrade, "request_json", observe)
+    monkeypatch.setattr(
+        upgrade, "read_event_gateway_health", lambda _: observe("/api/server/health")
+    )
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == ("rolled_back" if rollback else "deployed")
+    assert result["preserved"] is True
+    expected = state["previous"] if rollback else state["target"]
+    assert system["primary"] == system["gateway"] == expected
+    assert upgrade.read_json(gateway_file)["mcp_readonly_enabled"] is enabled
+    assert upgrade.read_json(gateway_file) == upgrade.gateway_configuration(
+        state, previous=rollback
+    )
+    if rollback:
+        assert gateway_file.read_bytes() == original
+    assert database.read_bytes() == account_bytes
+
+
+@pytest.mark.parametrize("real_operations", [CALENDAR_MODE], indirect=True)
+@pytest.mark.parametrize("side", ["local", "remote"])
+@pytest.mark.parametrize("previous", [False, True], ids=["target", "rollback"])
+def test_financial_calendar_real_verify_rejects_mcp_health_mismatch(
+    event_mcp_health_protocol, side, previous
+):
+    home, state, system, ops, control = event_mcp_health_protocol
+    state["gateway_config"]["mcp_readonly_enabled"] = True
+    system["primary"] = system["gateway"] = state["previous"] if previous else state["target"]
+    upgrade.c.atomic(home / "server/resident.json", upgrade.gateway_configuration(state, previous))
+    control["local"] = control["remote"] = True
+    control[side] = False
+    with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_health_changed"):
+        ops.verify(previous)
+    assert control["reads"] == 2
+    assert (home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", [CALENDAR_MODE], indirect=True)
+def test_financial_calendar_real_verify_rejects_oauth_store_drift(real_operations, monkeypatch):
+    home, state, system, make, uid = real_operations
+    database, account_bytes = seed_calendar_account_preservation(home, state, uid, monkeypatch)
+    system["primary"] = system["gateway"] = state["target"]
+    upgrade.c.atomic(home / "server/resident.json", upgrade.gateway_configuration(state))
+    upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
+    ops = make(None)
+    ops.verify(False)
+    with sqlite3.connect(database) as db:
+        db.execute("UPDATE mcp_oauth_grants SET revoked=1 WHERE id='fixture-grant'")
+    assert database.read_bytes() != account_bytes
+    with pytest.raises(upgrade.UpdateBlocked, match="gateway_preservation_failed"):
+        ops.verify(False)
+    assert (home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", [CALENDAR_MODE], indirect=True)
+def test_financial_calendar_sidecar_refuses_before_publishing_fence(real_operations):
+    home, state, _system, make, _uid = real_operations
+    (home / "server/accounts.sqlite3-wal").write_bytes(b"not settled")
+    with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_account_store_unsettled"):
+        make(None).prepare_fence(state)
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+    assert not (home / "resident/transaction.json").exists()
+
+
+@pytest.mark.parametrize("observations", ["matched", "local-fenced", "private-disabled"])
+def test_financial_calendar_preflight_checks_old_health_before_any_fence(
+    weekly_operate_protocol, monkeypatch, observations
+):
+    f, control, events = weekly_operate_protocol
+    previous = upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS
+    monkeypatch.setattr(upgrade, "MARKET_CALENDAR_PREVIOUS", previous)
+    gateway = f.home / "server/resident.json"
+    upgrade.c.atomic(
+        gateway,
+        {
+            **upgrade.read_json(gateway),
+            "mcp_readonly_enabled": True,
+            "origin": "https://fixture.tail.ts.net",
+        },
+    )
+    control["active_override"] = False
+    catalog = json.loads(f.index.read_text())
+    catalog["runs"][f.rid]["status"] = "completed"
+    upgrade.c.atomic(f.index, catalog)
+    before = f.index.read_bytes()
+    base_request = upgrade.request_json
+    seen = []
+
+    def local(_config):
+        seen.append("local")
+        return calendar_health(previous, True, observations == "local-fenced")
+
+    def remote(url):
+        if url == "https://fixture.tail.ts.net/api/server/health":
+            seen.append("private")
+            return calendar_health(previous, observations != "private-disabled", False)
+        return base_request(url)
+
+    monkeypatch.setattr(upgrade, "read_event_gateway_health", local)
+    monkeypatch.setattr(upgrade, "request_json", remote)
+    if observations == "matched":
+        with pytest.raises(SystemExit, match="observed-idle-no-service-effects"):
+            upgrade.operate(f.home, f.home / "source", mode=CALENDAR_MODE)
+        assert "fence-would-start" in events
+    else:
+        with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_health_changed"):
+            upgrade.operate(f.home, f.home / "source", mode=CALENDAR_MODE)
+        assert "fence-would-start" not in events
+    assert seen == ["local", "private"]
+    assert f.index.read_bytes() == before
+    assert not (f.home / "server/run/gateway-upgrade.json").exists()
+    assert not (f.home / "resident/transaction.json").exists()
+
+
+def watch_calendar_fence(monkeypatch, journal):
+    trace = []
+
+    class Fence:
+        retain = False
+
+        def __init__(self, server, user, *, resume, transaction):
+            assert server == journal.parent.parent and user and isinstance(resume, bool)
+            self.transaction = transaction
+
+        @classmethod
+        def recover(cls, server, *, expected):
+            assert server == journal.parent.parent and expected
+            trace.append("recover")
+
+        def __enter__(self):
+            state = upgrade.g.read_upgrade_journal(journal)
+            assert state["phase"] == "preparing" and state["transaction"] == self.transaction
+            trace.append("enter")
+            return self
+
+        def __exit__(self, *_exc):
+            trace.append("exit")
+
+    monkeypatch.setattr(upgrade, "BirthFence", Fence)
+    return trace, Fence
+
+
+@pytest.mark.parametrize("real_operations", [CALENDAR_MODE], indirect=True)
+def test_financial_calendar_preparing_recovery_keeps_journal_when_mcp_differs(
+    real_operations, monkeypatch
+):
+    from app.research_web import service_manager
+
+    home, state, system, _make, _uid = real_operations
+    root = home / "resident"
+    state["phase"] = "preparing"
+    state["config"].update(
+        artifact=str(root / "controller.pyz"),
+        artifact_sha256=upgrade.CONTROLLER_SHA256,
+    )
+    upgrade.c.atomic(root / "config.json", state["config"])
+    journal = home / "server/run/gateway-upgrade.json"
+    upgrade.g.write_upgrade_journal(journal, state)
+    before = journal.read_bytes()
+    monkeypatch.setattr(upgrade.c, "configured", lambda _: (root, state["config"]))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_: None)
+    monkeypatch.setattr(upgrade.sys, "platform", "darwin")
+    monkeypatch.setattr(upgrade, "validate_state", lambda *_: None)
+    monkeypatch.setattr(service_manager, "WebServiceManager", lambda **_: object())
+    monkeypatch.setattr(upgrade.Operations, "idle", lambda _: True)
+    trace, fence_type = watch_calendar_fence(monkeypatch, journal)
+
+    def verify(ops, previous):
+        assert previous is True and isinstance(ops.fence, fence_type)
+        assert trace == ["recover", "enter"] and journal.read_bytes() == before
+        trace.append("verify")
+        raise upgrade.UpdateBlocked("market_calendar_mcp_health_changed")
+
+    monkeypatch.setattr(upgrade.Operations, "verify", verify)
+    monkeypatch.setattr(upgrade, "execute", lambda *_a, **_k: pytest.fail("no recovery effects"))
+    with pytest.raises(upgrade.UpdateBlocked, match="market_calendar_mcp_health_changed"):
+        upgrade.operate(home, recovering=True)
+    assert trace == ["recover", "enter", "verify", "exit"]
+    assert journal.read_bytes() == before
+    assert system["events"] == []
+    assert not (root / "transaction.json").exists()
+
+
+def test_financial_calendar_apply_checks_account_preservation_inside_birth_fence(
+    weekly_operate_protocol, monkeypatch
+):
+    from contextlib import nullcontext
+
+    from app.research_web import service_manager
+
+    f, control, _events = weekly_operate_protocol
+    previous = upgrade.ETF_WEEKLY_ADMISSION_PREVIOUS
+    monkeypatch.setattr(upgrade, "MARKET_CALENDAR_PREVIOUS", previous)
+    gateway = f.home / "server/resident.json"
+    upgrade.c.atomic(gateway, {**upgrade.read_json(gateway), "mcp_readonly_enabled": True})
+    control["active_override"] = False
+    catalog = json.loads(f.index.read_text())
+    catalog["runs"][f.rid]["status"] = "completed"
+    upgrade.c.atomic(f.index, catalog)
+    base_request = upgrade.request_json
+    monkeypatch.setattr(
+        upgrade, "read_event_gateway_health", lambda _: calendar_health(previous, True, False)
+    )
+    monkeypatch.setattr(
+        upgrade,
+        "request_json",
+        lambda url: (
+            calendar_health(previous, True, False)
+            if url.endswith("/api/server/health")
+            else base_request(url)
+        ),
+    )
+    journal = f.home / "server/run/gateway-upgrade.json"
+
+    def prepare(_ops, state):
+        state["phase"] = "preparing"
+        upgrade.g.write_upgrade_journal(journal, state)
+
+    monkeypatch.setattr(upgrade.Operations, "prepare_fence", prepare)
+    trace, fence_type = watch_calendar_fence(monkeypatch, journal)
+    monkeypatch.setattr(
+        service_manager.WebServiceManager,
+        "_installation_start_scope",
+        lambda _: nullcontext(object()),
+        raising=False,
+    )
+
+    def verify(ops, previous):
+        assert previous is True and isinstance(ops.fence, fence_type) and ops.lease is not None
+        assert trace == ["enter"]
+        assert upgrade.g.read_upgrade_journal(journal)["phase"] == "preparing"
+        trace.append("verify")
+        raise upgrade.UpdateBlocked("gateway_preservation_failed")
+
+    monkeypatch.setattr(upgrade.Operations, "verify", verify)
+    monkeypatch.setattr(upgrade, "execute", lambda *_a, **_k: pytest.fail("no stop or switch"))
+    with pytest.raises(upgrade.UpdateBlocked, match="gateway_preservation_failed"):
+        upgrade.operate(f.home, f.home / "source", mode=CALENDAR_MODE)
+    assert trace == ["enter", "verify", "exit"]
+    assert upgrade.g.read_upgrade_journal(journal)["phase"] == "preparing"
+    assert not (f.home / "resident/transaction.json").exists()

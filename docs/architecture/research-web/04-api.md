@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+财经日历切换用既有本地／私网 `/api/server/health` 核对实际 MCP，未新增部署 HTTP 路径。
+
 `POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
 
 市场V2切换等待仅发生在Native操作员，不增加接口、请求字段或权限；原手动事件明确意图和Host校验不变。
