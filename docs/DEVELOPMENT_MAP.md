@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+财经日历的 `MARKET_CALENDAR_*` 独立固定前版和产品；`model_provider_upgrade.py` 保持明确布尔的 MCP 配置，并在前进和回滚分别校验双健康及账户库。原部署测试模块涵盖这一入口。
+
 全市场逐日交互在 `ui/market-dashboard*`，首批操作在 `ui/market-daily-bootstrap.mjs`；事件与日历由原
 `event_timeline` 保存事实及原件，`market_scoring` 提供真实原值与原资格缺口。显示证据不替代评分准入。
 

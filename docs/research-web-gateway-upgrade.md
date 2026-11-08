@@ -1,5 +1,26 @@
 # Mac mini 空私有池网关升级
 
+## 财经日历固定切换（保留 MCP）
+
+`apply-market-financial-calendar` / `reviewed-market-financial-calendar-v1` 固定前版
+`1315d11a5b82be563b6031593a3bfa5e6e092acd` 与产品检查点
+`79102a95a267044c4a28b1818a9181f788be77fd`。最终操作员目标须已合入最新 master，
+并满足完整路径并集、blob、文件模式、独立评审和原三项同树 CI（含 macOS 干净安装）。
+旧入口的强制关闭约定不变。
+
+新入口按原三锁、BirthFence、120 秒 Git 切换限额、业务数据保全及 v4 恢复执行。
+仅接受明确布尔值。切换前，本机与私网健康须证明同一前版、MCP 实际值和正常绑定；
+切换与回滚在围栏内分别证明当前预期版本、同一 MCP 值、原网关身份和配置。
+保留账户库原件哈希（含已有 OAuth 授权和令牌摘要），账户 SQLite 有未结 sidecar 时拒绝认证，
+不清理 sidecar、不改授权或凭据。不启动事件日程、Wind 或模型。回滚使用原恢复工件，不靠重新开关 MCP。
+
+执行须使用受信主实例解释器及已登记 Git common 下的干净目标 checkout：
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade \
+  apply-market-financial-calendar --home /absolute/private-home --source /absolute/qualified-source
+```
+
 逐日市场用 `apply-market-daily`，从已接受 `37051f8f` 进入操作员内 `MARKET_DAILY_PAYLOAD` 固定的载荷；复用市场 V2 的 120 秒切换预算、
 切后干净树、原保全与恢复。首批操作的固定来源在写者排空后记录明确终态证明；旧失败、运行中、
 未知状态、无证明或日程非严格关闭仍拒绝切换。不得清除历史失败隔离以便重试。

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-11-08 财经日历切换仅扩展原 `test_model_provider_upgrade.py`，不增加 workflow、job、runner、依赖、时限或平台 dispatch；原 Python 步骤为新增离线验证预留 30 秒。发布前复核可见性与标准 runner。
+
 逐日市场与首批资料沿原 Checks 加入官方资料／研究证据离线合同，沿原 Node 通配符覆盖日期、图表及明确导入，
 Mac Bootstrap 在原静态资产步骤增加 `market-daily-bootstrap.mjs`。原三CI、作业、依赖、runner、时限不变；
 原步骤增量预留120秒含 Native 新封闭模式回归，实际按候选记录。真实取源、导入和常驻验收单独执行。
