@@ -1,6 +1,7 @@
 """Small explicit contracts; report approval cannot be supplied by a tool callback."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
@@ -53,3 +54,11 @@ class Read(StrictModel):
 class Freeze(StrictModel):
     scope_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     chunks: dict[str, list[str]] = Field(min_length=1, max_length=8)
+
+
+class ResearchTool(StrictModel):
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    operation: Literal["search", "read"]
+    query: str | None = Field(default=None, min_length=1, max_length=2000)
+    document_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,128}$")
+    chunk_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{1,128}$")

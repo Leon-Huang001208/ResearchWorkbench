@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+WeKnora 单轮资料读取使用独立的 scope。Tabbit 标签访问仍要求原会话与浏览器标签授权。
+
 周报13工具范围不授予tabbit_browser或额外MCP；已有Tabbit批准流程和普通Native会话范围不变。允许的新闻/网页取证走现有DataHub及research_read_source保留出处；本修复不操作浏览器、不用未访问URL充证据。
 
 华安ETF周报继续使用唯一DSH执行和原Host质量门；模板渲染脚本只接收Host注入的绝对

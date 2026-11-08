@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 from functools import wraps
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
@@ -15,6 +16,7 @@ from ..credential_backend import default_credential_backend
 from ..store import StoreError
 from .client import WeKnoraClient
 from .configuration import checked_origin
+from .models import Read, Search
 from .storage import KnowledgeStore, canonical, digest, fail
 
 log = get_logger(__name__)
@@ -191,6 +193,68 @@ class KnowledgeService:
         return scope
 
     @bounded
+    async def research_scope(self, identifier, as_of=None):
+        client, binding = await self._authorized()
+        scope = self._scope(identifier, binding)
+        if (
+            as_of
+            and timestamp(scope["cutoff"]).astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
+            > as_of
+        ):
+            fail("knowledge_scope_after_research_cutoff", 422)
+        if len({row["kb_id"] for row in scope["documents"]}) > 10:
+            fail("knowledge_research_scope_too_wide", 422)
+        for row in scope["documents"]:
+            meta = await client.document(row["document_id"])
+            self._ready(meta)
+            if meta["kb_id"] != row["kb_id"]:
+                fail("knowledge_upstream_scope_violation", 502)
+        await self._still_authorized(binding)
+        return scope
+
+    @bounded
+    async def research_tool(self, identifier, body):
+        scope = await self.research_scope(identifier)
+        if body.operation == "search":
+            result = await self.search(
+                Search(
+                    query=body.query,
+                    knowledge_base_ids=sorted({row["kb_id"] for row in scope["documents"]}),
+                    scope_id=identifier,
+                ),
+                canonical_hits=True,
+            )
+            response = {
+                "items": [
+                    {
+                        key: hit[key]
+                        for key in ("document_id", "chunk_id", "title", "start_at", "end_at")
+                    }
+                    for hit in result["items"]
+                ]
+            }
+        else:
+            result = await self.read(Read(document_id=body.document_id, scope_id=identifier))
+            chunk = next(
+                (row for row in result["chunks"] if row["chunk_id"] == body.chunk_id), None
+            )
+            if not chunk:
+                fail("knowledge_chunk_not_found", 404)
+            source = next(
+                row for row in scope["documents"] if row["document_id"] == body.document_id
+            )
+            raw = chunk["content"].encode()
+            if len(raw) > 24000:
+                fail("knowledge_tool_excerpt_too_large", 422)
+            response = {
+                **chunk,
+                "original_sha256": source["sha256"],
+                "content_sha256": digest(raw),
+            }
+        await self.research_scope(identifier)
+        return response
+
+    @bounded
     async def create_scope(self, body):
         if body.confirm_source_times is not True:
             fail("knowledge_source_approval_required", 403)
@@ -248,7 +312,7 @@ class KnowledgeService:
         return raw, chunks
 
     @bounded
-    async def search(self, body):
+    async def search(self, body, *, canonical_hits=False):
         client, binding = await self._authorized()
         ids = body.document_ids
         bases = body.knowledge_base_ids
@@ -281,6 +345,8 @@ class KnowledgeService:
                     or hit["content"] not in original["content"]
                 ):
                     fail("knowledge_chunks_changed")
+        if scope and canonical_hits:
+            hits = [approved_chunks[hit["chunk_id"]] for hit in hits]
         await self._still_authorized(binding)
         return {"items": hits, "scope_id": body.scope_id, "generated_answer": False}
 

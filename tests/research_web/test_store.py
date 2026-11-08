@@ -141,6 +141,35 @@ def test_idempotency_survives_restart_and_rejects_changed_payload(tmp_path):
         store.reserve(sid, "key", "changed")
 
 
+@pytest.mark.parametrize("failure_stage", ["allocation", "commit-and-cleanup"])
+def test_failed_scoped_receipt_does_not_seal_session(tmp_path, monkeypatch, failure_stage):
+    import errno
+
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "研究")["id"]
+    args = {"knowledge_scope_id": "scope", "knowledge_request_digest": "request"}
+
+    def disk_full(*_args, **_kwargs):
+        raise OSError(errno.ENOSPC, "synthetic index allocation failure")
+
+    with monkeypatch.context() as patch:
+        if failure_stage == "allocation":
+            patch.setattr("app.research_web.store.tempfile.mkstemp", disk_full)
+        else:
+            patch.setattr("app.research_web.store.os.replace", disk_full)
+            patch.setattr("app.research_web.store.os.unlink", disk_full)
+        with pytest.raises(StoreError, match="会话索引保存失败"):
+            store.reserve(sid, "key", "digest", {}, **args)
+    assert "knowledge_single_turn" not in store.session(sid)
+    assert "delivery_key" not in store.session(sid)
+    assert not store.data["receipts"]
+
+    assert store.reserve(sid, "key", "digest", {}, **args)
+    restarted = Store(tmp_path)
+    assert restarted.session(sid)["knowledge_single_turn"] is True
+    assert restarted.receipt(sid, "key")["knowledge_scope_id"] == "scope"
+
+
 def test_files_never_follow_symlinks_or_cross_sessions(tmp_path):
     store = Store(tmp_path / "data")
     sid = store.create("fingpt", "研究")["id"]

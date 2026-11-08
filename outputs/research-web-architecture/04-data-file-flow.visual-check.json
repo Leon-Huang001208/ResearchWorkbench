@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-20261106/outputs/research-web-architecture/04-data-file-flow.html",
-    "sha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
-    "bytes": 668032
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-dsh-20261108/outputs/research-web-architecture/04-data-file-flow.html",
+    "sha256": "706b0ce7469e9cc2933bd5642022839ef8a58fc1a0cd3461d05d42965834d9e1",
+    "bytes": 668039
   },
   "state": {
     "detail": "read",
