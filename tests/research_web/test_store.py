@@ -141,7 +141,8 @@ def test_idempotency_survives_restart_and_rejects_changed_payload(tmp_path):
         store.reserve(sid, "key", "changed")
 
 
-def test_failed_scoped_receipt_index_open_does_not_seal_session(tmp_path, monkeypatch):
+@pytest.mark.parametrize("failure_stage", ["allocation", "commit-and-cleanup"])
+def test_failed_scoped_receipt_does_not_seal_session(tmp_path, monkeypatch, failure_stage):
     import errno
 
     store = Store(tmp_path)
@@ -152,7 +153,11 @@ def test_failed_scoped_receipt_index_open_does_not_seal_session(tmp_path, monkey
         raise OSError(errno.ENOSPC, "synthetic index allocation failure")
 
     with monkeypatch.context() as patch:
-        patch.setattr("app.research_web.store.tempfile.mkstemp", disk_full)
+        if failure_stage == "allocation":
+            patch.setattr("app.research_web.store.tempfile.mkstemp", disk_full)
+        else:
+            patch.setattr("app.research_web.store.os.replace", disk_full)
+            patch.setattr("app.research_web.store.os.unlink", disk_full)
         with pytest.raises(StoreError, match="会话索引保存失败"):
             store.reserve(sid, "key", "digest", {}, **args)
     assert "knowledge_single_turn" not in store.session(sid)

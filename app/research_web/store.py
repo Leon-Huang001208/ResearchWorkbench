@@ -126,7 +126,12 @@ class Store:
                 raise StoreError("会话索引保存失败") from exc
             finally:
                 if name is not None and os.path.exists(name):
-                    os.unlink(name)
+                    try:
+                        os.unlink(name)
+                    except OSError as exc:
+                        log.warning(
+                            "research_index_temp_cleanup_failed", error_type=type(exc).__name__
+                        )
 
     def create(self, mode: str, title: str) -> dict:
         sid = str(uuid4())
