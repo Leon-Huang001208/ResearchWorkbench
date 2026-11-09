@@ -4,7 +4,7 @@ ResearchWorkbench 欢迎各种经验水平和背景的参与者。参与者应�
 
 ## 适用范围
 
-本准则适用于项目管理的 GitHub Issue、PR、评论和讨论，以及参与者明确代表项目开展的活动。
+本准则适用于项目管理的 GitHub Issue、PR、评论和讨论。
 
 ## 社区行为
 
@@ -14,6 +14,6 @@ ResearchWorkbench 欢迎各种经验水平和背景的参与者。参与者应�
 
 ## 报告与处理
 
-遇到违规行为，可使用 [GitHub 的举报渠道](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)，并提供事件链接和简要说明。产品漏洞请使用[安全政策](SECURITY.md)中的独立渠道。
+遇到违规行为，可按 [GitHub 平台举报指南](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)举报相应内容或账号，并提供事件链接和简要说明。产品漏洞请使用[安全政策](SECURITY.md)中的独立渠道。
 
 维护者对知悉的违规情况按影响和严重程度处理，可要求修改内容、隐藏或删除违规内容、锁定讨论，或限制参与。处理时尽量减少对身份和证据的披露。
