@@ -337,7 +337,9 @@ MacBook Pro 负责项目功能开发、macOS 本地验收与 GitHub macOS CI。W
 
 ## 许可证
 
-MIT License
+ResearchWorkbench 自有且有权授权的材料采用 [ResearchWorkbench Source Available License 1.0](LICENSE.md)。允许商用。企业内用须公开实际运行版本的对应源码，SaaS 须公开可重建整套服务的源码。修改版投入使用也须公开对应源码。个人使用须保留 Yongjia (Leon) Huang 署名。
+
+[许可范围与第三方声明](THIRD_PARTY_NOTICES.md)列明原许可、排除路径和历史版本边界。
 
 能力详情的数据准入范围独立于模型健康：硬条件缺失阻断，可选条件缺失按声明省略章节；旧快照与资源全集不代表当前执行授权。当前Mac验证不扩展成其他平台或所有供应商品牌支持。
 
