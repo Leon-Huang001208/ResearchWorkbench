@@ -18,7 +18,7 @@ Offer the covered source and your modifications to the public under this license
 
 ## 3. Services
 
-Before making a service that uses the covered material available to others, including through an interface, API or managed deployment, make its complete service source available to the public at no charge. This applies to original and modified deployments. Keep the source available and aligned with the version offered throughout service operation.
+Before providing a service that uses the covered material to anyone outside the operating legal entity, including an affiliate, a private customer, or the public, make its complete service source available to the public at no charge. This includes services provided through an interface, API or managed deployment, whether paid or free, and applies to original and modified deployments. Use solely within the operating entity falls under section 2. Keep the source available and aligned with the version offered throughout service operation.
 
 Complete service source includes the corresponding source for the covered material and for all components used to provide, manage and reproduce that service, including frontends, APIs, authentication, billing, deployment, automation, monitoring, backup, storage and hosting components. Supply the scripts, version information and non-secret configuration needed for an independent operator to build and run an equivalent service. Production credentials, customer records and business data are excluded. Components for which you cannot lawfully provide the required source may only be used in such a service if you first obtain the necessary rights or a written exception from the licensor.
 
@@ -34,6 +34,6 @@ The licensor grants you a worldwide, non-exclusive, royalty-free patent license 
 
 ## 6. Termination and warranty
 
-Your rights under this license end while you are in breach. If you remedy the breach within 30 days of first receiving notice of it, your copyright rights are reinstated unless the licensor has previously notified you of a breach of this license. This does not reinstate a patent grant terminated under section 5. Termination does not affect licenses received by others who remain in compliance.
+Your rights under this license terminate when you breach its conditions. If this is the first notice of breach you have received from the licensor and you remedy the breach within 30 days after receiving it, your rights are reinstated upon cure, except for a patent grant terminated under section 5. If you cure before receiving a first notice and have received no prior notice, your rights are reinstated upon cure. Termination does not affect licenses received by others who remain in compliance.
 
 To the extent permitted by applicable law, the material is provided as is, without warranties, including of merchantability, fitness for a particular purpose and non-infringement. The licensor is not liable for damages arising from the material or its use to the extent applicable law permits that limitation.
