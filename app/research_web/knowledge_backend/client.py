@@ -354,6 +354,9 @@ class WeKnoraClient:
             }
             if documents is not None:
                 body["knowledge_ids"] = documents
+                # WeKnora caps primary hits before appending context rows.
+                # A frozen document scope must return only those ranked chunks.
+                body["skip_context_enrichment"] = True
             data = (
                 await self._request(
                     "POST",

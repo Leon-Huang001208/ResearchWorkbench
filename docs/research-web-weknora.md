@@ -39,6 +39,10 @@ WeKnora 普通初始化向导要求配置 LLM，且摘要默认开启。固定�
 源码前后像见[原生上传 manifest](../deploy/weknora/patches/native-upload-manifest.json)。
 运行时业务结果见任务回执。
 
+带文档范围的混合检索显式禁用上游上下文补充，使 Top 8 对应已排名的原始分块。
+服务仍复核返回上限、资料权限、分块身份及已冻结原件。真实初始查询曾返回
+17 行并被拒绝，该回执保留在试点日志。
+
 ## 接口与权限
 
 状态和Doctor中的 `expected_release`／`expected_source_commit` 是本适配要求的目标版本，不是已连接服务的运行版本证明。绑定状态还提供 `credential_cleanup_pending`：为 true 表示旧凭据槽保留待处理，不能把新绑定成功解释为旧凭据已全部清理；不会返回凭据内容。

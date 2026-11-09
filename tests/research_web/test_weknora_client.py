@@ -176,6 +176,7 @@ def test_search_sends_document_scope_before_retrieval_and_ranks_across_bases():
         assert payload == {
             "query_text": "周报依据",
             "knowledge_ids": ["d1"],
+            "skip_context_enrichment": True,
             "match_count": 1,
             "vector_threshold": 0,
             "keyword_threshold": 0,
@@ -221,7 +222,9 @@ def test_search_empty_document_scope_or_unsafe_ids_rejected_before_network():
 
 def test_search_ordinary_scope_omits_document_filter_and_refuses_out_of_scope_hits():
     def ordinary(request):
-        assert "knowledge_ids" not in json.loads(request.content)
+        payload = json.loads(request.content)
+        assert "knowledge_ids" not in payload
+        assert "skip_context_enrichment" not in payload
         return ok([])
 
     assert run(connected(ordinary).search("query", ["kb1"])) == []
@@ -233,6 +236,16 @@ def test_search_ordinary_scope_omits_document_filter_and_refuses_out_of_scope_hi
                 )
             )
         assert failure.value.code == "weknora_scope_denied"
+
+
+def test_search_document_scope_still_rejects_rows_over_the_requested_limit():
+    def handle(request):
+        assert json.loads(request.content)["skip_context_enrichment"] is True
+        return ok([chunk(f"c{i}", index=i) for i in range(17)])
+
+    with pytest.raises(StoreError) as failure:
+        run(connected(handle).search("query", ["kb1"], ["d1"], limit=8))
+    assert failure.value.code == "weknora_response_invalid"
 
 
 def test_document_preserves_md5_source_state_and_never_follows_file_url():
