@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "https://github.com/Tencent/WeKnora",
+    "release_tag": "v0.9.0",
+    "release_sha": "f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7"
+  },
+  "predecessor": {
+    "path": "0003-retrieval-only-kb-settings.patch",
+    "sha256": "74f4a13c387d663a702fcc65b9855b3bd5ebbd4aeb87e72931cd4a26e2777233"
+  },
+  "patch": {
+    "path": "0004-retrieval-only-native-upload.patch",
+    "sha256": "37fabe0b8bcd46c6d5880d91dfa50e3bdd54c4cbb83b091041a86b3a14c7a660"
+  },
+  "files": [
+    {
+      "path": "frontend/src/views/knowledge/KnowledgeBase.vue",
+      "preimage_sha256": "ad79c6aee5c5c93f9571886d1e343be1898c58190f9e126f8e3396bfc7e3b3e2",
+      "postimage_sha256": "1a224a861c7d4cad50ba23fab4967ca69845b9b4cbb7c495e3af5bdd895257b0"
+    }
+  ],
+  "behavior": {
+    "retrieval_only_source": "authenticated GET /api/v1/initialization/config/:kbId",
+    "ordinary_mode_requires_summary_model": true,
+    "missing_profile_fails_closed": true,
+    "embedding_and_storage_gates_preserved": true
+  }
+}
