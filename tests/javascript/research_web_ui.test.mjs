@@ -461,7 +461,9 @@ test('catalog initializes every default resource as pending and passes runtime p
   const app = await readFile(new URL('app.mjs', root), 'utf8');
   assert.match(app, /const defaultCatalogNames = \['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'\];/);
   assert.match(app, /pending:\s*new Set\(defaultCatalogNames\)/);
-  assert.match(app, /if \(catalog\.pending\.has\('runtime'\)\) return 'DSH 连接中';/);
+  const { runtimeLabel } = await import(new URL('shell.mjs', root));
+  assert.equal(runtimeLabel({ pending: new Set(['runtime']) }), 'DSH 连接中');
+  assert.equal(runtimeLabel({ pending: new Set(), runtime: { execution_mode: 'external' } }), '外部研究宿主');
   assert.match(app, /const runtimePending = catalog\.pending\.has\('runtime'\);/);
   assert.match(app, /const runtimeReady = !runtimePending && catalog\.runtime\?\.connected === true && catalog\.runtime\?\.credential_configured !== false;/);
   assert.match(app, /runtimeReady, runtimePending/);
