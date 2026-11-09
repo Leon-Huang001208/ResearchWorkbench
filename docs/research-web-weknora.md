@@ -23,13 +23,21 @@ WeKnora 普通初始化向导要求配置 LLM，且摘要默认开启。固定�
 
 ### 配置模板与补丁链
 
-`deploy/weknora/embedding-only.json` 是0001阶段的逐文档显式 opt-out API 模板，整份JSON不是API请求；其历史 `NOT_IMPLEMENTED`／BLOCKED字段不描述0002的源码状态。严格实例候选以[retrieval-only manifest](../deploy/weknora/patches/retrieval-only-manifest.json)为准，按固定release → 0001 → 0002 → 0003顺序绑定前后像与补丁哈希，再显式设置 `WEKNORA_RETRIEVAL_ONLY=1`。0001模板不能独自放行原UI上传／重解析。该链仍只适用于全新隔离候选，Go／服务／UI验证未完成前不启用生产，也不把manifest中的NOT_RUN改写为通过。
+`deploy/weknora/embedding-only.json` 是0001阶段的逐文档显式 opt-out API 模板，整份JSON不是API请求；其历史 `NOT_IMPLEMENTED`／BLOCKED字段不描述0002的源码状态。严格实例候选以[retrieval-only manifest](../deploy/weknora/patches/retrieval-only-manifest.json)为准，按固定release → 0001 → 0002 → 0003 → 0004顺序绑定前后像与补丁哈希，再显式设置 `WEKNORA_RETRIEVAL_ONLY=1`。0001模板不能独自放行原UI上传／重解析。该链仍只适用于全新隔离候选，Go／服务／UI验证未完成前不启用生产，也不把manifest中的NOT_RUN改写为通过。
 
 ### 原生知识库设置补丁0003与当前验证
 
 `0003-retrieval-only-kb-settings.patch` 在0002之后增加只检索模式的原生知识库设置：先由 API 建立文档库，再从原界面编辑；首个知识库创建向导仍未支持该模式。认证服务端标记决定 profile，客户端请求不能自行开启该权限；普通模式继续校验真实 Chat 模型。补丁及前后像绑定见[kb-settings manifest](../deploy/weknora/patches/kb-settings-manifest.json)。固定 manifest 的 `NOT_RUN` 不由任务验收回填。
 
 当前独立上游 Node 纯函数8项通过，只证明设置逻辑；完整 Vue 构建、真实 WeKnora 服务及浏览器入库仍未验证。原生 Go 可以完成编译，但测试初始化在上游 `go-m1cpu` 崩溃；两次 Docker 编译受容量门阻断，未进入测试。上述均不能写成 Go runtime PASS。RWB 自身隔离浏览器通过，也不替代上游 UI、免费 Embedding 或业务报告接受。
+
+### 原生上传补丁0004
+
+`0004-retrieval-only-native-upload.patch` 补齐知识库详情页的上传准入。对于尚无
+摘要模型的当前知识库，详情页从认证配置读取只检索标记，并在异步返回后确认仍在原库。
+普通模式及配置未核验时沿用摘要模型要求。向量模型和存储准入继续适用。补丁和固定
+源码前后像见[原生上传 manifest](../deploy/weknora/patches/native-upload-manifest.json)。
+运行时业务结果见任务回执。
 
 ## 接口与权限
 

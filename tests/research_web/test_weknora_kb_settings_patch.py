@@ -125,3 +125,41 @@ def test_kb_settings_patch_rejects_drifted_backend_context(tmp_path):
     result = apply(tmp_path, patch, True)
     assert result.returncode != 0
     assert "failed" in (result.stdout + result.stderr).decode("utf-8", "replace").casefold()
+
+
+def test_native_upload_patch_is_bound_to_kb_settings_patch_and_release():
+    predecessor, _ = load()
+    manifest = json.loads((PATCH_ROOT / "native-upload-manifest.json").read_bytes())
+    patch = (PATCH_ROOT / manifest["patch"]["path"]).read_bytes()
+
+    assert manifest["schema_version"] == 1
+    assert manifest["upstream"] == predecessor["upstream"]
+    assert manifest["predecessor"] == predecessor["patch"]
+    assert hashlib.sha256(patch).hexdigest() == manifest["patch"]["sha256"]
+    assert manifest["files"] == [
+        {
+            "path": "frontend/src/views/knowledge/KnowledgeBase.vue",
+            "preimage_sha256": "ad79c6aee5c5c93f9571886d1e343be1898c58190f9e126f8e3396bfc7e3b3e2",
+            "postimage_sha256": "1a224a861c7d4cad50ba23fab4967ca69845b9b4cbb7c495e3af5bdd895257b0",
+        },
+    ]
+
+
+def test_native_upload_patch_requires_authenticated_current_profile_for_summary_exception():
+    manifest = json.loads((PATCH_ROOT / "native-upload-manifest.json").read_bytes())
+    patch = (PATCH_ROOT / manifest["patch"]["path"]).read_text()
+    lines = [line[1:] for line in patch.splitlines() if line.startswith((" ", "+"))]
+    vue = "\n".join(lines)
+
+    assert "retrievalOnly.value = false" in vue
+    assert "requiresKBChatModel(false, data.summary_model_id)" in vue
+    profile_read = vue.index("await getCurrentConfigByKB(targetKbId)")
+    current_check = vue.index("if (!isCurrentKb(targetKbId)) return", profile_read)
+    grant = vue.index("retrievalOnly.value = isRetrievalOnly", current_check)
+    assert profile_read < vue.index("isRetrievalOnly = profile.retrievalOnly === true") < grant
+    assert "let isRetrievalOnly = false" in vue
+    assert "knowledge_upload_profile_unverified" in vue
+    assert (
+        "kbInfo.value?.id !== kbId.value || "
+        "requiresKBChatModel(retrievalOnly.value, kbInfo.value.summary_model_id)" in vue
+    )
