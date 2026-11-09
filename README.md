@@ -341,6 +341,10 @@ ResearchWorkbench 自有且有权授权的材料采用 [ResearchWorkbench Source
 
 [许可范围与第三方声明](THIRD_PARTY_NOTICES.md)列明原许可、排除路径和历史版本边界。
 
+## 社区与贡献
+
+查看[贡献指南](CONTRIBUTING.md)、[社区行为准则](CODE_OF_CONDUCT.md)及[贡献者许可协议](CLA.md)。发现漏洞请按[安全政策](SECURITY.md)私密报告。
+
 能力详情的数据准入范围独立于模型健康：硬条件缺失阻断，可选条件缺失按声明省略章节；旧快照与资源全集不代表当前执行授权。当前Mac验证不扩展成其他平台或所有供应商品牌支持。
 
 
