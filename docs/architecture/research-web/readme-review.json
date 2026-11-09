@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "README 的 Web 安装及产品概览继续适用，WeKnora 单轮工具的接口与运行范围写入专项合同。",
-  "reason": "能力使用现有账号 Host、DSH 和安装锁。首轮以认证 API 授权，实际 WeKnora 与 DSH 验收须单独取证。"
+  "summary": "README 现有 Web 安装及产品概览继续适用。WeKnora 单轮资料接口与 Markdown 围栏行为各自记录在专项合同。",
+  "reason": "WeKnora 使用现有账号 Host、DSH 和安装锁，由认证接口批准本轮资料范围。Markdown 变更限于既有渲染器。CI、部署与真实业务验收分别取证。"
 }

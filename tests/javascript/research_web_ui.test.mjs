@@ -12,6 +12,30 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 
+test('Markdown retains fence lines with non-whitespace suffixes as escaped code', () => {
+  for (const fence of ['```', '~~~', '````', '~~~~']) {
+    for (const suffix of ['python', ' trailing words', ' <script>alert("x")</script>']) {
+      const body = ['before', fence + suffix, 'after'];
+      const source = [fence + 'text', ...body, fence, 'outside'].join('\n');
+      const escapedBody = body.join('\n').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+      assert.equal(markdown.renderMarkdown(source), `<pre><code class="language-text">${escapedBody}</code></pre>\n<p>outside</p>`);
+    }
+  }
+});
+
+test('Markdown closes code with sufficient same-kind fences and optional whitespace', () => {
+  for (const fence of ['```', '~~~', '````', '~~~~']) {
+    for (const closing of [fence, fence + ' \t', ' \t' + fence + fence[0] + ' \t']) {
+      const otherKind = fence[0] === '`' ? '~~~~' : '````';
+      const body = ['<tag> & "quoted"', fence.slice(1), otherKind];
+      assert.equal(
+        markdown.renderMarkdown([fence, ...body, closing, 'outside'].join('\n')),
+        `<pre><code>&lt;tag&gt; &amp; &quot;quoted&quot;\n${fence.slice(1)}\n${otherKind}</code></pre>\n<p>outside</p>`,
+      );
+    }
+  }
+});
+
 test('a stalled response body times out once and leaves writes explicitly unconfirmed', async () => {
   let calls = 0;
   const api = core.createAPI({ requestTimeoutMs: 10, logger() {}, fetcher: async () => {

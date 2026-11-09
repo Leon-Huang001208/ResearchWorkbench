@@ -46,7 +46,8 @@ export function renderMarkdown(value = '', { resolveLink } = {}) {
     const fence = line.match(/^\s*(`{3,}|~{3,})([\w+-]*)\s*$/);
     if (fence) {
       const content = []; i++;
-      while (i < lines.length && !lines[i].trim().startsWith(fence[1])) content.push(lines[i++]);
+      const closingFence = new RegExp(`^\\s*${fence[1][0]}{${fence[1].length},}\\s*$`);
+      while (i < lines.length && !closingFence.test(lines[i])) content.push(lines[i++]);
       if (i < lines.length) i++;
       output.push(`<pre><code${fence[2] ? ` class="language-${escapeHTML(fence[2])}"` : ''}>${escapeHTML(content.join('\n'))}</code></pre>`); continue;
     }
