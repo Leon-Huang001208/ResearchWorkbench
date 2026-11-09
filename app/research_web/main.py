@@ -311,10 +311,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         "origin": private_origin or None,
     }
 
+    service_only = (
+        getattr(service, "service_only", False)
+        if service is not None
+        else tenant_mode_enabled() and os.environ.get("RWB_TENANT_SERVICE_ONLY") == "1"
+    )
+
     @asynccontextmanager
     async def lifespan(app):
         setup_logging()
-        service_only = tenant_mode_enabled() and os.environ.get("RWB_TENANT_SERVICE_ONLY") == "1"
         active = service or ResearchService(
             (
                 ExternalExecutionClient()
@@ -459,9 +464,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
 
         async def dispatch():
-            if getattr(request.app.state.research, "service_only", False) and not (
-                _service_only_route_allowed(request.method, request.url.path)
-            ):
+            if service_only and not _service_only_route_allowed(request.method, request.url.path):
                 log.warning("embedded_research_route_denied", method=request.method)
                 return JSONResponse(
                     {
