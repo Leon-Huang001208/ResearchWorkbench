@@ -1206,3 +1206,8 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 仅服务模式的 `serve` 无须提供 `--source` 或 `--node`。Doctor 的模式来自该次命令，
 实际进程以已认证 `GET /api/research/runtime` 的 `execution_mode=external` 为准。
 现有模式仍要求固定 DSH。生产切换须先交接活动及未知运行并核验历史原件。
+
+仅服务试验可在原命令增加 `--weknora-oauth-origin http://127.0.0.1:18193`
+并显式设置 `RWB_MCP_READONLY_ENABLED=1`。该来源应改为隔离 WeKnora 的
+实际浏览器地址。Doctor 接受相同模式和来源参数，只报告
+`weknora_oauth.status`，不会登记客户端或执行授权。[OAuth 合同](research-web-mcp-facade.md#隔离-weknora-oauth-客户端)

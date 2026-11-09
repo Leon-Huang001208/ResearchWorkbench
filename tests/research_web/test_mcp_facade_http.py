@@ -13,7 +13,15 @@ from uuid import uuid4
 import httpx
 import pytest
 import uvicorn
-from test_mcp_facade_oauth import PASSWORD, authorize, exchange, params
+from test_mcp_facade_oauth import (
+    PASSWORD,
+    WEKNORA,
+    WEKNORA_CALLBACK,
+    WEKNORA_ORIGIN,
+    authorize,
+    exchange,
+    params,
+)
 
 from app.research_web.mcp_facade.config import MACHINE_PATHS
 from app.research_web.multiuser.accounts import AccountError, AccountStore
@@ -73,7 +81,7 @@ def test_gateway_health_reports_actual_facade_over_pool_claim(
 
 
 @pytest.fixture
-def environment(tmp_path):
+def environment(tmp_path, request):
     accounts = AccountStore(tmp_path / "accounts")
     users = [accounts.create_user(f"user{i:02d}", PASSWORD) for i in range(10)]
     sessions = [accounts.login(u.username, PASSWORD)[0] for u in users]
@@ -94,7 +102,13 @@ def environment(tmp_path):
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     origin = f"http://127.0.0.1:{sock.getsockname()[1]}"
-    app = create_gateway(accounts, Pool(), origin=origin, mcp_enabled=True)
+    app = create_gateway(
+        accounts,
+        Pool(),
+        origin=origin,
+        mcp_enabled=True,
+        weknora_oauth_origin=getattr(request, "param", None),
+    )
     facade = app.state.mcp_facade
 
     async def respond(request):
@@ -651,3 +665,34 @@ def test_source_without_file_lists_only_context_approved_sources(environment):
     s.env[1].revoke_material(source.id)
     assert value(call(s, token, "rwb_source_read", context_id=first.context_id))["items"] == []
     assert s.lookups == [] and s.calls == []
+
+
+@pytest.mark.parametrize("environment", [WEKNORA_ORIGIN], indirect=True)
+def test_weknora_reads_only_approved_frozen_material(environment):
+    s = environment
+    _, selected = approved(s)
+    _, other = approved(s, index=1)
+    client, store, *_ = s.env
+    code = authorize(
+        s.env, client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK, material_ids=[selected.id]
+    )
+    response = exchange(client, code, client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK)
+    assert response.status_code == 200
+    access = response.json()["access_token"]
+    record = store.verify_access(access, resource=store.resource)
+    assert record.client_id == WEKNORA
+    found = value(
+        call(
+            s, access, "rwb_source_read", context_id=selected.context_id, file_id=selected.object_id
+        )
+    )
+    assert found["text"] == "synthetic user 0"
+    rejected = call(
+        s, access, "rwb_source_read", context_id=other.context_id, file_id=other.object_id
+    )
+    assert rejected.json()["result"]["isError"]
+    store.revoke_grant(record.grant_id, user_id=record.user_id)
+    denied = call(
+        s, access, "rwb_source_read", context_id=selected.context_id, file_id=selected.object_id
+    )
+    assert denied.status_code == 401

@@ -7,6 +7,8 @@ All other token/code records are metadata loaded by digest lookup.
 from dataclasses import dataclass, field
 
 CLIENT_ID = "rwb-codex-native"
+WEKNORA_CLIENT_ID = "rwb-weknora"
+NATIVE_CALLBACK = "http://127.0.0.1/callback"
 SCOPE = "rwb.read"
 CODE_TTL = 60
 ACCESS_TTL = 600
@@ -62,7 +64,7 @@ CREATE INDEX IF NOT EXISTS mcp_oauth_materials_user ON mcp_oauth_materials(user_
 @dataclass(frozen=True)
 class FixedClient:
     client_id: str = CLIENT_ID
-    redirect_uris: tuple[str, ...] = ("http://127.0.0.1/callback",)
+    redirect_uris: tuple[str, ...] = (NATIVE_CALLBACK,)
     scopes: tuple[str, ...] = (SCOPE,)
     token_endpoint_auth_method: str = "none"
 

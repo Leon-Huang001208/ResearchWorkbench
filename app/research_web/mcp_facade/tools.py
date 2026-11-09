@@ -13,7 +13,7 @@ from core.observability import get_logger
 from ..multiuser.accounts import AccountError
 from .backend import ReadError, canonical_id
 from .config import RESPONSE_BYTES
-from .models import CLIENT_ID, SCOPE
+from .models import SCOPE
 
 log = get_logger(__name__)
 TOOL_ARGUMENTS = {
@@ -49,7 +49,7 @@ def register_tools(server, store, backend):
             ) from None
         if (record.user_id, record.client_id, record.issuer, record.scopes) != (
             token.subject,
-            CLIENT_ID,
+            token.client_id,
             (token.claims or {}).get("iss"),
             (SCOPE,),
         ):

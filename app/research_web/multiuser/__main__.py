@@ -52,6 +52,8 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--root", type=Path, default=Path.home() / ".research-workbench/server"
         )
+        if name in {"serve", "doctor"}:
+            command.add_argument("--weknora-oauth-origin", help="隔离 WeKnora 的浏览器来源")
         if name in {"init", "reset-admin"}:
             command.add_argument("--username", required=True)
         elif name == "serve":
@@ -286,6 +288,21 @@ def _inspect_mcp(root: Path | None = None) -> dict:
     }
 
 
+def _weknora_oauth_origin(arguments: argparse.Namespace) -> str | None:
+    from ..mcp_facade.config import enabled, weknora_callback
+
+    origin = arguments.weknora_oauth_origin
+    if origin is None:
+        return None
+    if not arguments.service_only or not enabled():
+        raise ServerCommandError("weknora_oauth_requires_service_only_mcp")
+    try:
+        weknora_callback(origin)
+    except ValueError as exc:
+        raise ServerCommandError("weknora_oauth_origin_invalid") from exc
+    return origin
+
+
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
 
@@ -320,6 +337,10 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         )
     except ValueError:
         knowledge.update(enabled=None, status="invalid")
+    try:
+        oauth_status = "configuration_pending" if _weknora_oauth_origin(arguments) else "disabled"
+    except ServerCommandError:
+        oauth_status = "invalid"
     report = {
         "schema_version": 1,
         # Artifact presence does not establish pinned-source or model readiness.
@@ -338,6 +359,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         "model": "not_checked",
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,
+        "weknora_oauth": {"status": oauth_status, "runtime_verification": "NOT_RUN"},
     }
     if arguments.json:
         print(json.dumps(report, ensure_ascii=False))
@@ -488,6 +510,13 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
     if sys.version_info[:2] != (RUNTIME_CONTRACT.python_major, RUNTIME_CONTRACT.python_minor):
         raise ServerCommandError("server_python_invalid")
     origin = _origin(arguments.origin)
+    oauth_origin = _weknora_oauth_origin(arguments)
+    if oauth_origin is not None and (
+        arguments.port == 80
+        or origin == oauth_origin
+        or origin != f"http://127.0.0.1:{arguments.port}"
+    ):
+        raise ServerCommandError("weknora_oauth_requires_loopback_gateway")
     if not 1 <= arguments.port <= 65535:
         raise ServerCommandError("server_port_invalid")
     if not arguments.service_only:
@@ -519,7 +548,9 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
         )
         pool = RuntimePool(config)
         try:
-            app = create_gateway(AccountStore(root), pool, origin=origin)
+            app = create_gateway(
+                AccountStore(root), pool, origin=origin, weknora_oauth_origin=oauth_origin
+            )
             log.info(
                 json.dumps(
                     {
