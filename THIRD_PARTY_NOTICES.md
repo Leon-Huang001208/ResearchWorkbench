@@ -6,7 +6,7 @@
 
 - `vendor/` 内随包组件使用各自的声明，包括 [CJPY Apache-2.0](vendor/cjpy/0.5.2/LICENSE) 和 [DSH Tabbit MIT](vendor/dsh-tabbit/0.3.4/LICENSE)。
 - `services/ai_news/vendor/` 保留 [AIHOT MIT 和版权声明](services/ai_news/vendor/aihot/LICENSE)及其随包材料许可。`services/hot/`、`app/research_web/ui/hot-reader.css` 和 `app/research_web/ui/hot-reader.mjs` 中复用的 AIHOT 内容按[来源声明](services/hot/THIRD_PARTY_NOTICES.md)处理。两份 Web 混合文件整体排除，待厘清其中新旧材料的范围。
-- `app/research_web/ui/vendor/` 和 `app/research_web/resources/fonts/` 保留各自的许可证，包括 [Chart.js MIT](app/research_web/ui/vendor/chart-js-4.4.7.LICENSE.txt)、[ECharts Apache-2.0](app/research_web/ui/vendor/echarts-5.5.0.LICENSE.txt)及 [Source 字体 SIL OFL 1.1](app/research_web/resources/fonts/OFL.txt)。
+- `app/research_web/ui/vendor/` 和 `app/research_web/resources/fonts/` 保留各自的许可证，包括 [Chart.js MIT](app/research_web/ui/vendor/chart-js-4.4.7.LICENSE.txt)、[ECharts Apache-2.0](app/research_web/ui/vendor/echarts-5.5.0.LICENSE.txt)及 [Noto Sans SC 子集的 SIL OFL 1.1 声明](app/research_web/resources/fonts/OFL.txt)。
 - `.agents/skills/` 及仓库其他位置内具有独立许可证、上游来源或第三方权利的材料，按对应来源和许可证处理。其中 [CLS Skill](.agents/skills/cls/LICENSE.txt) 和 [CNStock Skill](.agents/skills/cnstock/LICENSE.txt) 采用 CC BY-NC-SA 4.0，受原许可的非商业条件约束。
 
 ## 既有贡献与待核材料
