@@ -520,7 +520,7 @@ class ResearchService(ModelProfilesMixin):
         )
 
     async def ensure_owned(self):
-        if self.service_only:
+        if getattr(self, "service_only", False):
             log.warning("embedded_research_disabled")
             raise RuntimeFailure("请使用外部研究宿主", "embedded_research_disabled")
         if self.expected_cwd is not None:
