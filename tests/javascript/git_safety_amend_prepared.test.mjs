@@ -105,7 +105,20 @@ test('prepared amendment preserves the bounded recovered merge-conflict diagnost
   assert.equal(result.mode,null);
 });
 
-for(const patch of [{exitStatus:0},{signal:'SIGKILL'},{errorCode:'EIO'},{classification:'command_failed'},{stderrBytes:-1},{stderrBytes:4194305},{stderrSha256:'invalid'},{stderrSha256:'a'.repeat(64)},{stderrBytes:1,stderrSha256:['a'.repeat(64)]},{publication:'unknown'}]) test('recovered merge-conflict diagnostic rejects '+JSON.stringify(patch),async t=>{
+test('prepared amendment preserves a recovered Git fatal command diagnostic', async t=>{
+  const f=fixture(t);
+  const stderr=Buffer.from('fixture fatal error\n');
+  const diagnostic={classification:'command_failed',exitStatus:128,signal:null,errorCode:null,stderrBytes:stderr.length,stderrSha256:crypto.createHash('sha256').update(stderr).digest('hex')};
+  fs.writeFileSync(f.filename,JSON.stringify({...f.receipt,mergeFailure:diagnostic}));
+  const before=fs.readFileSync(f.filename);
+  const result=await amend(f);
+  assert.deepEqual(result.mergeFailure,diagnostic);
+  assert.deepEqual(fs.readFileSync(result.preparedAmendment.receiptSnapshot),before);
+  assert.equal(result.preparedAmendment.restoreVerified,true);
+  assert.equal(result.mode,null);
+});
+
+for(const patch of [{exitStatus:0},{signal:'SIGKILL'},{errorCode:'EIO'},{classification:'command_failed'},{classification:'command_failed',exitStatus:128},{classification:'integration_identity_failed',exitStatus:128},{stderrBytes:-1},{stderrBytes:4194305},{stderrSha256:'invalid'},{stderrSha256:'a'.repeat(64)},{stderrBytes:1,stderrSha256:['a'.repeat(64)]},{publication:'unknown'}]) test('recovered merge-conflict diagnostic rejects '+JSON.stringify(patch),async t=>{
   const f=fixture(t);
   const diagnostic={classification:'merge_conflict',exitStatus:1,signal:null,errorCode:null,stderrBytes:0,stderrSha256:crypto.createHash('sha256').update('').digest('hex'),...patch};
   fs.writeFileSync(f.filename,JSON.stringify({...f.receipt,mergeFailure:diagnostic}));
