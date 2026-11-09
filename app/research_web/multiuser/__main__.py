@@ -306,11 +306,26 @@ def _weknora_oauth_origin(arguments: argparse.Namespace) -> str | None:
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
 
+    from ..mcp_facade.config import resident_execution
+
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
+
+    service_only = arguments.service_only
+    try:
+        if arguments.service_only or arguments.weknora_oauth_origin is not None:
+            oauth_origin = _weknora_oauth_origin(arguments)
+        else:
+            config = _read_resident_configuration(root)
+            service_only, oauth_origin = resident_execution(
+                config or {}, mcp_enabled=mcp.get("enabled") is True
+            )
+        oauth_status = "configuration_pending" if oauth_origin else "disabled"
+    except (OSError, ValueError, ServerCommandError):
+        oauth_status = "invalid"
     source = (
         {"status": "not_required", "pinned_revision": "not_verified"}
-        if arguments.service_only
+        if service_only
         else _source_status(arguments.source)
     )
     python_matches = sys.version_info[:2] == (
@@ -337,10 +352,6 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         )
     except ValueError:
         knowledge.update(enabled=None, status="invalid")
-    try:
-        oauth_status = "configuration_pending" if _weknora_oauth_origin(arguments) else "disabled"
-    except ServerCommandError:
-        oauth_status = "invalid"
     report = {
         "schema_version": 1,
         # Artifact presence does not establish pinned-source or model readiness.
@@ -355,7 +366,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
             "modules": modules,
         },
         "runtime": "not_checked",
-        "execution_mode": "external" if arguments.service_only else "embedded",
+        "execution_mode": "external" if service_only else "embedded",
         "model": "not_checked",
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,
@@ -511,12 +522,13 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
         raise ServerCommandError("server_python_invalid")
     origin = _origin(arguments.origin)
     oauth_origin = _weknora_oauth_origin(arguments)
-    if oauth_origin is not None and (
-        arguments.port == 80
-        or origin == oauth_origin
-        or origin != f"http://127.0.0.1:{arguments.port}"
-    ):
-        raise ServerCommandError("weknora_oauth_requires_loopback_gateway")
+    if oauth_origin is not None:
+        from ..mcp_facade.config import validate_weknora_gateway
+
+        try:
+            validate_weknora_gateway(origin, oauth_origin, arguments.port)
+        except ValueError as exc:
+            raise ServerCommandError(str(exc)) from exc
     if not 1 <= arguments.port <= 65535:
         raise ServerCommandError("server_port_invalid")
     if not arguments.service_only:

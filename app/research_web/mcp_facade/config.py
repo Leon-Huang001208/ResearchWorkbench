@@ -28,7 +28,46 @@ def enabled(override: bool | None = None) -> bool:
 
 def weknora_callback(origin: str) -> str:
     """Build the one callback allowed for an explicitly configured WeKnora host."""
-    url = urlsplit(validate_origin(origin))
-    if url.port in {None, 80} or origin != f"http://127.0.0.1:{url.port}":
-        raise ValueError("weknora_oauth_origin_invalid")
-    return origin + "/api/v1/mcp-oauth/callback"
+    url = urlsplit(origin)
+    port = url.port
+    if url.scheme == "https":
+        host = validate_origin(f"https://{url.hostname}")
+        expected = host + (f":{port}" if port not in (None, 443) else "")
+        if port != 0 and origin == expected:
+            return origin + "/api/v1/mcp-oauth/callback"
+    elif port not in (None, 0, 80) and origin == f"http://127.0.0.1:{port}":
+        return origin + "/api/v1/mcp-oauth/callback"
+    raise ValueError("weknora_oauth_origin_invalid")
+
+
+def validate_weknora_gateway(issuer: str, callback_origin: str, port: int) -> None:
+    weknora_callback(callback_origin)
+    if issuer == callback_origin:
+        raise ValueError("weknora_oauth_origin_conflict")
+    if issuer.startswith("https://"):
+        hostname = urlsplit(validate_origin(issuer)).hostname
+        if issuer != f"https://{hostname}":
+            raise ValueError("weknora_oauth_issuer_invalid")
+        if urlsplit(callback_origin).hostname == hostname:
+            raise ValueError("weknora_oauth_cookie_host_conflict")
+    elif (
+        port == 80 or issuer != f"http://127.0.0.1:{port}" or callback_origin.startswith("https://")
+    ):
+        raise ValueError("weknora_oauth_requires_loopback_gateway")
+
+
+def resident_execution(config: dict, *, mcp_enabled: bool) -> tuple[bool, str | None]:
+    service_only = config.get("service_only", False)
+    if type(service_only) is not bool:
+        raise ValueError("resident_service_only_invalid")
+    oauth_origin = config.get("weknora_oauth_origin")
+    if "weknora_oauth_origin" in config:
+        if not service_only or not mcp_enabled:
+            raise ValueError("weknora_oauth_requires_service_only_mcp")
+        if not isinstance(oauth_origin, str):
+            raise ValueError("weknora_oauth_origin_invalid")
+        try:
+            validate_weknora_gateway(config["origin"], oauth_origin, config["port"])
+        except (KeyError, ValueError, TypeError) as exc:
+            raise ValueError("weknora_oauth_origin_invalid") from exc
+    return service_only, oauth_origin

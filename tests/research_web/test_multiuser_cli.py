@@ -677,7 +677,13 @@ def test_doctor_reports_explicit_weknora_oauth_metadata_only(tmp_path, output, m
 
 
 @pytest.mark.parametrize(
-    "origin", ["http://127.0.0.1:80", "http://localhost:18181", "https://weknora.tail123.ts.net"]
+    "origin",
+    [
+        "http://127.0.0.1:80",
+        "http://localhost:18181",
+        "https://weknora.tail123.ts.net:443",
+        "https://unapproved.example",
+    ],
 )
 def test_doctor_rejects_noncanonical_weknora_loopback(origin, tmp_path, output, monkeypatch):
     monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
@@ -696,3 +702,30 @@ def test_doctor_rejects_noncanonical_weknora_loopback(origin, tmp_path, output, 
         == 0
     )
     assert json.loads(output.readouterr().out)["weknora_oauth"]["status"] == "invalid"
+
+
+def test_doctor_reads_production_service_only_oauth_without_opening_accounts(tmp_path, output):
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    config = root / "resident.json"
+    config.write_text(
+        json.dumps(
+            {
+                "service_only": True,
+                "mcp_readonly_enabled": True,
+                "origin": "https://rwb.tail123.ts.net",
+                "port": 8089,
+                "weknora_oauth_origin": "https://weknora.tail123.ts.net:8443",
+            }
+        )
+    )
+    config.chmod(0o600)
+    old = config.read_bytes()
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    d = json.loads(output.readouterr().out)
+    assert d["execution_mode"] == "external"
+    assert d["weknora_oauth"] == {
+        "status": "configuration_pending",
+        "runtime_verification": "NOT_RUN",
+    }
+    assert config.read_bytes() == old and list(root.iterdir()) == [config]

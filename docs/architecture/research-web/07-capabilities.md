@@ -325,3 +325,5 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 WeKnora 只读客户端发现既有四项工具，当前授权所选材料决定实际可读范围。
+
+已批准的 WeKnora 客户端可经私网 HTTPS 获取原冻结资料，只读工具和逐项授权边界继续适用。

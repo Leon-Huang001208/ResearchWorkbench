@@ -83,6 +83,7 @@ class LifecycleLock:
         self.token = uuid4().hex
         self.guard_path = self.path.with_name(f"{self.path.name}.guard")
         self._guard_handle: int | None = None
+        self._retained_by_child = False
         self._directory_identity: tuple[int, int] | None = None
         self._entered = False
 
@@ -366,11 +367,23 @@ class LifecycleLock:
                 os.close(handle)
             raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
 
+    def retain_for_posix_child(self) -> int:
+        """Share the live guard with a writer that can outlive this supervisor."""
+        self.assert_held()
+        if os.name != "posix" or self._guard_handle is None:
+            raise LifecycleLockError(
+                "inherited lifecycle guard is unavailable", code="lifecycle_lock_ownership_lost"
+            )
+        self._retained_by_child = True
+        return self._guard_handle
+
     def _release_guard(self, *, platform_name: str | None = None) -> None:
         handle = self._guard_handle
         if handle is None:
             return
         self._guard_handle = None
+        retained_by_child = self._retained_by_child
+        self._retained_by_child = False
         platform_name = platform_name or os.name
         failed = False
         try:
@@ -378,8 +391,10 @@ class LifecycleLock:
                 if msvcrt is not None:
                     os.lseek(handle, 0, os.SEEK_SET)
                     msvcrt.locking(handle, msvcrt.LK_UNLCK, 1)
-            elif fcntl is not None:
+            elif fcntl is not None and not retained_by_child:
                 fcntl.flock(handle, fcntl.LOCK_UN)
+            # An inherited POSIX flock is released by the last close. Explicit
+            # LOCK_UN would also unlock the still-running child writer's guard.
         except OSError:
             failed = True
         try:

@@ -367,4 +367,4 @@ Host元数据专项升级在用户单独授权后走显式、精确候选的兼�
 
 ## 私网仅服务模式
 
-macOS 隔离试点可显式运行 `rwb server serve --service-only`。Web 保留账号内资料、证据和数据读取，研究可由 WeKnora 或外部宿主执行。具体入口与验收范围见[安装合同](docs/research-web-installation.md#macos-私网仅服务模式)。
+macOS 隔离试点可显式运行 `rwb server serve --service-only`。Web 保留账号内资料、证据和数据读取，研究可由 WeKnora 或外部宿主执行。常驻模式可保留原主账号目录并配置私网 HTTPS OAuth。入口与验收范围见[安装合同](docs/research-web-installation.md#macos-私网仅服务模式)。

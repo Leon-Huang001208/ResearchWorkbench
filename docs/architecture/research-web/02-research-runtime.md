@@ -869,3 +869,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 仅服务 Host 使用无传输的拒绝边界，冷启动跳过原生事件、跟踪、报告执行恢复和其他研究调度。启动健康与模型就绪分别呈现；历史研究正文的独立读取仍待交接。
 
 WeKnora 客户端经入站 MCP 获取批准的只读材料。RWB 不为该客户端启动内置 DSH。
+
+主账号单 Web 模式持有原 supervisor 和 lifecycle 锁，旧 Native 双进程停止且归属明确后才启动。

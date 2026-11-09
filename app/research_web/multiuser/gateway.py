@@ -6,7 +6,7 @@ import asyncio
 import re
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 from fastapi import FastAPI, Request
@@ -101,6 +101,40 @@ class NewPassword(StrictBody):
     password: str = Field(max_length=1024)
 
 
+def _weknora_oauth_navigation(request: Request, facade) -> bool:
+    """Allow the validated OAuth navigation and its login redirect only."""
+    if (
+        facade is None
+        or request.method != "GET"
+        or request.headers.get("origin") is not None
+        or request.headers.get("sec-fetch-mode") != "navigate"
+        or request.headers.get("sec-fetch-dest") != "document"
+    ):
+        return False
+    from ..mcp_facade.models import WEKNORA_CLIENT_ID
+    from ..mcp_facade.oauth_views import validated_login_return
+
+    if request.url.path == "/authorize":
+        ids = request.query_params.getlist("client_id")
+        callbacks = request.query_params.getlist("redirect_uri")
+    elif request.url.path == "/auth":
+        destinations = request.query_params.getlist("return_to")
+        if len(destinations) != 1 or not validated_login_return(destinations[0]):
+            return False
+        query = parse_qs(urlsplit(destinations[0]).query, keep_blank_values=True)
+        ids = query.get("client_id", [])
+        callbacks = query.get("redirect_uri", [])
+    else:
+        return False
+    if ids != [WEKNORA_CLIENT_ID] or len(callbacks) != 1:
+        return False
+    try:
+        facade.store.validate_redirect(callbacks[0], client_id=WEKNORA_CLIENT_ID)
+    except AccountError:
+        return False
+    return True
+
+
 def create_gateway(
     accounts: AccountStore,
     pool,
@@ -117,8 +151,11 @@ def create_gateway(
     secure = origin.startswith("https:")
     facade = None
     if mcp_feature_enabled(mcp_enabled):
+        from ..mcp_facade.config import validate_weknora_gateway
         from ..mcp_facade.server import Facade
 
+        if weknora_oauth_origin is not None:
+            validate_weknora_gateway(origin, weknora_oauth_origin, urlsplit(origin).port or 443)
         facade = Facade(accounts, pool, origin, weknora_oauth_origin=weknora_oauth_origin)
     elif weknora_oauth_origin is not None:
         raise ValueError("weknora_oauth_requires_mcp")
@@ -174,6 +211,7 @@ def create_gateway(
         return (
             user is not None
             and user.id == getattr(pool, "primary_user_id", None)
+            and not getattr(pool, "service_only", False)
             and request.url.path.startswith("/api/research/aihot/")
         )
 
@@ -216,9 +254,11 @@ def create_gateway(
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
         machine = facade is not None and request.url.path in MACHINE_PATHS
+        cross_site = request.headers.get("sec-fetch-site") == "cross-site"
+        oauth_navigation = cross_site and _weknora_oauth_navigation(request, facade)
         if (
             (supplied_origin is not None and supplied_origin != origin)
-            or request.headers.get("sec-fetch-site") == "cross-site"
+            or (cross_site and not oauth_navigation)
             or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
             return error("server_origin_denied", 403)
@@ -245,7 +285,11 @@ def create_gateway(
                 # Resource server and token routes authenticate independently.
                 request.state.user = None
                 return await call_next(request)
-            user = await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
+            user = (
+                None
+                if oauth_navigation
+                else await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
+            )
             request.state.user = user
             if user is None and not public:
                 if request.url.path in {"/", "/account"}:

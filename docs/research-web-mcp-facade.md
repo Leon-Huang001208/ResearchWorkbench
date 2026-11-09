@@ -107,3 +107,15 @@ RWB 的规范来源加 `/mcp`。WeKnora 进程必须能访问同一来源的资�
 
 隔离 HTTP 和 WeKnora 原生进程分别留证。真实模型草稿、私网切换与 Mac 干净安装
 属于独立验证门。
+
+## 私网 HTTPS 的 WeKnora 授权
+
+常驻网关的私有配置可显式启用 `service_only`、`mcp_readonly_enabled`
+与 `weknora_oauth_origin`。WeKnora 回调可使用独立的规范 Tailnet HTTPS
+主机（可带非默认端口），或在 Mac mini 浏览器内使用明确的回环端口。
+HTTPS 回调主机和 RWB 主机必须不同，浏览器 Cookie 不按端口隔离。
+
+跨站浏览器仅能导航到与预登记客户端及完整回调匹配的 GET 授权入口及其登录页。
+这两步忽略已有登录 Cookie，登录和选材同意仍走 RWB 的同源页面。
+令牌、MCP、写入和其他路由继续执行原跨站拒绝规则。
+既有同一客户端登记的回调更改需要独立处理和重新授权。
