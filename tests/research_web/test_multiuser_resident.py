@@ -469,7 +469,7 @@ def test_service_only_resident_serves_original_primary_and_releases_lifecycle(
     import uvicorn
 
     from app.research_web.multiuser import __main__ as cli
-    from app.research_web.multiuser import resident, resident_boot
+    from app.research_web.multiuser import resident, resident_binding, resident_boot
     from app.research_web.multiuser.runtime import _reserve_port
     from app.research_web.service_manager import WebServiceManager
     from app.research_web.store import Store
@@ -488,6 +488,8 @@ def test_service_only_resident_serves_original_primary_and_releases_lifecycle(
     sha = subprocess.check_output(
         ["/usr/bin/git", "-C", str(project), "rev-parse", "HEAD"], text=True
     ).strip()
+    # A shallow CI checkout can prove the synthetic installation's own revision.
+    monkeypatch.setattr(resident_binding, "_LEGACY_GUARD_BASE", sha)
     accounts = AccountStore(root)
     admin = accounts.create_user("primary-pilot", "synthetic primary password", "admin")
     token, _ = accounts.login(admin.username, "synthetic primary password")
