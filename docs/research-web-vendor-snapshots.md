@@ -213,3 +213,5 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 私有协作回调复用DataHub控制密钥及原scope；public-data仅导出既有有界JSON读取器。数据来源、Broker、SDK取消、研究仓和原件冻结拓扑不变。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+仅服务模式保留已有快照及其来源元数据，实际厂商连接、取数和资格仍需各自授权与验收。

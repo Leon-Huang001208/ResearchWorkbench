@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/outputs/research-web-architecture/01-deployment.html",
-    "sha256": "6652aa3ac0ded9c3de410cd781dd177fc783478431de46bf069aa5433947f4aa",
-    "bytes": 645775
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-external-runtime-20261109/outputs/research-web-architecture/01-deployment.html",
+    "sha256": "8a9f084dcae30fc9043d3f246b56c2cf35abe2803e1981252ce8f5f7d9e3fd0b",
+    "bytes": 645710
   },
   "state": {
     "detail": "read",

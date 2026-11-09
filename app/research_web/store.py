@@ -531,7 +531,7 @@ class Store:
             self.save()
         return receipt
 
-    def files(self, sid: str) -> list[dict]:
+    def files(self, sid: str, *, read_only: bool = False) -> list[dict]:
         row, root = self.session(sid), self.directory(sid)
         items = []
         changed = False
@@ -559,6 +559,8 @@ class Store:
                     continue
                 fid = hashlib.sha256(str(relative).encode()).hexdigest()[:24]
                 if row["files"].get(fid) != str(relative):
+                    if read_only:
+                        continue
                     row["files"][fid] = str(relative)
                     changed = True
                 url = f"/api/research/sessions/{sid}/files/{fid}"

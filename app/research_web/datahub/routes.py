@@ -293,7 +293,12 @@ async def datasets(sid: str, request: Request):
 async def detail(sid: str, did: str, request: Request, response: Response):
     service = request.app.state.research
     readonly = strict_read(request)
-    scenario_context(service, sid, check_capabilities=False, read_only=readonly)
+    scenario_context(
+        service,
+        sid,
+        check_capabilities=False,
+        read_only=readonly or getattr(service, "service_only", False),
+    )
     if readonly:
         response.headers[HEADER] = VERSION
     metadata = service.datahub.detail(sid, did)
@@ -313,7 +318,12 @@ async def rows(
 ):
     service = request.app.state.research
     readonly = strict_read(request)
-    scenario_context(service, sid, check_capabilities=False, read_only=readonly)
+    scenario_context(
+        service,
+        sid,
+        check_capabilities=False,
+        read_only=readonly or getattr(service, "service_only", False),
+    )
     if readonly:
         response.headers[HEADER] = VERSION
     metadata = service.datahub.detail(sid, did)
@@ -328,7 +338,12 @@ async def download(
 ):
     service = request.app.state.research
     readonly = strict_read(request)
-    scenario_context(service, sid, check_capabilities=False, read_only=readonly)
+    scenario_context(
+        service,
+        sid,
+        check_capabilities=False,
+        read_only=readonly or getattr(service, "service_only", False),
+    )
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)

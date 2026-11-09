@@ -1004,3 +1004,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 绑定元数据独立16 KiB写前检查与读取上限保持一致；超限拒绝新写入。网络操作与原件／范围／证据发布全过程纳入既有resident admission，维护冻结不能在资料操作尚在进行时把它当作空闲；原retention锁、原子发布、未知staging保护与64 MiB保全门保持。
+
+仅服务 Host 维持原数据目录和资料冻结协议。既有 MCP 严格读取只访问已批准原件及快照，冷启动仍要求普通认证账户入口。

@@ -100,6 +100,20 @@ def _runtime_metadata(path: Path, authority: str) -> dict[str, str]:
     return {key: value[key] for key in required}
 
 
+class ExternalExecutionClient:
+    """Service-only host boundary with no native transport."""
+
+    @staticmethod
+    async def _reject(*_args, **_kwargs):
+        log.warning("embedded_research_disabled")
+        raise RuntimeFailure("请使用外部研究宿主", "embedded_research_disabled")
+
+    rpc = history = respond = plugin_json = _reject
+
+    async def close(self):
+        return None
+
+
 class DSHClient:
     """Translate the stable Workbench call surface to slash-namespaced Typert RPC."""
 

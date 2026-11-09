@@ -354,6 +354,7 @@ const officeConsentQueue = createOfficeConsentQueue((id, consent) => api.setInte
 function runtimeLabel() {
   if (catalog.pending.has('runtime')) return 'DSH 连接中';
   if (!catalog.runtime) return 'DSH 未连接';
+  if (catalog.runtime.execution_mode === 'external') return '外部研究宿主';
   if (catalog.runtime.connected && catalog.runtime.credential_configured === false) return 'DSH 待授权';
   return catalog.runtime.connected ? 'DSH 已连接' : 'DSH 不可用';
 }

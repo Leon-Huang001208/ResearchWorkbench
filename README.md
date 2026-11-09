@@ -364,3 +364,7 @@ Hot冻结FinGPT研究现使用轻量DSH组合并有界核验原件；真实Markd
 研究情报新增“研究与报告”，可读取真实报告、核对原运行状态及下载MD/Word。运行失败但报告已生成的状态并列保留；页面刷新与导出不发送模型请求。
 
 Host元数据专项升级在用户单独授权后走显式、精确候选的兼容复核入口；原自动升级清单不变，活动研究延后，失败回滚且保留数据。命令与边界见[安装指南](docs/research-web-installation.md#macos-登录后常驻与自动部署)。
+
+## 私网仅服务模式
+
+macOS 隔离试点可显式运行 `rwb server serve --service-only`。Web 保留账号内资料、证据和数据读取，研究可由 WeKnora 或外部宿主执行。具体入口与验收范围见[安装合同](docs/research-web-installation.md#macos-私网仅服务模式)。
