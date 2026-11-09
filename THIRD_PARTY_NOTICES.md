@@ -53,3 +53,26 @@
 - `tests/research_web/test_intel.py`
 
 README 中截至上述基线的既有内容排除在新许可之外。新增许可说明按新条款提供。
+
+以 `Codex Local` 署名的既有贡献，其权属待确认。提交 `5e6b6d2c8` 对下列路径的历史内容排除在新许可之外。 [历史提交](https://github.com/Leon-Huang001208/ResearchWorkbench/commit/5e6b6d2c8)
+
+- `.agents/project-constraints.json`
+- `.ai/reports/2026-09-17-actions-quota-governance.md`
+- `.github/workflows/project-constraints.yml`
+- `.github/workflows/research-web-bootstrap.yml`
+- `.github/workflows/research-web-checks.yml`
+- `.github/workflows/research-web-windows-verify.yml`
+- `AGENTS.md`
+- `docs/CHANGELOG.md`
+- `docs/DEVELOPMENT_MAP.md`
+- `docs/README.md`
+- `docs/actions-budget.md`
+- `docs/architecture/research-web/06-documentation-contract.md`
+- `docs/architecture/research-web/architecture-map.json`
+- `docs/documentation-governance.json`
+- `docs/research-web-documentation.md`
+- `tests/javascript/actions_quota_governance.test.mjs`
+
+## 发行包
+
+此次许可变更适用于上述范围内的源码。现有全仓归档、Docker 镜像和 Python 发行包尚未按此范围完成审查。分发按新许可标注的产品包前，须核验包内每个待核材料的分发权，排除未取得所需权利的材料，并随包提供新许可和所有适用的第三方声明。当前 Docker 构建包含内嵌看板，源码工作树和默认构建产物均不能作为已核验的发行包。
