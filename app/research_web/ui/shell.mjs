@@ -134,6 +134,14 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
+export function runtimeLabel(catalog) {
+  if (catalog.pending.has('runtime')) return 'DSH 连接中';
+  if (!catalog.runtime) return 'DSH 未连接';
+  if (catalog.runtime.execution_mode === 'external') return '外部研究宿主';
+  if (catalog.runtime.connected && catalog.runtime.credential_configured === false) return 'DSH 待授权';
+  return catalog.runtime.connected ? 'DSH 已连接' : 'DSH 不可用';
+}
+
 export function renderTopbar({ secondaryOpen = false, page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false, nativeSearch = null } = {}) {
   const sidebarReopen = `<button type="button" class="icon-button sidebar-reopen" data-toggle-sidebar aria-label="展开二级导航" aria-controls="module-secondary-navigation" aria-expanded="false">${icon('sidebar')}</button>`;
   let runtimeAttention = '';
