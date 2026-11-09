@@ -119,6 +119,26 @@
       "purpose": "license scope and third-party terms"
     },
     {
+      "exact": "CONTRIBUTING.md",
+      "status": "current",
+      "purpose": "public contribution and pull request guidance"
+    },
+    {
+      "exact": "CODE_OF_CONDUCT.md",
+      "status": "current",
+      "purpose": "community conduct and reporting"
+    },
+    {
+      "exact": "SECURITY.md",
+      "status": "current",
+      "purpose": "private vulnerability reporting policy"
+    },
+    {
+      "exact": "CLA.md",
+      "status": "current",
+      "purpose": "contributor license agreement for new contributions"
+    },
+    {
       "exact": "AGENTS.md",
       "status": "current",
       "purpose": "shared agent rules authority"
@@ -142,6 +162,22 @@
     {
       "topic": "project-license",
       "path": "LICENSE.md"
+    },
+    {
+      "topic": "contributing",
+      "path": "CONTRIBUTING.md"
+    },
+    {
+      "topic": "community-conduct",
+      "path": "CODE_OF_CONDUCT.md"
+    },
+    {
+      "topic": "security-reporting",
+      "path": "SECURITY.md"
+    },
+    {
+      "topic": "contributor-license-agreement",
+      "path": "CLA.md"
     },
     {
       "topic": "documentation-index",
