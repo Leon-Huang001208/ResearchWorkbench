@@ -715,3 +715,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 公开server入口经stdlib校验后只传递操作员origin；冷Doctor提供无网络可选事实，不创建WeKnora、账号根或第二服务。资料操作加入原维护admission，不改变原生／容器归属与原恢复事务。上游0003仅是API建库后使用原设置页的源码候选，完整前端及实际服务另验。
+
+私网网关的显式仅服务模式按账户只启动 Web。外部宿主负责研究执行，RWB 继续提供原数据与证据服务；默认内置模式继续使用进程对。

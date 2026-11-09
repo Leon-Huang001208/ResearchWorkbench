@@ -640,3 +640,13 @@ def test_initialization_lock_and_log_symlinks_fail_closed(tmp_path, interactive,
     (root / "logs/server.jsonl").symlink_to(outside)
     assert cli.main(["init", "--root", str(root), "--username", "admin"]) == 1
     assert not outside.exists()
+
+
+def test_doctor_reports_explicit_service_only_without_installation(tmp_path, output):
+    root = tmp_path / "missing"
+    assert cli.main(["doctor", "--root", str(root), "--service-only", "--json"]) == 0
+    report = json.loads(output.readouterr().out)
+    assert report["execution_mode"] == "external"
+    assert report["source"]["status"] == "not_required"
+    assert report["runtime"] == report["model"] == "not_checked"
+    assert not root.exists()

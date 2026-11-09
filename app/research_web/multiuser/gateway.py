@@ -406,6 +406,11 @@ def create_gateway(
         return {
             "status": "ready",
             "runtime": "not_started_by_health",
+            "execution_mode": (
+                "external"
+                if getattr(getattr(pool, "config", None), "service_only", False)
+                else "embedded"
+            ),
             "mcp_readonly_enabled": facade is not None,
         }
 

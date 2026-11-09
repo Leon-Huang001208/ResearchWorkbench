@@ -56,12 +56,14 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--username", required=True)
         elif name == "serve":
             command.add_argument("--origin", required=True)
-            command.add_argument("--source", type=Path, required=True)
-            command.add_argument("--node", type=Path, required=True)
+            command.add_argument("--source", type=Path)
+            command.add_argument("--node", type=Path)
+            command.add_argument("--service-only", action="store_true", help="使用外部研究宿主")
             command.add_argument("--port", type=int, default=8089)
             command.add_argument("--max-instances", type=int, choices=(1, 2, 3, 4), default=2)
         else:
             command.add_argument("--source", type=Path)
+            command.add_argument("--service-only", action="store_true", help="检查仅服务模式配置")
             command.add_argument("--json", action="store_true")
     return result
 
@@ -289,7 +291,11 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
 
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
-    source = _source_status(arguments.source)
+    source = (
+        {"status": "not_required", "pinned_revision": "not_verified"}
+        if arguments.service_only
+        else _source_status(arguments.source)
+    )
     python_matches = sys.version_info[:2] == (
         RUNTIME_CONTRACT.python_major,
         RUNTIME_CONTRACT.python_minor,
@@ -328,6 +334,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
             "modules": modules,
         },
         "runtime": "not_checked",
+        "execution_mode": "external" if arguments.service_only else "embedded",
         "model": "not_checked",
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,
@@ -483,14 +490,16 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
     origin = _origin(arguments.origin)
     if not 1 <= arguments.port <= 65535:
         raise ServerCommandError("server_port_invalid")
-    if (
-        not arguments.node.is_absolute()
-        or not arguments.node.is_file()
-        or not os.access(arguments.node, os.X_OK)
-    ):
-        raise ServerCommandError("server_node_invalid")
-    if _source_status(arguments.source)["status"] != "build_present":
-        raise ServerCommandError("runtime_source_invalid")
+    if not arguments.service_only:
+        if (
+            arguments.node is None
+            or not arguments.node.is_absolute()
+            or not arguments.node.is_file()
+            or not os.access(arguments.node, os.X_OK)
+        ):
+            raise ServerCommandError("server_node_invalid")
+        if _source_status(arguments.source)["status"] != "build_present":
+            raise ServerCommandError("runtime_source_invalid")
     _require_accounts(root)
     with _server_context(root):
         import uvicorn
@@ -504,13 +513,21 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
             project=PROJECT,
             source=arguments.source,
             python=sys.executable,
-            node=str(arguments.node),
+            node=str(arguments.node) if arguments.node is not None else None,
             max_instances=arguments.max_instances,
+            service_only=arguments.service_only,
         )
         pool = RuntimePool(config)
         try:
             app = create_gateway(AccountStore(root), pool, origin=origin)
-            log.info(json.dumps({"event": "server_starting"}))
+            log.info(
+                json.dumps(
+                    {
+                        "event": "server_starting",
+                        "execution_mode": "external" if arguments.service_only else "embedded",
+                    }
+                )
+            )
             uvicorn.run(
                 app,
                 host="127.0.0.1",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 Markdown 代码块关闭围栏修复，README 现有产品入口与使用方式保持适用。",
-  "reason": "修改仅限既有 Markdown 渲染器对代码块关闭行的识别及回归测试；不新增产品入口、部署节点、研究框架或依赖。具体行为和证据记录在 UI 文档及本次架构评审记录。PR/CI 通过与部署、业务验收分别核实。"
+  "disposition": "updated",
+  "summary": "README 新增私网仅服务启动模式及安装合同入口。",
+  "reason": "显式新模式为每账户启动 Web 单进程，外部执行由隔离验收，默认启动和常驻切换各自验证。"
 }

@@ -73,22 +73,30 @@ def build_process_specs(
                 str(runtime_port),
             ),
         ),
-        web=ProcessSpec(
-            role="web",
-            port=web_port,
-            command=(
-                python,
-                "-m",
-                "uvicorn",
-                "app.research_web.main:app",
-                "--app-dir",
-                str(project_root),
-                "--host",
-                web_host,
-                "--port",
-                str(web_port),
-            ),
-            signature=("app.research_web.main:app", str(project_root), str(web_port)),
+        web=build_web_process_spec(
+            python=python, project_root=project_root, web_host=web_host, web_port=web_port
         ),
         runtime_state_root=state_root,
+    )
+
+
+def build_web_process_spec(
+    *, python: str, project_root: Path, web_host: str, web_port: int
+) -> ProcessSpec:
+    return ProcessSpec(
+        role="web",
+        port=web_port,
+        command=(
+            python,
+            "-m",
+            "uvicorn",
+            "app.research_web.main:app",
+            "--app-dir",
+            str(project_root),
+            "--host",
+            web_host,
+            "--port",
+            str(web_port),
+        ),
+        signature=("app.research_web.main:app", str(project_root), str(web_port)),
     )

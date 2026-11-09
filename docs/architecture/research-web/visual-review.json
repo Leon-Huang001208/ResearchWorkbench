@@ -183,19 +183,17 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "6652aa3ac0ded9c3de410cd781dd177fc783478431de46bf069aa5433947f4aa",
-      "specificationSha256": "91283aae04921e1aa171f514ac07c4eeddf23f158ca1539b132d87087d9c4548",
+      "artifactSha256": "8a9f084dcae30fc9043d3f246b56c2cf35abe2803e1981252ce8f5f7d9e3fd0b",
+      "specificationSha256": "8f5abeaf47bfac47fad3a03b7d43b700bdb6677a08a7d29be230f2c7b4554b02",
       "status": "reviewed",
       "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
-      "date": "2026-10-23",
+      "date": "2026-11-09",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
-      "findings": [
-        "未发现新增裁剪或覆盖"
-      ],
-      "notes": "已实际查看1440浅色与2048深色同哈希截图；新增本机准入/账号RuntimePool分组和认证恢复/容量边可定位，标签无重叠裁剪。原“无日程”卡片已更正为窄跟踪与泛用Automation边界；不代表运行或部署验收。"
+      "findings": [],
+      "notes": "实际查看同一版本的 1440 浅色和 2048 深色截图。账户单 Web 与内置 DSH 分支标签可读，未见裁剪或遮挡。"
     },
     {
       "id": "12-ai-news",

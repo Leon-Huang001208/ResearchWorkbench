@@ -411,3 +411,7 @@ artifact 摘要绑定演练 label／plist／domain／端口。它不创建服务
 生命周期仍由原维护上下文与 intent 执行；没有新 HTTP、数据库、研究引擎或编排循环。
 拓扑不变，旧实例的加载策略与 Wind 历史 UNKNOWN 不因此提高资格。
 合同与验收边界见 [维护作业身份 v3](research-web-maintenance-job-identity-v3.md)。
+
+### 外部宿主与 RWB 仅服务模式
+
+macOS 私网网关可显式选择每账户 Web 单进程。WeKnora Runtime 是首个外部研究执行候选，RWB 保留账户、数据、证据和看板。仅服务 Host 无 DSH transport、回调或运行恢复。见[安装合同](research-web-installation.md#macos-私网仅服务模式)。

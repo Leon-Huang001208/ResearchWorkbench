@@ -3061,6 +3061,10 @@ def test_probe_rejects_adversarial_state_without_throwing_or_mutating(manager, m
         service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
     )
 
+    monkeypatch.setattr(
+        service_manager_module, "probe_process", lambda _pid: ProcessFact("missing", None, None)
+    )
+
     probe = manager._probe_service(process)
 
     assert probe.state == "invalid"

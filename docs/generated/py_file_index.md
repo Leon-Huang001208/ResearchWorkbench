@@ -3901,6 +3901,9 @@ Classes:
 - `RuntimeFailure`
   - Safe product-facing error; never includes raw credentials or HTTP body.
   - methods: __init__
+- `ExternalExecutionClient`
+  - Service-only host boundary with no native transport.
+  - methods: _reject, close
 - `DSHClient`
   - Translate the stable Workbench call surface to slash-namespaced Typert RPC.
   - methods: __init__, __aenter__, __aexit__, close, _wire_call, _rpc_wire, rpc, plugin_json, respond, _stream, _event_envelope, frames, _history_opening, history
@@ -8173,6 +8176,7 @@ Classes:
   - methods: profile_name
 
 Functions:
+- `_service_only_route_allowed`
 - `create_app`
 
 
@@ -10797,6 +10801,7 @@ Classes:
 Functions:
 - `build_process_specs`
   - Describe the same DSH/Web contract for Native and container supervisors.
+- `build_web_process_spec`
 
 
 ## `app/research_web/projection.py`
@@ -12422,7 +12427,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, _external_history_summary, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

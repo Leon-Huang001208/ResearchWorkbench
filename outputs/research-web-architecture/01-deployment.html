@@ -4961,15 +4961,15 @@
         <text data-detail="context" x="144.5" y="341" class="t-muted" font-size="9" text-anchor="middle">单用户或每账号独立回环</text>
         </g>
 
-        <g id="node-nativeDsh" data-node-id="nativeDsh" data-node-label="Native DSH / 用户 DSH" tabindex="0" role="button" aria-label="Focus Native DSH / 用户 DSH, 唯一研究引擎 · 逐账号独立, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="唯一研究引擎 · 逐账号独立" data-node-context="Architecture component">
-          <title>Native DSH / 用户 DSH · 唯一研究引擎 · 逐账号独立 · Architecture component</title>
+        <g id="node-nativeDsh" data-node-id="nativeDsh" data-node-label="Native DSH / 用户 DSH" tabindex="0" role="button" aria-label="Focus Native DSH / 用户 DSH, 仅内置模式 · 逐账号独立, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="仅内置模式 · 逐账号独立" data-node-context="Architecture component">
+          <title>Native DSH / 用户 DSH · 仅内置模式 · 逐账号独立 · Architecture component</title>
           <rect x="352" y="288" width="205" height="78" rx="6" class="c-mask"/>
           <rect x="352" y="288" width="205" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(358 294) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-detail-anchor x="454.5" y="325" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Native DSH / 用户 DSH</text>
-        <text data-detail="context" x="454.5" y="341" class="t-muted" font-size="9" text-anchor="middle">唯一研究引擎 · 逐账号独立</text>
+        <text data-detail="context" x="454.5" y="341" class="t-muted" font-size="9" text-anchor="middle">仅内置模式 · 逐账号独立</text>
         </g>
 
         <g id="node-dockerContainer" data-node-id="dockerContainer" data-node-label="Docker 独立运行单元" tabindex="0" role="button" aria-label="Focus Docker 独立运行单元, dev / stage / prod · Web＋DSH, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="dev / stage / prod · Web＋DSH" data-node-context="Architecture component">
@@ -5066,15 +5066,15 @@
         <text data-detail="context" x="144.5" y="115" class="t-muted" font-size="9" text-anchor="middle">macOS · SQLite 账号 · :8089</text>
         </g>
 
-        <g id="node-privatePool" data-node-id="privatePool" data-node-label="本机准入 / RuntimePool" tabindex="0" role="button" aria-label="Focus 本机准入 / RuntimePool, 单用户启动 · 账号跟踪容量恢复, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="单用户启动 · 账号跟踪容量恢复" data-node-context="Architecture component">
-          <title>本机准入 / RuntimePool · 单用户启动 · 账号跟踪容量恢复 · Architecture component</title>
+        <g id="node-privatePool" data-node-id="privatePool" data-node-label="本机准入 / RuntimePool" tabindex="0" role="button" aria-label="Focus 本机准入 / RuntimePool, 账户 Web 单进程或 Web＋DSH, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="账户 Web 单进程或 Web＋DSH" data-node-context="Architecture component">
+          <title>本机准入 / RuntimePool · 账户 Web 单进程或 Web＋DSH · Architecture component</title>
           <rect x="42" y="175" width="205" height="78" rx="6" class="c-mask"/>
           <rect x="42" y="175" width="205" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(48 181) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-detail-anchor x="144.5" y="212" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">本机准入 / RuntimePool</text>
-        <text data-detail="context" x="144.5" y="228" class="t-muted" font-size="9" text-anchor="middle">单用户启动 · 账号跟踪容量恢复</text>
+        <text data-detail="context" x="144.5" y="228" class="t-muted" font-size="9" text-anchor="middle">账户 Web 单进程或 Web＋DSH</text>
         </g>
 
         <!-- Connection labels -->
@@ -5351,7 +5351,7 @@
           <h3>邀请制私网边界</h3>
         </div>
         <ul>
-          <li>&bull; 网关固定 Tailscale HTTPS；每用户 Web＋DSH</li>
+          <li>&bull; 私网网关；仅服务模式每账户只启动 Web</li>
           <li>&bull; 最多2个实例；信任同 UID 后端，非 OS 租户隔离</li>
         </ul>
       </div>
@@ -5363,7 +5363,7 @@
         </div>
         <ul>
           <li>&bull; macOS Native；Docker多用户未验，跟踪需owner存活</li>
-          <li>&bull; 仅同意跟踪；容量延期，泛用Automation/MCP/Hot仍禁用</li>
+          <li>&bull; 仅服务模式不恢复原生跟踪或研究执行</li>
         </ul>
       </div>
     </div>

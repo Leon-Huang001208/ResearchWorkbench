@@ -34,7 +34,7 @@ from .automation.routes import router as automation_router
 from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .claw_routes import router as claw_router
-from .client import DSHClient, RuntimeFailure
+from .client import DSHClient, ExternalExecutionClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub.routes import router as datahub_router
 from .discovery.routes import router as discovery_router
@@ -249,6 +249,52 @@ class ModelProfileConfig(ModelConfig):
         return value.strip()
 
 
+_SERVICE_ONLY_READ = frozenset(
+    {
+        "runtime",
+        "workspaces",
+        "sessions",
+        "knowledge",
+        "knowledge/bases",
+        "capabilities",
+        "tools",
+        "workflows",
+        "data/catalog",
+        "market",
+        "market/quotes",
+        "market/quotes/export",
+        "market/analysis",
+        "market/indices/catalog",
+    }
+)
+_SERVICE_ONLY_READ_PATTERN = re.compile(
+    r"(?:documentation|capabilities|data/(?:capabilities|sources))/[^/]+"
+    r"|knowledge/evidence/[a-f0-9]{64}(?:/original/[a-f0-9]{64})?"
+    r"|sessions/[a-f0-9-]{36}(?:/files(?:/[a-f0-9]{24}/(?:download|preview))?"
+    r"|/datasets(?:/[^/]+(?:/rows|/files/[^/]+)?)?)?"
+)
+_SERVICE_ONLY_KNOWLEDGE_POST = frozenset(
+    {
+        "knowledge/binding",
+        "knowledge/scopes",
+        "knowledge/search",
+        "knowledge/read",
+        "knowledge/freeze",
+    }
+)
+
+
+def _service_only_route_allowed(method: str, path: str) -> bool:
+    # Some existing GET routes reconcile native workflows. Allow only audited reads.
+    prefix = "/api/research/"
+    if not path.startswith(prefix):
+        return True
+    route = path[len(prefix) :]
+    if method in {"GET", "HEAD"}:
+        return route in _SERVICE_ONLY_READ or bool(_SERVICE_ONLY_READ_PATTERN.fullmatch(route))
+    return method == "POST" and route in _SERVICE_ONLY_KNOWLEDGE_POST
+
+
 def create_app(service: ResearchService | None = None) -> FastAPI:
     # Operator opt-in for one authenticated Tailscale Serve HTTPS origin only.
     # Never derive trust from Host, X-Forwarded-Host, or a wildcard suffix.
@@ -268,8 +314,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         setup_logging()
+        service_only = tenant_mode_enabled() and os.environ.get("RWB_TENANT_SERVICE_ONLY") == "1"
         active = service or ResearchService(
-            DSHClient(os.environ.get("RESEARCH_RUNTIME_URL", "http://127.0.0.1:3081")),
+            (
+                ExternalExecutionClient()
+                if service_only
+                else DSHClient(os.environ.get("RESEARCH_RUNTIME_URL", "http://127.0.0.1:3081"))
+            ),
             Store(ROOT),
             owned=False,
             expected_cwd=ROOT / "runtime" / "work",
@@ -286,7 +337,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
         log.info(
-            "research_web_started", engine="dsh", legacy_services=False, web_access=access["mode"]
+            "research_web_started",
+            engine="external" if getattr(active, "service_only", False) else "dsh",
+            legacy_services=False,
+            web_access=access["mode"],
         )
         try:
             yield
@@ -405,6 +459,19 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
 
         async def dispatch():
+            if getattr(request.app.state.research, "service_only", False) and not (
+                _service_only_route_allowed(request.method, request.url.path)
+            ):
+                log.warning("embedded_research_route_denied", method=request.method)
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "embedded_research_disabled",
+                            "message": "请使用外部研究宿主",
+                        }
+                    },
+                    status_code=403,
+                )
             research_write = request.method not in {"GET", "HEAD", "OPTIONS"} and any(
                 request.url.path == prefix or request.url.path.startswith(prefix + "/")
                 for prefix in (
@@ -1040,7 +1107,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/sessions/{sid}/files")
     async def list_files(sid: str, request: Request):
-        return {"items": svc(request).store.files(sid)}
+        service = svc(request)
+        return {
+            "items": service.store.files(sid, read_only=getattr(service, "service_only", False))
+        }
 
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
@@ -1049,7 +1119,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         from .scenario_handoffs import trusted_context
 
         readonly = strict_read(request)
-        trusted_context(service, sid, check_capabilities=False, read_only=readonly)
+        service_only = getattr(service, "service_only", False)
+        trusted_context(service, sid, check_capabilities=False, read_only=readonly or service_only)
         relative = service.store.session(sid).get("files", {}).get(fid, "")
         if readonly:
             input_text(relative)
@@ -1057,6 +1128,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}
         )
         if relative.startswith("outputs/") and receipt.get("research_contract"):
+            if service_only:
+                raise StoreError(
+                    "历史报告的质量状态需要独立核验",
+                    "research_report_quality_unavailable",
+                    409,
+                )
             detail = await service.detail(sid)
             if (detail.get("research_quality") or {}).get("status") == "invalid":
                 raise StoreError("报告完整性检查未通过，暂不能交付", "research_report_invalid", 409)
