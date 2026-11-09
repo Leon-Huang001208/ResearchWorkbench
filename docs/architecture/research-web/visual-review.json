@@ -4,17 +4,17 @@
   "diagrams": [
     {
       "id": "15-inbound-mcp",
-      "artifactSha256": "441065a19fed6dca7d072e06aadbc2cea3f6fd54d1a41ff804e5024d166ad345",
-      "specificationSha256": "7464abbe95a024da7771619cc21fd038105c99ba6f4e396e29edbab209bd74d4",
+      "artifactSha256": "6b04263925cf4efe7962d450596eb501b5193964c8c4a53f398ec0f91e23a253",
+      "specificationSha256": "a41632858b07df675f2c9cef505baa5f4544ca3ccd9e1e5f24cb50c9ba4b9c1d",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-11-04",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-11-09",
       "captures": [
         "15-inbound-mcp.visual-check.1440x900.light.png",
         "15-inbound-mcp.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex 主代理实际查看最终同哈希小视口浅色与大视口深色截图；节点、标签、授权/读取边可辨，无穿越、遮挡或裁剪。自动9项showcase零错误零警告，四视口无溢出。图描述默认关闭的首版边界，不证明服务部署或原生宿主已接通。"
+      "notes": "查看同哈希浅色与深色截图。HTTPS WeKnora、固定回调和 Cookie 边界标注完整。"
     },
     {
       "id": "08-iteration-docs",
@@ -183,8 +183,8 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "8a9f084dcae30fc9043d3f246b56c2cf35abe2803e1981252ce8f5f7d9e3fd0b",
-      "specificationSha256": "8f5abeaf47bfac47fad3a03b7d43b700bdb6677a08a7d29be230f2c7b4554b02",
+      "artifactSha256": "c050b33cb4504e6c757343ba3c6ef3e040b871c61f8ba74ab70ee6534e1d9192",
+      "specificationSha256": "e11422633034438c0753a21fa8dbb0b3e07045a7e1cb171557908d918e8c7d7f",
       "status": "reviewed",
       "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
       "date": "2026-11-09",
@@ -193,7 +193,7 @@
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "实际查看同一版本的 1440 浅色和 2048 深色截图。账户单 Web 与内置 DSH 分支标签可读，未见裁剪或遮挡。"
+      "notes": "查看同哈希浅色与深色截图。主账号原位和生命周期锁标注完整。"
     },
     {
       "id": "12-ai-news",

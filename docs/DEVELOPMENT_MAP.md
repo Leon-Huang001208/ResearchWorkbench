@@ -786,3 +786,5 @@ Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity
 非秘密origin校验位于全stdlib `research_workbench_entrypoint/knowledge_configuration.py`，公开server dispatcher与冷Doctor共同调用；冷诊断不反向导入server或启动链。对应真实回归仍在 `test_weknora_cli.py`／既有 `test_multiuser_cli.py`，不增加依赖或运行角色。
 
 仅服务入口由 `multiuser/__main__.py` 解析，经 `RuntimePool` 只创建 Web spec。`ExternalExecutionClient` 拒绝原生操作，账户 Host 仅准入现有明确资料操作及读取。近处验证为 `test_multiuser_runtime.py` 的真实 Web 子进程与冻结读取。
+
+常驻仅服务模式通过 `LegacyBinding.service_only_storage` 和 RuntimePool 共享生命周期保证主账号数据原位；MCP 配置校验覆盖 HTTPS 回调与跨站登录入口。

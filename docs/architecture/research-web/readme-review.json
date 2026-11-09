@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 新增私网仅服务启动模式及安装合同入口。",
-  "reason": "显式新模式为每账户启动 Web 单进程，外部执行由隔离验收，默认启动和常驻切换各自验证。"
+  "summary": "README 补充常驻仅服务的原位主账号及 HTTPS OAuth。",
+  "reason": "主账号可在原生命周期锁保护下使用原资料目录，私网授权采用单独登记的固定回调。"
 }

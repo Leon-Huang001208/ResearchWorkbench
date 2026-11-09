@@ -696,3 +696,64 @@ def test_weknora_reads_only_approved_frozen_material(environment):
         s, access, "rwb_source_read", context_id=selected.context_id, file_id=selected.object_id
     )
     assert denied.status_code == 401
+
+
+def test_https_weknora_navigation_reauthenticates_before_creating_consent(tmp_path):
+    from urllib.parse import parse_qs, urlsplit
+
+    from fastapi.testclient import TestClient
+
+    accounts = AccountStore(tmp_path / "accounts")
+    user = accounts.create_user("weknora-test", PASSWORD)
+    token, _ = accounts.login(user.username, PASSWORD)
+    origin = "https://research.tail123.ts.net"
+    callback_origin = "https://weknora.tail123.ts.net:8443"
+    callback = callback_origin + "/api/v1/mcp-oauth/callback"
+
+    class Pool:
+        async def close(self):
+            pass
+
+    app = create_gateway(
+        accounts, Pool(), origin=origin, mcp_enabled=True, weknora_oauth_origin=callback_origin
+    )
+    navigation = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Cookie": f"{COOKIE}={token}",
+    }
+    with TestClient(app, base_url=origin, follow_redirects=False) as client:
+        args = params(client_id=WEKNORA, redirect_uri=callback)
+        response = client.get("/authorize", params=args, headers=navigation)
+        assert response.status_code == 302
+        target = response.headers["location"]
+        assert target.startswith("/auth?")
+        return_to = parse_qs(urlsplit(target).query)["return_to"][0]
+        with accounts._connection() as db:
+            assert db.execute("SELECT count(*) FROM mcp_oauth_requests").fetchone()[0] == 0
+        assert client.get(target, headers=navigation).status_code == 200
+        assert client.get("/auth", headers=navigation).status_code == 403
+        assert (
+            client.get(
+                "/authorize", params={**args, "redirect_uri": WEKNORA_CALLBACK}, headers=navigation
+            ).status_code
+            == 403
+        )
+        assert client.get("/authorize", params=params(), headers=navigation).status_code == 403
+        assert (
+            client.get(
+                "/authorize", params=args, headers={**navigation, "Sec-Fetch-Dest": "iframe"}
+            ).status_code
+            == 403
+        )
+        assert client.post("/token", data={}, headers=navigation).status_code == 403
+        response = client.get(
+            return_to, headers={"Cookie": f"{COOKIE}={token}", "Sec-Fetch-Site": "same-origin"}
+        )
+        assert response.status_code == 302 and response.headers["location"].startswith(
+            "/mcp/consent?"
+        )
+        with accounts._connection() as db:
+            row = db.execute("SELECT user_id,redirect_uri FROM mcp_oauth_requests").fetchone()
+            assert row["user_id"] == user.id and row["redirect_uri"] == callback

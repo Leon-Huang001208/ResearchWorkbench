@@ -14,6 +14,7 @@ import socket
 import stat
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -41,6 +42,15 @@ class RuntimeErrorSafe(RuntimeError):
 
 
 @dataclass(frozen=True)
+class PrimaryStorage:
+    user_id: str
+    data_root: Path
+    web_port: int
+    assert_held: Callable[[], None] = field(repr=False, compare=False)
+    retain_guard: Callable[[], int] = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True)
 class RuntimeConfig:
     root: Path
     project: Path
@@ -49,6 +59,7 @@ class RuntimeConfig:
     node: str | None
     max_instances: int = 2
     service_only: bool = False
+    primary_storage: PrimaryStorage | None = None
 
 
 @dataclass(frozen=True)
@@ -244,6 +255,10 @@ class RuntimePool:
         if type(config.max_instances) is not int or not 1 <= config.max_instances <= 4:
             raise RuntimeErrorSafe("runtime_capacity_invalid", 400)
         required_paths = (config.root, config.project, config.python)
+        if config.primary_storage is not None:
+            if not config.service_only:
+                raise RuntimeErrorSafe("runtime_configuration_invalid", 400)
+            config.primary_storage.assert_held()
         if not config.service_only:
             required_paths += (config.source, config.node)
         if any(value is None or not Path(value).is_absolute() for value in required_paths):
@@ -304,6 +319,8 @@ class RuntimePool:
             raise
 
     def _assert_pool(self) -> None:
+        if self.config.primary_storage is not None:
+            self.config.primary_storage.assert_held()
         for path, identity in self._directories.items():
             _directory(path, create=False)
             actual = path.stat()
@@ -584,7 +601,16 @@ class RuntimePool:
             user_root = self.config.root / "users" / user
             _directory(user_root)
             root, state = user_root / "research-web", user_root / "state"
-            _directory(root)
+            primary = self.config.primary_storage
+            if primary is not None and user == primary.user_id:
+                if root.exists() or root.is_symlink():
+                    raise RuntimeErrorSafe("primary_storage_shadow_exists")
+                primary.assert_held()
+                root = primary.data_root
+                _directory(root, create=False)
+            else:
+                primary = None
+                _directory(root)
             _directory(state)
             if (state / "owner.json").exists() or (state / "owner.json").is_symlink():
                 raise RuntimeErrorSafe("runtime_stale_owner")
@@ -599,6 +625,8 @@ class RuntimePool:
             if not self.config.service_only:
                 sockets.append(_reserve_port())
             web_port = sockets[0].getsockname()[1]
+            if primary is not None and web_port != primary.web_port:
+                raise RuntimeErrorSafe("primary_storage_web_port_changed")
             runtime_port = sockets[1].getsockname()[1] if len(sockets) == 2 else None
             entry = _Instance(
                 user,
@@ -656,7 +684,12 @@ class RuntimePool:
                     entry.backend.url, entry.backend.key, entry.generation, service_only=True
                 )
             sockets[0].close()
-            entry.children.append(self._spawn(web.command, environment))
+            if primary is not None:
+                entry.children.append(
+                    self._spawn(web.command, environment, pass_fds=(primary.retain_guard(),))
+                )
+            else:
+                entry.children.append(self._spawn(web.command, environment))
             self._record(entry)
             await self._wait_backend(entry, deadline)
             self._instances[user] = entry
@@ -678,7 +711,7 @@ class RuntimePool:
             for reserved in sockets:
                 reserved.close()
 
-    def _spawn(self, command, environment):
+    def _spawn(self, command, environment, *, pass_fds=()):
         # Popen itself is a short atomic ownership boundary: cancellation cannot
         # lose the newly created child between a background spawn and registration.
         return subprocess.Popen(
@@ -689,6 +722,7 @@ class RuntimePool:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
+            **({"pass_fds": pass_fds} if pass_fds else {}),
         )
 
     async def _wait_runtime(self, entry: _Instance, port: int, root: Path, deadline: float) -> None:

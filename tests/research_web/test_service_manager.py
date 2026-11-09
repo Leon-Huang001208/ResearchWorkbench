@@ -6003,3 +6003,31 @@ def test_doctor_office_auto_is_owned_read_only_and_unknown_on_wrong_owner(manage
     office = manager.doctor()["office_auto_verification"]
     assert office["state"] == "unknown"
     assert not any(office["targets"].values())
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires inherited flock")
+def test_lifecycle_guard_remains_held_after_parent_releases_with_live_child(tmp_path):
+    import subprocess
+    import sys
+
+    path = tmp_path / "lifecycle.lock"
+    child = None
+    try:
+        with LifecycleLock(path, lambda _pid: True) as lease:
+            fd = lease.retain_for_posix_child()
+            child = subprocess.Popen(
+                [sys.executable, "-c", "import sys; sys.stdin.buffer.read()"],
+                stdin=subprocess.PIPE,
+                pass_fds=(fd,),
+            )
+        with (
+            pytest.raises(LifecycleLockError, match="lifecycle lock is busy"),
+            LifecycleLock(path, lambda _pid: False),
+        ):
+            pytest.fail("old writer entered while child still held the guard")
+    finally:
+        if child is not None:
+            child.stdin.close()
+            child.wait(timeout=8)
+    with LifecycleLock(path, lambda _pid: True) as lease:
+        lease.assert_held()

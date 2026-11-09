@@ -704,16 +704,41 @@ async def test_deployment_slot_wins_after_native_exists_check_without_spawn_or_d
 
 
 @pytest.mark.asyncio
-async def test_service_only_cold_web_and_frozen_mcp_read(tmp_path):
+@pytest.mark.parametrize("attached", [False, True])
+async def test_service_only_cold_web_and_frozen_mcp_read(tmp_path, attached):
     project = Path(__file__).resolve().parents[2]
     root = tmp_path / "server"
     user = str(uuid4())
-    settings = runtime.RuntimeConfig(root, project, None, sys.executable, None, service_only=True)
+    shadow_root = root / "users" / user / "research-web"
+    runtime_root = shadow_root
+    primary_storage = None
+    guard = None
+    if attached:
+        legacy = tmp_path / "legacy"
+        legacy.mkdir(mode=0o700)
+        runtime_root = legacy / "research-web"
+        runtime_root.mkdir(mode=0o700)
+        with runtime._reserve_port() as reservation:
+            port = reservation.getsockname()[1]
+        saved_control(runtime_root, port)
+        guard = os.open(os.devnull, os.O_RDONLY)
+        primary_storage = runtime.PrimaryStorage(
+            user, runtime_root, port, lambda: None, lambda: guard
+        )
+    settings = runtime.RuntimeConfig(
+        root,
+        project,
+        None,
+        sys.executable,
+        None,
+        service_only=True,
+        primary_storage=primary_storage,
+    )
     pool = runtime.RuntimePool(settings)
     try:
-        runtime_root = root / "users" / user / "research-web"
-        for path in (root / "users" / user, runtime_root):
-            path.mkdir(mode=0o700)
+        if not attached:
+            for path in (root / "users" / user, runtime_root):
+                path.mkdir(mode=0o700)
         store = Store(runtime_root)
         old = store.create("fingpt", "Historical research")
         sid = old["id"]
@@ -730,6 +755,9 @@ async def test_service_only_cold_web_and_frozen_mcp_read(tmp_path):
         with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_not_running"):
             await pool.backend_for_readonly(user)
         backend = await pool.backend_for(user)
+        if attached:
+            assert not shadow_root.exists()
+            assert urlsplit(backend.url).port == port
         state = root / "users" / user / "state"
         owner = json.loads((state / "owner.json").read_bytes())
         assert owner["execution_mode"] == "external" and len(owner["pids"]) == 1
@@ -770,5 +798,9 @@ async def test_service_only_cold_web_and_frozen_mcp_read(tmp_path):
             with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_not_running"):
                 await pool.backend_for_readonly(str(uuid4()))
     finally:
-        await pool.close()
+        try:
+            await pool.close()
+        finally:
+            if guard is not None:
+                os.close(guard)
     assert not (state / "owner.json").exists()

@@ -7906,7 +7906,7 @@ Classes:
   - methods: __init__
 - `LifecycleLock`
   - Serialize lifecycle mutations using an atomic private directory lock.
-  - methods: __init__, _is_reparse, _safe_directory_identity, _validate_existing_ancestors, _trusted_root_identity, _prepare_default_trusted_root, _walk_managed_parent, _prepare_parent, _acquire_guard, _release_guard, _read_owner, _write_owner, _create, _restore_raced_lock, _reclaim_dead_owner, __enter__, assert_held, __exit__
+  - methods: __init__, _is_reparse, _safe_directory_identity, _validate_existing_ancestors, _trusted_root_identity, _prepare_default_trusted_root, _walk_managed_parent, _prepare_parent, _acquire_guard, retain_for_posix_child, _release_guard, _read_owner, _write_owner, _create, _restore_raced_lock, _reclaim_dead_owner, __enter__, assert_held, __exit__
 
 Functions:
 - `_fsync_directory`
@@ -8872,6 +8872,8 @@ Functions:
   - Only explicit 1 enables production; tests can supply an explicit bool.
 - `weknora_callback`
   - Build the one callback allowed for an explicitly configured WeKnora host.
+- `validate_weknora_gateway`
+- `resident_execution`
 
 
 ## `app/research_web/mcp_facade/http_policy.py`
@@ -10158,6 +10160,8 @@ Functions:
 - `ai_path`
 - `page_matches`
   - Keep an old tab from submitting to a newly logged-in account.
+- `_weknora_oauth_navigation`
+  - Allow the validated OAuth navigation and its login redirect only.
 - `create_gateway`
   - Build one gateway without starting tenant processes or reading model secrets.
 
@@ -10246,6 +10250,7 @@ Imports:
 - `__future__`
 - `argparse`
 - `asyncio`
+- `contextlib`
 - `functools`
 - `os`
 - `pathlib`
@@ -10261,12 +10266,13 @@ Functions:
 ## `app/research_web/multiuser/resident_binding.py`
 
 Module docstring:
-> Read-only attachment of exactly one administrator to the original resident.
+> Ownership and attachment of the original resident data for its administrator.
 
 Imports:
 - `__future__`
 - `accounts`
 - `asyncio`
+- `contextlib`
 - `core.observability`
 - `dataclasses`
 - `json`
@@ -10280,7 +10286,7 @@ Imports:
 
 Classes:
 - `LegacyBinding`
-  - methods: data_root, public_config, from_config, discover, verify
+  - methods: data_root, public_config, from_config, discover, _verify_storage_identity, _verified_manager, service_only_storage, verify
 - `AttachedPool`
   - Primary keeps its original directory and key namespace; others use the private pool.
   - methods: __init__, _verify, start, backend_for, backend_for_readonly, health, stop, close
@@ -10321,6 +10327,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `asyncio`
+- `collections.abc`
 - `core.observability`
 - `dataclasses`
 - `fcntl`
@@ -10346,6 +10353,7 @@ Classes:
 - `RuntimeErrorSafe`
   - Stable status without raw subprocess output, paths or credentials.
   - methods: __init__
+- `PrimaryStorage`
 - `RuntimeConfig`
 - `Backend`
 - `_Instance`
