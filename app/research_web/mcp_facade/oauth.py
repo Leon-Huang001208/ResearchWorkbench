@@ -30,7 +30,7 @@ from app.research_web.multiuser.accounts import Account, AccountError
 from core.observability import get_logger
 
 from .authorization_store import AuthorizationStore
-from .models import CLIENT_ID, SCOPE, TokenPair, TokenRecord
+from .models import CLIENT_ID, NATIVE_CALLBACK, SCOPE, TokenPair, TokenRecord
 
 log = get_logger(__name__)
 token_request: ContextVar[TokenRequest | None] = ContextVar("rwb_oauth_token_request", default=None)
@@ -41,9 +41,9 @@ class NativeClient(OAuthClientInformationFull):
     """RFC 8252 loopback port variation, with exactly one approved host/path."""
 
     def validate_redirect_uri(self, redirect_uri: AnyUrl | None) -> AnyUrl:
-        uri = redirect_uri or AnyUrl("http://127.0.0.1/callback")
+        uri = redirect_uri or AnyUrl(NATIVE_CALLBACK)
         try:
-            AuthorizationStore.validate_redirect(str(uri))
+            AuthorizationStore.validate_native_redirect(str(uri))
         except AccountError as exc:
             raise InvalidRedirectUriError("Unregistered callback") from exc
         return uri
@@ -97,13 +97,14 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
         self.store = store
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
-        if client_id != CLIENT_ID:
+        if not self.store.client_enabled(client_id):
             return None
-        self.store.load_client(client_id)
-        return NativeClient(
-            client_id=CLIENT_ID,
-            client_name="RWB readonly native client",
-            redirect_uris=[AnyUrl("http://127.0.0.1/callback")],
+        registered = self.store.load_client(client_id)
+        model = NativeClient if client_id == CLIENT_ID else OAuthClientInformationFull
+        return model(
+            client_id=client_id,
+            client_name="RWB readonly native client" if client_id == CLIENT_ID else "WeKnora",
+            redirect_uris=[AnyUrl(uri) for uri in registered.redirect_uris],
             token_endpoint_auth_method="none",
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
@@ -117,7 +118,7 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
         self, client: OAuthClientInformationFull, params: AuthorizationParams
     ) -> str:
         try:
-            self.store.validate_redirect(str(params.redirect_uri))
+            self.store.validate_redirect(str(params.redirect_uri), client_id=client.client_id)
             if params.resource not in (None, self.store.resource):
                 raise AccountError("invalid_target")
             if params.scopes != [SCOPE]:
@@ -127,7 +128,7 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
                 # Re-enter the SDK after the existing login. Never store an unbound
                 # consent request or let login redirect directly to a client URL.
                 query = {
-                    "client_id": CLIENT_ID,
+                    "client_id": client.client_id,
                     "response_type": "code",
                     "scope": SCOPE,
                     "code_challenge": params.code_challenge,
@@ -292,10 +293,9 @@ class OAuthVerifier(TokenVerifier):
             if not _definitely_invalid_token(exc):
                 raise
             return None
-        if (record.issuer, record.resource, record.client_id, record.scopes) != (
+        if (record.issuer, record.resource, record.scopes) != (
             self.store.issuer,
             self.store.resource,
-            CLIENT_ID,
             (SCOPE,),
         ):
             return None

@@ -17,6 +17,9 @@ from app.research_web.multiuser.accounts import AccountStore
 
 CLIENT = "rwb-codex-native"
 CALLBACK = "http://127.0.0.1:43210/callback"
+WEKNORA_ORIGIN = "http://127.0.0.1:18181"
+WEKNORA_CALLBACK = WEKNORA_ORIGIN + "/api/v1/mcp-oauth/callback"
+WEKNORA = "rwb-weknora"
 PASSWORD = "correct horse battery staple"
 VERIFIER = "v" * 43
 CHALLENGE = (
@@ -25,7 +28,7 @@ CHALLENGE = (
 
 
 @pytest.fixture
-def http_env(tmp_path):
+def http_env(tmp_path, request):
     from app.research_web.mcp_facade.oauth import OAuthProvider, create_oauth_routes
 
     now = [time.time()]
@@ -35,7 +38,9 @@ def http_env(tmp_path):
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     origin = f"http://127.0.0.1:{sock.getsockname()[1]}"
-    store = AuthorizationStore(accounts, issuer=origin)
+    store = AuthorizationStore(
+        accounts, issuer=origin, weknora_oauth_origin=getattr(request, "param", None)
+    )
     provider = OAuthProvider(store)
     app = Starlette(routes=create_oauth_routes(provider))
     server = uvicorn.Server(uvicorn.Config(app, log_level="critical", access_log=False))
@@ -657,3 +662,64 @@ def test_browser_referrer_policy_preserves_exact_origin_csrf(http_env):
         headers=browser(client, sessions[0], store.issuer),
     )
     assert response.status_code == 303
+
+
+@pytest.mark.parametrize("http_env", [WEKNORA_ORIGIN], indirect=True)
+def test_weknora_callback_and_cross_client_token_boundaries(http_env):
+    client, store, _, sessions, _ = http_env
+    for callback in (
+        CALLBACK,
+        WEKNORA_CALLBACK + "?a=1",
+        WEKNORA_CALLBACK + "#x",
+        WEKNORA_CALLBACK.replace(":18181", ":18182"),
+        WEKNORA_CALLBACK.replace("127.0.0.1", "localhost"),
+    ):
+        response = client.get("/authorize", params=params(client_id=WEKNORA, redirect_uri=callback))
+        assert response.status_code == 400 and "location" not in response.headers
+    response = client.get("/authorize", params=params(redirect_uri=WEKNORA_CALLBACK))
+    assert response.status_code == 400 and "location" not in response.headers
+    args = params(client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK)
+    args.pop("redirect_uri")
+    assert client.get("/authorize", params=args).status_code == 400
+    response = client.get(
+        "/authorize", params=params(client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK)
+    )
+    returned = parse_qs(urlsplit(response.headers["location"]).query)["return_to"][0]
+    assert parse_qs(urlsplit(returned).query)["client_id"] == [WEKNORA]
+    page = client.get(returned, headers=browser(client, sessions[0])).headers["location"]
+    consent = client.get(page, headers=browser(client, sessions[0]))
+    assert WEKNORA_CALLBACK in consent.headers["content-security-policy"]
+    assert "应用：WeKnora" in consent.text
+    code = authorize(http_env, client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK)
+    assert exchange(client, code).status_code in (400, 401)
+    assert exchange(client, code, client_id=WEKNORA).status_code == 400
+    assert exchange(client, code, client_id=WEKNORA, redirect_uri="").status_code == 400
+    response = exchange(client, code, client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK)
+    assert response.status_code == 200
+    pair = response.json()
+    assert store.verify_access(pair["access_token"], resource=store.resource).client_id == WEKNORA
+    assert refresh(client, pair["refresh_token"]).status_code in (400, 401)
+    new = refresh(client, pair["refresh_token"], client_id=WEKNORA).json()
+    assert refresh(client, pair["refresh_token"]).status_code in (400, 401)
+    assert (
+        client.post("/revoke", data={"client_id": CLIENT, "token": new["access_token"]}).status_code
+        == 200
+    )
+    assert store.verify_access(new["access_token"], resource=store.resource).client_id == WEKNORA
+    assert (
+        client.post(
+            "/revoke", data={"client_id": WEKNORA, "token": new["access_token"]}
+        ).status_code
+        == 200
+    )
+    assert refresh(client, new["refresh_token"], client_id=WEKNORA).status_code in (400, 401)
+    codex = authorize(http_env)
+    assert exchange(client, codex).status_code == 200
+
+
+def test_weknora_is_disabled_without_operator_callback(http_env):
+    client, *_ = http_env
+    response = client.get(
+        "/authorize", params=params(client_id=WEKNORA, redirect_uri=WEKNORA_CALLBACK)
+    )
+    assert response.status_code == 400 and "location" not in response.headers

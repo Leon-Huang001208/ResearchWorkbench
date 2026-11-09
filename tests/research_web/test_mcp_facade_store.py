@@ -350,3 +350,24 @@ def test_refresh_replay_revokes_family_even_during_sdk_load(env):
         store.load_refresh(tokens.refresh_token, client_id=CLIENT)
     with pytest.raises(AccountError):
         store.verify_access(rotated.access_token, resource=store.resource)
+
+
+def test_weknora_callback_cannot_rebind_existing_grants(env):
+    from app.research_web.mcp_facade.authorization_store import AuthorizationStore
+
+    accounts, default, alice, _, _ = env
+    client = "rwb-weknora"
+    origin = "http://127.0.0.1:18181"
+    redirect = origin + "/api/v1/mcp-oauth/callback"
+    enabled = AuthorizationStore(accounts, issuer=default.issuer, weknora_oauth_origin=origin)
+    pending = request(enabled, alice, client_id=client, redirect_uri=redirect)
+    code = enabled.issue_code(pending.id, user_id=alice.id, material_ids=[])
+    pair = exchange(enabled, code, client_id=client, redirect_uri=redirect)
+    assert enabled.verify_access(pair.access_token, resource=enabled.resource).client_id == client
+    with pytest.raises(AccountError, match="invalid_client"):
+        AuthorizationStore(
+            accounts, issuer=default.issuer, weknora_oauth_origin=origin.replace("18181", "18182")
+        )
+    with pytest.raises(AccountError, match="invalid_grant"):
+        default.verify_access(pair.access_token, resource=default.resource)
+    assert enabled.verify_access(pair.access_token, resource=enabled.resource).client_id == client

@@ -8801,6 +8801,7 @@ Imports:
 - `__future__`
 - `base64`
 - `collections.abc`
+- `config`
 - `core.observability`
 - `hashlib`
 - `hmac`
@@ -8817,7 +8818,7 @@ Imports:
 Classes:
 - `AuthorizationStore`
   - All writes use AccountStore's identity-checked BEGIN IMMEDIATE connection.
-  - methods: __init__, load_client, validate_redirect, _resource, _scopes, _account, _bound, _current, _grant, create_request, _request, load_request, issue_code, _code, load_code, exchange_code, _issue_tokens, _token, verify_access, load_refresh, _refresh, rotate_refresh, revoke_grant, list_grants, approve_material, revoke_material, list_materials, list_grant_materials, authorize_material
+  - methods: __init__, client_enabled, _load_client, load_client, validate_redirect, is_callback_destination, validate_native_redirect, _resource, _scopes, _account, _bound, _current, _grant, create_request, _request, load_request, issue_code, _code, load_code, exchange_code, _issue_tokens, _token, verify_access, load_refresh, _refresh, rotate_refresh, revoke_grant, list_grants, approve_material, revoke_material, list_materials, list_grant_materials, authorize_material
 
 Functions:
 - `_reject`
@@ -8862,11 +8863,15 @@ Module docstring:
 > Dependency-free facade switch and fixed transport limits, shared with Doctor.
 
 Imports:
+- `multiuser.origin`
 - `os`
+- `urllib.parse`
 
 Functions:
 - `enabled`
   - Only explicit 1 enables production; tests can supply an explicit bool.
+- `weknora_callback`
+  - Build the one callback allowed for an explicitly configured WeKnora host.
 
 
 ## `app/research_web/mcp_facade/http_policy.py`
@@ -8999,6 +9004,7 @@ Imports:
 - `authorization_store`
 - `core.observability`
 - `html`
+- `models`
 - `starlette.requests`
 - `starlette.responses`
 - `starlette.routing`
@@ -10058,6 +10064,7 @@ Functions:
   - Inspect private configuration without importing or starting a runtime.
 - `_inspect_mcp`
   - Inspect configuration and distribution metadata, never initialize OAuth/SDK.
+- `_weknora_oauth_origin`
 - `_doctor`
 - `_confirmed_password`
 - `_server_context`
