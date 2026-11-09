@@ -1,0 +1,79 @@
+/* Extension of RWB appearance tokens; no independent theme or runtime state. */
+.progress-page { max-width: 1120px; margin: 0 auto; padding: 16px 0 40px; }
+.progress-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.progress-heading h1 { margin: 0 0 8px; }
+.progress-heading p { margin: 0; font-size: 14px; }
+.progress-snapshot { color: var(--muted); text-align: right; white-space: nowrap; padding-top: 5px; font-size: 12px !important; }
+.progress-snapshot small { display: block; margin-top: 3px; font-size: 11px; }
+.progress-tabs { display: flex; gap: 30px; border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+.progress-tabs a { padding: 12px 0; min-height: 44px; border-bottom: 2px solid transparent; color: var(--muted); font-size: 14px; text-decoration: none; }
+.progress-tabs a[aria-current] { color: var(--text); border-color: var(--text); font-weight: 600; }
+.progress-tabs a:hover { color: var(--text); }
+.progress-body { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 40px; }
+.progress-filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+.progress-filters label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 0; }
+.progress-filters select { font-size: 13px; min-height: 36px; width: auto; max-width: 240px; margin: 0; }
+.progress-day { padding: 0 24px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 22px; }
+.progress-day h2 { display: flex; align-items: baseline; gap: 12px; margin: 0; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 18px; font-weight: 600; }
+.progress-day h2 span { font-size: 12px; font-weight: 400; color: var(--muted); }
+.progress-entry { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 18px; padding: 24px 0; }
+.progress-entry + .progress-entry { border-top: 1px solid var(--line); }
+.progress-meta { color: var(--muted); padding-top: 4px; font-size: 12px; }
+.progress-status { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.progress-status i { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+.progress-developing .progress-status i, .progress-new .progress-status i { background: var(--blue); }
+.progress-delivered .progress-status i, .progress-fix .progress-status i { background: var(--green); }
+.progress-validating .progress-status i, .progress-announcement .progress-status i { background: var(--warning); }
+.progress-copy { min-width: 0; border-left: 1px solid var(--line); padding-left: 24px; overflow-wrap: anywhere; }
+.progress-copy h3 { font-size: 16px; line-height: 1.5; font-weight: 600; margin: 0 0 8px; }
+.progress-copy h3 a { color: var(--text); }
+.progress-copy > p { color: var(--muted); font-size: 14px; line-height: 1.85; margin: 0; }
+.progress-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.progress-tags > span { background: var(--sidebar); color: var(--muted); font-size: 11px; border-radius: 4px; padding: 2px 7px; }
+.progress-tags .progress-blocked, .progress-blocked { background: var(--warning-bg); color: var(--warning); }
+.progress-copy details { margin-top: 14px; font-size: 13px; }
+.progress-copy summary { cursor: pointer; color: var(--blue); padding: 4px 0; width: fit-content; }
+.progress-detail { margin-top: 10px; padding: 16px; border-radius: 6px; background: var(--surface); color: var(--muted); }
+.progress-detail dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 14px; margin: 0; }
+.progress-detail dt { color: var(--text); }
+.progress-detail dd { margin: 0; }
+.progress-evidence { margin: 16px 0 0; padding-left: 18px; }
+.progress-evidence li + li { margin-top: 6px; }
+.progress-detail .progress-blocked { padding: 10px; margin: 12px 0 0; border-radius: 6px; }
+.progress-months { align-self: start; position: sticky; top: 20px; font-size: 13px; }
+.progress-months summary { font-size: 12px; color: var(--muted); cursor: pointer; margin: 0 0 12px; }
+.progress-months a { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); padding: 8px 0; }
+.progress-months a[aria-current] { color: var(--text); font-weight: 600; }
+.progress-months a span { font-size: 11px; white-space: nowrap; }
+.progress-months > p { padding-top: 20px; border-top: 1px solid var(--line); margin-top: 24px; color: var(--muted); font-size: 12px; line-height: 1.9; }
+.progress-empty { text-align: center; padding: 42px 16px; color: var(--muted); font-size: 14px; }
+.progress-empty .button { margin-top: 14px; }
+.progress-footnote { margin-top: 28px; color: var(--muted); font-size: 12px; line-height: 1.9; }
+.progress-footnote p { margin: 0 0 6px; }
+/* Preserve the existing narrow product rail and stack footer controls. */
+.navigation-footer { flex-direction: column; gap: 4px; }
+.navigation-footer .rail-progress { flex: 0 0 auto; }
+@media (max-width: 1050px) {
+  .progress-body { grid-template-columns: minmax(0, 1fr) 125px; gap: 24px; }
+  .progress-day { padding: 0 18px; }
+  .progress-entry { grid-template-columns: 65px minmax(0, 1fr); gap: 10px; }
+  .progress-copy { padding-left: 18px; }
+}
+@media (max-width: 780px) {
+  .progress-heading { display: block; }
+  .progress-snapshot { text-align: left; margin-top: 12px !important; }
+  .progress-body { display: flex; flex-direction: column; }
+  .progress-body > div { order: 1; }
+  .progress-months { order: 0; position: static; width: 100%; }
+  .progress-months > p { display: none; }
+  .progress-months nav { display: flex; flex-wrap: wrap; gap: 0 24px; }
+  .progress-months summary { min-height: 36px; }
+  .progress-entry { display: block; padding: 22px 0; }
+  .progress-meta { margin-bottom: 12px; }
+  .progress-copy { border-left: 0; padding-left: 0; }
+  .progress-copy summary { min-height: 44px; padding-top: 10px; }
+  .progress-detail dl { grid-template-columns: 1fr; gap: 3px; }
+  .progress-detail dd { margin-bottom: 10px; }
+  .progress-filters select { min-height: 44px; max-width: 190px; }
+}
+@media (prefers-reduced-motion: reduce) { .progress-page * { transition: none; scroll-behavior: auto; } }

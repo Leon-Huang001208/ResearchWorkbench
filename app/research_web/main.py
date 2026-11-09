@@ -42,6 +42,9 @@ from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
 from .dossier_signal_routes import router as dossier_signal_router
 from .dossiers.routes import router as dossiers_router
+from .event_datahub_bridge import router as event_sources_router
+from .event_studies.routes import router as event_studies_router
+from .event_timeline.routes import router as events_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
 from .hot_routes import private_router as hot_private_router
@@ -49,9 +52,11 @@ from .hot_routes import router as hot_router
 from .hot_service import HotWebError, HotWebService
 from .integrations.routes import router as integrations_router
 from .intel_routes import router as intel_router
+from .knowledge_backend.routes import router as knowledge_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
 from .market_routes import router as market_router
+from .market_scoring.routes import router as market_scores_router
 from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
 from .mcp_runtime.routes import router as mcp_runtime_router
@@ -295,8 +300,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
     app.include_router(datahub_router)
+    app.include_router(knowledge_router)
     app.include_router(dossier_signal_router)
     app.include_router(dossiers_router)
+    app.include_router(events_router)
+    app.include_router(event_sources_router)
+    app.include_router(event_studies_router)
+    app.include_router(market_scores_router)
     app.include_router(asset_router)
     app.include_router(asset_research_router)
     app.include_router(market_router)
@@ -395,6 +405,48 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
 
         async def dispatch():
+            research_write = request.method not in {"GET", "HEAD", "OPTIONS"} and any(
+                request.url.path == prefix or request.url.path.startswith(prefix + "/")
+                for prefix in (
+                    "/api/research/events",
+                    "/api/research/event-studies",
+                    "/api/research/market-scores",
+                )
+            )
+            if research_write and request.headers.get("X-Research-User-Action") != "?1":
+                log.warning("event_research_explicit_action_missing")
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "explicit_user_action_required",
+                            "message": "需要明确用户操作",
+                        }
+                    },
+                    status_code=403,
+                )
+            if research_write:
+                length = request.headers.get("content-length", "")
+                if request.headers.get("transfer-encoding") or not length.isdecimal():
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "event_request_length_required",
+                                "message": "请求需要明确长度",
+                            }
+                        },
+                        status_code=411,
+                    )
+                if int(length) > 64 * 1024:
+                    log.warning("event_research_request_budget_exceeded")
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "event_request_too_large",
+                                "message": "事件研究请求超出上限",
+                            }
+                        },
+                        status_code=413,
+                    )
             ticket = (
                 tenant_mode_enabled()
                 and not plugin_control
@@ -527,6 +579,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 ("approvals", lambda: bool(research.approvals)),
                 ("questions", lambda: bool(research.questions)),
                 ("source_requests", lambda: bool(research.source_requests)),
+                (
+                    "event_sources",
+                    lambda: research.event_timeline.active or research.event_collection.active,
+                ),
+                ("event_studies", lambda: research.studies.active),
+                ("event_inputs", lambda: research.event_inputs.active),
                 (
                     "automation_runs",
                     lambda: any(
@@ -987,10 +1045,14 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
         service = svc(request)
+        from .mcp_facade.read_policy import HEADER, VERSION, input_text, strict_read
         from .scenario_handoffs import trusted_context
 
-        trusted_context(service, sid, check_capabilities=False)
+        readonly = strict_read(request)
+        trusted_context(service, sid, check_capabilities=False, read_only=readonly)
         relative = service.store.session(sid).get("files", {}).get(fid, "")
+        if readonly:
+            input_text(relative)
         receipt = service.store.data["receipts"].get(
             f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}
         )
@@ -1035,6 +1097,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             chunks(),
             media_type=media_type,
             headers={
+                **({HEADER: VERSION} if readonly else {}),
                 "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'",
                 "X-Content-Type-Options": "nosniff",
                 "Content-Disposition": f"{'attachment' if action == 'download' else 'inline'}; filename*=utf-8''{quote(name)}",

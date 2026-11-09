@@ -1,10 +1,60 @@
 # Research Workbench Development Map
 
+全市场逐日交互在 `ui/market-dashboard*`，首批操作在 `ui/market-daily-bootstrap.mjs`；事件与日历由原
+`event_timeline` 保存事实及原件，`market_scoring` 提供真实原值与原资格缺口。显示证据不替代评分准入。
+
+市场联合V2的双仓库切换在`resident/model_provider_upgrade.py`的`Operations.install`，
+独立120秒上限并记录角色和耗时；既有真实事务夹具覆盖45秒成功及121秒回滚保全，未改通用命令读取器。
+
+市场旧页可发现性：`ui/module-navigation.mjs`保留五个市场子页，原`market.mjs`业务不改；
+`research_web_module_navigation.test.mjs`与真实壳层e2e共同覆盖内部tabs隐藏时的可见链接和选中。
+
+私网事件明确动作修补：`multiuser/gateway.py` 的请求头允许集保留客户端已有意图；
+`test_multiuser_gateway.py` 通过真实账号网关及Host中间件验证合法、缺失、非法与跨源情况。
+不改变事件/评分Host的准入校验或采集计划，实页403复现和版本证据见同日任务报告。
+
+三地综合总览：`ui/market-dashboard*.mjs` 负责只读投影和用户显式操作；原 `market.mjs` 完整保留
+行情分析、沪深北行情和板块资金。`market_indices.py`／`providers_global_indices.py` 定义 global-v1
+九指数真实报价与原生 OHLCV，MarketService 保留独立缓存；评分和事件仍由原领域核验。
+模块边界与验收见[综合总览合同](research-web-market-dashboard.md)。
+
+## WeKnora 资料适配（2026-11-06）
+
+`app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由。`ui/knowledge-settings.mjs` 在既有数据设置区挂载独立卡片；`scripts/weknora_candidate.py` 只读核对显式盘点、容量声明与20题对照。回归为 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 及 `research_web_knowledge.test.mjs`。原上传、DataHub、档案及报告链不迁移；上游0001是显式表格摘要 opt-out，0002增加默认关闭的实例级只检索 profile；Go、真实服务及 UI零生成尚未验证，上线仍 BLOCKED。见[资料合同](research-web-weknora.md)。
+
+统一导航封闭部署位于resident/model_provider_upgrade.py，使用UNIFIED_NAVIGATION_*独立常量，不覆盖旧PR168 NAVIGATION_PAYLOAD；原test_model_provider_upgrade覆盖真实Git范围、实际operate及v4恢复矩阵。产品5ff→b192、执行器及三CI、实际服务切换分别核验；不改controller/evidence/自动名单。
+
+统一导航：ui/navigation-catalog.mjs 共享一级入口与原设置／情报／资产子项，module-navigation.mjs/css 处理选中、独立折叠、账号命名空间与窄屏焦点；app/shell/conversation-navigation 接原会话链。回归为 research_web_module_navigation.test.mjs 和 tests/e2e/research_web_module_navigation.mjs；只读夹具页面不认证实际服务或业务数据。
+
+2026-11-05：`resident/model_provider_upgrade.py` 的EVENT固定组合为a398→604→58ad→546→e9→32b（保留65a关闭安全及受审交付恢复修复），原union/blob/mode及全账号采集关闭／保全／恢复不变。`gateway_configuration`／`start_gateway`仅目标持久MCP False，`verify`经真实fenced local/private health与原PID/启动/源码身份窗口接受严格False，规范JSON配置防0漂移；旧db2回滚原字段原样。原`test_model_provider_upgrade.py`新增真实HTTP读取协议、PID/birth/config漂移、完整组合祖先与事务回滚反例。最终资格及部署另证，见[部署合同](research-web-gateway-upgrade.md)。
+
+研发进展由 `ui/progress.mjs`／`progress.css` 渲染，`ui/progress-data.json` 提供版本内内容，
+原 `core.mjs`、`shell.mjs`、`app.mjs` 接入路由、底部入口及生命周期。
+`scripts/check_product_progress.mjs` 校验内容、交付字段与 Changelog 生成区，
+`tests/javascript/research_web_progress.test.mjs` 覆盖路由、证据缺项、过滤定位、安全与加载失败。
+无新 Python、业务 API 或依赖；合同见[前端](research-web-ui.md#研发进展与更新日志)。
+
+能力中心界面仅保留技能、连接器、插件；方法与通用步骤模板并入技能，工具进入关联详情，旧类型/版本/权限合同继续兼容。方法复制只产生普通 Skill 草稿，不改写历史采用记录。详见[能力合同](architecture/research-web/07-capabilities.md)。本地测试通过 `scripts/research_web_test_env.py --check --json` 查找项目共享环境，准备与复用边界见[开发流程](AGENT_WORKFLOW.md#复用研究-web-测试环境)。
+
+事件研究：`event_timeline/` 管理个人事件、原件、修订、确认、冻结及来源采集；
+`event_studies/` 管理固定窗口、对照、代理账本、试验与一次性验证；`market_scoring/` 管理
+六维配置、证据时点、研究总分和当期事件适用性。`event_datahub_bridge.py` 只登记当前账号
+DataHub 日线／日历引用，`event_preservation.py`／`event_diagnostics.py` 纳入保全与Doctor，
+`ui/event-lab.mjs` 复用研究情报及策略模拟入口。回归为 `test_event_timeline*`、
+`test_event_studies*`、`test_market_scoring*` 及 `research_web_event_lab.test.mjs`。
+详见[集成合同](research-web-event-research.md)，缺少测试环境、真实来源或PIT证据不得报已验收。
+
+入站私网只读 MCP 位于 `app/research_web/mcp_facade/`，与出站 `mcp_runtime/` 分开。`authorization_store.py` 复用账户库，`multiuser/accounts.py` 负责改密/禁用的同事务撤权，OAuth 与固定后端读取由 facade 分层适配并接原网关。四项工具只读操作员批准的冻结材料；不得调用来源抓取、会话创建或通用代理。接口和失败合同见[入站 MCP](research-web-mcp-facade.md)，定点回归为 `test_mcp_facade_*.py`；Doctor、安装与真机状态不能从静态目录或有令牌推断。
+
 2026-10-31 存储留存：本机 `scripts/test_artifact_retention.py run` 亲自执行一批最多20个固定用例，记录真实退出码、JUnit/stdout/stderr与批次nonce，再做同inode隔离回收和中断重入；低级create/admit/retire供受审执行器使用。`research_workbench_entrypoint/iteration_resources.py` 的 `selected_evidence` 仅允许同批退休回执列出的成功输出不归档，`record_task/closeout` 对新任务固定完整选择清单和128MiB保留门，旧ledger仍走legacy-full。回归分别在 `tests/research_web/test_test_artifact_retention.py` 和 `test_iteration_resources.py`，工作流显式登记前者。完整格式、证据与失败边界见[留存规则](research-web-storage-retention.md)。
 
 同日 `scripts/git_safety.mjs` prepared-amend 字段兼容只允许受管控制器新增的 `mergeSourceCommit` 等于旧feature身份，收养时原子推进为新feature身份；正反例和旧回执恢复仍在既有 `tests/javascript/git_safety_amend_prepared.test.mjs`。远端主线在首次发布前推进时，原 `prepared` 回执可经 `refreshPublishedBase` 精确收养已提交的祖先候选，刷新后的merge source绑定见 `tests/javascript/git_safety.test.mjs`；两路径均不改变分支保护、备份或发布门。
 
 开发产物生命周期：`scripts/resource_lifecycle.mjs`验证共用runtime及原Git/资源最终认证，登记任务证据并向宿主预算报告BuildKit观测；`git_safety.mjs`在成功收尾事件接入，登记恢复点、按原保护门轮转并保留cleanup_pending欠账。桥合同为`tests/javascript/resource_lifecycle.test.mjs`，详见[协议](resource-lifecycle.md)。
+保留 pending 的恢复证书由 `git_safety.mjs::validateCloseoutRecovery` 只读复用完整恢复校验及引用保全；真实 Git/v2 证书桥的正反例复用 `tests/javascript/git_safety.test.mjs` 现有恢复夹具，不调用交付入口形成递归。
+桥使用静态 ESM live binding，`git_safety.test.mjs` 的真实 Node 子进程以生产 `git_safety.mjs` 作为 CLI 入口，验证 pending 证书能越过恢复门抵达运行时门、坏证书仍拒绝且没有 unsettled top-level await。
+桥以共用内核现有 `protection` 保存上游已选择并验证的必要原件归档；已登记保护身份用项目只读指纹复核，旧未保护/隔离中登记拒绝继续事件。`tests/javascript/fixtures/resource_lifecycle_kernel_contract.mjs` 为显式宿主真实内核临时 store 合同，不修改共享源码或真实宿主 ledger。
+同桥读取私有 `cache-report-delegation.json`，只委托 `rwb-buildkit` 的冻结统计报告；默认路径不变。双 Git、私有 FD、授权观察链与报告前漂移反例在 `resource_lifecycle.test.mjs`，真实单 adapter/owner 保持在原显式 kernel 合同。
 
 2026-10-31：`resident/trial_retirement.py` 的固定 `rename-only-v2` 容量策略仅由新 successor 执行模式选择，原授权 digest 和 v1 保持；退役记录 v2 在复制前检查完整 journal 与 rename-only 总量，恢复时复核策略及硬链接。`resident/trial_successor.py` 为原 `model_provider_upgrade.py` 提供固定90e交接、小恢复包、精确job暂停/恢复及逐代单PID排空；原操作员提供 `handoff-trial-retirement` 和完成回执约束的 `apply-trial-retirement-v2`，不另建执行循环。回归在 `test_trial_retirement.py`、`test_trial_retirement_upgrade.py` 与 `test_trial_successor.py`，保全 helper 测试保持；现有 Native 维护拓扑不变，不从容量测试或合成CLI推断现场部署成功。
 
@@ -184,6 +234,10 @@ SDK可导入、离线合成通过与真实连续运行分别取证。
 最后核对：2026-10-22。Wind工作区：`asset_history.py` 负责日线规范化/重叠校验/固定锚点复权；`asset_history_jobs.py` 负责持久任务/分块缓存/显式重试/取消排空/规范快照CAS发布；`asset_routes.py` 声明6个历史任务与账号偏好API；`asset_workspace.py`、`store.py`、`service.py` 负责观察投影、旧索引缺省、任务清理和服务关闭。DataHub `adjustment_contract.py`、`contracts.py`、`catalog.py`、`providers_cjpy.py`、`broker.py`、`__init__.py`、`snapshots.py` 负责封闭三种复权查询、真实Future占用、metadata和自包含交接；`main.py`与`resident/model_provider_upgrade.py`合并任务/真实Future空闲证明。UI仍在`app.mjs`、`core.mjs`及`asset-controller/chart/workspace`模块，动态副图偏好、历史任务轮询及日线前缀筹码互相独立。权威文档为[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产历史任务与固定复权)、架构03/04章和[批准计划](plans/2026-10-22-wind-asset-workspace.md)。定点回归新增`test_asset_history.py`，扩展原DataHub/catalog/CJPY/broker模块，保留原资产/Provider/空闲/JS/E2E测试；真实厂商、几何浏览器与同候选Mac安装CI分别取证，不能用预检替代最终验收。
 
 全市场概览由 `market_service.py` 管无会话缓存、合并刷新、取消和关闭，`market_routes.py` 管固定 HTTP 参数；`datahub/providers_market.py` 管沪深北分页、来源字段与完整性。前端 `ui/market.mjs`／`market.css` 负责三页签和可见页刷新。定点回归为 `test_market_provider.py`、`test_market_service.py` 和 `research_web_market*.test.mjs`；数据流见[市场概览](../outputs/research-web-architecture/13-market-overview.html)。
+
+财经日历以独立 `ui/market-calendar.mjs` 和样式接到市场页，Host 固定枚举路由读取
+账号内短快照，DataHub 复用官方排期解析。原交易日历仍用于判断是否开市。定点合同见
+`test_market_financial_calendar.py` 与 `research_web_market_calendar.test.mjs`，与真实来源和登录态参考视觉分别验收。
 
 真实源及正式登录验收入口为 `tests/e2e/market_authenticated.py` 与 `research_web_market_authenticated.mjs`：临时私有根、合成测试账号、正式网关与候选用户实例，不注入cookie或替换Provider。连接路径、官网范围及未来上市排除由provider回归固定；独立源调查在[任务报告](../.ai/reports/2026-10-22-market-data-sources.md)中分开记录可达、覆盖与授权状态。
 
@@ -728,3 +782,5 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 严格登记与 artifact/目录重验；`tests/research_web/test_maintenance_job_identity_v3.py`
 覆盖固定生产目标、私有演练绑定、变更与文件系统反例。没有注册／停止／恢复效果入口。
 Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity-v3.md`。
+
+非秘密origin校验位于全stdlib `research_workbench_entrypoint/knowledge_configuration.py`，公开server dispatcher与冷Doctor共同调用；冷诊断不反向导入server或启动链。对应真实回归仍在 `test_weknora_cli.py`／既有 `test_multiuser_cli.py`，不增加依赖或运行角色。

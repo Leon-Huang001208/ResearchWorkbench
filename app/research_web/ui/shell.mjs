@@ -8,19 +8,7 @@ import { renderWorkflowPlan } from './capabilities.mjs';
 import { renderAccountTrigger } from './server/account-menu.mjs';
 import { canUseReportWorkflows } from './weekly-production.mjs';
 
-const navItems = [
-  { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
-  { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
-  { page: 'reports', glyph: 'document', title: '报告生产', href: '#/reports' },
-  { page: 'market', glyph: 'chart', title: '全市场概览', href: '#/market' },
-  { page: 'assets', glyph: 'chart', title: '资产观察', href: '#/assets' },
-  { page: 'intel', glyph: 'activity', title: '研究情报', href: '#/intel/overview' },
-  { page: 'aihot', glyph: 'activity', title: 'AI 资讯', href: '#/aihot/daily' },
-  { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
-  { page: 'simulation', glyph: 'chart', title: '策略模拟', href: '#/simulation/etf' },
-  { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
-  { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
-];
+import { PRIMARY_NAVIGATION as navItems, moduleKey } from './module-navigation.mjs';
 
 export function renderBrandMark() {
   return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/brand-mark.png" alt="" width="108" height="120"></span>';
@@ -32,7 +20,7 @@ export function renderAppearancePicker() {
 }
 
 export function focusSidebarControl(document, narrow = false, open = false) {
-  const selector = narrow ? open ? '.rail-mobile-close' : '.topbar .menu-toggle' : open ? '.secondary-sidebar .sidebar-collapse' : '.topbar .sidebar-reopen';
+  const selector = narrow ? open ? '.secondary-sidebar .sidebar-collapse' : '.topbar .menu-toggle' : open ? '.secondary-sidebar .sidebar-collapse' : '.topbar .sidebar-reopen';
   document.querySelector(selector)?.focus?.({ preventScroll: true });
 }
 
@@ -87,14 +75,16 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
   return heading + status + results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-global-result-key="session:${e(item.id)}" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span>${snippets.has(item.id) ? `<span class="native-search-snippet">${e(snippets.get(item.id))}</span>` : ''}</a>` : `<button type="button" role="option" data-global-result="${kind}" data-global-result-key="${kind}:${e(item.id)}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
 }
 
-export function renderPrimaryRail({ page, section = '', secondaryOpen = false, account = null } = {}) {
-  const primaryPage = page === 'workbench' ? ['market', 'industry', 'documents', 'hot'].includes(section) ? 'intel' : section === 'etf-paper' ? 'simulation' : 'assets' : page;
+export function renderPrimaryRail({ route = null, page, section = '', capabilityView = '', secondaryOpen = false, account = null } = {}) {
+  if (route) ({page, section = '', capabilityView = ''} = route);
+  const primaryPage = moduleKey({ page, section, capabilityView });
   const links = navItems.filter(item => item.page !== 'reports' || canUseReportWorkflows(globalThis.__RWB_USER_ID__ || account?.id, account)).map((item) => {
     const active = primaryPage === item.page;
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
-  const footer = account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`;
-  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer">${footer}</div></nav>`;
+  const progress = `<a class="rail-link rail-progress ${page === 'progress' ? 'active' : ''}" href="#/progress" title="研发进展" ${page === 'progress' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('milestones')}</span><span class="rail-label">研发进展</span></a>`;
+  const footer = progress + (account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`);
+  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/market" aria-label="Research Workbench 首页">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer">${footer}</div></nav>`;
 }
 
 function renderClawWorkspace(detail, workspaces, selectedWorkspace) {
@@ -144,8 +134,8 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
-export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false, nativeSearch = null } = {}) {
-  const sidebarReopen = ['fingpt', 'claw'].includes(page) ? `<button type="button" class="icon-button sidebar-reopen" data-toggle-sidebar aria-label="打开会话侧栏" aria-expanded="false">${icon('sidebar')}</button>` : '';
+export function renderTopbar({ secondaryOpen = false, page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false, nativeSearch = null } = {}) {
+  const sidebarReopen = `<button type="button" class="icon-button sidebar-reopen" data-toggle-sidebar aria-label="展开二级导航" aria-controls="module-secondary-navigation" aria-expanded="false">${icon('sidebar')}</button>`;
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {
     const [label, tone] = runtime.connected
@@ -155,5 +145,5 @@ export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = ''
         : ['研究服务不可用', 'danger'];
     runtimeAttention = `<div class="topbar-right"><a href="#/settings/model" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
   }
-  return `<header class="topbar ${searchOpen ? 'search-open' : ''}">${sidebarReopen}<button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" role="dialog" aria-label="搜索会话与能力" ${searchOpen ? '' : 'hidden'}><button type="button" class="icon-button search-close" data-close-search aria-label="关闭搜索">${icon('close')}</button>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
+  return `<header class="topbar ${searchOpen ? 'search-open' : ''}">${sidebarReopen}<button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开二级导航" aria-controls="module-secondary-navigation" aria-expanded="${secondaryOpen}">${icon('sidebar')}</button><div class="search-popover" role="dialog" aria-label="搜索会话与能力" ${searchOpen ? '' : 'hidden'}><button type="button" class="icon-button search-close" data-close-search aria-label="关闭搜索">${icon('close')}</button>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
 }

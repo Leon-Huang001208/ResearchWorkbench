@@ -949,7 +949,7 @@ function refreshFeatureRecord(repository, receipt, options) {
 }
 // This admission contract is deliberately closed and versioned independently of
 // published refresh: new shared-controller metadata requires explicit review.
-const AMEND_RECEIPT_FIELDS_V1 = ['schemaVersion','taskId','repositoryRoot','remote','remoteUrl','defaultBranch','baseCommit','featureBranch','featureWorktree','featureCommit','integrationBranch','integrationWorktree','integrationCommit','integrationHistory','mergeSourceCommit','remoteCommit','mode','pullRequest','verification','ci','repairAttempts','rollback','cleanup','status','createdAt','updatedAt','baseRefreshPublishedHead','review','preparedAmendment','preparedAmendmentHistory'];
+const AMEND_RECEIPT_FIELDS_V1 = ['schemaVersion','taskId','repositoryRoot','remote','remoteUrl','defaultBranch','baseCommit','featureBranch','featureWorktree','featureCommit','integrationBranch','integrationWorktree','integrationCommit','integrationHistory','mergeSourceCommit','remoteCommit','mode','pullRequest','verification','ci','repairAttempts','rollback','cleanup','status','createdAt','updatedAt','baseRefreshPublishedHead','review','preparedAmendment','preparedAmendmentHistory','mergeFailure'];
 const AMEND_PROOF_FIELDS_V1 = ['schemaVersion','epoch','previousCandidate','previousFeature','candidateCommit','featureCommit','baseCommit','receiptSnapshot','receiptSha256','backupDirectory','backupManifestSha256','restoreVerified'];
 const AMEND_PROOF_FIELDS_V2 = [...AMEND_PROOF_FIELDS_V1,'mergeChain'];
 const AMEND_CHAIN_LIMIT = 32, AMEND_COMMIT_BYTES = 64*1024, AMEND_CHAIN_BYTES = 256*1024;
@@ -957,8 +957,16 @@ function exactFields(value, fields, required = fields) {
   return value && typeof value==='object' && !Array.isArray(value) && Object.keys(value).every(key=>fields.includes(key)) && required.every(key=>Object.hasOwn(value,key));
 }
 function validateAmendReceipt(receipt) {
+  const diagnostic=receipt.mergeFailure;
+  const emptyHash=crypto.createHash('sha256').update('').digest('hex');
+  const recoveredConflict=!Object.hasOwn(receipt,'mergeFailure') || (
+    exactFields(diagnostic,['classification','exitStatus','signal','errorCode','stderrBytes','stderrSha256']) &&
+    diagnostic.classification==='merge_conflict' && Number.isInteger(diagnostic.exitStatus) && diagnostic.exitStatus>0 && diagnostic.exitStatus<=255 &&
+    diagnostic.signal===null && diagnostic.errorCode===null && Number.isSafeInteger(diagnostic.stderrBytes) && diagnostic.stderrBytes>=0 && diagnostic.stderrBytes<=4*1024*1024 &&
+    typeof diagnostic.stderrSha256==='string' && /^[a-f0-9]{64}$/.test(diagnostic.stderrSha256) && (diagnostic.stderrBytes===0)===(diagnostic.stderrSha256===emptyHash)
+  );
   const verification=receipt.verification;
-  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) ||
+  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) || !recoveredConflict ||
       receipt.status!=='prepared' || receipt.mode!==null || receipt.pullRequest!==null || receipt.remoteCommit!==null ||
       Object.hasOwn(receipt,'mergeSourceCommit') && receipt.mergeSourceCommit!==receipt.featureCommit ||
       Object.hasOwn(receipt,'baseRefreshPublishedHead') && receipt.baseRefreshPublishedHead!==null ||
@@ -1051,6 +1059,56 @@ function amendPrepared(repository, receipt, taskId, options) {
     };
     const history=receipt.preparedAmendmentHistory??[], historicalFiles=[], backupRoot=path.resolve(options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'));
     let assertBackupHeld;
+    // Historical amendments belong to their frozen base epoch, not today's base.
+    // A gap is admissible only through one exact, owned formal refresh snapshot.
+    let refreshCapture;
+    const refreshSnapshots = () => {
+      const directory=path.join(state(repository),'base-refresh',taskId);
+      assertNoSymlinkAncestors(directory);
+      const stat=fs.lstatSync(directory,{throwIfNoEntry:false});
+      if(!stat || !stat.isDirectory() || stat.isSymbolicLink() || stat.uid!==process.getuid() || (stat.mode&0o077)!==0) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+      const names=fs.readdirSync(directory).sort();
+      if(!names.length || names.length>AMEND_CHAIN_LIMIT || names.some(name=>!/^[a-f0-9-]{36}\.json$/.test(name))) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+      if(refreshCapture && (refreshCapture.dev!==stat.dev || refreshCapture.ino!==stat.ino || JSON.stringify(names)!==JSON.stringify(refreshCapture.names))) fail('DELIVERY_RECORD_CHANGED');
+      const values=[];
+      for(const name of names) {
+        const filename=path.join(directory,name), info=fs.lstatSync(filename);
+        if(!info.isFile() || info.isSymbolicLink() || info.nlink!==1 || (info.mode&0o777)!==0o600 || info.size>4*1024*1024) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+        const saved=identity(filename);
+        if(refreshCapture) unchanged(filename,refreshCapture.files.get(filename));
+        let value;try {value=JSON.parse(saved.bytes);} catch {fail('PREPARED_AMEND_REFRESH_UNPROVEN');}
+        if(!['prepared','remote_moved'].includes(value.status)) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+        validateAmendReceipt({...value,status:'prepared'});
+        if(['taskId','repositoryRoot','remote','remoteUrl','defaultBranch','featureWorktree','integrationWorktree','featureBranch','integrationBranch','repairAttempts'].some(key=>value[key]!==receipt[key])) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+        values.push({filename,saved,value});
+      }
+      if(!refreshCapture) refreshCapture={dev:stat.dev,ino:stat.ino,names,files:new Map(values.map(row=>[row.filename,row.saved]))};
+      return values;
+    };
+    const validateEpochTail = (proof,target,prefix) => {
+      validateAmendReceipt(target);
+      if(JSON.stringify(target.preparedAmendmentHistory??[])!==JSON.stringify(prefix)) fail('PREPARED_AMEND_HISTORY_INVALID');
+      if(proof.baseCommit===target.baseCommit && proof.candidateCommit===target.integrationCommit && proof.featureCommit===target.featureCommit) return;
+      if(proof.baseCommit===target.baseCommit) fail('PREPARED_AMEND_HISTORY_INVALID');
+      if(typeof target.updatedAt!=='string' || !Number.isFinite(Date.parse(target.updatedAt))) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+      const matches=refreshSnapshots().filter(({value})=>{
+        if(value.baseCommit!==proof.baseCommit || value.integrationCommit!==proof.candidateCommit || value.featureCommit!==proof.featureCommit ||
+            JSON.stringify(value.preparedAmendmentHistory??[])!==JSON.stringify(prefix)) return false;
+        const projected={...value,baseCommit:target.baseCommit,integrationCommit:target.integrationCommit,featureCommit:target.featureCommit,
+          ...(Object.hasOwn(value,'mergeSourceCommit')?{mergeSourceCommit:target.featureCommit}:{}),
+          verification:null,ci:{status:'pending',runs:[]},status:'prepared',updatedAt:target.updatedAt};
+        return JSON.stringify(projected)===JSON.stringify(target);
+      });
+      if(matches.length!==1) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+      const previous=matches[0].value;
+      assertRawGraph();
+      const ancestor=(a,b)=>/^[a-f0-9]{40}$/.test(a??'') && /^[a-f0-9]{40}$/.test(b??'') && git(repository.repositoryRoot,['merge-base','--is-ancestor',a,b],options,{allowFailure:true}).status===0;
+      if(previous.baseCommit===target.baseCommit || previous.integrationCommit===target.integrationCommit ||
+          !ancestor(previous.baseCommit,target.baseCommit) || !ancestor(previous.baseCommit,previous.integrationCommit) ||
+          !ancestor(previous.integrationCommit,target.integrationCommit) || !ancestor(target.baseCommit,target.integrationCommit) ||
+          !ancestor(previous.featureCommit,previous.integrationCommit) || !ancestor(previous.featureCommit,target.featureCommit) ||
+          !ancestor(target.featureCommit,target.integrationCommit)) fail('PREPARED_AMEND_REFRESH_UNPROVEN');
+    };
     const validateHistory = (restore=false) => {
       for(const [index,proof] of history.entries()) {
         const directory=path.join(state(repository),'prepared-amend',taskId,proof.epoch);
@@ -1063,10 +1121,10 @@ function amendPrepared(repository, receipt, taskId, options) {
         if(sha256(saved.bytes)!==proof.receiptSha256 || !storedProof.bytes.equals(Buffer.from(JSON.stringify(proof,null,2)+'\n')) || manifest.hash!==proof.backupManifestSha256 ||
             manifest.manifest.preservationRefs?.['refs/rwb-amend/old-feature']!==proof.previousFeature || manifest.manifest.preservationRefs?.['refs/rwb-amend/old-candidate']!==proof.previousCandidate ||
             previous.integrationCommit!==proof.previousCandidate || previous.featureCommit!==proof.previousFeature || previous.baseCommit!==proof.baseCommit ||
-            ['taskId','repositoryRoot','remote','remoteUrl','defaultBranch','featureWorktree','integrationWorktree','featureBranch','integrationBranch','baseCommit','repairAttempts'].some(key=>previous[key]!==receipt[key]) ||
-            JSON.stringify(previous.preparedAmendmentHistory??[])!==JSON.stringify(history.slice(0,index)) ||
-            index>0 && (proof.previousCandidate!==history[index-1].candidateCommit || proof.previousFeature!==history[index-1].featureCommit) ||
-            index===history.length-1 && (proof.candidateCommit!==receipt.integrationCommit || proof.featureCommit!==receipt.featureCommit)) fail('PREPARED_AMEND_HISTORY_INVALID');
+            ['taskId','repositoryRoot','remote','remoteUrl','defaultBranch','featureWorktree','integrationWorktree','featureBranch','integrationBranch','repairAttempts'].some(key=>previous[key]!==receipt[key]) ||
+            JSON.stringify(previous.preparedAmendmentHistory??[])!==JSON.stringify(history.slice(0,index))) fail('PREPARED_AMEND_HISTORY_INVALID');
+        const target=index+1<history.length?JSON.parse(identity(history[index+1].receiptSnapshot).bytes):receipt;
+        validateEpochTail(proof,target,history.slice(0,index+1));
         if(!historicalFiles[index]) historicalFiles[index]=[saved,storedProof];
         else {unchanged(proof.receiptSnapshot,historicalFiles[index][0]);unchanged(path.join(directory,'proof.json'),historicalFiles[index][1]);}
         if(restore) {assertBackupHeld();verifyBackupDirectory(proof.backupDirectory,options);assertBackupHeld();}
@@ -1079,7 +1137,7 @@ function amendPrepared(repository, receipt, taskId, options) {
     const oldCandidate=replay ? prior.previousCandidate : receipt.integrationCommit;
     const oldFeature=replay ? prior.previousFeature : receipt.featureCommit;
     let captured, assertCurrentBackup, pendingEpoch;
-    const assertRawGraph = () => {
+    function assertRawGraph() {
       if(process.env.GIT_GRAFT_FILE || process.env.GIT_SHALLOW_FILE) fail('PREPARED_AMEND_GRAPH_UNPROVEN');
       for(const directory of [repository.repositoryRoot,receipt.featureWorktree,receipt.integrationWorktree]) {
         if(output(git(directory,['rev-parse','--is-shallow-repository'],options))!=='false') fail('PREPARED_AMEND_GRAPH_UNPROVEN');
@@ -1478,6 +1536,27 @@ function validateRecoveryCompletion(repository,taskId,receipt) {
   const originalResource=recoveryJson(path.join(path.dirname(path.join(directory,certificate.epoch)),'original-resource-receipt.json'));
   const revalidation=epoch.resourceRevalidation;
   if(!revalidation?.ok || revalidation.taskId!==taskId || revalidation.candidateCommit!==receipt.integrationCommit || !revalidation.cache?.ok || revalidation.previousReceiptSha256!==originalResource.sha256 || JSON.stringify(resource.revalidation)!==JSON.stringify(revalidation) || JSON.stringify(resource.cache)!==JSON.stringify(revalidation.cache))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  return {proof:proof.value,epoch};
+}
+
+/** Read-only lifecycle admission. Reuse the complete recovery chain without
+ * fetching, replaying cleanup, rewriting the pending proof or emitting events.
+ */
+export function validateCloseoutRecovery({projectRoot,commonDirectory,taskId,receipt}) {
+  const options={readOnlyGit:true}, repository=discover(projectRoot,options);
+  if(!ID.test(taskId??'') || receipt.taskId!==taskId || receipt.status!=='cleaned' || receipt.ci?.status!=='passed' || receipt.verification?.status!=='passed' || !['featureWorktreeRemoved','integrationWorktreeRemoved','localBranchDeleted','remoteBranchDeleted'].every(key=>receipt.cleanup?.[key]===true) || receipt.repositoryRoot!==repository.repositoryRoot || commonDirectory!==repository.commonDirectory)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const actual=recoveryJson(path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json'));
+  if(JSON.stringify(actual.value)!==JSON.stringify(receipt))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  assertReviewed(repository,receipt);
+  const {proof,epoch}=validateRecoveryCompletion(repository,taskId,receipt);
+  assertPartialPathsAbsent(repository,receipt,options);
+  const owned=managed(receipt);
+  if(!proof.beforeRefs || !Array.isArray(proof.beforeWorktrees) || !Array.isArray(proof.managed) || proof.managed.length!==owned.length || proof.managed.some(row=>!owned.some(target=>row.branch===target.branch && row.worktree===target.worktree && row.commit===target.commit)))fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const manifest=readManifest(epoch.backupDirectory);
+  if(manifest.hash!==epoch.backupManifestSha256 || manifest.manifest.repositoryKey!==repositoryKey(repository.commonDirectory) || manifest.manifest.restoreVerified!==true)fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  const retired=new Set([...epoch.retiredSnapshots,...epoch.retiredDeliveries].map(row=>row.ref));
+  preservationAudit(repository,Object.fromEntries(Object.entries(proof.beforeRefs).filter(([ref])=>!retired.has(ref))),proof.beforeWorktrees.filter(row=>!epoch.retiredWorktrees.some(retired=>retired.worktree===row.worktree)),owned,options,proof.verifiedPreservationRefs);
+  return {restoreVerified:true};
 }
 
 function sameCleanupDelivery(current,original) {

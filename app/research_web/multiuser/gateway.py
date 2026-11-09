@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -20,6 +20,8 @@ from core.observability import get_logger
 from ..ai_news_routes import router as ai_news_router
 from ..ai_news_service import create_ai_news_service
 from ..aihot_routes import router as aihot_router
+from ..mcp_facade.config import MACHINE_PATHS
+from ..mcp_facade.config import enabled as mcp_feature_enabled
 from ..plugins import PluginError
 from .accounts import SESSION_TTL_SECONDS, AccountError, AccountStore
 from .origin import validate_origin
@@ -43,6 +45,7 @@ REQUEST_HEADERS = {
     "range",
     "if-none-match",
     "idempotency-key",
+    "x-research-user-action",
 }
 RESPONSE_HEADERS = {
     "content-type",
@@ -81,9 +84,12 @@ class StrictBody(BaseModel):
 class Login(StrictBody):
     username: str = Field(max_length=64)
     password: str = Field(max_length=1024)
+    return_to: str | None = Field(default=None, max_length=8192)
 
 
-class NewUser(Login):
+class NewUser(StrictBody):
+    username: str = Field(max_length=64)
+    password: str = Field(max_length=1024)
     role: str = "user"
 
 
@@ -102,11 +108,17 @@ def create_gateway(
     origin: str,
     upstream: httpx.AsyncClient | None = None,
     ai_news_factory=None,
+    mcp_enabled: bool | None = None,
 ) -> FastAPI:
     """Build one gateway without starting tenant processes or reading model secrets."""
     origin = validate_origin(origin)
     authority = urlsplit(origin).netloc
     secure = origin.startswith("https:")
+    facade = None
+    if mcp_feature_enabled(mcp_enabled):
+        from ..mcp_facade.server import Facade
+
+        facade = Facade(accounts, pool, origin)
     client = upstream or httpx.AsyncClient(
         timeout=httpx.Timeout(30, read=None), follow_redirects=False, trust_env=False
     )
@@ -127,14 +139,22 @@ def create_gateway(
                         if user.enabled and user.id != getattr(pool, "primary_user_id", None)
                     ]
                 )
-            yield
+            async with AsyncExitStack() as stack:
+                if facade is not None:
+                    await stack.enter_async_context(facade.server.session_manager.run())
+                yield
         finally:
             await pool.close()
             await client.aclose()
+            if facade is not None:
+                await facade.client.aclose()
 
     app = FastAPI(title="Research Workbench Private Server", lifespan=lifespan)
     app.state.accounts = accounts
     app.state.pool = pool
+    if facade is not None:
+        app.state.mcp_facade = facade
+        app.router.routes.extend(facade.routes)
     configure_plugins(app, accounts, pool, client)
     app.include_router(plugin_router)
     # One server-owned news store, outside every user's DSH/data/credential namespace.
@@ -192,10 +212,11 @@ def create_gateway(
         if request.headers.get("host", "").lower() != authority:
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
+        machine = facade is not None and request.url.path in MACHINE_PATHS
         if (
             (supplied_origin is not None and supplied_origin != origin)
             or request.headers.get("sec-fetch-site") == "cross-site"
-            or (request.method not in {"GET", "HEAD"} and supplied_origin != origin)
+            or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
             return error("server_origin_denied", 403)
         raw_path = request.scope.get("raw_path", b"").split(b"?", 1)[0].lower()
@@ -216,6 +237,11 @@ def create_gateway(
             "/api/server/health",
         } or request.url.path.startswith(("/static/", "/server-static/"))
         try:
+            if machine:
+                # The AS explicitly uses browser login only for /authorize.
+                # Resource server and token routes authenticate independently.
+                request.state.user = None
+                return await call_next(request)
             user = await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
             request.state.user = user
             if user is None and not public:
@@ -305,7 +331,13 @@ def create_gateway(
             {
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
-                "Referrer-Policy": "no-referrer",
+                "Referrer-Policy": (
+                    "same-origin"
+                    if facade is not None
+                    and request.method == "GET"
+                    and request.url.path in {"/mcp/consent", "/mcp/applications"}
+                    else "no-referrer"
+                ),
             }
         )
         response.headers.setdefault(
@@ -323,7 +355,14 @@ def create_gateway(
     @app.post("/api/server/login")
     async def login(body: Login):
         token, user = await asyncio.to_thread(accounts.login, body.username, body.password)
-        response = JSONResponse({"user": user.public()})
+        payload = {"user": user.public()}
+        if facade is not None:
+            from ..mcp_facade.oauth_views import validated_login_return
+
+            target = validated_login_return(body.return_to)
+            if target:
+                payload["return_to"] = target
+        response = JSONResponse(payload)
         response.set_cookie(
             COOKIE,
             token,
@@ -346,7 +385,10 @@ def create_gateway(
     @app.get("/api/server/me")
     async def me(request: Request):
         return {
-            "user": request.state.user.public(),
+            "user": {
+                **request.state.user.public(),
+                **({"mcp_readonly_enabled": True} if facade is not None else {}),
+            },
             "primary": request.state.user.id == getattr(pool, "primary_user_id", None),
         }
 
@@ -358,10 +400,14 @@ def create_gateway(
                 deployment = getattr(pool, "deployment_path", None)
                 if deployment is not None:
                     value["deployment_fenced"] = deployment.exists() or deployment.is_symlink()
-                return value
+                return {**value, "mcp_readonly_enabled": facade is not None}
             except RuntimeErrorSafe as exc:
                 return error(exc.code, exc.status)
-        return {"status": "ready", "runtime": "not_started_by_health"}
+        return {
+            "status": "ready",
+            "runtime": "not_started_by_health",
+            "mcp_readonly_enabled": facade is not None,
+        }
 
     @app.get("/api/server/users")
     async def users(request: Request):
@@ -415,7 +461,12 @@ def create_gateway(
     @app.get("/auth")
     async def auth_page(request: Request):
         if request.state.user is not None:
-            return RedirectResponse("/", status_code=303)
+            target = None
+            if facade is not None:
+                from ..mcp_facade.oauth_views import validated_login_return
+
+                target = validated_login_return(request.query_params.get("return_to", ""))
+            return RedirectResponse(target or "/", status_code=303)
         return HTMLResponse((UI / "server-accounts.html").read_text(encoding="utf-8"))
 
     @app.get("/account")
@@ -449,13 +500,8 @@ def create_gateway(
     app.mount("/static", user_static, name="research-static")
     app.mount("/server-static", StaticFiles(directory=UI / "server"), name="server-static")
 
-    @app.get("/{path:path}")
-    @app.post("/{path:path}")
-    @app.put("/{path:path}")
-    @app.patch("/{path:path}")
-    @app.delete("/{path:path}")
-    @app.head("/{path:path}")
     async def proxy(path: str, request: Request):
+        path = request.url.path.lstrip("/")
         if ai_path(request.url.path) and not original_reading(request):
             # Unknown shared-news routes never allocate a per-user Web/DSH instance.
             return error("not_found", 404)
@@ -573,4 +619,11 @@ def create_gateway(
             headers={k: v for k, v in response.headers.items() if k.lower() in RESPONSE_HEADERS},
         )
 
+    methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]
+    if facade is None:
+        app.add_api_route("/{path:path}", proxy, methods=methods)
+    else:
+        app.add_api_route("/api/research/{path:path}", proxy, methods=methods)
+        app.add_api_route("/frameworks-embed/{path:path}", proxy, methods=methods)
+        app.mount("/", facade.app, name="mcp-readonly")
     return app

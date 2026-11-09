@@ -1,3 +1,4 @@
+import { moduleKey, renderModuleSidebar, createModulePreferences, trapSecondaryFocus, closesSecondaryDrawer, focusModuleSelection } from './module-navigation.mjs';
 import { renderSpecialistPanel, handleSpecialistBudgetChange } from './specialist-panel.mjs';
 import { closedComposerMenu, openComposerMenu, composerMenuRows, composerMenuKey, composerSlashQuery, consumeComposerSlash, nextComposerFormats } from './composer-menu.mjs';
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
@@ -6,6 +7,7 @@ import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStat
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createWarehousePanel } from './research-warehouse.mjs';
+import { mountKnowledgeSettings } from './knowledge-settings.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createAccountMenu } from './server/account-menu.mjs';
 import { createPluginWorkspace } from './plugins-workspace.mjs';
@@ -22,12 +24,11 @@ import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, 
 import { focusSidebarControl, renderGlobalResults, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
-import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
-import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
+import { capabilityTabKey, reportWorkflowEligibility, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { capabilityWorkspaceKindKey, renderCapabilityPage } from './capability-workspace.mjs';
 import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
-import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
-import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
-import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
+import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, emptyMCPInstallation, mcpInstallationFor, mcpInstallationState } from './mcp-marketplace.mjs';
+import { readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation, updateAssetSummary, updateAssetTopic } from './asset-workspace.mjs';
 import { assetHref, assetTopicKey, selectAssetObservation } from './asset-navigation.mjs';
@@ -41,13 +42,15 @@ import { mountCapitalFlow } from './asset-workspace.mjs';
 import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createEventLab, renderEventLab } from './event-lab.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
 import { createDossierController, renderDossiers, isDossierRoute } from './dossiers.mjs';
 
-import { createMarketController, renderMarketPage } from './market.mjs';
+import { createMarketWorkspace, renderMarketWorkspace } from './market-dashboard.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
+import { createProgressWorkspace } from './progress.mjs';
 
 import { canUseReportWorkflows } from './weekly-production.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createExecutionEvidenceExpiry, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
@@ -73,10 +76,12 @@ import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 const api = createAPI();
 let modelSettingsPanel = null;
 let warehousePanel = null;
+let knowledgeSettingsPanel = null;
 const conversationNavigation = createConversationNavigation({ api, notify: () => render(), changed: () => loadCatalog(['sessions']) });
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+const progress = createProgressWorkspace({root, route:()=>state.route, notify:render, logger:safeLog});
 root.setAttribute?.('data-account-workspace-native', '1');
 const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
 const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
@@ -118,11 +123,11 @@ function finishCatalogRequest(name) {
     catalog.pending.delete(name);
   }
 }
+const modulePreferences = createModulePreferences();
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let researchStage = null; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 const answerFeedback = new Map(); let copiedTransient = '';
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
-let methodPickerOpen = false;
 let composerMenu = closedComposerMenu();
 const tabbitGrants = new Set();
 let quickCategory = '';
@@ -172,7 +177,7 @@ const conversationScrollPositions = new Map();
 let sessionMenu = null; let sessionActionBusy = false; let sessionActionError = '';
 let capabilityDialogReturnSelector = '';
 let mcpCatalogGeneration = 0; let mcpDetailGeneration = 0; let mcpPublisherGeneration = 0; let mcpInstallGeneration = 0; let mcpDetailRequestIdentity = ''; let pendingMCPMarketTabFocus = '';
-const emptyMCPInstallation = () => ({ target: '', preview: null, confirmationToken: '', installationId: '', installStatus: 'not_installed', probeStatus: 'not_run', enableStatus: 'disabled', authorizationStatus: 'not_authorized', capabilities: null, record: null, busy: '', error: '' });
+
 let mcpMarketplaceState = { registries: [], installations: [], approvals: [], approvalBusy: '', runtimeAvailable: null, runtimeError: '', selectedRegistryId: '', query: '', page: null, detail: null, returnIdentity: null, loading: false, syncing: false, error: '', installation: emptyMCPInstallation(), publisher: { source: '', result: null, resultSource: '', error: '', busy: false } };
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
@@ -193,6 +198,11 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const eventLab = createEventLab({ request: (...args) => api.request(...args), onChange: () => { if (isEventLabRoute()) render(); } });
+function isEventLabRoute() {
+  return (state.route.page === 'intel' && state.route.intelTab === 'timeline') ||
+    (state.route.page === 'simulation' && ['events', 'scores'].includes(state.route.simulationView));
+}
 const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
 const assetResearch = createAssetResearchController({api,changed:()=>paintAssetResearch(),onResearch:context=>scenarioController.open(context)});
 function paintAssetResearch() {
@@ -233,7 +243,7 @@ const dossierController = createDossierController({ api, onChange: () => { if (i
     }
   }
 } });
-const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
+const marketController = createMarketWorkspace({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets' && state.route.assetView !== 'dossiers';
 const assetIntraday = createAssetIntraday({api});
 const assetChartOptions = {
@@ -418,7 +428,7 @@ function focusMCPServerDialog() {
 }
 
 function currentMCPMarketRoute() {
-  return state.route.page === 'skills' && capabilityState.kindFilter === 'tool' && capabilityState.view === 'market';
+  return state.route.page === 'skills' && capabilityState.kindFilter === 'connector' && capabilityState.view === 'market';
 }
 
 function findMCPServerTrigger(identity) {
@@ -475,7 +485,7 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return `<button type="button" class="button" data-scenario-open>选择研究场景</button>` + renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, specialistBudget: state.specialistBudget, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return `<button type="button" class="button" data-scenario-open>选择研究场景</button>` + renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, specialistBudget: state.specialistBudget, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, runtimeReady, runtimePending });
 }
 
 function landing() {
@@ -533,9 +543,10 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (isEventLabRoute()) return renderEventLab(eventLab.state);
   if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
-  if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
+  if (state.route.page === 'market') return renderMarketWorkspace(marketController, state.route);
   if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
     return clawMainPage();
@@ -547,6 +558,7 @@ function mainPage() {
   if (state.route.page === 'operations') return operationsPage();
   if (state.route.page === 'intel') return state.route.intelTab === 'discovery' ? renderDiscovery(discoveryController.state) : state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'aihot') return renderAihot(aihotController.state);
+  if (state.route.page === 'progress') return progress.render();
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
@@ -629,27 +641,16 @@ function operationsPage() {
 }
 
 function capabilityPage() {
-  const cap = capabilityState;
-  const messages = notice(cap.error) + notice(cap.success, 'success');
-  if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy, announcement: cap.stepAnnouncement || '' });
-  if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, state.busy);
-  if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
-  if (cap.form === 'manage' && cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
-  if (cap.form === 'manage' && cap.tool) return messages + renderToolDetail(cap.tool);
-  if (cap.form === 'manage' && cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
-  const workspace = renderCapabilityWorkspace({
-    capabilities: catalog.capabilities.filter(item => !item.metadata?.report_workflow), tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
-    automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen,
-    dataCatalog: catalog.dataCatalog, connections: catalog.connections, mcpMarketplace: mcpMarketplaceState, view: cap.view, kind: cap.kindFilter,
-    source: cap.source, category: cap.category, status: cap.status, query: cap.query,
-    dataMarket: cap.dataMarket, dataStatus: cap.dataStatus, dataAuth: cap.dataAuth, probe: cap.probe,
-    busy: cap.busy || reportWorkflowBusy || automationBusy,
-    error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
+  return renderCapabilityPage({
+    cap: capabilityState, catalog, messages: notice(capabilityState.error) + notice(capabilityState.success, 'success'),
+    conversationBusy: state.busy, workspaceBusy: reportWorkflowBusy || automationBusy,
+    running: catalog.sessions.some(session => isRunning(session.status)), automationFormOpen,
+    mcpMarketplace: mcpMarketplaceState, currentSessionId: researchDraftRoute.sessionId,
   });
-  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
 
 function sidebar() {
+  if (!['fingpt','claw'].includes(state.route.page)) return renderModuleSidebar({ route: state.route, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, canManageNews: aihotController.state.canManage !== false, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '' });
   return renderSidebar({ page: state.route.page, clawView: state.route.clawView, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
 }
 
@@ -679,15 +680,6 @@ function sessionActionsLayer() {
   return menu + dialog + renderProjectEditor(conversationNavigation.state(state.route.page));
 }
 
-function primaryRail() {
-  const narrow = window.matchMedia('(max-width: 1050px)').matches;
-  return renderPrimaryRail({
-    page: state.route.page,
-    section: state.route.section,
-    secondaryOpen: narrow ? sidebarOpen : !sidebarCollapsed,
-    account: globalThis.__RWB_ACCOUNT__,
-  });
-}
 
 function contextPanel() {
   return renderContextPanel({ detail: state.detail, selectedTab: contextTab, researchStage, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
@@ -779,7 +771,6 @@ function render() {
   const renderedMode = root.querySelector('[data-nav-mode]')?.dataset.navMode;
   if (navigationList?.clientHeight > 0 && conversationNavigation.state(renderedMode)) conversationNavigation.state(renderedMode).scrollTop = navigationList.scrollTop;
   const research = ['fingpt', 'claw'].includes(state.route.page);
-  const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = searchableCapabilityList();
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
@@ -792,8 +783,9 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  marketController.paint(state.route.page, () => { root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__ })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; });
   syncAssetResearch();
+  if (isEventLabRoute()) eventLab.restore(root);
   root.querySelector('.app-shell').inert = scenarioController.state.open;
   if (scenarioController.state.open && !document.activeElement?.closest?.('.scenario-panel')) root.querySelector('#scenario-query')?.focus({ preventScroll: true });
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
@@ -821,6 +813,7 @@ function render() {
     if (!warehousePanel) warehousePanel = createWarehousePanel({api,logger:safeLog,onValidated:()=>loadCatalog(['connections','dataCatalog'])});
     warehouseMount.replaceWith(warehousePanel.element);
   } else if (warehousePanel) { warehousePanel.dispose(); warehousePanel = null; }
+  knowledgeSettingsPanel = mountKnowledgeSettings(root,knowledgeSettingsPanel,{api,logger:safeLog});
   if (modelPanelMount) {
     const props = {runtime:catalog.runtime || {},models:catalog.models,busy:state.busy};
     if (!modelSettingsPanel) modelSettingsPanel = createModelSettings({api,...props,changed:()=>loadCatalog(['runtime','models']),logger:safeLog});
@@ -886,7 +879,7 @@ function render() {
   mountAssetIndicators(Boolean(persistentAssetTerminal));
   const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
   if (assetSearchSlot) assetSearch = mountAssetSearch(assetSearchSlot, { api, account: () => globalThis.__RWB_USER_ID__ || 'local', asset: state.route.asset || assetState.observation?.asset || '', onSelect: item => { location.hash = assetHref(item.asset, 'stock', state.route.assetView || 'overview'); } });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
+  document.title = `${state.route.page === 'skills' && state.route.capabilityView === 'plans' ? '定时任务' : state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料', progress: '研发进展' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1087,29 +1080,6 @@ async function verifyFrameworkQuestion(question) {
   } finally { if (botOwner === frameworkBot) { frameworkBot.busy = false; updateFrameworkBotSlot(); } }
 }
 
-function mcpInstallationFor(identity) {
-  return mcpMarketplaceState.installations.find((item) => {
-    const plan = item?.plan || {};
-    return plan.registry_id === identity.registryId
-      && plan.server_name === identity.serverName
-      && plan.server_version === identity.version;
-  }) || null;
-}
-
-function mcpInstallationState(record) {
-  if (!record?.id) return emptyMCPInstallation();
-  const runtimeStatus = String(record.runtime_status || 'installed');
-  const probeStatus = ['ready', 'enabled', 'disabled'].includes(runtimeStatus) ? 'ready'
-    : runtimeStatus === 'health_failed' ? 'failed' : 'not_run';
-  return {
-    ...emptyMCPInstallation(),
-    installationId: record.id,
-    installStatus: 'installed',
-    probeStatus,
-    enableStatus: record.active === true || runtimeStatus === 'enabled' ? 'enabled' : 'disabled',
-    record: structuredClone(record),
-  };
-}
 
 function replaceMCPInstallation(record) {
   if (!record?.id) return;
@@ -1202,14 +1172,14 @@ async function openMCPServerDetail(identity) {
   const identityKey = JSON.stringify([requested.registryId, requested.serverName, requested.version]);
   mcpDetailRequestIdentity = identityKey;
   mcpInstallGeneration += 1; mcpMarketplaceState.installation = emptyMCPInstallation();
-  const current = () => operation === mcpDetailGeneration && identityKey === mcpDetailRequestIdentity && ticket === pageGeneration && currentMCPMarketRoute();
+  const current = () => operation === mcpDetailGeneration && identityKey === mcpDetailRequestIdentity && ticket === pageGeneration && state.route.page === 'skills' && capabilityState.kindFilter === 'connector';
   mcpMarketplaceState.loading = true; mcpMarketplaceState.error = ''; render();
   try {
     const detail = await api.mcpServerVersion(requested.registryId, requested.serverName, requested.version);
     if (!current()) return;
     mcpMarketplaceState.detail = detail;
     mcpMarketplaceState.returnIdentity = requested;
-    const existing = mcpInstallationFor(requested);
+    const existing = mcpInstallationFor(requested, mcpMarketplaceState.installations);
     if (existing) {
       mcpMarketplaceState.installation = mcpInstallationState(existing);
       if (mcpMarketplaceState.installation.probeStatus === 'ready') {
@@ -1554,7 +1524,7 @@ async function pollAssetObservation(record, ticket) {
 
 async function showRoute() {
   if (/^#\/skills\?.*\bview=plans(?:&|$)/.test(location.hash)) {
-    history.replaceState(null, '', '#/claw?view=plans');
+    history.replaceState(null, '', '#/automations');
   }
   const legacyTarget = legacyRouteTarget(location.hash);
   if (legacyTarget) {
@@ -1589,6 +1559,7 @@ async function showRoute() {
   assetTopicNavigation = 0;
   if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
   intelController.cancel();
+  eventLab.deactivate();
   discoveryController.deactivate();
   dossierController.cancel();
 
@@ -1604,16 +1575,17 @@ async function showRoute() {
     closeFrameworkStream(); closeFrameworkStream = () => {};
     frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
   }
-  const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
+  const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'connector' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
   composerMenu = closedComposerMenu();
   clearTimeout(reportRefreshTimer);
   const ticket = ++pageGeneration; workbenchBusy = false; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
-  if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
+  sidebarCollapsed = ['claw','fingpt'].includes(requestedRoute.page) ? conversationNavigation.state(requestedRoute.page).view.collapsed : modulePreferences.get(moduleKey(requestedRoute));
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
   cancelProjectMenuTimers();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
+  if (state.route.page === 'progress') return progress.open();
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
@@ -1645,7 +1617,7 @@ async function showRoute() {
     const previousKind = capabilityState.kindFilter;
     const previousView = capabilityState.view;
     const nextKind = state.route.capabilityKind || 'skill';
-    if (previousKind !== nextKind) {
+    if (previousKind !== nextKind || (capabilityState.context || '') !== (state.route.capabilityContext || '')) {
       capabilityState.source = 'all'; capabilityState.category = ''; capabilityState.status = 'all'; capabilityState.query = '';
       capabilityState.dataMarket = ''; capabilityState.dataStatus = ''; capabilityState.dataAuth = ''; capabilityState.probe = null;
       capabilityState.detail = null; capabilityState.tool = null; capabilityState.dataDetail = null; capabilityState.dataDetailKind = '';
@@ -1655,11 +1627,13 @@ async function showRoute() {
     }
     capabilityState.view = state.route.capabilityView || 'library';
     capabilityState.kindFilter = nextKind;
-    capabilityState.dataView = nextKind === 'data' && capabilityState.view === 'connections' ? 'sources' : 'capabilities';
+    capabilityState.context = state.route.capabilityContext || '';
+    capabilityState.dataView = capabilityState.context === 'data' && capabilityState.view === 'connections' ? 'sources' : 'capabilities';
     if (['skill', 'workflow'].includes(nextKind)) capabilityState.kind = nextKind;
+    if (nextKind === 'connector') await loadMCPRuntimeInventory();
     if (nextKind !== 'plugin') await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
-    if (nextKind === 'workflow' && capabilityState.view === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels']);
-    if (nextKind === 'tool' && capabilityState.view === 'market') await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length });
+    if (nextKind === 'skill' && capabilityState.view === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels']);
+    if (nextKind === 'connector' && capabilityState.view === 'market') await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length });
     else if (previousView === 'market') mcpMarketplaceState = { ...mcpMarketplaceState, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };
   }
   if (state.route.page === 'claw') {
@@ -1675,8 +1649,10 @@ async function showRoute() {
   if (state.route.page === 'operations') await loadOperations();
   if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
+  if (isEventLabRoute()) await eventLab.activate(state.route.page === 'intel' ? 'timeline' : state.route.simulationView === 'events' ? 'studies' : 'scores');
   if (state.route.page === 'intel') {
-    if (state.route.intelTab === 'discovery') await discoveryController.activate();
+    if (state.route.intelTab === 'timeline') { /* Event lab owns this tab. */ }
+    else if (state.route.intelTab === 'discovery') await discoveryController.activate();
     else if (state.route.intelTab === 'hot') await hotController.activate(state.route);
     else if (state.route.intelTab === 'signals') await dossierController.activate(state.route);
 
@@ -1685,7 +1661,7 @@ async function showRoute() {
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
     const expected = pendingMCPMarketTabFocus;
     pendingMCPMarketTabFocus = '';
-    if (state.route.page === 'skills' && state.route.capabilityKind === 'tool' && state.route.capabilityView === expected) {
+    if (state.route.page === 'skills' && state.route.capabilityKind === 'connector' && state.route.capabilityView === expected) {
       document.getElementById(`capability-tool-tab-${expected}`)?.focus?.({ preventScroll: true });
     }
   }
@@ -1751,6 +1727,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('.event-lab')) { void eventLab.handle(event); return; }
   if (event.target.closest?.('[data-asset-research]')) { void assetResearch.handle(event); return; }
   if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
   if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
@@ -1848,6 +1825,7 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (sidebarOpen) { trapSecondaryFocus(event, root); if (event.defaultPrevented) return; }
   if (scenarioController.state.open && scenarioController.key(event)) return;
   if (event.target.closest?.('.discovery-page')) {
     if (event.isComposing || event.keyCode === 229) return;
@@ -1974,7 +1952,7 @@ root.addEventListener('keydown', (event) => {
   }
   const legacyComposerMenu = root.querySelector('.composer-more[open]');
   if (event.key === 'Escape' && legacyComposerMenu) { event.preventDefault(); legacyComposerMenu.open = false; legacyComposerMenu.querySelector('summary')?.focus(); return; }
-  if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
+  if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); focusModuleSelection(document); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
     const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
@@ -2102,6 +2080,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   // This local filter form is submitted explicitly; generic redraw would discard its values.
   if (event.target.closest?.('[data-report-directory-filter]')) return;
   if (event.target.matches?.('[data-report-run-select]')) {
@@ -2161,12 +2140,7 @@ root.addEventListener('change', async (event) => {
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
-  if ('methodId' in target.dataset) {
-    const id = target.dataset.methodId;
-    methodPickerOpen = true;
-    controller.setMethods(target.checked ? [...state.methodIds, id] : state.methodIds.filter(value => value !== id));
-    render();
-  }
+
   if ('capSource' in target.dataset) { capabilityState.source = target.value; render(); }
   if ('capCategory' in target.dataset) { capabilityState.category = target.value; render(); }
   if ('capStatus' in target.dataset) { capabilityState.status = target.value; render(); }
@@ -2225,7 +2199,6 @@ root.addEventListener('toggle', (event) => {
       Object.assign(popup.style, { position: 'fixed', width: `${width}px`, left: `${Math.min(Math.max(8, box.left), window.innerWidth - width - 8)}px`, top: `${window.innerHeight - box.bottom > 260 ? box.bottom + 6 : Math.max(8, box.top - 266)}px` });
     }
   }
-  if (event.target.matches?.('.method-picker')) methodPickerOpen = event.target.open;
 }, true);
 
 root.addEventListener('error', (event) => {
@@ -2280,6 +2253,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if (event.target.matches?.('[data-report-directory-filter]')) {
     event.preventDefault(); const values = new FormData(event.target);
     const params = new URLSearchParams({ q: String(values.get('q') || '').slice(0, 120), status: String(values.get('status') || 'all') });
@@ -2719,6 +2693,8 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (sidebarOpen && closesSecondaryDrawer(event)) { sidebarOpen=false; render(); focusSidebarControl(document,true); return; }
+  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
@@ -2906,7 +2882,7 @@ root.addEventListener('click', async (event) => {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
     if (await intelController.handle(event)) {
       if (['event', 'report'].includes(action)) document.querySelector('#intel-detail-title')?.focus({ preventScroll: true });
-      if (action === 'close') document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true });
+      if (action === 'close') focusModuleSelection(document);
       return;
     }
   }
@@ -3466,14 +3442,15 @@ root.addEventListener('click', async (event) => {
     const narrow = window.matchMedia('(max-width: 1050px)').matches;
     if (narrow) sidebarOpen = !sidebarOpen;
     else sidebarCollapsed = !sidebarCollapsed;
-    conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    if (!narrow && ['claw','fingpt'].includes(state.route.page)) conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    else if (!narrow) modulePreferences.set(moduleKey(state.route), sidebarCollapsed);
     contextOpen = false; render(); focusSidebarControl(document, narrow, narrow ? sidebarOpen : !sidebarCollapsed);
   }
   if ('toggleContext' in data) { if (window.matchMedia('(max-width: 1050px)').matches) contextOpen = !contextOpen; else contextCollapsed = !contextCollapsed; sidebarOpen = false; render(); }
   if ('collapseSidebar' in data) {
-    if (window.matchMedia('(max-width: 1050px)').matches) sidebarOpen = false;
-    else sidebarCollapsed = true;
-    conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    const narrow = window.matchMedia('(max-width: 1050px)').matches;
+    if (narrow) sidebarOpen = false;
+    else { sidebarCollapsed = true; if (['claw','fingpt'].includes(state.route.page)) conversationNavigation.view(state.route.page, { collapsed: true }); else modulePreferences.set(moduleKey(state.route), true); }
     render(); focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }
   if ('clawSidebarView' in data) {
@@ -3711,7 +3688,10 @@ async function selectCapability(id) {
   capabilityDialogReturnSelector = '';
   if (capabilityPreviewIsOpen()) capabilityController.close();
   await goToResearchDraft();
-  controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
+  if (item.kind === 'method') {
+    try { controller.setMethods([...state.methodIds, item.id]); }
+    catch (error) { safeLog('capability_method_selection_failed'); state.error = error.message; render(); return; }
+  } else controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
   if (state.draft.trimStart().startsWith('/')) controller.setDraft(state.route.page === 'claw' ? consumeComposerSlash(state.draft) : '');
   slashOpen = false; globalSearch = ''; searchOpen = false; nativeSessionSearch.close(); render();
   document.querySelector('#prompt')?.focus();
@@ -3740,8 +3720,9 @@ async function loadWorkflowVersion() {
 async function handleCapabilityClick(data) {
   const cap = capabilityState;
   if ('capRefresh' in data) {
-    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', ...(cap.kindFilter === 'workflow' && cap.view === 'plans' ? ['automations', 'automationRuns', 'deliveryChannels'] : [])]);
-    if (cap.kindFilter === 'tool' && cap.view === 'market') await loadMCPMarketplace({ reloadRegistries: true });
+    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', ...(cap.kindFilter === 'skill' && cap.view === 'plans' ? ['automations', 'automationRuns', 'deliveryChannels'] : [])]);
+    if (cap.kindFilter === 'connector' && cap.view === 'market') await loadMCPMarketplace({ reloadRegistries: true });
+    else if (cap.kindFilter === 'connector') { await loadMCPRuntimeInventory(); render(); }
     return true;
   }
   if ('createAutomation' in data) { automationFormOpen = true; render(); document.querySelector('[data-automation-form] input')?.focus(); return true; }
@@ -3846,7 +3827,7 @@ async function handleCapabilityClick(data) {
   if ('capRollback' in data) { await capabilityController.action('rollback', Number(data.capRollback)); return true; }
   if ('toolDetail' in data) {
     capabilityDialogReturnSelector = `[data-cap-preview-trigger="tool:${data.toolDetail}"]`;
-    cap.tool = catalog.tools.find(tool => tool.id === data.toolDetail); cap.form = '';
+    cap.tool = catalog.tools.find(tool => tool.id === data.toolDetail); cap.detail = null; cap.dataDetail = null; cap.form = '';
     if (state.route.page !== 'skills') { history.pushState(null, '', '#/skills'); await showRoute(); }
     else render();
     focusCapabilityPreview(); return true;

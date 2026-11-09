@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import sqlite3
+from types import SimpleNamespace
 from uuid import uuid4
 
 import httpx
@@ -31,6 +33,96 @@ class PrivatePool:
 
     async def close(self):
         self.closed = True
+
+
+@pytest.mark.parametrize("value", [False, True, "missing", 0, 1, None, "false"])
+def test_resident_persisted_mcp_switch_precedes_environment_before_runtime(
+    tmp_path, monkeypatch, value
+):
+    import uvicorn
+
+    from app.research_web.multiuser import __main__ as cli
+    from app.research_web.multiuser import (
+        gateway,
+        resident,
+        resident_binding,
+        resident_boot,
+        runtime,
+    )
+
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    config = {
+        "version": 1,
+        "revision": "a" * 40,
+        "project": str(cli.PROJECT),
+        "port": 8089,
+        "source": str(tmp_path / "source"),
+        "node": "/synthetic/node",
+        "origin": "http://localhost",
+        "binding": {},
+    }
+    if value != "missing":
+        config["mcp_readonly_enabled"] = value
+    path = root / "resident.json"
+    path.write_text(json.dumps(config))
+    path.chmod(0o600)
+    legacy = tmp_path / "legacy/resident"
+    legacy.mkdir(parents=True)
+    original = legacy / "config.json"
+    original.write_text(json.dumps({"node": config["node"]}))
+    original.chmod(0o600)
+    calls = []
+
+    class Pool:
+        def __init__(self, *args, **kwargs):
+            calls.append("runtime")
+
+        async def close(self):
+            calls.append("closed")
+
+    def gateway_with_real_switch(accounts, pool, **kwargs):
+        calls.append(kwargs)
+        assert kwargs["mcp_enabled"] is (None if value == "missing" else value)
+        return gateway.create_gateway_original(accounts, pool, **kwargs)
+
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(resident.subprocess, "check_output", lambda *args, **kwargs: "a" * 40)
+    monkeypatch.setattr(runtime, "RuntimePool", Pool)
+    monkeypatch.setattr(
+        resident_binding.LegacyBinding, "from_config", lambda _: SimpleNamespace(home=legacy.parent)
+    )
+    monkeypatch.setattr(resident_boot, "boot_identity", lambda: "synthetic-boot")
+    monkeypatch.setattr(resident_binding, "AttachedPool", lambda accounts, pool, *args: pool)
+    monkeypatch.setattr(gateway, "create_gateway_original", gateway.create_gateway, raising=False)
+    monkeypatch.setattr(gateway, "create_gateway", gateway_with_real_switch)
+    apps = []
+
+    def serve(app, **kwargs):
+        apps.append(app)
+        with TestClient(app, base_url="http://localhost") as client:
+            assert client.get("/api/server/health").json()["mcp_readonly_enabled"] is (
+                value is not False
+            )
+            if value is False:
+                assert client.get("/.well-known/oauth-authorization-server").status_code == 401
+
+    monkeypatch.setattr(uvicorn, "run", serve)
+    if type(value) is not bool and value != "missing":
+        with pytest.raises(cli.ServerCommandError, match="server_mcp_configuration_invalid"):
+            resident.run(root)
+        assert calls == [] and apps == []
+        assert not (root / "accounts.sqlite3").exists()
+        return
+    assert resident.run(root) == 0
+    assert calls[1]["mcp_enabled"] is (None if value == "missing" else value)
+    assert hasattr(apps[0].state, "mcp_facade") is (value is not False)
+    if value is False:
+        with sqlite3.connect(root / "accounts.sqlite3") as connection:
+            assert not connection.execute(
+                "SELECT name FROM sqlite_master WHERE name LIKE 'mcp_%'"
+            ).fetchall()
 
 
 @pytest.fixture

@@ -1,5 +1,40 @@
 # Research Web 接口清单
 
+`POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
+
+市场V2切换等待仅发生在Native操作员，不增加接口、请求字段或权限；原手动事件明确意图和Host校验不变。
+
+私网事件写操作保留已有 `X-Research-User-Action: ?1` 到Host；缺失/非法值不转换成合法意图，
+认证及同源/账号绑定不变。没有新增HTTP方法、路径或请求字段，Host原明确动作校验仍是最终门。
+
+## WeKnora 资料 API（2026-11-06）
+
+新增认证域 `/api/research/knowledge` 的状态、绑定、库列表、范围、检索、读取及证据冻结／下载；详见[完整接口表](../../research-web-weknora.md#接口与权限)。状态不探测上游，绑定／scope／freeze 要求明确用户动作；仅回环或原认证网关的当前账号可调用，不接受任意 owner、root 或上游地址。内部 `/api/research/internal/data/knowledge-query` 与 `/knowledge-read` 由原 DataKey 门保护且 scope 必填，不能调用其他写入口。现有四项只读 MCP 不变，不因新增 HTTP 扩大 OAuth scope。[API Atlas](../../../outputs/research-web-architecture/api-atlas.html)从字面量路由清单生成。
+
+统一导航只增加显式本机维护CLI apply-navigation-ui，不增加HTTP业务接口、代理路径或权限。导航产品API保持b192字节；source/tool资格、双向实际MCP关闭和账号数据保全均由原v4维护链认证。
+
+## 事件部署与既有网关代理（2026-11-05）
+
+事件产品 API 继续经过现有通用 `/api/research/*` 网关代理，认证、账号后端选择与 Host 写操作合同保持；此次维护 profile 不增加网关路由许可，也不将事件 API 提升为维护权限。`apply-events` 是显式 Native 维护 CLI，不能从浏览器请求、事件材料或模型输出触发部署。
+
+事件、日历与六维评分的源码入口可用不表示当前常驻已切换；登录后各入口、数据保全和采集日程关闭需要现场验收，详见[部署合同](../../research-web-gateway-upgrade.md)。
+
+能力中心三分类不新增API。旧kind查询、method_ids和插件/MCP接口兼容；原copy操作对历史method生成普通skill草稿，需经原检查发布，原method版本不改写。
+
+事件研究API分为 `/api/research/events`、`/api/research/event-studies` 与
+`/api/research/market-scores`。事件／日历／代理／因子注册仅接收账号已有原件引用，写操作需要
+明确用户动作、固定长度且不超过64KiB的请求，并使用相应幂等／版本合同。封存与独立评估、
+描述统计及已存结果读取／导出分别操作；历史研究分不启用生产分或仓位。精确路径由API Atlas
+按源码列出，字段与权限见[集成合同](../../research-web-event-research.md)。
+
+API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项research/framework代理，逐条标记条件。检查器仅接受原Gateway固定literal方法、路径和完整条件块，动态表达式／别名／新增语法失败关闭。另列8项锁定SDK2.2与RWB浏览器路由合同，由隔离Python测试精确比较实际整套路由集合；ASGI methods=null不等于全部HTTP操作获准，该声明不计入静态扫描或部署验收。
+
+## 可选私网入站 MCP
+
+启用后提供 `/mcp`，授权服务元数据、`/.well-known/oauth-protected-resource/mcp`、`/authorize`、`/token`、`/revoke` 及浏览器同意/应用撤权页面。固定公开客户端 `rwb-codex-native`、scope `rwb.read`，不开放 DCR/CIMD。四工具为 `rwb_capabilities_list`、`rwb_datasets_list`、`rwb_dataset_read`、`rwb_source_read`；请求 64 KiB、响应 256 KiB、默认 100/最多 500 行、文本最多 12000 字符。OAuth 与对象合同见[入站 MCP](../../research-web-mcp-facade.md)，不能用浏览器 Cookie 冒充 bearer。
+
+`/mcp` 的协议消息使用 POST；GET 在 SDK bearer/scope 和 Host/Origin 检查后及时返回 405、`Allow: POST`，不启动持久 SSE。8 项路由注册合同保持，`methods=null` 不代表允许所有动词。OAuth 授权码兑换和刷新轮换的临时存储故障返回 503 `temporarily_unavailable`；授权请求创建故障由 SDK 返回带同名错误、state 和 issuer 的已验证回调，不伪装为用户拒绝或无效授权，不自动重试未知结果。
+
 ## successor 是封闭维护 CLI（2026-10-31）
 
 新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。
@@ -141,7 +176,21 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 既有 `GET /api/research/resident` 的 `active` 同时包含真实 CJPY Future和历史任务非终态，无法读取witness为未知，不伪报false。操作员只在研究/观察/DataHub/历史任务全部明确空闲后允许切换；`cancelled`查询终态不抵消仍运行的Future。
 
+## 财经日历接口
+
+`GET /api/research/market/financial-calendar` 走现有同源账号路由。必填 `view=summary|events`、
+`start`、`end`，自然日区间最多 31 天；明细另需 `category=economic|ipo|notify|report|inst`，
+子类、市场、机构方向和集合取固定枚举。每日期最多返回 20 行；后续页需同一查询身份和
+`snapshot_id` 并收窄到单日。返回 `days`、`sources` 和 `snapshot_id`；覆盖未知时不返回确定的零。
+此独立 GET 可对已接入宏观官方源按需取数，其他类别不触发外部采集，不改变原市场 GET 缓存合同。
+
 ## 全市场概览接口
+
+综合总览复用原接口：`POST /market/refresh` 的版本化 `index_set=global-v1` 只采集固定三地
+九指数，GET `/market` 从 `sections["indices:global-v1"]` 读取独立缓存。旧 core-v1／terminal-v2
+不变；原生 OHLCV、未完成日线与来源单位分别保留，详见[九指数合同](../../research-web-global-indices.md)。
+评分读取 `/market-scores/runs` 后必须经单项 GET 的 `current_eligibility` 重新核验，列表历史记录
+不是当期总分；时间线使用原 `/events/timeline` 的日期筛选和游标。没有新增首页写入或自动采集接口。
 
 2026-10-23不新增路径：报价行/CSV追加`limit_up_price/limit_down_price/limit_status`，summary追加`limit_up/limit_down/limit_covered/limit_unknown`，未知不补0。`previous_amount`返回本次已上市池的上一交易日全天金额、日期、scope_count/missing_count、source_snapshot_id/retrieved_at或不可用reason；内部逐股基线不进入公开投影。资金`row_count/provider_total`保持本次返回行数，`history_rows/history_count`是本账号实取留存，每日有来源/采集时间，30日目标与实际缺口分开。历史日线不随板块今日/5日/10日开关变化，不等价为分时。详情见[数据口径](../../research-web-datahub.md#无会话全市场数据)。
 

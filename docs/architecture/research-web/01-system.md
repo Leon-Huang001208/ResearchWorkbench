@@ -1,5 +1,42 @@
 # 部署与模块职责
 
+财经日历部署在原 Web 静态入口和现有账号 Host 内，固定公共宏观来源由 DataHub 读取；无新增服务或监听端口。
+
+市场新增逐日总览和账号内首批数据操作，仍沿既有Web壳、私网网关和个人Host，不新增运行服务。
+
+市场V2仍沿原Native主实例与账号网关双仓库切换；只增加切换专用有界等待及切后SHA检查，失败仍恢复原槽。
+
+私网手动事件请求由原账号网关保留已有明确动作标识，再交原Host校验；网关不代用户
+生成意图，也不创建另一研究执行器。后继维护仍沿原Native原子保全/回滚流程，部署状态另验。
+
+三地综合总览由原 Web 壳读取 MarketService、Timeline 与 Score 领域，旧行情分析同页保留。
+global-v1 是现有公开来源适配中的独立九指数合同，不新增服务、守护进程或研究引擎；
+数据流见13图，研究资格仍见14图。Mac mini 切换必须另经原维护保全和实际健康门。
+
+## 可选外部资料服务（2026-11-06）
+
+账号 Host 内新增 `knowledge_backend/` 薄适配，按原生用户 JWT 访问固定 WeKnora v0.9.0 origin；默认未配置，不启动外部服务或第二执行器。WeKnora 是研究资料原件／索引的目标边界，金融快照、模板和正式成果保留 RWB。新增网络与冻结数据边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开；Native／Docker、私网网关及唯一 DSH 的既有运行角色不变。0002实例级只检索profile只有源码实现；部署、UI零生成、业务替换均未由源码认证。[合同](../../research-web-weknora.md)
+
+统一导航固定profile复用既有Native primary、私网gateway和恢复事务；只在原操作员加入5ff→b192身份，不新增服务／端口／运行节点。controller及自动名单不变；不采用缺全账号原子保全的旧static-ui分步路径。
+
+## 事件固定部署的职责复核（2026-11-05）
+
+`reviewed-event-research-v1`／`apply-events` 位于既有 Native 维护操作员内，固定从 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 更新至产品 `60416994f88eeead8a3891dbe9a7dfd617c566fc`。事件功能身份为 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee`；操作员核对其祖先关系和相同 app 树，工程闭包与功能身份分别保留。
+
+该 profile 沿原 Host、网关、账号根、三锁和 BirthFence 切换，不新增运行节点、研究引擎或资讯队列。复核现有 01 部署图与 12 资讯图后，粗粒度角色和连接仍成立，无须重画；事件业务细节继续由图 14 表达。源码与操作员验证不代表已部署，最终 CI、Mac 安装和现场证据另验，见[部署合同](../../research-web-gateway-upgrade.md)。
+
+能力中心三分类为既有浏览器模块内的信息架构调整。连接器复用MCP／DataHub／本机服务，插件沿原受审包管理；没有新增服务、端口、凭据库或第二执行器。
+
+## 事件与日历研究的 Host 内部职责（2026-11-04）
+
+Host 新增事件、研究与市场评分三组 API，以及账户绑定的事件／试验元数据和原件存储。它们连接来源、确认冻结、确定性研究、测试区间账本和评分资格；这些新增边在[图14](../../../outputs/research-web-architecture/14-event-research.html)展开，原部署图的浏览器→Host→账号根／唯一DSH粗粒度角色保持。DSH仍承担模型研究，确定性计算不创建第二Agent循环。
+
+原生来源计划须同时满足通用 Automation 开关与逐源启用；tenant 自动采集通道保持关闭，不能借今日发现跟踪权限启动事件采集或其他历史任务。数据权限、保全／恢复、当前资格、实际安装与平台验收分别核验，详见[集成合同](../../research-web-event-research.md)。
+
+## 可选入站 MCP
+
+原私网 HTTPS 网关的授权服务与 `/mcp` 资源服务共用进程和规范 Origin；账户及授权同库，不增加本地代理、身份服务或研究内核。默认关闭；开发/隔离验收不更新常驻。成熟应用只通过原生 OAuth 使用批准冻结材料，Codex、官方 DSH、WorkBuddy 各自实测。见[合同](../../research-web-mcp-facade.md)和[访问图](../../../outputs/research-web-architecture/15-inbound-mcp.html)。
+
 ## 交付证据与临时资源职责（2026-10-31）
 
 `scripts/test_artifact_retention.py` 只管理登记过的本机测试临时根，终态 PASS 与外部 JUnit/stdout/stderr 复核后可提前回收；`iteration_resources` 在最终 Git 交付收尾时为新任务选择不超过 128 MiB 的日志证据。两个入口不操作 Host、DSH、Docker 运行资源或生产数据，不构成第二研究/部署控制器。旧任务、失败/未知及恢复原件保持原保全链；图 08 仅更新交付证据流程。
@@ -676,3 +713,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+公开server入口经stdlib校验后只传递操作员origin；冷Doctor提供无网络可选事实，不创建WeKnora、账号根或第二服务。资料操作加入原维护admission，不改变原生／容器归属与原恢复事务。上游0003仅是API建库后使用原设置页的源码候选，完整前端及实际服务另验。

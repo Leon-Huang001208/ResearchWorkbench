@@ -3,6 +3,20 @@
   "status": "reviewed",
   "diagrams": [
     {
+      "id": "15-inbound-mcp",
+      "artifactSha256": "441065a19fed6dca7d072e06aadbc2cea3f6fd54d1a41ff804e5024d166ad345",
+      "specificationSha256": "7464abbe95a024da7771619cc21fd038105c99ba6f4e396e29edbab209bd74d4",
+      "status": "reviewed",
+      "reviewer": "codex-root",
+      "date": "2026-11-04",
+      "captures": [
+        "15-inbound-mcp.visual-check.1440x900.light.png",
+        "15-inbound-mcp.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Codex 主代理实际查看最终同哈希小视口浅色与大视口深色截图；节点、标签、授权/读取边可辨，无穿越、遮挡或裁剪。自动9项showcase零错误零警告，四视口无溢出。图描述默认关闭的首版边界，不证明服务部署或原生宿主已接通。"
+    },
+    {
       "id": "08-iteration-docs",
       "artifactSha256": "d527966ae90f583ce5aa4ef64143b366270bbb39cf6b9749dc1970c832e3b8e7",
       "specificationSha256": "fd33880e3289f757f178224e1d4d0c3f283a0424618f8e3433cc5bd7df30d7a7",
@@ -48,17 +62,19 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "b0e71a97a5c4e3749d8662f3f4d80df27e1c95bc0dd94d795e6826db25b55290",
-      "specificationSha256": "0b381d402e302fd073791dc72f91556005f1ea6fec4dc70b011edd1fe3550a75",
+      "artifactSha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
+      "specificationSha256": "14511c1848032dc6daffb3e081b4e00599adefec38bf1796c1c293f397511be8",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-10-23",
+      "reviewer": "Codex child agent (actual screenshot inspection, not business acceptance)",
+      "date": "2026-11-06",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
         "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已实际查看最终1440浅色与2048深色同哈希截图，保留新主线今日发现与档案引用两条路径；模块、原件快照与SQLite交接文字无重叠、穿线或裁剪。showcase9项与四视口包含性均通过，图册证据不代替业务研究或生产部署验收。"
+      "findings": [
+        "原完整总览细字需缩放；WeKnora专用focus视图可单独阅读。"
+      ],
+      "notes": "已实际查看最终同哈希1440浅色与2048深色截图；新增资料入口、用户JWT薄适配、外部WeKnora、独立冻结和待验报告宿主分支可定位，未见穿线/遮挡/裁剪。9项showcase零错误零警告，四视口无溢出。第一次小视口29px纵向溢出经移除图底空白后重验通过，原失败回执保留于任务logs；未缩字或隐藏溢出。图只说明源码/候选边界，不认证部署、UI零生成或业务报告。"
     },
     {
       "id": "06-run-state",
@@ -196,20 +212,34 @@
     },
     {
       "id": "13-market-overview",
-      "artifactSha256": "4ecd0e404a2e87af02cfa7bffd572e4705551d65e89a9bef8c2fa2bf1e9fdac3",
-      "specificationSha256": "f9e54cc0dbc4d7909eec828fa171bbaa49a8db40b1360c1ee0ce62d2add1b65c",
+      "artifactSha256": "75d847a5fd5ef205a35f8b9c7cbfb93060269c8a113bad77e125b8d23a21bc4c",
+      "specificationSha256": "930f33213dba66f7049827bbe48b1f67eef7b8ab403a11d5f71743841483ee04",
       "status": "reviewed",
-      "reviewer": "codex-root",
-      "date": "2026-10-23",
+      "reviewer": "codex-architecture",
+      "date": "2026-11-08",
       "captures": [
-        "13-market-overview.v2-1440-dark.png",
-        "13-market-overview.v2-1440-light.png",
-        "13-market-overview.v2-2048-dark.png",
-        "13-market-overview.v2-2048-light.png"
+        "13-market-overview.visual-check.1440x900.light.png",
+        "13-market-overview.visual-check.1440x900.dark.png",
+        "13-market-overview.visual-check.2048x1320.light.png",
+        "13-market-overview.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "通过CUA读取四桌面视口DOM，宽高均无溢出；实际查看1440浅/深两截图，Host抽象中的24/12分集、双公开来源、用户文件及证据门可辨，未见节点/线/标签遮挡。2048两主题亦已采集。未运行CLI visual-check，不把图册作为实际产品或来源验收。",
-      "correction_rounds": 3
+      "notes": "Archify 实际通过 9/9 showcase，零错误、零警告；四视口无溢出。架构评审代理实际查看同一哈希的 1440×900、2048×1320 浅色及深色四张截图，财经日历同源读取与官方按需链路独立呈现，节点、标签和箭头清晰。此评审只覆盖架构图，不能替代登录态产品对照、真实数据或部署验收。",
+      "correction_rounds": 0
+    },
+    {
+      "id": "14-event-research",
+      "artifactSha256": "4672d1e941238d82a9bcdd54d2598f08e2b4e80edef6b4fef846957c7582c964",
+      "specificationSha256": "30d7636cea819042b7f3b73628c6653b05b1357ec47b752e7195cb8519981c55",
+      "status": "reviewed",
+      "reviewer": "codex-root",
+      "date": "2026-11-04",
+      "captures": [
+        "14-event-research.visual-check.1440x900.light.png",
+        "14-event-research.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "实际查看1440浅色和2048深色：一次修复viewBox空白后，阶段/连线/标签与卡片可读、无裁剪；四尺寸自动包含验证通过。证据解释由显式导出及原DSH资料链完成，不表示自动模型调用或生产验收。"
     }
   ]
 }

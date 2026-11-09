@@ -100,6 +100,28 @@ function pythonCallArguments(content, start) {
   throw new Error('unterminated Python declaration');
 }
 
+export function collectGatewayProxyAPIs(content, source) {
+  const calls=[...content.matchAll(/\.add_api_route\b/g)];
+  if(!calls.length)return [];
+  const methods=[...content.matchAll(/^    methods\s*=\s*(.+)$/gm)];
+  const expected=['GET','POST','PUT','PATCH','DELETE','HEAD'];
+  const tail=`    if facade is None:
+        app.add_api_route("/{path:path}", proxy, methods=methods)
+    else:
+        app.add_api_route("/api/research/{path:path}", proxy, methods=methods)
+        app.add_api_route("/frameworks-embed/{path:path}", proxy, methods=methods)
+        app.mount("/", facade.app, name="mcp-readonly")
+    return app`;
+  let values;
+  try { values=JSON.parse(methods[0]?.[1] || 'null'); } catch { throw new Error('unsupported gateway methods'); }
+  if(source!=='app/research_web/multiuser/gateway.py' || calls.length!==3 || methods.length!==1 ||
+      JSON.stringify(values)!==JSON.stringify(expected) || !content.includes(`${methods[0][0]}\n${tail}`)) {
+    throw new Error('unsupported conditional gateway declaration');
+  }
+  return ['/{path:path}','/api/research/{path:path}','/frameworks-embed/{path:path}'].flatMap(declaredPath=>
+    expected.map(method=>({source,method,path:declaredPath,declaredPath,prefix:'',condition:declaredPath==='/{path:path}'?'mcp-disabled':'mcp-enabled'})));
+}
+
 export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   const root = fs.realpathSync(projectRoot);
   const checkedFiles = [...new Set(changedFiles.map(relative))];
@@ -208,6 +230,13 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   }
   for (const source of researchFiles.filter(file=>file.endsWith('.py'))) {
     const content=read(source)?.toString('utf8');if (!content) continue;
+    try {
+      const proxyAPIs=collectGatewayProxyAPIs(content,source);
+      if(proxyAPIs.length && !mountedSources.has(source)) issue('api_unmounted',source,'Conditional proxy requires the verified private CLI');
+      actualAPIs.push(...proxyAPIs);
+    } catch {
+      issue('api_declaration_unsupported',source,'Unsupported dynamic route; only the exact private Gateway conditional proxy contract is accepted');
+    }
     const prefixes=new Map([...content.matchAll(/^(\w+)\s*=\s*APIRouter\(\s*prefix\s*=\s*["']([^"']*)["']/gm)].map(match=>[match[1],match[2]]));
     for (const match of content.matchAll(/^\s*@\s*(\w+(?:\.\w+)*)\s*\.\s*(get|post|put|patch|delete|head|options|api_route|route|websocket)\s*\(/gm)) {
       if (!mountedSources.has(source)) issue('api_unmounted',source,'API source is not directly mounted by the Research Web entrypoint');
@@ -226,11 +255,30 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
       }
     }
   }
-  const apiKey = api => JSON.stringify([api.source,api.method,api.path,api.declaredPath,api.prefix]);
+  const apiKey = api => JSON.stringify([api.source,api.method,api.path,api.declaredPath,api.prefix,api.condition || null]);
   const actualSet=new Set(actualAPIs.map(apiKey));const declaredSet=new Set(map.apis.map(apiKey));
   if (declaredSet.size!==map.apis.length) issue('api_inventory',MAP_PATH,'Duplicate API declarations');
   for (const api of map.apis) if (!actualSet.has(apiKey(api))) issue('api_inventory',api.source,`Stale or invalid API: ${api.method} ${api.path}`);
   for (const api of actualAPIs) if (!declaredSet.has(apiKey(api))) issue('api_inventory',api.source,`API missing from inventory: ${api.method} ${api.path}`);
+
+  // SDK ASGI routes are an explicit runtime-tested contract, not decorator facts.
+  // The focused Python contract compares the entire actual pinned route set.
+  if(researchFiles.includes('app/research_web/mcp_facade/server.py')) {
+    const contract=map.libraryRouteContract;
+    const testFile='tests/research_web/test_mcp_facade_lifecycle.py';
+    const testName='test_sdk_route_inventory_matches_documented_conditional_contract';
+    const expectedPaths=['/.well-known/oauth-authorization-server','/authorize','/token','/revoke','/mcp/consent','/mcp/applications','/mcp','/.well-known/oauth-protected-resource/mcp'];
+    const routes=contract?.routes;
+    const valid=contract?.sdk==='mcp' && contract?.version==='2.2.0' && contract?.condition==='mcp-enabled' &&
+      contract?.status==='source-contract-not-deployment' && contract?.verification===`${testFile}::${testName}` &&
+      Array.isArray(routes) && routes.length===8 && routes.every(x=>x && typeof x==='object') && new Set(routes.map(x=>x.path)).size===8 &&
+      routes.every(x=>expectedPaths.includes(x.path) && ['sdk-generated-rwb-wrapper','rwb-browser','sdk-generated-asgi'].includes(x.origin) &&
+        ['app/research_web/mcp_facade/oauth_routes.py','app/research_web/mcp_facade/oauth_views.py','app/research_web/mcp_facade/server.py'].includes(x.source) &&
+        (x.path==='/mcp'?x.methods===null:Array.isArray(x.methods)&&x.methods.length>0&&new Set(x.methods).size===x.methods.length&&x.methods.every(m=>['GET','HEAD','POST','OPTIONS'].includes(m)))) &&
+      read(testFile)?.toString('utf8').includes(`async def ${testName}(`);
+    if(!valid)issue('library_route_contract',MAP_PATH,'Pinned SDK routes require an explicit conditional contract and exact runtime route-set test');
+    for(const route of Array.isArray(routes)?routes:[])if(route?.source)read(route.source);
+  }
 
   const ids=map.diagrams.map(diagram=>diagram.id);
   if (new Set(ids).size!==ids.length || ids.some(id=>typeof id!=='string' || !/^[a-z0-9-]+$/.test(id)) || REQUIRED_DIAGRAMS.some(id=>!ids.includes(id))) issue('diagram_inventory',MAP_PATH,'All baseline diagrams and unique safe registered view IDs must be delivered');

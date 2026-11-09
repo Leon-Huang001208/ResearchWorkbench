@@ -399,6 +399,12 @@ class RuntimePool:
             "RESEARCH_AUTOMATIONS_ENABLED": "0",
             "RWB_DISCOVERY_TRACKING_ENABLED": "1",
             "RESEARCH_MCP_RUNTIME_ENABLED": "1",
+            # Non-secret, operator-owned fixed origin; user requests cannot select endpoints.
+            **(
+                {"RESEARCH_WEKNORA_ORIGIN": os.environ["RESEARCH_WEKNORA_ORIGIN"]}
+                if os.environ.get("RESEARCH_WEKNORA_ORIGIN")
+                else {}
+            ),
         }
 
     def _has_enabled_discovery(self, user_id: str) -> bool:
@@ -500,6 +506,52 @@ class RuntimePool:
             if user in self.discovery_restoration:
                 self.discovery_restoration[user] = {"status": "restored"}
             return backend
+
+    async def backend_for_readonly(self, user_id: str) -> Backend:
+        """Return an already live owned pair; never start, restore, sweep or adopt.
+
+        Cold startup can run consenting background work. A readonly caller must
+        wait for the ordinary account lifecycle to establish the backend first.
+        """
+        user = self._user(user_id)
+        async with self._lock:
+            if self._closed or self._closing:
+                raise RuntimeErrorSafe("runtime_pool_closed")
+            self._assert_pool()
+            if user in self._plugin_frozen:
+                raise RuntimeErrorSafe("runtime_restart_deferred", 409)
+            entry = self._instances.get(user)
+            if entry is None:
+                code = (
+                    "runtime_capacity_exceeded"
+                    if len(self._instances) >= self.config.max_instances
+                    else "runtime_not_running"
+                )
+                log.info("multiuser_readonly_runtime_unavailable", code=code)
+                raise RuntimeErrorSafe(code)
+            if any(child.poll() is not None for child in entry.children):
+                raise RuntimeErrorSafe("runtime_process_exited")
+            try:
+                if entry.state != self.config.root / "users" / user / "state":
+                    raise ValueError("state_identity")
+                _directory(entry.state, create=False)
+                owner = json.loads(_read_private(entry.state / "owner.json"))
+                if (
+                    not isinstance(owner, dict)
+                    or entry.user != user
+                    or len(entry.children) != 2
+                    or entry.backend.generation != entry.generation
+                    or entry.backend.runtime_pid != entry.children[0].pid
+                    or owner.get("instance") != self.instance
+                    or owner.get("user") != user
+                    or owner.get("generation") != entry.generation
+                    or owner.get("pids") != [child.pid for child in entry.children]
+                ):
+                    raise ValueError("owner_identity")
+            except (OSError, ValueError, TypeError) as exc:
+                log.warning("multiuser_readonly_runtime_unverified")
+                raise RuntimeErrorSafe("runtime_instance_unverified") from exc
+            return entry.backend
 
     async def _start(self, user: str) -> Backend:
         sockets = []

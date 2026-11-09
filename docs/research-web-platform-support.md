@@ -1,5 +1,30 @@
 # Research Web 能力与平台证据
 
+市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。
+
+市场V2后继修复只验证Mac Native及同候选macos-15安装；通用Ubuntu检查不冒充Linux产品支持，Windows/Linux原生保持交接。
+
+本次私网手动事件补丁为Mac功能修复；本机真实网关/Host合同、三CI、Mac安装和实际
+私网操作分别验证。Windows/Linux原生仍由对应设备处理，不因Ubuntu仓库CI声明产品已验。
+
+三地综合总览本轮由 macOS Mac mini 开发并验收 Web 与固定 Native 部署 profile。
+代码、真实公开源、离线浏览器、同候选 macos-15 安装、常驻切换及认证页面分别留证；
+Windows/Linux 原生交接保持 NOT_RUN，不把通用 Ubuntu 仓库检查称为 Linux 产品验收。
+
+统一导航部署任务归macOS Native维护；本机操作员、同候选Mac干净安装和实际部署各自认证。Ubuntu Constraints/Checks只提供通用仓库证据，不宣称Linux产品或Windows原生支持，不从Mac dispatch他平台产品。
+
+## 事件固定部署操作员的验收范围（2026-11-05）
+
+本次为 macOS Mac mini 的 Web 功能部署准备，`apply-events` 仅作用于既有 Native 常驻实例。固定旧版 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 的空闲检查不能认证新操作员或新产品已上线；最终候选仍需原三项 CI、同候选 Mac bootstrap，以及现场切换、认证入口和全账号保全证据。采集日程保持关闭，模型调用与生产评分准入分别验收。
+
+Docker 产品、Windows／Linux 原生设备与对应 CI 本轮未执行，保持 `NOT_RUN`；通用 Ubuntu 仓库门不作为 Linux 产品验收，其他平台待验不冒充 Mac 任务失败。固定版本和恢复范围见[事件部署合同](research-web-gateway-upgrade.md)。
+
+## 事件与日历研究的证据归属（2026-11-04）
+
+本轮为Mac上的Web功能候选：时间线、确定性研究和评分接入沿原Host与账户隔离，未新增桌面打包目标。源码、隔离测试、真实公开来源、浏览器、Native集成与GitHub Mac干净安装各有独立证据，均不能替代常驻部署或正式因子准入。
+
+Docker、Windows／Linux原生、对应设备及CI证据仍按原矩阵记录；没有执行的层级保持NOT_RUN，不因Python共享实现或图14生成宣称支持。覆盖年份、来源受限与PIT缺口见[事件研究合同](research-web-event-research.md)。
+
 ## 本机存储回收的证据归属（2026-10-31）
 
 新 pytest 根回收工具在当前 Mac 宿主使用本机 inode、UID、`lsof` 和安全 `rmtree` 验证；它不认证 Docker、Windows 或 Linux 产品运行。新日志选择合同可由通用仓库 CI 验证，但其他平台的临时根清理仍须对应设备按本机路径和占用机制适配，未执行保持 `NOT_RUN`。宿主 `df` 的物理空间证据与 CI、产品验收分开记录，见[留存规则](research-web-storage-retention.md)。
@@ -277,3 +302,7 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## WeKnora 候选的当前平台证据（2026-11-06）
+
+本轮为Mac上的Web源码与隔离RWB浏览器候选。上游Node纯函数8项通过；Go完成编译但测试初始化在上游go-m1cpu崩溃，Docker两次受容量门拒绝、未执行测试，不认证Go runtime通过。完整WeKnora Vue、独立服务、真实模型、迁移与报告未验；Windows/Linux原生和各自CI仍由对应设备负责，不从Mac派发他平台产品任务。[资料合同](research-web-weknora.md)

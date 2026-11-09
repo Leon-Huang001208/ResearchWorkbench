@@ -1,5 +1,53 @@
 # Agent 任务路由指南
 
+财经日历验证按宏观官方样本、离线账户/API 合同、候选本机浏览器、登录态参考对照和同候选 macOS 安装分别留证。
+没有实页对照时不得宣称像素级复刻通过；数据源失败保留原状态，不用夹具替代。
+
+逐日市场验收同时检查滚动／选日、原件实际内容和三个旧入口；预检／一次性导入与定时采集分别留证。
+
+私网事件与旧行情入口补丁保存实际403／隐藏入口RED证据，使用真实Gateway→Host及全壳层CSS
+回归后再冻结新产品；原profile不改，后继部署固定实际已接受前版。来源手动一次与计划启用分开，
+始终保留采集/MCP关闭；新候选须独评、完整Router、三CI/Mac安装和实际页面复验。
+
+综合总览本轮在独立 worktree 接入真实九指数和原事件／评分读取；Node 离线浏览器与真实
+公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
+导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
+
+## prepared 冲突恢复诊断兼容（2026-11-06）
+
+本轮交付遇到受管 prepare 已保留真实 `mergeFailure`、而 prepared amend 严格读取器不识别该诊断字段的前置缺陷。修复只让正式入口识别并原样保留有界的历史合并冲突诊断，不手改实际回执，不把冲突、未发布或待 CI 状态改成通过；WeKnora 源码、部署和业务报告完成仍分别取证。
+
+可选诊断存在时必须恰为六字段：`classification=merge_conflict`，非零整数 `exitStatus`（1–255），`signal=null`、`errorCode=null`，整数 `stderrBytes`（0–4 MiB）和小写64位十六进制**字符串** `stderrSha256`。字节数为0当且仅当哈希为实际空字节 SHA-256；额外字段、异常类型、信号退出、越界预算或非字符串哈希继续拒绝。保留诊断不授予发布、CI、备份替代或清理权限，原 SHA／common directory／干净工作树／远端未发布／PR 与 CI 状态等全部拒绝门保持；后续只能沿原正式 prepared amend 与验证流程推进。
+
+## WeKnora 候选交付路由（2026-11-06）
+
+本轮为 macOS Web 功能开发，涉及公开接口、身份与持久证据，使用隔离 worktree、完整 changed-set Router、独立语言／安全评审及原三 CI／同候选 Mac 安装。九份 WeKnora 离线测试加入原 Checks 清单，JS 沿原通配符，Mac 原静态资源检查核对 `knowledge-settings.mjs`；无新增 job、runner、依赖或超时。真实服务、免费模型、20题业务金标、原报告窗口交接、迁移和部署分别登记，不能以 mock 或补丁可应用证明完成替换。0002只检索profile已实现为源码补丁，UI上传／重解析零生成验收仍 BLOCKED，Go目标用例NOT_RUN（原生初始化崩溃，运行BLOCKED）；成功测试临时根仍按原同批身份回收，失败原件保留。[资料合同](research-web-weknora.md)
+
+2026-11-06导航部署为macOS Native维护，沿独立worktree、共享测试环境、受管20节点临时根、完整Router／独立Python评审及同候选原三CI。固定5ff旧版、b192产品，受审执行源码必须保留在resident/artifacts/<target>/source，不能以待清理工作树作为恢复依赖。必须在锁内复核活动、全账号保全、采集off及双向实际MCP=False；Windows/Linux产品仍交对应设备。
+
+2026-11-06统一导航验收使用独立worktree、项目共享测试Python及固定Node；复用已有Playwright/Chrome启动owned loopback夹具，真实前端只访问合成空API，真实数据／模型／常驻服务均不参与。沿完整changed-set Router、独立评审、原三CI和macos-15安装，不在Mac派发其他平台产品任务；浏览器进程与临时服务在finally关闭。
+
+## 研发进展维护
+
+用户可见迭代须同步维护 `app/research_web/ui/progress-data.json`，核对日期、来源、负责人、范围和实际状态。
+PR 合并不能替代必需验收；环境启用、业务验收和他平台支持分别记录。当前任务交付前保持开发中或待验收，
+不得用尚未运行的 CI 自证已交付，也不得只改快照日期充当内容更新。
+
+执行 `node scripts/check_product_progress.mjs --write` 并提交生成的 Changelog 区块；再执行
+`node scripts/check_product_progress.mjs --base <任务基线完整SHA>` 验证维护义务。
+无用户可见变化时，在本任务 `.ai/reports/` Markdown 独立记录一行
+`Product-Progress: not-required — <至少十二字的具体理由>`；无内容更新且无解释时检查器拒绝通过。
+仅展示经过核对的公开说明，不包含私有路径、账号、业务数据、凭据或完整工程流水。
+内容契约见[前端](research-web-ui.md#研发进展与更新日志)。
+
+事件／日历研究在隔离worktree开发，新增个人SQLite、原件、固定回测与六维资格时执行完整
+changed-set Router、独评及同候选Mac安装门。测试用获准独立环境和受管≤20用例批次，失败后
+沿原receipt/root重跑、保留原proof，真实成功才按身份退役；不以语法或合成分数代替业务接受。
+来源采集使用原Automation调度器，需宿主Native通用开关和逐源确认；tenant原禁用通道不放开。
+真实源失败、历史PIT缺口、生产启用和跨平台层级分别记录。详见[事件研究](research-web-event-research.md)。
+
+入站 MCP 源码、六份 focused测试与 DataHub frozen-read 边界显式路由 L4/full-delivery；保留 Project Constraints、Research Web Checks、Mac Bootstrap 和其他平台交接。Mac任务最终绑定 exact candidate/base 与 hostPlatform/taskKind；离线通过不能代替私网部署或原生 OAuth。
+
 2026-10-31起Mac干净安装CI沿原单job切换至`macos-15`，保留全部原安装与健康门；macos-14因官方brownout在启动前取消的旧记录保持CANCELLED。较早迭代的镜像名称只描述当时证据，现行要求以AGENTS及安装文档为准。
 
 ## successor 的交付与现场证据分层（2026-10-31）
@@ -207,6 +255,12 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 
 ## RWB Git 安全入口（macOS）
 
+### 复用研究 Web 测试环境
+
+开始本地测试前先用当前 Python 执行 `python scripts/research_web_test_env.py --check --json`，读取健康解释器路径并设置 `RWB_TEST_PYTHON`，Python 测试直接用该解释器执行。环境固定在 `~/.research-workbench/test-envs/`，指纹由 Python 实现、版本、平台及 `requirements/web.lock`、`requirements/research-test.in` 决定；同依赖的 worktree 共用一次安装，不属于任务临时资源，收尾不删除。
+
+健康检查不安装依赖。仅在缺少健康环境且已获得依赖安装授权时执行 `--prepare --json`；健康环境直接复用并跳过 pip。新环境只安装锁定 Web 依赖和已声明测试工具，不改全局 Python、产品 `.venv`、模型依赖或常驻服务。准备失败保留私有日志和现场，未知锁、损坏目录不自动覆盖；依赖或 Python 变化产生新指纹。该机制只统一本地测试环境，不替代 CI 干净安装验收。
+
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
 
 在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
@@ -295,6 +349,14 @@ anchors 保存在封印备份中，不移动原 refs。旧完整回执与 proof 
 epoch；下一次真实 descendant 修订可追加新 epoch。
 每次修订及重放都逐 epoch 检查原回执哈希、私有 proof 精确字节、前缀链及 sealed manifest，
 在持备份锁时实际恢复所有既有 epoch；旧证据损坏或缺失时不得追加新历史。
+当同一未发布任务已正式 base-refresh，再修补生成索引时，旧 amendment 按自身冻结 base epoch
+验证；不得要求旧末端等于已刷新后的候选，也不得删除旧历史。仅有 base/candidate 断点时，
+从同 task 私有 `base-refresh/` 查找唯一匹配旧末端及 history prefix 的正式快照，严格证明
+刷新允许字段投影（base/integration/feature/mergeSource、verification=null、CI=pending、
+status=prepared、updatedAt），其他任务身份、发布null、修补计数、rollback/cleanup和历史保持。
+逐条验证原始Git祖先及候选包含feature，快照集合／私有权限／字节／inode纳入同次CAS。
+缺席、多匹配、篡改或身份漂移拒绝；本能力不扩展至已发布修复，原epoch实际恢复和新备份门不变。
+
 本次新建的 snapshot／proof／临时回执也须在最后网络观察后核对原 inode 和预期字节；
 proof 固定对应本轮实际恢复的 manifest／seal、旧提交锚点、两工作树 tip 和原 master。
 新文件缺失、损坏或同字节替换，以及备份重封印或错配，都在原回执 rename 前拒绝。
@@ -655,3 +717,5 @@ partial_cleanup分支：原pending proof、独评/CI/真实合并、全部工作
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。
+
+冷Doctor的真实“禁止导入server启动模块”回归通过后，origin校验提取到共用stdlib helper，公开dispatch与Doctor均显式调用。该兼容修复不安装依赖、不扩大环境白名单；原失败按同根保留，后续通过不能改写原失败身份。

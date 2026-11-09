@@ -1,5 +1,15 @@
 /* UI glyphs from the approved local v2 sample; the brand remains the original PNG. */
 const paths = {
+  globe: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6.5h14M5 17.5h14"/>',
+  candles: '<path d="M6 3v4m0 9v5M12 3v8m0 7v3M18 3v2m0 8v8"/><rect x="4" y="7" width="4" height="9" rx=".5"/><rect x="10" y="11" width="4" height="7" rx=".5"/><rect x="16" y="5" width="4" height="8" rx=".5"/>',
+  radar: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 7-7M12 3v2M3 12h2M12 19v2M19 12h2"/><circle cx="10" cy="14" r="1"/>',
+  newspaper: '<path d="M5 4h16v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8h2v10M5 8V4"/><path d="M9 8h8M9 12h3M9 16h3M15 12h3M15 16h3"/>',
+  network: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="2" y="16" width="6" height="5" rx="1"/><rect x="16" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M5 16v-4h14v4"/>',
+  flask: '<path d="M9 3h6M10 3v7l-6 9a1.3 1.3 0 0 0 1 2h14a1.3 1.3 0 0 0 1-2l-6-9V3M7 15h10"/><path d="M10 18h.01M14 17h.01"/>',
+  calendarClock: '<path d="M8 2v4M16 2v4M3 9h18M11 21H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5"/><circle cx="17" cy="17" r="5"/><path d="M17 14v3l2 1"/>',
+  gauge: '<path d="M4 18a9 9 0 1 1 16 0H4ZM12 12l4-4M5 12h1M7 6l1 1M12 3v2M18 12h1"/><circle cx="12" cy="12" r="1"/>',
+  milestones: '<path d="M6 3v18M10 5h9M10 12h6M10 19h9"/><circle cx="6" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="6" cy="19" r="1.5" fill="currentColor" stroke="none"/>',
+
   completedCircle: '<circle cx="12" cy="12" r="8"/>',
   spinner: '<circle cx="12" cy="12" r="8" opacity=".25"/><path d="M12 4a8 8 0 0 1 8 8"/>',
   pin: '<path d="m8 3 8 0-1 6 4 4v2H5v-2l4-4-1-6ZM12 15v7"/>',
@@ -50,3 +60,5 @@ const paths = {
   thumbDown: '<path d="M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/>',
 };
 export const icon = name => `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${Object.hasOwn(paths, name) ? paths[name] : paths.document}</svg>`;
+
+export const hasIcon = name => Object.hasOwn(paths, name);

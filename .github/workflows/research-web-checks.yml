@@ -75,13 +75,13 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install -e ".[dev]"
-          # These renderer/workbook packages are already locked Web dependencies.
+          # Renderer/workbook and MCP SDK packages are already locked Web dependencies.
           .venv/bin/python - <<'PY'
           import os
           from pathlib import Path
           lines = Path("requirements/web.lock").read_text().splitlines()
           block = []
-          for package in ("reportlab", "openpyxl", "et-xmlfile"):
+          for package in ("reportlab", "openpyxl", "et-xmlfile", "mcp", "mcp-types"):
               start = next(i for i, line in enumerate(lines) if line.startswith(package + "=="))
               block.append(lines[start])
               for line in lines[start + 1:]:
@@ -92,6 +92,7 @@ jobs:
           target.write_text("\n".join(block) + "\n")
           PY
           .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-reportlab.lock"
+          .venv/bin/python -c "import importlib.metadata as m; assert m.version('mcp') == '2.2.0' and m.version('mcp-types') == '2.2.0'"
 
       - name: Run Research Web Python contracts
         run: |
@@ -101,13 +102,43 @@ jobs:
             b800e50366d1a0868372bbf173822976066c143f \
             db2ae9a48ceca365852072e622aa6627aa7d0b83 \
             1529c3189b008b9861a2bee1511f051feefa76eb
-          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+          PYTEST_PLUGINS=tests.research_web.event_test_support PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
             --allowed-parent "$RUNNER_TEMP" \
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
             -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
+            tests/research_web/test_weknora_client.py \
+            tests/research_web/test_weknora_service.py \
+            tests/research_web/test_weknora_api.py \
+            tests/research_web/test_weknora_integrity.py \
+            tests/research_web/test_weknora_candidate.py \
+            tests/research_web/test_weknora_upstream_patch.py \
+            tests/research_web/test_weknora_retrieval_profile.py \
+            tests/research_web/test_weknora_cli.py \
+            tests/research_web/test_weknora_kb_settings_patch.py \
+            tests/research_web/test_event_api.py \
+            tests/research_web/test_event_datahub_bridge.py \
+            tests/research_web/test_event_studies.py \
+            tests/research_web/test_event_studies_events.py \
+            tests/research_web/test_event_studies_forecast.py \
+            tests/research_web/test_event_studies_index_description.py \
+            tests/research_web/test_event_studies_prediction.py \
+            tests/research_web/test_event_studies_scoring.py \
+            tests/research_web/test_event_studies_service.py \
+            tests/research_web/test_event_studies_validation.py \
+            tests/research_web/test_event_timeline.py \
+            tests/research_web/test_event_timeline_relevance.py \
+            tests/research_web/test_event_timeline_scheduler.py \
+            tests/research_web/test_event_timeline_storage.py \
+            tests/research_web/test_market_daily_sources.py \
+            tests/research_web/test_market_scoring.py \
+            tests/research_web/test_market_daily_scores.py \
+            tests/research_web/test_market_scoring_native_inputs.py \
+            tests/research_web/test_market_scoring_native_matrix.py \
+            tests/research_web/test_market_scoring_native_temporal.py \
+            tests/research_web/test_market_scoring_service.py \
             tests/research_web/test_research_scenarios_catalog.py \
             tests/research_web/test_scenario_handoffs.py \
             tests/research_web/test_scenario_review_regressions.py \
@@ -181,6 +212,8 @@ jobs:
             tests/research_web/test_cjpy_asset_data.py \
             tests/research_web/test_datahub_broker.py \
             tests/research_web/test_market_indices.py \
+            tests/research_web/test_global_market_indices.py \
+            tests/research_web/test_market_dashboard_http_contract.py \
             tests/research_web/test_market_terminal.py \
             tests/research_web/test_builder_reconcile.py \
             tests/research_web/test_iteration_resources.py \
@@ -188,6 +221,7 @@ jobs:
             tests/research_web/test_docker_resources.py \
             tests/research_web/test_market_provider.py \
             tests/research_web/test_market_service.py \
+            tests/research_web/test_market_financial_calendar.py \
             tests/research_web/test_market_reader.py \
             tests/research_web/test_market_reader_live_postgres.py \
             tests/research_web/test_datahub_wind.py \
@@ -231,6 +265,7 @@ jobs:
             tests/research_web/test_market_store_operation.py \
             tests/research_web/test_market_store_live_postgres.py \
             tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
+            tests/research_web/test_methods.py \
             tests/research_web/test_capabilities.py::test_catalog_save_uses_one_write_with_identical_json \
             tests/research_web/test_capabilities.py::test_catalog_save_failure_preserves_previous_index \
             tests/research_web/test_documentation.py \
@@ -257,6 +292,12 @@ jobs:
             tests/research_web/test_multiuser_runtime.py \
             tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
+            tests/research_web/test_mcp_facade_store.py \
+            tests/research_web/test_mcp_facade_oauth.py \
+            tests/research_web/test_mcp_facade_http.py \
+            tests/research_web/test_mcp_facade_read_policy.py \
+            tests/research_web/test_mcp_facade_tools.py \
+            tests/research_web/test_mcp_facade_lifecycle.py \
             --confcutdir=tests/research_web -q
           PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
             --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
@@ -265,6 +306,7 @@ jobs:
             -- \
             tests/unit/test_wind_excel_instances.py \
             tests/unit/test_ci_pytest_partitions.py \
+            tests/unit/test_research_web_test_env.py \
             tests/unit/test_ci_pytest_evidence_staging.py \
             --confcutdir=tests/unit -q
 

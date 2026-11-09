@@ -1,5 +1,25 @@
 # Research Workbench Research Web 当前架构
 
+2026-11-06 WeKnora资料适配的源码阅读及Atlas链接固定到实际提交 `26e730cbf73d2edcce753d7f84c4f49cf68ec68c`。该检查点包含RWB薄适配与接口，不证明最终文档候选CI、上游Go、第三方运行版本、资料替换或报告接受。
+
+## WeKnora 资料候选（2026-11-06）
+
+[资料合同](../../research-web-weknora.md)描述当前新增的薄适配、严格身份与独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)新增外部 WeKnora 节点及认证／证据分支，目标存储边界与实际启用分开。当前未部署、未迁移、未完成 UI 零生成或真实周报验收；原运行与报告图继续描述原生产链。
+
+能力中心界面收敛为技能／连接器／插件，方法并入技能、工具进入关联详情；原Host／唯一DSH、目录及调度拓扑不变，详见[能力合同](07-capabilities.md)。
+
+当前组合源码阅读检查点为 `8b31439d46dc0b1329fa238153183e02dacbc055`：保留主线事件研究与生命周期恢复修补，并合入已审入站 MCP 源码。Atlas 与模块源码链接绑定该真实合并提交；下述旧检查点及图14／15原有视觉证据仍保留各自身份，不改称本次重验。当前候选的离线检查、GitHub CI、干净安装、常驻与原生宿主验收分别留证。
+
+## 事件与日历研究候选（2026-11-04）
+
+[图14：事件研究数据流](../../../outputs/research-web-architecture/14-event-research.html)展开既有Host内新增的来源采集、个人事件版本、人工确认／冻结、确定性研究、独立测试及评分资格。原系统图的宿主、tenant、唯一DSH和安装角色保持；本次确有新增业务API、持久记录及心跳分支，不用粗粒度图不变概括为没有接口或存储变化。
+
+从[集成合同](../../research-web-event-research.md)进入[时间线](../../research-web-event-timeline.md)、[事件研究](../../research-web-event-studies.md)和[评分](../../research-web-market-scoring.md)。来源就绪、Native／Docker业务、CI和部署仍由实际回执分别认证，图册可读不意味着全部计划完成。
+
+源码阅读检查点：`aea209e8790b6f5a7c6c34de6ea361438ced8515`，包含授权/工具、Doctor/生命周期/CI 接线、受限条件路由扫描及本轮 GET/临时 OAuth 故障修复；该提交仅本地存在，GitHub链接在受管发布完成前可能不可访问。最终修复仍待独立复核；此源码 pin 不认证最终文档提交、CI、常驻或原生宿主。
+
+可选[入站 MCP 访问图](../../../outputs/research-web-architecture/15-inbound-mcp.html)说明原私网网关中的应用授权、逐对象审批、四项读取工具和原 RuntimePool/冻结原件链。默认关闭；没有另建研究循环或身份服务。现有执行与报告图继续描述原 DSH 链；原生宿主实链、源码和部署验收各自记录，详见[入站合同](../../research-web-mcp-facade.md)。
+
 导入quality增量源码检查点为 `6e85dc96e6e8b15352f31f2b920b915611ef606b`：owner+draft隔离原生File与旧响应、完整核心typing、清proxy/credential-home继承且Host只允许inbound网络。74不同Python、Node90、9真实旅程及proxy负例属于本地证据；先经原SPEC确认未退规格，再由原Python/JS reviewer复核，不代表已批准发布或部署。旧218记录和各旧epoch保持原界限。
 
 自选SPEC P2及离线验收夹具源码阅读检查点为 `55acc67a5d26b54f5cac69c1cd64e5221621fd6a`。修复已有观察的首建/新增目标metadata与File保留，旧r9外网边界已追加纠正；新Seatbelt进程的8旅程通过并绑定实际源码hash。源代码、独立SPEC复核、quality、完整Router、同候选CI/安装和部署分别认证，尚未进入quality或发布。
@@ -58,6 +78,8 @@ DataHub研究仓基座在同一Host/DSH下提供可选授权查仓、缺口补�
 2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。
 
 全市场概览在Host内增加无会话采集与用户市场缓存，数据流独立于研究会话物化；见[模块图](../../../outputs/research-web-architecture/13-market-overview.html)、[接口](04-api.md#全市场概览接口)和[数据边界](03-data-files.md)。没有新增守护进程、第二研究引擎或Wind／Office权限。
+
+财经日历作为全市场概览子页，以独立的[同源 GET](04-api.md#财经日历接口)读取当前账号的短快照；缺少新鲜快照时按需读取 FOMC 和 BLS 的公开日程。该链路不读写事件研究工作台，也不启动行情刷新或日程任务。见[市场数据流图](../../../outputs/research-web-architecture/13-market-overview.html)。
 
 系统报告的中文正文/审计附件和自由分析引用绑定属于原Host/SDK文件交付链，未增加架构节点。实际渲染、数字、来源、执行与质量分别核对；详见02–05章，新策略只冻结新网页轮次，旧会话不迁移。
 

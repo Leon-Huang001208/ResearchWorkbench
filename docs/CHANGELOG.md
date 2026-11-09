@@ -1,5 +1,17 @@
 # Changelog
 
+<!-- product-progress:generated:start -->
+## 产品交付快照（自动生成）
+
+进展截至 2026-11-08。以下记录来自版本内结构化内容；源码交付不等于当前环境已启用。
+
+- 2026-11-05 **新增 · 事件时间线与日历研究**：将事件线索、人工确认和日历研究串联，明确展示证据覆盖与研究资格。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/264)）
+- 2026-11-05 **新增 · 只读研究资料接入**：通过受控授权向兼容客户端提供只读研究资料，支持查看和撤销应用授权。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/268)）
+- 2026-10-30 **新增 · 专业协作研究**：在 FinGPT 内提供有预算边界的专业协作入口，并分别显示节点、尝试与用量状态。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/246)）
+- 2026-10-29 **新增 · 从本地 CSV 导入自选**：先预览、处理重复与同名证券，再确认批量追加到自选列表。（[交付依据](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/247)）
+
+<!-- product-progress:generated:end -->
+
 - 2026-10-19 报告恢复：支持精确Decimal参数和JSON操作数、准确来源定位，增加task/contract绑定的只读证据便利投影；Host独立评分及真实失败状态保持。
 
 本文件只记录用户可见的现役产品变化。实现过程、任务状态、架构评审流水和验收细节进入 `.ai/reports/`；2026-09-17 以前的完整历史流水保存在 [历史 Changelog](archive/history/changelog-through-2026-09-17.md)。
@@ -7,6 +19,12 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。仓库当前仍使用 `0.1.0` 包版本，因此未正式发布的变化统一记录在 `Unreleased`。
 
 ## [Unreleased]
+
+- 修复私网事件工作台手动操作的明确意图头转发，并恢复市场同页旧行情入口；身份、同源、Host拒绝及关闭开关保持，实际常驻补丁与页面验证另行记录。
+
+### Added
+
+- 2026-11-06：新增默认未配置的 WeKnora 研究资料接入候选，提供个人绑定、原文检索、报告范围及不可变证据接口，并在数据设置中显示真实待验状态。金融数据、模板底稿及正式报告继续保留 RWB；第三方部署、资料迁移、界面零生成和完整报告尚未验收。
 
 - macOS 常驻资产观察支持固定已审版本的显式联合部署，保留原恢复事务，并将未完成的资产/DataHub查询纳入停机保护。
 

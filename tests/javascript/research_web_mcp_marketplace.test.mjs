@@ -170,13 +170,13 @@ async function createMarketplaceApp(fetchOverride = () => null) {
 }
 
 test('MCP market route is valid only for Tool and keeps legacy route fallbacks', () => {
-  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'connector', capabilityContext: 'tool' });
   for (const kind of ['skill', 'workflow', 'data']) {
-    assert.deepEqual(parseRoute(`#/skills?kind=${kind}&view=market`), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: kind });
+    assert.deepEqual(parseRoute(`#/skills?kind=${kind}&view=market`), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: kind === 'workflow' ? 'skill' : kind === 'data' ? 'connector' : kind, ...(kind !== 'skill' ? { capabilityContext: kind } : {}) });
   }
-  assert.deepEqual(parseRoute('#/skills?view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
-  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'workflow' });
-  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'connector', capabilityContext: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'skill', capabilityContext: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'connector', capabilityContext: 'tool' });
 });
 
 test('MCP API methods encode every path segment and query independently', async () => {
@@ -725,4 +725,36 @@ test('market tabs retain roving keyboard behavior', () => {
   assert.deepEqual(mcpMarketplaceTabKey('Home', 'connections'), { handled: true, view: 'library' });
   assert.deepEqual(mcpMarketplaceTabKey('End', 'market'), { handled: true, view: 'connections' });
   assert.deepEqual(mcpMarketplaceTabKey('Enter', 'market'), { handled: false });
+});
+
+test('refreshing connector library and connections reloads actual MCP installations', async () => {
+  let installations = []; let inventoryReads = 0;
+  const app = await createMarketplaceApp(url => {
+    if (!url.endsWith('/mcp/installations')) return null;
+    inventoryReads++;
+    return new Response(JSON.stringify({ items: installations }));
+  });
+  try {
+    for (const view of ['library', 'connections']) {
+      await app.navigate(`#/skills?kind=connector&view=${view}`);
+      const before = inventoryReads;
+      installations = [{ id: `installation-${view}`, runtime_status: 'disabled', plan: { registry_id: 'official', server_name: `Added ${view}`, server_version: '1.2.3' } }];
+      await app.click({ dataset: { capRefresh: '' }, disabled: false, getAttribute: () => null });
+      assert.equal(inventoryReads, before + 1);
+      assert.ok(app.root.innerHTML.includes(`Added ${view}`));
+      installations = [];
+      await app.click({ dataset: { capRefresh: '' }, disabled: false, getAttribute: () => null });
+      assert.ok(!app.root.innerHTML.includes(`Added ${view}`));
+    }
+  } finally { app.cleanup(); }
+});
+
+test('legacy skill plans navigation reaches the existing independent timer workspace', async () => {
+  const app = await createMarketplaceApp();
+  try {
+    await app.navigate('#/skills?kind=workflow&view=plans');
+    assert.equal(location.hash, '#/automations');
+    assert.match(app.root.innerHTML, /<h1>定时任务<\/h1>/);
+    assert.doesNotMatch(app.root.innerHTML, /<h1>Agent 日程<\/h1>/);
+  } finally { app.cleanup(); }
 });

@@ -1,8 +1,54 @@
 # Research Workbench 架构总览
 
+财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。
+每账号保留有界内存快照；未接入类别不会访问上游，不引入进程、数据库、定时或第二研究引擎。
+见[市场数据流](../outputs/research-web-architecture/13-market-overview.html)及[接口合同](architecture/research-web/04-api.md#财经日历接口)。
+
+全市场逐日时间线与收盘图复用现有 Web 壳和缓存投影；首批资料由账号内 Host 的明确操作沿原事件仓与证据归档写入。
+现有账户、归档、评分资格和部署节点不变；不在浏览时取源，也不启用采集日程、入站 MCP 或生产评分。
+
+市场联合V2仍使用原Native三锁与BirthFence；源切换使用独立有界等待及切后身份/干净复核，
+失败继续走原保全回滚。无新运行节点、依赖或服务，所有事件采集与入站MCP关闭门不变。
+
+私网事件写操作继续沿浏览器→账号网关→原Host路径；网关转发浏览器已提供的
+`X-Research-User-Action`，不生成该标识、不授予可信来源资格。认证、同源、账号绑定与
+Host严格 `?1` 检查保持；本修补不新增运行节点、接口、数据库或研究引擎。
+
+2026-11-06 综合总览将三地九指数、六维资格和个人事件时间线投影到同一市场首页；旧行情分析、
+沪深北行情与板块资金同页保留。浏览只读，明确刷新沿原 MarketService／DataHub，独立 global-v1
+不覆盖既有中国指数目录；研究工作台复用 Timeline／Study／Score 与唯一 DSH，不新建研究引擎。
+来源、时间、缺项与未启用状态分别呈现，详见[综合总览合同](research-web-market-dashboard.md)。
+
+## WeKnora 资料边界（2026-11-06）
+
+可选 `knowledge_backend/` 在既有账号 Host 中提供设置绑定、原文检索和独立证据冻结，新增到外部 WeKnora 的受控网络边；[图04](../outputs/research-web-architecture/04-data-file-flow.html)明确展示此边。WeKnora 作为研究原件与索引的目标底座，RWB 继续拥有金融快照、模板底稿、正式稿及冻结证据；不是增加 Agent、调度器或第二套报告运行状态机。当前只有源码候选，默认 `RESEARCH_WEKNORA_ORIGIN` 为空。显式只检索 profile 已有源码补丁，Go、服务及界面零生成尚未验收，部署与迁移不得由适配代码通过推定。完整身份、时点和失败边界见[资料合同](research-web-weknora.md)。
+
+2026-11-06统一导航部署采用既有v4联合事务的 reviewed-unified-navigation-v1／apply-navigation-ui，固定5ffecb52旧版及b192dd1a产品。完整union/blob/mode冻结，仅操作员及其专用测试／文档可随后变化；全账号64MiB索引、事件／档案保全、空闲、BirthFence和恢复源码绑定不变，NAV前进及回滚均验证MCP实际严格False。旧static-ui分步流程不用于本次联合保全。
+
+统一导航由 UI 中 navigation-catalog.mjs／module-navigation.mjs/css 管理入口、独立图标、模块侧栏及浏览器偏好；app／shell 保留原研究与数据生命周期，不新增后端、数据库或运行节点。详见 [前端导航合同](research-web-ui.md#统一模块导航2026-11-06)。
+
+2026-11-05 事件封闭Native部署沿原v4三锁／BirthFence／全账号@events保全与恢复，固定db2前版及a398→604→58ad→546→e9→32b（保留65a关闭安全及受审交付恢复修复）安全组合链；仅a398→604要求app树相同。MCP源码随用户授权主线纳入，EVENT目标配置持久False，并以原fenced双入口health实际Facade布尔、原PID/启动/源码身份前后复核接受；回滚保留旧字段缺席。全账号采集关闭／严格Native与既有后台门保持，不进入TRIAL、不开MCP/OAuth或研究引擎，实际切换另证，见[部署合同](research-web-gateway-upgrade.md)。
+
+研发进展沿原生 UI 与现有静态资源服务读取版本内 JSON，展示功能最新状态及交付时间线，
+不新增 API、数据库、任务执行器、外部同步或研究引擎。同源内容生成 Changelog 受管区块；
+交付、版本包含、平台及启用分别说明，旧主实例固定 UI 和常驻边界不变。
+详见[前端合同](research-web-ui.md#研发进展与更新日志)，既有部署及研究拓扑仍适用。
+
+能力中心界面仅保留技能、连接器、插件；方法与通用步骤模板并入技能，工具进入关联详情，旧类型/版本/权限合同继续兼容。方法复制只产生普通 Skill 草稿，不改写历史采用记录。详见[能力合同](architecture/research-web/07-capabilities.md)。本地测试通过 `scripts/research_web_test_env.py --check --json` 查找项目共享环境，准备与复用边界见[开发流程](AGENT_WORKFLOW.md#复用研究-web-测试环境)。
+
+事件研究新增账号内 Timeline／Study／Score 领域：事件版本与原件进入个人 SQLite／私有归档；
+已有 DataHub 日线须显式登记为研究输入，发生、公开和取得时间分别保存。确定性计算不创建AI
+研究引擎，解释仍使用唯一 DSH。来源采集复用 Automation 心跳且默认关闭，历史评分验证不
+启用生产总分。实现与真实验收限制见[事件研究集成](research-web-event-research.md)。
+
+可选入站 MCP 在原私网多用户网关中分开授权服务与资源服务，复用账户 SQLite 增量授权表、原 RuntimePool 和固定冻结 GET；不增加研究执行循环。首版默认关闭，仅四项批准公开/合成材料读取；浏览器登录不等于外部应用授权。FinGPT/Claw 通用 Agent 功能停止扩建，既有入口兼容维护。访问边界见[入站 MCP 合同](research-web-mcp-facade.md)和[只读授权图](../outputs/research-web-architecture/15-inbound-mcp.html)；源码、隔离 HTTP、私网部署和原生宿主验收分别留证。
+
 2026-10-31 本机测试产物与交付证据分层：`scripts/test_artifact_retention.py` 在测试开始登记临时根的任务、候选及 inode，通过的外部 JUnit/stdout/stderr 冻结后可提前清理根目录；`iteration_resources.py` 对新任务要求完整的 `logs/evidence-retention.json`，仅把显式保留且不超过 128 MiB 的证据归档。未分类、失败/未知或来源变更均拒绝清理；旧任务沿原合同，生产恢复与 Git 备份由各自保全链管理。没有新增线上研究、模型或部署节点，见[存储留存规则](research-web-storage-retention.md)。
 
-开发产物在原Git/Docker安全收尾后经`resource_lifecycle.mjs`桥接共用事件内核，独立记录交付与清理欠账；普通备份按登记的交付事件退休，完整日志只保留有界摘要。不新增业务服务或部署节点，见[生命周期](resource-lifecycle.md)。
+开发产物在原Git/Docker安全收尾后经`resource_lifecycle.mjs`桥接共用事件内核，独立记录交付与清理欠账；普通备份按登记的交付事件退休。测试输出先按已核验选择清单处置，必要证据归档原件由桥显式保护，摘要不能替代原件。不新增业务服务或部署节点，见[生命周期](resource-lifecycle.md)。
+恢复后的桥接复用项目只读 `validateCloseoutRecovery`，同时核对完整恢复证书链、实际交付、资源复核和引用/路径保全；原 pending 证明保持原字节，不新增恢复执行器或研究节点。
+桥以静态 ESM live binding 复用校验器，模块求值时不调用；真实 Git 安全 CLI 入口与普通模块调用分别验证，避免顶层 await 内动态自导入等待环。
+单一缓存 adapter 可经私有本机委托仅改变统计报告归属；精确根/common/origin、冻结回执和获准观察链均复核，任务事件仍归 reporter。没有新测量、缓存管理、服务或用户授权自证流程，见生命周期合同。
 
 2026-10-31 试验清理容量后继仍位于原 Native 操作员事务：版本化执行模式将历史会话的同父目录 rename 预算与配置复制预算分开，保持原三锁、BirthFence、账号保全和恢复归档。未新增研究引擎或业务权限；新执行器对旧事务的接管、源码交付和真实部署各自留证，不能以历史 UNKNOWN 或源码测试结果代替现场状态。容量合同见[试验退役](research-web-trial-discard.md)。
 

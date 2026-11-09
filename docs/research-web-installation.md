@@ -1,5 +1,40 @@
 # Research Web Native / Docker 安装与运行
 
+首批市场面板使用原静态资产和原锁定依赖；干净安装检查一次性操作模块的实际字节，不在启动时取源。
+
+市场V2切换使用既有依赖与安装入口；Native Git切换上限120秒，切后复核再安装原锁轮子，同候选Mac干净安装另验。
+
+私网明确操作修补沿现有Web依赖和安装器，只调整网关既有头转发；未增加依赖、设置或
+Doctor能力。已核对web.in/web.lock/setup_web无需修改；同候选Mac安装与实际补丁部署分别留证。
+
+三地综合总览复用锁内 httpx 与既有腾讯公开来源，不新增依赖或安装选项。四个本地资源
+`market-dashboard.mjs`、`market-dashboard-model.mjs`、`market-dashboard-view.mjs`、
+`market-dashboard.css` 随 UI 目录打包；原 Mac Bootstrap 对实际服务下载逐字节核对，另导入
+九指数 Provider。已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py`
+无需修改，兼容结论须等待同候选干净安装；Doctor、采集开关和入站 MCP 默认状态不变。
+
+## 可选 WeKnora 资料入口（2026-11-06）
+
+现有一键安装只随产品打包薄适配与设置卡片，不安装 WeKnora、数据库、模型或 Go，Web 依赖锁保持。操作员可提供非秘密 `RESEARCH_WEKNORA_ORIGIN`；缺省为空，入口停用。地址仅接受无凭据、查询及片段的 HTTPS origin，HTTP 只接受 localhost／回环；不从用户请求接受任意上游 URL。tenant 子进程只传递操作员显式 origin，用户 JWT 仅由本机设置页进入受保护凭据后端，不放环境、锁、日志或模型。
+
+Doctor 的 `knowledge_backend` 只检查账号内绑定与保全完整性，不读凭据、不联网、不创建资料根或认证成功状态；`expected_release`／`expected_source_commit` 仅为目标版本要求，不能当作实际服务身份；`connectivity=not_verified` 和真实模型／报告 `NOT_RUN` 保留。Mac 干净安装沿原步骤下载并逐字节比对 `knowledge-settings.mjs`，另验证默认未配置状态；本地代码存在不等于已安装。新增独立服务仍先核算镜像、原件、数据库、索引、解析及恢复峰值，不能借此任务停止既有服务。[详细合同](research-web-weknora.md)
+
+统一导航v4维护profile不增加产品依赖或重新安装第三方包；只用现有主实例解释器构建／安装本项目wheel，并保留原web.lock、固定DSH、CJPY和immutable controller。仅冻结5ff→b192产品与后继受审操作员，不使用宽松静态更新流程；Mac安装CI与实际部署Doctor各自验证。
+
+2026-11-06统一导航新增三个随产品打包的本地静态资源，原安装器和web依赖锁保持；Mac干净安装CI须从实际服务下载并与checkout核对字节，不能用开发目录中存在文件替代已安装资源证明。此迭代无新Python/Node依赖、配置或Doctor能力。
+
+研发进展随现有UI目录安装，包含progress.mjs、progress.css及progress-data.json，无新Python／Node依赖或设置项。安装CI沿原健康与Doctor步骤逐字节核对新增资源；本机已有环境不替代干净安装证据。
+
+`./rwb server doctor` 与 `./rwb server serve` 的子进程交接只额外保留显式 `RWB_MCP_READONLY_ENABLED=0|1`；缺省或其他拼写保持关闭，并记录不含输入值的稳定告警。共享最小环境白名单保持，其他 `RWB_*`、模型及供应商凭据不会因此传递。Doctor 检查仍不创建账号根、初始化 SDK 或启动后端。此开关修复来自 Mac Bootstrap 的实际失败复现，修后候选安装 CI 须重新验证；不代表常驻已启用。
+
+事件时间线／日历效应／六维研究评分沿用现有 Web 依赖，不要求外部 PostgreSQL、独立服务或
+新增 Python 包。个人元数据与证据在账号数据根的 `event_timeline/` 懒创建；Doctor 的
+`event_research` 只报告本地保全状态，不访问来源或启用采集。默认不启动定时采集、付费模型
+或生产评分。升级前后必须保留初始化标记、SQLite和原件，不能只复制数据库或重置损坏状态。
+当前候选的来源、回测与安装验收限制见[集成合同](research-web-event-research.md)。
+
+可选[入站 MCP 只读服务](research-web-mcp-facade.md)沿既有私网账号网关使用 `RWB_MCP_READONLY_ENABLED=1` 显式开启，默认关闭。公开安装入口与 Web 锁保持；已核对锁内 SDK 2.2.0、multipart 0.0.32、Starlette 1.6.0，本次无新依赖。Mac 干净安装兼容、实际部署和原生宿主 OAuth 仍分别待验证。`server doctor --json` 新增 `mcp_readonly` 的开关和包元数据检查，即使开启也不建授权表或连接网络；`configuration_pending`、连接 `not_checked`、原生验收 `NOT_RUN` 不能写成已连接。配置示例与批准／撤权／回滚步骤见专项合同，示例尚未执行。
+
 ## 开发测试产物留存（2026-10-31）
 
 `scripts/test_artifact_retention.py` 是 checkout 中的本机测试/交付辅助入口，使用标准库，不进入 Web 用户配置、模型链或 Docker 镜像运行时。新任务的 `iteration_resources` 选择性归档也不增加产品依赖；已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 无需修改，公开一键安装入口保持。由于本轮修改 `research_workbench_entrypoint/`，仍须由同候选 Mac Bootstrap 证明干净安装和固定 DSH 构建兼容；本机源码导入不能替代该 CI。具体身份、证据和空间门见[留存规则](research-web-storage-retention.md)。
@@ -1139,3 +1174,18 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## 事件研究常驻部署边界
+
+事件时间线、日历研究与六维评分通过独立封闭的 `apply-events` 操作员部署，固定 db2 前版、
+a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新主线及 e9cb46e1
+合并安全检查点（保留65a关闭安全代码），最终载荷固定32b21c4e交付恢复工具检查点；
+后者只修复未发布修订跨正式主线刷新的证据衔接，不改产品边界。最新能力分类／进展UI同属授权范围，无新增依赖；
+最终操作员仍须同候选三 CI 与 Mac 干净安装。目标常驻配置写入严格布尔
+`mcp_readonly_enabled: false`，并从实际网关健康检查验证 Facade 未创建；旧版回滚保留原字段缺席。
+该入口复用原全账号保全、恢复与空闲事务，并独立证明事件来源日程关闭；不修改自动兼容
+白名单或安装新依赖。详见[受控部署合同](research-web-gateway-upgrade.md)。
+
+公开 `./rwb server` 入口现在由stdlib先校验显式 `RESEARCH_WEKNORA_ORIGIN`，仅把合格的非秘密origin加入原最小子环境；无效输入不转发、不回显，其他模型或供应商环境仍不继承。冷启动 `server doctor` 增加可选知识库事实，配置只显示 `configuration_pending`，授权／连接 `not_checked`、运行 `NOT_RUN`，不读凭据、不联网或创建账户根。Mac原冷Doctor冒烟验证该真实交接。0003原生知识库设置只检索模式仍要求API先建库；完整Vue、服务与实际界面待验收。
+
+冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。

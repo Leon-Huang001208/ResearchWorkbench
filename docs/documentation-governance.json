@@ -109,6 +109,16 @@
       "purpose": "product overview and quick start"
     },
     {
+      "exact": "LICENSE.md",
+      "status": "current",
+      "purpose": "ResearchWorkbench source available license terms"
+    },
+    {
+      "exact": "THIRD_PARTY_NOTICES.md",
+      "status": "current",
+      "purpose": "license scope and third-party terms"
+    },
+    {
       "exact": "AGENTS.md",
       "status": "current",
       "purpose": "shared agent rules authority"
@@ -128,6 +138,10 @@
     {
       "topic": "product-overview",
       "path": "README.md"
+    },
+    {
+      "topic": "project-license",
+      "path": "LICENSE.md"
     },
     {
       "topic": "documentation-index",

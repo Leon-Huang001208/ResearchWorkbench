@@ -1,3 +1,4 @@
+import copy
 import io
 import json
 import zipfile
@@ -35,8 +36,58 @@ def test_builtin_methods_are_versioned_read_only_native_skills(tmp_path):
         with zipfile.ZipFile(io.BytesIO(catalog.export(row["id"], 1))) as archive:
             assert "kind=method" in archive.read("SKILL.md").decode()
             assert json.loads(archive.read("method.json"))["method_id"] == row["id"]
-        with pytest.raises(CapabilityError, match="只读"):
-            catalog.copy(row["id"], "副本", f"{row['id']}-copy")
+        with pytest.raises(CapabilityError, match="只能复制"):
+            catalog.edit(row["id"], detail["draft"])
+
+
+def test_method_copy_is_an_ordinary_skill_without_rewriting_history(tmp_path):
+    catalog = CapabilityCatalog(tmp_path)
+    cid = "fact-checking"
+    original = copy.deepcopy(catalog.row(cid))
+    native = (catalog.native_root / cid / "SKILL.md").read_bytes()
+    copied = catalog.copy(cid, "事实核验副本", "fact-checking-copy")
+    assert copied["kind"] == "skill"
+    assert copied["version"] is None
+    assert copied["origin"] == {"capability_id": cid, "version": 1}
+    assert not copied["draft"].get("method_spec")
+    instructions = copied["draft"]["instructions"]
+    spec = original["versions"]["1"]["method_spec"]
+    for field in (
+        "triggers",
+        "anti_triggers",
+        "input_contract",
+        "output_contract",
+        "procedure",
+        "evaluation_rubric",
+    ):
+        assert all(item in instructions for item in spec[field])
+    assert "rwb_record_method_use" not in instructions
+    assert "kind=method" not in instructions
+    assert copied["metadata"]["required_tools"] == []
+    assert catalog.check(copied["id"])["valid"]
+    catalog.publish(copied["id"])
+    assert catalog.detail(copied["id"])["version"] == 1
+    assert catalog.row(cid) == original
+    assert (catalog.native_root / cid / "SKILL.md").read_bytes() == native
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("instructions", "unreviewed instruction"),
+        ("files", [{"path": "x.py"}]),
+        ("required_tools", ["shell"]),
+    ],
+)
+def test_method_copy_rejects_invalid_source_without_partial_creation(tmp_path, field, value):
+    catalog = CapabilityCatalog(tmp_path)
+    source = catalog.row("fact-checking")["versions"]["1"]
+    target = source["metadata"] if field == "required_tools" else source
+    target[field] = value
+    before = set(catalog.data["items"])
+    with pytest.raises(CapabilityError):
+        catalog.copy("fact-checking", "副本", "fact-checking-copy")
+    assert set(catalog.data["items"]) == before
 
 
 def test_users_cannot_create_or_import_method_contracts():

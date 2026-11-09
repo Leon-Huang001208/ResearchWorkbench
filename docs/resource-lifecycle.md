@@ -1,14 +1,41 @@
 # 开发产物事件驱动清理
 
+## 冲突诊断与 prepared amend（2026-11-06）
+
+`mergeFailure` 是受管 prepare 失败后留下的历史诊断，不是交付接受、CI成功或资源退休凭据。prepared amend 对六字段有界诊断的兼容只恢复原正式读取路径；已解析记录原样保留，不在识别阶段改状态、删失败证据、释放保护或修改共用运行时与备份。
+
+记录只接受 `merge_conflict`、1–255非零整数退出码、空 signal／errorCode、0–4 MiB整数 stderr字节数及小写64位十六进制字符串哈希；零字节与空字节SHA-256必须双向对应。其他形态及额外字段拒绝。该摘要不代替原恢复备份或必要原件，不能从诊断可读推定远端未发布、对象已归并、目录空闲或可清理。原恢复验证、最新基线、分支保护、CI、归属和占用门继续分别执行；本轮前置修复不代表WeKnora任务或资源收尾已经完成。
+
 本项目通过 `scripts/resource_lifecycle.mjs` 接入已验证的共用leon-engineering运行时。
 没有定时任务，不更新业务服务，不把合并验收当成生产部署。
 
 ## 阶段与保护
 
 原Git安全入口仍先完成审查、CI、远端包含、目录归属、占用、恢复备份及完整性验证，
-并完成Docker/依赖收尾。Git最终认证完成后，才将本任务已归档的临时验证日志目录
-登记进共用生命周期，保留校验摘要后删除完整内容。业务数据、凭据、正式报告和未知文件不纳入。
+并完成Docker/依赖收尾。`iteration_resources` 先按已核验选择清单丢弃获准的成功测试输出，
+再以完整 SHA 校验归档必要保留集。Git最终认证完成后，生命周期桥把这一证据根显式标记为
+`protection: rwb-required-verification-recovery-originals`。最终、失败、恢复证明等必要原件
+继续保存在原归档路径；交付接受事件和缓存报告照常完成，保护本身不算清理欠账。
+不得把摘要或原件 hash 当成原件备份。业务数据、凭据、正式报告和未知文件不纳入可删除资源。
 源码交付不发部署成功事件；实际部署工具必须在其健康验收通过后提交独立的部署事件。
+
+旧登记未带保护、所有者不符或仍处于隔离回收状态时，桥在任何接受事件前拒绝，保留原件与
+原账本。事件会扫描整个 store，因此该保护前置门同时覆盖账本中可由固定路径
+`leon-engineering/resource-closeout/<task>/evidence` 明确认定的其他 RWB 任务及项目归档，
+不能因本任务已保护而顺带删除另一任务原件。只检查 live resources，不把已退休摘要当作待删除原件。
+当前共用 API 不支持保护升级，也不允许已接受任务重新登记，因此不能伪报已升级。
+已有正确保护的 active/accepted 登记须通过项目只读指纹复核，才幂等继续；归档缺失不重建。
+该指纹以真实内核身份 schema 交叉测试；符号链接、内容/身份漂移均拒绝。其他未保护资源的
+真实占用、预算与身份门仍由原内核执行，不以伪造 active owner 或 busy 状态保护必要原件。
+
+`git-finalization.json` 为 `complete` 时沿用原证明认证门；受管恢复保留原 `pending` 时，
+桥调用项目 `validateCloseoutRecovery`，复用完整恢复证书校验，核对原证明、epoch、
+实际 delivery、独评、v2 备份 manifest 与资源重新验证链，再检查本任务路径及分支仍缺席、
+其余保留引用及工作树仍满足原保全审计。缺失、漂移或不匹配证据均在创建生命周期引擎前拒绝，
+不改原证明，不递归调用交付入口，也不重放 Git、资源删除或实际恢复。
+校验器使用静态 ESM live binding；桥模块求值时不调用它。不得在 CLI 的顶层
+`await runDelivery()` 内动态导入尚未完成求值的 `git_safety.mjs` 自身，否则会形成等待环。
+CLI 子进程与普通模块调用分别留证；模块导入测试不能替代真实入口验证。
 
 共享运行时须由受管安装器安装并校验，manifest必须包含资源内核。缺失或漂移返回
 `cleanup_pending`，不伪报cleaned。该状态保留Git成功信息，后续status/cleanup事件可补清。
@@ -19,6 +46,36 @@
 观测量及回执哈希，与已登记文件缓存合计20GiB；它仍用原BuildKit操作锁和LRU回收，
 不删除底层snapshot/blob。观测来自最近一次工具回执，未刷新不能当成实时空间证明。
 总量超限则记欠账，不停止使用中的资源来达标。
+
+## 单一缓存 adapter 的私有委托报告
+
+默认不存在 `Git common/leon-engineering/cache-report-delegation.json`，报告行为及返回结构保持原样。
+跨 checkout 只能由已获明确用户授权的本机操作者在源码交付后建立该私有配置；不从 HTTP、库参数
+或业务配置接收 grant。文件里的授权来源/日期是审计元数据，不能自行证明用户已许可。
+固定 schema 如下，各层未知字段拒绝，最多 32 个不重复任务：
+
+| 字段 | 固定含义 |
+| --- | --- |
+| `schemaVersion` / `adapter` | `1` / `rwb-buildkit` |
+| `authorization` | `source: explicit-user`、真实日历日期 `date: YYYY-MM-DD`、`scope: report-frozen-cache-observation` |
+| `owner` / `reporter` | 各自含 `projectRoot: {path,dev,ino}`、`commonDirectory: {path,dev,ino}` 及 `originSha256`；dev/ino 为十进制字符串 |
+| `tasks` | 每项只含 `taskId`、冻结资源回执原字节的 `receiptSha256`、`afterBytes` |
+
+配置须为当前用户拥有、0600、单硬链接、无别名的普通文件，上限 64 KiB；FD 有界读取并检查前后身份。
+委托绑定时的资源回执也按私有 FD 快照读取（上限 16 MiB）。两侧真实 root/common 的路径与 dev/ino 均须匹配；
+固定系统 Git 只读复核仓库及 origin，清除继承的 `GIT_*` 覆盖，禁用系统/全局 Git 配置与惰性 fetch/replace。
+`originSha256` 为该边界下 `remote get-url origin` 去首尾空白结果的 SHA-256，两侧 digest 必须相同；不输出 URL。
+
+当前任务须匹配冻结回执 SHA 与字节数；builders 必须恰为 `desktop-linux`、`rwb-dev-builder`，
+各分项 bytes 为安全非负整数、安全求和后等于 afterBytes。原 owner 须已 enrolled，单一 adapter 仍属于它；
+当前 ledger 的 bytes/SHA 须属于 grant 的获准冻结观察链，且 bytes 等于本任务值。桥不执行任意旧值的首次替换，
+首次更新须由获授权操作者单独完成。配置、回执、双侧身份/origin、当前 owner 与观察链在报告前再核对；复核时发现漂移即拒绝，不发事件。
+
+只有 `reportCache.project` 使用 owner；enroll/register/交付事件继续归 reporter，不迁移 owner 或新增 adapter。
+委托返回 `cacheReport`，仅含 owner/reporter、回执/配置 SHA、字节数及冻结观察标记；previousBytes/sequence 仅作审计。
+该委托上报路径不测量 Docker、不调用 builder maintenance/GC、不改服务，复用已获准的冻结观测，不声称实时或最新。
+其他既有 Git、资源、预算和缓存安全门保持。原 API 仍是 last-observation 写入，只会原子拒绝跨 owner 变化；
+没有 CAS，不能保证阻止最后复核到写入之间的同 owner 并发观测变化或覆盖，不能把审计快照写成 CAS。
 
 ## 备份退出
 
@@ -39,5 +96,12 @@ Git common dir的`leon-engineering/resource-closeout/<task>/lifecycle.json`，�
 
 本机执行原Git安全、prepared修订、原迭代收尾与新增生命周期桥合同。
 Project Constraints沿同一Git safety步骤增加桥合同，不新增job、runner或依赖。
+真实临时 Git/v2 备份及正式恢复生成的证书桥回归位于 `tests/javascript/git_safety.test.mjs`；
+覆盖 partial cleanup 与历史退休证书、坏/缺/错候选/过期摘要、delivery/资源/备份漂移、
+保留引用缺失或倒退及任务路径重现。原 `complete` 桥与保护登记单元回归在 `resource_lifecycle.test.mjs`。
+安装了已验证共用运行时的宿主另执行 `node --test tests/javascript/fixtures/resource_lifecycle_kernel_contract.mjs`：
+使用全新临时 store 的真实内核，证明原件字节/hash保留、无隔离/删除、接受事件与缓存报告完成，
+并覆盖旧未保护登记、隔离中断、身份/符号链接/缺失归档与其他占用资源。该显式宿主合同不增加
+通用仓库 CI 的外部运行时依赖；未执行时不能声明真实内核集成已验证。
 共用框架独立覆盖三次迭代、部署轮转、引用、预算、摘要读取、SIGKILL恢复和真实macOS占用。
 没有Windows/Linux本机证据时保持NOT_RUN；未更新常驻服务或执行生产部署。

@@ -74,6 +74,65 @@ test('private gateway APIs require a verified independent CLI factory-to-server 
   assert.equal((await check(f)).violations.some(v => v.code === 'api_unmounted' && v.path === gateway), true);
 });
 
+const conditionalGateway = `    methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]
+    if facade is None:
+        app.add_api_route("/{path:path}", proxy, methods=methods)
+    else:
+        app.add_api_route("/api/research/{path:path}", proxy, methods=methods)
+        app.add_api_route("/frameworks-embed/{path:path}", proxy, methods=methods)
+        app.mount("/", facade.app, name="mcp-readonly")
+    return app
+`;
+
+test('conditional gateway inventory retains off catchall and both enabled branches', async () => {
+  const {collectGatewayProxyAPIs}=await import(checkerURL);
+  const actual=collectGatewayProxyAPIs(conditionalGateway,'app/research_web/multiuser/gateway.py');
+  assert.equal(actual.length,18);
+  assert.equal(actual.filter(x=>x.condition==='mcp-disabled').length,6);
+  assert.equal(actual.filter(x=>x.condition==='mcp-enabled').length,12);
+  assert.deepEqual([...new Set(actual.map(x=>x.path))],['/{path:path}','/api/research/{path:path}','/frameworks-embed/{path:path}']);
+});
+
+test('conditional gateway parser refuses dynamic paths aliases method additions and branch drift', async () => {
+  const {collectGatewayProxyAPIs}=await import(checkerURL);
+  for(const text of [conditionalGateway.replace('"/{path:path}"','PATH'), conditionalGateway.replaceAll('app.add_api_route','alias.add_api_route'), conditionalGateway.replace('"HEAD"]','"HEAD", "OPTIONS"]'), conditionalGateway.replace('if facade is None:','if enabled:'), conditionalGateway+'    methods = OTHER\n',conditionalGateway+'    app.add_api_route("/unknown", proxy, methods=methods)\n']) {
+    assert.throws(()=>collectGatewayProxyAPIs(text,'app/research_web/multiuser/gateway.py'),/unsupported/);
+  }
+  assert.throws(()=>collectGatewayProxyAPIs(conditionalGateway,'app/research_web/other.py'),/unsupported/);
+});
+
+test('conditional gateway inventory checks branch identity and omitted enabled paths', async t => {
+  const f=fixture(t), gateway='app/research_web/multiuser/gateway.py';
+  f.write(gateway,conditionalGateway);
+  f.write('app/research_web/multiuser/__main__.py','from .gateway import create_gateway\napp = create_gateway(store, pool)\nuvicorn.run(app, host="127.0.0.1")\n');
+  const {collectGatewayProxyAPIs}=await import(checkerURL);
+  const map=f.read(mapPath);map.apis.push(...collectGatewayProxyAPIs(conditionalGateway,gateway));f.write(mapPath,map);
+  assert.equal((await check(f)).violations.some(v=>v.code==='api_inventory'),false);
+  map.apis.find(x=>x.condition==='mcp-disabled').condition='mcp-enabled';
+  map.apis=map.apis.filter(x=>x.path!=='/frameworks-embed/{path:path}');f.write(mapPath,map);
+  const failures=(await check(f)).violations.filter(v=>v.code==='api_inventory');
+  assert.ok(failures.some(v=>v.message.includes('/{path:path}')));
+  assert.ok(failures.some(v=>v.message.includes('/frameworks-embed/{path:path}')));
+});
+
+test('SDK facade cannot silently omit its separate runtime route contract', async t => {
+  const f=fixture(t);f.write('app/research_web/mcp_facade/server.py','# SDK assembly fixture');
+  assert.ok((await check(f)).violations.some(v=>v.code==='library_route_contract'));
+  const map=f.read(mapPath);map.libraryRouteContract={routes:{invalid:true}};f.write(mapPath,map);
+  assert.ok((await check(f)).violations.some(v=>v.code==='library_route_contract'));
+});
+
+test('Atlas labels SDK routes separately from static declarations and proxy conditions', async () => {
+  const {renderArtifacts}=await import(atlasURL);
+  const root=path.resolve(new URL('../..',import.meta.url).pathname);
+  const result=renderArtifacts(root);
+  const map=JSON.parse(fs.readFileSync(path.join(root,mapPath),'utf8'));
+  const html=result.artifacts['outputs/research-web-architecture/api-atlas.html'];
+  assert.equal(result.apiDeclarationCount,map.apis.length);
+  for(const text of ['mcp-enabled','mcp-disabled','SDK 条件路由','非静态 FastAPI 扫描','ASGI dispatcher','sdk-generated-rwb-wrapper','rwb-browser'])assert.ok(html.includes(text),text);
+  for(const route of map.libraryRouteContract.routes)assert.ok(html.includes(route.path),route.path);
+});
+
 test('local integration API deep links select their own real Atlas category', async () => {
   const {category}=await import(atlasURL);
   assert.equal(category({path:'/api/research/local-integrations/status'}),'本机集成');

@@ -1,5 +1,30 @@
 # Mac mini Docker 开发与独立部署
 
+逐日市场本轮验收落在已授权Mac Native；外置开发工作区不搬移Docker数据盘，不操作其他容器。
+
+市场V2的Git切换预算只适用于已授权Mac Native事务，不切换Docker、改其他容器或扩大资源清理范围。
+
+私网明确动作后继补丁只针对当前Native常驻，不切换Docker产品或停止其他服务；
+双运行时互斥、三锁、保全恢复及受管缓存预算不变，通用CI不替代Docker实机证据。
+
+三地综合总览的 `apply-market-live` 是固定5ff→a2ee产品的 Native 维护 profile，不切换
+Docker 镜像或卷。仍遵守原双运行时互斥、三锁、BirthFence和保全恢复；采集日程与
+入站 MCP 保持关闭。Mac Docker、Windows/Linux 产品证据不由 Native 切换代替。
+
+统一导航 apply-navigation-ui 是macOS Native联合维护，沿原v4而非Docker构建／部署；不启动、重建或重启Docker服务，不认定Docker产品已验收。项目通用Ubuntu CI仍是仓库门，与Linux/Docker产品真机证据分开。
+
+## 事件研究固定部署的 Native 范围（2026-11-05）
+
+`apply-events`／`reviewed-event-research-v1` 只扩展既有 macOS Native 操作员，将事件时间线、日历效应与六维研究评分组合纳入固定部署。它不构建或切换 Docker 镜像，不操作容器、业务卷或构建器；本章的双运行时互斥、资源锁及 20 GiB 缓存预算继续适用。Native 事务沿原三锁、BirthFence、全账号业务保全和恢复运行，采集日程必须保持关闭。
+
+新操作员最终候选仍须完成原三项 CI、同候选 Mac 干净安装及真实切换验收；共享 Python 合同和 Native 空闲见证不认证 Docker 产品。固定版本和失败恢复见[事件部署合同](research-web-gateway-upgrade.md)。
+
+## 事件研究候选的运行与保全边界（2026-11-04）
+
+事件时间线、日历研究和市场研究评分新增于既有 Host，个人事件 SQLite、原件及资格对账标记随账户业务根保全；Native／Docker 仍复用原产品协议与互斥写入规则，没有新增容器角色、端口、数据库服务或研究引擎。来源采集只复用原 Automation 心跳，构造和页面读取不启用计划。
+
+本轮没有执行 Docker 镜像构建、容器业务闭环或常驻切换；源码与离线结果不替代 Docker 验收，现有资源锁、20 GiB 预算和未知资源保护继续适用。新增模块及实际缺口见[事件与日历研究合同](research-web-event-research.md)。
+
 ## 构建缓存与测试临时根分界（2026-10-31）
 
 本轮只调整本机 pytest 根及 Git 交付日志的证据留存；不触碰 Docker 运行容器、业务卷、镜像或 BuildKit 原件。测试根通过外部 JUnit 后可立即回收，Docker 对象仍经 `rwb-docker` 操作锁、租约和现有 20 GiB 受管缓存预算。磁盘准入读取宿主 `df`，不得把旧夹具的 `du` 总量或逻辑镜像大小算作实际可用空间；Docker 业务验收与用户要求的容器运行方式另行验证。见[留存规则](research-web-storage-retention.md)。

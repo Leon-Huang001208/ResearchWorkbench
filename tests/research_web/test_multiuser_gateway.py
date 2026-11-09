@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 
 from app.research_web.multiuser.accounts import AccountStore
 from app.research_web.multiuser.gateway import create_gateway
+from tests.research_web import test_event_api
+
+host_event_api = test_event_api.event_api
 
 
 class Pool:
@@ -91,6 +94,97 @@ def login(browser, username="alice", password="a safe alice password"):
     if response.status_code == 200:
         browser.headers["X-RWB-Page-User"] = response.json()["user"]["id"]
     return response
+
+
+@pytest.fixture
+def event_gateway(host_event_api, tmp_path, monkeypatch):
+    host, service, native = host_event_api
+    store = AccountStore(tmp_path / "gateway")
+    alice = store.create_user("alice", "a safe alice password")
+    pool = Pool()
+    key = tmp_path.resolve() / "gateway-key"
+    key.write_text(alice.id, encoding="ascii")
+    key.chmod(0o600)
+    monkeypatch.setenv("RWB_TENANT_MODE", "1")
+    monkeypatch.setenv("RWB_TENANT_GATEWAY_KEY_FILE", str(key))
+    forwarded = []
+    transport = httpx.ASGITransport(app=host.app)
+
+    async def upstream(request):
+        forwarded.append(request)
+        return await transport.handle_async_request(request)
+
+    async def fetch(source, year, page):
+        return (
+            "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+            (
+                b'<h4>2026 FOMC Meetings</h4><div class="fomc-meeting">'
+                b'<div class="fomc-meeting__month">December</div>'
+                b'<div class="fomc-meeting__date">8-9</div></div>'
+            ),
+        )
+
+    monkeypatch.setattr(service.event_timeline, "fetcher", fetch)
+    client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
+    app = create_gateway(store, pool, origin="http://localhost", upstream=client)
+    with TestClient(app, base_url="http://localhost") as browser:
+        yield browser, service, native, alice, forwarded
+
+
+@pytest.mark.parametrize("marker", ["?1", None, "true"], ids=["explicit", "missing", "invalid"])
+def test_event_action_reaches_real_host_without_credential_forwarding(event_gateway, marker):
+    browser, service, native, alice, forwarded = event_gateway
+    assert login(browser).status_code == 200
+    headers = {
+        "Origin": "http://localhost",
+        "Authorization": "Bearer untrusted-browser-token",
+        "Proxy-Authorization": "Basic untrusted-proxy-token",
+        "X-Forwarded-Host": "evil.test",
+        "X-RWB-Tenant-Gateway-Key": "untrusted-browser-key",
+    }
+    if marker is not None:
+        headers["X-Research-User-Action"] = marker
+    response = browser.post(
+        "/api/research/events/sources/refresh",
+        json={"source": "fed_fomc", "idempotency_key": "gateway-fomc-refresh"},
+        headers=headers,
+    )
+    assert response.status_code == (200 if marker == "?1" else 403), response.text
+    if marker == "?1":
+        assert response.json()["payload"]["state"] == "completed", response.text
+        assert response.json()["payload"]["checkpoint"]["imported"] == 1
+    else:
+        assert response.json()["error"]["code"] == "explicit_user_action_required"
+        assert not service.event_timeline.records.marker.exists()
+    outbound = forwarded[-1]
+    assert outbound.headers.get("x-research-user-action") == marker
+    assert outbound.headers["x-rwb-tenant-gateway-key"] == alice.id
+    for name in ("cookie", "authorization", "proxy-authorization", "x-forwarded-host"):
+        assert name not in outbound.headers
+    assert service.event_timeline.records.list("source_schedule")["items"] == []
+    assert not any(call[0] == "session.prompt" for call in native.calls)
+
+
+def test_event_action_cannot_bypass_gateway_auth_origin_or_page_identity(event_gateway):
+    browser, _, _, _, forwarded = event_gateway
+    body = {"source": "fed_fomc", "idempotency_key": "gateway-blocked-refresh"}
+    headers = {"Origin": "http://localhost", "X-Research-User-Action": "?1"}
+    path = "/api/research/events/sources/refresh"
+    assert browser.post(path, json=body, headers=headers).status_code == 401
+    assert login(browser).status_code == 200
+    assert (
+        browser.post(
+            path, json=body, headers={**headers, "Origin": "https://evil.test"}
+        ).status_code
+        == 403
+    )
+    assert (
+        browser.post(
+            path, json=body, headers={**headers, "X-RWB-Page-User": "another-account"}
+        ).status_code
+        == 401
+    )
+    assert forwarded == []
 
 
 def test_discovery_restart_uses_only_registered_enabled_owners_and_status_is_private(tmp_path):

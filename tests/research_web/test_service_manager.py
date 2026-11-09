@@ -594,6 +594,9 @@ def test_lifecycle_lock_rejects_non_exact_existing_owner_modes(tmp_path, owner_m
     assert captured.value.code == "lifecycle_busy"
     assert stat.S_IMODE(owner.stat().st_mode) == owner_mode
     assert path.exists()
+    # Preserve the assertion, then make successful synthetic fixtures hashable
+    # by the managed test-root retirement gate (no product permission change).
+    owner.chmod(0o600)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
@@ -1014,9 +1017,16 @@ def test_lifecycle_guard_requires_exact_private_posix_mode(tmp_path, guard_mode)
     reason="requires the real macOS /var system alias",
 )
 def test_lifecycle_lock_accepts_system_alias_above_explicit_trusted_root(tmp_path):
-    resolved = str(tmp_path)
-    assert resolved.startswith("/private/var/")
-    lexical_tmp = Path("/var") / Path(resolved).relative_to("/private/var")
+    resolved = tmp_path.resolve()
+    system_aliases = ((Path("/var"), Path("/private/var")), (Path("/tmp"), Path("/private/tmp")))
+    alias, physical = next(
+        (alias, physical)
+        for alias, physical in system_aliases
+        if resolved.is_relative_to(physical) and alias.is_symlink() and alias.resolve() == physical
+    )
+    lexical_tmp = alias / resolved.relative_to(physical)
+    assert lexical_tmp != resolved
+    assert lexical_tmp.resolve() == resolved
     trusted_root = lexical_tmp / "managed"
     trusted_root.mkdir(mode=0o700)
     path = trusted_root / "run" / "lifecycle.lock"
@@ -4711,6 +4721,48 @@ def test_web_readiness_requires_runtime_root_and_static_asset(manager, monkeypat
         "/static/app.mjs",
     ]
     assert all(limit <= 2 * 1024 * 1024 for _path, limit in requested)
+
+
+@pytest.mark.parametrize("asset_size", ["product", "exact_limit", "over_limit"])
+def test_web_readiness_enforces_product_static_asset_byte_boundary(
+    manager, monkeypatch, asset_size
+):
+    asset = Path(service_manager_module.__file__).with_name("ui") / "app.mjs"
+    product = asset.read_bytes()
+    limit = service_manager_module.WEB_TEXT_MAX_BYTES
+    assert limit == 256 * 1024
+    assert len(product) <= limit - 2048, "product module must retain 2 KiB health margin"
+    body = product
+    if asset_size != "product":
+        target_size = limit + (asset_size == "over_limit")
+        body += b" " * (target_size - len(body))
+    responses = _readiness_responses()
+    responses["/static/app.mjs"] = (200, "text/javascript; charset=utf-8", body)
+    connections = []
+    reads = []
+
+    class ProductConnection(_FakeHttpConnection):
+        def getresponse(self):
+            path = self.requested[1]
+            status, content_type, payload = responses[path]
+            if isinstance(payload, str):
+                payload = payload.encode("utf-8")
+            response = _FakeHttpResponse(status, content_type, payload)
+            reads.append((path, response))
+            return response
+
+    def connect(*_args, **_kwargs):
+        connection = ProductConnection()
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(service_manager_module.http.client, "HTTPConnection", connect)
+    result = manager._web_ready()
+    assert result.ready is (asset_size != "over_limit")
+    assert result.issues == (() if result.ready else ("web_static_asset_failed",))
+    assert all(connection.closed for connection in connections)
+    static_response = next(response for path, response in reads if path == "/static/app.mjs")
+    assert static_response.read_limit == limit + 1
 
 
 def test_web_probe_preserves_specific_readiness_issue(manager, monkeypatch):

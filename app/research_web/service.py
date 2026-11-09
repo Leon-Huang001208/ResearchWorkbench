@@ -48,6 +48,7 @@ from .discovery.tracking import DiscoveryTracking
 from .frameworks import FrameworkService
 from .integrations import IntegrationCoordinator
 from .local_integrations import LocalIntegrationManager
+from .market_financial_calendar import MarketFinancialCalendar
 from .market_service import MarketService
 from .mcp_registry import MCPRegistryService
 from .mcp_runtime.authorization import AuthorizationManager
@@ -314,15 +315,41 @@ class ResearchService(ModelProfilesMixin):
         market_store_bridge=None,
     ):
         self.client, self.store, self.owned = client, store, owned
+        from .knowledge_backend import KnowledgeService
+
+        self.knowledge = KnowledgeService(store)
         from .dossiers import DossierService
 
         self.dossiers = DossierService(self)
+        from .event_studies import StudyService
+        from .event_timeline import TimelineService
+        from .market_scoring import ScoreService
+
+        self.event_timeline = TimelineService(self)
+        self.studies = StudyService(self)
+        self.event_studies = self.studies
+        self.market_scores = ScoreService(self)
+
+        def available_event_sources():
+            from .event_datahub_bridge import available_sources
+
+            return available_sources(self)
+
+        self.available_event_sources = available_event_sources
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(
             store, admission=self._data_query_admission, warehouse=market_store_bridge
         )
+        from .event_host_inputs import EventInputHost
+
+        self.event_inputs = EventInputHost(self)
+        self.resolve_event_study_bundle = self.event_inputs.resolve_event_study_bundle
+        self.resolve_market_factor_point = self.event_inputs.resolve_market_factor_point
+        self.resolve_market_scoring_context = self.event_inputs.resolve_market_scoring_context
+        self.resolve_market_overlay_context = self.event_inputs.resolve_market_overlay_context
+        self._market_scoring_source_verifier = self.event_inputs.source_verifier
         if market_store_bridge is None:
             from .datahub.research_warehouse import ResearchWarehouse
             from .datahub.storage_activity import StorageRunner
@@ -346,6 +373,7 @@ class ResearchService(ModelProfilesMixin):
         from .datahub.market_reader import MarketReader
 
         self.market = MarketService(store.root, market_reader=MarketReader(self.datahub))
+        self.market_financial_calendar = MarketFinancialCalendar()
         self.frameworks = FrameworkService(self, store.root / "frameworks")
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
@@ -358,6 +386,12 @@ class ResearchService(ModelProfilesMixin):
             channel_store=self.delivery_channels,
             dispatcher=DeliveryDispatcher(transport=DeliveryTransport(self.delivery_channels)),
         )
+        from .event_timeline.scheduler import CollectionScheduler
+
+        self.event_collection = CollectionScheduler(self)
+        self.event_timeline.schedule_binder = self.event_collection.bind
+        self.automations.collection_tick = self.event_collection.tick
+        self.automations.collection_enabled = self.event_collection.has_enabled
         self.discovery = DiscoveryService(self)
         self.discovery_tracking = DiscoveryTracking(self, self.discovery)
         self.discovery_scheduler_lock = asyncio.Lock()
@@ -529,6 +563,16 @@ class ResearchService(ModelProfilesMixin):
                     "跟踪调度尚未就绪，草稿已保留", "discovery_scheduler_unavailable", 503
                 )
 
+    async def ensure_event_scheduler(self):
+        """Collection consent does not open a disabled tenant/general automation lane."""
+        if tenant_mode_enabled() or not automation_feature_enabled():
+            raise StoreError("当前宿主未开放来源采集日程", "event_collection_disabled", 403)
+        async with self.discovery_scheduler_lock:
+            if not getattr(self.automations.scheduler, "running", False):
+                await self.automations.start()
+            if not getattr(self.automations.scheduler, "running", False):
+                raise StoreError("来源调度器尚未就绪", "event_scheduler_unavailable", 503)
+
     async def close(self):
         if self.retention_task:
             self.retention_task.cancel()
@@ -536,8 +580,10 @@ class ResearchService(ModelProfilesMixin):
                 await self.retention_task
             self.retention_task = None
         await self.automations.close()
+        await self.event_timeline.close()
         await self.report_workflows.close()
         await self.asset_workspace.close()
+        await self.market_financial_calendar.close()
         await self.market.close()
         await self.integrations.close()
         await self.local_integrations.close()

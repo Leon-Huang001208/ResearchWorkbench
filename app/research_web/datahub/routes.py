@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from ..market_store import MarketStoreError
+from ..mcp_facade.read_policy import HEADER, VERSION, strict_read
 from ..scenario_handoffs import trusted_context as scenario_context
 from ..store import StoreError
 from .connections import (
@@ -153,6 +154,8 @@ def _credential_error(exc: CredentialStoreError):
 
 @router.get("/data/catalog")
 def catalog(request: Request):
+    if request.headers.get(HEADER) == "probe-v1":
+        return JSONResponse({"frozen_read_protocol": VERSION}, headers={HEADER: VERSION})
     return request.app.state.research.datahub.catalog()
 
 
@@ -287,9 +290,12 @@ async def datasets(sid: str, request: Request):
 
 
 @router.get("/sessions/{sid}/datasets/{did}")
-async def detail(sid: str, did: str, request: Request):
+async def detail(sid: str, did: str, request: Request, response: Response):
     service = request.app.state.research
-    scenario_context(service, sid, check_capabilities=False)
+    readonly = strict_read(request)
+    scenario_context(service, sid, check_capabilities=False, read_only=readonly)
+    if readonly:
+        response.headers[HEADER] = VERSION
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)
@@ -301,11 +307,15 @@ async def rows(
     sid: str,
     did: str,
     request: Request,
+    response: Response,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ):
     service = request.app.state.research
-    scenario_context(service, sid, check_capabilities=False)
+    readonly = strict_read(request)
+    scenario_context(service, sid, check_capabilities=False, read_only=readonly)
+    if readonly:
+        response.headers[HEADER] = VERSION
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)
@@ -317,7 +327,8 @@ async def download(
     sid: str, did: str, name: Literal["rows.csv", "rows.json", "manifest.json"], request: Request
 ):
     service = request.app.state.research
-    scenario_context(service, sid, check_capabilities=False)
+    readonly = strict_read(request)
+    scenario_context(service, sid, check_capabilities=False, read_only=readonly)
     metadata = service.datahub.detail(sid, did)
     if metadata.get("snapshot_kind") == "mcp_evidence":
         service.mcp_runtime.assert_frozen_result_authorized(sid, did)
@@ -325,7 +336,10 @@ async def download(
     return Response(
         content,
         media_type="text/csv" if name.endswith(".csv") else "application/json",
-        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{name}"',
+            **({HEADER: VERSION} if readonly else {}),
+        },
     )
 
 
