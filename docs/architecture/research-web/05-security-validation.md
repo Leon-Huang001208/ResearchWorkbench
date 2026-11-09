@@ -908,3 +908,7 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 资料异步操作复用既有resident admission覆盖网络与存储发布；维护冻结拒绝新操作，不让只读查询绕开活动／保全门。绑定元数据写前和读取均限制16 KiB。stdlib公开server入口只转发通过校验的操作员origin，冷Doctor仅报告可选配置事实，不接触JWT、网络或账号初始化。0003的认证服务端profile标记不能由客户端开启；Node纯函数验证不等于上游UI或Go运行验证。
 
 origin校验共享helper只依赖stdlib，冷Doctor不反向导入server启动模块；它与真实dispatcher使用同一限制，避免诊断读取引入启动／凭据副作用。新helper没有新增配置权限、环境前缀继承或网络出口。
+
+仅服务模式没有内置 DSH 子进程或私有回调。Web 仍要求账户网关 Key、同源及原资料操作授权。研究写入在路由层拒绝，内部服务另以无传输客户端拒绝。需要原生质量复核的历史报告下载失败关闭。
+
+WeKnora 固定回调、客户端、PKCE、issuer 与 resource 逐项核对。Codex 和 WeKnora 的授权码、刷新令牌和撤权互相隔离。

@@ -21,7 +21,7 @@ from starlette.routing import Route, request_response
 from app.research_web.multiuser.accounts import AccountError
 from core.observability import get_logger
 
-from .models import SCOPE
+from .models import CLIENT_ID, SCOPE, WEKNORA_CLIENT_ID
 from .oauth import OAuthProvider, browser_account, token_request
 from .oauth_views import COOKIE, HEADERS, create_browser_routes
 
@@ -45,11 +45,11 @@ def _safe_sdk_response(response: Response, provider: OAuthProvider) -> Response:
     if location:
         parsed = urlsplit(location)
         base = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
-        try:
-            provider.store.validate_redirect(base)
-        except AccountError:
+        if not provider.store.is_callback_destination(base):
+            if base not in {"/auth", "/mcp/consent"} or parsed.fragment:
+                return _error("invalid_request")
             response.headers.update(HEADERS)
-            return response  # Internal login/consent destinations are not callbacks.
+            return response
         query = parse_qsl(parsed.query, keep_blank_values=True)
         if any(key in ("code", "error") for key, _ in query):
             query = [
@@ -110,9 +110,12 @@ def create_routes(provider: OAuthProvider) -> list[Route]:
             return _error("csrf_rejected", 403)
         data = request.query_params if request.method == "GET" else await request.form()
         # Check raw callback spelling before AnyUrl normalizes it.
+        client_id = str(data.get("client_id", CLIENT_ID))
+        if client_id == WEKNORA_CLIENT_ID and "redirect_uri" not in data:
+            return _error("invalid_request")
         if "redirect_uri" in data:
             try:
-                provider.store.validate_redirect(str(data["redirect_uri"]))
+                provider.store.validate_redirect(str(data["redirect_uri"]), client_id=client_id)
             except AccountError:
                 return _error("invalid_request")
         user = provider.store.accounts.authenticate(request.cookies.get(COOKIE, ""))
@@ -123,8 +126,19 @@ def create_routes(provider: OAuthProvider) -> list[Route]:
             browser_account.reset(marker)
 
     async def token_endpoint(request: Request) -> Response:
+        data = dict(await request.form())
+        if (
+            data.get("client_id") == WEKNORA_CLIENT_ID
+            and data.get("grant_type") == "authorization_code"
+        ):
+            try:
+                provider.store.validate_redirect(
+                    str(data.get("redirect_uri", "")), client_id=WEKNORA_CLIENT_ID
+                )
+            except AccountError:
+                return _error("invalid_grant")
         try:
-            parsed = token_request_adapter.validate_python(dict(await request.form()))
+            parsed = token_request_adapter.validate_python(data)
         except ValidationError:
             return _safe_sdk_response(await token_handler.handle(request), provider)
         if parsed.resource not in (None, provider.store.resource):

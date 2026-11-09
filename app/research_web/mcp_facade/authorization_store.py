@@ -23,14 +23,17 @@ from core.observability import get_logger
 
 from ..multiuser.accounts import AccountError, AccountStore
 from ..multiuser.origin import validate_origin
+from .config import weknora_callback
 from .models import (
     ACCESS_TTL,
     CLIENT_ID,
     CODE_TTL,
     CONSENT_TTL,
+    NATIVE_CALLBACK,
     REFRESH_TTL,
     SCHEMA,
     SCOPE,
+    WEKNORA_CLIENT_ID,
     ApprovedMaterial,
     CodeRecord,
     ConsentRequest,
@@ -110,41 +113,73 @@ def _grant_record(row: sqlite3.Row) -> Grant:
 class AuthorizationStore:
     """All writes use AccountStore's identity-checked BEGIN IMMEDIATE connection."""
 
-    def __init__(self, accounts: AccountStore, *, issuer: str):
+    def __init__(
+        self, accounts: AccountStore, *, issuer: str, weknora_oauth_origin: str | None = None
+    ):
         try:
             self.issuer = validate_origin(issuer)
         except ValueError as exc:
             raise AccountError("invalid_issuer") from exc
         self.resource = self.issuer + "/mcp"
         self.accounts = accounts
+        self._callbacks = {CLIENT_ID: NATIVE_CALLBACK}
+        if weknora_oauth_origin is not None:
+            self._callbacks[WEKNORA_CLIENT_ID] = weknora_callback(weknora_oauth_origin)
         with accounts._connection() as db:
             for statement in SCHEMA.split(";"):
                 if statement.strip():
                     db.execute(statement)
-            db.execute(
+            db.executemany(
                 "INSERT OR IGNORE INTO mcp_oauth_clients VALUES (?,?,?,?,?)",
-                (self.issuer, CLIENT_ID, "http://127.0.0.1/callback", SCOPE, "none"),
+                [
+                    (self.issuer, client_id, redirect, SCOPE, "none")
+                    for client_id, redirect in self._callbacks.items()
+                ],
             )
-        self.load_client(CLIENT_ID)
+            for client_id in self._callbacks:
+                self._load_client(db, client_id)
+
+    def client_enabled(self, client_id: str) -> bool:
+        return client_id in self._callbacks
+
+    def _load_client(self, db: sqlite3.Connection, client_id: str) -> FixedClient:
+        callback = self._callbacks.get(client_id)
+        if callback is None:
+            _reject("invalid_client")
+        row = db.execute(
+            "SELECT * FROM mcp_oauth_clients WHERE issuer=? AND client_id=?",
+            (self.issuer, client_id),
+        ).fetchone()
+        if row is None or (row["redirect_uri"], row["scope"], row["auth_method"]) != (
+            callback,
+            SCOPE,
+            "none",
+        ):
+            _reject("invalid_client")
+        return FixedClient(client_id=client_id, redirect_uris=(callback,))
 
     def load_client(self, client_id: str) -> FixedClient:
-        if client_id != CLIENT_ID:
-            _reject("invalid_client")
         with self.accounts._connection() as db:
-            row = db.execute(
-                "SELECT * FROM mcp_oauth_clients WHERE issuer=? AND client_id=?",
-                (self.issuer, client_id),
-            ).fetchone()
-            if row is None or (row["redirect_uri"], row["scope"], row["auth_method"]) != (
-                "http://127.0.0.1/callback",
-                SCOPE,
-                "none",
-            ):
-                _reject("invalid_client")
-        return FixedClient()
+            return self._load_client(db, client_id)
+
+    def validate_redirect(self, redirect_uri: str, *, client_id: str) -> None:
+        if client_id == CLIENT_ID:
+            self.validate_native_redirect(redirect_uri)
+            return
+        if client_id not in self._callbacks or redirect_uri != self._callbacks[client_id]:
+            _reject("invalid_redirect_uri")
+
+    def is_callback_destination(self, uri: str) -> bool:
+        for client_id in self._callbacks:
+            try:
+                self.validate_redirect(uri, client_id=client_id)
+                return True
+            except AccountError:
+                continue
+        return False
 
     @staticmethod
-    def validate_redirect(redirect_uri: str) -> None:
+    def validate_native_redirect(redirect_uri: str) -> None:
         try:
             url = urlsplit(redirect_uri)
             port = url.port
@@ -177,14 +212,14 @@ class AuthorizationStore:
         if not self.accounts._find(db, user_id)["enabled"]:
             _reject("access_denied")
 
-    def _bound(self, row: sqlite3.Row) -> None:
-        if (row["client_id"], row["issuer"], row["resource"], row["scope"]) != (
-            CLIENT_ID,
-            self.issuer,
-            self.resource,
-            SCOPE,
+    def _bound(self, db: sqlite3.Connection, row: sqlite3.Row | None) -> None:
+        if (
+            row is None
+            or not self.client_enabled(row["client_id"])
+            or (row["issuer"], row["resource"], row["scope"]) != (self.issuer, self.resource, SCOPE)
         ):
             _reject()
+        self._load_client(db, row["client_id"])
 
     def _current(self, row: sqlite3.Row | None) -> None:
         now = self.accounts._now()
@@ -195,7 +230,7 @@ class AuthorizationStore:
         row = db.execute("SELECT * FROM mcp_oauth_grants WHERE id=?", (grant_id,)).fetchone()
         self._current(row)
         assert row is not None
-        self._bound(row)
+        self._bound(db, row)
         self._account(db, row["user_id"])
         if row["revoked"]:
             _reject()
@@ -214,8 +249,7 @@ class AuthorizationStore:
         state: str | None = None,
         redirect_uri_provided_explicitly: bool = True,
     ) -> ConsentRequest:
-        self.load_client(client_id)
-        self.validate_redirect(redirect_uri)
+        self.validate_redirect(redirect_uri, client_id=client_id)
         self._resource(resource)
         self._scopes(scopes)
         if (
@@ -229,6 +263,7 @@ class AuthorizationStore:
         now = self.accounts._now()
         request_id = str(uuid.uuid4())
         with self.accounts._connection() as db:
+            self._load_client(db, client_id)
             self._account(db, user_id)
             db.execute(
                 "INSERT INTO mcp_oauth_requests VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)",
@@ -257,10 +292,11 @@ class AuthorizationStore:
         row = db.execute("SELECT * FROM mcp_oauth_requests WHERE id=?", (request_id,)).fetchone()
         self._current(row)
         assert row is not None
-        self._bound(row)
+        self._bound(db, row)
         self._account(db, user_id)
         if row["user_id"] != user_id or row["consumed"]:
             _reject()
+        self.validate_redirect(row["redirect_uri"], client_id=row["client_id"])
         return row
 
     def load_request(self, request_id: str, *, user_id: str) -> ConsentRequest:
@@ -318,7 +354,11 @@ class AuthorizationStore:
         request = db.execute(
             "SELECT * FROM mcp_oauth_requests WHERE id=?", (row["request_id"],)
         ).fetchone()
-        self._bound(request)
+        self._bound(db, request)
+        assert request is not None
+        if (request["user_id"], request["client_id"]) != (grant["user_id"], client_id):
+            _reject()
+        self.validate_redirect(request["redirect_uri"], client_id=client_id)
         return CodeRecord(grant["id"], _consent(request), row["expires_at"])
 
     def load_code(self, code: str, *, client_id: str) -> CodeRecord:

@@ -312,3 +312,7 @@ blocked。早期通过的备份恢复只证明那个时间点，不能替代结�
 固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+仅服务模式调整逐账户 Web 启动方式。私网全局资讯库仍由网关独立提供，只有既有授权可操作共享资讯。
+
+隔离 WeKnora OAuth 只挂载到研究资料的 MCP 接口，授权不涵盖共享资讯能力。

@@ -905,3 +905,7 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+仅服务模式下 `GET /api/research/runtime` 返回 `execution_mode=external`、`connected=false`、`owned_runtime=false`。只有已核对的资料、市场和快照读取入口开放。会协调执行状态的旧 GET 与原研究写入均返回 403 `embedded_research_disabled`；账号内 WeKnora 绑定、批准、检索、读取及冻结沿原权限检查。
+
+仅服务网关可预登记 WeKnora 专用 OAuth 回调。既有授权、令牌和工具路径延用同一协议。

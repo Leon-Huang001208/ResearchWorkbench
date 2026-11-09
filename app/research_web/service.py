@@ -37,7 +37,7 @@ from .capabilities.models import CapabilityError, Metadata, Step, data_preflight
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
 from .claw_projects import ClawProjects
-from .client import DSHClient, RuntimeFailure
+from .client import DSHClient, ExternalExecutionClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub import DataHub
 from .datahub.broker import Resolution
@@ -298,9 +298,11 @@ def _explicit_automation_trial(text, automation, context):
 
 
 class ResearchService(ModelProfilesMixin):
+    service_only = False
+
     def __init__(
         self,
-        client: DSHClient,
+        client: DSHClient | ExternalExecutionClient,
         store: Store,
         *,
         owned: bool = True,
@@ -315,6 +317,7 @@ class ResearchService(ModelProfilesMixin):
         market_store_bridge=None,
     ):
         self.client, self.store, self.owned = client, store, owned
+        self.service_only = isinstance(client, ExternalExecutionClient)
         from .knowledge_backend import KnowledgeService
 
         self.knowledge = KnowledgeService(store)
@@ -469,7 +472,7 @@ class ResearchService(ModelProfilesMixin):
     def _build_mcp_runtime(self, keyring_backend=None):
         """Build the private Host graph only when the runtime feature is enabled."""
 
-        if not runtime_feature_enabled():
+        if self.service_only or not runtime_feature_enabled():
             return MCPRuntimeService(enabled=False)
 
         runtime_root = self.store.root / "mcp-runtime"
@@ -517,6 +520,9 @@ class ResearchService(ModelProfilesMixin):
         )
 
     async def ensure_owned(self):
+        if getattr(self, "service_only", False):
+            log.warning("embedded_research_disabled")
+            raise RuntimeFailure("请使用外部研究宿主", "embedded_research_disabled")
         if self.expected_cwd is not None:
             info = await self.client.rpc("host.describe", {})
             self.owned = info.get("cwd") == str(self.expected_cwd.resolve())
@@ -526,6 +532,9 @@ class ResearchService(ModelProfilesMixin):
             )
 
     async def start(self):
+        if self.service_only:
+            log.info("research_service_only_started")
+            return
         await self.frameworks.start()
         await self.mcp_registry.start()
         await self.mcp_runtime.start()
@@ -791,6 +800,16 @@ class ResearchService(ModelProfilesMixin):
             )
 
     async def runtime(self):
+        if self.service_only:
+            return {
+                "execution_mode": "external",
+                "connected": False,
+                "health_check_passed": True,
+                "owned_runtime": False,
+                "credential_configured": None,
+                "code": "embedded_research_disabled",
+                "message": "请使用外部研究宿主",
+            }
         try:
             info = await self.client.rpc("host.describe", {})
             self.last_runtime_success_at = time.time()
@@ -1760,7 +1779,7 @@ class ResearchService(ModelProfilesMixin):
     async def list_sessions(self, view="active"):
         if view not in {"active", "deleted", "all"}:
             raise StoreError("未知的会话列表视图", "invalid_session_view", 422)
-        if view in {"deleted", "all"}:
+        if view in {"deleted", "all"} and not self.service_only:
             await self.purge_expired_sessions()
         rows = sorted(
             self.store.data["sessions"].values(),
@@ -1774,6 +1793,8 @@ class ResearchService(ModelProfilesMixin):
             or (view == "deleted" and row.get("deleted_at") is not None)
             or (view == "active" and row.get("deleted_at") is None)
         ]
+        if self.service_only:
+            return [self._external_history_summary(row) for row in rows]
         active_rows = [row for row in rows if row.get("deleted_at") is None]
         native = await self.client.rpc("session.list", {}) if active_rows else {"items": []}
         running = {item["sessionId"]: item["running"] for item in native["items"]}
@@ -2005,6 +2026,8 @@ class ResearchService(ModelProfilesMixin):
         return purged
 
     def _model_tools_verified(self, sid: str | None = None) -> bool:
+        if self.service_only:
+            return False
         model = (
             self.store.session(sid)
             if sid
@@ -2412,6 +2435,10 @@ class ResearchService(ModelProfilesMixin):
         """Admission scope is separate from model credentials and inference success."""
         catalog = self.datahub.catalog() if data_catalog is None else data_catalog
         scope = self.capabilities.data_readiness(cid, catalog)
+        if self.service_only:
+            scope.update(status="unavailable", admitted=False, model_tools="unverified")
+            scope["missing"].append({"code": "embedded_research_disabled"})
+            return scope
         row = self.capabilities.row(cid)
         record = row["versions"].get(str(row["version"]), row["draft"])
         verified = self._model_tools_verified(sid)
@@ -2424,7 +2451,22 @@ class ResearchService(ModelProfilesMixin):
             scope["missing"].append({"code": "plugin_approval_revoked"})
         return scope
 
+    def _external_history_summary(self, row):
+        return {
+            **self.summary(row),
+            "execution_restricted": True,
+            "history_warning": "仅服务模式保留历史索引和文件，原生对话正文暂不可读取",
+        }
+
     async def detail(self, sid):
+        if self.service_only:
+            row = self.store.session(sid)
+            return {
+                **project([]),
+                **self._external_history_summary(row),
+                "files": self.store.files(sid, read_only=True),
+                "datasets": self.datahub.summaries(sid),
+            }
         row = self.store.session(sid)
         from .scenario_handoffs import trusted_context
 

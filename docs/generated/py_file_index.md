@@ -3901,6 +3901,9 @@ Classes:
 - `RuntimeFailure`
   - Safe product-facing error; never includes raw credentials or HTTP body.
   - methods: __init__
+- `ExternalExecutionClient`
+  - Service-only host boundary with no native transport.
+  - methods: _reject, close
 - `DSHClient`
   - Translate the stable Workbench call surface to slash-namespaced Typert RPC.
   - methods: __init__, __aenter__, __aexit__, close, _wire_call, _rpc_wire, rpc, plugin_json, respond, _stream, _event_envelope, frames, _history_opening, history
@@ -8173,6 +8176,7 @@ Classes:
   - methods: profile_name
 
 Functions:
+- `_service_only_route_allowed`
 - `create_app`
 
 
@@ -8797,6 +8801,7 @@ Imports:
 - `__future__`
 - `base64`
 - `collections.abc`
+- `config`
 - `core.observability`
 - `hashlib`
 - `hmac`
@@ -8813,7 +8818,7 @@ Imports:
 Classes:
 - `AuthorizationStore`
   - All writes use AccountStore's identity-checked BEGIN IMMEDIATE connection.
-  - methods: __init__, load_client, validate_redirect, _resource, _scopes, _account, _bound, _current, _grant, create_request, _request, load_request, issue_code, _code, load_code, exchange_code, _issue_tokens, _token, verify_access, load_refresh, _refresh, rotate_refresh, revoke_grant, list_grants, approve_material, revoke_material, list_materials, list_grant_materials, authorize_material
+  - methods: __init__, client_enabled, _load_client, load_client, validate_redirect, is_callback_destination, validate_native_redirect, _resource, _scopes, _account, _bound, _current, _grant, create_request, _request, load_request, issue_code, _code, load_code, exchange_code, _issue_tokens, _token, verify_access, load_refresh, _refresh, rotate_refresh, revoke_grant, list_grants, approve_material, revoke_material, list_materials, list_grant_materials, authorize_material
 
 Functions:
 - `_reject`
@@ -8858,11 +8863,15 @@ Module docstring:
 > Dependency-free facade switch and fixed transport limits, shared with Doctor.
 
 Imports:
+- `multiuser.origin`
 - `os`
+- `urllib.parse`
 
 Functions:
 - `enabled`
   - Only explicit 1 enables production; tests can supply an explicit bool.
+- `weknora_callback`
+  - Build the one callback allowed for an explicitly configured WeKnora host.
 
 
 ## `app/research_web/mcp_facade/http_policy.py`
@@ -8995,6 +9004,7 @@ Imports:
 - `authorization_store`
 - `core.observability`
 - `html`
+- `models`
 - `starlette.requests`
 - `starlette.responses`
 - `starlette.routing`
@@ -10054,6 +10064,7 @@ Functions:
   - Inspect private configuration without importing or starting a runtime.
 - `_inspect_mcp`
   - Inspect configuration and distribution metadata, never initialize OAuth/SDK.
+- `_weknora_oauth_origin`
 - `_doctor`
 - `_confirmed_password`
 - `_server_context`
@@ -10797,6 +10808,7 @@ Classes:
 Functions:
 - `build_process_specs`
   - Describe the same DSH/Web contract for Native and container supervisors.
+- `build_web_process_spec`
 
 
 ## `app/research_web/projection.py`
@@ -12422,7 +12434,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, _external_history_summary, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

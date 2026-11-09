@@ -69,8 +69,10 @@ async def tools_only(ctx, call_next):
 
 
 class Facade:
-    def __init__(self, accounts, pool, origin):
-        self.store = AuthorizationStore(accounts, issuer=origin)
+    def __init__(self, accounts, pool, origin, *, weknora_oauth_origin=None):
+        self.store = AuthorizationStore(
+            accounts, issuer=origin, weknora_oauth_origin=weknora_oauth_origin
+        )
         self.client = httpx.AsyncClient(trust_env=False, follow_redirects=False, timeout=20)
         self.server = MCPServer(
             "Research Workbench readonly",

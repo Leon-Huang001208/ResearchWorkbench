@@ -52,16 +52,20 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--root", type=Path, default=Path.home() / ".research-workbench/server"
         )
+        if name in {"serve", "doctor"}:
+            command.add_argument("--weknora-oauth-origin", help="隔离 WeKnora 的浏览器来源")
         if name in {"init", "reset-admin"}:
             command.add_argument("--username", required=True)
         elif name == "serve":
             command.add_argument("--origin", required=True)
-            command.add_argument("--source", type=Path, required=True)
-            command.add_argument("--node", type=Path, required=True)
+            command.add_argument("--source", type=Path)
+            command.add_argument("--node", type=Path)
+            command.add_argument("--service-only", action="store_true", help="使用外部研究宿主")
             command.add_argument("--port", type=int, default=8089)
             command.add_argument("--max-instances", type=int, choices=(1, 2, 3, 4), default=2)
         else:
             command.add_argument("--source", type=Path)
+            command.add_argument("--service-only", action="store_true", help="检查仅服务模式配置")
             command.add_argument("--json", action="store_true")
     return result
 
@@ -284,12 +288,31 @@ def _inspect_mcp(root: Path | None = None) -> dict:
     }
 
 
+def _weknora_oauth_origin(arguments: argparse.Namespace) -> str | None:
+    from ..mcp_facade.config import enabled, weknora_callback
+
+    origin = arguments.weknora_oauth_origin
+    if origin is None:
+        return None
+    if not arguments.service_only or not enabled():
+        raise ServerCommandError("weknora_oauth_requires_service_only_mcp")
+    try:
+        weknora_callback(origin)
+    except ValueError as exc:
+        raise ServerCommandError("weknora_oauth_origin_invalid") from exc
+    return origin
+
+
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
 
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
-    source = _source_status(arguments.source)
+    source = (
+        {"status": "not_required", "pinned_revision": "not_verified"}
+        if arguments.service_only
+        else _source_status(arguments.source)
+    )
     python_matches = sys.version_info[:2] == (
         RUNTIME_CONTRACT.python_major,
         RUNTIME_CONTRACT.python_minor,
@@ -314,6 +337,10 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         )
     except ValueError:
         knowledge.update(enabled=None, status="invalid")
+    try:
+        oauth_status = "configuration_pending" if _weknora_oauth_origin(arguments) else "disabled"
+    except ServerCommandError:
+        oauth_status = "invalid"
     report = {
         "schema_version": 1,
         # Artifact presence does not establish pinned-source or model readiness.
@@ -328,9 +355,11 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
             "modules": modules,
         },
         "runtime": "not_checked",
+        "execution_mode": "external" if arguments.service_only else "embedded",
         "model": "not_checked",
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,
+        "weknora_oauth": {"status": oauth_status, "runtime_verification": "NOT_RUN"},
     }
     if arguments.json:
         print(json.dumps(report, ensure_ascii=False))
@@ -481,16 +510,25 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
     if sys.version_info[:2] != (RUNTIME_CONTRACT.python_major, RUNTIME_CONTRACT.python_minor):
         raise ServerCommandError("server_python_invalid")
     origin = _origin(arguments.origin)
+    oauth_origin = _weknora_oauth_origin(arguments)
+    if oauth_origin is not None and (
+        arguments.port == 80
+        or origin == oauth_origin
+        or origin != f"http://127.0.0.1:{arguments.port}"
+    ):
+        raise ServerCommandError("weknora_oauth_requires_loopback_gateway")
     if not 1 <= arguments.port <= 65535:
         raise ServerCommandError("server_port_invalid")
-    if (
-        not arguments.node.is_absolute()
-        or not arguments.node.is_file()
-        or not os.access(arguments.node, os.X_OK)
-    ):
-        raise ServerCommandError("server_node_invalid")
-    if _source_status(arguments.source)["status"] != "build_present":
-        raise ServerCommandError("runtime_source_invalid")
+    if not arguments.service_only:
+        if (
+            arguments.node is None
+            or not arguments.node.is_absolute()
+            or not arguments.node.is_file()
+            or not os.access(arguments.node, os.X_OK)
+        ):
+            raise ServerCommandError("server_node_invalid")
+        if _source_status(arguments.source)["status"] != "build_present":
+            raise ServerCommandError("runtime_source_invalid")
     _require_accounts(root)
     with _server_context(root):
         import uvicorn
@@ -504,13 +542,23 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
             project=PROJECT,
             source=arguments.source,
             python=sys.executable,
-            node=str(arguments.node),
+            node=str(arguments.node) if arguments.node is not None else None,
             max_instances=arguments.max_instances,
+            service_only=arguments.service_only,
         )
         pool = RuntimePool(config)
         try:
-            app = create_gateway(AccountStore(root), pool, origin=origin)
-            log.info(json.dumps({"event": "server_starting"}))
+            app = create_gateway(
+                AccountStore(root), pool, origin=origin, weknora_oauth_origin=oauth_origin
+            )
+            log.info(
+                json.dumps(
+                    {
+                        "event": "server_starting",
+                        "execution_mode": "external" if arguments.service_only else "embedded",
+                    }
+                )
+            )
             uvicorn.run(
                 app,
                 host="127.0.0.1",

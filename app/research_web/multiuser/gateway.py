@@ -109,6 +109,7 @@ def create_gateway(
     upstream: httpx.AsyncClient | None = None,
     ai_news_factory=None,
     mcp_enabled: bool | None = None,
+    weknora_oauth_origin: str | None = None,
 ) -> FastAPI:
     """Build one gateway without starting tenant processes or reading model secrets."""
     origin = validate_origin(origin)
@@ -118,7 +119,9 @@ def create_gateway(
     if mcp_feature_enabled(mcp_enabled):
         from ..mcp_facade.server import Facade
 
-        facade = Facade(accounts, pool, origin)
+        facade = Facade(accounts, pool, origin, weknora_oauth_origin=weknora_oauth_origin)
+    elif weknora_oauth_origin is not None:
+        raise ValueError("weknora_oauth_requires_mcp")
     client = upstream or httpx.AsyncClient(
         timeout=httpx.Timeout(30, read=None), follow_redirects=False, trust_env=False
     )
@@ -406,6 +409,11 @@ def create_gateway(
         return {
             "status": "ready",
             "runtime": "not_started_by_health",
+            "execution_mode": (
+                "external"
+                if getattr(getattr(pool, "config", None), "service_only", False)
+                else "embedded"
+            ),
             "mcp_readonly_enabled": facade is not None,
         }
 

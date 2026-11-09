@@ -1,7 +1,26 @@
 {
   "schemaVersion": 1,
-  "asOf": "2026-11-08",
+  "asOf": "2026-11-09",
   "features": [
+    {
+      "id": "external-research-service-mode",
+      "module": "研究与报告",
+      "title": "私网仅服务模式",
+      "summary": "账户 Web 独立提供资料、证据和数据读取，研究交给 WeKnora 或外部宿主。",
+      "scope": "macOS 私网隔离启动、历史索引、冻结材料读取与 WeKnora 专用 OAuth。",
+      "next": "通过同候选安装及真实 WeKnora Runtime 授权读取和草稿验收。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-installation.md",
+      "updated": "2026-11-09",
+      "status": "validating",
+      "platforms": [
+        "macos"
+      ],
+      "included": false,
+      "activation": "disabled",
+      "limitations": "现阶段支持隔离启动，历史原生对话正文、生产切换及周报执行另行验收。",
+      "evidence": []
+    },
     {
       "id": "market-daily-evidence",
       "module": "数据与资产",

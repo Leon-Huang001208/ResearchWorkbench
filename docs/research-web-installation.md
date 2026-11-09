@@ -1189,3 +1189,25 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 公开 `./rwb server` 入口现在由stdlib先校验显式 `RESEARCH_WEKNORA_ORIGIN`，仅把合格的非秘密origin加入原最小子环境；无效输入不转发、不回显，其他模型或供应商环境仍不继承。冷启动 `server doctor` 增加可选知识库事实，配置只显示 `configuration_pending`，授权／连接 `not_checked`、运行 `NOT_RUN`，不读凭据、不联网或创建账户根。Mac原冷Doctor冒烟验证该真实交接。0003原生知识库设置只检索模式仍要求API先建库；完整Vue、服务与实际界面待验收。
 
 冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。
+
+### macOS 私网仅服务模式
+
+`server serve --service-only` 让每个已认证账户使用一个受管 Web 进程。该进程没有
+内置 DSH、原生认证记录或模型传输。安装仍复用公开 Web 安装入口及原依赖锁。
+用独立私有根做隔离试点：
+
+```bash
+./rwb server doctor --root /absolute/private/trial --service-only --json
+./rwb server serve --root /absolute/private/trial --service-only \
+  --origin http://127.0.0.1:18089 --port 18089
+```
+
+先用现有 `server init` 在该根交互创建账户。以上回环 HTTP 只用于本机试点。
+仅服务模式的 `serve` 无须提供 `--source` 或 `--node`。Doctor 的模式来自该次命令，
+实际进程以已认证 `GET /api/research/runtime` 的 `execution_mode=external` 为准。
+现有模式仍要求固定 DSH。生产切换须先交接活动及未知运行并核验历史原件。
+
+仅服务试验可在原命令增加 `--weknora-oauth-origin http://127.0.0.1:18193`
+并显式设置 `RWB_MCP_READONLY_ENABLED=1`。该来源应改为隔离 WeKnora 的
+实际浏览器地址。Doctor 接受相同模式和来源参数，只报告
+`weknora_oauth.status`，不会登记客户端或执行授权。[OAuth 合同](research-web-mcp-facade.md#隔离-weknora-oauth-客户端)

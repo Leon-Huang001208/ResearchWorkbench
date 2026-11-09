@@ -1,21 +1,26 @@
 """Private server Runtime lifecycle and execution policy contracts."""
 
 import asyncio
+import hashlib
 import json
 import os
 import socket
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+import httpx
 import pytest
 from starlette.requests import Request
 
 from app.research_web import tenant_policy
+from app.research_web.mcp_facade.backend import FrozenBackend
 from app.research_web.multiuser import runtime
-from app.research_web.store import StoreError
+from app.research_web.store import Store, StoreError
 
 
 def saved_control(root, port, *, name="datahub.json", **overrides):
@@ -696,3 +701,74 @@ async def test_deployment_slot_wins_after_native_exists_check_without_spawn_or_d
         assert not (owner.parent / "gateway.key").exists()
     finally:
         await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_service_only_cold_web_and_frozen_mcp_read(tmp_path):
+    project = Path(__file__).resolve().parents[2]
+    root = tmp_path / "server"
+    user = str(uuid4())
+    settings = runtime.RuntimeConfig(root, project, None, sys.executable, None, service_only=True)
+    pool = runtime.RuntimePool(settings)
+    try:
+        runtime_root = root / "users" / user / "research-web"
+        for path in (root / "users" / user, runtime_root):
+            path.mkdir(mode=0o700)
+        store = Store(runtime_root)
+        old = store.create("fingpt", "Historical research")
+        sid = old["id"]
+        body = b"approved synthetic research source"
+        (store.directory(sid) / "inputs" / "evidence.txt").write_bytes(body)
+        registered = store.files(sid)[0]
+        (store.directory(sid) / "inputs" / "unregistered.txt").write_text("unregistered")
+        material = SimpleNamespace(
+            context_id=sid,
+            object_id=registered["id"],
+            kind="source",
+            sha256=hashlib.sha256(body).hexdigest(),
+        )
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_not_running"):
+            await pool.backend_for_readonly(user)
+        backend = await pool.backend_for(user)
+        state = root / "users" / user / "state"
+        owner = json.loads((state / "owner.json").read_bytes())
+        assert owner["execution_mode"] == "external" and len(owner["pids"]) == 1
+        assert backend.runtime_pid is None and not (state / "auth.json").exists()
+        assert await pool.backend_for_readonly(user) == backend
+        assert (await pool.restart_runtime(user, backend))["status"] == "deferred"
+        headers = {tenant_policy.GATEWAY_HEADER: backend.key}
+        async with httpx.AsyncClient(base_url=backend.url, trust_env=False, timeout=8) as client:
+            assert (await client.get("/api/research/data/catalog")).status_code == 403
+            assert (
+                await client.get("/api/research/data/catalog", headers=headers)
+            ).status_code == 200
+            status = (await client.get("/api/research/runtime", headers=headers)).json()
+            assert status["execution_mode"] == "external" and status["connected"] is False
+            history = (await client.get("/api/research/sessions", headers=headers)).json()
+            assert history["items"][0]["id"] == sid
+            assert history["items"][0]["execution_restricted"] is True
+            readiness = await client.get(
+                "/api/research/capabilities/document-reading", headers=headers
+            )
+            assert readiness.status_code == 200
+            assert readiness.json()["readiness"]["admitted"] is False
+            assert readiness.json()["readiness"]["model_tools"] == "unverified"
+            before = (runtime_root / "index.json").read_bytes()
+            detail = await client.get(f"/api/research/sessions/{sid}", headers=headers)
+            assert detail.json()["history_warning"]
+            assert [item["id"] for item in detail.json()["files"]] == [registered["id"]]
+            reconciling = await client.get(
+                f"/api/research/discovery/handoffs/{sid}", headers=headers
+            )
+            assert reconciling.status_code == 403
+            assert (runtime_root / "index.json").read_bytes() == before
+            denied = await client.post(f"/api/research/sessions/{sid}/messages", headers=headers)
+            assert denied.status_code == 403
+            assert denied.json()["error"]["code"] == "embedded_research_disabled"
+            evidence = await FrozenBackend(pool, client).read(user, material)
+            assert evidence["text"].encode() == body
+            with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_not_running"):
+                await pool.backend_for_readonly(str(uuid4()))
+    finally:
+        await pool.close()
+    assert not (state / "owner.json").exists()

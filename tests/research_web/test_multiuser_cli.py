@@ -640,3 +640,59 @@ def test_initialization_lock_and_log_symlinks_fail_closed(tmp_path, interactive,
     (root / "logs/server.jsonl").symlink_to(outside)
     assert cli.main(["init", "--root", str(root), "--username", "admin"]) == 1
     assert not outside.exists()
+
+
+def test_doctor_reports_explicit_service_only_without_installation(tmp_path, output):
+    root = tmp_path / "missing"
+    assert cli.main(["doctor", "--root", str(root), "--service-only", "--json"]) == 0
+    report = json.loads(output.readouterr().out)
+    assert report["execution_mode"] == "external"
+    assert report["source"]["status"] == "not_required"
+    assert report["runtime"] == report["model"] == "not_checked"
+    assert not root.exists()
+
+
+def test_doctor_reports_explicit_weknora_oauth_metadata_only(tmp_path, output, monkeypatch):
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    root = tmp_path / "missing"
+    args = [
+        "doctor",
+        "--root",
+        str(root),
+        "--weknora-oauth-origin",
+        "http://127.0.0.1:18181",
+        "--json",
+    ]
+    assert cli.main(args) == 0
+    assert json.loads(output.readouterr().out)["weknora_oauth"]["status"] == "invalid"
+    assert cli.main([*args, "--service-only"]) == 0
+    assert json.loads(output.readouterr().out)["weknora_oauth"] == {
+        "status": "configuration_pending",
+        "runtime_verification": "NOT_RUN",
+    }
+    monkeypatch.delenv("RWB_MCP_READONLY_ENABLED")
+    assert cli.main([*args, "--service-only"]) == 0
+    assert json.loads(output.readouterr().out)["weknora_oauth"]["status"] == "invalid"
+    assert not root.exists()
+
+
+@pytest.mark.parametrize(
+    "origin", ["http://127.0.0.1:80", "http://localhost:18181", "https://weknora.tail123.ts.net"]
+)
+def test_doctor_rejects_noncanonical_weknora_loopback(origin, tmp_path, output, monkeypatch):
+    monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
+    assert (
+        cli.main(
+            [
+                "doctor",
+                "--root",
+                str(tmp_path / "missing"),
+                "--service-only",
+                "--weknora-oauth-origin",
+                origin,
+                "--json",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(output.readouterr().out)["weknora_oauth"]["status"] == "invalid"

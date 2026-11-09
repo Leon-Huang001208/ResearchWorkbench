@@ -11,6 +11,7 @@ from app.research_web.multiuser.accounts import AccountError
 from core.observability import get_logger
 
 from .authorization_store import AuthorizationStore
+from .models import WEKNORA_CLIENT_ID
 
 log = get_logger(__name__)
 COOKIE = "rwb_session"
@@ -45,9 +46,9 @@ def validated_login_return(value: str | None) -> str | None:
 
 
 def callback_response(
-    store: AuthorizationStore, uri: str, *, state: str | None, **result: str
+    store: AuthorizationStore, uri: str, *, client_id: str, state: str | None, **result: str
 ) -> RedirectResponse:
-    store.validate_redirect(uri)
+    store.validate_redirect(uri, client_id=client_id)
     query = {**result, "iss": store.issuer}
     if state is not None:
         query["state"] = state
@@ -82,7 +83,11 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                     raise AccountError("invalid_request")
                 if data["decision"] == "deny":
                     return callback_response(
-                        store, pending.redirect_uri, state=pending.state, error="access_denied"
+                        store,
+                        pending.redirect_uri,
+                        client_id=pending.client_id,
+                        state=pending.state,
+                        error="access_denied",
                     )
                 if data["decision"] != "allow":
                     raise AccountError("invalid_request")
@@ -92,10 +97,14 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                     material_ids=[str(item) for item in data.getlist("material_id")],
                 )
                 return callback_response(
-                    store, pending.redirect_uri, state=pending.state, code=code
+                    store,
+                    pending.redirect_uri,
+                    client_id=pending.client_id,
+                    state=pending.state,
+                    code=code,
                 )
             materials = store.list_materials(user.id)
-            store.validate_redirect(pending.redirect_uri)
+            store.validate_redirect(pending.redirect_uri, client_id=pending.client_id)
             # Chromium checks the form's redirect target against the document's
             # policy. Permit only this validated callback (including exact port),
             # while retaining self for the local consent POST.
@@ -117,6 +126,8 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 '<!doctype html><html lang="zh"><meta charset="utf-8"><title>RWB 授权</title>'
                 "<h1>授权 RWB 只读应用</h1><p>当前账号："
                 + escape(user.username)
+                + "</p><p>应用："
+                + ("WeKnora" if pending.client_id == WEKNORA_CLIENT_ID else "Codex")
                 + "</p><p>仅允许读取下列已批准的公开或合成资料。未勾选资料不可读取；不允许运行研究或调用模型。</p>"
                 '<form method="post" action="/mcp/consent"><input type="hidden" name="request_id" value="'
                 + escape(pending.id, quote=True)
@@ -139,7 +150,9 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 store.revoke_grant(str(data["grant_id"]), user_id=user.id)
                 return RedirectResponse("/mcp/applications", status_code=303, headers=HEADERS)
             rows = "".join(
-                "<li>RWB readonly — "
+                "<li>"
+                + ("WeKnora" if grant.client_id == WEKNORA_CLIENT_ID else "RWB readonly")
+                + " — "
                 + (
                     "已撤销"
                     if grant.revoked

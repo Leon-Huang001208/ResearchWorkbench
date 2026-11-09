@@ -58,7 +58,7 @@
       "id": "nativeDsh",
       "type": "backend",
       "label": "Native DSH / 用户 DSH",
-      "sublabel": "唯一研究引擎 · 逐账号独立",
+      "sublabel": "仅内置模式 · 逐账号独立",
       "row": 2,
       "col": 1,
       "size": [
@@ -166,7 +166,7 @@
       "id": "privatePool",
       "type": "backend",
       "label": "本机准入 / RuntimePool",
-      "sublabel": "单用户启动 · 账号跟踪容量恢复",
+      "sublabel": "账户 Web 单进程或 Web＋DSH",
       "row": 1,
       "col": 0,
       "size": [
@@ -296,7 +296,7 @@
       "dot": "rose",
       "title": "邀请制私网边界",
       "items": [
-        "网关固定 Tailscale HTTPS；每用户 Web＋DSH",
+        "私网网关；仅服务模式每账户只启动 Web",
         "最多2个实例；信任同 UID 后端，非 OS 租户隔离"
       ]
     },
@@ -305,7 +305,7 @@
       "title": "私网跟踪与运行边界",
       "items": [
         "macOS Native；Docker多用户未验，跟踪需owner存活",
-        "仅同意跟踪；容量延期，泛用Automation/MCP/Hot仍禁用"
+        "仅服务模式不恢复原生跟踪或研究执行"
       ]
     }
   ]
