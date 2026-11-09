@@ -36,3 +36,5 @@ WeKnora 进程完成原生回调、换码与工具发现。第二次原生 Agent
 同候选 CI 分别登记。
 
 <!-- architecture-review {"group":"inbound-mcp-readonly","structure":"unchanged","reason":"预登记 WeKnora 与 Codex 使用相同的客户端角色、原 OAuth 服务及私网冻结读拓扑，固定回调策略按客户端验证。","diagrams":[]} -->
+
+全量回归发现新状态标签令入口模块超过健康检查预留余量。状态计算移至原顶栏模块，标签与读取方式保持，失败批次和原预算保留。
