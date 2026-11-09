@@ -14,7 +14,7 @@ Corresponding source is the preferred form for modifying the exact version used 
 
 Before using covered material for a business purpose or within a business or other organization, operating any modified version, or distributing any version, make its corresponding source available to the public at no charge through a documented download link. Keep the link available for as long as the version is used or offered for distribution. You may link to the exact upstream source for an unchanged version or component if it remains available under the applicable license. Identify modified versions and their changes.
 
-Offer the covered source and your modifications to the public under this license so recipients may use, modify and redistribute them. Include this license and the applicable notices with distributed copies. Independently licensed third-party components retain their applicable terms and notices.
+When this section requires you to make corresponding source available, offer the covered source and your modifications to the public under this license so recipients may use, modify and redistribute them. Include this license and the applicable notices with distributed copies. Independently licensed third-party components retain their applicable terms and notices.
 
 ## 3. Services
 
