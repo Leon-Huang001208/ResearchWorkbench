@@ -298,6 +298,8 @@ def _explicit_automation_trial(text, automation, context):
 
 
 class ResearchService(ModelProfilesMixin):
+    service_only = False
+
     def __init__(
         self,
         client: DSHClient | ExternalExecutionClient,

@@ -20,3 +20,5 @@
 
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"历史文件读取使用原索引和同一文件根，已登记文件映射保持并禁止读取动作发现后写入新映射。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"冻结快照读取走原接口与原快照存储，仅服务时使用现有严格场景校验且不恢复执行。","diagrams":[]} -->
+
+首轮合成候选的协议回归发现旧最小宿主夹具未调用构造器。类级默认值补齐原内置行为，实际仅服务对象仍由无传输客户端选择。失败的本机批次按原回执保留。
