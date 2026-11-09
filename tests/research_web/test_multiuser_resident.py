@@ -312,7 +312,17 @@ def test_preservation_includes_business_tmp_and_lock_files(tmp_path, name, chang
 
 
 @pytest.mark.parametrize(
-    "scenario", ["previous", "same", "unknown", "invalid", "permissions", "link"]
+    "scenario",
+    [
+        "previous",
+        "external",
+        "external_two_pids",
+        "same",
+        "unknown",
+        "invalid",
+        "permissions",
+        "link",
+    ],
 )
 def test_boot_recovery_only_retires_proven_previous_boot(tmp_path, scenario):
     store = AccountStore(tmp_path / "server")
@@ -332,6 +342,10 @@ def test_boot_recovery_only_retires_proven_previous_boot(tmp_path, scenario):
     }
     if scenario == "invalid":
         record.pop("boot_id")
+    if scenario.startswith("external"):
+        record.update(generation="b" * 32, execution_mode="external")
+    if scenario == "external_two_pids":
+        record["pids"] = [123, 456]
     owner.write_text(json.dumps(record))
     owner.chmod(0o600)
     if scenario == "permissions":
@@ -339,7 +353,7 @@ def test_boot_recovery_only_retires_proven_previous_boot(tmp_path, scenario):
     if scenario == "link":
         state.rename(folder / "outside")
         state.symlink_to(folder / "outside")
-    if scenario == "previous":
+    if scenario in {"previous", "external"}:
         retire_previous_boot(
             folder, current_boot=current, accounts=store, archive=tmp_path / "archive"
         )
@@ -374,3 +388,177 @@ def test_preservation_rejects_links_at_scan_roots_and_index(tmp_path, target, da
     link.symlink_to(outside)
     with pytest.raises(RuntimeError, match="preservation_snapshot_failed"):
         snapshot(root)
+
+
+@pytest.mark.parametrize("old_writer", ["none", "native", "docker", "unguarded"])
+def test_primary_storage_requires_exclusive_lifecycle_and_quiescence(
+    tmp_path, monkeypatch, old_writer
+):
+    import subprocess
+    from contextlib import contextmanager
+
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    for path in (home / "resident", home / "research-web", tmp_path / "release"):
+        path.mkdir(mode=0o700)
+    project = tmp_path / "release"
+    data = home / "research-web"
+
+    def identity(path):
+        item = path.stat()
+        return item.st_dev, item.st_ino
+
+    binding = LegacyBinding(
+        str(uuid4()), home, "a" * 40, 8088, 3081, project, identity(project), identity(data)
+    )
+    events = []
+
+    @contextmanager
+    def lifecycle_lock():
+        events.append("locked")
+        try:
+            yield SimpleNamespace(assert_held=lambda: events.append("verified"))
+        finally:
+            events.append("released")
+
+    manager = SimpleNamespace(
+        _lifecycle_lock=lifecycle_lock,
+        _native_quiescent=lambda: old_writer != "native",
+        _other_runtime_quiescent=lambda: old_writer != "docker",
+    )
+    monkeypatch.setattr(LegacyBinding, "_verified_manager", lambda _: manager)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1 if old_writer == "unguarded" else 0),
+    )
+    if old_writer == "unguarded":
+        with (
+            pytest.raises(RuntimeErrorSafe, match="legacy_lifecycle_guard_unverified"),
+            binding.service_only_storage(),
+        ):
+            pytest.fail("unverified legacy guard protocol was admitted")
+        assert not events
+    elif old_writer == "none":
+        with binding.service_only_storage() as storage:
+            assert storage.data_root == data and storage.user_id == binding.primary_user_id
+            storage.assert_held()
+        with pytest.raises(RuntimeErrorSafe, match="primary_storage_lease_unverified"):
+            storage.assert_held()
+        assert events == ["locked", "verified", "released"]
+    else:
+        code = (
+            "legacy_other_runtime_must_be_stopped"
+            if old_writer == "docker"
+            else "legacy_services_must_be_stopped"
+        )
+        with (
+            pytest.raises(RuntimeErrorSafe, match=code),
+            binding.service_only_storage(),
+        ):
+            pytest.fail("live legacy service was admitted")
+        assert events == ["locked", "released"]
+
+
+def test_service_only_resident_serves_original_primary_and_releases_lifecycle(
+    tmp_path, monkeypatch
+):
+    import subprocess
+    from pathlib import Path
+
+    import uvicorn
+
+    from app.research_web.multiuser import __main__ as cli
+    from app.research_web.multiuser import resident, resident_binding, resident_boot
+    from app.research_web.multiuser.runtime import _reserve_port
+    from app.research_web.service_manager import WebServiceManager
+    from app.research_web.store import Store
+
+    home = tmp_path / "legacy"
+    root = tmp_path / "server"
+    for directory in (
+        home,
+        home / "resident",
+        home / "install",
+        home / "run",
+        home / "research-web",
+    ):
+        directory.mkdir(mode=0o700)
+    project = Path(cli.PROJECT).resolve()
+    sha = subprocess.check_output(
+        ["/usr/bin/git", "-C", str(project), "rev-parse", "HEAD"], text=True
+    ).strip()
+    # A shallow CI checkout can prove the synthetic installation's own revision.
+    monkeypatch.setattr(resident_binding, "_LEGACY_GUARD_BASE", sha)
+    accounts = AccountStore(root)
+    admin = accounts.create_user("primary-pilot", "synthetic primary password", "admin")
+    token, _ = accounts.login(admin.username, "synthetic primary password")
+    with _reserve_port() as listener:
+        web = listener.getsockname()[1]
+    with _reserve_port() as listener:
+        dsh = listener.getsockname()[1]
+    data = home / "research-web"
+    store = Store(data)
+    sid = store.create("fingpt", "Originally attached research")["id"]
+    original = store.directory(sid) / "inputs" / "archive.txt"
+    raw = b"approved original primary evidence"
+    original.write_bytes(raw)
+    store.files(sid)
+    control = data / ".control"
+    control.mkdir(mode=0o700)
+
+    def save(path, value):
+        path.write_text(json.dumps(value))
+        path.chmod(0o600)
+
+    save(control / "datahub.json", {"url": f"http://127.0.0.1:{web}", "token": "S" * 43})
+    save(
+        home / "resident/config.json",
+        {"project": str(project), "web_port": web, "runtime_port": dsh, "node": "/synthetic/node"},
+    )
+    save(home / "install/manifest.json", {"status": "installed", "code_commit": sha})
+    binding = LegacyBinding.discover(home, admin.id)
+    origin = "https://research.tail123.ts.net"
+    save(
+        root / "resident.json",
+        {
+            "version": 1,
+            "revision": sha,
+            "project": str(project),
+            "port": 8089,
+            "source": str(project),
+            "node": "/synthetic/node",
+            "origin": origin,
+            "binding": binding.public_config(),
+            "service_only": True,
+            "mcp_readonly_enabled": True,
+            "weknora_oauth_origin": "https://weknora.tail123.ts.net",
+        },
+    )
+    monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(resident_boot, "boot_identity", lambda: str(uuid4()))
+    monkeypatch.setattr(WebServiceManager, "_native_quiescent", lambda self: True)
+
+    def serve(app, **options):
+        with TestClient(app, base_url=origin) as client:
+            health = client.get("/api/server/health").json()
+            assert (
+                health["execution_mode"] == "external" and health["primary_last_verified"] is True
+            )
+            headers = {"Cookie": "rwb_session=" + token}
+            history = client.get("/api/research/sessions", headers=headers).json()
+            assert any(item["id"] == sid for item in history["items"])
+            record = json.loads((root / "users" / admin.id / "state/owner.json").read_bytes())
+            assert len(record["pids"]) == 1 and record["execution_mode"] == "external"
+            assert not (root / "users" / admin.id / "research-web").exists()
+            assert app.state.mcp_facade.store.client_enabled("rwb-weknora")
+
+    monkeypatch.setattr(uvicorn, "run", serve)
+    assert resident.run(root) == 0
+    assert original.read_bytes() == raw
+    assert not (root / "users" / admin.id / "state/owner.json").exists()
+    with _reserve_port(web):
+        pass
+    manager = binding._verified_manager()
+    with manager._lifecycle_lock() as lease:
+        lease.assert_held()

@@ -452,3 +452,5 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 私网 `--service-only` 仅从 macOS Native 私网 serve 入口启用。Docker 的现有 Web/DSH 配对启动、安装和平台验收沿其原合同。
+
+常驻仅服务网关挂载原主账号目录前，在原生命周期锁内检查旧 Docker 与 Native 是否均已停止。该锁由主 Web 子进程持有到实际退出。

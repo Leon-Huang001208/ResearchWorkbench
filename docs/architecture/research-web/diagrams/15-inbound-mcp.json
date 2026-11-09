@@ -12,10 +12,10 @@
     ]
   },
   "components": [
-    {"id": "host", "type": "external", "label": "成熟 Agent 应用", "sublabel": "Codex 首验 · 其他宿主另验", "pos": [30, 285], "size": [210, 95]},
+    {"id": "host", "type": "external", "label": "成熟 Agent 应用", "sublabel": "Codex · WeKnora HTTPS", "pos": [30, 285], "size": [210, 95]},
     {"id": "browser", "type": "frontend", "label": "现有 RWB 登录", "sublabel": "网页同意与已授权应用", "pos": [30, 70], "size": [210, 90]},
     {"id": "gateway", "type": "security", "label": "私网 HTTPS 网关", "sublabel": "规范 Origin · 默认关闭", "pos": [335, 285], "size": [210, 95]},
-    {"id": "authorization", "type": "security", "label": "OAuth 授权服务", "sublabel": "公开客户端 · PKCE S256", "pos": [335, 70], "size": [210, 90]},
+    {"id": "authorization", "type": "security", "label": "OAuth 授权服务", "sublabel": "固定回调 · PKCE S256", "pos": [335, 70], "size": [210, 90]},
     {"id": "accounts", "type": "database", "label": "原账户 SQLite", "sublabel": "增量授权表 · 材料审批摘要", "pos": [650, 70], "size": [210, 90]},
     {"id": "tools", "type": "backend", "label": "MCP 资源服务", "sublabel": "四项只读工具 · 对象白名单", "pos": [650, 285], "size": [210, 95]},
     {"id": "pool", "type": "backend", "label": "原 RuntimePool", "sublabel": "账户路由 · 既有容量门", "pos": [965, 285], "size": [210, 95]},
@@ -34,6 +34,6 @@
   "cards": [
     {"dot": "cyan", "title": "同一进程，分开授权职责", "items": ["授权与资源服务共用原网关", "Cookie 不能单独调用 MCP", "不增加代理、用户库或执行内核"]},
     {"dot": "emerald", "title": "原件验证后返回", "items": ["仅批准公开或合成材料", "完整摘要、来源和原质量门", "返回前复验撤权；明确分页与截断"]},
-    {"dot": "amber", "title": "实施与上线分层", "items": ["本图描述首版合同", "源码、HTTP、干净安装分别取证", "私网部署和各宿主 OAuth 另验"]}
+    {"dot": "amber", "title": "实施与上线分层", "items": ["跨站授权入口忽略旧 Cookie", "源码、HTTP、干净安装分别取证", "私网部署和各宿主 OAuth 另验"]}
   ]
 }

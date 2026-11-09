@@ -912,3 +912,5 @@ origin校验共享helper只依赖stdlib，冷Doctor不反向导入server启动�
 仅服务模式没有内置 DSH 子进程或私有回调。Web 仍要求账户网关 Key、同源及原资料操作授权。研究写入在路由层拒绝，内部服务另以无传输客户端拒绝。需要原生质量复核的历史报告下载失败关闭。
 
 WeKnora 固定回调、客户端、PKCE、issuer 与 resource 逐项核对。Codex 和 WeKnora 的授权码、刷新令牌和撤权互相隔离。
+
+WeKnora HTTPS 回调必须使用独立主机，跨站授权导航忽略已有 Cookie。原位主账号接管要求固定安装证明，并在原锁内确认 Native 与 Docker 静止。主 Web 子进程继承 POSIX 锁，覆盖网关先退出的场景。

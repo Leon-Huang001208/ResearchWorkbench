@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-external-runtime-20261109/outputs/research-web-architecture/01-deployment.html",
-    "sha256": "8a9f084dcae30fc9043d3f246b56c2cf35abe2803e1981252ce8f5f7d9e3fd0b",
-    "bytes": 645710
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/outputs/research-web-architecture/01-deployment.html",
+    "sha256": "c050b33cb4504e6c757343ba3c6ef3e040b871c61f8ba74ab70ee6534e1d9192",
+    "bytes": 645717
   },
   "state": {
     "detail": "read",

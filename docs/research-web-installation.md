@@ -1211,3 +1211,14 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 并显式设置 `RWB_MCP_READONLY_ENABLED=1`。该来源应改为隔离 WeKnora 的
 实际浏览器地址。Doctor 接受相同模式和来源参数，只报告
 `weknora_oauth.status`，不会登记客户端或执行授权。[OAuth 合同](research-web-mcp-facade.md#隔离-weknora-oauth-客户端)
+
+### 常驻仅服务配置与主账号原位挂载
+
+常驻私有配置接受 `service_only: true`；与既有 `mcp_readonly_enabled: true`
+一同配置 `weknora_oauth_origin` 后，RWB 私网 HTTPS 可为预登记的
+WeKnora 客户端提供授权。HTTPS 回调使用与 RWB 不同的主机；回环回调
+用于在 Mac mini 本机完成授权。Doctor 只报告待配置元数据。
+
+主账号仍使用原绑定的数据根，后端启动前持有原 supervisor 与 lifecycle 锁，
+验证旧安装和进程停止，复用已登记 Web 端口。其他账号目录及原鉴权保持。
+生产切换须独立验收实际登录、原目录、HTTPS OAuth、固定前版回滚及 DSH 停止。

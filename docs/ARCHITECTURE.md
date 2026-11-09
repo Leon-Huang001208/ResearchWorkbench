@@ -415,3 +415,7 @@ artifact 摘要绑定演练 label／plist／domain／端口。它不创建服务
 ### 外部宿主与 RWB 仅服务模式
 
 macOS 私网网关可显式选择每账户 Web 单进程。WeKnora Runtime 是首个外部研究执行候选，RWB 保留账户、数据、证据和看板。仅服务 Host 无 DSH transport、回调或运行恢复。见[安装合同](research-web-installation.md#macos-私网仅服务模式)。
+
+### 私网仅服务主账号
+
+常驻网关可以复用原主账号目录和 Web 端口，由旧生命周期锁保护唯一写入方。预登记 WeKnora HTTPS 回调使用独立主机。

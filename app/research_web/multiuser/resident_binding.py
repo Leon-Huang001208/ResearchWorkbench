@@ -1,4 +1,4 @@
-"""Read-only attachment of exactly one administrator to the original resident."""
+"""Ownership and attachment of the original resident data for its administrator."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import os
 import stat
 import subprocess
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from uuid import UUID
@@ -15,9 +16,10 @@ from uuid import UUID
 from core.observability import get_logger
 
 from .accounts import AccountError, AccountStore
-from .runtime import Backend, RuntimeErrorSafe
+from .runtime import Backend, PrimaryStorage, RuntimeErrorSafe
 
 log = get_logger(__name__)
+_LEGACY_GUARD_BASE = "43589557276d2a96052feefb638ca209dc80a8be"
 
 
 def read_json(path: Path) -> dict:
@@ -108,48 +110,127 @@ class LegacyBinding:
             (data.stat().st_dev, data.stat().st_ino),
         )
 
-    def verify(self) -> dict:
-        """Verify the actual original instance; never start, stop or adopt a process."""
+    def _verify_storage_identity(self) -> None:
+        if str(UUID(self.primary_user_id)) != self.primary_user_id:
+            raise ValueError
+        for path, identity in (
+            (self.project, self.project_identity),
+            (self.data_root, self.data_identity),
+        ):
+            info = path.lstat()
+            if (
+                path.resolve() != path.absolute()
+                or not stat.S_ISDIR(info.st_mode)
+                or info.st_uid != os.getuid()
+                or (info.st_dev, info.st_ino) != identity
+            ):
+                raise ValueError
+
+    def _verified_manager(self):
         from ..service_manager import WebServiceManager
 
+        self._verify_storage_identity()
+        config = read_json(self.home / "resident/config.json")
+        manifest = read_json(self.home / "install/manifest.json")
+        if (
+            config["project"] != str(self.project)
+            or config["web_port"] != self.web_port
+            or config["runtime_port"] != self.runtime_port
+            or manifest.get("status") != "installed"
+            or manifest.get("code_commit") != self.revision
+        ):
+            raise ValueError
+        actual = subprocess.check_output(
+            ["/usr/bin/git", "-C", str(self.project), "rev-parse", "HEAD"], text=True, timeout=5
+        ).strip()
+        if actual != self.revision:
+            raise ValueError
+        return WebServiceManager(
+            project_root=self.project,
+            data_root=self.data_root,
+            python=str(self.project / ".venv/bin/python"),
+            node=config["node"],
+            web_port=self.web_port,
+            runtime_port=self.runtime_port,
+        )
+
+    @contextmanager
+    def service_only_storage(self):
+        """Fence the original supervisor and service manager before reusing its data root."""
+        from research_workbench_entrypoint.resident.admission import MaintenanceBusy, file_lock
+
+        from ..service_manager import ServiceManagerError
+
+        active = False
         try:
-            if str(UUID(self.primary_user_id)) != self.primary_user_id:
-                raise ValueError
-            for path, identity in (
-                (self.project, self.project_identity),
-                (self.data_root, self.data_identity),
-            ):
-                info = path.lstat()
-                if (
-                    path.resolve() != path.absolute()
-                    or not stat.S_ISDIR(info.st_mode)
-                    or info.st_uid != os.getuid()
-                    or (info.st_dev, info.st_ino) != identity
-                ):
-                    raise ValueError
-            config = read_json(self.home / "resident/config.json")
-            manifest = read_json(self.home / "install/manifest.json")
-            if (
-                config["project"] != str(self.project)
-                or config["web_port"] != self.web_port
-                or config["runtime_port"] != self.runtime_port
-                or manifest.get("status") != "installed"
-                or manifest.get("code_commit") != self.revision
-            ):
-                raise ValueError
-            actual = subprocess.check_output(
-                ["/usr/bin/git", "-C", str(self.project), "rev-parse", "HEAD"], text=True, timeout=5
-            ).strip()
-            if actual != self.revision:
-                raise ValueError
-            manager = WebServiceManager(
-                project_root=self.project,
-                data_root=self.data_root,
-                python=str(self.project / ".venv/bin/python"),
-                node=config["node"],
-                web_port=self.web_port,
-                runtime_port=self.runtime_port,
-            )
+            with file_lock(self.home / "resident", "supervisor.lock", exclusive=True):
+                manager = self._verified_manager()
+                guard = subprocess.run(
+                    [
+                        "/usr/bin/git",
+                        "-C",
+                        str(self.project),
+                        "merge-base",
+                        "--is-ancestor",
+                        _LEGACY_GUARD_BASE,
+                        self.revision,
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                    check=False,
+                )
+                if guard.returncode != 0:
+                    raise RuntimeErrorSafe("legacy_lifecycle_guard_unverified", 409)
+                with manager._lifecycle_lock() as lease:
+                    if not manager._other_runtime_quiescent():
+                        raise RuntimeErrorSafe("legacy_other_runtime_must_be_stopped", 409)
+                    if not manager._native_quiescent():
+                        raise RuntimeErrorSafe("legacy_services_must_be_stopped", 409)
+
+                    def assert_held():
+                        try:
+                            if not active:
+                                raise ValueError
+                            lease.assert_held()
+                            self._verify_storage_identity()
+                        except (OSError, ValueError, RuntimeError) as exc:
+                            log.warning(
+                                "primary_storage_lease_unverified", error_type=type(exc).__name__
+                            )
+                            raise RuntimeErrorSafe("primary_storage_lease_unverified") from exc
+
+                    def retain_guard():
+                        assert_held()
+                        return lease.retain_for_posix_child()
+
+                    active = True
+                    try:
+                        yield PrimaryStorage(
+                            self.primary_user_id,
+                            self.data_root,
+                            self.web_port,
+                            assert_held,
+                            retain_guard,
+                        )
+                    finally:
+                        active = False
+        except (
+            OSError,
+            ValueError,
+            KeyError,
+            TypeError,
+            MaintenanceBusy,
+            ServiceManagerError,
+            subprocess.SubprocessError,
+        ) as exc:
+            log.warning("primary_storage_unverified", error_type=type(exc).__name__)
+            raise RuntimeErrorSafe("primary_storage_unverified") from exc
+
+    def verify(self) -> dict:
+        """Verify the actual original instance; never start, stop or adopt a process."""
+        try:
+            manager = self._verified_manager()
             services = manager.status()["services"]
             if not all(
                 services[role].get("ready") and services[role].get("running")
@@ -187,7 +268,17 @@ class AttachedPool:
         if primary.role != "admin" or not primary.enabled:
             raise RuntimeErrorSafe("legacy_owner_account_invalid")
         self.primary_user_id = primary.id
-        self.primary_ui = binding.project / "app/research_web/ui"
+        self.service_only = getattr(getattr(private_pool, "config", None), "service_only", False)
+        if self.service_only:
+            storage = private_pool.config.primary_storage
+            if (
+                storage is None
+                or storage.user_id != primary.id
+                or storage.data_root != binding.data_root
+            ):
+                raise RuntimeErrorSafe("primary_storage_unverified")
+        project = private_pool.config.project if self.service_only else binding.project
+        self.primary_ui = project / "app/research_web/ui"
         self._verification_lock = asyncio.Lock()
         self._verified_at = 0.0
 
@@ -195,7 +286,10 @@ class AttachedPool:
         async with self._verification_lock:
             if time.monotonic() - self._verified_at < 3:
                 return
-            await asyncio.to_thread(self.binding.verify)
+            if self.service_only:
+                await self.private_pool.backend_for(self.primary_user_id)
+            else:
+                await asyncio.to_thread(self.binding.verify)
             self._verified_at = time.monotonic()
 
     async def start(self) -> None:
@@ -209,7 +303,7 @@ class AttachedPool:
                 await asyncio.sleep(2)
 
     async def backend_for(self, user_id: str) -> Backend:
-        if user_id == self.primary_user_id:
+        if user_id == self.primary_user_id and not self.service_only:
             await self._verify()
             # The original loopback service retains its resident authentication
             # contract. It is reachable externally only through this gateway.
@@ -218,7 +312,7 @@ class AttachedPool:
 
     async def backend_for_readonly(self, user_id: str) -> Backend:
         """Reverify the existing primary or use the private pool's no-start lookup."""
-        if user_id == self.primary_user_id:
+        if user_id == self.primary_user_id and not self.service_only:
             async with self._verification_lock:
                 await asyncio.to_thread(self.binding.verify)
             return Backend(f"http://127.0.0.1:{self.binding.web_port}", "")
@@ -234,6 +328,7 @@ class AttachedPool:
             "status": "ready" if self._verified_at else "starting",
             "revision": self.revision,
             "primary_last_verified": bool(self._verified_at),
+            **({"execution_mode": "external"} if self.service_only else {}),
         }
 
     async def stop(self, user_id: str) -> None:

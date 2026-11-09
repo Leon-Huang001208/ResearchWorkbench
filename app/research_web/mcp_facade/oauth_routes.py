@@ -118,7 +118,12 @@ def create_routes(provider: OAuthProvider) -> list[Route]:
                 provider.store.validate_redirect(str(data["redirect_uri"]), client_id=client_id)
             except AccountError:
                 return _error("invalid_request")
-        user = provider.store.accounts.authenticate(request.cookies.get(COOKIE, ""))
+        user = (
+            None
+            if client_id == WEKNORA_CLIENT_ID
+            and request.headers.get("sec-fetch-site") == "cross-site"
+            else provider.store.accounts.authenticate(request.cookies.get(COOKIE, ""))
+        )
         marker = browser_account.set(user)
         try:
             return _safe_sdk_response(await authorize_handler.handle(request), provider)

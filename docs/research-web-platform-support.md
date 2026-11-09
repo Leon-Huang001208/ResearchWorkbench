@@ -308,3 +308,5 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 本轮为Mac上的Web源码与隔离RWB浏览器候选。上游Node纯函数8项通过；Go完成编译但测试初始化在上游go-m1cpu崩溃，Docker两次受容量门拒绝、未执行测试，不认证Go runtime通过。完整WeKnora Vue、独立服务、真实模型、迁移与报告未验；Windows/Linux原生和各自CI仍由对应设备负责，不从Mac派发他平台产品任务。[资料合同](research-web-weknora.md)
 
 私网 `server serve --service-only` 的候选范围为 macOS Native。Docker、Windows、Linux 作为产品宿主及生产常驻切换分别验收。
+
+原位主账号写入互斥新增 macOS POSIX 锁继承验证。现有常驻切换及固定前版回滚需要独立实测。

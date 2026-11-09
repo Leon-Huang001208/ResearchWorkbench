@@ -13,6 +13,7 @@ import os
 import platform
 import subprocess
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 
@@ -22,6 +23,7 @@ def run(root: Path) -> int:
     with _server_context(root):
         import uvicorn
 
+        from ..mcp_facade.config import enabled, resident_execution
         from .accounts import AccountStore
         from .gateway import create_gateway
         from .resident_binding import AttachedPool, LegacyBinding, read_json
@@ -32,6 +34,12 @@ def run(root: Path) -> int:
             raise RuntimeErrorSafe("server_platform_unsupported")
         config = read_json(root / "resident.json")
         mcp_enabled = _configured_mcp_enabled(config)
+        try:
+            service_only, oauth_origin = resident_execution(
+                config, mcp_enabled=enabled(mcp_enabled)
+            )
+        except ValueError as exc:
+            raise RuntimeErrorSafe(str(exc)) from exc
         revision = subprocess.check_output(
             ["/usr/bin/git", "-C", str(PROJECT), "rev-parse", "HEAD"],
             text=True,
@@ -54,33 +62,48 @@ def run(root: Path) -> int:
             accounts=accounts,
             archive=root / "run/recovery",
         )
-        private = RuntimePool(
-            RuntimeConfig(
-                root=root,
-                project=PROJECT,
-                source=Path(config["source"]),
-                python=sys.executable,
-                node=config["node"],
-                max_instances=capacity,
-            ),
-            recover=recover,
-            boot_id=boot,
-        )
-        try:
-            pool = AttachedPool(accounts, private, binding, revision)
-            pool.maintenance_path = root / "run/cutover.json"
-            pool.deployment_path = root / "run/gateway-upgrade.json"
-            app = create_gateway(accounts, pool, origin=config["origin"], mcp_enabled=mcp_enabled)
-            uvicorn.run(
-                app,
-                host="127.0.0.1",
-                port=8089,
-                access_log=False,
-                proxy_headers=False,
-                log_config=None,
+        with ExitStack() as leases:
+            primary_storage = None
+            if service_only:
+                primary = accounts.get_user(binding.primary_user_id)
+                if primary.role != "admin" or not primary.enabled:
+                    raise RuntimeErrorSafe("legacy_owner_account_invalid")
+                primary_storage = leases.enter_context(binding.service_only_storage())
+            private = RuntimePool(
+                RuntimeConfig(
+                    root=root,
+                    project=PROJECT,
+                    source=Path(config["source"]),
+                    python=sys.executable,
+                    node=config["node"],
+                    max_instances=capacity,
+                    service_only=service_only,
+                    primary_storage=primary_storage,
+                ),
+                recover=recover,
+                boot_id=boot,
             )
-        finally:
-            asyncio.run(private.close())
+            try:
+                pool = AttachedPool(accounts, private, binding, revision)
+                pool.maintenance_path = root / "run/cutover.json"
+                pool.deployment_path = root / "run/gateway-upgrade.json"
+                app = create_gateway(
+                    accounts,
+                    pool,
+                    origin=config["origin"],
+                    mcp_enabled=mcp_enabled,
+                    **({"weknora_oauth_origin": oauth_origin} if oauth_origin is not None else {}),
+                )
+                uvicorn.run(
+                    app,
+                    host="127.0.0.1",
+                    port=8089,
+                    access_log=False,
+                    proxy_headers=False,
+                    log_config=None,
+                )
+            finally:
+                asyncio.run(private.close())
     return 0
 
 

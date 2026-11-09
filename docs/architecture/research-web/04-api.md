@@ -909,3 +909,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 仅服务模式下 `GET /api/research/runtime` 返回 `execution_mode=external`、`connected=false`、`owned_runtime=false`。只有已核对的资料、市场和快照读取入口开放。会协调执行状态的旧 GET 与原研究写入均返回 403 `embedded_research_disabled`；账号内 WeKnora 绑定、批准、检索、读取及冻结沿原权限检查。
 
 仅服务网关可预登记 WeKnora 专用 OAuth 回调。既有授权、令牌和工具路径延用同一协议。
+
+私网 HTTPS 的 WeKnora OAuth 跨站导航仅允许预登记回调及其登录页，随后沿同源授权与 MCP 读取接口。

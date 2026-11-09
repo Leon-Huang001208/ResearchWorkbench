@@ -166,7 +166,7 @@
       "id": "privatePool",
       "type": "backend",
       "label": "本机准入 / RuntimePool",
-      "sublabel": "账户 Web 单进程或 Web＋DSH",
+      "sublabel": "主账号原位 · 单 Web / Web＋DSH",
       "row": 1,
       "col": 0,
       "size": [
@@ -296,7 +296,7 @@
       "dot": "rose",
       "title": "邀请制私网边界",
       "items": [
-        "私网网关；仅服务模式每账户只启动 Web",
+        "仅服务主账号原位使用原数据根",
         "最多2个实例；信任同 UID 后端，非 OS 租户隔离"
       ]
     },
@@ -305,7 +305,7 @@
       "title": "私网跟踪与运行边界",
       "items": [
         "macOS Native；Docker多用户未验，跟踪需owner存活",
-        "仅服务模式不恢复原生跟踪或研究执行"
+        "原生命周期锁保护唯一主账号写入方"
       ]
     }
   ]

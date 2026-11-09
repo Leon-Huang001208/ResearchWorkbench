@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/.codex/worktrees/rwb-mcp-readonly-oauth/ResearchWorkbench/docs/architecture/research-web/diagrams/15-inbound-mcp.json",
-  "output": "/Users/leon/.codex/worktrees/rwb-mcp-readonly-oauth/ResearchWorkbench/outputs/research-web-architecture/15-inbound-mcp.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/docs/architecture/research-web/diagrams/15-inbound-mcp.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/outputs/research-web-architecture/15-inbound-mcp.html",
   "specification": {
-    "sha256": "7464abbe95a024da7771619cc21fd038105c99ba6f4e396e29edbab209bd74d4",
-    "bytes": 3386
+    "sha256": "a41632858b07df675f2c9cef505baa5f4544ca3ccd9e1e5f24cb50c9ba4b9c1d",
+    "bytes": 3381
   },
   "artifact": {
-    "sha256": "441065a19fed6dca7d072e06aadbc2cea3f6fd54d1a41ff804e5024d166ad345",
-    "bytes": 636445
+    "sha256": "6b04263925cf4efe7962d450596eb501b5193964c8c4a53f398ec0f91e23a253",
+    "bytes": 636395
   },
   "validation": {
     "checksPassed": 9,
