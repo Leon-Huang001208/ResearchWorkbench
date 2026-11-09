@@ -19,6 +19,11 @@
 
 可选诊断存在时必须恰为六字段：`classification=merge_conflict`，非零整数 `exitStatus`（1–255），`signal=null`、`errorCode=null`，整数 `stderrBytes`（0–4 MiB）和小写64位十六进制**字符串** `stderrSha256`。字节数为0当且仅当哈希为实际空字节 SHA-256；额外字段、异常类型、信号退出、越界预算或非字符串哈希继续拒绝。保留诊断不授予发布、CI、备份替代或清理权限，原 SHA／common directory／干净工作树／远端未发布／PR 与 CI 状态等全部拒绝门保持；后续只能沿原正式 prepared amend 与验证流程推进。
 
+同一准入也识别共享控制器原样留下的 `command_failed` 诊断，限 Git 退出码 128、
+非空 stderr 的有界摘要、无 signal 和 spawn error。适用对象必须已由原 prepare
+恢复到 `prepared`。工作树、合并父链、未发布状态、精确远端和可恢复备份仍独立验证；
+原诊断随正式回执原样保留。
+
 ## WeKnora 候选交付路由（2026-11-06）
 
 本轮为 macOS Web 功能开发，涉及公开接口、身份与持久证据，使用隔离 worktree、完整 changed-set Router、独立语言／安全评审及原三 CI／同候选 Mac 安装。九份 WeKnora 离线测试加入原 Checks 清单，JS 沿原通配符，Mac 原静态资源检查核对 `knowledge-settings.mjs`；无新增 job、runner、依赖或超时。真实服务、免费模型、20题业务金标、原报告窗口交接、迁移和部署分别登记，不能以 mock 或补丁可应用证明完成替换。0002只检索profile已实现为源码补丁，UI上传／重解析零生成验收仍 BLOCKED，Go目标用例NOT_RUN（原生初始化崩溃，运行BLOCKED）；成功测试临时根仍按原同批身份回收，失败原件保留。[资料合同](research-web-weknora.md)

@@ -959,14 +959,16 @@ function exactFields(value, fields, required = fields) {
 function validateAmendReceipt(receipt) {
   const diagnostic=receipt.mergeFailure;
   const emptyHash=crypto.createHash('sha256').update('').digest('hex');
-  const recoveredConflict=!Object.hasOwn(receipt,'mergeFailure') || (
+  const recoveredDiagnostic=!Object.hasOwn(receipt,'mergeFailure') || (
     exactFields(diagnostic,['classification','exitStatus','signal','errorCode','stderrBytes','stderrSha256']) &&
-    diagnostic.classification==='merge_conflict' && Number.isInteger(diagnostic.exitStatus) && diagnostic.exitStatus>0 && diagnostic.exitStatus<=255 &&
+    (diagnostic.classification==='merge_conflict' ||
+      diagnostic.classification==='command_failed' && diagnostic.exitStatus===128 && diagnostic.stderrBytes>0) &&
+    Number.isInteger(diagnostic.exitStatus) && diagnostic.exitStatus>0 && diagnostic.exitStatus<=255 &&
     diagnostic.signal===null && diagnostic.errorCode===null && Number.isSafeInteger(diagnostic.stderrBytes) && diagnostic.stderrBytes>=0 && diagnostic.stderrBytes<=4*1024*1024 &&
     typeof diagnostic.stderrSha256==='string' && /^[a-f0-9]{64}$/.test(diagnostic.stderrSha256) && (diagnostic.stderrBytes===0)===(diagnostic.stderrSha256===emptyHash)
   );
   const verification=receipt.verification;
-  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) || !recoveredConflict ||
+  if(receipt.schemaVersion!==1 || !exactFields(receipt,AMEND_RECEIPT_FIELDS_V1,[]) || !recoveredDiagnostic ||
       receipt.status!=='prepared' || receipt.mode!==null || receipt.pullRequest!==null || receipt.remoteCommit!==null ||
       Object.hasOwn(receipt,'mergeSourceCommit') && receipt.mergeSourceCommit!==receipt.featureCommit ||
       Object.hasOwn(receipt,'baseRefreshPublishedHead') && receipt.baseRefreshPublishedHead!==null ||
