@@ -5,9 +5,9 @@
 ## 保留原有条款
 
 - `vendor/` 内随包组件使用各自的声明，包括 [CJPY Apache-2.0](vendor/cjpy/0.5.2/LICENSE) 和 [DSH Tabbit MIT](vendor/dsh-tabbit/0.3.4/LICENSE)。
-- `services/ai_news/vendor/` 保留 [AIHOT MIT 和版权声明](services/ai_news/vendor/aihot/LICENSE)及其随包材料许可。`services/hot/` 中复用的 AIHOT 内容按[来源声明](services/hot/THIRD_PARTY_NOTICES.md)处理。
-- `app/research_web/ui/vendor/` 和 `app/research_web/resources/fonts/` 保留各自的许可证，包括 [Chart.js MIT](app/research_web/ui/vendor/chart-js-4.4.7.LICENSE.txt)、[ECharts Apache-2.0](app/research_web/ui/vendor/echarts-5.5.0.LICENSE.txt)及 [Source 字体 SIL OFL 1.1](app/research_web/resources/fonts/OFL.txt)。
-- `.agents/skills/` 及仓库其他位置内具有独立许可证、上游来源或第三方权利的材料，按对应来源和许可证处理。
+- `services/ai_news/vendor/` 保留 [AIHOT MIT 和版权声明](services/ai_news/vendor/aihot/LICENSE)及其随包材料许可。`services/hot/`、`app/research_web/ui/hot-reader.css` 和 `app/research_web/ui/hot-reader.mjs` 中复用的 AIHOT 内容按[来源声明](services/hot/THIRD_PARTY_NOTICES.md)处理。两份 Web 混合文件整体排除，待厘清其中新旧材料的范围。
+- `app/research_web/ui/vendor/` 和 `app/research_web/resources/fonts/` 保留各自的许可证，包括 [Chart.js MIT](app/research_web/ui/vendor/chart-js-4.4.7.LICENSE.txt)、[ECharts Apache-2.0](app/research_web/ui/vendor/echarts-5.5.0.LICENSE.txt)及 [Noto Sans SC 子集的 SIL OFL 1.1 声明](app/research_web/resources/fonts/OFL.txt)。
+- `.agents/skills/` 及仓库其他位置内具有独立许可证、上游来源或第三方权利的材料，按对应来源和许可证处理。其中 [CLS Skill](.agents/skills/cls/LICENSE.txt) 和 [CNStock Skill](.agents/skills/cnstock/LICENSE.txt) 采用 CC BY-NC-SA 4.0，受原许可的非商业条件约束。
 
 ## 既有贡献与待核材料
 
@@ -53,3 +53,26 @@
 - `tests/research_web/test_intel.py`
 
 README 中截至上述基线的既有内容排除在新许可之外。新增许可说明按新条款提供。
+
+以 `Codex Local` 署名的既有贡献，其权属待确认。提交 `5e6b6d2c8` 对下列路径的历史内容排除在新许可之外。 [历史提交](https://github.com/Leon-Huang001208/ResearchWorkbench/commit/5e6b6d2c8)
+
+- `.agents/project-constraints.json`
+- `.ai/reports/2026-09-17-actions-quota-governance.md`
+- `.github/workflows/project-constraints.yml`
+- `.github/workflows/research-web-bootstrap.yml`
+- `.github/workflows/research-web-checks.yml`
+- `.github/workflows/research-web-windows-verify.yml`
+- `AGENTS.md`
+- `docs/CHANGELOG.md`
+- `docs/DEVELOPMENT_MAP.md`
+- `docs/README.md`
+- `docs/actions-budget.md`
+- `docs/architecture/research-web/06-documentation-contract.md`
+- `docs/architecture/research-web/architecture-map.json`
+- `docs/documentation-governance.json`
+- `docs/research-web-documentation.md`
+- `tests/javascript/actions_quota_governance.test.mjs`
+
+## 发行包
+
+此次许可变更适用于上述范围内的源码。现有全仓归档、Docker 镜像和 Python 发行包尚未按此范围完成审查。分发按新许可标注的产品包前，须核验包内每个待核材料的分发权，排除未取得所需权利的材料，并随包提供新许可和所有适用的第三方声明。当前 Docker 构建包含内嵌看板，源码工作树和默认构建产物均不能作为已核验的发行包。
