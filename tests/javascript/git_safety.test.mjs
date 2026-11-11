@@ -548,6 +548,56 @@ test('process-scoped native Git shim blocks maintenance and strips fetch pruning
   assert.deepEqual(fs.readFileSync(path.join(bin, 'git')), original);
 });
 
+test('resource record uses the base Python and preserves redacted subprocess failures', async t => {
+  const {projectRoot, options} = cleanupFixture(t);
+  const scripts = path.join(projectRoot, 'scripts');
+  fs.mkdirSync(scripts);
+  for (const name of ['git_safety.mjs', 'git_backup_store.mjs', 'resource_lifecycle.mjs', 'project_delivery_runtime.mjs', 'backup_fd_clone.mjs', 'backup_capacity.mjs']) {
+    fs.copyFileSync(new URL(`../../scripts/${name}`, import.meta.url), path.join(scripts, name));
+  }
+  fs.mkdirSync(path.join(projectRoot, '.agents'));
+  fs.writeFileSync(path.join(projectRoot, '.agents/resource-closeout.json'), '{}');
+  const python = spawnSync('python3', ['-c', 'import sys; print(sys._base_executable)'], {encoding: 'utf8'});
+  assert.equal(python.status, 0, python.stderr);
+  const executable = fs.realpathSync(python.stdout.trim());
+  const venv = path.join(projectRoot, '.venv');
+  fs.mkdirSync(path.join(venv, 'bin'), {recursive: true});
+  fs.symlinkSync(executable, path.join(venv, 'bin/python'));
+  fs.writeFileSync(path.join(venv, 'pyvenv.cfg'), `home = ${path.dirname(executable)}\ninclude-system-site-packages = false\n`);
+  const pkg = path.join(projectRoot, 'research_workbench_entrypoint');
+  fs.mkdirSync(pkg);
+  fs.writeFileSync(path.join(pkg, '__init__.py'), '');
+  fs.writeFileSync(path.join(projectRoot, 'sitecustomize.py'), 'import os\nos._exit(0)\n');
+  const module = path.join(pkg, 'iteration_resources.py');
+  fs.writeFileSync(module, 'import json, sys\nassert sys.prefix == sys.base_prefix\nassert sys.flags.no_site\nprint(json.dumps(dict(ok=True, registeredDirectories=0)))\n');
+  const {runDelivery: runFixtureDelivery} = await import(pathToFileURL(path.join(scripts, 'git_safety.mjs')).href);
+  const controller = {startDelivery: () => ({status: 'started'})};
+  const input = {projectRoot, taskId: 'task', action: 'start'};
+  assert.equal((await runFixtureDelivery(input, {...options, controller})).status, 'started');
+
+  const sentinel = 'RWB_RESOURCE_PRIVATE_SENTINEL';
+  fs.writeFileSync(module, `import sys\nprint("${sentinel}", file=sys.stderr)\nsys.exit(19)\n`);
+  await assert.rejects(runFixtureDelivery(input, {...options, controller}), error => {
+    assert.equal(error.code, 'RESOURCE_CLOSEOUT_BLOCKED');
+    assert.equal(error.resourceProcess.phase, 'record');
+    assert.equal(error.resourceProcess.exitCode, 19);
+    assert.equal(error.resourceProcess.signal, null);
+    assert.equal(error.resourceProcess.stderrBytes, Buffer.byteLength(sentinel + '\n'));
+    return true;
+  });
+  fs.writeFileSync(module, 'import os, signal\nos.kill(os.getpid(), signal.SIGTERM)\n');
+  await assert.rejects(runFixtureDelivery(input, {...options, controller}), error =>
+    error.code === 'RESOURCE_CLOSEOUT_BLOCKED' && error.resourceProcess.signal === 'SIGTERM');
+  fs.writeFileSync(module, 'pass\n');
+  await assert.rejects(runFixtureDelivery(input, {...options, controller}), error =>
+    error.code === 'RESOURCE_CLOSEOUT_BLOCKED' && error.resourceProcess.classification === 'invalid_response');
+  const log = fs.readFileSync(path.join(projectRoot, 'logs/git-safety.jsonl'), 'utf8');
+  assert.ok(!log.includes(sentinel));
+  const failures = log.trim().split('\n').map(line => JSON.parse(line)).filter(row => row.action === 'resource-record' && row.status === 'FAIL');
+  assert.equal(failures.length, 3);
+  assert.equal(failures[0].resourceProcess.stderrSha256, crypto.createHash('sha256').update(sentinel + '\n').digest('hex'));
+});
+
 function githubFixture(receipt, captured, {existing = [], protection, pr, checkConclusion = 'success', mergeParent = receipt.integrationCommit} = {}) {
   return (_command, args) => {
     captured.push(args);
