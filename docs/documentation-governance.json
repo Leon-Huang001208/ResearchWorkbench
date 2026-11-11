@@ -104,6 +104,11 @@
       "purpose": "vendored package documentation"
     },
     {
+      "prefix": "scripts/vendor/leon-engineering/",
+      "status": "package-internal",
+      "purpose": "pinned project delivery runtime provenance and verification"
+    },
+    {
       "exact": "README.md",
       "status": "current",
       "purpose": "product overview and quick start"

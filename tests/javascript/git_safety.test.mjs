@@ -122,13 +122,14 @@ test('CLI pending recovery respects native host gating without an unsettled entr
   const original=fs.readFileSync(path.join(f.state,'git-finalization.json'));
   assert.equal(JSON.parse(original).status,'pending');
   const scripts=path.join(f.projectRoot,'scripts');fs.mkdirSync(scripts);
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(scripts,name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','project_delivery_runtime.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(scripts,name));
   fs.mkdirSync(path.join(f.projectRoot,'.agents'));
   fs.writeFileSync(path.join(f.projectRoot,'.agents/resource-lifecycle.json'),JSON.stringify({schemaVersion:1,enabled:true}));
-  const home=path.join(f.root,'cli-home'),runtime=path.join(home,'.agents/leon-engineering/runtime');fs.mkdirSync(runtime,{recursive:true});
+  const home=path.join(f.root,'cli-home');fs.mkdirSync(home);
   // Only the controller's read-only remote boundary is synthetic. The child
   // enters the unmodified production CLI and complete recovery validator.
-  fs.writeFileSync(path.join(runtime,'iteration-delivery.mjs'),`import fs from 'node:fs';\nexport function readDeliveryReceipt(){return JSON.parse(fs.readFileSync(${JSON.stringify(f.delivery)},'utf8'));}\nexport const validateCleanedDelivery=readDeliveryReceipt;\n`);
+  fs.copyFileSync(new URL('../../scripts/project_delivery_runtime.mjs',import.meta.url),path.join(scripts,'production_project_delivery_runtime.mjs'));
+  fs.writeFileSync(path.join(scripts,'project_delivery_runtime.mjs'),`import fs from 'node:fs';\nexport {loadProjectResourceRuntime} from './production_project_delivery_runtime.mjs';\nexport async function loadProjectDeliveryRuntime(){const readDeliveryReceipt=()=>JSON.parse(fs.readFileSync(${JSON.stringify(f.delivery)},'utf8'));return {readDeliveryReceipt,validateCleanedDelivery:readDeliveryReceipt};}\n`);
   const runCli=()=>spawnSync(process.execPath,[path.join(scripts,'git_safety.mjs'),'delivery','--project',f.projectRoot,'--task-id','task','--status'],
     {encoding:'utf8',env:{...process.env,HOME:home},timeout:15000,maxBuffer:1024*1024});
   const child=runCli();
@@ -144,7 +145,7 @@ test('CLI pending recovery respects native host gating without an unsettled entr
   assert.doesNotMatch(child.stderr,/unsettled top-level await/i);
   const result=JSON.parse(child.stdout);
   assert.equal(result.gitStatus,'cleaned');assert.equal(result.status,'cleanup_pending');
-  assert.equal(result.lifecycleCloseout.code,'ENOENT','validated recovery must reach the intentionally absent runtime manifest');
+  assert.equal(result.lifecycleCloseout.code,'DELIVERY_RUNTIME_UNVERIFIED','validated recovery must reach the intentionally absent project pin');
   await t.test('CLI still rejects a changed recovery certificate',()=>{
     const filename=path.join(f.state,'git-finalization-recovery.json'),saved=fs.readFileSync(filename);
     try {
@@ -770,7 +771,7 @@ test('status cleanup deferral preserves CI guards and receipt while default stat
   receipt.cleanup={featureWorktreeRemoved:false,integrationWorktreeRemoved:false,localBranchDeleted:false,remoteBranchDeleted:false};
   git(projectRoot,['remote','set-url','origin',receipt.remoteUrl]);
   fs.mkdirSync(path.join(projectRoot,'scripts'));fs.mkdirSync(path.join(projectRoot,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(projectRoot,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','project_delivery_runtime.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(projectRoot,'scripts',name));
   fs.writeFileSync(path.join(projectRoot,'.agents/resource-closeout.json'),'{}');
   const delivery=path.join(projectRoot,'.git/leon-engineering/deliveries/task.json');fs.mkdirSync(path.dirname(delivery),{recursive:true});fs.writeFileSync(delivery,JSON.stringify(receipt),{mode:0o600});
   const before=fs.readFileSync(delivery),calls=[];let reads=0,cleanupCalls=0;
@@ -1395,7 +1396,7 @@ test('resource revalidation accepts only cleaned pending deliveries without repl
 test('enabled resource contract receives revalidate through the Python process boundary', async t => {
   const f=await pendingSnapshotCloseout(t), root=f.projectRoot;
   fs.mkdirSync(path.join(root,'scripts'));fs.mkdirSync(path.join(root,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','project_delivery_runtime.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
   fs.writeFileSync(path.join(root,'.agents/resource-closeout.json'),'{}');
   const python=spawnSync('python3',['-c','import sys;print(sys.executable)'],{encoding:'utf8'});
   assert.equal(python.status,0,python.stderr);

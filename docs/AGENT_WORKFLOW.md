@@ -268,6 +268,12 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
 
+交付控制器与资源内核固定在 `scripts/vendor/leon-engineering/`，来源为 0.19.4／`3913ddb9ac612760fb95bf8d8f7102f948c32d0f`。
+`project_delivery_runtime.mjs` 在加载前核对项目清单、全部依赖文件的 SHA-256 与路径身份；缺失、篡改或别名返回 `DELIVERY_RUNTIME_UNVERIFIED`。
+该入口使用项目固定版本，可脱离用户目录的 runtime 和源码运行。既有 Git common directory 回执、任务 ID、资源账本和清理欠账继续接续；
+`.agents/runtime/leon-engineering/` 的既有验证规划模块按原版本维护。更新交付固定版本须核验新来源、同步清单并复跑交付与资源回归。
+可用 `node scripts/project_delivery_runtime.mjs` 只读核验固定版本，详细来源见[固定运行时说明](../scripts/vendor/leon-engineering/README.md)。
+
 在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
 
 Git安全单测的临时仓库命令显式传入 `gc.auto=0` 与 `maintenance.auto=false`，避免测试提交

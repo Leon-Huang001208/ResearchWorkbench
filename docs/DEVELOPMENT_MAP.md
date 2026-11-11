@@ -50,7 +50,7 @@ DataHub 日线／日历引用，`event_preservation.py`／`event_diagnostics.py`
 
 同日 `scripts/git_safety.mjs` prepared-amend 字段兼容只允许受管控制器新增的 `mergeSourceCommit` 等于旧feature身份，收养时原子推进为新feature身份；正反例和旧回执恢复仍在既有 `tests/javascript/git_safety_amend_prepared.test.mjs`。远端主线在首次发布前推进时，原 `prepared` 回执可经 `refreshPublishedBase` 精确收养已提交的祖先候选，刷新后的merge source绑定见 `tests/javascript/git_safety.test.mjs`；两路径均不改变分支保护、备份或发布门。
 
-开发产物生命周期：`scripts/resource_lifecycle.mjs`验证共用runtime及原Git/资源最终认证，登记任务证据并向宿主预算报告BuildKit观测；`git_safety.mjs`在成功收尾事件接入，登记恢复点、按原保护门轮转并保留cleanup_pending欠账。桥合同为`tests/javascript/resource_lifecycle.test.mjs`，详见[协议](resource-lifecycle.md)。
+开发产物生命周期：`scripts/resource_lifecycle.mjs`验证项目固定runtime及原Git/资源最终认证，登记任务证据并向宿主预算报告BuildKit观测；`git_safety.mjs`在成功收尾事件接入，登记恢复点、按原保护门轮转并保留cleanup_pending欠账。`project_delivery_runtime.mjs`核对`scripts/vendor/leon-engineering/`的0.19.4来源、完整依赖清单与文件SHA-256，脱离全局安装运行；历史回执和宿主资源账本继续接续。桥合同为`tests/javascript/resource_lifecycle.test.mjs`，固定版本及无全局运行合同为`project_delivery_runtime.test.mjs`，详见[协议](resource-lifecycle.md)。
 保留 pending 的恢复证书由 `git_safety.mjs::validateCloseoutRecovery` 只读复用完整恢复校验及引用保全；真实 Git/v2 证书桥的正反例复用 `tests/javascript/git_safety.test.mjs` 现有恢复夹具，不调用交付入口形成递归。
 桥使用静态 ESM live binding，`git_safety.test.mjs` 的真实 Node 子进程以生产 `git_safety.mjs` 作为 CLI 入口，验证 pending 证书能越过恢复门抵达运行时门、坏证书仍拒绝且没有 unsettled top-level await。
 桥以共用内核现有 `protection` 保存上游已选择并验证的必要原件归档；已登记保护身份用项目只读指纹复核，旧未保护/隔离中登记拒绝继续事件。`tests/javascript/fixtures/resource_lifecycle_kernel_contract.mjs` 为显式宿主真实内核临时 store 合同，不修改共享源码或真实宿主 ledger。

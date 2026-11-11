@@ -1,17 +1,16 @@
-// Explicit host integration contract: run with node --test on a host with the
-// verified shared runtime installed. Generic repository CI uses the bridge unit contract.
+// Explicit integration contract against the verified repository-pinned kernel.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {finalizeLifecycle} from '../../../scripts/resource_lifecycle.mjs';
+import {loadProjectResourceRuntime, verifyProjectDeliveryRuntime} from '../../../scripts/project_delivery_runtime.mjs';
 
-const kernel=path.join(os.homedir(),'.agents/leon-engineering/runtime/lib/resources/lifecycle.mjs');
-const {createLifecycle}=await import(pathToFileURL(kernel).href);
+const kernel=path.join(verifyProjectDeliveryRuntime().runtimeRoot,'lib/resources/lifecycle.mjs');
+const {createLifecycle}=await loadProjectResourceRuntime();
 const hash=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const protection='rwb-required-verification-recovery-originals';
 const proof={schemaVersion:1,task:'task',revision:'a'.repeat(40),verification:'passed',source:'rwb-git-safety'};
@@ -50,7 +49,7 @@ test('real kernel retains required verification and recovery originals after acc
   assert.equal((await f.finalize()).status,'cleaned');
   assert.equal(f.api.status().resources.find(row=>row.path===f.evidence).id,registered.id);
   assert.equal(quarantined,0);
-  assert.equal(hash(kernel),kernelBefore,'shared kernel source must remain unchanged');
+  assert.equal(hash(kernel),kernelBefore,'project kernel pin must retain its verified bytes');
 });
 
 function register(f,protectedArchive=false) {
