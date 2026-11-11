@@ -5,13 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {fileURLToPath, pathToFileURL} from 'node:url';
+import {fileURLToPath} from 'node:url';
 import {withBackupLock, repositoryKey, fingerprint, findReusable, convertToV2, finishMigration, readManifest, materializeV2, hydrateV2, listPoints, sweepPayloads, fileHash} from './git_backup_store.mjs';
 import {finalizeLifecycle} from './resource_lifecycle.mjs';
 import {clonePinnedFile, sourceFacts} from './backup_fd_clone.mjs';
 import {admitFileStream} from './backup_capacity.mjs';
+import {loadProjectDeliveryRuntime} from './project_delivery_runtime.mjs';
 
-const CONTROLLER = path.join(os.homedir(), '.agents/leon-engineering/runtime/iteration-delivery.mjs');
 const FORBIDDEN = new Set(['gc', 'prune', 'repack', 'maintenance', 'prune-packed']);
 const ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -1774,7 +1774,7 @@ export async function recoverCloseoutFinalization({projectRoot,taskId,backupDire
   if(!ID.test(taskId??''))fail('DELIVERY_ARGUMENT_INVALID');
   selectGitPath({...options,mutate:apply});
   const perform=async repository=>{
-    const controller=options.controller??await import(pathToFileURL(CONTROLLER).href);
+    const controller=options.controller??await loadProjectDeliveryRuntime();
     const common={projectRoot:repository.repositoryRoot,taskId};
     const local=controller.readDeliveryReceipt(common);
     if(local.repositoryRoot!==repository.repositoryRoot || local.remote!=='origin' || local.defaultBranch!=='master' || output(git(repository.repositoryRoot,['remote','get-url',local.remote],options))!==local.remoteUrl)fail('REMOTE_IDENTITY_CHANGED');
@@ -2052,7 +2052,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
     const toolchainScope = {repositoryRoot: repository.repositoryRoot, commonDirectory: repository.commonDirectory, taskId, operationToken: Symbol('delivery-operation'), active: true, record: undefined};
     deliveryToolchains.set(repository, toolchainScope);
     try {
-      const controller = options.controller ?? await import(pathToFileURL(CONTROLLER).href);
+      const controller = options.controller ?? await loadProjectDeliveryRuntime();
       const common = {projectRoot: repository.repositoryRoot, taskId};
       if (action !== 'start') {
         const receipt = controller.readDeliveryReceipt(common);
