@@ -877,21 +877,47 @@ function closeoutEnabled(repository) {
   return fs.existsSync(path.join(source, '.agents/resource-closeout.json')) && discover(source).commonDirectory === repository.commonDirectory;
 }
 
-function selectResourcePython(repository) {
+function selectResourcePython(repository, phase) {
   const installed = path.join(repository.repositoryRoot, '.venv/bin/python');
-  if (fs.existsSync(installed)) return installed;
+  if (fs.existsSync(installed)) {
+    // Recording only uses the standard library. Launch the same base binary
+    // without consulting a checkout-local pyvenv.cfg that may be cloud-only.
+    if (phase === 'record' && fs.lstatSync(installed).isSymbolicLink()) {
+      const canonical = fs.realpathSync(installed);
+      const relative = path.relative(path.dirname(path.dirname(installed)), canonical);
+      if (relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) return {python: canonical, baseRecord: true};
+    }
+    return {python: installed};
+  }
   // Match the existing fixed-name PATH choice before execution, including PATH
   // entries relative to the command's existing repository cwd. This is not a
   // trust certificate; the original resource command already uses this TCB.
-  if (process.env.PATH === undefined) return 'python3.12';
+  if (process.env.PATH === undefined) return {python: 'python3.12'};
   for (const entry of process.env.PATH.split(path.delimiter)) {
     // Keep lexical '..' components: collapsing one across a symlink can change
     // which executable the existing PATH entry actually names in the kernel.
     const prefix = path.isAbsolute(entry) ? entry : repository.repositoryRoot + path.sep + (entry || '.');
     const candidate = prefix + path.sep + 'python3.12';
-    try {if (fs.statSync(candidate).isFile()) {fs.accessSync(candidate, fs.constants.X_OK); return candidate;}} catch { /* continue the existing PATH search */ }
+    try {if (fs.statSync(candidate).isFile()) {fs.accessSync(candidate, fs.constants.X_OK); return {python: candidate};}} catch { /* continue the existing PATH search */ }
   }
-  return 'python3.12'; // Preserve the existing command failure if none is found.
+  return {python: 'python3.12'}; // Preserve the existing command failure if none is found.
+}
+
+function resourceProcessFailure(repository, phase, result, code, classification, options) {
+  const stdout = result.stdout ?? Buffer.alloc(0);
+  const stderr = result.stderr ?? Buffer.alloc(0);
+  const resourceProcess = {
+    phase,
+    classification,
+    exitCode: result.status,
+    signal: result.signal,
+    spawnCode: /^[A-Z][A-Z0-9_]{1,39}$/.test(result.error?.code ?? '') ? result.error.code : null,
+    stdoutBytes: stdout.length,
+    stderrBytes: stderr.length,
+    stderrSha256: sha256(stderr),
+  };
+  log(repository, 'resource-' + phase, 'FAIL', code, {resourceProcess}, options);
+  throw Object.assign(new Error(code), {code, resourceProcess});
 }
 
 function resourcePhase(repository, taskId, phase, options) {
@@ -899,23 +925,34 @@ function resourcePhase(repository, taskId, phase, options) {
   if (scope) scope.record = undefined;
   if (!closeoutEnabled(repository)) return options.resourceRevalidationProbe?.(repository,taskId,phase);
   const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const python = selectResourcePython(repository);
+  const {python, baseRecord} = selectResourcePython(repository, phase);
   const canRecord = scope?.active && scope.taskId === taskId && !options.controller && !options.resourceRevalidationProbe;
   const beforeReference = canRecord ? selectedExecutableReference(python) : undefined;
-  const result = command(python, ['-P', '-m', 'research_workbench_entrypoint.iteration_resources', '--project', repository.repositoryRoot, '--task-id', taskId, '--phase', phase], {
+  const result = spawnSync(python, ['-P', ...(baseRecord ? ['-S'] : []), '-m', 'research_workbench_entrypoint.iteration_resources', '--project', repository.repositoryRoot, '--task-id', taskId, '--phase', phase], {
     cwd: repository.repositoryRoot,
-    env: {...process.env, PYTHONPATH:source, PYTHONDONTWRITEBYTECODE:'1'}, allowFailure:true,
+    env: {...process.env, PYTHONPATH:source, PYTHONDONTWRITEBYTECODE:'1'},
+    maxBuffer: 64 * 1024 * 1024,
   });
+  if (result.error) resourceProcessFailure(repository, phase, result, 'COMMAND_FAILED', 'spawn_error', options);
   if (result.status !== 0) {
     let code = 'RESOURCE_CLOSEOUT_BLOCKED';
-    try { const detail=JSON.parse(result.stdout.toString('utf8')); if (/^[a-z_]{1,80}$/.test(detail.code ?? '')) code=detail.code; } catch { /* bounded stable fallback; never echo subprocess output */ }
-    fail(code);
+    try { const detail=JSON.parse(result.stdout.toString('utf8')); if (/^[a-z_]{1,80}$/.test(detail?.code ?? '')) code=detail.code; } catch { /* never echo subprocess output */ }
+    const classification = result.signal ? 'signal' : code !== 'RESOURCE_CLOSEOUT_BLOCKED' ? 'reported_error' : 'unstructured_exit';
+    resourceProcessFailure(repository, phase, result, code, classification, options);
   }
-  log(repository, 'resource-' + phase, 'PASS', undefined, {}, options);
   let revalidation;
   if(phase==='revalidate') {
-    try{revalidation = JSON.parse(result.stdout.toString('utf8'));}catch{fail('RESOURCE_CLOSEOUT_BLOCKED');}
+    try{revalidation = JSON.parse(result.stdout.toString('utf8'));}
+    catch{resourceProcessFailure(repository, phase, result, 'RESOURCE_CLOSEOUT_BLOCKED', 'invalid_response', options);}
   }
+  if (baseRecord) {
+    let record;
+    try { record = JSON.parse(result.stdout.toString('utf8')); } catch { /* validated below */ }
+    if (record?.ok !== true || !Number.isSafeInteger(record.registeredDirectories) || record.registeredDirectories < 0) {
+      resourceProcessFailure(repository, phase, result, 'RESOURCE_CLOSEOUT_BLOCKED', 'invalid_response', options);
+    }
+  }
+  log(repository, 'resource-' + phase, 'PASS', undefined, {}, options);
   const afterReference = canRecord && beforeReference ? selectedExecutableReference(python) : undefined;
   if (canRecord && deliveryToolchains.get(repository) === scope && executableReferencesEqual(beforeReference, afterReference)) scope.record = {binding: toolchainBinding(scope), reference: beforeReference};
   return revalidation;
@@ -2263,5 +2300,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');
     if(result.status==='cleanup_pending')process.exitCode=2;
-  } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED',...(error.integrity?{integrity:error.integrity}:{})}) + '\n'); process.exitCode = 1; }
+  } catch (error) { process.stderr.write(JSON.stringify({status: 'BLOCKED', code: error.code ?? 'GIT_SAFETY_FAILED',...(error.integrity?{integrity:error.integrity}:{}),...(error.resourceProcess?{resourceProcess:error.resourceProcess}:{})}) + '\n'); process.exitCode = 1; }
 }
