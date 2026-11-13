@@ -11,6 +11,7 @@ from . import sandbox
 from .datahub.contracts import BUSINESS_TOOLS, CAPABILITY_PARAMETERS, BusinessQuery
 from .datahub.providers import ProviderError
 from .qa_acceptance import acceptance_enabled
+from .qa_attachments import read_attachment
 from .research_evidence import evidence_index
 from .research_quality_service import business_prompt_index, write_business_snapshot
 from .research_web_sources import execute_source, stored_sources, upload_evidence_files
@@ -351,17 +352,9 @@ class TurnTools:
                 for item in upload_evidence_files(self.store, self.sid, self.store.files(self.sid))
             ):
                 raise StoreError("附件未获本轮授权", "qa_attachment_scope", 403)
-            stream, name = self.store.open_file(self.sid, fid)
-            with stream:
-                raw = stream.read(24001)
-            try:
-                text = raw[:24000].decode("utf-8")
-            except UnicodeError:
-                raise StoreError(
-                    "此附件不能直接读取为文本", "qa_attachment_not_text", 409
-                ) from None
+            name, data = await read_attachment(self.service, self.sid, fid)
             return {
-                "data": {"content": text, "truncated": len(raw) > 24000},
+                "data": data,
                 "sources": [_source({"id": identifier, "title": name})],
             }
         allowed = ("web" in self.scope and identifier.startswith("web:")) or (

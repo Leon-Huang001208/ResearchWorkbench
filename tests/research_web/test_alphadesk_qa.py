@@ -139,6 +139,45 @@ def test_owned_snapshot_observation_preserves_period_unit_and_bytes():
     assert snapshot_observations(declined, rows, raw, "same") == []
 
 
+def test_snapshot_observations_bind_repeated_values_to_their_own_rows():
+    from app.research_web.datahub.security import json_bytes
+    from app.research_web.qa_observations import snapshot_observations
+    from app.research_web.resources.research_report_plan import _fact_text
+
+    metadata = {
+        "dataset_id": "c7f73585-8ae0-4363-93e0-c76a3a679706",
+        "manifest_sha256": "b" * 64,
+        "status": "complete",
+        "fields": {"close": {"unit": "currency_per_share", "currency": "CNY"}},
+    }
+    rows = [{"date": date, "close": 12.5} for date in ("2026-11-09", "2026-11-10")]
+    raw = json_bytes(rows).decode()
+    first, second = snapshot_observations(metadata, rows, raw, "scope")
+    assert [first["unit"], second["unit"]] == ["CNY/股", "CNY/股"]
+    assert [first["period"], second["period"]] == ["2026-11-09", "2026-11-10"]
+    assert first["proofs"][0]["spans"][0]["start"] < second["proofs"][0]["spans"][0]["start"]
+    assert _fact_text(second) == "2026-11-10 收盘价为12.5 CNY/股"
+
+
+def test_discovery_observation_quotes_the_selected_event_with_repeated_title():
+    from app.research_web.datahub.security import json_bytes
+    from app.research_web.qa_observations import snapshot_observations
+    from app.research_web.resources.research_report_plan import _fact_text
+
+    title = "市场供应预期出现变化"
+    rows = [{"detail": {"articles": [{"title": title}], "event": {"title": title}}}]
+    raw = json_bytes(rows).decode()
+    metadata = {
+        "dataset_id": "c7f73585-8ae0-4363-93e0-c76a3a679706",
+        "manifest_sha256": "b" * 64,
+        "snapshot_kind": "discovery_evidence",
+        "as_of": "2026-11-10T12:00:00+08:00",
+    }
+    (quote,) = snapshot_observations(metadata, rows, raw, "scope")
+    assert quote["proofs"][0]["spans"][0]["start"] == raw.rindex('"' + title + '"')
+    assert title in _fact_text(quote)
+
+
 def test_acceptance_budget_reserves_before_model_dispatch(tmp_path, monkeypatch):
     import json
 

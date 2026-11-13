@@ -328,6 +328,9 @@ class AttachedPool:
             "status": "ready" if self._verified_at else "starting",
             "revision": self.revision,
             "primary_last_verified": bool(self._verified_at),
+            "alphadesk_qa": getattr(
+                getattr(self.private_pool, "config", None), "alphadesk_qa", False
+            ),
             **({"execution_mode": "external"} if self.service_only else {}),
         }
 

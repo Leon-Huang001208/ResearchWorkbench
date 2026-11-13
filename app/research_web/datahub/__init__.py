@@ -1127,6 +1127,11 @@ class DataHub:
             if key in self.tasks:
                 return await self._wait_query(key, self.tasks[key])
             raise StoreError("资料调用已取消、失败或上次受理状态未知；不自动重发")
+        from ..qa_acceptance import SOURCE_ERROR, acceptance_enabled
+
+        if acceptance_enabled():
+            log.warning("datahub_acceptance_source_price_unknown")
+            raise StoreError("验收数据来源费用尚未核算", SOURCE_ERROR, 409)
         self.snapshots.receipt(sid, call_id, {"status": "pending", "fingerprint": fingerprint})
         task = asyncio.create_task(self._query(sid, call_id, query), name="datahub-query")
         self.tasks[key] = task

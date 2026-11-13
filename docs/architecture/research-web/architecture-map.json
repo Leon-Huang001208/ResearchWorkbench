@@ -10,6 +10,7 @@
       "sources": [
         "app/research_web/qa_acceptance.py",
         "app/research_web/qa_assets.py",
+        "app/research_web/qa_attachments.py",
         "app/research_web/qa_bridge.py",
         "app/research_web/qa_execution.py",
         "app/research_web/qa_model.py",
@@ -26,6 +27,8 @@
       ],
       "tests": [
         "tests/research_web/test_alphadesk_qa.py",
+        "tests/research_web/test_alphadesk_qa_formats.py",
+        "tests/research_web/test_qa_acceptance_budget.py",
         "tests/javascript/research_web_qa_worker.test.mjs"
       ]
     },

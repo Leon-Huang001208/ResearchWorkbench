@@ -12,6 +12,7 @@ from . import qa_model
 from .client import RuntimeFailure
 from .datahub.security import atomic_json, directory, read_file
 from .projection import project
+from .qa_attachments import with_turn_images
 from .qa_bridge import run_worker
 from .qa_tools import TurnTools
 from .research_evidence import evidence_index
@@ -109,7 +110,7 @@ class QuestionExecution:
             raise StoreError("问答记录容量已满，请新建会话", "qa_history_limit", 409)
         return ledger
 
-    async def start(self, sid, key, text, mode, prompt, attachment_ids, connection):
+    async def start(self, sid, key, text, mode, prompt, attachment_ids, connection, images):
         ledger = self.check_admission(sid)
         history = []
         for message in reversed(ledger["messages"][-12:]):
@@ -135,13 +136,13 @@ class QuestionExecution:
         row.update(status="running", updated_at=time.time())
         self.store.receipt(sid, key, "accepted")
         self.tasks[sid] = asyncio.create_task(
-            self.run(sid, key, ledger, request, attachment_ids, connection)
+            self.run(sid, key, ledger, request, attachment_ids, connection, images)
         )
         self.service.notify()
         log.info("research_qa_admitted", session_id=sid, mode=mode)
         return {"accepted": True}
 
-    async def run(self, sid, key, ledger, request, attachment_ids, connection):
+    async def run(self, sid, key, ledger, request, attachment_ids, connection, images):
         answer, last_save = [], time.monotonic()
         receipt = self.store.receipt(sid, key)
         turn = TurnTools(self.service, sid, receipt, attachment_ids)
@@ -177,6 +178,8 @@ class QuestionExecution:
                 async with qa_model.model_client() as client:
 
                     async def model(params, emit):
+                        if images:
+                            params = with_turn_images(params, images)
                         result = await qa_model.stream_model(client, connection, params, emit)
                         if (
                             receipt.get("qa_capability_inputs")

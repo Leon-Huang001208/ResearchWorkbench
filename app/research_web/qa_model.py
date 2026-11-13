@@ -7,10 +7,13 @@ from pathlib import Path
 
 import httpx
 
+from core.observability import get_logger
+
 from .client import RuntimeFailure
 from .model_credentials import DockerModelStore, docker_backend, execute
-from .qa_acceptance import reserve
+from .qa_acceptance import reserve, settle
 
+log = get_logger(__name__)
 MAX_MODEL_EVENT = 1024 * 1024
 MAX_MODEL_OUTPUT = 256 * 1024
 
@@ -76,8 +79,13 @@ async def stream_model(client, config, params, emit):
     if params.get("tools"):
         body["tools"] = params["tools"]
     headers = {"Authorization": "Bearer " + key} if key else {}
-    reserve(config, max_tokens)
-    text, reasoning, tools, observed, size = [], [], {}, False, 0
+    reservation = reserve(config, max_tokens)
+    if reservation is not None:
+        body["stream_options"] = {"include_usage": True}
+    text, reasoning, tools, finished, size = [], [], {}, False, 0
+    done = False
+    completion_id, usage = None, None
+    usage_bound = True
     async with client.stream("POST", endpoint, headers=headers, json=body) as response:
         response.raise_for_status()
         pending = b""
@@ -91,17 +99,30 @@ async def stream_model(client, config, params, emit):
                     continue
                 data = line[5:].strip()
                 if data == b"[DONE]":
-                    observed = True
+                    done = True
                     continue
                 payload = json.loads(data)
                 if payload.get("error"):
                     raise ValueError("qa_model_provider_error")
+                if reservation is not None:
+                    provider_id = payload.get("id")
+                    if completion_id is None:
+                        completion_id = provider_id
+                    if (
+                        provider_id != completion_id
+                        or not isinstance(provider_id, str)
+                        or payload.get("model") != model
+                        or usage is not None
+                        or done
+                    ):
+                        usage_bound = False
+                    usage = payload.get("usage")
                 choices = payload.get("choices", [])
                 if not choices:
                     continue
                 choice = choices[0]
                 if choice.get("finish_reason") in {"stop", "tool_calls"}:
-                    observed = True
+                    finished = True
                 if choice.get("finish_reason") in {"length", "content_filter"}:
                     raise ValueError("qa_model_response_incomplete")
                 delta = choice.get("delta") or {}
@@ -134,8 +155,16 @@ async def stream_model(client, config, params, emit):
                         raise ValueError("qa_model_output_limit")
             if len(pending) > MAX_MODEL_EVENT:
                 raise ValueError("qa_model_event_limit")
-    if not observed or pending.strip() not in {b"", b"data: [DONE]"}:
+    tail = pending.strip()
+    if not (finished or done) or tail not in {b"", b"data: [DONE]"}:
         raise ValueError("qa_model_response_incomplete")
+    if reservation is not None:
+        if finished and (done or tail == b"data: [DONE]") and usage_bound and usage is not None:
+            settle(reservation, completion_id, usage)
+        else:
+            log.warning(
+                "research_qa_acceptance_usage_unsettled", code="qa_acceptance_usage_unverified"
+            )
     result = {"content": "".join(text), "toolCalls": [tools[i] for i in sorted(tools)]}
     if reasoning:
         result["reasoningContent"] = "".join(reasoning)
