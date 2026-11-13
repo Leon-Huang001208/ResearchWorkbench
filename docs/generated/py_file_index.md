@@ -697,16 +697,24 @@ Module docstring:
 Imports:
 - `__future__`
 - `app.api.routes.runtime_workflows`
+- `app.research_web.multiuser.origin`
+- `contextlib`
+- `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.fingpt_repository`
 - `data_layer.repositories.runtime_workflow_repository`
 - `datetime`
 - `fastapi`
 - `os`
+- `pathlib`
 - `pydantic`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
 - `services.fingpt_service`
 - `services.runtime_workflow_service`
 - `sqlalchemy.orm`
+- `stat`
+- `urllib.parse`
 
 Classes:
 - `CreateTaskRequest`
@@ -714,6 +722,12 @@ Classes:
 - `DshSyncEvent`
 
 Functions:
+- `_has_entry`
+- `_resident_root`
+- `_check_private_folder`
+- `_replacement_url`
+- `_cutover_unavailable`
+- `_cutover_state`
 - `_require_legacy_fingpt`
 - `get_fingpt_service`
 - `fingpt_health`

@@ -1495,7 +1495,7 @@ async function showRoute() {
     location.hash = legacyTarget;
   }
   let requestedRoute = parseRoute(location.hash);
-  if (qaActive() && requestedRoute.page === 'fingpt') {
+  if (requestedRoute.page === 'fingpt' && qaActive()) {
     const originalHash = location.hash;
     const id = requestedRoute.sessionId;
     let session = visibleSessions().find(item => item.id === id);
@@ -1508,7 +1508,7 @@ async function showRoute() {
     if (location.hash !== originalHash) return;
     history.replaceState(null, '', fingptReplacement(session, id));
     requestedRoute = parseRoute(location.hash);
-  } else if (catalog.runtime && !qaActive() && ['qa', 'specialist'].includes(requestedRoute.page)) {
+  } else if (['qa', 'specialist'].includes(requestedRoute.page) && catalog.runtime && !qaActive()) {
     const id = requestedRoute.page === 'specialist' ? requestedRoute.sessionId : null;
     history.replaceState(null, '', `#/fingpt${id ? `?session=${encodeURIComponent(id)}` : ''}`);
     requestedRoute = parseRoute(location.hash);
@@ -3884,6 +3884,7 @@ window.addEventListener('scroll', event => {
 }, true);
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });
 window.addEventListener('unhandledrejection', (event) => { event.preventDefault(); safeLog('unhandled_async_error'); state.error = '操作出现异常，请刷新状态后重试。'; render(); });
-if (['fingpt', 'qa', 'specialist'].includes(parseRoute(location.hash).page)) await loadCatalog(['runtime']);
+const researchEntry = ['fingpt', 'qa', 'specialist'].includes(parseRoute(location.hash).page);
+if (researchEntry) await loadCatalog(['runtime']);
 await showRoute();
-await loadCatalog();
+await loadCatalog(researchEntry ? defaultCatalogNames.filter(name => name !== 'runtime') : defaultCatalogNames);

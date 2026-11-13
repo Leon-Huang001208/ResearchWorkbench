@@ -162,6 +162,7 @@ jobs:
             tests/research_web/test_alphadesk_qa.py \
             tests/research_web/test_alphadesk_qa_formats.py \
             tests/research_web/test_qa_acceptance_budget.py \
+            tests/unit/test_fingpt_legacy_cutover.py \
             tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \
             tests/research_web/test_specialists.py \
@@ -315,7 +316,7 @@ jobs:
 
       - name: Run Research Web JavaScript contracts
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
 
       - name: Verify pinned editorial engine without model or paid requests
         run: |
