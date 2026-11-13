@@ -170,46 +170,80 @@ def test_acceptance_budget_reserves_before_model_dispatch(tmp_path, monkeypatch)
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="requires native report sandbox")
-def test_qa_worker_report_uses_bound_native_delivery(tmp_path, monkeypatch):
+@pytest.mark.parametrize("with_snapshot", [False, True])
+def test_qa_worker_report_uses_bound_native_delivery(tmp_path, monkeypatch, with_snapshot):
     async def connection(_service, _row):
         return ("test", "test", None, "test")
 
     async def worker(request, callbacks, emit):
         assert request["mode"] == "deep"
+        if with_snapshot:
+            fetched = await callbacks["tool"](
+                {
+                    "name": "read_frozen_dataset",
+                    "arguments": {"dataset_id": snapshot["dataset_id"]},
+                },
+                None,
+            )
+            assert fetched["data"]["items"][0]["close"] == 12.5
         index = await callbacks["tool"](
             {"name": "list_research_observations", "arguments": {}}, None
         )
         requirements = index["data"]["requirements"]
+        observations = index["data"]["observations"]
         plan = {
             "title": "证据不足报告",
             "sections": [
                 {
                     "id": "missing",
-                    "heading": "资料缺口",
-                    "evidence_ids": [],
+                    "heading": "收盘价" if with_snapshot else "资料缺口",
+                    "evidence_ids": [observations[0]["id"]] if with_snapshot else [],
                     "requirement_ids": [item["id"] for item in requirements],
-                    "analysis": "暂时缺少可独立核验的资料。",
+                    **({} if with_snapshot else {"analysis": "暂时缺少可独立核验的资料。"}),
                 }
             ],
-            "missing": ["证据未取得"],
+            "missing": [] if with_snapshot else ["证据未取得"],
         }
         result = await callbacks["tool"](
             {"name": "write_research_report", "arguments": {"plan": plan}}, None
         )
         assert result["data"]["status"] == "generated", result
-        await emit("_qa", {"content": "证据未取得，已保留可核查的缺口。"})
+        await emit("_qa", {"content": "已输出带来源的报告。"})
 
     monkeypatch.setenv("RWB_ALPHADESK_QA", "1")
     monkeypatch.setattr(qa_model, "connection", connection)
     monkeypatch.setattr(qa_execution, "run_worker", worker)
     service = ResearchService(NativeFixture(), Store(tmp_path / "data"))
     with TestClient(create_app(service)) as client:
-        sid = client.post(BASE, json={"research_mode": "deep", "source_scope": ["uploads"]}).json()[
-            "id"
-        ]
+        sid = client.post(
+            BASE,
+            json={
+                "research_mode": "deep",
+                "source_scope": ["datahub"] if with_snapshot else ["uploads"],
+            },
+        ).json()["id"]
+        if with_snapshot:
+            from app.research_web.datahub.contracts import BusinessQuery
+            from app.research_web.datahub.providers import Result
+
+            query = BusinessQuery(capability="market_bars")
+            snapshot = service.datahub.snapshots.publish(
+                sid,
+                query,
+                Result(
+                    rows=[{"date": "2026-11-10", "close": 12.5}],
+                    status="complete",
+                    fields={"close": {"unit": "元"}},
+                    as_of="2026-11-10",
+                    provider_id="eastmoney",
+                ),
+            )
         submitted = client.post(
             f"{BASE}/{sid}/messages",
-            json={"text": "核对给定材料的事实。", "expected_formats": ["md"]},
+            json={
+                "text": "核对收盘价。" if with_snapshot else "核对给定材料的事实。",
+                "expected_formats": ["md"],
+            },
             headers={"Idempotency-Key": "report-0001"},
         )
         assert submitted.status_code == 202, submitted.text
@@ -219,11 +253,34 @@ def test_qa_worker_report_uses_bound_native_delivery(tmp_path, monkeypatch):
                 break
             time.sleep(0.04)
         assert detail["status"] == "completed", detail
-        assert detail["research_quality"]["status"] == "incomplete"
+        assert detail["research_quality"]["status"] == (
+            "passed" if with_snapshot else "incomplete"
+        ), detail["research_quality"]["issues"]
         assert detail["research_report_delivery"]["status"] == "bound", detail[
             "research_report_delivery"
         ]
         file = next(item for item in detail["files"] if item["name"] == "report.md")
         download = client.get(f"{BASE}/{sid}/files/{file['id']}/download")
         assert download.status_code == 200
-        assert "资料缺口" in download.text
+        assert ("12.5" if with_snapshot else "资料缺口") in download.text
+        if with_snapshot:
+            from test_discovery_tracking import setup as tracking_fixture
+
+            tracking, _, _ = tracking_fixture(tmp_path / "tracking")
+            tracking.research = service
+            tracking.store = service.store
+            key = service.store.session(sid)["delivery_key"]
+            service.store.data.setdefault("discovery_handoffs", {})["qa-report-test"] = {
+                "session_id": sid,
+                "delivery_key": key,
+            }
+            run = {
+                "session_id": sid,
+                "discovery_handoff_id": "qa-report-test",
+                "discovery_fingerprint": "acquired-snapshot",
+            }
+            track = {}
+            client.portal.call(tracking._monitor, run, track)
+            assert run["discovery_accepted"] is True
+            assert run["discovery_notification"] == "meaningful_change"
+            assert track["last_accepted_fingerprint"] == "acquired-snapshot"
