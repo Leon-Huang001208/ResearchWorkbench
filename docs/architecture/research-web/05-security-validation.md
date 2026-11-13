@@ -914,3 +914,5 @@ origin校验共享helper只依赖stdlib，冷Doctor不反向导入server启动�
 WeKnora 固定回调、客户端、PKCE、issuer 与 resource 逐项核对。Codex 和 WeKnora 的授权码、刷新令牌和撤权互相隔离。
 
 WeKnora HTTPS 回调必须使用独立主机，跨站授权导航忽略已有 Cookie。原位主账号接管要求固定安装证明，并在原锁内确认 Native 与 Docker 静止。主 Web 子进程继承 POSIX 锁，覆盖网关先退出的场景。
+
+AlphaDesk Node 进程只收到本轮任务、模型流结果及获准工具响应。凭据由 Host 私有解析，资料和报告访问继续受账号与冻结来源检查约束。

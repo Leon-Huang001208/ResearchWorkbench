@@ -282,3 +282,5 @@ NYFed SOFRAI v3只在原Host/DataHub/可选研究仓校准复合均值和指数�
 它不新增 FinGPT／Claw／DSH 研究引擎、模型调用或普通研究工具权限；文件合同测试和源码 CI
 不提高研究质量、旧实例加载策略或 Wind 历史清理结论。完整 CLI／私有 launchd／原实例
 退役及新实例验收继续分别执行，未知结果保留。见[合同与消费者边界](research-web-maintenance-job-identity-v3.md)。
+
+AlphaDesk 迁移验收单独使用新 Host 回执。FinGPT 旧隔离比较记录继续描述其对应的历史运行。

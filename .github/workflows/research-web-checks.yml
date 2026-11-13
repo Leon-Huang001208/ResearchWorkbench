@@ -159,6 +159,7 @@ jobs:
             tests/research_web/test_mcp_transport.py \
             tests/research_web/test_model_profiles.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
+            tests/research_web/test_alphadesk_qa.py \
             tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \
             tests/research_web/test_specialists.py \

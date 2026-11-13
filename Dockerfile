@@ -13,6 +13,13 @@ COPY services/hot/migrations ./migrations
 COPY services/hot/*.json ./
 COPY services/hot/README.md services/hot/THIRD_PARTY_NOTICES.md ./
 
+FROM node-runtime AS qa-builder
+WORKDIR /opt/rwb/app/research_web/qa_frontend
+COPY app/research_web/qa_frontend/package.json app/research_web/qa_frontend/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY app/research_web/qa_frontend ./
+RUN npm --ignore-scripts run build -- --outDir /opt/rwb/qa-dist
+
 FROM ${PYTHON_IMAGE} AS python-builder
 WORKDIR /opt/rwb
 ENV VIRTUAL_ENV=/opt/rwb/venv \
@@ -26,6 +33,7 @@ RUN python -m venv /opt/rwb/venv \
 COPY pyproject.toml ./
 COPY app/__init__.py app/__init__.py
 COPY app/research_web app/research_web
+COPY --from=qa-builder /opt/rwb/qa-dist app/research_web/ui/qa-dist
 COPY app/cli app/cli
 COPY core/__init__.py core/__init__.py
 COPY core/settings core/settings
@@ -39,9 +47,19 @@ COPY vendor/cjpy vendor/cjpy
 COPY vendor/dsh-tabbit vendor/dsh-tabbit
 COPY scripts/setup_web.py scripts/setup_web.py
 COPY docker/entrypoint.sh docker/supervisor.py docker/healthcheck.py docker/stage_dsh.py docker/
+RUN python - <<'PY'
+import json
+from pathlib import Path
+from app.research_web.qa_assets import QA_ASSET_PATH, QA_FRONTEND, QA_MANIFEST, qa_build_manifest
+
+component = Path('app/research_web')
+assets = component / QA_ASSET_PATH
+(assets / QA_MANIFEST).write_text(json.dumps(qa_build_manifest(component / QA_FRONTEND, assets)), encoding='utf-8')
+PY
 RUN python -c 'from pathlib import Path; from scripts.setup_web import SetupWebInstaller; SetupWebInstaller(project_root=Path.cwd(), data_home=Path("/tmp/rwb-build")).verify_cjpy_bundle()' \
     && python -m pip install --no-build-isolation --no-deps . \
-    && python -m pip install --no-index --no-deps vendor/cjpy/0.5.2/cjpy-0.5.2-py3-none-any.whl
+    && python -m pip install --no-index --no-deps vendor/cjpy/0.5.2/cjpy-0.5.2-py3-none-any.whl \
+    && rm -r app/research_web/qa_frontend
 
 FROM python-builder AS dsh-builder
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
@@ -142,6 +160,9 @@ with tempfile.TemporaryDirectory() as temporary:
         assert Path(module.__file__).is_relative_to(root / name.split('.')[0]), name
     from app.research_web.staged_runtime import verify_staged_runtime
     from app.research_web.launch_runtime import prepare_runtime_module_fallback
+    from app.research_web.qa_assets import qa_assets_root
+    assert qa_assets_root(root / 'app/research_web') is not None
+    assert (root / 'app/research_web/qa_worker/worker.mjs').is_file()
     verify_staged_runtime(Path('/opt/dsh'), required=True)
     prepare_runtime_module_fallback(Path('/opt/dsh'), Path(temporary) / 'dsh-home', '/usr/local/bin/node')
     print('docker_final_image_import_smoke_passed')

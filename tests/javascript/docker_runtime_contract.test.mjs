@@ -40,9 +40,20 @@ test('image bases and stage boundaries match the shared runtime contract', () =>
   assert.ok(lines.includes(`ARG NODE_IMAGE=${contract.node.docker_image}`));
   assert.ok(lines.includes(`ARG PYTHON_IMAGE=${contract.python.docker_image}`));
   assert.deepEqual(lines.filter((line) => line.startsWith('FROM ')), [
-    'FROM ${NODE_IMAGE} AS node-runtime', 'FROM node-runtime AS hot-builder', 'FROM ${PYTHON_IMAGE} AS python-builder',
+    'FROM ${NODE_IMAGE} AS node-runtime', 'FROM node-runtime AS hot-builder',
+    'FROM node-runtime AS qa-builder', 'FROM ${PYTHON_IMAGE} AS python-builder',
     'FROM python-builder AS dsh-builder', 'FROM ${PYTHON_IMAGE} AS runtime',
   ]);
+});
+
+test('AlphaDesk UI is built from the lock and packaged before installing the wheel', () => {
+  const file = read('Dockerfile');
+  const qa = file.split('FROM node-runtime AS qa-builder')[1].split(' AS python-builder')[0];
+  assert.match(qa, /COPY .*qa_frontend\/package-lock\.json .*\nRUN npm ci --ignore-scripts --no-audit --no-fund/);
+  assert.match(qa, /RUN npm --ignore-scripts run build -- --outDir \/opt\/rwb\/qa-dist/);
+  assert.match(file, /COPY --from=qa-builder .*qa-dist[\s\S]+qa_build_manifest\([\s\S]+python -m pip install --no-build-isolation --no-deps \./);
+  assert.match(file, /rm -r app\/research_web\/qa_frontend/);
+  assert.match(read('.dockerignore'), /^app\/research_web\/ui\/qa-dist$/m);
 });
 
 test('builders reuse the hashed Web lock, vendored CJPY and pinned DSH verifier', () => {

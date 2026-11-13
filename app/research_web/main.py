@@ -464,6 +464,17 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
 
         async def dispatch():
+            from .qa_execution import retired
+
+            match = re.match(r"/api/research/sessions/([a-f0-9-]{36})(?:/|$)", request.url.path)
+            if match:
+                active = request.app.state.research
+                row = active.store.data["sessions"].get(match[1])
+                if row and retired(active, row):
+                    return JSONResponse(
+                        {"error": {"code": "fingpt_retired", "message": "旧 FinGPT 会话已退役"}},
+                        status_code=410,
+                    )
             if service_only and not _service_only_route_allowed(request.method, request.url.path):
                 log.warning("embedded_research_route_denied", method=request.method)
                 return JSONResponse(
@@ -645,7 +656,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
             observations = {}
             for name, check in (
-                ("research_tasks", lambda: any(research.running.values())),
+                (
+                    "research_tasks",
+                    lambda: any(research.running.values()) or bool(research.qa.tasks),
+                ),
                 ("approvals", lambda: bool(research.approvals)),
                 ("questions", lambda: bool(research.questions)),
                 ("source_requests", lambda: bool(research.source_requests)),
@@ -929,7 +943,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         service = svc(request)
         await service.ensure_owned()
         row = service.store.session(sid)
-        await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
+        if row.get("execution_engine") != "alphadesk":
+            await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
         row["title"] = body.title
         service.store.save()
         return service.summary(row)
@@ -1086,7 +1101,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         for upload in files:
             name = Path(upload.filename or "").name
             extension = Path(name).suffix.lower()
-            if extension not in UPLOAD_EXTENSIONS:
+            row = store.session(sid)
+            allowed = (
+                {".md", ".txt", ".csv", ".json"}
+                if row.get("execution_engine") == "alphadesk"
+                else UPLOAD_EXTENSIONS
+            )
+            if extension not in allowed:
                 raise StoreError("不支持的附件格式")
             safe_name = re.sub(r"[^\w.\-\u4e00-\u9fff]", "_", name)[:160]
             path = root / f"{uuid4().hex[:12]}-{safe_name}"
@@ -1138,6 +1159,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     409,
                 )
             detail = await service.detail(sid)
+            if (
+                detail.get("execution_engine") == "alphadesk"
+                and not relative.startswith("outputs/report-versions/")
+                and (detail.get("research_report_delivery") or {}).get("status") != "bound"
+            ):
+                raise StoreError("本轮报告尚未完成交付核验", "qa_report_unverified", 409)
             if (detail.get("research_quality") or {}).get("status") == "invalid":
                 raise StoreError("报告完整性检查未通过，暂不能交付", "research_report_invalid", 409)
         stream, name = svc(request).store.open_file(sid, fid)
@@ -1187,7 +1214,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/skills")
     async def skills(request: Request):
         service = svc(request)
-        rows = [row for row in service.store.data["sessions"].values() if row["created"]]
+        rows = [
+            row
+            for row in service.store.data["sessions"].values()
+            if row["created"] and row.get("execution_engine") != "alphadesk"
+        ]
         if not rows:
             return {"items": []}
         result = await service.skill_catalog(rows[-1]["id"])
@@ -1198,6 +1229,17 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         app.mount(
             "/frameworks-embed", StaticFiles(directory=EMBEDS, html=True), name="frameworks-embed"
         )
+
+    from .qa_assets import qa_assets_root
+
+    qa_root = qa_assets_root(UI.parent)
+    if qa_root:
+        app.mount("/static/qa-dist", StaticFiles(directory=qa_root), name="qa-static")
+    else:
+
+        @app.get("/static/qa-dist/{name:path}")
+        async def unavailable_qa_asset(name: str):
+            return JSONResponse({"error": {"code": "qa_assets_unavailable"}}, status_code=503)
 
     if UI.exists():
         app.mount("/static", StaticFiles(directory=UI), name="static")

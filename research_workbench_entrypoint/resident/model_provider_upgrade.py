@@ -18,6 +18,8 @@ import socket
 import sqlite3
 import stat
 import sys
+import tarfile
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -3298,6 +3300,100 @@ def trial_successor_retry_preflight(home, path):
     }
 
 
+def build_release_wheel(project: Path, source: Path, output: Path) -> dict:
+    """Build QA release assets without writing to either live or candidate Git checkout."""
+    frontend = source / "app/research_web/qa_frontend"
+    if not frontend.exists() and not frontend.is_symlink():
+        return c.build_wheel(project, source, output)
+
+    c.private_root(output)
+    sha = c.git(source, "rev-parse", "HEAD")
+    c.clean(source, sha)
+    python = str(project / ".venv/bin/python")
+    binding = output / "binding.json"
+    wheels = list(output.glob("research_workbench-*.whl"))
+    if wheels and (
+        len(wheels) != 1 or read_json(binding) != {"source": sha, "sha256": c.digest(wheels[0])}
+    ):
+        raise UpdateBlocked("resident_wheel_source_mismatch")
+
+    with tempfile.TemporaryDirectory(dir=output, prefix=".qa-wheel-") as temporary:
+        staging = Path(temporary)
+        if not wheels:
+            tree = staging / "source"
+            tree.mkdir()
+            archive_path = staging / "source.tar"
+            c.git(source, "archive", "--format=tar", f"--output={archive_path}", sha)
+            try:
+                with tarfile.open(archive_path, "r:") as archive:
+                    archive.extractall(tree, filter="data")
+                archive_path.unlink()
+            except (OSError, tarfile.TarError) as exc:
+                raise UpdateBlocked("resident_qa_source_archive_invalid") from exc
+            c.run(
+                [
+                    python,
+                    "-I",
+                    "-B",
+                    "-c",
+                    (
+                        "import sys; from pathlib import Path; sys.path.insert(0, str(Path.cwd())); "
+                        "from scripts.setup_web import SetupWebInstaller; "
+                        "installer = SetupWebInstaller(project_root=Path.cwd(), "
+                        "data_home=Path(sys.argv[1])); installer.build_qa_assets()"
+                    ),
+                    str(staging / "build-cache"),
+                ],
+                cwd=tree,
+                timeout=450,
+            )
+            c.run(
+                [
+                    python,
+                    "-I",
+                    "-m",
+                    "pip",
+                    "wheel",
+                    "--no-index",
+                    "--no-deps",
+                    "--no-build-isolation",
+                    "--wheel-dir",
+                    str(staging),
+                    str(tree),
+                ],
+                timeout=300,
+            )
+            wheels = list(staging.glob("research_workbench-*.whl"))
+        if len(wheels) != 1:
+            raise UpdateBlocked("resident_wheel_ambiguous")
+        wheel = wheels[0]
+        try:
+            with zipfile.ZipFile(wheel) as archive:
+                files = archive.namelist()
+                needed = {
+                    "app/research_web/main.py",
+                    "app/research_web/qa_worker/worker.mjs",
+                    *(
+                        f"app/research_web/ui/qa-dist/{name}"
+                        for name in ("qa.js", "qa.css", "THIRD_PARTY_LICENSES.md", "build.json")
+                    ),
+                }
+                if any(files.count(name) != 1 for name in needed) or archive.testzip() is not None:
+                    raise ValueError("incomplete QA wheel")
+                if any(name.startswith("app/research_web/qa_frontend/") for name in files):
+                    raise ValueError("QA source leaked into runtime wheel")
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
+            raise UpdateBlocked("resident_qa_wheel_invalid") from exc
+        c.clean(source, sha)
+        digest = c.digest(wheel)
+        if wheel.parent == staging:
+            destination = output / wheel.name
+            wheel.replace(destination)
+            wheel = destination
+        c.atomic(binding, {"source": sha, "sha256": digest})
+    return {"path": str(wheel), "sha256": digest}
+
+
 def operate(
     home,
     source=None,
@@ -3447,8 +3543,8 @@ def operate(
             c.clean(artifact_source, target)
             if mode in TRIAL_MODES:
                 reviewed = review(artifact_source, target, mode)
-            old_wheel = c.build_wheel(primary, primary, directory / "old" / previous)
-            new_wheel = c.build_wheel(primary, artifact_source, directory / "new" / target)
+            old_wheel = build_release_wheel(primary, primary, directory / "old" / previous)
+            new_wheel = build_release_wheel(primary, artifact_source, directory / "new" / target)
             plist = Path.home() / "Library/LaunchAgents" / (g.LABEL + ".plist")
             pid = g.job_pid()
             signature = g.process(pid) if pid else None

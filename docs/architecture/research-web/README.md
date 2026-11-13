@@ -273,3 +273,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 macOS 私网可显式启动仅服务 Host。部署图展示账户 Web 在外部执行模式下跳过内置 DSH；资料批准及历史索引仍由 Host 持有。
+
+AlphaDesk 的代码迁移、数据归属、启用和验收边界见[AI 问答合同](../../research-web-ai-qa.md)。

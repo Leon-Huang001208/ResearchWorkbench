@@ -911,3 +911,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 仅服务网关可预登记 WeKnora 专用 OAuth 回调。既有授权、令牌和工具路径延用同一协议。
 
 私网 HTTPS 的 WeKnora OAuth 跨站导航仅允许预登记回调及其登录页，随后沿同源授权与 MCP 读取接口。
+
+既有会话接口在 AlphaDesk 启用时附带 `execution_engine` 和 `qa_events`。原普通 FinGPT 会话 API 返回 410。静态资源经本机 `GET /static/qa-dist/{name:path}` 缺包回执和私网 `GET /static/qa-dist/{name}` 检查。

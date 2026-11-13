@@ -1167,6 +1167,7 @@ def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkey
 
     monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(installer, "prepare_environment", lambda **kwargs: Path(sys.executable))
+    monkeypatch.setattr(installer, "build_qa_assets", lambda: None)
     monkeypatch.setattr(
         installer,
         "install_python_dependencies",
@@ -2033,6 +2034,7 @@ def test_install_invalidates_a_stale_manifest_before_web_import_failure(
     monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(installer, "_code_commit", lambda: "a" * 40)
     monkeypatch.setattr(installer, "prepare_environment", lambda repair=False: environment_python)
+    monkeypatch.setattr(installer, "build_qa_assets", lambda: None)
     monkeypatch.setattr(
         installer,
         "install_python_dependencies",
@@ -2090,6 +2092,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
     }
     monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(installer, "prepare_environment", lambda repair=False: environment_python)
+    monkeypatch.setattr(installer, "build_qa_assets", lambda: None)
     monkeypatch.setattr(
         installer,
         "install_python_dependencies",
@@ -2358,6 +2361,85 @@ def test_hot_install_uses_locked_node_and_disables_scripts(tmp_path, monkeypatch
     assert "--ignore-scripts" in command and "--omit=dev" in command
     assert "SECRET_CANARY" not in options["environment"]
     assert options["cwd"] == component and options["timeout"] == 180
+
+
+def test_qa_build_uses_locked_node_and_keeps_previous_assets_after_failure(tmp_path, monkeypatch):
+    from app.research_web.qa_assets import qa_assets_root
+
+    component = tmp_path / "app/research_web"
+    source = component / "qa_frontend"
+    source.mkdir(parents=True)
+    (component / "ui").mkdir()
+    for name in ("package.json", "package-lock.json"):
+        (source / name).write_text("{}", encoding="utf-8")
+    (source / ".npmrc").write_text("private npm configuration", encoding="utf-8")
+    node = tmp_path / "node"
+    npm = tmp_path / "npm-cli.js"
+    node.touch()
+    npm.touch()
+    installer = SetupWebInstaller(
+        project_root=tmp_path, data_home=tmp_path / "data", node_executable=node, npm_executable=npm
+    )
+    monkeypatch.setenv("SECRET_CANARY", "must-not-be-inherited")
+    calls = []
+
+    def build(command, *, cwd, environment, **kwargs):
+        calls.append(command)
+        assert "SECRET_CANARY" not in environment
+        assert cwd != source
+        assert not (cwd / ".npmrc").exists()
+        assert (cwd / "package-lock.json").is_file()
+        if "--outDir" in command:
+            output = Path(command[-1])
+            output.mkdir()
+            (output / "qa.js").write_text("export default 1", encoding="utf-8")
+            (output / "qa.css").write_text(".qa { display: block }", encoding="utf-8")
+            (output / "THIRD_PARTY_LICENSES.md").write_text("Notices", encoding="utf-8")
+
+    monkeypatch.setattr(installer, "_run_checked", build)
+    installer.build_qa_assets()
+    assets = component / "ui/qa-dist"
+    assert qa_assets_root(component) == assets
+    assert calls[0] == [str(node), str(npm), "ci", "--ignore-scripts", "--no-audit", "--no-fund"]
+    assert calls[1][2:-1] == ["--ignore-scripts", "run", "build", "--", "--outDir"]
+
+    monkeypatch.setattr(installer, "_run_checked", lambda *args, **kwargs: None)
+    with pytest.raises(RuntimeError, match="^qa_frontend_build_invalid$"):
+        installer.build_qa_assets()
+    assert qa_assets_root(component) == assets
+    assert not list(component.glob(".qa-build-*"))
+
+
+def test_qa_wheel_fallback_requires_matching_source_and_untampered_assets(tmp_path, monkeypatch):
+    from app.research_web import qa_assets
+
+    component = tmp_path / "checkout/app/research_web"
+    source = component / qa_assets.QA_FRONTEND
+    source.mkdir(parents=True)
+    for name in ("package.json", "package-lock.json"):
+        (source / name).write_text("{}", encoding="utf-8")
+    wheel_root = tmp_path / "wheel/app/research_web"
+    assets = wheel_root / qa_assets.QA_ASSET_PATH
+    assets.mkdir(parents=True)
+    for name in qa_assets.QA_BUNDLE_FILES:
+        (assets / name).write_text(name, encoding="utf-8")
+    (assets / qa_assets.QA_MANIFEST).write_text(
+        json.dumps(qa_assets.qa_build_manifest(source, assets)), encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        qa_assets, "distribution", lambda name: SimpleNamespace(locate_file=lambda _: assets)
+    )
+    assert qa_assets.qa_assets_root(wheel_root) == assets
+    assert qa_assets.qa_assets_root(component) == assets
+    (source / "package-lock.json").write_text('{"lockfileVersion":3}', encoding="utf-8")
+    assert qa_assets.qa_assets_root(component) is None
+    (assets / "qa.js").write_text("tampered", encoding="utf-8")
+    assert qa_assets.qa_assets_root(wheel_root) is None
+    assert qa_assets.qa_assets_diagnostic(component) == {
+        "status": "assets_missing_or_invalid",
+        "assets_ready": False,
+        "model_acceptance": "NOT_RUN",
+    }
 
 
 def test_ai_news_install_verifies_pin_and_disables_scripts_without_initializing_db(

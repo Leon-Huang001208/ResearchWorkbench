@@ -429,6 +429,14 @@ class DiscoveryTracking:
         actual = self.automations._run_row(run["id"])
         if not self._model_current(row):
             raise StoreError("当前模型连接与批准跟踪不一致", "discovery_model_changed", 409)
+        from ..qa_acceptance import acceptance_enabled
+
+        if acceptance_enabled():
+            raise StoreError(
+                "发现跟踪的在线来源费用尚未核算",
+                "qa_acceptance_tracking_price_unknown",
+                409,
+            )
         if row.get("source_kind") == "news":
             if row.get("approved_news_ids") != [row["body"]["theme_id"]]:
                 raise StoreError("跟踪来源范围尚未核验", "discovery_track_scope_unverified", 409)

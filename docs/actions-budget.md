@@ -533,3 +533,5 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。未增加 runner、独立作业或产品 dispatch。

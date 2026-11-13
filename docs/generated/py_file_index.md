@@ -702,6 +702,7 @@ Imports:
 - `data_layer.repositories.runtime_workflow_repository`
 - `datetime`
 - `fastapi`
+- `os`
 - `pydantic`
 - `services.fingpt_service`
 - `services.runtime_workflow_service`
@@ -713,6 +714,7 @@ Classes:
 - `DshSyncEvent`
 
 Functions:
+- `_require_legacy_fingpt`
 - `get_fingpt_service`
 - `fingpt_health`
 - `list_sessions`
@@ -10842,6 +10844,173 @@ Functions:
 - `activity_value`
 - `activity_detail`
 - `project`
+
+
+## `app/research_web/qa_acceptance.py`
+
+Module docstring:
+> CNY 50 ceiling shared by isolated acceptance runs on this Host.
+
+Imports:
+- `core.observability`
+- `datahub.security`
+- `json`
+- `os`
+- `pathlib`
+- `research_workbench_entrypoint.resident.admission`
+- `store`
+
+Functions:
+- `acceptance_enabled`
+- `reserve`
+
+
+## `app/research_web/qa_assets.py`
+
+Module docstring:
+> Read-only identity check for the packaged AlphaDesk frontend.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `importlib.metadata`
+- `json`
+- `os`
+- `pathlib`
+- `stat`
+
+Functions:
+- `_plain_path`
+- `qa_file_digest`
+- `qa_source_files`
+- `qa_source_digest`
+- `qa_build_manifest`
+- `_valid_build`
+- `qa_assets_root`
+  - Find verified local bytes, or a wheel built from the same frontend source.
+- `qa_assets_diagnostic`
+
+
+## `app/research_web/qa_bridge.py`
+
+Module docstring:
+> One bounded private worker process per admitted AlphaDesk turn.
+
+Imports:
+- `asyncio`
+- `client`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+
+Functions:
+- `run_worker`
+
+
+## `app/research_web/qa_execution.py`
+
+Module docstring:
+> AlphaDesk turn ownership, recovery and Research Web projections.
+
+Imports:
+- `asyncio`
+- `client`
+- `core.observability`
+- `datahub.security`
+- `json`
+- `os`
+- `projection`
+- `qa_bridge`
+- `qa_tools`
+- `research_evidence`
+- `research_quality_service`
+- `research_web_sources`
+- `research_workbench_entrypoint.resident.admission`
+- `store`
+- `time`
+
+Classes:
+- `QuestionExecution`
+  - methods: __init__, ledger, persist, add, check_admission, start, run, delivery, cancel, close, status, finalizing_detail, detail
+
+Functions:
+- `enabled`
+- `owns`
+- `retired`
+- `bind`
+
+
+## `app/research_web/qa_model.py`
+
+Module docstring:
+> Server-side model connection for the AlphaDesk worker.
+
+Imports:
+- `asyncio`
+- `client`
+- `httpx`
+- `json`
+- `model_credentials`
+- `os`
+- `pathlib`
+- `qa_acceptance`
+
+Functions:
+- `_credential`
+- `connection`
+- `stream_model`
+- `model_client`
+
+
+## `app/research_web/qa_observations.py`
+
+Module docstring:
+> Deterministic, task-bound observations from verified DataHub snapshots.
+
+Imports:
+- `decimal`
+- `json`
+- `re`
+- `research_business_evidence`
+
+Functions:
+- `snapshot_observations`
+  - Emit only values with an explicit field unit and period, or attributed quotes.
+- `_make`
+- `_discovery_quotes`
+- `_numeric`
+
+
+## `app/research_web/qa_tools.py`
+
+Module docstring:
+> Turn-scoped DataHub, evidence and deterministic report tools.
+
+Imports:
+- `asyncio`
+- `datahub.contracts`
+- `datahub.providers`
+- `datetime`
+- `json`
+- `pydantic`
+- `qa_acceptance`
+- `research_evidence`
+- `research_quality_service`
+- `research_web_sources`
+- `resources.research_report`
+- `resources.research_report_plan`
+- `scenario_handoffs`
+- `store`
+- `zoneinfo`
+
+Classes:
+- `TurnTools`
+  - methods: __init__, schemas, sources_allowed, report_allowed, call, record_source, observation_sources, query, frozen_dataset, frozen_discovery, sources, read, report
+
+Functions:
+- `_tool`
+- `_source`
 
 
 ## `app/research_web/report_documents.py`
@@ -25461,6 +25630,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `app.research_web`
+- `app.research_web.qa_assets`
 - `argparse`
 - `collections.abc`
 - `datetime`
@@ -25477,6 +25647,7 @@ Imports:
 - `stat`
 - `subprocess`
 - `sys`
+- `tempfile`
 - `typing`
 - `urllib.parse`
 - `uuid`
@@ -25485,7 +25656,7 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, install_ai_news_dependencies, install
+  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, build_qa_assets, install_ai_news_dependencies, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection

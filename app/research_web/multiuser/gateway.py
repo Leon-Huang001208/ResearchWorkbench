@@ -11,7 +11,13 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -537,8 +543,25 @@ def create_gateway(
             source.replace('src="/static/app.mjs"', 'src="/server-static/session.mjs"')
         )
 
+    from ..qa_assets import qa_assets_root
+
+    primary_ui = getattr(pool, "primary_ui", UI)
     current_static = StaticFiles(directory=UI)
-    primary_static = StaticFiles(directory=getattr(pool, "primary_ui", UI))
+    primary_static = StaticFiles(directory=primary_ui)
+    current_qa = qa_assets_root(UI.parent)
+    primary_qa = qa_assets_root(primary_ui.parent)
+
+    @app.get("/static/qa-dist/{name}")
+    async def qa_static(name: str, request: Request):
+        if name not in {"qa.js", "qa.css", "build.json", "THIRD_PARTY_LICENSES.md"}:
+            return error("not_found", 404)
+        user = getattr(request.state, "user", None)
+        root = (
+            primary_qa if user and user.id == getattr(pool, "primary_user_id", None) else current_qa
+        )
+        if root is None:
+            return error("qa_assets_unavailable", 503)
+        return FileResponse(root / name)
 
     async def user_static(scope, receive, send):
         user = scope.get("state", {}).get("user")
