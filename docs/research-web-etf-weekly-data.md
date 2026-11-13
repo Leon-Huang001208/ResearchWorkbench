@@ -383,3 +383,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务账户保留历史底稿读取边界。周报取数、刷新和正式验收继续按独立 Workflow 合同执行。
+FinGPT 隔离验收使用冻结快照或已完成回执。ETF 周报的取数与日程仍由其已登记的工作流控制。

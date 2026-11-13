@@ -369,3 +369,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务 Host 跳过集成探测启动，数据目录与既有冻结快照沿现有只读接口提供。
+FinGPT 验收的 DataHub 预算判定发生在既有查询入口。已完成的同请求回执和已授权冻结快照可重读，未核价的新请求在调用前拒绝。

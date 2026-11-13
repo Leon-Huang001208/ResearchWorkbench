@@ -215,3 +215,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务模式保留已有快照及其来源元数据，实际厂商连接、取数和资格仍需各自授权与验收。
+FinGPT 隔离验收使用既有授权和原件校验读取供应商快照。尚未核价的实时查询在供应商调用前拒绝。
