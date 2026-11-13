@@ -33,7 +33,7 @@ MAX_LEDGER = 4 * 1024 * 1024
 
 
 def enabled(service):
-    return not service.service_only and os.environ.get("RWB_ALPHADESK_QA") == "1"
+    return os.environ.get("RWB_ALPHADESK_QA") == "1" and not service.service_only
 
 
 def owns(row):

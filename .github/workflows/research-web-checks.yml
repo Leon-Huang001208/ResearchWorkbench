@@ -162,7 +162,6 @@ jobs:
             tests/research_web/test_alphadesk_qa.py \
             tests/research_web/test_alphadesk_qa_formats.py \
             tests/research_web/test_qa_acceptance_budget.py \
-            tests/unit/test_fingpt_legacy_cutover.py \
             tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \
             tests/research_web/test_specialists.py \
@@ -309,6 +308,7 @@ jobs:
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
             -- \
             tests/unit/test_wind_excel_instances.py \
+            tests/unit/test_fingpt_legacy_cutover.py \
             tests/unit/test_ci_pytest_partitions.py \
             tests/unit/test_research_web_test_env.py \
             tests/unit/test_ci_pytest_evidence_staging.py \

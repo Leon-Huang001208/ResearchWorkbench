@@ -6,6 +6,7 @@ Research Web 的 FinGPT 使用迁入的 AlphaDesk React 问答组件及 Node 研
 
 - `#/qa` 使用既有 `/api/research/sessions`。快速、深度、Agent 会话的摘要包含 `execution_engine=alphadesk`，SSE 快照附带按序 `qa_events`。
 - Host 将回合记录保存在账号会话的私有控制目录。网络断开可以重读状态，进程重启发现未终结的回合显示中断，回合不会自动重放。
+- Native 空闲检查在 FinGPT 启用时把问答回合计入活动任务。默认关闭时沿用原有 DSH 活动检查和健康响应。
 - Node 仅通过私有标准输入输出调用 Host。模型、凭据、DataHub、冻结资料、报告格式和交付归 Host 管理。报告计划通过既有报告 SDK，缺乏来源与独立质量证据的输出不能作为已通过报告。
 - 支持文本、Markdown、CSV、JSON、PDF、Word（`.docx`）、Excel（`.xlsx`）和 PowerPoint（`.pptx`）附件。PDF 和 Office 通过原生隔离环境提取有界正文。Excel 使用已保存的单元格值，扫描件、嵌入对象和空正文会提示缺口。
 - PNG、JPEG、WebP 和静态 GIF 图片仅由 Host 发给本轮已配置的视觉模型。支持 DeepSeek 官方 `deepseek-flash` 和采用已知 GPT‑4o／GPT‑4.1 模型标识的 OpenAI-compatible 连接。图片解读须另有原始证据支撑，才能用于报告质量判定。[DeepSeek 图片输入文档](https://api-docs.deepseek.com/guides/vision/)
