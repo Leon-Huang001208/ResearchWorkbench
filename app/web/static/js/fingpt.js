@@ -7,6 +7,10 @@ let frameReady = false;
 let frameReadyWaiter = null;
 
 export async function initFinGPT() {
+    // The old shell and Research Web are separate local services.
+    const link = document.querySelector('[data-open-research-qa]');
+    if (link && !link.hidden) return;
+
     if (!initialized) bindEvents();
     initialized = true;
     await Promise.all([refreshHealth(), refreshGovernance()]);
@@ -38,6 +42,12 @@ async function refreshHealth() {
     const diagnostic = document.getElementById('fingpt-host-unavailable');
     try {
         const result = await apiCall('GET', '/api/v2/fingpt/health');
+        if (result.retired === true) {
+            const link = document.querySelector('[data-open-research-qa]');
+            link.closest('.fingpt-page').replaceChildren(link);
+            link.hidden = false;
+            return;
+        }
         hostAvailable = result.available === true;
         expectedOrigin = result.embed_origin || null;
         state.textContent = hostAvailable ? 'DSH Host 已连接 · 对话正文由 DSH 保存' : 'DSH Host 未连接';

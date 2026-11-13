@@ -79,14 +79,23 @@ def prepare_contract(
     return contract
 
 
-def write_business_snapshot(service, sid, contract):
+def write_business_snapshot(service, sid, contract, *, attachment_ids=None, sources=()):
     """Publish a read-only convenience projection; scoring always rereads inputs."""
     from .datahub.security import atomic_json, directory, json_bytes
 
     try:
         scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
         files = service.store.files(sid) if "uploads" in scope else []
+        if attachment_ids is not None:
+            files = [
+                item for item in files if item["kind"] != "inputs" or item["id"] in attachment_ids
+            ]
         web = stored_sources(service.store, sid) if "web" in scope else []
+        if attachment_ids is not None:
+            # AlphaDesk passes only this turn's actually acquired sources.
+            web = list(sources)
+        else:
+            web = [*web, *sources]
         rows = observations(
             service, sid, files, web, task_id=contract["task_id"], contract_sha=contract["sha256"]
         )
@@ -120,7 +129,7 @@ def write_business_snapshot(service, sid, contract):
         ) from None
 
 
-def business_prompt_index(service, sid, contract):
+def business_prompt_index(service, sid, contract, *, attachment_ids=None, sources=()):
     """Bounded discovery data from permitted bytes, never a coverage verdict."""
     from .research_quality import _valid_contract
 
@@ -129,8 +138,17 @@ def business_prompt_index(service, sid, contract):
             raise ValueError("business_index_contract_changed")
         scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
         files = service.store.files(sid) if "uploads" in scope else []
+        if attachment_ids is not None:
+            files = [
+                item for item in files if item["kind"] != "inputs" or item["id"] in attachment_ids
+            ]
         rows = observations(
-            service, sid, files, [], task_id=contract["task_id"], contract_sha=contract["sha256"]
+            service,
+            sid,
+            files,
+            sources,
+            task_id=contract["task_id"],
+            contract_sha=contract["sha256"],
         )
         rows = [r for r in rows if r.get("kind") in {"business_numeric", "business_quote"}]
         rows.sort(key=lambda r: r["kind"] != "business_numeric" and r["metric"] != "control_text")
@@ -336,9 +354,25 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             raw = service.datahub.snapshots.read(sid, did, "rows.json")
             if len(raw) > 512000:
                 continue
-            content = json.dumps(
-                {"metadata": metadata, "rows": json.loads(raw)}, ensure_ascii=False
-            )
+            rows = json.loads(raw)
+            content = json.dumps({"metadata": metadata, "rows": rows}, ensure_ascii=False)
+            if (
+                service.store.session(sid).get("execution_engine") == "alphadesk"
+                and task_id
+                and contract_sha
+                and isinstance(rows, list)
+                and len(result) < 160
+            ):
+                from .qa_observations import snapshot_observations
+
+                result.extend(
+                    snapshot_observations(
+                        metadata,
+                        rows,
+                        raw.decode("utf-8"),
+                        f"{service.store.root}:{sid}:{task_id}:{contract_sha}",
+                    )
+                )
             result.append(
                 {
                     "id": source["id"],
@@ -379,6 +413,13 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     kinds = {"file": "uploads", "dataset": "datahub", "web": "web"}
     upload_files = upload_evidence_files(service.store, sid, files)
+    attachment_ids = receipt.get("qa_attachment_ids")
+    if attachment_ids is not None:
+        upload_files = [
+            item
+            for item in upload_files
+            if item.get("kind") != "inputs" or item["id"] in attachment_ids
+        ]
     web_ids = {item["id"] for item in files} - {item["id"] for item in upload_files}
     sources = [
         source
@@ -720,14 +761,14 @@ def archive_digest(service, sid, relative):
     raise StoreError("历史报告归属未确认", "research_report_version_unverified", 409)
 
 
-async def check_quality(service, sid):
+async def check_quality(service, sid, *, detail_reader=None):
     """Authenticated native check, with one durable repair authorization per task."""
     async with service.lock:
         service.store.session(sid)
         receipt = latest_receipt(service, sid)
         if not receipt.get("research_contract"):
             raise StoreError("本轮没有固定研究要求", "research_quality_contract_missing", 409)
-        detail = await service.detail(sid)
+        detail = await (detail_reader or service.detail)(sid)
         result = dict(detail["research_quality"])
         result.pop("report", None)
         report = detail.get("research_report")

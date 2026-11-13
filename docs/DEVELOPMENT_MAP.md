@@ -388,6 +388,8 @@ CSV证据的显式格式辅助函数 `resources/research_report.py:calculation_e
 
 ## 当前 Research Web
 
+AlphaDesk 问答的 React 源码在 `qa_frontend/`，编排在 `qa_worker/`，`qa_execution.py` 保存任务和事件，`qa_tools.py` 绑定 Host 工具与证据。验证入口为 `test_alphadesk_qa.py`、`research_web_qa_worker.test.mjs` 及独立浏览器旅程。详见[AI 问答合同](research-web-ai-qa.md)。
+
 Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、诊断与 Native 生命周期），
 `hot_manager.py`（签名进程管理）、`hot_postgres.py`（实例归属与受管 PG）和
 `services/hot/`（PostgreSQL、私有签名回环协议与独立 Node 服务）。对应文档为

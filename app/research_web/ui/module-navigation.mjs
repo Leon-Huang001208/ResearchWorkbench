@@ -1,10 +1,10 @@
-import { PRIMARY_NAVIGATION, settingsSections, intelTabs, assetTabs, marketTabs } from './navigation-catalog.mjs';
+import { PRIMARY_NAVIGATION, QA_NAVIGATION, settingsSections, intelTabs, assetTabs, marketTabs } from './navigation-catalog.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { icon, hasIcon } from './icons.mjs';
 import { safeLog } from './core.mjs';
 import { progressHref } from './progress.mjs';
 
-export { PRIMARY_NAVIGATION } from './navigation-catalog.mjs';
+export { PRIMARY_NAVIGATION, QA_NAVIGATION } from './navigation-catalog.mjs';
 // Reject bad primary glyphs rather than silently falling back to a document.
 const primaryGlyphs = [...PRIMARY_NAVIGATION.map(item => item.glyph), 'milestones', 'settings'];
 if (new Set(primaryGlyphs).size !== primaryGlyphs.length || primaryGlyphs.some(name => !hasIcon(name))) {
@@ -19,7 +19,7 @@ export function moduleKey(route = {}) {
 }
 export function moduleTitle(route) {
   const key = moduleKey(route);
-  return PRIMARY_NAVIGATION.find(item => item.page === key)?.title || ({progress:'研发进展',settings:'设置',account:'账号',history:'研究历史'})[key] || '导航';
+  return [...PRIMARY_NAVIGATION, ...QA_NAVIGATION].find(item => item.page === key)?.title || ({progress:'研发进展',settings:'设置',account:'账号',history:'研究历史'})[key] || '导航';
 }
 
 export function secondaryEntries(route = {}, { account = null, canManageNews = true, settingsSection = '' } = {}) {
@@ -57,7 +57,7 @@ export function secondaryEntries(route = {}, { account = null, canManageNews = t
     const mode = ['claw','fingpt'].includes(route.historyMode) ? `mode=${route.historyMode}&` : '';
     rows = [['active','研究',`#/history${mode?'?'+mode.slice(0,-1):''}`],['deleted','已删除',`#/history?${mode}view=deleted`]]; selected=route.historyView || 'active';
   } else {
-    const definition = PRIMARY_NAVIGATION.find(item=>item.page===key);
+    const definition = [...PRIMARY_NAVIGATION, ...QA_NAVIGATION].find(item=>item.page===key);
     rows = [[key,definition?.title || moduleTitle(route),definition?.href || '#/account']]; selected=key;
   }
   if (!rows.some(([id])=>id===selected)) selected=rows[0]?.[0];

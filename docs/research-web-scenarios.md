@@ -84,3 +84,5 @@ result = select_scenario(
 ## Host三页功能集成
 
 纯目录合同保持不变。实际场景选择、冻结、发送、资讯筛选及撤权边界见[三页场景交接](research-web-scenario-handoffs.md)，包版本与实际执行准入分别报告。
+
+场景普通问答使用 AlphaDesk 时，Host 验证能力版本及交接资料，并把实际提交的能力记录在本轮回执中。

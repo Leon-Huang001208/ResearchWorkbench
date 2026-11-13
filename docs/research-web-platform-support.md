@@ -310,3 +310,5 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 私网 `server serve --service-only` 的候选范围为 macOS Native。Docker、Windows、Linux 作为产品宿主及生产常驻切换分别验收。
 
 原位主账号写入互斥新增 macOS POSIX 锁继承验证。现有常驻切换及固定前版回滚需要独立实测。
+
+AlphaDesk 问答候选分别记录 Mac Native、Mac Docker Desktop、GitHub Mac 干净安装与真实问答。Windows、Linux 由对应设备接手。

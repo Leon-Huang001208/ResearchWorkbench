@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 补充常驻仅服务的原位主账号及 HTTPS OAuth。",
-  "reason": "主账号可在原生命周期锁保护下使用原资料目录，私网授权采用单独登记的固定回调。"
+  "summary": "README 补充 AlphaDesk 问答候选与切换状态链接。",
+  "reason": "源码迁入后需要区分独立 Node 问答、现有 DSH 专业协作和实际启用状态。"
 }

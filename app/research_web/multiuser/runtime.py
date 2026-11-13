@@ -59,6 +59,7 @@ class RuntimeConfig:
     node: str | None
     max_instances: int = 2
     service_only: bool = False
+    alphadesk_qa: bool = False
     primary_storage: PrimaryStorage | None = None
 
 
@@ -425,6 +426,7 @@ class RuntimePool:
             ),
             "RWB_RUNTIME_STATE": str(state),
             "RWB_TENANT_MODE": "1",
+            **({"RWB_ALPHADESK_QA": "1"} if self.config.alphadesk_qa else {}),
             "RWB_TENANT_GATEWAY_KEY_FILE": str(state / "gateway.key"),
             "RWB_SHARED_PLUGINS_ROOT": str(self.config.root / "shared/plugin-approvals"),
             "RWB_PERSONAL_PLUGINS_ROOT": str(root.parent / "plugin-approvals"),

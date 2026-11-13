@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,6 +19,11 @@ from services.fingpt_service import FinGPTService
 from services.runtime_workflow_service import RuntimeWorkflowService
 
 router = APIRouter(prefix="/api/v2/fingpt", tags=["fingpt"])
+
+
+def _require_legacy_fingpt():
+    if os.environ.get("RWB_ALPHADESK_QA") == "1":
+        raise HTTPException(status_code=410, detail="FinGPT 已退役，请打开 AI 问答。")
 
 
 class CreateTaskRequest(BaseModel):
@@ -47,6 +53,8 @@ def get_fingpt_service(db: Session = Depends(get_db)) -> FinGPTService:  # noqa:
 
 @router.get("/health")
 async def fingpt_health(service: FinGPTService = Depends(get_fingpt_service)):  # noqa: B008
+    if os.environ.get("RWB_ALPHADESK_QA") == "1":
+        return {"retired": True}
     try:
         return service.health()
     except Exception as exc:
@@ -63,7 +71,9 @@ async def list_tasks(service: FinGPTService = Depends(get_fingpt_service)):  # n
     return {"tasks": service.tasks()}
 
 
-@router.post("/tasks", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tasks", status_code=status.HTTP_201_CREATED, dependencies=[Depends(_require_legacy_fingpt)]
+)
 async def create_task(
     payload: CreateTaskRequest, service: FinGPTService = Depends(get_fingpt_service)  # noqa: B008
 ):
@@ -73,7 +83,7 @@ async def create_task(
         raise _http_error(exc) from exc
 
 
-@router.post("/tasks/{task_id}/execute")
+@router.post("/tasks/{task_id}/execute", dependencies=[Depends(_require_legacy_fingpt)])
 async def execute_daily_task(
     task_id: str,
     payload: ExecuteDailyTaskRequest,

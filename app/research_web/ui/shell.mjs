@@ -1,3 +1,4 @@
+import { researchSessionPage } from './qa-navigation.mjs';
 import { renderConversationNavigation } from './conversation-navigation.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { sessionHash, isRunning } from './core.mjs';
@@ -8,7 +9,7 @@ import { renderWorkflowPlan } from './capabilities.mjs';
 import { renderAccountTrigger } from './server/account-menu.mjs';
 import { canUseReportWorkflows } from './weekly-production.mjs';
 
-import { PRIMARY_NAVIGATION as navItems, moduleKey } from './module-navigation.mjs';
+import { PRIMARY_NAVIGATION as navItems, QA_NAVIGATION, moduleKey } from './module-navigation.mjs';
 
 export function renderBrandMark() {
   return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/brand-mark.png" alt="" width="108" height="120"></span>';
@@ -72,13 +73,14 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
 
   const attribute = (kind, item) => ({ tool: 'data-tool-detail', data: 'data-data-capability-detail', 'report-workflow': 'data-report-workflow-detail' })[kind] || (item.enabled === false ? 'data-skill-detail' : 'data-skill-shortcut');
   if (!results.length) return status || '<p class="muted small">没有匹配的真实会话或能力。</p>';
-  return heading + status + results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-global-result-key="session:${e(item.id)}" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span>${snippets.has(item.id) ? `<span class="native-search-snippet">${e(snippets.get(item.id))}</span>` : ''}</a>` : `<button type="button" role="option" data-global-result="${kind}" data-global-result-key="${kind}:${e(item.id)}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
+  return heading + status + results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-global-result-key="session:${e(item.id)}" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw', qa: 'AI 问答', specialist: '专业协作' }[researchSessionPage(item)] || '研究')}</span>${snippets.has(item.id) ? `<span class="native-search-snippet">${e(snippets.get(item.id))}</span>` : ''}</a>` : `<button type="button" role="option" data-global-result="${kind}" data-global-result-key="${kind}:${e(item.id)}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
 }
 
-export function renderPrimaryRail({ route = null, page, section = '', capabilityView = '', secondaryOpen = false, account = null } = {}) {
+export function renderPrimaryRail({ route = null, page, section = '', capabilityView = '', secondaryOpen = false, account = null, qaEnabled = false } = {}) {
   if (route) ({page, section = '', capabilityView = ''} = route);
   const primaryPage = moduleKey({ page, section, capabilityView });
-  const links = navItems.filter(item => item.page !== 'reports' || canUseReportWorkflows(globalThis.__RWB_USER_ID__ || account?.id, account)).map((item) => {
+  const modules = qaEnabled ? [...QA_NAVIGATION, ...navItems.filter(item => item.page !== 'fingpt')] : navItems;
+  const links = modules.filter(item => item.page !== 'reports' || canUseReportWorkflows(globalThis.__RWB_USER_ID__ || account?.id, account)).map((item) => {
     const active = primaryPage === item.page;
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
@@ -131,7 +133,7 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
   if (!detail) return '';
   const tabs = [['activity', '活动'], ['plan', '计划'], ['evidence', '证据'], ['notes', '笔记'], ['report', '报告'], ['datasets', '资料'], ['files', '文件']];
   const panel = ['plan', 'evidence', 'notes', 'report'].includes(selectedTab) ? renderResearchPanel(detail, selectedTab, researchStage) : selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview, { blockReportExports: detail.research_quality?.status === 'invalid' })}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
-  return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
+  return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${{claw:'CLAW',qa:'AI 问答',specialist:'专业协作'}[detail && researchSessionPage(detail)] || 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
 export function runtimeLabel(catalog) {

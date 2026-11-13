@@ -209,12 +209,16 @@ def verify_execution(service, sid, receipt):
     if context is None:
         fail("scenario_execution_changed", "质量合同的场景归属已缺失")
     required = bound_capabilities(service, context)
+    alpha = service.store.session(sid).get("execution_engine") == "alphadesk"
     if (
         receipt.get("scenario_required_capabilities") != required
         or receipt["research_contract"].get("execution_context")
         != execution_context(context, required)
-        or receipt.get("scenario_discovered_capabilities")
-        != [item["native_name"] for item in required]
+        or (
+            not alpha
+            and receipt.get("scenario_discovered_capabilities")
+            != [item["native_name"] for item in required]
+        )
         or receipt["research_contract"]["as_of"] != context["scenario"]["inputs"]["as_of"]
         or not set(context["requirements"]).issubset(
             {row["text"] for row in receipt["research_contract"]["requirements"]}
@@ -234,7 +238,9 @@ def verify_execution(service, sid, receipt):
                     fail("scenario_execution_changed", "场景必需能力资源字节已变化")
     loaded = {
         (item["id"], item["version"], item["sha256"])
-        for item in receipt.get("native_capabilities", [])
+        for item in receipt.get(
+            "qa_dispatched_capabilities" if alpha else "native_capabilities", []
+        )
     }
     return [
         "scenario_capability_not_loaded:" + item["id"]

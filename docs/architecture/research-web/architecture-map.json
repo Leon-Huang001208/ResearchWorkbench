@@ -6,6 +6,30 @@
   "artifactRoot": "outputs/research-web-architecture",
   "groups": [
     {
+      "id": "alphadesk-qa",
+      "sources": [
+        "app/research_web/qa_acceptance.py",
+        "app/research_web/qa_assets.py",
+        "app/research_web/qa_bridge.py",
+        "app/research_web/qa_execution.py",
+        "app/research_web/qa_model.py",
+        "app/research_web/qa_observations.py",
+        "app/research_web/qa_tools.py",
+        "app/research_web/qa_frontend/",
+        "app/research_web/qa_worker/"
+      ],
+      "documents": [
+        "docs/research-web-ai-qa.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies"
+      ],
+      "tests": [
+        "tests/research_web/test_alphadesk_qa.py",
+        "tests/javascript/research_web_qa_worker.test.mjs"
+      ]
+    },
+    {
       "id": "inbound-mcp-readonly",
       "sources": [
         "app/research_web/mcp_facade/"
@@ -6226,6 +6250,20 @@
       "declaredPath": "/{path:path}",
       "prefix": "",
       "condition": "mcp-disabled"
+    },
+    {
+      "method": "GET",
+      "path": "/static/qa-dist/{name:path}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/static/qa-dist/{name:path}",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/static/qa-dist/{name}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/static/qa-dist/{name}",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -6257,6 +6295,13 @@
       }
     ],
     "modules": [
+      {
+        "id": "alphadesk-qa",
+        "group": "alphadesk-qa",
+        "title": "AI 问答",
+        "summary": "AlphaDesk 快速、深度与 Agent 编排，沿 RWB 会话、授权、证据与报告验收。",
+        "category": "研究会话与 Runtime"
+      },
       {
         "id": "inbound-mcp-readonly",
         "group": "inbound-mcp-readonly",

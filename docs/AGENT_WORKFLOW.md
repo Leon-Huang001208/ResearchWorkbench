@@ -730,3 +730,5 @@ partial_cleanup分支：原pending proof、独评/CI/真实合并、全部工作
 真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。
 
 冷Doctor的真实“禁止导入server启动模块”回归通过后，origin校验提取到共用stdlib helper，公开dispatch与Doctor均显式调用。该兼容修复不安装依赖、不扩大环境白名单；原失败按同根保留，后续通过不能改写原失败身份。
+
+AlphaDesk 替换按 Mac Web L4 交付，实际模型、跟踪通知、报告质量、常驻切换与回滚各自留证。

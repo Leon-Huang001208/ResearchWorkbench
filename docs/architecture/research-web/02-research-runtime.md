@@ -871,3 +871,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 WeKnora 客户端经入站 MCP 获取批准的只读材料。RWB 不为该客户端启动内置 DSH。
 
 主账号单 Web 模式持有原 supervisor 和 lifecycle 锁，旧 Native 双进程停止且归属明确后才启动。
+
+AlphaDesk 会话由 Host 管理任务状态和独立报告验收。进程重启后，未终结任务显示中断，需核对原受理结果。

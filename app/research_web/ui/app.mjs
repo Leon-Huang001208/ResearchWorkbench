@@ -1,10 +1,12 @@
+import { createQAMount } from './qa-mount.mjs';
+import { qaEnabled, isQASession, isSpecialistSession, researchSessionPage, fingptReplacement, visibleResearchSessions } from './qa-navigation.mjs';
 import { moduleKey, renderModuleSidebar, createModulePreferences, trapSecondaryFocus, closesSecondaryDrawer, focusModuleSelection } from './module-navigation.mjs';
 import { renderSpecialistPanel, handleSpecialistBudgetChange } from './specialist-panel.mjs';
 import { closedComposerMenu, openComposerMenu, composerMenuRows, composerMenuKey, composerSlashQuery, consumeComposerSlash, nextComposerFormats } from './composer-menu.mjs';
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
 import { createConversationNavigation, renderProjectEditor } from './conversation-navigation.mjs';
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
-import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
+import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, sessionHash, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createWarehousePanel } from './research-warehouse.mjs';
 import { mountKnowledgeSettings } from './knowledge-settings.mjs';
@@ -81,6 +83,10 @@ const conversationNavigation = createConversationNavigation({ api, notify: () =>
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+const qaMount = createQAMount({ document });
+const emptyQaEvents = [];
+const qaActive = () => qaEnabled(catalog.runtime);
+const visibleSessions = (sessions = catalog.sessions) => visibleResearchSessions(sessions, qaActive());
 const progress = createProgressWorkspace({root, route:()=>state.route, notify:render, logger:safeLog});
 root.setAttribute?.('data-account-workspace-native', '1');
 const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
@@ -93,7 +99,7 @@ function updateGlobalSearchResults() {
   const results = document.getElementById('global-search-results');
   if (!results) return;
   const focused = results.contains?.(document.activeElement) ? document.activeElement?.dataset?.globalResultKey : null;
-  results.innerHTML = renderGlobalResults(globalSearch, catalog.sessions, searchableCapabilityList(), { native: state.route.page === 'claw' ? nativeSessionSearch.state : null });
+  results.innerHTML = renderGlobalResults(globalSearch, visibleSessions(), searchableCapabilityList(), { native: state.route.page === 'claw' ? nativeSessionSearch.state : null });
   if (focused) ([...results.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focused) || document.getElementById('global-search'))?.focus({ preventScroll: true });
 }
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
@@ -225,10 +231,11 @@ const dossierController = createDossierController({ api, onChange: () => { if (i
   dossierDraftOpening = openingToken;
   let prepared = false;
   try {
-    history.pushState(null, '', `#/${result.mode}`);
+    const destination = result.mode === 'fingpt' && qaActive() ? 'qa' : result.mode;
+    history.pushState(null, '', `#/${destination}`);
     const ticket = pageGeneration + 1;
     await showRoute();
-    if (openingToken !== dossierDraftOpening || ticket !== pageGeneration || state.route.page !== result.mode || state.route.sessionId || state.route.clawView) return;
+    if (openingToken !== dossierDraftOpening || ticket !== pageGeneration || state.route.page !== destination || state.route.sessionId || state.route.clawView) return;
     const previous = state.draft || '';
     if (!controller.setDossierDraft(previous.trim() && previous !== result.prompt ? `${previous}\n\n${result.prompt}` : result.prompt, result.context)) return;
     success = `已准备档案 v${result.context.revision} 的冻结研究草稿，请核对后发送。`;
@@ -483,8 +490,35 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
+  if (state.route.page === 'specialist') return `<div class="landing"><div class="greeting"><h1>专业协作</h1><p class="landing-subtitle">按确认预算并行研究，独立复核成果。</p></div>${composer()}</div>`;
   if (claw) return `<div class="landing claw-landing">${state.busy ? '<div class="claw-welcome-pending" role="status">正在连接会话…</div>' : state.error || state.streamError ? '<div class="claw-welcome-pending" aria-hidden="true"></div>' : renderClawWelcome()}<div class="claw-landing-editor">${composer()}</div></div>`;
   return `<div class="landing fingpt-landing"><div class="greeting"><h1>从一个问题，开始研究。</h1><p class="landing-subtitle">读懂资料，比较公司，探索行业。</p></div>${renderResearchRecipes({ busy: state.busy })}${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+}
+
+function qaPage() {
+  const detail = state.detail;
+  const unavailable = state.route.sessionId && !detail && !state.loading;
+  return `<div data-qa-app role="region" aria-label="问答工作区"></div>${unavailable ? '<button class="button" data-reload-session>重新读取</button>' : ''}${detail ? `<header class="session-toolbar"><button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></header>${renderResearchAttention(detail)}` : ''}<div class="composer-dock">${composer()}</div>`;
+}
+
+function paintQA() {
+  const placeholder = root.querySelector('[data-qa-app]');
+  qaMount.update(placeholder, placeholder ? {
+    sessionId: state.route.sessionId,
+    events: state.detail?.qa_events || emptyQaEvents,
+    mode: state.researchMode,
+    model: state.detail?.model || catalog.runtime?.model || '',
+    status: state.detail?.status || '',
+    disabled: state.busy || state.stopping || state.loading || Boolean(state.detail?.scenario_context || state.detail?.execution_restricted || isRunning(state.detail?.status) || state.detail?.can_recheck_stop),
+    loading: state.loading,
+    streamError: state.streamError,
+    onMode: mode => controller.setResearchMode(mode),
+    onSuggest: question => {
+      if (state.draft.trim()) { state.error = '输入区已有草稿，请先发送或清除。'; render(); return; }
+      controller.setDraft(question); render(); document.getElementById('prompt')?.focus();
+    },
+    onStop: async () => { await controller.cancel(); await loadCatalog(['sessions']); },
+  } : null);
 }
 
 function researchPage() {
@@ -544,6 +578,8 @@ function mainPage() {
   if (state.route.page === 'claw') {
     return clawMainPage();
   }
+  if (state.route.page === 'qa') return qaPage();
+  if (state.route.page === 'specialist') return researchPage();
   if (state.route.page === 'fingpt') return state.route.clawView === 'projects' ? renderClawProject(clawWorkspace, 'fingpt') : researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (isDataWorkspaceRoute(state.route)) return workbenchPage();
@@ -555,12 +591,12 @@ function mainPage() {
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
-    const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? 'FinGPT' : '';
+    const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? qaActive() ? 'AI 问答与专业协作' : 'FinGPT' : '';
     const modeQuery = mode ? `mode=${mode}` : '';
     const activeHref = `#/history${modeQuery ? `?${modeQuery}` : ''}`;
     const deletedHref = `#/history?${modeQuery ? `${modeQuery}&` : ''}view=deleted`;
-    const sessions = view === 'deleted' ? catalog.deletedSessions : catalog.sessions;
-    return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
+    const sessions = visibleSessions(view === 'deleted' ? catalog.deletedSessions : catalog.sessions);
+    return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : qaActive() ? '所有 AI 问答、专业协作与 Claw 会话。' : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
   }
   return capabilityPage();
 }
@@ -643,6 +679,13 @@ function capabilityPage() {
 }
 
 function sidebar() {
+  if (['qa', 'specialist'].includes(state.route.page)) {
+    const specialist = state.route.page === 'specialist';
+    const title = specialist ? '专业协作' : 'AI 问答';
+    const sessions = catalog.sessions.filter(specialist ? isSpecialistSession : isQASession);
+    const selected = state.route.sessionId;
+    return `<aside id="module-secondary-navigation" class="sidebar secondary-sidebar module-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'mobile-open' : ''}" aria-label="${title}历史" ${sidebarCollapsed && !sidebarOpen ? 'inert aria-hidden="true"' : ''}><header class="sidebar-top"><h2>${title}</h2><button type="button" class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="收起二级导航">${icon('sidebar')}</button></header><nav class="module-links qa-history"><a href="#/${state.route.page}">新建研究</a>${sessions.map(item => `<a href="${sessionHash(item)}"${selected === item.id ? ' aria-current="page"' : ''}>${e(item.title || '未命名研究')}</a>`).join('') || '<p class="small muted">暂无历史研究</p>'}</nav></aside>`;
+  }
   if (!['fingpt','claw'].includes(state.route.page)) return renderModuleSidebar({ route: state.route, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, canManageNews: aihotController.state.canManage !== false, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '' });
   return renderSidebar({ page: state.route.page, clawView: state.route.clawView, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
 }
@@ -763,7 +806,7 @@ function render() {
   const navigationList = root.querySelector('.nav-scroll');
   const renderedMode = root.querySelector('[data-nav-mode]')?.dataset.navMode;
   if (navigationList?.clientHeight > 0 && conversationNavigation.state(renderedMode)) conversationNavigation.state(renderedMode).scrollTop = navigationList.scrollTop;
-  const research = ['fingpt', 'claw'].includes(state.route.page);
+  const research = ['fingpt', 'claw', 'qa', 'specialist'].includes(state.route.page);
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = searchableCapabilityList();
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
@@ -776,7 +819,9 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  marketController.paint(state.route.page, () => { root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__ })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; });
+  marketController.paint(state.route.page, () => { root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: visibleSessions(), skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__, qaEnabled: qaActive() })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; });
+  paintQA();
+  if (active?.isConnected && active.closest('[data-qa-app]')) active.focus({ preventScroll: true });
   syncAssetResearch();
   if (isEventLabRoute()) eventLab.restore(root);
   root.querySelector('.app-shell').inert = scenarioController.state.open;
@@ -872,7 +917,7 @@ function render() {
   mountAssetIndicators(Boolean(persistentAssetTerminal));
   const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
   if (assetSearchSlot) assetSearch = mountAssetSearch(assetSearchSlot, { api, account: () => globalThis.__RWB_USER_ID__ || 'local', asset: state.route.asset || assetState.observation?.asset || '', onSelect: item => { location.hash = assetHref(item.asset, 'stock', state.route.assetView || 'overview'); } });
-  document.title = `${state.route.page === 'skills' && state.route.capabilityView === 'plans' ? '定时任务' : state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料', progress: '研发进展' })[state.route.page] || '资产观察'} · Research Workbench`;
+  document.title = `${state.route.page === 'skills' && state.route.capabilityView === 'plans' ? '定时任务' : state.detail?.title || ({ fingpt: 'FinGPT', qa: 'AI 问答', specialist: '专业协作', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料', progress: '研发进展' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1524,7 +1569,25 @@ async function showRoute() {
     history.replaceState(null, '', legacyTarget);
     location.hash = legacyTarget;
   }
-  const requestedRoute = parseRoute(location.hash);
+  let requestedRoute = parseRoute(location.hash);
+  if (qaActive() && requestedRoute.page === 'fingpt') {
+    const originalHash = location.hash;
+    const id = requestedRoute.sessionId;
+    let session = visibleSessions().find(item => item.id === id);
+    if (id && !session) {
+      try { session = await api.detail(id); }
+      catch (error) {
+        if (error.status !== 410 && error.status !== 404) safeLog('qa_legacy_route_lookup_failed', { status: error.code || 'request_failed' });
+      }
+    }
+    if (location.hash !== originalHash) return;
+    history.replaceState(null, '', fingptReplacement(session, id));
+    requestedRoute = parseRoute(location.hash);
+  } else if (catalog.runtime && !qaActive() && ['qa', 'specialist'].includes(requestedRoute.page)) {
+    const id = requestedRoute.page === 'specialist' ? requestedRoute.sessionId : null;
+    history.replaceState(null, '', `#/fingpt${id ? `?session=${encodeURIComponent(id)}` : ''}`);
+    requestedRoute = parseRoute(location.hash);
+  }
   const assetPage = root.querySelector('[data-asset-identity]');
   const requestedAssetIdentity = `${requestedRoute.assetType || 'stock'}:${requestedRoute.asset || assetState.observation?.asset || ''}`;
   const sameAssetPage = isAssetPage() && requestedRoute.assetView !== 'dossiers' && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && assetPage?.dataset.assetIdentity === requestedAssetIdentity;
@@ -1578,9 +1641,13 @@ async function showRoute() {
   cancelProjectMenuTimers();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
+  if (qaActive() && ['qa', 'specialist'].includes(state.route.page) && state.detail && researchSessionPage(state.detail) !== state.route.page) {
+    history.replaceState(null, '', fingptReplacement(state.detail, state.detail.id));
+    return showRoute();
+  }
   if (state.route.page === 'progress') return progress.open();
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
-  if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
+  if (['fingpt', 'claw', 'qa', 'specialist'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
   if (['claw', 'fingpt'].includes(state.route.page)) { sidebarCollapsed = conversationNavigation.state(state.route.page).view.collapsed; await conversationNavigation.load(state.route.page, true); }
@@ -1677,7 +1744,7 @@ async function ensureSession() {
   if (dossierDraftOpening) return false;
   if (state.detail) return true;
   if (state.route.sessionId) return false;
-  const result = await controller.create(state.route.page, selectedWorkspace, state.route.projectId);
+  const result = await controller.create(['qa', 'specialist'].includes(state.route.page) ? 'fingpt' : state.route.page, selectedWorkspace, state.route.projectId);
   if (!result?.id) return false;
   await showRoute(); await loadCatalog(['sessions']);
   return state.detail?.id === result.id;
@@ -1761,7 +1828,7 @@ function handleInput(event) {
       if (composerMenu.entry) { tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; }
     }
     const wasOpen = slashOpen; slashOpen = state.route.page !== 'claw' && event.target.value.trimStart().startsWith('/'); slashIndex = 0;
-    const query = tabbitMentionQuery(event.target.value);
+    const query = state.route.page === 'qa' ? null : tabbitMentionQuery(event.target.value);
     if (query !== null && !slashOpen && !composerMenu.entry) void loadTabbitCandidates(query);
     else {
       const wasTabbitOpen = tabbitOpen;
@@ -1804,7 +1871,7 @@ function handleInput(event) {
   if (event.target.id === 'history-search') {
     historyFilter = event.target.value;
     const view = state.route.historyView || 'active';
-    const sessions = view === 'deleted' ? catalog.deletedSessions : catalog.sessions;
+    const sessions = visibleSessions(view === 'deleted' ? catalog.deletedSessions : catalog.sessions);
     const historyResults = document.querySelector('#history-results');
     if (historyResults) historyResults.innerHTML = renderHistory(sessions, historyFilter, state.route.historyMode, view);
   }
@@ -2588,7 +2655,7 @@ root.addEventListener('submit', async (event) => {
       await api.deleteSession(removed.id);
       deleteSession = null; success = '会话已移至“已删除”，将在 30 天后永久删除。';
       if (state.route.sessionId === removed.id) {
-        history.pushState(null, '', `#/${removed.mode === 'claw' ? 'claw' : 'fingpt'}`);
+        history.pushState(null, '', `#/${researchSessionPage(removed)}`);
         await showRoute();
       }
       await loadCatalog(['sessions']);
@@ -3337,7 +3404,7 @@ root.addEventListener('click', async (event) => {
   if ('clearCapability' in data) { controller.setCapability(null); render(); }
   if ('removeTool' in data) { controller.setTools(state.toolIds.filter(id => id !== data.removeTool)); render(); }
   if ('removeMethod' in data) { controller.setMethods(state.methodIds.filter(id => id !== data.removeMethod)); render(); }
-  if ('new' in data) { history.pushState(null, '', state.route.page === 'claw' ? '#/claw' : '#/fingpt'); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); }
+  if ('new' in data) { history.pushState(null, '', `#/${state.route.page === 'claw' ? 'claw' : state.route.page === 'specialist' ? 'specialist' : qaActive() ? 'qa' : 'fingpt'}`); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); }
   if ('refresh' in data) {
     success = '';
     state.error = '';
@@ -3412,10 +3479,11 @@ root.addEventListener('click', async (event) => {
         context,
       }, crypto.randomUUID());
       if (!current()) return;
-      history.pushState(null, '', `#/${result.mode}?session=${encodeURIComponent(result.session_id)}`);
+      const destination = result.mode === 'fingpt' && qaActive() ? 'qa' : result.mode;
+      history.pushState(null, '', `#/${destination}?session=${encodeURIComponent(result.session_id)}`);
       const targetTicket = pageGeneration + 1;
       await showRoute();
-      if (pageGeneration !== targetTicket || state.route.page !== result.mode || state.route.sessionId !== result.session_id) return;
+      if (pageGeneration !== targetTicket || state.route.page !== destination || state.route.sessionId !== result.session_id) return;
       controller.setDraft(result.draft || '请基于冻结的页面资料继续研究。');
       success = '页面参数和数据集已冻结到新会话，确认草稿后再发送。';
       await loadCatalog(['sessions']);
@@ -3667,7 +3735,7 @@ function currentSlashMatches() {
 }
 
 async function goToResearchDraft() {
-  if (['fingpt', 'claw'].includes(state.route.page)) return;
+  if (['fingpt', 'claw', 'qa', 'specialist'].includes(state.route.page)) return;
   const route = researchDraftRoute;
   history.pushState(null, '', `#/${route.page}${route.sessionId ? `?session=${encodeURIComponent(route.sessionId)}` : ''}`);
   await showRoute();
@@ -3891,5 +3959,6 @@ window.addEventListener('scroll', event => {
 }, true);
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });
 window.addEventListener('unhandledrejection', (event) => { event.preventDefault(); safeLog('unhandled_async_error'); state.error = '操作出现异常，请刷新状态后重试。'; render(); });
+if (['fingpt', 'qa', 'specialist'].includes(parseRoute(location.hash).page)) await loadCatalog(['runtime']);
 await showRoute();
 await loadCatalog();

@@ -3065,6 +3065,7 @@ class WebServiceManager:
         from .event_diagnostics import event_diagnostic
         from .knowledge_backend.diagnostics import knowledge_diagnostic
         from .mcp_runtime.managed_sandbox import POLICY_VERSION, available
+        from .qa_assets import qa_assets_diagnostic
         from .warehouse_diagnostics import warehouse_diagnostic
 
         diagnosis = self._installation_diagnosis()
@@ -3132,6 +3133,7 @@ class WebServiceManager:
             "office_auto_verification": office_auto,
             "weekly_report": self._weekly_report_diagnostic(),
             "ai_news": self._ai_news_diagnostic(),
+            "ai_qa": qa_assets_diagnostic(self.project_root / "app/research_web"),
             "research_warehouse": warehouse_diagnostic(self.data_root),
             "event_research": event_diagnostic(self.data_root),
             "knowledge_backend": knowledge_diagnostic(self.data_root),
@@ -3418,6 +3420,7 @@ def format_doctor_status(status: dict[str, Any]) -> str:
         f"CJPY: {status.get('cjpy', {}).get('version') or 'missing'}",
         f"Node: {status.get('node', {}).get('version') or 'missing'}",
         f"DSH: {'ready' if status.get('dsh', {}).get('ready') else 'invalid'}",
+        f"AI Q&A: {status.get('ai_qa', {}).get('status', 'unknown')}",
     ]
     for role, label in (("runtime", "Runtime"), ("web", "Web")):
         item = status.get("services", {}).get(role, {})

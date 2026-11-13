@@ -189,7 +189,7 @@ class Delivery:
                 log.warning("research_cancel_recheck_uncertain", error_type=type(exc).__name__)
                 return None
 
-    async def refresh(self, sid, entries, *, busy, connected, key=None):
+    async def refresh(self, sid, entries, *, busy, connected, key=None, host_turn_ended=False):
         async with self.locks.setdefault(sid, asyncio.Lock()):
             key = key or self.store.session(sid).get("delivery_key")
             receipt = self.store.data["receipts"].get(f"{sid}:{key}", {})
@@ -232,9 +232,13 @@ class Delivery:
                 ),
                 None,
             )
-            ended = marker_seq is not None and any(
-                entry["event"]["type"] == "turn/end" and entry["event"]["seq"] > marker_seq
-                for entry in entries
+            ended = (
+                host_turn_ended
+                or marker_seq is not None
+                and any(
+                    entry["event"]["type"] == "turn/end" and entry["event"]["seq"] > marker_seq
+                    for entry in entries
+                )
             )
             if busy or not connected or not ended:
                 status = (

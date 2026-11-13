@@ -23,6 +23,8 @@ build/
 # Node / desktop build artifacts
 node_modules
 node_modules/
+/app/research_web/ui/qa-dist/
+/app/research_web/.qa-build-*/
 vendor/deepseek-harness/
 .runtime/dsh-home/
 runtimes/dsh/plugin/lib/

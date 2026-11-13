@@ -35,6 +35,10 @@ on:
       - "app/research_web/staged_runtime.py"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
+      - "app/research_web/qa_assets.py"
+      - "app/research_web/qa_frontend/**"
+      - "app/research_web/qa_worker/**"
+      - "app/research_web/multiuser/__main__.py"
       - "app/research_web/runtime_auth.py"
       - "app/research_web/launch_runtime.py"
       - "app/research_web/live_acceptance_budget.py"
@@ -93,6 +97,10 @@ on:
       - "app/research_web/staged_runtime.py"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
+      - "app/research_web/qa_assets.py"
+      - "app/research_web/qa_frontend/**"
+      - "app/research_web/qa_worker/**"
+      - "app/research_web/multiuser/__main__.py"
       - "app/research_web/runtime_auth.py"
       - "app/research_web/launch_runtime.py"
       - "app/research_web/live_acceptance_budget.py"
@@ -199,9 +207,33 @@ jobs:
           RWB_MCP_READONLY_ENABLED=1 RESEARCH_WEKNORA_ORIGIN=https://knowledge.example.invalid ./rwb server doctor --root "$RUNNER_TEMP/rwb-mcp-doctor-unused" --json > "$RUNNER_TEMP/mcp-doctor.json"
           .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['mcp_readonly']; assert d['enabled'] is True and d['sdk']['matches_lock'] is True and d['status']=='configuration_pending' and d['connection']=='not_checked' and all(v=='NOT_RUN' for v in d['actual_verification'].values()) and not (r/'rwb-mcp-doctor-unused').exists()"
           .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['knowledge_backend']; assert d['enabled'] is True and d['status']=='configuration_pending' and d['authorization']=='not_checked' and d['connection']=='not_checked' and d['runtime_verification']=='NOT_RUN' and not (r/'rwb-mcp-doctor-unused').exists()"
+          .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['ai_qa']; assert d['assets_ready'] is True and d['model_acceptance']=='NOT_RUN' and not (r/'rwb-mcp-doctor-unused').exists()"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
           .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['schema_version'] == 2 and report['installation_ok'] is True and report['product_ready'] is True and all(report['services'][role]['ready'] is True for role in ('runtime', 'web')), report"
+          .venv/bin/python -I - <<'PY'
+          import hashlib, json, urllib.request
+          from importlib.metadata import distribution
+          from pathlib import Path
+          from app.research_web.qa_assets import QA_ASSET_PATH, QA_BUNDLE_FILES, QA_MANIFEST, qa_assets_root
+
+          wheel = distribution('research-workbench')
+          package = Path(wheel.locate_file('app/research_web'))
+          assert qa_assets_root(package) == package / QA_ASSET_PATH
+          assert (package / 'qa_worker/worker.mjs').is_file()
+          assert not (package / 'qa_frontend').exists()
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+          checks = []
+          for name in (*QA_BUNDLE_FILES, QA_MANIFEST):
+              with opener.open(f'http://127.0.0.1:8088/static/qa-dist/{name}', timeout=15) as response:
+                  body = response.read()
+              assert body == (package / QA_ASSET_PATH / name).read_bytes(), name
+              checks.append({'path': name, 'sha256': hashlib.sha256(body).hexdigest()})
+          assert json.loads(Path('doctor.json').read_text())['ai_qa'] == {
+              'status': 'assets_ready', 'assets_ready': True, 'model_acceptance': 'NOT_RUN',
+          }
+          Path('qa-static-smoke.json').write_text(json.dumps({'status': 'PASS', 'assets': checks}))
+          PY
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/ > root.html
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/static/app.mjs > app.mjs
           for asset_file in module-navigation.mjs navigation-catalog.mjs module-navigation.css progress.mjs progress.css progress-data.json knowledge-settings.mjs event-lab.mjs event-lab-controls.mjs specialist-panel.mjs report-operations.mjs report-workspace.mjs report-workspace.css scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css market-calendar.mjs market-calendar.css market-dashboard.mjs market-dashboard-model.mjs market-dashboard-view.mjs market-daily-bootstrap.mjs market-dashboard.css watchlist-import.mjs asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
@@ -248,6 +280,7 @@ jobs:
             native-search-smoke.json
             knowledge-status-smoke.json
             asset-static-smoke.json
+            qa-static-smoke.json
           if-no-files-found: ignore
           retention-days: 3
 

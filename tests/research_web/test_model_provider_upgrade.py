@@ -7,6 +7,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -21,6 +22,62 @@ from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
 REAL_GATEWAY_HEALTH = upgrade.g.health
 REAL_EVENT_GATEWAY_HEALTH = upgrade.read_event_gateway_health
+
+
+def test_qa_candidate_wheel_uses_exact_git_source_and_keeps_checkout_clean(tmp_path, monkeypatch):
+    source = tmp_path / "candidate"
+    source.mkdir()
+    frontend = source / "app/research_web/qa_frontend"
+    frontend.mkdir(parents=True)
+    (frontend / "package-lock.json").write_text("reviewed lock", encoding="utf-8")
+    upgrade.c.git(source, "init", "-q")
+    upgrade.c.git(source, "add", ".")
+    upgrade.c.git(
+        source,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qm",
+        "candidate",
+    )
+    output = tmp_path / "wheel"
+    actual_run = upgrade.c.run
+    build_steps = []
+
+    def fixture_command(argv, **kwargs):
+        if argv[0] == "/usr/bin/git":
+            return actual_run(argv, **kwargs)
+        build_steps.append(argv)
+        if "pip" not in argv:
+            tree = kwargs["cwd"]
+            assert tree != source
+            assert (
+                tree / frontend.relative_to(source) / "package-lock.json"
+            ).read_text() == "reviewed lock"
+            return ""
+        staging = Path(argv[-2])
+        with zipfile.ZipFile(staging / "research_workbench-0.1-py3-none-any.whl", "w") as wheel:
+            wheel.writestr("app/research_web/main.py", "app = None")
+            wheel.writestr("app/research_web/qa_worker/worker.mjs", "export {}")
+            for name in ("qa.js", "qa.css", "THIRD_PARTY_LICENSES.md", "build.json"):
+                wheel.writestr(f"app/research_web/ui/qa-dist/{name}", name)
+        return ""
+
+    monkeypatch.setattr(upgrade.c, "run", fixture_command)
+    wheel = upgrade.build_release_wheel(tmp_path / "current", source, output)
+    assert upgrade.build_release_wheel(tmp_path / "current", source, output) == wheel
+    assert len(build_steps) == 2
+    assert upgrade.c.git(source, "status", "--porcelain") == ""
+    assert not list(output.glob(".qa-wheel-*"))
+    assert json.loads((output / "binding.json").read_text()) == {
+        "source": upgrade.c.git(source, "rev-parse", "HEAD"),
+        "sha256": wheel["sha256"],
+    }
+    (frontend / "package-lock.json").write_text("unreviewed edit", encoding="utf-8")
+    with pytest.raises(upgrade.UpdateBlocked, match="^resident_checkout_changed$"):
+        upgrade.build_release_wheel(tmp_path / "current", source, output)
 
 
 def test_navigation_profile_freezes_the_installed_and_merged_ui_versions():
