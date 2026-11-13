@@ -588,9 +588,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/resident")
     async def resident_status(request: Request):
+        from .qa_execution import enabled as alphadesk_qa_enabled
+
         setting = os.environ.get("RESEARCH_RESIDENT_HOME")
         revision = os.environ.get("RESEARCH_RESIDENT_REVISION", "")
         research = getattr(request.app.state, "research", None)
+        qa_enabled = research is not None and alphadesk_qa_enabled(research)
         active = None
         activity = None
         if research is not None:
@@ -659,7 +662,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             for name, check in (
                 (
                     "research_tasks",
-                    lambda: any(research.running.values()) or bool(research.qa.tasks),
+                    lambda: any(research.running.values())
+                    or (qa_enabled and bool(research.qa.tasks)),
                 ),
                 ("approvals", lambda: bool(research.approvals)),
                 ("questions", lambda: bool(research.questions)),
@@ -736,10 +740,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
             "active": active,
         }
-        if setting and research is not None:
-            from .qa_execution import enabled as alphadesk_qa_enabled
-
-            result["alphadesk_qa"] = alphadesk_qa_enabled(research)
+        if setting and qa_enabled:
+            result["alphadesk_qa"] = True
         if activity is not None:
             result["activity_witness"] = activity
         return result
