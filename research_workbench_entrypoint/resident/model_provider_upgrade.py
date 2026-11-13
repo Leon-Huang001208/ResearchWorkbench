@@ -940,6 +940,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             }
             and name not in {MODULE, TEST}
             and not name.startswith(("docs/", ".ai/reports/"))
+            and not (mode == FINGPT_MODE and name == "outputs/research-web-architecture/index.html")
         ):
             if (
                 blob != c.git(source, "rev-parse", f"{payload}:{name}")

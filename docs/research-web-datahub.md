@@ -673,3 +673,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务账户读取数据目录及已登记快照。快照 GET 使用只读场景校验，需验证历史出站 MCP 授权而现场无法核验时明确拒绝。
+FinGPT 隔离验收通过既有 DataHub 接口读取已完成回执和冻结资料。未核价的新查询在仓库或供应商读取前拒绝，见 [FinGPT 验收预算](research-web-ai-qa.md#切换状态)。

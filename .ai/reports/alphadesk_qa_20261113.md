@@ -42,3 +42,5 @@
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"新增定点验收和原 Mac 安装资源验证，现有 L4 及同候选交付链保持适用。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"私网网关继续选择账号 Host 与静态资源，候选增加独立问答能力，模块图更新。","diagrams":[]} -->
 <!-- architecture-review {"group":"discovery","structure":"changed","reason":"继续复用冻结资料、指纹去重、日限与 Host 质量回执，普通问答执行器的边界见模块图。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"验收模式在原 DataHub 查询入口拒绝未核价的新请求，保留已提交回执和已有冻结资料读取，供应商和快照拓扑沿用原链路。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"受管主实例从当前安装清单读取 FinGPT 开关，复用既有 Host 进程和发布围栏。","diagrams":[]} -->
