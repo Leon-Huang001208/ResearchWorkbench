@@ -201,6 +201,9 @@ WEEKLY_OPERATION_ID = "etf-legacy-monitoring-20261024"
 DOSSIERS_MODE = "reviewed-research-dossiers-v1"
 DOSSIERS_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 DOSSIERS_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
+FINGPT_MODE = "reviewed-fingpt-alphadesk-v1"
+FINGPT_PREVIOUS = "1315d11a5b82be563b6031593a3bfa5e6e092acd"
+FINGPT_PAYLOAD = "51d53ed5490b89060fe99a2e714a2e05d74c7454"
 ASSET_MODES = frozenset(
     (
         ASSET_MODE,
@@ -226,6 +229,7 @@ ASSET_MODES = frozenset(
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
+        FINGPT_MODE,
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
         ETF_WEEKLY_ADMISSION_MODE,
@@ -361,6 +365,8 @@ def previous_for(mode):
         return ETF_WEEKLY_PREVIOUS
     if mode == DISCOVERY_MODE:
         return DISCOVERY_PREVIOUS
+    if mode == FINGPT_MODE:
+        return FINGPT_PREVIOUS
     if mode == ETF_WEEKLY_V2_MODE:
         return ETF_WEEKLY_V2_PREVIOUS
     if mode == ETF_WEEKLY_ADMISSION_MODE:
@@ -657,16 +663,18 @@ def verify_primary(home, expected, mode):
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
         DISCOVERY_MODE,
+        FINGPT_MODE,
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
         ETF_WEEKLY_ADMISSION_MODE,
         ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
         result = g.verify_primary(home, expected, index_reader=read_business_index)
-        if mode in EVENT_PRESERVATION_MODES:
+        if mode in EVENT_PRESERVATION_MODES or mode == FINGPT_MODE:
             observed = weekly_primary_identity_precheck(home, expected)
             if observed.get("active") is not False:
                 raise MaintenanceBusy("research_active_or_unknown")
+        if mode in EVENT_PRESERVATION_MODES:
             event_schedules_disabled(home)
         return result
     return g.verify_primary(home, expected)
@@ -814,6 +822,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
         DOSSIERS_MODE: DOSSIERS_PAYLOAD,
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
+        FINGPT_MODE: FINGPT_PAYLOAD,
         ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
         ETF_HISTORICAL_MODE: ETF_HISTORICAL_PAYLOAD,
         ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_PAYLOAD,
@@ -821,7 +830,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
-    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
+    if mode in {MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE, FINGPT_MODE}:
         c.git(source, "merge-base", "--is-ancestor", previous, payload)
     if mode == EVENT_MODE:
         for ancestor, descendant in (
@@ -863,6 +872,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     MARKET_BREADTH_MODE: MARKET_BREADTH_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_MODE: ETF_WEEKLY_ADMISSION_EVIDENCE_SHA256,
                     ETF_WEEKLY_ADMISSION_V2_MODE: ETF_WEEKLY_ADMISSION_V2_EVIDENCE_SHA256,
+                    FINGPT_MODE: EVENT_EVIDENCE_SHA256,
                 }[mode]
                 if mode
                 in {
@@ -876,6 +886,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     UNIFIED_NAVIGATION_MODE,
                     ETF_WEEKLY_ADMISSION_MODE,
                     ETF_WEEKLY_ADMISSION_V2_MODE,
+                    FINGPT_MODE,
                 }
                 else (
                     MARKET_TERMINAL_EVIDENCE_SHA256
@@ -921,7 +932,12 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 raise UpdateBlocked("asset_upgrade_payload_changed")
         elif (
             mode
-            in {ETF_WEEKLY_ADMISSION_MODE, ETF_WEEKLY_ADMISSION_V2_MODE, *EVENT_PRESERVATION_MODES}
+            in {
+                ETF_WEEKLY_ADMISSION_MODE,
+                ETF_WEEKLY_ADMISSION_V2_MODE,
+                FINGPT_MODE,
+                *EVENT_PRESERVATION_MODES,
+            }
             and name not in {MODULE, TEST}
             and not name.startswith(("docs/", ".ai/reports/"))
         ):
@@ -1545,12 +1561,13 @@ def gateway_configuration(state, previous=False):
         **(
             {"mcp_readonly_enabled": False} if state.get("mode") in EVENT_PRESERVATION_MODES else {}
         ),
+        **({"alphadesk_qa": True} if state.get("mode") == FINGPT_MODE else {}),
     }
 
 
 def gateway_configuration_matches(state, actual, previous):
     expected = gateway_configuration(state, previous)
-    if state.get("mode") not in EVENT_PRESERVATION_MODES:
+    if state.get("mode") not in {*EVENT_PRESERVATION_MODES, FINGPT_MODE}:
         return actual == expected
     # JSON equality preserves boolean/number distinctions and missing fields.
     return json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
@@ -1582,6 +1599,8 @@ def read_event_gateway_health(config):
 
 def target_manifest(state):
     manifest = {**state["manifest"], "code_commit": state["target"]}
+    if state.get("mode") == FINGPT_MODE:
+        manifest["alphadesk_qa"] = True
     if state.get("mode") == ASSET_V5_MODE:
         manifest["web_lock_sha256"] = ASSET_V5_WEB_LOCK_SHA256
     elif state.get("mode") == ASSET_V6_MODE:
@@ -2087,6 +2106,7 @@ class Operations:
             return True  # Authorization to abort; never an assertion of idle.
         if self.state.get("mode") in {
             DISCOVERY_MODE,
+            FINGPT_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
             MARKET_PREVIEW_MODE,
@@ -2119,7 +2139,8 @@ class Operations:
                 return False
             native = self.manager._active_research_read_only(runtime)
             if native or (
-                self.state.get("mode") in EVENT_PRESERVATION_MODES and type(native) is not list
+                self.state.get("mode") in {*EVENT_PRESERVATION_MODES, FINGPT_MODE}
+                and type(native) is not list
             ):
                 return False
         elif running["web"]["running"]:
@@ -2275,7 +2296,7 @@ class Operations:
             if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
-            if self.state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}:
+            if self.state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE, FINGPT_MODE}:
                 started = time.monotonic()
                 log.info(
                     "market_live_git_switch_started role=%s restoring=%s timeout_s=%d",
@@ -2374,6 +2395,8 @@ class Operations:
             )
             if self.state.get("mode") in EVENT_PRESERVATION_MODES:
                 config["mcp_readonly_enabled"] = False
+            if self.state.get("mode") == FINGPT_MODE:
+                config["alphadesk_qa"] = True
         if not gateway_configuration_matches(self.state, config, previous):
             raise UpdateBlocked("model_upgrade_binding_changed")
         c.atomic(self.server / "resident.json", config)
@@ -2421,7 +2444,7 @@ class Operations:
         else:
             verify_primary(self.home, sha, self.state.get("mode", MODE))
         gateway = read_json(self.server / "resident.json")
-        if self.state.get("mode") in EVENT_PRESERVATION_MODES:
+        if self.state.get("mode") in {*EVENT_PRESERVATION_MODES, FINGPT_MODE}:
             validate_configuration(self.home, self.state)
             if not gateway_configuration_matches(self.state, gateway, previous):
                 raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
@@ -2430,6 +2453,32 @@ class Operations:
         remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
             raise UpdateBlocked("model_upgrade_private_health_failed")
+        if self.state.get("mode") == FINGPT_MODE:
+            primary = request_json(
+                f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/resident"
+            )
+            local = read_event_gateway_health(gateway)
+            expected = not previous
+            for observed in (primary, local, remote):
+                actual = (
+                    observed.get("alphadesk_qa", False)
+                    if previous
+                    else observed.get("alphadesk_qa")
+                )
+                if observed.get("revision") != sha or actual is not expected:
+                    raise UpdateBlocked("fingpt_runtime_mode_unverified")
+            if (
+                not gateway_configuration_matches(
+                    self.state, read_json(self.server / "resident.json"), previous
+                )
+                or self.event_gateway_identity() != gateway_identity
+                or any(
+                    value.get("mcp_readonly_enabled")
+                    is not self.state["gateway_config"].get("mcp_readonly_enabled", False)
+                    for value in (local, remote)
+                )
+            ):
+                raise UpdateBlocked("fingpt_gateway_configuration_changed")
         if self.state.get("mode") in EVENT_PRESERVATION_MODES:
             certify_mcp_off = not previous or self.state.get("mode") in MCP_DISABLED_ROLLBACK_MODES
             if certify_mcp_off:
@@ -3885,6 +3934,7 @@ def main(argv=None):
             "apply-etf-weekly",
             "apply-dossiers",
             "apply-discovery",
+            "apply-fingpt",
             "apply-etf-weekly-v2",
             "apply-etf-historical",
             "apply-etf-weekly-admission",
@@ -3973,6 +4023,7 @@ def main(argv=None):
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
+                "apply-fingpt": FINGPT_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
                 "apply-etf-historical": ETF_HISTORICAL_MODE,
                 "apply-etf-weekly-admission": ETF_WEEKLY_ADMISSION_MODE,
