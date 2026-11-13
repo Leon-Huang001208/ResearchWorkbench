@@ -9,7 +9,7 @@
 | `node scripts/git_safety.mjs check --project /Users/leon/Desktop/Projects/ResearchWorkbench` | Git fsck PASS，未见锁 |
 | `node --test` 问答、现有 Web UI、Docker 合同、架构、文档与交付路由相关套件 | 324 PASS |
 | `python -m pytest tests/research_web/test_alphadesk_qa.py tests/research_web/test_fingpt_dsh_fusion.py tests/research_web/test_discovery_tracking.py tests/research_web/test_report_delivery_links.py` | 53 PASS。初轮有一例流式夹具短于追问标识缓冲，调整夹具后通过 |
-| `python -m pytest tests/research_web/test_alphadesk_qa.py` | 增加费用预留测试后 5 PASS |
+| `python -m pytest tests/research_web/test_alphadesk_qa.py` | 增加费用预留和原生 Markdown 交付后 6 PASS |
 | Node 24 锁定安装、TypeScript、Vite、实际 wheel 与 ASGI 静态资源核对 | PASS，公开资源与已构建文件逐字节相同 |
 | `node tests/e2e/research_web_qa_browser.mjs` | 隔离 Chrome PASS，合成 API |
 | 独立源码评审 | 发现流式桥、作用域和质量回执阻断并逐项处理，最终候选仍需复核 |
