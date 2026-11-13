@@ -1,4 +1,5 @@
-import { createQAMount } from './qa-mount.mjs';
+import { applyConnectionWorkspaceFilters, forgetConfigurationSecrets } from './connection-workspace.mjs';
+import { createQAMount, paintQAPage, qaRetryBlockReason, qaSendBlockReason, renderQAHistory, renderQAPage } from './qa-mount.mjs';
 import { qaEnabled, isQASession, isSpecialistSession, researchSessionPage, fingptReplacement, visibleResearchSessions } from './qa-navigation.mjs';
 import { moduleKey, renderModuleSidebar, createModulePreferences, trapSecondaryFocus, closesSecondaryDrawer, focusModuleSelection } from './module-navigation.mjs';
 import { renderSpecialistPanel, handleSpecialistBudgetChange } from './specialist-panel.mjs';
@@ -84,7 +85,6 @@ const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newN
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
 const qaMount = createQAMount({ document });
-const emptyQaEvents = [];
 const qaActive = () => qaEnabled(catalog.runtime);
 const visibleSessions = (sessions = catalog.sessions) => visibleResearchSessions(sessions, qaActive());
 const progress = createProgressWorkspace({root, route:()=>state.route, notify:render, logger:safeLog});
@@ -360,41 +360,6 @@ const officeConsentQueue = createOfficeConsentQueue((id, consent) => api.setInte
 
 function notice(message, kind = 'error') { return message ? `<div class="notice ${kind}" role="${kind === 'error' ? 'alert' : 'status'}">${e(message)}</div>` : ''; }
 
-function forgetConfigurationSecrets(value) {
-  if (!value || typeof value !== 'object') return;
-  for (const key of Object.keys(value)) {
-    if (['password', 'token', 'api_key', 'cj_key'].includes(key)) delete value[key];
-    else forgetConfigurationSecrets(value[key]);
-  }
-}
-
-function applyConnectionWorkspaceFilters(workbench) {
-  if (!workbench) return;
-  try {
-    const query = String(workbench.querySelector('[data-connection-search]')?.value || '').trim().toLocaleLowerCase();
-    const status = workbench.querySelector('[data-connection-status]')?.value || 'all';
-    const group = workbench.dataset.activeGroup || 'professional';
-    let visible = 0;
-    workbench.querySelectorAll('[data-connection-card]').forEach((card) => {
-      const matchesGroup = query ? true : card.dataset.connectionGroupName === group;
-      const matchesStatus = status === 'all' || card.dataset.connectionStatusName === status;
-      const matchesQuery = !query || String(card.dataset.connectionSearchText || '').includes(query);
-      card.hidden = !(matchesGroup && matchesStatus && matchesQuery);
-      if (!card.hidden) visible += 1;
-    });
-    const count = workbench.querySelector('[data-connection-result-count]');
-    if (count) count.textContent = String(visible);
-    const emptyState = workbench.querySelector('[data-connection-empty]');
-    if (emptyState) emptyState.hidden = visible > 0;
-    const searchScope = workbench.querySelector('[data-connection-search-scope]');
-    if (searchScope) searchScope.hidden = !query;
-    const grid = workbench.querySelector('#connection-source-grid');
-    if (grid) grid.setAttribute('aria-labelledby', `connection-group-${group}`);
-  } catch (error) {
-    safeLog('connection_workspace_filter_failed', { status: error?.name || 'unknown' });
-  }
-}
-
 function closeConnectionDrawer(workbench, { restoreFocus = true } = {}) {
   const drawer = workbench?.querySelector('[data-connection-drawer]');
   if (!drawer || drawer.hidden) return false;
@@ -464,21 +429,8 @@ function closeMCPServerDialog({ restoreFocus = true } = {}) {
   return true;
 }
 
-function sendBlockReason() {
-  if (dossierDraftOpening) return '正在准备档案研究草稿，请等待冻结上下文就绪后发送。';
-  if (state.detail?.execution_restricted) return '此历史会话执行受限；保留可读记录，请新建研究。';
-  if (state.busy || state.stopping || state.loading || (state.route.sessionId && !state.detail)) return '操作尚未结束；草稿已保留，未发送。';
-  if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) return '上一任务与交付尚未确认结束；草稿已保留，未发送。';
-  if (catalog.pending.has('runtime') || catalog.runtime?.connected !== true || catalog.runtime.credential_configured === false) return '运行时未就绪，请检查连接与授权；草稿已保留。';
-  return '';
-}
-
-function retryBlockReason() {
-  const blocked = sendBlockReason();
-  if (blocked) return blocked;
-  if (state.draft.trim() || state.attachments.length || state.tabbitTabs.length || state.skillId || state.capability || state.toolIds.length || state.methodIds.length || state.expectedFormats !== null) return '输入区已有未发送的草稿或选择；请先发送或清除后再重试历史问题，当前输入已保留。';
-  return '';
-}
+const sendBlockReason = () => qaSendBlockReason({ dossierDraftOpening, state, catalog });
+const retryBlockReason = () => qaRetryBlockReason({ dossierDraftOpening, state, catalog });
 
 function composer() {
   const disabled = dossierDraftOpening || state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
@@ -496,29 +448,11 @@ function landing() {
 }
 
 function qaPage() {
-  const detail = state.detail;
-  const unavailable = state.route.sessionId && !detail && !state.loading;
-  return `<div data-qa-app role="region" aria-label="问答工作区"></div>${unavailable ? '<button class="button" data-reload-session>重新读取</button>' : ''}${detail ? `<header class="session-toolbar"><button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></header>${renderResearchAttention(detail)}` : ''}<div class="composer-dock">${composer()}</div>`;
+  return renderQAPage({ state, contextExpanded: window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed, composer, renderResearchAttention });
 }
 
 function paintQA() {
-  const placeholder = root.querySelector('[data-qa-app]');
-  qaMount.update(placeholder, placeholder ? {
-    sessionId: state.route.sessionId,
-    events: state.detail?.qa_events || emptyQaEvents,
-    mode: state.researchMode,
-    model: state.detail?.model || catalog.runtime?.model || '',
-    status: state.detail?.status || '',
-    disabled: state.busy || state.stopping || state.loading || Boolean(state.detail?.scenario_context || state.detail?.execution_restricted || isRunning(state.detail?.status) || state.detail?.can_recheck_stop),
-    loading: state.loading,
-    streamError: state.streamError,
-    onMode: mode => controller.setResearchMode(mode),
-    onSuggest: question => {
-      if (state.draft.trim()) { state.error = '输入区已有草稿，请先发送或清除。'; render(); return; }
-      controller.setDraft(question); render(); document.getElementById('prompt')?.focus();
-    },
-    onStop: async () => { await controller.cancel(); await loadCatalog(['sessions']); },
-  } : null);
+  paintQAPage({ root, mount: qaMount, state, catalog, controller, document, render, loadCatalog });
 }
 
 function researchPage() {
@@ -588,16 +522,7 @@ function mainPage() {
   if (state.route.page === 'intel') return state.route.intelTab === 'discovery' ? renderDiscovery(discoveryController.state) : state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'aihot') return renderAihot(aihotController.state);
   if (state.route.page === 'progress') return progress.render();
-  if (state.route.page === 'history') {
-    const mode = state.route.historyMode;
-    const view = state.route.historyView || 'active';
-    const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? qaActive() ? 'FinGPT与专业协作' : 'FinGPT' : '';
-    const modeQuery = mode ? `mode=${mode}` : '';
-    const activeHref = `#/history${modeQuery ? `?${modeQuery}` : ''}`;
-    const deletedHref = `#/history?${modeQuery ? `${modeQuery}&` : ''}view=deleted`;
-    const sessions = visibleSessions(view === 'deleted' ? catalog.deletedSessions : catalog.sessions);
-    return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : qaActive() ? '所有 FinGPT、专业协作与 Claw 会话。' : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
-  }
+  if (state.route.page === 'history') return renderQAHistory(state.route, visibleSessions(state.route.historyView === 'deleted' ? catalog.deletedSessions : catalog.sessions), historyFilter, qaActive(), renderHistory);
   return capabilityPage();
 }
 
