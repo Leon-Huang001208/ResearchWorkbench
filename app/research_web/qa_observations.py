@@ -13,6 +13,14 @@ _UNIT = re.compile(r"[%A-Za-z\u3400-\u9fff/（）()²·_-]{1,24}")
 
 def snapshot_observations(metadata, rows, raw, scope):
     """Emit only values with an explicit field unit and period, or attributed quotes."""
+    policy = metadata.get("provider_metadata") or {}
+    if (
+        policy.get("quality_accepted") is False
+        or metadata.get("source_stale") is True
+        or (metadata.get("query") or {}).get("quality") == "allow_stale"
+        or (metadata.get("query") or {}).get("purpose") == "display"
+    ):
+        return []
     identifier = "dataset:" + metadata["dataset_id"]
     digest = metadata["manifest_sha256"]
     result = []

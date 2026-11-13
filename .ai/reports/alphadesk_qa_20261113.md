@@ -13,6 +13,8 @@
 | Node 24 锁定安装、TypeScript、Vite、实际 wheel 与 ASGI 静态资源核对 | PASS，公开资源与已构建文件逐字节相同 |
 | `node tests/e2e/research_web_qa_browser.mjs` | 隔离 Chrome PASS，合成 API |
 | 独立源码评审 | 发现流式桥、作用域和质量回执阻断并逐项处理，最终候选仍需复核 |
+| Mac Docker Desktop 受管构建 | 第一次发现已登记控制镜像缺失，`./rwb-docker bootstrap` 恢复控制镜像。第二次在 DSH 依赖安装阶段因宿主空间降至约 600 MiB 主动中止，退出 130 |
+| 受管 Git prepare | `DELIVERY_FAILED`，记录为 `integration_failed`，Git 退出 128；尚未创建 PR |
 | 同候选 GitHub CI、真实模型与数据、常驻切换和回滚 | NOT_RUN |
 
 ## 尚需验收

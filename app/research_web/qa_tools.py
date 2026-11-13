@@ -200,6 +200,15 @@ class TurnTools:
             "warnings": ["当前研究未授权此工具或参数"],
         }
 
+    def record_source(self, source):
+        self.acquired[source["id"]] = source
+        self.receipt["qa_acquired_sources"] = {
+            source_id: value["sha256"]
+            for source_id, value in self.acquired.items()
+            if isinstance(value.get("sha256"), str)
+        }
+        self.store.save()
+
     def observation_sources(self):
         web = [
             source
@@ -250,7 +259,7 @@ class TurnTools:
             "as_of": manifest.get("as_of"),
             "sha256": manifest.get("manifest_sha256"),
         }
-        self.acquired[source["id"]] = source
+        self.record_source(source)
         return {
             "data": {
                 "status": manifest["status"],
@@ -298,7 +307,7 @@ class TurnTools:
             "as_of": manifest.get("as_of"),
             "sha256": manifest.get("manifest_sha256"),
         }
-        self.acquired[source["id"]] = source
+        self.record_source(source)
         return {
             "data": {
                 "dataset_id": did,
@@ -367,7 +376,7 @@ class TurnTools:
             "url": data.get("url"),
             "as_of": data.get("as_of"),
         }
-        self.acquired[source["id"]] = source
+        self.record_source(source)
         return {"data": data, "sources": [_source(source)]}
 
     async def report(self, plan):

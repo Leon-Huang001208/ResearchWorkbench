@@ -11006,7 +11006,7 @@ Imports:
 
 Classes:
 - `TurnTools`
-  - methods: __init__, schemas, sources_allowed, report_allowed, call, observation_sources, query, frozen_dataset, frozen_discovery, sources, read, report
+  - methods: __init__, schemas, sources_allowed, report_allowed, call, record_source, observation_sources, query, frozen_dataset, frozen_discovery, sources, read, report
 
 Functions:
 - `_tool`

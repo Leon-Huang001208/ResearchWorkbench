@@ -289,6 +289,12 @@ class QuestionExecution:
                 upload_evidence_files(self.store, sid, files), datasets, []
             )
         }
+        receipt = latest_receipt(service, sid)
+        for identifier in receipt.get("qa_acquired_sources", {}):
+            source = sources.get(identifier)
+            if source and source.get("dataset_id"):
+                manifest = service.datahub.detail(sid, source["dataset_id"])
+                source["sha256"] = manifest["manifest_sha256"]
         sources.update({source["id"]: source for source in row.get("web_search_sources", [])})
         sources.update({source["id"]: source for source in stored_sources(self.store, sid)})
         sources.update(
@@ -313,7 +319,6 @@ class QuestionExecution:
             "delivery": delivery,
             "execution_status": status,
         }
-        receipt = latest_receipt(service, sid)
         if status != "running" and receipt.get("research_contract"):
             quality = await asyncio.to_thread(
                 quality_result, service, sid, receipt, files, result["research_sources"], delivery

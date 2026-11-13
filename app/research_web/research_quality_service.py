@@ -421,6 +421,16 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
             if item.get("kind") != "inputs" or item["id"] in attachment_ids
         ]
     web_ids = {item["id"] for item in files} - {item["id"] for item in upload_files}
+    acquired = receipt.get("qa_acquired_sources")
+    if receipt.get("qa_attachment_ids") is not None:
+        acquired = acquired or {}
+        sources = [
+            source
+            for source in sources
+            if source.get("dossier_handle")
+            or source["id"].startswith("file:")
+            or (source["id"] in acquired and source.get("sha256") == acquired[source["id"]])
+        ]
     sources = [
         source
         for source in sources

@@ -135,6 +135,8 @@ def test_owned_snapshot_observation_preserves_period_unit_and_bytes():
     assert proof["sha256"] == metadata["manifest_sha256"]
     assert raw[span["start"] : span["end"]] == '"close": 12.5'
     assert snapshot_observations(metadata, rows, raw.replace("12.5", "12.6"), "same") == []
+    declined = {**metadata, "provider_metadata": {"quality_accepted": False}}
+    assert snapshot_observations(declined, rows, raw, "same") == []
 
 
 def test_acceptance_budget_reserves_before_model_dispatch(tmp_path, monkeypatch):
