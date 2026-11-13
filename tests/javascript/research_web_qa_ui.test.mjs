@@ -17,6 +17,7 @@ test('activation replaces the rail and hides retired FinGPT history while retain
   assert.equal(qaEnabled({ execution_engine: 'alphadesk' }), true);
   const rail = renderPrimaryRail({ route: { page: 'qa' }, qaEnabled: true });
   assert.match(rail, /href="#\/qa".*?aria-current="page"/);
+  assert.match(rail, /FinGPT/);
   assert.match(rail, /href="#\/specialist"/);
   assert.doesNotMatch(rail, /href="#\/fingpt"/);
   assert.deepEqual(visibleResearchSessions([legacy, qa, specialist, claw], true), [qa, specialist, claw]);

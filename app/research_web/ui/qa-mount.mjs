@@ -41,7 +41,7 @@ export function createQAMount({ document, load = () => import('./qa-dist/qa.js')
     }).catch(() => {
       if (element !== target) return;
       logger('qa_frontend_load_failed');
-      target.textContent = 'AI 问答页面暂不可用，请检查安装后刷新。';
+      target.textContent = 'FinGPT页面暂不可用，请检查安装后刷新。';
     }).finally(() => {
       if (element === target) pending = null;
     });

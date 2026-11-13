@@ -15,7 +15,7 @@ export const PRIMARY_NAVIGATION = [
 ];
 
 export const QA_NAVIGATION = [
-  { page: 'qa', glyph: 'chat', title: 'AI 问答', href: '#/qa' },
+  { page: 'qa', glyph: 'chat', title: 'FinGPT', href: '#/qa' },
   { page: 'specialist', glyph: 'listChecks', title: '专业协作', href: '#/specialist' },
 ];
 

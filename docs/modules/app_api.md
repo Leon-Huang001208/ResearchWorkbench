@@ -531,4 +531,4 @@ The DSH callback accepts a strict, sanitized metadata envelope. Raw assistant/us
 
 - 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。
 
-启用 AlphaDesk 时，旧版 Web 的 `/api/v2/fingpt/health` 返回退役状态，旧预设任务的创建与执行返回 410，用户通过 Research Web 进入 AI 问答。
+启用 AlphaDesk 时，旧版 Web 的 `/api/v2/fingpt/health` 返回退役状态，旧预设任务的创建与执行返回 410，用户通过 Research Web 进入 FinGPT。

@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/v2/fingpt", tags=["fingpt"])
 
 def _require_legacy_fingpt():
     if os.environ.get("RWB_ALPHADESK_QA") == "1":
-        raise HTTPException(status_code=410, detail="FinGPT 已退役，请打开 AI 问答。")
+        raise HTTPException(status_code=410, detail="旧预设任务已退役，请打开 FinGPT。")
 
 
 class CreateTaskRequest(BaseModel):

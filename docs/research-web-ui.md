@@ -839,4 +839,4 @@ SOFTWARE.
 
 常驻主账号仅服务模式使用当前 Web 静态资源，继续显示外部研究宿主。WeKnora OAuth 先进入 RWB 登录与选材页面。
 
-问答启用后使用 `#/qa`，保留 RWB 输入、资料和输出格式控制。专业协作使用 `#/specialist`。
+FinGPT 启用新执行器后使用 `#/qa`，保留 RWB 输入、资料和输出格式控制。专业协作使用 `#/specialist`。

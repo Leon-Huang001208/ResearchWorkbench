@@ -1,6 +1,6 @@
-# AI 问答
+# FinGPT
 
-Research Web 的 AI 问答使用迁入的 AlphaDesk React 问答组件及 Node 研究编排。源码来自 AlphaDesk 提交 `1c946b9a0930d3070da7263ffcffe5e8831077c3`，用户确认授权公开提交。前端与执行器各自记录来源和修改，RWB 输入区承接附件、范围、文件格式和幂等提交。
+Research Web 的 FinGPT 使用迁入的 AlphaDesk React 问答组件及 Node 研究编排。源码来自 AlphaDesk 提交 `1c946b9a0930d3070da7263ffcffe5e8831077c3`，用户确认授权公开提交。前端与执行器各自记录来源和修改，RWB 输入区承接附件、范围、文件格式和幂等提交。
 
 ## 执行与资料
 

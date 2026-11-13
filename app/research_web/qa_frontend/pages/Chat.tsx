@@ -32,7 +32,7 @@ export default function Chat({ events, mode, model, status, disabled, loading, s
   const openSource = (turn: number, id: string) => setPanel({ turn, id, nonce: Date.now() });
 
   return (
-    <section className="qa-page" aria-label="AI 问答">
+    <section className="qa-page" aria-label="FinGPT">
       <header className="qa-modes">
         <div className="qa-mode-buttons" role="group" aria-label="研究模式">
           {modes.map(item => <button key={item} type="button" className="button" aria-pressed={mode === item}

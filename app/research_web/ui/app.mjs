@@ -591,12 +591,12 @@ function mainPage() {
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
-    const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? qaActive() ? 'AI 问答与专业协作' : 'FinGPT' : '';
+    const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? qaActive() ? 'FinGPT与专业协作' : 'FinGPT' : '';
     const modeQuery = mode ? `mode=${mode}` : '';
     const activeHref = `#/history${modeQuery ? `?${modeQuery}` : ''}`;
     const deletedHref = `#/history?${modeQuery ? `${modeQuery}&` : ''}view=deleted`;
     const sessions = visibleSessions(view === 'deleted' ? catalog.deletedSessions : catalog.sessions);
-    return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : qaActive() ? '所有 AI 问答、专业协作与 Claw 会话。' : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
+    return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : qaActive() ? '所有 FinGPT、专业协作与 Claw 会话。' : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
   }
   return capabilityPage();
 }
@@ -681,7 +681,7 @@ function capabilityPage() {
 function sidebar() {
   if (['qa', 'specialist'].includes(state.route.page)) {
     const specialist = state.route.page === 'specialist';
-    const title = specialist ? '专业协作' : 'AI 问答';
+    const title = specialist ? '专业协作' : 'FinGPT';
     const sessions = catalog.sessions.filter(specialist ? isSpecialistSession : isQASession);
     const selected = state.route.sessionId;
     return `<aside id="module-secondary-navigation" class="sidebar secondary-sidebar module-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'mobile-open' : ''}" aria-label="${title}历史" ${sidebarCollapsed && !sidebarOpen ? 'inert aria-hidden="true"' : ''}><header class="sidebar-top"><h2>${title}</h2><button type="button" class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="收起二级导航">${icon('sidebar')}</button></header><nav class="module-links qa-history"><a href="#/${state.route.page}">新建研究</a>${sessions.map(item => `<a href="${sessionHash(item)}"${selected === item.id ? ' aria-current="page"' : ''}>${e(item.title || '未命名研究')}</a>`).join('') || '<p class="small muted">暂无历史研究</p>'}</nav></aside>`;
@@ -917,7 +917,7 @@ function render() {
   mountAssetIndicators(Boolean(persistentAssetTerminal));
   const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
   if (assetSearchSlot) assetSearch = mountAssetSearch(assetSearchSlot, { api, account: () => globalThis.__RWB_USER_ID__ || 'local', asset: state.route.asset || assetState.observation?.asset || '', onSelect: item => { location.hash = assetHref(item.asset, 'stock', state.route.assetView || 'overview'); } });
-  document.title = `${state.route.page === 'skills' && state.route.capabilityView === 'plans' ? '定时任务' : state.detail?.title || ({ fingpt: 'FinGPT', qa: 'AI 问答', specialist: '专业协作', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料', progress: '研发进展' })[state.route.page] || '资产观察'} · Research Workbench`;
+  document.title = `${state.route.page === 'skills' && state.route.capabilityView === 'plans' ? '定时任务' : state.detail?.title || ({ fingpt: 'FinGPT', qa: 'FinGPT', specialist: '专业协作', claw: 'Claw', reports: '报告生产', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料', progress: '研发进展' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
