@@ -146,6 +146,7 @@ def test_optional_diagnosis_does_not_rewrite_installation_readiness(tmp_path, mo
         save(root, {"token": "secret"})
     monkeypatch.setattr(admission, "diagnostic", lambda root: {"state": "unconfigured"})
     manager = SimpleNamespace(
+        project_root=tmp_path,
         data_root=root,
         _installation_diagnosis=lambda: {"ok": True, "issues": []},
         _service_probes=lambda: (),

@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-20261023-e2a3b9d1-integration/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-dossiers-20261023-e2a3b9d1-integration/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/alphadesk-qa-20261113/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/alphadesk-qa-20261113/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "e29b53af59c02cc3be83e305fdcf5def4023a08af77f3627e61591d528297fd7",
-    "bytes": 15316
+    "sha256": "f80004cfef8e4b02b7bb77fcc22757d8ab9161db91f193e3790d4102db3a4d0a",
+    "bytes": 15324
   },
   "artifact": {
-    "sha256": "12824cac8baf14e3a079ba3b92472a2747556741b2ed4ea68afe71743e108dae",
-    "bytes": 663702
+    "sha256": "1e4c52c8a87088b286c831dbf4988c3bf6278fc9ce5e43d46db9f98a61e994bd",
+    "bytes": 663734
   },
   "validation": {
     "checksPassed": 9,

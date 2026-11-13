@@ -50,6 +50,9 @@ def run(root: Path) -> int:
         if config.get("project") != str(PROJECT) or config.get("port") != 8089:
             raise RuntimeErrorSafe("server_configuration_invalid")
         capacity = _configured_capacity(config)
+        alphadesk_qa = config.get("alphadesk_qa", False)
+        if type(alphadesk_qa) is not bool or (alphadesk_qa and service_only):
+            raise RuntimeErrorSafe("server_qa_configuration_invalid")
         accounts = AccountStore(root)
         binding = LegacyBinding.from_config(config["binding"])
         original = read_json(binding.home / "resident/config.json")
@@ -78,6 +81,7 @@ def run(root: Path) -> int:
                     node=config["node"],
                     max_instances=capacity,
                     service_only=service_only,
+                    alphadesk_qa=alphadesk_qa,
                     primary_storage=primary_storage,
                 ),
                 recover=recover,

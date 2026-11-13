@@ -220,6 +220,8 @@ macOS 可选 resident 管理平面在用户登录后监督既有 Native Web/DSH�
 配置与操作见[安装指南](research-web-installation.md#macos-登录后常驻与自动部署)。
 
 
+AlphaDesk AI 问答候选在 Research Web Host 下使用独立 Node 进程执行问答，沿用账号模型、DataHub、证据和报告服务。DSH 执行 Claw 与独立专业协作。入口、持久回执和切换限制见[AI 问答合同](research-web-ai-qa.md)。
+
 本页只维护系统级边界。Research Web 的模块、协议、数据文件、安全和接口细节统一从 [Research Web 当前架构](architecture/research-web/README.md) 进入；旧平台的完整历史说明已归档。
 
 ## 当前产品边界

@@ -1,8 +1,9 @@
 import { defaultSpecialistBudget, specialistBudgetError, specialistCanResume } from './specialist-panel.mjs';
+import { researchSessionPage } from './qa-navigation.mjs';
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot', 'progress']);
+const pages = new Set(['fingpt', 'qa', 'specialist', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot', 'progress']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
@@ -17,7 +18,7 @@ export function parseRoute(hash = '') {
   const params = new URLSearchParams(query);
   const route = {
     page,
-    sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
+    sessionId: ['fingpt', 'qa', 'specialist', 'claw'].includes(page) ? params.get('session') : null,
   };
   if (page === 'progress') {
     route.progressTab = sectionSegment === 'changelog' ? 'changelog' : 'overview';
@@ -163,13 +164,13 @@ export async function prepareClawExampleDraft(controller, prompt, { navigate, cu
   return true;
 }
 
-export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
+export const sessionHash = (session) => `#/${researchSessionPage(session)}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
 
 export function reconcileSessionSummary(sessions, detail) {
   if (!detail?.id) return sessions;
   const { id, title, mode, status, can_cancel } = detail;
-  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel, ...(detail.updated_at !== undefined ? { updated_at: detail.updated_at } : {}), ...(Array.isArray(detail.questions) ? { waitingForAnswer: detail.questions.length > 0 } : {}) } : session);
+  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel, ...(detail.research_mode ? { research_mode: detail.research_mode } : {}), ...(detail.execution_engine ? { execution_engine: detail.execution_engine } : {}), ...(detail.updated_at !== undefined ? { updated_at: detail.updated_at } : {}), ...(Array.isArray(detail.questions) ? { waitingForAnswer: detail.questions.length > 0 } : {}) } : session);
 }
 
 export function collectQuestionAnswers(values, items) {
@@ -668,13 +669,15 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     if (hasOpened) saveDraft(); hasOpened = true; const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false; state.stopping = false;
     const savedDraft = readDraft(draftKey());
-    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', specialistBudget: defaultSpecialistBudget(), dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', specialistBudget: defaultSpecialistBudget(), dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] });
+    if (route.page === 'specialist') { state.researchMode = 'specialist'; state.researchDepth = 'deep'; }
+    emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
       if (ticket !== generation) return;
       snapshot(data);
-      if (!savedDraft?.researchMode) {
+      if (route.page !== 'specialist' && !savedDraft?.researchMode) {
         state.researchMode = researchMode(data.research_mode, data.research_depth);
         state.researchDepth = state.researchMode === 'quick' ? 'instant' : 'deep';
       }
@@ -737,7 +740,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (body.dossier_handoff_id) {
         // A page reload may leave only the active session in memory. The two
         // durable homepage drafts still need the same receipt cleanup.
-        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt'])) {
+        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt', 'new:qa'])) {
           const value = readDraft(key);
           if (key !== id && value?.dossierHandoff?.id === body.dossier_handoff_id) {
             pending.delete(key); putDraft(key, { ...value, dossierHandoff: null });

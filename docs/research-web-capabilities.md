@@ -574,3 +574,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务模式的研究能力可由外部宿主消费。RWB 账号内原生能力创建、启用及运行请求在该模式拒绝。
+
+AlphaDesk 收到 Host 固定且已验证的能力资源。原目录批准、资料条件和账号权限继续决定可调用工具。

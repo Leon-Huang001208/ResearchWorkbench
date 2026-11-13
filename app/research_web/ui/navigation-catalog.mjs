@@ -14,6 +14,11 @@ export const PRIMARY_NAVIGATION = [
   { page: 'operations', glyph: 'gauge', title: '运行与用量', href: '#/operations' },
 ];
 
+export const QA_NAVIGATION = [
+  { page: 'qa', glyph: 'chat', title: 'FinGPT', href: '#/qa' },
+  { page: 'specialist', glyph: 'listChecks', title: '专业协作', href: '#/specialist' },
+];
+
 export const settingsSections = Object.freeze([
   { id: 'general', label: '通用', eyebrow: 'GENERAL', description: '管理仅影响当前浏览器的显示偏好。' },
   { id: 'users', label: '用户管理', eyebrow: 'USER MANAGEMENT', description: '邀请用户，并管理账号和研究实例。', adminOnly: true },

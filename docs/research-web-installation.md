@@ -1,5 +1,21 @@
 # Research Web Native / Docker 安装与运行
 
+## AlphaDesk 问答组件
+
+三个公开安装入口共用原 Python、Node 24、固定 DSH 与 CJPY 安装合同。Native 安装用
+`app/research_web/qa_frontend/package-lock.json` 在临时目录执行 `npm ci --ignore-scripts`，
+构建后校验 `qa.js`、`qa.css`、第三方许可清单和构建输入摘要，再把产物纳入产品 wheel。Docker 用同一锁文件和
+Node 版本构建，并在镜像构建过程中校验资源。最终安装仅需要构建产物和标准库 Node worker，
+问答前端源码和 `node_modules` 留在构建侧。Web Python 依赖锁继续适用。
+
+`rwb web doctor --json` 和 `rwb server doctor --json` 的 `ai_qa` 报告产物与摘要的匹配状态。`assets_ready` 表示构建资源可读取，
+`model_acceptance=NOT_RUN` 表示 Doctor 未执行模型验证。Mac Bootstrap 对比已安装 wheel、实际
+HTTP 响应与构建摘要。私网网关、正式切换和真实业务验收另行取证。
+
+受管 Native 切换在停止服务前，从已核定的候选提交生成私有源码归档并构建带问答资源的 wheel。
+主实例和私网网关的 release checkout 仍保持干净，运行时按前端源码摘要匹配 wheel 中的静态资源。
+构建失败时保留原发布版本。
+
 首批市场面板使用原静态资产和原锁定依赖；干净安装检查一次性操作模块的实际字节，不在启动时取源。
 
 市场V2切换使用既有依赖与安装入口；Native Git切换上限120秒，切后复核再安装原锁轮子，同候选Mac干净安装另验。

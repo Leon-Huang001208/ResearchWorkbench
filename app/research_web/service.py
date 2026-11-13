@@ -20,7 +20,7 @@ from websockets.exceptions import WebSocketException
 from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import research_admission
 
-from . import PINNED_DSH_COMMIT
+from . import PINNED_DSH_COMMIT, qa_execution, qa_model
 from .asset_workspace import AssetWorkspace
 from .automation.channels import DeliveryChannelStore
 from .automation.delivery import DeliveryDispatcher
@@ -75,6 +75,8 @@ from .projection import (
     merge_event_records,
     project,
 )
+from .qa_attachments import ATTACHMENT_EXTENSIONS as QA_ATTACHMENT_EXTENSIONS
+from .qa_attachments import turn_images
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .research_evidence import evidence_index, report_projection
@@ -341,6 +343,7 @@ class ResearchService(ModelProfilesMixin):
         self.available_event_sources = available_event_sources
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
+        self.qa = qa_execution.QuestionExecution(self)
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(
             store, admission=self._data_query_admission, warehouse=market_store_bridge
@@ -599,6 +602,7 @@ class ResearchService(ModelProfilesMixin):
         await self.frameworks.close()
         await self.mcp_runtime.close()
         await self.mcp_registry.close()
+        await self.qa.close()
         await self.datahub.close()
         if self.pump:
             self.pump.cancel()
@@ -843,6 +847,7 @@ class ResearchService(ModelProfilesMixin):
             return {
                 "connected": ready,
                 "health_check_passed": True,
+                "execution_engine": (qa_execution.ENGINE if qa_execution.enabled(self) else "dsh"),
                 "provider": self.default_model["provider"],
                 "runtime_provider": info.get("provider"),
                 "model": self.default_model["model"],
@@ -1352,6 +1357,15 @@ class ResearchService(ModelProfilesMixin):
             if metadata:
                 row.update(metadata)
             sid = row["id"]
+            if (
+                qa_execution.enabled(self)
+                and mode == "fingpt"
+                and row.get("research_mode") != "specialist"
+            ):
+                qa_execution.bind(self, row, selection)
+                self.store.save()
+                self.notify()
+                return self.summary(row)
             shutil.copytree(
                 Path(__file__).parent / "resources",
                 self.store.directory(sid) / "resources",
@@ -1410,6 +1424,20 @@ class ResearchService(ModelProfilesMixin):
         async with self.lock:
             row = self.store.reserve_hot_session(record["sessionId"], record["targetMode"], origin)
             sid = row["id"]
+            if qa_execution.owns(row) or (
+                qa_execution.enabled(self)
+                and row["mode"] == "fingpt"
+                and row.get("hot_creation_state") == "reserved"
+                and not row["created"]
+            ):
+                if not row["created"]:
+                    qa_execution.bind(self, row, self.default_model)
+                    row.update(hot_creation_state="ready", status="idle", updated_at=time.time())
+                    self.store.save()
+                    self.notify()
+                return self.summary(row)
+            if qa_execution.retired(self, row):
+                raise StoreError("旧 FinGPT 会话已退役", "fingpt_retired", 410)
             native = await self.client.rpc("session.list", {})
             if (
                 not isinstance(native, dict)
@@ -1504,6 +1532,8 @@ class ResearchService(ModelProfilesMixin):
             key: row[key]
             for key in ("id", "mode", "title", "workspace_id", "status", "model", "updated_at")
         }
+        if qa_execution.owns(row):
+            result["execution_engine"] = qa_execution.ENGINE
         result["research_depth"] = row.get("research_depth", "instant")
         if row.get("mode") == "fingpt":
             result["research_mode"] = row.get(
@@ -1698,6 +1728,8 @@ class ResearchService(ModelProfilesMixin):
             and row.get("deleted_at") is None
             and row.get("mode") in {"claw", "fingpt"}
             and (mode is None or row["mode"] == mode)
+            and not qa_execution.retired(self, row)
+            and not qa_execution.owns(row)
         )
         if len(scope_ids) > 10000:
             raise StoreError("正文搜索会话范围超过上限", "session_search_scope_exceeded", 422)
@@ -1767,11 +1799,30 @@ class ResearchService(ModelProfilesMixin):
             items.append(
                 {"id": sid, "title": title, "mode": row["mode"], "snippet": item["snippet"]}
             )
+        qa_items = []
+        for row in self.store.data["sessions"].values():
+            if not qa_execution.owns(row) or row.get("deleted_at") or mode == "claw":
+                continue
+            for message in reversed(self.qa.ledger(row["id"])["messages"]):
+                content = message["content"]
+                index = content.casefold().find(query.casefold())
+                if index >= 0:
+                    qa_items.append(
+                        {
+                            "id": row["id"],
+                            "title": row["title"],
+                            "mode": row["mode"],
+                            "snippet": content[max(0, index - 30) : index + 180],
+                        }
+                    )
+                    break
+        has_more = len(qa_items) + len(items) > 20
+        items = [*qa_items, *items][:20]
         log.info("research_session_search_completed", count=len(items))
         return {
             "items": items,
-            "has_more": response["hasMore"],
-            "source": "native_dsh",
+            "has_more": response["hasMore"] or has_more,
+            "source": "research_web" if qa_execution.enabled(self) else "native_dsh",
             "unavailable_count": response["coverage"]["unavailableSessionCount"]
             + response["coverage"]["unlistedSessionCount"],
         }
@@ -1795,13 +1846,16 @@ class ResearchService(ModelProfilesMixin):
         ]
         if self.service_only:
             return [self._external_history_summary(row) for row in rows]
-        active_rows = [row for row in rows if row.get("deleted_at") is None]
+        rows = [row for row in rows if not qa_execution.retired(self, row)]
+        active_rows = [
+            row for row in rows if row.get("deleted_at") is None and not qa_execution.owns(row)
+        ]
         native = await self.client.rpc("session.list", {}) if active_rows else {"items": []}
         running = {item["sessionId"]: item["running"] for item in native["items"]}
         semaphore = asyncio.Semaphore(SUBAGENT_LIST_CONCURRENCY)
 
         async def children_for(row):
-            if row.get("deleted_at") is not None or not row["created"]:
+            if row.get("deleted_at") is not None or not row["created"] or qa_execution.owns(row):
                 return {"entries": []}
             async with semaphore:
                 try:
@@ -1826,6 +1880,7 @@ class ResearchService(ModelProfilesMixin):
             for row, children in zip(rows, children_by_row, strict=True)
             if row.get("deleted_at") is None
             and row["created"]
+            and not qa_execution.owns(row)
             and not running.get(row["id"])
             and not children.get("warning")
             and not any(child.get("activity") == "running" for child in children["entries"])
@@ -1868,6 +1923,10 @@ class ResearchService(ModelProfilesMixin):
             if row.get("deleted_at") is not None:
                 results.append(result)
                 continue
+            if qa_execution.owns(row):
+                result["status"] = self.qa.status(row["id"])
+                results.append(result)
+                continue
             warning = children.get("warning") or warnings.get(row["id"])
             if warning:
                 result["history_warning"] = warning
@@ -1894,8 +1953,14 @@ class ResearchService(ModelProfilesMixin):
         await self.ensure_owned()
         async with self.lock:
             row = self.store.session(sid, include_deleted=True)
+            if qa_execution.retired(self, row):
+                raise StoreError("旧 FinGPT 会话已退役", "fingpt_retired", 410)
             if row.get("deleted_at") is not None:
                 return self.summary(row)
+            if qa_execution.owns(row):
+                if sid in self.qa.tasks:
+                    raise StoreError("会话仍在运行", "session_busy", 409)
+                return self.summary(self.store.soft_delete(sid))
             native = await self.client.rpc("session.list", {})
             native_running = any(
                 item.get("sessionId") == sid and item.get("running") is True
@@ -1969,6 +2034,12 @@ class ResearchService(ModelProfilesMixin):
         if row.get("deleted_at") is None:
             raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
         await self.asset_workspace.history_jobs.cancel_session(sid)
+        if qa_execution.retired(self, row):
+            raise StoreError("旧 FinGPT 会话已退役", "fingpt_retired", 410)
+        if qa_execution.owns(row) and row.get("native_deleted_at") is None:
+            row["native_deleted_at"] = time.time()
+            self.qa.cache.pop(sid, None)
+            self.store.save()
         if row.get("native_deleted_at") is None:
             try:
                 native = await self.client.rpc("session.delete", {"sessionId": sid})
@@ -2468,11 +2539,15 @@ class ResearchService(ModelProfilesMixin):
                 "datasets": self.datahub.summaries(sid),
             }
         row = self.store.session(sid)
+        if qa_execution.retired(self, row):
+            raise StoreError("旧 FinGPT 会话已退役", "fingpt_retired", 410)
         from .scenario_handoffs import trusted_context
 
         # Session detail includes frozen summaries and quotes. Reuse the same
         # ancestor authorization/integrity boundary as controlled file reads.
         frozen_scenario = trusted_context(self, sid, check_capabilities=False)
+        if qa_execution.owns(row):
+            return await self.qa.detail(sid)
         if not row["created"]:
             raise RuntimeFailure("该会话未成功创建，请新建研究", "session_create_failed")
         observed = self._cancel_observation(sid)
@@ -2825,6 +2900,11 @@ class ResearchService(ModelProfilesMixin):
             if getattr(self, "plugin_runtime_frozen", False):
                 raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
             row = self.store.session(sid)
+            if qa_execution.retired(self, row):
+                raise StoreError("旧 FinGPT 会话已退役", "fingpt_retired", 410)
+            alpha = qa_execution.owns(row)
+            if alpha and (not qa_execution.enabled(self) or tabbit_tabs or tabbit_live_confirmed):
+                raise StoreError("当前问答不支持此执行范围", "qa_scope_unavailable", 409)
             if row.get("purpose") == "discovery_research" and (
                 row.get("discovery_creation_state") != "ready"
             ):
@@ -2916,13 +2996,29 @@ class ResearchService(ModelProfilesMixin):
                 research_mode and row["mode"] != "fingpt"
             ):
                 raise StoreError("不支持的研究模式")
+            if alpha and chosen_mode not in qa_execution.MODES:
+                raise StoreError("请从专业协作入口新建会话", "qa_mode_invalid", 409)
+            if (
+                qa_execution.enabled(self)
+                and row.get("research_mode") == "specialist"
+                and chosen_mode != "specialist"
+            ):
+                raise StoreError("专业协作会话仅支持专业协作", "specialist_mode_required", 409)
             specialist_budget = specialist_service.validate_send(
                 self, sid, chosen_mode, specialist_budget
             )
             depth = "instant" if chosen_mode == "quick" else "deep"
             if not row["created"]:
                 raise StoreError("会话尚未创建")
-            children = await self.client.rpc("subagent.list", {"parentSessionId": sid})
+            if alpha and self.qa.status(sid) == "interrupted":
+                raise StoreError(
+                    "上轮受理或交付尚未确认，请新建会话", "qa_recovery_unverified", 409
+                )
+            children = (
+                {"entries": []}
+                if alpha
+                else await self.client.rpc("subagent.list", {"parentSessionId": sid})
+            )
             if any(child.get("activity") == "running" for child in children["entries"]):
                 raise StoreError("子会话仍在运行，请等待结束", "session_busy", 409)
             source_scope = self.store.session(sid).get(
@@ -2956,7 +3052,7 @@ class ResearchService(ModelProfilesMixin):
             ]
             if approved:
                 await self.plugins.synchronize(approved)
-            if self.plugins.data["active"]:
+            if self.plugins.data["active"] and not alpha:
                 native_plugins = await self.skill_catalog(sid)
                 self.plugins.confirm_native(skill["name"] for skill in native_plugins["skills"])
             # Plugins supply reviewed instructions only; DSH remains the sole
@@ -3154,11 +3250,13 @@ class ResearchService(ModelProfilesMixin):
                         else "capability_data_unavailable"
                     )
                     raise CapabilityError("能力所需数据或模型工具范围未满足；草稿保留", code, 409)
-            await self._require_model_credentials(provider)
-            if self.connected != {"mux", "host"}:
-                raise RuntimeFailure("DSH 事件未连接，暂不提交问题")
+            connection = await qa_model.connection(self, row) if alpha else None
+            if not alpha:
+                await self._require_model_credentials(provider)
+                if self.connected != {"mux", "host"}:
+                    raise RuntimeFailure("DSH 事件未连接，暂不提交问题")
             current = await self.detail(sid)
-            native = await self.client.rpc("session.list", {})
+            native = {"items": []} if alpha else await self.client.rpc("session.list", {})
             busy = current["can_cancel"] or any(
                 item["sessionId"] == sid and item["running"] for item in native["items"]
             )
@@ -3175,8 +3273,26 @@ class ResearchService(ModelProfilesMixin):
                 self.store.file_path(sid, fid).relative_to(self.store.directory(sid)).as_posix()
                 for fid in attachments
             ]
+            if alpha and attachments:
+                from .research_web_sources import upload_evidence_files
+
+                permitted = {
+                    item["id"]
+                    for item in upload_evidence_files(self.store, sid, self.store.files(sid))
+                    if item.get("kind") == "inputs"
+                }
+                if not set(attachments).issubset(permitted):
+                    raise StoreError("附件不是本轮可用的上传资料", "qa_attachment_scope", 403)
             images = []
             image_bytes = 0
+            qa_images = []
+            attachment_files = list(zip(attachments, files, strict=True))
+            if alpha and attachment_files:
+                if any(Path(name).suffix.lower() not in QA_ATTACHMENT_EXTENSIONS for name in files):
+                    raise StoreError("不支持的问答附件格式", "qa_attachment_format_invalid", 422)
+                qa_images = await asyncio.to_thread(
+                    turn_images, self.store, sid, attachment_files, connection
+                )
             media = {
                 ".png": "image/png",
                 ".jpg": "image/jpeg",
@@ -3184,7 +3300,7 @@ class ResearchService(ModelProfilesMixin):
                 ".webp": "image/webp",
                 ".gif": "image/gif",
             }
-            for fid, filename in zip(attachments, files, strict=True):
+            for fid, filename in [] if alpha else attachment_files:
                 mime = media.get(Path(filename).suffix.lower())
                 if mime:
                     stream, name = self.store.open_file(sid, fid)
@@ -3202,7 +3318,7 @@ class ResearchService(ModelProfilesMixin):
                         }
                     )
             native_skill = selection["native_name"] if selection else skill_id
-            if native_skill or methods or scenario_selections:
+            if not alpha and (native_skill or methods or scenario_selections):
                 skills = await self.skill_catalog(sid)
                 discovered = {skill["name"] for skill in skills["skills"]}
                 if (
@@ -3265,6 +3381,7 @@ class ResearchService(ModelProfilesMixin):
                 weekly_context
                 or discovery_context
                 or scenario_context
+                or alpha
                 or (row["mode"] == "fingpt" and row.get("purpose") in {None, "research"})
             ):
                 try:
@@ -3317,6 +3434,30 @@ class ResearchService(ModelProfilesMixin):
                         "research_contract_preflight_failed",
                         409,
                     ) from None
+            framework_text = None
+            if alpha:
+                self.qa.check_admission(sid)
+                resources = [
+                    (self.store.directory(sid) / item["resource_path"] / "SKILL.md")
+                    for item in [*scenario_selections, *([selection] if selection else [])]
+                ]
+                method_specs = [item.get("method_spec") for item in methods]
+                framework = {
+                    "contract": contract,
+                    "attachments": list(attachments),
+                    "approved_methods": method_specs,
+                    "instructions": [path.read_text(encoding="utf-8") for path in resources],
+                }
+                framework_text = json.dumps(framework, ensure_ascii=False)
+                wire_framework = json.dumps(
+                    {"name": "RWB 本轮研究合同", "text": framework_text},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                if len(wire_framework.encode("utf-16-le")) // 2 > 32000:
+                    raise StoreError(
+                        "冻结要求和能力资料超过问答上下文限制", "qa_framework_limit", 422
+                    )
             if not frozen_weekly_receipt and not self.store.reserve(sid, key, digest, delivery):
                 status = self.store.receipt(sid, key)["status"]
                 if status == "accepted":
@@ -3327,9 +3468,10 @@ class ResearchService(ModelProfilesMixin):
             self.store.receipt(sid, key)["capability_catalog"] = capability_snapshots
             if scenario_selections:
                 self.store.receipt(sid, key)["scenario_required_capabilities"] = scenario_selections
-                self.store.receipt(sid, key)["scenario_discovered_capabilities"] = [
-                    item["native_name"] for item in scenario_selections
-                ]
+                if not alpha:
+                    self.store.receipt(sid, key)["scenario_discovered_capabilities"] = [
+                        item["native_name"] for item in scenario_selections
+                    ]
                 self.store.receipt(sid, key)["scenario_readiness"] = scenario_readiness
             if contract:
                 row.update(research_mode=chosen_mode, research_depth=depth)
@@ -3343,6 +3485,22 @@ class ResearchService(ModelProfilesMixin):
                 self.store.receipt(sid, key)["methods"] = methods
                 self.store.receipt(sid, key)["method_trace_start"] = method_trace_start
             self.store.save()
+            if alpha:
+                receipt = self.store.receipt(sid, key)
+                receipt["qa_capability_inputs"] = scenario_selections
+                receipt["qa_tool_scope"] = list(tool_ids)
+                receipt["qa_attachment_ids"] = list(attachments)
+                self.store.save()
+                return await self.qa.start(
+                    sid,
+                    key,
+                    text,
+                    chosen_mode,
+                    framework_text,
+                    attachments,
+                    connection,
+                    qa_images,
+                )
             if weekly_scope:
                 weekly_runtime._update_run(_weekly_run_id, research_submission_state="prepared")
             prompt = text
@@ -3854,7 +4012,12 @@ class ResearchService(ModelProfilesMixin):
 
     async def cancel(self, sid):
         await self.ensure_owned()
-        self.store.session(sid)
+        row = self.store.session(sid)
+        if qa_execution.retired(self, row):
+            raise StoreError("旧 FinGPT 会话已退役", "fingpt_retired", 410)
+        if qa_execution.owns(row):
+            async with self.lock:
+                return await self.qa.cancel(sid)
         self.plugins.cancel_hook(sid)
         async with self.lock:
             specialist_service.cancel_requested(self, sid)

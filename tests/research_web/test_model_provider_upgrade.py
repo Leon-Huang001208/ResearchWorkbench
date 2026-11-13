@@ -7,6 +7,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -21,6 +22,62 @@ from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
 REAL_GATEWAY_HEALTH = upgrade.g.health
 REAL_EVENT_GATEWAY_HEALTH = upgrade.read_event_gateway_health
+
+
+def test_qa_candidate_wheel_uses_exact_git_source_and_keeps_checkout_clean(tmp_path, monkeypatch):
+    source = tmp_path / "candidate"
+    source.mkdir()
+    frontend = source / "app/research_web/qa_frontend"
+    frontend.mkdir(parents=True)
+    (frontend / "package-lock.json").write_text("reviewed lock", encoding="utf-8")
+    upgrade.c.git(source, "init", "-q")
+    upgrade.c.git(source, "add", ".")
+    upgrade.c.git(
+        source,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qm",
+        "candidate",
+    )
+    output = tmp_path / "wheel"
+    actual_run = upgrade.c.run
+    build_steps = []
+
+    def fixture_command(argv, **kwargs):
+        if argv[0] == "/usr/bin/git":
+            return actual_run(argv, **kwargs)
+        build_steps.append(argv)
+        if "pip" not in argv:
+            tree = kwargs["cwd"]
+            assert tree != source
+            assert (
+                tree / frontend.relative_to(source) / "package-lock.json"
+            ).read_text() == "reviewed lock"
+            return ""
+        staging = Path(argv[-2])
+        with zipfile.ZipFile(staging / "research_workbench-0.1-py3-none-any.whl", "w") as wheel:
+            wheel.writestr("app/research_web/main.py", "app = None")
+            wheel.writestr("app/research_web/qa_worker/worker.mjs", "export {}")
+            for name in ("qa.js", "qa.css", "THIRD_PARTY_LICENSES.md", "build.json"):
+                wheel.writestr(f"app/research_web/ui/qa-dist/{name}", name)
+        return ""
+
+    monkeypatch.setattr(upgrade.c, "run", fixture_command)
+    wheel = upgrade.build_release_wheel(tmp_path / "current", source, output)
+    assert upgrade.build_release_wheel(tmp_path / "current", source, output) == wheel
+    assert len(build_steps) == 2
+    assert upgrade.c.git(source, "status", "--porcelain") == ""
+    assert not list(output.glob(".qa-wheel-*"))
+    assert json.loads((output / "binding.json").read_text()) == {
+        "source": upgrade.c.git(source, "rev-parse", "HEAD"),
+        "sha256": wheel["sha256"],
+    }
+    (frontend / "package-lock.json").write_text("unreviewed edit", encoding="utf-8")
+    with pytest.raises(upgrade.UpdateBlocked, match="^resident_checkout_changed$"):
+        upgrade.build_release_wheel(tmp_path / "current", source, output)
 
 
 def test_navigation_profile_freezes_the_installed_and_merged_ui_versions():
@@ -71,6 +128,7 @@ ASSET_PROFILES = (
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
+    "reviewed-fingpt-alphadesk-v1",
     "reviewed-etf-weekly-v2",
     "reviewed-etf-historical-v1",
     "reviewed-etf-weekly-admission-v1",
@@ -268,6 +326,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
         "reviewed-research-dossiers-v1": "DOSSIERS",
         "reviewed-discovery-v1": "DISCOVERY",
+        "reviewed-fingpt-alphadesk-v1": "FINGPT",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL",
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION",
@@ -331,6 +390,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         }[profile]
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
+    if profile == upgrade.FINGPT_MODE:
+        evidence_constant = "EVENT_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
     if bad == "evidence-hash-malformed":
         evidence_hash = "not-a-hash"
@@ -650,6 +711,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-live", upgrade.MARKET_LIVE_MODE),
         ("apply-market-live-v2", upgrade.MARKET_LIVE_V2_MODE),
         ("apply-market-daily", upgrade.MARKET_DAILY_MODE),
+        ("apply-fingpt", upgrade.FINGPT_MODE),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -1212,6 +1274,8 @@ def real_operations(tmp_path, monkeypatch, request):
     }
     if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
         gw["mcp_readonly_enabled"] = False
+    if mode == upgrade.FINGPT_MODE:
+        gw["mcp_readonly_enabled"] = True
     manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
@@ -1398,8 +1462,25 @@ def real_operations(tmp_path, monkeypatch, request):
                     if mode in upgrade.EVENT_PRESERVATION_MODES
                     else {}
                 ),
+                **(
+                    {
+                        "mcp_readonly_enabled": True,
+                        "alphadesk_qa": system["gateway"] == state["target"],
+                    }
+                    if mode == upgrade.FINGPT_MODE
+                    else {}
+                ),
             }
-        return {"enabled": True, "revision": system["primary"], "active": system["active"]}
+        return {
+            "enabled": True,
+            "revision": system["primary"],
+            "active": system["active"],
+            **(
+                {"alphadesk_qa": system["primary"] == state["target"]}
+                if mode == upgrade.FINGPT_MODE
+                else {}
+            ),
+        }
 
     monkeypatch.setattr(upgrade, "request_json", request)
     monkeypatch.setattr(
@@ -1431,7 +1512,7 @@ def real_operations(tmp_path, monkeypatch, request):
             return [SimpleNamespace(role="runtime")]
 
         def _active_research_read_only(self, _runtime):
-            if mode in upgrade.EVENT_PRESERVATION_MODES:
+            if mode in upgrade.EVENT_PRESERVATION_MODES or mode == upgrade.FINGPT_MODE:
                 return ["active"] if system["active"] is not False else []
             return system["active"] is not False
 
@@ -1464,7 +1545,7 @@ def real_operations(tmp_path, monkeypatch, request):
             ("primary" if project == primary else "gateway") + "_repository"
         ],
     )
-    if mode in upgrade.EVENT_PRESERVATION_MODES:
+    if mode in upgrade.EVENT_PRESERVATION_MODES or mode == upgrade.FINGPT_MODE:
         # This phase/recovery fixture already substitutes g.verify_primary;
         # actual operate protocol tests below retain both real primary verifiers.
         monkeypatch.setattr(
@@ -1541,6 +1622,14 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
                 assert gateway["mcp_readonly_enabled"] is False
             assert gateway == state["gateway_config"]
     expected_manifest = {**state["manifest"], "code_commit": expected}
+    if state["mode"] == upgrade.FINGPT_MODE:
+        gateway = upgrade.read_json(home / "server/resident.json")
+        assert gateway["mcp_readonly_enabled"] is True
+        if failed is None:
+            assert gateway["alphadesk_qa"] is True
+            expected_manifest["alphadesk_qa"] = True
+        else:
+            assert gateway == state["gateway_config"]
     if failed is None and state["mode"] in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
@@ -1768,6 +1857,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
+        "reviewed-fingpt-alphadesk-v1": "FINGPT_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL_PREVIOUS",
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION_PREVIOUS",
@@ -1862,6 +1952,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-market-daily-v1",
             "reviewed-unified-navigation-v1",
             "reviewed-discovery-v1",
+            "reviewed-fingpt-alphadesk-v1",
             "reviewed-etf-weekly-v2",
             "reviewed-etf-historical-v1",
             "reviewed-etf-weekly-admission-v1",
@@ -2093,7 +2184,9 @@ def test_navigation_payload_is_exact_and_does_not_expand_backend_scope(monkeypat
     reverted = (
         ui
         if bad == "all_reverted"
-        else {"app/research_web/ui/app.mjs"} if bad == "reverted" else set()
+        else {"app/research_web/ui/app.mjs"}
+        if bad == "reverted"
+        else set()
     )
     paths.difference_update(reverted)
     calls = []
@@ -2316,7 +2409,9 @@ def test_finish_failure_never_signals_again_in_same_stack(
             (
                 "root-sync"
                 if path == home / "resident"
-                else "gate-sync" if path == home / "server/run" else None
+                else "gate-sync"
+                if path == home / "server/run"
+                else None
             )
             if final
             else None
@@ -2551,6 +2646,8 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
     target = upgrade.target_manifest(state)
     expected = {**old, "code_commit": "b" * 40}
+    if profile == upgrade.FINGPT_MODE:
+        expected["alphadesk_qa"] = True
     if profile in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
@@ -4062,7 +4159,7 @@ def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(
     )
     (tmp_path / upgrade.MODULE).write_text("reviewed successor")
     (tmp_path / upgrade.TEST).write_text("reviewed operator regression")
-    for name in ([index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]):
+    for name in [index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]:
         (tmp_path / name).write_text("generated reading revision")
     if case == "third-content":
         (tmp_path / third).write_text("unexpected output bytes")

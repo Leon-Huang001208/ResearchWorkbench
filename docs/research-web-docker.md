@@ -454,3 +454,5 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 私网 `--service-only` 仅从 macOS Native 私网 serve 入口启用。Docker 的现有 Web/DSH 配对启动、安装和平台验收沿其原合同。
 
 常驻仅服务网关挂载原主账号目录前，在原生命周期锁内检查旧 Docker 与 Native 是否均已停止。该锁由主 Web 子进程持有到实际退出。
+
+AlphaDesk 问答资源在专用 Node 构建阶段按 lock 生成，打包前核对摘要。Mac Docker 的实际候选验收以受管构建和健康探针为准。
