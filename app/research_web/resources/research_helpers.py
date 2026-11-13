@@ -150,6 +150,129 @@ def read_pdf(path: str | Path, max_pages: int = 150) -> list[dict]:
         raise
 
 
+def read_qa_document(path, expected_sha256, max_bytes, text_bytes):
+    """Extract a bounded projection of the exact attachment opened by the Host."""
+    import hashlib
+    import os
+    import re
+    import stat
+    from io import BytesIO
+    from zipfile import ZipFile
+
+    from lxml import etree
+
+    path = Path(path)
+    if path.is_absolute() or path.parts[0] != "inputs" or ".." in path.parts:
+        raise ValueError("qa_document_path")
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > max_bytes:
+            raise ValueError("qa_document_size")
+        raw = stream.read(max_bytes + 1)
+    if len(raw) > max_bytes or hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise ValueError("qa_document_changed")
+
+    def snippets():
+        suffix = path.suffix.lower()
+        if suffix == ".pdf":
+            import pdfplumber
+
+            with pdfplumber.open(BytesIO(raw)) as document:
+                for page in document.pages[:150]:
+                    if text := (page.extract_text() or "").strip():
+                        yield f"第 {page.page_number} 页\n{text}", False
+                if len(document.pages) > 150:
+                    yield "", True
+            return
+
+        with ZipFile(BytesIO(raw)) as package:
+            entries = package.infolist()
+            if (
+                len(entries) > 1024
+                or len({entry.filename for entry in entries}) != len(entries)
+                or sum(entry.file_size for entry in entries) > 96 * 1024 * 1024
+                or any(
+                    entry.flag_bits & 1 or entry.file_size > 32 * 1024 * 1024 for entry in entries
+                )
+            ):
+                raise ValueError("qa_document_package")
+
+            def xml(part):
+                parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+                root = etree.fromstring(package.read(part), parser)
+                if root.getroottree().docinfo.doctype:
+                    raise ValueError("qa_document_xml_doctype")
+                return root
+
+            if suffix == ".docx":
+                word = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+                body = xml("word/document.xml").find(word + "body")
+                for paragraph in body.iter(word + "p"):
+                    text = "".join(node.text or "" for node in paragraph.iter(word + "t"))
+                    yield text.strip(), False
+            elif suffix == ".xlsx":
+                from openpyxl import load_workbook
+
+                workbook = load_workbook(
+                    BytesIO(raw), read_only=True, data_only=True, keep_links=False
+                )
+                try:
+                    for sheet in workbook.worksheets[:20]:
+                        if sheet.sheet_state != "visible":
+                            continue
+                        sheet.reset_dimensions()
+                        for index, row in enumerate(sheet.iter_rows(max_col=64, values_only=True), 1):
+                            if index > 200:
+                                yield "", True
+                                break
+                            values = "\t".join(
+                                str(value) if value is not None else "" for value in row
+                            ).rstrip()
+                            if values:
+                                yield f"{sheet.title} · 行 {index}\t{values}", False
+                    if len(workbook.worksheets) > 20:
+                        yield "", True
+                finally:
+                    workbook.close()
+            elif suffix == ".pptx":
+                slide = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+                relation = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+                draw = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+                targets = {
+                    row.get("Id"): row.get("Target")
+                    for row in xml("ppt/_rels/presentation.xml.rels")
+                    if row.get("Type", "").endswith("/slide") and row.get("TargetMode") != "External"
+                }
+                slides = xml("ppt/presentation.xml").findall(f"{slide}sldIdLst/{slide}sldId")
+                for index, row in enumerate(slides[:150], 1):
+                    target = targets.get(row.get(relation + "id"), "")
+                    if not re.fullmatch(r"slides/slide[0-9]+\.xml", target):
+                        raise ValueError("qa_document_slide_relationship")
+                    text = "\n".join(node.text or "" for node in xml("ppt/" + target).iter(draw + "t"))
+                    if text.strip():
+                        yield f"幻灯片 {index}\n{text}", False
+                if len(slides) > 150:
+                    yield "", True
+            else:
+                raise ValueError("qa_document_format")
+
+    projected = bytearray()
+    truncated = False
+    for value, partial in snippets():
+        truncated |= partial
+        if not value:
+            continue
+        line = (value + "\n").encode("utf-8")
+        available = text_bytes - len(projected)
+        projected.extend(line[:available])
+        if len(line) > available:
+            truncated = True
+            break
+    log.info("research_qa_document_extracted format=%s truncated=%s", path.suffix, truncated)
+    return {"content": projected.decode("utf-8", errors="ignore").strip(), "truncated": truncated}
+
+
 def safe_cell(value):
     # Text remains text, never an Excel formula supplied by an external document.
     if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):

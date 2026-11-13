@@ -1188,6 +1188,16 @@ class WebServiceManager:
     def _spawn_owned_process(self, process: ManagedProcess) -> int:
         log_path = self.log_root / f"{process.role}.log"
         environment = os.environ.copy()
+        if process.role == "web":
+            manifest = self._read_install_manifest()
+            if (
+                manifest.get("status") == "installed"
+                and manifest.get("alphadesk_qa") is True
+            ):
+                self._require_resident_qa_operator(manifest)
+                environment["RWB_ALPHADESK_QA"] = "1"
+            elif environment.get("RESEARCH_RESIDENT_HOME"):
+                environment.pop("RWB_ALPHADESK_QA", None)
         for key in (
             "HTTP_PROXY",
             "HTTPS_PROXY",
@@ -2005,6 +2015,7 @@ class WebServiceManager:
         return status
 
     def start(self, *, open_browser: bool = True) -> dict[str, Any]:
+        self._require_resident_qa_operator(self._read_install_manifest())
         diagnosis = self._require_installation_ready()
         with self._lifecycle_lock():
             try:
@@ -2672,6 +2683,7 @@ class WebServiceManager:
             return self._stop_locked()
 
     def restart(self, *, force: bool = False, open_browser: bool = True) -> dict[str, Any]:
+        self._require_resident_qa_operator(self._read_install_manifest())
         diagnosis = self._require_installation_ready()
         with self._lifecycle_lock():
             self._prepare_private_directories()
@@ -2803,6 +2815,15 @@ class WebServiceManager:
             return value if isinstance(value, dict) and value.get("schema_version") == 1 else {}
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             return {}
+
+    def _require_resident_qa_operator(self, manifest: dict[str, Any]) -> None:
+        if manifest.get("status") == "installed" and manifest.get("alphadesk_qa") is True and (
+            os.environ.get("RESEARCH_RESIDENT_HOME") != str(self.data_root.parent / "resident")
+            or os.environ.get("RESEARCH_RESIDENT_REVISION") != manifest.get("code_commit")
+        ):
+            raise ServiceManagerError(
+                "常驻 FinGPT 由受管发布事务维护", code="resident_qa_operator_required", role="web"
+            )
 
     def _runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
         try:

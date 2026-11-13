@@ -14,17 +14,18 @@ from uuid import uuid4
 
 log = logging.getLogger("research_web.report")
 _REPORT_FORMATS = ("html", "docx", "pdf")
+_NATIVE_FORMATS = (*_REPORT_FORMATS, "png", "pptx")
 
 
 def _report_formats(formats):
     if (
         not isinstance(formats, (list, tuple))
-        or not 1 <= len(formats) <= 3
-        or any(not isinstance(kind, str) or kind not in _REPORT_FORMATS for kind in formats)
+        or not 1 <= len(formats) <= len(_NATIVE_FORMATS)
+        or any(not isinstance(kind, str) or kind not in _NATIVE_FORMATS for kind in formats)
         or len(set(formats)) != len(formats)
     ):
         raise ValueError("research_report_formats_invalid")
-    return tuple(kind for kind in _REPORT_FORMATS if kind in formats)
+    return tuple(kind for kind in _NATIVE_FORMATS if kind in formats)
 
 
 def required_report_formats(contract_or_question, delivery=None):
@@ -48,7 +49,7 @@ def required_report_formats(contract_or_question, delivery=None):
         ):
             log.warning("research_report_delivery_binding_rejected")
             raise ValueError("research_report_delivery_binding")
-        native = [kind for kind in required if kind in _REPORT_FORMATS]
+        native = [kind for kind in required if kind in _NATIVE_FORMATS]
         if native:
             return _report_formats(native)
     question = (
@@ -60,8 +61,8 @@ def required_report_formats(contract_or_question, delivery=None):
         return _REPORT_FORMATS
     declarations = []
     pattern = re.compile(
-        r"(?:只|仅)生成\s*(?P<formats>(?:HTML|DOCX|PDF)"
-        r"(?:\s*(?:和|与|及|、|,|，|/|\+)\s*(?:HTML|DOCX|PDF)){0,2})"
+        r"(?:只|仅)生成\s*(?P<formats>(?:HTML|DOCX|PDF|PNG|PPTX)"
+        r"(?:\s*(?:和|与|及|、|,|，|/|\+)\s*(?:HTML|DOCX|PDF|PNG|PPTX)){0,4})"
         r"\s*(?=$|[。；;！!\n\r]|[，,](?!\s*[A-Za-z]))",
         re.IGNORECASE,
     )
@@ -72,7 +73,7 @@ def required_report_formats(contract_or_question, delivery=None):
             continue
         try:
             declarations.append(
-                _report_formats(re.findall(r"html|docx|pdf", match["formats"].lower()))
+                _report_formats(re.findall(r"html|docx|pdf|png|pptx", match["formats"].lower()))
             )
             if len(declarations) > 1:
                 return _REPORT_FORMATS
@@ -1026,7 +1027,7 @@ def _version_read(directory):
     rows = version.get("files", [])
     if (
         not isinstance(rows, list)
-        or not 1 <= len(rows) <= 5
+        or not 1 <= len(rows) <= len(_NATIVE_FORMATS) + 2
         or any(not isinstance(row, dict) for row in rows)
     ):
         raise ValueError("research_report_archive_changed")
@@ -1117,14 +1118,14 @@ def archive_report_version(output, expected_task_id=None):
         artifacts = payload.get("artifacts", [])
         if (
             not isinstance(artifacts, list)
-            or len(artifacts) > 3
+            or len(artifacts) > len(_NATIVE_FORMATS)
             or any(
                 not isinstance(row, dict) or not isinstance(row.get("name"), str)
                 for row in artifacts
             )
             or len({row["name"].rsplit(".", 1)[-1] for row in artifacts}) != len(artifacts)
             or not {row["name"].rsplit(".", 1)[-1] for row in artifacts}.issubset(
-                {"html", "docx", "pdf"}
+                _NATIVE_FORMATS
             )
         ):
             raise ValueError("research_report_archive_artifact_invalid")
@@ -1253,7 +1254,7 @@ def list_report_versions(output, limit=20):
 
 
 def report_blocks(payload):
-    """The same text/version is consumed by all three renderers."""
+    """Each renderer consumes the same version of the report text."""
     blocks = [(payload["title"], True)]
     if payload.get("as_of"):
         blocks.append(("研究截止时间：" + str(payload["as_of"]), False))
@@ -1524,6 +1525,15 @@ def docx_bytes(payload):
     return output.getvalue()
 
 
+def _media_bytes(payload, kind):
+    try:
+        from research_report_media import png_bytes, pptx_bytes
+    except ImportError:
+        from .research_report_media import png_bytes, pptx_bytes
+
+    return {"png": png_bytes, "pptx": pptx_bytes}[kind](report_blocks(payload))
+
+
 def verify_rendered_artifact(payload, kind, body):
     """Reject self-consistent hashes on files containing a different analysis."""
     import zlib
@@ -1547,6 +1557,8 @@ def verify_rendered_artifact(payload, kind, body):
                 )
         elif kind == "pdf":
             valid = body == pdf_bytes(payload)
+        elif kind in {"png", "pptx"}:
+            valid = body == _media_bytes(payload, kind)
         else:
             valid = False
         if not valid:
@@ -1583,6 +1595,9 @@ def write_research_report(output, payload, *, formats=None):
             paths["docx"].write_bytes(docx_bytes(payload))
         if "html" in selected:
             paths["html"].write_bytes(html_bytes(payload))
+        for kind in ("png", "pptx"):
+            if kind in selected:
+                paths[kind].write_bytes(_media_bytes(payload, kind))
         if "pdf" in selected:
             import pdfplumber
 

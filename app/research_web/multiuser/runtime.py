@@ -26,6 +26,7 @@ from core.observability import get_logger
 
 from .. import PINNED_DSH_COMMIT
 from ..process_spec import build_process_specs, build_web_process_spec
+from ..qa_acceptance import ROOT_ENV as QA_ACCEPTANCE_ROOT_ENV
 from ..runtime_auth import RuntimeAuthFileError, read_runtime_auth_record
 from ..tenant_policy import GATEWAY_HEADER
 
@@ -427,6 +428,11 @@ class RuntimePool:
             "RWB_RUNTIME_STATE": str(state),
             "RWB_TENANT_MODE": "1",
             **({"RWB_ALPHADESK_QA": "1"} if self.config.alphadesk_qa else {}),
+            **(
+                {QA_ACCEPTANCE_ROOT_ENV: os.environ[QA_ACCEPTANCE_ROOT_ENV]}
+                if QA_ACCEPTANCE_ROOT_ENV in os.environ
+                else {}
+            ),
             "RWB_TENANT_GATEWAY_KEY_FILE": str(state / "gateway.key"),
             "RWB_SHARED_PLUGINS_ROOT": str(self.config.root / "shared/plugin-approvals"),
             "RWB_PERSONAL_PLUGINS_ROOT": str(root.parent / "plugin-approvals"),

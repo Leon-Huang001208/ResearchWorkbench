@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Path, Query
 
 from core.observability import get_logger
 
+from .qa_acceptance import SOURCE_ERROR, acceptance_enabled
+
 router = APIRouter(prefix="/api/research/intel", tags=["intelligence-radar"])
 log = get_logger(__name__)
 UPSTREAM = "http://47.92.168.126/vibe-research/api"
@@ -25,6 +27,8 @@ def _failure(code: str, message: str, status: int = 502) -> HTTPException:
 
 async def read_upstream(path: str, params: dict | None = None):
     """Fetch bounded JSON without forwarding local credentials or redirects."""
+    if acceptance_enabled():
+        raise _failure(SOURCE_ERROR, "验收资料来源费用尚未核算", 409)
     try:
         async with asyncio.timeout(20):
             async with (

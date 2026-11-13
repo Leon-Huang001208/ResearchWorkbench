@@ -20,6 +20,7 @@ from urllib.parse import urldefrag, urljoin, urlsplit
 from core.observability import get_logger
 
 from .datahub.security import directory, write_new
+from .qa_acceptance import SOURCE_ERROR, acceptance_enabled
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -316,6 +317,9 @@ def stored_sources(store, sid):
 
 async def fetch_owned_document(url, timeout=25):
     """An owned finite worker makes DNS/header/body timeout and cancellation final."""
+    if acceptance_enabled():
+        log.warning("research_public_source_acceptance_price_unknown")
+        raise StoreError("验收网页来源费用尚未核算", SOURCE_ERROR, 409)
     try:
         process = await asyncio.create_subprocess_exec(
             sys.executable,

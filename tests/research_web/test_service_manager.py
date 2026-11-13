@@ -3475,6 +3475,21 @@ def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
     assert spawned == ["runtime", "web"]
 
 
+def test_resident_fingpt_cannot_restart_outside_its_operator_context(manager, monkeypatch):
+    revision = "f" * 40
+    manifest = {"status": "installed", "code_commit": revision, "alphadesk_qa": True}
+    monkeypatch.setattr(manager, "_read_install_manifest", lambda: manifest)
+    monkeypatch.delenv("RESEARCH_RESIDENT_HOME", raising=False)
+    monkeypatch.delenv("RESEARCH_RESIDENT_REVISION", raising=False)
+    for operation in (manager.start, manager.restart):
+        with pytest.raises(ServiceManagerError) as error:
+            operation(open_browser=False)
+        assert error.value.code == "resident_qa_operator_required"
+    monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(manager.data_root.parent / "resident"))
+    monkeypatch.setenv("RESEARCH_RESIDENT_REVISION", revision)
+    manager._require_resident_qa_operator(manifest)
+
+
 def test_start_fails_fast_when_web_installation_is_not_ready(manager, monkeypatch):
     lock = manager.project_root / "requirements" / "web.lock"
     lock.parent.mkdir()

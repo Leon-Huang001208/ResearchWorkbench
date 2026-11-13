@@ -75,6 +75,8 @@ from .projection import (
     merge_event_records,
     project,
 )
+from .qa_attachments import ATTACHMENT_EXTENSIONS as QA_ATTACHMENT_EXTENSIONS
+from .qa_attachments import turn_images
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .research_evidence import evidence_index, report_projection
@@ -3185,8 +3187,6 @@ class ResearchService(ModelProfilesMixin):
                 else:
                     defaults = list(required_report_formats(text))
             required = expected_formats(formats if formats is not None else defaults, skill_id)
-            if alpha and {"pptx", "png"} & set(required):
-                raise StoreError("AI 问答暂不支持 PPTX 或 PNG 报告", "qa_format_unavailable", 422)
             payload = {
                 "text": text,
                 "attachments": list(attachments),
@@ -3285,6 +3285,14 @@ class ResearchService(ModelProfilesMixin):
                     raise StoreError("附件不是本轮可用的上传资料", "qa_attachment_scope", 403)
             images = []
             image_bytes = 0
+            qa_images = []
+            attachment_files = list(zip(attachments, files, strict=True))
+            if alpha and attachment_files:
+                if any(Path(name).suffix.lower() not in QA_ATTACHMENT_EXTENSIONS for name in files):
+                    raise StoreError("不支持的问答附件格式", "qa_attachment_format_invalid", 422)
+                qa_images = await asyncio.to_thread(
+                    turn_images, self.store, sid, attachment_files, connection
+                )
             media = {
                 ".png": "image/png",
                 ".jpg": "image/jpeg",
@@ -3292,15 +3300,7 @@ class ResearchService(ModelProfilesMixin):
                 ".webp": "image/webp",
                 ".gif": "image/gif",
             }
-            for fid, filename in zip(attachments, files, strict=True):
-                if alpha:
-                    if Path(filename).suffix.lower() not in {".md", ".txt", ".csv", ".json"}:
-                        raise StoreError(
-                            "AI 问答目前仅能读取文本、Markdown、CSV 或 JSON 附件",
-                            "qa_attachment_not_text",
-                            422,
-                        )
-                    continue
+            for fid, filename in [] if alpha else attachment_files:
                 mime = media.get(Path(filename).suffix.lower())
                 if mime:
                     stream, name = self.store.open_file(sid, fid)
@@ -3499,6 +3499,7 @@ class ResearchService(ModelProfilesMixin):
                     framework_text,
                     attachments,
                     connection,
+                    qa_images,
                 )
             if weekly_scope:
                 weekly_runtime._update_run(_weekly_run_id, research_submission_state="prepared")

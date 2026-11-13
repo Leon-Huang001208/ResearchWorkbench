@@ -7607,6 +7607,7 @@ Imports:
 - `fastapi`
 - `httpx`
 - `json`
+- `qa_acceptance`
 - `typing`
 - `urllib.parse`
 
@@ -8158,7 +8159,7 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
-- ... 40 more
+- ... 41 more
 
 Classes:
 - `NewSession`
@@ -10339,6 +10340,7 @@ Imports:
 - `os`
 - `pathlib`
 - `process_spec`
+- `qa_acceptance`
 - `re`
 - `runtime_auth`
 - `secrets`
@@ -10852,17 +10854,32 @@ Module docstring:
 > CNY 50 ceiling shared by isolated acceptance runs on this Host.
 
 Imports:
+- `contextlib`
 - `core.observability`
+- `dataclasses`
 - `datahub.security`
 - `json`
 - `os`
 - `pathlib`
+- `re`
 - `research_workbench_entrypoint.resident.admission`
 - `store`
+- `uuid`
+
+Classes:
+- `Reservation`
 
 Functions:
 - `acceptance_enabled`
+- `_held`
+- `_in_range`
+- `_validate_legacy`
+- `_usage_cost`
+- `_load`
+- `_ledger`
 - `reserve`
+- `settle`
+  - Release only the proven difference from the peak-priced official usage.
 
 
 ## `app/research_web/qa_assets.py`
@@ -10889,6 +10906,30 @@ Functions:
 - `qa_assets_root`
   - Find verified local bytes, or a wheel built from the same frontend source.
 - `qa_assets_diagnostic`
+
+
+## `app/research_web/qa_attachments.py`
+
+Module docstring:
+> Bound FinGPT attachment data to the owning Host and turn.
+
+Imports:
+- `asyncio`
+- `base64`
+- `codecs`
+- `core.observability`
+- `hashlib`
+- `io`
+- `json`
+- `pathlib`
+- `qa_acceptance`
+- `re`
+- `store`
+
+Functions:
+- `turn_images`
+- `with_turn_images`
+- `read_attachment`
 
 
 ## `app/research_web/qa_bridge.py`
@@ -10921,6 +10962,7 @@ Imports:
 - `json`
 - `os`
 - `projection`
+- `qa_attachments`
 - `qa_bridge`
 - `qa_tools`
 - `research_evidence`
@@ -10949,6 +10991,7 @@ Module docstring:
 Imports:
 - `asyncio`
 - `client`
+- `core.observability`
 - `httpx`
 - `json`
 - `model_credentials`
@@ -10977,6 +11020,8 @@ Imports:
 Functions:
 - `snapshot_observations`
   - Emit only values with an explicit field unit and period, or attributed quotes.
+- `_members`
+  - Map immediate object members to their key and value offsets.
 - `_make`
 - `_discovery_quotes`
 - `_numeric`
@@ -10995,6 +11040,7 @@ Imports:
 - `json`
 - `pydantic`
 - `qa_acceptance`
+- `qa_attachments`
 - `research_evidence`
 - `research_quality_service`
 - `research_web_sources`
@@ -12106,6 +12152,7 @@ Imports:
 - `ipaddress`
 - `json`
 - `os`
+- `qa_acceptance`
 - `re`
 - `socket`
 - `ssl`
@@ -12166,6 +12213,8 @@ Functions:
 - `read_hot_evidence`
   - Verify the admitted frozen copy and return bounded selected evidence only.
 - `read_pdf`
+- `read_qa_document`
+  - Extract a bounded projection of the exact attachment opened by the Host.
 - `safe_cell`
 - `write_deliverables`
   - Write selected formats; omitted selection preserves the legacy four files.
@@ -12232,7 +12281,7 @@ Functions:
 - `list_report_versions`
   - Project bounded verified versions; never treat old quality claims as trusted.
 - `report_blocks`
-  - The same text/version is consumed by all three renderers.
+  - Each renderer consumes the same version of the report text.
 - `_numeric_table_rows`
   - Project only quantities already present in their canonical section text.
 - `report_body_characters`
@@ -12246,6 +12295,7 @@ Functions:
   - Deterministic full HTML projection, also verified by the Host.
 - `docx_bytes`
   - Native Word projection with no caller-supplied extra XML or fields.
+- `_media_bytes`
 - `verify_rendered_artifact`
   - Reject self-consistent hashes on files containing a different analysis.
 - `write_research_report`
@@ -12276,6 +12326,23 @@ Functions:
 - `_derive`
 - `derive_business_observations`
   - Derive scoped display quantities; callers independently repeat on Host bytes.
+
+
+## `app/research_web/resources/research_report_media.py`
+
+Module docstring:
+> Deterministic PNG and presentation projections of the canonical report blocks.
+
+Imports:
+- `io`
+- `pathlib`
+- `re`
+- `textwrap`
+- `zipfile`
+
+Functions:
+- `png_bytes`
+- `pptx_bytes`
 
 
 ## `app/research_web/resources/research_report_plan.py`
@@ -12604,7 +12671,7 @@ Imports:
 - `hashlib`
 - `integrations`
 - `json`
-- ... 36 more
+- ... 37 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
@@ -12694,7 +12761,7 @@ Classes:
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _graceful_stop_identity, _graceful_stop_owned_once, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _graceful_stop_identity, _graceful_stop_owned_once, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _require_resident_qa_operator, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`

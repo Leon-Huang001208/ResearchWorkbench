@@ -91,6 +91,9 @@ def _fact_text(row):
         "gdp_current_price_gdp_implicit_deflator": "隐含GDP平减指数变化（按未舍入输入推算，非官方公布值）",
     }
     if row.get("kind") != "business_numeric":
+        if row.get("metric") == "discovery_source_statement":
+            quote = " ".join(row["content"].rsplit("\n", 1)[0].split())
+            return f"冻结来源原文摘录：{quote}"
         return "原文摘录保存在同版本审计附件，尚须逐项核验分析结论。"
     if row.get("metric", "").startswith("weekly_"):
         label = {
@@ -104,9 +107,12 @@ def _fact_text(row):
             "weekly_history_count": "历史观测数",
         }.get(row["metric"], row["metric"])
         return f"{row.get('heading', row['metric'])}（数据日 {row['period']}）{label}为{row['value']} {row['unit']}"
-    return (
-        f"{row['period']}年{labels.get(row['metric'], row['metric'])}为{row['value']} {row['unit']}"
-    )
+    period, metric = row["period"], row["metric"]
+    if row.get("source_id", "").startswith("dataset:") and re.fullmatch(r"\d{4}-\d{2}(?:-\d{2})?", period):
+        label = {"open": "开盘价", "high": "最高价", "low": "最低价", "close": "收盘价",
+                 "volume": "成交量", "turnover": "成交额"}.get(metric, metric)
+        return f"{period} {label}为{row['value']} {row['unit']}"
+    return f"{period}年{labels.get(metric, metric)}为{row['value']} {row['unit']}"
 
 
 def _bind_analysis(template, rows):
@@ -507,6 +513,12 @@ def build_business_report_plan(context, plan, bundle):
             )
             if "analysis" in section and section["analysis"] != "":
                 scored, human_text = _bind_analysis(section["analysis"], rows)
+                source_quotes = [
+                    _fact_text(row) for row in rows
+                    if row.get("metric") == "discovery_source_statement"
+                ]
+                if source_quotes:
+                    human_text += "\n\n" + "\n".join(source_quotes)
                 text += "\n\n" + scored
             parents = list(dict.fromkeys(ref for s in blocks["sections"] for ref in s["citations"]))
             for ref in parents:
@@ -715,7 +727,7 @@ def write_business_report_plan(context, plan, *, output="outputs"):
         paths["md"].write_text(render_markdown(result["payload"]), encoding="utf-8")
         for key, path in paths.items():
             target = output / path.name
-            if target.is_symlink() or (key in {"html", "docx", "pdf", "audit"} and target.exists()):
+            if target.is_symlink() or (key not in {"xlsx", "md", "json"} and target.exists()):
                 raise ValueError("research_report_plan_output_alias")
             new_hashes[key] = hashlib.sha256(
                 _bounded_bytes(path, 2_000_000 if key == "json" else 16 * 1024 * 1024)
@@ -757,7 +769,7 @@ def write_business_report_plan(context, plan, *, output="outputs"):
         if before["json"] is not None:
             withheld = stage / "withheld-json"
             os.replace(output / paths["json"].name, withheld)
-        for key in ["xlsx", "html", "docx", "pdf", "audit", "md", "json"]:
+        for key in ["xlsx", "html", "docx", "pdf", "png", "pptx", "audit", "md", "json"]:
             if key not in paths:
                 continue
             os.replace(paths[key], output / paths[key].name)

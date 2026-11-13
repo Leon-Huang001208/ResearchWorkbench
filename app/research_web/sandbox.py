@@ -232,14 +232,15 @@ def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
         if fonts.is_symlink() or not fonts.is_dir():
             raise SandboxError("bundled report SDK fonts are unsafe")
         files = [str(root), str(fonts)]
-        for name in (
-            "research_helpers.py",
-            "research_report.py",
-            "research_report_plan.py",
-            "research_report_calculations.py",
-            "fonts/NotoSansSC-Regular.ttf",
+        for target in (
+            root / "research_helpers.py",
+            root / "research_report.py",
+            root / "research_report_plan.py",
+            root / "research_report_calculations.py",
+            root / "research_report_media.py",
+            fonts / "NotoSansSC-Regular.ttf",
+            root.parent / "office-template.pptx",
         ):
-            target = root / name
             info = target.lstat()
             if (
                 not stat.S_ISREG(info.st_mode)
@@ -248,7 +249,7 @@ def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
             ):
                 raise SandboxError("bundled report SDK file is unsafe")
             files.append(str(target))
-        LOGGER.info("research_report_sdk_scope_verified files=5")
+        LOGGER.info("research_report_sdk_scope_verified files=%d", len(files) - 2)
         return str(root), tuple(files)
     except SandboxError:
         LOGGER.warning("research_report_sdk_scope_rejected")
@@ -340,7 +341,7 @@ def run_script(
     # -I -S prevents user startup/.pth execution. Only the configured venv's
     # site-packages, fixed packaged SDK literals and session resources use absolute
     # paths. The current SDK precedes legacy copies; no session file is replaced.
-    # Only the four curated SDK files gain read-data, never their parent subtree.
+    # Curated SDK files gain read-data by literal path, with no subtree grant.
     site_paths = [sdk_root, *[path for path in reads if path.endswith("/site-packages")]]
     site_paths.append(str(session / "resources"))
     bootstrap = (

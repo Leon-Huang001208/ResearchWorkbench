@@ -654,7 +654,9 @@ def report_delivery(service, sid, receipt, expected_digest=None):
         for fid, relative in catalog.items():
             if (
                 not relative.startswith("outputs/")
-                or not relative.lower().endswith((".html", ".docx", ".pdf", ".json"))
+                or not relative.lower().endswith(
+                    (".html", ".docx", ".pdf", ".png", ".pptx", ".json")
+                )
                 or relative.startswith("outputs/report-versions/")
             ):
                 continue

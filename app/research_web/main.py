@@ -64,6 +64,7 @@ from .operations import router as operations_router
 from .plugin_routes import router as plugin_router
 from .plugins.runtime_restart import router as plugin_runtime_router
 from .portfolio_decisions.routes import router as portfolio_decisions_router
+from .qa_attachments import ATTACHMENT_EXTENSIONS as QA_ATTACHMENT_EXTENSIONS
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
 from .report_workflow_routes import router as report_workflow_router
@@ -735,6 +736,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
             "active": active,
         }
+        if setting and research is not None:
+            from .qa_execution import enabled as alphadesk_qa_enabled
+
+            result["alphadesk_qa"] = alphadesk_qa_enabled(research)
         if activity is not None:
             result["activity_witness"] = activity
         return result
@@ -1103,7 +1108,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             extension = Path(name).suffix.lower()
             row = store.session(sid)
             allowed = (
-                {".md", ".txt", ".csv", ".json"}
+                QA_ATTACHMENT_EXTENSIONS
                 if row.get("execution_engine") == "alphadesk"
                 else UPLOAD_EXTENSIONS
             )
