@@ -17,4 +17,4 @@ Native 常驻配置 `reviewed-research-bot-v2` 采用原 v4 事务。产品检�
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"Radar 修补沿既有 Native 联合事务冻结版本，角色数、服务启动及回滚拓扑继续沿原流程。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"相同账号 Host 与网关复用现有切换，私网身份和 MCP 配置随现有保全对账。","diagrams":[]} -->
 
-固定产品检查点 `cb7c94a2fc5cc8a1c2cfd33737b652dee4b0cb59`。早期越界日期追加回归先观察到 UTC 转换溢出，再验证拒绝准入。受管操作员定点回归共 42 项通过，覆盖模式分派、真实 Git 祖先及原部署、回滚与 MCP 复核合同。
+固定产品检查点 `7bf144bd7199a47856308193705f3b4d1ad0271e`。早期越界日期追加回归先观察到 UTC 转换溢出，再验证拒绝准入。受管操作员定点回归共 42 项通过，覆盖模式分派、真实 Git 祖先及原部署、回滚与 MCP 复核合同。
