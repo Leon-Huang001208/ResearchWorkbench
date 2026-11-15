@@ -68,6 +68,9 @@ from .report_routes import router as report_router
 from .report_studio import ReportStudioError
 from .report_workflow_routes import router as report_workflow_router
 from .report_workflows.models import WorkflowError
+from .research_bot_diagnostics import diagnostic as research_bot_diagnostic
+from .research_bots import research_bot_configuration
+from .research_bots import router as research_bots_router
 from .service import ResearchService
 from .specialists.contracts import Budget as SpecialistBudget
 from .specialists.routes import router as specialists_router
@@ -384,6 +387,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
     app.include_router(automation_router)
+    app.include_router(research_bots_router)
     app.include_router(claw_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
@@ -481,6 +485,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     "/api/research/events",
                     "/api/research/event-studies",
                     "/api/research/market-scores",
+                    "/api/research/research-bots",
                 )
             )
             if research_write and request.headers.get("X-Research-User-Action") != "?1":
@@ -817,7 +822,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/runtime")
     async def runtime(request: Request):
-        return {**await svc(request).runtime(), "web_access": access}
+        research = svc(request)
+        return {
+            **await research.runtime(),
+            "web_access": access,
+            "research_bot": research_bot_diagnostic(research_bot_configuration(research)),
+        }
 
     @app.get("/api/research/models")
     async def models(request: Request):
