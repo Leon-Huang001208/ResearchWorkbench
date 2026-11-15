@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Research Bot 常驻部署由 `resident/model_provider_upgrade.py` 的 `apply-research-bot` 分派，配套验证位于 `tests/research_web/test_model_provider_upgrade.py`。操作员同时约束旧版本、产品树、受审源码及既有账号保全。
+
 Research Bot 的请求模型和专用 HTTP 路由位于 `research_bot_models.py` 和 `research_bots.py`，运行沿 `automation/service.py` 与 `ResearchService.native_admission`。前端位于 `ui/research-bots.mjs`，回归覆盖专用路由、定时去重、原生技能回执和历史分页。
 
 `resident/volume_identity.py` 核验 APFS 的卷标识及项目和数据目录的物理身份，并在原锁顺序内

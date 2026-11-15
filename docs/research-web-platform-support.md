@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+Research Bot 常驻验证范围为 Mac Native 主实例及附着网关，安装资格使用同候选 macOS 15。Windows 和 Linux 原生结果由相应设备取证。
+
 APFS 探针和登录恢复作业属于 macOS Native。GitHub Mac 的临时卷测试与 Mac mini 的真实登录后恢复分开记录。
 
 市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。

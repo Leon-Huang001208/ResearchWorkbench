@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 README 中的 Research Bot 入口、macOS 常驻安装及私网网关拓扑。",
-  "reason": "现有 README 已链接 Web 安装与架构文档。内置研究入口、常驻身份恢复和网关本地工作树命令分别在对应文档维护。"
+  "summary": "复核 Research Bot Native 升级及常驻身份、网关本地源码安装流程。",
+  "reason": "README 的公开安装及架构链接已覆盖这两项维护；操作与恢复合同在对应模块文档维护。"
 }

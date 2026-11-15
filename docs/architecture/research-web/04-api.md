@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+常驻升级后用只读 `GET /api/research/runtime` 和 `GET /api/research/research-bots` 分别检查主实例配置与 Bot 列表入口。网关认证和租户限制仍由对应运行实例验证。
+
 `GET/POST /api/research/research-bots` 读取配置和最新摘要或新建停用的 Bot。子路径支持查询发布技能版本、按版本更新、按 `before` 读取最近 20 条运行，以及单独的运行、启停、移除操作。写入沿同源 Host 与 `X-Research-User-Action: ?1` 并核对内置研究运行时归属。手动运行携带版本及 UUID 请求标识，原请求重放返回原 Run。通用日程与 Claw 日程入口拒绝管理 Bot。
 
 网关源码迁移通过本地 `rwb resident` 操作员命令执行。迁移事务未结时，网关启动拒绝加载账号存储及 HTTP 服务。
