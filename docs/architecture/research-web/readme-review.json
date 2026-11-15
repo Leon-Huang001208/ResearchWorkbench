@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核公开安装入口和 Research Bot Native 升级文档。",
-  "reason": "受管升级入口绑定既有 Native 主实例和网关，README 继续指向现有安装及运行说明。"
+  "summary": "复核现有 Research Bot 和 macOS 安装入口。",
+  "reason": "Radar 批次时效修复位于既有资讯适配器和本机 Bot，公开安装命令及服务拓扑沿原合同。"
 }

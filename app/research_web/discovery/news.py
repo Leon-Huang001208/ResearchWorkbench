@@ -1,6 +1,8 @@
 """Bounded raw Intel news identities; no URL fetching, model or event fabrication."""
 
+import re
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
@@ -19,6 +21,7 @@ from .sources import (
 log = get_logger(__name__)
 MAX_NEWS = 180
 CLOCK_FIELDS = {"retrieved_at", "acquired_at", "fetched_at"}
+RADAR_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
 def stable(value):
@@ -42,7 +45,7 @@ def published(value):
 
 
 def observation(payload):
-    return {
+    observation = {
         "cache_status": (
             "expired"
             if payload.get("cache_stale") is True
@@ -52,6 +55,19 @@ def observation(payload):
         "source_generated_at_label": string(payload.get("generated_at"), 200),
         "coverage": payload.get("stats") if isinstance(payload.get("stats"), dict) else {},
     }
+    # Radar reports this batch clock in Beijing time at minute precision.
+    label = payload.get("generated_at")
+    if (
+        "cache_stale" not in payload
+        and isinstance(label, str)
+        and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}", label)
+    ):
+        try:
+            batch_time = datetime.strptime(label, "%Y-%m-%d %H:%M").replace(tzinfo=RADAR_TIMEZONE)
+            observation["radar_generated_at"] = batch_time.astimezone(UTC).isoformat()
+        except ValueError:
+            log.warning("radar_generated_at_invalid")
+    return observation
 
 
 def collect(payload):
