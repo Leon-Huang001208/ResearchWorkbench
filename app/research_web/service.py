@@ -2121,6 +2121,7 @@ class ResearchService(ModelProfilesMixin):
         refs = [
             *receipt.get("native_capabilities", []),
             *receipt.get("scenario_required_capabilities", []),
+            *receipt.get("research_bot_capabilities", []),
         ]
         if receipt.get("capability"):
             refs.append(receipt["capability"])
@@ -2222,6 +2223,11 @@ class ResearchService(ModelProfilesMixin):
         receipt, refs = self._task_capabilities(sid)
         refs = list(refs)
         selected = None
+        bot_capabilities = receipt.get("research_bot_capabilities", [])
+        if receipt.get("research_bot_run_id") and native_name and not any(
+            ref["native_name"] == native_name for ref in bot_capabilities
+        ):
+            raise CapabilityError("Bot 未绑定此技能", "bot_skill_not_bound", 409)
         if native_name:
             cid = next(
                 (
@@ -2279,13 +2285,15 @@ class ResearchService(ModelProfilesMixin):
             automation_scope
             and tool_name not in {None, "agent_step", "todo_write"}
             and tool_name not in automation_scope["approved_tools"]
+            and not (tool_name == "skill" and native_name and bot_capabilities)
         ):
             scope.update(status="unavailable", admitted=False)
             scope["missing"].append({"code": "automation_tool_not_approved"})
         if automation_scope:
-            scope["visible_tools"] = list(
-                dict.fromkeys(["todo_write", *automation_scope["approved_tools"]])
-            )
+            tools = ["todo_write", *automation_scope["approved_tools"]]
+            if bot_capabilities:
+                tools.append("skill")
+            scope["visible_tools"] = list(dict.fromkeys(tools))
         web_tools = {
             "web_search",
             "web_fetch",
@@ -2892,6 +2900,7 @@ class ResearchService(ModelProfilesMixin):
         specialist_budget=None,
         _weekly_run_id=None,
         _weekly_resume=False,
+        _research_bot_run_id=None,
     ):
         await self.ensure_owned()
         async with self.lock:
@@ -2916,6 +2925,22 @@ class ResearchService(ModelProfilesMixin):
 
             scenario_context = scenario_context_for(self, sid)
             scenario_selections = []
+            bot_selections = []
+            bot_session = (row.get("automation_research_scope") or {}).get("bot") is not None
+            if bot_session and _research_bot_run_id is None:
+                raise StoreError("Bot 会话仅用于原运行", "bot_followup_denied", 409)
+            if _research_bot_run_id is not None:
+                from .research_bots import ResearchBots
+
+                if (
+                    scenario_context
+                    or _weekly_run_id is not None
+                    or row.get("purpose") != "automation"
+                    or not bot_session
+                    or key != f"automation:{_research_bot_run_id}"
+                ):
+                    raise StoreError("Bot 执行上下文冲突", "bot_execution_unverified", 409)
+                bot_selections = ResearchBots(self).trusted_selections(sid, _research_bot_run_id)
             if scenario_context:
                 frozen = scenario_context["scenario"]
                 scenario_selections = [
@@ -3218,6 +3243,9 @@ class ResearchService(ModelProfilesMixin):
                 payload["scenario_context_sha256"] = scenario_fingerprint(scenario_context)
                 payload["scenario_capabilities"] = scenario_selections
                 payload["source_scope"] = source_scope
+            if _research_bot_run_id is not None:
+                payload["research_bot_run_id"] = _research_bot_run_id
+                payload["research_bot_capabilities"] = bot_selections
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             if f"{sid}:{key}" in self.store.data["receipts"] and not weekly_resume:
                 self.store.reserve(sid, key, digest)
@@ -3228,7 +3256,7 @@ class ResearchService(ModelProfilesMixin):
                 )
             capability_readiness = None
             scenario_readiness = {}
-            for required_capability in scenario_selections:
+            for required_capability in [*scenario_selections, *bot_selections]:
                 current_readiness = self.capability_readiness(required_capability["id"], sid)
                 scenario_readiness[required_capability["id"]] = current_readiness
                 if not current_readiness["admitted"]:
@@ -3318,13 +3346,16 @@ class ResearchService(ModelProfilesMixin):
                         }
                     )
             native_skill = selection["native_name"] if selection else skill_id
-            if not alpha and (native_skill or methods or scenario_selections):
+            if not alpha and (native_skill or methods or scenario_selections or bot_selections):
                 skills = await self.skill_catalog(sid)
                 discovered = {skill["name"] for skill in skills["skills"]}
                 if (
                     (native_skill and native_skill not in discovered)
                     or any(method["native_name"] not in discovered for method in methods)
-                    or any(item["native_name"] not in discovered for item in scenario_selections)
+                    or any(
+                        item["native_name"] not in discovered
+                        for item in [*scenario_selections, *bot_selections]
+                    )
                 ):
                     raise CapabilityError(
                         "能力或方法未由 DSH 原生发现；请等待目录观察，旧实例需空闲后更新启动配置",
@@ -3333,7 +3364,7 @@ class ResearchService(ModelProfilesMixin):
                     )
             if selection:
                 self.capabilities.snapshot(selection, self.store.directory(sid))
-            for required_capability in scenario_selections:
+            for required_capability in [*scenario_selections, *bot_selections]:
                 self.capabilities.snapshot(required_capability, self.store.directory(sid))
             for method in methods:
                 self.capabilities.snapshot(
@@ -3473,6 +3504,9 @@ class ResearchService(ModelProfilesMixin):
                         item["native_name"] for item in scenario_selections
                     ]
                 self.store.receipt(sid, key)["scenario_readiness"] = scenario_readiness
+            if _research_bot_run_id is not None:
+                self.store.receipt(sid, key)["research_bot_capabilities"] = bot_selections
+                self.store.receipt(sid, key)["research_bot_run_id"] = _research_bot_run_id
             if contract:
                 row.update(research_mode=chosen_mode, research_depth=depth)
                 self.store.receipt(sid, key).update(
@@ -3504,6 +3538,11 @@ class ResearchService(ModelProfilesMixin):
             if weekly_scope:
                 weekly_runtime._update_run(_weekly_run_id, research_submission_state="prepared")
             prompt = text
+            if bot_selections:
+                prompt += "\n用原生 skill 工具按下列 name 逐一加载并应用已核验的 Bot 技能：\n"
+                prompt += "\n".join(
+                    f"{item['native_name']} · SHA-256={item['sha256']}" for item in bot_selections
+                )
             if specialist_budget is not None:
                 prompt += specialist_service.prepare(self, sid, key, specialist_budget, contract)
             if scenario_context:

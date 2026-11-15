@@ -7,8 +7,16 @@ from email.utils import parseaddr
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
+from ..research_bot_models import BotConfiguration
 from ..store import StoreError
 
 DIGEST_PATTERN = r"^[a-f0-9]{64}$"
@@ -24,7 +32,8 @@ class StrictModel(BaseModel):
 
 
 class AutomationSchedule(StrictModel):
-    kind: Literal["once", "daily", "weekly", "monthly"]
+    kind: Literal["once", "daily", "weekly", "monthly", "interval"]
+    interval_minutes: int | None = Field(default=None, ge=5, le=1440)
     timezone: str = Field(min_length=1, max_length=80)
     once_at: str | None = Field(default=None, max_length=64)
     weekday: int | None = Field(default=None, ge=0, le=6)
@@ -44,6 +53,22 @@ class AutomationSchedule(StrictModel):
 
     @model_validator(mode="after")
     def validate_shape(self) -> AutomationSchedule:
+        if self.kind == "interval":
+            if self.interval_minutes is None or any(
+                value is not None
+                for value in (
+                    self.once_at,
+                    self.weekday,
+                    self.weekdays,
+                    self.day,
+                    self.hour,
+                    self.minute,
+                )
+            ):
+                raise ValueError("interval_schedule_invalid")
+            return self
+        if self.interval_minutes is not None:
+            raise ValueError("interval_not_allowed")
         if self.weekdays is not None:
             if any(type(day) is not int or not 0 <= day <= 6 for day in self.weekdays):
                 raise ValueError("weekday_invalid")
@@ -76,6 +101,13 @@ class AutomationSchedule(StrictModel):
             if self.kind != "monthly" and self.day is not None:
                 raise ValueError("day_not_allowed")
         return self
+
+    @model_serializer(mode="wrap")
+    def stable_legacy_shape(self, handler):
+        value = handler(self)
+        if self.interval_minutes is None:
+            value.pop("interval_minutes", None)
+        return value
 
 
 class MCPToolLock(StrictModel):
@@ -117,6 +149,14 @@ class ResearchTaskDefinition(StrictModel):
         min_length=1, max_length=3
     )
     approved_tools: list[str] = Field(default_factory=list, max_length=64)
+    bot: BotConfiguration | None = None
+
+    @model_serializer(mode="wrap")
+    def stable_legacy_shape(self, handler):
+        value = handler(self)
+        if self.bot is None:
+            value.pop("bot", None)
+        return value
 
     @model_validator(mode="after")
     def scopes_are_unique(self) -> ResearchTaskDefinition:

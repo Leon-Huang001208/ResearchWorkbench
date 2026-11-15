@@ -109,6 +109,11 @@ jobs:
             -- \
             tests/research_web/test_protocol.py \
             tests/research_web/test_api.py \
+            tests/research_web/test_research_bots.py \
+            tests/research_web/test_automation_routes.py \
+            tests/research_web/test_automation_schedule.py \
+            tests/research_web/test_automation_research_task.py \
+            tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities \
             tests/research_web/test_weknora_client.py \
             tests/research_web/test_weknora_service.py \
             tests/research_web/test_weknora_api.py \

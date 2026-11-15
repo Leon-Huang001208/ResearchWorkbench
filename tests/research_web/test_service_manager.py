@@ -240,6 +240,63 @@ def test_doctor_web_access_unavailable_is_unknown(manager, monkeypatch):
     assert manager.doctor()["web_access"] == {"mode": "unknown", "origin": None}
 
 
+@pytest.mark.parametrize(
+    "configuration, expected",
+    [
+        ("available", "available"),
+        ("disabled_service_only", "disabled_service_only"),
+        ("disabled_tenant", "disabled_tenant"),
+        ("disabled_automation", "disabled_automation"),
+        (None, "unknown"),
+        (True, "unknown"),
+        ({"private-canary": "private-canary"}, "unknown"),
+        ("private-canary", "unknown"),
+    ],
+)
+def test_doctor_projects_research_bot_configuration_from_running_host(
+    manager, monkeypatch, configuration, expected
+):
+    probes = tuple(
+        ServiceProbe(role, port, "valid", "alive", "owned", "listening", "passed", True, 123, ())
+        for role, port in (("runtime", 3081), ("web", 8088))
+    )
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_service_probes", lambda: probes)
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+    requests = []
+
+    def request(_port, method, path):
+        requests.append((method, path))
+        if path == "/api/research/runtime":
+            return {
+                "research_bot": {
+                    "configuration": configuration,
+                    "runtime_verification": "PASS",
+                    "unexpected": "private-canary",
+                }
+            }
+        assert path == "/api/research/models"
+        return {"groups": [], "failures": []}
+
+    monkeypatch.setattr(manager, "_json_request", request)
+    report = manager.doctor()
+    assert report["research_bot"] == {
+        "configuration": expected,
+        "runtime_verification": "NOT_RUN",
+    }
+    assert "private-canary" not in json.dumps(report)
+    assert requests == [
+        ("GET", "/api/research/runtime"),
+        ("GET", "/api/research/models"),
+    ]
+
+    def unavailable(*_args):
+        raise ServiceManagerError("private-canary")
+
+    monkeypatch.setattr(manager, "_json_request", unavailable)
+    assert manager.doctor()["research_bot"]["configuration"] == "unknown"
+
+
 def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
     output_stream = io.StringIO()
     monkeypatch.setattr(sys, "stdout", output_stream)

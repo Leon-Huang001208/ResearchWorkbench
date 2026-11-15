@@ -23,6 +23,17 @@ test('activation replaces the rail and hides retired FinGPT history while retain
   assert.deepEqual(visibleResearchSessions([legacy, qa, specialist, claw], true), [qa, specialist, claw]);
 });
 
+test('FinGPT and Research Bot retain their independent navigation access rules', () => {
+  const qaOptions = { route: { page: 'qa' }, qaEnabled: true };
+  const available = { research_bot: { configuration: 'available' } };
+  const disabled = { research_bot: { configuration: 'disabled_automation' } };
+  const native = renderPrimaryRail({ ...qaOptions, runtime: available });
+  assert.match(native, /href="#\/qa"/);
+  assert.match(native, /href="#\/research-bots"/);
+  assert.doesNotMatch(renderPrimaryRail({ ...qaOptions, runtime: disabled }), /href="#\/research-bots"/);
+  assert.doesNotMatch(renderPrimaryRail({ ...qaOptions, runtime: available, account: { id: 'tenant' } }), /href="#\/research-bots"/);
+});
+
 test('legacy links resolve to the new chat or the correct accessible session', () => {
   assert.equal(fingptReplacement(legacy, 'legacy'), '#/qa');
   assert.equal(fingptReplacement(qa, 'qa'), '#/qa?session=qa');

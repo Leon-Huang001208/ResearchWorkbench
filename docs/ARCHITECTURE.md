@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Research Bot 在现有 Web 壳和账号 Host 内复用 Automation 调度、Store 和唯一 DSH，定时与手动运行使用同一冻结定义及证据路径。该入口限原有本机内置研究，详情见[执行与恢复](architecture/research-web/02-research-runtime.md)。
+
 财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。
 每账号保留有界内存快照；未接入类别不会访问上游，不引入进程、数据库、定时或第二研究引擎。
 见[市场数据流](../outputs/research-web-architecture/13-market-overview.html)及[接口合同](architecture/research-web/04-api.md#财经日历接口)。

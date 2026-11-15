@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 补充 AlphaDesk 问答候选与切换状态链接。",
-  "reason": "源码迁入后需要区分独立 Node 问答、现有 DSH 专业协作和实际启用状态。"
+  "summary": "README 补充 AlphaDesk 问答候选与切换状态链接。Research Bot 入口及边界见安装与架构文档。",
+  "reason": "问答迁移扩展执行路径。Research Bot 沿既有本机运行时提供监测、调度和专用 API。"
 }

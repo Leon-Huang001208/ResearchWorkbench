@@ -652,6 +652,21 @@ def test_doctor_reports_explicit_service_only_without_installation(tmp_path, out
     assert not root.exists()
 
 
+@pytest.mark.parametrize("service_only", [False, True])
+def test_server_doctor_reports_research_bot_disabled(tmp_path, output, service_only):
+    root = tmp_path / "missing"
+    args = ["doctor", "--root", str(root), "--json"]
+    if service_only:
+        args.append("--service-only")
+    assert cli.main(args) == 0
+    report = json.loads(output.readouterr().out)
+    assert report["research_bot"] == {
+        "configuration": "disabled_service_only" if service_only else "disabled_tenant",
+        "runtime_verification": "NOT_RUN",
+    }
+    assert not root.exists()
+
+
 def test_doctor_reports_explicit_weknora_oauth_metadata_only(tmp_path, output, monkeypatch):
     monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
     root = tmp_path / "missing"

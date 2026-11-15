@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+Research Bot 本地验证复用共享测试环境。Research Web Checks 的现有 Python 批次加入 Bot、通用自动化和原生技能准入回归，Mac Bootstrap 在既有步骤核对安装资产及 Doctor。
+
 财经日历验证按宏观官方样本、离线账户/API 合同、候选本机浏览器、登录态参考对照和同候选 macOS 安装分别留证。
 没有实页对照时不得宣称像素级复刻通过；数据源失败保留原状态，不用夹具替代。
 

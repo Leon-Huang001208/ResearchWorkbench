@@ -441,6 +441,23 @@ Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不
 
 固定 Native/Docker 启动 overlay 的 DeepSeek 单次输出上限为 16384 tokens；不修改模型凭据、DSH pin 或锁定依赖。截断仍是 incomplete，文件验收必须核对原生完成事件及实际非空产物。
 
+## Research Bot
+
+Research Bot 随现有 Web 安装交付，复用固定 DSH、Automation 调度与账号数据根。三个公开安装入口、
+`requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 沿用原流程。
+安装无需配置 Bot、启用计划或增加凭据。Mac Bootstrap 从运行中的 Web 服务下载
+`research-bots.mjs` 并与候选源码逐字节比对。
+
+本机内置研究模式下，在 Web 的 Research Bot 页面保存研究目标、资讯筛选、已发布技能及批准工具。
+保存后处于停用状态。通过「开启监控」启用周期检查，或用「立即运行」发起单次研究。
+原 `RESEARCH_AUTOMATIONS_ENABLED` 关闭时，Bot 配置与运行均不可用。私网租户和仅服务模式也不开放此功能。
+
+`rwb web doctor --json` 的 `research_bot.configuration` 读取运行中 Host，显示
+`available`、`disabled_automation`、`disabled_tenant` 或 `disabled_service_only`。
+Host 停止、旧版本未提供该字段或返回无法识别的值时，显示 `unknown`。
+`rwb server doctor --json` 根据私网运行模式显示禁用原因。
+两种诊断均保留 `runtime_verification=NOT_RUN`。模型、资讯和技能的实际调用，以及调度恢复，须分别验证。
+
 ## 中文 PDF 依赖与验收
 
 Web 锁新增 ReportLab（reportlab>=4.5,<5），使用原 Python3.12 universal/哈希解析流程；其余锁定依赖保持。resources/fonts 包含可嵌入的 Noto Sans SC 静态中文字体、OFL 许可证和固定 Google Fonts 来源摘要。产品 PDF 不要求宿主 Office、CMake 或 Node 开发头文件；后两者是固定 DSH 原生构建的工具链前提。

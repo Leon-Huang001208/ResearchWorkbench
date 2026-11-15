@@ -49,6 +49,7 @@ from . import PINNED_DSH_COMMIT, RUNTIME_CONTRACT
 from .control_origin import ControlOriginError, ControlOriginTransaction
 from .lifecycle_lock import LifecycleLock, LifecycleLockError, _fsync_directory
 from .process_spec import ProcessSpec, build_process_specs
+from .research_bot_diagnostics import diagnostic as research_bot_diagnostic
 from .runtime_auth import read_runtime_auth_record
 from .runtime_state import RuntimeStateError, runtime_state_directory
 from .service_diagnostics import ServiceProbe
@@ -3035,6 +3036,10 @@ class WebServiceManager:
         except ServiceManagerError:
             return False, ("model_catalog_unavailable",)
         self._diagnostic_web_access = self._web_access_diagnosis(runtime)
+        research_bot = runtime.get("research_bot")
+        self._diagnostic_research_bot = research_bot_diagnostic(
+            research_bot.get("configuration") if isinstance(research_bot, dict) else None
+        )
         provider = runtime.get("provider")
         model = runtime.get("model")
         configured = (
@@ -3099,6 +3104,7 @@ class WebServiceManager:
         product_ready = all(probe.ready for probe in probes)
         # A stopped/old Host must not inherit the previous diagnosis's state.
         self._diagnostic_web_access = {"mode": "unknown", "origin": None}
+        self._diagnostic_research_bot = research_bot_diagnostic()
         model_ready, model_warnings = self._model_diagnosis() if product_ready else (False, ())
         warnings = list(dict.fromkeys([*model_warnings, *proxy_warnings(os.environ)]))
         office_fact = read_private_json(
@@ -3147,6 +3153,7 @@ class WebServiceManager:
             "product_ready": product_ready,
             "model_ready": model_ready,
             "web_access": self._diagnostic_web_access,
+            "research_bot": self._diagnostic_research_bot,
             "resident": diagnostic(self.data_root.parent),
             "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
             "warnings": warnings,
@@ -3443,6 +3450,8 @@ def format_doctor_status(status: dict[str, Any]) -> str:
         f"DSH: {'ready' if status.get('dsh', {}).get('ready') else 'invalid'}",
         f"AI Q&A: {status.get('ai_qa', {}).get('status', 'unknown')}",
     ]
+    research_bot = status.get("research_bot", {})
+    lines.append(f"Research Bot configuration: {research_bot.get('configuration', 'unknown')}")
     for role, label in (("runtime", "Runtime"), ("web", "Web")):
         item = status.get("services", {}).get(role, {})
         lines.append(

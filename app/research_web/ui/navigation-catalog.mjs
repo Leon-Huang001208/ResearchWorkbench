@@ -3,6 +3,7 @@ export const PRIMARY_NAVIGATION = [
   { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
   { page: 'reports', glyph: 'document', title: '报告生产', href: '#/reports' },
+  { page: 'research-bots', glyph: 'robot', title: 'Research Bot', href: '#/research-bots' },
   { page: 'market', glyph: 'globe', title: '全市场概览', href: '#/market' },
   { page: 'assets', glyph: 'candles', title: '资产观察', href: '#/assets' },
   { page: 'intel', glyph: 'radar', title: '研究情报', href: '#/intel/overview' },
