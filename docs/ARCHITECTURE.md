@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+macOS 常驻安装增加 APFS 物理身份登记和独立登录修复作业。原 Native supervisor 和网关仍按
+现有身份字段验证；修复作业在身份连续、无未完成事务时同步短期设备号，不修改数据平面、原
+凭据或发布准入。网关工作树迁移将本地源码依赖与原账号和运行配置分离，见[安装流程](research-web-installation.md#macos-重启后的目录身份与网关源码)。
+
 财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。
 每账号保留有界内存快照；未接入类别不会访问上游，不引入进程、数据库、定时或第二研究引擎。
 见[市场数据流](../outputs/research-web-architecture/13-market-overview.html)及[接口合同](architecture/research-web/04-api.md#财经日历接口)。

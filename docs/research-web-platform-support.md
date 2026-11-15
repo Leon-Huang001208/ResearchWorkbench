@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+APFS 探针和登录恢复作业属于 macOS Native。GitHub Mac 的临时卷测试与 Mac mini 的真实登录后恢复分开记录。
+
 市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。
 
 市场V2后继修复只验证Mac Native及同候选macos-15安装；通用Ubuntu检查不冒充Linux产品支持，Windows/Linux原生保持交接。

@@ -1,5 +1,29 @@
 # Mac mini 空私有池网关升级
 
+## 网关同版本迁移到非云盘仓库
+
+在已审核的源码 checkout 中，先用 `rwb resident prepare-gateway-source` 准备本地发行工作树。
+该命令使用原 Native 配置登记的 Git common。确认目标是精确的已安装 SHA、工作树干净且 Git
+元数据落在非云盘目录。保留旧工作树和原 Git 记录用于审计。
+
+对现有网关，先按原维护流程确认账号执行空闲并记录现有 launchd 注册和启用状态。仅在本次
+维护窗口，用 `launchctl disable` 禁用当前用户 GUI 域中的 `com.research-workbench.multiuser-server`
+与 `com.research-workbench.resident`，并在确认归属和空闲后卸载原网关、释放 8089。跨重启时
+这两项停用状态保护未完成事务。原 Native Web/DSH 可以继续运行。下列命令保留原端口、
+解释器、账号库、DSH 源、Tailscale 路由及管理员绑定。
+
+```bash
+./rwb resident plan-gateway-relocation --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --json
+./rwb resident relocate-gateway --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --plan-seal EXACT_PREVIEW_SEAL --json
+```
+
+迁移变更 `server/resident.json.project` 和原 LaunchAgent 的 `WorkingDirectory`，启动前重新
+核对配置和实际工作目录。若中途退出，使用 `rwb resident recover-gateway-relocation --json`
+处理本次未完成事务，再复核旧配置、保留原回执。完成后由操作员引导原 LaunchAgent，并验证
+私网 HTTPS、主实例绑定、登录和技能目录。确认恢复结果已落盘后恢复原两个 label 的启用与注册状态。
+
 逐日市场用 `apply-market-daily`，从已接受 `37051f8f` 进入操作员内 `MARKET_DAILY_PAYLOAD` 固定的载荷；复用市场 V2 的 120 秒切换预算、
 切后干净树、原保全与恢复。首批操作的固定来源在写者排空后记录明确终态证明；旧失败、运行中、
 未知状态、无证明或日程非严格关闭仍拒绝切换。不得清除历史失败隔离以便重试。

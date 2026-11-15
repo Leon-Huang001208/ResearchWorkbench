@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+`resident/volume_identity.py` 核验 APFS 的卷标识及项目和数据目录的物理身份，并在原锁顺序内
+修复设备号；`resident/volume_launch.py` 安装独立、固定的登录恢复工件。`resident/gateway_source.py`
+准备非云盘的精确 Git 工作树，记录既有网关配置与 launchd 路径的成对迁移。回归在
+`tests/research_web/test_resident_volume_identity.py`、`test_gateway_source.py` 和
+`test_resident.py`，实机阶段另取启动和认证证据。
+
 全市场逐日交互在 `ui/market-dashboard*`，首批操作在 `ui/market-daily-bootstrap.mjs`；事件与日历由原
 `event_timeline` 保存事实及原件，`market_scoring` 提供真实原值与原资格缺口。显示证据不替代评分准入。
 

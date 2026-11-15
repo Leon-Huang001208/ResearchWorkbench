@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "README 补充常驻仅服务的原位主账号及 HTTPS OAuth。",
-  "reason": "主账号可在原生命周期锁保护下使用原资料目录，私网授权采用单独登记的固定回调。"
+  "disposition": "unchanged",
+  "summary": "核对 macOS 常驻安装和私网网关工作树迁移。",
+  "reason": "README 现有 Web 安装入口已链接详细安装文档，本次新增恢复命令及实机验收约束均在对应模块文档维护。"
 }

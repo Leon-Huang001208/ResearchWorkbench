@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+APFS 卷身份修复用于 macOS Native 登录作业。Docker 继续按容器和挂载模式核验状态，Docker 原有数据卷不参与设备号重绑。
+
 逐日市场本轮验收落在已授权Mac Native；外置开发工作区不搬移Docker数据盘，不操作其他容器。
 
 市场V2的Git切换预算只适用于已授权Mac Native事务，不切换Docker、改其他容器或扩大资源清理范围。
