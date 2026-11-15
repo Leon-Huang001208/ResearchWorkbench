@@ -35,6 +35,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 | [根 README](../README.md) | current | 使用者 | 产品定位、安装、启动、导航 | 用户入口或安装行为变化 |
 | [Research Web 一键安装](research-web-installation.md) | current | 使用者、运维 | 锁定依赖、Doctor、启动恢复与页面 ready、跨平台安装 | 安装器、依赖或启动健康合同变化 |
 | [Research Web UI](research-web-ui.md) | current | 使用者、前端开发 | 页面、交互与 DOM 合同 | 用户流程或 UI 合同变化 |
+| [数据源清单](DATA_SOURCES.md) | current | 使用者、Agent | 行情与文本的选源入口、覆盖和核验状态 | 新来源获证或已有来源发生变化 |
 | [能力与版本](research-web-capabilities.md) | current | 使用者、能力开发 | Skill、Method、Tool、Workflow | 能力目录或版本规则变化 |
 
 ## 当前架构
@@ -49,7 +50,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 | [系统架构总览](ARCHITECTURE.md) | current | 所有开发者 | 当前系统边界与兼容面 | 顶层边界变化 |
 | [Research Web 架构](architecture/research-web/README.md) | current | Research Web 开发者 | 当前产品的唯一详细架构入口 | Research Web 拓扑或合同变化 |
 | [Development Map](DEVELOPMENT_MAP.md) | current | 开发者、Agent | 源码区域、文档、测试和更新触发 | 模块所有权变化 |
-| [DataHub](research-web-datahub.md) | current | 数据能力开发者 | 15 项能力、22 个来源、Provider 与快照 | DataHub 合同或来源变化 |
+| [DataHub](research-web-datahub.md) | current | 数据能力开发者 | DataHub 业务能力、Provider 与快照合同 | DataHub 合同或来源变化 |
 | [研究框架](architecture/research-web/08-research-frameworks.md) | current | 框架开发者 | Gold／Dollar 专用合同与共享边界 | 框架生命周期变化 |
 
 ## 开发
@@ -72,7 +73,6 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 ## 参考与生成物
 
-- [数据源入口](DATA_SOURCES.md)：当前 DataHub 与旧 Connector 平台的分流说明。
 - [数据存储](DATA_STORAGE.md)：旧兼容 PostgreSQL 平台的表、契约和迁移参考，不是 Research Web 前置条件。
 - [Python 文件索引](generated/py_file_index.md)：由脚本生成，不得手工编辑。
 - `outputs/research-web-architecture/`：由 Archify 图源生成的交互式图和校验回执；首页与 API Atlas 从架构清单确定性生成。
