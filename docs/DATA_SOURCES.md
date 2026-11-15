@@ -32,7 +32,7 @@ Research Workbench 查数据时先看本页。最近一次清单核对为 **2026
 | 美国经济分析局 BEA · DataHub `bea_archive` | 2024 年二季度美国实际 GDP 季环比年化率的初值、第二版 | 固定官方档案。先归档再按规定的截止范围读版本。见 [发布版本合同](research-web-datahub.md#2026-10-23披露日期与官方发布版本)。 |
 | 世界黄金协会 WGC · `ext_wgc/etf-holdings`、`etf-flows` | 黄金 ETF 四地区月度持仓与净流量，单位为吨 | 两个独立指标，各自保留月份、完整性和原件。见 [WGC 合同](research-web-datahub.md#wgc-月度吨数与研究时点2026-10-23)。 |
 | SPDR Gold Shares · `ext_spdr/gld` | 单只 GLD 的净资产、黄金吨数、盎司数、发行份额 | 已有四字段原生快照和取数样例，范围为 GLD。见 [GLD 合同](research-web-datahub.md#spdr-gld-四项原生快照2026-10-23)。 |
-| BGS，经 KAPSARC 转发 · `ext_kapsarc/production` | 各国家或地区的年度矿山黄金产量（千克） | 以已验证导出的年份、单位和覆盖为准，BGS 与转发入口共同指向同一数据出处。见 [BGS 合同](research-web-datahub.md#kapsarc--bgs-年度矿产实物量2026-10-24)。 |
+| BGS，经 KAPSARC 转发 · `ext_kapsarc/production` | 各国家或地区的年度矿山黄金产量（千克） | 以已验证导出的年份、单位和覆盖为准，BGS 与转发入口共同指向同一数据出处。见 [BGS 合同](research-web-datahub.md)。 |
 | 用户授权数据库 / 文件 / RWB 快照 | 已有报价、因子、财务表或用户交付的任何可核实数值 | 按具体表和文件登记来源、单位及有效期。DataHub `mysql` 支持目录与只读单表；同口径会话快照和研究仓可复用已取得的原件与版本。见 [MySQL 合同](research-web-datahub.md#用户-mysql-边界)和 [研究仓合同](research-web-market-store.md)。 |
 | 其他目录项 | Tushare 的证券目录、日线、交易日历及财务指标；FRED、BLS、Fed、CFTC、LBMA、Cboe 等的经济序列、CPI、联储资产负债、持仓、定盘或衍生品数据；Yahoo／Nasdaq 历史行情、MOEX 指数日线、中证及其他指数估值 | 作为补源线索。逐端点区分已适配、已观测、仅登记、需独立连接器及不可调用。见 [外部入口目录](../app/research_web/datahub/external_sources.json)和[逐源记录](../.ai/reports/2026-10-23-datahub-source-verification.json)。 |
 
