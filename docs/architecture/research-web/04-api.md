@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+Radar 时效升级验证继续经本机 `GET /api/research/research-bots` 和历史接口读取，真实验收使用受控临时 Bot。
+
 Radar 解包在外层确实提供 `cache_stale` 时保留该字段，明确过期优先。Research Bot 的历史 Run 可读回采用的缓存标志或来源批次时间及相应准入依据。
 
 常驻升级后用只读 `GET /api/research/runtime` 和 `GET /api/research/research-bots` 分别检查主实例配置与 Bot 列表入口。网关认证和租户限制仍由对应运行实例验证。

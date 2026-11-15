@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Radar 修复的 Native 升级入口为 `apply-research-bot-freshness`。产品检查点及其后续操作员由 `model_provider_upgrade.py` 分别校验，回归使用真实 Git 合并树。
+
 Research Bot 的 Radar 批次证据来自 `discovery/news.py`，由 `research_bots.py` 在冻结资料前检查。Radar 解包会保留上游明确报告的缓存标志，测试覆盖原始响应到 Bot 准入。
 
 Research Bot 常驻部署由 `resident/model_provider_upgrade.py` 的 `apply-research-bot` 分派，配套验证位于 `tests/research_web/test_model_provider_upgrade.py`。操作员同时约束旧版本、产品树、受审源码及既有账号保全。
