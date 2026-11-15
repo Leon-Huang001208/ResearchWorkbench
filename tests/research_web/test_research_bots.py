@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from app.research_web.automation.models import AutomationSchedule
@@ -82,6 +83,97 @@ def test_source_selection_requires_freshness_and_ignores_unrelated_news():
     ):
         with pytest.raises(StoreError):
             select_materials(bad, body(), now)
+
+
+@pytest.mark.parametrize(
+    ("generated", "outer", "inner", "reading", "status", "allowed"),
+    [
+        pytest.param("2026-11-15 23:15", {}, {}, True, "not_reported", True, id="observed"),
+        pytest.param("2026-11-15 23:06", {}, {}, True, "not_reported", True, id="ten-minutes"),
+        pytest.param("2026-11-15 23:05", {}, {}, True, "not_reported", False, id="too-old"),
+        pytest.param("2026-11-15 23:17", {}, {}, True, "not_reported", False, id="future"),
+        pytest.param("2026-11-15", {}, {}, True, "not_reported", False, id="date-only"),
+        pytest.param("2026-11-31 23:15", {}, {}, True, "not_reported", False, id="invalid-date"),
+        pytest.param(None, {}, {}, True, "not_reported", False, id="no-evidence"),
+        pytest.param("2026-11-15 23:15", {}, {}, False, "not_reported", False, id="empty-data"),
+        pytest.param(None, {"cache_stale": False}, {}, True, "not_expired", True, id="outer"),
+        pytest.param(
+            "2026-11-15 23:15",
+            {"cache_stale": True},
+            {"cache_stale": False},
+            True,
+            "expired",
+            False,
+            id="expired-wins",
+        ),
+        pytest.param(
+            "2026-11-15 23:15",
+            {"cache_stale": 0},
+            {"cache_stale": False},
+            True,
+            "not_reported",
+            False,
+            id="malformed-outer",
+        ),
+        pytest.param(
+            "2026-11-15 23:15",
+            {},
+            {"cache_stale": None},
+            True,
+            "not_reported",
+            False,
+            id="malformed-inner",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_radar_generation_freshness_contract(
+    monkeypatch, generated, outer, inner, reading, status, allowed
+):
+    from app.research_web import intel_routes
+    from app.research_web.discovery.reading import build_feed
+
+    now = datetime(2026, 11, 15, 15, 16, tzinfo=UTC)
+    entries = [
+        {
+            "title": "光模块订单",
+            "url": "https://example.com/news",
+            "source": "test",
+            "ts": (now - timedelta(hours=1)).timestamp(),
+        }
+    ]
+    radar = {
+        "data": {
+            "industries": [{"items": entries if reading else []}],
+            **({"generated_at": generated} if generated is not None else {}),
+            **inner,
+        },
+        **outer,
+    }
+
+    def response(request):
+        if request.url.path.endswith("/radar"):
+            return httpx.Response(200, json=radar)
+        # Cache metadata outside the Radar route keeps its current projection.
+        return httpx.Response(
+            200, json={"data": {"reading": [], "cache_stale": False}, "cache_stale": True}
+        )
+
+    client = httpx.AsyncClient
+    transport = httpx.MockTransport(response)
+    monkeypatch.setattr(
+        intel_routes.httpx, "AsyncClient", lambda **kwargs: client(transport=transport, **kwargs)
+    )
+
+    value, _ = await build_feed(intel_routes.read_upstream, None, "medium", now.isoformat())
+    assert value["freshness"]["events"]["cache_status"] == "not_expired"
+    assert value["freshness"]["news"]["cache_status"] == status
+    if allowed:
+        assert len(select_materials(value, body(), now)) == 1
+    else:
+        with pytest.raises(StoreError) as exc:
+            select_materials(value, body(), now)
+        assert exc.value.code == "bot_source_unavailable"
 
 
 def setup(tmp_path):
@@ -175,6 +267,48 @@ async def test_unchanged_skips_but_source_revision_runs_again(tmp_path):
 
     research.discovery.feed = revised
     assert await bots.prepare(saved, {"id": "r4", "trigger": "schedule"}) is not None
+
+
+@pytest.mark.asyncio
+async def test_radar_batch_proof_is_persisted_separately_from_content_identity(tmp_path):
+    bots, research = setup(tmp_path)
+    saved = bots.save(body())
+    value = feed()
+    value["freshness"]["news"] = {
+        "status": "ready",
+        "cache_status": "not_reported",
+        "radar_generated_at": "2026-11-13T00:55:00+00:00",
+    }
+
+    async def read(**_kwargs):
+        return value
+
+    research.discovery = SimpleNamespace(feed=read)
+    research.automations.now = lambda: datetime(2026, 11, 13, 1, tzinfo=UTC)
+    first = {
+        "id": "r1",
+        "trigger": "schedule",
+        "automation_id": saved["id"],
+        "definition_snapshot": saved,
+        "research_status": "running",
+    }
+    research.store.data["automation_runs"]["r1"] = first
+    assert await bots.prepare(saved, first)
+    proof = Store(tmp_path).data["automation_runs"]["r1"]["bot_source_freshness"]
+    assert proof == {
+        "basis": "radar_generated_at",
+        "cache_status": "not_reported",
+        "radar_generated_at": "2026-11-13T00:55:00+00:00",
+        "checked_at": "2026-11-13T01:00:00+00:00",
+    }
+
+    first.update(research_status="completed", bot_result={"headline": "已核验"})
+    value["freshness"]["news"]["radar_generated_at"] = "2026-11-13T00:59:00+00:00"
+    assert await bots.prepare(saved, {"id": "r2", "trigger": "schedule"}) is None
+    replay = {"id": "r3", "trigger": "manual"}
+    assert await bots.prepare(saved, replay)
+    assert replay["bot_fingerprint"] == first["bot_fingerprint"]
+    assert replay["bot_source_freshness"]["radar_generated_at"] == "2026-11-13T00:59:00+00:00"
 
 
 def test_bot_config_roundtrip_is_strict():

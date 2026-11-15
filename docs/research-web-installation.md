@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Research Bot 的 Radar 来源兼容修补沿既有安装入口。真实模型、定时运行和数据冻结单独验收。
+
 已接受 Research Bot 后的生产升级，使用[常驻存储身份固定升级](research-web-gateway-upgrade.md#常驻存储身份固定升级)。既有控制器保持固定，正式 APFS 恢复工件单独登记。
 
 已安装的 Mac mini 经 [Research Bot 受管升级](research-web-gateway-upgrade.md#research-bot-常驻升级) 切换。三条公开安装命令仍使用现有 Web 锁及固定 DSH；干净安装验证与实际常驻版本及入口检查分开记录。
