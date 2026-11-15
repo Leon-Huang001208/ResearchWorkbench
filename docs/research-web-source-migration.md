@@ -2,6 +2,8 @@
 
 Research Bot 操作员从已注册的 `source_common` 使用干净受审工作树。交付记录来自另一个 Git common directory 时，先用 `delivery_transfer` 核验并导入精确交付和评审记录。
 
+网关同版本搬迁以来自已登记本地 Git common 的精确提交为目标。原云盘工作树作为历史证据保留，详见[同版本恢复](research-web-gateway-upgrade.md#网关同版本迁移到非云盘仓库)。
+
 市场逐日后继固定已接受37051f8f前版及受审载荷；不迁移业务数据或改写前次失败隔离记录。
 
 失败目标9a97168e保持隔离，已接受a76保持可恢复；通过新审核合并SHA部署，不修改原失败回执或绕过同SHA拒绝。

@@ -200,6 +200,19 @@ jobs:
               assert len(read_upgrade_journal(record)["padding"]) == 1_100_000
           PY
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3, app.research_web.asset_intraday, app.research_web.asset_minute_k, app.research_web.datahub.intraday_contract; assert m.version('cjpy') == '0.5.2'"
+          .venv/bin/python - <<'PY'
+          import subprocess, sys, tempfile
+          from pathlib import Path
+          from research_workbench_entrypoint.resident.volume_identity import _observe_directory
+          from research_workbench_entrypoint.resident.volume_launch import _artifact
+          with tempfile.TemporaryDirectory() as folder:
+              path = Path(folder).resolve()
+              witness, identity = _observe_directory(path)
+              assert identity == [path.stat().st_dev, path.stat().st_ino] and witness
+              artifact = path / "storage-identity.pyz"
+              artifact.write_bytes(_artifact())
+              subprocess.run([sys.executable, str(artifact), "--help"], check=True)
+          PY
           .venv/bin/python -c "from research_workbench_entrypoint.resident.maintenance_job_identity_v3 import ExactJobBinding; assert callable(ExactJobBinding.production) and callable(ExactJobBinding.rehearsal)"
           .venv/bin/python -c "import research_workbench_entrypoint.resident.trial_retirement, research_workbench_entrypoint.resident.trial_discard_backup, research_workbench_entrypoint.resident.trial_successor"
           .venv/bin/python -c "import app.research_web.datahub.providers_global_indices, app.research_web.watchlist_import, app.research_web.asset_research, app.research_web.scenario_handoffs, app.research_web.specialists.routes; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"

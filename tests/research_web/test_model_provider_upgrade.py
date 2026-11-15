@@ -250,7 +250,9 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
     assert upgrade.previous_for(upgrade.ASSET_V2_MODE) == "9bc12355c3b80e4e4459f4c250e13fc2634ed23d"
     assert upgrade.ASSET_PAYLOAD == "54d4c8f9421c568de853a2f93263a2bfcd53422c"
     assert upgrade.ASSET_V2_PAYLOAD == "93d62be64084a5c92541a4a008216c0b3f56c2f1"
-    assert upgrade.ASSET_MODES == frozenset((*ASSET_PROFILES, upgrade.RESEARCH_BOT_MODE))
+    assert upgrade.ASSET_MODES == frozenset(
+        (*ASSET_PROFILES, upgrade.RESEARCH_BOT_MODE, upgrade.STORAGE_IDENTITY_MODE)
+    )
     assert upgrade.previous_for(upgrade.MODE) == upgrade.PREVIOUS
     with pytest.raises(upgrade.UpdateBlocked):
         upgrade.previous_for("unreviewed")
@@ -1227,7 +1229,10 @@ def real_operations(tmp_path, monkeypatch, request):
 
     import app.research_web.multiuser.resident_binding as binding_module
 
-    mode = getattr(request, "param", upgrade.MODE)
+    profile = getattr(request, "param", upgrade.MODE)
+    mode, mcp_enabled = profile if isinstance(profile, tuple) else (profile, True)
+    if mode == upgrade.STORAGE_IDENTITY_MODE:
+        monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PREVIOUS", "a" * 40)
     previous = upgrade.previous_for(mode)
     home = tmp_path.resolve()
     root, server = home / "resident", home / "server"
@@ -1274,8 +1279,8 @@ def real_operations(tmp_path, monkeypatch, request):
     }
     if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
         gw["mcp_readonly_enabled"] = False
-    if mode in {upgrade.RESEARCH_BOT_MODE, upgrade.FINGPT_MODE}:
-        gw["mcp_readonly_enabled"] = True
+    if mode in {*upgrade.ATTACHED_MCP_PRESERVATION_MODES, upgrade.FINGPT_MODE}:
+        gw["mcp_readonly_enabled"] = mcp_enabled
     manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
@@ -1323,8 +1328,8 @@ def real_operations(tmp_path, monkeypatch, request):
         state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     if mode in upgrade.ASSET_MODES:
         state["asset_index_before"] = upgrade.asset_index_snapshot(home)
-    if mode == upgrade.RESEARCH_BOT_MODE:
-        state["research_bot_mcp_before"] = True
+    if mode in upgrade.ATTACHED_MCP_PRESERVATION_MODES:
+        state["research_bot_mcp_before"] = mcp_enabled
     system = {
         "primary": previous,
         "gateway": previous,
@@ -1464,7 +1469,11 @@ def real_operations(tmp_path, monkeypatch, request):
                 **(
                     {"mcp_readonly_enabled": False}
                     if mode in upgrade.EVENT_PRESERVATION_MODES
-                    else {"mcp_readonly_enabled": True} if mode == upgrade.RESEARCH_BOT_MODE else {}
+                    else (
+                        {"mcp_readonly_enabled": mcp_enabled}
+                        if mode in upgrade.ATTACHED_MCP_PRESERVATION_MODES
+                        else {}
+                    )
                 ),
                 **(
                     {
@@ -1516,7 +1525,11 @@ def real_operations(tmp_path, monkeypatch, request):
             return [SimpleNamespace(role="runtime")]
 
         def _active_research_read_only(self, _runtime):
-            if mode in {*upgrade.EVENT_PRESERVATION_MODES, upgrade.RESEARCH_BOT_MODE, upgrade.FINGPT_MODE}:
+            if mode in {
+                *upgrade.EVENT_PRESERVATION_MODES,
+                *upgrade.ATTACHED_MCP_PRESERVATION_MODES,
+                upgrade.FINGPT_MODE,
+            }:
                 return ["active"] if system["active"] is not False else []
             return system["active"] is not False
 
@@ -1549,7 +1562,7 @@ def real_operations(tmp_path, monkeypatch, request):
             ("primary" if project == primary else "gateway") + "_repository"
         ],
     )
-    if mode in {*upgrade.EVENT_PRESERVATION_MODES, upgrade.RESEARCH_BOT_MODE, upgrade.FINGPT_MODE}:
+    if mode in {*upgrade.EVENT_PRESERVATION_MODES, *upgrade.ATTACHED_MCP_PRESERVATION_MODES, upgrade.FINGPT_MODE}:
         # This phase/recovery fixture already substitutes g.verify_primary;
         # actual operate protocol tests below retain both real primary verifiers.
         monkeypatch.setattr(
@@ -5689,7 +5702,15 @@ def test_research_bot_review_checks_complete_product_tree(tmp_path, monkeypatch,
             upgrade.review(tmp_path, target, upgrade.RESEARCH_BOT_MODE)
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.RESEARCH_BOT_MODE], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations",
+    [
+        upgrade.RESEARCH_BOT_MODE,
+        (upgrade.STORAGE_IDENTITY_MODE, True),
+        (upgrade.STORAGE_IDENTITY_MODE, False),
+    ],
+    indirect=True,
+)
 @pytest.mark.parametrize("fail", [None, "verify_target", "missing_entry"])
 def test_research_bot_real_transaction_preserves_mcp_and_accounts(
     real_operations, monkeypatch, fail
@@ -5759,3 +5780,120 @@ def test_research_bot_rejects_settings_that_new_gateway_would_activate(config, c
     upgrade.verify_research_bot_execution({"mcp_readonly_enabled": True, "service_only": False})
     with pytest.raises(upgrade.UpdateBlocked, match=code):
         upgrade.verify_research_bot_execution({"mcp_readonly_enabled": True, **config})
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_storage_identity_profile_keeps_exact_gateway_setting(enabled):
+    mode = "reviewed-resident-storage-identity-v1"
+    assert upgrade.previous_for(mode) == upgrade.STORAGE_IDENTITY_PREVIOUS
+    assert mode in upgrade.ASSET_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+    old = {"revision": "old", "binding": {"revision": "old"}, "mcp_readonly_enabled": enabled}
+    state = {"mode": mode, "target": "new", "gateway_config": old}
+    target = upgrade.gateway_configuration(state)
+    assert target["mcp_readonly_enabled"] is enabled
+    assert upgrade.gateway_configuration(state, previous=True) == old
+    assert not upgrade.gateway_configuration_matches(
+        state, {**target, "mcp_readonly_enabled": int(enabled)}, previous=False
+    )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "accepted",
+        "baseline-extra",
+        "baseline-code",
+        "baseline-removed",
+        "executor-extra",
+        "executor-doc",
+    ],
+)
+def test_storage_identity_review_binds_published_product(tmp_path, monkeypatch, change):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    def write(name, body):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    product = "app/research_web/multiuser/resident.py"
+    operator_doc = "docs/research-web-gateway-upgrade.md"
+    for name in (upgrade.MODULE, upgrade.TEST, product, operator_doc):
+        write(name, "old")
+    git("add", ".")
+    git("commit", "-m", "original product base")
+    original_base = git("rev-parse", "HEAD")
+    write(product, "reviewed storage identity")
+    write(operator_doc, "published document")
+    git("add", ".")
+    git("commit", "-m", "published product")
+    published = git("rev-parse", "HEAD")
+    git("switch", "-c", "accepted", original_base)
+    write("approved_previous.py", "part of the accepted release")
+    git("add", ".")
+    git("commit", "-m", "accepted release")
+    previous = git("rev-parse", "HEAD")
+    git("merge", "--no-ff", "-m", "refresh with the accepted release", published)
+    write(operator_doc, "reviewed merged documentation")
+    if change == "baseline-extra":
+        write("unexpected.py", "unreviewed drift")
+    elif change == "baseline-code":
+        write(product, "altered published code")
+    elif change == "baseline-removed":
+        write(product, "old")
+    git("add", ".")
+    git("commit", "-m", "freeze refreshed product")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PREVIOUS", previous, raising=False)
+    monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PAYLOAD", payload, raising=False)
+    monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PUBLISHED_PRODUCT", published, raising=False)
+    for name in (upgrade.MODULE, upgrade.TEST, operator_doc):
+        write(name, "fixed deployment operator")
+    if change == "executor-extra":
+        write(product, "unexpected executor product change")
+    elif change == "executor-doc":
+        write("docs/unrelated.md", "unrelated executor document")
+    git("add", ".")
+    git("commit", "-m", "versioned operator")
+    target = git("rev-parse", "HEAD")
+    mode = "reviewed-resident-storage-identity-v1"
+    if change == "accepted":
+        result = upgrade.review(tmp_path, target, mode)
+        assert result == {
+            "product_tree": git("rev-parse", f"{payload}^{{tree}}"),
+            **{
+                name: git("rev-parse", f"{target}:{name}")
+                for name in (upgrade.MODULE, upgrade.TEST, operator_doc)
+            },
+        }
+    else:
+        code = (
+            "storage_identity_upgrade_product_scope_changed"
+            if change.startswith("baseline-")
+            else "storage_identity_upgrade_payload_changed"
+        )
+        with pytest.raises(upgrade.UpdateBlocked, match=code):
+            upgrade.review(tmp_path, target, mode)
+
+
+def test_storage_identity_apply_dispatches_to_fixed_profile(tmp_path, monkeypatch):
+    (tmp_path / "logs").mkdir()
+    observed = []
+
+    def operate(home, source, *, recovering, mode):
+        observed.append((home, source, recovering, mode))
+        return {"status": "deferred"}
+
+    monkeypatch.setattr(upgrade, "operate", operate)
+    source = tmp_path / "candidate"
+    upgrade.main(
+        ["apply-resident-storage-identity", "--home", str(tmp_path), "--source", str(source)]
+    )
+    assert observed == [(tmp_path, source, False, upgrade.STORAGE_IDENTITY_MODE)]

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 补充 AlphaDesk 问答候选与切换状态链接。Research Bot Native 升级见安装与架构文档。",
-  "reason": "两个受管升级入口各自核验其产品字节和原生进程身份。"
+  "summary": "README 补充 AlphaDesk 问答候选与切换状态。常驻身份恢复及网关本地源码安装见安装与架构文档。",
+  "reason": "FinGPT 切换与现有常驻维护入口各自核验源码和运行时证据。"
 }
