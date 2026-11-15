@@ -6,6 +6,7 @@
 - 修改已有文件前，先阅读该文件及其模块文档。
 - 修改源代码前，阅读 `docs/ARCHITECTURE.md` 和 `docs/DEVELOPMENT_MAP.md`。
 - 用 `docs/AGENT_WORKFLOW.md` 选择本地快环、后台/远程执行通道及所需的 worktree 隔离。
+- 查询行情、财务、宏观、公告、新闻和研究资料前，先查 [数据源清单](docs/DATA_SOURCES.md)，按覆盖、口径及当前权限选源。发现新的可用来源或已有来源变化时，按清单维护规则在本次任务中更新入口、覆盖和核验证据。
 
 ## Engineering requirements
 
