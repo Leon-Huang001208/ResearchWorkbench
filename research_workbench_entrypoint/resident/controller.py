@@ -78,9 +78,16 @@ def clean(root: Path, expected: str) -> None:
         raise UpdateBlocked("resident_checkout_changed")
 
 
+def gateway_relocation_pending(server: Path) -> bool:
+    journal = server / "run/gateway-source-rehome.json"
+    return journal.exists() or journal.is_symlink()
+
+
 def configured(home: Path) -> tuple[Path, dict]:
     root = home / "resident"
     private_root(root)
+    if gateway_relocation_pending(home / "server"):
+        raise UpdateBlocked("gateway_source_recovery_required")
     config = read_json(root / "config.json")
     for field in ("project", "node", "python", "artifact"):
         path = Path(config[field])
@@ -526,6 +533,15 @@ def install(home: Path, project: Path, source_repository: Path, origin: str) -> 
             stream.flush()
             os.fsync(stream.fileno())
         sync_directory(agents)
+    from .volume_launch import register
+
+    try:
+        storage = register(home, config, supervisor_locked=True)
+    except UpdateBlocked as exc:
+        if str(exc) != "resident_volume_not_apfs":
+            raise
+        log.info("resident_storage_identity_unavailable", extra={"reason": str(exc)})
+        storage = {"status": "unavailable", "reason": str(exc)}
     run(["/bin/launchctl", "enable", f"gui/{os.getuid()}/{LABEL}"])
     try:
         run(["/bin/launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist)])
@@ -535,7 +551,9 @@ def install(home: Path, project: Path, source_repository: Path, origin: str) -> 
         registered = run(["/bin/launchctl", "print", f"gui/{os.getuid()}/{LABEL}"])
         if str(artifact) not in registered or config["python"] not in registered:
             raise UpdateBlocked("resident_registration_unverified") from None
-    return record(root, "installed", deployed=sha, url=origin + "/#/fingpt")
+    return record(
+        root, "installed", deployed=sha, url=origin + "/#/fingpt", storage_identity=storage
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -551,12 +569,21 @@ def main(argv: list[str] | None = None) -> int:
             "retry",
             "bridge",
             "upgrade-host-metadata",
+            "enroll-storage-identity",
+            "repair-storage-identity",
+            "prepare-gateway-source",
+            "plan-gateway-relocation",
+            "relocate-gateway",
+            "recover-gateway-relocation",
         ),
     )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--project", type=Path)
     parser.add_argument("--source-repository", type=Path)
     parser.add_argument("--private-origin")
+    parser.add_argument("--release", type=Path)
+    parser.add_argument("--revision")
+    parser.add_argument("--plan-seal")
     parser.add_argument("--expected-previous")
     parser.add_argument("--expected-target")
     parser.add_argument("--operation", choices=("ensure", "deploy", "recover", "rollback"))
@@ -566,6 +593,15 @@ def main(argv: list[str] | None = None) -> int:
         args.expected_previous is not None or args.expected_target is not None
     ):
         parser.error("expected revision arguments require upgrade-host-metadata")
+    owns_resident_state = args.command in {
+        "install",
+        "tick",
+        "disable",
+        "rollback",
+        "retry",
+        "bridge",
+        "upgrade-host-metadata",
+    }
     root = args.home / "resident"
     try:
         if args.command == "status":
@@ -574,6 +610,12 @@ def main(argv: list[str] | None = None) -> int:
                 if (root / "state.json").exists()
                 else {"status": "not_installed"}
             )
+        elif args.command == "plan-gateway-relocation":
+            from .gateway_source import plan_rehome
+
+            if args.release is None or args.revision is None:
+                raise UpdateBlocked("gateway_release_arguments_required")
+            value = plan_rehome(args.home, args.release, args.revision)
         else:
             private_root(root)
             log_directory = args.home / "logs"
@@ -601,6 +643,35 @@ def main(argv: list[str] | None = None) -> int:
                 from .host_metadata import upgrade
 
                 value = upgrade(args.home, args.expected_previous, args.expected_target)
+            elif args.command == "enroll-storage-identity":
+                from .volume_launch import register
+
+                _, config = configured(args.home)
+                value = register(args.home, config)
+            elif args.command == "repair-storage-identity":
+                from .volume_identity import rebind
+
+                value = rebind(args.home)
+            elif args.command in {
+                "prepare-gateway-source",
+                "relocate-gateway",
+                "recover-gateway-relocation",
+            }:
+                from . import gateway_source
+
+                if args.command == "recover-gateway-relocation":
+                    value = gateway_source.recover_rehome(args.home)
+                else:
+                    if args.release is None or args.revision is None:
+                        raise UpdateBlocked("gateway_release_arguments_required")
+                    if args.command == "prepare-gateway-source":
+                        value = gateway_source.prepare(args.home, args.release, args.revision)
+                    else:
+                        if args.plan_seal is None:
+                            raise UpdateBlocked("gateway_relocation_seal_required")
+                        value = gateway_source.rehome(
+                            args.home, args.release, args.revision, expected_seal=args.plan_seal
+                        )
             elif args.command == "bridge":
                 value = bridge_main(args.home, args.operation)
             elif args.command == "disable":
@@ -635,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         code = str(exc) if isinstance(exc, UpdateBlocked) else "resident_operation_failed"
         log.exception("resident_operation_failed")
-        if args.command != "status" and root.exists():
+        if owns_resident_state and root.exists():
             try:
                 record(root, "blocked", reason=code)
             except (OSError, RuntimeError):

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 README 公开入口及运行拓扑，Research Bot 文档位于 Research Web 安装与架构章节。",
-  "reason": "现有本机内置研究增加一个账号内页面和专用 API，公开安装命令、依赖和服务拓扑沿既有合同。"
+  "summary": "复核 README 中的 Research Bot 入口、macOS 常驻安装及私网网关拓扑。",
+  "reason": "现有 README 已链接 Web 安装与架构文档。内置研究入口、常驻身份恢复和网关本地工作树命令分别在对应文档维护。"
 }

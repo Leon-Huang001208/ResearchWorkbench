@@ -88,7 +88,7 @@ def test_resident_persisted_mcp_switch_precedes_environment_before_runtime(
 
     monkeypatch.setenv("RWB_MCP_READONLY_ENABLED", "1")
     monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(resident.subprocess, "check_output", lambda *args, **kwargs: "a" * 40)
+    monkeypatch.setattr(resident, "verify_local_checkout", lambda *args: None)
     monkeypatch.setattr(runtime, "RuntimePool", Pool)
     monkeypatch.setattr(
         resident_binding.LegacyBinding, "from_config", lambda _: SimpleNamespace(home=legacy.parent)
@@ -536,6 +536,7 @@ def test_service_only_resident_serves_original_primary_and_releases_lifecycle(
         },
     )
     monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(resident, "verify_local_checkout", lambda *args: None)
     monkeypatch.setattr(resident_boot, "boot_identity", lambda: str(uuid4()))
     monkeypatch.setattr(WebServiceManager, "_native_quiescent", lambda self: True)
 
@@ -562,3 +563,48 @@ def test_service_only_resident_serves_original_primary_and_releases_lifecycle(
     manager = binding._verified_manager()
     with manager._lifecycle_lock() as lease:
         lease.assert_held()
+
+
+def test_resident_rejects_cloud_gateway_source_before_opening_account_store(tmp_path, monkeypatch):
+    from app.research_web.multiuser import __main__ as cli
+    from app.research_web.multiuser import resident
+    from app.research_web.multiuser.runtime import RuntimeErrorSafe
+    from research_workbench_entrypoint.resident import gateway_source
+
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    config = {
+        "version": 1,
+        "revision": "a" * 40,
+        "project": str(cli.PROJECT),
+        "port": 8089,
+    }
+    path = root / "resident.json"
+    path.write_text(json.dumps(config))
+    path.chmod(0o600)
+    monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
+    seen = []
+
+    def reject(project, common, revision):
+        seen.append((project, common, revision))
+        raise gateway_source.UpdateBlocked("gateway_source_cloud_managed")
+
+    monkeypatch.setattr(resident, "verify_local_checkout", reject)
+    with pytest.raises(RuntimeErrorSafe, match="gateway_source_cloud_managed"):
+        resident.run(root)
+    assert seen == [(cli.PROJECT, None, config["revision"])]
+    assert not (root / "accounts.sqlite3").exists()
+
+
+def test_unfinished_gateway_relocation_blocks_launch_before_binding(tmp_path, monkeypatch):
+    from app.research_web.multiuser import resident
+    from app.research_web.multiuser.runtime import RuntimeErrorSafe
+
+    root = tmp_path / "server"
+    (root / "run").mkdir(parents=True, mode=0o700)
+    root.chmod(0o700)
+    (root / "run/gateway-source-rehome.json").write_text("{}")
+    monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
+    with pytest.raises(RuntimeErrorSafe, match="gateway_source_recovery_required"):
+        resident.run(root)
+    assert not (root / "accounts.sqlite3").exists()
