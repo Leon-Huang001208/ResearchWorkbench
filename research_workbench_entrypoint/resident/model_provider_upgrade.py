@@ -160,11 +160,16 @@ MARKET_DAILY_PAYLOAD = "00690f0e4f8678f64aba20eb4991a3f232897664"
 RESEARCH_BOT_MODE = "reviewed-research-bot-v1"
 RESEARCH_BOT_PREVIOUS = "1315d11a5b82be563b6031593a3bfa5e6e092acd"
 RESEARCH_BOT_PAYLOAD = "88bec0ec04cbe2eb6979e6ebde695b992ed27336"
+RESEARCH_BOT_V2_MODE = "reviewed-research-bot-v2"
+RESEARCH_BOT_V2_PREVIOUS = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
+RESEARCH_BOT_V2_PAYLOAD = "fcc3e8990738d42bcc7a84d1c1ade36c4a05f784"
 STORAGE_IDENTITY_MODE = "reviewed-resident-storage-identity-v1"
 STORAGE_IDENTITY_PREVIOUS = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
 STORAGE_IDENTITY_PAYLOAD = "00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7"
 STORAGE_IDENTITY_PUBLISHED_PRODUCT = "1e2d0b2a971daba2e5f1f2897e937dbc4ae7f66f"
-ATTACHED_MCP_PRESERVATION_MODES = frozenset({RESEARCH_BOT_MODE, STORAGE_IDENTITY_MODE})
+ATTACHED_MCP_PRESERVATION_MODES = frozenset(
+    {RESEARCH_BOT_MODE, RESEARCH_BOT_V2_MODE, STORAGE_IDENTITY_MODE}
+)
 STORAGE_IDENTITY_OPERATOR_DOCS = frozenset(
     {
         ".ai/reports/2026-11-15-resident-boot-durability.md",
@@ -367,6 +372,8 @@ def previous_for(mode):
         return MARKET_DAILY_PREVIOUS
     if mode == RESEARCH_BOT_MODE:
         return RESEARCH_BOT_PREVIOUS
+    if mode == RESEARCH_BOT_V2_MODE:
+        return RESEARCH_BOT_V2_PREVIOUS
     if mode == STORAGE_IDENTITY_MODE:
         return STORAGE_IDENTITY_PREVIOUS
     if mode == MARKET_LIVE_V2_MODE:
@@ -1034,6 +1041,19 @@ def review_research_bot(source: Path, target: str):
     )
 
 
+def review_research_bot_v2(source: Path, target: str):
+    if RESEARCH_BOT_V2_PREVIOUS == RESEARCH_BOT_V2_PAYLOAD:
+        raise UpdateBlocked("research_bot_upgrade_payload_unbound")
+    return _review_fixed_product(
+        source,
+        target,
+        RESEARCH_BOT_V2_PREVIOUS,
+        RESEARCH_BOT_V2_PAYLOAD,
+        code="research_bot_upgrade",
+        operator_doc=lambda name: name.startswith(("docs/", ".ai/reports/")),
+    )
+
+
 def review_storage_identity(source: Path, target: str):
     previous, payload = STORAGE_IDENTITY_PREVIOUS, STORAGE_IDENTITY_PAYLOAD
     if not all(g.SHA.fullmatch(sha) for sha in (previous, payload)):
@@ -1089,6 +1109,8 @@ def review(source: Path, target: str, mode=MODE):
         return {"product_tree": c.git(source, "rev-parse", f"{target}^{{tree}}")}
     if mode == RESEARCH_BOT_MODE:
         return review_research_bot(source, target)
+    if mode == RESEARCH_BOT_V2_MODE:
+        return review_research_bot_v2(source, target)
     if mode == STORAGE_IDENTITY_MODE:
         return review_storage_identity(source, target)
     if mode in ASSET_MODES:
@@ -4011,6 +4033,7 @@ def main(argv=None):
             "apply-market-live-v2",
             "apply-market-daily",
             "apply-research-bot",
+            "apply-research-bot-freshness",
             "apply-resident-storage-identity",
             "apply-navigation-ui",
             "apply-trial-retirement",
@@ -4102,6 +4125,7 @@ def main(argv=None):
                 "apply-market-live-v2": MARKET_LIVE_V2_MODE,
                 "apply-market-daily": MARKET_DAILY_MODE,
                 "apply-research-bot": RESEARCH_BOT_MODE,
+                "apply-research-bot-freshness": RESEARCH_BOT_V2_MODE,
                 "apply-resident-storage-identity": STORAGE_IDENTITY_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
