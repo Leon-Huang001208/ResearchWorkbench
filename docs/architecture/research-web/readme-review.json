@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "README 补充常驻仅服务的原位主账号及 HTTPS OAuth。",
-  "reason": "主账号可在原生命周期锁保护下使用原资料目录，私网授权采用单独登记的固定回调。"
+  "disposition": "unchanged",
+  "summary": "复核 README 公开入口及运行拓扑，Research Bot 文档位于 Research Web 安装与架构章节。",
+  "reason": "现有本机内置研究增加一个账号内页面和专用 API，公开安装命令、依赖和服务拓扑沿既有合同。"
 }

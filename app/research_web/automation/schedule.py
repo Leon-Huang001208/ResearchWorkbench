@@ -41,6 +41,8 @@ def next_occurrence(schedule: AutomationSchedule, after: datetime) -> datetime |
 
     if after.tzinfo is None:
         raise ValueError("after_timezone_required")
+    if schedule.kind == "interval":
+        return after.astimezone(UTC) + timedelta(minutes=schedule.interval_minutes)
     if schedule.kind == "once":
         value = datetime.fromisoformat(schedule.once_at or "").astimezone(UTC)
         return value if value > after.astimezone(UTC) else None

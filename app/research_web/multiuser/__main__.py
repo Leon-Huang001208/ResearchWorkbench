@@ -307,6 +307,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
 
     from ..mcp_facade.config import resident_execution
+    from ..research_bot_diagnostics import configuration_status, diagnostic
 
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
@@ -367,6 +368,11 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         },
         "runtime": "not_checked",
         "execution_mode": "external" if service_only else "embedded",
+        "research_bot": diagnostic(
+            configuration_status(
+                service_only=service_only, tenant_mode=True, automation_enabled=False
+            )
+        ),
         "model": "not_checked",
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,

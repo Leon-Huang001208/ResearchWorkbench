@@ -198,6 +198,7 @@
         "app/research_web/service.py",
         "app/research_web/service_manager.py",
         "app/research_web/service_diagnostics.py",
+        "app/research_web/research_bot_diagnostics.py",
         "app/research_web/lifecycle_lock.py",
         "research_workbench_entrypoint/web_contract.py",
         "research_workbench_entrypoint/web_bootstrap.py",
@@ -394,6 +395,8 @@
       "id": "automations",
       "sources": [
         "app/research_web/automation/",
+        "app/research_web/research_bot_models.py",
+        "app/research_web/research_bots.py",
         "app/research_web/service.py",
         "app/research_web/ui/capability-workspace.mjs"
       ],
@@ -418,6 +421,8 @@
         "tests/research_web/test_automation_transport.py",
         "tests/research_web/test_automation_service.py",
         "tests/research_web/test_automation_routes.py",
+        "tests/research_web/test_research_bots.py",
+        "tests/javascript/research_web_research_bots.test.mjs",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/e2e/research_web_automations.mjs",
         "tests/research_web/test_automation_drafts.py"
@@ -6226,6 +6231,48 @@
       "declaredPath": "/{path:path}",
       "prefix": "",
       "condition": "mcp-disabled"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/research-bots",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/research-bots",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/research-bots/skills/{skill_id}",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/skills/{skill_id}",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/research-bots/{bot_id}",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/{bot_id}",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/research-bots/{bot_id}/runs",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/{bot_id}/runs",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/research-bots/{bot_id}/{action}",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/{bot_id}/{action}",
+      "prefix": "/api/research/research-bots"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

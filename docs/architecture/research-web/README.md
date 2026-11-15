@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation → DSH 执行。专用 API、冻结资料和失败恢复分别见本目录的接口、资料及运行章节。
+
 2026-11-06 WeKnora资料适配的源码阅读及Atlas链接固定到实际提交 `26e730cbf73d2edcce753d7f84c4f49cf68ec68c`。该检查点包含RWB薄适配与接口，不证明最终文档候选CI、上游Go、第三方运行版本、资料替换或报告接受。
 
 ## WeKnora 资料候选（2026-11-06）

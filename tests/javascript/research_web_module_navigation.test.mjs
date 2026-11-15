@@ -81,3 +81,14 @@ test('secondary focus wraps without making the persistent primary part of the tr
   trapSecondaryFocus({key:'Tab',preventDefault:()=>prevented=true},{querySelector:()=>pane});assert(prevented);assert.equal(focused,'first');
   pane.ownerDocument.activeElement=first;trapSecondaryFocus({key:'Tab',shiftKey:true,preventDefault(){}},{querySelector:()=>pane});assert.equal(focused,'last');
 });
+
+test('Research Bot navigation honors known disablement and retains local legacy compatibility', async () => {
+  const { renderPrimaryRail } = await import('../../app/research_web/ui/shell.mjs');
+  const route = parseRoute('#/research-bots');
+  assert.match(renderPrimaryRail({ route }), /href="#\/research-bots" class="rail-link active"/);
+  assert.match(renderPrimaryRail({ route, runtime: { research_bot: { configuration: 'available' } } }), /href="#\/research-bots"/);
+  for (const configuration of ['disabled_service_only', 'disabled_tenant', 'disabled_automation']) {
+    assert.doesNotMatch(renderPrimaryRail({ route, runtime: { research_bot: { configuration } } }), /href="#\/research-bots"/);
+  }
+  assert.doesNotMatch(renderPrimaryRail({ route, account: { role: 'admin', primary: true } }), /href="#\/research-bots"/);
+});
