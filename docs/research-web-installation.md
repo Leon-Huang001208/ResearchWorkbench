@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+已安装的 Mac mini 经 [Research Bot 受管升级](research-web-gateway-upgrade.md#research-bot-常驻升级) 切换。三条公开安装命令仍使用现有 Web 锁及固定 DSH；干净安装验证与实际常驻版本及入口检查分开记录。
+
 首批市场面板使用原静态资产和原锁定依赖；干净安装检查一次性操作模块的实际字节，不在启动时取源。
 
 市场V2切换使用既有依赖与安装入口；Native Git切换上限120秒，切后复核再安装原锁轮子，同候选Mac干净安装另验。

@@ -192,7 +192,7 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
     assert upgrade.previous_for(upgrade.ASSET_V2_MODE) == "9bc12355c3b80e4e4459f4c250e13fc2634ed23d"
     assert upgrade.ASSET_PAYLOAD == "54d4c8f9421c568de853a2f93263a2bfcd53422c"
     assert upgrade.ASSET_V2_PAYLOAD == "93d62be64084a5c92541a4a008216c0b3f56c2f1"
-    assert upgrade.ASSET_MODES == frozenset(ASSET_PROFILES)
+    assert upgrade.ASSET_MODES == frozenset((*ASSET_PROFILES, upgrade.RESEARCH_BOT_MODE))
     assert upgrade.previous_for(upgrade.MODE) == upgrade.PREVIOUS
     with pytest.raises(upgrade.UpdateBlocked):
         upgrade.previous_for("unreviewed")
@@ -1212,6 +1212,8 @@ def real_operations(tmp_path, monkeypatch, request):
     }
     if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
         gw["mcp_readonly_enabled"] = False
+    if mode == upgrade.RESEARCH_BOT_MODE:
+        gw["mcp_readonly_enabled"] = True
     manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
@@ -1259,6 +1261,8 @@ def real_operations(tmp_path, monkeypatch, request):
         state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     if mode in upgrade.ASSET_MODES:
         state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    if mode == upgrade.RESEARCH_BOT_MODE:
+        state["research_bot_mcp_before"] = True
     system = {
         "primary": previous,
         "gateway": previous,
@@ -1383,6 +1387,8 @@ def real_operations(tmp_path, monkeypatch, request):
     def request(url):
         if url.endswith("/api/research/market"):
             return {"inflight": []}
+        if url.endswith("/api/research/research-bots"):
+            return {"items": [], "latest_runs": []}
         if url.endswith("/api/research/runtime"):
             return {"connected": True, "health_check_passed": True, **state["model_before"]}
         if url.endswith("/api/research/model-profiles"):
@@ -1396,7 +1402,7 @@ def real_operations(tmp_path, monkeypatch, request):
                 **(
                     {"mcp_readonly_enabled": False}
                     if mode in upgrade.EVENT_PRESERVATION_MODES
-                    else {}
+                    else {"mcp_readonly_enabled": True} if mode == upgrade.RESEARCH_BOT_MODE else {}
                 ),
             }
         return {"enabled": True, "revision": system["primary"], "active": system["active"]}
@@ -1431,7 +1437,7 @@ def real_operations(tmp_path, monkeypatch, request):
             return [SimpleNamespace(role="runtime")]
 
         def _active_research_read_only(self, _runtime):
-            if mode in upgrade.EVENT_PRESERVATION_MODES:
+            if mode in {*upgrade.EVENT_PRESERVATION_MODES, upgrade.RESEARCH_BOT_MODE}:
                 return ["active"] if system["active"] is not False else []
             return system["active"] is not False
 
@@ -1464,7 +1470,7 @@ def real_operations(tmp_path, monkeypatch, request):
             ("primary" if project == primary else "gateway") + "_repository"
         ],
     )
-    if mode in upgrade.EVENT_PRESERVATION_MODES:
+    if mode in {*upgrade.EVENT_PRESERVATION_MODES, upgrade.RESEARCH_BOT_MODE}:
         # This phase/recovery fixture already substitutes g.verify_primary;
         # actual operate protocol tests below retain both real primary verifiers.
         monkeypatch.setattr(
@@ -5503,3 +5509,158 @@ def test_market_daily_scope_freezes_product_with_real_git(tmp_path, monkeypatch,
     test_asset_review_uses_real_git_and_frozen_product(
         tmp_path, monkeypatch, bad, upgrade.MARKET_DAILY_MODE
     )
+
+
+def test_research_bot_profile_preserves_existing_runtime_configuration():
+    mode = upgrade.RESEARCH_BOT_MODE
+    assert mode == "reviewed-research-bot-v1"
+    assert upgrade.previous_for(mode) == "1315d11a5b82be563b6031593a3bfa5e6e092acd"
+    assert upgrade.RESEARCH_BOT_PAYLOAD == "88bec0ec04cbe2eb6979e6ebde695b992ed27336"
+    assert mode in upgrade.ASSET_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+    frozen = {"revision": "old", "binding": {"revision": "old"}, "mcp_readonly_enabled": True}
+    state = {"mode": mode, "target": "new", "gateway_config": frozen}
+    target = upgrade.gateway_configuration(state)
+    assert target["mcp_readonly_enabled"] is True
+    assert upgrade.gateway_configuration(state, previous=True) == frozen
+    assert not upgrade.gateway_configuration_matches(
+        state, {**target, "mcp_readonly_enabled": 1}, previous=False
+    )
+
+
+@pytest.mark.parametrize(
+    "case", ["operator", "extra", "revert", "delete", "mode", "doc-mode", "missing-test", "lock"]
+)
+def test_research_bot_review_checks_complete_product_tree(tmp_path, monkeypatch, case):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    product = "app/research_web/research_bots.py"
+    docs = "docs/operator.md"
+    lock = "requirements/web.lock"
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    for name in (upgrade.MODULE, upgrade.TEST, product, lock):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("old")
+    git("add", ".")
+    git("commit", "-m", "resident baseline")
+    previous = git("rev-parse", "HEAD")
+    (tmp_path / product).write_text("reviewed Research Bot")
+    if case == "lock":
+        (tmp_path / lock).write_text("unexpected dependency")
+    git("add", ".")
+    git("commit", "-m", "approved product")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "RESEARCH_BOT_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "RESEARCH_BOT_PAYLOAD", payload)
+    for name in (upgrade.MODULE, upgrade.TEST, docs):
+        if name == upgrade.TEST and case == "missing-test":
+            continue
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("fixed operator")
+    if case == "extra":
+        (tmp_path / "other.py").write_text("additional product")
+    elif case == "revert":
+        (tmp_path / product).write_text("old")
+    elif case == "delete":
+        (tmp_path / product).unlink()
+    elif case == "mode":
+        (tmp_path / product).chmod(0o755)
+    elif case == "doc-mode":
+        (tmp_path / docs).chmod(0o755)
+    git("add", "-A")
+    git("commit", "-m", "versioned Research Bot operator")
+    target = git("rev-parse", "HEAD")
+    if case == "operator":
+        assert upgrade.review(tmp_path, target, upgrade.RESEARCH_BOT_MODE) == {
+            "product_tree": git("rev-parse", f"{payload}^{{tree}}"),
+            **{
+                name: git("rev-parse", f"{target}:{name}")
+                for name in (upgrade.MODULE, upgrade.TEST, docs)
+            },
+        }
+    else:
+        code = {
+            "lock": "research_bot_upgrade_install_contract_changed",
+            "missing-test": "research_bot_upgrade_operator_missing",
+        }.get(case, "research_bot_upgrade_payload_changed")
+        with pytest.raises(upgrade.UpdateBlocked, match=code):
+            upgrade.review(tmp_path, target, upgrade.RESEARCH_BOT_MODE)
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.RESEARCH_BOT_MODE], indirect=True)
+@pytest.mark.parametrize("fail", [None, "verify_target", "missing_entry"])
+def test_research_bot_real_transaction_preserves_mcp_and_accounts(
+    real_operations, monkeypatch, fail
+):
+    home, state, system, make, uid = real_operations
+    if fail == "missing_entry":
+        original = upgrade.request_json
+        monkeypatch.setattr(
+            upgrade,
+            "request_json",
+            lambda url: {} if url.endswith("/api/research/research-bots") else original(url),
+        )
+    else:
+        system["fail"] = fail
+    gateway_before = upgrade.read_json(home / "server/resident.json")
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == ("deployed" if fail is None else "rolled_back")
+    expected = state["target"] if fail is None else state["previous"]
+    assert system["primary"] == system["gateway"] == expected
+    assert all(timeout == 120 for _, _, timeout in system["checkout_attempts"])
+    assert upgrade.read_json(home / "server/resident.json") == {
+        **gateway_before,
+        "revision": expected,
+        "binding": {**gateway_before["binding"], "revision": expected},
+    }
+    assert upgrade.asset_index_snapshot(home) == state["asset_index_before"]
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.RESEARCH_BOT_MODE], indirect=True)
+@pytest.mark.parametrize(
+    "where,bad", [("remote", None), ("remote", 1), ("remote", False), ("local", False)]
+)
+def test_research_bot_requires_strict_mcp_attestation_on_both_ports(
+    real_operations, monkeypatch, where, bad
+):
+    _home, _state, _system, make, _uid = real_operations
+    ops = make(None)
+    assert ops.research_bot_gateway_health(previous=True, fenced=False) is True
+    if where == "local":
+        original_local = upgrade.read_event_gateway_health
+        monkeypatch.setattr(
+            upgrade,
+            "read_event_gateway_health",
+            lambda config: {**original_local(config), "mcp_readonly_enabled": bad},
+        )
+    else:
+        original_remote = upgrade.request_json
+        monkeypatch.setattr(
+            upgrade,
+            "request_json",
+            lambda url: {**original_remote(url), "mcp_readonly_enabled": bad},
+        )
+    with pytest.raises(upgrade.UpdateBlocked, match="research_bot_upgrade_mcp_runtime_unverified"):
+        ops.research_bot_gateway_health(previous=True, fenced=False)
+
+
+@pytest.mark.parametrize(
+    "config,code",
+    [
+        ({"service_only": True}, "research_bot_upgrade_gateway_not_embedded"),
+        ({"service_only": 0}, "research_bot_upgrade_gateway_execution_invalid"),
+        ({"weknora_oauth_origin": None}, "research_bot_upgrade_gateway_execution_invalid"),
+    ],
+)
+def test_research_bot_rejects_settings_that_new_gateway_would_activate(config, code):
+    upgrade.verify_research_bot_execution({"mcp_readonly_enabled": True, "service_only": False})
+    with pytest.raises(upgrade.UpdateBlocked, match=code):
+        upgrade.verify_research_bot_execution({"mcp_readonly_enabled": True, **config})

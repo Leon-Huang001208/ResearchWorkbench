@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+Research Bot 的 `apply-research-bot` 作用于已接受的 Mac Native 主实例和附着网关。Docker 镜像和容器仍走各自的构建、数据保全和升级流程。
+
 逐日市场本轮验收落在已授权Mac Native；外置开发工作区不搬移Docker数据盘，不操作其他容器。
 
 市场V2的Git切换预算只适用于已授权Mac Native事务，不切换Docker、改其他容器或扩大资源清理范围。

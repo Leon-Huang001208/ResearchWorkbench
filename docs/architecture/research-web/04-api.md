@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+常驻升级后用只读 `GET /api/research/runtime` 和 `GET /api/research/research-bots` 分别检查主实例配置与 Bot 列表入口。网关认证和租户限制仍由对应运行实例验证。
+
 `GET/POST /api/research/research-bots` 读取配置和最新摘要或新建停用的 Bot。子路径支持查询发布技能版本、按版本更新、按 `before` 读取最近 20 条运行，以及单独的运行、启停、移除操作。写入沿同源 Host 与 `X-Research-User-Action: ?1` 并核对内置研究运行时归属。手动运行携带版本及 UUID 请求标识，原请求重放返回原 Run。通用日程与 Claw 日程入口拒绝管理 Bot。
 
 `POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
