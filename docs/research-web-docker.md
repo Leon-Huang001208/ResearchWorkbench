@@ -4,6 +4,8 @@ Radar 修复的固定升级配置用于已接受的 Native 主实例和附着网
 
 Research Bot 的 `apply-research-bot` 作用于已接受的 Mac Native 主实例和附着网关。Docker 镜像和容器仍走各自的构建、数据保全和升级流程。
 
+APFS 卷身份修复用于 macOS Native 登录作业。Docker 继续按容器和挂载模式核验状态，Docker 原有数据卷不参与设备号重绑。
+
 逐日市场本轮验收落在已授权Mac Native；外置开发工作区不搬移Docker数据盘，不操作其他容器。
 
 市场V2的Git切换预算只适用于已授权Mac Native事务，不切换Docker、改其他容器或扩大资源清理范围。

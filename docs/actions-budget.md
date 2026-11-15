@@ -2,9 +2,16 @@
 
 Research Bot 的 Radar 时效回归及 Native 升级配置沿原 Research Web Checks 和 macOS 15 Bootstrap，复用已登记的 Bot、Discovery 与操作员测试。原标准 runner 和时间上限适用，实际结果在精确候选回执中记录。
 
+常驻存储身份固定升级的 profile 和回滚测试复用既有 model_provider_upgrade Python 步骤。原作业、依赖与超时保持，重新绑定刷新后候选的三项检查。
+
 Research Bot Native 升级回归进入 Research Web Checks 现有 `test_model_provider_upgrade.py`，沿既有 Project Constraints 和 macOS 15 Bootstrap 获取精确候选证据。无新增 job、runner、依赖或平台 dispatch。新增定点回归在既有检查内预留 30 秒，以实际记录为准。
 
 Research Bot 的离线回归沿 Research Web Checks 原批次，Mac Bootstrap 在现有步骤核对静态资源字节和 Doctor 配置。作业、runner、依赖与触发策略沿原工作流。
+
+本次 macOS 常驻目录身份与网关迁移沿原 Research Web Checks Python 清单增加两个模块，沿原
+macos-15 Bootstrap 步骤实测临时目录 APFS 卷证据及恢复工件可执行性。原 job、runner、依赖、
+超时和 Windows/Linux 入口保持。GitHub 三项结果须对应最终候选；临时目录和清洁安装不会修改
+Mac mini 常驻配置，真实登录、重启和常驻切换另验。
 
 2026-11-11 交付运行时固定在项目内。原 Project Constraints 的 Git 安全步骤加入固定版本隔离与真实资源内核合同，
 在原步骤预留10秒增量；沿用 Node20、既有 job、runner 和10分钟时限。固定版本回归使用 Node 权限模型限制全局文件读取，

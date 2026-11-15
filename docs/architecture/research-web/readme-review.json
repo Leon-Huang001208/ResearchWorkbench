@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核现有 Research Bot 和 macOS 安装入口。",
-  "reason": "Radar 批次时效修复位于既有资讯适配器和本机 Bot，公开安装命令及服务拓扑沿原合同。"
+  "summary": "复核 Research Bot Radar 时效、Native 安装及常驻身份。",
+  "reason": "README 的公开安装与架构链接仍适用。Radar 准入和常驻身份各自沿对应模块文档。"
 }

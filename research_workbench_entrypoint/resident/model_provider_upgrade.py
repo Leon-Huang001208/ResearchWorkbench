@@ -162,8 +162,25 @@ RESEARCH_BOT_PREVIOUS = "1315d11a5b82be563b6031593a3bfa5e6e092acd"
 RESEARCH_BOT_PAYLOAD = "88bec0ec04cbe2eb6979e6ebde695b992ed27336"
 RESEARCH_BOT_V2_MODE = "reviewed-research-bot-v2"
 RESEARCH_BOT_V2_PREVIOUS = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
-RESEARCH_BOT_V2_PAYLOAD = "0ac75723d51fff23d91ea562e7ebf4357d2f546a"
-RESEARCH_BOT_MODES = frozenset({RESEARCH_BOT_MODE, RESEARCH_BOT_V2_MODE})
+RESEARCH_BOT_V2_PAYLOAD = "cb7c94a2fc5cc8a1c2cfd33737b652dee4b0cb59"
+STORAGE_IDENTITY_MODE = "reviewed-resident-storage-identity-v1"
+STORAGE_IDENTITY_PREVIOUS = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
+STORAGE_IDENTITY_PAYLOAD = "00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7"
+STORAGE_IDENTITY_PUBLISHED_PRODUCT = "1e2d0b2a971daba2e5f1f2897e937dbc4ae7f66f"
+ATTACHED_MCP_PRESERVATION_MODES = frozenset(
+    {RESEARCH_BOT_MODE, RESEARCH_BOT_V2_MODE, STORAGE_IDENTITY_MODE}
+)
+STORAGE_IDENTITY_OPERATOR_DOCS = frozenset(
+    {
+        ".ai/reports/2026-11-15-resident-boot-durability.md",
+        "docs/AGENT_WORKFLOW.md",
+        "docs/actions-budget.md",
+        "docs/architecture/research-web/readme-review.json",
+        "docs/generated/py_file_index.md",
+        "docs/research-web-gateway-upgrade.md",
+        "docs/research-web-installation.md",
+    }
+)
 EVENT_SAFETY_MODES = frozenset(
     {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}
 )
@@ -227,7 +244,7 @@ ASSET_MODES = frozenset(
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
         MARKET_DAILY_MODE,
-        *RESEARCH_BOT_MODES,
+        *ATTACHED_MCP_PRESERVATION_MODES,
         UNIFIED_NAVIGATION_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
@@ -357,6 +374,8 @@ def previous_for(mode):
         return RESEARCH_BOT_PREVIOUS
     if mode == RESEARCH_BOT_V2_MODE:
         return RESEARCH_BOT_V2_PREVIOUS
+    if mode == STORAGE_IDENTITY_MODE:
+        return STORAGE_IDENTITY_PREVIOUS
     if mode == MARKET_LIVE_V2_MODE:
         return MARKET_LIVE_V2_PREVIOUS
     if mode == MARKET_LIVE_MODE:
@@ -658,7 +677,7 @@ def verify_primary(home, expected, mode):
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
         MARKET_DAILY_MODE,
-        *RESEARCH_BOT_MODES,
+        *ATTACHED_MCP_PRESERVATION_MODES,
         UNIFIED_NAVIGATION_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
@@ -674,7 +693,7 @@ def verify_primary(home, expected, mode):
         ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
         result = g.verify_primary(home, expected, index_reader=read_business_index)
-        if mode in {*EVENT_PRESERVATION_MODES, *RESEARCH_BOT_MODES}:
+        if mode in {*EVENT_PRESERVATION_MODES, *ATTACHED_MCP_PRESERVATION_MODES}:
             observed = weekly_primary_identity_precheck(home, expected)
             if observed.get("active") is not False:
                 raise MaintenanceBusy("research_active_or_unknown")
@@ -959,16 +978,9 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     return result
 
 
-def review_research_bot(source: Path, target: str, mode: str = RESEARCH_BOT_MODE):
-    """Bind the complete product tree and allow only this Native operator addition."""
+def _review_fixed_product(source, target, previous, payload, *, code, operator_doc):
+    """Bind the product tree and the reviewed additions needed to deploy it."""
     c.clean(source, target)
-    previous = previous_for(mode)
-    payload = {
-        RESEARCH_BOT_MODE: RESEARCH_BOT_PAYLOAD,
-        RESEARCH_BOT_V2_MODE: RESEARCH_BOT_V2_PAYLOAD,
-    }[mode]
-    if mode == RESEARCH_BOT_V2_MODE and payload == previous:
-        raise UpdateBlocked("research_bot_upgrade_payload_unbound")
     c.git(source, "merge-base", "--is-ancestor", previous, payload)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
     for name in (
@@ -982,7 +994,7 @@ def review_research_bot(source: Path, target: str, mode: str = RESEARCH_BOT_MODE
         if c.git(source, "ls-tree", previous, "--", name) != c.git(
             source, "ls-tree", payload, "--", name
         ):
-            raise UpdateBlocked("research_bot_upgrade_install_contract_changed")
+            raise UpdateBlocked(f"{code}_install_contract_changed")
 
     # Compare payload to executor directly so even a reversion to the previous
     # release remains visible. Raw NUL-delimited records preserve path and mode.
@@ -999,7 +1011,7 @@ def review_research_bot(source: Path, target: str, mode: str = RESEARCH_BOT_MODE
     )
     fields = raw[:-1].split("\0") if raw.endswith("\0") else []
     if not fields or len(fields) % 2:
-        raise UpdateBlocked("research_bot_upgrade_operator_missing")
+        raise UpdateBlocked(f"{code}_operator_missing")
     reviewed = {"product_tree": c.git(source, "rev-parse", f"{payload}^{{tree}}")}
     for offset in range(0, len(fields), 2):
         metadata, name = fields[offset : offset + 2]
@@ -1007,15 +1019,84 @@ def review_research_bot(source: Path, target: str, mode: str = RESEARCH_BOT_MODE
         if (
             match is None
             or name in reviewed
-            or (name not in {MODULE, TEST} and not name.startswith(("docs/", ".ai/reports/")))
+            or (name not in {MODULE, TEST} and not operator_doc(name))
         ):
-            log.warning("research_bot_upgrade_payload_changed")
-            raise UpdateBlocked("research_bot_upgrade_payload_changed")
+            log.warning(f"{code}_payload_changed")
+            raise UpdateBlocked(f"{code}_payload_changed")
         reviewed[name] = match.group(2)
     if not {MODULE, TEST} <= reviewed.keys():
-        raise UpdateBlocked("research_bot_upgrade_operator_missing")
-    log.info("research_bot_upgrade_payload_reviewed files=%s", len(reviewed) - 1)
+        raise UpdateBlocked(f"{code}_operator_missing")
+    log.info("%s_payload_reviewed files=%s", code, len(reviewed) - 1)
     return reviewed
+
+
+def review_research_bot(source: Path, target: str):
+    return _review_fixed_product(
+        source,
+        target,
+        RESEARCH_BOT_PREVIOUS,
+        RESEARCH_BOT_PAYLOAD,
+        code="research_bot_upgrade",
+        operator_doc=lambda name: name.startswith(("docs/", ".ai/reports/")),
+    )
+
+
+def review_research_bot_v2(source: Path, target: str):
+    if RESEARCH_BOT_V2_PREVIOUS == RESEARCH_BOT_V2_PAYLOAD:
+        raise UpdateBlocked("research_bot_upgrade_payload_unbound")
+    return _review_fixed_product(
+        source,
+        target,
+        RESEARCH_BOT_V2_PREVIOUS,
+        RESEARCH_BOT_V2_PAYLOAD,
+        code="research_bot_upgrade",
+        operator_doc=lambda name: name.startswith(("docs/", ".ai/reports/")),
+    )
+
+
+def review_storage_identity(source: Path, target: str):
+    previous, payload = STORAGE_IDENTITY_PREVIOUS, STORAGE_IDENTITY_PAYLOAD
+    if not all(g.SHA.fullmatch(sha) for sha in (previous, payload)):
+        raise UpdateBlocked("storage_identity_upgrade_release_unbound")
+    published = STORAGE_IDENTITY_PUBLISHED_PRODUCT
+    original_base = c.git(source, "rev-parse", f"{published}^1")
+    c.git(source, "merge-base", "--is-ancestor", original_base, previous)
+    c.git(source, "merge-base", "--is-ancestor", published, payload)
+
+    def changed_paths(base, head):
+        raw = c.git(
+            source,
+            "diff",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            "--ignore-submodules=none",
+            base,
+            head,
+        )
+        return set(raw.removesuffix("\0").split("\0")) if raw else set()
+
+    original_paths = changed_paths(original_base, published)
+    if not original_paths or original_paths != changed_paths(previous, payload):
+        raise UpdateBlocked("storage_identity_upgrade_product_scope_changed")
+    for name in sorted(original_paths):
+        original_entry = c.git(source, "ls-tree", published, "--", name)
+        refreshed_entry = c.git(source, "ls-tree", payload, "--", name)
+        # The two PRs update some of the same documents. Their combined bytes
+        # belong to the fixed refreshed payload and its independent review.
+        if name.startswith(("docs/", ".ai/reports/")):
+            original_entry = original_entry.partition(" ")[0]
+            refreshed_entry = refreshed_entry.partition(" ")[0]
+        if not original_entry or original_entry != refreshed_entry:
+            raise UpdateBlocked("storage_identity_upgrade_product_scope_changed")
+    return _review_fixed_product(
+        source,
+        target,
+        previous,
+        payload,
+        code="storage_identity_upgrade",
+        operator_doc=STORAGE_IDENTITY_OPERATOR_DOCS.__contains__,
+    )
 
 
 def review(source: Path, target: str, mode=MODE):
@@ -1026,8 +1107,12 @@ def review(source: Path, target: str, mode=MODE):
             raise UpdateBlocked("trial_retirement_product_changed")
         c.clean(source, target)
         return {"product_tree": c.git(source, "rev-parse", f"{target}^{{tree}}")}
-    if mode in RESEARCH_BOT_MODES:
-        return review_research_bot(source, target, mode)
+    if mode == RESEARCH_BOT_MODE:
+        return review_research_bot(source, target)
+    if mode == RESEARCH_BOT_V2_MODE:
+        return review_research_bot_v2(source, target)
+    if mode == STORAGE_IDENTITY_MODE:
+        return review_storage_identity(source, target)
     if mode in ASSET_MODES:
         return review_assets(source, target, mode)
     c.clean(source, target)
@@ -1446,7 +1531,7 @@ def validate_state(home, state, *, executor_source=None):
     verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
     if state.get("mode") in EVENT_PRESERVATION_MODES:
         verify_event_schedules(home, state)
-    if state.get("mode") in RESEARCH_BOT_MODES:
+    if state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
         observed = state.get("research_bot_mcp_before")
         if (
             type(observed) is not bool
@@ -1526,7 +1611,7 @@ def validate_state(home, state, *, executor_source=None):
                 MARKET_LIVE_MODE,
                 MARKET_LIVE_V2_MODE,
                 MARKET_DAILY_MODE,
-                *RESEARCH_BOT_MODES,
+                *ATTACHED_MCP_PRESERVATION_MODES,
                 UNIFIED_NAVIGATION_MODE,
                 DOSSIERS_MODE,
                 DISCOVERY_MODE,
@@ -1646,7 +1731,7 @@ def gateway_configuration(state, previous=False):
 
 def gateway_configuration_matches(state, actual, previous):
     expected = gateway_configuration(state, previous)
-    if state.get("mode") not in {*EVENT_PRESERVATION_MODES, *RESEARCH_BOT_MODES}:
+    if state.get("mode") not in {*EVENT_PRESERVATION_MODES, *ATTACHED_MCP_PRESERVATION_MODES}:
         return actual == expected
     # JSON equality preserves boolean/number distinctions and missing fields.
     return json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
@@ -1711,7 +1796,7 @@ def target_manifest(state):
 
 def validate_configuration(home, state):
     verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
-    if state.get("mode") in RESEARCH_BOT_MODES:
+    if state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
         verify_research_bot_execution(state["gateway_config"])
     actual = read_json(home / "resident/config.json")
     next_config = (
@@ -2171,7 +2256,7 @@ class Operations:
         state["before"] = g.preservation(self.home)
         if state.get("mode") in ASSET_MODES or state.get("mode") in TRIAL_MODES:
             state["asset_index_before"] = asset_index_snapshot(self.home)
-        if state.get("mode") in RESEARCH_BOT_MODES:
+        if state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
             self.research_bot_gateway_health(previous=True, fenced=False)
         state["phase"] = "preparing"
         verify_serve(state["config"]["private_origin"])
@@ -2195,7 +2280,7 @@ class Operations:
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
             MARKET_DAILY_MODE,
-            *RESEARCH_BOT_MODES,
+            *ATTACHED_MCP_PRESERVATION_MODES,
             UNIFIED_NAVIGATION_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
@@ -2220,7 +2305,8 @@ class Operations:
                 return False
             native = self.manager._active_research_read_only(runtime)
             if native or (
-                self.state.get("mode") in {*EVENT_PRESERVATION_MODES, *RESEARCH_BOT_MODES}
+                self.state.get("mode")
+                in {*EVENT_PRESERVATION_MODES, *ATTACHED_MCP_PRESERVATION_MODES}
                 and type(native) is not list
             ):
                 return False
@@ -2256,7 +2342,7 @@ class Operations:
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
             MARKET_DAILY_MODE,
-            *RESEARCH_BOT_MODES,
+            *ATTACHED_MCP_PRESERVATION_MODES,
             UNIFIED_NAVIGATION_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
@@ -2381,7 +2467,7 @@ class Operations:
             if self.state.get("mode") in {
                 MARKET_LIVE_V2_MODE,
                 MARKET_DAILY_MODE,
-                *RESEARCH_BOT_MODES,
+                *ATTACHED_MCP_PRESERVATION_MODES,
             }:
                 started = time.monotonic()
                 log.info(
@@ -2569,7 +2655,7 @@ class Operations:
             if not gateway_configuration_matches(self.state, gateway, previous):
                 raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
             gateway_identity = self.event_gateway_identity()
-        if self.state.get("mode") in RESEARCH_BOT_MODES:
+        if self.state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
             self.research_bot_gateway_health(previous=previous, fenced=True)
         else:
             g.health(gateway, fenced=True)
@@ -2602,7 +2688,7 @@ class Operations:
                 sha,
                 certify_mcp_off,
             )
-        if self.state.get("mode") in RESEARCH_BOT_MODES and not previous:
+        if self.state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES and not previous:
             bots = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/research-bots"
             )
@@ -3580,7 +3666,7 @@ def operate(
                 raise UpdateBlocked("resident_failed_candidate_requires_retry")
             primary, gateway = Path(config["project"]), read_json(server / "resident.json")
             verify_rollback_mcp_disabled(mode, gateway)
-            if mode in RESEARCH_BOT_MODES:
+            if mode in ATTACHED_MCP_PRESERVATION_MODES:
                 verify_research_bot_execution(gateway)
             for project in (primary, Path(gateway["project"])):
                 c.clean(project, previous)
@@ -3671,7 +3757,7 @@ def operate(
                 state[role + "_identity"] = [info.st_dev, info.st_ino]
                 state[role + "_repository"] = repository_identity(project, config["repository"])
                 c.git(project, "cat-file", "-e", f"{target}^{{commit}}")
-            if mode in RESEARCH_BOT_MODES:
+            if mode in ATTACHED_MCP_PRESERVATION_MODES:
                 state["research_bot_mcp_before"] = Operations(
                     home, state, None, None, None
                 ).research_bot_gateway_health(previous=True, fenced=False)
@@ -3948,6 +4034,7 @@ def main(argv=None):
             "apply-market-daily",
             "apply-research-bot",
             "apply-research-bot-freshness",
+            "apply-resident-storage-identity",
             "apply-navigation-ui",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
@@ -4039,6 +4126,7 @@ def main(argv=None):
                 "apply-market-daily": MARKET_DAILY_MODE,
                 "apply-research-bot": RESEARCH_BOT_MODE,
                 "apply-research-bot-freshness": RESEARCH_BOT_V2_MODE,
+                "apply-resident-storage-identity": STORAGE_IDENTITY_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,
