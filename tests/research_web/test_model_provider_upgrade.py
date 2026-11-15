@@ -5549,7 +5549,7 @@ def test_research_bot_v2_uses_current_accepted_release_and_rejects_unbound_paylo
     previous = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
     assert mode == "reviewed-research-bot-v2"
     assert upgrade.previous_for(mode) == previous
-    assert upgrade.RESEARCH_BOT_V2_PAYLOAD == "7bf144bd7199a47856308193705f3b4d1ad0271e"
+    assert upgrade.RESEARCH_BOT_V2_PAYLOAD == "fcc3e8990738d42bcc7a84d1c1ade36c4a05f784"
     assert mode in upgrade.ASSET_MODES
     assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
     assert upgrade.ATTACHED_MCP_PRESERVATION_MODES == {
