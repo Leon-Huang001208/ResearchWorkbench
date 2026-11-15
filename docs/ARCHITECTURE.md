@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Radar 时效修复使用原 Native 联合事务的固定升级配置，部署和回滚继续核对主实例、网关及账户资料。
+
 Research Bot 沿既有 Golddata Radar 读取批次资讯。Radar 缺少缓存标志时，Bot 可校验来源给出的批次生成时点及有效期。判据随运行保存，资料仍按原 Host、Automation 与 DSH 链使用。
 
 Research Bot 常驻升级在既有 Native 联合事务内绑定已接受前版和 PR #302 的合并产品树，同时验证主实例、网关和回滚版本。部署入口和验收见[联合升级](research-web-gateway-upgrade.md#research-bot-常驻升级)。
