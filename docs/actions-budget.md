@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+大补丁恢复回归沿 Project Constraints 原 Git safety 步骤执行。夹具使用可压缩文本，覆盖超过 64 MiB 的未暂存删除、索引状态和 V2 恢复，预留原步骤 15 秒，作业、runner、依赖及触发规则沿用。
+
 常驻存储身份固定升级的 profile 和回滚测试复用既有 model_provider_upgrade Python 步骤。原作业、依赖与超时保持，重新绑定刷新后候选的三项检查。
 
 Research Bot Native 升级回归进入 Research Web Checks 现有 `test_model_provider_upgrade.py`，沿既有 Project Constraints 和 macOS 15 Bootstrap 获取精确候选证据。无新增 job、runner、依赖或平台 dispatch。新增定点回归在既有检查内预留 30 秒，以实际记录为准。
