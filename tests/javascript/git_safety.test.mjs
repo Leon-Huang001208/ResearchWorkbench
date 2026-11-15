@@ -1910,6 +1910,60 @@ function v2Fixture(t) {
   return f;
 }
 
+test('v2 backup restores Git patches larger than 64 MiB', async t => {
+  const {root,projectRoot,options} = v2Fixture(t);
+  const mib = 1024 * 1024;
+  const largeFile = path.join(projectRoot, 'large-report.txt');
+  // Long printable lines keep Git's line count small and still produce a text patch.
+  const text = Buffer.alloc(mib, 'A'.repeat(4095) + '\n');
+  const sourceFd = fs.openSync(largeFile, 'wx');
+  try {
+    for (let i = 0; i < 65; i++) assert.equal(fs.writeSync(sourceFd, text), text.length);
+  } finally { fs.closeSync(sourceFd); }
+  git(projectRoot, ['add', 'large-report.txt']);
+  git(projectRoot, ['commit', '-m', 'baseline with large text report']);
+  const head = git(projectRoot, ['rev-parse', 'HEAD']);
+  fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'staged\n');
+  git(projectRoot, ['add', 'tracked.txt']);
+  fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'working copy\n');
+  fs.unlinkSync(largeFile);
+
+  async function expectedPatch(args) {
+    const filename = path.join(root, 'expected.patch');
+    const fd = fs.openSync(filename, 'wx', 0o600);
+    try {
+      const result = spawnSync(gitPath, ['-C', projectRoot, 'diff', ...args, '--binary', '--full-index', '--'],
+        {stdio: ['ignore', fd, 'pipe']});
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr.toString());
+    } finally { fs.closeSync(fd); }
+    const hash = crypto.createHash('sha256');
+    for await (const chunk of fs.createReadStream(filename)) hash.update(chunk);
+    const bytes = fs.statSync(filename).size;
+    fs.unlinkSync(filename);
+    return {bytes, sha256: hash.digest('hex')};
+  }
+
+  const staged = await expectedPatch(['--cached', 'HEAD']);
+  const unstaged = await expectedPatch([]);
+  assert.ok(unstaged.bytes > 64 * mib);
+  const index = git(projectRoot, ['ls-files', '--stage']);
+  const point = backupRepository({projectRoot}, options);
+  assert.equal(point.restoreVerified, true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(point.directory, 'manifest.json')));
+  assert.equal(manifest.schemaVersion, 2);
+  const saved = manifest.worktrees[0];
+  assert.equal(saved.head, head);
+  assert.equal(saved.staged, staged.sha256);
+  assert.equal(saved.unstaged, unstaged.sha256);
+  assert.deepEqual(saved.tracked.find(item => item.path === 'large-report.txt'), {path: 'large-report.txt', type: 'missing'});
+  assert.equal(verifyBackupDirectory(point.directory, options).restoreVerified, true);
+  assert.equal(git(projectRoot, ['rev-parse', 'HEAD']), head);
+  assert.equal(git(projectRoot, ['ls-files', '--stage']), index);
+  assert.equal(fs.existsSync(largeFile), false);
+  assert.equal(fs.readFileSync(path.join(projectRoot, 'tracked.txt'), 'utf8'), 'working copy\n');
+});
+
 test('v2 reuses unchanged independent recovery point and stores content only once', t => {
   const {projectRoot,options}=v2Fixture(t);
   fs.writeFileSync(path.join(projectRoot,'untracked.txt'),'private work\n');
