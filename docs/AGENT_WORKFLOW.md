@@ -266,6 +266,8 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 
 ## RWB Git 安全入口（macOS）
 
+备份通过私有文件传递暂存和未暂存补丁，按块校验原 Git 补丁的 SHA-256。超过 64 MiB 的补丁按同一格式保存，恢复时从文件读入 Git，再逐项比对补丁、文件和索引。备份格式及普通命令的缓冲上限继续沿用；临时补丁需要可用磁盘空间，生成或恢复失败时清理保持阻断。
+
 ### 复用研究 Web 测试环境
 
 开始本地测试前先用当前 Python 执行 `python scripts/research_web_test_env.py --check --json`，读取健康解释器路径并设置 `RWB_TEST_PYTHON`，Python 测试直接用该解释器执行。环境固定在 `~/.research-workbench/test-envs/`，指纹由 Python 实现、版本、平台及 `requirements/web.lock`、`requirements/research-test.in` 决定；同依赖的 worktree 共用一次安装，不属于任务临时资源，收尾不删除。

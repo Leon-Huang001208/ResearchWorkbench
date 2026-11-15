@@ -94,8 +94,8 @@ function hashFile(filename) {
   return hash.digest('hex');
 }
 function fail(code) { throw Object.assign(new Error(code), {code}); }
-function command(executable, args, {cwd, input, inputFd, allowFailure = false, env} = {}) {
-  const result = spawnSync(executable, args, {cwd, input, ...(inputFd === undefined ? {} : {stdio: [inputFd, 'pipe', 'pipe']}), env: env ?? process.env, maxBuffer: 64 * 1024 * 1024});
+function command(executable, args, {cwd, input, inputFd, outputFd, allowFailure = false, env} = {}) {
+  const result = spawnSync(executable, args, {cwd, input, stdio: [inputFd ?? 'pipe', outputFd ?? 'pipe', 'pipe'], env: env ?? process.env, maxBuffer: 64 * 1024 * 1024});
   if (result.error || (!allowFailure && result.status !== 0)) fail('COMMAND_FAILED');
   return result;
 }
@@ -376,6 +376,31 @@ function fileRecord(project, name) {
   if (!stat.isFile()) fail('UNSUPPORTED_FILE_TYPE');
   return {path: name, type: 'file', mode: stat.mode & 0o777, sha256: hashFile(target)};
 }
+const PATCH_DIFF_ARGS = {
+  staged: ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'],
+  unstaged: ['diff', '--binary', '--full-index', '--'],
+};
+
+function writeGitPatch(project, kind, destination, options) {
+  const parent = path.dirname(destination);
+  assertNoSymlinkAncestors(parent);
+  privateDirectory(parent);
+  const outputFd = fs.openSync(destination, 'wx', 0o600);
+  try { git(project, PATCH_DIFF_ARGS[kind], options, {outputFd}); }
+  finally { fs.closeSync(outputFd); }
+  return fileHash(destination);
+}
+
+function patchHashes(project, options) {
+  const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'rwb-git-patch-'));
+  try {
+    return {
+      staged: writeGitPatch(project, 'staged', path.join(scratch, 'staged.patch'), options),
+      unstaged: writeGitPatch(project, 'unstaged', path.join(scratch, 'unstaged.patch'), options),
+    };
+  } finally { fs.rmSync(scratch, {recursive: true}); }
+}
+
 function capture(repository, options) {
   const registeredWorktrees = worktrees(repository, options);
   const requested = [...new Set(options.worktreePaths ?? [repository.repositoryRoot])].map(value => fs.realpathSync(value));
@@ -394,8 +419,7 @@ function capture(repository, options) {
   return {refs: refs(repository, options), registeredWorktrees, worktrees: lists.map(({entry, untracked}) => ({
     path: entry.worktree, head: entry.HEAD, branch: entry.branch ?? null,
     index: sha256(git(entry.worktree, ['ls-files', '--stage', '-z'], options).stdout),
-    staged: sha256(git(entry.worktree, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout),
-    unstaged: sha256(git(entry.worktree, ['diff', '--binary', '--full-index', '--'], options).stdout),
+    ...patchHashes(entry.worktree, options),
     tracked: [...new Set(paths(entry.worktree, ['ls-files', '--cached', '-z'], options))].sort().map(name => fileRecord(entry.worktree, name)),
     untracked: untracked.sort().map(name => fileRecord(entry.worktree, name))
   }))};
@@ -621,8 +645,14 @@ function restoreBackup(directory, manifest, options, storedDirectory = directory
       const restored = path.join(scratch, `worktree-${index}`);
       git(bare, ['worktree', 'add', '--detach', restored, saved.head], options);
       for (const [kind, args] of [['staged', ['--index']], ['unstaged', []]]) {
-        const patch = fs.readFileSync(path.join(directory, `worktrees/${index}/${kind}.patch`));
-        if (patch.length) git(restored, ['apply', ...args, '--binary', '-'], options, {input: patch});
+        const filename = path.join(directory, `worktrees/${index}/${kind}.patch`);
+        assertNoSymlinkAncestors(path.dirname(filename));
+        const inputFd = fs.openSync(filename, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+        try {
+          const patch = fs.fstatSync(inputFd);
+          if (!patch.isFile() || patch.nlink !== 1 || patch.uid !== process.getuid()) fail('BACKUP_FILE_INVALID');
+          if (patch.size) git(restored, ['apply', ...args, '--binary', '-'], options, {inputFd});
+        } finally { fs.closeSync(inputFd); }
       }
       for (let itemIndex = 0; itemIndex < saved.untracked.length; itemIndex++) {
         const item = saved.untracked[itemIndex];
@@ -638,7 +668,8 @@ function restoreBackup(directory, manifest, options, storedDirectory = directory
       const actualUntracked = saved.untracked.map(item => fileRecord(restored, item.path));
       if (JSON.stringify(actualTracked) !== JSON.stringify(saved.tracked) || JSON.stringify(actualUntracked) !== JSON.stringify(saved.untracked)) fail('RESTORE_HASH_MISMATCH');
       if (saved.index!==undefined && sha256(git(restored, ['ls-files', '--stage', '-z'], options).stdout) !== saved.index) fail('RESTORE_INDEX_MISMATCH');
-      if (sha256(git(restored, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout) !== saved.staged || sha256(git(restored, ['diff', '--binary', '--full-index', '--'], options).stdout) !== saved.unstaged) fail('RESTORE_PATCH_MISMATCH');
+      const hashes = patchHashes(restored, options);
+      if (hashes.staged !== saved.staged || hashes.unstaged !== saved.unstaged) fail('RESTORE_PATCH_MISMATCH');
     }
     if (git(bare, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const [ref, oid] of Object.entries(manifest.refs)) if (output(git(bare, ['rev-parse', ref], options)) !== oid) fail('RESTORE_REF_MISMATCH');
@@ -680,8 +711,12 @@ function backupLegacyUnlocked(repository, options) {
     manifest.files.push({path: 'objects.pack', sha256: hashFile(packFile)});
     for (let index = 0; index < before.worktrees.length; index++) {
       const item = before.worktrees[index];
-      saveArtifact(directory, `worktrees/${index}/staged.patch`, git(item.path, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout, manifest);
-      saveArtifact(directory, `worktrees/${index}/unstaged.patch`, git(item.path, ['diff', '--binary', '--full-index', '--'], options).stdout, manifest);
+      for (const kind of ['staged', 'unstaged']) {
+        const relative = `worktrees/${index}/${kind}.patch`;
+        const hash = writeGitPatch(item.path, kind, path.join(directory, relative), options);
+        if (hash !== item[kind]) fail('BACKUP_RACE');
+        manifest.files.push({path: relative, sha256: hash});
+      }
       const snapshotContext = {onEvent: event => log(repository, 'backup-snapshot', event.status, event.code, event, options, snapshotJournal), [snapshotToolchainKey]: () => inheritedSnapshotToolchain(repository)};
       item.tracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/tracked/${itemIndex}`, manifest, snapshotContext); });
       item.untracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/untracked/${itemIndex}`, manifest, snapshotContext); });
