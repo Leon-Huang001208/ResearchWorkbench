@@ -2,7 +2,7 @@ import { defaultSpecialistBudget, specialistBudgetError, specialistCanResume } f
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot', 'progress']);
+const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot', 'progress', 'research-bots']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
@@ -290,6 +290,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     etfRun: (id) => request(`/portfolio-decisions/runs/${segment(id)}`),
     etfReplay: (body, key) => request('/portfolio-decisions/runs', { method: 'POST', body, key, userAction: true }),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
+    researchBots: () => request('/research-bots'),
+    researchBotSkill: (id,version) => request(`/research-bots/skills/${segment(id)}?version=${segment(version)}`),
+    createResearchBot: body => request('/research-bots',{method:'POST',body,userAction:true}),
+    updateResearchBot: (id,body) => request(`/research-bots/${segment(id)}`,{method:'PUT',body,userAction:true}),
+    researchBotRuns: (id, before) => request(`/research-bots/${segment(id)}/runs${before ? `?before=${segment(before)}` : ''}`),
+    researchBotAction: (id,action,body) => request(`/research-bots/${segment(id)}/${segment(action)}`,{method:'POST',body,userAction:true}),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     searchSessions: (query, mode = 'claw') => request('/sessions/search', { method: 'POST', body: { query, mode }, readOnly: true }),
     documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),

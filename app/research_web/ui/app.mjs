@@ -21,7 +21,7 @@ import { renderReportWorkspace, reportHref } from './report-workspace.mjs';
 import { createReportOperations } from './report-operations.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
-import { focusSidebarControl, renderGlobalResults, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar, runtimeLabel } from './shell.mjs';
+import { catalogLabel, focusSidebarControl, renderGlobalResults, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar, runtimeLabel } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
@@ -51,6 +51,7 @@ import { createDossierController, renderDossiers, isDossierRoute } from './dossi
 import { createMarketWorkspace, renderMarketWorkspace } from './market-dashboard.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { createProgressWorkspace } from './progress.mjs';
+import { createResearchBots } from './research-bots.mjs';
 
 import { canUseReportWorkflows } from './weekly-production.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createExecutionEvidenceExpiry, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
@@ -82,6 +83,7 @@ const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newN
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
 const progress = createProgressWorkspace({root, route:()=>state.route, notify:render, logger:safeLog});
+const researchBots = createResearchBots({api, route:()=>state.route, notify:render, logger:safeLog});
 root.setAttribute?.('data-account-workspace-native', '1');
 const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
 const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
@@ -536,6 +538,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (state.route.page === 'research-bots') return researchBots.render();
   if (isEventLabRoute()) return renderEventLab(eventLab.state);
   if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
@@ -776,7 +779,7 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  marketController.paint(state.route.page, () => { root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__ })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; });
+  marketController.paint(state.route.page, () => { root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__, runtime: catalog.runtime })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${catalogLabel(name)}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; });
   syncAssetResearch();
   if (isEventLabRoute()) eventLab.restore(root);
   root.querySelector('.app-shell').inert = scenarioController.state.open;
@@ -1640,6 +1643,7 @@ async function showRoute() {
   if (isDataWorkspaceRoute(state.route)) await loadWorkbench();
   if (ticket !== pageGeneration) return;
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'research-bots') await researchBots.activate();
   if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (isEventLabRoute()) await eventLab.activate(state.route.page === 'intel' ? 'timeline' : state.route.simulationView === 'events' ? 'studies' : 'scores');
@@ -1720,6 +1724,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('[data-bot-form]')) { void researchBots.handle(event); return; }
   if (event.target.closest?.('.event-lab')) { void eventLab.handle(event); return; }
   if (event.target.closest?.('[data-asset-research]')) { void assetResearch.handle(event); return; }
   if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
@@ -2073,6 +2078,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('[data-bot-form]') && await researchBots.handle(event)) return;
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   // This local filter form is submitted explicitly; generic redraw would discard its values.
   if (event.target.closest?.('[data-report-directory-filter]')) return;
@@ -2246,6 +2252,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('[data-research-bots]') && await researchBots.handle(event)) return;
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if (event.target.matches?.('[data-report-directory-filter]')) {
     event.preventDefault(); const values = new FormData(event.target);
@@ -2686,6 +2693,7 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('[data-research-bots]') && await researchBots.handle(event)) return;
   if (sidebarOpen && closesSecondaryDrawer(event)) { sidebarOpen=false; render(); focusSidebarControl(document,true); return; }
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;

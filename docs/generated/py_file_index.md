@@ -3456,6 +3456,7 @@ Imports:
 - `datetime`
 - `email.utils`
 - `pydantic`
+- `research_bot_models`
 - `store`
 - `typing`
 - `zoneinfo`
@@ -3465,14 +3466,14 @@ Classes:
   - Safe automation-domain failure exposed through the existing API handler.
 - `StrictModel`
 - `AutomationSchedule`
-  - methods: timezone_exists, validate_shape
+  - methods: timezone_exists, validate_shape, stable_legacy_shape
 - `MCPToolLock`
   - methods: unattended_is_read_only
 - `DeliveryConfiguration`
   - methods: channel_ids_are_unique
 - `ResearchTaskDefinition`
   - Explicit research intent and permission scope, independent of a Skill.
-  - methods: scopes_are_unique
+  - methods: stable_legacy_shape, scopes_are_unique
 - `AutomationCreate`
   - methods: values_are_unique
 - `AutomationUpdate`
@@ -3566,12 +3567,14 @@ Imports:
 Classes:
 - `AutomationService`
   - Keep Automation/Run JSON as the fact source and schedule only next fires.
-  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, arm_collection, _collection_fire, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, _require_definition_family, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _queue_run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, arm_collection, _collection_fire, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
 
 Functions:
 - `_definition_transaction`
   - Serialize synchronous definition CAS and snapshots, never native awaits.
 - `automation_feature_enabled`
+- `_is_research_bot`
+- `_require_automation_family`
 - `_canonical_sha`
 - `_id_digest`
 
@@ -8156,7 +8159,7 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
-- ... 40 more
+- ... 42 more
 
 Classes:
 - `NewSession`
@@ -11729,6 +11732,76 @@ Functions:
   - Check explicit equations and result-before-operands notation from the live report.
 
 
+## `app/research_web/research_bot_diagnostics.py`
+
+Module docstring:
+> Read-only, credential-free Research Bot configuration diagnostics.
+
+Functions:
+- `configuration_status`
+- `diagnostic`
+
+
+## `app/research_web/research_bot_models.py`
+
+Module docstring:
+> Bounded, non-secret Research Bot configuration; no execution authority.
+
+Imports:
+- `json`
+- `pydantic`
+- `uuid`
+
+Classes:
+- `SkillBinding`
+  - methods: bounded_arguments
+- `BotConfiguration`
+  - methods: nonblank, unique_terms, unique_skills
+- `BotSave`
+  - methods: name_nonblank, request_uuid, configuration
+
+
+## `app/research_web/research_bots.py`
+
+Module docstring:
+> Research Bot configuration and evidence preparation over existing Automation/DSH.
+
+Imports:
+- `automation.models`
+- `automation.service`
+- `copy`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `json`
+- `pydantic`
+- `re`
+- `research_bot_diagnostics`
+- `research_bot_models`
+- `store`
+- `tenant_policy`
+- `uuid`
+
+Classes:
+- `BotResult`
+- `ResearchBots`
+  - methods: __init__, require_available, list, get, runs, selections, save, prepare, trusted_selections, finish
+- `BotAction`
+
+Functions:
+- `select_materials`
+  - Use only the acquired news lane; unavailable data is never 'no change'.
+- `_material_identities`
+- `research_bot_configuration`
+- `service`
+- `list_bots`
+- `create_bot`
+- `bot_skill`
+- `update_bot`
+- `bot_runs`
+- `bot_action`
+
+
 ## `app/research_web/research_business_evidence.py`
 
 Module docstring:
@@ -12492,6 +12565,7 @@ Imports:
 - `pathlib`
 - `process_spec`
 - `re`
+- `research_bot_diagnostics`
 - `research_workbench_entrypoint.platform_capabilities`
 - `research_workbench_entrypoint.runtime_endpoints`
 - `research_workbench_entrypoint.web_contract`
@@ -12507,8 +12581,7 @@ Imports:
 - `tempfile`
 - `time`
 - `typing`
-- `urllib.parse`
-- ... 2 more
+- ... 3 more
 
 Classes:
 - `ServiceManagerError`

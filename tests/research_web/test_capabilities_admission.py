@@ -828,3 +828,30 @@ def test_owned_hot_snapshot_is_admitted_to_scripts_without_catalog_provider(api)
     assert expected in service.native_admission(sid, tool_name='research_run_script')['read_paths']
     row['hot_origin']['runId'] = str(uuid4())
     assert expected not in service.native_admission(sid, tool_name='research_run_script')['read_paths']
+
+
+def test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities(api):
+    client, _native, service = api
+    bound = create(client, candidate(name="绑定技能", slug="bot-bound"))["id"]
+    unbound = create(client, candidate(name="无关技能", slug="bot-unbound"))["id"]
+    for cid in (bound, unbound):
+        client.post(f"/api/research/capabilities/{cid}/publish")
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    service.store.session(sid)["automation_research_scope"] = {"approved_tools": []}
+    service.store.reserve(sid, "automation:bot-run", "c" * 64, {"status": "running"})
+    receipt = service.store.receipt(sid, "automation:bot-run")
+    selection = service.capabilities.selection(bound)
+    receipt.update(research_bot_run_id="bot-run", research_bot_capabilities=[selection])
+    scope = service.native_admission(sid, tool_name="agent_step")
+    assert scope["visible_tools"] == ["todo_write", "skill"]
+    assert service.native_admission(sid, tool_name="web_search")["admitted"] is False
+    with pytest.raises(CapabilityError, match="未绑定"):
+        service.native_admission(
+            sid, native_name=service.capabilities.selection(unbound)["native_name"],
+            tool_name="skill", loaded=True,
+        )
+    assert "native_capabilities" not in receipt
+    assert service.native_admission(
+        sid, native_name=selection["native_name"], tool_name="skill", loaded=True
+    )["admitted"]
+    assert [ref["id"] for ref in receipt["native_capabilities"]] == [bound]
