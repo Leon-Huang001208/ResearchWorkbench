@@ -1,5 +1,11 @@
 # Mac mini 空私有池网关升级
 
+## Research Bot 常驻升级
+
+`model_provider_upgrade apply-research-bot` 绑定当前接受版 `1315d11a` 及 PR #302 的实际合并提交 `88bec0ec04cbe2eb6979e6ebde695b992ed27336`。该版本包含旧常驻版本之后已合并的主线变更。操作员使用现有 v4 事务，检查候选的完整产品字节及权限位，并核实主实例、网关及受审源码的仓库身份。来自另一仓库的交付回执经 `resident.delivery_transfer` 导入实际配置的源码仓库。
+
+使用已安装的生产解释器和当前受审主线的干净工具工作树执行。既有研究和后台任务必须明确空闲；Web 依赖锁、DSH、MCP 设置、账号和业务索引在切换及回滚中复核。发布前确认所选候选的 Project Constraints、Research Web Checks 和 macOS 15 Bootstrap。部署后分别核对两个实际进程的版本、3081／8088／8089、本机 Research Bot 页面及账号访问边界。页面验证不创建 Bot、不启用日程。
+
 ## FinGPT 执行器切换
 
 `apply-fingpt` 固定已登记前版 `1315d11a5b82be563b6031593a3bfa5e6e092acd`，产品检查点见操作员的 `FINGPT_PAYLOAD`。同一候选通过原 Native 围栏更新主实例安装清单和私网网关配置。现有 MCP 开关随原网关配置保留。切换中校验两端的版本和执行器，并复核网关进程身份。事务失败时恢复两个源码、原 wheel、安装清单和网关配置。常驻 FinGPT 使用受管操作员启动或重启。

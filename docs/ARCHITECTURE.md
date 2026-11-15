@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Research Bot 常驻升级在既有 Native 联合事务内绑定已接受前版和 PR #302 的合并产品树，同时验证主实例、网关和回滚版本。部署入口和验收见[联合升级](research-web-gateway-upgrade.md#research-bot-常驻升级)。
+
 Research Bot 在现有 Web 壳和账号 Host 内复用 Automation 调度、Store 和唯一 DSH，定时与手动运行使用同一冻结定义及证据路径。该入口限原有本机内置研究，详情见[执行与恢复](architecture/research-web/02-research-runtime.md)。
 
 财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。

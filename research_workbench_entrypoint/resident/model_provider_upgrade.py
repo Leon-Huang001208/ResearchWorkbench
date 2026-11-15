@@ -159,6 +159,9 @@ MARKET_LIVE_V2_GIT_SWITCH_TIMEOUT = 120
 MARKET_DAILY_MODE = "reviewed-market-daily-v1"
 MARKET_DAILY_PREVIOUS = "37051f8fb9a5680082923f845444d4bc59cff33a"
 MARKET_DAILY_PAYLOAD = "00690f0e4f8678f64aba20eb4991a3f232897664"
+RESEARCH_BOT_MODE = "reviewed-research-bot-v1"
+RESEARCH_BOT_PREVIOUS = "1315d11a5b82be563b6031593a3bfa5e6e092acd"
+RESEARCH_BOT_PAYLOAD = "88bec0ec04cbe2eb6979e6ebde695b992ed27336"
 EVENT_SAFETY_MODES = frozenset(
     {EVENT_MODE, UNIFIED_NAVIGATION_MODE, MARKET_LIVE_MODE, MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE}
 )
@@ -225,6 +228,7 @@ ASSET_MODES = frozenset(
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
         MARKET_DAILY_MODE,
+        RESEARCH_BOT_MODE,
         UNIFIED_NAVIGATION_MODE,
         ETF_WEEKLY_MODE,
         DOSSIERS_MODE,
@@ -351,6 +355,8 @@ def previous_for(mode):
         return UNIFIED_NAVIGATION_PREVIOUS
     if mode == MARKET_DAILY_MODE:
         return MARKET_DAILY_PREVIOUS
+    if mode == RESEARCH_BOT_MODE:
+        return RESEARCH_BOT_PREVIOUS
     if mode == MARKET_LIVE_V2_MODE:
         return MARKET_LIVE_V2_PREVIOUS
     if mode == MARKET_LIVE_MODE:
@@ -654,6 +660,7 @@ def verify_primary(home, expected, mode):
         MARKET_LIVE_MODE,
         MARKET_LIVE_V2_MODE,
         MARKET_DAILY_MODE,
+        RESEARCH_BOT_MODE,
         UNIFIED_NAVIGATION_MODE,
         ASSET_V5_MODE,
         ASSET_V6_MODE,
@@ -670,7 +677,7 @@ def verify_primary(home, expected, mode):
         ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
         result = g.verify_primary(home, expected, index_reader=read_business_index)
-        if mode in EVENT_PRESERVATION_MODES or mode == FINGPT_MODE:
+        if mode in {*EVENT_PRESERVATION_MODES, RESEARCH_BOT_MODE, FINGPT_MODE}:
             observed = weekly_primary_identity_precheck(home, expected)
             if observed.get("active") is not False:
                 raise MaintenanceBusy("research_active_or_unknown")
@@ -964,6 +971,59 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     return result
 
 
+def review_research_bot(source: Path, target: str):
+    """Bind the complete product tree and allow only this Native operator addition."""
+    c.clean(source, target)
+    payload = RESEARCH_BOT_PAYLOAD
+    c.git(source, "merge-base", "--is-ancestor", RESEARCH_BOT_PREVIOUS, payload)
+    c.git(source, "merge-base", "--is-ancestor", payload, target)
+    for name in (
+        "requirements/web.in",
+        "requirements/web.lock",
+        "runtimes/research_web.json",
+        "scripts/setup_web.py",
+        "setup-web.sh",
+        "setup-web.cmd",
+    ):
+        if c.git(source, "ls-tree", RESEARCH_BOT_PREVIOUS, "--", name) != c.git(
+            source, "ls-tree", payload, "--", name
+        ):
+            raise UpdateBlocked("research_bot_upgrade_install_contract_changed")
+
+    # Compare payload to executor directly so even a reversion to the previous
+    # release remains visible. Raw NUL-delimited records preserve path and mode.
+    raw = c.git(
+        source,
+        "diff",
+        "--raw",
+        "-z",
+        "--no-abbrev",
+        "--no-renames",
+        "--ignore-submodules=none",
+        payload,
+        target,
+    )
+    fields = raw[:-1].split("\0") if raw.endswith("\0") else []
+    if not fields or len(fields) % 2:
+        raise UpdateBlocked("research_bot_upgrade_operator_missing")
+    reviewed = {"product_tree": c.git(source, "rev-parse", f"{payload}^{{tree}}")}
+    for offset in range(0, len(fields), 2):
+        metadata, name = fields[offset : offset + 2]
+        match = re.fullmatch(r":(000000|100644) 100644 [a-f0-9]{40} ([a-f0-9]{40}) [AM]", metadata)
+        if (
+            match is None
+            or name in reviewed
+            or (name not in {MODULE, TEST} and not name.startswith(("docs/", ".ai/reports/")))
+        ):
+            log.warning("research_bot_upgrade_payload_changed")
+            raise UpdateBlocked("research_bot_upgrade_payload_changed")
+        reviewed[name] = match.group(2)
+    if not {MODULE, TEST} <= reviewed.keys():
+        raise UpdateBlocked("research_bot_upgrade_operator_missing")
+    log.info("research_bot_upgrade_payload_reviewed files=%s", len(reviewed) - 1)
+    return reviewed
+
+
 def review(source: Path, target: str, mode=MODE):
     """Only the reviewed model payload plus this operator, its test and documentation."""
     previous_for(mode)
@@ -972,6 +1032,8 @@ def review(source: Path, target: str, mode=MODE):
             raise UpdateBlocked("trial_retirement_product_changed")
         c.clean(source, target)
         return {"product_tree": c.git(source, "rev-parse", f"{target}^{{tree}}")}
+    if mode == RESEARCH_BOT_MODE:
+        return review_research_bot(source, target)
     if mode in ASSET_MODES:
         return review_assets(source, target, mode)
     c.clean(source, target)
@@ -1390,6 +1452,13 @@ def validate_state(home, state, *, executor_source=None):
     verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
     if state.get("mode") in EVENT_PRESERVATION_MODES:
         verify_event_schedules(home, state)
+    if state.get("mode") == RESEARCH_BOT_MODE:
+        observed = state.get("research_bot_mcp_before")
+        if (
+            type(observed) is not bool
+            or state["gateway_config"].get("mcp_readonly_enabled", observed) is not observed
+        ):
+            raise UpdateBlocked("research_bot_upgrade_mcp_observation_invalid")
     source = Path(state["source"])
     if (
         state.get("mode") == TRIAL_SUCCESSOR_MODE
@@ -1463,6 +1532,7 @@ def validate_state(home, state, *, executor_source=None):
                 MARKET_LIVE_MODE,
                 MARKET_LIVE_V2_MODE,
                 MARKET_DAILY_MODE,
+                RESEARCH_BOT_MODE,
                 UNIFIED_NAVIGATION_MODE,
                 DOSSIERS_MODE,
                 DISCOVERY_MODE,
@@ -1551,6 +1621,21 @@ def verify_rollback_mcp_disabled(mode, gateway):
         )
 
 
+def verify_research_bot_execution(gateway):
+    """Reject a configured service-only transition before starting this fixed profile."""
+    from app.research_web.mcp_facade.config import resident_execution
+
+    try:
+        service_only, oauth_origin = resident_execution(
+            gateway, mcp_enabled=gateway.get("mcp_readonly_enabled") is True
+        )
+    except ValueError as exc:
+        log.warning("research_bot_upgrade_gateway_execution_invalid", extra={"code": str(exc)})
+        raise UpdateBlocked("research_bot_upgrade_gateway_execution_invalid") from exc
+    if service_only or oauth_origin is not None:
+        raise UpdateBlocked("research_bot_upgrade_gateway_not_embedded")
+
+
 def gateway_configuration(state, previous=False):
     old = state["gateway_config"]
     if previous:
@@ -1568,7 +1653,7 @@ def gateway_configuration(state, previous=False):
 
 def gateway_configuration_matches(state, actual, previous):
     expected = gateway_configuration(state, previous)
-    if state.get("mode") not in {*EVENT_PRESERVATION_MODES, FINGPT_MODE}:
+    if state.get("mode") not in {*EVENT_PRESERVATION_MODES, RESEARCH_BOT_MODE, FINGPT_MODE}:
         return actual == expected
     # JSON equality preserves boolean/number distinctions and missing fields.
     return json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
@@ -1635,6 +1720,8 @@ def target_manifest(state):
 
 def validate_configuration(home, state):
     verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
+    if state.get("mode") == RESEARCH_BOT_MODE:
+        verify_research_bot_execution(state["gateway_config"])
     actual = read_json(home / "resident/config.json")
     next_config = (
         validate_trial_rebind(state) if state.get("mode") in TRIAL_MODES else state["config"]
@@ -2093,6 +2180,8 @@ class Operations:
         state["before"] = g.preservation(self.home)
         if state.get("mode") in ASSET_MODES or state.get("mode") in TRIAL_MODES:
             state["asset_index_before"] = asset_index_snapshot(self.home)
+        if state.get("mode") == RESEARCH_BOT_MODE:
+            self.research_bot_gateway_health(previous=True, fenced=False)
         state["phase"] = "preparing"
         verify_serve(state["config"]["private_origin"])
         g.write_upgrade_journal(self.server / "run/gateway-upgrade.json", state)
@@ -2116,6 +2205,7 @@ class Operations:
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
             MARKET_DAILY_MODE,
+            RESEARCH_BOT_MODE,
             UNIFIED_NAVIGATION_MODE,
             ETF_HISTORICAL_MODE,
             ETF_WEEKLY_ADMISSION_MODE,
@@ -2140,7 +2230,7 @@ class Operations:
                 return False
             native = self.manager._active_research_read_only(runtime)
             if native or (
-                self.state.get("mode") in {*EVENT_PRESERVATION_MODES, FINGPT_MODE}
+                self.state.get("mode") in {*EVENT_PRESERVATION_MODES, RESEARCH_BOT_MODE, FINGPT_MODE}
                 and type(native) is not list
             ):
                 return False
@@ -2176,6 +2266,7 @@ class Operations:
             MARKET_LIVE_MODE,
             MARKET_LIVE_V2_MODE,
             MARKET_DAILY_MODE,
+            RESEARCH_BOT_MODE,
             UNIFIED_NAVIGATION_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
@@ -2297,7 +2388,12 @@ class Operations:
             if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
-            if self.state.get("mode") in {MARKET_LIVE_V2_MODE, MARKET_DAILY_MODE, FINGPT_MODE}:
+            if self.state.get("mode") in {
+                MARKET_LIVE_V2_MODE,
+                MARKET_DAILY_MODE,
+                RESEARCH_BOT_MODE,
+                FINGPT_MODE,
+            }:
                 started = time.monotonic()
                 log.info(
                     "market_live_git_switch_started role=%s restoring=%s timeout_s=%d",
@@ -2438,6 +2534,42 @@ class Operations:
         g.no_children(pid)
         return pid, signature
 
+    def research_bot_gateway_health(self, *, previous, fenced):
+        """Certify actual MCP parity with the same gateway process on both entrances."""
+        validate_configuration(self.home, self.state)
+        path = self.server / "resident.json"
+        config = read_json(path)
+        if not gateway_configuration_matches(self.state, config, previous):
+            raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
+        identity = self.event_gateway_identity()
+        local = read_event_gateway_health(config)
+        remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
+        observed = local.get("mcp_readonly_enabled")
+        expected = self.state.get(
+            "research_bot_mcp_before", config.get("mcp_readonly_enabled", observed)
+        )
+        for value in (local, remote):
+            if (
+                not isinstance(value, dict)
+                or value.get("status") != "ready"
+                or value.get("revision") != config["revision"]
+                or value.get("deployment_fenced") is not fenced
+                or value.get("primary_last_verified") is not True
+                or value.get("execution_mode", "embedded") != "embedded"
+                or type(observed) is not bool
+                or value.get("mcp_readonly_enabled") is not expected
+            ):
+                raise UpdateBlocked("research_bot_upgrade_mcp_runtime_unverified")
+        if (
+            not gateway_configuration_matches(self.state, read_json(path), previous)
+            or self.event_gateway_identity() != identity
+        ):
+            raise UpdateBlocked("research_bot_upgrade_gateway_observation_changed")
+        log.info(
+            "research_bot_upgrade_gateway_verified revision=%s mcp=%s", config["revision"], observed
+        )
+        return observed
+
     def verify(self, previous):
         sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
         if self.state.get("mode") in TRIAL_MODES:
@@ -2450,10 +2582,13 @@ class Operations:
             if not gateway_configuration_matches(self.state, gateway, previous):
                 raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
             gateway_identity = self.event_gateway_identity()
-        g.health(gateway, fenced=True)
-        remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
-        if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
-            raise UpdateBlocked("model_upgrade_private_health_failed")
+        if self.state.get("mode") == RESEARCH_BOT_MODE:
+            self.research_bot_gateway_health(previous=previous, fenced=True)
+        else:
+            g.health(gateway, fenced=True)
+            remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
+            if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
+                raise UpdateBlocked("model_upgrade_private_health_failed")
         if self.state.get("mode") == FINGPT_MODE:
             primary = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/resident"
@@ -2506,6 +2641,16 @@ class Operations:
                 sha,
                 certify_mcp_off,
             )
+        if self.state.get("mode") == RESEARCH_BOT_MODE and not previous:
+            bots = request_json(
+                f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/research-bots"
+            )
+            if (
+                not isinstance(bots, dict)
+                or not isinstance(bots.get("items"), list)
+                or not isinstance(bots.get("latest_runs"), list)
+            ):
+                raise UpdateBlocked("research_bot_upgrade_entry_unverified")
         self.verify_preservation(previous)
         verify_asset_index(self.home, self.state)
         if self.state.get("mode") in EVENT_PRESERVATION_MODES:
@@ -3568,6 +3713,8 @@ def operate(
                 raise UpdateBlocked("resident_failed_candidate_requires_retry")
             primary, gateway = Path(config["project"]), read_json(server / "resident.json")
             verify_rollback_mcp_disabled(mode, gateway)
+            if mode == RESEARCH_BOT_MODE:
+                verify_research_bot_execution(gateway)
             for project in (primary, Path(gateway["project"])):
                 c.clean(project, previous)
             if (
@@ -3657,6 +3804,10 @@ def operate(
                 state[role + "_identity"] = [info.st_dev, info.st_ino]
                 state[role + "_repository"] = repository_identity(project, config["repository"])
                 c.git(project, "cat-file", "-e", f"{target}^{{commit}}")
+            if mode == RESEARCH_BOT_MODE:
+                state["research_bot_mcp_before"] = Operations(
+                    home, state, None, None, None
+                ).research_bot_gateway_health(previous=True, fenced=False)
             if mode in TRIAL_MODES:
                 from . import trial_retirement as trial
 
@@ -3928,6 +4079,7 @@ def main(argv=None):
             "apply-market-live",
             "apply-market-live-v2",
             "apply-market-daily",
+            "apply-research-bot",
             "apply-navigation-ui",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
@@ -4018,6 +4170,7 @@ def main(argv=None):
                 "apply-market-live": MARKET_LIVE_MODE,
                 "apply-market-live-v2": MARKET_LIVE_V2_MODE,
                 "apply-market-daily": MARKET_DAILY_MODE,
+                "apply-research-bot": RESEARCH_BOT_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,

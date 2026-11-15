@@ -1,5 +1,6 @@
 # Research Web Native / Docker 安装与运行
 
+已安装的 Mac mini 经 [Research Bot 受管升级](research-web-gateway-upgrade.md#research-bot-常驻升级) 切换。三条公开安装命令仍使用现有 Web 锁及固定 DSH；干净安装验证与实际常驻版本及入口检查分开记录。
 ## AlphaDesk 问答组件
 
 三个公开安装入口共用原 Python、Node 24、固定 DSH 与 CJPY 安装合同。Native 安装用

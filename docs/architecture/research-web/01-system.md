@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Research Bot 受管运行在原 Mac Native 主实例和附着网关。操作员依次切换及验证两角色，发现失败时从既有部署事务回滚。
+
 Research Bot 页面和专用 API 运行在既有本机 Web Host 内，沿原 Automation、Store 和 DSH 运行。仅服务及私网租户 Host 拒绝该入口。
 
 财经日历部署在原 Web 静态入口和现有账号 Host 内，固定公共宏观来源由 DataHub 读取；无新增服务或监听端口。
