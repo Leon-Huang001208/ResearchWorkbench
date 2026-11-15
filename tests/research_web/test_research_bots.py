@@ -94,6 +94,7 @@ def test_source_selection_requires_freshness_and_ignores_unrelated_news():
         pytest.param("2026-11-15 23:17", {}, {}, True, "not_reported", False, id="future"),
         pytest.param("2026-11-15", {}, {}, True, "not_reported", False, id="date-only"),
         pytest.param("2026-11-31 23:15", {}, {}, True, "not_reported", False, id="invalid-date"),
+        pytest.param("0001-01-01 00:00", {}, {}, True, "not_reported", False, id="utc-overflow"),
         pytest.param(None, {}, {}, True, "not_reported", False, id="no-evidence"),
         pytest.param("2026-11-15 23:15", {}, {}, False, "not_reported", False, id="empty-data"),
         pytest.param(None, {"cache_stale": False}, {}, True, "not_expired", True, id="outer"),
