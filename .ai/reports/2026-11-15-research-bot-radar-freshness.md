@@ -11,3 +11,10 @@ Mac mini Native 验收发现同一个测试 Bot 的手动和定时两条运行�
 <!-- architecture-review {"group":"discovery","structure":"unchanged","reason":"Radar 生成时点进入原资讯 lane 的元数据，资料及读取失败仍沿原 Discovery 边界。","diagrams":[]} -->
 
 定点回归使用真实响应形状的固定夹具，经 Radar 解包、Discovery 投影及 Research Bot 准入。修复前观察到 `bot_source_unavailable`，修复后共享环境 19 项通过。夹具覆盖外层过期、异常标志、旧批次、未来时间、缓存回填及原件去重。正式合并候选和真实运行验收分别取证。
+
+Native 常驻配置 `reviewed-research-bot-v2` 采用原 v4 事务。产品检查点和操作员在同一 PR 内提交，以独立评审及三项 CI 核对最终合并版本。成功及回滚继续验证两入口和原 MCP 状态。真机复测保留原 Bot 及两条失败历史。
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"Radar 修补沿既有 Native 联合事务冻结版本，角色数、服务启动及回滚拓扑继续沿原流程。","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"相同账号 Host 与网关复用现有切换，私网身份和 MCP 配置随现有保全对账。","diagrams":[]} -->
+
+固定产品检查点 `cb7c94a2fc5cc8a1c2cfd33737b652dee4b0cb59`。早期越界日期追加回归先观察到 UTC 转换溢出，再验证拒绝准入。受管操作员定点回归共 42 项通过，覆盖模式分派、真实 Git 祖先及原部署、回滚与 MCP 复核合同。
