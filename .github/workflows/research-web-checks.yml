@@ -281,6 +281,7 @@ jobs:
             tests/research_web/test_ai_news_eval.py \
             tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
+            tests/research_web/test_resident_volume_identity.py tests/research_web/test_gateway_source.py \
             tests/research_web/test_delivery_transfer.py \
             tests/research_web/test_source_inventory.py \
             tests/research_web/test_maintenance_job_identity_v3.py \

@@ -10258,7 +10258,9 @@ Imports:
 - `os`
 - `pathlib`
 - `platform`
-- `subprocess`
+- `research_workbench_entrypoint.resident.controller`
+- `research_workbench_entrypoint.resident.evidence`
+- `research_workbench_entrypoint.resident.gateway_source`
 - `sys`
 
 Functions:

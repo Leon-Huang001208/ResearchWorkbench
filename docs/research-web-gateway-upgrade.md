@@ -1,10 +1,44 @@
 # Mac mini 空私有池网关升级
 
+## 常驻存储身份固定升级
+
+`apply-resident-storage-identity` 从已接受的 `0ca0f4c01fa6a027f2759814eea9624ba8c79807` 进入固定产品
+`00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7`。以原生产解释器运行最新已审主线工作树的
+`research_workbench_entrypoint.resident.model_provider_upgrade`，用
+`apply-resident-storage-identity --source <干净工作树>` 进入原 v4 事务。切换和回滚均
+核对实际原 MCP 布尔值、全账号资料和固定运行时。通过两端健康后再执行正式的
+`rwb resident enroll-storage-identity --json`，保留旧恢复工件以供核对，确认正式作业后
+才停用现场的临时身份修复任务。分别记录新 boot UUID、三端口、私网登录及能力目录。
+
 ## Research Bot 常驻升级
 
 `model_provider_upgrade apply-research-bot` 绑定当前接受版 `1315d11a` 及 PR #302 的实际合并提交 `88bec0ec04cbe2eb6979e6ebde695b992ed27336`。该版本包含旧常驻版本之后已合并的主线变更。操作员使用现有 v4 事务，检查候选的完整产品字节及权限位，并核实主实例、网关及受审源码的仓库身份。来自另一仓库的交付回执经 `resident.delivery_transfer` 导入实际配置的源码仓库。
 
 使用已安装的生产解释器和当前受审主线的干净工具工作树执行。既有研究和后台任务必须明确空闲；Web 依赖锁、DSH、MCP 设置、账号和业务索引在切换及回滚中复核。发布前确认所选候选的 Project Constraints、Research Web Checks 和 macOS 15 Bootstrap。部署后分别核对两个实际进程的版本、3081／8088／8089、本机 Research Bot 页面及账号访问边界。页面验证不创建 Bot、不启用日程。
+
+## 网关同版本迁移到非云盘仓库
+
+在已审核的源码 checkout 中，先用 `rwb resident prepare-gateway-source` 准备本地发行工作树。
+该命令使用原 Native 配置登记的 Git common。确认目标是精确的已安装 SHA、工作树干净且 Git
+元数据落在非云盘目录。保留旧工作树和原 Git 记录用于审计。
+
+对现有网关，先按原维护流程确认账号执行空闲并记录现有 launchd 注册和启用状态。仅在本次
+维护窗口，用 `launchctl disable` 禁用当前用户 GUI 域中的 `com.research-workbench.multiuser-server`
+与 `com.research-workbench.resident`，并在确认归属和空闲后卸载原网关、释放 8089。跨重启时
+这两项停用状态保护未完成事务。原 Native Web/DSH 可以继续运行。下列命令保留原端口、
+解释器、账号库、DSH 源、Tailscale 路由及管理员绑定。
+
+```bash
+./rwb resident plan-gateway-relocation --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --json
+./rwb resident relocate-gateway --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --plan-seal EXACT_PREVIEW_SEAL --json
+```
+
+迁移变更 `server/resident.json.project` 和原 LaunchAgent 的 `WorkingDirectory`，启动前重新
+核对配置和实际工作目录。若中途退出，使用 `rwb resident recover-gateway-relocation --json`
+处理本次未完成事务，再复核旧配置、保留原回执。完成后由操作员引导原 LaunchAgent，并验证
+私网 HTTPS、主实例绑定、登录和技能目录。确认恢复结果已落盘后恢复原两个 label 的启用与注册状态。
 
 逐日市场用 `apply-market-daily`，从已接受 `37051f8f` 进入操作员内 `MARKET_DAILY_PAYLOAD` 固定的载荷；复用市场 V2 的 120 秒切换预算、
 切后干净树、原保全与恢复。首批操作的固定来源在写者排空后记录明确终态证明；旧失败、运行中、

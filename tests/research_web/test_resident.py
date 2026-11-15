@@ -592,6 +592,14 @@ def test_atomic_state_is_private_and_invalid_records_fail_closed(resident):
 
 
 def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_identity
+
+    enrollments = []
+    monkeypatch.setattr(
+        volume_identity,
+        "enroll",
+        lambda home, **kwargs: enrollments.append((home, kwargs)) or {"status": "enrolled"},
+    )
     home = tmp_path / "product"
     home.mkdir(mode=0o700)
     user = tmp_path / "user"
@@ -629,8 +637,20 @@ def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypat
     assert value["RunAtLoad"] is True and value["StartInterval"] == 60
     assert value["ProgramArguments"][1] == str(home / "resident/controller.pyz")
     assert "sudo" not in str(value) and "KeepAlive" not in value
-    assert commands[0][:2] == ["/bin/launchctl", "enable"]
+    companion = user / "Library/LaunchAgents/com.research-workbench.resident-storage-identity.plist"
+    maintenance = plistlib.loads(companion.read_bytes())
+    assert maintenance["RunAtLoad"] is True
+    assert maintenance["StartInterval"] == 45
+    artifact = Path(maintenance["ProgramArguments"][1])
+    assert artifact.parent == home / "resident"
+    assert artifact.stat().st_mode & 0o777 == 0o600
+    assert maintenance["ProgramArguments"][2:] == ["--home", str(home)]
+    with zipfile.ZipFile(artifact) as installed:
+        assert "resident/volume_identity.py" in installed.namelist()
+    assert enrollments == [(home, {"supervisor_locked": True})]
     assert commands[1][:3] == ["/bin/launchctl", "bootstrap", f"gui/{os.getuid()}"]
+    assert commands[1][-1] == str(companion)
+    assert commands[3][-1] == str(plist)
     assert controller.configured(home)[1]["baseline"] == "a" * 40
     before = (home / "resident/controller.pyz").read_bytes()
 
@@ -647,6 +667,71 @@ def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypat
         == "installed"
     )
     assert (home / "resident/controller.pyz").read_bytes() == before
+
+
+def test_storage_agent_artifact_can_advance_with_same_installed_plist(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_launch
+
+    home = tmp_path / "rwb"
+    home.mkdir(mode=0o700)
+    user = tmp_path / "login"
+    user.mkdir()
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(Path, "home", lambda: user)
+    monkeypatch.setattr(
+        volume_launch.volume_identity, "enroll", lambda *a, **kw: {"status": "enrolled"}
+    )
+    monkeypatch.setattr(controller, "run", lambda *a, **kw: "")
+    content = volume_launch._artifact()
+    monkeypatch.setattr(volume_launch, "_artifact", lambda: content)
+    first = volume_launch.register(home, {"python": sys.executable})
+    plist = user / "Library/LaunchAgents" / (volume_launch.LABEL + ".plist")
+    prior_plist = plist.read_bytes()
+    active = home / "resident/storage-identity.pyz"
+    assert active.read_bytes() == content
+
+    expanded = content + b"new release witness"
+    monkeypatch.setattr(volume_launch, "_artifact", lambda: expanded)
+    second = volume_launch.register(home, {"python": sys.executable})
+    assert first["artifact_sha256"] != second["artifact_sha256"]
+    assert active.read_bytes() == expanded
+    assert plist.read_bytes() == prior_plist
+    prior = active.parent / f"storage-identity-{first['artifact_sha256']}.pyz"
+    assert prior.read_bytes() == content
+
+
+def test_legacy_storage_enrollment_uses_source_without_upgrading_supervisor(tmp_path, monkeypatch):
+    home = tmp_path / "product"
+    root = home / "resident"
+    root.mkdir(parents=True, mode=0o700)
+    old = root / "controller.pyz"
+    old.write_bytes(b"immutable prior controller")
+    config = {"artifact": str(old), "python": sys.executable}
+    monkeypatch.setattr(controller, "configured", lambda path: (root, config))
+    registrations = []
+
+    def register(path, supplied_config, **kwargs):
+        registrations.append((path, supplied_config, kwargs))
+        return {"status": "enrolled"}
+
+    from research_workbench_entrypoint.resident import volume_launch
+
+    monkeypatch.setattr(volume_launch, "register", register)
+    assert controller.main(["enroll-storage-identity", "--home", str(home)]) == 0
+    assert registrations == [(home, config, {})]
+    assert old.read_bytes() == b"immutable prior controller"
+
+
+def test_repair_storage_identity_does_not_run_upgrade_tick(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_identity
+
+    home = tmp_path / "product"
+    repairs = []
+    monkeypatch.setattr(
+        volume_identity, "rebind", lambda path: repairs.append(path) or {"status": "rebound"}
+    )
+    assert controller.main(["repair-storage-identity", "--home", str(home)]) == 0
+    assert repairs == [home]
 
 
 def test_disable_defers_instead_of_terminating_inflight_transaction(resident, monkeypatch):
@@ -1407,3 +1492,11 @@ def test_business_index_reader_accepts_large_owned_json_without_relaxing_metadat
         stream.truncate(64 * 1024 * 1024 + 1)
     with pytest.raises(evidence.UpdateBlocked, match="business_index_invalid"):
         maintenance.read_business_index(path)
+
+
+def test_unfinished_gateway_relocation_blocks_native_maintenance(resident):
+    run = resident.parent / "server/run"
+    run.mkdir(parents=True)
+    (run / "gateway-source-rehome.json").symlink_to(run / "missing")
+    with pytest.raises(evidence.UpdateBlocked, match="gateway_source_recovery_required"):
+        controller.configured(resident.parent)

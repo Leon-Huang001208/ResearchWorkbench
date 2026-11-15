@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+已接受 Research Bot 后的生产升级，使用[常驻存储身份固定升级](research-web-gateway-upgrade.md#常驻存储身份固定升级)。既有控制器保持固定，正式 APFS 恢复工件单独登记。
+
 已安装的 Mac mini 经 [Research Bot 受管升级](research-web-gateway-upgrade.md#research-bot-常驻升级) 切换。三条公开安装命令仍使用现有 Web 锁及固定 DSH；干净安装验证与实际常驻版本及入口检查分开记录。
 
 首批市场面板使用原静态资产和原锁定依赖；干净安装检查一次性操作模块的实际字节，不在启动时取源。
@@ -198,6 +200,38 @@ primary 的 index.html、/static 资源及原 /api/research/aihot/ 阅读请求�
 独立 `com.research-workbench.multiuser-server` 用户 LaunchAgent 用已审核的精确源码 SHA 执行 `python -m app.research_web.multiuser.resident --root <private-root>`；解释器、Node 与固定 DSH 复用已安装环境，无新依赖。私有 `resident.json` 保存绑定身份及部署 SHA。先验证回环 8089，再持有原 supervisor/admission/lifecycle 锁复查空闲，在路由切换前写 `run/cutover.json`，检查原会话文件与模型配置摘要后，才把既有 Tailscale HTTPS 根代理 8088 改为 8089。该 journal 存在时拒绝业务写入；原实例不停止，不改变自动兼容白名单。失败仅恢复本次拥有的原路由并停用新网关，不覆盖研究数据。安装日志与保全证据仅存本机私有目录。
 
 初始管理员密码可由已授权操作员随机生成并只写入 macOS Keychain，配置只记录服务名/账号引用；不得出现在 argv、环境、日志、报告或聊天中。用户登录后可通过菜单顶部用户名进入账号资料；管理员在“设置 → 用户管理”重置密码，普通用户联系管理员。匿名 `/api/server/health` 只显示网关就绪及 primary 先前核验标记，不探测模型、不反复启动子进程；认证主账号的深度核验采用单飞与三秒缓存。正常退出只回收新用户 pair；登录启动等待原监督器恢复。仅在内核 boot UUID 已变化且旧 owner 完整、账号已知、权限与目录安全时，归档并退休旧控制元数据；同 boot 崩溃及未知归属仍拒绝启动。登录后启动与完整重启实测分别记录，FileVault 与系统登录策略不改变。
+
+
+### macOS 重启后的目录身份与网关源码
+
+新的 `rwb resident install` 在 APFS 上登记发行目录和原数据目录的物理身份。登录后独立的
+`com.research-workbench.resident-storage-identity` 作业先核对实际挂载的卷 UUID、规范路径、
+所有者、inode 和创建时间，再按需要刷新旧配置中的设备号。重启可以改变设备号；目录或卷身份
+变更仍须由操作员核验。修复沿用原事务锁和原身份字段，仅修改 Native 和附接网关记录中的设备号。明确识别为非 APFS
+的本地目录沿用现有严格身份检查，安装结果会记录 APFS 自动修复不可用。
+存在未完成部署或迁移事务时先按对应回执恢复，自动作业保留所有未完成事务及其身份。
+
+现有健康安装可从已审核的新源码 checkout 登记该作业，继续使用原 supervisor artifact：
+
+```bash
+./rwb resident enroll-storage-identity --json
+./rwb resident repair-storage-identity --json
+```
+
+首次登记要求现存绑定能够验证。已经失去有效绑定且没有历史卷证明的旧主机，须先由操作员保全
+配置并核验原 APFS 卷及目录，恢复原绑定后再登记。FileVault 保持启用，启动发生在 macOS 解锁并
+登录后；应分别验证新 boot UUID、Web/DSH/网关、私网 HTTPS 和原账号的技能页。
+
+新网关先从登记的非云盘 Git common 目录检出精确提交。下面的命令仅准备发行工作树，可将其
+作为网关 LaunchAgent 的 `WorkingDirectory` 和 `server/resident.json.project`：
+
+```bash
+./rwb resident prepare-gateway-source --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --json
+```
+
+现有网关若引用桌面或云盘 Git 元数据，使用[同版本迁移流程](research-web-gateway-upgrade.md#网关同版本迁移到非云盘仓库)，
+保留原账号库、上传文件、模型配置、运行时和 Tailscale 路由。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
