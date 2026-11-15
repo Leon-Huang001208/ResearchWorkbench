@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+Radar 修复的固定升级配置用于已接受的 Native 主实例和附着网关。Docker 镜像的构建、保全及回滚沿各自流程。
+
 Research Bot 的 `apply-research-bot` 作用于已接受的 Mac Native 主实例和附着网关。Docker 镜像和容器仍走各自的构建、数据保全和升级流程。
 
 APFS 卷身份修复用于 macOS Native 登录作业。Docker 继续按容器和挂载模式核验状态，Docker 原有数据卷不参与设备号重绑。
