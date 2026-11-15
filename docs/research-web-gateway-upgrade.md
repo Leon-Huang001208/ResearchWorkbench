@@ -1,5 +1,11 @@
 # Mac mini 空私有池网关升级
 
+## Research Bot Radar 时效升级
+
+`model_provider_upgrade apply-research-bot-freshness` 使用上一版本的 Native 联合事务。已接受前版固定为 `0ca0f4c0`，完整产品由 Radar 修复检查点冻结。最终合并提交包含该检查点及受审操作员。普通合并保留固定提交祖先，部署前由现有 CI 资格检查核对最终合并树。
+
+待已有研究和后台任务空闲后启动受管事务，核对原账号索引、原 Bot 停用状态和模型配置。复用原三锁、BirthFence、轮子及回滚。切换后检查主实例、网关和原 MCP 状态。原 Bot 手动及定时模型验收以实际资料和运行回执另证。
+
 ## Research Bot 常驻升级
 
 `model_provider_upgrade apply-research-bot` 绑定当前接受版 `1315d11a` 及 PR #302 的实际合并提交 `88bec0ec04cbe2eb6979e6ebde695b992ed27336`。该版本包含旧常驻版本之后已合并的主线变更。操作员使用现有 v4 事务，检查候选的完整产品字节及权限位，并核实主实例、网关及受审源码的仓库身份。来自另一仓库的交付回执经 `resident.delivery_transfer` 导入实际配置的源码仓库。

@@ -1,5 +1,9 @@
 # 华安 ETF 周报自动生产
 
+Radar 时效升级在原 Native 空闲门下保全周报计划、账号文件和运行历史，周报验收仍依据自身数据和质量合同。
+
+Research Bot 的 Radar 准入限定其自身资讯任务，周报继续根据 Report Workflow 固定的数据来源和定稿合同运行。
+
 Research Bot 使用独立日程。常驻切换进入原研究及后台活动检查，并保全周报账号、日程、索引和业务文件。
 
 Research Bot 使用独立研究任务和定时定义。周报仍由原 Report Workflow 管理模板、快照、定稿与日程。

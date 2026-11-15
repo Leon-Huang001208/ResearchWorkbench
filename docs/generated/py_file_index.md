@@ -5686,7 +5686,9 @@ Imports:
 - `core.observability`
 - `datetime`
 - `models`
+- `re`
 - `sources`
+- `zoneinfo`
 
 Functions:
 - `stable`
@@ -11789,6 +11791,7 @@ Classes:
 - `BotAction`
 
 Functions:
+- `_recent_radar_batch`
 - `select_materials`
   - Use only the acquired news lane; unavailable data is never 'no change'.
 - `_material_identities`

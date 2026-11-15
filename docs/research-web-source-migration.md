@@ -1,5 +1,7 @@
 # 共享部署资格恢复与源仓库迁移
 
+Radar 时效升级绑定固定产品提交与普通合并祖先。若交付工作树的 common directory 与常驻登记仓库不同，仍经 `resident.delivery_transfer` 导入精确评审与 CI 证据。
+
 Research Bot 操作员从已注册的 `source_common` 使用干净受审工作树。交付记录来自另一个 Git common directory 时，先用 `delivery_transfer` 核验并导入精确交付和评审记录。
 
 市场逐日后继固定已接受37051f8f前版及受审载荷；不迁移业务数据或改写前次失败隔离记录。

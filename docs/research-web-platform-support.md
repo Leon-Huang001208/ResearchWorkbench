@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+Radar 批次时效和现有 Bot 回归进入通用测试。常驻升级资格取自 macOS 15 的同候选安装，其他平台原生结果单独验收。
+
 Research Bot 常驻验证范围为 Mac Native 主实例及附着网关，安装资格使用同候选 macOS 15。Windows 和 Linux 原生结果由相应设备取证。
 
 市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。
