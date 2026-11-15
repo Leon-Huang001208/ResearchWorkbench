@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+常驻存储身份固定升级先验证实际已接受的前版，再复查作业占用、v4 事务保全、双入口 MCP 和活跃研究。正式 APFS 登录作业激活及实机重启独立取证。
+
 Research Bot 本地验证复用共享测试环境。Research Web Checks 的现有 Python 批次加入 Bot、通用自动化和原生技能准入回归，Mac Bootstrap 在既有步骤核对安装资产及 Doctor。
 
 常驻身份与网关源码修复走 macOS Native 维护路由。原三项 CI 核对同候选，随后使用实际 boot UUID、精确监听和原账号登录分别验证生产恢复。

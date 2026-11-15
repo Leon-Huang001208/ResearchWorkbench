@@ -1,5 +1,15 @@
 # Mac mini 空私有池网关升级
 
+## 常驻存储身份固定升级
+
+`apply-resident-storage-identity` 从已接受的 `0ca0f4c01fa6a027f2759814eea9624ba8c79807` 进入固定产品
+`00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7`。以原生产解释器运行最新已审主线工作树的
+`research_workbench_entrypoint.resident.model_provider_upgrade`，用
+`apply-resident-storage-identity --source <干净工作树>` 进入原 v4 事务。切换和回滚均
+核对实际原 MCP 布尔值、全账号资料和固定运行时。通过两端健康后再执行正式的
+`rwb resident enroll-storage-identity --json`，保留旧恢复工件以供核对，确认正式作业后
+才停用现场的临时身份修复任务。分别记录新 boot UUID、三端口、私网登录及能力目录。
+
 ## Research Bot 常驻升级
 
 `model_provider_upgrade apply-research-bot` 绑定当前接受版 `1315d11a` 及 PR #302 的实际合并提交 `88bec0ec04cbe2eb6979e6ebde695b992ed27336`。该版本包含旧常驻版本之后已合并的主线变更。操作员使用现有 v4 事务，检查候选的完整产品字节及权限位，并核实主实例、网关及受审源码的仓库身份。来自另一仓库的交付回执经 `resident.delivery_transfer` 导入实际配置的源码仓库。
