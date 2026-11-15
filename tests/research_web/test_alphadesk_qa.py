@@ -15,6 +15,13 @@ from app.research_web.store import Store
 BASE = "/api/research/sessions"
 
 
+@pytest.fixture(autouse=True)
+def isolate_qa_runtime(monkeypatch):
+    monkeypatch.delenv("RWB_ALPHADESK_QA", raising=False)
+    monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "0")
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+
+
 def test_qa_uses_owned_worker_and_replays_same_submission(tmp_path, monkeypatch):
     store = Store(tmp_path / "data")
     native = NativeFixture()
