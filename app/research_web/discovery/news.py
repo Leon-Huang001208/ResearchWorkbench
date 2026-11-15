@@ -65,7 +65,7 @@ def observation(payload):
         try:
             batch_time = datetime.strptime(label, "%Y-%m-%d %H:%M").replace(tzinfo=RADAR_TIMEZONE)
             observation["radar_generated_at"] = batch_time.astimezone(UTC).isoformat()
-        except ValueError:
+        except (ValueError, OverflowError):
             log.warning("radar_generated_at_invalid")
     return observation
 
