@@ -168,11 +168,13 @@ case "${1:-help}" in
     IMAGE=$(docker image inspect --format '{{.Id}}' rwb-candidate:g01)
     printf '%s\n' "$IMAGE" > "$ROOT/runtime.image"
     cat "$PROJECT/Dockerfile" "$PROJECT/docker/Dockerfile.dev" > "$ROOT/dev.Dockerfile"
+    DEVELOPMENT_REF=rwb-development:development
     docker buildx build --builder "$BUILDER" --platform linux/arm64 --load \
       --label "org.opencontainers.image.revision=$SOURCE_SHA" \
       -f "$ROOT/dev.Dockerfile" \
-      -t rwb-development:g01 "$PROJECT"
-    docker image inspect --format '{{.Id}}' rwb-development:g01 > "$ROOT/dev.image"
+      -t "$DEVELOPMENT_REF" "$PROJECT"
+    DEVELOPMENT_ID=$(docker image inspect --format '{{.Id}}' "$DEVELOPMENT_REF") || fail development_image_inspect_failed
+    printf '%s\n' "$DEVELOPMENT_ID" > "$ROOT/dev.image"
     echo "candidate_image=$IMAGE"; exit 0;;
   help)
     echo './rwb-docker bootstrap | build | dev|stage|prod INSTANCE register|up|status|doctor|stop|rebuild|exec|cleanup|replace-image|enable-model-credentials|credential-probe|release-reservation [options]'
