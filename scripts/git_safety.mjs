@@ -11,8 +11,6 @@ import {finalizeLifecycle} from './resource_lifecycle.mjs';
 import {clonePinnedFile, sourceFacts} from './backup_fd_clone.mjs';
 import {admitFileStream} from './backup_capacity.mjs';
 import {loadProjectDeliveryRuntime} from './project_delivery_runtime.mjs';
-import {recoverLegacyBackupLock} from './git_backup_lock_recovery.mjs';
-import {planWorktreeIdentityRecovery, commitWorktreeIdentityRecovery} from './git_worktree_identity_recovery.mjs';
 
 const FORBIDDEN = new Set(['gc', 'prune', 'repack', 'maintenance', 'prune-packed']);
 const ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
@@ -1937,7 +1935,8 @@ function recoveryPoint(repository, backupDirectory, options) {
   return {root, directory, manifest, hash};
 }
 
-export function recoverBackupLock({projectRoot, backupDirectory, interruptionEvidence, apply = false, previewSha256}, options = {}) {
+export async function recoverBackupLock({projectRoot, backupDirectory, interruptionEvidence, apply = false, previewSha256}, options = {}) {
+  const {recoverLegacyBackupLock} = await import('./git_backup_lock_recovery.mjs');
   options = {...options, readOnlyGit: true};
   selectGitPath({...options, mutate: apply});
   const run = repository => {
@@ -1967,7 +1966,8 @@ export function recoverBackupLock({projectRoot, backupDirectory, interruptionEvi
   return apply ? withRepositoryLock({projectRoot}, run, options) : run(discover(projectRoot, options));
 }
 
-export function revalidateWorktreeIdentity({projectRoot, taskId, backupDirectory, apply = false, previewSha256}, options = {}) {
+export async function revalidateWorktreeIdentity({projectRoot, taskId, backupDirectory, apply = false, previewSha256}, options = {}) {
+  const {planWorktreeIdentityRecovery, commitWorktreeIdentityRecovery} = await import('./git_worktree_identity_recovery.mjs');
   if (!ID.test(taskId ?? '')) fail('DELIVERY_ARGUMENT_INVALID');
   options = {...options, readOnlyGit: true};
   selectGitPath({...options, mutate: apply});

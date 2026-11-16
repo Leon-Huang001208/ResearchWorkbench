@@ -50,7 +50,7 @@ test('worktree revalidation requires exact restored files and amends only regist
   const permissions = path.join(managed[0].worktree, 'tracked.txt');
   const mode = fs.statSync(permissions).mode & 0o777;
   fs.chmodSync(permissions, mode === 0o600 ? 0o644 : 0o600);
-  assert.throws(() => revalidateWorktreeIdentity(apply, checked), {code: 'WORKTREE_BACKUP_SNAPSHOT_MISMATCH'});
+  await assert.rejects(revalidateWorktreeIdentity(apply, checked), {code: 'WORKTREE_BACKUP_SNAPSHOT_MISMATCH'});
   assert.deepEqual(fs.readFileSync(ledgerPath), original);
   fs.chmodSync(permissions, mode);
   const result = await revalidateWorktreeIdentity(apply, checked);
