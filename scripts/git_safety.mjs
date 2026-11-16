@@ -11,6 +11,8 @@ import {finalizeLifecycle} from './resource_lifecycle.mjs';
 import {clonePinnedFile, sourceFacts} from './backup_fd_clone.mjs';
 import {admitFileStream} from './backup_capacity.mjs';
 import {loadProjectDeliveryRuntime} from './project_delivery_runtime.mjs';
+import {recoverLegacyBackupLock} from './git_backup_lock_recovery.mjs';
+import {planWorktreeIdentityRecovery, commitWorktreeIdentityRecovery} from './git_worktree_identity_recovery.mjs';
 
 const FORBIDDEN = new Set(['gc', 'prune', 'repack', 'maintenance', 'prune-packed']);
 const ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
@@ -1921,6 +1923,132 @@ export async function recoverCloseoutFinalization({projectRoot,taskId,backupDire
 function assertNoIgnoredData(directory, options) {
   if (paths(directory, ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'], options).length) fail('WORKTREE_IGNORED_DATA');
 }
+function recoveryPoint(repository, backupDirectory, options) {
+  const root = path.resolve(options.backupRoot ?? path.join(os.homedir(), '.codex/backups/rwb-git-safety'));
+  const directory = path.resolve(backupDirectory ?? '');
+  if (backupDirectory !== directory || path.dirname(directory) !== root ||
+      !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(path.basename(directory))) {
+    fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+  }
+  assertNoSymlinkAncestors(directory);
+  const {manifest, hash} = readManifest(directory);
+  if (manifest.schemaVersion !== 2 || manifest.repositoryKey !== repositoryKey(repository.commonDirectory) ||
+      manifest.restoreVerified !== true || !Array.isArray(manifest.worktrees) || !manifest.worktrees.length) fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+  return {root, directory, manifest, hash};
+}
+
+export function recoverBackupLock({projectRoot, backupDirectory, interruptionEvidence, apply = false, previewSha256}, options = {}) {
+  options = {...options, readOnlyGit: true};
+  selectGitPath({...options, mutate: apply});
+  const run = repository => {
+    assertRepositoryIdentity(repository, options);
+    const evidencePath = path.resolve(interruptionEvidence ?? '');
+    const relative = path.relative(repository.commonDirectory, evidencePath);
+    if (evidencePath !== interruptionEvidence || !relative || relative.startsWith('..'+path.sep) ||
+        relative === '..' || path.isAbsolute(relative)) fail('BACKUP_LOCK_EVIDENCE_INVALID');
+    const interrupted = recoveryJson(evidencePath).value;
+    const managedReceipt = path.resolve(interrupted.managedReceipt ?? '');
+    const deliveries = path.join(repository.commonDirectory, 'leon-engineering/deliveries');
+    if (interrupted.managedReceipt !== managedReceipt || path.dirname(managedReceipt) !== deliveries ||
+        !ID.test(path.basename(managedReceipt, '.json')) || path.extname(managedReceipt) !== '.json') fail('BACKUP_LOCK_EVIDENCE_INVALID');
+    const receipt = recoveryJson(managedReceipt).value;
+    if (receipt.repositoryRoot !== repository.repositoryRoot ||
+        receipt.taskId !== path.basename(managedReceipt, '.json')) fail('BACKUP_LOCK_EVIDENCE_INVALID');
+    const point = recoveryPoint(repository, backupDirectory, options);
+    return recoverLegacyBackupLock({root: point.root, evidencePath, backupDirectory: point.directory, apply, previewSha256}, {
+      inspectBackup: directory => recoveryPoint(repository, directory, options),
+      verifyBackup: directory => {
+        repository.assertLockOwned();
+        return verifyBackupDirectory(directory, options);
+      },
+      assertHeld: () => repository.assertLockOwned(),
+    });
+  };
+  return apply ? withRepositoryLock({projectRoot}, run, options) : run(discover(projectRoot, options));
+}
+
+export function revalidateWorktreeIdentity({projectRoot, taskId, backupDirectory, apply = false, previewSha256}, options = {}) {
+  if (!ID.test(taskId ?? '')) fail('DELIVERY_ARGUMENT_INVALID');
+  options = {...options, readOnlyGit: true};
+  selectGitPath({...options, mutate: apply});
+  const run = repository => {
+    assertRepositoryIdentity(repository, options);
+    const base = path.join(repository.commonDirectory, 'leon-engineering');
+    const statePath = path.join(base, 'resource-closeout', taskId);
+    const ledgerPath = path.join(statePath, 'resources.json');
+    const recoveryRoot = path.join(statePath, 'identity-recovery-epochs');
+    const observe = () => {
+      const delivery = recoveryJson(path.join(base, 'deliveries', taskId + '.json'));
+      const proof = recoveryJson(closeoutFinalization(repository, taskId));
+      const resources = recoveryJson(path.join(statePath, 'receipt.json'));
+      const receipt = delivery.value;
+      if (receipt.taskId !== taskId || receipt.mode !== 'pr' || receipt.verification?.status !== 'passed' ||
+          output(git(repository.repositoryRoot, ['remote', 'get-url', 'origin'], options)) !== receipt.remoteUrl) fail('TASK_OWNERSHIP_MISMATCH');
+      const review = assertReviewed(repository, receipt);
+      const targets = validateCleanup({projectRoot: repository.repositoryRoot, receipt}, options).managed;
+      const paths = targets.map(row => row.worktree);
+      const old = proof.value;
+      if (paths.length === 0 || new Set(paths).size !== paths.length || old.taskId !== taskId ||
+          old.status !== 'pending' || old.candidateCommit !== receipt.integrationCommit ||
+          old.restoreVerified !== true || old.resourceContractRequired !== true ||
+          !Array.isArray(old.managed) || !Array.isArray(old.beforeWorktrees) || !old.beforeRefs ||
+          old.managed.length !== targets.length || targets.some(row =>
+            !old.managed.some(x => x.worktree === row.worktree && x.branch === row.branch && x.commit === row.commit) ||
+            !old.beforeWorktrees.some(x => x.worktree === row.worktree && x.branch === 'refs/heads/' + row.branch && x.HEAD === row.commit && !x.bare) ||
+            old.beforeRefs['refs/heads/' + row.branch] !== row.commit)) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+      const resource = resources.value;
+      if (resource.taskId !== taskId || resource.ok !== true || resource.cache?.ok !== true ||
+          !Array.isArray(resource.blocked) || resource.blocked.some(row => row.phase !== 'git')) fail('RESOURCE_CLOSEOUT_BLOCKED');
+      const point = recoveryPoint(repository, backupDirectory, options);
+      if (!point.manifest.worktrees.some(row => row.path === repository.repositoryRoot) ||
+          Object.entries(old.beforeRefs).some(([ref, oid]) => point.manifest.preservationRefs?.[ref] !== oid)) {
+        fail('CLOSEOUT_RECOVERY_BACKUP_INVALID');
+      }
+      const repo = githubRepo(receipt);
+      const pr = githubJson(['pr', 'view', receipt.pullRequest.url, '--repo', repo,
+        '--json', 'state,headRefOid,baseRefName,mergeCommit'], repository, options);
+      const main = githubJson(['api', `repos/${repo}/git/ref/heads/master`], repository, options).object?.sha;
+      const merge = pr.mergeCommit?.oid;
+      if (pr.state !== 'MERGED' || pr.headRefOid !== receipt.integrationCommit || pr.baseRefName !== 'master' ||
+          !/^[a-f0-9]{40}$/.test(merge ?? '') || !/^[a-f0-9]{40}$/.test(main ?? '') ||
+          git(repository.repositoryRoot, ['merge-base', '--is-ancestor', merge, main], options, {allowFailure: true}).status !== 0 ||
+          git(repository.repositoryRoot, ['merge-base', '--is-ancestor', receipt.integrationCommit, merge], options, {allowFailure: true}).status !== 0) {
+        fail('MERGE_IDENTITY_UNPROVEN');
+      }
+      const snapshot = capture(repository, {...options, worktreePaths: paths}).worktrees;
+      const fields = ['path', 'head', 'branch', 'index', 'staged', 'unstaged', 'tracked', 'untracked'];
+      const projection = row => fields.map(key => row[key]);
+      if (snapshot.length !== targets.length || snapshot.some((row, index) => {
+        const target = targets[index];
+        const saved = point.manifest.worktrees.filter(item => item.path === target.worktree);
+        return row.path !== target.worktree || row.head !== target.commit || row.branch !== 'refs/heads/' + target.branch ||
+          row.untracked.length || saved.length !== 1 || JSON.stringify(projection(row)) !== JSON.stringify(projection(saved[0]));
+      })) fail('WORKTREE_BACKUP_SNAPSHOT_MISMATCH');
+      const evidence = {candidateCommit: receipt.integrationCommit, mergeCommit: merge, remoteMaster: main,
+        ledgerSnapshotSha256: sha256(JSON.stringify(snapshot.map(projection))), backupManifestSha256: point.hash,
+        proofSha256: proof.sha256, deliverySha256: delivery.sha256, resourceReceiptSha256: resources.sha256,
+        reviewSha256: sha256(JSON.stringify(review))};
+      return {point, input: {ledgerPath, taskId, paths, evidence},
+        originals: {'original-proof.json': proof.bytes, 'original-resource-receipt.json': resources.bytes,
+                    'original-delivery.json': delivery.bytes}};
+    };
+    const first = observe();
+    const preview = planWorktreeIdentityRecovery(first.input);
+    if (!apply) return {...preview.plan, status: 'preview', previewSha256: preview.previewSha256};
+    if (preview.previewSha256 !== previewSha256) fail('WORKTREE_IDENTITY_RECOVERY_STALE');
+    return withBackupLock(first.point.root, assertBackupHeld => {
+      verifyBackupDirectory(first.point.directory, options);
+      const after = observe();
+      assertBackupHeld();
+      repository.assertLockOwned();
+      const assertHeld = () => { assertBackupHeld(); repository.assertLockOwned(); };
+      const result = commitWorktreeIdentityRecovery({...after.input, previewSha256, recoveryRoot, originals: after.originals, assertHeld});
+      return {...result, taskId, status: 'revalidated', restoreVerified: true};
+    });
+  };
+  return apply ? withRepositoryLock({projectRoot}, run, options) : run(discover(projectRoot, options));
+}
+
 export function validateCleanup({projectRoot, receipt}, options = {}) {
   return cleanupPreflight({projectRoot, receipt}, options, false);
 }
@@ -2287,9 +2415,11 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
 }
 export function parseCli(args) {
   const [subcommand, ...rest] = args;
-  if (!['check', 'configure', 'backup', 'delivery', 'backup-audit', 'backup-migrate', 'backup-prune', 'closeout-recover'].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
+  const recovery = ['closeout-recover', 'backup-lock-recover', 'worktree-revalidate'];
+  if (!['check', 'configure', 'backup', 'delivery', 'backup-audit', 'backup-migrate', 'backup-prune', ...recovery].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
   const options = {};
   const values = new Map([['--project', 'projectRoot'], ['--task-id', 'taskId'], ['--recovery-backup', 'backupDirectory'], ['--preview-sha256', 'previewSha256'], ['--slug', 'slug'], ['--worktree-root', 'worktreeRoot'], ['--reviewed-commit', 'reviewedCommit'], ['--verification-command', 'verificationCommand'], ['--verification-status', 'verificationStatus'], ['--verification-duration-seconds', 'verificationDuration']]);
+  values.set('--interruption-evidence', 'interruptionEvidence');
   for (let index = 0; index < rest.length; index++) {
     const item = rest[index];
     if (['--start', '--prepare', '--publish', '--status', '--cleanup'].includes(item)) { if (options.action) fail('CLI_ACTION_INVALID'); options.action = item.slice(2); }
@@ -2303,11 +2433,14 @@ export function parseCli(args) {
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
   if (options.deferCleanup !== undefined && (subcommand !== 'delivery' || options.action !== 'status')) fail('CLI_OPTION_INVALID');
-  if(subcommand==='closeout-recover') {
-    if(!options.taskId || !options.backupDirectory || Object.keys(options).some(key=>!['projectRoot','taskId','backupDirectory','previewSha256','apply'].includes(key)) || options.apply && !/^[a-f0-9]{64}$/.test(options.previewSha256??'') || !options.apply && options.previewSha256)fail('CLI_ARGUMENT_REQUIRED');
+  if (recovery.includes(subcommand)) {
+    const binding = subcommand === 'backup-lock-recover' ? 'interruptionEvidence' : 'taskId';
+    const keys = ['projectRoot', binding, 'backupDirectory', 'previewSha256', 'apply'];
+    if (!options[binding] || !options.backupDirectory || Object.keys(options).some(key => !keys.includes(key)) ||
+        (options.apply ? !/^[a-f0-9]{64}$/.test(options.previewSha256 ?? '') : options.previewSha256)) fail('CLI_ARGUMENT_REQUIRED');
     return {subcommand,options};
   }
-  if(options.backupDirectory || options.previewSha256)fail('CLI_OPTION_INVALID');
+  if(options.backupDirectory || options.previewSha256 || options.interruptionEvidence)fail('CLI_OPTION_INVALID');
   const maintenance=['backup-audit','backup-migrate','backup-prune'].includes(subcommand);
   if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot' && !(maintenance && key==='apply'))) fail('CLI_OPTION_INVALID');
   if(options.apply && !['backup-migrate','backup-prune'].includes(subcommand))fail('CLI_OPTION_INVALID');
@@ -2326,7 +2459,13 @@ export function parseCli(args) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const {subcommand, options} = parseCli(process.argv.slice(2));
-    const result = subcommand === 'check' ? checkRepository(options) : subcommand === 'configure' ? configureRepository(options) : subcommand === 'backup' ? backupRepository(options) : subcommand.startsWith('backup-') ? maintainBackups(options) : subcommand==='closeout-recover' ? await recoverCloseoutFinalization(options) : await runDelivery(options);
+    const handlers = {
+      check: checkRepository, configure: configureRepository, backup: backupRepository, delivery: runDelivery,
+      'backup-audit': maintainBackups, 'backup-migrate': maintainBackups, 'backup-prune': maintainBackups,
+      'closeout-recover': recoverCloseoutFinalization, 'backup-lock-recover': recoverBackupLock,
+      'worktree-revalidate': revalidateWorktreeIdentity,
+    };
+    const result = await handlers[subcommand](options);
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',

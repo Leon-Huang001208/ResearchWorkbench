@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。
+锁恢复保留原锁和中断快照，工作树复核只更新已核实的设备号并另存原账本和回执。
+执行、容量及证据边界见 [开发流程](AGENT_WORKFLOW.md#中断备份锁与历史工作树身份)。
+
 Radar 修复的 Native 升级入口为 `apply-research-bot-freshness`。产品检查点及其后续操作员由 `model_provider_upgrade.py` 分别校验，回归使用真实 Git 合并树。
 
 Research Bot 的 Radar 批次证据来自 `discovery/news.py`，由 `research_bots.py` 在冻结资料前检查。Radar 解包会保留上游明确报告的缓存标志，测试覆盖原始响应到 Bot 准入。

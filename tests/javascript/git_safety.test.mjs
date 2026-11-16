@@ -10,6 +10,58 @@ import {backupRepository, checkRepository, configureRepository, selectGitPath, w
 import {finalizeLifecycle} from '../../scripts/resource_lifecycle.mjs';
 
 const gitPath = '/usr/bin/git';
+
+test('legacy recovery CLI requires an exact apply token and separates the two operations', () => {
+  const projectRoot = '/absolute/rwb', backupDirectory = '/absolute/backup';
+  const lock = ['backup-lock-recover', '--project', projectRoot, '--recovery-backup', backupDirectory,
+    '--interruption-evidence', '/absolute/interruption.json'];
+  const identity = ['worktree-revalidate', '--project', projectRoot, '--task-id', 'task',
+    '--recovery-backup', backupDirectory];
+  assert.equal(parseCli(lock).options.interruptionEvidence, '/absolute/interruption.json');
+  assert.equal(parseCli(identity).options.taskId, 'task');
+  for (const args of [lock, identity]) {
+    assert.throws(() => parseCli([...args, '--apply']));
+    assert.throws(() => parseCli([...args, '--preview-sha256', 'a'.repeat(64)]));
+    assert.equal(parseCli([...args, '--apply', '--preview-sha256', 'a'.repeat(64)]).options.apply, true);
+  }
+  assert.throws(() => parseCli([...lock, '--task-id', 'task']));
+  assert.throws(() => parseCli([...identity, '--interruption-evidence', '/absolute/interruption.json']));
+  assert.throws(() => parseCli(['backup-audit', '--project', projectRoot, '--interruption-evidence', '/bad']));
+});
+
+test('worktree revalidation requires exact restored files and amends only registered device identities', async t => {
+  const {revalidateWorktreeIdentity} = await import('../../scripts/git_safety.mjs');
+  const {projectRoot, backup, state, managed, calls, options} = await partialCleanupFixture(t, {retainWorktrees: true});
+  fs.chmodSync(state, 0o700);
+  const ledgerPath = path.join(state, 'resources.json');
+  const proof = fs.readFileSync(path.join(state, 'git-finalization.json'));
+  const current = fs.statSync(managed[0].worktree).dev;
+  const ledger = {schemaVersion: 1, taskId: 'task', roots: Object.fromEntries(
+    managed.map(row => [row.worktree, [current + 1, fs.statSync(row.worktree).ino]])
+  ), directories: []};
+  fs.writeFileSync(ledgerPath, JSON.stringify(ledger), {mode: 0o600});
+  const original = fs.readFileSync(ledgerPath);
+  const intent = {projectRoot, taskId: 'task', backupDirectory: backup.directory};
+  const checked = {...options, processProbe: () => false};
+  const preview = await revalidateWorktreeIdentity(intent, checked);
+  assert.equal(preview.status, 'preview');
+  assert.deepEqual(fs.readFileSync(ledgerPath), original);
+  const apply = {...intent, apply: true, previewSha256: preview.previewSha256};
+  const permissions = path.join(managed[0].worktree, 'tracked.txt');
+  const mode = fs.statSync(permissions).mode & 0o777;
+  fs.chmodSync(permissions, mode === 0o600 ? 0o644 : 0o600);
+  assert.throws(() => revalidateWorktreeIdentity(apply, checked), {code: 'WORKTREE_BACKUP_SNAPSHOT_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(ledgerPath), original);
+  fs.chmodSync(permissions, mode);
+  const result = await revalidateWorktreeIdentity(apply, checked);
+  assert.equal(result.status, 'revalidated');
+  assert.equal(result.restoreVerified, true);
+  assert.deepEqual(fs.readFileSync(path.join(result.epoch, 'original-resources.json')), original);
+  assert.equal(Object.values(JSON.parse(fs.readFileSync(ledgerPath)).roots).every(([dev]) => dev === current), true);
+  assert.deepEqual(fs.readFileSync(path.join(state, 'git-finalization.json')), proof);
+  assert.equal(calls.some(args => args.includes('graphql') || args.includes('merge')), false);
+});
+
 function git(root, args) {
   // Fixture commits must not race detached Git maintenance with the lock gate.
   // Keep the production lock checks intact; these options affect this call only.
@@ -32,7 +84,7 @@ function fixture(t) {
   return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups'), backupVersion: 1}};
 }
 
-async function partialCleanupFixture(t) {
+async function partialCleanupFixture(t, {retainWorktrees = false} = {}) {
   const f=cleanupFixture(t), {projectRoot,receipt}=f;
   fs.appendFileSync(path.join(projectRoot,'.git/info/exclude'),'\nlogs/\n');
   receipt.schemaVersion=1;receipt.mode='pr';receipt.verification={status:'passed'};
@@ -50,8 +102,10 @@ async function partialCleanupFixture(t) {
   fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'blocked',blocked:[{phase:'git',code:'DELIVERY_FAILED'}]}),{mode:0o600});
   const delivery=path.join(projectRoot,'.git/leon-engineering/deliveries/task.json');fs.mkdirSync(path.dirname(delivery),{recursive:true});
   fs.writeFileSync(delivery,JSON.stringify(receipt),{mode:0o600});
-  for(const item of managed)git(projectRoot,['worktree','remove',item.worktree]);
-  git(projectRoot,['branch','-d',receipt.featureBranch]);
+  if (!retainWorktrees) {
+    for(const item of managed)git(projectRoot,['worktree','remove',item.worktree]);
+    git(projectRoot,['branch','-d',receipt.featureBranch]);
+  }
   const remoteRefs=new Map(managed.map(row=>[`refs/heads/${row.branch}`,row.commit])), calls=[], server={};
   const controller={readDeliveryReceipt:()=>JSON.parse(fs.readFileSync(delivery)),validateCleanedDelivery:()=>{
     const value=JSON.parse(fs.readFileSync(delivery));assert.equal(value.status,'cleaned');
