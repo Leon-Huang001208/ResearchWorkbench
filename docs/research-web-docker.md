@@ -1,5 +1,8 @@
 # Mac mini Docker 开发与独立部署
 
+FinGPT 容器使用 Host 的读源分页合同。验收时可按同一来源 ID 逐页复原冻结正文并核对 SHA-256。
+
+
 策略验证的 `apply-strategy-validation` 只切换已安装的 Native 主实例和附接网关。Docker 环境仍从相应版本构建镜像。
 
 Radar 修复的固定升级配置用于已接受的 Native 主实例和附着网关。Docker 镜像的构建、保全及回滚沿各自流程。

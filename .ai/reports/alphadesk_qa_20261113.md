@@ -50,15 +50,16 @@
 
 [产品合同](../../docs/research-web-ai-qa.md)
 
-<!-- architecture-review {"group":"alphadesk-qa","structure":"changed","reason":"普通问答由 Host 持久保存回合并通过私有标准输入输出运行迁入的 Node 编排，模块图更新。","diagrams":["02-module-dependencies"]} -->
-<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新增锁定问答静态资源构建与候选 wheel 暂存，原 Native 与 Docker 服务拓扑继续沿既有健康入口。","diagrams":[]} -->
+<!-- architecture-review {"group":"alphadesk-qa","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"changed","reason":"普通问答采用独立 AlphaDesk 前端，专门入口与浏览器访问关系已在模块图更新。","diagrams":["02-module-dependencies"]} -->
-<!-- architecture-review {"group":"research-api","structure":"changed","reason":"原会话 API 和 SSE 保持同源，模块图标明 Host 管理的 AlphaDesk 工作进程。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"changed","reason":"原发现调度和通知准入沿用，普通研究分发改用 Host 管理的问答执行器。","diagrams":["02-module-dependencies"]} -->
-<!-- architecture-review {"group":"files","structure":"changed","reason":"原会话文件根继续负责下载和摘要检查，问答使用同目录下的独立控制记录。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"workbench","structure":"changed","reason":"资产、资料及场景交接沿原 API 和 DataHub 冻结快照，普通问答执行变化见模块图。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"新增定点验收和原 Mac 安装资源验证，现有 L4 及同候选交付链保持适用。","diagrams":[]} -->
-<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"私网网关继续选择账号 Host 与静态资源，候选增加独立问答能力，模块图更新。","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"discovery","structure":"changed","reason":"继续复用冻结资料、指纹去重、日限与 Host 质量回执，普通问答执行器的边界见模块图。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"验收模式在原 DataHub 查询入口拒绝未核价的新请求，保留已提交回执和已有冻结资料读取，供应商和快照拓扑沿用原链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"受管主实例从当前安装清单读取 FinGPT 开关，复用既有 Host 进程和发布围栏。","diagrams":[]} -->
+<!-- architecture-review {"group":"dossiers","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
