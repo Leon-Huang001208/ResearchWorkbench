@@ -1,5 +1,7 @@
 # Research Workbench 文档门户
 
+策略模拟的[策略验证](research-web-strategy-validation.md)记录冻结日线导入、配置与逐笔结果的使用合同。
+
 ## WeKnora 资料候选
 
 [WeKnora 研究资料与报告证据](research-web-weknora.md)：固定版本、个人身份绑定、批准时点、原件／分块冻结、只读候选盘点和20题检索对照。当前默认关闭；UI上传／重解析零生成仍 BLOCKED，真实服务、迁移和报告链未验收。

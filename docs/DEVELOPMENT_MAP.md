@@ -400,6 +400,8 @@ CSV证据的显式格式辅助函数 `resources/research_report.py:calculation_e
 
 每轮资源收尾由`iteration_resources.py`/`iteration_cache.py`复用`docker_resources.py`及`git_safety.mjs`：任务归属/证据保存、全项目20GiB受管缓存预算、合并后自动清理与修补feature身份认证。权威规则见AGENTS、AGENT_WORKFLOW和Docker手册；近处测试为`test_iteration_resources.py`、`test_docker_resources.py`、`iteration_closeout.test.mjs`及`git_safety.test.mjs`。不新增产品API或调度器，风险为管理平面与安全清理。
 
+策略验证位于 `app/research_web/strategy_validation/`，页面为 `ui/strategy-validation.mjs`。导入、配置、回放和分页合同见[策略验证](research-web-strategy-validation.md)。
+
 ## 当前 Research Web
 
 Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、诊断与 Native 生命周期），

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+策略验证沿现有 Python 与 Node 批次运行离线边界例，真实用户冻结包在独立 Web Host 和 Chrome 实跑。注明回执对应的输入摘要、规则结果、逐笔分页及候选身份。
+
 常驻存储身份固定升级先验证实际已接受的前版，再复查作业占用、v4 事务保全、双入口 MCP 和活跃研究。正式 APFS 登录作业激活及实机重启独立取证。
 
 Research Bot 本地验证复用共享测试环境。Research Web Checks 的现有 Python 批次加入 Bot、通用自动化和原生技能准入回归，Mac Bootstrap 在既有步骤核对安装资产及 Doctor。

@@ -75,6 +75,8 @@ from .service import ResearchService
 from .specialists.contracts import Budget as SpecialistBudget
 from .specialists.routes import router as specialists_router
 from .store import Store, StoreError
+from .strategy_validation.routes import active as strategy_validation_active
+from .strategy_validation.routes import router as strategy_validation_router
 from .tabbit import TabbitError
 from .tenant_policy import check_request as check_tenant_request
 from .tenant_policy import enabled as tenant_mode_enabled
@@ -392,6 +394,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(portfolio_decisions_router)
+    app.include_router(strategy_validation_router)
     app.include_router(report_workflow_router)
     # Legacy report-project paths remain readable, but the versioned Workflow
     # runtime owns overlapping /report-runs paths.
@@ -659,6 +662,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     lambda: research.event_timeline.active or research.event_collection.active,
                 ),
                 ("event_studies", lambda: research.studies.active),
+                ("strategy_validation", strategy_validation_active),
                 ("event_inputs", lambda: research.event_inputs.active),
                 (
                     "automation_runs",

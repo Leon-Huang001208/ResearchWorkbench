@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 Research Bot Radar 时效、Native 安装及常驻身份。",
-  "reason": "README 的公开安装与架构链接仍适用。Radar 准入和常驻身份各自沿对应模块文档。"
+  "disposition": "updated",
+  "summary": "复核冻结日线的策略验证入口、权限和公开安装。",
+  "reason": "新增策略模拟入口和研究范围简介，沿用现有公开安装及锁定依赖。"
 }
