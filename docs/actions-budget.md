@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+上线后工作树退役的两组 Node 回归登记在现有 Project Constraints Git safety 步骤，使用隔离临时仓库和验证回执。原作业、runner、依赖、时限及跨平台 dispatch 保持，正式上线与历史退役结果不由 CI 代填。
+
 历史备份锁及工作树身份复核在原 Project Constraints Git safety 步骤加独立 Node 回归，
 包含临时仓库的真实备份恢复和预览漂移拒绝。不新增作业、runner、依赖或跨平台 dispatch。
 

@@ -783,6 +783,242 @@ def test_offline_check_keeps_current_service_running(resident, monkeypatch):
     assert calls == ["ensure"]
 
 
+@pytest.fixture
+def retirement_checkout(resident, tmp_path, monkeypatch, request):
+    control = tmp_path / "source-repository"
+    installed = tmp_path / "installed-release"
+    control.mkdir()
+    env = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(control), *args], env=env, text=True
+        ).strip()
+
+    layout = getattr(request, "param", "linked")
+    git("init", "--quiet")
+    git("remote", "add", "origin", "git@github.com:owner/repo.git")
+    (control / "scripts").mkdir()
+    entrypoint = "// legacy\n" if layout == "legacy" else "// worktree-retirement\n"
+    (control / "scripts/git_safety.mjs").write_text(entrypoint)
+    (control / "scripts/native_retirement_acceptance.mjs").write_text("// native helper\n")
+    (control / "scripts/git_deployed_worktree_proof.mjs").write_text("// proof helper\n")
+    (control / "scripts/backup_fd_clone.py").write_text("# metadata helper\n")
+    (control / ".agents").mkdir()
+    (control / ".agents/deployed-worktree-retirement.json").write_text("{}")
+    git("add", ".")
+    git(
+        "-c",
+        "user.name=Tester",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+    )
+    revision = git("rev-parse", "HEAD")
+    if layout == "separate":
+        subprocess.run(
+            ["/usr/bin/git", "clone", "--quiet", "--no-local", str(control), str(installed)],
+            env=env,
+            check=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(installed),
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/owner/repo.git",
+            ],
+            env=env,
+            check=True,
+        )
+        subprocess.run(
+            ["/usr/bin/git", "-C", str(installed), "switch", "--quiet", "--detach", revision],
+            env=env,
+            check=True,
+        )
+    else:
+        git("worktree", "add", "--quiet", "--detach", str(installed), revision)
+    # A dirty controlling checkout must never supply executable source.
+    (control / "scripts/git_safety.mjs").write_text("// dirty controlling script\n")
+    node = tmp_path / "node"
+    node.touch(mode=0o700)
+    config = {
+        "project": str(installed),
+        "source_common": str(control / ".git"),
+        "node": str(node),
+        "gh": "/gh",
+        "repository": "owner/repo",
+        "private_origin": "https://rwb.example.invalid",
+    }
+    home = resident.parent
+    controller.atomic(
+        home / "install/manifest.json", {"status": "installed", "code_commit": revision}
+    )
+    controller.atomic(resident / "accepted.json", {"target": revision, "previous": "a" * 40})
+    monkeypatch.setattr(controller, "configured", lambda _: (resident, config))
+    monkeypatch.setattr(controller, "environment", lambda *_: None)
+    monkeypatch.setattr(controller.GitHubEvidence, "latest", lambda _: revision)
+    return config, installed, control, revision
+
+
+@pytest.mark.parametrize(
+    ("status", "cleanup_status", "reason", "retirement_checkout"),
+    [
+        ("ready", "cleanup_pending", "WORKTREE_BUSY", "linked"),
+        ("ready", "cleanup_pending", "BACKUP_STORE_LOCKED", "separate"),
+        ("deployed", "complete", None, "separate"),
+    ],
+    indirect=["retirement_checkout"],
+)
+def test_native_retirement_after_accepted_runtime_result(
+    resident, retirement_checkout, monkeypatch, status, cleanup_status, reason
+):
+    config, installed, control, revision = retirement_checkout
+    calls = []
+    previous = "a" * 40
+    if status == "deployed":
+        controller.atomic(resident / "candidate.json", {"target": revision, "previous": previous})
+        monkeypatch.setattr(controller.GitHubEvidence, "qualify", lambda *_: {})
+
+    def bridge(_home, _config, operation):
+        if operation == "ensure":
+            return {"status": "ready", "sha": revision if status == "ready" else previous}
+        assert operation == "deploy" and status == "deployed"
+        return {"status": "deployed", "sha": revision}
+
+    monkeypatch.setattr(controller, "bridge", bridge)
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        if argv[0] != config["node"]:
+            return actual_run(argv, **kwargs)
+        with file_lock(resident, "supervisor.lock", exclusive=True):
+            state = evidence.read_json(resident / "state.json")
+            assert state["status"] == status and state["deployed"] == revision
+        calls.append((argv, kwargs["cwd"]))
+        if cleanup_status == "complete":
+            return SimpleNamespace(
+                returncode=0, stdout='{"status":"complete","items":[]}', stderr=""
+            )
+        if reason == "BACKUP_STORE_LOCKED":
+            return SimpleNamespace(
+                returncode=1, stdout="", stderr='{"status":"BLOCKED","code":"BACKUP_STORE_LOCKED"}'
+            )
+        return SimpleNamespace(
+            returncode=2,
+            stdout='{"status":"cleanup_pending","items":[{"taskId":"old-task","status":"blocked","code":"WORKTREE_BUSY"}]}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", run)
+    result = controller.tick(resident.parent)
+    assert calls == [
+        (
+            [
+                config["node"],
+                str(installed / "scripts/git_safety.mjs"),
+                "worktree-retirement",
+                "--project",
+                str(control),
+                "--resident-root",
+                str(resident),
+                "--apply",
+            ],
+            installed,
+        )
+    ]
+    assert result == evidence.read_json(resident / "state.json")
+    debt = evidence.read_json(resident / "worktree-retirement.json")
+    assert debt["status"] == cleanup_status and debt["revision"] == revision
+    if reason:
+        assert debt["reason"] == reason
+        if reason == "WORKTREE_BUSY":
+            assert debt["blocked"] == [{"taskId": "old-task", "code": reason, "status": "blocked"}]
+    else:
+        assert "reason" not in debt and debt["items"] == 0
+
+
+@pytest.mark.parametrize("retirement_checkout", ["separate"], indirect=True)
+@pytest.mark.parametrize(
+    "cause",
+    [
+        "unaccepted",
+        "foreign-control-origin",
+        "foreign-release-origin",
+        "changed-script",
+        "quarantined",
+        "masked-helper",
+    ],
+)
+def test_native_retirement_rejects_unverified_source(
+    resident, retirement_checkout, monkeypatch, cause
+):
+    config, installed, control, revision = retirement_checkout
+    if cause == "unaccepted":
+        controller.atomic(resident / "accepted.json", {"target": "b" * 40})
+    elif cause in {"foreign-control-origin", "foreign-release-origin"}:
+        checkout = control if cause == "foreign-control-origin" else installed
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(checkout),
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/other/repo.git",
+            ],
+            check=True,
+        )
+    elif cause == "quarantined":
+        controller.atomic(resident / "quarantine.json", {"sha": revision})
+    elif cause == "masked-helper":
+        helper = "scripts/native_retirement_acceptance.mjs"
+        subprocess.run(
+            ["/usr/bin/git", "-C", str(installed), "update-index", "--assume-unchanged", helper],
+            check=True,
+        )
+        (installed / helper).write_text("// modified helper hidden from git status\n")
+    else:
+        (installed / "scripts/git_safety.mjs").write_text("// changed worktree-retirement\n")
+    monkeypatch.setattr(controller, "bridge", lambda *_: {"status": "ready", "sha": revision})
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        assert argv[0] != config["node"]
+        return actual_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert controller.tick(resident.parent)["status"] == "ready"
+    path = resident / "worktree-retirement.json"
+    if cause in {"unaccepted", "quarantined"}:
+        assert not path.exists()
+    else:
+        assert evidence.read_json(path)["status"] == "cleanup_pending"
+
+
+@pytest.mark.parametrize("retirement_checkout", ["legacy"], indirect=True)
+def test_accepted_legacy_resident_skips_unavailable_retirement(
+    resident, retirement_checkout, monkeypatch
+):
+    config, _installed, _control, revision = retirement_checkout
+    monkeypatch.setattr(controller, "bridge", lambda *_: {"status": "ready", "sha": revision})
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        assert argv[0] != config["node"]
+        return actual_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert controller.tick(resident.parent)["status"] == "ready"
+    assert not (resident / "worktree-retirement.json").exists()
+
+
 def github_fixture(tmp_path, monkeypatch, *, tree_mismatch=False, review_head=None):
     common = tmp_path / "common"
     delivery = common / "leon-engineering/deliveries"

@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+上线后工作树退役目前由受管 Native 验收触发，作用范围为已登记的 Git 工作树。Docker 上线验收尚未接入此入口，镜像、容器、卷和构建缓存继续由各自的受管流程处理。
+
 策略验证的 `apply-strategy-validation` 只切换已安装的 Native 主实例和附接网关。Docker 环境仍从相应版本构建镜像。
 
 Radar 修复的固定升级配置用于已接受的 Native 主实例和附着网关。Docker 镜像的构建、保全及回滚沿各自流程。
