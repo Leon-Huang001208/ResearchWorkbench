@@ -179,14 +179,35 @@ test('a clean branch cannot retire the only linked HEAD reflog of an undeployed 
   assert.deepEqual(fs.readdirSync(f.scratchRoot), []);
 });
 
-test('private refs and unclassified linked Git administrative files prevent worktree removal', async t => {
-  for (const kind of ['private ref', 'rebase state']) {
+test('newer Git empty linked refs scaffolding is safe and its identity is recorded', async t => {
+  const f = await fixture(t);
+  const admin = git(f.worktree, 'rev-parse', '--absolute-git-dir');
+  const refs = path.join(admin, 'refs');
+  fs.mkdirSync(refs, {recursive: true});
+  const first = f.prove();
+  assert.equal(first.commit, f.commit);
+  assert.deepEqual(f.prove(), first);
+  fs.rmdirSync(refs);
+  assert.notEqual(f.prove().adminSha256, first.adminSha256);
+  assert.deepEqual(fs.readdirSync(f.scratchRoot), []);
+});
+
+test('private refs and unclassified linked Git administrative state prevent worktree removal', async t => {
+  for (const kind of ['private ref', 'unknown refs directory', 'symlinked refs', 'rebase state']) {
     await t.test(kind, async it => {
       const f = await fixture(it);
       const admin = git(f.worktree, 'rev-parse', '--absolute-git-dir');
+      const refs = path.join(admin, 'refs');
+      fs.mkdirSync(refs, {recursive: true});
+      assert.equal(f.prove().commit, f.commit);
       if (kind === 'private ref') {
         git(f.worktree, 'update-ref', 'refs/worktree/private', f.commit);
-        assert.ok(fs.existsSync(path.join(admin, 'refs', 'worktree', 'private')));
+        assert.ok(fs.existsSync(path.join(refs, 'worktree', 'private')));
+      } else if (kind === 'unknown refs directory') {
+        fs.mkdirSync(path.join(refs, 'unknown'));
+      } else if (kind === 'symlinked refs') {
+        fs.rmdirSync(refs);
+        fs.symlinkSync(f.scratchRoot, refs);
       } else fs.writeFileSync(path.join(admin, 'REBASE_HEAD'), f.commit+'\n');
       assert.throws(() => f.prove(), {code: 'DEPLOYED_WORKTREE_ADMIN_UNVERIFIABLE'});
       assert.deepEqual(fs.readdirSync(f.scratchRoot), []);

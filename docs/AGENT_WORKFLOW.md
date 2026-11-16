@@ -311,8 +311,8 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --st
 node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
 ```
 
-`--status` 可能在评审／CI满足后执行普通合并，并在 `ci_passed` 后自动进入资源与Git收尾，
-不能当成纯观察。当整体备份阶段尚未取得实际准入时，可显式使用
+`--status` 可能在评审／CI 满足后执行普通合并。采用上线后退役规则的任务随后记录待退役，
+旧入口可能直接进入完整备份与收尾。两者都不能当成纯观察；旧入口尚未取得备份准入时可用
 `--status --defer-cleanup`：原评审、CI、合并与状态记录要求保持，只延期最后的自动收尾，
 返回 `safetyCleanupDeferred: true`，不把回执或资源标为 `cleaned`。该参数仅可与
 `delivery --status` 同用；后续显式 `--cleanup` 仍须全部原安全前提，不能用延期替代验收。
