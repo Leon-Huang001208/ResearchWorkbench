@@ -167,8 +167,11 @@ STORAGE_IDENTITY_MODE = "reviewed-resident-storage-identity-v1"
 STORAGE_IDENTITY_PREVIOUS = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
 STORAGE_IDENTITY_PAYLOAD = "00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7"
 STORAGE_IDENTITY_PUBLISHED_PRODUCT = "1e2d0b2a971daba2e5f1f2897e937dbc4ae7f66f"
+STRATEGY_VALIDATION_MODE = "reviewed-strategy-validation-v1"
+STRATEGY_VALIDATION_PREVIOUS = "3be8a17b48ca5c57a71837bdc806efaf386a68b8"
+STRATEGY_VALIDATION_PAYLOAD = "4983949df4aac654dd95415be1d5d6a654170ff5"
 ATTACHED_MCP_PRESERVATION_MODES = frozenset(
-    {RESEARCH_BOT_MODE, RESEARCH_BOT_V2_MODE, STORAGE_IDENTITY_MODE}
+    {RESEARCH_BOT_MODE, RESEARCH_BOT_V2_MODE, STORAGE_IDENTITY_MODE, STRATEGY_VALIDATION_MODE}
 )
 STORAGE_IDENTITY_OPERATOR_DOCS = frozenset(
     {
@@ -179,6 +182,27 @@ STORAGE_IDENTITY_OPERATOR_DOCS = frozenset(
         "docs/generated/py_file_index.md",
         "docs/research-web-gateway-upgrade.md",
         "docs/research-web-installation.md",
+    }
+)
+STRATEGY_VALIDATION_OPERATOR_DOCS = frozenset(
+    {
+        ".ai/reports/2026-11-16-strategy-validation-native.md",
+        "docs/AGENT_WORKFLOW.md",
+        "docs/actions-budget.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/architecture/research-web/readme-review.json",
+        "docs/generated/py_file_index.md",
+        "docs/research-web-ai-news.md",
+        "docs/research-web-docker.md",
+        "docs/research-web-etf-weekly-production.md",
+        "docs/research-web-gateway-upgrade.md",
+        "docs/research-web-installation.md",
+        "docs/research-web-platform-support.md",
+        "docs/research-web-source-migration.md",
     }
 )
 EVENT_SAFETY_MODES = frozenset(
@@ -376,6 +400,8 @@ def previous_for(mode):
         return RESEARCH_BOT_V2_PREVIOUS
     if mode == STORAGE_IDENTITY_MODE:
         return STORAGE_IDENTITY_PREVIOUS
+    if mode == STRATEGY_VALIDATION_MODE:
+        return STRATEGY_VALIDATION_PREVIOUS
     if mode == MARKET_LIVE_V2_MODE:
         return MARKET_LIVE_V2_PREVIOUS
     if mode == MARKET_LIVE_MODE:
@@ -1113,6 +1139,15 @@ def review(source: Path, target: str, mode=MODE):
         return review_research_bot_v2(source, target)
     if mode == STORAGE_IDENTITY_MODE:
         return review_storage_identity(source, target)
+    if mode == STRATEGY_VALIDATION_MODE:
+        return _review_fixed_product(
+            source,
+            target,
+            STRATEGY_VALIDATION_PREVIOUS,
+            STRATEGY_VALIDATION_PAYLOAD,
+            code="strategy_validation_upgrade",
+            operator_doc=STRATEGY_VALIDATION_OPERATOR_DOCS.__contains__,
+        )
     if mode in ASSET_MODES:
         return review_assets(source, target, mode)
     c.clean(source, target)
@@ -4035,6 +4070,7 @@ def main(argv=None):
             "apply-research-bot",
             "apply-research-bot-freshness",
             "apply-resident-storage-identity",
+            "apply-strategy-validation",
             "apply-navigation-ui",
             "apply-trial-retirement",
             "apply-trial-retirement-v2",
@@ -4127,6 +4163,7 @@ def main(argv=None):
                 "apply-research-bot": RESEARCH_BOT_MODE,
                 "apply-research-bot-freshness": RESEARCH_BOT_V2_MODE,
                 "apply-resident-storage-identity": STORAGE_IDENTITY_MODE,
+                "apply-strategy-validation": STRATEGY_VALIDATION_MODE,
                 "apply-navigation-ui": UNIFIED_NAVIGATION_MODE,
                 "apply-trial-retirement": TRIAL_MODE,
                 "apply-trial-retirement-v2": TRIAL_SUCCESSOR_MODE,

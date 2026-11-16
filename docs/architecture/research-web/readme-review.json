@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "复核冻结日线的策略验证入口、权限和公开安装。",
-  "reason": "新增策略模拟入口和研究范围简介，沿用现有公开安装及锁定依赖。"
+  "disposition": "unchanged",
+  "summary": "复核策略验证的 Mac mini 常驻切换。",
+  "reason": "现有 README 已包含策略验证入口和公开安装链接，指定版本的运行命令与保全合同在常驻升级文档维护。"
 }
