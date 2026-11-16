@@ -12,6 +12,13 @@ requires = [ "hatchling",]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
+artifacts = [
+  "/app/research_web/ui/qa-dist/qa.js",
+  "/app/research_web/ui/qa-dist/qa.css",
+  "/app/research_web/ui/qa-dist/THIRD_PARTY_LICENSES.md",
+  "/app/research_web/ui/qa-dist/build.json",
+]
+exclude = ["/app/research_web/qa_frontend", "/app/research_web/.qa-build-*"]
 packages = [
   "research_workbench_entrypoint",
   "app",

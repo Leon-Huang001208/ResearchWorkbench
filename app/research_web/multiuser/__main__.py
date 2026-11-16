@@ -307,6 +307,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
 
     from ..mcp_facade.config import resident_execution
+    from ..qa_assets import qa_assets_diagnostic
     from ..research_bot_diagnostics import configuration_status, diagnostic
 
     accounts = _inspect_accounts(root)
@@ -374,6 +375,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
             )
         ),
         "model": "not_checked",
+        "ai_qa": qa_assets_diagnostic(Path(__file__).resolve().parents[1]),
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,
         "weknora_oauth": {"status": oauth_status, "runtime_verification": "NOT_RUN"},

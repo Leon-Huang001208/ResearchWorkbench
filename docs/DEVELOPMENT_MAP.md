@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。
+锁恢复保留原锁和中断快照，工作树复核只更新已核实的设备号并另存原账本和回执。
+执行、容量及证据边界见 [开发流程](AGENT_WORKFLOW.md#中断备份锁与历史工作树身份)。
+
 Radar 修复的 Native 升级入口为 `apply-research-bot-freshness`。产品检查点及其后续操作员由 `model_provider_upgrade.py` 分别校验，回归使用真实 Git 合并树。
 
 Research Bot 的 Radar 批次证据来自 `discovery/news.py`，由 `research_bots.py` 在冻结资料前检查。Radar 解包会保留上游明确报告的缓存标志，测试覆盖原始响应到 Bot 准入。
@@ -403,6 +407,8 @@ CSV证据的显式格式辅助函数 `resources/research_report.py:calculation_e
 策略验证位于 `app/research_web/strategy_validation/`，页面为 `ui/strategy-validation.mjs`。导入、配置、回放和分页合同见[策略验证](research-web-strategy-validation.md)。
 
 ## 当前 Research Web
+
+AlphaDesk 问答的 React 源码在 `qa_frontend/`，编排在 `qa_worker/`，`qa_execution.py` 保存任务和事件，`qa_tools.py` 绑定 Host 工具与证据。验证入口为 `test_alphadesk_qa.py`、`research_web_qa_worker.test.mjs` 及独立浏览器旅程。详见[AI 问答合同](research-web-ai-qa.md)。
 
 Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、诊断与 Native 生命周期），
 `hot_manager.py`（签名进程管理）、`hot_postgres.py`（实例归属与受管 PG）和

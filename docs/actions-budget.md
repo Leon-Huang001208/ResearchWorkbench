@@ -1,5 +1,8 @@
 # GitHub Actions 免费额度治理
 
+历史备份锁及工作树身份复核在原 Project Constraints Git safety 步骤加独立 Node 回归，
+包含临时仓库的真实备份恢复和预览漂移拒绝。不新增作业、runner、依赖或跨平台 dispatch。
+
 策略验证 Native 操作员复用 Research Web Checks 的 `test_model_provider_upgrade.py`、Project Constraints 与 macOS 15 Bootstrap。同候选复核原三个作业，原 runner、依赖与时限保持。新增定点测试预留 10 秒，正式入口上传用户冻结包单独在 Mac mini 验收。
 
 策略验证沿现有 Research Web Checks 加入引擎与 API 小样本，Node 测试复用原通配符，macOS Bootstrap 对新增模块下载并核对字节。沿用原作业、runner、依赖及超时，原步骤预留 30 秒；用户冻结行情仅用于本机隔离实跑。
@@ -552,3 +555,5 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。未增加 runner、独立作业或产品 dispatch。

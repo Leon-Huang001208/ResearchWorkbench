@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核策略验证的 Mac mini 常驻切换。",
-  "reason": "现有 README 已包含策略验证入口和公开安装链接，指定版本的运行命令与保全合同在常驻升级文档维护。"
+  "disposition": "updated",
+  "summary": "README 保留策略验证入口，并补充 AlphaDesk 问答候选和切换状态。",
+  "reason": "策略验证与 FinGPT 的运行命令和保全合同见各自的常驻升级文档。"
 }
