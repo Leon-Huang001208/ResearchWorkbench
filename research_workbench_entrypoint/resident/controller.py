@@ -15,6 +15,7 @@ import plistlib
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 import time
@@ -230,55 +231,276 @@ def stage(
     return candidate
 
 
+def retirement_command(
+    config: dict, root: Path, revision: str
+) -> tuple[list[str], Path, dict] | None:
+    """Run the accepted checkout's code against the enrolled control repository."""
+    project = Path(config["project"])
+    common = Path(config["source_common"])
+    if common.name != ".git" or not common.is_dir() or common.resolve() != common:
+        raise UpdateBlocked("resident_retirement_source_unverified")
+    source = common.parent
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+        and key not in {"NODE_OPTIONS", "NODE_PATH", "PYTHONHOME", "PYTHONPATH"}
+    }
+    env.update(GIT_NO_LAZY_FETCH="1", GIT_NO_REPLACE_OBJECTS="1")
+    env["PATH"] = os.pathsep.join(
+        (
+            str(Path(config["gh"]).parent),
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+        )
+    )
+
+    def inspect_git(checkout, *args):
+        value = subprocess.run(
+            ["/usr/bin/git", "--no-optional-locks", "-c", "core.fsmonitor=false", *args],
+            cwd=checkout,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        return value.stdout.strip()
+
+    binding_args = ("rev-parse", "--path-format=absolute", "--show-toplevel")
+    if inspect_git(project, *binding_args, "HEAD").splitlines() != [str(project), revision]:
+        raise UpdateBlocked("resident_retirement_source_unverified")
+    if inspect_git(source, *binding_args, "--git-common-dir").splitlines() != [
+        str(source),
+        str(common),
+    ]:
+        raise UpdateBlocked("resident_retirement_source_unverified")
+    for checkout in (project, source):
+        url = inspect_git(checkout, "remote", "get-url", "origin")
+        origin = re.fullmatch(
+            r"(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)"
+            r"([a-z0-9_.-]+/[a-z0-9_.-]+)/?",
+            url,
+            re.IGNORECASE,
+        )
+        if not origin or origin[1].lower().removesuffix(".git") != config["repository"].lower():
+            raise UpdateBlocked("resident_retirement_origin_unverified")
+    entrypoint = "scripts/git_safety.mjs"
+    script = project / entrypoint
+    if not script.exists() and not script.is_symlink():
+        return None
+    if inspect_git(project, "status", "--porcelain", "--untracked-files=all") or any(
+        line[0].islower() or line.startswith("S ")
+        for line in inspect_git(project, "ls-files", "-v").splitlines()
+        if line
+    ):
+        raise UpdateBlocked("resident_retirement_script_changed")
+
+    def checked_file(relative):
+        file = project / relative
+        if (
+            file.resolve() != file
+            or not file.is_file()
+            or inspect_git(project, "hash-object", "--no-filters", "--", relative)
+            != inspect_git(project, "rev-parse", f"{revision}:{relative}")
+        ):
+            raise UpdateBlocked("resident_retirement_script_changed")
+        return file
+
+    if b"worktree-retirement" not in checked_file(entrypoint).read_bytes():
+        return None  # Older accepted releases did not provide this entrypoint.
+    for relative in (
+        "scripts/native_retirement_acceptance.mjs",
+        "scripts/git_deployed_worktree_proof.mjs",
+        "scripts/backup_fd_clone.py",
+        ".agents/deployed-worktree-retirement.json",
+    ):
+        checked_file(relative)
+    return (
+        [
+            config["node"],
+            str(script),
+            "worktree-retirement",
+            "--project",
+            str(source),
+            "--resident-root",
+            str(root),
+            "--apply",
+        ],
+        project,
+        env,
+    )
+
+
+def retire_accepted_worktrees(home: Path, root: Path, config: dict, state: dict) -> None:
+    if state["status"] not in {"ready", "deployed"}:
+        return
+    revision = state.get("deployed")
+    if not isinstance(revision, str) or not SHA.fullmatch(revision):
+        return
+    accepted = root / "accepted.json"
+    if not accepted.exists() and not accepted.is_symlink():
+        return
+    try:
+        # The retirement CLI itself holds a shared admission lease across
+        # its live proof and mutation. The supervisor lock is not held here.
+        with file_lock(root, "worktree-retirement.lock", exclusive=True):
+            if (
+                read_json(root / "state.json") != state
+                or read_json(accepted).get("target") != revision
+                or os.path.lexists(root / "transaction.json")
+            ):
+                return
+            manifest = read_json(home / "install/manifest.json")
+            if manifest.get("status") != "installed" or manifest.get("code_commit") != revision:
+                return
+            quarantine = root / "quarantine.json"
+            if os.path.lexists(quarantine) and read_json(quarantine).get("sha") == revision:
+                return
+            invocation = retirement_command(config, root, revision)
+            if invocation is None:
+                return
+            args, project, env = invocation
+            # The worker owns its transaction locks. Do not kill it on a Python timeout.
+            completed = subprocess.run(
+                args,
+                cwd=project,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            response = completed.stdout or completed.stderr
+            if len(response) > 65_536:
+                raise UpdateBlocked("resident_retirement_response_invalid")
+            result = json.loads(response)
+            if not isinstance(result, dict):
+                raise UpdateBlocked("resident_retirement_response_invalid")
+            if result.get("status") == "BLOCKED":
+                reason = result.get("code")
+                if isinstance(reason, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", reason):
+                    raise UpdateBlocked(reason)
+            items = result.get("items")
+            if result.get("status") not in {"complete", "cleanup_pending"} or not isinstance(
+                items, list
+            ):
+                raise UpdateBlocked("resident_retirement_response_invalid")
+            complete = completed.returncode == 0 and result["status"] == "complete"
+            details: dict = {"items": len(items)}
+            if not complete:
+                blockers = []
+                for item in items:
+                    if not isinstance(item, dict) or item.get("status") not in {
+                        "blocked",
+                        "pending",
+                    }:
+                        continue
+                    code, task = item.get("code"), item.get("taskId")
+                    if not isinstance(code, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", code):
+                        continue
+                    details.setdefault("reason", code)
+                    if isinstance(task, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", task):
+                        blockers.append({"taskId": task, "code": code, "status": item["status"]})
+                details["blocked"] = blockers
+            retirement_receipt(
+                root, revision, "complete" if complete else "cleanup_pending", **details
+            )
+    except MaintenanceBusy:
+        return  # Another observer already owns this attempt.
+    except (
+        OSError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        subprocess.SubprocessError,
+    ) as exc:
+        reason = str(exc) if isinstance(exc, UpdateBlocked) else "resident_retirement_failed"
+        retirement_receipt(root, revision, "cleanup_pending", reason=reason)
+
+
+def retirement_receipt(root: Path, revision: str, status: str, **fields) -> None:
+    filename = root / "worktree-retirement.json"
+    result = {"status": status, "revision": revision, **fields}
+    try:
+        if filename.is_file():
+            previous = read_json(filename)
+            previous.pop("checked_at", None)
+            if previous == result:
+                return
+        atomic(
+            filename,
+            {
+                **result,
+                "checked_at": datetime.now(UTC).isoformat(),
+            },
+        )
+    except (OSError, RuntimeError, ValueError):
+        log.warning("resident_worktree_retirement_receipt_unavailable")
+    log.info(
+        "resident_worktree_retirement status=%s reason=%s", status, fields.get("reason", "none")
+    )
+
+
 def tick(home: Path) -> dict:
     root, config = configured(home)
     with file_lock(root, "supervisor.lock", exclusive=True):
-        environment(home, config)
-        if (root / "transaction.json").exists():
-            recovery = bridge(home, config, "recover")
-            if recovery["status"] != "rolled_back":
-                return record(root, "blocked", reason="resident_recovery_failed")
-        # Boot/recovery always precedes GitHub network access.
-        current = bridge(home, config, "ensure")
-        if current["status"] != "ready":
-            return record(root, "blocked", reason="resident_service_unavailable")
-        try:
-            github = GitHubEvidence(
-                Path(config["gh"]), config["repository"], Path(config["source_common"])
+        state = tick_deployment(home, root, config)
+    retire_accepted_worktrees(home, root, config, state)
+    return state
+
+
+def tick_deployment(home: Path, root: Path, config: dict) -> dict:
+    environment(home, config)
+    if (root / "transaction.json").exists():
+        recovery = bridge(home, config, "recover")
+        if recovery["status"] != "rolled_back":
+            return record(root, "blocked", reason="resident_recovery_failed")
+    # Boot/recovery always precedes GitHub network access.
+    current = bridge(home, config, "ensure")
+    if current["status"] != "ready":
+        return record(root, "blocked", reason="resident_service_unavailable")
+    try:
+        github = GitHubEvidence(
+            Path(config["gh"]), config["repository"], Path(config["source_common"])
+        )
+        target = github.latest()
+        if target == current["sha"]:
+            return record(
+                root, "ready", deployed=target, url=config["private_origin"] + "/#/fingpt"
             )
-            target = github.latest()
-            if target == current["sha"]:
-                return record(
-                    root, "ready", deployed=target, url=config["private_origin"] + "/#/fingpt"
-                )
-            quarantine = (
-                read_json(root / "quarantine.json") if (root / "quarantine.json").exists() else {}
+        quarantine = (
+            read_json(root / "quarantine.json") if (root / "quarantine.json").exists() else {}
+        )
+        if quarantine.get("sha") == target:
+            return record(
+                root,
+                "blocked",
+                deployed=current["sha"],
+                failed_candidate=target,
+                reason="resident_failed_candidate_requires_retry",
             )
-            if quarantine.get("sha") == target:
-                return record(
-                    root,
-                    "blocked",
-                    deployed=current["sha"],
-                    failed_candidate=target,
-                    reason="resident_failed_candidate_requires_retry",
-                )
-            proof = github.qualify(target)
-            candidate_path = root / "candidate.json"
-            candidate = read_json(candidate_path) if candidate_path.exists() else {}
-            if candidate.get("target") != target or candidate.get("previous") != current["sha"]:
-                candidate = stage(home, config, target, proof)
-            # Recheck all remote/review evidence immediately before the stop boundary.
-            if github.latest() != target:
-                return record(root, "deferred", reason="resident_master_moved")
-            github.qualify(target)
-            result = bridge(home, config, "deploy")
-            fields = {"deployed": result.get("sha", current["sha"]), "candidate": target}
-            if result["status"] == "rolled_back":
-                fields["failed_candidate"] = target
-                atomic(root / "quarantine.json", {"sha": target})
-            return record(root, result["status"], **fields)
-        except UpdateBlocked as exc:
-            return record(root, "waiting", deployed=current["sha"], reason=str(exc))
+        proof = github.qualify(target)
+        candidate_path = root / "candidate.json"
+        candidate = read_json(candidate_path) if candidate_path.exists() else {}
+        if candidate.get("target") != target or candidate.get("previous") != current["sha"]:
+            stage(home, config, target, proof)
+        # Recheck all remote/review evidence immediately before the stop boundary.
+        if github.latest() != target:
+            return record(root, "deferred", reason="resident_master_moved")
+        github.qualify(target)
+        result = bridge(home, config, "deploy")
+        fields = {"deployed": result.get("sha", current["sha"]), "candidate": target}
+        if result["status"] == "rolled_back":
+            fields["failed_candidate"] = target
+            atomic(root / "quarantine.json", {"sha": target})
+        return record(root, result["status"], **fields)
+    except UpdateBlocked as exc:
+        return record(root, "waiting", deployed=current["sha"], reason=str(exc))
 
 
 def wait_ports(ports: tuple[int, int]) -> None:

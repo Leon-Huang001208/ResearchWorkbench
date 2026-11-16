@@ -311,8 +311,8 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --st
 node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
 ```
 
-`--status` 可能在评审／CI满足后执行普通合并，并在 `ci_passed` 后自动进入资源与Git收尾，
-不能当成纯观察。当整体备份阶段尚未取得实际准入时，可显式使用
+`--status` 可能在评审／CI 满足后执行普通合并。采用上线后退役规则的任务随后记录待退役，
+旧入口可能直接进入完整备份与收尾。两者都不能当成纯观察；旧入口尚未取得备份准入时可用
 `--status --defer-cleanup`：原评审、CI、合并与状态记录要求保持，只延期最后的自动收尾，
 返回 `safetyCleanupDeferred: true`，不把回执或资源标为 `cleaned`。该参数仅可与
 `delivery --status` 同用；后续显式 `--cleanup` 仍须全部原安全前提，不能用延期替代验收。
@@ -453,9 +453,34 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 
 ### 自动资源收尾
 
+#### 上线验收后的旧工作树退出
+
+受管源码的 `delivery --status` 完成合并和评审记录后，以 `worktreeRetirement: pending`
+等待部署验收。macOS Native resident 在现有上线验收持久化、真实 Web 进程返回相同 revision、
+且没有未完成部署事务后，从已验证提交的生产 checkout 调用退役入口，目标仅为 resident 明确绑定的源代码 Git 仓库。每次最多完成一个
+任务；重试沿既有 resident 检查。清理结果单独记录，既有安装或健康结果不因清理欠账而回退。
+
+只读预览：
+
+```bash
+node scripts/git_safety.mjs worktree-retirement --project /absolute/control-checkout \
+  --resident-root /absolute/product-home/resident
+```
+
+可用 `--task-id` 查单项。验收调用追加 `--apply` 并共享持有 Native 准入锁，每项复核真实上线 SHA、上线回执、
+已合并 PR、工作树注册和 inode、进程、任务和 Docker bind。先用独立临时 Git 检出实证恢复，
+工作树与其匹配后写入退役回执，再用非强制 `git worktree remove`。保留必要验收及回滚
+材料、task/PR 记录、Git 提交和小份恢复证明，无需长期存整棵副本。正式回执位于 Git common
+的 `leon-engineering/resource-closeout/<task-id>/deployed-worktree-retirement.json`。
+
+含未提交改动、未跟踪文件、还没有处理的 ignored 文件、iCloud 文件或证据不完整的树继续
+留待核对。任务原有日志留存流程负责将必要原件归档，未分类的内容继续阻止退役。
+手动受管完整备份/修复与已登记 Git 备份轮转沿既有流程。Docker 尚需同样可验证的上线接受
+入口；GitHub CI、单独的 HTTP 200 或源码合并都不能触发退役。
+
 项目规则固定`.agents/resource-closeout.json`的两个受管构建器合计20 GiB。Git入口在start/prepare/publish登记任务目录身份；publish修补只允许把已完整包含在候选中的干净feature tip更新到受管记录，保留CI计数和基线，不接受未提交或其他分支身份。资源登记/回执保存在Git common directory的`leon-engineering/resource-closeout/<task-id>/`，不放在将删除的worktree中。
 
-`status`确认已审查候选实际合并且CI通过后，释放仓库锁再进入既有`cleanup`流程。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
+需要完整安全备份的人工受管收尾仍调用 `delivery --cleanup`。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
 
 本机pytest优先用 `scripts/test_artifact_retention.py run` 管理同任务唯一活动根：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复；前一根回收后才创建下一批，无须等Git合并。失败/未知保留最小复现及原始回执；没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
 
