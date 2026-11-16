@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+Mac Docker Desktop 的受管开发构建使用 `rwb-development:development`。离线命令回归和实际 Docker 构建、其他平台验收分别取证。
+
 Radar 批次时效和现有 Bot 回归进入通用测试。常驻升级资格取自 macOS 15 的同候选安装，其他平台原生结果单独验收。
 
 Research Bot 常驻验证范围为 Mac Native 主实例及附着网关，安装资格使用同候选 macOS 15。Windows 和 Linux 原生结果由相应设备取证。
