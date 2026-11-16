@@ -56,3 +56,6 @@ Windows 使用 `rwb.cmd`。`runtime status|use` 管理安装后的 Native/Docker
 ## 生成索引
 
 [Python 文件索引](generated/py_file_index.md) 由 `scripts/generate_py_file_index.py` 生成，适合查找类、函数和导入；它不是架构说明，也不得手工编辑。
+
+AlphaDesk AI 问答通过 Research Web 会话 API 与 Node 24 前端构建接入。公开安装、旧入口和切换条件见[问答合同](research-web-ai-qa.md)。
+旧版 FinGPT 退役状态、私网问答链接和切换期间的请求行为见 [FinGPT API](modules/app_api.md#fingpt-api)。

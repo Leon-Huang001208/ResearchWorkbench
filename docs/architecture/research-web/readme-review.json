@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 Native 正式上线验收后的 Git 工作树退出。",
-  "reason": "现有 README 包含公开安装和产品入口。退役属于已登记 Git 源的本机维护，资格、预览及恢复证据由 AGENT_WORKFLOW 说明。"
+  "summary": "复核 Native 正式上线验收后的 Git 工作树退出，保留主干已更新的策略验证和 FinGPT 入口。",
+  "reason": "退役属于已登记 Git 源的本机维护，资格、预览及恢复证据由 AGENT_WORKFLOW 说明，现有 README 的公开安装和产品入口继续适用。"
 }

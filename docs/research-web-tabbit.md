@@ -351,3 +351,4 @@ FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调
 既有研究preset增加受控插件，继续使用原生continuable子会话和settlement；不改固定DSH、不创建进程或第二loop，原Native/Docker双进程边界保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+常驻 FinGPT 的执行器由 Native 安装清单和私网配置绑定。Tabbit 能力继续沿已配置会话和既有授权路径使用。
