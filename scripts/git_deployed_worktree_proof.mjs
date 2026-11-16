@@ -147,7 +147,23 @@ def assert_admin(root, common, check_metadata):
         os.close(fd)
     sizes = {'HEAD': 4096, 'commondir': 4096, 'gitdir': 16384, 'index': 16 * 1024 ** 2, 'ORIG_HEAD': 1024}
     names = set(os.listdir(admin))
-    require({'HEAD', 'commondir', 'gitdir', 'index'} <= names <= set(sizes) | {'logs'}, 'ADMIN_UNVERIFIABLE')
+    require({'HEAD', 'commondir', 'gitdir', 'index'} <= names <= set(sizes) | {'logs', 'refs'}, 'ADMIN_UNVERIFIABLE')
+    directory_facts = {}
+    if 'refs' in names:
+        # Newer Git's files backend initializes an empty worktree refs directory.
+        # Any entry under it may be linked-worktree state and must be retained.
+        refs = os.path.join(admin, 'refs')
+        before_refs = os.lstat(refs)
+        require(stat.S_ISDIR(before_refs.st_mode) and before_refs.st_uid == os.getuid() and
+                before_refs.st_dev == before.st_dev, 'ADMIN_UNVERIFIABLE')
+        f = os.open(refs, no_follow | os.O_DIRECTORY)
+        try:
+            require(facts(os.fstat(f)) == facts(before_refs), 'FILESYSTEM_CHANGED')
+            check_metadata(f)
+            require(not os.listdir(f), 'ADMIN_UNVERIFIABLE')
+            directory_facts['refs'] = facts(before_refs)
+        finally:
+            os.close(f)
     data = {name: administrative_file(os.path.join(admin, name), sizes[name], check_metadata)
             for name in names if name in sizes}
     pointer = administrative_file(os.path.join(root, '.git'), 16384, check_metadata)
@@ -193,7 +209,10 @@ def assert_admin(root, common, check_metadata):
     walk = command(root, 'rev-list', '--max-count=1', '--stdin',
                    payload=refs_payload + ('^' + deployed + '\n').encode('ascii')).stdout
     require(not walk, 'ADMIN_UNVERIFIABLE')
-    return [facts(before), {name: hashlib.sha256(data[name]).hexdigest() for name in sorted(data)}]
+    if 'refs' in directory_facts:
+        require(facts(os.lstat(refs)) == directory_facts['refs'], 'FILESYSTEM_CHANGED')
+    return [facts(before), {**directory_facts,
+                            **{name: hashlib.sha256(data[name]).hexdigest() for name in sorted(data)}}]
 
 
 def metadata_checker():
