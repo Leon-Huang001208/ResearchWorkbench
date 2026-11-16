@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+受管 Native 正式验收后，可按[工作树退役合同](AGENT_WORKFLOW.md#上线验收后的旧工作树退出)清理已验证的 Git 工作树。公开安装入口及运行服务照常工作。现场已安装的 `controller.pyz` 仍按独立受管流程更新，源码合并或安装新轮子不会自动替换它。
+
 PR #308 经 [策略验证常驻升级](research-web-gateway-upgrade.md#策略验证常驻升级) 切换现有 Mac mini。复用公开安装入口、Web 锁、现有生产解释器和固定 DSH，构建并安装本项目轮子。策略运行仅在登录后提交冻结行情时创建本账号的研究记录。
 
 Mac mini 已安装实例可走 [Radar 时效升级](research-web-gateway-upgrade.md#research-bot-radar-时效升级)，复用原 Web 锁、固定 DSH 和安装轮子。

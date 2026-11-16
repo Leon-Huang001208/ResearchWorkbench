@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核策略验证的 Mac mini 常驻切换。",
-  "reason": "现有 README 已包含策略验证入口和公开安装链接，指定版本的运行命令与保全合同在常驻升级文档维护。"
+  "summary": "复核 Native 正式上线验收后的 Git 工作树退出。",
+  "reason": "现有 README 包含公开安装和产品入口。退役属于已登记 Git 源的本机维护，资格、预览及恢复证据由 AGENT_WORKFLOW 说明。"
 }
