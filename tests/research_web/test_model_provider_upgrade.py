@@ -251,7 +251,7 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
     assert upgrade.ASSET_PAYLOAD == "54d4c8f9421c568de853a2f93263a2bfcd53422c"
     assert upgrade.ASSET_V2_PAYLOAD == "93d62be64084a5c92541a4a008216c0b3f56c2f1"
     assert upgrade.ASSET_MODES == frozenset(
-        (*ASSET_PROFILES, upgrade.RESEARCH_BOT_MODE, upgrade.STORAGE_IDENTITY_MODE)
+        (*ASSET_PROFILES, *upgrade.ATTACHED_MCP_PRESERVATION_MODES)
     )
     assert upgrade.previous_for(upgrade.MODE) == upgrade.PREVIOUS
     with pytest.raises(upgrade.UpdateBlocked):
@@ -714,6 +714,8 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-live-v2", upgrade.MARKET_LIVE_V2_MODE),
         ("apply-market-daily", upgrade.MARKET_DAILY_MODE),
         ("apply-fingpt", upgrade.FINGPT_MODE),
+        ("apply-research-bot", upgrade.RESEARCH_BOT_MODE),
+        ("apply-research-bot-freshness", upgrade.RESEARCH_BOT_V2_MODE),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -5636,10 +5638,40 @@ def test_research_bot_profile_preserves_existing_runtime_configuration():
     )
 
 
+def test_research_bot_v2_uses_current_accepted_release_and_rejects_unbound_payload(
+    tmp_path, monkeypatch
+):
+    mode = upgrade.RESEARCH_BOT_V2_MODE
+    previous = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
+    assert mode == "reviewed-research-bot-v2"
+    assert upgrade.previous_for(mode) == previous
+    assert upgrade.RESEARCH_BOT_V2_PAYLOAD == "fcc3e8990738d42bcc7a84d1c1ade36c4a05f784"
+    assert mode in upgrade.ASSET_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+    assert upgrade.ATTACHED_MCP_PRESERVATION_MODES == {
+        upgrade.RESEARCH_BOT_MODE,
+        mode,
+        upgrade.STORAGE_IDENTITY_MODE,
+    }
+    monkeypatch.setattr(upgrade, "RESEARCH_BOT_V2_PAYLOAD", previous)
+    with pytest.raises(upgrade.UpdateBlocked, match="research_bot_upgrade_payload_unbound"):
+        upgrade.review(tmp_path, "b" * 40, mode)
+
+
 @pytest.mark.parametrize(
-    "case", ["operator", "extra", "revert", "delete", "mode", "doc-mode", "missing-test", "lock"]
+    "mode, previous_key, payload_key",
+    [
+        (upgrade.RESEARCH_BOT_MODE, "RESEARCH_BOT_PREVIOUS", "RESEARCH_BOT_PAYLOAD"),
+        (upgrade.RESEARCH_BOT_V2_MODE, "RESEARCH_BOT_V2_PREVIOUS", "RESEARCH_BOT_V2_PAYLOAD"),
+    ],
 )
-def test_research_bot_review_checks_complete_product_tree(tmp_path, monkeypatch, case):
+@pytest.mark.parametrize(
+    "case",
+    ["operator", "squash", "extra", "revert", "delete", "mode", "doc-mode", "missing-test", "lock"],
+)
+def test_research_bot_review_checks_complete_product_tree(
+    tmp_path, monkeypatch, case, mode, previous_key, payload_key
+):
     def git(*args):
         return subprocess.check_output(
             ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
@@ -5658,14 +5690,15 @@ def test_research_bot_review_checks_complete_product_tree(tmp_path, monkeypatch,
     git("add", ".")
     git("commit", "-m", "resident baseline")
     previous = git("rev-parse", "HEAD")
+    git("switch", "-c", "sealed-release")
     (tmp_path / product).write_text("reviewed Research Bot")
     if case == "lock":
         (tmp_path / lock).write_text("unexpected dependency")
     git("add", ".")
     git("commit", "-m", "approved product")
     payload = git("rev-parse", "HEAD")
-    monkeypatch.setattr(upgrade, "RESEARCH_BOT_PREVIOUS", previous)
-    monkeypatch.setattr(upgrade, "RESEARCH_BOT_PAYLOAD", payload)
+    monkeypatch.setattr(upgrade, previous_key, previous)
+    monkeypatch.setattr(upgrade, payload_key, payload)
     for name in (upgrade.MODULE, upgrade.TEST, docs):
         if name == upgrade.TEST and case == "missing-test":
             continue
@@ -5684,9 +5717,15 @@ def test_research_bot_review_checks_complete_product_tree(tmp_path, monkeypatch,
         (tmp_path / docs).chmod(0o755)
     git("add", "-A")
     git("commit", "-m", "versioned Research Bot operator")
+    git("switch", "master")
+    if case == "squash":
+        git("merge", "--squash", "sealed-release")
+        git("commit", "-m", "same tree without the sealed checkpoint ancestry")
+    else:
+        git("merge", "--no-ff", "--no-edit", "sealed-release")
     target = git("rev-parse", "HEAD")
     if case == "operator":
-        assert upgrade.review(tmp_path, target, upgrade.RESEARCH_BOT_MODE) == {
+        assert upgrade.review(tmp_path, target, mode) == {
             "product_tree": git("rev-parse", f"{payload}^{{tree}}"),
             **{
                 name: git("rev-parse", f"{target}:{name}")
@@ -5697,15 +5736,17 @@ def test_research_bot_review_checks_complete_product_tree(tmp_path, monkeypatch,
         code = {
             "lock": "research_bot_upgrade_install_contract_changed",
             "missing-test": "research_bot_upgrade_operator_missing",
+            "squash": "resident_command_failed",
         }.get(case, "research_bot_upgrade_payload_changed")
         with pytest.raises(upgrade.UpdateBlocked, match=code):
-            upgrade.review(tmp_path, target, upgrade.RESEARCH_BOT_MODE)
+            upgrade.review(tmp_path, target, mode)
 
 
 @pytest.mark.parametrize(
     "real_operations",
     [
         upgrade.RESEARCH_BOT_MODE,
+        upgrade.RESEARCH_BOT_V2_MODE,
         (upgrade.STORAGE_IDENTITY_MODE, True),
         (upgrade.STORAGE_IDENTITY_MODE, False),
     ],
@@ -5740,7 +5781,9 @@ def test_research_bot_real_transaction_preserves_mcp_and_accounts(
     assert upgrade.asset_index_snapshot(home) == state["asset_index_before"]
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.RESEARCH_BOT_MODE], indirect=True)
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.RESEARCH_BOT_MODE, upgrade.RESEARCH_BOT_V2_MODE], indirect=True
+)
 @pytest.mark.parametrize(
     "where,bad", [("remote", None), ("remote", 1), ("remote", False), ("local", False)]
 )

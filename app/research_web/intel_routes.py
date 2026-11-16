@@ -51,6 +51,20 @@ async def read_upstream(path: str, params: dict | None = None):
                 data = payload.get("data", payload) if isinstance(payload, dict) else payload
                 if not isinstance(data, (dict, list)):
                     raise _failure("intel_invalid_response", "资讯服务返回了异常数据。")
+                if (
+                    path == "/radar"
+                    and isinstance(data, dict)
+                    and data is not payload
+                    and "cache_stale" in payload
+                ):
+                    outer = payload["cache_stale"]
+                    inner = data.get("cache_stale", outer)
+                    flag = None  # Explicit malformed metadata must survive as present.
+                    if outer is True or inner is True:
+                        flag = True
+                    elif outer is inner is False:
+                        flag = False
+                    data = {**data, "cache_stale": flag}
                 log.info("intel_upstream_read", endpoint=path.split("/")[1])
                 return data
     except (httpx.TimeoutException, TimeoutError) as exc:

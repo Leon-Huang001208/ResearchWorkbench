@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 补充 AlphaDesk 问答候选与切换状态。常驻身份恢复及网关本地源码安装见安装与架构文档。",
-  "reason": "FinGPT 切换与现有常驻维护入口各自核验源码和运行时证据。"
+  "summary": "README 补充 AlphaDesk 问答候选与切换状态，同时复核 Research Bot Radar 时效、Native 安装及常驻身份。",
+  "reason": "FinGPT 切换、Radar 准入和常驻身份按各模块文档核验。现有安装和架构链接继续适用。"
 }

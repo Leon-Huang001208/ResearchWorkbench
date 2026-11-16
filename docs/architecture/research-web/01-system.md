@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Radar 时效升级依次校验 Native 主实例和附着网关版本，复用已接受前版、原启动配置和联合回滚。
+
+Research Bot 的 Radar 准入沿既有本机 Host 和读取适配器。运行历史可核查采用的缓存标志或源批次时点。
+
 Research Bot 受管运行在原 Mac Native 主实例和附着网关。操作员依次切换及验证两角色，发现失败时从既有部署事务回滚。
 
 Research Bot 页面和专用 API 运行在既有本机 Web Host 内，沿原 Automation、Store 和 DSH 运行。仅服务及私网租户 Host 拒绝该入口。
