@@ -631,7 +631,7 @@ class DossierService:
             or any(source_id in {source["id"], source["dossier_handle"]} for source in sources)
         )
 
-    def read_handle(self, target_sid, handle):
+    def read_handle(self, target_sid, handle, *, full=False):
         match = re.fullmatch(
             r"dossier:([a-f0-9]{32}):([a-f0-9]{32}):([1-9][0-9]{0,9})", handle or ""
         )
@@ -651,7 +651,7 @@ class DossierService:
                 )
                 if not issued:
                     raise StoreError("档案证据未通过冻结交接授权", "dossier_handle_unissued", 403)
-            result = self.read_evidence(did, eid, target_sid=target_sid)
+            result = self.read_evidence(did, eid, target_sid=target_sid, full=full)
             row = self.store.session(target_sid)
             mapping = row.setdefault("dossier_evidence", {})
             if handle not in mapping and len(mapping) >= 100:

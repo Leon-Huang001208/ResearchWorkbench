@@ -14,6 +14,8 @@ Research Web 的 FinGPT 使用迁入的 AlphaDesk React 问答组件及 Node 研
 
 ## 切换状态
 
+问答工具 `read_research_source` 对已授权的网页和档案正文分页。首次从字符位置 0 读取，后续向同一来源 ID 传入返回的 `next_offset`，为空时表示已读到末尾。每页保留原件的来源身份和 SHA-256，报告质量检查仍基于 Host 核验的原件与冻结观测。
+
 `RWB_ALPHADESK_QA=1` 可用于隔离 Host 验证。启用后旧普通 FinGPT 会话从列表与搜索隐藏，旧会话 API 返回 410，专业协作由 `#/specialist` 使用原 DSH 链。私网候选由网关 `alphadesk_qa` 配置传入账号运行环境。
 
 正式常驻切换需固定当前前版及已审候选，验证主实例和网关绑定、活动任务、可恢复的全账号备份与两入口的回滚。
