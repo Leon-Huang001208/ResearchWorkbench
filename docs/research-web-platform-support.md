@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+策略验证常驻切换的验收覆盖 Mac mini Native 与 macOS 15 干净安装。认证页面的冻结包复跑作为 Mac mini 业务证据，其他平台的原生验收单独记录。
+
 Mac Docker Desktop 的受管开发构建使用 `rwb-development:development`。离线命令回归和实际 Docker 构建、其他平台验收分别取证。
 
 Radar 批次时效和现有 Bot 回归进入通用测试。常驻升级资格取自 macOS 15 的同候选安装，其他平台原生结果单独验收。

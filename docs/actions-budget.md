@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+策略验证 Native 操作员复用 Research Web Checks 的 `test_model_provider_upgrade.py`、Project Constraints 与 macOS 15 Bootstrap。同候选复核原三个作业，原 runner、依赖与时限保持。新增定点测试预留 10 秒，正式入口上传用户冻结包单独在 Mac mini 验收。
+
 策略验证沿现有 Research Web Checks 加入引擎与 API 小样本，Node 测试复用原通配符，macOS Bootstrap 对新增模块下载并核对字节。沿用原作业、runner、依赖及超时，原步骤预留 30 秒；用户冻结行情仅用于本机隔离实跑。
 
 大补丁恢复回归沿 Project Constraints 原 Git safety 步骤执行。夹具使用可压缩文本，覆盖超过 64 MiB 的未暂存删除、索引状态和 V2 恢复，预留原步骤 15 秒，作业、runner、依赖及触发规则沿用。
