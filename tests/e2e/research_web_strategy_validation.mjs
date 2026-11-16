@@ -15,7 +15,8 @@ const outputArgument = process.env.RWB_STRATEGY_EVIDENCE;
 assert.ok(zip && python && outputArgument, 'Set RWB_FROZEN_EXIT_ZIP, RWB_TEST_PYTHON and RWB_STRATEGY_EVIDENCE');
 const output = resolve(outputArgument);
 const archive = resolve(zip);
-const archiveDigest = createHash('sha256').update(await readFile(archive)).digest('hex');
+const archiveBytes = await readFile(archive);
+const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
 assert.equal(archiveDigest, '10877827ea5dc42f24eebea2e9d4eae6cce61a75809de1baffb6abfe22c98113');
 await mkdir(output, { mode: 0o700 });
 const root = await mkdtemp(join(tmpdir(), 'rwb-strategy-browser-'));
@@ -122,21 +123,33 @@ try {
   await page.getByRole('heading', { name: '策略验证', exact: true }).waitFor();
   assert.equal((await ready).status(), 200);
   await page.locator('#strategy-archive:enabled').waitFor();
-  const uploadedResponse = page.waitForResponse(response =>
-    response.url().endsWith(`${endpoint}/datasets`) && response.request().method() === 'POST');
-  await page.locator('#strategy-archive').setInputFiles(archive);
+  // Set the exact file on the currently mounted input in one browser turn.
+  // Chromium's remote file chooser can otherwise race the application's redraw.
+  await page.evaluate(encoded => {
+    const input = document.querySelector('#strategy-archive');
+    if (!input?.isConnected || input.disabled) throw new Error('Archive input is not ready');
+    const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+    const selection = new DataTransfer();
+    selection.items.add(new File([bytes], 'exit-backtest.zip', { type: 'application/zip' }));
+    input.files = selection.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, archiveBytes.toString('base64'));
   await page.getByText('选定 exit-backtest.zip', { exact: true }).waitFor();
-  await page.getByRole('button', { name: '导入冻结行情', exact: true }).click();
-  const uploaded = await uploadedResponse;
+  const [uploaded] = await Promise.all([
+    page.waitForResponse(response =>
+      response.url().endsWith(`${endpoint}/datasets`) && response.request().method() === 'POST'),
+    page.getByRole('button', { name: '导入冻结行情', exact: true }).click(),
+  ]);
   assert.equal(uploaded.status(), 201, await uploaded.text());
   const dataset = await uploaded.json();
   assert.equal(dataset.sha256, archiveDigest);
 
-  const runResponse = page.waitForResponse(response =>
-    response.url().endsWith(`${endpoint}/runs`) && response.request().method() === 'POST',
-  { timeout: 120000 });
-  await page.getByRole('button', { name: '运行策略验证', exact: true }).click();
-  const execution = await runResponse;
+  const [execution] = await Promise.all([
+    page.waitForResponse(response =>
+      response.url().endsWith(`${endpoint}/runs`) && response.request().method() === 'POST',
+    { timeout: 120000 }),
+    page.getByRole('button', { name: '运行策略验证', exact: true }).click(),
+  ]);
   assert.equal(execution.status(), 201, await execution.text());
   const created = await execution.json();
   assert.equal(created.dataset_id, dataset.id);
@@ -181,15 +194,16 @@ try {
   await page.locator('[data-strategy-events] table').scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(output, 'strategy-events.png') });
 
-  const configuredResult = page.waitForResponse(response =>
-    response.url().endsWith(`${endpoint}/runs`) && response.request().method() === 'POST',
-  { timeout: 120000 });
   await page.locator('#strategy-horizon').selectOption('10');
   for (const rule of ['sma5_close', 'sma10_close', 'sma20_close']) {
     await page.locator(`#strategy-rule-${rule}`).uncheck();
   }
-  await page.getByRole('button', { name: '运行策略验证', exact: true }).click();
-  const configuredResponse = await configuredResult;
+  const [configuredResponse] = await Promise.all([
+    page.waitForResponse(response =>
+      response.url().endsWith(`${endpoint}/runs`) && response.request().method() === 'POST',
+    { timeout: 120000 }),
+    page.getByRole('button', { name: '运行策略验证', exact: true }).click(),
+  ]);
   assert.equal(configuredResponse.status(), 201, await configuredResponse.text());
   const configured = await configuredResponse.json();
   assert.notEqual(configured.id, run.id);

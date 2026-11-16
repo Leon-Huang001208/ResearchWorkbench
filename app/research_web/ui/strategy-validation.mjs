@@ -1,5 +1,6 @@
 import { safeLog } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
+import { createEventLab, renderEventLab } from './event-lab.mjs';
 
 const rules = [
   ['volume_stall', '放量滞涨'],
@@ -443,4 +444,53 @@ export function createStrategyValidation({ api, onChange = () => {}, getIdentity
     return renderStrategyValidation(active ? screen : { ...screen, loading: true });
   }
   return { state, activate, deactivate, handle, render };
+}
+
+function researchView(route) {
+  if (route.page === 'intel' && route.intelTab === 'timeline') return 'timeline';
+  if (route.page !== 'simulation') return null;
+  if (route.simulationView === 'events') return 'studies';
+  if (route.simulationView === 'scores' || route.simulationView === 'strategies') return route.simulationView;
+  return null;
+}
+
+export function createEventResearchWorkspace({ api, getRoute, onChange }) {
+  const currentView = () => researchView(getRoute());
+  const isEventLab = view => view && view !== 'strategies';
+  const eventLab = createEventLab({ request: (...args) => api.request(...args), onChange: () => { if (isEventLab(currentView())) onChange(); } });
+  const strategy = createStrategyValidation({ api, onChange: () => { if (currentView() === 'strategies') onChange(); } });
+  const eventController = target => {
+    if (target.closest?.('.strategy-validation')) return strategy;
+    if (target.closest?.('.event-lab')) return eventLab;
+    return null;
+  };
+  return {
+    isActiveRoute: () => Boolean(currentView()),
+    owns: event => Boolean(eventController(event.target)),
+    showsEtfErrors: () => getRoute().page === 'simulation' && currentView() !== 'strategies',
+    render() {
+      const view = currentView();
+      if (view === 'strategies') return strategy.render();
+      return isEventLab(view) ? renderEventLab(eventLab.state) : '';
+    },
+    activate() {
+      const view = currentView();
+      if (view === 'strategies') return strategy.activate();
+      if (isEventLab(view)) return eventLab.activate(view);
+    },
+    deactivate() {
+      eventLab.deactivate();
+      strategy.deactivate();
+    },
+    restore(root) {
+      if (isEventLab(currentView())) eventLab.restore(root);
+    },
+    handleInput(event) {
+      const controller = eventController(event.target);
+      if (!controller) return false;
+      void controller.handle(event);
+      return true;
+    },
+    handle: event => eventController(event.target)?.handle(event) || false,
+  };
 }

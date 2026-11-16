@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAPI, isDataWorkspaceRoute, parseRoute } from '../../app/research_web/ui/core.mjs';
 import { secondaryEntries } from '../../app/research_web/ui/module-navigation.mjs';
-import { createStrategyValidation } from '../../app/research_web/ui/strategy-validation.mjs';
+import { createEventResearchWorkspace, createStrategyValidation } from '../../app/research_web/ui/strategy-validation.mjs';
 
 const dataset = { id: 'd1', name: '<img onerror=alert(1)>', sha256: 'a'.repeat(64) };
 const run = { id: 'r1', dataset_id: 'd1', horizon: 5, created_at: '2026-11-16T03:00:00Z' };
@@ -44,6 +44,43 @@ test('strategy route selects its navigation and leaves simulation siblings indep
   assert.deepEqual(secondaryEntries(route).filter(row => row.active).map(row => row.href), ['#/simulation/strategies']);
   assert.equal(parseRoute('#/simulation/events').simulationView, 'events');
   assert.equal(isDataWorkspaceRoute(parseRoute('#/simulation/etf')), true);
+});
+
+test('research workspace visits the correct controller and leaves ETF requests to its page', async () => {
+  let route = parseRoute('#/simulation/etf');
+  const reads = [];
+  const workspace = createEventResearchWorkspace({
+    getRoute: () => route,
+    onChange: () => {},
+    api: {
+      request: async path => { reads.push(path); return { items: [] }; },
+      strategyValidation: async () => { reads.push('/strategy-validation'); return { datasets: [], runs: [] }; },
+    },
+  });
+  assert.equal(workspace.isActiveRoute(), false);
+  assert.equal(workspace.showsEtfErrors(), true);
+  assert.equal(workspace.activate(), undefined);
+  assert.equal(workspace.render(), '');
+  assert.equal(workspace.owns({ target: { closest: () => null } }), false);
+  assert.deepEqual(reads, []);
+  for (const [href, endpoint, title] of [
+    ['#/intel/timeline', '/events?', '事件时间线'],
+    ['#/simulation/events', '/event-studies', '事件与日历研究'],
+    ['#/simulation/scores', '/market-scores/runs', '六维评分'],
+    ['#/simulation/strategies', '/strategy-validation', '策略验证'],
+  ]) {
+    workspace.deactivate();
+    route = parseRoute(href);
+    reads.length = 0;
+    assert.equal(workspace.isActiveRoute(), true);
+    await workspace.activate();
+    assert.ok(reads[0].startsWith(endpoint), href);
+    assert.match(workspace.render(), new RegExp(`<h1>${title}</h1>`));
+  }
+  assert.equal(workspace.showsEtfErrors(), false);
+  assert.equal(workspace.owns(click({ strategyAction: 'reload' })), true);
+  assert.equal(await workspace.handle(click({ strategyAction: 'reload' })), true);
+  assert.deepEqual(reads, ['/strategy-validation', '/strategy-validation']);
 });
 
 test('archive is sent as raw ZIP with intent and run uses an explicit idempotency key', async () => {
