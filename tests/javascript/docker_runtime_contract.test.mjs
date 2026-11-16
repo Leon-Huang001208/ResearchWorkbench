@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../../', import.meta.url);
 const read = (name) => readFileSync(new URL(name, root), 'utf8');
@@ -115,6 +116,53 @@ test('managed DSH refresh preserves the bounded builder and refuses unknown buil
   assert.match(entry, /1:--refresh-dsh\) set -- --no-cache-filter dsh-builder/);
   assert.match(entry, /fail build_arguments_invalid/);
   assert.match(entry, /docker buildx build --builder "\$BUILDER" --platform linux\/arm64 --load "\$@"/);
+});
+
+test('managed build assigns the development role and registers the resulting immutable ID', (t) => {
+  const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'rwb-docker-role-')));
+  t.after(() => rmSync(temporary, { recursive: true, force: true }));
+  const bin = join(temporary, 'bin');
+  mkdirSync(bin);
+  const candidateImage = 'sha256:' + '1'.repeat(64);
+  const developmentImage = 'sha256:' + '2'.repeat(64);
+  writeFileSync(join(temporary, 'builder.id'), 'builder-id\n');
+  writeFileSync(join(temporary, 'buildkitd.toml'), read('docker/buildkitd.toml'));
+  writeFileSync(join(temporary, 'control.image'), 'sha256:' + '3'.repeat(64) + '\n');
+  writeFileSync(join(bin, 'docker'), [
+    '#!/bin/sh',
+    'printf "%s\\n" "$*" >> "$RWB_DOCKER_HOME/calls"',
+    'case "$1:$2" in',
+    '  info:--format) case "$3" in *MemTotal*) echo 16000000000;; esac;;',
+    '  info:|ps:-q|start:*|stop:*|buildx:inspect|buildx:build) :;;',
+    '  inspect:--format) echo builder-id;;',
+    '  volume:inspect) echo "$RWB_DOCKER_HOME";;',
+    '  run:--rm) echo 1111111111111111111111111111111111111111;;',
+    '  image:inspect) case "$5" in',
+    '    rwb-candidate:g01) echo ' + candidateImage + ';;',
+    '    rwb-development:*) [ "${FAIL_DEVELOPMENT_INSPECT:-0}" = 0 ] || exit 3; echo ' + developmentImage + ';;',
+    '    *) exit 2;;',
+    '  esac;;',
+    '  *) exit 2;;',
+    'esac',
+    '',
+  ].join('\n'), { mode: 0o755 });
+  const build = (extraEnv = {}) => spawnSync('/bin/sh', [fileURLToPath(new URL('rwb-docker', root)), 'build'], {
+    encoding: 'utf8',
+    env: { PATH: [bin, '/usr/bin', '/bin'].join(delimiter), RWB_DOCKER_HOME: temporary, HTTP_PROXY: 'http://127.0.0.1:1', ...extraEnv },
+  });
+  const result = build();
+  assert.equal(result.status, 0, result.stderr);
+  const calls = readFileSync(join(temporary, 'calls'), 'utf8');
+  assert.match(calls, /^buildx build .* -t rwb-development:development /m);
+  assert.match(calls, /^image inspect .* rwb-development:development$/m);
+  assert.doesNotMatch(calls, /rwb-development:g01|rwb-development:(?:production|rollback)/);
+  assert.equal(readFileSync(join(temporary, 'runtime.image'), 'utf8').trim(), candidateImage);
+  assert.equal(readFileSync(join(temporary, 'dev.image'), 'utf8').trim(), developmentImage);
+  assert.equal(readFileSync(join(temporary, 'control.image'), 'utf8').trim(), 'sha256:' + '3'.repeat(64));
+  const failed = build({ FAIL_DEVELOPMENT_INSPECT: '1' });
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /development_image_inspect_failed/);
+  assert.equal(readFileSync(join(temporary, 'dev.image'), 'utf8').trim(), developmentImage);
 });
 
 test('Compose has one isolated service with exactly one loopback Web publication', () => {
