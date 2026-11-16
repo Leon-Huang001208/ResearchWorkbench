@@ -10,6 +10,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&'
 
 export function category(api) {
   const route = api.path;
+  if (/^\/api\/research\/strategy-validation(?:\/|$)/.test(route)) return '策略验证';
   if (/^\/api\/research\/(?:knowledge(?:\/|$)|internal\/data\/knowledge-(?:query|read)$)/.test(route)) return '研究资料与证据';
   if (/^\/api\/research\/(?:events|event-studies|market-scores)(?:\/|$)/.test(route)) return '事件与日历研究';
   if(route.startsWith('/api/research/ai-news/') || route.startsWith('/api/research/aihot/'))return 'AI资讯';

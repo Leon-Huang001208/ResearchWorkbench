@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+PR #308 经 [策略验证常驻升级](research-web-gateway-upgrade.md#策略验证常驻升级) 切换现有 Mac mini。复用公开安装入口、Web 锁、现有生产解释器和固定 DSH，构建并安装本项目轮子。策略运行仅在登录后提交冻结行情时创建本账号的研究记录。
+
 Mac mini 已安装实例可走 [Radar 时效升级](research-web-gateway-upgrade.md#research-bot-radar-时效升级)，复用原 Web 锁、固定 DSH 和安装轮子。
 
 Research Bot 的 Radar 来源兼容修补沿既有安装入口。真实模型、定时运行和数据冻结单独验收。
@@ -466,6 +468,8 @@ Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 
 后启用；当前原验收库仍 schema15/paused，新 schema 的随机测试不认证干净安装或正式研究。
 
 本轮预算适配不改变依赖、公开安装入口或固定 DSH；常规安装不初始化/激活预算。显式候选验收只接入已认证的受管 AES 模型实例，Fernet/Native 正常安装不受影响。旧政策过期，新的真实窗口需另外授权及政策复核。
+
+[策略验证](research-web-strategy-validation.md)复用公开安装锁定的 pandas 和 NumPy。安装后在策略模拟内打开，冻结行情由用户导入。Doctor 沿既有 Web 健康和资源检查。
 
 ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
 首次显式模拟在所属产品根创建私有 `portfolio-decisions/paper.sqlite3`；工程输入不会配置真实数据来源、

@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。
+锁恢复保留原锁和中断快照，工作树复核只更新已核实的设备号并另存原账本和回执。
+执行、容量及证据边界见 [开发流程](AGENT_WORKFLOW.md#中断备份锁与历史工作树身份)。
+
 Radar 修复的 Native 升级入口为 `apply-research-bot-freshness`。产品检查点及其后续操作员由 `model_provider_upgrade.py` 分别校验，回归使用真实 Git 合并树。
 
 Research Bot 的 Radar 批次证据来自 `discovery/news.py`，由 `research_bots.py` 在冻结资料前检查。Radar 解包会保留上游明确报告的缓存标志，测试覆盖原始响应到 Bot 准入。
@@ -399,6 +403,8 @@ CSV证据的显式格式辅助函数 `resources/research_report.py:calculation_e
 本文件只回答四个问题：改哪片源码、先读哪份权威文档、跑哪些测试、什么变化需要同步文档。文件和公开符号的机械清单由 [生成索引](generated/py_file_index.md) 负责。
 
 每轮资源收尾由`iteration_resources.py`/`iteration_cache.py`复用`docker_resources.py`及`git_safety.mjs`：任务归属/证据保存、全项目20GiB受管缓存预算、合并后自动清理与修补feature身份认证。权威规则见AGENTS、AGENT_WORKFLOW和Docker手册；近处测试为`test_iteration_resources.py`、`test_docker_resources.py`、`iteration_closeout.test.mjs`及`git_safety.test.mjs`。不新增产品API或调度器，风险为管理平面与安全清理。
+
+策略验证位于 `app/research_web/strategy_validation/`，页面为 `ui/strategy-validation.mjs`。导入、配置、回放和分页合同见[策略验证](research-web-strategy-validation.md)。
 
 ## 当前 Research Web
 

@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+策略验证的 `apply-strategy-validation` 只切换已安装的 Native 主实例和附接网关。Docker 环境仍从相应版本构建镜像。
+
 Radar 修复的固定升级配置用于已接受的 Native 主实例和附着网关。Docker 镜像的构建、保全及回滚沿各自流程。
 
 Research Bot 的 `apply-research-bot` 作用于已接受的 Mac Native 主实例和附着网关。Docker 镜像和容器仍走各自的构建、数据保全和升级流程。

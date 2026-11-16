@@ -1,5 +1,11 @@
 # Mac mini 空私有池网关升级
 
+## 策略验证常驻升级
+
+`model_provider_upgrade apply-strategy-validation` 绑定已接受的 `3be8a17b48ca5c57a71837bdc806efaf386a68b8` 和 PR #308 的合并产品 `4983949df4aac654dd95415be1d5d6a654170ff5`。执行器只接受该产品和受审部署文件的组合。以现有生产解释器从 GitHub 最新已审且干净的同仓工作树执行 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-strategy-validation --source <该工作树>`。
+
+切换前验证 Project Constraints、Research Web Checks 及 macOS 15 Bootstrap 的实际候选，沿用原联合事务的空闲检查、三锁、BirthFence 和保全快照。主实例和网关一同更新，现有账号数据、固定 DSH、模型设置和实际只读 MCP 开关在上线与回滚时复核。切换后检查主实例、网关和私网入口的版本及可达性，再在已登录的「策略模拟 → 策略验证」上传原冻结压缩包，复核逐笔、下跌率、次日卖出胜率及配对对照。研究运行只从该页面显式发起。
+
 ## Research Bot Radar 时效升级
 
 `model_provider_upgrade apply-research-bot-freshness` 使用上一版本的 Native 联合事务。已接受前版固定为 `0ca0f4c0`，完整产品由 Radar 修复检查点冻结。最终合并提交包含该检查点及受审操作员。普通合并保留固定提交祖先，部署前由现有 CI 资格检查核对最终合并树。

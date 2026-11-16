@@ -716,6 +716,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-fingpt", upgrade.FINGPT_MODE),
         ("apply-research-bot", upgrade.RESEARCH_BOT_MODE),
         ("apply-research-bot-freshness", upgrade.RESEARCH_BOT_V2_MODE),
+        ("apply-strategy-validation", upgrade.STRATEGY_VALIDATION_MODE),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -5652,25 +5653,51 @@ def test_research_bot_v2_uses_current_accepted_release_and_rejects_unbound_paylo
         upgrade.RESEARCH_BOT_MODE,
         mode,
         upgrade.STORAGE_IDENTITY_MODE,
+        upgrade.STRATEGY_VALIDATION_MODE,
     }
     monkeypatch.setattr(upgrade, "RESEARCH_BOT_V2_PAYLOAD", previous)
     with pytest.raises(upgrade.UpdateBlocked, match="research_bot_upgrade_payload_unbound"):
         upgrade.review(tmp_path, "b" * 40, mode)
 
 
+def test_strategy_validation_profile_freezes_accepted_and_published_versions():
+    mode = upgrade.STRATEGY_VALIDATION_MODE
+    assert mode == "reviewed-strategy-validation-v1"
+    assert upgrade.previous_for(mode) == "3be8a17b48ca5c57a71837bdc806efaf386a68b8"
+    assert upgrade.STRATEGY_VALIDATION_PAYLOAD == "4983949df4aac654dd95415be1d5d6a654170ff5"
+    assert mode in upgrade.ASSET_MODES & upgrade.ATTACHED_MCP_PRESERVATION_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+
+
 @pytest.mark.parametrize(
-    "mode, previous_key, payload_key",
+    "mode, previous_key, payload_key, failure_prefix",
     [
-        (upgrade.RESEARCH_BOT_MODE, "RESEARCH_BOT_PREVIOUS", "RESEARCH_BOT_PAYLOAD"),
-        (upgrade.RESEARCH_BOT_V2_MODE, "RESEARCH_BOT_V2_PREVIOUS", "RESEARCH_BOT_V2_PAYLOAD"),
+        (
+            upgrade.RESEARCH_BOT_MODE,
+            "RESEARCH_BOT_PREVIOUS",
+            "RESEARCH_BOT_PAYLOAD",
+            "research_bot_upgrade",
+        ),
+        (
+            upgrade.RESEARCH_BOT_V2_MODE,
+            "RESEARCH_BOT_V2_PREVIOUS",
+            "RESEARCH_BOT_V2_PAYLOAD",
+            "research_bot_upgrade",
+        ),
+        (
+            upgrade.STRATEGY_VALIDATION_MODE,
+            "STRATEGY_VALIDATION_PREVIOUS",
+            "STRATEGY_VALIDATION_PAYLOAD",
+            "strategy_validation_upgrade",
+        ),
     ],
 )
 @pytest.mark.parametrize(
     "case",
     ["operator", "squash", "extra", "revert", "delete", "mode", "doc-mode", "missing-test", "lock"],
 )
-def test_research_bot_review_checks_complete_product_tree(
-    tmp_path, monkeypatch, case, mode, previous_key, payload_key
+def test_fixed_review_checks_complete_product_tree(
+    tmp_path, monkeypatch, case, mode, previous_key, payload_key, failure_prefix
 ):
     def git(*args):
         return subprocess.check_output(
@@ -5678,7 +5705,7 @@ def test_research_bot_review_checks_complete_product_tree(
         ).strip()
 
     product = "app/research_web/research_bots.py"
-    docs = "docs/operator.md"
+    docs = "docs/research-web-gateway-upgrade.md"
     lock = "requirements/web.lock"
     git("init", "-b", "master")
     git("config", "user.name", "Fixture")
@@ -5691,7 +5718,7 @@ def test_research_bot_review_checks_complete_product_tree(
     git("commit", "-m", "resident baseline")
     previous = git("rev-parse", "HEAD")
     git("switch", "-c", "sealed-release")
-    (tmp_path / product).write_text("reviewed Research Bot")
+    (tmp_path / product).write_text("reviewed product")
     if case == "lock":
         (tmp_path / lock).write_text("unexpected dependency")
     git("add", ".")
@@ -5706,7 +5733,8 @@ def test_research_bot_review_checks_complete_product_tree(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixed operator")
     if case == "extra":
-        (tmp_path / "other.py").write_text("additional product")
+        unrelated = "docs/unrelated.md" if mode == upgrade.STRATEGY_VALIDATION_MODE else "other.py"
+        (tmp_path / unrelated).write_text("outside the operator scope")
     elif case == "revert":
         (tmp_path / product).write_text("old")
     elif case == "delete":
@@ -5716,7 +5744,7 @@ def test_research_bot_review_checks_complete_product_tree(
     elif case == "doc-mode":
         (tmp_path / docs).chmod(0o755)
     git("add", "-A")
-    git("commit", "-m", "versioned Research Bot operator")
+    git("commit", "-m", "versioned deployment operator")
     git("switch", "master")
     if case == "squash":
         git("merge", "--squash", "sealed-release")
@@ -5734,10 +5762,10 @@ def test_research_bot_review_checks_complete_product_tree(
         }
     else:
         code = {
-            "lock": "research_bot_upgrade_install_contract_changed",
-            "missing-test": "research_bot_upgrade_operator_missing",
+            "lock": f"{failure_prefix}_install_contract_changed",
+            "missing-test": f"{failure_prefix}_operator_missing",
             "squash": "resident_command_failed",
-        }.get(case, "research_bot_upgrade_payload_changed")
+        }.get(case, f"{failure_prefix}_payload_changed")
         with pytest.raises(upgrade.UpdateBlocked, match=code):
             upgrade.review(tmp_path, target, mode)
 
@@ -5749,6 +5777,8 @@ def test_research_bot_review_checks_complete_product_tree(
         upgrade.RESEARCH_BOT_V2_MODE,
         (upgrade.STORAGE_IDENTITY_MODE, True),
         (upgrade.STORAGE_IDENTITY_MODE, False),
+        pytest.param((upgrade.STRATEGY_VALIDATION_MODE, True), id="strategy-mcp-enabled"),
+        pytest.param((upgrade.STRATEGY_VALIDATION_MODE, False), id="strategy-mcp-disabled"),
     ],
     indirect=True,
 )

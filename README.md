@@ -2,6 +2,8 @@
 
 Research Web 的 AlphaDesk AI 问答候选及切换状态见[问答合同](docs/research-web-ai-qa.md)。
 
+策略模拟中的[策略验证](docs/research-web-strategy-validation.md)可导入冻结日线、配置卖出规则并查看逐笔相似对照，结果用于历史研究。
+
 [财经日历](docs/research-web-ui.md#财经日历)是全市场概览子页，提供周历、月历与五类筛选；
 首批展示部分美国官方经济日程，未接入的类别明确标注覆盖缺口。
 

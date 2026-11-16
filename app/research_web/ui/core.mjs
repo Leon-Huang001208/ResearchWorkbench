@@ -114,7 +114,7 @@ export function parseRoute(hash = '') {
     if (route.assetView === 'dossiers') route.dossierId = /^[a-f0-9]{32}$/.test(params.get('dossier') || '') ? params.get('dossier') : null;
   }
   if (page === 'simulation') {
-    if (!extraSegments.length && ['events', 'scores'].includes(sectionSegment)) route.simulationView = sectionSegment;
+    if (!extraSegments.length && ['events', 'scores', 'strategies'].includes(sectionSegment)) route.simulationView = sectionSegment;
     route.section = route.simulationView || 'etf-paper';
   }
   if (page === 'frameworks') {
@@ -231,12 +231,13 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   async function performRequest(path, { method, body, key, userAction, signal }) {
     const headers = { Accept: 'application/json' };
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
-    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
+    const isBlob = typeof Blob !== 'undefined' && body instanceof Blob;
+    if (body !== undefined && !isForm) headers['Content-Type'] = isBlob ? body.type || 'application/octet-stream' : 'application/json';
     if (key) headers['Idempotency-Key'] = key;
     if (userAction) headers['X-Research-User-Action'] = '?1';
     let response;
     try {
-      response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
+      response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm || isBlob ? body : JSON.stringify(body) });
     } catch (error) {
       if (signal.aborted) throw new DOMException('读取已取消', 'AbortError');
       logger('request_failed', { method });
@@ -290,6 +291,13 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     etfRuns: () => request('/portfolio-decisions/runs'),
     etfRun: (id) => request(`/portfolio-decisions/runs/${segment(id)}`),
     etfReplay: (body, key) => request('/portfolio-decisions/runs', { method: 'POST', body, key, userAction: true }),
+    strategyValidation: () => request('/strategy-validation'),
+    strategyValidationImport: archive => request('/strategy-validation/datasets', {
+      method: 'POST', body: archive.slice(0, archive.size, 'application/zip'), userAction: true,
+    }),
+    strategyValidationRun: (body, key) => request('/strategy-validation/runs', { method: 'POST', body, key, userAction: true }),
+    strategyValidationDetail: id => request(`/strategy-validation/runs/${segment(id)}`),
+    strategyValidationEvents: (id, rule, offset, limit) => request(`/strategy-validation/runs/${segment(id)}/events?${new URLSearchParams({ rule, offset, limit })}`),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     researchBots: () => request('/research-bots'),
     researchBotSkill: (id,version) => request(`/research-bots/skills/${segment(id)}?version=${segment(version)}`),

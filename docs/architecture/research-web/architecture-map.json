@@ -1158,6 +1158,27 @@
         "tests/research_web/test_weknora_cli.py",
         "tests/research_web/test_weknora_kb_settings_patch.py"
       ]
+    },
+    {
+      "id": "strategy-validation",
+      "sources": [
+        "app/research_web/strategy_validation/"
+      ],
+      "documents": [
+        "docs/research-web-strategy-validation.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_strategy_validation_engine.py",
+        "tests/research_web/test_strategy_validation_api.py",
+        "tests/javascript/research_web_strategy_validation.test.mjs",
+        "tests/e2e/research_web_strategy_validation.mjs"
+      ]
     }
   ],
   "diagrams": [
@@ -6303,6 +6324,41 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/strategy-validation",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/strategy-validation/datasets",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/datasets",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/strategy-validation/runs",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/strategy-validation/runs/{run_id}",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/strategy-validation/runs/{run_id}/events",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/runs/{run_id}/events",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "GET",
       "path": "/static/qa-dist/{name:path}",
       "source": "app/research_web/main.py",
       "declaredPath": "/static/qa-dist/{name:path}",
@@ -6594,6 +6650,16 @@
         "title": "研究资料与证据",
         "summary": "可选WeKnora用户认证、原文检索及独立冻结；UI零生成、真实服务与报告接入仍待验收。",
         "category": "研究资料与证据",
+        "diagrams": [
+          "04-data-file-flow"
+        ]
+      },
+      {
+        "id": "strategy-validation",
+        "group": "strategy-validation",
+        "title": "策略验证",
+        "summary": "冻结日线的可配置退出信号、成交近似与逐笔相似对照。",
+        "category": "策略验证",
         "diagrams": [
           "04-data-file-flow"
         ]

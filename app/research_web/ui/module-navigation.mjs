@@ -40,7 +40,7 @@ export function secondaryEntries(route = {}, { account = null, canManageNews = t
   } else if (key === 'market') {
     rows = marketTabs; selected = route.marketView || 'dashboard';
   } else if (key === 'simulation') {
-    rows = [['etf','ETF 模拟','#/simulation/etf'],['events','事件与日历研究','#/simulation/events'],['scores','六维评分','#/simulation/scores']]; selected = route.simulationView || 'etf';
+    rows = [['etf','ETF 模拟','#/simulation/etf'],['strategies','策略验证','#/simulation/strategies'],['events','事件与日历研究','#/simulation/events'],['scores','六维评分','#/simulation/scores']]; selected = route.simulationView || 'etf';
   } else if (key === 'skills') {
     const kind = route.capabilityKind || 'skill', view = route.capabilityView || 'library';
     rows = [['skill','技能'],['connector','连接器'],['plugin','插件']].map(([id,label])=>[id,label,`#/skills?kind=${id}`]);

@@ -278,6 +278,8 @@ Research Web FastAPI Host（8088）
 
 ## 主要子系统
 
+[策略验证](research-web-strategy-validation.md)在 Web Host 对账号上传的冻结日线计算描述性退出研究，保存配置、覆盖和逐笔对照。此入口仅供人工研究。
+
 ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合裁决和事务账本，真实准入保持BLOCKED。
 合同见[数据与文件](architecture/research-web/03-data-files.md#etf-工程模拟与真实准入边界)。
 

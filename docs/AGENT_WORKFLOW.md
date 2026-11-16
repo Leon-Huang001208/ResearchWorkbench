@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+策略验证的 Mac mini 升级在独立工作树绑定实际旧版及 PR #308 合并树。沿既有操作员测试、独立评审、通用 CI 和同候选 macOS 15 Bootstrap 取证。原账号保全、网关与主实例版本和正式账号冻结行情复跑分别记录，Windows 执行交对应设备。
+
+策略验证沿现有 Python 与 Node 批次运行离线边界例，真实用户冻结包在独立 Web Host 和 Chrome 实跑。注明回执对应的输入摘要、规则结果、逐笔分页及候选身份。
+
 常驻存储身份固定升级先验证实际已接受的前版，再复查作业占用、v4 事务保全、双入口 MCP 和活跃研究。正式 APFS 登录作业激活及实机重启独立取证。
 
 Research Bot 本地验证复用共享测试环境。Research Web Checks 的现有 Python 批次加入 Bot、通用自动化和原生技能准入回归，Mac Bootstrap 在既有步骤核对安装资产及 Doctor。
@@ -313,6 +317,36 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 返回 `safetyCleanupDeferred: true`，不把回执或资源标为 `cleaned`。该参数仅可与
 `delivery --status` 同用；后续显式 `--cleanup` 仍须全部原安全前提，不能用延期替代验收。
 仅读CI使用GitHub只读API；其他common directory必须通过正式Git交付采用已审入口，不复制脚本。
+
+### 中断备份锁与历史工作树身份
+
+真实进程仍在、退出证据不明或锁已被替换时保留锁。历史无 PID 的空备份锁仅接受任务原
+Git common directory 下记录中断的私有证据。由创建该锁的仓库操作，绑定当时的退出进程组、
+不完整备份、时间及锁身份。年龄和空目录不是释放凭据。以下命令先预览并返回摘要：
+
+```bash
+node scripts/git_safety.mjs backup-lock-recover --project /absolute/locking-RWB \
+  --interruption-evidence /absolute/locking-common/amend-interruption.json \
+  --recovery-backup /absolute/previous-verified-v2-point
+```
+
+核对摘要及可用容量，再追加 `--apply --preview-sha256 <摘要>`。执行会先独立恢复原仓库的
+已封印 v2 点，然后保留式移动原锁到私有恢复目录。不完整备份及此前的恢复点原样保留。
+发送信号、强删锁以及手改备份或进程记录都不属于这个流程。未完成的恢复意图需保留供复核。
+
+对于已合并且历史收尾仍为 pending 的存量任务，可从目标 Git common directory 中已经
+验证的新版本入口复核工作树。先确认同一逻辑路径、inode、Git 登记、主线合并和所有文件
+身份吻合；旧登记的依赖或证据目录若重现则拒绝。
+
+```bash
+node scripts/git_safety.mjs worktree-revalidate --project /absolute/owning-RWB \
+  --task-id TASK --recovery-backup /absolute/verified-v2-point
+```
+
+持锁实际恢复备份并复查摘要后，`--apply --preview-sha256 <摘要>` 仅重新登记两端核实的设备号。
+原资源账本和原始交付、收尾、资源回执置于私有 `identity-recovery-epochs/`。这个命令不进行
+Git 交付、文件退休、缓存回收或服务操作。仍须独立确认内盘余量，然后走普通
+`delivery --cleanup` 完成 Git 和资源收尾；不要用 `--status` 当现场预览。
 
 发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
 

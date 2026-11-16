@@ -8178,7 +8178,7 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
-- ... 43 more
+- ... 44 more
 
 Classes:
 - `NewSession`
@@ -13790,6 +13790,200 @@ Classes:
 
 Functions:
 - `_is_reparse_point`
+
+
+## `app/research_web/strategy_validation/__init__.py`
+
+Module docstring:
+> Account-owned, explicitly requested strategy replay over frozen research inputs.
+
+
+## `app/research_web/strategy_validation/analysis.py`
+
+Module docstring:
+> Estimate matched forward returns and the value of selling an existing holding.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `numpy`
+- `pandas`
+
+Classes:
+- `TradingDayBootstrap`
+  - Resample circular blocks of exchange sessions, retaining each date's events.
+  - methods: __init__, means
+
+Functions:
+- `_interval`
+- `_rate`
+- `make_pairs`
+  - Pair on signal-date information, with reusable same-date exchange controls.
+- `_pair_outcomes`
+- `_mean`
+- `_not_missing`
+- `evaluate_rule`
+  - Freeze matches before inspecting any outcome and keep unmatched events.
+- `event_rows`
+  - Yield records independent of the calculation panel for bounded persistence.
+
+
+## `app/research_web/strategy_validation/engine.py`
+
+Module docstring:
+> Run research-only exit comparisons on an imported, frozen daily sample.
+
+Imports:
+- `analysis`
+- `collections.abc`
+- `core.observability`
+- `market`
+- `math`
+- `pathlib`
+- `rules`
+
+Functions:
+- `_config`
+- `run_validation`
+  - Return one horizon's summary and event rows, with returns as decimal ratios.
+
+
+## `app/research_web/strategy_validation/market.py`
+
+Module docstring:
+> Load verified BaoStock data and construct point-in-time event features.
+
+Imports:
+- `collections`
+- `hashlib`
+- `io`
+- `json`
+- `numpy`
+- `pandas`
+- `pathlib`
+- `re`
+
+Functions:
+- `add_moving_average_features`
+  - A running n-day SMA includes the signal day's close in its last slot.
+- `round_a_share_limit`
+- `complete_future_rows`
+- `stock_features`
+- `load_panel`
+  - Return the verified panel, analysis calendar, coverage and data specification.
+
+
+## `app/research_web/strategy_validation/models.py`
+
+Module docstring:
+> Closed browser configuration for offline research strategy validation.
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `ValidationConfig`
+  - methods: strict_integer_choices, unique_rules
+
+
+## `app/research_web/strategy_validation/routes.py`
+
+Module docstring:
+> Explicit account actions for strictly offline research validation.
+
+Imports:
+- `collections.abc`
+- `contextlib`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `models`
+- `pydantic`
+- `starlette.concurrency`
+- `storage`
+- `store`
+- `threading`
+
+Functions:
+- `active`
+- `receive_slot`
+- `_body`
+- `_failure`
+- `_operation`
+- `list_records`
+- `import_dataset`
+- `create_run`
+- `get_run`
+- `get_events`
+
+
+## `app/research_web/strategy_validation/rules.py`
+
+Module docstring:
+> Deterministic event definitions. Rules only see signal-date or lagged columns.
+
+Imports:
+- `dataclasses`
+- `pandas`
+
+Classes:
+- `RuleSample`
+
+Functions:
+- `volume_stall`
+- `moving_average_break`
+- `prepare_sample`
+
+
+## `app/research_web/strategy_validation/storage.py`
+
+Module docstring:
+> Bounded archive parsing and account-local immutable inputs and run results.
+
+Imports:
+- `__future__`
+- `collections`
+- `contextlib`
+- `core.observability`
+- `csv`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `sqlite3`
+- `stat`
+- `store`
+- `tempfile`
+- `threading`
+- `zipfile`
+- `zlib`
+
+Classes:
+- `StrategyStore`
+  - methods: __init__, exists, _db, list, import_dataset, _calculate, create_run, run, events
+
+Functions:
+- `digest`
+- `serialized`
+- `reject`
+- `active`
+- `activity`
+- `_archive_member`
+- `_decode_archive`
+- `_csv`
+- `_verify_frozen_files`
+- `_identity`
+- `_summary`
+- `_engine_identity`
+- `_check_database_file`
 
 
 ## `app/research_web/tabbit.py`
