@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Web Host 内的策略验证读取当前账号冻结日线，按人工配置计算回放结果。浏览器使用既有同源 HTTP，导入和运行参加 Host 维护准入。参见[策略验证](../../research-web-strategy-validation.md)。
+
 Radar 时效升级依次校验 Native 主实例和附着网关版本，复用已接受前版、原启动配置和联合回滚。
 
 Research Bot 的 Radar 准入沿既有本机 Host 和读取适配器。运行历史可核查采用的缓存标志或源批次时点。

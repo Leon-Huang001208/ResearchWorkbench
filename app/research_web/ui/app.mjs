@@ -43,6 +43,7 @@ import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createEventLab, renderEventLab } from './event-lab.mjs';
+import { createStrategyValidation } from './strategy-validation.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
@@ -201,6 +202,10 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const eventLab = createEventLab({ request: (...args) => api.request(...args), onChange: () => { if (isEventLabRoute()) render(); } });
+const strategyValidation = createStrategyValidation({ api, onChange: () => { if (isStrategyValidationRoute()) render(); } });
+function isStrategyValidationRoute() {
+  return state.route.page === 'simulation' && state.route.simulationView === 'strategies';
+}
 function isEventLabRoute() {
   return (state.route.page === 'intel' && state.route.intelTab === 'timeline') ||
     (state.route.page === 'simulation' && ['events', 'scores'].includes(state.route.simulationView));
@@ -539,6 +544,7 @@ function currentSettingsConnectionId() {
 
 function mainPage() {
   if (state.route.page === 'research-bots') return researchBots.render();
+  if (isStrategyValidationRoute()) return strategyValidation.render();
   if (isEventLabRoute()) return renderEventLab(eventLab.state);
   if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
@@ -772,7 +778,7 @@ function render() {
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
     if (name === 'artifacts') return false;
     if (name === 'assetWorkspace') return state.route.page === 'assets' && state.route.section === 'assets';
-    if (name === 'etfPaper') return state.route.page === 'simulation';
+    if (name === 'etfPaper') return state.route.page === 'simulation' && !isStrategyValidationRoute();
     if (name === 'workbenchQueries') return isDataWorkspaceRoute(state.route) && !['assets', 'etf-paper'].includes(state.route.section);
     return true;
   });
@@ -1556,6 +1562,7 @@ async function showRoute() {
   if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
   intelController.cancel();
   eventLab.deactivate();
+  strategyValidation.deactivate();
   discoveryController.deactivate();
   dossierController.cancel();
 
@@ -1646,6 +1653,7 @@ async function showRoute() {
   if (state.route.page === 'research-bots') await researchBots.activate();
   if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
+  if (isStrategyValidationRoute()) await strategyValidation.activate();
   if (isEventLabRoute()) await eventLab.activate(state.route.page === 'intel' ? 'timeline' : state.route.simulationView === 'events' ? 'studies' : 'scores');
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'timeline') { /* Event lab owns this tab. */ }
@@ -1725,6 +1733,7 @@ function selectTabbit(tabId) {
 
 function handleInput(event) {
   if (event.target.closest?.('[data-bot-form]')) { void researchBots.handle(event); return; }
+  if (event.target.closest?.('.strategy-validation')) { void strategyValidation.handle(event); return; }
   if (event.target.closest?.('.event-lab')) { void eventLab.handle(event); return; }
   if (event.target.closest?.('[data-asset-research]')) { void assetResearch.handle(event); return; }
   if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
@@ -2079,6 +2088,7 @@ async function configureComposerModel(value) {
 
 root.addEventListener('change', async (event) => {
   if (event.target.closest?.('[data-bot-form]') && await researchBots.handle(event)) return;
+  if (event.target.closest?.('.strategy-validation') && await strategyValidation.handle(event)) return;
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   // This local filter form is submitted explicitly; generic redraw would discard its values.
   if (event.target.closest?.('[data-report-directory-filter]')) return;
@@ -2253,6 +2263,7 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   if (event.target.closest?.('[data-research-bots]') && await researchBots.handle(event)) return;
+  if (event.target.closest?.('.strategy-validation') && await strategyValidation.handle(event)) return;
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if (event.target.matches?.('[data-report-directory-filter]')) {
     event.preventDefault(); const values = new FormData(event.target);
@@ -2695,6 +2706,7 @@ root.addEventListener('pointerdown', event => {
 root.addEventListener('click', async (event) => {
   if (event.target.closest?.('[data-research-bots]') && await researchBots.handle(event)) return;
   if (sidebarOpen && closesSecondaryDrawer(event)) { sidebarOpen=false; render(); focusSidebarControl(document,true); return; }
+  if (event.target.closest?.('.strategy-validation') && await strategyValidation.handle(event)) return;
   if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;

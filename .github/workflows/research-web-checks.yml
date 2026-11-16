@@ -133,6 +133,8 @@ jobs:
             tests/research_web/test_event_studies_scoring.py \
             tests/research_web/test_event_studies_service.py \
             tests/research_web/test_event_studies_validation.py \
+            tests/research_web/test_strategy_validation_engine.py \
+            tests/research_web/test_strategy_validation_api.py \
             tests/research_web/test_event_timeline.py \
             tests/research_web/test_event_timeline_relevance.py \
             tests/research_web/test_event_timeline_scheduler.py \
