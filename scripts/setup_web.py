@@ -13,6 +13,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import zipfile
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -26,6 +27,14 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
 
 from app.research_web import RUNTIME_CONTRACT
+from app.research_web.qa_assets import (
+    QA_ASSET_PATH,
+    QA_BUNDLE_FILES,
+    QA_FRONTEND,
+    QA_MANIFEST,
+    qa_build_manifest,
+    qa_source_files,
+)
 
 # port_busy remains an explicit re-export for existing adapters and test doubles.
 from research_workbench_entrypoint.docker_runtime import (
@@ -1142,6 +1151,81 @@ class SetupWebInstaller:
         self.log.info("hot_dependencies_installed")
         return {"state": "installed"}
 
+    def build_qa_assets(self) -> None:
+        """Build the lockfile-pinned UI in a private staging directory before packaging."""
+        component = self.project_root / "app" / "research_web"
+        source = component / QA_FRONTEND
+        target = component / QA_ASSET_PATH
+        self._reject_alias(target.parent, "qa_assets_target_unsafe")
+        self._reject_alias(target, "qa_assets_target_unsafe")
+        if not target.parent.is_dir() or (target.exists() and not target.is_dir()):
+            raise RuntimeError("qa_assets_target_unsafe")
+        npm = self.npm_executable
+        if npm is not None and npm.suffix.lower() in {".cmd", ".bat", ".ps1"}:
+            npm = npm.parent / "node_modules" / "npm" / "bin" / "npm-cli.js"
+        if npm is None or not npm.is_file():
+            raise RuntimeError("qa_npm_missing")
+        environment = self._node_subprocess_environment()
+        # Keep staging and destination on the same filesystem for rename and rollback.
+        with tempfile.TemporaryDirectory(prefix=".qa-build-", dir=component) as temporary:
+            staging = Path(temporary)
+            workspace, assets = staging / "source", staging / "assets"
+            try:
+                for path in qa_source_files(source):
+                    destination = workspace / path.relative_to(source)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    self._reject_alias(path, "qa_source_unsafe")
+                    if not path.is_file():
+                        raise ValueError("qa_source_unsafe")
+                    shutil.copyfile(path, destination)
+            except (OSError, ValueError) as exc:
+                self.log.error(
+                    "setup_web_qa_source_invalid", extra={"error_type": type(exc).__name__}
+                )
+                raise RuntimeError("qa_source_invalid") from exc
+            npm_command = [str(self.node_executable), str(npm)]
+            self._run_checked(
+                [*npm_command, "ci", "--ignore-scripts", "--no-audit", "--no-fund"],
+                cwd=workspace,
+                environment=environment,
+                timeout=240,
+                failure_code="qa_dependency_install_failed",
+            )
+            self._run_checked(
+                [*npm_command, "--ignore-scripts", "run", "build", "--", "--outDir", str(assets)],
+                cwd=workspace,
+                environment=environment,
+                timeout=180,
+                failure_code="qa_frontend_build_failed",
+            )
+            try:
+                if {path.name for path in assets.iterdir()} != set(QA_BUNDLE_FILES):
+                    raise ValueError("qa_build_asset_set_invalid")
+                manifest = qa_build_manifest(workspace, assets)
+                if manifest != qa_build_manifest(source, assets):
+                    raise ValueError("qa_source_changed")
+                (assets / QA_MANIFEST).write_text(
+                    json.dumps(manifest, sort_keys=True), encoding="utf-8"
+                )
+            except (OSError, ValueError) as exc:
+                self.log.error(
+                    "setup_web_qa_build_invalid", extra={"error_type": type(exc).__name__}
+                )
+                raise RuntimeError("qa_frontend_build_invalid") from exc
+            previous = staging / "previous"
+            try:
+                if target.exists():
+                    target.replace(previous)
+                assets.replace(target)
+            except OSError as exc:
+                if previous.exists():
+                    previous.replace(target)
+                self.log.error(
+                    "setup_web_qa_publish_failed", extra={"error_type": type(exc).__name__}
+                )
+                raise RuntimeError("qa_frontend_publish_failed") from exc
+        self.log.info("setup_web_qa_assets_built")
+
     def install_ai_news_dependencies(self) -> dict[str, str]:
         """Install the pinned optional editorial engine without enabling it or migrating data."""
         component = self.project_root / "services" / "ai_news"
@@ -1197,6 +1281,7 @@ class SetupWebInstaller:
         self._prepare_data_home()
         self.write_install_transaction_state()
         environment_python = self.prepare_environment(repair=repair)
+        self.build_qa_assets()
         python_state = self.install_python_dependencies(environment_python)
         self.verify_web_import(environment_python)
 

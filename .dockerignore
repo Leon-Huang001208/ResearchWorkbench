@@ -78,6 +78,7 @@
 **/.mypy_cache
 **/.ruff_cache
 **/.env*
+**/.npmrc
 **/credentials
 **/secrets
 **/.research-workbench
@@ -89,5 +90,7 @@
 **/*.pem
 **/*.key
 **/node_modules
+app/research_web/ui/qa-dist
+app/research_web/.qa-build-*
 **/*.pyc
 **/.DS_Store

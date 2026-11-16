@@ -85,7 +85,7 @@
       "id": "browser",
       "type": "frontend",
       "label": "Research Web",
-      "sublabel": "FinGPT · Claw · 资产观察 · MCP 市场",
+      "sublabel": "AI 问答 · 专业协作 · Claw · 资产",
       "pos": [
         40,
         380
@@ -99,7 +99,7 @@
       "id": "api",
       "type": "backend",
       "label": "FastAPI BFF",
-      "sublabel": "同源API · 今日发现适配",
+      "sublabel": "同源 API · AlphaDesk 私有工作进程",
       "pos": [
         275,
         380
@@ -127,7 +127,7 @@
       "id": "dsh",
       "type": "external",
       "label": "专属 DSH 3081",
-      "sublabel": "Claw · Skill · Tabbit adapter",
+      "sublabel": "Claw · 专业协作 · Skill",
       "pos": [
         750,
         380
