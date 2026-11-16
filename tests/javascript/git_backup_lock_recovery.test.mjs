@@ -27,21 +27,32 @@ async function fixture(t, {createBackup} = {}) {
   const evidenceRoot = path.join(common, 'amend-evidence');
   for (const dir of [root, lock, partial, backupDirectory, source, common, receiptRoot, evidenceRoot,
     path.join(partial, 'logs'), path.join(partial, 'worktrees')]) fs.mkdirSync(dir, {mode: 0o700, recursive: true});
-  const eventTime = new Date();
+  const lockBirth = Number(fs.statSync(lock, {bigint: true}).birthtimeNs / 1000000n);
+  const pointBirth = Number(fs.statSync(partial, {bigint: true}).birthtimeNs / 1000000n);
+  const eventTime = new Date(Math.max(Date.now(), pointBirth));
   const log = path.join(partial, 'logs', 'git-safety.jsonl');
   const pack = path.join(partial, 'objects.pack');
   const event = {time: eventTime.toISOString(), action: 'backup-snapshot', event: 'backup_capacity',
-    status: 'PASS', phase: 'snapshot-stream', head, durationMs: 8};
+    status: 'PASS', phase: 'snapshot-stream', head, durationMs: eventTime.getTime() - lockBirth};
   fs.writeFileSync(pack, 'retain unverified bytes\n', {mode: 0o600});
   fs.writeFileSync(log, JSON.stringify(event)+'\n', {mode: 0o600});
+  const logTime = new Date(eventTime.getTime() + 10);
+  fs.utimesSync(log, logTime, logTime);
   const managedReceipt = path.join(receiptRoot, 'role-tags.json');
   fs.writeFileSync(managedReceipt, JSON.stringify({schemaVersion: 1, taskId: 'role-tags', repositoryRoot: source}), {mode: 0o600});
   const evidencePath = path.join(evidenceRoot, 'amend-interruption.json');
-  const evidence = {observedAt: new Date().toISOString(), disposition: 'STOPPED_BY_SIGINT_DISK_PRESSURE',
+  const observed = Math.max(Date.now(), ...[partial, pack, log, path.join(partial, 'worktrees')].map(
+    file => Number(fs.statSync(file, {bigint: true}).mtimeNs / 1000000n)));
+  const evidence = {observedAt: new Date(observed).toISOString(), disposition: 'STOPPED_BY_SIGINT_DISK_PRESSURE',
     exitedProcessGroup: 38775, exitCode: 130, retainedExactCandidate: 'b'.repeat(40),
     managedCandidateBeforeAmend: 'c'.repeat(40), managedReceipt, partialBackup: partial,
     locksPreserved: true, cliExternalBackupOverrideSupported: false, remoteWrites: 0};
   fs.writeFileSync(evidencePath, JSON.stringify(evidence)+'\n', {mode: 0o600});
+  // A Linux filesystem tick can be older than Date.now() for a just-written file.
+  // Establish the fixture's causal ordering explicitly without weakening the production guard.
+  const evidenceTime = new Date(observed + 10);
+  fs.utimesSync(evidencePath, evidenceTime, evidenceTime);
+  while (Date.now() < observed) await new Promise(resolve => setTimeout(resolve, 2));
   const inputs = {root, evidencePath, backupDirectory};
   const probes = {inspectBackup: () => ({hash: 'd'.repeat(64)}),
     verifyBackup: () => ({restoreVerified: true, fsck: 'PASS'}),
