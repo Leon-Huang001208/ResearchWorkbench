@@ -74,8 +74,7 @@ def files(monkeypatch):
     }
 
 
-def _submit(client, files):
-    raw = _archive(files)
+def _submit(client, raw):
     response = client.post(BASE + "/datasets", headers=ZIP_HEADERS, content=raw)
     assert response.status_code == 201, response.text
     assert response.json()["sha256"] == hashlib.sha256(raw).hexdigest()
@@ -130,8 +129,9 @@ def test_frozen_input_retry_pagination_and_account_isolation(tmp_path, monkeypat
     monkeypatch.setattr(engine, "run_validation", calculate)
     assert client.get(BASE).json() == {"datasets": [], "runs": []}
     assert not (root / storage.FOLDER).exists()
-    dataset = _submit(client, files)
-    assert _submit(client, files) == dataset
+    raw = _archive(files)
+    dataset = _submit(client, raw)
+    assert _submit(client, raw) == dataset
     with sqlite3.connect(root / storage.FOLDER / storage.DATABASE) as db:
         assert db.execute("SELECT count(*) FROM dataset_files").fetchone()[0] == len(files)
     posted = client.post(BASE + "/runs", headers=RUN_HEADERS, json=_request(dataset))
@@ -192,7 +192,7 @@ def test_reject_intent_media_archive_tamper_and_unbounded_config(tmp_path, files
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "strategy_input_digest_mismatch"
     assert client.get(BASE).json() == {"datasets": [], "runs": []}
-    dataset = _submit(client, files)
+    dataset = _submit(client, _archive(files))
     for overrides in (
         {"rules": ["sma5_close", "sma5_close"]},
         {"rules": []},
@@ -259,7 +259,7 @@ def test_only_one_request_can_buffer_a_body(tmp_path, monkeypatch, files):
 
     monkeypatch.setattr(routes, "_body", hold_body)
     with ThreadPoolExecutor(max_workers=1) as executor:
-        first = executor.submit(_submit, client, files)
+        first = executor.submit(_submit, client, _archive(files))
         try:
             assert entered.wait(5)
             assert routes.active()
@@ -279,7 +279,7 @@ def test_failed_event_rolls_back_and_disconnected_worker_remains_active(
     tmp_path, monkeypatch, files
 ):
     client = _client(tmp_path)
-    dataset = _submit(client, files)
+    dataset = _submit(client, _archive(files))
     entered = Event()
     release = Event()
 
