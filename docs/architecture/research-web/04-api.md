@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`/api/research/strategy-validation` 提供账号内冻结日线 ZIP 导入、明确运行、历史摘要和逐笔分页。配置冻结与幂等写入见[策略验证](../../research-web-strategy-validation.md#api)。
+
 Radar 时效升级验证继续经本机 `GET /api/research/research-bots` 和历史接口读取，真实验收使用受控临时 Bot。
 
 Radar 解包在外层确实提供 `cache_stale` 时保留该字段，明确过期优先。Research Bot 的历史 Run 可读回采用的缓存标志或来源批次时间及相应准入依据。

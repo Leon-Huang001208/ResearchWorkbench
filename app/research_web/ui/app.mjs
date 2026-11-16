@@ -42,7 +42,7 @@ import { mountCapitalFlow } from './asset-workspace.mjs';
 import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
-import { createEventLab, renderEventLab } from './event-lab.mjs';
+import { createEventResearchWorkspace } from './strategy-validation.mjs';
 import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
 import { createScenarioController, renderScenarioPanel, scenarioLaunchContext } from './scenarios.mjs';
 import { createAssetResearchController, renderAssetResearch } from './asset-research.mjs';
@@ -200,11 +200,7 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
-const eventLab = createEventLab({ request: (...args) => api.request(...args), onChange: () => { if (isEventLabRoute()) render(); } });
-function isEventLabRoute() {
-  return (state.route.page === 'intel' && state.route.intelTab === 'timeline') ||
-    (state.route.page === 'simulation' && ['events', 'scores'].includes(state.route.simulationView));
-}
+const eventResearch = createEventResearchWorkspace({ api, getRoute: () => state.route, onChange: render });
 const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
 const assetResearch = createAssetResearchController({api,changed:()=>paintAssetResearch(),onResearch:context=>scenarioController.open(context)});
 function paintAssetResearch() {
@@ -539,7 +535,8 @@ function currentSettingsConnectionId() {
 
 function mainPage() {
   if (state.route.page === 'research-bots') return researchBots.render();
-  if (isEventLabRoute()) return renderEventLab(eventLab.state);
+  const historicalResearch = eventResearch.render();
+  if (historicalResearch) return historicalResearch;
   if (state.route.page === 'reports') return renderReportWorkspace({ items: catalog.reportWorkflows, detail: reportWorkflowDetail, route: state.route, allowed: reportWorkflowsAllowed, loading: reportPageLoading, error: reportPageError, busy: reportWorkflowBusy });
   if (isDossierRoute(state.route)) return renderDossiers(dossierController.state);
   if (state.route.page === 'market') return renderMarketWorkspace(marketController, state.route);
@@ -772,7 +769,7 @@ function render() {
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
     if (name === 'artifacts') return false;
     if (name === 'assetWorkspace') return state.route.page === 'assets' && state.route.section === 'assets';
-    if (name === 'etfPaper') return state.route.page === 'simulation';
+    if (name === 'etfPaper') return eventResearch.showsEtfErrors();
     if (name === 'workbenchQueries') return isDataWorkspaceRoute(state.route) && !['assets', 'etf-paper'].includes(state.route.section);
     return true;
   });
@@ -781,7 +778,7 @@ function render() {
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
   marketController.paint(state.route.page, () => { root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: state.route, account: globalThis.__RWB_ACCOUNT__, runtime: catalog.runtime })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${catalogLabel(name)}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; });
   syncAssetResearch();
-  if (isEventLabRoute()) eventLab.restore(root);
+  eventResearch.restore(root);
   root.querySelector('.app-shell').inert = scenarioController.state.open;
   if (scenarioController.state.open && !document.activeElement?.closest?.('.scenario-panel')) root.querySelector('#scenario-query')?.focus({ preventScroll: true });
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
@@ -1555,7 +1552,7 @@ async function showRoute() {
   assetTopicNavigation = 0;
   if (isDossierRoute(requestedRoute)) controller.clearDossierHandoff(requestedRoute.dossierId || '');
   intelController.cancel();
-  eventLab.deactivate();
+  eventResearch.deactivate();
   discoveryController.deactivate();
   dossierController.cancel();
 
@@ -1646,7 +1643,7 @@ async function showRoute() {
   if (state.route.page === 'research-bots') await researchBots.activate();
   if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
-  if (isEventLabRoute()) await eventLab.activate(state.route.page === 'intel' ? 'timeline' : state.route.simulationView === 'events' ? 'studies' : 'scores');
+  if (eventResearch.isActiveRoute()) await eventResearch.activate();
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'timeline') { /* Event lab owns this tab. */ }
     else if (state.route.intelTab === 'discovery') await discoveryController.activate();
@@ -1725,7 +1722,7 @@ function selectTabbit(tabId) {
 
 function handleInput(event) {
   if (event.target.closest?.('[data-bot-form]')) { void researchBots.handle(event); return; }
-  if (event.target.closest?.('.event-lab')) { void eventLab.handle(event); return; }
+  if (eventResearch.handleInput(event)) return;
   if (event.target.closest?.('[data-asset-research]')) { void assetResearch.handle(event); return; }
   if (event.target.closest?.('.scenario-panel')) { void scenarioController.handle(event); return; }
   if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
@@ -2079,7 +2076,7 @@ async function configureComposerModel(value) {
 
 root.addEventListener('change', async (event) => {
   if (event.target.closest?.('[data-bot-form]') && await researchBots.handle(event)) return;
-  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
+  if (eventResearch.owns(event) && await eventResearch.handle(event)) return;
   // This local filter form is submitted explicitly; generic redraw would discard its values.
   if (event.target.closest?.('[data-report-directory-filter]')) return;
   if (event.target.matches?.('[data-report-run-select]')) {
@@ -2253,7 +2250,7 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   if (event.target.closest?.('[data-research-bots]') && await researchBots.handle(event)) return;
-  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
+  if (eventResearch.owns(event) && await eventResearch.handle(event)) return;
   if (event.target.matches?.('[data-report-directory-filter]')) {
     event.preventDefault(); const values = new FormData(event.target);
     const params = new URLSearchParams({ q: String(values.get('q') || '').slice(0, 120), status: String(values.get('status') || 'all') });
@@ -2695,7 +2692,7 @@ root.addEventListener('pointerdown', event => {
 root.addEventListener('click', async (event) => {
   if (event.target.closest?.('[data-research-bots]') && await researchBots.handle(event)) return;
   if (sidebarOpen && closesSecondaryDrawer(event)) { sidebarOpen=false; render(); focusSidebarControl(document,true); return; }
-  if (event.target.closest?.('.event-lab') && await eventLab.handle(event)) return;
+  if (eventResearch.owns(event) && await eventResearch.handle(event)) return;
   if(event.target.closest?.('[data-asset-research]') && await assetResearch.handle(event))return;
   if (event.target.closest?.('.scenario-panel') && await scenarioController.handle(event)) return;
   const scenarioAction = event.target.closest?.('[data-scenario-open], [data-workbench-handoff]');
