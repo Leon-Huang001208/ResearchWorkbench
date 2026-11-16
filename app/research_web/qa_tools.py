@@ -26,6 +26,8 @@ READ_CAPABILITIES = {
     if name not in {"database_schema", "table_query"}
 }
 MAX_TOOL_CALLS = 48
+SOURCE_PAGE_CHARS = 12_000
+SOURCE_PAGE_JSON_LIMIT = 23_000
 
 
 def _tool(name, description, props=None, required=()):
@@ -93,8 +95,9 @@ class TurnTools:
                     _tool("list_research_sources", "列出本轮已获准读取的网页、档案与附件。"),
                     _tool(
                         "read_research_source",
-                        "按已登记 ID 读取来源，不能提供任意 URL 或路径。",
-                        {"id": {"type": "string"}},
+                        "按已登记 ID 读取来源。网页和档案正文从 offset=0 开始，"
+                        "如有 next_offset，用同一 ID 继续读取，直到 next_offset 为 null。",
+                        {"id": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}},
                         ("id",),
                     ),
                 ]
@@ -159,10 +162,10 @@ class TurnTools:
             if (
                 name == "read_research_source"
                 and self.sources_allowed
-                and set(args) == {"id"}
+                and set(args) in ({"id"}, {"id", "offset"})
                 and isinstance(args["id"], str)
             ):
-                return await self.read(args["id"], call_id)
+                return await self.read(args["id"], call_id, offset=args.get("offset", 0))
             if "datahub" in self.scope and not self.automation:
                 if name == "list_frozen_datasets" and not args:
                     items = self.service.datahub.summaries(self.sid)[:30]
@@ -344,8 +347,12 @@ class TurnTools:
             sources.extend(source for source in found["sources"] if source["id"].startswith("web:"))
         return sources
 
-    async def read(self, identifier, call_id):
+    async def read(self, identifier, call_id, *, offset=0):
+        if type(offset) is not int or offset < 0:
+            raise StoreError("来源分页位置无效", "qa_source_offset_invalid", 422)
         if "uploads" in self.scope and identifier.startswith("file:"):
+            if offset:
+                raise StoreError("附件不支持来源分页", "qa_source_offset_invalid", 422)
             fid = identifier[5:]
             if fid not in self.attachments or not any(
                 item["id"] == fid and item["kind"] == "inputs"
@@ -362,15 +369,45 @@ class TurnTools:
         )
         if not allowed:
             raise StoreError("来源未获本轮授权", "qa_source_scope", 403)
-        data = await execute_source(self.service, self.sid, call_id, "read", identifier)
+        data = await execute_source(self.service, self.sid, call_id, "read", identifier, full=True)
         source = data.get("source") or {
             "id": identifier,
             "title": data.get("title") or identifier,
             "url": data.get("url"),
             "as_of": data.get("as_of"),
         }
+        content = data["content"]
+        if offset and offset >= len(content):
+            raise StoreError("来源分页位置无效", "qa_source_offset_invalid", 422)
+        page = {
+            "content": "",
+            "source": {**_source(source), "id": source["id"], "sha256": source.get("sha256")},
+            "observation_id": data.get("observation_id", source["id"]),
+            "offset": offset,
+            "next_offset": len(content),
+            "truncated": True,
+        }
+        envelope = json.dumps(page, ensure_ascii=False, separators=(",", ":"))
+        envelope_size = len(envelope.encode("utf-16-le")) // 2
+        remaining = SOURCE_PAGE_JSON_LIMIT - envelope_size
+        low, high = 0, min(SOURCE_PAGE_CHARS, len(content) - offset)
+        while low < high:
+            count = (low + high + 1) // 2
+            encoded = json.dumps(content[offset : offset + count], ensure_ascii=False)
+            if len(encoded.encode("utf-16-le")) // 2 - 2 <= remaining:
+                low = count
+            else:
+                high = count - 1
+        if remaining < 0 or (not low and offset < len(content)):
+            raise StoreError("来源分页超出响应上限", "qa_source_page_too_large", 409)
+        end = offset + low
+        page.update(
+            content=content[offset:end],
+            next_offset=end if end < len(content) else None,
+            truncated=end < len(content),
+        )
         self.record_source(source)
-        return {"data": data, "sources": [_source(source)]}
+        return {"data": page, "sources": [_source(source)]}
 
     async def report(self, plan):
         if self.report_written:
