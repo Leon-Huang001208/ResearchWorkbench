@@ -202,6 +202,10 @@ Native、Windows cmd 和 `python scripts/setup_web.py` 保留 legacy 单实例�
 `register` 登记新实例；同目标重复登记核验后保留原固定镜像，冲突 image/port/worktree 拒绝。
 后续 `up/status/doctor/stop` 使用原登记。
 `build` 创建新的候选与开发镜像，不改变任何已登记镜像；重新运行 build 使用 BuildKit 缓存。
+新开发镜像使用 `rwb-development:development`，构建成功后把该标签解析为完整镜像 ID 再写入
+`dev.image`。已登记实例依旧使用它们的完整镜像 ID。旧开发标签的清理沿受管镜像引用检查，
+保留现有实例和回滚所需的镜像。候选和控制镜像继续使用各自的 G0/G1 接口。
+正式运行和回滚的角色由实际部署及回滚账本确认。Mac Native 主实例没有正式 Docker 镜像。
 `register --image sha256:…` 只接受本 daemon 内存在的不可变 Linux arm64 image ID。
 image ID 是本地内容身份，尚不等于发布到 registry 的 manifest digest；G2 实施 digest 提升/回退。
 `rebuild` 只适用于 dev，精确删除已认证的开发容器并从同一登记镜像重建，保留源码与四个卷。

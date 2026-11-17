@@ -4,6 +4,8 @@
 
 PR #308 经 [策略验证常驻升级](research-web-gateway-upgrade.md#策略验证常驻升级) 切换现有 Mac mini。复用公开安装入口、Web 锁、现有生产解释器和固定 DSH，构建并安装本项目轮子。策略运行仅在登录后提交冻结行情时创建本账号的研究记录。
 
+受管 Docker 开发构建使用 `rwb-development:development`。实例启动使用账本中的完整镜像 ID，安装和激活仍分别执行。
+
 Mac mini 已安装实例可走 [Radar 时效升级](research-web-gateway-upgrade.md#research-bot-radar-时效升级)，复用原 Web 锁、固定 DSH 和安装轮子。
 
 Research Bot 的 Radar 来源兼容修补沿既有安装入口。真实模型、定时运行和数据冻结单独验收。

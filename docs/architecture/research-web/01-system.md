@@ -4,6 +4,8 @@ Native resident 在既有上线验收后复核实际运行版本，再对已绑�
 
 策略验证随 Web Host 轮子进入 Native 主实例，附接网关在同一受管事务更新版本，继续使用既有端口和已绑定账号。
 
+Docker 开发构建给输出镜像加 `development` 用途标签。控制器继续按完整镜像 ID 管理实例，Mac Native 主实例沿既有安装入口运行。
+
 Web Host 内的策略验证读取当前账号冻结日线，按人工配置计算回放结果。浏览器使用既有同源 HTTP，导入和运行参加 Host 维护准入。参见[策略验证](../../research-web-strategy-validation.md)。
 
 Radar 时效升级依次校验 Native 主实例和附着网关版本，复用已接受前版、原启动配置和联合回滚。
