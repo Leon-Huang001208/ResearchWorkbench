@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 FinGPT 长原件分页和正式安装入口。",
-  "reason": "分页工具合同已补到现有问答和档案文档，README 的项目入口继续适用。"
+  "summary": "复核 Native 正式上线验收后的工作树退役、FinGPT 长原件分页及公开安装入口。",
+  "reason": "退役资格、预览及恢复证据由 AGENT_WORKFLOW 说明。分页工具合同见现有问答和档案文档。README 的公开安装、策略验证和产品入口继续适用。"
 }

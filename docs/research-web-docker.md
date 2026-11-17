@@ -1,7 +1,8 @@
 # Mac mini Docker 开发与独立部署
 
-FinGPT 容器使用 Host 的读源分页合同。验收时可按同一来源 ID 逐页复原冻结正文并核对 SHA-256。
+上线后工作树退役目前由受管 Native 验收触发，作用范围为已登记的 Git 工作树。Docker 上线验收尚未接入此入口，镜像、容器、卷和构建缓存继续由各自的受管流程处理。
 
+FinGPT 容器使用 Host 的读源分页合同。验收时可按同一来源 ID 逐页复原冻结正文并核对 SHA-256。
 
 策略验证的 `apply-strategy-validation` 只切换已安装的 Native 主实例和附接网关。Docker 环境仍从相应版本构建镜像。
 
@@ -203,6 +204,10 @@ Native、Windows cmd 和 `python scripts/setup_web.py` 保留 legacy 单实例�
 `register` 登记新实例；同目标重复登记核验后保留原固定镜像，冲突 image/port/worktree 拒绝。
 后续 `up/status/doctor/stop` 使用原登记。
 `build` 创建新的候选与开发镜像，不改变任何已登记镜像；重新运行 build 使用 BuildKit 缓存。
+新开发镜像使用 `rwb-development:development`，构建成功后把该标签解析为完整镜像 ID 再写入
+`dev.image`。已登记实例依旧使用它们的完整镜像 ID。旧开发标签的清理沿受管镜像引用检查，
+保留现有实例和回滚所需的镜像。候选和控制镜像继续使用各自的 G0/G1 接口。
+正式运行和回滚的角色由实际部署及回滚账本确认。Mac Native 主实例没有正式 Docker 镜像。
 `register --image sha256:…` 只接受本 daemon 内存在的不可变 Linux arm64 image ID。
 image ID 是本地内容身份，尚不等于发布到 registry 的 manifest digest；G2 实施 digest 提升/回退。
 `rebuild` 只适用于 dev，精确删除已认证的开发容器并从同一登记镜像重建，保留源码与四个卷。
