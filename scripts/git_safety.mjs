@@ -94,8 +94,8 @@ function hashFile(filename) {
   return hash.digest('hex');
 }
 function fail(code) { throw Object.assign(new Error(code), {code}); }
-function command(executable, args, {cwd, input, inputFd, outputFd, allowFailure = false, env} = {}) {
-  const result = spawnSync(executable, args, {cwd, input, stdio: [inputFd ?? 'pipe', outputFd ?? 'pipe', 'pipe'], env: env ?? process.env, maxBuffer: 64 * 1024 * 1024});
+function command(executable, args, {cwd, input, inputFd, outputFd, allowFailure = false, env, timeout} = {}) {
+  const result = spawnSync(executable, args, {cwd, input, stdio: [inputFd ?? 'pipe', outputFd ?? 'pipe', 'pipe'], env: env ?? process.env, timeout, maxBuffer: 64 * 1024 * 1024});
   if (result.error || (!allowFailure && result.status !== 0)) fail('COMMAND_FAILED');
   return result;
 }
@@ -105,7 +105,9 @@ export function selectGitPath({platform = process.platform, gitPath, mutate = fa
 }
 function git(project, args, options = {}, extra = {}) {
   if (FORBIDDEN.has(args[0])) fail('MAINTENANCE_FORBIDDEN');
-  return command(selectGitPath(options), ['--no-optional-locks', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-C', project, ...args], {...extra,...(options.readOnlyGit?{env:{...process.env,...extra.env,GIT_NO_LAZY_FETCH:'1',GIT_NO_REPLACE_OBJECTS:'1'}}:{})});
+  const retirement = options.retirementReadTimeout ? ['-c', 'core.fsmonitor=false'] : [];
+  const timeout = args[0] === 'worktree' && args[1] === 'remove' ? undefined : options.retirementReadTimeout;
+  return command(selectGitPath(options), ['--no-optional-locks', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', ...retirement, '-C', project, ...args], {timeout,...extra,...(options.readOnlyGit?{env:{...process.env,...extra.env,GIT_NO_LAZY_FETCH:'1',GIT_NO_REPLACE_OBJECTS:'1'}}:{})});
 }
 function output(result) { return result.stdout.toString('utf8').trim(); }
 function discover(projectRoot, options = {}) {
@@ -883,8 +885,8 @@ export function backupRepository({projectRoot}, options = {}) {
   options = {...options, startedAt: Date.now()};
   return withRepositoryLock({projectRoot}, repository => backupUnlocked(repository, options), options);
 }
-function occupied(directory) {
-  const result = command('/usr/sbin/lsof', ['-nP', '+D', directory], {allowFailure: true});
+function occupied(directory, timeout) {
+  const result = command('/usr/sbin/lsof', ['-nP', '+D', directory], {allowFailure: true, timeout});
   if (result.status === 0) return true;
   if (result.status === 1 && !result.stderr.toString().trim()) return false;
   fail('PROCESS_PROBE_FAILED');
@@ -2115,7 +2117,7 @@ function githubRepo(receipt) {
   if (!match) fail('GITHUB_REMOTE_REQUIRED');
   return match[1];
 }
-function gh(args, cwd, options) { return (options.githubRunner ?? ((commandName, argv, extra) => command(commandName, argv, extra)))('gh', args, {cwd}); }
+function gh(args, cwd, options) { return (options.githubRunner ?? ((commandName, argv, extra) => command(commandName, argv, extra)))('gh', args, {cwd, timeout: options.retirementReadTimeout}); }
 function githubJson(args, repository, options) { return JSON.parse(output(gh(args, repository.repositoryRoot, options))); }
 function quota(repository, options) {
   if (options.quotaProbe) { if (!options.quotaProbe(repository).allowed) fail('ACTIONS_BUDGET_BLOCKED'); return; }
@@ -2303,6 +2305,12 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         quota(repository, options);
         const receipt = controller.readDeliveryReceipt(common);
         assertReviewed(repository, receipt);
+        const retirement = path.join(retirementDirectory(repository, taskId), 'deployed-worktree-retirement.json');
+        if (fs.existsSync(retirement)) {
+          const record = recoveryJson(retirement).value;
+          if (record.status !== 'complete') fail('WORKTREE_RETIREMENT_PENDING');
+          return {...receipt, worktreeRetirement: 'retired'};
+        }
         if(receipt.status==='cleaned') {
           result=controller.validateCleanedDelivery(common);
           validateCompletedCloseout(repository,taskId,receipt,options);
@@ -2352,10 +2360,14 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         const finalization=closeoutFinalization(repository,taskId);
         if (fs.existsSync(finalization)) writePrivateJson(finalization,{...JSON.parse(fs.readFileSync(finalization,'utf8')),status:'complete'});
       }
-      if (action === 'status' && result.status === 'ci_passed' && params.deferCleanup === true && closeoutEnabled(repository)) {
+      if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(repository) &&
+          (params.deferCleanup === true || deploymentRetirementEnabled(repository))) {
         log(repository, 'delivery-cleanup-deferred', 'DEFERRED', undefined, {safetyCleanupDeferred: true, readOnly: false}, options);
         safetyCleanupDeferred = true;
-        result = {...result, safetyCleanupDeferred: true};
+        const file = path.join(retirementDirectory(repository, taskId), 'deployed-worktree-retirement.json');
+        const retired = fs.existsSync(file) && recoveryJson(file).value.status === 'complete';
+        result = {...result, safetyCleanupDeferred: true,
+          ...(deploymentRetirementEnabled(repository) ? {worktreeRetirement: retired ? 'retired' : 'pending'} : {})};
       }
       log(repository, 'delivery-' + action, 'PASS', undefined, result?.safetyBackup ? {backup: result.safetyBackup, concurrentRefAdvances: result.concurrentRefAdvances} : {}, options);
       return result;
@@ -2413,13 +2425,295 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
   }
   return result;
 }
+function deploymentRetirementEnabled(repository, options = {}) {
+  const identity = options.identityRoot ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const source = options.retirementPolicyRoot ?? identity;
+  if (!fs.existsSync(path.join(source, '.agents/resource-closeout.json')) ||
+      discover(identity, options).commonDirectory !== repository.commonDirectory) return false;
+  const policy = path.join(source, '.agents/deployed-worktree-retirement.json');
+  const info = fs.lstatSync(policy, {throwIfNoEntry: false});
+  if (!info) return false;
+  if (!info.isFile() || JSON.parse(fs.readFileSync(policy, 'utf8')).schemaVersion !== 1)
+    fail('WORKTREE_RETIREMENT_POLICY_INVALID');
+  return true;
+}
+
+function retirementDirectory(repository, taskId) {
+  return path.join(repository.commonDirectory, 'leon-engineering/resource-closeout', taskId);
+}
+
+function writeRetirementProof(filename, value) {
+  writePrivateJson(filename, value);
+  for (const target of [filename, path.dirname(filename)]) {
+    const fd = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+  }
+}
+
+function checkRetirementUse(root, options) {
+  const timeout = options.retirementReadTimeout;
+  if ((options.processProbe ?? occupied)(root, timeout)) fail('WORKTREE_OCCUPIED');
+  if (options.retirementUseProbe) {
+    if (options.retirementUseProbe(root)) fail('WORKTREE_OCCUPIED');
+    return;
+  }
+  const matches = directory => typeof directory === 'string' &&
+    (directory === root || directory.startsWith(root + path.sep) ||
+     directory.startsWith(path.sep) && root.startsWith(directory + path.sep));
+  const containsIdentity = (child, parent) => {
+    const expected = fs.statSync(parent);
+    let current = child;
+    for (;;) {
+      const actual = fs.statSync(current);
+      if (actual.dev === expected.dev && actual.ino === expected.ino) return true;
+      const next = path.dirname(current);
+      if (next === current) return false;
+      current = next;
+    }
+  };
+  const dockerPath = '/usr/local/bin/docker';
+  const context = ['--context', 'desktop-linux'];
+  const endpoint = command(dockerPath, ['context', 'inspect', 'desktop-linux', '--format', '{{.Endpoints.docker.Host}}'], {allowFailure: true, timeout});
+  if (endpoint.status !== 0 || !output(endpoint).startsWith('unix://')) fail('WORKTREE_MOUNT_UNVERIFIED');
+  const docker = command(dockerPath, [...context, 'ps', '-aq'], {allowFailure: true, timeout});
+  if (docker.status !== 0) fail('WORKTREE_MOUNT_UNVERIFIED');
+  const containers = output(docker).split(/\s+/).filter(Boolean);
+  for (let offset = 0; offset < containers.length; offset += 32) {
+    const mounts = output(command(dockerPath, [...context, 'inspect', '--format', '{{json .Mounts}}', ...containers.slice(offset, offset + 32)], {timeout}));
+    if (mounts.split('\n').some(line => (JSON.parse(line) ?? []).some(item => {
+      if (item.Type !== 'bind') return false;
+      const source = item.Source?.replace(/^\/host_mnt(?=\/)/, '');
+      if (matches(source)) return true;
+      if (typeof source !== 'string' || !path.isAbsolute(source)) fail('WORKTREE_MOUNT_UNVERIFIED');
+      const actual = fs.realpathSync(source);
+      return matches(actual) || containsIdentity(actual, root) || containsIdentity(root, actual);
+    })))
+      fail('WORKTREE_MOUNT_IN_USE');
+  }
+  const database = path.join(os.homedir(), '.codex/state_5.sqlite');
+  if (!fs.existsSync(database)) return;
+  const quoted = "'" + root.replaceAll("'", "''") + "'";
+  const sql = `SELECT count(*) FROM threads WHERE archived=0 AND (cwd=${quoted} OR instr(cwd,${quoted} || '/')=1)
+    UNION ALL SELECT count(*) FROM thread_attachments a JOIN threads t ON t.id=a.thread_id
+    WHERE t.archived=0 AND instr(CAST(a.payload AS TEXT),${quoted})>0;`;
+  const claims = command('/usr/bin/sqlite3', ['-batch', '-readonly', database, sql], {allowFailure: true, timeout});
+  if (claims.status !== 0 || !/^[0-9]+\n[0-9]+$/.test(output(claims))) fail('WORKTREE_TASK_USE_UNVERIFIED');
+  if (output(claims) !== '0\n0') fail('WORKTREE_TASK_IN_USE');
+}
+
+function cloudWorktree(root) {
+  const home = os.homedir();
+  const cloud = path.join(home, 'Library/Mobile Documents');
+  if (root.startsWith(cloud + path.sep) || root.startsWith(path.join(home, 'Library/CloudStorage') + path.sep)) return true;
+  const relative = path.relative(home, root);
+  if (!/^(Desktop|Documents)\//.test(relative)) return false;
+  const mirror = fs.lstatSync(path.join(cloud, 'com~apple~CloudDocs', relative), {throwIfNoEntry: false});
+  const local = fs.lstatSync(root, {throwIfNoEntry: false});
+  return mirror && local && mirror.dev === local.dev && mirror.ino === local.ino;
+}
+
+function officialRwbOrigin(root, options) {
+  const remote = output(git(root, ['remote', 'get-url', 'origin'], options));
+  return /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)(?:Leon-Huang001208\/ResearchWorkbench)(?:\.git)?$/.test(remote);
+}
+
+function retirementDeliveryIdentity(receipt) {
+  return sha256(JSON.stringify([receipt.taskId, receipt.repositoryRoot, receipt.remoteUrl, receipt.mode,
+    receipt.status, receipt.integrationCommit, receipt.ci?.status, receipt.verification?.status,
+    receipt.pullRequest?.number, receipt.pullRequest?.url, managed(receipt)]));
+}
+
+export async function retireDeployedWorktrees({projectRoot, residentRoot, taskId, apply = false}, options = {}) {
+  const {nativeRetirementAcceptance, withNativeRetirementAdmission} = await import('./native_retirement_acceptance.mjs');
+  options = {...options, readOnlyGit: true, retirementReadTimeout: 20000};
+  selectGitPath({...options, mutate: apply});
+  const accepted = repository => (options.retirementAcceptance ?? nativeRetirementAcceptance)(
+    {root: residentRoot, commonDirectory: repository.commonDirectory},
+    {installedHead: root => {
+      const installed = discover(root, options);
+      if (root !== installed.repositoryRoot || !officialRwbOrigin(installed.repositoryRoot, options) ||
+          !officialRwbOrigin(repository.repositoryRoot, options)) fail('DEPLOYMENT_REPOSITORY_MISMATCH');
+      return output(git(root, ['rev-parse', 'HEAD'], options));
+    }});
+  const run = async (repository, assertAdmission = () => {}) => {
+    assertRepositoryIdentity(repository, options);
+    if (!deploymentRetirementEnabled(repository, options)) fail('WORKTREE_RETIREMENT_DISABLED');
+    const state = path.join(repository.commonDirectory, 'leon-engineering');
+    const deliveries = path.join(state, 'deliveries');
+    assertNoSymlinkAncestors(deliveries);
+    const entries = taskId ? [taskId + '.json'] : fs.readdirSync(deliveries).filter(name => name.endsWith('.json')).sort();
+    if (entries.length > 2000) fail('WORKTREE_RETIREMENT_SCAN_LIMIT');
+    let acceptance;
+    let acceptanceError;
+    try { acceptance = accepted(repository); }
+    catch (error) { acceptanceError = error.code ?? 'DEPLOYMENT_EVIDENCE_UNAVAILABLE'; }
+    const matchesDeployment = () => {
+      assertAdmission();
+      if (JSON.stringify(accepted(repository)) !== JSON.stringify(acceptance)) fail('DEPLOYMENT_EVIDENCE_CHANGED');
+    };
+    const ancestor = (commit, tip) => git(projectRoot, ['merge-base', '--is-ancestor', commit, tip], options, {allowFailure: true}).status === 0;
+    if (apply && acceptance && !ancestor(acceptance.target, 'refs/remotes/origin/master')) {
+      assertAdmission();
+      repository.assertLockOwned();
+      git(projectRoot, ['fetch', '--no-tags', '--no-prune', '--no-prune-tags', '--no-write-fetch-head', '--no-recurse-submodules',
+        'https://github.com/Leon-Huang001208/ResearchWorkbench.git',
+        'refs/heads/master:refs/remotes/origin/master'], options, {env: {GIT_TERMINAL_PROMPT: '0'}});
+    }
+    const items = [];
+    let retired = false;
+    for (const basename of entries) {
+      if (apply && retired) break;
+      const id = basename.slice(0, -5);
+      if (!ID.test(id) || taskId && id !== taskId) fail('DELIVERY_ARGUMENT_INVALID');
+      try {
+        const deliveryFile = path.join(deliveries, basename);
+        const saved = recoveryJson(deliveryFile);
+        const receipt = saved.value;
+        if (receipt.status !== 'ci_passed') continue;
+        const deliveryIdentity = retirementDeliveryIdentity(receipt);
+        const directory = retirementDirectory(repository, id);
+        const recordFile = path.join(directory, 'deployed-worktree-retirement.json');
+        const existing = fs.existsSync(recordFile) ? recoveryJson(recordFile).value : null;
+        if (existing?.status === 'complete') {
+          if (existing.deliveryIdentity !== deliveryIdentity || existing.targets.some(row =>
+            fs.lstatSync(row.worktree, {throwIfNoEntry: false}) || worktrees(repository, options).some(tree => tree.worktree === row.worktree)))
+            fail('WORKTREE_RETIREMENT_STATE_CHANGED');
+          continue;
+        }
+        if (acceptanceError) fail(acceptanceError);
+        if (receipt.taskId !== id || receipt.repositoryRoot !== repository.repositoryRoot ||
+            receipt.mode !== 'pr' || receipt.verification?.status !== 'passed' || receipt.ci?.status !== 'passed')
+          fail('WORKTREE_RETIREMENT_DELIVERY_UNVERIFIED');
+        assertReviewed(repository, receipt);
+        if (output(git(projectRoot, ['remote', 'get-url', 'origin'], options)) !== receipt.remoteUrl)
+          fail('REMOTE_IDENTITY_CHANGED');
+        const targets = managed(receipt);
+        if (!targets.length || targets.some(row => !row.worktree || !/^[a-f0-9]{40}$/.test(row.commit ?? '') ||
+            !row.branch?.startsWith(`codex/${id}-`) && !new RegExp(`^codex/integrate-${id}(?:-r[0-9]+)?$`).test(row.branch)))
+          fail('TASK_OWNERSHIP_MISMATCH');
+        if (targets.some(row => cloudWorktree(row.worktree))) fail('WORKTREE_CLOUD_REVIEW_REQUIRED');
+        if (fs.existsSync(closeoutFinalization(repository, id))) fail('LEGACY_CLOSEOUT_IN_PROGRESS');
+        const registrationFile = path.join(directory, 'resources.json');
+        const registrationRecord = recoveryJson(registrationFile);
+        const registration = registrationRecord.value;
+        if (registration.taskId !== id) fail('TASK_OWNERSHIP_MISMATCH');
+        if (!ancestor(acceptance.target, 'refs/remotes/origin/master') ||
+            !targets.every(row => ancestor(row.commit, acceptance.target))) fail('WORKTREE_NOT_IN_DEPLOYMENT');
+        const pr = githubJson(['pr', 'view', receipt.pullRequest.url, '--repo', githubRepo(receipt),
+          '--json', 'state,headRefOid,baseRefName,mergeCommit'], repository, options);
+        if (pr.state !== 'MERGED' || pr.baseRefName !== 'master' || pr.headRefOid !== receipt.integrationCommit ||
+            !/^[a-f0-9]{40}$/.test(pr.mergeCommit?.oid ?? '') || !ancestor(pr.mergeCommit.oid, acceptance.target))
+          fail('WORKTREE_NOT_IN_DEPLOYMENT');
+        const paths = worktrees(repository, options);
+        const remaining = targets.filter(row => {
+          const stat = fs.lstatSync(row.worktree, {throwIfNoEntry: false});
+          const entry = paths.find(tree => tree.worktree === row.worktree);
+          if (!stat && !entry && existing?.targets.some(item => item.worktree === row.worktree && item.commit === row.commit))
+            return false;
+          const identity = registration.roots?.[row.worktree];
+          if (!stat?.isDirectory() || fs.realpathSync(row.worktree) !== row.worktree ||
+              row.worktree === projectRoot || row.worktree === acceptance.project || entry?.locked || entry?.prunable ||
+              !Array.isArray(identity) || identity[0] !== stat.dev || identity[1] !== stat.ino ||
+              entry?.HEAD !== row.commit || entry.branch !== 'refs/heads/' + row.branch ||
+              discover(row.worktree, options).commonDirectory !== repository.commonDirectory)
+            fail('TASK_OWNERSHIP_MISMATCH');
+          checkRetirementUse(row.worktree, options);
+          if (output(git(row.worktree, ['status', '--porcelain', '--untracked-files=all'], options))) fail('WORKTREE_DIRTY');
+          assertNoIgnoredData(row.worktree, options);
+          return true;
+        });
+        if (existing && (existing.schemaVersion !== 1 || existing.status !== 'pending' ||
+            existing.deliveryIdentity !== deliveryIdentity ||
+            !/^[a-f0-9]{40}$/.test(existing.deployment?.target ?? '') ||
+            !ancestor(existing.deployment.target, acceptance.target) ||
+            existing.targets.length !== targets.length || targets.some(row => !existing.targets.some(old =>
+              old.worktree === row.worktree && old.commit === row.commit && old.branch === row.branch))))
+          fail('WORKTREE_RETIREMENT_STATE_CHANGED');
+        if (!apply) {
+          items.push({taskId: id, status: 'candidate', paths: remaining.map(row => row.worktree)});
+          continue;
+        }
+        assertNativeUnlocked(repository);
+        const {proveDeployedWorktree} = await import('./git_deployed_worktree_proof.mjs');
+        const prove = row => (options.retirementProof ?? proveDeployedWorktree)(
+          {projectRoot, worktree: row.worktree, commit: row.commit, deployedCommit: acceptance.target},
+          {gitPath: selectGitPath(options)});
+        const proofs = remaining.map(row => ({...row, proof: prove(row)}));
+        const intent = existing ?? {schemaVersion: 1, taskId: id, status: 'pending',
+          deployment: acceptance, deliverySha256: saved.sha256, deliveryIdentity, targets: proofs};
+        matchesDeployment();
+        repository.assertLockOwned();
+        if (!existing) writeRetirementProof(recordFile, intent);
+        const freeBytes = () => {
+          const {bavail, bsize} = fs.statfsSync(projectRoot);
+          return bavail * bsize;
+        };
+        const freeBefore = freeBytes();
+        for (const row of proofs) {
+          if (JSON.stringify(prove(row)) !== JSON.stringify(row.proof)) fail('WORKTREE_RETIREMENT_STATE_CHANGED');
+          matchesDeployment();
+          repository.assertLockOwned();
+          checkRetirementUse(row.worktree, options);
+          const stat = fs.lstatSync(row.worktree);
+          const entry = worktrees(repository, options).find(tree => tree.worktree === row.worktree);
+          if (!stat.isDirectory() || stat.dev !== registration.roots[row.worktree][0] ||
+              stat.ino !== registration.roots[row.worktree][1] || entry?.HEAD !== row.commit ||
+              entry.branch !== 'refs/heads/' + row.branch || entry.locked || entry.prunable ||
+              discover(row.worktree, options).commonDirectory !== repository.commonDirectory)
+            fail('TASK_OWNERSHIP_MISMATCH');
+          if (recoveryJson(deliveryFile).sha256 !== saved.sha256 ||
+              recoveryJson(registrationFile).sha256 !== registrationRecord.sha256) fail('WORKTREE_RETIREMENT_STATE_CHANGED');
+          assertNativeUnlocked(repository);
+          assertAdmission();
+          repository.assertLockOwned();
+          git(projectRoot, ['worktree', 'remove', row.worktree], options);
+        }
+        if (targets.some(row => fs.lstatSync(row.worktree, {throwIfNoEntry: false}) ||
+            worktrees(repository, options).some(tree => tree.worktree === row.worktree)))
+          fail('WORKTREE_RETIREMENT_STATE_CHANGED');
+        fsck(repository, options);
+        const freeAfter = freeBytes();
+        writeRetirementProof(recordFile, {...intent, status: 'complete', completedAtDeployment: acceptance.target,
+          freeBefore, freeAfter});
+        log(repository, 'deployed-worktree-retirement', 'PASS', undefined, {taskId: id}, options);
+        items.push({taskId: id, status: 'retired', paths: targets.map(row => row.worktree), observedFreeBytes: freeAfter - freeBefore});
+        retired = true;
+      } catch (error) {
+        items.push({taskId: id, status: 'blocked', code: error.code ?? 'WORKTREE_RETIREMENT_FAILED'});
+      }
+    }
+    return {status: apply ? items.some(item => item.status === 'blocked') ? 'cleanup_pending' : 'complete' : 'preview', items};
+  };
+  if (!apply) return run(discover(projectRoot, options));
+  if (!options.retirementAdmission && residentRoot !== path.join(os.homedir(), '.research-workbench', 'resident'))
+    fail('DEPLOYMENT_ADMISSION_UNVERIFIED');
+  return (options.retirementAdmission ?? withNativeRetirementAdmission)(residentRoot, assertAdmission => {
+    const source = discover(projectRoot, options);
+    const tool = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const checkout = discover(options.identityRoot ?? tool, options);
+    if (checkout.commonDirectory !== source.commonDirectory) {
+      const live = accepted(source);
+      if (live.project !== tool) fail('DEPLOYMENT_REPOSITORY_MISMATCH');
+      for (const file of ['.agents/deployed-worktree-retirement.json', 'scripts/git_safety.mjs',
+        'scripts/native_retirement_acceptance.mjs', 'scripts/git_deployed_worktree_proof.mjs', 'scripts/backup_fd_clone.py']) {
+        const expected = output(git(tool, ['rev-parse', `${live.target}:${file}`], options));
+        if (output(git(tool, ['hash-object', '--no-filters', '--', file], options)) !== expected)
+          fail('DEPLOYMENT_RETIREMENT_TOOL_CHANGED');
+      }
+      options = {...options, identityRoot: source.repositoryRoot, retirementPolicyRoot: tool};
+    }
+    return withRepositoryLock({projectRoot}, repository => run(repository, assertAdmission), options);
+  });
+}
+
 export function parseCli(args) {
   const [subcommand, ...rest] = args;
   const recovery = ['closeout-recover', 'backup-lock-recover', 'worktree-revalidate'];
-  if (!['check', 'configure', 'backup', 'delivery', 'backup-audit', 'backup-migrate', 'backup-prune', ...recovery].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
+  if (!['check', 'configure', 'backup', 'delivery', 'backup-audit', 'backup-migrate', 'backup-prune', 'worktree-retirement', ...recovery].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
   const options = {};
   const values = new Map([['--project', 'projectRoot'], ['--task-id', 'taskId'], ['--recovery-backup', 'backupDirectory'], ['--preview-sha256', 'previewSha256'], ['--slug', 'slug'], ['--worktree-root', 'worktreeRoot'], ['--reviewed-commit', 'reviewedCommit'], ['--verification-command', 'verificationCommand'], ['--verification-status', 'verificationStatus'], ['--verification-duration-seconds', 'verificationDuration']]);
   values.set('--interruption-evidence', 'interruptionEvidence');
+  values.set('--resident-root', 'residentRoot');
   for (let index = 0; index < rest.length; index++) {
     const item = rest[index];
     if (['--start', '--prepare', '--publish', '--status', '--cleanup'].includes(item)) { if (options.action) fail('CLI_ACTION_INVALID'); options.action = item.slice(2); }
@@ -2433,6 +2727,12 @@ export function parseCli(args) {
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
   if (options.deferCleanup !== undefined && (subcommand !== 'delivery' || options.action !== 'status')) fail('CLI_OPTION_INVALID');
+  if (subcommand === 'worktree-retirement') {
+    if (!options.residentRoot || options.taskId && !ID.test(options.taskId) ||
+        Object.keys(options).some(key => !['projectRoot', 'residentRoot', 'taskId', 'apply'].includes(key))) fail('CLI_ARGUMENT_REQUIRED');
+    return {subcommand, options};
+  }
+  if (options.residentRoot) fail('CLI_OPTION_INVALID');
   if (recovery.includes(subcommand)) {
     const binding = subcommand === 'backup-lock-recover' ? 'interruptionEvidence' : 'taskId';
     const keys = ['projectRoot', binding, 'backupDirectory', 'previewSha256', 'apply'];
@@ -2461,6 +2761,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const {subcommand, options} = parseCli(process.argv.slice(2));
     const handlers = {
       check: checkRepository, configure: configureRepository, backup: backupRepository, delivery: runDelivery,
+      'worktree-retirement': retireDeployedWorktrees,
       'backup-audit': maintainBackups, 'backup-migrate': maintainBackups, 'backup-prune': maintainBackups,
       'closeout-recover': recoverCloseoutFinalization, 'backup-lock-recover': recoverBackupLock,
       'worktree-revalidate': revalidateWorktreeIdentity,
@@ -2469,7 +2770,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
-      'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment', 'gitStatus', 'lifecycleCloseout'
+      'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment', 'gitStatus', 'lifecycleCloseout', 'worktreeRetirement'
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};
     process.stdout.write(JSON.stringify(rendered, null, 2) + '\n');
