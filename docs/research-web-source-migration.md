@@ -2,6 +2,8 @@
 
 策略验证操作员要求干净受审工作树。主实例与附接网关的各自 Git 仓库须在停机前具备同一精确目标对象；从已核验的远端取得对象后，由联合事务切换源码。
 
+受管 Docker 开发构建的标签可随源码规则更新。迁移或恢复既有实例时，继续核对其账本中的完整镜像 ID、工作树和数据卷归属。
+
 Radar 时效升级绑定固定产品提交与普通合并祖先。若交付工作树的 common directory 与常驻登记仓库不同，仍经 `resident.delivery_transfer` 导入精确评审与 CI 证据。
 
 Research Bot 操作员从已注册的 `source_common` 使用干净受审工作树。交付记录来自另一个 Git common directory 时，先用 `delivery_transfer` 核验并导入精确交付和评审记录。
