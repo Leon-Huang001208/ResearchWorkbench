@@ -1598,6 +1598,172 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
 
 
 @pytest.mark.parametrize(
+    "real_operations", [upgrade.FINGPT_MODE], indirect=True
+)
+@pytest.mark.parametrize("scenario", ["success", "busy", "changed_capsule", "interrupted", "late_write", "retention_due", "completion_interrupted"])
+def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
+    real_operations, monkeypatch, scenario
+):
+    from contextlib import nullcontext
+
+    from app.research_web import service_manager
+
+    home, state, system, make, uid = real_operations
+    # Simulate only the operator admission check. The fence still needs the
+    # actual host platform to select its atomic rename implementation.
+    monkeypatch.setattr(upgrade, "sys", SimpleNamespace(platform="darwin"))
+    root = home / "resident"
+    state["config"].update(
+        artifact=str(root / "controller.pyz"), artifact_sha256=upgrade.CONTROLLER_SHA256
+    )
+    upgrade.c.atomic(root / "config.json", state["config"])
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        assert upgrade.execute(make(fence), state)["status"] == "deployed"
+    accepted = upgrade.read_json(root / "accepted.json")
+    capsule = upgrade.fingpt_rollback_capsule(home, state["target"])
+    assert upgrade.c.digest(capsule) == accepted["fingpt_rollback_sha256"]
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+    assert not {"before", "asset_index_before", "model_before"} & set(
+        upgrade.g.read_upgrade_journal(capsule)
+    )
+
+    index = home / "research-web/index.json"
+    new_data = {**upgrade.read_json(index), "sessions": {"new-session": {}}}
+    upgrade.c.atomic(index, new_data)
+    manager = make(None).manager
+    manager._installation_start_scope = nullcontext
+    monkeypatch.setattr(service_manager, "WebServiceManager", lambda **_kwargs: manager)
+    monkeypatch.setattr(upgrade.c, "configured", lambda _home: (root, upgrade.read_json(root / "config.json")))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "validate_state", lambda path, value: upgrade.validate_configuration(path, value))
+    fenced_health = upgrade.g.health
+
+    def health(gateway, *, fenced):
+        if not fenced:
+            assert gateway["revision"] == system["gateway"] == state["target"]
+            return
+        fenced_health(gateway, fenced=fenced)
+
+    monkeypatch.setattr(upgrade.g, "health", health)
+    if scenario == "busy":
+        system["active"] = True
+
+        def busy(*_args):
+            raise upgrade.MaintenanceBusy("research_active")
+
+        monkeypatch.setattr(upgrade, "verify_primary", busy)
+    if scenario == "changed_capsule":
+        capsule.write_bytes(capsule.read_bytes() + b"\n")
+    if scenario == "retention_due":
+        upgrade.c.atomic(
+            home / "server/users" / uid / "research-web/index.json",
+            {"sessions": {"pending-deletion": {"deleted_at": 1}}},
+        )
+    if scenario == "late_write":
+        drain = upgrade.g.graceful_drain
+        new_data["sessions"]["last-inflight-session"] = {}
+
+        def drain_with_write(*args, **kwargs):
+            # A request admitted before fencing can finish while draining.
+            upgrade.c.atomic(index, new_data)
+            return drain(*args, **kwargs)
+
+        monkeypatch.setattr(upgrade.g, "graceful_drain", drain_with_write)
+
+        def preserved(path, before):
+            assert before == upgrade.g.preservation(path)
+            assert upgrade.read_json(index) == new_data
+
+        monkeypatch.setattr(upgrade.g, "preserved", preserved)
+    if scenario == "interrupted":
+        install = upgrade.Operations.install
+
+        def unavailable(self, previous):
+            if previous:
+                raise OSError("isolated install interrupted")
+            return install(self, previous)
+
+        monkeypatch.setattr(upgrade.Operations, "install", unavailable)
+    if scenario == "completion_interrupted":
+        unlink = Path.unlink
+        journal = home / "server/run/gateway-upgrade.json"
+
+        def interrupted_unlink(path, *args, **kwargs):
+            if path == journal:
+                raise OSError("isolated interruption after primary admission opened")
+            return unlink(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "unlink", interrupted_unlink)
+    def rollback():
+        return upgrade.operate(home, None, mode=upgrade.FINGPT_MODE, rollback_target=state["target"])
+
+    if scenario == "busy":
+        with pytest.raises(upgrade.MaintenanceBusy, match="research_active"):
+            rollback()
+    elif scenario == "changed_capsule":
+        with pytest.raises(upgrade.UpdateBlocked, match="fingpt_rollback_capsule_changed"):
+            rollback()
+    elif scenario == "retention_due":
+        with pytest.raises(upgrade.UpdateBlocked, match="model_upgrade_retention_due"):
+            rollback()
+    else:
+        result = rollback()
+    if scenario == "interrupted":
+        assert result["status"] == "recovery_required"
+        pending = upgrade.g.read_upgrade_journal(home / "server/run/gateway-upgrade.json")
+        assert upgrade.read_json(root / "transaction.json") == {
+            "phase": "fingpt-dual-rollback",
+            "transaction": pending["transaction"],
+            "target": state["target"],
+        }
+        monkeypatch.setattr(upgrade.Operations, "install", install)
+        result = upgrade.operate(home, None, recovering=True)
+    if scenario == "completion_interrupted":
+        assert result["status"] == "recovery_required"
+        assert not (root / "transaction.json").exists()
+        assert journal.is_file()
+        assert system["primary"] == system["gateway"] == state["previous"]
+        with_after_rollback = {
+            **new_data,
+            "sessions": {**new_data["sessions"], "after-rollback-session": {}},
+        }
+        upgrade.c.atomic(index, with_after_rollback)
+        new_data = with_after_rollback
+        signals = list(system["events"])
+        monkeypatch.setattr(Path, "unlink", unlink)
+        result = upgrade.operate(home, None, recovering=True)
+        assert system["events"] == signals
+    if scenario in {"success", "interrupted", "late_write", "completion_interrupted"}:
+        assert result["status"] == "rolled_back"
+        assert system["primary"] == system["gateway"] == state["previous"]
+        assert upgrade.read_json(root / "accepted.json") == state["accepted"]
+    else:
+        assert system["primary"] == system["gateway"] == state["target"]
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+    assert upgrade.read_json(index) == new_data
+
+
+def test_fingpt_rollback_cli_requires_explicit_target(tmp_path, monkeypatch):
+    (tmp_path / "logs").mkdir()
+    calls = []
+
+    def operate(*_args, **kwargs):
+        calls.append(kwargs)
+        return {"status": "rolled_back"}
+
+    monkeypatch.setattr(upgrade, "operate", operate)
+    args = ["--home", str(tmp_path)]
+    assert upgrade.main(["rollback-fingpt", *args]) == 1
+    assert upgrade.main(["apply-fingpt", *args, "--rollback-target", "b" * 40]) == 1
+    assert upgrade.main(["rollback-fingpt", *args, "--rollback-target", "", "--source", str(tmp_path)]) == 1
+    assert not calls
+    assert upgrade.main(["rollback-fingpt", *args, "--rollback-target", "b" * 40]) == 0
+    assert calls == [{
+        "mode": upgrade.FINGPT_MODE, "recovering": False, "rollback_target": "b" * 40,
+    }]
+
+
+@pytest.mark.parametrize(
     "real_operations", [upgrade.MARKET_LIVE_V2_MODE, upgrade.MARKET_DAILY_MODE], indirect=True
 )
 @pytest.mark.parametrize("completion,expected", [(45, "deployed"), (121, "rolled_back")])
