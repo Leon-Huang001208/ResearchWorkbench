@@ -1609,6 +1609,7 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
     from app.research_web import service_manager
 
     home, state, system, make, uid = real_operations
+    monkeypatch.setattr(upgrade.sys, "platform", "darwin")
     root = home / "resident"
     state["config"].update(
         artifact=str(root / "controller.pyz"), artifact_sha256=upgrade.CONTROLLER_SHA256
