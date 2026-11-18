@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+FinGPT 完成切换后的双入口回滚属于 macOS Native 联合事务。Docker 仍按已登记的镜像 ID、实例配置和独立回滚流程执行。
+
 上线后工作树退役目前由受管 Native 验收触发，作用范围为已登记的 Git 工作树。Docker 上线验收尚未接入此入口，镜像、容器、卷和构建缓存继续由各自的受管流程处理。
 
 策略验证的 `apply-strategy-validation` 只切换已安装的 Native 主实例和附接网关。Docker 环境仍从相应版本构建镜像。

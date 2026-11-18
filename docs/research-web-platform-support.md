@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+FinGPT 完成切换后的双入口回滚属于 macOS Native 运维验证。离线事务回归与 Mac mini 实际双入口试回滚分别记录。
+
 上线后旧工作树退出目前属于 macOS Native 管理流程。隔离验证覆盖版本和回滚依据复核及临时 Git 工作树退役，现场旧任务仅做只读预览。Docker 的上线触发及 Windows、Linux 原生验收各自留证。
 
 策略验证常驻切换的验收覆盖 Mac mini Native 与 macOS 15 干净安装。认证页面的冻结包复跑作为 Mac mini 业务证据，其他平台的原生验收单独记录。
