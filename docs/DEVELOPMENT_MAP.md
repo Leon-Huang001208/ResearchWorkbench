@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+FinGPT 完成切换后的双入口回滚位于 `resident/model_provider_upgrade.py`。它根据已接受版本绑定旧配置和工件，重新冻结当前保全资料，并使用原联合事务的恢复步骤。回归位于 `tests/research_web/test_model_provider_upgrade.py`。
+
 备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。
 锁恢复保留原锁和中断快照，工作树复核只更新已核实的设备号并另存原账本和回执。
 执行、容量及证据边界见 [开发流程](AGENT_WORKFLOW.md#中断备份锁与历史工作树身份)。
