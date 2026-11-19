@@ -1261,6 +1261,13 @@ def verify_retention(home):
         raise UpdateBlocked("model_upgrade_retention_due")
 
 
+def verify_fingpt_rollback_retention(home):
+    verify_retention(home)
+    for folder in (home / "server/users").iterdir():
+        if (folder / "research-web/index.json").is_file():
+            verify_retention(folder)
+
+
 def verify_serve(origin):
     from urllib.parse import urlsplit
 
@@ -1580,6 +1587,12 @@ def validate_state(home, state, *, executor_source=None):
         *BACKWARD,
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
+    if "fingpt_post_deploy_rollback" in state and (
+        state["fingpt_post_deploy_rollback"] is not True
+        or state["mode"] != FINGPT_MODE
+        or state["phase"] not in ("preparing", *BACKWARD)
+    ):
+        raise UpdateBlocked("model_upgrade_journal_invalid")
     validate_asset_snapshot(state)
     verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
     if state.get("mode") in EVENT_PRESERVATION_MODES:
@@ -1850,6 +1863,24 @@ def target_manifest(state):
     return manifest
 
 
+def primary_fence_record(state):
+    if state.get("fingpt_post_deploy_rollback"):
+        # The immutable primary supervisor must not adopt this rollback. File
+        # presence fences Host requests, while the joint operator owns recovery.
+        return {
+            "phase": "fingpt-dual-rollback",
+            "transaction": state["transaction"],
+            "target": state["target"],
+        }
+    return {
+        **{
+            key: state[key]
+            for key in ("previous", "target", "new_wheel", "old_wheel", "manifest", "proof")
+        },
+        "phase": "switching",
+    }
+
+
 def validate_configuration(home, state):
     verify_rollback_mcp_disabled(state.get("mode"), state.get("gateway_config"))
     if state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
@@ -1869,13 +1900,8 @@ def validate_configuration(home, state):
     ):
         raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
     pending = home / "resident/transaction.json"
-    if pending.exists():
-        expected = {
-            k: state[k]
-            for k in ("previous", "target", "new_wheel", "old_wheel", "manifest", "proof")
-        }
-        if read_json(pending) != {**expected, "phase": "switching"}:
-            raise UpdateBlocked("model_upgrade_primary_journal_changed")
+    if pending.exists() and read_json(pending) != primary_fence_record(state):
+        raise UpdateBlocked("model_upgrade_primary_journal_changed")
 
 
 def trial_primary_identity(home, expected, state):
@@ -2433,11 +2459,18 @@ class Operations:
         )
 
     def checkpoint(self, state, phase):
+        if (
+            state.get("fingpt_post_deploy_rollback")
+            and phase == "restore_sources_and_wheel"
+            and not state.get("fingpt_rollback_snapshot_frozen")
+        ):
+            # Both entrypoints have now drained and stopped. Include any writes
+            # made by requests that entered before the maintenance fence.
+            verify_fingpt_rollback_retention(self.home)
+            state["before"] = g.preservation(self.home)
+            state["asset_index_before"] = asset_index_snapshot(self.home)
+            state["fingpt_rollback_snapshot_frozen"] = True
         state["phase"] = phase
-        candidate = {
-            k: state[k]
-            for k in ("previous", "target", "new_wheel", "old_wheel", "manifest", "proof")
-        }
         verify_serve(state["config"]["private_origin"])
         # The old controller may recover only the known previous primary. Its
         # private '/' health cannot pass or remove the root journal under this gate.
@@ -2447,7 +2480,7 @@ class Operations:
             not (self.root / "transaction.json").exists() and g.job_pid() is not None
         ):
             verify_private_fence(state["config"]["private_origin"])
-        c.atomic(self.root / "transaction.json", {**candidate, "phase": "switching"})
+        c.atomic(self.root / "transaction.json", primary_fence_record(state))
         log.info("model_upgrade_checkpoint", extra={"phase": phase})
 
     def stop_gateway(self):
@@ -2591,6 +2624,8 @@ class Operations:
         )
 
     def start_primary(self, previous):
+        if previous and self.state.get("fingpt_post_deploy_rollback"):
+            verify_fingpt_rollback_retention(self.home)
         if self.state.get("mode") in TRIAL_MODES:
             from . import trial_retirement as trial
 
@@ -3114,6 +3149,16 @@ class Operations:
                 "profile": state.get("mode", MODE),
                 "blobs": state["reviewed"],
             }
+            if state.get("mode") == FINGPT_MODE:
+                capsule = fingpt_rollback_capsule(self.home, state["target"])
+                # Account and model witnesses belong to each maintenance window.
+                saved = {
+                    key: value
+                    for key, value in state.items()
+                    if key not in {"before", "asset_index_before", "model_before"}
+                }
+                g.write_upgrade_journal(capsule, saved)
+                candidate["fingpt_rollback_sha256"] = c.digest(capsule)
             c.atomic(self.root / "accepted.json", candidate)
             c.atomic(self.root / "candidate.json", candidate)
             c.atomic(
@@ -3153,9 +3198,14 @@ class Operations:
             record["trial_completion_receipt"] = self.archive_trial_completion(state, record.copy())
             if self._trial_terminal_resume:
                 self.release_trial_terminal_fence(state)
+        if state.get("fingpt_post_deploy_rollback"):
+            record["transaction"] = state["transaction"]
         c.atomic(self.server / "run/model-upgrade-result.json", record)
         c.record(self.root, result, deployed=record["revision"])
         log.info("model_upgrade_finished", extra={"result": result})
+        if state.get("fingpt_post_deploy_rollback"):
+            close_fingpt_rollback(self.home, state)
+            return record
         if state.get("mode") in TRIAL_MODES:
             (self.root / "transaction.json").unlink(missing_ok=True)
         else:
@@ -3722,6 +3772,129 @@ def build_release_wheel(project: Path, source: Path, output: Path) -> dict:
     return {"path": str(wheel), "sha256": digest}
 
 
+def fingpt_rollback_capsule(home, target):
+    if not g.SHA.fullmatch(target or ""):
+        raise UpdateBlocked("fingpt_rollback_target_invalid")
+    return home / "resident/artifacts" / target / "fingpt-rollback.json"
+
+
+def close_fingpt_rollback(home, state):
+    """Release only the accepted rollback transaction's remaining fences."""
+    root, server = home / "resident", home / "server"
+    BirthFence.recover(server, expected=state["transaction"])
+    (root / "transaction.json").unlink(missing_ok=True)
+    c.sync_directory(root)
+    (server / "run/gateway-upgrade.json").unlink()
+    c.sync_directory(server / "run")
+
+
+def resume_fingpt_rollback_completion(home, state):
+    if not state.get("fingpt_post_deploy_rollback") or state["phase"] != "verify_previous":
+        return None
+    root, server = home / "resident", home / "server"
+    result_file = server / "run/model-upgrade-result.json"
+    record = read_json(result_file) if result_file.exists() else {}
+    if record.get("transaction") != state["transaction"]:
+        if not (root / "transaction.json").is_file():
+            raise UpdateBlocked("fingpt_rollback_completion_unverified")
+        return None
+    previous = state["previous"]
+    if (
+        record.get("status") != "rolled_back"
+        or record.get("target") != state["target"]
+        or record.get("revision") != previous
+        or record.get("preserved") is not True
+        or read_json(root / "accepted.json") != state["accepted"]
+        or read_json(root / "candidate.json") != state["candidate_before"]
+        or read_json(root / "config.json") != state["config"]
+        or read_json(root / "quarantine.json") != {"sha": state["target"]}
+        or read_json(home / "install/manifest.json") != state["manifest"]
+        or not gateway_configuration_matches(state, read_json(server / "resident.json"), True)
+    ):
+        raise UpdateBlocked("fingpt_rollback_completion_unverified")
+    for role in ("primary", "gateway"):
+        c.clean(Path(state[role + "_project"]), previous)
+    g.health(state["gateway_config"], fenced=True)
+    primary = request_json(
+        f"http://127.0.0.1:{state['config']['web_port']}/api/research/resident"
+    )
+    private = request_json(state["config"]["private_origin"] + "/api/server/health")
+    if (
+        primary.get("enabled") is not True
+        or private.get("status") != "ready"
+        or private.get("primary_last_verified") is not True
+        or private.get("deployment_fenced") is not True
+        or any(
+            value.get("revision") != previous or value.get("alphadesk_qa", False) is not False
+            for value in (primary, private)
+        )
+    ):
+        raise UpdateBlocked("fingpt_rollback_completion_health_unverified")
+    c.record(root, "rolled_back", deployed=previous)
+    close_fingpt_rollback(home, state)
+    return record
+
+
+def load_fingpt_rollback(home, config, target):
+    root = home / "resident"
+    accepted = read_json(root / "accepted.json")
+    capsule = fingpt_rollback_capsule(home, target)
+    seal = accepted.get("fingpt_rollback_sha256")
+    if (
+        accepted.get("target") != target
+        or config.get("baseline") != target
+        or not isinstance(seal, str)
+        or not re.fullmatch(r"[a-f0-9]{64}", seal)
+    ):
+        raise UpdateBlocked("fingpt_rollback_acceptance_unverified")
+    from . import trial_successor
+
+    try:
+        raw, identity = trial_successor._private(capsule)
+        if identity["sha256"] != seal:
+            raise ValueError
+        state = json.loads(raw)
+        if not isinstance(state, dict):
+            raise TypeError
+    except (UpdateBlocked, ValueError, TypeError) as error:
+        raise UpdateBlocked("fingpt_rollback_capsule_changed") from error
+    if (
+        state.get("mode"), state.get("target"), state.get("previous")
+    ) != (FINGPT_MODE, target, accepted.get("previous")):
+        raise UpdateBlocked("fingpt_rollback_capsule_changed")
+    if config != {**state["config"], "baseline": target} or any(
+        state[key] != accepted.get(key) for key in ("new_wheel", "old_wheel", "manifest", "proof")
+    ):
+        raise UpdateBlocked("fingpt_rollback_acceptance_changed")
+    if read_json(home / "install/manifest.json") != target_manifest(state) or (
+        not gateway_configuration_matches(state, read_json(home / "server/resident.json"), False)
+    ):
+        raise UpdateBlocked("fingpt_rollback_live_configuration_changed")
+    for role in ("primary", "gateway"):
+        c.clean(Path(state[role + "_project"]), target)
+    gateway = gateway_configuration(state)
+    verify_fingpt_rollback_retention(home)
+    verify_primary(home, target, FINGPT_MODE)
+    g.health(gateway, fenced=False)
+    for observed in (
+        request_json(f"http://127.0.0.1:{config['web_port']}/api/research/resident"),
+        request_json(config["private_origin"] + "/api/server/health"),
+    ):
+        if observed.get("revision") != target or observed.get("alphadesk_qa") is not True:
+            raise UpdateBlocked("fingpt_rollback_live_revision_unverified")
+    state.update(
+        phase="preparing",
+        transaction=str(uuid4()),
+        model_before=model_metadata(config),
+        before=g.preservation(home),
+        asset_index_before=asset_index_snapshot(home),
+        fingpt_post_deploy_rollback=True,
+    )
+    validate_state(home, state)
+    g.journal_preflight(state)
+    return state
+
+
 def operate(
     home,
     source=None,
@@ -3734,7 +3907,10 @@ def operate(
     trial_manifest_sha256=None,
     trial_backup_parent=None,
     trial_terminal_receipt=None,
+    rollback_target=None,
 ):
+    if rollback_target is not None and (recovering or mode != FINGPT_MODE or source is not None):
+        raise UpdateBlocked("fingpt_rollback_arguments_invalid")
     if trial_terminal_receipt is not None and (recovering or mode != TRIAL_SUCCESSOR_MODE):
         raise UpdateBlocked("trial_successor_retry_flags_forbidden")
     if not recovering and mode == TRIAL_SUCCESSOR_MODE and trial_terminal_receipt is None:
@@ -3788,11 +3964,21 @@ def operate(
                 return {"status": "not_required"}
             state = g.read_upgrade_journal(journal)
             validate_state(home, state)
+            completed_rollback = resume_fingpt_rollback_completion(home, state)
+            if completed_rollback is not None:
+                return completed_rollback
             previous = previous_for(state["mode"])
             # BirthFence journals describe both staged and releasing slots.
             # Its own identity-checked recovery handles these intermediate
             # states, before the activity probe interprets owner records.
             BirthFence.recover(server, expected=state["transaction"])
+        elif rollback_target is not None:
+            if any(
+                os.path.lexists(path)
+                for path in (journal, root / "transaction.json", server / "run/birth-fence.json")
+            ):
+                raise UpdateBlocked("model_upgrade_recovery_required")
+            state = load_fingpt_rollback(home, config, rollback_target)
         else:
             if journal.exists() or (root / "transaction.json").exists():
                 raise UpdateBlocked("model_upgrade_recovery_required")
@@ -4048,9 +4234,14 @@ def operate(
             # No service/source effect is possible before checkpoint prepared.
             validate_configuration(home, state)
             if state["mode"] not in TRIAL_MODES:
-                verify_primary(home, previous, state["mode"] if recovering else mode)
-            g.preserved(home, state["before"])
-            verify_asset_index(home, state)
+                verify_primary(
+                    home,
+                    state["target"] if state.get("fingpt_post_deploy_rollback") else previous,
+                    state["mode"],
+                )
+            if not state.get("fingpt_post_deploy_rollback"):
+                g.preserved(home, state["before"])
+                verify_asset_index(home, state)
             if state["mode"] in EVENT_PRESERVATION_MODES:
                 verify_event_schedules(home, state)
             journal.unlink()
@@ -4077,13 +4268,13 @@ def operate(
 
             fence.retain = True
             successor.accept(ops)
-        if not recovering:
+        if not recovering and rollback_target is None:
             latest_expected = executor_revision if mode in TRIAL_MODES else target
             if github.latest() != latest_expected or github.qualify(target) != proof:
                 raise UpdateBlocked("resident_master_or_evidence_moved")
             if mode in TRIAL_MODES and github.qualify(executor_revision) != executor_proof:
                 raise UpdateBlocked("resident_executor_evidence_moved")
-        return execute(ops, state, recovering=recovering)
+        return execute(ops, state, recovering=recovering or rollback_target is not None)
 
 
 def handoff_trial(home, source, *, expected_sha256, expected_identity):
@@ -4224,6 +4415,7 @@ def main(argv=None):
             "apply-dossiers",
             "apply-discovery",
             "apply-fingpt",
+            "rollback-fingpt",
             "apply-etf-weekly-v2",
             "apply-etf-historical",
             "apply-etf-weekly-admission",
@@ -4233,6 +4425,7 @@ def main(argv=None):
     )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
+    parser.add_argument("--rollback-target")
     parser.add_argument("--end-weekly-waiting", action="store_true")
     parser.add_argument("--weekly-monitoring-action", type=Path)
     parser.add_argument("--trial-manifest", type=Path)
@@ -4282,10 +4475,16 @@ def main(argv=None):
             raise UpdateBlocked("weekly_monitoring_authorization_required")
         if args.command == "recover":
             activate_recovery_source(args.home)
+        if (args.command == "rollback-fingpt") != (args.rollback_target is not None) or (
+            args.command == "rollback-fingpt"
+            and (args.source is not None or not g.SHA.fullmatch(args.rollback_target or ""))
+        ):
+            raise UpdateBlocked("fingpt_rollback_arguments_invalid")
         result = operate(
             args.home,
             args.source,
             recovering=args.command == "recover",
+            **({"rollback_target": args.rollback_target} if args.rollback_target else {}),
             mode={
                 "apply-assets": ASSET_MODE,
                 "apply-assets-v2": ASSET_V2_MODE,
@@ -4317,6 +4516,7 @@ def main(argv=None):
                 "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
                 "apply-fingpt": FINGPT_MODE,
+                "rollback-fingpt": FINGPT_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
                 "apply-etf-historical": ETF_HISTORICAL_MODE,
                 "apply-etf-weekly-admission": ETF_WEEKLY_ADMISSION_MODE,
@@ -4353,6 +4553,8 @@ def main(argv=None):
             ),
         )
         print(json.dumps(result))
+        if args.command == "rollback-fingpt":
+            return 0 if result["status"] == "rolled_back" else 2
         return 0 if result["status"] in {"deployed", "not_required"} else 2
     except MaintenanceBusy:
         print(json.dumps({"status": "deferred", "reason": "research_or_maintenance_busy"}))
