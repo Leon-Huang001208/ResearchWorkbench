@@ -42,7 +42,7 @@ Research Bot 固定升级沿受管源码与合并证据、空闲准入、原三�
 
 薄适配仅向操作员指定 origin 发送原生用户 JWT，逐请求校验当前身份／空间及共享权限，不降级管理员或空间 Key。绑定 owner 来自当前 Store 根，跨账号复制的元数据和证据拒绝；密钥仅走受保护后端，验证错误不回显 token／响应体。原件与分块均固定指纹，报告 scope 的明确时间批准不能由模型或内部工具创建，晚于截止和未知日期在检索前拒绝。证据写权限与读取权限分开，旧四工具只读 MCP 不扩权。
 
-双用户、撤权、过期、白名单逃逸、原件及分块漂移、篡改和保全失败分别回归；合成门不证明真实 WeKnora／宿主／报告已通过。上游0001仅控制表格摘要显式 opt-out，0002以默认关闭的实例级只检索profile补充服务端强制约束；Go／真实服务／UI上传及重解析零生成仍未验收，上线 BLOCKED；不提供虚假 LLM、自动收费回退或未经批准的部署。[合同](../../research-web-weknora.md)
+双用户、撤权、过期、白名单逃逸、原件及分块漂移、篡改和保全失败分别回归；合成门不证明真实 WeKnora／宿主／报告已通过。同步目录标记绑定账号根、origin、JWT用户／workspace及自有库，拒绝其他账号占用、链接和任意root；资料扫描、网络与发布沿既有 admission，停机维护不绕过。当前知识工具仅接收可信会话和命中句柄，读取／冻结前后复核权限，未知来源时点保持 `historical_eligible=false`。原实例启用服务端只检索profile，本机Ollama的内网代理只允许embed/show及只读诊断，拒绝pull/chat/generate；云端模型只获必要片段。冷备恢复、真实模型与零生成、浏览器、最终候选CI和业务报告独立留证，旧付费台账缺口保留。[合同](../../research-web-weknora.md)
 
 统一导航profile固定5ff→b192及独立常量，完整union/blob/mode冻结；额外tests/README/workflow拒绝。NAV旧cfg必须严格False，升级和回滚实际local/private health均要求MCP=False；Native未知假值不是空闲。controller/evidence/自动名单不变，三锁、全账号保全、BirthFence、永久source及失败恢复门保持。
 

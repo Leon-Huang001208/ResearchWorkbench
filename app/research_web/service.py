@@ -536,6 +536,7 @@ class ResearchService(ModelProfilesMixin):
 
     async def start(self):
         if self.service_only:
+            await self.start_knowledge_sync()
             log.info("research_service_only_started")
             return
         await self.frameworks.start()
@@ -547,6 +548,9 @@ class ResearchService(ModelProfilesMixin):
             await self.automations.start()
         elif self.discovery_tracking_allowed() and self.discovery_tracking.has_enabled():
             await self.ensure_discovery_scheduler()
+        # Recovery must initialize its existing Automation jobs before the
+        # directory heartbeat makes their shared scheduler appear running.
+        await self.start_knowledge_sync()
         await self.purge_expired_sessions()
         self.retention_task = asyncio.create_task(
             self._retention_loop(), name="research-session-retention"
@@ -554,6 +558,42 @@ class ResearchService(ModelProfilesMixin):
         self.integrations.load()
         if self.auto_probe_on_start:
             self.integrations.start()
+
+    async def start_knowledge_sync(self):
+        """Use the existing scheduler without resuming historical Automation runs."""
+        identity = "knowledge-directory-sync"
+        scheduler = self.automations.scheduler
+        state = self.knowledge.sync_status()
+        if not state.get("enabled"):
+            if scheduler not in (None, False) and scheduler.get_job(identity) is not None:
+                scheduler.remove_job(identity)
+            return
+        if scheduler is False:
+            return
+        if scheduler is None:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+            scheduler = AsyncIOScheduler(timezone="UTC")
+            self.automations.scheduler = scheduler
+        scheduler.add_job(
+            self._knowledge_sync_fire,
+            "interval",
+            seconds=60,
+            id=identity,
+            max_instances=1,
+            coalesce=True,
+            replace_existing=True,
+        )
+        if not scheduler.running:
+            scheduler.start()
+        log.info("knowledge_directory_sync_armed")
+
+    async def _knowledge_sync_fire(self):
+        try:
+            if self.knowledge.sync_status().get("enabled"):
+                await self.knowledge.sync.scan()
+        except StoreError as exc:
+            log.warning("knowledge_directory_sync_failed", code=exc.code)
 
     @staticmethod
     def discovery_tracking_allowed():
@@ -591,6 +631,13 @@ class ResearchService(ModelProfilesMixin):
             with suppress(asyncio.CancelledError):
                 await self.retention_task
             self.retention_task = None
+        scheduler = self.automations.scheduler
+        if (
+            scheduler not in (None, False)
+            and scheduler.get_job("knowledge-directory-sync") is not None
+        ):
+            scheduler.remove_job("knowledge-directory-sync")
+        self.knowledge.sync.close()
         await self.automations.close()
         await self.event_timeline.close()
         await self.report_workflows.close()
@@ -2224,8 +2271,10 @@ class ResearchService(ModelProfilesMixin):
         refs = list(refs)
         selected = None
         bot_capabilities = receipt.get("research_bot_capabilities", [])
-        if receipt.get("research_bot_run_id") and native_name and not any(
-            ref["native_name"] == native_name for ref in bot_capabilities
+        if (
+            receipt.get("research_bot_run_id")
+            and native_name
+            and not any(ref["native_name"] == native_name for ref in bot_capabilities)
         ):
             raise CapabilityError("Bot 未绑定此技能", "bot_skill_not_bound", 409)
         if native_name:
@@ -2307,6 +2356,11 @@ class ResearchService(ModelProfilesMixin):
             and tool_name not in web_tools
             and "datahub" not in allowed_sources
         ) or (tool_name in web_tools and "web" not in allowed_sources and not dossier_read)
+        if (
+            tool_name in {"research_search_knowledge", "research_read_knowledge"}
+            and "uploads" not in allowed_sources
+        ):
+            excluded_source = True
         if (
             tool_name
             and tool_name.startswith("mcp__")
@@ -2673,6 +2727,8 @@ class ResearchService(ModelProfilesMixin):
             source_map.setdefault(source["id"], source)
         result["research_sources"] = list(source_map.values())[:300]
         result["research_sources"].extend(self.dossiers.registered_sources(sid))
+        if "uploads" in row.get("source_scope", ["datahub", "web", "uploads"]):
+            result["research_sources"].extend(self.knowledge.registered_sources(sid))
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()

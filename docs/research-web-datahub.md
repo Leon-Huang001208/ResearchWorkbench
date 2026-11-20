@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+`research_search_knowledge`／`research_read_knowledge` 在既有可信Host回调提供独立的知识命中投影；`knowledge:`引用由会话回执和原件／分块指纹核对，不把模型文本登记为来源。金融取数、DataHub快照和供应商权限继续沿原链，未知资料时点不获得PIT资格。见[资料合同](research-web-weknora.md)。
+
 首批资料将官方公告与原生日线原件和显示原值分开；趋势、风险原值不自动提升为合格六维证据。
 
 综合总览新增独立 global-v1 九指数公开适配，复用已注册腾讯历史端点和 httpx，固定身份、

@@ -39,7 +39,7 @@ global-v1 是现有公开来源适配中的独立九指数合同，不新增服�
 
 ## 可选外部资料服务（2026-11-06）
 
-账号 Host 内新增 `knowledge_backend/` 薄适配，按原生用户 JWT 访问固定 WeKnora v0.9.0 origin；默认未配置，不启动外部服务或第二执行器。WeKnora 是研究资料原件／索引的目标边界，金融快照、模板和正式成果保留 RWB。新增网络与冻结数据边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开；Native／Docker、私网网关及唯一 DSH 的既有运行角色不变。0002实例级只检索profile只有源码实现；部署、UI零生成、业务替换均未由源码认证。[合同](../../research-web-weknora.md)
+账号 Host 的 `knowledge_backend/` 按原生用户JWT访问固定WeKnora v0.9.0 origin，默认未配置。明确启用后由原Host生命周期每60秒同步固定本机目录，逐账号SQLite保存快照／版本，当前检索产生会话回执；本机Ollama仅承担Embedding，云端研究宿主只接必要片段。WeKnora原实例、目录／账号状态与回执冻结边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开。金融快照、模板和正式成果继续由RWB管理，私网网关和既有研究执行角色保持。冷备恢复、实际模型、零生成和业务替换分别留证，不能由配置或源码认证。[合同](../../research-web-weknora.md)
 
 统一导航固定profile复用既有Native primary、私网gateway和恢复事务；只在原操作员加入5ff→b192身份，不新增服务／端口／运行节点。controller及自动名单不变；不采用缺全账号原子保全的旧static-ui分步路径。
 

@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
+  "receiptId": "04a95dc9-62fd-4f23-a5be-155a3c0fac48",
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-20261106/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-20261106/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Volumes/WorkDisk/Projects/ResearchWorkbench/worktrees/rwb-local-knowledge-20261120/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Volumes/WorkDisk/Projects/ResearchWorkbench/worktrees/rwb-local-knowledge-20261120/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "14511c1848032dc6daffb3e081b4e00599adefec38bf1796c1c293f397511be8",
-    "bytes": 12914
+    "sha256": "ce4308d1a799161776e46a458c5f8abfe4e24ba2529cc3f5bba48f3f823d84ad",
+    "bytes": 14822
   },
   "artifact": {
-    "sha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
-    "bytes": 668032
+    "sha256": "9dc2fc0451d07515ed526b9b371557160aa3dc27d6284a471b098a0da1548974",
+    "bytes": 875365
   },
   "validation": {
     "checksPassed": 9,
@@ -20,5 +21,16 @@
     "compositionStatus": "pass",
     "errors": 0,
     "warnings": 0
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
   }
 }

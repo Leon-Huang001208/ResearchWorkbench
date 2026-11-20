@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+本地知识库使用原 WeKnora 标准实例及固定镜像、卷和网络，原生 Ollama 经未发布的内部 Embedding 转发接入。RWB 的 `apply-local-knowledge` 只更新已登记的 Native 主实例与附接网关并持久绑定私网 HTTPS origin；Docker 服务恢复、TXT 兼容挂载和回滚配置分别保留，不因 Native 源码回滚清空知识库资料。
+
 FinGPT 完成切换后的双入口回滚属于 macOS Native 联合事务。Docker 仍按已登记的镜像 ID、实例配置和独立回滚流程执行。
 
 上线后工作树退役目前由受管 Native 验收触发，作用范围为已登记的 Git 工作树。Docker 上线验收尚未接入此入口，镜像、容器、卷和构建缓存继续由各自的受管流程处理。

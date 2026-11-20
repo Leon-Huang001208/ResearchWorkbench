@@ -42,7 +42,9 @@ Research Bot 的请求模型和专用 HTTP 路由位于 `research_bot_models.py`
 
 ## WeKnora 资料适配（2026-11-06）
 
-`app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由。`ui/knowledge-settings.mjs` 在既有数据设置区挂载独立卡片；`scripts/weknora_candidate.py` 只读核对显式盘点、容量声明与20题对照。回归为 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 及 `research_web_knowledge.test.mjs`。原上传、DataHub、档案及报告链不迁移；上游0001是显式表格摘要 opt-out，0002增加默认关闭的实例级只检索 profile；Go、真实服务及 UI零生成尚未验证，上线仍 BLOCKED。见[资料合同](research-web-weknora.md)。
+`deploy/weknora/docreader/plain_text_entrypoint.py` 在原DocReader启动检查后补严格UTF-8 TXT解析，保留原解析器和原件；离线回归为 `test_weknora_plain_text.py`，随原Checks步骤执行。现场只读挂载与真实入库另验，不由兼容层测试推定服务通过。
+
+`app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由；`sync.py` 管固定目录观察／上传／current切换，`sync_storage.py` 管逐账号有界 SQLite 与内容快照，`current.py` 管会话命中、读取与用户冻结。`service.py`／Host 沿原生命周期管理60秒同步，`runtime/public-data.mjs`、`research-tools.mjs`／guard 将只读知识工具绑定可信会话，来源及质量链核对 Host 回执。`ui/knowledge-settings.mjs` 提供绑定、库选择和同步状态／明确动作；`scripts/weknora_candidate.py` 继续只读核对盘点、容量及20题对照。旧九份 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 全保留，新增 `test_weknora_sync/sync_client/current/current_api.py`，JS 沿 `research_web_knowledge.test.mjs` 与质量工具合同执行。原上传、DataHub、档案及报告链不自动迁移；本轮仅检索的本机服务与实际模型、权限撤销、浏览器和正式报告分别验收。见[资料合同](research-web-weknora.md)。
 
 统一导航封闭部署位于resident/model_provider_upgrade.py，使用UNIFIED_NAVIGATION_*独立常量，不覆盖旧PR168 NAVIGATION_PAYLOAD；原test_model_provider_upgrade覆盖真实Git范围、实际operate及v4恢复矩阵。产品5ff→b192、执行器及三CI、实际服务切换分别核验；不改controller/evidence/自动名单。
 

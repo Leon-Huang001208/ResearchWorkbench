@@ -1191,10 +1191,20 @@ class WebServiceManager:
         environment = os.environ.copy()
         if process.role == "web":
             manifest = self._read_install_manifest()
-            if (
-                manifest.get("status") == "installed"
-                and manifest.get("alphadesk_qa") is True
-            ):
+            if "weknora_origin" in manifest:
+                from .knowledge_backend.configuration import checked_origin
+                from .store import StoreError
+
+                try:
+                    environment["RESEARCH_WEKNORA_ORIGIN"] = checked_origin(
+                        manifest["weknora_origin"]
+                    )
+                except StoreError:
+                    log.warning("research_service_knowledge_origin_invalid")
+                    raise ServiceManagerError(
+                        "资料服务地址配置无效", code="knowledge_origin_invalid", role="web"
+                    ) from None
+            if manifest.get("status") == "installed" and manifest.get("alphadesk_qa") is True:
                 self._require_resident_qa_operator(manifest)
                 environment["RWB_ALPHADESK_QA"] = "1"
             elif environment.get("RESEARCH_RESIDENT_HOME"):
@@ -2818,9 +2828,13 @@ class WebServiceManager:
             return {}
 
     def _require_resident_qa_operator(self, manifest: dict[str, Any]) -> None:
-        if manifest.get("status") == "installed" and manifest.get("alphadesk_qa") is True and (
-            os.environ.get("RESEARCH_RESIDENT_HOME") != str(self.data_root.parent / "resident")
-            or os.environ.get("RESEARCH_RESIDENT_REVISION") != manifest.get("code_commit")
+        if (
+            manifest.get("status") == "installed"
+            and manifest.get("alphadesk_qa") is True
+            and (
+                os.environ.get("RESEARCH_RESIDENT_HOME") != str(self.data_root.parent / "resident")
+                or os.environ.get("RESEARCH_RESIDENT_REVISION") != manifest.get("code_commit")
+            )
         ):
             raise ServiceManagerError(
                 "常驻 FinGPT 由受管发布事务维护", code="resident_qa_operator_required", role="web"

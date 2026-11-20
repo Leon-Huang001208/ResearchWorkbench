@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+本地知识库首期在 Mac mini 的 Native Host、Docker Desktop WeKnora 及原生 Ollama 上验证。WeKnora 的 Tailscale HTTPS 链路分别记录本机与 MacBook Pro 的实际请求结果；这不代替 Windows/Linux 产品运行、Office 或厂商验收。目录同步、引用冻结与受管升级仍按实际执行的本机及候选 CI 证据标记。
+
 显式网段和中断 stage 注册恢复纳入原 Mac Docker 管理任务验收，其他平台状态仍依其设备证据记录。
 
 Stage 业主交接本轮由 Mac mini 的 Docker Desktop 验证；Windows/Linux 产品层继续由各自设备验收。
