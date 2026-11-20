@@ -194,10 +194,21 @@ ATTACHED_MCP_PRESERVATION_MODES = frozenset(
 LOCAL_KNOWLEDGE_OPERATOR_DOCS = frozenset(
     {
         ".ai/reports/2026-11-20-rwb-local-knowledge-native.md",
+        ".ai/reports/2026-11-21-rwb-local-knowledge-routefix.md",
         "docs/research-web-gateway-upgrade.md",
         "docs/research-web-installation.md",
+        "docs/research-web-docker.md",
+        "docs/research-web-platform-support.md",
+        "docs/research-web-source-migration.md",
+        "docs/research-web-ai-news.md",
+        "docs/research-web-etf-weekly-production.md",
         "docs/actions-budget.md",
         "docs/ARCHITECTURE.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
         "docs/architecture/research-web/architecture-map.json",
         "docs/architecture/research-web/readme-review.json",
         "docs/generated/py_file_index.md",
@@ -1318,20 +1329,35 @@ def verify_fingpt_rollback_retention(home):
             verify_retention(folder)
 
 
-def verify_serve(origin):
+def verify_serve(origin, mode=None):
     from urllib.parse import urlsplit
 
     value = json.loads(g.run([TAILSCALE, "serve", "status", "--json"]))
-    authority = urlsplit(origin).netloc + ":443"
+    host = urlsplit(origin).netloc
+    authority = host + ":443"
     web = value.get("Web", {})
     handlers = web.get(authority, {}).get("Handlers", {})
+    extra_web, extra_tcp = {}, {}
+    if mode == LOCAL_KNOWLEDGE_MODE:
+        extra_web[host + ":9443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}}
+        extra_tcp["9443"] = {"HTTPS": True}
+        # SuperAgent is independently managed. Its route may be absent, but
+        # when either half exists both Web and TCP must match the fixed service.
+        if host + ":8443" in web or "8443" in value.get("TCP", {}):
+            extra_web[host + ":8443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}}
+            extra_tcp["8443"] = {"HTTPS": True}
     # Existing /collections is a separate private service and is never changed.
     if (
         value.get("AllowFunnel")
-        or set(web) != {authority}
+        or set(web) != {authority, *extra_web}
         or set(handlers) - {"/", "/collections"}
         or handlers.get("/") != {"Proxy": "http://127.0.0.1:8089"}
-        or value.get("TCP") != {"443": {"HTTPS": True}}
+        or any(web.get(key) != expected for key, expected in extra_web.items())
+        or value.get("TCP") != {"443": {"HTTPS": True}, **extra_tcp}
+        or (
+            mode == LOCAL_KNOWLEDGE_MODE
+            and any(route.get("HTTPS") is not True for route in value["TCP"].values())
+        )
     ):
         raise UpdateBlocked("model_upgrade_private_route_unknown")
 
@@ -2418,7 +2444,7 @@ class Operations:
         if state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
             self.research_bot_gateway_health(previous=not post_deploy_rollback(state), fenced=False)
         state["phase"] = "preparing"
-        verify_serve(state["config"]["private_origin"])
+        verify_serve(state["config"]["private_origin"], state.get("mode"))
         g.write_upgrade_journal(self.server / "run/gateway-upgrade.json", state)
         verify_private_fence(state["config"]["private_origin"])
 
@@ -2553,7 +2579,7 @@ class Operations:
             state["asset_index_before"] = asset_index_snapshot(self.home)
             state[snapshot_key] = True
         state["phase"] = phase
-        verify_serve(state["config"]["private_origin"])
+        verify_serve(state["config"]["private_origin"], state.get("mode"))
         # The old controller may recover only the known previous primary. Its
         # private '/' health cannot pass or remove the root journal under this gate.
         g.write_upgrade_journal(self.server / "run/gateway-upgrade.json", state)
@@ -4161,7 +4187,7 @@ def operate(
                     != CONTROLLER_MODULE_SHA256
                 ):
                     raise UpdateBlocked("model_upgrade_controller_unreviewed")
-            verify_serve(config["private_origin"])
+            verify_serve(config["private_origin"], mode)
             verify_retention(home)
             supervisor_hash = verify_supervisor(home, config)
             github = GitHubEvidence(

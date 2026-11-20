@@ -2,6 +2,10 @@
 
 本地知识库首期在 Mac mini 的 Native Host、Docker Desktop WeKnora 及原生 Ollama 上验证。WeKnora 的 Tailscale HTTPS 链路分别记录本机与 MacBook Pro 的实际请求结果；这不代替 Windows/Linux 产品运行、Office 或厂商验收。目录同步、引用冻结与受管升级仍按实际执行的本机及候选 CI 证据标记。
 
+本次 Native 私网路由预检修复属于 Mac mini 部署维护：先前更新在切换前被旧443检查拒绝，
+修复后的回归、精确候选CI和现场切换各自取证。识别既有8443/9443私网服务不新增平台支持；
+Windows/Linux 原生产品与对应设备验收继续独立交接。
+
 显式网段和中断 stage 注册恢复纳入原 Mac Docker 管理任务验收，其他平台状态仍依其设备证据记录。
 
 Stage 业主交接本轮由 Mac mini 的 Docker Desktop 验证；Windows/Linux 产品层继续由各自设备验收。
