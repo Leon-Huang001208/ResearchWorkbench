@@ -8,7 +8,7 @@ Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation
 
 ## WeKnora 资料候选（2026-11-06）
 
-[资料合同](../../research-web-weknora.md)描述当前新增的薄适配、严格身份与独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)新增外部 WeKnora 节点及认证／证据分支，目标存储边界与实际启用分开。当前未部署、未迁移、未完成 UI 零生成或真实周报验收；原运行与报告图继续描述原生产链。
+[资料合同](../../research-web-weknora.md)描述严格身份、固定目录同步、当前会话命中和独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)区分本机目录／账号SQLite、WeKnora、本机Embedding及证据分支。原实例恢复、新链路／模型、零生成、浏览器与真实周报逐项取证，图文和配置状态不能代替验收；原运行与报告图继续描述既有生产链。
 
 能力中心界面收敛为技能／连接器／插件，方法并入技能、工具进入关联详情；原Host／唯一DSH、目录及调度拓扑不变，详见[能力合同](07-capabilities.md)。
 

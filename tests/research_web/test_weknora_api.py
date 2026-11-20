@@ -22,6 +22,10 @@ def gateway(tmp_path):
 def api(tmp_path, monkeypatch):
     import keyring
 
+    from app.research_web.knowledge_backend import storage
+
+    monkeypatch.setattr(storage, "_available_bytes", lambda root: 100 * 1024**3)
+
     secrets = Credentials()
     monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "0")
     monkeypatch.setenv("RESEARCH_FRAMEWORK_COLLECTORS_ENABLED", "0")

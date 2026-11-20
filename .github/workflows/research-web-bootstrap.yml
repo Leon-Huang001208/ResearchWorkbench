@@ -217,6 +217,7 @@ jobs:
           PY
           .venv/bin/python -c "from research_workbench_entrypoint.resident.maintenance_job_identity_v3 import ExactJobBinding; assert callable(ExactJobBinding.production) and callable(ExactJobBinding.rehearsal)"
           .venv/bin/python -c "import research_workbench_entrypoint.resident.trial_retirement, research_workbench_entrypoint.resident.trial_discard_backup, research_workbench_entrypoint.resident.trial_successor"
+          .venv/bin/python -c "import app.research_web.knowledge_backend.sync, app.research_web.knowledge_backend.sync_storage, app.research_web.knowledge_backend.current"
           .venv/bin/python -c "import app.research_web.datahub.providers_global_indices, app.research_web.watchlist_import, app.research_web.asset_research, app.research_web.scenario_handoffs, app.research_web.specialists.routes; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"
           .venv/bin/python -c "import importlib.metadata as m; from app.research_web.mcp_facade.server import Facade; assert m.version('mcp') == '2.2.0' and callable(Facade)"
           RWB_MCP_READONLY_ENABLED=1 RESEARCH_WEKNORA_ORIGIN=https://knowledge.example.invalid ./rwb server doctor --root "$RUNNER_TEMP/rwb-mcp-doctor-unused" --json > "$RUNNER_TEMP/mcp-doctor.json"

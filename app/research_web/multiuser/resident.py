@@ -26,7 +26,9 @@ def run(root: Path) -> int:
     with _server_context(root):
         import uvicorn
 
+        from ..knowledge_backend.configuration import checked_origin
         from ..mcp_facade.config import enabled, resident_execution
+        from ..store import StoreError
         from .accounts import AccountStore
         from .gateway import create_gateway
         from .resident_binding import AttachedPool, LegacyBinding, read_json
@@ -38,6 +40,11 @@ def run(root: Path) -> int:
         if gateway_relocation_pending(root):
             raise RuntimeErrorSafe("gateway_source_recovery_required")
         config = read_json(root / "resident.json")
+        if "weknora_origin" in config:
+            try:
+                os.environ["RESEARCH_WEKNORA_ORIGIN"] = checked_origin(config["weknora_origin"])
+            except StoreError:
+                raise RuntimeErrorSafe("server_knowledge_configuration_invalid") from None
         mcp_enabled = _configured_mcp_enabled(config)
         try:
             service_only, oauth_origin = resident_execution(

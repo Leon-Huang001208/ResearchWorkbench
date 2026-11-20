@@ -178,6 +178,7 @@ def test_discovery_profile_freezes_authorized_combination():
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ETF_HISTORICAL_MODE,
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
 )
 def test_discovery_deploy_rechecks_all_background_work_without_writes(
@@ -717,6 +718,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-research-bot", upgrade.RESEARCH_BOT_MODE),
         ("apply-research-bot-freshness", upgrade.RESEARCH_BOT_V2_MODE),
         ("apply-strategy-validation", upgrade.STRATEGY_VALIDATION_MODE),
+        ("apply-local-knowledge", "reviewed-local-knowledge-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -1565,7 +1567,11 @@ def real_operations(tmp_path, monkeypatch, request):
             ("primary" if project == primary else "gateway") + "_repository"
         ],
     )
-    if mode in {*upgrade.EVENT_PRESERVATION_MODES, *upgrade.ATTACHED_MCP_PRESERVATION_MODES, upgrade.FINGPT_MODE}:
+    if mode in {
+        *upgrade.EVENT_PRESERVATION_MODES,
+        *upgrade.ATTACHED_MCP_PRESERVATION_MODES,
+        upgrade.FINGPT_MODE,
+    }:
         # This phase/recovery fixture already substitutes g.verify_primary;
         # actual operate protocol tests below retain both real primary verifiers.
         monkeypatch.setattr(
@@ -1598,10 +1604,28 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
 
 
 @pytest.mark.parametrize(
-    "real_operations", [upgrade.FINGPT_MODE], indirect=True
+    "real_operations",
+    [
+        upgrade.FINGPT_MODE,
+        ("reviewed-local-knowledge-v1", True),
+        ("reviewed-local-knowledge-v1", False),
+    ],
+    indirect=True,
 )
-@pytest.mark.parametrize("scenario", ["success", "busy", "changed_capsule", "interrupted", "late_write", "retention_due", "completion_interrupted"])
-def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "success",
+        "busy",
+        "wrong_target",
+        "changed_capsule",
+        "interrupted",
+        "late_write",
+        "retention_due",
+        "completion_interrupted",
+    ],
+)
+def test_fingpt_and_local_knowledge_post_deploy_rollback_uses_current_data_and_both_entries(
     real_operations, monkeypatch, scenario
 ):
     from contextlib import nullcontext
@@ -1609,6 +1633,13 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
     from app.research_web import service_manager
 
     home, state, system, make, uid = real_operations
+    local_knowledge = state["mode"] == "reviewed-local-knowledge-v1"
+    if local_knowledge:
+        if state["gateway_config"]["mcp_readonly_enabled"]:
+            state["manifest"]["weknora_origin"] = "https://old-primary.invalid"
+            state["gateway_config"]["weknora_origin"] = "https://old-gateway.invalid"
+        upgrade.c.atomic(home / "install/manifest.json", state["manifest"])
+        upgrade.c.atomic(home / "server/resident.json", state["gateway_config"])
     # Simulate only the operator admission check. The fence still needs the
     # actual host platform to select its atomic rename implementation.
     monkeypatch.setattr(upgrade, "sys", SimpleNamespace(platform="darwin"))
@@ -1620,8 +1651,13 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
     with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
         assert upgrade.execute(make(fence), state)["status"] == "deployed"
     accepted = upgrade.read_json(root / "accepted.json")
-    capsule = upgrade.fingpt_rollback_capsule(home, state["target"])
-    assert upgrade.c.digest(capsule) == accepted["fingpt_rollback_sha256"]
+    capsule = (
+        upgrade.local_knowledge_rollback_capsule(home, state["target"])
+        if local_knowledge
+        else upgrade.fingpt_rollback_capsule(home, state["target"])
+    )
+    seal_key = "local_knowledge_rollback_sha256" if local_knowledge else "fingpt_rollback_sha256"
+    assert upgrade.c.digest(capsule) == accepted[seal_key]
     assert not (home / "server/run/gateway-upgrade.json").exists()
     assert not {"before", "asset_index_before", "model_before"} & set(
         upgrade.g.read_upgrade_journal(capsule)
@@ -1633,9 +1669,13 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
     manager = make(None).manager
     manager._installation_start_scope = nullcontext
     monkeypatch.setattr(service_manager, "WebServiceManager", lambda **_kwargs: manager)
-    monkeypatch.setattr(upgrade.c, "configured", lambda _home: (root, upgrade.read_json(root / "config.json")))
+    monkeypatch.setattr(
+        upgrade.c, "configured", lambda _home: (root, upgrade.read_json(root / "config.json"))
+    )
     monkeypatch.setattr(upgrade.c, "environment", lambda *_args: None)
-    monkeypatch.setattr(upgrade, "validate_state", lambda path, value: upgrade.validate_configuration(path, value))
+    monkeypatch.setattr(
+        upgrade, "validate_state", lambda path, value: upgrade.validate_configuration(path, value)
+    )
     fenced_health = upgrade.g.health
 
     def health(gateway, *, fenced):
@@ -1694,14 +1734,25 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
             return unlink(path, *args, **kwargs)
 
         monkeypatch.setattr(Path, "unlink", interrupted_unlink)
+
     def rollback():
-        return upgrade.operate(home, None, mode=upgrade.FINGPT_MODE, rollback_target=state["target"])
+        return upgrade.operate(
+            home,
+            None,
+            mode=state["mode"],
+            rollback_target="c" * 40 if scenario == "wrong_target" else state["target"],
+        )
 
     if scenario == "busy":
         with pytest.raises(upgrade.MaintenanceBusy, match="research_active"):
             rollback()
     elif scenario == "changed_capsule":
-        with pytest.raises(upgrade.UpdateBlocked, match="fingpt_rollback_capsule_changed"):
+        prefix = "local_knowledge" if local_knowledge else "fingpt"
+        with pytest.raises(upgrade.UpdateBlocked, match=f"{prefix}_rollback_capsule_changed"):
+            rollback()
+    elif scenario == "wrong_target":
+        prefix = "local_knowledge" if local_knowledge else "fingpt"
+        with pytest.raises(upgrade.UpdateBlocked, match=f"{prefix}_rollback_acceptance_unverified"):
             rollback()
     elif scenario == "retention_due":
         with pytest.raises(upgrade.UpdateBlocked, match="model_upgrade_retention_due"):
@@ -1712,7 +1763,7 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
         assert result["status"] == "recovery_required"
         pending = upgrade.g.read_upgrade_journal(home / "server/run/gateway-upgrade.json")
         assert upgrade.read_json(root / "transaction.json") == {
-            "phase": "fingpt-dual-rollback",
+            "phase": "local-knowledge-dual-rollback" if local_knowledge else "fingpt-dual-rollback",
             "transaction": pending["transaction"],
             "target": state["target"],
         }
@@ -1737,13 +1788,24 @@ def test_fingpt_post_deploy_rollback_uses_current_data_and_both_entries(
         assert result["status"] == "rolled_back"
         assert system["primary"] == system["gateway"] == state["previous"]
         assert upgrade.read_json(root / "accepted.json") == state["accepted"]
+        assert upgrade.read_json(home / "install/manifest.json") == state["manifest"]
+        assert upgrade.read_json(home / "server/resident.json") == state["gateway_config"]
     else:
         assert system["primary"] == system["gateway"] == state["target"]
     assert not (home / "server/run/gateway-upgrade.json").exists()
     assert upgrade.read_json(index) == new_data
 
 
-def test_fingpt_rollback_cli_requires_explicit_target(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "command,apply_command,mode",
+    [
+        ("rollback-fingpt", "apply-fingpt", upgrade.FINGPT_MODE),
+        ("rollback-local-knowledge", "apply-local-knowledge", "reviewed-local-knowledge-v1"),
+    ],
+)
+def test_explicit_rollback_cli_requires_exact_target(
+    tmp_path, monkeypatch, command, apply_command, mode
+):
     (tmp_path / "logs").mkdir()
     calls = []
 
@@ -1753,14 +1815,18 @@ def test_fingpt_rollback_cli_requires_explicit_target(tmp_path, monkeypatch):
 
     monkeypatch.setattr(upgrade, "operate", operate)
     args = ["--home", str(tmp_path)]
-    assert upgrade.main(["rollback-fingpt", *args]) == 1
-    assert upgrade.main(["apply-fingpt", *args, "--rollback-target", "b" * 40]) == 1
-    assert upgrade.main(["rollback-fingpt", *args, "--rollback-target", "", "--source", str(tmp_path)]) == 1
+    assert upgrade.main([command, *args]) == 1
+    assert upgrade.main([apply_command, *args, "--rollback-target", "b" * 40]) == 1
+    assert upgrade.main([command, *args, "--rollback-target", "", "--source", str(tmp_path)]) == 1
     assert not calls
-    assert upgrade.main(["rollback-fingpt", *args, "--rollback-target", "b" * 40]) == 0
-    assert calls == [{
-        "mode": upgrade.FINGPT_MODE, "recovering": False, "rollback_target": "b" * 40,
-    }]
+    assert upgrade.main([command, *args, "--rollback-target", "b" * 40]) == 0
+    assert calls == [
+        {
+            "mode": mode,
+            "recovering": False,
+            "rollback_target": "b" * 40,
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -2370,9 +2436,7 @@ def test_navigation_payload_is_exact_and_does_not_expand_backend_scope(monkeypat
     reverted = (
         ui
         if bad == "all_reverted"
-        else {"app/research_web/ui/app.mjs"}
-        if bad == "reverted"
-        else set()
+        else {"app/research_web/ui/app.mjs"} if bad == "reverted" else set()
     )
     paths.difference_update(reverted)
     calls = []
@@ -2595,9 +2659,7 @@ def test_finish_failure_never_signals_again_in_same_stack(
             (
                 "root-sync"
                 if path == home / "resident"
-                else "gate-sync"
-                if path == home / "server/run"
-                else None
+                else "gate-sync" if path == home / "server/run" else None
             )
             if final
             else None
@@ -2784,6 +2846,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
     indirect=True,
 )
@@ -2834,6 +2897,8 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
     expected = {**old, "code_commit": "b" * 40}
     if profile == upgrade.FINGPT_MODE:
         expected["alphadesk_qa"] = True
+    if profile == "reviewed-local-knowledge-v1":
+        expected["weknora_origin"] = "https://mac-mini-1.tail947973.ts.net:9443"
     if profile in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
@@ -2985,6 +3050,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
     indirect=True,
 )
@@ -3023,6 +3089,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
     indirect=True,
 )
@@ -5820,6 +5887,7 @@ def test_research_bot_v2_uses_current_accepted_release_and_rejects_unbound_paylo
         mode,
         upgrade.STORAGE_IDENTITY_MODE,
         upgrade.STRATEGY_VALIDATION_MODE,
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     }
     monkeypatch.setattr(upgrade, "RESEARCH_BOT_V2_PAYLOAD", previous)
     with pytest.raises(upgrade.UpdateBlocked, match="research_bot_upgrade_payload_unbound"):
@@ -5833,6 +5901,186 @@ def test_strategy_validation_profile_freezes_accepted_and_published_versions():
     assert upgrade.STRATEGY_VALIDATION_PAYLOAD == "4983949df4aac654dd95415be1d5d6a654170ff5"
     assert mode in upgrade.ASSET_MODES & upgrade.ATTACHED_MCP_PRESERVATION_MODES
     assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+
+
+def test_local_knowledge_profile_preserves_the_accepted_execution_contract():
+    mode = "reviewed-local-knowledge-v1"
+    assert upgrade.LOCAL_KNOWLEDGE_MODE == mode
+    assert upgrade.previous_for(mode) == "33b3044dd68197106c5018e31482762cb1e02ea1"
+    assert upgrade.LOCAL_KNOWLEDGE_PAYLOAD == "1df9843f51c9dd90946e6d31969b4cca89eff26b"
+    assert mode in upgrade.ASSET_MODES & upgrade.ATTACHED_MCP_PRESERVATION_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+
+
+@pytest.mark.parametrize(
+    "case", ["accepted", "setup", "setup-mode", "setup-mode-both", "lock", "extra", "revert"]
+)
+def test_local_knowledge_review_seals_product_and_only_the_fixed_setup_change(
+    tmp_path, monkeypatch, case
+):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    def write(name, body):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    product = "app/research_web/knowledge_backend/current.py"
+    setup = "scripts/setup_web.py"
+    lock = "requirements/web.lock"
+    for name in (upgrade.MODULE, upgrade.TEST, product, setup, lock):
+        write(name, "old")
+    (tmp_path / setup).chmod(0o644 if case == "setup-mode-both" else 0o755)
+    git("add", ".")
+    git("commit", "-m", "accepted native release")
+    previous = git("rev-parse", "HEAD")
+    write(product, "reviewed knowledge product")
+    write(setup, "reviewed isolated QA asset build")
+    if case in {"setup-mode", "setup-mode-both"}:
+        (tmp_path / setup).chmod(0o644)
+    if case == "lock":
+        write(lock, "unapproved dependency")
+    git("add", ".")
+    git("commit", "-m", "sealed product")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "LOCAL_KNOWLEDGE_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "LOCAL_KNOWLEDGE_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade,
+        "LOCAL_KNOWLEDGE_SETUP_BLOBS",
+        (git("rev-parse", f"{previous}:{setup}"), git("rev-parse", f"{payload}:{setup}")),
+    )
+    if case == "setup":
+        monkeypatch.setattr(upgrade, "LOCAL_KNOWLEDGE_SETUP_BLOBS", ("0" * 40, "1" * 40))
+    for name in (upgrade.MODULE, upgrade.TEST, "docs/research-web-gateway-upgrade.md"):
+        write(name, "reviewed deployment operator")
+    if case == "extra":
+        write("app/research_web/extra.py", "unreviewed app change")
+    elif case == "revert":
+        write(product, "old")
+    git("add", ".")
+    git("commit", "-m", "closed deployment operator")
+    target = git("rev-parse", "HEAD")
+    if case == "accepted":
+        reviewed = upgrade.review(tmp_path, target, "reviewed-local-knowledge-v1")
+        assert reviewed["product_tree"] == git("rev-parse", f"{payload}^{{tree}}")
+        assert set(reviewed) == {
+            "product_tree",
+            upgrade.MODULE,
+            upgrade.TEST,
+            "docs/research-web-gateway-upgrade.md",
+        }
+    else:
+        code = (
+            "install_contract_changed"
+            if case in {"setup", "setup-mode", "setup-mode-both", "lock"}
+            else "payload_changed"
+        )
+        with pytest.raises(upgrade.UpdateBlocked, match=f"local_knowledge_upgrade_{code}"):
+            upgrade.review(tmp_path, target, "reviewed-local-knowledge-v1")
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_local_knowledge_configuration_binds_origin_and_keeps_mcp_and_qa(enabled):
+    old_gateway = {
+        "revision": "old",
+        "binding": {"revision": "old"},
+        "mcp_readonly_enabled": enabled,
+        "alphadesk_qa": enabled,
+        "weknora_origin": "https://previous.invalid",
+    }
+    old_manifest = {
+        "code_commit": "old",
+        "status": "installed",
+        "alphadesk_qa": enabled,
+        "weknora_origin": "https://previous.invalid",
+    }
+    state = {
+        "mode": "reviewed-local-knowledge-v1",
+        "target": "new",
+        "manifest": old_manifest,
+        "gateway_config": old_gateway,
+    }
+    target = upgrade.target_manifest(state)
+    assert target == {
+        **old_manifest,
+        "code_commit": "new",
+        "weknora_origin": "https://mac-mini-1.tail947973.ts.net:9443",
+    }
+    gateway = upgrade.gateway_configuration(state)
+    assert gateway == {
+        **old_gateway,
+        "revision": "new",
+        "binding": {"revision": "new"},
+        "weknora_origin": "https://mac-mini-1.tail947973.ts.net:9443",
+    }
+    assert upgrade.gateway_configuration(state, previous=True) == old_gateway
+    assert not upgrade.gateway_configuration_matches(
+        state, {**gateway, "alphadesk_qa": int(enabled)}, previous=False
+    )
+    assert (
+        old_manifest["weknora_origin"]
+        == old_gateway["weknora_origin"]
+        == "https://previous.invalid"
+    )
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [("reviewed-local-knowledge-v1", True), ("reviewed-local-knowledge-v1", False)],
+    indirect=True,
+)
+@pytest.mark.parametrize("fail", [None, "verify_target"])
+def test_local_knowledge_transaction_restores_origin_and_all_account_state(real_operations, fail):
+    home, state, system, make, uid = real_operations
+    state["manifest"]["weknora_origin"] = "https://old-primary.invalid"
+    state["gateway_config"]["weknora_origin"] = "https://old-gateway.invalid"
+    upgrade.c.atomic(home / "install/manifest.json", state["manifest"])
+    upgrade.c.atomic(home / "server/resident.json", state["gateway_config"])
+    system["fail"] = fail
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == ("deployed" if fail is None else "rolled_back")
+    expected_origin = "https://mac-mini-1.tail947973.ts.net:9443"
+    manifest = upgrade.read_json(home / "install/manifest.json")
+    gateway = upgrade.read_json(home / "server/resident.json")
+    if fail:
+        assert manifest == state["manifest"]
+        assert gateway == state["gateway_config"]
+    else:
+        assert manifest["weknora_origin"] == gateway["weknora_origin"] == expected_origin
+    assert gateway["mcp_readonly_enabled"] is state["gateway_config"]["mcp_readonly_enabled"]
+    assert manifest.get("alphadesk_qa") is state["manifest"].get("alphadesk_qa")
+    assert gateway.get("alphadesk_qa") is state["gateway_config"].get("alphadesk_qa")
+    assert upgrade.asset_index_snapshot(home) == state["asset_index_before"]
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-local-knowledge-v1"], indirect=True)
+@pytest.mark.parametrize("entry", ["primary", "gateway"])
+def test_local_knowledge_refuses_an_unrequested_runtime_executor_switch(
+    real_operations, monkeypatch, entry
+):
+    home, state, _system, make, uid = real_operations
+    request = upgrade.request_json
+
+    def observed(url):
+        result = request(url)
+        endpoint = "/api/research/resident" if entry == "primary" else "/api/server/health"
+        if url.endswith(endpoint) and result.get("revision") == state["target"]:
+            return {**result, "alphadesk_qa": True}
+        return result
+
+    monkeypatch.setattr(upgrade, "request_json", observed)
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == "rolled_back"
+    assert upgrade.read_json(home / "install/manifest.json") == state["manifest"]
 
 
 @pytest.mark.parametrize(

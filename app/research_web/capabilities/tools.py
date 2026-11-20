@@ -102,6 +102,20 @@ DECLARATIONS = {
         ["operation"],
         "本会话登记的公开HTTPS来源，或用户通过冻结交接显式绑定的档案证据；逐次鉴权，拒绝私网、凭据、任意路径与伪造正文",
     ),
+    "research_search_knowledge": (
+        "检索个人研究资料",
+        "runtime/research-tools.mjs",
+        {"query": "string"},
+        ["query"],
+        "当前用户已绑定的可见知识库；只返回真实原文命中，不生成答案，不授予历史报告资格",
+    ),
+    "research_read_knowledge": (
+        "读取资料命中原文",
+        "runtime/research-tools.mjs",
+        {"hit_id": "string"},
+        ["hit_id"],
+        "仅本会话已登记的资料命中；逐次复核用户权限，保留原命中版本与未知来源时点",
+    ),
     "research_document_operation": (
         "Office 文档操作",
         "runtime/research-tools.mjs",

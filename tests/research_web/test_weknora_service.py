@@ -85,7 +85,10 @@ class Upstream:
 
 
 @pytest.fixture
-async def knowledge(tmp_path):
+async def knowledge(tmp_path, monkeypatch):
+    from app.research_web.knowledge_backend import storage
+
+    monkeypatch.setattr(storage, "_available_bytes", lambda root: 100 * 1024**3)
     upstream = Upstream()
     credentials = Credentials()
     service = KnowledgeService(

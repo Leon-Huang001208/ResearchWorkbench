@@ -1276,6 +1276,19 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 
 冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。
 
+2026-11-20本机资料同步使用既有Python依赖和标准库SQLite，三公开安装入口、Web锁和
+`scripts/setup_web.py` 保持；Bootstrap原安装步骤导入 `knowledge_backend.sync`、`sync_storage`
+与 `current`，原静态步骤继续逐字节核对知识库设置卡片。该步骤不配置账号、不扫描真实目录、
+不安装WeKnora／Ollama或下载模型。操作员按[资料合同](research-web-weknora.md#本机目录同步与当前研究)
+先核验原服务、固定本机Embedding代理及WorkDisk身份，再由用户自行用真实邮箱注册WeKnora账号，
+从RWB设置页登录已有账号并绑定（或用原JWT／workspace高级入口），密码提交即清空且不保存，
+选择自有库并明确启用固定目录同步；来源目录及账号存储不能互换。Doctor仅报告绑定与保全，
+干净安装、实际同步、模型／零生成及浏览器接受仍须各自取证。
+
+固定DocReader的TXT补齐使用仓库内只读 `plain_text_entrypoint.py` overlay，保留原
+`container_entrypoint.py` 的ARM／OpenSSL检查并运行原DocReader主模块；它不安装新依赖或由
+一键安装器隐式部署。严格UTF-8/BOM解析和原件不变先由离线合同验证，实际挂载和入库另验。
+
 ### macOS 私网仅服务模式
 
 `server serve --service-only` 让每个已认证账户使用一个受管 Web 进程。该进程没有

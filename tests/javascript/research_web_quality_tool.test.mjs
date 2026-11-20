@@ -14,6 +14,64 @@ const admission = { status: 'available', admitted: true, missing: [], omitted_se
 const result = (overrides = {}) => ({ status: 'passed', issues: [], repair_count: 0, may_repair: false,
   contract: { requirements: ['Compare revenue'], cutoff: '2026-10-16T00:00:00Z' }, ...overrides });
 
+const knowledgeHit = (extra = {}) => ({hit_id:'d'.repeat(64),source_id:'knowledge:'+'d'.repeat(64),title:'Local report',snippet:'Actual source excerpt',locator:{chunk_index:0,start_at:0,end_at:21},sha256:'a'.repeat(64),document_version:1,source_status:'current',historical_eligible:false,limitations:['source_time_unknown'],...extra});
+
+test('knowledge transport accepts eight full Chinese excerpts within the Host contract', async t => {
+  const items = Array.from({length:8},(_,index)=>{
+    const hit_id=(index+1).toString(16).repeat(64);
+    return knowledgeHit({hit_id,source_id:`knowledge:${hit_id}`,snippet:'研'.repeat(16000)});
+  });
+  const f=await fixture(t,{session_id:sessionId,items,generated_answer:false});
+  const value=JSON.parse((await f.tools.get('research_search_knowledge').execute({query:'研究资料'},f.exec)).result_json);
+  assert.equal(value.items.length,8);
+  assert.equal(value.items[7].snippet,'研'.repeat(16000));
+});
+
+test('knowledge tools bind native lineage, guard and private DataKey without accepting document or account selectors', async t => {
+  const f = await fixture(t, {items:[knowledgeHit({knowledge_base_id:'hidden-kb',document_id:'hidden-doc'})],session_id:sessionId,generated_answer:false});
+  const search = f.tools.get('research_search_knowledge');
+  const read = f.tools.get('research_read_knowledge');
+  assert.ok(search); assert.ok(read);
+  for (const tool of [search,read]) assert.ok(RESEARCH_TOOLS.has(tool.name));
+  for (const args of [{query:'x',session_id:sessionId},{query:'x',knowledge_base_id:'kb'},{query:'x',url:'https://example.org'},{query:' '},{query:'x'.repeat(2001)}]) {
+    await assert.rejects(() => search.execute(args,f.exec),/knowledge_arguments_invalid/);
+  }
+  for (const args of [{hit_id:'guessed-document'},{hit_id:'d'.repeat(64),document_id:'doc'}]) await assert.rejects(() => read.execute(args,f.exec),/knowledge_arguments_invalid/);
+  assert.equal(f.calls.length,0);
+  const value=JSON.parse((await search.execute({query:'ETF holdings'}, {...f.exec,agent:{session:f.child}})).result_json);
+  assert.deepEqual(value,{items:[knowledgeHit()],generated_answer:false});
+  const request=f.calls.find(c=>c.url.endsWith('/knowledge-query'));
+  assert.deepEqual(request.body,{session_id:sessionId,query:'ETF holdings'});
+  assert.equal(request.options.headers['X-Research-Data-Key'],token);
+  assert.equal(request.options.credentials,'omit'); assert.equal(request.options.redirect,'error');
+  f.response({...knowledgeHit(),content:'Actual source excerpt',session_id:sessionId});
+  const content=JSON.parse((await read.execute({hit_id:'d'.repeat(64)},f.exec)).result_json);
+  assert.equal(content.content,'Actual source excerpt'); assert.ok(!('session_id' in content));
+  assert.deepEqual(f.calls.find(c=>c.url.endsWith('/knowledge-read')).body,{session_id:sessionId,hit_id:'d'.repeat(64)});
+});
+
+test('knowledge tools stop before transport when admission fails and reject oversized or mismatched receipts', async t => {
+  const f=await fixture(t,{items:[knowledgeHit()],session_id:sessionId,generated_answer:false});
+  const tool=f.tools.get('research_search_knowledge'); assert.ok(tool);
+  f.admission({...admission,admitted:false,status:'unavailable'});
+  await assert.rejects(()=>tool.execute({query:'ETF'},f.exec),/knowledge_scope_denied/);
+  assert.equal(f.calls.filter(c=>c.url.endsWith('/knowledge-query')).length,0);
+  f.admission(admission);
+  for (const value of [{items:[knowledgeHit({snippet:'x'.repeat(16001)})],session_id:sessionId,generated_answer:false},{items:[knowledgeHit()],session_id:'foreign',generated_answer:false},{items:[knowledgeHit()],session_id:sessionId,generated_answer:true}]) {
+    f.response(value); await assert.rejects(()=>tool.execute({query:'ETF'},f.exec),/knowledge_response_invalid/);
+  }
+  f.response({...knowledgeHit({hit_id:'e'.repeat(64)}),content:'other',session_id:sessionId});
+  await assert.rejects(()=>f.tools.get('research_read_knowledge').execute({hit_id:'d'.repeat(64)},f.exec),/knowledge_response_invalid/);
+});
+
+test('knowledge permission errors expose stable retry guidance without vendor text',async t=>{
+  const f=await fixture(t);
+  f.response(()=>Response.json({error:{code:'knowledge_library_access_revoked',message:'secret vendor detail'}},{status:403}));
+  await assert.rejects(()=>f.tools.get('research_search_knowledge').execute({query:'ETF'},f.exec),error=>error.message==='DataHub request failed (HTTP 403): knowledge_library_access_revoked');
+  assert.doesNotMatch(JSON.stringify(f.logs),/secret vendor detail/);
+  assert.equal(f.calls.filter(row=>row.url.endsWith('/knowledge-query')).length,1);
+});
+
 test('weekly script scopes reject missing policy, escape paths, aliases and non-files before spawning', async t => {
   const f = await fixture(t);
   const base = join(f.cwd, 'inputs/report-workflow');

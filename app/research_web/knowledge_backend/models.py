@@ -14,6 +14,11 @@ class Binding(StrictModel):
     workspace_id: str = Field(pattern=r"^[1-9][0-9]{0,18}$")
 
 
+class Login(StrictModel):
+    email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")
+    password: SecretStr = Field(min_length=6, max_length=1024)
+
+
 class Search(StrictModel):
     query: str = Field(min_length=1, max_length=2000)
     knowledge_base_ids: list[str] = Field(min_length=1, max_length=10)
@@ -53,3 +58,38 @@ class Read(StrictModel):
 class Freeze(StrictModel):
     scope_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     chunks: dict[str, list[str]] = Field(min_length=1, max_length=8)
+
+
+class CurrentQuery(StrictModel):
+    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    query: str = Field(min_length=1, max_length=2000)
+
+
+class CurrentRead(StrictModel):
+    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    hit_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class CurrentFreeze(StrictModel):
+    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    hit_ids: list[str] = Field(min_length=1, max_length=8)
+
+    @field_validator("hit_ids")
+    @classmethod
+    def receipt_ids(cls, value):
+        import re
+
+        if len(set(value)) != len(value) or any(
+            not re.fullmatch(r"[a-f0-9]{64}", key) for key in value
+        ):
+            raise ValueError("invalid receipt identifiers")
+        return value
+
+
+class SyncConfiguration(StrictModel):
+    knowledge_base_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+    enabled: bool
+
+
+class Scan(StrictModel):
+    pass
