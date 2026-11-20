@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Docker 管理器的 `register --subnet` 与 `--resume-registration` 接续显式网段及未写账本的空 stage 资源；回归沿 `test_docker_manager.py`。
+
 FinGPT 完成切换后的双入口回滚位于 `resident/model_provider_upgrade.py`。它根据已接受版本绑定旧配置和工件，重新冻结当前保全资料，并使用原联合事务的恢复步骤。回归位于 `tests/research_web/test_model_provider_upgrade.py`。
 
 备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。

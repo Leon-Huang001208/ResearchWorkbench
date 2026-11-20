@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+显式网段和中断 stage 注册恢复纳入原 Mac Docker 管理任务验收，其他平台状态仍依其设备证据记录。
+
 Stage 业主交接本轮由 Mac mini 的 Docker Desktop 验证；Windows/Linux 产品层继续由各自设备验收。
 
 FinGPT 完成切换后的双入口回滚属于 macOS Native 运维验证。离线事务回归与 Mac mini 实际双入口试回滚分别记录。

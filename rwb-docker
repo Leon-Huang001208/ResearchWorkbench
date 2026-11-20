@@ -178,6 +178,7 @@ case "${1:-help}" in
     echo "candidate_image=$IMAGE"; exit 0;;
   help)
     echo './rwb-docker bootstrap | build | dev|stage|prod INSTANCE register|up|status|doctor|stop|rebuild|exec|cleanup|replace-image|enable-model-credentials|credential-probe|release-reservation|owner-handoff [options]'
+    echo 'register options include --subnet IPV4_CIDR and stage-only --resume-registration'
     exit 0;;
 esac
 test -f "$ROOT/control.image" || fail run_bootstrap_first
