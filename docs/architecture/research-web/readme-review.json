@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "更新 WeKnora 目录同步、本人账号登录和原文引用入口。",
-  "reason": "新增目录版本同步与当前研究工具，README 说明本人注册、现有模型作答、历史引用保留及验收边界；详细配置与恢复仍归专项合同。"
+  "disposition": "unchanged",
+  "summary": "复核 Native 本地知识库升级的固定私网路由检查，README 现有资料入口说明仍适用。",
+  "reason": "对照 PR #318 合并源码 238c219f1a29b72374b4ac666b811a10cab34f00 与本次操作员差异，修复只让既有升级检查识别已授权的 WeKnora 和 SuperAgent 固定私网入口，不改变用户安装入口、资料能力或平台支持；精确端口、失败处理与待验状态记录在部署和安全文档。"
 }

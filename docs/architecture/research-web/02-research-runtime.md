@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+`reviewed-local-knowledge-v1` 在 `operate`、`prepare_fence` 和 `checkpoint` 传递同一模式核对私网路由。
+预检识别固定知识库入口后，维护和切换阶段仍重验同一配置；漂移继续沿原三锁、BirthFence和恢复事务处理。
+路由检查不提交研究、重发未知请求或改变现有模型与后台日程，其他升级模式沿原路由合同。
+
 中断的 stage 注册在四个已归属空卷和原隔离网络上接续，研究进程仍由原镜像的 supervisor 启动。
 
 Stage 的 `owner-handoff` 只退休停止实例的预留；后续研究仍由原 Host 与 DSH 执行，业务未完成状态随交接保留。

@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+`apply-local-knowledge` 在开始更新、准备维护围栏和切换检查点复核现有 Tailscale Serve。
+本模式要求443 RWB及9443 WeKnora固定 HTTPS 路由；已有8443 SuperAgent须匹配原目标。
+路由不符时停止更新并保留原服务，按[部署合同](research-web-gateway-upgrade.md#rwb-本地知识库受管升级)核对现场；
+公开安装入口和依赖锁沿用原流程，源码修复不能代替正式绑定和运行验收。
+
 Docker 默认网段池耗尽时，管理员可为 stage 显式指定未占用 CIDR；中断注册按 [Docker 管理](research-web-docker.md) 核对并接续同名空资源。
 
 Stage 业主交接通过已有 `rwb-docker` 管理器执行；新候选依旧从固定干净源码构建并通过原安装与健康检查。

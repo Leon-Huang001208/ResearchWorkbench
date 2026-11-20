@@ -24,6 +24,10 @@ Tailscale Serve 9443 仅将现有 WeKnora 前端 `127.0.0.1:18181` 提供给私�
 8443 SuperAgent 路由保持。Ollama 内部监听不向组网发布。正式用户自行注册并在 RWB 设置登录，
 bootstrap 公开验收账号及其状态独立留存，不自动迁移给正式身份。部署、同机私网链路与另一设备验证分别留证。
 
+本模式的 Serve 预检同时核对维护围栏准备和切换检查点：必须有原443与固定9443；若存在8443，
+只接受 HTTPS 根路由到 `http://127.0.0.1:8097`。9443只接受 HTTPS 根路由到
+`http://127.0.0.1:18181`。未知端口、主机、附加路径、转发目标或 Funnel 均拒绝；其他升级模式沿原443合同。
+
 ## 策略验证常驻升级
 
 `model_provider_upgrade apply-strategy-validation` 绑定已接受的 `3be8a17b48ca5c57a71837bdc806efaf386a68b8` 和 PR #308 的合并产品 `4983949df4aac654dd95415be1d5d6a654170ff5`。执行器只接受该产品和受审部署文件的组合。以现有生产解释器从 GitHub 最新已审且干净的同仓工作树执行 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-strategy-validation --source <该工作树>`。

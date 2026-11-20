@@ -671,21 +671,25 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
 
     (tmp_path / "server/users").mkdir(parents=True)
     (tmp_path / "research-web").mkdir()
-    os.mkfifo(tmp_path / "research-web/index.json")
-    process = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
-            str(tmp_path),
-        ],
-        cwd=Path(__file__).resolve().parents[2],
-        timeout=3,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
+    fifo = tmp_path / "research-web/index.json"
+    os.mkfifo(fifo)
+    try:
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
+                str(tmp_path),
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+            timeout=3,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
+    finally:
+        fifo.unlink()
 
 
 @pytest.mark.parametrize(
@@ -977,7 +981,7 @@ def test_gateway_intent_is_durable_before_primary_journal(tmp_path, monkeypatch)
         config={"private_origin": "https://fixture.tail.ts.net"},
     )
     events = []
-    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin: None)
+    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin, _mode=None: None)
     monkeypatch.setattr(upgrade, "verify_private_fence", lambda _origin: events.append("https503"))
     monkeypatch.setattr(upgrade.g, "write_upgrade_journal", lambda _p, _s: events.append("gateway"))
     monkeypatch.setattr(upgrade.c, "atomic", lambda _p, _s: events.append("primary"))
@@ -999,7 +1003,7 @@ def test_gateway_only_crash_retains_birth_fence_without_claiming_primary_intent(
         target="a" * 40,
         config={"private_origin": "https://fixture.tail.ts.net"},
     )
-    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin: None)
+    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin, _mode=None: None)
     monkeypatch.setattr(upgrade.g, "write_upgrade_journal", lambda _p, _s: None)
     monkeypatch.setattr(
         upgrade, "verify_private_fence", lambda _origin: (_ for _ in ()).throw(SystemExit("crash"))
@@ -1420,7 +1424,7 @@ def real_operations(tmp_path, monkeypatch, request):
         system["events"].append("pip-no-deps")
 
     monkeypatch.setattr(upgrade.c, "run", install)
-    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin: None)
+    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin, _mode=None: None)
     monkeypatch.setattr(
         upgrade,
         "verify_private_fence",
@@ -2394,6 +2398,141 @@ def test_existing_collections_route_is_preserved(monkeypatch):
     monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
     upgrade.verify_serve("https://fixture.tail.ts.net")
     assert json.dumps(value, sort_keys=True) == original
+
+
+def local_knowledge_serve_routes(*, superagent=True):
+    value = {
+        "Web": {
+            "fixture.tail.ts.net:443": {
+                "Handlers": {
+                    "/": {"Proxy": "http://127.0.0.1:8089"},
+                    "/collections": {"Proxy": "http://127.0.0.1:8769"},
+                }
+            },
+            "fixture.tail.ts.net:9443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}},
+        },
+        "TCP": {"443": {"HTTPS": True}, "9443": {"HTTPS": True}},
+    }
+    if superagent:
+        value["Web"]["fixture.tail.ts.net:8443"] = {
+            "Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}
+        }
+        value["TCP"]["8443"] = {"HTTPS": True}
+    return value
+
+
+@pytest.mark.parametrize("superagent", [True, False])
+def test_local_knowledge_serve_preserves_fixed_private_services(monkeypatch, superagent):
+    value = local_knowledge_serve_routes(superagent=superagent)
+    original = json.dumps(value, sort_keys=True)
+    monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
+    upgrade.verify_serve("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)
+    assert json.dumps(value, sort_keys=True) == original
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "missing-weknora",
+        "unknown-port",
+        "foreign-host",
+        "superagent-target",
+        "weknora-target",
+        "superagent-path",
+        "weknora-path",
+        "superagent-tls",
+        "weknora-tls",
+        "weknora-tcp-missing",
+        "superagent-web-missing",
+        "funnel",
+        "weknora-extra-fields",
+        "tcp-number",
+    ],
+)
+def test_local_knowledge_serve_rejects_unrecognized_routes(monkeypatch, changed):
+    value = local_knowledge_serve_routes()
+    web, tcp = value["Web"], value["TCP"]
+    if changed == "missing-weknora":
+        del web["fixture.tail.ts.net:9443"]
+        del tcp["9443"]
+    elif changed == "unknown-port":
+        web["fixture.tail.ts.net:10443"] = web["fixture.tail.ts.net:9443"]
+        tcp["10443"] = {"HTTPS": True}
+    elif changed == "foreign-host":
+        web["other.tail.ts.net:9443"] = web.pop("fixture.tail.ts.net:9443")
+    elif changed in {"superagent-target", "weknora-target"}:
+        port = "8443" if changed.startswith("superagent") else "9443"
+        web[f"fixture.tail.ts.net:{port}"]["Handlers"]["/"]["Proxy"] = "http://127.0.0.1:11434"
+    elif changed in {"superagent-path", "weknora-path"}:
+        port = "8443" if changed.startswith("superagent") else "9443"
+        web[f"fixture.tail.ts.net:{port}"]["Handlers"]["/api"] = {"Proxy": "http://127.0.0.1:11434"}
+    elif changed in {"superagent-tls", "weknora-tls"}:
+        port = "8443" if changed.startswith("superagent") else "9443"
+        tcp[port]["HTTPS"] = False
+    elif changed == "weknora-tcp-missing":
+        del tcp["9443"]
+    elif changed == "superagent-web-missing":
+        del web["fixture.tail.ts.net:8443"]
+    elif changed == "funnel":
+        value["AllowFunnel"] = {"fixture.tail.ts.net:9443": True}
+    elif changed == "weknora-extra-fields":
+        web["fixture.tail.ts.net:9443"]["unexpected"] = True
+    else:
+        tcp["9443"]["HTTPS"] = 1
+    monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
+    with pytest.raises(upgrade.UpdateBlocked, match="private_route_unknown"):
+        upgrade.verify_serve("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)
+
+
+def test_other_profiles_keep_the_original_private_route_gate(monkeypatch):
+    value = local_knowledge_serve_routes()
+    monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
+    for mode in (None, upgrade.FINGPT_MODE):
+        with pytest.raises(upgrade.UpdateBlocked, match="private_route_unknown"):
+            upgrade.verify_serve("https://fixture.tail.ts.net", mode)
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-local-knowledge-v1"], indirect=True)
+@pytest.mark.parametrize("entry", ["prepare_fence", "checkpoint"])
+def test_local_knowledge_transaction_route_checks_receive_profile(
+    real_operations, monkeypatch, entry
+):
+    _home, state, _system, make, _uid = real_operations
+    observed = []
+
+    def verify(origin, mode=None):
+        observed.append((origin, mode))
+        raise SystemExit("route-profile-observed")
+
+    monkeypatch.setattr(upgrade, "verify_serve", verify)
+    ops = make(None)
+    # This regression checks profile propagation, independently of the
+    # preservation schema and gateway health contracts exercised elsewhere.
+    monkeypatch.setattr(upgrade.g, "preservation", lambda _home: state["before"])
+    monkeypatch.setattr(upgrade, "asset_index_snapshot", lambda _home: state["asset_index_before"])
+    monkeypatch.setattr(
+        ops, "research_bot_gateway_health", lambda **_kwargs: state["research_bot_mcp_before"]
+    )
+    with pytest.raises(SystemExit, match="route-profile-observed"):
+        if entry == "prepare_fence":
+            ops.prepare_fence(state)
+        else:
+            ops.checkpoint(state, "prepared")
+    assert observed == [(state["config"]["private_origin"], upgrade.LOCAL_KNOWLEDGE_MODE)]
+
+
+def test_local_knowledge_operate_route_check_receives_profile(weekly_operate_protocol, monkeypatch):
+    f, _control, _events = weekly_operate_protocol
+    observed = []
+
+    def verify(origin, mode=None):
+        observed.append((origin, mode))
+        raise SystemExit("route-profile-observed")
+
+    monkeypatch.setattr(upgrade, "verify_serve", verify)
+    with pytest.raises(SystemExit, match="route-profile-observed"):
+        upgrade.operate(f.home, f.home / "source", mode=upgrade.LOCAL_KNOWLEDGE_MODE)
+    assert observed == [("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)]
 
 
 def test_retention_cannot_purge_existing_deleted_history_during_deployment(tmp_path):
