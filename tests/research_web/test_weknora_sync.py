@@ -82,6 +82,7 @@ async def test_two_stable_scans_publish_exact_bytes_and_restart_reuses_state(tmp
     assert current[0]["document_id"] == "d1"
     assert current[0]["version"] == 1
     assert current[0]["path"] == "report.md"
+    sync.pin_snapshot(current[0]["sha256"], upstream.originals["d1"])
     assert sync.snapshot(current[0]["sha256"]) == b"first original"
     sync.close()
     resumed, _, _, _ = service(tmp_path, upstream)
@@ -98,6 +99,7 @@ async def test_failed_new_version_keeps_old_current_and_history(tmp_path):
     await sync.configure("kb1", True)
     await sync.scan()
     await sync.scan()
+    sync.pin_snapshot(sync.current_documents()[0]["sha256"], upstream.originals["d1"])
     path.write_bytes(b"new")
     upstream.parse_status = "failed"
     await sync.scan()
@@ -117,6 +119,7 @@ async def test_delete_withdraws_current_without_deleting_upstream_or_history(tmp
     await sync.scan()
     await sync.scan()
     row = sync.current_documents()[0]
+    sync.pin_snapshot(row["sha256"], upstream.originals[row["document_id"]])
     path.unlink()
     await sync.scan()
     assert sync.current_documents() == []
@@ -194,6 +197,7 @@ async def test_source_mutation_during_upload_never_promotes_stale_version(tmp_pa
     upstream.on_upload = None
     await sync.scan()
     await sync.scan()
+    sync.pin_snapshot(sync.current_documents()[0]["sha256"], b"new")
     assert sync.snapshot(sync.current_documents()[0]["sha256"]) == b"new"
 
 
@@ -352,9 +356,8 @@ async def test_ineligible_supported_paths_expose_relative_reasons_and_scan_limit
     }
     assert status["skipped_count"] == 3
     assert status["limits"]["max_file_bytes"] == 8 * 1024 * 1024
-    assert status["limits"]["max_scan_files"] == 1000
-    assert status["limits"]["max_scan_bytes"] == 64 * 1024 * 1024
-    assert status["limits"]["max_preservation_bytes"] == 256 * 1024 * 1024
+    assert status["limits"]["disk_min_internal_free_bytes"] == 10 * 1024**3
+    assert status["limits"]["disk_min_external_free_bytes"] == 2 * 1024**3
     assert "outside-secret" not in str(status)
 
 
@@ -416,7 +419,11 @@ async def test_manual_scan_rechecks_failed_parse_without_reuploading_bad_bytes(t
 
 
 @pytest.mark.asyncio
-async def test_snapshot_capacity_refuses_new_bytes_and_preserves_current(tmp_path, monkeypatch):
+async def test_actual_disk_pressure_refuses_new_version_and_preserves_pinned_current(
+    tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+
     from app.research_web.knowledge_backend import sync_storage as module
 
     sync, upstream, inbox, _ = service(tmp_path)
@@ -426,12 +433,13 @@ async def test_snapshot_capacity_refuses_new_bytes_and_preserves_current(tmp_pat
     await sync.scan()
     await sync.scan()
     current = sync.current_documents()
-    monkeypatch.setattr(module, "MAX_DATABASE_BYTES", sync.store.path.stat().st_size + 48 * 1024)
-    monkeypatch.setattr(module, "SQLITE_RESERVE_BYTES", 16 * 1024)
+    sync.pin_snapshot(current[0]["sha256"], b"accepted original")
+    monkeypatch.setattr(module.shutil, "disk_usage", lambda path: SimpleNamespace(free=0))
     path.write_bytes(b"n" * (40 * 1024))
-    status = await sync.scan()
-    assert status["last_error"] == "knowledge_sync_storage_budget"
-    assert status["last_scan_result"] == "failed"
+    with pytest.raises(StoreError) as failure:
+        await sync.scan()
+    assert failure.value.code == "knowledge_sync_disk_space_insufficient"
+    assert failure.value.status == 507
     assert sync.current_documents() == current
     assert sync.snapshot(current[0]["sha256"]) == b"accepted original"
     assert len(upstream.uploads) == 1

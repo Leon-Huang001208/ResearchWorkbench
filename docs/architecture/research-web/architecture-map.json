@@ -1159,6 +1159,7 @@
         "tests/research_web/test_weknora_cli.py",
         "tests/research_web/test_weknora_kb_settings_patch.py",
         "tests/research_web/test_weknora_sync.py",
+        "tests/research_web/test_weknora_sync_scaling.py",
         "tests/research_web/test_weknora_sync_client.py",
         "tests/research_web/test_weknora_current.py",
         "tests/research_web/test_weknora_current_api.py",
@@ -6448,7 +6449,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "7cfe3a3540f3a9d50c424e4583cb1f8d58c90708"
+      "revision": "1446a5f0a9dbe3c6830a0702eef86881f3c98181"
     },
     "levels": [
       {

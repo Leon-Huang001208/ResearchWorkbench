@@ -7715,13 +7715,15 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `collections`
+- `hashlib`
 - `math`
 - `storage`
 - `store`
 
 Classes:
 - `CurrentResearch`
-  - methods: _session, _current_authorized, _receipt, _current_config, _projection, _current_query, _receipt_status, _current_read, _current_freeze, registered_sources
+  - methods: _session, _current_authorized, _receipt, _current_config, _projection, _current_query, _receipt_status, _current_read, _current_freeze, _freeze_source_status, registered_sources
 
 
 ## `app/research_web/knowledge_backend/diagnostics.py`
@@ -7843,18 +7845,24 @@ Imports:
 - `pathlib`
 - `re`
 - `research_workbench_entrypoint.resident.admission`
+- `shutil`
+- `stat`
 - `store`
 - `typing`
 - `uuid`
 
 Classes:
 - `KnowledgeStore`
-  - methods: __init__, binding, check_binding_budget, save_binding, connection, save_connection, create, read, original, records, preservation
+  - methods: __init__, binding, check_binding_budget, save_binding, connection, save_connection, create, _record, read, original, records, preservation
 
 Functions:
 - `digest`
 - `canonical`
 - `fail`
+- `_available_bytes`
+- `_disk_floor`
+- `_file_digest`
+  - Hash one private regular file with fixed memory and no path/link traversal.
 
 
 ## `app/research_web/knowledge_backend/sync.py`
@@ -7884,7 +7892,7 @@ Imports:
 Classes:
 - `KnowledgeSyncService`
   - Owns mutable source state; the existing Host owns its worker and credentials.
-  - methods: __init__, close, matches_binding, _authorized, _root, _claim, configure, status, current_documents, history, snapshot, preservation, _read_at, _collect, _verify, _process, scan
+  - methods: __init__, close, matches_binding, _authorized, _root, _claim, configure, status, current_documents, history, snapshot, pin_snapshot, preservation, _signature, _read_at, _collect, _source, _changed_source, _verify, _process, scan
 
 Functions:
 - `_now`
@@ -7900,13 +7908,16 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `client`
 - `contextlib`
 - `core.observability`
 - `datahub.security`
 - `dossiers.lock`
+- `hashlib`
 - `json`
 - `os`
 - `pathlib`
+- `shutil`
 - `sqlite3`
 - `stat`
 - `storage`
@@ -7915,7 +7926,7 @@ Imports:
 
 Classes:
 - `SyncStore`
-  - methods: __init__, _safe, connection, config, save_config, rows, observe, update, snapshot, preservation
+  - methods: __init__, _safe, _admit, _prune_unpinned, connection, config, save_config, rows, observe, update, _checked_raw, stage, pin_snapshot, _raw, staged_snapshot, snapshot, preservation
 
 
 ## `app/research_web/launch_runtime.py`

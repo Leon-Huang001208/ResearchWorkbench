@@ -124,6 +124,7 @@ jobs:
             tests/research_web/test_weknora_cli.py \
             tests/research_web/test_weknora_kb_settings_patch.py \
             tests/research_web/test_weknora_sync.py \
+            tests/research_web/test_weknora_sync_scaling.py \
             tests/research_web/test_weknora_sync_client.py \
             tests/research_web/test_weknora_current.py \
             tests/research_web/test_weknora_current_api.py \

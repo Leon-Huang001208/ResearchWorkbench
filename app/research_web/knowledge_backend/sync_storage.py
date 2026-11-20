@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import sqlite3
 import stat
 import threading
@@ -12,17 +14,18 @@ from pathlib import Path
 
 from core.observability import get_logger
 
-from ..datahub.security import directory, read_file, write_new
+from ..datahub.security import directory, write_new
 from ..dossiers.lock import retention_lock
 from ..store import StoreError
-from .storage import digest, fail
+from .client import ORIGINAL_LIMIT
+from .storage import SHA, digest, fail
 
 log = get_logger(__name__)
 FOLDER = "knowledge-sync"
 DATABASE = "state.sqlite3"
-MAX_DATABASE_BYTES = 256 * 1024 * 1024
-# Leave headroom for the largest snapshot's rollback journal and bounded control updates.
-SQLITE_RESERVE_BYTES = 17 * 1024 * 1024
+MIN_INTERNAL_FREE_BYTES = 10 * 1024**3
+MIN_EXTERNAL_FREE_BYTES = 2 * 1024**3
+CONTROL_PEAK_BYTES = 64 * 1024
 
 
 class SyncStore:
@@ -46,6 +49,30 @@ class SyncStore:
             fail("knowledge_sync_storage_unsafe", 503)
         return info
 
+    def _admit(self, growth=0):
+        floor = (
+            MIN_INTERNAL_FREE_BYTES
+            if self.root.stat().st_dev == Path("/").stat().st_dev
+            else MIN_EXTERNAL_FREE_BYTES
+        )
+        # Include rollback-journal/control growth; no catalog or history byte limit.
+        if shutil.disk_usage(self.root).free - growth - CONTROL_PEAK_BYTES < floor:
+            fail("knowledge_sync_disk_space_insufficient", 507)
+
+    def _prune_unpinned(self, db):
+        eligible = (
+            "sha256 NOT IN (SELECT sha256 FROM snapshot_pins) "
+            "AND NOT EXISTS(SELECT 1 FROM versions v JOIN files f ON f.path=v.path "
+            "WHERE v.sha256=snapshots.sha256 AND v.version=f.desired_version AND f.tombstone=0 "
+            "AND v.state IN ('uploading','uncertain','pending'))"
+        )
+        reclaiming = db.execute(
+            "SELECT COALESCE(SUM(length(content)),0) FROM snapshots WHERE " + eligible
+        ).fetchone()[0]
+        if reclaiming:
+            self._admit(reclaiming)
+            db.execute("DELETE FROM snapshots WHERE " + eligible)
+
     @contextmanager
     def connection(self, *, write=False):
         db = None
@@ -56,6 +83,8 @@ class SyncStore:
         )
         with self.lock, fence:
             try:
+                if write:
+                    self._admit()
                 with directory(self.root, private=True) as fd:
                     exists = FOLDER in os.listdir(fd)
                 if not exists and not write:
@@ -96,8 +125,21 @@ class SyncStore:
                         fail("knowledge_sync_owner_invalid", 503)
                     if write:
                         db.execute("BEGIN IMMEDIATE")
+                        had_pins = db.execute(
+                            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='snapshot_pins'"
+                        ).fetchone()
+                        db.execute(
+                            "CREATE TABLE IF NOT EXISTS snapshot_pins(sha256 TEXT PRIMARY KEY REFERENCES snapshots(sha256))"
+                        )
+                        if not created and not had_pins:
+                            # A2 receipts predate explicit pins; preserve every existing original.
+                            self._admit(
+                                db.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0] * 1024
+                            )
+                            db.execute("INSERT INTO snapshot_pins SELECT sha256 FROM snapshots")
                     yield db
                     if write:
+                        self._prune_unpinned(db)
                         db.commit()
             except StoreError:
                 if db is not None:
@@ -124,7 +166,7 @@ class SyncStore:
                 (json.dumps(value, ensure_ascii=False, allow_nan=False),),
             )
 
-    def rows(self, *, current=False, path=None):
+    def rows(self, *, current=False, path=None, desired=False, sha256=None):
         with self.connection() as db:
             if db is None:
                 return []
@@ -135,9 +177,14 @@ class SyncStore:
             conditions, params = [], []
             if current:
                 conditions.extend(["f.tombstone=0", "v.version=f.current_version"])
+            if desired:
+                conditions.append("v.version=f.desired_version")
             if path is not None:
                 conditions.append("v.path=?")
                 params.append(path)
+            if sha256 is not None:
+                conditions.append("v.sha256=?")
+                params.append(sha256)
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
             return [dict(row) for row in db.execute(sql + " ORDER BY v.path,v.version", params)]
@@ -145,26 +192,16 @@ class SyncStore:
     def observe(self, observations, present):
         with self.connection(write=True) as db:
             page_size = db.execute("PRAGMA page_size").fetchone()[0]
-            extra, added = 0, set()
+            extra = 0
             for path, value in observations.items():
-                if (
-                    value["sha256"] not in added
-                    and db.execute(
-                        "SELECT 1 FROM snapshots WHERE sha256=?", (value["sha256"],)
-                    ).fetchone()
-                    is None
-                ):
-                    extra += ((len(value["content"]) + page_size - 1) // page_size) * page_size
-                    added.add(value["sha256"])
                 previous = db.execute(
                     "SELECT v.sha256,f.tombstone FROM files f JOIN versions v "
                     "ON v.path=f.path AND v.version=f.desired_version WHERE f.path=?",
                     (path,),
                 ).fetchone()
                 if previous is None or previous[0] != value["sha256"] or previous[1]:
-                    extra += 4 * page_size + 2 * len(path.encode("utf-8"))
-            if self.path.stat().st_size + extra + SQLITE_RESERVE_BYTES > MAX_DATABASE_BYTES:
-                fail("knowledge_sync_storage_budget", 413)
+                    extra += 4 * page_size + 4 * len(path.encode("utf-8"))
+            self._admit(extra * 2)
             for path, value in observations.items():
                 previous = db.execute(
                     "SELECT v.*,f.tombstone FROM files f JOIN versions v "
@@ -172,16 +209,12 @@ class SyncStore:
                     (path,),
                 ).fetchone()
                 if previous and previous["sha256"] == value["sha256"] and not previous["tombstone"]:
-                    db.execute("UPDATE files SET stable=MIN(stable+1,2) WHERE path=?", (path,))
+                    db.execute("UPDATE files SET stable=2 WHERE path=? AND stable<2", (path,))
                     continue
                 version = previous["version"] + 1 if previous else 1
                 db.execute(
-                    "INSERT OR IGNORE INTO snapshots VALUES(?,?)",
-                    (value["sha256"], value["content"]),
-                )
-                db.execute(
                     "INSERT INTO versions VALUES(?,?,?,?,?,NULL,'observing',NULL)",
-                    (path, version, value["sha256"], value["md5"], len(value["content"])),
+                    (path, version, value["sha256"], value["md5"], value["size"]),
                 )
                 db.execute(
                     "INSERT INTO files VALUES(?,?,NULL,1,0) ON CONFLICT(path) DO UPDATE SET "
@@ -214,16 +247,85 @@ class SyncStore:
                 )
             return True
 
-    def snapshot(self, sha256):
-        with self.connection() as db:
-            row = (
-                db.execute("SELECT content FROM snapshots WHERE sha256=?", (sha256,)).fetchone()
-                if db
-                else None
+    @staticmethod
+    def _checked_raw(sha256, raw):
+        if (
+            not isinstance(sha256, str)
+            or not SHA.fullmatch(sha256)
+            or not isinstance(raw, bytes)
+            or not 0 < len(raw) <= ORIGINAL_LIMIT
+            or digest(raw) != sha256
+        ):
+            fail("knowledge_sync_snapshot_invalid", 422)
+
+    def stage(self, row, raw):
+        self._checked_raw(row["sha256"], raw)
+        with self.connection(write=True) as db:
+            desired = db.execute(
+                "SELECT desired_version,tombstone FROM files WHERE path=?", (row["path"],)
+            ).fetchone()
+            if desired is None or desired[0] != row["version"] or desired[1]:
+                return False
+            if len(raw) != row["size"] or hashlib.md5(raw).hexdigest() != row["md5"]:
+                fail("knowledge_sync_snapshot_invalid", 422)
+            self._admit(2 * len(raw))
+            db.execute("INSERT OR IGNORE INTO snapshots VALUES(?,?)", (row["sha256"], raw))
+            db.execute(
+                "UPDATE versions SET state='uploading',error=NULL WHERE path=? AND version=?",
+                (row["path"], row["version"]),
             )
-            if row is None or digest(row[0]) != sha256:
-                fail("knowledge_sync_snapshot_unavailable", 404)
-            return bytes(row[0])
+            return True
+
+    def pin_snapshot(self, sha256, raw):
+        self._checked_raw(sha256, raw)
+        with self.connection() as db:
+            pins = (
+                db is not None
+                and db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='snapshot_pins'"
+                ).fetchone()
+            )
+            if (
+                pins
+                and db.execute("SELECT 1 FROM snapshot_pins WHERE sha256=?", (sha256,)).fetchone()
+            ):
+                if self._raw(db, sha256) != raw:
+                    fail("knowledge_sync_snapshot_invalid", 422)
+                return
+        with self.connection(write=True) as db:
+            self._admit(2 * len(raw))
+            db.execute("INSERT OR IGNORE INTO snapshots VALUES(?,?)", (sha256, raw))
+            if self._raw(db, sha256) != raw:
+                fail("knowledge_sync_snapshot_invalid", 422)
+            db.execute("INSERT OR IGNORE INTO snapshot_pins VALUES(?)", (sha256,))
+
+    @staticmethod
+    def _raw(db, sha256):
+        length = (
+            db.execute("SELECT length(content) FROM snapshots WHERE sha256=?", (sha256,)).fetchone()
+            if db
+            else None
+        )
+        if length is None:
+            return None
+        if not 0 < length[0] <= ORIGINAL_LIMIT:
+            fail("knowledge_sync_snapshot_invalid", 422)
+        raw = bytes(
+            db.execute("SELECT content FROM snapshots WHERE sha256=?", (sha256,)).fetchone()[0]
+        )
+        if digest(raw) != sha256:
+            fail("knowledge_sync_snapshot_invalid", 422)
+        return raw
+
+    def staged_snapshot(self, sha256):
+        with self.connection() as db:
+            return self._raw(db, sha256)
+
+    def snapshot(self, sha256):
+        raw = self.staged_snapshot(sha256)
+        if raw is None:
+            fail("knowledge_sync_snapshot_unavailable", 404)
+        return raw
 
     def preservation(self):
         fence = (
@@ -240,9 +342,41 @@ class SyncStore:
             with directory(self.root, (FOLDER,), private=True) as fd:
                 if set(os.listdir(fd)) != {DATABASE}:
                     fail("knowledge_sync_recovery_required", 503)
-                raw = read_file(fd, DATABASE, private=True, limit=MAX_DATABASE_BYTES)
+                before = self._safe()
+                handle = os.open(DATABASE, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+                try:
+                    opened = os.fstat(handle)
+                    if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+                        fail("knowledge_sync_storage_changed", 503)
+                    sha, length = hashlib.sha256(), 0
+                    while chunk := os.read(handle, 1024 * 1024):
+                        sha.update(chunk)
+                        length += len(chunk)
+                    after = os.fstat(handle)
+                    current = self._safe()
+
+                    def identity(info):
+                        return (
+                            info.st_dev,
+                            info.st_ino,
+                            info.st_mode,
+                            info.st_nlink,
+                            info.st_size,
+                            info.st_mtime_ns,
+                            info.st_ctime_ns,
+                        )
+
+                    if (
+                        length != before.st_size
+                        or identity(before) != identity(after)
+                        or identity(before) != identity(current)
+                        or set(os.listdir(fd)) != {DATABASE}
+                    ):
+                        fail("knowledge_sync_storage_changed", 503)
+                finally:
+                    os.close(handle)
             return {
                 "schema_version": 1,
                 "owner": self.owner,
-                "files": {FOLDER + "/" + DATABASE: digest(raw)},
+                "files": {FOLDER + "/" + DATABASE: sha.hexdigest()},
             }

@@ -13,6 +13,7 @@ from tests.research_web import test_weknora_service as fixtures
 class CurrentSync:
     def __init__(self, upstream):
         self.original_bytes = upstream.original_bytes
+        self.pins = {}
         self.rows = [
             {
                 "document_id": "d1",
@@ -37,13 +38,26 @@ class CurrentSync:
         pass
 
     def snapshot(self, sha):
-        assert hashlib.sha256(self.original_bytes).hexdigest() == sha
-        return self.original_bytes
+        if sha not in self.pins:
+            raise StoreError("missing", "knowledge_sync_snapshot_unavailable", 404)
+        return self.pins[sha]
+
+    def pin_snapshot(self, sha, raw):
+        assert hashlib.sha256(raw).hexdigest() == sha
+        assert sha not in self.pins or self.pins[sha] == raw
+        self.pins[sha] = raw
+
+
+@pytest.fixture(autouse=True)
+def stable_storage_capacity(monkeypatch):
+    from app.research_web.knowledge_backend import storage
+
+    monkeypatch.setattr(storage, "_available_bytes", lambda root: 100 * 1024**3, raising=False)
 
 
 @pytest.fixture
-async def current(tmp_path):
-    service, upstream, _ = await fixtures.knowledge.__wrapped__(tmp_path)
+async def current(tmp_path, monkeypatch):
+    service, upstream, _ = await fixtures.knowledge.__wrapped__(tmp_path, monkeypatch)
     row = service.owner_store.create("fingpt", "Current research")
     row.update(created=True, source_scope=["uploads"])
     service.owner_store.save()
@@ -260,21 +274,98 @@ async def test_doctor_reports_last_verified_connection_without_new_network(curre
 
 
 @pytest.mark.asyncio
-async def test_receipt_count_admission_preserves_readable_budget_and_idempotence(
+async def test_receipt_record_budget_preserves_readable_history_and_idempotence(
     current, monkeypatch
 ):
     from app.research_web.knowledge_backend import storage
 
     service, upstream, sid = current
-    monkeypatch.setattr(storage, "RECORD_LIMIT", 2, raising=False)
+    monkeypatch.setattr(storage, "MANIFEST_LIMIT", 4096)
     first = await service.current_query(models.CurrentQuery(session_id=sid, query="q"))
     upstream.hit["chunk_id"] = "c2"
     second = await service.current_query(models.CurrentQuery(session_id=sid, query="q"))
     assert (await service.current_query(models.CurrentQuery(session_id=sid, query="q"))) == second
     upstream.hit["chunk_id"] = "c3"
+    upstream.hit["content"] = "x" * 10000
     with pytest.raises(StoreError) as error:
         await service.current_query(models.CurrentQuery(session_id=sid, query="q"))
-    assert error.value.code == "knowledge_record_budget"
-    assert len(service.store.records("receipts")) == 2
+    assert error.value.code == "knowledge_manifest_budget"
+    assert len(list(service.store.records("receipts"))) == 2
     assert service.store.preservation() is not None
     assert service.store.read("receipts", first["items"][0]["hit_id"])
+
+
+@pytest.mark.asyncio
+async def test_query_pins_verified_original_before_publishing_receipt(current, monkeypatch):
+    service, upstream, sid = current
+    create = service.store.create
+
+    def publish(kind, payload, *args):
+        assert payload["sha256"] in service.sync.pins
+        return create(kind, payload, *args)
+
+    monkeypatch.setattr(service.store, "create", publish)
+    result = await service.current_query(models.CurrentQuery(session_id=sid, query="q"))
+    assert service.sync.snapshot(result["items"][0]["sha256"]) == upstream.original_bytes
+
+
+@pytest.mark.asyncio
+async def test_query_keeps_all_top8_fullsize_originals(current):
+    service, upstream, sid = current
+    raw = b"a" * (8 * 1024 * 1024)
+    upstream.original_bytes = raw
+    sha = hashlib.sha256(raw).hexdigest()
+    service.sync.rows = [
+        dict(service.sync.rows[0], document_id=f"d{i}", sha256=sha) for i in range(8)
+    ]
+
+    async def search(*args, **kwargs):
+        return [dict(upstream.hit, document_id=f"d{i}", chunk_id=f"c{i}") for i in range(8)]
+
+    async def chunks(identifier):
+        return [dict(upstream.hit, document_id=identifier, chunk_id="c" + identifier[1:])]
+
+    upstream.search, upstream.chunks = search, chunks
+    result = await service.current_query(models.CurrentQuery(session_id=sid, query="q"))
+    assert len(result["items"]) == 8 and all(item["sha256"] == sha for item in result["items"])
+    assert service.sync.snapshot(sha) == raw
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("endpoint", ["original", "document"])
+async def test_freeze_uses_pinned_bytes_when_source_endpoint_is_unavailable(current, endpoint):
+    service, upstream, sid = current
+    original = upstream.original_bytes
+    hit = (await service.current_query(models.CurrentQuery(session_id=sid, query="q")))["items"][0]
+    service.sync.rows = []
+    calls = []
+
+    async def unavailable(identifier):
+        calls.append(identifier)
+        raise StoreError("unavailable", "weknora_unavailable", 503)
+
+    setattr(upstream, endpoint, unavailable)
+    frozen = await service.current_freeze(
+        models.CurrentFreeze(session_id=sid, hit_ids=[hit["hit_id"]])
+    )
+    assert service.store.original(frozen["id"], hit["sha256"]) == original
+    if endpoint == "original":
+        assert calls == []
+    assert frozen["historical_eligible"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [503, 401, 403])
+async def test_freeze_keeps_live_authorization_required_for_pinned_bytes(current, status):
+    service, upstream, sid = current
+    hit = (await service.current_query(models.CurrentQuery(session_id=sid, query="q")))["items"][0]
+
+    async def unavailable():
+        raise StoreError(
+            "unavailable", "weknora_unavailable" if status == 503 else "weknora_auth_denied", status
+        )
+
+    upstream.identity = unavailable
+    with pytest.raises(StoreError):
+        await service.current_freeze(models.CurrentFreeze(session_id=sid, hit_ids=[hit["hit_id"]]))
+    assert not (service.store.root / "knowledge-backend/evidence").exists()

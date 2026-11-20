@@ -12,9 +12,16 @@ from tests.research_web import test_weknora_service as service_fixtures
 from tests.research_web.test_weknora_service import approved
 
 
+@pytest.fixture(autouse=True)
+def stable_storage_capacity(monkeypatch):
+    from app.research_web.knowledge_backend import storage
+
+    monkeypatch.setattr(storage, "_available_bytes", lambda root: 100 * 1024**3, raising=False)
+
+
 @pytest.fixture
-async def knowledge(tmp_path):
-    return await service_fixtures.knowledge.__wrapped__(tmp_path)
+async def knowledge(tmp_path, monkeypatch):
+    return await service_fixtures.knowledge.__wrapped__(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
@@ -152,3 +159,92 @@ async def test_binding_budget_preserves_previous_readable_binding(knowledge):
         service.store.save_binding(oversized)
     assert error.value.code == "knowledge_binding_budget"
     assert service.store.binding() == previous
+
+
+@pytest.mark.asyncio
+async def test_more_than1000_receipts_remain_writable_readable_and_preserved(knowledge):
+    from app.research_web.knowledge_backend.storage import canonical, digest
+
+    service, _, _ = knowledge
+    folder = service.store.root / "knowledge-backend/receipts"
+    folder.mkdir(mode=0o700)
+    identifiers = []
+    for index in range(1001):
+        manifest = {
+            "schema": 1,
+            "owner": service.store.owner,
+            "kind": "receipts",
+            "payload": {"counter": index},
+            "files": {},
+        }
+        raw = canonical(manifest)
+        identifier = digest(raw)
+        path = folder / identifier
+        path.mkdir(mode=0o700)
+        (path / "manifest.json").write_bytes(raw)
+        (path / "manifest.json").chmod(0o600)
+        identifiers.append(identifier)
+    assert service.store.read("receipts", identifiers[0])["counter"] == 0
+    added = service.store.create("receipts", {"counter": 1001})
+    assert len(list(service.store.records("receipts"))) == 1002
+    proof = service.store.preservation()
+    assert f"knowledge-backend/receipts/{added['id']}/manifest.json" in proof["files"]
+
+
+@pytest.mark.asyncio
+async def test_history_preservation_hashes_originals_without_cumulative_read_budget(
+    knowledge, monkeypatch
+):
+    from app.research_web.knowledge_backend import storage
+
+    service, _, _ = knowledge
+    for index in range(9):
+        raw = f"body {index}".encode()
+        sha = storage.digest(raw)
+        service.store.create("evidence", {"documents": [{"sha256": sha}]}, {sha + ".bin": raw})
+    read = storage.read_file
+    body_reads = []
+
+    class LargeAccountingBytes(bytes):
+        def __len__(self):
+            return 8 * 1024 * 1024
+
+    def counted(fd, name, **kwargs):
+        raw = read(fd, name, **kwargs)
+        if name.endswith(".bin"):
+            body_reads.append(name)
+            return LargeAccountingBytes(raw)
+        return raw
+
+    monkeypatch.setattr(storage, "read_file", counted)
+    proof = service.store.preservation()
+    assert len([name for name in proof["files"] if name.endswith(".bin")]) == 9
+    assert body_reads == []
+
+
+@pytest.mark.asyncio
+async def test_record_transaction_and_disk_floor_failures_do_not_damage_history(
+    knowledge, monkeypatch
+):
+    from app.research_web.knowledge_backend import storage
+
+    service, _, _ = knowledge
+    old = service.store.create("receipts", {"counter": 0})
+    monkeypatch.setattr(storage, "TRANSACTION_LIMIT", 16, raising=False)
+    contents = (b"first original", b"second original")
+    with pytest.raises(StoreError) as failure:
+        service.store.create(
+            "evidence", {}, {storage.digest(raw) + ".bin": raw for raw in contents}
+        )
+    assert failure.value.code == "knowledge_evidence_budget"
+    monkeypatch.setattr(storage, "TRANSACTION_LIMIT", 32 * 1024 * 1024, raising=False)
+    monkeypatch.setattr(storage, "ORIGINAL_LIMIT", 8, raising=False)
+    raw = b"oversized"
+    with pytest.raises(StoreError) as failure:
+        service.store.create("evidence", {}, {storage.digest(raw) + ".bin": raw})
+    assert failure.value.code == "knowledge_original_budget"
+    monkeypatch.setattr(storage, "_available_bytes", lambda root: 0, raising=False)
+    with pytest.raises(StoreError) as failure:
+        service.store.create("receipts", {"counter": 1})
+    assert failure.value.code == "knowledge_storage_insufficient"
+    assert service.store.read("receipts", old["id"])["counter"] == 0

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
+from collections import deque
 
 from ..store import StoreError
 from .storage import canonical, digest, fail
@@ -105,7 +107,8 @@ class CurrentResearch:
                     ):
                         fail("knowledge_upstream_score_invalid", 502)
                     candidates.append(hit)
-            candidates.sort(key=lambda hit: hit.get("score", 0), reverse=True)
+                candidates.sort(key=lambda hit: hit.get("score", 0), reverse=True)
+                candidates = candidates[:8]
             selected, seen = [], set()
             for hit in candidates:
                 key = hit["document_id"], hit["chunk_id"]
@@ -114,7 +117,7 @@ class CurrentResearch:
                     selected.append(hit)
                 if len(selected) == 8:
                     break
-            prepared, documents, byte_count = [], {}, 0
+            prepared, documents, originals, byte_count = [], {}, {}, 0
             for hit in selected:
                 identifier = hit["document_id"]
                 row = allowed[identifier]
@@ -125,15 +128,18 @@ class CurrentResearch:
                         fail("knowledge_upstream_scope_violation", 502)
                     raw, chunks = await client.original(identifier), await client.chunks(identifier)
                     byte_count += len(raw)
-                    if len(raw) > 8 * 1024 * 1024 or byte_count > 32 * 1024 * 1024:
+                    # Top8 may contain eight distinct 8 MiB originals. Raw storage is
+                    # bounded here independently of the total library/history size.
+                    if len(raw) > 8 * 1024 * 1024 or byte_count > 64 * 1024 * 1024:
                         fail("knowledge_current_query_budget", 413)
                     if digest(raw) != row["sha256"]:
                         fail("knowledge_current_version_changed", 409)
                     fingerprint = chunk_fingerprint(chunks)
                     if digest(await client.original(identifier)) != row["sha256"]:
                         fail("knowledge_current_version_changed", 409)
-                    documents[identifier] = raw, chunks, fingerprint, meta
-                raw, chunks, fingerprint, meta = documents[identifier]
+                    originals.setdefault(row["sha256"], raw)
+                    documents[identifier] = chunks, fingerprint, meta
+                chunks, fingerprint, meta = documents[identifier]
                 chunk = next(
                     (chunk for chunk in chunks if chunk["chunk_id"] == hit["chunk_id"]), None
                 )
@@ -174,6 +180,11 @@ class CurrentResearch:
             if kb_id not in {item["id"] for item in await client.knowledge_bases()}:
                 fail("knowledge_library_access_revoked", 403)
             self._current_config(binding, kb_id, rows)
+            for sha, raw in originals.items():
+                # Durable pins precede receipts: a published hit never depends on
+                # a source file or a later WeKnora original download to freeze.
+                self.sync.pin_snapshot(sha, raw)
+            originals.clear()
             receipts = [self.store.create("receipts", payload) for payload in prepared]
             return {
                 "items": [self._projection(row) for row in receipts],
@@ -222,10 +233,10 @@ class CurrentResearch:
             receipts = [self._receipt(body.session_id, key, binding, kb_id) for key in body.hit_ids]
             documents, excerpts, files = {}, [], {}
             for row in receipts:
-                state = await self._receipt_status(client, row)
                 raw = self.sync.snapshot(row["sha256"])
                 if digest(raw) != row["sha256"]:
                     fail("knowledge_evidence_integrity")
+                state = await self._freeze_source_status(client, row, raw)
                 files[row["sha256"] + ".bin"] = raw
                 documents[(row["document_id"], row["sha256"])] = {
                     key: row[key]
@@ -271,6 +282,33 @@ class CurrentResearch:
                 files,
             )
 
+    async def _freeze_source_status(self, client, row, raw):
+        """Source observation is advisory; live identity and KB checks remain mandatory."""
+        try:
+            meta = await client.document(row["document_id"])
+        except StoreError as exc:
+            if exc.code == "weknora_not_found" and exc.status == 404:
+                return "deleted"
+            if exc.status in {502, 503, 504}:
+                return "unavailable"
+            raise
+        if meta["kb_id"] != row["kb_id"]:
+            fail("knowledge_library_access_revoked", 403)
+        if (
+            meta.get("parse_status") != "completed"
+            or meta.get("enable_status") != "enabled"
+            or (meta.get("file_hash") and meta["file_hash"] != hashlib.md5(raw).hexdigest())
+        ):
+            return "changed"
+        return (
+            "current"
+            if any(
+                item["document_id"] == row["document_id"] and item["sha256"] == row["sha256"]
+                for item in self.sync.current_documents()
+            )
+            else "superseded"
+        )
+
     def registered_sources(self, sid):
         session = self.owner_store.session(sid)
         if session.get("created") is not True or "uploads" not in session.get(
@@ -280,19 +318,23 @@ class CurrentResearch:
         binding = self.store.binding()
         if not binding or not self.sync.matches_binding(binding):
             return []
-        return [
-            {
-                "id": "knowledge:" + row["id"],
-                "source_id": "knowledge:" + row["id"],
-                "title": row["title"],
-                "content": row["chunk"]["content"],
-                "sha256": row["sha256"],
-                "digest_scope": "full_file",
-                "historical_eligible": False,
-                "admission": {"report_admitted": False},
-                "limitations": ["source_time_unknown"],
-            }
-            for row in self.store.records("receipts")
-            if row.get("session_id") == sid
-            and all(row.get(key) == binding[key] for key in ("origin", "user_id", "workspace_id"))
-        ][-100:]
+        result = deque(maxlen=100)
+        for row in self.store.records("receipts"):
+            if row.get("session_id") != sid or any(
+                row.get(key) != binding[key] for key in ("origin", "user_id", "workspace_id")
+            ):
+                continue
+            result.append(
+                {
+                    "id": "knowledge:" + row["id"],
+                    "source_id": "knowledge:" + row["id"],
+                    "title": row["title"],
+                    "content": row["chunk"]["content"],
+                    "sha256": row["sha256"],
+                    "digest_scope": "full_file",
+                    "historical_eligible": False,
+                    "admission": {"report_admitted": False},
+                    "limitations": ["source_time_unknown"],
+                }
+            )
+        return list(result)

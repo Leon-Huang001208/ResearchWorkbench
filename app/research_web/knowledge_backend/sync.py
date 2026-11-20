@@ -29,8 +29,6 @@ SOURCE_MARKER = ".rwb-knowledge-owner.json"
 EXTENSIONS = frozenset({".pdf", ".docx", ".md", ".txt"})
 IDENTITY_KEYS = ("origin", "user_id", "workspace_id")
 SCAN_TIMEOUT = 60
-MAX_SCAN_FILES = 1000
-MAX_SCAN_BYTES = 64 * 1024 * 1024
 MAX_SKIPPED_ITEMS = 128
 MAX_PENDING_PER_SCAN = 8
 MAX_CURRENT_AUDITS = 1
@@ -79,6 +77,7 @@ class KnowledgeSyncService:
         self.default_root = Path(default_root) if default_root is not None else DEFAULT_ROOT
         self.lock = asyncio.Lock()
         self.running = False
+        self._stat_cache = {}
 
     def close(self):
         # SQLite connections are scoped to transactions; the Host cancels its worker first.
@@ -172,7 +171,7 @@ class KnowledgeSyncService:
 
     def status(self):
         config = self.store.config() or {}
-        rows = [row for row in self.store.rows() if row["version"] == row["desired_version"]]
+        rows = self.store.rows(desired=True)
         current_rows = self.store.rows(current=True)
         current_ids = {row["path"]: row["document_id"] for row in current_rows}
         items = [
@@ -219,11 +218,9 @@ class KnowledgeSyncService:
             "skipped_items": config.get("skipped_items", []),
             "limits": {
                 "max_file_bytes": ORIGINAL_LIMIT,
-                "max_scan_files": MAX_SCAN_FILES,
-                "max_scan_bytes": MAX_SCAN_BYTES,
                 "max_skipped_items": MAX_SKIPPED_ITEMS,
-                "max_preservation_bytes": sync_storage.MAX_DATABASE_BYTES,
-                "journal_reserve_bytes": sync_storage.SQLITE_RESERVE_BYTES,
+                "disk_min_internal_free_bytes": sync_storage.MIN_INTERNAL_FREE_BYTES,
+                "disk_min_external_free_bytes": sync_storage.MIN_EXTERNAL_FREE_BYTES,
                 "max_pending_per_scan": MAX_PENDING_PER_SCAN,
                 "max_current_audits": MAX_CURRENT_AUDITS,
             },
@@ -243,11 +240,30 @@ class KnowledgeSyncService:
     def snapshot(self, sha256):
         return self.store.snapshot(sha256)
 
+    def pin_snapshot(self, sha256, raw):
+        try:
+            with admission():
+                self.store.pin_snapshot(sha256, raw)
+        except MaintenanceBusy:
+            fail("knowledge_maintenance_busy", 409)
+
     def preservation(self):
         return self.store.preservation()
 
     @staticmethod
-    def _read_at(fd, name):
+    def _signature(info):
+        return (
+            info.st_dev,
+            info.st_ino,
+            info.st_mode,
+            info.st_nlink,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+
+    @classmethod
+    def _read_at(cls, fd, name, *, include_content=False):
         handle = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
         with os.fdopen(handle, "rb") as stream:
             before = os.fstat(stream.fileno())
@@ -257,20 +273,33 @@ class KnowledgeSyncService:
                 or not 0 < before.st_size <= ORIGINAL_LIMIT
             ):
                 fail("knowledge_sync_file_unsupported", 422)
-            raw = stream.read(ORIGINAL_LIMIT + 1)
+            sha, md5, size, parts = hashlib.sha256(), hashlib.md5(), 0, []
+            while chunk := stream.read(1024 * 1024):
+                size += len(chunk)
+                if size > ORIGINAL_LIMIT:
+                    fail("knowledge_sync_source_changing", 409)
+                sha.update(chunk)
+                md5.update(chunk)
+                if include_content:
+                    parts.append(chunk)
             after = os.fstat(stream.fileno())
-            if len(raw) != before.st_size or (
-                before.st_size,
-                before.st_mtime_ns,
-                before.st_ctime_ns,
-            ) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+            if size != before.st_size or cls._signature(before) != cls._signature(after):
                 fail("knowledge_sync_source_changing", 409)
-            return {"content": raw, "sha256": digest(raw), "md5": hashlib.md5(raw).hexdigest()}
+            result = {
+                "sha256": sha.hexdigest(),
+                "md5": md5.hexdigest(),
+                "size": size,
+                "signature": cls._signature(after),
+            }
+            if include_content:
+                result["content"] = b"".join(parts)
+            return result
 
     def _collect(self, root):
         initial = self._root(root)
         observations, present = {}, set()
-        skipped, skipped_count, total = [], 0, 0
+        skipped, skipped_count = [], 0
+        cache = {}
 
         def skip(path, info, reason):
             nonlocal skipped_count
@@ -279,7 +308,6 @@ class KnowledgeSyncService:
                 skipped.append({"path": path, "size": info.st_size, "error": reason})
 
         def walk(fd, prefix=""):
-            nonlocal total
             with os.scandir(fd) as entries:
                 for entry in entries:
                     if _temporary(entry.name):
@@ -296,8 +324,6 @@ class KnowledgeSyncService:
                             os.close(child)
                     else:
                         present.add(path)
-                        if len(present) > MAX_SCAN_FILES:
-                            fail("knowledge_sync_scan_budget", 413)
                         if stat.S_ISLNK(info.st_mode):
                             skip(path, info, "knowledge_sync_symlink_ignored")
                         elif Path(entry.name).suffix.lower() not in EXTENSIONS:
@@ -311,17 +337,35 @@ class KnowledgeSyncService:
                         elif info.st_size > ORIGINAL_LIMIT:
                             skip(path, info, "knowledge_sync_file_too_large")
                         else:
-                            observations[path] = self._read_at(fd, entry.name)
-                            total += len(observations[path]["content"])
-                            if total > MAX_SCAN_BYTES:
-                                fail("knowledge_sync_scan_budget", 413)
+                            previous = self._stat_cache.get(path)
+                            metadata = (
+                                previous
+                                if previous and previous["signature"] == self._signature(info)
+                                else self._read_at(fd, entry.name)
+                            )
+                            cache[path] = metadata
+                            observations[path] = dict(metadata)
 
         with directory(root) as fd:
             walk(fd)
         final = self._root(root)
         if (initial.st_dev, initial.st_ino) != (final.st_dev, final.st_ino):
             fail("knowledge_sync_root_changed", 503)
+        self._stat_cache = cache
         return observations, present, skipped, skipped_count
+
+    def _source(self, config, path, *, include_content=False):
+        root = Path(config["source_root"])
+        self._root(root)
+        components = path.split("/")
+        with directory(root, tuple(components[:-1])) as fd:
+            return self._read_at(fd, components[-1], include_content=include_content)
+
+    def _changed_source(self, path, metadata):
+        metadata = {key: value for key, value in metadata.items() if key != "content"}
+        present = {item["path"] for item in self.store.rows(desired=True) if not item["tombstone"]}
+        self.store.observe({path: metadata}, present | {path})
+        self._stat_cache[path] = metadata
 
     async def _verify(self, client, row, meta, kb_id):
         if meta.get("kb_id") != kb_id or meta.get("file_hash") != row["md5"]:
@@ -341,9 +385,7 @@ class KnowledgeSyncService:
             if not identifier:
                 # Reuse only a verified identical original, including rename/duplicate and recovery.
                 candidates = [
-                    item
-                    for item in self.store.rows()
-                    if item["sha256"] == row["sha256"] and item["document_id"]
+                    item for item in self.store.rows(sha256=row["sha256"]) if item["document_id"]
                 ]
                 if not candidates and row["state"] in {"uploading", "uncertain"}:
                     candidates = [
@@ -354,11 +396,19 @@ class KnowledgeSyncService:
                 if candidates:
                     identifier = candidates[0]["document_id"]
                 else:
-                    self.store.update(row, state="uploading")
+                    raw = self.store.staged_snapshot(row["sha256"])
+                    if raw is None:
+                        source = self._source(config, row["path"], include_content=True)
+                        if source["sha256"] != row["sha256"]:
+                            self._changed_source(row["path"], source)
+                            return
+                        raw = source["content"]
+                    if not self.store.stage(row, raw):
+                        return
                     meta = await client.upload(
                         kb_id,
                         row["path"],
-                        self.snapshot(row["sha256"]),
+                        raw,
                         {
                             "rwb_sha256": row["sha256"],
                             "rwb_version": str(row["version"]),
@@ -375,20 +425,14 @@ class KnowledgeSyncService:
             if current_binding != binding:
                 fail("knowledge_sync_binding_changed", 403)
             # A post-upload source read closes the long network/parse window before CAS promotion.
-            root = Path(config["source_root"])
-            self._root(root)
-            components = row["path"].split("/")
-            with directory(root, tuple(components[:-1])) as fd:
-                current = self._read_at(fd, components[-1])
+            current = self._source(config, row["path"])
             if current["sha256"] != row["sha256"]:
-                self.store.observe(
-                    {row["path"]: current}, {item["path"] for item in self.store.rows()}
-                )
+                self._changed_source(row["path"], current)
                 return
             if self.store.update(row, state="current", document_id=identifier, promote=True):
                 log.info("knowledge_sync_document_promoted", version=row["version"])
         except StoreError as exc:
-            if exc.status in {401, 403}:
+            if exc.status in {401, 403, 507}:
                 raise
             state = (
                 "uncertain" if exc.code in {"weknora_timeout", "weknora_unavailable"} else "error"
@@ -419,9 +463,8 @@ class KnowledgeSyncService:
                             config.update(skipped_items=skipped, skipped_count=skipped_count)
                             eligible = [
                                 row
-                                for row in self.store.rows()
-                                if row["version"] == row["desired_version"]
-                                and not row["tombstone"]
+                                for row in self.store.rows(desired=True)
+                                if not row["tombstone"]
                                 and row["stable"] >= 2
                                 and row["path"] in observations
                                 and (row["state"] != "error" or (force and row["document_id"]))
