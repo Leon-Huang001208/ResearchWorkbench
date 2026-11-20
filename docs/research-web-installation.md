@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Docker 默认网段池耗尽时，管理员可为 stage 显式指定未占用 CIDR；中断注册按 [Docker 管理](research-web-docker.md) 核对并接续同名空资源。
+
 Stage 业主交接通过已有 `rwb-docker` 管理器执行；新候选依旧从固定干净源码构建并通过原安装与健康检查。
 
 FinGPT 切换成功时保存受理版本对应的私有回滚材料。完成后回滚以当前已接受的完整 SHA 为参数，沿既有 Native 联合事务运行，安装入口及依赖锁沿用原流程。

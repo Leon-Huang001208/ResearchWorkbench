@@ -319,6 +319,21 @@ docker inspect buildx_buildkit_rwb-dev-builder0 --format '{{.HostConfig.Memory}}
 docker stats --no-stream
 ```
 
+## 显式网段与中断注册恢复
+
+Docker 默认地址池耗尽时，`register --subnet CIDR` 可指定已核对不冲突的网段。
+如果同一次 stage 注册在写账本前失败，先核对四个同名卷、网络及容器的实际状态，再接续：
+
+```sh
+DOCKER_CONTEXT=desktop-linux ./rwb-docker stage candidate register \
+  --image sha256:IMAGE_ID --port 18099 --subnet 10.240.6.0/24 --resume-registration
+```
+
+管理员按本机路由和 Docker IPAM 选择网段。恢复入口核对四卷归属、无容器引用且内容为空，
+对已有网络核对标签、端点及实际 CIDR，缺少网络时按显式 CIDR 创建，复用原初始化步骤后
+写入账本。已登记实例沿原身份复核流程读取；普通注册继续拒绝未登记的同名资源。
+非空、有引用或身份不符的现场保留原件并报告，修复后从原实例接续。
+
 ## Legacy 安装与任务资源清理
 
 ### 已完成任务的 stage 预留释放
