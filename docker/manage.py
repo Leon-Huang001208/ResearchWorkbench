@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -182,6 +183,18 @@ class Manager:
 
     def register(self, arguments: argparse.Namespace) -> dict:
         environment, instance = arguments.environment, arguments.instance
+        subnet = getattr(arguments, "subnet", None)
+        resume = getattr(arguments, "resume_registration", False)
+        if subnet:
+            try:
+                network = ipaddress.IPv4Network(subnet)
+                if not network.is_private:
+                    raise ValueError("private IPv4 subnet required")
+                subnet = str(network)
+            except ValueError as error:
+                raise Refusal("registration_ipv4_subnet_invalid") from error
+        if resume and (environment != "stage" or not subnet):
+            raise Refusal("registration_resume_requires_stage_and_subnet")
         path = self.path(environment, instance)
         if path.exists():
             record = self.read(environment, instance)
@@ -192,6 +205,10 @@ class Manager:
             ):
                 raise Refusal("instance_registration_mismatch")
             self.verify_resources(record)
+            if subnet and {
+                item.get("Subnet") for item in inspect("network", record["network"])["IPAM"]["Config"]
+            } != {subnet}:
+                raise Refusal("registration_subnet_mismatch")
             if record["container_id"]:
                 self.owned(record)
             if record.get("retired"):
@@ -233,23 +250,44 @@ class Manager:
         volumes = {key: name + "-" + key for key in ("data", "logs", "credentials", "cache")}
         existing_volumes = command("docker", "volume", "ls", "--format", "{{.Name}}").splitlines()
         existing_networks = command("docker", "network", "ls", "--format", "{{.Name}}").splitlines()
-        if (
+        if resume:
+            if not all(volume in existing_volumes for volume in volumes.values()):
+                raise Refusal("registration_resume_requires_all_volumes")
+            for volume in volumes.values():
+                if inspect("volume", volume).get("Labels") != labels:
+                    raise Refusal("volume_ownership_mismatch")
+                if command("docker", "ps", "-aq", "--filter", f"volume={volume}"):
+                    raise Refusal("registration_volume_in_use")
+            if name in existing_networks:
+                network = inspect("network", name)
+                if network.get("Labels") != labels:
+                    raise Refusal("network_ownership_mismatch")
+                if network.get("Containers") or command(
+                    "docker", "ps", "-aq", "--filter", f"network={name}"
+                ):
+                    raise Refusal("registration_network_in_use")
+                if {item.get("Subnet") for item in network["IPAM"]["Config"]} != {subnet}:
+                    raise Refusal("registration_subnet_mismatch")
+        elif (
             any(volume in existing_volumes for volume in volumes.values())
             or name in existing_networks
         ):
             raise Refusal("resource_unregistered")
         if environment != "dev" and not arguments.port:
             raise Refusal("explicit_port_required")
-        for volume in volumes.values():
-            command("docker", "volume", "create", *label_args, volume)
-        command("docker", "network", "create", *label_args, name)
+        if not resume:
+            for volume in volumes.values():
+                command("docker", "volume", "create", *label_args, volume)
+        if not resume or name not in existing_networks:
+            command("docker", "network", "create", *label_args,
+                    *(("--subnet", subnet) if subnet else ()), name)
         # A fixed, bounded root initializer only for new owned volumes; no socket/source.
         mounts = [
             part
             for volume in volumes.values()
             for part in ("--mount", f"type=volume,src={volume},dst=/init/{volume}")
         ]
-        command(
+        initialized = command(
             "docker",
             "run",
             "--rm",
@@ -275,8 +313,15 @@ class Manager:
             "/bin/sh",
             image,
             "-c",
-            "chown 10001:10001 /init/* && chmod 700 /init/*",
+            (
+                'for dir in /init/*; do contents=$(find "$dir" -mindepth 1 -maxdepth 1 -print -quit) || exit 1; if [ -n "$contents" ]; then '
+                'echo registration_volumes_not_empty; exit 0; fi; done; '
+                "chown 10001:10001 /init/* && chmod 700 /init/*"
+                if resume else "chown 10001:10001 /init/* && chmod 700 /init/*"
+            ),
         )
+        if initialized == "registration_volumes_not_empty":
+            raise Refusal("registration_volumes_not_empty")
         source = command(
             "git", "-c", f"safe.directory={self.worktree}", "-C", self.worktree, "rev-parse", "HEAD"
         )
@@ -303,6 +348,8 @@ class Manager:
             "projection": None,
         }
         atomic_json(path, record)
+        if resume:
+            LOG.info("stage_registration_resumed instance=%s subnet=%s", instance, subnet)
         return record
 
     def create(self, record: dict) -> None:
@@ -937,6 +984,8 @@ def main() -> int:
     )
     parser.add_argument("--image")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--subnet")
+    parser.add_argument("--resume-registration", action="store_true")
     parser.add_argument("--expected-container")
     parser.add_argument("--expected-image")
     parser.add_argument("--expected-source")
@@ -974,6 +1023,8 @@ def main() -> int:
         parser.error("unexpected_arguments")
     if arguments.port is not None and arguments.action != "register":
         parser.error("port_is_registration_only")
+    if (arguments.subnet or arguments.resume_registration) and arguments.action != "register":
+        parser.error("subnet_and_resume_are_registration_only")
     if arguments.image and arguments.action not in {"register", "rebuild", "replace-image"}:
         parser.error("image_is_registration_or_dev_rebuild_only")
     if arguments.port is not None and not 1024 <= arguments.port <= 65535:

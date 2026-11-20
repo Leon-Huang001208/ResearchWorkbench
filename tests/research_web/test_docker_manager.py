@@ -360,6 +360,177 @@ def test_ledger_alias_rejected(tmp_path):
         manage.Manager(tmp_path, "/admin", "/worktree").read("stage", "candidate")
 
 
+def registration_fixture(tmp_path, monkeypatch):
+    manager = manage.Manager(tmp_path, "/admin", str(tmp_path))
+    labels = manager.labels("stage", "candidate")
+    name = "rwb-stage-candidate-" + manager.owner[:8]
+    volumes = [name + "-" + key for key in ("data", "logs", "credentials", "cache")]
+    state = {"volumes": volumes, "networks": [], "users": "", "contents": "",
+             "volume_labels": labels, "network_labels": labels,
+             "subnet": "172.30.42.0/24", "containers": {}}
+    calls = []
+
+    def inspect(kind, _identifier):
+        if kind == "image":
+            return {"Architecture": "arm64", "Os": "linux", "Config": {"Labels": {
+                manage.PREFIX + "runtime": "docker", "org.opencontainers.image.revision": "a" * 40,
+            }}}
+        if kind == "volume":
+            return {"Labels": state["volume_labels"]}
+        if kind == "network":
+            return {"Labels": state["network_labels"], "Containers": state["containers"],
+                    "IPAM": {"Config": [{"Subnet": state["subnet"]}]}}
+        raise AssertionError(kind)
+
+    def command(*args):
+        calls.append(args)
+        if args[:3] == ("docker", "volume", "ls"):
+            return "\n".join(state["volumes"])
+        if args[:3] == ("docker", "network", "ls"):
+            return "\n".join(state["networks"])
+        if args[:3] == ("docker", "ps", "-aq"):
+            return state["users"] if any(arg.startswith("volume=") for arg in args) else ""
+        if args[:2] == ("docker", "run"):
+            return state["contents"]
+        if args[0] == "git":
+            return "c" * 40
+        return ""
+
+    monkeypatch.setattr(manager, "admission", lambda *args: None)
+    monkeypatch.setattr(manage, "inspect", inspect)
+    monkeypatch.setattr(manage, "command", command)
+    (tmp_path / "runtimes").mkdir()
+    (tmp_path / "runtimes/research_web.json").write_text(json.dumps({"dsh": {"commit": "d" * 40}}))
+    arguments = argparse.Namespace(environment="stage", instance="candidate", image="sha256:" + "b" * 64,
+                                   port=18099, subnet=state["subnet"], resume_registration=True)
+    return manager, arguments, state, calls, name
+
+
+def test_registration_resume_four_empty_volumes_creates_explicit_network(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    result = manager.register(arguments)
+    assert result["volumes"] == dict(zip(("data", "logs", "credentials", "cache"), state["volumes"]))
+    assert result["image"] == arguments.image and result["source_sha"] == "a" * 40
+    assert manager.read("stage", "candidate") == result
+    assert not any(call[:3] == ("docker", "volume", "create") for call in calls)
+    network = next(call for call in calls if call[:3] == ("docker", "network", "create"))
+    assert network[-3:] == ("--subnet", arguments.subnet, name)
+    initializers = [call for call in calls if call[:2] == ("docker", "run")]
+    assert len(initializers) == 1
+    assert initializers[0][-1].index("find") < initializers[0][-1].index("chown")
+
+
+def test_registration_resume_reuses_verified_network(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    state["networks"] = [name]
+    manager.register(arguments)
+    assert not any(call[:3] == ("docker", "network", "create") for call in calls)
+
+
+def test_registration_without_resume_rejects_existing_resources(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    arguments.resume_registration = False
+    with pytest.raises(manage.Refusal, match="resource_unregistered"):
+        manager.register(arguments)
+    assert not any(call[:2] == ("docker", "run") for call in calls)
+    assert not manager.path("stage", "candidate").exists()
+
+
+def test_registration_explicit_subnet_preserves_new_volume_path(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    arguments.resume_registration = False
+    state["volumes"] = []
+    manager.register(arguments)
+    assert len([call for call in calls if call[:3] == ("docker", "volume", "create")]) == 4
+    network = next(call for call in calls if call[:3] == ("docker", "network", "create"))
+    assert network[-3:] == ("--subnet", arguments.subnet, name)
+
+
+def test_registration_existing_ledger_subnet_mismatch_preserves_record(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    manager.register(arguments)
+    path = manager.path("stage", "candidate")
+    before = path.read_bytes()
+    arguments.subnet = "172.30.43.0/24"
+    with pytest.raises(manage.Refusal, match="registration_subnet_mismatch"):
+        manager.register(arguments)
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("subnet", ["172.30.42.1/24", "2001:db8::/64"])
+def test_registration_rejects_invalid_ipv4_cidr_before_mutation(tmp_path, monkeypatch, subnet):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    arguments.subnet = subnet
+    with pytest.raises(manage.Refusal, match="registration_ipv4_subnet_invalid"):
+        manager.register(arguments)
+    assert not calls
+
+
+@pytest.mark.parametrize("case,code", [
+    ("missing_volume", "registration_resume_requires_all_volumes"),
+    ("volume_labels", "volume_ownership_mismatch"),
+    ("volume_users", "registration_volume_in_use"),
+    ("network_labels", "network_ownership_mismatch"),
+    ("network_users", "registration_network_in_use"),
+    ("network_subnet", "registration_subnet_mismatch"),
+    ("contents", "registration_volumes_not_empty"),
+    ("production", "registration_resume_requires_stage_and_subnet"),
+    ("no_subnet", "registration_resume_requires_stage_and_subnet"),
+])
+def test_registration_resume_refuses_unsafe_partial_state(tmp_path, monkeypatch, case, code):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    if case == "missing_volume":
+        state["volumes"] = state["volumes"][:-1]
+    elif case == "volume_labels":
+        state["volume_labels"] = {}
+    elif case == "volume_users":
+        state["users"] = "foreign"
+    elif case.startswith("network_"):
+        state["networks"] = [name]
+        state[{"network_labels": "network_labels", "network_users": "containers",
+               "network_subnet": "subnet"}[case]] = {
+            "network_labels": {}, "network_users": {"foreign": {}}, "network_subnet": "172.30.43.0/24",
+        }[case]
+    elif case == "contents":
+        state["contents"] = "registration_volumes_not_empty"
+    elif case == "production":
+        arguments.environment = "prod"
+    elif case == "no_subnet":
+        arguments.subnet = None
+    with pytest.raises(manage.Refusal, match=code):
+        manager.register(arguments)
+    assert not manager.path("stage", "candidate").exists()
+    assert not any(call[:3] == ("docker", "volume", "create") for call in calls)
+
+
+def test_registration_default_rejects_existing_resources(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    arguments.resume_registration = False
+    with pytest.raises(manage.Refusal, match="resource_unregistered"):
+        manager.register(arguments)
+    assert not any(call[:2] == ("docker", "run") for call in calls)
+
+
+def test_registration_new_instance_accepts_explicit_subnet(tmp_path, monkeypatch):
+    manager, arguments, state, calls, name = registration_fixture(tmp_path, monkeypatch)
+    state["volumes"] = []
+    arguments.resume_registration = False
+    manager.register(arguments)
+    assert len([call for call in calls if call[:3] == ("docker", "volume", "create")]) == 4
+    network = next(call for call in calls if call[:3] == ("docker", "network", "create"))
+    assert network[-3:] == ("--subnet", arguments.subnet, name)
+
+
+@pytest.mark.parametrize("option", [["--subnet", "172.30.42.0/24"], ["--resume-registration"]])
+def test_registration_cli_options_are_register_only(option):
+    result = subprocess.run(
+        [sys.executable, manage.__file__, "stage", "candidate", "status", *option],
+        capture_output=True, text=True, timeout=10, check=False,
+    )
+    assert result.returncode == 2
+    assert "subnet_and_resume_are_registration_only" in result.stderr
+
+
 def test_resource_label_mismatch_rejected(tmp_path, monkeypatch):
     monkeypatch.setattr(manage, "inspect", lambda *args: {"Labels": {}})
     with pytest.raises(manage.Refusal, match="volume_ownership_mismatch"):
@@ -503,3 +674,20 @@ def test_pre_model_replace_refuses_unsafe_candidate(tmp_path, monkeypatch, mutat
     with pytest.raises(manage.Refusal):
         manager.replace_stage_image(record, image)
     assert calls == []
+
+
+def test_registration_empty_guard_detects_newline_filename(tmp_path, monkeypatch):
+    manager, arguments, _state, calls, _name = registration_fixture(tmp_path, monkeypatch)
+    manager.register(arguments)
+    script = next(call[-1] for call in calls if call[:2] == ("docker", "run"))
+    mount = tmp_path / "mounts"
+    mount.mkdir()
+    for name in ("data", "logs", "credentials", "cache"):
+        (mount / name).mkdir()
+    content = mount / "data" / "\n"
+    content.write_text("preserved")
+    result = subprocess.run(["/bin/sh", "-c", script.replace("/init/", str(mount) + "/")],
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0
+    assert result.stdout.strip() == "registration_volumes_not_empty"
+    assert content.read_text() == "preserved"
