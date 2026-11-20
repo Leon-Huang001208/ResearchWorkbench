@@ -338,6 +338,27 @@ docker stats --no-stream
 stop/rm/卷删除。重复释放明确拒绝。恢复旧实例须显式 register 并重新通过容量准入。
 新任务使用独立实例名称和新卷，不继承旧任务数据或秘密。
 
+### 未完成 stage 的业主交接
+
+业主明确接续未完成的 stage 时，使用 `owner-handoff`。审核 JSON 放在 Docker 管理目录的
+普通文件中，填写 `instance`、`container_id`、`image`、`source_sha`、`ledger_sha256`，以及
+`registration_task_status: "unknown"` 和 `business_status: "INCOMPLETE"`。
+以下命令默认预览，返回 `plan_sha256`：
+
+```sh
+DOCKER_CONTEXT=desktop-linux ./rwb-docker stage candidate owner-handoff \
+  --expected-container FULL_CONTAINER_ID --expected-image sha256:IMAGE_ID \
+  --expected-source FULL_SOURCE_SHA --expected-record-sha256 RAW_RECORD_SHA256 \
+  --handoff-audit AUDIT_FILE.json --expected-audit-sha256 AUDIT_SHA256 \
+  --owner-authorization OWNER_AUTHORIZATION_ID
+```
+
+核对计划后，使用相同参数追加 `--apply --expected-plan-sha256 PLAN_SHA256`。
+操作沿原管理锁核对原始账本、资源归属、停止状态和全部卷引用，逐字归档原账本并读回后
+退休预留，单独记录 `reservation_handoff`、审核摘要和业主授权编号。
+原登记任务状态和业务未完成结论随交接保存，历史 `reservation_release` 原样保留。
+容器、镜像、网络、卷和恢复材料继续保留。执行结果未知时先读取实际账本和归档核对。
+
 ### 每轮交付资源预算与自动收尾
 
 测试产生的`data/markdown`、`data/objects`、`data/raw_text`仅在登记时和删除时都为空、身份仍一致的情况下使用原子`rmdir`；出现任何文件立即保留并blocked，从不递归删除数据目录。控制器自身祖先argv中的源码路径不等于业务占用，真实FD/cwd和其他进程引用仍拒绝；收尾命令从账本主checkout运行。

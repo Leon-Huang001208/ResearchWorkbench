@@ -545,6 +545,99 @@ class Manager:
         return {"retired": True, "container_id": record["container_id"],
                 "archive": archive.name, "container_and_volumes_preserved": True}
 
+    def owner_handoff(
+        self, record: dict, expected: tuple[str, str, str], *,
+        expected_record_sha256: str, audit_name: str, expected_audit_sha256: str,
+        authorization: str, apply: bool = False, expected_plan_sha256: str | None = None,
+    ) -> dict:
+        """Preview or retire a stage reservation under the outer operation lock."""
+        if record["environment"] != "stage":
+            raise Refusal("stage_handoff_requires_stage")
+        if record.get("retired"):
+            raise Refusal("stage_handoff_already_retired")
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", expected[0])
+            or not re.fullmatch(r"sha256:[0-9a-f]{64}", expected[1])
+            or not re.fullmatch(r"[0-9a-f]{40}", expected[2])
+            or expected != (record.get("container_id"), record["image"], record["source_sha"])
+        ):
+            raise Refusal("stage_handoff_identity_mismatch")
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,95}", authorization):
+            raise Refusal("stage_handoff_authorization_required")
+        if not re.fullmatch(r"[a-z][a-z0-9.-]{0,95}\.json", audit_name):
+            raise Refusal("stage_handoff_audit_name_invalid")
+        path = self.path("stage", record["instance"])
+        if self.read("stage", record["instance"]) != record:
+            raise Refusal("stage_handoff_ledger_changed")
+        original = path.read_bytes()
+        if hashlib.sha256(original).hexdigest() != expected_record_sha256:
+            raise Refusal("stage_handoff_record_digest_mismatch")
+        audit_path = self.ledger / audit_name
+        if audit_path.is_symlink():
+            raise Refusal("stage_handoff_audit_alias")
+        audit_raw = audit_path.read_bytes()
+        if hashlib.sha256(audit_raw).hexdigest() != expected_audit_sha256:
+            raise Refusal("stage_handoff_audit_digest_mismatch")
+        audit = json.loads(audit_raw)
+        binding = {
+            "instance": record["instance"], "container_id": expected[0],
+            "image": expected[1], "source_sha": expected[2],
+            "ledger_sha256": expected_record_sha256,
+            "registration_task_status": "unknown", "business_status": "INCOMPLETE",
+        }
+        if not isinstance(audit, dict) or any(audit.get(key) != value for key, value in binding.items()):
+            raise Refusal("stage_handoff_audit_binding_mismatch")
+        plan = dict(
+            binding, action="owner_handoff", schema=1, authorization=authorization,
+            audit_name=audit_name, audit_sha256=expected_audit_sha256,
+            reservation_bytes=record["memory"], volumes=record["volumes"],
+            container_and_volumes_preserved=True,
+        )
+        plan_sha256 = hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
+        if (apply and expected_plan_sha256 != plan_sha256) or (not apply and expected_plan_sha256):
+            raise Refusal("stage_handoff_plan_digest_mismatch")
+        self.verify_handoff_stopped(record)
+        result = {"status": "preview", "applied": False, "plan": plan, "plan_sha256": plan_sha256}
+        if not apply:
+            return result
+        archive_root = self.ledger / "releases"
+        if archive_root.is_symlink():
+            raise Refusal("stage_handoff_archive_alias")
+        archive_root.mkdir(mode=0o700, exist_ok=True)
+        archive = archive_root / f"owner-handoff-{record['instance']}-{expected_record_sha256}.json"
+        if archive.exists() or archive.is_symlink():
+            raise Refusal("stage_handoff_partial_archive_requires_review")
+        with archive.open("xb") as stream:
+            archive.chmod(0o600)
+            stream.write(original)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if archive.read_bytes() != original:
+            raise Refusal("stage_handoff_archive_mismatch")
+        # The administrator lock covers the second live check and ledger commit.
+        self.verify_handoff_stopped(record)
+        if (
+            self.read("stage", record["instance"]) != record
+            or path.read_bytes() != original
+            or audit_path.is_symlink()
+            or audit_path.read_bytes() != audit_raw
+        ):
+            raise Refusal("stage_handoff_evidence_changed")
+        handoff = dict(plan, plan_sha256=plan_sha256, archive=archive.name, audit=audit)
+        atomic_json(path, dict(record, retired=True, reservation_handoff=handoff))
+        LOG.info("stage_owner_handoff instance=%s authorization=%s", record["instance"], authorization)
+        return dict(result, status="applied", applied=True, archive=archive.name)
+
+    def verify_handoff_stopped(self, record: dict) -> None:
+        """Revalidate registered resource ownership and exclusive stopped-stage use."""
+        state = self.owned(record)["State"]
+        if state.get("Running") is not False or state.get("Status") not in {"exited", "created"}:
+            raise Refusal("stage_handoff_requires_stopped_container")
+        for volume in record["volumes"].values():
+            users = command("docker", "ps", "-aq", "--no-trunc", "--filter", f"volume={volume}")
+            if set(users.splitlines()) - {record["container_id"]}:
+                raise Refusal("stage_handoff_volume_in_use")
+
     def cleanup(self, record: dict) -> None:
         if record["environment"] != "dev":
             raise Refusal("only_dev_cleanup_allowed")
@@ -839,6 +932,7 @@ def main() -> int:
             "enable-model-credentials",
             "credential-probe",
             "release-reservation",
+            "owner-handoff",
         ),
     )
     parser.add_argument("--image")
@@ -847,6 +941,12 @@ def main() -> int:
     parser.add_argument("--expected-image")
     parser.add_argument("--expected-source")
     parser.add_argument("--completed-task")
+    parser.add_argument("--expected-record-sha256")
+    parser.add_argument("--handoff-audit")
+    parser.add_argument("--expected-audit-sha256")
+    parser.add_argument("--owner-authorization")
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--expected-plan-sha256")
     arguments, extra = parser.parse_known_args()
     arguments.command = extra
     release_options = (arguments.expected_container, arguments.expected_image,
@@ -854,8 +954,22 @@ def main() -> int:
     if arguments.action == "release-reservation":
         if not all(release_options):
             parser.error("release_identity_and_completed_task_required")
+    elif arguments.action == "owner-handoff":
+        if not all(release_options[:3]) or not all((
+            arguments.expected_record_sha256, arguments.handoff_audit,
+            arguments.expected_audit_sha256, arguments.owner_authorization,
+        )) or arguments.completed_task:
+            parser.error("handoff_identity_audit_and_authorization_required")
+        if arguments.apply != bool(arguments.expected_plan_sha256):
+            parser.error("handoff_apply_requires_plan_digest")
     elif any(release_options):
         parser.error("release_options_only")
+    if arguments.action != "owner-handoff" and any((
+        arguments.expected_record_sha256, arguments.handoff_audit,
+        arguments.expected_audit_sha256, arguments.owner_authorization,
+        arguments.apply, arguments.expected_plan_sha256,
+    )):
+        parser.error("handoff_options_only")
     if extra and arguments.action != "exec":
         parser.error("unexpected_arguments")
     if arguments.port is not None and arguments.action != "register":
@@ -942,6 +1056,15 @@ def main() -> int:
             output = manager.status(record)
         elif arguments.action == "release-reservation":
             output = manager.release_stage(record, release_options[:3], arguments.completed_task)
+        elif arguments.action == "owner-handoff":
+            output = manager.owner_handoff(
+                record, release_options[:3],
+                expected_record_sha256=arguments.expected_record_sha256,
+                audit_name=arguments.handoff_audit,
+                expected_audit_sha256=arguments.expected_audit_sha256,
+                authorization=arguments.owner_authorization, apply=arguments.apply,
+                expected_plan_sha256=arguments.expected_plan_sha256,
+            )
         elif arguments.action == "replace-image":
             if not arguments.image:
                 raise Refusal("explicit_image_required")
