@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+Stage 业主交接回归加入既有 Research Web Checks Python 清单，Mac Bootstrap 的 PR 路径
+覆盖管理器和入口脚本。复用原三项 CI，不新增 job、runner、依赖或超时，增量预留原步骤
+30 秒。现场预留释放与固定候选部署分别保存真实回执，Linux 产品验收不阻塞 Mac 任务。
+
 上线后工作树退役的两组 Node 回归登记在现有 Project Constraints Git safety 步骤，使用隔离临时仓库和验证回执。原作业、runner、依赖、时限及跨平台 dispatch 保持，正式上线与历史退役结果不由 CI 代填。
 
 历史备份锁及工作树身份复核在原 Project Constraints Git safety 步骤加独立 Node 回归，

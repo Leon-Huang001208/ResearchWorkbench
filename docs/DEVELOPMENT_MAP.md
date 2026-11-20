@@ -491,6 +491,8 @@ main挂载惰性有界桥，core/app/shell/settings保留既有路由并新增�
 及 `docker/buildkitd.toml` 是 Mac mini 管理平面与开发基座，权威说明为
 `docs/research-web-docker.md`，近处测试为 `tests/research_web/test_docker_manager.py`。
 生命周期/配额/镜像/挂载变化须同步该手册；真实镜像、实例健康与开发重建另保留本次证据。
+`owner-handoff` 在同一操作锁内预览或退休精确 stage 预留，逐字归档原账本，
+另存业主交接及未完成业务状态。入口和拒绝回归仍由上述管理器与测试负责。
 
 异根 Native 私有 pair 认证共享 `web_bootstrap.py` 的现有 bounded reader；OS 用户标准根
 发现、调用内根/父/record FD 与真实 lease 复查由 Docker 和 Native manager 同路径消费。

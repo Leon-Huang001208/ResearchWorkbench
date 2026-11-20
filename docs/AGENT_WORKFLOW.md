@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+管理员维护停止的 stage 时，原任务未完成而业主明确接续可使用 `owner-handoff`，默认预览，原件与计划摘要核对后显式应用，步骤见 [Docker 管理](research-web-docker.md)。
+
 策略验证的 Mac mini 升级在独立工作树绑定实际旧版及 PR #308 合并树。沿既有操作员测试、独立评审、通用 CI 和同候选 macOS 15 Bootstrap 取证。原账号保全、网关与主实例版本和正式账号冻结行情复跑分别记录，Windows 执行交对应设备。
 
 策略验证沿现有 Python 与 Node 批次运行离线边界例，真实用户冻结包在独立 Web Host 和 Chrome 实跑。注明回执对应的输入摘要、规则结果、逐笔分页及候选身份。

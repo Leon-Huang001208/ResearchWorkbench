@@ -3,6 +3,8 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "docker/manage.py"
+      - "rwb-docker"
       - "setup-web.sh"
       - "scripts/setup_web.py"
       - "scripts/git_safety.mjs"
