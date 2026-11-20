@@ -5,6 +5,7 @@ from core.observability import get_logger
 from ..store import StoreError
 from .service import RELEASE, SOURCE_COMMIT
 from .storage import KnowledgeStore
+from .sync import KnowledgeSyncService
 
 log = get_logger(__name__)
 
@@ -24,7 +25,21 @@ def knowledge_diagnostic(root):
         binding = store.binding() if root.exists() else None
         if root.exists():
             store.preservation(create_lock=False)
-        return {**result, "state": "configured" if binding else "unconfigured"}
+        sync = (
+            KnowledgeSyncService(root).status()
+            if root.exists()
+            else {"configured": False, "enabled": False}
+        )
+        if root.exists():
+            KnowledgeSyncService(root).preservation()
+        connection = store.connection() if root.exists() else {}
+        return {
+            **result,
+            "state": "configured" if binding else "unconfigured",
+            "connectivity": connection.get("connectivity", "not_verified"),
+            "last_verified_at": connection.get("last_verified_at"),
+            "sync": sync,
+        }
     except (OSError, ValueError, StoreError):
         log.warning("knowledge_doctor_integrity_unknown")
         return {**result, "state": "needs_attention", "code": "knowledge_binding_invalid"}

@@ -31,6 +31,8 @@ FOLDER = "knowledge-backend"
 SHA = re.compile(r"[a-f0-9]{64}\Z")
 MANIFEST_LIMIT = 256 * 1024
 BINDING_LIMIT = 16 * 1024
+RECORD_LIMIT = 1000
+KINDS = {"scopes", "evidence", "receipts"}
 
 
 def digest(raw: bytes) -> str:
@@ -87,8 +89,39 @@ class KnowledgeStore:
         ):
             atomic_json(fd, "binding.json", payload)
 
+    def connection(self) -> dict:
+        with directory(self.root, private=True) as fd:
+            if FOLDER not in os.listdir(fd):
+                return {}
+        with directory(self.root, (FOLDER,), private=True) as fd:
+            if "connection.json" not in os.listdir(fd):
+                return {}
+            try:
+                value = json.loads(
+                    read_file(fd, "connection.json", private=True, limit=BINDING_LIMIT)
+                )
+            except (ValueError, UnicodeError):
+                fail("knowledge_connection_invalid")
+        if not isinstance(value, dict) or value.get("owner") != self.owner:
+            fail("knowledge_connection_invalid")
+        return value
+
+    def save_connection(self, value: dict) -> None:
+        binding = self.binding()
+        if binding is None:
+            return
+        identity = {key: binding[key] for key in ("origin", "user_id", "workspace_id")}
+        with (
+            admission(),
+            retention_lock(self.root),
+            directory(self.root, (FOLDER,), private=True) as fd,
+        ):
+            atomic_json(
+                fd, "connection.json", {**identity, **value, "owner": self.owner, "schema": 1}
+            )
+
     def create(self, kind: str, payload: dict, files: dict[str, bytes] | None = None) -> dict:
-        if kind not in {"scopes", "evidence"}:
+        if kind not in KINDS:
             fail("knowledge_namespace_invalid")
         files = files or {}
         if sum(map(len, files.values())) > 32 * 1024 * 1024:
@@ -111,8 +144,21 @@ class KnowledgeStore:
             retention_lock(self.root),
             directory(self.root, (FOLDER, kind), create=True, private=True) as fd,
         ):
-            if identifier in os.listdir(fd):
+            identifiers = os.listdir(fd)
+            if identifier in identifiers:
                 return self.read(kind, identifier)
+            if len(identifiers) >= RECORD_LIMIT:
+                fail("knowledge_record_budget", 413)
+            proof = self.preservation()
+            existing_bytes = 0
+            for relative in (proof or {}).get("files", {}):
+                parts = relative.split("/")
+                with directory(self.root, tuple(parts[:-1]), private=True) as parent:
+                    existing_bytes += len(
+                        read_file(parent, parts[-1], private=True, limit=8 * 1024 * 1024)
+                    )
+            if existing_bytes + len(raw) + sum(map(len, files.values())) > 64 * 1024 * 1024:
+                fail("knowledge_preservation_budget", 413)
             temporary = "pending-" + uuid4().hex
             make_directory(fd, temporary)
             # A failed or interrupted staging directory is retained as recovery evidence.
@@ -127,11 +173,7 @@ class KnowledgeStore:
         return self.read(kind, identifier)
 
     def read(self, kind: str, identifier: str) -> dict:
-        if (
-            kind not in {"scopes", "evidence"}
-            or not isinstance(identifier, str)
-            or not SHA.fullmatch(identifier)
-        ):
+        if kind not in KINDS or not isinstance(identifier, str) or not SHA.fullmatch(identifier):
             fail("knowledge_record_not_found", 404)
         try:
             with directory(self.root, (FOLDER, kind, identifier), private=True) as fd:
@@ -165,6 +207,21 @@ class KnowledgeStore:
         with directory(self.root, (FOLDER, "evidence", identifier), private=True) as fd:
             return read_file(fd, sha + ".bin", private=True, limit=8 * 1024 * 1024)
 
+    def records(self, kind):
+        if kind not in KINDS:
+            fail("knowledge_namespace_invalid")
+        with directory(self.root, private=True) as fd:
+            if FOLDER not in os.listdir(fd):
+                return []
+        with directory(self.root, (FOLDER,), private=True) as fd:
+            if kind not in os.listdir(fd):
+                return []
+        with directory(self.root, (FOLDER, kind), private=True) as fd:
+            identifiers = sorted(os.listdir(fd))
+        if len(identifiers) > RECORD_LIMIT:
+            fail("knowledge_preservation_budget", 413)
+        return [self.read(kind, key) for key in identifiers]
+
     def preservation(self, *, create_lock=True):
         """Bounded exact proof; interrupted staging is unknown, never disposable."""
         with directory(self.root, private=True) as fd:
@@ -176,15 +233,18 @@ class KnowledgeStore:
                 fail("knowledge_preservation_unknown")
             with directory(self.root, (FOLDER,), private=True) as fd:
                 names = set(os.listdir(fd))
-                if names - {"binding.json", "scopes", "evidence"}:
+                if names - {"binding.json", "connection.json", *KINDS}:
                     fail("knowledge_preservation_unknown")
-                if "binding.json" in names:
-                    raw = read_file(fd, "binding.json", private=True, limit=16384)
-                    files[FOLDER + "/binding.json"] = digest(raw)
-                for kind in sorted(names - {"binding.json"}):
+                for name in names & {"binding.json", "connection.json"}:
+                    raw = read_file(fd, name, private=True, limit=16384)
+                    total += len(raw)
+                    files[FOLDER + "/" + name] = digest(raw)
+                if "connection.json" in names:
+                    self.connection()
+                for kind in sorted(names & KINDS):
                     with directory(self.root, (FOLDER, kind), private=True) as records:
                         identifiers = os.listdir(records)
-                    if len(identifiers) > 1000:
+                    if len(identifiers) > RECORD_LIMIT:
                         fail("knowledge_preservation_budget")
                     for identifier in sorted(identifiers):
                         self.read(kind, identifier)

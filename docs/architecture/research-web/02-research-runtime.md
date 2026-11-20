@@ -39,7 +39,7 @@ APFS 修复只更新已登记根的设备号。Web 和 DSH 的所有权检查、
 
 ## 资料读取与报告 scope（2026-11-06）
 
-新增资料适配不提交研究、不调用生成模型、不建立调度循环。既有内部 DataKey 只向 scope 必填的 `knowledge-query`／`knowledge-read` 回调开放有界读取；绑定、时间批准、范围创建和证据冻结均留在独立认证用户操作。请求前后核验 WeKnora 当前用户与空间，scope 锁定的原件或分块变化即拒绝；不以空间 API Key 代替真人权限。DSH 官方插件未激活，外部宿主真实交接和原周报完整生产仍独立验收。[合同](../../research-web-weknora.md)
+资料同步worker由原Host启动／关闭，60秒巡检只恢复明确启用的资料配置，不开启其他Automation或提交研究。`research_search_knowledge`／`research_read_knowledge` 沿原DataKey、guard和可信session回调执行；当前研究接收session_id及hit_id，原报告请求仍须已批准scope。绑定、同步启停／手动扫描、时间批准、范围创建和证据冻结均留在认证用户明确操作。请求前后核验WeKnora当前用户与空间，原件和分块变化被拒绝或作为回执状态明示；不以空间API Key代替真人权限。真实宿主、模型和原周报完整生产独立验收。[合同](../../research-web-weknora.md)
 
 统一导航部署保留Native真实空list、Host明确False及全账号后台／市场inflight门，未知或活动延后。前进、恢复和回滚重验同一事件日程disabled证明，不提交研究、重发未知操作或启用采集。
 

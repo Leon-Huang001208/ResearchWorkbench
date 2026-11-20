@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 FinGPT 双入口回滚和公开安装入口。",
-  "reason": "回滚属于本机 Native 联合发布，专用命令及验证要求已记入网关升级文档。README 的公开安装和产品入口继续适用。"
+  "disposition": "updated",
+  "summary": "更新 WeKnora 目录同步、本人账号登录和原文引用入口。",
+  "reason": "新增目录版本同步与当前研究工具，README 说明本人注册、现有模型作答、历史引用保留及验收边界；详细配置与恢复仍归专项合同。"
 }

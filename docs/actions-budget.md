@@ -1,5 +1,16 @@
 # GitHub Actions 免费额度治理
 
+## 本机资料同步与当前研究预算（2026-11-20）
+
+沿 Research Web Checks 既有 Python 步骤增加 `test_weknora_sync.py`、`test_weknora_sync_client.py`、
+`test_weknora_current.py`、`test_weknora_current_api.py` 及严格UTF-8纯文本overlay的
+`test_weknora_plain_text.py`，保留原九份 WeKnora 回归；JS 继续由原
+`research_web*.test.mjs` 通配符执行。macOS Bootstrap 原安装步骤补充三份新模块导入，
+静态资源继续核对现有 `knowledge-settings.mjs`。不新增 workflow、job、runner、依赖、超时或
+平台 dispatch，原 Python 步骤增量预留60秒、导入步骤5秒，实际由最终候选回执核对。
+CI不连接 WeKnora／Ollama、不下载模型或调用云端服务；本机恢复、真实向量化、浏览器与报告
+接受分别留证。远端操作前按原规则重新核对 visibility／额度，未运行的CI不标通过。
+
 Stage 业主交接回归加入既有 Research Web Checks Python 清单，Mac Bootstrap 的 PR 路径
 覆盖管理器和入口脚本。复用原三项 CI，不新增 job、runner、依赖或超时，增量预留原步骤
 30 秒。现场预留释放与固定候选部署分别保存真实回执，Linux 产品验收不阻塞 Mac 任务。

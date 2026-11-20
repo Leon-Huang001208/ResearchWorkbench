@@ -5,6 +5,36 @@ from test_api import api, isolated_keyring
 __all__ = ["api", "isolated_keyring"]
 
 
+def test_current_knowledge_receipts_enter_bounded_source_context_only_in_upload_scope(
+    api, monkeypatch
+):
+    from app.research_web.research_quality_service import source_context
+
+    client, _, service = api
+    sid = client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "source_scope": ["uploads"]}
+    ).json()["id"]
+    identity = "knowledge:" + "a" * 64
+    receipt = {
+        "id": identity,
+        "title": "Actual material",
+        "content": "private complete chunk" * 200,
+        "sha256": "b" * 64,
+        "digest_scope": "full_file",
+        "historical_eligible": False,
+        "admission": {"report_admitted": False},
+        "limitations": ["source_time_unknown"],
+    }
+    monkeypatch.setattr(service.knowledge, "registered_sources", lambda identifier: [receipt])
+    context = source_context(service, sid, [])
+    assert context["sources"] == [
+        {key: value for key, value in receipt.items() if key != "content"}
+    ]
+    assert "private complete chunk" not in str(context)
+    service.store.session(sid)["source_scope"] = ["datahub"]
+    assert source_context(service, sid, [])["sources"] == []
+
+
 def test_quality_source_context_obeys_locked_source_scope(api):
     client, native, service = api
     sid = client.post(

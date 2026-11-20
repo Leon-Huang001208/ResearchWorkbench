@@ -262,6 +262,7 @@ _SERVICE_ONLY_READ = frozenset(
         "sessions",
         "knowledge",
         "knowledge/bases",
+        "knowledge/sync",
         "capabilities",
         "tools",
         "workflows",
@@ -282,10 +283,13 @@ _SERVICE_ONLY_READ_PATTERN = re.compile(
 _SERVICE_ONLY_KNOWLEDGE_POST = frozenset(
     {
         "knowledge/binding",
+        "knowledge/login",
         "knowledge/scopes",
         "knowledge/search",
         "knowledge/read",
         "knowledge/freeze",
+        "knowledge/sync/config",
+        "knowledge/sync/scan",
     }
 )
 

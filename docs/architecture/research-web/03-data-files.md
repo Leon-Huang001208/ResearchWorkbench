@@ -39,9 +39,11 @@ global-v1 九指数保存于原账号 market-cache 的独立分集，不写入�
 
 ## WeKnora 资料证据（2026-11-06）
 
-账号数据根的 `knowledge-backend/` 惰性保存绑定元数据、内容寻址 scopes 及 evidence；owner 由服务端 Store 根摘要派生，不接收客户端 owner／root。JWT 只进入独立凭据后端。scope 绑定上游 origin、用户／空间、报告期、显式确认的时间证据、下载原件 SHA-256 与完整分块指纹；上游 file_hash 是 MD5，不能冒充此 SHA。
+账号数据根的 `knowledge-backend/` 惰性保存绑定元数据、内容寻址 scopes、会话命中 receipts 及 evidence；owner 由服务端 Store 根摘要派生，不接收客户端 owner／root。JWT 只进入独立凭据后端。scope 绑定上游 origin、用户／空间、报告期、显式确认的时间证据、下载原件 SHA-256 与完整分块指纹；上游 file_hash 是 MD5，不能冒充此 SHA。
 
 证据冻结独立写入所选原件及精确分块，先复核范围和字节，再原子发布 manifest；后续删除／重解析不改旧证据。原件每件8 MiB、事务32 MiB、manifest256 KiB，保全总量64 MiB；超限拒绝，pending 中断目录按未知保护。现有私网全账号保全包括这些记录和文件；Doctor 不创建根、不读凭据或联网。旧会话附件、DataHub、档案与报告资源不自动迁移。[合同](../../research-web-weknora.md)
+
+固定资料目录经 owner／JWT／workspace／自有知识库绑定后，`knowledge-sync/state.sqlite3` 保存可变观察状态、内容快照、版本与 tombstone；256 MiB预算含17 MiB回滚日志预留，纳入独立保全摘要。单件8 MiB，扫描1000文件／64 MiB，跳过条目128条；扫描失败不凭残缺集合撤回资料。新版本仅在解析完成和原件复核后切为 current，失败沿用旧 current，删除保留旧快照和冻结历史。会话 receipts 固定命中原件／分块指纹，当前材料未知来源时点，始终不授予历史 PIT 或正式稿资格。
 
 统一导航v4保留64MiB严格业务索引、全部账号、@events及@dossiers原件和原模型配置；不迁移数据库或删除历史。固定previous与payload的产品字节，永久恢复源码不可随开发worktree清理；旧网关配置和双向实际MCP=False分别核验。
 

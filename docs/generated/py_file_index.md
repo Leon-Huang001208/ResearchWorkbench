@@ -7668,6 +7668,7 @@ Imports:
 - `binascii`
 - `core.observability`
 - `functools`
+- `hashlib`
 - `httpx`
 - `json`
 - `math`
@@ -7679,7 +7680,7 @@ Imports:
 Classes:
 - `WeKnoraClient`
   - No API-key fallback, refresh, redirects, ambient proxy or automatic retry.
-  - methods: __init__, _check_token, _request, identity, knowledge_bases, _ids, _chunk, search, document, chunks, original
+  - methods: login, __init__, _check_token, _request, identity, knowledge_bases, _ids, _chunk, search, document, _document, upload, documents_in_base, chunks, original
 
 Functions:
 - `_fail`
@@ -7707,6 +7708,22 @@ Functions:
 - `checked_origin`
 
 
+## `app/research_web/knowledge_backend/current.py`
+
+Module docstring:
+> Session-bound current research receipts; model text cannot select a library.
+
+Imports:
+- `__future__`
+- `math`
+- `storage`
+- `store`
+
+Classes:
+- `CurrentResearch`
+  - methods: _session, _current_authorized, _receipt, _current_config, _projection, _current_query, _receipt_status, _current_read, _current_freeze, registered_sources
+
+
 ## `app/research_web/knowledge_backend/diagnostics.py`
 
 Module docstring:
@@ -7717,6 +7734,7 @@ Imports:
 - `service`
 - `storage`
 - `store`
+- `sync`
 
 Functions:
 - `knowledge_diagnostic`
@@ -7734,12 +7752,19 @@ Imports:
 Classes:
 - `StrictModel`
 - `Binding`
+- `Login`
 - `Search`
 - `SourceApproval`
   - methods: aware_time
 - `Scope`
 - `Read`
 - `Freeze`
+- `CurrentQuery`
+- `CurrentRead`
+- `CurrentFreeze`
+  - methods: receipt_ids
+- `SyncConfiguration`
+- `Scan`
 
 
 ## `app/research_web/knowledge_backend/routes.py`
@@ -7757,7 +7782,11 @@ Functions:
 - `body`
 - `status`
 - `bind`
+- `login`
 - `bases`
+- `sync_status`
+- `sync_config`
+- `sync_scan`
 - `scope`
 - `query`
 - `read`
@@ -7778,17 +7807,19 @@ Imports:
 - `configuration`
 - `core.observability`
 - `credential_backend`
+- `current`
 - `datetime`
 - `functools`
 - `os`
 - `research_workbench_entrypoint.resident.admission`
 - `storage`
 - `store`
+- `time`
 - `uuid`
 
 Classes:
 - `KnowledgeService`
-  - methods: __init__, status, _credentials, _client, _authorized, _still_authorized, bind, bases, _scope, create_scope, _ready, _verify_document, search, read, freeze
+  - methods: __init__, status, sync_status, _credentials, _client, _authorized, _still_authorized, bind, login, current_query, current_read, current_freeze, configure_sync, scan_sync, bases, _scope, create_scope, _ready, _verify_document, search, read, freeze
 
 Functions:
 - `bounded`
@@ -7818,12 +7849,73 @@ Imports:
 
 Classes:
 - `KnowledgeStore`
-  - methods: __init__, binding, check_binding_budget, save_binding, create, read, original, preservation
+  - methods: __init__, binding, check_binding_budget, save_binding, connection, save_connection, create, read, original, records, preservation
 
 Functions:
 - `digest`
 - `canonical`
 - `fail`
+
+
+## `app/research_web/knowledge_backend/sync.py`
+
+Module docstring:
+> Stable directory snapshots and conditional publication into a single private KB.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `client`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `os`
+- `pathlib`
+- `plistlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `stat`
+- `storage`
+- `store`
+- `subprocess`
+- `sync_storage`
+
+Classes:
+- `KnowledgeSyncService`
+  - Owns mutable source state; the existing Host owns its worker and credentials.
+  - methods: __init__, close, matches_binding, _authorized, _root, _claim, configure, status, current_documents, history, snapshot, preservation, _read_at, _collect, _verify, _process, scan
+
+Functions:
+- `_now`
+- `_temporary`
+- `verify_workdisk`
+  - Volume names alone never authorize a write to the resident data drive.
+
+
+## `app/research_web/knowledge_backend/sync_storage.py`
+
+Module docstring:
+> Private mutable directory index, separate from immutable report manifests.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `core.observability`
+- `datahub.security`
+- `dossiers.lock`
+- `json`
+- `os`
+- `pathlib`
+- `sqlite3`
+- `stat`
+- `storage`
+- `store`
+- `threading`
+
+Classes:
+- `SyncStore`
+  - methods: __init__, _safe, connection, config, save_config, rows, observe, update, snapshot, preservation
 
 
 ## `app/research_web/launch_runtime.py`
@@ -12770,7 +12862,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, _external_history_summary, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, start_knowledge_sync, _knowledge_sync_fire, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, _external_history_summary, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

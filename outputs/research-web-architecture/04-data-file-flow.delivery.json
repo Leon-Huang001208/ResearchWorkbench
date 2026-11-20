@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "04a95dc9-62fd-4f23-a5be-155a3c0fac48",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/Volumes/WorkDisk/Projects/ResearchWorkbench/worktrees/rwb-local-knowledge-20261120/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Volumes/WorkDisk/Projects/ResearchWorkbench/worktrees/rwb-local-knowledge-20261120/outputs/research-web-architecture/04-data-file-flow.html",
+  "specification": {
+    "sha256": "ce4308d1a799161776e46a458c5f8abfe4e24ba2529cc3f5bba48f3f823d84ad",
+    "bytes": 14822
+  },
+  "artifact": {
+    "sha256": "9dc2fc0451d07515ed526b9b371557160aa3dc27d6284a471b098a0da1548974",
+    "bytes": 875365
+  }
+}

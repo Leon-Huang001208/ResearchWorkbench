@@ -5,10 +5,6 @@
     "title": "DataHub、WeKnora 与冻结研究证据",
     "output": "04-data-file-flow.html",
     "quality_profile": "showcase",
-    "viewBox": [
-      1900,
-      1080
-    ],
     "views": [
       {
         "id": "catalog",
@@ -70,11 +66,15 @@
           "knowledgeFacade",
           "weknora",
           "knowledgeEvidence",
-          "knowledgeConsumer"
+          "knowledgeConsumer",
+          "knowledgeInbox",
+          "knowledgeSync",
+          "knowledgeEmbedding"
         ],
-        "note": "可选WeKnora资料服务通过原生用户认证与已批准文档范围读取；冻结在RWB。界面零生成和真实报告接入尚未验收。"
+        "note": "固定目录按账号与自有库绑定，解析核验后切current；本机向量化，研究仅收必要片段。未知来源时点无PIT资格，真实链路另验。"
       }
-    ]
+    ],
+    "locale": "zh-CN"
   },
   "stages": [
     {
@@ -101,7 +101,8 @@
       "sublabel": "22 来源 / 绑定 / 限制",
       "stage": 0,
       "row": 0,
-      "tag": "不联网"
+      "tag": "不联网",
+      "yOffset": -14.0
     },
     {
       "id": "tool",
@@ -110,7 +111,8 @@
       "sublabel": "DSH工具 / 资产专题",
       "stage": 0,
       "row": 3,
-      "tag": "既有两入口"
+      "tag": "既有两入口",
+      "yOffset": -68.0
     },
     {
       "id": "policy",
@@ -119,7 +121,8 @@
       "sublabel": "账号来源 / 范围 / Schema",
       "stage": 1,
       "row": 3,
-      "tag": "当前授权"
+      "tag": "当前授权",
+      "yOffset": -68.0
     },
     {
       "id": "catalog",
@@ -128,7 +131,8 @@
       "sublabel": "适配 / 配置 / 健康 / 允许",
       "stage": 1,
       "row": 0,
-      "tag": "read-only"
+      "tag": "read-only",
+      "yOffset": -14.0
     },
     {
       "id": "router",
@@ -137,7 +141,8 @@
       "sublabel": "先读仓 / 缺口 / 等价切换",
       "stage": 2,
       "row": 1,
-      "tag": "固定来源语义保留"
+      "tag": "固定来源语义保留",
+      "yOffset": -32.0
     },
     {
       "id": "providers",
@@ -146,7 +151,8 @@
       "sublabel": "真实工作占用 / 分页 / 解析",
       "stage": 2,
       "row": 2,
-      "tag": "公开SDK子进程12秒"
+      "tag": "公开SDK子进程12秒",
+      "yOffset": -50.0
     },
     {
       "id": "upstreams",
@@ -155,7 +161,8 @@
       "sublabel": "公开源 / 专业源 / 用户 MySQL",
       "stage": 2,
       "row": 3,
-      "tag": "本机配置"
+      "tag": "本机配置",
+      "yOffset": -68.0
     },
     {
       "id": "normalize",
@@ -164,8 +171,8 @@
       "sublabel": "可选PG / 修订 / PIT / 冻结",
       "stage": 3,
       "row": 2,
-      "width": 124,
-      "tag": "宿主绑定及逐次授权"
+      "tag": "宿主绑定及逐次授权",
+      "yOffset": -50.0
     },
     {
       "id": "snapshots",
@@ -174,8 +181,8 @@
       "sublabel": "原始块 / 因子 / 规范行 / Hash",
       "stage": 3,
       "row": 4,
-      "width": 124,
-      "tag": "不可变与原子发布"
+      "tag": "不可变与原子发布",
+      "yOffset": -86.0
     },
     {
       "id": "web",
@@ -184,7 +191,8 @@
       "sublabel": "专题快照 / 资料交接",
       "stage": 4,
       "row": 0,
-      "tag": "当前账号"
+      "tag": "当前账号",
+      "yOffset": -14.0
     },
     {
       "id": "handoff",
@@ -193,7 +201,8 @@
       "sublabel": "SQLite引用 / 修订 / pin",
       "stage": 4,
       "row": 2,
-      "tag": "逐次鉴权 · 显式发送"
+      "tag": "逐次鉴权 · 显式发送",
+      "yOffset": -50.0
     },
     {
       "id": "agents",
@@ -202,7 +211,8 @@
       "sublabel": "父子任务读取同一资料包",
       "stage": 4,
       "row": 4,
-      "tag": "不重复联网"
+      "tag": "不重复联网",
+      "yOffset": -86.0
     },
     {
       "id": "discoveryRead",
@@ -212,7 +222,7 @@
       "stage": 0,
       "row": 4,
       "tag": "不调用模型",
-      "yOffset": 114
+      "yOffset": -86.0
     },
     {
       "id": "intelHttp",
@@ -222,7 +232,7 @@
       "stage": 1,
       "row": 4,
       "tag": "陈旧与未知保留",
-      "yOffset": 114
+      "yOffset": -86.0
     },
     {
       "id": "discoveryFreeze",
@@ -231,59 +241,88 @@
       "sublabel": "预览摘要 / 原始报道 / Hash",
       "stage": 2,
       "row": 4,
-      "width": 124,
       "tag": "显式用户动作",
-      "yOffset": 114
+      "yOffset": -86.0
     },
     {
       "id": "knowledgeUser",
       "type": "frontend",
       "label": "资料读取入口",
-      "sublabel": "设置 / 有界工具回调",
+      "sublabel": "设置 / 可信会话只读工具",
       "stage": 0,
       "row": 4,
-      "tag": "默认未配置",
-      "yOffset": 228
+      "tag": "明确启用同步",
+      "yOffset": 10.0
     },
     {
       "id": "knowledgeFacade",
       "type": "security",
-      "label": "RWB 资料薄适配",
-      "sublabel": "用户JWT / 文档白名单",
+      "label": "RWB 资料 Host",
+      "sublabel": "用户JWT / 会话回执",
       "stage": 1,
       "row": 4,
-      "tag": "逐次授权与时点确认",
-      "yOffset": 228
+      "tag": "原报告scope保留",
+      "yOffset": 10.0
     },
     {
       "id": "weknora",
-      "type": "cloud",
+      "type": "backend",
       "label": "WeKnora v0.9.0",
       "sublabel": "原件 / 分块 / 混合检索",
       "stage": 2,
       "row": 4,
-      "tag": "外部服务 NOT_RUN",
-      "yOffset": 228
+      "tag": "仅检索 · 实际链路待验",
+      "yOffset": 10.0
     },
     {
       "id": "knowledgeEvidence",
       "type": "database",
-      "label": "RWB 冻结证据",
-      "sublabel": "原件SHA / 分块SHA / 时点",
+      "label": "RWB 回执与冻结",
+      "sublabel": "会话命中 / 原件SHA / 分块SHA",
       "stage": 3,
       "row": 4,
-      "tag": "明确写入与账号保全",
-      "yOffset": 228
+      "tag": "用户冻结 · 历史保留",
+      "yOffset": 10.0
     },
     {
       "id": "knowledgeConsumer",
       "type": "external",
-      "label": "报告宿主交接",
-      "sublabel": "原 Workflow / 质量门",
+      "label": "研究宿主与质量门",
+      "sublabel": "只取必要片段 / 原Workflow",
       "stage": 4,
       "row": 4,
-      "tag": "真实链路 NOT_RUN",
-      "yOffset": 228
+      "tag": "未知时点无PIT资格",
+      "yOffset": 10.0
+    },
+    {
+      "id": "knowledgeInbox",
+      "type": "database",
+      "label": "固定本机资料目录",
+      "sublabel": "PDF / DOCX / MD / TXT",
+      "stage": 0,
+      "row": 4,
+      "tag": "owner绑定 · 单件8MiB",
+      "yOffset": 106.0
+    },
+    {
+      "id": "knowledgeSync",
+      "type": "backend",
+      "label": "账号目录同步",
+      "sublabel": "SQLite快照 / 版本 / 撤回",
+      "stage": 1,
+      "row": 4,
+      "tag": "60秒巡检 · 256MiB预算",
+      "yOffset": 106.0
+    },
+    {
+      "id": "knowledgeEmbedding",
+      "type": "backend",
+      "label": "本机 Ollama",
+      "sublabel": "bge-m3 / 实测1024维",
+      "stage": 2,
+      "row": 4,
+      "tag": "ACL仅Embed · 业务另验",
+      "yOffset": 106.0
     }
   ],
   "flows": [
@@ -305,24 +344,24 @@
       "via": [
         [
           400,
-          157
+          143.0
         ],
         [
           400,
-          130
+          120.26
         ],
         [
           875,
-          130
+          120.26
         ],
         [
           875,
-          157
+          143.0
         ]
       ],
       "labelAt": [
         650,
-        120
+        111.85
       ]
     },
     {
@@ -342,7 +381,7 @@
       "variant": "security",
       "labelAt": [
         423,
-        428
+        379
       ]
     },
     {
@@ -406,7 +445,7 @@
       "channelX": 835,
       "labelAt": [
         665,
-        530
+        457.1
       ]
     },
     {
@@ -426,7 +465,7 @@
       "channelX": 875,
       "labelAt": [
         890,
-        330
+        288.68
       ]
     },
     {
@@ -443,37 +482,15 @@
       "to": "discoveryFreeze",
       "label": "核对版本",
       "classification": "third-party archive",
-      "variant": "security",
-      "fromSide": "right",
-      "toSide": "left",
-      "labelAt": [
-        420,
-        680
-      ]
+      "variant": "security"
     },
     {
       "id": "discoverySnapshot",
       "from": "discoveryFreeze",
       "to": "snapshots",
       "label": "归档选材",
-      "classification": "explicit_frozen_selection",
-      "variant": "security",
-      "fromSide": "right",
-      "toSide": "left",
-      "via": [
-        [
-          650,
-          727
-        ],
-        [
-          650,
-          613
-        ]
-      ],
-      "labelAt": [
-        625,
-        680
-      ]
+      "classification": "explicit",
+      "variant": "security"
     },
     {
       "id": "knowledgeRequest",
@@ -487,25 +504,76 @@
       "id": "knowledgeRetrieve",
       "from": "knowledgeFacade",
       "to": "weknora",
-      "label": "限定文档",
-      "classification": "JWT / scope",
-      "variant": "security"
+      "label": "限定读写",
+      "classification": "JWT/session",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
     },
     {
       "id": "knowledgeFreeze",
-      "from": "weknora",
+      "from": "knowledgeFacade",
       "to": "knowledgeEvidence",
-      "label": "核验后冻结",
-      "classification": "explicit write",
-      "variant": "emphasis"
+      "label": "回执/显式冻结",
+      "classification": "session / explicit write",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          315,
+          571.63
+        ],
+        [
+          745,
+          571.63
+        ]
+      ],
+      "labelAt": [
+        630,
+        571.63
+      ]
     },
     {
       "id": "knowledgeReport",
       "from": "knowledgeEvidence",
       "to": "knowledgeConsumer",
-      "label": "证据句柄",
-      "classification": "candidate / NOT_RUN",
-      "variant": "dashed"
+      "label": "必要原文片段",
+      "classification": "session-bound / time unknown",
+      "variant": "emphasis"
+    },
+    {
+      "id": "knowledgeObserve",
+      "from": "knowledgeInbox",
+      "to": "knowledgeSync",
+      "label": "两次稳定观察",
+      "classification": "snapshot / bounded"
+    },
+    {
+      "id": "knowledgePublish",
+      "from": "knowledgeSync",
+      "to": "knowledgeFacade",
+      "label": "版本清单",
+      "classification": "version manifest / current",
+      "variant": "default",
+      "labelAt": [
+        315,
+        672.68
+      ]
+    },
+    {
+      "id": "knowledgeEmbed",
+      "from": "weknora",
+      "to": "knowledgeEmbedding",
+      "label": "本机向量化",
+      "classification": "embed only / ACL",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        530,
+        672.68
+      ]
     }
   ],
   "cards": [
@@ -527,10 +595,10 @@
     },
     {
       "dot": "emerald",
-      "title": "替换与报告边界",
+      "title": "本机资料与研究边界",
       "items": [
-        "金融快照、模板底稿和正式报告保留RWB",
-        "WeKnora UI零生成、迁移及报告链尚待验收"
+        "失败沿用旧current；删除撤回入口、保留历史",
+        "原实例恢复、模型、零生成及报告各自验收"
       ]
     }
   ]

@@ -1135,7 +1135,8 @@
         "scripts/weknora_candidate.py",
         "deploy/weknora/patches/",
         "research_workbench_entrypoint/server.py",
-        "research_workbench_entrypoint/knowledge_configuration.py"
+        "research_workbench_entrypoint/knowledge_configuration.py",
+        "deploy/weknora/docreader/"
       ],
       "documents": [
         "docs/research-web-weknora.md",
@@ -1156,7 +1157,12 @@
         "tests/research_web/test_weknora_upstream_patch.py",
         "tests/research_web/test_weknora_retrieval_profile.py",
         "tests/research_web/test_weknora_cli.py",
-        "tests/research_web/test_weknora_kb_settings_patch.py"
+        "tests/research_web/test_weknora_kb_settings_patch.py",
+        "tests/research_web/test_weknora_sync.py",
+        "tests/research_web/test_weknora_sync_client.py",
+        "tests/research_web/test_weknora_current.py",
+        "tests/research_web/test_weknora_current_api.py",
+        "tests/research_web/test_weknora_plain_text.py"
       ]
     },
     {
@@ -2136,10 +2142,48 @@
             "knowledgeReport"
           ],
           "source": "docs/research-web-weknora.md"
+        },
+        {
+          "subjects": [
+            "knowledgeInbox",
+            "knowledgeSync",
+            "knowledgeObserve",
+            "knowledgePublish"
+          ],
+          "source": "app/research_web/knowledge_backend/sync.py"
+        },
+        {
+          "subjects": [
+            "knowledgeSync"
+          ],
+          "source": "app/research_web/knowledge_backend/sync_storage.py"
+        },
+        {
+          "subjects": [
+            "knowledgeFacade",
+            "knowledgeEvidence",
+            "knowledgeFreeze",
+            "knowledgeReport"
+          ],
+          "source": "app/research_web/knowledge_backend/current.py"
+        },
+        {
+          "subjects": [
+            "knowledgeEmbedding",
+            "knowledgeEmbed"
+          ],
+          "source": "docs/research-web-weknora.md"
+        },
+        {
+          "subjects": [
+            "knowledgeConsumer",
+            "knowledgeReport"
+          ],
+          "source": "app/research_web/runtime/public-data.mjs"
         }
       ],
       "level": "flows",
-      "summary": "DataHub原件与个人档案SQLite引用、不可变修订、冻结交接及逐次鉴权；旧快照和可选研究仓保持。"
+      "summary": "DataHub原件与冻结交接；本机目录经账号SQLite版本同步至WeKnora，本机向量化、会话命中及独立证据保全。"
     },
     {
       "id": "05-capability-flow",
@@ -4555,6 +4599,13 @@
       "prefix": ""
     },
     {
+      "method": "POST",
+      "path": "/api/research/knowledge/login",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/login",
+      "prefix": ""
+    },
+    {
       "method": "GET",
       "path": "/api/research/knowledge/evidence/{identifier}",
       "source": "app/research_web/knowledge_backend/routes.py",
@@ -4594,6 +4645,27 @@
       "path": "/api/research/knowledge/search",
       "source": "app/research_web/knowledge_backend/routes.py",
       "declaredPath": "/api/research/knowledge/search",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/knowledge/sync",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/sync",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/sync/config",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/sync/config",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/sync/scan",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/sync/scan",
       "prefix": ""
     },
     {
@@ -6648,7 +6720,7 @@
         "id": "knowledge-backend",
         "group": "knowledge-backend",
         "title": "研究资料与证据",
-        "summary": "可选WeKnora用户认证、原文检索及独立冻结；UI零生成、真实服务与报告接入仍待验收。",
+        "summary": "固定本机目录同步、原生用户鉴权、current版本检索和会话冻结；本机Embedding及真实链路分别验收。",
         "category": "研究资料与证据",
         "diagrams": [
           "04-data-file-flow"
