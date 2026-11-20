@@ -67,7 +67,7 @@ test('email login is the primary binding flow and clears password before the use
   assert.equal(f.requests.filter(row=>row.path.endsWith('/login')).length,1);
   operation.resolve({...configured,user_id:'real-person',sync:{reconfiguration_required:true,configured:false}}); await settle();
   assert.deepEqual(f.requests.map(row=>row.path),['/knowledge','/knowledge/login','/knowledge/bases']);
-  assert.match(f.element.html,/My personal materials/); assert.match(f.element.html,/请选择本人知识库/);
+  assert.match(f.element.html,/My personal materials/); assert.match(f.element.html,/请先完成本机资料目录的账号切换/);assert.match(f.element.html,/历史资料继续保留/);
   assert.doesNotMatch(f.element.html,/person@example.test|private-password|second-private-password/);
   assert.doesNotMatch(JSON.stringify(f.logs),/person@example.test|private-password/); f.controller.dispose();
 });
@@ -101,13 +101,29 @@ test('actual email login serializes credentials once and keeps uncertain or libr
   assert.match(uncertain.element.html,/登录绑定结果尚未确认/);assert.doesNotMatch(uncertain.element.html,/private payload/);uncertain.controller.dispose();
 });
 
+test('successful identity switch removes prior account DOM before the new library request settles',async()=>{
+  const pendingBases=deferred();let baseReads=0;
+  const sid='01234567-89ab-4cde-8fab-0123456789ab',hit='d'.repeat(64);
+  const f=fixture(async path=>path.endsWith('/login')?{...configured,user_id:'new-person',sync:{reconfiguration_required:true,configured:false}}:path.endsWith('/bases')?++baseReads===1?{items:[{id:'kb-1',name:'Prior private library'}]}:pendingBases.promise:path==='/sessions'?{items:[{id:sid,title:'Study'}]}:path.endsWith('/search')?{session_id:sid,items:[{hit_id:hit,title:'Prior private report',snippet:'prior-private-excerpt',document_version:1}],generated_answer:false}:path.endsWith('/read')?{session_id:sid,hit_id:hit,content:'prior-private-original'}:{...configured,sync});
+  await settle();f.click('bases');await settle();f.click('sessions');await settle();f.form('search',{session_id:sid,query:'ETF'});await settle();f.click('read',{hitId:hit});await settle();
+  assert.match(f.element.html,/user-1/);assert.match(f.element.html,/Prior private library/);assert.match(f.element.html,/prior-private-original/);
+  f.login();await settle();
+  assert.equal(baseReads,2);
+  assert.match(f.element.html,/new-person/);
+  assert.doesNotMatch(f.element.html,/user-1|Prior private library|Prior private report|prior-private-excerpt|prior-private-original/);
+  assert.match(f.element.html,/请先完成本机资料目录的账号切换/);assert.match(f.element.html,/历史资料继续保留/);
+  pendingBases.reject(Object.assign(Error('private timeout body'),{code:'request_timeout'}));await settle();
+  assert.match(f.element.html,/账号已绑定，但知识库读取未完成/);
+  assert.doesNotMatch(f.element.html,/user-1|Prior private library|prior-private-excerpt|prior-private-original|private timeout body/);f.controller.dispose();
+});
+
 test('sync reconfiguration clears old knowledge selection and citation preview even for the same user',async()=>{
   const sid='01234567-89ab-4cde-8fab-0123456789ab',hit='d'.repeat(64);
   const f=fixture(async path=>path==='/sessions'?{items:[{id:sid,title:'Study'}]}:path.endsWith('/search')?{session_id:sid,items:[{hit_id:hit,title:'Old account report',snippet:'old-private-excerpt',document_version:1}],generated_answer:false}:path.endsWith('/sync')?{...sync,reconfiguration_required:true}:path.endsWith('/bases')?{items:[{id:'kb-1',name:'Old library'}]}:{...configured,sync});
   await settle();f.click('bases');await settle();f.click('sessions');await settle();f.form('search',{session_id:sid,query:'ETF'});await settle();
   assert.match(f.element.html,/old-private-excerpt/);
   f.click('sync');await settle();
-  assert.doesNotMatch(f.element.html,/old-private-excerpt|value="kb-1" selected/); assert.match(f.element.html,/请选择本人知识库/); f.controller.dispose();
+  assert.doesNotMatch(f.element.html,/old-private-excerpt|value="kb-1" selected/); assert.match(f.element.html,/请先完成本机资料目录的账号切换/);assert.match(f.element.html,/历史资料继续保留/); f.controller.dispose();
 });
 
 const sync = {configured:true,enabled:false,source_root:'/Volumes/WorkDisk/Data/RWB/knowledge-inbox',knowledge_base_id:'kb-1',running:false,last_scan_result:'completed',last_scan_at:'2026-11-20T08:00:00Z',current_count:1,pending_count:1,error_count:1,last_error:null,items:[{path:'<report>.pdf',state:'current',version:1},{path:'pending.md',state:'pending',version:1},{path:'bad.docx',state:'error',error:'knowledge_parse_failed'}]};

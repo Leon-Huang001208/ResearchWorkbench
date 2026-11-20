@@ -107,6 +107,7 @@ export function createKnowledgeSettings({api, logger = () => {}, document = glob
         if (kind === 'login') {
           if (!status.configured) throw Error('knowledge_login_status_invalid');
           loginAccepted=true;
+          render();
           const visible=await api.request('/knowledge/bases',{signal:lifetime.signal});
           if (disposed) return;
           receiveBases(visible);
