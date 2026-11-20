@@ -187,7 +187,10 @@ class Manager:
         resume = getattr(arguments, "resume_registration", False)
         if subnet:
             try:
-                subnet = str(ipaddress.IPv4Network(subnet))
+                network = ipaddress.IPv4Network(subnet)
+                if not network.is_private:
+                    raise ValueError("private IPv4 subnet required")
+                subnet = str(network)
             except ValueError as error:
                 raise Refusal("registration_ipv4_subnet_invalid") from error
         if resume and (environment != "stage" or not subnet):
@@ -311,7 +314,7 @@ class Manager:
             image,
             "-c",
             (
-                'for dir in /init/*; do contents=$(ls -A "$dir") || exit 1; if [ -n "$contents" ]; then '
+                'for dir in /init/*; do contents=$(find "$dir" -mindepth 1 -maxdepth 1 -print -quit) || exit 1; if [ -n "$contents" ]; then '
                 'echo registration_volumes_not_empty; exit 0; fi; done; '
                 "chown 10001:10001 /init/* && chmod 700 /init/*"
                 if resume else "chown 10001:10001 /init/* && chmod 700 /init/*"

@@ -417,7 +417,7 @@ def test_registration_resume_four_empty_volumes_creates_explicit_network(tmp_pat
     assert network[-3:] == ("--subnet", arguments.subnet, name)
     initializers = [call for call in calls if call[:2] == ("docker", "run")]
     assert len(initializers) == 1
-    assert initializers[0][-1].index("ls -A") < initializers[0][-1].index("chown")
+    assert initializers[0][-1].index("find") < initializers[0][-1].index("chown")
 
 
 def test_registration_resume_reuses_verified_network(tmp_path, monkeypatch):
@@ -674,3 +674,20 @@ def test_pre_model_replace_refuses_unsafe_candidate(tmp_path, monkeypatch, mutat
     with pytest.raises(manage.Refusal):
         manager.replace_stage_image(record, image)
     assert calls == []
+
+
+def test_registration_empty_guard_detects_newline_filename(tmp_path, monkeypatch):
+    manager, arguments, _state, calls, _name = registration_fixture(tmp_path, monkeypatch)
+    manager.register(arguments)
+    script = next(call[-1] for call in calls if call[:2] == ("docker", "run"))
+    mount = tmp_path / "mounts"
+    mount.mkdir()
+    for name in ("data", "logs", "credentials", "cache"):
+        (mount / name).mkdir()
+    content = mount / "data" / "\n"
+    content.write_text("preserved")
+    result = subprocess.run(["/bin/sh", "-c", script.replace("/init/", str(mount) + "/")],
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0
+    assert result.stdout.strip() == "registration_volumes_not_empty"
+    assert content.read_text() == "preserved"
