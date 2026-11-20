@@ -1,6 +1,7 @@
 """Administrative refusal and aggregate admission tests (not runtime evidence)."""
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -103,6 +104,182 @@ def test_stage_release_cli_requires_explicit_identity():
     )
     assert result.returncode == 2
     assert "release_identity_and_completed_task_required" in result.stderr
+
+
+def handoff_fixture(tmp_path, monkeypatch):
+    manager, record, expected, calls = release_fixture(tmp_path, monkeypatch)
+    record["reservation_release"] = {"completed_task": "historical-task", "archive": "old.json"}
+    manage.atomic_json(manager.path("stage", "candidate"), record)
+    raw = manager.path("stage", "candidate").read_bytes()
+    record_digest = hashlib.sha256(raw).hexdigest()
+    audit = {
+        "instance": record["instance"], "container_id": expected[0],
+        "image": expected[1], "source_sha": expected[2], "ledger_sha256": record_digest,
+        "registration_task_status": "unknown", "business_status": "INCOMPLETE",
+    }
+    audit_path = tmp_path / "handoff-audit.json"
+    manage.atomic_json(audit_path, audit)
+    options = {
+        "expected_record_sha256": record_digest, "audit_name": audit_path.name,
+        "expected_audit_sha256": hashlib.sha256(audit_path.read_bytes()).hexdigest(),
+        "authorization": "owner-stage-handoff",
+    }
+    return manager, record, expected, calls, raw, options
+
+
+def test_stage_handoff_default_preview_does_not_write(tmp_path, monkeypatch):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    before = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
+    preview = manager.owner_handoff(record, expected, **options)
+    assert preview["status"] == "preview" and preview["applied"] is False
+    assert len(preview["plan_sha256"]) == 64
+    assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == before
+    assert all(call[:3] == ("docker", "ps", "-aq") for call in calls)
+
+
+def test_stage_handoff_archives_exact_bytes_and_preserves_original_claims(tmp_path, monkeypatch):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    # Whitespace is part of the original ledger evidence.
+    raw = b"\n" + raw + b"\n"
+    manager.path("stage", "candidate").write_bytes(raw)
+    options["expected_record_sha256"] = hashlib.sha256(raw).hexdigest()
+    audit_path = tmp_path / options["audit_name"]
+    audit = json.loads(audit_path.read_bytes())
+    audit["ledger_sha256"] = options["expected_record_sha256"]
+    manage.atomic_json(audit_path, audit)
+    options["expected_audit_sha256"] = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+    preview = manager.owner_handoff(record, expected, **options)
+    result = manager.owner_handoff(
+        record, expected, **options, apply=True, expected_plan_sha256=preview["plan_sha256"]
+    )
+    saved = manager.read("stage", "candidate")
+    assert result["status"] == "applied" and result["applied"] is True
+    assert (tmp_path / "releases" / result["archive"]).read_bytes() == raw
+    assert saved["retired"] is True
+    assert saved["reservation_release"] == record["reservation_release"]
+    for key in record:
+        assert saved[key] == record[key]
+    assert saved["reservation_handoff"]["registration_task_status"] == "unknown"
+    assert saved["reservation_handoff"]["business_status"] == "INCOMPLETE"
+    assert "completed_task" not in saved["reservation_handoff"]
+    assert all(call[:3] == ("docker", "ps", "-aq") for call in calls)
+
+
+@pytest.mark.parametrize("change", ["record", "audit", "plan", "identity", "running", "shared"])
+def test_stage_handoff_refuses_drift_and_active_resources(tmp_path, monkeypatch, change):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    preview = manager.owner_handoff(record, expected, **options)
+    plan_digest = preview["plan_sha256"]
+    if change == "record":
+        manager.path("stage", "candidate").write_bytes(raw + b"\n")
+    elif change == "audit":
+        (tmp_path / options["audit_name"]).write_bytes(b"{}")
+    elif change == "plan":
+        plan_digest = "0" * 64
+    elif change == "identity":
+        expected = ("d" * 64, expected[1], expected[2])
+    elif change == "running":
+        monkeypatch.setattr(manager, "owned", lambda _: {"State": {"Running": True, "Status": "running"}})
+    elif change == "shared":
+        monkeypatch.setattr(manage, "command", lambda *args: record["container_id"] + "\nforeign")
+    ledger_before = manager.path("stage", "candidate").read_bytes()
+    with pytest.raises(manage.Refusal, match="stage_handoff_"):
+        manager.owner_handoff(record, expected, **options, apply=True, expected_plan_sha256=plan_digest)
+    assert manager.path("stage", "candidate").read_bytes() == ledger_before
+    assert not (tmp_path / "releases").exists()
+
+
+def test_stage_handoff_rechecks_volume_references_before_commit(tmp_path, monkeypatch):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    preview = manager.owner_handoff(record, expected, **options)
+    references = iter([record["container_id"], record["container_id"], "foreign"])
+    monkeypatch.setattr(manage, "command", lambda *args: next(references))
+    with pytest.raises(manage.Refusal, match="stage_handoff_"):
+        manager.owner_handoff(
+            record, expected, **options, apply=True, expected_plan_sha256=preview["plan_sha256"]
+        )
+    assert manager.path("stage", "candidate").read_bytes() == raw
+
+
+def test_stage_handoff_replay_preserves_archive(tmp_path, monkeypatch):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    preview = manager.owner_handoff(record, expected, **options)
+    result = manager.owner_handoff(
+        record, expected, **options, apply=True, expected_plan_sha256=preview["plan_sha256"]
+    )
+    archive = tmp_path / "releases" / result["archive"]
+    before = archive.read_bytes()
+    with pytest.raises(manage.Refusal, match="stage_handoff_"):
+        manager.owner_handoff(
+            manager.read("stage", "candidate"), expected, **options,
+            apply=True, expected_plan_sha256=preview["plan_sha256"]
+        )
+    assert archive.read_bytes() == before == raw
+    assert len(list((tmp_path / "releases").iterdir())) == 1
+
+
+def test_stage_handoff_checks_running_state_after_archive(tmp_path, monkeypatch):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    preview = manager.owner_handoff(record, expected, **options)
+    states = iter([False, True])
+    monkeypatch.setattr(manager, "owned", lambda _: {
+        "State": {"Running": next(states), "Status": "exited"}
+    })
+    with pytest.raises(manage.Refusal, match="stage_handoff_requires_stopped_container"):
+        manager.owner_handoff(
+            record, expected, **options, apply=True, expected_plan_sha256=preview["plan_sha256"]
+        )
+    assert manager.path("stage", "candidate").read_bytes() == raw
+    assert [path.read_bytes() for path in (tmp_path / "releases").iterdir()] == [raw]
+
+
+def test_stage_handoff_interrupted_commit_requires_review_before_retry(tmp_path, monkeypatch):
+    manager, record, expected, calls, raw, options = handoff_fixture(tmp_path, monkeypatch)
+    preview = manager.owner_handoff(record, expected, **options)
+    original_writer = manage.atomic_json
+    monkeypatch.setattr(manage, "atomic_json", lambda *args: (_ for _ in ()).throw(OSError("commit failed")))
+    with pytest.raises(OSError, match="commit failed"):
+        manager.owner_handoff(
+            record, expected, **options, apply=True, expected_plan_sha256=preview["plan_sha256"]
+        )
+    assert manager.path("stage", "candidate").read_bytes() == raw
+    archives = {path.name: path.read_bytes() for path in (tmp_path / "releases").iterdir()}
+    monkeypatch.setattr(manage, "atomic_json", original_writer)
+    with pytest.raises(manage.Refusal, match="stage_handoff_partial_archive_requires_review"):
+        manager.owner_handoff(
+            record, expected, **options, apply=True, expected_plan_sha256=preview["plan_sha256"]
+        )
+    changed_options = dict(options, authorization="owner-stage-handoff-retry")
+    changed_preview = manager.owner_handoff(record, expected, **changed_options)
+    assert changed_preview["plan_sha256"] != preview["plan_sha256"]
+    with pytest.raises(manage.Refusal, match="stage_handoff_partial_archive_requires_review"):
+        manager.owner_handoff(
+            record, expected, **changed_options, apply=True,
+            expected_plan_sha256=changed_preview["plan_sha256"],
+        )
+    assert {path.name: path.read_bytes() for path in (tmp_path / "releases").iterdir()} == archives
+    assert manager.path("stage", "candidate").read_bytes() == raw
+
+
+@pytest.mark.parametrize("extra,error", [
+    ([], "handoff_identity_audit_and_authorization_required"),
+    (["--completed-task", "historical-task"], "handoff_identity_audit_and_authorization_required"),
+    (["--apply"], "handoff_apply_requires_plan_digest"),
+    (["--expected-plan-sha256", "d" * 64], "handoff_apply_requires_plan_digest"),
+])
+def test_stage_handoff_cli_requires_explicit_scope(extra, error):
+    arguments = [] if not extra else [
+        "--expected-container", "a" * 64, "--expected-image", "sha256:" + "b" * 64,
+        "--expected-source", "c" * 40, "--expected-record-sha256", "d" * 64,
+        "--handoff-audit", "handoff-audit.json", "--expected-audit-sha256", "e" * 64,
+        "--owner-authorization", "owner-stage-handoff",
+    ]
+    result = subprocess.run(
+        [sys.executable, manage.__file__, "stage", "candidate", "owner-handoff", *arguments, *extra],
+        capture_output=True, text=True, timeout=10, check=False,
+    )
+    assert result.returncode == 2
+    assert error in result.stderr
 
 
 def test_model_provisioning_rejects_running_stage_without_secret_operations(tmp_path, monkeypatch):
