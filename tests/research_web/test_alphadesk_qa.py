@@ -1,18 +1,48 @@
 """AlphaDesk admission and event replay through the existing Research Web API."""
 
+import json
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
-from app.research_web import qa_execution, qa_model
+from app.research_web import qa_execution, qa_model, qa_tools
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
 BASE = "/api/research/sessions"
+
+
+@pytest.mark.asyncio
+async def test_qa_source_pages_round_trip_below_worker_limit(monkeypatch):
+    identifier = "dossier:" + "1" * 32 + ":" + "2" * 32 + ":1"
+    content = ("统计公报😀\n" + "\0" * 4500) * 8
+    source = {"id": "web:original", "title": "统计公报", "sha256": "f" * 64}
+    store = SimpleNamespace(
+        session=lambda _sid: {"source_scope": ["uploads"]},
+        save=lambda: None,
+    )
+    tools = qa_tools.TurnTools(SimpleNamespace(store=store), "test", {}, [])
+
+    async def execute(_service, _sid, _call, operation, bound_id, *, full):
+        assert (operation, bound_id, full) == ("read", identifier, True)
+        return {"content": content, "source": source}
+
+    monkeypatch.setattr(qa_tools, "execute_source", execute)
+    offset, pages = 0, []
+    while offset is not None:
+        page = (await tools.read(identifier, "call", offset=offset))["data"]
+        assert page["offset"] == offset
+        assert page["source"]["sha256"] == source["sha256"]
+        assert len(json.dumps(page, ensure_ascii=False).encode("utf-16-le")) // 2 < 24000
+        pages.append(page["content"])
+        offset = page["next_offset"]
+    assert len(pages) > 1
+    assert "".join(pages) == content
 
 
 @pytest.fixture(autouse=True)

@@ -2,6 +2,8 @@
 
 FinGPT 双入口回滚由本机操作员 CLI 发起，需要已接受版本的完整 SHA。现有本机与网关健康接口核对恢复结果。
 
+FinGPT 的读源工具支持字符偏移量，使用同一授权来源 ID 续读，next_offset 为空时读到末尾。
+
 策略验证常驻验收经正式私网 HTTPS 和已登录的原账号走同一接口，核对导入摘要、统计结果和逐笔分页。
 
 `/api/research/strategy-validation` 提供账号内冻结日线 ZIP 导入、明确运行、历史摘要和逐笔分页。配置冻结与幂等写入见[策略验证](../../research-web-strategy-validation.md#api)。

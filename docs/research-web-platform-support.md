@@ -6,6 +6,8 @@ FinGPT 完成切换后的双入口回滚属于 macOS Native 运维验证。离�
 
 上线后旧工作树退出目前属于 macOS Native 管理流程。隔离验证覆盖版本和回滚依据复核及临时 Git 工作树退役，现场旧任务仅做只读预览。Docker 的上线触发及 Windows、Linux 原生验收各自留证。
 
+长网页与档案的 FinGPT 分页由各平台共用的 Host 工具执行，平台实机证据按各自验收记录核对。
+
 策略验证常驻切换的验收覆盖 Mac mini Native 与 macOS 15 干净安装。认证页面的冻结包复跑作为 Mac mini 业务证据，其他平台的原生验收单独记录。
 
 Mac Docker Desktop 的受管开发构建使用 `rwb-development:development`。离线命令回归和实际 Docker 构建、其他平台验收分别取证。
