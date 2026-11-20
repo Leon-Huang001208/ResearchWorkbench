@@ -671,21 +671,25 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
 
     (tmp_path / "server/users").mkdir(parents=True)
     (tmp_path / "research-web").mkdir()
-    os.mkfifo(tmp_path / "research-web/index.json")
-    process = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
-            str(tmp_path),
-        ],
-        cwd=Path(__file__).resolve().parents[2],
-        timeout=3,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
+    fifo = tmp_path / "research-web/index.json"
+    os.mkfifo(fifo)
+    try:
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
+                str(tmp_path),
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+            timeout=3,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
+    finally:
+        fifo.unlink()
 
 
 @pytest.mark.parametrize(
@@ -2502,6 +2506,13 @@ def test_local_knowledge_transaction_route_checks_receive_profile(
 
     monkeypatch.setattr(upgrade, "verify_serve", verify)
     ops = make(None)
+    # This regression checks profile propagation, independently of the
+    # preservation schema and gateway health contracts exercised elsewhere.
+    monkeypatch.setattr(upgrade.g, "preservation", lambda _home: state["before"])
+    monkeypatch.setattr(upgrade, "asset_index_snapshot", lambda _home: state["asset_index_before"])
+    monkeypatch.setattr(
+        ops, "research_bot_gateway_health", lambda **_kwargs: state["research_bot_mcp_before"]
+    )
     with pytest.raises(SystemExit, match="route-profile-observed"):
         if entry == "prepare_fence":
             ops.prepare_fence(state)
