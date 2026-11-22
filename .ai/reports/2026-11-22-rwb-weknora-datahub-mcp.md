@@ -15,3 +15,11 @@
 相关 Ruff、Black、isort 检查通过，9份所改产品源码的 targeted mypy（`--follow-imports=silent`）通过。所有 pytest 使用原 `test_artifact_retention.py run --mode wip`，没有活动测试根。证据位于本任务 Scratch 的 `datahub-adapter`，最终13项与80项各有原 JUnit/回执；这不是最终提交 SHA 或CI认证。新增 Python 测试的索引、最终全变更集门、独立评审和干净 Mac 安装由主任务统一完成。
 
 Scope/工具契约、参数及结果限制见[模块文档](../../docs/research-web-mcp-datahub.md)。没有新增依赖、SQL结构迁移、生产修改或模型调用。DataHub 值、单位、缺失、原件、日期与 PIT 保留原语义；WeKnora全任务链与成熟工具替换是否通过，由真实现场及独立金融核验决定。
+
+## 真实 Host HTTP 门补修（2026-11-23）
+
+首次真实 WeKnora→隔离 Gateway/Host 请求只到元数据与工具发现，query 在 `POST /data/contexts` 之前被实际 Host 的 service-only 白名单以 `embedded_research_disabled` 拒绝。Host PID/cwd 与当前0a源码工作树一致，日志明确 `embedded_research_route_denied`，不是旧安装包或内部 business-query。原13项使用裸 FastAPI 路由夹具，未覆盖 `create_app` 总门，不能再将其称为真实 Host/launcher 证明。
+
+因此只在 `main.py` 既有白名单补上下文、查询、按ID状态及取消四类准确路径，不打开其他 data 写或原生执行。新增两项先在未修代码真实失败403：正常 `create_app(ExternalExecutionClient)` 的中间件/生命周期加 FRED mock；以及实际 RuntimePool→process_spec→uvicorn Web子进程的 contexts/query/poll/cancel。后者使用未注册 source 在 DataHub 内部收口为 failed，零外部金融请求，不宣称实源成功。真实旧driver/Agent未由此补修操作或重发；最终GREEN与Root重新实源续接分别记录。
+
+补修本机 WIP 实测2/2 PASS（4.54秒），原入口 middleware 的 FRED Mock 得到1行快照，实际子进程的无网络查询得到正常 failed 状态；contexts201、query202、status/cancel200，原生session、模型PUT及来源配置PUT仍403。两根按期望RED→GREEN后成功批正式 retired，真实测试子Host均由原RuntimePool正常关闭；当前任务的真实9543 driver未动。仅跑这2项，不重跑原93项。相关Ruff、Black、isort及diff检查通过；最终提交、独评、CI和真实WeKnora复测仍由Root接续。证据为本任务Scratch `datahub-adapter/service-only-boundary-20261123/`。

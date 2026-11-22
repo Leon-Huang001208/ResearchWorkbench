@@ -4,8 +4,11 @@ import asyncio
 import base64
 import hashlib
 import json
+import sys
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -16,10 +19,12 @@ from starlette.applications import Starlette
 
 from app.research_web.client import ExternalExecutionClient
 from app.research_web.datahub.routes import router as data_router
+from app.research_web.main import create_app
 from app.research_web.mcp_facade.authorization_store import AuthorizationStore
 from app.research_web.mcp_facade.oauth import OAuthProvider, create_oauth_routes
 from app.research_web.multiuser.accounts import AccountError, AccountStore
 from app.research_web.multiuser.gateway import create_gateway
+from app.research_web.multiuser.runtime import RuntimeConfig, RuntimePool
 from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
 from app.research_web.workbench import router
@@ -478,3 +483,110 @@ def test_provider_403_is_reported_without_successful_snapshot(gateway):
     assert result["data_success"] is False
     assert len(env.state.calls) == 1
     assert env.state.calls[0].url.host == "api.bls.gov"
+
+
+def test_actual_service_only_app_allows_datahub_but_not_embedded_execution(tmp_path, monkeypatch):
+    """Exercise create_app's real middleware/lifespan, not a bare router fixture."""
+    monkeypatch.delenv("RWB_TENANT_MODE", raising=False)
+    service = ResearchService(ExternalExecutionClient(), Store(tmp_path / "actual-host"))
+    calls = []
+
+    def provider(request):
+        calls.append(request)
+        return httpx.Response(200, text="observation_date,DFF\n2024-01-02,5.33\n")
+
+    service.datahub.transport = httpx.MockTransport(provider)
+    with TestClient(create_app(service)) as client:
+        context = client.post("/api/research/data/contexts", json={"grant_id": str(uuid4())})
+        assert context.status_code == 201, context.text
+        sid = context.json()["session_id"]
+        body = {"session_id": sid, "section": "market", "query": fred_query()}
+        submitted = client.post(
+            "/api/research/data/queries",
+            json=body,
+            headers={"Idempotency-Key": "actual-app-datahub-0001"},
+        )
+        assert submitted.status_code == 202, submitted.text
+        query_id = submitted.json()["id"]
+        for _ in range(30):
+            response = client.get(f"/api/research/data/queries/{query_id}")
+            assert response.status_code == 200, response.text
+            status = response.json()
+            if status["status"] != "running":
+                break
+        assert status["status"] == "completed" and status["dataset"]["row_count"] == 1
+        assert (
+            client.post(f"/api/research/data/queries/{query_id}/cancel").json()["status"]
+            == "completed"
+        )
+        assert len(calls) == 1
+        assert service.store.session(sid)["created"] is False
+        for method, path in (
+            ("POST", "/api/research/sessions"),
+            ("PUT", "/api/research/runtime/model"),
+            ("PUT", "/api/research/data/sources/ext_fred/configuration"),
+        ):
+            denied = client.request(method, path, json={})
+            assert (
+                denied.status_code == 403
+                and denied.json()["error"]["code"] == "embedded_research_disabled"
+            )
+
+
+@pytest.mark.asyncio
+async def test_real_service_only_launcher_reaches_datahub_without_dsh(tmp_path):
+    """Real RuntimePool → process spec → uvicorn → create_app, with no provider network."""
+    project = Path(__file__).resolve().parents[2]
+    root = tmp_path / "launcher"
+    user = str(uuid4())
+    pool = RuntimePool(
+        RuntimeConfig(
+            root=root,
+            project=project,
+            source=None,
+            python=sys.executable,
+            node=None,
+            max_instances=1,
+            service_only=True,
+        )
+    )
+    try:
+        backend = await pool.backend_for(user)
+        assert backend.service_only and backend.runtime_pid is None
+        owner = json.loads((root / "users" / user / "state" / "owner.json").read_text())
+        assert owner["execution_mode"] == "external" and len(owner["pids"]) == 1
+        headers = {"X-RWB-Tenant-Gateway-Key": backend.key, "Origin": backend.url}
+        async with httpx.AsyncClient(
+            base_url=backend.url, headers=headers, trust_env=False, timeout=15
+        ) as client:
+            context = await client.post(
+                "/api/research/data/contexts", json={"grant_id": str(uuid4())}
+            )
+            assert context.status_code == 201, context.text
+            sid = context.json()["session_id"]
+            # Unsupported catalog source fails inside DataHub before any HTTP
+            # Provider request; this is a launcher/route test, not live data proof.
+            query = fred_query()
+            query["source"] = "not_registered"
+            body = {"session_id": sid, "section": "market", "query": query}
+            submitted = await client.post(
+                "/api/research/data/queries",
+                json=body,
+                headers={"Idempotency-Key": "real-launcher-query-0001"},
+            )
+            assert submitted.status_code == 202, submitted.text
+            query_id = submitted.json()["id"]
+            for _ in range(30):
+                response = await client.get(f"/api/research/data/queries/{query_id}")
+                assert response.status_code == 200, response.text
+                status = response.json()
+                if status["status"] != "running":
+                    break
+                await asyncio.sleep(0.01)
+            assert status["status"] == "failed" and status["failure_code"] == "query_failed"
+            cancelled = await client.post(f"/api/research/data/queries/{query_id}/cancel")
+            assert cancelled.status_code == 200 and cancelled.json()["id"] == query_id
+            denied = await client.post("/api/research/sessions", json={})
+            assert denied.status_code == 403
+    finally:
+        await pool.close()

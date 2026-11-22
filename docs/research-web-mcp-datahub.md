@@ -34,6 +34,8 @@ SDK 发现与令牌响应使用标准空格分隔 scope；已存授权 scope 与
 
 Facade 只选择原账号已存活的 Host。它不通过 MCP 冷启 DSH、scheduler 或其他业务恢复。Host 沿新增 `POST /api/research/data/contexts`，在现有 Store 中为这个 OAuth grant 注册一个 `created=false`、`source_scope=["datahub"]` 的上下文；不调用 `ResearchService.create` 或 native RPC。grant ID 由受信 Facade 注入，不是 MCP 工具参数。
 
+`main.py` 的 service-only HTTP 入口显式允许数据上下文创建、查询提交、按ID读状态及取消；原生会话提交、模型配置和来源配置写入继续拒绝。仅把路由注册进裸 FastAPI 不代表该实际入口已通过，验收还覆盖真实 `create_app` 中间件及 RuntimePool 启动的独立 Web Host。
+
 然后复用原 `POST /api/research/data/queries` 和 `GET /api/research/data/queries/{id}`。幂等键由 grant 与客户端 request_id 组合；同键同参复用原查询，新增记录对同键异参返回409，不重发 Provider。旧无参数摘要的研究台记录保持旧读取语义。取消复用原 DataHub 的准确 call_id，并处理尚未开始的 desk 外层任务，避免查询被取消后仍显示 running。
 
 状态与取消先校验查询的 session 正是当前 grant 的上下文，且为本批公开外部系列。完成数据通过既有冻结读取协议，校验 manifest/rows SHA、保留分页与原数据字段。此结果权限不把其他资料自动加入旧四工具的选材白名单。每次工具在返回结果前再次检查令牌/授权，读取中撤权时不返回已读内容。
