@@ -61,6 +61,9 @@ Node、编辑引擎、通用 Constraints、Mac 干净安装、45分钟作业上�
 该选择不认证真实模型、Fed 跟踪质量或常驻回滚；这些仍由各自实际执行证据说明。
 固定 FinGPT 测试命令放在 `scripts/run_fingpt_source_ci.sh`，工作流只按原选择调用该脚本。
 回归解码每个 `run` 块并核对21,000字符上限，同时记录脚本展开后的完整命令闭包；选例和执行语义不变。
+测试工具提取复用现有 `dev` 和 `requirements/research-test.in` 声明，去除空行／整行注释后沿原正则验证、
+按相同 spec 去重；缺失或非法声明不能被静默忽略。Web 生产闭包仍独立按原哈希锁安装并作为测试工具约束，
+根包仍用 `--no-deps` 安装，不把根包全部历史运行依赖引入 CI。
 
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。

@@ -157,7 +157,7 @@ function policyRequiresGate(file, gate) {
 test('Checks installs hashed Web SDK and renderer blocks from the actual generated requirements', t => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-lock-contract-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
-  for(const name of ['requirements/web.lock','app/research_web/capabilities/pack-runtime-lock.json','pyproject.toml']) {
+  for(const name of ['requirements/web.lock','requirements/research-test.in','app/research_web/capabilities/pack-runtime-lock.json','pyproject.toml']) {
     const target=path.join(root,name);fs.mkdirSync(path.dirname(target),{recursive:true});
     fs.copyFileSync(new URL('../../'+name,import.meta.url),target);
   }
@@ -186,6 +186,59 @@ test('Checks installs hashed Web SDK and renderer blocks from the actual generat
     assert.equal(entry.trimEnd(),original.trimEnd(),`${packageName} block must retain all original hashes`);
     assert.match(entry,/--hash=sha256:[a-f0-9]{64}/);
     if(['mcp','mcp-types'].includes(packageName)) assert.ok(entry.startsWith(`${packageName}==2.2.0`));
+  }
+});
+
+test('Checks test-tools include the existing shared test declarations once without root runtime extras', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-shared-test-closure-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  for(const name of ['requirements/web.lock','requirements/research-test.in','app/research_web/capabilities/pack-runtime-lock.json','pyproject.toml']) {
+    const target=path.join(root,name);fs.mkdirSync(path.dirname(target),{recursive:true});
+    fs.copyFileSync(new URL('../../'+name,import.meta.url),target);
+  }
+  const declaration=fs.readFileSync(path.join(root,'requirements/research-test.in'),'utf8').split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith('#'));
+  const sqlalchemy=declaration.find(line=>line.startsWith('sqlalchemy'));
+  assert.ok(sqlalchemy,'SQLAlchemy must come from the existing shared test file');
+  fs.appendFileSync(path.join(root,'requirements/research-test.in'),`\n# duplicate declared tool\n${sqlalchemy}\n`);
+  const step=workflows.checks.split('      - name: Install declared test dependencies\n')[1]?.split('\n      - name:')[0];
+  const match=step.match(/          \.venv\/bin\/python[^\n]*<<'PY_LOCK'\n([^]*?)\n          PY_LOCK/);assert.ok(match);
+  const code=match[1].split('\n').map(line=>line.slice(10)).join('\n');
+  const result=spawnSync(process.env.RWB_TEST_PYTHON||'python3',['-B','-c',code+'\nprint(json.dumps(project["project"]["optional-dependencies"]["dev"]))'],{
+    cwd:root,env:{...process.env,RUNNER_TEMP:root,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8',timeout:10000,
+  });
+  assert.equal(result.status,0,result.stderr);
+  const dev=JSON.parse(result.stdout.trim().split('\n').at(-1));
+  const actual=fs.readFileSync(path.join(root,'rwb-test-tools.in'),'utf8').trim().split('\n');
+  assert.deepEqual(actual,[...new Set([...dev,...declaration])]);
+  assert.equal(actual.filter(line=>line===sqlalchemy).length,1);
+  assert.deepEqual(actual.filter(line=>!dev.includes(line)),[sqlalchemy]);
+  assert.equal(fs.readFileSync(path.join(root,'rwb-pack-dependencies.lock'),'utf8'),fs.readFileSync(new URL('../../requirements/web.lock',import.meta.url),'utf8'));
+  const constraints=fs.readFileSync(path.join(root,'rwb-pack-dependencies.constraints'),'utf8');
+  for(const name of ['mcp','mcp-types']) assert.match(constraints,new RegExp(`^${name}==2\\.2\\.0$`,'m'));
+  assert.match(step,/pip install -r "\$RUNNER_TEMP\/rwb-test-tools\.in" -c "\$RUNNER_TEMP\/rwb-pack-dependencies\.constraints"/);
+  assert.match(step,/pip install --no-index --no-deps --no-build-isolation \./);
+  for(const event of ['pull_request','push']) assert.equal(triggersForPath(workflows.checks,event,'requirements/research-test.in'),true);
+});
+
+test('Checks reject missing, empty or invalid shared test declarations before installation', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-shared-test-invalid-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const step=workflows.checks.split('      - name: Install declared test dependencies\n')[1]?.split('\n      - name:')[0];
+  const match=step.match(/          \.venv\/bin\/python[^\n]*<<'PY_LOCK'\n([^]*?)\n          PY_LOCK/);assert.ok(match);
+  const code=match[1].split('\n').map(line=>line.slice(10)).join('\n');
+  for(const variant of ['missing','empty','invalid']) {
+    const directory=path.join(root,variant);fs.mkdirSync(directory);
+    for(const name of ['requirements/web.lock','app/research_web/capabilities/pack-runtime-lock.json','pyproject.toml']) {
+      const target=path.join(directory,name);fs.mkdirSync(path.dirname(target),{recursive:true});
+      fs.copyFileSync(new URL('../../'+name,import.meta.url),target);
+    }
+    if(variant!=='missing') fs.writeFileSync(path.join(directory,'requirements/research-test.in'),variant==='empty'?'# no declared tools\n':'sqlalchemy>=2,<3\n--index-url https://invalid.example\n');
+    const result=spawnSync(process.env.RWB_TEST_PYTHON||'python3',['-B','-c',code],{
+      cwd:directory,env:{...process.env,RUNNER_TEMP:directory,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8',timeout:10000,
+    });
+    assert.notEqual(result.status,0,variant+': declaration failure must not succeed');
+    assert.equal(fs.existsSync(path.join(directory,'rwb-test-tools.in')),false,variant);
+    assert.match(fs.readFileSync(path.join(directory,'logs/ci-pack-dependencies.log'),'utf8'),/ci_pack_dependencies_prepare_failed/);
   }
 });
 
