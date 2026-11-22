@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+工具目录按原生实际注册核对名称与参数。DataHub声明包含既有 `purpose`／`quality`／`as_of` 输入，研究脚本声明既有 `code`／`report_plan` 二选一；目录不授予执行或质量资格，原权限与严格执行校验保持。无DSH源码环境的注册回归直接调用本地runtime模块，固定DSH完整插件核对另外留证。
+
 Research Bot 对来源批次先判新鲜度，再冻结原件和准备技能。历史记录保存实际准入依据供核对。
 
 Research Bot 只绑定已发布的技能或 Workflow 版本及内容哈希。运行时重验当前授权和原生发现，结果校验要求所绑定版本及 Workflow 已冻结子技能的实际加载回执。
