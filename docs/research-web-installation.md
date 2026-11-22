@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Docker G2B 构建从完整提交封存当前固定 DSH、Hot 锁定依赖和格式源码，镜像中的 SQL 仅作兼容性识别，不自动迁移。管理员经 `rwb-docker release` 在独立 stage 验收后晋级同一镜像；维护、原实例五卷和密钥保全见[Docker 手册](research-web-docker.md#g2b-冻结制品与受管切换)。公开 Native/Windows 安装入口不变。
+
 附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版
 复核；不增加公开安装入口、参数、依赖或用户配置。五模式的 forward／限定 preparing 恢复
 失败时保留原准备 journal，不停机或切源；Trial 与完成后回滚沿原流程。干净安装、同候选

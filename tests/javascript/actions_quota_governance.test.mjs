@@ -209,6 +209,158 @@ test('documentation-only changes use only the lightweight constraints workflow',
   assert.equal(triggersForPath(workflows.desktop, 'push', file), false);
 });
 
+test('retention-only changes select their tool contracts while product changes retain the full scope', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-retention-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const toolFiles = ['scripts/test_artifact_retention.py', 'tests/research_web/test_test_artifact_retention.py',
+    'AGENTS.md', 'docs/research-web-storage-retention.md', 'docs/generated/py_file_index.md',
+    '.ai/reports/fix.md', '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs'];
+  for (const [files, base, expected] of [[toolFiles, 'a'.repeat(40), true],
+    [[...toolFiles, 'app/research_web/api.py'], 'a'.repeat(40), false],
+    [['.github/workflows/research-web-checks.yml'], 'a'.repeat(40), false], [toolFiles, '', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv, **kwargs):\n    assert argv[-2:]==[os.environ['BASE_SHA'],os.environ['HEAD_SHA']]\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    assert argv[:4]==['git','diff','--name-only','-z']\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output, SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const scope = Object.fromEntries(fs.readFileSync(output, 'utf8').trim().split('\n').map(line => line.split('=')));
+    assert.equal(scope.retention_only, String(expected));
+    assert.equal(scope.architecture_only, 'false');
+  }
+  assert.match(workflows.checks, /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
+  assert.match(workflows.checks, /HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  assert.match(workflows.checks, /-- tests\/research_web\/test_test_artifact_retention\.py --confcutdir=tests\/research_web -q/);
+  for (const name of ['Run Research Web JavaScript contracts', 'Verify pinned editorial engine without model or paid requests']) {
+    const block = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.match(block, /if: steps\.contract-scope\.outputs\.retention_only != 'true'/);
+  }
+});
+
+test('architecture-only changes select their owner contracts while product or unknown changes retain full scope', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-architecture-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const toolFiles = ['scripts/check_research_architecture.mjs', 'tests/javascript/research_web_architecture.test.mjs',
+    'docs/AGENT_WORKFLOW.md', 'docs/research-web-documentation.md', '.ai/reports/fix.md',
+    '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs'];
+  for (const [files, base, gitFailure, expected] of [[toolFiles, 'a'.repeat(40), '', true],
+    [[...toolFiles, 'app/research_web/api.py'], 'a'.repeat(40), '', false],
+    [['.github/workflows/research-web-checks.yml'], 'a'.repeat(40), '', false],
+    [toolFiles, '', '', false], [toolFiles, 'a'.repeat(40), 'fetch', false],
+    [toolFiles, 'a'.repeat(40), 'diff', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv, **kwargs):\n    assert argv[-2:]==[os.environ['BASE_SHA'],os.environ['HEAD_SHA']]\n    if 'fetch' in argv: return SimpleNamespace(returncode=1 if os.environ['SCOPE_GIT_FAILURE']=='fetch' else 0)\n    assert argv[:4]==['git','diff','--name-only','-z']\n    return SimpleNamespace(returncode=1 if os.environ['SCOPE_GIT_FAILURE']=='diff' else 0,stdout=bytes([0]).join(name.encode() for name in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output,
+        SCOPE_FILES: JSON.stringify(files), SCOPE_GIT_FAILURE: gitFailure}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const scope = Object.fromEntries(fs.readFileSync(output, 'utf8').trim().split('\n').map(line => line.split('=')));
+    assert.equal(scope.architecture_only, String(expected));
+    assert.equal(scope.retention_only, 'false');
+  }
+});
+
+test('architecture-only CI runs the owner JavaScript contracts without Python or editorial work', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-architecture-ci-branch-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const bin = path.join(root, 'bin'), commands = path.join(root, 'node-commands');fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nexit 91\n', {mode: 0o755});
+  fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SCOPE_NODE_LOG"\n', {mode: 0o755});
+  for (const name of ['Run Research Web Python contracts', 'Run Research Web JavaScript contracts']) {
+    const block = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.ok(block);
+    const multiline = block.match(/        run: \|\n([^]*)/);
+    const script = (multiline ? multiline[1].split('\n').map(line => line.slice(10)).join('\n')
+      : block.match(/        run: ([^\n]+)/)?.[1])
+      .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'true')
+      .replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false');
+    const result = spawnSync('/bin/bash', ['-e', '-c', script], {
+      cwd: root, env: {...process.env, PATH: `${bin}:/usr/bin:/bin`, SCOPE_NODE_LOG: commands}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+  }
+  assert.equal(fs.readFileSync(commands, 'utf8').trim(), '--test tests/javascript/research_web_architecture.test.mjs');
+  for (const name of ['Verify pinned editorial engine without model or paid requests', 'Stage safe pytest evidence', 'Upload safe pytest evidence']) {
+    const block = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.match(block, /if: [^\n]*steps\.contract-scope\.outputs\.architecture_only != 'true'/);
+  }
+});
+
+test('G2B release scope accepts only its explicit interfaces and sends mixed or unknown changes to full checks', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-release-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const releaseFiles = ['docker/release.py', 'docker/Dockerfile.release', 'docker/release-schema.json',
+    'app/research_web/maintenance.py', 'app/research_web/service.py', 'app/research_web/main.py',
+    'tests/research_web/test_docker_release.py', 'tests/research_web/test_release_maintenance.py',
+    'tests/research_web/test_api.py', 'tests/fixtures/g2b_fault_controller.py',
+    'docs/architecture/research-web/architecture-map.json', '.ai/reports/2026-10-14-g2b-task.json',
+    'outputs/research-web-architecture/api-atlas.html', '.github/workflows/research-web-checks.yml'];
+  for (const [files, base, expected] of [[releaseFiles, 'a'.repeat(40), true],
+    [[...releaseFiles, 'app/research_web/market_service.py'], 'a'.repeat(40), false],
+    [[...releaseFiles, 'tests/unit/test_unrelated.py'], 'a'.repeat(40), false],
+    [[...releaseFiles, 'scripts/test_artifact_retention.py'], 'a'.repeat(40), false],
+    [['app/research_web/service.py'], 'a'.repeat(40), false], [releaseFiles, '', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in json.loads(os.environ['SCOPE_FILES']))+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output, SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const lines = fs.readFileSync(output, 'utf8').trim().split('\n');
+    assert.equal(lines.find(line => line.startsWith('g2b_release_only=')), `g2b_release_only=${expected}`);
+  }
+});
+
+test('G2B CI executes its release and public Host contracts once without the unrelated Web matrix', t => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-release-ci-commands-')));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Run Research Web Python contracts\n')[1]?.split('\n      - name:')[0];
+  const script = step.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n');
+  fs.mkdirSync(path.join(root, '.venv/bin'), {recursive: true});
+  fs.mkdirSync(path.join(root, 'bin'));
+  fs.writeFileSync(path.join(root, '.venv/bin/python'), `#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2))+'\\n');\n`, {mode: 0o700});
+  fs.writeFileSync(path.join(root, 'bin/git'), '#!/bin/sh\nexit 0\n', {mode: 0o700});
+  const record = path.join(root, 'calls.jsonl');
+  const command = script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false')
+    .replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}', 'true')
+    .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'false')
+    .replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}', 'false');
+  const result = spawnSync('/bin/bash', ['-e', '-c', command], {cwd: root,
+    env: {...process.env, PATH: path.join(root, 'bin') + path.delimiter + process.env.PATH, RUNNER_TEMP: root, GITHUB_RUN_ID: '1', GITHUB_RUN_ATTEMPT: '1', CI_SCOPE_RECORD: record}, encoding: 'utf8', timeout: 10000});
+  assert.equal(result.status, 0, result.stderr);
+  const calls = fs.readFileSync(record, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], 'scripts/run_ci_pytest_partitions.py');
+  const args = calls[0].slice(calls[0].indexOf('--') + 1);
+  for (const file of ['test_docker_release.py', 'test_release_maintenance.py', 'test_docker_manager.py', 'test_protocol.py']) {
+    assert.equal(args.filter(value => value === `tests/research_web/${file}`).length, 1);
+  }
+  assert.ok(args.includes('tests/research_web/test_api.py::test_release_idle_includes_current_datahub_and_plugin_work'));
+  assert.ok(args.includes('tests/research_web/test_api.py::test_unowned_instance_is_read_only'));
+  assert.ok(args.includes('tests/research_web/test_weknora_current_api.py::test_service_only_start_arms_existing_scheduler_without_automation_history'));
+  assert.ok(args.includes('tests/research_web/test_report_workflow_integration.py::test_delivery_retry_consumes_late_payload_without_starting_another_claw_session'));
+  assert.ok(!args.includes('tests/research_web/test_weknora_current_api.py'));
+  assert.ok(!args.some(value => /event_studies|fingpt_cutover|tests\/unit\//.test(value)));
+  const js = workflows.checks.split('      - name: Run Research Web JavaScript contracts\n')[1]?.split('\n      - name:')[0];
+  assert.match(js, /docker_runtime_contract\.test\.mjs/);
+  assert.match(js, /actions_quota_governance\.test\.mjs/);
+  const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
+  assert.match(editorial, /g2b_release_only != 'true'/);
+});
+
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',
@@ -465,7 +617,7 @@ test('pytest evidence staging uses the no-follow allowlist helper and exact arti
     );
   }
   assert.match(workflows.checks, /scripts\/stage_ci_pytest_evidence\.py/);
-  assert.match(workflows.checks, /if: always\(\) && steps\.stage-safe-evidence\.outcome == 'success'/);
+  assert.match(workflows.checks, /if: always\(\) && steps\.contract-scope\.outputs\.architecture_only != 'true' && steps\.stage-safe-evidence\.outcome == 'success'/);
   assert.match(workflows.checks, /path: artifacts\/research-web-checks\n/);
   assert.doesNotMatch(workflows.checks, /cp "\$root\/\$relative"/);
   assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
