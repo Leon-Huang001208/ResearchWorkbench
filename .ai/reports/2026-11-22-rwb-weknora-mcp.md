@@ -7,16 +7,20 @@ Product-Progress: not-required — 仅修正操作员显式 MCP 配置的兼容�
 
 ## 问题与改动
 
-既有 WeKnora 客户端被错误绑定到 `service_only`，并拒绝与 RWB 共用 hostname 的
-不同 HTTPS origin。因此现有 RWB 443 + WeKnora 9443 的部署无法登记，而切换
-`service_only` 又会改变原 Host 生命周期。
+既有 WeKnora 客户端被错误绑定到 `service_only`，切换该模式又会改变原 Host 生命周期。
+`mcp_facade/config.py` 与 `multiuser/__main__.py` 解除这个耦合，已有 DSH 与仅服务模式
+均可显式登记；仍要求启用 MCP，完整回调由规范来源固定生成。
 
-`mcp_facade/config.py` 与 `multiuser/__main__.py` 解除这两项耦合：
-已有 DSH 与仅服务模式都能显式登记；必须启用 MCP，完整回调仍由规范来源固定生成。
-同一 origin、非法路径/查询/片段、未批准域名仍拒绝。未登记、未启用仍关闭。
-原 `rwb.read`、四项冻结工具、PKCE、issuer/resource、旧 grant 与材料批准行为未改。
-WeKnora Bearer 登录不替代 RWB 浏览器登录；两个 RWB 网关不能据此共用同 hostname
-并期待 Cookie 按端口隔离。
+最初认为“WeKnora 不写同名 Cookie，因此可以接受同 hostname 的 HTTPS 不同端口”是错误结论。
+独立审查的真实 Chrome 离线复现证明：9543→9443 仍会**发送** RWB 的
+Secure/HttpOnly/SameSiteStrict Cookie，问题不只是 Cookie 覆盖。本次已撤销该放宽，
+恢复 HTTPS issuer/callback 同 hostname 拒绝。跨设备生产必须使用不同 hostname；
+本机试点采用 RWB HTTPS 9543 → WeKnora `http://127.0.0.1:18181` 回调。
+不能用另建空 CookieJar 掩盖真实浏览器的 Cookie 行为。
+
+同一 origin、非法路径/查询/片段、未批准域名仍拒绝；未登记、未启用仍关闭。
+原 `rwb.read`、四项冻结工具、PKCE、issuer/resource、旧 grant 与材料批准行为保持。
+新增 DataHub scope/工具的独立实现与验收见[DataHub 接入报告](2026-11-22-rwb-weknora-datahub-mcp.md)。
 
 实际隔离验证还发现 `multiuser/origin.py` 和 MCP issuer 校验把合法 Tailnet HTTPS
 限定在 443，无法使用不影响生产的独立 9543 入口。最窄修正允许规范非默认 HTTPS 端口，
@@ -29,23 +33,22 @@ Mac Bootstrap 干净安装仍由主任务与 CI 验证。
 
 ## 实际验证
 
-- RED：先补配置、Doctor、原 embedded resident 反例，旧实现实际 5 项失败，
-  分别命中 `service_only` 耦合和同 host 回调拒绝；没有改产品后再补失败记录。
-- GREEN：14 项配置正反例及 Doctor/resident 共 18 项通过。
-- 相邻回归：PKCE/重放、恶意回调、resource、跨客户端、原 grant 不可改绑、
-  WeKnora 批准冻结读取、HTTPS 登录导航、非法回调与持久开关共 19 项通过。
-  两组共 **37 项独立用例 PASS**；均为 WIP 验证，不冒称最终 exact-SHA 验收。
-- 9543 增量先观察旧实现 3 项目标失败，修后 **18 项 PASS**，含 SDK ASGI 元数据
-  issuer/token endpoint/resource 的准确端口、错误 Host/Origin 端口 403 和原非法来源负例。
-  其中 embedded resident 是前批同例在新增 DataHub scope 下复测，不把两批计数直接相加。
-  此层未建立真实 TLS/Tailscale 或执行 OAuth；真实链路由主任务继续。
-- 全部真实 pytest 执行使用已有批准 Python，经 `test_artifact_retention.py run` 串行、
-  每批不超过 20 项；成功根已由原工具回收。必要结果在本机任务证据目录。
-- 首次 GREEN 的一个负例错误码预期与旧有 `server_origin_invalid` 不一致，
-  更正测试预期后复跑 18 项通过；不扩大产品修复范围。
-- 相关文件 Ruff、Black、isort 与 `git diff --check` 通过。Mypy 检查的既有
-  `multiuser/__main__.py` `structlog` 重复定义另记，不据此宣称类型检查全绿。
+- Cookie P1 的新反例先在放宽版本实际 2 项失败；恢复同 hostname 拒绝后，配置正反例、
+  Doctor、embedded resident 和 SDK ASGI 元数据/Host-Origin 端口边界共 **32 项 PASS**。
+  两批分别 20/12 项，经原 retention 入口串行执行并自动回收成功根；均为 WIP，
+  不冒称最终 exact-SHA 验收。早期候选的 37/18 项结果不代表更正后的安全验收，不累加。
+- 9543 标准 HTTPS issuer、原 443、embedded 与仅服务模式保持支持；本机回调改为
+  HTTP127.0.0.1，另验证不同 HTTPS hostname 支持；同 origin、同 HTTPS hostname、
+  非法地址和端口仍拒绝。
+- 一次性现场脚本改用同一浏览器 CookieJar 跟随原授权/回调，回调前移除 RWB 专用
+  header，并检查本测试 `rwb_session` 不会发送给回调；不输出 Cookie、code/state/token。
+  该修正版仅静态检查，尚未重新执行现场授权。
+- 原现场结果 `live-mcp-85296c161a.json` 的目录步骤已由 Root 正常 Ctrl-C 结束；
+  只读复核显示 Host 已停止、MCP 已停用、gateway 已退出、9543 已关闭、owner 记录0，
+  `cleanup_complete=true`，Provider/model 均 `NOT_RUN`。不重发该旧流程，也不把其元数据
+  通过升级为真实浏览器 Cookie 安全或金融链路通过。
+- 相关 Ruff、Black、isort、索引及文档检查由主任务绑定最终候选。Mypy 的既有
+  `multiuser/__main__.py` `structlog` 重复定义已用 HEAD 基线复核；本修复不冒称消除该债务。
 
-配置/HTTP 替身回归没有真实账号授权、Provider 或模型请求。生产开关、WeKnora
-OAuth、Skills/MCP/沙箱、FinGPT/Claw 完整任务链及最终候选 CI 由主任务另行验收。
-DataHub 实时查询是后续独立接口增量，不由本次客户端登记修复冒称实现。
+生产开关、修正后的真实 WeKnora OAuth、Skills/MCP/沙箱、FinGPT/Claw 完整任务链及
+最终候选 CI 由主任务继续；本报告不以登记回归或目录响应冒称业务替换完成。

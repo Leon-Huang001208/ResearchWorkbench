@@ -220,8 +220,8 @@ def test_embedded_resident_registers_weknora_without_acquiring_primary_storage(
     original.write_text(json.dumps({"node": "/synthetic/node"}))
     original.chmod(0o600)
     before = original.read_bytes()
-    origin = "https://research.tail123.ts.net"
-    callback_origin = origin + ":9443"
+    origin = "https://research.tail123.ts.net:9543"
+    callback_origin = "http://127.0.0.1:18181"
     config = {
         "version": 1,
         "revision": "a" * 40,

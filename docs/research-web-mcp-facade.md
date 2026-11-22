@@ -116,11 +116,12 @@ RWB 的规范来源加 `/mcp`。WeKnora 进程必须能访问同一来源的资�
 `weknora_oauth_origin` 登记客户端；`service_only` 仍独立决定研究宿主，
 保持 `false` 不接管或重启原主账号 DSH。WeKnora 回调可使用规范 Tailnet HTTPS
 来源（可带非默认端口），或在 Mac mini 浏览器内使用明确的回环端口。
-允许 RWB 的 HTTPS 来源与 WeKnora 共用 hostname、使用不同端口，例如
-RWB `https://research.tail123.ts.net` 与 WeKnora `https://research.tail123.ts.net:9443`；
-同一 origin 仍拒绝。WeKnora 使用自身的 Bearer 登录，与 RWB 的 `rwb_session`
-不是同一登录协议。浏览器 Cookie 不按端口隔离，因此不能据此把两个 RWB 账号网关
-放在同一 hostname 并期待独立登录。
+RWB 的 HTTPS issuer 与 WeKnora 回调必须使用不同 hostname；同一 origin 也拒绝。
+浏览器 Cookie 按 hostname 而非端口发送，因此 HTTPS 9543→同 host 9443 会把
+RWB 的 Secure/HttpOnly/SameSiteStrict 登录 Cookie 发给 WeKnora；WeKnora 自身采用
+Bearer 登录、不写同名 Cookie，并不能消除这种泄露。跨设备生产须使用不同 hostname。
+本机试点可使用 RWB `https://research.tail123.ts.net:9543` 与
+WeKnora `http://127.0.0.1:18181` 的回调；这仅适用于在 Mac mini 本机完成授权。
 
 RWB 规范 Tailnet HTTPS origin 也可显式使用非默认端口，例如隔离网关
 `https://research.tail123.ts.net:9543`。授权服务器元数据、资源 `/mcp`、

@@ -732,9 +732,9 @@ def test_doctor_reads_production_oauth_without_opening_accounts(tmp_path, output
             {
                 "service_only": service_only,
                 "mcp_readonly_enabled": True,
-                "origin": "https://rwb.tail123.ts.net",
+                "origin": "https://rwb.tail123.ts.net:9543",
                 "port": 8089,
-                "weknora_oauth_origin": "https://rwb.tail123.ts.net:9443",
+                "weknora_oauth_origin": "http://127.0.0.1:18181",
             }
         )
     )

@@ -51,6 +51,8 @@ def validate_weknora_gateway(issuer: str, callback_origin: str, port: int) -> No
         )
         if issuer != expected:
             raise ValueError("weknora_oauth_issuer_invalid")
+        if urlsplit(callback_origin).hostname == url.hostname:
+            raise ValueError("weknora_oauth_cookie_host_conflict")
     elif (
         port == 80 or issuer != f"http://127.0.0.1:{port}" or callback_origin.startswith("https://")
     ):

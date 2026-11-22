@@ -425,7 +425,7 @@ def test_mcp_metadata_and_boundaries_preserve_a_tailnet_https_port(tmp_path):
         pool,
         origin=origin,
         mcp_enabled=True,
-        weknora_oauth_origin="https://research.tail123.ts.net:9443",
+        weknora_oauth_origin="http://127.0.0.1:18181",
     )
     with TestClient(app, base_url=origin) as client:
         metadata = client.get("/.well-known/oauth-authorization-server")

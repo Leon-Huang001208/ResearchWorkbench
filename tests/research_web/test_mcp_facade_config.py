@@ -6,11 +6,21 @@ from app.research_web.mcp_facade.config import resident_execution, validate_wekn
 from app.research_web.multiuser.origin import validate_origin
 
 ISSUER = "https://research.tail123.ts.net"
-CALLBACK_ORIGIN = ISSUER + ":9443"
+CALLBACK_ORIGIN = "http://127.0.0.1:18181"
 
 
-def test_weknora_https_callback_accepts_same_host_at_a_different_origin():
-    validate_weknora_gateway(ISSUER, CALLBACK_ORIGIN, 8089)
+def test_weknora_https_issuer_accepts_a_loopback_callback():
+    validate_weknora_gateway(ISSUER + ":9543", CALLBACK_ORIGIN, 51235)
+
+
+@pytest.mark.parametrize("issuer", [ISSUER, ISSUER + ":9543"])
+def test_weknora_rejects_same_hostname_https_callback_to_prevent_cookie_disclosure(issuer):
+    with pytest.raises(ValueError, match="weknora_oauth_cookie_host_conflict"):
+        validate_weknora_gateway(issuer, ISSUER + ":9443", 51235)
+
+
+def test_weknora_different_https_hostname_remains_supported():
+    validate_weknora_gateway(ISSUER + ":9543", "https://weknora.tail123.ts.net:9443", 51235)
 
 
 def test_tailnet_https_origin_preserves_a_nondefault_port():
@@ -50,8 +60,8 @@ def test_tailnet_https_port_does_not_allow_invalid_origins(origin):
 @pytest.mark.parametrize("service_only", [False, True])
 def test_weknora_registration_preserves_the_selected_host_mode(service_only):
     config = {
-        "origin": ISSUER,
-        "port": 8089,
+        "origin": ISSUER + ":9543",
+        "port": 51235,
         "service_only": service_only,
         "weknora_oauth_origin": CALLBACK_ORIGIN,
     }

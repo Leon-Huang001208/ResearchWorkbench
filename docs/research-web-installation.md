@@ -1332,8 +1332,9 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 
 常驻私有配置用 `mcp_readonly_enabled: true` 与明确的 `weknora_oauth_origin`
 为预登记的 WeKnora 客户端提供授权；`service_only` 独立控制研究宿主，
-保持 `false` 可沿用原 DSH 与主账号存储。HTTPS 回调允许使用同 hostname 的
-不同 origin 端口，不能与 RWB 为同一 origin；回环回调用于 Mac mini 本机授权。
+保持 `false` 可沿用原 DSH 与主账号存储。HTTPS issuer 与 WeKnora 回调须使用不同
+hostname，不能仅以不同端口隔离 Cookie；跨设备生产需不同 hostname。
+Mac mini 本机可使用 RWB HTTPS `:9543` 与 WeKnora `http://127.0.0.1:18181` 回调。
 完整回调登记、PKCE、issuer/resource、选材和撤权保持。Doctor 只报告待验证元数据。
 隔离网关的规范 Tailnet HTTPS origin 可显式使用 `:9543` 等非默认端口；
 实际回环监听仍由 `--port` 指定，Host/Origin、OAuth 元数据与资源标识保留完整 HTTPS 端口。
