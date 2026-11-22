@@ -1,5 +1,12 @@
 # Agent 任务路由指南
 
+附接 MCP 保全复核的当前前移仅修改原 Native 联合操作员。沿同一任务和 PR #284，
+在既有测试模块验证五个保全模式的 forward apply 与非完成后回滚的 `preparing` 恢复：
+真实持有 BirthFence SQLite EX、安装作用域及原 Operations 后，配置校验和前版健康／保全复核
+均通过，才进入切换或删除准备 journal。失败须证明未 stop、checkpoint 或切源且原 journal 保留。
+Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、Mac mini 部署仍分别取证，
+不重建已过时的财经日历部署 profile。见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
 exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
 `build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，

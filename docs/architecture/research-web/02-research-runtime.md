@@ -1,5 +1,11 @@
 # 研究协议、执行状态与恢复
 
+五个附接 MCP 保全模式的 forward apply 在最终 GitHub 候选证据核对后、`execute` 前，
+于既有 BirthFence SQLite EX／安装作用域内校验配置并调用 `ops.verify(previous=True)`。
+其非完成后回滚的 preparing 恢复不再走围栏外提前返回，须在同一围栏内完成相同复核，
+成功才删除原准备 journal。复核失败不进入 stop／checkpoint／切源；Trial、完成后回滚和
+其他恢复阶段保持原语义，不新建运行状态机或重放研究。见[模式范围](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 管理员队列请求可以持久等待并按固定提交归档恢复；`waiting_resources`/exit75 不代表研究、
 构建或交付通过。已有结果先对账，缺回执且 owner 消失保持 unknown、不自动重建；
 该控制路径不提交模型、供应商或业务恢复，原研究会话与授权不变。
