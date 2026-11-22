@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 Native 本地知识库升级的固定私网路由检查，README 现有资料入口说明仍适用。",
-  "reason": "对照 PR #318 合并源码 238c219f1a29b72374b4ac666b811a10cab34f00 与本次操作员差异，修复只让既有升级检查识别已授权的 WeKnora 和 SuperAgent 固定私网入口，不改变用户安装入口、资料能力或平台支持；精确端口、失败处理与待验状态记录在部署和安全文档。"
+  "summary": "复核管理员持久构建队列的可选CLI与既有Docker安装入口；README正文保持。",
+  "reason": "README的Docker新实例说明仍对应原有纯Docker命令；新增capacity、build --wait、resume仅为明确选择的管理员入口，需要已有Python3.12和Git，不改变公开安装、业务拓扑、模型、账号或平台支持。队列与恢复细则、历史12GiB方案及实际构建NOT_RUN写在Docker/安装/工作流文档；现有分层架构与图源保持，不以此回执冒充实机或图形验收。"
 }

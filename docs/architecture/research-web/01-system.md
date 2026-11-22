@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+管理员持久构建队列沿原 `rwb-docker` 管理平面、操作锁和 builder 执行，不增加业务节点、
+Web API 或常驻调度器；业务容器、网络、Native/DSH及 owner-handoff 生命周期保持。
+本次不修改 Docker 内存设置，实际构建/健康仍须另验。见[管理合同](../../research-web-docker.md#持久构建队列)。
+
 本地知识库 Native 升级在既有私网入口中核对443 RWB、9443 WeKnora和可选8443 SuperAgent。
 WeKnora仍由原前端18181提供，SuperAgent仍由8097提供；这是维护操作员对既有部署的核验，
 不增加代理节点、研究执行器或监听端口。完整路由约束见[部署合同](../../research-web-gateway-upgrade.md#rwb-本地知识库受管升级)。

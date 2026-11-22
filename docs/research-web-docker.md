@@ -177,7 +177,7 @@ Node/PG/HTTP 组合回归使用模拟 native 会话回执，不是 Docker 产品
 2026-10-14 Claw 门禁复现了 RuntimeMode 共享祖先目录受无关同级活动影响的误拒绝。初始身份比较与既有后置契约对齐，私有 install 父目录、记录所有权及 no-follow 校验保持严格；相关 RuntimeMode/Docker 控制器测试通过。该条是代码与本机回归证据，不代表新 Docker 镜像、容器真机或 Linux dispatch 已验收。
 
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
-宿主只使用 POSIX shell 与 Docker CLI/Engine/buildx；Python、Node、Git、编译器及测试工具
+原有命令的宿主只使用 POSIX shell 与 Docker CLI/Engine/buildx；Python、Node、Git、编译器及测试工具
 在镜像中。当前仅交付 Mac Docker Desktop arm64 的基座，实际验收见任务报告。
 Native、Windows cmd 和 `python scripts/setup_web.py` 保留 legacy 单实例合同与独立账本。
 不要混用两套管理器、共享它们的业务数据或复制 Native PID/auth/Keychain。
@@ -265,6 +265,52 @@ stage/prod业务容器仍只有不可变镜像和自身数据卷。
 不能把它提供给受邀业务用户或不可信 PR。
 
 ## 24GB 初始预算与构建器
+
+### 持久构建队列
+
+队列按 Docker Desktop 的实际容量和当前账本准入，不修改宿主或 VM 设置。
+旧任务曾讨论12GiB串行方案；那是历史配置方案，不是本次默认值、生效证据或重启授权。
+任何资源设置调整仍须单独授权及安全维护窗口，活动或未知任务保持受保护。
+
+新增可选入口复用宿主已有 Python 3.12 标准库及 Git，不安装新包；原有纯 Docker 命令不增加这些前置条件。
+
+```sh
+./rwb-docker capacity --json
+./rwb-docker build --wait --task-id my-task
+./rwb-docker build --wait --task-id dsh-task --refresh-dsh
+./rwb-docker resume --task-id my-task
+./rwb-docker resume --next
+```
+
+`capacity` 不创建文件、锁或容器，分别显示 VM 容量、实际用量、容器硬上限、构建需求、余量和缺口。
+实际用量仅供观察，不用于超卖。stage 运行或未退休预留、无限额容器、builder 活动均拒绝启动。
+exit0 表示完成（或查询/空队列），exit75 表示 `waiting_resources`，其他非零表示阻断；等待不是验收通过。
+
+私有 `~/.local/share/rwb-docker/build-queue/` 按任务、规范工作树、完整 SHA 和 refresh 选项去重，
+原子保存请求和独立完成回执。只接受干净源码，从提交归档独立构建上下文，后续工作树编辑不会混入镜像。
+归档继续使用 tar data 过滤器的路径、链接和特殊文件保护，仅将提交目录规范为0755，保留文件执行位；
+私有上下文父目录和队列目录保持0700，记录0600，不保存模型凭据或业务内容。
+
+FIFO 每次只领取一个请求，领取前先对账已保存结果。源码变化使原请求失效，镜像丢失或 revision
+不匹配不复用。`operation.lock` 只在短时领取/对账及实际构建时持有，等待释放锁；原入口拿锁后重验
+当前容量和 stage 预留，不绕过既有 owner-handoff、登记恢复、镜像用途或清理边界。
+正常退出由原入口按 builder 身份清理，并在持锁期间报告结果，不能把后继构建活动当成本任务清理失败。
+
+owner 消失且缺少持久完成回执时，在取得操作锁后记录 `blocked/build_outcome_unknown`，禁止自动重建；
+旧构建仍持锁时保持 `operation_busy`，不清锁。有效持久回执优先对账，源码 SHA 变化仍使原任务
+`invalidated/source_changed`。未知结果沿原日志核对，不能手工伪造完成回执。
+
+已有获准的续跑观察可调用 `resume --next`，只恢复同仓已登记请求；观察频率由原配置决定，
+本功能不创建心跳、自动化或常驻调度器。未变化静默，普通等待满24小时仅建议通知一次，
+终态或需用户处理时建议通知。`notify` 是通知建议，发送仍由获准调用方处理；队列本身不发送消息，
+失败任务不会自动重跑。状态与私有构建日志保存在原 `logs/`，不记录环境或秘密。
+SIGKILL 遗留锁/上下文保留为恢复阻断，不冒充清理成功；不停止其他容器、退休他人账本或清除未知锁。
+原5GiB builder、2GiB余量及20GiB缓存总上限保持。
+
+当前源码前移不执行 Docker 设置调整、冷构建、健康或30分钟混合负载，这些均为 NOT_RUN。
+后续实机验收须绑定最终候选、实际 VM 配置、保护容器身份/挂载/状态，分别记录冷构建、健康、
+宿主压力、换页增量、OOM及负载观察；已有 swap 不能单独证明当前压力。
+源码、资源配置生效和实际构建/业务验收是不同事实，不能互相替代。
 
 规划：宿主与余量约8GiB，Docker VM上限16GiB。VM内生产/入口/生产重任务合计6GiB、
 开发3GiB、BuildKit3GiB、stage2GiB、VM/daemon余量2GiB。

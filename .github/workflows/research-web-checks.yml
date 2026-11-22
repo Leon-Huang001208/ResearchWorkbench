@@ -108,6 +108,7 @@ jobs:
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
             -- \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_docker_build_queue.py \
             tests/research_web/test_api.py \
             tests/research_web/test_research_bots.py \
             tests/research_web/test_automation_routes.py \
