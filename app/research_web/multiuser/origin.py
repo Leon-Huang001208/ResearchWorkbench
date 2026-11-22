@@ -10,13 +10,9 @@ def validate_origin(origin: str) -> str:
         parsed = urlsplit(origin)
         port = parsed.port
         local = parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
-        private = (
-            parsed.scheme == "https"
-            and port in {None, 443}
-            and re.fullmatch(
-                r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.tail[a-z0-9]+\.ts\.net",
-                parsed.hostname or "",
-            )
+        private = parsed.scheme == "https" and re.fullmatch(
+            r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.tail[a-z0-9]+\.ts\.net",
+            parsed.hostname or "",
         )
         if (
             parsed.username

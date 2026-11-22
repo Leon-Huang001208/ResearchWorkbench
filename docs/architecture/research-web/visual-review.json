@@ -4,17 +4,17 @@
   "diagrams": [
     {
       "id": "15-inbound-mcp",
-      "artifactSha256": "6b04263925cf4efe7962d450596eb501b5193964c8c4a53f398ec0f91e23a253",
-      "specificationSha256": "a41632858b07df675f2c9cef505baa5f4544ca3ccd9e1e5f24cb50c9ba4b9c1d",
+      "artifactSha256": "886caef7b6d4f6e468c8ecbb72637894af2cc722cdbfcdc7aae1c447d0be1861",
+      "specificationSha256": "cb00d86033e99c6e872f417354625a34282ca403c142ef5957bf8e5c150083c6",
       "status": "reviewed",
       "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
-      "date": "2026-11-09",
+      "date": "2026-11-23",
       "captures": [
         "15-inbound-mcp.visual-check.1440x900.light.png",
         "15-inbound-mcp.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "查看同哈希浅色与深色截图。HTTPS WeKnora、固定回调和 Cookie 边界标注完整。"
+      "notes": "实际查看最终intrinsic-height同哈希1440浅色与2048深色截图：scope条件、后端适配与公开取数分支清楚，10节点/11边无叠字或遮挡，图例与工具条分离。另在同HTML1440浏览器实际滚到底部295px，三张限制卡片与节点索引完整可读；未把FRED样本写成PIT、专业源或生产接管。"
     },
     {
       "id": "08-iteration-docs",

@@ -30,7 +30,7 @@ from app.research_web.multiuser.accounts import Account, AccountError
 from core.observability import get_logger
 
 from .authorization_store import AuthorizationStore
-from .models import CLIENT_ID, NATIVE_CALLBACK, SCOPE, TokenPair, TokenRecord
+from .models import CLIENT_ID, NATIVE_CALLBACK, TokenPair, TokenRecord, valid_scopes
 
 log = get_logger(__name__)
 token_request: ContextVar[TokenRequest | None] = ContextVar("rwb_oauth_token_request", default=None)
@@ -108,7 +108,7 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
             token_endpoint_auth_method="none",
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
-            scope=SCOPE,
+            scope=" ".join(registered.scopes),
         )
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
@@ -121,7 +121,7 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
             self.store.validate_redirect(str(params.redirect_uri), client_id=client.client_id)
             if params.resource not in (None, self.store.resource):
                 raise AccountError("invalid_target")
-            if params.scopes != [SCOPE]:
+            if params.scopes is None or not valid_scopes(params.scopes, client.client_id):
                 raise AccountError("invalid_scope")
             user = browser_account.get()
             if user is None:
@@ -130,7 +130,7 @@ class OAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshT
                 query = {
                     "client_id": client.client_id,
                     "response_type": "code",
-                    "scope": SCOPE,
+                    "scope": " ".join(params.scopes),
                     "code_challenge": params.code_challenge,
                     "code_challenge_method": "S256",
                 }
@@ -293,11 +293,10 @@ class OAuthVerifier(TokenVerifier):
             if not _definitely_invalid_token(exc):
                 raise
             return None
-        if (record.issuer, record.resource, record.scopes) != (
+        if (record.issuer, record.resource) != (
             self.store.issuer,
             self.store.resource,
-            (SCOPE,),
-        ):
+        ) or not valid_scopes(record.scopes, record.client_id):
             return None
         return _access(token, record)
 

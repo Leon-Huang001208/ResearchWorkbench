@@ -13,7 +13,7 @@ from core.observability import get_logger
 from ..multiuser.accounts import AccountError
 from .backend import ReadError, canonical_id
 from .config import RESPONSE_BYTES
-from .models import SCOPE
+from .models import DATA_SCOPE, SCOPE
 
 log = get_logger(__name__)
 TOOL_ARGUMENTS = {
@@ -22,6 +22,12 @@ TOOL_ARGUMENTS = {
     "rwb_dataset_read": frozenset({"context_id", "dataset_id", "view", "offset", "limit"}),
     "rwb_source_read": frozenset({"context_id", "file_id", "offset", "limit"}),
 }
+DATA_TOOL_ARGUMENTS = {
+    "rwb_datahub_query": frozenset({"request_id", "source", "series_id", "start_date", "end_date"}),
+    "rwb_datahub_status": frozenset({"query_id", "offset", "limit"}),
+    "rwb_datahub_cancel": frozenset({"query_id"}),
+}
+TOOL_ARGUMENTS.update(DATA_TOOL_ARGUMENTS)
 UUIDArg = Annotated[
     str, Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 ]
@@ -31,12 +37,12 @@ RowsLimit = Annotated[int, Field(ge=1, le=500, strict=True)]
 TextLimit = Annotated[int, Field(ge=1, le=12000, strict=True)]
 
 
-def register_tools(server, store, backend):
+def register_tools(server, store, backend, datahub=None):
     annotations = ToolAnnotations(
         readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False
     )
 
-    def principal():
+    def principal(*, query=False):
         token = get_access_token()
         if token is None:
             raise ReadError("access_denied")
@@ -47,11 +53,16 @@ def register_tools(server, store, backend):
             raise ToolError(
                 "authorization_unavailable" if exc.status >= 500 else "access_denied"
             ) from None
-        if (record.user_id, record.client_id, record.issuer, record.scopes) != (
-            token.subject,
-            token.client_id,
-            (token.claims or {}).get("iss"),
-            (SCOPE,),
+        if (
+            (record.user_id, record.client_id, record.issuer, record.scopes)
+            != (
+                token.subject,
+                token.client_id,
+                (token.claims or {}).get("iss"),
+                tuple(token.scopes),
+            )
+            or SCOPE not in record.scopes
+            or (query and DATA_SCOPE not in record.scopes)
         ):
             raise ReadError("access_denied")
         return record
@@ -227,3 +238,51 @@ def register_tools(server, store, backend):
                 {"context_id": context_id, "items": checked_listing(context_id, "source")}
             )
         return await read("source", context_id, file_id, offset, limit)
+
+    if datahub is None:
+        return
+
+    async def data_operation(operation, *args, **kwargs):
+        try:
+            record = principal(query=True)
+            result = await operation(record, *args, **kwargs)
+            if principal(query=True) != record:
+                raise ReadError("access_denied")
+            return bounded(result)
+        except (ReadError, AccountError, ValueError) as exc:
+            code = (
+                str(exc)
+                if isinstance(exc, ReadError)
+                else "invalid_data_query" if isinstance(exc, ValueError) else "access_denied"
+            )
+            log.warning("mcp_public_data_operation_rejected", code=code)
+            raise ToolError(code) from None
+
+    execution = ToolAnnotations(
+        readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True
+    )
+
+    @server.tool(annotations=execution)
+    async def rwb_datahub_query(
+        request_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_.:-]{1,64}$")],
+        source: Literal["ext_fred", "ext_bls"],
+        series_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_]{1,64}$")],
+        start_date: str,
+        end_date: str,
+    ) -> dict:
+        """Submit a FRED/BLS public series query (at most 366 days), creating a frozen DataHub snapshot. Pass the returned id to rwb_datahub_status; reuse request_id only for identical inputs. No model or script execution."""
+        return await data_operation(
+            datahub.query, request_id, source, series_id, start_date, end_date
+        )
+
+    @server.tool(annotations=annotations)
+    async def rwb_datahub_status(
+        query_id: UUIDArg, offset: Offset = 0, limit: RowsLimit = 100
+    ) -> dict:
+        """Read this grant's query status and verified frozen result, preserving source/units/missing/as_of/PIT and pagination. status=completed only means execution ended; check data_success separately."""
+        return await data_operation(datahub.status, query_id, offset=offset, limit=limit)
+
+    @server.tool(annotations=execution)
+    async def rwb_datahub_cancel(query_id: UUIDArg) -> dict:
+        """Cancel this grant's exact pending public-data query; completed data is retained and never refetched."""
+        return await data_operation(datahub.cancel, query_id)

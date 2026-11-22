@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+金融 MCP 适配只在既有 Checks Python 清单加入 `test_mcp_facade_config.py`、`test_mcp_facade_datahub.py`，Mac Bootstrap 的 PR／push 清单补这两个准确测试路径，复用原安装、SDK及资源核验。不新增 job、依赖、runner、权限、时限或平台 dispatch；CI 不调用真实金融源或模型，真实链路与最终候选 CI 分别记录。
+
 主账号数据源修复沿原 Mac Bootstrap 增加四个确切触发路径和两个 wheel 资源字节比较；通用已审升级沿既有操作员测试与原三项 CI。没有新 job、runner、权限、依赖或时限，实际候选 CI 另记；本机相关回归不重复全仓，远端动作仍实时核对 visibility 与额度。
 
 已审升级操作员与这次账号入口修复沿原 Checks 增加精确 `reviewed_upgrade_only`：必须命中两个维护操作员之一，其余仅含对应测试、这次两份 UI 资源、进展数据、相关文档／README 复核和两份既有 Web CI。Python 运行两个完整维护模块并保留原分片、证据和三份历史源对象；JS 只运行五个账号／导航模块、进展和 CI 范围测试，不运行无关 Web 矩阵或编辑引擎。混入其他产品源码或差异未知仍走原完整路径；原 pack、retention、architecture 分支、作业、runner、依赖、权限、时限、Mac Bootstrap 和 Constraints 保持。

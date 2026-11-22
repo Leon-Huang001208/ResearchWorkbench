@@ -80,7 +80,7 @@ global-v1 九指数保存于原账号 market-cache 的独立分集，不写入�
 
 ## 批准冻结材料的外部读取
 
-入站 MCP 白名单绑定账户、上下文、对象和完整原件 SHA256，只允许明确批准公开/合成冻结材料。原 manifest 摘要、行文件摘要和文本片段摘要分开，保留来源、时点、coverage 和缺失状态；不将拥有会话或能下载当作外发资格。避开会写索引的通用文件列表及缺档时抓网的来源读取；只经固定既有 GET、完整核摘要并复验撤权后返回。首版没有 OCR、转码或二进制导出。见[合同](../../research-web-mcp-facade.md)。
+原 `rwb.read` 四工具的白名单继续绑定账户、上下文、对象及原件 SHA256，只读批准的公开／合成冻结材料且不触发 Provider。另行同意 `rwb.data.query` 后，账号 Host 在原 Store 登记 grant 专属数据上下文，经原 DataHub／Provider 查询公开 FRED／BLS并保存 manifest、rows 与 raw；status 返回前核验归属及摘要，撤权后不返回内容，不把这些结果自动加入旧四工具选材。该 Store-only 上下文不创建 DSH 研究会话；RWB 保留来源、单位、日期、缺失、coverage及PIT语义，`provider_defined` 和当前vintage不因取得文件就升级为已核单位／历史可得。没有新增存储服务、OCR或转码。见[只读合同](../../research-web-mcp-facade.md)与[查询合同](../../research-web-mcp-datahub.md)。
 
 ## 交付日志与业务文件分离（2026-10-31）
 

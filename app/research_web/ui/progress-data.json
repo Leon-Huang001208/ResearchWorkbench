@@ -42,19 +42,19 @@
       "id": "external-research-service-mode",
       "module": "研究与报告",
       "title": "私网仅服务模式",
-      "summary": "账户 Web 独立提供资料、证据和数据读取，研究交给 WeKnora 或外部宿主。",
-      "scope": "macOS 私网隔离启动、主账号资料原位、冻结材料与 HTTPS WeKnora OAuth。",
-      "next": "通过同候选安装及真实 WeKnora Runtime 授权读取和草稿验收。",
+      "summary": "外部智能体经所属账户授权读取资料，并调用 DataHub 取得公开金融快照。",
+      "scope": "私网 OAuth、冻结资料只读，以及明确同意后的 FRED／BLS 查询、状态和取消。",
+      "next": "完成同候选交付、正式账户对齐和产品接入，保留旧会话与金融质量复核。",
       "owner": "RWB 项目维护者",
-      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-installation.md",
-      "updated": "2026-11-09",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-mcp-datahub.md",
+      "updated": "2026-11-23",
       "status": "validating",
       "platforms": [
         "macos"
       ],
-      "included": false,
+      "included": true,
       "activation": "disabled",
-      "limitations": "现阶段支持隔离启动，历史原生对话正文、生产切换及周报执行另行验收。",
+      "limitations": "隔离 FRED 样本与真实 Agent 链已验证；BLS 失败、PIT、持久代码项目、生产接管和专业源仍有缺口。",
       "evidence": []
     },
     {
