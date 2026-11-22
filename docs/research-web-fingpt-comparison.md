@@ -1,5 +1,10 @@
 # FinGPT 三组隔离比较（macOS）
 
+原 PR #284 的围栏内复核与两条精确测试路由沿既有完整模块、通用检查和同候选
+Constraints／Checks／Mac Bootstrap 验收；Bootstrap 的 PR／push 路径同时覆盖操作员源码和对应测试。
+这仅补维护保护与验证选择，不执行 FinGPT 模型、报告、费用或真实比较，也不把工程 stage
+验收升级为 FinGPT 业务完成。Windows 门继续交对应真机，实际服务切换单独取证。
+
 管理员构建队列的离线回归仅增加既有 Research Web Checks 分片清单的队列测试。
 原模型质量门与真实比较记录不变；当前 nodeid/JUnit/脱敏失败证据链保留，不退回旧直接 pytest。
 队列工程或期限夹具通过不提高 FinGPT/Claw 比较结论，实际模型、安装、构建与业务验收分别取证。

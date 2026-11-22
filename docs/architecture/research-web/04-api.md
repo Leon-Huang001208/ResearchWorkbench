@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+附接 MCP 保全的围栏内复核只调整现有本机操作员 `operate` 的 forward／限定 preparing
+恢复顺序，不新增 CLI 模式、业务 HTTP 方法、路径、请求字段或权限。前版健康由原
+`Operations.verify(previous=True)` 读取；该校验不提交模型、采集或研究请求。
+Trial、完成后回滚和其他阶段不扩大适用范围，见[部署合同](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 本地知识库的固定 Serve 路由检查仅属于 Native 操作员 CLI，不增加业务 HTTP 方法或路径。
 9443到18181的私网入口仍使用 WeKnora 自身认证，RWB绑定、当前会话检索与报告scope沿下述原接口；
 识别既有8443服务不会扩大网关代理、浏览器同源或模型工具权限。

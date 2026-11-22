@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版
+复核；不增加公开安装入口、参数、依赖或用户配置。五模式的 forward／限定 preparing 恢复
+失败时保留原准备 journal，不停机或切源；Trial 与完成后回滚沿原流程。干净安装、同候选
+macOS CI 和真实常驻验收仍各自留证，见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 可选管理员持久构建队列使用宿主已有 Python 3.12 标准库和 Git，不新增 Python 包，
 不修改 `web.in`、`web.lock` 或公开安装器。原有纯 Docker 命令不新增宿主 Python 前置条件；
 `capacity`、`build --wait` 或 `resume` 缺少兼容解释器时明确拒绝，不自动安装。

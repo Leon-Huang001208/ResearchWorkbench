@@ -1,5 +1,23 @@
 # Research Workbench Development Map
 
+`resident/model_provider_upgrade.py` 的 `operate` 在当前五个
+`ATTACHED_MCP_PRESERVATION_MODES` 的 forward apply 及非 `post_deploy_rollback(state)`
+preparing 恢复中，取得原 BirthFence／安装作用域后执行 `validate_configuration`
+和 `ops.verify(previous=True)`。对应回归留在 `tests/research_web/test_model_provider_upgrade.py`，
+覆盖锁内顺序、配置与前版复核失败后 journal 保留、零切换，以及 Trial／完成后回滚排除；
+不恢复旧财经日历常量或部署入口。当前合同见[围栏内复核](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+`.agents/verification-policy.json` 以两个确切文件将上述 Native 操作员及测试映射到
+`research-web-native-upgrade` L4/full-delivery，并登记完整测试模块，保留通用完整检查、
+原三项 CI 与 Windows 真机交接。`verification_policy.test.mjs` 验证两个入口的闭包及
+相邻未知路径仍走 fallback；不以 resident 目录前缀扩张匹配，也不由规划结果认证实际升级。
+Bootstrap 原 PR／push 路径清单分别显式覆盖对应测试，沿 Actions 治理回归核验实际触发闭包。
+
+用户2026-11-22调整本机测试接续政策：`AGENTS.md`、工作流及存储留存文档区分
+当前执行批次与已结束保留的失败证据根；同任务完成退出／占用检查、定位失败并保全原件后，
+可按原容量门缩小批次或修复换候选继续，不再逐次请求新临时根例外。原retention实现、
+失败回执、候选与累计计数不改，不新增恢复框架或扩大模型／服务授权。
+
 原PR续接的发布候选冻结位于 `scripts/git_safety.mjs`，复用原 `publishDelivery`；回归在 `tests/javascript/git_safety.test.mjs` 使用真实共享控制器与独立磁盘回执，防止同一对象替身掩盖旧快照。原prepared-amend合同与所有任务历史保持，参见[发布合同](AGENT_WORKFLOW.md#原-pr-发布候选快照)。
 
 Docker 管理器的 `register --subnet` 与 `--resume-registration` 接续显式网段及未写账本的空 stage 资源；回归沿 `test_docker_manager.py`。

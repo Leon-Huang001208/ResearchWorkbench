@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+附接 MCP 保全的 forward 切换与限定 preparing 恢复在原 BirthFence SQLite EX／安装作用域内，
+复用配置校验及 `Operations.verify(previous=True)` 重验前版。它只调整原操作员的校验顺序，
+不增加运行节点、数据库、依赖、权限或业务 API。五模式与回滚排除范围见
+[围栏内复核](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)，源码前移不代表已部署。
+
 Git交付仍由原 `git_safety.mjs` 与固定共享控制器执行；publish 使用同一实际候选快照核对原PR及正文，避免共享控制器推进HEAD后由旧回执误拒。原Git、恢复备份、分支保护与验收链保持，运行服务和研究拓扑不变。合同见[原PR候选快照](AGENT_WORKFLOW.md#原-pr-发布候选快照)。
 
 管理员持久构建队列位于既有 `rwb-docker` 管理平面，复用原操作锁、builder及资源账本，
