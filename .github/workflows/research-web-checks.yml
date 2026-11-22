@@ -121,9 +121,13 @@ jobs:
           tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
           scope_files = tool | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "AGENTS.md"}
           limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          architecture = {"scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"}
+          architecture_files = architecture | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
+          architecture_only = bool(architecture.intersection(files)) and all(name in architecture_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
-          print("Contract scope: " + ("retention tool" if limited else "full Research Web"))
+              output.write("architecture_only=" + str(architecture_only).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -151,6 +155,10 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
+          if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
+            echo "Architecture checker scope: no Python product changes"
+            exit 0
+          fi
           if [ "${{ steps.contract-scope.outputs.retention_only }}" = "true" ]; then
             PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
               --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
@@ -399,17 +407,22 @@ jobs:
       - name: Run Research Web JavaScript contracts
         if: steps.contract-scope.outputs.retention_only != 'true'
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
+        run: |
+          if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
+            node --test tests/javascript/research_web_architecture.test.mjs
+          else
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
+          fi
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
 
       - name: Stage safe pytest evidence
         id: stage-safe-evidence
-        if: always()
+        if: always() && steps.contract-scope.outputs.architecture_only != 'true'
         shell: bash
         run: |
           .venv/bin/python scripts/stage_ci_pytest_evidence.py \
@@ -418,7 +431,7 @@ jobs:
             --max-bytes 104857600
 
       - name: Upload safe pytest evidence
-        if: always() && steps.stage-safe-evidence.outcome == 'success'
+        if: always() && steps.contract-scope.outputs.architecture_only != 'true' && steps.stage-safe-evidence.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}
