@@ -32,7 +32,7 @@ export function verifyProjectDeliveryRuntime({runtimeRoot = defaultRoot} = {}) {
       const hash = crypto.createHash('sha256').update(regularFile(root, name)).digest('hex');
       if (manifest.files[name] !== hash) throw new Error('runtime checksum mismatch');
     }
-    return {valid: true, runtimeRoot: root, version: manifest.frameworkVersion, sourceCommit};
+    return {valid: true, runtimeRoot: root, version: manifest.frameworkVersion, sourceCommit, ...(manifest.localPatches ? {localPatches: manifest.localPatches} : {})};
   } catch (cause) {
     throw Object.assign(new Error('DELIVERY_RUNTIME_UNVERIFIED', {cause}), {code: 'DELIVERY_RUNTIME_UNVERIFIED'});
   }

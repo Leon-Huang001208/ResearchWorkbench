@@ -30,7 +30,7 @@ test('the project pin loads its real controller and detects altered or missing d
   assert.throws(() => verifyProjectDeliveryRuntime({runtimeRoot: copy}), {code: 'DELIVERY_RUNTIME_UNVERIFIED'});
 });
 
-test('real controller resumes legacy receipts and reports CI failure with global runtime inaccessible', t => {
+test('real controller resumes legacy receipts and explicit CI repairs with global runtime inaccessible', t => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-runtime-isolated-')));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const project = path.join(root, 'project'), remote = path.join(root, 'remote.git');
@@ -83,11 +83,17 @@ receipt.status = 'awaiting_ci'; receipt.integrationCommit = receipt.baseCommit;
 fs.writeFileSync(file, JSON.stringify(receipt));
 const failed = controller.refreshDeliveryStatus({projectRoot, taskId: 'legacy', resolveCiStatus: () => ({status: 'failed', runs: []})});
 assert.equal(failed.status, 'ci_failed');
-console.log(JSON.stringify({status: 'passed', legacySchema: receipt.schemaVersion, ci: failed.ci.status}));
+const pr = {url: 'https://github.com/fixture/repo/pull/7', number: 7};
+fs.writeFileSync(file, JSON.stringify({...failed, mode: 'pr', pullRequest: pr, remoteCommit: failed.baseCommit, repairAttempts: 3}));
+const continued = controller.publishDelivery({projectRoot, taskId: 'legacy', repair: true, verification: {command: 'git rev-parse HEAD', status: 'passed', durationSeconds: 0}});
+assert.equal(continued.repairAttempts, 4);
+assert.equal(continued.status, 'awaiting_ci');
+assert.deepEqual(continued.pullRequest, pr);
+console.log(JSON.stringify({status: 'passed', legacySchema: receipt.schemaVersion, ci: failed.ci.status, repairAttempts: continued.repairAttempts}));
 `);
   const scripts = fileURLToPath(new URL('../../scripts/', import.meta.url));
   const permissionFlag = process.allowedNodeEnvironmentFlags.has('--permission') ? '--permission' : '--experimental-permission';
   const result = spawnSync(process.execPath, [permissionFlag, `--allow-fs-read=${root}`, `--allow-fs-read=${scripts}`, `--allow-fs-write=${root}`, '--allow-child-process', script], {encoding: 'utf8', timeout: 30000});
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), {status: 'passed', legacySchema: 1, ci: 'failed'});
+  assert.deepEqual(JSON.parse(result.stdout), {status: 'passed', legacySchema: 1, ci: 'failed', repairAttempts: 4});
 });

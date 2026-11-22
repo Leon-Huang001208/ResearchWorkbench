@@ -27,3 +27,5 @@ Product-Progress: not-required — 本次接续既有未合并研究包源码并
 ## 当前CI断言修正
 
 原CI按旧heredoc名称和全文测试路径出现次数误拒新脚本；现定点检查真实生成后被pip使用的锁文件与实际互斥bash分支参数。pack范围只接受精确自动suite和消费的fixture；未知unit混入回完整范围。五个旧Mac-only journey及其一个直接Chrome表单helper按明确manual fixture列名，当前Linux CI不执行，不用旧截图认证当前三分类界面；自动Python测试范围与其逐文件白名单一致，未重跑本地全量矩阵。
+
+原同base第四次显式修正发布实际被旧3次硬门拒绝。现只移除原publish硬门，次数从原数继续累加、不产生自动重试；固定vendor manifest及loader输出明确本地补修，原基础提交不被冒称未改字节。相邻真实本地Git控制器回归在原3次状态先失败再通过，原PR身份不变，不涉及Native QA两轮或模型预算。

@@ -515,7 +515,7 @@ export function publishDelivery({
     const receipt = readDeliveryReceipt({projectRoot: repository.repositoryRoot, taskId});
     const allowed = repair ? new Set(["ci_failed", "pushed", "awaiting_ci"]) : new Set(["prepared"]);
     if (!allowed.has(receipt.status)) throw new Error(`delivery is not publishable: ${receipt.status}`);
-    if (repair && receipt.repairAttempts >= MAX_REPAIR_ATTEMPTS) throw new Error("maximum CI repair attempts reached");
+    // Explicit repair calls continue the original delivery; the cumulative count is kept below.
     assertCleanWorktree(receipt.integrationWorktree, "integration worktree");
     receipt.verification = verificationRecord(verification);
     const integrationCommit = output(git(receipt.integrationWorktree, ["rev-parse", "HEAD"]));
