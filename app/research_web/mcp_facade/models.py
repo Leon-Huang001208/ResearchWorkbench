@@ -10,6 +10,24 @@ CLIENT_ID = "rwb-codex-native"
 WEKNORA_CLIENT_ID = "rwb-weknora"
 NATIVE_CALLBACK = "http://127.0.0.1/callback"
 SCOPE = "rwb.read"
+DATA_SCOPE = "rwb.data.query"
+
+
+def client_scopes(client_id: str) -> tuple[str, ...]:
+    """Only the explicitly registered WeKnora client offers public query consent."""
+    return (SCOPE, DATA_SCOPE) if client_id == WEKNORA_CLIENT_ID else (SCOPE,)
+
+
+def valid_scopes(scopes, client_id: str) -> bool:
+    return (
+        isinstance(scopes, (list, tuple))
+        and all(isinstance(item, str) for item in scopes)
+        and SCOPE in scopes
+        and len(scopes) == len(set(scopes))
+        and set(scopes) <= set(client_scopes(client_id))
+    )
+
+
 CODE_TTL = 60
 ACCESS_TTL = 600
 REFRESH_TTL = 604800

@@ -99,7 +99,8 @@ function readerViewportOK(viewport, minimumTextPx) {
     Number.isFinite(viewport.minimumProjectedEdgeTextPx) && viewport.minimumProjectedEdgeTextPx>=6 && viewport.readabilityOk===true &&
     viewport.hasLegend===true && viewport.hasNavigationDock===true && viewport.legendDockIntersectionArea===0 && viewport.dockStageIntersectionArea===0 &&
     Number.isFinite(viewport.requiredDockStageGap) && viewport.requiredDockStageGap>=10 && Number.isFinite(viewport.dockStageGap) && viewport.dockStageGap>=viewport.requiredDockStageGap &&
-    viewport.viewerChromeStageOk===true && viewport.viewerChromeOk===true && viewport.viewerChromeActive===true && Number.isFinite(viewport.viewerChromeReserve) && viewport.viewerChromeReserve>0 &&
+    viewport.viewerChromeStageOk===true && viewport.viewerChromeOk===true && Number.isFinite(viewport.viewerChromeReserve) &&
+    ((viewport.viewerChromeActive===true && viewport.viewerChromeReserve>0) || (viewport.viewerChromeActive===false && viewport.viewerChromeReserve===0)) &&
     viewport.theme==='light' && viewport.resolvedTheme===viewport.theme && (!Object.hasOwn(viewport,'documentScrollUnclipped') || viewport.documentScrollUnclipped===true);
 }
 

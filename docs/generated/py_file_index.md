@@ -9035,12 +9035,15 @@ Module docstring:
 Imports:
 - `config`
 - `core.observability`
+- `datahub.contracts`
+- `datetime`
 - `hashlib`
 - `httpx`
 - `json`
 - `multiuser.runtime`
 - `re`
 - `read_policy`
+- `types`
 - `uuid`
 
 Classes:
@@ -9048,8 +9051,13 @@ Classes:
   - Stable safe error; never carry upstream bodies or credentials.
 - `FrozenBackend`
   - methods: __init__, _get, read
+- `DataHubBackend`
+  - Opt-in public queries on an already-running account Host/DataHub.
+  - methods: _backend, _request, _context, query, _owned_query, status, cancel
 
 Functions:
+- `public_data_query`
+  - Build the two public inventory contracts, never accept caller URL or secrets.
 - `canonical_id`
 - `digest`
 - `decode`
@@ -9116,6 +9124,11 @@ Classes:
 - `TokenRecord`
 - `TokenPair`
 - `ApprovedMaterial`
+
+Functions:
+- `client_scopes`
+  - Only the explicitly registered WeKnora client offers public query consent.
+- `valid_scopes`
 
 
 ## `app/research_web/mcp_facade/oauth.py`
@@ -9244,6 +9257,8 @@ Imports:
 - `http_policy`
 - `httpx`
 - `mcp.server`
+- `mcp.server.auth.middleware.auth_context`
+- `mcp.server.auth.routes`
 - `mcp.server.auth.settings`
 - `mcp.server.transport_security`
 - `mcp.shared.exceptions`
@@ -14320,6 +14335,7 @@ Imports:
 
 Classes:
 - `DeskQuery`
+- `DataContext`
 - `Handoff`
 
 Functions:
@@ -14332,9 +14348,12 @@ Functions:
 - `_public_query`
 - `_validate_context`
 - `_run_query`
+- `data_context`
+  - An account-local public-data workspace; never create a DSH session.
 - `start_query`
 - `list_queries`
 - `query_status`
+- `cancel_query`
 - `_write_context`
 - `create_handoff`
 - `artifacts`

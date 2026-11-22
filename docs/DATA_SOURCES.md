@@ -39,6 +39,17 @@ Research Workbench 查数据时先看本页。**2026-11-22** 在 `92ae4ae` 基�
 | 用户授权数据库 / 文件 / RWB 快照 | 已有报价、因子、财务表或用户交付的任何可核实数值 | 按具体表和文件登记来源、单位及有效期。DataHub `mysql` 支持目录与只读单表；同口径会话快照和研究仓可复用已取得的原件与版本。见 [MySQL 合同](research-web-datahub.md#用户-mysql-边界)和 [研究仓合同](research-web-market-store.md)。 |
 | 其他目录项 | Tushare 的证券目录、日线、交易日历及财务指标；Fed、CFTC、LBMA、Cboe 等的经济序列、联储资产负债、持仓、定盘或衍生品数据；Yahoo／Nasdaq 历史行情、MOEX 指数日线、中证及其他指数估值 | 作为补源线索。逐端点区分已适配、已观测、仅登记、需独立连接器及不可调用。见 [外部入口目录](../app/research_web/datahub/external_sources.json)和[逐源记录](../.ai/reports/2026-10-23-datahub-source-verification.json)。 |
 
+### OpenBB Provider 试点（2026-11-23）
+
+已在独立 macOS Python 3.12 环境安装 `openbb-core==2.0.1`、`openbb-fred==2.0.0`、
+`openbb-bls==2.0.0` 及锁定依赖，SDK 导入和命令帮助通过；没有修改 RWB 运行环境。
+实际公共 SDK 的 FRED、BLS 命令均在 HTTP 前要求 API Key，不能直接接管现有匿名入口。
+官方 BLS helper 的一次匿名请求超时，同端点同请求体的 HTTPX 对照返回 403，未取得可对拍数据。
+FRED 转换还会删除缺失行和每条观察的 realtime 字段；BLS 转换简化 period 与脚注结构。
+因此本批保留两个原 Provider，旧实现删除清单为空，不把安装成功称为数据接管成功。
+后续扩大其他金融覆盖时再按具体 Provider 评估；数据许可、单位、修订及 PIT 仍由 DataHub 核验。
+详见[本次实际试点](../.ai/reports/2026-11-23-openbb-provider-trial.md)。
+
 ## 文本数据
 
 | 来源 / 入口 | 提供的数据 | 接入状态与范围 |

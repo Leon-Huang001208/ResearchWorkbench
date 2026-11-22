@@ -113,6 +113,44 @@ test('Reader rounding allowance cannot make scrollHeight smaller than the viewpo
   assert.ok((await check(f)).violations.some(item=>item.code==='visual_receipt'));
 });
 
+function naturalDockFixture(f) {
+  const {diagram,visual}=readerFixture(f);
+  // Freeze the real 3.2 measurement, so future diagram edits cannot rewrite
+  // this regression. Only the fixture artifact/capture bytes are synthetic.
+  const {viewport}=JSON.parse(fs.readFileSync(new URL('../fixtures/archify32-natural-dock.json',import.meta.url)));
+  assert.equal(viewport.viewerChromeActive,false);assert.equal(viewport.viewerChromeReserve,0);
+  assert.ok(viewport.dockStageGap>=viewport.requiredDockStageGap);
+  for (const records of [visual.containment.viewports,visual.readability.viewports,visual.viewerChrome.viewports]) records[3]=structuredClone(viewport);
+  const file=visual.captures.screenshots[1].file;
+  visual.captures.screenshots[1]={...structuredClone(viewport),file};
+  f.write(diagram.visualReceipt,visual);
+  return {diagram,visual};
+}
+
+test('Reader accepts the actual Archify 3.2 natural dock without an unnecessary reserve',async t=>{
+  const f=fixture(t);naturalDockFixture(f);
+  assert.deepEqual((await check(f)).violations,[]);
+});
+
+test('Reader natural dock retains boolean state, geometry and visible chrome requirements',async t=>{
+  const f=fixture(t),{diagram,visual:original}=naturalDockFixture(f);
+  for (const patch of [
+    {viewerChromeActive:false,viewerChromeReserve:54},
+    {viewerChromeActive:true,viewerChromeReserve:0},
+    {viewerChromeActive:'false',viewerChromeReserve:0},
+    {viewerChromeActive:false,viewerChromeReserve:-1},
+    {viewerChromeActive:false,viewerChromeReserve:undefined},
+    {hasNavigationDock:false},{dockStageGap:9},{requiredDockStageGap:0},
+    {dockStageIntersectionArea:1},{legendDockIntersectionArea:1},
+    {viewerChromeStageOk:false},{viewerChromeOk:false},
+  ]) {
+    const visual=structuredClone(original);
+    for (const record of [visual.containment.viewports[3],visual.readability.viewports[3],visual.viewerChrome.viewports[3],visual.captures.screenshots[1]]) Object.assign(record,patch);
+    f.write(diagram.visualReceipt,visual);
+    assert.ok((await check(f)).violations.some(item=>item.code==='visual_receipt'),JSON.stringify(patch));
+  }
+});
+
 const readerMutations=[
   ['missing policy',v=>{delete v.containment.policy;}],
   ['unknown policy',v=>{v.containment.policy='allow-all-overflow';}],

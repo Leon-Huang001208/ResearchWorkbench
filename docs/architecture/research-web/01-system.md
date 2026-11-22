@@ -78,7 +78,7 @@ Host 新增事件、研究与市场评分三组 API，以及账户绑定的事�
 
 ## 可选入站 MCP
 
-原私网 HTTPS 网关的授权服务与 `/mcp` 资源服务共用进程和规范 Origin；账户及授权同库，不增加本地代理、身份服务或研究内核。默认关闭；开发/隔离验收不更新常驻。成熟应用只通过原生 OAuth 使用批准冻结材料，Codex、官方 DSH、WorkBuddy 各自实测。见[合同](../../research-web-mcp-facade.md)和[访问图](../../../outputs/research-web-architecture/15-inbound-mcp.html)。
+原私网 HTTPS 网关的授权服务与 `/mcp` 资源服务共用进程和规范 Origin；账户及授权同库，不增加代理、身份服务或研究内核。原 `rwb.read` 四工具仍只读批准冻结材料且不调用 Provider；新增 `rwb.data.query` 经明确同意后，从已存活的账号 Host 创建 grant 绑定的 Store-only 数据上下文，沿原 DataHub／Provider 查询公开 FRED／BLS。该上下文不创建 DSH 研究会话；凭据、来源、冻结证据与金融质量仍由 RWB 负责。入口默认关闭，隔离验证不等于常驻接管。见[原只读合同](../../research-web-mcp-facade.md)、[查询合同](../../research-web-mcp-datahub.md)和[访问图](../../../outputs/research-web-architecture/15-inbound-mcp.html)。
 
 ## 交付证据与临时资源职责（2026-10-31）
 

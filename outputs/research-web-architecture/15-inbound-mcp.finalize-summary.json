@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Volumes/WorkDisk/Projects/RWB/ResearchWorkbench-worktrees/rwb-weknora-datahub-mcp-20261122/docs/architecture/research-web/diagrams/15-inbound-mcp.json",
+    "sha256": "cb00d86033e99c6e872f417354625a34282ca403c142ef5957bf8e5c150083c6",
+    "bytes": 8569
+  },
+  "artifact": {
+    "path": "/Volumes/WorkDisk/Projects/RWB/ResearchWorkbench-worktrees/rwb-weknora-datahub-mcp-20261122/outputs/research-web-architecture/15-inbound-mcp.html",
+    "sha256": "886caef7b6d4f6e468c8ecbb72637894af2cc722cdbfcdc7aae1c447d0be1861",
+    "bytes": 850664
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Volumes/WorkDisk/Scratch/RWB/weknora-live-chain-20261122/datahub-adapter/diagram15-intrinsic-render/15-inbound-mcp.finalize.json",
+    "summaryReceipt": "/Volumes/WorkDisk/Scratch/RWB/weknora-live-chain-20261122/datahub-adapter/diagram15-intrinsic-render/15-inbound-mcp.finalize-summary.json",
+    "browserCheckReceipt": "/Volumes/WorkDisk/Scratch/RWB/weknora-live-chain-20261122/datahub-adapter/diagram15-intrinsic-render/15-inbound-mcp.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-22T07:14:55.682Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2982,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

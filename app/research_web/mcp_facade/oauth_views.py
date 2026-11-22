@@ -11,7 +11,7 @@ from app.research_web.multiuser.accounts import AccountError
 from core.observability import get_logger
 
 from .authorization_store import AuthorizationStore
-from .models import WEKNORA_CLIENT_ID
+from .models import DATA_SCOPE, WEKNORA_CLIENT_ID
 
 log = get_logger(__name__)
 COOKIE = "rwb_session"
@@ -122,6 +122,12 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 + "</label><br>"
                 for item in materials
             )
+            execution = (
+                "<p>本次另申请 FRED/BLS 免费公开序列取数：会访问供应商，创建本账号独立数据上下文与冻结快照；"
+                "仅允许读取本次授权产生的查询结果，并可取消查询。不允许调用模型、运行脚本或读取其他账号资料。</p>"
+                if DATA_SCOPE in pending.scopes
+                else ""
+            )
             return HTMLResponse(
                 '<!doctype html><html lang="zh"><meta charset="utf-8"><title>RWB 授权</title>'
                 "<h1>授权 RWB 只读应用</h1><p>当前账号："
@@ -129,11 +135,12 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 + "</p><p>应用："
                 + ("WeKnora" if pending.client_id == WEKNORA_CLIENT_ID else "Codex")
                 + "</p><p>仅允许读取下列已批准的公开或合成资料。未勾选资料不可读取；不允许运行研究或调用模型。</p>"
-                '<form method="post" action="/mcp/consent"><input type="hidden" name="request_id" value="'
+                + execution
+                + '<form method="post" action="/mcp/consent"><input type="hidden" name="request_id" value="'
                 + escape(pending.id, quote=True)
                 + '">'
                 + choices
-                + '<button name="decision" value="allow">允许所选资料</button>'
+                + '<button name="decision" value="allow">允许上述权限及所选资料</button>'
                 '<button name="decision" value="deny">拒绝</button></form></html>',
                 headers=consent_headers,
             )
