@@ -26,7 +26,11 @@ REAL_EXECUTE = upgrade.execute
 REAL_VERIFY = upgrade.Operations.verify
 
 
-def test_reviewed_cli_binds_explicit_revisions(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "command,mode",
+    [("apply-reviewed", upgrade.REVIEWED_MODE), ("apply-fingpt", upgrade.FINGPT_MODE)],
+)
+def test_reviewed_cli_binds_explicit_revisions(tmp_path, monkeypatch, command, mode):
     (tmp_path / "logs").mkdir()
     calls = []
     previous, target = "a65" + "1" * 37, "b" * 40
@@ -38,7 +42,7 @@ def test_reviewed_cli_binds_explicit_revisions(tmp_path, monkeypatch):
     assert (
         upgrade.main(
             [
-                "apply-reviewed",
+                command,
                 "--home",
                 str(tmp_path),
                 "--source",
@@ -56,7 +60,7 @@ def test_reviewed_cli_binds_explicit_revisions(tmp_path, monkeypatch):
             (tmp_path, tmp_path),
             {
                 "recovering": False,
-                "mode": "reviewed-full-upgrade-v1",
+                "mode": mode,
                 "expected_previous": previous,
                 "expected_target": target,
             },
@@ -64,15 +68,16 @@ def test_reviewed_cli_binds_explicit_revisions(tmp_path, monkeypatch):
     ]
 
 
+@pytest.mark.parametrize("command", ["apply-reviewed", "apply-fingpt"])
 @pytest.mark.parametrize("bad", ["missing", "same", "legacy"])
 def test_reviewed_cli_rejects_incomplete_or_misplaced_revision_arguments(
-    tmp_path, monkeypatch, bad
+    tmp_path, monkeypatch, bad, command
 ):
     (tmp_path / "logs").mkdir()
     monkeypatch.setattr(upgrade, "operate", lambda *_a, **_k: pytest.fail("invalid dispatch"))
     previous, target = "a" * 40, "b" * 40
     args = [
-        "apply" if bad == "legacy" else "apply-reviewed",
+        "apply" if bad == "legacy" else command,
         "--home",
         str(tmp_path),
         "--source",
@@ -85,8 +90,11 @@ def test_reviewed_cli_rejects_incomplete_or_misplaced_revision_arguments(
     assert upgrade.main(args) == 1
 
 
+@pytest.mark.parametrize("mode", [upgrade.REVIEWED_MODE, upgrade.FINGPT_MODE])
 @pytest.mark.parametrize("changed_lock", [False, True])
-def test_reviewed_product_uses_current_full_tree_without_fixed_payload(tmp_path, changed_lock):
+def test_reviewed_product_uses_current_full_tree_without_fixed_payload(
+    tmp_path, changed_lock, mode
+):
     source = tmp_path / "source"
     source.mkdir()
 
@@ -129,9 +137,9 @@ def test_reviewed_product_uses_current_full_tree_without_fixed_payload(tmp_path,
     target = git("rev-parse", "HEAD")
     if changed_lock:
         with pytest.raises(upgrade.UpdateBlocked, match="reviewed_upgrade_dependencies_changed"):
-            upgrade.review(source, target, "reviewed-full-upgrade-v1", previous)
+            upgrade.review(source, target, mode, previous)
     else:
-        assert upgrade.review(source, target, "reviewed-full-upgrade-v1", previous) == {
+        assert upgrade.review(source, target, mode, previous) == {
             "previous": previous,
             "target": target,
             "previous_tree": git("rev-parse", f"{previous}^{{tree}}"),
@@ -140,16 +148,20 @@ def test_reviewed_product_uses_current_full_tree_without_fixed_payload(tmp_path,
 
 
 @pytest.fixture
-def reviewed_operate(attached_mcp_operate, real_operations, monkeypatch):
+def reviewed_operate(attached_mcp_operate, real_operations, monkeypatch, request):
     from app.research_web import service_manager
 
     home, state, system, source = attached_mcp_operate
-    previous = "a65" + "1" * 37
-    state.update(mode="reviewed-full-upgrade-v1", previous=previous)
+    mode = getattr(request, "param", upgrade.REVIEWED_MODE)
+    fingpt = mode == upgrade.FINGPT_MODE
+    previous = ("065" if fingpt else "a65") + "1" * 37
+    state.update(mode=mode, previous=previous)
     state["config"]["baseline"] = previous
-    state["manifest"].update(code_commit=previous, alphadesk_qa=True)
+    state["manifest"].update(code_commit=previous, alphadesk_qa=not fingpt)
     state["accepted"]["target"] = previous
-    state["gateway_config"].update(revision=previous, alphadesk_qa=True, mcp_readonly_enabled=True)
+    state["gateway_config"].update(
+        revision=previous, alphadesk_qa=not fingpt, mcp_readonly_enabled=True
+    )
     state["gateway_config"]["binding"]["revision"] = previous
     system.update(primary=previous, gateway=previous)
     for path, value in (
@@ -178,7 +190,12 @@ def reviewed_operate(attached_mcp_operate, real_operations, monkeypatch):
     def observed(url):
         value = request(url)
         if url.endswith(("/api/research/resident", "/api/server/health")):
-            value["alphadesk_qa"] = True
+            value["alphadesk_qa"] = (
+                system["gateway" if url.endswith("/api/server/health") else "primary"]
+                == state["target"]
+                if fingpt
+                else True
+            )
         if url.endswith("/api/server/health"):
             value["mcp_readonly_enabled"] = True
         return value
@@ -268,8 +285,87 @@ def test_reviewed_operations_preserve_modes_and_restore_dynamic_previous(
         assert ("gateway", state["previous"], 30) in system["checkout_attempts"]
 
 
+@pytest.mark.parametrize("real_operations", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("reviewed_operate", [upgrade.FINGPT_MODE], indirect=True)
+def test_dynamic_fingpt_operate_binds_current_release_and_recovers(reviewed_operate):
+    home, old, system, source = reviewed_operate
+    result = upgrade.operate(
+        home,
+        source,
+        mode=upgrade.FINGPT_MODE,
+        expected_previous=old["previous"],
+        expected_target=old["target"],
+    )
+    assert result == {"status": "execution_boundary_observed"}
+    journal = home / "server/run/gateway-upgrade.json"
+    state = upgrade.g.read_upgrade_journal(journal)
+    assert state["previous"] != upgrade.FINGPT_PREVIOUS
+    assert state["previous"] == old["previous"]
+    assert state["source_repository"]["common"] == old["config"]["source_common"]
+    assert state["gateway_config"]["mcp_readonly_enabled"] is True
+    assert state["gateway_config"]["alphadesk_qa"] is False
+    state["phase"] = "start_gateway"
+    upgrade.g.write_upgrade_journal(journal, state)
+    assert upgrade.operate(home, recovering=True) == {"status": "execution_boundary_observed"}
+    assert system["executed"] == [False, True]
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("reviewed_operate", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("bad", ["previous", "target", "qualification"])
+def test_dynamic_fingpt_rejects_release_drift_before_effects(reviewed_operate, monkeypatch, bad):
+    home, state, system, source = reviewed_operate
+    if bad == "qualification":
+        monkeypatch.setattr(
+            upgrade,
+            "GitHubEvidence",
+            lambda *_: SimpleNamespace(
+                latest=lambda: state["target"],
+                qualify=lambda _sha: (_ for _ in ()).throw(
+                    upgrade.UpdateBlocked("resident_ci_missing")
+                ),
+            ),
+        )
+    with pytest.raises(upgrade.UpdateBlocked):
+        upgrade.operate(
+            home,
+            source,
+            mode=upgrade.FINGPT_MODE,
+            expected_previous="e" * 40 if bad == "previous" else state["previous"],
+            expected_target="f" * 40 if bad == "target" else state["target"],
+        )
+    assert system["executed"] == []
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("reviewed_operate", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("failed", [None, "start_gateway"])
+def test_dynamic_fingpt_operations_toggle_and_restore_both_entries(
+    reviewed_operate, real_operations, monkeypatch, failed
+):
+    home, state, system, _source = reviewed_operate
+    _home, _state, _system, make, uid = real_operations
+    monkeypatch.setattr(upgrade.Operations, "verify", REAL_VERIFY)
+    state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    state["before"] = upgrade.g.preservation(home)
+    system["fail"] = failed
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = REAL_EXECUTE(make(fence), state)
+    expected = state["target"] if failed is None else state["previous"]
+    assert result["status"] == ("deployed" if failed is None else "rolled_back")
+    assert system["primary"] == system["gateway"] == expected
+    gateway = upgrade.read_json(home / "server/resident.json")
+    assert gateway["mcp_readonly_enabled"] is True
+    assert gateway["alphadesk_qa"] is (failed is None)
+    assert upgrade.read_json(home / "install/manifest.json")["alphadesk_qa"] is (failed is None)
+
+
+@pytest.mark.parametrize("mode", [upgrade.REVIEWED_MODE, upgrade.FINGPT_MODE])
 @pytest.mark.parametrize("attached_services", [False, True])
-def test_reviewed_upgrade_keeps_existing_private_service_routes(monkeypatch, attached_services):
+def test_reviewed_upgrade_keeps_existing_private_service_routes(
+    monkeypatch, attached_services, mode
+):
     host = "fixture.tail.ts.net"
     value = {
         "Web": {host + ":443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8089"}}}},
@@ -282,7 +378,29 @@ def test_reviewed_upgrade_keeps_existing_private_service_routes(monkeypatch, att
             }
             value["TCP"][port] = {"HTTPS": True}
     monkeypatch.setattr(upgrade.g, "run", lambda _argv: json.dumps(value))
-    upgrade.verify_serve("https://" + host, upgrade.REVIEWED_MODE)
+    upgrade.verify_serve("https://" + host, mode)
+
+
+@pytest.mark.parametrize("bad", ["tcp_missing", "proxy", "http"])
+def test_dynamic_fingpt_rejects_changed_independent_private_routes(monkeypatch, bad):
+    host = "fixture.tail.ts.net"
+    value = {
+        "Web": {
+            host + ":443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8089"}}},
+            host + ":9443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}},
+            host + ":8443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}},
+        },
+        "TCP": {"443": {"HTTPS": True}, "9443": {"HTTPS": True}, "8443": {"HTTPS": True}},
+    }
+    if bad == "tcp_missing":
+        value["TCP"].pop("9443")
+    elif bad == "proxy":
+        value["Web"][host + ":8443"]["Handlers"]["/"]["Proxy"] = "http://127.0.0.1:9999"
+    else:
+        value["TCP"]["8443"]["HTTPS"] = False
+    monkeypatch.setattr(upgrade.g, "run", lambda _argv: json.dumps(value))
+    with pytest.raises(upgrade.UpdateBlocked, match="model_upgrade_private_route_unknown"):
+        upgrade.verify_serve("https://" + host, upgrade.FINGPT_MODE)
 
 
 def test_qa_candidate_wheel_uses_exact_git_source_and_keeps_checkout_clean(tmp_path, monkeypatch):
@@ -1498,10 +1616,11 @@ def real_operations(tmp_path, monkeypatch, request):
     import app.research_web.multiuser.resident_binding as binding_module
 
     profile = getattr(request, "param", upgrade.MODE)
-    mode, mcp_enabled = profile if isinstance(profile, tuple) else (profile, True)
+    mode, mcp_enabled = profile[:2] if isinstance(profile, tuple) else (profile, True)
+    dynamic_fingpt = isinstance(profile, tuple) and len(profile) == 3 and profile[2] == "dynamic"
     if mode == upgrade.STORAGE_IDENTITY_MODE:
         monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PREVIOUS", "a" * 40)
-    previous = upgrade.previous_for(mode)
+    previous = "065" + "1" * 37 if dynamic_fingpt else upgrade.previous_for(mode)
     home = tmp_path.resolve()
     root, server = home / "resident", home / "server"
     primary, gateway = home / "primary", home / "gateway"
@@ -1595,6 +1714,8 @@ def real_operations(tmp_path, monkeypatch, request):
         "credential_configured": True,
         "credential_storage": "system_keychain",
     }
+    if dynamic_fingpt:
+        state["source_repository"] = {"common": config["source_common"], "identity": [7, 8]}
     if mode in upgrade.EVENT_PRESERVATION_MODES:
         state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     if mode in upgrade.ASSET_MODES:
@@ -2157,6 +2278,7 @@ def test_preparing_other_recovery_keeps_existing_direction(attached_mcp_operate,
     "real_operations",
     [
         upgrade.FINGPT_MODE,
+        pytest.param((upgrade.FINGPT_MODE, True, "dynamic"), id="dynamic-fingpt"),
         ("reviewed-local-knowledge-v1", True),
         ("reviewed-local-knowledge-v1", False),
     ],
@@ -2607,12 +2729,17 @@ def test_release_repository_replacement_is_rejected(tmp_path, monkeypatch, chang
         upgrade.verify_release_repository(state, "primary")
 
 
-@pytest.mark.parametrize("profile", [upgrade.MODE, *ASSET_PROFILES, upgrade.REVIEWED_MODE])
+@pytest.mark.parametrize(
+    "profile", [upgrade.MODE, *ASSET_PROFILES, upgrade.REVIEWED_MODE, "dynamic-fingpt"]
+)
 def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkeypatch, profile):
     import hashlib
     import subprocess
     import zipfile
 
+    dynamic_fingpt = profile == "dynamic-fingpt"
+    if dynamic_fingpt:
+        profile = upgrade.FINGPT_MODE
     home = tmp_path.resolve()
     authority = home / "authority"
 
@@ -2635,7 +2762,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     )
     target = git(authority, "rev-parse", "HEAD")
     previous = target
-    if profile == upgrade.REVIEWED_MODE:
+    if profile == upgrade.REVIEWED_MODE or dynamic_fingpt:
         git(
             authority,
             "remote",
@@ -2686,7 +2813,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION_PREVIOUS",
         "reviewed-etf-weekly-admission-v2": "ETF_WEEKLY_ADMISSION_V2_PREVIOUS",
     }.get(profile)
-    if previous_name is not None:
+    if previous_name is not None and not dynamic_fingpt:
         monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
     source = home / "resident/artifacts" / target / "source"
@@ -2715,7 +2842,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "credential_storage": "fixture",
         },
     }
-    if profile == upgrade.REVIEWED_MODE:
+    if profile == upgrade.REVIEWED_MODE or dynamic_fingpt:
         state["accepted"] = {"target": previous}
         state["source_repository"] = upgrade.repository_identity(source, config["repository"])
     for role in ("primary", "gateway"):
@@ -2807,7 +2934,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "sha256": upgrade.c.digest(wheel),
     }
     upgrade.validate_state(home, state)
-    if profile == upgrade.REVIEWED_MODE:
+    if profile == upgrade.REVIEWED_MODE or dynamic_fingpt:
         for record, key in (
             ("manifest", "code_commit"),
             ("accepted", "target"),
@@ -2818,6 +2945,11 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             with pytest.raises(upgrade.UpdateBlocked, match="reviewed_upgrade_previous_changed"):
                 upgrade.validate_state(home, state)
             state[record][key] = original
+        if dynamic_fingpt:
+            source_identity = state.pop("source_repository")
+            with pytest.raises(upgrade.UpdateBlocked, match="model_upgrade_journal_invalid"):
+                upgrade.validate_state(home, state)
+            state["source_repository"] = source_identity
     if profile in {
         "reviewed-research-dossiers-v1",
         "reviewed-event-research-v1",

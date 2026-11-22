@@ -14,6 +14,24 @@
 
 该入口只安装本项目 wheel；`requirements/web.lock` 与 `runtimes/research_web.json` 必须和前版相同，不借完整源码升级安装新依赖或更换 DSH。原三锁、BirthFence、安装作用域、全账号／模型／业务索引保全、永久恢复包、优雅排空、双端健康及失败回滚保持；MCP、AlphaDesk、WeKnora 及已有私网服务配置按现场保留，不自动开关。源码和离线回归通过不代表实际升级、生产登录或业务验收完成，执行仍由唯一生产维护窗口承担。
 
+### 从当前已接受版本切换 FinGPT
+
+`apply-fingpt` 可使用同一对显式版本参数，沿上述完整 master 树和安装契约资格切换既有 FinGPT 执行器：
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-fingpt \
+  --home /absolute/private-home --source /absolute/clean-reviewed-master \
+  --expected-previous EXACT_CURRENT_ACCEPTED_SHA --expected-target EXACT_REVIEWED_MASTER_SHA
+```
+
+该路径复用现有 version 4 FinGPT 事务，目标明确启用 `alphadesk_qa`，MCP、用户模型和独立私网服务配置保留。
+当前 accepted、安装 manifest、baseline 和两端实际版本须共同匹配前版；候选 source 的 common、origin、目录身份和完整树继续验证。
+已有 9443／8443 路由只按原受管私网服务的精确配置核对，不创建或修改 Tailscale 路由。
+
+成功后仍生成原 FinGPT 完成后回滚 capsule。`rollback-fingpt --rollback-target EXACT_ACCEPTED_TARGET_SHA`
+和中断后的 `recover --home /absolute/private-home` 从原 capsule／journal 读取前后版本，并核对本机、私网两端；不额外传入版本参数。
+不传显式版本参数的历史固定 FinGPT 入口及旧 capsule 保留原资格，不能用动态参数为旧回执改写前版。
+
 ## 附接 MCP 保全的围栏内复核
 
 原 PR #284 只将两项仍有效的保护前移到当前联合操作员，不恢复旧财经日历固定部署 profile。

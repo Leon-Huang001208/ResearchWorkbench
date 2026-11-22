@@ -10,7 +10,9 @@
 
 真实在线验收已通过。原 Bot 的手动运行 `automation-run-8c60a9698a8da894bce5918055c394da8839ba1fc6eb560f362e13af2efbd37c` 使用 DeepSeek 官方 Flash 实际调用 3 次，冻结相对原真实基线的 4 条新增公告；Markdown 中四条来源的 URL、日期和原摘要均核对一致，Host 质量 `passed`，通知判断 `meaningful_change`。报告 SHA-256 为 `fffc49e283e0d989cecc957c12facc8e745a2bd4815120d1a20178f46b99f0e5`。同 Bot 于真实时钟 02:25 触发的运行 `automation-run-e2b89b1da9e945e995b9be1e3caf4f69` 为 `skipped_unchanged`，模型账本原字节内容未变，随后停用。最终证据保存在本机 `fed-online-tracking-20261123/final-acceptance.json`、历史和实际 Markdown，原失败运行保持必要短记录。
 
-新阶段账本累计 196 个请求，均有官方 usage；保守费用上界为 1.569584 元，仍在已授权新增 50 元内。旧 48.796 元未知预留未改写。最新基线 CI、Mac 双入口回滚及正式切换仍待完成，不由本次隔离 Host 通过代替。
+新阶段账本累计 196 个请求，均有官方 usage；保守费用上界为 1.569584 元，仍在已授权新增 50 元内。旧 48.796 元未知预留未改写。
+
+已合实际部署基线 `0657693b`。完整 `test_api.py` 在本机以共享 Python、固定 Node 24 分 12 批执行，228/228 通过且测试根均退休；实际运行 HEAD 为 `b75e144d`、WIP 仅操作员相关文件，API 和 Service 前后 blob 一致，结果按同 blob 复用，不伪称最终候选全树 exact 运行。`apply-fingpt` 复用已有显式前版/目标资格和 version 4 事务，保留原开关、MCP、私网路由及完成后回滚；39 项核心、表面和旧行为回归通过，独立评审无 P0–P2。最新候选 CI、Mac 双入口回滚及正式切换仍待完成，不由隔离 Host 或本地操作员回归代替。
 
 2026-11-13，Mac mini，Research Web 功能开发。来源为 AlphaDesk `1c946b9a0930d3070da7263ffcffe5e8831077c3`。用户确认可将问答源码提交公开 RWB。开发在受管任务 `alphadesk-qa-20261113` 工作树进行。
 
