@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+普通源码退出位于 `scripts/git_safety.mjs` 的 `runDelivery` cleanup，复用原共享控制器和任务/合并/clean/无占用检查；不默认备份、恢复重演或等待部署。回归在 `tests/javascript/git_safety.test.mjs`，`cleanupScope=source` 将源码状态与业务资源分开。
+
 `resident/model_provider_upgrade.py` 的 `operate` 在当前五个
 `ATTACHED_MCP_PRESERVATION_MODES` 的 forward apply 及非 `post_deploy_rollback(state)`
 preparing 恢复中，取得原 BirthFence／安装作用域后执行 `validate_configuration`
@@ -13,10 +15,9 @@ preparing 恢复中，取得原 BirthFence／安装作用域后执行 `validate_
 相邻未知路径仍走 fallback；不以 resident 目录前缀扩张匹配，也不由规划结果认证实际升级。
 Bootstrap 原 PR／push 路径清单分别显式覆盖对应测试，沿 Actions 治理回归核验实际触发闭包。
 
-用户2026-11-22调整本机测试接续政策：`AGENTS.md`、工作流及存储留存文档区分
-当前执行批次与已结束保留的失败证据根；同任务完成退出／占用检查、定位失败并保全原件后，
-可按原容量门缩小批次或修复换候选继续，不再逐次请求新临时根例外。原retention实现、
-失败回执、候选与累计计数不改，不新增恢复框架或扩大模型／服务授权。
+`test_artifact_retention.py` 的普通失败默认在结束、根身份及无占用核对后清理再生根，
+保留真实失败结果；只有 `--keep-failed REASON` 明确保留复现用途。Checks 从真实事件base/head取变更，
+纯此工具及文档修补只运行对应31项分片回归；产品改动仍走原完整路径，作业与依赖不变。
 
 原PR续接的发布候选冻结位于 `scripts/git_safety.mjs`，复用原 `publishDelivery`；回归在 `tests/javascript/git_safety.test.mjs` 使用真实共享控制器与独立磁盘回执，防止同一对象替身掩盖旧快照。原prepared-amend合同与所有任务历史保持，参见[发布合同](AGENT_WORKFLOW.md#原-pr-发布候选快照)。
 

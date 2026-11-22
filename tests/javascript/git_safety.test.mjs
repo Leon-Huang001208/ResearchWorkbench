@@ -565,18 +565,33 @@ test('cleanup refuses dirty, unmerged, occupied and mismatched ownership without
   assert.ok(git(projectRoot, ['show-ref', '--verify', 'refs/heads/codex/task-feature']));
 });
 
-test('cleanup backup failure never calls destructive controller and preserves unrelated resources', async t => {
+test('ordinary source cleanup uses the real controller without backup or deployment and is idempotent', async t => {
   const {projectRoot, options, receipt} = cleanupFixture(t);
   git(projectRoot, ['branch', 'codex/unrelated']);
-  let cleaned = false;
-  const controller = {readDeliveryReceipt: () => receipt, cleanupDelivery: () => {cleaned = true;}};
+  const originalHead = git(projectRoot, ['rev-parse', 'HEAD']);
+  Object.assign(receipt, {schemaVersion: 1, mode: 'pr', pullRequest: {url: 'https://github.com/fixture/repo/pull/1'}, cleanup: {}});
+  const delivery = path.join(projectRoot, '.git/leon-engineering/deliveries/task.json');
+  fs.mkdirSync(path.dirname(delivery), {recursive: true});
+  fs.writeFileSync(delivery, JSON.stringify(receipt), {mode: 0o600});
   const backupRoot = path.join(options.backupRoot, 'file');
   fs.mkdirSync(options.backupRoot);
-  fs.writeFileSync(backupRoot, 'cannot be directory');
-  await assert.rejects(runDelivery({projectRoot, taskId: 'task', action: 'cleanup'}, {...options, controller, backupRoot, processProbe: () => false, quotaProbe: () => ({allowed: true})}));
-  assert.equal(cleaned, false);
-  assert.ok(fs.existsSync(receipt.featureWorktree));
-  assert.ok(git(projectRoot, ['show-ref', '--verify', 'refs/heads/codex/unrelated']));
+  fs.writeFileSync(backupRoot, 'no backup needed');
+  fs.mkdirSync(path.join(projectRoot, '.agents'));
+  for (const name of ['resource-closeout', 'resource-lifecycle', 'deployed-worktree-retirement'])
+    fs.writeFileSync(path.join(projectRoot, '.agents', name + '.json'), JSON.stringify({schemaVersion: 1, enabled: true}));
+  const safe = {...options, backupRoot, processProbe: () => false, quotaProbe: () => ({allowed: true})};
+  const input = {projectRoot, taskId: 'task', action: 'cleanup'};
+  const result = await runDelivery(input, safe);
+  assert.equal(result.status, 'cleaned');
+  assert.equal(result.cleanupScope, 'source');
+  assert.equal(result.resourceCleanup, null);
+  assert.equal(fs.existsSync(receipt.featureWorktree), false);
+  assert.equal(fs.existsSync(receipt.integrationWorktree), false);
+  assert.equal(fs.readFileSync(backupRoot, 'utf8'), 'no backup needed');
+  assert.equal(fs.existsSync(path.join(projectRoot, '.git/leon-engineering/resource-closeout/task/git-finalization.json')), false);
+  assert.equal(git(projectRoot, ['rev-parse', 'refs/heads/codex/unrelated']), originalHead);
+  assert.equal((await runDelivery(input, safe)).cleanupScope, 'source');
+  assert.equal((await runDelivery({...input, action: 'status'}, safe)).cleanupScope, 'source');
 });
 
 test('process-scoped native Git shim blocks maintenance and strips fetch pruning', async t => {
@@ -885,7 +900,7 @@ test('cleanup removes only merged task history and leaves unrelated branches/wor
     return {status: 'cleaned'};
   }};
   const result = await runDelivery({projectRoot, taskId: 'task', action: 'cleanup'}, {...options, controller, processProbe: () => false, quotaProbe: () => ({allowed: true})});
-  assert.equal(result.safetyFsck, 'PASS');
+  assert.equal(result.cleanupScope, 'source');
   assert.equal(fs.existsSync(history), false);
   assert.ok(fs.existsSync(unrelated));
   assert.ok(git(projectRoot, ['show-ref', '--verify', 'refs/heads/codex/unrelated']));
@@ -1071,7 +1086,7 @@ test('cleanup preserves concurrent unrelated fast-forward commits and newly regi
   }};
   const result = await runDelivery({projectRoot, taskId: 'task', action: 'cleanup'}, {...options, controller, processProbe: () => false, quotaProbe: () => ({allowed: true})});
   assert.equal(result.status, 'cleaned');
-  assert.ok(result.concurrentRefAdvances.some(item => item.newCommit === newCommit));
+  assert.equal(result.cleanupScope, 'source');
   assert.equal(git(unrelated, ['rev-parse', 'HEAD']), newCommit);
   assert.ok(fs.existsSync(path.join(root, 'new-task')));
 });
@@ -1129,7 +1144,7 @@ test('cleanup cannot trust forged ci_passed without matching operator review att
   assert.ok(fs.existsSync(receipt.integrationWorktree));
 });
 
-test('cleanup refuses ignored files/directories before backup without exporting their contents', async t => {
+test('cleanup refuses ignored files/directories without exporting their contents', async t => {
   const {projectRoot, options, receipt} = cleanupFixture(t);
   fs.appendFileSync(path.join(projectRoot, '.git/info/exclude'), '\nruntime.private\nprivate-data/\n');
   const sentinel = path.join(receipt.featureWorktree, 'runtime.private');
@@ -1149,17 +1164,17 @@ test('cleanup refuses ignored files/directories before backup without exporting 
   assert.equal(fs.readFileSync(path.join(projectRoot, 'logs/git-safety.jsonl'), 'utf8').includes('IGNORED_PRIVATE_SENTINEL'), false);
 });
 
-test('cleanup rechecks ignored data created after backup immediately before destructive controller', async t => {
+test('cleanup rechecks ignored data immediately before destructive controller', async t => {
   const {projectRoot, options, receipt} = cleanupFixture(t);
   fs.appendFileSync(path.join(projectRoot, '.git/info/exclude'), '\nruntime.private\n');
   const sentinel = path.join(receipt.featureWorktree, 'runtime.private');
   let probes = 0; let cleaned = false;
   const controller = {readDeliveryReceipt: () => receipt, cleanupDelivery: () => {cleaned = true;}};
-  const processProbe = () => { if (++probes === 3) fs.writeFileSync(sentinel, 'LATE_IGNORED_SENTINEL'); return false; };
+  const processProbe = () => { if (++probes === 2) fs.writeFileSync(sentinel, 'LATE_IGNORED_SENTINEL'); return false; };
   await assert.rejects(runDelivery({projectRoot, taskId: 'task', action: 'cleanup'}, {...options, controller, processProbe, quotaProbe: () => ({allowed: true})}), {code: 'WORKTREE_IGNORED_DATA'});
   assert.equal(cleaned, false);
   assert.equal(fs.readFileSync(sentinel, 'utf8'), 'LATE_IGNORED_SENTINEL');
-  assert.ok(fs.existsSync(options.backupRoot));
+  assert.equal(fs.existsSync(options.backupRoot), false);
 });
 
 test('hardlinked log target is refused without appending to an external victim', t => {
@@ -1403,7 +1418,7 @@ test('target HEAD/branch changes still fail backup despite allowing unrelated sn
   assert.throws(() => backupRepository({projectRoot}, {...options, gitPath: wrapper}), {code: 'BACKUP_RACE'});
 });
 
-test('cleanup preserves concurrent Codex tree pointers and verifies old snapshot backup before accepting update', async t => {
+test('source cleanup leaves concurrent Codex tree pointers untouched without backing them up', async t => {
   const {root, projectRoot, options, receipt} = cleanupFixture(t);
   const ref = 'refs/codex/turn-diffs/checkpoints/cleanup';
   const old = snapshotTree(projectRoot, 'CLEANUP_OLD_BLOB');
@@ -1416,10 +1431,10 @@ test('cleanup preserves concurrent Codex tree pointers and verifies old snapshot
     return {status: 'cleaned'};
   }};
   const result = await runDelivery({projectRoot, taskId: 'task', action: 'cleanup'}, {...options, controller, processProbe: () => false, quotaProbe: () => ({allowed: true})});
-  assert.ok(result.concurrentRefAdvances.some(item => item.event === 'concurrent_snapshot_update' && item.oldCommit === old.tree && item.newCommit === newer.tree));
+  assert.equal(result.cleanupScope, 'source');
   assert.equal(git(projectRoot, ['rev-parse', ref]), newer.tree);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(result.safetyBackup, 'manifest.json'))).preservationRefs[ref], old.tree);
-  verifyPackedBlob(projectRoot, root, result.safetyBackup, old.blob, 'CLEANUP_OLD_BLOB');
+  assert.equal(fs.existsSync(options.backupRoot), false);
+  assert.equal(git(projectRoot, ['cat-file', '-p', old.blob]), 'CLEANUP_OLD_BLOB');
 });
 
 test('resource preflight rejects switched task branches before any generated data removal', t => {
