@@ -77,7 +77,12 @@
         "note": "普通current沿原同步单库；正式范围由明确首条消息绑定Host grant，复核原生根会话首turn。hit_id绑定会话与请求，失败不回退；真实链路另验。"
       }
     ],
-    "locale": "zh-CN"
+    "locale": "zh-CN",
+    "repository": {
+      "url": "git@github.com:Leon-Huang001208/ResearchWorkbench.git",
+      "revision": "ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7",
+      "link_mode": "local-only"
+    }
   },
   "stages": [
     {
@@ -105,7 +110,14 @@
       "stage": 0,
       "row": 0,
       "tag": "不联网",
-      "yOffset": -14
+      "yOffset": -14,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/catalog.py",
+          "line": 101,
+          "end_line": 112
+        }
+      ]
     },
     {
       "id": "tool",
@@ -115,7 +127,19 @@
       "stage": 0,
       "row": 3,
       "tag": "既有两入口",
-      "yOffset": -68
+      "yOffset": -68,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/public-data.mjs",
+          "line": 488,
+          "end_line": 515
+        },
+        {
+          "path": "app/research_web/ui/workbench.mjs",
+          "line": 62,
+          "end_line": 74
+        }
+      ]
     },
     {
       "id": "policy",
@@ -125,7 +149,14 @@
       "stage": 1,
       "row": 3,
       "tag": "当前授权",
-      "yOffset": -68
+      "yOffset": -68,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/public-data.mjs",
+          "line": 98,
+          "end_line": 130
+        }
+      ]
     },
     {
       "id": "catalog",
@@ -135,7 +166,19 @@
       "stage": 1,
       "row": 0,
       "tag": "read-only",
-      "yOffset": -14
+      "yOffset": -14,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/catalog.py",
+          "line": 809,
+          "end_line": 838
+        },
+        {
+          "path": "app/research_web/datahub/catalog.py",
+          "line": 926,
+          "end_line": 980
+        }
+      ]
     },
     {
       "id": "router",
@@ -145,7 +188,19 @@
       "stage": 2,
       "row": 1,
       "tag": "固定来源语义保留",
-      "yOffset": -32
+      "yOffset": -32,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/broker.py",
+          "line": 130,
+          "end_line": 177
+        },
+        {
+          "path": "app/research_web/datahub/__init__.py",
+          "line": 767,
+          "end_line": 798
+        }
+      ]
     },
     {
       "id": "providers",
@@ -155,7 +210,14 @@
       "stage": 2,
       "row": 2,
       "tag": "公开SDK子进程12秒",
-      "yOffset": -50
+      "yOffset": -50,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/providers.py",
+          "line": 487,
+          "end_line": 526
+        }
+      ]
     },
     {
       "id": "upstreams",
@@ -165,7 +227,19 @@
       "stage": 2,
       "row": 3,
       "tag": "本机配置",
-      "yOffset": -68
+      "yOffset": -68,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/providers.py",
+          "line": 98,
+          "end_line": 122
+        },
+        {
+          "path": "app/research_web/datahub/providers.py",
+          "line": 487,
+          "end_line": 526
+        }
+      ]
     },
     {
       "id": "normalize",
@@ -175,7 +249,19 @@
       "stage": 3,
       "row": 2,
       "tag": "宿主绑定及逐次授权",
-      "yOffset": -50
+      "yOffset": -50,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/warehouse.py",
+          "line": 31,
+          "end_line": 65
+        },
+        {
+          "path": "app/research_web/asset_history.py",
+          "line": 75,
+          "end_line": 119
+        }
+      ]
     },
     {
       "id": "snapshots",
@@ -185,7 +271,19 @@
       "stage": 3,
       "row": 4,
       "tag": "不可变与原子发布",
-      "yOffset": -86
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/snapshots.py",
+          "line": 62,
+          "end_line": 86
+        },
+        {
+          "path": "app/research_web/datahub/snapshots.py",
+          "line": 156,
+          "end_line": 190
+        }
+      ]
     },
     {
       "id": "web",
@@ -195,7 +293,14 @@
       "stage": 4,
       "row": 0,
       "tag": "当前账号",
-      "yOffset": -14
+      "yOffset": -14,
+      "sources": [
+        {
+          "path": "app/research_web/ui/workbench.mjs",
+          "line": 62,
+          "end_line": 74
+        }
+      ]
     },
     {
       "id": "handoff",
@@ -205,7 +310,19 @@
       "stage": 4,
       "row": 2,
       "tag": "逐次鉴权 · 显式发送",
-      "yOffset": -50
+      "yOffset": -50,
+      "sources": [
+        {
+          "path": "app/research_web/workbench.py",
+          "line": 354,
+          "end_line": 388
+        },
+        {
+          "path": "app/research_web/dossiers/__init__.py",
+          "line": 479,
+          "end_line": 508
+        }
+      ]
     },
     {
       "id": "agents",
@@ -215,7 +332,14 @@
       "stage": 4,
       "row": 4,
       "tag": "不重复联网",
-      "yOffset": -86
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/research.cordis.yml",
+          "line": 5,
+          "end_line": 23
+        }
+      ]
     },
     {
       "id": "discoveryRead",
@@ -225,7 +349,14 @@
       "stage": 0,
       "row": 4,
       "tag": "不调用模型",
-      "yOffset": -86
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/discovery/service.py",
+          "line": 140,
+          "end_line": 172
+        }
+      ]
     },
     {
       "id": "intelHttp",
@@ -235,7 +366,14 @@
       "stage": 1,
       "row": 4,
       "tag": "陈旧与未知保留",
-      "yOffset": -86
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/intel_routes.py",
+          "line": 15,
+          "end_line": 53
+        }
+      ]
     },
     {
       "id": "discoveryFreeze",
@@ -245,7 +383,19 @@
       "stage": 2,
       "row": 4,
       "tag": "显式用户动作",
-      "yOffset": -86
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/discovery/service.py",
+          "line": 430,
+          "end_line": 473
+        },
+        {
+          "path": "app/research_web/datahub/snapshots.py",
+          "line": 425,
+          "end_line": 461
+        }
+      ]
     },
     {
       "id": "knowledgeUser",
@@ -255,7 +405,14 @@
       "stage": 0,
       "row": 4,
       "tag": "明确启用同步",
-      "yOffset": 10
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/ui/knowledge-settings.mjs",
+          "line": 21,
+          "end_line": 33
+        }
+      ]
     },
     {
       "id": "knowledgeFacade",
@@ -265,7 +422,19 @@
       "stage": 1,
       "row": 4,
       "tag": "普通current / 显式scope",
-      "yOffset": 10
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/routes.py",
+          "line": 87,
+          "end_line": 115
+        },
+        {
+          "path": "app/research_web/knowledge_backend/service.py",
+          "line": 271,
+          "end_line": 283
+        }
+      ]
     },
     {
       "id": "weknora",
@@ -275,7 +444,14 @@
       "stage": 2,
       "row": 4,
       "tag": "仅检索 · 实际链路待验",
-      "yOffset": 10
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/client.py",
+          "line": 448,
+          "end_line": 495
+        }
+      ]
     },
     {
       "id": "knowledgeEvidence",
@@ -285,7 +461,19 @@
       "stage": 3,
       "row": 4,
       "tag": "用户冻结 · 历史保留",
-      "yOffset": 10
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/storage.py",
+          "line": 184,
+          "end_line": 238
+        },
+        {
+          "path": "app/research_web/knowledge_backend/current.py",
+          "line": 88,
+          "end_line": 118
+        }
+      ]
     },
     {
       "id": "knowledgeConsumer",
@@ -295,7 +483,14 @@
       "stage": 4,
       "row": 4,
       "tag": "未知时点无PIT资格",
-      "yOffset": 10
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/public-data.mjs",
+          "line": 262,
+          "end_line": 298
+        }
+      ]
     },
     {
       "id": "knowledgeInbox",
@@ -305,7 +500,14 @@
       "stage": 0,
       "row": 4,
       "tag": "owner绑定 · 单件8MiB",
-      "yOffset": 106
+      "yOffset": 106,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/sync.py",
+          "line": 298,
+          "end_line": 355
+        }
+      ]
     },
     {
       "id": "knowledgeSync",
@@ -315,7 +517,19 @@
       "stage": 1,
       "row": 4,
       "tag": "60秒巡检 · 写前余量准入",
-      "yOffset": 106
+      "yOffset": 106,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/sync.py",
+          "line": 381,
+          "end_line": 433
+        },
+        {
+          "path": "app/research_web/knowledge_backend/sync_storage.py",
+          "line": 231,
+          "end_line": 248
+        }
+      ]
     },
     {
       "id": "knowledgeEmbedding",
@@ -325,7 +539,14 @@
       "stage": 2,
       "row": 4,
       "tag": "ACL仅Embed · 业务另验",
-      "yOffset": 106
+      "yOffset": 106,
+      "sources": [
+        {
+          "path": "docs/research-web-weknora.md",
+          "line": 17,
+          "end_line": 23
+        }
+      ]
     },
     {
       "id": "knowledgeApproval",
@@ -333,8 +554,21 @@
       "label": "范围批准与首条消息",
       "sublabel": "scope / 明确动作 / 请求摘要",
       "stage": 0,
-      "row": 6,
-      "tag": "获准原件 · 最多10库"
+      "row": 4,
+      "tag": "获准原件 · 最多10库",
+      "sources": [
+        {
+          "path": "app/research_web/main.py",
+          "line": 990,
+          "end_line": 1025
+        },
+        {
+          "path": "app/research_web/service.py",
+          "line": 2981,
+          "end_line": 3004
+        }
+      ],
+      "yOffset": 202
     },
     {
       "id": "knowledgeGrant",
@@ -342,8 +576,16 @@
       "label": "原账号提交回执",
       "sublabel": "scope / 请求 / 提交摘要",
       "stage": 1,
-      "row": 6,
-      "tag": "原子保存 · 单轮grant"
+      "row": 4,
+      "tag": "原子保存 · 单轮grant",
+      "sources": [
+        {
+          "path": "app/research_web/store.py",
+          "line": 519,
+          "end_line": 561
+        }
+      ],
+      "yOffset": 202
     },
     {
       "id": "knowledgeTurn",
@@ -351,8 +593,26 @@
       "label": "原生首轮与授权复核",
       "sublabel": "根caller / requestId / grant",
       "stage": 2,
-      "row": 6,
-      "tag": "await后重验 · 禁止降级"
+      "row": 4,
+      "tag": "await后重验 · 禁止降级",
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/current.py",
+          "line": 24,
+          "end_line": 50
+        },
+        {
+          "path": "app/research_web/knowledge_backend/routes.py",
+          "line": 118,
+          "end_line": 181
+        },
+        {
+          "path": "app/research_web/knowledge_backend/current.py",
+          "line": 120,
+          "end_line": 149
+        }
+      ],
+      "yOffset": 202
     }
   ],
   "flows": [
@@ -430,7 +690,11 @@
       "classification": "single provider",
       "variant": "emphasis",
       "fromSide": "bottom",
-      "toSide": "top"
+      "toSide": "top",
+      "labelAt": [
+        530,
+        283
+      ]
     },
     {
       "id": "externalFetch",
@@ -440,7 +704,11 @@
       "classification": "external",
       "variant": "security",
       "fromSide": "bottom",
-      "toSide": "top"
+      "toSide": "top",
+      "labelAt": [
+        530,
+        379
+      ]
     },
     {
       "id": "parsedResult",
@@ -456,7 +724,11 @@
       "to": "snapshots",
       "label": "全行与口径原子发布",
       "classification": "session-owned",
-      "variant": "emphasis"
+      "variant": "emphasis",
+      "labelAt": [
+        745,
+        379
+      ]
     },
     {
       "id": "selectHandoff",
@@ -464,7 +736,11 @@
       "to": "handoff",
       "label": "选定快照与页面上下文",
       "classification": "explicit",
-      "variant": "security"
+      "variant": "security",
+      "labelAt": [
+        960,
+        187
+      ]
     },
     {
       "id": "snapshotHandoff",
@@ -484,7 +760,11 @@
       "to": "agents",
       "label": "发送后绑定原证据句柄",
       "classification": "shared snapshot",
-      "variant": "dashed"
+      "variant": "dashed",
+      "labelAt": [
+        960,
+        379
+      ]
     },
     {
       "id": "webRead",
@@ -512,7 +792,11 @@
       "to": "discoveryFreeze",
       "label": "核对版本",
       "classification": "third-party archive",
-      "variant": "security"
+      "variant": "security",
+      "labelAt": [
+        421,
+        478
+      ]
     },
     {
       "id": "discoverySnapshot",
@@ -570,7 +854,11 @@
       "to": "knowledgeConsumer",
       "label": "必要原文片段",
       "classification": "session-bound / time unknown",
-      "variant": "emphasis"
+      "variant": "emphasis",
+      "labelAt": [
+        856,
+        667
+      ]
     },
     {
       "id": "knowledgeObserve",
@@ -635,7 +923,23 @@
       "to": "knowledgeTurn",
       "label": "可信caller",
       "classification": "Native metadata / root session",
-      "variant": "security"
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          960,
+          900
+        ],
+        [
+          530,
+          900
+        ]
+      ],
+      "labelAt": [
+        745,
+        900
+      ]
     },
     {
       "id": "knowledgeFormalSearch",
@@ -643,7 +947,23 @@
       "to": "weknora",
       "label": "批准范围",
       "classification": "approved document hash / scope",
-      "variant": "security"
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          640,
+          815
+        ],
+        [
+          640,
+          623
+        ]
+      ],
+      "labelAt": [
+        640,
+        766
+      ]
     },
     {
       "id": "knowledgeFormalReceipt",
@@ -651,7 +971,19 @@
       "to": "knowledgeEvidence",
       "label": "绑定命中",
       "classification": "session / scope / request / opaque hit_id",
-      "variant": "emphasis"
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          745,
+          815
+        ]
+      ],
+      "labelAt": [
+        755,
+        720
+      ]
     }
   ],
   "cards": [

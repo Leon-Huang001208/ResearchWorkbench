@@ -42,6 +42,8 @@ Research Bot 的请求模型和专用 HTTP 路由位于 `research_bot_models.py`
 
 ## WeKnora 资料适配（2026-11-06）
 
+Host批准知识scope、原生query/read运行合同及0004可选源码资产分别显式路由L4；离线formal/current/API/store、runtime Node与补丁文本catalog分开，保留Constraints/Checks/MacBootstrap及Windows/Linux交接，未认证真实KB/模型或上游应用。
+
 单轮范围接线位于 `main.py` 的 Prompt／明确动作、`service.py` 的新会话提交、`store.py` 的同回执原子 reserve，以及 `knowledge_backend/routes.py`／`current.py` 的持久 grant 与原生首 turn 复核。正式检索和读取复用 CurrentQuery／CurrentRead 和不透明 hit_id，不另注册同名工具；`runtime/public-data.mjs` 仅从原生执行上下文传可信 caller，guard 保留正式拒绝且不回退 current。离线回归在 `test_weknora_formal_scope.py`、原 current/API/store 测试与知识工具 Node 合同；这组检查不认证真实模型／服务。0004仅为未应用上游可选资产，其manifest与文本合同在原 `test_weknora_kb_settings_patch.py` 验证。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
 
 `deploy/weknora/docreader/plain_text_entrypoint.py` 在原DocReader启动检查后补严格UTF-8 TXT解析，保留原解析器和原件；离线回归为 `test_weknora_plain_text.py`，随原Checks步骤执行。现场只读挂载与真实入库另验，不由兼容层测试推定服务通过。

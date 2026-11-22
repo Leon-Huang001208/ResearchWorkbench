@@ -1,5 +1,7 @@
 # 华安 ETF 周报自动生产
 
+Host 的 `knowledge_single_turn` grant 用于全新普通研究会话首轮，仍复核已批准资料 scope 和原生请求；它不替代周报 Workflow 的执行 scope、模板／Excel 底稿、来源截止、质量与定稿门。普通 current 与正式范围工具都不自动获得历史 PIT 或周报接受资格，取消／撤权后拒绝读取，详见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
 本机知识目录的current命中属于普通研究资料，未知来源时点及会话冻结不会自动进入本周报。周报仍以批准scope、原模板／Excel底稿、来源截止和正式质量门验收；60秒资料同步不恢复周报日程。见[资料合同](research-web-weknora.md#本机目录同步与当前研究)。
 
 本地知识库 Native 路由修复只关系部署预检及逐阶段维护核验，不改变周报的批准scope或PIT要求。

@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+单轮资料范围授权仍由原账号 Host 接收明确首条消息，在原 Store 提交回执保存 grant，再由唯一 DSH 的 query／hit_id 工具读取。它增加原 Host 内的原生根会话／首 turn／requestId 复核分支，未新增服务、数据库或执行器；普通 current 同步和既有报告职责保持。来源、图文与真实验收分别记录，见[单轮资料合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
 本地知识库 Native 升级在既有私网入口中核对443 RWB、9443 WeKnora和可选8443 SuperAgent。
 WeKnora仍由原前端18181提供，SuperAgent仍由8097提供；这是维护操作员对既有部署的核验，
 不增加代理节点、研究执行器或监听端口。完整路由约束见[部署合同](../../research-web-gateway-upgrade.md#rwb-本地知识库受管升级)。

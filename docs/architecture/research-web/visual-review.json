@@ -62,19 +62,20 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "9dc2fc0451d07515ed526b9b371557160aa3dc27d6284a471b098a0da1548974",
-      "specificationSha256": "ce4308d1a799161776e46a458c5f8abfe4e24ba2529cc3f5bba48f3f823d84ad",
+      "artifactSha256": "1fc6429c8a8bb04a374c8bec881a0fee6fb22e3dbe315e61bb538002b039a96e",
+      "specificationSha256": "dba70d856f0216b9a891577f546cb08b5a03ef0e4b20ef4560c9e58ee8c6d9bc",
       "status": "reviewed",
       "reviewer": "Codex child agent (actual screenshot inspection, not human approval)",
-      "date": "2026-11-20",
+      "date": "2026-11-22",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
         "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
       "findings": [
-        "完整总览的辅助小字需使用原focus视图或放大细读。"
+        "1440/1600视口按Reader声明纵向滚动保留可读字号；RWB旧全视口无纵向溢出检查仍需明确适配，不能以Archify自动PASS替代。",
+        "总览辅助小字接近6px阅读下限，需使用原focus视图或放大细读。"
       ],
-      "notes": "实际查看最终同哈希1440浅色和2048深色截图。原节点和关系完整保留，今日发现与账号快照在同一资料流行，压紧纵向空白；固定目录、账号SQLite同步、Host会话回执与明确冻结、本机Embedding和未知时点限制可定位，未见线条穿过节点、相邻标签重叠或裁剪。自动showcase9/9、严格check与四视口overflowX/Y=false独立通过；保留原catalogView多转折提示。此Agent看图记录不是用户或真人批准，也不认证产品模型、浏览器业务或部署。"
+      "notes": "实际查看本次同哈希1440浅色和2048深色截图。原DataHub/current/同步/Embedding拓扑与新增范围批准、原提交回执、原生首turn grant分支均可定位，未观察到新增线条穿节点或正文标签相互遮盖；保留catalogView和绕开Embedding的正式范围路径提示。Archify真实finalize四门及visual-check自动门通过，1440/1600为Reader明确接受的纵向滚动、1920/2048无溢出；项目旧严格viewport门待核，未改造回执PASS字段。此Agent看图记录不代表用户或真人批准，也不认证真实服务、模型、业务报告或部署。"
     },
     {
       "id": "06-run-state",

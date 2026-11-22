@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Host 批准资料 scope 的单轮接线复用原消息、Store 回执、DataKey 与唯一 DSH，不新增依赖、服务、账号数据库迁移或公开安装步骤。原生 query／hit_id 工具的授权、同候选 macOS 干净安装、真实 WeKnora／模型及业务报告分别验收；0004为未应用上游可选源码资产，不作为现役安装成功证明。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
 `apply-local-knowledge` 在开始更新、准备维护围栏和切换检查点复核现有 Tailscale Serve。
 本模式要求443 RWB及9443 WeKnora固定 HTTPS 路由；已有8443 SuperAgent须匹配原目标。
 路由不符时停止更新并保留原服务，按[部署合同](research-web-gateway-upgrade.md#rwb-本地知识库受管升级)核对现场；

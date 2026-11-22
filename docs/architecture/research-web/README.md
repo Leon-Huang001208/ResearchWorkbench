@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-11-22 单轮资料授权的源码阅读检查点为 `ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7`，包含当前 query／hit_id、普通同步 current 和 Host grant 分支。图04的逐节点证据固定到该本地提交，保留真实 SSH origin 并使用 local-only 链接；Atlas 的同提交 GitHub 链接须待正式发布后可访问。最终图文提交、CI、原生宿主及部署另由各自回执认证。
+
 Research Bot 的 Radar 批次新鲜度、缓存标志及冻结原件分别见[资料说明](03-data-files.md)和[接口合同](04-api.md)。
 
 Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation → DSH 执行。专用 API、冻结资料和失败恢复分别见本目录的接口、资料及运行章节。

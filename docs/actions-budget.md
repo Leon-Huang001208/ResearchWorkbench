@@ -2,6 +2,8 @@
 
 ## 本机资料同步与当前研究预算（2026-11-20）
 
+Host批准知识scope、原生query/read运行合同与0004可选资产按精确路径显式路由L4，分别保留formal/current/API/store、runtime Node及补丁文本catalog离线闭包。此路由不增加workflow、job、runner、依赖或超时；Constraints／Checks／同候选MacBootstrap及Windows/Linux真机交接继续执行，不能由路由登记或离线通过认证真实KB、模型或上游补丁应用。
+
 沿 Research Web Checks 既有 Python 步骤增加 `test_weknora_sync.py`、`test_weknora_sync_client.py`、
 `test_weknora_current.py`、`test_weknora_current_api.py` 及严格UTF-8纯文本overlay的
 `test_weknora_plain_text.py`，保留原九份 WeKnora 回归；JS 继续由原
