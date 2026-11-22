@@ -27,6 +27,7 @@
 该路径复用现有 version 4 FinGPT 事务，目标明确启用 `alphadesk_qa`，MCP、用户模型和独立私网服务配置保留。
 当前 accepted、安装 manifest、baseline 和两端实际版本须共同匹配前版；候选 source 的 common、origin、目录身份和完整树继续验证。
 已有 9443／8443 路由只按原受管私网服务的精确配置核对，不创建或修改 Tailscale 路由。
+FinGPT 允许已登记的 9443→18181 和 8443→8097；缺失半条配置、改写上游或非 HTTPS 仍拒绝，未扩展的其他 profile 继续使用原私网路由门。
 
 成功后仍生成原 FinGPT 完成后回滚 capsule。`rollback-fingpt --rollback-target EXACT_ACCEPTED_TARGET_SHA`
 和中断后的 `recover --home /absolute/private-home` 从原 capsule／journal 读取前后版本，并核对本机、私网两端；不额外传入版本参数。

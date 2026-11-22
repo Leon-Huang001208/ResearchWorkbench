@@ -3331,12 +3331,12 @@ def test_local_knowledge_serve_rejects_unrecognized_routes(monkeypatch, changed)
         upgrade.verify_serve("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)
 
 
-def test_other_profiles_keep_the_original_private_route_gate(monkeypatch):
+@pytest.mark.parametrize("mode", [None, upgrade.MODE, upgrade.MARKET_LIVE_MODE])
+def test_other_profiles_keep_the_original_private_route_gate(monkeypatch, mode):
     value = local_knowledge_serve_routes()
     monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
-    for mode in (None, upgrade.FINGPT_MODE):
-        with pytest.raises(upgrade.UpdateBlocked, match="private_route_unknown"):
-            upgrade.verify_serve("https://fixture.tail.ts.net", mode)
+    with pytest.raises(upgrade.UpdateBlocked, match="private_route_unknown"):
+        upgrade.verify_serve("https://fixture.tail.ts.net", mode)
 
 
 @pytest.mark.parametrize("real_operations", ["reviewed-local-knowledge-v1"], indirect=True)
