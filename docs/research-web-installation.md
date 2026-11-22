@@ -1306,6 +1306,10 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 `container_entrypoint.py` 的ARM／OpenSSL检查并运行原DocReader主模块；它不安装新依赖或由
 一键安装器隐式部署。严格UTF-8/BOM解析和原件不变先由离线合同验证，实际挂载和入库另验。
 
+### 已审完整版本的 macOS Native 维护
+
+原 version 4 联合事务支持 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-reviewed --home <安装根> --source <已审干净主线> --expected-previous <现场accepted完整SHA> --expected-target <该source与最新master完整SHA>`。前后版本由本次参数和现役元数据核对，不再为每个提交增加固定 profile；原 GitHub 资格、两端 wheel、账号／模型／业务保全、锁与恢复沿原路径执行。依赖锁或固定 runtime 声明变化仍需另行处理，源码检查不代表已部署；具体执行和普通 `recover --home` 见[网关维护](research-web-gateway-upgrade.md)。
+
 ### macOS 私网仅服务模式
 
 `server serve --service-only` 让每个已认证账户使用一个受管 Web 进程。该进程没有

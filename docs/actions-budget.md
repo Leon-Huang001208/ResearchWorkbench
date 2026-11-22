@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+主账号数据源修复沿原 Mac Bootstrap 增加四个确切触发路径和两个 wheel 资源字节比较；通用已审升级沿既有操作员测试与原三项 CI。没有新 job、runner、权限、依赖或时限，实际候选 CI 另记；本机相关回归不重复全仓，远端动作仍实时核对 visibility 与额度。
+
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的
