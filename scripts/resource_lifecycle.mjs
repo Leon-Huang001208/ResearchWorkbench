@@ -1,11 +1,11 @@
-/** Bridge to the verified shared runtime. No business service or arbitrary command execution. */
+/** Bridge to the verified project runtime. No business service or arbitrary command execution. */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {validateCloseoutRecovery} from './git_safety.mjs';
+import {loadProjectResourceRuntime} from './project_delivery_runtime.mjs';
 
 const fail=code=>{throw Object.assign(new Error(code),{code});};
 const evidenceProtection='rwb-required-verification-recovery-originals';
@@ -125,12 +125,7 @@ function evidenceIdentity(directory) {
   return {sha256:crypto.createHash('sha256').update(JSON.stringify(entries)).digest('hex'),bytes,entries:count};
 }
 async function loadRuntime() {
-  const root=path.join(os.homedir(),'.agents/leon-engineering/runtime');
-  const manifest=privateJson(path.join(root,'.leon-engineering-harness-runtime.json'));
-  if(!manifest.files?.['resource-lifecycle.mjs'] || !manifest.files?.['lib/resources/lifecycle.mjs'])fail('LIFECYCLE_RUNTIME_REQUIRED');
-  const verifier=await import(pathToFileURL(path.join(root,'harness-runtime.mjs')).href);
-  if(verifier.verifyHarnessRuntime({runtimeRoot:root}).valid!==true)fail('LIFECYCLE_RUNTIME_UNVERIFIED');
-  return import(pathToFileURL(path.join(root,'resource-lifecycle.mjs')).href);
+  return loadProjectResourceRuntime();
 }
 
 export async function finalizeLifecycle({projectRoot,commonDirectory,taskId,receipt,runtime}) {

@@ -7,6 +7,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -21,6 +22,62 @@ from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
 REAL_GATEWAY_HEALTH = upgrade.g.health
 REAL_EVENT_GATEWAY_HEALTH = upgrade.read_event_gateway_health
+
+
+def test_qa_candidate_wheel_uses_exact_git_source_and_keeps_checkout_clean(tmp_path, monkeypatch):
+    source = tmp_path / "candidate"
+    source.mkdir()
+    frontend = source / "app/research_web/qa_frontend"
+    frontend.mkdir(parents=True)
+    (frontend / "package-lock.json").write_text("reviewed lock", encoding="utf-8")
+    upgrade.c.git(source, "init", "-q")
+    upgrade.c.git(source, "add", ".")
+    upgrade.c.git(
+        source,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qm",
+        "candidate",
+    )
+    output = tmp_path / "wheel"
+    actual_run = upgrade.c.run
+    build_steps = []
+
+    def fixture_command(argv, **kwargs):
+        if argv[0] == "/usr/bin/git":
+            return actual_run(argv, **kwargs)
+        build_steps.append(argv)
+        if "pip" not in argv:
+            tree = kwargs["cwd"]
+            assert tree != source
+            assert (
+                tree / frontend.relative_to(source) / "package-lock.json"
+            ).read_text() == "reviewed lock"
+            return ""
+        staging = Path(argv[-2])
+        with zipfile.ZipFile(staging / "research_workbench-0.1-py3-none-any.whl", "w") as wheel:
+            wheel.writestr("app/research_web/main.py", "app = None")
+            wheel.writestr("app/research_web/qa_worker/worker.mjs", "export {}")
+            for name in ("qa.js", "qa.css", "THIRD_PARTY_LICENSES.md", "build.json"):
+                wheel.writestr(f"app/research_web/ui/qa-dist/{name}", name)
+        return ""
+
+    monkeypatch.setattr(upgrade.c, "run", fixture_command)
+    wheel = upgrade.build_release_wheel(tmp_path / "current", source, output)
+    assert upgrade.build_release_wheel(tmp_path / "current", source, output) == wheel
+    assert len(build_steps) == 2
+    assert upgrade.c.git(source, "status", "--porcelain") == ""
+    assert not list(output.glob(".qa-wheel-*"))
+    assert json.loads((output / "binding.json").read_text()) == {
+        "source": upgrade.c.git(source, "rev-parse", "HEAD"),
+        "sha256": wheel["sha256"],
+    }
+    (frontend / "package-lock.json").write_text("unreviewed edit", encoding="utf-8")
+    with pytest.raises(upgrade.UpdateBlocked, match="^resident_checkout_changed$"):
+        upgrade.build_release_wheel(tmp_path / "current", source, output)
 
 
 def test_navigation_profile_freezes_the_installed_and_merged_ui_versions():
@@ -71,6 +128,7 @@ ASSET_PROFILES = (
     "reviewed-etf-weekly-v1",
     "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
+    "reviewed-fingpt-alphadesk-v1",
     "reviewed-etf-weekly-v2",
     "reviewed-etf-historical-v1",
     "reviewed-etf-weekly-admission-v1",
@@ -120,6 +178,7 @@ def test_discovery_profile_freezes_authorized_combination():
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
         upgrade.ETF_HISTORICAL_MODE,
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
 )
 def test_discovery_deploy_rechecks_all_background_work_without_writes(
@@ -192,7 +251,9 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
     assert upgrade.previous_for(upgrade.ASSET_V2_MODE) == "9bc12355c3b80e4e4459f4c250e13fc2634ed23d"
     assert upgrade.ASSET_PAYLOAD == "54d4c8f9421c568de853a2f93263a2bfcd53422c"
     assert upgrade.ASSET_V2_PAYLOAD == "93d62be64084a5c92541a4a008216c0b3f56c2f1"
-    assert upgrade.ASSET_MODES == frozenset(ASSET_PROFILES)
+    assert upgrade.ASSET_MODES == frozenset(
+        (*ASSET_PROFILES, *upgrade.ATTACHED_MCP_PRESERVATION_MODES)
+    )
     assert upgrade.previous_for(upgrade.MODE) == upgrade.PREVIOUS
     with pytest.raises(upgrade.UpdateBlocked):
         upgrade.previous_for("unreviewed")
@@ -268,6 +329,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
         "reviewed-research-dossiers-v1": "DOSSIERS",
         "reviewed-discovery-v1": "DISCOVERY",
+        "reviewed-fingpt-alphadesk-v1": "FINGPT",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL",
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION",
@@ -331,6 +393,8 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         }[profile]
     if profile == upgrade.ASSET_V8_MODE:
         evidence_constant = "ASSET_V8_EVIDENCE_SHA256"
+    if profile == upgrade.FINGPT_MODE:
+        evidence_constant = "EVENT_EVIDENCE_SHA256"
     evidence_hash = hashlib.sha256(b"reviewed evidence").hexdigest()
     if bad == "evidence-hash-malformed":
         evidence_hash = "not-a-hash"
@@ -607,21 +671,25 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
 
     (tmp_path / "server/users").mkdir(parents=True)
     (tmp_path / "research-web").mkdir()
-    os.mkfifo(tmp_path / "research-web/index.json")
-    process = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
-            str(tmp_path),
-        ],
-        cwd=Path(__file__).resolve().parents[2],
-        timeout=3,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
+    fifo = tmp_path / "research-web/index.json"
+    os.mkfifo(fifo)
+    try:
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
+                str(tmp_path),
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+            timeout=3,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
+    finally:
+        fifo.unlink()
 
 
 @pytest.mark.parametrize(
@@ -650,6 +718,11 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-market-live", upgrade.MARKET_LIVE_MODE),
         ("apply-market-live-v2", upgrade.MARKET_LIVE_V2_MODE),
         ("apply-market-daily", upgrade.MARKET_DAILY_MODE),
+        ("apply-fingpt", upgrade.FINGPT_MODE),
+        ("apply-research-bot", upgrade.RESEARCH_BOT_MODE),
+        ("apply-research-bot-freshness", upgrade.RESEARCH_BOT_V2_MODE),
+        ("apply-strategy-validation", upgrade.STRATEGY_VALIDATION_MODE),
+        ("apply-local-knowledge", "reviewed-local-knowledge-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
@@ -908,7 +981,7 @@ def test_gateway_intent_is_durable_before_primary_journal(tmp_path, monkeypatch)
         config={"private_origin": "https://fixture.tail.ts.net"},
     )
     events = []
-    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin: None)
+    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin, _mode=None: None)
     monkeypatch.setattr(upgrade, "verify_private_fence", lambda _origin: events.append("https503"))
     monkeypatch.setattr(upgrade.g, "write_upgrade_journal", lambda _p, _s: events.append("gateway"))
     monkeypatch.setattr(upgrade.c, "atomic", lambda _p, _s: events.append("primary"))
@@ -930,7 +1003,7 @@ def test_gateway_only_crash_retains_birth_fence_without_claiming_primary_intent(
         target="a" * 40,
         config={"private_origin": "https://fixture.tail.ts.net"},
     )
-    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin: None)
+    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin, _mode=None: None)
     monkeypatch.setattr(upgrade.g, "write_upgrade_journal", lambda _p, _s: None)
     monkeypatch.setattr(
         upgrade, "verify_private_fence", lambda _origin: (_ for _ in ()).throw(SystemExit("crash"))
@@ -1161,11 +1234,12 @@ def test_private_fence_accepts_only_503(monkeypatch):
 @pytest.fixture
 def real_operations(tmp_path, monkeypatch, request):
     """Run real journals, reservations, configuration and operation methods; fake OS effects."""
-    import hashlib
-
     import app.research_web.multiuser.resident_binding as binding_module
 
-    mode = getattr(request, "param", upgrade.MODE)
+    profile = getattr(request, "param", upgrade.MODE)
+    mode, mcp_enabled = profile if isinstance(profile, tuple) else (profile, True)
+    if mode == upgrade.STORAGE_IDENTITY_MODE:
+        monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PREVIOUS", "a" * 40)
     previous = upgrade.previous_for(mode)
     home = tmp_path.resolve()
     root, server = home / "resident", home / "server"
@@ -1181,10 +1255,13 @@ def real_operations(tmp_path, monkeypatch, request):
         db.execute("CREATE TABLE accounts(id TEXT PRIMARY KEY)")
         db.execute("INSERT INTO accounts VALUES (?)", (uid,))
     (server / "accounts.sqlite3").chmod(0o600)
-    upgrade.c.atomic(home / "research-web/index.json", {"automation_runs": {}})
-    body = home / "research-web/keep.txt"
+    upgrade.c.atomic(
+        home / "research-web/index.json",
+        {"sessions": {"kept": {"title": "preserved session"}}, "automation_runs": {}},
+    )
+    body = home / "research-web/sessions/kept/body.txt"
+    body.parent.mkdir(parents=True, mode=0o700)
     body.write_bytes(b"private fixture remains intact")
-    expected_body = hashlib.sha256(body.read_bytes()).hexdigest()
     config = {
         "project": str(primary),
         "baseline": "known",
@@ -1212,6 +1289,8 @@ def real_operations(tmp_path, monkeypatch, request):
     }
     if mode in upgrade.MCP_DISABLED_ROLLBACK_MODES:
         gw["mcp_readonly_enabled"] = False
+    if mode in {*upgrade.ATTACHED_MCP_PRESERVATION_MODES, upgrade.FINGPT_MODE}:
+        gw["mcp_readonly_enabled"] = mcp_enabled
     manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
@@ -1243,7 +1322,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "manifest": manifest,
         "accepted": accepted,
         "candidate_before": accepted,
-        "before": {"body": expected_body},
+        "before": upgrade.g.preservation(home),
         "new_wheel": {"path": str(wheel), "sha256": upgrade.c.digest(wheel)},
         "old_wheel": {"path": str(wheel), "sha256": upgrade.c.digest(wheel)},
         "proof": {"qualified": True},
@@ -1259,6 +1338,8 @@ def real_operations(tmp_path, monkeypatch, request):
         state["event_schedules_before"] = upgrade.event_schedules_disabled(home)
     if mode in upgrade.ASSET_MODES:
         state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    if mode in upgrade.ATTACHED_MCP_PRESERVATION_MODES:
+        state["research_bot_mcp_before"] = mcp_enabled
     system = {
         "primary": previous,
         "gateway": previous,
@@ -1344,7 +1425,7 @@ def real_operations(tmp_path, monkeypatch, request):
         system["events"].append("pip-no-deps")
 
     monkeypatch.setattr(upgrade.c, "run", install)
-    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin: None)
+    monkeypatch.setattr(upgrade, "verify_serve", lambda _origin, _mode=None: None)
     monkeypatch.setattr(
         upgrade,
         "verify_private_fence",
@@ -1370,19 +1451,12 @@ def real_operations(tmp_path, monkeypatch, request):
         assert system["running"] and system["primary"] == sha and not system["active"]
 
     monkeypatch.setattr(upgrade.g, "verify_primary", verify_primary)
-    monkeypatch.setattr(
-        upgrade.g,
-        "preserved",
-        lambda *_args: (
-            None
-            if hashlib.sha256(body.read_bytes()).hexdigest() == expected_body
-            else pytest.fail("data changed")
-        ),
-    )
 
     def request(url):
         if url.endswith("/api/research/market"):
             return {"inflight": []}
+        if url.endswith("/api/research/research-bots"):
+            return {"items": [], "latest_runs": []}
         if url.endswith("/api/research/runtime"):
             return {"connected": True, "health_check_passed": True, **state["model_before"]}
         if url.endswith("/api/research/model-profiles"):
@@ -1396,10 +1470,31 @@ def real_operations(tmp_path, monkeypatch, request):
                 **(
                     {"mcp_readonly_enabled": False}
                     if mode in upgrade.EVENT_PRESERVATION_MODES
+                    else (
+                        {"mcp_readonly_enabled": mcp_enabled}
+                        if mode in upgrade.ATTACHED_MCP_PRESERVATION_MODES
+                        else {}
+                    )
+                ),
+                **(
+                    {
+                        "mcp_readonly_enabled": True,
+                        "alphadesk_qa": system["gateway"] == state["target"],
+                    }
+                    if mode == upgrade.FINGPT_MODE
                     else {}
                 ),
             }
-        return {"enabled": True, "revision": system["primary"], "active": system["active"]}
+        return {
+            "enabled": True,
+            "revision": system["primary"],
+            "active": system["active"],
+            **(
+                {"alphadesk_qa": system["primary"] == state["target"]}
+                if mode == upgrade.FINGPT_MODE
+                else {}
+            ),
+        }
 
     monkeypatch.setattr(upgrade, "request_json", request)
     monkeypatch.setattr(
@@ -1431,7 +1526,11 @@ def real_operations(tmp_path, monkeypatch, request):
             return [SimpleNamespace(role="runtime")]
 
         def _active_research_read_only(self, _runtime):
-            if mode in upgrade.EVENT_PRESERVATION_MODES:
+            if mode in {
+                *upgrade.EVENT_PRESERVATION_MODES,
+                *upgrade.ATTACHED_MCP_PRESERVATION_MODES,
+                upgrade.FINGPT_MODE,
+            }:
                 return ["active"] if system["active"] is not False else []
             return system["active"] is not False
 
@@ -1464,7 +1563,11 @@ def real_operations(tmp_path, monkeypatch, request):
             ("primary" if project == primary else "gateway") + "_repository"
         ],
     )
-    if mode in upgrade.EVENT_PRESERVATION_MODES:
+    if mode in {
+        *upgrade.EVENT_PRESERVATION_MODES,
+        *upgrade.ATTACHED_MCP_PRESERVATION_MODES,
+        upgrade.FINGPT_MODE,
+    }:
         # This phase/recovery fixture already substitutes g.verify_primary;
         # actual operate protocol tests below retain both real primary verifiers.
         monkeypatch.setattr(
@@ -1494,6 +1597,525 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
     assert not (home / "server/run/gateway-upgrade.json").exists()
     assert not (home / "server/run/birth-fence.json").exists()
     assert json.loads((home / "install/manifest.json").read_text())["code_commit"] == expected
+
+
+@pytest.fixture
+def attached_mcp_operate(real_operations, monkeypatch):
+    """Keep real operate/fence/configuration/preservation; replace source and OS effects."""
+    from contextlib import closing, contextmanager
+
+    from app.research_web import service_manager
+
+    home, state, system, make, _uid = real_operations
+    root, server = home / "resident", home / "server"
+    source = home / "reviewed-source"
+    source.mkdir(mode=0o700)
+    config = state["config"]
+    config.update(artifact=str(root / "controller.pyz"), gh="/fixture-gh")
+    controller = b"reviewed fixture controller"
+    with zipfile.ZipFile(root / "controller.pyz", "w") as archive:
+        archive.writestr("resident/controller.py", controller)
+    monkeypatch.setattr(upgrade, "CONTROLLER_SHA256", upgrade.c.digest(root / "controller.pyz"))
+    monkeypatch.setattr(upgrade, "CONTROLLER_MODULE_SHA256", hashlib.sha256(controller).hexdigest())
+    config["artifact_sha256"] = upgrade.CONTROLLER_SHA256
+    upgrade.c.atomic(root / "config.json", config)
+    primary = Path(state["primary_project"])
+    argv = [
+        str(primary / ".venv/bin/python"),
+        "-m",
+        "app.research_web.multiuser.resident",
+        "--root",
+        str(server),
+    ]
+    plist = home / "Library/LaunchAgents" / (upgrade.g.LABEL + ".plist")
+    plist.parent.mkdir(parents=True, mode=0o700)
+    plist.write_bytes(
+        plistlib.dumps(
+            {
+                "ProgramArguments": argv,
+                "WorkingDirectory": state["gateway_project"],
+                "Label": upgrade.g.LABEL,
+            }
+        )
+    )
+    state.update(
+        gateway_plist=str(plist),
+        gateway_plist_sha256=upgrade.c.digest(plist),
+        gateway_command=" ".join(argv),
+    )
+    monkeypatch.setattr(
+        upgrade.g,
+        "job_state",
+        lambda: (
+            f"path = {plist}\nprogram = {argv[0]}\n"
+            f"working directory = {state['gateway_project']}\n"
+            if system["loaded"]
+            else None
+        ),
+    )
+    monkeypatch.setattr(upgrade.Path, "home", classmethod(lambda _cls: home))
+    monkeypatch.setattr(
+        upgrade, "sys", SimpleNamespace(platform="darwin", prefix=str(primary / ".venv"))
+    )
+    monkeypatch.setattr(upgrade.g, "process", lambda _pid: "a b c d e " + " ".join(argv))
+    monkeypatch.setattr(upgrade.g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(upgrade.c, "configured", lambda _home: (root, config))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "validate_executor", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "review", lambda *_args: state["reviewed"])
+    monkeypatch.setattr(upgrade, "verify_retention", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "verify_supervisor", lambda *_args: "fixture-supervisor")
+    monkeypatch.setattr(upgrade, "install_recovery", lambda *_args: {})
+    # Repository/source/recovery qualification has its own real-Git matrix. This
+    # fixture retains the actual configuration validator at both entry points.
+    validate_configuration = upgrade.validate_configuration
+    monkeypatch.setattr(
+        upgrade,
+        "validate_state",
+        lambda path, value, **_kwargs: validate_configuration(path, value),
+    )
+    monkeypatch.setattr(upgrade, "build_release_wheel", lambda *_args: state["old_wheel"])
+    real_git, real_clean = upgrade.c.git, upgrade.c.clean
+    artifact_source = root / "artifacts" / state["target"] / "source"
+
+    def git(project, *args, **kwargs):
+        if Path(project) in (source, artifact_source):
+            if args == ("rev-parse", "HEAD"):
+                return state["target"]
+            if args == ("rev-parse", "--path-format=absolute", "--git-common-dir"):
+                return config["source_common"]
+            if args[:2] == ("worktree", "add"):
+                Path(args[3]).mkdir(mode=0o700)
+                return ""
+        if args[:2] == ("cat-file", "-e"):
+            return ""
+        return real_git(project, *args, **kwargs)
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    monkeypatch.setattr(
+        upgrade.c,
+        "clean",
+        lambda project, sha: (
+            None
+            if Path(project) in (source, artifact_source) and sha == state["target"]
+            else real_clean(project, sha)
+        ),
+    )
+
+    class Evidence:
+        def __init__(self, *_args):
+            pass
+
+        def latest(self):
+            return state["target"]
+
+        def qualify(self, _sha):
+            return state["proof"]
+
+    monkeypatch.setattr(upgrade, "GitHubEvidence", Evidence)
+    system.update(
+        fence_entries=0,
+        fenced=False,
+        installation_scope=False,
+        verified=[],
+        executed=[],
+        checks=[],
+    )
+    manager = make(None).manager
+
+    @contextmanager
+    def installation_scope():
+        system["installation_scope"] = True
+        try:
+            yield object()
+        finally:
+            system["installation_scope"] = False
+
+    manager._installation_start_scope = installation_scope
+    monkeypatch.setattr(service_manager, "WebServiceManager", lambda **_kwargs: manager)
+
+    def validate(path, value):
+        if system["fenced"] and system["installation_scope"]:
+            system["checks"].append("configuration")
+        return validate_configuration(path, value)
+
+    monkeypatch.setattr(upgrade, "validate_configuration", validate)
+
+    class ObservedFence(BirthFence):
+        def __enter__(self):
+            result = super().__enter__()
+            system["fence_entries"] += 1
+            system["fenced"] = True
+            system["journal_at_fence"] = (server / "run/gateway-upgrade.json").read_bytes()
+            if system.get("after_fence"):
+                system["after_fence"]()
+            return result
+
+        def __exit__(self, *args):
+            try:
+                return super().__exit__(*args)
+            finally:
+                system["fenced"] = False
+
+    monkeypatch.setattr(upgrade, "BirthFence", ObservedFence)
+    real_verify = upgrade.Operations.verify
+
+    def verify(ops, previous):
+        assert system["fenced"] and system["installation_scope"]
+        assert system["checks"] == ["configuration"]
+        system["checks"].append("verify")
+        # A second connection must fail while actual Operations.verify reads
+        # the frozen accounts bytes and compares original sessions/models.
+        with (
+            closing(sqlite3.connect(server / "accounts.sqlite3", timeout=0)) as contender,
+            pytest.raises(sqlite3.OperationalError, match="locked"),
+        ):
+            contender.execute("SELECT id FROM accounts").fetchall()
+        system["verified"].append(previous)
+        return real_verify(ops, previous)
+
+    monkeypatch.setattr(upgrade.Operations, "verify", verify)
+
+    def execute(ops, record, *, recovering=False):
+        system["executed"].append(recovering)
+        assert system["fenced"] and system["installation_scope"]
+        return {"status": "execution_boundary_observed"}
+
+    monkeypatch.setattr(upgrade, "execute", execute)
+    return home, state, system, source
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [
+        (mode, enabled)
+        for mode in sorted(upgrade.ATTACHED_MCP_PRESERVATION_MODES)
+        for enabled in (True, False)
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("recovering", [False, True])
+def test_attached_mcp_operate_rechecks_previous_under_real_birth_fence(
+    attached_mcp_operate, recovering
+):
+    home, state, system, source = attached_mcp_operate
+    journal = home / "server/run/gateway-upgrade.json"
+    if recovering:
+        state["phase"] = "preparing"
+        upgrade.g.write_upgrade_journal(journal, state)
+    result = upgrade.operate(
+        home, None if recovering else source, recovering=recovering, mode=state["mode"]
+    )
+    assert result["status"] == (
+        "aborted_before_signal" if recovering else "execution_boundary_observed"
+    )
+    assert system["fence_entries"] == 1
+    assert system["verified"] == [True]
+    assert system["executed"] == ([] if recovering else [False])
+    assert not system["events"]
+    if recovering:
+        assert not journal.exists()
+
+
+@pytest.mark.parametrize("real_operations", [(upgrade.RESEARCH_BOT_MODE, True)], indirect=True)
+@pytest.mark.parametrize("recovering", [False, True])
+@pytest.mark.parametrize("damage", ["session", "model", "configuration", "mcp-health"])
+def test_attached_mcp_post_fence_drift_keeps_original_preparing_journal(
+    attached_mcp_operate, monkeypatch, recovering, damage
+):
+    home, state, system, source = attached_mcp_operate
+    journal = home / "server/run/gateway-upgrade.json"
+    if recovering:
+        state["phase"] = "preparing"
+        upgrade.g.write_upgrade_journal(journal, state)
+    request_json = upgrade.request_json
+
+    def mutate():
+        if damage in {"session", "model"}:
+            index = home / "research-web/index.json"
+            value = upgrade.read_json(index)
+            if damage == "session":
+                value["sessions"]["kept"]["title"] = "unexpected post-fence change"
+            else:
+                value["model_profiles"] = {"unexpected": {"model": "changed"}}
+            upgrade.c.atomic(index, value)
+        elif damage == "configuration":
+            upgrade.c.atomic(home / "resident/config.json", {**state["config"], "unexpected": True})
+        else:
+            monkeypatch.setattr(
+                upgrade,
+                "request_json",
+                lambda url: (
+                    {**request_json(url), "mcp_readonly_enabled": False}
+                    if url.endswith("/api/server/health")
+                    else request_json(url)
+                ),
+            )
+
+    system["after_fence"] = mutate
+    expected = {
+        "session": "gateway_preservation_failed",
+        "model": "gateway_preservation_failed",
+        "configuration": "model_upgrade_configuration_changed",
+        "mcp-health": "research_bot_upgrade_mcp_runtime_unverified",
+    }[damage]
+    with pytest.raises(upgrade.UpdateBlocked, match=expected):
+        upgrade.operate(
+            home, None if recovering else source, recovering=recovering, mode=state["mode"]
+        )
+    assert journal.read_bytes() == system["journal_at_fence"]
+    assert not system["events"] and not system["executed"]
+    assert system["fence_entries"] == 1
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [upgrade.MODE, upgrade.TRIAL_MODE, upgrade.LOCAL_KNOWLEDGE_MODE],
+    indirect=True,
+)
+def test_preparing_other_recovery_keeps_existing_direction(attached_mcp_operate, monkeypatch):
+    home, state, system, _source = attached_mcp_operate
+    if state["mode"] == upgrade.LOCAL_KNOWLEDGE_MODE:
+        state["local_knowledge_post_deploy_rollback"] = True
+        system.update(primary=state["target"], gateway=state["target"])
+    elif state["mode"] in upgrade.TRIAL_MODES:
+        # This is a routing regression only; Trial's independently tested
+        # authorization/process retirement path must not gain an old-health gate.
+        monkeypatch.setattr(upgrade.Operations, "idle", lambda _ops: True)
+        monkeypatch.setattr(upgrade, "validate_trial_rebind", lambda value: value["config"])
+        state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    state["phase"] = "preparing"
+    journal = home / "server/run/gateway-upgrade.json"
+    upgrade.g.write_upgrade_journal(journal, state)
+    assert upgrade.operate(home, recovering=True) == {"status": "aborted_before_signal"}
+    assert not journal.exists()
+    assert not system["verified"] and not system["executed"] and not system["fence_entries"]
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [
+        upgrade.FINGPT_MODE,
+        ("reviewed-local-knowledge-v1", True),
+        ("reviewed-local-knowledge-v1", False),
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "success",
+        "busy",
+        "wrong_target",
+        "changed_capsule",
+        "interrupted",
+        "late_write",
+        "retention_due",
+        "completion_interrupted",
+    ],
+)
+def test_fingpt_and_local_knowledge_post_deploy_rollback_uses_current_data_and_both_entries(
+    real_operations, monkeypatch, scenario
+):
+    from contextlib import nullcontext
+
+    from app.research_web import service_manager
+
+    home, state, system, make, uid = real_operations
+    local_knowledge = state["mode"] == "reviewed-local-knowledge-v1"
+    if local_knowledge:
+        if state["gateway_config"]["mcp_readonly_enabled"]:
+            state["manifest"]["weknora_origin"] = "https://old-primary.invalid"
+            state["gateway_config"]["weknora_origin"] = "https://old-gateway.invalid"
+        upgrade.c.atomic(home / "install/manifest.json", state["manifest"])
+        upgrade.c.atomic(home / "server/resident.json", state["gateway_config"])
+    # Simulate only the operator admission check. The fence still needs the
+    # actual host platform to select its atomic rename implementation.
+    monkeypatch.setattr(upgrade, "sys", SimpleNamespace(platform="darwin"))
+    root = home / "resident"
+    state["config"].update(
+        artifact=str(root / "controller.pyz"), artifact_sha256=upgrade.CONTROLLER_SHA256
+    )
+    upgrade.c.atomic(root / "config.json", state["config"])
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        assert upgrade.execute(make(fence), state)["status"] == "deployed"
+    accepted = upgrade.read_json(root / "accepted.json")
+    capsule = (
+        upgrade.local_knowledge_rollback_capsule(home, state["target"])
+        if local_knowledge
+        else upgrade.fingpt_rollback_capsule(home, state["target"])
+    )
+    seal_key = "local_knowledge_rollback_sha256" if local_knowledge else "fingpt_rollback_sha256"
+    assert upgrade.c.digest(capsule) == accepted[seal_key]
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+    assert not {"before", "asset_index_before", "model_before"} & set(
+        upgrade.g.read_upgrade_journal(capsule)
+    )
+
+    index = home / "research-web/index.json"
+    new_data = {**upgrade.read_json(index), "sessions": {"new-session": {}}}
+    upgrade.c.atomic(index, new_data)
+    manager = make(None).manager
+    manager._installation_start_scope = nullcontext
+    monkeypatch.setattr(service_manager, "WebServiceManager", lambda **_kwargs: manager)
+    monkeypatch.setattr(
+        upgrade.c, "configured", lambda _home: (root, upgrade.read_json(root / "config.json"))
+    )
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_args: None)
+    monkeypatch.setattr(
+        upgrade, "validate_state", lambda path, value: upgrade.validate_configuration(path, value)
+    )
+    fenced_health = upgrade.g.health
+
+    def health(gateway, *, fenced):
+        if not fenced:
+            assert gateway["revision"] == system["gateway"] == state["target"]
+            return
+        fenced_health(gateway, fenced=fenced)
+
+    monkeypatch.setattr(upgrade.g, "health", health)
+    if scenario == "busy":
+        system["active"] = True
+
+        def busy(*_args):
+            raise upgrade.MaintenanceBusy("research_active")
+
+        monkeypatch.setattr(upgrade, "verify_primary", busy)
+    if scenario == "changed_capsule":
+        capsule.write_bytes(capsule.read_bytes() + b"\n")
+    if scenario == "retention_due":
+        upgrade.c.atomic(
+            home / "server/users" / uid / "research-web/index.json",
+            {"sessions": {"pending-deletion": {"deleted_at": 1}}},
+        )
+    if scenario == "late_write":
+        drain = upgrade.g.graceful_drain
+        new_data["sessions"]["last-inflight-session"] = {}
+
+        def drain_with_write(*args, **kwargs):
+            # A request admitted before fencing can finish while draining.
+            upgrade.c.atomic(index, new_data)
+            return drain(*args, **kwargs)
+
+        monkeypatch.setattr(upgrade.g, "graceful_drain", drain_with_write)
+
+        def preserved(path, before):
+            assert before == upgrade.g.preservation(path)
+            assert upgrade.read_json(index) == new_data
+
+        monkeypatch.setattr(upgrade.g, "preserved", preserved)
+    if scenario == "interrupted":
+        install = upgrade.Operations.install
+
+        def unavailable(self, previous):
+            if previous:
+                raise OSError("isolated install interrupted")
+            return install(self, previous)
+
+        monkeypatch.setattr(upgrade.Operations, "install", unavailable)
+    if scenario == "completion_interrupted":
+        unlink = Path.unlink
+        journal = home / "server/run/gateway-upgrade.json"
+
+        def interrupted_unlink(path, *args, **kwargs):
+            if path == journal:
+                raise OSError("isolated interruption after primary admission opened")
+            return unlink(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "unlink", interrupted_unlink)
+
+    def rollback():
+        return upgrade.operate(
+            home,
+            None,
+            mode=state["mode"],
+            rollback_target="c" * 40 if scenario == "wrong_target" else state["target"],
+        )
+
+    if scenario == "busy":
+        with pytest.raises(upgrade.MaintenanceBusy, match="research_active"):
+            rollback()
+    elif scenario == "changed_capsule":
+        prefix = "local_knowledge" if local_knowledge else "fingpt"
+        with pytest.raises(upgrade.UpdateBlocked, match=f"{prefix}_rollback_capsule_changed"):
+            rollback()
+    elif scenario == "wrong_target":
+        prefix = "local_knowledge" if local_knowledge else "fingpt"
+        with pytest.raises(upgrade.UpdateBlocked, match=f"{prefix}_rollback_acceptance_unverified"):
+            rollback()
+    elif scenario == "retention_due":
+        with pytest.raises(upgrade.UpdateBlocked, match="model_upgrade_retention_due"):
+            rollback()
+    else:
+        result = rollback()
+    if scenario == "interrupted":
+        assert result["status"] == "recovery_required"
+        pending = upgrade.g.read_upgrade_journal(home / "server/run/gateway-upgrade.json")
+        assert upgrade.read_json(root / "transaction.json") == {
+            "phase": "local-knowledge-dual-rollback" if local_knowledge else "fingpt-dual-rollback",
+            "transaction": pending["transaction"],
+            "target": state["target"],
+        }
+        monkeypatch.setattr(upgrade.Operations, "install", install)
+        result = upgrade.operate(home, None, recovering=True)
+    if scenario == "completion_interrupted":
+        assert result["status"] == "recovery_required"
+        assert not (root / "transaction.json").exists()
+        assert journal.is_file()
+        assert system["primary"] == system["gateway"] == state["previous"]
+        with_after_rollback = {
+            **new_data,
+            "sessions": {**new_data["sessions"], "after-rollback-session": {}},
+        }
+        upgrade.c.atomic(index, with_after_rollback)
+        new_data = with_after_rollback
+        signals = list(system["events"])
+        monkeypatch.setattr(Path, "unlink", unlink)
+        result = upgrade.operate(home, None, recovering=True)
+        assert system["events"] == signals
+    if scenario in {"success", "interrupted", "late_write", "completion_interrupted"}:
+        assert result["status"] == "rolled_back"
+        assert system["primary"] == system["gateway"] == state["previous"]
+        assert upgrade.read_json(root / "accepted.json") == state["accepted"]
+        assert upgrade.read_json(home / "install/manifest.json") == state["manifest"]
+        assert upgrade.read_json(home / "server/resident.json") == state["gateway_config"]
+    else:
+        assert system["primary"] == system["gateway"] == state["target"]
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+    assert upgrade.read_json(index) == new_data
+
+
+@pytest.mark.parametrize(
+    "command,apply_command,mode",
+    [
+        ("rollback-fingpt", "apply-fingpt", upgrade.FINGPT_MODE),
+        ("rollback-local-knowledge", "apply-local-knowledge", "reviewed-local-knowledge-v1"),
+    ],
+)
+def test_explicit_rollback_cli_requires_exact_target(
+    tmp_path, monkeypatch, command, apply_command, mode
+):
+    (tmp_path / "logs").mkdir()
+    calls = []
+
+    def operate(*_args, **kwargs):
+        calls.append(kwargs)
+        return {"status": "rolled_back"}
+
+    monkeypatch.setattr(upgrade, "operate", operate)
+    args = ["--home", str(tmp_path)]
+    assert upgrade.main([command, *args]) == 1
+    assert upgrade.main([apply_command, *args, "--rollback-target", "b" * 40]) == 1
+    assert upgrade.main([command, *args, "--rollback-target", "", "--source", str(tmp_path)]) == 1
+    assert not calls
+    assert upgrade.main([command, *args, "--rollback-target", "b" * 40]) == 0
+    assert calls == [
+        {
+            "mode": mode,
+            "recovering": False,
+            "rollback_target": "b" * 40,
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1541,6 +2163,14 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
                 assert gateway["mcp_readonly_enabled"] is False
             assert gateway == state["gateway_config"]
     expected_manifest = {**state["manifest"], "code_commit": expected}
+    if state["mode"] == upgrade.FINGPT_MODE:
+        gateway = upgrade.read_json(home / "server/resident.json")
+        assert gateway["mcp_readonly_enabled"] is True
+        if failed is None:
+            assert gateway["alphadesk_qa"] is True
+            expected_manifest["alphadesk_qa"] = True
+        else:
+            assert gateway == state["gateway_config"]
     if failed is None and state["mode"] in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
@@ -1768,6 +2398,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
         "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
+        "reviewed-fingpt-alphadesk-v1": "FINGPT_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
         "reviewed-etf-historical-v1": "ETF_HISTORICAL_PREVIOUS",
         "reviewed-etf-weekly-admission-v1": "ETF_WEEKLY_ADMISSION_PREVIOUS",
@@ -1862,6 +2493,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
             "reviewed-market-daily-v1",
             "reviewed-unified-navigation-v1",
             "reviewed-discovery-v1",
+            "reviewed-fingpt-alphadesk-v1",
             "reviewed-etf-weekly-v2",
             "reviewed-etf-historical-v1",
             "reviewed-etf-weekly-admission-v1",
@@ -2051,6 +2683,141 @@ def test_existing_collections_route_is_preserved(monkeypatch):
     monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
     upgrade.verify_serve("https://fixture.tail.ts.net")
     assert json.dumps(value, sort_keys=True) == original
+
+
+def local_knowledge_serve_routes(*, superagent=True):
+    value = {
+        "Web": {
+            "fixture.tail.ts.net:443": {
+                "Handlers": {
+                    "/": {"Proxy": "http://127.0.0.1:8089"},
+                    "/collections": {"Proxy": "http://127.0.0.1:8769"},
+                }
+            },
+            "fixture.tail.ts.net:9443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}},
+        },
+        "TCP": {"443": {"HTTPS": True}, "9443": {"HTTPS": True}},
+    }
+    if superagent:
+        value["Web"]["fixture.tail.ts.net:8443"] = {
+            "Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}
+        }
+        value["TCP"]["8443"] = {"HTTPS": True}
+    return value
+
+
+@pytest.mark.parametrize("superagent", [True, False])
+def test_local_knowledge_serve_preserves_fixed_private_services(monkeypatch, superagent):
+    value = local_knowledge_serve_routes(superagent=superagent)
+    original = json.dumps(value, sort_keys=True)
+    monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
+    upgrade.verify_serve("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)
+    assert json.dumps(value, sort_keys=True) == original
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        "missing-weknora",
+        "unknown-port",
+        "foreign-host",
+        "superagent-target",
+        "weknora-target",
+        "superagent-path",
+        "weknora-path",
+        "superagent-tls",
+        "weknora-tls",
+        "weknora-tcp-missing",
+        "superagent-web-missing",
+        "funnel",
+        "weknora-extra-fields",
+        "tcp-number",
+    ],
+)
+def test_local_knowledge_serve_rejects_unrecognized_routes(monkeypatch, changed):
+    value = local_knowledge_serve_routes()
+    web, tcp = value["Web"], value["TCP"]
+    if changed == "missing-weknora":
+        del web["fixture.tail.ts.net:9443"]
+        del tcp["9443"]
+    elif changed == "unknown-port":
+        web["fixture.tail.ts.net:10443"] = web["fixture.tail.ts.net:9443"]
+        tcp["10443"] = {"HTTPS": True}
+    elif changed == "foreign-host":
+        web["other.tail.ts.net:9443"] = web.pop("fixture.tail.ts.net:9443")
+    elif changed in {"superagent-target", "weknora-target"}:
+        port = "8443" if changed.startswith("superagent") else "9443"
+        web[f"fixture.tail.ts.net:{port}"]["Handlers"]["/"]["Proxy"] = "http://127.0.0.1:11434"
+    elif changed in {"superagent-path", "weknora-path"}:
+        port = "8443" if changed.startswith("superagent") else "9443"
+        web[f"fixture.tail.ts.net:{port}"]["Handlers"]["/api"] = {"Proxy": "http://127.0.0.1:11434"}
+    elif changed in {"superagent-tls", "weknora-tls"}:
+        port = "8443" if changed.startswith("superagent") else "9443"
+        tcp[port]["HTTPS"] = False
+    elif changed == "weknora-tcp-missing":
+        del tcp["9443"]
+    elif changed == "superagent-web-missing":
+        del web["fixture.tail.ts.net:8443"]
+    elif changed == "funnel":
+        value["AllowFunnel"] = {"fixture.tail.ts.net:9443": True}
+    elif changed == "weknora-extra-fields":
+        web["fixture.tail.ts.net:9443"]["unexpected"] = True
+    else:
+        tcp["9443"]["HTTPS"] = 1
+    monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
+    with pytest.raises(upgrade.UpdateBlocked, match="private_route_unknown"):
+        upgrade.verify_serve("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)
+
+
+def test_other_profiles_keep_the_original_private_route_gate(monkeypatch):
+    value = local_knowledge_serve_routes()
+    monkeypatch.setattr(upgrade.g, "run", lambda _args: json.dumps(value))
+    for mode in (None, upgrade.FINGPT_MODE):
+        with pytest.raises(upgrade.UpdateBlocked, match="private_route_unknown"):
+            upgrade.verify_serve("https://fixture.tail.ts.net", mode)
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-local-knowledge-v1"], indirect=True)
+@pytest.mark.parametrize("entry", ["prepare_fence", "checkpoint"])
+def test_local_knowledge_transaction_route_checks_receive_profile(
+    real_operations, monkeypatch, entry
+):
+    _home, state, _system, make, _uid = real_operations
+    observed = []
+
+    def verify(origin, mode=None):
+        observed.append((origin, mode))
+        raise SystemExit("route-profile-observed")
+
+    monkeypatch.setattr(upgrade, "verify_serve", verify)
+    ops = make(None)
+    # This regression checks profile propagation, independently of the
+    # preservation schema and gateway health contracts exercised elsewhere.
+    monkeypatch.setattr(upgrade.g, "preservation", lambda _home: state["before"])
+    monkeypatch.setattr(upgrade, "asset_index_snapshot", lambda _home: state["asset_index_before"])
+    monkeypatch.setattr(
+        ops, "research_bot_gateway_health", lambda **_kwargs: state["research_bot_mcp_before"]
+    )
+    with pytest.raises(SystemExit, match="route-profile-observed"):
+        if entry == "prepare_fence":
+            ops.prepare_fence(state)
+        else:
+            ops.checkpoint(state, "prepared")
+    assert observed == [(state["config"]["private_origin"], upgrade.LOCAL_KNOWLEDGE_MODE)]
+
+
+def test_local_knowledge_operate_route_check_receives_profile(weekly_operate_protocol, monkeypatch):
+    f, _control, _events = weekly_operate_protocol
+    observed = []
+
+    def verify(origin, mode=None):
+        observed.append((origin, mode))
+        raise SystemExit("route-profile-observed")
+
+    monkeypatch.setattr(upgrade, "verify_serve", verify)
+    with pytest.raises(SystemExit, match="route-profile-observed"):
+        upgrade.operate(f.home, f.home / "source", mode=upgrade.LOCAL_KNOWLEDGE_MODE)
+    assert observed == [("https://fixture.tail.ts.net", upgrade.LOCAL_KNOWLEDGE_MODE)]
 
 
 def test_retention_cannot_purge_existing_deleted_history_during_deployment(tmp_path):
@@ -2503,6 +3270,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
         "reviewed-etf-historical-v1",
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
     indirect=True,
 )
@@ -2551,6 +3319,10 @@ def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(pro
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
     target = upgrade.target_manifest(state)
     expected = {**old, "code_commit": "b" * 40}
+    if profile == upgrade.FINGPT_MODE:
+        expected["alphadesk_qa"] = True
+    if profile == "reviewed-local-knowledge-v1":
+        expected["weknora_origin"] = "https://mac-mini-1.tail947973.ts.net:9443"
     if profile in {
         upgrade.ASSET_V5_MODE,
         upgrade.ASSET_V6_MODE,
@@ -2702,6 +3474,7 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
     indirect=True,
 )
@@ -2740,6 +3513,7 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
         "reviewed-etf-historical-v1",
         "reviewed-etf-weekly-admission-v1",
         "reviewed-etf-weekly-admission-v2",
+        upgrade.LOCAL_KNOWLEDGE_MODE,
     ],
     indirect=True,
 )
@@ -2820,6 +3594,7 @@ def _weekly_v2_dossiers(home, state, uid):
             }
         )
         archives.append((service, dossier))
+    state["before"] = upgrade.g.preservation(home)
     state["asset_index_before"] = upgrade.asset_index_snapshot(home)
     assert "@dossiers" in state["asset_index_before"]["primary"]
     assert "@dossiers" in state["asset_index_before"]["private"][uid]
@@ -4062,7 +4837,7 @@ def test_weekly_generated_doc_exceptions_are_two_exact_safe_files(
     )
     (tmp_path / upgrade.MODULE).write_text("reviewed successor")
     (tmp_path / upgrade.TEST).write_text("reviewed operator regression")
-    for name in ([index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]):
+    for name in [index] if case == "index" else [atlas] if case == "atlas" else [index, atlas]:
         (tmp_path / name).write_text("generated reading revision")
     if case == "third-content":
         (tmp_path / third).write_text("unexpected output bytes")
@@ -5503,3 +6278,534 @@ def test_market_daily_scope_freezes_product_with_real_git(tmp_path, monkeypatch,
     test_asset_review_uses_real_git_and_frozen_product(
         tmp_path, monkeypatch, bad, upgrade.MARKET_DAILY_MODE
     )
+
+
+def test_research_bot_profile_preserves_existing_runtime_configuration():
+    mode = upgrade.RESEARCH_BOT_MODE
+    assert mode == "reviewed-research-bot-v1"
+    assert upgrade.previous_for(mode) == "1315d11a5b82be563b6031593a3bfa5e6e092acd"
+    assert upgrade.RESEARCH_BOT_PAYLOAD == "88bec0ec04cbe2eb6979e6ebde695b992ed27336"
+    assert mode in upgrade.ASSET_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+    frozen = {"revision": "old", "binding": {"revision": "old"}, "mcp_readonly_enabled": True}
+    state = {"mode": mode, "target": "new", "gateway_config": frozen}
+    target = upgrade.gateway_configuration(state)
+    assert target["mcp_readonly_enabled"] is True
+    assert upgrade.gateway_configuration(state, previous=True) == frozen
+    assert not upgrade.gateway_configuration_matches(
+        state, {**target, "mcp_readonly_enabled": 1}, previous=False
+    )
+
+
+def test_research_bot_v2_uses_current_accepted_release_and_rejects_unbound_payload(
+    tmp_path, monkeypatch
+):
+    mode = upgrade.RESEARCH_BOT_V2_MODE
+    previous = "0ca0f4c01fa6a027f2759814eea9624ba8c79807"
+    assert mode == "reviewed-research-bot-v2"
+    assert upgrade.previous_for(mode) == previous
+    assert upgrade.RESEARCH_BOT_V2_PAYLOAD == "fcc3e8990738d42bcc7a84d1c1ade36c4a05f784"
+    assert mode in upgrade.ASSET_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+    assert upgrade.ATTACHED_MCP_PRESERVATION_MODES == {
+        upgrade.RESEARCH_BOT_MODE,
+        mode,
+        upgrade.STORAGE_IDENTITY_MODE,
+        upgrade.STRATEGY_VALIDATION_MODE,
+        upgrade.LOCAL_KNOWLEDGE_MODE,
+    }
+    monkeypatch.setattr(upgrade, "RESEARCH_BOT_V2_PAYLOAD", previous)
+    with pytest.raises(upgrade.UpdateBlocked, match="research_bot_upgrade_payload_unbound"):
+        upgrade.review(tmp_path, "b" * 40, mode)
+
+
+def test_strategy_validation_profile_freezes_accepted_and_published_versions():
+    mode = upgrade.STRATEGY_VALIDATION_MODE
+    assert mode == "reviewed-strategy-validation-v1"
+    assert upgrade.previous_for(mode) == "3be8a17b48ca5c57a71837bdc806efaf386a68b8"
+    assert upgrade.STRATEGY_VALIDATION_PAYLOAD == "4983949df4aac654dd95415be1d5d6a654170ff5"
+    assert mode in upgrade.ASSET_MODES & upgrade.ATTACHED_MCP_PRESERVATION_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+
+
+def test_local_knowledge_profile_preserves_the_accepted_execution_contract():
+    mode = "reviewed-local-knowledge-v1"
+    assert upgrade.LOCAL_KNOWLEDGE_MODE == mode
+    assert upgrade.previous_for(mode) == "33b3044dd68197106c5018e31482762cb1e02ea1"
+    assert upgrade.LOCAL_KNOWLEDGE_PAYLOAD == "1df9843f51c9dd90946e6d31969b4cca89eff26b"
+    assert mode in upgrade.ASSET_MODES & upgrade.ATTACHED_MCP_PRESERVATION_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+
+
+@pytest.mark.parametrize(
+    "case", ["accepted", "setup", "setup-mode", "setup-mode-both", "lock", "extra", "revert"]
+)
+def test_local_knowledge_review_seals_product_and_only_the_fixed_setup_change(
+    tmp_path, monkeypatch, case
+):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    def write(name, body):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    product = "app/research_web/knowledge_backend/current.py"
+    setup = "scripts/setup_web.py"
+    lock = "requirements/web.lock"
+    for name in (upgrade.MODULE, upgrade.TEST, product, setup, lock):
+        write(name, "old")
+    (tmp_path / setup).chmod(0o644 if case == "setup-mode-both" else 0o755)
+    git("add", ".")
+    git("commit", "-m", "accepted native release")
+    previous = git("rev-parse", "HEAD")
+    write(product, "reviewed knowledge product")
+    write(setup, "reviewed isolated QA asset build")
+    if case in {"setup-mode", "setup-mode-both"}:
+        (tmp_path / setup).chmod(0o644)
+    if case == "lock":
+        write(lock, "unapproved dependency")
+    git("add", ".")
+    git("commit", "-m", "sealed product")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "LOCAL_KNOWLEDGE_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "LOCAL_KNOWLEDGE_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade,
+        "LOCAL_KNOWLEDGE_SETUP_BLOBS",
+        (git("rev-parse", f"{previous}:{setup}"), git("rev-parse", f"{payload}:{setup}")),
+    )
+    if case == "setup":
+        monkeypatch.setattr(upgrade, "LOCAL_KNOWLEDGE_SETUP_BLOBS", ("0" * 40, "1" * 40))
+    for name in (upgrade.MODULE, upgrade.TEST, "docs/research-web-gateway-upgrade.md"):
+        write(name, "reviewed deployment operator")
+    if case == "extra":
+        write("app/research_web/extra.py", "unreviewed app change")
+    elif case == "revert":
+        write(product, "old")
+    git("add", ".")
+    git("commit", "-m", "closed deployment operator")
+    target = git("rev-parse", "HEAD")
+    if case == "accepted":
+        reviewed = upgrade.review(tmp_path, target, "reviewed-local-knowledge-v1")
+        assert reviewed["product_tree"] == git("rev-parse", f"{payload}^{{tree}}")
+        assert set(reviewed) == {
+            "product_tree",
+            upgrade.MODULE,
+            upgrade.TEST,
+            "docs/research-web-gateway-upgrade.md",
+        }
+    else:
+        code = (
+            "install_contract_changed"
+            if case in {"setup", "setup-mode", "setup-mode-both", "lock"}
+            else "payload_changed"
+        )
+        with pytest.raises(upgrade.UpdateBlocked, match=f"local_knowledge_upgrade_{code}"):
+            upgrade.review(tmp_path, target, "reviewed-local-knowledge-v1")
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_local_knowledge_configuration_binds_origin_and_keeps_mcp_and_qa(enabled):
+    old_gateway = {
+        "revision": "old",
+        "binding": {"revision": "old"},
+        "mcp_readonly_enabled": enabled,
+        "alphadesk_qa": enabled,
+        "weknora_origin": "https://previous.invalid",
+    }
+    old_manifest = {
+        "code_commit": "old",
+        "status": "installed",
+        "alphadesk_qa": enabled,
+        "weknora_origin": "https://previous.invalid",
+    }
+    state = {
+        "mode": "reviewed-local-knowledge-v1",
+        "target": "new",
+        "manifest": old_manifest,
+        "gateway_config": old_gateway,
+    }
+    target = upgrade.target_manifest(state)
+    assert target == {
+        **old_manifest,
+        "code_commit": "new",
+        "weknora_origin": "https://mac-mini-1.tail947973.ts.net:9443",
+    }
+    gateway = upgrade.gateway_configuration(state)
+    assert gateway == {
+        **old_gateway,
+        "revision": "new",
+        "binding": {"revision": "new"},
+        "weknora_origin": "https://mac-mini-1.tail947973.ts.net:9443",
+    }
+    assert upgrade.gateway_configuration(state, previous=True) == old_gateway
+    assert not upgrade.gateway_configuration_matches(
+        state, {**gateway, "alphadesk_qa": int(enabled)}, previous=False
+    )
+    assert (
+        old_manifest["weknora_origin"]
+        == old_gateway["weknora_origin"]
+        == "https://previous.invalid"
+    )
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [("reviewed-local-knowledge-v1", True), ("reviewed-local-knowledge-v1", False)],
+    indirect=True,
+)
+@pytest.mark.parametrize("fail", [None, "verify_target"])
+def test_local_knowledge_transaction_restores_origin_and_all_account_state(real_operations, fail):
+    home, state, system, make, uid = real_operations
+    state["manifest"]["weknora_origin"] = "https://old-primary.invalid"
+    state["gateway_config"]["weknora_origin"] = "https://old-gateway.invalid"
+    upgrade.c.atomic(home / "install/manifest.json", state["manifest"])
+    upgrade.c.atomic(home / "server/resident.json", state["gateway_config"])
+    system["fail"] = fail
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == ("deployed" if fail is None else "rolled_back")
+    expected_origin = "https://mac-mini-1.tail947973.ts.net:9443"
+    manifest = upgrade.read_json(home / "install/manifest.json")
+    gateway = upgrade.read_json(home / "server/resident.json")
+    if fail:
+        assert manifest == state["manifest"]
+        assert gateway == state["gateway_config"]
+    else:
+        assert manifest["weknora_origin"] == gateway["weknora_origin"] == expected_origin
+    assert gateway["mcp_readonly_enabled"] is state["gateway_config"]["mcp_readonly_enabled"]
+    assert manifest.get("alphadesk_qa") is state["manifest"].get("alphadesk_qa")
+    assert gateway.get("alphadesk_qa") is state["gateway_config"].get("alphadesk_qa")
+    assert upgrade.asset_index_snapshot(home) == state["asset_index_before"]
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-local-knowledge-v1"], indirect=True)
+@pytest.mark.parametrize("entry", ["primary", "gateway"])
+def test_local_knowledge_refuses_an_unrequested_runtime_executor_switch(
+    real_operations, monkeypatch, entry
+):
+    home, state, _system, make, uid = real_operations
+    request = upgrade.request_json
+
+    def observed(url):
+        result = request(url)
+        endpoint = "/api/research/resident" if entry == "primary" else "/api/server/health"
+        if url.endswith(endpoint) and result.get("revision") == state["target"]:
+            return {**result, "alphadesk_qa": True}
+        return result
+
+    monkeypatch.setattr(upgrade, "request_json", observed)
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == "rolled_back"
+    assert upgrade.read_json(home / "install/manifest.json") == state["manifest"]
+
+
+@pytest.mark.parametrize(
+    "mode, previous_key, payload_key, failure_prefix",
+    [
+        (
+            upgrade.RESEARCH_BOT_MODE,
+            "RESEARCH_BOT_PREVIOUS",
+            "RESEARCH_BOT_PAYLOAD",
+            "research_bot_upgrade",
+        ),
+        (
+            upgrade.RESEARCH_BOT_V2_MODE,
+            "RESEARCH_BOT_V2_PREVIOUS",
+            "RESEARCH_BOT_V2_PAYLOAD",
+            "research_bot_upgrade",
+        ),
+        (
+            upgrade.STRATEGY_VALIDATION_MODE,
+            "STRATEGY_VALIDATION_PREVIOUS",
+            "STRATEGY_VALIDATION_PAYLOAD",
+            "strategy_validation_upgrade",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "case",
+    ["operator", "squash", "extra", "revert", "delete", "mode", "doc-mode", "missing-test", "lock"],
+)
+def test_fixed_review_checks_complete_product_tree(
+    tmp_path, monkeypatch, case, mode, previous_key, payload_key, failure_prefix
+):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    product = "app/research_web/research_bots.py"
+    docs = "docs/research-web-gateway-upgrade.md"
+    lock = "requirements/web.lock"
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    for name in (upgrade.MODULE, upgrade.TEST, product, lock):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("old")
+    git("add", ".")
+    git("commit", "-m", "resident baseline")
+    previous = git("rev-parse", "HEAD")
+    git("switch", "-c", "sealed-release")
+    (tmp_path / product).write_text("reviewed product")
+    if case == "lock":
+        (tmp_path / lock).write_text("unexpected dependency")
+    git("add", ".")
+    git("commit", "-m", "approved product")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, previous_key, previous)
+    monkeypatch.setattr(upgrade, payload_key, payload)
+    for name in (upgrade.MODULE, upgrade.TEST, docs):
+        if name == upgrade.TEST and case == "missing-test":
+            continue
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("fixed operator")
+    if case == "extra":
+        unrelated = "docs/unrelated.md" if mode == upgrade.STRATEGY_VALIDATION_MODE else "other.py"
+        (tmp_path / unrelated).write_text("outside the operator scope")
+    elif case == "revert":
+        (tmp_path / product).write_text("old")
+    elif case == "delete":
+        (tmp_path / product).unlink()
+    elif case == "mode":
+        (tmp_path / product).chmod(0o755)
+    elif case == "doc-mode":
+        (tmp_path / docs).chmod(0o755)
+    git("add", "-A")
+    git("commit", "-m", "versioned deployment operator")
+    git("switch", "master")
+    if case == "squash":
+        git("merge", "--squash", "sealed-release")
+        git("commit", "-m", "same tree without the sealed checkpoint ancestry")
+    else:
+        git("merge", "--no-ff", "--no-edit", "sealed-release")
+    target = git("rev-parse", "HEAD")
+    if case == "operator":
+        assert upgrade.review(tmp_path, target, mode) == {
+            "product_tree": git("rev-parse", f"{payload}^{{tree}}"),
+            **{
+                name: git("rev-parse", f"{target}:{name}")
+                for name in (upgrade.MODULE, upgrade.TEST, docs)
+            },
+        }
+    else:
+        code = {
+            "lock": f"{failure_prefix}_install_contract_changed",
+            "missing-test": f"{failure_prefix}_operator_missing",
+            "squash": "resident_command_failed",
+        }.get(case, f"{failure_prefix}_payload_changed")
+        with pytest.raises(upgrade.UpdateBlocked, match=code):
+            upgrade.review(tmp_path, target, mode)
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [
+        upgrade.RESEARCH_BOT_MODE,
+        upgrade.RESEARCH_BOT_V2_MODE,
+        (upgrade.STORAGE_IDENTITY_MODE, True),
+        (upgrade.STORAGE_IDENTITY_MODE, False),
+        pytest.param((upgrade.STRATEGY_VALIDATION_MODE, True), id="strategy-mcp-enabled"),
+        pytest.param((upgrade.STRATEGY_VALIDATION_MODE, False), id="strategy-mcp-disabled"),
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("fail", [None, "verify_target", "missing_entry"])
+def test_research_bot_real_transaction_preserves_mcp_and_accounts(
+    real_operations, monkeypatch, fail
+):
+    home, state, system, make, uid = real_operations
+    if fail == "missing_entry":
+        original = upgrade.request_json
+        monkeypatch.setattr(
+            upgrade,
+            "request_json",
+            lambda url: {} if url.endswith("/api/research/research-bots") else original(url),
+        )
+    else:
+        system["fail"] = fail
+    gateway_before = upgrade.read_json(home / "server/resident.json")
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    assert result["status"] == ("deployed" if fail is None else "rolled_back")
+    expected = state["target"] if fail is None else state["previous"]
+    assert system["primary"] == system["gateway"] == expected
+    assert all(timeout == 120 for _, _, timeout in system["checkout_attempts"])
+    assert upgrade.read_json(home / "server/resident.json") == {
+        **gateway_before,
+        "revision": expected,
+        "binding": {**gateway_before["binding"], "revision": expected},
+    }
+    assert upgrade.asset_index_snapshot(home) == state["asset_index_before"]
+
+
+@pytest.mark.parametrize(
+    "real_operations", [upgrade.RESEARCH_BOT_MODE, upgrade.RESEARCH_BOT_V2_MODE], indirect=True
+)
+@pytest.mark.parametrize(
+    "where,bad", [("remote", None), ("remote", 1), ("remote", False), ("local", False)]
+)
+def test_research_bot_requires_strict_mcp_attestation_on_both_ports(
+    real_operations, monkeypatch, where, bad
+):
+    _home, _state, _system, make, _uid = real_operations
+    ops = make(None)
+    assert ops.research_bot_gateway_health(previous=True, fenced=False) is True
+    if where == "local":
+        original_local = upgrade.read_event_gateway_health
+        monkeypatch.setattr(
+            upgrade,
+            "read_event_gateway_health",
+            lambda config: {**original_local(config), "mcp_readonly_enabled": bad},
+        )
+    else:
+        original_remote = upgrade.request_json
+        monkeypatch.setattr(
+            upgrade,
+            "request_json",
+            lambda url: {**original_remote(url), "mcp_readonly_enabled": bad},
+        )
+    with pytest.raises(upgrade.UpdateBlocked, match="research_bot_upgrade_mcp_runtime_unverified"):
+        ops.research_bot_gateway_health(previous=True, fenced=False)
+
+
+@pytest.mark.parametrize(
+    "config,code",
+    [
+        ({"service_only": True}, "research_bot_upgrade_gateway_not_embedded"),
+        ({"service_only": 0}, "research_bot_upgrade_gateway_execution_invalid"),
+        ({"weknora_oauth_origin": None}, "research_bot_upgrade_gateway_execution_invalid"),
+    ],
+)
+def test_research_bot_rejects_settings_that_new_gateway_would_activate(config, code):
+    upgrade.verify_research_bot_execution({"mcp_readonly_enabled": True, "service_only": False})
+    with pytest.raises(upgrade.UpdateBlocked, match=code):
+        upgrade.verify_research_bot_execution({"mcp_readonly_enabled": True, **config})
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_storage_identity_profile_keeps_exact_gateway_setting(enabled):
+    mode = "reviewed-resident-storage-identity-v1"
+    assert upgrade.previous_for(mode) == upgrade.STORAGE_IDENTITY_PREVIOUS
+    assert mode in upgrade.ASSET_MODES
+    assert mode not in upgrade.EVENT_PRESERVATION_MODES | upgrade.TRIAL_MODES
+    old = {"revision": "old", "binding": {"revision": "old"}, "mcp_readonly_enabled": enabled}
+    state = {"mode": mode, "target": "new", "gateway_config": old}
+    target = upgrade.gateway_configuration(state)
+    assert target["mcp_readonly_enabled"] is enabled
+    assert upgrade.gateway_configuration(state, previous=True) == old
+    assert not upgrade.gateway_configuration_matches(
+        state, {**target, "mcp_readonly_enabled": int(enabled)}, previous=False
+    )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "accepted",
+        "baseline-extra",
+        "baseline-code",
+        "baseline-removed",
+        "executor-extra",
+        "executor-doc",
+    ],
+)
+def test_storage_identity_review_binds_published_product(tmp_path, monkeypatch, change):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    def write(name, body):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    product = "app/research_web/multiuser/resident.py"
+    operator_doc = "docs/research-web-gateway-upgrade.md"
+    for name in (upgrade.MODULE, upgrade.TEST, product, operator_doc):
+        write(name, "old")
+    git("add", ".")
+    git("commit", "-m", "original product base")
+    original_base = git("rev-parse", "HEAD")
+    write(product, "reviewed storage identity")
+    write(operator_doc, "published document")
+    git("add", ".")
+    git("commit", "-m", "published product")
+    published = git("rev-parse", "HEAD")
+    git("switch", "-c", "accepted", original_base)
+    write("approved_previous.py", "part of the accepted release")
+    git("add", ".")
+    git("commit", "-m", "accepted release")
+    previous = git("rev-parse", "HEAD")
+    git("merge", "--no-ff", "-m", "refresh with the accepted release", published)
+    write(operator_doc, "reviewed merged documentation")
+    if change == "baseline-extra":
+        write("unexpected.py", "unreviewed drift")
+    elif change == "baseline-code":
+        write(product, "altered published code")
+    elif change == "baseline-removed":
+        write(product, "old")
+    git("add", ".")
+    git("commit", "-m", "freeze refreshed product")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PREVIOUS", previous, raising=False)
+    monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PAYLOAD", payload, raising=False)
+    monkeypatch.setattr(upgrade, "STORAGE_IDENTITY_PUBLISHED_PRODUCT", published, raising=False)
+    for name in (upgrade.MODULE, upgrade.TEST, operator_doc):
+        write(name, "fixed deployment operator")
+    if change == "executor-extra":
+        write(product, "unexpected executor product change")
+    elif change == "executor-doc":
+        write("docs/unrelated.md", "unrelated executor document")
+    git("add", ".")
+    git("commit", "-m", "versioned operator")
+    target = git("rev-parse", "HEAD")
+    mode = "reviewed-resident-storage-identity-v1"
+    if change == "accepted":
+        result = upgrade.review(tmp_path, target, mode)
+        assert result == {
+            "product_tree": git("rev-parse", f"{payload}^{{tree}}"),
+            **{
+                name: git("rev-parse", f"{target}:{name}")
+                for name in (upgrade.MODULE, upgrade.TEST, operator_doc)
+            },
+        }
+    else:
+        code = (
+            "storage_identity_upgrade_product_scope_changed"
+            if change.startswith("baseline-")
+            else "storage_identity_upgrade_payload_changed"
+        )
+        with pytest.raises(upgrade.UpdateBlocked, match=code):
+            upgrade.review(tmp_path, target, mode)
+
+
+def test_storage_identity_apply_dispatches_to_fixed_profile(tmp_path, monkeypatch):
+    (tmp_path / "logs").mkdir()
+    observed = []
+
+    def operate(home, source, *, recovering, mode):
+        observed.append((home, source, recovering, mode))
+        return {"status": "deferred"}
+
+    monkeypatch.setattr(upgrade, "operate", operate)
+    source = tmp_path / "candidate"
+    upgrade.main(
+        ["apply-resident-storage-identity", "--home", str(tmp_path), "--source", str(source)]
+    )
+    assert observed == [(tmp_path, source, False, upgrade.STORAGE_IDENTITY_MODE)]

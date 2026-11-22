@@ -1,5 +1,11 @@
 # 能力包、版本与原生调用
 
+Python工具目录同步既有原生输入元数据：DataHub用途／质量／历史时点及脚本 `code`／`report_plan` 二选一。固定DSH注册夹具包含实际ask-user与specialists插件，独立无DSH回归核对本地runtime参数；这些声明不创建grant、不升级质量，也不改变执行权限或研究拓扑。
+
+当前知识工具 `research_search_knowledge`／`research_read_knowledge` 登记在原能力目录，经可信session和DataKey调用Host；模型不能配置库、改root、启用同步或冻结证据。入站四项只读MCP、技能／Workflow发布和版本门保持，固定报告仍须批准scope。见[资料合同](../../research-web-weknora.md)。
+
+Host 批准的单轮研究继续使用同一 query／hit_id 工具，不注册同名 operation／document／chunk 版本。正式范围与原生请求只由已持久化 grant 和可信执行元数据确定，子会话、过期或取消调用拒绝且不降级 current；普通 current 的工具参数与权限保持。[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)
+
 能力中心的用户分类固定为 **技能、连接器、插件**：技能统一展示 Skill、通用步骤模板和历史方法；连接器管理现有 MCP、DataHub 来源和本机集成；插件沿用受审业务包管理。Tool 在关联条目详情展示 ID、权限和可选状态，不再作为主分类。MCP 是连接器的一种协议，插件是可含技能与连接器的分发包，两者不重复安装或复制凭据。
 
 方法不再有独立页面或选择器。历史 `kind=method`、稳定 ID、不可变版本、`method_ids`、最多三项组合、采用记录和权限门继续有效；复制内置方法生成普通 Skill 草稿，保留程序、输入输出和检查标准，须经原检查与发布流程。副本不继承方法采用记录身份，原版本不改写。普通 Workflow 在技能中展示，报告专属流程仍从报告生产进入；定时任务以 `#/automations` 薄入口复用原调度。

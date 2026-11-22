@@ -1,8 +1,10 @@
 # Research Web 文档门禁与安全入口
 
+API Atlas 为[策略验证](research-web-strategy-validation.md)单独归类上传、运行、历史和逐笔分页接口。
+
 ## WeKnora 模块文档（2026-11-06）
 
-当前新增资料适配在[专项合同](research-web-weknora.md)和图04登记。API清单扫描真实字面量路由，模块图元绑定源码；图示新边不表示第三方服务已经部署。既有只读 HTML 入口与白名单不扩大，Atlas 只在真实源码提交 pin 后生成。UI零生成受阻与 Go／真实报告 NOT_RUN 应保留在同版本任务报告。
+资料适配在[专项合同](research-web-weknora.md)和图04登记，现含固定本机目录、账号同步SQLite、会话命中／冻结及本机Embedding边。API清单扫描真实字面量路由，模块图元绑定源码；图示不代替实际恢复、模型／零生成、浏览器或报告验收。既有只读 HTML 入口与白名单不扩大，Atlas源码链接只绑定真实提交；未提交候选与实际运行状态由同版本任务报告分别说明，旧失败与未知证据保留。
 
 ## 事件研究文档与固定视图（2026-11-04）
 
@@ -99,6 +101,16 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
   `../`、非规范别名和其他文件名在读取前即被拒绝。
 - 视觉回执必须绑定当前 HTML，四个固定视口 1440×900 / 1600×1000 / 1920×1080 /
   2048×1320 包含性通过；截图存在。人工记录独立绑定同一 JSON/HTML 哈希与实际查看截图。
+  旧式 strict 页面继续要求横纵向均无溢出。仅已知 Reader 的
+  `fit-or-reader-declared-readable-vertical-scroll` 合同可接受可读纵滚：须同时为
+  `adaptive`／`intrinsic-height`，真实超高时明确 `authored`、
+  `verticalScrollAccepted` 及 `readable-vertical-scroll`，尺寸、正文高度与溢出标志须为有限、
+  自洽的实际度量。四个固定视口仍逐一核对且横向零溢出；节点／上下文与边标签的实际投影字号
+  不低于6px；回执须为 `read`／`still` 状态且Chrome可用，readability／viewerChrome、
+  legend／dock不相交及至少10px舞台间距均须通过。
+  同图源／HTML、当前provenance、deliver身份、四视口记录、截图字节哈希和实际看图审阅继续绑定；
+  普通 `ok: true` 或单一布尔声明不能放行。实际浏览器还须确认内容可滚到底、末端节点与文字可达，
+  无 `overflow: hidden`／clip 截断或dock遮挡；不同Reader显示状态的高度分别留证，不改写原始回执来对齐。
 - 检查当前 canonical/module Markdown 和生成 index.html 的本地链接；不扩展为清理历史文档。
 - 检查根 `README.md` 的本地链接；触发代码/包清单改动时核对 README 复核回执是否进入变更集，
   并验证 `updated` 与 README 变更之间的条件关系。

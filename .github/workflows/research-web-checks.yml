@@ -4,6 +4,20 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
@@ -25,6 +39,20 @@ on:
     branches:
       - master
     paths:
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
@@ -108,16 +136,31 @@ jobs:
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
             -- \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_docker_build_queue.py \
             tests/research_web/test_api.py \
+            tests/research_web/test_research_bots.py \
+            tests/research_web/test_automation_routes.py \
+            tests/research_web/test_automation_schedule.py \
+            tests/research_web/test_automation_research_task.py \
+            tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities \
             tests/research_web/test_weknora_client.py \
             tests/research_web/test_weknora_service.py \
             tests/research_web/test_weknora_api.py \
+            tests/research_web/test_weknora_formal_scope.py \
+            tests/research_web/test_store.py \
+            tests/research_web/test_capabilities_native.py \
             tests/research_web/test_weknora_integrity.py \
             tests/research_web/test_weknora_candidate.py \
             tests/research_web/test_weknora_upstream_patch.py \
             tests/research_web/test_weknora_retrieval_profile.py \
             tests/research_web/test_weknora_cli.py \
             tests/research_web/test_weknora_kb_settings_patch.py \
+            tests/research_web/test_weknora_sync.py \
+            tests/research_web/test_weknora_sync_scaling.py \
+            tests/research_web/test_weknora_sync_client.py \
+            tests/research_web/test_weknora_current.py \
+            tests/research_web/test_weknora_current_api.py \
+            tests/research_web/test_weknora_plain_text.py \
             tests/research_web/test_event_api.py \
             tests/research_web/test_event_datahub_bridge.py \
             tests/research_web/test_event_studies.py \
@@ -128,6 +171,8 @@ jobs:
             tests/research_web/test_event_studies_scoring.py \
             tests/research_web/test_event_studies_service.py \
             tests/research_web/test_event_studies_validation.py \
+            tests/research_web/test_strategy_validation_engine.py \
+            tests/research_web/test_strategy_validation_api.py \
             tests/research_web/test_event_timeline.py \
             tests/research_web/test_event_timeline_relevance.py \
             tests/research_web/test_event_timeline_scheduler.py \
@@ -159,6 +204,9 @@ jobs:
             tests/research_web/test_mcp_transport.py \
             tests/research_web/test_model_profiles.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
+            tests/research_web/test_alphadesk_qa.py \
+            tests/research_web/test_alphadesk_qa_formats.py \
+            tests/research_web/test_qa_acceptance_budget.py \
             tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \
             tests/research_web/test_specialists.py \
@@ -219,6 +267,7 @@ jobs:
             tests/research_web/test_iteration_resources.py \
             tests/research_web/test_test_artifact_retention.py \
             tests/research_web/test_docker_resources.py \
+            tests/research_web/test_docker_manager.py \
             tests/research_web/test_market_provider.py \
             tests/research_web/test_market_service.py \
             tests/research_web/test_market_financial_calendar.py \
@@ -276,6 +325,7 @@ jobs:
             tests/research_web/test_ai_news_eval.py \
             tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
+            tests/research_web/test_resident_volume_identity.py tests/research_web/test_gateway_source.py \
             tests/research_web/test_delivery_transfer.py \
             tests/research_web/test_source_inventory.py \
             tests/research_web/test_maintenance_job_identity_v3.py \
@@ -305,6 +355,7 @@ jobs:
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
             -- \
             tests/unit/test_wind_excel_instances.py \
+            tests/unit/test_fingpt_legacy_cutover.py \
             tests/unit/test_ci_pytest_partitions.py \
             tests/unit/test_research_web_test_env.py \
             tests/unit/test_ci_pytest_evidence_staging.py \
@@ -312,7 +363,7 @@ jobs:
 
       - name: Run Research Web JavaScript contracts
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
 
       - name: Verify pinned editorial engine without model or paid requests
         run: |

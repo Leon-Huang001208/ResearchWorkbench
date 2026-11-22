@@ -1,5 +1,43 @@
 # 研究协议、执行状态与恢复
 
+五个附接 MCP 保全模式的 forward apply 在最终 GitHub 候选证据核对后、`execute` 前，
+于既有 BirthFence SQLite EX／安装作用域内校验配置并调用 `ops.verify(previous=True)`。
+其非完成后回滚的 preparing 恢复不再走围栏外提前返回，须在同一围栏内完成相同复核，
+成功才删除原准备 journal。复核失败不进入 stop／checkpoint／切源；Trial、完成后回滚和
+其他恢复阶段保持原语义，不新建运行状态机或重放研究。见[模式范围](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+管理员队列请求可以持久等待并按固定提交归档恢复；`waiting_resources`/exit75 不代表研究、
+构建或交付通过。已有结果先对账，缺回执且 owner 消失保持 unknown、不自动重建；
+该控制路径不提交模型、供应商或业务恢复，原研究会话与授权不变。
+
+`reviewed-local-knowledge-v1` 在 `operate`、`prepare_fence` 和 `checkpoint` 传递同一模式核对私网路由。
+预检识别固定知识库入口后，维护和切换阶段仍重验同一配置；漂移继续沿原三锁、BirthFence和恢复事务处理。
+路由检查不提交研究、重发未知请求或改变现有模型与后台日程，其他升级模式沿原路由合同。
+
+中断的 stage 注册在四个已归属空卷和原隔离网络上接续，研究进程仍由原镜像的 supervisor 启动。
+
+Stage 的 `owner-handoff` 只退休停止实例的预留；后续研究仍由原 Host 与 DSH 执行，业务未完成状态随交接保留。
+
+FinGPT 显式回滚与原切换共用维护锁和准入围栏。回滚中断时由联合恢复入口接续，旧主实例控制器不会接管该事务。
+
+Native 退役复核在共享持有原部署准入锁时检查正在监听的 Web PID、实际报告的 revision 与已验收版本一致，并要求没有未完成部署事务。一次最多清理一个已验证 Git 任务，失败单独记录为待处理，既有研究运行与上线状态继续按原回执判定。
+
+策略验证的固定版本切换复用 Native 空闲见证与回滚。正式回放在联合事务验收后从登录页面显式提交。
+
+受管 Docker 开发实例的运行和恢复核对实例固定的 SHA-256 镜像 ID。再次构建更新开发入口登记，既有实例仍使用原登记。
+
+策略验证是明确用户动作驱动的 Host 计算，数据和结果由账号存储绑定，运行计入 Host 活动见证。DSH 仍负责会话推理。参见[策略验证](../../research-web-strategy-validation.md)。
+
+Radar 时效升级保全既有 Bot 的停用状态和历史，再在同一账号内进行授权的手动与定时复测。
+
+Research Bot 在建立 DSH 会话前验证 Radar 缓存标志或有效的批次生成时点。来源证据与定义、资料指纹一起留档，抓取时钟不参与资料变化判断。
+
+Research Bot 常驻切换沿现有研究活动准入、三锁及 BirthFence。只有已接受前版和经 CI 核实的冻结产品可进入事务。
+
+Research Bot 以 5–1440 分钟的专用间隔复用 Automation。触发时校验定义版本并冻结资料，在原生提交前记录运行与会话身份。相同已验证原件跳过模型，受理未知留在运行历史供核对，技能加载以原生回执验证。
+
+APFS 修复只更新已登记根的设备号。Web 和 DSH 的所有权检查、进程运行及启动重试仍由原 supervisor 和网关执行。
+
 财经日历按需读取不创建研究会话、运行协议事件或 DSH 任务；账号 Host 关闭时排空本模块的在途请求。
 
 一次性公开资料预检／导入复用个人Host证据与幂等规则，不调用模型或更改研究运行授权。
@@ -15,7 +53,7 @@
 
 ## 资料读取与报告 scope（2026-11-06）
 
-新增资料适配不提交研究、不调用生成模型、不建立调度循环。既有内部 DataKey 只向 scope 必填的 `knowledge-query`／`knowledge-read` 回调开放有界读取；绑定、时间批准、范围创建和证据冻结均留在独立认证用户操作。请求前后核验 WeKnora 当前用户与空间，scope 锁定的原件或分块变化即拒绝；不以空间 API Key 代替真人权限。DSH 官方插件未激活，外部宿主真实交接和原周报完整生产仍独立验收。[合同](../../research-web-weknora.md)
+资料同步worker由原Host启动／关闭，60秒巡检只恢复明确启用的资料配置，不开启其他Automation或提交研究。`research_search_knowledge`／`research_read_knowledge` 沿原DataKey、guard和可信session回调执行，始终使用 query／hit_id 协议。正式单轮由Host持久grant选择已批准scope，核对可信原生caller、根会话首turn及requestId，并在异步读取后重验；拒绝不回退普通current。绑定、同步启停／手动扫描、时间批准、范围创建和证据冻结均留在认证用户明确操作。请求前后核验WeKnora当前用户与空间，原件和分块变化被拒绝或作为回执状态明示；不以空间API Key代替真人权限。真实宿主、模型和原周报完整生产独立验收。[合同](../../research-web-weknora.md)
 
 统一导航部署保留Native真实空list、Host明确False及全账号后台／市场inflight门，未知或活动延后。前进、恢复和回滚重验同一事件日程disabled证明，不提交研究、重发未知操作或启用采集。
 
@@ -871,3 +909,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 WeKnora 客户端经入站 MCP 获取批准的只读材料。RWB 不为该客户端启动内置 DSH。
 
 主账号单 Web 模式持有原 supervisor 和 lifecycle 锁，旧 Native 双进程停止且归属明确后才启动。
+
+AlphaDesk 会话由 Host 管理任务状态和独立报告验收。进程重启后，未终结任务显示中断，需核对原受理结果。

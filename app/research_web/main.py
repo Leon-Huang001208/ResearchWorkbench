@@ -64,14 +64,20 @@ from .operations import router as operations_router
 from .plugin_routes import router as plugin_router
 from .plugins.runtime_restart import router as plugin_runtime_router
 from .portfolio_decisions.routes import router as portfolio_decisions_router
+from .qa_attachments import ATTACHMENT_EXTENSIONS as QA_ATTACHMENT_EXTENSIONS
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
 from .report_workflow_routes import router as report_workflow_router
 from .report_workflows.models import WorkflowError
+from .research_bot_diagnostics import diagnostic as research_bot_diagnostic
+from .research_bots import research_bot_configuration
+from .research_bots import router as research_bots_router
 from .service import ResearchService
 from .specialists.contracts import Budget as SpecialistBudget
 from .specialists.routes import router as specialists_router
 from .store import Store, StoreError
+from .strategy_validation.routes import active as strategy_validation_active
+from .strategy_validation.routes import router as strategy_validation_router
 from .tabbit import TabbitError
 from .tenant_policy import check_request as check_tenant_request
 from .tenant_policy import enabled as tenant_mode_enabled
@@ -121,6 +127,7 @@ class TabbitTabRef(BaseModel):
 
 
 class Prompt(BaseModel):
+    knowledge_scope_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     dossier_handoff_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     text: str = Field(min_length=1, max_length=100000)
     research_mode: Literal["quick", "deep", "agent", "specialist"] | None = None
@@ -256,6 +263,7 @@ _SERVICE_ONLY_READ = frozenset(
         "sessions",
         "knowledge",
         "knowledge/bases",
+        "knowledge/sync",
         "capabilities",
         "tools",
         "workflows",
@@ -276,10 +284,13 @@ _SERVICE_ONLY_READ_PATTERN = re.compile(
 _SERVICE_ONLY_KNOWLEDGE_POST = frozenset(
     {
         "knowledge/binding",
+        "knowledge/login",
         "knowledge/scopes",
         "knowledge/search",
         "knowledge/read",
         "knowledge/freeze",
+        "knowledge/sync/config",
+        "knowledge/sync/scan",
     }
 )
 
@@ -384,10 +395,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
     app.include_router(automation_router)
+    app.include_router(research_bots_router)
     app.include_router(claw_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(portfolio_decisions_router)
+    app.include_router(strategy_validation_router)
     app.include_router(report_workflow_router)
     # Legacy report-project paths remain readable, but the versioned Workflow
     # runtime owns overlapping /report-runs paths.
@@ -464,6 +477,17 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
 
         async def dispatch():
+            from .qa_execution import retired
+
+            match = re.match(r"/api/research/sessions/([a-f0-9-]{36})(?:/|$)", request.url.path)
+            if match:
+                active = request.app.state.research
+                row = active.store.data["sessions"].get(match[1])
+                if row and retired(active, row):
+                    return JSONResponse(
+                        {"error": {"code": "fingpt_retired", "message": "旧 FinGPT 会话已退役"}},
+                        status_code=410,
+                    )
             if service_only and not _service_only_route_allowed(request.method, request.url.path):
                 log.warning("embedded_research_route_denied", method=request.method)
                 return JSONResponse(
@@ -481,6 +505,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     "/api/research/events",
                     "/api/research/event-studies",
                     "/api/research/market-scores",
+                    "/api/research/research-bots",
                 )
             )
             if research_write and request.headers.get("X-Research-User-Action") != "?1":
@@ -576,9 +601,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/resident")
     async def resident_status(request: Request):
+        from .qa_execution import enabled as alphadesk_qa_enabled
+
         setting = os.environ.get("RESEARCH_RESIDENT_HOME")
         revision = os.environ.get("RESEARCH_RESIDENT_REVISION", "")
         research = getattr(request.app.state, "research", None)
+        qa_enabled = research is not None and alphadesk_qa_enabled(research)
         active = None
         activity = None
         if research is not None:
@@ -645,7 +673,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
             observations = {}
             for name, check in (
-                ("research_tasks", lambda: any(research.running.values())),
+                (
+                    "research_tasks",
+                    lambda: any(research.running.values())
+                    or (qa_enabled and bool(research.qa.tasks)),
+                ),
                 ("approvals", lambda: bool(research.approvals)),
                 ("questions", lambda: bool(research.questions)),
                 ("source_requests", lambda: bool(research.source_requests)),
@@ -654,6 +686,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     lambda: research.event_timeline.active or research.event_collection.active,
                 ),
                 ("event_studies", lambda: research.studies.active),
+                ("strategy_validation", strategy_validation_active),
                 ("event_inputs", lambda: research.event_inputs.active),
                 (
                     "automation_runs",
@@ -721,6 +754,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
             "active": active,
         }
+        if setting and qa_enabled:
+            result["alphadesk_qa"] = True
         if activity is not None:
             result["activity_witness"] = activity
         return result
@@ -817,7 +852,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/runtime")
     async def runtime(request: Request):
-        return {**await svc(request).runtime(), "web_access": access}
+        research = svc(request)
+        return {
+            **await research.runtime(),
+            "web_access": access,
+            "research_bot": research_bot_diagnostic(research_bot_configuration(research)),
+        }
 
     @app.get("/api/research/models")
     async def models(request: Request):
@@ -929,7 +969,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         service = svc(request)
         await service.ensure_owned()
         row = service.store.session(sid)
-        await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
+        if row.get("execution_engine") != "alphadesk":
+            await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
         row["title"] = body.title
         service.store.save()
         return service.summary(row)
@@ -955,6 +996,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     ):
         if not body.text.strip():
             raise StoreError("问题不能为空")
+        if body.knowledge_scope_id and request.headers.get("X-Research-User-Action") != "?1":
+            raise StoreError("需要明确用户操作", "knowledge_user_action_required", 403)
         return await svc(request).send(
             sid,
             body.text,
@@ -972,6 +1015,14 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             research_requirements=body.research_requirements,
             research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
             dossier_handoff_id=body.dossier_handoff_id,
+            knowledge_scope_id=body.knowledge_scope_id,
+            knowledge_request_digest=(
+                hashlib.sha256(
+                    json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()
+                ).hexdigest()
+                if body.knowledge_scope_id
+                else None
+            ),
             specialist_budget=(
                 body.specialist_budget.model_dump() if body.specialist_budget else None
             ),
@@ -992,7 +1043,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.post("/api/research/sessions/{sid}/upgrade")
     async def upgrade(sid: str, request: Request):
         service = svc(request)
+        if service.store.session(sid).get("knowledge_single_turn"):
+            raise StoreError("资料会话仅可回看", "knowledge_session_sealed", 409)
         old = await service.detail(sid)
+        if service.store.session(sid).get("knowledge_single_turn"):
+            raise StoreError("资料会话仅可回看", "knowledge_session_sealed", 409)
         new = await service.create("claw", old["title"])
         # Draft is carried into the composer, not submitted or forked across cwd boundaries.
         new["draft"] = "继续研究以下会话：\n" + "\n\n".join(
@@ -1086,7 +1141,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         for upload in files:
             name = Path(upload.filename or "").name
             extension = Path(name).suffix.lower()
-            if extension not in UPLOAD_EXTENSIONS:
+            row = store.session(sid)
+            allowed = (
+                QA_ATTACHMENT_EXTENSIONS
+                if row.get("execution_engine") == "alphadesk"
+                else UPLOAD_EXTENSIONS
+            )
+            if extension not in allowed:
                 raise StoreError("不支持的附件格式")
             safe_name = re.sub(r"[^\w.\-\u4e00-\u9fff]", "_", name)[:160]
             path = root / f"{uuid4().hex[:12]}-{safe_name}"
@@ -1138,6 +1199,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     409,
                 )
             detail = await service.detail(sid)
+            if (
+                detail.get("execution_engine") == "alphadesk"
+                and not relative.startswith("outputs/report-versions/")
+                and (detail.get("research_report_delivery") or {}).get("status") != "bound"
+            ):
+                raise StoreError("本轮报告尚未完成交付核验", "qa_report_unverified", 409)
             if (detail.get("research_quality") or {}).get("status") == "invalid":
                 raise StoreError("报告完整性检查未通过，暂不能交付", "research_report_invalid", 409)
         stream, name = svc(request).store.open_file(sid, fid)
@@ -1187,7 +1254,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/skills")
     async def skills(request: Request):
         service = svc(request)
-        rows = [row for row in service.store.data["sessions"].values() if row["created"]]
+        rows = [
+            row
+            for row in service.store.data["sessions"].values()
+            if row["created"] and row.get("execution_engine") != "alphadesk"
+        ]
         if not rows:
             return {"items": []}
         result = await service.skill_catalog(rows[-1]["id"])
@@ -1198,6 +1269,17 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         app.mount(
             "/frameworks-embed", StaticFiles(directory=EMBEDS, html=True), name="frameworks-embed"
         )
+
+    from .qa_assets import qa_assets_root
+
+    qa_root = qa_assets_root(UI.parent)
+    if qa_root:
+        app.mount("/static/qa-dist", StaticFiles(directory=qa_root), name="qa-static")
+    else:
+
+        @app.get("/static/qa-dist/{name:path}")
+        async def unavailable_qa_asset(name: str):
+            return JSONResponse({"error": {"code": "qa_assets_unavailable"}}, status_code=503)
 
     if UI.exists():
         app.mount("/static", StaticFiles(directory=UI), name="static")

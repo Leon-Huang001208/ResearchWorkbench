@@ -1,5 +1,44 @@
 # 部署与模块职责
 
+附接 MCP 保全的两处复核仍在原 Native 联合操作员、BirthFence SQLite EX 和安装作用域内完成。
+当前五模式的 forward apply／限定 preparing 恢复复核前版后才推进，失败保留准备 journal；
+Trial、完成后回滚和其他阶段保持原职责。主实例、附接网关、账号 Host、唯一 DSH 及部署图
+节点均不变，详见[围栏内复核](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+管理员持久构建队列沿原 `rwb-docker` 管理平面、操作锁和 builder 执行，不增加业务节点、
+Web API 或常驻调度器；业务容器、网络、Native/DSH及 owner-handoff 生命周期保持。
+本次不修改 Docker 内存设置，实际构建/健康仍须另验。见[管理合同](../../research-web-docker.md#持久构建队列)。
+
+单轮资料范围授权仍由原账号 Host 接收明确首条消息，在原 Store 提交回执保存 grant，再由唯一 DSH 的 query／hit_id 工具读取。它增加原 Host 内的原生根会话／首 turn／requestId 复核分支，未新增服务、数据库或执行器；普通 current 同步和既有报告职责保持。来源、图文与真实验收分别记录，见[单轮资料合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
+本地知识库 Native 升级在既有私网入口中核对443 RWB、9443 WeKnora和可选8443 SuperAgent。
+WeKnora仍由原前端18181提供，SuperAgent仍由8097提供；这是维护操作员对既有部署的核验，
+不增加代理节点、研究执行器或监听端口。完整路由约束见[部署合同](../../research-web-gateway-upgrade.md#rwb-本地知识库受管升级)。
+
+Stage 注册在既有 Docker 管理器内支持显式网段和原空资源接续，资源及运行拓扑继续按原账本管理。
+
+Stage 业主交接位于现有 Docker 管理器与管理员操作锁内，独立记录预留交接和业务未完成状态。
+
+FinGPT 完成切换后的显式回滚沿现有 Native 联合事务同时恢复本机与私网网关的前一版本及配置。
+
+Native resident 在既有上线验收后复核实际运行版本，再对已绑定 Git 源仓库内的白名单工作树执行退役检查。沿现有准入锁和 Git 管理命令处理，无新增服务、端口或部署节点。
+
+策略验证随 Web Host 轮子进入 Native 主实例，附接网关在同一受管事务更新版本，继续使用既有端口和已绑定账号。
+
+Docker 开发构建给输出镜像加 `development` 用途标签。控制器继续按完整镜像 ID 管理实例，Mac Native 主实例沿既有安装入口运行。
+
+Web Host 内的策略验证读取当前账号冻结日线，按人工配置计算回放结果。浏览器使用既有同源 HTTP，导入和运行参加 Host 维护准入。参见[策略验证](../../research-web-strategy-validation.md)。
+
+Radar 时效升级依次校验 Native 主实例和附着网关版本，复用已接受前版、原启动配置和联合回滚。
+
+Research Bot 的 Radar 准入沿既有本机 Host 和读取适配器。运行历史可核查采用的缓存标志或源批次时点。
+
+Research Bot 受管运行在原 Mac Native 主实例和附着网关。操作员依次切换及验证两角色，发现失败时从既有部署事务回滚。
+
+Research Bot 页面和专用 API 运行在既有本机 Web Host 内，沿原 Automation、Store 和 DSH 运行。仅服务及私网租户 Host 拒绝该入口。
+
+macOS 登录控制面增加 APFS 身份修复作业，与原 Native 和网关 LaunchAgent 独立调度。它不接收业务流量。
+
 财经日历部署在原 Web 静态入口和现有账号 Host 内，固定公共宏观来源由 DataHub 读取；无新增服务或监听端口。
 
 市场新增逐日总览和账号内首批数据操作，仍沿既有Web壳、私网网关和个人Host，不新增运行服务。
@@ -15,7 +54,7 @@ global-v1 是现有公开来源适配中的独立九指数合同，不新增服�
 
 ## 可选外部资料服务（2026-11-06）
 
-账号 Host 内新增 `knowledge_backend/` 薄适配，按原生用户 JWT 访问固定 WeKnora v0.9.0 origin；默认未配置，不启动外部服务或第二执行器。WeKnora 是研究资料原件／索引的目标边界，金融快照、模板和正式成果保留 RWB。新增网络与冻结数据边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开；Native／Docker、私网网关及唯一 DSH 的既有运行角色不变。0002实例级只检索profile只有源码实现；部署、UI零生成、业务替换均未由源码认证。[合同](../../research-web-weknora.md)
+账号 Host 的 `knowledge_backend/` 按原生用户JWT访问固定WeKnora v0.9.0 origin，默认未配置。明确启用后由原Host生命周期每60秒同步固定本机目录，逐账号SQLite保存快照／版本，当前检索产生会话回执；本机Ollama仅承担Embedding，云端研究宿主只接必要片段。WeKnora原实例、目录／账号状态与回执冻结边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开。金融快照、模板和正式成果继续由RWB管理，私网网关和既有研究执行角色保持。冷备恢复、实际模型、零生成和业务替换分别留证，不能由配置或源码认证。[合同](../../research-web-weknora.md)
 
 统一导航固定profile复用既有Native primary、私网gateway和恢复事务；只在原操作员加入5ff→b192身份，不新增服务／端口／运行节点。controller及自动名单不变；不采用缺全账号原子保全的旧static-ui分步路径。
 
@@ -721,3 +760,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 仅服务网关可显式登记隔离 WeKnora 客户端。该客户端复用现有 OAuth 服务与冻结 MCP 读取边界。
 
 常驻仅服务网关可在持有原生命周期锁时原位使用主账号资料，保持同一私网入口与同一账户库。主 Web 子进程也持有该锁，直到实际退出。
+
+AI 问答候选在现有 Host 内管理账号、证据和回执，通过私有管道启动 AlphaDesk Node 工作进程。专业协作和 Claw 的执行仍由 DSH 管理。

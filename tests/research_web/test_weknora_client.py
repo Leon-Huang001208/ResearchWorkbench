@@ -61,6 +61,99 @@ def run(awaitable):
     return asyncio.run(awaitable)
 
 
+def login_payload():
+    return {
+        "success": True,
+        "user": {"id": "u1", "is_active": True},
+        "active_tenant": {"id": 102},
+        "memberships": [{"tenant_id": 102, "role": "owner"}],
+        "token": jwt(),
+        "refresh_token": "refresh-canary",
+    }
+
+
+def test_login_protocol_uses_fixed_origin_and_pinned_dto_forms(caplog):
+    for wrapped in (False, True):
+        requests = []
+
+        def handle(request, requests=requests, wrapped=wrapped):
+            requests.append(request)
+            assert request.url == ORIGIN + "/api/v1/auth/login"
+            assert json.loads(request.content) == {
+                "email": "real-user@example.test",
+                "password": "password-canary",
+            }
+            assert "Authorization" not in request.headers and "X-API-Key" not in request.headers
+            payload = login_payload()
+            return httpx.Response(
+                200, json={"success": True, "data": payload} if wrapped else payload
+            )
+
+        result = run(
+            WeKnoraClient.login(
+                ORIGIN,
+                "real-user@example.test",
+                "password-canary",
+                transport=httpx.MockTransport(handle),
+            )
+        )
+        assert result == {"token": jwt(), "workspace_id": "102", "user_id": "u1"}
+        assert len(requests) == 1
+    assert "real-user@example.test" not in caplog.text and "password-canary" not in caplog.text
+    assert jwt() not in caplog.text
+
+
+def test_login_never_follows_redirect_or_returns_upstream_secrets(caplog):
+    for status in (401, 302):
+        calls = []
+
+        def handle(request, calls=calls, status=status):
+            calls.append(request)
+            return httpx.Response(
+                status,
+                headers={"location": "https://attacker.invalid/login"},
+                text="real-user@example.test password-canary token-canary",
+            )
+
+        with pytest.raises(StoreError) as error:
+            run(
+                WeKnoraClient.login(
+                    ORIGIN,
+                    "real-user@example.test",
+                    "password-canary",
+                    transport=httpx.MockTransport(handle),
+                )
+            )
+        assert len(calls) == 1
+        assert "canary" not in str(error.value) and "real-user" not in str(error.value)
+    assert "password-canary" not in caplog.text and "token-canary" not in caplog.text
+
+
+def test_login_rejects_unsafe_origin_and_ambiguous_active_membership():
+    with pytest.raises(StoreError):
+        run(
+            WeKnoraClient.login(
+                "https://user:secret@host",
+                "real-user@example.test",
+                "password-canary",
+                transport=httpx.MockTransport(
+                    lambda request: pytest.fail("unsafe origin sent credentials")
+                ),
+            )
+        )
+    payload = login_payload()
+    payload["memberships"] = []
+    with pytest.raises(StoreError):
+        run(
+            WeKnoraClient.login(
+                ORIGIN,
+                "real-user@example.test",
+                "password-canary",
+                transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+            )
+        )
+
+
 def test_identity_uses_current_tenant_and_only_user_bearer():
     calls = []
 
@@ -177,6 +270,7 @@ def test_search_sends_document_scope_before_retrieval_and_ranks_across_bases():
             "query_text": "周报依据",
             "knowledge_ids": ["d1"],
             "match_count": 1,
+            "skip_context_enrichment": True,
             "vector_threshold": 0,
             "keyword_threshold": 0,
             "disable_keywords_match": False,
@@ -199,6 +293,7 @@ def test_search_sends_document_scope_before_retrieval_and_ranks_across_bases():
             "chunk_index": 0,
             "start_at": 0,
             "end_at": 2,
+            "score": 0.3,
         }
     ]
     assert len(calls) == 2
@@ -233,6 +328,17 @@ def test_search_ordinary_scope_omits_document_filter_and_refuses_out_of_scope_hi
                 )
             )
         assert failure.value.code == "weknora_scope_denied"
+
+
+@pytest.mark.parametrize("returned_rows", [9, 17])
+def test_search_document_scope_rejects_rows_over_requested_limit(returned_rows):
+    def handle(request):
+        assert json.loads(request.content)["skip_context_enrichment"] is True
+        return ok([chunk(f"c{i}", index=i) for i in range(returned_rows)])
+
+    with pytest.raises(StoreError) as failure:
+        run(connected(handle).search("query", ["kb1"], ["d1"], limit=8))
+    assert failure.value.code == "weknora_response_invalid"
 
 
 def test_document_preserves_md5_source_state_and_never_follows_file_url():

@@ -1,5 +1,45 @@
 # Agent 任务路由指南
 
+附接 MCP 保全复核的当前前移仅修改原 Native 联合操作员。沿同一任务和 PR #284，
+在既有测试模块验证五个保全模式的 forward apply 与非完成后回滚的 `preparing` 恢复：
+真实持有 BirthFence SQLite EX、安装作用域及原 Operations 后，配置校验和前版健康／保全复核
+均通过，才进入切换或删除准备 journal。失败须证明未 stop、checkpoint 或切源且原 journal 保留。
+Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、Mac mini 部署仍分别取证，
+不重建已过时的财经日历部署 profile。见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+原操作员源码与 `test_model_provider_upgrade.py` 两个确切文件由 `research-web-native-upgrade`
+显式选择 L4/full-delivery：完整模块、原通用完整检查、Constraints、Checks 和同候选 Mac Bootstrap
+均须分别取证。Bootstrap 的 PR／push 路径已同时覆盖源码与对应测试，测试单改也不能漏过 Mac 门。
+Windows 门交对应真机执行，Mac 不 dispatch；邻近未登记 resident／测试路径仍按
+unknown L4 fallback 保留缺口，不能用局部回归或路由计划代替整模块、CI 或实际升级验收。
+
+管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
+exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
+`build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，
+不另建任务/工作树/PR、不重复已核验结果，也不清除未知锁。真实构建、资源设置及平台验收分别留证。
+
+管理员队列及 `rwb-docker` 源码路径显式进入 L4/full-delivery 的 Docker 合同路由，不以未知路径的
+通用 fallback 少选门当作准入通过。Mac 功能任务使用既有 Bootstrap 和 macOS Docker Desktop 门；
+Linux Docker 产品门由对应真机按 exact SHA 接手，不从 Mac dispatch，也不阻断独立的 Mac 本平台验收。
+
+Host批准知识scope、原生query/read运行合同及0004可选源码资产分别显式路由L4；离线formal/current/API/store、runtime Node与补丁文本catalog分开，保留Constraints/Checks/MacBootstrap及Windows/Linux交接，未认证真实KB/模型或上游应用。
+
+架构证据检查器及其测试使用两条精确文件映射保留L4原验证闭包，邻近未知工具仍拒绝。原Checks分片清单显式执行formal-scope、Store和Native能力三模块，确保新增授权／回滚断言实际参与CI；不新增作业或执行真实知识服务。
+
+本机知识资料迭代沿现有Checks离线Python清单、Node通配符和同候选Mac Bootstrap；原九份WeKnora回归保留，新同步／会话及纯文本五模块加入原步骤。目录、实际Embedding、零生成、权限撤销、浏览器和原报告分别留证，合成合同或冷Doctor不认证这些现场结果。增量预算见[Actions额度](actions-budget.md#本机资料同步与当前研究预算2026-11-20)。
+
+管理员维护停止的 stage 时，原任务未完成而业主明确接续可使用 `owner-handoff`，默认预览，原件与计划摘要核对后显式应用，步骤见 [Docker 管理](research-web-docker.md)。
+
+策略验证的 Mac mini 升级在独立工作树绑定实际旧版及 PR #308 合并树。沿既有操作员测试、独立评审、通用 CI 和同候选 macOS 15 Bootstrap 取证。原账号保全、网关与主实例版本和正式账号冻结行情复跑分别记录，Windows 执行交对应设备。
+
+策略验证沿现有 Python 与 Node 批次运行离线边界例，真实用户冻结包在独立 Web Host 和 Chrome 实跑。注明回执对应的输入摘要、规则结果、逐笔分页及候选身份。
+
+常驻存储身份固定升级先验证实际已接受的前版，再复查作业占用、v4 事务保全、双入口 MCP 和活跃研究。正式 APFS 登录作业激活及实机重启独立取证。
+
+Research Bot 本地验证复用共享测试环境。Research Web Checks 的现有 Python 批次加入 Bot、通用自动化和原生技能准入回归，Mac Bootstrap 在既有步骤核对安装资产及 Doctor。
+
+常驻身份与网关源码修复走 macOS Native 维护路由。原三项 CI 核对同候选，随后使用实际 boot UUID、精确监听和原账号登录分别验证生产恢复。
+
 财经日历验证按宏观官方样本、离线账户/API 合同、候选本机浏览器、登录态参考对照和同候选 macOS 安装分别留证。
 没有实页对照时不得宣称像素级复刻通过；数据源失败保留原状态，不用夹具替代。
 
@@ -12,6 +52,10 @@
 综合总览本轮在独立 worktree 接入真实九指数和原事件／评分读取；Node 离线浏览器与真实
 公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
 导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
+
+## 原 PR 发布候选快照
+
+同一任务修补后，正式 publish 以当前受管 integration HEAD 冻结本次候选，原 PR 复用核对与新 PR 正文使用同一快照。先完成该候选的真实验证与独评，再沿原任务发布；候选或远端身份变化仍拒绝，不能把旧 prepared 候选的结论转记给新提交。严格 prepared-amend 的未发布边界、原调用／CI返修计数与历史回执继续保留。
 
 ## prepared 冲突恢复诊断兼容（2026-11-06）
 
@@ -260,6 +304,8 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 
 ## RWB Git 安全入口（macOS）
 
+备份通过私有文件传递暂存和未暂存补丁，按块校验原 Git 补丁的 SHA-256。超过 64 MiB 的补丁按同一格式保存，恢复时从文件读入 Git，再逐项比对补丁、文件和索引。备份格式及普通命令的缓冲上限继续沿用；临时补丁需要可用磁盘空间，生成或恢复失败时清理保持阻断。
+
 ### 复用研究 Web 测试环境
 
 开始本地测试前先用当前 Python 执行 `python scripts/research_web_test_env.py --check --json`，读取健康解释器路径并设置 `RWB_TEST_PYTHON`，Python 测试直接用该解释器执行。环境固定在 `~/.research-workbench/test-envs/`，指纹由 Python 实现、版本、平台及 `requirements/web.lock`、`requirements/research-test.in` 决定；同依赖的 worktree 共用一次安装，不属于任务临时资源，收尾不删除。
@@ -267,6 +313,12 @@ changed-set Router、独立评审及同候选 CI，再由受控操作员完成�
 健康检查不安装依赖。仅在缺少健康环境且已获得依赖安装授权时执行 `--prepare --json`；健康环境直接复用并跳过 pip。新环境只安装锁定 Web 依赖和已声明测试工具，不改全局 Python、产品 `.venv`、模型依赖或常驻服务。准备失败保留私有日志和现场，未知锁、损坏目录不自动覆盖；依赖或 Python 变化产生新指纹。该机制只统一本地测试环境，不替代 CI 干净安装验收。
 
 本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
+
+交付控制器与资源内核固定在 `scripts/vendor/leon-engineering/`，来源为 0.19.4／`3913ddb9ac612760fb95bf8d8f7102f948c32d0f`。
+`project_delivery_runtime.mjs` 在加载前核对项目清单、全部依赖文件的 SHA-256 与路径身份；缺失、篡改或别名返回 `DELIVERY_RUNTIME_UNVERIFIED`。
+该入口使用项目固定版本，可脱离用户目录的 runtime 和源码运行。既有 Git common directory 回执、任务 ID、资源账本和清理欠账继续接续；
+`.agents/runtime/leon-engineering/` 的既有验证规划模块按原版本维护。更新交付固定版本须核验新来源、同步清单并复跑交付与资源回归。
+可用 `node scripts/project_delivery_runtime.mjs` 只读核验固定版本，详细来源见[固定运行时说明](../scripts/vendor/leon-engineering/README.md)。
 
 在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
 
@@ -293,12 +345,42 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --st
 node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
 ```
 
-`--status` 可能在评审／CI满足后执行普通合并，并在 `ci_passed` 后自动进入资源与Git收尾，
-不能当成纯观察。当整体备份阶段尚未取得实际准入时，可显式使用
+`--status` 可能在评审／CI 满足后执行普通合并。采用上线后退役规则的任务随后记录待退役，
+旧入口可能直接进入完整备份与收尾。两者都不能当成纯观察；旧入口尚未取得备份准入时可用
 `--status --defer-cleanup`：原评审、CI、合并与状态记录要求保持，只延期最后的自动收尾，
 返回 `safetyCleanupDeferred: true`，不把回执或资源标为 `cleaned`。该参数仅可与
 `delivery --status` 同用；后续显式 `--cleanup` 仍须全部原安全前提，不能用延期替代验收。
 仅读CI使用GitHub只读API；其他common directory必须通过正式Git交付采用已审入口，不复制脚本。
+
+### 中断备份锁与历史工作树身份
+
+真实进程仍在、退出证据不明或锁已被替换时保留锁。历史无 PID 的空备份锁仅接受任务原
+Git common directory 下记录中断的私有证据。由创建该锁的仓库操作，绑定当时的退出进程组、
+不完整备份、时间及锁身份。年龄和空目录不是释放凭据。以下命令先预览并返回摘要：
+
+```bash
+node scripts/git_safety.mjs backup-lock-recover --project /absolute/locking-RWB \
+  --interruption-evidence /absolute/locking-common/amend-interruption.json \
+  --recovery-backup /absolute/previous-verified-v2-point
+```
+
+核对摘要及可用容量，再追加 `--apply --preview-sha256 <摘要>`。执行会先独立恢复原仓库的
+已封印 v2 点，然后保留式移动原锁到私有恢复目录。不完整备份及此前的恢复点原样保留。
+发送信号、强删锁以及手改备份或进程记录都不属于这个流程。未完成的恢复意图需保留供复核。
+
+对于已合并且历史收尾仍为 pending 的存量任务，可从目标 Git common directory 中已经
+验证的新版本入口复核工作树。先确认同一逻辑路径、inode、Git 登记、主线合并和所有文件
+身份吻合；旧登记的依赖或证据目录若重现则拒绝。
+
+```bash
+node scripts/git_safety.mjs worktree-revalidate --project /absolute/owning-RWB \
+  --task-id TASK --recovery-backup /absolute/verified-v2-point
+```
+
+持锁实际恢复备份并复查摘要后，`--apply --preview-sha256 <摘要>` 仅重新登记两端核实的设备号。
+原资源账本和原始交付、收尾、资源回执置于私有 `identity-recovery-epochs/`。这个命令不进行
+Git 交付、文件退休、缓存回收或服务操作。仍须独立确认内盘余量，然后走普通
+`delivery --cleanup` 完成 Git 和资源收尾；不要用 `--status` 当现场预览。
 
 发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
 
@@ -405,11 +487,36 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 
 ### 自动资源收尾
 
+#### 上线验收后的旧工作树退出
+
+受管源码的 `delivery --status` 完成合并和评审记录后，以 `worktreeRetirement: pending`
+等待部署验收。macOS Native resident 在现有上线验收持久化、真实 Web 进程返回相同 revision、
+且没有未完成部署事务后，从已验证提交的生产 checkout 调用退役入口，目标仅为 resident 明确绑定的源代码 Git 仓库。每次最多完成一个
+任务；重试沿既有 resident 检查。清理结果单独记录，既有安装或健康结果不因清理欠账而回退。
+
+只读预览：
+
+```bash
+node scripts/git_safety.mjs worktree-retirement --project /absolute/control-checkout \
+  --resident-root /absolute/product-home/resident
+```
+
+可用 `--task-id` 查单项。验收调用追加 `--apply` 并共享持有 Native 准入锁，每项复核真实上线 SHA、上线回执、
+已合并 PR、工作树注册和 inode、进程、任务和 Docker bind。先用独立临时 Git 检出实证恢复，
+工作树与其匹配后写入退役回执，再用非强制 `git worktree remove`。保留必要验收及回滚
+材料、task/PR 记录、Git 提交和小份恢复证明，无需长期存整棵副本。正式回执位于 Git common
+的 `leon-engineering/resource-closeout/<task-id>/deployed-worktree-retirement.json`。
+
+含未提交改动、未跟踪文件、还没有处理的 ignored 文件、iCloud 文件或证据不完整的树继续
+留待核对。任务原有日志留存流程负责将必要原件归档，未分类的内容继续阻止退役。
+手动受管完整备份/修复与已登记 Git 备份轮转沿既有流程。Docker 尚需同样可验证的上线接受
+入口；GitHub CI、单独的 HTTP 200 或源码合并都不能触发退役。
+
 项目规则固定`.agents/resource-closeout.json`的两个受管构建器合计20 GiB。Git入口在start/prepare/publish登记任务目录身份；publish修补只允许把已完整包含在候选中的干净feature tip更新到受管记录，保留CI计数和基线，不接受未提交或其他分支身份。资源登记/回执保存在Git common directory的`leon-engineering/resource-closeout/<task-id>/`，不放在将删除的worktree中。
 
-`status`确认已审查候选实际合并且CI通过后，释放仓库锁再进入既有`cleanup`流程。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
+需要完整安全备份的人工受管收尾仍调用 `delivery --cleanup`。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
 
-本机pytest优先用 `scripts/test_artifact_retention.py run` 管理同任务唯一活动根：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复；前一根回收后才创建下一批，无须等Git合并。失败/未知保留最小复现及原始回执；没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
+本机pytest优先用 `scripts/test_artifact_retention.py run`，同任务每次只运行一批：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复。成功根回收后再创建下一批，无须等Git合并；已结束的失败根可按用户2026-11-22持续授权保留为证据，在失败已定位、原执行结束且当前无占用后，自动缩小批次或修复并绑定新候选，必要时使用本任务新私有系统临时父目录沿原入口继续，不逐次要求例外确认。原件、原owner和历史累计不改，旧失败不由新PASS覆盖；再次失败先定位，不连续复制大夹具，也不靠换目录绕过在途／占用未知、容量或新增授权。没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
 
 每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。普通Git恢复点按用户2026-10-31方案，在已登记且交付成功后轮转保留最新2个有效点，不再等待7天；未登记存量先核对逐类批准；未提交、未归并、活动、未知归属和独有保护锚点不自动淘汰，修复隔离备份仍单独保护。
 
@@ -724,3 +831,5 @@ partial_cleanup分支：原pending proof、独评/CI/真实合并、全部工作
 真实离线Host浏览器测试需显式关闭既有Framework自动collector，并用受限子进程的loopback-only网络策略（本机既有Seatbelt）覆盖native C，客户端/Python钩子仅补强；负例与正常旅程计数分开。旧browser路由/DataHub拦截不证明整Host零外部，发现副作用须追加纠正保留原epoch。自选夹具见tests/e2e/watchlist-loopback.sb及watchlist_network_probe.py。
 
 冷Doctor的真实“禁止导入server启动模块”回归通过后，origin校验提取到共用stdlib helper，公开dispatch与Doctor均显式调用。该兼容修复不安装依赖、不扩大环境白名单；原失败按同根保留，后续通过不能改写原失败身份。
+
+AlphaDesk 替换按 Mac Web L4 交付，实际模型、跟踪通知、报告质量、常驻切换与回滚各自留证。

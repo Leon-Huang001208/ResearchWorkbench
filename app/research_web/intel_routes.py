@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Path, Query
 
 from core.observability import get_logger
 
+from .qa_acceptance import SOURCE_ERROR, acceptance_enabled
+
 router = APIRouter(prefix="/api/research/intel", tags=["intelligence-radar"])
 log = get_logger(__name__)
 UPSTREAM = "http://47.92.168.126/vibe-research/api"
@@ -25,6 +27,8 @@ def _failure(code: str, message: str, status: int = 502) -> HTTPException:
 
 async def read_upstream(path: str, params: dict | None = None):
     """Fetch bounded JSON without forwarding local credentials or redirects."""
+    if acceptance_enabled():
+        raise _failure(SOURCE_ERROR, "验收资料来源费用尚未核算", 409)
     try:
         async with asyncio.timeout(20):
             async with (
@@ -47,6 +51,20 @@ async def read_upstream(path: str, params: dict | None = None):
                 data = payload.get("data", payload) if isinstance(payload, dict) else payload
                 if not isinstance(data, (dict, list)):
                     raise _failure("intel_invalid_response", "资讯服务返回了异常数据。")
+                if (
+                    path == "/radar"
+                    and isinstance(data, dict)
+                    and data is not payload
+                    and "cache_stale" in payload
+                ):
+                    outer = payload["cache_stale"]
+                    inner = data.get("cache_stale", outer)
+                    flag = None  # Explicit malformed metadata must survive as present.
+                    if outer is True or inner is True:
+                        flag = True
+                    elif outer is inner is False:
+                        flag = False
+                    data = {**data, "cache_stale": flag}
                 log.info("intel_upstream_read", endpoint=path.split("/")[1])
                 return data
     except (httpx.TimeoutException, TimeoutError) as exc:

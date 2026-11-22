@@ -1,5 +1,9 @@
 # Research Web DataHub
 
+知识工具的正式单轮分支仍只提交会话 query／hit_id，由 Host grant 派生资料范围并校验原生首轮，不允许模型把知识库、scope 或文档白名单写入工具参数。会话回执绑定资料原件与当前请求；这条资料链不绕过 DataHub 来源准入、供应商授权、金融快照或 PIT 门。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
+`research_search_knowledge`／`research_read_knowledge` 在既有可信Host回调提供独立的知识命中投影；`knowledge:`引用由会话回执和原件／分块指纹核对，不把模型文本登记为来源。金融取数、DataHub快照和供应商权限继续沿原链，未知资料时点不获得PIT资格。见[资料合同](research-web-weknora.md)。
+
 首批资料将官方公告与原生日线原件和显示原值分开；趋势、风险原值不自动提升为合格六维证据。
 
 综合总览新增独立 global-v1 九指数公开适配，复用已注册腾讯历史端点和 httpx，固定身份、
@@ -673,3 +677,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务账户读取数据目录及已登记快照。快照 GET 使用只读场景校验，需验证历史出站 MCP 授权而现场无法核验时明确拒绝。
+FinGPT 隔离验收通过既有 DataHub 接口读取已完成回执和冻结资料。未核价的新查询在仓库或供应商读取前拒绝，见 [FinGPT 验收预算](research-web-ai-qa.md#切换状态)。

@@ -1,5 +1,7 @@
 # DataHub 研究数据仓库内核
 
+知识目录的 `knowledge-sync/state.sqlite3` 是逐账号的资料观察／版本／内容快照库，写入按实际卷余量准入，独立纳入流式保全；它不写入MarketStore或改变金融仓schema。单轮scope grant保存在原Store提交回执，正式命中绑定原生请求与原件哈希，也不会向金融仓写入或授予PIT资格；普通current版本保留。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
 财经日历短期内存快照只服务当前账号界面，无数据库持久化，亦不增加正式 PIT 或回测资格。
 
 首批资料保留真实原件与派生值，当前取得的历史序列不据此成为历史可知仓库样本。
@@ -257,3 +259,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
 仅服务模式允许读取已生成的市场快照和分析投影。市场刷新由独立受控入口验收。
+FinGPT 隔离验收拒绝未核价的新查询，已冻结的市场资料仍可按会话授权读取和复核。

@@ -1,5 +1,29 @@
 # Research Workbench 架构总览
 
+附接 MCP 保全的 forward 切换与限定 preparing 恢复在原 BirthFence SQLite EX／安装作用域内，
+复用配置校验及 `Operations.verify(previous=True)` 重验前版。它只调整原操作员的校验顺序，
+不增加运行节点、数据库、依赖、权限或业务 API。五模式与回滚排除范围见
+[围栏内复核](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)，源码前移不代表已部署。
+
+Git交付仍由原 `git_safety.mjs` 与固定共享控制器执行；publish 使用同一实际候选快照核对原PR及正文，避免共享控制器推进HEAD后由旧回执误拒。原Git、恢复备份、分支保护与验收链保持，运行服务和研究拓扑不变。合同见[原PR候选快照](AGENT_WORKFLOW.md#原-pr-发布候选快照)。
+
+管理员持久构建队列位于既有 `rwb-docker` 管理平面，复用原操作锁、builder及资源账本，
+不新增业务 API、数据库或常驻调度器。请求绑定任务、工作树、完整提交和固定选项；
+等待释放操作锁，完成结果先对账，实际构建继续受当前 stage 归属、预留和镜像用途约束。
+容量观察不改变 Docker 设置；管理命令与恢复边界见[Docker手册](research-web-docker.md#持久构建队列)。
+
+Radar 时效修复使用原 Native 联合事务的固定升级配置，部署和回滚继续核对主实例、网关及账户资料。
+
+Research Bot 沿既有 Golddata Radar 读取批次资讯。Radar 缺少缓存标志时，Bot 可校验来源给出的批次生成时点及有效期。判据随运行保存，资料仍按原 Host、Automation 与 DSH 链使用。
+
+Research Bot 常驻升级在既有 Native 联合事务内绑定已接受前版和 PR #302 的合并产品树，同时验证主实例、网关和回滚版本。部署入口和验收见[联合升级](research-web-gateway-upgrade.md#research-bot-常驻升级)。
+
+Research Bot 在现有 Web 壳和账号 Host 内复用 Automation 调度、Store 和唯一 DSH，定时与手动运行使用同一冻结定义及证据路径。该入口限原有本机内置研究，详情见[执行与恢复](architecture/research-web/02-research-runtime.md)。
+
+macOS 常驻安装增加 APFS 物理身份登记和独立登录修复作业。原 Native supervisor 和网关仍按
+现有身份字段验证；修复作业在身份连续、无未完成事务时同步短期设备号，不修改数据平面、原
+凭据或发布准入。网关工作树迁移将本地源码依赖与原账号和运行配置分离，见[安装流程](research-web-installation.md#macos-重启后的目录身份与网关源码)。
+
 财经日历在原浏览器→Host→DataHub 路径增加独立的无会话 GET 和固定 Fed/BLS 公共日程读取。
 每账号保留有界内存快照；未接入类别不会访问上游，不引入进程、数据库、定时或第二研究引擎。
 见[市场数据流](../outputs/research-web-architecture/13-market-overview.html)及[接口合同](architecture/research-web/04-api.md#财经日历接口)。
@@ -21,7 +45,9 @@ Host严格 `?1` 检查保持；本修补不新增运行节点、接口、数据�
 
 ## WeKnora 资料边界（2026-11-06）
 
-可选 `knowledge_backend/` 在既有账号 Host 中提供设置绑定、原文检索和独立证据冻结，新增到外部 WeKnora 的受控网络边；[图04](../outputs/research-web-architecture/04-data-file-flow.html)明确展示此边。WeKnora 作为研究原件与索引的目标底座，RWB 继续拥有金融快照、模板底稿、正式稿及冻结证据；不是增加 Agent、调度器或第二套报告运行状态机。当前只有源码候选，默认 `RESEARCH_WEKNORA_ORIGIN` 为空。显式只检索 profile 已有源码补丁，Go、服务及界面零生成尚未验收，部署与迁移不得由适配代码通过推定。完整身份、时点和失败边界见[资料合同](research-web-weknora.md)。
+Host 批准范围的单轮研究沿原消息提交、账号 Store、唯一 DSH 与知识 query/read 回调接入。首条消息的明确动作将 scope 和请求摘要原子绑定到既有回执；正式工具保留 query／hit_id 协议，复核运行中的原生根会话、首 turn、requestId 与当前 grant，异步读取后重验，失败不降级普通 current。普通单库同步、登录／tenant、回执冻结与报告资格保持；[图04](../outputs/research-web-architecture/04-data-file-flow.html)区分这条显式授权分支，完整合同见[单轮研究](research-web-weknora.md#host-批准范围的单轮研究)。不新增服务、数据库或研究执行器，源码、图文及真实验收分别记录。
+
+可选 `knowledge_backend/` 在既有账号 Host 中提供原生身份绑定、固定本机目录同步、当前原文检索、会话命中回执和独立证据冻结；[图04](../outputs/research-web-architecture/04-data-file-flow.html)展示目录／账号 SQLite、WeKnora 与本机 Ollama 的数据边。Host 只为明确启用的同步每60秒巡检，新版本解析并核验后切为 current，失败沿用旧版，删除撤回入口且保留历史。云端研究模型只接收获准命中片段；未知来源时点不获得 PIT 或正式报告资格，固定报告继续使用已批准 scope。RWB 继续拥有金融快照、模板底稿、正式稿及冻结证据；既有报告运行状态机与其他 Automation 启停保持。默认 `RESEARCH_WEKNORA_ORIGIN` 为空，原实例恢复、模型与真实链路、最终候选 CI 和部署逐项取证，配置或源码通过不等于验收完成。完整身份、限额与失败边界见[资料合同](research-web-weknora.md)。
 
 2026-11-06统一导航部署采用既有v4联合事务的 reviewed-unified-navigation-v1／apply-navigation-ui，固定5ffecb52旧版及b192dd1a产品。完整union/blob/mode冻结，仅操作员及其专用测试／文档可随后变化；全账号64MiB索引、事件／档案保全、空闲、BirthFence和恢复源码绑定不变，NAV前进及回滚均验证MCP实际严格False。旧static-ui分步流程不用于本次联合保全。
 
@@ -220,6 +246,8 @@ macOS 可选 resident 管理平面在用户登录后监督既有 Native Web/DSH�
 配置与操作见[安装指南](research-web-installation.md#macos-登录后常驻与自动部署)。
 
 
+AlphaDesk AI 问答候选在 Research Web Host 下使用独立 Node 进程执行问答，沿用账号模型、DataHub、证据和报告服务。DSH 执行 Claw 与独立专业协作。入口、持久回执和切换限制见[AI 问答合同](research-web-ai-qa.md)。
+
 本页只维护系统级边界。Research Web 的模块、协议、数据文件、安全和接口细节统一从 [Research Web 当前架构](architecture/research-web/README.md) 进入；旧平台的完整历史说明已归档。
 
 ## 当前产品边界
@@ -263,6 +291,8 @@ Research Web FastAPI Host（8088）
 - 当前阶段为 Web-only；只有修改桌面专属路径或用户重新开启桌面工作时，才应用桌面原生 CI 和安装级烟测。
 
 ## 主要子系统
+
+[策略验证](research-web-strategy-validation.md)在 Web Host 对账号上传的冻结日线计算描述性退出研究，保存配置、覆盖和逐笔对照。此入口仅供人工研究。
 
 ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合裁决和事务账本，真实准入保持BLOCKED。
 合同见[数据与文件](architecture/research-web/03-data-files.md#etf-工程模拟与真实准入边界)。

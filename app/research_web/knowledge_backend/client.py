@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import hashlib
 import json
 import math
 import re
@@ -91,6 +92,101 @@ def _json_constant(_value):
 class WeKnoraClient:
     """No API-key fallback, refresh, redirects, ambient proxy or automatic retry."""
 
+    @staticmethod
+    @_operation
+    async def login(origin, email, password, *, transport=None) -> dict:
+        """Exchange a user-entered password once; retain only the verified bearer token."""
+        from .configuration import checked_origin
+
+        origin = checked_origin(origin)
+        try:
+            async with (
+                asyncio.timeout(25),
+                httpx.AsyncClient(
+                    transport=transport,
+                    trust_env=False,
+                    follow_redirects=False,
+                    timeout=httpx.Timeout(15, connect=5, pool=5),
+                    limits=httpx.Limits(max_connections=1, max_keepalive_connections=1),
+                    headers={"Accept": "application/json"},
+                ) as client,
+                client.stream(
+                    "POST",
+                    origin + "/api/v1/auth/login",
+                    json={"email": email, "password": password},
+                ) as response,
+            ):
+                if response.status_code in {400, 401, 403}:
+                    raise _fail("weknora_auth_denied", 401)
+                if response.status_code != 200:
+                    raise _fail("weknora_unavailable", 503)
+                if (
+                    response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    != "application/json"
+                ):
+                    raise _fail("weknora_response_invalid")
+                length = response.headers.get("content-length")
+                if length is not None and (not length.isdecimal() or int(length) > 65536):
+                    raise _fail("weknora_response_too_large", 413)
+                raw = bytearray()
+                async for part in response.aiter_bytes():
+                    if len(raw) + len(part) > 65536:
+                        raise _fail("weknora_response_too_large", 413)
+                    raw.extend(part)
+            value = json.loads(raw, object_pairs_hook=_json_object, parse_constant=_json_constant)
+            if not isinstance(value, dict):
+                raise _fail("weknora_response_invalid")
+            # v0.9.0's HTTP DTO is top-level; some authenticated reverse proxies wrap data.
+            data = value.get("data", value)
+            if (
+                not isinstance(data, dict)
+                or value.get("success") is not True
+                or data.get("success", True) is not True
+            ):
+                raise _fail("weknora_auth_denied", 401)
+            user, tenant, memberships = (
+                data.get("user"),
+                data.get("active_tenant"),
+                data.get("memberships"),
+            )
+            if (
+                not isinstance(user, dict)
+                or user.get("is_active") is not True
+                or not isinstance(tenant, dict)
+                or not isinstance(memberships, list)
+            ):
+                raise _fail("weknora_auth_denied", 401)
+            workspace = _workspace(tenant.get("id"))
+            roles = []
+            for membership in memberships:
+                if not isinstance(membership, dict):
+                    raise _fail("weknora_response_invalid")
+                if _workspace(membership.get("tenant_id")) == workspace:
+                    roles.append(membership.get("role"))
+            if len(roles) != 1 or not isinstance(roles[0], str) or roles[0] not in _ROLES:
+                raise _fail("weknora_auth_denied", 401)
+            token = data.get("token")
+            WeKnoraClient(origin, token, workspace, transport=transport)
+            result = {
+                "token": token,
+                "workspace_id": workspace,
+                "user_id": _identifier(user.get("id")),
+            }
+            log.info("weknora_user_login_completed")
+            return result
+        except StoreError as exc:
+            log.warning("weknora_user_login_rejected", code=exc.code)
+            raise
+        except (httpx.TimeoutException, TimeoutError):
+            log.warning("weknora_user_login_timeout")
+            raise _fail("weknora_timeout", 504) from None
+        except (httpx.HTTPError, httpx.InvalidURL):
+            log.warning("weknora_user_login_unavailable")
+            raise _fail("weknora_unavailable", 503) from None
+        except (ValueError, TypeError, UnicodeError, RecursionError):
+            log.warning("weknora_user_login_response_invalid")
+            raise _fail("weknora_response_invalid") from None
+
     def __init__(self, origin, token, workspace_id, *, transport=None):
         try:
             if not isinstance(origin, str):
@@ -145,7 +241,9 @@ class WeKnoraClient:
         if expiry <= time.time():
             raise _fail("weknora_credentials_expired", 401)
 
-    async def _request(self, method, path, *, body=None, params=None, original=False):
+    async def _request(
+        self, method, path, *, body=None, params=None, original=False, files=None, form=None
+    ):
         self._check_token()
         maximum = ORIGINAL_LIMIT if original else JSON_LIMIT
         operation = "original" if original else "json"
@@ -165,7 +263,12 @@ class WeKnoraClient:
                     },
                 ) as client,
                 client.stream(
-                    method, self._origin + "/api/v1" + path, json=body, params=params
+                    method,
+                    self._origin + "/api/v1" + path,
+                    json=body,
+                    params=params,
+                    files=files,
+                    data=form,
                 ) as response,
             ):
                 if response.status_code in {401, 403, 404}:
@@ -175,7 +278,8 @@ class WeKnoraClient:
                         404: "weknora_not_found",
                     }[response.status_code]
                     raise _fail(code, response.status_code)
-                if response.status_code != 200:
+                duplicate = files is not None and response.status_code == 409
+                if response.status_code != 200 and not duplicate:
                     raise _fail("weknora_unavailable")
                 content_type = response.headers.get("content-type", "").split(";", 1)[0].strip()
                 if original:
@@ -205,7 +309,10 @@ class WeKnoraClient:
             value = json.loads(raw, object_pairs_hook=_json_object, parse_constant=_json_constant)
             if (
                 not isinstance(value, dict)
-                or value.get("success") is not True
+                or not (
+                    value.get("success") is True
+                    or (duplicate and value.get("code") == "duplicate_file")
+                )
                 or "data" not in value
             ):
                 raise _fail("weknora_response_invalid")
@@ -347,6 +454,8 @@ class WeKnoraClient:
             body = {
                 "query_text": query,
                 "match_count": limit,
+                # The pinned service otherwise appends neighboring chunks after TopK.
+                "skip_context_enrichment": True,
                 "vector_threshold": 0,
                 "keyword_threshold": 0,
                 "disable_keywords_match": False,
@@ -381,7 +490,7 @@ class WeKnoraClient:
                     raise _fail("weknora_response_invalid")
                 if key not in seen:
                     seen.add(key)
-                    result.append((score, normalized))
+                    result.append((score, {**normalized, "score": score}))
         result.sort(key=lambda item: item[0], reverse=True)
         return [item for _score, item in result[:limit]]
 
@@ -389,8 +498,13 @@ class WeKnoraClient:
     async def document(self, identifier) -> dict:
         identifier = _identifier(identifier)
         data = (await self._request("GET", "/knowledge/" + identifier))["data"]
-        if not isinstance(data, dict) or data.get("id") != identifier:
+        return self._document(data, identifier)
+
+    @staticmethod
+    def _document(data, identifier=None) -> dict:
+        if not isinstance(data, dict) or (identifier is not None and data.get("id") != identifier):
             raise _fail("weknora_response_invalid")
+        identifier = _identifier(data.get("id"))
         digest = data.get("file_hash")
         if (
             digest is not None
@@ -412,6 +526,76 @@ class WeKnoraClient:
             "custom_metadata": data.get("custom_metadata"),
             "raw": data,
         }
+
+    @_operation
+    async def upload(self, kb_id, filename, content, metadata) -> dict:
+        kb_id = _identifier(kb_id)
+        if (
+            not isinstance(filename, str)
+            or not filename
+            or len(filename.encode("utf-8")) > 4096
+            or filename.startswith("/")
+            or any(part in {"", ".", ".."} for part in filename.split("/"))
+            or any(ord(char) < 32 for char in filename)
+            or not isinstance(content, bytes)
+            or not 0 < len(content) <= ORIGINAL_LIMIT
+            or not isinstance(metadata, dict)
+            or any(not isinstance(k, str) or not isinstance(v, str) for k, v in metadata.items())
+        ):
+            raise _fail("weknora_upload_invalid", 422)
+        encoded_metadata = json.dumps(metadata, ensure_ascii=False, allow_nan=False)
+        if len(encoded_metadata.encode("utf-8")) > 16384:
+            raise _fail("weknora_upload_invalid", 422)
+        result = self._document(
+            (
+                await self._request(
+                    "POST",
+                    "/knowledge-bases/" + kb_id + "/knowledge/file",
+                    files={
+                        "file": (filename.rsplit("/", 1)[-1], content, "application/octet-stream")
+                    },
+                    form={
+                        "fileName": filename,
+                        "metadata": encoded_metadata,
+                        "process_config": json.dumps({"summary_enabled": False}),
+                    },
+                )
+            )["data"]
+        )
+        if result["kb_id"] != kb_id or result["file_hash"] != hashlib.md5(content).hexdigest():
+            raise _fail("weknora_upload_identity_mismatch")
+        return result
+
+    @_operation
+    async def documents_in_base(self, kb_id) -> list[dict]:
+        kb_id = _identifier(kb_id)
+        rows, seen, total = [], set(), None
+        for page in range(1, 65):
+            value = await self._request(
+                "GET",
+                "/knowledge-bases/" + kb_id + "/knowledge",
+                params={"page": page, "page_size": 100},
+            )
+            count, data = _integer(value.get("total")), value["data"]
+            if (
+                count > 6400
+                or not isinstance(data, list)
+                or value.get("page") != page
+                or value.get("page_size") != 100
+                or (total is not None and total != count)
+                or len(data) != min(100, max(0, count - (page - 1) * 100))
+            ):
+                raise _fail("weknora_response_invalid")
+            total = count
+            for item in data:
+                row = self._document(item)
+                if row["kb_id"] != kb_id or row["id"] in seen:
+                    raise _fail("weknora_scope_denied", 403)
+                seen.add(row["id"])
+                rows.append(row)
+            if len(rows) == total:
+                return rows
+        raise _fail("weknora_response_too_large", 413)
 
     @_operation
     async def chunks(self, identifier) -> list[dict]:

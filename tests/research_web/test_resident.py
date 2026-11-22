@@ -592,6 +592,14 @@ def test_atomic_state_is_private_and_invalid_records_fail_closed(resident):
 
 
 def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_identity
+
+    enrollments = []
+    monkeypatch.setattr(
+        volume_identity,
+        "enroll",
+        lambda home, **kwargs: enrollments.append((home, kwargs)) or {"status": "enrolled"},
+    )
     home = tmp_path / "product"
     home.mkdir(mode=0o700)
     user = tmp_path / "user"
@@ -629,8 +637,20 @@ def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypat
     assert value["RunAtLoad"] is True and value["StartInterval"] == 60
     assert value["ProgramArguments"][1] == str(home / "resident/controller.pyz")
     assert "sudo" not in str(value) and "KeepAlive" not in value
-    assert commands[0][:2] == ["/bin/launchctl", "enable"]
+    companion = user / "Library/LaunchAgents/com.research-workbench.resident-storage-identity.plist"
+    maintenance = plistlib.loads(companion.read_bytes())
+    assert maintenance["RunAtLoad"] is True
+    assert maintenance["StartInterval"] == 45
+    artifact = Path(maintenance["ProgramArguments"][1])
+    assert artifact.parent == home / "resident"
+    assert artifact.stat().st_mode & 0o777 == 0o600
+    assert maintenance["ProgramArguments"][2:] == ["--home", str(home)]
+    with zipfile.ZipFile(artifact) as installed:
+        assert "resident/volume_identity.py" in installed.namelist()
+    assert enrollments == [(home, {"supervisor_locked": True})]
     assert commands[1][:3] == ["/bin/launchctl", "bootstrap", f"gui/{os.getuid()}"]
+    assert commands[1][-1] == str(companion)
+    assert commands[3][-1] == str(plist)
     assert controller.configured(home)[1]["baseline"] == "a" * 40
     before = (home / "resident/controller.pyz").read_bytes()
 
@@ -647,6 +667,71 @@ def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypat
         == "installed"
     )
     assert (home / "resident/controller.pyz").read_bytes() == before
+
+
+def test_storage_agent_artifact_can_advance_with_same_installed_plist(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_launch
+
+    home = tmp_path / "rwb"
+    home.mkdir(mode=0o700)
+    user = tmp_path / "login"
+    user.mkdir()
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(Path, "home", lambda: user)
+    monkeypatch.setattr(
+        volume_launch.volume_identity, "enroll", lambda *a, **kw: {"status": "enrolled"}
+    )
+    monkeypatch.setattr(controller, "run", lambda *a, **kw: "")
+    content = volume_launch._artifact()
+    monkeypatch.setattr(volume_launch, "_artifact", lambda: content)
+    first = volume_launch.register(home, {"python": sys.executable})
+    plist = user / "Library/LaunchAgents" / (volume_launch.LABEL + ".plist")
+    prior_plist = plist.read_bytes()
+    active = home / "resident/storage-identity.pyz"
+    assert active.read_bytes() == content
+
+    expanded = content + b"new release witness"
+    monkeypatch.setattr(volume_launch, "_artifact", lambda: expanded)
+    second = volume_launch.register(home, {"python": sys.executable})
+    assert first["artifact_sha256"] != second["artifact_sha256"]
+    assert active.read_bytes() == expanded
+    assert plist.read_bytes() == prior_plist
+    prior = active.parent / f"storage-identity-{first['artifact_sha256']}.pyz"
+    assert prior.read_bytes() == content
+
+
+def test_legacy_storage_enrollment_uses_source_without_upgrading_supervisor(tmp_path, monkeypatch):
+    home = tmp_path / "product"
+    root = home / "resident"
+    root.mkdir(parents=True, mode=0o700)
+    old = root / "controller.pyz"
+    old.write_bytes(b"immutable prior controller")
+    config = {"artifact": str(old), "python": sys.executable}
+    monkeypatch.setattr(controller, "configured", lambda path: (root, config))
+    registrations = []
+
+    def register(path, supplied_config, **kwargs):
+        registrations.append((path, supplied_config, kwargs))
+        return {"status": "enrolled"}
+
+    from research_workbench_entrypoint.resident import volume_launch
+
+    monkeypatch.setattr(volume_launch, "register", register)
+    assert controller.main(["enroll-storage-identity", "--home", str(home)]) == 0
+    assert registrations == [(home, config, {})]
+    assert old.read_bytes() == b"immutable prior controller"
+
+
+def test_repair_storage_identity_does_not_run_upgrade_tick(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_identity
+
+    home = tmp_path / "product"
+    repairs = []
+    monkeypatch.setattr(
+        volume_identity, "rebind", lambda path: repairs.append(path) or {"status": "rebound"}
+    )
+    assert controller.main(["repair-storage-identity", "--home", str(home)]) == 0
+    assert repairs == [home]
 
 
 def test_disable_defers_instead_of_terminating_inflight_transaction(resident, monkeypatch):
@@ -696,6 +781,242 @@ def test_offline_check_keeps_current_service_running(resident, monkeypatch):
     result = controller.tick(resident.parent)
     assert result["status"] == "waiting" and result["deployed"] == "a" * 40
     assert calls == ["ensure"]
+
+
+@pytest.fixture
+def retirement_checkout(resident, tmp_path, monkeypatch, request):
+    control = tmp_path / "source-repository"
+    installed = tmp_path / "installed-release"
+    control.mkdir()
+    env = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(control), *args], env=env, text=True
+        ).strip()
+
+    layout = getattr(request, "param", "linked")
+    git("init", "--quiet")
+    git("remote", "add", "origin", "git@github.com:owner/repo.git")
+    (control / "scripts").mkdir()
+    entrypoint = "// legacy\n" if layout == "legacy" else "// worktree-retirement\n"
+    (control / "scripts/git_safety.mjs").write_text(entrypoint)
+    (control / "scripts/native_retirement_acceptance.mjs").write_text("// native helper\n")
+    (control / "scripts/git_deployed_worktree_proof.mjs").write_text("// proof helper\n")
+    (control / "scripts/backup_fd_clone.py").write_text("# metadata helper\n")
+    (control / ".agents").mkdir()
+    (control / ".agents/deployed-worktree-retirement.json").write_text("{}")
+    git("add", ".")
+    git(
+        "-c",
+        "user.name=Tester",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+    )
+    revision = git("rev-parse", "HEAD")
+    if layout == "separate":
+        subprocess.run(
+            ["/usr/bin/git", "clone", "--quiet", "--no-local", str(control), str(installed)],
+            env=env,
+            check=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(installed),
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/owner/repo.git",
+            ],
+            env=env,
+            check=True,
+        )
+        subprocess.run(
+            ["/usr/bin/git", "-C", str(installed), "switch", "--quiet", "--detach", revision],
+            env=env,
+            check=True,
+        )
+    else:
+        git("worktree", "add", "--quiet", "--detach", str(installed), revision)
+    # A dirty controlling checkout must never supply executable source.
+    (control / "scripts/git_safety.mjs").write_text("// dirty controlling script\n")
+    node = tmp_path / "node"
+    node.touch(mode=0o700)
+    config = {
+        "project": str(installed),
+        "source_common": str(control / ".git"),
+        "node": str(node),
+        "gh": "/gh",
+        "repository": "owner/repo",
+        "private_origin": "https://rwb.example.invalid",
+    }
+    home = resident.parent
+    controller.atomic(
+        home / "install/manifest.json", {"status": "installed", "code_commit": revision}
+    )
+    controller.atomic(resident / "accepted.json", {"target": revision, "previous": "a" * 40})
+    monkeypatch.setattr(controller, "configured", lambda _: (resident, config))
+    monkeypatch.setattr(controller, "environment", lambda *_: None)
+    monkeypatch.setattr(controller.GitHubEvidence, "latest", lambda _: revision)
+    return config, installed, control, revision
+
+
+@pytest.mark.parametrize(
+    ("status", "cleanup_status", "reason", "retirement_checkout"),
+    [
+        ("ready", "cleanup_pending", "WORKTREE_BUSY", "linked"),
+        ("ready", "cleanup_pending", "BACKUP_STORE_LOCKED", "separate"),
+        ("deployed", "complete", None, "separate"),
+    ],
+    indirect=["retirement_checkout"],
+)
+def test_native_retirement_after_accepted_runtime_result(
+    resident, retirement_checkout, monkeypatch, status, cleanup_status, reason
+):
+    config, installed, control, revision = retirement_checkout
+    calls = []
+    previous = "a" * 40
+    if status == "deployed":
+        controller.atomic(resident / "candidate.json", {"target": revision, "previous": previous})
+        monkeypatch.setattr(controller.GitHubEvidence, "qualify", lambda *_: {})
+
+    def bridge(_home, _config, operation):
+        if operation == "ensure":
+            return {"status": "ready", "sha": revision if status == "ready" else previous}
+        assert operation == "deploy" and status == "deployed"
+        return {"status": "deployed", "sha": revision}
+
+    monkeypatch.setattr(controller, "bridge", bridge)
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        if argv[0] != config["node"]:
+            return actual_run(argv, **kwargs)
+        with file_lock(resident, "supervisor.lock", exclusive=True):
+            state = evidence.read_json(resident / "state.json")
+            assert state["status"] == status and state["deployed"] == revision
+        calls.append((argv, kwargs["cwd"]))
+        if cleanup_status == "complete":
+            return SimpleNamespace(
+                returncode=0, stdout='{"status":"complete","items":[]}', stderr=""
+            )
+        if reason == "BACKUP_STORE_LOCKED":
+            return SimpleNamespace(
+                returncode=1, stdout="", stderr='{"status":"BLOCKED","code":"BACKUP_STORE_LOCKED"}'
+            )
+        return SimpleNamespace(
+            returncode=2,
+            stdout='{"status":"cleanup_pending","items":[{"taskId":"old-task","status":"blocked","code":"WORKTREE_BUSY"}]}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", run)
+    result = controller.tick(resident.parent)
+    assert calls == [
+        (
+            [
+                config["node"],
+                str(installed / "scripts/git_safety.mjs"),
+                "worktree-retirement",
+                "--project",
+                str(control),
+                "--resident-root",
+                str(resident),
+                "--apply",
+            ],
+            installed,
+        )
+    ]
+    assert result == evidence.read_json(resident / "state.json")
+    debt = evidence.read_json(resident / "worktree-retirement.json")
+    assert debt["status"] == cleanup_status and debt["revision"] == revision
+    if reason:
+        assert debt["reason"] == reason
+        if reason == "WORKTREE_BUSY":
+            assert debt["blocked"] == [{"taskId": "old-task", "code": reason, "status": "blocked"}]
+    else:
+        assert "reason" not in debt and debt["items"] == 0
+
+
+@pytest.mark.parametrize("retirement_checkout", ["separate"], indirect=True)
+@pytest.mark.parametrize(
+    "cause",
+    [
+        "unaccepted",
+        "foreign-control-origin",
+        "foreign-release-origin",
+        "changed-script",
+        "quarantined",
+        "masked-helper",
+    ],
+)
+def test_native_retirement_rejects_unverified_source(
+    resident, retirement_checkout, monkeypatch, cause
+):
+    config, installed, control, revision = retirement_checkout
+    if cause == "unaccepted":
+        controller.atomic(resident / "accepted.json", {"target": "b" * 40})
+    elif cause in {"foreign-control-origin", "foreign-release-origin"}:
+        checkout = control if cause == "foreign-control-origin" else installed
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(checkout),
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/other/repo.git",
+            ],
+            check=True,
+        )
+    elif cause == "quarantined":
+        controller.atomic(resident / "quarantine.json", {"sha": revision})
+    elif cause == "masked-helper":
+        helper = "scripts/native_retirement_acceptance.mjs"
+        subprocess.run(
+            ["/usr/bin/git", "-C", str(installed), "update-index", "--assume-unchanged", helper],
+            check=True,
+        )
+        (installed / helper).write_text("// modified helper hidden from git status\n")
+    else:
+        (installed / "scripts/git_safety.mjs").write_text("// changed worktree-retirement\n")
+    monkeypatch.setattr(controller, "bridge", lambda *_: {"status": "ready", "sha": revision})
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        assert argv[0] != config["node"]
+        return actual_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert controller.tick(resident.parent)["status"] == "ready"
+    path = resident / "worktree-retirement.json"
+    if cause in {"unaccepted", "quarantined"}:
+        assert not path.exists()
+    else:
+        assert evidence.read_json(path)["status"] == "cleanup_pending"
+
+
+@pytest.mark.parametrize("retirement_checkout", ["legacy"], indirect=True)
+def test_accepted_legacy_resident_skips_unavailable_retirement(
+    resident, retirement_checkout, monkeypatch
+):
+    config, _installed, _control, revision = retirement_checkout
+    monkeypatch.setattr(controller, "bridge", lambda *_: {"status": "ready", "sha": revision})
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        assert argv[0] != config["node"]
+        return actual_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert controller.tick(resident.parent)["status"] == "ready"
+    assert not (resident / "worktree-retirement.json").exists()
 
 
 def github_fixture(tmp_path, monkeypatch, *, tree_mismatch=False, review_head=None):
@@ -1407,3 +1728,11 @@ def test_business_index_reader_accepts_large_owned_json_without_relaxing_metadat
         stream.truncate(64 * 1024 * 1024 + 1)
     with pytest.raises(evidence.UpdateBlocked, match="business_index_invalid"):
         maintenance.read_business_index(path)
+
+
+def test_unfinished_gateway_relocation_blocks_native_maintenance(resident):
+    run = resident.parent / "server/run"
+    run.mkdir(parents=True)
+    (run / "gateway-source-rehome.json").symlink_to(run / "missing")
+    with pytest.raises(evidence.UpdateBlocked, match="gateway_source_recovery_required"):
+        controller.configured(resident.parent)

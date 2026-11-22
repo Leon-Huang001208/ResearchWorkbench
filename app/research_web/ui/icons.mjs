@@ -2,6 +2,7 @@
 const paths = {
   globe: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6.5h14M5 17.5h14"/>',
   candles: '<path d="M6 3v4m0 9v5M12 3v8m0 7v3M18 3v2m0 8v8"/><rect x="4" y="7" width="4" height="9" rx=".5"/><rect x="10" y="11" width="4" height="7" rx=".5"/><rect x="16" y="5" width="4" height="8" rx=".5"/>',
+  robot: '<rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3v4M2 12v3m20-3v3M9 12h.01m6 0h.01M9 16h6"/>',
   radar: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 7-7M12 3v2M3 12h2M12 19v2M19 12h2"/><circle cx="10" cy="14" r="1"/>',
   newspaper: '<path d="M5 4h16v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8h2v10M5 8V4"/><path d="M9 8h8M9 12h3M9 16h3M15 12h3M15 16h3"/>',
   network: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="2" y="16" width="6" height="5" rx="1"/><rect x="16" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M5 16v-4h14v4"/>',

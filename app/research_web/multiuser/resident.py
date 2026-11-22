@@ -11,10 +11,13 @@ import asyncio
 import functools
 import os
 import platform
-import subprocess
 import sys
 from contextlib import ExitStack
 from pathlib import Path
+
+from research_workbench_entrypoint.resident.controller import gateway_relocation_pending
+from research_workbench_entrypoint.resident.evidence import SHA, UpdateBlocked
+from research_workbench_entrypoint.resident.gateway_source import verify_local_checkout
 
 
 def run(root: Path) -> int:
@@ -23,7 +26,9 @@ def run(root: Path) -> int:
     with _server_context(root):
         import uvicorn
 
+        from ..knowledge_backend.configuration import checked_origin
         from ..mcp_facade.config import enabled, resident_execution
+        from ..store import StoreError
         from .accounts import AccountStore
         from .gateway import create_gateway
         from .resident_binding import AttachedPool, LegacyBinding, read_json
@@ -32,7 +37,14 @@ def run(root: Path) -> int:
 
         if platform.system() != "Darwin":
             raise RuntimeErrorSafe("server_platform_unsupported")
+        if gateway_relocation_pending(root):
+            raise RuntimeErrorSafe("gateway_source_recovery_required")
         config = read_json(root / "resident.json")
+        if "weknora_origin" in config:
+            try:
+                os.environ["RESEARCH_WEKNORA_ORIGIN"] = checked_origin(config["weknora_origin"])
+            except StoreError:
+                raise RuntimeErrorSafe("server_knowledge_configuration_invalid") from None
         mcp_enabled = _configured_mcp_enabled(config)
         try:
             service_only, oauth_origin = resident_execution(
@@ -40,16 +52,23 @@ def run(root: Path) -> int:
             )
         except ValueError as exc:
             raise RuntimeErrorSafe(str(exc)) from exc
-        revision = subprocess.check_output(
-            ["/usr/bin/git", "-C", str(PROJECT), "rev-parse", "HEAD"],
-            text=True,
-            timeout=5,
-        ).strip()
-        if config.get("version") != 1 or config.get("revision") != revision:
+        revision = config.get("revision")
+        if (
+            config.get("version") != 1
+            or not isinstance(revision, str)
+            or not SHA.fullmatch(revision)
+        ):
             raise RuntimeErrorSafe("server_revision_mismatch")
         if config.get("project") != str(PROJECT) or config.get("port") != 8089:
             raise RuntimeErrorSafe("server_configuration_invalid")
+        try:
+            verify_local_checkout(PROJECT, None, revision)
+        except UpdateBlocked as exc:
+            raise RuntimeErrorSafe(str(exc)) from exc
         capacity = _configured_capacity(config)
+        alphadesk_qa = config.get("alphadesk_qa", False)
+        if type(alphadesk_qa) is not bool or (alphadesk_qa and service_only):
+            raise RuntimeErrorSafe("server_qa_configuration_invalid")
         accounts = AccountStore(root)
         binding = LegacyBinding.from_config(config["binding"])
         original = read_json(binding.home / "resident/config.json")
@@ -78,6 +97,7 @@ def run(root: Path) -> int:
                     node=config["node"],
                     max_instances=capacity,
                     service_only=service_only,
+                    alphadesk_qa=alphadesk_qa,
                     primary_storage=primary_storage,
                 ),
                 recover=recover,

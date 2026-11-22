@@ -9,7 +9,7 @@ let frameReadyWaiter = null;
 export async function initFinGPT() {
     if (!initialized) bindEvents();
     initialized = true;
-    await Promise.all([refreshHealth(), refreshGovernance()]);
+    if (await refreshHealth()) await refreshGovernance();
 }
 
 function bindEvents() {
@@ -36,8 +36,28 @@ async function refreshHealth() {
     const state = document.getElementById('fingpt-runtime-state');
     const frame = document.getElementById('fingpt-dsh-frame');
     const diagnostic = document.getElementById('fingpt-host-unavailable');
+    const link = document.querySelector('[data-open-research-qa]');
+    const panels = [...document.querySelector('.fingpt-page').children].filter(panel => panel !== link.parentElement);
+    link.hidden = true;
+    link.removeAttribute('href');
     try {
         const result = await apiCall('GET', '/api/v2/fingpt/health');
+        if (result.retired === true) {
+            const url = result.research_web_url;
+            if (typeof url !== 'string' || !/^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.tail[a-z0-9]+\.ts\.net(?::443)?\/#\/qa$/.test(url)) {
+                throw new Error('invalid_fingpt_replacement');
+            }
+            hostAvailable = false;
+            expectedOrigin = null;
+            frameReady = false;
+            frame.hidden = true;
+            frame.removeAttribute('src');
+            for (const panel of panels) panel.hidden = true;
+            link.href = url;
+            link.hidden = false;
+            return false;
+        }
+        for (const panel of panels) panel.hidden = false;
         hostAvailable = result.available === true;
         expectedOrigin = result.embed_origin || null;
         state.textContent = hostAvailable ? 'DSH Host 已连接 · 对话正文由 DSH 保存' : 'DSH Host 未连接';
@@ -53,10 +73,14 @@ async function refreshHealth() {
             frameReady = false; frame.hidden = true; diagnostic.hidden = false;
             document.getElementById('fingpt-diagnostic-copy').textContent = result.diagnostic || '请启动本机 DSH Host 后重试。';
         }
+        return true;
     } catch (error) {
-        hostAvailable = false; frame.hidden = true; diagnostic.hidden = false;
-        state.textContent = '无法检查 DSH Host';
-        document.getElementById('fingpt-diagnostic-copy').textContent = 'AlphaFoundry 无法连接本机 DSH Host。';
+        hostAvailable = false; expectedOrigin = null; frameReady = false;
+        frame.hidden = true; frame.removeAttribute('src'); diagnostic.hidden = false;
+        for (const panel of panels) panel.hidden = !panel.contains(diagnostic);
+        state.textContent = '无法检查 FinGPT 状态';
+        document.getElementById('fingpt-diagnostic-copy').textContent = 'FinGPT 状态暂不可核验，请重新检查。';
+        return false;
     }
 }
 

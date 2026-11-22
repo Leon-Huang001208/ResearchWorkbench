@@ -1,5 +1,30 @@
 # Research Web 接口清单
 
+附接 MCP 保全的围栏内复核只调整现有本机操作员 `operate` 的 forward／限定 preparing
+恢复顺序，不新增 CLI 模式、业务 HTTP 方法、路径、请求字段或权限。前版健康由原
+`Operations.verify(previous=True)` 读取；该校验不提交模型、采集或研究请求。
+Trial、完成后回滚和其他阶段不扩大适用范围，见[部署合同](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+本地知识库的固定 Serve 路由检查仅属于 Native 操作员 CLI，不增加业务 HTTP 方法或路径。
+9443到18181的私网入口仍使用 WeKnora 自身认证，RWB绑定、当前会话检索与报告scope沿下述原接口；
+识别既有8443服务不会扩大网关代理、浏览器同源或模型工具权限。
+
+FinGPT 双入口回滚由本机操作员 CLI 发起，需要已接受版本的完整 SHA。现有本机与网关健康接口核对恢复结果。
+
+策略验证常驻验收经正式私网 HTTPS 和已登录的原账号走同一接口，核对导入摘要、统计结果和逐笔分页。
+
+`/api/research/strategy-validation` 提供账号内冻结日线 ZIP 导入、明确运行、历史摘要和逐笔分页。配置冻结与幂等写入见[策略验证](../../research-web-strategy-validation.md#api)。
+
+Radar 时效升级验证继续经本机 `GET /api/research/research-bots` 和历史接口读取，真实验收使用受控临时 Bot。
+
+Radar 解包在外层确实提供 `cache_stale` 时保留该字段，明确过期优先。Research Bot 的历史 Run 可读回采用的缓存标志或来源批次时间及相应准入依据。
+
+常驻升级后用只读 `GET /api/research/runtime` 和 `GET /api/research/research-bots` 分别检查主实例配置与 Bot 列表入口。网关认证和租户限制仍由对应运行实例验证。
+
+`GET/POST /api/research/research-bots` 读取配置和最新摘要或新建停用的 Bot。子路径支持查询发布技能版本、按版本更新、按 `before` 读取最近 20 条运行，以及单独的运行、启停、移除操作。写入沿同源 Host 与 `X-Research-User-Action: ?1` 并核对内置研究运行时归属。手动运行携带版本及 UUID 请求标识，原请求重放返回原 Run。通用日程与 Claw 日程入口拒绝管理 Bot。
+
+网关源码迁移通过本地 `rwb resident` 操作员命令执行。迁移事务未结时，网关启动拒绝加载账号存储及 HTTP 服务。
+
 `POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
 
 市场V2切换等待仅发生在Native操作员，不增加接口、请求字段或权限；原手动事件明确意图和Host校验不变。
@@ -9,7 +34,9 @@
 
 ## WeKnora 资料 API（2026-11-06）
 
-新增认证域 `/api/research/knowledge` 的状态、绑定、库列表、范围、检索、读取及证据冻结／下载；详见[完整接口表](../../research-web-weknora.md#接口与权限)。状态不探测上游，绑定／scope／freeze 要求明确用户动作；仅回环或原认证网关的当前账号可调用，不接受任意 owner、root 或上游地址。内部 `/api/research/internal/data/knowledge-query` 与 `/knowledge-read` 由原 DataKey 门保护且 scope 必填，不能调用其他写入口。现有四项只读 MCP 不变，不因新增 HTTP 扩大 OAuth scope。[API Atlas](../../../outputs/research-web-architecture/api-atlas.html)从字面量路由清单生成。
+原 `POST /api/research/sessions/{sid}/messages` 的 Prompt 可携带 `knowledge_scope_id`，该字段要求 `X-Research-User-Action: ?1`，仅用于新会话首轮。知识工具仍只有 query 与 hit_id 两种模型输入；内部 DataKey 回调从持久 grant 选择正式分支，并核对原生桥从执行元数据注入的 `X-Research-Native-Session` 与获准根会话一致。模型自选 scope、伪装 caller 或复用另一请求命中均拒绝；正式失败不重试普通 current。新字段和权限条件没有新增路由、数据库或执行器，详见[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
+认证域 `/api/research/knowledge` 提供状态、绑定、库列表、范围、检索、读取及证据冻结／下载；`POST /login` 以 `{email, password}` 登录已有WeKnora账号，再沿既有bind核验身份和保存JWT，原JWT高级绑定保留，不代用户注册。`GET /sync` 读取状态，`POST /sync/config` 以 `knowledge_base_id`／`enabled` 配置固定目录，`POST /sync/scan` 显式扫描。详见[完整接口表](../../research-web-weknora.md#接口与权限)。状态不探测上游；登录／绑定、同步配置／扫描、scope及freeze要求明确用户动作，不接受任意owner、root或上游地址，密码不保存或回显。当前检索／读取分别使用 `{session_id, query}`／`{session_id, hit_id}`，冻结使用 `{session_id, hit_ids}`；旧报告路径保留scope批准。内部 `/api/research/internal/data/knowledge-query` 与 `/knowledge-read` 沿原DataKey、可信会话与来源准入，仅接受会话 query/read 协议，正式 scope 由 Host grant 派生，不开放模型指定范围或写入口。现有四项只读MCP不变，不因新增HTTP扩大OAuth scope。[API Atlas](../../../outputs/research-web-architecture/api-atlas.html)从字面量路由清单生成。
 
 统一导航只增加显式本机维护CLI apply-navigation-ui，不增加HTTP业务接口、代理路径或权限。导航产品API保持b192字节；source/tool资格、双向实际MCP关闭和账号数据保全均由原v4维护链认证。
 
@@ -911,3 +938,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 仅服务网关可预登记 WeKnora 专用 OAuth 回调。既有授权、令牌和工具路径延用同一协议。
 
 私网 HTTPS 的 WeKnora OAuth 跨站导航仅允许预登记回调及其登录页，随后沿同源授权与 MCP 读取接口。
+
+既有会话接口在 AlphaDesk 启用时附带 `execution_engine` 和 `qa_events`。原普通 FinGPT 会话 API 返回 410。静态资源经本机 `GET /static/qa-dist/{name:path}` 缺包回执和私网 `GET /static/qa-dist/{name}` 检查。

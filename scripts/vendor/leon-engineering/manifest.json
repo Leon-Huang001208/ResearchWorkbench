@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 2,
+  "frameworkVersion": "0.19.4",
+  "sourceCommit": "3913ddb9ac612760fb95bf8d8f7102f948c32d0f",
+  "files": {
+    "iteration-delivery.mjs": "71dc328b2137630ad0ce22bf86bb5584a4fb476e72c518154d0bd70f5e4bc587",
+    "resource-lifecycle.mjs": "c7efde26f14c078e6141deb120ec6822e9cca0d798bd701d554de747c2e87b82",
+    "harness-storage.mjs": "f4ffd4b3a69fc97f3c836b2ed75a39775ff0871b56546070cee51b8f4203fe7a",
+    "lib/resources/lifecycle.mjs": "5abc3646e624d3bc22473c847fc4e6d3188f6973bef7675ac99c2f11146c84a1",
+    "schemas/resource-lifecycle-v1.schema.json": "576233dd069ed9091075b43d8d4d79b1e57ed93733313535d7b4db2042931463"
+  }
+}

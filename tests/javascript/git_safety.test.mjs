@@ -8,8 +8,61 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli, maintainBackups, verifyBackupDirectory} from '../../scripts/git_safety.mjs';
 import {finalizeLifecycle} from '../../scripts/resource_lifecycle.mjs';
+import * as deliveryController from '../../scripts/vendor/leon-engineering/iteration-delivery.mjs';
 
 const gitPath = '/usr/bin/git';
+
+test('legacy recovery CLI requires an exact apply token and separates the two operations', () => {
+  const projectRoot = '/absolute/rwb', backupDirectory = '/absolute/backup';
+  const lock = ['backup-lock-recover', '--project', projectRoot, '--recovery-backup', backupDirectory,
+    '--interruption-evidence', '/absolute/interruption.json'];
+  const identity = ['worktree-revalidate', '--project', projectRoot, '--task-id', 'task',
+    '--recovery-backup', backupDirectory];
+  assert.equal(parseCli(lock).options.interruptionEvidence, '/absolute/interruption.json');
+  assert.equal(parseCli(identity).options.taskId, 'task');
+  for (const args of [lock, identity]) {
+    assert.throws(() => parseCli([...args, '--apply']));
+    assert.throws(() => parseCli([...args, '--preview-sha256', 'a'.repeat(64)]));
+    assert.equal(parseCli([...args, '--apply', '--preview-sha256', 'a'.repeat(64)]).options.apply, true);
+  }
+  assert.throws(() => parseCli([...lock, '--task-id', 'task']));
+  assert.throws(() => parseCli([...identity, '--interruption-evidence', '/absolute/interruption.json']));
+  assert.throws(() => parseCli(['backup-audit', '--project', projectRoot, '--interruption-evidence', '/bad']));
+});
+
+test('worktree revalidation requires exact restored files and amends only registered device identities', async t => {
+  const {revalidateWorktreeIdentity} = await import('../../scripts/git_safety.mjs');
+  const {projectRoot, backup, state, managed, calls, options} = await partialCleanupFixture(t, {retainWorktrees: true});
+  fs.chmodSync(state, 0o700);
+  const ledgerPath = path.join(state, 'resources.json');
+  const proof = fs.readFileSync(path.join(state, 'git-finalization.json'));
+  const current = fs.statSync(managed[0].worktree).dev;
+  const ledger = {schemaVersion: 1, taskId: 'task', roots: Object.fromEntries(
+    managed.map(row => [row.worktree, [current + 1, fs.statSync(row.worktree).ino]])
+  ), directories: []};
+  fs.writeFileSync(ledgerPath, JSON.stringify(ledger), {mode: 0o600});
+  const original = fs.readFileSync(ledgerPath);
+  const intent = {projectRoot, taskId: 'task', backupDirectory: backup.directory};
+  const checked = {...options, processProbe: () => false};
+  const preview = await revalidateWorktreeIdentity(intent, checked);
+  assert.equal(preview.status, 'preview');
+  assert.deepEqual(fs.readFileSync(ledgerPath), original);
+  const apply = {...intent, apply: true, previewSha256: preview.previewSha256};
+  const permissions = path.join(managed[0].worktree, 'tracked.txt');
+  const mode = fs.statSync(permissions).mode & 0o777;
+  fs.chmodSync(permissions, mode === 0o600 ? 0o644 : 0o600);
+  await assert.rejects(revalidateWorktreeIdentity(apply, checked), {code: 'WORKTREE_BACKUP_SNAPSHOT_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(ledgerPath), original);
+  fs.chmodSync(permissions, mode);
+  const result = await revalidateWorktreeIdentity(apply, checked);
+  assert.equal(result.status, 'revalidated');
+  assert.equal(result.restoreVerified, true);
+  assert.deepEqual(fs.readFileSync(path.join(result.epoch, 'original-resources.json')), original);
+  assert.equal(Object.values(JSON.parse(fs.readFileSync(ledgerPath)).roots).every(([dev]) => dev === current), true);
+  assert.deepEqual(fs.readFileSync(path.join(state, 'git-finalization.json')), proof);
+  assert.equal(calls.some(args => args.includes('graphql') || args.includes('merge')), false);
+});
+
 function git(root, args) {
   // Fixture commits must not race detached Git maintenance with the lock gate.
   // Keep the production lock checks intact; these options affect this call only.
@@ -32,7 +85,7 @@ function fixture(t) {
   return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups'), backupVersion: 1}};
 }
 
-async function partialCleanupFixture(t) {
+async function partialCleanupFixture(t, {retainWorktrees = false} = {}) {
   const f=cleanupFixture(t), {projectRoot,receipt}=f;
   fs.appendFileSync(path.join(projectRoot,'.git/info/exclude'),'\nlogs/\n');
   receipt.schemaVersion=1;receipt.mode='pr';receipt.verification={status:'passed'};
@@ -50,8 +103,10 @@ async function partialCleanupFixture(t) {
   fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'blocked',blocked:[{phase:'git',code:'DELIVERY_FAILED'}]}),{mode:0o600});
   const delivery=path.join(projectRoot,'.git/leon-engineering/deliveries/task.json');fs.mkdirSync(path.dirname(delivery),{recursive:true});
   fs.writeFileSync(delivery,JSON.stringify(receipt),{mode:0o600});
-  for(const item of managed)git(projectRoot,['worktree','remove',item.worktree]);
-  git(projectRoot,['branch','-d',receipt.featureBranch]);
+  if (!retainWorktrees) {
+    for(const item of managed)git(projectRoot,['worktree','remove',item.worktree]);
+    git(projectRoot,['branch','-d',receipt.featureBranch]);
+  }
   const remoteRefs=new Map(managed.map(row=>[`refs/heads/${row.branch}`,row.commit])), calls=[], server={};
   const controller={readDeliveryReceipt:()=>JSON.parse(fs.readFileSync(delivery)),validateCleanedDelivery:()=>{
     const value=JSON.parse(fs.readFileSync(delivery));assert.equal(value.status,'cleaned');
@@ -122,13 +177,14 @@ test('CLI pending recovery respects native host gating without an unsettled entr
   const original=fs.readFileSync(path.join(f.state,'git-finalization.json'));
   assert.equal(JSON.parse(original).status,'pending');
   const scripts=path.join(f.projectRoot,'scripts');fs.mkdirSync(scripts);
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(scripts,name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','project_delivery_runtime.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(scripts,name));
   fs.mkdirSync(path.join(f.projectRoot,'.agents'));
   fs.writeFileSync(path.join(f.projectRoot,'.agents/resource-lifecycle.json'),JSON.stringify({schemaVersion:1,enabled:true}));
-  const home=path.join(f.root,'cli-home'),runtime=path.join(home,'.agents/leon-engineering/runtime');fs.mkdirSync(runtime,{recursive:true});
+  const home=path.join(f.root,'cli-home');fs.mkdirSync(home);
   // Only the controller's read-only remote boundary is synthetic. The child
   // enters the unmodified production CLI and complete recovery validator.
-  fs.writeFileSync(path.join(runtime,'iteration-delivery.mjs'),`import fs from 'node:fs';\nexport function readDeliveryReceipt(){return JSON.parse(fs.readFileSync(${JSON.stringify(f.delivery)},'utf8'));}\nexport const validateCleanedDelivery=readDeliveryReceipt;\n`);
+  fs.copyFileSync(new URL('../../scripts/project_delivery_runtime.mjs',import.meta.url),path.join(scripts,'production_project_delivery_runtime.mjs'));
+  fs.writeFileSync(path.join(scripts,'project_delivery_runtime.mjs'),`import fs from 'node:fs';\nexport {loadProjectResourceRuntime} from './production_project_delivery_runtime.mjs';\nexport async function loadProjectDeliveryRuntime(){const readDeliveryReceipt=()=>JSON.parse(fs.readFileSync(${JSON.stringify(f.delivery)},'utf8'));return {readDeliveryReceipt,validateCleanedDelivery:readDeliveryReceipt};}\n`);
   const runCli=()=>spawnSync(process.execPath,[path.join(scripts,'git_safety.mjs'),'delivery','--project',f.projectRoot,'--task-id','task','--status'],
     {encoding:'utf8',env:{...process.env,HOME:home},timeout:15000,maxBuffer:1024*1024});
   const child=runCli();
@@ -144,7 +200,7 @@ test('CLI pending recovery respects native host gating without an unsettled entr
   assert.doesNotMatch(child.stderr,/unsettled top-level await/i);
   const result=JSON.parse(child.stdout);
   assert.equal(result.gitStatus,'cleaned');assert.equal(result.status,'cleanup_pending');
-  assert.equal(result.lifecycleCloseout.code,'ENOENT','validated recovery must reach the intentionally absent runtime manifest');
+  assert.equal(result.lifecycleCloseout.code,'DELIVERY_RUNTIME_UNVERIFIED','validated recovery must reach the intentionally absent project pin');
   await t.test('CLI still rejects a changed recovery certificate',()=>{
     const filename=path.join(f.state,'git-finalization-recovery.json'),saved=fs.readFileSync(filename);
     try {
@@ -547,6 +603,56 @@ test('process-scoped native Git shim blocks maintenance and strips fetch pruning
   assert.deepEqual(fs.readFileSync(path.join(bin, 'git')), original);
 });
 
+test('resource record uses the base Python and preserves redacted subprocess failures', async t => {
+  const {projectRoot, options} = cleanupFixture(t);
+  const scripts = path.join(projectRoot, 'scripts');
+  fs.mkdirSync(scripts);
+  for (const name of ['git_safety.mjs', 'git_backup_store.mjs', 'resource_lifecycle.mjs', 'project_delivery_runtime.mjs', 'backup_fd_clone.mjs', 'backup_capacity.mjs']) {
+    fs.copyFileSync(new URL(`../../scripts/${name}`, import.meta.url), path.join(scripts, name));
+  }
+  fs.mkdirSync(path.join(projectRoot, '.agents'));
+  fs.writeFileSync(path.join(projectRoot, '.agents/resource-closeout.json'), '{}');
+  const python = spawnSync('python3', ['-c', 'import sys; print(sys._base_executable)'], {encoding: 'utf8'});
+  assert.equal(python.status, 0, python.stderr);
+  const executable = fs.realpathSync(python.stdout.trim());
+  const venv = path.join(projectRoot, '.venv');
+  fs.mkdirSync(path.join(venv, 'bin'), {recursive: true});
+  fs.symlinkSync(executable, path.join(venv, 'bin/python'));
+  fs.writeFileSync(path.join(venv, 'pyvenv.cfg'), `home = ${path.dirname(executable)}\ninclude-system-site-packages = false\n`);
+  const pkg = path.join(projectRoot, 'research_workbench_entrypoint');
+  fs.mkdirSync(pkg);
+  fs.writeFileSync(path.join(pkg, '__init__.py'), '');
+  fs.writeFileSync(path.join(projectRoot, 'sitecustomize.py'), 'import os\nos._exit(0)\n');
+  const module = path.join(pkg, 'iteration_resources.py');
+  fs.writeFileSync(module, 'import json, sys\nassert sys.prefix == sys.base_prefix\nassert sys.flags.no_site\nprint(json.dumps(dict(ok=True, registeredDirectories=0)))\n');
+  const {runDelivery: runFixtureDelivery} = await import(pathToFileURL(path.join(scripts, 'git_safety.mjs')).href);
+  const controller = {startDelivery: () => ({status: 'started'})};
+  const input = {projectRoot, taskId: 'task', action: 'start'};
+  assert.equal((await runFixtureDelivery(input, {...options, controller})).status, 'started');
+
+  const sentinel = 'RWB_RESOURCE_PRIVATE_SENTINEL';
+  fs.writeFileSync(module, `import sys\nprint("${sentinel}", file=sys.stderr)\nsys.exit(19)\n`);
+  await assert.rejects(runFixtureDelivery(input, {...options, controller}), error => {
+    assert.equal(error.code, 'RESOURCE_CLOSEOUT_BLOCKED');
+    assert.equal(error.resourceProcess.phase, 'record');
+    assert.equal(error.resourceProcess.exitCode, 19);
+    assert.equal(error.resourceProcess.signal, null);
+    assert.equal(error.resourceProcess.stderrBytes, Buffer.byteLength(sentinel + '\n'));
+    return true;
+  });
+  fs.writeFileSync(module, 'import os, signal\nos.kill(os.getpid(), signal.SIGTERM)\n');
+  await assert.rejects(runFixtureDelivery(input, {...options, controller}), error =>
+    error.code === 'RESOURCE_CLOSEOUT_BLOCKED' && error.resourceProcess.signal === 'SIGTERM');
+  fs.writeFileSync(module, 'pass\n');
+  await assert.rejects(runFixtureDelivery(input, {...options, controller}), error =>
+    error.code === 'RESOURCE_CLOSEOUT_BLOCKED' && error.resourceProcess.classification === 'invalid_response');
+  const log = fs.readFileSync(path.join(projectRoot, 'logs/git-safety.jsonl'), 'utf8');
+  assert.ok(!log.includes(sentinel));
+  const failures = log.trim().split('\n').map(line => JSON.parse(line)).filter(row => row.action === 'resource-record' && row.status === 'FAIL');
+  assert.equal(failures.length, 3);
+  assert.equal(failures[0].resourceProcess.stderrSha256, crypto.createHash('sha256').update(sentinel + '\n').digest('hex'));
+});
+
 function githubFixture(receipt, captured, {existing = [], protection, pr, checkConclusion = 'success', mergeParent = receipt.integrationCommit} = {}) {
   return (_command, args) => {
     captured.push(args);
@@ -568,6 +674,158 @@ function githubFixture(receipt, captured, {existing = [], protection, pr, checkC
     else throw new Error('Unexpected fixture GitHub call');
     return {status: 0, stdout: Buffer.from(JSON.stringify(result)), stderr: Buffer.from('')};
   };
+}
+
+function publicationSnapshotFixture(t) {
+  const f = cleanupFixture(t), {projectRoot, receipt} = f;
+  const originalRemote = receipt.remoteUrl;
+  const remote = path.join(f.root, 'github.com/fixture/repo.git');
+  fs.mkdirSync(path.dirname(remote), {recursive: true});
+  fs.renameSync(originalRemote, remote);
+  git(projectRoot, ['remote', 'set-url', 'origin', remote]);
+  const base = git(projectRoot, ['rev-parse', 'master']);
+  fs.writeFileSync(path.join(receipt.featureWorktree, 'feature.txt'), 'original feature\n');
+  git(receipt.featureWorktree, ['add', 'feature.txt']);
+  git(receipt.featureWorktree, ['commit', '-m', 'original feature']);
+  const oldFeature = git(receipt.featureWorktree, ['rev-parse', 'HEAD']);
+  git(receipt.integrationWorktree, ['merge', '--no-ff', oldFeature, '-m', 'original integration']);
+  const oldCandidate = git(receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+  git(projectRoot, ['push', 'origin', `${receipt.integrationBranch}:refs/heads/${receipt.integrationBranch}`]);
+  Object.assign(receipt, {
+    schemaVersion: 1, remoteUrl: remote, baseCommit: base, featureCommit: oldFeature,
+    integrationCommit: oldCandidate, status: 'prepared', mode: null, pullRequest: null,
+    remoteCommit: null, repairAttempts: 0, rollback: {status: 'not_run'},
+    verification: null, ci: {status: 'pending', runs: []},
+    cleanup: {featureWorktreeRemoved: false, integrationWorktreeRemoved: false, localBranchDeleted: false, remoteBranchDeleted: false},
+  });
+  const filename = path.join(projectRoot, '.git/leon-engineering/deliveries/task.json');
+  fs.mkdirSync(path.dirname(filename), {recursive: true});
+  fs.writeFileSync(filename, JSON.stringify(receipt), {mode: 0o600});
+  fs.appendFileSync(path.join(receipt.featureWorktree, 'feature.txt'), 'reviewed correction\n');
+  git(receipt.featureWorktree, ['commit', '-am', 'reviewed feature correction']);
+  const feature = git(receipt.featureWorktree, ['rev-parse', 'HEAD']);
+  git(receipt.integrationWorktree, ['merge', '--no-ff', feature, '-m', 'reviewed integration correction']);
+  const candidate = git(receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+  const calls = [], server = {};
+  const githubRunner = (_exe, args) => {
+    calls.push(args);
+    if (args[0] === 'api') {
+      assert.equal(args[1], 'repos/fixture/repo');
+      return {status: 0, stdout: Buffer.from(JSON.stringify({allow_auto_merge: false})), stderr: Buffer.alloc(0)};
+    }
+    if (args[0] === 'pr' && args[1] === 'list') {
+      server.beforeList?.();
+      const head = git(remote, ['rev-parse', `refs/heads/${receipt.integrationBranch}`]);
+      const existing = server.existing?.(head) ?? [{url: 'https://github.com/fixture/repo/pull/2', headRefOid: head}];
+      return {status: 0, stdout: Buffer.from(JSON.stringify(existing)), stderr: Buffer.alloc(0)};
+    }
+    if (args[0] === 'pr' && args[1] === 'create') {
+      assert.ok(args.includes('--body-file'));
+      server.body = fs.readFileSync(args[args.indexOf('--body-file') + 1], 'utf8');
+      return {status: 0, stdout: Buffer.from('https://github.com/fixture/repo/pull/3\n'), stderr: Buffer.alloc(0)};
+    }
+    assert.fail(`Unexpected publication fixture call: ${args.join(' ')}`);
+  };
+  return {...f, remote, filename, base, oldCandidate, candidate, feature, calls, server,
+    input: {projectRoot, taskId: 'task', action: 'publish', verification: {status: 'passed', command: 'actual source contracts', durationSeconds: 1}},
+    publicationOptions: {...f.options, controller: deliveryController, quotaProbe: () => ({allowed: true}), githubRunner},
+  };
+}
+
+test('publication binds the actual candidate with independently read receipts and reuses its original PR', async t => {
+  const f = publicationSnapshotFixture(t);
+  const first = deliveryController.readDeliveryReceipt({projectRoot: f.projectRoot, taskId: 'task'});
+  const second = deliveryController.readDeliveryReceipt({projectRoot: f.projectRoot, taskId: 'task'});
+  assert.notEqual(first, second);
+  assert.equal(first.integrationCommit, f.oldCandidate);
+  const result = await runDelivery(f.input, f.publicationOptions);
+  assert.equal(result.integrationCommit, f.candidate);
+  assert.equal(result.pullRequest.url, 'https://github.com/fixture/repo/pull/2');
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.candidate);
+  assert.equal(JSON.parse(fs.readFileSync(f.filename)).integrationCommit, f.candidate);
+  assert.equal(f.calls.some(args => args[1] === 'create' || args.includes('--auto')), false);
+});
+
+test('new PR body binds the same actual candidate as the real shared publication', async t => {
+  const f = publicationSnapshotFixture(t);
+  f.server.existing = () => [];
+  const result = await runDelivery(f.input, f.publicationOptions);
+  assert.equal(result.integrationCommit, f.candidate);
+  assert.equal(result.pullRequest.url, 'https://github.com/fixture/repo/pull/3');
+  assert.ok(f.server.body.includes(`Candidate: ${f.candidate}\n`));
+  assert.equal(f.server.body.includes(`Candidate: ${f.oldCandidate}\n`), false);
+  assert.equal(f.calls.filter(args => args[1] === 'create').length, 1);
+  assert.equal(f.calls.some(args => args.includes('--auto')), false);
+});
+
+test('publication refuses an integration candidate that drops its recorded ancestry before push', async t => {
+  const f = publicationSnapshotFixture(t);
+  const unrelated = git(f.receipt.integrationWorktree, ['commit-tree', `${f.candidate}^{tree}`, '-p', f.feature, '-m', 'integration without recorded merge']);
+  git(f.projectRoot, ['update-ref', `refs/heads/${f.receipt.integrationBranch}`, unrelated]);
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery(f.input, f.publicationOptions), {code: 'PUBLISH_CANDIDATE_UNVERIFIED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.oldCandidate);
+});
+
+test('publication detects actual candidate drift between its snapshot and the shared-controller push', async t => {
+  const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+  let drift;
+  const controller = {...deliveryController, publishDelivery: params => {
+    git(f.receipt.integrationWorktree, ['commit', '--allow-empty', '-m', 'concurrent candidate']);
+    drift = git(f.receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+    return deliveryController.publishDelivery(params);
+  }};
+  await assert.rejects(runDelivery(f.input, {...f.publicationOptions, controller}), {code: 'PUBLISH_CANDIDATE_CHANGED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  // A real push may already have happened; rejection must not invent a receipt or undo the external state.
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), drift);
+});
+
+test('publication rechecks candidate drift after an existing-PR lookup before adopting its receipt', async t => {
+  const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+  f.server.beforeList = () => git(f.receipt.integrationWorktree, ['commit', '--allow-empty', '-m', 'lookup-time candidate change']);
+  await assert.rejects(runDelivery(f.input, f.publicationOptions), {code: 'PUBLISH_CANDIDATE_CHANGED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.candidate);
+});
+
+test('the real shared publication still rejects an advanced remote base before pushing the candidate', async t => {
+  const f = publicationSnapshotFixture(t);
+  const controller = {...deliveryController, publishDelivery: params => {
+    git(f.projectRoot, ['commit', '--allow-empty', '-m', 'concurrent master']);
+    git(f.projectRoot, ['push', 'origin', 'master']);
+    return deliveryController.publishDelivery(params);
+  }};
+  await assert.rejects(runDelivery(f.input, {...f.publicationOptions, controller}), {code: 'DELIVERY_FAILED'});
+  const saved = JSON.parse(fs.readFileSync(f.filename));
+  assert.equal(saved.status, 'remote_moved');
+  assert.equal(saved.integrationCommit, f.oldCandidate);
+  assert.equal(saved.repairAttempts, 0);
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.oldCandidate);
+});
+
+test('publication rejects a changed real remote head instead of adopting the old PR', async t => {
+  const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+  f.server.beforeList = () => git(f.remote, ['update-ref', `refs/heads/${f.receipt.integrationBranch}`, f.oldCandidate]);
+  await assert.rejects(runDelivery(f.input, f.publicationOptions), {code: 'PR_HEAD_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(f.calls.some(args => args[1] === 'create'), false);
+});
+
+for (const [label, existing, code] of [
+  ['unrelated PR', head => [{url: 'https://github.com/other/repo/pull/2', headRefOid: head}], 'PR_IDENTITY_UNPROVEN'],
+  ['ambiguous PRs', head => [2, 3].map(id => ({url: `https://github.com/fixture/repo/pull/${id}`, headRefOid: head})), 'PR_IDENTITY_AMBIGUOUS'],
+  ['malformed PR identity', head => [{url: 2, headRefOid: head}], 'PR_IDENTITY_UNPROVEN'],
+]) {
+  test(`publication refuses ${label} after the real push without rewriting its receipt`, async t => {
+    const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+    f.server.existing = existing;
+    await assert.rejects(runDelivery(f.input, f.publicationOptions), {code});
+    assert.deepEqual(fs.readFileSync(f.filename), before);
+    assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.candidate);
+    assert.equal(f.calls.some(args => args[1] === 'create'), false);
+  });
 }
 
 test('publication is PR first, body-file only, reuses matching PR and never enables auto-merge', async t => {
@@ -770,7 +1028,7 @@ test('status cleanup deferral preserves CI guards and receipt while default stat
   receipt.cleanup={featureWorktreeRemoved:false,integrationWorktreeRemoved:false,localBranchDeleted:false,remoteBranchDeleted:false};
   git(projectRoot,['remote','set-url','origin',receipt.remoteUrl]);
   fs.mkdirSync(path.join(projectRoot,'scripts'));fs.mkdirSync(path.join(projectRoot,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(projectRoot,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','project_delivery_runtime.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(projectRoot,'scripts',name));
   fs.writeFileSync(path.join(projectRoot,'.agents/resource-closeout.json'),'{}');
   const delivery=path.join(projectRoot,'.git/leon-engineering/deliveries/task.json');fs.mkdirSync(path.dirname(delivery),{recursive:true});fs.writeFileSync(delivery,JSON.stringify(receipt),{mode:0o600});
   const before=fs.readFileSync(delivery),calls=[];let reads=0,cleanupCalls=0;
@@ -1395,7 +1653,7 @@ test('resource revalidation accepts only cleaned pending deliveries without repl
 test('enabled resource contract receives revalidate through the Python process boundary', async t => {
   const f=await pendingSnapshotCloseout(t), root=f.projectRoot;
   fs.mkdirSync(path.join(root,'scripts'));fs.mkdirSync(path.join(root,'.agents'));
-  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
+  for(const name of ['git_safety.mjs','git_backup_store.mjs','resource_lifecycle.mjs','project_delivery_runtime.mjs','backup_fd_clone.mjs','backup_fd_clone.py','backup_capacity.mjs'])fs.copyFileSync(new URL(`../../scripts/${name}`,import.meta.url),path.join(root,'scripts',name));
   fs.writeFileSync(path.join(root,'.agents/resource-closeout.json'),'{}');
   const python=spawnSync('python3',['-c','import sys;print(sys.executable)'],{encoding:'utf8'});
   assert.equal(python.status,0,python.stderr);
@@ -1858,6 +2116,60 @@ function v2Fixture(t) {
   fs.appendFileSync(path.join(f.projectRoot,'.git/info/exclude'),'\nlogs/\n');
   return f;
 }
+
+test('v2 backup restores Git patches larger than 64 MiB', async t => {
+  const {root,projectRoot,options} = v2Fixture(t);
+  const mib = 1024 * 1024;
+  const largeFile = path.join(projectRoot, 'large-report.txt');
+  // Long printable lines keep Git's line count small and still produce a text patch.
+  const text = Buffer.alloc(mib, 'A'.repeat(4095) + '\n');
+  const sourceFd = fs.openSync(largeFile, 'wx');
+  try {
+    for (let i = 0; i < 65; i++) assert.equal(fs.writeSync(sourceFd, text), text.length);
+  } finally { fs.closeSync(sourceFd); }
+  git(projectRoot, ['add', 'large-report.txt']);
+  git(projectRoot, ['commit', '-m', 'baseline with large text report']);
+  const head = git(projectRoot, ['rev-parse', 'HEAD']);
+  fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'staged\n');
+  git(projectRoot, ['add', 'tracked.txt']);
+  fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'working copy\n');
+  fs.unlinkSync(largeFile);
+
+  async function expectedPatch(args) {
+    const filename = path.join(root, 'expected.patch');
+    const fd = fs.openSync(filename, 'wx', 0o600);
+    try {
+      const result = spawnSync(gitPath, ['-C', projectRoot, 'diff', ...args, '--binary', '--full-index', '--'],
+        {stdio: ['ignore', fd, 'pipe']});
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr.toString());
+    } finally { fs.closeSync(fd); }
+    const hash = crypto.createHash('sha256');
+    for await (const chunk of fs.createReadStream(filename)) hash.update(chunk);
+    const bytes = fs.statSync(filename).size;
+    fs.unlinkSync(filename);
+    return {bytes, sha256: hash.digest('hex')};
+  }
+
+  const staged = await expectedPatch(['--cached', 'HEAD']);
+  const unstaged = await expectedPatch([]);
+  assert.ok(unstaged.bytes > 64 * mib);
+  const index = git(projectRoot, ['ls-files', '--stage']);
+  const point = backupRepository({projectRoot}, options);
+  assert.equal(point.restoreVerified, true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(point.directory, 'manifest.json')));
+  assert.equal(manifest.schemaVersion, 2);
+  const saved = manifest.worktrees[0];
+  assert.equal(saved.head, head);
+  assert.equal(saved.staged, staged.sha256);
+  assert.equal(saved.unstaged, unstaged.sha256);
+  assert.deepEqual(saved.tracked.find(item => item.path === 'large-report.txt'), {path: 'large-report.txt', type: 'missing'});
+  assert.equal(verifyBackupDirectory(point.directory, options).restoreVerified, true);
+  assert.equal(git(projectRoot, ['rev-parse', 'HEAD']), head);
+  assert.equal(git(projectRoot, ['ls-files', '--stage']), index);
+  assert.equal(fs.existsSync(largeFile), false);
+  assert.equal(fs.readFileSync(path.join(projectRoot, 'tracked.txt'), 'utf8'), 'working copy\n');
+});
 
 test('v2 reuses unchanged independent recovery point and stores content only once', t => {
   const {projectRoot,options}=v2Fixture(t);

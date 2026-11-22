@@ -6,6 +6,33 @@
   "artifactRoot": "outputs/research-web-architecture",
   "groups": [
     {
+      "id": "alphadesk-qa",
+      "sources": [
+        "app/research_web/qa_acceptance.py",
+        "app/research_web/qa_assets.py",
+        "app/research_web/qa_attachments.py",
+        "app/research_web/qa_bridge.py",
+        "app/research_web/qa_execution.py",
+        "app/research_web/qa_model.py",
+        "app/research_web/qa_observations.py",
+        "app/research_web/qa_tools.py",
+        "app/research_web/qa_frontend/",
+        "app/research_web/qa_worker/"
+      ],
+      "documents": [
+        "docs/research-web-ai-qa.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies"
+      ],
+      "tests": [
+        "tests/research_web/test_alphadesk_qa.py",
+        "tests/research_web/test_alphadesk_qa_formats.py",
+        "tests/research_web/test_qa_acceptance_budget.py",
+        "tests/javascript/research_web_qa_worker.test.mjs"
+      ]
+    },
+    {
       "id": "inbound-mcp-readonly",
       "sources": [
         "app/research_web/mcp_facade/"
@@ -198,6 +225,7 @@
         "app/research_web/service.py",
         "app/research_web/service_manager.py",
         "app/research_web/service_diagnostics.py",
+        "app/research_web/research_bot_diagnostics.py",
         "app/research_web/lifecycle_lock.py",
         "research_workbench_entrypoint/web_contract.py",
         "research_workbench_entrypoint/web_bootstrap.py",
@@ -394,6 +422,8 @@
       "id": "automations",
       "sources": [
         "app/research_web/automation/",
+        "app/research_web/research_bot_models.py",
+        "app/research_web/research_bots.py",
         "app/research_web/service.py",
         "app/research_web/ui/capability-workspace.mjs"
       ],
@@ -418,6 +448,8 @@
         "tests/research_web/test_automation_transport.py",
         "tests/research_web/test_automation_service.py",
         "tests/research_web/test_automation_routes.py",
+        "tests/research_web/test_research_bots.py",
+        "tests/javascript/research_web_research_bots.test.mjs",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/e2e/research_web_automations.mjs",
         "tests/research_web/test_automation_drafts.py"
@@ -1103,7 +1135,8 @@
         "scripts/weknora_candidate.py",
         "deploy/weknora/patches/",
         "research_workbench_entrypoint/server.py",
-        "research_workbench_entrypoint/knowledge_configuration.py"
+        "research_workbench_entrypoint/knowledge_configuration.py",
+        "deploy/weknora/docreader/"
       ],
       "documents": [
         "docs/research-web-weknora.md",
@@ -1124,7 +1157,35 @@
         "tests/research_web/test_weknora_upstream_patch.py",
         "tests/research_web/test_weknora_retrieval_profile.py",
         "tests/research_web/test_weknora_cli.py",
-        "tests/research_web/test_weknora_kb_settings_patch.py"
+        "tests/research_web/test_weknora_kb_settings_patch.py",
+        "tests/research_web/test_weknora_sync.py",
+        "tests/research_web/test_weknora_sync_scaling.py",
+        "tests/research_web/test_weknora_sync_client.py",
+        "tests/research_web/test_weknora_current.py",
+        "tests/research_web/test_weknora_current_api.py",
+        "tests/research_web/test_weknora_plain_text.py",
+        "tests/research_web/test_weknora_formal_scope.py"
+      ]
+    },
+    {
+      "id": "strategy-validation",
+      "sources": [
+        "app/research_web/strategy_validation/"
+      ],
+      "documents": [
+        "docs/research-web-strategy-validation.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_strategy_validation_engine.py",
+        "tests/research_web/test_strategy_validation_api.py",
+        "tests/javascript/research_web_strategy_validation.test.mjs",
+        "tests/e2e/research_web_strategy_validation.mjs"
       ]
     }
   ],
@@ -2083,10 +2144,89 @@
             "knowledgeReport"
           ],
           "source": "docs/research-web-weknora.md"
+        },
+        {
+          "subjects": [
+            "knowledgeInbox",
+            "knowledgeSync",
+            "knowledgeObserve",
+            "knowledgePublish"
+          ],
+          "source": "app/research_web/knowledge_backend/sync.py"
+        },
+        {
+          "subjects": [
+            "knowledgeSync"
+          ],
+          "source": "app/research_web/knowledge_backend/sync_storage.py"
+        },
+        {
+          "subjects": [
+            "knowledgeFacade",
+            "knowledgeEvidence",
+            "knowledgeFreeze",
+            "knowledgeReport"
+          ],
+          "source": "app/research_web/knowledge_backend/current.py"
+        },
+        {
+          "subjects": [
+            "knowledgeEmbedding",
+            "knowledgeEmbed"
+          ],
+          "source": "docs/research-web-weknora.md"
+        },
+        {
+          "subjects": [
+            "knowledgeConsumer",
+            "knowledgeReport"
+          ],
+          "source": "app/research_web/runtime/public-data.mjs"
+        },
+        {
+          "subjects": [
+            "knowledgeApproval",
+            "knowledgeApprove"
+          ],
+          "source": "app/research_web/main.py",
+          "contains": "knowledge_user_action_required"
+        },
+        {
+          "subjects": [
+            "knowledgeGrant",
+            "knowledgeGrantRead"
+          ],
+          "source": "app/research_web/store.py",
+          "contains": "knowledge_single_turn"
+        },
+        {
+          "subjects": [
+            "knowledgeTurn",
+            "knowledgeFormalRoute",
+            "knowledgeFormalSearch",
+            "knowledgeFormalReceipt"
+          ],
+          "source": "app/research_web/knowledge_backend/current.py",
+          "contains": "_formal_grant"
+        },
+        {
+          "subjects": [
+            "knowledgeTurn"
+          ],
+          "source": "app/research_web/knowledge_backend/routes.py",
+          "contains": "knowledge_native_turn_unverified"
+        },
+        {
+          "subjects": [
+            "knowledgeConsumer",
+            "knowledgeFormalCaller"
+          ],
+          "source": "app/research_web/runtime/public-data.mjs",
+          "contains": "X-Research-Native-Session"
         }
       ],
       "level": "flows",
-      "summary": "DataHub原件与个人档案SQLite引用、不可变修订、冻结交接及逐次鉴权；旧快照和可选研究仓保持。"
+      "summary": "DataHub原件与冻结交接；普通本机资料按账号版本同步，单轮批准范围绑定Host回执与原生首turn，必要片段和正式报告资格分开。"
     },
     {
       "id": "05-capability-flow",
@@ -4502,6 +4642,13 @@
       "prefix": ""
     },
     {
+      "method": "POST",
+      "path": "/api/research/knowledge/login",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/login",
+      "prefix": ""
+    },
+    {
       "method": "GET",
       "path": "/api/research/knowledge/evidence/{identifier}",
       "source": "app/research_web/knowledge_backend/routes.py",
@@ -4541,6 +4688,27 @@
       "path": "/api/research/knowledge/search",
       "source": "app/research_web/knowledge_backend/routes.py",
       "declaredPath": "/api/research/knowledge/search",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/knowledge/sync",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/sync",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/sync/config",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/sync/config",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/knowledge/sync/scan",
+      "source": "app/research_web/knowledge_backend/routes.py",
+      "declaredPath": "/api/research/knowledge/sync/scan",
       "prefix": ""
     },
     {
@@ -6226,13 +6394,104 @@
       "declaredPath": "/{path:path}",
       "prefix": "",
       "condition": "mcp-disabled"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/research-bots",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/research-bots",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/research-bots/skills/{skill_id}",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/skills/{skill_id}",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/research-bots/{bot_id}",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/{bot_id}",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/research-bots/{bot_id}/runs",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/{bot_id}/runs",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/research-bots/{bot_id}/{action}",
+      "source": "app/research_web/research_bots.py",
+      "declaredPath": "/{bot_id}/{action}",
+      "prefix": "/api/research/research-bots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/strategy-validation",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/strategy-validation/datasets",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/datasets",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/strategy-validation/runs",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/strategy-validation/runs/{run_id}",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/strategy-validation/runs/{run_id}/events",
+      "source": "app/research_web/strategy_validation/routes.py",
+      "declaredPath": "/runs/{run_id}/events",
+      "prefix": "/api/research/strategy-validation"
+    },
+    {
+      "method": "GET",
+      "path": "/static/qa-dist/{name:path}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/static/qa-dist/{name:path}",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/static/qa-dist/{name}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/static/qa-dist/{name}",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "7cfe3a3540f3a9d50c424e4583cb1f8d58c90708"
+      "revision": "ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7"
     },
     "levels": [
       {
@@ -6257,6 +6516,13 @@
       }
     ],
     "modules": [
+      {
+        "id": "alphadesk-qa",
+        "group": "alphadesk-qa",
+        "title": "AI 问答",
+        "summary": "AlphaDesk 快速、深度与 Agent 编排，沿 RWB 会话、授权、证据与报告验收。",
+        "category": "研究会话与 Runtime"
+      },
       {
         "id": "inbound-mcp-readonly",
         "group": "inbound-mcp-readonly",
@@ -6497,8 +6763,18 @@
         "id": "knowledge-backend",
         "group": "knowledge-backend",
         "title": "研究资料与证据",
-        "summary": "可选WeKnora用户认证、原文检索及独立冻结；UI零生成、真实服务与报告接入仍待验收。",
+        "summary": "固定目录current资料与显式scope单轮grant；原生身份、命中回执和独立冻结，真实链路与报告资格分别验收。",
         "category": "研究资料与证据",
+        "diagrams": [
+          "04-data-file-flow"
+        ]
+      },
+      {
+        "id": "strategy-validation",
+        "group": "strategy-validation",
+        "title": "策略验证",
+        "summary": "冻结日线的可配置退出信号、成交近似与逐笔相似对照。",
+        "category": "策略验证",
         "diagrams": [
           "04-data-file-flow"
         ]

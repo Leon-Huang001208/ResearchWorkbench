@@ -1,5 +1,119 @@
 # Mac mini 空私有池网关升级
 
+## 附接 MCP 保全的围栏内复核
+
+原 PR #284 只将两项仍有效的保护前移到当前联合操作员，不恢复旧财经日历固定部署 profile。
+适用集合为当前 `ATTACHED_MCP_PRESERVATION_MODES` 的五个模式：
+`RESEARCH_BOT_MODE`、`RESEARCH_BOT_V2_MODE`、`STORAGE_IDENTITY_MODE`、
+`STRATEGY_VALIDATION_MODE`、`LOCAL_KNOWLEDGE_MODE`。
+仅覆盖 fresh forward apply 及 `preparing` 恢复，并要求
+`not post_deploy_rollback(state)`；Trial、完成后回滚、其他模式及其他恢复阶段保持原语义。
+Local Knowledge 完成后回滚可能已在运行目标版本，不能套用前版验证方向。
+
+fresh apply 沿原 BirthFence SQLite EX、安装作用域及 Operations，在最终 GitHub 候选证据核对后、
+`execute()` 前，依次执行 `validate_configuration(home, state)` 和
+`ops.verify(previous=True)`。限定的 preparing 恢复也须先取得原围栏及安装作用域，
+再完成同样的真实前版复核，成功后才删除原 gateway upgrade journal。
+配置校验独立保留，不能因已调用 `verify` 就假定其覆盖配置。
+任一复核失败均保留 preparing journal，不进入 stop、checkpoint 或源码切换。
+
+这是现有锁内验证顺序的加强，不新增锁、lease、模式、服务、数据库、依赖或权限，
+不改变账号、MCP 开关、模型与研究执行器。原旧回执及失败证据保留；源码、离线真实围栏夹具、
+同候选 CI 与实际 Mac mini 切换分别取证。普通源码前移不构成部署完成，也不触发其他平台运行。
+
+## RWB 本地知识库受管升级
+
+`model_provider_upgrade apply-local-knowledge` 使用封闭 `reviewed-local-knowledge-v1`，前版固定为
+`33b3044dd68197106c5018e31482762cb1e02ea1`，产品精确提交以操作员的 `LOCAL_KNOWLEDGE_PAYLOAD`
+为准。源代码、原三项 CI、同候选 macOS 安装与独立评审完成后，从原登记 Git common 中的干净执行树运行。
+跨 common 的交付证据通过既有 `delivery_transfer` 导入；不改登记的 `source_common`。
+
+该入口复用 v4 三锁、BirthFence、空闲检查、全账号原件保全和恢复，保持既有模型、MCP 与
+`alphadesk_qa` 配置。主安装清单及网关配置新增固定 `weknora_origin`，值为
+`https://mac-mini-1.tail947973.ts.net:9443`；两端启动读取持久值，字段缺失保持旧行为。
+安装合同只允许 `scripts/setup_web.py` 的固定 before/after blob，文件模式均须为 `100755`；
+其他安装锁、运行时和入口合同继续保持严格一致。构建使用隔离源码中的既有 QA 资产构建及 wheel 流程，
+不因此切换研究执行器。
+
+成功上线后的主动回滚使用
+`model_provider_upgrade rollback-local-knowledge --rollback-target CURRENT_ACCEPTED_SHA`。
+它核对本模式独立的回滚胶囊与已接受候选，重新排空、保全当前账号资料，恢复原 wheel、源码、
+两端 origin 字段的旧值或缺失状态，并核验模型、MCP 和执行器保持原设置。普通 `recover` 只处理
+未完成事务，不能作为成功上线后的主动回滚。WeKnora 的数据库和用户资料不随 RWB 源码回滚而清空。
+
+Tailscale Serve 9443 仅将现有 WeKnora 前端 `127.0.0.1:18181` 提供给私网设备；原 443 RWB 和
+8443 SuperAgent 路由保持。Ollama 内部监听不向组网发布。正式用户自行注册并在 RWB 设置登录，
+bootstrap 公开验收账号及其状态独立留存，不自动迁移给正式身份。部署、同机私网链路与另一设备验证分别留证。
+
+本模式的 Serve 预检同时核对维护围栏准备和切换检查点：必须有原443与固定9443；若存在8443，
+只接受 HTTPS 根路由到 `http://127.0.0.1:8097`。9443只接受 HTTPS 根路由到
+`http://127.0.0.1:18181`。未知端口、主机、附加路径、转发目标或 Funnel 均拒绝；其他升级模式沿原443合同。
+
+## 策略验证常驻升级
+
+`model_provider_upgrade apply-strategy-validation` 绑定已接受的 `3be8a17b48ca5c57a71837bdc806efaf386a68b8` 和 PR #308 的合并产品 `4983949df4aac654dd95415be1d5d6a654170ff5`。执行器只接受该产品和受审部署文件的组合。以现有生产解释器从 GitHub 最新已审且干净的同仓工作树执行 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-strategy-validation --source <该工作树>`。
+
+切换前验证 Project Constraints、Research Web Checks 及 macOS 15 Bootstrap 的实际候选，沿用原联合事务的空闲检查、三锁、BirthFence 和保全快照。主实例和网关一同更新，现有账号数据、固定 DSH、模型设置和实际只读 MCP 开关在上线与回滚时复核。切换后检查主实例、网关和私网入口的版本及可达性，再在已登录的「策略模拟 → 策略验证」上传原冻结压缩包，复核逐笔、下跌率、次日卖出胜率及配对对照。研究运行只从该页面显式发起。
+
+## Research Bot Radar 时效升级
+
+`model_provider_upgrade apply-research-bot-freshness` 使用上一版本的 Native 联合事务。已接受前版固定为 `0ca0f4c0`，完整产品由 Radar 修复检查点冻结。最终合并提交包含该检查点及受审操作员。普通合并保留固定提交祖先，部署前由现有 CI 资格检查核对最终合并树。
+
+待已有研究和后台任务空闲后启动受管事务，核对原账号索引、原 Bot 停用状态和模型配置。复用原三锁、BirthFence、轮子及回滚。切换后检查主实例、网关和原 MCP 状态。原 Bot 手动及定时模型验收以实际资料和运行回执另证。
+
+## 常驻存储身份固定升级
+
+`apply-resident-storage-identity` 从已接受的 `0ca0f4c01fa6a027f2759814eea9624ba8c79807` 进入固定产品
+`00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7`。以原生产解释器运行最新已审主线工作树的
+`research_workbench_entrypoint.resident.model_provider_upgrade`，用
+`apply-resident-storage-identity --source <干净工作树>` 进入原 v4 事务。切换和回滚均
+核对实际原 MCP 布尔值、全账号资料和固定运行时。通过两端健康后再执行正式的
+`rwb resident enroll-storage-identity --json`，保留旧恢复工件以供核对，确认正式作业后
+才停用现场的临时身份修复任务。分别记录新 boot UUID、三端口、私网登录及能力目录。
+
+## Research Bot 常驻升级
+
+`model_provider_upgrade apply-research-bot` 绑定该次升级的前置版本 `1315d11a` 及 PR #302 的实际合并提交 `88bec0ec04cbe2eb6979e6ebde695b992ed27336`。该版本包含旧常驻版本之后已合并的主线变更。操作员使用现有 v4 事务，检查候选的完整产品字节及权限位，并核实主实例、网关及受审源码的仓库身份。来自另一仓库的交付回执经 `resident.delivery_transfer` 导入实际配置的源码仓库。
+
+使用已安装的生产解释器和当前受审主线的干净工具工作树执行。既有研究和后台任务必须明确空闲；Web 依赖锁、DSH、MCP 设置、账号和业务索引在切换及回滚中复核。发布前确认所选候选的 Project Constraints、Research Web Checks 和 macOS 15 Bootstrap。部署后分别核对两个实际进程的版本、3081／8088／8089、本机 Research Bot 页面及账号访问边界。页面验证不创建 Bot、不启用日程。
+
+## 网关同版本迁移到非云盘仓库
+
+在已审核的源码 checkout 中，先用 `rwb resident prepare-gateway-source` 准备本地发行工作树。
+该命令使用原 Native 配置登记的 Git common。确认目标是精确的已安装 SHA、工作树干净且 Git
+元数据落在非云盘目录。保留旧工作树和原 Git 记录用于审计。
+
+对现有网关，先按原维护流程确认账号执行空闲并记录现有 launchd 注册和启用状态。仅在本次
+维护窗口，用 `launchctl disable` 禁用当前用户 GUI 域中的 `com.research-workbench.multiuser-server`
+与 `com.research-workbench.resident`，并在确认归属和空闲后卸载原网关、释放 8089。跨重启时
+这两项停用状态保护未完成事务。原 Native Web/DSH 可以继续运行。下列命令保留原端口、
+解释器、账号库、DSH 源、Tailscale 路由及管理员绑定。
+
+```bash
+./rwb resident plan-gateway-relocation --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --json
+./rwb resident relocate-gateway --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --plan-seal EXACT_PREVIEW_SEAL --json
+```
+
+迁移变更 `server/resident.json.project` 和原 LaunchAgent 的 `WorkingDirectory`，启动前重新
+核对配置和实际工作目录。若中途退出，使用 `rwb resident recover-gateway-relocation --json`
+处理本次未完成事务，再复核旧配置、保留原回执。完成后由操作员引导原 LaunchAgent，并验证
+私网 HTTPS、主实例绑定、登录和技能目录。确认恢复结果已落盘后恢复原两个 label 的启用与注册状态。
+## FinGPT 执行器切换
+
+`apply-fingpt` 固定已接受的策略验证版本 `33b3044dd68197106c5018e31482762cb1e02ea1` 为前版，产品检查点见操作员的 `FINGPT_PAYLOAD`。同一候选通过原 Native 围栏更新主实例安装清单和私网网关配置。现有 MCP 开关随原网关配置保留。切换中校验两端的版本和执行器，并复核网关进程身份。事务失败时恢复两个源码、原 wheel、安装清单和网关配置。常驻 FinGPT 使用受管操作员启动或重启。
+
+正式启用前须完成所有账号的可恢复原件备份、隔离恢复演练和已登录双入口验收准备。
+含回滚入口的版本在 FinGPT 切换成功时保存前版配置、安装工件和受理证明的绑定。完成后的回滚从受审命令源码执行：
+
+```bash
+python -m research_workbench_entrypoint.resident.model_provider_upgrade rollback-fingpt --rollback-target CURRENT_ACCEPTED_SHA
+```
+
+命令核对已接受的目标，以及本机与私网的当前版本和配置，再沿原维护锁和准入围栏执行双入口回滚。账户和模型保全依据回滚开始时的现状。回滚中断仍用原 `recover` 处理活动事务。没有回滚回执的旧切换保持原样，须单独处理。隔离测试和实际 Mac 两入口验收分别取证。
+
+
 逐日市场用 `apply-market-daily`，从已接受 `37051f8f` 进入操作员内 `MARKET_DAILY_PAYLOAD` 固定的载荷；复用市场 V2 的 120 秒切换预算、
 切后干净树、原保全与恢复。首批操作的固定来源在写者排空后记录明确终态证明；旧失败、运行中、
 未知状态、无证明或日程非严格关闭仍拒绝切换。不得清除历史失败隔离以便重试。

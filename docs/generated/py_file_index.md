@@ -697,15 +697,24 @@ Module docstring:
 Imports:
 - `__future__`
 - `app.api.routes.runtime_workflows`
+- `app.research_web.multiuser.origin`
+- `contextlib`
+- `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.fingpt_repository`
 - `data_layer.repositories.runtime_workflow_repository`
 - `datetime`
 - `fastapi`
+- `os`
+- `pathlib`
 - `pydantic`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
 - `services.fingpt_service`
 - `services.runtime_workflow_service`
 - `sqlalchemy.orm`
+- `stat`
+- `urllib.parse`
 
 Classes:
 - `CreateTaskRequest`
@@ -713,6 +722,13 @@ Classes:
 - `DshSyncEvent`
 
 Functions:
+- `_has_entry`
+- `_resident_root`
+- `_check_private_folder`
+- `_replacement_url`
+- `_cutover_unavailable`
+- `_cutover_state`
+- `_require_legacy_fingpt`
 - `get_fingpt_service`
 - `fingpt_health`
 - `list_sessions`
@@ -3456,6 +3472,7 @@ Imports:
 - `datetime`
 - `email.utils`
 - `pydantic`
+- `research_bot_models`
 - `store`
 - `typing`
 - `zoneinfo`
@@ -3465,14 +3482,14 @@ Classes:
   - Safe automation-domain failure exposed through the existing API handler.
 - `StrictModel`
 - `AutomationSchedule`
-  - methods: timezone_exists, validate_shape
+  - methods: timezone_exists, validate_shape, stable_legacy_shape
 - `MCPToolLock`
   - methods: unattended_is_read_only
 - `DeliveryConfiguration`
   - methods: channel_ids_are_unique
 - `ResearchTaskDefinition`
   - Explicit research intent and permission scope, independent of a Skill.
-  - methods: scopes_are_unique
+  - methods: stable_legacy_shape, scopes_are_unique
 - `AutomationCreate`
   - methods: values_are_unique
 - `AutomationUpdate`
@@ -3566,12 +3583,14 @@ Imports:
 Classes:
 - `AutomationService`
   - Keep Automation/Run JSON as the fact source and schedule only next fires.
-  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, arm_collection, _collection_fire, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+  - methods: __init__, _eligible, _require_eligible, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, _require_definition_family, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _queue_run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, arm_collection, _collection_fire, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
 
 Functions:
 - `_definition_transaction`
   - Serialize synchronous definition CAS and snapshots, never native awaits.
 - `automation_feature_enabled`
+- `_is_research_bot`
+- `_require_automation_family`
 - `_canonical_sha`
 - `_id_digest`
 
@@ -5683,7 +5702,9 @@ Imports:
 - `core.observability`
 - `datetime`
 - `models`
+- `re`
 - `sources`
+- `zoneinfo`
 
 Functions:
 - `stable`
@@ -7605,6 +7626,7 @@ Imports:
 - `fastapi`
 - `httpx`
 - `json`
+- `qa_acceptance`
 - `typing`
 - `urllib.parse`
 
@@ -7646,6 +7668,7 @@ Imports:
 - `binascii`
 - `core.observability`
 - `functools`
+- `hashlib`
 - `httpx`
 - `json`
 - `math`
@@ -7657,7 +7680,7 @@ Imports:
 Classes:
 - `WeKnoraClient`
   - No API-key fallback, refresh, redirects, ambient proxy or automatic retry.
-  - methods: __init__, _check_token, _request, identity, knowledge_bases, _ids, _chunk, search, document, chunks, original
+  - methods: login, __init__, _check_token, _request, identity, knowledge_bases, _ids, _chunk, search, document, _document, upload, documents_in_base, chunks, original
 
 Functions:
 - `_fail`
@@ -7685,6 +7708,24 @@ Functions:
 - `checked_origin`
 
 
+## `app/research_web/knowledge_backend/current.py`
+
+Module docstring:
+> Session-bound current research receipts; model text cannot select a library.
+
+Imports:
+- `__future__`
+- `collections`
+- `hashlib`
+- `math`
+- `storage`
+- `store`
+
+Classes:
+- `CurrentResearch`
+  - methods: _session, _formal_grant, _formal_check, _formal_query, _formal_read, _current_authorized, _receipt, _current_config, _projection, _current_query, _receipt_status, _current_read, _current_freeze, _freeze_source_status, registered_sources
+
+
 ## `app/research_web/knowledge_backend/diagnostics.py`
 
 Module docstring:
@@ -7695,6 +7736,7 @@ Imports:
 - `service`
 - `storage`
 - `store`
+- `sync`
 
 Functions:
 - `knowledge_diagnostic`
@@ -7712,12 +7754,19 @@ Imports:
 Classes:
 - `StrictModel`
 - `Binding`
+- `Login`
 - `Search`
 - `SourceApproval`
   - methods: aware_time
 - `Scope`
 - `Read`
 - `Freeze`
+- `CurrentQuery`
+- `CurrentRead`
+- `CurrentFreeze`
+  - methods: receipt_ids
+- `SyncConfiguration`
+- `Scan`
 
 
 ## `app/research_web/knowledge_backend/routes.py`
@@ -7726,8 +7775,10 @@ Module docstring:
 > Authenticated settings and explicit evidence writes, separate from read-only MCP.
 
 Imports:
+- `delivery`
 - `fastapi`
 - `pydantic`
+- `storage`
 - `store`
 
 Functions:
@@ -7735,10 +7786,17 @@ Functions:
 - `body`
 - `status`
 - `bind`
+- `login`
 - `bases`
+- `sync_status`
+- `sync_config`
+- `sync_scan`
 - `scope`
 - `query`
 - `read`
+- `current_grant`
+- `grant_snapshot`
+- `active_scope`
 - `freeze`
 - `evidence`
 - `original`
@@ -7756,17 +7814,20 @@ Imports:
 - `configuration`
 - `core.observability`
 - `credential_backend`
+- `current`
 - `datetime`
 - `functools`
 - `os`
 - `research_workbench_entrypoint.resident.admission`
 - `storage`
 - `store`
+- `time`
 - `uuid`
+- `zoneinfo`
 
 Classes:
 - `KnowledgeService`
-  - methods: __init__, status, _credentials, _client, _authorized, _still_authorized, bind, bases, _scope, create_scope, _ready, _verify_document, search, read, freeze
+  - methods: __init__, status, sync_status, _credentials, _client, _authorized, _still_authorized, bind, login, current_query, current_read, current_freeze, configure_sync, scan_sync, bases, _scope, research_scope, create_scope, _ready, _verify_document, search, read, freeze
 
 Functions:
 - `bounded`
@@ -7790,18 +7851,88 @@ Imports:
 - `pathlib`
 - `re`
 - `research_workbench_entrypoint.resident.admission`
+- `shutil`
+- `stat`
 - `store`
 - `typing`
 - `uuid`
 
 Classes:
 - `KnowledgeStore`
-  - methods: __init__, binding, check_binding_budget, save_binding, create, read, original, preservation
+  - methods: __init__, binding, check_binding_budget, save_binding, connection, save_connection, create, _record, read, original, records, preservation
 
 Functions:
 - `digest`
 - `canonical`
 - `fail`
+- `_available_bytes`
+- `_disk_floor`
+- `_file_digest`
+  - Hash one private regular file with fixed memory and no path/link traversal.
+
+
+## `app/research_web/knowledge_backend/sync.py`
+
+Module docstring:
+> Stable directory snapshots and conditional publication into a single private KB.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `client`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `os`
+- `pathlib`
+- `plistlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `stat`
+- `storage`
+- `store`
+- `subprocess`
+- `sync_storage`
+
+Classes:
+- `KnowledgeSyncService`
+  - Owns mutable source state; the existing Host owns its worker and credentials.
+  - methods: __init__, close, matches_binding, _authorized, _root, _claim, configure, status, current_documents, history, snapshot, pin_snapshot, preservation, _signature, _read_at, _collect, _source, _changed_source, _verify, _process, scan
+
+Functions:
+- `_now`
+- `_temporary`
+- `verify_workdisk`
+  - Volume names alone never authorize a write to the resident data drive.
+
+
+## `app/research_web/knowledge_backend/sync_storage.py`
+
+Module docstring:
+> Private mutable directory index, separate from immutable report manifests.
+
+Imports:
+- `__future__`
+- `client`
+- `contextlib`
+- `core.observability`
+- `datahub.security`
+- `dossiers.lock`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `sqlite3`
+- `stat`
+- `storage`
+- `store`
+- `threading`
+
+Classes:
+- `SyncStore`
+  - methods: __init__, _safe, _admit, _prune_unpinned, connection, config, save_config, rows, observe, update, _checked_raw, stage, pin_snapshot, _raw, staged_snapshot, snapshot, preservation
 
 
 ## `app/research_web/launch_runtime.py`
@@ -8156,7 +8287,7 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
-- ... 40 more
+- ... 44 more
 
 Classes:
 - `NewSession`
@@ -10255,7 +10386,9 @@ Imports:
 - `os`
 - `pathlib`
 - `platform`
-- `subprocess`
+- `research_workbench_entrypoint.resident.controller`
+- `research_workbench_entrypoint.resident.evidence`
+- `research_workbench_entrypoint.resident.gateway_source`
 - `sys`
 
 Functions:
@@ -10337,6 +10470,7 @@ Imports:
 - `os`
 - `pathlib`
 - `process_spec`
+- `qa_acceptance`
 - `re`
 - `runtime_auth`
 - `secrets`
@@ -10842,6 +10976,217 @@ Functions:
 - `activity_value`
 - `activity_detail`
 - `project`
+
+
+## `app/research_web/qa_acceptance.py`
+
+Module docstring:
+> CNY 50 ceiling shared by isolated acceptance runs on this Host.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `dataclasses`
+- `datahub.security`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `store`
+- `uuid`
+
+Classes:
+- `Reservation`
+
+Functions:
+- `acceptance_enabled`
+- `_held`
+- `_in_range`
+- `_validate_legacy`
+- `_usage_cost`
+- `_load`
+- `_ledger`
+- `reserve`
+- `settle`
+  - Release only the proven difference from the peak-priced official usage.
+
+
+## `app/research_web/qa_assets.py`
+
+Module docstring:
+> Read-only identity check for the packaged AlphaDesk frontend.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `importlib.metadata`
+- `json`
+- `os`
+- `pathlib`
+- `stat`
+
+Functions:
+- `_plain_path`
+- `qa_file_digest`
+- `qa_source_files`
+- `qa_source_digest`
+- `qa_build_manifest`
+- `_valid_build`
+- `qa_assets_root`
+  - Find verified local bytes, or a wheel built from the same frontend source.
+- `qa_assets_diagnostic`
+
+
+## `app/research_web/qa_attachments.py`
+
+Module docstring:
+> Bound FinGPT attachment data to the owning Host and turn.
+
+Imports:
+- `asyncio`
+- `base64`
+- `codecs`
+- `core.observability`
+- `hashlib`
+- `io`
+- `json`
+- `pathlib`
+- `qa_acceptance`
+- `re`
+- `store`
+
+Functions:
+- `turn_images`
+- `with_turn_images`
+- `read_attachment`
+
+
+## `app/research_web/qa_bridge.py`
+
+Module docstring:
+> One bounded private worker process per admitted AlphaDesk turn.
+
+Imports:
+- `asyncio`
+- `client`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+
+Functions:
+- `run_worker`
+
+
+## `app/research_web/qa_execution.py`
+
+Module docstring:
+> AlphaDesk turn ownership, recovery and Research Web projections.
+
+Imports:
+- `asyncio`
+- `client`
+- `core.observability`
+- `datahub.security`
+- `json`
+- `os`
+- `projection`
+- `qa_attachments`
+- `qa_bridge`
+- `qa_tools`
+- `research_evidence`
+- `research_quality_service`
+- `research_web_sources`
+- `research_workbench_entrypoint.resident.admission`
+- `store`
+- `time`
+
+Classes:
+- `QuestionExecution`
+  - methods: __init__, ledger, persist, add, check_admission, start, run, delivery, cancel, close, status, finalizing_detail, detail
+
+Functions:
+- `enabled`
+- `owns`
+- `retired`
+- `bind`
+
+
+## `app/research_web/qa_model.py`
+
+Module docstring:
+> Server-side model connection for the AlphaDesk worker.
+
+Imports:
+- `asyncio`
+- `client`
+- `core.observability`
+- `httpx`
+- `json`
+- `model_credentials`
+- `os`
+- `pathlib`
+- `qa_acceptance`
+
+Functions:
+- `_credential`
+- `connection`
+- `stream_model`
+- `model_client`
+
+
+## `app/research_web/qa_observations.py`
+
+Module docstring:
+> Deterministic, task-bound observations from verified DataHub snapshots.
+
+Imports:
+- `decimal`
+- `json`
+- `re`
+- `research_business_evidence`
+
+Functions:
+- `snapshot_observations`
+  - Emit only values with an explicit field unit and period, or attributed quotes.
+- `_members`
+  - Map immediate object members to their key and value offsets.
+- `_make`
+- `_discovery_quotes`
+- `_numeric`
+
+
+## `app/research_web/qa_tools.py`
+
+Module docstring:
+> Turn-scoped DataHub, evidence and deterministic report tools.
+
+Imports:
+- `asyncio`
+- `datahub.contracts`
+- `datahub.providers`
+- `datetime`
+- `json`
+- `pydantic`
+- `qa_acceptance`
+- `qa_attachments`
+- `research_evidence`
+- `research_quality_service`
+- `research_web_sources`
+- `resources.research_report`
+- `resources.research_report_plan`
+- `scenario_handoffs`
+- `store`
+- `zoneinfo`
+
+Classes:
+- `TurnTools`
+  - methods: __init__, schemas, sources_allowed, report_allowed, call, record_source, observation_sources, query, frozen_dataset, frozen_discovery, sources, read, report
+
+Functions:
+- `_tool`
+- `_source`
 
 
 ## `app/research_web/report_documents.py`
@@ -11729,6 +12074,77 @@ Functions:
   - Check explicit equations and result-before-operands notation from the live report.
 
 
+## `app/research_web/research_bot_diagnostics.py`
+
+Module docstring:
+> Read-only, credential-free Research Bot configuration diagnostics.
+
+Functions:
+- `configuration_status`
+- `diagnostic`
+
+
+## `app/research_web/research_bot_models.py`
+
+Module docstring:
+> Bounded, non-secret Research Bot configuration; no execution authority.
+
+Imports:
+- `json`
+- `pydantic`
+- `uuid`
+
+Classes:
+- `SkillBinding`
+  - methods: bounded_arguments
+- `BotConfiguration`
+  - methods: nonblank, unique_terms, unique_skills
+- `BotSave`
+  - methods: name_nonblank, request_uuid, configuration
+
+
+## `app/research_web/research_bots.py`
+
+Module docstring:
+> Research Bot configuration and evidence preparation over existing Automation/DSH.
+
+Imports:
+- `automation.models`
+- `automation.service`
+- `copy`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `json`
+- `pydantic`
+- `re`
+- `research_bot_diagnostics`
+- `research_bot_models`
+- `store`
+- `tenant_policy`
+- `uuid`
+
+Classes:
+- `BotResult`
+- `ResearchBots`
+  - methods: __init__, require_available, list, get, runs, selections, save, prepare, trusted_selections, finish
+- `BotAction`
+
+Functions:
+- `_recent_radar_batch`
+- `select_materials`
+  - Use only the acquired news lane; unavailable data is never 'no change'.
+- `_material_identities`
+- `research_bot_configuration`
+- `service`
+- `list_bots`
+- `create_bot`
+- `bot_skill`
+- `update_bot`
+- `bot_runs`
+- `bot_action`
+
+
 ## `app/research_web/research_business_evidence.py`
 
 Module docstring:
@@ -11937,6 +12353,7 @@ Imports:
 - `ipaddress`
 - `json`
 - `os`
+- `qa_acceptance`
 - `re`
 - `socket`
 - `ssl`
@@ -11997,6 +12414,8 @@ Functions:
 - `read_hot_evidence`
   - Verify the admitted frozen copy and return bounded selected evidence only.
 - `read_pdf`
+- `read_qa_document`
+  - Extract a bounded projection of the exact attachment opened by the Host.
 - `safe_cell`
 - `write_deliverables`
   - Write selected formats; omitted selection preserves the legacy four files.
@@ -12063,7 +12482,7 @@ Functions:
 - `list_report_versions`
   - Project bounded verified versions; never treat old quality claims as trusted.
 - `report_blocks`
-  - The same text/version is consumed by all three renderers.
+  - Each renderer consumes the same version of the report text.
 - `_numeric_table_rows`
   - Project only quantities already present in their canonical section text.
 - `report_body_characters`
@@ -12077,6 +12496,7 @@ Functions:
   - Deterministic full HTML projection, also verified by the Host.
 - `docx_bytes`
   - Native Word projection with no caller-supplied extra XML or fields.
+- `_media_bytes`
 - `verify_rendered_artifact`
   - Reject self-consistent hashes on files containing a different analysis.
 - `write_research_report`
@@ -12107,6 +12527,23 @@ Functions:
 - `_derive`
 - `derive_business_observations`
   - Derive scoped display quantities; callers independently repeat on Host bytes.
+
+
+## `app/research_web/resources/research_report_media.py`
+
+Module docstring:
+> Deterministic PNG and presentation projections of the canonical report blocks.
+
+Imports:
+- `io`
+- `pathlib`
+- `re`
+- `textwrap`
+- `zipfile`
+
+Functions:
+- `png_bytes`
+- `pptx_bytes`
 
 
 ## `app/research_web/resources/research_report_plan.py`
@@ -12435,14 +12872,14 @@ Imports:
 - `hashlib`
 - `integrations`
 - `json`
-- ... 36 more
+- ... 37 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, _external_history_summary, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, start_knowledge_sync, _knowledge_sync_fire, discovery_tracking_allowed, ensure_discovery_scheduler, ensure_event_scheduler, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, _permanent_delete_retention_checked, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, _external_history_summary, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -12492,6 +12929,7 @@ Imports:
 - `pathlib`
 - `process_spec`
 - `re`
+- `research_bot_diagnostics`
 - `research_workbench_entrypoint.platform_capabilities`
 - `research_workbench_entrypoint.runtime_endpoints`
 - `research_workbench_entrypoint.web_contract`
@@ -12507,8 +12945,7 @@ Imports:
 - `tempfile`
 - `time`
 - `typing`
-- `urllib.parse`
-- ... 2 more
+- ... 3 more
 
 Classes:
 - `ServiceManagerError`
@@ -12525,7 +12962,7 @@ Classes:
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _graceful_stop_identity, _graceful_stop_owned_once, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _graceful_stop_identity, _graceful_stop_owned_once, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _require_resident_qa_operator, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`
@@ -13462,6 +13899,200 @@ Classes:
 
 Functions:
 - `_is_reparse_point`
+
+
+## `app/research_web/strategy_validation/__init__.py`
+
+Module docstring:
+> Account-owned, explicitly requested strategy replay over frozen research inputs.
+
+
+## `app/research_web/strategy_validation/analysis.py`
+
+Module docstring:
+> Estimate matched forward returns and the value of selling an existing holding.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `numpy`
+- `pandas`
+
+Classes:
+- `TradingDayBootstrap`
+  - Resample circular blocks of exchange sessions, retaining each date's events.
+  - methods: __init__, means
+
+Functions:
+- `_interval`
+- `_rate`
+- `make_pairs`
+  - Pair on signal-date information, with reusable same-date exchange controls.
+- `_pair_outcomes`
+- `_mean`
+- `_not_missing`
+- `evaluate_rule`
+  - Freeze matches before inspecting any outcome and keep unmatched events.
+- `event_rows`
+  - Yield records independent of the calculation panel for bounded persistence.
+
+
+## `app/research_web/strategy_validation/engine.py`
+
+Module docstring:
+> Run research-only exit comparisons on an imported, frozen daily sample.
+
+Imports:
+- `analysis`
+- `collections.abc`
+- `core.observability`
+- `market`
+- `math`
+- `pathlib`
+- `rules`
+
+Functions:
+- `_config`
+- `run_validation`
+  - Return one horizon's summary and event rows, with returns as decimal ratios.
+
+
+## `app/research_web/strategy_validation/market.py`
+
+Module docstring:
+> Load verified BaoStock data and construct point-in-time event features.
+
+Imports:
+- `collections`
+- `hashlib`
+- `io`
+- `json`
+- `numpy`
+- `pandas`
+- `pathlib`
+- `re`
+
+Functions:
+- `add_moving_average_features`
+  - A running n-day SMA includes the signal day's close in its last slot.
+- `round_a_share_limit`
+- `complete_future_rows`
+- `stock_features`
+- `load_panel`
+  - Return the verified panel, analysis calendar, coverage and data specification.
+
+
+## `app/research_web/strategy_validation/models.py`
+
+Module docstring:
+> Closed browser configuration for offline research strategy validation.
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `ValidationConfig`
+  - methods: strict_integer_choices, unique_rules
+
+
+## `app/research_web/strategy_validation/routes.py`
+
+Module docstring:
+> Explicit account actions for strictly offline research validation.
+
+Imports:
+- `collections.abc`
+- `contextlib`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `models`
+- `pydantic`
+- `starlette.concurrency`
+- `storage`
+- `store`
+- `threading`
+
+Functions:
+- `active`
+- `receive_slot`
+- `_body`
+- `_failure`
+- `_operation`
+- `list_records`
+- `import_dataset`
+- `create_run`
+- `get_run`
+- `get_events`
+
+
+## `app/research_web/strategy_validation/rules.py`
+
+Module docstring:
+> Deterministic event definitions. Rules only see signal-date or lagged columns.
+
+Imports:
+- `dataclasses`
+- `pandas`
+
+Classes:
+- `RuleSample`
+
+Functions:
+- `volume_stall`
+- `moving_average_break`
+- `prepare_sample`
+
+
+## `app/research_web/strategy_validation/storage.py`
+
+Module docstring:
+> Bounded archive parsing and account-local immutable inputs and run results.
+
+Imports:
+- `__future__`
+- `collections`
+- `contextlib`
+- `core.observability`
+- `csv`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.resident.admission`
+- `sqlite3`
+- `stat`
+- `store`
+- `tempfile`
+- `threading`
+- `zipfile`
+- `zlib`
+
+Classes:
+- `StrategyStore`
+  - methods: __init__, exists, _db, list, import_dataset, _calculate, create_run, run, events
+
+Functions:
+- `digest`
+- `serialized`
+- `reject`
+- `active`
+- `activity`
+- `_archive_member`
+- `_decode_archive`
+- `_csv`
+- `_verify_frozen_files`
+- `_identity`
+- `_summary`
+- `_engine_identity`
+- `_check_database_file`
 
 
 ## `app/research_web/tabbit.py`
@@ -25461,6 +26092,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `app.research_web`
+- `app.research_web.qa_assets`
 - `argparse`
 - `collections.abc`
 - `datetime`
@@ -25477,6 +26109,7 @@ Imports:
 - `stat`
 - `subprocess`
 - `sys`
+- `tempfile`
 - `typing`
 - `urllib.parse`
 - `uuid`
@@ -25485,7 +26118,7 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, install_ai_news_dependencies, install
+  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, build_qa_assets, install_ai_news_dependencies, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection
