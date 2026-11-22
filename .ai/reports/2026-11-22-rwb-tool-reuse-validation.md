@@ -10,6 +10,8 @@ Product-Progress: not-required — 本仓改动记录选型与来源证据；独
 
 本批采用顺序：先使用已开放的 **WeKnora 完整 App** 验证 FinGPT 通用问答与 Claw 研究执行，现有 AlphaDesk／DSH 路径维持兼容，不再预设完整 DSH 挂载已经可用。腾讯 SkillHub 先接发现与可审来源；讯飞 Registry、LoopForge 与 OpenBB 保留候选，未证明能退出重复代码前不新增长期服务。DSH 全 Host 实测失败及上游包身份缺口会影响采用决定，不能以“成熟工具”名称代替验收。
 
+已有 `server serve --service-only` 外部宿主路线已完成隔离真实 HTTP 验证：新合成账号正常登录后，单个 Web Host 就绪、工具目录和知识状态可读；创建内置研究返回预期的 `403 embedded_research_disabled`，提示使用外部研究宿主。它提供 WeKnora Agent 对接 RWB 数据服务的现成起点，但本次未执行 live DataHub、入站 MCP、模型或浏览器渲染，不能当作完整金融链路已接通。
+
 ## 13 个主导航与保留责任
 
 | 导航 | 可复用层 | RWB 继续负责 |
@@ -106,7 +108,7 @@ V5 是 `obb.fred`/`obb.bls` 命名空间，非 V4 共享 model/router；15 个�
 | 阶段 | 已取得证据 | 尚未取得 |
 |---|---|---|
 | S0 盘点 | 13 导航、7 底座、8 组条件退出，新旧基线分开 | 业务替换未完成 |
-| S1 工作区/知识 | 早期 DSH Web200/RWBClient/浏览器有限链；本次真实 Gateway 登录、固定 DSH bootstrap、Host spawn；WeKnora 全模式已应用 | DSH Host 等待 Keychain 授权而超时，session/events/文件未执行；WeKnora 模型、工具、金融业务待验 |
+| S1 工作区/知识 | 早期 DSH Web200/RWBClient/浏览器有限链；本次真实 Gateway 登录、固定 DSH bootstrap、Host spawn；独立仅服务 Web Host 的认证／目录读取通过；WeKnora 全模式已应用 | DSH Host 等待 Keychain 授权而超时，session/events/文件未执行；WeKnora 模型、工具、金融业务待验 |
 | S2 Skill／SOP | 腾讯读取/一次下载、15 文件 SHA-256 相符；LoopForge 官方边界已核 | namespace 歧义、包许可未建、未验签/安装/执行；讯飞分发、LoopForge SOP 未运行 |
 | S3 数据 | FRED 7 行 snapshot；BLS403 | OpenBB 未安装/对拍；PIT/业务未验 |
 | S4 统一验收 | 原 Native 两轮独立 QA 拒绝记录保留；本次报告待精确候选独立评审 | 全部能力端到端尚未通过，不宣称完成产品替换 |
@@ -116,6 +118,8 @@ V5 是 `obb.fred`/`obb.bls` 命名空间，非 V4 共享 model/router；15 个�
 原件：`logs/leo51-codex-20261122/{fred,bls}-live.json`、`logs/leo62-c100debf/epoch2/receipt.json`。本机外置证据：`Scratch/RWB/leo51-dsh-host-20261122/conclusion.json`、`Data/RWB/weknora-runtime/operations/leo51-full-mode-20261122/`。前者保留首次 WorkDisk 可写祖先拒绝、私有临时根上的正式启动超时、一次有效 stdout 捕获及进程 sample；采样显示 `SecItemAdd → defaultKeychainUI → AuthorizationCopyRights`，不能据此认证唯一调用条目。DSH 日志另有四个 Tabbit entry 因 `ctx.settings.register is not a function` 未激活。该 DSH PoC 未触系统授权 UI、未读取既有秘密；Keychain 持久化结果未知，模型调用为 0。全部自有 Gateway／pair 已退出，失败最小根保留；不能用 DSH 认证成功替代 Host、文件或浏览器通过。WeKnora 认证检查按既有凭据引用只在进程内取值，不输出或落盘密码／JWT，不改绑定或借用另一身份。
 
 未装新依赖。后续需批准 OpenBB 三包/依赖锁与接口权限；讯飞/LoopForge 需 pin 服务/镜像、存储/恢复；完整 Agent 需可用生成模型、工具/网络与预算准入，embedding 不代表生成模型就绪。保护 KB/账号/原件/会话/凭据，模型/金融质量及生产启用另证。
+
+仅服务正例的外置回执为 `Scratch/RWB/leo51-dsh-host-20261122/service-only-20261122T130226Z/completion-recovery.json`：匿名 runtime 401、正常登录／runtime／tools／knowledge／sync 200、旧页面账号头不符 401、未启用 MCP 404，原生命周期完成 ready→stopped。目录中的 45 项只是 metadata，不是 45 个实际工具调用。该正例只创建一个自有 Web 进程，无 DSH／auth record、模型或 Provider 调用；新合成临时根已清理。首次清理只读生成目录失败的转录和后续恢复清理回执分开保留，原 DSH 失败根未删除。
 
 ## 本仓实际检查与交付边界
 
