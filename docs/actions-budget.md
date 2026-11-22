@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+## 原 PR 候选快照修复预算
+
+原Project Constraints的GitSafety测试步骤覆盖真实共享控制器与独立回执的发布回归，增量预留30秒并记录最终实测。既有job、runner、依赖、权限、concurrency和时限保持；Mac Bootstrap沿原GitSafety路径触发。此工具修补不运行研究／供应商／模型，不更新常驻服务。远端操作前仍实时核对visibility与额度。
+
 ## Docker 持久队列前移（2026-11-22）
 
 管理员构建队列只在 Research Web Checks 原有 Python contracts 分片清单增加

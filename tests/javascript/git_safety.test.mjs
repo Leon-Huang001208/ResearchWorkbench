@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli, maintainBackups, verifyBackupDirectory} from '../../scripts/git_safety.mjs';
 import {finalizeLifecycle} from '../../scripts/resource_lifecycle.mjs';
+import * as deliveryController from '../../scripts/vendor/leon-engineering/iteration-delivery.mjs';
 
 const gitPath = '/usr/bin/git';
 
@@ -673,6 +674,158 @@ function githubFixture(receipt, captured, {existing = [], protection, pr, checkC
     else throw new Error('Unexpected fixture GitHub call');
     return {status: 0, stdout: Buffer.from(JSON.stringify(result)), stderr: Buffer.from('')};
   };
+}
+
+function publicationSnapshotFixture(t) {
+  const f = cleanupFixture(t), {projectRoot, receipt} = f;
+  const originalRemote = receipt.remoteUrl;
+  const remote = path.join(f.root, 'github.com/fixture/repo.git');
+  fs.mkdirSync(path.dirname(remote), {recursive: true});
+  fs.renameSync(originalRemote, remote);
+  git(projectRoot, ['remote', 'set-url', 'origin', remote]);
+  const base = git(projectRoot, ['rev-parse', 'master']);
+  fs.writeFileSync(path.join(receipt.featureWorktree, 'feature.txt'), 'original feature\n');
+  git(receipt.featureWorktree, ['add', 'feature.txt']);
+  git(receipt.featureWorktree, ['commit', '-m', 'original feature']);
+  const oldFeature = git(receipt.featureWorktree, ['rev-parse', 'HEAD']);
+  git(receipt.integrationWorktree, ['merge', '--no-ff', oldFeature, '-m', 'original integration']);
+  const oldCandidate = git(receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+  git(projectRoot, ['push', 'origin', `${receipt.integrationBranch}:refs/heads/${receipt.integrationBranch}`]);
+  Object.assign(receipt, {
+    schemaVersion: 1, remoteUrl: remote, baseCommit: base, featureCommit: oldFeature,
+    integrationCommit: oldCandidate, status: 'prepared', mode: null, pullRequest: null,
+    remoteCommit: null, repairAttempts: 0, rollback: {status: 'not_run'},
+    verification: null, ci: {status: 'pending', runs: []},
+    cleanup: {featureWorktreeRemoved: false, integrationWorktreeRemoved: false, localBranchDeleted: false, remoteBranchDeleted: false},
+  });
+  const filename = path.join(projectRoot, '.git/leon-engineering/deliveries/task.json');
+  fs.mkdirSync(path.dirname(filename), {recursive: true});
+  fs.writeFileSync(filename, JSON.stringify(receipt), {mode: 0o600});
+  fs.appendFileSync(path.join(receipt.featureWorktree, 'feature.txt'), 'reviewed correction\n');
+  git(receipt.featureWorktree, ['commit', '-am', 'reviewed feature correction']);
+  const feature = git(receipt.featureWorktree, ['rev-parse', 'HEAD']);
+  git(receipt.integrationWorktree, ['merge', '--no-ff', feature, '-m', 'reviewed integration correction']);
+  const candidate = git(receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+  const calls = [], server = {};
+  const githubRunner = (_exe, args) => {
+    calls.push(args);
+    if (args[0] === 'api') {
+      assert.equal(args[1], 'repos/fixture/repo');
+      return {status: 0, stdout: Buffer.from(JSON.stringify({allow_auto_merge: false})), stderr: Buffer.alloc(0)};
+    }
+    if (args[0] === 'pr' && args[1] === 'list') {
+      server.beforeList?.();
+      const head = git(remote, ['rev-parse', `refs/heads/${receipt.integrationBranch}`]);
+      const existing = server.existing?.(head) ?? [{url: 'https://github.com/fixture/repo/pull/2', headRefOid: head}];
+      return {status: 0, stdout: Buffer.from(JSON.stringify(existing)), stderr: Buffer.alloc(0)};
+    }
+    if (args[0] === 'pr' && args[1] === 'create') {
+      assert.ok(args.includes('--body-file'));
+      server.body = fs.readFileSync(args[args.indexOf('--body-file') + 1], 'utf8');
+      return {status: 0, stdout: Buffer.from('https://github.com/fixture/repo/pull/3\n'), stderr: Buffer.alloc(0)};
+    }
+    assert.fail(`Unexpected publication fixture call: ${args.join(' ')}`);
+  };
+  return {...f, remote, filename, base, oldCandidate, candidate, feature, calls, server,
+    input: {projectRoot, taskId: 'task', action: 'publish', verification: {status: 'passed', command: 'actual source contracts', durationSeconds: 1}},
+    publicationOptions: {...f.options, controller: deliveryController, quotaProbe: () => ({allowed: true}), githubRunner},
+  };
+}
+
+test('publication binds the actual candidate with independently read receipts and reuses its original PR', async t => {
+  const f = publicationSnapshotFixture(t);
+  const first = deliveryController.readDeliveryReceipt({projectRoot: f.projectRoot, taskId: 'task'});
+  const second = deliveryController.readDeliveryReceipt({projectRoot: f.projectRoot, taskId: 'task'});
+  assert.notEqual(first, second);
+  assert.equal(first.integrationCommit, f.oldCandidate);
+  const result = await runDelivery(f.input, f.publicationOptions);
+  assert.equal(result.integrationCommit, f.candidate);
+  assert.equal(result.pullRequest.url, 'https://github.com/fixture/repo/pull/2');
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.candidate);
+  assert.equal(JSON.parse(fs.readFileSync(f.filename)).integrationCommit, f.candidate);
+  assert.equal(f.calls.some(args => args[1] === 'create' || args.includes('--auto')), false);
+});
+
+test('new PR body binds the same actual candidate as the real shared publication', async t => {
+  const f = publicationSnapshotFixture(t);
+  f.server.existing = () => [];
+  const result = await runDelivery(f.input, f.publicationOptions);
+  assert.equal(result.integrationCommit, f.candidate);
+  assert.equal(result.pullRequest.url, 'https://github.com/fixture/repo/pull/3');
+  assert.ok(f.server.body.includes(`Candidate: ${f.candidate}\n`));
+  assert.equal(f.server.body.includes(`Candidate: ${f.oldCandidate}\n`), false);
+  assert.equal(f.calls.filter(args => args[1] === 'create').length, 1);
+  assert.equal(f.calls.some(args => args.includes('--auto')), false);
+});
+
+test('publication refuses an integration candidate that drops its recorded ancestry before push', async t => {
+  const f = publicationSnapshotFixture(t);
+  const unrelated = git(f.receipt.integrationWorktree, ['commit-tree', `${f.candidate}^{tree}`, '-p', f.feature, '-m', 'integration without recorded merge']);
+  git(f.projectRoot, ['update-ref', `refs/heads/${f.receipt.integrationBranch}`, unrelated]);
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery(f.input, f.publicationOptions), {code: 'PUBLISH_CANDIDATE_UNVERIFIED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.oldCandidate);
+});
+
+test('publication detects actual candidate drift between its snapshot and the shared-controller push', async t => {
+  const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+  let drift;
+  const controller = {...deliveryController, publishDelivery: params => {
+    git(f.receipt.integrationWorktree, ['commit', '--allow-empty', '-m', 'concurrent candidate']);
+    drift = git(f.receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+    return deliveryController.publishDelivery(params);
+  }};
+  await assert.rejects(runDelivery(f.input, {...f.publicationOptions, controller}), {code: 'PUBLISH_CANDIDATE_CHANGED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  // A real push may already have happened; rejection must not invent a receipt or undo the external state.
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), drift);
+});
+
+test('publication rechecks candidate drift after an existing-PR lookup before adopting its receipt', async t => {
+  const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+  f.server.beforeList = () => git(f.receipt.integrationWorktree, ['commit', '--allow-empty', '-m', 'lookup-time candidate change']);
+  await assert.rejects(runDelivery(f.input, f.publicationOptions), {code: 'PUBLISH_CANDIDATE_CHANGED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.candidate);
+});
+
+test('the real shared publication still rejects an advanced remote base before pushing the candidate', async t => {
+  const f = publicationSnapshotFixture(t);
+  const controller = {...deliveryController, publishDelivery: params => {
+    git(f.projectRoot, ['commit', '--allow-empty', '-m', 'concurrent master']);
+    git(f.projectRoot, ['push', 'origin', 'master']);
+    return deliveryController.publishDelivery(params);
+  }};
+  await assert.rejects(runDelivery(f.input, {...f.publicationOptions, controller}), {code: 'DELIVERY_FAILED'});
+  const saved = JSON.parse(fs.readFileSync(f.filename));
+  assert.equal(saved.status, 'remote_moved');
+  assert.equal(saved.integrationCommit, f.oldCandidate);
+  assert.equal(saved.repairAttempts, 0);
+  assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.oldCandidate);
+});
+
+test('publication rejects a changed real remote head instead of adopting the old PR', async t => {
+  const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+  f.server.beforeList = () => git(f.remote, ['update-ref', `refs/heads/${f.receipt.integrationBranch}`, f.oldCandidate]);
+  await assert.rejects(runDelivery(f.input, f.publicationOptions), {code: 'PR_HEAD_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  assert.equal(f.calls.some(args => args[1] === 'create'), false);
+});
+
+for (const [label, existing, code] of [
+  ['unrelated PR', head => [{url: 'https://github.com/other/repo/pull/2', headRefOid: head}], 'PR_IDENTITY_UNPROVEN'],
+  ['ambiguous PRs', head => [2, 3].map(id => ({url: `https://github.com/fixture/repo/pull/${id}`, headRefOid: head})), 'PR_IDENTITY_AMBIGUOUS'],
+  ['malformed PR identity', head => [{url: 2, headRefOid: head}], 'PR_IDENTITY_UNPROVEN'],
+]) {
+  test(`publication refuses ${label} after the real push without rewriting its receipt`, async t => {
+    const f = publicationSnapshotFixture(t), before = fs.readFileSync(f.filename);
+    f.server.existing = existing;
+    await assert.rejects(runDelivery(f.input, f.publicationOptions), {code});
+    assert.deepEqual(fs.readFileSync(f.filename), before);
+    assert.equal(git(f.remote, ['rev-parse', `refs/heads/${f.receipt.integrationBranch}`]), f.candidate);
+    assert.equal(f.calls.some(args => args[1] === 'create'), false);
+  });
 }
 
 test('publication is PR first, body-file only, reuses matching PR and never enables auto-merge', async t => {

@@ -36,6 +36,10 @@ Research Bot 本地验证复用共享测试环境。Research Web Checks 的现�
 公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
 导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
 
+## 原 PR 发布候选快照
+
+同一任务修补后，正式 publish 以当前受管 integration HEAD 冻结本次候选，原 PR 复用核对与新 PR 正文使用同一快照。先完成该候选的真实验证与独评，再沿原任务发布；候选或远端身份变化仍拒绝，不能把旧 prepared 候选的结论转记给新提交。严格 prepared-amend 的未发布边界、原调用／CI返修计数与历史回执继续保留。
+
 ## prepared 冲突恢复诊断兼容（2026-11-06）
 
 本轮交付遇到受管 prepare 已保留真实 `mergeFailure`、而 prepared amend 严格读取器不识别该诊断字段的前置缺陷。修复只让正式入口识别并原样保留有界的历史合并冲突诊断，不手改实际回执，不把冲突、未发布或待 CI 状态改成通过；WeKnora 源码、部署和业务报告完成仍分别取证。
