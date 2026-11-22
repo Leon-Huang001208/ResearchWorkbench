@@ -3,12 +3,14 @@
 本轮是 macOS 上的 Native 操作员源码开发，沿同一任务
 `rwb-calendar-mcp-cutover-20261108` 和原 PR #284 接续，不建立替代任务或部署入口。
 目标是前移两处仍有效的配置／前版保全复核；旧财经日历固定部署 profile 不恢复。
-代码与文档冲突已在同一隔离工作树解析；未提交阶段的回归实际通过176个独立用例。
-最终候选整模块测试、评审、当前候选 CI、常驻切换和业务验收仍分别取证，
-不把未提交阶段结果当作 exact-SHA 或线上验收。
+代码与文档冲突已在同一隔离工作树解析；未提交阶段176项回归之后，
+候选`14707a4c8509a67b2af8fe4ff06bea4d0a7440d7`的完整相关主模块3975项、协议81项实际通过。
+后继只增加CI路径和开发文档，Python／runtime／测试输入保持字节一致；执行身份仍为147，
+不冒称后继SHA重新运行这些测试。当前候选CI、常驻切换和业务验收仍分别取证。
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"仅在既有Native联合操作员的BirthFence SQLite排他锁及安装作用域内前移配置和前版复核，主实例、附接网关、安装入口与唯一DSH职责不变；不增加运行节点、依赖、模式或容器，不需要改动现有部署图。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"沿原账号身份、前版双健康、MCP实际值与账号资料保全读取复核，准备恢复失败保留原journal；数据库、认证边界、业务接口、授权和恢复数据路径均未改变，无新增拓扑或图示节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只为既有维护操作员与测试增加两个精确选择器、完整模块catalog及原Bootstrap的PR/push测试路径，并按用户持续授权明确失败证据保全后沿原入口自动接续；L0-L4规划、原三CI作业与runner、回执协议和跨平台交接链保持，未新增验证节点、执行通道、恢复框架或模型比较，不改变08-iteration-docs图的拓扑。","diagrams":[]} -->
 
 Product-Progress: not-required — 本次仅加强既有本机维护操作员的锁内验证顺序，不增加浏览器功能或改变用户产品流程。
 
@@ -67,7 +69,7 @@ README 复核结论为 `unchanged`，公开安装、CLI／源码入口和依赖�
 176项：新增31项全部通过，邻接145项通过，0失败、0跳过。
 覆盖五模式 fresh／preparing 的锁内顺序、围栏后漂移保留 journal、
 Trial／完成后回滚方向、真实中断恢复、dossiers 保全及 finish 失败不二次发信号。
-原失败根及9个新根均经正式身份核验退休，任务活动根为空。
+该未提交阶段原失败根及9个新根均经正式身份核验退休，当时任务活动根为空。
 这些结果的身份为 `mode=wip`、`exactCheckout=false`；记录在任务外置
 `rwb-pr284-current-20261122/wip-neighbors/accepted.json`，不挪作最终候选整模块通过。
 
@@ -79,12 +81,41 @@ Trial／完成后回滚方向、真实中断恢复、dossiers 保全及 finish �
 完整 `test_model_provider_upgrade.py` catalog 带原 `--confcutdir=tests/research_web`，
 没有 nodeid、关键字筛选或替代的局部子集。原通用完整检查、架构／Constraints、
 关键 smoke、文档／Python 索引及原三项 CI 保留，Windows 门交对应真机，Mac 不 dispatch。
-相邻未知 resident 与测试文件继续为 L4 fallback；未改 workflow、job、runner、安装、依赖、权限或超时。
+相邻未知 resident 与测试文件继续为 L4 fallback。完整检查另发现 Bootstrap 的精确测试路径
+及 verification-workflow 文档缺项；保留原失败结果后，在原 PR／push 清单各补该测试路径，
+同步比较文档与结构不变说明，不改断言、job、runner、安装、依赖、权限或超时。
 固定 Node24.19.0 的定点路由回归3项和完整 `verification_policy` 108项均通过，后者包含前者，
 不重复相加。原两项RED和通过输出保存在外置 `rwb-pr284-current-20261122/router-mapping/`。
-此处仅补政策、回归及文档，未执行整模块3975项、pytest、模型、服务或任何发布动作；
-最终完整候选的测试／CI结果仍由后续实际回执记录。
+路由回归只认证其所测字节，不能代替后续Python整模块或当前候选CI；
+实际整模块结果见下一节及外置回执，模型／服务与发布另证。
 
-最终候选完整相关测试、独立评审和当前基线 CI 由后续交付原件绑定，当前为
-`NOT_RUN/PENDING`。常驻切换、真实模型／供应商及业务验收均 `NOT_RUN`；
-本次未更新任何服务、业务数据、账户配置或模型预算。
+## 用户授权的失败保全后自动接续
+
+候选 `14707a4c8509a67b2af8fe4ff06bea4d0a7440d7` 实际完成155批、3100项通过，
+每个成功根均已正式退休；第156批因多个约87MB的恢复夹具累计超过512MiB被原守卫终止，
+退出码为-15、无JUnit，该批不补通过。原根停止后实测575,869,521B，原owner和全部记录保留。
+剩余875项与已通过3100项互补，方案将7个重夹具分别单例运行，其余保持原分组；
+原源码、断言及容量门均不改变。该51批实际875项全部通过，与原3100项按nodeid去重，
+有序恰好覆盖原冻结3975项，0跳过；原第156批仍为容量中断，不改写为通过。
+随后独立执行完整`test_protocol.py`，81项通过、0跳过，不与主模块或WIP重复相加。
+原155个成功根及新51+5个成功根全部正式退休；549MiB失败根和原owner继续保留，
+原历史PID／PGID未记录仍为UNKNOWN。新56批实际观测的pytest组收尾无成员，
+不拿它们的终态倒填原失败批。
+
+执行证据为任务外置`continuation-147-execution/final-verification.json`，SHA-256
+`95099d2f0f0a99bd8eb7b3ab0827efc4d32633c4eb9e5548bcf40b2a63a5413b`；
+其中保留原冻结3975、155个通过回执、第156批中断、本次用户授权、875补集及协议81项的
+独立计划、JUnit、实际退出码、结果和回收身份。WIP176与任何无JUnit片段均未计入最终通过数。
+
+用户已明确允许本次继续，并要求修改`AGENTS.md`，避免今后逐次确认同类情况。
+因此同步仓库规则、工作流及存储留存文档：一次只运行一批，但已结束的失败证据根
+可在原执行退出／当前占用检查、原因定位和原件保全后，与新的受管测试根并存，
+同任务缩小批次或修复候选后自动继续，无需重复索取例外。未知或在途执行不能绕过，
+512MiB／64MiB／3GiB及最多20项门保留，旧失败、回执状态和CI／模型累计不清零。
+这次文案修改不更改retention实现、不创造新恢复入口，也不授予模型、服务、部署或依赖权限。
+
+本地九个Node模块338项通过；Ruff／Black／isort、聚焦mypy、文档／Python索引、
+完整changed-set约束及架构检查均通过。最终集成候选另绑定Python输入树相等证明、
+新候选Node／静态检查及独立组合评审，不挪用旧SHA的CI。
+本报告冻结时当前基线GitHub CI仍待发布后实际取得；常驻切换、真实模型／供应商
+及业务验收均`NOT_RUN`。本次未更新服务、业务数据、账户配置或模型预算。
