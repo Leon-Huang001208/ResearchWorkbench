@@ -287,18 +287,19 @@ def test_batch_admission_checks_size_and_current_free_space(tmp_path, monkeypatc
     assert admit_batch(receipt)["status"] == "admitted"
 
 
-def test_old_pass_junit_does_not_override_nonzero_batch_exit(tmp_path):
+def test_old_pass_junit_does_not_turn_nonzero_cleanup_into_a_pass(tmp_path):
     receipt = tmp_path / "proof" / "lease.json"
     root = create_root(
         tmp_path / "test-temp", receipt, task_id="retention-test", candidate=CANDIDATE
     )
     files = evidence(receipt.parent)
 
-    with pytest.raises(RetentionError, match="batch_result_not_passed"):
-        retire_root(receipt, *files, open_files=lambda _path: False, exit_code=1)
-
-    assert root.exists()
-    assert json.loads(receipt.read_text())["status"] == "active"
+    record = retire_root(receipt, *files, open_files=lambda _path: False, exit_code=1)
+    assert not root.exists()
+    assert record["status"] == "retired"
+    assert record["outcome"] == "failed"
+    assert record["failure"]["exitCode"] == 1
+    assert "junitCounts" not in record
 
 
 def test_run_requires_real_clean_checkout_matching_candidate(tmp_path, monkeypatch):
@@ -486,7 +487,7 @@ def test_concurrent_retirement_cannot_split_one_root_across_quarantines(tmp_path
         ("output", "batch_output_budget_during_test"),
     ],
 )
-def test_running_batch_stops_on_capacity_growth_and_keeps_repro(
+def test_running_batch_stops_on_capacity_growth_and_cleans_failed_root(
     tmp_path, monkeypatch, usage, reason
 ):
     class FakeProcess:
@@ -517,6 +518,7 @@ def test_running_batch_stops_on_capacity_growth_and_keeps_repro(
         return process
 
     monkeypatch.setattr(retention.subprocess, "Popen", popen)
+    monkeypatch.setattr(retention, "_has_open_files", lambda _root: False)
 
     def usage_probe(_root):
         if usage == "unreadable":
@@ -543,8 +545,12 @@ def test_running_batch_stops_on_capacity_growth_and_keeps_repro(
         )
 
     record = json.loads(receipt.read_text())
-    assert record["status"] == "active"
-    assert Path(record["root"]).exists()
+    assert record["status"] == "retired"
+    assert record["outcome"] == "failed"
+    assert record["failure"]["exitCode"] == -15
+    assert record["failure"]["junitPresent"] is False
+    assert "contents" not in record
+    assert not Path(record["root"]).exists()
     result = json.loads((receipt.parent / "batch-01.result.json").read_text())
     assert result["exitCode"] == -15
     if usage == "output":
@@ -552,7 +558,7 @@ def test_running_batch_stops_on_capacity_growth_and_keeps_repro(
     assert signalled == [(4242, retention.signal.SIGTERM)]
 
 
-def test_exact_run_keeps_root_if_checkout_changes_during_test(tmp_path, monkeypatch):
+def test_exact_source_drift_cleans_temp_root_without_certifying_the_test(tmp_path, monkeypatch):
     class CompletedProcess:
         pid = 4343
 
@@ -583,6 +589,7 @@ def test_exact_run_keeps_root_if_checkout_changes_during_test(tmp_path, monkeypa
 
     monkeypatch.setattr(retention, "_checkout_identity", checkout)
     monkeypatch.setattr(retention.subprocess, "Popen", popen)
+    monkeypatch.setattr(retention, "_has_open_files", lambda _root: False)
     receipt = tmp_path / "proof" / "lease.json"
 
     with pytest.raises(RetentionError, match="source_changed_during_test"):
@@ -598,6 +605,64 @@ def test_exact_run_keeps_root_if_checkout_changes_during_test(tmp_path, monkeypa
 
     record = json.loads(receipt.read_text())
     assert checks == 3
-    assert record["status"] == "source_changed"
-    assert Path(record["root"]).exists()
+    assert record["status"] == "retired"
+    assert record["outcome"] == "failed"
+    assert record["sourceDrifted"] is True
+    assert record["failure"]["reason"] == "source_changed_during_test"
+    assert record["failure"]["exitCode"] == 0
+    assert not Path(record["root"]).exists()
     assert json.loads((receipt.parent / "batch-01.result.json").read_text())["exitCode"] == 0
+
+
+@pytest.mark.parametrize("keep_failed", [None, "Reproduce the intermittent parser failure"])
+def test_failed_run_cleans_by_default_or_keeps_for_an_explicit_reason(
+    tmp_path, monkeypatch, keep_failed
+):
+    class FailedProcess:
+        pid = 4545
+
+        def wait(self, timeout):
+            return 1
+
+        def poll(self):
+            return 1
+
+    monkeypatch.setattr(retention, "_checkout_identity", lambda *_args, **_kwargs: Path.cwd())
+    monkeypatch.setattr(retention.subprocess, "Popen", lambda *_args, **_kwargs: FailedProcess())
+    monkeypatch.setattr(retention, "_has_open_files", lambda _root: False)
+    receipt = tmp_path / "proof/owner.json"
+    with pytest.raises(RetentionError, match="pytest_failed"):
+        retention.run_batch(
+            tmp_path / "temp",
+            receipt,
+            task_id="retention-test",
+            candidate=CANDIDATE,
+            batch_id="batch-01",
+            node_ids=["tests/test_fixture.py::test_safe"],
+            python=Path("/usr/bin/python3"),
+            keep_failed=keep_failed,
+        )
+    owner = json.loads(receipt.read_text())
+    assert owner["outcome"] == "failed"
+    assert owner["actualExitCode"] == 1
+    assert "contents" not in owner
+    assert Path(owner["root"]).exists() is bool(keep_failed)
+    assert owner["status"] == ("retained" if keep_failed else "retired")
+    if keep_failed:
+        assert owner["keepFailedReason"] == keep_failed
+    else:
+        assert owner["failure"]["junitPresent"] is False
+
+
+@pytest.mark.parametrize("guard", ["busy", "identity"])
+def test_failed_cleanup_does_not_delete_an_occupied_or_replaced_root(tmp_path, guard):
+    receipt = tmp_path / "proof/owner.json"
+    root = create_root(tmp_path / "temp", receipt, task_id="retention-test", candidate=CANDIDATE)
+    files = evidence(receipt.parent, failed=True)
+    if guard == "identity":
+        root.rename(root.with_name(root.name + "-original"))
+        root.mkdir()
+    with pytest.raises(RetentionError, match="root_in_use" if guard == "busy" else "root_identity"):
+        retire_root(receipt, *files, open_files=lambda _root: guard == "busy", exit_code=1)
+    assert root.exists()
+    assert json.loads(receipt.read_text())["status"] != "retired"
