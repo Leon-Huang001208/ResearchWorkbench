@@ -21,3 +21,5 @@ Product-Progress: not-required — 本次接续既有未合并研究包源码并
 
 155项前端／工具相关检查通过，另1项依赖未设置DSH源码路径的schema检查如实skip；4项CI／标准wheel与Host/Native依赖准入检查通过，不以此声称模型、供应商或常驻业务验收。
 <!-- architecture-review {"group":"resource-lifecycle","structure":"unchanged","reason":"仅在原资源记录观察阶段刷新同inode且当前Git登记匹配的设备号，不执行删除或增加清理权限，没有新服务、持久业务格式或恢复流程。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"同Task资源记录仅刷新原Git工作树挂载后的设备号，Docker对象、双运行时选择、容量、平台行为和迁移入口均不变；实际规则只在存储和Docker模块说明更新。","diagrams":[]} -->
