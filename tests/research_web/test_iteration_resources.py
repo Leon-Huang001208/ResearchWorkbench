@@ -118,6 +118,50 @@ class IterationResourceTests(unittest.TestCase):
                 legacy = json.loads((state / "resources.json").read_text())
                 self.assertNotIn("evidencePolicy", legacy)
 
+    def test_record_refreshes_device_only_for_registered_same_inode_worktree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            state = root / "state"
+            state.mkdir()
+            logs = root / "logs"
+            logs.mkdir()
+            (logs / "business.md").write_text("keep this content")
+            actual = root.stat()
+            row = register_directory(root, logs, "evidence")
+            row["device"] = actual.st_dev + 1
+            ledger = {
+                "taskId": "task",
+                "roots": {str(root): [actual.st_dev + 1, actual.st_ino]},
+                "directories": [row],
+            }
+            filename = state / "resources.json"
+            filename.write_text(json.dumps(ledger))
+
+            def fake_git(where, *args):
+                if args[0] == "rev-parse":
+                    return str(root / ".git")
+                if args[:2] == ("worktree", "list"):
+                    return f"worktree {root}\nHEAD {'a' * 40}\n"
+                return ""
+
+            with (
+                patch.object(
+                    resources,
+                    "state_paths",
+                    return_value=(root, state, {"featureWorktree": str(root)}),
+                ),
+                patch.object(resources, "git", side_effect=fake_git),
+            ):
+                self.assertTrue(record_task(root, "task")["ok"])
+                saved = json.loads(filename.read_text())
+                self.assertEqual(saved["roots"][str(root)], [actual.st_dev, actual.st_ino])
+                self.assertEqual(saved["directories"][0]["device"], actual.st_dev)
+                self.assertEqual((logs / "business.md").read_text(), "keep this content")
+                saved["roots"][str(root)][1] += 1
+                filename.write_text(json.dumps(saved))
+                with self.assertRaisesRegex(ResourceError, "closeout_worktree_changed"):
+                    record_task(root, "task")
+
     def test_controller_argv_is_exempt_but_other_process_and_cwd_remain_protected(self):
         clear=SimpleNamespace(returncode=1,stderr='',stdout='')
         own=SimpleNamespace(stdout='100 99 python -m controller\n99 1 node /task/scripts/git_safety.mjs\n1 0 init\n')
