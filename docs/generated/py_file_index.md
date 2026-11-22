@@ -26862,6 +26862,8 @@ Functions:
 - `_worker_result`
 - `_run_worker`
 - `_internal_worker`
+- `_signal_worker_group`
+  - Stop only the session created for this worker, including inherited log writers.
 - `run_suite`
 - `main`
 
