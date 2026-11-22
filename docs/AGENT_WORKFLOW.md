@@ -1,5 +1,14 @@
 # Agent 任务路由指南
 
+管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
+exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
+`build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，
+不另建任务/工作树/PR、不重复已核验结果，也不清除未知锁。真实构建、资源设置及平台验收分别留证。
+
+管理员队列及 `rwb-docker` 源码路径显式进入 L4/full-delivery 的 Docker 合同路由，不以未知路径的
+通用 fallback 少选门当作准入通过。Mac 功能任务使用既有 Bootstrap 和 macOS Docker Desktop 门；
+Linux Docker 产品门由对应真机按 exact SHA 接手，不从 Mac dispatch，也不阻断独立的 Mac 本平台验收。
+
 本机知识资料迭代沿现有Checks离线Python清单、Node通配符和同候选Mac Bootstrap；原九份WeKnora回归保留，新同步／会话及纯文本五模块加入原步骤。目录、实际Embedding、零生成、权限撤销、浏览器和原报告分别留证，合成合同或冷Doctor不认证这些现场结果。增量预算见[Actions额度](actions-budget.md#本机资料同步与当前研究预算2026-11-20)。
 
 管理员维护停止的 stage 时，原任务未完成而业主明确接续可使用 `owner-handoff`，默认预览，原件与计划摘要核对后显式应用，步骤见 [Docker 管理](research-web-docker.md)。

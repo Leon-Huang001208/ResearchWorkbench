@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+管理员持久构建队列的当前任务归 macOS 管理入口。离线合同测试不证明 Docker 冷构建、
+健康或混合负载已通过，也不证明某一 Docker 内存设置已生效；这些分别保持 NOT_RUN，
+等待最终候选实机回执。Windows/Linux 原生及 exact-SHA 产品 dispatch 仍交对应设备，不从 Mac 发起。
+
 本地知识库首期在 Mac mini 的 Native Host、Docker Desktop WeKnora 及原生 Ollama 上验证。WeKnora 的 Tailscale HTTPS 链路分别记录本机与 MacBook Pro 的实际请求结果；这不代替 Windows/Linux 产品运行、Office 或厂商验收。目录同步、引用冻结与受管升级仍按实际执行的本机及候选 CI 证据标记。
 
 本次 Native 私网路由预检修复属于 Mac mini 部署维护：先前更新在切换前被旧443检查拒绝，

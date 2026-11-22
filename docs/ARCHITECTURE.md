@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+管理员持久构建队列位于既有 `rwb-docker` 管理平面，复用原操作锁、builder及资源账本，
+不新增业务 API、数据库或常驻调度器。请求绑定任务、工作树、完整提交和固定选项；
+等待释放操作锁，完成结果先对账，实际构建继续受当前 stage 归属、预留和镜像用途约束。
+容量观察不改变 Docker 设置；管理命令与恢复边界见[Docker手册](research-web-docker.md#持久构建队列)。
+
 Radar 时效修复使用原 Native 联合事务的固定升级配置，部署和回滚继续核对主实例、网关及账户资料。
 
 Research Bot 沿既有 Golddata Radar 读取批次资讯。Radar 缺少缓存标志时，Bot 可校验来源给出的批次生成时点及有效期。判据随运行保存，资料仍按原 Host、Automation 与 DSH 链使用。

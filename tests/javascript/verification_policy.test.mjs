@@ -105,6 +105,10 @@ function policy() {
           "L2",
           "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web",
         ),
+        "research-web-asset-history-python": catalog(
+          "L2",
+          "python -m pytest tests/research_web/test_asset_history.py --confcutdir=tests/research_web",
+        ),
         "research-web-asset-workspace-smoke": catalog(
           "L3",
           "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web",
@@ -771,8 +775,9 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 19);
+  assert.equal(catalogs.length, 20);
   assert.ok(catalogs.some(([id]) => id === "research-web-inbound-mcp"));
+  assert.ok(catalogs.some(([id]) => id === "research-web-asset-history-python"));
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -873,12 +878,27 @@ test("Docker packaging routes to L4 Docker acceptance without desktop gates", ()
     "docker/entrypoint.sh",
     "docker/supervisor.py",
     "docker/healthcheck.py",
+    "rwb-docker",
+    "research_workbench_entrypoint/docker_build_queue.py",
+    "tests/research_web/test_docker_build_queue.py",
     "tests/javascript/docker_runtime_contract.test.mjs",
   ]));
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
   assertFullDockerRoute(plan);
   assert.equal(plan.tests.some(item => item.id === "research-web-docker-contract"), true);
   assert.equal(plan.tests.some(item => item.id === "research-web-container-runtime"), true);
+});
+
+test("each administrative queue path independently retains full Docker gates without unknown impact", () => {
+  for (const file of ["rwb-docker", "research_workbench_entrypoint/docker_build_queue.py", "tests/research_web/test_docker_build_queue.py"]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.deepEqual(plan.uncoveredRisks, [], file);
+    assertFullDockerRoute(plan);
+    assert.equal(plan.tests.some(item => item.id === "research-web-docker-contract"), true, file);
+    assert.equal(plan.tests.some(item => item.id === "research-web-container-runtime"), true, file);
+    assert.equal(plan.ci.some(item => item.id === "research-web-checks"), true, file);
+    assert.equal(plan.ci.some(item => item.id === "research-web-docker"), true, file);
+  }
 });
 
 test("host runtime router is known full delivery and selects focused mode tests", () => {
@@ -2221,4 +2241,12 @@ test("durable acceptance budgets require ledger, guard and full platform handoff
   for (const id of ["research-web-bootstrap", "research-web-docker", "research-web-windows-verify"]) {
     assert.ok(plan.receiptTemplate.externalGateIds.includes(id));
   }
+});
+
+test("asset history deadline regressions select their focused suite without unknown impact", () => {
+  const plan = success(run(repositoryRoot, ["tests/research_web/test_asset_history.py"]));
+  assert.deepEqual(plan.uncoveredRisks, []);
+  assert.equal(plan.tests.some(item => item.id === "research-web-asset-history-python"), true);
+  assert.equal(plan.requiredLevel, "L2");
+  assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-asset-history-tests"]);
 });

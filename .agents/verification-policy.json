@@ -152,6 +152,15 @@
         ],
         "value": "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web"
       },
+      "research-web-asset-history-python": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_asset_history.py --confcutdir=tests/research_web"
+      },
       "research-web-asset-workspace-smoke": {
         "level": "L3",
         "lane": "local",
@@ -1095,6 +1104,9 @@
           "Dockerfile",
           "compose.yaml",
           ".dockerignore",
+          "rwb-docker",
+          "research_workbench_entrypoint/docker_build_queue.py",
+          "tests/research_web/test_docker_build_queue.py",
           "tests/javascript/docker_runtime_contract.test.mjs"
         ],
         "prefixes": [
@@ -1517,6 +1529,42 @@
         "project-constraints-local",
         "research-web-asset-workspace-python",
         "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-asset-history-tests",
+      "risk": "local-only",
+      "minimumLevel": "L2",
+      "reason": "research_web_asset_history_test_change",
+      "impact": [
+        "asset-history-tests"
+      ],
+      "coupling": "low",
+      "match": {
+        "files": [
+          "tests/research_web/test_asset_history.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "generic"
+      ],
+      "tests": [
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-asset-history-python",
         "research-web-verification-full"
       ],
       "documentation": [

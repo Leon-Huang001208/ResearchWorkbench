@@ -491,6 +491,11 @@ main挂载惰性有界桥，core/app/shell/settings保留既有路由并新增�
 时间因果、资金事务、恢复、数据准入或执行假设变化须同步合同与测试，不认证真实收益。
 
 
+`research_workbench_entrypoint/docker_build_queue.py` 为 `rwb-docker capacity --json`、
+`build --wait --task-id` 和 `resume` 提供标准库管理队列。任务/提交/选项去重、归档和完成对账由
+该模块负责；Docker 变更仍由原入口在原锁内执行。`docker/manage.py` 的 stage 预留、
+owner-handoff 与镜像用途合同保持；近处回归为 `test_docker_build_queue.py`，实际构建/健康另验。
+
 `rwb-docker`、`docker/manage.py`、`docker/Dockerfile.control`、`docker/Dockerfile.dev`
 及 `docker/buildkitd.toml` 是 Mac mini 管理平面与开发基座，权威说明为
 `docs/research-web-docker.md`，近处测试为 `tests/research_web/test_docker_manager.py`。
