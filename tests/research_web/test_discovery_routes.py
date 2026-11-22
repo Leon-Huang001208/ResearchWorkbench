@@ -213,6 +213,60 @@ def test_tenant_tracking_requires_manager_flag_and_keeps_general_api_denied(monk
         assert (result is not None) is denied
 
 
+def test_registered_feed_and_track_run_routes_keep_tenant_scope(discovery_api, monkeypatch):
+    client, native, service = discovery_api
+    selection = prepare_body(client)
+    saved = client.post(
+        "/api/research/discovery/tracks",
+        json={
+            "request_id": str(uuid4()),
+            "feed_id": selection["feed_id"],
+            "horizon": "medium",
+            "theme_id": selection["theme_id"],
+            "condition": "核对冻结资料",
+            "frequency": "daily",
+            "time": "09:00",
+        },
+        headers=ACTION,
+    )
+    assert saved.status_code == 200, saved.text
+    track = saved.json()
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+    monkeypatch.setenv("RWB_TENANT_MODE", "1")
+    monkeypatch.setenv("RWB_DISCOVERY_TRACKING_ENABLED", "1")
+    monkeypatch.setattr("app.research_web.tenant_policy._gateway_key", lambda: "fixture-gateway")
+    client.headers["X-RWB-Tenant-Gateway-Key"] = "fixture-gateway"
+    # Test route admission only; no model or provider execution is dispatched.
+    calls = []
+
+    async def run(identifier, **kwargs):
+        calls.append((identifier, kwargs))
+        return {"id": "owned-run"}
+
+    monkeypatch.setattr(service.automations, "run", run)
+    payload = {"request_id": str(uuid4()), "expected_version": 1}
+    path = f"/api/research/discovery/tracks/{track['id']}/run"
+    assert client.post(path, json=payload).status_code == 403
+    response = client.post(path, json=payload, headers=ACTION)
+    assert response.status_code == 202, response.text
+    assert calls == [(track["id"], {"expected_version": 1, "request_id": payload["request_id"]})]
+    assert client.get(f"/api/research/discovery/tracks/{track['id']}/runs").status_code == 200
+    assert client.get("/api/research/discovery/tracks/automation-foreign/runs").status_code == 404
+    assert client.get("/api/research/automations").status_code == 403
+    assert (
+        client.post(
+            "/api/research/discovery/registered-feeds/fed",
+            json={
+                "session_id": str(uuid4()),
+                "url": "https://example.com/",
+            },
+            headers=ACTION,
+        ).status_code
+        == 422
+    )
+    assert not any(name == "session.prompt" for name, _ in native.calls)
+
+
 @pytest.mark.asyncio
 async def test_registered_invalid_discovery_never_falls_through_to_generic_model_executor(
     discovery_api,

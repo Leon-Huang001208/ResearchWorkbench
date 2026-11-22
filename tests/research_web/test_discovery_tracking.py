@@ -253,6 +253,250 @@ async def test_unchanged_skips_model_and_changed_runs_once(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_registered_fed_snapshot_freezes_owned_rss_sources(tmp_path, monkeypatch):
+    from test_discovery import Research
+
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.datahub.providers import Result
+    from app.research_web.discovery import DiscoveryService, Prepare
+    from app.research_web.research_quality_service import source_context
+
+    research = Research(tmp_path / "fed")
+    sid = research.store.create("fingpt", "原冻结 Fed 资料")["id"]
+    raw = (
+        b"<rss><channel><item><guid>original-item</guid><title>Board release</title>"
+        b"<link>https://www.federalreserve.gov/newsevents/pressreleases/other20261120a.htm</link>"
+        b"<pubDate>Fri, 20 Nov 2026 12:00:00 GMT</pubDate>"
+        b"<description>Official RSS summary.</description></item></channel></rss>"
+    )
+    query = BusinessQuery(
+        capability="external_data", source="ext_fed", parameters={"dataset": "news"}
+    )
+    manifest = research.datahub.snapshots.publish(
+        sid,
+        query,
+        Result(
+            rows=[{"title": "Board release"}],
+            raw=[raw],
+            status="snapshot",
+            source_url="https://www.federalreserve.gov/feeds/press_all.xml",
+            provider_id="ext_fed",
+        ),
+        request_query=query,
+    )
+    discovery = DiscoveryService(research)
+    research.discovery = discovery
+    feed = await discovery.registered_feed(sid, dataset_id=manifest["dataset_id"])
+    item = feed["themes"][0]
+    frozen = await discovery.prepare(
+        Prepare(
+            request_id=str(uuid4()),
+            feed_id=feed["feed_id"],
+            horizon="short",
+            theme_id=item["id"],
+            material_ids=[row["id"] for row in item["materials"]],
+            target_mode="fingpt",
+            question="核对官方摘要与覆盖缺口",
+        )
+    )
+    assert frozen["state"] == "snapshot_ready"
+    record = research.store.data["discovery_handoffs"][frozen["handoff_id"]]
+    assert record["source_kind"] == "registered_feed"
+    dataset = research.datahub.snapshots.detail(frozen["session_id"], frozen["dataset_id"])
+    assert dataset["source"] == dataset["provider"] == "ext_fed"
+    files = research.store.files(frozen["session_id"])
+    context = source_context(research, frozen["session_id"], files, [])
+    source = next(row for row in context["sources"] if row.get("content_scope") == "rss_summary")
+    assert source["title"] == "Board release"
+    assert source["as_of"] == "2026-11-20"
+    assert source["url"].endswith("other20261120a.htm")
+    assert source["rss_description"] == "Official RSS summary."
+    assert source["metadata_origin"] == "registered_feed_report"
+    assert record["registered_feed_sources"]
+    trusted = discovery.trusted_context(frozen["session_id"])
+    assert trusted["registered_feed_sources"] == record["registered_feed_sources"]
+    await discovery.execute(frozen["handoff_id"], str(uuid4()))
+    assert research.send_calls[0][3]["attachment_ids"] == record["attachment_ids"]
+    from datetime import timedelta
+
+    class Later(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + timedelta(seconds=120)
+
+    monkeypatch.setattr("app.research_web.discovery.fed.datetime", Later)
+    with pytest.raises(StoreError) as stale:
+        await discovery.prepare(
+            Prepare(
+                request_id=str(uuid4()),
+                feed_id=feed["feed_id"],
+                horizon="short",
+                theme_id=item["id"],
+                material_ids=[row["id"] for row in item["materials"]],
+                target_mode="fingpt",
+                question="过期预览不得提交",
+            ),
+            require_fresh=True,
+        )
+    assert stale.value.code == "discovery_source_expired"
+    # Mutable session metadata cannot replace the actual frozen Source identity.
+    research.store.session(frozen["session_id"])["registered_feed_sources"] = {}
+    assert (
+        discovery.trusted_context(frozen["session_id"])["registered_feed_sources"]
+        == trusted["registered_feed_sources"]
+    )
+    fid = record["attachment_ids"][0]
+    relative = research.store.session(frozen["session_id"])["files"][fid]
+    (research.store.directory(frozen["session_id"]) / relative).write_text("changed")
+    with pytest.raises(StoreError) as error:
+        discovery.trusted_context(frozen["session_id"])
+    assert error.value.code == "discovery_context_changed"
+
+
+class FedDiscovery(Discovery):
+    def cached_preview(self, feed_id, horizon):
+        result = super().cached_preview(feed_id, horizon)
+        result.update(
+            source_kind="registered_feed",
+            source_session_id=self.sid,
+            source_dataset_id=str(uuid4()),
+            source_manifest_sha256="b" * 64,
+            stale=True,
+            retrieved_at="2026-11-19T12:00:00+00:00",
+        )
+        result["themes"][0].update(id="fed_press_all", source_kind="registered_feed")
+        item = result["themes"][0]["materials"][0]
+        item.pop("event_id")
+        item["content_sha256"] = hashlib.sha256(self.revision.encode()).hexdigest()
+        return result
+
+    async def registered_feed(self, sid, horizon):
+        assert sid == self.sid
+        result = self.cached_preview(self.feed_id, horizon)
+        result.update(stale=False, retrieved_at=datetime.now(UTC).isoformat())
+        if self.state == "source_unknown":
+            result["stale"] = None
+        return result
+
+    async def prepare(self, body, *, require_fresh=False):
+        assert require_fresh
+        return await super().prepare(body)
+
+
+def fed_tracking_setup(tmp_path):
+    tracking, research, _ = setup(tmp_path)
+    discovery = FedDiscovery()
+    discovery.research = research
+    discovery.sid = research.store.create("fingpt", "原 RSS 快照")["id"]
+    tracking.discovery = discovery
+    return tracking, research, discovery
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_manual_once_then_real_scheduled_change(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.research_web.qa_acceptance.acceptance_enabled", lambda: True)
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    request = {**body(discovery), "theme_id": "fed_press_all"}
+    saved = await tracking.save(request)
+    assert discovery.sent == 0
+    assert tracking.enable(saved["id"], 1)["enabled"]
+    await research.automations.run(saved["id"])
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 1
+    await research.automations.run(saved["id"])
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 1
+    assert tracking.list()["items"][0]["runs"][0]["execution_status"] == "skipped_unchanged"
+    # Same content with a different acquired snapshot ID cannot trigger another call.
+    await research.automations.tick(datetime(2026, 10, 24, 1, tzinfo=UTC))
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 1
+    discovery.revision = "actual-new-item"
+    research.automations.now = lambda: datetime(2026, 10, 25, 1, tzinfo=UTC)
+    await research.automations.tick()
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 2
+    actual = research.automations._run_row(research.automations._row(saved["id"])["last_run_id"])
+    assert actual["trigger"] == "schedule"
+    assert actual["session_id"]
+    assert actual["discovery_source_dataset_id"]
+    assert actual["discovery_accepted"] is True
+    assert tracking.disable(saved["id"], 1)["enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_unknown_source_never_calls_model(tmp_path):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    discovery.state = "source_unknown"
+    await research.automations.run(saved["id"])
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 0
+    run = research.automations._run_row(research.automations._row(saved["id"])["last_run_id"])
+    assert run["failure_code"] == "discovery_track_source_unavailable"
+
+
+def test_registered_feed_acceptance_does_not_open_other_providers():
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.discovery.fed import approved_query
+
+    query = BusinessQuery(
+        capability="external_data", source="ext_fed", parameters={"dataset": "news"}
+    )
+    assert approved_query(query)
+    assert not approved_query(query.model_copy(update={"source": "golddata_intel"}))
+    assert not approved_query(query.model_copy(update={"source": "auto"}))
+    assert not approved_query(query.model_copy(update={"parameters": {"dataset": "rates"}}))
+    assert not approved_query(query.model_copy(update={"allow_fallback": True}))
+    from app.research_web.discovery.fed import fresh_observation
+
+    assert fresh_observation(datetime.now(UTC).isoformat())
+    for unknown in (None, "unknown", "2026-11-19", "2026-11-19T12:00:00+00:00"):
+        assert fresh_observation(unknown) is False
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_real_datahub_path_is_narrow_and_keeps_unknown_dates(
+    tmp_path, monkeypatch
+):
+    import httpx
+    from test_discovery import Research
+
+    from app.research_web.datahub import DataHub
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.discovery import DiscoveryService
+
+    calls = []
+    raw = b"<rss><channel><item><title>Official release</title><link>https://www.federalreserve.gov/newsevents/pressreleases/test.htm</link><description>Summary.</description></item></channel></rss>"
+
+    def response(request):
+        calls.append(str(request.url))
+        return httpx.Response(200, content=raw, headers={"content-type": "application/rss+xml"})
+
+    research = Research(tmp_path / "datahub")
+    research.datahub = DataHub(research.store, transport=httpx.MockTransport(response))
+    sid = research.store.create("fingpt", "RSS source")["id"]
+    monkeypatch.setattr("app.research_web.qa_acceptance.acceptance_enabled", lambda: True)
+    try:
+        discovery = DiscoveryService(research)
+        feed = await discovery.registered_feed(sid)
+        assert calls == ["https://www.federalreserve.gov/feeds/press_all.xml"]
+        assert (
+            feed["stale"] is False
+        )  # The HTTP observation is current; publication is still unknown.
+        assert feed["themes"][0]["materials"][0]["published_at"] is None
+        other = BusinessQuery(
+            capability="external_data", source="ext_treasury", parameters={"dataset": "rates"}
+        )
+        with pytest.raises(StoreError) as error:
+            await research.datahub.query(sid, "other-source", other)
+        assert error.value.code == "qa_acceptance_source_price_unknown"
+        assert len(calls) == 1
+    finally:
+        await research.datahub.close()
+
+
+@pytest.mark.asyncio
 async def test_unknown_fingerprint_is_never_automatically_resent(tmp_path):
     tracking, research, discovery = setup(tmp_path)
     saved = await tracking.save(body(discovery))

@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import json
 import os
 import shutil
 import time
@@ -33,13 +34,20 @@ def context_bytes(record):
         "question": record["question"],
         "horizon": record["horizon"],
         "materials": record["materials"],
-        "source_policy": SOURCE_POLICY,
+        "source_policy": record.get("source_policy", SOURCE_POLICY),
     }
     if record.get("source_kind") == "news":
         value.update(
             schema_version="discovery-handoff-2",
             source_kind="news",
             associations=record.get("associations", []),
+        )
+    elif record.get("source_kind") == "registered_feed":
+        value.update(
+            source_kind="registered_feed",
+            registered_feed=record["registered_feed"],
+            attachment_ids=record["attachment_ids"],
+            registered_feed_sources=record["registered_feed_sources"],
         )
     if "scenario_context" in record:
         value.update(
@@ -206,10 +214,8 @@ def trusted_context(research, record):
             research.store.root, (".control", "snapshots", sid, record["dataset_id"]), private=True
         ) as fd:
             for item in manifest["raw_files"]:
-                if (
-                    hashlib.sha256(read_file(fd, item["name"], private=True)).hexdigest()
-                    != item["sha256"]
-                ):
+                bundle_raw = read_file(fd, item["name"], private=True)
+                if hashlib.sha256(bundle_raw).hexdigest() != item["sha256"]:
                     raise ValueError("raw_changed")
         with directory(research.store.root, ("sessions", sid, "inputs")) as fd:
             raw = read_file(fd, "discovery-context.json")
@@ -218,6 +224,18 @@ def trusted_context(research, record):
             or hashlib.sha256(raw).hexdigest() != record["context_sha256"]
         ):
             raise ValueError("context_changed")
+        if record.get("source_kind") == "registered_feed":
+            bundle = json.loads(bundle_raw)
+            sources = bundle["registered_feed_sources"]
+            if sources != record["registered_feed_sources"]:
+                raise ValueError("registered_feed_sources_changed")
+            for fid, source in sources.items():
+                if source["id"] != "file:" + fid:
+                    raise ValueError("registered_feed_reference_changed")
+                stream, _ = research.store.open_file(sid, fid)
+                with stream:
+                    if hashlib.sha256(stream.read()).hexdigest() != source["sha256"]:
+                        raise ValueError("registered_feed_input_changed")
     except (OSError, ValueError, KeyError, StoreError) as exc:
         log.warning("discovery_frozen_context_rejected", session_id=sid)
         raise DiscoveryError(
@@ -232,5 +250,10 @@ def trusted_context(research, record):
         "cutoff": record["cutoff"],
         "materials": record["materials"],
         "question": record["question"],
-        "source_policy": SOURCE_POLICY,
+        "source_policy": record.get("source_policy", SOURCE_POLICY),
+        **(
+            {"source_kind": "registered_feed", "registered_feed_sources": sources}
+            if record.get("source_kind") == "registered_feed"
+            else {}
+        ),
     }

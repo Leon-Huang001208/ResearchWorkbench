@@ -28,6 +28,152 @@ READ_CAPABILITIES = {
 MAX_TOOL_CALLS = 48
 SOURCE_PAGE_CHARS = 12_000
 SOURCE_PAGE_JSON_LIMIT = 23_000
+REPORT_PLAN_SCHEMA = {
+    "type": "object",
+    "required": ["title", "sections", "missing"],
+    "additionalProperties": False,
+    "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 200},
+        "sections": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+                "type": "object",
+                "required": ["id", "heading", "evidence_ids", "requirement_ids"],
+                "additionalProperties": False,
+                "properties": {
+                    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,80}$"},
+                    "heading": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "evidence_ids": {
+                        "type": "array",
+                        "maxItems": 40,
+                        "items": {"type": "string", "minLength": 1, "maxLength": 200},
+                        "description": "已观测证据 ID；无可用业务观测时使用空数组。",
+                    },
+                    "requirement_ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,80}$"},
+                    },
+                    "source_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^(?:file|web|dataset):[A-Za-z0-9_-]{1,80}$",
+                        },
+                        "description": "已绑定文档的准确来源 ID，系统原样呈现来源元数据。",
+                    },
+                    "analysis": {
+                        "type": "string",
+                        "maxLength": 10000,
+                        "description": "可选定性正文；只有来源元数据时省略。数值须用 fact/formula 引用。",
+                    },
+                },
+            },
+        },
+        "missing": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {"type": "string", "minLength": 1, "maxLength": 10000},
+            "description": "仅列未满足本轮冻结要求的资料缺口，使用定性文字，不复制日期、URL、数字或算式；范围外事项不列为缺口，无本轮缺口时使用空数组。",
+        },
+        "calculations": {
+            "type": "array",
+            "maxItems": 16,
+            "description": "可选数值推算数组；纯 RSS 来源报告省略。",
+            "items": {
+                "type": "object",
+                "required": ["id", "operation", "operands", "decimal_places"],
+                "additionalProperties": False,
+                "properties": {
+                    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$"},
+                    "operation": {
+                        "type": "string",
+                        "enum": [
+                            "identity",
+                            "sum",
+                            "difference",
+                            "ratio",
+                            "percent_change",
+                            "annual_change",
+                            "gdp_implicit_deflator",
+                        ],
+                    },
+                    "operands": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "items": {"type": "string", "minLength": 1, "maxLength": 200},
+                    },
+                    "decimal_places": {"type": "integer", "minimum": 0, "maximum": 12},
+                },
+            },
+        },
+        "summary": {
+            "type": "array",
+            "maxItems": 256,
+            "description": "可选数值汇总数组，不是文字摘要；无数值底稿时省略或使用空数组。",
+            "items": {
+                "type": "object",
+                "required": ["metric", "observation_id", "decimal_places"],
+                "additionalProperties": False,
+                "properties": {
+                    "metric": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,80}$"},
+                    "observation_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "decimal_places": {"type": "integer", "minimum": 0, "maximum": 12},
+                    "calculation": {
+                        "type": ["array", "null"],
+                        "minItems": 1,
+                        "maxItems": 16,
+                        "items": {
+                            "type": "object",
+                            "required": ["id", "operation", "operands"],
+                            "additionalProperties": False,
+                            "properties": {
+                                "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$"},
+                                "operation": {
+                                    "type": "string",
+                                    "enum": [
+                                        "identity",
+                                        "abs",
+                                        "sum",
+                                        "mean",
+                                        "difference",
+                                        "ratio",
+                                        "percent_change",
+                                        "basis_points",
+                                    ],
+                                },
+                                "operands": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "maxItems": 8,
+                                    "items": {"type": "string", "minLength": 1, "maxLength": 200},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        "controls": {
+            "type": "array",
+            "maxItems": 40,
+            "description": "可选治理要求映射数组；纯 RSS 来源报告省略。",
+            "items": {
+                "type": "object",
+                "required": ["observation_id", "evidence_needed", "proposed_owner"],
+                "additionalProperties": False,
+                "properties": {
+                    "observation_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "evidence_needed": {"type": "string", "minLength": 1, "maxLength": 2000},
+                    "proposed_owner": {"type": "string", "minLength": 1, "maxLength": 2000},
+                },
+            },
+        },
+    },
+}
 
 
 def _tool(name, description, props=None, required=()):
@@ -126,8 +272,15 @@ class TurnTools:
                     "write_research_report",
                     "提交报告计划。先调用 list_research_observations，使用准确 evidence_ids 与 "
                     "requirement_ids。sections 项含 id/heading/evidence_ids/requirement_ids，"
-                    "可选 analysis。可选 calculations、summary、controls。缺口写入 missing。",
-                    {"plan": {"type": "object"}},
+                    "可选 analysis、source_ids；source_ids 引用已绑定文档的准确来源 ID，"
+                    "自动呈现标题、发布日期、链接与已冻结 RSS 摘要，analysis 可省略。"
+                    "财务数值仍须通过 evidence_ids 绑定观测。title/heading/analysis 使用定性文字，"
+                    "日期与 URL 由来源元数据呈现。summary 是数值汇总数组，不是文字摘要；"
+                    "纯 RSS 报告省略 calculations、summary、controls。missing 仅列未满足本轮冻结要求的"
+                    "定性资料缺口，不复制日期、URL、数字或算式；范围外全文、行情、第二来源不列为未完成。"
+                    "source_ids 已呈现 RSS 摘要核对范围，无本轮缺口时 missing 使用空数组；"
+                    "交付状态以实际工具回执为准。",
+                    {"plan": REPORT_PLAN_SCHEMA},
                     ("plan",),
                 )
             )

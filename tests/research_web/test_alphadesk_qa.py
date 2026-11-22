@@ -17,6 +17,100 @@ from app.research_web.store import Store
 BASE = "/api/research/sessions"
 
 
+def test_qa_report_schema_accepts_sdk_plan_and_rejects_scalar_array_fields():
+    from jsonschema import Draft202012Validator
+    from test_bound_analysis import bound_plan
+
+    from app.research_web.resources.research_report_plan import build_business_report_plan
+
+    store = SimpleNamespace(session=lambda _sid: {"source_scope": ["uploads"]})
+    tools = qa_tools.TurnTools(
+        SimpleNamespace(store=store),
+        "schema-proof",
+        {"research_contract": {"requirements": []}, "delivery": {"required_formats": ["md"]}},
+        [],
+    )
+    schema = next(
+        tool["function"]["parameters"]
+        for tool in tools.schemas()
+        if tool["function"]["name"] == "write_research_report"
+    )
+    context, plan, bundle = bound_plan()
+    plan["summary"] = [
+        {
+            "metric": "current_gdp",
+            "observation_id": "gdp_current_price_preliminary@2025",
+            "decimal_places": 0,
+        }
+    ]
+    plan["controls"] = []
+    validator = Draft202012Validator(schema)
+    validator.check_schema(schema)
+    validator.validate({"plan": plan})
+    assert build_business_report_plan(context, plan, bundle)["metrics"]["current_gdp"] > 0
+    for field in ("sections", "missing", "summary"):
+        invalid = {**plan, field: "误填的摘要文字"}
+        errors = list(validator.iter_errors({"plan": invalid}))
+        assert any(list(error.path) == ["plan", field] for error in errors), field
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires native report sandbox")
+@pytest.mark.asyncio
+async def test_qa_report_wrong_summary_type_then_valid_source_plan(tmp_path):
+    from app.research_web.delivery import Delivery
+    from app.research_web.research_quality import make_contract
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "Report tool schema proof")["id"]
+    store.session(sid).update(source_scope=["uploads"], delivery_key="schema-proof")
+    raw = (
+        "Publisher: Federal Reserve Board\n"
+        "Title: Minutes of the Federal Open Market Committee, October 27-28, 2026\n"
+        "Published (UTC): 2026-11-18\n"
+        "Original: https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm\n"
+        "Official RSS description: Minutes of the Federal Open Market Committee, October 27-28, 2026\n"
+        "RSS SHA-256: 37dd749fb9a477a979204d94a5aa7fd6720d71e514e2fbfd03edd26bccb52680\n"
+    )
+    (store.directory(sid) / "inputs/fed-feed-entry.txt").write_text(raw)
+    attachment = next(item for item in store.files(sid) if item["kind"] == "inputs")
+    contract = make_contract("a" * 24, "核对官方摘要", ["公告来源与摘要"], "2026-11-19", "deep")
+    receipt = {
+        "research_contract": contract,
+        "delivery": {"task_id": contract["task_id"], "required_formats": ["md"]},
+    }
+    store.data["receipts"][sid + ":schema-proof"] = receipt
+    store.save()
+    tools = qa_tools.TurnTools(
+        SimpleNamespace(store=store, delivery=Delivery(store)), sid, receipt, [attachment["id"]]
+    )
+    plan = {
+        "title": "美联储官方公告摘要跟踪",
+        "sections": [
+            {
+                "id": "summary",
+                "heading": "公告来源与摘要",
+                "evidence_ids": [],
+                "source_ids": ["file:" + attachment["id"]],
+                "requirement_ids": ["r1"],
+            }
+        ],
+        "missing": [],
+    }
+    rejected = await tools.call(
+        {"name": "write_research_report", "arguments": {"plan": {**plan, "summary": "摘要"}}},
+        None,
+    )
+    assert rejected["data"] == {"status": "unavailable", "code": "qa_report_plan_failed"}
+    assert not tools.report_written
+    assert not (store.directory(sid) / "outputs/report.md").exists()
+    result = await tools.call({"name": "write_research_report", "arguments": {"plan": plan}}, None)
+    assert result["data"]["status"] == "generated", result
+    markdown = (store.directory(sid) / "outputs/report.md").read_text()
+    assert "2026-11-18" in markdown and "monetary20261118a.htm" in markdown
+    assert "官方 RSS 摘要：Minutes of the Federal Open Market Committee" in markdown
+    assert tools.report_written and tools.calls == 2
+
+
 @pytest.mark.asyncio
 async def test_qa_source_pages_round_trip_below_worker_limit(monkeypatch):
     identifier = "dossier:" + "1" * 32 + ":" + "2" * 32 + ":1"

@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Fed RSS 跟踪复用 DataHub 的 `ext_fed/news`、Discovery 冻结和原 Automation 调度，来源摘要经绑定附件进入 Host 已选的 FinGPT 执行链。RSS、原始发布时间和公告全文分别标识，未变化不调用模型；没有新增采集服务、调度器或数据库。
+
 Radar 时效修复使用原 Native 联合事务的固定升级配置，部署和回滚继续核对主实例、网关及账户资料。
 
 Research Bot 沿既有 Golddata Radar 读取批次资讯。Radar 缺少缓存标志时，Bot 可校验来源给出的批次生成时点及有效期。判据随运行保存，资料仍按原 Host、Automation 与 DSH 链使用。

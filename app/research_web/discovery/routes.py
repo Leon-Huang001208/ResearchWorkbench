@@ -28,6 +28,17 @@ class Version(BaseModel):
     expected_version: int = Field(ge=1)
 
 
+class RegisteredFeed(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=UUID_PATTERN)
+    dataset_id: str | None = Field(default=None, pattern=UUID_PATTERN)
+    horizon: Horizon = "short"
+
+
+class TrackRun(Version):
+    request_id: str = Field(pattern=UUID_PATTERN)
+
+
 def _research(request):
     # The authenticated gateway selects the per-user backend. No owner/upstream
     # identity or filesystem path is ever selected from a request body.
@@ -116,6 +127,37 @@ async def save_track(body: TrackSave, request: Request):
     if not research.discovery_tracking_allowed():
         raise StoreError("持续跟踪已由宿主关闭", "discovery_tracking_disabled", 403)
     return await research.discovery_tracking.save(body.model_dump(mode="json"))
+
+
+@router.post("/registered-feeds/fed")
+async def registered_fed(body: RegisteredFeed, request: Request):
+    _action(request)
+    research = _research(request)
+    if not research.discovery_tracking_allowed():
+        raise StoreError("持续跟踪已由宿主关闭", "discovery_tracking_disabled", 403)
+    return await research.discovery.registered_feed(
+        body.session_id, body.horizon, dataset_id=body.dataset_id
+    )
+
+
+@router.post("/tracks/{track_id}/run", status_code=202)
+async def run_track(track_id: TrackIdentifier, body: TrackRun, request: Request):
+    _action(request)
+    research = _research(request)
+    if not research.discovery_tracking_allowed():
+        raise StoreError("持续跟踪已由宿主关闭", "discovery_tracking_disabled", 403)
+    _row, automation = research.discovery_tracking._owned(track_id)
+    research.discovery_tracking._version(automation, body.expected_version)
+    return await research.automations.run(
+        track_id, expected_version=body.expected_version, request_id=body.request_id
+    )
+
+
+@router.get("/tracks/{track_id}/runs")
+async def track_runs(track_id: TrackIdentifier, request: Request):
+    research = _research(request)
+    research.discovery_tracking._owned(track_id)
+    return research.automations.list_runs(automation_id=track_id)
 
 
 @router.post("/tracks/{track_id}/enable")

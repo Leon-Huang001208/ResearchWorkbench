@@ -19,6 +19,7 @@ from core.observability import get_logger
 from ..automation.models import AutomationCreate
 from ..research_quality_service import receipt_archives
 from ..store import StoreError
+from . import fed
 
 log = get_logger(__name__)
 TRACK_SCHEMA = "discovery-tracking-v1"
@@ -48,6 +49,10 @@ def _raw_description(condition, news_id, event_ids):
         + _sha({"news_id": news_id, "event_ids": sorted(event_ids)})
         + "]"
     )
+
+
+def _feed_description(condition, scope):
+    return condition + "\n\n[RWB_REGISTERED_FEED_SCOPE:" + _sha(scope) + "]"
 
 
 class TrackSave(BaseModel):
@@ -101,6 +106,15 @@ class DiscoveryTracking:
         row = self._table().get(automation.get("id"))
         raw = isinstance(row, dict) and row.get("source_kind") == "news"
         description = automation.get("research_task", {}).get("description", "")
+        registered = isinstance(row, dict) and row.get("source_kind") == "registered_feed"
+        feed_scope = row.get("registered_feed", {}) if isinstance(row, dict) else {}
+        feed_bound = (
+            feed_scope.get("source") == fed.SOURCE
+            and feed_scope.get("dataset") == "news"
+            and feed_scope.get("feed_url") == fed.URL
+            and description
+            == _feed_description(row.get("body", {}).get("condition", ""), feed_scope)
+        )
         bound = False
         if (
             raw
@@ -115,9 +129,13 @@ class DiscoveryTracking:
                 log.warning("discovery_raw_scope_invalid")
         return bool(
             isinstance(row, dict)
-            and (bound if raw else "[RWB_RAW_SOURCE_SCOPE:" not in description)
+            and (
+                feed_bound
+                if registered
+                else bound if raw else "[RWB_RAW_SOURCE_SCOPE:" not in description
+            )
             and row.get("schema") == TRACK_SCHEMA
-            and row.get("source_kind", "event") in {"event", "news"}
+            and row.get("source_kind", "event") in {"event", "news", "registered_feed"}
             and (
                 row.get("source_kind") != "news"
                 or row.get("approved_news_ids") == [row.get("body", {}).get("theme_id")]
@@ -146,6 +164,21 @@ class DiscoveryTracking:
     @staticmethod
     def _fingerprint(theme):
         # A complete baseline and each later observation use the same acquired evidence contract.
+        if theme.get("source_kind") == "registered_feed":
+            return _sha(
+                {
+                    "source": fed.SOURCE,
+                    "dataset": "news",
+                    "feed_url": fed.URL,
+                    "items": sorted(
+                        [
+                            {"id": item["id"], "content_sha256": item["content_sha256"]}
+                            for item in theme["materials"]
+                        ],
+                        key=lambda row: row["id"],
+                    ),
+                }
+            )
         if theme.get("source_kind") == "news":
             materials = theme["materials"]
             if (
@@ -202,12 +235,27 @@ class DiscoveryTracking:
                 raise StoreError("发现资料已更新，请重新确认", "discovery_feed_changed", 409)
             theme = self._theme(feed, body.theme_id)
             raw_news = theme.get("source_kind") == "news"
+            registered = theme.get("source_kind") == "registered_feed"
+            feed_scope = (
+                {
+                    "source": fed.SOURCE,
+                    "dataset": "news",
+                    "feed_url": fed.URL,
+                    "source_session_id": feed["source_session_id"],
+                }
+                if registered
+                else None
+            )
             event_ids = (
                 [x["event_id"] for x in theme.get("related_events", [])]
                 if raw_news
                 else [material.get("event_id") for material in theme["materials"][:20]]
             )
-            if raw_news:
+            if registered:
+                # A real archived feed is the approved baseline, not a fabricated fresh observation.
+                self.store.session(feed["source_session_id"])
+                baseline_feed = feed
+            elif raw_news:
                 if (
                     len(theme["materials"]) != 1
                     or theme["materials"][0].get("news_id") != body.theme_id
@@ -226,7 +274,7 @@ class DiscoveryTracking:
                 baseline_feed = await self.discovery.refresh_theme(
                     body.horizon, body.theme_id, event_ids
                 )
-            if baseline_feed.get("stale") is True:
+            if not registered and baseline_feed.get("stale") is True:
                 raise StoreError(
                     "跟踪基线来源本次不可用", "discovery_track_source_unavailable", 503
                 )
@@ -262,9 +310,13 @@ class DiscoveryTracking:
                     "target_kind": "research_task",
                     "research_task": {
                         "description": (
-                            _raw_description(body.condition, body.theme_id, event_ids)
-                            if raw_news
-                            else body.condition
+                            _feed_description(body.condition, feed_scope)
+                            if registered
+                            else (
+                                _raw_description(body.condition, body.theme_id, event_ids)
+                                if raw_news
+                                else body.condition
+                            )
                         ),
                         "model_provider": model["provider"],
                         "model_id": model["model"],
@@ -302,6 +354,10 @@ class DiscoveryTracking:
                 if raw_news:
                     table[automation["id"]].update(
                         source_kind="news", approved_news_ids=[body.theme_id]
+                    )
+                elif registered:
+                    table[automation["id"]].update(
+                        source_kind="registered_feed", registered_feed=feed_scope
                     )
 
                 def rollback():
@@ -363,6 +419,8 @@ class DiscoveryTracking:
                 "last_attempt_fingerprint",
                 "last_accepted_fingerprint",
                 "max_model_runs_per_day",
+                "source_kind",
+                "registered_feed",
             )
         }
         result.update(
@@ -431,13 +489,22 @@ class DiscoveryTracking:
             raise StoreError("当前模型连接与批准跟踪不一致", "discovery_model_changed", 409)
         from ..qa_acceptance import acceptance_enabled
 
-        if acceptance_enabled():
+        registered = row.get("source_kind") == "registered_feed"
+        if acceptance_enabled() and not registered:
             raise StoreError(
                 "发现跟踪的在线来源费用尚未核算",
                 "qa_acceptance_tracking_price_unknown",
                 409,
             )
-        if row.get("source_kind") == "news":
+        if registered:
+            feed = await self.discovery.registered_feed(
+                row["registered_feed"]["source_session_id"], row["body"]["horizon"]
+            )
+            if feed.get("stale") is not False:
+                raise StoreError(
+                    "本次未取得新的 RSS 来源观察", "discovery_track_source_unavailable", 503
+                )
+        elif row.get("source_kind") == "news":
             if row.get("approved_news_ids") != [row["body"]["theme_id"]]:
                 raise StoreError("跟踪来源范围尚未核验", "discovery_track_scope_unverified", 409)
             feed = await self.discovery.refresh_news(
@@ -453,10 +520,14 @@ class DiscoveryTracking:
         fingerprint = self._fingerprint(theme)
         async with self.lock:
             row["last_checked_at"] = time.time()
-            if fingerprint in {
-                row.get("last_seen_fingerprint"),
-                row.get("last_attempt_fingerprint"),
-            }:
+            first_manual = (
+                registered
+                and actual.get("trigger") == "manual"
+                and row.get("last_attempt_fingerprint") is None
+            )
+            if fingerprint == row.get("last_attempt_fingerprint") or (
+                fingerprint == row.get("last_seen_fingerprint") and not first_manual
+            ):
                 self.store.save()
                 log.info("discovery_tracking_unchanged")
                 return {"status": "skipped_unchanged"}
@@ -480,6 +551,9 @@ class DiscoveryTracking:
                 discovery_accepted=False,
                 discovery_notification="none",
             )
+            if registered:
+                actual["discovery_source_dataset_id"] = feed["source_dataset_id"]
+                actual["discovery_source_manifest_sha256"] = feed["source_manifest_sha256"]
             try:
                 self.store.save()
             except StoreError:
@@ -500,7 +574,11 @@ class DiscoveryTracking:
                 target_mode="fingpt",
                 question=row["body"]["condition"],
             ),
-            **({"require_fresh": True} if row.get("source_kind") == "news" else {}),
+            **(
+                {"require_fresh": True}
+                if row.get("source_kind") in {"news", "registered_feed"}
+                else {}
+            ),
         )
         actual["discovery_handoff_id"] = prepared["handoff_id"]
         self.automations._persist_native_reference(run["id"], session_id=prepared["session_id"])

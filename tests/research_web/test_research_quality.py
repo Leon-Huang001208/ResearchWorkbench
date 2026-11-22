@@ -477,3 +477,284 @@ def test_contract_projection_never_displays_prior_body_as_current_or_loses_inval
     paths["json"].write_bytes(b"{invalid")
     invalid = report_projection(store, sid, store.files(sid), sources, "b" * 24, contract=contract)
     assert invalid["quality"] == invalid["assessment"]["status"] == "invalid"
+
+
+def frozen_fed_rss_record(published="2026-11-18"):
+    return (
+        "Publisher: Federal Reserve Board\n"
+        "Title: Minutes of the Federal Open Market Committee, October 27-28, 2026\n"
+        + (f"Published (UTC): {published}\n" if published is not None else "")
+        + "Original: https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm\n"
+        "Official RSS description: Minutes of the Federal Open Market Committee\n"
+        "RSS SHA-256: 37dd749fb9a477a979204d94a5aa7fd6720d71e514e2fbfd03edd26bccb52680\n"
+    ).encode()
+
+
+def test_uploaded_rss_metadata_reaches_snapshot_and_report_sources(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_evidence import evidence_index
+    from app.research_web.research_quality_service import (
+        quality_result,
+        source_context,
+        write_business_snapshot,
+    )
+    from app.research_web.resources.research_report import (
+        canonical_source,
+        render_markdown,
+        write_research_report,
+    )
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "冻结 RSS 来源")["id"]
+    raw = frozen_fed_rss_record()
+    (store.directory(sid) / "inputs/fed-feed-entry.txt").write_bytes(raw)
+    service = SimpleNamespace(store=store)
+    (source,) = source_context(service, sid, store.files(sid))["sources"]
+    assert source["title"] == "Minutes of the Federal Open Market Committee, October 27-28, 2026"
+    assert source["as_of"] == "2026-11-18"
+    assert source["url"].endswith("/pressreleases/monetary20261118a.htm")
+    assert source["sha256"] == hashlib.sha256(raw).hexdigest()
+    assert source["digest_scope"] == "full_file"
+    assert source["metadata_origin"] == "uploaded_rss_record"
+    assert source["content_scope"] == "rss_summary"
+    assert source["rss_description"] == "Minutes of the Federal Open Market Committee"
+    contract, report, _ = example()
+    write_business_snapshot(service, sid, contract)
+    snapshot = json.loads((store.directory(sid) / "resources/research_evidence.json").read_text())
+    assert snapshot["sources"] == [source]
+    assert snapshot["observations"] == []
+    report["sources"] = [canonical_source(snapshot["sources"], source["id"])]
+    for section in report["sections"]:
+        section["citations"] = [source["id"]]
+    for note in report["notes"]:
+        note["citations"] = [source["id"]]
+    rendered = render_markdown(report)
+    assert source["title"] in rendered
+    assert source["url"] in rendered
+    assert "来源记录发布日期：2026-11-18" in rendered
+    write_research_report(store.directory(sid) / "outputs", report)
+    files = store.files(sid)
+    quality = quality_result(
+        service, sid, {"research_contract": contract}, files, evidence_index(files, [], [])
+    )
+    assert "source_identity_mismatch:" + source["id"] not in quality["issues"]
+    assert "source_after_cutoff:" + source["id"] in quality["issues"]
+    assert quality["evidence_context"]["sources"][0]["rss_description"] == source["rss_description"]
+
+
+def test_uploaded_rss_unknown_date_stays_unknown(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality_service import source_context
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "无发布日期")["id"]
+    for published in (None, "unknown", "2026-02-30"):
+        (store.directory(sid) / "inputs/fed.txt").write_bytes(frozen_fed_rss_record(published))
+        (source,) = source_context(SimpleNamespace(store=store), sid, store.files(sid))["sources"]
+        assert "as_of" not in source
+        assert source["metadata_origin"] == "uploaded_rss_record"
+
+
+def test_ordinary_upload_keeps_filename_identity(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality_service import source_context
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "普通上传")["id"]
+    raw = b"Title: ordinary\nPublished (UTC): 2026-11-18\nOriginal: https://example.org/\n"
+    (store.directory(sid) / "inputs/ordinary.txt").write_bytes(raw)
+    (source,) = source_context(SimpleNamespace(store=store), sid, store.files(sid))["sources"]
+    assert source == {
+        "id": source["id"],
+        "title": "ordinary.txt",
+        "digest_scope": "full_file",
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def test_uploaded_rss_snapshot_keeps_selected_attachment_and_rebinds_changed_bytes(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality_service import write_business_snapshot
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "选定附件")["id"]
+    inputs = store.directory(sid) / "inputs"
+    raw = frozen_fed_rss_record()
+    selected = inputs / "selected.txt"
+    selected.write_bytes(raw)
+    (inputs / "unselected.txt").write_bytes(raw.replace(b"Minutes", b"Unselected"))
+    file_id = next(item["id"] for item in store.files(sid) if item["name"] == selected.name)
+    service = SimpleNamespace(store=store)
+    contract, _, _ = example()
+    write_business_snapshot(service, sid, contract, attachment_ids=[file_id])
+    snapshot_path = store.directory(sid) / "resources/research_evidence.json"
+    (before,) = json.loads(snapshot_path.read_text())["sources"]
+    assert before["id"] == "file:" + file_id
+    changed = raw.replace(b"October 27-28", b"October 20-21")
+    selected.write_bytes(changed)
+    write_business_snapshot(service, sid, contract, attachment_ids=[file_id])
+    (after,) = json.loads(snapshot_path.read_text())["sources"]
+    assert after["sha256"] == hashlib.sha256(changed).hexdigest() != before["sha256"]
+    assert after["id"] == before["id"]
+    assert "October 20-21" in after["title"]
+
+
+def test_uploaded_rss_malformed_metadata_logs_field_without_content(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.research_web import research_quality_service
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "无效元数据")["id"]
+    raw = frozen_fed_rss_record("2026-02-30").replace(
+        b"https://www.federalreserve.gov/", b"https://other.example/"
+    )
+    (store.directory(sid) / "inputs/fed.txt").write_bytes(raw)
+    events = []
+    monkeypatch.setattr(
+        research_quality_service,
+        "log",
+        SimpleNamespace(warning=lambda event, **fields: events.append((event, fields))),
+    )
+    (source,) = research_quality_service.source_context(
+        SimpleNamespace(store=store), sid, store.files(sid)
+    )["sources"]
+    assert "as_of" not in source and "url" not in source
+    assert events == [
+        (
+            "research_uploaded_rss_metadata_invalid",
+            {"source_id": source["id"], "fields": ["as_of", "url"]},
+        )
+    ]
+
+
+def test_uploaded_rss_description_uses_only_explicit_multiline_summary(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality_service import source_context
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "原 RSS 摘要")["id"]
+    path = store.directory(sid) / "inputs/fed.txt"
+    for description in ("Official summary first line.\nSecond summary line.", ""):
+        raw = (
+            frozen_fed_rss_record().replace(
+                b"Official RSS description: Minutes of the Federal Open Market Committee\n",
+                b"Official RSS description: " + description.encode() + b"\n",
+            )
+            + b"Archive footer outside the RSS description.\n"
+        )
+        path.write_bytes(raw)
+        (source,) = source_context(SimpleNamespace(store=store), sid, store.files(sid))["sources"]
+        if description:
+            assert source["rss_description"] == description
+        else:
+            assert "rss_description" not in source
+        assert source["sha256"] == hashlib.sha256(raw).hexdigest()
+
+
+def test_business_prompt_index_exposes_selected_sources_without_numeric_observations(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality_service import business_prompt_index
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "来源发现")["id"]
+    inputs = store.directory(sid) / "inputs"
+    (inputs / "selected.txt").write_bytes(frozen_fed_rss_record())
+    (inputs / "unselected.txt").write_text("Unselected source")
+    selected = next(item for item in store.files(sid) if item["name"] == "selected.txt")
+    contract, _, _ = example()
+    service = SimpleNamespace(store=store)
+    result = business_prompt_index(service, sid, contract, attachment_ids=[selected["id"]])
+    assert result["observations"] == []
+    assert result["sources"] == [
+        {
+            "id": "file:" + selected["id"],
+            "title": "Minutes of the Federal Open Market Committee, October 27-28, 2026",
+            "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+            "as_of": "2026-11-18",
+            "content_scope": "rss_summary",
+        }
+    ]
+    assert len(json.dumps(result, ensure_ascii=False).encode()) <= 23900
+    assert business_prompt_index(service, sid, contract, attachment_ids=[])["sources"] == []
+
+
+def test_registered_feed_metadata_uses_trusted_handoff_and_current_input_sha(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_evidence import evidence_index
+    from app.research_web.research_quality_service import quality_result, source_context
+    from app.research_web.resources.research_report import canonical_source, write_research_report
+    from app.research_web.store import Store, StoreError
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "已登记 Feed")["id"]
+    path = store.directory(sid) / "inputs/fed.txt"
+    raw = frozen_fed_rss_record()
+    path.write_bytes(raw)
+    (selected,) = store.files(sid)
+    metadata = {
+        "id": "file:" + selected["id"],
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "title": "Minutes of the Federal Open Market Committee, October 27-28, 2026",
+        "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+        "as_of": "2026-11-18",
+        "metadata_origin": "registered_feed_report",
+        "content_scope": "rss_summary",
+        "rss_description": "Minutes of the Federal Open Market Committee",
+        "response_sha256": "b" * 64,
+        "pubdate_raw": "Wed, 18 Nov 2026 19:00:00 GMT",
+        "source_dataset_id": "5b250a71-bcf0-4ee1-b3d3-c76814137a87",
+        "source_manifest_sha256": "c" * 64,
+    }
+    store.session(sid)["registered_feed_sources"] = {
+        selected["id"]: {**metadata, "title": "Forged mutable session title"}
+    }
+    (untrusted,) = source_context(SimpleNamespace(store=store), sid, [selected])["sources"]
+    assert untrusted["metadata_origin"] == "uploaded_rss_record"
+    assert untrusted["title"] == metadata["title"]
+    calls = []
+
+    def trusted_context(session_id):
+        calls.append(session_id)
+        return {
+            "source_kind": "registered_feed",
+            "registered_feed_sources": {selected["id"]: metadata},
+        }
+
+    service = SimpleNamespace(
+        store=store, discovery=SimpleNamespace(trusted_context=trusted_context)
+    )
+    (source,) = source_context(service, sid, [selected])["sources"]
+    assert source == {**metadata, "digest_scope": "full_file"}
+    assert calls == [sid]
+    contract, report, _ = example()
+    report["sources"] = [canonical_source([source], source["id"])]
+    for section in report["sections"]:
+        section["citations"] = [source["id"]]
+    for note in report["notes"]:
+        note["citations"] = [source["id"]]
+    write_research_report(store.directory(sid) / "outputs", report)
+    files = store.files(sid)
+    quality = quality_result(
+        service, sid, {"research_contract": contract}, files, evidence_index(files, [], [])
+    )
+    assert "source_identity_mismatch:" + source["id"] not in quality["issues"]
+    assert quality["evidence_context"]["sources"][0]["metadata_origin"] == "registered_feed_report"
+    path.write_bytes(raw + b"Changed after the trusted handoff.\n")
+    with pytest.raises(StoreError) as changed:
+        source_context(service, sid, [selected])
+    assert changed.value.code == "research_registered_feed_input_changed"

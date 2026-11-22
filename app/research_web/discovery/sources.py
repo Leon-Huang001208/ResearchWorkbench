@@ -251,9 +251,13 @@ def selected_rows(evidence):
             "detail_sha256": digest(item["detail"]),
             "acquired_at": item["acquired_at"],
             "detail": item["detail"],
-            "source_policy": SOURCE_POLICY,
+            "source_policy": item.get("source_policy", SOURCE_POLICY),
         }
-        if item.get("source_kind") == "news":
+        if item.get("source_kind") == "registered_feed":
+            result.append(
+                {"source_kind": "registered_feed", "material": item["material"], **common}
+            )
+        elif item.get("source_kind") == "news":
             result.append({"source_kind": "news", "news_id": item["news_id"], **common})
         else:
             result.append(
@@ -269,6 +273,16 @@ def selected_rows(evidence):
 def acquired_materials(evidence):
     result = []
     for item in evidence:
+        if item.get("source_kind") == "registered_feed":
+            result.append(
+                {
+                    **item["material"],
+                    "acquired_at": item["acquired_at"],
+                    "detail_sha256": digest(item["detail"]),
+                    "kind": "官方 RSS 摘要",
+                }
+            )
+            continue
         if item.get("source_kind") == "news":
             result.append(
                 {

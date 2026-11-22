@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快照，`discovery/service.py` 冻结来源，`discovery/tracking.py` 沿原 Automation 调度与历史处理变化、质量及通知；专用入口在 `discovery/routes.py`，没有新增调度服务。
+
+冻结 RSS 归档的来源元数据由 `research_quality_service.py` 在输入原件上下文中提取；报告 SDK 的 `research_report_plan.py` 经章节 `source_ids` 呈现绑定的元数据，`research_report.py::source_metadata_text` 与 Host 质量检查共用同一呈现规则，作者正文及财务观测继续沿原检查核对。
+
 FinGPT 完成切换后的双入口回滚位于 `resident/model_provider_upgrade.py`。它根据已接受版本绑定旧配置和工件，重新冻结当前保全资料，并使用原联合事务的恢复步骤。回归位于 `tests/research_web/test_model_provider_upgrade.py`。
 
 备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。

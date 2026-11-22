@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+Fed RSS 预览入口为 `POST /api/research/discovery/registered-feeds/fed`，接收本人 `session_id`、可选已冻结 `dataset_id` 和 `horizon`；来源固定为 DataHub `ext_fed/news`。保存沿原 `/discovery/tracks`，手动运行使用 `POST /discovery/tracks/{id}/run`（`expected_version`、UUID `request_id`），历史使用 `GET /discovery/tracks/{id}/runs`。沿既有本人归属、宿主跟踪开关和明确用户动作校验，不开放通用 Automation 或任意 URL。
+
 FinGPT 双入口回滚由本机操作员 CLI 发起，需要已接受版本的完整 SHA。现有本机与网关健康接口核对恢复结果。
 
 FinGPT 的读源工具支持字符偏移量，使用同一授权来源 ID 续读，next_offset 为空时读到末尾。

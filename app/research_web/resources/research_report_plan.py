@@ -21,6 +21,7 @@ try:
         render_markdown,
         report_body_characters,
         select_business_evidence,
+        source_metadata_text,
         validate_payload,
         write_research_report,
         write_summary_workbook,
@@ -37,6 +38,7 @@ except ImportError:
         render_markdown,
         report_body_characters,
         select_business_evidence,
+        source_metadata_text,
         validate_payload,
         write_research_report,
         write_summary_workbook,
@@ -470,7 +472,11 @@ def build_business_report_plan(context, plan, bundle):
         selected, stage_ids, section_rows, presentation = {}, set(), {}, []
         total = 0
         for section in plan["sections"]:
-            _object(section, {"id", "heading", "evidence_ids", "requirement_ids"}, {"analysis"})
+            _object(
+                section,
+                {"id", "heading", "evidence_ids", "requirement_ids"},
+                {"analysis", "source_ids"},
+            )
             sid = section["id"]
             if (
                 not isinstance(sid, str)
@@ -482,9 +488,11 @@ def build_business_report_plan(context, plan, bundle):
             _text(section["heading"], 200)
             _analysis_literals(section["heading"])
             refs, requirements = section["evidence_ids"], section["requirement_ids"]
+            source_refs = section.get("source_ids", [])
             if (
                 not isinstance(refs, list)
                 or len(refs) > 40
+                or not isinstance(source_refs, list)
                 or not isinstance(requirements, list)
                 or not requirements
                 or any(r not in context["requirement_ids"] for r in requirements)
@@ -520,7 +528,19 @@ def build_business_report_plan(context, plan, bundle):
                 if source_quotes:
                     human_text += "\n\n" + "\n".join(source_quotes)
                 text += "\n\n" + scored
-            parents = list(dict.fromkeys(ref for s in blocks["sections"] for ref in s["citations"]))
+            nominated_sources = {}
+            for ref in source_refs:
+                source = canonical_source(bundle["sources"], ref)
+                if source["id"] != ref:
+                    raise ValueError("research_report_plan_selection")
+                nominated_sources[source["id"]] = source
+            for source in nominated_sources.values():
+                metadata = source_metadata_text(source)
+                text += ("\n\n" if text else "") + metadata
+                human_text += ("\n\n" if human_text else "") + metadata
+            parents = [ref for s in blocks["sections"] for ref in s["citations"]]
+            parents.extend(nominated_sources)
+            parents = list(dict.fromkeys(parents))
             for ref in parents:
                 canonical_source(sources, ref)
             presentation.append(

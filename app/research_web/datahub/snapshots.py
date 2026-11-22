@@ -441,6 +441,7 @@ class Snapshots:
             raise StoreError("冻结资料超过上限", "discovery_snapshot_limit", 409)
         did = str(uuid5(Identity(handoff_id), "discovery:" + sid + ":" + sha(raw)))
         rows = selected_rows(evidence)
+        registered_feed = "registered_feed_snapshot" in bundle
         files = {"rows.json": json_bytes(rows), "rows.csv": csv_bytes(rows)}
         if any(len(content) > 16 * 1024 * 1024 for content in files.values()):
             raise StoreError("冻结资料超过上限", "discovery_snapshot_limit", 409)
@@ -448,18 +449,22 @@ class Snapshots:
             "id": did,
             "dataset_id": did,
             "name": (
-                "今日发现冻结原始资讯"
-                if any(item.get("source_kind") == "news" for item in evidence)
-                else "今日发现冻结事件资料"
+                "美联储官方 RSS 冻结摘要"
+                if registered_feed
+                else (
+                    "今日发现冻结原始资讯"
+                    if any(item.get("source_kind") == "news" for item in evidence)
+                    else "今日发现冻结事件资料"
+                )
             ),
-            "source": "golddata_intel",
-            "provider": "golddata_intel",
+            "source": bundle["source"] if registered_feed else "golddata_intel",
+            "provider": bundle["source"] if registered_feed else "golddata_intel",
             "capability": "frozen_evidence",
             "snapshot_kind": "discovery_evidence",
             "schema_version": SCHEMA_VERSION,
             "query": {"kind": "explicit_discovery_selection", "handoff_id": handoff_id},
             "query_fingerprint": bundle["selection_sha256"],
-            "source_url": "",
+            "source_url": bundle["source_url"] if registered_feed else "",
             "attempted_sources": [],
             "retrieved_at": bundle["retrieved_at"],
             "as_of": bundle["cutoff"],
@@ -479,11 +484,15 @@ class Snapshots:
             "coverage": "explicit_frozen_selection",
             "missing": [],
             "limitations": [
-                SOURCE_POLICY,
+                bundle.get("source_policy", SOURCE_POLICY),
                 (
-                    "仅冻结本次选中原始资讯与显式核验的事件关联，不将同一地址计作独立来源。"
-                    if any(item.get("source_kind") == "news" for item in evidence)
-                    else "仅冻结本次选中事件；预览未读取的报道正文只在冻结时取得。"
+                    "仅冻结官方 RSS 标题与摘要，原始响应随快照保留；未读取文章全文。"
+                    if registered_feed
+                    else (
+                        "仅冻结本次选中原始资讯与显式核验的事件关联，不将同一地址计作独立来源。"
+                        if any(item.get("source_kind") == "news" for item in evidence)
+                        else "仅冻结本次选中事件；预览未读取的报道正文只在冻结时取得。"
+                    )
                 ),
             ],
             "discovery": {

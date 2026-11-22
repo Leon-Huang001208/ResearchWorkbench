@@ -1,7 +1,24 @@
 {
   "schemaVersion": 1,
-  "asOf": "2026-11-09",
+  "asOf": "2026-11-23",
   "features": [
+    {
+      "id": "fed-rss-fingpt-tracking",
+      "module": "研究与报告",
+      "title": "美联储官方公告跟踪",
+      "summary": "跟踪官方 RSS 公告变化，保留原始发布时间、来源链接、摘要及研究历史。",
+      "scope": "明确选择资料后手动研究与定时跟踪，报告区分公告摘要和全文。",
+      "next": "完成真实在线报告及定时验收、必要 CI 和 Mac 常驻切换。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-discovery.md",
+      "updated": "2026-11-23",
+      "status": "validating",
+      "platforms": ["macos"],
+      "included": false,
+      "activation": "disabled",
+      "limitations": "当前为待验收候选，未完成常驻部署；相同内容的定时触发不重复调用模型。",
+      "evidence": []
+    },
     {
       "id": "external-research-service-mode",
       "module": "研究与报告",
