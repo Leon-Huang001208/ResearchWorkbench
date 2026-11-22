@@ -8,6 +8,8 @@ Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation
 
 ## WeKnora 资料候选（2026-11-06）
 
+Host 批准范围的单轮研究复用原消息、Store 回执与 query／hit_id 工具，在图04中增加显式 grant、原生首 turn 与会话命中的条件分支；普通同步 current 链保持。源码冻结检查点、图件自动门与真实宿主／服务／报告验收分别记录，不沿用旧截图证明新图已复核。见[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
 [资料合同](../../research-web-weknora.md)描述严格身份、固定目录同步、当前会话命中和独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)区分本机目录／账号SQLite、WeKnora、本机Embedding及证据分支。原实例恢复、新链路／模型、零生成、浏览器与真实周报逐项取证，图文和配置状态不能代替验收；原运行与报告图继续描述既有生产链。
 
 能力中心界面收敛为技能／连接器／插件，方法并入技能、工具进入关联详情；原Host／唯一DSH、目录及调度拓扑不变，详见[能力合同](07-capabilities.md)。

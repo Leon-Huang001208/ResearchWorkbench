@@ -10,6 +10,8 @@ Research Bot 只绑定已发布的技能或 Workflow 版本及内容哈希。运
 
 WeKnora适配提供资料服务出口，不创建新插件市场、安装器或执行器。当前研究的 `research_search_knowledge`／`research_read_knowledge` 只经原DataKey读取可信会话的current资料和命中回执，模型不能选择库、账号或写范围；原报告查询仍须批准scope。绑定、同步配置／扫描、时间批准和冻结保留认证用户明确动作。能力中心三分类、原技能／Workflow身份和入站四项只读MCP保持，资料worker的启用不恢复其他Automation日程。[资料合同](research-web-weknora.md)
 
+已批准 scope 的新会话首轮可走 Host 单轮 grant 分支，仍复用 query／hit_id 工具协议；scope 和当前原生请求不来自模型参数。正式失败不回退普通 current，子会话不继承根授权，来源时间与正式报告资格仍单独复核。详见[单轮研究](research-web-weknora.md#host-批准范围的单轮研究)。
+
 能力中心仅保留技能／连接器／插件：方法与通用Workflow并入技能，Tool在关联详情。连接器使用原MCP、DataHub和本机管理，插件复用原包生命周期。旧方法ID、版本、权限和历史深链保留；复制方法产生普通Skill草稿，不改原方法，也不继承其采用记录身份。定时任务薄入口复用原计划，报告专属Workflow仍从报告生产进入。
 
 ## 事件研究与能力授权（2026-11-04）

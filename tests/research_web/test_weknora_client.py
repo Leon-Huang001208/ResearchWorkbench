@@ -330,6 +330,17 @@ def test_search_ordinary_scope_omits_document_filter_and_refuses_out_of_scope_hi
         assert failure.value.code == "weknora_scope_denied"
 
 
+@pytest.mark.parametrize("returned_rows", [9, 17])
+def test_search_document_scope_rejects_rows_over_requested_limit(returned_rows):
+    def handle(request):
+        assert json.loads(request.content)["skip_context_enrichment"] is True
+        return ok([chunk(f"c{i}", index=i) for i in range(returned_rows)])
+
+    with pytest.raises(StoreError) as failure:
+        run(connected(handle).search("query", ["kb1"], ["d1"], limit=8))
+    assert failure.value.code == "weknora_response_invalid"
+
+
 def test_document_preserves_md5_source_state_and_never_follows_file_url():
     value = {
         "id": "d1",

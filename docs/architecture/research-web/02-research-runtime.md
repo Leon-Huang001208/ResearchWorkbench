@@ -43,7 +43,7 @@ APFS 修复只更新已登记根的设备号。Web 和 DSH 的所有权检查、
 
 ## 资料读取与报告 scope（2026-11-06）
 
-资料同步worker由原Host启动／关闭，60秒巡检只恢复明确启用的资料配置，不开启其他Automation或提交研究。`research_search_knowledge`／`research_read_knowledge` 沿原DataKey、guard和可信session回调执行；当前研究接收session_id及hit_id，原报告请求仍须已批准scope。绑定、同步启停／手动扫描、时间批准、范围创建和证据冻结均留在认证用户明确操作。请求前后核验WeKnora当前用户与空间，原件和分块变化被拒绝或作为回执状态明示；不以空间API Key代替真人权限。真实宿主、模型和原周报完整生产独立验收。[合同](../../research-web-weknora.md)
+资料同步worker由原Host启动／关闭，60秒巡检只恢复明确启用的资料配置，不开启其他Automation或提交研究。`research_search_knowledge`／`research_read_knowledge` 沿原DataKey、guard和可信session回调执行，始终使用 query／hit_id 协议。正式单轮由Host持久grant选择已批准scope，核对可信原生caller、根会话首turn及requestId，并在异步读取后重验；拒绝不回退普通current。绑定、同步启停／手动扫描、时间批准、范围创建和证据冻结均留在认证用户明确操作。请求前后核验WeKnora当前用户与空间，原件和分块变化被拒绝或作为回执状态明示；不以空间API Key代替真人权限。真实宿主、模型和原周报完整生产独立验收。[合同](../../research-web-weknora.md)
 
 统一导航部署保留Native真实空list、Host明确False及全账号后台／市场inflight门，未知或活动延后。前进、恢复和回滚重验同一事件日程disabled证明，不提交研究、重发未知操作或启用采集。
 

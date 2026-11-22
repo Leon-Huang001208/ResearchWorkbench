@@ -11,13 +11,142 @@ from .storage import canonical, digest, fail
 
 
 class CurrentResearch:
-    def _session(self, sid):
+    def _session(self, sid, *, formal=False):
         row = self.owner_store.session(sid)
         if row.get("created") is not True:
             fail("knowledge_session_unconfirmed", 403)
         if "uploads" not in row.get("source_scope", ["datahub", "web", "uploads"]):
             fail("research_source_excluded", 403)
+        if row.get("knowledge_single_turn") and not formal:
+            fail("knowledge_run_not_authorized", 403)
         return row
+
+    async def _formal_grant(self, sid, host, caller_session_id):
+        caller = self.owner_store.data["sessions"].get(caller_session_id, {})
+        if caller.get("knowledge_single_turn") and caller_session_id != sid:
+            fail("knowledge_run_not_authorized", 403)
+        if not self.owner_store.session(sid).get("knowledge_single_turn"):
+            return None
+        self._session(sid, formal=True)
+        # The private Native bridge supplies caller identity, not model arguments.
+        if (
+            host is None
+            or host.store is not self.owner_store
+            or host.knowledge is not self
+            or caller_session_id != sid
+        ):
+            fail("knowledge_run_not_authorized", 403)
+        from .routes import grant_snapshot
+
+        grant = grant_snapshot(host, sid)
+        await self._formal_check(sid, grant, host)
+        return grant
+
+    async def _formal_check(self, sid, grant, host):
+        from .routes import active_scope, grant_snapshot
+
+        self._session(sid, formal=True)
+        if await active_scope(host, sid) != grant[0] or grant_snapshot(host, sid) != grant:
+            fail("knowledge_run_not_authorized", 403)
+
+    async def _formal_query(self, body, grant, host):
+        from .models import Search
+
+        async with self.lock:
+            scope = await self.research_scope(grant[0])
+            result = await self.search(
+                Search(
+                    query=body.query,
+                    knowledge_base_ids=sorted({row["kb_id"] for row in scope["documents"]}),
+                    scope_id=grant[0],
+                ),
+                canonical_hits=True,
+            )
+            client, binding = await self._authorized()
+            allowed = {row["document_id"]: row for row in scope["documents"]}
+            prepared, seen = [], set()
+            for chunk in result["items"]:
+                key = chunk["document_id"], chunk["chunk_id"]
+                if key in seen:
+                    continue
+                seen.add(key)
+                source = allowed.get(chunk["document_id"])
+                if source is None or chunk["kb_id"] != source["kb_id"]:
+                    fail("knowledge_upstream_scope_violation", 502)
+                meta = await client.document(source["document_id"])
+                self._ready(meta)
+                if meta["kb_id"] != source["kb_id"]:
+                    fail("knowledge_upstream_scope_violation", 502)
+                _, chunks = await self._verify_document(client, source)
+                current = next(
+                    (row for row in chunks if row["chunk_id"] == chunk["chunk_id"]), None
+                )
+                if current != chunk:
+                    fail("knowledge_chunks_changed")
+                if len(chunk["content"]) > 16000:
+                    fail("knowledge_current_chunk_budget", 413)
+                prepared.append(
+                    {
+                        "session_id": body.session_id,
+                        **{key: binding[key] for key in ("origin", "user_id", "workspace_id")},
+                        "purpose": "approved_research_scope",
+                        "knowledge_scope_id": grant[0],
+                        "native_grant": list(grant),
+                        "kb_id": source["kb_id"],
+                        "document_id": source["document_id"],
+                        # This versions the immutable approved snapshot, not the sync manifest.
+                        "document_version": 1,
+                        "sha256": source["sha256"],
+                        "chunks_sha256": source["chunks_sha256"],
+                        "title": source["title"],
+                        "chunk": chunk,
+                        "chunk_sha256": digest(canonical(chunk)),
+                        "available_at": source["available_at"],
+                        "time_evidence": source["time_evidence"],
+                        "historical_eligible": False,
+                    }
+                )
+            await self._still_authorized(binding)
+            await self.research_scope(grant[0])
+            # This is the last await before publishing session-bound receipts.
+            await self._formal_check(body.session_id, grant, host)
+            receipts = [self.store.create("receipts", payload) for payload in prepared]
+            return {
+                "items": [self._projection(row) for row in receipts],
+                "session_id": body.session_id,
+                "generated_answer": False,
+            }
+
+    async def _formal_read(self, body, grant, host):
+        client, binding = await self._authorized()
+        row = self.store.read("receipts", body.hit_id)
+        if row.get("session_id") != body.session_id:
+            fail("knowledge_hit_session_mismatch", 403)
+        if (
+            row.get("purpose") != "approved_research_scope"
+            or row.get("knowledge_scope_id") != grant[0]
+            or tuple(row.get("native_grant", [])) != grant
+            or any(row.get(key) != binding[key] for key in ("origin", "user_id", "workspace_id"))
+        ):
+            fail("knowledge_hit_identity_mismatch", 403)
+        scope = await self.research_scope(grant[0])
+        source = next(
+            (item for item in scope["documents"] if item["document_id"] == row["document_id"]),
+            None,
+        )
+        if source is None or any(
+            row[key] != source[key] for key in ("kb_id", "sha256", "chunks_sha256")
+        ):
+            fail("knowledge_hit_identity_mismatch", 403)
+        _, chunks = await self._verify_document(client, source)
+        if not any(chunk == row["chunk"] for chunk in chunks):
+            fail("knowledge_chunks_changed")
+        await self._still_authorized(binding)
+        await self.research_scope(grant[0])
+        await self._formal_check(body.session_id, grant, host)
+        if self.store.binding() != binding:
+            fail("knowledge_binding_changed", 409)
+        return self._projection(row, content=True)
 
     async def _current_authorized(self, sid):
         self._session(sid)
@@ -316,13 +445,49 @@ class CurrentResearch:
         ):
             return []
         binding = self.store.binding()
-        if not binding or not self.sync.matches_binding(binding):
+        if not binding:
+            return []
+        formal = session.get("knowledge_single_turn") is True
+        grant, approved = None, {}
+        if formal:
+            # Read-only result views keep the original scope/request binding even
+            # after the Native turn ends; this does not authorize another tool call.
+            receipt = self.owner_store.data["receipts"].get(
+                f"{sid}:{session.get('delivery_key')}", {}
+            )
+            grant = (
+                receipt.get("knowledge_scope_id"),
+                receipt.get("delivery", {}).get("task_id"),
+                receipt.get("knowledge_request_digest"),
+                receipt.get("digest"),
+            )
+            if not all(grant):
+                return []
+            approved = {
+                row["document_id"]: row for row in self._scope(grant[0], binding)["documents"]
+            }
+        elif not self.sync.matches_binding(binding):
             return []
         result = deque(maxlen=100)
         for row in self.store.records("receipts"):
             if row.get("session_id") != sid or any(
                 row.get(key) != binding[key] for key in ("origin", "user_id", "workspace_id")
             ):
+                continue
+            if formal:
+                source = approved.get(row.get("document_id"), {})
+                if (
+                    row.get("purpose") != "approved_research_scope"
+                    or tuple(row.get("native_grant", [])) != grant
+                    or row.get("knowledge_scope_id") != grant[0]
+                    or any(
+                        row.get(key) != source.get(key)
+                        for key in ("kb_id", "sha256", "chunks_sha256")
+                    )
+                    or not source
+                ):
+                    continue
+            elif row.get("purpose") == "approved_research_scope":
                 continue
             result.append(
                 {
