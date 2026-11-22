@@ -24,4 +24,6 @@
 
 正式 Router 对原四路径选 L4/full-delivery，两个测试留有 unknown-path 风险；新增文档及 workflow 后须按最终完整候选重规划。CI 触发已补不代表本轮 CI 已实际运行，Mac 干净安装、固定 DSH、3081/8088、Doctor 及 wheel 资源比较均仍待最终候选 CI。
 
+现有项目约束还要求补齐 README unchanged 复核、三份共享 UI 模块说明及四份工作流／预算文档；本轮均以最小局部说明记录入口修复、原模块流程不变及现有 Mac job 的覆盖变化。最终 changed set 以同任务 amended candidate 为准，不沿用前一候选范围或检查身份。
+
 源码提交、最终候选 CI、Mac 干净安装、受管部署及生产三身份复验仍由主任务接续；未在本报告中标为通过。未新增依赖、模型调用或全链路验收。

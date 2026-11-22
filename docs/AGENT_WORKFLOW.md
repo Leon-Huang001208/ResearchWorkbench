@@ -13,6 +13,8 @@ Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、
 Windows 门交对应真机执行，Mac 不 dispatch；邻近未登记 resident／测试路径仍按
 unknown L4 fallback 保留缺口，不能用局部回归或路由计划代替整模块、CI 或实际升级验收。
 
+主账号数据源入口修复在现有 Mac Bootstrap 的 PR/push 清单各补 `ui/server/session.mjs`、`profile.css` 及两个相邻 session/MCP 登录测试的确切仓库路径，原静态冒烟步骤比较两个已安装 wheel 资源与 checkout 字节。复用原 Mac job、runner、权限、依赖与时限，不新增服务或其他平台 dispatch；最终候选 CI 和生产页面仍待分别验收。
+
 管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
 exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
 `build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，

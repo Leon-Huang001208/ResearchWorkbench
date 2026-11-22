@@ -1,5 +1,7 @@
 # FinGPT 三组隔离比较（macOS）
 
+主账号数据源入口修复沿现有 Mac Bootstrap 为四个确切源码／测试路径补 PR/push 触发，并在原静态冒烟步骤比较两个 wheel 资源字节，不新增 job、runner、权限、依赖、时限或其他平台 dispatch。实际最终候选 CI 待跑；这不执行或改变 FinGPT 的模型、费用、研究流程与三组比较验收。
+
 原 PR #284 的围栏内复核与两条精确测试路由沿既有完整模块、通用检查和同候选
 Constraints／Checks／Mac Bootstrap 验收；Bootstrap 的 PR／push 路径同时覆盖操作员源码和对应测试。
 这仅补维护保护与验证选择，不执行 FinGPT 模型、报告、费用或真实比较，也不把工程 stage
