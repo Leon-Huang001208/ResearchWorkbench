@@ -7,6 +7,11 @@
 Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、Mac mini 部署仍分别取证，
 不重建已过时的财经日历部署 profile。见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
 
+原操作员源码与 `test_model_provider_upgrade.py` 两个确切文件由 `research-web-native-upgrade`
+显式选择 L4/full-delivery：完整模块、原通用完整检查、Constraints、Checks 和同候选 Mac Bootstrap
+均须分别取证。Windows 门交对应真机执行，Mac 不 dispatch；邻近未登记 resident／测试路径仍按
+unknown L4 fallback 保留缺口，不能用局部回归或路由计划代替整模块、CI 或实际升级验收。
+
 管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
 exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
 `build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，

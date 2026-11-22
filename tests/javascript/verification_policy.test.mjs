@@ -776,9 +776,10 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 22);
+  assert.equal(catalogs.length, 23);
   assert.ok(catalogs.some(([id]) => id === "research-web-inbound-mcp"));
   assert.ok(catalogs.some(([id]) => id === "research-web-asset-history-python"));
+  assert.ok(catalogs.some(([id]) => id === "research-web-native-upgrade"));
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -936,6 +937,74 @@ test("runtime contract and credential backend paths use their narrow L4 routes",
   assert.equal(credentials.reasons.some(item => item.code === "unknown_path"), false);
   assertFullDockerRoute(credentials);
   assert.equal(credentials.tests.some(item => item.id === "research-web-credential-backend"), true);
+});
+
+const nativeUpgradePaths = [
+  "research_workbench_entrypoint/resident/model_provider_upgrade.py",
+  "tests/research_web/test_model_provider_upgrade.py",
+];
+
+test("native upgrade exact files select their complete module and original platform gates", () => {
+  for (const file of nativeUpgradePaths) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "full-delivery", file);
+    assert.equal(plan.requiredLevel, "L4", file);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-native-upgrade"], file);
+    assert.deepEqual(plan.uncoveredRisks, [], file);
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false, file);
+    assert.equal(
+      plan.tests.find(item => item.id === "research-web-native-upgrade")?.value,
+      "python -m pytest tests/research_web/test_model_provider_upgrade.py --confcutdir=tests/research_web",
+      file,
+    );
+    for (const id of ["research-web-architecture", "project-constraints-local", "research-web-critical-smoke", "research-web-verification-full", "documentation-governance", "python-file-index"]) {
+      assert.ok(plan.receiptTemplate.requiredValidationIds.includes(id), `${file}: ${id}`);
+    }
+    assert.deepEqual(plan.ci.map(item => item.id), [
+      "project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-windows-verify",
+    ], file);
+    assert.deepEqual(plan.ci.find(item => item.id === "research-web-bootstrap").platforms, ["macos"]);
+    assert.deepEqual(plan.ci.find(item => item.id === "research-web-windows-verify").platforms, ["windows"]);
+    assert.deepEqual(plan.realMachine, [], `${file}: a route is not resident acceptance`);
+    for (const id of ["research-web-docker", "native-macos-desktop", "native-windows-desktop", "desktop-packaging"]) {
+      assert.equal(gateIds(plan).includes(id), false, `${file}: unrelated ${id}`);
+    }
+  }
+});
+
+test("native upgrade catalog and selectors remain exact and preserve generic full verification", () => {
+  const actual = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".agents/verification-policy.json"), "utf8"));
+  assert.deepEqual(actual.catalogs.tests["research-web-native-upgrade"], catalog(
+    "L2",
+    "python -m pytest tests/research_web/test_model_provider_upgrade.py --confcutdir=tests/research_web",
+  ));
+  const native = actual.rules.find(item => item.id === "research-web-native-upgrade");
+  assert.ok(native);
+  assert.deepEqual(native.match.files, nativeUpgradePaths);
+  for (const key of ["prefixes", "segments", "suffixes"]) assert.deepEqual(native.match[key], []);
+  assert.ok(native.tests.includes("research-web-verification-full"));
+  assert.ok(native.documentation.includes("documentation-governance"));
+  assert.equal(
+    actual.catalogs.tests["research-web-verification-full"].value,
+    "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs",
+  );
+});
+
+test("native upgrade neighbors remain unknown L4 fallback boundaries", () => {
+  for (const file of [
+    "research_workbench_entrypoint/resident/model_provider_upgrade_future.py",
+    "research_workbench_entrypoint/resident/future_upgrade.py",
+    "tests/research_web/test_model_provider_upgrade_future.py",
+    "tests/research_web/test_future_native_upgrade.py",
+  ]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "full-delivery", file);
+    assert.equal(plan.requiredLevel, "L4", file);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], file);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], file);
+    assert.equal(plan.tests.some(item => item.id === "research-web-native-upgrade"), false, file);
+    assert.equal(plan.receiptTemplate.requiredValidationIds.includes("research-web-verification-full"), true, file);
+  }
 });
 
 const representativeCases = {

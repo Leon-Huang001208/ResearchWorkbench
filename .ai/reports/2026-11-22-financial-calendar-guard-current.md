@@ -71,6 +71,20 @@ Trial／完成后回滚方向、真实中断恢复、dossiers 保全及 finish �
 这些结果的身份为 `mode=wip`、`exactCheckout=false`；记录在任务外置
 `rwb-pr284-current-20261122/wip-neighbors/accepted.json`，不挪作最终候选整模块通过。
 
+## 完整模块与平台门的路由补齐
+
+原实际 Router 计划将操作员和对应测试归为 `fallback/unknown_impact_boundary`，
+未登记完整 Python 模块和 Mac Bootstrap。先以 Node 回归复现两项失败后，新增单一
+`research-web-native-upgrade` L4/full-delivery 规则，仅匹配这两个确切文件；
+完整 `test_model_provider_upgrade.py` catalog 带原 `--confcutdir=tests/research_web`，
+没有 nodeid、关键字筛选或替代的局部子集。原通用完整检查、架构／Constraints、
+关键 smoke、文档／Python 索引及原三项 CI 保留，Windows 门交对应真机，Mac 不 dispatch。
+相邻未知 resident 与测试文件继续为 L4 fallback；未改 workflow、job、runner、安装、依赖、权限或超时。
+固定 Node24.19.0 的定点路由回归3项和完整 `verification_policy` 108项均通过，后者包含前者，
+不重复相加。原两项RED和通过输出保存在外置 `rwb-pr284-current-20261122/router-mapping/`。
+此处仅补政策、回归及文档，未执行整模块3975项、pytest、模型、服务或任何发布动作；
+最终完整候选的测试／CI结果仍由后续实际回执记录。
+
 最终候选完整相关测试、独立评审和当前基线 CI 由后续交付原件绑定，当前为
 `NOT_RUN/PENDING`。常驻切换、真实模型／供应商及业务验收均 `NOT_RUN`；
 本次未更新任何服务、业务数据、账户配置或模型预算。
