@@ -121,9 +121,18 @@ jobs:
           tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
           scope_files = tool | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "AGENTS.md"}
           limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          release_core = {"docker/release.py", "docker/Dockerfile.release", "docker/release-schema.json", "app/research_web/maintenance.py"}
+          release_paths = release_core | {
+              "docker/manage.py", "rwb-docker", "app/research_web/automation/service.py", "app/research_web/client.py", "app/research_web/main.py", "app/research_web/report_studio.py", "app/research_web/report_workflows/runtime.py", "app/research_web/service.py",
+              "tests/research_web/test_docker_release.py", "tests/research_web/test_release_maintenance.py", "tests/research_web/test_docker_manager.py", "tests/research_web/test_api.py", "tests/fixtures/g2b_fault_controller.py",
+              ".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs", "README.md", ".ai/reports/2026-10-14-g2b-task.json",
+              "docs/architecture/research-web/architecture-map.json", "docs/architecture/research-web/readme-review.json", "outputs/research-web-architecture/api-atlas.html", "outputs/research-web-architecture/index.html",
+          }
+          release = bool(release_core.intersection(files)) and all(name in release_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
-          print("Contract scope: " + ("retention tool" if limited else "full Research Web"))
+              output.write("g2b_release_only=" + str(release).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "G2B release and Host admission" if release else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -157,6 +166,38 @@ jobs:
               --allowed-parent "$RUNNER_TEMP" \
               --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
               -- tests/research_web/test_test_artifact_retention.py --confcutdir=tests/research_web -q
+            exit 0
+          fi
+          if [ "${{ steps.contract-scope.outputs.g2b_release_only }}" = "true" ]; then
+            PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+              -- \
+              tests/research_web/test_docker_release.py \
+              tests/research_web/test_release_maintenance.py \
+              tests/research_web/test_docker_manager.py \
+              tests/research_web/test_docker_packaging.py \
+              tests/research_web/test_protocol.py \
+              tests/research_web/test_api.py::test_release_maintenance_blocks_web_automation_and_report_entries \
+              tests/research_web/test_api.py::test_release_idle_refuses_any_unverified_hot_state \
+              tests/research_web/test_api.py::test_release_idle_refuses_alias_hot_state \
+              tests/research_web/test_api.py::test_release_idle_includes_native_children_and_report_workers \
+              tests/research_web/test_api.py::test_release_idle_includes_current_datahub_and_plugin_work \
+              tests/research_web/test_api.py::test_create_submit_duplicate_never_replays \
+              tests/research_web/test_api.py::test_unknown_admission_not_retried \
+              tests/research_web/test_api.py::test_cross_origin_and_invalid_credentials_do_not_leak_input \
+              tests/research_web/test_api.py::test_no_dsh_connection_no_fake_success \
+              tests/research_web/test_api.py::test_unowned_instance_is_read_only \
+              tests/research_web/test_api.py::test_model_backend_failure_preserves_runtime_health_and_unknown_credential \
+              tests/research_web/test_automation_research_task.py::test_queued_run_uses_prior_definition_when_task_changes \
+              tests/research_web/test_automation_research_task.py::test_native_research_run_uses_independent_session_without_fake_skill \
+              tests/research_web/test_report_workflow_integration.py::test_refresh_success_delegates_once_to_claw_and_locks_version \
+              tests/research_web/test_report_workflow_integration.py::test_delivery_retry_consumes_late_payload_without_starting_another_claw_session \
+              tests/research_web/test_report_workflow_integration.py::test_schedule_is_shanghai_non_reentrant_and_catches_up_once \
+              tests/research_web/test_report_studio.py::test_version_is_immutable_and_active_run_locks_version \
+              tests/research_web/test_report_studio.py::test_weekly_schedule_and_overlap_are_persistent \
+              --confcutdir=tests/research_web -q
             exit 0
           fi
           # The exact-handoff fixture verifies these historical objects offline.
@@ -401,10 +442,15 @@ jobs:
       - name: Run Research Web JavaScript contracts
         if: steps.contract-scope.outputs.retention_only != 'true'
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
+        run: |
+          if [ "${{ steps.contract-scope.outputs.g2b_release_only }}" = "true" ]; then
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_architecture.test.mjs
+            exit 0
+          fi
+          RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs

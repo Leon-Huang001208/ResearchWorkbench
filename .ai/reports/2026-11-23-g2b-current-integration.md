@@ -23,3 +23,7 @@
 <!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"保留当前周报准备和恢复实现，在已有运行方法上接入同一维护门，不新增报告调度、数据层或研究引擎。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅将两份新增release与维护离线合同加入原Research Web Checks测试清单，不增加workflow、runner、依赖、产品dispatch或新的验证框架。","diagrams":[]} -->
+
+## CI 范围修正
+
+Mac 安装与 Project Constraints 已实际通过。原 Checks 在无关全 Web Python 合同中运行约20分钟，改为复用原 scope selector：仅明确的 G2B 源码、维护接点及具体回归清单进入相关 suite，未知和混合产品变更仍走 full，retention 选择不变。保留公共 Host/API、协议与 Automation/报告准入，跳过无关知识库、市场研究矩阵和编辑引擎。新增两个范围/真实 bash 分支反例，加原 retention 范围共3项定点检查通过；没有重复110项本地业务检查，也没有新增验证服务或框架。
