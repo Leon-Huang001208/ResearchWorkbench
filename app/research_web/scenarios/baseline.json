@@ -1,0 +1,6674 @@
+{
+  "version": "1.0.0",
+  "authority": "static_reference_only",
+  "sources": [
+    {
+      "id": "seek-skills",
+      "url": "https://seek-alpha.cn/skills",
+      "observed_on": "2026-10-26",
+      "scope": "catalog_names_only",
+      "capture": "names-only extracted from authenticated catalog; no authenticated page dump retained",
+      "raw_sha256": "b6832ef98ee84d5b6f344d37c07a8268067876f361c48c4fcdbbf6c13ec1664f",
+      "raw_bytes": 1558,
+      "count": 62
+    },
+    {
+      "id": "seek-tools",
+      "url": "https://seek-alpha.cn/api/mcp/tools-meta",
+      "observed_on": "2026-10-26",
+      "scope": "public_tool_definitions",
+      "capture": "public JSON definitions; descriptions paraphrased",
+      "raw_sha256": "b1b474d8a3a9698f7c8976aa28d5f64b7d48530376a1207257cfab6916a64763",
+      "raw_bytes": 109540,
+      "count": 78,
+      "documentation_url": "https://seek-alpha.cn/mcp"
+    }
+  ],
+  "metadata_counts": {
+    "skills": 62,
+    "tools": 78,
+    "bundles": 9,
+    "groups": 12,
+    "tiers": 10,
+    "internal": 1,
+    "proprietary_tools": 4
+  },
+  "metadata": {
+    "groups": [
+      {
+        "key": "all",
+        "label": "全部"
+      },
+      {
+        "key": "account",
+        "label": "账户"
+      },
+      {
+        "key": "pack",
+        "label": "组合包"
+      },
+      {
+        "key": "research",
+        "label": "投研分析"
+      },
+      {
+        "key": "deep",
+        "label": "深度研究"
+      },
+      {
+        "key": "data",
+        "label": "数据查询"
+      },
+      {
+        "key": "sellside",
+        "label": "卖方观点"
+      },
+      {
+        "key": "know",
+        "label": "知识与舆情"
+      },
+      {
+        "key": "news",
+        "label": "资讯与公众号"
+      },
+      {
+        "key": "expert",
+        "label": "首席与大师"
+      },
+      {
+        "key": "file",
+        "label": "文件"
+      },
+      {
+        "key": "util",
+        "label": "实用工具"
+      }
+    ],
+    "tiers": [
+      {
+        "cost": 0,
+        "label": "免费"
+      },
+      {
+        "cost": 1,
+        "label": "轻工具"
+      },
+      {
+        "cost": 3,
+        "label": "中工具"
+      },
+      {
+        "cost": 4,
+        "label": "中重工具"
+      },
+      {
+        "cost": 5,
+        "label": "并发取数"
+      },
+      {
+        "cost": 8,
+        "label": "批量取数"
+      },
+      {
+        "cost": 10,
+        "label": "重工具"
+      },
+      {
+        "cost": 20,
+        "label": "超重工具"
+      },
+      {
+        "cost": 200,
+        "label": "视频生成"
+      },
+      {
+        "cost": 300,
+        "label": "高清视频生成"
+      }
+    ],
+    "initial_credits": 2000,
+    "credit_scope": "supplier published metadata only; not the current user balance",
+    "group_counts": {
+      "account": 1,
+      "pack": 9,
+      "research": 9,
+      "deep": 4,
+      "data": 23,
+      "sellside": 7,
+      "know": 6,
+      "news": 6,
+      "expert": 4,
+      "file": 2,
+      "util": 7
+    }
+  },
+  "tool_hash_encoding": "UTF-8 JSON, ensure_ascii=False, sort_keys=True, separators=(comma,colon); whole-source raw_sha256 binds original bytes",
+  "skills": [
+    {
+      "id": "skill:b6584a00460f3f8e",
+      "name": "公司一页纸",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备公司一页纸；保留覆盖和未决依赖",
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:8f87a6f378069e62",
+      "name": "行业一页纸",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备行业一页纸；保留覆盖和未决依赖",
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:119c129c3e97aae3",
+      "name": "调研大纲",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备调研大纲；保留覆盖和未决依赖",
+      "domain": "research-prep",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "company-disclosures",
+          "survey-records"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:729d9ad6e67d2a78",
+      "name": "历史复盘",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备历史复盘；保留覆盖和未决依赖",
+      "domain": "historical",
+      "capability_ids": [
+        "event-review"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#event-review"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "point-in-time-events",
+          "adjusted-bars",
+          "benchmark-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:a3d67a3d148617f5",
+      "name": "基本面分析",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备基本面分析；保留覆盖和未决依赖",
+      "domain": "fundamental",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "valuation",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:b7af749063f04e6e",
+      "name": "技术面分析",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备技术面分析；保留覆盖和未决依赖",
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:3ce99ecb10acb879",
+      "name": "形态学分析",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备形态学分析；保留覆盖和未决依赖",
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:869061b99d16a812",
+      "name": "深度财务分析（研究所）",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备深度财务分析（研究所）；保留覆盖和未决依赖",
+      "domain": "fundamental",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "valuation",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:1139dc6ee3f8835f",
+      "name": "晨会纪要整理（研究所提供）",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备晨会纪要整理（研究所提供）；保留覆盖和未决依赖",
+      "domain": "documents",
+      "capability_ids": [
+        "document-reading"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#document-reading"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-material-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:2f57ec5f7f7fa700",
+      "name": "A股投资数据库",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备A股投资数据库；保留覆盖和未决依赖",
+      "domain": "fundamental",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "valuation",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:fa0e2c4d11eb0dbf",
+      "name": "公募基金数据库",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备公募基金数据库；保留覆盖和未决依赖",
+      "domain": "fund",
+      "capability_ids": [
+        "fund-evaluation"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-evaluation"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "fund-nav",
+          "fund-holdings",
+          "fund-classification"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:dbfbaba5e5f3f29c",
+      "name": "可转债数据库",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备可转债数据库；保留覆盖和未决依赖",
+      "domain": "fund",
+      "capability_ids": [
+        "fund-evaluation"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-evaluation"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "fund-nav",
+          "fund-holdings",
+          "fund-classification"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:c0ee18664e749beb",
+      "name": "港股数据库",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备港股数据库；保留覆盖和未决依赖",
+      "domain": "fundamental",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "valuation",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:078555e20e936c50",
+      "name": "产业链穿透",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备产业链穿透；保留覆盖和未决依赖",
+      "domain": "chain",
+      "capability_ids": [
+        "industry-chain-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-chain-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-supply-chain-relations"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:33e18830034dbe8c",
+      "name": "基金经理画像",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备基金经理画像；保留覆盖和未决依赖",
+      "domain": "fund",
+      "capability_ids": [
+        "fund-evaluation"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-evaluation"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "fund-nav",
+          "fund-holdings",
+          "fund-classification"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:71b5e73145b8372e",
+      "name": "一致预期/卖方评级",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备一致预期/卖方评级；保留覆盖和未决依赖",
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:66139ffdeb675256",
+      "name": "资金流向分析",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备资金流向分析；保留覆盖和未决依赖",
+      "domain": "flow",
+      "capability_ids": [
+        "etf-flow-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#etf-flow-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "flow-order-size-semantics",
+          "fund-flow"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:726672c4661627ae",
+      "name": "财报日历/业绩预告",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备财报日历/业绩预告；保留覆盖和未决依赖",
+      "domain": "earnings",
+      "capability_ids": [
+        "earnings-report-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-report-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "disclosure-calendar",
+          "profit-notices"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:88bffad7d40fd03a",
+      "name": "股东/高管变动",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备股东/高管变动；保留覆盖和未决依赖",
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:732a80e71b492b50",
+      "name": "选股器",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备选股器；保留覆盖和未决依赖",
+      "domain": "screen",
+      "capability_ids": [
+        "platform-breakout"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#platform-breakout"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "adjusted-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:6d0547b060298376",
+      "name": "行业比较看板",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备行业比较看板；保留覆盖和未决依赖",
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:71530320f217e723",
+      "name": "ETF观点",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备ETF观点；保留覆盖和未决依赖",
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:56e6949eccffcf68",
+      "name": "持仓排雷包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备持仓排雷包；保留覆盖和未决依赖",
+      "domain": "risk",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "risk-labels",
+          "restricted-unlocks",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:648f55daef2e7f3d",
+      "name": "预期差扫描包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备预期差扫描包；保留覆盖和未决依赖",
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:62e47068e3e59e2a",
+      "name": "短线情绪包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备短线情绪包；保留覆盖和未决依赖",
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:db8f9970939f4637",
+      "name": "调研前置包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备调研前置包；保留覆盖和未决依赖",
+      "domain": "research-prep",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "company-disclosures",
+          "survey-records"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:35398c4231c580f9",
+      "name": "事件复盘包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备事件复盘包；保留覆盖和未决依赖",
+      "domain": "historical",
+      "capability_ids": [
+        "event-review"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#event-review"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "point-in-time-events",
+          "adjusted-bars",
+          "benchmark-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:34232632e11d6017",
+      "name": "海内外舆情包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备海内外舆情包；保留覆盖和未决依赖",
+      "domain": "overseas",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-social-posts",
+          "news-source-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:80b7bec626456107",
+      "name": "估值体检包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备估值体检包；保留覆盖和未决依赖",
+      "domain": "valuation",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "valuation-history",
+          "currency-and-units"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:14ff1fa86b2bf259",
+      "name": "筹码结构包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备筹码结构包；保留覆盖和未决依赖",
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:850c438c8cf77880",
+      "name": "财报季前瞻包",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备财报季前瞻包；保留覆盖和未决依赖",
+      "domain": "earnings",
+      "capability_ids": [
+        "earnings-report-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-report-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "disclosure-calendar",
+          "profit-notices"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:d71e312ffe0f40e4",
+      "name": "新闻查询",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备新闻查询；保留覆盖和未决依赖",
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:f76d0e1ab4bfd919",
+      "name": "新闻传导分析",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备新闻传导分析；保留覆盖和未决依赖",
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:c9e914817c4ba8f4",
+      "name": "推特/X 搜索",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备推特/X 搜索；保留覆盖和未决依赖",
+      "domain": "overseas",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-social-posts",
+          "news-source-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:b88199267cea7dd8",
+      "name": "微信公众号搜索",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备微信公众号搜索；保留覆盖和未决依赖",
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:38f49a8e98377514",
+      "name": "形态学最新股票池",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备形态学最新股票池；保留覆盖和未决依赖",
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:5ea6e5bd14c17622",
+      "name": "AI 大神观点日报",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备AI 大神观点日报；保留覆盖和未决依赖",
+      "domain": "overseas",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-social-posts",
+          "news-source-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:7a4210aa1e8618f6",
+      "name": "半导体上游口风日报",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备半导体上游口风日报；保留覆盖和未决依赖",
+      "domain": "chain",
+      "capability_ids": [
+        "industry-chain-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-chain-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-supply-chain-relations"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:6e14ec111ed6ac70",
+      "name": "创新药 BD 日报",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备创新药 BD 日报；保留覆盖和未决依赖",
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:9486113b31378eac",
+      "name": "大宗商品日报",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备大宗商品日报；保留覆盖和未决依赖",
+      "domain": "macro",
+      "capability_ids": [
+        "macro-asset-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#macro-asset-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "macro-series",
+          "release-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:1e6556c9e74442e7",
+      "name": "涨停池",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备涨停池；保留覆盖和未决依赖",
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:4c56303c04d2af90",
+      "name": "龙虎榜追踪",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备龙虎榜追踪；保留覆盖和未决依赖",
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:02ada4ea9b5782fd",
+      "name": "风险预警扫描",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备风险预警扫描；保留覆盖和未决依赖",
+      "domain": "risk",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "risk-labels",
+          "restricted-unlocks",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:6974123b8247a87f",
+      "name": "底部放量选股",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备底部放量选股；保留覆盖和未决依赖",
+      "domain": "screen",
+      "capability_ids": [
+        "platform-breakout"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#platform-breakout"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "adjusted-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:ab7c14d763f5e538",
+      "name": "券商金股",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备券商金股；保留覆盖和未决依赖",
+      "domain": "sellside",
+      "capability_ids": [
+        "sell-side-report-reader"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#sell-side-report-reader"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-research-reports",
+          "recommendation-history"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:dfb50d2e54a16781",
+      "name": "知识库全文检索",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备知识库全文检索；保留覆盖和未决依赖",
+      "domain": "documents",
+      "capability_ids": [
+        "document-reading"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#document-reading"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-material-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:395fd68d061229de",
+      "name": "分析师历史准确度",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备分析师历史准确度；保留覆盖和未决依赖",
+      "domain": "sellside",
+      "capability_ids": [
+        "sell-side-report-reader"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#sell-side-report-reader"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-research-reports",
+          "recommendation-history"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:52e3ad315199a5f9",
+      "name": "估值分位查询",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备估值分位查询；保留覆盖和未决依赖",
+      "domain": "valuation",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "valuation-history",
+          "currency-and-units"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:be0312ae9fd4a506",
+      "name": "业绩预告超预期",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备业绩预告超预期；保留覆盖和未决依赖",
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:e672c5b62fa83049",
+      "name": "行业财务比较",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备行业财务比较；保留覆盖和未决依赖",
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:d47018bf05e64496",
+      "name": "机构持仓查询",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备机构持仓查询；保留覆盖和未决依赖",
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:b3f83b25206a1796",
+      "name": "行业深度研究报告（研究所提供）",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备行业深度研究报告（研究所提供）；保留覆盖和未决依赖",
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:0ade9177eb5f822c",
+      "name": "业绩点评研报（研究所提供）",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备业绩点评研报（研究所提供）；保留覆盖和未决依赖",
+      "domain": "earnings",
+      "capability_ids": [
+        "earnings-report-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-report-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "disclosure-calendar",
+          "profit-notices"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:bf3597d1e4b08435",
+      "name": "公司研究（十维度）",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备公司研究（十维度）；保留覆盖和未决依赖",
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:834c66fee7a9b73c",
+      "name": "A股每日复盘",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备A股每日复盘；保留覆盖和未决依赖",
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:c2e344636ea3d0de",
+      "name": "行业热点推送（研究所提供）",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备行业热点推送（研究所提供）；保留覆盖和未决依赖",
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:34d0c007ebeb7c5c",
+      "name": "宏观指标追踪",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备宏观指标追踪；保留覆盖和未决依赖",
+      "domain": "macro",
+      "capability_ids": [
+        "macro-asset-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#macro-asset-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "macro-series",
+          "release-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:b50e5b5c7773ac0a",
+      "name": "观点回溯",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备观点回溯；保留覆盖和未决依赖",
+      "domain": "framework",
+      "capability_ids": [
+        "framework-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#framework-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-material-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:bb50501c1622a4f0",
+      "name": "跨报告关联分析",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备跨报告关联分析；保留覆盖和未决依赖",
+      "domain": "documents",
+      "capability_ids": [
+        "document-reading"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#document-reading"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-material-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:dd266ad1dd0185c3",
+      "name": "研究框架提取",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备研究框架提取；保留覆盖和未决依赖",
+      "domain": "framework",
+      "capability_ids": [
+        "framework-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#framework-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-material-text"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:9b1867c2375c3b38",
+      "name": "政策动向追踪",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备政策动向追踪；保留覆盖和未决依赖",
+      "domain": "policy",
+      "capability_ids": [
+        "policy-sentinel"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#policy-sentinel"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "official-policy-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "skill:d722bd347a77538d",
+      "name": "择时×宏观联动",
+      "source_id": "seek-skills",
+      "contract": "按所选标的、截止日及已授权材料准备择时×宏观联动；保留覆盖和未决依赖",
+      "domain": "timing",
+      "capability_ids": [
+        "rate-ma-timing-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#rate-ma-timing-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "macro-series",
+          "adjusted-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    }
+  ],
+  "tools": [
+    {
+      "id": "tool:query_my_credits",
+      "name": "query_my_credits",
+      "source_id": "seek-tools",
+      "group": "account",
+      "cost": 0,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "show_log",
+          "type": "boolean"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "查看供应商账户额度与工具计费记录",
+      "raw_definition_sha256": "c9d863e87c874e77654f6b0fe3b82503158dedb79bb2830c5cc98531b3d3af29",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "account",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-account-state"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:pack_portfolio_risk_scan",
+      "name": "pack_portfolio_risk_scan",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stocks",
+          "type": "string"
+        }
+      ],
+      "contract": "组合核对风险标签、解禁安排及减持计划",
+      "raw_definition_sha256": "ec37f2062bdaee9c25aa1c086e7f56c3f21760759502e86b6de8e2dcf010395c",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "risk",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "risk-labels",
+          "restricted-unlocks",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_expectation_gap_scan",
+      "name": "pack_expectation_gap_scan",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "stocks",
+          "type": "string"
+        },
+        {
+          "name": "months",
+          "type": "number"
+        },
+        {
+          "name": "min_organs",
+          "type": "number"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "组合比较预告偏离、盈利预测修订与评级变化",
+      "raw_definition_sha256": "d565e0f8ad26c409d8b19a8e22af8770bc4121513948596b50f1ba5c41e29fe4",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_short_term_sentiment",
+      "name": "pack_short_term_sentiment",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "date",
+          "type": "string"
+        },
+        {
+          "name": "focus_stocks",
+          "type": "string"
+        }
+      ],
+      "contract": "组合观察涨停、题材、资金分档及席位活动",
+      "raw_definition_sha256": "d4f640ae16ac8d24b7da4fdfe07f99e4e8d7ec65c9528da2639cbe0a87d85bd5",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_research_prep",
+      "name": "pack_research_prep",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "company",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        }
+      ],
+      "contract": "组合整理调研记录、公司材料及差异化问题",
+      "raw_definition_sha256": "e3a3b81f48eaaf9ec10d78015fc3dbb5cd80218fb3b45b2f95fbd16aa9c7230a",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "research-prep",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "company-disclosures",
+          "survey-records"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_event_review",
+      "name": "pack_event_review",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "event_type",
+          "type": "string"
+        }
+      ],
+      "contract": "组合重建事件时间轴与分段相对收益",
+      "raw_definition_sha256": "6f2d4ad47bc57e19e30e4b0892b52112d32045a71211a061423a2e37010db3cf",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "historical",
+      "capability_ids": [
+        "event-review"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#event-review"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "point-in-time-events",
+          "adjusted-bars",
+          "benchmark-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_overseas_domestic_sentiment",
+      "name": "pack_overseas_domestic_sentiment",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "topic",
+          "type": "string"
+        },
+        {
+          "name": "overseas_ticker",
+          "type": "string"
+        },
+        {
+          "name": "a_share_code",
+          "type": "string"
+        },
+        {
+          "name": "hours",
+          "type": "number"
+        },
+        {
+          "name": "news_days",
+          "type": "number"
+        }
+      ],
+      "contract": "组合比较境内新闻与境外社交观点及时间差",
+      "raw_definition_sha256": "f67c4df6b031cb4403a84bd18d3942d53f87170e9b75ffeee280903d93dcccc6",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "overseas",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-social-posts",
+          "news-source-text"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_valuation_check",
+      "name": "pack_valuation_check",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stocks",
+          "type": "string"
+        },
+        {
+          "name": "months",
+          "type": "number"
+        }
+      ],
+      "contract": "组合比较估值历史位置、一致预期与预测修订",
+      "raw_definition_sha256": "67a2767522d72dfeae6a1e04bf6f420947e4056cbf062e4f55172d3cd8b9e043",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "valuation",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "valuation-history",
+          "currency-and-units"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_chip_structure",
+      "name": "pack_chip_structure",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stocks",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        }
+      ],
+      "contract": "组合比较股东变动、公募持仓与分档资金信号",
+      "raw_definition_sha256": "15f7e5d763596bffd259348dc40d2cab55e9fe04a5f6e0ec159d18f9b822e6da",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:pack_earnings_season_prep",
+      "name": "pack_earnings_season_prep",
+      "source_id": "seek-tools",
+      "group": "pack",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stocks",
+          "type": "string"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        },
+        {
+          "name": "months",
+          "type": "number"
+        }
+      ],
+      "contract": "组合核对披露安排、盈利预测与历史预告差异",
+      "raw_definition_sha256": "3f87a3902242126b69c9012078581db309ee936525ee99cf14d05b706f61c5c8",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "供应商组合定义；各分路时窗、口径和覆盖须分别核对，不代表RWB已有等价组合执行"
+      ],
+      "domain": "earnings",
+      "capability_ids": [
+        "earnings-report-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-report-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "disclosure-calendar",
+          "profit-notices"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven",
+      "bundle": true
+    },
+    {
+      "id": "tool:company_one_pager",
+      "name": "company_one_pager",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "以公司资料概括业务、驱动、估值与风险",
+      "raw_definition_sha256": "8c4476c9b5de803f98fdfd0a1102581deadce585ea1209dffc59ac15f8587690",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:research_outline",
+      "name": "research_outline",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "以公司证据形成可核实的机构调研问题",
+      "raw_definition_sha256": "384c94f71eb5e3c8c56c354bd35a92d4513dcaeba07fc9c821daf4f824a3c1bd",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "research-prep",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "company-disclosures",
+          "survey-records"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:history_review",
+      "name": "history_review",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "分段核对公司走势、事件与财务变化",
+      "raw_definition_sha256": "c0fa66f51e6545a97d3567510743e8f9e94f95870a541ad54712062faf286238",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "historical",
+      "capability_ids": [
+        "event-review"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#event-review"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "point-in-time-events",
+          "adjusted-bars",
+          "benchmark-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:fundamental_analysis",
+      "name": "fundamental_analysis",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "分析公司盈利、成长、财务质量与估值风险",
+      "raw_definition_sha256": "5a3a491f1833c6d955c19a5141e321d1e55116489d86b95d45fcf32cb56f4397",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "fundamental",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "valuation",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:technical_analysis",
+      "name": "technical_analysis",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "依供应商专有形态信号讨论方向及失效条件",
+      "raw_definition_sha256": "8d07884c10058f342d250f5ffa31d31923e06c9b6bfeb58836851628c4bfed59",
+      "proprietary": true,
+      "access": "public_definition_only",
+      "caveats": [
+        "华创专有形态模型；RWB本地技术指标不等价，不声明替代或已获许可"
+      ],
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission",
+          "supplier-proprietary-license"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:industry_one_pager",
+      "name": "industry_one_pager",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "概括行业链条、格局、驱动与跟踪指标",
+      "raw_definition_sha256": "bd021b751970155835909edb04eb9168a9ce26c76d8550ad33d9dd76df0f8eee",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:run_morphology",
+      "name": "run_morphology",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "method",
+          "type": "string"
+        },
+        {
+          "name": "kwargs",
+          "type": "string"
+        },
+        {
+          "name": "filter",
+          "type": "string"
+        }
+      ],
+      "contract": "读取供应商专有指数、ETF或个股形态信号",
+      "raw_definition_sha256": "669feed5c269e977511eb208fd624cd04d82735ed2a335fda192d8523ee07c9c",
+      "proprietary": true,
+      "access": "public_definition_only",
+      "caveats": [
+        "华创专有形态模型；RWB本地技术指标不等价，不声明替代或已获许可"
+      ],
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission",
+          "supplier-proprietary-license"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:etf_view",
+      "name": "etf_view",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "keyword",
+          "type": "string"
+        },
+        {
+          "name": "sid",
+          "type": "string"
+        }
+      ],
+      "contract": "读取供应商专有ETF评分、轮动和择时序列",
+      "raw_definition_sha256": "442ded4de03a9936a8855acd6cf50be6d8195552f7f3d60cbd2bec610882b336",
+      "proprietary": true,
+      "access": "public_definition_only",
+      "caveats": [
+        "华创专有形态模型；RWB本地技术指标不等价，不声明替代或已获许可"
+      ],
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission",
+          "supplier-proprietary-license"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_morphology_signals",
+      "name": "query_morphology_signals",
+      "source_id": "seek-tools",
+      "group": "research",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "market",
+          "type": "string"
+        },
+        {
+          "name": "period",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "min_win_rate",
+          "type": "number"
+        },
+        {
+          "name": "max_win_rate",
+          "type": "number"
+        },
+        {
+          "name": "min_profit_loss_ratio",
+          "type": "number"
+        },
+        {
+          "name": "min_total_count",
+          "type": "number"
+        },
+        {
+          "name": "pattern",
+          "type": "string"
+        },
+        {
+          "name": "coupling",
+          "type": "string"
+        },
+        {
+          "name": "industry",
+          "type": "string"
+        },
+        {
+          "name": "min_market_cap",
+          "type": "number"
+        },
+        {
+          "name": "max_market_cap",
+          "type": "number"
+        },
+        {
+          "name": "keyword",
+          "type": "string"
+        },
+        {
+          "name": "sort",
+          "type": "string"
+        },
+        {
+          "name": "order",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "按供应商形态条件筛选最新股票池",
+      "raw_definition_sha256": "fd25dfc74596322a0f41d8b7a6b6dfaeb33f1e26dce5a6d96e94fcb9d03d8a2d",
+      "proprietary": true,
+      "access": "public_definition_only",
+      "caveats": [
+        "华创专有形态模型；RWB本地技术指标不等价，不声明替代或已获许可"
+      ],
+      "domain": "proprietary",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-huachuang-morphology"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission",
+          "supplier-proprietary-license"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:submit_deep_research",
+      "name": "submit_deep_research",
+      "source_id": "seek-tools",
+      "group": "deep",
+      "cost": 20,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "type",
+          "type": "string"
+        },
+        {
+          "name": "target",
+          "type": "string"
+        },
+        {
+          "name": "dimensions",
+          "type": "string"
+        },
+        {
+          "name": "bizType",
+          "type": "string"
+        },
+        {
+          "name": "peers",
+          "type": "string"
+        },
+        {
+          "name": "targetCore",
+          "type": "string"
+        },
+        {
+          "name": "industryTrait",
+          "type": "string"
+        }
+      ],
+      "contract": "提交异步公司、财务或行业研究并取得任务身份",
+      "raw_definition_sha256": "b1f63cd37cfef4716c66edc40552a9070ea32e9bf7b83182a19f2f1f7d251331",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "提交20；进度、列表、停止各1。总费用取决于实际调用次数，不能称总价20；未知提交不得自动重试"
+      ],
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:get_research_status",
+      "name": "get_research_status",
+      "source_id": "seek-tools",
+      "group": "deep",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "taskId",
+          "type": "string"
+        }
+      ],
+      "contract": "读取既有供应商深研任务进度与产物链接",
+      "raw_definition_sha256": "e92d1304025a5f5552336098b3f752d956ea0c98660ebab22dd012cda815cccb",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "提交20；进度、列表、停止各1。总费用取决于实际调用次数，不能称总价20；未知提交不得自动重试"
+      ],
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:list_research_tasks",
+      "name": "list_research_tasks",
+      "source_id": "seek-tools",
+      "group": "deep",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "列出本供应商账户的近期深研任务",
+      "raw_definition_sha256": "7c2f3481399e7b48df2d1e4cf0eec72382aadc23d0db5191a34cb77446b7b008",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "提交20；进度、列表、停止各1。总费用取决于实际调用次数，不能称总价20；未知提交不得自动重试"
+      ],
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:stop_research",
+      "name": "stop_research",
+      "source_id": "seek-tools",
+      "group": "deep",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "taskId",
+          "type": "string"
+        }
+      ],
+      "contract": "请求停止仍在执行的供应商深研任务",
+      "raw_definition_sha256": "e9663fa9b50f29da27007f0f6fc1b6681a4d64c24eb6afb34267e4ccc5a1246e",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "提交20；进度、列表、停止各1。总费用取决于实际调用次数，不能称总价20；未知提交不得自动重试"
+      ],
+      "domain": "company",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "managed_mcp",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_earnings_calendar",
+      "name": "query_earnings_calendar",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "name": "report_period",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "按日期或公司读取财报预约披露安排",
+      "raw_definition_sha256": "e1060e620e35858b3161f63f97f275b766d020af4403b4043a58a14c332cec99",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "earnings",
+      "capability_ids": [
+        "earnings-report-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-report-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "disclosure-calendar",
+          "profit-notices"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_valuation_percentile",
+      "name": "query_valuation_percentile",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "years",
+          "type": "number[]"
+        }
+      ],
+      "contract": "读取当前估值及指定历史窗口分位",
+      "raw_definition_sha256": "d71df1669c996855b37bc81974a4ad9eaa1c16d580d7cc547de9322831b23076",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "valuation",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "valuation-history",
+          "currency-and-units"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_billboard",
+      "name": "query_billboard",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "trader",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "按证券或席位读取龙虎榜成交明细",
+      "raw_definition_sha256": "a2b8dbce2c6a29e3a23c578567d03dfeda90c65ebe70d4821607e2aa104ba4fd",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_limit_up_pool",
+      "name": "query_limit_up_pool",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "date",
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        },
+        {
+          "name": "sort",
+          "type": "string"
+        }
+      ],
+      "contract": "读取指定交易日涨停证券及封板信息",
+      "raw_definition_sha256": "3efdbd5d2edcc5875c6511fa76e715e49f41168fc0c990f56f980064b42aee12",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:screen_bottom_volume_bull",
+      "name": "screen_bottom_volume_bull",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 5,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "date",
+          "type": "string"
+        },
+        {
+          "name": "bottom_pct",
+          "type": "number"
+        },
+        {
+          "name": "first_lookback_days",
+          "type": "number"
+        },
+        {
+          "name": "pct_min",
+          "type": "number"
+        },
+        {
+          "name": "vol_multiple",
+          "type": "number"
+        }
+      ],
+      "contract": "按低位放量条件筛选A股并披露覆盖",
+      "raw_definition_sha256": "99edc540b79d982c4ed4fea15b11daca280fdf29c48ea6455486204210047911",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "screen",
+      "capability_ids": [
+        "platform-breakout"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#platform-breakout"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "adjusted-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_stock_concepts",
+      "name": "query_stock_concepts",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "include_concept_text",
+          "type": "boolean"
+        }
+      ],
+      "contract": "读取股票行业、地区与概念标签",
+      "raw_definition_sha256": "f52009e8a170e7de0ea8e57d7e76aae34041a3fd5c8f0a8e3b7977db2994ae7b",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "chain",
+      "capability_ids": [
+        "industry-chain-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-chain-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-supply-chain-relations"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_fund_flow",
+      "name": "query_fund_flow",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        }
+      ],
+      "contract": "读取按订单规模分类的证券资金序列",
+      "raw_definition_sha256": "a90d509f33a7942a1bbc6d0e36f21b712f4784931bd4607c8de665cc3057d097",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "flow",
+      "capability_ids": [
+        "etf-flow-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#etf-flow-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "flow-order-size-semantics",
+          "fund-flow"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_profit_notice",
+      "name": "query_profit_notice",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "name": "style",
+          "type": "string"
+        },
+        {
+          "name": "change_min",
+          "type": "number"
+        },
+        {
+          "name": "report_period",
+          "type": "string"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "include_express",
+          "type": "boolean"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "读取业绩预告和快报及其变动范围",
+      "raw_definition_sha256": "0ccd7f6af4197061acafed3189a008049abef9aeef67b6e41bce968af5059969",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "earnings",
+      "capability_ids": [
+        "earnings-report-monitor"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-report-monitor"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "disclosure-calendar",
+          "profit-notices"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_institutional_surveys",
+      "name": "query_institutional_surveys",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "target",
+          "type": "string"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "institution_type",
+          "type": "string"
+        },
+        {
+          "name": "include_qa",
+          "type": "boolean"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "双向读取公司与机构调研记录及覆盖",
+      "raw_definition_sha256": "fecd4328b7d36cb46628b1b3ec8c250fa49934ba3d418ef1d338d940ccc291dd",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "research-prep",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "company-disclosures",
+          "survey-records"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_insider_changes",
+      "name": "query_insider_changes",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 4,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "stock_code",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "change_type",
+          "type": "string"
+        },
+        {
+          "name": "key_position_only",
+          "type": "boolean"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "核对股东和董监高变动及预披露计划",
+      "raw_definition_sha256": "4995b9172ef0d06acb26f2213a1628a32e55a0b8e0dcbeb8222cc98be123762f",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_hk_data",
+      "name": "query_hk_data",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "section",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "读取港股行情、财务绝对额与公司披露",
+      "raw_definition_sha256": "73eacc70f89029c2189b4add5c64aab744c4c3f5d99be6a3bf58183c5d0193ed",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "fundamental",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "financials",
+          "valuation",
+          "company-disclosures"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_restricted_unlock",
+      "name": "query_restricted_unlock",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "stock_code",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "min_ratio",
+          "type": "number"
+        },
+        {
+          "name": "unlock_type",
+          "type": "string"
+        },
+        {
+          "name": "include_ipo_placement",
+          "type": "boolean"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "读取限售解禁日历、数量与总股本比例",
+      "raw_definition_sha256": "212f8595d94b9bf3c34e70f73fc374af653dbab62b8c6b392c9b3e34eeacbfa8",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "risk",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "risk-labels",
+          "restricted-unlocks",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_equity_incentive",
+      "name": "query_equity_incentive",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stock_code",
+          "type": "string"
+        }
+      ],
+      "contract": "核对股权激励和员工持股的结构化条款",
+      "raw_definition_sha256": "4d4f573301d44af2c676797ebe1a5173c23287b7a0a994870ef3a341537d7fd1",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_stock_events",
+      "name": "query_stock_events",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 5,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "event_type",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        }
+      ],
+      "contract": "核对事件历史收益分布及事件明细",
+      "raw_definition_sha256": "0cbd9c21f5556863ffe67e41e17965fe57616e1a2a04b6de9adfd705e8e8a8b0",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "historical",
+      "capability_ids": [
+        "event-review"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#event-review"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "point-in-time-events",
+          "adjusted-bars",
+          "benchmark-bars"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_supply_chain",
+      "name": "query_supply_chain",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "contract": "读取有来源的公司供应商、客户与同业关系",
+      "raw_definition_sha256": "2e8909422041b4e51f9e74a6e5b16446702afbf1a619f616739b418ea9af7e97",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "chain",
+      "capability_ids": [
+        "industry-chain-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-chain-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-supply-chain-relations"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_financial_db",
+      "name": "query_financial_db",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": true,
+      "parameters": [
+        {
+          "name": "sql",
+          "type": "string"
+        }
+      ],
+      "contract": "供应商内部账户使用只读SQL查询其金融数据库",
+      "raw_definition_sha256": "d684e90d01b0bac6dd412f6a5474b287f5abcd5904be619d8305f4b82cb9c49f",
+      "proprietary": false,
+      "access": "internal_only",
+      "caveats": [
+        "仅内部账户；公开元数据不授予SQL或数据库访问权限"
+      ],
+      "domain": "internal",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "internal-financial-db"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission",
+          "supplier-internal-account"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_fund_manager_profile",
+      "name": "query_fund_manager_profile",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "include_holdings",
+          "type": "boolean"
+        }
+      ],
+      "contract": "读取基金经理资料、持仓与覆盖信息",
+      "raw_definition_sha256": "7e7c864d9a5d8cf94a4f5b4c3e5aa357554d4fd8ddefc9a2b5f6798ae2ae8d86",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "fund",
+      "capability_ids": [
+        "fund-evaluation"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-evaluation"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "fund-nav",
+          "fund-holdings",
+          "fund-classification"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_holdings",
+      "name": "query_holdings",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "institution",
+          "type": "string"
+        },
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "industry",
+          "type": "string"
+        },
+        {
+          "name": "top",
+          "type": "number"
+        },
+        {
+          "name": "report_period",
+          "type": "string"
+        }
+      ],
+      "contract": "读取指定报告期主动公募的持仓快照",
+      "raw_definition_sha256": "56385d88c5ea6f9c7f615b73abad5600c67eb7d5ed2a8bb54ec32d099e86d562",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "fund",
+      "capability_ids": [
+        "fund-evaluation"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-evaluation"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "fund-nav",
+          "fund-holdings",
+          "fund-classification"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_shareholder_structure",
+      "name": "query_shareholder_structure",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 4,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "holder_name",
+          "type": "string"
+        },
+        {
+          "name": "source",
+          "type": "string"
+        },
+        {
+          "name": "holder_type",
+          "type": "string"
+        },
+        {
+          "name": "report_period",
+          "type": "string"
+        },
+        {
+          "name": "period_from",
+          "type": "string"
+        },
+        {
+          "name": "period_to",
+          "type": "string"
+        },
+        {
+          "name": "top",
+          "type": "number"
+        }
+      ],
+      "contract": "核对股东穿透、跨期变动与持有人数量",
+      "raw_definition_sha256": "a278e5daec7817ad37a3cc1ffe8c66069841a19fa507de6b94b905fd9989a225",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "ownership",
+      "capability_ids": [
+        "fund-penetration"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#fund-penetration"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "shareholder-disclosures",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_minute_bars",
+      "name": "query_minute_bars",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "scale",
+          "type": "number"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        },
+        {
+          "name": "start",
+          "type": "string"
+        },
+        {
+          "name": "end",
+          "type": "string"
+        },
+        {
+          "name": "return_calc",
+          "type": "boolean"
+        }
+      ],
+      "contract": "读取分钟K线并保留不同市场时间和覆盖语义",
+      "raw_definition_sha256": "75208cb89d952eba2d578b5cbf4b5df29729e3f236bdc0d7eacca9f7f25a2b39",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "technical",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#chanlun"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "adjusted-bars",
+          "corporate-actions"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:industry_financials",
+      "name": "industry_financials",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 5,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "dim",
+          "type": "string"
+        },
+        {
+          "name": "index_type",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "periods",
+          "type": "integer"
+        },
+        {
+          "name": "period_type",
+          "type": "string"
+        },
+        {
+          "name": "sort_by",
+          "type": "string"
+        },
+        {
+          "name": "top",
+          "type": "integer"
+        }
+      ],
+      "contract": "读取行业或指数成分的财务聚合指标",
+      "raw_definition_sha256": "659eb6444befff53a33fc5891ff4579bf2a1eda982b5aa46c8cc6ed07d858ad3",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_risk_alerts",
+      "name": "query_risk_alerts",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "type": "string"
+        },
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "读取公司或市场的风险标签及新增情况",
+      "raw_definition_sha256": "2bd71c29ec172501e3da5d17864e28c8ba0fda712b7a6d5b9f880f44cf24f68b",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "risk",
+      "capability_ids": [
+        "company-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#company-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "risk-labels",
+          "restricted-unlocks",
+          "insider-changes"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:daily_review",
+      "name": "daily_review",
+      "source_id": "seek-tools",
+      "group": "data",
+      "cost": 5,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "date",
+          "type": "string"
+        },
+        {
+          "name": "standard",
+          "type": "string"
+        },
+        {
+          "name": "level",
+          "type": "integer"
+        }
+      ],
+      "contract": "读取收盘市场、行业、风险与情绪复盘材料",
+      "raw_definition_sha256": "d25288e710dd42d975f37c3cc3a6089bed2ffbe7c203f29d90aa564d3d420d60",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "market",
+      "capability_ids": [
+        "daily-market-brief"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#daily-market-brief"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "market-universe",
+          "market-breadth",
+          "trading-calendar"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_gold_stock",
+      "name": "query_gold_stock",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "period",
+          "type": "string"
+        },
+        {
+          "name": "organ",
+          "type": "string"
+        },
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "months",
+          "type": "number"
+        },
+        {
+          "name": "top_n",
+          "type": "number"
+        }
+      ],
+      "contract": "核对券商推荐证券、期次及推荐理由",
+      "raw_definition_sha256": "038c3f78b545172e770d3760b24f724807abacd66b717e6708091512a5120437",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "sellside",
+      "capability_ids": [
+        "sell-side-report-reader"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#sell-side-report-reader"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-research-reports",
+          "recommendation-history"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:gold_stock_performance",
+      "name": "gold_stock_performance",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "start_date",
+          "type": "string"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "months",
+          "type": "number"
+        },
+        {
+          "name": "top_n",
+          "type": "number"
+        }
+      ],
+      "contract": "按推荐后时点比较收益、基准和剔除样本",
+      "raw_definition_sha256": "b31004b240f0286e1833ff4ba751d15e8394cb341e1cfd8dbe127f127048255e",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "sellside",
+      "capability_ids": [
+        "sell-side-report-reader"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#sell-side-report-reader"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-research-reports",
+          "recommendation-history"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_consensus",
+      "name": "query_consensus",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "stocks",
+          "type": "string[]"
+        },
+        {
+          "name": "date",
+          "type": "string"
+        }
+      ],
+      "contract": "读取卖方一致评级、盈利预测与估值口径",
+      "raw_definition_sha256": "d28b80c27daa2b49ab2dfe6a625920def1f061a2409abb65414e444508ea75a1",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_rating_revision",
+      "name": "query_rating_revision",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "startDate",
+          "type": "string"
+        },
+        {
+          "name": "endDate",
+          "type": "string"
+        },
+        {
+          "name": "minInst",
+          "type": "number"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        },
+        {
+          "name": "cycle",
+          "type": "string"
+        }
+      ],
+      "contract": "核对评级变化、覆盖机构及目标价分布",
+      "raw_definition_sha256": "cc3aed5fbe5812d995eeabe35b99b62bd28164fae7809f319da11ad6f8853efc",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_profit_notice_surprise",
+      "name": "query_profit_notice_surprise",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "startDate",
+          "type": "string"
+        },
+        {
+          "name": "endDate",
+          "type": "string"
+        },
+        {
+          "name": "minBase",
+          "type": "number"
+        },
+        {
+          "name": "includeInterim",
+          "type": "boolean"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "比较预告与披露前一致预期的差异",
+      "raw_definition_sha256": "51cccae45db48451fdafc1b617a8674f8c09f5cd5771c416474744deeba4ddee",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_earnings_revision",
+      "name": "query_earnings_revision",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "string"
+        },
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "months",
+          "type": "number"
+        },
+        {
+          "name": "end_date",
+          "type": "string"
+        },
+        {
+          "name": "report_year",
+          "type": "number"
+        },
+        {
+          "name": "min_organs",
+          "type": "number"
+        },
+        {
+          "name": "top_n",
+          "type": "number"
+        }
+      ],
+      "contract": "核对盈利预测上调下调及机构覆盖",
+      "raw_definition_sha256": "a326d0086159d71b1d82e8e16f32ac1dc22c3a704acd4f38cc1209e75b7ff181",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "consensus",
+      "capability_ids": [
+        "earnings-consensus-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#earnings-consensus-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-consensus-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_analyst_accuracy",
+      "name": "query_analyst_accuracy",
+      "source_id": "seek-tools",
+      "group": "sellside",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "analyst",
+          "type": "string"
+        },
+        {
+          "name": "organ",
+          "type": "string"
+        },
+        {
+          "name": "industry",
+          "type": "string"
+        },
+        {
+          "name": "year",
+          "type": "number"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        }
+      ],
+      "contract": "比较分析师历史预测偏离与可比覆盖",
+      "raw_definition_sha256": "00f55cae2a47df4d1bb9dbc72f92af6e2bff26cf155f50e1cc78cb517597797f",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "sellside",
+      "capability_ids": [
+        "sell-side-report-reader"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#sell-side-report-reader"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-research-reports",
+          "recommendation-history"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:search_knowledge_base",
+      "name": "search_knowledge_base",
+      "source_id": "seek-tools",
+      "group": "know",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "检索已获许可的公司、行业或研报材料",
+      "raw_definition_sha256": "d742871e27ab9e8167d6fac73c6a1ab446b9e5cc0f419fa3ab74a792a1890764",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "documents",
+      "capability_ids": [
+        "document-reading"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#document-reading"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-material-text"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:search_twitter",
+      "name": "search_twitter",
+      "source_id": "seek-tools",
+      "group": "know",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "q",
+          "type": "string"
+        },
+        {
+          "name": "product",
+          "type": "string"
+        }
+      ],
+      "contract": "检索境外社交文本及传播信息",
+      "raw_definition_sha256": "e56f1dc5ef63b36b65e85f2d5f2f326859e8c2d812eeb8a954decd5f2788c46e",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "overseas",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-social-posts",
+          "news-source-text"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:track_ai_gurus",
+      "name": "track_ai_gurus",
+      "source_id": "seek-tools",
+      "group": "know",
+      "cost": 8,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "layer",
+          "type": "string"
+        },
+        {
+          "name": "hours",
+          "type": "integer"
+        },
+        {
+          "name": "min_faves",
+          "type": "integer"
+        },
+        {
+          "name": "tickers",
+          "type": "string"
+        },
+        {
+          "name": "include_replies",
+          "type": "boolean"
+        },
+        {
+          "name": "per_account",
+          "type": "integer"
+        }
+      ],
+      "contract": "汇集选定AI观点来源并保留时间与来源",
+      "raw_definition_sha256": "52ed4b1f134a0ad7b737d7a449059b18bc9a78c4f26e0907c0e326285c83e5f0",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "overseas",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-social-posts",
+          "news-source-text"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:track_semi_chain",
+      "name": "track_semi_chain",
+      "source_id": "seek-tools",
+      "group": "know",
+      "cost": 7,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "layer",
+          "type": "string"
+        },
+        {
+          "name": "hours",
+          "type": "integer"
+        },
+        {
+          "name": "min_faves",
+          "type": "integer"
+        },
+        {
+          "name": "tickers",
+          "type": "string"
+        },
+        {
+          "name": "include_replies",
+          "type": "boolean"
+        },
+        {
+          "name": "per_account",
+          "type": "integer"
+        }
+      ],
+      "contract": "汇集半导体产业链观点与信号材料",
+      "raw_definition_sha256": "f005fb79d71870ce626f171350b030c9ff9e3106f6b39cd0e8f19fc49b7b0cff",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "chain",
+      "capability_ids": [
+        "industry-chain-research"
+      ],
+      "route": "declared_dependency",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-chain-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-supply-chain-relations"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:track_pharma_bd",
+      "name": "track_pharma_bd",
+      "source_id": "seek-tools",
+      "group": "know",
+      "cost": 4,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "layer",
+          "type": "string"
+        },
+        {
+          "name": "hours",
+          "type": "integer"
+        },
+        {
+          "name": "min_faves",
+          "type": "integer"
+        },
+        {
+          "name": "tickers",
+          "type": "string"
+        },
+        {
+          "name": "include_replies",
+          "type": "boolean"
+        },
+        {
+          "name": "per_account",
+          "type": "integer"
+        }
+      ],
+      "contract": "汇集创新药交易和业务合作材料",
+      "raw_definition_sha256": "9fefc044b30f9941b4c576c943095c26093ca76a94e4f2dc533f5f619648d063",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "industry",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#industry-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "industry-taxonomy",
+          "industry-statistics"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:track_commodity",
+      "name": "track_commodity",
+      "source_id": "seek-tools",
+      "group": "know",
+      "cost": 5,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "layer",
+          "type": "string"
+        },
+        {
+          "name": "hours",
+          "type": "integer"
+        },
+        {
+          "name": "min_faves",
+          "type": "integer"
+        },
+        {
+          "name": "tickers",
+          "type": "string"
+        },
+        {
+          "name": "include_replies",
+          "type": "boolean"
+        },
+        {
+          "name": "per_account",
+          "type": "integer"
+        }
+      ],
+      "contract": "汇集大宗商品相关观点与供需材料",
+      "raw_definition_sha256": "aa6a22d5552ca957b4e755039e8b1f3867db2613ca66d022ea6b35581d738956",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "macro",
+      "capability_ids": [
+        "macro-asset-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#macro-asset-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "macro-series",
+          "release-vintages"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:analyze_news_impact",
+      "name": "analyze_news_impact",
+      "source_id": "seek-tools",
+      "group": "news",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "url",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        }
+      ],
+      "contract": "分析新闻的传导链、证据、受影响对象与反证",
+      "raw_definition_sha256": "7cfbe0f7aa7c35802024b97f8fb9a7e5e681eefd4a39c655236840e3f8689ad1",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:fetch_news_url",
+      "name": "fetch_news_url",
+      "source_id": "seek-tools",
+      "group": "news",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "url",
+          "type": "string"
+        }
+      ],
+      "contract": "按供应商可读范围取得新闻原文",
+      "raw_definition_sha256": "2357c4e550d2c1ae87a6e432336768c441438835787695f64603c3d4da7237d0",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_news",
+      "name": "query_news",
+      "source_id": "seek-tools",
+      "group": "news",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "name": "stock",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "number"
+        },
+        {
+          "name": "limit",
+          "type": "number"
+        },
+        {
+          "name": "sentiment",
+          "type": "string"
+        },
+        {
+          "name": "source",
+          "type": "string"
+        },
+        {
+          "name": "importance",
+          "type": "string"
+        }
+      ],
+      "contract": "按主题、证券或时间查询财经新闻",
+      "raw_definition_sha256": "bb0195b06d8b7d6f4aaadc98b9cda2bdaee3c8ccfb4ff8f984c8707b795737c2",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:search_wechat_accounts",
+      "name": "search_wechat_accounts",
+      "source_id": "seek-tools",
+      "group": "news",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "keyword",
+          "type": "string"
+        }
+      ],
+      "contract": "查找公众号身份与覆盖信息",
+      "raw_definition_sha256": "2a18c192f435ab05c4788218944960185de09f5e5471984265f32148b56a8cb8",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_wechat_articles",
+      "name": "query_wechat_articles",
+      "source_id": "seek-tools",
+      "group": "news",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "biz",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "articleUrl",
+          "type": "string"
+        },
+        {
+          "name": "page",
+          "type": "number"
+        }
+      ],
+      "contract": "查询已覆盖公众号的文章列表",
+      "raw_definition_sha256": "2a0f76b725572de7a12c2e86f0a88ea6fbc0276b460afb7b42baeb0e25cdbf91",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:query_wechat_article_detail",
+      "name": "query_wechat_article_detail",
+      "source_id": "seek-tools",
+      "group": "news",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "url",
+          "type": "string"
+        }
+      ],
+      "contract": "读取指定公众号文章及来源信息",
+      "raw_definition_sha256": "fbe3942d3851a3e3da0036254748ab91f99f492757efb329621a2dcf45b10001",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "news",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#finance-news-event-research"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "news-source-text",
+          "publication-time"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:list_chiefs",
+      "name": "list_chiefs",
+      "source_id": "seek-tools",
+      "group": "expert",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "列出供应商可用首席角色",
+      "raw_definition_sha256": "7f372fc925ad9e88450814cc5e49b877b98310dc4be2aa9ea569ddfbcb7eccb4",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "expert",
+      "capability_ids": [],
+      "route": "managed_mcp",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-expert-personas"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:list_masters",
+      "name": "list_masters",
+      "source_id": "seek-tools",
+      "group": "expert",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "列出供应商可用大师角色",
+      "raw_definition_sha256": "856eb35c40b87485e58d2ce76a4273dbf0cc0fd898b1f6d3ecf6cb052b2ba7f9",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "expert",
+      "capability_ids": [],
+      "route": "managed_mcp",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-expert-personas"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:ask_chief",
+      "name": "ask_chief",
+      "source_id": "seek-tools",
+      "group": "expert",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "question",
+          "type": "string"
+        }
+      ],
+      "contract": "向供应商首席角色提交问题",
+      "raw_definition_sha256": "70033446820cbdb1c6818887feb81bb98617c34c2ddb735405b7d24b00fd4423",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "expert",
+      "capability_ids": [],
+      "route": "managed_mcp",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-expert-personas"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:ask_master",
+      "name": "ask_master",
+      "source_id": "seek-tools",
+      "group": "expert",
+      "cost": 10,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "question",
+          "type": "string"
+        }
+      ],
+      "contract": "向供应商大师角色提交问题",
+      "raw_definition_sha256": "f4ba491766c8c3463be27376dd10adf1cda47ca7c1035e2bf104601462293436",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "expert",
+      "capability_ids": [],
+      "route": "managed_mcp",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "licensed-expert-personas"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:save_to_workspace",
+      "name": "save_to_workspace",
+      "source_id": "seek-tools",
+      "group": "file",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "filename",
+          "type": "string"
+        },
+        {
+          "name": "content",
+          "type": "string"
+        }
+      ],
+      "contract": "保存供应商账户工作区内的研究材料",
+      "raw_definition_sha256": "7916dc8678dcb8bb8874b5a799c2c0977fa5f300bad9a960bdfc2f357609a3fb",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "files",
+      "capability_ids": [
+        "document-reading"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#document-reading"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-workspace-artifacts"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:read_workspace_file",
+      "name": "read_workspace_file",
+      "source_id": "seek-tools",
+      "group": "file",
+      "cost": 3,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "filename",
+          "type": "string"
+        },
+        {
+          "name": "keyword",
+          "type": "string"
+        },
+        {
+          "name": "sheet",
+          "type": "string"
+        },
+        {
+          "name": "row_offset",
+          "type": "number"
+        }
+      ],
+      "contract": "读取已获许可的供应商工作区材料",
+      "raw_definition_sha256": "3dc4efa536eaa71f741b684aadefa8e667956387a4180eaa24627007dca85f1a",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "files",
+      "capability_ids": [
+        "document-reading"
+      ],
+      "route": "reuse",
+      "candidate_sources": [
+        "app/research_web/capabilities/seeds.py#document-reading"
+      ],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "authorized-workspace-artifacts"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:utility_idcard",
+      "name": "utility_idcard",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ],
+      "contract": "校验身份证格式相关的工具服务",
+      "raw_definition_sha256": "f8f017b6abba988a2a46b4320b526be84d2115e096f81482d5fa5fe73ab6d838",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "utility",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-utility-service"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:utility_areacode",
+      "name": "utility_areacode",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ],
+      "contract": "查询地区代码相关信息",
+      "raw_definition_sha256": "78cb9f490a428d0465a0a7cb1df13aa39e049e195cd2a2924b847f186902a5ee",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "utility",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-utility-service"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:utility_lunar",
+      "name": "utility_lunar",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "date",
+          "type": "string"
+        }
+      ],
+      "contract": "查询农历日期相关信息",
+      "raw_definition_sha256": "07dbc2f7e4c7e814fc6f5bc20d56799ce696e023a7cec75e8e5bf1e0e5a3cfe6",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "utility",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-utility-service"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:utility_weather",
+      "name": "utility_weather",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "city",
+          "type": "string"
+        }
+      ],
+      "contract": "查询天气信息",
+      "raw_definition_sha256": "a78937d5b32babd54ce6bc797cef2559a59c6a604e2f29afca805248b046aad4",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "utility",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-utility-service"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:utility_phone",
+      "name": "utility_phone",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 1,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "number",
+          "type": "string"
+        }
+      ],
+      "contract": "查询电话号码归属相关信息",
+      "raw_definition_sha256": "4a6f7c62a7538660727e30363f1b8a8525652cbbd1566557b9d7901b3dec523c",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "utility",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-utility-service"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:generate_image",
+      "name": "generate_image",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 20,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "prompt",
+          "type": "string"
+        },
+        {
+          "name": "size",
+          "type": "string"
+        }
+      ],
+      "contract": "通过供应商生成图片并返回产物",
+      "raw_definition_sha256": "09c06457ff632a4e3b213a435651721790493d225e11bd2a910ed75ca994cd94",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [],
+      "domain": "image",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "approved-image-provider"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    },
+    {
+      "id": "tool:generate_video",
+      "name": "generate_video",
+      "source_id": "seek-tools",
+      "group": "util",
+      "cost": 200,
+      "internal": false,
+      "parameters": [
+        {
+          "name": "prompt",
+          "type": "string"
+        },
+        {
+          "name": "quality",
+          "type": "string"
+        }
+      ],
+      "contract": "通过供应商提交固定时长的异步视频任务",
+      "raw_definition_sha256": "7c44e5ca34811e5f99a1d587b617fa7bd920bb4ee5c7d46426db36ff1783b621",
+      "proprietary": false,
+      "access": "public_definition_only",
+      "caveats": [
+        "原cost=200；desc写480p 200/720p 300，use却写480p 100/720p 300；冲突未解决，不作确定报价",
+        "供应商声明固定5秒、无声、独占计算；需另行授权且不自动重试"
+      ],
+      "domain": "video",
+      "capability_ids": [],
+      "route": "deferred",
+      "candidate_sources": [],
+      "status": "unverified",
+      "callable": false,
+      "runtime_verified": false,
+      "quality_passed": false,
+      "dependencies": {
+        "data": [
+          "vendor-exclusive-video-compute"
+        ],
+        "permission": [
+          "current-owner-material-scope",
+          "explicit-provider-permission"
+        ],
+        "schema": [
+          "current-capability-version",
+          "source-units-frequency-cutoff",
+          "canonical-report-contract"
+        ]
+      },
+      "reuse_scope": "RWB existing capability is a candidate only; supplier corpus/model/data equivalence is unproven"
+    }
+  ]
+}

@@ -116,6 +116,9 @@ class CapabilityCatalog:
                 raise CapabilityError("能力目录不能为链接", "unsafe_directory", 503)
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.index = self.root / "catalog.json"
+        # Share metadata only within this startup transaction; later checks stay fresh.
+        self._initializing = True
+        self._initial_module_distributions = None
         try:
             if self.index.exists():
                 self.data = json.loads(self.index.read_text(encoding="utf-8"))
@@ -154,6 +157,16 @@ class CapabilityCatalog:
             raise CapabilityError(
                 "能力目录无法读取；未覆盖原索引", "catalog_unavailable", 503
             ) from exc
+        finally:
+            self._initializing = False
+            self._initial_module_distributions = None
+
+    def _installed_module_distributions(self):
+        if not self._initializing:
+            return importlib.metadata.packages_distributions()
+        if self._initial_module_distributions is None:
+            self._initial_module_distributions = importlib.metadata.packages_distributions()
+        return self._initial_module_distributions
 
     @staticmethod
     def _replace_script_tool(value):
@@ -390,7 +403,7 @@ class CapabilityCatalog:
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(self.data, stream, ensure_ascii=False)
+                stream.write(json.dumps(self.data, ensure_ascii=False))
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(name, self.index)
@@ -930,12 +943,39 @@ class CapabilityCatalog:
 
     def copy(self, cid, name, slug):
         row = self.row(cid)
-        if row["kind"] == "method":
-            raise CapabilityError("内置方法只读，首版不允许复制或创建", "method_read_only", 409)
         value = copy.deepcopy(row["versions"].get(str(row["version"])) or row["draft"])
         value.update(kind=row["kind"], reviewed_scripts=[])
+        if row["kind"] == "method":
+            if (
+                value.get("files")
+                or value["metadata"].get("required_tools")
+                or value["metadata"].get("dependencies")
+                or not self.validate("method", value)["valid"]
+            ):
+                log.warning("method_copy_rejected capability=%s", cid)
+                raise CapabilityError("方法源规范检查未通过", "method_invalid", 422)
+            spec = ReasoningMethodSpec.model_validate(value.pop("method_spec"))
+            sections = [f"# {spec.title}", "这是普通技能副本，不授予工具权限。"]
+            for title, items in (
+                ("适用", spec.triggers),
+                ("不适用", spec.anti_triggers),
+                ("输入", spec.input_contract),
+                ("程序", spec.procedure),
+                ("可观察输出", spec.output_contract),
+                ("检查标准", spec.evaluation_rubric),
+            ):
+                sections.append(f"## {title}\n" + "\n".join(f"- {item}" for item in items))
+            value.update(
+                kind="skill",
+                instructions="---\n"
+                + yaml.safe_dump(
+                    {"name": slug, "description": spec.description}, allow_unicode=True
+                )
+                + "---\n"
+                + "\n\n".join(sections),
+            )
         value["metadata"].update(name=name, slug=slug)
-        if row["kind"] == "skill":
+        if value["kind"] == "skill":
             header, body = frontmatter(value["instructions"])
             header["name"] = slug
             value["instructions"] = (
@@ -1230,7 +1270,7 @@ class CapabilityCatalog:
                         )
                     external_modules = modules - sys.stdlib_module_names - {"research_helpers"}
                     installed_modules = (
-                        importlib.metadata.packages_distributions() if external_modules else {}
+                        self._installed_module_distributions() if external_modules else {}
                     )
                     for module in external_modules:
                         if module not in installed_modules and f"scripts/{module}.py" not in {

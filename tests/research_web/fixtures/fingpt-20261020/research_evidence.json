@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "task_id": "c0849290c6aa53f085c1f16b",
+  "contract_sha256": "5a9b1e4c94a40fb634f2d1cc68cede16eba1f42d37304037f3ef46e0a32390b1",
+  "sources": [
+    {
+      "id": "web:128a97fdc58958ed38498f90",
+      "title": "中华人民共和国2025年国民经济和社会发展统计公报",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html#1",
+      "as_of": "2026-02-28",
+      "sha256": "77cbc8ffc5360717fbaa353b806f3a49f9c0f3792c46c182420a4ddd0da79e91"
+    },
+    {
+      "id": "web:e41c26fbbb39acc280743199",
+      "title": "中华人民共和国2024年国民经济和社会发展统计公报 - 中华人民共和国2024年国民经济和社会发展统计公报",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202502/t20250228_1958817.html?trk=article-ssr-frontend-pulse_little-text-block#1",
+      "as_of": "2025-02-28",
+      "sha256": "3cbce77589aadf755df7114bc6206f1430672ef5bdae0c1d87dd7ea4f1373ccf"
+    }
+  ],
+  "observations": [
+    {
+      "id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+      "source_id": "web:128a97fdc58958ed38498f90",
+      "source_ids": [
+        "web:128a97fdc58958ed38498f90"
+      ],
+      "sha256": "3a6c8b7f0e34087700a2dc6c25bb566cb82f1560dcbe2fd1b534094c061cc62b",
+      "kind": "business_numeric",
+      "heading": "gdp_current_price_preliminary",
+      "algorithm": "business-excerpts-v1",
+      "scope_sha256": "f11992f6fb5a297855b4f96531c6888d3fd38e01b8970d242f208f15c01b2f93",
+      "metric": "gdp_current_price_preliminary",
+      "period": "2025",
+      "unit": "亿元",
+      "value": "1401879",
+      "content": "gdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.",
+      "proofs": [
+        {
+          "source_id": "web:128a97fdc58958ed38498f90",
+          "sha256": "77cbc8ffc5360717fbaa353b806f3a49f9c0f3792c46c182420a4ddd0da79e91",
+          "offset_unit": "unicode_codepoint",
+          "spans": [
+            {
+              "start": 0,
+              "end": 25,
+              "text": "中华人民共和国2025年国民经济和社会发展统计公报"
+            },
+            {
+              "start": 471,
+              "end": 512,
+              "text": "一、综合\n初步核算，全年国内生产总值[2]1401879亿元，比上年增长5.0%。"
+            },
+            {
+              "start": 18251,
+              "end": 18316,
+              "text": "[2]国内生产总值、三次产业及相关行业增加值、地区生产总值、人均国内生产总值和国民总收入绝对数按现价计算，增长速度按不变价格计算。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business_d90ddbb2cee80120c3715a44a2ffde72",
+      "source_id": "web:128a97fdc58958ed38498f90",
+      "source_ids": [
+        "web:128a97fdc58958ed38498f90"
+      ],
+      "sha256": "18a4a41e8cdb7ff9a87f975ca4e637625bc55b0ce0fe4dd677ceb49e7406dd7b",
+      "kind": "business_numeric",
+      "heading": "gdp_real_growth_preliminary",
+      "algorithm": "business-excerpts-v1",
+      "scope_sha256": "f11992f6fb5a297855b4f96531c6888d3fd38e01b8970d242f208f15c01b2f93",
+      "metric": "gdp_real_growth_preliminary",
+      "period": "2025",
+      "unit": "%",
+      "value": "5.0",
+      "content": "gdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.",
+      "proofs": [
+        {
+          "source_id": "web:128a97fdc58958ed38498f90",
+          "sha256": "77cbc8ffc5360717fbaa353b806f3a49f9c0f3792c46c182420a4ddd0da79e91",
+          "offset_unit": "unicode_codepoint",
+          "spans": [
+            {
+              "start": 0,
+              "end": 25,
+              "text": "中华人民共和国2025年国民经济和社会发展统计公报"
+            },
+            {
+              "start": 471,
+              "end": 512,
+              "text": "一、综合\n初步核算，全年国内生产总值[2]1401879亿元，比上年增长5.0%。"
+            },
+            {
+              "start": 18251,
+              "end": 18316,
+              "text": "[2]国内生产总值、三次产业及相关行业增加值、地区生产总值、人均国内生产总值和国民总收入绝对数按现价计算，增长速度按不变价格计算。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business_9cd17607865d78068519ecddbd4e7d7a",
+      "source_id": "web:e41c26fbbb39acc280743199",
+      "source_ids": [
+        "web:e41c26fbbb39acc280743199"
+      ],
+      "sha256": "c79b18b0a0475820b77843ea476c8dc3626a30ce13839cf45c3cf40cd7b16185",
+      "kind": "business_numeric",
+      "heading": "gdp_current_price_preliminary",
+      "algorithm": "business-excerpts-v1",
+      "scope_sha256": "f11992f6fb5a297855b4f96531c6888d3fd38e01b8970d242f208f15c01b2f93",
+      "metric": "gdp_current_price_preliminary",
+      "period": "2024",
+      "unit": "亿元",
+      "value": "1349084",
+      "content": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.",
+      "proofs": [
+        {
+          "source_id": "web:e41c26fbbb39acc280743199",
+          "sha256": "3cbce77589aadf755df7114bc6206f1430672ef5bdae0c1d87dd7ea4f1373ccf",
+          "offset_unit": "unicode_codepoint",
+          "spans": [
+            {
+              "start": 0,
+              "end": 25,
+              "text": "中华人民共和国2024年国民经济和社会发展统计公报"
+            },
+            {
+              "start": 484,
+              "end": 525,
+              "text": "一、综合\n初步核算，全年国内生产总值[2]1349084亿元，比上年增长5.0%。"
+            },
+            {
+              "start": 18348,
+              "end": 18511,
+              "text": "[2]国内生产总值、三次产业及相关行业增加值、地区生产总值、人均国内生产总值和国民总收入绝对数按现价计算，增长速度按不变价格计算。根据第五次全国经济普查结果，并同步实施城镇居民自有住房服务核算方法改革，对国内生产总值、三次产业及相关行业增加值、全员劳动生产率等历史数据（包括图1、图2、图3、图9、图10、图11）进行了修订。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business_a10871c0b517bf690adabd5799f5ca85",
+      "source_id": "web:e41c26fbbb39acc280743199",
+      "source_ids": [
+        "web:e41c26fbbb39acc280743199"
+      ],
+      "sha256": "590495924a27c3c5c414ff9e8485f2b14e49549d9fb93de8abe9c410947741ec",
+      "kind": "business_numeric",
+      "heading": "gdp_real_growth_preliminary",
+      "algorithm": "business-excerpts-v1",
+      "scope_sha256": "f11992f6fb5a297855b4f96531c6888d3fd38e01b8970d242f208f15c01b2f93",
+      "metric": "gdp_real_growth_preliminary",
+      "period": "2024",
+      "unit": "%",
+      "value": "5.0",
+      "content": "gdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.",
+      "proofs": [
+        {
+          "source_id": "web:e41c26fbbb39acc280743199",
+          "sha256": "3cbce77589aadf755df7114bc6206f1430672ef5bdae0c1d87dd7ea4f1373ccf",
+          "offset_unit": "unicode_codepoint",
+          "spans": [
+            {
+              "start": 0,
+              "end": 25,
+              "text": "中华人民共和国2024年国民经济和社会发展统计公报"
+            },
+            {
+              "start": 484,
+              "end": 525,
+              "text": "一、综合\n初步核算，全年国内生产总值[2]1349084亿元，比上年增长5.0%。"
+            },
+            {
+              "start": 18348,
+              "end": 18511,
+              "text": "[2]国内生产总值、三次产业及相关行业增加值、地区生产总值、人均国内生产总值和国民总收入绝对数按现价计算，增长速度按不变价格计算。根据第五次全国经济普查结果，并同步实施城镇居民自有住房服务核算方法改革，对国内生产总值、三次产业及相关行业增加值、全员劳动生产率等历史数据（包括图1、图2、图3、图9、图10、图11）进行了修订。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

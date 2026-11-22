@@ -45,7 +45,7 @@
         },
         {
           "id": "cmd_history_quotation",
-          "url": "https://quantapi.51ifind.com/api/v1/cmd_history_quotation",
+          "url": "https://quantapi.51ifind.com/api/v1/history_data",
           "method": "POST",
           "auth": {
             "header": "access_token",

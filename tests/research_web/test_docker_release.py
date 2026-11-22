@@ -112,6 +112,10 @@ def test_frozen_image_contains_current_hot_payload_without_starting_it():
     assert "FROM node-runtime AS hot-builder" in dockerfile
     assert "COPY services/hot/migrations ./migrations" in dockerfile
     assert "COPY --from=hot-builder /opt/rwb/services/hot /opt/rwb/services/hot" in dockerfile
+    assert "FROM node-runtime AS qa-builder" in dockerfile
+    assert "COPY --from=qa-builder /opt/rwb/qa-dist app/research_web/ui/qa-dist" in dockerfile
+    assert "qa_build_manifest" in dockerfile
+    assert "assert qa_assets_root(root / 'app/research_web') is not None" in dockerfile
     assert "npm ci --omit=dev --ignore-scripts" in dockerfile
 
 

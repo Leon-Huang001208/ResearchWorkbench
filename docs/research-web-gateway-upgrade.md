@@ -1,0 +1,662 @@
+# Mac mini 空私有池网关升级
+
+## 附接 MCP 保全的围栏内复核
+
+原 PR #284 只将两项仍有效的保护前移到当前联合操作员，不恢复旧财经日历固定部署 profile。
+适用集合为当前 `ATTACHED_MCP_PRESERVATION_MODES` 的五个模式：
+`RESEARCH_BOT_MODE`、`RESEARCH_BOT_V2_MODE`、`STORAGE_IDENTITY_MODE`、
+`STRATEGY_VALIDATION_MODE`、`LOCAL_KNOWLEDGE_MODE`。
+仅覆盖 fresh forward apply 及 `preparing` 恢复，并要求
+`not post_deploy_rollback(state)`；Trial、完成后回滚、其他模式及其他恢复阶段保持原语义。
+Local Knowledge 完成后回滚可能已在运行目标版本，不能套用前版验证方向。
+
+fresh apply 沿原 BirthFence SQLite EX、安装作用域及 Operations，在最终 GitHub 候选证据核对后、
+`execute()` 前，依次执行 `validate_configuration(home, state)` 和
+`ops.verify(previous=True)`。限定的 preparing 恢复也须先取得原围栏及安装作用域，
+再完成同样的真实前版复核，成功后才删除原 gateway upgrade journal。
+配置校验独立保留，不能因已调用 `verify` 就假定其覆盖配置。
+任一复核失败均保留 preparing journal，不进入 stop、checkpoint 或源码切换。
+
+这是现有锁内验证顺序的加强，不新增锁、lease、模式、服务、数据库、依赖或权限，
+不改变账号、MCP 开关、模型与研究执行器。原旧回执及失败证据保留；源码、离线真实围栏夹具、
+同候选 CI 与实际 Mac mini 切换分别取证。普通源码前移不构成部署完成，也不触发其他平台运行。
+
+## RWB 本地知识库受管升级
+
+`model_provider_upgrade apply-local-knowledge` 使用封闭 `reviewed-local-knowledge-v1`，前版固定为
+`33b3044dd68197106c5018e31482762cb1e02ea1`，产品精确提交以操作员的 `LOCAL_KNOWLEDGE_PAYLOAD`
+为准。源代码、原三项 CI、同候选 macOS 安装与独立评审完成后，从原登记 Git common 中的干净执行树运行。
+跨 common 的交付证据通过既有 `delivery_transfer` 导入；不改登记的 `source_common`。
+
+该入口复用 v4 三锁、BirthFence、空闲检查、全账号原件保全和恢复，保持既有模型、MCP 与
+`alphadesk_qa` 配置。主安装清单及网关配置新增固定 `weknora_origin`，值为
+`https://mac-mini-1.tail947973.ts.net:9443`；两端启动读取持久值，字段缺失保持旧行为。
+安装合同只允许 `scripts/setup_web.py` 的固定 before/after blob，文件模式均须为 `100755`；
+其他安装锁、运行时和入口合同继续保持严格一致。构建使用隔离源码中的既有 QA 资产构建及 wheel 流程，
+不因此切换研究执行器。
+
+成功上线后的主动回滚使用
+`model_provider_upgrade rollback-local-knowledge --rollback-target CURRENT_ACCEPTED_SHA`。
+它核对本模式独立的回滚胶囊与已接受候选，重新排空、保全当前账号资料，恢复原 wheel、源码、
+两端 origin 字段的旧值或缺失状态，并核验模型、MCP 和执行器保持原设置。普通 `recover` 只处理
+未完成事务，不能作为成功上线后的主动回滚。WeKnora 的数据库和用户资料不随 RWB 源码回滚而清空。
+
+Tailscale Serve 9443 仅将现有 WeKnora 前端 `127.0.0.1:18181` 提供给私网设备；原 443 RWB 和
+8443 SuperAgent 路由保持。Ollama 内部监听不向组网发布。正式用户自行注册并在 RWB 设置登录，
+bootstrap 公开验收账号及其状态独立留存，不自动迁移给正式身份。部署、同机私网链路与另一设备验证分别留证。
+
+本模式的 Serve 预检同时核对维护围栏准备和切换检查点：必须有原443与固定9443；若存在8443，
+只接受 HTTPS 根路由到 `http://127.0.0.1:8097`。9443只接受 HTTPS 根路由到
+`http://127.0.0.1:18181`。未知端口、主机、附加路径、转发目标或 Funnel 均拒绝；其他升级模式沿原443合同。
+
+## 策略验证常驻升级
+
+`model_provider_upgrade apply-strategy-validation` 绑定已接受的 `3be8a17b48ca5c57a71837bdc806efaf386a68b8` 和 PR #308 的合并产品 `4983949df4aac654dd95415be1d5d6a654170ff5`。执行器只接受该产品和受审部署文件的组合。以现有生产解释器从 GitHub 最新已审且干净的同仓工作树执行 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-strategy-validation --source <该工作树>`。
+
+切换前验证 Project Constraints、Research Web Checks 及 macOS 15 Bootstrap 的实际候选，沿用原联合事务的空闲检查、三锁、BirthFence 和保全快照。主实例和网关一同更新，现有账号数据、固定 DSH、模型设置和实际只读 MCP 开关在上线与回滚时复核。切换后检查主实例、网关和私网入口的版本及可达性，再在已登录的「策略模拟 → 策略验证」上传原冻结压缩包，复核逐笔、下跌率、次日卖出胜率及配对对照。研究运行只从该页面显式发起。
+
+## Research Bot Radar 时效升级
+
+`model_provider_upgrade apply-research-bot-freshness` 使用上一版本的 Native 联合事务。已接受前版固定为 `0ca0f4c0`，完整产品由 Radar 修复检查点冻结。最终合并提交包含该检查点及受审操作员。普通合并保留固定提交祖先，部署前由现有 CI 资格检查核对最终合并树。
+
+待已有研究和后台任务空闲后启动受管事务，核对原账号索引、原 Bot 停用状态和模型配置。复用原三锁、BirthFence、轮子及回滚。切换后检查主实例、网关和原 MCP 状态。原 Bot 手动及定时模型验收以实际资料和运行回执另证。
+
+## 常驻存储身份固定升级
+
+`apply-resident-storage-identity` 从已接受的 `0ca0f4c01fa6a027f2759814eea9624ba8c79807` 进入固定产品
+`00d8f68d0f8a61b1ed39bd01ebe40b2d09ef60b7`。以原生产解释器运行最新已审主线工作树的
+`research_workbench_entrypoint.resident.model_provider_upgrade`，用
+`apply-resident-storage-identity --source <干净工作树>` 进入原 v4 事务。切换和回滚均
+核对实际原 MCP 布尔值、全账号资料和固定运行时。通过两端健康后再执行正式的
+`rwb resident enroll-storage-identity --json`，保留旧恢复工件以供核对，确认正式作业后
+才停用现场的临时身份修复任务。分别记录新 boot UUID、三端口、私网登录及能力目录。
+
+## Research Bot 常驻升级
+
+`model_provider_upgrade apply-research-bot` 绑定该次升级的前置版本 `1315d11a` 及 PR #302 的实际合并提交 `88bec0ec04cbe2eb6979e6ebde695b992ed27336`。该版本包含旧常驻版本之后已合并的主线变更。操作员使用现有 v4 事务，检查候选的完整产品字节及权限位，并核实主实例、网关及受审源码的仓库身份。来自另一仓库的交付回执经 `resident.delivery_transfer` 导入实际配置的源码仓库。
+
+使用已安装的生产解释器和当前受审主线的干净工具工作树执行。既有研究和后台任务必须明确空闲；Web 依赖锁、DSH、MCP 设置、账号和业务索引在切换及回滚中复核。发布前确认所选候选的 Project Constraints、Research Web Checks 和 macOS 15 Bootstrap。部署后分别核对两个实际进程的版本、3081／8088／8089、本机 Research Bot 页面及账号访问边界。页面验证不创建 Bot、不启用日程。
+
+## 网关同版本迁移到非云盘仓库
+
+在已审核的源码 checkout 中，先用 `rwb resident prepare-gateway-source` 准备本地发行工作树。
+该命令使用原 Native 配置登记的 Git common。确认目标是精确的已安装 SHA、工作树干净且 Git
+元数据落在非云盘目录。保留旧工作树和原 Git 记录用于审计。
+
+对现有网关，先按原维护流程确认账号执行空闲并记录现有 launchd 注册和启用状态。仅在本次
+维护窗口，用 `launchctl disable` 禁用当前用户 GUI 域中的 `com.research-workbench.multiuser-server`
+与 `com.research-workbench.resident`，并在确认归属和空闲后卸载原网关、释放 8089。跨重启时
+这两项停用状态保护未完成事务。原 Native Web/DSH 可以继续运行。下列命令保留原端口、
+解释器、账号库、DSH 源、Tailscale 路由及管理员绑定。
+
+```bash
+./rwb resident plan-gateway-relocation --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --json
+./rwb resident relocate-gateway --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --plan-seal EXACT_PREVIEW_SEAL --json
+```
+
+迁移变更 `server/resident.json.project` 和原 LaunchAgent 的 `WorkingDirectory`，启动前重新
+核对配置和实际工作目录。若中途退出，使用 `rwb resident recover-gateway-relocation --json`
+处理本次未完成事务，再复核旧配置、保留原回执。完成后由操作员引导原 LaunchAgent，并验证
+私网 HTTPS、主实例绑定、登录和技能目录。确认恢复结果已落盘后恢复原两个 label 的启用与注册状态。
+## FinGPT 执行器切换
+
+`apply-fingpt` 固定已接受的策略验证版本 `33b3044dd68197106c5018e31482762cb1e02ea1` 为前版，产品检查点见操作员的 `FINGPT_PAYLOAD`。同一候选通过原 Native 围栏更新主实例安装清单和私网网关配置。现有 MCP 开关随原网关配置保留。切换中校验两端的版本和执行器，并复核网关进程身份。事务失败时恢复两个源码、原 wheel、安装清单和网关配置。常驻 FinGPT 使用受管操作员启动或重启。
+
+正式启用前须完成所有账号的可恢复原件备份、隔离恢复演练和已登录双入口验收准备。
+含回滚入口的版本在 FinGPT 切换成功时保存前版配置、安装工件和受理证明的绑定。完成后的回滚从受审命令源码执行：
+
+```bash
+python -m research_workbench_entrypoint.resident.model_provider_upgrade rollback-fingpt --rollback-target CURRENT_ACCEPTED_SHA
+```
+
+命令核对已接受的目标，以及本机与私网的当前版本和配置，再沿原维护锁和准入围栏执行双入口回滚。账户和模型保全依据回滚开始时的现状。回滚中断仍用原 `recover` 处理活动事务。没有回滚回执的旧切换保持原样，须单独处理。隔离测试和实际 Mac 两入口验收分别取证。
+
+
+逐日市场用 `apply-market-daily`，从已接受 `37051f8f` 进入操作员内 `MARKET_DAILY_PAYLOAD` 固定的载荷；复用市场 V2 的 120 秒切换预算、
+切后干净树、原保全与恢复。首批操作的固定来源在写者排空后记录明确终态证明；旧失败、运行中、
+未知状态、无证明或日程非严格关闭仍拒绝切换。不得清除历史失败隔离以便重试。
+
+2026-11-07：V2候选9a97168e在两个Git角色已写入目标HEAD后，`switch --detach`仍未在原通用30秒内完成，
+原事务自动回滚至a76ecfdf、保全通过，失败目标隔离。隔离网关同common及原hook复测0.236秒成功，
+未复现现场尾部拖延，不将其归因到具体hook。后继只为V2的目标/恢复Git切换提供独立120秒上限，
+保留原Git命令和hook，切换成功后再核对SHA及干净状态才进入wheel步骤，按角色记录完成或拒绝耗时。
+只读Git／其他profile／CI时限不变；超限仍进入原保全恢复。不删除旧隔离、不以同SHA重试，
+新合并版本须重新通过独评、本地Router、完整三CI及实际Native验收。
+
+## 事件手动意图与市场入口修复封闭部署V2（2026-11-06）
+
+`apply-market-live-v2`／`reviewed-market-overview-live-v2` 固定已验收前版
+`a76ecfdfb1b1b7a35c508d15ccf16222ed20423c`，产品检查点固定
+`cd09e2af70544abc4270c676b58e7f8cc2651773`（P3，包含用户2026-11-07明确授权的
+PR278代码及PR279窄一级栏修复；WeKnora保持未配置，不启动其服务或模型）。该产品修复真实认证网关遗漏已有
+`X-Research-User-Action` 头导致事件手动 POST 被原 Host 意图门拒绝的问题；仅在原认证同源链
+转发已有意图，不移除 Host 门。产品同时补齐原市场sidebar的dashboard／workbench／overview／quotes／sectors
+五个可见入口，避免原tabs隐藏后旧内容失去可见入口；不自动采集、不启用日程、MCP或模型。
+
+新 profile 复用原 version4、三锁、BirthFence、永久恢复 source、独立主实例／网关仓库身份、
+全账号64MiB业务索引、@events／@dossiers／会话／模型配置保全与恢复。
+EVENT_SAFETY_MODES 当前仅四个封闭mode：EVENT、统一导航、市场LIVE1及LIVE2；
+EVENT_PRESERVATION_MODES 是同一集合别名。严格MCP回滚子集仅导航／LIVE1／LIVE2，
+新旧配置与恢复journal要求原字段严格 false，前进及回滚均读取 local/private 实际 health 的
+严格 false，并保留 loaded／PID／出生／源码／配置观察窗。EVENT/db2历史缺字段回滚豁免、
+所有旧前版／产品常量与组合链保持，不进入 TRIAL、不取消任务、不改账号／秘密／权限。
+
+固定前版须为产品祖先，产品须为最终工具目标祖先；两份 previous..payload 与 previous..target
+完整路径并集的 blob／文件模式逐一冻结。产品后仅 MODULE、原 TEST、docs／报告可变，
+额外app／scripts／其他tests／README／outputs／依赖／workflow一律拒绝；不放宽索引、
+证据reader或安装锁。每次准备／空闲／切换／恢复复核严格 Native 空列表、Host／后台／
+Workflow／市场inflight空闲及全账号采集日程关闭原件证明。
+
+V2尚未发布前，产品冻结从仅gateway的P0 `a2e97c3110b4495a0ae00df1123da400ab8a15e8`
+更新为包含gateway与sidebar的P1 `974628a808627a68d732f8d620c4b34ae10a9b3e`；仅新V2自己的
+PAYLOAD／固定值测试随之更新，所有历史profile身份保持。P0的20项WIP通过原件保留，不作为P1最终证据。
+2026-11-07用户明确授权带入最新主线PR278后，产品进一步冻结为P2 `15c24b7ec59685735f8af75b8e9f5dc86830d694`，
+保留P1、原已准备候选362b及全部历史回执；旧profile、前版、锁、reader与路径冻结门不变。
+P2阶段要求新组合候选的独评、必需CI及Mac干净安装，不能借用旧a76部署或旧782CI。
+同日用户在导航窗口明确要求一级栏保持原宽；P3纳入受审c34e093b候选的普通68px／Claw桌面72px窄栏，
+完整保留二级独立逻辑及市场五入口。P3固定为`cd09e2af70544abc4270c676b58e7f8cc2651773`，
+P2及此前候选、失败和恢复原件继续保留；最终须等待PR279正常合并、刷新基线及新联合候选三CI，
+不能把任何P2或PR279单独结果当成联合上线证明。仅本轮未发布V2的PAYLOAD／固定值测试／文档随阶段推进，旧profile不变。
+实际常驻切换、双health／MCP关闭／采集关闭、真实认证手动操作、保全和资源收尾另证；
+源码准备不是部署完成，其他平台原生仍由对应设备验收。
+
+## 市场综合总览封闭部署（2026-11-06）
+
+`apply-market-live`／`reviewed-market-overview-live-v1` 独立固定现场已核验前版
+`5ffecb5219d46a5d3e4148a4ddb630f23a09ab3b`，产品检查点固定为
+`a2ee934f026d9f174d948a2f748213d0d5021f5b`。用户已授权真实市场综合总览集成及 Mac mini
+常驻切换；源码准备和本节记录不构成部署成功。旧 `apply-events` 的前版、产品和组合祖先链保持。
+
+新 profile 复用原 version4 三锁、BirthFence、全账号64MiB严格业务索引及 `@events` 原件保全、
+内容寻址恢复和原安装锁。`EVENT_PRESERVATION_MODES` 仅含旧事件和新市场两个封闭身份，
+共享原 Native 严格列表、Host／后台任务／Workflow／市场 inflight 空闲门及全账号日程关闭证明。
+日程证明在准备、空闲、切换及恢复边界保持原件哈希和缺席状态；不采集、不启用日程、不调用模型，
+不进入 TRIAL、不取消任务、不变更账号、会话、数据、模型、凭据、权限或历史。
+目标配置持久写入 `mcp_readonly_enabled=false`，原双入口 fenced health 必须报告实际 Facade
+严格布尔 false，配置及 PID／出生身份观察窗保持。市场 live 固定5ff前版已支持 MCP 状态，
+初次准备、配置验证及恢复 journal 均要求旧配置字段严格 false，前进和回滚都读取 local/private
+实际 health 并要求严格 false；回滚精确恢复原 false，不补写或修正旧配置。
+旧 EVENT/db2 的字段缺席回滚豁免仅保留在旧 EVENT，不扩展到市场 live。
+
+资格要求固定前版是产品祖先、产品是最终工具目标祖先。`review_assets` 对
+`PREVIOUS..PAYLOAD` 与 `PREVIOUS..target` 的完整路径并集逐一核对 Git blob 和文件模式；
+即使产品文件回退至前版而从目标 diff 消失，也必须核对。产品检查点后只允许操作员自身、
+原操作员测试文件、`docs/` 和 `.ai/reports/` 变化；额外 app、scripts、其他 tests、README、
+架构输出、依赖及 workflow 改动均拒绝，非普通 Git 文件模式或删除同样拒绝。
+原 evidence 摘要固定 `193f4fcc7e27ab1fd9fd87c4d30a0ca200476fe74c6cc4c6c7dad6bb8ce63988`，
+web.lock 摘要固定 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`。
+
+最终操作员须从干净、最新已合并且独评及必需 CI／Mac 干净安装通过的同候选执行。
+主实例和网关可以使用独立 Git common；二者须分别通过仓库身份检查并具有最终目标 commit，
+不能用源工作树存在对象代替。现场版本、健康、MCP关闭、采集关闭、全账号保全、认证浏览器业务
+验收及资源收尾分别留证；Windows／Linux 原生验收由对应设备负责，未执行保留 NOT_RUN。
+
+## 统一导航固定部署（2026-11-06）
+
+统一导航 apply-navigation-ui 使用 reviewed-unified-navigation-v1，旧版固定5ffecb5219d46a5d3e4148a4ddb630f23a09ab3b，产品固定b192dd1a7d71080a1a4d83ade02102a15cd9f365。新UNIFIED_NAVIGATION_*与旧PR168 NAVIGATION_PAYLOAD独立。完整previous→payload/target路径并集、blob和mode冻结；仅原操作员、其原专用测试及文档／报告例外，额外tests、README、workflow及任意产品变化拒绝。保留193f4fcc证据reader、7c631d4f安装锁、controller字节和自动名单。沿原v4三锁、BirthFence、全账号索引／档案／事件保全与恢复，所有后台及Native必须明确空闲。NAV旧网关配置必须已有严格False，前进及回滚均检查local/private实际health的MCP=False、进程出生/命令/listener/plist/repo身份不漂移；不继承EVENT对db2缺字段回滚的豁免。最终执行器须最新已合并且独评/原三CI/Mac安装通过，并保存永久恢复源码；源码交付、实际切换和认证页面各自取证。
+
+## 事件研究封闭部署（2026-11-05）
+
+`apply-events`／`reviewed-event-research-v1` 固定前版
+`db2ae9a48ceca365852072e622aa6627aa7d0b83`。用户已明确授权一并部署最新主线，MCP继续关闭；
+固定组合链为事件功能 `a398a29429a1c0bdddd34ce50bc336fd6e20f2ee` → 维护基线
+`60416994f88eeead8a3891dbe9a7dfd617c566fc` → MCP主线
+`58ad352eeb925805ff00f46139a073fda15163d3` → 已授权最新主线
+`54610625d4f736cd807fdd50eaf2e1f22a557ae5` → 合并安全检查点
+`e9cb46e1387f07275200c9062994d82873591e42` → 交付恢复工具检查点
+`32b21c4e892da4bf4b05518296ce72fe7d6b52bc` → 最终工具目标。每段都须保留真实祖先关系；
+只有事件功能到604的整个 `app` Git tree 要求相同。546的能力分类／进展UI随用户最新主线授权纳入，
+没有新增依赖；e9保留65a引入的持久关闭MCP、health实际Facade布尔及容量扫描安全修复。
+最终资格必须绑定新的
+已合并目标、完整路径并集／Git blob／文件模式及原三CI／Mac安装，不能借用旧产品或工具回执。
+32b21c4e固定包含已审的未发布amendment跨正式base-refresh验证修复，不新增运行服务或权限。
+最终32b之后仅受管操作员、原操作员测试、文档／报告例外；未知app／scripts／tests改动仍拒绝。
+
+仅EVENT前进时在网关 `resident.json` 持久保存严格布尔 `mcp_readonly_enabled: false`。
+e9保留65a驻留入口在accounts/runtime构造前校验该字段，False优先于环境开启；本部署不创建MCP
+Facade或初始化OAuth库。最终接受同时读取本机与私有入口既有fenced health实际返回，字段必须
+`is False`，并维持ready、revision、primary_last_verified及deployment_fenced原门；缺字段、None、
+0、True以及401／404都不能替代关闭证明。读取前后还复核原plist／loaded job、gateway目录／
+仓库、PID及birth/command、listener与native image，配置或观察中漂移均拒绝。
+
+EVENT配置用规范JSON比较，区分False、0及缺席；恢复入口沿原配置验证重查。
+rollback逐字段恢复原gateway_config，db2原先缺字段时仍保持缺席；旧版preflight／回滚可使用
+原health协议，不冒充已提供MCP实际布尔证明。源码／本机测试、最终CI、真实切换与业务验收仍分开。
+
+本 profile 不进入 TRIAL，不取消、删除或退休研究任务。沿原 v4 三锁、BirthFence、
+严格 64 MiB 业务索引、完整 CI reader、原安装锁和全账号 `@events` 原件保全／恢复。
+原完整 `g.verify_primary` 及 Host 明确空闲必须通过，额外 Native 观察必须严格为 `list`
+且为空；`None`、`False`、`0`、空字符串和字典都不能证明空闲。Discovery／Automation／
+Workflow 后台与市场 inflight、资产查询保持原空闲门；既有其他产品日程不得被擅自停止。
+
+事件采集日程继续关闭，独立证明来自全部账号个人 root 原件：原件目录、初始化 marker 和
+资格 marker 全部缺席才能证明尚未初始化；孤儿原件／marker、损坏及未知状态均拒绝。
+已有事件库时在原 retention lock 下使用 `snapshot_events` 验证身份、一致性和无 SQLite
+WAL／SHM／journal，再将精确哈希绑定的原件反序列化到内存 `query_only` 数据库；不打开
+个人 SQLite 写连接、不创建空库，也不以 Doctor 的 `collection_enabled=None` 证明关闭。
+全部最新 `source_schedule.enabled` 必须严格为 `False`；存在的采集 claim 和 source job
+必须明确 `completed`。`failed`／`interrupted` 属于待核对结果，本入口拒绝，不自动重试。
+最新关闭版本可以覆盖旧历史开启版本，但任何未决最新版本均拒绝。
+
+日程证明在初次主实例验证、准备前、每次空闲门、切换后及恢复／回滚对应边界重查；冻结的
+全账号原件哈希和明确缺席记录必须保持，账号新增、并发日程／原件变化或缺证阻止切换。
+本入口只作原件读取与既有受管切换，不启用来源采集、改采集日程、调用模型／厂商或改变
+网关路由。db2 原网关已支持 `/api/research/*` 与主实例静态资源透传；本操作员不扩大路径授权，
+本组合源码中的MCP入口保持关闭。
+
+源码准备／本机回归、最终 CI 资格、真实 Mac mini 切换、认证页面／业务验收和资源收尾
+分别记录；本节不能证明已部署。Windows/Linux 原生验收仍由对应设备负责。
+
+
+## CI容量修复固定部署V9（2026-10-24）
+
+封闭 `apply-assets-v9`／`reviewed-asset-observation-v9`。资产V9只修复已复现的CI证据容量阻断：压缩下载仍限8MB，ZIP总展开仍限64MB/2000项，单job展开明确限16MB，保留完整流、UTF-8、CRC、唯一路径、checkout/tree与时限校验；超过新上限仍拒绝。固定产品b500fcbe、实际前版b4384470和新reader哈希，V1–V8旧身份保持；无新服务、HTTP、依赖、秘密、数据根或执行引擎，原图拓扑保持。完整候选须重新Router/独评/原三CI/Mac安装；实际空闲、全账号保全和认证页面另证。
+
+## 资产幅字段固定部署 V8（2026-10-24）
+
+封闭 `apply-assets-v8` / `reviewed-asset-observation-v8`，PREVIOUS固定实际驻留 `b438447071d08eec38902b2a50610644283885f9`；PAYLOAD固定组合merge `dee0cce4dbc65782dba2c720f33ada683457d72a`（包含PR216幅字段、PR217数据源与PR219历史验收），三项产品原三CI分别通过，操作员组合须重新验收；预备candidate不用于正式发布或部署。旧v1-v7和Discovery恢复身份保持。复用原version4事务、BirthFence、64MiB业务读取、严格evidence和全账号/档案/模型/会话保全；继承后台跟踪、Automation、Workflow、市场inflight及资产Future空闲检查，活动或未知延后切换。
+
+沿本任务既有部署授权完成最终独评/完整Router/原三CI/Mac干净安装，再用干净精确目标执行；实际版本、保全、认证页面及资源收尾单独留证。不安装新依赖、不改秘密/数据库/外盘、不调用模型。
+
+## 华安历史验收固定部署（2026-10-24）
+
+`reviewed-etf-historical-v1` / `apply-etf-historical` 仅为明确批准的历史验收功能准备封闭更新。前版固定现场主实例/网关 `b438447071d08eec38902b2a50610644283885f9`，产品固定提交 `bb4d2e657872ecb24df5bb0e89f571b4600b84d1`。该产品提交包含全部功能、测试、CI清单、09/10图与API文档，随后仅追加操作员/测试/文档；它随最终同一PR普通merge进入master，不宣称具有单独产品PR或CI回执。
+
+最终目标仍须为最新已合并master，保留产品祖先和完整路径并集/blob/文件模式校验；不能squash或rebase丢失产品身份。最终完整候选重新独评及原三CI，成功job各自checkout/tree相同后，才可按另行明确部署授权执行。产品提交之后的非豁免产品变动必须重新冻结验证，不能靠扩大白名单或放宽latest解决。
+
+复用原version4事务、维护锁、BirthFence、64MiB严格业务读取、全部账号/档案保全恢复、完整日志reader5c3077及市场/Host/Native/私有池空闲检查；旧模式、controller/evidence、7c631d4f锁和凭据保持。忙碌或未知不切换，不停止其他任务。部署本身不发Wind/模型或创建报告，不启用周报定时；历史真实Run、Word和下载验收单独取证。
+
+## 全市场终端固定部署（2026-10-23）
+
+`reviewed-market-terminal-v1`／`apply-market-terminal`固定前版
+`0e0022ac792eba88fba0f233524f5c8d66024569`，产品PAYLOAD固定为
+`ca20293b8244bb0644bf2039ddd96ee452a27b0b`。该不可变祖先包含终端产品、PIT上游和
+已独评的构建器修复f3f4fae；替代先前717暂存检查点。实际部署仍等待PR201与终端最终组合各自合并、
+独评和原三CI合格，再核对祖先、完整路径并集、Git blob和文件模式；不提供运行时任意目标或前版覆盖入口。
+
+原version4事务、supervisor/admission维护锁、BirthFence、全账号业务索引哈希与内容寻址恢复继续复用。
+研究／历史查询、主实例和网关活动，以及市场GET投影中的`inflight`必须明确为空；未知或活动即拒绝。
+terminal沿现有严格业务读取器，业务索引上限64MiB，元数据原1MiB边界保持；旧profile及controller字节不改，
+evidence读取器绑定现有v6的`5c3077b7…eebb`，不能用缓存片段替代完整GitHub日志与逐job checkout核验。
+
+固定web.lock为`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`；
+沿原事务仅同步目标锁身份和`code_commit`，恢复时精确恢复原安装清单。本轮不安装新依赖、不启用或迁移数据库、
+不改外盘／秘密／Docker，不更换模型。源码仅取自已验证同一common directory下的干净目标checkout，业务数据原位保留。
+会话、报告、模型／凭据存储元数据、账号索引以及新增持仓和观察缓存均不得因切换而丢弃；最终实际保全须单独留证。
+
+最终组合必须最新主线资格、独立评审、完整changed-set Router、Project Constraints、Research Web Checks及
+同候选macos-14干净安装全部通过，CI证据绑定真实checkout／合并tree与完整日志，不能套用产品或旧工具的通过记录。
+本机后端130例、完整操作员测试和预检仅证明各自本地合同；实际切换、双入口健康、认证页面与保全／恢复结果仍待验证，
+未获真实回执不标记已部署。Windows/Linux原生及Docker产品验收保留原状态并交接对应设备；本profile不新增运行节点，
+现有01／12图保持准确，产品终端的数据流仍以已更新13图为准。
+
+
+## 华安ETF周报固定部署v2（新目标待授权）
+
+`reviewed-etf-weekly-v2` / `apply-etf-weekly-v2` 固定旧版
+`5343e18d9f203a87f2d958218e4288afa527711f`，产品检查点固定 PR209 合并版本
+`56709a8dbb6e01d2ab17b64533319e199ebef86f`。v1 的模式、命令与
+`988046d23f9951f889a3b9d02e355ed59fd6aa65` 产品身份保留。
+用户此前批准的部署目标为 PR208 合并版本 `2e1ba701`；尚未执行 apply 时 master 已前进，
+旧操作员的固定产品与 latest master 门不能同时满足，故增加封闭后继，不能跳过 latest 门或沿用旧授权。
+**此新组合目标尚待单独明确部署确认；本轮只准备源码与离线证据。**
+
+v2 只增加常量与原分派，沿原 version4 事务、维护锁、BirthFence、主实例和网关、Host/Native/
+RuntimePool/市场 inflight 空闲检查、64MiB 全账号业务索引保全及逐阶段恢复。
+PR209 已有 `snapshot_dossiers` 将账号档案元数据和引用摘要纳入 `@dossiers` 摘要；
+v2 复用该保全路径，不改变 controller、evidence、白名单、权限或保全门。
+固定完整日志读取器仍为 `5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb`，
+原安装锁 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102` 保持，
+不安装依赖，不启用周报日程，不产生 Office、厂商或模型调用。
+
+原真实 Git 矩阵验证差异并集、blob、mode、祖先及未知文件拒绝；原全账号索引、活动未知、
+阶段中断/回滚矩阵纳入 v2，并补主实例与私有账号真实 dossier 修改后的保全及恢复拒绝。
+本机离线成功和旧 PR209 CI 都不能替代 v2 最终候选的独立评审、完整 Router、原三 CI
+及同候选 macos-14 干净安装。源码/CI、实际切换、认证页面和正式报告质量分别验收，
+未部署状态不得标为常驻已升级或正式周报已通过。
+
+## 华安ETF周报固定部署profile（仅离线准备）
+
+`reviewed-etf-weekly-v1` / `apply-etf-weekly` 固定登记旧版
+`5343e18d9f203a87f2d958218e4288afa527711f`，`ETF_WEEKLY_PAYLOAD` 固定PR198真实merge
+`988046d23f9951f889a3b9d02e355ed59fd6aa65`。产品reviewed head `61f7d1a6d`的三门已通过，
+不代替操作员最终候选的独立验证、评审和CI；切换前再次核定登记旧版。不能通过命令参数
+指定任意前版或产品。本轮仅授权源码和离线验证，尚未获得常驻部署授权，未执行apply或切换。
+
+该profile复用原version4事务、supervisor/admission/operator锁、BirthFence、主实例Native/Host
+与私有RuntimePool身份/空闲门及全部账号保全恢复；加入64MiB严格业务索引读取与全键摘要，元数据仍
+保持1MB上限。Host的真实Future、Wind、报告准备/执行、市场provider关闭/排空以及其他活动或未知
+继续阻止切换；profile另显式核对市场inflight为空，不以无研究session替代采集终态。它接受与v6相同的
+固定完整CI日志读取器SHA256 `5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb`，
+保留每个成功job自身checkout/tree证明，不改变旧profile、controller、evidence内容或自动兼容白名单。
+
+安装清单只更新code_commit并保留原web_lock_sha256；产品锁与已登记安装锁均为`7c631d4f…7102`，
+不增加依赖安装/数据库/秘密授权。最终候选仍须共享正确Git common directory、干净checkout、
+独立评审、完整changed-set Router及原Project Constraints/Research Web Checks/同候选macos-14干净安装。
+部署授权后才按原事务冻结全账号索引、会话/文件/模型配置/账号数据并逐阶段切换与可恢复回滚。
+部署后的实际版本、主管理员Native Host绑定、认证页面、保全与真实报告质量另证；离线通过不认证
+EDB、真实Office/Wind或正式成稿。对应回归在`tests/research_web/test_model_provider_upgrade.py`，
+原全profile真实Git、阶段中断/回滚、全账号保全矩阵包含该mode；API活动见证继续由原`test_api.py`覆盖。
+
+## 资产筹码与精炼布局固定部署v6
+
+`reviewed-asset-observation-v6` / `apply-assets-v6` 固定旧驻留版本
+`c1a260fa1d8dcf013426aca938d7e46a98aaee28`，产品为PR197已合并的
+`eac6806822294d75da990c751d88ec156a417f62`。后者已通过Project Constraints、Research Web Checks
+及同候选macOS干净安装；这不代替部署工具最终候选的独立评审、完整Router和原三CI。
+
+v6复用原版本4事务、全账号索引哈希保全、真实查询/研究空闲检查、BirthFence及逐阶段恢复。
+锁文件保持`7c631d4f…7102`，不安装新依赖、不启用数据库、不改外盘或秘密。旧v1–v5、市场及模型配置的固定身份、
+controller和旧evidence哈希不变。v6以固定`5c3077b7…eebb`读取器校验实时、完整GitHub运行日志ZIP：
+有界下载，成员名称/大小/CRC/完整流、每个成功job的checkout及合并目标tree均须一致；不读取缓存片段或跳过失败门。
+原PR192的读取器和严格回归经Git补丁复用，并修复逐job自身checkout缺失不能借用其他job的校验遗漏；未引入其过时v5产品pin。
+
+真实部署必须在两驻留checkout均有目标Git对象、操作员checkout干净且共享正确common目录后执行，
+先持锁确认旧版/全账号/空闲，再安装并验证主实例和网关。活动或未知任务存在时延后；完成后验证认证页面与保全，
+没有通过时不标记已部署。这里保留历史配置，不能通过运行时参数任意扩展目标或前版。
+
+
+## 市场限价与历史固定部署（2026-10-23）
+
+`reviewed-market-history-v1` / `apply-market-history` 固定旧版`51f09fa783694aae5234905933948394ca167dcc`、产品检查点`4f0a248fc87249d41e1c3f75f700c17c8351ad95`。检查点为不可变产品祖先，最终组合仍须最新master、独立评审、原三CI和同候选macos-14安装合格。原version4事务、BirthFence、全账号业务索引/会话/模型保全和恢复保持；市场inflight活动/未知均拒绝。旧profile、controller、evidence和自动兼容白名单不改变。
+
+沿现有固定目标锁文件SHA256 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`，只同步安装清单该哈希和code_commit；回滚恢复原清单。不安装依赖或启用研究数据库；原已批准主线baostock0.9.4/psycopg3.3.6须实查已安装、pip check及其余版本不变，不能只改清单掩盖缺包。源码来自共享Git common directory的干净目标checkout，业务数据原位不迁移。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-market-history \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+部署与真实认证页另外核对限价/未知覆盖、昨日同当前池逐股金额及资金历史缺口，缺可靠源不冒充补齐。首个合格昨日见证可从当前或上一完整用户缓存恢复，不向生产注入测试样本。Windows/Linux原生与Docker产品验收仍按各设备交接。
+
+组合v5在安装目标产品时，仅把安装清单的`web_lock_sha256`同步为已冻结88ef锁文件的`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`，并更新code_commit；回滚精确恢复原清单。配置校验只接受原清单或该固定目标清单，不接受任意哈希。用户已授权的三个发行包须先按原锁定哈希安装、核验版本及pip check，并确认其余已装版本不变；不能用更新清单掩盖依赖未安装。旧profile、version4 journal、不可变controller/evidence、账号及业务索引保全不变。
+
+资产 v5 的主实例预检使用已有 `read_business_index`，上限64 MiB，仍拒绝符号链接、非普通文件、越界、损坏或非对象索引。部署元数据继续使用原1 MB读取器；旧资产与模型 profile 的读取绑定不变。真实首次切换因业务索引超过1 MB在停机前被拒绝，旧服务保持；不得裁剪索引或修改不可变证据读取器。修复后须重新通过原评审、三项CI及同候选Mac安装，再执行正式切换和全账号保全。
+
+## 全市场缺口修复固定部署
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-market-gaps \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+最终产品路径与检查点以完整差异并集/blob/文件模式/祖先冻结，只有原操作员、测试和文档例外；不开放任意SHA、附带产品或自动兼容白名单。市场缓存与原会话/数据/模型原位保留；GET市场空闲核验不触发上游。recover只回到固定99d3，继续使用64MiB严格业务读取、原1MB元数据及全账号索引保全。合并后可在既有resident/artifacts/<target>/source内准备同源码common directory的干净detached checkout执行，归档/回收仅针对开发worktree，不回收生产source或恢复包。三个CI及产品实采不替代实际部署/真实认证验收，Windows/Linux产品层仍按设备交接。
+
+## 全市场概览固定版本部署
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-market \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+市场 profile 另将 gateway_upgrade.py 的有界业务读取参数扩展绑定为完整 SHA-256；此文件的额外变化、删除或模式变化拒绝，旧 profile 不获得该例外。业务索引读取使用原64MiB上限，元数据仍为1MB。原现场索引8,673,739字节导致旧 verify_primary/retention/idle 读取失败，修复只复用严格普通文件、规范路径、拒绝链接和JSON对象校验，不裁剪业务数据。
+
+产品祖先、完整路径并集、Git blob 和文件模式逐项冻结；仅操作员自身、测试和文档可随最终工具候选变化。历史 ASSET_MODES 家族包含市场 profile，因而市场切换同样强制业务索引全量保全、资产/DataHub/历史任务及真实 Future 空闲。旧版尚无市场采集服务，切换完成前网关保持围栏；不迁移数据或触发市场/模型查询。recover 根据已验证 journal 的市场 mode 只回到固定 4d2e3c40。部署后以真实登录页核对三个页签、沪深北完整覆盖、来源时间、刷新和原会话/模型保留。
+
+## 资产观察固定版本联合部署
+
+### 资产交互与数据 v5 2026-10-22
+
+封闭profile为`reviewed-asset-observation-v5`，入口为`model_provider_upgrade apply-assets-v5`。PREVIOUS精确固定当前主实例与网关的`51f09fa783694aae5234905933948394ca167dcc`，PAYLOAD在PR188合流及用户当前授权后精确固定完整已合并产品`88ef3817680ac822e2d7c819db845de4b7275173`（包含PR185资产产品9bc4及DataHub研究仓）；旧4d2e、99d3及5495分别属于历史部署合同，不能作为v5当前恢复基线。旧a114候选原三CI全PASS保留为历史，主线前进后须重新认证新组合的本机兼容、独立评审及原三CI／同候选Mac安装，不能用旧树证据替代。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v5 \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+v5只增加原常量表、previous_for／review_assets及CLI封闭分支；仍逐项冻结固定产品祖先、完整差异路径并集、Git blob和文件模式，未知产品、依赖、workflow或额外字节拒绝。原操作员允许的文档／测试及架构阅读页例外保持，不把它扩成任意部署能力。使用生产venv，从与登记源码共享common directory的干净最终目标checkout执行，实际模块与`--source`一致；不移动开发文件、复制源码或处理凭据以绕过身份门。
+
+沿原version4 journal、维护锁、BirthFence、优雅排空、全账号业务索引冻结与内容寻址恢复；目录后台租约、资产区块／历史及真实Future的活动证明仍由既有产品边界提供，活动或未知时不切换。保留会话、模型配置、账号权限、市场缓存和原始快照，不触发研究、周报、供应商或模型调用。`recover`只按已验证journal的v5 mode返回固定51f09，旧资产v1–v4、两个market profile、模型恢复和不可变controller／evidence保持原合同。
+
+profile和一行读取修复本身没有新增部署节点或HTTP；组合产品包含PR188的可选研究仓／DataHub合同，保留其已审新04数据流，API inventory为321声明／318唯一接口。当前用户明确允许组合验收后随常驻安装已合并锁定baostock0.9.4／psycopg3.3.6，数据库不启用／不迁移、外盘不改；不扩大为任意依赖或数据库配置授权。阅读入口指向已提交组合产品88ef，一行v5读取修复另见8f2cb39a63c99c6e64875daf21dbb8b07518ff43，最终操作员提交另绑。root完成资格、明确空闲、冻结／健康／保全与真实认证页面逐项取证前，状态保持未部署。详见[原profile报告](../.ai/reports/test_report_asset_interaction_v5_deploy_20261022.md)与[读取修复及合流报告](../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
+
+### Wind工作区 v4（2026-10-22）
+
+封闭profile `reviewed-asset-observation-v4`，入口`model_provider_upgrade apply-assets-v4`。PREVIOUS精确固定`5495e64c0be08c9db58e336705db90584f8ba8b5`，PAYLOAD精确固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；不能以候选、preview或任意SHA替代。主任务fetch核定真实merge父为08aac/654fa、tree `1aff5360808c835a6096af751e942b6692497bfa`，与候选654fa及preview2e069相同。合并前草稿候选仅保留为历史检查点。
+
+v4承接已合并启动保全修复产品，只改变固定部署身份，不改变原version4 journal、锁、BirthFence、冻结恢复、controller/evidence字节、严格全账号索引保全或依赖/CI。profile v4与journal version4是两个概念，旧v1/v2/v3固定身份、产品范围和恢复语义全部保留。最终仍要求固定payload祖先、完整差异路径并集/blob/模式与干净源码/发布仓库身份，不接受任意SHA或额外产品、workflow、依赖及架构HTML/PNG差异。
+
+旧v3实际切换因启动新增默认三键被严格保全门拒绝，已通过精确SHA还原及冻结的正式recover恢复5495，preserved=true，网关fenced=false。产品三CI39730343750/39730343679/39730452006均PASS；自动门实际checkout2e069，Mac实际checkout654fa6、581秒且安装artifact12405650153已核验。产品Doctor/3081/8088、固定DSH与静态资源通过，CJPY0.5.2未配置时如实不可调用；这些不认证v4操作员最终pin后的本机测试、独立评审、候选CI/安装或实际部署。root完成v4最终资格后才按原授权/持锁空闲/全账号冻结/健康及认证页面合同执行。
+
+最终`recover`须从已验证journal的封闭mode选择v4固定旧版5495；不得更改旧v1/v2/v3分派或恢复包。当前没有新部署节点、HTTP、持久格式或产品数据流，因此不重画图或重新生成HTML/PNG。阶段证据见`.ai/reports/test_report_wind_workspace_v4_deploy_20261022.md`；实际apply只接受最终工具候选完整资格及原空闲/保全门，不以产品通过替代。
+
+### Wind工作区 v3（2026-10-22）
+
+Wind工作区产品PR177已合并后，以新的封闭profile `reviewed-asset-observation-v3` 单独交付部署工具，入口为 `model_provider_upgrade apply-assets-v3`。旧主实例和网关精确固定为 `5495e64c0be08c9db58e336705db90584f8ba8b5`，产品精确固定为 `a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1`；不得用任意前版、目标SHA或祖先替代该产品身份。最终工具候选仍须最新合并基线、独立评审及原三项CI合格；产品原验收不替代本profile工具的候选验收。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v3 \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+产品范围以固定payload为真源，逐项比较产品/工具目标的完整差异路径并集、Git blob及模式；除本操作员、测试和文档外，不接受新的产品、依赖、workflow、图表HTML/PNG或其他生成物。保持原证据读取器和不可变控制器字节，不扩大任意部署能力或自动兼容白名单。干净checkout、实际模块/`--source`一致、生产venv、源码common directory及两发布角色仓库身份仍按原合同核验。
+
+本轮用户已明确授权常驻部署；只有主任务完成v3最终验收后，才由root持原锁复核研究、日程、私有池、观察、DataHub、历史任务及真实CJPY Future全部明确空闲，冻结主实例和全部账号业务索引，再执行原v4事务及内容寻址恢复。queued/running/cancelling/draining、未知状态或无法证明的witness继续阻止切换；不以HTTP取消代替真实Future结束。该文档任务不执行apply、厂商查询或秘密操作。
+
+`recover` 必须按已验证journal的封闭mode恢复v3固定旧版5495；旧v2仅回9bc12355、旧v1仅回c68814db，模型profile与历史恢复包保持原字节/语义。v3不新增journal版本、部署节点、数据库迁移、HTTP API或产品数据流，现有图与API Atlas无需重画。实际部署前常驻仍为5495；切换后须另核真实主实例/网关版本、全部账号数据保全和认证浏览器页面，不以产品CI或工具预览代替成功回执。
+
+### 既有资产观察 v2 与 v1 合同
+
+新版资产页使用独立的封闭 profile `reviewed-asset-observation-v2`，入口为 `model_provider_upgrade apply-assets-v2`：旧主实例与网关必须同为 `9bc12355c3b80e4e4459f4c250e13fc2634ed23d`，产品精确绑定已合并 PR175 的 `93d62be64084a5c92541a4a008216c0b3f56c2f1`。该产品包含完整指标区、交易／估值摘要、默认折叠的来源表及透明主题图表。最终工具目标仍须为最新已合并、独立评审且原三项 CI 合格的源码版本；产品祖先、完整差异路径并集、Git blob 和文件模式逐项核验，回退后从差异中消失或被删除的产品路径也不能漏检。除操作员自身、文档和测试外，额外产品、依赖或工作流变化继续拒绝。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v2 \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+从最终工具目标的干净 checkout 执行，`--source` 与实际模块目录必须一致并共享已登记的源码 Git common directory；有未跟踪文件也不符合干净条件。开发主工作区有其他任务文件时，创建受管的干净目标 worktree，不能移动业务文件、修改忽略规则或跳过身份校验。解释器使用原生产 venv；部署前确认两个发布角色仓库已有目标对象，不复制源码目录或凭据。
+
+v2 继续使用原 v4 journal、不可变控制器、锁、BirthFence、优雅排空及内容寻址恢复包。资产／DataHub 终态和全业务索引保全同时适用于 v1、v2；活动或未知任务延后切换。`recover` 根据已验证 journal 的封闭 mode 选择对应固定旧版：v2 只回到 `9bc12355`，v1 只回到下述 `c68814db`。原 `apply-assets` 和模型专项 `apply` 的固定身份、历史恢复包及自动兼容清单均保留。离线检查、CI、实际运行版本和数据保全各自留证，不以预览代替部署验收。
+
+资产专项另固定证据读取器 `evidence.py` 的完整 SHA256，仅允许已审 CI 日志下载30→120秒的有界时限修正；其余命令仍为30秒，日志8MB上限、实际checkout/树、最新三CI和独立评审条件不变。证据文件内容、模式、删除或回退不匹配继续拒绝。该读取器进入原内容寻址恢复包，不修改不可变 controller.pyz 或现场白名单。
+
+资产专项还对主实例及全部私有用户业务 index 的每个顶层值冻结 canonical SHA256，区分字段缺失与空值；journal 不含正文或秘密。前进、回滚、最终完成及 preparing 恢复均核对，变化时保留冻结与恢复记录，不覆盖数据或宣称保全。已结束的 partial 观察和区块可进入空闲，任何 loading 或未知查询状态继续拒绝。
+
+业务索引采用独立的最大64MiB有界读取，校验规范路径、无链接、普通文件与JSON对象；不沿用只适合部署元数据的1MB限制，也不放宽原元数据合同。超过业务上限、损坏或未知路径继续拒绝。
+
+`model_provider_upgrade apply-assets` 仅接受当前 `c68814db170900688d6a799a241efc098eb83f32` 主实例和网关，产品固定为已审 PR171 的 `54d4c8f9421c568de853a2f93263a2bfcd53422c`。工具目标仍须是最新已合并并通过原三项 CI 的精确源码版本；除本操作员及文档/测试外，全部实际差异与固定产品 Git blob、模式一致，固定产品改变过的路径即使从目标差异中消失也逐一核验。未知 UI/后端、依赖、工作流或模式变化拒绝。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets \
+  --home /absolute/private-home --source /absolute/qualified-checkout
+```
+
+仍使用同一 v4 事务、不可变控制器和内容寻址恢复包，不改自动兼容清单、数据根、凭据或 Tailscale 路由。除原 Native、Host、日程与私有池空闲条件，资产观察和 DataHub 查询也须是明确的终态；任何加载或未知状态均延后。回滚及 `recover` 从封闭 profile 决定旧版 c688，不能回退到模型专项的旧版 5df。恢复前复验固定版本身份及原全部保护，不覆盖用户数据。旧 `apply` 的模型专项合同保持原样。
+
+## 模型服务商联合升级
+
+源码权威 `source_common` 与发布角色仓库身份分开：主实例可为独立 clone，网关可为开发仓库的 worktree。
+两角色分别记录并恢复校验原 Git common directory/inode 和精确 GitHub origin，源码冻结目录由受审 source 创建。
+停机前确认两角色拥有目标 commit；目录、origin 或 inode 变化仍拒绝，不能通过搬迁发布目录或改配置绕过。
+
+工作流完整 blob 只额外允许原定点测试注册与已审 Checks 时限20→30分钟，保留全部测试、runner和检查门；其他工作流差异仍拒绝。已有注册不重复插入，未核对通过的超时或取消不能充作成功证明。
+配套有界 workflow 约束 JSON 也只允许同一时限文本20→30；其余必需规则完整保留并逐字节比较，不允许取消约束或任意扩大时限。
+
+五个导航文件始终进入身份检查，即使回退至旧版本而从 `PREVIOUS..target` 差异中消失也不能跳过；单文件或全部回退均拒绝。
+
+导航交付沿同一显式事务：仅 `app/research_web/ui/` 下的 `app.mjs`、`core.mjs`、`intel.mjs`、`shell.mjs`、`workbench.mjs` 改为绑定 PR168 已合并产品 `4e8be6ac7405733755e4a00be10898504e71710a` 的精确 Git blob 与模式；目标必须包含该祖先。其余产品路径仍逐字节绑定 `0d73c034`，工作流及配套约束仅接受上文的定点注册与有界时限变更。任意额外 UI、后端、依赖或文件模式变化拒绝；这不授权任意静态目录更新，不改变自动兼容清单或 v4 恢复合同。源码资格、空闲切换、会话/文件/模型保全和实际浏览器效果分别取证。
+
+显式入口 `research_workbench_entrypoint.resident.model_provider_upgrade apply` 针对原主实例与网关
+`5df8e17e04f1b588f7e742423d81fb8e0ba34cb2`，只允许已审模型服务商产品
+`eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0`、已合并登录外观 PR166
+与已独立审查的 PR168 导航界面；模型核心固定基线为 `0d73c0348094f11c3440d8f6893c7a6896a8dbc8`，
+五份导航文件固定为 `4e8be6ac7405733755e4a00be10898504e71710a`，另含该操作员及测试/文档变化。
+自动兼容清单、固定 DSH、依赖及原 controller.pyz 不修改；目标必须是最新已合并且三项 CI 合格的精确 SHA。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply \
+  --home /absolute/private-home --source /absolute/qualified-checkout
+```
+
+从合格源码目录执行，解释器须为生产 venv。在发信号前安装独立内容寻址恢复包和 LaunchAgent，
+冻结原 wheel、配置与完整保全摘要。服务商/模型与凭据是否已配置只取元数据，不记录 Key 或问题正文、不调用模型。
+
+持 supervisor/admission/operator 锁；Native、Host、自动化及全部用户池中任何活动/未知均等待。
+先写 version 4 全请求冻结意图，再取得 BirthFence；部分 stage/owner/releasing 中断由原身份恢复处理。
+确认原私网根返回 503 后才写旧控制器可读的主实例 journal，随后优雅排空网关及停止主实例。
+原控制器模块真实摘要绑定 Git `02c086b168e62723887c7a778f716f6146595b6d`，恢复期间其私网根健康不可能通过，
+因此不会提前撤门；旧控制器可先恢复原主实例，新恢复任务须重新核对空闲并协调两端。
+不改 Tailscale 路由，原 `/collections` 保留，不强杀、不停运行研究。
+
+两端源码/wheel、网关绑定及实际 revision 一致，健康、保全和模型元数据全部通过才记录 accepted/baseline 并撤门。
+切换失败自动恢复原两端；排空/活动未知保留 journal 等待。终态写入、unlink 或 fsync 异常返回
+`completion_unknown`，当前调用不再停机回滚；独立恢复重新验证身份并取得全部保护后处理，栅栏已撤则不执行恢复。
+恢复只还原部署配置，不覆盖账号库、会话、模型凭据与业务文件。
+
+日志：`logs/model-upgrade.log`；私有回执：`server/run/model-upgrade-result.json`。
+离线故障注入和 CI 不替代实际部署后检查；活动或状态未知期间不得宣称部署完成。
+
+恢复LaunchAgent仅在自身EnvironmentVariables声明系统/Homebrew PATH；安装恢复包前用同一路径运行既有Git LFS版本检查。缺少工具在栅栏、journal和信号之前失败，不安装包、不禁用Git钩子、不修改全局PATH。SIGTERM优雅等待延至90秒；超时仍保留recovery_required，不强杀。旧恢复包和任务保持原样，新版本使用独立内容身份。
+
+## 保留主实例版本的静态网关更新
+
+主实例无需更新研究进程时，显式使用 `apply-ui --preserve-primary`，`--primary` 固定实际主实例 SHA，
+`--target` 固定已合并、资格通过的新网关 SHA，`--expected-gateway` 固定旧网关 SHA。
+这与默认 `apply-ui` 的 primary=target 合同分开；不扩大自动兼容白名单，不安装或切换主实例。
+
+注意：主账号的 `/` 和 `/static/*` 仍取自主实例的 UI 目录，因此此模式不能单独交付主账号的侧栏等完整壳更新。
+需要完整更新主账号界面时，应先使用下节 `stage-primary-ui`，由原 resident 完成受控切换，再更新网关；
+不能把网关 revision 更新或旧菜单适配当作主账号已加载新侧栏的证明。
+
+version 3 / `static-gateway` 事务同时检查 primary→target、旧网关→target、target→tool 的祖先和完整 blob。
+前两段仅允许 UI、文档、测试、报告和确切的升级器模块；升级器 blob 必须等于经过资格认证并冻结的工具 blob。
+最后一段只允许升级器模块、文档、测试和报告。后端、依赖、控制器或任何未知路径变化均拒绝。
+升级器是显式操作员模块，业务运行时不导入它；上述合同保证运行时后端保持一致。
+
+恢复包支持独立的 version 3 身份、三段离线 blob 验证和原主实例 SHA；v1/v2 helper 不接管 v3 journal。
+原锁、空闲/私有池检查、恢复包先安装、优雅排空、保全和回滚均继续执行。工具与目标资格均独立核对。
+旧主实例的已有菜单由网关适配身份链接，复用原交互控制器，避免重复菜单或重复退出监听。
+
+## 显式准备主实例 UI 候选
+
+当已合并的 UI 更新同时包含本升级器自身时，自动 resident 仍拒绝该路径。先从精确目标的干净工具 checkout、使用原主实例解释器执行：
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.gateway_upgrade stage-primary-ui \
+  --home /absolute/private-home --source /absolute/reviewed-target-checkout \
+  --primary EXACT_CURRENT_PRIMARY_SHA --target EXACT_VERIFIED_MASTER_SHA
+```
+
+此命令只准备新旧 wheel 和私有 candidate，不停服务、不更改自动白名单、baseline 或 controller.pyz。
+它核对同一 Git common directory、工具实际路径、解释器、原 manifest 与源码、隔离候选、最新主线及原三项 CI；
+拒绝 primary/gateway 恢复 journal、其他任务尚未接受的候选和准备期间的候选替换。
+只允许 UI、文档、测试、报告及本升级器一个精确 Git blob；已有已接受的旧候选可退休，同一审查身份可重复校验。
+
+随后执行原 `rwb resident tick`（或等待已安装监督器）：原不可变控制器仍持准入/lifecycle锁、检查原生/Host/排队自动化空闲，
+写 journal 后才切换，失败仍恢复旧 wheel 与源码。必须确认 accepted、实际进程 revision 和会话/模型保全后，才能继续下述网关 `apply-ui`。
+主实例已到目标时跳过准备；活动或未知保持 deferred，不强停。现场不可变控制器须先独立核对支持复用同一 previous/target candidate。
+
+## 已验收界面的显式更新
+
+当主实例已自动更新而网关仍使用旧界面时，用`apply-ui`更新网关。工具版本与产品版本分开认证：
+工具checkout须为最新已合并、独立评审及三CI通过的提交；`target`须等于当前primary且独立通过原资格核对。
+旧网关到产品只允许UI、文档、测试与报告；产品到工具只允许升级器自身及文档、测试、报告。
+两段差异均核祖先和完整路径/blob，禁止用rename隐藏后端删除；依赖、未知后端及控制器变化拒绝。
+
+产品段也可包含本升级器自身，但其完整 Git blob 必须与冻结工具版本中的同一路径完全相同；
+不接受缺失/删除或与恢复工具不一致的 helper。该判断随 version 2 恢复包冻结，离线恢复再次执行同一校验，
+不会把一段临时内存放行逻辑冒充持久恢复合同。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.gateway_upgrade apply-ui \
+  --home /absolute/private-home --source /absolute/reviewed-tool-checkout \
+  --expected-gateway EXACT_OLD_GATEWAY_SHA --primary EXACT_CURRENT_PRIMARY_SHA \
+  --target EXACT_CURRENT_PRIMARY_SHA
+```
+
+命令须从已审工具checkout运行；业务网关只切换到产品target，工具源码不写入主实例或业务checkout。
+自动兼容白名单、既有控制器与version 1/固定旧primary恢复合同保持。新模式使用version 2 journal，
+记录两份资格证明、逐路径blob及工具身份；旧helper在任何进程/源码/配置/slot操作前拒绝version 2。
+
+新版恢复pyz从工具Git对象构建，使用内容寻址路径与独立LaunchAgent，不覆盖旧artifact/job。
+恢复核对自身身份、manifest/Git blob、目录和共同Git身份、两段离线差异及实际primary；不要求在线GitHub，
+也不依赖工具checkout继续存在。当前master、其产品/网关祖先及不可变恢复包在事务结束前必须保留。
+恢复成功后仍只回退网关源码和匹配绑定，不回写会话、附件或模型设置。
+
+全部原supervisor/admission锁、出生栅栏、SIGTERM身份/排空、完整保全及journal先落盘的门继续执行。
+发信号前活动/未知返回`deferred`；发信号后尚未退休或恢复未完成返回`recovery_required`并保留journal，
+不能当作部署成功，也不得升级到强杀。
+
+## 既有管理平面专项
+
+这是显式操作员入口，不扩大 resident 自动兼容清单，也不修改原 controller.pyz、安装基线、主实例 wheel 或研究引擎。当前受审产品基线固定为 `6c4ac79bcf03fb36ffbe9c1c40a647b8e8a34556`；目标相对此基线只接受列出的管理平面源码及文档、测试。其他产品变化必须重新专项审查。
+
+```bash
+python -m research_workbench_entrypoint.resident.gateway_upgrade apply \
+  --home /absolute/private-home --source /absolute/reviewed-checkout \
+  --primary 6c4ac79bcf03fb36ffbe9c1c40a647b8e8a34556 --target EXACT_MERGED_SHA
+python -m research_workbench_entrypoint.resident.gateway_upgrade status --home /absolute/private-home
+```
+
+`apply` 校验同一 Git common directory、干净源码、最新 merged master、受管独立评审和三项实际树匹配的 CI。主实例 supervisor/admission 独占锁覆盖整个操作；Native、Host、自动化任一活动或未知都延后。任何私有 owner、auth/key、未知控制记录、相关子进程或孤儿进程也延后，不强停研究。
+
+首次升级持 SQLite `BEGIN EXCLUSIVE`（仅查询、最终 rollback），覆盖全部账号且拒绝 WAL/hot journal；对每个空 owner 槽位先登记暂存目录 inode，再用 macOS `renamex_np(RENAME_EXCL)` 原子占槽。已有原生 owner 永不覆盖。出生栅栏不能代替 HTTP 排空。
+
+普通 SIGTERM 等待 uvicorn 完成已接纳请求和线程；超时保留 journal，不升级为 SIGKILL。重复信号只允许经过版本、handler 源码摘要及默认无强制超时合同核验的 uvicorn 0.53.0；未知版本拒绝。旧 PID 完全退出后才移除 launchd job；KeepAlive 替代进程不能穿过仍持有的 SQLite 锁。
+
+目标网关在 `server/run/gateway-upgrade.json` 存在时拦截全部业务 GET、登录及控制请求，只开放廉价健康端点。排空后才释放旧出生栅栏，再启动冻结目标。目标健康、当前 primary 绑定和会话/模型配置/账号库保全全部通过后才移除 journal。
+
+SIGTERM后只以PID消失确认退休；zombie或签名变化继续等待且不追加信号，超时延后。完整保全journal专属上限16 MB，发首个信号前核对实际JSON UTF-8字节并预留4096字节phase余量；专属reader以同一私有fd核对身份、长度、时间及当前路径，拒绝替换、短读或超限。配置通用reader仍为1 MB。
+
+失败恢复旧网关源码和与当前主实例匹配的绑定；原失配配置另留审计，不能当作健康回滚。恢复先写 rolling_back 再切源码与配置；preparing 阶段崩溃只撤销本事务空槽，不发信号。恢复不覆盖业务文件或凭据。独立不可变 recovery.pyz 和 LaunchAgent 在停机前安装，崩溃后按同一 journal 恢复；活动、身份不符或状态不明仍延后。
+
+证据在私有 `server/run/gateway-upgrade-{original,result}.json` 和 `logs/gateway-upgrade.log`。不记录问题或回答正文，不触发模型调用。源码、模拟测试、CI和真实部署结果分别报告。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+
+## 研究档案固定部署（2026-10-23）
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+操作员必须从受审、干净、同候选三CI合格的最新已合并master执行；目标完整差异路径并集、blob及模式必须匹配上述产品，仅允许操作员自身与文档／测试变更。原证据读取器摘要固定；任意额外产品变化拒绝。先验证恢复包和所有业务状态，锁内再次核对前版与明确空闲，未知／忙碌延期，失败沿封闭profile恢复同一5343前版。不得直接运行其他profile或改写现场白名单。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-dossiers \
+  --home /absolute/private-home --source /absolute/clean-reviewed-tool-source
+```
+
+没有新服务、HTTP、依赖或第二研究引擎，现有图与API Atlas拓扑保持。实际验收需登录私网页面，验证五区、冻结交接与第二会话、原业务索引及全部账号保全；只用离线NativeFixture的证明不能提升为真实模型质量。收费MCP、秘密录入与生产持续跟踪不由本入口授权。
+
+
+恢复依赖保全：新恢复包manifest绑定永久`resident/artifacts/<target>/source`，与journal的target/source/pyz摘要一致后，且源路径无别名、属主正确、Git checkout干净，才在父恢复进程导入app之前加入sys.path。不得设置PYTHONPATH传给旧服务；旧wheel不含档案模块时仍用冻结源进行档案索引核对。新DOSSIERS/DISCOVERY/ETF-v2包缺source拒绝，历史旧模式manifest和旧pyz字节保持原兼容。保留该冻结源直到恢复结束；缺失或篡改保持围栏并记录错误码，不跳过档案保全。
+
+## 今日发现组合固定部署（2026-10-23）
+
+用户已明确授权组合部署今日发现、ETF配置和持续研究仓；封闭`apply-discovery` / `reviewed-discovery-v1`的PREVIOUS为`5343e18d9f203a87f2d958218e4288afa527711f`，PAYLOAD为`1780064b712afb61ff18f2f1811650fc31fd3038`。复用原version4事务、BirthFence、全账号业务索引/档案/模型保全与恢复；旧profile及controller/evidence身份不变，无新依赖、迁移或外盘操作。
+
+新mode在任何后端HTTP/启动前重复只读检查primary和全部私有账号的automation/discovery元数据及report-workflows/catalog.json；任何启用任务/日程、活动或未知执行、损坏结构、别名路径均延后。缺失目录/目录中的catalog按原运行时无计划语义处理，绝不请求账号后端来证明空闲。该门也适用于恢复，不修改原同意、计划或数据。不存在模型调用或启用生产跟踪授权；现场切换、认证真实页面及全账号保全另留证。
+
+
+## 全市场预览修复组合固定部署（2026-10-24）
+
+用户已明确授权将PR223/224组合产品 `e56d9718e12c2252128a6690ca202c7ae21f341e`（含组合表单幂等修复、DataHub财务现金流及PR224代理/PIT修复）纳入保全部署。新封闭 `apply-market-preview` / `reviewed-market-preview-v1` 的PREVIOUS为 `36fd990ceed88d2fc595443926105c4b2601fbf6`，严格reader193f4fcc与web.lock7c631d4f固定。旧profile、controller/evidence模块及权限不修改。
+
+复用原version4事务、主实例/网关维护锁、BirthFence、全部账号会话/模型/业务索引与档案保全、已核验wheel和恢复artifact。新mode纳入全部账号automation/discovery/工作流及市场inflight空闲门；活动或无法确认时延后，不终止未知工作。代码不启用数据库、迁移、日程或厂商/模型调用。
+
+最终operator候选与产品源码分开绑定：完成原三CI及同候选macOS干净安装、独立评审和准入后才执行；本机矩阵或临时前端覆盖不表示常驻已升级。部署前后保存当前用户根的独立摘要，原始数据、会话及模型配置保留，实页另验无候选覆盖的CSV输入失焦与保存前预览。
+
+## 全市场广度与参考证据组合固定部署（2026-10-26）
+
+用户批准PR233/235组合后明确纳入PR237，又批准本轮统一纳入通过必需检查与独评的主线业务；依赖、迁移、权限和付费仍单独确认。当前另纳入PR236的NYFed SOFRAI证据合同。新封闭`apply-market-breadth` / `reviewed-market-breadth-v1`固定PREVIOUS=`b800e50366d1a0868372bbf173822976066c143f`，PAYLOAD=`4c72ed4349c087cf0b7d037d7133b84201a76d5f`；后者包含宏观/财务参考绑定、跌平涨有效报价分母、Wind只读诊断及NYFed SOFRAI证据合同。reader193f4fcc与web.lock7c631d4f沿旧ASSET_V9，旧profile及controller/evidence源码不变。
+
+复用原version4三锁、BirthFence、Native/Host/全部账号后台/工作流/行情/DataHub/资产空闲、全账号会话/业务索引/档案/模型保全及原前版回滚。最终执行版本为产品祖先加受审操作员的最新已合并master，完整并集/blob/mode必须匹配；本轮新主线业务仍须列差异、核原CI/独评后重新冻结和验证，敏感范围另行确认，不开放任意目标参数。最终候选须完整Router、独评、原三CI及同候选Mac安装，不复用产品旧绿替代操作员资格。
+
+现场只读已观察旧b800健康但active=null，日志存在Wind清理未确认。PR237没有恢复执行器，且旧Host缺见证仍拒绝；本mode不加入weekly bridge、不清标记、不推导所有Future结束，不使用私有停止构件绕过普通准入。实际切换必须等全部原门可证通过；否则保持BLOCKED/延期且不停机。
+
+切换后保全对账、双入口健康/版本/围栏及真实认证页面分别验收。页面核对跌平涨主条/有效报价分母、辅助状态、明暗390px、同批板块与CSV仅预览；不保存测试持仓。PR233来源/单位/原件/冻结读回及PIT、估值历史、券商接口缺口继续区分，部署不认证这些未验证能力。历史Git缺树材料保留，不删历史求绿。
+
+## WeKnora 仅服务切换前置
+
+新网关先获取原 supervisor 与 lifecycle 锁，并确认原 Native 和 Docker 写入者都已停止。
+主 Web 子进程继承同一 POSIX 文件锁。即使网关进程先退出，旧写入者也必须等待主 Web 退出。
+生产前需确认已安装的前版管理器采用同一锁协议，并在隔离环境验证停新启旧顺序。
+HTTPS OAuth 采用独立回调主机或本机回环。切换前冻结网关配置、LaunchAgent、固定源码和保全证据。
+健康、账号资料或回调验证失败时，确认新写入者已经停止，再恢复固定前版。既有封闭 profile 继续按其候选契约选择。

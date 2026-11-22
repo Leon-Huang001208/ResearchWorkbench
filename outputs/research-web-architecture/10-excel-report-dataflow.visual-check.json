@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/10-excel-report-dataflow.html",
-    "sha256": "3ec5148d6b85b6bb849449d4a94f7aab36a2d8bf48db57d99f5f9b628be13d61",
-    "bytes": 646478
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/outputs/research-web-architecture/10-excel-report-dataflow.html",
+    "sha256": "4ca63922a784142c13fea6a295c51c8edc0895e9f5df9bb225fbad37a0c1bcc7",
+    "bytes": 646628
   },
   "state": {
     "detail": "read",

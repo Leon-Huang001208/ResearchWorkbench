@@ -1,0 +1,730 @@
+{
+  "schema": 1,
+  "status": "proposed_reference",
+  "gold_approved": false,
+  "method": "Source-read proposals indexed by exact frozen UTF-8 span and digest; no external inference transport; quote text stored once in annotations.",
+  "unrelated_definition": "Pinned AIHOT group-definitions UNRELATED: different concrete products/releases/events; shared company, topic, architecture or chronology alone does not establish SAME_STORY.",
+  "articles": {
+    "article-zh-001": {
+      "entity": "Qwen3Guard",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        159,
+        208
+      ],
+      "claim_sha256": "284ea47e224244c96881484846b09d38fa4e134fa45645b9291d623fe3d0b0f4"
+    },
+    "article-zh-002": {
+      "entity": "Qwen-Image-Edit",
+      "event_group": "image_edit",
+      "split": "holdout",
+      "claim_byte_span": [
+        123,
+        189
+      ],
+      "claim_sha256": "24e2ff0c174642996b9326ceafa323d782dc939deacdfe4bd238e063cfa68a3a"
+    },
+    "article-zh-003": {
+      "entity": "Qwen-Image",
+      "event_group": "image_edit",
+      "split": "holdout",
+      "claim_byte_span": [
+        44,
+        102
+      ],
+      "claim_sha256": "caa29c321823a67467c6a5da394979edf5d2b253fd0ff67040d151a67c66d43d"
+    },
+    "article-zh-004": {
+      "entity": "GSPO",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        490,
+        554
+      ],
+      "claim_sha256": "e7fa0e48d7c46ccd0e31043b77d23a551663af9a78590a1dbda46ddda657fa17"
+    },
+    "article-zh-005": {
+      "entity": "Qwen-MT",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        108,
+        148
+      ],
+      "claim_sha256": "df1e60827d3a9c7971712fd3835ee6117ce1f110757f9cae78949080a6cd7208"
+    },
+    "article-zh-006": {
+      "entity": "Qwen3-Coder",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        39,
+        75
+      ],
+      "claim_sha256": "67e213c2d394396621ca5262997163eb0def146d3c2b778c21e85ad4ef83422e"
+    },
+    "article-zh-007": {
+      "entity": "Qwen-TTS",
+      "event_group": "article-zh-007",
+      "split": "tuning",
+      "claim_byte_span": [
+        354,
+        435
+      ],
+      "claim_sha256": "b3b0b6c9be65799264c8fd6ad6ab2aeec0e7e1b6e2c743a0d7169da1ecf55b7b"
+    },
+    "article-zh-008": {
+      "entity": "Qwen VLo",
+      "event_group": "article-zh-008",
+      "split": "tuning",
+      "claim_byte_span": [
+        233,
+        269
+      ],
+      "claim_sha256": "dc1029563670b85e41cee42323b7f3ecafec0abd37e674527c038e3d6e5ed5bb"
+    },
+    "article-zh-009": {
+      "entity": "Qwen3 Embedding",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        186,
+        223
+      ],
+      "claim_sha256": "9d30df0644c9d38345376d86c6ea8499eb7f8e12a1782c06aa15248e029003fb"
+    },
+    "article-zh-010": {
+      "entity": "Qwen3",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        70,
+        103
+      ],
+      "claim_sha256": "063131745aa5612b16e61d4adda318e3fc91dfaa1ddfa593c348899c64a72455"
+    },
+    "article-001": {
+      "entity": "Google Research",
+      "event_group": "google_research_at",
+      "split": "tuning",
+      "claim_byte_span": [
+        216,
+        281
+      ],
+      "claim_sha256": "88751c207504e5c2d575c084dcf83a497e50a757cf3b080c482ddd9c2a78ce84"
+    },
+    "article-002": {
+      "entity": "Indic",
+      "event_group": "article-002",
+      "split": "tuning",
+      "claim_byte_span": [
+        17,
+        100
+      ],
+      "claim_sha256": "ac3ba420fb600a130f32798e7f469a1645ff33d591360d583db8ddda2b3ede9d"
+    },
+    "article-003": {
+      "entity": "NVIDIA RTX Spark",
+      "event_group": "rtx_spark",
+      "split": "tuning",
+      "claim_byte_span": [
+        0,
+        83
+      ],
+      "claim_sha256": "c925a30247aa0dc92754120d3e4e356c6fefac80a2060301d923780d44395eae"
+    },
+    "article-004": {
+      "entity": "Amazon Bedrock AgentCore",
+      "event_group": "article-004",
+      "split": "tuning",
+      "claim_byte_span": [
+        24,
+        122
+      ],
+      "claim_sha256": "6e1bf37c31de2b19b2cff75b23ee4bc1d2d380e5f970b74887aa0b12d7c0ea62"
+    },
+    "article-005": {
+      "entity": "GitHub",
+      "event_group": "secret_classifier",
+      "split": "holdout",
+      "claim_byte_span": [
+        721,
+        793
+      ],
+      "claim_sha256": "14335ce44616168873da7b291ddf73a917047e89a09c884e4f02ab1ee4aad0ac",
+      "additional_claim_spans": [
+        {
+          "claim_byte_span": [
+            924,
+            982
+          ],
+          "claim_sha256": "b780c95983af36d063aeb082b9d7e7650b9e0031ff12c7c04fb7ab51b42ab2e2"
+        }
+      ]
+    },
+    "article-006": {
+      "entity": "Timestral",
+      "event_group": "article-006",
+      "split": "tuning",
+      "claim_byte_span": [
+        735,
+        821
+      ],
+      "claim_sha256": "d804ce6809a52c8fc35954327772f0326b94dfb209bb17d696337f2a417ded59"
+    },
+    "article-007": {
+      "entity": "RTX Spark",
+      "event_group": "rtx_spark",
+      "split": "tuning",
+      "claim_byte_span": [
+        1462,
+        1512
+      ],
+      "claim_sha256": "31f82b4f15743200547aee7447a82c6a522bda8e8df2617290b2571b52c5419d"
+    },
+    "article-008": {
+      "entity": "Replit",
+      "event_group": "article-008",
+      "split": "tuning",
+      "claim_byte_span": [
+        94,
+        129
+      ],
+      "claim_sha256": "8f676746b2801ed2a1b4f4792d46685e5df408bc33980de7d75b6c42efa0f61b"
+    },
+    "article-009": {
+      "entity": "OpenAI",
+      "event_group": "article-009",
+      "split": "tuning",
+      "claim_byte_span": [
+        255,
+        302
+      ],
+      "claim_sha256": "9ef327f66ba77f328119171786d95526eb4ffcb26294e979e2ce5dbd5d32bb28"
+    },
+    "article-010": {
+      "entity": "Samuel King",
+      "event_group": "article-010",
+      "split": "holdout",
+      "claim_byte_span": [
+        216,
+        272
+      ],
+      "claim_sha256": "47df5610c6f2b8918f9df53e3710205aff0169c7e467045e336ee458b7399b93"
+    },
+    "article-011": {
+      "entity": "Addy Osmani",
+      "event_group": "article-011",
+      "split": "tuning",
+      "claim_byte_span": [
+        271,
+        330
+      ],
+      "claim_sha256": "25704bc3d998bc490b537f2de67fc6773cb42eccb788f8ce22bdbd356710669c"
+    },
+    "article-012": {
+      "entity": "Scale AI",
+      "event_group": "article-012",
+      "split": "tuning",
+      "claim_byte_span": [
+        486,
+        567
+      ],
+      "claim_sha256": "8814758e374adcd5532692f1e9342688457bc40b549341e92f092a11e62e0b32"
+    },
+    "article-013": {
+      "entity": "Muse Spark Open",
+      "event_group": "muse_spark",
+      "split": "tuning",
+      "claim_byte_span": [
+        197,
+        244
+      ],
+      "claim_sha256": "5fa076389b7aff4e13ca8993b272732a659cb4b77aaad7a96d16a618e19ba90d"
+    },
+    "article-014": {
+      "entity": "Earth AI",
+      "event_group": "google_research_at",
+      "split": "tuning",
+      "claim_byte_span": [
+        490,
+        559
+      ],
+      "claim_sha256": "983a229a115074c7b3bf44ccb85298a6898c16f41f3241e6b1e8d377e63206f2"
+    },
+    "article-015": {
+      "entity": "Beam",
+      "event_group": "beam",
+      "split": "holdout",
+      "claim_byte_span": [
+        224,
+        266
+      ],
+      "claim_sha256": "0fb80ff70cd72b8f6536ba5ef72dc74f7a19241f930901980536203a305fc62a"
+    },
+    "article-016": {
+      "entity": "Nemotron",
+      "event_group": "article-016",
+      "split": "tuning",
+      "claim_byte_span": [
+        0,
+        43
+      ],
+      "claim_sha256": "62256afd20c444d31af6a2bc2abcedb4a404cf4530962a2f804ddeadbfc34b55"
+    },
+    "article-017": {
+      "entity": "Reflection AI",
+      "event_group": "beam",
+      "split": "holdout",
+      "claim_byte_span": [
+        100,
+        129
+      ],
+      "claim_sha256": "b3c871a03fe97703aa61c615f01e89e787f23cb685ce125fa7b065e42f804763"
+    },
+    "article-018": {
+      "entity": "Copilot",
+      "event_group": "article-018",
+      "split": "tuning",
+      "claim_byte_span": [
+        281,
+        331
+      ],
+      "claim_sha256": "716ad848fdcaec1af4b0201a304d46c8d1fe4895329cc5f72751c85411ca022f"
+    },
+    "article-019": {
+      "entity": "Mistral Large 4",
+      "event_group": "article-019",
+      "split": "tuning",
+      "claim_byte_span": [
+        144,
+        204
+      ],
+      "claim_sha256": "8c054684c659dfaf79008fbd95a646f5ecb9cf906f3acd710c8f38b9ac50737b"
+    },
+    "article-020": {
+      "entity": "Meta",
+      "event_group": "meta_terms",
+      "split": "holdout",
+      "claim_byte_span": [
+        1088,
+        1164
+      ],
+      "claim_sha256": "6d1ae9c08bbe75639c11a8e12906b9563aca175b25e681082907f62fab60f77f"
+    },
+    "article-021": {
+      "entity": "CERT-In",
+      "event_group": "article-021",
+      "split": "tuning",
+      "claim_byte_span": [
+        0,
+        106
+      ],
+      "claim_sha256": "571ad88dc34c0482f2ccd9a5b16741b9ef15cde78639549f7596c8d24813236e"
+    },
+    "article-022": {
+      "entity": "Brian Richard Fitzgerald",
+      "event_group": "article-022",
+      "split": "tuning",
+      "claim_byte_span": [
+        149,
+        227
+      ],
+      "claim_sha256": "f3f3d22c2693589907f272824f164fc84e1d1a1fd3e95644ac05122cbbda07b7"
+    },
+    "article-023": {
+      "entity": "Anthropic",
+      "event_group": "article-023",
+      "split": "tuning",
+      "claim_byte_span": [
+        211,
+        300
+      ],
+      "claim_sha256": "b430d5c998bc7cf86bdfde434853097bac70a3759d5599fd4a0ddee0a57f1138"
+    },
+    "article-025": {
+      "entity": "Toby Ord",
+      "event_group": "article-025",
+      "split": "tuning",
+      "claim_byte_span": [
+        430,
+        493
+      ],
+      "claim_sha256": "385b752fa2cfb2bc3a8559882ef6ded4d4e02003f8f2b1d1c0654f580ee13a10"
+    },
+    "article-026": {
+      "entity": "Modal",
+      "event_group": "article-026",
+      "split": "tuning",
+      "claim_byte_span": [
+        1086,
+        1158
+      ],
+      "claim_sha256": "e23a859df14315c9973ee392ea3264c2b0896eeae1ace806fad297c0b3f686c6"
+    },
+    "article-027": {
+      "entity": "Deep Review",
+      "event_group": "google_research_at",
+      "split": "tuning",
+      "claim_byte_span": [
+        235,
+        268
+      ],
+      "claim_sha256": "1d38dae3b99db2d2ec68942adcd0949afba083c4e3695ee1ebe3a1be4cb699fa"
+    },
+    "article-028": {
+      "entity": "Granite Switch 4.1",
+      "event_group": "article-028",
+      "split": "tuning",
+      "claim_byte_span": [
+        367,
+        423
+      ],
+      "claim_sha256": "11217906a61646ef01518ed49dbbe2169e25b70de563a482bdf47105b19bcf7e"
+    },
+    "article-029": {
+      "entity": "GeForce NOW",
+      "event_group": "article-029",
+      "split": "tuning",
+      "claim_byte_span": [
+        51,
+        116
+      ],
+      "claim_sha256": "6f9f338f9e0b1b29ca6f0008b8c1059a88c24fd9748c7b9c11c895e6fe9f4e99"
+    },
+    "article-030": {
+      "entity": "Muse Spark Open",
+      "event_group": "muse_spark",
+      "split": "tuning",
+      "claim_byte_span": [
+        93,
+        174
+      ],
+      "claim_sha256": "746225660a77a2d39f9d85ef4ee02f497381df59adc87faf986dd992f08751ab"
+    },
+    "article-031": {
+      "entity": "GitHub",
+      "event_group": "secret_classifier",
+      "split": "holdout",
+      "claim_byte_span": [
+        906,
+        982
+      ],
+      "claim_sha256": "dc98f4c01879f36b2b6c9ef7a8c0937e070bd450c58ebbe8ccfcdd8a34f625cb"
+    },
+    "article-032": {
+      "entity": "Mistral",
+      "event_group": "article-032",
+      "split": "tuning",
+      "claim_byte_span": [
+        128,
+        162
+      ],
+      "claim_sha256": "d643bc07c7817fff4c982c5ee2fd63d02fb2fb30750f1a3c3ba709087a523a32"
+    },
+    "article-033": {
+      "entity": "ChatGPT",
+      "event_group": "article-033",
+      "split": "tuning",
+      "claim_byte_span": [
+        345,
+        385
+      ],
+      "claim_sha256": "3954b3beebc7aaf03056eccd811078d68041e1e9d3a1d870ca6d111688cc16d9"
+    },
+    "article-034": {
+      "entity": "Amulya Vishwanath",
+      "event_group": "article-034",
+      "split": "tuning",
+      "claim_byte_span": [
+        130,
+        174
+      ],
+      "claim_sha256": "7910911c2b1ada3bc66ac5b50a98bc0b9f78ac162343e7a7df147afc725d89d3"
+    },
+    "article-035": {
+      "entity": "Meta",
+      "event_group": "meta_terms",
+      "split": "holdout",
+      "claim_byte_span": [
+        188,
+        259
+      ],
+      "claim_sha256": "48247ab047c7c8ab731f1534f9bfa2b885677d8f2eadba2f140f9bdf326b15f0"
+    },
+    "article-036": {
+      "entity": "Keelan Miskell",
+      "event_group": "article-036",
+      "split": "tuning",
+      "claim_byte_span": [
+        243,
+        290
+      ],
+      "claim_sha256": "a88c6eeed2cf932dd55dbdd8a04f42041e7c903c966a2a9d79a601fb6dd49fe7"
+    },
+    "article-037": {
+      "entity": "Anthropic",
+      "event_group": "article-037",
+      "split": "tuning",
+      "claim_byte_span": [
+        283,
+        364
+      ],
+      "claim_sha256": "b4c9646e205c9df8dda79aec29b61d22f54349a983942267bcbb073041246cc3"
+    },
+    "article-039": {
+      "entity": "OpenAI",
+      "event_group": "article-039",
+      "split": "tuning",
+      "claim_byte_span": [
+        123,
+        200
+      ],
+      "claim_sha256": "dd61d9509d88c2df5605f95d0727ac55541eb0d30648077c44310b2c4a502bc1"
+    },
+    "article-040": {
+      "entity": "Google Research",
+      "event_group": "google_research_at",
+      "split": "tuning",
+      "claim_byte_span": [
+        250,
+        315
+      ],
+      "claim_sha256": "21ed3357c892d53b8b35b4868e2c7bac774d7ae9a6aac82ff1307162d2fa4250"
+    },
+    "article-en-qwen3": {
+      "entity": "Qwen3",
+      "event_group": "qwen3_family",
+      "split": "tuning",
+      "claim_byte_span": [
+        76,
+        130
+      ],
+      "claim_sha256": "e59a9707250cafee830d502422f0ff2c5632f521c62b4ca71d7e26ed19074193"
+    },
+    "article-en-qwen-image": {
+      "entity": "Qwen-Image",
+      "event_group": "image_edit",
+      "split": "holdout",
+      "claim_byte_span": [
+        44,
+        81
+      ],
+      "claim_sha256": "a851f33899cf611a521153c91056af9c3aac5a074beb66ac60fbdfae398d9f13"
+    }
+  },
+  "relationships": [
+    {
+      "left": "article-020",
+      "right": "article-035",
+      "label": "same_event",
+      "reason": "两文均报道Meta同一次商业条款更新及关联网站抓取权限；主体、政策对象和10月30日生效时间一致。",
+      "engine_relation": "SAME_OCCURRENCE"
+    },
+    {
+      "left": "article-zh-010",
+      "right": "article-en-qwen3",
+      "label": "same_event",
+      "reason": "同一官方Qwen3发布的中文/英文原文，均宣布Qwen3并列举Qwen3-235B-A22B与Qwen3-30B-A3B，同一发布对象。",
+      "engine_relation": "SAME_OCCURRENCE"
+    },
+    {
+      "left": "article-zh-003",
+      "right": "article-en-qwen-image",
+      "label": "same_event",
+      "reason": "同一官方Qwen-Image发布的中英文原文，均声明20B MMDiT图像基础模型；语言不同不改变发生身份。",
+      "engine_relation": "SAME_OCCURRENCE"
+    },
+    {
+      "left": "article-003",
+      "right": "article-007",
+      "label": "follow_up",
+      "reason": "NVIDIA RTX Spark发布之后的Verge实际体验/评测明确针对同一RTX Spark N1X电脑平台，按原引擎定义发布与评测为SAME_STORY。",
+      "engine_relation": "SAME_STORY"
+    },
+    {
+      "left": "article-015",
+      "right": "article-017",
+      "label": "follow_up",
+      "reason": "Reflection Beam开放权重模型发布与在AWS上接入介绍，按原引擎定义发布→第三方平台接入是SAME_STORY；需人工确认上架与发布边界。",
+      "engine_relation": "SAME_STORY"
+    },
+    {
+      "left": "article-031",
+      "right": "article-005",
+      "label": "follow_up",
+      "reason": "10月7日GitHub秘密保护文章介绍分类器；10月13日技术文章明确链接前文为companion post并解释同一分类器设计训练，是具直接引用的后续解读。",
+      "engine_relation": "SAME_STORY"
+    },
+    {
+      "left": "article-zh-010",
+      "right": "article-zh-001",
+      "label": "unrelated",
+      "reason": "Qwen3基础模型发布与Qwen3Guard安全护栏模型是不同具体产品/更新的独立发布；正文虽明确基于Qwen3，不能仅凭家族或时间先后归并，按固定group-definitions为UNRELATED。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-010",
+      "right": "article-zh-009",
+      "label": "unrelated",
+      "reason": "Qwen3基础模型发布与Qwen3 Embedding表征排序模型是不同具体产品/更新的独立发布；正文虽明确基于Qwen3，不能仅凭家族或时间先后归并，按固定group-definitions为UNRELATED。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-010",
+      "right": "article-zh-005",
+      "label": "unrelated",
+      "reason": "Qwen3基础模型发布与Qwen-MT翻译升级是不同具体产品/更新的独立发布；正文虽明确基于Qwen3，不能仅凭家族或时间先后归并，按固定group-definitions为UNRELATED。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-001",
+      "right": "article-001",
+      "label": "unrelated",
+      "reason": "前者为Qwen3Guard安全模型架构，后者为Google湿实验室代理；来源事实的主体和被报道动作均不同。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-004",
+      "right": "article-006",
+      "label": "unrelated",
+      "reason": "前者提出GSPO强化学习算法，后者发布Timestral时间序列模型，未构成同一事件或有证据的后续。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-006",
+      "right": "article-003",
+      "label": "unrelated",
+      "reason": "前者发布Qwen3-Coder代码模型，后者发布NVIDIA RTX Spark电脑平台，主体和事件不同。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-007",
+      "right": "article-008",
+      "label": "unrelated",
+      "reason": "前者是Qwen-TTS方言能力，后者是Replit与Anthropic停止合作，事件对象不同。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-008",
+      "right": "article-014",
+      "label": "unrelated",
+      "reason": "前者发布Qwen VLo图像模型，后者介绍Earth AI地理空间应用，不是同一事件。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-009",
+      "right": "article-021",
+      "label": "unrelated",
+      "reason": "前者是Qwen3 Embedding训练说明，后者是印度组织数据访问安全通报，没有同事件依据。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-zh-010",
+      "right": "article-027",
+      "label": "unrelated",
+      "reason": "前者发布Qwen3，后者公开Deep Review技术文档审阅系统；任务主体和发布动作不同。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-016",
+      "right": "article-036",
+      "label": "unrelated",
+      "reason": "前者发布NVIDIA Nemotron模型，后者报道关闭初创企业的数据售卖，不是同一事件。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-018",
+      "right": "article-029",
+      "label": "unrelated",
+      "reason": "前者讲解Copilot项目上下文，后者更新GeForce NOW DLSS控制，功能对象不同。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-015",
+      "right": "article-zh-003",
+      "label": "unrelated",
+      "reason": "Reflection Beam代码模型发布与Qwen-Image图像模型发布是不同具体产品事件，同属AI不是归并依据。",
+      "engine_relation": "UNRELATED"
+    },
+    {
+      "left": "article-020",
+      "right": "article-005",
+      "label": "unrelated",
+      "reason": "Meta商业条款与GitHub秘密识别分类器是不同主体、对象与动作，不是同一次发生或后续。",
+      "engine_relation": "UNRELATED"
+    }
+  ],
+  "replacement_documents": [
+    {
+      "path": "articles/article-en-qwen3.html",
+      "sha256": "e94e989ce505fe3f83bf891f70a7e00d1ae3e7b560dd99fdd0d6249d933d6ace",
+      "bytes": 71638,
+      "url": "https://qwenlm.github.io/blog/qwen3/",
+      "final_url": "https://qwenlm.github.io/blog/qwen3/",
+      "media_type": "text/html",
+      "retrieved_at": "2026-10-17T04:16:08.057040+00:00",
+      "id": "article-en-qwen3",
+      "source_id": "official-qwen-en",
+      "input_kind": "frozen_extracted_text",
+      "text_info": {
+        "extractor": "stdlib-htmlparser-v1",
+        "selection": "article_main_or_content_class",
+        "visible_characters": 15970,
+        "html_declared_language": "en",
+        "language": "en",
+        "cjk_characters": 0,
+        "long_form": true
+      },
+      "published_at": null,
+      "publication_date_source": "not_extracted",
+      "annotation_status": "needs_review",
+      "replace_article_id": "article-038",
+      "text_artifact": {
+        "path": "text/article-en-qwen3.txt",
+        "sha256": "afa6a2f1adfd997ed76f53b77c93f7c5ed47c437586887bb5a8e8cae1e23b435",
+        "bytes": 15989,
+        "url": "https://qwenlm.github.io/blog/qwen3/",
+        "final_url": "https://qwenlm.github.io/blog/qwen3/",
+        "media_type": "text/plain",
+        "retrieved_at": "2026-10-17T04:16:08.057155+00:00"
+      }
+    },
+    {
+      "path": "articles/article-en-qwen-image.html",
+      "sha256": "b8c051118ba09f9a85dd67320b870e9124630565f4ab829c6b4b65a0babf42a4",
+      "bytes": 39876,
+      "url": "https://qwenlm.github.io/blog/qwen-image/",
+      "final_url": "https://qwenlm.github.io/blog/qwen-image/",
+      "media_type": "text/html",
+      "retrieved_at": "2026-10-17T04:16:08.789013+00:00",
+      "id": "article-en-qwen-image",
+      "source_id": "official-qwen-en",
+      "input_kind": "frozen_extracted_text",
+      "text_info": {
+        "extractor": "stdlib-htmlparser-v1",
+        "selection": "article_main_or_content_class",
+        "visible_characters": 9451,
+        "html_declared_language": "en",
+        "language": "zh",
+        "cjk_characters": 996,
+        "long_form": true
+      },
+      "published_at": null,
+      "publication_date_source": "not_extracted",
+      "annotation_status": "needs_review",
+      "replace_article_id": "article-024",
+      "text_artifact": {
+        "path": "text/article-en-qwen-image.txt",
+        "sha256": "5f8115f1196e29973c3c68b09b8d7bf5634ae92ab3ee6ba074693b2a32040613",
+        "bytes": 11871,
+        "url": "https://qwenlm.github.io/blog/qwen-image/",
+        "final_url": "https://qwenlm.github.io/blog/qwen-image/",
+        "media_type": "text/plain",
+        "retrieved_at": "2026-10-17T04:16:08.789109+00:00"
+      }
+    }
+  ]
+}

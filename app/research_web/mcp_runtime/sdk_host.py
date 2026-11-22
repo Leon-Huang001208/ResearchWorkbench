@@ -12,6 +12,7 @@ from typing import Any
 from core.observability import get_logger
 
 from .credentials import RuntimeCredentialError, RuntimeCredentialStore
+from .managed_sandbox import TrustedManagedStdioTarget, official_transport, validate_managed_target
 from .oauth import OAuthError
 from .transport import (
     RemoteTarget,
@@ -26,6 +27,50 @@ _NAME = re.compile(r"^[A-Za-z0-9_.:/-]{1,256}$")
 
 class MCPHostError(RuntimeError):
     """Stable Host error that omits target, arguments and third-party bodies."""
+
+
+def reject_credential_echo(value: Any, credential: str | None) -> None:
+    """Inspect parsed keys/leaves, including bounded JSON encoded in MCP text."""
+    if not isinstance(credential, str) or not credential:
+        return
+    pending = [(value, 0)]
+    while pending:
+        item, decoded = pending.pop()
+        if isinstance(item, str):
+            if credential in item:
+                log.warning("mcp_credential_echo_rejected")
+                raise MCPHostError("mcp_result_contains_credential")
+            # MCP commonly carries JSON inside content.text. Inspect decoded text
+            # too, so escaping quotes/backslashes cannot hide the dispatched token.
+            if decoded < 8 and item.lstrip().startswith(("{", "[", '"')):
+                try:
+                    nested = json.loads(item)
+                except (ValueError, RecursionError):
+                    continue
+                pending.append((nested, decoded + 1))
+        elif isinstance(item, dict):
+            pending.extend((child, decoded) for child in item)
+            pending.extend((child, decoded) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, decoded) for child in item)
+
+
+def _candidate_target(target: Any) -> bool:
+    from .seek_alpha import ENDPOINT
+
+    if not isinstance(target, RemoteTarget):
+        return False
+    try:
+        return validate_remote_endpoint(target.endpoint).rstrip("/") == ENDPOINT
+    except ValueError:
+        raise MCPHostError("mcp_target_invalid") from None
+
+
+def deny_candidate_verb(target: Any, verb: str) -> None:
+    """The fixed evaluation candidate has no resource/prompt data contract."""
+    if _candidate_target(target):
+        log.warning("mcp_candidate_auxiliary_denied", verb=verb)
+        raise MCPHostError(f"mcp_candidate_{verb}_denied")
 
 
 class SDKHost:
@@ -49,6 +94,7 @@ class SDKHost:
         self.max_result_bytes = max_result_bytes
         self.max_request_bytes = max_request_bytes
         self.max_remote_response_bytes = max_remote_response_bytes
+        self.managed_cleanup_blocked = False
 
     @staticmethod
     def _official_client(target: Any, **options: Any):
@@ -58,8 +104,9 @@ class SDKHost:
             raise MCPHostError("mcp_sdk_unavailable") from exc
         return Client(target, **options)
 
-    @staticmethod
-    def _official_target(target: Any):
+    def _official_target(self, target: Any):
+        if isinstance(target, TrustedManagedStdioTarget):
+            return official_transport(target, self._managed_cleanup_blocked)
         if isinstance(target, StdioTarget):
             try:
                 from mcp import StdioServerParameters
@@ -72,6 +119,10 @@ class SDKHost:
                 env=dict(target.env),
             )
         return target
+
+    def _managed_cleanup_blocked(self) -> None:
+        self.managed_cleanup_blocked = True
+        log.error("mcp_managed_cleanup_admission_retained")
 
     @asynccontextmanager
     async def _remote_transport(self, endpoint: str, bearer_token: str | None):
@@ -122,6 +173,13 @@ class SDKHost:
             yield transport
 
     def _client(self, target: Any):
+        # Compatibility helper; operational paths retain the transport credential too.
+        return self._bound_client(target)[0]
+
+    def _bound_client(self, target: Any):
+        # Local to this one dispatch: credential rotation/deletion cannot change the
+        # token that was handed to its transport, including across concurrent awaits.
+        bearer_token = None
         if isinstance(target, RemoteTarget):
             try:
                 endpoint = validate_remote_endpoint(target.endpoint)
@@ -146,6 +204,12 @@ class SDKHost:
                 raise MCPHostError("mcp_target_invalid") from exc
             bearer_token = token if isinstance(token, str) else None
             resolved = self.remote_target_factory(endpoint, bearer_token)
+        elif isinstance(target, TrustedManagedStdioTarget):
+            try:
+                target = validate_managed_target(target)
+            except (TypeError, ValueError) as exc:
+                raise MCPHostError("mcp_target_invalid") from exc
+            resolved = self.target_factory(target)
         elif isinstance(target, StdioTarget):
             try:
                 target = validate_stdio_target(target)
@@ -154,7 +218,7 @@ class SDKHost:
             resolved = self.target_factory(target)
         else:
             resolved = self.target_factory(target)
-        return self.client_factory(
+        client = self.client_factory(
             resolved,
             mode="auto",
             sampling_callback=None,
@@ -163,6 +227,7 @@ class SDKHost:
             cache=None,
             read_timeout_seconds=30.0,
         )
+        return client, bearer_token
 
     @staticmethod
     def _target_digest(target: Any) -> str | None:
@@ -171,7 +236,7 @@ class SDKHost:
             return None
         return hashlib.sha256(installation_id.encode("utf-8", errors="replace")).hexdigest()[:16]
 
-    def _bounded(self, result: Any) -> dict[str, Any]:
+    def _bounded(self, result: Any, *, credential: str | None = None) -> dict[str, Any]:
         if hasattr(result, "model_dump"):
             value = result.model_dump(mode="json")
         elif isinstance(result, dict):
@@ -188,6 +253,7 @@ class SDKHost:
             raise MCPHostError("mcp_result_invalid") from exc
         if len(raw) > self.max_result_bytes:
             raise MCPHostError("mcp_result_too_large")
+        reject_credential_echo(value, credential)
         return value
 
     def _validate_request(self, value: Any) -> None:
@@ -206,10 +272,17 @@ class SDKHost:
 
     async def capabilities(self, target: Any) -> dict[str, Any]:
         try:
-            async with self._client(target) as client:
-                tools = self._bounded(await client.list_tools()).get("tools", [])
-                resources = self._bounded(await client.list_resources()).get("resources", [])
-                prompts = self._bounded(await client.list_prompts()).get("prompts", [])
+            context, credential = self._bound_client(target)
+            async with context as client:
+                tools = self._bounded(await client.list_tools(), credential=credential).get(
+                    "tools", []
+                )
+                resources = self._bounded(await client.list_resources(), credential=credential).get(
+                    "resources", []
+                )
+                prompts = self._bounded(await client.list_prompts(), credential=credential).get(
+                    "prompts", []
+                )
                 projected_tools = []
                 for tool in tools:
                     if not isinstance(tool, dict) or not _NAME.fullmatch(str(tool.get("name", ""))):
@@ -223,7 +296,15 @@ class SDKHost:
                     projected_tools.append(
                         {**tool, "schema_sha256": hashlib.sha256(schema_raw).hexdigest()}
                     )
-                return {
+                reject_credential_echo(
+                    {
+                        "protocol": str(client.protocol_version),
+                        "server_name": getattr(client.server_info, "name", None),
+                        "server_version": getattr(client.server_info, "version", None),
+                    },
+                    credential,
+                )
+                result = {
                     "protocol_version": str(client.protocol_version),
                     "server": self._server_projection(client.server_info),
                     "tools": projected_tools,
@@ -233,6 +314,10 @@ class SDKHost:
                     "elicitation": False,
                     "tasks": False,
                 }
+                if _candidate_target(target):
+                    result.update(resources=[], prompts=[], auxiliary_methods="disabled")
+                reject_credential_echo(result, credential)
+                return result
         except MCPHostError:
             raise
         except Exception as exc:
@@ -255,8 +340,9 @@ class SDKHost:
 
     async def _invoke(self, target: Any, event: str, operation: Callable[[Any], Any]):
         try:
-            async with self._client(target) as client:
-                return self._bounded(await operation(client))
+            context, credential = self._bound_client(target)
+            async with context as client:
+                return self._bounded(await operation(client), credential=credential)
         except MCPHostError:
             raise
         except Exception as exc:
@@ -278,6 +364,7 @@ class SDKHost:
         )
 
     async def read_resource(self, target: Any, uri: str):
+        deny_candidate_verb(target, "resource")
         if not isinstance(uri, str) or not uri or len(uri) > 4096 or any(ord(c) < 32 for c in uri):
             raise MCPHostError("mcp_resource_request_invalid")
         return await self._invoke(
@@ -287,6 +374,7 @@ class SDKHost:
         )
 
     async def get_prompt(self, target: Any, name: str, arguments: dict[str, Any] | None = None):
+        deny_candidate_verb(target, "prompt")
         if not _NAME.fullmatch(name) or (arguments is not None and not isinstance(arguments, dict)):
             raise MCPHostError("mcp_prompt_request_invalid")
         if arguments is not None:

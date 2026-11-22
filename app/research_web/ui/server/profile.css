@@ -1,0 +1,7 @@
+/* Server profile visibility complements, and never replaces, backend denial. */
+a[href="#/operations"],
+a[href="#/claw?view=plans"],
+a[href="#/settings/local"],
+a[href="#/settings/hot"],
+a[href="#/settings/data"],
+#settings-form [name="provider"] option[value="openai-compatible"] { display: none !important; }

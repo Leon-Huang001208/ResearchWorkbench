@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AI 资讯自主采编与零调用边界",
+    "quality_profile": "showcase"
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      45,
+      70
+    ],
+    "cols": 3,
+    "cellW": 235,
+    "cellH": 85,
+    "gapX": 110,
+    "gapY": 80
+  },
+  "components": [
+    {
+      "id": "reader",
+      "type": "frontend",
+      "label": "RWB 站内阅读",
+      "sublabel": "文章 · 专题 · 日周月报",
+      "row": 0,
+      "col": 0,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "host",
+      "type": "security",
+      "label": "Host / 共享网关",
+      "sublabel": "成员阅读 · 管理员采编",
+      "row": 0,
+      "col": 1,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "原版 AIHOT API",
+      "sublabel": "固定提交 · session / CSRF",
+      "row": 0,
+      "col": 2,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "sources",
+      "type": "external",
+      "label": "六类自主信源",
+      "sublabel": "免费试抓 · 付费源待配置",
+      "row": 1,
+      "col": 0,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "messagebus",
+      "label": "原版采编 worker",
+      "sublabel": "采集 · 双评分 · 翻译 · 成刊",
+      "row": 1,
+      "col": 1,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "独立 PostgreSQL 17",
+      "sublabel": "独立角色 · 卷 · 持久回执",
+      "row": 1,
+      "col": 2,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "eval",
+      "type": "backend",
+      "label": "零调用实验准备",
+      "sublabel": "50 篇 · 20 组 · NOT_RUN",
+      "row": 2,
+      "col": 0,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "grant",
+      "type": "security",
+      "label": "模型与预算授权门",
+      "sublabel": "默认关闭 · 未知结果人工核账",
+      "row": 2,
+      "col": 1,
+      "size": [
+        235,
+        85
+      ]
+    },
+    {
+      "id": "dsh",
+      "type": "backend",
+      "label": "既有 DSH / Hot",
+      "sublabel": "研究执行 · 宏观与证据保留",
+      "row": 2,
+      "col": 2,
+      "size": [
+        235,
+        85
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "read",
+      "from": "reader",
+      "to": "host",
+      "label": "阅读 / 管理"
+    },
+    {
+      "id": "bridge",
+      "from": "host",
+      "to": "api",
+      "label": "私有令牌"
+    },
+    {
+      "id": "feed",
+      "from": "sources",
+      "to": "worker",
+      "label": "原版适配器"
+    },
+    {
+      "id": "apiDb",
+      "from": "api",
+      "to": "pg",
+      "label": "发布与管理",
+      "labelDy": 24
+    },
+    {
+      "id": "jobs",
+      "from": "worker",
+      "to": "pg",
+      "label": "阶段与账本"
+    },
+    {
+      "id": "guard",
+      "from": "grant",
+      "to": "worker",
+      "label": "逐次授权"
+    },
+    {
+      "id": "evalInput",
+      "from": "eval",
+      "to": "grant",
+      "label": "后续授权后实验"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "本阶段验收边界",
+      "items": [
+        "隔离新库与夹具验证；模型质量 NOT_RUN",
+        "不导入线上历史，不提前更新常驻内容",
+        "共享资讯库独立于每位用户的研究与凭据"
+      ]
+    }
+  ]
+}

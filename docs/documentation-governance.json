@@ -9,6 +9,16 @@
   ],
   "rules": [
     {
+      "prefix": "services/ai_news/",
+      "status": "package-internal",
+      "purpose": "pinned original AI news engine license and adaptation contracts"
+    },
+    {
+      "prefix": "evals/",
+      "status": "package-internal",
+      "purpose": "frozen evaluation source and reference annotation manifests"
+    },
+    {
       "prefix": "docs/archive/",
       "status": "historical",
       "purpose": "superseded plans, implementation records, acceptance snapshots and legacy manuals"
@@ -94,9 +104,44 @@
       "purpose": "vendored package documentation"
     },
     {
+      "prefix": "scripts/vendor/leon-engineering/",
+      "status": "package-internal",
+      "purpose": "pinned project delivery runtime provenance and verification"
+    },
+    {
       "exact": "README.md",
       "status": "current",
       "purpose": "product overview and quick start"
+    },
+    {
+      "exact": "LICENSE.md",
+      "status": "current",
+      "purpose": "ResearchWorkbench source available license terms"
+    },
+    {
+      "exact": "THIRD_PARTY_NOTICES.md",
+      "status": "current",
+      "purpose": "license scope and third-party terms"
+    },
+    {
+      "exact": "CONTRIBUTING.md",
+      "status": "current",
+      "purpose": "public contribution and pull request guidance"
+    },
+    {
+      "exact": "CODE_OF_CONDUCT.md",
+      "status": "current",
+      "purpose": "community conduct and reporting"
+    },
+    {
+      "exact": "SECURITY.md",
+      "status": "current",
+      "purpose": "private vulnerability reporting policy"
+    },
+    {
+      "exact": "CLA.md",
+      "status": "current",
+      "purpose": "contributor license agreement for new contributions"
     },
     {
       "exact": "AGENTS.md",
@@ -115,23 +160,94 @@
     }
   ],
   "authorities": [
-    {"topic": "product-overview", "path": "README.md"},
-    {"topic": "documentation-index", "path": "docs/README.md"},
-    {"topic": "system-architecture", "path": "docs/ARCHITECTURE.md"},
-    {"topic": "research-web-architecture", "path": "docs/architecture/research-web/README.md", "purpose": "Current layered reading entry; map-derived index and API Atlas; diagram, documentation, source and test navigation"},
-    {"topic": "research-web-installation", "path": "docs/research-web-installation.md", "purpose": "Public setup, status and Doctor recovery, macOS clean-install readiness, and Windows verification boundary"},
-    {"topic": "development-map", "path": "docs/DEVELOPMENT_MAP.md"},
-    {"topic": "reference-entry", "path": "docs/REFERENCE.md"},
-    {"topic": "research-web-data", "path": "docs/research-web-datahub.md"},
-    {"topic": "backup-restore", "path": "docs/backup_restore.md"},
-    {"topic": "change-history", "path": "docs/CHANGELOG.md"},
-    {"topic": "agent-rules", "path": "AGENTS.md"},
-    {"topic": "actions-budget-policy", "path": "docs/actions-budget.md", "purpose": "Actions budget, automatic macOS verification, Windows-machine-dispatched GitHub CI, real-machine evidence, and desktop gate separation"}
+    {
+      "topic": "product-overview",
+      "path": "README.md"
+    },
+    {
+      "topic": "project-license",
+      "path": "LICENSE.md"
+    },
+    {
+      "topic": "contributing",
+      "path": "CONTRIBUTING.md"
+    },
+    {
+      "topic": "community-conduct",
+      "path": "CODE_OF_CONDUCT.md"
+    },
+    {
+      "topic": "security-reporting",
+      "path": "SECURITY.md"
+    },
+    {
+      "topic": "contributor-license-agreement",
+      "path": "CLA.md"
+    },
+    {
+      "topic": "documentation-index",
+      "path": "docs/README.md"
+    },
+    {
+      "topic": "system-architecture",
+      "path": "docs/ARCHITECTURE.md"
+    },
+    {
+      "topic": "research-web-architecture",
+      "path": "docs/architecture/research-web/README.md",
+      "purpose": "Current layered reading entry; map-derived index and API Atlas; diagram, documentation, source and test navigation"
+    },
+    {
+      "topic": "research-web-installation",
+      "path": "docs/research-web-installation.md",
+      "purpose": "Public setup, status and Doctor recovery, macOS clean-install readiness, and Windows verification boundary"
+    },
+    {
+      "topic": "development-map",
+      "path": "docs/DEVELOPMENT_MAP.md"
+    },
+    {
+      "topic": "reference-entry",
+      "path": "docs/REFERENCE.md"
+    },
+    {
+      "topic": "research-web-data",
+      "path": "docs/research-web-datahub.md"
+    },
+    {
+      "topic": "backup-restore",
+      "path": "docs/backup_restore.md"
+    },
+    {
+      "topic": "change-history",
+      "path": "docs/CHANGELOG.md"
+    },
+    {
+      "topic": "agent-rules",
+      "path": "AGENTS.md"
+    },
+    {
+      "topic": "actions-budget-policy",
+      "path": "docs/actions-budget.md",
+      "purpose": "Actions budget, automatic macOS verification, Windows-machine-dispatched GitHub CI, real-machine evidence, and desktop gate separation"
+    }
   ],
   "forbiddenCurrentPatterns": [
-    {"id": "root-auto-ingest", "text": "python auto_ingest_service.py"},
-    {"id": "root-view-db", "text": "python view_db.py"},
-    {"id": "retired-af-console", "text": "`af` console-script"},
-    {"id": "stale-web-consolidation-branch", "text": "当前实施分支为 `codex/web-consolidation`"}
+    {
+      "id": "root-auto-ingest",
+      "text": "python auto_ingest_service.py"
+    },
+    {
+      "id": "root-view-db",
+      "text": "python view_db.py"
+    },
+    {
+      "id": "retired-af-console",
+      "text": "`af` console-script"
+    },
+    {
+      "id": "stale-web-consolidation-branch",
+      "text": "当前实施分支为 `codex/web-consolidation`"
+    }
   ]
 }

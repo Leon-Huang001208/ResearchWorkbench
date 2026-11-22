@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from app.research_web import PINNED_DSH_COMMIT
 from app.research_web import lifecycle_lock as lifecycle_lock_module
 from app.research_web import runtime_auth as runtime_auth_module
 from app.research_web import service_diagnostics as service_diagnostics_module
@@ -184,6 +185,28 @@ def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monk
     assert all(report[key] == previous[key] for key in ("python", "node", "cjpy", "dsh", "data"))
 
 
+def test_weekly_doctor_never_certifies_vendor_or_report_from_dependency_readiness(
+    manager, monkeypatch
+):
+    from app.research_web.datahub.providers_wind_api import WindClientAPIProvider
+
+    monkeypatch.setattr(
+        WindClientAPIProvider,
+        "readiness",
+        lambda _: {
+            "dependency_ready": True,
+            "status": "unverified",
+            "code": None,
+        },
+    )
+    value = manager._weekly_report_diagnostic()
+    assert value["dependency_ready"] is True
+    assert value["status"] == "unverified"
+    assert value["source_contract"] == "not_checked"
+    assert value["live_acceptance"] == "NOT_RUN"
+    assert value["model_acceptance"] == "NOT_RUN"
+
+
 @pytest.mark.parametrize(
     "access, expected",
     [
@@ -215,6 +238,63 @@ def test_doctor_web_access_unavailable_is_unknown(manager, monkeypatch):
         "origin": "https://old.tail123abc.ts.net",
     }
     assert manager.doctor()["web_access"] == {"mode": "unknown", "origin": None}
+
+
+@pytest.mark.parametrize(
+    "configuration, expected",
+    [
+        ("available", "available"),
+        ("disabled_service_only", "disabled_service_only"),
+        ("disabled_tenant", "disabled_tenant"),
+        ("disabled_automation", "disabled_automation"),
+        (None, "unknown"),
+        (True, "unknown"),
+        ({"private-canary": "private-canary"}, "unknown"),
+        ("private-canary", "unknown"),
+    ],
+)
+def test_doctor_projects_research_bot_configuration_from_running_host(
+    manager, monkeypatch, configuration, expected
+):
+    probes = tuple(
+        ServiceProbe(role, port, "valid", "alive", "owned", "listening", "passed", True, 123, ())
+        for role, port in (("runtime", 3081), ("web", 8088))
+    )
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_service_probes", lambda: probes)
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+    requests = []
+
+    def request(_port, method, path):
+        requests.append((method, path))
+        if path == "/api/research/runtime":
+            return {
+                "research_bot": {
+                    "configuration": configuration,
+                    "runtime_verification": "PASS",
+                    "unexpected": "private-canary",
+                }
+            }
+        assert path == "/api/research/models"
+        return {"groups": [], "failures": []}
+
+    monkeypatch.setattr(manager, "_json_request", request)
+    report = manager.doctor()
+    assert report["research_bot"] == {
+        "configuration": expected,
+        "runtime_verification": "NOT_RUN",
+    }
+    assert "private-canary" not in json.dumps(report)
+    assert requests == [
+        ("GET", "/api/research/runtime"),
+        ("GET", "/api/research/models"),
+    ]
+
+    def unavailable(*_args):
+        raise ServiceManagerError("private-canary")
+
+    monkeypatch.setattr(manager, "_json_request", unavailable)
+    assert manager.doctor()["research_bot"]["configuration"] == "unknown"
 
 
 def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
@@ -571,6 +651,9 @@ def test_lifecycle_lock_rejects_non_exact_existing_owner_modes(tmp_path, owner_m
     assert captured.value.code == "lifecycle_busy"
     assert stat.S_IMODE(owner.stat().st_mode) == owner_mode
     assert path.exists()
+    # Preserve the assertion, then make successful synthetic fixtures hashable
+    # by the managed test-root retirement gate (no product permission change).
+    owner.chmod(0o600)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
@@ -991,9 +1074,16 @@ def test_lifecycle_guard_requires_exact_private_posix_mode(tmp_path, guard_mode)
     reason="requires the real macOS /var system alias",
 )
 def test_lifecycle_lock_accepts_system_alias_above_explicit_trusted_root(tmp_path):
-    resolved = str(tmp_path)
-    assert resolved.startswith("/private/var/")
-    lexical_tmp = Path("/var") / Path(resolved).relative_to("/private/var")
+    resolved = tmp_path.resolve()
+    system_aliases = ((Path("/var"), Path("/private/var")), (Path("/tmp"), Path("/private/tmp")))
+    alias, physical = next(
+        (alias, physical)
+        for alias, physical in system_aliases
+        if resolved.is_relative_to(physical) and alias.is_symlink() and alias.resolve() == physical
+    )
+    lexical_tmp = alias / resolved.relative_to(physical)
+    assert lexical_tmp != resolved
+    assert lexical_tmp.resolve() == resolved
     trusted_root = lexical_tmp / "managed"
     trusted_root.mkdir(mode=0o700)
     path = trusted_root / "run" / "lifecycle.lock"
@@ -3028,6 +3118,10 @@ def test_probe_rejects_adversarial_state_without_throwing_or_mutating(manager, m
         service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
     )
 
+    monkeypatch.setattr(
+        service_manager_module, "probe_process", lambda _pid: ProcessFact("missing", None, None)
+    )
+
     probe = manager._probe_service(process)
 
     assert probe.state == "invalid"
@@ -3436,6 +3530,21 @@ def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
     manager.start(open_browser=False)
     manager.start(open_browser=False)
     assert spawned == ["runtime", "web"]
+
+
+def test_resident_fingpt_cannot_restart_outside_its_operator_context(manager, monkeypatch):
+    revision = "f" * 40
+    manifest = {"status": "installed", "code_commit": revision, "alphadesk_qa": True}
+    monkeypatch.setattr(manager, "_read_install_manifest", lambda: manifest)
+    monkeypatch.delenv("RESEARCH_RESIDENT_HOME", raising=False)
+    monkeypatch.delenv("RESEARCH_RESIDENT_REVISION", raising=False)
+    for operation in (manager.start, manager.restart):
+        with pytest.raises(ServiceManagerError) as error:
+            operation(open_browser=False)
+        assert error.value.code == "resident_qa_operator_required"
+    monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(manager.data_root.parent / "resident"))
+    monkeypatch.setenv("RESEARCH_RESIDENT_REVISION", revision)
+    manager._require_resident_qa_operator(manifest)
 
 
 def test_start_fails_fast_when_web_installation_is_not_ready(manager, monkeypatch):
@@ -4690,6 +4799,48 @@ def test_web_readiness_requires_runtime_root_and_static_asset(manager, monkeypat
     assert all(limit <= 2 * 1024 * 1024 for _path, limit in requested)
 
 
+@pytest.mark.parametrize("asset_size", ["product", "exact_limit", "over_limit"])
+def test_web_readiness_enforces_product_static_asset_byte_boundary(
+    manager, monkeypatch, asset_size
+):
+    asset = Path(service_manager_module.__file__).with_name("ui") / "app.mjs"
+    product = asset.read_bytes()
+    limit = service_manager_module.WEB_TEXT_MAX_BYTES
+    assert limit == 256 * 1024
+    assert len(product) <= limit - 2048, "product module must retain 2 KiB health margin"
+    body = product
+    if asset_size != "product":
+        target_size = limit + (asset_size == "over_limit")
+        body += b" " * (target_size - len(body))
+    responses = _readiness_responses()
+    responses["/static/app.mjs"] = (200, "text/javascript; charset=utf-8", body)
+    connections = []
+    reads = []
+
+    class ProductConnection(_FakeHttpConnection):
+        def getresponse(self):
+            path = self.requested[1]
+            status, content_type, payload = responses[path]
+            if isinstance(payload, str):
+                payload = payload.encode("utf-8")
+            response = _FakeHttpResponse(status, content_type, payload)
+            reads.append((path, response))
+            return response
+
+    def connect(*_args, **_kwargs):
+        connection = ProductConnection()
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(service_manager_module.http.client, "HTTPConnection", connect)
+    result = manager._web_ready()
+    assert result.ready is (asset_size != "over_limit")
+    assert result.issues == (() if result.ready else ("web_static_asset_failed",))
+    assert all(connection.closed for connection in connections)
+    static_response = next(response for path, response in reads if path == "/static/app.mjs")
+    assert static_response.read_limit == limit + 1
+
+
 def test_web_probe_preserves_specific_readiness_issue(manager, monkeypatch):
     process, state_path = _valid_state(manager, "web")
     state = json.loads(state_path.read_bytes())
@@ -5263,7 +5414,7 @@ def test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits(manage
                 "authority": "127.0.0.1:3081",
                 "cookie": "dsh-auth-test=value",
                 "cwd": str((manager.data_root / "runtime/work").resolve()),
-                "source_commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+                "source_commit": PINNED_DSH_COMMIT,
                 "version": "0.1.3-alpha.2",
             }
         ),
@@ -5924,3 +6075,31 @@ def test_doctor_office_auto_is_owned_read_only_and_unknown_on_wrong_owner(manage
     office = manager.doctor()["office_auto_verification"]
     assert office["state"] == "unknown"
     assert not any(office["targets"].values())
+
+
+@pytest.mark.skipif(os.name != "posix", reason="requires inherited flock")
+def test_lifecycle_guard_remains_held_after_parent_releases_with_live_child(tmp_path):
+    import subprocess
+    import sys
+
+    path = tmp_path / "lifecycle.lock"
+    child = None
+    try:
+        with LifecycleLock(path, lambda _pid: True) as lease:
+            fd = lease.retain_for_posix_child()
+            child = subprocess.Popen(
+                [sys.executable, "-c", "import sys; sys.stdin.buffer.read()"],
+                stdin=subprocess.PIPE,
+                pass_fds=(fd,),
+            )
+        with (
+            pytest.raises(LifecycleLockError, match="lifecycle lock is busy"),
+            LifecycleLock(path, lambda _pid: False),
+        ):
+            pytest.fail("old writer entered while child still held the guard")
+    finally:
+        if child is not None:
+            child.stdin.close()
+            child.wait(timeout=8)
+    with LifecycleLock(path, lambda _pid: True) as lease:
+        lease.assert_held()

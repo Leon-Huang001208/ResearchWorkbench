@@ -3,18 +3,32 @@
   "status": "reviewed",
   "diagrams": [
     {
-      "id": "08-iteration-docs",
-      "artifactSha256": "675cc55e53e7ad1eef1b0bdc587d620bbe673b6112bc6c55534222d698824ce9",
-      "specificationSha256": "eb7fbcc5f6a7f6218954a8e24e9617ea9ccb883a9b0c09197a37322b165fc234",
+      "id": "15-inbound-mcp",
+      "artifactSha256": "6b04263925cf4efe7962d450596eb501b5193964c8c4a53f398ec0f91e23a253",
+      "specificationSha256": "a41632858b07df675f2c9cef505baa5f4544ca3ccd9e1e5f24cb50c9ba4b9c1d",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-11-09",
       "captures": [
-        "08-iteration-docs.visual-check.1440x900.dark.png",
-        "08-iteration-docs.visual-check.2048x1320.light.png"
+        "15-inbound-mcp.visual-check.1440x900.light.png",
+        "15-inbound-mcp.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
+      "notes": "查看同哈希浅色与深色截图。HTTPS WeKnora、固定回调和 Cookie 边界标注完整。"
+    },
+    {
+      "id": "08-iteration-docs",
+      "artifactSha256": "d527966ae90f583ce5aa4ef64143b366270bbb39cf6b9749dc1970c832e3b8e7",
+      "specificationSha256": "fd33880e3289f757f178224e1d4d0c3f283a0424618f8e3433cc5bd7df30d7a7",
+      "status": "reviewed",
+      "reviewer": "codex-root",
+      "date": "2026-10-31",
+      "captures": [
+        "08-iteration-docs.visual-check.1440x900.light.png",
+        "08-iteration-docs.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "已实际查看同哈希的1440浅色和2048深色截图；新增测试根即时回收、选择性证据归档与本地/CI门的节点和关系可读，未见线条穿越节点、标签遮挡或裁剪。自动四视口无溢出、9项showcase 0错误0警告；图文检查不代表产品或模型验收。"
     },
     {
       "id": "05-capability-flow",
@@ -32,31 +46,36 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
-      "specificationSha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
+      "artifactSha256": "4cc50c569006cd2341df725119aef7f13ab89a51b2edd6c0dd5bb374f05e6682",
+      "specificationSha256": "195b40b4f2c1ad807a83f2ee0315162604a293da07015d1da6628ba8605f2566",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-10",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-23",
       "captures": [
         "03-research-sequence.visual-check.1440x900.light.png",
         "03-research-sequence.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图；Tabbit 授权、候选与实时 claim，研究提交、DataHub 路径，以及本机验证在对应 Office 容器操作受管副本的边界均可读，未见遮挡、裁剪、节点穿线或失衡底部留白。四视口自动包含性检查独立通过；视觉查看不证明真实 Tabbit、Provider 或厂商软件在线。"
+      "findings": [
+        "03全览细字需缩放阅读"
+      ],
+      "notes": "已实际查看1440浅色与2048深色同哈希截图；完整保留原12参与者及流程，新增只读/冻结/单次提交/原质量门顺序。为保持全览，压缩消息间距但保留至少28px原字体；默认全览文字密集，逐步骤细读需路径/缩放。无裁剪和标签覆盖，不把静态序列当真实执行证据。 已重新实际查看加入GET /selection详情核对后的同哈希1440浅/2048深截图，原边界与密度限制保持。"
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5",
-      "specificationSha256": "e22d8ef6e49a8bee9f7176e0293a2657db53bd47ce20d536187d9cf433f1f205",
+      "artifactSha256": "1fc6429c8a8bb04a374c8bec881a0fee6fb22e3dbe315e61bb538002b039a96e",
+      "specificationSha256": "dba70d856f0216b9a891577f546cb08b5a03ef0e4b20ef4560c9e58ee8c6d9bc",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-08",
+      "reviewer": "Codex child agent (actual screenshot inspection, not human approval)",
+      "date": "2026-11-22",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
-        "04-data-file-flow.visual-check.1440x900.dark.png"
+        "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已人工查看 1440 浅色与深色最终截图；五阶段数据流、22 个来源目录、用户 MySQL、enabledTools/Schema 自动查询边界、标准化快照、页面交接及父子 Agent 共用路径均可辨认，无穿线或裁剪。图不替代真实取数与会话隔离验收。"
+      "findings": [
+        "1440/1600视口按Reader声明纵向滚动保留可读字号；项目已对已知Reader合同完成独立兼容审查，旧strict包含分支仍保留。",
+        "总览辅助小字接近6px阅读下限，需使用原focus视图或放大细读。"
+      ],
+      "notes": "实际查看本次同哈希1440浅色和2048深色截图。原DataHub/current/同步/Embedding拓扑与新增范围批准、原提交回执、原生首turn grant分支均可定位，未观察到新增线条穿节点或正文标签相互遮盖；保留catalogView和绕开Embedding的正式范围路径提示。Archify真实finalize四门及visual-check自动门通过，1440/1600为Reader明确接受的纵向滚动、1920/2048无溢出；已知Reader兼容门155项独立测试通过，原视觉回执未改写。另以相同HTML字节在Chrome实际滚动1440/1600至底部，图末节点、权限说明与节点索引可达，无clip或dock遮挡。交互状态包含完整说明卡片，高度与原read-state分别留证，不冒称度量相同。此Agent看图记录不代表用户或真人批准，也不认证真实服务、模型、业务报告或部署。"
     },
     {
       "id": "06-run-state",
@@ -88,31 +107,37 @@
     },
     {
       "id": "09-report-workflow-sequence",
-      "artifactSha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427",
-      "specificationSha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a",
+      "artifactSha256": "a82e68877fea1da862d5ddd6a65b19b8de814dd01a7fba643f86514f000615fa",
+      "specificationSha256": "f4c67f2717ad8fd907b7c8c6f127802ac939d3b07610a30c7ff250986a8710d5",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-24",
       "captures": [
+        "09-report-workflow-sequence.visual-check.1440x900.light.png",
         "09-report-workflow-sequence.visual-check.1440x900.dark.png",
-        "09-report-workflow-sequence.visual-check.2048x1320.light.png"
+        "09-report-workflow-sequence.visual-check.2048x1320.light.png",
+        "09-report-workflow-sequence.visual-check.2048x1320.dark.png"
       ],
-      "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；从版本锁定、Excel 刷新、共享快照、Claw 双子 Agent、payload 到确定性组装和交付检查的顺序完整可读，异常返回路径没有与成功路径混淆。"
+      "findings": [
+        "密集时序标注在1440全景中较小，需使用原查看器放大阅读；不宣称全景每条文字均舒适可读。"
+      ],
+      "notes": "已实际查看最小/最大视口的明暗四张截图，未见边界溢出、节点遮挡或标签穿线；用途锁定、先注记后哈希和历史永不定稿语义已同步。自动四视口包含性与人工图像查看分开记录；不是用户或真人批准。"
     },
     {
       "id": "10-excel-report-dataflow",
-      "artifactSha256": "3ec5148d6b85b6bb849449d4a94f7aab36a2d8bf48db57d99f5f9b628be13d61",
-      "specificationSha256": "dfc2820bd15d395029977cff84d3990995da0ca33331e4cb6fecb73188f2b642",
+      "artifactSha256": "4ca63922a784142c13fea6a295c51c8edc0895e9f5df9bb225fbad37a0c1bcc7",
+      "specificationSha256": "aa458dfc0f06f1f49d1fea746260fbfe37730b941ee2f942944c4611413a1bfb",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-10-24",
       "captures": [
+        "10-excel-report-dataflow.visual-check.1440x900.light.png",
         "10-excel-report-dataflow.visual-check.1440x900.dark.png",
-        "10-excel-report-dataflow.visual-check.2048x1320.light.png"
+        "10-excel-report-dataflow.visual-check.2048x1320.light.png",
+        "10-excel-report-dataflow.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
+      "notes": "已实际查看最小/最大视口的明暗四张截图，未见边界溢出、节点遮挡或标签穿线；用途锁定、先注记后哈希和历史永不定稿语义已同步。自动四视口包含性与人工图像查看分开记录；不是用户或真人批准。"
     },
     {
       "id": "00-system-overview",
@@ -131,17 +156,17 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
-      "specificationSha256": "0afdf59f36b6b45e2d0d9ac7a9c4c25ba625bc7f8142b524efc1b2690895ef3f",
+      "artifactSha256": "1e4c52c8a87088b286c831dbf4988c3bf6278fc9ce5e43d46db9f98a61e994bd",
+      "specificationSha256": "f80004cfef8e4b02b7bb77fcc22757d8ab9161db91f193e3790d4102db3a4d0a",
       "status": "reviewed",
-      "reviewer": "Codex image inspection",
-      "date": "2026-10-09",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-11-13",
       "captures": [
         "02-module-dependencies.visual-check.1440x900.light.png",
         "02-module-dependencies.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
+      "notes": "实际查看 1440 浅色和 2048 深色同哈希截图。问答工作进程与 DSH 专业协作标签可读。四视口通过。"
     },
     {
       "id": "11-hot-events",
@@ -159,17 +184,61 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "9e9888bc16924b8c752b064f795f6a4d8056ab5a0be9f5e9f8b6918b5c11369e",
-      "specificationSha256": "6549f68baf2dfd588b0e3ec0163cd9dd687b3cf1e0b9b1280461c58d7b17c899",
+      "artifactSha256": "c050b33cb4504e6c757343ba3c6ef3e040b871c61f8ba74ab70ee6534e1d9192",
+      "specificationSha256": "e11422633034438c0753a21fa8dbb0b3e07045a7e1cb171557908d918e8c7d7f",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-10-12",
+      "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
+      "date": "2026-11-09",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex已查看本次生成1440浅色与2048深色截图；Hot可选Node/PG和Mac mini隔离Docker/Native路径清晰，未见遮挡/裁剪。自动容纳四视口通过；本图不认证产品模式切换或真实模型研究。"
+      "notes": "查看同哈希浅色与深色截图。主账号原位和生命周期锁标注完整。"
+    },
+    {
+      "id": "12-ai-news",
+      "artifactSha256": "dd289388969b326ee18c89a0cccc7d12f4d0e4e5a6c411d501595ac18e1b1cb4",
+      "specificationSha256": "7741dde3b7496296fe892452e783e9923fb6b3593c09b0fe1bf69850a4cad8a8",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-10-17",
+      "notes": "实际查看当前1440浅色及深色截图：共享网关成员阅读和管理员采编边界、独立DSH与零调用说明清晰，无新增遮挡或裁剪。四视口检查通过；不替代产品和模型验收。",
+      "captures": [
+        "12-ai-news.visual-check.1440x900.light.png",
+        "12-ai-news.visual-check.1440x900.dark.png"
+      ]
+    },
+    {
+      "id": "13-market-overview",
+      "artifactSha256": "75d847a5fd5ef205a35f8b9c7cbfb93060269c8a113bad77e125b8d23a21bc4c",
+      "specificationSha256": "930f33213dba66f7049827bbe48b1f67eef7b8ab403a11d5f71743841483ee04",
+      "status": "reviewed",
+      "reviewer": "codex-architecture",
+      "date": "2026-11-08",
+      "captures": [
+        "13-market-overview.visual-check.1440x900.light.png",
+        "13-market-overview.visual-check.1440x900.dark.png",
+        "13-market-overview.visual-check.2048x1320.light.png",
+        "13-market-overview.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Archify 实际通过 9/9 showcase，零错误、零警告；四视口无溢出。架构评审代理实际查看同一哈希的 1440×900、2048×1320 浅色及深色四张截图，财经日历同源读取与官方按需链路独立呈现，节点、标签和箭头清晰。此评审只覆盖架构图，不能替代登录态产品对照、真实数据或部署验收。",
+      "correction_rounds": 0
+    },
+    {
+      "id": "14-event-research",
+      "artifactSha256": "4672d1e941238d82a9bcdd54d2598f08e2b4e80edef6b4fef846957c7582c964",
+      "specificationSha256": "30d7636cea819042b7f3b73628c6653b05b1357ec47b752e7195cb8519981c55",
+      "status": "reviewed",
+      "reviewer": "codex-root",
+      "date": "2026-11-04",
+      "captures": [
+        "14-event-research.visual-check.1440x900.light.png",
+        "14-event-research.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "实际查看1440浅色和2048深色：一次修复viewBox空白后，阶段/连线/标签与卡片可读、无裁剪；四尺寸自动包含验证通过。证据解释由显式导出及原DSH资料链完成，不表示自动模型调用或生产验收。"
     }
   ]
 }

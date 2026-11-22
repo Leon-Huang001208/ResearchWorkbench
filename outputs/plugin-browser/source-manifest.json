@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "fixture": true,
+  "base_commit": "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b",
+  "created_at": "2026-10-22T10:30:36.439737+00:00",
+  "dsh_source": "7ecf564f2e09b829240c5553687223bdd1e2df73",
+  "native_root": "/tmp/rwb-plugin-browser-20261022-final-source",
+  "gateway_root": "/tmp/rwb-plugin-gateway-20261022-final-source",
+  "sources": [
+    {
+      "path": "app/research_web/multiuser/plugin_routes.py",
+      "sha256": "797159c859b055bfeded805c60a116931e2cc6d8e5d8b46fb907166759f5e4de",
+      "bytes": 10924
+    },
+    {
+      "path": "app/research_web/plugin_routes.py",
+      "sha256": "52e456ab1840812142643407ee918dcf302e0d64a3fd0e8ebb52c1136409577d",
+      "bytes": 9984
+    },
+    {
+      "path": "app/research_web/plugins/__init__.py",
+      "sha256": "9f0c333104daa57dcaf91de24a217621c3590ec98f26a5260b647284bef6bb2e",
+      "bytes": 192
+    },
+    {
+      "path": "app/research_web/plugins/mcp_policy.py",
+      "sha256": "e4be96d22b48388e48f4666f1213e484b153fcecd922ace059bad2172eb7da1a",
+      "bytes": 8483
+    },
+    {
+      "path": "app/research_web/plugins/packages.py",
+      "sha256": "09de7bd6b803d6fa16e574afd3bf13c85d49f7a8f9cde204752596af17f5280b",
+      "bytes": 18617
+    },
+    {
+      "path": "app/research_web/plugins/proof.py",
+      "sha256": "30e6b936218b9b92c15c7afe5f689c76901b6c38864c963898fb64793b348dd7",
+      "bytes": 2746
+    },
+    {
+      "path": "app/research_web/plugins/runtime_restart.py",
+      "sha256": "54f71d4207ef24bca08de5a3920fd9da6e8fdf8630032e12df8518e30aa7c26e",
+      "bytes": 7180
+    },
+    {
+      "path": "app/research_web/plugins/sandbox_runner.py",
+      "sha256": "e52b8352581a4d07f998474c26d54ffa9c5cd475b52dc6a77b2758f1335dacf4",
+      "bytes": 6465
+    },
+    {
+      "path": "app/research_web/plugins/service.py",
+      "sha256": "6c421805a1414c630cfbf2b86ca4a43ff61d6d4cbf48e71baa631e1141dbd15b",
+      "bytes": 36435
+    },
+    {
+      "path": "app/research_web/runtime/plugins.mjs",
+      "sha256": "19a1f34fca31504fb95f05030dd6a8bb7ce248571d177bc1dcf22a7b4abc0322",
+      "bytes": 6989
+    },
+    {
+      "path": "app/research_web/ui/plugins-workspace.mjs",
+      "sha256": "b35016bf0a77827edb5233cde25a0923e455863f092686a82f641f34d79152c4",
+      "bytes": 20641
+    },
+    {
+      "path": "tests/e2e/research_web_plugins_browser.mjs",
+      "sha256": "5c193132fe7c2037821e25e7a4b287f4b9c528f2e0e2725516c98107c6ef3e18",
+      "bytes": 6512
+    },
+    {
+      "path": "tests/e2e/research_web_plugins_fixture.py",
+      "sha256": "d17533ee2847b13713908916a663928b09b4ba792bcd42cda5de0abb640c93b1",
+      "bytes": 3552
+    },
+    {
+      "path": "tests/e2e/research_web_plugins_gateway_browser.mjs",
+      "sha256": "e0345c4d318433274cfe550259a771d520cdeef77e482801000663de829c4476",
+      "bytes": 5316
+    },
+    {
+      "path": "tests/e2e/research_web_plugins_gateway_fixture.py",
+      "sha256": "875caa2dcf7d270143d0ea5cd5ae69ee4edae545aa90471a5a86926e8752c676",
+      "bytes": 2029
+    },
+    {
+      "path": "tests/javascript/research_web_plugins.test.mjs",
+      "sha256": "315a6784b456523dd87e12d2f868e061ea39a5304062daed3c5868e09514c162",
+      "bytes": 3509
+    },
+    {
+      "path": "tests/javascript/research_web_plugins_native.test.mjs",
+      "sha256": "1f9070d6ce3bdc2ef27eb77c95bc3ddd76645ac01b76d89167dc0b3c4216061f",
+      "bytes": 3814
+    },
+    {
+      "path": "tests/javascript/research_web_plugins_ui.test.mjs",
+      "sha256": "b8f299cd60b68673bd232797163e73ce71c224450402842572004f6dbeadb15c",
+      "bytes": 2175
+    },
+    {
+      "path": "tests/research_web/test_plugins.py",
+      "sha256": "3712b1e1874536c99d949e6d334bc44f4889691aa70e696b7174ed698097f9f5",
+      "bytes": 15029
+    },
+    {
+      "path": "tests/research_web/test_plugins_mcp_security.py",
+      "sha256": "5818bfc625c76af7f540cd91d39296e92fbf30cb11c549574be5652298dc62b7",
+      "bytes": 7087
+    },
+    {
+      "path": "tests/research_web/test_plugins_runtime_restart.py",
+      "sha256": "b55071f0cf8b696c09f66f828891cbe48de9b07bd895dbc2ed289ac77cad9b96",
+      "bytes": 12952
+    },
+    {
+      "path": "app/research_web/launch_runtime.py",
+      "sha256": "1a5d6e6afa68a2cdbc39a97d86cf01c97e1733ffffa791294e78acd901a110bb",
+      "bytes": 50521
+    },
+    {
+      "path": "app/research_web/main.py",
+      "sha256": "a28650fac83711a7bd2871e42dae7140b94f7520631214fc78673ea1fd027d60",
+      "bytes": 40621
+    },
+    {
+      "path": "app/research_web/mcp_runtime/service.py",
+      "sha256": "9ed88e9c67a55b7a06083abc844b320d28825923a13b1cbd52e8d394a0290c23",
+      "bytes": 44777
+    },
+    {
+      "path": "app/research_web/multiuser/gateway.py",
+      "sha256": "a9518364c9e2de773ee46f3ce8d45bcf8ac0724c210324671dc0061993d48fe7",
+      "bytes": 21981
+    },
+    {
+      "path": "app/research_web/multiuser/runtime.py",
+      "sha256": "29fd136f9229c7e1756532cb75b97acffd2e6cf9edf1402e8d6060e87cb3c9c3",
+      "bytes": 38850
+    },
+    {
+      "path": "app/research_web/runtime/guard.mjs",
+      "sha256": "9dd3b56f6a62a3c1091b949f672eb549138ae29466b07eef182d4a796545f480",
+      "bytes": 23232
+    },
+    {
+      "path": "app/research_web/runtime/mcp-adapter.mjs",
+      "sha256": "289e14ad7bbba2cdff56b0b70b22040a5077cb92d99dd813ca411dcbdb9c79d9",
+      "bytes": 13310
+    },
+    {
+      "path": "app/research_web/runtime/research.cordis.yml",
+      "sha256": "6bd0576e61a352d0ab2a06dde4983a0c997716c124a928bf8fa7df424d19fed3",
+      "bytes": 6162
+    },
+    {
+      "path": "app/research_web/service.py",
+      "sha256": "f31638a83e71e16719b4def75638c9e0a7e597fc3113b3ca0943f3d648f5c09d",
+      "bytes": 187509
+    },
+    {
+      "path": "app/research_web/tenant_policy.py",
+      "sha256": "24423ec54d53ae0165e108fa42e0a85075e6b8d275e97c8486b80fefd0377c59",
+      "bytes": 7567
+    },
+    {
+      "path": "app/research_web/ui/app.mjs",
+      "sha256": "af407235ffe55327e459fa024a5484ddba70a939432937f9bcccad1c8620b0fb",
+      "bytes": 242257
+    },
+    {
+      "path": "app/research_web/ui/capability-workspace.mjs",
+      "sha256": "f117a6e43d044a5d65c6eaf6777c363b3961f184ceda5772a215afb1c6de8894",
+      "bytes": 31817
+    },
+    {
+      "path": "app/research_web/ui/core.mjs",
+      "sha256": "eaa2ff1444170b346dfba9d0534049d449e2a45fabdf35b965fdc5fb66b242a2",
+      "bytes": 57674
+    },
+    {
+      "path": "app/research_web/ui/styles.css",
+      "sha256": "1ebf79414a845a8ef70a9265d8e8ce58a44ca6eea9440bc88b9359c0861b48cb",
+      "bytes": 80386
+    }
+  ],
+  "evidence": [
+    {
+      "path": "outputs/plugin-browser/01-preview.png",
+      "sha256": "3d8d6579229f76999254962037c0d1f26ce336fd487e16133e33b60a06c70afe",
+      "bytes": 129840
+    },
+    {
+      "path": "outputs/plugin-browser/02-mcp.png",
+      "sha256": "e2216c3db0a91fcb976e2147b6fafd344bb7ea1b069bbc69bf46a04fdebebf46",
+      "bytes": 141093
+    },
+    {
+      "path": "outputs/plugin-browser/03-rollback.png",
+      "sha256": "d05b62f5c732f7706a52b19a06b4b87f0616d73cf28b48242f944f29def27c0c",
+      "bytes": 152926
+    },
+    {
+      "path": "outputs/plugin-browser/04-shared-admin.png",
+      "sha256": "bd410b9a89a60db08b0cc6d54195f970e78f6ce4bcccf342b86827508bdcf997",
+      "bytes": 149312
+    },
+    {
+      "path": "outputs/plugin-browser/05-personal-reader.png",
+      "sha256": "6ed2eedd6e283d3940569467cc495dec1fb216849eb10ba27eecc6abc3d7267d",
+      "bytes": 86460
+    },
+    {
+      "path": "outputs/plugin-browser/evidence.json",
+      "sha256": "0d8db86f82ed7c199c599ae7c342cb3d1f7df799d244b7a4153713e194cde875",
+      "bytes": 519
+    },
+    {
+      "path": "outputs/plugin-browser/server-evidence.json",
+      "sha256": "06294ba725148eb32c1d4829d79308deb754762c1d6076e212b8f7cb38474ac5",
+      "bytes": 431
+    }
+  ],
+  "limits": [
+    "mock DSH/native Host; no model calls",
+    "real temporary AccountStore cookie identity",
+    "not external OAuth/vendor MCP acceptance",
+    "not full tenant startup browser acceptance",
+    "macOS only; Windows/Linux NOT_RUN"
+  ]
+}

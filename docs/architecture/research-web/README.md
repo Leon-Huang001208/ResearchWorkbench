@@ -1,6 +1,127 @@
 # Research Workbench Research Web 当前架构
 
-G2B 管理平面源码现已在独立本地候选整合；固定制品/晋级/回退均需同候选验收。当前不合并 PR104、不部署；Docker 资源不足与 Hot 回滚证书缺失继续 BLOCKED，旧的演练 PASS 不代表当前候选已验证。
+Docker G2B 发布合同见[Docker 手册](../../research-web-docker.md#g2b-冻结制品与受管切换)：冻结制品、同镜像 stage 验收与受管晋级/回退均复用既有管理器。当前源码整合不等于新的现场发布验收。
+
+2026-11-22 单轮资料授权的源码阅读检查点为 `ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7`，包含当前 query／hit_id、普通同步 current 和 Host grant 分支。图04的逐节点证据固定到该本地提交，保留真实 SSH origin 并使用 local-only 链接；Atlas 的同提交 GitHub 链接须待正式发布后可访问。最终图文提交、CI、原生宿主及部署另由各自回执认证。
+
+Research Bot 的 Radar 批次新鲜度、缓存标志及冻结原件分别见[资料说明](03-data-files.md)和[接口合同](04-api.md)。
+
+Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation → DSH 执行。专用 API、冻结资料和失败恢复分别见本目录的接口、资料及运行章节。
+
+2026-11-06 WeKnora资料适配的源码阅读及Atlas链接固定到实际提交 `26e730cbf73d2edcce753d7f84c4f49cf68ec68c`。该检查点包含RWB薄适配与接口，不证明最终文档候选CI、上游Go、第三方运行版本、资料替换或报告接受。
+
+## WeKnora 资料候选（2026-11-06）
+
+Host 批准范围的单轮研究复用原消息、Store 回执与 query／hit_id 工具，在图04中增加显式 grant、原生首 turn 与会话命中的条件分支；普通同步 current 链保持。源码冻结检查点、图件自动门与真实宿主／服务／报告验收分别记录，不沿用旧截图证明新图已复核。见[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
+[资料合同](../../research-web-weknora.md)描述严格身份、固定目录同步、当前会话命中和独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)区分本机目录／账号SQLite、WeKnora、本机Embedding及证据分支。原实例恢复、新链路／模型、零生成、浏览器与真实周报逐项取证，图文和配置状态不能代替验收；原运行与报告图继续描述既有生产链。
+
+能力中心界面收敛为技能／连接器／插件，方法并入技能、工具进入关联详情；原Host／唯一DSH、目录及调度拓扑不变，详见[能力合同](07-capabilities.md)。
+
+当前组合源码阅读检查点为 `8b31439d46dc0b1329fa238153183e02dacbc055`：保留主线事件研究与生命周期恢复修补，并合入已审入站 MCP 源码。Atlas 与模块源码链接绑定该真实合并提交；下述旧检查点及图14／15原有视觉证据仍保留各自身份，不改称本次重验。当前候选的离线检查、GitHub CI、干净安装、常驻与原生宿主验收分别留证。
+
+## 事件与日历研究候选（2026-11-04）
+
+[图14：事件研究数据流](../../../outputs/research-web-architecture/14-event-research.html)展开既有Host内新增的来源采集、个人事件版本、人工确认／冻结、确定性研究、独立测试及评分资格。原系统图的宿主、tenant、唯一DSH和安装角色保持；本次确有新增业务API、持久记录及心跳分支，不用粗粒度图不变概括为没有接口或存储变化。
+
+从[集成合同](../../research-web-event-research.md)进入[时间线](../../research-web-event-timeline.md)、[事件研究](../../research-web-event-studies.md)和[评分](../../research-web-market-scoring.md)。来源就绪、Native／Docker业务、CI和部署仍由实际回执分别认证，图册可读不意味着全部计划完成。
+
+源码阅读检查点：`aea209e8790b6f5a7c6c34de6ea361438ced8515`，包含授权/工具、Doctor/生命周期/CI 接线、受限条件路由扫描及本轮 GET/临时 OAuth 故障修复；该提交仅本地存在，GitHub链接在受管发布完成前可能不可访问。最终修复仍待独立复核；此源码 pin 不认证最终文档提交、CI、常驻或原生宿主。
+
+可选[入站 MCP 访问图](../../../outputs/research-web-architecture/15-inbound-mcp.html)说明原私网网关中的应用授权、逐对象审批、四项读取工具和原 RuntimePool/冻结原件链。默认关闭；没有另建研究循环或身份服务。现有执行与报告图继续描述原 DSH 链；原生宿主实链、源码和部署验收各自记录，详见[入站合同](../../research-web-mcp-facade.md)。
+
+导入quality增量源码检查点为 `6e85dc96e6e8b15352f31f2b920b915611ef606b`：owner+draft隔离原生File与旧响应、完整核心typing、清proxy/credential-home继承且Host只允许inbound网络。74不同Python、Node90、9真实旅程及proxy负例属于本地证据；先经原SPEC确认未退规格，再由原Python/JS reviewer复核，不代表已批准发布或部署。旧218记录和各旧epoch保持原界限。
+
+自选SPEC P2及离线验收夹具源码阅读检查点为 `55acc67a5d26b54f5cac69c1cd64e5221621fd6a`。修复已有观察的首建/新增目标metadata与File保留，旧r9外网边界已追加纠正；新Seatbelt进程的8旅程通过并绑定实际源码hash。源代码、独立SPEC复核、quality、完整Router、同候选CI/安装和部署分别认证，尚未进入quality或发布。
+
+自选CSV导入源码阅读检查点为 `137fafb58376da83cd3bc715463e872e0d32aaad`：原资产自选入口、离线目录、同Store线程批次/回执及两项API已在该提交。Atlas链接绑定该实际源码；本机测试与后续独评、完整Router、同候选CI/安装和常驻部署分别认证，跨Host与断电不在本批保证。详见[合同](../../research-web-watchlist-import.md)。
+
+报告生产作为独立业务入口管理既有报告项目和每期交付；通用Workflow仍在能力中心，Claw保留关联执行过程。新增前端路由与共享UI模块不新增Host API、数据库或研究引擎；详细交互见[前端合同](../../research-web-ui.md)。
+
+当前场景首批见[场景交接](../../research-web-scenario-handoffs.md)与[资产研究资料](../../research-web-asset-research.md)：原Host冻结本人材料与方法，再由唯一DSH执行并经原质量／报告链。固定62／78参考不是可调用清单；源权限、资料声明和实际研究质量分别展示。新增逻辑属于现有Host／DataHub／文件节点内部，后续组合包／深研／角色／资料跟踪仍按[完整计划](../../plans/2026-10-26-seek-alpha-core-parity.md)分批，不以首批代替整站完成。
+
+来源状态初始化属于原 Host 内部生命周期修复：不增加 API、存储节点、依赖或执行器。真实冷启动和来源请求忙/取消状态由原 resident 投影观察，普通未知拒绝及独立维护恢复边界保持。
+
+最终v2源码检查点`fa557ac53cb2aed54fab6313bb8e2e5352000227`，完整产品祖先`d0e83e438`含已审运行组合、PR228及原单job40分钟预算；全部测试/断言保持。首候选7c的取消是30m0s超时，不是整套通过；新候选实际CI与live资格另验。
+
+v2真实Primary门顺序源码阅读检查点`fa557ac53cb2aed54fab6313bb8e2e5352000227`，完整产品冻结到已核验主线`a8d58cb9`（原业务组合及PR228运维修复）。首处只证明身份，桥后完整真实Primary/Host/Native再验，旧v1不变；最终候选CI与live资格另行绑定。
+
+华安周报可信执行scope与提交claim是原Host内部的冻结/准入/恢复补齐，继续同一DSH和Native guard，不是通用公司研究能力的数据豁免。旧未知运行不自动重发；用户选择保留旧证据，待新版本显式验收。Native/文件协议及只读输入边界见02、03、04、05章，真实模型/Word/下载仍分别验证。
+
+2026-10-24 当前源码阅读检查点为`b00503f2adfa38a115f93684c8c92dd54eff2b68`，完整产品祖先`bacb423ce`（P8，含旧历史夹具真实Sender回归）包含周报可信准入、旧等待维护及已批准的PR226/PR227/PR229组合；固定前版36fd、原三锁/完整活动/保全恢复门不变。API Atlas及代码链接绑定该真实提交；源码、CI、统一部署与真实历史稿/Word分别验收，定时继续关闭。
+
+2026-10-24华安历史验收沿原Report Workflow增加冻结用途及不可正式定稿分支，09/10图已区分正式生产与历史交付；来源、正文和文件门仍共用。专用API及原安装/owner边界见[周报合同](../../research-web-etf-weekly-production.md#历史验收2026-10-24用户确认)，实际模型/Word/下载与代码/CI分别留证，定时关闭。
+
+2026-10-23 前一组合源码阅读检查点为`35327d91476cd4ce0d39f1af2abe1483fbc83976`，同时保留已合并今日发现与长期档案、冻结信号、受管MCP候选和证据删除保护。API Atlas与模块源码入口绑定此真实组合提交；图册、独评、CI及最终交付各自取证。小创Registry及收费实测、真实模型质量与常驻部署仍未完成，不由源码阅读提升。
+
+2026-10-23 今日发现阶段源码阅读检查点绑定真实提交`9282f64cd400e7efc8fea0eea6eab6ec5fe73cf9`，包含固定来源/selection详情核对、手动冻结研究、独立跟踪、60条真实列表有界滚动/三行标题及完整详情、UI及离线测试。当时API Atlas和模块源码链接固定此提交；生成物/最终交付提交另由回执绑定，源码已提交不代表已部署或真实模型质量通过。
+
+
+今日发现已登记为独立Host模块阅读入口：固定Intel只读预览、显式冻结、一次DSH提交和单独开启跟踪沿原DataHub/Automation/账号Pool运行。新资料与调度恢复属于真实新边，01部署、02模块、03序列和04资料图同步；当前静态合同不认证真实模型、生产计划或常驻部署。详见[今日发现](../../research-web-discovery.md)。
+
+
+2026-10-23 此前组合源码阅读检查点为`2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0`，包含已审主线Plugin/Auth/Market、资产来源策略与Wind仓库长窗回归修复。读取仍校验数据语义及当前授权，供应商60日容量只应用于实际缺口；受控仓与StorageRunner测试不认证真实Wind/PG。实际Host/Bao、最终CI和部署继续按精确候选独立留证。
+
+2026-10-23 前一组合源码阅读检查点为`4675525d211b30050d31b75279b157e21f3d9e3d`，实际父提交为Market/Auth/Plugin主线71ce8519及Asset功能87abc999；本入口与Atlas绑定此已存在组合source，不将历史feature pin当作含上游的源码。新raw单位策略、原生证据与主线插件/授权/市场能力全部保留；组合实际UI、最终CI与常驻部署分别留证。下方早期pin仅保留各阶段历史归属。
+
+2026-10-23固定公开indices个人仓库桥新增的内部读写条件边见[13市场图](../../../outputs/research-web-architecture/13-market-overview.html)。默认Host的POST仍真实取上游，GET只读原用户缓存；仅内部允许缓存读可命中同源短时捕获。没有新增服务、DSH引擎或自动采集，个人仓库未配置时明确未持久化。
+
+2026-10-23 新的单位策略与原生字段证据源码检查点为`f3149a578ab3d86c96651ef25d42725c7de25a01`，本阅读入口与Atlas绑定此已提交版本。包含CJPY局部量额依据、native证据freeze/restore、规范raw required_semantics与缓存身份；实际来源验证、最终合流/CI/部署仍按任务回执分开记录。
+
+2026-10-23 资产近期不复权备用链源码检查点为`323da9ae60960dbe7f246f4686a54302bebbf819`，本阅读入口及API Atlas现固定该已提交源码。它包含历史source、规范raw2、真实授权与排空及页面来源保持修复；真实免费API和完整Host页面各取得一次AKShare485行，两次目的不同。Tinysoft/Wind仍为受控故障/范围设置，最终CI、合并和常驻部署分别取证，不由阅读pin宣称已部署。
+
+当前v5组合产品为PR188真实merge88ef3817（含资产9bc4及DataHub研究仓），旧版仍51f09；阅读入口固定该已提交组合产品，v5一行64 MiB读取修复另指8f2cb39a，元数据保持1 MB。PR188新04数据流与API清单保留，profile修复自身不新增节点或HTTP。用户批准组合验收后锁定baostock0.9.4／psycopg3.3.6随常驻部署，但不启用／迁移DB、不改外盘；旧a114三CI全PASS、新组合重验及实际部署分别记录，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)和[修复报告](../../../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
+
+华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员
+启用，规范正文、原版式图表与正式归档同版本绑定。09/10图标明旧版兼容和新合同路径；源码能力、
+真实取数/成稿、三周运行及部署分别留证，未核实来源保持阻断。入口见[周报生产合同](../../research-web-etf-weekly-production.md)。
+
+DataHub研究仓基座在同一Host/DSH下提供可选授权查仓、缺口补数、修订与历史时点/冻结恢复。图04及来源证据映射已更新，生产连接和全量采集尚未启用；单元/临时PG、真实免费来源、认证页面与安装CI分别验收。Automation执行拓扑不变。
+
+2026-10-22 资产交互与结构化数据沿既有Host／DataHub／CJPY增加单A股目录搜索、真实专题按需load、24小时账号目录和15分钟普通区块缓存。新增两条HTTP与幂等／来源范围／共享锁／活动witness合同，02模块图补账号缓存分支，04区分资产／DSH调用及原会话快照；无会话目录不进入研究资料发布链。封闭估值、报告期财务、股东名单／汇总、行业、两融与公告事件保留来源／版本／单位及partial，不开放任意repo／公式或新研究引擎。当前源码链接绑定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`，完整执行、浏览器、CI和部署状态见[本轮报告](../../../.ai/reports/test_report_asset_interaction_data_20261022.md)。
+
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件契约新增[固定包、权限、生命周期及支持状态](../../research-web-plugins.md)：现有能力中心/API/Host/MCP/唯一DSH节点内适配，不增加执行引擎或网络服务；API Atlas登记新增固定路由。本地真实Host与临时账号浏览器、固定DSH离线注册分别取证，外部OAuth/真实模型与其他平台仍NOT_RUN。
+
+2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。
+
+全市场概览在Host内增加无会话采集与用户市场缓存，数据流独立于研究会话物化；见[模块图](../../../outputs/research-web-architecture/13-market-overview.html)、[接口](04-api.md#全市场概览接口)和[数据边界](03-data-files.md)。没有新增守护进程、第二研究引擎或Wind／Office权限。
+
+财经日历作为全市场概览子页，以独立的[同源 GET](04-api.md#财经日历接口)读取当前账号的短快照；缺少新鲜快照时按需读取 FOMC 和 BLS 的公开日程。该链路不读写事件研究工作台，也不启动行情刷新或日程任务。见[市场数据流图](../../../outputs/research-web-architecture/13-market-overview.html)。
+
+系统报告的中文正文/审计附件和自由分析引用绑定属于原Host/SDK文件交付链，未增加架构节点。实际渲染、数字、来源、执行与质量分别核对；详见02–05章，新策略只冻结新网页轮次，旧会话不迁移。
+
+FinGPT规范报告由原SDK统一构造计算、声明、引用及所选文件，DSH仍调度研究。Host独立从原始字节重建派生底稿，按原门核对叙述和缺口；数学正确不认证来源真实性或版本可比性。自动化、账号、模型配置和部署节点不因此改变。
+
+FinGPT 来源日期、结构化网页数字、当前及旧稿列表和最终报告 URL 在原 Host/SDK/UI 内修复；未知及不支持布局失败关闭，DSH/来源授权/质量状态与版本实际字节绑定仍保持。
+
+有真实数值业务观测时，规范报告初次生成与一次补查只提示原 report_plan 路径，避免与旧手工payload指令冲突；一般资料保留原脚本写报告，原生预算与质量门不变。
+
+本轮数字/链接修复仅增强原Host质量与UI投影：保留DSH和自动化拓扑，当前研究验收还要求报告与Host检查归档绑定。文件与报告历史原位保存，不因旧别名被禁用而删除数据。
+
+报告数据配方沿同一 DSH research_run_script 与 Host 质量链执行，独立 Summary 算术、完整父来源和 NIST 控制表统一组装；模型分析仍须原门逐项核验。质量扫描仅修复同期间有效声明相互干扰，错误声明和真实缺口继续拒绝。离线四组业务资料回放不等于真实四用户研究通过。
+
+公开来源正文和报告修订继续沿原 DSH 工具、Host 证据与规范文件链路运行。真实取证、不可核验摘要和完整性错误分开；同回合补查报告与历史报告均绑定具体字节及原检查回执，详见 02–05 章。
+
+业务脚本修复仍沿同一DSH执行与Host质量链：选择器统一实际观测/要求映射，工作簿按固定Summary结构原子写入，CPI与NIST证据扩展只来自实际上传字节。脚本、文件与严格拒绝边界分别见02、03、05；离线回归不能代替真实四用户业务验收。
+
+实际报告恢复仍沿现有resources、冻结合同及Host独立评分链；派生只读投影格式见03-data-files，安全及来源定位边界见05-security-validation。
+
+实际业务报告的来源、算术和引用预检查复用原报告资源与DSH回合，独立工作簿验收器的展示规则不传入Host。执行状态、研究质量与下载交付仍分开，详见[数据合同](03-data-files.md#实际业务证据预检查)。
+
+受限业务摘录的表头/分数/计数规范化扩展既有Host观测适配，保留原文及作用域，不建立另一研究引擎；不认证外部真实性或模型的中文推断。原逐句/精确算术门与一次补查保持，新增跨父来源与输入变化拒绝。
+
+CSV报告可在原DSH回合使用显式证据格式helper，章节/claim/notes/coverage按实际观测组装；验收、缺口和原文件交付仍由既有Host独立负责，见[数据合同](03-data-files.md#受限csv计算证据)。Automation不增加执行节点或权限。
+
+报告修订沿原会话归档与质量边界运行：相对输出路径无需 getcwd，当前报告由规范文件映射确定，备用同名文件与历史归档分别保留。
+
+质量核验仍由同一Host和DSH研究回合完成：规范来源元数据、受限全量CSV独立复算和输出变化后的严格重验不增加执行引擎。Automation、公开安装入口和模型配置合同保持。
+
+可选[私网邀请制多用户](../../research-web-installation.md#私网邀请制多用户macos-native)在原研究 UI 前增加账号网关；每个已认证用户独立 Web/DSH、文件和凭据，账号数据库不保存聊天正文。首版仅 macOS Native、管理员开账号、默认两实例；同 UID 后端仍受信任，不宣称公网或 OS 多租户隔离。详细授权、账号 API 和存储分别见 05、04、03 章。
+
+FinGPT 快速/深入/Agent 共用原生 DSH、模型设置及历史，Host 质量回执与报告版本仍属于既有会话文件和验收边界。执行、质量及文件状态分别呈现；Claw/Automation 执行机制保持原合同。
 
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
@@ -38,7 +159,7 @@ create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，�
 G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
 私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
 
-研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
+策略模拟以 `#/simulation/etf` 承载既有 ETF 工程模拟，确定性策略、约束、事务账本及回放均在同一 Host 内，真实链路保持 BLOCKED。
 合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 
 Claw工作区只替换侧栏，中央聊天/草稿保持；文件MD预览复用Host原端点并以纯文本供沙箱显示。Host受理后附加当前时钟但不作为来源/交易日证据；DataHub未适配来源返回明确503。它们不新增服务、调度层、存储schema或研究执行器，详细合同见下列UI、运行时、文件和API模块。
@@ -66,7 +187,7 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 
 这是当前研究产品的唯一架构主入口。现役源码覆盖 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。Native 双宿主进程与 Docker 单容器是同一 Research Web/DSH 产品的互斥运行方式，顺序共享产品数据，不创建第二个研究引擎。
 
-研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
+研究布局、能力中心与架构更新检查已实施。当前 Web 按资产观察、研究情报、研究框架和策略模拟划分业务入口，取消研究台一级导航；保留按需数据查询、Claw 具体报告 Workflow、会话快照交接、来源会话产物及只读“运行与用量”聚合；DataHub 同时提供天软CJPY的封闭目录／行情／复权及结构化资产能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
 
@@ -80,7 +201,7 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 
 1. [部署与职责](01-system.md)：启动路径、模块边界和存储归属。
 2. [研究协议与状态](02-research-runtime.md)：提交、SSE、恢复、审批、停止及页面交接。
-3. [数据与文件](03-data-files.md)：研究台、DataHub 静态目录、路由、资料快照、附件、产物和独立交付。
+3. [数据与文件](03-data-files.md)：资产与主题查询、DataHub 静态目录、路由、资料快照、附件、产物和独立交付。
 4. [接口清单](04-api.md)：当前路由与请求边界。
 5. [安全与验证](05-security-validation.md)：可执行边界、测试层次与未覆盖部署。
 6. [文档清单契约](06-documentation-contract.md)：仓库内门禁、更新标记与负向验收。
@@ -94,7 +215,7 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 
 ## 不在本轮范围
 
-不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。MCP Registry 身份保持 `(registry_id, server_name, version)`；第三方字段按有界纯文本处理且不热链图标。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 不实现 sampling、elicitation、实验性 Tasks、任意 shell、版本范围、隐式环境继承或无人值守高风险调用；Automation 不静默升级目标、不自动重试研究，也不批量追赶遗漏。研究台市场页是按需查询和快照入口，不是旧市场首页或后台行情管线。
+不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。MCP Registry 身份保持 `(registry_id, server_name, version)`；第三方字段按有界纯文本处理且不热链图标。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 不实现 sampling、elicitation、实验性 Tasks、任意 shell、版本范围、隐式环境继承或无人值守高风险调用；Automation 不静默升级目标、不自动重试研究，也不批量追赶遗漏。研究情报的主题检索是按需查询和快照入口，保留新闻、研报及公告视图，不表示新增产业链关系图或后台行情管线。
 
 ## 启动与验收基线
 
@@ -143,3 +264,24 @@ FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03
 ## 历史子会话模式兼容 · 2026-10-13
 
 历史子模式兼容只调整读取投影，原生协议与控制边界见02-research-runtime和05-security-validation；服务与模块结构不变。
+
+模型服务按供应商卡片管理多个独立命名连接，完整添加流程与凭据隔离仍位于原Host/Store/DSH凭据桥；不增加研究执行器。运行/未知活动拒绝切换，旧凭据原位保留，详细见02、03、04、05章及Research Web UI说明。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+本轮新增个人长期研究档案、确定性机会／风险扫描及受管 MCP 候选证据分支，优先阅读[档案合同](../../research-web-dossiers.md)、[扫描合同](../../research-web-dossier-scans.md)、[UI 交接](../../research-web-dossiers-ui.md)与[小创候选](../../research-web-seek-alpha.md)。02 模块图与 04 资料图的新增 Host 内模块／元数据引用由主任务更新并绑定收据；01 部署与 12 私网／资讯服务拓扑保持。个人 SQLite 不存原文，Prompt-only 交接仍进入唯一 DSH；候选 Registry 未核验、真实收费与部署未执行，不能把文档或离线结构认证为已上线。
+
+今日发现原始资讯沿原 Automation research_task 跟踪，批准范围绑定原始资讯及精确核对的事件归档。已登记但核对失效的任务在调度入口拒绝，不回退通用模型执行；默认禁用、独立启用及原质量门保持。详见[发现合同](../../research-web-discovery.md)。
+
+
+## 专业协作接入边界（2026-10-28）
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+macOS 私网可显式启动仅服务 Host。部署图展示账户 Web 在外部执行模式下跳过内置 DSH；资料批准及历史索引仍由 Host 持有。
+
+AlphaDesk 的代码迁移、数据归属、启用和验收边界见[AI 问答合同](../../research-web-ai-qa.md)。

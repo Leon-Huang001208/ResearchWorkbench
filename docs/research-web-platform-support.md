@@ -1,6 +1,141 @@
 # Research Web 能力与平台证据
 
-G2B 当前工作限于 macOS 的源码集成和离线本地合同；真实 linux/arm64 发布镜像、Mac Docker Desktop 演练尚未取得新候选证据。Windows/Linux 原生与对应产品 CI 分别交接，NOT_RUN 不冒充 PASS。
+G2B 的源码集成和离线检查由当前 Mac 开发任务完成；其 Docker 镜像封存、stage 与晋级回退需同候选现场结果。此前 #140 构建只证明构建队列，不认证新 release 路径；Windows/Linux 原生验收不由 Mac 合同检查替代。
+
+原 PR #284 两处围栏内复核前移属于 macOS Native 操作员源码开发。离线真实围栏回归、
+同候选通用 CI／macOS 15 Bootstrap 与 Mac mini 实际切换是独立证据；本阶段不据源码
+推断已部署、模型或业务接受。Windows/Linux 原生及各自产品 dispatch 仍由对应设备接手，
+不从 Mac 结果推导支持，详见[操作员范围](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+管理员持久构建队列的当前任务归 macOS 管理入口。离线合同测试不证明 Docker 冷构建、
+健康或混合负载已通过，也不证明某一 Docker 内存设置已生效；这些分别保持 NOT_RUN，
+等待最终候选实机回执。Windows/Linux 原生及 exact-SHA 产品 dispatch 仍交对应设备，不从 Mac 发起。
+
+本地知识库首期在 Mac mini 的 Native Host、Docker Desktop WeKnora 及原生 Ollama 上验证。WeKnora 的 Tailscale HTTPS 链路分别记录本机与 MacBook Pro 的实际请求结果；这不代替 Windows/Linux 产品运行、Office 或厂商验收。目录同步、引用冻结与受管升级仍按实际执行的本机及候选 CI 证据标记。
+
+本次 Native 私网路由预检修复属于 Mac mini 部署维护：先前更新在切换前被旧443检查拒绝，
+修复后的回归、精确候选CI和现场切换各自取证。识别既有8443/9443私网服务不新增平台支持；
+Windows/Linux 原生产品与对应设备验收继续独立交接。
+
+显式网段和中断 stage 注册恢复纳入原 Mac Docker 管理任务验收，其他平台状态仍依其设备证据记录。
+
+Stage 业主交接本轮由 Mac mini 的 Docker Desktop 验证；Windows/Linux 产品层继续由各自设备验收。
+
+FinGPT 完成切换后的双入口回滚属于 macOS Native 运维验证。离线事务回归与 Mac mini 实际双入口试回滚分别记录。
+
+上线后旧工作树退出目前属于 macOS Native 管理流程。隔离验证覆盖版本和回滚依据复核及临时 Git 工作树退役，现场旧任务仅做只读预览。Docker 的上线触发及 Windows、Linux 原生验收各自留证。
+
+策略验证常驻切换的验收覆盖 Mac mini Native 与 macOS 15 干净安装。认证页面的冻结包复跑作为 Mac mini 业务证据，其他平台的原生验收单独记录。
+
+Mac Docker Desktop 的受管开发构建使用 `rwb-development:development`。离线命令回归和实际 Docker 构建、其他平台验收分别取证。
+
+Radar 批次时效和现有 Bot 回归进入通用测试。常驻升级资格取自 macOS 15 的同候选安装，其他平台原生结果单独验收。
+
+Research Bot 常驻验证范围为 Mac Native 主实例及附着网关，安装资格使用同候选 macOS 15。Windows 和 Linux 原生结果由相应设备取证。
+
+APFS 探针和登录恢复作业属于 macOS Native。GitHub Mac 的临时卷测试与 Mac mini 的真实登录后恢复分开记录。
+
+市场逐日与首批资料按同候选Mac安装及实际私网页面验收；通用CI不冒充其他系统的原生结果。
+
+市场V2后继修复只验证Mac Native及同候选macos-15安装；通用Ubuntu检查不冒充Linux产品支持，Windows/Linux原生保持交接。
+
+本次私网手动事件补丁为Mac功能修复；本机真实网关/Host合同、三CI、Mac安装和实际
+私网操作分别验证。Windows/Linux原生仍由对应设备处理，不因Ubuntu仓库CI声明产品已验。
+
+三地综合总览本轮由 macOS Mac mini 开发并验收 Web 与固定 Native 部署 profile。
+代码、真实公开源、离线浏览器、同候选 macos-15 安装、常驻切换及认证页面分别留证；
+Windows/Linux 原生交接保持 NOT_RUN，不把通用 Ubuntu 仓库检查称为 Linux 产品验收。
+
+统一导航部署任务归macOS Native维护；本机操作员、同候选Mac干净安装和实际部署各自认证。Ubuntu Constraints/Checks只提供通用仓库证据，不宣称Linux产品或Windows原生支持，不从Mac dispatch他平台产品。
+
+## 事件固定部署操作员的验收范围（2026-11-05）
+
+本次为 macOS Mac mini 的 Web 功能部署准备，`apply-events` 仅作用于既有 Native 常驻实例。固定旧版 `db2ae9a48ceca365852072e622aa6627aa7d0b83` 的空闲检查不能认证新操作员或新产品已上线；最终候选仍需原三项 CI、同候选 Mac bootstrap，以及现场切换、认证入口和全账号保全证据。采集日程保持关闭，模型调用与生产评分准入分别验收。
+
+Docker 产品、Windows／Linux 原生设备与对应 CI 本轮未执行，保持 `NOT_RUN`；通用 Ubuntu 仓库门不作为 Linux 产品验收，其他平台待验不冒充 Mac 任务失败。固定版本和恢复范围见[事件部署合同](research-web-gateway-upgrade.md)。
+
+## 事件与日历研究的证据归属（2026-11-04）
+
+本轮为Mac上的Web功能候选：时间线、确定性研究和评分接入沿原Host与账户隔离，未新增桌面打包目标。源码、隔离测试、真实公开来源、浏览器、Native集成与GitHub Mac干净安装各有独立证据，均不能替代常驻部署或正式因子准入。
+
+Docker、Windows／Linux原生、对应设备及CI证据仍按原矩阵记录；没有执行的层级保持NOT_RUN，不因Python共享实现或图14生成宣称支持。覆盖年份、来源受限与PIT缺口见[事件研究合同](research-web-event-research.md)。
+
+## 本机存储回收的证据归属（2026-10-31）
+
+新 pytest 根回收工具在当前 Mac 宿主使用本机 inode、UID、`lsof` 和安全 `rmtree` 验证；它不认证 Docker、Windows 或 Linux 产品运行。新日志选择合同可由通用仓库 CI 验证，但其他平台的临时根清理仍须对应设备按本机路径和占用机制适配，未执行保持 `NOT_RUN`。宿主 `df` 的物理空间证据与 CI、产品验收分开记录，见[留存规则](research-web-storage-retention.md)。
+
+## successor 的证据归属（2026-10-31）
+
+固定 90e→v5 handoff 和后续 fresh retry 属于 macOS Native 维护；小型 pyz／stage 替代的是执行器交接方式，不新增 DSH、研究引擎、业务 HTTP、依赖或 Docker／Windows／Linux 产品能力。通用 Ubuntu 单测保留真实宿主文件／UID／SQLite 后端，只为操作员入口设置局部平台视图，不能冒充 Linux 产品或 macOS Native 真机证据。
+
+最终候选 Router／CI、同候选 Mac 干净安装、三锁＋lease＋DB EX／spawn 未知保护，以及实际备份、切换与认证全入口分别留证；每事务 8 项 spawn 上限不允许重发 pending。原 15 账号当前冻结，admin＋新 test 清理是终态后另项操作，不能据计划先改支持矩阵或账号范围。详见[successor 维护合同](research-web-trial-successor-handoff.md)；本段不新增任何物理验收 PASS。
+
+## 试验退役的本平台范围（2026-10-30）
+
+历史试验退役是 macOS Native 维护操作员的封闭模式，固定前版与产品，执行器独立评审；不新增桌面打包、Docker、Windows 或 Linux 产品能力。Windows/Linux 产品验收保持 `NOT_RUN`，由对应设备接手；Ubuntu 通用仓库检查不算它们的产品证据。
+
+三份离线模块与既有步骤的维护 import 检查无新 job、依赖或超时；离线通过不能替代最终候选 Router／CI、Mac Native 实际备份和切换及登录后验收。目前不据此宣称现场已更新，详见[试验退役合同](research-web-trial-discard.md)。
+
+2026-10-27资源回收兼容修复由Mac本机Python3.12及用户授权的隔离3.14.6验证真实`py_compile`正例、未知字节／异源payload／尾随业务内容及编码器缺失拒绝。3.14.6函数域真实复现引用标记差异，显式保留可信code额外引用后24组合逐字节相等；临时解释器不成为产品依赖。ubuntu-26.04通用Constraints原失败仍保留，最终候选CI才能证明其修复效果。此修改不扩大Windows／Linux原生或Docker产品支持声明；同候选Mac安装、通用CI、实际资源清理和常驻部署分别留证。
+
+全市场广度组合操作员为Mac Native固定profile：本机与同候选Mac安装CI分别认证，源码通过不认证真实上线。Windows/Linux原生及对应设备验收继续交接未执行，不从Mac发产品dispatch；原跨平台支持矩阵不因新CLI扩大。
+
+本轮v2是macOS Native受管准入修复，仅取本机、通用仓库CI与同候选Mac安装证据。真实b0e曾在停机前deferred；源码通过不认证切换或Word。Windows/Linux产品原生及条件CI由对应设备交接，NOT_RUN不改支持声明。
+
+本次华安准入/等待维护只验 macOS Native及同候选Mac安装。真实Native只读观察、源代码离线测试、生产维护、统一部署、模型与Word交付分别记录；Windows/Linux产品及Docker部署未运行，不由通用Ubuntu CI推导支持。
+
+全市场预览封闭升级本轮仅由Mac mini验证macOS Native及同候选macos-14安装。Ubuntu Checks/Constraints为通用仓库证据，Windows/Linux产品原生与真机仍由对应设备交接；本配置不扩大平台支持声明。
+
+资产V9 reader修复由macOS承担本机和同候选Mac干净安装；Ubuntu通用仓库门不能冒充Linux原生，Windows/Linux与Docker产品层仍NOT_RUN。运行版本和认证实页另行验收。
+
+资产V8为macOS Native固定更新，本机、原通用仓库门、同候选Mac安装及实际部署分别记录。Windows/Linux原生与Docker产品未运行，不因本profile获得支持或发布认证。
+
+2026-10-24华安历史验收属于Mac主开发的Web/Native Host既有周报能力：本机离线、最终三CI/Mac安装、真实Wind/DSH、Word与下载分别取证；历史成功不能认证正式实时周报或三个真实周期。Windows/Linux原生与Docker产品未由本任务验收，不从Mac派发其产品任务。
+
+华安 v2 仅负责macOS Native固定操作员闭包；本机、最终原三CI、Mac干净安装、实际切换及Office周报分别记录，未执行层仍待验。新增组合产品不授予Windows/Linux原生或Docker发布资格，不触发他平台产品dispatch。
+
+本次华安固定操作员是Mac mini的macOS Native工具闭包：本机1745项离线回归通过；最终通用CI、同候选macos-14干净安装、实际常驻切换和原生周报交付分别取证。当前没有Windows/Linux原生或Docker产品验收，不从Mac dispatch他平台任务，也不将源码准备当成Office/Wind或正式稿通过。
+
+2026-10-23：终端profile任务属于Mac mini的Web功能／macOS Native部署工具闭包。后端与操作员本地回归、组合候选独评／原三CI／同候选Mac干净安装、真实认证切换及保全分开认证，未执行层保持待验证。Windows/Linux原生与Docker产品层均不由本机预检提升状态，不触发他平台产品dispatch或桌面sidecar／Tauri，见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+macOS管理员构建器对账使用当前Docker Desktop本地Unix endpoint；本任务仅认证Mac本机恢复和适用Mac安装CI。Windows/Linux原生适配及实际券商／厂商验证不由该工具或Mac测试认证。
+
+2026-10-23：市场限价/昨日/历史属于Mac mini功能开发与Native固定部署，必须原通用两CI及同候选macos-14安装；Windows/Linux原生和Docker产品证据保持各设备原状态，本任务不触发他平台产品dispatch，不提升跨平台支持声明。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
+
+2026-10-22资产v5索引预检修复仍属Mac mini部署工具修复，仅v5复用已有64 MiB业务读取器；没有新增平台能力、依赖或安装器变化。769＋112本机及173项独评为主任务既有检查点，PR187 Constraints39794625674仍记录失败，后续同候选原三CI及实际切换另证。Windows／Linux原生和Docker产品不由这次Native读取修复推定通过。
+
+2026-10-22资产交互v5是Mac mini功能／固定部署任务，固定PREVIOUS=51f09、PAYLOAD=PR185 merge9bc4；产品合并及产品三CI不更新本profile的验收状态。v5仍需本机操作员回归、独立评审、原通用两门及同候选macos-14安装，实际部署／认证页面另证；Windows、Linux原生和Docker产品层保持各自NOT_RUN／既有状态，由对应设备负责，不从Mac源码或预览推断已支持。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 v4 profile是macOS Native操作员功能交付，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。产品schema3 validator为hostPASS/mergeReady=true，但aggregateNOT_READY；Ubuntu通用仓库门不表示Linux产品原生通过，Windows/Linux产品原生/实机保持NOT_RUN。v4最终本机/评审/原三CI/Mac安装和实际部署另取证，不复用产品CI或旧恢复；不派他平台产品任务、不触发Tauri/sidecar，也不增job/runner/依赖或改图。
+
+2026-10-22 Wind工作区v3部署工具是macOS Native操作员功能交付，固定previous5495/PAYLOADa0ff3ae2，原Mac本机回归/通用仓库门/同候选Mac Bootstrap、实际部署和账号保全分别验收。没有Windows/Linux产品适配、原生dispatch或实机操作，它们保持NOT_RUN；Mac不代行，亦不触发桌面Tauri/sidecar。无新依赖、workflow/job/runner/timeout或部署节点，现有平台图保持。
+
+2026-10-22 Wind工作区为Mac mini macOS宿主的Web功能开发：纯历史/Provider/UI回归、实际厂商复权预检、浏览器几何/全历史、同候选macos-14安装CI与常驻切换分层记录。当前有限两股票预检不能推导全历史或其他平台支持；Windows/Linux原生、对应产品CI与实机仍NOT_RUN，分别交接对应设备，不由Mac触发。新增Store键不是DB迁移，不涉及Tauri/sidecar或桌面交付；其他平台未验不阻断已独立完成的Mac本平台门。
+
+资产观察 v2 固定版本操作员属于 macOS Native 功能交付，本机真实 Git／恢复回归、原通用仓库门、同候选 Mac 干净安装、实际切换及保全分别绑定证据。没有 Windows／Linux 原生产品部署或实机验收，不从 Mac 派发其产品 CI；这些层级继续 NOT_RUN，由对应真机接手，也不触发桌面 Tauri／sidecar 交付。
+
+AF连续指标迁移是macOS宿主的Web功能开发；本地公式／后端／页面测试、浏览器对照、真实CJPY及同候选Mac干净安装分别取证，未取得者保留NOT_RUN。本地图表库需随wheel和Mac安装物逐字节核对；没有Windows／Linux原生产品验收证据，不从Mac触发其产品dispatch，也不触发Tauri／sidecar／桌面安装门。常驻部署另行授权。
+
+本轮只修正macOS Native显式部署的CI日志下载预算；Mac同候选安装与通用仓库检查仍必需。没有Windows/Linux原生部署或产品派发，Linux runner的通用CI不冒充Linux产品验收。
+
+资产观察 apply-assets 是 macOS Native 的固定版本显式部署；源码、同候选Mac安装CI、真实切换/回滚与浏览器效果分别取证。Windows/Linux原生部署和产品验收仍为NOT_RUN，不从Mac派发其产品CI。
+
+独立 clone 身份回归使用本机临时 Git 仓库，真实发布目录只做元数据预检；macOS 安装仍须最终候选 CI。Windows/Linux 原生产品部署保持 NOT_RUN，不从该回归推断其支持。
+
+PR168 导航的联合部署范围不扩展平台支持；本任务单列 Mac 源码/安装CI、实际 Native 切换及浏览器证据，Windows/Linux产品原生验收仍为NOT_RUN。
+
+模型服务商联合部署操作员仅支持 macOS 且核对受审旧版本和物理身份；本机恢复回归与同候选 Mac 安装 CI 分别留证。Windows/Linux 产品部署及真机验收 NOT_RUN，由对应设备接手，不由 Mac 触发其产品 dispatch。
+
+FinGPT三组比较的真实模型、Keychain和进程组验证限定macOS；Linux通用离线夹具不等于Linux产品支持。Windows/Linux实际运行和CI交接保持NOT_RUN。本机实验不自动变更生产部署。
+
+stage 预留保全释放属于 Mac mini 管理平面，本机 Docker Desktop 单独验收；不认证 Windows/Linux 产品或跨平台原生支持。
+
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
+私网邀请制多用户首版限定 macOS Native：显式账号网关、逐用户 Web/DSH/data root 和两实例准入。Windows/Linux 原生、Docker 多用户与公网均未接入；本地账号/代理模拟测试不能作为真实 DSH、Seatbelt、浏览器、模型或干净 macOS CI 的证据，必须分别记录实际结果。现有单用户平台支持矩阵不因新增账号提升；同 UID 后端仍受信任，不宣称 OS 租户隔离。
 
 Host元数据专项兼容升级仅在macOS Native验收：精确候选、Mac Bootstrap、原空闲/事务/健康/回滚。Ubuntu纯合同测试不代表Linux产品适配；Windows/Linux原生及Docker专项仍NOT_RUN，不从Mac发起产品dispatch。
 
@@ -169,3 +304,46 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 2026-10-13续跑：本轮Hot原scope预算修订和冻结资料读取仅有macOS Native证据；真实研究5次回执保存，报告仍incomplete。Docker及Windows/Linux尚无本轮对应验收，保持NOT_RUN。
 
 外来 AES 树绑定修复已用 macOS 临时合成文件证明四操作拒绝和正确旧树可读；本轮未运行真实 Docker、Linux/Windows、供应商或远端 CI，不提升这些层级状态。
+
+模型profile的账户路由与灰阶UI新增离线合同；macOS本机与同候选macOS安装CI分别记录。Keychain实际旧账号不迁移，新AES记录有离线重启验证，但这不证明Linux/Windows原生平台已验收；对应产品门保持NOT_RUN交接。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+本轮是 Mac mini 的 Web 功能开发：个人 SQLite／pin、原件授权、Prompt-only 交接、确定性A股扫描及受管 MCP 候选分别取证，不涉及桌面 sidecar／Tauri。原通用仓库 CI 与同候选 macOS 干净安装仍为本平台门，既有 job 追加测试／静态资源而无新 runner；Windows／Linux 的原生锁、安装与真实设备验收交对应设备，未执行保留 NOT_RUN。候选 Registry、真实报价／凭据／付费／常驻部署以及原报告模型质量均不由离线测试提升，详见[档案](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)与[候选](research-web-seek-alpha.md)。
+
+
+2026-10-23：资产副图v7为macOS Web操作员增量；本机/同候选macos-14与通用仓库门独立认证。Windows/Linux原生与Docker产品实机未执行，不据此升级平台支持状态。
+
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## WeKnora 候选的当前平台证据（2026-11-06）
+
+本轮为Mac上的Web源码与隔离RWB浏览器候选。上游Node纯函数8项通过；Go完成编译但测试初始化在上游go-m1cpu崩溃，Docker两次受容量门拒绝、未执行测试，不认证Go runtime通过。完整WeKnora Vue、独立服务、真实模型、迁移与报告未验；Windows/Linux原生和各自CI仍由对应设备负责，不从Mac派发他平台产品任务。[资料合同](research-web-weknora.md)
+
+私网 `server serve --service-only` 的候选范围为 macOS Native。Docker、Windows、Linux 作为产品宿主及生产常驻切换分别验收。
+
+原位主账号写入互斥新增 macOS POSIX 锁继承验证。现有常驻切换及固定前版回滚需要独立实测。
+
+AlphaDesk 问答候选分别记录 Mac Native、Mac Docker Desktop、GitHub Mac 干净安装与真实问答。Windows、Linux 由对应设备接手。

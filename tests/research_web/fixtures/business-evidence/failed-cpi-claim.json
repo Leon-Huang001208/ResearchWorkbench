@@ -1,0 +1,20 @@
+{
+  "id": "c_head_mom_12",
+  "text": "季调后总体CPI环比上涨 0.4 %",
+  "value": "0.4",
+  "period": "2024-12",
+  "unit": "%",
+  "operation": "identity",
+  "operand": {
+    "value": "0.4",
+    "quote": "headline_mom_sa_pct 2024-12 0.4 %",
+    "period": "2024-12",
+    "unit": "%"
+  },
+  "provenance": {
+    "source_revision": "4dc415a99df50fd38ed7957eef18710a76540516",
+    "case": "case-2",
+    "canonical_report_sha256": "3ee1b6de4e4cf5d8eb9366d59814994286503f1bdb8b4949fc41300689c25ebc",
+    "privacy": "Actual statement; private observation/session identifiers intentionally omitted"
+  }
+}

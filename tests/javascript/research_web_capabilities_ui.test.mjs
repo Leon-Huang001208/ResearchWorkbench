@@ -84,16 +84,25 @@ function productBuiltinResearchSkills() {
   return productCapabilityFixture().items;
 }
 
+function appRoot(handlers) {
+  const appShell = { inert: false };
+  return { innerHTML: '', appShell, addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: selector => selector === '.app-shell' ? appShell : null };
+}
+
+const appClickTarget = dataset => ({ closest: selector => selector === '[data-scenario-open], [data-workbench-handoff]' ? null : { dataset, disabled: false } });
+
 test('relative Python override resolves once against the caller cwd and runs from the worktree', () => {
-  const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
-  const ownerRoot = projectOwnerRoot;
-  const relativeOverride = path.join('.venv', executable);
+  const availablePython = projectPython();
+  const callerCwd = path.dirname(availablePython);
+  const relativeOverride = path.relative(callerCwd, availablePython);
   const resolved = projectPython({
-    callerCwd: ownerRoot,
+    callerCwd,
     environment: { ...process.env, RWB_TEST_PYTHON: relativeOverride },
   });
-  assert.equal(resolved, path.resolve(ownerRoot, relativeOverride));
+  assert.equal(resolved, path.resolve(callerCwd, relativeOverride));
+  assert.equal(resolved, availablePython);
   assert.equal(path.isAbsolute(resolved), true);
+  assert.throws(() => projectPython({ callerCwd, environment: { RWB_TEST_PYTHON: 'missing-python' } }), /not an executable file/);
   const probe = spawnSync(resolved, ['-c', 'print("rwb-relative-python-ok")'], {
     cwd: projectRoot,
     encoding: 'utf8',
@@ -106,58 +115,47 @@ test('relative Python override resolves once against the caller cwd and runs fro
 test('one catalog filters kind, source, category and Chinese search, including disabled entries for inspection', async () => {
   const { filterCapabilities, renderCapabilityCatalog } = await load('capabilities.mjs');
   const items = [cap(), cap({ id: 'builtin', builtin: true }), cap({ id: 'off', status: 'disabled', enabled: false }), cap({ id: 'wf', kind: 'workflow' })];
-  assert.deepEqual(filterCapabilities(items, { kind: 'skill', source: 'mine', category: '资料研究', query: '真实' }).map(x => x.id), ['my-skill', 'off']);
+  assert.deepEqual(filterCapabilities(items, { kind: 'skill', source: 'mine', category: '资料研究', query: '真实' }).map(x => x.id), ['my-skill', 'off', 'wf']);
   assert.match(renderCapabilityCatalog({ items, kind: 'skill', query: '不存在' }), /没有匹配/);
   assert.match(renderCapabilityCatalog({ items, kind: 'skill' }), /已停用/);
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
 });
 
-test('capability workspace preserves legacy links and exposes five stable primary kinds', async () => {
+test('capability workspace preserves legacy links and normalizes legacy links to three primary kinds', async () => {
   const { parseRoute } = await load('core.mjs');
   const { capabilityWorkspaceHash, capabilityWorkspaceKindKey } = await load('capability-workspace.mjs');
   assert.deepEqual(parseRoute('#/skills'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
-  assert.deepEqual(parseRoute('#/skills?kind=tool'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'tool' });
-  assert.deepEqual(parseRoute('#/skills?view=mine&kind=workflow'), { page: 'skills', sessionId: null, capabilityView: 'mine', capabilityKind: 'workflow' });
-  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'workflow' });
-  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'tool' });
-  assert.deepEqual(parseRoute('#/skills?kind=data&view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'data' });
-  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'connector', capabilityContext: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=mine&kind=workflow'), { page: 'skills', sessionId: null, capabilityView: 'mine', capabilityKind: 'skill', capabilityContext: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'skill', capabilityContext: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'connector', capabilityContext: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=data&view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'connector', capabilityContext: 'data' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'connector', capabilityContext: 'tool' });
   assert.deepEqual(parseRoute('#/skills?kind=skill&view=market'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
-  assert.deepEqual(parseRoute('#/skills?kind=tool&view=mine'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=mine'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'connector', capabilityContext: 'tool' });
   assert.deepEqual(parseRoute('#/skills?view=unknown'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
   assert.equal(capabilityWorkspaceHash('tool', 'connections'), '#/skills?kind=tool&view=connections');
   assert.equal(capabilityWorkspaceHash('tool', 'market'), '#/skills?kind=tool&view=market');
   assert.equal(capabilityWorkspaceHash('data'), '#/skills?kind=data');
-  assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'method' });
-  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
-  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'connector' });
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'plugin' });
+  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'plugin' });
   assert.deepEqual(capabilityWorkspaceKindKey('Enter', 'tool'), { handled: false });
 });
 
-test('capability workspace isolates Skill, Tool, Workflow and data into separate primary panels', async () => {
+test('unified skill panels and connector services keep tools contextual', async () => {
   const { collectCapabilityWorkspaceEntries, filterCapabilityWorkspaceEntries, renderCapabilityWorkspace } = await load('capability-workspace.mjs');
-  const capabilities = [cap(), cap({ id: 'built', builtin: true, name: '内置能力' }), cap({ id: 'flow', kind: 'workflow', name: '我的流程', status: 'disabled', enabled: false })];
-  const tools = [{ id: 'read_data', name: '读数据', description: '只读', selectable: true }];
-  const dataCatalog = { summary: {}, sources: [], capabilities: [{ id: 'bars', name: '行情', description: '真实行情', category: '行情', tool_id: 'read_data', source_count: 2, callable_source_count: 1 }] };
+  const capabilities = [cap(), cap({ id: 'flow', kind: 'workflow', name: '我的流程', status: 'disabled', enabled: false })];
+  const tools = [{ id: 'read_data', name: '读数据', selectable: true }];
+  const dataCatalog = { summary: {}, sources: [{ id: 'source-one', name: '真实来源', readiness: {} }], capabilities: [] };
   const entries = collectCapabilityWorkspaceEntries({ capabilities, tools, dataCatalog });
-  assert.deepEqual(entries.map(item => item.kind), ['skill', 'skill', 'workflow', 'tool', 'data']);
-  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { view: 'mine', kind: 'skill' }).map(item => item.id), ['my-skill']);
-  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { view: 'mine', kind: 'workflow' }).map(item => item.id), ['flow']);
-  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { kind: 'data', status: 'available' }).map(item => item.id), ['bars']);
-  const skillHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'skill' });
-  const toolHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'tool' });
-  const workflowHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'workflow' });
-  const dataHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'data' });
-  for (const html of [skillHTML, toolHTML, workflowHTML, dataHTML]) {
-    for (const label of ['Skill', 'Tool', 'Workflow', '数据']) assert.match(html, new RegExp(`>${label}<`));
-    assert.doesNotMatch(html, /data-cap-kind-filter|\bNEW\b|热门|排名/);
-  }
-  assert.match(skillHTML, /我的研究/); assert.doesNotMatch(skillHTML, /我的流程|读数据|真实行情/);
-  assert.match(toolHTML, /读数据/); assert.doesNotMatch(toolHTML, /我的研究|我的流程|真实行情/);
-  assert.match(workflowHTML, /我的流程/); assert.doesNotMatch(workflowHTML, /我的研究|读数据|真实行情/);
-  assert.match(dataHTML, /真实行情/); assert.doesNotMatch(dataHTML, /我的研究|我的流程|读数据/);
-  assert.match(skillHTML, /能力库.*我的 Skill/s); assert.match(toolHTML, /工具目录.*MCP 市场.*连接状态/s);
-  assert.match(workflowHTML, /能力库.*我的 Workflow.*运行计划/s); assert.match(dataHTML, /数据能力.*数据源与连接/s);
+  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { view: 'mine', kind: 'skill' }).map(item => item.id), ['my-skill', 'flow']);
+  const html = renderCapabilityWorkspace({ capabilities, tools, dataCatalog });
+  assert.match(html, /我的研究/); assert.match(html, /我的流程/); assert.doesNotMatch(html, /读数据|真实来源/);
+  const connectors = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'connector' });
+  assert.match(connectors, /真实来源/); assert.doesNotMatch(connectors, /读数据|我的研究/);
+  assert.match(renderCapabilityWorkspace({ tools, kind: 'tool' }), /data-tool-detail="read_data"/);
+  for (const label of ['技能', '连接器', '插件']) assert.ok(html.includes(`>${label}</a>`));
 });
 
 test('Workflow plans show version-locked automations, runs, and isolated legacy schedules', async () => {
@@ -228,7 +226,8 @@ test('capability center renders every built-in Skill and disables receipt-gated 
 
   const detail = renderCapabilityDetail(builtinResearchSkills.find(item => item.id === 'sell-side-report-reader'));
   assert.match(detail, /研报增量分析/);
-  assert.match(detail, /research_run_script、web_search/);
+  assert.match(detail, /data-tool-detail="research_run_script"/);
+  assert.match(detail, /data-tool-detail="web_search"/);
   assert.match(detail, /无需文件/);
   assert.match(detail, /data-use-skill="sell-side-report-reader"/);
   assert.doesNotMatch(catalog, /zhengyan-research-router/);
@@ -236,14 +235,14 @@ test('capability center renders every built-in Skill and disables receipt-gated 
 
 test('capability kind tabs implement roving keyboard tabs and owned panels', async () => {
   const { capabilityTabKey, renderCapabilityCatalog } = await load('capabilities.mjs');
-  assert.deepEqual(capabilityTabKey('ArrowRight', 'skill'), { handled: true, kind: 'tool' });
-  assert.deepEqual(capabilityTabKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityTabKey('ArrowRight', 'skill'), { handled: true, kind: 'connector' });
+  assert.deepEqual(capabilityTabKey('ArrowLeft', 'skill'), { handled: true, kind: 'plugin' });
   assert.deepEqual(capabilityTabKey('Home', 'workflow'), { handled: true, kind: 'skill' });
-  assert.deepEqual(capabilityTabKey('End', 'tool'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityTabKey('End', 'tool'), { handled: true, kind: 'plugin' });
   assert.deepEqual(capabilityTabKey('Enter', 'tool'), { handled: false });
   const html = renderCapabilityCatalog({ items: [cap()], kind: 'skill' });
   assert.match(html, /id="capability-tab-skill"[^>]*tabindex="0"[^>]*aria-controls="capability-panel-skill"/);
-  assert.match(html, /id="capability-tab-tool"[^>]*tabindex="-1"/);
+  assert.match(html, /id="capability-tab-connector"[^>]*tabindex="-1"/);
   assert.match(html, /id="capability-panel-skill" role="tabpanel"[^>]*aria-labelledby="capability-tab-skill"/);
   const selectedTab = html.match(/<button[^>]*id="capability-tab-skill"[^>]*>/)?.[0] || '';
   assert.match(selectedTab, /aria-selected="true"/);
@@ -468,7 +467,7 @@ test('connecting runtime is distinct from a settled offline runtime', () => {
 
 test('overlapping runtime refreshes stay pending and the latest request wins', async () => {
   const handlers = new Map(); const calls = []; const runtimeRequests = [];
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
@@ -498,8 +497,8 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
     const olderFailure = deferredResponse(); const newerSuccess = deferredResponse();
     runtimeRequests.push(olderFailure, newerSuccess);
-    const firstRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
-    const secondRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    const firstRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
+    const secondRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await tick();
     const cachedPendingHTML = rootElement.innerHTML;
     const cachedPendingSubmit = submitTag();
@@ -521,8 +520,8 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
     const olderStale = deferredResponse(); const latestSuccess = deferredResponse();
     runtimeRequests.push(olderStale, latestSuccess);
-    const olderRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
-    const latestRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    const olderRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
+    const latestRefresh = handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await tick();
     latestSuccess.resolveJSON({ connected: true, credential_configured: true });
     await latestRefresh;
@@ -553,8 +552,8 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
 test('real app event handlers close/select slash, search and drawers without any model or tool write', async () => {
   const handlers = new Map(); const calls = []; const logs = [];
-  const viewportChanges = []; const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const viewportChanges = []; const windowHandlers = new Map(); const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
+  const rootElement = appRoot(handlers);
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const prompt = { id: 'prompt', focus() {} };
   let focused = '';
@@ -570,7 +569,7 @@ test('real app event handlers close/select slash, search and drawers without any
   const detail = { ...selectedSkill, draft: { kind: 'skill', metadata: selectedSkill.metadata, instructions: '真实候选', files: [], steps: [] } };
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, querySelectorAll: () => resultItems, getElementById: id => id === 'global-search-results' ? searchResults : null, activeElement: null, title: '' } });
-    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => viewport, addEventListener() {} } });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => viewport, addEventListener(name, handler) { windowHandlers.set(name, handler); } } });
     Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt' } });
     Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
@@ -582,11 +581,22 @@ test('real app event handlers close/select slash, search and drawers without any
     await load(`app.mjs?capabilities-integration=${Date.now()}`);
     assert.equal(viewportChanges.length, 1);
     viewport.matches = false; viewportChanges[0]({ matches: false });
-    assert.match(rootElement.innerHTML, /aria-label="关闭会话侧栏"/);
+    assert.match(rootElement.innerHTML, /data-collapse-sidebar aria-label="折叠 FinGPT 二级侧栏"/);
+    windowHandlers.get('focusin')({ target: { matches: () => true } });
+    document.body = {}; document.activeElement = document.body;
     viewport.matches = true; viewportChanges[0]({ matches: true });
-    assert.match(rootElement.innerHTML, /aria-label="打开会话侧栏"/);
+    assert.equal(focused, 'toggle', 'CSS-hidden sidebar control restores focus to the mobile opener');
+    windowHandlers.get('focusin')({ target: { matches: () => false } });
+    focused = '';
+    viewportChanges[0]({ matches: true });
+    assert.equal(focused, '', 'resizing must not steal focus from unrelated controls');
+    windowHandlers.get('focusin')({ target: { matches: () => true } });
+    windowHandlers.get('focusout')({ target: { matches: () => true, getClientRects: () => [{}] } });
+    viewportChanges[0]({ matches: true });
+    assert.equal(focused, '', 'deliberately blurred visible sidebar controls must not reclaim focus');
+    assert.match(rootElement.innerHTML, /aria-label="展开二级导航"/);
     const input = async (id, value, dataset = {}) => handlers.get('input')({ target: { id, value, dataset, closest: () => null } });
-    const click = async (dataset) => handlers.get('click')({ target: { closest: () => ({ dataset, disabled: false }) } });
+    const click = async (dataset) => handlers.get('click')({ target: appClickTarget(dataset) });
     const key = async (key) => handlers.get('keydown')({ key, target: { id: 'prompt' }, preventDefault() {}, isComposing: false });
     await input('prompt', '/'); assert.match(rootElement.innerHTML, /id="slash-options"/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /id="slash-options"/);
@@ -628,12 +638,12 @@ test('real app event handlers close/select slash, search and drawers without any
 
 test('real landing modes filter catalog categories and select Workflow or Skill drafts without writes', async () => {
   const handlers = new Map(); const windowHandlers = new Map(); const calls = [];
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
   const skillIDs = ['document-reading', 'company-research', 'industry-research', 'fund-evaluation'];
-  const items = [...skillIDs.map(id => cap({ id })), cap({ id: 'flow-one', kind: 'workflow', name: '公司研究步骤', category: '公司' }), cap({ id: 'flow-two', kind: 'workflow', name: '行业研究步骤', category: '行业' })];
+  const items = [...skillIDs.map(id => cap({ id })), cap({ id: 'flow-one', kind: 'workflow', name: '公司研究步骤', category: '公司' }), cap({ id: 'flow-two', kind: 'workflow', name: '行业研究步骤', category: '行业' }), cap({ id: 'legacy-method', kind: 'method', name: '事实核查' })];
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: false }), addEventListener: (name, handler) => windowHandlers.set(name, handler) } });
@@ -646,16 +656,29 @@ test('real landing modes filter catalog categories and select Workflow or Skill 
     } });
     console.info = () => {};
     await load(`app.mjs?landing-integration=${Date.now()}`);
+    assert.equal(rootElement.appShell.inert, false);
+    await handlers.get('click')({ target: { closest: selector => selector === '[data-scenario-open], [data-workbench-handoff]' ? { dataset: { scenarioOpen: '' } } : null }, preventDefault() {} });
+    assert.equal(rootElement.appShell.inert, true, 'open scenario dialog makes the app shell inert');
+    assert.match(rootElement.innerHTML, /class="d-drawer-backdrop scenario-panel".*role="dialog" aria-modal="true"/s);
+    handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() {} });
+    assert.equal(rootElement.appShell.inert, false, 'closing the scenario dialog restores the app shell');
+    assert.doesNotMatch(rootElement.innerHTML, /class="d-drawer-backdrop scenario-panel"/);
     const quickIDs = () => [...rootElement.innerHTML.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]);
     const change = (id, value, dataset = {}) => handlers.get('change')({ target: { id, value, dataset, closest: () => null } });
-    assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类/);
+    assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类|claw-examples|claw-case-card|查看示例/);
     assert.deepEqual(quickIDs(), []);
     const reads = calls.length;
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { slashSearch: '' }, disabled: false }) } });
-    assert.ok(quickIDs().includes('flow-one')); assert.equal(calls.length, reads);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { skillShortcut: 'flow-one' }, disabled: false }) } });
+    await handlers.get('click')({ target: { closest: selector => selector === '[data-cm-open]' ? { dataset: { cmOpen: 'capabilities' }, disabled: false } : null } });
+    assert.match(rootElement.innerHTML, /composer-command-panel/);
+    assert.match(rootElement.innerHTML, /公司研究步骤/); assert.equal(calls.length, reads);
+    const labels = [...rootElement.innerHTML.matchAll(/composer-command-label">([^<]+)</g)].map(match => match[1]);
+    const index = labels.indexOf('公司研究步骤'); assert.ok(index >= 0);
+    await handlers.get('click')({ target: { closest: selector => selector === '#claw-composer-menu' ? {} : selector === '[data-cm-row]' ? { dataset: { cmRow: String(index) }, disabled: false } : null } });
     assert.equal(globalThis.location.hash, '#/claw');
     assert.match(rootElement.innerHTML, /capability-chips.*公司研究步骤 · v2/s);
+    await change('skill-select', 'legacy-method');
+    assert.match(rootElement.innerHTML, /capability-chips.*公司研究步骤 · v2/s);
+    assert.match(rootElement.innerHTML, /data-remove-method="legacy-method"/);
     await change('skill-select', 'document-reading');
     assert.match(rootElement.innerHTML, /capability-chips.*我的研究 · v2/s);
     globalThis.location.hash = '#/fingpt'; windowHandlers.get('hashchange')();
@@ -692,7 +715,7 @@ test('publication adopts the confirmed mutation response instead of risking an u
 
 test('failed workflow version reads retry on explicit refresh and clear only the recovered version error', async () => {
   const handlers = new Map(); const calls = []; let versionReads = 0;
-  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const rootElement = appRoot(handlers);
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const selectors = { '#app': rootElement, '#main': main, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch', 'EventSource'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -718,15 +741,15 @@ test('failed workflow version reads retry on explicit refresh and clear only the
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 1); assert.match(rootElement.innerHTML, /未能读取本次 Workflow/);
     assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 2, 'explicit refresh must retry the failed immutable-version read');
     assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/, 'research panel is collapsed by default');
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { toggleContext: '' }, disabled: false }) } });
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { contextTab: 'activity' }, disabled: false }) } });
+    await handlers.get('click')({ target: appClickTarget({ toggleContext: '' }) });
+    await handlers.get('click')({ target: appClickTarget({ contextTab: 'activity' }) });
     assert.match(rootElement.innerHTML, /版本恢复后的步骤/);
     assert.doesNotMatch(rootElement.innerHTML, /未能读取本次 Workflow/);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await handlers.get('click')({ target: appClickTarget({ refresh: '' }) });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 2, 'successfully loaded immutable versions stay cached');
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
@@ -751,7 +774,7 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       ['ready-empty', {}, { connected: true }],
     ]) {
       const handlers = new Map(); const calls = [];
-      const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+      const rootElement = appRoot(handlers);
       const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {}, focus() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
       const detail = { id: 'retry-session', mode: 'fingpt', status: 'completed', messages: [{ id: 'u', role: 'user', text: '旧问题', seq: 1 }, { id: 'a', role: 'assistant', text: '既有正文', seq: 2 }], ...extra };
       Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
@@ -767,7 +790,7 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       console.info = () => {};
       await load(`app.mjs?retry-gate=${name}-${Date.now()}`);
       handlers.get('input')({ target: { id: 'prompt', value: name === 'ready-empty' ? '' : '保留现有草稿', dataset: {}, closest: () => null } });
-      await handlers.get('click')({ target: { closest: () => ({ dataset: { retryRound: 'u' }, disabled: false }) } });
+      await handlers.get('click')({ target: appClickTarget({ retryRound: 'u' }) });
       assert.equal(calls.filter(([, method]) => method !== 'GET').length, name === 'ready-empty' ? 1 : 0, name);
       if (name !== 'ready-empty') {
         assert.match(rootElement.innerHTML, /保留现有草稿/, name);

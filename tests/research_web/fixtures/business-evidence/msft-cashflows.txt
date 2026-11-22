@@ -1,0 +1,43 @@
+| (In millions) | **Year Ended June 30,** |
+| --- | --- |
+| **2024** | **2023** | **2022** |
+| --- | --- | --- |
+| ElementName | Operations |  |  |  |
+| us-gaap:NetIncomeLoss | Net income | **$88,136** | $72,361 | $72,738 |
+| ElementName | Adjustments to reconcile net income to net cash from operations: |  |  |  |
+| msft:DepreciationAmortizationAndOther | Depreciation, amortization, and other | **22,287** | 13,861 | 14,460 |
+| us-gaap:ShareBasedCompensation | Stock-based compensation expense | **10,734** | 9,611 | 7,502 |
+| msft:GainLossOnInvestmentsAndDerivativeInstruments | Net recognized losses (gains) on investments and derivatives | **305** | 196 | (409) |
+| us-gaap:DeferredIncomeTaxExpenseBenefit | Deferred income taxes | **(4,738)** | (6,059) | (5,702) |
+| ElementName | Changes in operating assets and liabilities: |  |  |  |
+| us-gaap:IncreaseDecreaseInAccountsReceivable | Accounts receivable | **(7,191)** | (4,087) | (6,834) |
+| us-gaap:IncreaseDecreaseInInventories | Inventories | **1,284** | 1,242 | (1,123) |
+| us-gaap:IncreaseDecreaseInOtherCurrentAssets | Other current assets | **(1,648)** | (1,991) | (709) |
+| us-gaap:IncreaseDecreaseInOtherNoncurrentAssets | Other long-term assets | **(6,817)** | (2,833) | (2,805) |
+| us-gaap:IncreaseDecreaseInAccountsPayable | Accounts payable | **3,545** | (2,721) | 2,943 |
+| us-gaap:IncreaseDecreaseInContractWithCustomerLiability | Unearned revenue | **5,348** | 5,535 | 5,109 |
+| us-gaap:IncreaseDecreaseInAccruedIncomeTaxesPayable | Income taxes | **1,687** | (358) | 696 |
+| us-gaap:IncreaseDecreaseInOtherCurrentLiabilities | Other current liabilities | **4,867** | 2,272 | 2,344 |
+| us-gaap:IncreaseDecreaseInOtherNoncurrentLiabilities | Other long-term liabilities | **749** | 553 | 825 |
+| us-gaap:NetCashProvidedByUsedInOperatingActivities | Net cash from operations | **118,548** | 87,582 | 89,035 |
+| ElementName | Financing |  |  |  |
+| us-gaap:ProceedsFromRepaymentsOfShortTermDebtMaturingInThreeMonthsOrLess | Proceeds from issuance of debt, maturities of 90 days or less, net | **5,250** | 0 | 0 |
+| us-gaap:ProceedsFromDebtMaturingInMoreThanThreeMonths | Proceeds from issuance of debt | **24,395** | 0 | 0 |
+| us-gaap:RepaymentsOfDebtMaturingInMoreThanThreeMonths | Repayments of debt | **(29,070)** | (2,750) | (9,023) |
+| us-gaap:ProceedsFromIssuanceOfCommonStock | Common stock issued | **2,002** | 1,866 | 1,841 |
+| us-gaap:PaymentsForRepurchaseOfCommonStock | Common stock repurchased | **(17,254)** | (22,245) | (32,696) |
+| us-gaap:PaymentsOfDividendsCommonStock | Common stock cash dividends paid | **(21,771)** | (19,800) | (18,135) |
+| us-gaap:ProceedsFromPaymentsForOtherFinancingActivities | Other, net | **(1,309)** | (1,006) | (863) |
+| us-gaap:NetCashProvidedByUsedInFinancingActivities | Net cash used in financing | **(37,757)** | (43,935) | (58,876) |
+| ElementName | Investing |  |  |  |
+| us-gaap:PaymentsToAcquirePropertyPlantAndEquipment | Additions to property and equipment | **(44,477)** | (28,107) | (23,886) |
+| msft:AcquisitionsNetOfCashAcquiredAndPurchasesOfIntangibleAndOtherAssets | Acquisition of companies, net of cash acquired, and purchases of intangible and other assets | **(69,132)** | (1,670) | (22,038) |
+| us-gaap:PaymentsToAcquireInvestments | Purchases of investments | **(17,732)** | (37,651) | (26,456) |
+| us-gaap:ProceedsFromMaturitiesPrepaymentsAndCallsOfAvailableForSaleSecurities | Maturities of investments | **24,775** | 33,510 | 16,451 |
+| msft:ProceedsFromInvestments | Sales of investments | **10,894** | 14,354 | 28,443 |
+| us-gaap:PaymentsForProceedsFromOtherInvestingActivities | Other, net | **(1,298)** | (3,116) | (2,825) |
+| us-gaap:NetCashProvidedByUsedInInvestingActivities | Net cash used in investing | **(96,970)** | (22,680) | (30,311) |
+| us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations | Effect of foreign exchange rates on cash and cash equivalents | **(210)** | (194) | (141) |
+| us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect | Net change in cash and cash equivalents | **(16,389)** | 20,773 | (293) |
+| us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents | Cash and cash equivalents, beginning of period | **34,704** | 13,931 | 14,224 |
+| us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents | Cash and cash equivalents, end of period | **$18,315** | $34,704 | $13,931 |

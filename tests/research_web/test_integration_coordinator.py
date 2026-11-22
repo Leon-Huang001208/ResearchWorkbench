@@ -1279,3 +1279,24 @@ def test_local_only_restore_never_reads_data_catalog_or_credentials(tmp_path):
     assert calls == []
     restored.set_auto_probe_consent("local:word_app", True)
     assert calls == []
+
+
+def test_persisted_status_restores_with_real_complete_datahub_catalog(tmp_path, monkeypatch):
+    from app.research_web.datahub import DataHub, connections
+    from app.research_web.store import Store
+
+    monkeypatch.setattr(connections.os, "environ", {})
+    monkeypatch.setattr(
+        connections,
+        "default_credential_backend",
+        lambda: SimpleNamespace(get_password=lambda *_args: None),
+    )
+    hub = DataHub(Store(tmp_path / "host"))
+    state = tmp_path / "integrations"
+    initial = IntegrationCoordinator(state, hub, FakeLocalIntegrations(), FakeTabbit())
+    initial._persist_sync()
+    restored = IntegrationCoordinator(state, hub, FakeLocalIntegrations(), FakeTabbit())
+    restored.load()
+    assert restored._data_restored is True
+    assert "bea_archive" in {source["id"] for source in restored._data_sources()}
+    assert restored.batch_tasks == {}

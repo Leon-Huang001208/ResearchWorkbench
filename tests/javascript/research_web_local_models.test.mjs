@@ -32,11 +32,11 @@ test('unrelated compatible endpoints and official models keep their catalog', ()
 
 test('composer and settings forward the active connection endpoint', async () => {
   const { renderComposer } = await import('../../app/research_web/ui/composer.mjs');
-  const { renderSettingsPage } = await import('../../app/research_web/ui/settings.mjs');
+  const { renderModelProfileForm } = await import('../../app/research_web/ui/model-settings.mjs');
   const groups = [{ provider: 'openai-compatible', models: [{ id: 'deepseek/deepseek-flash' }] }];
   for (const [endpoint, expands] of [['http://127.0.0.1:10100/v1', true], ['https://vendor.example/v1', false]]) {
     const composer = renderComposer({ page: 'fingpt', models: groups, modelEndpoint: endpoint });
-    const settings = renderSettingsPage({ route: { settingsSection: 'model' }, models: groups, runtime: { owned_runtime: true, provider: 'openai-compatible', connection: { base_url: endpoint } }, modelFailures: [] });
+    const settings = renderModelProfileForm({models:groups,runtime:{owned_runtime:true},item:{provider:'openai-compatible',model:'deepseek/deepseek-flash',base_url:endpoint,credential_mode:'api_key',name:'Existing'}});
     assert.equal(composer.includes('Kimi K3'), expands);
     assert.equal(settings.includes('Kimi K3'), expands);
   }

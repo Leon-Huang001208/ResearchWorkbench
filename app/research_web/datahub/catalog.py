@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .adjustment_contract import SERIES
 from .contracts import BUSINESS_TOOLS, DataCapabilityId
 from .external_sources import catalog_entries
 
@@ -120,7 +121,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         ["cjpy"],
         ["A股", "基金目录"],
         "account",
-        "已接入证券目录、交易日历、历史行情和实时快照；其他登记能力不会被自动路由选中。",
+        "已接入沪深北A股目录、行情快照、估值、财务摘要、股东、行业、两融及公告事件；复权仍限既有封闭定义。资金流构成、完整财报及其他登记能力不据此视为已实现。",
     ),
     (
         "ifind",
@@ -147,6 +148,18 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "公开聚合库；上游口径与可用性可能变化。",
     ),
     (
+        "bea_archive",
+        "BEA 官方发布档案",
+        "formal",
+        "official",
+        "none",
+        [],
+        [],
+        ["美国宏观"],
+        "unknown",
+        "无需账号读取已审核的2024Q2 GDP初值与第二次发布；仅限定历史截止区间，不代表当前终值或完整历史。",
+    ),
+    (
         "baostock",
         "BaoStock",
         "formal",
@@ -156,7 +169,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         ["baostock"],
         ["A股"],
         "free",
-        "历史行情为主；实时与新闻覆盖有限。",
+        "原始日线、目录/日历及季度末盈利能力快照；不推定单季流量、归母口径或历史修订完整。",
     ),
     (
         "tushare",
@@ -450,7 +463,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
         "因子与宏观",
         "因子宏观",
         "读取因子表、技术指标和宏观序列。",
-        ["series", "assets", "start_date", "end_date"],
+        ["series", "assets", "dates", "start_date", "end_date"],
         ["date", "series", "value", "unit"],
         ["A股", "宏观"],
         ["股票", "宏观"],
@@ -573,23 +586,35 @@ BINDING_SPECS = {
         ("tinysoft", ["table_data"]),
         ("wind", ["financial_statements"]),
         ("ifind", ["financials"]),
-        ("akshare", ["financials"]),
-        ("baostock", ["financials"]),
+        ("akshare", ["financials", "income_statement"]),
+        ("baostock", ["quarterly_profitability", "quarterly_cash_flow_ratios"]),
         ("tushare", ["fina_indicator"]),
         ("yahoo", ["financials"]),
         ("chinastock", ["financials"]),
     ],
     "market_activity": [
+        (
+            "tinysoft",
+            [
+                "margin_trading",
+                "holder_data",
+                "holder_details",
+                "industry",
+                "events",
+                "chip_turnover",
+            ],
+        ),
         ("wind", ["fund_flow", "margin_trading", "holder_data"]),
         ("ifind", ["fund_flow", "industry"]),
         ("chinastock", ["fund_flow", "sentiment"]),
         ("akshare", ["fund_flow"]),
     ],
     "factor_macro": [
-        ("tinysoft", ["factor_data", "table_data"]),
+        ("tinysoft", list(SERIES)),
         ("ifind", ["macro", "technical"]),
         ("chinastock", ["macro", "technical"]),
-        ("akshare", ["macro"]),
+        ("akshare", ["cpi", "gdp", "pmi", "m2"]),
+        ("bea_archive", ["us_real_gdp_qoq_saar"]),
     ],
     "fund_data": [
         ("eastmoney_fund", ["fund_nav", "fund_profile", "fund_distributions", "fund_holdings"]),
@@ -615,18 +640,37 @@ BINDING_SPECS = {
     "table_query": [("mysql", ["single_table_select"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql", "wind"}
+INTEGRATED = {
+    "eastmoney_fund",
+    "cls",
+    "tinysoft",
+    "akshare",
+    "mysql",
+    "wind",
+    "baostock",
+    "bea_archive",
+}
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
+    ("bea_archive", "factor_macro"),
+    ("baostock", "search_assets"),
+    ("baostock", "trading_calendar"),
+    ("baostock", "market_bars"),
+    ("baostock", "financials"),
     ("tinysoft", "search_assets"),
     ("tinysoft", "trading_calendar"),
     ("tinysoft", "market_bars"),
     ("tinysoft", "market_snapshot"),
+    ("tinysoft", "factor_macro"),
+    ("tinysoft", "financials"),
+    ("tinysoft", "market_activity"),
     ("akshare", "search_assets"),
+    ("akshare", "trading_calendar"),
     ("akshare", "market_bars"),
     ("akshare", "market_snapshot"),
     ("akshare", "financials"),
     ("akshare", "market_activity"),
+    ("akshare", "factor_macro"),
     ("wind", "market_bars"),
     ("wind", "market_snapshot"),
     ("wind", "index_data"),
@@ -634,12 +678,68 @@ IMPLEMENTED_BINDINGS = {
     ("wind", "market_activity"),
 }
 BINDING_ASSETS = {
+    ("baostock", "financials"): ["股票"],
+    ("tinysoft", "financials"): ["股票"],
+    ("tinysoft", "market_activity"): ["股票"],
+    ("tinysoft", "factor_macro"): ["股票"],
     ("wind", "market_bars"): ["股票"],
     ("wind", "market_snapshot"): ["股票"],
 }
 
 # Dataset-specific facts match the reviewed adapters. Unlisted facts stay unknown.
 BINDING_SEMANTICS = {
+    ("baostock", "financials"): {
+        "quarterly_cash_flow_ratios": {
+            "historical_point_in_time": False,
+            "frequencies": ["quarterly"],
+        },
+        "quarterly_profitability": {
+            "historical_point_in_time": False,
+            "currency": "CNY",
+            "units": {"netProfit": "CNY", "MBRevenue": "CNY"},
+        },
+    },
+    ("bea_archive", "factor_macro"): {
+        "us_real_gdp_qoq_saar": {
+            "frequencies": ["quarterly"],
+            "historical_point_in_time": True,
+            "units": {"value": "percent_qoq_saar"},
+        },
+    },
+    ("baostock", "market_bars"): {
+        "stock_daily": {
+            "frequencies": ["daily"],
+            "adjustments": ["none"],
+            "historical_point_in_time": False,
+            "units": {
+                "open": "currency_per_share",
+                "high": "currency_per_share",
+                "low": "currency_per_share",
+                "close": "currency_per_share",
+                "volume": "share",
+                "turnover": "currency",
+            },
+            "currency": "CNY",
+            "query_defaults": {"frequency": "daily", "adjustment": "none"},
+        },
+    },
+    ("akshare", "market_bars"): {
+        "stock_daily": {
+            "frequencies": ["daily", "weekly", "monthly"],
+            "adjustments": ["none", "qfq", "hfq"],
+            "historical_point_in_time": False,
+            "units": {
+                "open": "currency_per_share",
+                "high": "currency_per_share",
+                "low": "currency_per_share",
+                "close": "currency_per_share",
+                "volume": "share",
+                "turnover": "currency",
+            },
+            "currency": "CNY",
+            "query_defaults": {"frequency": "daily", "adjustment": "qfq"},
+        },
+    },
     ("eastmoney_fund", "fund_data"): {
         "fund_nav": {
             "frequencies": ["daily"],
@@ -677,13 +777,14 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
 def _dependency_status(source_id: str, dependencies: list[str]) -> tuple[bool, str | None]:
     if not dependencies:
         return True, None
-    if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql"}:
+    if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql", "baostock"}:
         try:
             modules = {
                 "wind": ("xlwings",),
                 "tinysoft": ("cjpy", "requests", "urllib3"),
                 "ifind": ("iFinD", "iFinDPy"),
                 "akshare": ("akshare",),
+                "baostock": ("baostock",),
                 "mysql": ("pymysql", "keyring"),
             }[source_id]
             readiness = [find_spec(module) is not None for module in modules]
@@ -794,7 +895,7 @@ def build_catalog(
         for priority, (source_id, datasets) in enumerate(candidates, 1):
             source = by_source[source_id]
             implemented = source_id in INTEGRATED and (
-                source_id not in {"tinysoft", "akshare", "wind"}
+                source_id not in {"tinysoft", "akshare", "wind", "baostock"}
                 or (source_id, capability_id) in IMPLEMENTED_BINDINGS
             )
             bindings.append(
@@ -803,9 +904,17 @@ def build_catalog(
                     source_id=source_id,
                     datasets=datasets,
                     priority=priority,
-                    markets=source["markets"],
+                    markets=(
+                        ["沪深A股"]
+                        if (source_id, capability_id) == ("tinysoft", "factor_macro")
+                        else source["markets"]
+                    ),
                     assets=BINDING_ASSETS.get((source_id, capability_id), []),
-                    coverage=source["description"],
+                    coverage=(
+                        "仅复权定义、单只沪深A股上市日期及最多500个指定日的复权因子；两股有限实证，非全证券保证。"
+                        if (source_id, capability_id) == ("tinysoft", "factor_macro")
+                        else source["description"]
+                    ),
                     implemented=implemented,
                     semantics=BINDING_SEMANTICS.get((source_id, capability_id), {}),
                 ).model_dump(mode="json")

@@ -1,0 +1,9 @@
+{
+  "fixture": true,
+  "identity": "real temporary AccountStore and gateway cookies",
+  "tenantRuntime": "separate mocked DSH/native API fixture; no production accounts or services",
+  "checks": [
+    "real admin login, shared import/review/distribution, separate personal approval namespace",
+    "real reader login, admin actions absent, spoofed role rejected by gateway, another personal owner denied, own namespace empty"
+  ]
+}

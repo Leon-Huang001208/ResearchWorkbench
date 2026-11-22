@@ -1,0 +1,77 @@
+{
+  "scope": "Official historical excerpts for deterministic regression; not model report output or full framework; financial table facts and public US government text.",
+  "inputs": [
+    {
+      "file": "msft-income.txt",
+      "sha256": "e7212e056cc65ba010ac8bcaa3f8b7b4ef5ebf2daaa669101326f25fa7036cb2",
+      "origin": "https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/income-statements",
+      "archive_sha256": "c4ec818faa85b5d4e851bad929a5b73b240f12cded90d293355af6b534e32860",
+      "selection": "Complete annual financial table, original labels/columns/figures; 2024,2023,2022 in USD millions",
+      "original_file": "msft-income.md"
+    },
+    {
+      "file": "msft-cashflows.txt",
+      "sha256": "9514c9798ae4eb0eb03f39563a8137f6b16aa74f477960f9025688e3b9d376de",
+      "origin": "https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/cash-flows",
+      "archive_sha256": "b5a1e495fe09b16d7d17892e6dd3643ab995356e38e55e3dc65da38a071cdd8b",
+      "selection": "Complete annual financial table, original labels/columns/figures; 2024,2023,2022 in USD millions",
+      "original_file": "msft-cashflows.md"
+    },
+    {
+      "file": "bls-cpi-dec2024.txt",
+      "sha256": "95c918f52adf521c18f6c314a02d9dece54e5331ae43a106104a61066983724f",
+      "origin": "https://www.bls.gov/news.release/archives/cpi_01152025.htm",
+      "archive_sha256": "2304bed81afda36598e7b211279ece899b4458ab241b3a99a4a6f7684a7c69e5",
+      "selection": "Original release summary and full Table A; released January15 2025",
+      "original_file": "bls-cpi-dec2024.md"
+    },
+    {
+      "file": "fomc-july.txt",
+      "sha256": "1d660ff2ecf42b8bbcca13946ebf2f08a42e2aec213c6f22189a44057ef0763e",
+      "origin": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240731a.htm",
+      "archive_sha256": "b7ed1abdc52885ca076a169e3706ac2d8bf51e0cc819169ca7d8321ba80dbab4",
+      "selection": "Complete press release header/body columns; HTML stripped, paragraphs preserved",
+      "original_file": "fomc-july.md"
+    },
+    {
+      "file": "fomc-september.txt",
+      "sha256": "f5de46494f9a218f42e3515e815b6dd6dcc34b302d33f349f0e06a0070a47940",
+      "origin": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240918a.htm",
+      "archive_sha256": "9cdc3d65f0af873bf8575e7a509e59aa22f8f68075df042bc8a5163cf4a8bc28",
+      "selection": "Complete press release header/body columns; HTML stripped, paragraphs preserved",
+      "original_file": "fomc-september.md"
+    },
+    {
+      "file": "fomc-implementation.txt",
+      "sha256": "437a25f1b83e4ae3f0ca91feb032bf764ee2bee036f5ca02d73c13b4065f7eb8",
+      "origin": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240918a1.htm",
+      "archive_sha256": "76470740aeca2e5933703c347c706f4e7f8cf739a345e296171cf4869cce89d5",
+      "selection": "Complete press release header/body columns; HTML stripped, paragraphs preserved",
+      "original_file": "fomc-implementation.md"
+    },
+    {
+      "file": "nist-core-context-1.txt",
+      "sha256": "8eddee90a5a1913eed1de0f539b724fb7d6bbd2db65fb6cb0f85c9f83b179d6a",
+      "origin": "https://airc.nist.gov/airmf-resources/airmf/5-sec-core/",
+      "archive_sha256": "0f566cbc035083f00f22389a5e09a359e7e11a5c45c6efdbb1ec74e4f5c7f9a5",
+      "selection": "Original main-page prose, tables excluded and separately selected",
+      "original_file": "nist-core-context-1.md"
+    },
+    {
+      "file": "nist-core-context-2.txt",
+      "sha256": "35cb7f441d806d8ef0b839b60b505069b910dff5c0e3832bbd02a54bdfdcb2f9",
+      "origin": "https://airc.nist.gov/airmf-resources/airmf/5-sec-core/",
+      "archive_sha256": "0f566cbc035083f00f22389a5e09a359e7e11a5c45c6efdbb1ec74e4f5c7f9a5",
+      "selection": "Original main-page prose, tables excluded and separately selected",
+      "original_file": "nist-core-context-2.md"
+    },
+    {
+      "file": "nist-controls.txt",
+      "sha256": "217d8f48736b452f1b607188b26430fc6428e317dbad4ef7ab3387a7077c440e",
+      "origin": "https://airc.nist.gov/airmf-resources/airmf/5-sec-core/",
+      "archive_sha256": "0f566cbc035083f00f22389a5e09a359e7e11a5c45c6efdbb1ec74e4f5c7f9a5",
+      "selection": "Eight original subcategory paragraphs selected by explicit IDs; whitespace normalized",
+      "original_file": "nist-controls.md"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -169,15 +170,10 @@ class Manager:
                     and container["State"].get("Running") is False
                     and container["State"].get("Status") in {"created", "exited"}
                     and container["Image"] == record["image"]
-                    and old_image["Config"].get("Labels", {}).get(PREFIX + "model-credentials")
-                    is None
-                    and set(mounts)
-                    == {"/data/research-web", "/state/logs", "/run/rwb-secrets", "/cache"}
+                    and old_image["Config"].get("Labels", {}).get(PREFIX + "model-credentials") is None
+                    and set(mounts) == {"/data/research-web", "/state/logs", "/run/rwb-secrets", "/cache"}
                     and isinstance(environment, list)
-                    and all(
-                        isinstance(value, str) and not value.startswith("RWB_MODEL_")
-                        for value in environment
-                    )
+                    and all(isinstance(value, str) and not value.startswith("RWB_MODEL_") for value in environment)
                 )
                 if not legacy:
                     raise Refusal("model_master_mount_mismatch")
@@ -194,6 +190,18 @@ class Manager:
 
     def register(self, arguments: argparse.Namespace) -> dict:
         environment, instance = arguments.environment, arguments.instance
+        subnet = getattr(arguments, "subnet", None)
+        resume = getattr(arguments, "resume_registration", False)
+        if subnet:
+            try:
+                network = ipaddress.IPv4Network(subnet)
+                if not network.is_private:
+                    raise ValueError("private IPv4 subnet required")
+                subnet = str(network)
+            except ValueError as error:
+                raise Refusal("registration_ipv4_subnet_invalid") from error
+        if resume and (environment != "stage" or not subnet):
+            raise Refusal("registration_resume_requires_stage_and_subnet")
         path = self.path(environment, instance)
         if path.exists():
             record = self.read(environment, instance)
@@ -204,6 +212,10 @@ class Manager:
             ):
                 raise Refusal("instance_registration_mismatch")
             self.verify_resources(record)
+            if subnet and {
+                item.get("Subnet") for item in inspect("network", record["network"])["IPAM"]["Config"]
+            } != {subnet}:
+                raise Refusal("registration_subnet_mismatch")
             if record["container_id"]:
                 self.owned(record)
             if record.get("retired"):
@@ -245,23 +257,44 @@ class Manager:
         volumes = {key: name + "-" + key for key in ("data", "logs", "credentials", "cache")}
         existing_volumes = command("docker", "volume", "ls", "--format", "{{.Name}}").splitlines()
         existing_networks = command("docker", "network", "ls", "--format", "{{.Name}}").splitlines()
-        if (
+        if resume:
+            if not all(volume in existing_volumes for volume in volumes.values()):
+                raise Refusal("registration_resume_requires_all_volumes")
+            for volume in volumes.values():
+                if inspect("volume", volume).get("Labels") != labels:
+                    raise Refusal("volume_ownership_mismatch")
+                if command("docker", "ps", "-aq", "--filter", f"volume={volume}"):
+                    raise Refusal("registration_volume_in_use")
+            if name in existing_networks:
+                network = inspect("network", name)
+                if network.get("Labels") != labels:
+                    raise Refusal("network_ownership_mismatch")
+                if network.get("Containers") or command(
+                    "docker", "ps", "-aq", "--filter", f"network={name}"
+                ):
+                    raise Refusal("registration_network_in_use")
+                if {item.get("Subnet") for item in network["IPAM"]["Config"]} != {subnet}:
+                    raise Refusal("registration_subnet_mismatch")
+        elif (
             any(volume in existing_volumes for volume in volumes.values())
             or name in existing_networks
         ):
             raise Refusal("resource_unregistered")
         if environment != "dev" and not arguments.port:
             raise Refusal("explicit_port_required")
-        for volume in volumes.values():
-            command("docker", "volume", "create", *label_args, volume)
-        command("docker", "network", "create", *label_args, name)
+        if not resume:
+            for volume in volumes.values():
+                command("docker", "volume", "create", *label_args, volume)
+        if not resume or name not in existing_networks:
+            command("docker", "network", "create", *label_args,
+                    *(("--subnet", subnet) if subnet else ()), name)
         # A fixed, bounded root initializer only for new owned volumes; no socket/source.
         mounts = [
             part
             for volume in volumes.values()
             for part in ("--mount", f"type=volume,src={volume},dst=/init/{volume}")
         ]
-        command(
+        initialized = command(
             "docker",
             "run",
             "--rm",
@@ -287,8 +320,15 @@ class Manager:
             "/bin/sh",
             image,
             "-c",
-            "chown 10001:10001 /init/* && chmod 700 /init/*",
+            (
+                'for dir in /init/*; do contents=$(find "$dir" -mindepth 1 -maxdepth 1 -print -quit) || exit 1; if [ -n "$contents" ]; then '
+                'echo registration_volumes_not_empty; exit 0; fi; done; '
+                "chown 10001:10001 /init/* && chmod 700 /init/*"
+                if resume else "chown 10001:10001 /init/* && chmod 700 /init/*"
+            ),
         )
+        if initialized == "registration_volumes_not_empty":
+            raise Refusal("registration_volumes_not_empty")
         source = command(
             "git", "-c", f"safe.directory={self.worktree}", "-C", self.worktree, "rev-parse", "HEAD"
         )
@@ -316,6 +356,8 @@ class Manager:
             "purpose": getattr(arguments, "purpose", None),
         }
         atomic_json(path, record)
+        if resume:
+            LOG.info("stage_registration_resumed instance=%s subnet=%s", instance, subnet)
         return record
 
     def create(self, record: dict) -> None:
@@ -517,6 +559,152 @@ class Manager:
             command("docker", "stop", record["container_id"], timeout=60)
         if self.owned(record)["State"]["Running"]:
             raise Refusal("container_stop_unverified")
+
+    def release_stage(self, record: dict, expected: tuple[str, str, str], task: str) -> dict:
+        """Release only the reservation; retain the stopped container and every volume."""
+        if record["environment"] != "stage":
+            raise Refusal("only_stage_reservation_release_allowed")
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,95}", task):
+            raise Refusal("completed_task_required")
+        if not record.get("container_id") or expected != (
+            record["container_id"], record["image"], record["source_sha"]
+        ):
+            raise Refusal("stage_release_identity_mismatch")
+        original = self.read("stage", record["instance"])
+        if original != record:
+            raise Refusal("stage_release_ledger_changed")
+        if record.get("retired"):
+            raise Refusal("stage_reservation_already_released")
+        for _ in range(2):
+            container = self.owned(record)
+            state = container["State"]
+            if state.get("Running") is not False or state.get("Status") not in {"exited", "created"}:
+                raise Refusal("stage_release_requires_stopped_container")
+            for volume in record["volumes"].values():
+                users = command("docker", "ps", "-aq", "--no-trunc", "--filter", f"volume={volume}")
+                if set(users.splitlines()) - {record["container_id"]}:
+                    raise Refusal("stage_release_volume_in_use")
+        # The enclosing administrator entrypoint holds operation.lock throughout.
+        # Archive the exact original record before changing its reservation flag.
+        archive_root = self.ledger / "releases"
+        if archive_root.is_symlink():
+            raise Refusal("stage_release_archive_alias")
+        archive_root.mkdir(mode=0o700, exist_ok=True)
+        digest = hashlib.sha256(json.dumps(original, sort_keys=True).encode()).hexdigest()
+        archive = archive_root / f"stage-{record['instance']}-{digest}.json"
+        if archive.is_symlink():
+            raise Refusal("stage_release_archive_alias")
+        if archive.exists():
+            if json.loads(archive.read_text()) != original:
+                raise Refusal("stage_release_archive_mismatch")
+        else:
+            atomic_json(archive, original)
+        if json.loads(archive.read_text()) != original or self.read("stage", record["instance"]) != original:
+            raise Refusal("stage_release_archive_or_ledger_changed")
+        # Recheck live identity immediately before committing the ledger update.
+        if self.owned(record)["State"].get("Running") is not False:
+            raise Refusal("stage_release_requires_stopped_container")
+        record = dict(record, retired=True, reservation_release={
+            "completed_task": task, "archive": archive.name,
+            "container_and_volumes_preserved": True,
+        })
+        atomic_json(self.path("stage", record["instance"]), record)
+        LOG.info("stage_reservation_released instance=%s completed_task=%s", record["instance"], task)
+        return {"retired": True, "container_id": record["container_id"],
+                "archive": archive.name, "container_and_volumes_preserved": True}
+
+    def owner_handoff(
+        self, record: dict, expected: tuple[str, str, str], *,
+        expected_record_sha256: str, audit_name: str, expected_audit_sha256: str,
+        authorization: str, apply: bool = False, expected_plan_sha256: str | None = None,
+    ) -> dict:
+        """Preview or retire a stage reservation under the outer operation lock."""
+        if record["environment"] != "stage":
+            raise Refusal("stage_handoff_requires_stage")
+        if record.get("retired"):
+            raise Refusal("stage_handoff_already_retired")
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", expected[0])
+            or not re.fullmatch(r"sha256:[0-9a-f]{64}", expected[1])
+            or not re.fullmatch(r"[0-9a-f]{40}", expected[2])
+            or expected != (record.get("container_id"), record["image"], record["source_sha"])
+        ):
+            raise Refusal("stage_handoff_identity_mismatch")
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,95}", authorization):
+            raise Refusal("stage_handoff_authorization_required")
+        if not re.fullmatch(r"[a-z][a-z0-9.-]{0,95}\.json", audit_name):
+            raise Refusal("stage_handoff_audit_name_invalid")
+        path = self.path("stage", record["instance"])
+        if self.read("stage", record["instance"]) != record:
+            raise Refusal("stage_handoff_ledger_changed")
+        original = path.read_bytes()
+        if hashlib.sha256(original).hexdigest() != expected_record_sha256:
+            raise Refusal("stage_handoff_record_digest_mismatch")
+        audit_path = self.ledger / audit_name
+        if audit_path.is_symlink():
+            raise Refusal("stage_handoff_audit_alias")
+        audit_raw = audit_path.read_bytes()
+        if hashlib.sha256(audit_raw).hexdigest() != expected_audit_sha256:
+            raise Refusal("stage_handoff_audit_digest_mismatch")
+        audit = json.loads(audit_raw)
+        binding = {
+            "instance": record["instance"], "container_id": expected[0],
+            "image": expected[1], "source_sha": expected[2],
+            "ledger_sha256": expected_record_sha256,
+            "registration_task_status": "unknown", "business_status": "INCOMPLETE",
+        }
+        if not isinstance(audit, dict) or any(audit.get(key) != value for key, value in binding.items()):
+            raise Refusal("stage_handoff_audit_binding_mismatch")
+        plan = dict(
+            binding, action="owner_handoff", schema=1, authorization=authorization,
+            audit_name=audit_name, audit_sha256=expected_audit_sha256,
+            reservation_bytes=record["memory"], volumes=record["volumes"],
+            container_and_volumes_preserved=True,
+        )
+        plan_sha256 = hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
+        if (apply and expected_plan_sha256 != plan_sha256) or (not apply and expected_plan_sha256):
+            raise Refusal("stage_handoff_plan_digest_mismatch")
+        self.verify_handoff_stopped(record)
+        result = {"status": "preview", "applied": False, "plan": plan, "plan_sha256": plan_sha256}
+        if not apply:
+            return result
+        archive_root = self.ledger / "releases"
+        if archive_root.is_symlink():
+            raise Refusal("stage_handoff_archive_alias")
+        archive_root.mkdir(mode=0o700, exist_ok=True)
+        archive = archive_root / f"owner-handoff-{record['instance']}-{expected_record_sha256}.json"
+        if archive.exists() or archive.is_symlink():
+            raise Refusal("stage_handoff_partial_archive_requires_review")
+        with archive.open("xb") as stream:
+            archive.chmod(0o600)
+            stream.write(original)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if archive.read_bytes() != original:
+            raise Refusal("stage_handoff_archive_mismatch")
+        # The administrator lock covers the second live check and ledger commit.
+        self.verify_handoff_stopped(record)
+        if (
+            self.read("stage", record["instance"]) != record
+            or path.read_bytes() != original
+            or audit_path.is_symlink()
+            or audit_path.read_bytes() != audit_raw
+        ):
+            raise Refusal("stage_handoff_evidence_changed")
+        handoff = dict(plan, plan_sha256=plan_sha256, archive=archive.name, audit=audit)
+        atomic_json(path, dict(record, retired=True, reservation_handoff=handoff))
+        LOG.info("stage_owner_handoff instance=%s authorization=%s", record["instance"], authorization)
+        return dict(result, status="applied", applied=True, archive=archive.name)
+
+    def verify_handoff_stopped(self, record: dict) -> None:
+        """Revalidate registered resource ownership and exclusive stopped-stage use."""
+        state = self.owned(record)["State"]
+        if state.get("Running") is not False or state.get("Status") not in {"exited", "created"}:
+            raise Refusal("stage_handoff_requires_stopped_container")
+        for volume in record["volumes"].values():
+            users = command("docker", "ps", "-aq", "--no-trunc", "--filter", f"volume={volume}")
+            if set(users.splitlines()) - {record["container_id"]}:
+                raise Refusal("stage_handoff_volume_in_use")
 
     def cleanup(self, record: dict) -> None:
         if record["environment"] != "dev":
@@ -813,19 +1001,56 @@ def main() -> int:
             "replace-image",
             "enable-model-credentials",
             "credential-probe",
+            "release-reservation",
+            "owner-handoff",
         ),
     )
     parser.add_argument("--image")
     parser.add_argument("--port", type=int)
     parser.add_argument("--purpose", choices=("rehearsal",))
+    parser.add_argument("--subnet")
+    parser.add_argument("--resume-registration", action="store_true")
+    parser.add_argument("--expected-container")
+    parser.add_argument("--expected-image")
+    parser.add_argument("--expected-source")
+    parser.add_argument("--completed-task")
+    parser.add_argument("--expected-record-sha256")
+    parser.add_argument("--handoff-audit")
+    parser.add_argument("--expected-audit-sha256")
+    parser.add_argument("--owner-authorization")
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--expected-plan-sha256")
     arguments, extra = parser.parse_known_args()
     arguments.command = extra
+    release_options = (arguments.expected_container, arguments.expected_image,
+                       arguments.expected_source, arguments.completed_task)
+    if arguments.action == "release-reservation":
+        if not all(release_options):
+            parser.error("release_identity_and_completed_task_required")
+    elif arguments.action == "owner-handoff":
+        if not all(release_options[:3]) or not all((
+            arguments.expected_record_sha256, arguments.handoff_audit,
+            arguments.expected_audit_sha256, arguments.owner_authorization,
+        )) or arguments.completed_task:
+            parser.error("handoff_identity_audit_and_authorization_required")
+        if arguments.apply != bool(arguments.expected_plan_sha256):
+            parser.error("handoff_apply_requires_plan_digest")
+    elif any(release_options):
+        parser.error("release_options_only")
+    if arguments.action != "owner-handoff" and any((
+        arguments.expected_record_sha256, arguments.handoff_audit,
+        arguments.expected_audit_sha256, arguments.owner_authorization,
+        arguments.apply, arguments.expected_plan_sha256,
+    )):
+        parser.error("handoff_options_only")
     if arguments.purpose and (arguments.action != "register" or arguments.environment != "prod"):
         parser.error("purpose_is_prod_registration_only")
     if extra and arguments.action != "exec":
         parser.error("unexpected_arguments")
     if arguments.port is not None and arguments.action != "register":
         parser.error("port_is_registration_only")
+    if (arguments.subnet or arguments.resume_registration) and arguments.action != "register":
+        parser.error("subnet_and_resume_are_registration_only")
     if arguments.image and arguments.action not in {"register", "rebuild", "replace-image"}:
         parser.error("image_is_registration_or_dev_rebuild_only")
     if arguments.port is not None and not 1024 <= arguments.port <= 65535:
@@ -906,6 +1131,17 @@ def main() -> int:
         elif arguments.action == "cleanup":
             manager.cleanup(record)
             output = manager.status(record)
+        elif arguments.action == "release-reservation":
+            output = manager.release_stage(record, release_options[:3], arguments.completed_task)
+        elif arguments.action == "owner-handoff":
+            output = manager.owner_handoff(
+                record, release_options[:3],
+                expected_record_sha256=arguments.expected_record_sha256,
+                audit_name=arguments.handoff_audit,
+                expected_audit_sha256=arguments.expected_audit_sha256,
+                authorization=arguments.owner_authorization, apply=arguments.apply,
+                expected_plan_sha256=arguments.expected_plan_sha256,
+            )
         elif arguments.action == "replace-image":
             if not arguments.image:
                 raise Refusal("explicit_image_required")

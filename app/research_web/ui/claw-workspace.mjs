@@ -129,13 +129,4 @@ export function renderClawConnections(capabilities = []) {
 }
 export const clawCases = [
   {id:'schedule',category:'agent',name:'每日收盘点评',text:'帮我创建定时任务：每日收盘点评。请先澄清研究内容、模型、执行时间、时区与数据范围，提出待确认日程。'},
-  {id:'watchlist',category:'research',name:'跟踪自选股动态',text:'请研究我提供的自选股近期公告与新闻，区分已核实来源与缺失数据，交付带来源的报告。'},
-  {id:'industry',category:'research',name:'研究行业与公司',text:'请先确认研究对象、时间范围与资料来源，再分析行业变化和公司影响，交付可核查的研究报告。'},
-  {id:'documents',category:'research',name:'从资料到报告',text:'请基于我显式上传的资料提炼关键事实、冲突与待核实项，形成有来源的研究报告。'},
-  {id:'skill',category:'capability',name:'选择研究能力',text:'请帮助我选择适合研究目标的现有能力，并说明所需资料和输出。'},
-  {id:'review',category:'agent',name:'定期复核研究结论',text:'帮我设计定期复核研究结论的日程。先澄清频次、数据和工具范围，确认后再创建。'},
 ];
-export function renderClawCases(category = '') {
-  const items=clawCases.filter(c=>!category || category==='all' || c.category===category);
-  return `<section class="claw-cases" aria-label="研究案例草稿"><div class="claw-case-categories">${[['','全部'],['research','研究实战'],['agent','Agent 日程'],['capability','能力使用']].map(([id,name])=>`<button class="text-button ${category===id?'active':''}" data-claw-case-category="${id}" aria-pressed="${category===id}">${name}</button>`).join('')}</div><div class="claw-case-grid">${items.map(c=>`<button class="claw-case-card" data-claw-case="${c.id}"><strong>${c.name}</strong><span>${e(c.text)}</span></button>`).join('')}</div></section>`;
-}

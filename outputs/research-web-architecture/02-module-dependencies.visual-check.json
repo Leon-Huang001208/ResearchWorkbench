@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
-    "sha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
-    "bytes": 659289
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/alphadesk-qa-20261113/outputs/research-web-architecture/02-module-dependencies.html",
+    "sha256": "1e4c52c8a87088b286c831dbf4988c3bf6278fc9ce5e43d46db9f98a61e994bd",
+    "bytes": 663734
   },
   "state": {
     "detail": "read",

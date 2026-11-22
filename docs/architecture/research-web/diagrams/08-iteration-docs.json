@@ -131,12 +131,36 @@
       ]
     },
     {
+      "id": "temp-retirement",
+      "type": "backend",
+      "label": "测试根即时回收",
+      "sublabel": "PASS · inode · 无占用",
+      "row": 2,
+      "col": 0,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
       "id": "ci",
       "type": "external",
       "label": "本地与 CI 约束",
       "sublabel": "同一规则 · 错误阻止交付",
       "row": 2,
       "col": 1,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "selected-evidence",
+      "type": "database",
+      "label": "选择性证据归档",
+      "sublabel": "完整清单 · 128 MiB 门",
+      "row": 2,
+      "col": 2,
       "size": [
         200,
         86
@@ -199,6 +223,19 @@
       "label": "负向用例"
     },
     {
+      "id": "tests-temp-retirement",
+      "from": "tests",
+      "to": "temp-retirement",
+      "label": "封存后回收",
+      "labelDy": 24
+    },
+    {
+      "id": "temp-retirement-ci",
+      "from": "temp-retirement",
+      "to": "ci",
+      "label": "回收回执"
+    },
+    {
       "id": "graph-html",
       "from": "graph",
       "to": "html",
@@ -218,6 +255,19 @@
       "from": "evidence",
       "to": "gate",
       "label": "比对字节"
+    },
+    {
+      "id": "evidence-selection",
+      "from": "evidence",
+      "to": "selected-evidence",
+      "label": "来源哈希",
+      "labelDy": 24
+    },
+    {
+      "id": "selection-ci",
+      "from": "selected-evidence",
+      "to": "ci",
+      "label": "保留清单"
     },
     {
       "id": "gate-ci",

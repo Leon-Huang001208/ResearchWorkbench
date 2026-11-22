@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "upstream_commit": "26d436497d9ddba9e7dd88eed255cfe0105ce368",
+  "source_catalog": {
+    "path": "sources.json",
+    "sha256": "c5d9ae9b5c61040f89ca0d1be01c41e5d311ce6724685f36be9f8a1d751ed558",
+    "bytes": 9069,
+    "url": "https://raw.githubusercontent.com/KKKKhazix/AIHOT/26d436497d9ddba9e7dd88eed255cfe0105ce368/industry/sources.json",
+    "final_url": "https://raw.githubusercontent.com/KKKKhazix/AIHOT/26d436497d9ddba9e7dd88eed255cfe0105ce368/industry/sources.json",
+    "media_type": "text/plain",
+    "retrieved_at": "2026-10-17T03:49:35.476642+00:00"
+  },
+  "target_articles": 50,
+  "target_relationship_cases": 20,
+  "sources": [
+    {
+      "id": "rss-openai-news",
+      "feed_url": "https://openai.com/news/rss.xml"
+    },
+    {
+      "id": "rss-google-deepmind",
+      "feed_url": "https://deepmind.google/blog/rss.xml"
+    },
+    {
+      "id": "rss-google-research",
+      "feed_url": "https://research.google/blog/rss/"
+    },
+    {
+      "id": "rss-hugging-face",
+      "feed_url": "https://huggingface.co/blog/feed.xml"
+    },
+    {
+      "id": "rss-microsoft-research",
+      "feed_url": "https://www.microsoft.com/en-us/research/feed/"
+    },
+    {
+      "id": "rss-nvidia-blog",
+      "feed_url": "https://blogs.nvidia.com/feed/"
+    },
+    {
+      "id": "rss-aws-ml",
+      "feed_url": "https://aws.amazon.com/blogs/machine-learning/feed/"
+    },
+    {
+      "id": "rss-github-ai",
+      "feed_url": "https://github.blog/ai-and-ml/feed/"
+    },
+    {
+      "id": "rss-mistral",
+      "feed_url": "https://mistral.ai/news/rss"
+    },
+    {
+      "id": "rss-bair",
+      "feed_url": "https://bair.berkeley.edu/blog/feed.xml"
+    },
+    {
+      "id": "rss-the-verge-ai",
+      "feed_url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+    },
+    {
+      "id": "rss-techcrunch-ai",
+      "feed_url": "https://techcrunch.com/category/artificial-intelligence/feed/"
+    },
+    {
+      "id": "rss-ars-technica-ai",
+      "feed_url": "https://arstechnica.com/ai/feed/"
+    },
+    {
+      "id": "rss-mit-tech-review-ai",
+      "feed_url": "https://www.technologyreview.com/topic/artificial-intelligence/feed"
+    },
+    {
+      "id": "rss-the-decoder",
+      "feed_url": "https://the-decoder.com/feed/"
+    },
+    {
+      "id": "rss-simon-willison",
+      "feed_url": "https://simonwillison.net/atom/everything/"
+    },
+    {
+      "id": "rss-import-ai",
+      "feed_url": "https://importai.substack.com/feed"
+    },
+    {
+      "id": "rss-latent-space",
+      "feed_url": "https://www.latent.space/feed"
+    }
+  ],
+  "inference_calls": 0
+}

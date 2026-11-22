@@ -1,0 +1,52 @@
+measure
+function, objective, repeatable, or scalable test, evaluation, verification, and validation (TEVV) processes
+    including metrics, methods, and methodologies are in place, followed, and documented. Metrics and measurement
+    methodologies should adhere to scientific, legal, and ethical norms and be carried out in an open and transparent
+    process. New types of measurement, qualitative and quantitative, may need to be developed. The degree to which each
+    measurement type provides unique and meaningful information to the assessment of AI risks should be considered.
+    Framework users will enhance their capacity to comprehensively evaluate system trustworthiness, identify and track
+    existing and emergent risks, and verify efficacy of the metrics. Measurement outcomes will be utilized in the
+manage
+function to assist risk monitoring and response efforts. It is incumbent on Framework users to continue applying the
+measure
+function to AI systems as knowledge, methodologies, risks, and impacts evolve over time.
+Practices related to measuring AI risks are described in the NIST AI RMF Playbook.
+Table 3
+lists the
+measure
+function’s categories and subcategories.
+[Table 3 omitted here; selected original subcategories provided separately.]
+5.4
+Manage
+The
+manage
+function entails allocating risk resources to mapped and measured risks on a regular basis and as defined by the
+govern
+function. Risk treatment comprises plans to respond to, recover from, and communicate about incidents or events.
+Contextual information gleaned from expert consultation and input from relevant AI actors – established in
+govern
+and carried out in
+map
+– is utilized in this function to decrease the likelihood of system failures and negative impacts. Systematic
+    documentation practices established in
+govern
+and utilized in
+map
+and
+measure
+bolster AI risk management efforts and increase transparency and accountability. Processes for assessing emergent
+    risks are in place, along with mechanisms for continual improvement.
+After completing the
+manage
+function, plans for prioritizing risk and regular monitoring and improvement will be in place. Framework users will
+    have enhanced capacity to manage the risks of deployed AI systems and to allocate risk management resources based on
+    assessed and prioritized risks. It is incumbent on Framework users to continue to apply the
+manage
+function to deployed AI systems as methods, contexts, risks, and needs or expectations from relevant AI actors
+    evolve over time.
+Practices related to managing AI risks are described in the NIST AI RMF Playbook.
+Table 4
+lists the
+manage
+function’s categories and subcategories.
+[Table 4 omitted here; selected original subcategories provided separately.]

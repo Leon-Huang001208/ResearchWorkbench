@@ -1,0 +1,651 @@
+{
+  "version": "1.0.0",
+  "scenarios": [
+    {
+      "id": "company-onepager",
+      "version": "1.0.0",
+      "name": "公司一页纸",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "company-research"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "company_one_pager"
+      ],
+      "source_skill_names": [
+        "公司一页纸"
+      ],
+      "subject_kinds": [
+        "stock"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "company-disclosures",
+        "financials",
+        "valuation"
+      ],
+      "tool_families": [
+        "research_read_source",
+        "datahub_get_financials",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "核对公司身份、市场与截止日",
+        "从已选资料提取业务、竞争位置和财务事实",
+        "将驱动、估值口径、风险与反证逐项绑定来源",
+        "交给原DSH报告链生成草稿并显示覆盖"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "业务与收入结构",
+        "关键驱动与反证",
+        "财务与估值口径",
+        "风险与待核验事项"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "600600.SH：用已选择半年报整理公司一页纸",
+          "material_ids": [
+            "selected-material-id"
+          ]
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "industry-onepager",
+      "version": "1.0.0",
+      "name": "行业一页纸",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "industry-research"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "industry_one_pager"
+      ],
+      "source_skill_names": [
+        "行业一页纸"
+      ],
+      "subject_kinds": [
+        "industry"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "industry-taxonomy",
+        "industry-statistics",
+        "industry-materials"
+      ],
+      "tool_families": [
+        "research_read_source",
+        "datahub_search_news",
+        "datahub_query_table",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "确认行业分类版本、地域与统计期间",
+        "核对产业链、规模、供需及竞争材料",
+        "比较可比公司并列出单位、口径与时点差异",
+        "交给原DSH报告链生成行业草稿"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "行业边界与分类",
+        "产业链和竞争格局",
+        "驱动与跟踪指标",
+        "风险与缺口"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "industry",
+            "identity": "SW:801080"
+          },
+          "as_of": "2026-10-26",
+          "question": "SW:801080：按选定材料概览半导体行业",
+          "material_ids": [
+            "selected-material-id"
+          ]
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "fundamentals",
+      "version": "1.0.0",
+      "name": "基本面分析",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "company-research"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "fundamental_analysis"
+      ],
+      "source_skill_names": [
+        "基本面分析"
+      ],
+      "subject_kinds": [
+        "stock"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "financials",
+        "company-disclosures",
+        "valuation",
+        "accounting-basis"
+      ],
+      "tool_families": [
+        "research_read_source",
+        "datahub_get_financials",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "核对证券、报告期、币种和合并范围",
+        "比较盈利、现金流、成长及财务健康",
+        "把估值假设、敏感项与风险逐项绑定证据",
+        "保持缺失指标未知并交给原DSH报告链"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "盈利与成长",
+        "现金流与资产负债",
+        "估值假设和敏感项",
+        "会计口径与证据缺口"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "600600.SH：以同报告期财报分析盈利质量",
+          "material_ids": [
+            "selected-material-id"
+          ]
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "technicals",
+      "version": "1.0.0",
+      "name": "技术面分析",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "chanlun"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "technical_analysis"
+      ],
+      "source_skill_names": [
+        "技术面分析"
+      ],
+      "subject_kinds": [
+        "stock"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "adjusted-bars",
+        "corporate-actions",
+        "trading-calendar"
+      ],
+      "tool_families": [
+        "datahub_get_market_bars",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "确认证券、日线频率、复权与时间区间",
+        "基于实际同版本OHLCV计算确定性趋势指标",
+        "列出观察窗口、信号冲突与失效条件",
+        "交给原DSH解释已计算指标，不冒充供应商形态模型"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "价格量能与趋势",
+        "计算窗口和复权依据",
+        "信号与失效条件",
+        "不覆盖华创专有形态学模型"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "600600.SH：用已选日线检查趋势、量能与失效条件",
+          "material_ids": [
+            "selected-material-id"
+          ]
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "news-query",
+      "version": "1.0.0",
+      "name": "新闻查询",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "finance-news-event-research"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "query_news"
+      ],
+      "source_skill_names": [
+        "新闻查询"
+      ],
+      "subject_kinds": [
+        "stock",
+        "industry",
+        "topic"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": false,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "news-source-text",
+        "publication-time"
+      ],
+      "tool_families": [
+        "datahub_search_news",
+        "research_read_source",
+        "research_check_quality"
+      ],
+      "steps": [
+        "按标的或独立主题与截止日准备检索条件",
+        "仅使用当前获准来源查询并保留来源身份",
+        "区分发布时间、首次观察时间、重复与冲突",
+        "交给原DSH整理带来源的检索结果草稿"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "来源与截止日",
+        "命中范围和重复合并",
+        "原文事实与冲突",
+        "仅反映当前选择及实际检索覆盖"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "主题“半导体出口政策”：查询截止日以前公开材料",
+          "material_ids": []
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "news-transmission",
+      "version": "1.0.0",
+      "name": "新闻传导分析",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "finance-news-event-research",
+        "industry-chain-research"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "analyze_news_impact"
+      ],
+      "source_skill_names": [
+        "新闻传导分析"
+      ],
+      "subject_kinds": [
+        "stock",
+        "industry",
+        "topic"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "news-source-text",
+        "publication-time",
+        "supply-chain-evidence"
+      ],
+      "tool_families": [
+        "research_read_source",
+        "datahub_search_news",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "核对原新闻身份、全文、时间与事实主张",
+        "建立事件到供需、价格、利润的可检验链条",
+        "区分直接暴露、二阶推断、反向影响和时滞",
+        "交给原DSH生成假设、验证指标及反证草稿"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "原事件事实",
+        "传导链与证据",
+        "影响对象和时间尺度",
+        "反证、假设与未知"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "主题“出口限制”：基于已选原文分析产业链传导",
+          "material_ids": [
+            "selected-material-id"
+          ]
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "research-prep",
+      "version": "1.0.0",
+      "name": "调研前置",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "company-research"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "research_outline"
+      ],
+      "source_skill_names": [
+        "调研大纲"
+      ],
+      "subject_kinds": [
+        "stock"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL"
+      },
+      "required_data": [
+        "company-disclosures",
+        "survey-records",
+        "authorized-research-materials"
+      ],
+      "tool_families": [
+        "research_read_source",
+        "datahub_search_research",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "核对公司和调研目标及截止日",
+        "比较披露、已有调研问答和已授权研报",
+        "形成差异化问题、追问和可跳过问题及其证据",
+        "交给原DSH准备提纲，不外发或联系机构"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "公司已知事实",
+        "待验证假设",
+        "有来源的问题清单",
+        "覆盖、资料权利与缺口"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "600600.SH：用已选财报与历史问答准备调研提纲",
+          "material_ids": [
+            "selected-material-id"
+          ]
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    },
+    {
+      "id": "historical-review",
+      "version": "1.0.0",
+      "name": "历史复盘",
+      "description": "将当前已授权材料和真实数据交给既有RWB能力及唯一DSH；本目录只准备研究合同",
+      "capability_ids": [
+        "event-review"
+      ],
+      "capability_source": "app/research_web/capabilities/seeds.py",
+      "source_tool_names": [
+        "history_review"
+      ],
+      "source_skill_names": [
+        "历史复盘"
+      ],
+      "subject_kinds": [
+        "stock"
+      ],
+      "required_inputs": [
+        "subject",
+        "question",
+        "as_of",
+        "material_ids",
+        "window_start"
+      ],
+      "optional_inputs": [],
+      "materials_required": true,
+      "input_contract": {
+        "subject": "kind与规范证券/分类/独立主题identity；name仅展示",
+        "question": "研究问题、地域/期间/关注点等背景",
+        "as_of": "ISO自然日截止，不推导历史可得性",
+        "material_ids": "当前账号已选择材料身份；不接受文件路径或URL",
+        "window_start": "历史复盘起始ISO日期；不得晚于as_of"
+      },
+      "required_data": [
+        "point-in-time-events",
+        "adjusted-bars",
+        "benchmark-bars",
+        "historical-availability"
+      ],
+      "tool_families": [
+        "research_read_source",
+        "datahub_get_market_bars",
+        "research_run_script",
+        "research_check_quality"
+      ],
+      "steps": [
+        "确认证券、历史窗口、截止日与当时可得资料",
+        "按真实日期重建事件、财务和走势分段",
+        "核对复权收益、可比基准与样本剔除",
+        "交给原DSH分析，历史可得性未证时禁止正式回测结论"
+      ],
+      "expected_artifacts": [
+        "source-linked-research-draft",
+        "coverage-and-missing-evidence-ledger"
+      ],
+      "coverage": [
+        "事件时间轴",
+        "走势分段与对照",
+        "收益和基准口径",
+        "历史PIT资格与事后叙事限制"
+      ],
+      "examples": [
+        {
+          "subject": {
+            "kind": "stock",
+            "identity": "600600.SH"
+          },
+          "as_of": "2026-10-26",
+          "question": "600600.SH：复盘指定区间并保留当时可得资料证明",
+          "material_ids": [
+            "selected-material-id"
+          ],
+          "window_start": "2026-01-01"
+        }
+      ],
+      "no_auto_send": true,
+      "missing_data_behavior": "列出缺失、外域、未核验或无权数据；保留incomplete/invalid/NOT_RUN/BLOCKED，不编造、不静默替源、不自动付费或补调用",
+      "execution_boundary": "selection_only; existing capability/DSH handles all execution, freeze and quality gates",
+      "evidence_boundary": "Host supplies current authenticated capability qualification and frozen evidence eligibility; request payloads cannot self-certify",
+      "status": "unverified",
+      "runtime_verified": false,
+      "quality_passed": false
+    }
+  ]
+}

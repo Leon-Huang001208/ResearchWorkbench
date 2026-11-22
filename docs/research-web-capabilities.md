@@ -1,6 +1,86 @@
 # Research Web 能力包与版本
 
-G2B 本地源码候选提供冻结制品、独立验收与受管晋级/回退计划；它不是正式发布或部署。Hot 已配置状态因缺少停写/回滚证明继续阻断，原有研究、Automation 和报告能力不被旧分支替换。
+G2B 为现有 Docker 管理器增加冻结制品、独立 stage 验收、显式晋级与回退；不会产生新的用户 Skill 或默认发布权限。研究、Automation、报告和原生 resident 原有能力保持；生产切换需真实部署结果，源码整合不表示已上线。
+
+工具目录按原生实际注册核对名称与参数。DataHub声明包含既有 `purpose`／`quality`／`as_of` 输入，研究脚本声明既有 `code`／`report_plan` 二选一；目录不授予执行或质量资格，原权限与严格执行校验保持。无DSH源码环境的注册回归直接调用本地runtime模块，固定DSH完整插件核对另外留证。
+
+Research Bot 对来源批次先判新鲜度，再冻结原件和准备技能。历史记录保存实际准入依据供核对。
+
+Research Bot 只绑定已发布的技能或 Workflow 版本及内容哈希。运行时重验当前授权和原生发现，结果校验要求所绑定版本及 Workflow 已冻结子技能的实际加载回执。
+
+财经日历是 Host 自有的固定公开来源界面，不安装技能或插件，也不授予用户任意数据工具调用权限。
+
+## WeKnora 与能力中心（2026-11-06）
+
+WeKnora适配提供资料服务出口，不创建新插件市场、安装器或执行器。当前研究的 `research_search_knowledge`／`research_read_knowledge` 只经原DataKey读取可信会话的current资料和命中回执，模型不能选择库、账号或写范围；原报告查询仍须批准scope。绑定、同步配置／扫描、时间批准和冻结保留认证用户明确动作。能力中心三分类、原技能／Workflow身份和入站四项只读MCP保持，资料worker的启用不恢复其他Automation日程。[资料合同](research-web-weknora.md)
+
+已批准 scope 的新会话首轮可走 Host 单轮 grant 分支，仍复用 query／hit_id 工具协议；scope 和当前原生请求不来自模型参数。正式失败不回退普通 current，子会话不继承根授权，来源时间与正式报告资格仍单独复核。详见[单轮研究](research-web-weknora.md#host-批准范围的单轮研究)。
+
+能力中心仅保留技能／连接器／插件：方法与通用Workflow并入技能，Tool在关联详情。连接器使用原MCP、DataHub和本机管理，插件复用原包生命周期。旧方法ID、版本、权限和历史深链保留；复制方法产生普通Skill草稿，不改原方法，也不继承其采用记录身份。定时任务薄入口复用原计划，报告专属Workflow仍从报告生产进入。
+
+## 事件研究与能力授权（2026-11-04）
+
+新增事件时间线、研究输入登记和评分接口属于原Host的确定性业务模块，不会将来源候选自动注册为原生Tool／Skill，不增加MCP权限，也不以目录或人工确认替代供应商、PIT及正式评分资格。模型解释仍通过原DSH能力与质量合同。
+
+来源计划仅在Native通用Automation已开启且用户逐源启用后进入原心跳；tenant自动采集通道关闭，今日发现的窄跟踪同意不扩展到该计划。数据、方法和权限的具体边界见[事件集成合同](research-web-event-research.md)，原能力发布和撤权门保留。
+
+首批八场景复用已发布能力，不把62个Skill名称或78个工具描述自动变成可执行版本。发送逐项检查必需能力原生发现、实际编译资源、来源准入和冻结版本；要求与真实加载回调分开。旧禁用／比较回执、插件授权和发布冲突门保持；静态候选或成功准备不准许调用MCP。场景质量schema2绑定全部要求，旧schema1不变，摘要不因引用已通过报告获得自身passed。
+
+能力目录索引保存使用相同 UTF-8 JSON 的单次写入，保留原逐次保存、临时文件同步与原子替换。序列化、fsync 或替换失败仍保留上一索引并清理临时文件；未绕过冷启动、依赖新鲜性或能力验证。
+
+Host 的来源请求/取消内存表在构造时即存在，来源工具仍复用原登记、取消和清理流程；不新增能力包版本、工具授权或原件信任。空闲观察不触发来源读取、模型提交或自动化执行。
+
+华安冻结Run不再选择不适用的公司研究Workflow，而按Host验证的专属输入/工具投影提交。通用能力目录、其data_requirements和数据拒绝逻辑不改；不发布新泛化capability、不复用Automation任务身份，原Native审批/插件撤权/来源约束继续有效。
+
+今日发现不发布新原生Tool/Skill或第二运行器：手动选择先固定golddata_intel事件归档，再由唯一DSH调用已授权能力。独立跟踪锁定原research_task定义、模型/profile和固定只读工具；禁用草稿、启用、运行、质量和通知各自保留，默认无MCP/外部投递，每条计划每日最多一次模型尝试。既有框架、Workflow及能力发布门不因事件摘要自动通过，合同见[今日发现](research-web-discovery.md)。
+
+
+固定公开indices个人仓库桥属于Host市场页内部适配，不新增原生Tool、Skill、Workflow或Broker公开来源绑定，不伪造研究sid。能力发布、自动化依赖和私有来源准入保持原门；仓库已持久化或命中不提升研究质量及正式回测资格。
+
+华安ETF周报在既有报告Workflow详情准备未发布的`huaan-etf-weekly-v1`继任版本，沿原版本API发布；
+不新增执行引擎或公开原生Tool。主管理员身份、同源取数、原质量门、文件交付及正式定稿分别核验，
+当前版本真实手动定稿后才可启用周五15:30日程。旧历史不继承新认证，见[周报生产合同](research-web-etf-weekly-production.md)。
+
+本轮DataHub仍使用既有datahub_*工具ID，新增purpose/quality/as_of约束和真实尝试元数据；工具注册不表示来源可用，BaoStock仅三个已实现业务绑定开放。Skill/Workflow/Automation不会因此取得数据库写权限、个人凭据或新增模型预算，仓库由可信Host绑定。
+
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 能力中心新增插件页：固定包导入/文件核对/精确权限审核、支持与就绪状态、启用/撤权/回滚/卸载、个人与共享分发以及 MCP 原生确认/审批链。Skill/Workflow 复用 CapabilityCatalog，Command 展开为现有消息，Agent 经当前 session grant 调用唯一 DSH 原生 subagent；Hook 仅受审事件子集。升级保留仍批准旧会话的原字节，MCP 无法并存时明确 deferred，不静默换版。状态和未支持范围见[插件合同](research-web-plugins.md)。
+
+2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
+
+全市场概览属于固定行情浏览页面，不注册新的Skill／Tool／Workflow，不启动Automation或研究会话。30／60秒刷新只在页面可见且日历允许时运行，取消、公开来源与用户缓存由MarketService负责；能力权限、日程和唯一DSH执行边界保持。
+
+原AF连续指标工作区只迁入确定性浏览器公式、字段投影及本地固定图表资源，未增加Skill／Tool／Workflow或第二Agent引擎；不迁移AF委员会、数据库、协调器或其能力注册。财务／行业／股东／宏观缺数据时显示未知，估算筹码不能作为真实持仓或通过研究质量门。
+
+能力目录初始化事务内只读取一次 Python 模块到发行包的清单，供内置能力的静态导入检查共享；事务结束（包括异常）立即清除。每次新的目录实例，以及初始化后的显式检查/发布，仍读取当前安装清单；来源可调用状态、凭据、版本约束与脚本安全检查不缓存或放宽。
+
+原report_plan增加同节fact/formula数值引用及有界年度GDP推算；系统负责声明/笔记/中文呈现/审计附件，Host独立重建，不新增工具、来源授权、模型或自动化执行器。精度、输入和执行预算由固定代码实际强制，DSH wire的schema兼容调整不放宽这些边界。
+
+原research_run_script扩展有界calculations数据配方，不增加工具或权限。模型选择实际证据，系统计算/组装/格式化；旧code保留独立检查能力。Host对任意客户端副本不授予信任，未验证分析和资料范围继续保持原准入及质量规则。
+
+网页来源读取只增加从已取得完整字节产生的有界证据投影，不新增工具、来源授权或执行次数。来源日期冲突保持未知，数字声明仍经Host独立重算；自动化、Claw与旧能力合同不因SDK便利函数而放宽。
+
+本轮未增加能力包、工具或准入字段。实际数值业务观测已可用时，提示使用已有report_plan；脚本仍可做独立计算与取证，补查仅沿既有一次授权，不把说明文字当新权限。
+
+Host检查版链接及显式算式审计不增加能力、自动化动作或授权。Claw与旧能力流程沿原执行通道；只有带冻结研究合同的当前FinGPT报告启用检查链接约束，上传资料仍可下载。
+
+research_read_source 只暴露 list/read 与来源 ID，不接受调用方 URL、正文、会话或凭据。原生插件从本会话真实完成的搜索事件同步有界身份清单，Host 按来源范围核对；读取的实际正文保存在本会话只读 inputs，并绑定 SHA-256。继承原模型工具准入与48次工具硬预算，取消经同一原生 call_id 传达；不授予浏览器登录、DataHub 或任意宿主网络权限。
+
+脚本资源提供select_business_evidence(bundle,{准确id或唯一metric或metric@period:[要求ID]})，将选择与映射一起校验；evidence_section统一返回空numeric_claims，父来源重复项去重，business_观测ID不得冒充来源。write_summary_workbook分开数值Summary、ExactValues和说明表；render_markdown保留完整规范报告与缺口。所有函数仅格式化，不授予可信观察或质量结论。CPI可用真实历史月列/精确百分点；NIST可用实际原文句，中文推断仍独立核验。
+
+报告资源新增load_business_evidence读取当前task/contract的便利投影，避免手抄大段观测；并不签发质量结论。Decimal计算结果和claim操作数保存为精确JSON字符串；来源定位格式只在真实ID和准确标题核对后接受。无新工具权限或模型重试。
+
+实际业务证据的canonical_source、build_numeric_claim与evidence_section复用已打包报告资源，没有新Skill、Workflow、权限或Automation节点。对账/利率算术工具不是可信来源，调用成功不等于研究通过。
+
+business_evidence只格式化原research_check_quality返回的受限Host业务观测；观测产生仍在原私有桥/允许来源/冻结任务内，不增加工具权限或补查轮数。输入未知、否定/条件、单位/表头不明确时保持未核验，不由模型提交观察获得信任。
+
+calculation_evidence属于已打包的报告格式工具，模型在research_check_quality返回实际Host观测后显式调用；不新增可选能力、Skill/Workflow版本、Automation权限或模型补查预算，不把调用成功当质量通过。
+
+research_check_quality沿原权限与一次补查预算返回规范来源及独立计算观察，不增加可选能力或模型重试。data-only配方由Host复算后才可用于原identity数值验证；模型自写observations没有信任效力。Skill/Workflow/Automation准入保持。
+
+research_check_quality 是非用户可选的原生内部控制工具，仅核对 Host 冻结要求与实际资料；不能从工具参数修改验收标准、补查次数或执行预算。它不改动已批准 Skill/Workflow/Automation 的版本与权限，也不替代来源准入。
 
 两模式会话侧栏统一后，Claw Agent日程位于新聊天下方，管理项目紧接其后；模式菜单不再展示重复的选择能力入口，能力从全局能力中心进入；原Skill/Workflow版本与原生调用不变。逐题卡片的“跳过”仅提供明确未回答记录，不能代替自动化或厂商权限授权。
 
@@ -481,3 +561,28 @@ Hot FinGPT的冻结研究不加载全量Skill目录及外部数据工具，沿�
 ## 历史子会话模式兼容 · 2026-10-13
 
 历史子会话模式unknown只影响读取其历史，不表示能力包或模型工具已验证。能力执行与控制路径保留原严格校验。
+# 报告数据参数与原能力边界
+
+report_plan 只在原 research_run_script 中替代代码输入，沿同一准入和冻结上下文执行；不增加 Automation、模型循环或补查预算。独立报告组装无评分权，所有分析和真实缺口继续交原 Host 核验。
+
+
+命名模型连接不改变Skill/Method/Workflow的版本或工具权限。显式声明provider/model的research_task日程另锁profile身份并在创建锁内核验；其他能力自动化继续原有默认模型语义，不补造历史选模审批，未验证的兼容工具能力仍拒绝深入研究。
+
+## 2026-10-23：长期研究档案与机会预警
+
+六类档案研究方法只补充现有能力中心的输入、输出和限制，继续使用原已发布版本与原 DSH 工具；档案交接句柄需由实际 Prompt 绑定后才能读取，方法介绍不授予来源／MCP 权限。个人凭据和固定评估操作复用受管插件审批／status；小创候选缺已核验 Registry 身份，导入不等于安装或可配置，54 子弹只为另行确认前的估算。能力发布／发现拓扑与原报告质量门保持，详见[档案方法](research-web-dossiers-ui.md)、[扫描边界](research-web-dossier-scans.md)及[候选合同](research-web-seek-alpha.md)。
+
+今日发现原始资讯沿原 Automation research_task 跟踪，批准范围绑定原始资讯及精确核对的事件归档。已登记但核对失效的任务在调度入口拒绝，不回退通用模型执行；默认禁用、独立启用及原质量门保持。详见[发现合同](research-web-discovery.md)。
+
+
+## 专业协作接入边界（2026-10-28）
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+四个协作工具在原目录投影，不直接可选；角色冻结现有Skill版本及资源摘要，原能力发布、数据授权和原生审批保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+仅服务模式的研究能力可由外部宿主消费。RWB 账号内原生能力创建、启用及运行请求在该模式拒绝。
+
+AlphaDesk 收到 Host 固定且已验证的能力资源。原目录批准、资料条件和账号权限继续决定可调用工具。

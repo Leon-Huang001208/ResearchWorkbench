@@ -77,6 +77,26 @@ test('HTML escaping covers native options, custom text, labels and event identit
   assert.match(html, /&lt;svg&gt;/); assert.match(html, /&lt;\/textarea&gt;/);
 });
 
+test('Claw welcome appears only before any conversation work has started', () => {
+  const pristine = { id: 's', mode: 'claw', status: 'idle', messages: [] };
+  assert.doesNotMatch(renderConversation({ ...pristine, questions: [{ ...question(), seq: undefined }] }), /尚无消息|empty-symbol|claw-welcome/);
+  assert.match(renderConversation(pristine), /今天想在 Research Workbench 中完成什么？/);
+  const cases = [
+    { questions: [question()] }, { approvals: [{ id: 'a', title: '授权' }] },
+    { activities: [{ id: 'tool', title: '读取', status: 'running' }] },
+    { status: 'running' }, { status: 'queued' }, { status: 'waiting_input' },
+    { status: 'completed' }, { status: 'failed' }, { error: '连接中断' },
+    { can_cancel: true }, { delivery: { status: 'admission_unknown' } }, { delivery: { status: 'completed' } },
+    { question_history: [{ ...question(), answers: [], seq: 4 }] },
+    { messages: [{ id: 'u', role: 'user', text: '开始研究', seq: 1 }] },
+  ];
+  for (const detail of cases) assert.doesNotMatch(renderConversation({ ...pristine, ...detail }), /尚无消息|empty-symbol|claw-welcome/);
+  assert.match(renderConversation({ ...pristine, error: '连接中断' }), /连接中断/);
+  assert.match(renderConversation({ ...pristine, mode: 'fingpt' }), /尚无消息/);
+  assert.doesNotMatch(renderConversation(pristine, new Map(), { busy: true }), /claw-welcome/);
+  assert.doesNotMatch(renderConversation(pristine, new Map(), { extraEntries: [{ html: '已准备', seq: 2 }] }), /claw-welcome/);
+});
+
 
 test('pending research hides the removed caption while send guards remain active', async () => {
   const { renderComposer } = await import('../../app/research_web/ui/composer.mjs');

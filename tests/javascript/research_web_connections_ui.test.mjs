@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildConfigurationPayload,
   confirmAutoProbeConsent,
+  createExecutionEvidenceExpiry,
   filterConnectionSources,
   mergeIntegrationStatuses,
   renderConnectionCenter,
@@ -61,6 +62,107 @@ const model = {
   },
   migration: { available: true, targets: ['tushare'], conflicts: [] },
 };
+
+test('registered expiry callback invalidates the visible HTML without a new request', (t) => {
+  let now = Date.parse('2026-10-22T10:00:00Z');
+  t.mock.method(Date, 'now', () => now);
+  const events = new EventTarget(); events.hidden = false;
+  const callbacks = new Map(); let nextId = 0;
+  const candidate = { ...sources.find((source) => source.id === 'akshare'), execution_verified: true, execution_evidence: [{ capability: 'financials', status: 'success', basis: 'actual_provider_call', completed_at: new Date(now).toISOString(), expires_at: new Date(now + 300000).toISOString() }] };
+  const current = { groups, sources: [candidate] };
+  const container = { innerHTML: renderConnectionCenter({ connections: current, selectedId: 'akshare', scope: 'data', detailOpen: true }) };
+  let renders = 0; let active = true;
+  const lifecycle = createExecutionEvidenceExpiry({
+    getSources: () => current.sources, isActive: () => active, visibilityTarget: events,
+    now: () => now, setTimer: (callback, delay) => { const id = ++nextId; callbacks.set(id, { callback, delay }); return id; }, clearTimer: (id) => callbacks.delete(id),
+    onExpire: () => { renders += 1; container.innerHTML = renderConnectionCenter({ connections: current, selectedId: 'akshare', scope: 'data', detailOpen: true }); },
+  });
+  lifecycle.sync();
+  assert.match(container.innerHTML, /部分能力已验证/);
+  assert.equal(callbacks.size, 1);
+  const registered = [...callbacks.values()][0];
+  assert.equal(registered.delay, 300001);
+  now += registered.delay;
+  callbacks.clear(); registered.callback();
+  assert.equal(renders, 1);
+  assert.doesNotMatch(container.innerHTML, /部分能力已验证/);
+  assert.match(container.innerHTML, /connection-summary-item connected[^]*?<dd>0<\/dd>/);
+  assert.match(container.innerHTML, /暂无当前授权配置下的有效实际调用证据/);
+  assert.equal(callbacks.size, 0);
+  active = false; lifecycle.sync(); lifecycle.dispose();
+});
+
+test('hidden-page resume revalidates HTML and route exit cancels queued expiry work', (t) => {
+  let now = Date.parse('2026-10-22T10:00:00Z');
+  t.mock.method(Date, 'now', () => now);
+  const events = new EventTarget(); events.hidden = false;
+  const callbacks = new Map(); let nextId = 0; let active = true; let renders = 0;
+  const candidate = { ...sources.find((source) => source.id === 'akshare'), execution_verified: true, execution_evidence: [{ capability: 'financials', status: 'success', basis: 'actual_provider_call', completed_at: new Date(now).toISOString(), expires_at: new Date(now + 1000).toISOString() }] };
+  const current = { groups, sources: [candidate] };
+  let html = renderConnectionCenter({ connections: current, selectedId: 'akshare', scope: 'data' });
+  const lifecycle = createExecutionEvidenceExpiry({ getSources: () => current.sources, isActive: () => active, visibilityTarget: events, now: () => now,
+    setTimer: (callback) => { const id = ++nextId; callbacks.set(id, callback); return id; }, clearTimer: (id) => callbacks.delete(id),
+    onExpire: () => { renders += 1; html = renderConnectionCenter({ connections: current, selectedId: 'akshare', scope: 'data' }); },
+  });
+  lifecycle.sync();
+  const queued = [...callbacks.values()][0];
+  events.hidden = true; events.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(callbacks.size, 0);
+  now += 1001;
+  events.hidden = false; events.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(renders, 1);
+  assert.doesNotMatch(html, /部分能力已验证/);
+  candidate.execution_evidence[0].expires_at = new Date(now + 1000).toISOString();
+  lifecycle.sync(); assert.equal(callbacks.size, 1);
+  active = false; lifecycle.cancel(); queued();
+  assert.equal(renders, 1);
+  assert.equal(callbacks.size, 0);
+  lifecycle.dispose(); active = true; events.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(renders, 1);
+});
+
+test('earliest deadline owns one timer and a cancelled callback cannot orphan its replacement', () => {
+  const events = new EventTarget(); events.hidden = false;
+  const now = Date.parse('2026-10-22T10:00:00Z');
+  const callbacks = new Map(); let nextId = 0; let renders = 0;
+  const source = { execution_evidence: [1000, 500].map((delta) => ({ basis: 'actual_provider_call', expires_at: new Date(now + delta).toISOString() })) };
+  const lifecycle = createExecutionEvidenceExpiry({ getSources: () => [source], now: () => now, visibilityTarget: events,
+    setTimer: (callback, delay) => { const id = ++nextId; callbacks.set(id, { callback, delay }); return id; }, clearTimer: (id) => callbacks.delete(id), onExpire: () => { renders += 1; },
+  });
+  lifecycle.sync();
+  assert.equal([...callbacks.values()][0].delay, 501);
+  const obsolete = [...callbacks.values()][0].callback;
+  lifecycle.sync(); assert.equal(callbacks.size, 1);
+  obsolete(); assert.equal(renders, 0);
+  lifecycle.cancel(); assert.equal(callbacks.size, 0);
+  lifecycle.dispose();
+});
+
+test('actual query evidence survives integration merge and counts only scoped successful capabilities', () => {
+  const execution = { capability: 'financials', status: 'success', completed_at: '2026-10-22T10:00:00+00:00', expires_at: '2099-10-22T10:05:00+00:00', basis: 'actual_provider_call', cache_validates_upstream: false };
+  const merged = mergeIntegrationStatuses({ groups, sources: [{ ...sources.find((source) => source.id === 'akshare'), integration_completed: true, callable: true, execution_verified: true, execution_scope: 'listed_capabilities_only', execution_evidence: [execution] }] }, { items: [{ id: 'data:akshare', bucket: 'user_action', runtime_callable: false, probe_state: 'untested' }] });
+  const html = renderConnectionCenter({ connections: merged, selectedId: 'akshare', scope: 'data', detailOpen: true });
+  assert.match(html, /部分能力已验证/);
+  assert.match(html, /最近实际取数/);
+  assert.match(html, /financials/);
+  assert.match(html, /成功/);
+  assert.match(html, /2026-10-22T10:00:00/);
+  assert.match(html, /缓存命中不验证上游/);
+  assert.match(html, /connection-summary-item connected[^]*?<dd>1<\/dd>/);
+  assert.equal(merged.sources[0].probe_status, 'untested');
+  assert.equal(merged.sources[0].callable, false);
+});
+
+test('failed partial and expired actual calls do not become available sources', () => {
+  for (const [status, expires_at] of [['partial', '2099-10-22T10:05:00Z'], ['failed', '2099-10-22T10:05:00Z'], ['success', '2020-10-22T10:05:00Z']]) {
+    const candidate = { ...sources.find((source) => source.id === 'akshare'), execution_verified: status === 'success', execution_evidence: [{ capability: 'financials', status, completed_at: '2026-10-22T10:00:00Z', expires_at, basis: 'actual_provider_call', failure_code: status === 'failed' ? 'provider_error' : null }] };
+    const html = renderConnectionCenter({ connections: { groups, sources: [candidate] }, selectedId: 'akshare', scope: 'data', detailOpen: true });
+    assert.doesNotMatch(html, /部分能力已验证/);
+    assert.match(html, /connection-summary-item connected[^]*?<dd>0<\/dd>/);
+    if (status === 'failed') assert.match(html, /provider_error/);
+    if (status === 'success') assert.match(html, /暂无当前授权配置下的有效实际调用证据/);
+  }
+});
 
 test('separate connection and integration API responses merge before rendering', () => {
   const connectionResponse = {

@@ -5,10 +5,11 @@ import { pathToFileURL } from 'node:url';
 export const MODEL_REF = 'RESEARCH_DSH_API_KEY';
 export const COMPATIBLE_REF = 'RESEARCH_COMPAT_API_KEY';
 const MODEL_REFS = new Set([MODEL_REF, COMPATIBLE_REF]);
+const isModelRef = ref => MODEL_REFS.has(ref) || (typeof ref === 'string' && /^RESEARCH_MODEL_PROFILE_[0-9a-f]{32}$/.test(ref));
 
 export function processBridge(config, op, value, ref = MODEL_REF) {
   if (!['resolve', 'describe', 'set', 'unset'].includes(op)) return Promise.reject(Error('model_credential_request_invalid'));
-  if (!MODEL_REFS.has(ref)) return Promise.reject(Error('model_credential_ref_denied'));
+  if (!isModelRef(ref)) return Promise.reject(Error('model_credential_ref_denied'));
   const backend = config.backend ?? 'native-keychain';
   const aes = ['credentialRoot', 'keyRoot', 'instance'];
   if (!['native-keychain', 'docker-encrypted-file', 'docker-encrypted'].includes(backend) ||
@@ -63,15 +64,15 @@ export function createProvider(LocalProvider, bridge, source = 'system-keychain'
       this.modelSource = selected;
     }
     readRecord(key) {
-      if (MODEL_REFS.has(key)) throw Error('model_credential_record_denied');
+      if (isModelRef(key)) throw Error('model_credential_record_denied');
       return super.readRecord(key);
     }
     modifyRecord(key, mutate) {
-      if (MODEL_REFS.has(key)) throw Error('model_credential_record_denied');
+      if (isModelRef(key)) throw Error('model_credential_record_denied');
       return super.modifyRecord(key, mutate);
     }
     async modelCall(ref, op, value) {
-      if (!MODEL_REFS.has(ref)) throw Error('model_credential_ref_denied');
+      if (!isModelRef(ref)) throw Error('model_credential_ref_denied');
       try { return await bridge(op, value, ref); }
       catch {
         this.ctx.logger.warn('model_credential_bridge_failed');

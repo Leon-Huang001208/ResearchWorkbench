@@ -15,9 +15,10 @@ class WindCleanupError(WindError):
 class WindNotConnectedError(WindError):
     """Excel 未运行或 Wind 插件未加载"""
 
-    def __init__(self) -> None:
+    def __init__(self, message: str | None = None) -> None:
         super().__init__(
-            "未检测到运行中的 Excel 或 Wind 插件。\n" "请先启动 Excel 并确保 Wind 插件已加载。"
+            message
+            or "未检测到运行中的 Excel 或 Wind 插件。\n请先启动 Excel 并确保 Wind 插件已加载。"
         )
 
 

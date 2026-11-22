@@ -1,0 +1,15 @@
+Govern 1.1 : Legal and regulatory requirements involving AI are understood, managed, and documented.
+
+Govern 2.1 : Roles and responsibilities and lines of communication related to mapping, measuring, and managing AI risks are documented and are clear to individuals and teams throughout the organization.
+
+Map 1.1 : Intended purposes, potentially beneficial uses, context-specific laws, norms and expectations, and prospective settings in which the AI system will be deployed are understood and documented. Considerations include: the specific set or types of users along with their expectations; potential positive and negative impacts of system uses to individuals, communities, organizations, society, and the planet; assumptions and related limitations about AI system purposes, uses, and risks across the development or product AI lifecycle; and related TEVV and system metrics.
+
+Map 3.5 : Processes for human oversight are defined, assessed, and documented in accordance with organizational policies from the govern function.
+
+Measure 2.1 : Test sets, metrics, and details about the tools used during TEVV are documented.
+
+Measure 2.5 : The AI system to be deployed is demonstrated to be valid and reliable. Limitations of the generalizability beyond the conditions under which the technology was developed are documented.
+
+Manage 4.1 : Post-deployment AI system monitoring plans are implemented, including mechanisms for capturing and evaluating input from users and other relevant AI actors, appeal and override, decommissioning, incident response, recovery, and change management.
+
+Manage 4.3 : Incidents and errors are communicated to relevant AI actors, including affected communities. Processes for tracking, responding to, and recovering from incidents and errors are followed and documented.

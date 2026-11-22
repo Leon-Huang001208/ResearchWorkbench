@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import sys
 from pathlib import Path
@@ -25,6 +26,15 @@ if TYPE_CHECKING:
 MODEL_REF = "RESEARCH_DSH_API_KEY"
 COMPATIBLE_REF = "RESEARCH_COMPAT_API_KEY"
 MODEL_REFS = frozenset({MODEL_REF, COMPATIBLE_REF})
+
+
+def is_model_ref(value):
+    return isinstance(value, str) and (
+        value in MODEL_REFS
+        or re.fullmatch(r"RESEARCH_MODEL_PROFILE_[0-9a-f]{32}", value) is not None
+    )
+
+
 MAX_REQUEST = 8192
 log = logging.getLogger(__name__)
 
@@ -173,7 +183,7 @@ class DockerModelStore:
 
     @staticmethod
     def _reference(service: str, account: str) -> None:
-        if not isinstance(service, str) or not service or account not in MODEL_REFS:
+        if not isinstance(service, str) or not service or not is_model_ref(account):
             raise ValueError("model_credential_request_invalid")
 
     def get_password(self, service: str, account: str) -> str | None:
@@ -299,17 +309,21 @@ def system_backend():
 
 
 def execute(data_home: Path, request: object, backend=None) -> dict:
-    """Operate only on this canonical data home's two fixed model accounts."""
+    """Operate on fixed legacy accounts or registered, isolated profile accounts."""
     if (
         not isinstance(request, dict)
         or not isinstance(request.get("ref"), str)
-        or request.get("ref") not in MODEL_REFS
+        or not is_model_ref(request.get("ref"))
         or request.get("op") not in {"resolve", "describe", "set", "unset"}
         or set(request) - {"op", "ref", "value"}
     ):
         raise ValueError("model_credential_request_invalid")
     op = request["op"]
-    account = request["ref"]
+    # Bind imports to the installed product, including isolated -I launches.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from app.research_web.model_profile_registry import credential_account
+
+    account = credential_account(data_home, request["ref"], allow_uncertain=op != "resolve")
     if op == "set":
         value = request.get("value")
         if not isinstance(value, str) or not value or len(value) > 1024:

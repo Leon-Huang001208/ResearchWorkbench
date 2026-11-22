@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/09-report-workflow-sequence.html",
-    "sha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427",
-    "bytes": 649642
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/etf-historical-acceptance-20261024/outputs/research-web-architecture/09-report-workflow-sequence.html",
+    "sha256": "a82e68877fea1da862d5ddd6a65b19b8de814dd01a7fba643f86514f000615fa",
+    "bytes": 650110
   },
   "state": {
     "detail": "read",

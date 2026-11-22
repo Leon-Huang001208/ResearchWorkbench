@@ -2,11 +2,8 @@ import { escapeHTML as e, safeURL, renderMarkdown } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { icon } from './icons.mjs';
 
-export const intelTabs = [
-  ['overview', '事件总览'], ['research-reports', '研究报告'],
-  ['investment-news', 'Investment News'], ['wsc', '见闻快讯'],
-  ['social', '社交媒体监控'], ['news', '公开新闻'], ['filings', 'A 股公告'], ['events', '事件概率'],
-];
+export { intelTabs } from './navigation-catalog.mjs';
+import { intelTabs } from './navigation-catalog.mjs';
 const list = value => Array.isArray(value) ? value : [];
 const text = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';
 export const validStockCode = value => /^[0-9]{6}$/.test(value);
@@ -275,7 +272,8 @@ function renderDetail(s) {
   return `<aside class="intel-detail" aria-label="${s.detailKind === 'report' ? '研报' : '事件'}详情"><header class="intel-detail-header"><strong id="intel-detail-title" tabindex="-1">${s.detailKind === 'report' ? '研报阅读' : '事件与证据'}</strong><button class="button" data-intel-action="close" aria-label="关闭详情">关闭 ${icon('close')}</button></header><div class="intel-detail-body">${content}</div></aside>`;
 }
 export function renderIntelligenceNavigation(tab) {
-  const tabs = [['hot', '本地热点与事件'], ...intelTabs.map(([id, label]) => [id, id === 'overview' ? '外部事件总览' : label])];
+  const tabs = [['discovery', '今日发现'], ['hot', '本地热点与事件'], ['signals', '机会与风险'], ['search', '主题检索'], ...intelTabs.map(([id, label]) => [id, id === 'overview' ? '外部事件总览' : id === 'research-reports' ? '外部研报' : label])];
+
   return `<nav class="intel-tabs" aria-label="研究情报栏目">${tabs.map(([id, label]) => `<a href="#/intel/${id}" class="${tab === id ? 'active' : ''}" ${tab === id ? 'aria-current="page"' : ''}>${e(label)}</a>`).join('')}</nav>`;
 }
 

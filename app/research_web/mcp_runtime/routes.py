@@ -81,6 +81,7 @@ class InternalToolCallRequest(StrictModel):
     schema_sha256: str = Field(pattern=DIGEST_PATTERN)
     arguments: dict[str, Any]
     approval_id: str | None = Field(default=None, pattern=IDENTIFIER_PATTERN)
+    budget_id: str | None = Field(default=None, pattern=DIGEST_PATTERN)
     unattended: bool = False
     automation_lock: dict[str, str] | None = None
 

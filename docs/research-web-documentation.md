@@ -1,5 +1,29 @@
 # Research Web 文档门禁与安全入口
 
+API Atlas 为[策略验证](research-web-strategy-validation.md)单独归类上传、运行、历史和逐笔分页接口。
+
+## WeKnora 模块文档（2026-11-06）
+
+资料适配在[专项合同](research-web-weknora.md)和图04登记，现含固定本机目录、账号同步SQLite、会话命中／冻结及本机Embedding边。API清单扫描真实字面量路由，模块图元绑定源码；图示不代替实际恢复、模型／零生成、浏览器或报告验收。既有只读 HTML 入口与白名单不扩大，Atlas源码链接只绑定真实提交；未提交候选与实际运行状态由同版本任务报告分别说明，旧失败与未知证据保留。
+
+## 事件研究文档与固定视图（2026-11-04）
+
+事件候选的接口、元数据、来源任务和资格流在[集成合同](research-web-event-research.md)及固定视图 `14-event-research.html` 记录。它们沿原架构清单、API声明扫描、Atlas、模块文档和图文回执流程登记；阅读器仍只允许已登记名称，不增加任意文件、任意URL或私有账户资料浏览。
+
+图源、HTML、哈希、九项交付检查、尺寸包含性和实际浅／深色观察是文档证据，不能认证Native夹具、真实来源、Docker、GitHub安装或业务评分。完整changed-set与原平台验收门继续适用，不以新增页面或文档清单替代源码接线检查。
+
+API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项research/framework代理，逐条标记条件。检查器仅接受原Gateway固定literal方法、路径和完整条件块，动态表达式／别名／新增语法失败关闭。另列8项锁定SDK2.2与RWB浏览器路由合同，由隔离Python测试精确比较实际整套路由集合；ASGI methods=null不等于全部HTTP操作获准，该声明不计入静态扫描或部署验收。
+
+架构阅读器新增固定 `15-inbound-mcp.html`，保持名称白名单、目录无跟随、安全 CSP 和未知名拒绝；新模块卡片连接授权读取图。SDK 条件路由与静态 FastAPI 清单需分别保留真实来源，文档包存在不证明原生 OAuth 成功。
+
+2026-10-22 插件契约新增固定包/权限/原生能力映射与支持限制；静态API扫描仍需真实CLI网关，再逐一验证其相对router import与include，未挂载保持拒绝。新模块、路由、Python索引与API Atlas已登记；无新任意文档文件入口或图阅读权限。见[插件合同](research-web-plugins.md)。
+
+架构阅读器增加固定全市场概览视图 `13-market-overview.html`，说明公开源、无会话刷新、用户缓存和只读导出关系；继续由既有名称白名单与隔离CSP保护，不提供任意文件浏览。
+
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
+新增 private-multiuser 组映射独立服务器账号网关、逐用户 runtime 与后端 profile，部署图展示其可选入口。HTTP 清单除原 `main.py` 路由外，仅接受经 `multiuser/__main__.py` 明确导入、装配并交给 uvicorn 的独立 gateway；仍要求字面量路径及普通方法装饰器，catchall 六种方法逐项登记。此检查证明源码接线和清单完整，不证明登录、隔离、模型或平台实际验收。
+
 Native/Docker 的当前部署拓扑由 `01-deployment` 和架构清单记录，详细安装身份、镜像接受、
 健康等待与平台限制以[安装契约](research-web-installation.md)为准。模块文档应同步说明凭据
 后端选择与不变的 API/Provider/能力合同。完整分支约束检查需覆盖基线到 HEAD 以及暂存、
@@ -77,6 +101,16 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
   `../`、非规范别名和其他文件名在读取前即被拒绝。
 - 视觉回执必须绑定当前 HTML，四个固定视口 1440×900 / 1600×1000 / 1920×1080 /
   2048×1320 包含性通过；截图存在。人工记录独立绑定同一 JSON/HTML 哈希与实际查看截图。
+  旧式 strict 页面继续要求横纵向均无溢出。仅已知 Reader 的
+  `fit-or-reader-declared-readable-vertical-scroll` 合同可接受可读纵滚：须同时为
+  `adaptive`／`intrinsic-height`，真实超高时明确 `authored`、
+  `verticalScrollAccepted` 及 `readable-vertical-scroll`，尺寸、正文高度与溢出标志须为有限、
+  自洽的实际度量。四个固定视口仍逐一核对且横向零溢出；节点／上下文与边标签的实际投影字号
+  不低于6px；回执须为 `read`／`still` 状态且Chrome可用，readability／viewerChrome、
+  legend／dock不相交及至少10px舞台间距均须通过。
+  同图源／HTML、当前provenance、deliver身份、四视口记录、截图字节哈希和实际看图审阅继续绑定；
+  普通 `ok: true` 或单一布尔声明不能放行。实际浏览器还须确认内容可滚到底、末端节点与文字可达，
+  无 `overflow: hidden`／clip 截断或dock遮挡；不同Reader显示状态的高度分别留证，不改写原始回执来对齐。
 - 检查当前 canonical/module Markdown 和生成 index.html 的本地链接；不扩展为清理历史文档。
 - 检查根 `README.md` 的本地链接；触发代码/包清单改动时核对 README 复核回执是否进入变更集，
   并验证 `updated` 与 README 变更之间的条件关系。

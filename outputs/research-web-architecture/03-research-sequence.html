@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"startup","label":"断电后的安全恢复","focus":["cli","manager","dsh","api"],"note":"启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},{"id":"tabbitFlow","label":"Tabbit 实时标签","focus":["web","api","dsh","tabbit"],"note":"菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},{"id":"submit","label":"页面交接与研究提交","focus":["web","api","snapshot","dsh"],"note":"页面先固化查询与筛选上下文，再创建目标会话；HTTP 受理不等于研究或文件完成。"},{"id":"automatic","label":"自动查询与共享快照","focus":["dsh","policy","datahub","provider","snapshot"],"note":"只有启动时确认有可调用来源的工具会注册；合法结果再按会话发布共享快照。"},{"id":"localVerification","label":"显式本机验证","focus":["web","api","localVerifier","office"],"note":"发现不启动软件；用户显式选择目标后，受管子进程才在对应 Office 容器内操作 Office 或 Wind 副本并返回安全结果。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"startup","label":"断电后的安全恢复","focus":["cli","manager","dsh","api"],"note":"启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},{"id":"tabbitFlow","label":"Tabbit 实时标签","focus":["web","api","dsh","tabbit"],"note":"菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},{"id":"submit","label":"今日发现与研究提交","focus":["web","api","provider","snapshot","dsh"],"note":"先GET现有事件，不调用模型；显式prepare校验预览版本并冻结归档，再独立execute一次提交。未知受理只查询，既有质量门独立判定。"},{"id":"automatic","label":"自动查询与共享快照","focus":["dsh","policy","datahub","provider","snapshot"],"note":"只有启动时确认有可调用来源的工具会注册；合法结果再按会话发布共享快照。"},{"id":"localVerification","label":"显式本机验证","focus":["web","api","localVerifier","office"],"note":"发现不启动软件；用户显式选择目标后，受管子进程才在对应 Office 容器内操作 Office 或 Wind 副本并返回安全结果。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4909,19 +4909,21 @@
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Time Segments -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="0" x="48" y="150" width="3584" height="180" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="0" x="48" y="152" width="3584" height="144" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="1" x="48" y="348" width="3584" height="212" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="1" x="48" y="310" width="3584" height="170" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="2" x="48" y="578" width="3584" height="482" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="2" x="48" y="494" width="3584" height="386" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="3" x="48" y="1078" width="3584" height="162" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="3" x="48" y="894" width="3584" height="130" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="4" x="48" y="1258" width="3584" height="232" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="4" x="48" y="1038" width="3584" height="186" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="5" x="48" y="1508" width="3584" height="112" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="5" x="48" y="1238" width="3584" height="90" rx="10" class="c-lane" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="6" x="48" y="1640" width="3584" height="200" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="6" x="48" y="1344" width="3584" height="160" rx="10" class="c-lane" stroke-width="1"/>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="7" x="48" y="1520" width="3584" height="336" rx="10" class="c-lane" stroke-width="1"/>
 
         <!-- Lifelines -->
         <path d="M 157 142 L 157 1875" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
@@ -4971,345 +4973,421 @@
 
         <!-- Messages -->
         <g data-edge-from="cli" data-edge-to="manager" data-edge-label="rwb web start" data-edge-key="0" data-edge-id="start">
-          <path data-composition-edge-from="cli" data-composition-edge-to="manager" data-composition-edge-id="start" data-composition-points="164,176;458,176" d="M 164 176 L 458 176" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="cli" data-composition-edge-to="manager" data-composition-edge-id="start" data-composition-points="164,173;458,173" d="M 164 173 L 458 173" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="271.2" y="156" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
-          <text x="311" y="166" class="t-backend" font-size="9" text-anchor="middle">rwb web start</text>
+          <rect x="271.2" y="153" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="311" y="163" class="t-backend" font-size="9" text-anchor="middle">rwb web start</text>
         </g>
         </g>
 
         <g data-edge-from="manager" data-edge-to="cli" data-edge-label="仅在确认 PID 已死亡时清理旧状态" data-edge-key="1" data-edge-id="staleState">
-          <path data-composition-edge-from="manager" data-composition-edge-to="cli" data-composition-edge-id="staleState" data-composition-points="458,216;164,216" d="M 458 216 L 164 216" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="manager" data-composition-edge-to="cli" data-composition-edge-id="staleState" data-composition-points="458,205;164,205" d="M 458 205 L 164 205" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="224.39999999999998" y="196" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="311" y="206" class="t-security" font-size="9" text-anchor="middle">仅在确认 PID 已死亡时清理旧状态</text>
+          <rect x="224.39999999999998" y="185" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="311" y="195" class="t-security" font-size="9" text-anchor="middle">仅在确认 PID 已死亡时清理旧状态</text>
         </g>
         </g>
 
         <g data-edge-from="manager" data-edge-to="dsh" data-edge-label="启动 3081 / 等待 host.describe" data-edge-key="2" data-edge-id="startRuntime">
-          <path data-composition-edge-from="manager" data-composition-edge-to="dsh" data-composition-edge-id="startRuntime" data-composition-points="472,256;1998,256" d="M 472 256 L 1998 256" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="manager" data-composition-edge-to="dsh" data-composition-edge-id="startRuntime" data-composition-points="472,237;1998,237" d="M 472 237 L 1998 237" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="1151" y="236" width="168" height="16" rx="3" class="c-mask"/>
-          <text x="1235" y="246" class="t-backend" font-size="9" text-anchor="middle">启动 3081 / 等待 host.describe</text>
+          <rect x="1151" y="217" width="168" height="16" rx="3" class="c-mask"/>
+          <text x="1235" y="227" class="t-backend" font-size="9" text-anchor="middle">启动 3081 / 等待 host.describe</text>
         </g>
         </g>
 
         <g data-edge-from="manager" data-edge-to="api" data-edge-label="启动 8088 / 检查 /api/research/runtime" data-edge-key="3" data-edge-id="startWeb">
-          <path data-composition-edge-from="manager" data-composition-edge-to="api" data-composition-edge-id="startWeb" data-composition-points="472,296;1074,296" d="M 472 296 L 1074 296" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="manager" data-composition-edge-to="api" data-composition-edge-id="startWeb" data-composition-points="472,269;1074,269" d="M 472 269 L 1074 269" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="668.2" y="276" width="209.6" height="16" rx="3" class="c-mask"/>
-          <text x="773" y="286" class="t-backend" font-size="9" text-anchor="middle">启动 8088 / 检查 /api/research/runtime</text>
+          <rect x="668.2" y="249" width="209.6" height="16" rx="3" class="c-mask"/>
+          <text x="773" y="259" class="t-backend" font-size="9" text-anchor="middle">启动 8088 / 检查 /api/research/runtime</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="POST /data/queries + Idempotency-Key" data-edge-key="4" data-edge-id="deskQuery">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="deskQuery" data-composition-points="780,374;1074,374" d="M 780 374 L 1074 374" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="deskQuery" data-composition-points="780,331;1074,331" d="M 780 331 L 1074 331" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="827.4" y="354" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="364" class="t-backend" font-size="9" text-anchor="middle">POST /data/queries + Idempotency-Key</text>
+          <rect x="827.4" y="311" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="321" class="t-backend" font-size="9" text-anchor="middle">POST /data/queries + Idempotency-Key</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="datahub" data-edge-label="BusinessQuery" data-edge-key="5" data-edge-id="queryRoute">
-          <path data-composition-edge-from="api" data-composition-edge-to="datahub" data-composition-edge-id="queryRoute" data-composition-points="1088,418;2922,418" d="M 1088 418 L 2922 418" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="datahub" data-composition-edge-id="queryRoute" data-composition-points="1088,366;2922,366" d="M 1088 366 L 2922 366" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="1965.2" y="398" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
-          <text x="2005" y="408" class="t-backend" font-size="9" text-anchor="middle">BusinessQuery</text>
+          <rect x="1965.2" y="346" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="2005" y="356" class="t-backend" font-size="9" text-anchor="middle">BusinessQuery</text>
         </g>
         </g>
 
         <g data-edge-from="datahub" data-edge-to="provider" data-edge-label="已注册来源 + 有界参数" data-edge-key="6" data-edge-id="providerQuery">
-          <path data-composition-edge-from="datahub" data-composition-edge-to="provider" data-composition-edge-id="providerQuery" data-composition-points="2936,462;3230,462" d="M 2936 462 L 3230 462" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="datahub" data-composition-edge-to="provider" data-composition-edge-id="providerQuery" data-composition-points="2936,402;3230,402" d="M 2936 402 L 3230 402" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="3022.4" y="442" width="121.2" height="16" rx="3" class="c-mask"/>
-          <text x="3083" y="452" class="t-backend" font-size="9" text-anchor="middle">已注册来源 + 有界参数</text>
+          <rect x="3022.4" y="382" width="121.2" height="16" rx="3" class="c-mask"/>
+          <text x="3083" y="392" class="t-backend" font-size="9" text-anchor="middle">已注册来源 + 有界参数</text>
         </g>
         </g>
 
         <g data-edge-from="datahub" data-edge-to="snapshot" data-edge-label="标准化、Hash、原子发布" data-edge-key="7" data-edge-id="saveSnapshot">
-          <path data-composition-edge-from="datahub" data-composition-edge-to="snapshot" data-composition-edge-id="saveSnapshot" data-composition-points="2936,506;3538,506" d="M 2936 506 L 3538 506" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="datahub" data-composition-edge-to="snapshot" data-composition-edge-id="saveSnapshot" data-composition-points="2936,437;3538,437" d="M 2936 437 L 3538 437" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="3173.8" y="486" width="126.4" height="16" rx="3" class="c-mask"/>
-          <text x="3237" y="496" class="t-backend" font-size="9" text-anchor="middle">标准化、Hash、原子发布</text>
+          <rect x="3173.8" y="417" width="126.4" height="16" rx="3" class="c-mask"/>
+          <text x="3237" y="427" class="t-backend" font-size="9" text-anchor="middle">标准化、Hash、原子发布</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="web" data-edge-label="查询状态 + dataset_id" data-edge-key="8" data-edge-id="queryStatus">
-          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="queryStatus" data-composition-points="1074,550;780,550" d="M 1074 550 L 780 550" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="queryStatus" data-composition-points="1074,472;780,472" d="M 1074 472 L 780 472" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="866.4" y="530" width="121.2" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="540" class="t-muted" font-size="9" text-anchor="middle">查询状态 + dataset_id</text>
+          <rect x="866.4" y="452" width="121.2" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="462" class="t-muted" font-size="9" text-anchor="middle">查询状态 + dataset_id</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="POST tabbit-access / GET tabbit-tabs" data-edge-key="9" data-edge-id="openTabMenu">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="openTabMenu" data-composition-points="780,606;1074,606" d="M 780 606 L 1074 606" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="openTabMenu" data-composition-points="780,517;1074,517" d="M 780 517 L 1074 517" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="827.4" y="586" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="596" class="t-security" font-size="9" text-anchor="middle">POST tabbit-access / GET tabbit-tabs</text>
+          <rect x="827.4" y="497" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="507" class="t-security" font-size="9" text-anchor="middle">POST tabbit-access / GET tabbit-tabs</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="dsh" data-edge-label="会话授权 + 所选实例清单" data-edge-key="10" data-edge-id="grantAndList">
-          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="grantAndList" data-composition-points="1088,650;1998,650" d="M 1088 650 L 1998 650" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="grantAndList" data-composition-points="1088,552;1998,552" d="M 1088 552 L 1998 552" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="1477.2" y="630" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="640" class="t-security" font-size="9" text-anchor="middle">会话授权 + 所选实例清单</text>
+          <rect x="1477.2" y="532" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="542" class="t-security" font-size="9" text-anchor="middle">会话授权 + 所选实例清单</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="只读标签清单，不后台预取" data-edge-key="11" data-edge-id="inventory">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="tabbit" data-composition-edge-id="inventory" data-composition-points="2012,694;2306,694" d="M 2012 694 L 2306 694" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="tabbit" data-composition-edge-id="inventory" data-composition-points="2012,587;2306,587" d="M 2012 587 L 2306 587" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="2090.6" y="674" width="136.8" height="16" rx="3" class="c-mask"/>
-          <text x="2159" y="684" class="t-backend" font-size="9" text-anchor="middle">只读标签清单，不后台预取</text>
+          <rect x="2090.6" y="567" width="136.8" height="16" rx="3" class="c-mask"/>
+          <text x="2159" y="577" class="t-backend" font-size="9" text-anchor="middle">只读标签清单，不后台预取</text>
         </g>
         </g>
 
         <g data-edge-from="tabbit" data-edge-to="dsh" data-edge-label="available HTTP(S) 标题 / URL" data-edge-key="12" data-edge-id="availableTabs">
-          <path data-composition-edge-from="tabbit" data-composition-edge-to="dsh" data-composition-edge-id="availableTabs" data-composition-points="2306,738;2012,738" d="M 2306 738 L 2012 738" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="tabbit" data-composition-edge-to="dsh" data-composition-edge-id="availableTabs" data-composition-points="2306,622;2012,622" d="M 2306 622 L 2012 622" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="2080.2" y="718" width="157.6" height="16" rx="3" class="c-mask"/>
-          <text x="2159" y="728" class="t-muted" font-size="9" text-anchor="middle">available HTTP(S) 标题 / URL</text>
+          <rect x="2080.2" y="602" width="157.6" height="16" rx="3" class="c-mask"/>
+          <text x="2159" y="612" class="t-muted" font-size="9" text-anchor="middle">available HTTP(S) 标题 / URL</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="api" data-edge-label="实例绑定候选" data-edge-key="13" data-edge-id="safeCandidates">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="safeCandidates" data-composition-points="1998,782;1088,782" d="M 1998 782 L 1088 782" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="safeCandidates" data-composition-points="1998,658;1088,658" d="M 1998 658 L 1088 658" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="1505.8" y="762" width="74.4" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="772" class="t-muted" font-size="9" text-anchor="middle">实例绑定候选</text>
+          <rect x="1505.8" y="638" width="74.4" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="648" class="t-muted" font-size="9" text-anchor="middle">实例绑定候选</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="web" data-edge-label="最多 50 项 / 8 个 chip" data-edge-key="14" data-edge-id="showCandidates">
-          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="showCandidates" data-composition-points="1074,826;780,826" d="M 1074 826 L 780 826" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="showCandidates" data-composition-points="1074,693;780,693" d="M 1074 693 L 780 693" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="863.8" y="806" width="126.4" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="816" class="t-muted" font-size="9" text-anchor="middle">最多 50 项 / 8 个 chip</text>
+          <rect x="863.8" y="673" width="126.4" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="683" class="t-muted" font-size="9" text-anchor="middle">最多 50 项 / 8 个 chip</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="POST messages + IDs + live_confirmed" data-edge-key="15" data-edge-id="submitMessage">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="submitMessage" data-composition-points="780,870;1074,870" d="M 780 870 L 1074 870" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="submitMessage" data-composition-points="780,728;1074,728" d="M 780 728 L 1074 728" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="827.4" y="850" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="860" class="t-backend" font-size="9" text-anchor="middle">POST messages + IDs + live_confirmed</text>
+          <rect x="827.4" y="708" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="718" class="t-backend" font-size="9" text-anchor="middle">POST messages + IDs + live_confirmed</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="dsh" data-edge-label="重读清单 + live-extract" data-edge-key="16" data-edge-id="revalidate">
-          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="revalidate" data-composition-points="1088,914;1998,914" d="M 1088 914 L 1998 914" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="revalidate" data-composition-points="1088,763;1998,763" d="M 1088 763 L 1998 763" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="1477.2" y="894" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="904" class="t-security" font-size="9" text-anchor="middle">重读清单 + live-extract</text>
+          <rect x="1477.2" y="743" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="753" class="t-security" font-size="9" text-anchor="middle">重读清单 + live-extract</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim + read_only DOM 读取" data-edge-key="17" data-edge-id="claimAndRead">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="tabbit" data-composition-edge-id="claimAndRead" data-composition-points="2012,958;2306,958" d="M 2012 958 L 2306 958" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="tabbit" data-composition-edge-id="claimAndRead" data-composition-points="2012,798;2306,798" d="M 2012 798 L 2306 798" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="2072.4" y="938" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="2159" y="948" class="t-security" font-size="9" text-anchor="middle">原子 claim + read_only DOM 读取</text>
+          <rect x="2072.4" y="778" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="2159" y="788" class="t-security" font-size="9" text-anchor="middle">原子 claim + read_only DOM 读取</text>
         </g>
         </g>
 
         <g data-edge-from="tabbit" data-edge-to="dsh" data-edge-label="当前 DOM；finally finish keep=true" data-edge-key="18" data-edge-id="liveDom">
-          <path data-composition-edge-from="tabbit" data-composition-edge-to="dsh" data-composition-edge-id="liveDom" data-composition-points="2306,1002;2012,1002" d="M 2306 1002 L 2012 1002" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="tabbit" data-composition-edge-to="dsh" data-composition-edge-id="liveDom" data-composition-points="2306,834;2012,834" d="M 2306 834 L 2012 834" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="2064.6" y="982" width="188.8" height="16" rx="3" class="c-mask"/>
-          <text x="2159" y="992" class="t-muted" font-size="9" text-anchor="middle">当前 DOM；finally finish keep=true</text>
+          <rect x="2064.6" y="814" width="188.8" height="16" rx="3" class="c-mask"/>
+          <text x="2159" y="824" class="t-muted" font-size="9" text-anchor="middle">当前 DOM；finally finish keep=true</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="api" data-edge-label="10 分钟 / 会话绑定 / 单次 token" data-edge-key="19" data-edge-id="contextTokens">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="contextTokens" data-composition-points="1998,1046;1088,1046" d="M 1998 1046 L 1088 1046" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="contextTokens" data-composition-points="1998,869;1088,869" d="M 1998 869 L 1088 869" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="1456.4" y="1026" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1036" class="t-muted" font-size="9" text-anchor="middle">10 分钟 / 会话绑定 / 单次 token</text>
+          <rect x="1456.4" y="849" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="859" class="t-muted" font-size="9" text-anchor="middle">10 分钟 / 会话绑定 / 单次 token</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="POST /handoffs + 页面上下文" data-edge-key="20" data-edge-id="handoff">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="handoff" data-composition-points="780,1100;1074,1100" d="M 780 1100 L 1074 1100" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="handoff" data-composition-points="780,912;1074,912" d="M 780 912 L 1074 912" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="850.8" y="1080" width="152.4" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1090" class="t-backend" font-size="9" text-anchor="middle">POST /handoffs + 页面上下文</text>
+          <rect x="850.8" y="892" width="152.4" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="902" class="t-backend" font-size="9" text-anchor="middle">POST /handoffs + 页面上下文</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="snapshot" data-edge-label="复制所选快照并校验归属 / Hash" data-edge-key="21" data-edge-id="copySnapshot">
-          <path data-composition-edge-from="api" data-composition-edge-to="snapshot" data-composition-edge-id="copySnapshot" data-composition-points="1088,1144;3538,1144" d="M 1088 1144 L 3538 1144" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="snapshot" data-composition-edge-id="copySnapshot" data-composition-points="1088,947;3538,947" d="M 1088 947 L 3538 947" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="2231.6" y="1124" width="162.8" height="16" rx="3" class="c-mask"/>
-          <text x="2313" y="1134" class="t-security" font-size="9" text-anchor="middle">复制所选快照并校验归属 / Hash</text>
+          <rect x="2231.6" y="927" width="162.8" height="16" rx="3" class="c-mask"/>
+          <text x="2313" y="937" class="t-security" font-size="9" text-anchor="middle">复制所选快照并校验归属 / Hash</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="dsh" data-edge-label="创建 FinGPT / Claw 会话" data-edge-key="22" data-edge-id="createTarget">
-          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="createTarget" data-composition-points="1088,1188;1998,1188" d="M 1088 1188 L 1998 1188" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="createTarget" data-composition-points="1088,982;1998,982" d="M 1088 982 L 1998 982" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="1477.2" y="1168" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1178" class="t-backend" font-size="9" text-anchor="middle">创建 FinGPT / Claw 会话</text>
+          <rect x="1477.2" y="962" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="972" class="t-backend" font-size="9" text-anchor="middle">创建 FinGPT / Claw 会话</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="dsh" data-edge-label="RPC 提交研究 / 202 受理" data-edge-key="23" data-edge-id="dshSubmit">
-          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="dshSubmit" data-composition-points="1088,1232;1998,1232" d="M 1088 1232 L 1998 1232" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="dshSubmit" data-composition-points="1088,1018;1998,1018" d="M 1088 1018 L 1998 1018" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="1477.2" y="1212" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1222" class="t-backend" font-size="9" text-anchor="middle">RPC 提交研究 / 202 受理</text>
+          <rect x="1477.2" y="998" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1008" class="t-backend" font-size="9" text-anchor="middle">RPC 提交研究 / 202 受理</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="policy" data-edge-label="datahub_* 自动查询校验" data-edge-key="24" data-edge-id="toolCall">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="policy" data-composition-edge-id="toolCall" data-composition-points="2012,1280;2614,1280" d="M 2012 1280 L 2614 1280" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="policy" data-composition-edge-id="toolCall" data-composition-points="2012,1056;2614,1056" d="M 2012 1056 L 2614 1056" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="2249.8" y="1260" width="126.4" height="16" rx="3" class="c-mask"/>
-          <text x="2313" y="1270" class="t-security" font-size="9" text-anchor="middle">datahub_* 自动查询校验</text>
+          <rect x="2249.8" y="1036" width="126.4" height="16" rx="3" class="c-mask"/>
+          <text x="2313" y="1046" class="t-security" font-size="9" text-anchor="middle">datahub_* 自动查询校验</text>
         </g>
         </g>
 
         <g data-edge-from="policy" data-edge-to="dsh" data-edge-label="已启用工具 + 合法参数" data-edge-key="25" data-edge-id="policyResult">
-          <path data-composition-edge-from="policy" data-composition-edge-to="dsh" data-composition-edge-id="policyResult" data-composition-points="2614,1322;2012,1322" d="M 2614 1322 L 2012 1322" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="policy" data-composition-edge-to="dsh" data-composition-edge-id="policyResult" data-composition-points="2614,1090;2012,1090" d="M 2614 1090 L 2012 1090" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="2252.4" y="1302" width="121.2" height="16" rx="3" class="c-mask"/>
-          <text x="2313" y="1312" class="t-muted" font-size="9" text-anchor="middle">已启用工具 + 合法参数</text>
+          <rect x="2252.4" y="1070" width="121.2" height="16" rx="3" class="c-mask"/>
+          <text x="2313" y="1080" class="t-muted" font-size="9" text-anchor="middle">已启用工具 + 合法参数</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="datahub" data-edge-label="POST /internal/data/business-query" data-edge-key="26" data-edge-id="businessQuery">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="datahub" data-composition-edge-id="businessQuery" data-composition-points="2012,1364;2922,1364" d="M 2012 1364 L 2922 1364" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="datahub" data-composition-edge-id="businessQuery" data-composition-points="2012,1123;2922,1123" d="M 2012 1123 L 2922 1123" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="2372.6" y="1344" width="188.8" height="16" rx="3" class="c-mask"/>
-          <text x="2467" y="1354" class="t-security" font-size="9" text-anchor="middle">POST /internal/data/business-query</text>
+          <rect x="2372.6" y="1103" width="188.8" height="16" rx="3" class="c-mask"/>
+          <text x="2467" y="1113" class="t-security" font-size="9" text-anchor="middle">POST /internal/data/business-query</text>
         </g>
         </g>
 
         <g data-edge-from="provider" data-edge-to="datahub" data-edge-label="原始响应 / 明确失败" data-edge-key="27" data-edge-id="providerResult">
-          <path data-composition-edge-from="provider" data-composition-edge-to="datahub" data-composition-edge-id="providerResult" data-composition-points="3230,1406;2936,1406" d="M 3230 1406 L 2936 1406" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="provider" data-composition-edge-to="datahub" data-composition-edge-id="providerResult" data-composition-points="3230,1157;2936,1157" d="M 3230 1157 L 2936 1157" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="3027.6" y="1386" width="110.8" height="16" rx="3" class="c-mask"/>
-          <text x="3083" y="1396" class="t-muted" font-size="9" text-anchor="middle">原始响应 / 明确失败</text>
+          <rect x="3027.6" y="1137" width="110.8" height="16" rx="3" class="c-mask"/>
+          <text x="3083" y="1147" class="t-muted" font-size="9" text-anchor="middle">原始响应 / 明确失败</text>
         </g>
         </g>
 
         <g data-edge-from="datahub" data-edge-to="dsh" data-edge-label="短 Manifest + 文件引用" data-edge-key="28" data-edge-id="manifestResult">
-          <path data-composition-edge-from="datahub" data-composition-edge-to="dsh" data-composition-edge-id="manifestResult" data-composition-points="2922,1448;2012,1448" d="M 2922 1448 L 2012 1448" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="datahub" data-composition-edge-to="dsh" data-composition-edge-id="manifestResult" data-composition-points="2922,1190;2012,1190" d="M 2922 1190 L 2012 1190" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="2403.8" y="1428" width="126.4" height="16" rx="3" class="c-mask"/>
-          <text x="2467" y="1438" class="t-muted" font-size="9" text-anchor="middle">短 Manifest + 文件引用</text>
+          <rect x="2403.8" y="1170" width="126.4" height="16" rx="3" class="c-mask"/>
+          <text x="2467" y="1180" class="t-muted" font-size="9" text-anchor="middle">短 Manifest + 文件引用</text>
         </g>
         </g>
 
         <g data-edge-from="dsh" data-edge-to="api" data-edge-label="回答、工具与子 Agent 活动" data-edge-key="29" data-edge-id="streamActivity">
-          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="streamActivity" data-composition-points="1998,1520;1088,1520" d="M 1998 1520 L 1088 1520" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+          <path data-composition-edge-from="dsh" data-composition-edge-to="api" data-composition-edge-id="streamActivity" data-composition-points="1998,1248;1088,1248" d="M 1998 1248 L 1088 1248" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <g data-detail="context">
-          <rect x="1472" y="1500" width="142" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1510" class="t-messagebus" font-size="9" text-anchor="middle">回答、工具与子 Agent 活动</text>
+          <rect x="1472" y="1228" width="142" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1238" class="t-messagebus" font-size="9" text-anchor="middle">回答、工具与子 Agent 活动</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="SSE 重连 / 历史补齐" data-edge-key="30" data-edge-id="resumeStream">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="resumeStream" data-composition-points="780,1552;1074,1552" d="M 780 1552 L 1074 1552" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="resumeStream" data-composition-points="780,1276;1074,1276" d="M 780 1276 L 1074 1276" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="871.6" y="1532" width="110.8" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1542" class="t-backend" font-size="9" text-anchor="middle">SSE 重连 / 历史补齐</text>
+          <rect x="871.6" y="1256" width="110.8" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1266" class="t-backend" font-size="9" text-anchor="middle">SSE 重连 / 历史补齐</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="web" data-edge-label="状态投影 + 独立 delivery" data-edge-key="31" data-edge-id="sseProjection">
-          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="sseProjection" data-composition-points="1074,1584;780,1584" d="M 1074 1584 L 780 1584" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="sseProjection" data-composition-points="1074,1304;780,1304" d="M 1074 1304 L 780 1304" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <g data-detail="context">
-          <rect x="858.6" y="1564" width="136.8" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1574" class="t-messagebus" font-size="9" text-anchor="middle">状态投影 + 独立 delivery</text>
+          <rect x="858.6" y="1284" width="136.8" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1294" class="t-messagebus" font-size="9" text-anchor="middle">状态投影 + 独立 delivery</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="GET 当前会话数据集 / 产物" data-edge-key="32" data-edge-id="datasetRead">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="datasetRead" data-composition-points="780,1616;1074,1616" d="M 780 1616 L 1074 1616" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="datasetRead" data-composition-points="780,1332;1074,1332" d="M 780 1332 L 1074 1332" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="856" y="1596" width="142" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1606" class="t-backend" font-size="9" text-anchor="middle">GET 当前会话数据集 / 产物</text>
+          <rect x="856" y="1312" width="142" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1322" class="t-backend" font-size="9" text-anchor="middle">GET 当前会话数据集 / 产物</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="POST /local-integrations/verifications + Idempotency-Key" data-edge-key="33" data-edge-id="startVerification">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="startVerification" data-composition-points="780,1664;1074,1664" d="M 780 1664 L 1074 1664" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="startVerification" data-composition-points="780,1363;1074,1363" d="M 780 1363 L 1074 1363" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="775.4" y="1644" width="303.2" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1654" class="t-backend" font-size="9" text-anchor="middle">POST /local-integrations/verifications + Idempotency-Key</text>
+          <rect x="775.4" y="1343" width="303.2" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1353" class="t-backend" font-size="9" text-anchor="middle">POST /local-integrations/verifications + Idempotency-Key</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="localVerifier" data-edge-label="校验目标白名单并返回 202" data-edge-key="34" data-edge-id="acceptVerification">
-          <path data-composition-edge-from="api" data-composition-edge-to="localVerifier" data-composition-edge-id="acceptVerification" data-composition-points="1088,1696;1382,1696" d="M 1088 1696 L 1382 1696" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="localVerifier" data-composition-edge-id="acceptVerification" data-composition-points="1088,1391;1382,1391" d="M 1088 1391 L 1382 1391" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="1166.6" y="1676" width="136.8" height="16" rx="3" class="c-mask"/>
-          <text x="1235" y="1686" class="t-security" font-size="9" text-anchor="middle">校验目标白名单并返回 202</text>
+          <rect x="1166.6" y="1371" width="136.8" height="16" rx="3" class="c-mask"/>
+          <text x="1235" y="1381" class="t-security" font-size="9" text-anchor="middle">校验目标白名单并返回 202</text>
         </g>
         </g>
 
         <g data-edge-from="localVerifier" data-edge-to="office" data-edge-label="隔离进程在对应 Office 容器操作副本" data-edge-key="35" data-edge-id="runVerification">
-          <path data-composition-edge-from="localVerifier" data-composition-edge-to="office" data-composition-edge-id="runVerification" data-composition-points="1396,1728;1690,1728" d="M 1396 1728 L 1690 1728" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+          <path data-composition-edge-from="localVerifier" data-composition-edge-to="office" data-composition-edge-id="runVerification" data-composition-points="1396,1419;1690,1419" d="M 1396 1419 L 1690 1419" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="1448.6" y="1708" width="188.8" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1718" class="t-security" font-size="9" text-anchor="middle">隔离进程在对应 Office 容器操作副本</text>
+          <rect x="1448.6" y="1399" width="188.8" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1409" class="t-security" font-size="9" text-anchor="middle">隔离进程在对应 Office 容器操作副本</text>
         </g>
         </g>
 
         <g data-edge-from="office" data-edge-to="localVerifier" data-edge-label="校验结果并原子持久化" data-edge-key="36" data-edge-id="verificationResult">
-          <path data-composition-edge-from="office" data-composition-edge-to="localVerifier" data-composition-edge-id="verificationResult" data-composition-points="1690,1760;1396,1760" d="M 1690 1760 L 1396 1760" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="office" data-composition-edge-to="localVerifier" data-composition-edge-id="verificationResult" data-composition-points="1690,1447;1396,1447" d="M 1690 1447 L 1396 1447" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="1485" y="1740" width="116" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1750" class="t-muted" font-size="9" text-anchor="middle">校验结果并原子持久化</text>
+          <rect x="1485" y="1427" width="116" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1437" class="t-muted" font-size="9" text-anchor="middle">校验结果并原子持久化</text>
         </g>
         </g>
 
         <g data-edge-from="web" data-edge-to="api" data-edge-label="GET /local-integrations/verifications/{id}" data-edge-key="37" data-edge-id="pollVerification">
-          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="pollVerification" data-composition-points="780,1792;1074,1792" d="M 780 1792 L 1074 1792" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="pollVerification" data-composition-points="780,1475;1074,1475" d="M 780 1475 L 1074 1475" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="811.8" y="1772" width="230.4" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1782" class="t-backend" font-size="9" text-anchor="middle">GET /local-integrations/verifications/{id}</text>
+          <rect x="811.8" y="1455" width="230.4" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1465" class="t-backend" font-size="9" text-anchor="middle">GET /local-integrations/verifications/{id}</text>
         </g>
         </g>
 
         <g data-edge-from="api" data-edge-to="web" data-edge-label="可用 / 待授权 / 未登录 / 异常" data-edge-key="38" data-edge-id="renderVerification">
-          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="renderVerification" data-composition-points="1074,1824;780,1824" d="M 1074 1824 L 780 1824" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="renderVerification" data-composition-points="1074,1503;780,1503" d="M 1074 1503 L 780 1503" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="845.6" y="1804" width="162.8" height="16" rx="3" class="c-mask"/>
-          <text x="927" y="1814" class="t-muted" font-size="9" text-anchor="middle">可用 / 待授权 / 未登录 / 异常</text>
+          <rect x="845.6" y="1483" width="162.8" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1493" class="t-muted" font-size="9" text-anchor="middle">可用 / 待授权 / 未登录 / 异常</text>
+        </g>
+        </g>
+
+        <g data-edge-from="web" data-edge-to="api" data-edge-label="GET /discovery/feed：读取已有事件" data-edge-key="39" data-edge-id="discoveryRead">
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="discoveryRead" data-composition-points="780,1539;1074,1539" d="M 780 1539 L 1074 1539" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-detail="context">
+          <rect x="835.2" y="1519" width="183.6" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1529" class="t-security" font-size="9" text-anchor="middle">GET /discovery/feed：读取已有事件</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="provider" data-edge-label="固定 Intel HTTP GET；不传凭据或任意URL" data-edge-key="40" data-edge-id="discoveryIntel">
+          <path data-composition-edge-from="api" data-composition-edge-to="provider" data-composition-edge-id="discoveryIntel" data-composition-points="1088,1574;3230,1574" d="M 1088 1574 L 3230 1574" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-detail="context">
+          <rect x="2054.2" y="1554" width="209.6" height="16" rx="3" class="c-mask"/>
+          <text x="2159" y="1564" class="t-security" font-size="9" text-anchor="middle">固定 Intel HTTP GET；不传凭据或任意URL</text>
+        </g>
+        </g>
+
+        <g data-edge-from="provider" data-edge-to="api" data-edge-label="第三方判断、陈旧状态、未知时间与摘要版本" data-edge-key="41" data-edge-id="discoveryPreview">
+          <path data-composition-edge-from="provider" data-composition-edge-to="api" data-composition-edge-id="discoveryPreview" data-composition-points="3230,1610;1088,1610" d="M 3230 1610 L 1088 1610" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="2049" y="1590" width="220" height="16" rx="3" class="c-mask"/>
+          <text x="2159" y="1600" class="t-muted" font-size="9" text-anchor="middle">第三方判断、陈旧状态、未知时间与摘要版本</text>
+        </g>
+        </g>
+
+        <g data-edge-from="web" data-edge-to="api" data-edge-label="先 GET /selection 核对详情，再显式 prepare" data-edge-key="42" data-edge-id="discoveryPrepare">
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="discoveryPrepare" data-composition-points="780,1645;1074,1645" d="M 780 1645 L 1074 1645" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-detail="context">
+          <rect x="811.8" y="1625" width="230.4" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1635" class="t-security" font-size="9" text-anchor="middle">先 GET /selection 核对详情，再显式 prepare</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="snapshot" data-edge-label="核对事件版本；归档报道与上下文 Hash" data-edge-key="43" data-edge-id="discoveryFreeze">
+          <path data-composition-edge-from="api" data-composition-edge-to="snapshot" data-composition-edge-id="discoveryFreeze" data-composition-points="1088,1680;3538,1680" d="M 1088 1680 L 3538 1680" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-detail="context">
+          <rect x="2216" y="1660" width="194" height="16" rx="3" class="c-mask"/>
+          <text x="2313" y="1670" class="t-security" font-size="9" text-anchor="middle">核对事件版本；归档报道与上下文 Hash</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="dsh" data-edge-label="预分配同一ID/cwd；创建与配置不发送提示" data-edge-key="44" data-edge-id="discoverySession">
+          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="discoverySession" data-composition-points="1088,1715;1998,1715" d="M 1088 1715 L 1998 1715" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="1438.2" y="1695" width="209.6" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1705" class="t-backend" font-size="9" text-anchor="middle">预分配同一ID/cwd；创建与配置不发送提示</text>
+        </g>
+        </g>
+
+        <g data-edge-from="web" data-edge-to="api" data-edge-label="独立 execute：用户确认真实冻结清单" data-edge-key="45" data-edge-id="discoveryExecute">
+          <path data-composition-edge-from="web" data-composition-edge-to="api" data-composition-edge-id="discoveryExecute" data-composition-points="780,1750;1074,1750" d="M 780 1750 L 1074 1750" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-detail="context">
+          <rect x="832.6" y="1730" width="188.8" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1740" class="t-security" font-size="9" text-anchor="middle">独立 execute：用户确认真实冻结清单</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="dsh" data-edge-label="固定键仅提交一次；未知回执只查原历史" data-edge-key="46" data-edge-id="discoveryPrompt">
+          <path data-composition-edge-from="api" data-composition-edge-to="dsh" data-composition-edge-id="discoveryPrompt" data-composition-points="1088,1786;1998,1786" d="M 1088 1786 L 1998 1786" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="1443.4" y="1766" width="199.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1776" class="t-backend" font-size="9" text-anchor="middle">固定键仅提交一次；未知回执只查原历史</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="web" data-edge-label="原Host规范报告质量；不以running代替通过" data-edge-key="47" data-edge-id="discoveryQuality">
+          <path data-composition-edge-from="api" data-composition-edge-to="web" data-composition-edge-id="discoveryQuality" data-composition-points="1074,1821;780,1821" d="M 1074 1821 L 780 1821" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="819.6" y="1801" width="214.8" height="16" rx="3" class="c-mask"/>
+          <text x="927" y="1811" class="t-muted" font-size="9" text-anchor="middle">原Host规范报告质量；不以running代替通过</text>
         </g>
         </g>
 
         <!-- Segment Labels -->
         <g data-graph-role="segment-label" data-segment-id="0">
-          <rect x="56" y="128" width="97.2" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="141" class="t-dim" font-size="9" font-weight="600">断电后的安全恢复</text>
+          <rect x="56" y="130" width="97.2" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="143" class="t-dim" font-size="9" font-weight="600">断电后的安全恢复</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="1">
-          <rect x="56" y="326" width="97.2" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="339" class="t-dim" font-size="9" font-weight="600">研究台查询与快照</text>
+          <rect x="56" y="288" width="97.2" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="301" class="t-dim" font-size="9" font-weight="600">研究台查询与快照</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="2">
-          <rect x="56" y="556" width="164.8" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="569" class="t-dim" font-size="9" font-weight="600">Tabbit 授权、重验与实时 claim</text>
+          <rect x="56" y="472" width="164.8" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="485" class="t-dim" font-size="9" font-weight="600">Tabbit 授权、重验与实时 claim</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="3">
-          <rect x="56" y="1056" width="107.60000000000001" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="1069" class="t-dim" font-size="9" font-weight="600">页面交接与研究受理</text>
+          <rect x="56" y="872" width="107.60000000000001" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="885" class="t-dim" font-size="9" font-weight="600">页面交接与研究受理</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="4">
-          <rect x="56" y="1236" width="76.4" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="1249" class="t-dim" font-size="9" font-weight="600">业务数据调用</text>
+          <rect x="56" y="1016" width="76.4" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="1029" class="t-dim" font-size="9" font-weight="600">业务数据调用</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="5">
-          <rect x="56" y="1486" width="107.60000000000001" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="1499" class="t-dim" font-size="9" font-weight="600">活动恢复与文件分离</text>
+          <rect x="56" y="1216" width="107.60000000000001" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="1229" class="t-dim" font-size="9" font-weight="600">活动恢复与文件分离</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="6">
-          <rect x="56" y="1618" width="118" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="1631" class="t-dim" font-size="9" font-weight="600">本机集成显式真实验证</text>
+          <rect x="56" y="1322" width="118" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="1335" class="t-dim" font-size="9" font-weight="600">本机集成显式真实验证</text>
+        </g>
+        <g data-graph-role="segment-label" data-segment-id="7">
+          <rect x="56" y="1498" width="170" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="1511" class="t-dim" font-size="9" font-weight="600">今日发现：只读、冻结与显式研究</text>
         </g>
 
         <!-- Participants -->

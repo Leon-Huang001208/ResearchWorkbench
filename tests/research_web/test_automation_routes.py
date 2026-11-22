@@ -184,3 +184,41 @@ def test_hot_periodic_adapter_remains_owned_by_hot_when_legacy_automation_disabl
     web.app.state.hot = UnavailableHot()
     failed = web.get(base)
     assert failed.status_code == 503 and failed.json()["error"]["code"] == "hot_disabled"
+
+
+def test_generic_routes_cannot_create_or_control_research_bots(tmp_path, monkeypatch):
+    from app.research_web.research_bot_models import BotSave
+    from app.research_web.research_bots import ResearchBots
+    from app.research_web.store import Store
+    from app.research_web.automation.service import AutomationService
+
+    web, _ = client(monkeypatch)
+    research = web.app.state.research
+    research.store = Store(tmp_path)
+    research.automations = AutomationService(research.store, research=research, scheduler=False)
+    bots = ResearchBots(research)
+    saved = bots.save(BotSave(
+        name="研究机器人", objective="核对数据", model_provider="deepseek-official",
+        model_id="deepseek-flash",
+    ))
+    bot_id = saved["id"]
+    path = "/api/research/automations"
+    assert web.get(path).json() == {"items": []}
+    assert web.get(f"{path}/{bot_id}").status_code == 404
+    assert web.patch(f"{path}/{bot_id}", json={"name": "通用入口更新"}).status_code == 404
+    for action in ("enable", "disable", "run"):
+        assert web.post(f"{path}/{bot_id}/{action}").status_code == 404
+    assert web.delete(f"{path}/{bot_id}").status_code == 404
+    injected = {
+        "name": saved["name"], "target_kind": "research_task",
+        "research_task": saved["research_task"], "schedule": saved["schedule"],
+    }
+    assert web.post(path, json=injected).status_code == 409
+    run = research.automations._new_run(
+        bot_id, trigger="manual", scheduled_for=None, retry_of=None, status="failed"
+    )
+    runs_path = "/api/research/automation-runs"
+    assert web.get(runs_path).json() == {"items": []}
+    assert web.post(f"{runs_path}/{run['id']}/retry").status_code == 404
+    assert bots.get(bot_id)["definition_version"] == 1
+    assert not bots.get(bot_id)["enabled"]

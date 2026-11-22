@@ -3,8 +3,47 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "app/research_web/capabilities/tools.py"
+      - "app/research_web/knowledge_backend/current.py"
+      - "app/research_web/knowledge_backend/routes.py"
+      - "app/research_web/knowledge_backend/service.py"
+      - "app/research_web/tenant_policy.py"
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
+      - "tests/javascript/research_web_architecture.test.mjs"
+      - "tests/javascript/research_web_knowledge.test.mjs"
+      - "tests/javascript/research_web_public_data.test.mjs"
+      - "tests/research_web/test_capabilities_native.py"
+      - "tests/research_web/test_model_provider_upgrade.py"
+      - "tests/research_web/test_store.py"
+      - "tests/research_web/test_weknora_api.py"
+      - "tests/research_web/test_weknora_client.py"
+      - "tests/research_web/test_weknora_formal_scope.py"
+      - "tests/research_web/test_weknora_kb_settings_patch.py"
+      - "docker/manage.py"
+      - "rwb-docker"
       - "setup-web.sh"
       - "scripts/setup_web.py"
+      - "scripts/git_safety.mjs"
+      - "scripts/git_backup_store.mjs"
+      - "scripts/backup_capacity.mjs"
+      - "scripts/backup_fd_clone.mjs"
+      - "scripts/backup_fd_clone.py"
+      - "tests/javascript/backup_fd_clone.test.mjs"
+      - "tests/javascript/backup_snapshot_capacity.test.mjs"
+      - "tests/unit/test_backup_fd_clone.py"
       - "requirements/web.in"
       - "requirements/web.lock"
       - "requirements/**"
@@ -18,6 +57,7 @@ on:
       - "**/*.lock"
       - "rwb"
       - "research_workbench_entrypoint/**"
+      - "services/ai_news/**"
       - "runtimes/**"
       - "app/research_web/runtime_contract.py"
       - "app/research_web/process_spec.py"
@@ -26,10 +66,22 @@ on:
       - "app/research_web/staged_runtime.py"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
+      - "app/research_web/qa_assets.py"
+      - "app/research_web/qa_frontend/**"
+      - "app/research_web/qa_worker/**"
+      - "app/research_web/multiuser/__main__.py"
       - "app/research_web/runtime_auth.py"
       - "app/research_web/launch_runtime.py"
       - "app/research_web/live_acceptance_budget.py"
       - "tests/research_web/test_live_acceptance_budget.py"
+      - "app/research_web/mcp_facade/**"
+      - "app/research_web/datahub/routes.py"
+      - "tests/research_web/test_mcp_facade_store.py"
+      - "tests/research_web/test_mcp_facade_oauth.py"
+      - "tests/research_web/test_mcp_facade_http.py"
+      - "tests/research_web/test_mcp_facade_read_policy.py"
+      - "tests/research_web/test_mcp_facade_tools.py"
+      - "tests/research_web/test_mcp_facade_lifecycle.py"
       - "app/research_web/runtime/**"
       - "vendor/cjpy/**"
       - "vendor/dsh-tabbit/**"
@@ -45,8 +97,45 @@ on:
     branches:
       - master
     paths:
+      - "app/research_web/capabilities/tools.py"
+      - "app/research_web/knowledge_backend/current.py"
+      - "app/research_web/knowledge_backend/routes.py"
+      - "app/research_web/knowledge_backend/service.py"
+      - "app/research_web/tenant_policy.py"
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
+      - "tests/javascript/research_web_architecture.test.mjs"
+      - "tests/javascript/research_web_knowledge.test.mjs"
+      - "tests/javascript/research_web_public_data.test.mjs"
+      - "tests/research_web/test_capabilities_native.py"
+      - "tests/research_web/test_model_provider_upgrade.py"
+      - "tests/research_web/test_store.py"
+      - "tests/research_web/test_weknora_api.py"
+      - "tests/research_web/test_weknora_client.py"
+      - "tests/research_web/test_weknora_formal_scope.py"
+      - "tests/research_web/test_weknora_kb_settings_patch.py"
       - "setup-web.sh"
       - "scripts/setup_web.py"
+      - "scripts/git_safety.mjs"
+      - "scripts/git_backup_store.mjs"
+      - "scripts/backup_capacity.mjs"
+      - "scripts/backup_fd_clone.mjs"
+      - "scripts/backup_fd_clone.py"
+      - "tests/javascript/backup_fd_clone.test.mjs"
+      - "tests/javascript/backup_snapshot_capacity.test.mjs"
+      - "tests/unit/test_backup_fd_clone.py"
       - "requirements/web.in"
       - "requirements/web.lock"
       - "requirements/**"
@@ -68,10 +157,22 @@ on:
       - "app/research_web/staged_runtime.py"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
+      - "app/research_web/qa_assets.py"
+      - "app/research_web/qa_frontend/**"
+      - "app/research_web/qa_worker/**"
+      - "app/research_web/multiuser/__main__.py"
       - "app/research_web/runtime_auth.py"
       - "app/research_web/launch_runtime.py"
       - "app/research_web/live_acceptance_budget.py"
       - "tests/research_web/test_live_acceptance_budget.py"
+      - "app/research_web/mcp_facade/**"
+      - "app/research_web/datahub/routes.py"
+      - "tests/research_web/test_mcp_facade_store.py"
+      - "tests/research_web/test_mcp_facade_oauth.py"
+      - "tests/research_web/test_mcp_facade_http.py"
+      - "tests/research_web/test_mcp_facade_read_policy.py"
+      - "tests/research_web/test_mcp_facade_tools.py"
+      - "tests/research_web/test_mcp_facade_lifecycle.py"
       - "app/research_web/runtime/**"
       - "vendor/cjpy/**"
       - "vendor/dsh-tabbit/**"
@@ -94,8 +195,8 @@ concurrency:
 
 jobs:
   clean-install:
-    name: Clean Web install (macos-14)
-    runs-on: macos-14
+    name: Clean Web install (macos-15)
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
@@ -123,18 +224,114 @@ jobs:
           set -euo pipefail
           node --input-type=module -e 'import {assertNodeRuntime} from "./src/config.ts"; assertNodeRuntime(); for (const name of ["postgres", "pg-boss", "fast-xml-parser"]) await import(name);'
 
+      - name: Verify optional editorial engine without initializing a database
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test services/ai_news/tests/*.test.mjs
+          ./rwb ai-news doctor --json > "$RUNNER_TEMP/ai-news-doctor.json"
+          .venv/bin/python -c 'import json,os; from pathlib import Path; d=json.loads((Path(os.environ["RUNNER_TEMP"])/"ai-news-doctor.json").read_text()); assert d["state"] == "not_configured" and d["readOnly"] is True and d["pinIntegrity"] is True and d["dependenciesInstalled"] is True and d["modelAcceptance"] == "NOT_RUN"'
+
       - name: Verify macOS environment and start services
         shell: bash
         run: |
           set -euo pipefail
           test -x .venv/bin/python
-          .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3; assert m.version('cjpy') == '0.5.2'"
+          RWB_BACKUP_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/backup_fd_clone.test.mjs tests/javascript/backup_snapshot_capacity.test.mjs
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m unittest tests.unit.test_backup_fd_clone
+          "$PWD/.venv/bin/python" -c "import os,sys; from pathlib import Path; from research_workbench_entrypoint.resident.gateway_upgrade import native_image, process; command=process(os.getpid()).split(maxsplit=5)[-1]; assert any(command.startswith(str(p)+' ') for p in (native_image(os.getpid()),sys.executable,Path(sys.executable).resolve()))"
+          "$PWD/.venv/bin/python" - <<'PY'
+          import json, subprocess, sys, tempfile, threading, time
+          from pathlib import Path
+          from research_workbench_entrypoint.resident.gateway_upgrade import read_upgrade_journal, wait_retired
+          child = subprocess.Popen([sys.executable, "-c", "pass"])
+          def reap():
+              time.sleep(0.3)
+              child.wait(timeout=5)
+          reaper = threading.Thread(target=reap)
+          reaper.start()
+          wait_retired(child.pid, timeout=5)
+          reaper.join(timeout=5)
+          assert child.returncode is not None
+          with tempfile.TemporaryDirectory() as folder:
+              record = Path(folder).resolve() / "gateway-upgrade.json"
+              record.write_text(json.dumps({"padding": "x" * 1_100_000}))
+              record.chmod(0o600)
+              assert len(read_upgrade_journal(record)["padding"]) == 1_100_000
+          PY
+          .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3, app.research_web.asset_intraday, app.research_web.asset_minute_k, app.research_web.datahub.intraday_contract; assert m.version('cjpy') == '0.5.2'"
+          .venv/bin/python - <<'PY'
+          import subprocess, sys, tempfile
+          from pathlib import Path
+          from research_workbench_entrypoint.resident.volume_identity import _observe_directory
+          from research_workbench_entrypoint.resident.volume_launch import _artifact
+          with tempfile.TemporaryDirectory() as folder:
+              path = Path(folder).resolve()
+              witness, identity = _observe_directory(path)
+              assert identity == [path.stat().st_dev, path.stat().st_ino] and witness
+              artifact = path / "storage-identity.pyz"
+              artifact.write_bytes(_artifact())
+              subprocess.run([sys.executable, str(artifact), "--help"], check=True)
+          PY
+          .venv/bin/python -c "from research_workbench_entrypoint.resident.maintenance_job_identity_v3 import ExactJobBinding; assert callable(ExactJobBinding.production) and callable(ExactJobBinding.rehearsal)"
+          .venv/bin/python -c "import research_workbench_entrypoint.resident.trial_retirement, research_workbench_entrypoint.resident.trial_discard_backup, research_workbench_entrypoint.resident.trial_successor"
+          .venv/bin/python -c "import app.research_web.knowledge_backend.sync, app.research_web.knowledge_backend.sync_storage, app.research_web.knowledge_backend.current"
+          .venv/bin/python -c "import app.research_web.datahub.providers_global_indices, app.research_web.watchlist_import, app.research_web.asset_research, app.research_web.scenario_handoffs, app.research_web.specialists.routes; from app.research_web.scenarios import read_catalog, read_scenarios; c=read_catalog(); assert len(c['skills']) == 62 and len(c['tools']) == 78 and len(read_scenarios()) == 8"
+          .venv/bin/python -c "import importlib.metadata as m; from app.research_web.mcp_facade.server import Facade; assert m.version('mcp') == '2.2.0' and callable(Facade)"
+          RWB_MCP_READONLY_ENABLED=1 RESEARCH_WEKNORA_ORIGIN=https://knowledge.example.invalid ./rwb server doctor --root "$RUNNER_TEMP/rwb-mcp-doctor-unused" --json > "$RUNNER_TEMP/mcp-doctor.json"
+          .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['mcp_readonly']; assert d['enabled'] is True and d['sdk']['matches_lock'] is True and d['status']=='configuration_pending' and d['connection']=='not_checked' and all(v=='NOT_RUN' for v in d['actual_verification'].values()) and not (r/'rwb-mcp-doctor-unused').exists()"
+          .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['knowledge_backend']; assert d['enabled'] is True and d['status']=='configuration_pending' and d['authorization']=='not_checked' and d['connection']=='not_checked' and d['runtime_verification']=='NOT_RUN' and not (r/'rwb-mcp-doctor-unused').exists()"
+          .venv/bin/python -c "import json,os; from pathlib import Path; r=Path(os.environ['RUNNER_TEMP']); d=json.loads((r/'mcp-doctor.json').read_text())['ai_qa']; assert d['assets_ready'] is True and d['model_acceptance']=='NOT_RUN' and not (r/'rwb-mcp-doctor-unused').exists()"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
           .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['schema_version'] == 2 and report['installation_ok'] is True and report['product_ready'] is True and all(report['services'][role]['ready'] is True for role in ('runtime', 'web')), report"
+          .venv/bin/python -I - <<'PY'
+          import hashlib, json, urllib.request
+          from importlib.metadata import distribution
+          from pathlib import Path
+          from app.research_web.qa_assets import QA_ASSET_PATH, QA_BUNDLE_FILES, QA_MANIFEST, qa_assets_root
+
+          wheel = distribution('research-workbench')
+          package = Path(wheel.locate_file('app/research_web'))
+          assert qa_assets_root(package) == package / QA_ASSET_PATH
+          assert (package / 'qa_worker/worker.mjs').is_file()
+          assert not (package / 'qa_frontend').exists()
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+          checks = []
+          for name in (*QA_BUNDLE_FILES, QA_MANIFEST):
+              with opener.open(f'http://127.0.0.1:8088/static/qa-dist/{name}', timeout=15) as response:
+                  body = response.read()
+              assert body == (package / QA_ASSET_PATH / name).read_bytes(), name
+              checks.append({'path': name, 'sha256': hashlib.sha256(body).hexdigest()})
+          assert json.loads(Path('doctor.json').read_text())['ai_qa'] == {
+              'status': 'assets_ready', 'assets_ready': True, 'model_acceptance': 'NOT_RUN',
+          }
+          Path('qa-static-smoke.json').write_text(json.dumps({'status': 'PASS', 'assets': checks}))
+          PY
+          .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['research_bot'] == {'configuration': 'available', 'runtime_verification': 'NOT_RUN'}, report['research_bot']"
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/ > root.html
           curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/static/app.mjs > app.mjs
+          for asset_file in module-navigation.mjs navigation-catalog.mjs module-navigation.css progress.mjs progress.css progress-data.json knowledge-settings.mjs event-lab.mjs event-lab-controls.mjs strategy-validation.mjs specialist-panel.mjs research-bots.mjs report-operations.mjs report-workspace.mjs report-workspace.css scenarios.mjs scenarios.css asset-research.mjs asset-research.css dossiers.mjs dossiers.css dossier-methods.mjs mcp-credentials.mjs discovery.mjs discovery.css market-terminal.mjs market.mjs market.css market-calendar.mjs market-calendar.css market-dashboard.mjs market-dashboard-model.mjs market-dashboard-view.mjs market-daily-bootstrap.mjs market-dashboard.css watchlist-import.mjs asset-workspace.mjs asset-workspace.css asset-layout.css asset-format.mjs asset-chips.mjs asset-chip-panel.mjs asset-controller.mjs asset-navigation.mjs asset-search.mjs asset-chart.mjs asset-intraday.mjs asset-intraday-option.mjs asset-minute-k.mjs asset-range-statistics.mjs asset-range-controller.mjs asset-indicator-library.mjs asset-panel-manager.mjs asset-chart.css asset-indicators.mjs asset-projection.mjs asset-news.mjs vendor/asset-vendor-lock.json vendor/echarts-5.5.0.min.js vendor/echarts-5.5.0.LICENSE.txt vendor/echarts-5.5.0.NOTICE.txt vendor/chart-4.4.7.umd.js vendor/chart-js-4.4.7.LICENSE.txt; do
+
+            safe_name="${asset_file//\//_}"
+            curl --noproxy '*' --fail --silent --show-error --max-time 15 "http://127.0.0.1:8088/static/$asset_file" > "$RUNNER_TEMP/rwb-asset-$safe_name"
+          done
+          .venv/bin/python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          assets = ["module-navigation.mjs", "navigation-catalog.mjs", "module-navigation.css", "progress.mjs", "progress.css", "progress-data.json", "knowledge-settings.mjs", "event-lab.mjs", "event-lab-controls.mjs", "strategy-validation.mjs", "specialist-panel.mjs", "research-bots.mjs", "report-operations.mjs", "report-workspace.mjs", "report-workspace.css", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "market-calendar.mjs", "market-calendar.css", "market-dashboard.mjs", "market-dashboard-model.mjs", "market-dashboard-view.mjs", "market-daily-bootstrap.mjs", "market-dashboard.css", "watchlist-import.mjs", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
+
+          checks = []
+          for name in assets:
+              installed = (Path(os.environ["RUNNER_TEMP"]) / f"rwb-asset-{name.replace('/', '_')}").read_bytes()
+              source = (Path("app/research_web/ui") / name).read_bytes()
+              assert installed == source, f"installed asset differs: {name}"
+              checks.append({"path": name, "sha256": hashlib.sha256(installed).hexdigest()})
+          Path("asset-static-smoke.json").write_text(json.dumps({"status": "PASS", "assets": checks}), encoding="utf-8")
+          PY
           .venv/bin/python -c "from pathlib import Path; assert 'Research Workbench · Research' in Path('root.html').read_text(encoding='utf-8'); assert 'const defaultCatalogNames =' in Path('app.mjs').read_text(encoding='utf-8')"
+          curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/api/research/knowledge > knowledge-status-smoke.json
+          .venv/bin/python -c "import json; d=json.load(open('knowledge-status-smoke.json', encoding='utf-8')); assert d['enabled'] is False and d['configured'] is False and d['connectivity']=='not_verified' and d['live_acceptance']=='NOT_RUN', d"
           curl --fail --silent http://127.0.0.1:8088/api/research/data/connections > connections.json
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
           curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
@@ -149,13 +346,16 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-bootstrap-macos-14-${{ github.run_id }}
+          name: research-web-bootstrap-macos-15-${{ github.run_id }}
           path: |
             doctor.json
             root.html
             app.mjs
             connections.json
             native-search-smoke.json
+            knowledge-status-smoke.json
+            asset-static-smoke.json
+            qa-static-smoke.json
           if-no-files-found: ignore
           retention-days: 3
 
@@ -163,13 +363,14 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-bootstrap-failure-macos-14-${{ github.run_id }}
+          name: research-web-bootstrap-failure-macos-15-${{ github.run_id }}
           path: |
             doctor.json
             root.html
             app.mjs
             connections.json
             native-search-smoke.json
+            knowledge-status-smoke.json
             logs/setup-web.log
           if-no-files-found: ignore
           retention-days: 3

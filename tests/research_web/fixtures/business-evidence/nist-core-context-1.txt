@@ -1,0 +1,171 @@
+The AI RMF 1.0 is being updated. A revised version is in progress.
+5
+AI RMF Core
+Excerpt from the NIST AI Risk Management Framework 1.0 (2023).
+The AI RMF Core provides outcomes and actions that enable dialogue, understanding, and activities to manage AI risks
+    and responsibly develop trustworthy AI systems. As illustrated in
+Figure 5
+, the
+    Core is composed of four functions:
+govern, map, measure,
+and
+manage
+. Each of these high-level functions is broken down into categories and subcategories. Categories and subcategories
+    are subdivided into specific actions and outcomes. Actions do not constitute a checklist, nor are they necessarily
+    an ordered set of steps.
+Figure 5:
+Functions organize AI risk management activities at their
+      highest level to govern, map, measure, and manage AI risks. Governance is designed to be a cross-cutting function
+      to inform and be infused throughout the other three functions.
+Risk management should be continuous, timely, and performed throughout the AI system lifecycle dimensions. AI RMF
+    Core functions should be carried out in a way that reflects diverse and multidisciplinary perspectives, potentially
+    including the views of AI actors outside the organization. Having a diverse team contributes to more open sharing of
+    ideas and assumptions about purposes and functions of the technology being designed, developed, deployed, or
+    evaluated – which can create opportunities to surface problems and identify existing and emergent risks.
+An online companion resource to the AI RMF, the NIST AI RMF Playbook, is available to help organizations navigate
+    the AI RMF and achieve its outcomes through suggested tactical actions they can apply within their own contexts.
+    Like the AI RMF, the Playbook is voluntary and organizations can utilize the suggestions according to their needs
+    and interests. Playbook users can create tailored guidance selected from suggested material for their own use and
+    contribute their suggestions for sharing with the broader community. Along with the AI RMF, the Playbook is part of
+    the NIST Trustworthy and Responsible AI Resource Center.
+Framework users may apply these functions as best suits their needs for managing AI risks based on their
+        resources and capabilities. Some organizations may choose to select from among the categories and subcategories;
+        others may choose and have the capacity to apply all categories and subcategories. Assuming a governance
+        structure is in place, functions may be performed in any order across the AI lifecycle as deemed to add value by
+        a user of the framework. After instituting the outcomes in
+govern
+, most users of the AI RMF would start with the
+map
+function and continue to
+measure
+or
+manage
+. However users integrate the functions, the process should be iterative, with cross-referencing between
+        functions as necessary. Similarly, there are categories and subcategories with elements that apply to multiple
+        functions, or that logically should take place before certain subcategory decisions.
+5.1
+Govern
+The
+govern
+function:
+cultivates and implements a culture of risk management within organizations designing, developing, deploying,
+        evaluating, or acquiring AI systems;
+outlines processes, documents, and organizational schemes that anticipate, identify, and manage the risks a
+        system can pose, including to users and others across society – and procedures to achieve those outcomes;
+incorporates processes to assess potential impacts;
+provides a structure by which AI risk management functions can align with organizational principles, policies,
+        and strategic priorities;
+connects technical aspects of AI system design and development to organizational values and principles, and
+        enables organizational practices and competencies for the individuals involved in acquiring, training,
+        deploying, and monitoring such systems; and
+addresses full product lifecycle and associated processes, including legal and other issues concerning use of
+        third-party software or hardware systems and data.
+govern
+is a cross-cutting function that is infused throughout AI risk management and enables the other functions of the
+    process. Aspects of
+govern
+, especially those related to compliance or evaluation, should be integrated into each of the other functions.
+    Attention to governance is a continual and intrinsic requirement for effective AI risk management over an AI
+    system’s lifespan and the organization’s hierarchy.
+Strong governance can drive and enhance internal practices and norms to facilitate organizational risk culture.
+    Governing authorities can determine the overarching policies that direct an organization’s mission, goals, values,
+    culture, and risk tolerance. Senior leadership sets the tone for risk management within an organization, and with
+    it, organizational culture. Management aligns the technical aspects of AI risk management to policies and
+    operations. Documentation can enhance transparency, improve human review processes, and bolster accountability in AI
+    system teams.
+After putting in place the structures, systems, processes, and teams described in the
+govern
+function, organizations should benefit from a purpose-driven culture focused on risk understanding and management.
+    It is incumbent on Framework users to continue to execute the
+govern
+function as knowledge, cultures, and needs or expectations from AI actors evolve over time.
+Practices related to governing AI risks are described in the NIST AI RMF Playbook.
+Table 1
+lists the
+govern
+function’s categories and subcategories.
+[Table 1 omitted here; selected original subcategories provided separately.]
+5.2
+Map
+The
+map
+function establishes the context to frame risks related to an AI system. The AI lifecycle consists of many
+    interdependent activities involving a diverse set of actors (See
+Figure 3
+). In practice, AI actors in charge of one part of the process often do not have full visibility or control over
+    other parts and their associated contexts. The interdependencies between these activities, and among the relevant AI
+    actors, can make it difficult to reliably anticipate impacts of AI systems. For example, early decisions in
+    identifying purposes and objectives of an AI system can alter its behavior and capabilities, and the dynamics of
+    deployment setting (such as end users or impacted individuals) can shape the impacts of AI system decisions. As a
+    result, the best intentions within one dimension of the AI lifecycle can be undermined via interactions with
+    decisions and conditions in other, later activities. This complexity and varying levels of visibility can introduce
+    uncertainty into risk management practices. Anticipating, assessing, and otherwise addressing potential sources of
+    negative risk can mitigate this uncertainty and enhance the integrity of the decision process.
+The information gathered while carrying out the
+map
+function enables negative risk prevention and informs decisions for processes such as model management, as well as
+    an initial decision about appropriateness or the need for an AI solution. Outcomes in the
+map
+function are the basis for the
+measure
+and
+manage
+functions. Without contextual knowledge, and awareness of risks within the identified contexts, risk management is
+    difficult to perform. The
+map
+function is intended to enhance an organization’s ability to identify risks and broader contributing factors.
+Implementation of this function is enhanced by incorporating perspectives from a diverse internal team and
+    engagement with those external to the team that developed or deployed the AI system. Engagement with external
+    collaborators, end users, potentially impacted communities, and others may vary based on the risk level of a
+    particular AI system, the makeup of the internal team, and organizational policies. Gathering such broad
+    perspectives can help organizations proactively prevent negative risks and develop more trustworthy AI systems by:
+improving their capacity for understanding contexts;
+checking their assumptions about context of use;
+enabling recognition of when systems are not functional within or out of their intended context;
+identifying positive and beneficial uses of their existing AI systems;
+improving understanding of limitations in AI and ML processes;
+identifying constraints in real-world applications that may lead to negative impacts;
+identifying known and foreseeable negative impacts related to intended use of AI systems; and
+anticipating risks of the use of AI systems beyond intended use.
+After completing the
+map
+function, Framework users should have sufficient contextual knowledge about AI system impacts to inform an initial
+    go/no-go decision about whether to design, develop, or deploy an AI system. If a decision is made to proceed,
+    organizations should utilize the
+measure
+and
+manage
+functions along with policies and procedures put into place in the
+govern
+function to assist in AI risk management efforts. It is incumbent on Framework users to continue applying the
+map
+function to AI systems as context, capabilities, risks, benefits, and potential impacts evolve over time.
+Practices related to mapping AI risks are described in the NIST AI RMF Playbook.
+Table 2
+lists the
+map
+function’s categories and subcategories.
+[Table 2 omitted here; selected original subcategories provided separately.]
+5.3
+Measure
+The
+measure
+function employs quantitative, qualitative, or mixed-method tools, techniques, and methodologies to analyze, assess,
+    benchmark, and monitor AI risk and related impacts. It uses knowledge relevant to AI risks identified in the
+map
+function and informs the
+manage
+function. AI systems should be tested before their deployment and regularly while in operation. AI risk measurements
+    include documenting aspects of systems’ functionality and trustworthiness.
+Measuring AI risks includes tracking metrics for trustworthy characteristics, social impact, and human-AI
+    configurations. Processes developed or adopted in the
+measure
+function should include rigorous software testing and performance assessment methodologies with associated measures
+    of uncertainty, comparisons to performance benchmarks, and formalized reporting and documentation of results.
+    Processes for independent review can improve the effectiveness of testing and can mitigate internal biases and
+    potential conflicts of interest.
+Where tradeoffs among the trustworthy characteristics arise, measurement provides a traceable basis to inform
+    management decisions. Options may include recalibration, impact mitigation, or removal of the system from design,
+    development, production, or use, as well as a range of compensating, detective, deterrent, directive, and recovery
+    controls.
+After completing the

@@ -27,6 +27,25 @@ class ProviderError(Exception):
     """Fixed non-sensitive reasons, safe for manifests and logs."""
 
 
+def cn_stock_identity(value: object) -> str:
+    """Reviewed SH6 / SZ00,30 A-share identity; no stock-master or vendor call.
+
+    Bare codes retain the existing stock-only convention. Explicit suffixes
+    must agree with the reviewed code family; BJ and other families are unknown.
+    This check cannot be applied to an explicitly native index/ETF contract.
+    """
+    match = (
+        re.fullmatch(r"([0-9]{6})(?:\.(SH|SZ))?", value.upper()) if isinstance(value, str) else None
+    )
+    if match is not None:
+        code, suffix = match.groups()
+        market = "SH" if code.startswith("6") else "SZ" if code.startswith(("00", "30")) else None
+        if market is not None and suffix in {None, market}:
+            return f"{code}.{market}"
+    log.warning("datahub_stock_identity_unverified")
+    raise ProviderError("data_not_equivalent")
+
+
 @dataclass
 class Result:
     rows: list[dict] = field(default_factory=list)
@@ -44,6 +63,7 @@ class Result:
     raw_bytes: int = 0
     provider_id: str | None = None
     attempted_sources: list[dict] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
 
 
 def numeric(value, *, required=False):
@@ -483,6 +503,14 @@ async def fetch(query: Query | BusinessQuery, *, transport=None, connections=Non
             from .providers_akshare import fetch as akshare_fetch
 
             return await akshare_fetch(query)
+        elif query.source == "bea_archive":
+            from .providers_bea_archive import fetch as bea_fetch
+
+            return await bea_fetch(query, transport=transport)
+        elif query.source == "baostock":
+            from .providers_baostock import fetch as baostock_fetch
+
+            return await baostock_fetch(query)
         elif query.source == "mysql":
             from .providers_mysql import fetch as mysql_fetch
 
@@ -561,6 +589,52 @@ async def probe(source_id: str, *, transport=None, connections=None):
         from .providers_akshare import probe as akshare_probe
 
         return await akshare_probe()
+    if source_id == "bea_archive":
+        from .providers_bea_archive import PERIOD, SERIES
+        from .providers_bea_archive import fetch as bea_fetch
+
+        result = await bea_fetch(
+            BusinessQuery(
+                capability="factor_macro",
+                source="bea_archive",
+                parameters={"series": SERIES, "start_date": PERIOD, "end_date": PERIOD},
+            ),
+            transport=transport,
+        )
+        return {"health": "healthy", "failure_code": None, "rows": len(result.rows)}
+    if source_id == "baostock":
+        from .providers_baostock import fetch as baostock_fetch
+
+        result = await baostock_fetch(
+            BusinessQuery(
+                capability="trading_calendar",
+                source="baostock",
+                parameters={"market": "CN", "start_date": "2025-01-02", "end_date": "2025-01-02"},
+            )
+        )
+        accepted = result.status == "complete" and len(result.rows) == 1
+        return {
+            "health": "healthy" if accepted else "unavailable",
+            "failure_code": (
+                None
+                if accepted
+                else next(
+                    (
+                        code
+                        for code in result.limitations
+                        if code
+                        in {
+                            "deadline",
+                            "provider_busy",
+                            "vendor_unreachable",
+                            "missing_dependency",
+                            "vendor_schema_invalid",
+                        }
+                    ),
+                    "probe_failed",
+                )
+            ),
+        }
     if source_id == "mysql":
         from .providers_mysql import probe as mysql_probe
 

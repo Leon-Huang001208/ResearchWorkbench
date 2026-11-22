@@ -91,7 +91,8 @@ async function createMarketplaceApp(fetchOverride = () => null) {
       windowHandlers.get('hashchange')?.();
     },
   });
-  const root = { _html: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const appShell = { inert: false };
+  const root = { _html: '', appShell, addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: selector => selector === '.app-shell' ? appShell : null };
   Object.defineProperty(root, 'innerHTML', {
     get() { return this._html; },
     set(value) {
@@ -169,13 +170,13 @@ async function createMarketplaceApp(fetchOverride = () => null) {
 }
 
 test('MCP market route is valid only for Tool and keeps legacy route fallbacks', () => {
-  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'connector', capabilityContext: 'tool' });
   for (const kind of ['skill', 'workflow', 'data']) {
-    assert.deepEqual(parseRoute(`#/skills?kind=${kind}&view=market`), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: kind });
+    assert.deepEqual(parseRoute(`#/skills?kind=${kind}&view=market`), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: kind === 'workflow' ? 'skill' : kind === 'data' ? 'connector' : kind, ...(kind !== 'skill' ? { capabilityContext: kind } : {}) });
   }
-  assert.deepEqual(parseRoute('#/skills?view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
-  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'workflow' });
-  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'connector', capabilityContext: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'skill', capabilityContext: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'connector', capabilityContext: 'tool' });
 });
 
 test('MCP API methods encode every path segment and query independently', async () => {
@@ -508,7 +509,8 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
   const last = { focus() { documentState.activeElement = this; } };
   const dialog = { contains: value => value === first || value === last, querySelectorAll: () => [first, last] };
   const main = { scrollTop: 0, scrollTo() {} };
-  const root = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const appShell = { inert: false };
+  const root = { innerHTML: '', appShell, addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: selector => selector === '.app-shell' ? appShell : null };
   Object.assign(documentState, {
     querySelector: selector => selector === '#app' ? root : selector === '#main' ? main : selector === '.skip-link' ? { addEventListener() {} } : selector === '.mcp-server-dialog' ? dialog : selector === '.mcp-server-dialog [data-mcp-detail-close]' ? first : null,
     querySelectorAll: selector => selector === '[data-mcp-server-detail]' ? [trigger] : [],
@@ -532,8 +534,10 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
     console.info = () => {};
     await import(`../../app/research_web/ui/app.mjs?mcp-dialog=${Date.now()}`);
     assert.match(root.innerHTML, /data-mcp-server-detail/);
+    assert.equal(appShell.inert, false);
     await handlers.get('click')({ target: { closest: selector => selector === 'button' ? trigger : null, matches: () => false } });
     assert.match(root.innerHTML, /class="capability-preview-dialog mcp-server-dialog"/);
+    assert.equal(appShell.inert, false, 'MCP dialog keeps its existing focus-trap contract without opening a scenario');
     assert.equal(documentState.activeElement, first);
     documentState.activeElement = last;
     let trapped = false;
@@ -543,16 +547,35 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
     await handlers.get('click')({ target: { matches: selector => selector === '[data-mcp-dialog-backdrop]', closest: () => null } });
     assert.doesNotMatch(root.innerHTML, /mcp-server-dialog/);
     assert.equal(documentState.activeElement, trigger);
+    assert.equal(appShell.inert, false);
     await handlers.get('click')({ target: { closest: selector => selector === 'button' ? trigger : null, matches: () => false } });
     let escaped = false;
     handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() { escaped = true; } });
     assert.equal(escaped, true);
     assert.doesNotMatch(root.innerHTML, /mcp-server-dialog/);
     assert.equal(documentState.activeElement, trigger);
+    assert.equal(appShell.inert, false);
   } finally {
     console.info = originalLog;
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
   }
+});
+
+test('marketplace shell becomes inert only while the scenario panel is open', async () => {
+  const app = await createMarketplaceApp();
+  try {
+    assert.match(app.root.innerHTML, /class="app-shell /);
+    assert.equal(app.root.appShell.inert, false);
+    await app.handlers.get('click')({
+      target: { closest: selector => selector === '[data-scenario-open], [data-workbench-handoff]' ? { dataset: { scenarioOpen: '' } } : null },
+      preventDefault() {},
+    });
+    assert.match(app.root.innerHTML, /class="d-drawer-backdrop scenario-panel".*role="dialog" aria-modal="true"/s);
+    assert.equal(app.root.appShell.inert, true);
+    app.handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() {} });
+    assert.doesNotMatch(app.root.innerHTML, /class="d-drawer-backdrop scenario-panel"/);
+    assert.equal(app.root.appShell.inert, false);
+  } finally { app.cleanup(); }
 });
 
 test('market dialog is accessible, escapes details and disables unsupported install handoff', () => {
@@ -702,4 +725,36 @@ test('market tabs retain roving keyboard behavior', () => {
   assert.deepEqual(mcpMarketplaceTabKey('Home', 'connections'), { handled: true, view: 'library' });
   assert.deepEqual(mcpMarketplaceTabKey('End', 'market'), { handled: true, view: 'connections' });
   assert.deepEqual(mcpMarketplaceTabKey('Enter', 'market'), { handled: false });
+});
+
+test('refreshing connector library and connections reloads actual MCP installations', async () => {
+  let installations = []; let inventoryReads = 0;
+  const app = await createMarketplaceApp(url => {
+    if (!url.endsWith('/mcp/installations')) return null;
+    inventoryReads++;
+    return new Response(JSON.stringify({ items: installations }));
+  });
+  try {
+    for (const view of ['library', 'connections']) {
+      await app.navigate(`#/skills?kind=connector&view=${view}`);
+      const before = inventoryReads;
+      installations = [{ id: `installation-${view}`, runtime_status: 'disabled', plan: { registry_id: 'official', server_name: `Added ${view}`, server_version: '1.2.3' } }];
+      await app.click({ dataset: { capRefresh: '' }, disabled: false, getAttribute: () => null });
+      assert.equal(inventoryReads, before + 1);
+      assert.ok(app.root.innerHTML.includes(`Added ${view}`));
+      installations = [];
+      await app.click({ dataset: { capRefresh: '' }, disabled: false, getAttribute: () => null });
+      assert.ok(!app.root.innerHTML.includes(`Added ${view}`));
+    }
+  } finally { app.cleanup(); }
+});
+
+test('legacy skill plans navigation reaches the existing independent timer workspace', async () => {
+  const app = await createMarketplaceApp();
+  try {
+    await app.navigate('#/skills?kind=workflow&view=plans');
+    assert.equal(location.hash, '#/automations');
+    assert.match(app.root.innerHTML, /<h1>定时任务<\/h1>/);
+    assert.doesNotMatch(app.root.innerHTML, /<h1>Agent 日程<\/h1>/);
+  } finally { app.cleanup(); }
 });

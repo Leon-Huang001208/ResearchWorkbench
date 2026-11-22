@@ -16,6 +16,34 @@ from .models import CapabilityError
 
 PIN = RUNTIME_CONTRACT.dsh_commit
 DECLARATIONS = {
+    "specialist_plan": (
+        "专业研究计划",
+        "runtime/specialists.mjs",
+        {"nodes": "array", "expected_version": "integer"},
+        ["nodes", "expected_version"],
+        "仅冻结协作任务中的受审角色与预算内计划；程序校验依赖和修订",
+    ),
+    "specialist_run": (
+        "专业节点执行",
+        "runtime/specialists.mjs",
+        {"node_id": "string", "expected_version": "integer"},
+        ["node_id", "expected_version"],
+        "Host 留痕准入后使用原生可继续子会话；未知请求不重发",
+    ),
+    "specialist_status": (
+        "协作执行状态",
+        "runtime/specialists.mjs",
+        {},
+        [],
+        "只观察本研究的真实状态，不授予重试权限",
+    ),
+    "specialist_cancel": (
+        "取消专业节点",
+        "runtime/specialists.mjs",
+        {"attempt_id": "string"},
+        ["attempt_id"],
+        "取消回执不等于终态，待原生历史核验",
+    ),
     "rwb_prepare_automation": (
         "提出研究日程草稿",
         "runtime/research-tools.mjs",
@@ -60,6 +88,34 @@ DECLARATIONS = {
         ["questions"],
         "原生用户提问；不授予执行权限",
     ),
+    "research_check_quality": (
+        "检查研究质量",
+        "runtime/research-tools.mjs",
+        {"operation": "string"},
+        [],
+        "本轮冻结要求与已取得证据；最多一次补查，不改变研究权限",
+    ),
+    "research_read_source": (
+        "读取来源正文",
+        "runtime/research-tools.mjs",
+        {"operation": "string", "source_id": "string"},
+        ["operation"],
+        "本会话登记的公开HTTPS来源，或用户通过冻结交接显式绑定的档案证据；逐次鉴权，拒绝私网、凭据、任意路径与伪造正文",
+    ),
+    "research_search_knowledge": (
+        "检索个人研究资料",
+        "runtime/research-tools.mjs",
+        {"query": "string"},
+        ["query"],
+        "当前用户可见且符合Host本轮批准范围的资料；只返回真实原文命中，模型不能选库或扩大范围，不授予历史报告资格",
+    ),
+    "research_read_knowledge": (
+        "读取资料命中原文",
+        "runtime/research-tools.mjs",
+        {"hit_id": "string"},
+        ["hit_id"],
+        "仅本会话已登记的资料命中；逐次复核用户权限及Host本轮批准范围，保留原命中版本与未知来源时点",
+    ),
     "research_document_operation": (
         "Office 文档操作",
         "runtime/research-tools.mjs",
@@ -86,9 +142,9 @@ DECLARATIONS = {
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
-        {"code": "string"},
-        ["code"],
-        "仅本会话，严格沙箱；不允许联网或安装依赖",
+        {"code": "string", "report_plan": "object"},
+        [],
+        "仅本会话，严格沙箱；code与report_plan二选一，不允许联网或安装依赖；目录声明不授予执行权限",
     ),
     "web_search": (
         "网页检索",
@@ -307,7 +363,13 @@ def tool_catalog(data_root: Path | None = None):
                 "kind": "tool",
                 "description": condition,
                 "selectable": name in SELECTABLE,
-                "read_only": name != "research_document_operation",
+                "read_only": name
+                not in {
+                    "research_document_operation",
+                    "specialist_plan",
+                    "specialist_run",
+                    "specialist_cancel",
+                },
                 "parameters": parameters,
                 "source": source,
                 "source_commit": PIN if source.startswith("packages/") else None,
@@ -329,7 +391,9 @@ def tool_catalog(data_root: Path | None = None):
             continue
         capability = capabilities[capability_id]
         fields, required = DATA_PROPERTIES[capability_id]
-        properties = {key: {"type": value} for key, value in fields.items()}
+        properties: dict[str, dict[str, Any]] = {
+            key: {"type": value} for key, value in fields.items()
+        }
         for key in ("assets", "fields", "statements", "periods", "series", "columns"):
             if key in properties:
                 properties[key]["items"] = {"type": "string"}
@@ -337,6 +401,12 @@ def tool_catalog(data_root: Path | None = None):
             source={"type": "string", "description": "目录来源 ID；默认 auto"},
             allow_fallback={"type": "boolean"},
             refresh={"type": "boolean"},
+            purpose={"type": "string", "enum": ["display", "research", "backtest"]},
+            quality={"type": "string", "enum": ["strict", "allow_stale"]},
+            as_of={
+                "type": "string",
+                "description": "正式回测所需的历史可得时点，必须包含时区；不能用实时响应代替",
+            },
         )
         if capability_id == "fund_data":
             properties["dataset"]["enum"] = [

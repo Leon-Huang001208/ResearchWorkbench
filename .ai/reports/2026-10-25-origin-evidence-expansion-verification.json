@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "task": "datahub-origin-expand-20261025",
+  "host": "macos",
+  "task_kind": "feature-development",
+  "real_acceptance": {
+    "status": "PASS",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-origin-expand-20261025-integration/logs/real-expanded-evidence/receipt.json",
+    "sha256": "be10518e2e014789301704b60dccc169b32ef027088f554ea6a9f59c360381dd",
+    "execution_head": "b83b15ce69c263c4b1378b438e502d83c2f6ea9f",
+    "duration_seconds": 8.937,
+    "source_helper_count": 377,
+    "sources_unchanged": true,
+    "workers": 7,
+    "http_submissions": 7,
+    "network_operations": "unknown_unmeasured",
+    "process_pids": [
+      22313,
+      22568,
+      22590
+    ],
+    "datasets": {
+      "fund_flow": {
+        "rows": 1,
+        "rows_sha256": "64c6b5e8847238540d0a15e4e89bab897c6cda692b37057b340a2429e779c508",
+        "fields_sha256": "50b43c348ae1a58c12be8ff06b139a1997d213f2a98b3957fa7bd3ab08b0a1db",
+        "raw_sha256": [
+          "084443276ec885e0968e2bf89c8e05e0049449b0276729aac78d62c503b45f1c"
+        ],
+        "schema_identity": "datahub-provider-native-v1:84264925194124e0376e659d79180b34cf062fbb2f4509a0af2b026af10f17ff:akshare-eastmoney-fund-flow-provenance-v2",
+        "units_identity": "akshare-eastmoney-fund-flow-provenance-v2"
+      },
+      "gdp": {
+        "rows": 1,
+        "rows_sha256": "bb99e0870d3de4ab5df0248164e74ae386c8779367507b0ec4a92a38edc1e20d",
+        "fields_sha256": "f7a96371653cf683a3f71f7c61807718960b20ee4317c6ae049418ae6c18318c",
+        "raw_sha256": [
+          "973bd64a189ee661a9c66403213182c689e3dce365d8277a0d95325e759ec3d0"
+        ],
+        "schema_identity": "datahub-provider-native-v1:84264925194124e0376e659d79180b34cf062fbb2f4509a0af2b026af10f17ff:akshare-china-macro-v4",
+        "units_identity": "akshare-china-macro-v4"
+      },
+      "cpi": {
+        "rows": 3,
+        "rows_sha256": "d33c4048ec2527b9480038747fe23f0296f97d3b0391bcd13154f9430bc39124",
+        "fields_sha256": "b1075a4a0f141be58eba68f0c77276c5590cfa8df966886e424c3e82d2e0ebf1",
+        "raw_sha256": [
+          "eee1bd0effff84e377396a35215f27a2f1bc24d27657ba8f7380b33bc41163b3"
+        ],
+        "schema_identity": "datahub-provider-native-v1:84264925194124e0376e659d79180b34cf062fbb2f4509a0af2b026af10f17ff:akshare-china-macro-v4",
+        "units_identity": "akshare-china-macro-v4"
+      },
+      "pmi": {
+        "rows": 3,
+        "rows_sha256": "5805ab17da09b071e5fe5411e17d94ead314ef32bce2c723f0448d77b6023d83",
+        "fields_sha256": "d781fe60dbcf740297bd70d78ffc9f55398401536ae084589fd44aea16f68834",
+        "raw_sha256": [
+          "6b1c8f1b20e9334d6bb1ba6ecc7f982d3cf0ff18bdb4b0ff3c08db308b6b245b"
+        ],
+        "schema_identity": "datahub-provider-native-v1:84264925194124e0376e659d79180b34cf062fbb2f4509a0af2b026af10f17ff:akshare-china-macro-v4",
+        "units_identity": "akshare-china-macro-v4"
+      },
+      "m2": {
+        "rows": 3,
+        "rows_sha256": "9116a57f5b19dd677aaae92f1a1d960fa247d91ddc433e376dcdc1645b1bc4c9",
+        "fields_sha256": "393fba5b23f5e5a11ec677ef6208d6c97b07fba35901c35e01bdd4847cd0bf68",
+        "raw_sha256": [
+          "fb7c6ce5bdc84debd1f6738fd34e7785c632b672a65ff35e50645b0e649a5b90"
+        ],
+        "schema_identity": "datahub-provider-native-v1:84264925194124e0376e659d79180b34cf062fbb2f4509a0af2b026af10f17ff:akshare-china-macro-v4",
+        "units_identity": "akshare-china-macro-v4"
+      },
+      "baostock": {
+        "rows": 1,
+        "rows_sha256": "0ec1f50fdf56fd319c4667f15168834153382492655238ead58faa49b6dcdc24",
+        "fields_sha256": "7c9dd5512f20b7f6c6f18b24cc4c3c1592a063e2a29c9fb0106b69dad1e2627d",
+        "raw_sha256": [
+          "066ee1fb9883681c25c3d6c76a43c0ac8a27c523ee8a6b5ad744e45d7ed2304a"
+        ],
+        "schema_identity": "datahub-provider-native-v1:a52f03b3eb40948f88f8f03a2e960a15ddf6c8bc8a26410cdf597ce190b8d466:baostock-quarterly-profitability-v2",
+        "units_identity": "baostock-quarterly-profitability-v2"
+      },
+      "financials": {
+        "rows": 1,
+        "rows_sha256": "f3d3edcf07b0171e58c750d9c57c88d6270de4b93f09f67abde64c847701ef47",
+        "fields_sha256": "ece775ffe4eab4e2a6858f2bc636ec82ae26f0a660dca7ec02d22bb68794117c",
+        "raw_sha256": [
+          "720d00005856f40823c0595cf2ec8b0cdd4fdd11a1389c6a6428906e0d4a4ac6"
+        ],
+        "schema_identity": "datahub-provider-native-v1:84264925194124e0376e659d79180b34cf062fbb2f4509a0af2b026af10f17ff:akshare-sina-financial-disclosure-v3",
+        "units_identity": "akshare-sina-financial-disclosure-v3"
+      }
+    },
+    "cross_source": {
+      "status": "two_explicit_reference_values_only",
+      "pairs": [
+        {
+          "baostock_field": "MBRevenue",
+          "sina_item_field": "BIZINCO",
+          "canonical_decimal_sha256": "c7b0e2ba49b8d93dad048ec144f4fd7f225cf80673637a3f5067e48ed7a5d1ea"
+        },
+        {
+          "baostock_field": "netProfit",
+          "sina_item_field": "NETPROFIT",
+          "canonical_decimal_sha256": "caf180e65e1828322b18e0c92251d045ca12d76df99dfaa2027fd0539f94a3e9"
+        }
+      ],
+      "merged": false,
+      "asset": "600000.SH",
+      "report_period": "2026-06-30",
+      "report_scope": "consolidated_group",
+      "reporting_basis": "year_to_date",
+      "reference_document_sha256": "01f41e69ad9dc1b348204b3aa0acf615b2343d402ac00a0ae3895f56e7010f66",
+      "entire_statement_equivalent": false,
+      "independent_source_unproven": true,
+      "sina_product_declaration_unchanged": true,
+      "historical_point_in_time": false,
+      "formal_backtest_eligible": false
+    },
+    "restart_read": true,
+    "empty_database_restore": true,
+    "reopen_restore_vendor_calls": 0,
+    "cleanup": {
+      "pg_stopped": true,
+      "pgdata_removed": true
+    }
+  },
+  "sdk_origin_repaired": false,
+  "historical_point_in_time": false,
+  "formal_backtest_eligible": false,
+  "final_candidate_local_ci_mac_review": "tracked separately; not certified by this source receipt",
+  "protected_resources": {
+    "resident_services": "NO_OPERATION",
+    "formal_database": "NO_OPERATION",
+    "external_disk": "NO_OPERATION",
+    "real_credentials": "NO_OPERATION",
+    "model_calls": 0
+  }
+}

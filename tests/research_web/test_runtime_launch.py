@@ -47,6 +47,10 @@ def test_research_preset_declares_native_todo_with_explicit_parallel_policy(tmp_
     overlay = (data / "runtime/overlay.yml").read_text(encoding="utf-8")
     assert "name: '@deepseek-ai/dsh-tool-todo'" in overlay
     assert "allowParallelInProgress: true" in overlay
+    assert "runtime/specialists.mjs" in overlay
+    assert "packages/llm/llm/lib/index.js" in overlay
+    assert "__SPECIALISTS_MODULE__" not in overlay
+    assert "__NATIVE_LLM_MODULE__" not in overlay
     assert "id: rwb-preset-research-web" in overlay
 
 

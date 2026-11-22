@@ -530,3 +530,5 @@ The DSH callback accepts a strict, sanitized metadata envelope. Raw assistant/us
 ## Recent Changes
 
 - 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。
+
+受管 FinGPT 切换完成后，旧版 Web 的 `/api/v2/fingpt/health` 返回退役状态和已配置的私网 `research_web_url`。旧预设任务创建、执行和旧启动票据消费返回 410。切换期间或记录无法核验时返回 503。历史查询和已发生的 DSH 回执同步沿原接口。

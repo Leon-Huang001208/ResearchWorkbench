@@ -1,6 +1,252 @@
 # 研究协议、执行状态与恢复
 
-G2B 的 task_admission 与 resident research_admission 共同保留：已受理工作继续，新的后台执行等待维护结束且不重复提交。私有 Unix 控制查询主/子 Agent、报告与 Automation；未知结果拒绝切换。
+G2B 维护与原 resident 准入共同生效：已有研究和子任务保留，新人工执行返回维护状态，新后台执行等待原门解除。Report Workflow、Automation 与 DSH prompt 共享 Host 维护门，不创建替代运行。
+
+五个附接 MCP 保全模式的 forward apply 在最终 GitHub 候选证据核对后、`execute` 前，
+于既有 BirthFence SQLite EX／安装作用域内校验配置并调用 `ops.verify(previous=True)`。
+其非完成后回滚的 preparing 恢复不再走围栏外提前返回，须在同一围栏内完成相同复核，
+成功才删除原准备 journal。复核失败不进入 stop／checkpoint／切源；Trial、完成后回滚和
+其他恢复阶段保持原语义，不新建运行状态机或重放研究。见[模式范围](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+管理员队列请求可以持久等待并按固定提交归档恢复；`waiting_resources`/exit75 不代表研究、
+构建或交付通过。已有结果先对账，缺回执且 owner 消失保持 unknown、不自动重建；
+该控制路径不提交模型、供应商或业务恢复，原研究会话与授权不变。
+
+`reviewed-local-knowledge-v1` 在 `operate`、`prepare_fence` 和 `checkpoint` 传递同一模式核对私网路由。
+预检识别固定知识库入口后，维护和切换阶段仍重验同一配置；漂移继续沿原三锁、BirthFence和恢复事务处理。
+路由检查不提交研究、重发未知请求或改变现有模型与后台日程，其他升级模式沿原路由合同。
+
+中断的 stage 注册在四个已归属空卷和原隔离网络上接续，研究进程仍由原镜像的 supervisor 启动。
+
+Stage 的 `owner-handoff` 只退休停止实例的预留；后续研究仍由原 Host 与 DSH 执行，业务未完成状态随交接保留。
+
+FinGPT 显式回滚与原切换共用维护锁和准入围栏。回滚中断时由联合恢复入口接续，旧主实例控制器不会接管该事务。
+
+Native 退役复核在共享持有原部署准入锁时检查正在监听的 Web PID、实际报告的 revision 与已验收版本一致，并要求没有未完成部署事务。一次最多清理一个已验证 Git 任务，失败单独记录为待处理，既有研究运行与上线状态继续按原回执判定。
+
+策略验证的固定版本切换复用 Native 空闲见证与回滚。正式回放在联合事务验收后从登录页面显式提交。
+
+受管 Docker 开发实例的运行和恢复核对实例固定的 SHA-256 镜像 ID。再次构建更新开发入口登记，既有实例仍使用原登记。
+
+策略验证是明确用户动作驱动的 Host 计算，数据和结果由账号存储绑定，运行计入 Host 活动见证。DSH 仍负责会话推理。参见[策略验证](../../research-web-strategy-validation.md)。
+
+Radar 时效升级保全既有 Bot 的停用状态和历史，再在同一账号内进行授权的手动与定时复测。
+
+Research Bot 在建立 DSH 会话前验证 Radar 缓存标志或有效的批次生成时点。来源证据与定义、资料指纹一起留档，抓取时钟不参与资料变化判断。
+
+Research Bot 常驻切换沿现有研究活动准入、三锁及 BirthFence。只有已接受前版和经 CI 核实的冻结产品可进入事务。
+
+Research Bot 以 5–1440 分钟的专用间隔复用 Automation。触发时校验定义版本并冻结资料，在原生提交前记录运行与会话身份。相同已验证原件跳过模型，受理未知留在运行历史供核对，技能加载以原生回执验证。
+
+APFS 修复只更新已登记根的设备号。Web 和 DSH 的所有权检查、进程运行及启动重试仍由原 supervisor 和网关执行。
+
+财经日历按需读取不创建研究会话、运行协议事件或 DSH 任务；账号 Host 关闭时排空本模块的在途请求。
+
+一次性公开资料预检／导入复用个人Host证据与幂等规则，不调用模型或更改研究运行授权。
+
+市场V2的Git完成时限与研究运行分开；120秒超限继续原保全回滚，不能取消研究、授权模型或开启采集。
+
+事件操作的客户端明确意图经过账号网关后保持原值；无标识或非法值仍由Host拒绝，
+未知结果不自动重发，原幂等键和冻结版本合同保持。仅请求头转发修正，不开启后台研究。
+
+综合总览 GET 挂载只读缓存与已存研究，显式行情刷新仅进入原 MarketService 有界采集。
+事件详情和指数下钻不运行研究；当前评分资格由原 ScoreService 重验，历史运行列表不能
+当作实时有效分。回放不借用未来价格或研究资格，DSH 执行状态与恢复协议不变。
+
+## 资料读取与报告 scope（2026-11-06）
+
+资料同步worker由原Host启动／关闭，60秒巡检只恢复明确启用的资料配置，不开启其他Automation或提交研究。`research_search_knowledge`／`research_read_knowledge` 沿原DataKey、guard和可信session回调执行，始终使用 query／hit_id 协议。正式单轮由Host持久grant选择已批准scope，核对可信原生caller、根会话首turn及requestId，并在异步读取后重验；拒绝不回退普通current。绑定、同步启停／手动扫描、时间批准、范围创建和证据冻结均留在认证用户明确操作。请求前后核验WeKnora当前用户与空间，原件和分块变化被拒绝或作为回执状态明示；不以空间API Key代替真人权限。真实宿主、模型和原周报完整生产独立验收。[合同](../../research-web-weknora.md)
+
+统一导航部署保留Native真实空list、Host明确False及全账号后台／市场inflight门，未知或活动延后。前进、恢复和回滚重验同一事件日程disabled证明，不提交研究、重发未知操作或启用采集。
+
+## 事件部署的逐阶段日程证明（2026-11-05）
+
+`apply-events` 在既有 Native 维护事务内冻结全账号事件源日程的 disabled 证明；Native 活动查询必须实际返回空 `list`，缺响应、错误类型与未知状态均不能推断空闲。原 Host、私有池及其他生产者活动门继续适用，不通过启动账号后端补造空闲证明。
+
+该证明在事务各 phase 和恢复入口重新核验，变化即拒绝继续；SQLite WAL／SHM／journal 和孤儿标记同样阻断准入。沿原三锁、BirthFence、保全与恢复链处理，不借用 TRIAL 丢弃权限、不重发模型或来源任务，研究执行仍由唯一 DSH 承担。具体固定身份见[部署合同](../../research-web-gateway-upgrade.md)。
+
+方法并入技能列表仍发送原method_ids，最多三项及原采用记录合同不变；复制方法形成普通Skill新草稿，不借用方法身份。#/automations仅导航至原计划管理，不启动任务或新增调度器。
+
+## 事件冻结、确定性研究与来源活动（2026-11-04）
+
+事件研究 API 解析本账户的不可变引用，先保存定义、输入与区间使用意图，再执行确定性计算；事件确认、描述结果、代理回测、独立测试和当前评分资格分别保存，不能由浏览器价格数组或自报PIT打开正式通道。新增个人SQLite、原件和恢复对账标记属于业务状态，旧备份不得抹去已经查看或开封的区间。
+
+来源更新复用原Automation心跳和受控Host线程；取消仍持有活动见证直到实际排空，失败／未知不重发同一采集。Native通用自动化未启用或处于tenant模式时，不从该入口启动后台来源计划；模型解释仍走唯一DSH及原提交／质量门。流程详见[事件研究合同](../../research-web-event-research.md)与[图14](../../../outputs/research-web-architecture/14-event-research.html)。
+
+## 入站 MCP 不承担研究执行
+
+首版四项工具仅发现批准材料及读取冻结原件，不进入原 DataHub 查询、模型发送、工作流提交或研究会话创建。MCP 仅查找已存活的账户后端，不冷启动实例；后端缺失、处于维护冻结或旧后端缺少只读协议时明确拒绝，原 RuntimePool 容量限制及正常研究生命周期保持不变。既有固定 DSH、受理未知和恢复语义不变；后续执行委托须另行设计。见[入站合同](../../research-web-mcp-facade.md)。
+
+## 测试运行与研究任务隔离（2026-10-31）
+
+测试临时根的 PASS 只来自外部 pytest JUnit 与源码候选身份，不能据此把 DSH 研究请求、模型质量、报告或常驻恢复判为成功。失败、取消、受理未知的研究任务仍按原任务回执观察，不因清理脚本自动重发或删除；新 `selective-v1` 只适用于交付日志，旧研究会话和生产恢复档案不进入可丢弃集合。
+
+## successor 的恢复协议与 spawn 未知（2026-10-31）
+
+固定 90e 从旧 v4／1529 执行器交接到受审 v5，仅接续原恢复事务；完成退役并恢复 b800 代码与随后 fresh apply db2 是两个终态，不合并为一次部署成功。新 pyz 使用原恢复入口，研究仍由唯一 DSH 执行；job／TERM 意图已持久化而结果未明时只观察，不重发信号、模型或研究请求。
+
+三 EX 锁、安装 lease、BirthFence DB EX 下，每事务最多记录 8 项 spawn 意图；这不是 8 次自动重试额度。任一 pending 必须保持 UNKNOWN，不能从暂时无 PID 文件或端口空闲推断可以再 spawn；已确认 PID 与其 acceptance 在同一 checkpoint 提交。当前原 15 账号 consent 和非试验状态受保护，admin＋新 test 清理在终态后独立进行。详见[handoff／fresh retry 协议](../../research-web-trial-successor-handoff.md)，不由合成协议测试推定 Docker／Windows／Linux 实机行为。
+
+## 历史试验丢弃与恢复（2026-10-30）
+
+用户授权的历史试验丢弃由离线 Native 操作员执行，研究会话仍使用唯一 DSH。停止前重新核实已知 RWB 进程身份；外部 Wind Terminal 不在退役范围内。归档会话同时停用关联自动化／报告生产者，重启不重放模型请求；账号和模型配置保持。
+
+已提交的丢弃决定在代码回滚后继续有效，原始试验数据只允许离线、持栅栏的人工恢复。`recover` 保留完整不可变终态回执，只释放本事务的 BirthFence；错误 owner、spawn 后尚未记录 PID 或未知 mkdir 崩溃均保留未知及栅栏，须人工核对，禁止自动再 spawn。见[维护与恢复合同](../../research-web-trial-discard.md)。
+
+场景仍由原DSH执行；Host只冻结资料／参数、核验每项必需能力和资源、维护原提交回执及质量合同。required、discovered、真实loaded分别记录，不能把要求列表算作执行；schema2仅加强场景身份，原schema1与历史回执保持。准备不发模型，已存在意图或未知创建不重建；只有服务器锁内证明not_created的输入拒绝才恢复编辑。来源撤权时详情和回执保留安全状态，摘录不继续输出。
+
+全市场广度组合固定升级不创建研究、模型或跟踪。Native/Host/全部账号任务必须明确空闲；active=null不能转换为空闲，旧周报结果未知及Wind清理缺证原样保留。不改变唯一DSH执行与恢复边界。
+
+来源请求注册表和取消 tombstone 是每个真实 Host 实例自己的运行内存状态，构造时已知为空；原 reader 执行/取消/最终清理继续操作同一注册表。修复不重放请求、不改变研究提交或恢复协议，缺证拒绝仍保持。
+
+Wind 分项活动见证不创建研究、不改变旧 Run、不重发 DSH。SDK Future 已结束与外部清理未确认分别记录，普通活动归约保留未知拒绝。当前只读维护准备始终明确未实现恢复，旧 Host 缺见证保持阻断；研究与交付状态不因预检通过而提升。
+
+v2把真实绑定身份前提与最终完整活动门分开：Host.active=true只观测，桥后必须再执行原完整Primary、fresh strict和原idle。它不取消/重放Native请求，既有report submission unknown与claim证据不改变。
+
+weekly-admission-v2将preflight/prepared/rpc_attempted/accepted/unknown分开，模型RPC前先写不可覆盖且fsync的claim。明确未RPC状态只经显式同Run/SID/key/hash恢复；已接受/未知只观察，不重发。旧协议缺sender证据只记recovery缺口、原失败/时间保持。普通研究及Automation原幂等与审批逻辑不变。
+
+`apply-market-preview` 沿原version4事务复用唯一DSH及Host状态门，先核验所有账号后台任务、工作流和市场采集空闲，再栅栏切换；未知/活动时延后。CSV预览验收不提交研究、不调用模型，原运行与恢复合同不变。
+
+资产V9只读取完整CI证据并固定reader身份，不启动DSH或研究；继承全账号跟踪/Automation/Workflow及Host/Native/市场/资产空闲拒绝，旧冻结恢复包继续使用原reader。
+
+资产V8不启动研究，后台空闲复核覆盖已上线今日发现跟踪、Automation与Workflow；原Host/Native/私有池、资产Future和市场inflight未知或活动继续拒绝。旧profile恢复身份与唯一DSH保持，不重试任何未知模型调用。
+
+周报Run.execution_purpose默认formal，专用历史入口由Host固定historical_acceptance并冻结绑定。去重、retry/recovery保持原用途及会话；未知模型提交不重新发送。历史用途继续通过同一DSH和质量门，完成状态historical_acceptance/不可正式定稿与文件状态分开，不能满足manual finalized门；原序列图的Host内部状态抽象仍准确。
+
+华安 v2 不启动研究或模型，只新增固定升级分派；原Native/Host/私有池、真实Future及市场inflight空闲门保持，沿现有事务恢复。PR209档案运行状态继续纳入保全；周报仍经唯一DSH与Host质量门，不自动重复未知调用。
+
+华安固定Native模式不启动研究，不改DSH协议、历史或模型配置。原Host显式空闲、Native、private-pool与市场inflight检查继续约束升级；未知/忙碌不切换。实际获准更新后，周报仍经原Report Workflow冻结输入→DSH→Host质量门与确定性排版，没有第二执行链或自动模型重试。
+
+## 今日发现显式交接与跟踪（2026-10-23）
+
+GET读取已有Intel第三方事件，无模型；首次新抽屉的GET selection只读核对所选事件完整详情，独立scope feed不污染首页、不写Store/创建会话；prepare再核对精确详情与预览事件版本、冻结正文/快照及上下文，再按预分配ID/cwd创建和配置原DSH。execute独立确认、固定键至多提交一次，未知只查原receipt/历史，FinGPT与Claw均经原规范报告质量门。跟踪保存禁用、单独启用，原Automation在同用户后端存活时读来源、去重、每日最多一次研究；受理/运行/质量独立。03图新增实际顺序，详见[合同](../../research-web-discovery.md)。
+
+
+2026-10-23：终端部署profile不改变DSH研究协议或原生历史。原居民活动／研究、历史查询、MarketService inflight必须明确为空，未知或活动即拒绝切换；沿version4 journal和逐阶段恢复，不中断未知任务。产品代码、工具组合、原三CI及真实主实例／网关切换分别留证；尚未部署不能转写为运行验证通过，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+市场分析和持仓浏览不创建DSH研究会话或模型调用。POST指数刷新同时有界获取可核验的前日价格指数日线；可见／暂停／取消和服务关闭沿原MarketService回收。画像读取只消费缓存与真实首次观察；正式择时总分和仓位受服务端证据门限制。
+`builder-reconcile`不启动研究或改变DSH pin；只有指纹绑定的管理员apply可临时启动新建且身份验证通过的BuildKit，完成就绪检查后停止。恢复也必须先完成卷、账本、配置、运行任务及预算全门，不能中断常驻或未知构建。
+
+2026-10-23：市场逐股限价、昨日成交额和资金日线留存不创建研究sid、dataset或模型回合；原采集inflight/取消/排空和部署空闲见证保持，不改变研究协议。 具体来源、缺口与缓存合同见[DataHub](../../research-web-datahub.md#无会话全市场数据)。
+
+2026-10-23固定公开indices仓库桥不创建研究sid或DSH回合，不改变任务receipt、自动化和恢复协议。它复用Host生命周期与StorageRunner，取消/关闭等待真实事务结束；公开指数入仓不认证研究报告、正式回测或周报。
+
+资产v5索引读取修复不改变DSH协议、研究回合、任务状态或恢复流程；只在原verify_primary的v5分支复用已有64 MiB业务读取，元数据及旧profile保持。原明确空闲、排空、BirthFence、全账号保全和version4 journal继续生效，真实失败停在停机前；没有新生命周期节点，01／12图仍准确，也不启动研究、周报或模型。
+
+资产交互v5固定部署不改变DSH协议、回合、历史、取消或恢复状态机，也不运行研究／周报／模型。固定旧51f09与产品9bc4沿原操作员锁、明确空闲及version4 journal；目录租约、区块／历史task和真实Future仍按产品既有witness判定，未知状态不据作可切换。原01／12图的部署及生命周期边界保持，profile版本不等于journal版本；正式recover只按验证后的v5 mode回51f09。
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 账号目录loader与资产区块task属于Host数据工作，不创建DSH回合、子Agent或Automation日程。目录在SDK批次间仍有活动witness，真实Future结束前不认证空闲；初始观察、旧刷新与load共享区块锁，受理保存失败原位撤回本次字段，保持其他活跃block引用。resident与关闭等待覆盖目录、区块、历史及真实Future；未确认witness仍阻止切换。DSH协议、原生历史、模型预算、取消／恢复和研究质量判据不变，目录缓存也不转换为研究事实库；细图见02模块及04快照资料流，原研究执行状态图保持。
+
+DataHub查询前台总预算18秒，独立owned计时器在HTTP断连后仍有效；超时返回504并保留同call_id，任务继续真实排空，完成前不释放SDK/数据库容量。成功提交后取消保留真实warehouse版本，迟到数据不发布。DSH与Automation预算、历史回合及模型授权没有扩大。
+
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件指令读取当前 session 不可变 pin；仍批准旧版本跨升级继续使用，显式撤权即时拒绝。Skill/Workflow 走既有能力目录、Agent 走既有 DSH subagent 与预算，精确 MCP 工具需 Host/schema/guard 全链确认；Hook 与运行中请求计入空闲证明。原Automation调度保持，双阶段重启未知保留 fence。见[插件合同](../../research-web-plugins.md)。
+
+2026-10-22 v4 profile固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，不改变version4 journal和前进/回滚/冻结recover状态机。既有DSH/历史任务/真实Future/取消排空/日程/私有池空闲及旧v1/v2/v3恢复身份保持。旧v3已正式恢复5495且网关解除fence；产品三CI属于产品证据，v4最终本机/评审/CI/部署另验，不新增运行状态或重画图。
+
+显式华安周报合同由受信Report Run创建Claw会话并冻结原要求；数据失败不发送模型，不把任意Claw
+会话提升为可自动定稿。规范正文及中文presentation经Host确定性投影后，原质量门重新核对实际文件，
+最多一次有界补查；执行/交付/质量/定稿独立记录。未知受理不重发研究，已知原研究可显式仅重投影，
+重启或新失败保留上一正式归档。原DSH历史、工具准入与其他会话质量合同不变，见[周报生产](../../research-web-etf-weekly-production.md)。
+
+2026-10-22 Wind部署profile v3复用原v4前进/恢复状态机，journal中的封闭mode只选择固定旧版5495，旧v1/v2恢复不变。原DSH、历史任务、取消排空、真实CJPY Future及研究质量协议均不修改；root切换前仍须持锁证明研究/日程/私有池/观察/DataHub/历史全部明确空闲。产品验收不替代profile候选CI与实际版本/保全，未知状态继续阻止；没有新运行状态或执行拓扑，因此不重画当前图。
+
+2026-10-22 历史任务属于Host数据工作，不创建DSH研究回合或Automation日程。queued/running/cancelling/draining为活动，completed/failed/cancelled/interrupted为终态；服务关闭/会话取消联动子DataHub call_id并等真实Future结束，无owner恢复为interrupted且不自动重试。固定复权规范/raw/因子/metadata通过原会话快照交给唯一DSH，旧冻结研究材料继续只读。resident活动同时反映任务与真实Future，异常witness为未知；操作员要求全部明确空闲，不能仅凭HTTP取消或浏览器关闭切换。[历史合同](../../research-web-datahub.md#资产历史任务与固定复权)不放宽DSH执行、质量门、模型及厂商授权。
+
+市场刷新使用独立 request ID 与每个读取者的订阅，同 key 采集合并；最后读取者取消及服务关闭均取消并等待后台 HTTP 回收。行情缓存不进入研究会话、DataHub 会话 receipt 或 DSH 历史，研究协议和质量门保持；市场 pending/running/completed/failed/cancelled 不能解释为研究执行或验收结果。
+
+资产观察 `apply-assets-v2` 复用原 v4 前进／恢复状态机；已验证 journal 的 v2 mode 固定恢复 `9bc12355`，v1 和模型 mode 保留原旧版。两资产 mode 均要求观察和 DataHub 明确终态，活动／未知延后；DSH 协议、研究历史、质量门、取消语义及原恢复拓扑不改变，不调用模型或供应商。
+
+资产观察的图表公式和字段投影仅在浏览器确定性执行，不引入AF Agent委员会或第二执行循环。新增section_sources／section_ranges保存在原观察请求，刷新和恢复复用原任务／取消状态机；失败沿有效显式来源返回，不自动改来源或重试。DSH协议、原生历史、研究质量与用户授权边界保持。
+
+部署资格只对CI日志读取有界等待120秒，普通命令30秒与全部研究空闲条件保持。读取器按完整SHA256冻结进原恢复包，不运行模型、不改变DSH协议或既有回滚状态机。
+
+资产观察的apply-assets仍走原v4前进/恢复状态机；恢复按受审profile绑定的c688旧版执行，不沿用模型专项旧版。加载或未知的资产观察/DataHub查询与Native/Host活动一样阻止停机，不修改DSH或研究执行协议。
+
+联合恢复按记录的各角色 Git 目录身份复验，独立 primary clone 不要求等于源码 source_common；切换前缺目标对象直接拒绝。全部原活动、排空、持久冻结与恢复门保持。
+
+联合升级允许的五个导航 UI blob 不改变运行/恢复状态机；新冻结恢复包包含同一范围检查，活动、未知、排空失败仍沿原 deferred/recovery_required 处理，原研究不会因 UI 交付被强停。
+
+模型服务商专项 v4 事务联合更新主实例与网关，执行前复核 Native、Host、自动化及私有池空闲。preparing 意图先于 BirthFence，占槽中断由原身份校验恢复；主实例 journal 保持旧控制器可读，全局 HTTPS 503 阻止旧控制器提前撤门。
+
+网关SIGTERM优雅等待预算为90秒，让已接纳请求结束；超时保留恢复事务，不升级强杀。恢复任务本身提供已验证的Git钩子工具PATH。
+
+v3静态网关事务沿用Native/Host/自动化空闲探测；任一活动或未知均延后。不会重启主实例、DSH或接管其研究任务。
+
+静态候选准备与实际切换分开：stage-primary-ui 不发停止信号；原 resident 继续执行原生/Host/自动化空闲、准入锁和 journal-before-stop。网关恢复再次核对升级器的同一 Git blob，活动/未知仍延后，研究执行协议和固定 DSH 不变。
+
+新网页轮次冻结bound-analysis-v1，Host提供可选中文字数目标；report_plan用fact/formula完整引用绑定分析中的数字和推导，禁止通过手工payload降级。固定DSH参数schema使用独立互斥object分支；wire不支持的长度/数值关键字不承担授权，原固定脚本和Python入口仍强制全部16/40/8/0..12及字节上限。预算、取消、历史和一次补查通道不变。
+
+允许web的研究在首次空证据时就采用plan；正文回调刷新后选择实际ID，原native admission每次提供最新受信context和冻结formats。calculations仅传原始引用/操作/展示位数；系统生成声明、笔记、底稿与格式，Host从实际字节重算。错误反馈返回有界唯一ID，修正不新增补查许可。原预算、取消、历史、幂等及JSON最后发布/失败恢复协议保持。
+
+SIGTERM后的进程签名变化不能证明已退休；等待同PID从进程表消失，超时继续deferred且不追加信号。退出未回收回归使用真实Mac子进程延迟reap，不影响DSH协议或研究预算。
+
+优雅排空前新增内核映像重验，避免将Python启动器路径误当实际运行映像；完整argv、起始时间、端口归属与无强杀合同保持。研究协议和DSH执行不变。
+
+空私有池网关更新只在primary Native、Host及自动化均空闲时请求旧网关优雅排空；私有owner/未知状态保留延后。DSH协议与原研究循环不变，任何超时不升级强杀。恢复沿持久阶段重入，目标全请求冻结解除前不得出生新研究pair。
+
+research_read_source 在正文落盘后刷新原 research_evidence.json 并返回实际 numeric_observations，模型可用既有 select_business_evidence/report_plan 组装声明。Host 检查时仍独立重读正文重算；补查、取消、原生历史和预算不变。
+
+具备数值业务观测或允许后续网页取证时，首次执行与唯一补查均提示原report_plan；定性引文也可使用无Summary的配方，不编造数字。Python仍支持独立计算、取证及绘图，避免同时下发另一套规范报告payload指令。原生预算、补查计数、模型配置与实际Host质量状态不变。
+
+research_check_quality返回具体算术mismatch与对应expected供原一次补查使用，同时给出Host report_delivery。模型最终消息须引用该版本URL；重写报告后重新检查，不创建友好别名绕过版本。研究预算、取消、耐久历史及原生工具边界不变。
+
+旧会话无需重建：run_script 优先导入当前 Host 包的固定 SDK，而不是覆盖会话资源副本。Host 向 PDF helper 注入已验证 session 绝对根以保持相对输出及 cwd 恢复；字体仍来自已审包。模型没有 SDK 路径参数，代码/输出/时间、取消及网络/fork 禁令不变。
+
+Host 抓取正文即使保存在 inputs，也只沿原 web 身份核验；切换到 uploads 范围后不会再通过附件观测进入业务索引或快照。重新启用 web 仍保留来源日期，不能借文件落盘重置截止日。
+
+research_run_script 增加与 code 互斥的 report_plan 数据参数，仍由原准入、槽位、超时、输出上限及 Native 沙箱执行。可信 task/contract/要求来自 Host；模型只选择当前实际观测、提供有界算术步骤及分析。规范数值、笔记、要求映射和全部父来源确定性组装，模型分析及真实 missing 原样进入同一质量门。没有增加工具、模型循环或补查预算。
+
+三组实验仅对模型接入、工具限额和可观察性加测试包装，保留各自原生研究步骤。配置齐备、独立评审和全部零生成预检通过后，按A/B/C各发一次；900秒内预留退出窗口并核验整个owned进程组，父进程退出不表示后代已退休。
+
+research_read_source 的身份清单来自受信原生快照中的已完成搜索事件，解决持久事件尚未到达 Host 时的登记滞后；只保存有界来源元数据，不复制原生对话。list 返回准确 id/title/url，read 仅凭该 ID 取公开正文。执行标识由原生 call_id 与受信会话生成，取消先到亦阻止后续取证；总时限和取消会回收有限 HTTP 进程，落盘前仍受原任务和来源范围约束。一次补查及质量门不变。
+
+每次research_run_script是独立进程，须重新导入并读取已成功保存的文件。select_business_evidence把实际记录选择和要求映射合并，未知/多期间歧义拒绝；business_仅作观测标识，citations填全部父source_ids。治理提示仅从冻结要求选择，不因共享任务描述把组织实施缺口加给财务研究。不增加工具、重试或补查预算。
+
+DSH实际业务提示要求规范来源ID、原文期间/单位、精确算术和完整同节引用；可用报告helper提前拒绝错误arity、虚构计数或舍入冒充精确claim。不能表达的证据保持未核验，不增加补查/模型循环；Automation授权和恢复不变。
+
+冻结合同后可先load_business_evidence(task_id,sha256)从本回合只读投影直接选取实际观测；模型仍须读输入并生成独立底稿/草稿，原research_check_quality再从实际输入独立评分并返回business_observations及原文位置；原一次补查中可按真实metric/period选择观测，用business_evidence替换对应错误事实/方法，保留全部冻结要求及真实missing。不能把原文外推断伪装成规范句，也不能省掉跨文件父来源。未支持布局仍未核验；没有自动续领补查或新回合。
+
+FinGPT提示可使用calculation_evidence组装同配方四项实际观测的原句、章节、笔记与需求映射；helper没有验收权，不增加补查次数。真实missing继续incomplete，明确的研究范围限制另如实说明；Automation授权、调度与恢复保持原合同。
+
+FinGPT发送与质量返回只提供允许资料范围内的规范来源身份；校验工作线程读取冻结contract/files/sources/delivery副本，返回前重验当前delivery key和完整合同，过期结果409拒绝，不能发布旧passed或续领补查预算。
+
+研究提交的幂等键沿认证网关原值传给用户后端；缺失键继续拒绝，网关不生成键、不重试模型研究。
+
+stage 预留退休不启动、取消或恢复任何研究。原任务句柄终态须先确认，新任务沿独立实例继续 DSH 验收，不复用旧会话或凭据。
+
+容量限制只控制新建逐用户pair；已存在的用户先复用，满槽返回503且不驱逐已有实例。独立池显式上限1至4；附接常驻max_additional_instances默认1，本机选3。槽位随管理员停止实例/停用用户或正常网关退出而释放，退出浏览器不释放。
+
+恢复已存在的用户根时，不再为Web随机改址：读取并验证DataHub/MCP原址，保留同一Web端口；DSH端口与私有gateway key可重新生成。控制token及所有会话字节保持；未知监听、控制事务未完或记录不一致均拒绝启动。
+
+primary UI/静态资源绑定其旧后端版本，原 AIHOT GET 经该实例；新用户仍按最新独立执行与共享资讯合同运行，不启动资讯数据库或 worker。
+
+常驻网关可只读验证并附接唯一 primary 管理员的原 pair；不通过新池启停它。原 resident 继续执行原准入与生命周期合同，启动短暂未就绪时网关有界等待。新用户 pair 正常退出清理；只有不同 kernel boot UUID 的已知 owner 可以归档退休，同 boot 或未知状态保持失败关闭。
+
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
+
+私网服务器不新增执行引擎：认证网关将用户 UUID 绑定到独立 Web/DSH pair，内部 RPC、历史和会话搜索仍用现有协议。每个 pair 使用用户私有 HOME、TMP、状态目录及凭据命名空间，不继承管理员 HOME。`tenant_policy` 与原生执行 guard 双层拒绝宿主浏览器、MCP、日程/自动化、Hot 和报告 Workflow；native 文档在实际执行入口及私有回调均拒绝，仅允许文件模式。浏览器断开只关闭订阅，研究继续；账号停用和管理员显式停止实例才结束相应受管进程。默认两实例上限不是研究任务队列或强隔离；同 UID 后端与固定工具实现仍受信任。
+
+服务器共享资讯由gateway直接读取 `server_root/shared/ai-news`，不调用用户runtime pool，也不占DSH槽。已登录成员可读，status/control仅admin；tenant_policy拒绝全局AI路径，用户pair不构造资讯bridge。共享采编worker生命周期仍须显式管理，账号登录或资讯请求不会启动它。
+
+AI资讯详情与同新闻来源通过有界Host读取本机原API，前端取消和代次隔离覆盖正文语言、专题合并链、来源延迟与主题分页；不进入研究生命周期。
+
+AI资讯阅读不进入DSH；自主采编由原AIHOT worker独立管理，仅处理资讯，默认零模型与付费调用。它不创建研究会话或触发Hot重复采集。
+现有唯一研究引擎、凭据和研究任务生命周期保持；失败只影响该阅读模块。
+
+## FinGPT 三策略与固定质量门
+
+quick/deep/agent 均复用唯一 DSH loop、已保存模型与凭据，旧 instant/deep 深度参数保持兼容。Agent 是动态规划策略，不承诺每次并行或固定步骤。research_check_quality 通过既有私有认证桥核对本轮冻结要求、截止时点、报告与实际证据，不启动另一个引擎或回合。同报告重查复用回执，最多一次补查，仍受原工具/子任务预算约束。
+
+执行状态、质量 passed/incomplete/invalid 和文件状态分别显示。补查仍缺证据时保留可用报告与缺口；补资料在同会话新回合继续并保留新增要求和旧版本。通过范围仅限实际来源摘录与确定性数值检查，无法验证的语义改写保持未核验。只在聊天回答而未提交可验证底稿时不伪造质量通过或文件。
 
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
@@ -159,9 +405,8 @@ NewSession 的 research_depth 默认为 instant，deep 启用完整研究底稿�
 
 Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
 认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
-管理员入口不创建第二研究任务事实源。G2B 发布维护共用原有任务事实：Web/Automation/报告
-准入门、DSH 主/子任务和本地 worker 空闲；未知或等待超时拒绝，不强制取消。
-stage/dev 关闭 Automation；全机重研究配额和 Linux 严格沙箱留给G3，
+管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
+stage/dev 关闭 Automation；任务排空、全机重研究配额和 Linux 严格沙箱留给G3，
 不能从候选健康推出真实模型/研究已验收。操作见 [Docker 手册](../../research-web-docker.md)。
 
 Docker 资源生命周期由 host 标准库 `docker_resources.py` 提供只读预览、精确清理和离线卷备份恢复校验。
@@ -604,3 +849,67 @@ AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外�
 Gold／Dollar 看板确认宿主已读 snapshot revision 后，Bot 才沿原解释／显式深度验证 preset 请求 DSH；已有会话仍绑定旧 revision，刷新不改变绑定。静态九项拒绝框架 Bot，不生成第二套执行链。
 
 会话列表和详情把本机持有的原生未决question按ownerSessionId投影为waiting_input（优先于运行标记），解除提问后回到原生运行状态；不改调度、取消能力或执行器。浏览器查看完成标记仅关联该会话updated_at，未查看显示圆环，查看后隐藏。
+## 网关静态部署的运行时边界
+
+显式 `apply-ui` 要求产品等于当前 primary，工具独立验收。沿用准入锁、空闲核验、出生栅栏和 HTTP 排空；只对已识别网关发送原有优雅停止信号，不切换或重启研究 Web/DSH。发信号后的未完成事务保留 journal 并报告 recovery_required。
+
+## 命名模型连接
+
+Host 非秘密 model_profiles 索引记录 items、active_id 和各协议当前路由，旧账号固定绑定 legacy profile；DSH 的两个逻辑 ref 不改变，由产品凭据桥按索引解析为独立物理账号。会话创建与续研验证 model_profile_id；旧会话按 legacy 身份处理。research_task 日程在新建/显式修改研究定义时锁定 profile，旧日程维持 legacy；create 持同一服务锁再次检查，避免切换竞态。运行/断流、未知受理、活动子研究及未完成交付阻止切换；历史子研究只用 activityOnly 的 inactive 判定，不要求恢复其历史执行模式。
+
+Skill/Workflow/Report Workflow 自动化原本没有批准的服务商身份字段，继续保留其既有执行时默认模型语义；本次不补造历史模型审批。profile 身份固定专用于已声明 provider/model 的 research_task。
+
+2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+跨会话研究使用 Host 冻结档案版本、hash 与证据句柄，交接只准备草稿。仅用户实际提交的 Prompt 结构化字段 `dossier_handoff_id` 可将 receipt 绑定目标 sid；浏览、@ 候选预创建会话、上传和普通 create-session 均不绑定，草稿文本本身不授予权限。来源范围不得扩张，读取继续复核原件及当前授权，再进入唯一 DSH 和原 Host 质量链。A股跟踪默认关闭，既有 Automation 只执行冻结材料的确定性重查，不采集或调用模型；详见[研究交接](../../research-web-dossiers.md#http-与研究交接)及[持续跟踪](../../research-web-dossier-scans.md#持续跟踪)。
+
+
+2026-10-23：v7沿原运行时、会话和模型配置；来源查询/市场inflight活动或未知延后切换，不调用模型或启动第二研究引擎。
+
+
+
+档案固定部署使用 `apply-dossiers`／`reviewed-research-dossiers-v1`：前版固定已核验 `5343e18d9f203a87f2d958218e4288afa527711f`，产品固定包含 PR209／PR212／PR213 的已合并主线 `1780064b712afb61ff18f2f1811650fc31fd3038`。复用原 version4 维护锁、BirthFence、Native／RuntimePool／市场及 DataHub 空闲检查、全账号64MiB业务索引与档案保全和恢复；依赖锁、DSH、自动兼容清单、凭据及付费调用保持原合同。源码、CI、实际服务切换和登录后跨会话验收分别留证，未执行的层级不标通过。
+
+今日发现组合固定Native部署复用既有v4操作员、BirthFence与全账号索引/档案/模型保全，新增closed profile及同一idle内离线零后台任务门；不改变本模块既有运行节点、HTTP/数据schema、Docker/平台执行职责或DSH质量判据。新mode每次首次/恢复均拒绝启用自动化/周报日程、活动或未知执行，不通过启动账号后端取得空闲证明。Mac本机、操作员CI与实际切换/认证页面分别取证，Windows/Linux产品状态保持未执行；详见research-web-gateway-upgrade.md的今日发现组合固定部署。
+
+
+2026-10-24：今日发现原始news与event证据分别复核，同一个DataHub冻结/原DSH显式提交；new raw context v2为内部条件类型分支，旧v1字节保持。已登记失效跟踪不走通用模型回退，原预算、unknown不重发与质量链不变。
+
+## 2026-10-24：Git pending 收尾恢复
+
+Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览、v2备份实际恢复、原引用审计/完整性及资源预算，追加epoch而保留原pending证明。只处理原证明/备份覆盖的特定Codex树快照消失，未知删除仍拒绝。不新增产品服务、HTTP、依赖、研究引擎或租户权限，常驻活动任务门不变。 Python revalidate只观察退休目录/剩余任务对象，并经原ManagedCaches检查20GiB合计预算，不重放目录或卷删除；实际恢复、CI和Mac安装另证，Windows/Linux原生仍交接对应设备。步骤见AGENT_WORKFLOW的pending finalization重新核验。
+
+已正式完成的其他任务分支/worktree退休仅作为另一种独立证据接纳：唯一精确managed归属、同仓库/remote、CI与独评、最终证明和资源回执均complete、旧提交至声明tip/最终候选/主线祖先链成立；四原件字节与哈希固定到epoch。pending/未知owner、目录重现、归属不唯一仍拒绝，不递归调用他任务status或操作其资源。preview同时禁止Git隐式lazy fetch及replace映射；fsck失败输出退出码/信号与输出摘要哈希，不输出对象内容。
+
+本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
+
+
+## 专业协作接入边界（2026-10-28）
+
+新增四个专业协作HTTP入口与私有账号账本，Host校验DAG和预算；现有Host→私有桥→唯一DSH结构保持，新增接口在API清单及Atlas逐项登记。
+
+service.send新增显式specialist分支，模型调度仍由DSH执行；Automation保留原独立准入和日程，不自动开启协作或追加模型调用。
+
+既有研究preset增加受控插件，继续使用原生continuable子会话和settlement；不改固定DSH、不创建进程或第二loop，原Native/Docker双进程边界保持。
+
+固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
+
+完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+## 共享恢复及源路径维护（2026-10-29）
+
+新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
+
+具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+资料服务沿既有resident admission持有网络、授权与存储提交的活动准入；冻结期间新查询／绑定／范围／证据操作拒绝，不新建执行循环或忽略在途工作。公开server的origin交接与冷Doctor在原最小环境中验证，实际上游运行状态仍未知。
+
+仅服务 Host 使用无传输的拒绝边界，冷启动跳过原生事件、跟踪、报告执行恢复和其他研究调度。启动健康与模型就绪分别呈现；历史研究正文的独立读取仍待交接。
+
+WeKnora 客户端经入站 MCP 获取批准的只读材料。RWB 不为该客户端启动内置 DSH。
+
+主账号单 Web 模式持有原 supervisor 和 lifecycle 锁，旧 Native 双进程停止且归属明确后才启动。
+
+AlphaDesk 会话由 Host 管理任务状态和独立报告验收。进程重启后，未终结任务显示中断，需核对原受理结果。

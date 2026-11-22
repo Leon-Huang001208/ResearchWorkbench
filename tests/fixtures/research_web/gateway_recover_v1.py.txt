@@ -1,0 +1,107 @@
+# Frozen recovery function from 4d011a0dd48675484760fa506c48c05cf268a93f.
+# Compatibility fixture only; never a production operator.
+def recover_locked(home: Path, state: dict):
+    server, root = home / "server", home / "server/run"
+    project = Path(state["project"])
+    if (
+        state.get("version") != 1
+        or state.get("primary") != PRODUCT
+        or not SHA.fullmatch(state.get("target", ""))
+        or not SHA.fullmatch(state.get("previous", ""))
+        or digest(root / "gateway-recovery.pyz") != state["recovery"]["artifact_sha256"]
+    ):
+        raise UpdateBlocked("gateway_recovery_identity_changed")
+    if [project.stat().st_dev, project.stat().st_ino] != state["project_identity"]:
+        raise UpdateBlocked("gateway_source_identity_changed")
+    verify_primary(home, state["primary"])
+    if state["phase"] == "preparing":
+        clean(project, state["previous"])
+        if read_json(server / "resident.json") != state["original_config"]:
+            raise UpdateBlocked("gateway_configuration_changed")
+        BirthFence.recover(server, expected=state["transaction"])
+        finish(root, state, "aborted_before_signal")
+        return {"status": "aborted_before_signal"}
+    if state["phase"] == "fallback_starting":
+        clean(project, state["previous"])
+        if read_json(server / "resident.json") != state["fallback"]:
+            raise UpdateBlocked("gateway_configuration_changed")
+        if job_state() is None:
+            bootstrap(Path.home() / "Library/LaunchAgents" / (LABEL + ".plist"))
+        wait_health(state["fallback"], fenced=None)
+        finish(root, state, "rolled_back")
+        return {
+            "status": "rolled_back",
+            "primary": state["primary"],
+            "gateway": state["previous"],
+            "preserved": True,
+        }
+    plist = Path.home() / "Library/LaunchAgents" / (LABEL + ".plist")
+    if digest(plist) != state["plist_sha256"]:
+        raise UpdateBlocked("gateway_job_identity_changed")
+    # A live candidate may be stopped only when its new persistent gate is proved.
+    if state["phase"] == "starting":
+        clean(project, state["target"])
+        if read_json(server / "resident.json") != state["updated"]:
+            raise UpdateBlocked("gateway_configuration_changed")
+        if any((server / "users").glob("*/state/owner.json")):
+            raise MaintenanceBusy("gateway_candidate_state_unknown")
+        no_private_processes(server)
+        # Even when health fails, exact reviewed startup code plus the durable
+        # all-request gate proves no business admission. Never stop unknown code.
+        if not (root / "gateway-upgrade.json").is_file():
+            raise UpdateBlocked("gateway_fence_missing")
+        current = job_pid()
+        if current is not None:
+            graceful_drain(current, process(current), state["command"])
+    elif state["phase"] == "draining":
+        # A KeepAlive replacement may have started after a crash released SQLite;
+        # re-acquire the birth fence or defer before touching it.
+        with BirthFence(
+            server,
+            state["fallback"]["binding"]["primary_user_id"],
+            resume=True,
+            transaction=state["transaction"],
+        ) as fence:
+            verify_primary(home, state["primary"])
+            fence.retain = True
+            current = job_pid()
+            if current is not None:
+                signature = process(current)
+                if signature is None or signature.split(maxsplit=5)[-1] != state["command"]:
+                    raise UpdateBlocked("gateway_process_unknown")
+                try:
+                    graceful_drain(current, signature, state["command"])
+                except MaintenanceBusy:
+                    fence.retain = True
+                    raise
+            if job_state() is not None:
+                bootout_after_drain(plist)
+            state["phase"] = "stopped"
+            write_upgrade_journal(root / "gateway-upgrade.json", state)
+    elif state["phase"] not in {"stopped", "rolling_back"}:
+        raise UpdateBlocked("gateway_recovery_phase_unknown")
+    if job_state() is not None:
+        if state["phase"] != "starting":
+            raise UpdateBlocked("gateway_unexpected_job_during_recovery")
+        run(["/bin/launchctl", "bootout", f"gui/{os.getuid()}/{LABEL}"])
+    BirthFence.recover(server, expected=state["transaction"])
+    state["phase"] = "rolling_back"
+    write_upgrade_journal(root / "gateway-upgrade.json", state)
+    actual = git(project, "rev-parse", "HEAD")
+    if actual not in {state["previous"], state["target"]}:
+        raise UpdateBlocked("gateway_source_revision_mismatch")
+    clean(project, actual)
+    git(project, "switch", "--detach", state["previous"])
+    write_config(server / "resident.json", state["fallback"])
+    preserved(home, state["before"])
+    state["phase"] = "fallback_starting"
+    write_upgrade_journal(root / "gateway-upgrade.json", state)
+    bootstrap(plist)
+    wait_health(state["fallback"], fenced=None)
+    finish(root, state, "rolled_back")
+    return {
+        "status": "rolled_back",
+        "primary": state["primary"],
+        "gateway": state["previous"],
+        "preserved": True,
+    }

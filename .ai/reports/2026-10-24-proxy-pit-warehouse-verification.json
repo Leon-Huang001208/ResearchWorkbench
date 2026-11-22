@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "task": "datahub-proxy-pit-20261024",
+  "host": "macos",
+  "real_acceptance": {
+    "status": "PASS",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-proxy-pit-20261024/logs/real-proxy-pit-attempt2/receipt.json",
+    "sha256": "a2ccfd0b01698d6910700a66580771eec91369b9c8847af7bb16d8b0b23359fe",
+    "execution_head": "22385ece1e23873e9523ed4e3b7a71684cfb2964",
+    "duration_seconds": 5.637,
+    "public_workers": 3,
+    "http_submissions": 4,
+    "source_helper_count": 291,
+    "sources_unchanged": true,
+    "three_process_pids": [
+      41246,
+      41278,
+      41300
+    ],
+    "actual_pg_restart_new_process_read": true,
+    "empty_database_restore": true,
+    "cleanup": {
+      "pg_stopped": true,
+      "pgdata_removed": true
+    },
+    "datasets": {
+      "fund_flow": {
+        "rows": 1,
+        "rows_sha256": "64c6b5e8847238540d0a15e4e89bab897c6cda692b37057b340a2429e779c508",
+        "fields_sha256": "50b43c348ae1a58c12be8ff06b139a1997d213f2a98b3957fa7bd3ab08b0a1db",
+        "raw_sha256": [
+          "79929f6baf22cf3fed1ddacf8db6b2d72aa58bffad291b9492c2df18071790b7"
+        ],
+        "schema_identity": "datahub-provider-native-v1:bedd28afc31e30a50a5a6966684afabe50d4e19c9d90bda155047f4c11dc407a:akshare-eastmoney-fund-flow-provenance-v1",
+        "units_identity": "akshare-eastmoney-fund-flow-provenance-v1",
+        "historical_point_in_time": false,
+        "formal_backtest_eligible": false
+      },
+      "gdp": {
+        "rows": 1,
+        "rows_sha256": "24694ed1b68af24eb68fa4c658bcbc2d4f39d06a137b33c176a236a54498f70a",
+        "fields_sha256": "47ffe91b46a17e7f10ef22a75805a48b461862c31cca946edebe6caad96bf44a",
+        "raw_sha256": [
+          "973bd64a189ee661a9c66403213182c689e3dce365d8277a0d95325e759ec3d0"
+        ],
+        "schema_identity": "datahub-provider-native-v1:bedd28afc31e30a50a5a6966684afabe50d4e19c9d90bda155047f4c11dc407a:akshare-china-macro-v2",
+        "units_identity": "akshare-china-macro-v2",
+        "historical_point_in_time": false,
+        "formal_backtest_eligible": false
+      },
+      "financials": {
+        "rows": 1,
+        "rows_sha256": "81fbc3c390b0fb5f23d63a26589e8707e0f14f16f989d51c0efc3be45ba61be9",
+        "fields_sha256": "185e4ecc3196f2f6d42a75eed5e514572ef67a2fb3118f9ae262bc8c0adad98d",
+        "raw_sha256": [
+          "95b6ae245d3a1ceea49b7109bf9fa023ff143d93b974d6372a1b8d8302347287"
+        ],
+        "schema_identity": "datahub-provider-native-v1:bedd28afc31e30a50a5a6966684afabe50d4e19c9d90bda155047f4c11dc407a:akshare-sina-financial-disclosure-v2",
+        "units_identity": "akshare-sina-financial-disclosure-v2",
+        "historical_point_in_time": false,
+        "formal_backtest_eligible": false
+      }
+    },
+    "proxy_contract": {
+      "trust_env_false": true,
+      "proxies_empty": true,
+      "proxy_error": false,
+      "sdk_endpoint_error": "ConnectionError",
+      "guest_status": 200
+    },
+    "scope": {
+      "fund_flow": "600600.SH bounded snapshot; unknown unit/coverage",
+      "gdp": "2026Q3 year-to-date; unknown units",
+      "financials": "600600.SH/2026-06-30 native items; unknown units and day publication precision"
+    },
+    "underlying_network_operations": "unknown_unmeasured"
+  },
+  "failed_attempt1": {
+    "status": "FAILED",
+    "http_submissions": 1,
+    "helper_error": "httpx send(request=...) wrapper signature TypeError before guest submission",
+    "retained": true,
+    "proxy_contract_already_observed_direct": true
+  },
+  "source_calibration": {
+    "gdp_units": "unknown",
+    "gdp_aggregation": "year_to_date",
+    "sina_units": "unknown",
+    "cross_source_equivalence": "not_proven",
+    "historical_point_in_time": false,
+    "formal_backtest_eligible": false
+  },
+  "final_candidate_checks": "pending",
+  "resident_services_modified": false,
+  "formal_database_modified": false,
+  "external_disk_modified": false,
+  "new_dependencies": false,
+  "new_upstreams": 0
+}

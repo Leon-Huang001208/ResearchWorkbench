@@ -1,0 +1,531 @@
+diff --git a/internal/application/service/extract.go b/internal/application/service/extract.go
+--- a/internal/application/service/extract.go
++++ b/internal/application/service/extract.go
+@@ -167,10 +167,14 @@
+ 	tenantID uint64,
+ 	knowledgeID string,
+ 	fileName, fileType, summaryModelID, embeddingModelID string,
+ 	processOverrides *types.KnowledgeProcessOverrides,
+ ) {
++	if retrievalOnlyEnabled() {
++		logger.Info(ctx, "retrieval_only_table_summary_skipped")
++		return
++	}
+ 	// The document-summary opt-out also covers the independent table-summary task.
+ 	// A nil override or omitted switch keeps the upstream default enabled.
+ 	if processOverrides != nil && processOverrides.SummaryEnabled != nil && !*processOverrides.SummaryEnabled {
+ 		logger.Infof(ctx, "Skipping data table summary for knowledge %s: summary explicitly disabled", knowledgeID)
+ 		return
+diff --git a/internal/application/service/knowledge_post_process.go b/internal/application/service/knowledge_post_process.go
+--- a/internal/application/service/knowledge_post_process.go
++++ b/internal/application/service/knowledge_post_process.go
+@@ -214,12 +214,12 @@
+ 	//    completed while wiki runs minutes later. A wiki op that never
+ 	//    drains is bounded by the housekeeping finalizing sweep.
+ 	willSpawnSummary := eff.SummaryEnabled && len(textChunks) > 0
+ 	willSpawnQuestion := len(textChunks) > 0 && kb.NeedsEmbeddingModel() &&
+ 		eff.QuestionGenerationConfig.Enabled
+-	willSpawnWiki := kb.IndexingStrategy.WikiEnabled && len(textChunks) > 0
+-	willSpawnAutoTag := kb.Type == types.KnowledgeBaseTypeDocument &&
++	willSpawnWiki := !retrievalOnlyEnabled() && kb.IndexingStrategy.WikiEnabled && len(textChunks) > 0
++	willSpawnAutoTag := !retrievalOnlyEnabled() && kb.Type == types.KnowledgeBaseTypeDocument &&
+ 		kb.AutoTagConfig != nil && kb.AutoTagConfig.Enabled && len(textChunks) > 0
+ 	enqueuedAutoTag := false
+ 
+ 	// Question generation now fans out one subtask per plain text chunk
+ 	// (mirroring the graph-extract per-chunk pattern) so each chunk's LLM
+@@ -267,11 +267,11 @@
+ 	// also persists the pending Wiki op in the same transaction.
+ 	enteredFinalizing := false
+ 	wikiSlotOwned := false
+ 
+ 	switch {
+-	case knowledge.ParseStatus == types.ParseStatusFinalizing && kb.IndexingStrategy.WikiEnabled:
++	case knowledge.ParseStatus == types.ParseStatusFinalizing && !retrievalOnlyEnabled() && kb.IndexingStrategy.WikiEnabled:
+ 		// A previous delivery may have persisted the Wiki op but failed to
+ 		// enqueue its KB-scoped trigger. Retry only the trigger: appending a
+ 		// second pending op would duplicate durable work and its finalizer.
+ 		if err := enqueueWikiIngestTrigger(ctx, s.taskEnqueuer, payload.TenantID, payload.KnowledgeBaseID); err != nil {
+ 			s.tracker().FailSpanRetryable(ctx, postSpan, "WIKI_TRIGGER_ENQUEUE_FAILED", err.Error(), err)
+diff --git a/internal/application/service/knowledge_process.go b/internal/application/service/knowledge_process.go
+--- a/internal/application/service/knowledge_process.go
++++ b/internal/application/service/knowledge_process.go
+@@ -405,10 +405,14 @@
+ ) error {
+ 	// Get options
+ 	var options ProcessChunksOptions
+ 	if len(opts) > 0 {
+ 		options = opts[0]
++	}
++	if retrievalOnlyEnabled() {
++		options.EnableQuestionGeneration = false
++		options.EnableMultimodel = false
+ 	}
+ 
+ 	// Parser output and manually supplied passages can contain malformed byte
+ 	// sequences. Clean them before logging, chunk persistence, or embedding;
+ 	// the embedding provider and tracing/database drivers expect valid UTF-8.
+@@ -4338,10 +4342,14 @@
+ 	var uploadOverrides map[string]string
+ 	if processOverrides, err := knowledge.ProcessOverrides(); err == nil && processOverrides != nil {
+ 		uploadOverrides = processOverrides.ParserEngineOverrides
+ 	}
+ 	mergedOverrides := MergeParserEngineOverrides(tenantOverrides, uploadOverrides)
++	if retrievalOnlyEnabled() {
++		// Parser overrides can select cloud OCR; this profile uses deterministic builtin parsing.
++		mergedOverrides = map[string]string{}
++	}
+ 	applyParserRuleOverrides(mergedOverrides, eff.ChunkingConfig, fileType)
+ 	if err := validateParserEngineOverrideURLs(mergedOverrides); err != nil {
+ 		logger.Errorf(ctx, "Parser endpoint rejected for SSRF protection: %v", err)
+ 		knowledge.ParseStatus = "failed"
+ 		knowledge.ErrorMessage = "Parser endpoint is not allowed for security reasons"
+@@ -4371,10 +4379,13 @@
+ 	}
+ 
+ 	logger.Infof(ctx, "[convert] kb=%s fileType=%s isURL=%v engine=%q rules=%+v",
+ 		kb.ID, fileType, isURL, parserEngine, eff.ChunkingConfig.ParserEngineRules)
+ 
++	if retrievalOnlyEnabled() {
++		parserEngine = "builtin"
++	}
+ 	var reader interfaces.DocReader = s.resolveDocReader(ctx, parserEngine, fileType, isURL, mergedOverrides)
+ 	if reader == nil {
+ 		logger.Errorf(ctx, "[convert] no doc reader for kb=%s knowledge=%s fileType=%s engine=%q isURL=%v",
+ 			kb.ID, knowledge.ID, fileType, parserEngine, isURL)
+ 		knowledge.ParseStatus = "failed"
+@@ -4563,11 +4574,11 @@
+ 	kb *types.KnowledgeBase,
+ 	images []docparser.StoredImage,
+ 	chunks []types.ParsedChunk,
+ 	metadata map[string]string,
+ ) error {
+-	if s.task == nil || len(images) == 0 {
++	if retrievalOnlyEnabled() || s.task == nil || len(images) == 0 {
+ 		return nil
+ 	}
+ 
+ 	attempt := attemptFromCtx(ctx)
+ 	lang := types.LanguageFromContextOrDefault(ctx)
+diff --git a/internal/application/service/knowledge_process_config.go b/internal/application/service/knowledge_process_config.go
+--- a/internal/application/service/knowledge_process_config.go
++++ b/internal/application/service/knowledge_process_config.go
+@@ -35,13 +35,14 @@
+ func normalizeParserFileType(fileType string) string {
+ 	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(fileType)), ".")
+ }
+ 
+ // ResolveProcessConfig merges KB defaults with per-upload overrides for the parse pipeline.
+-func ResolveProcessConfig(kb *types.KnowledgeBase, overrides *types.KnowledgeProcessOverrides) types.EffectiveProcessConfig {
++func ResolveProcessConfig(kb *types.KnowledgeBase, overrides *types.KnowledgeProcessOverrides) (eff types.EffectiveProcessConfig) {
++	defer func() { eff = enforceRetrievalOnlyConfig(eff) }()
+ 	imageCfg := kb.ImageProcessingConfig
+-	eff := types.EffectiveProcessConfig{
++	eff = types.EffectiveProcessConfig{
+ 		SummaryEnabled:           true,
+ 		ChunkingConfig:           kb.ChunkingConfig,
+ 		EnableMultimodel:         kb.IsMultimodalEnabled(),
+ 		VLMConfig:                kb.VLMConfig,
+ 		ASRConfig:                kb.ASRConfig,
+@@ -177,11 +178,11 @@
+ 	if err := validateImportFileType(fileType); err != nil {
+ 		return types.EffectiveProcessConfig{}, err
+ 	}
+ 
+ 	eff := ResolveProcessConfig(kb, processOverrides)
+-	if enableMultimodel != nil && (processOverrides == nil || processOverrides.EnableMultimodel == nil) {
++	if !retrievalOnlyEnabled() && enableMultimodel != nil && (processOverrides == nil || processOverrides.EnableMultimodel == nil) {
+ 		eff.EnableMultimodel = *enableMultimodel
+ 	}
+ 
+ 	if processOverrides != nil {
+ 		if err := validateEffectiveProcessOverrides(eff, []string{fileType}); err != nil {
+@@ -252,11 +253,11 @@
+ 	processOverrides *types.KnowledgeProcessOverrides,
+ 	fileTypes []string,
+ 	enableMultimodel *bool,
+ ) (types.EffectiveProcessConfig, error) {
+ 	eff := ResolveProcessConfig(kb, processOverrides)
+-	if enableMultimodel != nil && (processOverrides == nil || processOverrides.EnableMultimodel == nil) {
++	if !retrievalOnlyEnabled() && enableMultimodel != nil && (processOverrides == nil || processOverrides.EnableMultimodel == nil) {
+ 		eff.EnableMultimodel = *enableMultimodel
+ 	}
+ 	if processOverrides == nil {
+ 		return eff, nil
+ 	}
+diff --git a/internal/application/service/knowledgebase.go b/internal/application/service/knowledgebase.go
+--- a/internal/application/service/knowledgebase.go
++++ b/internal/application/service/knowledgebase.go
+@@ -134,10 +134,18 @@
+ // empty-string VectorStoreID is normalized to nil ("use the tenant's
+ // effective engines") to match the retrieve-engine factory's pre-condition.
+ func (s *knowledgeBaseService) CreateKnowledgeBase(ctx context.Context,
+ 	kb *types.KnowledgeBase,
+ ) (*types.KnowledgeBase, error) {
++	if retrievalOnlyEnabled() {
++		if kb.Type == "" {
++			kb.Type = types.KnowledgeBaseTypeDocument
++		}
++		if kb.Type != types.KnowledgeBaseTypeDocument {
++			return nil, apperrors.NewBadRequestError("retrieval-only profile accepts document knowledge bases only")
++		}
++	}
+ 	// Generate UUID and set creation timestamps
+ 	if kb.ID == "" {
+ 		kb.ID = uuid.New().String()
+ 	}
+ 	kb.CreatedAt = time.Now()
+diff --git a/internal/application/service/knowledgebase_profile.go b/internal/application/service/knowledgebase_profile.go
+--- a/internal/application/service/knowledgebase_profile.go
++++ b/internal/application/service/knowledgebase_profile.go
+@@ -119,11 +119,11 @@
+ 	ctx context.Context,
+ 	enqueuer interfaces.TaskEnqueuer,
+ 	kb *types.KnowledgeBase,
+ 	force bool,
+ ) error {
+-	if enqueuer == nil || !knowledgeBaseProfileEligible(kb) {
++	if retrievalOnlyEnabled() || enqueuer == nil || !knowledgeBaseProfileEligible(kb) {
+ 		return nil
+ 	}
+ 	if !force && !kb.ProfileConfig.IsEnabled() {
+ 		return nil
+ 	}
+@@ -217,11 +217,11 @@
+ 
+ // BuildAggregate implements interfaces.KnowledgeBaseProfileService.
+ func (s *KnowledgeBaseProfileService) BuildAggregate(
+ 	ctx context.Context, kb *types.KnowledgeBase,
+ ) (*types.KnowledgeBaseProfileAggregate, error) {
+-	if !knowledgeBaseProfileEligible(kb) {
++	if retrievalOnlyEnabled() || !knowledgeBaseProfileEligible(kb) {
+ 		return nil, ErrKnowledgeBaseProfileUnsupported
+ 	}
+ 	rows, err := s.knowledgeRepo.ListKnowledgeProfileRows(ctx, kb.TenantID, kb.ID)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("list knowledge profile rows: %w", err)
+@@ -275,11 +275,11 @@
+ 
+ // GenerateKnowledgeBaseProfile implements interfaces.KnowledgeBaseProfileService.
+ func (s *KnowledgeBaseProfileService) GenerateKnowledgeBaseProfile(
+ 	ctx context.Context, kb *types.KnowledgeBase, force bool,
+ ) (*types.KnowledgeBaseProfile, error) {
+-	if !knowledgeBaseProfileEligible(kb) {
++	if retrievalOnlyEnabled() || !knowledgeBaseProfileEligible(kb) {
+ 		return nil, ErrKnowledgeBaseProfileUnsupported
+ 	}
+ 	agg, err := s.BuildAggregate(ctx, kb)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/internal/application/service/knowledgebase_search_rerank.go b/internal/application/service/knowledgebase_search_rerank.go
+--- a/internal/application/service/knowledgebase_search_rerank.go
++++ b/internal/application/service/knowledgebase_search_rerank.go
+@@ -63,10 +63,13 @@
+ // chunks) runs on the reranked rows only.
+ func (s *knowledgeBaseService) HybridSearchWithRerank(ctx context.Context,
+ 	id string,
+ 	params types.SearchParams,
+ ) (*types.RetrievalResult, error) {
++	if retrievalOnlyEnabled() && params.Rerank.IsEnabled() {
++		return nil, apperrors.NewBadRequestError("rerank is disabled by the retrieval-only profile")
++	}
+ 	if !params.Rerank.IsEnabled() {
+ 		results, err := s.HybridSearch(ctx, id, params)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/internal/application/service/retrieval_only.go b/internal/application/service/retrieval_only.go
+--- /dev/null
++++ b/internal/application/service/retrieval_only.go
+@@ -0,0 +1,27 @@
++package service
++
++import (
++	"github.com/Tencent/WeKnora/internal/types"
++	"os"
++)
++
++// The dedicated candidate persists this operator-owned setting on app and worker processes.
++// Only the exact opt-in enables the policy. Existing installations remain unchanged.
++func retrievalOnlyEnabled() bool { return os.Getenv("WEKNORA_RETRIEVAL_ONLY") == "1" }
++
++func enforceRetrievalOnlyConfig(eff types.EffectiveProcessConfig) types.EffectiveProcessConfig {
++	if !retrievalOnlyEnabled() {
++		return eff
++	}
++	eff.SummaryEnabled = false
++	eff.EnableMultimodel = false
++	eff.VLMConfig = types.VLMConfig{}
++	eff.ASRConfig = types.ASRConfig{}
++	eff.QuestionGenerationConfig.Enabled = false
++	eff.GraphEnabled = false
++	eff.ExtractConfig.Enabled = false
++	eff.ImageAttrsEnabled = false
++	eff.ImageVectorEnabled = false
++	eff.ImagePipelineParams = nil
++	return eff
++}
+diff --git a/internal/application/service/retrieval_only_test.go b/internal/application/service/retrieval_only_test.go
+--- /dev/null
++++ b/internal/application/service/retrieval_only_test.go
+@@ -0,0 +1,116 @@
++package service
++
++import (
++	"context"
++	"encoding/json"
++	chatpipeline "github.com/Tencent/WeKnora/internal/application/service/chat_pipeline"
++	"github.com/Tencent/WeKnora/internal/models/rerank"
++	"github.com/Tencent/WeKnora/internal/types"
++	"github.com/Tencent/WeKnora/internal/types/interfaces"
++	"github.com/hibiken/asynq"
++	"github.com/stretchr/testify/require"
++	"testing"
++)
++
++func TestRetrievalOnlyOverridesAndDefaultCompatibility(t *testing.T) {
++	kb := &types.KnowledgeBase{}
++	on := true
++	overrides := &types.KnowledgeProcessOverrides{SummaryEnabled: &on, EnableMultimodel: &on, GraphEnabled: &on, ImageAttrsEnabled: &on, ImageVectorEnabled: &on, QuestionGenerationConfig: &types.QuestionGenerationConfig{Enabled: true}, ExtractConfig: &types.ExtractConfig{Enabled: true}}
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "0")
++	require.True(t, ResolveProcessConfig(kb, nil).SummaryEnabled)
++	require.True(t, ResolveProcessConfig(kb, overrides).EnableMultimodel)
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "1")
++	for _, value := range []*types.KnowledgeProcessOverrides{nil, {}, overrides} {
++		eff := ResolveProcessConfig(kb, value)
++		require.False(t, eff.SummaryEnabled)
++		require.False(t, eff.EnableMultimodel)
++		require.False(t, eff.GraphEnabled)
++		require.False(t, eff.ExtractConfig.Enabled)
++		require.False(t, eff.QuestionGenerationConfig.Enabled)
++		require.False(t, eff.ImageAttrsEnabled)
++		require.False(t, eff.ImageVectorEnabled)
++		require.False(t, eff.VLMConfig.IsEnabled())
++		require.False(t, eff.ASRConfig.IsASREnabled())
++	}
++	knowledge := &types.Knowledge{}
++	eff, err := ApplyKnowledgeProcessOverrides(context.Background(), kb, knowledge, nil, []string{"pdf"}, &on)
++	require.NoError(t, err)
++	require.False(t, eff.EnableMultimodel)
++}
++
++func TestRetrievalOnlyPostprocessCompletesWithoutEnrichment(t *testing.T) {
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "1")
++	t.Setenv("NEO4J_ENABLE", "true")
++	knowledge := &types.Knowledge{ID: "doc", TenantID: 7, KnowledgeBaseID: "kb", ParseStatus: types.ParseStatusProcessing}
++	on := true
++	require.NoError(t, knowledge.SetProcessOverrides(&types.KnowledgeProcessOverrides{SummaryEnabled: &on, GraphEnabled: &on}))
++	repo := &optionalSummaryKnowledgeRepo{wikiEnqueueFailureKnowledgeRepo: wikiEnqueueFailureKnowledgeRepo{knowledge: knowledge}}
++	queue := &wikiEnqueueFailureTaskQueue{}
++	kb := &types.KnowledgeBase{ID: "kb", TenantID: 7, Type: types.KnowledgeBaseTypeDocument, IndexingStrategy: types.IndexingStrategy{VectorEnabled: true, GraphEnabled: true, WikiEnabled: true}, QuestionGenerationConfig: &types.QuestionGenerationConfig{Enabled: true}, ExtractConfig: &types.ExtractConfig{Enabled: true}}
++	require.NoError(t, json.Unmarshal([]byte(`{"auto_tag_config":{"enabled":true},"profile_config":{"enabled":true}}`), kb))
++	require.NotNil(t, kb.AutoTagConfig)
++	require.True(t, kb.AutoTagConfig.Enabled)
++	service := &KnowledgePostProcessService{knowledgeRepo: repo, kbService: &wikiEnqueueFailureKBService{kb: kb}, chunkRepo: &wikiEnqueueFailureChunkRepo{chunks: []*types.Chunk{{ID: "chunk", TenantID: 7, KnowledgeID: "doc", KnowledgeBaseID: "kb", ChunkType: types.ChunkTypeText, Content: "Approved native text"}}}, taskEnqueuer: queue, pendingRepo: &wikiEnqueueFailurePendingRepo{knowledgeRepo: &repo.wikiEnqueueFailureKnowledgeRepo}}
++	payload, err := json.Marshal(types.KnowledgePostProcessPayload{TenantID: 7, KnowledgeID: "doc", KnowledgeBaseID: "kb"})
++	require.NoError(t, err)
++	require.NoError(t, service.Handle(context.Background(), asynq.NewTask(types.TypeKnowledgePostProcess, payload)))
++	require.Empty(t, queue.taskTypes)
++	require.Equal(t, 0, repo.expectedSubtasks)
++	require.Equal(t, types.ParseStatusCompleted, knowledge.ParseStatus)
++	enqueueDataTableSummaryIfNeeded(context.Background(), queue, 7, "doc", "input.xlsx", "xlsx", "summary", "embedding", nil)
++	require.NoError(t, requestKnowledgeBaseProfileRefresh(context.Background(), queue, kb, true))
++	require.Empty(t, queue.taskTypes)
++}
++
++type retrievalOnlyModelSpy struct {
++	interfaces.ModelService
++	calls int
++}
++
++func (s *retrievalOnlyModelSpy) GetRerankModel(ctx context.Context, id string) (rerank.Reranker, error) {
++	s.calls++
++	return s.ModelService.GetRerankModel(ctx, id)
++}
++
++type retrievalOnlyRerankEventSpy struct{ calls int }
++
++func (s *retrievalOnlyRerankEventSpy) ActivationEvents() []types.EventType {
++	return []types.EventType{types.CHUNK_RERANK}
++}
++func (s *retrievalOnlyRerankEventSpy) OnEvent(_ context.Context, _ types.EventType, _ *types.ChatManage, next func() *chatpipeline.PluginError) *chatpipeline.PluginError {
++	s.calls++
++	return next()
++}
++
++func TestRetrievalOnlyRawRerankRejectedBeforeProvider(t *testing.T) {
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "1")
++	// Nil repositories/model services deliberately panic if rejection is too late.
++	svc := &knowledgeBaseService{}
++	got, err := svc.HybridSearchWithRerank(context.Background(), "kb", types.SearchParams{QueryText: "q", Rerank: &types.RerankOptions{ModelID: "unapproved"}})
++	require.Nil(t, got)
++	require.ErrorContains(t, err, "rerank is disabled by the retrieval-only profile")
++}
++
++func TestRetrievalOnlySearchNeverResolvesOrRunsRerank(t *testing.T) {
++	t.Setenv("WEKNORA_RETRIEVAL_ONLY", "1")
++	for _, opts := range []*types.KnowledgeSearchOptions{nil, {Rerank: &types.RerankOptions{ModelID: "rr-1"}}} {
++		models := newRerankModelService()
++		models.reranker = &scoredReranker{scores: []float64{0.1, 0.9, 0.6}}
++		retrieval := &fakeRetrieval{results: threeHits()}
++		svc := newSearchKnowledgeService(t, &types.RetrievalConfig{RerankModelID: "rr-1"}, models, retrieval)
++		modelSpy := &retrievalOnlyModelSpy{ModelService: models}
++		svc.modelService = modelSpy
++		events := &retrievalOnlyRerankEventSpy{}
++		svc.eventManager.Register(events)
++		got, err := svc.SearchKnowledge(searchKnowledgeCtx(), []string{"kb-1"}, nil, nil, "q", opts)
++		require.NoError(t, err)
++		require.NotEmpty(t, got.Results)
++		require.Empty(t, retrieval.seen.RerankModelID)
++		require.Zero(t, modelSpy.calls)
++		require.Zero(t, events.calls)
++		require.Equal(t, types.RerankOutcomeDisabled, got.Meta.Rerank.Outcome)
++		if opts != nil {
++			require.Equal(t, "rr-1", opts.Rerank.ModelID)
++		}
++	}
++}
+diff --git a/internal/application/service/session_knowledge_qa.go b/internal/application/service/session_knowledge_qa.go
+--- a/internal/application/service/session_knowledge_qa.go
++++ b/internal/application/service/session_knowledge_qa.go
+@@ -821,10 +821,17 @@
+ 	logger.Infof(ctx, "Knowledge base search parameters, knowledge base IDs: %v, knowledge IDs: %v, tag scopes: %d, query: %s",
+ 		knowledgeBaseIDs, knowledgeIDs, len(tagScopes), query)
+ 	if opts == nil {
+ 		opts = &types.KnowledgeSearchOptions{}
+ 	}
++	if retrievalOnlyEnabled() {
++		// Do not mutate caller options or resolve tenant/default rerank providers.
++		disabled := false
++		copy := *opts
++		copy.Rerank = &types.RerankOptions{Enabled: &disabled}
++		opts = &copy
++	}
+ 	if opts.DisableVectorMatch && opts.DisableKeywordsMatch {
+ 		return nil, apperrors.NewBadRequestError("disable_vector_match and disable_keywords_match cannot both be true")
+ 	}
+ 
+ 	// Get tenant ID from context
+@@ -980,10 +987,13 @@
+ 		types.CHUNK_SEARCH, // Vector search
+ 		types.CHUNK_RERANK, // Rerank search results
+ 		types.CHUNK_MERGE,  // Merge search results
+ 		types.FILTER_TOP_K, // Filter top K results
+ 	}
++	if retrievalOnlyEnabled() {
++		searchEvents = []types.EventType{types.CHUNK_SEARCH, types.CHUNK_MERGE, types.FILTER_TOP_K}
++	}
+ 
+ 	logger.Infof(ctx, "Trigger search event list: %v", searchEvents)
+ 
+ 	for _, event := range searchEvents {
+ 		logger.Infof(ctx, "Starting to trigger search event: %v", event)
+diff --git a/internal/router/retrieval_only.go b/internal/router/retrieval_only.go
+--- /dev/null
++++ b/internal/router/retrieval_only.go
+@@ -0,0 +1,50 @@
++package router
++
++import (
++	"github.com/Tencent/WeKnora/internal/logger"
++	"github.com/gin-gonic/gin"
++	"net/http"
++	"os"
++	"strings"
++)
++
++// A pinned, fail-closed management surface prevents synchronous generation and
++// alternate IM/embed/MCP entry points from bypassing the ingestion policy.
++func retrievalOnlyRouteAllowed(method, path string) bool {
++	if strings.HasPrefix(path, "/mcp") {
++		return false
++	}
++	if !strings.HasPrefix(path, "/api/") {
++		return method == http.MethodGet || method == http.MethodHead
++	}
++	if !strings.HasPrefix(path, "/api/v1/") {
++		return false
++	}
++	p := strings.TrimPrefix(path, "/api/v1/")
++	if strings.Contains(p, "regenerate") || strings.Contains(p, "/wiki") || strings.Contains(p, "/profile/generate") || strings.HasSuffix(p, "/debug") || strings.HasSuffix(p, "/test") && p != "initialization/embedding/test" {
++		return false
++	}
++	if strings.HasPrefix(p, "initialization/") {
++		return method == http.MethodGet && strings.HasPrefix(p, "initialization/config/") || method == http.MethodPost && p == "initialization/embedding/test"
++	}
++	segment := strings.SplitN(p, "/", 2)[0]
++	switch segment {
++	case "auth", "users", "tenants", "organizations", "kb-shares", "shared-knowledge-bases", "knowledge-bases", "knowledge", "chunks", "models", "knowledge-search", "files", "resources", "storage-backends", "storage-providers", "vector-stores":
++		return true
++	case "system", "config", "tasks", "processing-status", "version":
++		return method == http.MethodGet || method == http.MethodHead
++	default:
++		return false
++	}
++}
++
++func retrievalOnlyMiddleware() gin.HandlerFunc {
++	return func(c *gin.Context) {
++		if os.Getenv("WEKNORA_RETRIEVAL_ONLY") == "1" && !retrievalOnlyRouteAllowed(c.Request.Method, c.Request.URL.Path) {
++			logger.Warn(c.Request.Context(), "retrieval_only_route_denied")
++			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "error": "retrieval_only_generation_disabled"})
++			return
++		}
++		c.Next()
++	}
++}
+diff --git a/internal/router/retrieval_only_test.go b/internal/router/retrieval_only_test.go
+--- /dev/null
++++ b/internal/router/retrieval_only_test.go
+@@ -0,0 +1,35 @@
++package router
++
++import (
++	"github.com/gin-gonic/gin"
++	"github.com/stretchr/testify/require"
++	"net/http"
++	"net/http/httptest"
++	"testing"
++)
++
++func TestRetrievalOnlyRouteAdmission(t *testing.T) {
++	for _, path := range []string{"/api/v1/knowledge-bases/kb/knowledge/file", "/api/v1/knowledge/d/reparse", "/api/v1/knowledge-bases/kb/hybrid-search", "/api/v1/initialization/embedding/test"} {
++		require.True(t, retrievalOnlyRouteAllowed(http.MethodPost, path), path)
++	}
++	for _, path := range []string{"/api/v1/knowledge/d/regenerate-summary", "/api/v1/chunks/by-id/c/questions/regenerate", "/api/v1/knowledge-bases/kb/profile/generate", "/api/v1/knowledge-bases/kb/wiki/auto-fix", "/api/v1/knowledge-chat/s", "/api/v1/agent-chat/s", "/api/v1/embed/knowledge-chat/s", "/api/v1/initialization/remote/check", "/api/v1/models/m/debug", "/mcp/endpoint", "/api/v1/unknown-new-generation"} {
++		require.False(t, retrievalOnlyRouteAllowed(http.MethodPost, path), path)
++	}
++	gin.SetMode(gin.TestMode)
++	for _, mode := range []string{"0", "1"} {
++		t.Setenv("WEKNORA_RETRIEVAL_ONLY", mode)
++		called := false
++		r := gin.New()
++		r.Use(retrievalOnlyMiddleware())
++		r.POST("/api/v1/knowledge-chat/s", func(c *gin.Context) { called = true; c.Status(204) })
++		w := httptest.NewRecorder()
++		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/v1/knowledge-chat/s", nil))
++		if mode == "1" {
++			require.False(t, called)
++			require.Equal(t, 403, w.Code)
++		} else {
++			require.True(t, called)
++			require.Equal(t, 204, w.Code)
++		}
++	}
++}
+diff --git a/internal/router/router.go b/internal/router/router.go
+--- a/internal/router/router.go
++++ b/internal/router/router.go
+@@ -142,10 +142,12 @@
+ 	r.Use(middleware.RequestID())
+ 	r.Use(middleware.Language())
+ 	r.Use(middleware.Logger())
+ 	r.Use(middleware.Recovery())
+ 	r.Use(middleware.ErrorHandler())
++	// Register before public IM/embed/MCP routes, not just the authenticated API group.
++	r.Use(retrievalOnlyMiddleware())
+ 
+ 	// 健康检查（不需要认证）
+ 	r.GET("/health", func(c *gin.Context) {
+ 		c.JSON(200, gin.H{"status": "ok"})
+ 	})

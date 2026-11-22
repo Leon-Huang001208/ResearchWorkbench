@@ -1,10 +1,15 @@
 """Resident deployment contracts without host launchd, GitHub writes or model calls."""
 
 import asyncio
+import binascii
+import io
 import json
 import os
+import stat
+import struct
 import subprocess
 import sys
+import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,6 +31,138 @@ def resident(tmp_path, monkeypatch):
     root.mkdir(mode=0o700)
     monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(root))
     return root
+
+
+@pytest.fixture
+def inactive_market():
+    # The older worker/history cases require a verified idle market as a
+    # precondition; production must still reject a missing or invalid witness.
+    return SimpleNamespace(activity_witness=lambda: {"active": False})
+
+
+def _idle_research(**values):
+    """Explicit otherwise-idle service facts; absent production witnesses are unknown."""
+    fields = {
+        "source_requests": {},
+        "event_timeline": SimpleNamespace(active=False),
+        "event_collection": SimpleNamespace(active=False),
+        "studies": SimpleNamespace(active=False),
+        "event_inputs": SimpleNamespace(active=False),
+        "report_workflows": SimpleNamespace(
+            runtime=SimpleNamespace(tasks={}), catalog=SimpleNamespace(data={"runs": {}})
+        ),
+    }
+    fields.update(values)
+    return SimpleNamespace(**fields)
+
+
+@pytest.fixture
+def cold_service(tmp_path, monkeypatch):
+    """Construct the real Host without a session, source call or native startup."""
+    import keyring
+
+    # Importing the real Office module can register an application-enumerating
+    # atexit callback. Isolate that dependency before importing the Host graph.
+    monkeypatch.setitem(sys.modules, "xlwings", None)
+    monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
+    values = {}
+    backend = SimpleNamespace(
+        get_password=lambda service, account: values.get((service, account)),
+        set_password=lambda service, account, value: values.__setitem__((service, account), value),
+        delete_password=lambda service, account: values.pop((service, account), None),
+    )
+
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, getattr(backend, method))
+
+    from app.research_web.service import ResearchService
+    from app.research_web.store import Store
+
+    class Native:
+        async def close(self):
+            pass
+
+        async def rpc(self, *args, **kwargs):
+            raise AssertionError("cold Host fixtures must not invoke Native")
+
+    service = ResearchService(
+        Native(),
+        Store(tmp_path / "cold-host"),
+        mcp_keyring_backend=backend,
+        delivery_keyring_backend=backend,
+    )
+    yield service
+    asyncio.run(service.close())
+
+
+def _resident_for_real_service(service):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.main import create_app
+
+    app = create_app(service)
+    # Do not start the lifespan or substitute the Host's internal activity maps.
+    app.state.research = service
+    client = TestClient(app)
+    try:
+        return client.get("/api/research/resident").json()
+    finally:
+        client.close()
+
+
+def test_real_cold_host_source_state_exists_before_first_source_call(cold_service):
+    requests = cold_service.source_requests
+    cancelled = cold_service.source_cancellations
+    assert requests == cancelled == {}
+    actual = _resident_for_real_service(cold_service)
+    assert actual["active"] is False
+    assert actual["activity_witness"]["checks"]["source_requests"] is False
+    for name in ("event_sources", "event_studies", "event_inputs"):
+        assert actual["activity_witness"]["checks"][name] is False
+    assert cold_service.source_requests == {}
+    assert cold_service.source_cancellations == {}
+    assert cold_service.source_requests is requests
+    assert cold_service.source_cancellations is cancelled
+
+
+def test_real_host_source_registry_busy_and_cancel_lifecycle(cold_service, monkeypatch):
+    from app.research_web import research_web_sources as reader
+
+    async def run():
+        sid = cold_service.store.create("fingpt", "source lifecycle")["id"]
+        requests = cold_service.source_requests
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def owned_body_reader(*args, **kwargs):
+            # Only the source body boundary is synthetic. Registry admission,
+            # registration, cancellation and resident projection remain real.
+            entered.set()
+            await release.wait()
+            return {"content": "fixture"}
+
+        monkeypatch.setattr(reader, "read_source", owned_body_reader)
+        task = asyncio.create_task(reader.execute_source(cold_service, sid, "source-call", "list"))
+        try:
+            await asyncio.wait_for(entered.wait(), 2)
+            assert cold_service.source_requests is requests
+            assert (sid, "source-call") in requests
+            actual = _resident_for_real_service(cold_service)
+            assert actual["active"] is True
+            assert actual["activity_witness"]["checks"]["source_requests"] is True
+            reader.cancel_source(cold_service, sid, "source-call")
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert requests == {}
+            assert (sid, "source-call") in cold_service.source_cancellations
+            assert _resident_for_real_service(cold_service)["active"] is False
+        finally:
+            release.set()
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(run())
 
 
 def test_mutation_fence_is_cross_process_and_released_on_exit(resident):
@@ -100,6 +237,281 @@ def test_http_maintenance_retains_origin_guard_and_read_only_health(resident, mo
         ).status_code
         == 403
     )
+
+
+@pytest.mark.parametrize("pending", [False, True])
+def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending, inactive_market):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy
+    from app.research_web.main import create_app
+
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=inactive_market,
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: (object(),) if pending else ())
+    assert TestClient(app).get("/api/research/resident").json()["active"] is pending
+
+
+@pytest.mark.parametrize("state", ["queued", "running", "cancelling", "draining", "unknown"])
+def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state, inactive_market):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy
+    from app.research_web.main import create_app
+
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={"asset_history_jobs": {"job": {"state": state}}}),
+        market=inactive_market,
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    assert TestClient(app).get("/api/research/resident").json()["active"] is True
+
+
+@pytest.mark.parametrize(
+    "jobs",
+    [None, [], {"job": None}, {"job": {}}, {"job": {"state": "completed", "status": "running"}}],
+)
+def test_resident_activity_keeps_unknown_or_conflicting_history_busy(
+    monkeypatch, jobs, inactive_market
+):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy
+    from app.research_web.main import create_app
+
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={"asset_history_jobs": jobs}),
+        market=inactive_market,
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    assert TestClient(app).get("/api/research/resident").json()["active"] is True
+
+
+def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch, inactive_market):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy
+    from app.research_web.main import create_app
+
+    def unavailable():
+        raise RuntimeError("worker_witness_unavailable")
+
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=inactive_market,
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", unavailable)
+    assert TestClient(app).get("/api/research/resident").json()["active"] is None
+
+
+def test_resident_activity_missing_market_witness_remains_unknown(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+    from app.research_web.main import create_app
+
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=SimpleNamespace(),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    assert TestClient(app).get("/api/research/resident").json()["active"] is None
+
+
+@pytest.mark.parametrize("busy", [False, True])
+@pytest.mark.parametrize("failed_witness", ["sdk", "market"])
+def test_resident_known_busy_survives_another_unknown_witness(monkeypatch, busy, failed_witness):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_wind_api, worker_activity
+    from app.research_web.main import create_app
+
+    def unknown():
+        raise RuntimeError("activity_witness_unavailable")
+
+    sdk = unknown if failed_witness == "sdk" else lambda: (object(),) if busy else ()
+    market = unknown if failed_witness == "market" else lambda: {"active": busy}
+    monkeypatch.setattr(worker_activity, "active_futures", sdk)
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=SimpleNamespace(activity_witness=market),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    assert TestClient(app).get("/api/research/resident").json()["active"] is (
+        True if busy else None
+    )
+
+
+@pytest.mark.parametrize("busy_kind", ["history", "wind_api", "report", "datahub", "storage"])
+def test_resident_accumulates_all_known_activity_without_skipping_witnesses(monkeypatch, busy_kind):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_wind_api, worker_activity
+    from app.research_web.main import create_app
+
+    checked = set()
+
+    def sdk():
+        checked.add("sdk")
+        return ()
+
+    def wind_api():
+        checked.add("wind_api")
+        return {"active": busy_kind == "wind_api"}
+
+    def unknown_market():
+        checked.add("market")
+        raise RuntimeError("market_activity_unknown")
+
+    monkeypatch.setattr(worker_activity, "active_futures", sdk)
+    monkeypatch.setattr(providers_wind_api, "activity_witness", wind_api)
+    app = create_app()
+    app.state.research = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(
+            data={
+                "asset_history_jobs": (
+                    {"job": {"state": "running"}} if busy_kind == "history" else {}
+                )
+            }
+        ),
+        market=SimpleNamespace(activity_witness=unknown_market),
+        report_workflows=SimpleNamespace(
+            catalog=SimpleNamespace(
+                data={"runs": {"run": {"status": "running"}} if busy_kind == "report" else {}}
+            ),
+            runtime=SimpleNamespace(tasks={}),
+        ),
+        datahub=SimpleNamespace(
+            tasks={"call": SimpleNamespace(done=lambda: False)} if busy_kind == "datahub" else {},
+            storage_runner=SimpleNamespace(active=busy_kind == "storage"),
+            directory_tasks=set(),
+        ),
+    )
+    assert TestClient(app).get("/api/research/resident").json()["active"] is True
+    assert checked == {"sdk", "wind_api", "market"}
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        "idle",
+        "directory",
+        "block",
+        "directory_task",
+        "datahub",
+        "report",
+        "wind",
+        "market",
+        "missing_directory",
+        "missing_directory_tasks",
+        "event_timeline",
+        "event_collection",
+        "studies",
+        "event_inputs",
+        "missing_event_timeline",
+        "missing_event_collection",
+        "missing_studies",
+        "missing_event_inputs",
+    ],
+)
+def test_resident_preserves_all_activity_witnesses_and_rejects_unknown(monkeypatch, busy):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+    from app.research_web.main import create_app
+
+    workspace = SimpleNamespace(directory=SimpleNamespace(active=busy == "directory"), tasks={})
+    if busy == "block":
+        workspace.tasks["block"] = SimpleNamespace(done=lambda: False)
+    hub = SimpleNamespace(
+        tasks={"query": SimpleNamespace(done=lambda: False)} if busy == "datahub" else {},
+        storage_runner=None,
+        directory_tasks={object()} if busy == "directory_task" else set(),
+    )
+    if busy == "missing_directory":
+        del workspace.directory
+    if busy == "missing_directory_tasks":
+        del hub.directory_tasks
+    service = _idle_research(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        asset_workspace=workspace,
+        datahub=hub,
+        market=SimpleNamespace(activity_witness=lambda: {"active": busy == "market"}),
+        report_workflows=SimpleNamespace(
+            runtime=SimpleNamespace(tasks={"report": object()} if busy == "report" else {}),
+            catalog=SimpleNamespace(data={"runs": {}}),
+        ),
+    )
+    event_checks = {
+        "event_timeline": "event_sources",
+        "event_collection": "event_sources",
+        "studies": "event_studies",
+        "event_inputs": "event_inputs",
+    }
+    for field in event_checks:
+        if busy == field:
+            getattr(service, field).active = True
+        elif busy == f"missing_{field}":
+            delattr(service, field)
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": busy == "wind"})
+    app = create_app()
+    app.state.research = service
+    actual = TestClient(app).get("/api/research/resident").json()
+    result = actual["active"]
+    assert result is (None if busy.startswith("missing_") else busy != "idle")
+    for name in set(event_checks.values()):
+        expected = (
+            True
+            if event_checks.get(busy) == name
+            else None if event_checks.get(busy.removeprefix("missing_")) == name else False
+        )
+        assert actual["activity_witness"]["checks"][name] is expected
 
 
 def test_lock_symlink_and_hardlink_are_rejected(resident, tmp_path):
@@ -180,6 +592,14 @@ def test_atomic_state_is_private_and_invalid_records_fail_closed(resident):
 
 
 def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_identity
+
+    enrollments = []
+    monkeypatch.setattr(
+        volume_identity,
+        "enroll",
+        lambda home, **kwargs: enrollments.append((home, kwargs)) or {"status": "enrolled"},
+    )
     home = tmp_path / "product"
     home.mkdir(mode=0o700)
     user = tmp_path / "user"
@@ -217,8 +637,20 @@ def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypat
     assert value["RunAtLoad"] is True and value["StartInterval"] == 60
     assert value["ProgramArguments"][1] == str(home / "resident/controller.pyz")
     assert "sudo" not in str(value) and "KeepAlive" not in value
-    assert commands[0][:2] == ["/bin/launchctl", "enable"]
+    companion = user / "Library/LaunchAgents/com.research-workbench.resident-storage-identity.plist"
+    maintenance = plistlib.loads(companion.read_bytes())
+    assert maintenance["RunAtLoad"] is True
+    assert maintenance["StartInterval"] == 45
+    artifact = Path(maintenance["ProgramArguments"][1])
+    assert artifact.parent == home / "resident"
+    assert artifact.stat().st_mode & 0o777 == 0o600
+    assert maintenance["ProgramArguments"][2:] == ["--home", str(home)]
+    with zipfile.ZipFile(artifact) as installed:
+        assert "resident/volume_identity.py" in installed.namelist()
+    assert enrollments == [(home, {"supervisor_locked": True})]
     assert commands[1][:3] == ["/bin/launchctl", "bootstrap", f"gui/{os.getuid()}"]
+    assert commands[1][-1] == str(companion)
+    assert commands[3][-1] == str(plist)
     assert controller.configured(home)[1]["baseline"] == "a" * 40
     before = (home / "resident/controller.pyz").read_bytes()
 
@@ -235,6 +667,71 @@ def test_launchagent_is_after_login_and_uses_pinned_artifact(tmp_path, monkeypat
         == "installed"
     )
     assert (home / "resident/controller.pyz").read_bytes() == before
+
+
+def test_storage_agent_artifact_can_advance_with_same_installed_plist(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_launch
+
+    home = tmp_path / "rwb"
+    home.mkdir(mode=0o700)
+    user = tmp_path / "login"
+    user.mkdir()
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(Path, "home", lambda: user)
+    monkeypatch.setattr(
+        volume_launch.volume_identity, "enroll", lambda *a, **kw: {"status": "enrolled"}
+    )
+    monkeypatch.setattr(controller, "run", lambda *a, **kw: "")
+    content = volume_launch._artifact()
+    monkeypatch.setattr(volume_launch, "_artifact", lambda: content)
+    first = volume_launch.register(home, {"python": sys.executable})
+    plist = user / "Library/LaunchAgents" / (volume_launch.LABEL + ".plist")
+    prior_plist = plist.read_bytes()
+    active = home / "resident/storage-identity.pyz"
+    assert active.read_bytes() == content
+
+    expanded = content + b"new release witness"
+    monkeypatch.setattr(volume_launch, "_artifact", lambda: expanded)
+    second = volume_launch.register(home, {"python": sys.executable})
+    assert first["artifact_sha256"] != second["artifact_sha256"]
+    assert active.read_bytes() == expanded
+    assert plist.read_bytes() == prior_plist
+    prior = active.parent / f"storage-identity-{first['artifact_sha256']}.pyz"
+    assert prior.read_bytes() == content
+
+
+def test_legacy_storage_enrollment_uses_source_without_upgrading_supervisor(tmp_path, monkeypatch):
+    home = tmp_path / "product"
+    root = home / "resident"
+    root.mkdir(parents=True, mode=0o700)
+    old = root / "controller.pyz"
+    old.write_bytes(b"immutable prior controller")
+    config = {"artifact": str(old), "python": sys.executable}
+    monkeypatch.setattr(controller, "configured", lambda path: (root, config))
+    registrations = []
+
+    def register(path, supplied_config, **kwargs):
+        registrations.append((path, supplied_config, kwargs))
+        return {"status": "enrolled"}
+
+    from research_workbench_entrypoint.resident import volume_launch
+
+    monkeypatch.setattr(volume_launch, "register", register)
+    assert controller.main(["enroll-storage-identity", "--home", str(home)]) == 0
+    assert registrations == [(home, config, {})]
+    assert old.read_bytes() == b"immutable prior controller"
+
+
+def test_repair_storage_identity_does_not_run_upgrade_tick(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import volume_identity
+
+    home = tmp_path / "product"
+    repairs = []
+    monkeypatch.setattr(
+        volume_identity, "rebind", lambda path: repairs.append(path) or {"status": "rebound"}
+    )
+    assert controller.main(["repair-storage-identity", "--home", str(home)]) == 0
+    assert repairs == [home]
 
 
 def test_disable_defers_instead_of_terminating_inflight_transaction(resident, monkeypatch):
@@ -286,6 +783,242 @@ def test_offline_check_keeps_current_service_running(resident, monkeypatch):
     assert calls == ["ensure"]
 
 
+@pytest.fixture
+def retirement_checkout(resident, tmp_path, monkeypatch, request):
+    control = tmp_path / "source-repository"
+    installed = tmp_path / "installed-release"
+    control.mkdir()
+    env = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(control), *args], env=env, text=True
+        ).strip()
+
+    layout = getattr(request, "param", "linked")
+    git("init", "--quiet")
+    git("remote", "add", "origin", "git@github.com:owner/repo.git")
+    (control / "scripts").mkdir()
+    entrypoint = "// legacy\n" if layout == "legacy" else "// worktree-retirement\n"
+    (control / "scripts/git_safety.mjs").write_text(entrypoint)
+    (control / "scripts/native_retirement_acceptance.mjs").write_text("// native helper\n")
+    (control / "scripts/git_deployed_worktree_proof.mjs").write_text("// proof helper\n")
+    (control / "scripts/backup_fd_clone.py").write_text("# metadata helper\n")
+    (control / ".agents").mkdir()
+    (control / ".agents/deployed-worktree-retirement.json").write_text("{}")
+    git("add", ".")
+    git(
+        "-c",
+        "user.name=Tester",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+    )
+    revision = git("rev-parse", "HEAD")
+    if layout == "separate":
+        subprocess.run(
+            ["/usr/bin/git", "clone", "--quiet", "--no-local", str(control), str(installed)],
+            env=env,
+            check=True,
+        )
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(installed),
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/owner/repo.git",
+            ],
+            env=env,
+            check=True,
+        )
+        subprocess.run(
+            ["/usr/bin/git", "-C", str(installed), "switch", "--quiet", "--detach", revision],
+            env=env,
+            check=True,
+        )
+    else:
+        git("worktree", "add", "--quiet", "--detach", str(installed), revision)
+    # A dirty controlling checkout must never supply executable source.
+    (control / "scripts/git_safety.mjs").write_text("// dirty controlling script\n")
+    node = tmp_path / "node"
+    node.touch(mode=0o700)
+    config = {
+        "project": str(installed),
+        "source_common": str(control / ".git"),
+        "node": str(node),
+        "gh": "/gh",
+        "repository": "owner/repo",
+        "private_origin": "https://rwb.example.invalid",
+    }
+    home = resident.parent
+    controller.atomic(
+        home / "install/manifest.json", {"status": "installed", "code_commit": revision}
+    )
+    controller.atomic(resident / "accepted.json", {"target": revision, "previous": "a" * 40})
+    monkeypatch.setattr(controller, "configured", lambda _: (resident, config))
+    monkeypatch.setattr(controller, "environment", lambda *_: None)
+    monkeypatch.setattr(controller.GitHubEvidence, "latest", lambda _: revision)
+    return config, installed, control, revision
+
+
+@pytest.mark.parametrize(
+    ("status", "cleanup_status", "reason", "retirement_checkout"),
+    [
+        ("ready", "cleanup_pending", "WORKTREE_BUSY", "linked"),
+        ("ready", "cleanup_pending", "BACKUP_STORE_LOCKED", "separate"),
+        ("deployed", "complete", None, "separate"),
+    ],
+    indirect=["retirement_checkout"],
+)
+def test_native_retirement_after_accepted_runtime_result(
+    resident, retirement_checkout, monkeypatch, status, cleanup_status, reason
+):
+    config, installed, control, revision = retirement_checkout
+    calls = []
+    previous = "a" * 40
+    if status == "deployed":
+        controller.atomic(resident / "candidate.json", {"target": revision, "previous": previous})
+        monkeypatch.setattr(controller.GitHubEvidence, "qualify", lambda *_: {})
+
+    def bridge(_home, _config, operation):
+        if operation == "ensure":
+            return {"status": "ready", "sha": revision if status == "ready" else previous}
+        assert operation == "deploy" and status == "deployed"
+        return {"status": "deployed", "sha": revision}
+
+    monkeypatch.setattr(controller, "bridge", bridge)
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        if argv[0] != config["node"]:
+            return actual_run(argv, **kwargs)
+        with file_lock(resident, "supervisor.lock", exclusive=True):
+            state = evidence.read_json(resident / "state.json")
+            assert state["status"] == status and state["deployed"] == revision
+        calls.append((argv, kwargs["cwd"]))
+        if cleanup_status == "complete":
+            return SimpleNamespace(
+                returncode=0, stdout='{"status":"complete","items":[]}', stderr=""
+            )
+        if reason == "BACKUP_STORE_LOCKED":
+            return SimpleNamespace(
+                returncode=1, stdout="", stderr='{"status":"BLOCKED","code":"BACKUP_STORE_LOCKED"}'
+            )
+        return SimpleNamespace(
+            returncode=2,
+            stdout='{"status":"cleanup_pending","items":[{"taskId":"old-task","status":"blocked","code":"WORKTREE_BUSY"}]}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", run)
+    result = controller.tick(resident.parent)
+    assert calls == [
+        (
+            [
+                config["node"],
+                str(installed / "scripts/git_safety.mjs"),
+                "worktree-retirement",
+                "--project",
+                str(control),
+                "--resident-root",
+                str(resident),
+                "--apply",
+            ],
+            installed,
+        )
+    ]
+    assert result == evidence.read_json(resident / "state.json")
+    debt = evidence.read_json(resident / "worktree-retirement.json")
+    assert debt["status"] == cleanup_status and debt["revision"] == revision
+    if reason:
+        assert debt["reason"] == reason
+        if reason == "WORKTREE_BUSY":
+            assert debt["blocked"] == [{"taskId": "old-task", "code": reason, "status": "blocked"}]
+    else:
+        assert "reason" not in debt and debt["items"] == 0
+
+
+@pytest.mark.parametrize("retirement_checkout", ["separate"], indirect=True)
+@pytest.mark.parametrize(
+    "cause",
+    [
+        "unaccepted",
+        "foreign-control-origin",
+        "foreign-release-origin",
+        "changed-script",
+        "quarantined",
+        "masked-helper",
+    ],
+)
+def test_native_retirement_rejects_unverified_source(
+    resident, retirement_checkout, monkeypatch, cause
+):
+    config, installed, control, revision = retirement_checkout
+    if cause == "unaccepted":
+        controller.atomic(resident / "accepted.json", {"target": "b" * 40})
+    elif cause in {"foreign-control-origin", "foreign-release-origin"}:
+        checkout = control if cause == "foreign-control-origin" else installed
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(checkout),
+                "remote",
+                "set-url",
+                "origin",
+                "https://github.com/other/repo.git",
+            ],
+            check=True,
+        )
+    elif cause == "quarantined":
+        controller.atomic(resident / "quarantine.json", {"sha": revision})
+    elif cause == "masked-helper":
+        helper = "scripts/native_retirement_acceptance.mjs"
+        subprocess.run(
+            ["/usr/bin/git", "-C", str(installed), "update-index", "--assume-unchanged", helper],
+            check=True,
+        )
+        (installed / helper).write_text("// modified helper hidden from git status\n")
+    else:
+        (installed / "scripts/git_safety.mjs").write_text("// changed worktree-retirement\n")
+    monkeypatch.setattr(controller, "bridge", lambda *_: {"status": "ready", "sha": revision})
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        assert argv[0] != config["node"]
+        return actual_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert controller.tick(resident.parent)["status"] == "ready"
+    path = resident / "worktree-retirement.json"
+    if cause in {"unaccepted", "quarantined"}:
+        assert not path.exists()
+    else:
+        assert evidence.read_json(path)["status"] == "cleanup_pending"
+
+
+@pytest.mark.parametrize("retirement_checkout", ["legacy"], indirect=True)
+def test_accepted_legacy_resident_skips_unavailable_retirement(
+    resident, retirement_checkout, monkeypatch
+):
+    config, _installed, _control, revision = retirement_checkout
+    monkeypatch.setattr(controller, "bridge", lambda *_: {"status": "ready", "sha": revision})
+    actual_run = subprocess.run
+
+    def run(argv, **kwargs):
+        assert argv[0] != config["node"]
+        return actual_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert controller.tick(resident.parent)["status"] == "ready"
+    assert not (resident / "worktree-retirement.json").exists()
+
+
 def github_fixture(tmp_path, monkeypatch, *, tree_mismatch=False, review_head=None):
     common = tmp_path / "common"
     delivery = common / "leon-engineering/deliveries"
@@ -323,16 +1056,82 @@ def github_fixture(tmp_path, monkeypatch, *, tree_mismatch=False, review_head=No
             tree = "wrong" if tree_mismatch and endpoint.endswith(head) else "tree"
             return {"tree": {"sha": tree}}
         if "/jobs?" in endpoint:
-            return {"jobs": [{"id": 7, "conclusion": "success", "labels": ["macos-14"]}]}
+            return {
+                "jobs": [
+                    {"id": 7, "name": "checks", "conclusion": "success", "labels": ["macos-14"]}
+                ]
+            }
         return {"workflow_runs": [{"id": 1, "status": "completed", "conclusion": "success"}]}
 
     monkeypatch.setattr(instance, "api", api)
-    monkeypatch.setattr(
-        evidence,
-        "run",
-        lambda _: "[command]/usr/bin/git log -1 --format=%H\n2026-10-15T00:00:00Z " + head,
-    )
+
+    def download(argv):
+        assert argv == [
+            "/gh",
+            "api",
+            "repos/owner/repo/actions/runs/1/logs",
+            "-H",
+            "Cache-Control: no-cache",
+        ]
+        return log_archive("[command]/usr/bin/git log -1 --format=%H\n2026-10-15T00:00:00Z " + head)
+
+    monkeypatch.setattr(evidence, "run_archive", download)
     return instance, target
+
+
+def log_archive(body, name="0_checks.txt"):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(name, body)
+    return stream.getvalue()
+
+
+def test_regular_evidence_commands_keep_original_bounded_timeout(monkeypatch):
+    calls = []
+
+    def command(argv, **kwargs):
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "{}", "")
+
+    monkeypatch.setattr(evidence.subprocess, "run", command)
+    assert evidence.run(["/gh", "api", "fixture"]) == "{}"
+    assert calls[0]["timeout"] == 30
+
+
+def test_ci_log_timeout_still_blocks_eligibility(tmp_path, monkeypatch):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+
+    def command(_argv):
+        raise evidence.UpdateBlocked("resident_command_unavailable")
+
+    monkeypatch.setattr(evidence, "run_archive", command)
+    with pytest.raises(evidence.UpdateBlocked, match="resident_command_unavailable"):
+        instance.qualify(target)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "partial log without checkout",
+        "git log -1 --format=%H\nnot-a-sha",
+        "git log -1 --format=%H\n" + "a" * 40 + "\ngit log -1 --format=%H\n" + "c" * 40,
+    ],
+)
+def test_archive_log_missing_or_ambiguous_checkout_is_rejected(tmp_path, monkeypatch, body):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(evidence, "run_archive", lambda *args, **kwargs: log_archive(body))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
+        instance.qualify(target)
+
+
+def test_full_log_output_still_has_eight_mb_bound(monkeypatch):
+    monkeypatch.setattr(
+        evidence.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, "x" * 8_000_001, ""),
+    )
+    with pytest.raises(evidence.UpdateBlocked, match="resident_command_failed"):
+        evidence.run(["/gh", "run", "view", "--log"], timeout=120)
 
 
 def test_eligibility_requires_matching_review_and_actual_ci_tree(tmp_path, monkeypatch):
@@ -772,3 +1571,168 @@ def test_busy_bridge_keeps_confirmed_previous_revision_and_deferral_reason(host_
     assert result["deployed"] == h.PREVIOUS
     assert result["reason"] == "resident_busy"
     assert evidence.read_json(root / "config.json") == config
+
+
+def test_archive_keeps_checkout_after_long_line(tmp_path, monkeypatch):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+    body = (
+        "git log -1 --format=%H\n"
+        + "a" * 40
+        + "\n"
+        + "x" * 70_000
+        + "\ngit log -1 --format=%H\n"
+        + "c" * 40
+    )
+    monkeypatch.setattr(evidence, "run_archive", lambda *_: log_archive(body))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
+        instance.qualify(target)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"not a ZIP",
+        log_archive("log")[:-15],
+        log_archive(b"\xff"),
+        log_archive("log", "wrong.txt"),
+        log_archive("log", "../0_checks.txt"),
+    ],
+)
+def test_archive_invalid_data_is_rejected(raw):
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(raw, [{"id": 7, "name": "checks"}])
+
+
+def test_archive_binary_download_retains_timeout_and_bound(monkeypatch):
+    def command(argv, **kwargs):
+        assert kwargs["timeout"] == 120
+        assert "text" not in kwargs
+        return subprocess.CompletedProcess(argv, 0, b"x" * 8_000_001, b"")
+
+    monkeypatch.setattr(evidence.subprocess, "run", command)
+    with pytest.raises(evidence.UpdateBlocked, match="resident_command_failed"):
+        evidence.run_archive(["/gh", "api", "logs"])
+
+
+@pytest.mark.parametrize("compression", [zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED])
+def test_archive_rejects_forged_prefix_length_and_crc(compression):
+    prefix = b"a" * 64
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", compression) as archive:
+        archive.writestr("0_checks.txt", prefix + b"hidden checkout" * 10)
+    raw = bytearray(stream.getvalue())
+    crc = binascii.crc32(prefix)
+    struct.pack_into("<I", raw, 14, crc)
+    struct.pack_into("<I", raw, 22, len(prefix))
+    central = raw.index(b"PK\x01\x02")
+    struct.pack_into("<I", raw, central + 16, crc)
+    struct.pack_into("<I", raw, central + 24, len(prefix))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(bytes(raw), [{"id": 7, "name": "checks"}])
+
+
+def test_archive_rejects_symbolic_link_member():
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        entry = zipfile.ZipInfo("0_checks.txt")
+        entry.create_system = 3
+        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+        archive.writestr(entry, "target")
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(stream.getvalue(), [{"id": 7, "name": "checks"}])
+
+
+def test_fresh_github_metadata_requests_revalidation(monkeypatch, tmp_path):
+    seen = []
+
+    def command(argv):
+        seen.append(argv)
+        return '{"sha":"' + "a" * 40 + '"}'
+
+    monkeypatch.setattr(evidence, "run", command)
+    assert evidence.GitHubEvidence(Path("/gh"), "owner/repo", tmp_path).latest() == "a" * 40
+    assert seen == [
+        ["/gh", "api", "repos/owner/repo/commits/master", "-H", "Cache-Control: no-cache"]
+    ]
+
+
+@pytest.mark.parametrize("second", ["missing", "ambiguous", "matching", "different"])
+def test_each_successful_job_requires_its_own_unique_matching_checkout(
+    tmp_path, monkeypatch, second
+):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+    original = instance.api
+
+    def api(endpoint):
+        if "/jobs?" in endpoint:
+            return {
+                "jobs": [
+                    {"id": 7, "name": "checks", "conclusion": "success", "labels": ["macos-14"]},
+                    {"id": 8, "name": "second", "conclusion": "success", "labels": ["macos-14"]},
+                ]
+            }
+        return original(endpoint)
+
+    body = "git log -1 --format=%H\n" + "a" * 40 + "\n"
+    other = {
+        "missing": "complete but no checkout\n",
+        "matching": body,
+        "ambiguous": body + "git log -1 --format=%H\n" + "c" * 40 + "\n",
+        "different": "git log -1 --format=%H\n" + "c" * 40 + "\n",
+    }[second]
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("0_checks.txt", body)
+        archive.writestr("1_second.txt", other)
+    monkeypatch.setattr(instance, "api", api)
+    monkeypatch.setattr(evidence, "run_archive", lambda *_: stream.getvalue())
+    if second == "matching":
+        assert instance.qualify(target)["sha"] == target
+    else:
+        with pytest.raises(evidence.UpdateBlocked, match="resident_ci_checkout_unverified"):
+            instance.qualify(target)
+
+
+def test_archive_accepts_complete_large_ci_log_without_losing_checkout():
+    body = "x" * 8_045_256 + "\ngit log -1 --format=%H\n" + "a" * 40
+    assert evidence.archive_job_logs(log_archive(body), [{"id": 7, "name": "checks"}]) == {7: body}
+
+
+def test_archive_rejects_log_above_new_fixed_capacity():
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        evidence.archive_job_logs(log_archive("x" * 16_000_001), [{"id": 7, "name": "checks"}])
+
+
+def test_verified_pr244_sized_job_retains_full_tail_and_bound():
+    from research_workbench_entrypoint.resident import maintenance_evidence as maintenance
+
+    # The real PR244 job is 16,527,303 bytes; checkout facts may be at its tail.
+    tail = "\ngit log -1 --format=%H\n" + "c" * 40 + "\n"
+    body = "x" * (16_527_303 - len(tail)) + tail
+    assert maintenance.archive_job_logs(log_archive(body), [{"id": 7, "name": "checks"}])[7] == body
+    with pytest.raises(evidence.UpdateBlocked, match="resident_ci_archive_invalid"):
+        maintenance.archive_job_logs(
+            log_archive("x" * (20_000_000 + 1)), [{"id": 7, "name": "checks"}]
+        )
+
+
+def test_business_index_reader_accepts_large_owned_json_without_relaxing_metadata(tmp_path):
+    from research_workbench_entrypoint.resident import maintenance_evidence as maintenance
+
+    path = tmp_path / "index.json"
+    path.write_text(json.dumps({"sessions": {}, "padding": "x" * 20_000_000}))
+    with pytest.raises(evidence.UpdateBlocked):
+        evidence.read_json(path)
+    assert maintenance.read_business_index(path)["sessions"] == {}
+    with path.open("wb") as stream:
+        stream.truncate(64 * 1024 * 1024 + 1)
+    with pytest.raises(evidence.UpdateBlocked, match="business_index_invalid"):
+        maintenance.read_business_index(path)
+
+
+def test_unfinished_gateway_relocation_blocks_native_maintenance(resident):
+    run = resident.parent / "server/run"
+    run.mkdir(parents=True)
+    (run / "gateway-source-rehome.json").symlink_to(run / "missing")
+    with pytest.raises(evidence.UpdateBlocked, match="gateway_source_recovery_required"):
+        controller.configured(resident.parent)

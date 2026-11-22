@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留G2B入口并标明当前仅本地源码集成与阻断状态。",
-  "reason": "现有Docker入口增加封存与维护合同；当前DSH和Hot源码兼容，未部署、未迁移，历史PR104证据不认证新候选。"
+  "summary": "保留当前 README 导航并更新 G2B release 操作入口与现场验收边界。",
+  "reason": "Docker release 复用当前管理器/Host/固定DSH及Hot，不回退当前业务源码；更新文档说明同镜像stage晋级与维护，未声明真实部署通过。"
 }

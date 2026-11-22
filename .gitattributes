@@ -19,3 +19,4 @@
 /rwb.cmd text eol=crlf
 /vendor/cjpy/0.5.2/** -text
 /vendor/dsh-tabbit/0.3.4/** -text
+/services/ai_news/vendor/aihot/** -text

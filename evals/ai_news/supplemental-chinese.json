@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "feed_raw_root": "logs/ai-news-eval/supplemental",
+  "feed_provenance": {
+    "path": "qwen-zh-feed.xml",
+    "sha256": "13e34c169731359c951e62bc1520570f477b63d4dc189160b63430b3d3d99bac",
+    "bytes": 132019,
+    "url": "https://qwenlm.github.io/zh/blog/index.xml",
+    "final_url": "https://qwenlm.github.io/zh/blog/index.xml",
+    "media_type": "application/xml",
+    "retrieved_at": "2026-10-17T03:54:22.783401+00:00"
+  },
+  "articles": [
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen3guard/",
+      "published_at": "Tue, 23 Sep 2025 04:00:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen-image-edit/",
+      "published_at": "Tue, 19 Aug 2025 01:30:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen-image/",
+      "published_at": "Mon, 04 Aug 2025 22:08:30 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/gspo/",
+      "published_at": "Sun, 27 Jul 2025 15:00:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen-mt/",
+      "published_at": "Thu, 24 Jul 2025 22:00:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen3-coder/",
+      "published_at": "Tue, 22 Jul 2025 21:00:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen-tts/",
+      "published_at": "Fri, 27 Jun 2025 15:01:34 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen-vlo/",
+      "published_at": "Thu, 26 Jun 2025 22:00:04 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen3-embedding/",
+      "published_at": "Thu, 05 Jun 2025 21:00:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen3/",
+      "published_at": "Tue, 29 Apr 2025 04:00:00 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qvq-max-preview/",
+      "published_at": "Fri, 28 Mar 2025 00:00:04 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen2.5-omni/",
+      "published_at": "Thu, 27 Mar 2025 00:00:45 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen2.5-vl-32b/",
+      "published_at": "Mon, 24 Mar 2025 00:00:04 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwq-32b/",
+      "published_at": "Thu, 06 Mar 2025 00:00:04 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwq-max-preview/",
+      "published_at": "Tue, 25 Feb 2025 02:00:04 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    },
+    {
+      "url": "https://qwenlm.github.io/zh/blog/qwen2.5-max/",
+      "published_at": "Tue, 28 Jan 2025 23:00:04 +0800",
+      "source_id": "official-qwen-zh",
+      "expected_language": "zh",
+      "publication_date_source": "rss:pubDate"
+    }
+  ]
+}

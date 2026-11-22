@@ -1,17 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { openComposerMenu } from '../../app/research_web/ui/composer-menu.mjs';
 import { renderComposer } from '../../app/research_web/ui/composer.mjs';
 const models=[{provider:'first',models:[{id:'same',name:'First model'}]},{provider:'second',models:[{id:'same',name:'Second model'},{id:'other',name:'<script>unsafe</script>'}]}];
 test('Claw model popup uses actual catalog, one provider-aware check and escaped names',()=>{
- const html=renderComposer({page:'claw',models,model:'same',modelProvider:'second'});
- assert.match(html,/composer-model-menu/); assert.equal((html.match(/aria-pressed="true"/g)||[]).length,1);
- assert.match(html,/aria-pressed="true"[^>]*><span>Second model/);
+ const html=renderComposer({page:'claw',models,model:'same',modelProvider:'second',composerMenu:openComposerMenu('add','models')});
+ assert.match(html,/composer-command-panel/); assert.equal((html.match(/aria-checked="true"/g)||[]).length,1);
+ assert.match(html,/aria-checked="true"[^>]*>.*Second model/);
  assert.match(html,/&lt;script&gt;unsafe/); assert.doesNotMatch(html,/<script>/);
- assert.match(html,/id="model-select"/); assert.match(html,/data-composer-model=/);
+ assert.match(html,/id="model-select"/); assert.match(html,/data-cm-row=/);
 });
 test('stopping disables model choices and execution sessions keep their fixed model',()=>{
- const html=renderComposer({page:'claw',models,stopping:true});
- assert.match(html,/data-composer-model=[^>]+disabled/);
+ const html=renderComposer({page:'claw',models,stopping:true,composerMenu:openComposerMenu('add','models')});
+ assert.match(html,/data-cm-row=[^>]+disabled/);
  assert.doesNotMatch(renderComposer({page:'claw',models,detail:{execution_context:{definition_snapshot:{}}}}),/composer-model-menu/);
  assert.doesNotMatch(renderComposer({page:'fingpt',models}),/composer-model-menu/);
 });

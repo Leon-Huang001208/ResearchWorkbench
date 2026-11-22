@@ -1,0 +1,109 @@
+diff --git a/internal/application/service/extract.go b/internal/application/service/extract.go
+--- a/internal/application/service/extract.go
++++ b/internal/application/service/extract.go
+@@ -167,7 +167,14 @@
+ 	tenantID uint64,
+ 	knowledgeID string,
+ 	fileName, fileType, summaryModelID, embeddingModelID string,
++	processOverrides *types.KnowledgeProcessOverrides,
+ ) {
++	// The document-summary opt-out also covers the independent table-summary task.
++	// A nil override or omitted switch keeps the upstream default enabled.
++	if processOverrides != nil && processOverrides.SummaryEnabled != nil && !*processOverrides.SummaryEnabled {
++		logger.Infof(ctx, "Skipping data table summary for knowledge %s: summary explicitly disabled", knowledgeID)
++		return
++	}
+ 	ft := normalizeFileExtension(fileType)
+ 	if ft == "" && fileName != "" {
+ 		ft = getFileType(fileName)
+diff --git a/internal/application/service/knowledge_create.go b/internal/application/service/knowledge_create.go
+--- a/internal/application/service/knowledge_create.go
++++ b/internal/application/service/knowledge_create.go
+@@ -299,7 +299,7 @@
+ 		knowledge.ID,
+ 	)
+ 
+-	enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, knowledge.ID, safeFilename, getFileType(safeFilename), kb.SummaryModelID, kb.EmbeddingModelID)
++	enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, knowledge.ID, safeFilename, getFileType(safeFilename), kb.SummaryModelID, kb.EmbeddingModelID, processOverrides)
+ 
+ 	logger.Infof(ctx, "Knowledge from file created successfully, ID: %s", knowledge.ID)
+ 	return knowledge, nil
+@@ -747,7 +747,7 @@
+ 		})
+ 	logger.Infof(ctx, "Enqueued file URL process task: id=%s queue=%s knowledge_id=%s", info.ID, info.Queue, knowledge.ID)
+ 
+-	enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, knowledge.ID, fileName, fileType, kb.SummaryModelID, kb.EmbeddingModelID)
++	enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, knowledge.ID, fileName, fileType, kb.SummaryModelID, kb.EmbeddingModelID, processOverrides)
+ 
+ 	logger.Infof(ctx, "Knowledge from file URL created successfully, ID: %s", knowledge.ID)
+ 	return knowledge, nil
+diff --git a/internal/application/service/knowledge_process.go b/internal/application/service/knowledge_process.go
+--- a/internal/application/service/knowledge_process.go
++++ b/internal/application/service/knowledge_process.go
+@@ -3103,7 +3103,7 @@
+ 		recordReparseStarted()
+ 
+ 		// For data tables (csv, xlsx, xls), also enqueue summary task
+-		enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, existing.ID, existing.FileName, existing.FileType, kb.SummaryModelID, kb.EmbeddingModelID)
++		enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, existing.ID, existing.FileName, existing.FileType, kb.SummaryModelID, kb.EmbeddingModelID, processOverrides)
+ 
+ 		return existing, nil
+ 	}
+@@ -3156,7 +3156,7 @@
+ 		logger.Infof(ctx, "Enqueued file URL reparse task: id=%s queue=%s knowledge_id=%s", info.ID, info.Queue, existing.ID)
+ 		recordReparseStarted()
+ 
+-		enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, existing.ID, existing.FileName, existing.FileType, kb.SummaryModelID, kb.EmbeddingModelID)
++		enqueueDataTableSummaryIfNeeded(ctx, s.task, tenantID, existing.ID, existing.FileName, existing.FileType, kb.SummaryModelID, kb.EmbeddingModelID, processOverrides)
+ 
+ 		return existing, nil
+ 	}
+diff --git a/internal/application/service/extract_data_table_summary_test.go b/internal/application/service/extract_data_table_summary_test.go
+--- a/internal/application/service/extract_data_table_summary_test.go
++++ b/internal/application/service/extract_data_table_summary_test.go
+@@ -290,3 +290,45 @@
+ 	}
+ 	require.Equal(t, map[string]string{summary.ID: summary.Content, column.ID: column.Content}, indexedContent)
+ }
++
++// tableSummaryOptOutEnqueuer records queue calls without Redis or model access.
++type tableSummaryOptOutEnqueuer struct {
++	tasks []*asynq.Task
++}
++
++func (q *tableSummaryOptOutEnqueuer) Enqueue(task *asynq.Task, _ ...asynq.Option) (*asynq.TaskInfo, error) {
++	q.tasks = append(q.tasks, task)
++	return &asynq.TaskInfo{ID: "summary-opt-out-fixture", Queue: types.QueueSummary}, nil
++}
++
++func TestEnqueueDataTableSummaryHonorsExplicitOptOut(t *testing.T) {
++	enabled, disabled := true, false
++	cases := []struct {
++		name     string
++		fileName string
++		fileType string
++		override *types.KnowledgeProcessOverrides
++		want     int
++	}{
++		{name: "nil override keeps xlsx default", fileName: "data.xlsx", fileType: "xlsx", want: 1},
++		{name: "omitted switch keeps csv default", fileName: "data.csv", fileType: "csv", override: &types.KnowledgeProcessOverrides{}, want: 1},
++		{name: "explicit true keeps xls enabled", fileName: "data.xls", fileType: "xls", override: &types.KnowledgeProcessOverrides{SummaryEnabled: &enabled}, want: 1},
++		{name: "explicit false skips xlsx", fileName: "data.xlsx", fileType: "xlsx", override: &types.KnowledgeProcessOverrides{SummaryEnabled: &disabled}},
++		{name: "explicit false skips csv", fileName: "data.csv", fileType: "csv", override: &types.KnowledgeProcessOverrides{SummaryEnabled: &disabled}},
++		{name: "explicit false skips xls", fileName: "data.xls", fileType: "xls", override: &types.KnowledgeProcessOverrides{SummaryEnabled: &disabled}},
++		{name: "filename fallback keeps default", fileName: "data.xlsx", want: 1},
++		{name: "non-spreadsheet stays excluded", fileName: "data.pdf", fileType: "pdf"},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			queue := &tableSummaryOptOutEnqueuer{}
++			enqueueDataTableSummaryIfNeeded(context.Background(), queue, 1, "knowledge-fixture", tc.fileName, tc.fileType, "summary-fixture", "embedding-fixture", tc.override)
++			if got := len(queue.tasks); got != tc.want {
++				t.Fatalf("enqueued %d table summary tasks, want %d", got, tc.want)
++			}
++			if tc.want > 0 && queue.tasks[0].Type() != types.TypeDataTableSummary {
++				t.Fatalf("unexpected task type: %s", queue.tasks[0].Type())
++			}
++		})
++	}
++}

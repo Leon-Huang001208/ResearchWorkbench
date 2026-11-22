@@ -1,0 +1,54 @@
+{
+  "scope": "Actual failed FOMC Summary rows, public historical rate values only",
+  "rows": [
+    [
+      "metric",
+      "value"
+    ],
+    [
+      "target_cut_bps",
+      5
+    ],
+    [
+      "before_lower_pct",
+      5.25
+    ],
+    [
+      "before_upper_pct",
+      5.5
+    ],
+    [
+      "after_lower_pct",
+      4.75
+    ],
+    [
+      "after_upper_pct",
+      5
+    ],
+    [
+      "iorb_pct",
+      4.9
+    ],
+    [
+      "discount_pct",
+      5
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      "details",
+      "See separate worksheets"
+    ]
+  ],
+  "expected": {
+    "before_lower_pct": 5.25,
+    "before_upper_pct": 5.5,
+    "after_lower_pct": 4.75,
+    "after_upper_pct": 5.0,
+    "cut_bps": 50.0,
+    "iorb_pct": 4.9,
+    "discount_pct": 5.0
+  }
+}

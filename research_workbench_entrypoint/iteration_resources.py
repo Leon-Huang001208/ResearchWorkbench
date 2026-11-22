@@ -4,45 +4,93 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib._bootstrap_external
+import importlib.util
 import json
 import logging
 import os
 import re
 import shutil
+import struct
 import subprocess
 from pathlib import Path
+from xml.etree import ElementTree
 
 from .docker_resources import (
-    DockerResources, ResourceError, apply_plan, cleanup_locks, plan_resources,
-    protections, write_receipt,
+    DockerResources,
+    ResourceError,
+    apply_plan,
+    cleanup_locks,
     owned,
+    plan_resources,
+    protections,
+    write_receipt,
 )
 from .iteration_cache import GIB, ManagedCaches, cache_budget, operation_lock
 
 log = logging.getLogger(__name__)
-DEPENDENCIES = ("node_modules", "services/hot/node_modules", ".venv", ".validation-tools", ".pytest_cache")
+DEPENDENCIES = (
+    "node_modules",
+    "services/hot/node_modules",
+    "services/ai_news/vendor/aihot/node_modules",
+    ".venv",
+    ".validation-tools",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+)
 EMPTY_DIRECTORIES = ("data/markdown", "data/objects", "data/raw_text")
+EVIDENCE_SELECTION = "evidence-retention.json"
+EVIDENCE_ARCHIVE_MAX_BYTES = 128 * 1024 * 1024
 
 
 def dependency_path(relative):
-    return relative in DEPENDENCIES or relative.endswith("/__pycache__") or relative == "__pycache__" or bool(re.fullmatch(r"logs/(?:[A-Za-z0-9_.-]+/){0,6}runtime/dsh/[0-9a-f]{40}/node_modules", relative))
+    return (
+        relative in DEPENDENCIES
+        or relative.endswith("/__pycache__")
+        or relative == "__pycache__"
+        or bool(
+            re.fullmatch(
+                r"logs/(?:[A-Za-z0-9_.-]+/){0,6}runtime/dsh/[0-9a-f]{40}/node_modules", relative
+            )
+        )
+    )
 
 
 def git(root, *args):
-    result = subprocess.run(["/usr/bin/git", "--no-optional-locks", "-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", str(root), *args], capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        [
+            "/usr/bin/git",
+            "--no-optional-locks",
+            "-c",
+            "gc.auto=0",
+            "-c",
+            "maintenance.auto=false",
+            "-C",
+            str(root),
+            *args,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if result.returncode:
         raise ResourceError("closeout_git_check_failed")
     return result.stdout.strip()
 
 
 def occupied(path):
-    result = subprocess.run(["/usr/sbin/lsof", "-nP", "+D", str(path)], capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        ["/usr/sbin/lsof", "-nP", "+D", str(path)], capture_output=True, text=True, check=False
+    )
     if result.returncode == 0:
         return True
     if result.returncode != 1 or result.stderr.strip():
         raise ResourceError("closeout_process_check_failed")
     # mmap/package files may be closed; also protect cwd and executable arguments.
-    commands = subprocess.run(["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True, check=True).stdout
+    commands = subprocess.run(
+        ["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True, check=True
+    ).stdout
     rows = [line.strip().split(None, 2) for line in commands.splitlines()]
     processes = {int(row[0]): (int(row[1]), row[2]) for row in rows if len(row) == 3}
     ancestors = set()
@@ -52,7 +100,9 @@ def occupied(path):
         pid = processes[pid][0]
     # lsof above still protects ancestor cwd/FDs; only the controller's own
     # command-line source path is exempt from the additional argv heuristic.
-    return any(str(path) in command for pid, (_, command) in processes.items() if pid not in ancestors)
+    return any(
+        str(path) in command for pid, (_, command) in processes.items() if pid not in ancestors
+    )
 
 
 def register_directory(root, path, kind):
@@ -63,16 +113,33 @@ def register_directory(root, path, kind):
         relative = path.relative_to(root).as_posix()
     except ValueError:
         raise ResourceError("closeout_directory_outside_task") from None
-    if (kind == "dependency" and not dependency_path(relative)) or (kind == "evidence" and relative != "logs") or (kind == "empty-directory" and relative not in EMPTY_DIRECTORIES) or kind not in {"dependency", "evidence", "empty-directory"}:
+    if (
+        (kind == "dependency" and not dependency_path(relative))
+        or (kind == "evidence" and relative != "logs")
+        or (kind == "empty-directory" and relative not in EMPTY_DIRECTORIES)
+        or kind not in {"dependency", "evidence", "empty-directory"}
+    ):
         raise ResourceError("closeout_directory_not_allowed")
     if kind == "empty-directory" and next(path.iterdir(), None) is not None:
         raise ResourceError("closeout_directory_not_empty")
     stat = path.stat()
-    return {"root": str(root), "path": str(path), "kind": kind, "device": stat.st_dev, "inode": stat.st_ino}
+    return {
+        "root": str(root),
+        "path": str(path),
+        "kind": kind,
+        "device": stat.st_dev,
+        "inode": stat.st_ino,
+    }
 
 
-def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None):
-    tracked = tracked or (lambda row: bool(git(row["root"], "ls-files", "--", str(Path(row["path"]).relative_to(row["root"])))))
+def clean_dependencies(
+    records, *, occupied=occupied, tracked=None, journal=None, regenerations=None
+):
+    tracked = tracked or (
+        lambda row: bool(
+            git(row["root"], "ls-files", "--", str(Path(row["path"]).relative_to(row["root"])))
+        )
+    )
     result = {"ok": True, "items": []}
     for row in records:
         if row["kind"] not in {"dependency", "empty-directory"}:
@@ -87,7 +154,13 @@ def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None
                 current = register_directory(Path(row["root"]), path, row["kind"])
                 if current != row or occupied(path) or tracked(row):
                     raise ResourceError("closeout_dependency_changed_or_in_use")
-                item["allocatedBytesBefore"] = int(subprocess.check_output(["du", "-sk", str(path)], text=True).split()[0]) * 1024
+                regenerated = (regenerations or {}).get(str(path))
+                if regenerated and file_manifest(path) != regenerated["manifest"]:
+                    raise ResourceError("closeout_regenerated_contents_changed")
+                item["allocatedBytesBefore"] = (
+                    int(subprocess.check_output(["du", "-sk", str(path)], text=True).split()[0])
+                    * 1024
+                )
                 if journal:
                     journal(result)
                 # rmtree never follows internal symlinks; unknown sibling paths are untouched.
@@ -100,7 +173,14 @@ def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None
                 item["status"] = "reclaimed"
                 log.info("iteration_dependency status=reclaimed")
         except (ResourceError, OSError, subprocess.SubprocessError) as error:
-            item.update(status="blocked", code=str(error) if isinstance(error, ResourceError) else "closeout_dependency_io_failed")
+            item.update(
+                status="blocked",
+                code=(
+                    str(error)
+                    if isinstance(error, ResourceError)
+                    else "closeout_dependency_io_failed"
+                ),
+            )
             result["ok"] = False
             log.error("iteration_dependency code=%s", item["code"])
         if journal:
@@ -116,11 +196,240 @@ def file_manifest(root):
             raise ResourceError("closeout_evidence_alias")
         if path.is_file():
             with path.open("rb") as stream:
-                result[str(path.relative_to(root))] = hashlib.file_digest(stream, "sha256").hexdigest()
+                result[str(path.relative_to(root))] = hashlib.file_digest(
+                    stream, "sha256"
+                ).hexdigest()
     return result
 
 
-def preserve_evidence(records, destination):
+def _verified_batch_output(source, current, retained, row, task_id, *, read_root=None):
+    if not isinstance(task_id, str) or not task_id:
+        raise ResourceError("closeout_evidence_task_unbound")
+    lease_name = row["batchReceipt"]
+    if lease_name not in retained or current.get(lease_name) != row["batchReceiptSha256"]:
+        raise ResourceError("closeout_evidence_batch_changed")
+    read_root = read_root or source
+    try:
+        lease = json.loads((read_root / lease_name).read_text(encoding="utf-8"))
+        if lease.get("exactCheckout") is not True:
+            raise ResourceError("closeout_evidence_batch_unverified")
+        reference = lease["batchResult"]
+        result_path = Path(reference["path"])
+        if (
+            not result_path.is_absolute()
+            or result_path.resolve() != result_path
+            or not result_path.is_relative_to(source)
+        ):
+            raise ValueError("batch_result_path")
+        result_name = result_path.relative_to(source).as_posix()
+        if result_name not in retained or current.get(result_name) != reference["sha256"]:
+            raise ValueError("batch_result_changed")
+        result = json.loads((read_root / result_name).read_text(encoding="utf-8"))
+        node_ids = result["nodeIds"]
+        evidence = lease["evidence"]
+        counts = lease["junitCounts"]
+        if (
+            lease["schemaVersion"] != 1
+            or lease["status"] != "retired"
+            or lease["taskId"] != task_id
+            or not re.fullmatch(r"[0-9a-f]{40}", lease["candidate"])
+            or Path(lease["root"]).exists()
+            or result["schemaVersion"] != 1
+            or result["taskId"] != task_id
+            or result["candidate"] != lease["candidate"]
+            or result["rootNonce"] != lease["nonce"]
+            or result["batchId"] != reference["batchId"]
+            or result["batchId"] != lease["batchId"]
+            or type(result["exitCode"]) is not int
+            or result["exitCode"] != 0
+            or not isinstance(node_ids, list)
+            or node_ids != lease["nodeIds"]
+            or len(node_ids) != len(set(node_ids))
+            or len(node_ids) != counts["tests"]
+            or counts["failures"] != 0
+            or counts["errors"] != 0
+            or evidence["junit"]["path"] != str(source / row["proof"])
+            or evidence["junit"]["sha256"] != row["proofSha256"]
+            or result["junitSha256"] != row["proofSha256"]
+        ):
+            raise ValueError("batch_contract")
+        matches = [
+            kind
+            for kind, result_key in (("stdout", "stdoutSha256"), ("stderr", "stderrSha256"))
+            if evidence[kind]["path"] == str(source / row["path"])
+            and evidence[kind]["sha256"] == row["sha256"]
+            and result[result_key] == row["sha256"]
+        ]
+        if len(matches) != 1:
+            raise ResourceError("closeout_evidence_not_batch_output")
+    except ResourceError:
+        raise
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise ResourceError("closeout_evidence_batch_invalid") from error
+
+
+def _passed_junit(path):
+    try:
+        xml = ElementTree.parse(path).getroot()
+        suites = list(xml.iter("testsuite"))
+        tests = sum(int(suite.attrib.get("tests", "0")) for suite in suites)
+        failures = sum(
+            int(suite.attrib.get("failures", "0")) + int(suite.attrib.get("errors", "0"))
+            for suite in suites
+        )
+        cases = sum(1 for _ in xml.iter("testcase"))
+        embedded_failures = any(node.tag in {"failure", "error"} for node in xml.iter())
+    except (OSError, ValueError, ElementTree.ParseError) as error:
+        raise ResourceError("closeout_evidence_proof_invalid") from error
+    if tests < 1 or tests != cases or failures or embedded_failures:
+        raise ResourceError("closeout_evidence_proof_not_passed")
+
+
+def selected_evidence(source, current, policy, *, task_id=None):
+    if policy not in {"legacy-full", "selective-v1"}:
+        raise ResourceError("closeout_evidence_policy_invalid")
+    if policy == "legacy-full" and EVIDENCE_SELECTION not in current:
+        return current, 0, 0
+    if EVIDENCE_SELECTION not in current:
+        raise ResourceError("closeout_evidence_selection_missing")
+    selection_path = source / EVIDENCE_SELECTION
+    raw = selection_path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != current[EVIDENCE_SELECTION]:
+        raise ResourceError("closeout_evidence_selection_changed")
+    try:
+        selection = json.loads(raw)
+    except (ValueError, UnicodeDecodeError) as error:
+        raise ResourceError("closeout_evidence_selection_invalid") from error
+    if (
+        not isinstance(selection, dict)
+        or set(selection) != {"schemaVersion", "keep", "discard"}
+        or selection["schemaVersion"] != 1
+        or not isinstance(selection["keep"], list)
+        or not isinstance(selection["discard"], list)
+        or not selection["keep"]
+    ):
+        raise ResourceError("closeout_evidence_selection_invalid")
+    keep = selection["keep"]
+    if any(not isinstance(value, str) or value not in current for value in keep):
+        raise ResourceError("closeout_evidence_selection_invalid")
+    if len(keep) != len(set(keep)) or EVIDENCE_SELECTION in keep:
+        raise ResourceError("closeout_evidence_selection_invalid")
+    retained = set(keep) | {EVIDENCE_SELECTION}
+    discarded = set()
+    discarded_bytes = 0
+    for row in selection["discard"]:
+        if (
+            not isinstance(row, dict)
+            or set(row)
+            != {
+                "path",
+                "sha256",
+                "proof",
+                "proofSha256",
+                "batchReceipt",
+                "batchReceiptSha256",
+            }
+            or any(not isinstance(row[key], str) for key in row)
+        ):
+            raise ResourceError("closeout_evidence_selection_invalid")
+        path, proof = row["path"], row["proof"]
+        if path in discarded or path in retained or current.get(path) != row["sha256"]:
+            raise ResourceError("closeout_evidence_discard_changed")
+        if proof not in retained or current.get(proof) != row["proofSha256"]:
+            raise ResourceError("closeout_evidence_proof_changed")
+        _passed_junit(source / proof)
+        _verified_batch_output(source, current, retained, row, task_id)
+        discarded.add(path)
+        discarded_bytes += (source / path).stat().st_size
+    if retained | discarded != set(current):
+        raise ResourceError("closeout_evidence_unclassified")
+    retained_bytes = sum((source / path).stat().st_size for path in retained)
+    if retained_bytes > EVIDENCE_ARCHIVE_MAX_BYTES:
+        raise ResourceError("closeout_evidence_budget_exceeded")
+    return {path: current[path] for path in retained}, len(discarded), discarded_bytes
+
+
+def _verify_archived_selection(source, archive, manifest, task_id):
+    if EVIDENCE_SELECTION not in manifest:
+        raise ResourceError("closeout_evidence_selection_missing")
+    try:
+        selection = json.loads((archive / EVIDENCE_SELECTION).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ResourceError("closeout_evidence_selection_invalid") from error
+    if (
+        not isinstance(selection, dict)
+        or set(selection) != {"schemaVersion", "keep", "discard"}
+        or selection["schemaVersion"] != 1
+        or not isinstance(selection["keep"], list)
+        or not isinstance(selection["discard"], list)
+        or not selection["keep"]
+    ):
+        raise ResourceError("closeout_evidence_selection_invalid")
+    keep = selection["keep"]
+    if (
+        any(not isinstance(value, str) for value in keep)
+        or len(keep) != len(set(keep))
+        or set(keep) | {EVIDENCE_SELECTION} != set(manifest)
+    ):
+        raise ResourceError("closeout_evidence_archive_selection_changed")
+    retained = set(manifest)
+    virtual = dict(manifest)
+    for row in selection["discard"]:
+        if (
+            not isinstance(row, dict)
+            or set(row)
+            != {
+                "path",
+                "sha256",
+                "proof",
+                "proofSha256",
+                "batchReceipt",
+                "batchReceiptSha256",
+            }
+            or any(not isinstance(value, str) for value in row.values())
+            or row["path"] in virtual
+            or row["proof"] not in retained
+            or manifest[row["proof"]] != row["proofSha256"]
+        ):
+            raise ResourceError("closeout_evidence_archive_selection_changed")
+        virtual[row["path"]] = row["sha256"]
+        _passed_junit(archive / row["proof"])
+        _verified_batch_output(source, virtual, retained, row, task_id, read_root=archive)
+
+
+def _selected_task_budget(records, destination, policy, task_id):
+    if policy != "selective-v1":
+        return {}
+    total = 0
+    frozen = {}
+    for row in records:
+        if row["kind"] != "evidence":
+            continue
+        source = Path(row["path"])
+        if source.exists():
+            current = file_manifest(source)
+            selected = selected_evidence(source, current, policy, task_id=task_id)[0]
+            retained_bytes = sum((source / relative).stat().st_size for relative in selected)
+            frozen[str(source)] = {"current": current, "selected": selected}
+        else:
+            target = Path(destination) / hashlib.sha256(row["root"].encode()).hexdigest()[:16]
+            archive = target / "logs"
+            manifest_path = target / "manifest.json"
+            if not manifest_path.is_file():
+                raise ResourceError("closeout_evidence_missing")
+            manifest = json.loads(manifest_path.read_text())
+            if file_manifest(archive) != manifest:
+                raise ResourceError("closeout_evidence_archive_changed")
+            retained_bytes = sum((archive / relative).stat().st_size for relative in manifest)
+            frozen[str(source)] = {"current": None, "selected": manifest}
+        total += retained_bytes
+        if total > EVIDENCE_ARCHIVE_MAX_BYTES:
+            raise ResourceError("closeout_evidence_budget_exceeded")
+    return frozen
+
+
+def preserve_evidence(records, destination, *, policy="legacy-full", task_id=None):
+    frozen = _selected_task_budget(records, destination, policy, task_id)
     result = []
     for row in records:
         if row["kind"] != "evidence":
@@ -131,21 +440,33 @@ def preserve_evidence(records, destination):
         archive = target / "logs"
         manifest_path = target / "manifest.json"
         if not source.exists():
-            if not manifest_path.exists() or file_manifest(archive) != json.loads(manifest_path.read_text()):
+            if not manifest_path.exists():
                 raise ResourceError("closeout_evidence_missing")
+            saved_manifest = json.loads(manifest_path.read_text())
+            if file_manifest(archive) != saved_manifest:
+                raise ResourceError("closeout_evidence_archive_changed")
+            if policy == "selective-v1" or EVIDENCE_SELECTION in saved_manifest:
+                _verify_archived_selection(source, archive, saved_manifest, task_id)
             result.append({"status": "already_preserved", "archive": str(archive)})
             continue
         if register_directory(Path(row["root"]), source, "evidence") != row or occupied(source):
             raise ResourceError("closeout_evidence_changed_or_in_use")
         current = file_manifest(source)
+        if policy == "selective-v1" and current != frozen[str(source)]["current"]:
+            raise ResourceError("closeout_evidence_source_changed")
+        selected, discarded_count, discarded_bytes = selected_evidence(
+            source, current, policy, task_id=task_id
+        )
+        if policy == "selective-v1" and selected != frozen[str(source)]["selected"]:
+            raise ResourceError("closeout_evidence_source_changed")
         if manifest_path.exists():
             manifest = json.loads(manifest_path.read_text())
-            if any(manifest.get(key) != value for key, value in current.items()):
+            if manifest != selected:
                 raise ResourceError("closeout_evidence_source_changed")
         else:
             if archive.exists():
                 raise ResourceError("closeout_evidence_target_exists")
-            manifest = current
+            manifest = selected
             write_receipt(manifest_path, manifest)
         archive.mkdir(mode=0o700, exist_ok=True)
         saved = file_manifest(archive)
@@ -162,8 +483,13 @@ def preserve_evidence(records, destination):
                 if staging.is_symlink():
                     raise ResourceError("closeout_evidence_alias")
                 partial = staging / (hashlib.sha256(relative.encode()).hexdigest() + ".part")
-                descriptor = os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
-                with os.fdopen(descriptor, "wb") as output, (source / relative).open("rb") as input_stream:
+                descriptor = os.open(
+                    partial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600
+                )
+                with (
+                    os.fdopen(descriptor, "wb") as output,
+                    (source / relative).open("rb") as input_stream,
+                ):
                     shutil.copyfileobj(input_stream, output, length=65536)
                     output.flush()
                     os.fsync(output.fileno())
@@ -172,11 +498,33 @@ def preserve_evidence(records, destination):
                         raise ResourceError("closeout_evidence_copy_unverified")
                 os.replace(partial, destination_file)
                 shutil.copystat(source / relative, destination_file, follow_symlinks=False)
-        if manifest != file_manifest(archive) or any(manifest.get(key) != value for key, value in file_manifest(source).items()):
+        final_source = file_manifest(source)
+        if policy == "selective-v1" and final_source != frozen[str(source)]["current"]:
+            raise ResourceError("closeout_evidence_source_changed")
+        if (
+            manifest != file_manifest(archive)
+            or manifest != selected_evidence(source, final_source, policy, task_id=task_id)[0]
+        ):
             raise ResourceError("closeout_evidence_copy_unverified")
+        if policy == "selective-v1" or EVIDENCE_SELECTION in manifest:
+            _verify_archived_selection(source, archive, manifest, task_id)
+        if register_directory(Path(row["root"]), source, "evidence") != row or occupied(source):
+            raise ResourceError("closeout_evidence_changed_or_in_use")
         shutil.rmtree(source)
-        result.append({"status": "preserved", "archive": str(archive), "files": len(manifest)})
-        log.info("iteration_evidence status=preserved files=%d", len(manifest))
+        result.append(
+            {
+                "status": "preserved",
+                "archive": str(archive),
+                "files": len(manifest),
+                "discardedFiles": discarded_count,
+                "discardedBytes": discarded_bytes,
+            }
+        )
+        log.info(
+            "iteration_evidence status=preserved files=%d discarded=%d",
+            len(manifest),
+            discarded_count,
+        )
     return result
 
 
@@ -208,7 +556,11 @@ def task_resource_plan(inventory, protected, task):
     for kind, key in (("container", "containers"), ("image", "images"), ("volume", "volumes")):
         for row in inventory[key]:
             labels = row.get("labels") or {}
-            if owned(row, kind) and labels.get("io.research-workbench.delivery-task") == task and labels.get("io.research-workbench.lifetime") == "temporary":
+            if (
+                owned(row, kind)
+                and labels.get("io.research-workbench.delivery-task") == task
+                and labels.get("io.research-workbench.lifetime") == "temporary"
+            ):
                 retired[kind + ":" + row["id"]] = "accepted_delivery_temporary_resource"
     plan = plan_resources(inventory, protected, retired)
     for row in plan["resources"]:
@@ -217,20 +569,152 @@ def task_resource_plan(inventory, protected, task):
     return plan
 
 
+def _private_proof(path):
+    info = path.lstat()
+    if (
+        path.is_symlink()
+        or not path.is_file()
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o077
+        or info.st_size > 16_000_000
+    ):
+        raise ResourceError("closeout_regeneration_proof_invalid")
+    return json.loads(path.read_text())
+
+
+def regenerated_directory(previous, current, state):
+    """Rebind only proven reclaimed bytecode or empty generated directories.
+
+    No general inode replacement or dependency adoption is permitted. The old
+    task journal remains the authority; the newly observed identity and every
+    bytecode hash are persisted before the normal cleanup performs any deletion.
+    """
+    if any(previous.get(key) != current.get(key) for key in ("root", "path", "kind")):
+        raise ResourceError("closeout_registered_directory_changed")
+    root, path = Path(current["root"]), Path(current["path"])
+    verified_manifest = {}
+    if occupied(root) or git(root, "status", "--porcelain", "--untracked-files=all"):
+        raise ResourceError("closeout_regenerated_root_changed_or_in_use")
+    if current["kind"] == "evidence":
+        target = state / "evidence" / hashlib.sha256(str(root).encode()).hexdigest()[:16]
+        manifest = _private_proof(target / "manifest.json")
+        if next(path.iterdir(), None) is not None or file_manifest(target / "logs") != manifest:
+            raise ResourceError("closeout_regenerated_evidence_unverified")
+        proof = target / "manifest.json"
+    else:
+        proof = state / "dependencies.json"
+        old = _private_proof(proof)
+        if not any(
+            item.get("path") == str(path) and item.get("status") == "reclaimed"
+            for item in old.get("items", [])
+        ):
+            raise ResourceError("closeout_regeneration_not_reclaimed")
+        if current["kind"] == "empty-directory":
+            if next(path.iterdir(), None) is not None:
+                raise ResourceError("closeout_regenerated_directory_not_empty")
+        elif current["kind"] == "dependency" and path.name == "__pycache__":
+            for cache in path.iterdir():
+                match = re.fullmatch(r"(.+)\.cpython-\d+(?:\.opt-([012]))?\.pyc", cache.name)
+                if cache.is_symlink() or not cache.is_file() or not match:
+                    raise ResourceError("closeout_regenerated_bytecode_unknown")
+                source = path.parent / (match.group(1) + ".py")
+                if (
+                    source.is_symlink()
+                    or not source.is_file()
+                    or not git(root, "ls-files", "--", str(source.relative_to(root)))
+                ):
+                    raise ResourceError("closeout_regenerated_source_untracked")
+                if cache.stat().st_size > 8_000_000 or source.stat().st_size > 2_000_000:
+                    raise ResourceError("closeout_regenerated_bytecode_invalid")
+                raw, original = cache.read_bytes(), source.read_bytes()
+                if len(raw) < 16 or raw[:4] != importlib.util.MAGIC_NUMBER:
+                    raise ResourceError("closeout_regenerated_bytecode_invalid")
+                flags = struct.unpack("<I", raw[4:8])[0]
+                if flags in (1, 3):
+                    valid = raw[8:16] == importlib.util.source_hash(original)
+                elif flags == 0:
+                    valid = struct.unpack("<II", raw[8:16]) == (
+                        int(source.stat().st_mtime) & 0xFFFFFFFF,
+                        len(original) & 0xFFFFFFFF,
+                    )
+                else:
+                    valid = False
+                if not valid:
+                    raise ResourceError("closeout_regenerated_bytecode_stale")
+                compiled = compile(
+                    original,
+                    str(source),
+                    "exec",
+                    dont_inherit=True,
+                    optimize=int(match.group(2) or 0),
+                )
+                encoder = getattr(importlib._bootstrap_external, "_code_to_timestamp_pyc", None)
+                if not callable(encoder):
+                    log.error("iteration_regeneration code=closeout_bytecode_encoder_unavailable")
+                    raise ResourceError("closeout_bytecode_encoder_unavailable")
+                # CPython 3.14 borrows function-local call arguments. Keep an
+                # explicit second reference so marshal matches py_compile's
+                # shared code-object encoding, including reference-table IDs.
+                compiled_reference = (compiled,)
+                expected = encoder(compiled_reference[0])[16:]
+                if raw[16:] != expected:
+                    raise ResourceError("closeout_regenerated_bytecode_unknown")
+                verified_manifest[cache.name] = hashlib.sha256(raw).hexdigest()
+        else:
+            raise ResourceError("closeout_registered_directory_changed")
+    if file_manifest(path) != verified_manifest:
+        raise ResourceError("closeout_regenerated_contents_changed")
+    proof_bytes = proof.read_bytes()
+    digest = hashlib.sha256(proof_bytes).hexdigest()
+    directory = state / "regeneration-proofs"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    if directory.is_symlink() or directory.stat().st_mode & 0o077:
+        raise ResourceError("closeout_regeneration_proof_invalid")
+    saved = directory / (digest + ".json")
+    if not saved.exists():
+        fd = os.open(saved, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(proof_bytes)
+            stream.flush()
+            os.fsync(stream.fileno())
+    _private_proof(saved)
+    if saved.read_bytes() != proof_bytes:
+        raise ResourceError("closeout_regeneration_proof_invalid")
+    value = {
+        "previous": previous,
+        "current": current,
+        "proof": str(saved),
+        "proof_sha256": digest,
+        "manifest": verified_manifest,
+    }
+    log.info("iteration_regenerated_directory_verified kind=%s", current["kind"])
+    return value
+
+
 def record_task(project, task):
     project, state, receipt = state_paths(project, task)
     ledger = state / "resources.json"
-    old = json.loads(ledger.read_text()) if ledger.exists() else {"taskId": task, "roots": {}, "directories": []}
+    old = (
+        json.loads(ledger.read_text())
+        if ledger.exists()
+        else {"taskId": task, "roots": {}, "directories": [], "evidencePolicy": "selective-v1"}
+    )
     if old["taskId"] != task:
         raise ResourceError("closeout_task_mismatch")
-    roots = [receipt.get("featureWorktree"), receipt.get("integrationWorktree"), *[v["worktree"] for v in receipt.get("integrationHistory", [])]]
+    roots = [
+        receipt.get("featureWorktree"),
+        receipt.get("integrationWorktree"),
+        *[v["worktree"] for v in receipt.get("integrationHistory", [])],
+    ]
     for value in filter(None, roots):
         root = Path(value)
         if not root.exists():
             continue
+
         def common(where):
             value = Path(git(where, "rev-parse", "--git-common-dir"))
             return value.resolve() if value.is_absolute() else (where / value).resolve()
+
         if common(root) != common(project):
             raise ResourceError("closeout_worktree_not_owned")
         stat = root.stat()
@@ -239,17 +723,30 @@ def record_task(project, task):
             raise ResourceError("closeout_worktree_changed")
         old["roots"][str(root)] = identity
         known = {row["path"]: row for row in old["directories"]}
-        generated = git(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z").split("\0")
-        extras = [value.rstrip("/") for value in generated if value.rstrip("/").endswith("__pycache__")]
+        generated = git(
+            root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"
+        ).split("\0")
+        extras = [
+            value.rstrip("/") for value in generated if value.rstrip("/").endswith("__pycache__")
+        ]
         # Installer-owned DSH checkouts live inside logs; strip their dependencies
         # before evidence preservation so repeated installs do not become archives.
-        extras.extend(str(value.relative_to(root)) for value in root.glob("logs/**/runtime/dsh/*/node_modules"))
+        extras.extend(
+            str(value.relative_to(root))
+            for value in root.glob("logs/**/runtime/dsh/*/node_modules")
+        )
         for relative in dict.fromkeys([*DEPENDENCIES, *extras, "logs"]):
             path = root / relative
             if path.exists():
-                row = register_directory(root, path, "evidence" if relative == "logs" else "dependency")
+                row = register_directory(
+                    root, path, "evidence" if relative == "logs" else "dependency"
+                )
                 if str(path) in known and known[str(path)] != row:
-                    raise ResourceError("closeout_registered_directory_changed")
+                    binding = regenerated_directory(known[str(path)], row, state)
+                    old.setdefault("regenerations", {})[str(path)] = binding
+                    old.setdefault("regenerationHistory", []).append(binding)
+                    old["directories"][old["directories"].index(known[str(path)])] = row
+                    known[str(path)] = row
                 if str(path) not in known:
                     old["directories"].append(row)
         for relative in EMPTY_DIRECTORIES:
@@ -257,7 +754,11 @@ def record_task(project, task):
             if path.is_dir() and not path.is_symlink() and next(path.iterdir(), None) is None:
                 row = register_directory(root, path, "empty-directory")
                 if str(path) in known and known[str(path)] != row:
-                    raise ResourceError("closeout_registered_directory_changed")
+                    binding = regenerated_directory(known[str(path)], row, state)
+                    old.setdefault("regenerations", {})[str(path)] = binding
+                    old.setdefault("regenerationHistory", []).append(binding)
+                    old["directories"][old["directories"].index(known[str(path)])] = row
+                    known[str(path)] = row
                 if str(path) not in known:
                     old["directories"].append(row)
     write_receipt(ledger, old)
@@ -270,7 +771,15 @@ def closeout(project, task, policy):
         raise ResourceError("closeout_delivery_not_accepted")
     git(project, "merge-base", "--is-ancestor", delivery["integrationCommit"], "origin/master")
     ledger = json.loads((state / "resources.json").read_text())
-    report = {"taskId": task, "ok": False, "status": "running", "reclaimed": [], "retained": [], "blocked": [], "diskBefore": shutil.disk_usage(project)._asdict()}
+    report = {
+        "taskId": task,
+        "ok": False,
+        "status": "running",
+        "reclaimed": [],
+        "retained": [],
+        "blocked": [],
+        "diskBefore": shutil.disk_usage(project)._asdict(),
+    }
     journal = lambda: write_receipt(state / "receipt.json", report)
     journal()
     try:
@@ -278,11 +787,19 @@ def closeout(project, task, policy):
             root = Path(value)
             if root.exists():
                 stat = root.stat()
-                if root.resolve() != root or [stat.st_dev, stat.st_ino] != identity or occupied(root):
+                if (
+                    root.resolve() != root
+                    or [stat.st_dev, stat.st_ino] != identity
+                    or occupied(root)
+                ):
                     raise ResourceError("closeout_worktree_changed_or_in_use")
                 if git(root, "status", "--porcelain", "--untracked-files=all"):
                     raise ResourceError("closeout_worktree_dirty")
-        dependencies = clean_dependencies(ledger["directories"], journal=lambda result: write_receipt(state / "dependencies.json", result))
+        dependencies = clean_dependencies(
+            ledger["directories"],
+            journal=lambda result: write_receipt(state / "dependencies.json", result),
+            regenerations=ledger.get("regenerations", {}),
+        )
         report["reclaimed"].extend(v for v in dependencies["items"] if v["status"] != "blocked")
         report["blocked"].extend(v for v in dependencies["items"] if v["status"] == "blocked")
         if not dependencies["ok"]:
@@ -293,6 +810,7 @@ def closeout(project, task, policy):
         inventory = driver.inventory()
         homes = [Path.home() / ".research-workbench"]
         with cleanup_locks(homes), operation_lock(Path.home() / ".local/share/rwb-docker"):
+
             def protected():
                 result = protections(homes)
                 manager = Path.home() / ".local/share/rwb-docker"
@@ -309,15 +827,28 @@ def closeout(project, task, policy):
                                 raise ResourceError("closeout_manager_image_invalid")
                             result["images"].append(image)
                 return result
+
             plan = task_resource_plan(inventory, protected(), task)
             retired = plan["retired"]
             write_receipt(state / "docker-plan.json", plan)
-            docker = apply_plan(driver, plan, protected, state / "volumes", policy["archiveHelperImage"], journal=lambda value: write_receipt(state / "docker-receipt.json", value))
+            docker = apply_plan(
+                driver,
+                plan,
+                protected,
+                state / "volumes",
+                policy["archiveHelperImage"],
+                journal=lambda value: write_receipt(state / "docker-receipt.json", value),
+            )
         report["retained"] = [row for row in plan["resources"] if row["action"] == "keep"]
         if not docker["ok"]:
             raise ResourceError("closeout_docker_objects_blocked")
         report["reclaimed"].extend(docker["items"])
-        if any(row["kind"] == "container" and row["reason"] == "running" and row["kind"] + ":" + row["id"] in retired for row in plan["resources"]):
+        if any(
+            row["kind"] == "container"
+            and row["reason"] == "running"
+            and row["kind"] + ":" + row["id"] in retired
+            for row in plan["resources"]
+        ):
             raise ResourceError("closeout_temporary_task_still_running")
         caches = ManagedCaches(Path.home() / ".local/share/rwb-docker")
         with caches.maintenance():
@@ -325,7 +856,12 @@ def closeout(project, task, policy):
             journal()
         if not report["cache"]["ok"]:
             raise ResourceError("closeout_cache_over_budget")
-        report["evidence"] = preserve_evidence(ledger["directories"], state / "evidence")
+        report["evidence"] = preserve_evidence(
+            ledger["directories"],
+            state / "evidence",
+            policy=ledger.get("evidencePolicy", "legacy-full"),
+            task_id=task,
+        )
         report.update(ok=True, status="resources_complete_git_cleanup_pending")
     except (ResourceError, OSError, ValueError, subprocess.SubprocessError) as error:
         code = str(error) if isinstance(error, ResourceError) else "closeout_io_failed"
@@ -337,21 +873,105 @@ def closeout(project, task, policy):
     return report
 
 
+def revalidate_closeout(project, task, policy):
+    """Recheck retired resources without replaying directory/volume deletion."""
+    project, state, delivery = state_paths(project, task)
+    for name in ("receipt.json", "git-finalization.json", "resources.json"):
+        _private_proof(state / name)
+    before = (state / "receipt.json").read_bytes()
+    previous = json.loads(before)
+    proof = json.loads((state / "git-finalization.json").read_text())
+    if (
+        delivery.get("status") != "cleaned"
+        or delivery.get("ci", {}).get("status") != "passed"
+        or not all(
+            delivery.get("cleanup", {}).get(key) is True
+            for key in (
+                "featureWorktreeRemoved",
+                "integrationWorktreeRemoved",
+                "localBranchDeleted",
+                "remoteBranchDeleted",
+            )
+        )
+        or proof.get("taskId") != task
+        or proof.get("candidateCommit") != delivery.get("integrationCommit")
+        or proof.get("status") != "pending"
+        or proof.get("restoreVerified") is not True
+        or previous.get("taskId") != task
+        or previous.get("ok") is not True
+        or previous.get("cache", {}).get("ok") is not True
+        or any(row.get("phase") != "git" for row in previous.get("blocked", []))
+    ):
+        raise ResourceError("closeout_revalidation_not_accepted")
+    git(project, "merge-base", "--is-ancestor", delivery["integrationCommit"], "origin/master")
+    ledger = json.loads((state / "resources.json").read_text())
+    for value in ledger["roots"]:
+        root = Path(value)
+        if root.exists() or root.is_symlink():
+            raise ResourceError("closeout_retired_worktree_reappeared")
+    homes = [Path.home() / ".research-workbench"]
+    driver = DockerResources()
+    with cleanup_locks(homes), operation_lock(Path.home() / ".local/share/rwb-docker"):
+        # Observe only: unfinished task objects require the original disposal
+        # workflow, never an implicit second delete in Git finalization recovery.
+        plan = task_resource_plan(driver.inventory(), protections(homes), task)
+        if any(row["action"] == "delete" for row in plan["resources"]) or any(
+            row["kind"] == "container" and "container:" + row["id"] in plan["retired"]
+            for row in plan["resources"]
+        ):
+            raise ResourceError("closeout_task_resources_remain")
+    caches = ManagedCaches(Path.home() / ".local/share/rwb-docker")
+    with caches.maintenance():
+        cache = cache_budget(caches, list(caches.names), policy["cacheBudgetBytes"])
+    if not cache["ok"]:
+        raise ResourceError("closeout_cache_over_budget")
+    if (state / "receipt.json").read_bytes() != before:
+        raise ResourceError("closeout_revalidation_changed")
+    log.info("iteration_resources_revalidated task=%s", task)
+    return {
+        "ok": True,
+        "status": "resources_revalidated",
+        "taskId": task,
+        "candidateCommit": delivery["integrationCommit"],
+        "cache": cache,
+        "previousReceiptSha256": hashlib.sha256(before).hexdigest(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True, type=Path)
     parser.add_argument("--task-id", required=True)
-    parser.add_argument("--phase", required=True, choices=["record", "cleanup"])
+    parser.add_argument("--phase", required=True, choices=["record", "cleanup", "revalidate"])
     args = parser.parse_args()
     try:
         _, state, _ = state_paths(args.project, args.task_id)
         (state / "logs").mkdir(mode=0o700, exist_ok=True)
         logging.basicConfig(filename=state / "logs/operations.log", level=logging.INFO)
-        policy = json.loads((Path(__file__).resolve().parents[1] / ".agents/resource-closeout.json").read_text())
-        if policy.get("schemaVersion") != 1 or policy.get("cacheBudgetBytes") != 20 * GIB or policy.get("managedBuilders") != list(ManagedCaches.names) or policy.get("acceptedImageRetention") != 2 or policy.get("automaticAfterAcceptedMerge") is not True:
+        policy = json.loads(
+            (Path(__file__).resolve().parents[1] / ".agents/resource-closeout.json").read_text()
+        )
+        if (
+            policy.get("schemaVersion") != 1
+            or policy.get("cacheBudgetBytes") != 20 * GIB
+            or policy.get("managedBuilders") != list(ManagedCaches.names)
+            or policy.get("acceptedImageRetention") != 2
+            or policy.get("automaticAfterAcceptedMerge") is not True
+        ):
             raise ResourceError("closeout_policy_invalid")
-        result = record_task(args.project, args.task_id) if args.phase == "record" else closeout(args.project, args.task_id, policy)
-        print(json.dumps({key: result[key] for key in ("ok", "status", "state", "registeredDirectories") if key in result}))
+        result = (
+            revalidate_closeout(args.project, args.task_id, policy)
+            if args.phase == "revalidate"
+            else (
+                record_task(args.project, args.task_id)
+                if args.phase == "record"
+                else closeout(args.project, args.task_id, policy)
+            )
+        )
+        output_keys = ("ok", "status", "state", "registeredDirectories")
+        if args.phase == "revalidate":
+            output_keys += ("taskId", "candidateCommit", "cache", "previousReceiptSha256")
+        print(json.dumps({key: result[key] for key in output_keys if key in result}))
         return 0 if result["ok"] else 1
     except (ResourceError, OSError, ValueError, subprocess.SubprocessError) as error:
         code = str(error) if isinstance(error, ResourceError) else "closeout_io_failed"

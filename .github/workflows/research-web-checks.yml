@@ -4,10 +4,29 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
+      - "scripts/run_ci_pytest_partitions.py"
+      - "scripts/stage_ci_pytest_evidence.py"
+      - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
+      - "tests/unit/test_ci_pytest_partitions.py"
+      - "tests/unit/test_ci_pytest_evidence_staging.py"
       - "tests/javascript/research_web*.test.mjs"
       - "requirements/web.in"
       - "requirements/web.lock"
@@ -20,10 +39,29 @@ on:
     branches:
       - master
     paths:
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
+      - "scripts/run_ci_pytest_partitions.py"
+      - "scripts/stage_ci_pytest_evidence.py"
+      - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
+      - "tests/unit/test_ci_pytest_partitions.py"
+      - "tests/unit/test_ci_pytest_evidence_staging.py"
       - "tests/javascript/research_web*.test.mjs"
       - "requirements/web.in"
       - "requirements/web.lock"
@@ -43,7 +81,7 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -56,28 +94,299 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Setup Node 22.19
+      - name: Setup Node 24.19
         uses: actions/setup-node@v4
         with:
-          node-version: "22.19.0"
+          node-version: "24.19.0"
 
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install -e ".[dev]"
+          # Renderer/workbook and MCP SDK packages are already locked Web dependencies.
+          .venv/bin/python - <<'PY'
+          import os
+          from pathlib import Path
+          lines = Path("requirements/web.lock").read_text().splitlines()
+          block = []
+          for package in ("reportlab", "openpyxl", "et-xmlfile", "mcp", "mcp-types"):
+              start = next(i for i, line in enumerate(lines) if line.startswith(package + "=="))
+              block.append(lines[start])
+              for line in lines[start + 1:]:
+                  if line and not line[0].isspace():
+                      break
+                  block.append(line)
+          target = Path(os.environ["RUNNER_TEMP"]) / "rwb-reportlab.lock"
+          target.write_text("\n".join(block) + "\n")
+          PY
+          .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-reportlab.lock"
+          .venv/bin/python -c "import importlib.metadata as m; assert m.version('mcp') == '2.2.0' and m.version('mcp-types') == '2.2.0'"
 
       - name: Run Research Web Python contracts
         run: |
-          .venv/bin/python -m pytest \
+          # The exact-handoff fixture verifies these historical objects offline.
+          # Keep checkout shallow and fetch only the three fixed source commits.
+          git -c gc.auto=0 -c maintenance.auto=false fetch --no-tags --no-write-fetch-head --no-auto-maintenance --depth=1 origin \
+            b800e50366d1a0868372bbf173822976066c143f \
+            db2ae9a48ceca365852072e622aa6627aa7d0b83 \
+            1529c3189b008b9861a2bee1511f051feefa76eb
+          PYTEST_PLUGINS=tests.research_web.event_test_support PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+            --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+            --allowed-parent "$RUNNER_TEMP" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+            -- \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_docker_build_queue.py \
+            tests/research_web/test_api.py \
+            tests/research_web/test_research_bots.py \
+            tests/research_web/test_automation_routes.py \
+            tests/research_web/test_automation_schedule.py \
+            tests/research_web/test_automation_research_task.py \
+            tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities \
+            tests/research_web/test_weknora_client.py \
+            tests/research_web/test_weknora_service.py \
+            tests/research_web/test_weknora_api.py \
+            tests/research_web/test_weknora_formal_scope.py \
+            tests/research_web/test_store.py \
+            tests/research_web/test_capabilities_native.py \
+            tests/research_web/test_weknora_integrity.py \
+            tests/research_web/test_weknora_candidate.py \
+            tests/research_web/test_weknora_upstream_patch.py \
+            tests/research_web/test_weknora_retrieval_profile.py \
+            tests/research_web/test_weknora_cli.py \
+            tests/research_web/test_weknora_kb_settings_patch.py \
+            tests/research_web/test_weknora_sync.py \
+            tests/research_web/test_weknora_sync_scaling.py \
+            tests/research_web/test_weknora_sync_client.py \
+            tests/research_web/test_weknora_current.py \
+            tests/research_web/test_weknora_current_api.py \
+            tests/research_web/test_weknora_plain_text.py \
+            tests/research_web/test_event_api.py \
+            tests/research_web/test_event_datahub_bridge.py \
+            tests/research_web/test_event_studies.py \
+            tests/research_web/test_event_studies_events.py \
+            tests/research_web/test_event_studies_forecast.py \
+            tests/research_web/test_event_studies_index_description.py \
+            tests/research_web/test_event_studies_prediction.py \
+            tests/research_web/test_event_studies_scoring.py \
+            tests/research_web/test_event_studies_service.py \
+            tests/research_web/test_event_studies_validation.py \
+            tests/research_web/test_strategy_validation_engine.py \
+            tests/research_web/test_strategy_validation_api.py \
+            tests/research_web/test_event_timeline.py \
+            tests/research_web/test_event_timeline_relevance.py \
+            tests/research_web/test_event_timeline_scheduler.py \
+            tests/research_web/test_event_timeline_storage.py \
+            tests/research_web/test_market_daily_sources.py \
+            tests/research_web/test_market_scoring.py \
+            tests/research_web/test_market_daily_scores.py \
+            tests/research_web/test_market_scoring_native_inputs.py \
+            tests/research_web/test_market_scoring_native_matrix.py \
+            tests/research_web/test_market_scoring_native_temporal.py \
+            tests/research_web/test_market_scoring_service.py \
+            tests/research_web/test_research_scenarios_catalog.py \
+            tests/research_web/test_scenario_handoffs.py \
+            tests/research_web/test_scenario_review_regressions.py \
+            tests/research_web/test_scenario_review_round2.py \
+            tests/research_web/test_scenario_final_review.py \
+            tests/research_web/test_asset_research_workspace.py \
+            tests/research_web/test_discovery.py \
+            tests/research_web/test_discovery_tracking.py \
+            tests/research_web/test_discovery_routes.py \
+            tests/research_web/test_dossiers.py \
+            tests/research_web/test_dossier_api.py \
+            tests/research_web/test_dossier_browser_fixture.py \
+            tests/research_web/test_dossier_scans.py \
+            tests/research_web/test_dossier_signals.py \
+            tests/research_web/test_dossier_signal_api.py \
+            tests/research_web/test_dossier_preservation.py \
+            tests/research_web/test_mcp_seek_alpha.py \
+            tests/research_web/test_mcp_transport.py \
+            tests/research_web/test_model_profiles.py \
+            tests/research_web/test_fingpt_dsh_fusion.py \
+            tests/research_web/test_alphadesk_qa.py \
+            tests/research_web/test_alphadesk_qa_formats.py \
+            tests/research_web/test_qa_acceptance_budget.py \
+            tests/research_web/test_fingpt_comparison.py \
+            tests/research_web/test_research_quality.py \
+            tests/research_web/test_specialists.py \
+            tests/research_web/test_specialists_api.py \
+            tests/research_web/test_specialist_evidence.py \
+            tests/research_web/test_research_arithmetic.py \
+            tests/research_web/test_report_delivery_links.py \
+            tests/research_web/test_fingpt_evidence_contract.py \
+            tests/research_web/test_research_calculations.py \
+            tests/research_web/test_research_business_evidence.py \
+            tests/research_web/test_research_quality_scope.py \
+            tests/research_web/test_delivery_cache.py \
+            tests/research_web/test_research_report.py \
+            tests/research_web/test_report_revision.py \
+            tests/research_web/test_report_calculations.py \
+            tests/research_web/test_report_formats.py \
+            tests/research_web/test_report_system_flow.py \
+            tests/research_web/test_report_workflows.py \
+            tests/research_web/test_report_workflow_integration.py \
+            tests/research_web/test_report_rendering.py \
+            tests/research_web/test_report_weekly_data.py \
+            tests/research_web/test_report_weekly_gold_supplement.py \
+            tests/research_web/test_report_weekly_economic_fields.py \
+            tests/research_web/test_report_weekly_quality.py \
+            tests/research_web/test_report_weekly_owner.py \
+            tests/research_web/test_report_weekly_evidence.py \
+            tests/research_web/test_report_weekly_rendering.py \
+            tests/research_web/test_report_weekly_acceptance.py \
+            tests/research_web/test_report_weekly_historical_acceptance.py \
+            tests/research_web/test_report_weekly_admission.py tests/research_web/test_legacy_weekly_monitoring.py \
+            tests/research_web/test_datahub_wind_excel_weekly.py \
+            tests/research_web/test_bound_analysis.py \
+            tests/research_web/test_research_source_reading.py \
+            tests/research_web/test_research_report_binding.py \
             tests/research_web/test_session_search.py \
             tests/research_web/test_integration_coordinator.py \
+            tests/research_web/test_connection_center.py \
+            tests/research_web/test_asset_workspace.py \
+            tests/research_web/test_watchlist_import.py \
+            tests/research_web/test_asset_history.py \
+            tests/research_web/test_asset_intraday.py \
+            tests/research_web/test_asset_minute_k.py \
+            tests/research_web/test_asset_chip_inputs.py \
+            tests/research_web/test_asset_indicator_preferences.py \
+            tests/research_web/test_asset_directory.py \
+            tests/research_web/test_asset_loading.py \
+            tests/research_web/test_asset_provider_normalization.py \
+            tests/research_web/test_datahub.py \
+            tests/research_web/test_datahub_catalog.py \
+            tests/research_web/test_datahub_cjpy.py \
+            tests/research_web/test_cjpy_asset_data.py \
+            tests/research_web/test_datahub_broker.py \
+            tests/research_web/test_market_indices.py \
+            tests/research_web/test_global_market_indices.py \
+            tests/research_web/test_market_dashboard_http_contract.py \
+            tests/research_web/test_market_terminal.py \
+            tests/research_web/test_builder_reconcile.py \
+            tests/research_web/test_iteration_resources.py \
+            tests/research_web/test_test_artifact_retention.py \
+            tests/research_web/test_docker_resources.py \
+            tests/research_web/test_docker_manager.py \
+            tests/research_web/test_docker_release.py \
+            tests/research_web/test_release_maintenance.py \
+            tests/research_web/test_market_provider.py \
+            tests/research_web/test_market_service.py \
+            tests/research_web/test_market_financial_calendar.py \
+            tests/research_web/test_market_reader.py \
+            tests/research_web/test_market_reader_live_postgres.py \
+            tests/research_web/test_datahub_wind.py \
+            tests/research_web/test_datahub_wind_api.py \
+            tests/research_web/test_service_manager.py \
+            tests/research_web/test_service_manager_graceful.py \
+            tests/research_web/test_plugins.py \
+            tests/research_web/test_plugins_mcp_security.py \
+            tests/research_web/test_plugins_runtime_restart.py \
+            tests/research_web/test_mcp_managed_sandbox.py \
+            tests/research_web/test_datahub_reliability.py \
+            tests/research_web/test_datahub_storage_activity.py \
+            tests/research_web/test_datahub_warehouse.py \
+            tests/research_web/test_datahub_akshare_semantics.py \
+            tests/research_web/test_datahub_baostock.py \
+            tests/research_web/test_baostock_financial_integration.py \
+            tests/research_web/test_baostock_reference.py \
+            tests/research_web/test_datahub_baostock_cashflow.py \
+            tests/research_web/test_cashflow_warehouse_integration.py \
+            tests/research_web/test_datahub_public_worker.py \
+            tests/research_web/test_ak_native_binding.py \
+            tests/research_web/test_reference_evidence.py \
+            tests/research_web/test_research_warehouse_management.py \
+            tests/research_web/test_research_snapshot_store.py \
+            tests/research_web/test_quantapi_authorization.py \
+            tests/research_web/test_datahub_numeric_sources.py \
+            tests/research_web/test_datahub_official_numeric.py \
+            tests/research_web/test_nyfed_sofrai_reference.py \
+            tests/research_web/test_datahub_spdr.py \
+            tests/research_web/test_datahub_wgc.py \
+            tests/research_web/test_datahub_kapsarc.py \
+            tests/research_web/test_kapsarc_warehouse_integration.py \
+            tests/research_web/test_wgc_warehouse_integration.py \
+            tests/research_web/test_spdr_warehouse_integration.py \
+            tests/research_web/test_datahub_bea_archive.py \
+            tests/research_web/test_datahub_financial_time_contract.py \
+            tests/research_web/test_datahub_execution_health.py \
+            tests/research_web/test_warehouse_diagnostics.py \
+            tests/research_web/test_market_store.py \
+            tests/research_web/test_market_store_postgres.py \
+            tests/research_web/test_market_store_operation.py \
+            tests/research_web/test_market_store_live_postgres.py \
+            tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
+            tests/research_web/test_methods.py \
+            tests/research_web/test_capabilities.py::test_catalog_save_uses_one_write_with_identical_json \
+            tests/research_web/test_capabilities.py::test_catalog_save_failure_preserves_previous_index \
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \
             tests/research_web/test_cli_lazy.py \
+            tests/research_web/test_ai_news_host.py \
+            tests/research_web/test_ai_news_multiuser.py \
+            tests/research_web/test_ai_news_eval.py \
+            tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
+            tests/research_web/test_resident_volume_identity.py tests/research_web/test_gateway_source.py \
+            tests/research_web/test_delivery_transfer.py \
+            tests/research_web/test_source_inventory.py \
+            tests/research_web/test_maintenance_job_identity_v3.py \
+            tests/research_web/test_repository_lock_recovery.py \
+            tests/research_web/test_wind_recovery_activity.py \
+            tests/research_web/test_wind_cleanup_recovery.py \
+            tests/research_web/test_trial_discard_backup.py \
+            tests/research_web/test_trial_retirement.py \
+            tests/research_web/test_trial_retirement_upgrade.py \
+            tests/research_web/test_trial_successor.py \
+            tests/research_web/test_gateway_upgrade.py tests/research_web/test_model_provider_upgrade.py \
+            tests/research_web/test_multiuser_accounts.py \
+            tests/research_web/test_multiuser_gateway.py \
+            tests/research_web/test_multiuser_runtime.py \
+            tests/research_web/test_multiuser_resident.py \
+            tests/research_web/test_multiuser_cli.py \
+            tests/research_web/test_mcp_facade_store.py \
+            tests/research_web/test_mcp_facade_oauth.py \
+            tests/research_web/test_mcp_facade_http.py \
+            tests/research_web/test_mcp_facade_read_policy.py \
+            tests/research_web/test_mcp_facade_tools.py \
+            tests/research_web/test_mcp_facade_lifecycle.py \
             --confcutdir=tests/research_web -q
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+            --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
+            --allowed-parent "$RUNNER_TEMP" \
+            --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
+            -- \
+            tests/unit/test_wind_excel_instances.py \
+            tests/unit/test_fingpt_legacy_cutover.py \
+            tests/unit/test_ci_pytest_partitions.py \
+            tests/unit/test_research_web_test_env.py \
+            tests/unit/test_ci_pytest_evidence_staging.py \
+            --confcutdir=tests/unit -q
 
       - name: Run Research Web JavaScript contracts
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
+
+      - name: Verify pinned editorial engine without model or paid requests
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
+          node --test services/ai_news/tests/*.test.mjs
+
+      - name: Stage safe pytest evidence
+        id: stage-safe-evidence
+        if: always()
+        shell: bash
+        run: |
+          .venv/bin/python scripts/stage_ci_pytest_evidence.py \
+            --runner-temp "$RUNNER_TEMP" \
+            --workspace "$GITHUB_WORKSPACE" \
+            --max-bytes 104857600
+
+      - name: Upload safe pytest evidence
+        if: always() && steps.stage-safe-evidence.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/research-web-checks
+          if-no-files-found: ignore
+          retention-days: 3

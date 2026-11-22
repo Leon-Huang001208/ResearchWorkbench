@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 const readWorkflow = (name) => fs.readFileSync(
@@ -151,6 +154,35 @@ function policyRequiresGate(file, gate) {
   return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
 }
 
+test('Checks extracts exact hashed Web SDK blocks while preserving renderer pins', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-lock-contract-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const lock=fs.readFileSync(new URL('../../requirements/web.lock',import.meta.url),'utf8');
+  fs.mkdirSync(path.join(root,'requirements'));
+  fs.writeFileSync(path.join(root,'requirements/web.lock'),lock);
+  const step=workflows.checks.split('      - name: Install declared test dependencies\n')[1]?.split('\n      - name:')[0];
+  assert.ok(step,'existing dependency step must remain');
+  const heredoc=step.match(/          \.venv\/bin\/python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(heredoc,'existing lock extraction script must remain');
+  const code=heredoc[1].split('\n').map(line=>line.slice(10)).join('\n');
+  const result=spawnSync(process.env.RWB_TEST_PYTHON || 'python3',['-B','-c',code],{
+    cwd:root,env:{...process.env,RUNNER_TEMP:root,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8',timeout:10000,
+  });
+  assert.equal(result.status,0,result.stderr);
+  const extracted=fs.readFileSync(path.join(root,'rwb-reportlab.lock'),'utf8');
+  const entries=extracted.split(/\n(?=[a-z0-9])/).filter(Boolean);
+  assert.equal(entries.length,5);
+  for(const packageName of ['reportlab','openpyxl','et-xmlfile','mcp','mcp-types']) {
+    const entry=entries.find(value=>value.startsWith(`${packageName}==`));
+    assert.ok(entry,packageName);
+    const original=lock.split(/\n(?=[a-z0-9])/).find(value=>value.startsWith(`${packageName}==`));
+    assert.equal(entry.trimEnd(),original.trimEnd(),`${packageName} block must retain all original hashes`);
+    assert.match(entry,/--hash=sha256:[a-f0-9]{64}/);
+  }
+  assert.match(step,/pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-reportlab\.lock"/);
+  for(const packageName of ['mcp','mcp-types']) assert.ok(step.includes(`m.version('${packageName}') == '2.2.0'`),`${packageName} installed metadata must be checked`);
+});
+
 test('Docker runtime test paths retain required Native bootstrap coverage', () => {
   const policy = JSON.parse(fs.readFileSync(
     new URL('../../.agents/verification-policy.json', import.meta.url), 'utf8',
@@ -193,7 +225,7 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), true, file);
     assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), true, file);
   }
-  assert.match(workflows.bootstrap, /macos-14/);
+  assert.match(workflows.bootstrap, /macos-15/);
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
   for (const file of ['setup-web.cmd', 'rwb.cmd']) {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), false, file);
@@ -256,7 +288,7 @@ test('Bootstrap has exactly one macOS clean-install job and its intended trigger
     ['pull_request', 'push', 'workflow_dispatch'],
   );
   assert.deepEqual(workflowJobs(workflows.bootstrap), [
-    {id: 'clean-install', runsOn: 'macos-14'},
+    {id: 'clean-install', runsOn: 'macos-15'},
   ]);
 });
 
@@ -349,6 +381,9 @@ test('automatic workflows cancel stale runs and use bounded jobs', () => {
     assert.match(source, /timeout-minutes:/);
   }
   assert.match(workflows.checks, /runs-on: ubuntu-latest/);
+  const checkBudget = workflows.checks.match(/^    timeout-minutes: (\d+)$/m);
+  assert.ok(checkBudget && Number(checkBudget[1]) > 0 && Number(checkBudget[1]) <= 45,
+    'the original complete Checks job must remain bounded to at most 45 minutes');
   assert.doesNotMatch(workflows.checks, /runs-on: (?:macos|windows)/);
   assert.match(workflows.checks, /python -m venv \.venv/);
   assert.doesNotMatch(
@@ -362,6 +397,10 @@ test('automatic workflows cancel stale runs and use bounded jobs', () => {
     'test_documentation.py',
     'test_doc_sync.py',
     'test_cli_lazy.py',
+    'test_multiuser_accounts.py',
+    'test_multiuser_gateway.py',
+    'test_multiuser_runtime.py',
+    'test_multiuser_cli.py',
   ]) {
     assert.match(workflows.checks, new RegExp(contract.replace('.', '\\.')));
   }
@@ -409,5 +448,36 @@ test('Docker CI is dispatched by the Linux device for an exact commit', () => {
       assert.equal(triggersForPath(workflows.bootstrap, event, file), true, `native ${event}: ${file}`);
     }
     assert.equal(triggersForPath(workflows.bootstrap, event, 'Dockerfile'), false);
+  }
+});
+
+test('pytest evidence staging uses the no-follow allowlist helper and exact artifact directory', () => {
+  for (const event of ['pull_request', 'push']) {
+    assert.equal(
+      triggersForPath(workflows.checks, event, 'scripts/stage_ci_pytest_evidence.py'),
+      true,
+      `${event}: staging helper must trigger checks`,
+    );
+    assert.equal(
+      triggersForPath(workflows.checks, event, 'tests/unit/test_ci_pytest_evidence_staging.py'),
+      true,
+      `${event}: staging security contracts must trigger checks`,
+    );
+  }
+  assert.match(workflows.checks, /scripts\/stage_ci_pytest_evidence\.py/);
+  assert.match(workflows.checks, /if: always\(\) && steps\.stage-safe-evidence\.outcome == 'success'/);
+  assert.match(workflows.checks, /path: artifacts\/research-web-checks\n/);
+  assert.doesNotMatch(workflows.checks, /cp "\$root\/\$relative"/);
+  assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
+});
+
+test('knowledge authority regressions are actual arguments of the existing CI partition command', () => {
+  const step = workflows.checks.match(/- name: Run Research Web Python contracts\n([\s\S]*?)(?=\n      - name:|$)/)?.[1];
+  assert.ok(step, 'the existing Python contracts step must remain');
+  assert.match(step, /scripts\/run_ci_pytest_partitions\.py/);
+  const argumentsFound = [...step.matchAll(/^\s+(tests\/research_web\/[^\s]+)\s+\\\s*$/gm)].map(match => match[1]);
+  for (const file of ['test_weknora_formal_scope.py', 'test_store.py', 'test_capabilities_native.py']) {
+    const expected = `tests/research_web/${file}`;
+    assert.equal(argumentsFound.filter(value => value === expected).length, 1, `${expected} must execute exactly once`);
   }
 });

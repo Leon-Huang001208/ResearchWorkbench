@@ -12,6 +12,30 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 
+test('Markdown retains fence lines with non-whitespace suffixes as escaped code', () => {
+  for (const fence of ['```', '~~~', '````', '~~~~']) {
+    for (const suffix of ['python', ' trailing words', ' <script>alert("x")</script>']) {
+      const body = ['before', fence + suffix, 'after'];
+      const source = [fence + 'text', ...body, fence, 'outside'].join('\n');
+      const escapedBody = body.join('\n').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+      assert.equal(markdown.renderMarkdown(source), `<pre><code class="language-text">${escapedBody}</code></pre>\n<p>outside</p>`);
+    }
+  }
+});
+
+test('Markdown closes code with sufficient same-kind fences and optional whitespace', () => {
+  for (const fence of ['```', '~~~', '````', '~~~~']) {
+    for (const closing of [fence, fence + ' \t', ' \t' + fence + fence[0] + ' \t']) {
+      const otherKind = fence[0] === '`' ? '~~~~' : '````';
+      const body = ['<tag> & "quoted"', fence.slice(1), otherKind];
+      assert.equal(
+        markdown.renderMarkdown([fence, ...body, closing, 'outside'].join('\n')),
+        `<pre><code>&lt;tag&gt; &amp; &quot;quoted&quot;\n${fence.slice(1)}\n${otherKind}</code></pre>\n<p>outside</p>`,
+      );
+    }
+  }
+});
+
 test('a stalled response body times out once and leaves writes explicitly unconfirmed', async () => {
   let calls = 0;
   const api = core.createAPI({ requestTimeoutMs: 10, logger() {}, fetcher: async () => {
@@ -174,10 +198,41 @@ test('conversation artifact links resolve only exact verified files in the same 
   assert.doesNotMatch(markdown.renderMarkdown('[报告](outputs/report.md)'), /<a /);
 });
 
+test('research replies reject stale relative and API aliases and expose the exact checked version', () => {
+  const prefix='/api/research/sessions/s/files/';
+  const current={id:'a'.repeat(24),name:'checked.html',path:'outputs/report-versions/v/checked.html',sha256:'1'.repeat(64),url:prefix+'a'.repeat(24)+'/download'};
+  const stale={id:'b'.repeat(24),name:'friendly.html',path:'outputs/friendly.html',valid:true,url:prefix+'b'.repeat(24)+'/download'};
+  const detail={id:'s',mode:'fingpt',status:'completed',files:[current,stale],delivery:{files:[stale]},research_quality:{status:'incomplete'},research_report:{content_sha256:'2'.repeat(64)},research_report_delivery:{status:'bound',version_id:'v',report_content_sha256:'2'.repeat(64),files:[current],aliases:{[current.path]:current.url}},messages:[{role:'user',text:'研究'},{role:'assistant',text:`[旧版](outputs/friendly.html) [直接旧版](${stale.url}) [来源](https://example.com/source)`}]};
+  const rendered=views.renderConversation(detail);
+  assert.doesNotMatch(rendered,new RegExp(`href="${stale.url}"`));
+  assert.match(rendered,new RegExp(`href="${current.url}"`));
+  assert.match(rendered,/Host核对的报告文件/);
+  assert.match(rendered,/href="https:\/\/example.com\/source"/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_report_delivery:{status:'unavailable',files:[],aliases:{}}}),/href="\/api\/research\/sessions/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_report:{content_sha256:'3'.repeat(64)}}),/href="\/api\/research\/sessions/);
+  for (const path of [`/x/..${stale.url}`,`http://127.0.0.1:8088/x/..${stale.url}`,stale.url.replace('/api/','/%61pi/'),stale.url.replace('/api/','/%2561pi/')]) {
+    const attacked={...detail,research_report_delivery:{status:'unavailable',files:[],aliases:{}},messages:[{role:'assistant',text:`[旧版](${path})`}]};
+    assert.doesNotMatch(views.renderConversation(attacked),/<a /);
+  }
+  const jsonFile={...stale,name:'research-report.json'};
+  assert.doesNotMatch(views.renderConversation({...detail,files:[jsonFile],research_report_delivery:{},messages:[{role:'assistant',text:`[底稿](${stale.url})`}]}),/<a /);
+  const bound = {...detail.research_report_delivery, aliases:{[current.url]:current.url}};
+  for (const origin of ['https://127.0.0.1:13081','http://localhost:3081','https://[::1]:13081']) {
+    const repaired=views.renderConversation({...detail,research_report_delivery:bound,messages:[{role:'assistant',text:`[本轮报告](${origin}${current.url})`}]});
+    assert.match(repaired,new RegExp(`href="${current.url}"[^>]*>本轮报告</a>`));
+    assert.doesNotMatch(repaired,new RegExp(`href="${origin.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`));
+  }
+  for (const path of [`https://evil.example${current.url}`,`https://user@localhost:3081${current.url}`,`https://localhost:3081/x/..${current.url}`,`https://localhost:3081${current.url}?download=1`,`https://localhost:3081${stale.url}`]) {
+    const rejected=views.renderConversation({...detail,research_report_delivery:bound,messages:[{role:'assistant',text:`[错误入口](${path})`}]});
+    assert.doesNotMatch(rejected,/>错误入口<\/a>/);
+  }
+});
+
 test('routing accepts only product routes and safely round trips session identifiers', () => {
   assert.equal(typeof core.parseRoute, 'function');
   assert.deepEqual(core.parseRoute('#/claw?session=a%2Fb'), { page: 'claw', sessionId: 'a/b' });
-  assert.deepEqual(core.parseRoute('#/market'), { page: 'fingpt', sessionId: null });
+  assert.deepEqual(core.parseRoute('#/market'), { page: 'market', sessionId: null, marketView: 'dashboard', marketBoardId: null });
+  assert.deepEqual(core.parseRoute('#/unknown-product-route'), { page: 'fingpt', sessionId: null });
   assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
   assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });
   assert.deepEqual(core.parseRoute('#/history?mode=unknown&view=unknown'), { page: 'history', sessionId: null, historyMode: null, historyView: 'active' });
@@ -406,7 +461,9 @@ test('catalog initializes every default resource as pending and passes runtime p
   const app = await readFile(new URL('app.mjs', root), 'utf8');
   assert.match(app, /const defaultCatalogNames = \['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'\];/);
   assert.match(app, /pending:\s*new Set\(defaultCatalogNames\)/);
-  assert.match(app, /if \(catalog\.pending\.has\('runtime'\)\) return 'DSH 连接中';/);
+  const { runtimeLabel } = await import(new URL('shell.mjs', root));
+  assert.equal(runtimeLabel({ pending: new Set(['runtime']) }), 'DSH 连接中');
+  assert.equal(runtimeLabel({ pending: new Set(), runtime: { execution_mode: 'external' } }), '外部研究宿主');
   assert.match(app, /const runtimePending = catalog\.pending\.has\('runtime'\);/);
   assert.match(app, /const runtimeReady = !runtimePending && catalog\.runtime\?\.connected === true && catalog\.runtime\?\.credential_configured !== false;/);
   assert.match(app, /runtimeReady, runtimePending/);
@@ -444,7 +501,7 @@ test('connection probe feedback uses health and shared ZhiQiu removal discloses 
   const settings = await readFile(new URL('settings.mjs', root), 'utf8');
   assert.match(app, /current\.health === 'healthy'/);
   assert.match(app, /知丘研报、公众号与纪要共享/);
-  assert.match(settings, /class="settings-card model-settings"/);
+  assert.match(settings, /data-model-profiles-root/);
   const { renderSettingsPage } = await import('../../app/research_web/ui/settings.mjs');
   const modelPage = renderSettingsPage({ route: {page: 'settings', settingsSection: 'model'}, hash: '#/settings/model', models: [], runtime: {}, modelFailures: [], connections: {sources: []}, busy: false });
   assert.doesNotMatch(modelPage, /<details/);
@@ -631,4 +688,13 @@ test('restored reference display metadata is bounded and cannot carry URLs, path
   await controller.open({page:'claw',sessionId:'receiver'});
   assert.deepEqual(controller.state.attachments,[{id:'copy',name:'copy.md'}]);assert.equal(controller.state.draft,'保留正文');
   assert.ok(events.includes('draft_attachment_source_invalid'));
+});
+
+test('audit download requires the same checked version and semantic attachment name', () => {
+  const prefix='/api/research/sessions/s/files/';
+  const audit={id:'a'.repeat(24),name:'research-report-abcdef123456-audit.json',path:'outputs/report-versions/v/audit.json',sha256:'1'.repeat(64),url:prefix+'a'.repeat(24)+'/download'};
+  const detail={id:'s',mode:'fingpt',status:'completed',files:[audit],research_quality:{status:'incomplete'},research_report:{content_sha256:'2'.repeat(64),audit_attachment:{name:audit.name}},research_report_delivery:{status:'bound',version_id:'v',report_content_sha256:'2'.repeat(64),files:[audit]},messages:[{role:'assistant',text:'部分交付'}]};
+  assert.match(views.renderConversation(detail),/同版本审计附件/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_report:{content_sha256:'2'.repeat(64)}}),/同版本审计附件/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_quality:{status:'invalid'}}),/同版本审计附件/);
 });

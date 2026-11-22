@@ -1,6 +1,7 @@
 """Launch only an owned DSH instance with a fixed build and clean environment."""
 
 import argparse
+import asyncio
 import hashlib
 import json
 import os
@@ -25,6 +26,7 @@ from .mcp_runtime.authorization import (
     AuthorizationManager,
     ExactToolAllowlist,
 )
+from .plugins import PluginService
 from .runtime_state import runtime_state_directory
 from .staged_runtime import verify_staged_runtime
 from .store import StoreError
@@ -80,6 +82,8 @@ def validate_research_python(python: Path) -> None:
 
 
 def mcp_runtime_enabled() -> bool:
+    if os.environ.get("RWB_TENANT_MODE") == "1":
+        return False
     return os.environ.get("RESEARCH_MCP_RUNTIME_ENABLED", "1").strip().lower() in {
         "1",
         "true",
@@ -155,6 +159,37 @@ def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
         ):
             raise ValueError("invalid active manifest")
         bindings = AuthorizationManager(data).active_bindings(set(installation_ids))
+        if os.environ.get("RWB_TENANT_MODE") == "1" and installation_ids:
+            from .mcp_runtime.installation_store import InstallationStore
+            from .plugins.mcp_policy import managed_binding
+
+            # Reject legacy/unmanaged activation before reading native credential
+            # metadata or allowing a DSH process to advertise these Tools.
+            plugin_index = data / "plugins/index.json"
+            if plugin_index.is_symlink() or not plugin_index.is_file():
+                raise ValueError("managed plugin approval required")
+            plugins = json.loads(plugin_index.read_bytes())
+            allowed = {
+                iid
+                for digest in plugins["active"].values()
+                for iid in plugins["versions"][digest].get("mcp_bindings", {}).values()
+            }
+            if not set(installation_ids) <= allowed:
+                raise ValueError("unmanaged MCP activation")
+            manifests = InstallationStore(data)
+            authorization = AuthorizationManager(data)
+            snapshots = authorization.list_tools()
+            for installation in installation_ids:
+                managed_binding(
+                    data,
+                    manifests.get(installation),
+                    [
+                        tool
+                        for tool in snapshots
+                        if tool["installation_id"] == installation
+                        and tool.get("status") == "active"
+                    ],
+                )
         if len(bindings) > 256:
             raise ValueError("too many MCP tool bindings")
         # Reuse the Host authorization contract so the DSH projection cannot
@@ -175,6 +210,8 @@ def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
 
 def load_tabbit_config(data: Path) -> dict[str, object]:
     """Read the non-secret Tabbit switches used for the next Runtime start."""
+    if os.environ.get("RWB_TENANT_MODE") == "1":
+        return {"browser_enabled": False, "web_fetch_enabled": False, "instance_id": None}
     defaults: dict[str, object] = {
         "browser_enabled": True,
         "web_fetch_enabled": False,
@@ -726,11 +763,44 @@ def _prepare_runtime(
     explain_content = (package / "framework-explain.cordis.yml").read_text(encoding="utf-8")
     (explain_preset / "agent.cordis.yml").write_text(explain_content, encoding="utf-8")
     mcp_bindings: list[dict[str, object]] = []
+    tenant_skill_names: list[str] = []
     if research_tools:
         validate_research_python(Path(sys.executable))
+        plugin_catalog = CapabilityCatalog(data)
+        approved_plugin_roots = [
+            Path(value)
+            for name in ("RWB_SHARED_PLUGINS_ROOT", "RWB_PERSONAL_PLUGINS_ROOT")
+            if (value := os.environ.get(name))
+        ]
+        if approved_plugin_roots:
+            # The owned launcher composes the next DSH before starting it;
+            # online mutations use ResearchService's actual idle gate instead.
+            asyncio.run(
+                PluginService(data, plugin_catalog, idle_gate=lambda: True).synchronize(
+                    approved_plugin_roots
+                )
+            )
         load_control(data, datahub_url)
         public_data_tools = enabled_datahub_tools(data)
         mcp_bindings = load_mcp_runtime_bindings(data)
+        if os.environ.get("RWB_TENANT_MODE") == "1":
+            approved_plugins = PluginService(data, plugin_catalog)
+            plugin_versions = approved_plugins.data.get("versions")
+            if not isinstance(plugin_versions, dict):
+                raise ValueError("plugin_index_invalid")
+            plugin_ids = {
+                binding["id"]
+                for digest in plugin_versions
+                if approved_plugins.version_authorized(digest)
+                for binding in approved_plugins._reviewed(digest)["bindings"].values()
+            }
+            tenant_skill_names = [
+                row["native_name"]
+                for row in plugin_catalog.list()["items"]
+                if (row["builtin"] or row["id"] in plugin_ids)
+                and row["enabled"]
+                and row["native_name"]
+            ]
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
@@ -749,6 +819,9 @@ def _prepare_runtime(
             "__TOOLS_MODULE__": package / "research-tools.mjs",
             "__PUBLIC_DATA_MODULE__": package / "public-data.mjs",
             "__MCP_TOOLS_MODULE__": package / "mcp-adapter.mjs",
+            "__PLUGINS_MODULE__": package / "plugins.mjs",
+            "__SPECIALISTS_MODULE__": package / "specialists.mjs",
+            "__NATIVE_LLM_MODULE__": source / "packages/llm/llm/lib/index.js",
             "__PYTHON__": Path(sys.executable),
             "__RUNNER__": runner,
             "__RESEARCH_ROOT__": data,
@@ -756,6 +829,9 @@ def _prepare_runtime(
             content = content.replace(key, json.dumps(str(value)))
         content = content.replace("__PUBLIC_DATA_ENABLED_TOOLS__", json.dumps(public_data_tools))
         content = content.replace("__MCP_TOOL_BINDINGS__", json.dumps(mcp_bindings))
+        content = content.replace(
+            "__PLUGIN_APPROVAL_ROOTS__", json.dumps([str(path) for path in approved_plugin_roots])
+        )
         content = content.replace(
             "fetch: false",
             f"fetch: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
@@ -880,6 +956,8 @@ def _prepare_runtime(
                 f"      name: {json.dumps(str(guard))}",
                 "      config:",
                 f"        enabled: {'true' if research_tools else 'false'}",
+                f"        tenantMode: {'true' if os.environ.get('RWB_TENANT_MODE') == '1' else 'false'}",
+                f"        tenantSkillNames: {json.dumps(tenant_skill_names)}",
                 f"        researchRoot: {json.dumps(str(data))}",
                 *(
                     [
@@ -944,7 +1022,7 @@ def _prepare_runtime(
     env = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "LANG": "en_US.UTF-8",
-        "HOME": str(Path.home()),
+        "HOME": str(home if os.environ.get("RWB_TENANT_MODE") == "1" else Path.home()),
         "DSH_HOME": str(home),
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),

@@ -1,10 +1,21 @@
 /** Host-global final veto; MCP tools require an exact activation allowlist. */
 import { spawn } from 'node:child_process';
+import { existsSync, lstatSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { isAbsolute } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { nativeAdmission } from './public-data.mjs';
 
 export const inject = ['tools', 'llm', 'sessions'];
+
+export function pluginRuntimeFrozen(root) {
+  if (typeof root !== 'string' || !isAbsolute(root) || resolve(root) !== root) return true;
+  try {
+    const folder = join(root, 'plugins');
+    if (!existsSync(folder)) return false;
+    if (lstatSync(folder).isSymbolicLink()) return true;
+    return existsSync(join(folder, 'runtime-freeze.json'));
+  } catch { return true; }
+}
 const SAFE_SCOPE_CODES = new Set([
   'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
   'data_source_unavailable', 'data_dependency_unavailable',
@@ -94,7 +105,11 @@ export const RESEARCH_TOOLS = new Set([
   'todo_write',
   'research_run_script',
   'research_document_operation',
+  'research_check_quality',
+  'research_read_source',
+  'research_search_knowledge', 'research_read_knowledge',
   'rwb_record_method_use',
+  'specialist_plan', 'specialist_run', 'specialist_status', 'specialist_cancel',
   'rwb_prepare_automation',
   'rwb_list_automations', 'rwb_prepare_automation_update', 'rwb_run_automation', 'ask_user_question',
   'datahub_search_assets', 'datahub_get_trading_calendar', 'datahub_get_market_bars',
@@ -102,10 +117,15 @@ export const RESEARCH_TOOLS = new Set([
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',
   'datahub_search_news', 'datahub_search_announcements', 'datahub_search_research', 'datahub_search_web',
   'datahub_get_database_schema', 'datahub_query_table', 'datahub_get_external_data',
-  'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents',
+  'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents', 'rwb_plugin_instructions', 'rwb_plugin_agent',
 ]);
 
 export function apply(ctx, config = {}) {
+  if (config.tenantMode === true && (config.tenantSkillNames !== undefined &&
+      (!Array.isArray(config.tenantSkillNames) || config.tenantSkillNames.some(name => typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,159}$/.test(name))))) {
+    throw Error('tenant_skill_allowlist_invalid');
+  }
+  const tenantSkillNames = new Set(config.tenantSkillNames || []);
   if (config.researchRoot !== undefined) {
     if (typeof config.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('skill_admission_root_invalid');
     const catalogScoped = new WeakSet();
@@ -161,6 +181,7 @@ export function apply(ctx, config = {}) {
     // Upstream /skill-name user gestures inject instructions before any tool
     // invocation. Inspect the authoritative injected source, not user prose.
     ctx.on('agent/pre-step', async (options, next) => {
+      if (config.tenantMode === true && pluginRuntimeFrozen(config.researchRoot)) return { kind: 'reject' };
       if (config.enabled && !catalogScoped.has(options.agent)) {
         try {
           const scope = await nativeAdmission(ctx, {name:'agent_step',agent:options.agent,signal:options.signal}, config);
@@ -181,6 +202,10 @@ export function apply(ctx, config = {}) {
         if (!(await nativeAdmission(ctx, exec, config)).admitted) return { kind: 'reject' };
         const priorMessages = new Set(options.messages || []);
         const names = new Set(decision.messages.filter(message => !priorMessages.has(message) && message.source?.kind === 'skill-invocation' && message.source.form === 'instructions').map(message => message.source.name));
+        if (config.tenantMode === true && [...names].some(name => !tenantSkillNames.has(name))) {
+          ctx.logger.warn('research_tenant_skill_injection_denied');
+          return { kind: 'reject' };
+        }
         for (const name of names) {
           const invocation = { ...exec, nativeSkillName: name };
           if (!(await nativeAdmission(ctx, invocation, config)).admitted) return { kind: 'reject' };
@@ -306,6 +331,18 @@ export function apply(ctx, config = {}) {
     mcpTools.add(name);
   }
   ctx.tools.guard((execution) => {
+    if (config.tenantMode === true) {
+      if (pluginRuntimeFrozen(config.researchRoot)) return 'plugin_runtime_frozen';
+      const denied = typeof execution.name !== 'string' ||
+        (execution.name === 'skill' && !tenantSkillNames.has(execution.arguments?.name)) || (execution.name.startsWith('mcp__') && !mcpTools.has(execution.name)) ||
+        ['tabbit_browser', 'web_fetch', 'rwb_prepare_automation', 'rwb_list_automations',
+         'rwb_prepare_automation_update', 'rwb_run_automation'].includes(execution.name) ||
+        (execution.name === 'research_document_operation' && execution.arguments?.mode !== 'file');
+      if (denied) {
+        ctx.logger.warn('research_tenant_tool_denied');
+        return 'server_capability_disabled';
+      }
+    }
     if (acceptance !== undefined) {
       if (dockerText) {
         ctx.logger.warn('research_acceptance_tool_denied');
@@ -334,7 +371,7 @@ export function apply(ctx, config = {}) {
       let budget = calls.get(execution.agent);
       if (!budget || budget.turn !== turn) { budget = { turn, calls: 0, children: 0 }; calls.set(execution.agent, budget); }
       budget.calls++;
-      if (execution.name === 'subagent') budget.children++;
+      if (execution.name === 'subagent' || execution.name === 'specialist_run') budget.children++;
       if (budget.calls <= 48 && budget.children <= 4) return undefined;
       ctx.logger.warn('Research Workbench denied tool budget overflow');
       return 'Research tool budget exhausted. Report partial findings and missing work.';
@@ -342,4 +379,15 @@ export function apply(ctx, config = {}) {
     ctx.logger.warn('Research Workbench rejected disabled tool: %s', execution.name);
     return 'Research Workbench: this tool is not authorized. Do not attempt shell, arbitrary URL, MCP or host-file access.';
   });
+  if (config.tenantMode === true && config.enabled === true) {
+    const folder = join(config.researchRoot, 'plugins');
+    mkdirSync(folder, { recursive: true, mode: 0o700 });
+    if (lstatSync(folder).isSymbolicLink()) throw Error('plugin_guard_state_unsafe');
+    const target = join(folder, 'guard-state.json');
+    if (existsSync(target) && lstatSync(target).isSymbolicLink()) throw Error('plugin_guard_state_unsafe');
+    const temporary = join(folder, `.guard-${process.pid}.json`);
+    writeFileSync(temporary, JSON.stringify({ schema_version: 1, pid: process.pid, skill_names: [...tenantSkillNames], mcp_tools: [...mcpTools], freeze_supported: true }), { flag: 'wx', mode: 0o600 });
+    renameSync(temporary, target);
+    ctx.logger.info('research_plugin_guard_initialized');
+  }
 }

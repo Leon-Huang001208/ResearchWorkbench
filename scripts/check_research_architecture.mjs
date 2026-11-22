@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import {checkGeneratedArtifacts} from './build_research_web_api_atlas.mjs';
 
 export const MAP_PATH = 'docs/architecture/research-web/architecture-map.json';
@@ -75,6 +76,56 @@ const matches = (file, patterns) => patterns.some(pattern => pattern.endsWith('/
 const digest = bytes => ({sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length});
 const sameHash = (record, actual) => record?.sha256 === actual.sha256 && record?.bytes === actual.bytes;
 
+const READER_CONTAINMENT_POLICY = 'fit-or-reader-declared-readable-vertical-scroll';
+const viewportSize = viewport => `${viewport?.width}x${viewport?.height}`;
+
+function readerViewportOK(viewport, minimumTextPx) {
+  if (!viewport || !['width','height','innerWidth','innerHeight','scrollWidth','scrollHeight','readerWidth','diagramWidth','viewBoxWidth'].every(key=>Number.isFinite(viewport[key]) && viewport[key]>0)) return false;
+  if (!['width','height','innerWidth','innerHeight','scrollWidth','scrollHeight'].every(key=>Number.isInteger(viewport[key]))) return false;
+  const overflowY=viewport.scrollHeight>viewport.innerHeight;
+  const page=viewport.pageComposition;
+  if (!page || !['bodyPaddingPx','headerPx','diagramChromePx','svgPx','cardsPx','viewBoxHeight'].every(key=>Number.isFinite(page[key]) && page[key]>=0) || page.svgPx===0 || page.viewBoxHeight===0) return false;
+  const contentHeight=page.bodyPaddingPx+page.headerPx+page.diagramChromePx+page.svgPx+page.cardsPx;
+  return viewport.ok===true && viewport.innerWidth===viewport.width && viewport.innerHeight===viewport.height &&
+    viewport.overflowX===false && viewport.scrollWidth===viewport.innerWidth && viewport.scrollHeight===Math.max(viewport.innerHeight,contentHeight) &&
+    viewport.overflowY===overflowY && viewport.readerLayout==='adaptive' && viewport.readerFit==='intrinsic-height' &&
+    viewport.verticalScrollAccepted===overflowY && viewport.readerOverflow===(overflowY?'authored':null) &&
+    viewport.overflowDisposition===(overflowY?'readable-vertical-scroll':'contained') &&
+    viewport.diagramWidth<=viewport.readerWidth && viewport.readerWidth<=viewport.innerWidth &&
+    Number.isFinite(viewport.minimumRequiredNodeTextPx) && viewport.minimumRequiredNodeTextPx>=6 &&
+    ['minimumProjectedNodeTextPx','minimumProjectedNonEdgeTextPx'].every(key=>Number.isFinite(viewport[key]) && viewport[key]>=Math.max(minimumTextPx,viewport.minimumRequiredNodeTextPx)) &&
+    Number.isFinite(viewport.minimumProjectedEdgeTextPx) && viewport.minimumProjectedEdgeTextPx>=6 && viewport.readabilityOk===true &&
+    viewport.hasLegend===true && viewport.hasNavigationDock===true && viewport.legendDockIntersectionArea===0 && viewport.dockStageIntersectionArea===0 &&
+    Number.isFinite(viewport.requiredDockStageGap) && viewport.requiredDockStageGap>=10 && Number.isFinite(viewport.dockStageGap) && viewport.dockStageGap>=viewport.requiredDockStageGap &&
+    viewport.viewerChromeStageOk===true && viewport.viewerChromeOk===true && viewport.viewerChromeActive===true && Number.isFinite(viewport.viewerChromeReserve) && viewport.viewerChromeReserve>0 &&
+    viewport.theme==='light' && viewport.resolvedTheme===viewport.theme && (!Object.hasOwn(viewport,'documentScrollUnclipped') || viewport.documentScrollUnclipped===true);
+}
+
+// Validate declared measurements; actual scroll traversal remains part of the independent same-hash review.
+function readerEvidenceOK(visual, receipt) {
+  const viewports=visual.containment.viewports;
+  const minimumTextPx=visual.readability?.minimumProjectedNodeTextPx;
+  if (visual.evidenceKind!=='automated-browser' || visual.provenance!=='current' || typeof receipt?.receiptId!=='string' || !receipt.receiptId.trim() || visual.deliveryReceiptId!==receipt.receiptId ||
+    visual.state?.detail!=='read' || visual.state?.motion!=='still' || visual.chrome?.status!=='available' || !Array.isArray(visual.diagnostics) || visual.diagnostics.length ||
+    visual.readability?.status!=='pass' || visual.viewerChrome?.status!=='pass' || !Number.isFinite(minimumTextPx) || minimumTextPx<6 ||
+    !Array.isArray(viewports) || viewports.length!==VIEWPORTS.length || new Set(viewports.map(viewportSize)).size!==VIEWPORTS.length ||
+    !viewports.every(viewport=>VIEWPORTS.includes(viewportSize(viewport)) && readerViewportOK(viewport,minimumTextPx))) return false;
+  for (const records of [visual.readability.viewports,visual.viewerChrome.viewports]) {
+    if (!Array.isArray(records) || records.length!==VIEWPORTS.length || new Set(records.map(viewportSize)).size!==VIEWPORTS.length ||
+      !viewports.every(viewport=>isDeepStrictEqual(records.find(record=>viewportSize(record)===viewportSize(viewport)),viewport))) return false;
+  }
+  const captures=visual.captures?.screenshots;
+  if (!Array.isArray(captures) || captures.length<2 || new Set(captures.map(capture=>capture?.file)).size!==captures.length || !Array.isArray(visual.sidecars?.files)) return false;
+  return captures.every(capture=>{
+    if (!capture || typeof capture!=='object') return false;
+    const viewport=viewports.find(record=>viewportSize(record)===viewportSize(capture));
+    const {file,...metrics}=capture;
+    return viewport && ['light','dark'].includes(capture.theme) &&
+      isDeepStrictEqual(metrics,{...viewport,theme:capture.theme,resolvedTheme:capture.theme}) &&
+      visual.sidecars.files.filter(record=>record?.file===file).length===1;
+  });
+}
+
 function pythonCallArguments(content, start) {
   const args=[];const stack=['('];let argument='',quote='';
   for(let index=start;index<content.length;index++) {
@@ -98,6 +149,28 @@ function pythonCallArguments(content, start) {
     argument+=character;
   }
   throw new Error('unterminated Python declaration');
+}
+
+export function collectGatewayProxyAPIs(content, source) {
+  const calls=[...content.matchAll(/\.add_api_route\b/g)];
+  if(!calls.length)return [];
+  const methods=[...content.matchAll(/^    methods\s*=\s*(.+)$/gm)];
+  const expected=['GET','POST','PUT','PATCH','DELETE','HEAD'];
+  const tail=`    if facade is None:
+        app.add_api_route("/{path:path}", proxy, methods=methods)
+    else:
+        app.add_api_route("/api/research/{path:path}", proxy, methods=methods)
+        app.add_api_route("/frameworks-embed/{path:path}", proxy, methods=methods)
+        app.mount("/", facade.app, name="mcp-readonly")
+    return app`;
+  let values;
+  try { values=JSON.parse(methods[0]?.[1] || 'null'); } catch { throw new Error('unsupported gateway methods'); }
+  if(source!=='app/research_web/multiuser/gateway.py' || calls.length!==3 || methods.length!==1 ||
+      JSON.stringify(values)!==JSON.stringify(expected) || !content.includes(`${methods[0][0]}\n${tail}`)) {
+    throw new Error('unsupported conditional gateway declaration');
+  }
+  return ['/{path:path}','/api/research/{path:path}','/frameworks-embed/{path:path}'].flatMap(declaredPath=>
+    expected.map(method=>({source,method,path:declaredPath,declaredPath,prefix:'',condition:declaredPath==='/{path:path}'?'mcp-disabled':'mcp-enabled'})));
 }
 
 export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
@@ -184,12 +257,37 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   const mainSource='app/research_web/main.py';
   const mainCode=read(mainSource)?.toString('utf8') || '';
   const mountedSources=new Set([mainSource]);
+  // The opt-in private server is a second entrypoint, never an implicit router
+  // mounted into the default single-user application. Verify its actual CLI
+  // factory-to-server chain before accepting its independently inventoried APIs.
+  const gatewaySource='app/research_web/multiuser/gateway.py';
+  if(researchFiles.includes(gatewaySource)) {
+    const command=read('app/research_web/multiuser/__main__.py')?.toString('utf8') || '';
+    if (/from\s+\.gateway\s+import\s+create_gateway/.test(command) &&
+        /app\s*=\s*create_gateway\s*\(/.test(command) &&
+        /uvicorn\.run\s*\(\s*app\s*,/.test(command)) mountedSources.add(gatewaySource);
+  }
   for (const match of mainCode.matchAll(/^from\s+\.(\w+(?:\.\w+)*)\s+import\s+router(?:\s+as\s+(\w+))?\s*$/gm)) {
     const alias=match[2] || 'router';
     if (new RegExp(`app\\.include_router\\(\\s*${alias}\\s*\\)`).test(mainCode)) mountedSources.add(`app/research_web/${match[1].replaceAll('.','/')}.py`);
   }
+  // Independently mounted private gateway routers use its package-relative imports.
+  if (mountedSources.has(gatewaySource)) {
+    const gatewayCode=read(gatewaySource)?.toString('utf8') || '';
+    for (const match of gatewayCode.matchAll(/^from\s+\.(\w+(?:\.\w+)*)\s+import\s+router(?:\s+as\s+(\w+))?\s*$/gm)) {
+      const alias=match[2] || 'router';
+      if (new RegExp(`app\\.include_router\\(\\s*${alias}\\s*\\)`).test(gatewayCode)) mountedSources.add(`app/research_web/multiuser/${match[1].replaceAll('.','/')}.py`);
+    }
+  }
   for (const source of researchFiles.filter(file=>file.endsWith('.py'))) {
     const content=read(source)?.toString('utf8');if (!content) continue;
+    try {
+      const proxyAPIs=collectGatewayProxyAPIs(content,source);
+      if(proxyAPIs.length && !mountedSources.has(source)) issue('api_unmounted',source,'Conditional proxy requires the verified private CLI');
+      actualAPIs.push(...proxyAPIs);
+    } catch {
+      issue('api_declaration_unsupported',source,'Unsupported dynamic route; only the exact private Gateway conditional proxy contract is accepted');
+    }
     const prefixes=new Map([...content.matchAll(/^(\w+)\s*=\s*APIRouter\(\s*prefix\s*=\s*["']([^"']*)["']/gm)].map(match=>[match[1],match[2]]));
     for (const match of content.matchAll(/^\s*@\s*(\w+(?:\.\w+)*)\s*\.\s*(get|post|put|patch|delete|head|options|api_route|route|websocket)\s*\(/gm)) {
       if (!mountedSources.has(source)) issue('api_unmounted',source,'API source is not directly mounted by the Research Web entrypoint');
@@ -208,11 +306,30 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
       }
     }
   }
-  const apiKey = api => JSON.stringify([api.source,api.method,api.path,api.declaredPath,api.prefix]);
+  const apiKey = api => JSON.stringify([api.source,api.method,api.path,api.declaredPath,api.prefix,api.condition || null]);
   const actualSet=new Set(actualAPIs.map(apiKey));const declaredSet=new Set(map.apis.map(apiKey));
   if (declaredSet.size!==map.apis.length) issue('api_inventory',MAP_PATH,'Duplicate API declarations');
   for (const api of map.apis) if (!actualSet.has(apiKey(api))) issue('api_inventory',api.source,`Stale or invalid API: ${api.method} ${api.path}`);
   for (const api of actualAPIs) if (!declaredSet.has(apiKey(api))) issue('api_inventory',api.source,`API missing from inventory: ${api.method} ${api.path}`);
+
+  // SDK ASGI routes are an explicit runtime-tested contract, not decorator facts.
+  // The focused Python contract compares the entire actual pinned route set.
+  if(researchFiles.includes('app/research_web/mcp_facade/server.py')) {
+    const contract=map.libraryRouteContract;
+    const testFile='tests/research_web/test_mcp_facade_lifecycle.py';
+    const testName='test_sdk_route_inventory_matches_documented_conditional_contract';
+    const expectedPaths=['/.well-known/oauth-authorization-server','/authorize','/token','/revoke','/mcp/consent','/mcp/applications','/mcp','/.well-known/oauth-protected-resource/mcp'];
+    const routes=contract?.routes;
+    const valid=contract?.sdk==='mcp' && contract?.version==='2.2.0' && contract?.condition==='mcp-enabled' &&
+      contract?.status==='source-contract-not-deployment' && contract?.verification===`${testFile}::${testName}` &&
+      Array.isArray(routes) && routes.length===8 && routes.every(x=>x && typeof x==='object') && new Set(routes.map(x=>x.path)).size===8 &&
+      routes.every(x=>expectedPaths.includes(x.path) && ['sdk-generated-rwb-wrapper','rwb-browser','sdk-generated-asgi'].includes(x.origin) &&
+        ['app/research_web/mcp_facade/oauth_routes.py','app/research_web/mcp_facade/oauth_views.py','app/research_web/mcp_facade/server.py'].includes(x.source) &&
+        (x.path==='/mcp'?x.methods===null:Array.isArray(x.methods)&&x.methods.length>0&&new Set(x.methods).size===x.methods.length&&x.methods.every(m=>['GET','HEAD','POST','OPTIONS'].includes(m)))) &&
+      read(testFile)?.toString('utf8').includes(`async def ${testName}(`);
+    if(!valid)issue('library_route_contract',MAP_PATH,'Pinned SDK routes require an explicit conditional contract and exact runtime route-set test');
+    for(const route of Array.isArray(routes)?routes:[])if(route?.source)read(route.source);
+  }
 
   const ids=map.diagrams.map(diagram=>diagram.id);
   if (new Set(ids).size!==ids.length || ids.some(id=>typeof id!=='string' || !/^[a-z0-9-]+$/.test(id)) || REQUIRED_DIAGRAMS.some(id=>!ids.includes(id))) issue('diagram_inventory',MAP_PATH,'All baseline diagrams and unique safe registered view IDs must be delivered');
@@ -252,12 +369,16 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     }
     const viewports=visual?.containment?.viewports || [];
     const viewportOK=viewport=>viewport.ok===true && viewport.overflowX===false && viewport.overflowY===false && viewport.innerWidth===viewport.width && viewport.innerHeight===viewport.height && viewport.scrollWidth<=viewport.innerWidth && viewport.scrollHeight<=viewport.innerHeight;
-    if (visual?.schemaVersion!==1 || visual?.command!=='visual-check' || visual?.ok!==true || visual?.status!=='pass' || visual?.containment?.status!=='pass' || visual?.captures?.status!=='pass' || !artifactBytes || !sameHash(visual.artifact,digest(artifactBytes)) || VIEWPORTS.some(size=>!viewports.some(viewport=>`${viewport.width}x${viewport.height}`===size && viewportOK(viewport)))) issue('visual_receipt',diagram.visualReceipt,'Require current artifact hash and successful containment at all four viewports');
-    const captures=visual?.captures?.screenshots || [];
+    const reader=visual?.containment?.policy===READER_CONTAINMENT_POLICY;
+    const containmentOK=reader ? readerEvidenceOK(visual,receipt) : !VIEWPORTS.some(size=>!viewports.some(viewport=>`${viewport.width}x${viewport.height}`===size && viewportOK(viewport)));
+    if (visual?.schemaVersion!==1 || visual?.command!=='visual-check' || visual?.ok!==true || visual?.status!=='pass' || visual?.containment?.status!=='pass' || visual?.captures?.status!=='pass' || !artifactBytes || !sameHash(visual.artifact,digest(artifactBytes)) || !containmentOK) issue('visual_receipt',diagram.visualReceipt,'Require current artifact hash and successful containment at all four viewports');
+    const captures=reader && !Array.isArray(visual.captures?.screenshots) ? [] : visual?.captures?.screenshots || [];
     const captureNames=new Set();
     for (const capture of captures) {
-      if (typeof capture.file!=='string' || path.posix.basename(capture.file)!==capture.file || capture.ok!==true) {issue('visual_receipt',diagram.visualReceipt,'Invalid capture reference');continue;}
-      captureNames.add(capture.file);read(`${ARTIFACT_ROOT}/${capture.file}`);
+      if (typeof capture?.file!=='string' || path.posix.basename(capture.file)!==capture.file || capture.ok!==true) {issue('visual_receipt',diagram.visualReceipt,'Invalid capture reference');continue;}
+      captureNames.add(capture.file);const captureBytes=read(`${ARTIFACT_ROOT}/${capture.file}`);
+      const sidecars=Array.isArray(visual?.sidecars?.files)?visual.sidecars.files:[];
+      if (reader && (!captureBytes || !sameHash(sidecars.find(record=>record?.file===capture.file),digest(captureBytes)))) issue('visual_receipt',diagram.visualReceipt,'Reader capture bytes/hash are stale');
     }
     const reviewsForDiagram=human?.diagrams?.filter(item=>item.id===diagram.id) || [];
     const review=reviewsForDiagram[0];

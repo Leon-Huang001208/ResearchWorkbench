@@ -1,12 +1,14 @@
 """Web-only startup: python -m uvicorn app.research_web.main:app --port 8088."""
 
 import asyncio
+import hashlib
 import json
 import mimetypes
 import os
 import re
 import shutil
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import Literal
 from urllib.parse import quote, urlsplit
@@ -22,16 +24,27 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from core.observability import get_logger, setup_logging
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
 
+from .ai_news_routes import router as ai_news_router
+from .ai_news_service import create_ai_news_service
+from .aihot_routes import router as aihot_router
+from .asset_research import router as asset_research_router
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
 from .automation.routes import router as automation_router
 from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .claw_routes import router as claw_router
-from .client import DSHClient, RuntimeFailure
+from .client import DSHClient, ExternalExecutionClient, RuntimeFailure
+from .credential_backend import default_credential_backend
 from .datahub.routes import router as datahub_router
+from .discovery.routes import router as discovery_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .dossier_signal_routes import router as dossier_signal_router
+from .dossiers.routes import router as dossiers_router
+from .event_datahub_bridge import router as event_sources_router
+from .event_studies.routes import router as event_studies_router
+from .event_timeline.routes import router as events_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
 from .hot_routes import private_router as hot_private_router
@@ -39,20 +52,35 @@ from .hot_routes import router as hot_router
 from .hot_service import HotWebError, HotWebService
 from .integrations.routes import router as integrations_router
 from .intel_routes import router as intel_router
+from .knowledge_backend.routes import router as knowledge_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
+from .market_routes import router as market_router
+from .market_scoring.routes import router as market_scores_router
 from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
 from .mcp_runtime.routes import router as mcp_runtime_router
 from .operations import router as operations_router
+from .plugin_routes import router as plugin_router
+from .plugins.runtime_restart import router as plugin_runtime_router
 from .portfolio_decisions.routes import router as portfolio_decisions_router
+from .qa_attachments import ATTACHMENT_EXTENSIONS as QA_ATTACHMENT_EXTENSIONS
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
 from .report_workflow_routes import router as report_workflow_router
 from .report_workflows.models import WorkflowError
+from .research_bot_diagnostics import diagnostic as research_bot_diagnostic
+from .research_bots import research_bot_configuration
+from .research_bots import router as research_bots_router
 from .service import ResearchService
+from .specialists.contracts import Budget as SpecialistBudget
+from .specialists.routes import router as specialists_router
 from .store import Store, StoreError
+from .strategy_validation.routes import active as strategy_validation_active
+from .strategy_validation.routes import router as strategy_validation_router
 from .tabbit import TabbitError
+from .tenant_policy import check_request as check_tenant_request
+from .tenant_policy import enabled as tenant_mode_enabled
 from .workbench import router as workbench_router
 
 log = get_logger(__name__)
@@ -78,6 +106,7 @@ UPLOAD_EXTENSIONS = {
 class NewSession(BaseModel):
     mode: Literal["fingpt", "claw"] = "fingpt"
     research_depth: Literal["instant", "deep"] = "instant"
+    research_mode: Literal["quick", "deep", "agent", "specialist"] | None = None
     source_scope: list[Literal["datahub", "web", "uploads"]] = Field(
         default=["datahub", "web", "uploads"], min_length=1, max_length=3
     )
@@ -98,7 +127,21 @@ class TabbitTabRef(BaseModel):
 
 
 class Prompt(BaseModel):
+    knowledge_scope_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    dossier_handoff_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     text: str = Field(min_length=1, max_length=100000)
+    research_mode: Literal["quick", "deep", "agent", "specialist"] | None = None
+    research_requirements: list[str] | None = Field(default=None, min_length=1, max_length=30)
+    research_as_of: date | None = None
+    specialist_budget: SpecialistBudget | None = None
+
+    @field_validator("research_requirements")
+    @classmethod
+    def bounded_requirements(cls, value):
+        if value is not None and any(not item.strip() or len(item) > 4000 for item in value):
+            raise ValueError("研究要求须为非空且不超过4000字符")
+        return value
+
     attachment_ids: list[str] = Field(default_factory=list, max_length=20)
     skill_id: str | None = None
     capability_id: str | None = None
@@ -202,6 +245,67 @@ class ModelConfig(BaseModel):
         return value
 
 
+class ModelProfileConfig(ModelConfig):
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def profile_name(cls, value):
+        if not value.strip() or any(ord(char) < 32 for char in value):
+            raise ValueError("model_profile_name_invalid")
+        return value.strip()
+
+
+_SERVICE_ONLY_READ = frozenset(
+    {
+        "runtime",
+        "workspaces",
+        "sessions",
+        "knowledge",
+        "knowledge/bases",
+        "knowledge/sync",
+        "capabilities",
+        "tools",
+        "workflows",
+        "data/catalog",
+        "market",
+        "market/quotes",
+        "market/quotes/export",
+        "market/analysis",
+        "market/indices/catalog",
+    }
+)
+_SERVICE_ONLY_READ_PATTERN = re.compile(
+    r"(?:documentation|capabilities|data/(?:capabilities|sources))/[^/]+"
+    r"|knowledge/evidence/[a-f0-9]{64}(?:/original/[a-f0-9]{64})?"
+    r"|sessions/[a-f0-9-]{36}(?:/files(?:/[a-f0-9]{24}/(?:download|preview))?"
+    r"|/datasets(?:/[^/]+(?:/rows|/files/[^/]+)?)?)?"
+)
+_SERVICE_ONLY_KNOWLEDGE_POST = frozenset(
+    {
+        "knowledge/binding",
+        "knowledge/login",
+        "knowledge/scopes",
+        "knowledge/search",
+        "knowledge/read",
+        "knowledge/freeze",
+        "knowledge/sync/config",
+        "knowledge/sync/scan",
+    }
+)
+
+
+def _service_only_route_allowed(method: str, path: str) -> bool:
+    # Some existing GET routes reconcile native workflows. Allow only audited reads.
+    prefix = "/api/research/"
+    if not path.startswith(prefix):
+        return True
+    route = path[len(prefix) :]
+    if method in {"GET", "HEAD"}:
+        return route in _SERVICE_ONLY_READ or bool(_SERVICE_ONLY_READ_PATTERN.fullmatch(route))
+    return method == "POST" and route in _SERVICE_ONLY_KNOWLEDGE_POST
+
+
 def create_app(service: ResearchService | None = None) -> FastAPI:
     # Operator opt-in for one authenticated Tailscale Serve HTTPS origin only.
     # Never derive trust from Host, X-Forwarded-Host, or a wildcard suffix.
@@ -218,21 +322,41 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         "origin": private_origin or None,
     }
 
+    service_only = (
+        getattr(service, "service_only", False)
+        if service is not None
+        else tenant_mode_enabled() and os.environ.get("RWB_TENANT_SERVICE_ONLY") == "1"
+    )
+
     @asynccontextmanager
     async def lifespan(app):
         setup_logging()
         active = service or ResearchService(
-            DSHClient(os.environ.get("RESEARCH_RUNTIME_URL", "http://127.0.0.1:3081")),
+            (
+                ExternalExecutionClient()
+                if service_only
+                else DSHClient(os.environ.get("RESEARCH_RUNTIME_URL", "http://127.0.0.1:3081"))
+            ),
             Store(ROOT),
             owned=False,
             expected_cwd=ROOT / "runtime" / "work",
-            auto_probe_on_start=True,
+            auto_probe_on_start=not tenant_mode_enabled(),
         )
         app.state.research = active
+        if not tenant_mode_enabled():
+            app.state.ai_news = create_ai_news_service(
+                Path(__file__).resolve().parents[2],
+                active.store.root,
+                credentials=default_credential_backend,
+            )
+            app.state.aihot = app.state.ai_news.reader
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
         log.info(
-            "research_web_started", engine="dsh", legacy_services=False, web_access=access["mode"]
+            "research_web_started",
+            engine="external" if getattr(active, "service_only", False) else "dsh",
+            legacy_services=False,
+            web_access=access["mode"],
         )
         try:
             yield
@@ -275,10 +399,26 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         except RuntimeFailure as exc:
             return JSONResponse({"error": {"code": exc.code, "message": str(exc)}}, status_code=503)
 
+
+    app.include_router(aihot_router)
+    app.include_router(ai_news_router)
     app.include_router(datahub_router)
+    app.include_router(knowledge_router)
+    app.include_router(dossier_signal_router)
+    app.include_router(dossiers_router)
+    app.include_router(events_router)
+    app.include_router(event_sources_router)
+    app.include_router(event_studies_router)
+    app.include_router(market_scores_router)
     app.include_router(asset_router)
+    app.include_router(asset_research_router)
+    app.include_router(market_router)
     app.include_router(intel_router)
+    app.include_router(discovery_router)
     app.include_router(capabilities_router)
+    app.include_router(specialists_router)
+    app.include_router(plugin_router)
+    app.include_router(plugin_runtime_router)
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
     app.include_router(hot_router)
@@ -288,10 +428,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
     app.include_router(automation_router)
+    app.include_router(research_bots_router)
     app.include_router(claw_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(portfolio_decisions_router)
+    app.include_router(strategy_validation_router)
     app.include_router(report_workflow_router)
     # Legacy report-project paths remain readable, but the versioned Workflow
     # runtime owns overlapping /report-runs paths.
@@ -304,6 +446,14 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def local_boundary(request, call_next):
+        tenant_denial = await check_tenant_request(request)
+        if tenant_denial is not None:
+            return tenant_denial
+        plugin_control = request.url.path.startswith("/api/research/internal/plugin-runtime/")
+        if tenant_mode_enabled() and not plugin_control:
+            active = request.app.state.research
+            if active.plugin_runtime_frozen:
+                return JSONResponse({"error": {"code": "plugin_runtime_frozen"}}, status_code=409)
         if request.url.path.startswith(
             "/api/research/internal/data/"
         ) and not request.app.state.research.datahub.authenticate(
@@ -358,6 +508,91 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             return JSONResponse(
                 {"error": {"code": "origin_denied", "message": "跨站请求被拒绝"}}, status_code=403
             )
+
+        async def dispatch():
+            from .qa_execution import retired
+
+            match = re.match(r"/api/research/sessions/([a-f0-9-]{36})(?:/|$)", request.url.path)
+            if match:
+                active = request.app.state.research
+                row = active.store.data["sessions"].get(match[1])
+                if row and retired(active, row):
+                    return JSONResponse(
+                        {"error": {"code": "fingpt_retired", "message": "旧 FinGPT 会话已退役"}},
+                        status_code=410,
+                    )
+            if service_only and not _service_only_route_allowed(request.method, request.url.path):
+                log.warning("embedded_research_route_denied", method=request.method)
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "embedded_research_disabled",
+                            "message": "请使用外部研究宿主",
+                        }
+                    },
+                    status_code=403,
+                )
+            research_write = request.method not in {"GET", "HEAD", "OPTIONS"} and any(
+                request.url.path == prefix or request.url.path.startswith(prefix + "/")
+                for prefix in (
+                    "/api/research/events",
+                    "/api/research/event-studies",
+                    "/api/research/market-scores",
+                    "/api/research/research-bots",
+                )
+            )
+            if research_write and request.headers.get("X-Research-User-Action") != "?1":
+                log.warning("event_research_explicit_action_missing")
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "explicit_user_action_required",
+                            "message": "需要明确用户操作",
+                        }
+                    },
+                    status_code=403,
+                )
+            if research_write:
+                length = request.headers.get("content-length", "")
+                if request.headers.get("transfer-encoding") or not length.isdecimal():
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "event_request_length_required",
+                                "message": "请求需要明确长度",
+                            }
+                        },
+                        status_code=411,
+                    )
+                if int(length) > 64 * 1024:
+                    log.warning("event_research_request_budget_exceeded")
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "event_request_too_large",
+                                "message": "事件研究请求超出上限",
+                            }
+                        },
+                        status_code=413,
+                    )
+            ticket = (
+                tenant_mode_enabled()
+                and not plugin_control
+                and request.method not in {"GET", "HEAD"}
+            )
+            if ticket:
+                active = request.app.state.research
+                if active.plugin_runtime_frozen:
+                    return JSONResponse(
+                        {"error": {"code": "plugin_runtime_frozen"}}, status_code=409
+                    )
+                active.plugin_inflight += 1
+            try:
+                return await call_next(request)
+            finally:
+                if ticket:
+                    active.plugin_inflight -= 1
+
         try:
             # Internal plugin callbacks remain authenticated above and must not
             # deadlock startup while the updater holds the exclusive fence.
@@ -365,9 +600,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 "/api/research/internal/"
             ):
                 with admission():
-                    response = await call_next(request)
+                    response = await dispatch()
             else:
-                response = await call_next(request)
+                response = await dispatch()
         except MaintenanceBusy:
             log.info("research_web_resident_maintenance")
             return JSONResponse(
@@ -399,26 +634,164 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/resident")
     async def resident_status(request: Request):
+        from .qa_execution import enabled as alphadesk_qa_enabled
+
         setting = os.environ.get("RESEARCH_RESIDENT_HOME")
         revision = os.environ.get("RESEARCH_RESIDENT_REVISION", "")
         research = getattr(request.app.state, "research", None)
+        qa_enabled = research is not None and alphadesk_qa_enabled(research)
         active = None
+        activity = None
         if research is not None:
-            active = bool(
-                any(research.running.values())
-                or research.approvals
-                or research.questions
-                or any(
-                    row.get("research_status") in {"queued", "running"}
-                    for row in research.store.data.get("automation_runs", {}).values()
+            active = False
+
+            def history_activity():
+                history_jobs = research.store.data.get("asset_history_jobs", {})
+                return not isinstance(history_jobs, dict) or any(
+                    not isinstance(row, dict)
+                    or ("state" in row and "status" in row and row["state"] != row["status"])
+                    or row.get("state", row.get("status"))
+                    not in {"completed", "failed", "cancelled", "interrupted"}
+                    for row in history_jobs.values()
                 )
+
+            def witness_flag(value):
+                if not isinstance(value, dict) or type(value.get("active")) is not bool:
+                    raise ValueError("activity_witness_unknown")
+                return value["active"]
+
+            def sdk_activity():
+                from .datahub.worker_activity import active_futures
+
+                return bool(active_futures())
+
+            def wind_api_activity():
+                from .datahub.providers_wind_api import activity_witness
+
+                return witness_flag(activity_witness())
+
+            def report_activity():
+                report_manager = getattr(research, "report_workflows", None)
+                report_runtime = getattr(report_manager, "runtime", None)
+                report_catalog = getattr(report_manager, "catalog", None)
+                if report_runtime is None or report_catalog is None:
+                    raise ValueError("report_activity_unknown")
+                report_runs = report_catalog.data["runs"]
+                terminal_reports = {
+                    "completed",
+                    "cancelled",
+                    "failed",
+                    "blocked_data",
+                    "delivery_incomplete",
+                    "quality_incomplete",
+                    "skipped_overlap",
+                }
+                return (
+                    not isinstance(report_runs, dict)
+                    or any(
+                        not isinstance(row, dict) or row.get("status") not in terminal_reports
+                        for row in report_runs.values()
+                    )
+                    or bool(report_runtime.tasks)
+                )
+
+            def storage_activity():
+                storage_runner = research.datahub.storage_runner
+                if storage_runner is None:
+                    return False
+                value = storage_runner.active
+                if type(value) is not bool:
+                    raise ValueError("storage_activity_unknown")
+                return value
+
+            observations = {}
+            for name, check in (
+                (
+                    "research_tasks",
+                    lambda: any(research.running.values())
+                    or (qa_enabled and bool(research.qa.tasks)),
+                ),
+                ("approvals", lambda: bool(research.approvals)),
+                ("questions", lambda: bool(research.questions)),
+                ("source_requests", lambda: bool(research.source_requests)),
+                (
+                    "event_sources",
+                    lambda: research.event_timeline.active or research.event_collection.active,
+                ),
+                ("event_studies", lambda: research.studies.active),
+                ("strategy_validation", strategy_validation_active),
+                ("event_inputs", lambda: research.event_inputs.active),
+                (
+                    "automation_runs",
+                    lambda: any(
+                        row.get("research_status") in {"queued", "running"}
+                        for row in research.store.data.get("automation_runs", {}).values()
+                    ),
+                ),
+                ("history_jobs", history_activity),
+                ("sdk_aggregate", sdk_activity),
+                ("wind_api", wind_api_activity),
+                ("market", lambda: witness_flag(research.market.activity_witness())),
+                ("reports", report_activity),
+                (
+                    "datahub_tasks",
+                    lambda: any(not task.done() for task in research.datahub.tasks.values()),
+                ),
+                ("storage", storage_activity),
+                ("asset_directory", lambda: research.asset_workspace.directory.active),
+                (
+                    "asset_tasks",
+                    lambda: any(
+                        not task.done() for task in research.asset_workspace.tasks.values()
+                    ),
+                ),
+                ("directory_tasks", lambda: bool(research.datahub.directory_tasks)),
+            ):
+                try:
+                    # Evaluate every witness, including after a known busy or
+                    # unknown result. Neither may erase another subsystem's fact.
+                    observed = check()
+                    if type(observed) is not bool:
+                        raise ValueError("activity_witness_unknown")
+                    observations[name] = observed
+                    active = bool(active or observed)
+                except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
+                    log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)
+                    observations[name] = None
+            from .datahub.worker_activity import activity_witness
+
+            activity = {
+                "schema": "resident-activity-v1",
+                "checks": observations,
+                "sources": activity_witness(),
+            }
+            active = (
+                True
+                if any(value is True for value in observations.values())
+                else None if any(value is None for value in observations.values()) else False
             )
-        return {
+            # Source observations can be newer than the aggregate above. Never
+            # publish aggregate idle alongside a known running or unknown source.
+            # Keep the original aggregate/mock observation and its unknown result;
+            # later evidence can strengthen refusal, never erase it.
+            for source in activity["sources"].values():
+                if source["running"] is True:
+                    active = True
+                elif active is not True and (
+                    source["running"] is None or source["cleanup_unconfirmed"] is not False
+                ):
+                    active = None
+        result = {
             "enabled": bool(setting),
             "revision": revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None,
             "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
             "active": active,
         }
+        if setting and qa_enabled:
+            result["alphadesk_qa"] = True
+        if activity is not None:
+            result["activity_witness"] = activity
+        return result
 
     @app.exception_handler(RuntimeFailure)
     async def runtime_error(request, exc):
@@ -512,7 +885,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/runtime")
     async def runtime(request: Request):
-        return {**await svc(request).runtime(), "web_access": access}
+        research = svc(request)
+        return {
+            **await research.runtime(),
+            "web_access": access,
+            "research_bot": research_bot_diagnostic(research_bot_configuration(research)),
+        }
 
     @app.get("/api/research/models")
     async def models(request: Request):
@@ -535,6 +913,26 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             protocol=body.protocol,
             credential_mode=body.credential_mode,
         )
+
+    @app.get("/api/research/model-profiles")
+    async def model_profiles(request: Request):
+        return await svc(request).list_model_profiles()
+
+    @app.post("/api/research/model-profiles")
+    async def add_model_profile(body: ModelProfileConfig, request: Request):
+        return await svc(request).save_model_profile(body)
+
+    @app.put("/api/research/model-profiles/{identity}")
+    async def update_model_profile(identity: str, body: ModelProfileConfig, request: Request):
+        return await svc(request).save_model_profile(body, identity)
+
+    @app.post("/api/research/model-profiles/{identity}/activate")
+    async def activate_model_profile(identity: str, request: Request):
+        return await svc(request).activate_model_profile(identity)
+
+    @app.delete("/api/research/model-profiles/{identity}")
+    async def archive_model_profile(identity: str, request: Request):
+        return await svc(request).archive_model_profile(identity)
 
     @app.post("/api/research/runtime/model/test")
     async def test_model(request: Request):
@@ -573,6 +971,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             body.title,
             project_id=body.project_id,
             research_depth=body.research_depth,
+            research_mode=body.research_mode,
             source_scope=body.source_scope,
         )
 
@@ -603,7 +1002,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         service = svc(request)
         await service.ensure_owned()
         row = service.store.session(sid)
-        await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
+        if row.get("execution_engine") != "alphadesk":
+            await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
         row["title"] = body.title
         service.store.save()
         return service.summary(row)
@@ -629,6 +1029,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     ):
         if not body.text.strip():
             raise StoreError("问题不能为空")
+        if body.knowledge_scope_id and request.headers.get("X-Research-User-Action") != "?1":
+            raise StoreError("需要明确用户操作", "knowledge_user_action_required", 403)
         return await svc(request).send(
             sid,
             body.text,
@@ -642,6 +1044,21 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             method_ids=body.method_ids,
             tabbit_tabs=[item.model_dump() for item in body.tabbit_tabs],
             tabbit_live_confirmed=body.tabbit_live_confirmed,
+            research_mode=body.research_mode,
+            research_requirements=body.research_requirements,
+            research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
+            dossier_handoff_id=body.dossier_handoff_id,
+            knowledge_scope_id=body.knowledge_scope_id,
+            knowledge_request_digest=(
+                hashlib.sha256(
+                    json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()
+                ).hexdigest()
+                if body.knowledge_scope_id
+                else None
+            ),
+            specialist_budget=(
+                body.specialist_budget.model_dump() if body.specialist_budget else None
+            ),
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")
@@ -659,7 +1076,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.post("/api/research/sessions/{sid}/upgrade")
     async def upgrade(sid: str, request: Request):
         service = svc(request)
+        if service.store.session(sid).get("knowledge_single_turn"):
+            raise StoreError("资料会话仅可回看", "knowledge_session_sealed", 409)
         old = await service.detail(sid)
+        if service.store.session(sid).get("knowledge_single_turn"):
+            raise StoreError("资料会话仅可回看", "knowledge_session_sealed", 409)
         new = await service.create("claw", old["title"])
         # Draft is carried into the composer, not submitted or forked across cwd boundaries.
         new["draft"] = "继续研究以下会话：\n" + "\n\n".join(
@@ -753,7 +1174,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         for upload in files:
             name = Path(upload.filename or "").name
             extension = Path(name).suffix.lower()
-            if extension not in UPLOAD_EXTENSIONS:
+            row = store.session(sid)
+            allowed = (
+                QA_ATTACHMENT_EXTENSIONS
+                if row.get("execution_engine") == "alphadesk"
+                else UPLOAD_EXTENSIONS
+            )
+            if extension not in allowed:
                 raise StoreError("不支持的附件格式")
             safe_name = re.sub(r"[^\w.\-\u4e00-\u9fff]", "_", name)[:160]
             path = root / f"{uuid4().hex[:12]}-{safe_name}"
@@ -777,11 +1204,57 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/sessions/{sid}/files")
     async def list_files(sid: str, request: Request):
-        return {"items": svc(request).store.files(sid)}
+        service = svc(request)
+        return {
+            "items": service.store.files(sid, read_only=getattr(service, "service_only", False))
+        }
 
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
+        service = svc(request)
+        from .mcp_facade.read_policy import HEADER, VERSION, input_text, strict_read
+        from .scenario_handoffs import trusted_context
+
+        readonly = strict_read(request)
+        service_only = getattr(service, "service_only", False)
+        trusted_context(service, sid, check_capabilities=False, read_only=readonly or service_only)
+        relative = service.store.session(sid).get("files", {}).get(fid, "")
+        if readonly:
+            input_text(relative)
+        receipt = service.store.data["receipts"].get(
+            f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}
+        )
+        if relative.startswith("outputs/") and receipt.get("research_contract"):
+            if service_only:
+                raise StoreError(
+                    "历史报告的质量状态需要独立核验",
+                    "research_report_quality_unavailable",
+                    409,
+                )
+            detail = await service.detail(sid)
+            if (
+                detail.get("execution_engine") == "alphadesk"
+                and not relative.startswith("outputs/report-versions/")
+                and (detail.get("research_report_delivery") or {}).get("status") != "bound"
+            ):
+                raise StoreError("本轮报告尚未完成交付核验", "qa_report_unverified", 409)
+            if (detail.get("research_quality") or {}).get("status") == "invalid":
+                raise StoreError("报告完整性检查未通过，暂不能交付", "research_report_invalid", 409)
         stream, name = svc(request).store.open_file(sid, fid)
+        if relative.startswith("outputs/report-versions/"):
+            from .research_quality_service import archive_digest
+
+            try:
+                expected = archive_digest(service, sid, relative)
+                raw = stream.read(16 * 1024 * 1024 + 1)
+                if len(raw) > 16 * 1024 * 1024 or hashlib.sha256(raw).hexdigest() != expected:
+                    raise StoreError(
+                        "历史报告完整性检查未通过", "research_report_version_changed", 409
+                    )
+                stream.seek(0)
+            except Exception:
+                stream.close()
+                raise
         media_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
         if action == "preview" and media_type in {"text/markdown", "text/x-markdown"}:
             media_type = "text/plain"
@@ -804,6 +1277,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             chunks(),
             media_type=media_type,
             headers={
+                **({HEADER: VERSION} if readonly else {}),
                 "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'",
                 "X-Content-Type-Options": "nosniff",
                 "Content-Disposition": f"{'attachment' if action == 'download' else 'inline'}; filename*=utf-8''{quote(name)}",
@@ -813,7 +1287,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/skills")
     async def skills(request: Request):
         service = svc(request)
-        rows = [row for row in service.store.data["sessions"].values() if row["created"]]
+        rows = [
+            row
+            for row in service.store.data["sessions"].values()
+            if row["created"] and row.get("execution_engine") != "alphadesk"
+        ]
         if not rows:
             return {"items": []}
         result = await service.skill_catalog(rows[-1]["id"])
@@ -824,6 +1302,17 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         app.mount(
             "/frameworks-embed", StaticFiles(directory=EMBEDS, html=True), name="frameworks-embed"
         )
+
+    from .qa_assets import qa_assets_root
+
+    qa_root = qa_assets_root(UI.parent)
+    if qa_root:
+        app.mount("/static/qa-dist", StaticFiles(directory=qa_root), name="qa-static")
+    else:
+
+        @app.get("/static/qa-dist/{name:path}")
+        async def unavailable_qa_asset(name: str):
+            return JSONResponse({"error": {"code": "qa_assets_unavailable"}}, status_code=503)
 
     if UI.exists():
         app.mount("/static", StaticFiles(directory=UI), name="static")
