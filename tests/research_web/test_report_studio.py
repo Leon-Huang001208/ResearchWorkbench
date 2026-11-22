@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+from tests.research_web.test_api import isolated_keyring  # noqa: F401 - pytest fixture discovery
 
 
 class NativeFixture:

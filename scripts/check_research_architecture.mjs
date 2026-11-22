@@ -232,10 +232,12 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     for (const file of group.documents) {read(file);textFiles.add(file);}
     for (const id of group.diagrams) if (!map.diagrams.some(diagram=>diagram.id===id)) issue('diagram_inventory',MAP_PATH,`Unknown group diagram: ${id}`);
     if (!checkedFiles.some(file=>matches(file,group.sources))) continue;
-    for (const document of group.documents) if (!changed.has(document)) issue('module_document_not_changed',document,`Source changed in ${group.id}`);
-    if (!reviewFiles.some(file=>changed.has(file))) issue('review_not_changed',reviewSource,`Source changed in ${group.id}`);
     const review=reviews.get(group.id);
-    if (!review || !['changed','unchanged'].includes(review.structure) || typeof review.reason!=='string' || review.reason.trim().length<12 || !Array.isArray(review.diagrams)) {
+    const meaningfulReview=review && ['changed','unchanged'].includes(review.structure) && typeof review.reason==='string' && review.reason.trim().length>=12 && Array.isArray(review.diagrams);
+    const unchangedDocumented=meaningfulReview && review.structure==='unchanged' && group.documents.some(document=>changed.has(document));
+    if (!unchangedDocumented) for (const document of group.documents) if (!changed.has(document)) issue('module_document_not_changed',document,`Source changed in ${group.id}`);
+    if (!reviewFiles.some(file=>changed.has(file))) issue('review_not_changed',reviewSource,`Source changed in ${group.id}`);
+    if (!meaningfulReview) {
       issue('review_invalid',reviewSource,`Missing meaningful structure decision for ${group.id}`); continue;
     }
     if (review.structure==='changed') {

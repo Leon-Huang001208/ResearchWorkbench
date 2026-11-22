@@ -1,5 +1,17 @@
 # GitHub Actions 免费额度治理
 
+主账号数据源修复沿原 Mac Bootstrap 增加四个确切触发路径和两个 wheel 资源字节比较；通用已审升级沿既有操作员测试与原三项 CI。没有新 job、runner、权限、依赖或时限，实际候选 CI 另记；本机相关回归不重复全仓，远端动作仍实时核对 visibility 与额度。
+
+已审升级操作员与这次账号入口修复沿原 Checks 增加精确 `reviewed_upgrade_only`：必须命中两个维护操作员之一，其余仅含对应测试、这次两份 UI 资源、进展数据、相关文档／README 复核和两份既有 Web CI。Python 运行两个完整维护模块并保留原分片、证据和三份历史源对象；JS 只运行五个账号／导航模块、进展和 CI 范围测试，不运行无关 Web 矩阵或编辑引擎。混入其他产品源码或差异未知仍走原完整路径；原 pack、retention、architecture 分支、作业、runner、依赖、权限、时限、Mac Bootstrap 和 Constraints 保持。
+
+G2B 的明确 release、维护及其 Host/API 接点变更沿原 Checks scope selector 选择发布/维护/Manager、Docker 打包与协议合同、原 release 与必要公共 API、Automation/报告准入定点检查；JavaScript 只选 Docker、范围和架构合同，不运行无关 Web 矩阵或编辑引擎。判定使用 GitHub 真实 base/head 文件差异及显式源码/测试/fixture 白名单，混入无关产品或未知测试时保留原完整路径，retention-only 不变。不新增 workflow、job、依赖、runner 或超时；Mac 安装与最终 release 实机验证分开，CI 不调用模型、不操作生产或业务卷。
+
+测试临时根工具的纯局部修补沿原 Checks 作业运行 `test_test_artifact_retention.py` 的31项分片回归，
+不运行无关 Web、Node 和编辑引擎测试。范围来自真实事件 base/head 的差异；产品改动或范围未知仍运行原完整路径，
+不新增作业、依赖、runner、权限或超时。
+
+文档结构检查器的局部修补复用同一 Checks 范围选择：真实事件差异仅含检查器、对应 JS 测试及相关 Markdown／该工作流和直接范围测试时，只运行架构检查器原 JS 模块，不执行无关 Python、编辑引擎或不存在的 pytest 证据处理；混入产品源码或范围未知仍走原完整路径。Project Constraints、Mac Bootstrap 与原作业、依赖、runner、权限、超时保持，实际候选 CI 另行记录，不以本地分支测试冒充远端通过。
+
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的

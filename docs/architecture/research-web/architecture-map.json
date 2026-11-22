@@ -114,7 +114,10 @@
         "research_workbench_entrypoint/resident/delivery_transfer.py",
         "research_workbench_entrypoint/resident/source_inventory.py",
         "research_workbench_entrypoint/resident/repository_lock_recovery.py",
-        "research_workbench_entrypoint/resident/maintenance_evidence.py"
+        "research_workbench_entrypoint/resident/maintenance_evidence.py",
+        "docker/release.py",
+        "docker/Dockerfile.release",
+        "docker/release-schema.json"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -249,7 +252,8 @@
         "app/research_web/market_analysis.py",
         "app/research_web/market_portfolio.py",
         "app/research_web/market_indices.py",
-        "app/research_web/specialists/"
+        "app/research_web/specialists/",
+        "app/research_web/maintenance.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -6523,6 +6527,13 @@
       "source": "app/research_web/workbench.py",
       "declaredPath": "/data/queries/{query_id}/cancel",
       "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/release",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/release",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

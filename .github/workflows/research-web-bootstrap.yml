@@ -3,6 +3,10 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "app/research_web/ui/server/session.mjs"
+      - "app/research_web/ui/server/profile.css"
+      - "tests/javascript/research_web_multiuser_session.test.mjs"
+      - "tests/javascript/research_web_mcp_login.test.mjs"
       - "app/research_web/capabilities/tools.py"
       - "app/research_web/knowledge_backend/current.py"
       - "app/research_web/knowledge_backend/routes.py"
@@ -99,6 +103,10 @@ on:
     branches:
       - master
     paths:
+      - "app/research_web/ui/server/session.mjs"
+      - "app/research_web/ui/server/profile.css"
+      - "tests/javascript/research_web_multiuser_session.test.mjs"
+      - "tests/javascript/research_web_mcp_login.test.mjs"
       - "app/research_web/capabilities/tools.py"
       - "app/research_web/knowledge_backend/current.py"
       - "app/research_web/knowledge_backend/routes.py"
@@ -322,6 +330,7 @@ jobs:
           done
           .venv/bin/python - <<'PY'
           import hashlib, json, os
+          from importlib.metadata import distribution
           from pathlib import Path
           assets = ["module-navigation.mjs", "navigation-catalog.mjs", "module-navigation.css", "progress.mjs", "progress.css", "progress-data.json", "knowledge-settings.mjs", "event-lab.mjs", "event-lab-controls.mjs", "strategy-validation.mjs", "specialist-panel.mjs", "research-bots.mjs", "report-operations.mjs", "report-workspace.mjs", "report-workspace.css", "scenarios.mjs", "scenarios.css", "asset-research.mjs", "asset-research.css", "dossiers.mjs", "dossiers.css", "dossier-methods.mjs", "mcp-credentials.mjs", "discovery.mjs", "discovery.css", "market-terminal.mjs", "market.mjs", "market.css", "market-calendar.mjs", "market-calendar.css", "market-dashboard.mjs", "market-dashboard-model.mjs", "market-dashboard-view.mjs", "market-daily-bootstrap.mjs", "market-dashboard.css", "watchlist-import.mjs", "asset-workspace.mjs", "asset-workspace.css", "asset-layout.css", "asset-format.mjs", "asset-chips.mjs", "asset-chip-panel.mjs", "asset-controller.mjs", "asset-navigation.mjs", "asset-search.mjs", "asset-chart.mjs", "asset-intraday.mjs", "asset-intraday-option.mjs", "asset-minute-k.mjs", "asset-range-statistics.mjs", "asset-range-controller.mjs", "asset-indicator-library.mjs", "asset-panel-manager.mjs", "asset-chart.css", "asset-indicators.mjs", "asset-projection.mjs", "asset-news.mjs", "vendor/asset-vendor-lock.json", "vendor/echarts-5.5.0.min.js", "vendor/echarts-5.5.0.LICENSE.txt", "vendor/echarts-5.5.0.NOTICE.txt", "vendor/chart-4.4.7.umd.js", "vendor/chart-js-4.4.7.LICENSE.txt"]
 
@@ -331,6 +340,12 @@ jobs:
               source = (Path("app/research_web/ui") / name).read_bytes()
               assert installed == source, f"installed asset differs: {name}"
               checks.append({"path": name, "sha256": hashlib.sha256(installed).hexdigest()})
+          package = Path(distribution("research-workbench").locate_file("app/research_web"))
+          for name in ("server/session.mjs", "server/profile.css"):
+              installed = (package / "ui" / name).read_bytes()
+              source = (Path("app/research_web/ui") / name).read_bytes()
+              assert installed == source, f"installed server asset differs: {name}"
+              checks.append({"path": name, "verification": "installed-wheel", "sha256": hashlib.sha256(installed).hexdigest()})
           Path("asset-static-smoke.json").write_text(json.dumps({"status": "PASS", "assets": checks}), encoding="utf-8")
           PY
           .venv/bin/python -c "from pathlib import Path; assert 'Research Workbench · Research' in Path('root.html').read_text(encoding='utf-8'); assert 'const defaultCatalogNames =' in Path('app.mjs').read_text(encoding='utf-8')"
