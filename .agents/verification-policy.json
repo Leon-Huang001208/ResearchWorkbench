@@ -480,6 +480,25 @@
   },
   "rules": [
     {
+      "id": "research-web-architecture-checker",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "architecture_evidence_checker_contract_change",
+      "impact": ["research-web-architecture"],
+      "coupling": "high",
+      "match": {
+        "files": ["scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": ["macos", "windows", "cross-platform"],
+      "tests": ["research-web-architecture", "project-constraints-local", "research-web-verification-full"],
+      "documentation": ["documentation-governance", "python-file-index"],
+      "ci": ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-windows-verify"],
+      "realMachine": []
+    },
+    {
       "id": "research-web-architecture-generated",
       "risk": "full-delivery",
       "minimumLevel": "L4",
