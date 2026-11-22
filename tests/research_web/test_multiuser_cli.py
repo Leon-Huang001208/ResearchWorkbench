@@ -679,7 +679,10 @@ def test_doctor_reports_explicit_weknora_oauth_metadata_only(tmp_path, output, m
         "--json",
     ]
     assert cli.main(args) == 0
-    assert json.loads(output.readouterr().out)["weknora_oauth"]["status"] == "invalid"
+    assert json.loads(output.readouterr().out)["weknora_oauth"] == {
+        "status": "configuration_pending",
+        "runtime_verification": "NOT_RUN",
+    }
     assert cli.main([*args, "--service-only"]) == 0
     assert json.loads(output.readouterr().out)["weknora_oauth"] == {
         "status": "configuration_pending",
@@ -719,18 +722,19 @@ def test_doctor_rejects_noncanonical_weknora_loopback(origin, tmp_path, output, 
     assert json.loads(output.readouterr().out)["weknora_oauth"]["status"] == "invalid"
 
 
-def test_doctor_reads_production_service_only_oauth_without_opening_accounts(tmp_path, output):
+@pytest.mark.parametrize("service_only", [False, True])
+def test_doctor_reads_production_oauth_without_opening_accounts(tmp_path, output, service_only):
     root = tmp_path / "server"
     root.mkdir(mode=0o700)
     config = root / "resident.json"
     config.write_text(
         json.dumps(
             {
-                "service_only": True,
+                "service_only": service_only,
                 "mcp_readonly_enabled": True,
                 "origin": "https://rwb.tail123.ts.net",
                 "port": 8089,
-                "weknora_oauth_origin": "https://weknora.tail123.ts.net:8443",
+                "weknora_oauth_origin": "https://rwb.tail123.ts.net:9443",
             }
         )
     )
@@ -738,7 +742,7 @@ def test_doctor_reads_production_service_only_oauth_without_opening_accounts(tmp
     old = config.read_bytes()
     assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
     d = json.loads(output.readouterr().out)
-    assert d["execution_mode"] == "external"
+    assert d["execution_mode"] == ("external" if service_only else "embedded")
     assert d["weknora_oauth"] == {
         "status": "configuration_pending",
         "runtime_verification": "NOT_RUN",

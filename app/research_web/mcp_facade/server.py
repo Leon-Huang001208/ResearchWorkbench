@@ -4,6 +4,8 @@ from urllib.parse import urlsplit
 
 import httpx
 from mcp.server import MCPServer
+from mcp.server.auth.middleware.auth_context import get_access_token
+from mcp.server.auth.routes import create_protected_resource_routes
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.shared.exceptions import MCPError
@@ -19,11 +21,11 @@ from pydantic import AnyHttpUrl
 from starlette.routing import Route
 
 from .authorization_store import AuthorizationStore
-from .backend import FrozenBackend
+from .backend import DataHubBackend, FrozenBackend
 from .http_policy import BoundedHTTP, BoundedMCPMethods
-from .models import SCOPE
+from .models import DATA_SCOPE, SCOPE, WEKNORA_CLIENT_ID, client_scopes
 from .oauth import OAuthProvider, OAuthVerifier, create_oauth_routes
-from .tools import TOOL_ARGUMENTS, register_tools
+from .tools import DATA_TOOL_ARGUMENTS, TOOL_ARGUMENTS, register_tools
 
 
 async def tools_only(ctx, call_next):
@@ -53,6 +55,8 @@ async def tools_only(ctx, call_next):
         )
     if ctx.method == "tools/list":
         listed = ListToolsResult.model_validate(result, by_name=False)
+        token = get_access_token()
+        data_enabled = token is not None and DATA_SCOPE in token.scopes
         return listed.model_copy(
             update={
                 "tools": [
@@ -62,6 +66,7 @@ async def tools_only(ctx, call_next):
                         }
                     )
                     for tool in listed.tools
+                    if data_enabled or tool.name not in DATA_TOOL_ARGUMENTS
                 ]
             }
         )
@@ -74,19 +79,21 @@ class Facade:
             accounts, issuer=origin, weknora_oauth_origin=weknora_oauth_origin
         )
         self.client = httpx.AsyncClient(trust_env=False, follow_redirects=False, timeout=20)
+        auth = AuthSettings(
+            issuer_url=origin,
+            resource_server_url=self.store.resource,
+            required_scopes=[SCOPE],
+            validate_token_resource=True,
+        )
         self.server = MCPServer(
             "Research Workbench readonly",
             token_verifier=OAuthVerifier(self.store),
-            auth=AuthSettings(
-                issuer_url=origin,
-                resource_server_url=self.store.resource,
-                required_scopes=[SCOPE],
-                validate_token_resource=True,
-            ),
+            auth=auth,
         )
         self.server.middleware.append(tools_only)
         self.backend = FrozenBackend(pool, self.client)
-        register_tools(self.server, self.store, self.backend)
+        self.datahub = DataHubBackend(pool, self.client)
+        register_tools(self.server, self.store, self.backend, self.datahub)
         self.routes = create_oauth_routes(OAuthProvider(self.store))
         security = TransportSecuritySettings(
             enable_dns_rebinding_protection=True,
@@ -99,6 +106,22 @@ class Facade:
             json_response=True,
             transport_security=security,
         )
+        if weknora_oauth_origin is not None:
+            # SDK 2.2 uses required_scopes for resource metadata as well. The
+            # query scope is supported, not required: keep old read tokens valid
+            # and publish the complete scope list using its public route factory.
+            metadata = {
+                route.path: route
+                for route in create_protected_resource_routes(
+                    resource_url=AnyHttpUrl(self.store.resource),
+                    authorization_servers=[auth.issuer_url],
+                    scopes_supported=list(client_scopes(WEKNORA_CLIENT_ID)),
+                )
+            }
+            app.routes[:] = [
+                metadata.get(route.path, route) if isinstance(route, Route) else route
+                for route in app.routes
+            ]
         # Compose the public Starlette route without changing SDK middleware,
         # POST dispatch, session management, or private SDK implementation.
         app.routes[:] = [

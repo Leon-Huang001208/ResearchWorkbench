@@ -45,11 +45,12 @@ def validate_weknora_gateway(issuer: str, callback_origin: str, port: int) -> No
     if issuer == callback_origin:
         raise ValueError("weknora_oauth_origin_conflict")
     if issuer.startswith("https://"):
-        hostname = urlsplit(validate_origin(issuer)).hostname
-        if issuer != f"https://{hostname}":
+        url = urlsplit(validate_origin(issuer))
+        expected = f"https://{url.hostname}" + (
+            f":{url.port}" if url.port not in (None, 443) else ""
+        )
+        if issuer != expected:
             raise ValueError("weknora_oauth_issuer_invalid")
-        if urlsplit(callback_origin).hostname == hostname:
-            raise ValueError("weknora_oauth_cookie_host_conflict")
     elif (
         port == 80 or issuer != f"http://127.0.0.1:{port}" or callback_origin.startswith("https://")
     ):
@@ -62,8 +63,8 @@ def resident_execution(config: dict, *, mcp_enabled: bool) -> tuple[bool, str | 
         raise ValueError("resident_service_only_invalid")
     oauth_origin = config.get("weknora_oauth_origin")
     if "weknora_oauth_origin" in config:
-        if not service_only or not mcp_enabled:
-            raise ValueError("weknora_oauth_requires_service_only_mcp")
+        if not mcp_enabled:
+            raise ValueError("weknora_oauth_requires_mcp")
         if not isinstance(oauth_origin, str):
             raise ValueError("weknora_oauth_origin_invalid")
         try:

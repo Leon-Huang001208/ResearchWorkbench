@@ -53,7 +53,7 @@ def parser() -> argparse.ArgumentParser:
             "--root", type=Path, default=Path.home() / ".research-workbench/server"
         )
         if name in {"serve", "doctor"}:
-            command.add_argument("--weknora-oauth-origin", help="隔离 WeKnora 的浏览器来源")
+            command.add_argument("--weknora-oauth-origin", help="预登记 WeKnora 的浏览器来源")
         if name in {"init", "reset-admin"}:
             command.add_argument("--username", required=True)
         elif name == "serve":
@@ -294,8 +294,8 @@ def _weknora_oauth_origin(arguments: argparse.Namespace) -> str | None:
     origin = arguments.weknora_oauth_origin
     if origin is None:
         return None
-    if not arguments.service_only or not enabled():
-        raise ServerCommandError("weknora_oauth_requires_service_only_mcp")
+    if not enabled():
+        raise ServerCommandError("weknora_oauth_requires_mcp")
     try:
         weknora_callback(origin)
     except ValueError as exc:
