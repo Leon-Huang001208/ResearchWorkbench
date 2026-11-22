@@ -316,6 +316,7 @@ test('reviewed upgrades run both complete maintenance modules and the bounded ac
       .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}', 'false')
+      .replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}', 'true');
     const result = spawnSync('/bin/bash', ['-e', '-c', command], {cwd: root,
       env: {...process.env, PATH: path.join(root, 'bin') + path.delimiter + process.env.PATH,
@@ -336,6 +337,156 @@ test('reviewed upgrades run both complete maintenance modules and the bounded ac
     'tests/javascript/actions_quota_governance.test.mjs']);
   const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
   assert.match(editorial, /reviewed_upgrade_only != 'true'/);
+});
+
+test('FinGPT source reports select the actual reviewed diff and reject unrelated or unknown inputs', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-fingpt-source-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  // Freeze the observed PR #314 diff; CI checkout can be shallow.
+  const original = [
+    ".ai/reports/2026-11-23-fingpt-rollback-reapply.md",
+    ".ai/reports/alphadesk_qa_20261113.md",
+    "app/research_web/datahub/__init__.py",
+    "app/research_web/datahub/snapshots.py",
+    "app/research_web/discovery/README.md",
+    "app/research_web/discovery/fed.py",
+    "app/research_web/discovery/handoff.py",
+    "app/research_web/discovery/routes.py",
+    "app/research_web/discovery/service.py",
+    "app/research_web/discovery/sources.py",
+    "app/research_web/discovery/tracking.py",
+    "app/research_web/dossiers/__init__.py",
+    "app/research_web/qa_tools.py",
+    "app/research_web/qa_worker/README.md",
+    "app/research_web/qa_worker/prompts.mjs",
+    "app/research_web/research_quality.py",
+    "app/research_web/research_quality_service.py",
+    "app/research_web/research_web_sources.py",
+    "app/research_web/resources/research_report.py",
+    "app/research_web/resources/research_report_plan.py",
+    "app/research_web/service.py",
+    "app/research_web/ui/progress-data.json",
+    "docs/ARCHITECTURE.md",
+    "docs/DATA_SOURCES.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/06-documentation-contract.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/README.md",
+    "docs/architecture/research-web/architecture-map.json",
+    "docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/architecture/research-web/visual-review.json",
+    "docs/generated/py_file_index.md",
+    "docs/research-web-ai-news.md",
+    "docs/research-web-ai-qa.md",
+    "docs/research-web-appearance.md",
+    "docs/research-web-capabilities.md",
+    "docs/research-web-discovery.md",
+    "docs/research-web-docker.md",
+    "docs/research-web-dossier-scans.md",
+    "docs/research-web-dossiers.md",
+    "docs/research-web-etf-weekly-production.md",
+    "docs/research-web-gateway-upgrade.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-platform-support.md",
+    "docs/research-web-source-migration.md",
+    "docs/research-web-ui.md",
+    "docs/resource-lifecycle.md",
+    "outputs/research-web-architecture/02-module-dependencies.delivery.json",
+    "outputs/research-web-architecture/02-module-dependencies.html",
+    "outputs/research-web-architecture/02-module-dependencies.receipt.json",
+    "outputs/research-web-architecture/02-module-dependencies.visual-check.1440x900.dark.png",
+    "outputs/research-web-architecture/02-module-dependencies.visual-check.1440x900.light.png",
+    "outputs/research-web-architecture/02-module-dependencies.visual-check.2048x1320.dark.png",
+    "outputs/research-web-architecture/02-module-dependencies.visual-check.2048x1320.light.png",
+    "outputs/research-web-architecture/02-module-dependencies.visual-check.html",
+    "outputs/research-web-architecture/02-module-dependencies.visual-check.json",
+    "outputs/research-web-architecture/api-atlas.html",
+    "outputs/research-web-architecture/index.html",
+    "research_workbench_entrypoint/resident/model_provider_upgrade.py",
+    "scripts/check_research_architecture.mjs",
+    "tests/javascript/research_web_architecture.test.mjs",
+    "tests/javascript/research_web_qa_worker.test.mjs",
+    "tests/research_web/test_alphadesk_qa.py",
+    "tests/research_web/test_bound_analysis.py",
+    "tests/research_web/test_discovery_routes.py",
+    "tests/research_web/test_discovery_tracking.py",
+    "tests/research_web/test_model_provider_upgrade.py",
+    "tests/research_web/test_research_quality.py",
+  ];
+  const anchor = 'app/research_web/discovery/fed.py';
+  const repair = ['.github/workflows/research-web-checks.yml', 'scripts/run_ci_pytest_partitions.py',
+    'tests/unit/test_ci_pytest_partitions.py', 'tests/javascript/actions_quota_governance.test.mjs'];
+  for (const [paths, base, failure, expected] of [[original, 'a'.repeat(40), '', true],
+    [[...original, ...repair], 'a'.repeat(40), '', true],
+    ...original.filter(name => name.startsWith('app/') && !name.endsWith('.md')).map(name => [[anchor, name], 'a'.repeat(40), '', true]),
+    ...['app/research_web/market_service.py', 'app/research_web/discovery/unknown.py',
+      'tests/research_web/fixtures/unreviewed.json', '.github/workflows/desktop-verify.yml'].map(name => [[...original, name], 'a'.repeat(40), '', false]),
+    [['app/research_web/service.py'], 'a'.repeat(40), '', false],
+    [original, '', '', false], [original, 'a'.repeat(40), 'fetch', false], [original, 'a'.repeat(40), 'diff', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=1 if os.environ['SCOPE_GIT_FAILURE']=='fetch' else 0)\n    return SimpleNamespace(returncode=1 if os.environ['SCOPE_GIT_FAILURE']=='diff' else 0,stdout=bytes([0]).join(name.encode() for name in json.loads(os.environ['SCOPE_FILES']))+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output,
+        SCOPE_FILES: JSON.stringify(paths), SCOPE_GIT_FAILURE: failure}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const scope = Object.fromEntries(fs.readFileSync(output, 'utf8').trim().split('\n').map(line => line.split('=')));
+    assert.equal(scope.fingpt_source_only, String(expected), JSON.stringify({paths, base, failure}));
+    for (const flag of ['retention_only', 'architecture_only', 'g2b_release_only', 'research_packs_only', 'reviewed_upgrade_only']) assert.equal(scope[flag], 'false');
+  }
+});
+
+test('FinGPT source scope preserves complete shared contracts, maintenance fixtures and unit evidence', t => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-fingpt-source-commands-')));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  fs.mkdirSync(path.join(root, '.venv/bin'), {recursive: true});fs.mkdirSync(path.join(root, 'bin'));
+  const calls = path.join(root, 'calls.jsonl');
+  for (const [file, kind] of [['.venv/bin/python', 'python'], ['bin/git', 'git'], ['bin/node', 'node']]) {
+    fs.writeFileSync(path.join(root, file), `#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify({kind:${JSON.stringify(kind)},args:process.argv.slice(2)})+'\\n');\n`, {mode: 0o700});
+  }
+  for (const name of ['Run Research Web Python contracts', 'Run Research Web JavaScript contracts']) {
+    const step = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    const script = step.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n');
+    const command = script.replace(/\$\{\{ steps\.contract-scope\.outputs\.([a-z0-9_]+) \}\}/g, (_, flag) => flag === 'fingpt_source_only' ? 'true' : 'false');
+    const result = spawnSync('/bin/bash', ['-e', '-c', command], {cwd: root,
+      env: {...process.env, PATH: path.join(root, 'bin') + path.delimiter + process.env.PATH,
+        RUNNER_TEMP: root, GITHUB_RUN_ID: '1', GITHUB_RUN_ATTEMPT: '1', CI_SCOPE_RECORD: calls}, encoding: 'utf8', timeout: 10000});
+    assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+  }
+  const commands = fs.readFileSync(calls, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  const python = commands.filter(item => item.kind === 'python');assert.equal(python.length, 2);
+  for (const command of python) assert.equal(command.args[0], 'scripts/run_ci_pytest_partitions.py');
+  const selected = python[0].args.slice(python[0].args.indexOf('--') + 1);
+  for (const name of ['api', 'protocol', 'research_bots', 'automation_routes', 'automation_schedule',
+    'automation_research_task', 'datahub', 'discovery', 'discovery_routes', 'discovery_tracking',
+    'alphadesk_qa', 'alphadesk_qa_formats', 'qa_acceptance_budget', 'research_quality',
+    'research_quality_scope', 'research_business_evidence', 'bound_analysis', 'research_report',
+    'research_report_binding', 'research_source_reading', 'external_sources', 'dossiers',
+    'report_formats', 'report_rendering', 'report_revision', 'report_calculations',
+    'report_workflows', 'report_workflow_integration', 'owned_method_execution',
+    'scenario_method_sources', 'model_provider_upgrade', 'gateway_upgrade', 'iteration_resources',
+    'weknora_formal_scope', 'store', 'capabilities_native']) {
+    assert.ok(selected.includes(`tests/research_web/test_${name}.py`), name);
+  }
+  assert.ok(selected.includes('tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities'));
+  assert.ok(!selected.some(name => /test_market_|test_pack_|test_datahub_wind/.test(name)));
+  assert.deepEqual(python[1].args.slice(python[1].args.indexOf('--') + 1), [
+    'tests/unit/test_fingpt_legacy_cutover.py', 'tests/unit/test_ci_pytest_partitions.py',
+    'tests/unit/test_ci_pytest_evidence_staging.py', '--confcutdir=tests/unit', '-q']);
+  const git = commands.filter(item => item.kind === 'git');assert.equal(git.length, 1);
+  assert.deepEqual(git[0].args.slice(-3), ['b800e50366d1a0868372bbf173822976066c143f',
+    'db2ae9a48ceca365852072e622aa6627aa7d0b83', '1529c3189b008b9861a2bee1511f051feefa76eb']);
+  const node = commands.filter(item => item.kind === 'node');assert.equal(node.length, 1);
+  assert.deepEqual(node[0].args, ['--test', 'tests/javascript/research_web*.test.mjs', 'tests/javascript/legacy_fingpt_cutover.test.mjs']);
 });
 
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {
@@ -609,9 +760,9 @@ test('knowledge authority regressions execute once in each applicable CI branch'
   fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.mkdirSync(path.join(root,'bin'));
   fs.writeFileSync(path.join(root,'.venv/bin/python'),`#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2))+'\\n');\n`,{mode:0o700});
   fs.writeFileSync(path.join(root,'bin/git'),'#!/bin/sh\nexit 0\n',{mode:0o700});
-  for(const [retention,packs] of [[false,false],[false,true],[true,false]]) {
-    const record=path.join(root,`${retention}-${packs}.jsonl`);
-    const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false');
+  for(const [retention,packs,fingpt] of [[false,false,false],[false,true,false],[true,false,false],[false,false,true]]) {
+    const record=path.join(root,`${retention}-${packs}-${fingpt}.jsonl`);
+    const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt));
     const result=spawnSync('/bin/bash',['-e','-c',command],{cwd:root,env:{...process.env,PATH:path.join(root,'bin')+path.delimiter+process.env.PATH,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
     assert.equal(result.status,0,result.stderr);
     const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));
