@@ -1234,8 +1234,6 @@ def test_private_fence_accepts_only_503(monkeypatch):
 @pytest.fixture
 def real_operations(tmp_path, monkeypatch, request):
     """Run real journals, reservations, configuration and operation methods; fake OS effects."""
-    import hashlib
-
     import app.research_web.multiuser.resident_binding as binding_module
 
     profile = getattr(request, "param", upgrade.MODE)
@@ -1257,10 +1255,13 @@ def real_operations(tmp_path, monkeypatch, request):
         db.execute("CREATE TABLE accounts(id TEXT PRIMARY KEY)")
         db.execute("INSERT INTO accounts VALUES (?)", (uid,))
     (server / "accounts.sqlite3").chmod(0o600)
-    upgrade.c.atomic(home / "research-web/index.json", {"automation_runs": {}})
-    body = home / "research-web/keep.txt"
+    upgrade.c.atomic(
+        home / "research-web/index.json",
+        {"sessions": {"kept": {"title": "preserved session"}}, "automation_runs": {}},
+    )
+    body = home / "research-web/sessions/kept/body.txt"
+    body.parent.mkdir(parents=True, mode=0o700)
     body.write_bytes(b"private fixture remains intact")
-    expected_body = hashlib.sha256(body.read_bytes()).hexdigest()
     config = {
         "project": str(primary),
         "baseline": "known",
@@ -1321,7 +1322,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "manifest": manifest,
         "accepted": accepted,
         "candidate_before": accepted,
-        "before": {"body": expected_body},
+        "before": upgrade.g.preservation(home),
         "new_wheel": {"path": str(wheel), "sha256": upgrade.c.digest(wheel)},
         "old_wheel": {"path": str(wheel), "sha256": upgrade.c.digest(wheel)},
         "proof": {"qualified": True},
@@ -1450,15 +1451,6 @@ def real_operations(tmp_path, monkeypatch, request):
         assert system["running"] and system["primary"] == sha and not system["active"]
 
     monkeypatch.setattr(upgrade.g, "verify_primary", verify_primary)
-    monkeypatch.setattr(
-        upgrade.g,
-        "preserved",
-        lambda *_args: (
-            None
-            if hashlib.sha256(body.read_bytes()).hexdigest() == expected_body
-            else pytest.fail("data changed")
-        ),
-    )
 
     def request(url):
         if url.endswith("/api/research/market"):
@@ -1605,6 +1597,299 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
     assert not (home / "server/run/gateway-upgrade.json").exists()
     assert not (home / "server/run/birth-fence.json").exists()
     assert json.loads((home / "install/manifest.json").read_text())["code_commit"] == expected
+
+
+@pytest.fixture
+def attached_mcp_operate(real_operations, monkeypatch):
+    """Keep real operate/fence/configuration/preservation; replace source and OS effects."""
+    from contextlib import closing, contextmanager
+
+    from app.research_web import service_manager
+
+    home, state, system, make, _uid = real_operations
+    root, server = home / "resident", home / "server"
+    source = home / "reviewed-source"
+    source.mkdir(mode=0o700)
+    config = state["config"]
+    config.update(artifact=str(root / "controller.pyz"), gh="/fixture-gh")
+    controller = b"reviewed fixture controller"
+    with zipfile.ZipFile(root / "controller.pyz", "w") as archive:
+        archive.writestr("resident/controller.py", controller)
+    monkeypatch.setattr(upgrade, "CONTROLLER_SHA256", upgrade.c.digest(root / "controller.pyz"))
+    monkeypatch.setattr(upgrade, "CONTROLLER_MODULE_SHA256", hashlib.sha256(controller).hexdigest())
+    config["artifact_sha256"] = upgrade.CONTROLLER_SHA256
+    upgrade.c.atomic(root / "config.json", config)
+    primary = Path(state["primary_project"])
+    argv = [
+        str(primary / ".venv/bin/python"),
+        "-m",
+        "app.research_web.multiuser.resident",
+        "--root",
+        str(server),
+    ]
+    plist = home / "Library/LaunchAgents" / (upgrade.g.LABEL + ".plist")
+    plist.parent.mkdir(parents=True, mode=0o700)
+    plist.write_bytes(
+        plistlib.dumps(
+            {
+                "ProgramArguments": argv,
+                "WorkingDirectory": state["gateway_project"],
+                "Label": upgrade.g.LABEL,
+            }
+        )
+    )
+    state.update(
+        gateway_plist=str(plist),
+        gateway_plist_sha256=upgrade.c.digest(plist),
+        gateway_command=" ".join(argv),
+    )
+    monkeypatch.setattr(
+        upgrade.g,
+        "job_state",
+        lambda: (
+            f"path = {plist}\nprogram = {argv[0]}\n"
+            f"working directory = {state['gateway_project']}\n"
+            if system["loaded"]
+            else None
+        ),
+    )
+    monkeypatch.setattr(upgrade.Path, "home", classmethod(lambda _cls: home))
+    monkeypatch.setattr(
+        upgrade, "sys", SimpleNamespace(platform="darwin", prefix=str(primary / ".venv"))
+    )
+    monkeypatch.setattr(upgrade.g, "process", lambda _pid: "a b c d e " + " ".join(argv))
+    monkeypatch.setattr(upgrade.g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(upgrade.c, "configured", lambda _home: (root, config))
+    monkeypatch.setattr(upgrade.c, "environment", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "validate_executor", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "review", lambda *_args: state["reviewed"])
+    monkeypatch.setattr(upgrade, "verify_retention", lambda *_args: None)
+    monkeypatch.setattr(upgrade, "verify_supervisor", lambda *_args: "fixture-supervisor")
+    monkeypatch.setattr(upgrade, "install_recovery", lambda *_args: {})
+    # Repository/source/recovery qualification has its own real-Git matrix. This
+    # fixture retains the actual configuration validator at both entry points.
+    validate_configuration = upgrade.validate_configuration
+    monkeypatch.setattr(
+        upgrade,
+        "validate_state",
+        lambda path, value, **_kwargs: validate_configuration(path, value),
+    )
+    monkeypatch.setattr(upgrade, "build_release_wheel", lambda *_args: state["old_wheel"])
+    real_git, real_clean = upgrade.c.git, upgrade.c.clean
+    artifact_source = root / "artifacts" / state["target"] / "source"
+
+    def git(project, *args, **kwargs):
+        if Path(project) in (source, artifact_source):
+            if args == ("rev-parse", "HEAD"):
+                return state["target"]
+            if args == ("rev-parse", "--path-format=absolute", "--git-common-dir"):
+                return config["source_common"]
+            if args[:2] == ("worktree", "add"):
+                Path(args[3]).mkdir(mode=0o700)
+                return ""
+        if args[:2] == ("cat-file", "-e"):
+            return ""
+        return real_git(project, *args, **kwargs)
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    monkeypatch.setattr(
+        upgrade.c,
+        "clean",
+        lambda project, sha: (
+            None
+            if Path(project) in (source, artifact_source) and sha == state["target"]
+            else real_clean(project, sha)
+        ),
+    )
+
+    class Evidence:
+        def __init__(self, *_args):
+            pass
+
+        def latest(self):
+            return state["target"]
+
+        def qualify(self, _sha):
+            return state["proof"]
+
+    monkeypatch.setattr(upgrade, "GitHubEvidence", Evidence)
+    system.update(
+        fence_entries=0,
+        fenced=False,
+        installation_scope=False,
+        verified=[],
+        executed=[],
+        checks=[],
+    )
+    manager = make(None).manager
+
+    @contextmanager
+    def installation_scope():
+        system["installation_scope"] = True
+        try:
+            yield object()
+        finally:
+            system["installation_scope"] = False
+
+    manager._installation_start_scope = installation_scope
+    monkeypatch.setattr(service_manager, "WebServiceManager", lambda **_kwargs: manager)
+
+    def validate(path, value):
+        if system["fenced"] and system["installation_scope"]:
+            system["checks"].append("configuration")
+        return validate_configuration(path, value)
+
+    monkeypatch.setattr(upgrade, "validate_configuration", validate)
+
+    class ObservedFence(BirthFence):
+        def __enter__(self):
+            result = super().__enter__()
+            system["fence_entries"] += 1
+            system["fenced"] = True
+            system["journal_at_fence"] = (server / "run/gateway-upgrade.json").read_bytes()
+            if system.get("after_fence"):
+                system["after_fence"]()
+            return result
+
+        def __exit__(self, *args):
+            try:
+                return super().__exit__(*args)
+            finally:
+                system["fenced"] = False
+
+    monkeypatch.setattr(upgrade, "BirthFence", ObservedFence)
+    real_verify = upgrade.Operations.verify
+
+    def verify(ops, previous):
+        assert system["fenced"] and system["installation_scope"]
+        assert system["checks"] == ["configuration"]
+        system["checks"].append("verify")
+        # A second connection must fail while actual Operations.verify reads
+        # the frozen accounts bytes and compares original sessions/models.
+        with (
+            closing(sqlite3.connect(server / "accounts.sqlite3", timeout=0)) as contender,
+            pytest.raises(sqlite3.OperationalError, match="locked"),
+        ):
+            contender.execute("SELECT id FROM accounts").fetchall()
+        system["verified"].append(previous)
+        return real_verify(ops, previous)
+
+    monkeypatch.setattr(upgrade.Operations, "verify", verify)
+
+    def execute(ops, record, *, recovering=False):
+        system["executed"].append(recovering)
+        assert system["fenced"] and system["installation_scope"]
+        return {"status": "execution_boundary_observed"}
+
+    monkeypatch.setattr(upgrade, "execute", execute)
+    return home, state, system, source
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [
+        (mode, enabled)
+        for mode in sorted(upgrade.ATTACHED_MCP_PRESERVATION_MODES)
+        for enabled in (True, False)
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("recovering", [False, True])
+def test_attached_mcp_operate_rechecks_previous_under_real_birth_fence(
+    attached_mcp_operate, recovering
+):
+    home, state, system, source = attached_mcp_operate
+    journal = home / "server/run/gateway-upgrade.json"
+    if recovering:
+        state["phase"] = "preparing"
+        upgrade.g.write_upgrade_journal(journal, state)
+    result = upgrade.operate(
+        home, None if recovering else source, recovering=recovering, mode=state["mode"]
+    )
+    assert result["status"] == (
+        "aborted_before_signal" if recovering else "execution_boundary_observed"
+    )
+    assert system["fence_entries"] == 1
+    assert system["verified"] == [True]
+    assert system["executed"] == ([] if recovering else [False])
+    assert not system["events"]
+    if recovering:
+        assert not journal.exists()
+
+
+@pytest.mark.parametrize("real_operations", [(upgrade.RESEARCH_BOT_MODE, True)], indirect=True)
+@pytest.mark.parametrize("recovering", [False, True])
+@pytest.mark.parametrize("damage", ["session", "model", "configuration", "mcp-health"])
+def test_attached_mcp_post_fence_drift_keeps_original_preparing_journal(
+    attached_mcp_operate, monkeypatch, recovering, damage
+):
+    home, state, system, source = attached_mcp_operate
+    journal = home / "server/run/gateway-upgrade.json"
+    if recovering:
+        state["phase"] = "preparing"
+        upgrade.g.write_upgrade_journal(journal, state)
+    request_json = upgrade.request_json
+
+    def mutate():
+        if damage in {"session", "model"}:
+            index = home / "research-web/index.json"
+            value = upgrade.read_json(index)
+            if damage == "session":
+                value["sessions"]["kept"]["title"] = "unexpected post-fence change"
+            else:
+                value["model_profiles"] = {"unexpected": {"model": "changed"}}
+            upgrade.c.atomic(index, value)
+        elif damage == "configuration":
+            upgrade.c.atomic(home / "resident/config.json", {**state["config"], "unexpected": True})
+        else:
+            monkeypatch.setattr(
+                upgrade,
+                "request_json",
+                lambda url: (
+                    {**request_json(url), "mcp_readonly_enabled": False}
+                    if url.endswith("/api/server/health")
+                    else request_json(url)
+                ),
+            )
+
+    system["after_fence"] = mutate
+    expected = {
+        "session": "gateway_preservation_failed",
+        "model": "gateway_preservation_failed",
+        "configuration": "model_upgrade_configuration_changed",
+        "mcp-health": "research_bot_upgrade_mcp_runtime_unverified",
+    }[damage]
+    with pytest.raises(upgrade.UpdateBlocked, match=expected):
+        upgrade.operate(
+            home, None if recovering else source, recovering=recovering, mode=state["mode"]
+        )
+    assert journal.read_bytes() == system["journal_at_fence"]
+    assert not system["events"] and not system["executed"]
+    assert system["fence_entries"] == 1
+
+
+@pytest.mark.parametrize(
+    "real_operations",
+    [upgrade.MODE, upgrade.TRIAL_MODE, upgrade.LOCAL_KNOWLEDGE_MODE],
+    indirect=True,
+)
+def test_preparing_other_recovery_keeps_existing_direction(attached_mcp_operate, monkeypatch):
+    home, state, system, _source = attached_mcp_operate
+    if state["mode"] == upgrade.LOCAL_KNOWLEDGE_MODE:
+        state["local_knowledge_post_deploy_rollback"] = True
+        system.update(primary=state["target"], gateway=state["target"])
+    elif state["mode"] in upgrade.TRIAL_MODES:
+        # This is a routing regression only; Trial's independently tested
+        # authorization/process retirement path must not gain an old-health gate.
+        monkeypatch.setattr(upgrade.Operations, "idle", lambda _ops: True)
+        monkeypatch.setattr(upgrade, "validate_trial_rebind", lambda value: value["config"])
+        state["asset_index_before"] = upgrade.asset_index_snapshot(home)
+    state["phase"] = "preparing"
+    journal = home / "server/run/gateway-upgrade.json"
+    upgrade.g.write_upgrade_journal(journal, state)
+    assert upgrade.operate(home, recovering=True) == {"status": "aborted_before_signal"}
+    assert not journal.exists()
+    assert not system["verified"] and not system["executed"] and not system["fence_entries"]
 
 
 @pytest.mark.parametrize(
@@ -3309,6 +3594,7 @@ def _weekly_v2_dossiers(home, state, uid):
             }
         )
         archives.append((service, dossier))
+    state["before"] = upgrade.g.preservation(home)
     state["asset_index_before"] = upgrade.asset_index_snapshot(home)
     assert "@dossiers" in state["asset_index_before"]["primary"]
     assert "@dossiers" in state["asset_index_before"]["private"][uid]

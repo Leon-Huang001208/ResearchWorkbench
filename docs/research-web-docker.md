@@ -1,5 +1,10 @@
 # Mac mini Docker 开发与独立部署
 
+附接 MCP 保全的围栏内前版复核属于既有 Native 联合操作员，不增加 Docker 部署模式。
+它限定五个保全模式的 forward／preparing 恢复并排除完成后回滚；本次源码前移不启动、
+停止或重建容器，不调整镜像、卷、网络、内存或 builder。Docker 和 Native 的真实运行验收
+继续分别留证，见[操作员范围](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 本地知识库使用原 WeKnora 标准实例及固定镜像、卷和网络，原生 Ollama 经未发布的内部 Embedding 转发接入。RWB 的 `apply-local-knowledge` 只更新已登记的 Native 主实例与附接网关并持久绑定私网 HTTPS origin；Docker 服务恢复、TXT 兼容挂载和回滚配置分别保留，不因 Native 源码回滚清空知识库资料。
 
 Native 的固定私网路由核验识别9443到现有 WeKnora 前端18181，以及可选8443到既有SuperAgent8097。

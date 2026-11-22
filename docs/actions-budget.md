@@ -1,5 +1,19 @@
 # GitHub Actions 免费额度治理
 
+## 原 PR #284 围栏内复核前移预算
+
+两处复核及其回归复用 Research Web Checks 已登记的
+`test_model_provider_upgrade.py`，保留 Project Constraints 和同候选 macOS 15 Bootstrap。
+不增加 workflow、job、runner、依赖、平台 dispatch 或时限；离线定点回归在原步骤预留30秒，
+实际耗时与结果由最终候选记录。本批不运行模型、供应商或常驻服务；历史 CI 修复已用0次，
+累计最多2次，新阶段计数不冲销原回执。远端动作前仍重新核对 visibility／额度。
+
+Router 为操作员源码和对应测试两个精确文件补齐 L4/full-delivery 与完整模块 catalog，
+保留原通用完整检查和上述三项 CI，Windows 门仍由对应真机交接。Bootstrap 的 PR／push
+路径各补一条对应测试文件，确保源码或测试单独改变都实际触发已要求的 Mac 门；
+没有新增 workflow、job、runner、安装、依赖、权限、平台 dispatch 或超时；
+整模块与当前候选 CI 未执行时继续记录 `NOT_RUN`，不能把路由测试通过计作这些门通过。
+
 ## 原 PR 候选快照修复预算
 
 原Project Constraints的GitSafety测试步骤覆盖真实共享控制器与独立回执的发布回归，增量预留30秒并记录最终实测。既有job、runner、依赖、权限、concurrency和时限保持；Mac Bootstrap沿原GitSafety路径触发。此工具修补不运行研究／供应商／模型，不更新常驻服务。远端操作前仍实时核对visibility与额度。

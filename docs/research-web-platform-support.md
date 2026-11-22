@@ -1,5 +1,10 @@
 # Research Web 能力与平台证据
 
+原 PR #284 两处围栏内复核前移属于 macOS Native 操作员源码开发。离线真实围栏回归、
+同候选通用 CI／macOS 15 Bootstrap 与 Mac mini 实际切换是独立证据；本阶段不据源码
+推断已部署、模型或业务接受。Windows/Linux 原生及各自产品 dispatch 仍由对应设备接手，
+不从 Mac 结果推导支持，详见[操作员范围](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 管理员持久构建队列的当前任务归 macOS 管理入口。离线合同测试不证明 Docker 冷构建、
 健康或混合负载已通过，也不证明某一 Docker 内存设置已生效；这些分别保持 NOT_RUN，
 等待最终候选实机回执。Windows/Linux 原生及 exact-SHA 产品 dispatch 仍交对应设备，不从 Mac 发起。

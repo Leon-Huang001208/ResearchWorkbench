@@ -4405,11 +4405,14 @@ def operate(
             and Operations(home, state, manager, None, None).idle() is not True
         ):
             return {"status": "recovery_required" if recovering else "deferred"}
+        recheck_previous = not post_deploy_rollback(state) and (
+            state["mode"] in ATTACHED_MCP_PRESERVATION_MODES
+        )
         if not recovering:
             # Establish recovery ownership BEFORE BirthFence publishes any
             # durable slot. A crash in __enter__ must never orphan reservations.
             Operations(home, state, manager, None, None).prepare_fence(state)
-        elif state["phase"] == "preparing":
+        elif state["phase"] == "preparing" and not recheck_previous:
             # No service/source effect is possible before checkpoint prepared.
             validate_configuration(home, state)
             if state["mode"] not in TRIAL_MODES:
@@ -4436,6 +4439,14 @@ def operate(
         )
         lease = stack.enter_context(manager._installation_start_scope())
         ops = Operations(home, state, manager, lease, fence)
+        if recovering and state["phase"] == "preparing":
+            # Abort only after the live previous state is verified under the
+            # same account birth fence and installation scope as execution.
+            validate_configuration(home, state)
+            ops.verify(previous=True)
+            journal.unlink()
+            c.sync_directory(journal.parent)
+            return {"status": "aborted_before_signal"}
         if (
             recovering
             and state["mode"] == TRIAL_SUCCESSOR_MODE
@@ -4453,6 +4464,9 @@ def operate(
                 raise UpdateBlocked("resident_master_or_evidence_moved")
             if mode in TRIAL_MODES and github.qualify(executor_revision) != executor_proof:
                 raise UpdateBlocked("resident_executor_evidence_moved")
+            if recheck_previous:
+                validate_configuration(home, state)
+                ops.verify(previous=True)
         return execute(ops, state, recovering=recovering or rollback_target is not None)
 
 
