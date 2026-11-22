@@ -520,6 +520,8 @@ v2 继续使用原 v4 journal、不可变控制器、锁、BirthFence、优雅�
 `--target` 固定已合并、资格通过的新网关 SHA，`--expected-gateway` 固定旧网关 SHA。
 这与默认 `apply-ui` 的 primary=target 合同分开；不扩大自动兼容白名单，不安装或切换主实例。
 
+`apply-ui` 的候选交付资格从传入 `--source` 的绝对 Git common directory 查询，允许已审工具／产品回执位于当前源码仓库而非旧 resident 登记仓库。现役网关的 Git common 仍须精确等于原 `resident.source_common`，否则继续报 `gateway_source_identity_changed`；本修复不改运行配置、不可变控制器或真实交付账本，也不替代原资格、空闲与保全检查。
+
 注意：主账号的 `/` 和 `/static/*` 仍取自主实例的 UI 目录，因此此模式不能单独交付主账号的侧栏等完整壳更新。
 需要完整更新主账号界面时，应先使用下节 `stage-primary-ui`，由原 resident 完成受控切换，再更新网关；
 不能把网关 revision 更新或旧菜单适配当作主账号已加载新侧栏的证明。
