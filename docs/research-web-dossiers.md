@@ -1,5 +1,7 @@
 # 长期研究档案
 
+FinGPT 在冻结交接中从已签发的档案句柄分页读取正文，所有页携带同一原件摘要。
+
 九builtin pack的历史snapshot读取使用专用内部adapter；不改原三参执行/query admission，不把
 warehouse的storage_read当通用豁免。等价只读仅认可当前用户Catalog事务内发出的直接old→current
 事实证，逐次重验两端真实tree/record/runtime、当前enabled/no-draft/无插件冲突，以及现有source

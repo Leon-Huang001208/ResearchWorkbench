@@ -8,11 +8,15 @@ Research Web 的 FinGPT 使用迁入的 AlphaDesk React 问答组件及 Node 研
 - Host 将回合记录保存在账号会话的私有控制目录。网络断开可以重读状态，进程重启发现未终结的回合显示中断，回合不会自动重放。
 - Native 空闲检查在 FinGPT 启用时把问答回合计入活动任务。默认关闭时沿用原有 DSH 活动检查和健康响应。
 - Node 仅通过私有标准输入输出调用 Host。模型、凭据、DataHub、冻结资料、报告格式和交付归 Host 管理。报告计划通过既有报告 SDK，缺乏来源与独立质量证据的输出不能作为已通过报告。
+- 冻结的美联储 RSS 记录按原件中的明确字段交接标题、原始链接和发布日期，标记为上传归档声明及 RSS 摘要。报告与质量检查使用同一份绑定原件的来源元数据，摘要的引用范围须在报告中说明。
+- 文档核对在报告计划章节使用 `source_ids` 引用已绑定来源，由 SDK 原样呈现标题、发布日期、链接及实际 RSS 摘要和核对范围；无需把这些元数据复制到 `analysis`。Host 只扣除可从本轮来源重建的完整元数据块，剩余作者正文仍独立校验。金额、指标和计算继续使用 `evidence_ids`。
 - 支持文本、Markdown、CSV、JSON、PDF、Word（`.docx`）、Excel（`.xlsx`）和 PowerPoint（`.pptx`）附件。PDF 和 Office 通过原生隔离环境提取有界正文。Excel 使用已保存的单元格值，扫描件、嵌入对象和空正文会提示缺口。
 - PNG、JPEG、WebP 和静态 GIF 图片仅由 Host 发给本轮已配置的视觉模型。支持 DeepSeek 官方 `deepseek-flash` 和采用已知 GPT‑4o／GPT‑4.1 模型标识的 OpenAI-compatible 连接。图片解读须另有原始证据支撑，才能用于报告质量判定。[DeepSeek 图片输入文档](https://api-docs.deepseek.com/guides/vision/)
 - 可显式选择 PNG 和 PPTX 报告。它们与 HTML、DOCX、PDF 使用相同的冻结正文，经 Host 重建核验并归档后提供下载。
 
 ## 切换状态
+
+问答工具 `read_research_source` 对已授权的网页和档案正文分页。首次从字符位置 0 读取，后续向同一来源 ID 传入返回的 `next_offset`，为空时表示已读到末尾。每页保留原件的来源身份和 SHA-256，报告质量检查仍基于 Host 核验的原件与冻结观测。
 
 `RWB_ALPHADESK_QA=1` 可用于隔离 Host 验证。启用后旧普通 FinGPT 会话从列表与搜索隐藏，旧会话 API 返回 410，专业协作由 `#/specialist` 使用原 DSH 链。私网候选由网关 `alphadesk_qa` 配置传入账号运行环境。
 

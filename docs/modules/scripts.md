@@ -61,6 +61,18 @@ inferred from this test input.
 
 ## Files
 
+### `scripts/run_fingpt_source_ci.sh`
+
+Runs the fixed FinGPT source-report/Fed tracking CI command list selected by the existing
+Research Web Checks workflow. It has no command-selection parameters and runs from the
+repository checkout with the existing `RUNNER_TEMP` / GitHub run environment. It preserves
+the three historical source objects, 36 complete Web contract modules, Bot admission case,
+three unit modules, plugins and private partition roots. `set -euo pipefail` propagates the
+original fetch or partition failures. Moving this unchanged command list out of the YAML
+keeps each decoded workflow `run` value within GitHub's 21,000-character limit; it adds no
+job, runner, dependency, test exemption or timeout.
+Its exact path is registered for the existing Checks pull-request and master-push events.
+
 ### `scripts/run_ci_pytest_partitions.py`
 
 Purpose:
@@ -68,6 +80,7 @@ Purpose:
 - Collects the scope's actual node IDs, deterministically partitions them with a disjoint complete union, and has both workers verify that their collection matches the parent manifest before execution.
 - Keeps each worker's basetemp, pytest cache, JUnit XML, result record, and stdout/stderr log under an owner-checked private task temp root. The scheduler holds both worker Popen objects and validates their PID, UID, root inode, worker index, schema, plan digest, exact execution IDs, and exact JUnit `rwb_nodeid` mapping before reporting PASS. Collection errors, missing/changed nodes, test failures, worker errors, malformed results, and interruption fail closed; skips remain in JUnit.
 - Limits failure `errorClass` to the same fixed built-in/`PartitionError`/`UnknownError` enumeration used by the artifact stager. Unknown identifier-shaped pytest messages become `null`; unknown exception objects become `UnknownError`, so a private failure body or custom class name cannot become public taxonomy.
+- On cancellation or startup failure, signals only the worker process groups created by this invocation, waits for each worker, and closes remaining inherited log writers before evidence staging. The existing 10-second wait, 5-second forced-stop wait and failed interruption outcomes remain; unrelated sessions and the stager's identity checks are unchanged.
 - Does not change selected test paths/configuration, add jobs/runners/dependencies, or infer that the 45-minute GitHub timeout will pass. The exact candidate CI duration is still measured remotely.
 
 `tests/unit/test_ci_pytest_partitions.py` exercises partition integrity, independent worker evidence, visible skip/failure, collection failure, and interruption behavior.

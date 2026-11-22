@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Fed RSS 跟踪复用 DataHub 的 `ext_fed/news`、Discovery 冻结和原 Automation 调度，来源摘要经绑定附件进入 Host 已选的 FinGPT 执行链。RSS、原始发布时间和公告全文分别标识，未变化不调用模型；没有新增采集服务、调度器或数据库。
+
 附接 MCP 保全的 forward 切换与限定 preparing 恢复在原 BirthFence SQLite EX／安装作用域内，
 复用配置校验及 `Operations.verify(previous=True)` 重验前版。它只调整原操作员的校验顺序，
 不增加运行节点、数据库、依赖、权限或业务 API。五模式与回滚排除范围见
@@ -67,7 +69,7 @@ Host 批准范围的单轮研究沿原消息提交、账号 Store、唯一 DSH �
 研究引擎，解释仍使用唯一 DSH。来源采集复用 Automation 心跳且默认关闭，历史评分验证不
 启用生产总分。实现与真实验收限制见[事件研究集成](research-web-event-research.md)。
 
-可选入站 MCP 在原私网多用户网关中分开授权服务与资源服务，复用账户 SQLite 增量授权表、原 RuntimePool 和固定冻结 GET；不增加研究执行循环。首版默认关闭，仅四项批准公开/合成材料读取；浏览器登录不等于外部应用授权。FinGPT/Claw 通用 Agent 功能停止扩建，既有入口兼容维护。访问边界见[入站 MCP 合同](research-web-mcp-facade.md)和[只读授权图](../outputs/research-web-architecture/15-inbound-mcp.html)；源码、隔离 HTTP、私网部署和原生宿主验收分别留证。
+可选入站 MCP 在原私网多用户网关中分开授权服务与资源服务，复用账户 SQLite 增量授权表、原 RuntimePool 和固定冻结 GET；不增加研究执行循环。首版默认关闭，仅四项批准公开/合成材料读取；浏览器登录不等于外部应用授权。入站 MCP 本轮不扩建 FinGPT/Claw 通用 Agent，既有入口兼容维护；已授权的 FinGPT 与 Fed RSS 交付沿各自候选和验收继续执行。访问边界见[入站 MCP 合同](research-web-mcp-facade.md)和[只读授权图](../outputs/research-web-architecture/15-inbound-mcp.html)；源码、隔离 HTTP、私网部署和原生宿主验收分别留证。
 
 普通源码清理在原GitSafety的 `delivery --cleanup` 执行，仅退出本任务已合并、clean、无占用的可重建工作树与分支，记为 `cleanupScope=source`，不新增备份或恢复节点，不代表业务资源或部署验收。完整恢复和资源归档仅用于有实际需要的独立操作。
 

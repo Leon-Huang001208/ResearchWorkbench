@@ -15,6 +15,8 @@ FinGPT 完成切换后的双入口回滚属于 macOS Native 联合事务。Docke
 
 上线后工作树退役目前由受管 Native 验收触发，作用范围为已登记的 Git 工作树。Docker 上线验收尚未接入此入口，镜像、容器、卷和构建缓存继续由各自的受管流程处理。
 
+FinGPT 容器使用 Host 的读源分页合同。验收时可按同一来源 ID 逐页复原冻结正文并核对 SHA-256。
+
 策略验证的 `apply-strategy-validation` 只切换已安装的 Native 主实例和附接网关。Docker 环境仍从相应版本构建镜像。
 
 Radar 修复的固定升级配置用于已接受的 Native 主实例和附着网关。Docker 镜像的构建、保全及回滚沿各自流程。

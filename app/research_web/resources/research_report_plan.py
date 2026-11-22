@@ -21,6 +21,7 @@ try:
         render_markdown,
         report_body_characters,
         select_business_evidence,
+        source_metadata_text,
         validate_payload,
         write_research_report,
         write_summary_workbook,
@@ -37,6 +38,7 @@ except ImportError:
         render_markdown,
         report_body_characters,
         select_business_evidence,
+        source_metadata_text,
         validate_payload,
         write_research_report,
         write_summary_workbook,
@@ -68,12 +70,14 @@ def _analysis_literals(text):
     # These words contain numeral glyphs without making a numerical claim.
     # Every remaining numeric glyph is rejected, including lone Chinese digits,
     # fractions and unusual Unicode number forms, rather than guessing units.
-    idioms = r"一致|统一|唯一|进一步|一方面|另一方面|一定|一般|一旦|一律|一并|一贯|一体|一览|一同|万亿元|亿元|万元|美元"
+    idioms = r"一致|统一|唯一|进一步|一方面|另一方面|一定|一般|一旦|一律|一并|一贯|一体|一览|一同|下一|二手|万亿元|亿元|万元|美元"
     literals = re.sub(idioms, "", normalized)
     original = re.sub(idioms, "", text)
+    # This classification label uses a slash without expressing division.
+    operators = normalized.replace("新增/修订", "")
     if (
         any(c.isnumeric() or c in "两半双俩仨" for c in literals + original)
-        or re.search(r"[{}=≈÷×+−%‰<>*/^]|&#|翻番|翻倍|减半|腰斩|对半|加倍|对折|折半", normalized)
+        or re.search(r"[{}=≈÷×+−%‰<>*/^]|&#|翻番|翻倍|减半|腰斩|对半|加倍|对折|折半", operators)
         or _CHINESE_QUANTITY.search(normalized)
         or _ENGLISH_QUANTITY.search(normalized)
     ):
@@ -108,9 +112,17 @@ def _fact_text(row):
         }.get(row["metric"], row["metric"])
         return f"{row.get('heading', row['metric'])}（数据日 {row['period']}）{label}为{row['value']} {row['unit']}"
     period, metric = row["period"], row["metric"]
-    if row.get("source_id", "").startswith("dataset:") and re.fullmatch(r"\d{4}-\d{2}(?:-\d{2})?", period):
-        label = {"open": "开盘价", "high": "最高价", "low": "最低价", "close": "收盘价",
-                 "volume": "成交量", "turnover": "成交额"}.get(metric, metric)
+    if row.get("source_id", "").startswith("dataset:") and re.fullmatch(
+        r"\d{4}-\d{2}(?:-\d{2})?", period
+    ):
+        label = {
+            "open": "开盘价",
+            "high": "最高价",
+            "low": "最低价",
+            "close": "收盘价",
+            "volume": "成交量",
+            "turnover": "成交额",
+        }.get(metric, metric)
         return f"{period} {label}为{row['value']} {row['unit']}"
     return f"{period}年{labels.get(metric, metric)}为{row['value']} {row['unit']}"
 
@@ -484,7 +496,11 @@ def build_business_report_plan(context, plan, bundle):
         selected, stage_ids, section_rows, presentation = {}, set(), {}, []
         total = 0
         for section in plan["sections"]:
-            _object(section, {"id", "heading", "evidence_ids", "requirement_ids"}, {"analysis"})
+            _object(
+                section,
+                {"id", "heading", "evidence_ids", "requirement_ids"},
+                {"analysis", "source_ids"},
+            )
             sid = section["id"]
             if (
                 not isinstance(sid, str)
@@ -496,9 +512,11 @@ def build_business_report_plan(context, plan, bundle):
             _text(section["heading"], 200)
             _analysis_literals(section["heading"])
             refs, requirements = section["evidence_ids"], section["requirement_ids"]
+            source_refs = section.get("source_ids", [])
             if (
                 not isinstance(refs, list)
                 or len(refs) > 40
+                or not isinstance(source_refs, list)
                 or not isinstance(requirements, list)
                 or not requirements
                 or any(r not in context["requirement_ids"] for r in requirements)
@@ -528,13 +546,26 @@ def build_business_report_plan(context, plan, bundle):
             if "analysis" in section and section["analysis"] != "":
                 scored, human_text = _bind_analysis(section["analysis"], rows)
                 source_quotes = [
-                    _fact_text(row) for row in rows
+                    _fact_text(row)
+                    for row in rows
                     if row.get("metric") == "discovery_source_statement"
                 ]
                 if source_quotes:
                     human_text += "\n\n" + "\n".join(source_quotes)
                 text += "\n\n" + scored
-            parents = list(dict.fromkeys(ref for s in blocks["sections"] for ref in s["citations"]))
+            nominated_sources = {}
+            for ref in source_refs:
+                source = canonical_source(bundle["sources"], ref)
+                if source["id"] != ref:
+                    raise ValueError("research_report_plan_selection")
+                nominated_sources[source["id"]] = source
+            for source in nominated_sources.values():
+                metadata = source_metadata_text(source)
+                text += ("\n\n" if text else "") + metadata
+                human_text += ("\n\n" if human_text else "") + metadata
+            parents = [ref for s in blocks["sections"] for ref in s["citations"]]
+            parents.extend(nominated_sources)
+            parents = list(dict.fromkeys(parents))
             for ref in parents:
                 canonical_source(sources, ref)
             presentation.append(

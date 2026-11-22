@@ -91,6 +91,28 @@ test('declared Reader accepts readable vertical scroll with matching current bro
   assert.deepEqual((await check(f)).violations,[]);
 });
 
+test('Reader accepts the observed one-pixel composition rounding but rejects two pixels', async t=>{
+  const f=fixture(t),{diagram,visual:original}=readerFixture(f);
+  for (const [scrollHeight,accepted] of [[981,true],[982,false]]) {
+    const visual=structuredClone(original);
+    for (const record of [visual.containment.viewports[0],visual.readability.viewports[0],visual.viewerChrome.viewports[0],visual.captures.screenshots[0]]) {
+      record.pageComposition.svgPx=838;
+      record.scrollHeight=scrollHeight;
+    }
+    f.write(diagram.visualReceipt,visual);
+    const violations=(await check(f)).violations;
+    if (accepted) assert.deepEqual(violations,[],'981px total versus 980px rounded parts');
+    else assert.ok(violations.some(item=>item.code==='visual_receipt'),'two-pixel mismatch');
+  }
+});
+
+test('Reader rounding allowance cannot make scrollHeight smaller than the viewport', async t=>{
+  const f=fixture(t),{diagram,visual}=readerFixture(f);
+  for (const record of [visual.containment.viewports[3],visual.readability.viewports[3],visual.viewerChrome.viewports[3],visual.captures.screenshots[1]]) record.scrollHeight=1319;
+  f.write(diagram.visualReceipt,visual);
+  assert.ok((await check(f)).violations.some(item=>item.code==='visual_receipt'));
+});
+
 function naturalDockFixture(f) {
   const {diagram,visual}=readerFixture(f);
   // Freeze the real 3.2 measurement, so future diagram edits cannot rewrite
@@ -154,7 +176,7 @@ const readerMutations=[
   ['zero height',v=>{v.containment.viewports[0].scrollHeight=0;}],
   ['NaN height',v=>{v.containment.viewports[0].scrollHeight=NaN;}],
   ['infinite height',v=>{v.containment.viewports[0].scrollHeight=Infinity;}],
-  ['inconsistent height',v=>{v.containment.viewports[0].scrollHeight++;}],
+  ['inconsistent height',v=>{v.containment.viewports[0].scrollHeight+=2;}],
   ['overflow flag disagrees with height',v=>{v.containment.viewports[0].overflowY=false;}],
   ['missing composition',v=>{delete v.containment.viewports[0].pageComposition;}],
   ['negative composition',v=>{v.containment.viewports[0].pageComposition.cardsPx=-1;}],
@@ -202,7 +224,7 @@ test('Reader validates metric values even when every evidence copy agrees',async
   const f=fixture(t),{diagram,visual:original}=readerFixture(f);
   const invalidMetrics=[
     ['verticalScrollAccepted',false],['overflowDisposition','unexpected-overflow'],['readerLayout','unknown'],['readerOverflow',null],['readerFit','width-first'],
-    ['overflowX',true],['scrollWidth',1441],['innerHeight',901],['scrollHeight',-1],['scrollHeight',NaN],['scrollHeight',Infinity],['scrollHeight',1012.5],['scrollHeight',1013],['overflowY',false],
+    ['overflowX',true],['scrollWidth',1441],['innerHeight',901],['scrollHeight',-1],['scrollHeight',NaN],['scrollHeight',Infinity],['scrollHeight',1012.5],['scrollHeight',1014],['overflowY',false],
     ['minimumProjectedNodeTextPx',5.9],['minimumProjectedNonEdgeTextPx',5.9],['minimumProjectedEdgeTextPx',5.9],['minimumRequiredNodeTextPx',5],['minimumRequiredNodeTextPx',7],
     ['readabilityOk',false],['hasLegend',false],['hasNavigationDock',false],['legendDockIntersectionArea',1],['dockStageIntersectionArea',1],
     ['dockStageGap',9],['requiredDockStageGap',0],['dockStageGap',Infinity],['viewerChromeStageOk',false],['viewerChromeOk',false],['viewerChromeActive',false],['viewerChromeReserve',0],['documentScrollUnclipped',false],['documentScrollUnclipped','true'],

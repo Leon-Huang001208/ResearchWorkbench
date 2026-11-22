@@ -174,6 +174,81 @@ test('final report can discover exact Host observation IDs before writing', asyn
   assert.ok(received.some(frame => frame.data?.id === 'report_artifact'));
 });
 
+for (const mode of ['quick', 'deep', 'agent']) {
+  test(`${mode} keeps an RSS summary report within the frozen requirements`, async (t) => {
+    const question = '仅核对附件冻结的美联储官方 RSS 摘要，列标题、UTC 发布日期、官方 URL 和直接事实，生成 Markdown。不要读取全文、行情或第二来源。';
+    const sourceId = 'file:fed_frozen_summary';
+    const stages = new Set();
+    const toolNames = [];
+    let reportStep = 0;
+    const { received, code } = await run(t, {
+      ...ask(mode, [schema('list_research_observations'), schema('write_research_report')]),
+      question,
+      framework: { name: '本轮冻结要求', text: '只核对已有 RSS 摘要中的标题、发布日期、链接和直接事实。' },
+    }, (frame, send) => {
+      if (frame.method === 'tool') {
+        toolNames.push(frame.params.name);
+        if (frame.params.name === 'list_research_observations') {
+          result(send, frame, { data: {
+            observations: [],
+            sources: [{ id: sourceId, title: 'Fed release', content_scope: 'rss_summary' }],
+            requirements: [{ id: 'r1', text: question }],
+          } });
+        } else {
+          assert.deepEqual(frame.params.arguments.plan.sections[0].source_ids, [sourceId]);
+          assert.deepEqual(frame.params.arguments.plan.missing, []);
+          result(send, frame, { data: { status: 'generated' }, artifact: { id: 'rss-report', status: 'bound' } });
+        }
+        return;
+      }
+      const system = frame.params.messages[0].content;
+      assert.match(system, /本轮用户范围与 Host 冻结要求优先/);
+      assert.match(system, /不扩展为全文、行情或第二来源研究/);
+      if (/调度官/.test(system)) {
+        stages.add('plan');
+        assert.match(system, /综合投研问题/);
+        model(send, frame, JSON.stringify({
+          title: 'RSS 摘要核对',
+          sub_questions: ['来源字段', '摘要直接事实', '本轮要求覆盖'].map(question => ({ question, tools: [] })),
+        }));
+      } else if (/一个子问题/.test(system)) {
+        stages.add('subquestion');
+        model(send, frame, '已核对本轮摘要字段。');
+      } else if (/复核员/.test(system)) {
+        stages.add('reflection');
+        assert.match(system, /仅检查本轮冻结要求/);
+        model(send, frame, '{"sufficient":true,"gaps":[],"next":[]}');
+      } else if (/制定写作计划/.test(system)) {
+        stages.add('outline');
+        assert.match(system, /本轮明确的范围与格式/);
+        model(send, frame, '{"title":"RSS 摘要核对","sections":[{"title":"公告摘要"},{"title":"来源范围"}]}');
+      } else {
+        stages.add('report');
+        assert.match(system, /missing 仅列未满足本轮冻结要求的资料缺口/);
+        assert.match(system, /missing 使用定性文字，不复制日期、URL、数字或算式/);
+        assert.match(system, /source_ids 已自动呈现 RSS 摘要的核对范围/);
+        if (reportStep++ === 0) {
+          model(send, frame, '', [call('list_research_observations')]);
+        } else if (reportStep === 2) {
+          assert.match(frame.params.messages.at(-1).content, /fed_frozen_summary/);
+          model(send, frame, '', [call('write_research_report', { plan: {
+            title: '美联储公告摘要',
+            sections: [{ id: 'summary', heading: '摘要与来源', evidence_ids: [], source_ids: [sourceId], requirement_ids: ['r1'] }],
+            missing: [],
+          } })]);
+        } else {
+          model(send, frame, '已生成本轮 RSS 摘要报告。');
+        }
+      }
+    });
+    assert.equal(code, 0);
+    assert.deepEqual(toolNames, ['list_research_observations', 'write_research_report']);
+    assert.deepEqual([...stages], mode === 'quick' ? ['report'] :
+      ['plan', 'subquestion', mode === 'deep' ? 'outline' : 'reflection', 'report']);
+    assert.ok(received.some(frame => frame.data?.id === 'report_artifact'));
+  });
+}
+
 test('a mismatched reply fails the turn without emitting a success event', async (t) => {
   const { received, code } = await run(t, ask('quick'), (frame, send) => {
     send({ type: 'result', id: frame.id + 1, result: { content: '答案', toolCalls: [] } });

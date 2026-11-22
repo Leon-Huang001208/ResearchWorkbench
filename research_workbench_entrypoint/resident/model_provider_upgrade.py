@@ -407,7 +407,7 @@ def execute(ops, state, *, recovering=False):
 
 
 def previous_for(mode, previous=None):
-    if mode == REVIEWED_MODE:
+    if mode == REVIEWED_MODE or (mode == FINGPT_MODE and previous is not None):
         if not isinstance(previous, str) or not g.SHA.fullmatch(previous):
             raise UpdateBlocked("reviewed_upgrade_previous_invalid")
         return previous
@@ -906,12 +906,20 @@ def verify_asset_index(home: Path, state):
             raise UpdateBlocked("asset_upgrade_business_index_changed")
 
 
+def dynamic_release(state):
+    """An explicit FinGPT pair retains the reviewed source identity in its journal."""
+    return state.get("mode") == REVIEWED_MODE or (
+        state.get("mode") == FINGPT_MODE and "source_repository" in state
+    )
+
+
 def review_assets(source: Path, target: str, mode=ASSET_MODE, previous=None):
     """Freeze the selected reviewed product, including paths reverted from the diff."""
     if mode not in ASSET_MODES and mode != REVIEWED_MODE:
         raise UpdateBlocked("model_upgrade_profile_unknown")
+    dynamic = mode == REVIEWED_MODE or (mode == FINGPT_MODE and previous is not None)
     previous = previous_for(mode, previous)
-    if mode == REVIEWED_MODE:
+    if dynamic:
         if not isinstance(target, str) or not g.SHA.fullmatch(target) or target == previous:
             raise UpdateBlocked("reviewed_upgrade_revisions_invalid")
         c.clean(source, target)
@@ -1225,7 +1233,7 @@ def review_storage_identity(source: Path, target: str):
 def review(source: Path, target: str, mode=MODE, previous=None):
     """Only the reviewed model payload plus this operator, its test and documentation."""
     previous_for(mode, previous)
-    if mode == REVIEWED_MODE:
+    if mode == REVIEWED_MODE or (mode == FINGPT_MODE and previous is not None):
         return review_assets(source, target, mode, previous)
     if mode in TRIAL_MODES:
         if target != TRIAL_PAYLOAD:
@@ -1371,13 +1379,14 @@ def verify_serve(origin, mode=None):
     handlers = web.get(authority, {}).get("Handlers", {})
     extra_web, extra_tcp = {}, {}
     if mode == LOCAL_KNOWLEDGE_MODE or (
-        mode == REVIEWED_MODE and (host + ":9443" in web or "9443" in value.get("TCP", {}))
+        mode in {REVIEWED_MODE, FINGPT_MODE}
+        and (host + ":9443" in web or "9443" in value.get("TCP", {}))
     ):
         extra_web[host + ":9443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}}
         extra_tcp["9443"] = {"HTTPS": True}
         # SuperAgent is independently managed. Its route may be absent, but
         # when either half exists both Web and TCP must match the fixed service.
-    if mode in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE} and (
+    if mode in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE, FINGPT_MODE} and (
         host + ":8443" in web or "8443" in value.get("TCP", {})
     ):
         extra_web[host + ":8443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}}
@@ -1391,7 +1400,7 @@ def verify_serve(origin, mode=None):
         or any(web.get(key) != expected for key, expected in extra_web.items())
         or value.get("TCP") != {"443": {"HTTPS": True}, **extra_tcp}
         or (
-            mode in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE}
+            mode in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE, FINGPT_MODE}
             and any(route.get("HTTPS") is not True for route in value["TCP"].values())
         )
     ):
@@ -1689,10 +1698,11 @@ def validate_state(home, state, *, executor_source=None):
     if (
         state.get("version") != (5 if state.get("mode") == TRIAL_SUCCESSOR_MODE else 4)
         or state.get("mode") not in {MODE, REVIEWED_MODE, *TRIAL_MODES, *ASSET_MODES}
-        or state.get("previous") != previous_for(state["mode"], state.get("previous"))
+        or state.get("previous")
+        != previous_for(state["mode"], state.get("previous") if dynamic_release(state) else None)
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
-    if state.get("mode") == REVIEWED_MODE and (
+    if dynamic_release(state) and (
         state["previous"] != state.get("manifest", {}).get("code_commit")
         or state["previous"] != state.get("accepted", {}).get("target")
         or state["previous"] != state.get("config", {}).get("baseline")
@@ -1756,13 +1766,13 @@ def validate_state(home, state, *, executor_source=None):
         or source.resolve() != source
         or (
             review(source, state["target"], state["mode"], state["previous"])
-            if state["mode"] == REVIEWED_MODE
+            if dynamic_release(state)
             else review(source, state["target"], state["mode"])
         )
         != state["reviewed"]
     ):
         raise UpdateBlocked("model_upgrade_source_changed")
-    if state["mode"] == REVIEWED_MODE and repository_identity(
+    if dynamic_release(state) and repository_identity(
         source, state["config"]["repository"]
     ) != state.get("source_repository"):
         raise UpdateBlocked("model_upgrade_source_changed")
@@ -1771,7 +1781,7 @@ def validate_state(home, state, *, executor_source=None):
         if state.get("mode") in TRIAL_MODES
         else (
             state["source_repository"]["common"]
-            if state["mode"] == REVIEWED_MODE
+            if dynamic_release(state)
             else state["config"]["source_common"]
         )
     ):
@@ -3404,7 +3414,14 @@ class Operations:
             c.atomic(self.root / "config.json", state["config"])
             c.atomic(self.root / "accepted.json", state["accepted"])
             c.atomic(self.root / "candidate.json", state["candidate_before"])
-            c.atomic(self.root / "quarantine.json", {"sha": state["target"]})
+            # An explicit, completed rollback of an accepted FinGPT target is
+            # a rehearsal, not a failed apply; preserve any existing quarantine.
+            if not (
+                result == "rolled_back"
+                and state.get("mode") == FINGPT_MODE
+                and state.get("fingpt_post_deploy_rollback") is True
+            ):
+                c.atomic(self.root / "quarantine.json", {"sha": state["target"]})
         record = {
             "status": result,
             "target": state["target"],
@@ -4038,6 +4055,12 @@ def resume_fingpt_rollback_completion(home, state):
             raise UpdateBlocked(f"{prefix}_rollback_completion_unverified")
         return None
     previous = state["previous"]
+    quarantine = root / "quarantine.json"
+    quarantine_verified = (
+        read_json(quarantine) == {"sha": state["target"]}
+        if local_knowledge
+        else not quarantine.exists() or read_json(quarantine).get("sha") != state["target"]
+    )
     if (
         record.get("status") != "rolled_back"
         or record.get("target") != state["target"]
@@ -4046,7 +4069,7 @@ def resume_fingpt_rollback_completion(home, state):
         or read_json(root / "accepted.json") != state["accepted"]
         or read_json(root / "candidate.json") != state["candidate_before"]
         or read_json(root / "config.json") != state["config"]
-        or read_json(root / "quarantine.json") != {"sha": state["target"]}
+        or not quarantine_verified
         or read_json(home / "install/manifest.json") != state["manifest"]
         or not gateway_configuration_matches(state, read_json(server / "resident.json"), True)
     ):
@@ -4176,7 +4199,10 @@ def operate(
     expected_previous=None,
     expected_target=None,
 ):
-    if mode == REVIEWED_MODE and not recovering:
+    dynamic = mode == REVIEWED_MODE or (
+        mode == FINGPT_MODE and (expected_previous is not None or expected_target is not None)
+    )
+    if dynamic and not recovering:
         if (
             source is None
             or not isinstance(expected_previous, str)
@@ -4275,16 +4301,16 @@ def operate(
             )
             if source is None:
                 raise UpdateBlocked("model_upgrade_source_required")
-            if mode == REVIEWED_MODE and config.get("baseline") != previous:
+            if dynamic and config.get("baseline") != previous:
                 raise UpdateBlocked("reviewed_upgrade_previous_changed")
             executor_revision = c.git(source, "rev-parse", "HEAD")
             target = TRIAL_PAYLOAD if mode in TRIAL_MODES else executor_revision
-            if mode == REVIEWED_MODE and target != expected_target:
+            if dynamic and target != expected_target:
                 raise UpdateBlocked("reviewed_upgrade_target_changed")
             validate_executor(source, executor_revision)
             source_transition = trial_rebind(source, config) if mode in TRIAL_MODES else None
             source_repository = (
-                repository_identity(source, config["repository"]) if mode == REVIEWED_MODE else None
+                repository_identity(source, config["repository"]) if dynamic else None
             )
             if c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") != (
                 source_transition["after"]["common"]
@@ -4294,7 +4320,7 @@ def operate(
                 raise UpdateBlocked("model_upgrade_source_changed")
             reviewed = (
                 review(source, target, mode, previous)
-                if mode == REVIEWED_MODE
+                if dynamic
                 else (review(source, target, mode) if mode not in TRIAL_MODES else None)
             )
             if c.digest(root / "controller.pyz") != CONTROLLER_SHA256:
@@ -4530,7 +4556,7 @@ def operate(
         ):
             return {"status": "recovery_required" if recovering else "deferred"}
         recheck_previous = not post_deploy_rollback(state) and (
-            state["mode"] in {*ATTACHED_MCP_PRESERVATION_MODES, REVIEWED_MODE}
+            state["mode"] in ATTACHED_MCP_PRESERVATION_MODES or dynamic_release(state)
         )
         if not recovering:
             # Establish recovery ownership BEFORE BirthFence publishes any
@@ -4760,7 +4786,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/model-upgrade.log", level=logging.INFO)
     try:
-        if args.command == "apply-reviewed":
+        explicit_versions = args.expected_previous is not None or args.expected_target is not None
+        if args.command == "apply-reviewed" or (
+            args.command == "apply-fingpt" and explicit_versions
+        ):
             if (
                 args.source is None
                 or not g.SHA.fullmatch(args.expected_previous or "")
@@ -4823,7 +4852,7 @@ def main(argv=None):
                     "expected_previous": args.expected_previous,
                     "expected_target": args.expected_target,
                 }
-                if args.command == "apply-reviewed"
+                if args.command in {"apply-reviewed", "apply-fingpt"} and explicit_versions
                 else {}
             ),
             **({"rollback_target": args.rollback_target} if args.rollback_target else {}),

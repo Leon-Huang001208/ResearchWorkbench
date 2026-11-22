@@ -331,12 +331,46 @@ def canonical_source(sources, identity):
         ]
         if len(matches) != 1:
             raise ValueError("research_evidence_source_missing_or_ambiguous")
-        result = {k: matches[0][k] for k in ("id", "title", "url", "as_of") if k in matches[0]}
+        result = {
+            k: matches[0][k]
+            for k in (
+                "id",
+                "title",
+                "url",
+                "as_of",
+                "metadata_origin",
+                "content_scope",
+                "rss_description",
+            )
+            if k in matches[0]
+        }
         log.info("research_evidence_source_resolved")
         return result
     except (ValueError, TypeError, KeyError):
         log.warning("research_evidence_source_rejected")
         raise
+
+
+def source_metadata_text(source):
+    """Present bound source metadata verbatim, separately from author assertions."""
+    try:
+        lines = ["来源标题：" + source["title"]]
+        if source.get("as_of"):
+            lines.append("来源记录发布日期：" + source["as_of"])
+        if source.get("url"):
+            lines.append("原始链接：" + source["url"])
+        if (
+            source.get("metadata_origin") in {"uploaded_rss_record", "registered_feed_report"}
+            and source.get("content_scope") == "rss_summary"
+        ):
+            lines.append("核对范围：仅核对官方 RSS 摘要，未核对公告全文。")
+            if source.get("rss_description"):
+                lines.append("官方 RSS 摘要：" + source["rss_description"])
+        log.info("research_report_source_metadata_assembled")
+        return "\n".join(lines)
+    except (KeyError, TypeError) as exc:
+        log.warning("research_report_source_metadata_rejected")
+        raise ValueError("research_report_source_metadata_invalid") from exc
 
 
 def evidence_section(identifier, heading, text, citations, requirement_ids):

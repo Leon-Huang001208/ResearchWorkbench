@@ -15,6 +15,8 @@ Host 的 `knowledge_single_turn` grant 用于全新普通研究会话首轮，�
 
 FinGPT 完成切换后的回滚只作用于已绑定的 FinGPT 发布。既有 ETF 专用发布和恢复命令保持各自的操作范围。
 
+同一 Host 上的 FinGPT 读源按字符偏移分页。周报工作流继续使用各自冻结观测和交付记录。
+
 策略验证的 Mac mini 联合升级沿用账号和任务保全检查。正式策略回放产生本账号研究记录，ETF 周报继续使用原固定 Workflow 与运行门。
 
 策略模拟的通用[策略验证](research-web-strategy-validation.md)使用独立日线输入和研究结果。ETF 周报仍按报告 Workflow 固定数据与发布资格执行。

@@ -824,13 +824,17 @@ def cancel_source(service, sid, call_id):
     return {"status": "cancelled"}
 
 
-async def execute_source(service, sid, call_id, operation, source_id=None, search_activities=()):
+async def execute_source(
+    service, sid, call_id, operation, source_id=None, search_activities=(), *, full=False
+):
     service.store.session(sid)
     requests, cancelled = request_state(service)
     key = (sid, call_id)
     if key in requests or key in cancelled:
         raise rejected("research_source_call_inactive")
-    task = asyncio.create_task(read_source(service, sid, operation, source_id, search_activities))
+    task = asyncio.create_task(
+        read_source(service, sid, operation, source_id, search_activities, full=full)
+    )
     requests[key] = task
     try:
         return await task
@@ -838,7 +842,7 @@ async def execute_source(service, sid, call_id, operation, source_id=None, searc
         requests.pop(key, None)
 
 
-async def read_source(service, sid, operation, source_id=None, search_activities=()):
+async def read_source(service, sid, operation, source_id=None, search_activities=(), *, full=False):
     if operation not in {"list", "read"} or (operation == "list") != (source_id is None):
         raise rejected("research_source_arguments_invalid")
     dossiers = getattr(service, "dossiers", None)
@@ -865,7 +869,7 @@ async def read_source(service, sid, operation, source_id=None, search_activities
         )
         if handle:
             async with service.lock:
-                result = dossiers.read_handle(sid, handle)
+                result = dossiers.read_handle(sid, handle, full=full)
                 from .research_quality_service import latest_receipt, write_business_snapshot
 
                 contract = latest_receipt(service, sid).get("research_contract")
@@ -929,7 +933,13 @@ async def read_source(service, sid, operation, source_id=None, search_activities
         )
         stream, _ = service.store.open_file(sid, actual["file_id"])
         with stream:
-            content = stream.read(MAX_TEXT * 4 + 1).decode("utf-8", errors="strict")
+            raw_content = stream.read(MAX_TEXT * 4 + 1)
+        if (
+            len(raw_content) > MAX_TEXT * 4
+            or hashlib.sha256(raw_content).hexdigest() != actual["sha256"]
+        ):
+            raise rejected("research_source_integrity_failed")
+        content = raw_content.decode("utf-8", errors="strict")
         # Refresh the existing read-only SDK inventory from independently held bytes.
         from .research_quality_service import latest_receipt, write_business_snapshot
 
@@ -957,8 +967,8 @@ async def read_source(service, sid, operation, source_id=None, search_activities
         return {
             "source": actual,
             "observation_id": source_id,
-            "content": content[:24000],
-            "truncated": len(content) > 24000,
+            "content": content if full else content[:24000],
+            "truncated": not full and len(content) > 24000,
             "numeric_observations": [
                 {
                     key: row[key]

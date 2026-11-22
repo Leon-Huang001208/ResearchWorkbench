@@ -13,7 +13,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from .research_arithmetic import check_arithmetic
-from .resources.research_report import validate_payload
+from .resources.research_report import canonical_source, source_metadata_text, validate_payload
 
 log = logging.getLogger(__name__)
 _NUMBER = re.compile(r"(?<![\w])[-+]?\d+(?:,\d{3})*(?:\.\d+)?|[-+]?\d+(?:\.\d+)?")
@@ -434,6 +434,20 @@ def assess_quality(contract, report, sources, observations=None):
             ):
                 issues.append("section_note_lineage_missing:" + section["heading"])
             remaining = section["text"]
+            plan_section = next(
+                (
+                    row
+                    for row in report.get("system_plan", {}).get("sections", [])
+                    if row.get("id") == section.get("id")
+                ),
+                {},
+            )
+            for ref in dict.fromkeys(plan_section.get("source_ids", [])):
+                if ref in refs and ref in known:
+                    # Only the exact Host metadata block is system-rendered. The
+                    # author's remaining narrative and financial claims stay scored.
+                    metadata = source_metadata_text(canonical_source(sources, ref))
+                    remaining = remaining.replace(metadata, "", 1)
             verified_periods = []
             for claim in report.get("numeric_claims", []):
                 if claim["section_id"] == section.get("id"):

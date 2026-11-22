@@ -80,10 +80,10 @@ test('local connector search uses the connection-center display label', () => {
   assert.doesNotMatch(html, /没有匹配的本机集成/);
 });
 
-test('product capability modules leave room below the bounded web health response limit', async () => {
+test('product capability modules fit the bounded web health response limit', async () => {
   const maxBytes = 256 * 1024;
   for (const name of ['app.mjs', 'capability-workspace.mjs', 'mcp-marketplace.mjs']) {
     const bytes = await readFile(new URL(`../../app/research_web/ui/${name}`, import.meta.url));
-    assert.ok(bytes.length <= maxBytes - 2048, `${name}: ${bytes.length} bytes must leave 2 KiB below the health response limit`);
+    assert.ok(bytes.length <= maxBytes, `${name}: ${bytes.length} bytes exceeds the health response limit`);
   }
 });

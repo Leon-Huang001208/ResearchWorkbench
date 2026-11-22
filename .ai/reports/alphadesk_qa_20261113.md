@@ -1,5 +1,21 @@
 # AlphaDesk AI 问答迁移
 
+## Fed RSS 实际报告修复
+
+原会话 `9c99e69e-285e-4426-be12-74faacc3f3f5` 的验收脚本漏传已上传附件 ID；修正选择后，真实模型取得来源，但报告计划被未绑定字面量检查拒绝。零模型的真实 macOS sandbox 验证已确认报告 SDK 能落盘。
+
+本轮在原来源上下文交接冻结 RSS 的明确元数据，章节 `source_ids` 由 SDK 呈现绑定标题、日期、链接和真实摘要。原上传字节经真实 Mac sandbox、Delivery 与 Host 质量检查已通过，零模型请求；金额、指标及计算的观测绑定规则继续执行。报告工具的嵌套字段类型、模型可见来源 ID 及本轮范围提示已补齐。原深度会话复验仍未完成，失败回执保留，未据此宣称业务通过。
+
+真实来源分支已接入 DataHub `ext_fed/news`、原 Discovery 冻结及 Automation 调度、历史和通知判断。历史快照仅作已见基线，实际执行重新取得固定来源；同内容定时触发不调用模型。跟踪、来源元数据/索引/报告相关回归、固定 Node 24 的 13 项 worker 消息旅程、195 项 L4 Node 检查及独立 Python/JavaScript 评审通过。
+
+真实在线验收已通过。原 Bot 的手动运行 `automation-run-8c60a9698a8da894bce5918055c394da8839ba1fc6eb560f362e13af2efbd37c` 使用 DeepSeek 官方 Flash 实际调用 3 次，冻结相对原真实基线的 4 条新增公告；Markdown 中四条来源的 URL、日期和原摘要均核对一致，Host 质量 `passed`，通知判断 `meaningful_change`。报告 SHA-256 为 `fffc49e283e0d989cecc957c12facc8e745a2bd4815120d1a20178f46b99f0e5`。同 Bot 于真实时钟 02:25 触发的运行 `automation-run-e2b89b1da9e945e995b9be1e3caf4f69` 为 `skipped_unchanged`，模型账本原字节内容未变，随后停用。最终证据保存在本机 `fed-online-tracking-20261123/final-acceptance.json`、历史和实际 Markdown，原失败运行保持必要短记录。
+
+新阶段账本累计 196 个请求，均有官方 usage；保守费用上界为 1.569584 元，仍在已授权新增 50 元内。旧 48.796 元未知预留未改写。
+
+已合实际部署基线 `0657693b`。完整 `test_api.py` 在本机以共享 Python、固定 Node 24 分 12 批执行，228/228 通过且测试根均退休；实际运行 HEAD 为 `b75e144d`、WIP 仅操作员相关文件，API 和 Service 前后 blob 一致，结果按同 blob 复用，不伪称最终候选全树 exact 运行。`apply-fingpt` 复用已有显式前版/目标资格和 version 4 事务，保留原开关、MCP、私网路由及完成后回滚；39 项核心、表面和旧行为回归通过，独立评审无 P0–P2。最新候选 CI、Mac 双入口回滚及正式切换仍待完成，不由隔离 Host 或本地操作员回归代替。
+
+受管登记复用已审 `5a598713` 的同源修复：同 inode、当前 Git 注册路径和 common 一致时刷新重挂载设备号观察，inode 变化继续拒绝，不增加资源删除权限。相邻红绿验证通过，原回执及其他任务资源未手改。
+
 2026-11-13，Mac mini，Research Web 功能开发。来源为 AlphaDesk `1c946b9a0930d3070da7263ffcffe5e8831077c3`。用户确认可将问答源码提交公开 RWB。开发在受管任务 `alphadesk-qa-20261113` 工作树进行。
 
 ## 验证记录
@@ -42,21 +58,25 @@
 
 同日下午将候选接到 `cfbf73ee`，保留策略验证入口、两套静态就绪检查及受管 Git 恢复能力。常驻接受回执和 8088 探针已指向策略验证版本 `33b3044d`，FinGPT 据此更新切换前版。
 
+11 月 16 日晚复验时，整份统计公报的问答读取触及执行器 24,000 个 UTF-16 代码单元的限制。Host 按实际序列化后的响应大小分页，并在每页保留来源标识和原件 SHA-256。五页重组与原件逐字节一致。真实 DeepSeek 复跑使用原公报及从同一原件提取的冻结 GDP 观测，Host 质量通过，下载的 Markdown 核对数值、单位、年份、日期和链接。
+
 - 核验主导航以外的全部交接、发起真实自动跟踪，证明固定材料可得到已绑定质量回执及正确通知。
 - 验证每次模型请求的人民币预算预留以及整个测试批次的费用归属。模型价格使用 DeepSeek 官方人民币峰值价，隔离验收默认禁止向未核价的数据供应商请求。
 - 正式切换需要最终候选检查和全账号备份恢复演练。Windows、Linux 原生由对应设备验收。
 
 [产品合同](../../docs/research-web-ai-qa.md)
 
-<!-- architecture-review {"group":"alphadesk-qa","structure":"changed","reason":"普通问答由 Host 持久保存回合并通过私有标准输入输出运行迁入的 Node 编排，模块图更新。","diagrams":["02-module-dependencies"]} -->
-<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"新增锁定问答静态资源构建与候选 wheel 暂存，原 Native 与 Docker 服务拓扑继续沿既有健康入口。","diagrams":[]} -->
+<!-- architecture-review {"group":"alphadesk-qa","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"只修正真实 Chromium Reader 整数分项与 DOM 总高度的 1px 舍入差异，保留原截图和度量，不改变文档执行拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"changed","reason":"普通问答采用独立 AlphaDesk 前端，专门入口与浏览器访问关系已在模块图更新。","diagrams":["02-module-dependencies"]} -->
-<!-- architecture-review {"group":"research-api","structure":"changed","reason":"原会话 API 和 SSE 保持同源，模块图标明 Host 管理的 AlphaDesk 工作进程。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"changed","reason":"原发现调度和通知准入沿用，普通研究分发改用 Host 管理的问答执行器。","diagrams":["02-module-dependencies"]} -->
-<!-- architecture-review {"group":"files","structure":"changed","reason":"原会话文件根继续负责下载和摘要检查，问答使用同目录下的独立控制记录。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"workbench","structure":"changed","reason":"资产、资料及场景交接沿原 API 和 DataHub 冻结快照，普通问答执行变化见模块图。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"新增定点验收和原 Mac 安装资源验证，现有 L4 及同候选交付链保持适用。","diagrams":[]} -->
-<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"私网网关继续选择账号 Host 与静态资源，候选增加独立问答能力，模块图更新。","diagrams":[]} -->
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"discovery","structure":"changed","reason":"继续复用冻结资料、指纹去重、日限与 Host 质量回执，普通问答执行器的边界见模块图。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"验收模式在原 DataHub 查询入口拒绝未核价的新请求，保留已提交回执和已有冻结资料读取，供应商和快照拓扑沿用原链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"受管主实例从当前安装清单读取 FinGPT 开关，复用既有 Host 进程和发布围栏。","diagrams":[]} -->
+<!-- architecture-review {"group":"dossiers","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->

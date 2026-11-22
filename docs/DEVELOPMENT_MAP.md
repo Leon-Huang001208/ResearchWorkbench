@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快照，`discovery/service.py` 冻结来源，`discovery/tracking.py` 沿原 Automation 调度与历史处理变化、质量及通知；专用入口在 `discovery/routes.py`，没有新增调度服务。
+
+冻结 RSS 归档的来源元数据由 `research_quality_service.py` 在输入原件上下文中提取；报告 SDK 的 `research_report_plan.py` 经章节 `source_ids` 呈现绑定的元数据，`research_report.py::source_metadata_text` 与 Host 质量检查共用同一呈现规则，作者正文及财务观测继续沿原检查核对。
+
 G2B 发布沿原管理员管理面提供 `docker/release.py`、冻结 Dockerfile/schema 与 `rwb-docker release`；账号 Host 的 `maintenance.py` 只在受管发布镜像启用维护排空。相关回归为 `test_docker_release.py`、`test_release_maintenance.py` 及原管理/API合同；晋级沿已验收的同一镜像身份，不启动第二研究执行器。
 
 普通源码退出位于 `scripts/git_safety.mjs` 的 `runDelivery` cleanup，复用原共享控制器和任务/合并/clean/无占用检查；不默认备份、恢复重演或等待部署。回归在 `tests/javascript/git_safety.test.mjs`，`cleanupScope=source` 将源码状态与业务资源分开。

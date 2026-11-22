@@ -8,10 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from app.research_web.resources.research_report import archive_report_version, list_report_versions
+from app.research_web.research_quality import assess_quality, make_contract
+from app.research_web.resources.research_report import (
+    archive_report_version,
+    list_report_versions,
+    render_markdown,
+)
 from app.research_web.resources.research_report_calculations import derive_business_observations
 from app.research_web.resources.research_report_plan import (
     build_business_report_plan,
+    verify_system_report,
     write_business_report_plan,
 )
 
@@ -48,6 +54,167 @@ def recorded_case():
         ],
     }
     return context, plan, bundle
+
+
+def document_case():
+    contract = make_contract("a" * 24, "核对美联储纪要发布", ["来源与摘要"], "2026-11-19", "deep")
+    source = {
+        "id": "file:fed_rss_record",
+        "title": "Minutes of the Federal Open Market Committee, October 27-28, 2026",
+        "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+        "as_of": "2026-11-18",
+        "metadata_origin": "uploaded_rss_record",
+        "content_scope": "rss_summary",
+        "rss_description": "Minutes of the Federal Open Market Committee, October 27-28, 2026",
+    }
+    context = {
+        "task_id": contract["task_id"],
+        "contract_sha256": contract["sha256"],
+        "as_of": contract["as_of"],
+        "requirement_ids": ["r1"],
+    }
+    prose = (
+        "Publisher: Federal Reserve Board\n"
+        f"Title: {source['title']}\n"
+        f"Published (UTC): {source['as_of']}\n"
+        f"Original: {source['url']}\n"
+        f"Official RSS description: {source['rss_description']}\n"
+        "RSS SHA-256: 37dd749fb9a477a979204d94a5aa7fd6720d71e514e2fbfd03edd26bccb52680\n"
+    )
+    plan = {
+        "title": "美联储纪要发布摘要",
+        "missing": [],
+        "sections": [
+            {
+                "id": "summary",
+                "heading": "来源与摘要",
+                "evidence_ids": [],
+                "source_ids": [source["id"]],
+                "requirement_ids": ["r1"],
+            }
+        ],
+    }
+    bundle = {**context, "sources": [source], "observations": []}
+    return contract, context, plan, bundle, {**source, "content": prose}
+
+
+def test_document_only_plan_cites_bound_source_and_covers_requirement():
+    contract, context, plan, bundle, source = document_case()
+    result = build_business_report_plan(context, plan, bundle)
+    payload = result["payload"]
+    assert payload["sections"][0]["citations"] == [source["id"]]
+    assert payload["notes"][0]["citations"] == [source["id"]]
+    assert payload["coverage"][0]["section_ids"] == ["summary"]
+    assert not payload["numeric_claims"] and not result["metrics"]
+    assert "来源标题：" + source["title"] in payload["sections"][0]["text"]
+    assert "官方 RSS 摘要：" + source["rss_description"] in payload["sections"][0]["text"]
+    assert "仅核对官方 RSS 摘要，未核对公告全文" in payload["sections"][0]["text"]
+    assessment = assess_quality(contract, payload, [source], observations=[])
+    assert assessment["status"] == "passed", assessment
+    verify_system_report(payload, bundle, context)
+    rendered = render_markdown(payload)
+    assert source["title"] in rendered and source["url"] in rendered
+    assert "来源记录发布日期：" + source["as_of"] in rendered
+
+
+def test_captured_rss_metadata_headings_replay_through_sdk():
+    _, context, plan, bundle, _ = document_case()
+    headings = [
+        "基线说明与新增/修订条目范围",
+        "新增/修订条目逐项清单（标题、原始发布日期、链接、RSS 摘要）",
+        "RSS 摘要范围、未知日期与未变化状态说明",
+        "反方证据、失效条件与下一验证事项",
+    ]
+    plan["sections"] = [
+        {**plan["sections"][0], "id": "heading_" + str(i), "heading": heading}
+        for i, heading in enumerate(headings)
+    ]
+    payload = build_business_report_plan(context, plan, bundle)["payload"]
+    assert [section["heading"] for section in payload["sections"]] == headings
+    assert all(
+        section["citations"] == [bundle["sources"][0]["id"]] for section in payload["sections"]
+    )
+    verify_system_report(payload, bundle, context)
+
+
+def test_ordinary_secondhand_and_next_words_are_not_quantities():
+    _, context, plan, bundle, _ = document_case()
+    plan["sections"][0]["heading"] = "二手资料与下一验证事项"
+    assert (
+        build_business_report_plan(context, plan, bundle)["payload"]["sections"][0]["heading"]
+        == "二手资料与下一验证事项"
+    )
+
+
+@pytest.mark.parametrize("field", ["heading", "analysis"])
+@pytest.mark.parametrize(
+    "text", ["新增/修订3%", "收入/资产", "下一验证事项含三项", "二手资料增长３％"]
+)
+def test_narrow_heading_idioms_keep_quantity_and_division_guards(field, text):
+    _, context, plan, bundle, _ = document_case()
+    plan["sections"][0][field] = text
+    with pytest.raises(ValueError, match="research_report_analysis_unbound"):
+        build_business_report_plan(context, plan, bundle)
+
+
+@pytest.mark.parametrize("field", ["text", "as_of", "content_scope"])
+def test_host_rebuild_rejects_changed_source_metadata_block_date_or_scope(field):
+    _, context, plan, bundle, _ = document_case()
+    payload = build_business_report_plan(context, plan, bundle)["payload"]
+    if field == "text":
+        payload["sections"][0]["text"] = payload["sections"][0]["text"].replace(
+            "2026-11-18", "2026-11-17"
+        )
+    else:
+        payload["sources"][0][field] = "2026-11-17" if field == "as_of" else "full_article"
+    with pytest.raises(ValueError, match="research_report_system_binding_changed"):
+        verify_system_report(payload, bundle, context)
+
+
+@pytest.mark.parametrize(
+    "references",
+    [
+        ["file:unknown"],
+        [None],
+        "file:fed_rss_record",
+        ["Minutes of the Federal Open Market Committee, October 27-28, 2026"],
+    ],
+)
+def test_document_plan_rejects_unknown_or_invalid_source_ids(references):
+    _, context, plan, bundle, _ = document_case()
+    plan["sections"][0]["source_ids"] = references
+    with pytest.raises(ValueError, match="research_(?:evidence|report)_"):
+        build_business_report_plan(context, plan, bundle)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "政策利率为3.5%。",
+        "发布日期为2026-11-18。",
+        "原件见https://example.test。",
+        "https://example.test/新增/修订",
+    ],
+)
+def test_document_source_does_not_bind_analysis_quantities_dates_or_urls(text):
+    _, context, plan, bundle, _ = document_case()
+    plan["sections"][0]["analysis"] = text
+    with pytest.raises(ValueError, match="research_report_analysis_unbound"):
+        build_business_report_plan(context, plan, bundle)
+
+
+def test_explicit_sources_merge_with_observation_lineage_without_changing_old_plans():
+    context, plan, bundle = recorded_case()
+    previous = build_business_report_plan(context, plan, bundle)
+    extra = {"id": "file:context_document", "title": "背景资料"}
+    bundle["sources"].append(extra)
+    original_refs = previous["payload"]["sections"][0]["citations"]
+    plan["sections"][0]["source_ids"] = [*original_refs, extra["id"], extra["id"]]
+    current = build_business_report_plan(context, plan, bundle)
+    assert current["payload"]["sections"][0]["citations"] == [*original_refs, extra["id"]]
+    assert current["payload"]["notes"][0]["citations"] == [*original_refs, extra["id"]]
+    assert current["payload"]["numeric_claims"] == previous["payload"]["numeric_claims"]
+    assert current["sheets"] == previous["sheets"]
 
 
 @pytest.mark.parametrize(

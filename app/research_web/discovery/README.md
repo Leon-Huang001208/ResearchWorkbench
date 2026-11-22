@@ -1,7 +1,28 @@
 # 今日发现读取与手动研究
 
-本模块属于现有 Research Web Host；固定使用 `intel_routes.read_upstream` 的公开 Golddata
-端点，DSH 仍是唯一会话、模型执行和历史引擎。模块不启动 Hot、PostgreSQL、采集器或第二调度器。
+本模块属于现有 Research Web Host；默认使用 `intel_routes.read_upstream` 的 Golddata 端点，
+Fed RSS 使用 DataHub 已登记的 `ext_fed/news`。会话、模型执行和历史仍由 Host 已选的研究执行链负责。
+模块不启动 Hot、PostgreSQL、采集器或第二调度器。
+
+## Fed RSS 跟踪
+
+`POST /api/research/discovery/registered-feeds/fed` 接收本人 `session_id`、可选的已冻结 `dataset_id`
+与 `horizon`，没有 dataset 时实际读取固定 Fed RSS。历史快照可作为已见基线，原读取时间保持不变。
+跟踪创建、手动运行、启停及运行历史沿原 `/tracks` 与 Automation 调度器；手动运行入口为
+`POST /tracks/{id}/run`，历史为 `GET /tracks/{id}/runs`，写操作继续要求明确用户动作。
+
+执行时重新取得 RSS；成功读取、明确读取时点与条目发布时间分别保留，未知不推成新鲜。
+指纹使用稳定条目身份和内容，排除抓取时间与快照 ID。同值定时触发记录 `skipped_unchanged`，
+不重复调用模型。实际变化才进入原 FinGPT、Markdown 交付、Host 质量检查及通知判断。
+基线按稳定条目 ID 与内容 SHA 保存，只将相对最近已接受集合（尚无接受结果时为初始基线）的新增或修订条目送入报告。
+每次运行保留完整当前集合；只有 Host 接受报告后推进已接受集合，质量未通过时仍按原基线修复。
+已接受集合保留离开窗口的条目及每个 ID 最近一次已接受的内容 SHA；恢复原样不算新增，实际修订或内容回滚仍按最新已接受 SHA 比较。
+同指纹定时观察先记录 `skipped_unchanged`；窗口变化但无新增/修订时记录 `skipped_no_new_material`，不推断官方删除或新发公告，也不调用模型。
+旧任务缺少集合时，只能按独立 `registered_feed_baseline` 中的本人会话、精确 dataset 与 manifest SHA 重建；缺引用不猜造基线。
+定时/自动触发保留每日一次尝试。Fed 显式手动请求在首次运行或前次运行已 completed 时执行，
+包括修复已完成但质量未通过的研究；同 request_id 去重，进行中、未知或中断的运行不重放，历史和每日记录不清零。
+冻结材料只包含 RSS 标题和摘要，保留 XML 摘要、原始 pubDate、链接及快照身份；没有抓取公告全文。
+RSS 默认报告要求限于所选来源的标题、原始发布日期、链接、摘要及范围，不无条件要求反证、失效条件或分期计数。
 
 ## 读取与选材
 

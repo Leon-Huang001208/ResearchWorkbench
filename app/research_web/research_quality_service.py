@@ -3,7 +3,7 @@
 import hashlib
 import json
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from core.observability import get_logger
 
@@ -152,7 +152,7 @@ def business_prompt_index(service, sid, contract, *, attachment_ids=None, source
         )
         rows = [r for r in rows if r.get("kind") in {"business_numeric", "business_quote"}]
         rows.sort(key=lambda r: r["kind"] != "business_numeric" and r["metric"] != "control_text")
-        result = {"observations": [], "total": len(rows), "omitted": 0}
+        result = {"observations": [], "sources": [], "total": len(rows), "omitted": 0}
         for row in rows:
             preview = row["content"].split("\n", 1)[0]
             item = {k: row[k] for k in ("id", "metric", "period", "value", "heading", "kind")}
@@ -166,7 +166,21 @@ def business_prompt_index(service, sid, contract, *, attachment_ids=None, source
                 result["observations"].pop()
                 break
         result["omitted"] = len(rows) - len(result["observations"])
-        log.info("research_business_index_prepared", observation_count=len(result["observations"]))
+        for source in source_context(service, sid, files, sources)["sources"]:
+            result["sources"].append(
+                {
+                    name: source[name]
+                    for name in ("id", "title", "url", "as_of", "content_scope")
+                    if source.get(name) is not None
+                }
+            )
+            if len(json.dumps(result, ensure_ascii=False).encode()) > 23900:
+                result["sources"].pop()
+        log.info(
+            "research_business_index_prepared",
+            observation_count=len(result["observations"]),
+            source_count=len(result["sources"]),
+        )
         return result
     except (OSError, ValueError, TypeError, KeyError, StoreError) as exc:
         log.warning("research_business_index_failed", error_type=type(exc).__name__)
@@ -186,12 +200,78 @@ def ensure_quality_scope(service, sid, key, contract):
         )
 
 
+def _uploaded_rss_metadata(raw, source_id):
+    """Read the frozen Fed RSS record headers, not a live article or inferred date."""
+    if raw.split(b"\n", 1)[0].rstrip(b"\r") != b"Publisher: Federal Reserve Board":
+        return {}
+    try:
+        text = raw.decode("utf-8").replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        log.warning(
+            "research_uploaded_rss_metadata_invalid", source_id=source_id, fields=["encoding"]
+        )
+        return {}
+    header, separator, body = text.partition("\nOfficial RSS description:")
+    description, digest_marker, _ = body.partition("\nRSS SHA-256:")
+    if (
+        not separator
+        or not digest_marker
+        or not re.search(r"^RSS SHA-256: [a-f0-9]{64}$", text, re.MULTILINE)
+    ):
+        log.warning(
+            "research_uploaded_rss_metadata_invalid", source_id=source_id, fields=["record"]
+        )
+        return {}
+    result = {"metadata_origin": "uploaded_rss_record", "content_scope": "rss_summary"}
+    if description.strip():
+        result["rss_description"] = description.strip()
+    invalid = []
+    for name, prefix in (("title", "Title:"), ("as_of", "Published (UTC):"), ("url", "Original:")):
+        values = [
+            line[len(prefix) :].strip() for line in header.splitlines() if line.startswith(prefix)
+        ]
+        if not values:
+            continue
+        value = values[0]
+        valid = len(values) == 1 and bool(value)
+        if name == "title":
+            valid = valid and len(value) <= 1000
+        elif name == "as_of":
+            try:
+                valid = valid and bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", value))
+                if valid:
+                    date.fromisoformat(value)
+            except ValueError:
+                valid = False
+        else:
+            valid = valid and bool(
+                re.fullmatch(
+                    r"https://www\.federalreserve\.gov/newsevents/pressreleases/[A-Za-z0-9_./-]+",
+                    value,
+                )
+            )
+        if valid:
+            result[name] = value
+        else:
+            invalid.append(name)
+    if invalid:
+        log.warning("research_uploaded_rss_metadata_invalid", source_id=source_id, fields=invalid)
+    return result
+
+
 def source_context(service, sid, files, sources=()):
     """Return canonical owned identities and whole-file hashes, not guessed aliases."""
     identities = []
     total = 0
     from .scenario_method_sources import original_evidence_files
 
+    discovery = getattr(service, "discovery", None)
+    trusted = discovery.trusted_context(sid) if discovery is not None else None
+    registered_feed_sources = (
+        trusted.get("registered_feed_sources", {})
+        if trusted and trusted.get("source_kind") == "registered_feed"
+        else {}
+    )
     files = original_evidence_files(service, sid, upload_evidence_files(service.store, sid, files))
     if service.store.session(sid).get("report_workflow", {}).get("quality_policy"):
         from .report_workflows.evidence import weekly_research_inputs
@@ -216,6 +296,7 @@ def source_context(service, sid, files, sources=()):
         if len(identities) >= 20:
             break
         row = {"id": "file:" + item["id"], "title": item["name"], "digest_scope": "full_file"}
+        registered = registered_feed_sources.get(item["id"])
         try:
             stream, _ = service.store.open_file(sid, item["id"])
             with stream:
@@ -225,9 +306,18 @@ def source_context(service, sid, files, sources=()):
                 row.update(sha256=None, unavailable="input_observation_limit")
             else:
                 row["sha256"] = hashlib.sha256(raw).hexdigest()
+                if registered is None:
+                    row.update(_uploaded_rss_metadata(raw, row["id"]))
         except (OSError, StoreError):
             row.update(sha256=None, unavailable="input_unavailable")
             log.warning("research_source_context_unavailable")
+        if registered is not None and row.get("sha256") is not None:
+            if registered.get("id") != row["id"] or registered.get("sha256") != row["sha256"]:
+                log.warning("research_registered_feed_input_changed", source_id=row["id"])
+                raise StoreError(
+                    "登记 Feed 摘要与冻结交接不一致", "research_registered_feed_input_changed", 409
+                )
+            row.update(registered)
         identities.append(row)
     # Up to 20 uploads plus 20 acquired web bodies; summaries must not displace
     # a numeric observation's actual parent in the SDK snapshot or Host context.
@@ -500,6 +590,13 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         log.warning("research_quality_input_observation_unavailable", error_type=type(exc).__name__)
         actual_observations = []
         observation_error = True
+    context = source_context(service, sid, evidence_files, sources)
+    uploaded_metadata = {
+        row["id"]: row
+        for row in context["sources"]
+        if row.get("metadata_origin") in {"uploaded_rss_record", "registered_feed_report"}
+    }
+    sources = [{**source, **uploaded_metadata.get(source["id"], {})} for source in sources]
     report = report_projection(
         service.store,
         sid,
@@ -522,7 +619,6 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         if report is not None:
             report.update(quality="invalid", assessment=assessment, issues=assessment["issues"])
 
-    context = source_context(service, sid, evidence_files, sources)
     business = [
         row
         for row in actual_observations

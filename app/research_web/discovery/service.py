@@ -18,7 +18,7 @@ from ..datahub.security import json_bytes
 from ..intel_routes import read_upstream
 from ..projection import content_text
 from ..store import StoreError
-from . import news
+from . import fed, news
 from .handoff import ensure_session, trusted_context, write_context
 from .models import DiscoveryError, Prepare
 from .sources import (
@@ -180,6 +180,43 @@ class DiscoveryService:
         if entry["public"]["horizon"] != horizon:
             raise DiscoveryError("资料不属于当前预览", "discovery_selection_invalid", 409)
         return copy.deepcopy(entry["public"])
+
+    async def registered_feed(self, sid, horizon="short", *, dataset_id=None):
+        """Preview an owned archive, or acquire the registered feed through DataHub."""
+        from ..datahub.contracts import BusinessQuery
+
+        if horizon not in {"short", "medium", "long"}:
+            raise DiscoveryError("发现期限参数非法", "discovery_horizon_invalid", 422)
+        self.store.session(sid)
+        archived = dataset_id is not None
+        if dataset_id is None:
+            result = await self.research.datahub.query(
+                sid,
+                "fed-rss:" + str(uuid4()),
+                BusinessQuery(
+                    capability="external_data",
+                    source=fed.SOURCE,
+                    parameters={"dataset": "news"},
+                    refresh=True,
+                    allow_fallback=False,
+                ),
+            )
+            dataset_id = result["dataset_id"]
+        value, source = fed.snapshot(self.research, sid, dataset_id, horizon)
+        entry = {
+            "scope": "registered_feed",
+            "public": value,
+            "registered_feed_snapshot": source,
+            "time": time.monotonic(),
+        }
+        entry["size"] = len(json_bytes(entry))
+        if entry["size"] > MAX_CACHE_BYTES:
+            raise DiscoveryError("发现资料超过缓存上限", "discovery_source_limit", 502)
+        async with self._feed_lock:
+            self._feeds[value["feed_id"]] = entry
+            self._prune_feeds()
+        log.info("discovery_registered_fed_read", archived=archived)
+        return copy.deepcopy(value)
 
     async def _read_news(self, identifier, associations=None):
         if not isinstance(identifier, str) or not re.fullmatch(r"news-[a-f0-9]{48}", identifier):
@@ -438,7 +475,16 @@ class DiscoveryService:
                 raise DiscoveryError("研究交接记录已达上限", "discovery_handoff_limit", 409)
             # Complete and validate every source read before reserving any native identity.
             evidence = []
-            if selected_theme.get("source_kind") == "news":
+            if selected_theme.get("source_kind") == "registered_feed":
+                if require_fresh and (
+                    feed.get("stale") is not False
+                    or not fed.fresh_observation(feed.get("retrieved_at"))
+                ):
+                    raise DiscoveryError(
+                        "本次未取得新的 RSS 来源观察", "discovery_source_expired", 409
+                    )
+                evidence = fed.freeze(feed_entry, body.material_ids)
+            elif selected_theme.get("source_kind") == "news":
                 if len(body.material_ids) != 1 or any(
                     materials[x].get("news_id") != body.theme_id
                     or materials[x].get("source_kind") != "news"
@@ -565,6 +611,16 @@ class DiscoveryService:
                         for x in evidence[0]["detail"]["associations"]
                     ],
                 )
+            elif selected_theme.get("source_kind") == "registered_feed":
+                record.update(
+                    source_kind="registered_feed",
+                    source_policy=fed.POLICY,
+                    registered_feed={
+                        key: value
+                        for key, value in feed_entry["registered_feed_snapshot"].items()
+                        if key != "raw_xml"
+                    },
+                )
             if scenario_context:
                 record["scenario_context"] = scenario_context
             had_table = "discovery_handoffs" in self.store.data
@@ -584,6 +640,13 @@ class DiscoveryService:
                 origin,
                 ("今日发现 · " + selected_theme["title"])[:120],
             )
+            if record.get("source_kind") == "registered_feed":
+                record["attachment_ids"] = fed.store_inputs(
+                    self.research, record["session_id"], evidence
+                )
+                record["registered_feed_sources"] = copy.deepcopy(
+                    self.store.session(record["session_id"])["registered_feed_sources"]
+                )
             if scenario_context:
                 self.store.session(record["session_id"])["source_scope"] = scenario_context[
                     "source_scope"
@@ -599,6 +662,14 @@ class DiscoveryService:
             }
             if "freshness" in feed:
                 bundle["source_states"] = copy.deepcopy(feed["freshness"])
+            if record.get("source_kind") == "registered_feed":
+                bundle.update(
+                    source=fed.SOURCE,
+                    source_url=fed.URL,
+                    source_policy=fed.POLICY,
+                    registered_feed_snapshot=feed_entry["registered_feed_snapshot"],
+                    registered_feed_sources=record["registered_feed_sources"],
+                )
             if selected_theme.get("source_kind") == "news":
                 bundle.update(
                     source_as_of=frozen_source_state["source_as_of"],
@@ -705,8 +776,12 @@ class DiscoveryService:
                 + record["dataset_id"]
                 + " 的 manifest.json，预期SHA-256="
                 + record["dataset_manifest_sha256"]
-                + "。基于本次冻结选材开展研究；区分事实、第三方观点与推断，核验原始披露，列反证、失效条件、未知时间和覆盖缺口。"
-                + SOURCE_POLICY
+                + (
+                    "。" + fed.REPORT_REQUIREMENTS
+                    if record.get("source_kind") == "registered_feed"
+                    else "。基于本次冻结选材开展研究；区分事实、第三方观点与推断，核验原始披露，列反证、失效条件、未知时间和覆盖缺口。"
+                )
+                + record.get("source_policy", SOURCE_POLICY)
                 + " 输出须沿现有研究报告与质量检查流程；未经质量门不能宣称研究通过。不要自行开启跟踪、创建日程或外部投递。"
             )
             scope = self.store.session(record["session_id"]).get("automation_research_scope")
@@ -734,7 +809,16 @@ class DiscoveryService:
                 raise
             try:
                 await self.research.send(
-                    record["session_id"], prompt, key, formats=["md"], **tool_scope
+                    record["session_id"],
+                    prompt,
+                    key,
+                    formats=["md"],
+                    **tool_scope,
+                    **(
+                        {"attachments": record["attachment_ids"]}
+                        if "attachment_ids" in record
+                        else {}
+                    ),
                 )
             except (RuntimeFailure, StoreError, OSError) as exc:
                 receipt = self.store.data["receipts"].get(f"{record['session_id']}:{key}")
