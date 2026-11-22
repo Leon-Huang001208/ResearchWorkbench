@@ -123,7 +123,7 @@ jobs:
           limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           pack_roots = ("app/research_web/scenarios/", "app/research_web/scenario_", "app/research_web/capabilities/pack")
           pack_interfaces = {
-              "app/research_web/capabilities/catalog.py", "app/research_web/capabilities/packages.py", "app/research_web/capabilities/scenario_method_packages.py", "app/research_web/capabilities/seeds.py", "app/research_web/capabilities/tools.py",
+              "research_workbench_entrypoint/iteration_resources.py", "app/research_web/capabilities/catalog.py", "app/research_web/capabilities/packages.py", "app/research_web/capabilities/scenario_method_packages.py", "app/research_web/capabilities/seeds.py", "app/research_web/capabilities/tools.py",
               "app/research_web/claw_projects.py", "app/research_web/datahub/routes.py", "app/research_web/delivery.py", "app/research_web/dossier_preservation.py", "app/research_web/dossiers/__init__.py", "app/research_web/main.py", "app/research_web/research_evidence.py", "app/research_web/research_quality_service.py", "app/research_web/research_web_sources.py",
               "app/research_web/resources/research_report_calculations.py", "app/research_web/resources/research_report_plan.py", "app/research_web/runtime/guard.mjs", "app/research_web/runtime/public-data.mjs", "app/research_web/runtime/research-tools.mjs", "app/research_web/sandbox.py", "app/research_web/service.py", "app/research_web/skills/_shared/source_actions.py", "app/research_web/store.py", "app/research_web/tenant_policy.py", "app/research_web/workbench.py",
               "app/research_web/ui/app.mjs", "app/research_web/ui/capabilities.mjs", "app/research_web/ui/core.mjs", "app/research_web/ui/pack-ui.mjs", "app/research_web/ui/scenarios.css", "app/research_web/ui/scenarios.mjs",
@@ -282,6 +282,7 @@ jobs:
                  tests/research_web/test_capabilities_native.py \
                  tests/research_web/test_native_argument_adapters.py \
                  tests/research_web/test_weknora_formal_scope.py \
+                 tests/research_web/test_iteration_resources.py::IterationResourceTests::test_record_refreshes_device_only_for_registered_same_inode_worktree \
               --confcutdir=tests/research_web -q
             exit 0
           fi
