@@ -565,6 +565,8 @@ node scripts/git_safety.mjs worktree-retirement --project /absolute/control-chec
 
 ## 最小验收规划（Verification planning）
 
+模块源码变更仍须在任务报告中给出有效的 `architecture-review` 结构决定。明确说明结构未变时，每个命中模块更新至少一份与本次改动直接相关的映射文档即可，不要求把该模块清单内无关文档一起修改；没有模块文档或有效结构说明仍会拒绝。结构变化继续执行原完整映射文档和受影响图源检查，其他 API、图形证据、CI 与平台验收要求保持。
+
 资产观察 AF 连续指标迁移沿既有 Research Web Checks：`test_asset_workspace.py` 覆盖分区选源、完整日期对、60／61天硬门、valuation、旧观察和刷新恢复；JS 通配符覆盖六MA、BOLL样本标准差、EMA／KDJ／RSI黄金值、预热／缺失／平盘、周月先聚合、估算筹码、连续卡片和迟到响应。浏览器另验同输入原页对照、五图联动、缩放平移、多个宽度与明暗主题、取消和实例释放。固定本地 ECharts／Chart.js 的加载、wheel资源和Mac安装字节一致性须独立验证；真实CJPY冷启动首次查询及逐区刷新不能被夹具或HTTP成功替代。保持原CI job、平台归属和DSH质量门，未执行项保留NOT_RUN；常驻部署另行授权。
 
 Claw正文搜索的快速HTTP/私有RPC边界使用`test_session_search.py`，与既有协议合同一起进入Research Web Checks；查询须走JSON POST，浏览器验收另检查模式/归属、错误重试与迟到响应。新增只读搜索不替代完整本地API回归、Native候选与exact-SHA Mac安装CI，也不扩大Windows/Linux dispatch授权。
