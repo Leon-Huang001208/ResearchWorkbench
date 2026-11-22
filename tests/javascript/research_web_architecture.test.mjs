@@ -292,6 +292,32 @@ test('narrow source owners require their own docs without unrelated protocol chu
   assert.ok((await check(f,[framework,owner,review])).violations.some(x=>x.code==='structure_diagram_not_changed'));
 });
 
+test('unchanged structure needs one relevant module document rather than every mapped document', async t => {
+  const f=fixture(t),related='docs/related.md',map=f.read(mapPath);
+  f.write(related,'# Related module topic');map.groups[0].documents.push(related);f.write(mapPath,map);
+  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  assert.deepEqual((await check(f,[source,document,review])).violations,[]);
+});
+
+test('unchanged structure still rejects a change with no module document', async t => {
+  const f=fixture(t),related='docs/related.md',map=f.read(mapPath);
+  f.write(related,'# Related module topic');map.groups[0].documents.push(related);f.write(mapPath,map);
+  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  const result=await check(f,[source,review]);
+  assert.ok(result.violations.some(item=>item.code==='module_document_not_changed'&&item.path===document));
+  assert.ok(result.violations.some(item=>item.code==='module_document_not_changed'&&item.path===related));
+});
+
+test('changed structure retains all mapped documents and affected graph requirements', async t => {
+  const f=fixture(t),related='docs/related.md',map=f.read(mapPath);
+  f.write(related,'# Related module topic');map.groups[0].documents.push(related);f.write(mapPath,map);
+  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  f.write(review,'<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Runtime responsibilities and data relationships changed and require updated documentation.","diagrams":["03-research-sequence"]} -->');
+  const result=await check(f,[source,document,review]);
+  assert.ok(result.violations.some(item=>item.code==='module_document_not_changed'&&item.path===related));
+  assert.ok(result.violations.some(item=>item.code==='structure_diagram_not_changed'));
+});
+
 test('actual framework route owners retain API/security obligations while collector leaves stay narrow', async t => {
   const f=fixture(t),actual=JSON.parse(fs.readFileSync(new URL('../../docs/architecture/research-web/architecture-map.json',import.meta.url)));
   const groups=actual.groups.filter(g=>['frameworks','integration-coordinator','research-api-contract'].includes(g.id));
