@@ -4,6 +4,16 @@
 
 <!-- architecture-review {"group":"inbound-mcp-readonly","structure":"changed","reason":"沿既有网关、Host与DataHub拓扑，入站MCP新增显式query scope及公开Provider/快照分支；仅图15需展开，保持旧read冻结读取且不增加运行服务或执行内核。","diagrams":["15-inbound-mcp"]} -->
 
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"界面变化仅更新既有progress-data.json条目的待验收、未启用及限制说明，不新增布局、组件、交互路由、服务或取数。实际产品接管仍待验收，不把隔离样本或源码合入标为生产已启用。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"main.py仅在既有service-only总中间件的白名单补数据上下文、查询、状态及取消的准确路径；原认证、账号与维护门保持，不新增研究执行器或API装配方式，实际数据分支的结构变化由入站MCP图15单独记录。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"研究台沿既有Store、DataHub和query job增加grant绑定的数据上下文与准确取消，并保存幂等参数摘要；不创建DSH会话，不新增服务、数据库或存储格式，Provider数据分支仍由入站MCP图15记录。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只向既有Checks的Python模块清单加入两份MCP回归，并在原Mac Bootstrap的PR和push清单补准确测试路径；原job、runner、安装、依赖、权限、时限与平台交接保持，不新增验证运行框架。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"原账号网关允许embedded模式显式登记WeKnora并接受规范9543等Tailnet HTTPS端口，仍要求精确callback和HTTPS回调主机分离；原账号隔离、PKCE、完整Origin和resource、撤权及运行池生命周期保持，不新增私网代理或认证服务。","diagrams":[]} -->
+
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"图文检查器仅兼容Archify3.2实测的自然Dock零预留状态，保留真实截图、身份、四视口、可读性与间距全部门；不改变文档生成、阅读入口或业务拓扑。","diagrams":[]} -->
 
 原四项 `rwb.read` MCP 工具只能读批准冻结资料，不能主动取数；原研究台省略 session_id 又会调用 DSH 创建会话。因此增加 WeKnora 可显式申请的 `rwb.data.query` 和三项公开 FRED/BLS 查询、状态及取消工具，用 Store 注册 grant 独立数据上下文，再复用原 DataHub。旧 grant 不增权，原四工具的选材/零 Provider 语义保持。

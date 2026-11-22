@@ -75,7 +75,7 @@ APFS 修复只更新已登记根的设备号。Web 和 DSH 的所有权检查、
 
 ## 入站 MCP 不承担研究执行
 
-首版四项工具仅发现批准材料及读取冻结原件，不进入原 DataHub 查询、模型发送、工作流提交或研究会话创建。MCP 仅查找已存活的账户后端，不冷启动实例；后端缺失、处于维护冻结或旧后端缺少只读协议时明确拒绝，原 RuntimePool 容量限制及正常研究生命周期保持不变。既有固定 DSH、受理未知和恢复语义不变；后续执行委托须另行设计。见[入站合同](../../research-web-mcp-facade.md)。
+原 `rwb.read` 四项工具仅发现批准材料及读取冻结原件，不调用 Provider。新增 `rwb.data.query` 只委托公开 FRED／BLS 取数：Host 的 `/api/research/data/contexts` 为当前 OAuth grant 建立 Store-only 上下文，不经 `ResearchService.create`、native RPC 或 DSH；查询、状态和准确取消复用原 workbench／DataHub 任务、幂等与冻结链。MCP 仍只选择已存活账号后端，不冷启实例或 scheduler，不发送模型或提交工作流；执行 `completed` 与数据 `data_success`、金融质量分别判断。原 RuntimePool、固定 DSH、受理未知及恢复语义保持。见[只读合同](../../research-web-mcp-facade.md)与[查询合同](../../research-web-mcp-datahub.md)。
 
 ## 测试运行与研究任务隔离（2026-10-31）
 

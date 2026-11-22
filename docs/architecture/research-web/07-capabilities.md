@@ -12,7 +12,7 @@ Host 批准的单轮研究继续使用同一 query／hit_id 工具，不注册�
 
 方法不再有独立页面或选择器。历史 `kind=method`、稳定 ID、不可变版本、`method_ids`、最多三项组合、采用记录和权限门继续有效；复制内置方法生成普通 Skill 草稿，保留程序、输入输出和检查标准，须经原检查与发布流程。副本不继承方法采用记录身份，原版本不改写。普通 Workflow 在技能中展示，报告专属流程仍从报告生产进入；定时任务以 `#/automations` 薄入口复用原调度。
 
-入站 MCP 与现有出站能力中心是两种方向：前者仅把批准冻结材料的四项只读能力交给成熟宿主，后者继续管理原 DSH 可调用的工具/安装/版本/权限。外部宿主不继承出站供应商凭据、插件安装权、实时取数或工作流执行权限。首版不启用 MCP Prompts、Tasks、Skills 或 Apps；生态包不能仅凭格式相似而获得 RWB 数据访问。见[入站合同](../../research-web-mcp-facade.md)。
+入站 MCP 与出站能力中心保持两种方向：原 `rwb.read` 四项工具只读批准冻结材料、无 Provider 调用；显式新增 `rwb.data.query` 后才可见公开 FRED／BLS 的 query／status／cancel 三工具，经 grant 绑定的 Store-only 上下文调用原 DataHub／Provider，不创建 DSH 研究会话。旧 grant 不因刷新自动增权，RWB 继续复验账号、来源、撤权和金融质量；外部宿主不继承供应商凭据、插件安装或工作流权限。出站 DSH 工具／安装／版本及 MCP Prompts、Tasks、Skills、Apps 的原边界不变。见[只读合同](../../research-web-mcp-facade.md)与[查询合同](../../research-web-mcp-datahub.md)。
 
 业务报告项目在独立“报告生产”入口管理；通用 Workflow 仍是能力中心步骤模板。现有原生绑定与报告运行复用唯一 DSH，界面分类不授予工具权限，不新增报告引擎。
 
