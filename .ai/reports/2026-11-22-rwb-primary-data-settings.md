@@ -51,3 +51,11 @@
 TDD 首批 10 项在旧实现因缺命令／参数失败；最终同批 16/16 PASS、0 SKIP（1.41秒），覆盖真实 Git 完整树与依赖变化拒绝、参数缺失／放错命令、前版／目标／资格拒绝、原 operate 与 recover 读取动态值、真实独立 release clone 的 journal 身份及 accepted／manifest／baseline 篡改拒绝、原 Operations 的双端前进／失败回滚、当前 MCP／AlphaDesk 及已存在私网服务路由保留、旧固定模式兼容。GitHub、模型和 OS 启停使用隔离替身，不把测试输出的 `deployed` 当生产已部署；成功根经原 `run --mode wip` 正常退休，回收1368064字节。早期绿色验证中的夹具健康元数据／BirthFence transaction 及历史枚举兼容问题已更正，旧失败不计为成功。
 
 实际生产 accepted／两端状态、最终 source 的 GitHub 合并与同候选 CI、空闲、恢复包及生产页面仍由唯一生产 writer 复核执行。本工作树未执行部署、重启、金融／模型调用、依赖安装或真实交付账本修改，未 stage、commit 或 push；Python 独立评审已 APPROVE、0 P1/P2，最终候选交付由主任务接续。
+
+## 已审升级与账号入口的 CI 范围
+
+合入最新主线后，原完整 Checks 仍会为这次维护／账号入口修补重复运行无关 Web 矩阵。现沿原选择器增加 `reviewed_upgrade_only`：必须命中 `model_provider_upgrade.py` 或 `gateway_upgrade.py`，其余仅允许对应两个维护测试模块、本次 session／profile 资源及相邻测试、progress-data.json、相关 Markdown、准确 README 复核 JSON、两份既有 Web CI 和直接范围测试。其他 app／测试／workflow 或无法取得差异时仍使用原完整路径，原 pack／retention／architecture 分支保持。
+
+新分支运行 `test_model_provider_upgrade.py`、`test_gateway_upgrade.py` 两个完整模块，保留原分片、pytest 证据、插件和三份固定历史对象 fetch；不筛掉维护断言。JS 仅运行五个原账号／导航模块，加 `research_web_progress.test.mjs`、`actions_quota_governance.test.mjs`，编辑引擎不在此范围。原作业、runner、依赖、权限、时限及 Mac Bootstrap／Project Constraints 保持；Python 失败仍沿原 shell 和分片退出码传播。
+
+两项新增回归实际 RED 为 2 FAIL，修后与六项直接相邻范围检查合计 **8/8 PASS**、0 FAIL、0 SKIP，约1.34秒。它们实际执行 CI 内嵌选择代码和原 Bash 分支，以命令替身核对两个完整维护模块、历史对象及七份 JS 清单；原 pack、retention、architecture 选择仍通过。另从真实 `origin/master`（`dfe1d679`）到当前 HEAD `1725477f` 的完整 Git 差异加 WIP 得到19条实际路径，用临时输入清单评估同一选择器正文，结果为 `reviewed_upgrade_only=true`、其他三个标记 false；未网络 fetch 或改 common。此处只是范围与命令验证，不冒充两个完整 Python 模块、七份 JS 或最终候选 CI 已执行；已有16／2／43项结果复用。
