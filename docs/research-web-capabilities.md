@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+G2B 为现有 Docker 管理器增加冻结制品、独立 stage 验收、显式晋级与回退；不会产生新的用户 Skill 或默认发布权限。研究、Automation、报告和原生 resident 原有能力保持；生产切换需真实部署结果，源码整合不表示已上线。
+
 工具目录按原生实际注册核对名称与参数。DataHub声明包含既有 `purpose`／`quality`／`as_of` 输入，研究脚本声明既有 `code`／`report_plan` 二选一；目录不授予执行或质量资格，原权限与严格执行校验保持。无DSH源码环境的注册回归直接调用本地runtime模块，固定DSH完整插件核对另外留证。
 
 Research Bot 对来源批次先判新鲜度，再冻结原件和准备技能。历史记录保存实际准入依据供核对。

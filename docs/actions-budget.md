@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+G2B 的明确 release、维护及其 Host/API 接点变更沿原 Checks scope selector 选择发布/维护/Manager、Docker 打包与协议合同、原 release 与必要公共 API、Automation/报告准入定点检查；JavaScript 只选 Docker、范围和架构合同，不运行无关 Web 矩阵或编辑引擎。判定使用 GitHub 真实 base/head 文件差异及显式源码/测试/fixture 白名单，混入无关产品或未知测试时保留原完整路径，retention-only 不变。不新增 workflow、job、依赖、runner 或超时；Mac 安装与最终 release 实机验证分开，CI 不调用模型、不操作生产或业务卷。
+
 测试临时根工具的纯局部修补沿原 Checks 作业运行 `test_test_artifact_retention.py` 的31项分片回归，
 不运行无关 Web、Node 和编辑引擎测试。范围来自真实事件 base/head 的差异；产品改动或范围未知仍运行原完整路径，
 不新增作业、依赖、runner、权限或超时。

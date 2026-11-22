@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+G2B 晋级绑定已验收制品、目标和前版，经原 Manager 身份与资源检查执行；维护只拒绝新工作，不强停已接纳研究。原凭据五卷不重建，Hot 状态尚无停写/回滚证明时不能据进程停止推断可晋级。
+
 附接 MCP 五模式仅在 forward apply 与非完成后回滚的 preparing 恢复中，于真实持有的
 BirthFence SQLite EX、安装作用域和原 Operations 内复查配置及前版健康／MCP／账号保全。
 两项都成功才 execute 或删除准备 journal；任一失败保留原记录并拒绝 stop／checkpoint／切源。
