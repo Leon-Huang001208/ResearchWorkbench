@@ -141,6 +141,125 @@ def test_idempotency_survives_restart_and_rejects_changed_payload(tmp_path):
         store.reserve(sid, "key", "changed")
 
 
+@pytest.mark.parametrize("failure_stage", ["allocation", "commit-and-cleanup"])
+def test_failed_scoped_receipt_does_not_seal_session(tmp_path, monkeypatch, failure_stage):
+    import errno
+
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "研究")["id"]
+    args = {"knowledge_scope_id": "scope", "knowledge_request_digest": "request"}
+
+    def disk_full(*_args, **_kwargs):
+        raise OSError(errno.ENOSPC, "synthetic index allocation failure")
+
+    with monkeypatch.context() as patch:
+        if failure_stage == "allocation":
+            patch.setattr("app.research_web.store.tempfile.mkstemp", disk_full)
+        else:
+            patch.setattr("app.research_web.store.os.replace", disk_full)
+            patch.setattr("app.research_web.store.os.unlink", disk_full)
+        with pytest.raises(StoreError, match="会话索引保存失败"):
+            store.reserve(sid, "key", "digest", {}, **args)
+    assert "knowledge_single_turn" not in store.session(sid)
+    assert "delivery_key" not in store.session(sid)
+    assert not store.data["receipts"]
+
+    assert store.reserve(sid, "key", "digest", {}, **args)
+    restarted = Store(tmp_path)
+    assert restarted.session(sid)["knowledge_single_turn"] is True
+    assert restarted.receipt(sid, "key")["knowledge_scope_id"] == "scope"
+
+
+@pytest.mark.parametrize("phase", ["mutation", "rollback"])
+def test_scoped_receipt_failure_keeps_concurrent_saves_outside_transaction(
+    tmp_path, monkeypatch, phase
+):
+    import errno
+    import tempfile
+    import threading
+
+    store = Store(tmp_path / "owner")
+    sid = store.create("fingpt", "Atomic scope grant")["id"]
+    store.session(sid).update(delivery_key="old-key", knowledge_single_turn=False)
+    store.save()
+    entered, proceed, writer_attempted, writer_done = (threading.Event() for _ in range(4))
+    errors = []
+    receipt_name = f"{sid}:new-key"
+
+    def barrier():
+        entered.set()
+        if not proceed.wait(5):
+            raise AssertionError("scope transaction barrier timed out")
+
+    class BarrierReceipts(dict):
+        def __setitem__(self, key, value):
+            super().__setitem__(key, value)
+            if key == receipt_name and phase == "mutation":
+                barrier()
+
+        def pop(self, key, *args):
+            if key == receipt_name and phase == "rollback":
+                barrier()
+            return super().pop(key, *args)
+
+    store.data["receipts"] = BarrierReceipts(store.data["receipts"])
+    original_mkstemp = tempfile.mkstemp
+
+    def scoped_disk_full(*args, **kwargs):
+        if threading.current_thread().name == "scoped-reserver":
+            raise OSError(errno.ENOSPC, "synthetic scope index allocation failure")
+        return original_mkstemp(*args, **kwargs)
+
+    monkeypatch.setattr(tempfile, "mkstemp", scoped_disk_full)
+
+    def reserver():
+        try:
+            store.reserve(
+                sid,
+                "new-key",
+                "digest",
+                {"task_id": "request"},
+                knowledge_scope_id="scope",
+                knowledge_request_digest="request-digest",
+            )
+        except StoreError as error:
+            errors.append(error)
+
+    def writer():
+        writer_attempted.set()
+        # Model the existing watchlist writer using the same Store RLock.
+        with store.write_lock:
+            store.data["unrelated_extension"] = {"saved": True}
+            store.save()
+        writer_done.set()
+
+    reserve_thread = threading.Thread(target=reserver, name="scoped-reserver")
+    write_thread = threading.Thread(target=writer, name="unrelated-writer")
+    reserve_thread.start()
+    try:
+        assert entered.wait(5)
+        assert receipt_name in store.data["receipts"]
+        acquired = store.write_lock.acquire(blocking=False)
+        if acquired:
+            store.write_lock.release()
+        assert not acquired, "scope mutation and rollback must retain the existing RLock"
+        write_thread.start()
+        assert writer_attempted.wait(5)
+        assert not writer_done.is_set()
+    finally:
+        proceed.set()
+        reserve_thread.join(5)
+        if write_thread.ident is not None:
+            write_thread.join(5)
+    assert not reserve_thread.is_alive() and not write_thread.is_alive()
+    assert len(errors) == 1 and writer_done.is_set()
+    restarted = Store(store.root)
+    assert receipt_name not in restarted.data["receipts"]
+    assert restarted.session(sid)["knowledge_single_turn"] is False
+    assert restarted.session(sid)["delivery_key"] == "old-key"
+    assert restarted.data["unrelated_extension"] == {"saved": True}
+
+
 def test_files_never_follow_symlinks_or_cross_sessions(tmp_path):
     store = Store(tmp_path / "data")
     sid = store.create("fingpt", "研究")["id"]

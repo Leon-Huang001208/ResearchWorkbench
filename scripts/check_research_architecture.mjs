@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import {checkGeneratedArtifacts} from './build_research_web_api_atlas.mjs';
 
 export const MAP_PATH = 'docs/architecture/research-web/architecture-map.json';
@@ -74,6 +75,56 @@ export function collectChangedFiles(projectRoot, base) {
 const matches = (file, patterns) => patterns.some(pattern => pattern.endsWith('/') ? file.startsWith(pattern) : file === pattern);
 const digest = bytes => ({sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length});
 const sameHash = (record, actual) => record?.sha256 === actual.sha256 && record?.bytes === actual.bytes;
+
+const READER_CONTAINMENT_POLICY = 'fit-or-reader-declared-readable-vertical-scroll';
+const viewportSize = viewport => `${viewport?.width}x${viewport?.height}`;
+
+function readerViewportOK(viewport, minimumTextPx) {
+  if (!viewport || !['width','height','innerWidth','innerHeight','scrollWidth','scrollHeight','readerWidth','diagramWidth','viewBoxWidth'].every(key=>Number.isFinite(viewport[key]) && viewport[key]>0)) return false;
+  if (!['width','height','innerWidth','innerHeight','scrollWidth','scrollHeight'].every(key=>Number.isInteger(viewport[key]))) return false;
+  const overflowY=viewport.scrollHeight>viewport.innerHeight;
+  const page=viewport.pageComposition;
+  if (!page || !['bodyPaddingPx','headerPx','diagramChromePx','svgPx','cardsPx','viewBoxHeight'].every(key=>Number.isFinite(page[key]) && page[key]>=0) || page.svgPx===0 || page.viewBoxHeight===0) return false;
+  const contentHeight=page.bodyPaddingPx+page.headerPx+page.diagramChromePx+page.svgPx+page.cardsPx;
+  return viewport.ok===true && viewport.innerWidth===viewport.width && viewport.innerHeight===viewport.height &&
+    viewport.overflowX===false && viewport.scrollWidth===viewport.innerWidth && viewport.scrollHeight===Math.max(viewport.innerHeight,contentHeight) &&
+    viewport.overflowY===overflowY && viewport.readerLayout==='adaptive' && viewport.readerFit==='intrinsic-height' &&
+    viewport.verticalScrollAccepted===overflowY && viewport.readerOverflow===(overflowY?'authored':null) &&
+    viewport.overflowDisposition===(overflowY?'readable-vertical-scroll':'contained') &&
+    viewport.diagramWidth<=viewport.readerWidth && viewport.readerWidth<=viewport.innerWidth &&
+    Number.isFinite(viewport.minimumRequiredNodeTextPx) && viewport.minimumRequiredNodeTextPx>=6 &&
+    ['minimumProjectedNodeTextPx','minimumProjectedNonEdgeTextPx'].every(key=>Number.isFinite(viewport[key]) && viewport[key]>=Math.max(minimumTextPx,viewport.minimumRequiredNodeTextPx)) &&
+    Number.isFinite(viewport.minimumProjectedEdgeTextPx) && viewport.minimumProjectedEdgeTextPx>=6 && viewport.readabilityOk===true &&
+    viewport.hasLegend===true && viewport.hasNavigationDock===true && viewport.legendDockIntersectionArea===0 && viewport.dockStageIntersectionArea===0 &&
+    Number.isFinite(viewport.requiredDockStageGap) && viewport.requiredDockStageGap>=10 && Number.isFinite(viewport.dockStageGap) && viewport.dockStageGap>=viewport.requiredDockStageGap &&
+    viewport.viewerChromeStageOk===true && viewport.viewerChromeOk===true && viewport.viewerChromeActive===true && Number.isFinite(viewport.viewerChromeReserve) && viewport.viewerChromeReserve>0 &&
+    viewport.theme==='light' && viewport.resolvedTheme===viewport.theme && (!Object.hasOwn(viewport,'documentScrollUnclipped') || viewport.documentScrollUnclipped===true);
+}
+
+// Validate declared measurements; actual scroll traversal remains part of the independent same-hash review.
+function readerEvidenceOK(visual, receipt) {
+  const viewports=visual.containment.viewports;
+  const minimumTextPx=visual.readability?.minimumProjectedNodeTextPx;
+  if (visual.evidenceKind!=='automated-browser' || visual.provenance!=='current' || typeof receipt?.receiptId!=='string' || !receipt.receiptId.trim() || visual.deliveryReceiptId!==receipt.receiptId ||
+    visual.state?.detail!=='read' || visual.state?.motion!=='still' || visual.chrome?.status!=='available' || !Array.isArray(visual.diagnostics) || visual.diagnostics.length ||
+    visual.readability?.status!=='pass' || visual.viewerChrome?.status!=='pass' || !Number.isFinite(minimumTextPx) || minimumTextPx<6 ||
+    !Array.isArray(viewports) || viewports.length!==VIEWPORTS.length || new Set(viewports.map(viewportSize)).size!==VIEWPORTS.length ||
+    !viewports.every(viewport=>VIEWPORTS.includes(viewportSize(viewport)) && readerViewportOK(viewport,minimumTextPx))) return false;
+  for (const records of [visual.readability.viewports,visual.viewerChrome.viewports]) {
+    if (!Array.isArray(records) || records.length!==VIEWPORTS.length || new Set(records.map(viewportSize)).size!==VIEWPORTS.length ||
+      !viewports.every(viewport=>isDeepStrictEqual(records.find(record=>viewportSize(record)===viewportSize(viewport)),viewport))) return false;
+  }
+  const captures=visual.captures?.screenshots;
+  if (!Array.isArray(captures) || captures.length<2 || new Set(captures.map(capture=>capture?.file)).size!==captures.length || !Array.isArray(visual.sidecars?.files)) return false;
+  return captures.every(capture=>{
+    if (!capture || typeof capture!=='object') return false;
+    const viewport=viewports.find(record=>viewportSize(record)===viewportSize(capture));
+    const {file,...metrics}=capture;
+    return viewport && ['light','dark'].includes(capture.theme) &&
+      isDeepStrictEqual(metrics,{...viewport,theme:capture.theme,resolvedTheme:capture.theme}) &&
+      visual.sidecars.files.filter(record=>record?.file===file).length===1;
+  });
+}
 
 function pythonCallArguments(content, start) {
   const args=[];const stack=['('];let argument='',quote='';
@@ -318,12 +369,16 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     }
     const viewports=visual?.containment?.viewports || [];
     const viewportOK=viewport=>viewport.ok===true && viewport.overflowX===false && viewport.overflowY===false && viewport.innerWidth===viewport.width && viewport.innerHeight===viewport.height && viewport.scrollWidth<=viewport.innerWidth && viewport.scrollHeight<=viewport.innerHeight;
-    if (visual?.schemaVersion!==1 || visual?.command!=='visual-check' || visual?.ok!==true || visual?.status!=='pass' || visual?.containment?.status!=='pass' || visual?.captures?.status!=='pass' || !artifactBytes || !sameHash(visual.artifact,digest(artifactBytes)) || VIEWPORTS.some(size=>!viewports.some(viewport=>`${viewport.width}x${viewport.height}`===size && viewportOK(viewport)))) issue('visual_receipt',diagram.visualReceipt,'Require current artifact hash and successful containment at all four viewports');
-    const captures=visual?.captures?.screenshots || [];
+    const reader=visual?.containment?.policy===READER_CONTAINMENT_POLICY;
+    const containmentOK=reader ? readerEvidenceOK(visual,receipt) : !VIEWPORTS.some(size=>!viewports.some(viewport=>`${viewport.width}x${viewport.height}`===size && viewportOK(viewport)));
+    if (visual?.schemaVersion!==1 || visual?.command!=='visual-check' || visual?.ok!==true || visual?.status!=='pass' || visual?.containment?.status!=='pass' || visual?.captures?.status!=='pass' || !artifactBytes || !sameHash(visual.artifact,digest(artifactBytes)) || !containmentOK) issue('visual_receipt',diagram.visualReceipt,'Require current artifact hash and successful containment at all four viewports');
+    const captures=reader && !Array.isArray(visual.captures?.screenshots) ? [] : visual?.captures?.screenshots || [];
     const captureNames=new Set();
     for (const capture of captures) {
-      if (typeof capture.file!=='string' || path.posix.basename(capture.file)!==capture.file || capture.ok!==true) {issue('visual_receipt',diagram.visualReceipt,'Invalid capture reference');continue;}
-      captureNames.add(capture.file);read(`${ARTIFACT_ROOT}/${capture.file}`);
+      if (typeof capture?.file!=='string' || path.posix.basename(capture.file)!==capture.file || capture.ok!==true) {issue('visual_receipt',diagram.visualReceipt,'Invalid capture reference');continue;}
+      captureNames.add(capture.file);const captureBytes=read(`${ARTIFACT_ROOT}/${capture.file}`);
+      const sidecars=Array.isArray(visual?.sidecars?.files)?visual.sidecars.files:[];
+      if (reader && (!captureBytes || !sameHash(sidecars.find(record=>record?.file===capture.file),digest(captureBytes)))) issue('visual_receipt',diagram.visualReceipt,'Reader capture bytes/hash are stale');
     }
     const reviewsForDiagram=human?.diagrams?.filter(item=>item.id===diagram.id) || [];
     const review=reviewsForDiagram[0];

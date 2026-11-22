@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 from functools import wraps
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
@@ -268,12 +269,18 @@ class KnowledgeService(CurrentResearch):
             raise
 
     @bounded
-    async def current_query(self, body):
-        return await self._current_query(body)
+    async def current_query(self, body, *, host=None, caller_session_id=None):
+        grant = await self._formal_grant(body.session_id, host, caller_session_id)
+        if grant is None:
+            return await self._current_query(body)
+        return await self._formal_query(body, grant, host)
 
     @bounded
-    async def current_read(self, body):
-        return await self._current_read(body)
+    async def current_read(self, body, *, host=None, caller_session_id=None):
+        grant = await self._formal_grant(body.session_id, host, caller_session_id)
+        if grant is None:
+            return await self._current_read(body)
+        return await self._formal_read(body, grant, host)
 
     @bounded
     async def current_freeze(self, body):
@@ -299,6 +306,29 @@ class KnowledgeService(CurrentResearch):
         scope = self.store.read("scopes", identifier)
         if any(scope.get(key) != binding[key] for key in ("user_id", "workspace_id", "origin")):
             fail("knowledge_scope_identity_mismatch", 403)
+        return scope
+
+    @bounded
+    async def research_scope(self, identifier, as_of=None):
+        client, binding = await self._authorized()
+        scope = self._scope(identifier, binding)
+        if (
+            as_of
+            and timestamp(scope["cutoff"]).astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
+            > as_of
+        ):
+            fail("knowledge_scope_after_research_cutoff", 422)
+        if len({row["kb_id"] for row in scope["documents"]}) > 10:
+            fail("knowledge_research_scope_too_wide", 422)
+        available = {item["id"] for item in await client.knowledge_bases()}
+        if not {row["kb_id"] for row in scope["documents"]} <= available:
+            fail("knowledge_library_access_revoked", 403)
+        for row in scope["documents"]:
+            meta = await client.document(row["document_id"])
+            self._ready(meta)
+            if meta["kb_id"] != row["kb_id"]:
+                fail("knowledge_upstream_scope_violation", 502)
+        await self._still_authorized(binding)
         return scope
 
     @bounded
@@ -359,7 +389,7 @@ class KnowledgeService(CurrentResearch):
         return raw, chunks
 
     @bounded
-    async def search(self, body):
+    async def search(self, body, *, canonical_hits=False):
         client, binding = await self._authorized()
         ids = body.document_ids
         bases = body.knowledge_base_ids
@@ -375,7 +405,9 @@ class KnowledgeService(CurrentResearch):
             approved_chunks = {}
             for identifier in ids:
                 _, chunks = await self._verify_document(client, allowed[identifier])
-                approved_chunks.update({chunk["chunk_id"]: chunk for chunk in chunks})
+                approved_chunks.update(
+                    {(chunk["document_id"], chunk["chunk_id"]): chunk for chunk in chunks}
+                )
         hits = await client.search(body.query, bases, ids, limit=8)
         if scope and any(
             hit["document_id"] not in ids or hit["kb_id"] != allowed[hit["document_id"]]["kb_id"]
@@ -384,7 +416,7 @@ class KnowledgeService(CurrentResearch):
             fail("knowledge_upstream_scope_violation", 502)
         if scope:
             for hit in hits:
-                original = approved_chunks.get(hit["chunk_id"])
+                original = approved_chunks.get((hit["document_id"], hit["chunk_id"]))
                 if (
                     original is None
                     or hit["document_id"] != original["document_id"]
@@ -392,6 +424,8 @@ class KnowledgeService(CurrentResearch):
                     or hit["content"] not in original["content"]
                 ):
                     fail("knowledge_chunks_changed")
+        if scope and canonical_hits:
+            hits = [approved_chunks[(hit["document_id"], hit["chunk_id"])] for hit in hits]
         await self._still_authorized(binding)
         return {"items": hits, "scope_id": body.scope_id, "generated_answer": False}
 

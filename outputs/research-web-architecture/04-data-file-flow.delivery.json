@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "receiptId": "04a95dc9-62fd-4f23-a5be-155a3c0fac48",
+  "receiptId": "f0307ca4-80f5-47b0-bc58-4da6105c4e43",
   "status": "current",
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Volumes/WorkDisk/Projects/ResearchWorkbench/worktrees/rwb-local-knowledge-20261120/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Volumes/WorkDisk/Projects/ResearchWorkbench/worktrees/rwb-local-knowledge-20261120/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Volumes/WorkDisk/Projects/RWB/product-integration-worktrees/rwb-weknora-dsh-20261108-r2/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Volumes/WorkDisk/Projects/RWB/product-integration-worktrees/rwb-weknora-dsh-20261108-r2/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "ce4308d1a799161776e46a458c5f8abfe4e24ba2529cc3f5bba48f3f823d84ad",
-    "bytes": 14822
+    "sha256": "dba70d856f0216b9a891577f546cb08b5a03ef0e4b20ef4560c9e58ee8c6d9bc",
+    "bytes": 24505
   },
   "artifact": {
-    "sha256": "9dc2fc0451d07515ed526b9b371557160aa3dc27d6284a471b098a0da1548974",
-    "bytes": 875365
+    "sha256": "1fc6429c8a8bb04a374c8bec881a0fee6fb22e3dbe315e61bb538002b039a96e",
+    "bytes": 889837
   }
 }

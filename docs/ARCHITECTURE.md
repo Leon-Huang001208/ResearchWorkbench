@@ -40,6 +40,8 @@ Host严格 `?1` 检查保持；本修补不新增运行节点、接口、数据�
 
 ## WeKnora 资料边界（2026-11-06）
 
+Host 批准范围的单轮研究沿原消息提交、账号 Store、唯一 DSH 与知识 query/read 回调接入。首条消息的明确动作将 scope 和请求摘要原子绑定到既有回执；正式工具保留 query／hit_id 协议，复核运行中的原生根会话、首 turn、requestId 与当前 grant，异步读取后重验，失败不降级普通 current。普通单库同步、登录／tenant、回执冻结与报告资格保持；[图04](../outputs/research-web-architecture/04-data-file-flow.html)区分这条显式授权分支，完整合同见[单轮研究](research-web-weknora.md#host-批准范围的单轮研究)。不新增服务、数据库或研究执行器，源码、图文及真实验收分别记录。
+
 可选 `knowledge_backend/` 在既有账号 Host 中提供原生身份绑定、固定本机目录同步、当前原文检索、会话命中回执和独立证据冻结；[图04](../outputs/research-web-architecture/04-data-file-flow.html)展示目录／账号 SQLite、WeKnora 与本机 Ollama 的数据边。Host 只为明确启用的同步每60秒巡检，新版本解析并核验后切为 current，失败沿用旧版，删除撤回入口且保留历史。云端研究模型只接收获准命中片段；未知来源时点不获得 PIT 或正式报告资格，固定报告继续使用已批准 scope。RWB 继续拥有金融快照、模板底稿、正式稿及冻结证据；既有报告运行状态机与其他 Automation 启停保持。默认 `RESEARCH_WEKNORA_ORIGIN` 为空，原实例恢复、模型与真实链路、最终候选 CI 和部署逐项取证，配置或源码通过不等于验收完成。完整身份、限额与失败边界见[资料合同](research-web-weknora.md)。
 
 2026-11-06统一导航部署采用既有v4联合事务的 reviewed-unified-navigation-v1／apply-navigation-ui，固定5ffecb52旧版及b192dd1a产品。完整union/blob/mode冻结，仅操作员及其专用测试／文档可随后变化；全账号64MiB索引、事件／档案保全、空闲、BirthFence和恢复源码绑定不变，NAV前进及回滚均验证MCP实际严格False。旧static-ui分步流程不用于本次联合保全。

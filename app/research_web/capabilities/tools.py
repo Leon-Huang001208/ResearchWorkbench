@@ -107,14 +107,14 @@ DECLARATIONS = {
         "runtime/research-tools.mjs",
         {"query": "string"},
         ["query"],
-        "当前用户已绑定的可见知识库；只返回真实原文命中，不生成答案，不授予历史报告资格",
+        "当前用户可见且符合Host本轮批准范围的资料；只返回真实原文命中，模型不能选库或扩大范围，不授予历史报告资格",
     ),
     "research_read_knowledge": (
         "读取资料命中原文",
         "runtime/research-tools.mjs",
         {"hit_id": "string"},
         ["hit_id"],
-        "仅本会话已登记的资料命中；逐次复核用户权限，保留原命中版本与未知来源时点",
+        "仅本会话已登记的资料命中；逐次复核用户权限及Host本轮批准范围，保留原命中版本与未知来源时点",
     ),
     "research_document_operation": (
         "Office 文档操作",
@@ -142,9 +142,9 @@ DECLARATIONS = {
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
-        {"code": "string"},
-        ["code"],
-        "仅本会话，严格沙箱；不允许联网或安装依赖",
+        {"code": "string", "report_plan": "object"},
+        [],
+        "仅本会话，严格沙箱；code与report_plan二选一，不允许联网或安装依赖；目录声明不授予执行权限",
     ),
     "web_search": (
         "网页检索",
@@ -391,7 +391,9 @@ def tool_catalog(data_root: Path | None = None):
             continue
         capability = capabilities[capability_id]
         fields, required = DATA_PROPERTIES[capability_id]
-        properties = {key: {"type": value} for key, value in fields.items()}
+        properties: dict[str, dict[str, Any]] = {
+            key: {"type": value} for key, value in fields.items()
+        }
         for key in ("assets", "fields", "statements", "periods", "series", "columns"):
             if key in properties:
                 properties[key]["items"] = {"type": "string"}
@@ -399,6 +401,12 @@ def tool_catalog(data_root: Path | None = None):
             source={"type": "string", "description": "目录来源 ID；默认 auto"},
             allow_fallback={"type": "boolean"},
             refresh={"type": "boolean"},
+            purpose={"type": "string", "enum": ["display", "research", "backtest"]},
+            quality={"type": "string", "enum": ["strict", "allow_stale"]},
+            as_of={
+                "type": "string",
+                "description": "正式回测所需的历史可得时点，必须包含时区；不能用实时响应代替",
+            },
         )
         if capability_id == "fund_data":
             properties["dataset"]["enum"] = [

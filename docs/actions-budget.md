@@ -23,6 +23,12 @@ Docker 内存或重启引擎，不触发金融/模型请求。远端写入前仍
 
 ## 本机资料同步与当前研究预算（2026-11-20）
 
+Host批准知识scope、原生query/read运行合同与0004可选资产按精确路径显式路由L4，分别保留formal/current/API/store、runtime Node及补丁文本catalog离线闭包。此路由不增加workflow、job、runner、依赖或超时；Constraints／Checks／同候选MacBootstrap及Windows/Linux真机交接继续执行，不能由路由登记或离线通过认证真实KB、模型或上游补丁应用。
+
+原Checks的Python分区参数追加 `test_weknora_formal_scope.py`、`test_store.py`、`test_capabilities_native.py`，原Node通配符覆盖CI参数与Reader检查器路由合同；增量在原步骤预留45秒，最终实测另记。仍沿原作业时限与runner，不运行真实模型／知识服务或安装新依赖。
+
+新增精确路由选择的文件同步进入现有Checks／Mac Bootstrap的PR与push路径过滤；仅补本批具体文件，不添加通配目录、workflow或job，避免策略声明要求CI而对应单文件变更无法触发。
+
 沿 Research Web Checks 既有 Python 步骤增加 `test_weknora_sync.py`、`test_weknora_sync_client.py`、
 `test_weknora_current.py`、`test_weknora_current_api.py` 及严格UTF-8纯文本overlay的
 `test_weknora_plain_text.py`，保留原九份 WeKnora 回归；JS 继续由原

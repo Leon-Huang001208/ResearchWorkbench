@@ -470,3 +470,14 @@ test('pytest evidence staging uses the no-follow allowlist helper and exact arti
   assert.doesNotMatch(workflows.checks, /cp "\$root\/\$relative"/);
   assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
 });
+
+test('knowledge authority regressions are actual arguments of the existing CI partition command', () => {
+  const step = workflows.checks.match(/- name: Run Research Web Python contracts\n([\s\S]*?)(?=\n      - name:|$)/)?.[1];
+  assert.ok(step, 'the existing Python contracts step must remain');
+  assert.match(step, /scripts\/run_ci_pytest_partitions\.py/);
+  const argumentsFound = [...step.matchAll(/^\s+(tests\/research_web\/[^\s]+)\s+\\\s*$/gm)].map(match => match[1]);
+  for (const file of ['test_weknora_formal_scope.py', 'test_store.py', 'test_capabilities_native.py']) {
+    const expected = `tests/research_web/${file}`;
+    assert.equal(argumentsFound.filter(value => value === expected).length, 1, `${expected} must execute exactly once`);
+  }
+});
