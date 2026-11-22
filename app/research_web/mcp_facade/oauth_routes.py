@@ -21,7 +21,7 @@ from starlette.routing import Route, request_response
 from app.research_web.multiuser.accounts import AccountError
 from core.observability import get_logger
 
-from .models import CLIENT_ID, SCOPE, WEKNORA_CLIENT_ID
+from .models import CLIENT_ID, SCOPE, WEKNORA_CLIENT_ID, client_scopes, valid_scopes
 from .oauth import OAuthProvider, browser_account, token_request
 from .oauth_views import COOKIE, HEADERS, create_browser_routes
 
@@ -81,8 +81,13 @@ def create_routes(provider: OAuthProvider) -> list[Route]:
     issuer = TypeAdapter(
         AnyHttpUrl, config=ConfigDict(url_preserve_empty_path=True)
     ).validate_python(provider.store.issuer)
+    supported = (
+        client_scopes(WEKNORA_CLIENT_ID)
+        if provider.store.client_enabled(WEKNORA_CLIENT_ID)
+        else (SCOPE,)
+    )
     registration = ClientRegistrationOptions(
-        enabled=False, valid_scopes=[SCOPE], default_scopes=[SCOPE]
+        enabled=False, valid_scopes=list(supported), default_scopes=[SCOPE]
     )
     revocation = RevocationOptions(enabled=True)
     routes = create_auth_routes(
@@ -151,7 +156,7 @@ def create_routes(provider: OAuthProvider) -> list[Route]:
         if (
             isinstance(parsed, RefreshTokenRequest)
             and parsed.scope is not None
-            and parsed.scope != SCOPE
+            and not valid_scopes(parsed.scope.split(), parsed.client_id)
         ):
             return _error("invalid_scope")
         marker = token_request.set(parsed)

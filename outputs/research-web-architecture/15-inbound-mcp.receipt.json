@@ -1,17 +1,18 @@
 {
   "schemaVersion": 1,
+  "receiptId": "2c0e4b2d-a957-451c-bbf7-f5743f026584",
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/docs/architecture/research-web/diagrams/15-inbound-mcp.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/outputs/research-web-architecture/15-inbound-mcp.html",
+  "input": "/Volumes/WorkDisk/Projects/RWB/ResearchWorkbench-worktrees/rwb-weknora-datahub-mcp-20261122/docs/architecture/research-web/diagrams/15-inbound-mcp.json",
+  "output": "/Volumes/WorkDisk/Projects/RWB/ResearchWorkbench-worktrees/rwb-weknora-datahub-mcp-20261122/outputs/research-web-architecture/15-inbound-mcp.html",
   "specification": {
-    "sha256": "a41632858b07df675f2c9cef505baa5f4544ca3ccd9e1e5f24cb50c9ba4b9c1d",
-    "bytes": 3381
+    "sha256": "cb00d86033e99c6e872f417354625a34282ca403c142ef5957bf8e5c150083c6",
+    "bytes": 8569
   },
   "artifact": {
-    "sha256": "6b04263925cf4efe7962d450596eb501b5193964c8c4a53f398ec0f91e23a253",
-    "bytes": 636395
+    "sha256": "886caef7b6d4f6e468c8ecbb72637894af2cc722cdbfcdc7aae1c447d0be1861",
+    "bytes": 850664
   },
   "validation": {
     "checksPassed": 9,
@@ -20,5 +21,23 @@
     "compositionStatus": "pass",
     "errors": 0,
     "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "git@github.com:Leon-Huang001208/ResearchWorkbench",
+    "revision": "05456f433556f8c3cbe2ed6d90090ac3e045f6a5",
+    "references": 16,
+    "linkMode": "local-only"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
   }
 }

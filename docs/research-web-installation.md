@@ -1357,18 +1357,23 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 实际进程以已认证 `GET /api/research/runtime` 的 `execution_mode=external` 为准。
 现有模式仍要求固定 DSH。生产切换须先交接活动及未知运行并核验历史原件。
 
-仅服务试验可在原命令增加 `--weknora-oauth-origin http://127.0.0.1:18193`
-并显式设置 `RWB_MCP_READONLY_ENABLED=1`。该来源应改为隔离 WeKnora 的
+已有 DSH 或仅服务模式均可在原命令增加 `--weknora-oauth-origin http://127.0.0.1:18193`
+并显式设置 `RWB_MCP_READONLY_ENABLED=1`。该来源应改为 WeKnora 的
 实际浏览器地址。Doctor 接受相同模式和来源参数，只报告
 `weknora_oauth.status`，不会登记客户端或执行授权。[OAuth 合同](research-web-mcp-facade.md#隔离-weknora-oauth-客户端)
 
 ### 常驻仅服务配置与主账号原位挂载
 
-常驻私有配置接受 `service_only: true`；与既有 `mcp_readonly_enabled: true`
-一同配置 `weknora_oauth_origin` 后，RWB 私网 HTTPS 可为预登记的
-WeKnora 客户端提供授权。HTTPS 回调使用与 RWB 不同的主机；回环回调
-用于在 Mac mini 本机完成授权。Doctor 只报告待配置元数据。
+常驻私有配置用 `mcp_readonly_enabled: true` 与明确的 `weknora_oauth_origin`
+为预登记的 WeKnora 客户端提供授权；`service_only` 独立控制研究宿主，
+保持 `false` 可沿用原 DSH 与主账号存储。HTTPS issuer 与 WeKnora 回调须使用不同
+hostname，不能仅以不同端口隔离 Cookie；跨设备生产需不同 hostname。
+Mac mini 本机可使用 RWB HTTPS `:9543` 与 WeKnora `http://127.0.0.1:18181` 回调。
+完整回调登记、PKCE、issuer/resource、选材和撤权保持。Doctor 只报告待验证元数据。
+隔离网关的规范 Tailnet HTTPS origin 可显式使用 `:9543` 等非默认端口；
+实际回环监听仍由 `--port` 指定，Host/Origin、OAuth 元数据与资源标识保留完整 HTTPS 端口。
+隔离验证使用独立 CookieJar 或浏览器 profile，不与生产 RWB 登录共享 Cookie。
 
-主账号仍使用原绑定的数据根，后端启动前持有原 supervisor 与 lifecycle 锁，
+显式切换 `service_only: true` 时，主账号仍使用原绑定的数据根，后端启动前持有原 supervisor 与 lifecycle 锁，
 验证旧安装和进程停止，复用已登记 Web 端口。其他账号目录及原鉴权保持。
 生产切换须独立验收实际登录、原目录、HTTPS OAuth、固定前版回滚及 DSH 停止。

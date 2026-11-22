@@ -45,7 +45,8 @@
         "docs/architecture/research-web/04-api.md",
         "docs/architecture/research-web/05-security-validation.md",
         "docs/architecture/research-web/07-capabilities.md",
-        "docs/research-web-installation.md"
+        "docs/research-web-installation.md",
+        "docs/research-web-mcp-datahub.md"
       ],
       "diagrams": [
         "15-inbound-mcp"
@@ -56,7 +57,9 @@
         "tests/research_web/test_mcp_facade_read_policy.py",
         "tests/research_web/test_mcp_facade_http.py",
         "tests/research_web/test_mcp_facade_tools.py",
-        "tests/research_web/test_mcp_facade_lifecycle.py"
+        "tests/research_web/test_mcp_facade_lifecycle.py",
+        "tests/research_web/test_mcp_facade_config.py",
+        "tests/research_web/test_mcp_facade_datahub.py"
       ]
     },
     {
@@ -783,7 +786,8 @@
         "tests/research_web/test_scenario_method_sources.py",
         "tests/research_web/test_scenario_source_selection.py",
         "tests/research_web/test_source_capture_proof.py",
-        "tests/research_web/test_source_capture_store_interaction.py"
+        "tests/research_web/test_source_capture_store_interaction.py",
+        "tests/research_web/test_mcp_facade_datahub.py"
       ]
     },
     {
@@ -1250,7 +1254,7 @@
       "receipt": "outputs/research-web-architecture/15-inbound-mcp.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/15-inbound-mcp.visual-check.json",
       "level": "subsystems",
-      "summary": "可选私网 MCP 的独立应用授权、逐对象批准和既有冻结读取；实现与各宿主实链分别取证。",
+      "summary": "原OAuth与存活账号Host；四项冻结读取保持，WeKnora显式同意后增加公开FRED/BLS查询、状态与取消，不扩大专业源或生产接管。",
       "evidence": [
         {
           "subjects": [
@@ -1307,6 +1311,26 @@
             "frozen-get"
           ],
           "source": "app/research_web/mcp_facade/backend.py"
+        },
+        {
+          "subjects": [
+            "datahub",
+            "public-query"
+          ],
+          "source": "app/research_web/mcp_facade/backend.py"
+        },
+        {
+          "subjects": [
+            "providers",
+            "provider-read"
+          ],
+          "source": "app/research_web/datahub/providers_external.py"
+        },
+        {
+          "subjects": [
+            "snapshot-publish"
+          ],
+          "source": "app/research_web/datahub/snapshots.py"
         }
       ]
     },
@@ -6609,9 +6633,23 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/data/contexts",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/data/contexts",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/scenarios/{scenario_id}/prepare",
       "source": "app/research_web/workbench.py",
       "declaredPath": "/scenarios/{scenario_id}/prepare",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/queries/{query_id}/cancel",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/data/queries/{query_id}/cancel",
       "prefix": "/api/research"
     },
     {
@@ -6626,7 +6664,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "81dc264d22009858a05c22e3b32ded3e7ede6d23"
+      "revision": "1d943a103445ad5ef5238b970f613f1cf273dbfd"
     },
     "levels": [
       {
@@ -6661,8 +6699,8 @@
       {
         "id": "inbound-mcp-readonly",
         "group": "inbound-mcp-readonly",
-        "title": "入站 MCP 私网只读",
-        "summary": "默认关闭；独立 OAuth 授权与批准公开/合成冻结材料，沿存活账户后端读取，不冷启动研究。原生宿主与私网验收待执行。",
+        "title": "入站 MCP · 冻结读取与公开取数",
+        "summary": "默认关闭；旧rwb.read保留四项冻结读取。WeKnora另经显式scope同意，复用存活Host/DataHub查询有界FRED/BLS公开序列；实源、PIT及生产接管分别验收。",
         "category": "研究会话与 Runtime"
       },
       {

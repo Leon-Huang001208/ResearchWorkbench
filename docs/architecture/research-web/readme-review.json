@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留现行G2B受管发布、主账号数据源入口与研究包文档，README与实际源码范围一致。",
-  "reason": "新增九个确定性计算包和三个原件方法，沿现有研究链使用；README增加实际模块说明，未声称真实供应商、模型或常驻部署已验收。保留已合主线可信primary菜单和通用已审升级入口，现役身份仍由原common校验。CI按真实研究包和Host接口选择，保留retention、architecture、G2B与reviewed_upgrade分支及必要Mac安装门，不增加服务、job、runner或公开安装步骤；相邻源码、生产登录与实际部署分别验收。"
+  "summary": "README保留G2B、可信主账号数据源与通用已审升级入口，补充研究包文档和显式DataHub金融MCP授权边界。",
+  "reason": "新增九个确定性计算包和三个原件方法沿现有研究链使用，README同步实际模块说明；主账号菜单和通用升级仍由现役common校验，不把源码合入当成实际部署。金融MCP仅允许明确同意的WeKnora客户端对所属账户调用公开FRED/BLS查询、快照和取消，rwb.read不扩权，连接与发现不取数，专业源与报告质量仍保留RWB。CI保留既有retention、architecture、G2B、reviewed_upgrade及研究包分支和必要Mac安装检查，不增加job、runner、公开安装入口、产品依赖或数据迁移；真实供应商、模型、登录、生产接管和平台验收按各自实际结果陈述。"
 }

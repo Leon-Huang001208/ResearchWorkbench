@@ -198,6 +198,87 @@ def test_snapshot_detects_old_data_or_model_changes_but_allows_new_sessions(tmp_
     assert compare_snapshot(before, snapshot(root))["preserved"] is False
 
 
+def test_embedded_resident_registers_weknora_without_acquiring_primary_storage(
+    tmp_path, monkeypatch
+):
+    import uvicorn
+
+    from app.research_web.multiuser import __main__ as cli
+    from app.research_web.multiuser import (
+        gateway,
+        resident,
+        resident_binding,
+        resident_boot,
+        runtime,
+    )
+
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    legacy = tmp_path / "legacy/resident"
+    legacy.mkdir(parents=True)
+    original = legacy / "config.json"
+    original.write_text(json.dumps({"node": "/synthetic/node"}))
+    original.chmod(0o600)
+    before = original.read_bytes()
+    origin = "https://research.tail123.ts.net:9543"
+    callback_origin = "http://127.0.0.1:18181"
+    config = {
+        "version": 1,
+        "revision": "a" * 40,
+        "project": str(cli.PROJECT),
+        "port": 8089,
+        "source": str(tmp_path / "source"),
+        "node": "/synthetic/node",
+        "origin": origin,
+        "binding": {},
+        "service_only": False,
+        "mcp_readonly_enabled": True,
+        "weknora_oauth_origin": callback_origin,
+    }
+    path = root / "resident.json"
+    path.write_text(json.dumps(config))
+    path.chmod(0o600)
+    runtime_configs = []
+
+    class Pool:
+        def __init__(self, config, **kwargs):
+            runtime_configs.append(config)
+
+        async def close(self):
+            pass
+
+    def primary_storage():
+        pytest.fail("embedded registration must retain the original running primary")
+
+    monkeypatch.setattr(resident.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(resident, "verify_local_checkout", lambda *args: None)
+    monkeypatch.setattr(runtime, "RuntimePool", Pool)
+    monkeypatch.setattr(
+        resident_binding.LegacyBinding,
+        "from_config",
+        lambda _: SimpleNamespace(home=legacy.parent, service_only_storage=primary_storage),
+    )
+    monkeypatch.setattr(resident_binding, "AttachedPool", lambda accounts, pool, *args: pool)
+    monkeypatch.setattr(resident_boot, "boot_identity", lambda: "synthetic-boot")
+
+    def serve(app, **kwargs):
+        assert isinstance(app, gateway.FastAPI)
+        with TestClient(app, base_url=origin) as client:
+            assert client.get("/api/server/health").json()["mcp_readonly_enabled"] is True
+            metadata = client.get("/.well-known/oauth-authorization-server").json()
+            assert metadata["issuer"] == origin
+            assert metadata["scopes_supported"] == ["rwb.read", "rwb.data.query"]
+            registered = app.state.mcp_facade.store.load_client("rwb-weknora")
+            assert registered.redirect_uris == (callback_origin + "/api/v1/mcp-oauth/callback",)
+
+    monkeypatch.setattr(uvicorn, "run", serve)
+    assert resident.run(root) == 0
+    assert len(runtime_configs) == 1
+    assert runtime_configs[0].service_only is False
+    assert runtime_configs[0].primary_storage is None
+    assert original.read_bytes() == before
+
+
 def test_deployment_gate_blocks_get_birth_and_login_but_reports_fenced_health(attached, tmp_path):
     pool, private, _admin, _user = attached
     pool.deployment_path = tmp_path / "gateway-upgrade.json"

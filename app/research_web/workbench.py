@@ -36,6 +36,12 @@ class DeskQuery(BaseModel):
     query: BusinessQuery
 
 
+class DataContext(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    grant_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    create: bool = True
+
+
 class Handoff(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -397,6 +403,23 @@ async def _run_query(service, query_id: str, body: DeskQuery) -> None:
         service.notify()
 
 
+@router.post("/data/contexts")
+async def data_context(body: DataContext, request: Request):
+    """An account-local public-data workspace; never create a DSH session."""
+    service = request.app.state.research
+    async with service.workbench_lock:
+        for row in service.store.data["sessions"].values():
+            if row.get("mcp_data_grant_id") == body.grant_id:
+                return {"session_id": row["id"], "grant_id": body.grant_id}
+        if not body.create:
+            raise StoreError("数据上下文不存在", "data_context_not_found", 404)
+        row = service.store.create("fingpt", "WeKnora · DataHub")
+        row.update(mcp_data_grant_id=body.grant_id, source_scope=["datahub"])
+        service.store.save()
+        log.info("mcp_data_context_created", session_id=row["id"])
+        return JSONResponse({"session_id": row["id"], "grant_id": body.grant_id}, status_code=201)
+
+
 @router.post("/data/queries", status_code=202)
 async def start_query(
     body: DeskQuery,
@@ -405,10 +428,19 @@ async def start_query(
 ):
     service = request.app.state.research
     digest = _key(idempotency_key)
+    fingerprint = hashlib.sha256(
+        json.dumps(body.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     async with service.workbench_lock:
         existing = service.store.data["data_query_keys"].get(digest)
         if existing:
-            return _public_query(service.store.data["data_queries"][existing])
+            record = service.store.data["data_queries"][existing]
+            if record.get("request_fingerprint") not in (None, fingerprint):
+                log.warning("research_desk_query_idempotency_conflict")
+                raise StoreError(
+                    "同一查询标识不能用于不同参数", "data_query_idempotency_conflict", 409
+                )
+            return _public_query(record)
         session_id = body.session_id
         if session_id is None:
             created = await service.create("fingpt", f"研究台 · {body.section}")
@@ -428,6 +460,7 @@ async def start_query(
             "duration_ms": None,
             "failure_code": None,
             "dataset": None,
+            "request_fingerprint": fingerprint,
         }
         service.store.data["data_queries"][query_id] = record
         service.store.data["data_query_keys"][digest] = query_id
@@ -466,6 +499,30 @@ async def query_status(query_id: str, request: Request):
         record = request.app.state.research.store.data["data_queries"][query_id]
     except KeyError as exc:
         raise StoreError("研究台查询不存在") from exc
+    return _public_query(record)
+
+
+@router.post("/data/queries/{query_id}/cancel")
+async def cancel_query(query_id: str, request: Request):
+    service = request.app.state.research
+    try:
+        record = service.store.data["data_queries"][query_id]
+    except KeyError as exc:
+        raise StoreError("研究台查询不存在", "data_query_not_found", 404) from exc
+    if record["status"] != "running":
+        return _public_query(record)
+    sid = record["session_id"]
+    # The desk task can still be queued before DataHub.query registers its
+    # provider task. Stop both exact call identities, never the whole session.
+    await service.datahub.cancel(sid, query_id)
+    task = service.datahub.tasks.get((sid, f"desk:{query_id}"))
+    if task is not None and not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    if record["status"] == "running":
+        record.update(status="cancelled", completed_at=time.time(), failure_code="cancelled")
+        service.store.save()
+    log.info("research_desk_query_cancelled", query_id=query_id)
     return _public_query(record)
 
 

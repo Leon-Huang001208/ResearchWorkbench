@@ -23,7 +23,7 @@ Research Web 的 AlphaDesk AI 问答候选及切换状态见[问答合同](docs/
 候选、人工确认版本和原件；策略模拟分别计算固定窗口、指数对照及代理账本，六维研究分须独立
 验证且不启用生产评分。免费来源覆盖、PIT缺口、源码验收与真实业务接受分别记录。
 
-新增默认关闭的[私网入站 MCP](docs/research-web-mcp-facade.md)：成熟应用经原生 OAuth 独立授权后，只读操作员批准的公开或合成冻结材料。RWB 保留账号权限、DataHub、来源证据和质量门，固定 DSH 仍承担原研究执行；FinGPT／Claw 通用 Agent 功能停止扩建，已有入口兼容维护。源码和隔离测试不代表私网部署或 Codex／DSH／WorkBuddy 原生验收；不自动取数、调用模型或启动研究实例。
+默认关闭的[私网入站 MCP](docs/research-web-mcp-facade.md)保留 `rwb.read`：只读操作员批准的公开或合成冻结材料，不调用 Provider。WeKnora 客户端可另行明确同意 [`rwb.data.query`](docs/research-web-mcp-datahub.md)，在所属账户内查询 FRED／BLS 公开序列、读取快照及取消请求；连接与发现本身不取数，新数据接口也不启动 DSH。RWB 保留来源权限、金融语义、原件、PIT和报告质量；FinGPT／Claw 名称及原入口保持。隔离样本通过不表示生产接管、专业付费源或正式报告已获授权，其他客户端与跨平台验收分别记录。
 
 资产观察可在“更多 → 自选与最近观察”[离线导入股票 CSV](docs/research-web-watchlist-import.md)：完整预览、显式消歧/跳过、重新冻结并确认追加，保留原自选。首批仅本地已获准沪深北股票目录；不取数、不调用模型，其他资产类型逐项待支持。源码、本机与部署状态分别验收。
 

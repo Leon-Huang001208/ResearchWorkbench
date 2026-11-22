@@ -15,7 +15,7 @@ RWB 保留账户与权限、DataHub/Provider、冻结数据、来源证据、档
 | 项目 | 首版合同 |
 | --- | --- |
 | 资源标识 | 规范 Origin 加 `/mcp` |
-| 公开客户端 | `rwb-codex-native`；隔离仅服务网关可显式启用 `rwb-weknora`；均无客户端密码 |
+| 公开客户端 | `rwb-codex-native`；已有 DSH 或仅服务网关均可显式登记 `rwb-weknora`；均无客户端密码 |
 | 回调 | Codex 使用 `http://127.0.0.1/callback`，允许有效回环端口；WeKnora 只接受配置的完整回调，详见下节 |
 | Scope | 仅 `rwb.read`，同时受本次授权选材限制 |
 | 授权方式 | 授权码与 PKCE S256；现有网页登录后显式同意 |
@@ -93,7 +93,9 @@ Codex 真机链必须由用户网页登录并同意，通过原生 OAuth 读取�
 
 ## 隔离 WeKnora OAuth 客户端
 
-通过仅服务命令显式登记一个 WeKnora 浏览器来源。完整回调固定为该来源加
+通过 `server serve --weknora-oauth-origin` 显式登记一个 WeKnora 浏览器来源，
+同时要求 `RWB_MCP_READONLY_ENABLED=1`。登记不要求 `--service-only`；已有 DSH
+和仅服务模式保留各自的后端及存储生命周期。完整回调固定为该来源加
 `/api/v1/mcp-oauth/callback`，路径、主机和端口逐字匹配。试点两端使用不同的非默认端口及
 `http://127.0.0.1`，以满足浏览器同站点检查。配置缺席时客户端禁用。
 同一账户库中改变已有登记的回调会拒绝启动，应先核对授权并使用独立试验根。
@@ -110,10 +112,26 @@ RWB 的规范来源加 `/mcp`。WeKnora 进程必须能访问同一来源的资�
 
 ## 私网 HTTPS 的 WeKnora 授权
 
-常驻网关的私有配置可显式启用 `service_only`、`mcp_readonly_enabled`
-与 `weknora_oauth_origin`。WeKnora 回调可使用独立的规范 Tailnet HTTPS
-主机（可带非默认端口），或在 Mac mini 浏览器内使用明确的回环端口。
-HTTPS 回调主机和 RWB 主机必须不同，浏览器 Cookie 不按端口隔离。
+常驻网关的私有配置通过 `mcp_readonly_enabled: true` 与明确的
+`weknora_oauth_origin` 登记客户端；`service_only` 仍独立决定研究宿主，
+保持 `false` 不接管或重启原主账号 DSH。WeKnora 回调可使用规范 Tailnet HTTPS
+来源（可带非默认端口），或在 Mac mini 浏览器内使用明确的回环端口。
+RWB 的 HTTPS issuer 与 WeKnora 回调必须使用不同 hostname；同一 origin 也拒绝。
+浏览器 Cookie 按 hostname 而非端口发送，因此 HTTPS 9543→同 host 9443 会把
+RWB 的 Secure/HttpOnly/SameSiteStrict 登录 Cookie 发给 WeKnora；WeKnora 自身采用
+Bearer 登录、不写同名 Cookie，并不能消除这种泄露。跨设备生产须使用不同 hostname。
+本机试点可使用 RWB `https://research.tail123.ts.net:9543` 与
+WeKnora `http://127.0.0.1:18181` 的回调；这仅适用于在 Mac mini 本机完成授权。
+
+RWB 规范 Tailnet HTTPS origin 也可显式使用非默认端口，例如隔离网关
+`https://research.tail123.ts.net:9543`。授权服务器元数据、资源 `/mcp`、
+Host/Origin 与回调均保留准确端口，不接受转发头改写身份。端口 0、越界、
+userinfo、路径、查询、片段和非 Tailnet 来源仍拒绝。隔离账号验证须使用独立
+CookieJar 或浏览器 profile，避免覆盖生产 RWB 登录；不必改既有 443 或 WeKnora 入口。
+
+该登记只修正客户端与宿主模式的耦合，不改变默认关闭、精确回调、PKCE、
+issuer/resource、旧授权、批准选材或四项冻结工具。Doctor 只显示配置待验证；
+源码回归通过不代表常驻开关、真实 WeKnora OAuth 或 DataHub 实时取数已经验收。
 
 跨站浏览器仅能导航到与预登记客户端及完整回调匹配的 GET 授权入口及其登录页。
 这两步忽略已有登录 Cookie，登录和选材同意仍走 RWB 的同源页面。
