@@ -228,7 +228,7 @@ test('retention-only changes select their tool contracts while product changes r
       env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output, SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(fs.readFileSync(output, 'utf8').trim(), `retention_only=${expected}`);
+    assert.equal(fs.readFileSync(output, 'utf8').trim().split('\n')[0], `retention_only=${expected}`);
   }
   assert.match(workflows.checks, /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
   assert.match(workflows.checks, /HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
@@ -237,6 +237,29 @@ test('retention-only changes select their tool contracts while product changes r
     const block = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
     assert.match(block, /if: steps\.contract-scope\.outputs\.retention_only != 'true'/);
   }
+});
+
+test('research pack changes select Host interfaces while unrelated product changes keep the full scope', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-pack-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const packFiles = ['app/research_web/scenario_pack_execution.py', 'app/research_web/main.py',
+    'tests/research_web/test_pack_execution_host.py', 'docs/research-web-research-packs.md'];
+  for (const [files, expected] of [[packFiles, true], [[...packFiles, 'app/research_web/market_service.py'], false], [['app/research_web/main.py'], false], [[], false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in json.loads(os.environ['SCOPE_FILES']))+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: 'a'.repeat(40), HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output, SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(output, 'utf8').trim().split('\n').find(line => line.startsWith('research_packs_only=')), `research_packs_only=${expected}`);
+  }
+  assert.match(workflows.checks, /test_pack_execution_host\.py/);
+  assert.match(workflows.checks, /test_owned_method_execution\.py/);
+  assert.match(workflows.checks, /test_weknora_formal_scope\.py/);
 });
 
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {

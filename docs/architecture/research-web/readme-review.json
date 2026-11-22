@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核原PR284在当前主线前移的两处附接MCP保全校验；README公开安装和功能入口保持，正文无需修改。",
-  "reason": "本次只调整既有Native联合操作员在BirthFence SQLite排他锁及安装作用域内的配置、前版健康与保全复核顺序。五模式forward和限定preparing恢复的失败保留原journal，Trial及完成后回滚方向不变；没有新增公开安装入口、CLI模式、用户配置、依赖、账号迁移、服务或平台支持。具体范围记录在网关升级、安装和架构文档，旧财经日历部署profile不恢复。README现有安装命令、源码入口及验收边界仍适用；源码、CI与实际部署分别取证，本回执不认证未执行项。"
+  "disposition": "updated",
+  "summary": "原PR245前移后保留现行Host/DataHub/唯一DSH及能力三分类，在README补研究包和原件方法说明链接。",
+  "reason": "新增九个确定性计算包和三个原件方法，沿现有研究链使用；README增加实际模块说明，未声称真实供应商、模型或常驻部署已验收。CI按真实受影响研究包和Host接口选择，保留清理工具快路径和必要安装门，不引入旧双分片汇合框架。"
 }
