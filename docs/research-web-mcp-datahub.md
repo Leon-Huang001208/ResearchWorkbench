@@ -45,3 +45,9 @@ Facade 只选择原账号已存活的 Host。它不通过 MCP 冷启 DSH、sched
 HTTP 受理、Provider 执行结束、数据质量可用分别判断。`status=completed` 可能对应 `dataset.status=failed`；单列的 `data_success` 复用原 DataHub `quality_accepted` 判据，running时为null，不把执行结束当数据通过。BLS 403、来源错误、取消、缺失或未知 PIT 不变成成功；原始 `.` 等供应商缺失表示不得补为0。字段单位为 `provider_defined` 时仍未知，须另有官方元数据证据才可在报告中解释。
 
 本模块离线测试使用真实 OAuth/SDK、Store、HTTP 路由和 DataHub，外部 Provider 响应为合成。它不认证真实金融网络、WeKnora 模型、生产 OAuth 或浏览器；这些由本任务现场验证单列。无新增 Python 依赖，公开安装入口及固定 MCP SDK 继续适用，Mac 干净安装需最终候选 CI。
+
+## 本机首个真实闭环（2026-11-23）
+
+同一 WeKnora 会话经实际 MCP query/status、隔离 RWB Host 与原 FRED Provider 取得七行 snapshot；随后实际读取 Skill、编辑并运行沙箱脚本，下载11个产物。Root 独立比较了完整 MCP 状态、脚本输入、算术、source/as_of/SHA，以及三份 raw 与 manifest，均与该样本一致。另一 FinGPT Agent 读取同一快照，没有再发一次取数。
+
+这仍是隔离账号和固定公开样本。数据保留 FRED 原始字段；`provider_defined` 不能自行解释成已核单位，缺失和当前vintage限制不变，未证明 PIT／历史当时可得、BLS实源或 Wind/iFinD/天软覆盖。沙箱临时 Git 仓库的编辑／diff不能替代 RWB 持久代码项目，独立 Agent 对话不证明原生子Agent层级。正式 RWB 产品入口、跨设备独立主机名、旧会话与业务数据接管仍需后续实际验收；本记录不宣布生产替换完成。

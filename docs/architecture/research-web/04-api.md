@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+## WeKnora 显式公开取数（2026-11-23）
+
+新增两条既有 Host API：`POST /api/research/data/contexts` 接收 Facade 注入的 `grant_id` 与可选 `create`，为本账号授权创建或复用无 DSH 的 Store 上下文；`POST /api/research/data/queries/{query_id}/cancel` 取消准确查询，已完成结果不删、不重发。查询提交、状态和冻结下载继续复用原 `/data/queries` 与 `/sessions/{sid}/datasets/{did}`。HTTP 保留原账号、同源及租户鉴权；MCP 调用额外在 Facade 绑定实际 bearer/grant，不接受模型自选账号根、URL、凭据或原生会话。
+
+旧 `rwb.read` 只暴露四项批准冻结读取；显式登记的 WeKnora 另经本人同意申请 `rwb.data.query` 才增加 query/status/cancel 三工具，范围仅有界 FRED/BLS 公开序列。原授权与刷新不会增权，`status=completed` 与 `data_success` 分开；原字段、缺失、source/as_of/原件摘要与 PIT 限制保留。路径 inventory 现为500项源码声明／497个唯一接口，沿原生成器收录至 Atlas；SDK八条条件路由保持，未新增模型、脚本或专业源代理。[完整契约](../../research-web-mcp-datahub.md)
+
 附接 MCP 保全的围栏内复核只调整现有本机操作员 `operate` 的 forward／限定 preparing
 恢复顺序，不新增 CLI 模式、业务 HTTP 方法、路径、请求字段或权限。前版健康由原
 `Operations.verify(previous=True)` 读取；该校验不提交模型、采集或研究请求。

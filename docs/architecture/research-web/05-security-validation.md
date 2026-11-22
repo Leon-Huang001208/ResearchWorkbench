@@ -1,5 +1,11 @@
 # 安全边界与验证方法
 
+## 入站 MCP 的公开取数权限（2026-11-23）
+
+`rwb.read` 仍只读本人明确批准的 public/synthetic 冻结资料，不调用 Provider。仅显式登记 WeKnora 时可另申请 `rwb.data.query`；同意页说明 FRED/BLS 公开取数及生成快照，旧 grant 不因源码升级或刷新增权。三项执行工具从实际 bearer 派生账号/grant，限定固定公开系列接口，状态与取消核对 grant 上下文；返回前复验撤权，DataKey、凭据、路径和任意URL不交外部宿主。上下文与查询允许经过 service-only 的准确HTTP入口，原生会话、模型配置及来源配置写仍拒绝。[合同](../../research-web-mcp-datahub.md)
+
+Cookie 不按端口隔离，同 hostname 的 RWB/WK HTTPS 回调保持拒绝；本机隔离样本使用 WK 回环回调，不证明跨设备登录。RWB `admin` 与 WeKnora 账号是独立身份，测试的隔离RWB账号不等于正式账号资料已迁移。实源只核过 FRED 七行样本，当前vintage/PIT、BLS与中国专业源及生产接管另验；两次独立Agent对话也不能当作原生子Agent或持久代码项目验收。离线协议、真实Host、真实Provider、模型与文件质量分别留证。
+
 附接 MCP 五模式仅在 forward apply 与非完成后回滚的 preparing 恢复中，于真实持有的
 BirthFence SQLite EX、安装作用域和原 Operations 内复查配置及前版健康／MCP／账号保全。
 两项都成功才 execute 或删除准备 journal；任一失败保留原记录并拒绝 stop／checkpoint／切源。
