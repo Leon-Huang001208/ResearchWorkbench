@@ -24,7 +24,23 @@ FinGPT worker／格式／费用准入、来源读取与质量、报告 SDK／渲
 选择回归。执行分支使用真实工作流 shell 与本机记录 stub，核对36个完整模块、准入单例、三个单元模块、
 三历史对象及完整 Node 分支均保留。另将本工作树对 `20d77196` 的实际79项差异交给实际 selector，
 只得到 `fingpt_source_only=true`，其余 scope 均为 false。未运行 pytest，原任务仅有另一个取消修复批次。
-日志为 `logs/fingpt-ci-scope-{red,green}.txt` 及 `logs/fingpt-ci-scope-actual.json`；远端新候选 CI 尚未运行。
+日志为 `logs/fingpt-ci-scope-{red,green}.txt` 及 `logs/fingpt-ci-scope-actual.json`。
+
+首次返修的工作流在 `45070244792` 启动时被平台拒绝，未创建 job：Python contracts 的解码 `run`
+为23,332字符，超过平台21,000上限。本机31项检查与当时评审漏掉此平台限制，不能当作工作流有效的证据。
+本次将该 FinGPT 分支的固定命令逐字提取为 `scripts/run_fingpt_source_ci.sh`，只保留原选择和固定调用。
+脚本不接受选例参数，使用原环境、三个对象、插件、私有根和完整测试名单，错误通过 `set -euo pipefail` 传播。
+
+新增两项回归先 RED（超长23,332和固定脚本缺失），修后完整 Actions quota 模块33 passed、零失败（最终2.003s）。
+使用共享环境中已安装的 PyYAML 另行解码核对所有六个 step：scope 15,585、依赖安装5,667、Python contracts
+20,387、JavaScript contracts 1,704、编辑引擎130、证据阶段148字符，均不超过21,000。
+机械比较确认脚本去除 shebang／`set -euo pipefail` 头后与 `cd13116f` 的原分支命令逐字一致；
+将固定调用换回原分支、移除新脚本名单和两个精确事件触发路径后，整个 workflow 与该基线逐字一致。
+两个事件路径仅保证以后单独修改该脚本也进入既有 Checks job，不扩大 Mac 或其它平台触发。
+回归还检查展开的两个
+Python命令、36模块顺序、Bot准入、三个unit、Git完整参数／对象、插件和根路径。
+日志为 `logs/fingpt-ci-expression-{red,green}.txt`、`logs/fingpt-ci-expression-lengths.json`。
+本次未运行 pytest、远端发布、模型或生产操作；下一候选仍须由原任务正常返修并取得自己的CI结果。
 
 Product-Progress: not-required — 本次只调整已有持续集成执行范围，不改变产品入口、业务行为或已完成状态。
 

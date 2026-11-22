@@ -424,12 +424,12 @@ test('FinGPT source reports select the actual reviewed diff and reject unrelated
   ];
   const anchor = 'app/research_web/discovery/fed.py';
   const repair = ['.github/workflows/research-web-checks.yml', 'scripts/run_ci_pytest_partitions.py',
-    'tests/unit/test_ci_pytest_partitions.py', 'tests/javascript/actions_quota_governance.test.mjs'];
+    'scripts/run_fingpt_source_ci.sh', 'tests/unit/test_ci_pytest_partitions.py', 'tests/javascript/actions_quota_governance.test.mjs'];
   for (const [paths, base, failure, expected] of [[original, 'a'.repeat(40), '', true],
     [[...original, ...repair], 'a'.repeat(40), '', true],
     ...original.filter(name => name.startsWith('app/') && !name.endsWith('.md')).map(name => [[anchor, name], 'a'.repeat(40), '', true]),
     ...['app/research_web/market_service.py', 'app/research_web/discovery/unknown.py',
-      'tests/research_web/fixtures/unreviewed.json', '.github/workflows/desktop-verify.yml'].map(name => [[...original, name], 'a'.repeat(40), '', false]),
+      'scripts/run_fingpt_source_ci_extra.sh', 'tests/research_web/fixtures/unreviewed.json', '.github/workflows/desktop-verify.yml'].map(name => [[...original, name], 'a'.repeat(40), '', false]),
     [['app/research_web/service.py'], 'a'.repeat(40), '', false],
     [original, '', '', false], [original, 'a'.repeat(40), 'fetch', false], [original, 'a'.repeat(40), 'diff', false]]) {
     const output = path.join(root, `output-${fs.readdirSync(root).length}`);
@@ -445,13 +445,45 @@ test('FinGPT source reports select the actual reviewed diff and reject unrelated
   }
 });
 
+test('Checks decoded run blocks fit the GitHub 21000-character expression limit', () => {
+  const lines = workflows.checks.split('\n');
+  const blocks = [];
+  for (let index = 0; index < lines.length; index++) {
+    const match = lines[index].match(/^( +)run: \|$/);
+    if (!match) continue;
+    const indentation = match[1].length;
+    const body = [];
+    for (let next = index + 1; next < lines.length; next++) {
+      if (lines[next].trim() && lines[next].match(/^ */)[0].length <= indentation) break;
+      body.push(lines[next]);
+    }
+    const contentIndentation = Math.min(...body.filter(line => line.trim()).map(line => line.match(/^ */)[0].length));
+    const decoded = body.map(line => line.slice(contentIndentation)).join('\n').replace(/\n*$/, '\n');
+    const name = lines.slice(0, index).reverse().find(line => /^ +\- name: /.test(line))?.trim();
+    blocks.push({name, length: decoded.length});
+  }
+  assert.equal(blocks.length, lines.filter(line => /^ +run:/.test(line)).length, 'check every run declaration');
+  for (const block of blocks) assert.ok(block.length <= 21000, `${block.name}: decoded run length ${block.length} exceeds 21000`);
+});
+
+test('FinGPT CI commands use the fixed shell script without expanding the workflow block', () => {
+  const script = fs.readFileSync(new URL('../../scripts/run_fingpt_source_ci.sh', import.meta.url), 'utf8');
+  assert.ok(script.startsWith('#!/usr/bin/env bash\nset -euo pipefail\n'));
+  const branch = workflows.checks.match(/if \[ "\$\{\{ steps\.contract-scope\.outputs\.fingpt_source_only \}\}" = "true" \]; then\n([^]*?)\n          fi/);
+  assert.ok(branch);
+  assert.equal(branch[1], '            bash scripts/run_fingpt_source_ci.sh\n            exit 0');
+  for (const event of ['pull_request', 'push']) assert.equal(triggersForPath(workflows.checks, event, 'scripts/run_fingpt_source_ci.sh'), true);
+});
+
 test('FinGPT source scope preserves complete shared contracts, maintenance fixtures and unit evidence', t => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-fingpt-source-commands-')));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.mkdirSync(path.join(root, '.venv/bin'), {recursive: true});fs.mkdirSync(path.join(root, 'bin'));
+  fs.mkdirSync(path.join(root, 'scripts'));
+  fs.copyFileSync(new URL('../../scripts/run_fingpt_source_ci.sh', import.meta.url), path.join(root, 'scripts/run_fingpt_source_ci.sh'));
   const calls = path.join(root, 'calls.jsonl');
   for (const [file, kind] of [['.venv/bin/python', 'python'], ['bin/git', 'git'], ['bin/node', 'node']]) {
-    fs.writeFileSync(path.join(root, file), `#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify({kind:${JSON.stringify(kind)},args:process.argv.slice(2)})+'\\n');\n`, {mode: 0o700});
+    fs.writeFileSync(path.join(root, file), `#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify({kind:${JSON.stringify(kind)},args:process.argv.slice(2),plugins:process.env.PYTEST_PLUGINS??null,bytecode:process.env.PYTHONDONTWRITEBYTECODE??null})+'\\n');\n`, {mode: 0o700});
   }
   for (const name of ['Run Research Web Python contracts', 'Run Research Web JavaScript contracts']) {
     const step = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
@@ -466,24 +498,35 @@ test('FinGPT source scope preserves complete shared contracts, maintenance fixtu
   const python = commands.filter(item => item.kind === 'python');assert.equal(python.length, 2);
   for (const command of python) assert.equal(command.args[0], 'scripts/run_ci_pytest_partitions.py');
   const selected = python[0].args.slice(python[0].args.indexOf('--') + 1);
-  for (const name of ['api', 'protocol', 'research_bots', 'automation_routes', 'automation_schedule',
+  const modules = ['protocol', 'api', 'research_bots', 'automation_routes', 'automation_schedule',
     'automation_research_task', 'datahub', 'discovery', 'discovery_routes', 'discovery_tracking',
     'alphadesk_qa', 'alphadesk_qa_formats', 'qa_acceptance_budget', 'research_quality',
     'research_quality_scope', 'research_business_evidence', 'bound_analysis', 'research_report',
     'research_report_binding', 'research_source_reading', 'external_sources', 'dossiers',
     'report_formats', 'report_rendering', 'report_revision', 'report_calculations',
     'report_workflows', 'report_workflow_integration', 'owned_method_execution',
-    'scenario_method_sources', 'model_provider_upgrade', 'gateway_upgrade', 'iteration_resources',
-    'weknora_formal_scope', 'store', 'capabilities_native']) {
-    assert.ok(selected.includes(`tests/research_web/test_${name}.py`), name);
-  }
-  assert.ok(selected.includes('tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities'));
-  assert.ok(!selected.some(name => /test_market_|test_pack_|test_datahub_wind/.test(name)));
-  assert.deepEqual(python[1].args.slice(python[1].args.indexOf('--') + 1), [
+    'scenario_method_sources', 'model_provider_upgrade', 'gateway_upgrade', 'iteration_resources'];
+  const expectedWeb = [...modules.map(name => `tests/research_web/test_${name}.py`),
+    'tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities',
+    ...['weknora_formal_scope', 'store', 'capabilities_native'].map(name => `tests/research_web/test_${name}.py`),
+    '--confcutdir=tests/research_web', '-q'];
+  assert.deepEqual(selected, expectedWeb);
+  assert.deepEqual(python[0].args, ['scripts/run_ci_pytest_partitions.py',
+    '--task-root', path.join(root, 'rwb-ci-pytest-research-web'), '--allowed-parent', root,
+    '--task-id', 'github-1-1-research-web', '--', ...expectedWeb]);
+  const expectedUnit = [
     'tests/unit/test_fingpt_legacy_cutover.py', 'tests/unit/test_ci_pytest_partitions.py',
-    'tests/unit/test_ci_pytest_evidence_staging.py', '--confcutdir=tests/unit', '-q']);
+    'tests/unit/test_ci_pytest_evidence_staging.py', '--confcutdir=tests/unit', '-q'];
+  assert.deepEqual(python[1].args, ['scripts/run_ci_pytest_partitions.py',
+    '--task-root', path.join(root, 'rwb-ci-pytest-unit'), '--allowed-parent', root,
+    '--task-id', 'github-1-1-unit', '--', ...expectedUnit]);
+  assert.equal(python[0].plugins, 'tests.research_web.event_test_support');
+  assert.equal(python[1].plugins, null);
+  assert.deepEqual(python.map(command => command.bytecode), ['1', '1']);
   const git = commands.filter(item => item.kind === 'git');assert.equal(git.length, 1);
-  assert.deepEqual(git[0].args.slice(-3), ['b800e50366d1a0868372bbf173822976066c143f',
+  assert.deepEqual(git[0].args, ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', 'fetch',
+    '--no-tags', '--no-write-fetch-head', '--no-auto-maintenance', '--depth=1', 'origin',
+    'b800e50366d1a0868372bbf173822976066c143f',
     'db2ae9a48ceca365852072e622aa6627aa7d0b83', '1529c3189b008b9861a2bee1511f051feefa76eb']);
   const node = commands.filter(item => item.kind === 'node');assert.equal(node.length, 1);
   assert.deepEqual(node[0].args, ['--test', 'tests/javascript/research_web*.test.mjs', 'tests/javascript/legacy_fingpt_cutover.test.mjs']);
@@ -758,6 +801,8 @@ test('knowledge authority regressions execute once in each applicable CI branch'
   assert.ok(step);
   const script=step.split('        run: |\n')[1].split('\n').map(line=>line.slice(10)).join('\n');
   fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.mkdirSync(path.join(root,'bin'));
+  fs.mkdirSync(path.join(root,'scripts'));
+  fs.copyFileSync(new URL('../../scripts/run_fingpt_source_ci.sh',import.meta.url),path.join(root,'scripts/run_fingpt_source_ci.sh'));
   fs.writeFileSync(path.join(root,'.venv/bin/python'),`#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2))+'\\n');\n`,{mode:0o700});
   fs.writeFileSync(path.join(root,'bin/git'),'#!/bin/sh\nexit 0\n',{mode:0o700});
   for(const [retention,packs,fingpt] of [[false,false,false],[false,true,false],[true,false,false],[false,false,true]]) {

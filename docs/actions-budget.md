@@ -7,6 +7,9 @@ FinGPT 来源报告与 Fed RSS 的已审组合沿既有 Checks scope selector �
 原完整 Node、编辑引擎、分片与证据链、三份历史源对象、Constraints 和同候选 Mac 安装保持，
 不新增 job、runner、依赖、平台 dispatch 或时限。旧 run `45064106251` 在原45分钟上限取消且未产生
 可用测试产物；不把它推断为某条用例失败或通过，新候选仍须取得自己的三项 CI。
+该分支的固定命令逐字提取到 `scripts/run_fingpt_source_ci.sh`，避免 YAML 单个解码 `run` 值超过
+GitHub 的21,000字符限制；原筛选、36个完整模块／准入／三个单元模块、插件和临时根均保持。
+配置拒绝的 `45070244792`（零 job）保留为实际失败，不重置返修计数或修改作业时限。
 
 研究包的 Ubuntu Checks 只运行 Host/离线合同；六项 macOS 原生取消时序和一项已编译 SDK 新闻工具合同在现有 Mac Bootstrap 作业内运行，复用本次安装的固定 DSH，不调用模型或供应商。工具目录回归按已声明的 `required_tools` 配置基础入口，再核对全部派生工具 schema；测试凭据复用内存 fixture，不依赖 runner 的系统 keyring。
 
