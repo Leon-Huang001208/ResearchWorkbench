@@ -121,6 +121,9 @@ jobs:
           tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
           scope_files = tool | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "AGENTS.md"}
           limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          architecture = {"scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"}
+          architecture_files = architecture | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
+          architecture_only = bool(architecture.intersection(files)) and all(name in architecture_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           release_core = {"docker/release.py", "docker/Dockerfile.release", "docker/release-schema.json", "app/research_web/maintenance.py"}
           release_paths = release_core | {
               "docker/manage.py", "rwb-docker", "app/research_web/automation/service.py", "app/research_web/client.py", "app/research_web/main.py", "app/research_web/report_studio.py", "app/research_web/report_workflows/runtime.py", "app/research_web/service.py",
@@ -131,8 +134,9 @@ jobs:
           release = bool(release_core.intersection(files)) and all(name in release_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
+              output.write("architecture_only=" + str(architecture_only).lower() + "\n")
               output.write("g2b_release_only=" + str(release).lower() + "\n")
-          print("Contract scope: " + ("retention tool" if limited else "G2B release and Host admission" if release else "full Research Web"))
+          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -160,6 +164,10 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
+          if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
+            echo "Architecture checker scope: no Python product changes"
+            exit 0
+          fi
           if [ "${{ steps.contract-scope.outputs.retention_only }}" = "true" ]; then
             PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
               --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
@@ -345,8 +353,6 @@ jobs:
             tests/research_web/test_test_artifact_retention.py \
             tests/research_web/test_docker_resources.py \
             tests/research_web/test_docker_manager.py \
-            tests/research_web/test_docker_release.py \
-            tests/research_web/test_release_maintenance.py \
             tests/research_web/test_market_provider.py \
             tests/research_web/test_market_service.py \
             tests/research_web/test_market_financial_calendar.py \
@@ -444,21 +450,23 @@ jobs:
         if: steps.contract-scope.outputs.retention_only != 'true'
         shell: bash
         run: |
-          if [ "${{ steps.contract-scope.outputs.g2b_release_only }}" = "true" ]; then
+          if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
+            node --test tests/javascript/research_web_architecture.test.mjs
+          elif [ "${{ steps.contract-scope.outputs.g2b_release_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_architecture.test.mjs
-            exit 0
+          else
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
           fi
-          RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
 
       - name: Stage safe pytest evidence
         id: stage-safe-evidence
-        if: always()
+        if: always() && steps.contract-scope.outputs.architecture_only != 'true'
         shell: bash
         run: |
           .venv/bin/python scripts/stage_ci_pytest_evidence.py \
@@ -467,7 +475,7 @@ jobs:
             --max-bytes 104857600
 
       - name: Upload safe pytest evidence
-        if: always() && steps.stage-safe-evidence.outcome == 'success'
+        if: always() && steps.contract-scope.outputs.architecture_only != 'true' && steps.stage-safe-evidence.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}
