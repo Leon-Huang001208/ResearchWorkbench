@@ -1,6 +1,6 @@
 # PR104：G2B 发布链前移当前主线
 
-沿原 `codex/docker-release-g2b` 的 `99a784e` 历史，在 WorkDisk 独立分支普通合入主线 `dc3ce6b7`。旧源码和原 PR 保留，不以旧草稿的“不发布”终点覆盖本轮持续交付授权。
+沿原 `codex/docker-release-g2b` 的 `99a784e` 历史，在 WorkDisk 独立分支普通合入主线 `dc3ce6b7`，随后继承清理工具交付主线 `45b02c06`。旧源码和原 PR 保留，不以旧草稿的“不发布”终点覆盖本轮持续交付授权。
 
 - 25 处合并冲突已处理。保留当前 DSH、Hot、插件、报告 Workflow、源日历、stage 预留与 owner handoff 实现，仅加入原 G2B 管理器/维护门接点。
 - 发布 Dockerfile 同步当前 QA 前端构建、资源清单与最终镜像导入检查；DSH 仍由已封存 payload 提供，不在发布阶段重建另一份 DSH。
