@@ -47,6 +47,7 @@ PYTEST_PLUGINS=tests.research_web.event_test_support PYTHONDONTWRITEBYTECODE=1 .
   tests/research_web/test_weknora_formal_scope.py \
   tests/research_web/test_store.py \
   tests/research_web/test_capabilities_native.py \
+  tests/research_web/test_service_manager.py::test_web_readiness_enforces_product_static_asset_byte_boundary \
   --confcutdir=tests/research_web -q
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
   --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \

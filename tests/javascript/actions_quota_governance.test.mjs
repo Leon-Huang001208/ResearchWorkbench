@@ -477,7 +477,8 @@ test('FinGPT source reports select the actual reviewed diff and reject unrelated
   ];
   const anchor = 'app/research_web/discovery/fed.py';
   const repair = ['.github/workflows/research-web-checks.yml', 'scripts/run_ci_pytest_partitions.py',
-    'scripts/run_fingpt_source_ci.sh', 'tests/unit/test_ci_pytest_partitions.py', 'tests/javascript/actions_quota_governance.test.mjs'];
+    'scripts/run_fingpt_source_ci.sh', 'tests/unit/test_ci_pytest_partitions.py', 'tests/javascript/actions_quota_governance.test.mjs',
+    'tests/javascript/research_web_capability_categories.test.mjs', 'tests/research_web/test_service_manager.py'];
   for (const [paths, base, failure, expected] of [[original, 'a'.repeat(40), '', true],
     [[...original, ...repair], 'a'.repeat(40), '', true],
     ...original.filter(name => name.startsWith('app/') && !name.endsWith('.md')).map(name => [[anchor, name], 'a'.repeat(40), '', true]),
@@ -562,6 +563,7 @@ test('FinGPT source scope preserves complete shared contracts, maintenance fixtu
   const expectedWeb = [...modules.map(name => `tests/research_web/test_${name}.py`),
     'tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities',
     ...['weknora_formal_scope', 'store', 'capabilities_native'].map(name => `tests/research_web/test_${name}.py`),
+    'tests/research_web/test_service_manager.py::test_web_readiness_enforces_product_static_asset_byte_boundary',
     '--confcutdir=tests/research_web', '-q'];
   assert.deepEqual(selected, expectedWeb);
   assert.deepEqual(python[0].args, ['scripts/run_ci_pytest_partitions.py',

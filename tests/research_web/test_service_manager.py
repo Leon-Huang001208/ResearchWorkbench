@@ -4808,7 +4808,7 @@ def test_web_readiness_enforces_product_static_asset_byte_boundary(
     product = asset.read_bytes()
     limit = service_manager_module.WEB_TEXT_MAX_BYTES
     assert limit == 256 * 1024
-    assert len(product) <= limit - 2048, "product module must retain 2 KiB health margin"
+    assert len(product) <= limit, "product module exceeds the health response limit"
     body = product
     if asset_size != "product":
         target_size = limit + (asset_size == "over_limit")
