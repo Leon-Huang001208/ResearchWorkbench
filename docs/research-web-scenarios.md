@@ -1,5 +1,7 @@
 # 研究场景与 Seek Alpha 静态对照目录
 
+MCP 严格读取在执行交接解析前拒绝 scenario/discovery/evidence 上下文；此限制避免只读请求触发 readiness/delivery 写入。原研究场景发送和质量链保持，外部 OAuth 不能启动场景。
+
 导入账户切换销毁旧UI私有File/选择和响应scope，不发送或改变研究场景；A→B→A也不能让旧确认回调进入新草稿。
 
 首建自选或新增导入目标只刷新当前账户列表metadata，保留原观察/草稿，不创建场景或触发额外取数、模型。
@@ -83,6 +85,4 @@ result = select_scenario(
 
 纯目录合同保持不变。实际场景选择、冻结、发送、资讯筛选及撤权边界见[三页场景交接](research-web-scenario-handoffs.md)，包版本与实际执行准入分别报告。
 
-## 2026-10-28：T3组合包集成边界
-
-当前Host catalog在原八场景外组合九个pack-*和三个owned-*合同；62Skill/78Tool静态对照不等于全可执行。纯核不读文件/网络，Host映射封印后才执行；三方法使用method_execution而非pack_seal。prepare仅预览、原Send才执行，18个gated保持。详见[组合包](research-web-research-packs.md)、[自有方法](research-web-owned-methods.md)、[来源选择](research-web-source-selection.md)。
+场景普通问答使用 AlphaDesk 时，Host 验证能力版本及交接资料，并把实际提交的能力记录在本轮回执中。

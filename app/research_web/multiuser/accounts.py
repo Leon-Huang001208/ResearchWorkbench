@@ -320,6 +320,17 @@ class AccountStore:
         with self._connection() as db:
             return _account(self._find(db, user_id))
 
+    @staticmethod
+    def _revoke_oauth(db: sqlite3.Connection, user_id: str) -> None:
+        # Older stores have no facade schema. Once any OAuth table exists,
+        # partial/corrupt schema must fail the enclosing account transaction.
+        exists = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name GLOB 'mcp_oauth_*' LIMIT 1"
+        ).fetchone()
+        if exists is not None:
+            db.execute("UPDATE mcp_oauth_grants SET revoked=1 WHERE user_id=?", (user_id,))
+            db.execute("UPDATE mcp_oauth_requests SET consumed=1 WHERE user_id=?", (user_id,))
+
     def set_enabled(self, user_id: str, enabled: bool) -> Account:
         if not isinstance(enabled, bool):
             raise AccountError("invalid_enabled")
@@ -334,6 +345,7 @@ class AccountStore:
             db.execute("UPDATE accounts SET enabled=? WHERE id=?", (int(enabled), user_id))
             if not enabled:
                 db.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+                self._revoke_oauth(db, user_id)
             account = _account(self._find(db, user_id))
         log.info("multiuser_account_enabled_changed", account_id=user_id, enabled=enabled)
         return account
@@ -350,6 +362,7 @@ class AccountStore:
                     (salt, derived, SCRYPT_N, SCRYPT_R, SCRYPT_P, user_id),
                 )
                 db.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+                self._revoke_oauth(db, user_id)
                 db.execute(
                     "DELETE FROM login_failures WHERE bucket=?", (self._bucket(row["username"]),)
                 )

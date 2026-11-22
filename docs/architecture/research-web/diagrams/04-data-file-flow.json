@@ -2,14 +2,9 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "DataHub 冻结证据与长期研究档案",
+    "title": "DataHub、WeKnora 与冻结研究证据",
     "output": "04-data-file-flow.html",
     "quality_profile": "showcase",
-    "viewBox": [
-      1900,
-      940
-
-    ],
     "views": [
       {
         "id": "catalog",
@@ -62,9 +57,32 @@
           "web"
         ],
         "note": "预览绑定事件版本，正文取证时冻结；档案原件逐次鉴权与Hash复核，用户实际发送Prompt后绑定DSH；golddata_intel不伪装网页全文。"
-
+      },
+      {
+        "id": "weknora",
+        "label": "研究资料与报告证据",
+        "focus": [
+          "knowledgeUser",
+          "knowledgeFacade",
+          "weknora",
+          "knowledgeEvidence",
+          "knowledgeConsumer",
+          "knowledgeInbox",
+          "knowledgeSync",
+          "knowledgeEmbedding",
+          "knowledgeApproval",
+          "knowledgeGrant",
+          "knowledgeTurn"
+        ],
+        "note": "普通current沿原同步单库；正式范围由明确首条消息绑定Host grant，复核原生根会话首turn。hit_id绑定会话与请求，失败不回退；真实链路另验。"
       }
-    ]
+    ],
+    "locale": "zh-CN",
+    "repository": {
+      "url": "git@github.com:Leon-Huang001208/ResearchWorkbench.git",
+      "revision": "ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7",
+      "link_mode": "local-only"
+    }
   },
   "stages": [
     {
@@ -88,10 +106,18 @@
       "id": "sourceSpecs",
       "type": "backend",
       "label": "静态来源声明",
-      "sublabel": "22 来源 / 绑定 / 限制",
+      "sublabel": "来源声明 / 绑定 / 限制",
       "stage": 0,
       "row": 0,
-      "tag": "不联网"
+      "tag": "不联网",
+      "yOffset": -14,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/catalog.py",
+          "line": 101,
+          "end_line": 112
+        }
+      ]
     },
     {
       "id": "tool",
@@ -100,7 +126,20 @@
       "sublabel": "DSH工具 / 资产专题",
       "stage": 0,
       "row": 3,
-      "tag": "既有两入口"
+      "tag": "既有两入口",
+      "yOffset": -68,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/public-data.mjs",
+          "line": 488,
+          "end_line": 515
+        },
+        {
+          "path": "app/research_web/ui/workbench.mjs",
+          "line": 62,
+          "end_line": 74
+        }
+      ]
     },
     {
       "id": "policy",
@@ -109,7 +148,15 @@
       "sublabel": "账号来源 / 范围 / Schema",
       "stage": 1,
       "row": 3,
-      "tag": "当前授权"
+      "tag": "当前授权",
+      "yOffset": -68,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/public-data.mjs",
+          "line": 98,
+          "end_line": 130
+        }
+      ]
     },
     {
       "id": "catalog",
@@ -118,7 +165,20 @@
       "sublabel": "适配 / 配置 / 健康 / 允许",
       "stage": 1,
       "row": 0,
-      "tag": "read-only"
+      "tag": "read-only",
+      "yOffset": -14,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/catalog.py",
+          "line": 809,
+          "end_line": 838
+        },
+        {
+          "path": "app/research_web/datahub/catalog.py",
+          "line": 926,
+          "end_line": 980
+        }
+      ]
     },
     {
       "id": "router",
@@ -127,7 +187,20 @@
       "sublabel": "先读仓 / 缺口 / 等价切换",
       "stage": 2,
       "row": 1,
-      "tag": "固定来源语义保留"
+      "tag": "固定来源语义保留",
+      "yOffset": -32,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/broker.py",
+          "line": 130,
+          "end_line": 177
+        },
+        {
+          "path": "app/research_web/datahub/__init__.py",
+          "line": 767,
+          "end_line": 798
+        }
+      ]
     },
     {
       "id": "providers",
@@ -136,7 +209,15 @@
       "sublabel": "真实工作占用 / 分页 / 解析",
       "stage": 2,
       "row": 2,
-      "tag": "公开SDK子进程12秒"
+      "tag": "公开SDK子进程12秒",
+      "yOffset": -50,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/providers.py",
+          "line": 487,
+          "end_line": 526
+        }
+      ]
     },
     {
       "id": "upstreams",
@@ -145,7 +226,20 @@
       "sublabel": "公开源 / 专业源 / 用户 MySQL",
       "stage": 2,
       "row": 3,
-      "tag": "本机配置"
+      "tag": "本机配置",
+      "yOffset": -68,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/providers.py",
+          "line": 98,
+          "end_line": 122
+        },
+        {
+          "path": "app/research_web/datahub/providers.py",
+          "line": 487,
+          "end_line": 526
+        }
+      ]
     },
     {
       "id": "normalize",
@@ -154,8 +248,20 @@
       "sublabel": "可选PG / 修订 / PIT / 冻结",
       "stage": 3,
       "row": 2,
-      "width": 124,
-      "tag": "宿主绑定及逐次授权"
+      "tag": "宿主绑定及逐次授权",
+      "yOffset": -50,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/warehouse.py",
+          "line": 31,
+          "end_line": 65
+        },
+        {
+          "path": "app/research_web/asset_history.py",
+          "line": 75,
+          "end_line": 119
+        }
+      ]
     },
     {
       "id": "snapshots",
@@ -164,8 +270,20 @@
       "sublabel": "原始块 / 因子 / 规范行 / Hash",
       "stage": 3,
       "row": 4,
-      "width": 124,
-      "tag": "不可变与原子发布"
+      "tag": "不可变与原子发布",
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/datahub/snapshots.py",
+          "line": 62,
+          "end_line": 86
+        },
+        {
+          "path": "app/research_web/datahub/snapshots.py",
+          "line": 156,
+          "end_line": 190
+        }
+      ]
     },
     {
       "id": "web",
@@ -174,7 +292,15 @@
       "sublabel": "专题快照 / 资料交接",
       "stage": 4,
       "row": 0,
-      "tag": "当前账号"
+      "tag": "当前账号",
+      "yOffset": -14,
+      "sources": [
+        {
+          "path": "app/research_web/ui/workbench.mjs",
+          "line": 62,
+          "end_line": 74
+        }
+      ]
     },
     {
       "id": "handoff",
@@ -183,7 +309,20 @@
       "sublabel": "SQLite引用 / 修订 / pin",
       "stage": 4,
       "row": 2,
-      "tag": "逐次鉴权 · 显式发送"
+      "tag": "逐次鉴权 · 显式发送",
+      "yOffset": -50,
+      "sources": [
+        {
+          "path": "app/research_web/workbench.py",
+          "line": 354,
+          "end_line": 388
+        },
+        {
+          "path": "app/research_web/dossiers/__init__.py",
+          "line": 479,
+          "end_line": 508
+        }
+      ]
     },
     {
       "id": "agents",
@@ -192,7 +331,15 @@
       "sublabel": "父子任务读取同一资料包",
       "stage": 4,
       "row": 4,
-      "tag": "不重复联网"
+      "tag": "不重复联网",
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/research.cordis.yml",
+          "line": 5,
+          "end_line": 23
+        }
+      ]
     },
     {
       "id": "discoveryRead",
@@ -202,7 +349,14 @@
       "stage": 0,
       "row": 4,
       "tag": "不调用模型",
-      "yOffset": 114
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/discovery/service.py",
+          "line": 140,
+          "end_line": 172
+        }
+      ]
     },
     {
       "id": "intelHttp",
@@ -212,7 +366,14 @@
       "stage": 1,
       "row": 4,
       "tag": "陈旧与未知保留",
-      "yOffset": 114
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/intel_routes.py",
+          "line": 15,
+          "end_line": 53
+        }
+      ]
     },
     {
       "id": "discoveryFreeze",
@@ -221,9 +382,237 @@
       "sublabel": "预览摘要 / 原始报道 / Hash",
       "stage": 2,
       "row": 4,
-      "width": 124,
       "tag": "显式用户动作",
-      "yOffset": 114
+      "yOffset": -86,
+      "sources": [
+        {
+          "path": "app/research_web/discovery/service.py",
+          "line": 430,
+          "end_line": 473
+        },
+        {
+          "path": "app/research_web/datahub/snapshots.py",
+          "line": 425,
+          "end_line": 461
+        }
+      ]
+    },
+    {
+      "id": "knowledgeUser",
+      "type": "frontend",
+      "label": "资料读取入口",
+      "sublabel": "设置 / 可信会话只读工具",
+      "stage": 0,
+      "row": 4,
+      "tag": "明确启用同步",
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/ui/knowledge-settings.mjs",
+          "line": 21,
+          "end_line": 33
+        }
+      ]
+    },
+    {
+      "id": "knowledgeFacade",
+      "type": "security",
+      "label": "RWB 资料 Host",
+      "sublabel": "用户JWT / 会话回执",
+      "stage": 1,
+      "row": 4,
+      "tag": "普通current / 显式scope",
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/routes.py",
+          "line": 87,
+          "end_line": 115
+        },
+        {
+          "path": "app/research_web/knowledge_backend/service.py",
+          "line": 271,
+          "end_line": 283
+        }
+      ]
+    },
+    {
+      "id": "weknora",
+      "type": "backend",
+      "label": "WeKnora v0.9.0",
+      "sublabel": "原件 / 分块 / 混合检索",
+      "stage": 2,
+      "row": 4,
+      "tag": "仅检索 · 实际链路待验",
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/client.py",
+          "line": 448,
+          "end_line": 495
+        }
+      ]
+    },
+    {
+      "id": "knowledgeEvidence",
+      "type": "database",
+      "label": "RWB 回执与冻结",
+      "sublabel": "会话命中 / 原件SHA / 分块SHA",
+      "stage": 3,
+      "row": 4,
+      "tag": "用户冻结 · 历史保留",
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/storage.py",
+          "line": 184,
+          "end_line": 238
+        },
+        {
+          "path": "app/research_web/knowledge_backend/current.py",
+          "line": 88,
+          "end_line": 118
+        }
+      ]
+    },
+    {
+      "id": "knowledgeConsumer",
+      "type": "external",
+      "label": "研究宿主与质量门",
+      "sublabel": "只取必要片段 / 原Workflow",
+      "stage": 4,
+      "row": 4,
+      "tag": "未知时点无PIT资格",
+      "yOffset": 10,
+      "sources": [
+        {
+          "path": "app/research_web/runtime/public-data.mjs",
+          "line": 262,
+          "end_line": 298
+        }
+      ]
+    },
+    {
+      "id": "knowledgeInbox",
+      "type": "database",
+      "label": "固定本机资料目录",
+      "sublabel": "PDF / DOCX / MD / TXT",
+      "stage": 0,
+      "row": 4,
+      "tag": "owner绑定 · 单件8MiB",
+      "yOffset": 106,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/sync.py",
+          "line": 298,
+          "end_line": 355
+        }
+      ]
+    },
+    {
+      "id": "knowledgeSync",
+      "type": "backend",
+      "label": "账号目录同步",
+      "sublabel": "SQLite快照 / 版本 / 撤回",
+      "stage": 1,
+      "row": 4,
+      "tag": "60秒巡检 · 写前余量准入",
+      "yOffset": 106,
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/sync.py",
+          "line": 381,
+          "end_line": 433
+        },
+        {
+          "path": "app/research_web/knowledge_backend/sync_storage.py",
+          "line": 231,
+          "end_line": 248
+        }
+      ]
+    },
+    {
+      "id": "knowledgeEmbedding",
+      "type": "backend",
+      "label": "本机 Ollama",
+      "sublabel": "bge-m3 / 实测1024维",
+      "stage": 2,
+      "row": 4,
+      "tag": "ACL仅Embed · 业务另验",
+      "yOffset": 106,
+      "sources": [
+        {
+          "path": "docs/research-web-weknora.md",
+          "line": 17,
+          "end_line": 23
+        }
+      ]
+    },
+    {
+      "id": "knowledgeApproval",
+      "type": "frontend",
+      "label": "范围批准与首条消息",
+      "sublabel": "scope / 明确动作 / 请求摘要",
+      "stage": 0,
+      "row": 4,
+      "tag": "获准原件 · 最多10库",
+      "sources": [
+        {
+          "path": "app/research_web/main.py",
+          "line": 990,
+          "end_line": 1025
+        },
+        {
+          "path": "app/research_web/service.py",
+          "line": 2981,
+          "end_line": 3004
+        }
+      ],
+      "yOffset": 202
+    },
+    {
+      "id": "knowledgeGrant",
+      "type": "database",
+      "label": "原账号提交回执",
+      "sublabel": "scope / 请求 / 提交摘要",
+      "stage": 1,
+      "row": 4,
+      "tag": "原子保存 · 单轮grant",
+      "sources": [
+        {
+          "path": "app/research_web/store.py",
+          "line": 519,
+          "end_line": 561
+        }
+      ],
+      "yOffset": 202
+    },
+    {
+      "id": "knowledgeTurn",
+      "type": "security",
+      "label": "原生首轮与授权复核",
+      "sublabel": "根caller / requestId / grant",
+      "stage": 2,
+      "row": 4,
+      "tag": "await后重验 · 禁止降级",
+      "sources": [
+        {
+          "path": "app/research_web/knowledge_backend/current.py",
+          "line": 24,
+          "end_line": 50
+        },
+        {
+          "path": "app/research_web/knowledge_backend/routes.py",
+          "line": 118,
+          "end_line": 181
+        },
+        {
+          "path": "app/research_web/knowledge_backend/current.py",
+          "line": 120,
+          "end_line": 149
+        }
+      ],
+      "yOffset": 202
     }
   ],
   "flows": [
@@ -245,24 +634,24 @@
       "via": [
         [
           400,
-          157
+          143
         ],
         [
           400,
-          130
+          120.26
         ],
         [
           875,
-          130
+          120.26
         ],
         [
           875,
-          157
+          143
         ]
       ],
       "labelAt": [
         650,
-        120
+        111.85
       ]
     },
     {
@@ -282,7 +671,7 @@
       "variant": "security",
       "labelAt": [
         423,
-        428
+        379
       ]
     },
     {
@@ -301,7 +690,11 @@
       "classification": "single provider",
       "variant": "emphasis",
       "fromSide": "bottom",
-      "toSide": "top"
+      "toSide": "top",
+      "labelAt": [
+        530,
+        283
+      ]
     },
     {
       "id": "externalFetch",
@@ -311,7 +704,11 @@
       "classification": "external",
       "variant": "security",
       "fromSide": "bottom",
-      "toSide": "top"
+      "toSide": "top",
+      "labelAt": [
+        530,
+        379
+      ]
     },
     {
       "id": "parsedResult",
@@ -327,7 +724,11 @@
       "to": "snapshots",
       "label": "全行与口径原子发布",
       "classification": "session-owned",
-      "variant": "emphasis"
+      "variant": "emphasis",
+      "labelAt": [
+        745,
+        379
+      ]
     },
     {
       "id": "selectHandoff",
@@ -335,7 +736,11 @@
       "to": "handoff",
       "label": "选定快照与页面上下文",
       "classification": "explicit",
-      "variant": "security"
+      "variant": "security",
+      "labelAt": [
+        960,
+        187
+      ]
     },
     {
       "id": "snapshotHandoff",
@@ -346,7 +751,7 @@
       "channelX": 835,
       "labelAt": [
         665,
-        530
+        457.1
       ]
     },
     {
@@ -355,7 +760,11 @@
       "to": "agents",
       "label": "发送后绑定原证据句柄",
       "classification": "shared snapshot",
-      "variant": "dashed"
+      "variant": "dashed",
+      "labelAt": [
+        960,
+        379
+      ]
     },
     {
       "id": "webRead",
@@ -366,7 +775,7 @@
       "channelX": 875,
       "labelAt": [
         890,
-        330
+        288.68
       ]
     },
     {
@@ -384,11 +793,9 @@
       "label": "核对版本",
       "classification": "third-party archive",
       "variant": "security",
-      "fromSide": "right",
-      "toSide": "left",
       "labelAt": [
-        420,
-        680
+        421,
+        478
       ]
     },
     {
@@ -396,23 +803,186 @@
       "from": "discoveryFreeze",
       "to": "snapshots",
       "label": "归档选材",
-      "classification": "explicit_frozen_selection",
+      "classification": "explicit",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeRequest",
+      "from": "knowledgeUser",
+      "to": "knowledgeFacade",
+      "label": "当前身份",
+      "classification": "authenticated",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeRetrieve",
+      "from": "knowledgeFacade",
+      "to": "weknora",
+      "label": "限定读写",
+      "classification": "JWT/session",
       "variant": "security",
       "fromSide": "right",
-      "toSide": "left",
+      "toSide": "left"
+    },
+    {
+      "id": "knowledgeFreeze",
+      "from": "knowledgeFacade",
+      "to": "knowledgeEvidence",
+      "label": "回执/显式冻结",
+      "classification": "session / explicit write",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "top",
       "via": [
         [
-          650,
-          727
+          315,
+          571.63
         ],
         [
-          650,
-          613
+          745,
+          571.63
         ]
       ],
       "labelAt": [
-        625,
-        680
+        630,
+        571.63
+      ]
+    },
+    {
+      "id": "knowledgeReport",
+      "from": "knowledgeEvidence",
+      "to": "knowledgeConsumer",
+      "label": "必要原文片段",
+      "classification": "session-bound / time unknown",
+      "variant": "emphasis",
+      "labelAt": [
+        856,
+        667
+      ]
+    },
+    {
+      "id": "knowledgeObserve",
+      "from": "knowledgeInbox",
+      "to": "knowledgeSync",
+      "label": "两次稳定观察",
+      "classification": "snapshot / bounded"
+    },
+    {
+      "id": "knowledgePublish",
+      "from": "knowledgeSync",
+      "to": "knowledgeFacade",
+      "label": "版本清单",
+      "classification": "version manifest / current",
+      "variant": "default",
+      "labelAt": [
+        315,
+        672.68
+      ]
+    },
+    {
+      "id": "knowledgeEmbed",
+      "from": "weknora",
+      "to": "knowledgeEmbedding",
+      "label": "本机向量化",
+      "classification": "embed only / ACL",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        530,
+        672.68
+      ]
+    },
+    {
+      "id": "knowledgeApprove",
+      "from": "knowledgeApproval",
+      "to": "knowledgeGrant",
+      "label": "首条消息",
+      "classification": "authenticated explicit action",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeGrantRead",
+      "from": "knowledgeGrant",
+      "to": "knowledgeTurn",
+      "label": "当前grant",
+      "classification": "persisted Host grant",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeFormalRoute",
+      "from": "knowledgeFacade",
+      "to": "knowledgeTurn",
+      "label": "正式分支",
+      "classification": "Host-selected / no fallback",
+      "variant": "security"
+    },
+    {
+      "id": "knowledgeFormalCaller",
+      "from": "knowledgeConsumer",
+      "to": "knowledgeTurn",
+      "label": "可信caller",
+      "classification": "Native metadata / root session",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          960,
+          900
+        ],
+        [
+          530,
+          900
+        ]
+      ],
+      "labelAt": [
+        745,
+        900
+      ]
+    },
+    {
+      "id": "knowledgeFormalSearch",
+      "from": "knowledgeTurn",
+      "to": "weknora",
+      "label": "批准范围",
+      "classification": "approved document hash / scope",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          640,
+          815
+        ],
+        [
+          640,
+          623
+        ]
+      ],
+      "labelAt": [
+        640,
+        766
+      ]
+    },
+    {
+      "id": "knowledgeFormalReceipt",
+      "from": "knowledgeTurn",
+      "to": "knowledgeEvidence",
+      "label": "绑定命中",
+      "classification": "session / scope / request / opaque hit_id",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          745,
+          815
+        ]
+      ],
+      "labelAt": [
+        755,
+        720
       ]
     }
   ],
@@ -435,10 +1005,19 @@
     },
     {
       "dot": "emerald",
-      "title": "迁移与回测",
+      "title": "本机资料与研究边界",
       "items": [
-        "原件与SQLite引用分别保全，历史可得时点不补造",
-        "档案只存引用和修订；不启用PG或迁移旧交接"
+        "失败沿用旧current；删除撤回入口、保留历史",
+        "原实例恢复、模型、零生成及报告各自验收"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "单轮范围与普通current",
+      "items": [
+        "首条消息明确选scope，Host回执绑定完整请求与提交摘要",
+        "原生根会话首turn和requestId有效才读取，取消或撤权后拒绝",
+        "正式命中绑定grant与会话，不回退普通current；不自动授予PIT或正式定稿资格"
       ]
     }
   ]

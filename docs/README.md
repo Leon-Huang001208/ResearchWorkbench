@@ -1,5 +1,17 @@
 # Research Workbench 文档门户
 
+当前架构图的[视觉包含性合同](research-web-documentation.md#检查内容与核对标记)保留原strict页面规则，并精确识别有完整度量、可读字号与真实滚动验证的Reader纵滚。四视口、图源／HTML／截图哈希、来源证据和实际看图审阅仍分别核对；任意溢出或单一通过布尔值不能放行。资料、模型、CI与部署验收不由图册检查推定完成。
+
+策略模拟的[策略验证](research-web-strategy-validation.md)记录冻结日线导入、配置与逐笔结果的使用合同。
+
+## WeKnora 资料候选
+
+[WeKnora 研究资料与报告证据](research-web-weknora.md)：固定版本、个人身份绑定、批准时点、原件／分块冻结、只读候选盘点和20题检索对照。当前默认关闭；UI上传／重解析零生成仍 BLOCKED，真实服务、迁移和报告链未验收。
+
+[事件与日历研究](research-web-event-research.md)是本轮候选的总入口，连接[事件时间线](research-web-event-timeline.md)、[固定研究与独立测试](research-web-event-studies.md)、[市场研究评分](research-web-market-scoring.md)和[图14数据流](../outputs/research-web-architecture/14-event-research.html)。文档区分来源覆盖、描述研究、正式准入与实际部署；入口存在不表示1990全覆盖、真实PIT或平台验收已完成。
+
+新增 [入站 MCP 私网只读合同](research-web-mcp-facade.md)及固定 [授权读取图](../outputs/research-web-architecture/15-inbound-mcp.html)：默认关闭，批准材料、独立 OAuth 与存活后端读取；原生宿主和私网部署尚未验收。
+
 [自选股票 CSV 导入](research-web-watchlist-import.md)记录严格文件格式、规范身份、账户边界、同 Host 共享锁/一次保存、幂等及恢复限制；首批仅已获准本地沪深北股票目录。
 
 2026-10-22 插件契约新增固定包/权限/原生能力映射与支持限制；静态API扫描仍需真实CLI网关，再逐一验证其相对router import与include，未挂载保持拒绝。新模块、路由、Python索引与API Atlas已登记；无新任意文档文件入口或图阅读权限。见[插件合同](research-web-plugins.md)。
@@ -27,6 +39,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 | [根 README](../README.md) | current | 使用者 | 产品定位、安装、启动、导航 | 用户入口或安装行为变化 |
 | [Research Web 一键安装](research-web-installation.md) | current | 使用者、运维 | 锁定依赖、Doctor、启动恢复与页面 ready、跨平台安装 | 安装器、依赖或启动健康合同变化 |
 | [Research Web UI](research-web-ui.md) | current | 使用者、前端开发 | 页面、交互与 DOM 合同 | 用户流程或 UI 合同变化 |
+| [数据源清单](DATA_SOURCES.md) | current | 使用者、Agent | 行情与文本的选源入口、覆盖和核验状态 | 新来源获证或已有来源发生变化 |
 | [能力与版本](research-web-capabilities.md) | current | 使用者、能力开发 | Skill、Method、Tool、Workflow | 能力目录或版本规则变化 |
 
 ## 当前架构
@@ -41,11 +54,17 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 | [系统架构总览](ARCHITECTURE.md) | current | 所有开发者 | 当前系统边界与兼容面 | 顶层边界变化 |
 | [Research Web 架构](architecture/research-web/README.md) | current | Research Web 开发者 | 当前产品的唯一详细架构入口 | Research Web 拓扑或合同变化 |
 | [Development Map](DEVELOPMENT_MAP.md) | current | 开发者、Agent | 源码区域、文档、测试和更新触发 | 模块所有权变化 |
-| [DataHub](research-web-datahub.md) | current | 数据能力开发者 | 15 项能力、22 个来源、Provider 与快照 | DataHub 合同或来源变化 |
+| [DataHub](research-web-datahub.md) | current | 数据能力开发者 | DataHub 业务能力、Provider 与快照合同 | DataHub 合同或来源变化 |
 | [研究框架](architecture/research-web/08-research-frameworks.md) | current | 框架开发者 | Gold／Dollar 专用合同与共享边界 | 框架生命周期变化 |
 
 ## 开发
 
+- [Super Agent 任务生命周期](super-agent/task-lifecycle.md)：同根输入、Chief 计划、产物与独立 QA、原 PR／CI、总结和恢复。
+- [Super Agent 三端责任与证据关联](super-agent/unified-integration.md)：Paperclip、GitHub 与飞书的责任、映射及缺项处理。
+- [GitHub 来源准入与原 PR 接续](super-agent/github-intake.md)：Issue 输入、来源去重、授权上界与读取故障交接。
+- [Super Agent 个人自动化接入](super-agent/README.md)：本人 `/chief` 项目命令、Mac 原生 Codex、按需岗位与独立 QA、原根预算及 RWB 授权交付边界；历史试点证据不替代当前验收。
+- [飞书交付证据核对](super-agent/feishu-auto-delivery.md)：任务、输入、候选、原 PR／CI 与结果通知的关联；格式和能力分别核对。
+- [Chief 结果核对与原操作恢复](super-agent/chief-daily-result-recovery.md)：找回原结果、确认当前候选与 CI、对账原操作并按实际状态接续。
 - [Agent 工作流](AGENT_WORKFLOW.md)：GitHub/master/短期分支、Mac 开发、Windows 验证、worktree、Platform-aware Minimal Acceptance 和交付证据。
 - [最小验收规划兼容入口](../.claude/commands/verify-task.md)：仅把 Claude 命令转交给项目只读规划器；规则真源仍是 `.agents/verification-policy.json`。
 - [共享验收内核接入回执](../.ai/reports/2026-09-29-leon-verification-shared-runtime.md)：受管 runtime 版本、兼容验证与未运行外部门。
@@ -64,7 +83,6 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 ## 参考与生成物
 
-- [数据源入口](DATA_SOURCES.md)：当前 DataHub 与旧 Connector 平台的分流说明。
 - [数据存储](DATA_STORAGE.md)：旧兼容 PostgreSQL 平台的表、契约和迁移参考，不是 Research Web 前置条件。
 - [Python 文件索引](generated/py_file_index.md)：由脚本生成，不得手工编辑。
 - `outputs/research-web-architecture/`：由 Archify 图源生成的交互式图和校验回执；首页与 API Atlas 从架构清单确定性生成。

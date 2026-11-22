@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/Users/leon/.codex/worktrees/rwb-events-source-20261104-worktrees/events-calendar-20261104/docs/architecture/research-web/diagrams/14-event-research.json",
+  "output": "/Users/leon/.codex/worktrees/rwb-events-source-20261104-worktrees/events-calendar-20261104/outputs/research-web-architecture/14-event-research.html",
+  "specification": {
+    "sha256": "30d7636cea819042b7f3b73628c6653b05b1357ec47b752e7195cb8519981c55",
+    "bytes": 3770
+  },
+  "artifact": {
+    "sha256": "4672d1e941238d82a9bcdd54d2598f08e2b4e80edef6b4fef846957c7582c964",
+    "bytes": 639751
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

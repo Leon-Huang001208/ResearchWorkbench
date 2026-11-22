@@ -1,6 +1,6 @@
 # 自选股票 CSV 导入
 
-与研究组合包合并后，自选导入继续使用同账户原 Store 和共享重入保存锁；失败只回滚导入涉及的自选列表与导入回执引用，不回退文件、来源选择或研究执行状态。组合包 completion／取消和来源发布仍保留各自身份、授权与失败合同，保存锁不等于整个跨模块流程的事务保证；这些交互须在合并候选上另行验收。
+MCP 首版四项读取工具不包含自选 CSV 上传、预览或确认；外部 OAuth 不继承浏览器写权限。原 owner/draft、显式确认及幂等合同保持；入站严格上下文读取不执行导入。
 
 账户切换时，导入原生FileList、Blob/File、编码字节、逐行选择、预览、确认键与回执均不继承。控件复用同时核owner与draft实例，旧异步读取、preview、metadata、confirm结果不会发布到新草稿；同owner metadata更新、File待完成读取及原选择继续保持。
 
@@ -64,3 +64,5 @@ namespace 总预算为 8 MiB（包含活动/已提交记录和幂等键），最
 macOS测试夹具必须由tests/e2e/watchlist-loopback.sb的Seatbelt进程策略启动，只允许localhost网络，同时关闭夹具Framework自动collector并对httpx/requests/urllib/curl_cffi、Python socket与真实凭据后端计数拒绝；Python钩子本身不能覆盖C/native网络。该配置只属于测试，不改变产品默认采集行为。真实DataHub本地empty snapshot保留完整类型、原件和配置摘要，不能冒充真实行情。初版r9只覆盖browser/DataHub sentinel，发现外网后追加纠正；新受限epoch与独立native拒绝负例分开记录，供应商可用性、模型质量与部署仍另验。
 
 离线夹具进一步收窄：Host不需要outbound连接，所以Seatbelt取消所有outbound allow，仅保留localhost bind/inbound及已接收连接回包；运行器剔除所有大小写HTTP/HTTPS/ALL/FTP/NO_PROXY及RESEARCH_CREDENTIAL_HOME，内存backend与真实凭据拒绝保持，Chrome也使用清理后的环境及no-proxy-server。早前允许all localhost+继承环境的结果只能证明观测0，不能单靠该策略排除借本机代理；未见该epoch实际代理泄露，不伪报已发生。新受控inert proxy sink负例从不转发请求，不访问真实代理或生产服务；native connect被内核拒绝、sink连接/请求0与正常旅程计数分别取证，旧218记录不回填。
+
+自选股入口进入资产观察后，普通研究仍由资产交接创建。AlphaDesk 候选复用该入口。

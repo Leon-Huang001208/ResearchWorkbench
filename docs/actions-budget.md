@@ -1,14 +1,177 @@
 # GitHub Actions 免费额度治理
 
-PR245 的 45 分钟 Checks 容量修复将原完整 Python node 集合按真实 collection 顺序确定性拆成两个并行 job shard；每个 job 仍运行原有两个有界 worker，因此峰值为两个标准 Ubuntu runner／四个 pytest worker，单 job timeout 仍为 45 分钟。两个 shard 各自安装同一冻结依赖，runner-minutes 可能高于旧单 job；另增加一个最多 5 分钟、只用标准库复核两份安全 artifact 的统一 `checks` 门。该门要求每份下载物同时含 `research-web`／`unit` 与完整 staging status，两个 job 集合为各 scope 原集合的精确无交叉并集，并逐 worker 复核 final、JUnit、退出码和真实 PASS；缺 artifact/scope/final/JUnit、目录或文件软硬链接、替换/超限均失败。JS 与 editorial 只在 shard 0 执行一次，并移到 Python 前；先前步骤失败时后续合同用 `success() || failure()` 继续，取消时不强行续跑。取消中的 staging 不再打开正在写入的原始 `pytest.log`，仅可读取原子替换的 progress；progress 从不构成 PASS。旧 41041540250／旧 b4 取消及无 artifact 记录保留，repairAttempts=3 不重置；本地小夹具和最终同候选 CI 结果另证，不因源码设计宣称 45 分钟必过。
+## 原 PR #284 围栏内复核前移预算
 
-PR245 单次 runtime 导入语法事实复用只在原 Checks 同一 Python 显式名单登记 `test_pack_import_facts.py`，本机 15 例 0.44 秒，原步骤增量保守预留 5 秒；不新增 job、runner、timeout、依赖或触发，不发送 CI。新候选一次带计数观察的 Catalog 真实保持 6 次 runtime／281 次 save／56 次 validate，stable oracle 字段差异 0；56 次凭据预检由 fail 边界拒绝，不是零尝试，也不访问实际 Keychain。该单样本带计数 wrapper，不能直接与旧无 wrapper 样本计算统计加速。4b38 原 Constraints／Mac Bootstrap 成功、Checks 45 分钟取消及 mypy 原 17 项错误保持原归属，不重置 repairAttempts=3、不额外 rerun；Linux 成本及完整 CI 仍未验证，远端操作前仍须实时核对 visibility／额度。
+两处复核及其回归复用 Research Web Checks 已登记的
+`test_model_provider_upgrade.py`，保留 Project Constraints 和同候选 macOS 15 Bootstrap。
+不增加 workflow、job、runner、依赖、平台 dispatch 或时限；离线定点回归在原步骤预留30秒，
+实际耗时与结果由最终候选记录。本批不运行模型、供应商或常驻服务；历史 CI 修复已用0次，
+累计最多2次，新阶段计数不冲销原回执。远端动作前仍重新核对 visibility／额度。
 
-PR245 既有 `test_frameworks.py` 仅改用共享内存凭据 fixture 并移除旧局部 helper，不增删用例或 CI 清单；原22例真实通过42.19秒，独立安全／纯上下文16例通过。没有新增 job、runner、依赖、timeout 或模型／供应商请求；旧 teardown 真实失败及计数保留，测试工具分组粒度修正不削减闭包。
+Router 为操作员源码和对应测试两个精确文件补齐 L4/full-delivery 与完整模块 catalog，
+保留原通用完整检查和上述三项 CI，Windows 门仍由对应真机交接。Bootstrap 的 PR／push
+路径各补一条对应测试文件，确保源码或测试单独改变都实际触发已要求的 Mac 门；
+没有新增 workflow、job、runner、安装、依赖、权限、平台 dispatch 或超时；
+整模块与当前候选 CI 未执行时继续记录 `NOT_RUN`，不能把路由测试通过计作这些门通过。
 
-PR245 的既有服务管理顺序用例只追加两项参数化拒绝反例，显式虚拟低层 listener 事实以避免本机常驻3081影响顺序单元测试；保留真实安全门与原断言，本机三模型0.63秒，原步骤增量预留2秒。不新增CI步骤、runner、依赖、timeout或实际服务操作；旧环境FAIL保留，新候选重新绑定原门。
+## 原 PR 候选快照修复预算
 
-PR245 真实主线刷新保留三次修补记录。来源发布与自选持久化的线程交错回归仅向原 Checks Python 步骤追加一个三例模块；本机旧实现的真实 HTTPResponse 离线解析／已验证 producer 分支已复现磁盘孤儿引用（首例0.35秒），新增预算预留5秒，修复后结果另记。不增加job、runner、依赖、timeout或供应商／模型调用，不减少原门；新候选重新验收与独立评审，不将旧结果移标为新候选通过。
+原Project Constraints的GitSafety测试步骤覆盖真实共享控制器与独立回执的发布回归，增量预留30秒并记录最终实测。既有job、runner、依赖、权限、concurrency和时限保持；Mac Bootstrap沿原GitSafety路径触发。此工具修补不运行研究／供应商／模型，不更新常驻服务。远端操作前仍实时核对visibility与额度。
+
+## Docker 持久队列前移（2026-11-22）
+
+管理员构建队列只在 Research Web Checks 原有 Python contracts 分片清单增加
+`test_docker_build_queue.py`，不新增 workflow、job、runner、依赖、平台 dispatch 或超时。
+沿当前45分钟作业上限及既有 concurrency；定点离线测试增量预留30秒，实际时长由最终候选回执记录。
+
+原2026-10-26后继为超时前的孤立失败增加详细 nodeid 输出。当前主线已由
+`run_ci_pytest_partitions.py` 冻结完整收集与 worker 分配，JUnit 保留 `rwb_nodeid`，
+`stage_ci_pytest_evidence.py` 按白名单输出脱敏 nodeid 和失败阶段；本次保留该链，
+不退回直接 pytest 或附加旧 `-vv`。旧超时和 runner 通信失败仍属原候选证据，
+不能以本地期限夹具或队列测试通过改写为 CI 通过。
+旧后继 `test_asset_history.py` 的期限/排空时序测试单独前移，使用局部事件控制并保留实际线程、
+Future、取消和排空断言；不修改生产 DataHub，也不把测试中的供应商替身宣称为真实 SDK 验收。
+
+Mac Docker Desktop 的实际构建、健康及负载和同候选 Mac 安装分别取证；本次源码前移不调整
+Docker 内存或重启引擎，不触发金融/模型请求。远端写入前仍须重新核对仓库 visibility 与额度。
+
+## 本机资料同步与当前研究预算（2026-11-20）
+
+Host批准知识scope、原生query/read运行合同与0004可选资产按精确路径显式路由L4，分别保留formal/current/API/store、runtime Node及补丁文本catalog离线闭包。此路由不增加workflow、job、runner、依赖或超时；Constraints／Checks／同候选MacBootstrap及Windows/Linux真机交接继续执行，不能由路由登记或离线通过认证真实KB、模型或上游补丁应用。
+
+原Checks的Python分区参数追加 `test_weknora_formal_scope.py`、`test_store.py`、`test_capabilities_native.py`，原Node通配符覆盖CI参数与Reader检查器路由合同；增量在原步骤预留45秒，最终实测另记。仍沿原作业时限与runner，不运行真实模型／知识服务或安装新依赖。
+
+新增精确路由选择的文件同步进入现有Checks／Mac Bootstrap的PR与push路径过滤；仅补本批具体文件，不添加通配目录、workflow或job，避免策略声明要求CI而对应单文件变更无法触发。
+
+沿 Research Web Checks 既有 Python 步骤增加 `test_weknora_sync.py`、`test_weknora_sync_client.py`、
+`test_weknora_current.py`、`test_weknora_current_api.py` 及严格UTF-8纯文本overlay的
+`test_weknora_plain_text.py`，保留原九份 WeKnora 回归；JS 继续由原
+`research_web*.test.mjs` 通配符执行。macOS Bootstrap 原安装步骤补充三份新模块导入，
+静态资源继续核对现有 `knowledge-settings.mjs`。不新增 workflow、job、runner、依赖、超时或
+平台 dispatch，原 Python 步骤增量预留60秒、导入步骤5秒，实际由最终候选回执核对。
+CI不连接 WeKnora／Ollama、不下载模型或调用云端服务；本机恢复、真实向量化、浏览器与报告
+接受分别留证。远端操作前按原规则重新核对 visibility／额度，未运行的CI不标通过。
+
+Stage 业主交接回归加入既有 Research Web Checks Python 清单，Mac Bootstrap 的 PR 路径
+覆盖管理器和入口脚本。复用原三项 CI，不新增 job、runner、依赖或超时，增量预留原步骤
+30 秒。现场预留释放与固定候选部署分别保存真实回执，Linux 产品验收不阻塞 Mac 任务。
+
+上线后工作树退役的两组 Node 回归登记在现有 Project Constraints Git safety 步骤，使用隔离临时仓库和验证回执。原作业、runner、依赖、时限及跨平台 dispatch 保持，正式上线与历史退役结果不由 CI 代填。
+
+历史备份锁及工作树身份复核在原 Project Constraints Git safety 步骤加独立 Node 回归，
+包含临时仓库的真实备份恢复和预览漂移拒绝。不新增作业、runner、依赖或跨平台 dispatch。
+
+策略验证 Native 操作员复用 Research Web Checks 的 `test_model_provider_upgrade.py`、Project Constraints 与 macOS 15 Bootstrap。同候选复核原三个作业，原 runner、依赖与时限保持。新增定点测试预留 10 秒，正式入口上传用户冻结包单独在 Mac mini 验收。
+
+策略验证沿现有 Research Web Checks 加入引擎与 API 小样本，Node 测试复用原通配符，macOS Bootstrap 对新增模块下载并核对字节。沿用原作业、runner、依赖及超时，原步骤预留 30 秒；用户冻结行情仅用于本机隔离实跑。
+
+大补丁恢复回归沿 Project Constraints 原 Git safety 步骤执行。夹具使用可压缩文本，覆盖超过 64 MiB 的未暂存删除、索引状态和 V2 恢复，预留原步骤 15 秒，作业、runner、依赖及触发规则沿用。
+
+Research Bot 的 Radar 时效回归及 Native 升级配置沿原 Research Web Checks 和 macOS 15 Bootstrap，复用已登记的 Bot、Discovery 与操作员测试。原标准 runner 和时间上限适用，实际结果在精确候选回执中记录。
+
+常驻存储身份固定升级的 profile 和回滚测试复用既有 model_provider_upgrade Python 步骤。原作业、依赖与超时保持，重新绑定刷新后候选的三项检查。
+
+Research Bot Native 升级回归进入 Research Web Checks 现有 `test_model_provider_upgrade.py`，沿既有 Project Constraints 和 macOS 15 Bootstrap 获取精确候选证据。无新增 job、runner、依赖或平台 dispatch。新增定点回归在既有检查内预留 30 秒，以实际记录为准。
+
+Research Bot 的离线回归沿 Research Web Checks 原批次，Mac Bootstrap 在现有步骤核对静态资源字节和 Doctor 配置。作业、runner、依赖与触发策略沿原工作流。
+
+本次 macOS 常驻目录身份与网关迁移沿原 Research Web Checks Python 清单增加两个模块，沿原
+macos-15 Bootstrap 步骤实测临时目录 APFS 卷证据及恢复工件可执行性。原 job、runner、依赖、
+超时和 Windows/Linux 入口保持。GitHub 三项结果须对应最终候选；临时目录和清洁安装不会修改
+Mac mini 常驻配置，真实登录、重启和常驻切换另验。
+
+2026-11-11 交付运行时固定在项目内。原 Project Constraints 的 Git 安全步骤加入固定版本隔离与真实资源内核合同，
+在原步骤预留10秒增量；沿用 Node20、既有 job、runner 和10分钟时限。固定版本回归使用 Node 权限模型限制全局文件读取，
+临时仓库只访问本地 bare remote。远端操作前按本文件要求复核 visibility 与计费准入，同候选 CI 单独留证。
+
+逐日市场与首批资料沿原 Checks 加入官方资料／研究证据离线合同，沿原 Node 通配符覆盖日期、图表及明确导入，
+Mac Bootstrap 在原静态资产步骤增加 `market-daily-bootstrap.mjs`。原三CI、作业、依赖、runner、时限不变；
+原步骤增量预留120秒含 Native 新封闭模式回归，实际按候选记录。真实取源、导入和常驻验收单独执行。
+
+市场Native V2切换补丁仅沿原`test_model_provider_upgrade.py`增加两项有界完成／原回滚合同，
+复用现有三CI和Mac安装，无新workflow/job/runner/依赖/CI超时或平台dispatch，原步骤增量预留5秒。
+120秒是该Native步骤的本机Git命令上限，实际服务接受另证，不用旧9a97168e候选CI认证新版本。
+
+私网明确动作和旧行情入口补丁沿原Gateway Python清单、Node模块导航合同及Mac静态安装步骤；
+不新增workflow/job/runner/依赖/timeout或平台dispatch。后继profile增量在原步骤预留90秒，
+最终候选实测另记；发布前重新核对PUBLIC和当前标准runner，不借已部署a76的CI。
+
+综合总览沿原三项 CI：Checks 追加九指数离线测试，Mac Bootstrap 原静态步骤核对四个
+market-dashboard 资源并导入 Provider。无新 job、runner、依赖或平台 dispatch；增量预算
+为原测试步骤15秒、静态步骤10秒。发布前仍须核对当前 visibility／额度，不能沿用旧快照。
+
+## Git prepared 冲突诊断前置修复预算（2026-11-06）
+
+本轮只在原 Project Constraints 的 Git safety Node 步骤增加11个快速定点用例，验证历史六字段 `mergeFailure` 的严格有界读取与拒绝反例。复用原 job、runner、执行入口和超时，不新增依赖、workflow或平台dispatch；原步骤增量预留10秒，最终四套GitSafety的实际结果与耗时由任务回执记录，不能用定点绿或修复前RED代替整套验收。诊断可读取不授予published／CI资格，远端动作仍按原实时visibility／额度和保护门执行。
+
+2026-11-09 补 Git 退出码 128 的已恢复历史诊断正例及拒绝反例，沿原 Project
+Constraints Git safety 测试步骤，增加预留 5 秒。
+
+## WeKnora 资料适配预算（2026-11-06）
+
+本轮只在原 Research Web Checks 的 Python 清单增加九份 `test_weknora_{client,service,api,integrity,candidate,upstream_patch,retrieval_profile,cli,kb_settings_patch}.py`，JS 仍由现有通配符执行；Mac Bootstrap 原静态资源下载与字节比对加入 `knowledge-settings.mjs`。不增加 workflow/job/runner、依赖、超时或平台 dispatch，原步骤增量预留60秒，实际时长由最终候选回执记录。CI 不连接 WeKnora、厂商或模型，也不安装 Go；补丁应用夹具不等于 Go 运行验证。远端操作前仍实时核对 visibility／额度，真实服务与业务验收独立记录。
+
+2026-11-06统一导航v4封闭操作员只在原test_model_provider_upgrade.py增加模式和正反例，沿原Research Web Checks清单及原Mac安装门。无新workflow/job/runner/依赖/timeout或平台dispatch；原步骤为新增矩阵预留90秒，最终候选实测与实际CI分别取证。源UI候选CI不能代替新操作员CI，发布前重新核对PUBLIC及当前标准runner运行证据。
+
+2026-11-06统一导航只在原Mac Bootstrap静态资源步骤补module-navigation.mjs、navigation-catalog.mjs、module-navigation.css下载及源码字节核验；新Node合同沿原Web Checks通配符。无新job、runner、依赖、timeout或平台dispatch，原步骤增量预留5秒。浏览器在本机已有Chrome/Playwright完成，发布前重新核对仓库PUBLIC和标准runner状态。
+
+2026-11-05事件研究常驻部署新增封闭profile，沿原Research Web Checks的
+test_model_provider_upgrade.py参数与近处反例验证，不增加job、runner、依赖或时限。
+新增用例暂在原步骤预留120秒，最终候选以实测为准；操作员仍需原三CI及Mac干净安装。
+真实日程关闭、全账号保全和页面验收另取现场证据，不能以CI代替；不派发他平台产品CI。
+
+2026-11-08 财经日历在原 Research Web Checks 加入离线 Python 合同（JS 沿原通配符），
+在原 macOS Bootstrap 步骤核对两份静态文件。没有新 job、runner、依赖、超时或跨平台 dispatch。
+实际运行须绑定最终候选；远端操作前复核仓库公开状态。
+
+2026-11-05研发进展仅在原macOS Bootstrap静态资源步骤追加progress.mjs、progress.css、progress-data.json的下载及源码字节核对；原Web Checks通配符执行新Node测试。无新job、runner、依赖、timeout或他平台dispatch，增量预留原步骤10秒。实际候选须重新取得原Constraints、Checks与macos-15安装证据；远端操作前复核PUBLIC。
+
+2026-11-05能力中心三分类仅在既有Research Web Checks步骤追加方法兼容和共享测试环境离线测试；不增加job、runner、超时、依赖安装步骤或产品平台dispatch。局部方法9例约11秒、环境10例不足1秒，在原步骤预留30秒增量；CI结果须绑定最终候选。共享环境仅供本地开发复用，不替代原Mac干净锁安装与Doctor检查。操作前只读API核对仓库仍为PUBLIC，并有当前标准runner运行证据；发布前仍须重新核对，不能沿用本段结论。
+
+2026-11-05 PR268 Checks run41944970627 已通过全部Python分片并核实锁定SDK2.2；JavaScript阶段1305PASS、3FAIL、4SKIP，三个失败均来自旧登录VM夹具未提供浏览器URLSearchParams。修补3仅补该夹具的原生URL API和空location.search，并保持严格请求体断言（无回跳参数时return_to:null）；不改产品、依赖、job/runner/timeout或环境边界。旧登录、MCP登录、账号菜单与会话包装完整组合本机24PASS；默认Node25.9.0结果69.396ms保留，既有固定Node24.19.0补跑24PASS／105.226ms，未安装或更改Node配置。新候选仍须重新取得原全部CI证据。
+
+2026-11-05 PR268 第二次 Checks run41938174449/head ddb24917 在开发依赖安装中实际取得 mcp/mcp-types 2.3.0，与已锁定 Web 2.2.0 的路由合同不符。CI修补2沿原精选Web锁步骤加入这两个已声明包的完整哈希块，继续 `--require-hashes --no-deps`，并在同一步校验已安装版本；保留原 reportlab/openpyxl/et-xmlfile、开发依赖声明和SDK合同。不增加job、runner、时限或新依赖，不安装本机包；修后新候选CI须重新取证，旧候选成功的Mac/Constraints不移记为新候选通过。
+
+2026-11-05 PR268 首次 Mac Bootstrap run41934434968 的安装与前置29项Node／7项unittest通过（另1项可选clone为NOT_RUN），后续验证步骤出现 AssertionError。只读复现确定公开 server dispatcher 的最小环境丢失显式 MCP 开关，使新增 Doctor 的 enabled 断言失败；SDK2.2及CJPY0.5.2安装已有该run日志证据。修补限定该dispatcher规范0/1传递，保留原Doctor断言、全部job／runner／timeout；不重跑旧候选或放宽全局环境白名单。修后新候选仍须受管发布并取得自身CI证据，原失败保留。
+
+2026-11-05共享缓存报告委托沿原Project Constraints的资源生命周期Node合同追加正反例，
+不增加job、runner、时限、依赖或平台dispatch；在原步骤预留30秒增量，并由最终候选实测。
+新委托目标与真实内核合同68项在Node24.22.1通过，实测6.566秒；不代替冻结候选完整回归或CI。
+只接受本地显式授权的冻结观测，不运行Docker测量、GC或服务操作；全局runtime保持不变。
+本机、独立评审及同候选CI分别取证，未运行的产品安装或其他平台验收不认证为通过。
+
+2026-11-05实际CLI入口修补只将恢复校验器绑定改为静态ESM导入，原项目校验与保护规则不变。
+近处新增真实CLI子进程正反例，原四套回归及宿主kernel合同共279项在Node24.22实际通过，
+317.581秒；保留原CI job、runner、时限和平台归属，不新增依赖或全局框架变更。
+
+2026-11-05生命周期桥修补在原Git安全Node回归中覆盖已完成恢复证书的准入及必需归档保护，
+复用原CI、runner和时限；不新增job、平台dispatch或依赖。Node24.22最终四套262项实际
+273.987秒，桥与真实宿主kernel22项、恢复证书目标15项通过；宿主kernel合同不新增CI依赖。
+该耗时不替代Node20/固定Node24.19的同候选CI。原事件任务的三CI及
+失败/超时证明保持原归属，桥修补独立候选重新验证，现场重放须在源码交付后执行。
+
+2026-11-04事件研究候选仅向既有Research Web Checks分区步骤登记新领域/ASGI测试，并在原Mac
+Bootstrap静态资源校验加入两份mjs；不新增job、runner、超时或平台dispatch。现有串行本机WIP
+已运行真实窗口、回测/封存/评分互操作及原生资料测试，修复期间失败证据保留；合成正链不代表
+真实市场有效性。新模块初步预留原步骤180秒，最终实际耗时与候选CI另绑，不能用估计替代通过。
+发布前仍须实时复核visibility/额度和标准runner资格；不重跑旧候选或从Mac派发Windows/Linux产品。
+
+2026-11-04 最终候选本机 L4 检查发现入站 MCP 规则已要求 Mac Bootstrap，但该 workflow 的 PR/push 路径过滤尚未覆盖新规则。修复仅在两个既有事件中补齐该规则的全部九个精确文件及一个源码目录选择器；既有路径、单一 macos-15 job、60分钟上限、依赖及 Windows 手动交接保持。新增的是必需门的路径覆盖，不修改策略或削弱匹配测试；远端 CI 仍 NOT_RUN，SSH 发布阻断仍保留。
+
+2026-11-04 入站 MCP 沿原 Research Web Checks Python 步骤增加 store/oauth/http/read_policy/tools/lifecycle 六模块，账号菜单 JS 沿原 research_web 通配；原 Bootstrap 安装检查增加锁定 SDK 导入和 enabled Doctor 只读断言。无新 job、runner、依赖、timeout、触发频率或产品 dispatch；Checks45分钟及Mac标准macos-15/原60分钟保持。原步骤增量保守预留90秒，Task3 focused14项本机约2秒，完整候选实际CI耗时待证；现因GitSafety SSH认证阻断未发布，不把本机耗时当作远端预算通过。
+
+2026-11-01 prepared-amend 回执字段兼容在既有 Project Constraints 的 Git安全测试步骤增加2个正反例，首次发布前主线前进又增加3个直接刷新正反例；不增workflow/job/runner/依赖/timeout。原amend测试文件本机完整106项通过，实测约275秒；新刷新用例所在Git安全文件的10项unpublished定点测试通过。这些结果不是远端同候选CI或生产维护成功。项目入口对合法 `mergeSourceCommit` 只接受其等于旧feature，并在正式收养或主线刷新后推进到新feature；错误绑定继续失败关闭。
+
+2026-10-31 存储留存调整复用原 Research Web Checks 的 Python 步骤：新增 `test_test_artifact_retention.py` 21 项，并在既有 `test_iteration_resources.py` 增加 10 项（原 15 项保留），完整局部集合共46项；不增加 job、runner、timeout、依赖、模型或供应商请求。功能/文档候选`13a1ae58`与正式集成候选`5dc24828`共享树`fa49985e`，各自在干净工作树以exact模式按20/1/20/5执行46项、0失败/0错误，四个临时根逐批回收；协议81项在两候选各按20/20/20/20/1执行，通过且真实Keychain调用0。本段归属到这两个已测SHA；后续文档修订产生的新候选仍须独立Router/评审/CI，不把旧SHA回执写成新候选PASS。原job对新增31项保守预留30秒，远端实际耗时另证。选择性归档只移除同批已退休、exact checkout回执明确绑定的成功stdout/stderr，旧任务历史证据不由新代码静默删除。
+
+2026-10-31 PR257 的两次Mac安装作业因GitHub官方macOS14镜像brownout在runner启动前取消，
+注释确认该镜像将于11月2日退役。依据runner-images#13518的迁移指引，同一个clean-install
+job切换到标准macos-15；runner数量、60分钟上限、触发、固定DSH构建、3081/8088与Doctor
+检查全部保留，不增加Windows/Linux dispatch。旧cancelled记录不认证为通过，修后候选须重新取证。
+
+2026-10-31 开发产物生命周期沿原Project Constraints Git safety步骤增加Node桥合同，
+保留全部原Git安全/快照/修订合同；不新增job、runner、依赖、timeout或平台dispatch。
+新增桥合同本机亚秒，原备份完整回归另留耗时；缺少共用runtime安装授权时不冒充已启用。
 
 PR256 首轮 Checks 41169984771 的全部 7,675 个 research 节点已执行，
 6 个新 CLI fixture setup 错误来自浅 checkout 缺少三个固定历史源对象；
@@ -471,10 +634,5 @@ PR245 repair3 仅将原同一步根包安装改为产品已有的普通 wheel --
 原Checks同一Python步骤追加三个stdlib维护合同，无runner/job/超时/依赖变化；实际原始CI日志有界完整读取，不用CI绿替代现场或业务验收。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
-2026-10-30 PR245 后继不新增 workflow、job、runner、worker、依赖或 timeout。Catalog 对非初始化
-外部模块检查改为完整默认动态委托闭包证明内的fresh指定top-level metadata投影，本机最终字节固定oracle
-cProfile从9.518秒降至7.016秒，但不据此认证Linux CI时长。原两分区worker只增加5秒节流的私有
-安全进度；7,919-node／23,757 hook等价本机模拟开启中位墙钟0.00884秒、最多6次实际原子写，关闭
-中位0.000709秒，该lower-bound仍不保证runner或完整CI。缺final时artifact保留固定phase/outcome／plan／
-已分配nodeID／有限计数诊断，仍缺final/JUnit/union并保持失败。旧45分钟取消、
-两worker final MISSING及修补计数不改写，最终候选仍运行原Project Constraints、Checks与Mac门。
+
+AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。未增加 runner、独立作业或产品 dispatch。

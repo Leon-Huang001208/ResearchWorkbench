@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/.codex/workspaces/rwb-seek-parity-control-3af31de6-worktrees/seek-packs-20261027-7bda5752/outputs/research-web-architecture/08-iteration-docs.html",
-    "sha256": "25fe44806dec8b12ffb85dfb3d339a3460dbd6ebef022bccd429e40e124baee8",
-    "bytes": 641782
+    "path": "/Users/leon/.codex/workspaces/rwb-seek-parity-control-3af31de6-worktrees/storage-retention-20261031-6a44/outputs/research-web-architecture/08-iteration-docs.html",
+    "sha256": "d527966ae90f583ce5aa4ef64143b366270bbb39cf6b9749dc1970c832e3b8e7",
+    "bytes": 644838
   },
   "state": {
     "detail": "read",

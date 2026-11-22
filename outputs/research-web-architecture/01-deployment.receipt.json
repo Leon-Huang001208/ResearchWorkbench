@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/docs/architecture/research-web/diagrams/01-deployment.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/outputs/research-web-architecture/01-deployment.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/docs/architecture/research-web/diagrams/01-deployment.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-weknora-production-20261109/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "91283aae04921e1aa171f514ac07c4eeddf23f158ca1539b132d87087d9c4548",
-    "bytes": 6589
+    "sha256": "e11422633034438c0753a21fa8dbb0b3e07045a7e1cb171557908d918e8c7d7f",
+    "bytes": 6555
   },
   "artifact": {
-    "sha256": "6652aa3ac0ded9c3de410cd781dd177fc783478431de46bf069aa5433947f4aa",
-    "bytes": 645775
+    "sha256": "c050b33cb4504e6c757343ba3c6ef3e040b871c61f8ba74ab70ee6534e1d9192",
+    "bytes": 645717
   },
   "validation": {
     "checksPassed": 9,

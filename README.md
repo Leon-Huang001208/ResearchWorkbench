@@ -1,5 +1,30 @@
 # Research Workbench
 
+Research Web 的 AlphaDesk AI 问答候选及切换状态见[问答合同](docs/research-web-ai-qa.md)。
+
+策略模拟中的[策略验证](docs/research-web-strategy-validation.md)可导入冻结日线、配置卖出规则并查看逐笔相似对照，结果用于历史研究。
+
+[财经日历](docs/research-web-ui.md#财经日历)是全市场概览子页，提供周历、月历与五类筛选；
+首批展示部分美国官方经济日程，未接入的类别明确标注覆盖缺口。
+
+[全市场综合总览](docs/research-web-market-dashboard.md)作为普通首页，集中展示 A股、美股、港股
+九指数真实行情、六维证据资格及事件时间线；原行情分析、沪深北行情和板块资金同页保留。
+时间线可逐日选取和横向浏览，点「查看该日行情」才进入价格回放；研究工作台可预检并一次性导入官方日程、交易日历和研究证据。
+进入首页只读缓存，明确刷新才取行情；缺项不补分，正式评分、采集日程及入站 MCP 不随页面启用。
+源码、真实来源、安装 CI 与 Mac mini 常驻验收分别记录。
+
+## WeKnora 研究资料知识库
+
+[WeKnora 资料合同](docs/research-web-weknora.md)提供可选的目录同步、原文检索和研究引用保存。用户先在 WeKnora 注册本人账号，再在 RWB 设置中登录并选择自己的资料库；本地 Ollama 负责向量化，研究回答沿用现有模型。文件更新成功后切换当前版本，删除退出当前检索，历史引用保留。金融快照、模板底稿和正式成果仍由 RWB 管理；来源时间未知的资料不自动取得历史报告资格。入口默认未配置，源码、实例恢复、检索质量和报告验收分别留证。
+
+侧栏底部的[研发进展](docs/research-web-ui.md#研发进展与更新日志)集中展示功能最新状态和历次交付，支持状态、模块与月份筛选。内容随版本提供，明确快照日期；工程交付、平台适用与环境启用分别说明，不承诺实时更新。
+
+研究情报新增[事件时间线与日历效应研究](docs/research-web-event-research.md)：按账户保存历史／未来
+候选、人工确认版本和原件；策略模拟分别计算固定窗口、指数对照及代理账本，六维研究分须独立
+验证且不启用生产评分。免费来源覆盖、PIT缺口、源码验收与真实业务接受分别记录。
+
+新增默认关闭的[私网入站 MCP](docs/research-web-mcp-facade.md)：成熟应用经原生 OAuth 独立授权后，只读操作员批准的公开或合成冻结材料。RWB 保留账号权限、DataHub、来源证据和质量门，固定 DSH 仍承担原研究执行；FinGPT／Claw 通用 Agent 功能停止扩建，已有入口兼容维护。源码和隔离测试不代表私网部署或 Codex／DSH／WorkBuddy 原生验收；不自动取数、调用模型或启动研究实例。
+
 资产观察可在“更多 → 自选与最近观察”[离线导入股票 CSV](docs/research-web-watchlist-import.md)：完整预览、显式消歧/跳过、重新冻结并确认追加，保留原自选。首批仅本地已获准沪深北股票目录；不取数、不调用模型，其他资产类型逐项待支持。源码、本机与部署状态分别验收。
 
 左侧新增独立“报告生产”工作区：先浏览真实报告项目，再管理每期生产与交付、模板配置及历史记录。通用 Workflow 仍在能力中心，报告执行复用原 Claw／唯一 DSH 和 Host 质量门；页面、源码、常驻部署及真实周报验收分别记录。使用与边界见[前端说明](docs/research-web-ui.md)。
@@ -316,10 +341,15 @@ MacBook Pro 负责项目功能开发、macOS 本地验收与 GitHub macOS CI。W
 
 ## 许可证
 
-MIT License
+ResearchWorkbench 自有且有权授权的材料采用 [ResearchWorkbench Source Available License 1.0](LICENSE.md)。允许商用。企业内用须公开实际运行版本的对应源码，SaaS 须公开可重建整套服务的源码。修改版投入使用也须公开对应源码。个人使用须保留 Yongjia (Leon) Huang 署名。
+
+[许可范围与第三方声明](THIRD_PARTY_NOTICES.md)列明原许可、排除路径和历史版本边界。
 
 能力详情的数据准入范围独立于模型健康：硬条件缺失阻断，可选条件缺失按声明省略章节；旧快照与资源全集不代表当前执行授权。当前Mac验证不扩展成其他平台或所有供应商品牌支持。
 
+## 社区与贡献
+
+查看[贡献指南](CONTRIBUTING.md)、[社区行为准则](CODE_OF_CONDUCT.md)及[贡献者许可协议](CLA.md)。发现漏洞请按[安全政策](SECURITY.md)私密报告。
 
 ## 单一兼容模型连接
 
@@ -339,6 +369,8 @@ Hot冻结FinGPT研究现使用轻量DSH组合并有界核验原件；真实Markd
 
 Host元数据专项升级在用户单独授权后走显式、精确候选的兼容复核入口；原自动升级清单不变，活动研究延后，失败回滚且保留数据。命令与边界见[安装指南](docs/research-web-installation.md#macos-登录后常驻与自动部署)。
 
-## 2026-10-28：T3组合包集成边界
+## 私网仅服务模式
 
-九个组合包的确定性内核与三个自有原件方法在候选源码接入原抽屉、能力版本、Host冻结与唯一DSH；预览、草稿准备和Send分开。已接通的原件映射主要覆盖已核验日线与网页版本，其他财务、持仓、估值及预期输入继续逐项补齐；数据不足返回缺口，不视为整包生产验收完成。原八场景/18 gated保留，140静态对照不是全项运行能力，T4/T5仍待实施。见[组合包](docs/research-web-research-packs.md)、[自有方法](docs/research-web-owned-methods.md)、[来源选择](docs/research-web-source-selection.md)、[UI](docs/research-web-pack-ui.md)。最终CI/Mac干净安装、供应商/模型质量和部署分别验收。
+macOS 隔离试点可显式运行 `rwb server serve --service-only`。Web 保留账号内资料、证据和数据读取，研究可由 WeKnora 或外部宿主执行。常驻模式可保留原主账号目录并配置私网 HTTPS OAuth。入口与验收范围见[安装合同](docs/research-web-installation.md#macos-私网仅服务模式)。
+
+研究组合包与原件方法继续沿现有研究入口使用；当前源码范围和已知来源限制见[研究包说明](docs/research-web-research-packs.md)与[原件方法](docs/research-web-owned-methods.md)，源码能力不代表真实供应商或常驻部署已验收。

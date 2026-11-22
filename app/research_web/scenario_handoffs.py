@@ -245,12 +245,16 @@ def verify_execution(service, sid, receipt):
     if context is None:
         fail("scenario_execution_changed", "质量合同的场景归属已缺失")
     required = bound_capabilities(service, context)
+    alpha = service.store.session(sid).get("execution_engine") == "alphadesk"
     if (
         receipt.get("scenario_required_capabilities") != required
         or receipt["research_contract"].get("execution_context")
         != execution_context(context, required)
-        or receipt.get("scenario_discovered_capabilities")
-        != [item["native_name"] for item in required]
+        or (
+            not alpha
+            and receipt.get("scenario_discovered_capabilities")
+            != [item["native_name"] for item in required]
+        )
         or receipt["research_contract"]["as_of"] != context["scenario"]["inputs"]["as_of"]
         or not set(context["requirements"]).issubset(
             {row["text"] for row in receipt["research_contract"]["requirements"]}
@@ -270,7 +274,9 @@ def verify_execution(service, sid, receipt):
                     fail("scenario_execution_changed", "场景必需能力资源字节已变化")
     loaded = {
         (item["id"], item["version"], item["sha256"])
-        for item in receipt.get("native_capabilities", [])
+        for item in receipt.get(
+            "qa_dispatched_capabilities" if alpha else "native_capabilities", []
+        )
     }
     issues = [
         "scenario_capability_not_loaded:" + item["id"]
@@ -585,7 +591,9 @@ def prepare_context(service, body, *, _workspace_reader=None):
     return context
 
 
-def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _verified=None):
+def trusted_context(
+    service, sid, *, check_capabilities=True, read_only=False, _visited=(), _verified=None
+):
     """Validate every ancestor for scene and legacy copies, with cycle protection."""
     if sid in _visited or len(_visited) >= 64:
         fail("scenario_lineage_cycle", "资料来源链循环或过深，不能读取或继续交接")
@@ -599,6 +607,28 @@ def trusted_context(service, sid, *, check_capabilities=True, _visited=(), _veri
         row = service.store.session(sid, include_deleted=True)
     except StoreError:
         fail("scenario_ancestor_unknown", "原始来源会话已缺失，不能用副本获得授权")
+    if read_only:
+        from .mcp_facade.read_policy import reject
+
+        if (
+            row.get("deleted_at") is not None
+            or row.get("purpose") == "discovery_research"
+            or row.get("scenario_handoff_id")
+            or row.get("evidence_handoff_id")
+            or row.get("discovery_handoff_id")
+            or any(
+                record.get("session_id") == sid
+                for record in service.store.data["handoffs"].values()
+            )
+            or any(
+                record.get("session_id") == sid
+                for record in service.store.data.get("discovery_handoffs", {}).values()
+            )
+        ):
+            reject()
+        # The original no-handoff branch is a pure ownership check. Never
+        # descend into lineage, capability admission, or discovery reconciliation.
+        return None
     if row.get("purpose") == "discovery_research":
         discovery = service.discovery.trusted_context(sid)
         record = service.store.data.get("discovery_handoffs", {}).get(discovery["handoff_id"], {})

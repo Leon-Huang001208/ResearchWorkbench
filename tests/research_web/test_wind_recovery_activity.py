@@ -20,6 +20,10 @@ def host(monkeypatch):
         approvals={},
         questions={},
         source_requests={},
+        event_timeline=SimpleNamespace(active=False),
+        event_collection=SimpleNamespace(active=False),
+        studies=SimpleNamespace(active=False),
+        event_inputs=SimpleNamespace(active=False),
         store=SimpleNamespace(data={}),
         market=SimpleNamespace(activity_witness=lambda: {"active": False}),
         report_workflows=SimpleNamespace(
@@ -29,6 +33,28 @@ def host(monkeypatch):
         datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     return app
+
+
+@pytest.mark.parametrize(
+    "field,key",
+    [
+        ("event_timeline", "event_sources"),
+        ("event_collection", "event_sources"),
+        ("studies", "event_studies"),
+        ("event_inputs", "event_inputs"),
+    ],
+)
+@pytest.mark.parametrize("active", [False, True])
+def test_event_activity_witnesses_are_explicit_and_never_skip_other_checks(
+    monkeypatch, field, key, active
+):
+    app = host(monkeypatch)
+    getattr(app.state.research, field).active = active
+    actual = TestClient(app).get("/api/research/resident").json()
+    assert actual["active"] is active
+    checks = actual["activity_witness"]["checks"]
+    assert checks[key] is active
+    assert all(value is False for name, value in checks.items() if name != key)
 
 
 @pytest.mark.parametrize("done", [False, True])
@@ -132,6 +158,10 @@ def test_source_becomes_unknown_after_aggregate_never_reports_idle(monkeypatch):
         "report_runtime_tasks",
         "report_catalog_data",
         "report_catalog_runs",
+        "event_timeline",
+        "event_collection",
+        "studies",
+        "event_inputs",
     ],
 )
 def test_missing_host_check_is_unknown_in_final_active(monkeypatch, missing):
@@ -145,6 +175,12 @@ def test_missing_host_check_is_unknown_in_final_active(monkeypatch, missing):
     else:
         delattr(app.state.research, missing)
     actual = TestClient(app).get("/api/research/resident").json()
-    key = "source_requests" if missing == "source_requests" else "reports"
+    key = {
+        "source_requests": "source_requests",
+        "event_timeline": "event_sources",
+        "event_collection": "event_sources",
+        "studies": "event_studies",
+        "event_inputs": "event_inputs",
+    }.get(missing, "reports")
     assert actual["activity_witness"]["checks"][key] is None
     assert actual["active"] is None

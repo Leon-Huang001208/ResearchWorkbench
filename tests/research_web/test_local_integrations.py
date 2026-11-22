@@ -1950,7 +1950,8 @@ def test_office_phase_fifo_cannot_block_parent_supervision(tmp_path):
 
     run = tmp_path / ("f" * 32)
     run.mkdir()
-    os.mkfifo(run / "word-phases.jsonl")
+    fifo = run / "word-phases.jsonl"
+    os.mkfifo(fifo)
     code = (
         "import sys; from pathlib import Path; "
         "from app.research_web.local_integrations.verifiers import _read_office_phases; "
@@ -1964,6 +1965,9 @@ def test_office_phase_fifo_cannot_block_parent_supervision(tmp_path):
         timeout=2,
     )
     assert result.stdout.strip() == "[]"
+    # The successful security fixture must not leave a special file behind for
+    # the managed test-root inventory; failed assertions retain it for diagnosis.
+    fifo.unlink()
 
 
 @pytest.mark.parametrize(

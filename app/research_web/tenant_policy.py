@@ -29,6 +29,9 @@ _CALLBACKS = frozenset(
         "/api/research/internal/data/cancel",
         "/api/research/internal/data/model-connection",
         "/api/research/internal/data/document-operation",
+        "/api/research/internal/data/knowledge-query",
+        "/api/research/internal/data/knowledge-read",
+        "/api/research/internal/data/knowledge-tool",
     }
 )
 _BLOCKED = (

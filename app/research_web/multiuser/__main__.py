@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import getpass
+import importlib.metadata
 import importlib.util
 import json
 import logging
@@ -51,16 +52,20 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--root", type=Path, default=Path.home() / ".research-workbench/server"
         )
+        if name in {"serve", "doctor"}:
+            command.add_argument("--weknora-oauth-origin", help="隔离 WeKnora 的浏览器来源")
         if name in {"init", "reset-admin"}:
             command.add_argument("--username", required=True)
         elif name == "serve":
             command.add_argument("--origin", required=True)
-            command.add_argument("--source", type=Path, required=True)
-            command.add_argument("--node", type=Path, required=True)
+            command.add_argument("--source", type=Path)
+            command.add_argument("--node", type=Path)
+            command.add_argument("--service-only", action="store_true", help="使用外部研究宿主")
             command.add_argument("--port", type=int, default=8089)
             command.add_argument("--max-instances", type=int, choices=(1, 2, 3, 4), default=2)
         else:
             command.add_argument("--source", type=Path)
+            command.add_argument("--service-only", action="store_true", help="检查仅服务模式配置")
             command.add_argument("--json", action="store_true")
     return result
 
@@ -178,15 +183,26 @@ def _configured_capacity(config: dict) -> int:
     return value
 
 
-def _inspect_capacity(root: Path) -> dict:
-    """Inspect private configuration without importing or starting a runtime."""
+def _configured_mcp_enabled(config: dict) -> bool | None:
+    """Missing retains legacy environment behavior; persisted values are strict bools."""
+    if "mcp_readonly_enabled" not in config:
+        return None
+    value = config["mcp_readonly_enabled"]
+    if type(value) is not bool:
+        log.warning("server_mcp_configuration_invalid")
+        raise ServerCommandError("server_mcp_configuration_invalid")
+    return value
+
+
+def _read_resident_configuration(root: Path) -> dict | None:
+    """Read only bounded private metadata, without importing a runtime or SDK."""
     descriptor = None
     try:
         if not _directory(root):
-            return {"status": "not_configured"}
+            return None
         path = root / "resident.json"
         if not path.exists() and not path.is_symlink():
-            return {"status": "not_configured"}
+            return None
         before = _private_file(path)
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         actual = os.fstat(descriptor)
@@ -199,9 +215,24 @@ def _inspect_capacity(root: Path) -> dict:
             and (actual.st_uid != os.getuid() or stat.S_IMODE(actual.st_mode) != 0o600)
         ):
             raise ServerCommandError("server_path_unsafe")
-        config = json.loads(os.read(descriptor, 65537))
+        raw = os.read(descriptor, 65537)
+        if len(raw) > 65536:
+            raise ServerCommandError("server_path_unsafe")
+        config = json.loads(raw)
         if not isinstance(config, dict):
-            raise ServerCommandError("server_capacity_invalid")
+            raise ServerCommandError("server_configuration_invalid")
+        return config
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _inspect_capacity(root: Path) -> dict:
+    """Inspect private configuration without importing or starting a runtime."""
+    try:
+        config = _read_resident_configuration(root)
+        if config is None:
+            return {"status": "not_configured"}
         additional = _configured_capacity(config)
         return {
             "status": "configured",
@@ -211,14 +242,94 @@ def _inspect_capacity(root: Path) -> dict:
     except (OSError, ValueError, RecursionError, ServerCommandError):
         log.warning("server_capacity_inspection_failed")
         return {"status": "invalid"}
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
+
+
+def _inspect_mcp(root: Path | None = None) -> dict:
+    """Inspect configuration and distribution metadata, never initialize OAuth/SDK."""
+    from ..mcp_facade.config import enabled
+
+    sdk = {"status": "not_installed", "version": None, "matches_lock": False}
+    try:
+        version = importlib.metadata.version("mcp")
+        sdk = {"status": "installed", "version": version, "matches_lock": version == "2.2.0"}
+    except importlib.metadata.PackageNotFoundError:
+        pass
+    except (OSError, ValueError, TypeError):
+        log.warning("server_mcp_metadata_inspection_failed")
+        sdk["status"] = "unknown"
+    environment_enabled = enabled()
+    configured: bool | None = environment_enabled
+    source = "environment"
+    status = None
+    if root is not None:
+        try:
+            config = _read_resident_configuration(root)
+            override = _configured_mcp_enabled(config) if config is not None else None
+            if override is not None:
+                configured, source = override, "resident"
+        except (OSError, ValueError, RecursionError, ServerCommandError):
+            log.warning("server_mcp_configuration_inspection_failed")
+            configured, source, status = None, "unknown", "invalid"
+    return {
+        "enabled": configured,
+        "status": status or ("configuration_pending" if configured else "disabled"),
+        "environment_enabled": environment_enabled,
+        "configuration_source": source,
+        "runtime_verification": "NOT_RUN",
+        "sdk": sdk,
+        "authorization": "not_checked",
+        "connection": "not_checked",
+        "actual_verification": {
+            "codex": "NOT_RUN",
+            "dsh": "NOT_RUN",
+            "workbuddy": "NOT_RUN",
+            "private_tls": "NOT_RUN",
+        },
+    }
+
+
+def _weknora_oauth_origin(arguments: argparse.Namespace) -> str | None:
+    from ..mcp_facade.config import enabled, weknora_callback
+
+    origin = arguments.weknora_oauth_origin
+    if origin is None:
+        return None
+    if not arguments.service_only or not enabled():
+        raise ServerCommandError("weknora_oauth_requires_service_only_mcp")
+    try:
+        weknora_callback(origin)
+    except ValueError as exc:
+        raise ServerCommandError("weknora_oauth_origin_invalid") from exc
+    return origin
 
 
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
+    from research_workbench_entrypoint.knowledge_configuration import knowledge_origin
+
+    from ..mcp_facade.config import resident_execution
+    from ..qa_assets import qa_assets_diagnostic
+    from ..research_bot_diagnostics import configuration_status, diagnostic
+
     accounts = _inspect_accounts(root)
-    source = _source_status(arguments.source)
+    mcp = _inspect_mcp(root)
+
+    service_only = arguments.service_only
+    try:
+        if arguments.service_only or arguments.weknora_oauth_origin is not None:
+            oauth_origin = _weknora_oauth_origin(arguments)
+        else:
+            config = _read_resident_configuration(root)
+            service_only, oauth_origin = resident_execution(
+                config or {}, mcp_enabled=mcp.get("enabled") is True
+            )
+        oauth_status = "configuration_pending" if oauth_origin else "disabled"
+    except (OSError, ValueError, ServerCommandError):
+        oauth_status = "invalid"
+    source = (
+        {"status": "not_required", "pinned_revision": "not_verified"}
+        if service_only
+        else _source_status(arguments.source)
+    )
     python_matches = sys.version_info[:2] == (
         RUNTIME_CONTRACT.python_major,
         RUNTIME_CONTRACT.python_minor,
@@ -226,6 +337,23 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     modules = {
         name: importlib.util.find_spec(name) is not None for name in ("uvicorn", "fastapi", "httpx")
     }
+    knowledge = {
+        "optional": True,
+        "enabled": False,
+        "status": "disabled",
+        "expected_release": "v0.9.0",
+        "authorization": "not_checked",
+        "connection": "not_checked",
+        "runtime_verification": "NOT_RUN",
+    }
+    try:
+        configured_origin = knowledge_origin()
+        knowledge.update(
+            enabled=bool(configured_origin),
+            status="configuration_pending" if configured_origin else "disabled",
+        )
+    except ValueError:
+        knowledge.update(enabled=None, status="invalid")
     report = {
         "schema_version": 1,
         # Artifact presence does not establish pinned-source or model readiness.
@@ -240,13 +368,23 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
             "modules": modules,
         },
         "runtime": "not_checked",
+        "execution_mode": "external" if service_only else "embedded",
+        "research_bot": diagnostic(
+            configuration_status(
+                service_only=service_only, tenant_mode=True, automation_enabled=False
+            )
+        ),
         "model": "not_checked",
+        "ai_qa": qa_assets_diagnostic(Path(__file__).resolve().parents[1]),
+        "mcp_readonly": mcp,
+        "knowledge_backend": knowledge,
+        "weknora_oauth": {"status": oauth_status, "runtime_verification": "NOT_RUN"},
     }
     if arguments.json:
         print(json.dumps(report, ensure_ascii=False))
     else:
         print(
-            f"server: {report['status']}; accounts: {accounts['status']}; source: {source['status']}; runtime: not_checked"
+            f"server: {report['status']}; accounts: {accounts['status']}; source: {source['status']}; runtime: not_checked; mcp: {mcp['status']}"
         )
     return 0
 
@@ -391,16 +529,26 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
     if sys.version_info[:2] != (RUNTIME_CONTRACT.python_major, RUNTIME_CONTRACT.python_minor):
         raise ServerCommandError("server_python_invalid")
     origin = _origin(arguments.origin)
+    oauth_origin = _weknora_oauth_origin(arguments)
+    if oauth_origin is not None:
+        from ..mcp_facade.config import validate_weknora_gateway
+
+        try:
+            validate_weknora_gateway(origin, oauth_origin, arguments.port)
+        except ValueError as exc:
+            raise ServerCommandError(str(exc)) from exc
     if not 1 <= arguments.port <= 65535:
         raise ServerCommandError("server_port_invalid")
-    if (
-        not arguments.node.is_absolute()
-        or not arguments.node.is_file()
-        or not os.access(arguments.node, os.X_OK)
-    ):
-        raise ServerCommandError("server_node_invalid")
-    if _source_status(arguments.source)["status"] != "build_present":
-        raise ServerCommandError("runtime_source_invalid")
+    if not arguments.service_only:
+        if (
+            arguments.node is None
+            or not arguments.node.is_absolute()
+            or not arguments.node.is_file()
+            or not os.access(arguments.node, os.X_OK)
+        ):
+            raise ServerCommandError("server_node_invalid")
+        if _source_status(arguments.source)["status"] != "build_present":
+            raise ServerCommandError("runtime_source_invalid")
     _require_accounts(root)
     with _server_context(root):
         import uvicorn
@@ -414,13 +562,23 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
             project=PROJECT,
             source=arguments.source,
             python=sys.executable,
-            node=str(arguments.node),
+            node=str(arguments.node) if arguments.node is not None else None,
             max_instances=arguments.max_instances,
+            service_only=arguments.service_only,
         )
         pool = RuntimePool(config)
         try:
-            app = create_gateway(AccountStore(root), pool, origin=origin)
-            log.info(json.dumps({"event": "server_starting"}))
+            app = create_gateway(
+                AccountStore(root), pool, origin=origin, weknora_oauth_origin=oauth_origin
+            )
+            log.info(
+                json.dumps(
+                    {
+                        "event": "server_starting",
+                        "execution_mode": "external" if arguments.service_only else "embedded",
+                    }
+                )
+            )
             uvicorn.run(
                 app,
                 host="127.0.0.1",

@@ -131,10 +131,10 @@
       ]
     },
     {
-      "id": "python-jobs",
-      "type": "external",
-      "label": "双 Job 合同执行",
-      "sublabel": "各 2 worker · shard 0 含 JS/编辑",
+      "id": "temp-retirement",
+      "type": "backend",
+      "label": "测试根即时回收",
+      "sublabel": "PASS · inode · 无占用",
       "row": 2,
       "col": 0,
       "size": [
@@ -145,10 +145,22 @@
     {
       "id": "ci",
       "type": "external",
-      "label": "统一 checks 门",
-      "sublabel": "精确并集 · final/JUnit/PASS",
+      "label": "本地与 CI 约束",
+      "sublabel": "同一规则 · 错误阻止交付",
       "row": 2,
       "col": 1,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "selected-evidence",
+      "type": "database",
+      "label": "选择性证据归档",
+      "sublabel": "完整清单 · 128 MiB 门",
+      "row": 2,
+      "col": 2,
       "size": [
         200,
         86
@@ -211,6 +223,19 @@
       "label": "负向用例"
     },
     {
+      "id": "tests-temp-retirement",
+      "from": "tests",
+      "to": "temp-retirement",
+      "label": "封存后回收",
+      "labelDy": 24
+    },
+    {
+      "id": "temp-retirement-ci",
+      "from": "temp-retirement",
+      "to": "ci",
+      "label": "回收回执"
+    },
+    {
       "id": "graph-html",
       "from": "graph",
       "to": "html",
@@ -232,19 +257,26 @@
       "label": "比对字节"
     },
     {
-      "id": "gate-ci",
-      "from": "gate",
-      "to": "python-jobs",
-      "label": "完整候选",
-      "fromSide": "bottom",
-      "toSide": "top",
+      "id": "evidence-selection",
+      "from": "evidence",
+      "to": "selected-evidence",
+      "label": "来源哈希",
       "labelDy": 24
     },
     {
-      "id": "python-checks",
-      "from": "python-jobs",
+      "id": "selection-ci",
+      "from": "selected-evidence",
       "to": "ci",
-      "label": "两份安全证据"
+      "label": "保留清单"
+    },
+    {
+      "id": "gate-ci",
+      "from": "gate",
+      "to": "ci",
+      "label": "退出码与报告",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
     },
     {
       "id": "html-entry",
@@ -270,7 +302,7 @@
       "title": "失败不放行",
       "items": [
         "仅改源码、图源与旧HTML不一致、断链均返回错误",
-        "缺 shard、final 或 JUnit 时统一 checks 门失败"
+        "CI核对既有产物，不依赖开发机Archify安装"
       ]
     },
     {

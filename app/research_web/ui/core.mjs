@@ -1,24 +1,34 @@
 import { defaultSpecialistBudget, specialistBudgetError, specialistCanResume } from './specialist-panel.mjs';
+import { researchSessionPage } from './qa-navigation.mjs';
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'qa', 'specialist', 'claw', 'reports', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot', 'progress', 'research-bots']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
-const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data', 'plugin']);
+const capabilityKinds = new Set(['skill', 'connector', 'method', 'tool', 'workflow', 'data', 'plugin']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const [pageSegment, sectionSegment, ...extraSegments] = path.split('/');
-  const page = pages.has(pageSegment) ? pageSegment : 'fingpt';
+  const page = !pageSegment ? 'market' : pageSegment === 'automations' ? 'skills' : pages.has(pageSegment) ? pageSegment : 'fingpt';
   const params = new URLSearchParams(query);
   const route = {
     page,
-    sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
+    sessionId: ['fingpt', 'qa', 'specialist', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'progress') {
+    route.progressTab = sectionSegment === 'changelog' ? 'changelog' : 'overview';
+    route.progressInvalid = Boolean(extraSegments.length || (sectionSegment && sectionSegment !== 'changelog'));
+    route.progressStatus = ['planned', 'developing', 'validating', 'delivered', 'paused', 'cancelled'].includes(params.get('status')) ? params.get('status') : 'all';
+    route.progressKind = ['new', 'improvement', 'fix', 'removal', 'announcement'].includes(params.get('kind')) ? params.get('kind') : 'all';
+    route.progressModule = (params.get('module') || '').slice(0, 80);
+    route.progressItem = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.get('item') || '') && params.get('item').length <= 80 ? params.get('item') : '';
+    route.progressMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(params.get('month') || '') ? params.get('month') : '';
+  }
   if (page === 'reports') {
     route.reportInvalid = Boolean(extraSegments.length || (sectionSegment && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(sectionSegment)) || (params.has('run') && !/^[a-f0-9]{32}$/.test(params.get('run'))));
     route.reportProjectId = !route.reportInvalid && sectionSegment || null;
@@ -28,7 +38,7 @@ export function parseRoute(hash = '') {
     route.reportStatus = ['enabled', 'needs_attention', 'draft', 'disabled'].includes(params.get('status')) ? params.get('status') : 'all';
   }
   if (page === 'market') {
-    route.marketView = ['overview', 'quotes', 'sectors'].includes(params.get('view')) ? params.get('view') : 'overview';
+    route.marketView = ['overview', 'quotes', 'sectors', 'calendar', 'workbench'].includes(params.get('view')) ? params.get('view') : params.has('view') ? 'overview' : 'dashboard';
     route.marketBoardId = /^BK[0-9]{4,6}$/.test(params.get('board_id') || '') ? params.get('board_id') : null;
   }
   if (page === 'aihot') {
@@ -46,7 +56,7 @@ export function parseRoute(hash = '') {
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
   if (page === 'intel') {
-    const tabs = new Set(['discovery', 'hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events', 'signals']);
+    const tabs = new Set(['discovery', 'hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events', 'signals', 'timeline']);
 
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
     if (route.intelTab === 'search') {
@@ -67,14 +77,15 @@ export function parseRoute(hash = '') {
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
   }
   if (page === 'skills') {
-    const requestedView = capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
+    const requestedView = pageSegment === 'automations' ? 'plans' : capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
     const requestedKind = capabilityKinds.has(params.get('kind')) ? params.get('kind') : null;
-    route.capabilityKind = requestedKind || (requestedView === 'plans' ? 'workflow' : ['connections', 'market'].includes(requestedView) ? 'tool' : 'skill');
+    const context = requestedKind || (requestedView === 'plans' ? 'workflow' : ['connections', 'market'].includes(requestedView) ? 'tool' : 'skill');
+    route.capabilityKind = ['method', 'workflow'].includes(context) ? 'skill' : ['tool', 'data'].includes(context) ? 'connector' : context;
+    if (context !== route.capabilityKind) route.capabilityContext = context;
     route.capabilityView = requestedView;
-    if (requestedView === 'mine' && !['skill', 'workflow'].includes(route.capabilityKind)) route.capabilityView = 'library';
-    if (requestedView === 'plans' && route.capabilityKind !== 'workflow') route.capabilityView = 'library';
-    if (requestedView === 'connections' && !['tool', 'data'].includes(route.capabilityKind)) route.capabilityView = 'library';
-    if (requestedView === 'market' && route.capabilityKind !== 'tool') route.capabilityView = 'library';
+    if (['mine', 'plans'].includes(requestedView) && route.capabilityKind !== 'skill') route.capabilityView = 'library';
+    if (['connections', 'market'].includes(requestedView) && route.capabilityKind !== 'connector') route.capabilityView = 'library';
+    if (requestedView === 'market' && context === 'data') route.capabilityView = 'library';
   }
   if (page === 'settings') {
     const connection = params.get('connection');
@@ -102,7 +113,10 @@ export function parseRoute(hash = '') {
     route.assetView = params.get('view') === 'dossiers' && page === 'assets' ? 'dossiers' : ASSET_VIEWS.includes(params.get('view')) ? params.get('view') : 'overview';
     if (route.assetView === 'dossiers') route.dossierId = /^[a-f0-9]{32}$/.test(params.get('dossier') || '') ? params.get('dossier') : null;
   }
-  if (page === 'simulation') route.section = 'etf-paper';
+  if (page === 'simulation') {
+    if (!extraSegments.length && ['events', 'scores', 'strategies'].includes(sectionSegment)) route.simulationView = sectionSegment;
+    route.section = route.simulationView || 'etf-paper';
+  }
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
     route.frameworkTab = frameworkTabs.has(params.get('tab')) ? params.get('tab') : 'overview';
@@ -137,7 +151,7 @@ export function legacyRouteTarget(hash = '') {
 }
 
 export function isDataWorkspaceRoute(route) {
-  return ['assets', 'simulation', 'workbench'].includes(route?.page) || (route?.page === 'intel' && route?.intelTab === 'search');
+  return ['assets', 'workbench'].includes(route?.page) || (route?.page === 'simulation' && (!route.simulationView || route.simulationView === 'etf')) || (route?.page === 'intel' && route?.intelTab === 'search');
 }
 export async function prepareClawExampleDraft(controller, prompt, { navigate, currentGeneration }) {
   const pending = navigate();
@@ -150,13 +164,13 @@ export async function prepareClawExampleDraft(controller, prompt, { navigate, cu
   return true;
 }
 
-export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
+export const sessionHash = (session) => `#/${researchSessionPage(session)}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
 
 export function reconcileSessionSummary(sessions, detail) {
   if (!detail?.id) return sessions;
   const { id, title, mode, status, can_cancel } = detail;
-  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel, ...(detail.updated_at !== undefined ? { updated_at: detail.updated_at } : {}), ...(Array.isArray(detail.questions) ? { waitingForAnswer: detail.questions.length > 0 } : {}) } : session);
+  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel, ...(detail.research_mode ? { research_mode: detail.research_mode } : {}), ...(detail.execution_engine ? { execution_engine: detail.execution_engine } : {}), ...(detail.updated_at !== undefined ? { updated_at: detail.updated_at } : {}), ...(Array.isArray(detail.questions) ? { waitingForAnswer: detail.questions.length > 0 } : {}) } : session);
 }
 
 export function collectQuestionAnswers(values, items) {
@@ -217,12 +231,13 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   async function performRequest(path, { method, body, key, userAction, signal }) {
     const headers = { Accept: 'application/json' };
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
-    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
+    const isBlob = typeof Blob !== 'undefined' && body instanceof Blob;
+    if (body !== undefined && !isForm) headers['Content-Type'] = isBlob ? body.type || 'application/octet-stream' : 'application/json';
     if (key) headers['Idempotency-Key'] = key;
     if (userAction) headers['X-Research-User-Action'] = '?1';
     let response;
     try {
-      response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
+      response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm || isBlob ? body : JSON.stringify(body) });
     } catch (error) {
       if (signal.aborted) throw new DOMException('读取已取消', 'AbortError');
       logger('request_failed', { method });
@@ -276,7 +291,20 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     etfRuns: () => request('/portfolio-decisions/runs'),
     etfRun: (id) => request(`/portfolio-decisions/runs/${segment(id)}`),
     etfReplay: (body, key) => request('/portfolio-decisions/runs', { method: 'POST', body, key, userAction: true }),
+    strategyValidation: () => request('/strategy-validation'),
+    strategyValidationImport: archive => request('/strategy-validation/datasets', {
+      method: 'POST', body: archive.slice(0, archive.size, 'application/zip'), userAction: true,
+    }),
+    strategyValidationRun: (body, key) => request('/strategy-validation/runs', { method: 'POST', body, key, userAction: true }),
+    strategyValidationDetail: id => request(`/strategy-validation/runs/${segment(id)}`),
+    strategyValidationEvents: (id, rule, offset, limit) => request(`/strategy-validation/runs/${segment(id)}/events?${new URLSearchParams({ rule, offset, limit })}`),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
+    researchBots: () => request('/research-bots'),
+    researchBotSkill: (id,version) => request(`/research-bots/skills/${segment(id)}?version=${segment(version)}`),
+    createResearchBot: body => request('/research-bots',{method:'POST',body,userAction:true}),
+    updateResearchBot: (id,body) => request(`/research-bots/${segment(id)}`,{method:'PUT',body,userAction:true}),
+    researchBotRuns: (id, before) => request(`/research-bots/${segment(id)}/runs${before ? `?before=${segment(before)}` : ''}`),
+    researchBotAction: (id,action,body) => request(`/research-bots/${segment(id)}/${segment(action)}`,{method:'POST',body,userAction:true}),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     searchSessions: (query, mode = 'claw') => request('/sessions/search', { method: 'POST', body: { query, mode }, readOnly: true }),
     documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),
@@ -659,13 +687,15 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     if (hasOpened) saveDraft(); hasOpened = true; const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false; state.stopping = false;
     const savedDraft = readDraft(draftKey());
-    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', specialistBudget: defaultSpecialistBudget(), dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', specialistBudget: defaultSpecialistBudget(), dossierHandoff: null, expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] });
+    if (route.page === 'specialist') { state.researchMode = 'specialist'; state.researchDepth = 'deep'; }
+    emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
       if (ticket !== generation) return;
       snapshot(data);
-      if (!savedDraft?.researchMode) {
+      if (route.page !== 'specialist' && !savedDraft?.researchMode) {
         state.researchMode = researchMode(data.research_mode, data.research_depth);
         state.researchDepth = state.researchMode === 'quick' ? 'instant' : 'deep';
       }
@@ -728,7 +758,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (body.dossier_handoff_id) {
         // A page reload may leave only the active session in memory. The two
         // durable homepage drafts still need the same receipt cleanup.
-        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt'])) {
+        for (const key of new Set([...drafts.keys(), 'new:claw', 'new:fingpt', 'new:qa'])) {
           const value = readDraft(key);
           if (key !== id && value?.dossierHandoff?.id === body.dossier_handoff_id) {
             pending.delete(key); putDraft(key, { ...value, dossierHandoff: null });
@@ -803,6 +833,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     setSkill: (value) => { state.skillId = value; state.capability = null; saveDraft(); },
     setCapability: (value) => {
       if (value && (value.enabled !== true || !Number.isInteger(value.version) || value.version < 1)) throw new Error('只能选择已启用的已发布能力版本。');
+      if (value?.kind === 'method') {
+        const ids = [...new Set([...state.methodIds, value.id])];
+        if (ids.length > 3) throw new Error('最多选择三个方法');
+        state.methodIds = ids; logger('capability_method_selected'); saveDraft(); return;
+      }
       state.capability = value ? structuredClone(value) : null; state.skillId = value?.id || ''; saveDraft();
     },
     setTools: (values) => { state.toolIds = [...new Set(values)]; saveDraft(); },

@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "configuration_templates_only",
+  "post_whole_document": false,
+  "admission_status": "BLOCKED_UI_UPLOAD_REQUIRES_SERVER_ENFORCED_ZERO_GENERATION_PROFILE",
+  "api_template_admission_status": "BLOCKED_UNTIL_PATCHED_BUILD_AND_SERVICE_VALIDATION",
+  "server_enforced_zero_generation_profile": "NOT_IMPLEMENTED",
+  "ui_upload_status": "BLOCKED_NO_SERVER_ENFORCED_ZERO_GENERATION_PROFILE",
+  "ui_reparse_status": "BLOCKED_NO_SERVER_ENFORCED_ZERO_GENERATION_PROFILE",
+  "upstream_release": "v0.9.0",
+  "upstream_sha": "f17ee8a8da901bd658a4cb25f40b5fd41adbfdd7",
+  "required_patch_sha256": "7aa3ac0ea294eec9bc020a69d787a8eaf424d31a6e3e040dd86b64983162c3aa",
+  "embedding_selection_policy": "verified_free_cloud_else_authorized_local",
+  "embedding_model_placeholder": "__REPLACE_WITH_VERIFIED_EMBEDDING_MODEL_ID__",
+  "instructions": [
+    "The table-summary patch only honors an explicit per-document opt-out. It does not force a retrieval-only instance profile. Unmodified UI upload and reparse remain BLOCKED even if that patch passes its tests.",
+    "This whole document is not an API request. Replace the embedding-model placeholder and submit only kb_create_template after admission passes.",
+    "Use the regular knowledge-bases API, not the initialization wizard that requires an LLM model.",
+    "Send upload_process_config as JSON in the process_config multipart field on every upload. The upload UI otherwise defaults summary_enabled to true.",
+    "The sibling upload form field enable_multimodel must be the string false. Its upstream spelling is intentionally retained.",
+    "Do not register a paid chat, VLM, OCR or rerank model, enable ask, or fall back to another provider under this profile.",
+    "The template is for a newly created knowledge base. Reusing an old knowledge base requires a separate audit of legacy models and enhancement settings."
+  ],
+  "kb_create_endpoint": "POST /api/v1/knowledge-bases",
+  "kb_create_template": {
+    "name": "RWB fixed-material retrieval pilot",
+    "type": "document",
+    "embedding_model_id": "__REPLACE_WITH_VERIFIED_EMBEDDING_MODEL_ID__",
+    "summary_model_id": "",
+    "indexing_strategy": {
+      "vector_enabled": true,
+      "keyword_enabled": true,
+      "wiki_enabled": false,
+      "graph_enabled": false
+    },
+    "extract_config": {
+      "enabled": false
+    },
+    "question_generation_config": {
+      "enabled": false
+    },
+    "auto_tag_config": {
+      "enabled": false
+    },
+    "profile_config": {
+      "enabled": false
+    },
+    "vlm_config": {
+      "enabled": false,
+      "model_id": "",
+      "model_name": "",
+      "base_url": ""
+    },
+    "image_processing_config": {
+      "image_attrs_enabled": false,
+      "image_vector_enabled": false
+    },
+    "chunking_config": {
+      "chunk_size": 512,
+      "chunk_overlap": 80,
+      "separators": ["\n\n", "\n"]
+    }
+  },
+  "upload_endpoint_template": "POST /api/v1/knowledge-bases/{knowledge_base_id}/knowledge/file",
+  "upload_form_fields": {
+    "file": "AUTHORIZED_FIXED_MATERIAL_BYTES",
+    "enable_multimodel": "false",
+    "process_config": "JSON_SERIALIZE_upload_process_config"
+  },
+  "upload_process_config": {
+    "summary_enabled": false,
+    "enable_multimodel": false,
+    "question_generation_config": {
+      "enabled": false
+    },
+    "graph_enabled": false,
+    "extract_config": {
+      "enabled": false
+    },
+    "vlm_config": {
+      "enabled": false,
+      "model_id": "",
+      "model_name": "",
+      "base_url": ""
+    },
+    "image_attrs_enabled": false,
+    "image_vector_enabled": false
+  },
+  "candidate_text_formats_after_admission": ["text-bearing PDF", "DOCX", "TXT", "Markdown", "HTML"],
+  "spreadsheet_formats_blocked_until_patched_service_verified": ["CSV", "XLSX", "XLS"],
+  "unsupported_or_unverified_in_this_profile": [
+    "Scanned or image-only PDFs and standalone images requiring OCR or VLM",
+    "Audio and video",
+    "Cloud document parsers and any paid parser fallback",
+    "Executing or refreshing spreadsheet formulas, Wind add-ins or market data",
+    "Agent, ask, Wiki, graph, generated questions, document or table summaries, automatic tags or knowledge-base profiles"
+  ],
+  "required_service_evidence": [
+    "UI upload/reparse additionally require a separately reviewed server-enforced zero-generation profile covering every summary, question, graph, Wiki, auto-tag, profile and image-generation queue path. This profile is NOT_IMPLEMENTED by the current artifacts.",
+    "Exact source, patch, all preimage/postimage hashes and final ARM64 image digest match the admitted candidate.",
+    "The included Go table-summary opt-out test passes on the patched source.",
+    "Document parsing and retrieval complete with only the authorized embedding endpoint; zero chat, VLM, paid OCR, rerank, Wiki, graph or summary calls occur.",
+    "Spreadsheet uploads and reparses do not enqueue table-summary tasks when summary_enabled is false; default-enabled behavior remains unchanged."
+  ],
+  "actual_service_validation": "NOT_RUN"
+}

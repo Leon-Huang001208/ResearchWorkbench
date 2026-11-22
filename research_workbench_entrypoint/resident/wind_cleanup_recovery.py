@@ -165,6 +165,13 @@ def _snapshots(home: Path) -> tuple[dict, dict]:
             if "@dossiers" in index:
                 raise UpdateBlocked("dossier_preservation_key_conflict")
             index = {**index, "@dossiers": dossiers}
+        from app.research_web.event_preservation import snapshot_events
+
+        events = snapshot_events(root, create_lock=False)
+        if events is not None:
+            if "@events" in index:
+                raise UpdateBlocked("event_preservation_key_conflict")
+            index = {**index, "@events": events}
         return {
             key: hashlib.sha256(
                 json.dumps(

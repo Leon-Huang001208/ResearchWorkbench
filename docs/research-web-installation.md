@@ -1,5 +1,98 @@
 # Research Web Native / Docker 安装与运行
 
+附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版
+复核；不增加公开安装入口、参数、依赖或用户配置。五模式的 forward／限定 preparing 恢复
+失败时保留原准备 journal，不停机或切源；Trial 与完成后回滚沿原流程。干净安装、同候选
+macOS CI 和真实常驻验收仍各自留证，见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+可选管理员持久构建队列使用宿主已有 Python 3.12 标准库和 Git，不新增 Python 包，
+不修改 `web.in`、`web.lock` 或公开安装器。原有纯 Docker 命令不新增宿主 Python 前置条件；
+`capacity`、`build --wait` 或 `resume` 缺少兼容解释器时明确拒绝，不自动安装。
+本次不调整 Docker 内存或重启引擎；入口及恢复合同见[Docker手册](research-web-docker.md#持久构建队列)。
+
+Host 批准资料 scope 的单轮接线复用原消息、Store 回执、DataKey 与唯一 DSH，不新增依赖、服务、账号数据库迁移或公开安装步骤。原生 query／hit_id 工具的授权、同候选 macOS 干净安装、真实 WeKnora／模型及业务报告分别验收；0004为未应用上游可选源码资产，不作为现役安装成功证明。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
+`apply-local-knowledge` 在开始更新、准备维护围栏和切换检查点复核现有 Tailscale Serve。
+本模式要求443 RWB及9443 WeKnora固定 HTTPS 路由；已有8443 SuperAgent须匹配原目标。
+路由不符时停止更新并保留原服务，按[部署合同](research-web-gateway-upgrade.md#rwb-本地知识库受管升级)核对现场；
+公开安装入口和依赖锁沿用原流程，源码修复不能代替正式绑定和运行验收。
+
+Docker 默认网段池耗尽时，管理员可为 stage 显式指定未占用 CIDR；中断注册按 [Docker 管理](research-web-docker.md) 核对并接续同名空资源。
+
+Stage 业主交接通过已有 `rwb-docker` 管理器执行；新候选依旧从固定干净源码构建并通过原安装与健康检查。
+
+FinGPT 切换成功时保存受理版本对应的私有回滚材料。完成后回滚以当前已接受的完整 SHA 为参数，沿既有 Native 联合事务运行，安装入口及依赖锁沿用原流程。
+
+受管 Native 正式验收后，可按[工作树退役合同](AGENT_WORKFLOW.md#上线验收后的旧工作树退出)清理已验证的 Git 工作树。公开安装入口及运行服务照常工作。现场已安装的 `controller.pyz` 仍按独立受管流程更新，源码合并或安装新轮子不会自动替换它。
+
+PR #308 经 [策略验证常驻升级](research-web-gateway-upgrade.md#策略验证常驻升级) 切换现有 Mac mini。复用公开安装入口、Web 锁、现有生产解释器和固定 DSH，构建并安装本项目轮子。策略运行仅在登录后提交冻结行情时创建本账号的研究记录。
+
+受管 Docker 开发构建使用 `rwb-development:development`。实例启动使用账本中的完整镜像 ID，安装和激活仍分别执行。
+
+Mac mini 已安装实例可走 [Radar 时效升级](research-web-gateway-upgrade.md#research-bot-radar-时效升级)，复用原 Web 锁、固定 DSH 和安装轮子。
+
+Research Bot 的 Radar 来源兼容修补沿既有安装入口。真实模型、定时运行和数据冻结单独验收。
+
+已接受 Research Bot 后的生产升级，使用[常驻存储身份固定升级](research-web-gateway-upgrade.md#常驻存储身份固定升级)。既有控制器保持固定，正式 APFS 恢复工件单独登记。
+
+已安装的 Mac mini 经 [Research Bot 受管升级](research-web-gateway-upgrade.md#research-bot-常驻升级) 切换。三条公开安装命令仍使用现有 Web 锁及固定 DSH；干净安装验证与实际常驻版本及入口检查分开记录。
+## AlphaDesk 问答组件
+
+三个公开安装入口共用原 Python、Node 24、固定 DSH 与 CJPY 安装合同。Native 安装用
+`app/research_web/qa_frontend/package-lock.json` 在临时目录执行 `npm ci --ignore-scripts`，
+构建后校验 `qa.js`、`qa.css`、第三方许可清单和构建输入摘要，再把产物纳入产品 wheel。Docker 用同一锁文件和
+Node 版本构建，并在镜像构建过程中校验资源。最终安装仅需要构建产物和标准库 Node worker，
+问答前端源码和 `node_modules` 留在构建侧。Web Python 依赖锁继续适用。
+
+`rwb web doctor --json` 和 `rwb server doctor --json` 的 `ai_qa` 报告产物与摘要的匹配状态。`assets_ready` 表示构建资源可读取，
+`model_acceptance=NOT_RUN` 表示 Doctor 未执行模型验证。Mac Bootstrap 对比已安装 wheel、实际
+HTTP 响应与构建摘要。私网网关、正式切换和真实业务验收另行取证。
+
+受管 Native 切换在停止服务前，从已核定的候选提交生成私有源码归档并构建带问答资源的 wheel。
+主实例和私网网关的 release checkout 仍保持干净，运行时按前端源码摘要匹配 wheel 中的静态资源。
+构建失败时保留原发布版本。
+
+首批市场面板使用原静态资产和原锁定依赖；干净安装检查一次性操作模块的实际字节，不在启动时取源。
+
+市场V2切换使用既有依赖与安装入口；Native Git切换上限120秒，切后复核再安装原锁轮子，同候选Mac干净安装另验。
+
+私网明确操作修补沿现有Web依赖和安装器，只调整网关既有头转发；未增加依赖、设置或
+Doctor能力。已核对web.in/web.lock/setup_web无需修改；同候选Mac安装与实际补丁部署分别留证。
+
+三地综合总览复用锁内 httpx 与既有腾讯公开来源，不新增依赖或安装选项。四个本地资源
+`market-dashboard.mjs`、`market-dashboard-model.mjs`、`market-dashboard-view.mjs`、
+`market-dashboard.css` 随 UI 目录打包；原 Mac Bootstrap 对实际服务下载逐字节核对，另导入
+九指数 Provider。已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py`
+无需修改，兼容结论须等待同候选干净安装；Doctor、采集开关和入站 MCP 默认状态不变。
+
+## 可选 WeKnora 资料入口（2026-11-06）
+
+现有一键安装只随产品打包薄适配与设置卡片，不安装 WeKnora、数据库、模型或 Go，Web 依赖锁保持。操作员可提供非秘密 `RESEARCH_WEKNORA_ORIGIN`；缺省为空，入口停用。地址仅接受无凭据、查询及片段的 HTTPS origin，HTTP 只接受 localhost／回环；不从用户请求接受任意上游 URL。tenant 子进程只传递操作员显式 origin，用户 JWT 仅由本机设置页进入受保护凭据后端，不放环境、锁、日志或模型。
+
+Doctor 的 `knowledge_backend` 只检查账号内绑定与保全完整性，不读凭据、不联网、不创建资料根或认证成功状态；`expected_release`／`expected_source_commit` 仅为目标版本要求，不能当作实际服务身份；`connectivity=not_verified` 和真实模型／报告 `NOT_RUN` 保留。Mac 干净安装沿原步骤下载并逐字节比对 `knowledge-settings.mjs`，另验证默认未配置状态；本地代码存在不等于已安装。新增独立服务仍先核算镜像、原件、数据库、索引、解析及恢复峰值，不能借此任务停止既有服务。[详细合同](research-web-weknora.md)
+
+统一导航v4维护profile不增加产品依赖或重新安装第三方包；只用现有主实例解释器构建／安装本项目wheel，并保留原web.lock、固定DSH、CJPY和immutable controller。仅冻结5ff→b192产品与后继受审操作员，不使用宽松静态更新流程；Mac安装CI与实际部署Doctor各自验证。
+
+2026-11-06统一导航新增三个随产品打包的本地静态资源，原安装器和web依赖锁保持；Mac干净安装CI须从实际服务下载并与checkout核对字节，不能用开发目录中存在文件替代已安装资源证明。此迭代无新Python/Node依赖、配置或Doctor能力。
+
+研发进展随现有UI目录安装，包含progress.mjs、progress.css及progress-data.json，无新Python／Node依赖或设置项。安装CI沿原健康与Doctor步骤逐字节核对新增资源；本机已有环境不替代干净安装证据。
+
+`./rwb server doctor` 与 `./rwb server serve` 的子进程交接只额外保留显式 `RWB_MCP_READONLY_ENABLED=0|1`；缺省或其他拼写保持关闭，并记录不含输入值的稳定告警。共享最小环境白名单保持，其他 `RWB_*`、模型及供应商凭据不会因此传递。Doctor 检查仍不创建账号根、初始化 SDK 或启动后端。此开关修复来自 Mac Bootstrap 的实际失败复现，修后候选安装 CI 须重新验证；不代表常驻已启用。
+
+事件时间线／日历效应／六维研究评分沿用现有 Web 依赖，不要求外部 PostgreSQL、独立服务或
+新增 Python 包。个人元数据与证据在账号数据根的 `event_timeline/` 懒创建；Doctor 的
+`event_research` 只报告本地保全状态，不访问来源或启用采集。默认不启动定时采集、付费模型
+或生产评分。升级前后必须保留初始化标记、SQLite和原件，不能只复制数据库或重置损坏状态。
+当前候选的来源、回测与安装验收限制见[集成合同](research-web-event-research.md)。
+
+可选[入站 MCP 只读服务](research-web-mcp-facade.md)沿既有私网账号网关使用 `RWB_MCP_READONLY_ENABLED=1` 显式开启，默认关闭。公开安装入口与 Web 锁保持；已核对锁内 SDK 2.2.0、multipart 0.0.32、Starlette 1.6.0，本次无新依赖。Mac 干净安装兼容、实际部署和原生宿主 OAuth 仍分别待验证。`server doctor --json` 新增 `mcp_readonly` 的开关和包元数据检查，即使开启也不建授权表或连接网络；`configuration_pending`、连接 `not_checked`、原生验收 `NOT_RUN` 不能写成已连接。配置示例与批准／撤权／回滚步骤见专项合同，示例尚未执行。
+
+## 开发测试产物留存（2026-10-31）
+
+`scripts/test_artifact_retention.py` 是 checkout 中的本机测试/交付辅助入口，使用标准库，不进入 Web 用户配置、模型链或 Docker 镜像运行时。新任务的 `iteration_resources` 选择性归档也不增加产品依赖；已核对 `requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 无需修改，公开一键安装入口保持。由于本轮修改 `research_workbench_entrypoint/`，仍须由同候选 Mac Bootstrap 证明干净安装和固定 DSH 构建兼容；本机源码导入不能替代该 CI。具体身份、证据和空间门见[留存规则](research-web-storage-retention.md)。
+
+2026-10-31起，GitHub干净安装门使用标准`macos-15`镜像；原`macos-14`正在官方brownout且将于11月2日退役。安装、固定DSH构建、3081/8088及Doctor检查保持不变。下文较早迭代中出现的macos-14描述保留其历史语境，新候选统一按本段及“后续迭代门禁”验收。
+
 ## Native successor 的安装制品边界（2026-10-31）
 
 `trial_successor` 随原 Web 包安装，由原 Mac Bootstrap import 步骤覆盖；不增加依赖、安装入口或固定 DSH 构建分支。新执行器使用内盘原维护根中的小型内容寻址 pyz 与版本化 stage receipt，不复用旧 executor 缓存；开发 worktree 不成为生产依赖，已保留的固定 db2 product source 仍须单独核验。固定 90e 的 v4→v5 交接与后续 fresh retry 是 Native 维护入口，不是重新安装许可。
@@ -168,6 +261,38 @@ primary 的 index.html、/static 资源及原 /api/research/aihot/ 阅读请求�
 独立 `com.research-workbench.multiuser-server` 用户 LaunchAgent 用已审核的精确源码 SHA 执行 `python -m app.research_web.multiuser.resident --root <private-root>`；解释器、Node 与固定 DSH 复用已安装环境，无新依赖。私有 `resident.json` 保存绑定身份及部署 SHA。先验证回环 8089，再持有原 supervisor/admission/lifecycle 锁复查空闲，在路由切换前写 `run/cutover.json`，检查原会话文件与模型配置摘要后，才把既有 Tailscale HTTPS 根代理 8088 改为 8089。该 journal 存在时拒绝业务写入；原实例不停止，不改变自动兼容白名单。失败仅恢复本次拥有的原路由并停用新网关，不覆盖研究数据。安装日志与保全证据仅存本机私有目录。
 
 初始管理员密码可由已授权操作员随机生成并只写入 macOS Keychain，配置只记录服务名/账号引用；不得出现在 argv、环境、日志、报告或聊天中。用户登录后可通过菜单顶部用户名进入账号资料；管理员在“设置 → 用户管理”重置密码，普通用户联系管理员。匿名 `/api/server/health` 只显示网关就绪及 primary 先前核验标记，不探测模型、不反复启动子进程；认证主账号的深度核验采用单飞与三秒缓存。正常退出只回收新用户 pair；登录启动等待原监督器恢复。仅在内核 boot UUID 已变化且旧 owner 完整、账号已知、权限与目录安全时，归档并退休旧控制元数据；同 boot 崩溃及未知归属仍拒绝启动。登录后启动与完整重启实测分别记录，FileVault 与系统登录策略不改变。
+
+
+### macOS 重启后的目录身份与网关源码
+
+新的 `rwb resident install` 在 APFS 上登记发行目录和原数据目录的物理身份。登录后独立的
+`com.research-workbench.resident-storage-identity` 作业先核对实际挂载的卷 UUID、规范路径、
+所有者、inode 和创建时间，再按需要刷新旧配置中的设备号。重启可以改变设备号；目录或卷身份
+变更仍须由操作员核验。修复沿用原事务锁和原身份字段，仅修改 Native 和附接网关记录中的设备号。明确识别为非 APFS
+的本地目录沿用现有严格身份检查，安装结果会记录 APFS 自动修复不可用。
+存在未完成部署或迁移事务时先按对应回执恢复，自动作业保留所有未完成事务及其身份。
+
+现有健康安装可从已审核的新源码 checkout 登记该作业，继续使用原 supervisor artifact：
+
+```bash
+./rwb resident enroll-storage-identity --json
+./rwb resident repair-storage-identity --json
+```
+
+首次登记要求现存绑定能够验证。已经失去有效绑定且没有历史卷证明的旧主机，须先由操作员保全
+配置并核验原 APFS 卷及目录，恢复原绑定后再登记。FileVault 保持启用，启动发生在 macOS 解锁并
+登录后；应分别验证新 boot UUID、Web/DSH/网关、私网 HTTPS 和原账号的技能页。
+
+新网关先从登记的非云盘 Git common 目录检出精确提交。下面的命令仅准备发行工作树，可将其
+作为网关 LaunchAgent 的 `WorkingDirectory` 和 `server/resident.json.project`：
+
+```bash
+./rwb resident prepare-gateway-source --release "$HOME/Developer/rwb-gateway-release" \
+  --revision EXACT_DEPLOYED_SHA --json
+```
+
+现有网关若引用桌面或云盘 Git 元数据，使用[同版本迁移流程](research-web-gateway-upgrade.md#网关同版本迁移到非云盘仓库)，
+保留原账号库、上传文件、模型配置、运行时和 Tailscale 路由。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
@@ -384,6 +509,8 @@ Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 
 
 本轮预算适配不改变依赖、公开安装入口或固定 DSH；常规安装不初始化/激活预算。显式候选验收只接入已认证的受管 AES 模型实例，Fernet/Native 正常安装不受影响。旧政策过期，新的真实窗口需另外授权及政策复核。
 
+[策略验证](research-web-strategy-validation.md)复用公开安装锁定的 pandas 和 NumPy。安装后在策略模拟内打开，冻结行情由用户导入。Doctor 沿既有 Web 健康和资源检查。
+
 ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
 首次显式模拟在所属产品根创建私有 `portfolio-decisions/paper.sqlite3`；工程输入不会配置真实数据来源、
 凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。
@@ -396,6 +523,23 @@ Claw 接入固定 DSH 已存在的 ask_user_question 插件，无新增 Python/N
 Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。直接 research_task 无需 Skill；旧目标仍需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
 
 固定 Native/Docker 启动 overlay 的 DeepSeek 单次输出上限为 16384 tokens；不修改模型凭据、DSH pin 或锁定依赖。截断仍是 incomplete，文件验收必须核对原生完成事件及实际非空产物。
+
+## Research Bot
+
+Research Bot 随现有 Web 安装交付，复用固定 DSH、Automation 调度与账号数据根。三个公开安装入口、
+`requirements/web.in`、`requirements/web.lock` 和 `scripts/setup_web.py` 沿用原流程。
+安装无需配置 Bot、启用计划或增加凭据。Mac Bootstrap 从运行中的 Web 服务下载
+`research-bots.mjs` 并与候选源码逐字节比对。
+
+本机内置研究模式下，在 Web 的 Research Bot 页面保存研究目标、资讯筛选、已发布技能及批准工具。
+保存后处于停用状态。通过「开启监控」启用周期检查，或用「立即运行」发起单次研究。
+原 `RESEARCH_AUTOMATIONS_ENABLED` 关闭时，Bot 配置与运行均不可用。私网租户和仅服务模式也不开放此功能。
+
+`rwb web doctor --json` 的 `research_bot.configuration` 读取运行中 Host，显示
+`available`、`disabled_automation`、`disabled_tenant` 或 `disabled_service_only`。
+Host 停止、旧版本未提供该字段或返回无法识别的值时，显示 `unknown`。
+`rwb server doctor --json` 根据私网运行模式显示禁用原因。
+两种诊断均保留 `runtime_verification=NOT_RUN`。模型、资讯和技能的实际调用，以及调度恢复，须分别验证。
 
 ## 中文 PDF 依赖与验收
 
@@ -936,7 +1080,7 @@ SOCKS 代理，pip 与 Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。�
 
 任何 Web 功能、Python/Node 依赖、DSH、CJPY、启动或配置流程变更，都必须重新核对本文件、
 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 和 Doctor。仓库级
-`.github/workflows/research-web-bootstrap.yml` 对相关 PR 与主分支更新在干净的 GitHub `macos-14`
+`.github/workflows/research-web-bootstrap.yml` 对相关 PR 与主分支更新在干净的 GitHub `macos-15`
 runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检查 Doctor，并验证无凭据天软不会
 误报可调用。本机 macOS 验证必须先通过，但不能替代该远端干净环境门。Windows Web workflow 仅
 保留手动入口：当 policy 选择 Windows gate 时，必须在 Windows 真机 checkout 待验 ref，从该机以
@@ -1161,3 +1305,64 @@ disabled／代码变化／撤权／跨owner／假证或事务不完整均拒绝�
 新增维护入口只预览/转移真实资格、盘点源仓库及显式归档已死owner锁；业务index与控制metadata分别有界。新主仓库仅准备，原Host/DSH、安装根、端口、账号根和原恢复事务保持，未切服务。
 
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
+
+## 事件研究常驻部署边界
+
+事件时间线、日历研究与六维评分通过独立封闭的 `apply-events` 操作员部署，固定 db2 前版、
+a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新主线及 e9cb46e1
+合并安全检查点（保留65a关闭安全代码），最终载荷固定32b21c4e交付恢复工具检查点；
+后者只修复未发布修订跨正式主线刷新的证据衔接，不改产品边界。最新能力分类／进展UI同属授权范围，无新增依赖；
+最终操作员仍须同候选三 CI 与 Mac 干净安装。目标常驻配置写入严格布尔
+`mcp_readonly_enabled: false`，并从实际网关健康检查验证 Facade 未创建；旧版回滚保留原字段缺席。
+该入口复用原全账号保全、恢复与空闲事务，并独立证明事件来源日程关闭；不修改自动兼容
+白名单或安装新依赖。详见[受控部署合同](research-web-gateway-upgrade.md)。
+
+公开 `./rwb server` 入口现在由stdlib先校验显式 `RESEARCH_WEKNORA_ORIGIN`，仅把合格的非秘密origin加入原最小子环境；无效输入不转发、不回显，其他模型或供应商环境仍不继承。冷启动 `server doctor` 增加可选知识库事实，配置只显示 `configuration_pending`，授权／连接 `not_checked`、运行 `NOT_RUN`，不读凭据、不联网或创建账户根。Mac原冷Doctor冒烟验证该真实交接。0003原生知识库设置只检索模式仍要求API先建库；完整Vue、服务与实际界面待验收。
+
+冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。
+
+2026-11-20本机资料同步使用既有Python依赖和标准库SQLite，三公开安装入口、Web锁和
+`scripts/setup_web.py` 保持；Bootstrap原安装步骤导入 `knowledge_backend.sync`、`sync_storage`
+与 `current`，原静态步骤继续逐字节核对知识库设置卡片。该步骤不配置账号、不扫描真实目录、
+不安装WeKnora／Ollama或下载模型。操作员按[资料合同](research-web-weknora.md#本机目录同步与当前研究)
+先核验原服务、固定本机Embedding代理及WorkDisk身份，再由用户自行用真实邮箱注册WeKnora账号，
+从RWB设置页登录已有账号并绑定（或用原JWT／workspace高级入口），密码提交即清空且不保存，
+选择自有库并明确启用固定目录同步；来源目录及账号存储不能互换。Doctor仅报告绑定与保全，
+干净安装、实际同步、模型／零生成及浏览器接受仍须各自取证。
+
+固定DocReader的TXT补齐使用仓库内只读 `plain_text_entrypoint.py` overlay，保留原
+`container_entrypoint.py` 的ARM／OpenSSL检查并运行原DocReader主模块；它不安装新依赖或由
+一键安装器隐式部署。严格UTF-8/BOM解析和原件不变先由离线合同验证，实际挂载和入库另验。
+
+### macOS 私网仅服务模式
+
+`server serve --service-only` 让每个已认证账户使用一个受管 Web 进程。该进程没有
+内置 DSH、原生认证记录或模型传输。安装仍复用公开 Web 安装入口及原依赖锁。
+用独立私有根做隔离试点：
+
+```bash
+./rwb server doctor --root /absolute/private/trial --service-only --json
+./rwb server serve --root /absolute/private/trial --service-only \
+  --origin http://127.0.0.1:18089 --port 18089
+```
+
+先用现有 `server init` 在该根交互创建账户。以上回环 HTTP 只用于本机试点。
+仅服务模式的 `serve` 无须提供 `--source` 或 `--node`。Doctor 的模式来自该次命令，
+实际进程以已认证 `GET /api/research/runtime` 的 `execution_mode=external` 为准。
+现有模式仍要求固定 DSH。生产切换须先交接活动及未知运行并核验历史原件。
+
+仅服务试验可在原命令增加 `--weknora-oauth-origin http://127.0.0.1:18193`
+并显式设置 `RWB_MCP_READONLY_ENABLED=1`。该来源应改为隔离 WeKnora 的
+实际浏览器地址。Doctor 接受相同模式和来源参数，只报告
+`weknora_oauth.status`，不会登记客户端或执行授权。[OAuth 合同](research-web-mcp-facade.md#隔离-weknora-oauth-客户端)
+
+### 常驻仅服务配置与主账号原位挂载
+
+常驻私有配置接受 `service_only: true`；与既有 `mcp_readonly_enabled: true`
+一同配置 `weknora_oauth_origin` 后，RWB 私网 HTTPS 可为预登记的
+WeKnora 客户端提供授权。HTTPS 回调使用与 RWB 不同的主机；回环回调
+用于在 Mac mini 本机完成授权。Doctor 只报告待配置元数据。
+
+主账号仍使用原绑定的数据根，后端启动前持有原 supervisor 与 lifecycle 锁，
+验证旧安装和进程停止，复用已登记 Web 端口。其他账号目录及原鉴权保持。
+生产切换须独立验收实际登录、原目录、HTTPS OAuth、固定前版回滚及 DSH 停止。

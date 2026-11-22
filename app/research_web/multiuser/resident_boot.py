@@ -39,13 +39,25 @@ def retire_previous_boot(user_root: Path, *, current_boot: str, accounts, archiv
         owner = user_root / "state/owner.json"
         raw = _read_private(owner)
         record = json.loads(raw)
+        if not isinstance(record, dict):
+            raise TypeError
+        required = {"version", "instance", "user", "pids", "boot_id"}
+        fields = set(record)
+        external = record.get("execution_mode") == "external"
         if (
-            set(record) != {"version", "instance", "user", "pids", "boot_id"}
+            fields
+            not in (
+                required,
+                required | {"generation"},
+                required | {"generation", "execution_mode"},
+            )
+            or ("generation" in record and not re.fullmatch(r"[a-f0-9]{32}", record["generation"]))
+            or ("execution_mode" in record and not external)
             or record["version"] != 1
             or record["user"] != user_id
             or not re.fullmatch(r"[a-f0-9]{32}", record["instance"])
             or not isinstance(record["pids"], list)
-            or len(record["pids"]) > 2
+            or len(record["pids"]) > (1 if external else 2)
             or any(type(pid) is not int or pid <= 0 for pid in record["pids"])
             or str(UUID(record["boot_id"])) != record["boot_id"]
             or str(UUID(current_boot)) != current_boot

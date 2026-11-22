@@ -1055,6 +1055,8 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "research_check_quality",
         "research_read_source",
         "rwb_query_latest_cls_news",
+        "research_search_knowledge",
+        "research_read_knowledge",
         "specialist_plan",
         "specialist_run",
         "specialist_status",
@@ -1064,7 +1066,13 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     assert all(
         not tool["selectable"]
         for tool in tools
-        if tool["id"] in {"research_check_quality", "research_read_source"}
+        if tool["id"]
+        in {
+            "research_check_quality",
+            "research_read_source",
+            "research_search_knowledge",
+            "research_read_knowledge",
+        }
     )
     assert len(tools) == len(baseline_tool_ids | added_tool_ids)
     owned_news = next(tool for tool in tools if tool["id"] == "rwb_query_latest_cls_news")
@@ -1085,6 +1093,11 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "required": [],
         "additionalProperties": False,
     }
+    assert all(
+        tool["read_only"]
+        for tool in tools
+        if tool["id"] in {"research_search_knowledge", "research_read_knowledge"}
+    )
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
     assert document_tool["read_only"] is False
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}

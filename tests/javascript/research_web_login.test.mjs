@@ -14,7 +14,8 @@ function fixture(fetcher, pathname = '/auth') {
   let submit;
   const form = {hidden:true, attributes:{}, elements:{username:{value:'fixture-user'}, password}, querySelector:()=>button, setAttribute(name,value){this.attributes[name]=value;}, addEventListener(name,handler){assert.equal(name,'submit');submit=handler;}};
   const nodes = {'login-form':form, message, heading:{textContent:''}, description:{textContent:''}};
-  vm.runInNewContext(source, {createAccountAPI:options=>createAccountAPI({...options,fetcher:async(...args)=>{requests.push(args);return fetcher(...args);}}),legacyAccountTarget,safeLog:(...args)=>logs.push(args),document:{getElementById:id=>nodes[id]},location:{pathname,assign:url=>redirects.push(url),replace:url=>redirects.push(url)}});
+  // Match the browser URL API and an /auth page with no return query.
+  vm.runInNewContext(source, {URLSearchParams,createAccountAPI:options=>createAccountAPI({...options,fetcher:async(...args)=>{requests.push(args);return fetcher(...args);}}),legacyAccountTarget,safeLog:(...args)=>logs.push(args),document:{getElementById:id=>nodes[id]},location:{pathname,search:'',assign:url=>redirects.push(url),replace:url=>redirects.push(url)}});
   return {form,button,password,message,requests,logs,redirects,submit:()=>submit({preventDefault(){}})};
 }
 
@@ -27,7 +28,7 @@ test('login communicates pending state and prevents repeated submissions, then c
   assert.equal(f.button.textContent,'正在登录…');
   assert.equal(f.form.attributes['aria-busy'],'true');
   assert.equal(f.message.textContent,'正在登录…');
-  assert.deepEqual(JSON.parse(f.requests[0][1].body),{username:'fixture-user',password:'fixture-secret'});
+  assert.deepEqual(JSON.parse(f.requests[0][1].body),{username:'fixture-user',password:'fixture-secret',return_to:null});
   finish({ok:true,status:200,json:async()=>({ok:true})});await settle();
   assert.deepEqual(f.redirects,['/']);assert.equal(f.password.value,'');
   assert.equal(f.form.attributes['aria-busy'],'false');assert.equal(f.button.textContent,'登录');

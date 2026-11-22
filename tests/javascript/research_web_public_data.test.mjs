@@ -580,3 +580,131 @@ test('manifest keeps query identity and bounded business error code',async()=>{
     });
   } finally {globalThis.fetch=original;}
 });
+
+test('knowledge tools retain one query and one hit-id registration without a legacy scope override', async () => {
+  const tools = [];
+  const plugin = await import(new URL('../../app/research_web/runtime/research-tools.mjs', import.meta.url));
+  plugin.apply({tools:{register(tool){tools.push(tool);}},logger:{info(){},warn(){}}},
+    {python:process.execPath,runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used'});
+  const knowledge = tools.filter(tool=>['research_search_knowledge','research_read_knowledge'].includes(tool.name));
+  assert.deepEqual(knowledge.map(tool=>tool.name),['research_search_knowledge','research_read_knowledge']);
+  for (const [tool,field] of knowledge.map(tool=>[tool,tool.name === 'research_search_knowledge' ? 'query' : 'hit_id'])) {
+    assert.deepEqual(Object.keys(tool.parameters.properties),[field]);
+    assert.deepEqual(tool.parameters.required,[field]);
+    assert.equal(tool.parameters.additionalProperties,false);
+  }
+});
+
+function knowledgeHit() {
+  return {hit_id:'a'.repeat(64),source_id:'knowledge:'+'a'.repeat(64),title:'Approved source',
+    snippet:'Untrusted source excerpt',locator:{chunk_index:0,start_at:0,end_at:25},sha256:'b'.repeat(64),
+    document_version:1,source_status:'current',historical_eligible:false,limitations:['source_time_unknown']};
+}
+
+async function registerKnowledgeTools(f) {
+  const plugin = await import(new URL('../../app/research_web/runtime/research-tools.mjs', import.meta.url));
+  plugin.apply(f.ctx,{python:process.execPath,runnerPath:'/tmp/never-run.py',researchRoot:f.root},undefined,
+    async()=>({admitted:true}));
+  return {search:f.tools.get('research_search_knowledge'),read:f.tools.get('research_read_knowledge')};
+}
+
+test('knowledge tools keep query/hit-id envelopes and never forward caller scope or document authority', async () => {
+  const f = await fixture(),tools = await registerKnowledgeTools(f),hit = knowledgeHit();
+  const original = globalThis.fetch,requests = [];
+  globalThis.fetch = async (url,options) => {
+    const body=JSON.parse(options.body);requests.push({url,body,options});
+    assert.equal(options.headers['X-Research-Data-Key'],'t'.repeat(43));
+    assert.equal(options.headers['X-Research-Native-Session'],f.sid);
+    assert.equal(options.credentials,'omit');assert.equal(options.redirect,'error');
+    return reply(url.endsWith('knowledge-query')
+      ? {session_id:f.sid,items:[{...hit,internal_scope_id:'host-only',token:'fixture-private'}],generated_answer:false}
+      : {...hit,session_id:f.sid,content:'Exact original content',internal_scope_id:'host-only'});
+  };
+  try {
+    const search=JSON.parse((await tools.search.execute({query:'ETF'},f.exec)).result_json);
+    assert.deepEqual(search,{items:[hit],generated_answer:false});
+    const read=JSON.parse((await tools.read.execute({hit_id:hit.hit_id},f.exec)).result_json);
+    assert.deepEqual(read,{...hit,content:'Exact original content'});
+    assert.deepEqual(requests.map(row=>({url:row.url,body:row.body})),[
+      {url:'http://127.0.0.1:18088/api/research/internal/data/knowledge-query',body:{session_id:f.sid,query:'ETF'}},
+      {url:'http://127.0.0.1:18088/api/research/internal/data/knowledge-read',body:{session_id:f.sid,hit_id:hit.hit_id}},
+    ]);
+    for (const args of [{query:'ETF',knowledge_scope_id:'forged'},{query:'ETF',session_id:randomUUID()},
+      {operation:'search',query:'ETF'},{query:'ETF',document_id:'forged'}]) {
+      await assert.rejects(tools.search.execute(args,f.exec),/knowledge_arguments_invalid/);
+    }
+    for (const args of [{hit_id:hit.hit_id,scope_id:'forged'},
+      {operation:'read',document_id:'forged',chunk_id:'forged'}]) {
+      await assert.rejects(tools.read.execute(args,f.exec),/knowledge_arguments_invalid/);
+    }
+    assert.equal(requests.length,2);
+  } finally {globalThis.fetch=original;}
+});
+
+test('knowledge Host refusal is terminal, sanitized and never falls back to another knowledge endpoint', async () => {
+  const f=await fixture(),tools=await registerKnowledgeTools(f),original=globalThis.fetch;let calls=0;
+  globalThis.fetch=async(url)=>{
+    calls++;assert.ok(url.endsWith('/knowledge-query'));
+    return new Response(JSON.stringify({error:{code:'knowledge_document_outside_scope',message:'fixture-private-upstream'}}),
+      {status:403,headers:{'content-type':'application/json'}});
+  };
+  try {
+    await assert.rejects(tools.search.execute({query:'ETF'},f.exec),error=>
+      /knowledge_document_outside_scope/.test(error.message)&&!error.message.includes('fixture-private-upstream'));
+    assert.equal(calls,1);
+  } finally {globalThis.fetch=original;}
+});
+
+test('an approved knowledge scope cannot upgrade the existing historical-evidence envelope', async () => {
+  const f=await fixture(),tools=await registerKnowledgeTools(f),original=globalThis.fetch;
+  globalThis.fetch=async()=>reply({session_id:f.sid,items:[{...knowledgeHit(),historical_eligible:true}],generated_answer:false});
+  try {
+    await assert.rejects(tools.search.execute({query:'ETF'},f.exec),/knowledge_response_invalid/);
+  } finally {globalThis.fetch=original;}
+});
+
+test('knowledge transport preserves the actual native child identity while addressing the trusted root session', async () => {
+  const f=await fixture(),tools=await registerKnowledgeTools(f),child=randomUUID(),original=globalThis.fetch;
+  f.ctx.sessions.get=id=>id===f.sid?{header:{id:f.sid,cwd:f.cwd}}:undefined;
+  f.exec.agent.session.header={id:child,cwd:f.cwd,parentSession:f.sid};let calls=0;
+  globalThis.fetch=async(_url,options)=>{
+    calls++;assert.equal(options.headers['X-Research-Native-Session'],child);
+    assert.deepEqual(JSON.parse(options.body),{session_id:f.sid,query:'ETF'});
+    return new Response(JSON.stringify({error:{code:'knowledge_run_not_authorized'}}),
+      {status:403,headers:{'content-type':'application/json'}});
+  };
+  try {
+    await assert.rejects(tools.search.execute({query:'ETF'},f.exec),/knowledge_run_not_authorized/);
+    assert.equal(calls,1,'formal Host denial must not retry using the parent identity');
+  } finally {globalThis.fetch=original;}
+});
+
+test('ordinary current knowledge retains trusted child access without changing its native identity', async () => {
+  const f=await fixture(),tools=await registerKnowledgeTools(f),child=randomUUID(),original=globalThis.fetch;
+  f.ctx.sessions.get=id=>id===f.sid?{header:{id:f.sid,cwd:f.cwd}}:undefined;
+  f.exec.agent.session.header={id:child,cwd:f.cwd,parentSession:f.sid};
+  globalThis.fetch=async(_url,options)=>{
+    assert.equal(options.headers['X-Research-Native-Session'],child);
+    assert.deepEqual(JSON.parse(options.body),{session_id:f.sid,query:'ETF'});
+    return reply({session_id:f.sid,items:[],generated_answer:false});
+  };
+  try {
+    assert.deepEqual(JSON.parse((await tools.search.execute({query:'ETF'},f.exec)).result_json),
+      {items:[],generated_answer:false});
+  } finally {globalThis.fetch=original;}
+});
+
+test('knowledge native caller metadata cannot be supplied through model arguments or invalid headers', async () => {
+  const f=await fixture(),tools=await registerKnowledgeTools(f),original=globalThis.fetch;let calls=0;
+  globalThis.fetch=async()=>{calls++;throw Error('must not send');};
+  try {
+    for (const key of ['caller_session_id','native_session_id','X-Research-Native-Session']) {
+      await assert.rejects(tools.search.execute({query:'ETF',[key]:f.sid},f.exec),/knowledge_arguments_invalid/);
+    }
+    for (const id of ['', 'invalid\nheader']) {
+      f.exec.agent.session.header={id,cwd:f.cwd};
+      await assert.rejects(tools.search.execute({query:'ETF'},f.exec),/trusted agent session|knowledge_native_identity_invalid/);
+    }
+    assert.equal(calls,0);
+  } finally {globalThis.fetch=original;}
+});

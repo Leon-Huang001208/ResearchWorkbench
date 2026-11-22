@@ -63,6 +63,137 @@ async function check(f, changedFiles=[]) {
   return checkResearchArchitecture({projectRoot:f.root,changedFiles});
 }
 
+function readerFixture(f) {
+  const diagram=f.read(mapPath).diagrams[0],visual=f.read(diagram.visualReceipt);
+  const delivery=f.read(diagram.receipt);delivery.receiptId='fixture-current-delivery';f.write(diagram.receipt,delivery);
+  const compositions=[[12,52,78,870],[64,60,84,870],[64,60,84,870],[64,68,94,1082]];
+  const viewports=visual.containment.viewports.map((viewport,index)=>{
+    const [bodyPaddingPx,headerPx,diagramChromePx,svgPx]=compositions[index];
+    const scrollHeight=Math.max(viewport.height,bodyPaddingPx+headerPx+diagramChromePx+svgPx),overflowY=scrollHeight>viewport.height;
+    return {...viewport,theme:'light',scrollHeight,overflowY,verticalScrollAccepted:overflowY,
+      overflowDisposition:overflowY?'readable-vertical-scroll':'contained',readerLayout:'adaptive',readerOverflow:overflowY?'authored':null,readerFit:'intrinsic-height',
+      readerWidth:960,diagramWidth:916,viewBoxWidth:1068,pageComposition:{bodyPaddingPx,headerPx,diagramChromePx,svgPx,cardsPx:0,viewBoxHeight:1014},
+      minimumProjectedNodeTextPx:6.1,minimumProjectedNonEdgeTextPx:6.1,minimumProjectedEdgeTextPx:7,minimumRequiredNodeTextPx:6,
+      readabilityOk:true,hasLegend:true,hasNavigationDock:true,legendDockIntersectionArea:0,dockStageIntersectionArea:0,
+      dockStageGap:10,requiredDockStageGap:10,viewerChromeStageOk:true,viewerChromeReserve:54,viewerChromeActive:true,viewerChromeOk:true,resolvedTheme:'light'};
+  });
+  Object.assign(visual,{evidenceKind:'automated-browser',provenance:'current',deliveryReceiptId:delivery.receiptId,state:{detail:'read',motion:'still'},chrome:{status:'available'},diagnostics:[],
+    containment:{status:'pass',policy:'fit-or-reader-declared-readable-vertical-scroll',viewports},
+    readability:{status:'pass',minimumProjectedNodeTextPx:6,viewports:structuredClone(viewports)},viewerChrome:{status:'pass',viewports:structuredClone(viewports)}});
+  visual.captures.screenshots=visual.captures.screenshots.map((capture,index)=>({...structuredClone(viewports[index?3:0]),theme:index?'light':'dark',resolvedTheme:index?'light':'dark',file:capture.file}));
+  visual.sidecars={files:visual.captures.screenshots.map(capture=>({file:capture.file,...hash(fs.readFileSync(path.join(f.root,'outputs/research-web-architecture',capture.file)))}))};
+  f.write(diagram.visualReceipt,visual);
+  return {diagram,visual};
+}
+
+test('declared Reader accepts readable vertical scroll with matching current browser evidence', async t=>{
+  const f=fixture(t);readerFixture(f);
+  assert.deepEqual((await check(f)).violations,[]);
+});
+
+const readerMutations=[
+  ['missing policy',v=>{delete v.containment.policy;}],
+  ['unknown policy',v=>{v.containment.policy='allow-all-overflow';}],
+  ['stale provenance',v=>{v.provenance='stale';}],
+  ['different delivery',v=>{v.deliveryReceiptId='another-delivery';}],
+  ['non-browser evidence',v=>{v.evidenceKind='manual';}],
+  ['non-reading state',v=>{v.state.detail='present';}],
+  ['unavailable browser',v=>{v.chrome.status='unavailable';}],
+  ['diagnostic failure',v=>{v.diagnostics.push({code:'viewer/diagram-clipped'});}],
+  ['only three viewports',v=>{v.containment.viewports.pop();}],
+  ['duplicate viewport',v=>{v.containment.viewports[1]=structuredClone(v.containment.viewports[0]);}],
+  ['unknown viewport',v=>{v.containment.viewports[0].width=1400;}],
+  ['missing scroll permission',v=>{delete v.containment.viewports[0].verticalScrollAccepted;}],
+  ['rejected scroll permission',v=>{v.containment.viewports[0].verticalScrollAccepted=false;}],
+  ['arbitrary overflow disposition',v=>{v.containment.viewports[0].overflowDisposition='unexpected-overflow';}],
+  ['unknown Reader layout',v=>{v.containment.viewports[0].readerLayout='anything';}],
+  ['missing authored declaration',v=>{delete v.containment.viewports[0].readerOverflow;}],
+  ['unknown Reader fit',v=>{v.containment.viewports[0].readerFit='width-first';}],
+  ['horizontal overflow',v=>{v.containment.viewports[0].overflowX=true;}],
+  ['width does not fit',v=>{v.containment.viewports[0].scrollWidth++;}],
+  ['mismatched inner dimensions',v=>{v.containment.viewports[0].innerHeight--;}],
+  ['negative height',v=>{v.containment.viewports[0].scrollHeight=-1;}],
+  ['zero height',v=>{v.containment.viewports[0].scrollHeight=0;}],
+  ['NaN height',v=>{v.containment.viewports[0].scrollHeight=NaN;}],
+  ['infinite height',v=>{v.containment.viewports[0].scrollHeight=Infinity;}],
+  ['inconsistent height',v=>{v.containment.viewports[0].scrollHeight++;}],
+  ['overflow flag disagrees with height',v=>{v.containment.viewports[0].overflowY=false;}],
+  ['missing composition',v=>{delete v.containment.viewports[0].pageComposition;}],
+  ['negative composition',v=>{v.containment.viewports[0].pageComposition.cardsPx=-1;}],
+  ['small node text',v=>{v.containment.viewports[0].minimumProjectedNodeTextPx=5.9;}],
+  ['small non-edge text',v=>{v.containment.viewports[0].minimumProjectedNonEdgeTextPx=5.9;}],
+  ['small edge text',v=>{v.containment.viewports[0].minimumProjectedEdgeTextPx=5.9;}],
+  ['lowered minimum text requirement',v=>{v.containment.viewports[0].minimumRequiredNodeTextPx=5;}],
+  ['unmet raised minimum text requirement',v=>{v.containment.viewports[0].minimumRequiredNodeTextPx=7;}],
+  ['missing font metric',v=>{delete v.containment.viewports[0].minimumProjectedNonEdgeTextPx;}],
+  ['missing readability permission',v=>{delete v.containment.viewports[0].readabilityOk;}],
+  ['missing legend',v=>{v.containment.viewports[0].hasLegend=false;}],
+  ['missing dock',v=>{v.containment.viewports[0].hasNavigationDock=false;}],
+  ['legend dock collision',v=>{v.containment.viewports[0].legendDockIntersectionArea=1;}],
+  ['stage dock collision',v=>{v.containment.viewports[0].dockStageIntersectionArea=1;}],
+  ['insufficient dock gap',v=>{v.containment.viewports[0].dockStageGap=9;}],
+  ['lowered dock gap requirement',v=>{v.containment.viewports[0].requiredDockStageGap=0;}],
+  ['non-finite dock gap',v=>{v.containment.viewports[0].dockStageGap=Infinity;}],
+  ['failed dock stage',v=>{v.containment.viewports[0].viewerChromeStageOk=false;}],
+  ['failed viewer chrome',v=>{v.containment.viewports[0].viewerChromeOk=false;}],
+  ['reported clipping',v=>{v.containment.viewports[0].documentScrollUnclipped=false;}],
+  ['non-boolean clipping declaration',v=>{v.containment.viewports[0].documentScrollUnclipped='true';}],
+  ['failed readability summary',v=>{v.readability.status='fail';}],
+  ['lowered readability summary threshold',v=>{v.readability.minimumProjectedNodeTextPx=0;}],
+  ['failed viewer chrome summary',v=>{v.viewerChrome.status='fail';}],
+  ['stale readability metrics',v=>{v.readability.viewports[0].scrollHeight++;}],
+  ['stale viewer chrome metrics',v=>{v.viewerChrome.viewports[0].minimumProjectedNodeTextPx++;}],
+  ['missing readability viewport',v=>{v.readability.viewports.pop();}],
+  ['duplicate viewer chrome viewport',v=>{v.viewerChrome.viewports[1]=structuredClone(v.viewerChrome.viewports[0]);}],
+  ['stale artifact hash',v=>{v.artifact.sha256='stale';}],
+  ['stale capture metrics',v=>{v.captures.screenshots[0].scrollHeight++;}],
+  ['stale capture hash',v=>{v.sidecars.files[0].sha256='stale';}],
+  ['missing capture hash',v=>{delete v.sidecars.files[0].sha256;}],
+  ['duplicate capture hash entry',v=>{v.sidecars.files.push(structuredClone(v.sidecars.files[0]));}],
+  ['duplicate capture',v=>{v.captures.screenshots[1]=structuredClone(v.captures.screenshots[0]);}],
+  ['null capture record',v=>{v.captures.screenshots[0]=null;}],
+  ['non-array captures',v=>{v.captures.screenshots={};}],
+  ['non-array sidecar hashes',v=>{v.sidecars.files={};}],
+];
+for (const [name,mutate] of readerMutations) test(`Reader rejects ${name}`,async t=>{
+  const f=fixture(t),{diagram,visual}=readerFixture(f);mutate(visual);f.write(diagram.visualReceipt,visual);
+  assert.ok((await check(f)).violations.some(item=>item.code==='visual_receipt'),name);
+});
+
+test('Reader validates metric values even when every evidence copy agrees',async t=>{
+  const f=fixture(t),{diagram,visual:original}=readerFixture(f);
+  const invalidMetrics=[
+    ['verticalScrollAccepted',false],['overflowDisposition','unexpected-overflow'],['readerLayout','unknown'],['readerOverflow',null],['readerFit','width-first'],
+    ['overflowX',true],['scrollWidth',1441],['innerHeight',901],['scrollHeight',-1],['scrollHeight',NaN],['scrollHeight',Infinity],['scrollHeight',1012.5],['scrollHeight',1013],['overflowY',false],
+    ['minimumProjectedNodeTextPx',5.9],['minimumProjectedNonEdgeTextPx',5.9],['minimumProjectedEdgeTextPx',5.9],['minimumRequiredNodeTextPx',5],['minimumRequiredNodeTextPx',7],
+    ['readabilityOk',false],['hasLegend',false],['hasNavigationDock',false],['legendDockIntersectionArea',1],['dockStageIntersectionArea',1],
+    ['dockStageGap',9],['requiredDockStageGap',0],['dockStageGap',Infinity],['viewerChromeStageOk',false],['viewerChromeOk',false],['viewerChromeActive',false],['viewerChromeReserve',0],['documentScrollUnclipped',false],['documentScrollUnclipped','true'],
+  ];
+  for (const [field,value] of invalidMetrics) {
+    const visual=structuredClone(original);
+    for (const record of [visual.containment.viewports[0],visual.readability.viewports[0],visual.viewerChrome.viewports[0],visual.captures.screenshots[0]]) record[field]=value;
+    f.write(diagram.visualReceipt,visual);
+    assert.ok((await check(f)).violations.some(item=>item.code==='visual_receipt'),`${field}=${value}`);
+  }
+});
+
+test('Reader rejects changed screenshot bytes and retains same-specification review and delivery gates',async t=>{
+  const f=fixture(t),{diagram,visual}=readerFixture(f);
+  f.write(`outputs/research-web-architecture/${visual.captures.screenshots[0].file}`,'changed screenshot');
+  const delivery=f.read(diagram.receipt);delivery.validation.warnings=1;delivery.specification.sha256='stale';f.write(diagram.receipt,delivery);
+  const map=f.read(mapPath),human=f.read(map.visualReview);human.diagrams[0].artifactSha256='stale';f.write(map.visualReview,human);
+  const codes=(await check(f)).violations.map(item=>item.code);
+  for (const code of ['visual_receipt','delivery_validation','specification_hash','human_review']) assert.ok(codes.includes(code),code);
+});
+
+test('legacy contained receipts remain valid and undeclared overflow remains rejected',async t=>{
+  const f=fixture(t);assert.deepEqual((await check(f)).violations,[]);
+  const diagram=f.read(mapPath).diagrams[0],visual=f.read(diagram.visualReceipt);
+  visual.containment.viewports[0].overflowY=true;visual.containment.viewports[0].scrollHeight++;
+  f.write(diagram.visualReceipt,visual);
+  assert.ok((await check(f)).violations.some(item=>item.code==='visual_receipt'));
+});
+
 test('private gateway APIs require a verified independent CLI factory-to-server chain', async t => {
   const f = fixture(t);
   const gateway = 'app/research_web/multiuser/gateway.py';
@@ -72,6 +203,65 @@ test('private gateway APIs require a verified independent CLI factory-to-server 
   assert.equal((await check(f)).violations.some(v => v.code === 'api_unmounted' && v.path === gateway), false);
   f.write(command, 'from .gateway import create_gateway\napp = create_gateway(store, pool, origin=origin)\nprint(app)\n');
   assert.equal((await check(f)).violations.some(v => v.code === 'api_unmounted' && v.path === gateway), true);
+});
+
+const conditionalGateway = `    methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]
+    if facade is None:
+        app.add_api_route("/{path:path}", proxy, methods=methods)
+    else:
+        app.add_api_route("/api/research/{path:path}", proxy, methods=methods)
+        app.add_api_route("/frameworks-embed/{path:path}", proxy, methods=methods)
+        app.mount("/", facade.app, name="mcp-readonly")
+    return app
+`;
+
+test('conditional gateway inventory retains off catchall and both enabled branches', async () => {
+  const {collectGatewayProxyAPIs}=await import(checkerURL);
+  const actual=collectGatewayProxyAPIs(conditionalGateway,'app/research_web/multiuser/gateway.py');
+  assert.equal(actual.length,18);
+  assert.equal(actual.filter(x=>x.condition==='mcp-disabled').length,6);
+  assert.equal(actual.filter(x=>x.condition==='mcp-enabled').length,12);
+  assert.deepEqual([...new Set(actual.map(x=>x.path))],['/{path:path}','/api/research/{path:path}','/frameworks-embed/{path:path}']);
+});
+
+test('conditional gateway parser refuses dynamic paths aliases method additions and branch drift', async () => {
+  const {collectGatewayProxyAPIs}=await import(checkerURL);
+  for(const text of [conditionalGateway.replace('"/{path:path}"','PATH'), conditionalGateway.replaceAll('app.add_api_route','alias.add_api_route'), conditionalGateway.replace('"HEAD"]','"HEAD", "OPTIONS"]'), conditionalGateway.replace('if facade is None:','if enabled:'), conditionalGateway+'    methods = OTHER\n',conditionalGateway+'    app.add_api_route("/unknown", proxy, methods=methods)\n']) {
+    assert.throws(()=>collectGatewayProxyAPIs(text,'app/research_web/multiuser/gateway.py'),/unsupported/);
+  }
+  assert.throws(()=>collectGatewayProxyAPIs(conditionalGateway,'app/research_web/other.py'),/unsupported/);
+});
+
+test('conditional gateway inventory checks branch identity and omitted enabled paths', async t => {
+  const f=fixture(t), gateway='app/research_web/multiuser/gateway.py';
+  f.write(gateway,conditionalGateway);
+  f.write('app/research_web/multiuser/__main__.py','from .gateway import create_gateway\napp = create_gateway(store, pool)\nuvicorn.run(app, host="127.0.0.1")\n');
+  const {collectGatewayProxyAPIs}=await import(checkerURL);
+  const map=f.read(mapPath);map.apis.push(...collectGatewayProxyAPIs(conditionalGateway,gateway));f.write(mapPath,map);
+  assert.equal((await check(f)).violations.some(v=>v.code==='api_inventory'),false);
+  map.apis.find(x=>x.condition==='mcp-disabled').condition='mcp-enabled';
+  map.apis=map.apis.filter(x=>x.path!=='/frameworks-embed/{path:path}');f.write(mapPath,map);
+  const failures=(await check(f)).violations.filter(v=>v.code==='api_inventory');
+  assert.ok(failures.some(v=>v.message.includes('/{path:path}')));
+  assert.ok(failures.some(v=>v.message.includes('/frameworks-embed/{path:path}')));
+});
+
+test('SDK facade cannot silently omit its separate runtime route contract', async t => {
+  const f=fixture(t);f.write('app/research_web/mcp_facade/server.py','# SDK assembly fixture');
+  assert.ok((await check(f)).violations.some(v=>v.code==='library_route_contract'));
+  const map=f.read(mapPath);map.libraryRouteContract={routes:{invalid:true}};f.write(mapPath,map);
+  assert.ok((await check(f)).violations.some(v=>v.code==='library_route_contract'));
+});
+
+test('Atlas labels SDK routes separately from static declarations and proxy conditions', async () => {
+  const {renderArtifacts}=await import(atlasURL);
+  const root=path.resolve(new URL('../..',import.meta.url).pathname);
+  const result=renderArtifacts(root);
+  const map=JSON.parse(fs.readFileSync(path.join(root,mapPath),'utf8'));
+  const html=result.artifacts['outputs/research-web-architecture/api-atlas.html'];
+  assert.equal(result.apiDeclarationCount,map.apis.length);
+  for(const text of ['mcp-enabled','mcp-disabled','SDK 条件路由','非静态 FastAPI 扫描','ASGI dispatcher','sdk-generated-rwb-wrapper','rwb-browser'])assert.ok(html.includes(text),text);
+  for(const route of map.libraryRouteContract.routes)assert.ok(html.includes(route.path),route.path);
 });
 
 test('local integration API deep links select their own real Atlas category', async () => {

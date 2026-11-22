@@ -5,6 +5,7 @@ from core.observability import get_logger
 log = get_logger(__name__)
 CORE = "core-v1"
 TERMINAL = "terminal-v2"
+GLOBAL = "global-v1"
 CATALOG_VERSION = "mainland-indices-20261023-v2"
 CSI = "https://www.csindex.com.cn/"
 CNI = "https://www.cnindex.com.cn/zh_indices/cni/style/index.html?act_menu=2&index_type=202"
@@ -139,7 +140,9 @@ def public_catalog():
         "index_sets": [
             {"id": key, "assets": [item[0] for item in selected_indexes(key)]}
             for key in (CORE, TERMINAL)
-        ],
+        ]
+        + [{"id": GLOBAL, "assets": list(GLOBAL_INDEXES)}],
+        "global_catalog": global_catalog(),
         "groups": [
             {"id": key, "label": label}
             for key, label in (
@@ -152,3 +155,65 @@ def public_catalog():
         "items": items,
         "default_pins": list(DEFAULT_PINS),
     }
+
+
+# Source symbols are routing identities, never fund substitutes or index authors.
+GLOBAL_INDEXES = {
+    "SSE": ("000001.SH", "000001.SS", "SSE", "https://www.sse.com.cn/"),
+    "CSI300": ("000300.SH", "000300.SS", "CSI", CSI),
+    "CHINEXT": ("399006.SZ", "399006.SZ", "CNI", CNI),
+    "SP500": (
+        "SP500",
+        "^GSPC",
+        "S&P Dow Jones Indices",
+        "https://www.spglobal.com/spdji/en/indices/equity/sp-500/",
+    ),
+    "NASDAQ": ("NASDAQ", "^IXIC", "Nasdaq", "https://indexes.nasdaq.com/Index/Overview/COMP"),
+    "DJI": (
+        "DJI",
+        "^DJI",
+        "S&P Dow Jones Indices",
+        "https://www.spglobal.com/spdji/en/indices/equity/dow-jones-industrial-average/",
+    ),
+    "HSI": (
+        "HSI",
+        "^HSI",
+        "Hang Seng Indexes",
+        "https://www.hsi.com.hk/eng/indexes/all-indexes/hsi",
+    ),
+    "HSCEI": (
+        "HSCEI",
+        "^HSCE",
+        "Hang Seng Indexes",
+        "https://www.hsi.com.hk/eng/indexes/all-indexes/hscei",
+    ),
+    "HSTECH": (
+        "HSTECH",
+        "^HSTECH",
+        "Hang Seng Indexes",
+        "https://www.hsi.com.hk/eng/indexes/all-indexes/hstech",
+    ),
+}
+
+
+def global_catalog():
+    from .market_scoring.profiles import profile_for
+
+    items = []
+    for index_id, (code, symbol, publisher, url) in GLOBAL_INDEXES.items():
+        profile = profile_for(index_id)
+        items.append(
+            {
+                **{
+                    key: profile[key]
+                    for key in ("index_id", "name", "market", "currency", "timezone")
+                },
+                "asset": index_id,
+                "code": code,
+                "source_symbol": symbol,
+                "publisher": publisher,
+                "definition_url": url,
+                "return_basis": "price_index",
+            }
+        )
+    return {"version": GLOBAL, "items": items, "default_pins": ["SSE", "SP500", "HSI"]}

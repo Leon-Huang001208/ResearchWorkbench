@@ -104,9 +104,44 @@
       "purpose": "vendored package documentation"
     },
     {
+      "prefix": "scripts/vendor/leon-engineering/",
+      "status": "package-internal",
+      "purpose": "pinned project delivery runtime provenance and verification"
+    },
+    {
       "exact": "README.md",
       "status": "current",
       "purpose": "product overview and quick start"
+    },
+    {
+      "exact": "LICENSE.md",
+      "status": "current",
+      "purpose": "ResearchWorkbench source available license terms"
+    },
+    {
+      "exact": "THIRD_PARTY_NOTICES.md",
+      "status": "current",
+      "purpose": "license scope and third-party terms"
+    },
+    {
+      "exact": "CONTRIBUTING.md",
+      "status": "current",
+      "purpose": "public contribution and pull request guidance"
+    },
+    {
+      "exact": "CODE_OF_CONDUCT.md",
+      "status": "current",
+      "purpose": "community conduct and reporting"
+    },
+    {
+      "exact": "SECURITY.md",
+      "status": "current",
+      "purpose": "private vulnerability reporting policy"
+    },
+    {
+      "exact": "CLA.md",
+      "status": "current",
+      "purpose": "contributor license agreement for new contributions"
     },
     {
       "exact": "AGENTS.md",
@@ -128,6 +163,26 @@
     {
       "topic": "product-overview",
       "path": "README.md"
+    },
+    {
+      "topic": "project-license",
+      "path": "LICENSE.md"
+    },
+    {
+      "topic": "contributing",
+      "path": "CONTRIBUTING.md"
+    },
+    {
+      "topic": "community-conduct",
+      "path": "CODE_OF_CONDUCT.md"
+    },
+    {
+      "topic": "security-reporting",
+      "path": "SECURITY.md"
+    },
+    {
+      "topic": "contributor-license-agreement",
+      "path": "CLA.md"
     },
     {
       "topic": "documentation-index",

@@ -2,21 +2,20 @@
   "schemaVersion": 1,
   "ok": true,
   "command": "visual-check",
-  "method": "cua_repl viewport + read-only DOM measurements + browser screenshots; CLI visual-check not executed",
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-terminal-20261023/outputs/research-web-architecture/13-market-overview.html",
-    "sha256": "4ecd0e404a2e87af02cfa7bffd572e4705551d65e89a9bef8c2fa2bf1e9fdac3",
-    "bytes": 640903
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/rwb-financial-calendar-20261108/outputs/research-web-architecture/13-market-overview.html",
+    "sha256": "75d847a5fd5ef205a35f8b9c7cbfb93060269c8a113bad77e125b8d23a21bc4c",
+    "bytes": 645912
   },
   "state": {
     "detail": "read",
     "motion": "still"
   },
-  "browser": {
+  "chrome": {
     "status": "available",
-    "name": "Codex in-app browser"
+    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   },
   "containment": {
     "status": "pass",
@@ -24,46 +23,54 @@
       {
         "width": 1440,
         "height": 900,
-        "innerHeight": 900,
+        "theme": "light",
         "innerWidth": 1440,
-        "scrollHeight": 900,
+        "innerHeight": 900,
         "scrollWidth": 1440,
+        "scrollHeight": 900,
         "overflowX": false,
         "overflowY": false,
-        "ok": true
+        "ok": true,
+        "resolvedTheme": "light"
       },
       {
         "width": 1600,
         "height": 1000,
-        "innerHeight": 1000,
+        "theme": "light",
         "innerWidth": 1600,
-        "scrollHeight": 1000,
+        "innerHeight": 1000,
         "scrollWidth": 1600,
+        "scrollHeight": 1000,
         "overflowX": false,
         "overflowY": false,
-        "ok": true
+        "ok": true,
+        "resolvedTheme": "light"
       },
       {
         "width": 1920,
         "height": 1080,
-        "innerHeight": 1080,
+        "theme": "light",
         "innerWidth": 1920,
-        "scrollHeight": 1080,
+        "innerHeight": 1080,
         "scrollWidth": 1920,
+        "scrollHeight": 1080,
         "overflowX": false,
         "overflowY": false,
-        "ok": true
+        "ok": true,
+        "resolvedTheme": "light"
       },
       {
         "width": 2048,
         "height": 1320,
-        "innerHeight": 1320,
+        "theme": "light",
         "innerWidth": 2048,
-        "scrollHeight": 1320,
+        "innerHeight": 1320,
         "scrollWidth": 2048,
+        "scrollHeight": 1320,
         "overflowX": false,
         "overflowY": false,
-        "ok": true
+        "ok": true,
+        "resolvedTheme": "light"
       }
     ]
   },
@@ -73,58 +80,58 @@
       {
         "width": 1440,
         "height": 900,
-        "innerHeight": 900,
+        "theme": "light",
         "innerWidth": 1440,
-        "scrollHeight": 900,
+        "innerHeight": 900,
         "scrollWidth": 1440,
-        "theme": "dark",
-        "resolvedTheme": "dark",
+        "scrollHeight": 900,
         "overflowX": false,
         "overflowY": false,
         "ok": true,
-        "file": "13-market-overview.v2-1440-dark.png"
+        "resolvedTheme": "light",
+        "file": "13-market-overview.visual-check.1440x900.light.png"
       },
       {
         "width": 1440,
         "height": 900,
-        "innerHeight": 900,
-        "innerWidth": 1440,
-        "scrollHeight": 900,
-        "scrollWidth": 1440,
-        "theme": "light",
-        "resolvedTheme": "light",
-        "overflowX": false,
-        "overflowY": false,
-        "ok": true,
-        "file": "13-market-overview.v2-1440-light.png"
-      },
-      {
-        "width": 2048,
-        "height": 1320,
-        "innerHeight": 1320,
-        "innerWidth": 2048,
-        "scrollHeight": 1320,
-        "scrollWidth": 2048,
         "theme": "dark",
-        "resolvedTheme": "dark",
+        "innerWidth": 1440,
+        "innerHeight": 900,
+        "scrollWidth": 1440,
+        "scrollHeight": 900,
         "overflowX": false,
         "overflowY": false,
         "ok": true,
-        "file": "13-market-overview.v2-2048-dark.png"
+        "resolvedTheme": "dark",
+        "file": "13-market-overview.visual-check.1440x900.dark.png"
       },
       {
         "width": 2048,
         "height": 1320,
-        "innerHeight": 1320,
-        "innerWidth": 2048,
-        "scrollHeight": 1320,
-        "scrollWidth": 2048,
         "theme": "light",
-        "resolvedTheme": "light",
+        "innerWidth": 2048,
+        "innerHeight": 1320,
+        "scrollWidth": 2048,
+        "scrollHeight": 1320,
         "overflowX": false,
         "overflowY": false,
         "ok": true,
-        "file": "13-market-overview.v2-2048-light.png"
+        "resolvedTheme": "light",
+        "file": "13-market-overview.visual-check.2048x1320.light.png"
+      },
+      {
+        "width": 2048,
+        "height": 1320,
+        "theme": "dark",
+        "innerWidth": 2048,
+        "innerHeight": 1320,
+        "scrollWidth": 2048,
+        "scrollHeight": 1320,
+        "overflowX": false,
+        "overflowY": false,
+        "ok": true,
+        "resolvedTheme": "dark",
+        "file": "13-market-overview.visual-check.2048x1320.dark.png"
       }
     ],
     "contactSheet": "13-market-overview.visual-check.html"

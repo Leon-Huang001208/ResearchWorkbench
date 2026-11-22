@@ -247,3 +247,29 @@ export function renderMCPServerDialog(item, installation = {}) {
     : !targets.length ? '<button type="button" class="button primary" disabled aria-describedby="mcp-install-unavailable">安装不可用</button>' : '';
   return `<div class="capability-dialog-backdrop" data-mcp-dialog-backdrop><section class="capability-preview-dialog mcp-server-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-server-dialog-title" aria-describedby="mcp-server-dialog-description"><header><span class="skill-icon" aria-hidden="true">M</span><div><span class="eyebrow">${text(identity.join(' · '))}</span><h2 id="mcp-server-dialog-title">${text(item.title, item.name)}</h2><span class="badge ${targets.length ? 'live' : 'danger'}">${targets.length ? '存在已审查安装目标' : '没有可安装目标'}</span></div><button type="button" class="icon-button" data-mcp-detail-close aria-label="关闭 MCP Server 详情">×</button></header>${freshness}<p id="mcp-server-dialog-description" class="capability-preview-description">${text(item.description, '未提供说明')}</p><dl class="capability-preview-grid"><div><dt>来源身份</dt><dd>${text(identity.join(' · '))}</dd></div><div><dt>版本状态</dt><dd>${text(item.status)}${item.is_latest === true ? ' · 当前版本' : ''}</dd></div><div><dt>包与制品</dt><dd>${packageFacts(item.packages)}</dd></div><div><dt>远程传输</dt><dd>${remoteFacts.length ? remoteFacts.map(value => text(value)).join('<br>') : '未声明'}</dd></div><div><dt>源码仓库</dt><dd>${text(repository)}</dd></div><div><dt>支持与验证</dt><dd>${supportReason}</dd></div></dl>${installStatusChain(installation)}${installation.error && !installation.preview ? `<div class="notice error" role="alert">${e(installation.error)}</div>` : ''}${targetSection}${installPreview(item, installation)}${installedActions(installation)}<footer><button type="button" class="button" data-mcp-detail-close>关闭</button>${previewButton}</footer></section></div>`;
 }
+
+export const emptyMCPInstallation = () => ({ target: '', preview: null, confirmationToken: '', installationId: '', installStatus: 'not_installed', probeStatus: 'not_run', enableStatus: 'disabled', authorizationStatus: 'not_authorized', capabilities: null, record: null, busy: '', error: '' });
+
+export function mcpInstallationFor(identity, installations) {
+  return installations.find((item) => {
+    const plan = item?.plan || {};
+    return plan.registry_id === identity.registryId
+      && plan.server_name === identity.serverName
+      && plan.server_version === identity.version;
+  }) || null;
+}
+
+export function mcpInstallationState(record) {
+  if (!record?.id) return emptyMCPInstallation();
+  const runtimeStatus = String(record.runtime_status || 'installed');
+  const probeStatus = ['ready', 'enabled', 'disabled'].includes(runtimeStatus) ? 'ready'
+    : runtimeStatus === 'health_failed' ? 'failed' : 'not_run';
+  return {
+    ...emptyMCPInstallation(),
+    installationId: record.id,
+    installStatus: 'installed',
+    probeStatus,
+    enableStatus: record.active === true || runtimeStatus === 'enabled' ? 'enabled' : 'disabled',
+    record: structuredClone(record),
+  };
+}

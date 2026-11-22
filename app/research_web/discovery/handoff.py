@@ -73,6 +73,26 @@ async def ensure_session(research, record, *, mutate):
         }
         if row.get("purpose") != "discovery_research" or row.get("discovery_origin") != expected:
             raise DiscoveryError("研究会话归属不一致", "discovery_session_foreign", 409)
+        from .. import qa_execution
+
+        if qa_execution.owns(row) or (
+            qa_execution.enabled(research)
+            and row["mode"] == "fingpt"
+            and row.get("discovery_creation_state") == "reserved"
+            and not row["created"]
+        ):
+            if not row["created"]:
+                if not mutate:
+                    return False
+                qa_execution.bind(research, row, research.default_model)
+                row.update(discovery_creation_state="ready", status="idle")
+                record["state"] = "snapshot_ready"
+                record.pop("code", None)
+                research.store.save()
+                research.notify()
+            return True
+        if qa_execution.retired(research, row):
+            raise DiscoveryError("旧 FinGPT 会话已退役，请重新交接", "fingpt_retired", 410)
         native = await research.client.rpc("session.list", {})
         if (
             not isinstance(native, dict)

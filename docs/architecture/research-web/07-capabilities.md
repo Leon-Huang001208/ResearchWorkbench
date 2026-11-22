@@ -1,21 +1,16 @@
 # 能力包、版本与原生调用
 
-脚本依赖检查的非初始化路径继续逐次读取当前发行包 metadata，只把本次外部导入的 top-level
-模块作为 fresh 投影目标。只有stock API、Distribution discover／resolver、默认PathFinder descriptor、
-动态MetadataPathFinder类／find descriptor、PathDistribution类和Distribution.files/readers全部
-匹配，且实际命名Python callable的function/code/defaults/closure指纹不变，才启用快路径；真实custom finder在任何枚举前回原API，避免双重消费。枚举后身份变化或未知
-Distribution类型失败关闭，不再fallback二次枚举。标准路径
-复现所有RECORD／egg-info行的arity、hash与size构造错误，只省略无关路径stat；多个发行包共享
-namespace、文件缺失、下一次metadata/路径变化和异常传播保持。初始化事务的单清单缓存和异常后
-清空保持；必需私有primitive使用sentinel安全捕获，缺失时模块导入不失败并走公共API。因此优化不缓存 dependency PASS、发行包身份、权限或运行时 policy，也不改变
-问题顺序、6 次 runtime、12 次 policy build、18 次 inventory、56 次 check、56 次 publish、281 次
-save 及 frozen pack 字节；profile 的 `validate=108` 仅是实际调用计数。
+Python工具目录同步既有原生输入元数据：DataHub用途／质量／历史时点及脚本 `code`／`report_plan` 二选一。固定DSH注册夹具包含实际ask-user与specialists插件，独立无DSH回归核对本地runtime参数；这些声明不创建grant、不升级质量，也不改变执行权限或研究拓扑。
 
-`runtime_identity` 的每一遍仍重新枚举模块、读取完整当前源码与依赖 metadata／权限／hash，重建 policy，并核验 loaded／search／stdlib／optional 来源。只有由当前源码字节导出的不可变语法事实可进入进程内有界 LRU：最多 64 项，单源码最多 1 MiB；键同时包含完整源码 bytes、module／package、绝对安装根、当前 `ast.parse` 对象及 Python parser 版本身份。源码同尺寸且恢复 mtime、安装根、package、parser 或 import 字节任一变化均不能命中；大源码直接 fresh parse。局部 build／verify 字典在成功或异常后仍清空，LRU 不保存 runtime identity、依赖身份、授权、验证 PASS 或完整 policy。冻结 helper 源码及其派生 guard／资源摘要会变化，不能声称修改前后的冻结包全字节相同；原六次 fresh runtime、56 次 check、56 次 publish 与 281 个保存 checkpoint 保留。本轮只有本地 cProfile／定点证据，不能推导 Linux CI 或 45 分钟门已通过。
+当前知识工具 `research_search_knowledge`／`research_read_knowledge` 登记在原能力目录，经可信session和DataKey调用Host；模型不能配置库、改root、启用同步或冻结证据。入站四项只读MCP、技能／Workflow发布和版本门保持，固定报告仍须批准scope。见[资料合同](../../research-web-weknora.md)。
 
-`Catalog.validate` 每文件 fresh parse 后仅在局部保存 `tuple(ast.walk(tree))`，供原九处遍历使用；没有合并检查或改变 issue 顺序，没有跨文件／调用缓存。原六次 fresh runtime、版本／账户检查、旧结果验证不变；当前56内置包的冷目录样本仍有281次保存 checkpoint，未做批处理。49 个源字节向量保留完整有序结果 oracle，危险脚本仅解析、不执行；正常构造计时与 profiling、功能验收分别记录。
+Host 批准的单轮研究继续使用同一 query／hit_id 工具，不注册同名 operation／document／chunk 版本。正式范围与原生请求只由已持久化 grant 和可信执行元数据确定，子会话、过期或取消调用拒绝且不降级 current；普通 current 的工具参数与权限保持。[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)
 
-共享离线 API fixture 必须显式在使用模块登记 function-scope 内存凭据，不能假设上游模块 autouse fixture 随别名传播。默认后端和公共测试 facade 使用同例 vault，真实系统／文件后端入口拒绝，退出恢复 patch；生产凭据协议、固定 MCP signing account 与唯一 DSH 不改。历史 Keychain 实际触达仍 UNKNOWN，新的零逃逸结果不回填旧 epoch。
+能力中心的用户分类固定为 **技能、连接器、插件**：技能统一展示 Skill、通用步骤模板和历史方法；连接器管理现有 MCP、DataHub 来源和本机集成；插件沿用受审业务包管理。Tool 在关联条目详情展示 ID、权限和可选状态，不再作为主分类。MCP 是连接器的一种协议，插件是可含技能与连接器的分发包，两者不重复安装或复制凭据。
+
+方法不再有独立页面或选择器。历史 `kind=method`、稳定 ID、不可变版本、`method_ids`、最多三项组合、采用记录和权限门继续有效；复制内置方法生成普通 Skill 草稿，保留程序、输入输出和检查标准，须经原检查与发布流程。副本不继承方法采用记录身份，原版本不改写。普通 Workflow 在技能中展示，报告专属流程仍从报告生产进入；定时任务以 `#/automations` 薄入口复用原调度。
+
+入站 MCP 与现有出站能力中心是两种方向：前者仅把批准冻结材料的四项只读能力交给成熟宿主，后者继续管理原 DSH 可调用的工具/安装/版本/权限。外部宿主不继承出站供应商凭据、插件安装权、实时取数或工作流执行权限。首版不启用 MCP Prompts、Tasks、Skills 或 Apps；生态包不能仅凭格式相似而获得 RWB 数据访问。见[入站合同](../../research-web-mcp-facade.md)。
 
 业务报告项目在独立“报告生产”入口管理；通用 Workflow 仍是能力中心步骤模板。现有原生绑定与报告运行复用唯一 DSH，界面分类不授予工具权限，不新增报告引擎。
 
@@ -78,8 +73,8 @@ Native/Docker 共用能力目录、不可变版本、工具风险等级与 Autom
 | `seeds.py` | 三十个研究 Skill、四个步骤式 Workflow、十个 Method 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
-| `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、Method、数据组织为五个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
-| `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览只读 Registry，并管理完整安装确认、探测、启停、移除、OAuth、风险分级、会话授权和一次性审批；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
+| `ui/capability-workspace.mjs` | 三分类页面及快览渲染、关联工具详情、连接摘要和旧链接兼容；从 app.mjs 分离纯页面渲染以保持原静态健康读取上限 | 创建第二份目录、推断热门排序或执行能力 |
+| `ui/mcp-marketplace.mjs` | 在连接器的 `view=market` 浏览只读 Registry，管理原安装、授权与生命周期；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
 | `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
 | `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、缺少 pip 时的受限 uv 离线回退、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动安装 uv、自动授权、无人值守高风险或 Registry 发布 |
 | `automation/` | 锁定版本任务、IANA 日程、独立 Claw Run、恢复、显式旧日程迁移和独立投递状态 | 静默升级、研究自动重试、重叠运行或高风险无人值守调用 |
@@ -337,3 +332,11 @@ pack_resources从唯一packs源冻结record/output schema、golden、runtime/imp
 四个协作工具在原目录投影，不直接可选；角色冻结现有Skill版本及资源摘要，原能力发布、数据授权和原生审批保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+WeKnora 只读客户端发现既有四项工具，当前授权所选材料决定实际可读范围。
+
+已批准的 WeKnora 客户端可经私网 HTTPS 获取原冻结资料，只读工具和逐项授权边界继续适用。
+
+## 研究包的既有链路接入
+
+`scenarios/packs/` 提供九个确定性计算包，`scenario_pack_*` 与 `scenario_method_*` 在原 Host 内完成输入冻结、DSH 接线和结果复核；不新增调度器、数据库或研究引擎。能力分类仍为技能／连接器／插件，原来禁用的方法不会因此解锁。接口与来源约束见[研究包](../../research-web-research-packs.md)和[原件方法](../../research-web-owned-methods.md)。

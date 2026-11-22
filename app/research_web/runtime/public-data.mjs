@@ -59,6 +59,16 @@ const SAFE_ERROR_CODES = new Set([
   'research_source_scope_denied', 'research_source_identity_unknown',
   'research_source_count_limit', 'research_source_arguments_invalid',
   'research_source_call_inactive',
+  'knowledge_binding_required', 'knowledge_library_access_revoked',
+  'knowledge_sync_disabled', 'knowledge_sync_binding_required',
+  'knowledge_current_version_changed', 'knowledge_hit_session_mismatch',
+  'knowledge_hit_identity_mismatch', 'knowledge_session_unconfirmed',
+  'knowledge_current_query_budget', 'knowledge_current_chunk_budget',
+  'knowledge_maintenance_busy', 'knowledge_credentials_unavailable',
+  'knowledge_run_not_authorized', 'knowledge_run_not_active',
+  'knowledge_native_turn_unverified', 'knowledge_document_outside_scope',
+  'knowledge_scope_identity_mismatch', 'knowledge_original_changed',
+  'knowledge_chunks_changed',
 ]);
 
 function isDenseStringArray(value) {
@@ -246,6 +256,46 @@ export async function executeResearchQuality(ctx, exec, config) {
       typeof value.may_repair !== 'boolean' || !value.contract || typeof value.contract !== 'object' || Array.isArray(value.contract) ||
       (value.may_repair && (value.status !== 'incomplete' || value.repair_count !== 1))) throw Error('research_quality_response_invalid');
   return value;
+}
+
+/** Current-user knowledge uses the same private Host channel and trusted lineage. */
+export async function executeKnowledgeTool(ctx, exec, config, operation, args) {
+  if (!['query','read'].includes(operation)) throw Error('knowledge_arguments_invalid');
+  const cwd = await trustedDirectory(ctx,exec,config);
+  const callerSession = exec.agent.session.header.id;
+  if (typeof callerSession !== 'string' || !/^[A-Za-z0-9_.-]{1,120}$/.test(callerSession)) throw Error('knowledge_native_identity_invalid');
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal,AbortSignal.timeout(30000)]);
+  const session_id = basename(cwd);
+  const field = operation === 'query' ? 'query' : 'hit_id';
+  const response = await fetch(control.url + `/api/research/internal/data/knowledge-${operation}`, {
+    method:'POST',headers:{'Content-Type':'application/json','X-Research-Data-Key':control.token,
+      'X-Research-Native-Session':callerSession},
+    body:JSON.stringify({session_id,[field]:args[field]}),redirect:'error',credentials:'omit',signal,
+  });
+  // Eight 16K-character excerpts can exceed 256 KiB once encoded as UTF-8.
+  const value = await boundedJson(response,signal,1024*1024);
+  if (value?.session_id !== session_id) throw Error('knowledge_response_invalid');
+  const project = row => {
+    if (!row || typeof row !== 'object' || !/^[a-f0-9]{64}$/.test(row.hit_id || '') ||
+        row.source_id !== `knowledge:${row.hit_id}` || typeof row.title !== 'string' || row.title.length > 1000 ||
+        typeof row.snippet !== 'string' || row.snippet.length > 16000 ||
+        !/^[a-f0-9]{64}$/.test(row.sha256 || '') || !Number.isSafeInteger(row.document_version) || row.document_version < 1 ||
+        !['current','changed','superseded','deleted'].includes(row.source_status) || row.historical_eligible !== false ||
+        !Array.isArray(row.limitations) || row.limitations.length > 20 || row.limitations.some(item=>typeof item !== 'string' || !/^[a-z][a-z0-9_]{0,79}$/.test(item)) ||
+        !row.locator || typeof row.locator !== 'object' || Array.isArray(row.locator) ||
+        Object.keys(row.locator).some(key=>!['chunk_index','start_at','end_at'].includes(key)) ||
+        Object.values(row.locator).some(item=>item !== null && (!Number.isSafeInteger(item) || item < 0))) throw Error('knowledge_response_invalid');
+    return Object.fromEntries(['hit_id','source_id','title','snippet','locator','sha256','document_version','source_status','historical_eligible','limitations'].map(key=>[key,row[key]]));
+  };
+  signal.throwIfAborted();
+  if (operation === 'query') {
+    if (value.generated_answer !== false || !Array.isArray(value.items) || value.items.length > 8) throw Error('knowledge_response_invalid');
+    return {items:value.items.map(project),generated_answer:false};
+  }
+  if (value.hit_id !== args.hit_id || typeof value.content !== 'string' || value.content.length > 16000) throw Error('knowledge_response_invalid');
+  return {...project(value),content:value.content};
 }
 
 async function waitForResponse(operation, signal) {

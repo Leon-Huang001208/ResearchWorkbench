@@ -1,22 +1,26 @@
 # Research Web 能力包与版本
 
-Catalog 对脚本外部模块的存在性检查仍在每次非初始化验证时读取 fresh metadata；当前调用只请求
-本次实际导入的 top-level 模块。快路径只接受stock公共API、Distribution discover／resolver、默认
-PathFinder descriptor、动态MetadataPathFinder类／descriptor、PathDistribution类和files/readers；
-这些命名Python callable另绑定function/code/defaults/closure指纹。真实custom finder在枚举前回原完整API，枚举后身份变化或未知Distribution类型失败关闭且不二次枚举。标准路径复现所有RECORD／
-egg-info行的arity、hash与size构造错误，只跳过无关路径的`stat`；重复namespace、缺失文件、下一次
-metadata/路径变化与异常传播保持；必需私有primitive缺失时模块仍可导入并单次调用公共API。初始化
-事务仍只共享一次完整清单，并在成功或异常后清空。严格语义、完整动态委托与code/defaults闭包证明
-后的最终字节固定AST oracle本机cProfile从9.518秒降至7.016秒，原12次完整清单变为一次完整清单加
-11次fresh投影；这是本机诊断，不认证Linux CI或45分钟门。
+工具目录按原生实际注册核对名称与参数。DataHub声明包含既有 `purpose`／`quality`／`as_of` 输入，研究脚本声明既有 `code`／`report_plan` 二选一；目录不授予执行或质量资格，原权限与严格执行校验保持。无DSH源码环境的注册回归直接调用本地runtime模块，固定DSH完整插件核对另外留证。
 
-pack runtime 的 import policy 只复用完整新读源码字节导出的不可变语法 facts：进程内 LRU 最多 64 项、单源码最多 1 MiB，键同时绑定 module／package、绝对安装根、当前 `ast.parse` 对象与 Python parser 版本。每次 runtime 的依赖 metadata／权限／hash、模块枚举、源码读取、policy 重建及 loaded／search／stdlib／optional 来源核验不缓存；identity、授权、验证 PASS 和完整 policy 也不缓存。本地 Catalog cProfile 保持 runtime=6、policy build=12、module inventory=18、save=281、check=56；实际 parse 270→45，但这不是 Linux CI 时长保证。新回归沿原 Checks Python 清单运行，不新增工具、权限、引擎或 CI 步骤；完整 CI 仍须另证。
+Research Bot 对来源批次先判新鲜度，再冻结原件和准备技能。历史记录保存实际准入依据供核对。
 
-发布验证在每个 Python 文件重新解析后，只在本次调用内复用同一棵 AST 的节点枚举；原动态导入、相对导入、依赖、安装器和宿主进程检查仍按原顺序独立执行。不同文件、不同调用和改动后的字节不沿用上次枚举或验证结果；冷初始化六次依赖新鲜性检查和逐次持久化 checkpoint 保持。
+Research Bot 只绑定已发布的技能或 Workflow 版本及内容哈希。运行时重验当前授权和原生发现，结果校验要求所绑定版本及 Workflow 已冻结子技能的实际加载回执。
 
-借用通用 Host API 的离线测试模块显式使用各自 function-scope 内存凭据。继承的文件凭据根／代理被清除，真实后端 fallback 拒绝；同例重开保留合成签名，例间隔离并恢复 patch。背景采集用原测试开关关闭，业务仍由真实 Host 与已声明 HTTPMockTransport／离线原件验证。此测试隔离不改变产品 Keychain 行为，也不能证明历史测试未曾触达系统凭据。
+财经日历是 Host 自有的固定公开来源界面，不安装技能或插件，也不授予用户任意数据工具调用权限。
 
-九个 `research-pack-*` Skill 的详情沿原复制、编辑、检查、发布与版本路径，新增“配置此组合包并查看方法”入口读取当前 Host 的方法／必要材料／参数／版本投影。只读配置不创建会话、不查询来源、不调用模型；缺数保持 partial／blocked，真实结果与正式质量分别显示，见[九包前端合同](research-web-pack-ui.md)。
+## WeKnora 与能力中心（2026-11-06）
+
+WeKnora适配提供资料服务出口，不创建新插件市场、安装器或执行器。当前研究的 `research_search_knowledge`／`research_read_knowledge` 只经原DataKey读取可信会话的current资料和命中回执，模型不能选择库、账号或写范围；原报告查询仍须批准scope。绑定、同步配置／扫描、时间批准和冻结保留认证用户明确动作。能力中心三分类、原技能／Workflow身份和入站四项只读MCP保持，资料worker的启用不恢复其他Automation日程。[资料合同](research-web-weknora.md)
+
+已批准 scope 的新会话首轮可走 Host 单轮 grant 分支，仍复用 query／hit_id 工具协议；scope 和当前原生请求不来自模型参数。正式失败不回退普通 current，子会话不继承根授权，来源时间与正式报告资格仍单独复核。详见[单轮研究](research-web-weknora.md#host-批准范围的单轮研究)。
+
+能力中心仅保留技能／连接器／插件：方法与通用Workflow并入技能，Tool在关联详情。连接器使用原MCP、DataHub和本机管理，插件复用原包生命周期。旧方法ID、版本、权限和历史深链保留；复制方法产生普通Skill草稿，不改原方法，也不继承其采用记录身份。定时任务薄入口复用原计划，报告专属Workflow仍从报告生产进入。
+
+## 事件研究与能力授权（2026-11-04）
+
+新增事件时间线、研究输入登记和评分接口属于原Host的确定性业务模块，不会将来源候选自动注册为原生Tool／Skill，不增加MCP权限，也不以目录或人工确认替代供应商、PIT及正式评分资格。模型解释仍通过原DSH能力与质量合同。
+
+来源计划仅在Native通用Automation已开启且用户逐源启用后进入原心跳；tenant自动采集通道关闭，今日发现的窄跟踪同意不扩展到该计划。数据、方法和权限的具体边界见[事件集成合同](research-web-event-research.md)，原能力发布和撤权门保留。
 
 首批八场景复用已发布能力，不把62个Skill名称或78个工具描述自动变成可执行版本。发送逐项检查必需能力原生发现、实际编译资源、来源准入和冻结版本；要求与真实加载回调分开。旧禁用／比较回执、插件授权和发布冲突门保持；静态候选或成功准备不准许调用MCP。场景质量schema2绑定全部要求，旧schema1不变，摘要不因引用已通过报告获得自身passed。
 
@@ -577,6 +581,10 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
 
-多用户后端把研究包与自有方法的 `pack-completion` 列为固定内部回调；进入业务处理前仍须通过
-DataHub 回调密钥鉴权。内置 Skill 预检通过只允许开始执行，完成、失败和取消必须由同一受认证
-回调登记，不能从预检或专业协作状态推断完成。
+仅服务模式的研究能力可由外部宿主消费。RWB 账号内原生能力创建、启用及运行请求在该模式拒绝。
+
+AlphaDesk 收到 Host 固定且已验证的能力资源。原目录批准、资料条件和账号权限继续决定可调用工具。
+
+## 九个研究包与自有原件方法
+
+研究包复用原 Host、DataHub、DSH 和质量核验链；能力中心继续使用技能／连接器／插件三分类，包详情按现有入口投影，不重开旧分类。确定性计算与来源缺口见[研究包](research-web-research-packs.md)，三个原件方法见[自有方法](research-web-owned-methods.md)，选材与冻结见[来源选择](research-web-source-selection.md)。

@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {createHash} from 'node:crypto';
-import {spawnSync} from 'node:child_process';
 import test from 'node:test';
 
 const readWorkflow = (name) => fs.readFileSync(
@@ -155,6 +154,35 @@ function policyRequiresGate(file, gate) {
   return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
 }
 
+test('Checks extracts exact hashed Web SDK blocks while preserving renderer pins', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-lock-contract-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const lock=fs.readFileSync(new URL('../../requirements/web.lock',import.meta.url),'utf8');
+  fs.mkdirSync(path.join(root,'requirements'));
+  fs.writeFileSync(path.join(root,'requirements/web.lock'),lock);
+  const step=workflows.checks.split('      - name: Install declared test dependencies\n')[1]?.split('\n      - name:')[0];
+  assert.ok(step,'existing dependency step must remain');
+  const heredoc=step.match(/          \.venv\/bin\/python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(heredoc,'existing lock extraction script must remain');
+  const code=heredoc[1].split('\n').map(line=>line.slice(10)).join('\n');
+  const result=spawnSync(process.env.RWB_TEST_PYTHON || 'python3',['-B','-c',code],{
+    cwd:root,env:{...process.env,RUNNER_TEMP:root,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8',timeout:10000,
+  });
+  assert.equal(result.status,0,result.stderr);
+  const extracted=fs.readFileSync(path.join(root,'rwb-reportlab.lock'),'utf8');
+  const entries=extracted.split(/\n(?=[a-z0-9])/).filter(Boolean);
+  assert.equal(entries.length,5);
+  for(const packageName of ['reportlab','openpyxl','et-xmlfile','mcp','mcp-types']) {
+    const entry=entries.find(value=>value.startsWith(`${packageName}==`));
+    assert.ok(entry,packageName);
+    const original=lock.split(/\n(?=[a-z0-9])/).find(value=>value.startsWith(`${packageName}==`));
+    assert.equal(entry.trimEnd(),original.trimEnd(),`${packageName} block must retain all original hashes`);
+    assert.match(entry,/--hash=sha256:[a-f0-9]{64}/);
+  }
+  assert.match(step,/pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-reportlab\.lock"/);
+  for(const packageName of ['mcp','mcp-types']) assert.ok(step.includes(`m.version('${packageName}') == '2.2.0'`),`${packageName} installed metadata must be checked`);
+});
+
 test('Docker runtime test paths retain required Native bootstrap coverage', () => {
   const policy = JSON.parse(fs.readFileSync(
     new URL('../../.agents/verification-policy.json', import.meta.url), 'utf8',
@@ -197,7 +225,7 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), true, file);
     assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), true, file);
   }
-  assert.match(workflows.bootstrap, /macos-14/);
+  assert.match(workflows.bootstrap, /macos-15/);
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
   for (const file of ['setup-web.cmd', 'rwb.cmd']) {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), false, file);
@@ -260,7 +288,7 @@ test('Bootstrap has exactly one macOS clean-install job and its intended trigger
     ['pull_request', 'push', 'workflow_dispatch'],
   );
   assert.deepEqual(workflowJobs(workflows.bootstrap), [
-    {id: 'clean-install', runsOn: 'macos-14'},
+    {id: 'clean-install', runsOn: 'macos-15'},
   ]);
 });
 
@@ -388,33 +416,6 @@ test('Web evidence retention is short and full logs upload only on failure', () 
   assert.match(workflows.windows, /retention-days: 3/);
 });
 
-test('existing Mac Bootstrap owns the mandatory built SDK test after clean installation evidence',()=>{
-  const native='tests/research_web/test_owned_news_native_sdk.py';
-  assert.ok(workflows.checks.includes('tests/research_web/test_owned_method_compat.py'));
-  assert.ok(workflows.checks.includes('tests/research_web/test_native_sdk_bootstrap_ci.py'));
-  assert.ok(workflows.checks.includes('tests/research_web/test_execution_cancel_policy.py'));
-  assert.ok(!workflows.checks.includes('tests/research_web/test_execution_cancel_native.py'));
-  assert.ok(!workflows.checks.includes(native),'generic Checks does not own a built fixed SDK');
-  for(const event of ['push','pull_request']) for(const file of [native,'tests/research_web/test_owned_method_compat.py','tests/javascript/helpers/owned-news-native-driver.mjs']) assert.equal(triggersForPath(workflows.bootstrap,event,file),true);
-  const sdk=workflows.bootstrap.indexOf("argv = [sys.executable, '-m', 'pytest'");
-  assert.ok(sdk>workflows.bootstrap.indexOf('native-search-smoke.json'));
-  assert.ok(sdk>workflows.bootstrap.indexOf('product_ready'));
-  assert.match(workflows.bootstrap,/tomllib\.loads\(Path\('pyproject\.toml'\)/);
-  assert.match(workflows.bootstrap,/existing runtime distribution changed/);
-  assert.match(workflows.bootstrap,/existing runtime distribution was replaced/);
-  assert.match(workflows.bootstrap,/dev tools changed installed app bytes/);
-  assert.match(workflows.bootstrap,/Native test changed installed app bytes/);
-  assert.match(workflows.bootstrap,/'RWB_DSH_TEST_SOURCE': str\(sdk\)/);
-  assert.match(workflows.bootstrap,/'RWB_TEST_NODE': str\(node\)/);
-  assert.match(workflows.bootstrap,/result\.returncode == 0/);
-  assert.match(workflows.bootstrap,/tests\/research_web\/test_execution_cancel_native\.py/);
-  assert.match(workflows.bootstrap,/sum\(int\(s\.get\('tests', 0\)\) for s in suites\) == 7/);
-  assert.match(workflows.bootstrap,/\('failures', 'errors', 'skipped'\)/);
-  const nativeSource=fs.readFileSync(new URL('../../'+native,import.meta.url),'utf8');
-  assert.doesNotMatch(nativeSource,/pytest\.skip|pytest\.mark\.skip/);
-  for(const name of ['native-sdk-owner.json','native-sdk-receipt.json','native-sdk.log','native-sdk-junit.xml','native-sdk-installed-before.json','native-sdk-installed-after.json','native-sdk-tools-install.json']) assert.equal(workflows.bootstrap.split(name).length>2,true,name);
-});
-
 test('Docker CI is dispatched by the Linux device for an exact commit', () => {
   const docker = readWorkflow('research-web-docker.yml');
   assert.deepEqual(workflowTriggers(docker), ['workflow_dispatch']);
@@ -450,121 +451,6 @@ test('Docker CI is dispatched by the Linux device for an exact commit', () => {
   }
 });
 
-
-test('Checks executes frozen dependency extraction and rejects inconsistent lock inputs', () => {
-  const match = workflows.checks.match(/          \.venv\/bin\/python - <<'PY_LOCK'\n([\s\S]*?)          PY_LOCK/);
-  assert.ok(match, 'actual install heredoc is required');
-  const code = match[1].replace(/^          /gm, '');
-  const projectionPath = 'app/research_web/capabilities/pack-runtime-lock.json';
-  const original = JSON.parse(fs.readFileSync(new URL('../../' + projectionPath, import.meta.url)));
-  const lock = fs.readFileSync(new URL('../../requirements/web.lock', import.meta.url), 'utf8');
-  const project = fs.readFileSync(new URL('../../pyproject.toml', import.meta.url), 'utf8');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-lock-'));
-  try {
-    for (const variant of ['valid', 'sha', 'missing', 'duplicate', 'version', 'hash']) {
-      const cwd = path.join(root, variant);
-      fs.mkdirSync(path.join(cwd, 'requirements'), {recursive: true});
-      fs.mkdirSync(path.join(cwd, path.dirname(projectionPath)), {recursive: true});
-      const projection = structuredClone(original);
-      let sample = lock;
-      if (variant === 'missing') sample = sample.replace(/^rpds-py==.*$/m, 'removed-rpds-py==1');
-      if (variant === 'duplicate') sample += '\nrpds-py==2026.6.3\n';
-      if (variant === 'version') projection.versions['rpds-py'] = '2026.9.1';
-      if (variant === 'hash') sample = sample.replace(/(rpds-py==[^\n]*\n)([\s\S]*?)(?=^[a-z])/m,
-        (_all, header, rest) => header.replace(/ \\$/, '') + '\n' + rest.replace(/^.*--hash=.*\n/gm, ''));
-      projection.lock_sha256 = variant === 'sha' ? '0'.repeat(64)
-        : createHash('sha256').update(sample).digest('hex');
-      fs.writeFileSync(path.join(cwd, 'requirements/web.lock'), sample);
-      fs.writeFileSync(path.join(cwd, 'pyproject.toml'), project);
-      fs.writeFileSync(path.join(cwd, projectionPath), JSON.stringify(projection));
-      const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', code], {
-        cwd, env: {...process.env, RUNNER_TEMP: cwd}, encoding: 'utf8', timeout: 10000,
-      });
-      assert.ifError(run.error);
-      assert.equal(run.status, variant === 'valid' ? 0 : 1, variant + ': ' + run.stderr);
-      const log = fs.readFileSync(path.join(cwd, 'logs/ci-pack-dependencies.log'), 'utf8');
-      assert.match(log, variant === 'valid' ? /ci_pack_dependencies_prepared/ : /ci_pack_dependencies_prepare_failed/);
-      if (variant !== 'valid') continue;
-      const constraints = fs.readFileSync(path.join(cwd, 'rwb-pack-dependencies.constraints'), 'utf8');
-      for (const [name, version] of Object.entries(original.versions)) {
-        assert.ok(constraints.split('\n').includes(`${name}==${version}`));
-      }
-      assert.equal(constraints.trim().split('\n').length, lock.split('\n').filter(line => /^[a-z0-9][a-z0-9-]*==/.test(line)).length);
-      assert.doesNotMatch(constraints, /--hash|\\/);
-      const hashed = fs.readFileSync(path.join(cwd, 'rwb-pack-dependencies.lock'), 'utf8');
-      assert.equal(hashed, lock);
-      assert.match(hashed, /rpds-py==2026\.6\.3/);
-      assert.match(hashed, /idna==3\.19/);
-      assert.match(hashed, /--hash=sha256:[a-f0-9]{64}/);
-    }
-  } finally {
-    fs.rmSync(root, {recursive: true});
-  }
-  assert.match(workflows.checks, /pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-pack-dependencies\.lock"/);
-  assert.match(workflows.checks, /pip install -r "\$RUNNER_TEMP\/rwb-test-tools\.in" -c "\$RUNNER_TEMP\/rwb-pack-dependencies\.constraints"/);
-  assert.match(workflows.checks, /pip install --no-index --no-deps --no-build-isolation \./);
-  assert.doesNotMatch(workflows.checks, /pip install[^\n]* -e(?:\s|$)/);
-  assert.match(workflows.checks, /python -I -B - <<'PY_ADMISSION'/);
-});
-
-test('Checks actually extracts declared dev tools without root legacy dependencies', () => {
-  const code = workflows.checks.match(/          \.venv\/bin\/python - <<'PY_LOCK'\n([\s\S]*?)          PY_LOCK/)[1].replace(/^          /gm, '');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-dev-'));
-  try {
-    fs.cpSync(new URL('../../requirements', import.meta.url), path.join(root, 'requirements'), {recursive: true});
-    const projection = 'app/research_web/capabilities/pack-runtime-lock.json';
-    fs.mkdirSync(path.join(root, path.dirname(projection)), {recursive: true});
-    fs.copyFileSync(new URL('../../' + projection, import.meta.url), path.join(root, projection));
-    for (const [name, dev] of [
-      ['valid', '["pytest>=7.4.0", "pytest-asyncio>=0.21.0", "httpx2>=2,<3"]'],
-      ['empty', '[]'], ['not-list', '"pytest"'], ['url', '["pytest @ https://example.invalid/tool"]'],
-      ['newline', '["pytest\\nlanggraph"]'], ['non-string', '[42]'],
-    ]) {
-      fs.writeFileSync(path.join(root, 'pyproject.toml'), `[project]\ndependencies = ["langgraph>=0.0.0", "jsonpointer>=3.2"]\n[project.optional-dependencies]\ndev = ${dev}\n`);
-      const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', code], {
-        cwd: root, env: {...process.env, RUNNER_TEMP: root}, encoding: 'utf8', timeout: 10000,
-      });
-      assert.ifError(run.error);
-      assert.equal(run.status, name === 'valid' ? 0 : 1, name + ': ' + run.stderr);
-      if (name === 'valid') {
-        const tools = fs.readFileSync(path.join(root, 'rwb-test-tools.in'), 'utf8');
-        assert.equal(tools, 'pytest>=7.4.0\npytest-asyncio>=0.21.0\nhttpx2>=2,<3\n');
-        assert.doesNotMatch(tools, /langgraph|jsonpointer/);
-      } else assert.match(run.stderr, /ci_test_tools_invalid/);
-    }
-  } finally {
-    fs.rmSync(root, {recursive: true});
-  }
-});
-
-test('Checks post-install verification rejects drift in every frozen distribution', () => {
-  const match = workflows.checks.match(/          \.venv\/bin\/python - <<'PY_VERIFY'\n([\s\S]*?)          PY_VERIFY/);
-  assert.ok(match);
-  const code = match[1].replace(/^          /gm, '');
-  const projectionPath = 'app/research_web/capabilities/pack-runtime-lock.json';
-  const projection = JSON.parse(fs.readFileSync(new URL('../../' + projectionPath, import.meta.url)));
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-ci-verify-'));
-  try {
-    fs.mkdirSync(path.join(root, path.dirname(projectionPath)), {recursive: true});
-    fs.mkdirSync(path.join(root, 'logs'));
-    fs.writeFileSync(path.join(root, projectionPath), JSON.stringify(projection));
-    for (const drift of [null, ...Object.keys(projection.versions)]) {
-      const installed = {...projection.versions};
-      if (drift) installed[drift] = '0.0.0';
-      const wrapper = `import importlib.metadata\nimportlib.metadata.version = ${JSON.stringify(installed)}.__getitem__\n` + code;
-      const run = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', wrapper], {
-        cwd: root, encoding: 'utf8', timeout: 10000,
-      });
-      assert.ifError(run.error);
-      assert.equal(run.status, drift ? 1 : 0, String(drift) + ': ' + run.stderr);
-      if (drift) assert.match(run.stderr, /pack_runtime_installed_version_mismatch/);
-    }
-    assert.match(fs.readFileSync(path.join(root, 'logs/ci-pack-dependencies.log'), 'utf8'), /ci_pack_dependencies_verify_failed/);
-  } finally {
-    fs.rmSync(root, {recursive: true});
-  }
-});
-
 test('pytest evidence staging uses the no-follow allowlist helper and exact artifact directory', () => {
   for (const event of ['pull_request', 'push']) {
     assert.equal(
@@ -583,4 +469,15 @@ test('pytest evidence staging uses the no-follow allowlist helper and exact arti
   assert.match(workflows.checks, /path: artifacts\/research-web-checks\n/);
   assert.doesNotMatch(workflows.checks, /cp "\$root\/\$relative"/);
   assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
+});
+
+test('knowledge authority regressions are actual arguments of the existing CI partition command', () => {
+  const step = workflows.checks.match(/- name: Run Research Web Python contracts\n([\s\S]*?)(?=\n      - name:|$)/)?.[1];
+  assert.ok(step, 'the existing Python contracts step must remain');
+  assert.match(step, /scripts\/run_ci_pytest_partitions\.py/);
+  const argumentsFound = [...step.matchAll(/^\s+(tests\/research_web\/[^\s]+)\s+\\\s*$/gm)].map(match => match[1]);
+  for (const file of ['test_weknora_formal_scope.py', 'test_store.py', 'test_capabilities_native.py']) {
+    const expected = `tests/research_web/${file}`;
+    assert.equal(argumentsFound.filter(value => value === expected).length, 1, `${expected} must execute exactly once`);
+  }
 });

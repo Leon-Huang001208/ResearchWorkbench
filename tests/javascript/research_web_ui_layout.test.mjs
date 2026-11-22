@@ -103,7 +103,7 @@ test('composer provides non-submitting real Skill shortcuts and file drop/paste 
   const shortcuts = composer.researchQuickSkills(skills);
   assert.deepEqual(shortcuts.map((skill) => skill.id), skills.slice(0, 4).map((skill) => skill.id));
   const html = composer.renderComposer({ page: 'claw', draft: '', attachments: [], expectedFormats: null, skills, skillId: '', disabled: false, taskPending: false, detail: null });
-  for (const expected of ['data-dropzone', 'data-cm-open', 'data-paste-support', '添加附件、能力、方法或输出格式', '任务目标或补充信息']) assert.match(html, new RegExp(expected));
+  for (const expected of ['data-dropzone', 'data-cm-open', 'data-paste-support', '添加附件、技能或输出格式', '任务目标或补充信息']) assert.match(html, new RegExp(expected));
   assert.match(composer.renderQuickSkills(skills), /data-skill-shortcut/);
   assert.doesNotMatch(html, /fetch\(|POST \/api\/research/);
 });
@@ -251,13 +251,16 @@ test('workspace files keep existing real preview controls in the context panel',
   assert.match(context, /file-1\/preview/);
 });
 
-test('a lone slash lists every enabled real Skill without submitting a model request', async () => {
+test('a lone slash lists enabled Skills, Workflows and legacy methods without submitting a model request', async () => {
   const composer = await import(new URL('composer.mjs', root));
-  const skills = [{ id: 'enabled-one', name: '已启用一', description: '' }, { id: 'disabled', name: '已禁用', description: '', enabled: false }, { id: 'enabled-two', name: '已启用二', description: '' }];
-  assert.deepEqual(composer.skillMatches('', skills).map((skill) => skill.id), ['enabled-one', 'enabled-two']);
+  const skills = [{ id: 'enabled-one', name: '已启用一', description: '' }, { id: 'disabled', name: '已禁用', description: '', enabled: false }, { id: 'enabled-two', name: '已启用二', description: '' }, { id: 'workflow-one', kind: 'workflow', name: '研究步骤', enabled: true, version: 1 }, { id: 'method-one', kind: 'method', name: '事实核查', enabled: true, version: 1 }];
+  assert.deepEqual(composer.skillMatches('', skills).map((skill) => skill.id), ['enabled-one', 'enabled-two', 'workflow-one', 'method-one']);
   const html = composer.renderComposer({ page: 'fingpt', draft: '/', skills, slashOpen: true });
   assert.match(html, /已启用一/);
   assert.match(html, /已启用二/);
+  assert.match(html, /研究步骤/);
+  assert.match(html, /事实核查/);
+  assert.doesNotMatch(html, /method-picker|data-method-id=/);
   assert.doesNotMatch(html, /已禁用|fetch\(|POST \/api\/research/);
 });
 

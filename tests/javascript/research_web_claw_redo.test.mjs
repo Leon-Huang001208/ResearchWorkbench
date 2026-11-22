@@ -209,7 +209,7 @@ test('desktop sidebar focus uses the content reopen control and mobile keeps dra
   const selections=[];
   const document={querySelector:selector=>({focus:()=>selections.push(selector)})};
   focusSidebarControl(document,false); focusSidebarControl(document,false,true); focusSidebarControl(document,true); focusSidebarControl(document,true,true);
-  assert.deepEqual(selections,['.topbar .sidebar-reopen','.secondary-sidebar .sidebar-collapse','.topbar .menu-toggle','.rail-mobile-close']);
+  assert.deepEqual(selections,['.topbar .sidebar-reopen','.secondary-sidebar .sidebar-collapse','.topbar .menu-toggle','.secondary-sidebar .sidebar-collapse']);
 });
 test('readable parent and individual session rows retain escaped history restrictions', async()=>{
   const { renderResearchAttention, renderSessionRow } = await import('../../app/research_web/ui/shell.mjs');

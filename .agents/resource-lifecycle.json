@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "activation": "verified-shared-runtime-required",
+  "legacyResources": "inventory-and-category-approval-required"
+}

@@ -10,7 +10,10 @@ function state(extra = {}) {
 
 test('plugin route preserves the existing capability-center contract', () => {
   assert.equal(parseRoute('#/skills?kind=plugin').capabilityKind, 'plugin');
-  assert.equal(parseRoute('#/skills?kind=data').capabilityKind, 'data');
+  const legacyData = parseRoute('#/skills?kind=data');
+  assert.equal(legacyData.capabilityKind, 'connector');
+  assert.equal(legacyData.capabilityContext, 'data');
+  assert.equal(legacyData.capabilityView, 'library');
 });
 
 test('plugin preview never presents pending or unsupported components as loaded', () => {

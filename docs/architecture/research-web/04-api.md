@@ -1,5 +1,67 @@
 # Research Web 接口清单
 
+附接 MCP 保全的围栏内复核只调整现有本机操作员 `operate` 的 forward／限定 preparing
+恢复顺序，不新增 CLI 模式、业务 HTTP 方法、路径、请求字段或权限。前版健康由原
+`Operations.verify(previous=True)` 读取；该校验不提交模型、采集或研究请求。
+Trial、完成后回滚和其他阶段不扩大适用范围，见[部署合同](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+本地知识库的固定 Serve 路由检查仅属于 Native 操作员 CLI，不增加业务 HTTP 方法或路径。
+9443到18181的私网入口仍使用 WeKnora 自身认证，RWB绑定、当前会话检索与报告scope沿下述原接口；
+识别既有8443服务不会扩大网关代理、浏览器同源或模型工具权限。
+
+FinGPT 双入口回滚由本机操作员 CLI 发起，需要已接受版本的完整 SHA。现有本机与网关健康接口核对恢复结果。
+
+策略验证常驻验收经正式私网 HTTPS 和已登录的原账号走同一接口，核对导入摘要、统计结果和逐笔分页。
+
+`/api/research/strategy-validation` 提供账号内冻结日线 ZIP 导入、明确运行、历史摘要和逐笔分页。配置冻结与幂等写入见[策略验证](../../research-web-strategy-validation.md#api)。
+
+Radar 时效升级验证继续经本机 `GET /api/research/research-bots` 和历史接口读取，真实验收使用受控临时 Bot。
+
+Radar 解包在外层确实提供 `cache_stale` 时保留该字段，明确过期优先。Research Bot 的历史 Run 可读回采用的缓存标志或来源批次时间及相应准入依据。
+
+常驻升级后用只读 `GET /api/research/runtime` 和 `GET /api/research/research-bots` 分别检查主实例配置与 Bot 列表入口。网关认证和租户限制仍由对应运行实例验证。
+
+`GET/POST /api/research/research-bots` 读取配置和最新摘要或新建停用的 Bot。子路径支持查询发布技能版本、按版本更新、按 `before` 读取最近 20 条运行，以及单独的运行、启停、移除操作。写入沿同源 Host 与 `X-Research-User-Action: ?1` 并核对内置研究运行时归属。手动运行携带版本及 UUID 请求标识，原请求重放返回原 Run。通用日程与 Claw 日程入口拒绝管理 Bot。
+
+网关源码迁移通过本地 `rwb resident` 操作员命令执行。迁移事务未结时，网关启动拒绝加载账号存储及 HTTP 服务。
+
+`POST /api/research/events/initial-batch[/preview]` 与 `POST /api/research/market-scores/initial-evidence[/preview]` 要求明确动作，预检不写入；`GET /api/research/market-scores/initial-evidence` 读取已有证据，不触发取源。
+
+市场V2切换等待仅发生在Native操作员，不增加接口、请求字段或权限；原手动事件明确意图和Host校验不变。
+
+私网事件写操作保留已有 `X-Research-User-Action: ?1` 到Host；缺失/非法值不转换成合法意图，
+认证及同源/账号绑定不变。没有新增HTTP方法、路径或请求字段，Host原明确动作校验仍是最终门。
+
+## WeKnora 资料 API（2026-11-06）
+
+原 `POST /api/research/sessions/{sid}/messages` 的 Prompt 可携带 `knowledge_scope_id`，该字段要求 `X-Research-User-Action: ?1`，仅用于新会话首轮。知识工具仍只有 query 与 hit_id 两种模型输入；内部 DataKey 回调从持久 grant 选择正式分支，并核对原生桥从执行元数据注入的 `X-Research-Native-Session` 与获准根会话一致。模型自选 scope、伪装 caller 或复用另一请求命中均拒绝；正式失败不重试普通 current。新字段和权限条件没有新增路由、数据库或执行器，详见[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
+认证域 `/api/research/knowledge` 提供状态、绑定、库列表、范围、检索、读取及证据冻结／下载；`POST /login` 以 `{email, password}` 登录已有WeKnora账号，再沿既有bind核验身份和保存JWT，原JWT高级绑定保留，不代用户注册。`GET /sync` 读取状态，`POST /sync/config` 以 `knowledge_base_id`／`enabled` 配置固定目录，`POST /sync/scan` 显式扫描。详见[完整接口表](../../research-web-weknora.md#接口与权限)。状态不探测上游；登录／绑定、同步配置／扫描、scope及freeze要求明确用户动作，不接受任意owner、root或上游地址，密码不保存或回显。当前检索／读取分别使用 `{session_id, query}`／`{session_id, hit_id}`，冻结使用 `{session_id, hit_ids}`；旧报告路径保留scope批准。内部 `/api/research/internal/data/knowledge-query` 与 `/knowledge-read` 沿原DataKey、可信会话与来源准入，仅接受会话 query/read 协议，正式 scope 由 Host grant 派生，不开放模型指定范围或写入口。现有四项只读MCP不变，不因新增HTTP扩大OAuth scope。[API Atlas](../../../outputs/research-web-architecture/api-atlas.html)从字面量路由清单生成。
+
+统一导航只增加显式本机维护CLI apply-navigation-ui，不增加HTTP业务接口、代理路径或权限。导航产品API保持b192字节；source/tool资格、双向实际MCP关闭和账号数据保全均由原v4维护链认证。
+
+## 事件部署与既有网关代理（2026-11-05）
+
+事件产品 API 继续经过现有通用 `/api/research/*` 网关代理，认证、账号后端选择与 Host 写操作合同保持；此次维护 profile 不增加网关路由许可，也不将事件 API 提升为维护权限。`apply-events` 是显式 Native 维护 CLI，不能从浏览器请求、事件材料或模型输出触发部署。
+
+事件、日历与六维评分的源码入口可用不表示当前常驻已切换；登录后各入口、数据保全和采集日程关闭需要现场验收，详见[部署合同](../../research-web-gateway-upgrade.md)。
+
+能力中心三分类不新增API。旧kind查询、method_ids和插件/MCP接口兼容；原copy操作对历史method生成普通skill草稿，需经原检查发布，原method版本不改写。
+
+事件研究API分为 `/api/research/events`、`/api/research/event-studies` 与
+`/api/research/market-scores`。事件／日历／代理／因子注册仅接收账号已有原件引用，写操作需要
+明确用户动作、固定长度且不超过64KiB的请求，并使用相应幂等／版本合同。封存与独立评估、
+描述统计及已存结果读取／导出分别操作；历史研究分不启用生产分或仓位。精确路径由API Atlas
+按源码列出，字段与权限见[集成合同](../../research-web-event-research.md)。
+
+API Atlas 静态清单保留关闭时6项通用catchall，新增启用时12项research/framework代理，逐条标记条件。检查器仅接受原Gateway固定literal方法、路径和完整条件块，动态表达式／别名／新增语法失败关闭。另列8项锁定SDK2.2与RWB浏览器路由合同，由隔离Python测试精确比较实际整套路由集合；ASGI methods=null不等于全部HTTP操作获准，该声明不计入静态扫描或部署验收。
+
+## 可选私网入站 MCP
+
+启用后提供 `/mcp`，授权服务元数据、`/.well-known/oauth-protected-resource/mcp`、`/authorize`、`/token`、`/revoke` 及浏览器同意/应用撤权页面。固定公开客户端 `rwb-codex-native`、scope `rwb.read`，不开放 DCR/CIMD。四工具为 `rwb_capabilities_list`、`rwb_datasets_list`、`rwb_dataset_read`、`rwb_source_read`；请求 64 KiB、响应 256 KiB、默认 100/最多 500 行、文本最多 12000 字符。OAuth 与对象合同见[入站 MCP](../../research-web-mcp-facade.md)，不能用浏览器 Cookie 冒充 bearer。
+
+`/mcp` 的协议消息使用 POST；GET 在 SDK bearer/scope 和 Host/Origin 检查后及时返回 405、`Allow: POST`，不启动持久 SSE。8 项路由注册合同保持，`methods=null` 不代表允许所有动词。OAuth 授权码兑换和刷新轮换的临时存储故障返回 503 `temporarily_unavailable`；授权请求创建故障由 SDK 返回带同名错误、state 和 issuer 的已验证回调，不伪装为用户拒绝或无效授权，不自动重试未知结果。
+
 ## successor 是封闭维护 CLI（2026-10-31）
 
 新增维护命令 `handoff-trial-retirement` 要求固定 90e／旧 phase、原 journal SHA-256 和 dev／ino；`apply-trial-retirement-v2 --trial-terminal-receipt` 则要求原 successor 已完成的退役／b800 rollback 回执、无新工作和新资格。它们复用原维护控制面、小型 pyz 与 `recover`，不新增浏览器维护权限、业务 HTTP、研究工具、模型发送或依赖；quarantine 不能通过业务请求清除或绕过。
@@ -141,7 +203,21 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 既有 `GET /api/research/resident` 的 `active` 同时包含真实 CJPY Future和历史任务非终态，无法读取witness为未知，不伪报false。操作员只在研究/观察/DataHub/历史任务全部明确空闲后允许切换；`cancelled`查询终态不抵消仍运行的Future。
 
+## 财经日历接口
+
+`GET /api/research/market/financial-calendar` 走现有同源账号路由。必填 `view=summary|events`、
+`start`、`end`，自然日区间最多 31 天；明细另需 `category=economic|ipo|notify|report|inst`，
+子类、市场、机构方向和集合取固定枚举。每日期最多返回 20 行；后续页需同一查询身份和
+`snapshot_id` 并收窄到单日。返回 `days`、`sources` 和 `snapshot_id`；覆盖未知时不返回确定的零。
+此独立 GET 可对已接入宏观官方源按需取数，其他类别不触发外部采集，不改变原市场 GET 缓存合同。
+
 ## 全市场概览接口
+
+综合总览复用原接口：`POST /market/refresh` 的版本化 `index_set=global-v1` 只采集固定三地
+九指数，GET `/market` 从 `sections["indices:global-v1"]` 读取独立缓存。旧 core-v1／terminal-v2
+不变；原生 OHLCV、未完成日线与来源单位分别保留，详见[九指数合同](../../research-web-global-indices.md)。
+评分读取 `/market-scores/runs` 后必须经单项 GET 的 `current_eligibility` 重新核验，列表历史记录
+不是当期总分；时间线使用原 `/events/timeline` 的日期筛选和游标。没有新增首页写入或自动采集接口。
 
 2026-10-23不新增路径：报价行/CSV追加`limit_up_price/limit_down_price/limit_status`，summary追加`limit_up/limit_down/limit_covered/limit_unknown`，未知不补0。`previous_amount`返回本次已上市池的上一交易日全天金额、日期、scope_count/missing_count、source_snapshot_id/retrieved_at或不可用reason；内部逐股基线不进入公开投影。资金`row_count/provider_total`保持本次返回行数，`history_rows/history_count`是本账号实取留存，每日有来源/采集时间，30日目标与实际缺口分开。历史日线不随板块今日/5日/10日开关变化，不等价为分时。详情见[数据口径](../../research-web-datahub.md#无会话全市场数据)。
 
@@ -859,3 +935,11 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 固定specialist-control回调加入已有租户callback名单，沿账号独立Host/Store/DSH与私有密钥；普通用户不能伪造原生终态，网关和账号根隔离拓扑保持。
 
 完整合同见 `docs/research-web-specialists.md`；源码、离线合同、真实模型与现场部署分别验收。
+
+仅服务模式下 `GET /api/research/runtime` 返回 `execution_mode=external`、`connected=false`、`owned_runtime=false`。只有已核对的资料、市场和快照读取入口开放。会协调执行状态的旧 GET 与原研究写入均返回 403 `embedded_research_disabled`；账号内 WeKnora 绑定、批准、检索、读取及冻结沿原权限检查。
+
+仅服务网关可预登记 WeKnora 专用 OAuth 回调。既有授权、令牌和工具路径延用同一协议。
+
+私网 HTTPS 的 WeKnora OAuth 跨站导航仅允许预登记回调及其登录页，随后沿同源授权与 MCP 读取接口。
+
+既有会话接口在 AlphaDesk 启用时附带 `execution_engine` 和 `qa_events`。原普通 FinGPT 会话 API 返回 410。静态资源经本机 `GET /static/qa-dist/{name:path}` 缺包回执和私网 `GET /static/qa-dist/{name}` 检查。

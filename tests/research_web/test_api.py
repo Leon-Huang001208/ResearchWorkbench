@@ -1053,6 +1053,39 @@ def test_tailscale_same_origin_api_and_local_runtime_still_work(tmp_path, monkey
         assert denied.status_code == 403
 
 
+@pytest.mark.parametrize(
+    "service_only, tenant, automation, expected",
+    [
+        (False, False, "1", "available"),
+        (False, False, "0", "disabled_automation"),
+        (False, True, "1", "disabled_tenant"),
+        (True, True, "1", "disabled_service_only"),
+    ],
+)
+def test_runtime_reports_research_bot_configuration(
+    tmp_path, monkeypatch, service_only, tenant, automation, expected
+):
+    from app.research_web import tenant_policy
+    from app.research_web.client import ExternalExecutionClient
+
+    monkeypatch.setenv("RWB_TENANT_MODE", "1" if tenant else "0")
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", automation)
+    monkeypatch.setattr(tenant_policy, "_gateway_key", lambda: "test-gateway-key")
+    headers = {"X-RWB-Tenant-Gateway-Key": "test-gateway-key"} if tenant else {}
+    transport = ExternalExecutionClient() if service_only else NativeFixture()
+    service = ResearchService(transport, Store(tmp_path), auto_probe_on_start=False)
+
+    with TestClient(create_app(service)) as client:
+        runtime = client.get("/api/research/runtime", headers=headers)
+        assert runtime.status_code == 200
+        assert runtime.json()["research_bot"] == {
+            "configuration": expected,
+            "runtime_verification": "NOT_RUN",
+        }
+        bots = client.get("/api/research/research-bots", headers=headers)
+        assert bots.status_code == (200 if expected == "available" else 403)
+
+
 def test_no_dsh_connection_no_fake_success(api):
     client, _, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
@@ -2784,3 +2817,32 @@ async def test_pending_native_question_overrides_running_summary_without_opening
     service.questions.clear()
     rows = {row["id"]: row for row in await service.list_sessions()}
     assert rows[first["id"]]["status"] == "running"
+
+
+def test_bot_native_session_rejects_public_followup(api):
+    client, _native, service = api
+    sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+    row = service.store.session(sid)
+    row.update(purpose="automation", automation_research_scope={"bot": {}})
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        headers={"Idempotency-Key": "bot-followup"},
+        json={"text": "尝试添加第二条任务"},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "bot_followup_denied"
+    assert f"{sid}:bot-followup" not in service.store.data["receipts"]
+
+
+def test_bot_mutations_require_explicit_action_and_owned_runtime(api):
+    client, _native, service = api
+    path = "/api/research/research-bots"
+    body = {
+        "name": "研究机器人", "objective": "核对证据",
+        "model_provider": "deepseek-official", "model_id": "deepseek-flash",
+    }
+    assert client.post(path, json=body).json()["error"]["code"] == "explicit_user_action_required"
+    service.owned = False
+    rejected = client.post(path, json=body, headers={"X-Research-User-Action": "?1"})
+    assert rejected.json()["error"]["code"] == "read_only_runtime"
+    assert service.automations.list(research_bot=True)["items"] == []

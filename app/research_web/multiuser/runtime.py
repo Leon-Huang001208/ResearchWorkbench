@@ -14,6 +14,7 @@ import socket
 import stat
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -24,7 +25,8 @@ import httpx
 from core.observability import get_logger
 
 from .. import PINNED_DSH_COMMIT
-from ..process_spec import build_process_specs
+from ..process_spec import build_process_specs, build_web_process_spec
+from ..qa_acceptance import ROOT_ENV as QA_ACCEPTANCE_ROOT_ENV
 from ..runtime_auth import RuntimeAuthFileError, read_runtime_auth_record
 from ..tenant_policy import GATEWAY_HEADER
 
@@ -41,13 +43,25 @@ class RuntimeErrorSafe(RuntimeError):
 
 
 @dataclass(frozen=True)
+class PrimaryStorage:
+    user_id: str
+    data_root: Path
+    web_port: int
+    assert_held: Callable[[], None] = field(repr=False, compare=False)
+    retain_guard: Callable[[], int] = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True)
 class RuntimeConfig:
     root: Path
     project: Path
-    source: Path
+    source: Path | None
     python: str
-    node: str
+    node: str | None
     max_instances: int = 2
+    service_only: bool = False
+    alphadesk_qa: bool = False
+    primary_storage: PrimaryStorage | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +70,7 @@ class Backend:
     key: str = field(repr=False)
     generation: str = ""
     runtime_pid: int | None = None
+    service_only: bool = False
 
 
 @dataclass
@@ -197,9 +212,15 @@ async def _probe_backend(backend: Backend) -> bool:
         if response.status_code != 200 or len(response.content) > 65536:
             return False
         result = response.json()
-        return isinstance(result, dict) and all(
-            result.get(key) is True for key in ("health_check_passed", "owned_runtime", "connected")
-        )
+        if not isinstance(result, dict) or result.get("health_check_passed") is not True:
+            return False
+        if backend.service_only:
+            return (
+                result.get("execution_mode") == "external"
+                and result.get("owned_runtime") is False
+                and result.get("connected") is False
+            )
+        return result.get("owned_runtime") is True and result.get("connected") is True
     except (httpx.HTTPError, ValueError, TypeError):
         return False
 
@@ -235,10 +256,14 @@ class RuntimePool:
     def __init__(self, config: RuntimeConfig, *, recover=None, boot_id: str | None = None):
         if type(config.max_instances) is not int or not 1 <= config.max_instances <= 4:
             raise RuntimeErrorSafe("runtime_capacity_invalid", 400)
-        if any(
-            not Path(value).is_absolute()
-            for value in (config.root, config.project, config.source, config.python, config.node)
-        ):
+        required_paths = (config.root, config.project, config.python)
+        if config.primary_storage is not None:
+            if not config.service_only:
+                raise RuntimeErrorSafe("runtime_configuration_invalid", 400)
+            config.primary_storage.assert_held()
+        if not config.service_only:
+            required_paths += (config.source, config.node)
+        if any(value is None or not Path(value).is_absolute() for value in required_paths):
             raise RuntimeErrorSafe("runtime_configuration_invalid", 400)
         self.config, self.instance = config, uuid4().hex
         self.boot_id = boot_id
@@ -296,6 +321,8 @@ class RuntimePool:
             raise
 
     def _assert_pool(self) -> None:
+        if self.config.primary_storage is not None:
+            self.config.primary_storage.assert_held()
         for path, identity in self._directories.items():
             _directory(path, create=False)
             actual = path.stat()
@@ -348,6 +375,7 @@ class RuntimePool:
                 "user": instance.user,
                 "pids": [child.pid for child in instance.children],
                 "generation": instance.generation,
+                **({"execution_mode": "external"} if instance.backend.service_only else {}),
                 **({"boot_id": self.boot_id} if self.boot_id else {}),
             }
         ).encode()
@@ -361,14 +389,14 @@ class RuntimePool:
         os.replace(temporary, owner)
 
     def _environment(
-        self, root: Path, state: Path, web_port: int, runtime_port: int
+        self, root: Path, state: Path, web_port: int, runtime_port: int | None
     ) -> dict[str, str]:
         return {
             "PATH": os.pathsep.join(
                 dict.fromkeys(
                     (
                         str(Path(self.config.python).parent),
-                        str(Path(self.config.node).parent),
+                        *((str(Path(self.config.node).parent),) if self.config.node else ()),
                         "/usr/bin",
                         "/bin",
                         "/usr/sbin",
@@ -388,17 +416,35 @@ class RuntimePool:
             "OBJECT_STORAGE_PATH": str(root / "objects"),
             "PDF_MARKDOWN_DIR": str(root / "markdown"),
             "PDF_RAW_TEXT_DIR": str(root / "raw_text"),
-            "RESEARCH_RUNTIME_URL": f"http://127.0.0.1:{runtime_port}",
             "RESEARCH_WEB_INTERNAL_URL": f"http://127.0.0.1:{web_port}",
-            "RESEARCH_RUNTIME_AUTH": str(state / "auth.json"),
+            **(
+                {"RWB_TENANT_SERVICE_ONLY": "1"}
+                if runtime_port is None
+                else {
+                    "RESEARCH_RUNTIME_URL": f"http://127.0.0.1:{runtime_port}",
+                    "RESEARCH_RUNTIME_AUTH": str(state / "auth.json"),
+                }
+            ),
             "RWB_RUNTIME_STATE": str(state),
             "RWB_TENANT_MODE": "1",
+            **({"RWB_ALPHADESK_QA": "1"} if self.config.alphadesk_qa else {}),
+            **(
+                {QA_ACCEPTANCE_ROOT_ENV: os.environ[QA_ACCEPTANCE_ROOT_ENV]}
+                if QA_ACCEPTANCE_ROOT_ENV in os.environ
+                else {}
+            ),
             "RWB_TENANT_GATEWAY_KEY_FILE": str(state / "gateway.key"),
             "RWB_SHARED_PLUGINS_ROOT": str(self.config.root / "shared/plugin-approvals"),
             "RWB_PERSONAL_PLUGINS_ROOT": str(root.parent / "plugin-approvals"),
             "RESEARCH_AUTOMATIONS_ENABLED": "0",
-            "RWB_DISCOVERY_TRACKING_ENABLED": "1",
-            "RESEARCH_MCP_RUNTIME_ENABLED": "1",
+            "RWB_DISCOVERY_TRACKING_ENABLED": "0" if self.config.service_only else "1",
+            "RESEARCH_MCP_RUNTIME_ENABLED": "0" if self.config.service_only else "1",
+            # Non-secret, operator-owned fixed origin; user requests cannot select endpoints.
+            **(
+                {"RESEARCH_WEKNORA_ORIGIN": os.environ["RESEARCH_WEKNORA_ORIGIN"]}
+                if os.environ.get("RESEARCH_WEKNORA_ORIGIN")
+                else {}
+            ),
         }
 
     def _has_enabled_discovery(self, user_id: str) -> bool:
@@ -460,6 +506,8 @@ class RuntimePool:
 
     async def restore_discovery_tracks(self, authorized_user_ids) -> dict:
         """Resume consenting registered owners through the existing capacity admission."""
+        if self.config.service_only:
+            return {"items": []}
         for raw_user_id in dict.fromkeys(authorized_user_ids):
             user = self._user(raw_user_id)
             try:
@@ -501,6 +549,56 @@ class RuntimePool:
                 self.discovery_restoration[user] = {"status": "restored"}
             return backend
 
+    async def backend_for_readonly(self, user_id: str) -> Backend:
+        """Return an already live owned backend; never start, restore, sweep or adopt.
+
+        Cold startup can run consenting background work. A readonly caller must
+        wait for the ordinary account lifecycle to establish the backend first.
+        """
+        user = self._user(user_id)
+        async with self._lock:
+            if self._closed or self._closing:
+                raise RuntimeErrorSafe("runtime_pool_closed")
+            self._assert_pool()
+            if user in self._plugin_frozen:
+                raise RuntimeErrorSafe("runtime_restart_deferred", 409)
+            entry = self._instances.get(user)
+            if entry is None:
+                code = (
+                    "runtime_capacity_exceeded"
+                    if len(self._instances) >= self.config.max_instances
+                    else "runtime_not_running"
+                )
+                log.info("multiuser_readonly_runtime_unavailable", code=code)
+                raise RuntimeErrorSafe(code)
+            if any(child.poll() is not None for child in entry.children):
+                raise RuntimeErrorSafe("runtime_process_exited")
+            try:
+                if entry.state != self.config.root / "users" / user / "state":
+                    raise ValueError("state_identity")
+                _directory(entry.state, create=False)
+                owner = json.loads(_read_private(entry.state / "owner.json"))
+                service_only = self.config.service_only
+                if (
+                    not isinstance(owner, dict)
+                    or entry.user != user
+                    or entry.backend.service_only != service_only
+                    or len(entry.children) != (1 if service_only else 2)
+                    or entry.backend.generation != entry.generation
+                    or entry.backend.runtime_pid
+                    != (None if service_only else entry.children[0].pid)
+                    or owner.get("execution_mode") != ("external" if service_only else None)
+                    or owner.get("instance") != self.instance
+                    or owner.get("user") != user
+                    or owner.get("generation") != entry.generation
+                    or owner.get("pids") != [child.pid for child in entry.children]
+                ):
+                    raise ValueError("owner_identity")
+            except (OSError, ValueError, TypeError) as exc:
+                log.warning("multiuser_readonly_runtime_unverified")
+                raise RuntimeErrorSafe("runtime_instance_unverified") from exc
+            return entry.backend
+
     async def _start(self, user: str) -> Backend:
         sockets = []
         entry = None
@@ -511,7 +609,16 @@ class RuntimePool:
             user_root = self.config.root / "users" / user
             _directory(user_root)
             root, state = user_root / "research-web", user_root / "state"
-            _directory(root)
+            primary = self.config.primary_storage
+            if primary is not None and user == primary.user_id:
+                if root.exists() or root.is_symlink():
+                    raise RuntimeErrorSafe("primary_storage_shadow_exists")
+                primary.assert_held()
+                root = primary.data_root
+                _directory(root, create=False)
+            else:
+                primary = None
+                _directory(root)
             _directory(state)
             if (state / "owner.json").exists() or (state / "owner.json").is_symlink():
                 raise RuntimeErrorSafe("runtime_stale_owner")
@@ -523,26 +630,26 @@ class RuntimePool:
             ):
                 _directory(path)
             sockets.append(_reserve_web_port(root))
-            sockets.append(_reserve_port())
-            web_port, runtime_port = [item.getsockname()[1] for item in sockets]
+            if not self.config.service_only:
+                sockets.append(_reserve_port())
+            web_port = sockets[0].getsockname()[1]
+            if primary is not None and web_port != primary.web_port:
+                raise RuntimeErrorSafe("primary_storage_web_port_changed")
+            runtime_port = sockets[1].getsockname()[1] if len(sockets) == 2 else None
             entry = _Instance(
-                user, state, Backend(f"http://127.0.0.1:{web_port}", secrets.token_urlsafe(32)), []
+                user,
+                state,
+                Backend(
+                    f"http://127.0.0.1:{web_port}",
+                    secrets.token_urlsafe(32),
+                    service_only=self.config.service_only,
+                ),
+                [],
             )
             self._record(entry, create=True)
             record_owned = True
             self._instances[user] = entry
             _create_private(state / "gateway.key", entry.backend.key.encode("ascii"))
-            specs = build_process_specs(
-                python=self.config.python,
-                node=self.config.node,
-                project_root=self.config.project,
-                data_root=root,
-                runtime_source=self.config.source,
-                state_root=state,
-                web_host="127.0.0.1",
-                web_port=web_port,
-                runtime_port=runtime_port,
-            )
             environment = self._environment(root, state, web_port, runtime_port)
             environment.update(
                 RWB_TENANT_GENERATION=entry.generation,
@@ -550,16 +657,47 @@ class RuntimePool:
                 RWB_TENANT_USER=user,
             )
             self._audit(user, "runtime_starting")
-            sockets[1].close()
-            entry.children.append(self._spawn(specs.runtime.command, environment))
-            entry.backend = Backend(
-                entry.backend.url, entry.backend.key, entry.generation, entry.children[0].pid
-            )
-            self._record(entry)
             deadline = time.monotonic() + START_TIMEOUT
-            await self._wait_runtime(entry, runtime_port, root, deadline)
+            if runtime_port is not None:
+                source, node = self.config.source, self.config.node
+                if source is None or node is None:
+                    raise RuntimeErrorSafe("runtime_configuration_invalid", 400)
+                specs = build_process_specs(
+                    python=self.config.python,
+                    node=node,
+                    project_root=self.config.project,
+                    data_root=root,
+                    runtime_source=source,
+                    state_root=state,
+                    web_host="127.0.0.1",
+                    web_port=web_port,
+                    runtime_port=runtime_port,
+                )
+                sockets[1].close()
+                entry.children.append(self._spawn(specs.runtime.command, environment))
+                entry.backend = Backend(
+                    entry.backend.url, entry.backend.key, entry.generation, entry.children[0].pid
+                )
+                self._record(entry)
+                await self._wait_runtime(entry, runtime_port, root, deadline)
+                web = specs.web
+            else:
+                web = build_web_process_spec(
+                    python=self.config.python,
+                    project_root=self.config.project,
+                    web_host="127.0.0.1",
+                    web_port=web_port,
+                )
+                entry.backend = Backend(
+                    entry.backend.url, entry.backend.key, entry.generation, service_only=True
+                )
             sockets[0].close()
-            entry.children.append(self._spawn(specs.web.command, environment))
+            if primary is not None:
+                entry.children.append(
+                    self._spawn(web.command, environment, pass_fds=(primary.retain_guard(),))
+                )
+            else:
+                entry.children.append(self._spawn(web.command, environment))
             self._record(entry)
             await self._wait_backend(entry, deadline)
             self._instances[user] = entry
@@ -581,7 +719,7 @@ class RuntimePool:
             for reserved in sockets:
                 reserved.close()
 
-    def _spawn(self, command, environment):
+    def _spawn(self, command, environment, *, pass_fds=()):
         # Popen itself is a short atomic ownership boundary: cancellation cannot
         # lose the newly created child between a background spawn and registration.
         return subprocess.Popen(
@@ -592,6 +730,7 @@ class RuntimePool:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
+            **({"pass_fds": pass_fds} if pass_fds else {}),
         )
 
     async def _wait_runtime(self, entry: _Instance, port: int, root: Path, deadline: float) -> None:
@@ -690,7 +829,7 @@ class RuntimePool:
         if key.exists() and _read_private(key).decode("ascii") == entry.backend.key:
             key.unlink()
         auth = entry.state / "auth.json"
-        if auth.exists():
+        if not entry.backend.service_only and auth.exists():
             record = read_runtime_auth_record(auth)
             if not isinstance(record, dict) or record.get("pid") not in {
                 child.pid for child in entry.children
@@ -766,6 +905,9 @@ class RuntimePool:
         web_port = urlsplit(entry.backend.url).port
         if runtime_port is None or web_port is None:
             raise RuntimeErrorSafe("runtime_restart_identity_unknown", 409)
+        source, node = self.config.source, self.config.node
+        if source is None or node is None:
+            raise RuntimeErrorSafe("runtime_restart_identity_unknown", 409)
         old = entry.children[0]
         owner = json.loads(_read_private(entry.state / "owner.json"))
         if (
@@ -788,10 +930,10 @@ class RuntimePool:
             raise RuntimeErrorSafe("runtime_auth_identity_invalid", 409)
         specs = build_process_specs(
             python=self.config.python,
-            node=self.config.node,
+            node=node,
             project_root=self.config.project,
             data_root=root,
-            runtime_source=self.config.source,
+            runtime_source=source,
             state_root=entry.state,
             web_host="127.0.0.1",
             web_port=web_port,
@@ -838,6 +980,8 @@ class RuntimePool:
         A missing/active/ambiguous participant is deferred without sending signals.
         Unknown recovery retains the fence and durable evidence for the operator.
         """
+        if self.config.service_only:
+            return {"status": "deferred", "reason": "embedded_research_disabled"}
         user = self._user(user_id)
         operation = transaction_id or uuid4().hex
         async with self._lock:

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "事件、日历效应与评分证据",
+    "output": "14-event-research.html",
+    "quality_profile": "showcase",
+    "viewBox": [1100, 620],
+    "views": [
+      {"id": "events", "label": "事件确认", "focus": ["sources", "timeline", "freeze", "study"], "note": "候选自动展示，正式研究绑定人工确认的不可变版本。发生、公开和取得时间分开。"},
+      {"id": "inputs", "label": "历史输入", "focus": ["datahub", "archive", "inputs", "study", "validation"], "note": "原生来源、指数与代理、历史可得性分别核验；今日下载不补造PIT。"},
+      {"id": "admission", "label": "评分准入", "focus": ["study", "validation", "score"], "note": "固定试验、独立测试和当期适用性共同约束研究分；生产评分另行启用。"}
+    ]
+  },
+  "stages": [{"label": "来源"}, {"label": "个人存储"}, {"label": "可信输入"}, {"label": "确定性研究"}, {"label": "输出"}],
+  "nodes": [
+    {"id": "sources", "type": "external", "label": "固定公开来源", "sublabel": "官方日程、冲突与赛事", "stage": 0, "row": 0},
+    {"id": "datahub", "type": "backend", "label": "账号 DataHub", "sublabel": "原生快照与当前授权", "stage": 0, "row": 2},
+    {"id": "timeline", "type": "database", "label": "事件与报道", "sublabel": "SQLite、修订与覆盖缺口", "stage": 1, "row": 0},
+    {"id": "archive", "type": "database", "label": "私有证据归档", "sublabel": "原始字节、归属与哈希", "stage": 1, "row": 2},
+    {"id": "freeze", "type": "security", "label": "人工确认与冻结", "sublabel": "版本、来源与事件精度", "stage": 2, "row": 0},
+    {"id": "inputs", "type": "security", "label": "输入资格", "sublabel": "日历、代理、六维与PIT", "stage": 2, "row": 2},
+    {"id": "study", "type": "backend", "label": "固定规则与回测", "sublabel": "窗口、对照与交易账本", "stage": 3, "row": 0},
+    {"id": "validation", "type": "security", "label": "独立验证与准入", "sublabel": "事件预测、样本外与成本", "stage": 3, "row": 2},
+    {"id": "score", "type": "frontend", "label": "六维研究评分", "sublabel": "缺项拒绝、窗口内有界修正", "stage": 4, "row": 0},
+    {"id": "dsh", "type": "backend", "label": "唯一 DSH", "sublabel": "按既有授权解释冻结资料", "stage": 4, "row": 2}
+  ],
+  "flows": [
+    {"id": "collect", "from": "sources", "to": "timeline", "label": "候选采集"},
+    {"id": "confirm", "from": "timeline", "to": "freeze", "label": "显式确认", "variant": "security"},
+    {"id": "frozenStudy", "from": "freeze", "to": "study", "label": "冻结版本", "route": "straight"},
+    {"id": "retain", "from": "datahub", "to": "archive", "label": "保存原件"},
+    {"id": "verify", "from": "archive", "to": "inputs", "label": "逐次核验", "variant": "security"},
+    {"id": "pricedStudy", "from": "inputs", "to": "study", "label": "合格或明确缺口"},
+    {"id": "evaluate", "from": "study", "to": "validation", "label": "封存后验证", "variant": "security"},
+    {"id": "scoreAdmission", "from": "validation", "to": "score", "label": "规则与当期适用性", "variant": "security"},
+    {"id": "explain", "from": "validation", "to": "dsh", "label": "证据解释", "variant": "dashed", "route": "straight", "labelDy": 32}
+  ],
+  "cards": [
+    {"dot": "amber", "title": "采集与执行", "items": ["复用Automation心跳，默认不启用", "不建立第二研究引擎，不自动交易"]},
+    {"dot": "emerald", "title": "证据与接受", "items": ["来源覆盖、源码、验证与部署分别记录", "全部因子未准入仍保留研究结果"]}
+  ]
+}

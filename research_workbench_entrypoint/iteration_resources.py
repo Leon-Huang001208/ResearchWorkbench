@@ -14,6 +14,7 @@ import shutil
 import struct
 import subprocess
 from pathlib import Path
+from xml.etree import ElementTree
 
 from .docker_resources import (
     DockerResources,
@@ -39,6 +40,8 @@ DEPENDENCIES = (
     ".ruff_cache",
 )
 EMPTY_DIRECTORIES = ("data/markdown", "data/objects", "data/raw_text")
+EVIDENCE_SELECTION = "evidence-retention.json"
+EVIDENCE_ARCHIVE_MAX_BYTES = 128 * 1024 * 1024
 
 
 def dependency_path(relative):
@@ -199,7 +202,234 @@ def file_manifest(root):
     return result
 
 
-def preserve_evidence(records, destination):
+def _verified_batch_output(source, current, retained, row, task_id, *, read_root=None):
+    if not isinstance(task_id, str) or not task_id:
+        raise ResourceError("closeout_evidence_task_unbound")
+    lease_name = row["batchReceipt"]
+    if lease_name not in retained or current.get(lease_name) != row["batchReceiptSha256"]:
+        raise ResourceError("closeout_evidence_batch_changed")
+    read_root = read_root or source
+    try:
+        lease = json.loads((read_root / lease_name).read_text(encoding="utf-8"))
+        if lease.get("exactCheckout") is not True:
+            raise ResourceError("closeout_evidence_batch_unverified")
+        reference = lease["batchResult"]
+        result_path = Path(reference["path"])
+        if (
+            not result_path.is_absolute()
+            or result_path.resolve() != result_path
+            or not result_path.is_relative_to(source)
+        ):
+            raise ValueError("batch_result_path")
+        result_name = result_path.relative_to(source).as_posix()
+        if result_name not in retained or current.get(result_name) != reference["sha256"]:
+            raise ValueError("batch_result_changed")
+        result = json.loads((read_root / result_name).read_text(encoding="utf-8"))
+        node_ids = result["nodeIds"]
+        evidence = lease["evidence"]
+        counts = lease["junitCounts"]
+        if (
+            lease["schemaVersion"] != 1
+            or lease["status"] != "retired"
+            or lease["taskId"] != task_id
+            or not re.fullmatch(r"[0-9a-f]{40}", lease["candidate"])
+            or Path(lease["root"]).exists()
+            or result["schemaVersion"] != 1
+            or result["taskId"] != task_id
+            or result["candidate"] != lease["candidate"]
+            or result["rootNonce"] != lease["nonce"]
+            or result["batchId"] != reference["batchId"]
+            or result["batchId"] != lease["batchId"]
+            or type(result["exitCode"]) is not int
+            or result["exitCode"] != 0
+            or not isinstance(node_ids, list)
+            or node_ids != lease["nodeIds"]
+            or len(node_ids) != len(set(node_ids))
+            or len(node_ids) != counts["tests"]
+            or counts["failures"] != 0
+            or counts["errors"] != 0
+            or evidence["junit"]["path"] != str(source / row["proof"])
+            or evidence["junit"]["sha256"] != row["proofSha256"]
+            or result["junitSha256"] != row["proofSha256"]
+        ):
+            raise ValueError("batch_contract")
+        matches = [
+            kind
+            for kind, result_key in (("stdout", "stdoutSha256"), ("stderr", "stderrSha256"))
+            if evidence[kind]["path"] == str(source / row["path"])
+            and evidence[kind]["sha256"] == row["sha256"]
+            and result[result_key] == row["sha256"]
+        ]
+        if len(matches) != 1:
+            raise ResourceError("closeout_evidence_not_batch_output")
+    except ResourceError:
+        raise
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise ResourceError("closeout_evidence_batch_invalid") from error
+
+
+def _passed_junit(path):
+    try:
+        xml = ElementTree.parse(path).getroot()
+        suites = list(xml.iter("testsuite"))
+        tests = sum(int(suite.attrib.get("tests", "0")) for suite in suites)
+        failures = sum(
+            int(suite.attrib.get("failures", "0")) + int(suite.attrib.get("errors", "0"))
+            for suite in suites
+        )
+        cases = sum(1 for _ in xml.iter("testcase"))
+        embedded_failures = any(node.tag in {"failure", "error"} for node in xml.iter())
+    except (OSError, ValueError, ElementTree.ParseError) as error:
+        raise ResourceError("closeout_evidence_proof_invalid") from error
+    if tests < 1 or tests != cases or failures or embedded_failures:
+        raise ResourceError("closeout_evidence_proof_not_passed")
+
+
+def selected_evidence(source, current, policy, *, task_id=None):
+    if policy not in {"legacy-full", "selective-v1"}:
+        raise ResourceError("closeout_evidence_policy_invalid")
+    if policy == "legacy-full" and EVIDENCE_SELECTION not in current:
+        return current, 0, 0
+    if EVIDENCE_SELECTION not in current:
+        raise ResourceError("closeout_evidence_selection_missing")
+    selection_path = source / EVIDENCE_SELECTION
+    raw = selection_path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != current[EVIDENCE_SELECTION]:
+        raise ResourceError("closeout_evidence_selection_changed")
+    try:
+        selection = json.loads(raw)
+    except (ValueError, UnicodeDecodeError) as error:
+        raise ResourceError("closeout_evidence_selection_invalid") from error
+    if (
+        not isinstance(selection, dict)
+        or set(selection) != {"schemaVersion", "keep", "discard"}
+        or selection["schemaVersion"] != 1
+        or not isinstance(selection["keep"], list)
+        or not isinstance(selection["discard"], list)
+        or not selection["keep"]
+    ):
+        raise ResourceError("closeout_evidence_selection_invalid")
+    keep = selection["keep"]
+    if any(not isinstance(value, str) or value not in current for value in keep):
+        raise ResourceError("closeout_evidence_selection_invalid")
+    if len(keep) != len(set(keep)) or EVIDENCE_SELECTION in keep:
+        raise ResourceError("closeout_evidence_selection_invalid")
+    retained = set(keep) | {EVIDENCE_SELECTION}
+    discarded = set()
+    discarded_bytes = 0
+    for row in selection["discard"]:
+        if (
+            not isinstance(row, dict)
+            or set(row)
+            != {
+                "path",
+                "sha256",
+                "proof",
+                "proofSha256",
+                "batchReceipt",
+                "batchReceiptSha256",
+            }
+            or any(not isinstance(row[key], str) for key in row)
+        ):
+            raise ResourceError("closeout_evidence_selection_invalid")
+        path, proof = row["path"], row["proof"]
+        if path in discarded or path in retained or current.get(path) != row["sha256"]:
+            raise ResourceError("closeout_evidence_discard_changed")
+        if proof not in retained or current.get(proof) != row["proofSha256"]:
+            raise ResourceError("closeout_evidence_proof_changed")
+        _passed_junit(source / proof)
+        _verified_batch_output(source, current, retained, row, task_id)
+        discarded.add(path)
+        discarded_bytes += (source / path).stat().st_size
+    if retained | discarded != set(current):
+        raise ResourceError("closeout_evidence_unclassified")
+    retained_bytes = sum((source / path).stat().st_size for path in retained)
+    if retained_bytes > EVIDENCE_ARCHIVE_MAX_BYTES:
+        raise ResourceError("closeout_evidence_budget_exceeded")
+    return {path: current[path] for path in retained}, len(discarded), discarded_bytes
+
+
+def _verify_archived_selection(source, archive, manifest, task_id):
+    if EVIDENCE_SELECTION not in manifest:
+        raise ResourceError("closeout_evidence_selection_missing")
+    try:
+        selection = json.loads((archive / EVIDENCE_SELECTION).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ResourceError("closeout_evidence_selection_invalid") from error
+    if (
+        not isinstance(selection, dict)
+        or set(selection) != {"schemaVersion", "keep", "discard"}
+        or selection["schemaVersion"] != 1
+        or not isinstance(selection["keep"], list)
+        or not isinstance(selection["discard"], list)
+        or not selection["keep"]
+    ):
+        raise ResourceError("closeout_evidence_selection_invalid")
+    keep = selection["keep"]
+    if (
+        any(not isinstance(value, str) for value in keep)
+        or len(keep) != len(set(keep))
+        or set(keep) | {EVIDENCE_SELECTION} != set(manifest)
+    ):
+        raise ResourceError("closeout_evidence_archive_selection_changed")
+    retained = set(manifest)
+    virtual = dict(manifest)
+    for row in selection["discard"]:
+        if (
+            not isinstance(row, dict)
+            or set(row)
+            != {
+                "path",
+                "sha256",
+                "proof",
+                "proofSha256",
+                "batchReceipt",
+                "batchReceiptSha256",
+            }
+            or any(not isinstance(value, str) for value in row.values())
+            or row["path"] in virtual
+            or row["proof"] not in retained
+            or manifest[row["proof"]] != row["proofSha256"]
+        ):
+            raise ResourceError("closeout_evidence_archive_selection_changed")
+        virtual[row["path"]] = row["sha256"]
+        _passed_junit(archive / row["proof"])
+        _verified_batch_output(source, virtual, retained, row, task_id, read_root=archive)
+
+
+def _selected_task_budget(records, destination, policy, task_id):
+    if policy != "selective-v1":
+        return {}
+    total = 0
+    frozen = {}
+    for row in records:
+        if row["kind"] != "evidence":
+            continue
+        source = Path(row["path"])
+        if source.exists():
+            current = file_manifest(source)
+            selected = selected_evidence(source, current, policy, task_id=task_id)[0]
+            retained_bytes = sum((source / relative).stat().st_size for relative in selected)
+            frozen[str(source)] = {"current": current, "selected": selected}
+        else:
+            target = Path(destination) / hashlib.sha256(row["root"].encode()).hexdigest()[:16]
+            archive = target / "logs"
+            manifest_path = target / "manifest.json"
+            if not manifest_path.is_file():
+                raise ResourceError("closeout_evidence_missing")
+            manifest = json.loads(manifest_path.read_text())
+            if file_manifest(archive) != manifest:
+                raise ResourceError("closeout_evidence_archive_changed")
+            retained_bytes = sum((archive / relative).stat().st_size for relative in manifest)
+            frozen[str(source)] = {"current": None, "selected": manifest}
+        total += retained_bytes
+        if total > EVIDENCE_ARCHIVE_MAX_BYTES:
+            raise ResourceError("closeout_evidence_budget_exceeded")
+    return frozen
+
+
+def preserve_evidence(records, destination, *, policy="legacy-full", task_id=None):
+    frozen = _selected_task_budget(records, destination, policy, task_id)
     result = []
     for row in records:
         if row["kind"] != "evidence":
@@ -210,23 +440,33 @@ def preserve_evidence(records, destination):
         archive = target / "logs"
         manifest_path = target / "manifest.json"
         if not source.exists():
-            if not manifest_path.exists() or file_manifest(archive) != json.loads(
-                manifest_path.read_text()
-            ):
+            if not manifest_path.exists():
                 raise ResourceError("closeout_evidence_missing")
+            saved_manifest = json.loads(manifest_path.read_text())
+            if file_manifest(archive) != saved_manifest:
+                raise ResourceError("closeout_evidence_archive_changed")
+            if policy == "selective-v1" or EVIDENCE_SELECTION in saved_manifest:
+                _verify_archived_selection(source, archive, saved_manifest, task_id)
             result.append({"status": "already_preserved", "archive": str(archive)})
             continue
         if register_directory(Path(row["root"]), source, "evidence") != row or occupied(source):
             raise ResourceError("closeout_evidence_changed_or_in_use")
         current = file_manifest(source)
+        if policy == "selective-v1" and current != frozen[str(source)]["current"]:
+            raise ResourceError("closeout_evidence_source_changed")
+        selected, discarded_count, discarded_bytes = selected_evidence(
+            source, current, policy, task_id=task_id
+        )
+        if policy == "selective-v1" and selected != frozen[str(source)]["selected"]:
+            raise ResourceError("closeout_evidence_source_changed")
         if manifest_path.exists():
             manifest = json.loads(manifest_path.read_text())
-            if any(manifest.get(key) != value for key, value in current.items()):
+            if manifest != selected:
                 raise ResourceError("closeout_evidence_source_changed")
         else:
             if archive.exists():
                 raise ResourceError("closeout_evidence_target_exists")
-            manifest = current
+            manifest = selected
             write_receipt(manifest_path, manifest)
         archive.mkdir(mode=0o700, exist_ok=True)
         saved = file_manifest(archive)
@@ -258,13 +498,33 @@ def preserve_evidence(records, destination):
                         raise ResourceError("closeout_evidence_copy_unverified")
                 os.replace(partial, destination_file)
                 shutil.copystat(source / relative, destination_file, follow_symlinks=False)
-        if manifest != file_manifest(archive) or any(
-            manifest.get(key) != value for key, value in file_manifest(source).items()
+        final_source = file_manifest(source)
+        if policy == "selective-v1" and final_source != frozen[str(source)]["current"]:
+            raise ResourceError("closeout_evidence_source_changed")
+        if (
+            manifest != file_manifest(archive)
+            or manifest != selected_evidence(source, final_source, policy, task_id=task_id)[0]
         ):
             raise ResourceError("closeout_evidence_copy_unverified")
+        if policy == "selective-v1" or EVIDENCE_SELECTION in manifest:
+            _verify_archived_selection(source, archive, manifest, task_id)
+        if register_directory(Path(row["root"]), source, "evidence") != row or occupied(source):
+            raise ResourceError("closeout_evidence_changed_or_in_use")
         shutil.rmtree(source)
-        result.append({"status": "preserved", "archive": str(archive), "files": len(manifest)})
-        log.info("iteration_evidence status=preserved files=%d", len(manifest))
+        result.append(
+            {
+                "status": "preserved",
+                "archive": str(archive),
+                "files": len(manifest),
+                "discardedFiles": discarded_count,
+                "discardedBytes": discarded_bytes,
+            }
+        )
+        log.info(
+            "iteration_evidence status=preserved files=%d discarded=%d",
+            len(manifest),
+            discarded_count,
+        )
     return result
 
 
@@ -437,7 +697,7 @@ def record_task(project, task):
     old = (
         json.loads(ledger.read_text())
         if ledger.exists()
-        else {"taskId": task, "roots": {}, "directories": []}
+        else {"taskId": task, "roots": {}, "directories": [], "evidencePolicy": "selective-v1"}
     )
     if old["taskId"] != task:
         raise ResourceError("closeout_task_mismatch")
@@ -596,7 +856,12 @@ def closeout(project, task, policy):
             journal()
         if not report["cache"]["ok"]:
             raise ResourceError("closeout_cache_over_budget")
-        report["evidence"] = preserve_evidence(ledger["directories"], state / "evidence")
+        report["evidence"] = preserve_evidence(
+            ledger["directories"],
+            state / "evidence",
+            policy=ledger.get("evidencePolicy", "legacy-full"),
+            task_id=task,
+        )
         report.update(ok=True, status="resources_complete_git_cleanup_pending")
     except (ResourceError, OSError, ValueError, subprocess.SubprocessError) as error:
         code = str(error) if isinstance(error, ResourceError) else "closeout_io_failed"

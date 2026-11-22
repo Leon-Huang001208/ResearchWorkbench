@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import asyncio
 import re
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +26,8 @@ from core.observability import get_logger
 from ..ai_news_routes import router as ai_news_router
 from ..ai_news_service import create_ai_news_service
 from ..aihot_routes import router as aihot_router
+from ..mcp_facade.config import MACHINE_PATHS
+from ..mcp_facade.config import enabled as mcp_feature_enabled
 from ..plugins import PluginError
 from .accounts import SESSION_TTL_SECONDS, AccountError, AccountStore
 from .origin import validate_origin
@@ -43,6 +51,7 @@ REQUEST_HEADERS = {
     "range",
     "if-none-match",
     "idempotency-key",
+    "x-research-user-action",
 }
 RESPONSE_HEADERS = {
     "content-type",
@@ -81,9 +90,12 @@ class StrictBody(BaseModel):
 class Login(StrictBody):
     username: str = Field(max_length=64)
     password: str = Field(max_length=1024)
+    return_to: str | None = Field(default=None, max_length=8192)
 
 
-class NewUser(Login):
+class NewUser(StrictBody):
+    username: str = Field(max_length=64)
+    password: str = Field(max_length=1024)
     role: str = "user"
 
 
@@ -95,6 +107,40 @@ class NewPassword(StrictBody):
     password: str = Field(max_length=1024)
 
 
+def _weknora_oauth_navigation(request: Request, facade) -> bool:
+    """Allow the validated OAuth navigation and its login redirect only."""
+    if (
+        facade is None
+        or request.method != "GET"
+        or request.headers.get("origin") is not None
+        or request.headers.get("sec-fetch-mode") != "navigate"
+        or request.headers.get("sec-fetch-dest") != "document"
+    ):
+        return False
+    from ..mcp_facade.models import WEKNORA_CLIENT_ID
+    from ..mcp_facade.oauth_views import validated_login_return
+
+    if request.url.path == "/authorize":
+        ids = request.query_params.getlist("client_id")
+        callbacks = request.query_params.getlist("redirect_uri")
+    elif request.url.path == "/auth":
+        destinations = request.query_params.getlist("return_to")
+        if len(destinations) != 1 or not validated_login_return(destinations[0]):
+            return False
+        query = parse_qs(urlsplit(destinations[0]).query, keep_blank_values=True)
+        ids = query.get("client_id", [])
+        callbacks = query.get("redirect_uri", [])
+    else:
+        return False
+    if ids != [WEKNORA_CLIENT_ID] or len(callbacks) != 1:
+        return False
+    try:
+        facade.store.validate_redirect(callbacks[0], client_id=WEKNORA_CLIENT_ID)
+    except AccountError:
+        return False
+    return True
+
+
 def create_gateway(
     accounts: AccountStore,
     pool,
@@ -102,11 +148,23 @@ def create_gateway(
     origin: str,
     upstream: httpx.AsyncClient | None = None,
     ai_news_factory=None,
+    mcp_enabled: bool | None = None,
+    weknora_oauth_origin: str | None = None,
 ) -> FastAPI:
     """Build one gateway without starting tenant processes or reading model secrets."""
     origin = validate_origin(origin)
     authority = urlsplit(origin).netloc
     secure = origin.startswith("https:")
+    facade = None
+    if mcp_feature_enabled(mcp_enabled):
+        from ..mcp_facade.config import validate_weknora_gateway
+        from ..mcp_facade.server import Facade
+
+        if weknora_oauth_origin is not None:
+            validate_weknora_gateway(origin, weknora_oauth_origin, urlsplit(origin).port or 443)
+        facade = Facade(accounts, pool, origin, weknora_oauth_origin=weknora_oauth_origin)
+    elif weknora_oauth_origin is not None:
+        raise ValueError("weknora_oauth_requires_mcp")
     client = upstream or httpx.AsyncClient(
         timeout=httpx.Timeout(30, read=None), follow_redirects=False, trust_env=False
     )
@@ -127,14 +185,22 @@ def create_gateway(
                         if user.enabled and user.id != getattr(pool, "primary_user_id", None)
                     ]
                 )
-            yield
+            async with AsyncExitStack() as stack:
+                if facade is not None:
+                    await stack.enter_async_context(facade.server.session_manager.run())
+                yield
         finally:
             await pool.close()
             await client.aclose()
+            if facade is not None:
+                await facade.client.aclose()
 
     app = FastAPI(title="Research Workbench Private Server", lifespan=lifespan)
     app.state.accounts = accounts
     app.state.pool = pool
+    if facade is not None:
+        app.state.mcp_facade = facade
+        app.router.routes.extend(facade.routes)
     configure_plugins(app, accounts, pool, client)
     app.include_router(plugin_router)
     # One server-owned news store, outside every user's DSH/data/credential namespace.
@@ -151,6 +217,7 @@ def create_gateway(
         return (
             user is not None
             and user.id == getattr(pool, "primary_user_id", None)
+            and not getattr(pool, "service_only", False)
             and request.url.path.startswith("/api/research/aihot/")
         )
 
@@ -192,10 +259,13 @@ def create_gateway(
         if request.headers.get("host", "").lower() != authority:
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
+        machine = facade is not None and request.url.path in MACHINE_PATHS
+        cross_site = request.headers.get("sec-fetch-site") == "cross-site"
+        oauth_navigation = cross_site and _weknora_oauth_navigation(request, facade)
         if (
             (supplied_origin is not None and supplied_origin != origin)
-            or request.headers.get("sec-fetch-site") == "cross-site"
-            or (request.method not in {"GET", "HEAD"} and supplied_origin != origin)
+            or (cross_site and not oauth_navigation)
+            or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
             return error("server_origin_denied", 403)
         raw_path = request.scope.get("raw_path", b"").split(b"?", 1)[0].lower()
@@ -216,7 +286,16 @@ def create_gateway(
             "/api/server/health",
         } or request.url.path.startswith(("/static/", "/server-static/"))
         try:
-            user = await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
+            if machine:
+                # The AS explicitly uses browser login only for /authorize.
+                # Resource server and token routes authenticate independently.
+                request.state.user = None
+                return await call_next(request)
+            user = (
+                None
+                if oauth_navigation
+                else await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
+            )
             request.state.user = user
             if user is None and not public:
                 if request.url.path in {"/", "/account"}:
@@ -305,7 +384,13 @@ def create_gateway(
             {
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
-                "Referrer-Policy": "no-referrer",
+                "Referrer-Policy": (
+                    "same-origin"
+                    if facade is not None
+                    and request.method == "GET"
+                    and request.url.path in {"/mcp/consent", "/mcp/applications"}
+                    else "no-referrer"
+                ),
             }
         )
         response.headers.setdefault(
@@ -323,7 +408,14 @@ def create_gateway(
     @app.post("/api/server/login")
     async def login(body: Login):
         token, user = await asyncio.to_thread(accounts.login, body.username, body.password)
-        response = JSONResponse({"user": user.public()})
+        payload = {"user": user.public()}
+        if facade is not None:
+            from ..mcp_facade.oauth_views import validated_login_return
+
+            target = validated_login_return(body.return_to)
+            if target:
+                payload["return_to"] = target
+        response = JSONResponse(payload)
         response.set_cookie(
             COOKIE,
             token,
@@ -346,7 +438,10 @@ def create_gateway(
     @app.get("/api/server/me")
     async def me(request: Request):
         return {
-            "user": request.state.user.public(),
+            "user": {
+                **request.state.user.public(),
+                **({"mcp_readonly_enabled": True} if facade is not None else {}),
+            },
             "primary": request.state.user.id == getattr(pool, "primary_user_id", None),
         }
 
@@ -358,10 +453,19 @@ def create_gateway(
                 deployment = getattr(pool, "deployment_path", None)
                 if deployment is not None:
                     value["deployment_fenced"] = deployment.exists() or deployment.is_symlink()
-                return value
+                return {**value, "mcp_readonly_enabled": facade is not None}
             except RuntimeErrorSafe as exc:
                 return error(exc.code, exc.status)
-        return {"status": "ready", "runtime": "not_started_by_health"}
+        return {
+            "status": "ready",
+            "runtime": "not_started_by_health",
+            "execution_mode": (
+                "external"
+                if getattr(getattr(pool, "config", None), "service_only", False)
+                else "embedded"
+            ),
+            "mcp_readonly_enabled": facade is not None,
+        }
 
     @app.get("/api/server/users")
     async def users(request: Request):
@@ -415,7 +519,12 @@ def create_gateway(
     @app.get("/auth")
     async def auth_page(request: Request):
         if request.state.user is not None:
-            return RedirectResponse("/", status_code=303)
+            target = None
+            if facade is not None:
+                from ..mcp_facade.oauth_views import validated_login_return
+
+                target = validated_login_return(request.query_params.get("return_to", ""))
+            return RedirectResponse(target or "/", status_code=303)
         return HTMLResponse((UI / "server-accounts.html").read_text(encoding="utf-8"))
 
     @app.get("/account")
@@ -434,8 +543,25 @@ def create_gateway(
             source.replace('src="/static/app.mjs"', 'src="/server-static/session.mjs"')
         )
 
+    from ..qa_assets import qa_assets_root
+
+    primary_ui = getattr(pool, "primary_ui", UI)
     current_static = StaticFiles(directory=UI)
-    primary_static = StaticFiles(directory=getattr(pool, "primary_ui", UI))
+    primary_static = StaticFiles(directory=primary_ui)
+    current_qa = qa_assets_root(UI.parent)
+    primary_qa = qa_assets_root(primary_ui.parent)
+
+    @app.get("/static/qa-dist/{name}")
+    async def qa_static(name: str, request: Request):
+        if name not in {"qa.js", "qa.css", "build.json", "THIRD_PARTY_LICENSES.md"}:
+            return error("not_found", 404)
+        user = getattr(request.state, "user", None)
+        root = (
+            primary_qa if user and user.id == getattr(pool, "primary_user_id", None) else current_qa
+        )
+        if root is None:
+            return error("qa_assets_unavailable", 503)
+        return FileResponse(root / name)
 
     async def user_static(scope, receive, send):
         user = scope.get("state", {}).get("user")
@@ -449,13 +575,8 @@ def create_gateway(
     app.mount("/static", user_static, name="research-static")
     app.mount("/server-static", StaticFiles(directory=UI / "server"), name="server-static")
 
-    @app.get("/{path:path}")
-    @app.post("/{path:path}")
-    @app.put("/{path:path}")
-    @app.patch("/{path:path}")
-    @app.delete("/{path:path}")
-    @app.head("/{path:path}")
     async def proxy(path: str, request: Request):
+        path = request.url.path.lstrip("/")
         if ai_path(request.url.path) and not original_reading(request):
             # Unknown shared-news routes never allocate a per-user Web/DSH instance.
             return error("not_found", 404)
@@ -573,4 +694,11 @@ def create_gateway(
             headers={k: v for k, v in response.headers.items() if k.lower() in RESPONSE_HEADERS},
         )
 
+    methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]
+    if facade is None:
+        app.add_api_route("/{path:path}", proxy, methods=methods)
+    else:
+        app.add_api_route("/api/research/{path:path}", proxy, methods=methods)
+        app.add_api_route("/frameworks-embed/{path:path}", proxy, methods=methods)
+        app.mount("/", facade.app, name="mcp-readonly")
     return app

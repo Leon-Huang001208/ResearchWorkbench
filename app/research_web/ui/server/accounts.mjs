@@ -16,7 +16,7 @@ if (target) {
     event.preventDefault(); if(busy)return;
     busy=true; const button=form.querySelector('button');button.disabled=true;button.textContent='正在登录…';form.setAttribute('aria-busy','true');message.textContent='正在登录…';
     void (async()=>{
-      try {await api('login','POST',{username:form.elements.username.value,password:form.elements.password.value});location.assign('/');}
+      try {const result=await api('login','POST',{username:form.elements.username.value,password:form.elements.password.value,return_to:new URLSearchParams(location.search).get('return_to')});location.assign(result.return_to||'/');}
       catch(error){message.textContent=error.message;safeLog('account_login_failed',{status:error.status||0});}
       finally {form.elements.password.value='';busy=false;button.disabled=false;button.textContent='登录';form.setAttribute('aria-busy','false');}
     })();
