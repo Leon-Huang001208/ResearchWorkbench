@@ -6,7 +6,11 @@
 
 本轮在原来源上下文交接冻结 RSS 的明确元数据，章节 `source_ids` 由 SDK 呈现绑定标题、日期、链接和真实摘要。原上传字节经真实 Mac sandbox、Delivery 与 Host 质量检查已通过，零模型请求；金额、指标及计算的观测绑定规则继续执行。报告工具的嵌套字段类型、模型可见来源 ID 及本轮范围提示已补齐。原深度会话复验仍未完成，失败回执保留，未据此宣称业务通过。
 
-真实来源分支已接入 DataHub `ext_fed/news`、原 Discovery 冻结及 Automation 调度、历史和通知判断。历史快照仅作已见基线，实际执行重新取得固定来源；同内容定时触发不调用模型。18 项跟踪回归、来源元数据/索引/报告相关回归、13 项 worker 消息旅程及独立 Python/JavaScript 评审通过。完整在线跟踪、最新基线 CI、Mac 双入口回滚与正式切换仍待完成。
+真实来源分支已接入 DataHub `ext_fed/news`、原 Discovery 冻结及 Automation 调度、历史和通知判断。历史快照仅作已见基线，实际执行重新取得固定来源；同内容定时触发不调用模型。跟踪、来源元数据/索引/报告相关回归、固定 Node 24 的 13 项 worker 消息旅程、195 项 L4 Node 检查及独立 Python/JavaScript 评审通过。
+
+真实在线验收已通过。原 Bot 的手动运行 `automation-run-8c60a9698a8da894bce5918055c394da8839ba1fc6eb560f362e13af2efbd37c` 使用 DeepSeek 官方 Flash 实际调用 3 次，冻结相对原真实基线的 4 条新增公告；Markdown 中四条来源的 URL、日期和原摘要均核对一致，Host 质量 `passed`，通知判断 `meaningful_change`。报告 SHA-256 为 `fffc49e283e0d989cecc957c12facc8e745a2bd4815120d1a20178f46b99f0e5`。同 Bot 于真实时钟 02:25 触发的运行 `automation-run-e2b89b1da9e945e995b9be1e3caf4f69` 为 `skipped_unchanged`，模型账本原字节内容未变，随后停用。最终证据保存在本机 `fed-online-tracking-20261123/final-acceptance.json`、历史和实际 Markdown，原失败运行保持必要短记录。
+
+新阶段账本累计 196 个请求，均有官方 usage；保守费用上界为 1.569584 元，仍在已授权新增 50 元内。旧 48.796 元未知预留未改写。最新基线 CI、Mac 双入口回滚及正式切换仍待完成，不由本次隔离 Host 通过代替。
 
 2026-11-13，Mac mini，Research Web 功能开发。来源为 AlphaDesk `1c946b9a0930d3070da7263ffcffe5e8831077c3`。用户确认可将问答源码提交公开 RWB。开发在受管任务 `alphadesk-qa-20261113` 工作树进行。
 
@@ -59,6 +63,7 @@
 [产品合同](../../docs/research-web-ai-qa.md)
 
 <!-- architecture-review {"group":"alphadesk-qa","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"只修正真实 Chromium Reader 整数分项与 DOM 总高度的 1px 舍入差异，保留原截图和度量，不改变文档执行拓扑。","diagrams":[]} -->
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"changed","reason":"普通问答采用独立 AlphaDesk 前端，专门入口与浏览器访问关系已在模块图更新。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"FinGPT 在账号 Host 到原问答执行器之间分页，复用已冻结原件、权限和现有运行链路。","diagrams":[]} -->

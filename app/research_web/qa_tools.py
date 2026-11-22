@@ -1,11 +1,15 @@
 """Turn-scoped DataHub, evidence and deterministic report tools."""
 
 import asyncio
+import copy
 import json
+import re
 from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
+
+from core.observability import get_logger
 
 from . import sandbox
 from .datahub.contracts import BUSINESS_TOOLS, CAPABILITY_PARAMETERS, BusinessQuery
@@ -20,6 +24,7 @@ from .resources.research_report_plan import required_body_target
 from .scenario_handoffs import trusted_context
 from .store import StoreError
 
+log = get_logger(__name__)
 READ_CAPABILITIES = {
     name: tool
     for name, tool in BUSINESS_TOOLS.items()
@@ -174,6 +179,50 @@ REPORT_PLAN_SCHEMA = {
         },
     },
 }
+METADATA_REPORT_PLAN_SCHEMA = {
+    "type": "object",
+    "required": ["title", "sections", "missing"],
+    "additionalProperties": False,
+    "properties": {
+        "title": REPORT_PLAN_SCHEMA["properties"]["title"],
+        "sections": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+                "type": "object",
+                "required": ["id", "heading", "source_ids", "requirement_ids", "evidence_ids"],
+                "additionalProperties": False,
+                "properties": {
+                    **{
+                        key: REPORT_PLAN_SCHEMA["properties"]["sections"]["items"]["properties"][
+                            key
+                        ]
+                        for key in ("id", "heading", "requirement_ids")
+                    },
+                    "source_ids": {
+                        **REPORT_PLAN_SCHEMA["properties"]["sections"]["items"]["properties"][
+                            "source_ids"
+                        ],
+                        "minItems": 1,
+                    },
+                    "evidence_ids": {
+                        "type": "array",
+                        "maxItems": 0,
+                        "items": {"type": "string"},
+                        "description": "本轮来源元数据清单使用空数组。",
+                    },
+                },
+            },
+        },
+        "missing": REPORT_PLAN_SCHEMA["properties"]["missing"],
+    },
+}
+METADATA_REPORT_GUIDANCE = (
+    "本轮登记 RSS 正式摘要清单只接受 title、sections、missing；章节使用 id、heading、"
+    "source_ids、requirement_ids 和空 evidence_ids。删除 analysis、summary、calculations、"
+    "controls 及其他未声明字段；正文由绑定来源呈现，聊天分析不进入正式摘要清单。"
+)
 
 
 def _tool(name, description, props=None, required=()):
@@ -254,33 +303,62 @@ class TurnTools:
                     _tool("list_frozen_datasets", "列出当前会话已经绑定的 DataHub 资料快照。"),
                     _tool(
                         "read_frozen_dataset",
-                        "读取当前会话的冻结快照，保留原始口径与日期。",
-                        {"dataset_id": {"type": "string"}},
+                        "读取当前会话的冻结快照，保留原始口径与日期。从 offset=0 开始，"
+                        "按 next_offset 用同一 dataset_id 续读，直到 next_offset 为 null。",
+                        {
+                            "dataset_id": {"type": "string"},
+                            "offset": {"type": "integer", "minimum": 0},
+                        },
                         ("dataset_id",),
                     ),
                 ]
             )
         if self.store.session(self.sid).get("purpose") == "discovery_research":
-            result.append(_tool("read_frozen_discovery", "读取本轮冻结选材和资料快照。"))
+            result.append(
+                _tool(
+                    "read_frozen_discovery",
+                    "读取本轮冻结选材和资料快照。从 offset=0 开始，按 next_offset 续读同一快照，"
+                    "直到 next_offset 为 null。",
+                    {"offset": {"type": "integer", "minimum": 0}},
+                )
+            )
         if self.contract:
             result.append(
                 _tool("list_research_observations", "列出实际观测 ID、计量口径及冻结要求。")
             )
         if self.report_allowed:
+            metadata_ids = self.metadata_report_source_ids
+            metadata_only = metadata_ids is not None
+            plan_schema = REPORT_PLAN_SCHEMA
+            if metadata_only:
+                plan_schema = copy.deepcopy(METADATA_REPORT_PLAN_SCHEMA)
+                plan_schema["properties"]["sections"]["items"]["properties"]["source_ids"]["items"][
+                    "enum"
+                ] = metadata_ids
             result.append(
                 _tool(
                     "write_research_report",
-                    "提交报告计划。先调用 list_research_observations，使用准确 evidence_ids 与 "
-                    "requirement_ids。sections 项含 id/heading/evidence_ids/requirement_ids，"
-                    "可选 analysis、source_ids；source_ids 引用已绑定文档的准确来源 ID，"
-                    "自动呈现标题、发布日期、链接与已冻结 RSS 摘要，analysis 可省略。"
-                    "财务数值仍须通过 evidence_ids 绑定观测。title/heading/analysis 使用定性文字，"
-                    "日期与 URL 由来源元数据呈现。summary 是数值汇总数组，不是文字摘要；"
-                    "纯 RSS 报告省略 calculations、summary、controls。missing 仅列未满足本轮冻结要求的"
-                    "定性资料缺口，不复制日期、URL、数字或算式；范围外全文、行情、第二来源不列为未完成。"
-                    "source_ids 已呈现 RSS 摘要核对范围，无本轮缺口时 missing 使用空数组；"
-                    "交付状态以实际工具回执为准。",
-                    {"plan": REPORT_PLAN_SCHEMA},
+                    (
+                        "本轮仅生成已登记 RSS 的来源元数据正式摘要清单。先调用 list_research_observations，"
+                        "使用准确 source_ids 与 requirement_ids，evidence_ids 使用空数组。正文由绑定来源的"
+                        "标题、发布日期、URL 和 RSS 摘要自动呈现，聊天分析不进入正式摘要清单。"
+                        "source_ids 只选本工具枚举的 file: ID，各节并集须覆盖本轮全部已冻结公告；"
+                        "dataset: ID 仅为控制快照，不是逐条公告来源。"
+                        "只传 title、sections、missing 及章节声明的字段；title、heading、missing 使用定性文字，"
+                        "不加入日期、URL、数字或算式。无本轮缺口时 missing 使用空数组。"
+                        if metadata_only
+                        else "提交报告计划。先调用 list_research_observations，使用准确 evidence_ids 与 "
+                        "requirement_ids。sections 项含 id/heading/evidence_ids/requirement_ids，"
+                        "可选 analysis、source_ids；source_ids 引用已绑定文档的准确来源 ID，"
+                        "自动呈现标题、发布日期、链接与已冻结 RSS 摘要，analysis 可省略。"
+                        "财务数值仍须通过 evidence_ids 绑定观测。title/heading/analysis 使用定性文字，"
+                        "日期与 URL 由来源元数据呈现。summary 是数值汇总数组，不是文字摘要；"
+                        "纯 RSS 报告省略 calculations、summary、controls。missing 仅列未满足本轮冻结要求的"
+                        "定性资料缺口，不复制日期、URL、数字或算式；范围外全文、行情、第二来源不列为未完成。"
+                        "source_ids 已呈现 RSS 摘要核对范围，无本轮缺口时 missing 使用空数组；"
+                        "交付状态以实际工具回执为准。"
+                    ),
+                    {"plan": plan_schema},
                     ("plan",),
                 )
             )
@@ -297,6 +375,15 @@ class TurnTools:
             and self.receipt["delivery"]["required_formats"]
             and (self.approved is None or "research_run_script" in self.approved)
         )
+
+    @property
+    def metadata_report_source_ids(self):
+        if self.store.session(self.sid).get("purpose") != "discovery_research":
+            return None
+        context = self.service.discovery.trusted_context(self.sid)
+        if not context or context.get("source_kind") != "registered_feed":
+            return None
+        return [source["id"] for source in context["registered_feed_sources"].values()]
 
     async def call(self, params, _emit):
         self.calls += 1
@@ -323,12 +410,15 @@ class TurnTools:
                 if name == "list_frozen_datasets" and not args:
                     items = self.service.datahub.summaries(self.sid)[:30]
                     return {"data": items, "sources": []}
-                if name == "read_frozen_dataset" and set(args) == {"dataset_id"}:
-                    return self.frozen_dataset(args["dataset_id"])
-            if name == "read_frozen_discovery" and not args:
+                if name == "read_frozen_dataset" and set(args) in (
+                    {"dataset_id"},
+                    {"dataset_id", "offset"},
+                ):
+                    return self.frozen_dataset(args["dataset_id"], offset=args.get("offset", 0))
+            if name == "read_frozen_discovery" and set(args) in (set(), {"offset"}):
                 context = self.service.discovery.trusted_context(self.sid)
                 if context:
-                    return self.frozen_discovery(context)
+                    return self.frozen_discovery(context, offset=args.get("offset", 0))
             if name == "list_research_observations" and not args and self.contract:
                 data = await asyncio.to_thread(
                     business_prompt_index,
@@ -349,7 +439,18 @@ class TurnTools:
             return {
                 "data": {"status": "unavailable", "code": code},
                 "sources": [],
-                "warnings": ["资料或报告计划未通过 RWB 校验"],
+                "warnings": [
+                    (
+                        str(exc)
+                        if code
+                        in {
+                            "qa_report_metadata_plan_required",
+                            "qa_report_metadata_source_invalid",
+                            "qa_report_metadata_sources_incomplete",
+                        }
+                        else "资料或报告计划未通过 RWB 校验"
+                    )
+                ],
             }
         return {
             "data": {"status": "unavailable", "code": "qa_tool_not_allowed"},
@@ -429,7 +530,9 @@ class TurnTools:
             "sources": [_source(source)],
         }
 
-    def frozen_dataset(self, did, *, manifest_sha256=None):
+    def frozen_dataset(self, did, *, manifest_sha256=None, offset=0, cutoff=None):
+        if type(offset) is not int or offset < 0:
+            raise StoreError("冻结资料分页位置无效", "qa_source_offset_invalid", 422)
         trusted_context(self.service, self.sid, check_capabilities=False)
         manifest = self.service.datahub.detail(self.sid, did)
         if manifest.get("snapshot_kind") == "mcp_evidence":
@@ -443,20 +546,15 @@ class TurnTools:
             raise StoreError("跟踪冻结资料已变化", "qa_discovery_snapshot_changed", 409)
         as_of = manifest.get("as_of")
         if self.contract and manifest_sha256 is None:
-            cutoff = datetime.fromisoformat(self.contract["as_of"]).date()
+            contract_cutoff = datetime.fromisoformat(self.contract["as_of"]).date()
             today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
-            if cutoff < today and (
+            if contract_cutoff < today and (
                 not isinstance(as_of, str)
                 or as_of in {"unknown", ""}
-                or datetime.fromisoformat(as_of).date() > cutoff
+                or datetime.fromisoformat(as_of).date() > contract_cutoff
             ):
                 raise StoreError("资料时点未获本轮授权", "qa_snapshot_cutoff", 403)
-        values = self.service.datahub.rows(self.sid, did, limit=20)
-        sample = []
-        for item in values["items"]:
-            if len(json.dumps([*sample, item], ensure_ascii=False).encode()) > 64000:
-                break
-            sample.append(item)
+        values = self.service.datahub.rows(self.sid, did, offset=offset, limit=20)
         source = {
             "id": "dataset:" + did,
             "title": manifest.get("name") or "冻结资料",
@@ -464,25 +562,54 @@ class TurnTools:
             "as_of": manifest.get("as_of"),
             "sha256": manifest.get("manifest_sha256"),
         }
-        self.record_source(source)
-        return {
-            "data": {
-                "dataset_id": did,
-                "manifest_sha256": source["sha256"],
-                "as_of": source["as_of"],
-                "items": sample,
-                "total": values["total"],
-                "limitations": manifest.get("limitations", []),
-            },
-            "sources": [_source(source)],
+        page = {
+            "dataset_id": did,
+            "manifest_sha256": source["sha256"],
+            "as_of": source["as_of"],
+            "items": [],
+            "offset": offset,
+            "next_offset": None,
+            "total": values["total"],
+            "limitations": manifest.get("limitations", []),
         }
+        if cutoff is not None:
+            page["cutoff"] = cutoff
+        if (
+            len(json.dumps(page, ensure_ascii=False, separators=(",", ":")).encode("utf-16-le"))
+            // 2
+            > SOURCE_PAGE_JSON_LIMIT
+        ):
+            raise StoreError("冻结资料分页超出响应上限", "qa_source_page_too_large", 409)
+        for item in values["items"]:
+            end = offset + len(page["items"]) + 1
+            candidate = {
+                **page,
+                "items": [*page["items"], item],
+                "next_offset": end if end < values["total"] else None,
+            }
+            if (
+                len(
+                    json.dumps(candidate, ensure_ascii=False, separators=(",", ":")).encode(
+                        "utf-16-le"
+                    )
+                )
+                // 2
+                > SOURCE_PAGE_JSON_LIMIT
+            ):
+                break
+            page = candidate
+        if values["items"] and not page["items"]:
+            raise StoreError("冻结资料单行超出响应上限", "qa_source_page_too_large", 409)
+        self.record_source(source)
+        return {"data": page, "sources": [_source(source)]}
 
-    def frozen_discovery(self, context):
-        result = self.frozen_dataset(
-            context["dataset_id"], manifest_sha256=context["dataset_manifest_sha256"]
+    def frozen_discovery(self, context, *, offset=0):
+        return self.frozen_dataset(
+            context["dataset_id"],
+            manifest_sha256=context["dataset_manifest_sha256"],
+            offset=offset,
+            cutoff=context["cutoff"],
         )
-        result["data"]["cutoff"] = context["cutoff"]
-        return result
 
     async def sources(self, call_id):
         sources = []
@@ -565,6 +692,49 @@ class TurnTools:
     async def report(self, plan):
         if self.report_written:
             raise StoreError("本轮报告已生成", "qa_report_already_written", 409)
+        metadata_ids = self.metadata_report_source_ids
+        if metadata_ids is not None and isinstance(plan, dict):
+            sections = plan.get("sections")
+            if set(plan) - {"title", "sections", "missing"} or (
+                isinstance(sections, list)
+                and any(
+                    isinstance(section, dict)
+                    and (
+                        set(section)
+                        - {"id", "heading", "source_ids", "requirement_ids", "evidence_ids"}
+                        or section.get("evidence_ids", []) != []
+                    )
+                    for section in sections
+                )
+            ):
+                log.warning("qa_report_metadata_plan_rejected")
+                raise StoreError(METADATA_REPORT_GUIDANCE, "qa_report_metadata_plan_required", 422)
+            if isinstance(sections, list):
+                approved_ids, selected_ids = set(metadata_ids), set()
+                for section in sections:
+                    if not isinstance(section, dict):
+                        continue
+                    refs = section.get("source_ids")
+                    if not isinstance(refs, list) or any(
+                        not isinstance(ref, str) or ref not in approved_ids for ref in refs
+                    ):
+                        log.warning("qa_report_metadata_source_invalid")
+                        raise StoreError(
+                            "source_ids 只能选择本工具枚举的冻结公告 file: ID；dataset: ID 是控制快照，"
+                            "不能代替公告来源。",
+                            "qa_report_metadata_source_invalid",
+                            422,
+                        )
+                    selected_ids.update(refs)
+                missing_ids = approved_ids - selected_ids
+                if missing_ids:
+                    log.warning("qa_report_metadata_sources_incomplete")
+                    raise StoreError(
+                        "正式摘要清单尚未覆盖本轮全部冻结公告，请在各节 source_ids 补入："
+                        + "、".join(sorted(missing_ids)),
+                        "qa_report_metadata_sources_incomplete",
+                        422,
+                    )
         await asyncio.to_thread(
             write_business_snapshot,
             self.service,
@@ -602,6 +772,11 @@ class TurnTools:
             await run
             raise
         if outcome.status != "completed":
-            raise StoreError("报告计划未完成", "qa_report_plan_failed", 409)
+            errors = re.findall(
+                r"(?m)^ValueError: (research_[a-z][a-z0-9_]{0,119})$", outcome.stderr
+            )
+            error_code = errors[-1] if errors else "qa_report_plan_failed"
+            log.warning("qa_report_plan_failed", code=error_code, status=outcome.status)
+            raise StoreError("报告计划未完成", error_code, 409)
         self.report_written = True
         return {"data": {"status": "generated", "quality": "pending_host_check"}, "sources": []}

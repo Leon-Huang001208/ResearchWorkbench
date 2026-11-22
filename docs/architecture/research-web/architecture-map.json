@@ -1603,10 +1603,32 @@
             "automationService"
           ],
           "source": "app/research_web/dossiers/scans.py"
+        },
+        {
+          "subjects": [
+            "api",
+            "datahub",
+            "discoveryFeed"
+          ],
+          "source": "app/research_web/discovery/service.py"
+        },
+        {
+          "subjects": [
+            "providers",
+            "routeProvider"
+          ],
+          "source": "app/research_web/discovery/fed.py"
+        },
+        {
+          "subjects": [
+            "api",
+            "hostDsh"
+          ],
+          "source": "app/research_web/service.py"
         }
       ],
       "level": "subsystems",
-      "summary": "Host长期档案与保留引用、受管MCP费用占用及默认关闭的冻结扫描，沿既有DSH依赖。"
+      "summary": "Host长期档案、受管MCP与窄跟踪复用既有依赖；Fed RSS 经登记DataHub读取、冻结并进入原Automation与报告链。"
     },
     {
       "id": "01-deployment",
@@ -6485,6 +6507,27 @@
       "source": "app/research_web/multiuser/gateway.py",
       "declaredPath": "/static/qa-dist/{name}",
       "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/registered-feeds/fed",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/registered-feeds/fed",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/discovery/tracks/{track_id}/run",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks/{track_id}/run",
+      "prefix": "/api/research/discovery"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/discovery/tracks/{track_id}/runs",
+      "source": "app/research_web/discovery/routes.py",
+      "declaredPath": "/tracks/{track_id}/runs",
+      "prefix": "/api/research/discovery"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

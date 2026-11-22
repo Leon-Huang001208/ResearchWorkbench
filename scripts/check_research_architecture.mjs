@@ -86,8 +86,10 @@ function readerViewportOK(viewport, minimumTextPx) {
   const page=viewport.pageComposition;
   if (!page || !['bodyPaddingPx','headerPx','diagramChromePx','svgPx','cardsPx','viewBoxHeight'].every(key=>Number.isFinite(page[key]) && page[key]>=0) || page.svgPx===0 || page.viewBoxHeight===0) return false;
   const contentHeight=page.bodyPaddingPx+page.headerPx+page.diagramChromePx+page.svgPx+page.cardsPx;
+  // Chromium rounds scrollHeight and the measured composition parts separately.
   return viewport.ok===true && viewport.innerWidth===viewport.width && viewport.innerHeight===viewport.height &&
-    viewport.overflowX===false && viewport.scrollWidth===viewport.innerWidth && viewport.scrollHeight===Math.max(viewport.innerHeight,contentHeight) &&
+    viewport.overflowX===false && viewport.scrollWidth===viewport.innerWidth && viewport.scrollHeight>=viewport.innerHeight &&
+    Math.abs(viewport.scrollHeight-Math.max(viewport.innerHeight,contentHeight))<=1 &&
     viewport.overflowY===overflowY && viewport.readerLayout==='adaptive' && viewport.readerFit==='intrinsic-height' &&
     viewport.verticalScrollAccepted===overflowY && viewport.readerOverflow===(overflowY?'authored':null) &&
     viewport.overflowDisposition===(overflowY?'readable-vertical-scroll':'contained') &&

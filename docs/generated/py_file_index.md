@@ -5647,6 +5647,34 @@ Imports:
 - `service`
 
 
+## `app/research_web/discovery/fed.py`
+
+Module docstring:
+> Registered Fed RSS snapshots and their source-bound summary records.
+
+Imports:
+- `core.observability`
+- `datahub.contracts`
+- `datahub.providers_external`
+- `datahub.security`
+- `datetime`
+- `email.utils`
+- `hashlib`
+- `models`
+- `sources`
+- `uuid`
+
+Functions:
+- `approved_query`
+- `published`
+- `fresh_observation`
+- `snapshot`
+  - Only the owned, verified ext_fed/news raw response supplies feed material.
+- `freeze`
+- `store_inputs`
+  - Persist the actual frozen summary in the existing attachment/Source format.
+
+
 ## `app/research_web/discovery/handoff.py`
 
 Module docstring:
@@ -5658,6 +5686,7 @@ Imports:
 - `core.observability`
 - `datahub.security`
 - `hashlib`
+- `json`
 - `models`
 - `os`
 - `pathlib`
@@ -5761,6 +5790,8 @@ Imports:
 Classes:
 - `Execute`
 - `Version`
+- `RegisteredFeed`
+- `TrackRun`
 
 Functions:
 - `_research`
@@ -5777,6 +5808,9 @@ Functions:
 - `execute`
 - `tracks`
 - `save_track`
+- `registered_fed`
+- `run_track`
+- `track_runs`
 - `enable_track`
 - `disable_track`
 
@@ -5808,7 +5842,7 @@ Imports:
 
 Classes:
 - `DiscoveryService`
-  - methods: __init__, _table, _record, _public, list_handoffs, _prune_feeds, feed, cached_preview, _read_news, _cache_news, refresh_news, associate, selection_preview, refresh_theme, prepare, _finish_session, get_handoff, trusted_context, _reconcile_execution, execute
+  - methods: __init__, _table, _record, _public, list_handoffs, _prune_feeds, feed, cached_preview, registered_feed, _read_news, _cache_news, refresh_news, associate, selection_preview, refresh_theme, prepare, _finish_session, get_handoff, trusted_context, _reconcile_execution, execute
 
 Functions:
 - `now`
@@ -5877,11 +5911,12 @@ Classes:
   - methods: uuid_value, condition_nonempty
 - `DiscoveryTracking`
   - Restrict consent, identity, novelty and quality; never own a second timer.
-  - methods: __init__, _table, _owned, eligible, _theme, _fingerprint, save, _version, enable, disable, _public, list, has_enabled, _model_current, execute, _monitor, resume
+  - methods: __init__, _table, _owned, eligible, _theme, _fingerprint, _material_map, _registered_baseline, save, _version, enable, disable, _public, list, has_enabled, _model_current, execute, _monitor, resume
 
 Functions:
 - `_sha`
 - `_raw_description`
+- `_feed_description`
 
 
 ## `app/research_web/documentation.py`
@@ -11164,6 +11199,8 @@ Module docstring:
 
 Imports:
 - `asyncio`
+- `copy`
+- `core.observability`
 - `datahub.contracts`
 - `datahub.providers`
 - `datetime`
@@ -11171,6 +11208,7 @@ Imports:
 - `pydantic`
 - `qa_acceptance`
 - `qa_attachments`
+- `re`
 - `research_evidence`
 - `research_quality_service`
 - `research_web_sources`
@@ -11182,7 +11220,7 @@ Imports:
 
 Classes:
 - `TurnTools`
-  - methods: __init__, schemas, sources_allowed, report_allowed, call, record_source, observation_sources, query, frozen_dataset, frozen_discovery, sources, read, report
+  - methods: __init__, schemas, sources_allowed, report_allowed, metadata_report_source_ids, call, record_source, observation_sources, query, frozen_dataset, frozen_discovery, sources, read, report
 
 Functions:
 - `_tool`
@@ -12302,6 +12340,8 @@ Functions:
   - Bounded discovery data from permitted bytes, never a coverage verdict.
 - `ensure_quality_scope`
   - A read-only worker cannot publish a verdict for a superseded task.
+- `_uploaded_rss_metadata`
+  - Read the frozen Fed RSS record headers, not a live article or inferred date.
 - `source_context`
   - Return canonical owned identities and whole-file hashes, not guessed aliases.
 - `observations`
@@ -12453,6 +12493,8 @@ Functions:
   - Resolve IDs or an explicit ID/title/locator, never infer identity from prose.
 - `canonical_source`
   - Resolve an exact Host ID/title; uploaded filenames are never source IDs.
+- `source_metadata_text`
+  - Present bound source metadata verbatim, separately from author assertions.
 - `evidence_section`
   - Copy author-nominated text/lineage, never certify it or create observations.
 - `build_numeric_claim`

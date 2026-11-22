@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "5a9de352-b09a-4775-a351-97159dc46ba3",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Developer/ResearchWorkbench-main-worktrees/fingpt-source-read-20261116-integration/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Developer/ResearchWorkbench-main-worktrees/fingpt-source-read-20261116-integration/outputs/research-web-architecture/02-module-dependencies.html",
+  "specification": {
+    "sha256": "6478afdec8d190e34ebb2d29096610d174c5134ccadfb27315a220b8f8ffea89",
+    "bytes": 16575
+  },
+  "artifact": {
+    "sha256": "f7b86cdc74504669e9de05a88620befdb01e965394a09c8288e68e213fc8fb67",
+    "bytes": 879321
+  }
+}

@@ -215,6 +215,37 @@ class DiscoveryTracking:
             )
         )
 
+    @staticmethod
+    def _material_map(theme):
+        return {item["id"]: item["content_sha256"] for item in theme["materials"]}
+
+    def _registered_baseline(self, row):
+        """Recover only the exact owned archive recorded for this approved feed."""
+        if row.get("baseline_materials") is None:
+            reference = row.get("registered_feed_baseline") or {}
+            try:
+                if reference["source_session_id"] != row["registered_feed"]["source_session_id"]:
+                    raise ValueError("baseline_owner_changed")
+                value, _ = fed.snapshot(
+                    self.research,
+                    reference["source_session_id"],
+                    reference["source_dataset_id"],
+                    row["body"]["horizon"],
+                )
+                if value["source_manifest_sha256"] != reference["source_manifest_sha256"]:
+                    raise ValueError("baseline_manifest_changed")
+                row["baseline_materials"] = self._material_map(
+                    self._theme(value, row["body"]["theme_id"])
+                )
+            except (KeyError, OSError, ValueError, StoreError) as exc:
+                log.warning("discovery_registered_feed_baseline_unverified")
+                raise StoreError(
+                    "原 RSS 基线快照尚未核验", "discovery_feed_baseline_unverified", 409
+                ) from exc
+            self.store.save()
+        accepted = row.get("last_accepted_materials")
+        return accepted if accepted is not None else row["baseline_materials"]
+
     async def save(self, body):
         body = TrackSave.model_validate(body)
         payload = body.model_dump(mode="json")
@@ -320,7 +351,11 @@ class DiscoveryTracking:
                         ),
                         "model_provider": model["provider"],
                         "model_id": model["model"],
-                        "output_requirements": "核对冻结资料、反证与失效条件，沿用原研究质量门。",
+                        "output_requirements": (
+                            fed.REPORT_REQUIREMENTS
+                            if registered
+                            else "核对冻结资料、反证与失效条件，沿用原研究质量门。"
+                        ),
                         "approved_data_sources": ["datahub", "uploads"],
                         "approved_tools": SAFE_TOOLS,
                     },
@@ -357,7 +392,18 @@ class DiscoveryTracking:
                     )
                 elif registered:
                     table[automation["id"]].update(
-                        source_kind="registered_feed", registered_feed=feed_scope
+                        source_kind="registered_feed",
+                        registered_feed=feed_scope,
+                        registered_feed_baseline={
+                            key: feed[key]
+                            for key in (
+                                "source_session_id",
+                                "source_dataset_id",
+                                "source_manifest_sha256",
+                            )
+                        },
+                        baseline_materials=self._material_map(baseline),
+                        last_accepted_materials=None,
                     )
 
                 def rollback():
@@ -497,6 +543,7 @@ class DiscoveryTracking:
                 409,
             )
         if registered:
+            self._registered_baseline(row)
             feed = await self.discovery.registered_feed(
                 row["registered_feed"]["source_session_id"], row["body"]["horizon"]
             )
@@ -518,23 +565,68 @@ class DiscoveryTracking:
             raise StoreError("本次未取得新的来源观察", "discovery_track_source_unavailable", 503)
         theme = self._theme(feed, row["body"]["theme_id"])
         fingerprint = self._fingerprint(theme)
+        material_ids = [item["id"] for item in theme["materials"][:20]]
+        question = row["body"]["condition"]
         async with self.lock:
             row["last_checked_at"] = time.time()
-            first_manual = (
-                registered
-                and actual.get("trigger") == "manual"
-                and row.get("last_attempt_fingerprint") is None
+            manual = registered and actual.get("trigger") == "manual"
+            previous = self.store.data.get("automation_runs", {}).get(
+                row.get("last_attempt_run_id"), {}
             )
-            if fingerprint == row.get("last_attempt_fingerprint") or (
-                fingerprint == row.get("last_seen_fingerprint") and not first_manual
-            ):
+            explicit_manual = manual and (
+                row.get("last_attempt_fingerprint") is None
+                or previous.get("research_status") == "completed"
+            )
+            if manual and not explicit_manual:
+                log.info("discovery_tracking_previous_run_unconfirmed")
+                return {"status": "blocked", "failure_code": "discovery_previous_run_unconfirmed"}
+            if registered:
+                current = self._material_map(theme)
+                actual.update(
+                    discovery_current_materials=copy.deepcopy(current),
+                    discovery_material_ids=[],
+                    discovery_selection_state="unchanged_current",
+                    discovery_source_dataset_id=feed["source_dataset_id"],
+                    discovery_source_manifest_sha256=feed["source_manifest_sha256"],
+                )
+            if not explicit_manual and fingerprint in {
+                row.get("last_attempt_fingerprint"),
+                row.get("last_seen_fingerprint"),
+            }:
                 self.store.save()
                 log.info("discovery_tracking_unchanged")
                 return {"status": "skipped_unchanged"}
+            if registered:
+                reference = self._registered_baseline(row)
+                changed = [
+                    identifier
+                    for identifier in material_ids
+                    if reference.get(identifier) != current[identifier]
+                ]
+                selection_state = (
+                    "delta"
+                    if changed
+                    else "unchanged_current" if explicit_manual else "window_only"
+                )
+                material_ids = changed or (material_ids if explicit_manual else [])
+                actual.update(
+                    discovery_material_ids=material_ids.copy(),
+                    discovery_selection_state=selection_state,
+                )
+                if not changed and not explicit_manual:
+                    row["last_seen_fingerprint"] = fingerprint
+                    self.store.save()
+                    log.info("discovery_registered_feed_window_only")
+                    return {"status": "skipped_no_new_material"}
+                question += (
+                    "\n本次仅处理相对于已接受或初始基线的新增/修订条目，不按日期自行分期或推算数量。"
+                    if changed
+                    else "\n本次没有新增或修订，所选来源仅作当前 RSS 清单的元数据核对，不称为新增。"
+                )
             from zoneinfo import ZoneInfo
 
             today = self.automations.now().astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
-            if row.get("last_attempt_day") == today:
+            if row.get("last_attempt_day") == today and not explicit_manual:
                 log.info("discovery_tracking_daily_limit")
                 return {"status": "blocked", "failure_code": "discovery_daily_model_limit"}
             before = copy.deepcopy(row)
@@ -570,9 +662,9 @@ class DiscoveryTracking:
                 feed_id=feed["feed_id"],
                 horizon=row["body"]["horizon"],
                 theme_id=row["body"]["theme_id"],
-                material_ids=[item["id"] for item in theme["materials"][:20]],
+                material_ids=material_ids,
                 target_mode="fingpt",
-                question=row["body"]["condition"],
+                question=question,
             ),
             **(
                 {"require_fresh": True}
@@ -700,6 +792,15 @@ class DiscoveryTracking:
                 )
                 if accepted:
                     track["last_accepted_fingerprint"] = run.get("discovery_fingerprint")
+                    if track.get("source_kind") == "registered_feed" and isinstance(
+                        run.get("discovery_current_materials"), dict
+                    ):
+                        # Keep accepted IDs outside the window; each current hash is the newest accepted one.
+                        track["last_accepted_materials"] = {
+                            **track["baseline_materials"],
+                            **(track.get("last_accepted_materials") or {}),
+                            **run["discovery_current_materials"],
+                        }
                 self.store.save()
                 log.info("discovery_tracking_observed", execution_status=status, accepted=accepted)
                 return {

@@ -1,6 +1,8 @@
 # 今日发现、手动研究与独立跟踪
 
-Fed RSS 跟踪使用 DataHub `ext_fed/news` 的原始 XML 快照，专用预览接口为 `POST /api/research/discovery/registered-feeds/fed`。历史快照仅作已见基线，执行重新读取真实来源；条目身份和内容决定变化，未知时间保留未知。冻结的来源标题、原始 pubDate、链接及摘要沿原 FinGPT 报告与质量检查，摘要不冒充公告全文。手动运行和历史入口为原 track 下的 `/run` 与 `/runs`；原每日一次模型上限、同内容定时静默及最终停用合同保持。接口与字段见[模块说明](../app/research_web/discovery/README.md#fed-rss-跟踪)。
+Fed RSS 跟踪使用 DataHub `ext_fed/news` 的原始 XML 快照，专用预览接口为 `POST /api/research/discovery/registered-feeds/fed`。历史快照仅作已见基线，执行重新读取真实来源；条目身份和内容决定变化，未知时间保留未知。冻结的来源标题、原始 pubDate、链接及摘要沿原 FinGPT 报告与质量检查，摘要不冒充公告全文。手动运行和历史入口为原 track 下的 `/run` 与 `/runs`。定时/自动触发保持同内容静默和每日一次模型尝试；Fed 显式手动请求在首次运行或前次运行已 completed 时可以执行，包括修复已完成但质量未通过的研究，不清除历史或每日记录。同 request_id 仍去重，进行中、未知或中断的运行不可重放。接口与字段见[模块说明](../app/research_web/discovery/README.md#fed-rss-跟踪)。
+
+RSS 选材比较最近已接受或初始基线的条目 ID/内容 SHA，仅冻结新增或修订条目供报告，完整当前集合保存在原运行中。Host 接受后才推进集合；同指纹定时观察记录 `skipped_unchanged`，窗口变化但无新增/修订记录 `skipped_no_new_material`，不解释为公告删除或新发。显式手动没有变化时可核对当前清单，并明确未变化。默认报告限官方元数据和摘要范围，不要求模型自行分期、计数或补反证。
 
 Radar 批次可分别提供缓存标志和生成时间。Bot 对真正缺少缓存标志的可用资讯批次独立校验来源生成时点，明确过期或无有效证据仍不能冻结。
 

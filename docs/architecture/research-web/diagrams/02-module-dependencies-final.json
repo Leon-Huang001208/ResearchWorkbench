@@ -5,10 +5,6 @@
     "title": "Research Web 当前模块依赖",
     "output": "02-module-dependencies.html",
     "quality_profile": "showcase",
-    "viewBox": [
-      1600,
-      915
-    ],
     "views": [
       {
         "id": "mcpRegistry",
@@ -32,9 +28,12 @@
           "automationService",
           "automationState",
           "dsh",
-          "deliveryTargets"
+          "deliveryTargets",
+          "datahub",
+          "providers",
+          "snapshots"
         ],
-        "note": "今日发现单独保存与启用跟踪，复用原Automation；每次新资料最多每日一次模型研究，无变化静默，质量与受理分开。"
+        "note": "Fed RSS 预览经登记 DataHub 来源取得并冻结；跟踪复用原 Automation，自动日限与无变化静默保持，显式手动修复只接续已终态运行。"
       },
       {
         "id": "reportPath",
@@ -99,7 +98,7 @@
       "id": "api",
       "type": "backend",
       "label": "FastAPI BFF",
-      "sublabel": "同源 API · AlphaDesk 私有工作进程",
+      "sublabel": "AlphaDesk 私有进程",
       "pos": [
         275,
         380
@@ -309,7 +308,7 @@
       "id": "automationService",
       "type": "backend",
       "label": "Automation 与独立跟踪",
-      "sublabel": "原调度器 · 跟踪日限1次",
+      "sublabel": "原调度器 · 自动日限1次",
       "pos": [
         750,
         755
@@ -379,20 +378,36 @@
   "boundaries": [
     {
       "kind": "region",
-      "label": "Research Workbench 本地主机",
+      "label": "RWB Host 与专属 DSH",
       "wraps": [
         "api",
         "reportManager",
         "reportStore",
         "workbookTool",
-        "assemblyTool",
-        "snapshots",
+        "dsh",
         "mcpService",
         "mcpState",
         "assetWorkspace",
         "datahub",
         "automationState",
         "automationService",
+        "assetDirectoryCache"
+      ],
+      "pad": 24
+    },
+    {
+      "kind": "region",
+      "label": "Host · 组装与快照",
+      "wraps": [
+        "assemblyTool",
+        "snapshots"
+      ],
+      "pad": 24
+    },
+    {
+      "kind": "region",
+      "label": "Host · 长期档案",
+      "wraps": [
         "dossierStore"
       ],
       "pad": 24
@@ -467,7 +482,19 @@
       "variant": "emphasis",
       "labelAt": [
         470,
-        472
+        490
+      ],
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          357.5,
+          480
+        ],
+        [
+          595,
+          480
+        ]
       ]
     },
     {
@@ -667,32 +694,24 @@
     {
       "id": "automationClaw",
       "from": "automationService",
-      "to": "dsh",
-      "label": "独立 DSH 研究会话",
+      "to": "api",
+      "label": "委托 Host 执行",
       "variant": "emphasis",
       "fromSide": "top",
-      "toSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        600,
+        745
+      ],
       "via": [
         [
           852.5,
           735
         ],
         [
-          1510,
+          357.5,
           735
-        ],
-        [
-          1510,
-          340
-        ],
-        [
-          852.5,
-          340
         ]
-      ],
-      "labelAt": [
-        1450,
-        657
       ]
     },
     {
@@ -733,6 +752,60 @@
         1388,
         510
       ]
+    },
+    {
+      "id": "discoveryFeed",
+      "from": "api",
+      "to": "datahub",
+      "label": "Fed RSS 预览 / 冻结",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          357.5,
+          505
+        ],
+        [
+          730,
+          505
+        ],
+        [
+          730,
+          604
+        ]
+      ],
+      "labelAt": [
+        620,
+        546
+      ]
+    },
+    {
+      "id": "hostDsh",
+      "from": "api",
+      "to": "dsh",
+      "label": "Claw 原生调用",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          357.5,
+          500
+        ],
+        [
+          740,
+          500
+        ],
+        [
+          740,
+          419
+        ]
+      ],
+      "labelAt": [
+        620,
+        523
+      ]
     }
   ],
   "cards": [
@@ -756,8 +829,8 @@
       "dot": "amber",
       "title": "原Automation与窄跟踪",
       "items": [
-        "今日发现单独启用、日限1次且无MCP/外发；通用任务仍锁版本",
-        "原通用外发按5/30/120秒重试；研究失败不自动重试"
+        "Fed RSS 经 DataHub 冻结并沿 Host FinGPT 报告链；通用 Claw 继续使用专属 DSH",
+        "自动日限与同内容静默；手动只接续已终态运行，未知提交不重放"
       ]
     }
   ]

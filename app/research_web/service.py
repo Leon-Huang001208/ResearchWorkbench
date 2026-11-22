@@ -3514,13 +3514,18 @@ class ResearchService(ModelProfilesMixin):
                         requirements = list(
                             research_requirements or [discovery_context["question"]]
                         )
-                        requirements.extend(
-                            [
-                                "区分来源陈述、已核验事实与推断，引用固定资料版本。",
-                                "列明反方证据、失效条件和下一验证事项。",
-                                "保留陈旧资料、未知时间、来源与覆盖缺口，不将二手归档当网页全文。",
-                            ]
-                        )
+                        if discovery_context.get("source_kind") == "registered_feed":
+                            from .discovery.fed import REPORT_REQUIREMENTS
+
+                            requirements.append(REPORT_REQUIREMENTS)
+                        else:
+                            requirements.extend(
+                                [
+                                    "区分来源陈述、已核验事实与推断，引用固定资料版本。",
+                                    "列明反方证据、失效条件和下一验证事项。",
+                                    "保留陈旧资料、未知时间、来源与覆盖缺口，不将二手归档当网页全文。",
+                                ]
+                            )
                         as_of, quality_mode = (
                             research_as_of if scenario_context else discovery_context["cutoff"]
                         ), "deep"

@@ -117,6 +117,46 @@ def test_document_only_plan_cites_bound_source_and_covers_requirement():
     assert "来源记录发布日期：" + source["as_of"] in rendered
 
 
+def test_captured_rss_metadata_headings_replay_through_sdk():
+    _, context, plan, bundle, _ = document_case()
+    headings = [
+        "基线说明与新增/修订条目范围",
+        "新增/修订条目逐项清单（标题、原始发布日期、链接、RSS 摘要）",
+        "RSS 摘要范围、未知日期与未变化状态说明",
+        "反方证据、失效条件与下一验证事项",
+    ]
+    plan["sections"] = [
+        {**plan["sections"][0], "id": "heading_" + str(i), "heading": heading}
+        for i, heading in enumerate(headings)
+    ]
+    payload = build_business_report_plan(context, plan, bundle)["payload"]
+    assert [section["heading"] for section in payload["sections"]] == headings
+    assert all(
+        section["citations"] == [bundle["sources"][0]["id"]] for section in payload["sections"]
+    )
+    verify_system_report(payload, bundle, context)
+
+
+def test_ordinary_secondhand_and_next_words_are_not_quantities():
+    _, context, plan, bundle, _ = document_case()
+    plan["sections"][0]["heading"] = "二手资料与下一验证事项"
+    assert (
+        build_business_report_plan(context, plan, bundle)["payload"]["sections"][0]["heading"]
+        == "二手资料与下一验证事项"
+    )
+
+
+@pytest.mark.parametrize("field", ["heading", "analysis"])
+@pytest.mark.parametrize(
+    "text", ["新增/修订3%", "收入/资产", "下一验证事项含三项", "二手资料增长３％"]
+)
+def test_narrow_heading_idioms_keep_quantity_and_division_guards(field, text):
+    _, context, plan, bundle, _ = document_case()
+    plan["sections"][0][field] = text
+    with pytest.raises(ValueError, match="research_report_analysis_unbound"):
+        build_business_report_plan(context, plan, bundle)
+
+
 @pytest.mark.parametrize("field", ["text", "as_of", "content_scope"])
 def test_host_rebuild_rejects_changed_source_metadata_block_date_or_scope(field):
     _, context, plan, bundle, _ = document_case()
@@ -148,7 +188,13 @@ def test_document_plan_rejects_unknown_or_invalid_source_ids(references):
 
 
 @pytest.mark.parametrize(
-    "text", ["政策利率为3.5%。", "发布日期为2026-11-18。", "原件见https://example.test。"]
+    "text",
+    [
+        "政策利率为3.5%。",
+        "发布日期为2026-11-18。",
+        "原件见https://example.test。",
+        "https://example.test/新增/修订",
+    ],
 )
 def test_document_source_does_not_bind_analysis_quantities_dates_or_urls(text):
     _, context, plan, bundle, _ = document_case()

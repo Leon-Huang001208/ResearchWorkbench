@@ -23,9 +23,14 @@ def test_qa_report_schema_accepts_sdk_plan_and_rejects_scalar_array_fields():
 
     from app.research_web.resources.research_report_plan import build_business_report_plan
 
-    store = SimpleNamespace(session=lambda _sid: {"source_scope": ["uploads"]})
+    store = SimpleNamespace(
+        session=lambda _sid: {
+            "source_scope": ["uploads", "datahub"],
+            "purpose": "discovery_research",
+        }
+    )
     tools = qa_tools.TurnTools(
-        SimpleNamespace(store=store),
+        SimpleNamespace(store=store, discovery=SimpleNamespace(trusted_context=lambda _sid: None)),
         "schema-proof",
         {"research_contract": {"requirements": []}, "delivery": {"required_formats": ["md"]}},
         [],
@@ -34,6 +39,18 @@ def test_qa_report_schema_accepts_sdk_plan_and_rejects_scalar_array_fields():
         tool["function"]["parameters"]
         for tool in tools.schemas()
         if tool["function"]["name"] == "write_research_report"
+    )
+    for tool in tools.schemas():
+        if tool["function"]["name"] in {"read_frozen_dataset", "read_frozen_discovery"}:
+            assert tool["function"]["parameters"]["properties"]["offset"] == {
+                "type": "integer",
+                "minimum": 0,
+            }
+    assert (
+        "analysis" in schema["properties"]["plan"]["properties"]["sections"]["items"]["properties"]
+    )
+    assert {"summary", "calculations", "controls"} <= set(
+        schema["properties"]["plan"]["properties"]
     )
     context, plan, bundle = bound_plan()
     plan["summary"] = [
@@ -54,9 +71,205 @@ def test_qa_report_schema_accepts_sdk_plan_and_rejects_scalar_array_fields():
         assert any(list(error.path) == ["plan", field] for error in errors), field
 
 
+def test_qa_registered_feed_schema_exposes_metadata_plan_only():
+    store = SimpleNamespace(
+        session=lambda _sid: {
+            "source_scope": ["uploads", "datahub"],
+            "purpose": "discovery_research",
+        }
+    )
+    discovery = SimpleNamespace(
+        trusted_context=lambda _sid: {
+            "source_kind": "registered_feed",
+            "registered_feed_sources": {
+                "notice-a": {"id": "file:notice-a"},
+                "notice-b": {"id": "file:notice-b"},
+            },
+        }
+    )
+    tools = qa_tools.TurnTools(
+        SimpleNamespace(store=store, discovery=discovery),
+        "metadata-schema-proof",
+        {"research_contract": {"requirements": []}, "delivery": {"required_formats": ["md"]}},
+        [],
+    )
+    tool = next(
+        tool["function"]
+        for tool in tools.schemas()
+        if tool["function"]["name"] == "write_research_report"
+    )
+    schema = tool["parameters"]["properties"]["plan"]
+    assert set(schema["properties"]) == {"title", "sections", "missing"}
+    section = schema["properties"]["sections"]["items"]
+    assert set(section["properties"]) == {
+        "id",
+        "heading",
+        "source_ids",
+        "requirement_ids",
+        "evidence_ids",
+    }
+    assert set(section["required"]) == set(section["properties"])
+    assert section["properties"]["evidence_ids"]["maxItems"] == 0
+    assert section["properties"]["source_ids"]["minItems"] == 1
+    assert set(section["properties"]["source_ids"]["items"]["enum"]) == {
+        "file:notice-a",
+        "file:notice-b",
+    }
+    assert "聊天分析不进入正式摘要清单" in tool["description"]
+
+
 @pytest.mark.skipif(sys.platform != "darwin", reason="requires native report sandbox")
 @pytest.mark.asyncio
-async def test_qa_report_wrong_summary_type_then_valid_source_plan(tmp_path):
+async def test_registered_feed_metadata_report_rejects_unavailable_fields_then_writes_native(
+    tmp_path,
+    monkeypatch,
+):
+    from uuid import uuid4
+
+    from jsonschema import Draft202012Validator
+    from test_discovery import Research
+
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.datahub.providers import Result
+    from app.research_web.delivery import Delivery
+    from app.research_web.discovery import DiscoveryService, Prepare
+    from app.research_web.research_quality import make_contract
+
+    research = Research(tmp_path / "registered-report")
+    research.discovery = DiscoveryService(research)
+    research.delivery = Delivery(research.store)
+    origin_sid = research.store.create("fingpt", "原始 Fed 快照")["id"]
+    query = BusinessQuery(
+        capability="external_data", source="ext_fed", parameters={"dataset": "news"}
+    )
+    raw = (
+        b"<rss><channel><item><guid>report-item</guid><title>Board release</title>"
+        b"<link>https://www.federalreserve.gov/newsevents/pressreleases/other20261120a.htm</link>"
+        b"<pubDate>Fri, 20 Nov 2026 12:00:00 GMT</pubDate>"
+        b"<description>Official RSS summary.</description></item>"
+        b"<item><guid>report-followup</guid><title>Board followup</title>"
+        b"<link>https://www.federalreserve.gov/newsevents/pressreleases/other20261121a.htm</link>"
+        b"<pubDate>Sat, 21 Nov 2026 12:00:00 GMT</pubDate>"
+        b"<description>Official followup summary.</description></item></channel></rss>"
+    )
+    snapshot = research.datahub.snapshots.publish(
+        origin_sid,
+        query,
+        Result(
+            rows=[{"title": "Board release"}, {"title": "Board followup"}],
+            raw=[raw],
+            status="snapshot",
+            source_url="https://www.federalreserve.gov/feeds/press_all.xml",
+            provider_id="ext_fed",
+        ),
+        request_query=query,
+    )
+    feed = await research.discovery.registered_feed(origin_sid, dataset_id=snapshot["dataset_id"])
+    theme = feed["themes"][0]
+    frozen = await research.discovery.prepare(
+        Prepare(
+            request_id=str(uuid4()),
+            feed_id=feed["feed_id"],
+            horizon="short",
+            theme_id=theme["id"],
+            material_ids=[item["id"] for item in theme["materials"]],
+            target_mode="fingpt",
+            question="核对官方摘要",
+        )
+    )
+    sid = frozen["session_id"]
+    record = research.store.data["discovery_handoffs"][frozen["handoff_id"]]
+    assert research.discovery.trusted_context(sid)["source_kind"] == "registered_feed"
+    research.store.session(sid).update(
+        source_scope=["uploads", "datahub"], delivery_key="metadata-proof"
+    )
+    contract = make_contract("a" * 24, "核对官方摘要", ["公告来源与摘要"], "2026-11-23", "deep")
+    receipt = {
+        "research_contract": contract,
+        "delivery": {"task_id": contract["task_id"], "required_formats": ["md"]},
+    }
+    research.store.data["receipts"][sid + ":metadata-proof"] = receipt
+    research.store.save()
+    tools = qa_tools.TurnTools(research, sid, receipt, record["attachment_ids"])
+    native_runs = []
+    native_run = qa_tools.sandbox.run_script
+
+    def recorded_native_run(*args, **kwargs):
+        native_runs.append(True)
+        return native_run(*args, **kwargs)
+
+    monkeypatch.setattr(qa_tools.sandbox, "run_script", recorded_native_run)
+    schema = next(
+        tool["function"]["parameters"]
+        for tool in tools.schemas()
+        if tool["function"]["name"] == "write_research_report"
+    )
+    validator = Draft202012Validator(schema)
+    plan = {
+        "title": "美联储公告摘要",
+        "missing": [],
+        "sections": [
+            {
+                "id": "summary_" + str(i),
+                "heading": "公告摘要",
+                "source_ids": [source["id"]],
+                "evidence_ids": [],
+                "requirement_ids": ["r1"],
+            }
+            for i, source in enumerate(record["registered_feed_sources"].values())
+        ],
+    }
+    validator.validate({"plan": plan})
+    for field in ("analysis", "summary", "calculations", "controls", "undeclared"):
+        invalid = (
+            {**plan, "sections": [{**plan["sections"][0], "analysis": "共20条公告"}]}
+            if field == "analysis"
+            else {**plan, field: []}
+        )
+        assert list(validator.iter_errors({"plan": invalid})), field
+        response = await tools.call(
+            {"name": "write_research_report", "arguments": {"plan": invalid}}, None
+        )
+        assert response["data"] == {
+            "status": "unavailable",
+            "code": "qa_report_metadata_plan_required",
+        }
+        assert "source_ids" in response["warnings"][0] and "analysis" in response["warnings"][0]
+        assert (
+            not tools.report_written
+            and not (research.store.directory(sid) / "outputs/report.md").exists()
+        )
+    dataset_plan = {
+        **plan,
+        "sections": [{**plan["sections"][0], "source_ids": ["dataset:" + frozen["dataset_id"]]}],
+    }
+    assert list(validator.iter_errors({"plan": dataset_plan}))
+    incomplete_plan = {**plan, "sections": plan["sections"][:1]}
+    validator.validate({"plan": incomplete_plan})
+    for invalid, code in (
+        (dataset_plan, "qa_report_metadata_source_invalid"),
+        (incomplete_plan, "qa_report_metadata_sources_incomplete"),
+    ):
+        response = await tools.call(
+            {"name": "write_research_report", "arguments": {"plan": invalid}}, None
+        )
+        assert response["data"] == {"status": "unavailable", "code": code}
+        assert "file:" in response["warnings"][0]
+        assert not native_runs and not tools.report_written
+    response = await tools.call(
+        {"name": "write_research_report", "arguments": {"plan": plan}}, None
+    )
+    assert response["data"]["status"] == "generated", response
+    markdown = (research.store.directory(sid) / "outputs/report.md").read_text()
+    assert "Official RSS summary." in markdown and "Board release" in markdown
+    assert "2026-11-20" in markdown and "other20261120a.htm" in markdown
+    assert "Official followup summary." in markdown and len(native_runs) == 1
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires native report sandbox")
+@pytest.mark.parametrize("invalid_field", ["summary", "analysis"])
+@pytest.mark.asyncio
+async def test_qa_report_wrong_summary_type_then_valid_source_plan(tmp_path, invalid_field):
     from app.research_web.delivery import Delivery
     from app.research_web.research_quality import make_contract
 
@@ -96,11 +309,22 @@ async def test_qa_report_wrong_summary_type_then_valid_source_plan(tmp_path):
         ],
         "missing": [],
     }
+    invalid = (
+        {**plan, "summary": "摘要"}
+        if invalid_field == "summary"
+        else {**plan, "sections": [{**plan["sections"][0], "analysis": "政策利率为3.5%。"}]}
+    )
     rejected = await tools.call(
-        {"name": "write_research_report", "arguments": {"plan": {**plan, "summary": "摘要"}}},
+        {"name": "write_research_report", "arguments": {"plan": invalid}},
         None,
     )
-    assert rejected["data"] == {"status": "unavailable", "code": "qa_report_plan_failed"}
+    expected = (
+        "research_report_plan_limit"
+        if invalid_field == "summary"
+        else "research_report_analysis_unbound"
+    )
+    assert rejected["data"] == {"status": "unavailable", "code": expected}
+    assert "/" not in json.dumps(rejected) and "Traceback" not in json.dumps(rejected)
     assert not tools.report_written
     assert not (store.directory(sid) / "outputs/report.md").exists()
     result = await tools.call({"name": "write_research_report", "arguments": {"plan": plan}}, None)
@@ -109,6 +333,106 @@ async def test_qa_report_wrong_summary_type_then_valid_source_plan(tmp_path):
     assert "2026-11-18" in markdown and "monetary20261118a.htm" in markdown
     assert "官方 RSS 摘要：Minutes of the Federal Open Market Committee" in markdown
     assert tools.report_written and tools.calls == 2
+
+
+@pytest.mark.parametrize("discovery", [False, True])
+@pytest.mark.asyncio
+async def test_qa_frozen_pages_round_trip_below_worker_limit(tmp_path, discovery):
+    from app.research_web.datahub import DataHub
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.datahub.providers import Result
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "Frozen pagination proof")["id"]
+    store.session(sid)["source_scope"] = ["datahub"]
+    rows = [{"id": i, "description": ("统计公报😀\0" * 150)} for i in range(23)]
+    assert len(json.dumps(rows, ensure_ascii=False).encode("utf-16-le")) // 2 > 24000
+    datahub = DataHub(store)
+    query = BusinessQuery(
+        capability="external_data", source="ext_fed", parameters={"dataset": "news"}
+    )
+    manifest = datahub.snapshots.publish(
+        sid,
+        query,
+        Result(rows=rows, status="snapshot", provider_id="ext_fed", as_of="2026-11-23"),
+        request_query=query,
+    )
+    context = {
+        "handoff_id": "pagination-proof",
+        "dataset_id": manifest["dataset_id"],
+        "dataset_manifest_sha256": manifest["manifest_sha256"],
+        "cutoff": "2026-11-23T01:00:00+00:00",
+    }
+    if discovery:
+        store.session(sid)["purpose"] = "discovery_research"
+    service = SimpleNamespace(
+        store=store,
+        datahub=datahub,
+        discovery=SimpleNamespace(trusted_context=lambda _sid: context),
+    )
+    tools = qa_tools.TurnTools(service, sid, {"delivery": {"task_id": "a" * 24}}, [])
+    offset, pages, actual = 0, [], []
+    while offset is not None:
+        args = {"offset": offset, **({} if discovery else {"dataset_id": manifest["dataset_id"]})}
+        response = await tools.call(
+            {
+                "name": "read_frozen_discovery" if discovery else "read_frozen_dataset",
+                "arguments": args,
+            },
+            None,
+        )
+        page = response["data"]
+        assert (
+            len(json.dumps(page, ensure_ascii=False, separators=(",", ":")).encode("utf-16-le"))
+            // 2
+            <= qa_tools.SOURCE_PAGE_JSON_LIMIT
+        )
+        assert page["offset"] == offset and page["total"] == len(rows)
+        assert page["dataset_id"] == manifest["dataset_id"]
+        assert page["manifest_sha256"] == manifest["manifest_sha256"]
+        if discovery:
+            assert page["cutoff"] == context["cutoff"]
+        actual.extend(page["items"])
+        pages.append(page)
+        offset = page["next_offset"]
+    assert len(pages) > 1 and actual == rows
+
+
+@pytest.mark.asyncio
+async def test_qa_report_unknown_error_keeps_generic_code_without_stderr(monkeypatch):
+    from pathlib import Path
+
+    store = SimpleNamespace(
+        session=lambda _sid: {"source_scope": []}, directory=lambda _sid: Path("/")
+    )
+    receipt = {
+        "research_contract": {
+            "task_id": "a" * 24,
+            "sha256": "b" * 64,
+            "as_of": "2026-11-23",
+            "requirements": [{"id": "r1"}],
+        },
+        "delivery": {"task_id": "a" * 24, "required_formats": ["md"]},
+    }
+    tools = qa_tools.TurnTools(
+        SimpleNamespace(store=store, delivery=SimpleNamespace(config=None)),
+        "error-proof",
+        receipt,
+        [],
+    )
+    monkeypatch.setattr(qa_tools, "write_business_snapshot", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        qa_tools.sandbox,
+        "run_script",
+        lambda *_args: qa_tools.sandbox.ScriptResult(
+            "failed",
+            stderr="Traceback: /private/credential-file\nValueError: private-error-data\n",
+            exit_code=1,
+        ),
+    )
+    result = await tools.call({"name": "write_research_report", "arguments": {"plan": {}}}, None)
+    assert result["data"] == {"status": "unavailable", "code": "qa_report_plan_failed"}
+    assert "private" not in json.dumps(result) and "Traceback" not in json.dumps(result)
 
 
 @pytest.mark.asyncio
@@ -144,6 +468,124 @@ def isolate_qa_runtime(monkeypatch):
     monkeypatch.delenv("RWB_ALPHADESK_QA", raising=False)
     monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "0")
     monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source_kind", ["registered_feed", "event"])
+async def test_send_freezes_discovery_requirements_for_actual_source_scope(
+    tmp_path, monkeypatch, source_kind
+):
+    import asyncio
+    from uuid import uuid4
+
+    from test_discovery import ARTICLE, EVENT
+
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.datahub.providers import Result
+    from app.research_web.discovery import DiscoveryService, Prepare
+    from app.research_web.discovery.fed import REPORT_REQUIREMENTS
+
+    async def connection(_service, _row):
+        return ("test", "test", None, "test")
+
+    observed = []
+
+    async def worker(request, _callbacks, _emit):
+        observed.append(request)
+        # Stop at the real worker boundary: no model call or report is simulated.
+
+    async def reader(path, params=None):
+        if path == "/radar":
+            return {"industries": [], "stats": {}}
+        if path == "/intelligence":
+            return {
+                "as_of": None,
+                "cache_stale": True,
+                "logics": [{"id": "technology", "name": "科技"}],
+                "reading": [EVENT],
+                "daily_reading": {"analysis_error": "ValueError"},
+            }
+        return {"event": EVENT, "articles": [ARTICLE], "revisions": [], "retrieved_at": None}
+
+    monkeypatch.setenv("RWB_ALPHADESK_QA", "1")
+    monkeypatch.setattr(qa_model, "connection", connection)
+    monkeypatch.setattr(qa_execution, "run_worker", worker)
+    service = ResearchService(NativeFixture(), Store(tmp_path / "data"))
+    service.discovery = DiscoveryService(service, reader=reader)
+    try:
+        if source_kind == "registered_feed":
+            origin_sid = service.store.create("fingpt", "原始 Fed 快照")["id"]
+            query = BusinessQuery(
+                capability="external_data", source="ext_fed", parameters={"dataset": "news"}
+            )
+            raw = (
+                b"<rss><channel><item><guid>send-contract</guid><title>Board release</title>"
+                b"<link>https://www.federalreserve.gov/newsevents/pressreleases/other20261120a.htm</link>"
+                b"<pubDate>Fri, 20 Nov 2026 12:00:00 GMT</pubDate>"
+                b"<description>Official RSS summary.</description></item></channel></rss>"
+            )
+            manifest = service.datahub.snapshots.publish(
+                origin_sid,
+                query,
+                Result(
+                    rows=[{"title": "Board release"}],
+                    raw=[raw],
+                    status="snapshot",
+                    source_url="https://www.federalreserve.gov/feeds/press_all.xml",
+                    provider_id="ext_fed",
+                ),
+                request_query=query,
+            )
+            feed = await service.discovery.registered_feed(
+                origin_sid, dataset_id=manifest["dataset_id"]
+            )
+        else:
+            feed = await service.discovery.feed(horizon="short")
+        theme = feed["themes"][0]
+        frozen = await service.discovery.prepare(
+            Prepare(
+                request_id=str(uuid4()),
+                feed_id=feed["feed_id"],
+                horizon="short",
+                theme_id=theme["id"],
+                material_ids=[item["id"] for item in theme["materials"]],
+                target_mode="fingpt",
+                question="核对本轮冻结资料",
+            )
+        )
+        sid = frozen["session_id"]
+        context = service.discovery.trusted_context(sid)
+        assert context.get("source_kind", "event") == source_kind
+        record = service.store.data["discovery_handoffs"][frozen["handoff_id"]]
+        key = "source-scope-contract"
+        result = await service.send(
+            sid,
+            "核对本轮冻结资料",
+            key,
+            attachments=record.get("attachment_ids", []),
+            formats=["md"],
+            research_requirements=["保留调用方范围"],
+        )
+        assert result == {"accepted": True}
+        await asyncio.gather(*list(service.qa.tasks.values()))
+        receipt = service.store.data["receipts"][sid + ":" + key]
+        requirements = [row["text"] for row in receipt["research_contract"]["requirements"]]
+        expected = (
+            [REPORT_REQUIREMENTS]
+            if source_kind == "registered_feed"
+            else [
+                "区分来源陈述、已核验事实与推断，引用固定资料版本。",
+                "列明反方证据、失效条件和下一验证事项。",
+                "保留陈旧资料、未知时间、来源与覆盖缺口，不将二手归档当网页全文。",
+            ]
+        )
+        assert requirements == ["保留调用方范围", *expected]
+        assert receipt["research_contract"]["as_of"] == context["cutoff"]
+        assert len(observed) == 1
+        assert service.qa.ledger(sid)["status"] == "failed"
+        assert not (service.store.directory(sid) / "outputs/report.md").exists()
+    finally:
+        await service.close()
 
 
 def test_qa_uses_owned_worker_and_replays_same_submission(tmp_path, monkeypatch):

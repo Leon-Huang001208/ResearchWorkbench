@@ -254,12 +254,15 @@ async def test_unchanged_skips_model_and_changed_runs_once(tmp_path):
 
 @pytest.mark.asyncio
 async def test_registered_fed_snapshot_freezes_owned_rss_sources(tmp_path, monkeypatch):
+    import inspect
+
     from test_discovery import Research
 
     from app.research_web.datahub.contracts import BusinessQuery
     from app.research_web.datahub.providers import Result
     from app.research_web.discovery import DiscoveryService, Prepare
     from app.research_web.research_quality_service import source_context
+    from app.research_web.service import ResearchService
 
     research = Research(tmp_path / "fed")
     sid = research.store.create("fingpt", "原冻结 Fed 资料")["id"]
@@ -315,8 +318,18 @@ async def test_registered_fed_snapshot_freezes_owned_rss_sources(tmp_path, monke
     assert record["registered_feed_sources"]
     trusted = discovery.trusted_context(frozen["session_id"])
     assert trusted["registered_feed_sources"] == record["registered_feed_sources"]
+    fixture_send = research.send
+
+    async def signature_checked_send(sid, text, key, **kwargs):
+        # A permissive fixture must still obey the actual Host call boundary.
+        bound = inspect.signature(ResearchService.send).bind(research, sid, text, key, **kwargs)
+        assert bound.arguments["attachments"] == record["attachment_ids"]
+        return await fixture_send(sid, text, key, **kwargs)
+
+    monkeypatch.setattr(research, "send", signature_checked_send)
     await discovery.execute(frozen["handoff_id"], str(uuid4()))
-    assert research.send_calls[0][3]["attachment_ids"] == record["attachment_ids"]
+    assert research.send_calls[0][3]["attachments"] == record["attachment_ids"]
+    assert "核验原始披露，列反证" not in research.send_calls[0][1]
     from datetime import timedelta
 
     class Later(datetime):
@@ -368,6 +381,8 @@ class FedDiscovery(Discovery):
         item = result["themes"][0]["materials"][0]
         item.pop("event_id")
         item["content_sha256"] = hashlib.sha256(self.revision.encode()).hexdigest()
+        if hasattr(self, "materials"):
+            result["themes"][0]["materials"] = copy.deepcopy(self.materials)
         return result
 
     async def registered_feed(self, sid, horizon):
@@ -380,6 +395,7 @@ class FedDiscovery(Discovery):
 
     async def prepare(self, body, *, require_fresh=False):
         assert require_fresh
+        self.selections = [*getattr(self, "selections", []), list(body.material_ids)]
         return await super().prepare(body)
 
 
@@ -392,6 +408,214 @@ def fed_tracking_setup(tmp_path):
     return tracking, research, discovery
 
 
+def fed_materials(*identifiers):
+    return [
+        {
+            "id": identifier,
+            "content_sha256": hashlib.sha256(identifier.encode()).hexdigest(),
+            "source_kind": "registered_feed",
+        }
+        for identifier in identifiers
+    ]
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_rebuilds_only_exact_owned_baseline_manifest(tmp_path):
+    from test_discovery import Research
+
+    from app.research_web.datahub.contracts import BusinessQuery
+    from app.research_web.datahub.providers import Result
+    from app.research_web.discovery import DiscoveryService
+    from app.research_web.discovery.fed import REPORT_REQUIREMENTS, URL
+
+    research = Research(tmp_path / "baseline")
+    sid = research.store.create("fingpt", "原始 RSS 观测")["id"]
+    query = BusinessQuery(
+        capability="external_data", source="ext_fed", parameters={"dataset": "news"}
+    )
+    raw = b"<rss><channel><item><title>Original item</title><link>https://www.federalreserve.gov/newsevents/pressreleases/original.htm</link><pubDate>Tue, 17 Nov 2026 12:00:00 GMT</pubDate></item></channel></rss>"
+    original = research.datahub.snapshots.publish(
+        sid,
+        query,
+        Result(
+            rows=[{"title": "Original item"}],
+            raw=[raw],
+            status="snapshot",
+            provider_id="ext_fed",
+            source_url=URL,
+        ),
+        request_query=query,
+    )
+    discovery = DiscoveryService(research)
+    research.automations = AutomationService(research.store, research=research, scheduler=False)
+    tracking = DiscoveryTracking(research, discovery)
+    feed = await discovery.registered_feed(sid, dataset_id=original["dataset_id"])
+    saved = await tracking.save(
+        {
+            "request_id": str(uuid4()),
+            "feed_id": feed["feed_id"],
+            "horizon": "short",
+            "theme_id": "fed_press_all",
+            "condition": "核对官方 RSS 元数据",
+            "frequency": "daily",
+            "time": "09:00",
+        }
+    )
+    row = research.store.data["discovery_tracks"][saved["id"]]
+    assert (
+        research.automations._row(saved["id"])["research_task"]["output_requirements"]
+        == REPORT_REQUIREMENTS
+    )
+    assert row["registered_feed_baseline"] == {
+        key: feed[key]
+        for key in ("source_session_id", "source_dataset_id", "source_manifest_sha256")
+    }
+    expected = row.pop("baseline_materials")
+    assert tracking._registered_baseline(row) == expected
+    assert (
+        research.datahub.snapshots.detail(sid, original["dataset_id"])["retrieved_at"]
+        == original["retrieved_at"]
+    )
+    row.pop("baseline_materials")
+    row["registered_feed_baseline"]["source_manifest_sha256"] = "0" * 64
+    with pytest.raises(StoreError) as changed:
+        tracking._registered_baseline(row)
+    assert changed.value.code == "discovery_feed_baseline_unverified"
+    row.pop("registered_feed_baseline")
+    with pytest.raises(StoreError) as missing:
+        tracking._registered_baseline(row)
+    assert missing.value.code == "discovery_feed_baseline_unverified"
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_selects_only_four_changes_and_advances_only_after_acceptance(
+    tmp_path,
+):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    discovery.materials = fed_materials(*(f"old-{index}" for index in range(16)))
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    baseline = {item["id"]: item["content_sha256"] for item in discovery.materials}
+    discovery.materials += fed_materials("new-a", "new-b", "new-c", "new-d")
+    current = {item["id"]: item["content_sha256"] for item in discovery.materials}
+    detail = research.detail
+
+    async def incomplete(sid):
+        value = await detail(sid)
+        value["research_quality"]["status"] = "incomplete"
+        return value
+
+    research.detail = incomplete
+    first = await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    track = research.store.data["discovery_tracks"][saved["id"]]
+    first_row = research.automations._run_row(first["id"])
+    assert discovery.selections == [["new-a", "new-b", "new-c", "new-d"]]
+    assert first_row["discovery_current_materials"] == current
+    assert track["baseline_materials"] == baseline
+    assert track.get("last_accepted_materials") is None
+    research.detail = detail
+    await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    assert discovery.selections == [["new-a", "new-b", "new-c", "new-d"]] * 2
+    assert track["last_accepted_materials"] == current
+    assert track["baseline_materials"] == baseline
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_window_removal_is_not_new_material(tmp_path):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    discovery.materials = fed_materials("old-a", "old-b", "old-c")
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    discovery.materials = fed_materials("old-b", "old-c")
+    run = await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    actual = research.automations._run_row(run["id"])
+    assert actual["research_status"] == "skipped_no_new_material"
+    assert len(actual["discovery_current_materials"]) == 2
+    assert discovery.sent == 0
+    track = research.store.data["discovery_tracks"][saved["id"]]
+    assert len(track["baseline_materials"]) == 3
+    assert track.get("last_accepted_materials") is None
+    # A prior item returning to the window is not a new/modified announcement.
+    discovery.materials = fed_materials("old-a", "old-b", "old-c")
+    restored = await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    assert (
+        research.automations._run_row(restored["id"])["research_status"]
+        == "skipped_no_new_material"
+    )
+    assert discovery.sent == 0
+    assert track.get("last_attempt_day") is None
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_accepted_window_keeps_prior_seen_items(tmp_path):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    discovery.materials = fed_materials("item-a", "item-b")
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    discovery.materials = fed_materials("item-b", "item-c")
+    await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    track = research.store.data["discovery_tracks"][saved["id"]]
+    assert discovery.selections == [["item-c"]]
+    assert track["last_accepted_materials"] == {
+        item["id"]: item["content_sha256"] for item in fed_materials("item-a", "item-b", "item-c")
+    }
+    discovery.materials = fed_materials("item-a", "item-b", "item-c")
+    restored = await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    assert (
+        research.automations._run_row(restored["id"])["research_status"]
+        == "skipped_no_new_material"
+    )
+    assert discovery.sent == 1
+    # Keep each ID's latest accepted hash, so a real revision and later rollback are changes.
+    discovery.materials[0]["content_sha256"] = hashlib.sha256(b"revised-a").hexdigest()
+    await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    assert discovery.selections[-1] == ["item-a"]
+    assert track["last_accepted_materials"]["item-a"] == hashlib.sha256(b"revised-a").hexdigest()
+    discovery.materials = fed_materials("item-a", "item-b", "item-c")
+    await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    assert discovery.selections[-1] == ["item-a"]
+    assert track["last_accepted_materials"]["item-a"] == hashlib.sha256(b"item-a").hexdigest()
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_seen_union_distinguishes_same_window_and_explicit_manual(tmp_path):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    discovery.materials = fed_materials(*(f"item-{index}" for index in range(20)))
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    discovery.materials = fed_materials(*(f"item-{index}" for index in range(4, 24)))
+    await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    track = research.store.data["discovery_tracks"][saved["id"]]
+    assert len(track["last_accepted_materials"]) == 24
+    assert discovery.sent == 1
+    unchanged = await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    assert research.automations._run_row(unchanged["id"])["research_status"] == "skipped_unchanged"
+    discovery.materials = fed_materials(*(f"item-{index}" for index in range(5, 24)))
+    window = await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    assert (
+        research.automations._run_row(window["id"])["research_status"] == "skipped_no_new_material"
+    )
+    assert discovery.sent == 1
+    manual = await research.automations.run(
+        saved["id"], request_id=str(uuid4()), expected_version=1
+    )
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 2
+    assert discovery.selections[-1] == [item["id"] for item in discovery.materials]
+    assert (
+        research.automations._run_row(manual["id"])["discovery_selection_state"]
+        == "unchanged_current"
+    )
+    assert len(track["last_accepted_materials"]) == 24
+
+
 @pytest.mark.asyncio
 async def test_registered_feed_manual_once_then_real_scheduled_change(tmp_path, monkeypatch):
     monkeypatch.setattr("app.research_web.qa_acceptance.acceptance_enabled", lambda: True)
@@ -400,13 +624,18 @@ async def test_registered_feed_manual_once_then_real_scheduled_change(tmp_path, 
     saved = await tracking.save(request)
     assert discovery.sent == 0
     assert tracking.enable(saved["id"], 1)["enabled"]
-    await research.automations.run(saved["id"])
+    manual_request = str(uuid4())
+    first = await research.automations.run(
+        saved["id"], request_id=manual_request, expected_version=1
+    )
     await research.automations.wait_for_idle()
     assert discovery.sent == 1
-    await research.automations.run(saved["id"])
+    replay = await research.automations.run(
+        saved["id"], request_id=manual_request, expected_version=1
+    )
     await research.automations.wait_for_idle()
     assert discovery.sent == 1
-    assert tracking.list()["items"][0]["runs"][0]["execution_status"] == "skipped_unchanged"
+    assert replay["id"] == first["id"]
     # Same content with a different acquired snapshot ID cannot trigger another call.
     await research.automations.tick(datetime(2026, 10, 24, 1, tzinfo=UTC))
     await research.automations.wait_for_idle()
@@ -422,6 +651,81 @@ async def test_registered_feed_manual_once_then_real_scheduled_change(tmp_path, 
     assert actual["discovery_source_dataset_id"]
     assert actual["discovery_accepted"] is True
     assert tracking.disable(saved["id"], 1)["enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_manual_can_repair_completed_incomplete_without_resetting_auto_limit(
+    tmp_path,
+):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    original_detail = research.detail
+
+    async def incomplete(sid):
+        result = await original_detail(sid)
+        result["research_quality"]["status"] = "incomplete"
+        return result
+
+    research.detail = incomplete
+    first = await research.automations.run(saved["id"], request_id=str(uuid4()), expected_version=1)
+    await research.automations.wait_for_idle()
+    first_row = research.automations._run_row(first["id"])
+    assert first_row["research_status"] == "completed"
+    assert first_row["discovery_quality_status"] == "incomplete"
+    track = research.store.data["discovery_tracks"][saved["id"]]
+    attempted_day = track["last_attempt_day"]
+    research.detail = original_detail
+    request_id = str(uuid4())
+    repaired = await research.automations.run(
+        saved["id"], request_id=request_id, expected_version=1
+    )
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 2
+    assert repaired["id"] != first["id"]
+    assert research.automations._run_row(repaired["id"])["discovery_accepted"] is True
+    assert track["last_attempt_day"] == attempted_day
+    assert first_row["discovery_quality_status"] == "incomplete"
+    assert track["last_attempt_run_id"] == repaired["id"]
+    assert (await research.automations.run(saved["id"], request_id=request_id, expected_version=1))[
+        "id"
+    ] == repaired["id"]
+    assert discovery.sent == 2
+    # Scheduled checks still deduplicate and retain the same-day automatic limit.
+    await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    last = research.automations._run_row(research.automations._row(saved["id"])["last_run_id"])
+    assert last["research_status"] == "skipped_unchanged"
+    discovery.revision = "new-official-content"
+    await research.automations.run(saved["id"], trigger="schedule")
+    await research.automations.wait_for_idle()
+    last = research.automations._run_row(research.automations._row(saved["id"])["last_run_id"])
+    assert last["failure_code"] == "discovery_daily_model_limit"
+    assert discovery.sent == 2
+
+
+@pytest.mark.asyncio
+async def test_registered_feed_new_manual_never_replays_unknown_attempt(tmp_path):
+    tracking, research, discovery = fed_tracking_setup(tmp_path)
+    saved = await tracking.save({**body(discovery), "theme_id": "fed_press_all"})
+    discovery.state = "execution_outcome_unknown"
+    request_id = str(uuid4())
+    first = await research.automations.run(saved["id"], request_id=request_id, expected_version=1)
+    await research.automations.wait_for_idle()
+    assert research.automations._run_row(first["id"])["research_status"] == "interrupted"
+    assert discovery.sent == 1
+    assert (await research.automations.run(saved["id"], request_id=request_id, expected_version=1))[
+        "id"
+    ] == first["id"]
+    discovery.revision, discovery.state = "new-observed-content", "running"
+    second = await research.automations.run(
+        saved["id"], request_id=str(uuid4()), expected_version=1
+    )
+    await research.automations.wait_for_idle()
+    assert discovery.sent == 1
+    assert (
+        research.automations._run_row(second["id"])["failure_code"]
+        == "discovery_previous_run_unconfirmed"
+    )
 
 
 @pytest.mark.asyncio

@@ -156,17 +156,17 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "1e4c52c8a87088b286c831dbf4988c3bf6278fc9ce5e43d46db9f98a61e994bd",
-      "specificationSha256": "f80004cfef8e4b02b7bb77fcc22757d8ab9161db91f193e3790d4102db3a4d0a",
+      "artifactSha256": "f7b86cdc74504669e9de05a88620befdb01e965394a09c8288e68e213fc8fb67",
+      "specificationSha256": "6478afdec8d190e34ebb2d29096610d174c5134ccadfb27315a220b8f8ffea89",
       "status": "reviewed",
       "reviewer": "Codex agent (actual screenshot inspection, not human approval)",
-      "date": "2026-11-13",
+      "date": "2026-11-23",
       "captures": [
         "02-module-dependencies.visual-check.1440x900.light.png",
         "02-module-dependencies.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "实际查看 1440 浅色和 2048 深色同哈希截图。问答工作进程与 DSH 专业协作标签可读。四视口通过。"
+      "notes": "实际查看1440浅色与2048深色同哈希截图，节点位置保持；Fed RSS到DataHub、Automation委托Host及Claw原生调用可读。四视口自动Reader检查通过；1440使用可读纵向滚动，不宣称全页无滚动。"
     },
     {
       "id": "11-hot-events",

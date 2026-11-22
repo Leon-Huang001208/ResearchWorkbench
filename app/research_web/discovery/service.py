@@ -776,7 +776,11 @@ class DiscoveryService:
                 + record["dataset_id"]
                 + " 的 manifest.json，预期SHA-256="
                 + record["dataset_manifest_sha256"]
-                + "。基于本次冻结选材开展研究；区分事实、第三方观点与推断，核验原始披露，列反证、失效条件、未知时间和覆盖缺口。"
+                + (
+                    "。" + fed.REPORT_REQUIREMENTS
+                    if record.get("source_kind") == "registered_feed"
+                    else "。基于本次冻结选材开展研究；区分事实、第三方观点与推断，核验原始披露，列反证、失效条件、未知时间和覆盖缺口。"
+                )
                 + record.get("source_policy", SOURCE_POLICY)
                 + " 输出须沿现有研究报告与质量检查流程；未经质量门不能宣称研究通过。不要自行开启跟踪、创建日程或外部投递。"
             )
@@ -811,7 +815,7 @@ class DiscoveryService:
                     formats=["md"],
                     **tool_scope,
                     **(
-                        {"attachment_ids": record["attachment_ids"]}
+                        {"attachments": record["attachment_ids"]}
                         if "attachment_ids" in record
                         else {}
                     ),
