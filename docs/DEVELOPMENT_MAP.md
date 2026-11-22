@@ -317,6 +317,8 @@ SDK可导入、离线合成通过与真实连续运行分别取证。
 
 账号UI位于 `ui/server/account-menu.mjs`、`account-workspace.mjs` 与共用 `account-api.mjs`：身份顶部进资料、admin设置管理、保留DOM表单与旧primary适配。`accounts.mjs`只负责登录及旧/account跳转；相邻account_workspace/menu/session/settings JS测试与隔离浏览器证据分别验证行为。
 
+主账号数据源入口的 `ui/server/session.mjs`、`profile.css` 与 `research_web_multiuser_session`／`research_web_mcp_login` 两份 JS 测试已显式加入既有 Mac Bootstrap PR/push 路径；原静态冒烟块核对两个 wheel 服务器资源的字节。原 Mac job 与安装流程保持，不增加 job、runner、权限、依赖或时限，最终候选 CI 及生产页面验收仍待执行。
+
 网关`apply-ui`与version 2恢复合同在`gateway_upgrade.py`；`test_gateway_upgrade.py`及两个冻结恢复fixture覆盖新旧helper、工具/产品隔离、资格失败和六阶段恢复。操作合同见[网关升级](research-web-gateway-upgrade.md)。
 
 供应商参数根object回归位于test_sandbox.py::test_native_tool_schemas_match_pinned_dsh_converter：固定DSH转换、真实pi-ai序列化及fake fetch一并验证；research-tools.mjs保留执行时code/report_plan互斥和全部预算。

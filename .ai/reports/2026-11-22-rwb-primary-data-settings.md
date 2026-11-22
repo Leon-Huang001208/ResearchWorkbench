@@ -1,6 +1,6 @@
 # 主账号设置中的数据源入口
 
-宿主：Mac mini／macOS；任务：Web UI 最小修复。本轮只验本机相关 JavaScript 与隔离 Chrome CSS，不提供 Windows/Linux 原生、生产登录或部署验收。
+宿主：Mac mini／macOS；任务：Web UI 最小修复及显式网关候选准入修补。本轮只验本机相关 JavaScript、隔离 Chrome CSS 与两项操作员准入回归，不提供 Windows/Linux 原生、生产登录或部署验收。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本次仅将既有服务器可信主账号布尔值投影到页面，并缩小原样式隐藏规则的适用范围。沿用原设置路由与账号接口，不新增后端、权限、数据流、依赖或运行节点。","diagrams":[]} -->
 
@@ -23,5 +23,13 @@
 安装契约已核对：`requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 和安装文档无需因本次无依赖、无安装步骤变化而修改。实际先验发现 Bootstrap 原 PR/push 清单各缺本次四个确切路径，覆盖断言 RED exit 1；现分别补齐，并在原静态资源冒烟 Python 块逐字节核对已安装 wheel 中 `ui/server/session.mjs`、`ui/server/profile.css` 与 checkout，复用原 `asset-static-smoke.json`，明确记录 `installed-wheel`。未新增服务、job、runner、权限、依赖、timeout 或他平台 dispatch；现有单用户 Host 不承担多用户 `/server-static/` 入口验收，生产 gateway 仍须另验。
 
 正式 Router 对原四路径选 L4/full-delivery，两个测试留有 unknown-path 风险；新增文档及 workflow 后须按最终完整候选重规划。CI 触发已补不代表本轮 CI 已实际运行，Mac 干净安装、固定 DSH、3081/8088、Doctor 及 wheel 资源比较均仍待最终候选 CI。
+
+现有项目约束还要求补齐 README unchanged 复核、三份共享 UI 模块说明及四份工作流／预算文档；本轮均以最小局部说明记录入口修复、原模块流程不变及现有 Mac job 的覆盖变化。最终 changed set 以同任务当前受管候选为准，不沿用前一候选范围或检查身份。
+
+显式网关准入另发现：`apply-ui` 误用 resident 的旧 `source_common` 查询候选 delivery，无法找到已审 `--source` 仓库中的回执。`research_workbench_entrypoint/resident/gateway_upgrade.py` 现只在静态 UI 模式用传入 source 的绝对 Git common 查询候选证据，普通 apply 和后续现役网关对原 `resident.source_common` 的身份比较保持；原日志、命令失败与资格错误传播继续复用。未修改运行配置、controller.pyz 或真实交付记录。
+
+相邻新增参数化测试共两例，只在私有测试目录放置合成候选回执、模拟外部资格边界：旧实现两例均因误查旧 common 报 `resident_delivery_missing`；修复后正常候选通过交付和现役身份检查进入原 `verify_primary`，替换现役 common 仍在 journal／恢复安装／signal 前拒绝。正常例在该边界主动结束，不冒称整部署已通过；首次越出此范围触及旧夹具的 `.venv` 解释器假定后，已将测试限定回本次准入段，未修改解释器保护。
+
+最终两条展开的 pytest nodeid 在原留存入口 `run --mode wip` 实际 2/2 PASS、0 SKIP，成功根已正常退休并回收 28672 字节。前一次 2 PASS 因只登记参数化基名一条而被留存计数核对拒绝，已用两条确切 nodeid 更正，不改旧回执；Ruff、Black、isort 两文件检查及 diff 检查通过。Python 独立评审与最终候选 CI 由主任务接续，不把本地合成准入回归计作真实 GitHub 交付或生产部署证明。
 
 源码提交、最终候选 CI、Mac 干净安装、受管部署及生产三身份复验仍由主任务接续；未在本报告中标为通过。未新增依赖、模型调用或全链路验收。
