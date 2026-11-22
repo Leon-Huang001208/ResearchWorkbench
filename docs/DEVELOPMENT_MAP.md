@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+普通源码退出位于 `scripts/git_safety.mjs` 的 `runDelivery` cleanup，复用原共享控制器和任务/合并/clean/无占用检查；不默认备份、恢复重演或等待部署。回归在 `tests/javascript/git_safety.test.mjs`，`cleanupScope=source` 将源码状态与业务资源分开。
+
 `resident/model_provider_upgrade.py` 的 `operate` 在当前五个
 `ATTACHED_MCP_PRESERVATION_MODES` 的 forward apply 及非 `post_deploy_rollback(state)`
 preparing 恢复中，取得原 BirthFence／安装作用域后执行 `validate_configuration`
