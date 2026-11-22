@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+Docker 发布属于管理员管理能力，经原 release 入口使用，不增加研究 Agent 工具授权或 Docker socket 权限。发布维护为现有执行链的生命周期门，不产生新 Skill、数据库或研究模型。
+
 Python工具目录同步既有原生输入元数据：DataHub用途／质量／历史时点及脚本 `code`／`report_plan` 二选一。固定DSH注册夹具包含实际ask-user与specialists插件，独立无DSH回归核对本地runtime参数；这些声明不创建grant、不升级质量，也不改变执行权限或研究拓扑。
 
 当前知识工具 `research_search_knowledge`／`research_read_knowledge` 登记在原能力目录，经可信session和DataKey调用Host；模型不能配置库、改root、启用同步或冻结证据。入站四项只读MCP、技能／Workflow发布和版本门保持，固定报告仍须批准scope。见[资料合同](../../research-web-weknora.md)。

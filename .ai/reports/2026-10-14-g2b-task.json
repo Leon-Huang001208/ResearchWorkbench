@@ -1,0 +1,9 @@
+{
+  "hostPlatform": "macos",
+  "taskKind": "feature-development",
+  "objective": "G2B immutable release promotion and rollback on an isolated Docker rehearsal",
+  "acceptanceScope": "macOS Docker Desktop and required macOS installation CI; Linux and Windows native handoffs remain separate",
+  "candidateCommit": "ee2461d662b4b13125162936808d410da2e8d768",
+  "candidateBaseCommit": "85831c7d70c89fb86fff4b220b5598aa1fe6c67c",
+  "supplementalGateIds": ["research-web-bootstrap"]
+}

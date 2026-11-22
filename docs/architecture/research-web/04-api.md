@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`GET /api/research/release` 读取受管镜像内的不可变发布身份；普通运行返回 `managed:false`。维护控制只使用原容器内私有 Unix socket，不暴露外部写 API；新的受管写请求在维护中返回 `503 release_maintenance`。
+
 附接 MCP 保全的围栏内复核只调整现有本机操作员 `operate` 的 forward／限定 preparing
 恢复顺序，不新增 CLI 模式、业务 HTTP 方法、路径、请求字段或权限。前版健康由原
 `Operations.verify(previous=True)` 读取；该校验不提交模型、采集或研究请求。

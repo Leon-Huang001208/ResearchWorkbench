@@ -567,3 +567,12 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 AlphaDesk 问答资源在专用 Node 构建阶段按 lock 生成，打包前核对摘要。Mac Docker 的实际候选验收以受管构建和健康探针为准。
 
 原任务资源登记在重新挂载后可刷新当前Git登记匹配且inode未变的设备号。这一观察步骤不启动、停止或删除Docker对象，不改其镜像／卷／容量合同；清理仍由相应现有入口判断实际归属和占用。
+
+
+## G2B 冻结制品与受管切换
+
+`rwb-docker release <id>` 将 prepare/build/seal/verify/import/accept/deploy-plan/rollback-plan/apply 分开。源码与控制器按完整 Git 提交封存，stage 验收与晋级使用同一镜像身份；plan 指向目标实例、前版与候选，切换和恢复继续经原 Manager。
+
+固定 DSH 使用当前 `runtimes/research_web.json`；Hot 锁定依赖与 SQL 文件进入镜像，格式识别只读取源码与迁移身份，不应用 SQL。Hot 状态尚无停写/回滚证明时，发布会明确拒绝，不能用“进程已停止”认证该数据可晋级。
+
+维护控制仅在受管发布镜像启用，通过容器内部 Unix socket 排空，已有研究继续、新后台任务等待。原实例五卷、密钥与当前业务原件保持，不自动替换日常生产；镜像与目标的真实验收结果单列。2026-11-22 正常合入主线后重新验证相关发布/维护合同；此前 #140 构建和历史 r0d/r1a/r2 结果不认证新的 G2B 候选。

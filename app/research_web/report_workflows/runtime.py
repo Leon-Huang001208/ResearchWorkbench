@@ -21,6 +21,7 @@ from core.observability import get_logger
 
 from ..client import RuntimeFailure
 from ..delivery import FINAL
+from ..maintenance import task_admission
 from ..projection import content_text
 from ..report_rendering import render_report_payload
 from ..store import StoreError
@@ -368,6 +369,7 @@ class ReportWorkflowRuntime:
             for row in sorted(rows, key=lambda item: item["created_at"], reverse=True)
         ]
 
+    @task_admission()
     async def start_run(
         self,
         workflow_id: str,
@@ -523,6 +525,7 @@ class ReportWorkflowRuntime:
             for row in self.catalog.data["runs"].values()
         )
 
+    @task_admission(background=True)
     async def _execute(self, run_id: str) -> None:
         run = self._run(run_id)
         try:
@@ -1237,6 +1240,7 @@ class ReportWorkflowRuntime:
         )
         return self.public_run(run)
 
+    @task_admission()
     async def retry(self, run_id: str) -> dict:
         run = self._run(run_id)
         if run.get("monitoring_disposition") == "ended_by_user":
@@ -1499,6 +1503,7 @@ class ReportWorkflowRuntime:
             )
         return self.public_run(self._run(run_id))
 
+    @task_admission(background=True)
     async def _resume_delivery(self, run_id: str) -> None:
         try:
             await self._wait_for_delivery(run_id)
@@ -1653,6 +1658,7 @@ class ReportWorkflowRuntime:
             error_code=safe_code,
         )
 
+    @task_admission(background=True)
     async def tick(self, now: datetime | None = None) -> None:
         now = now or datetime.now(UTC)
         with self.catalog._exclusive():

@@ -183,6 +183,97 @@ def api(tmp_path):
         yield client, native, service
 
 
+def test_release_maintenance_blocks_web_automation_and_report_entries(api):
+    client, native, service = api
+    client.portal.call(service.maintenance.begin, "a" * 32)
+    before = list(native.calls)
+    for path in (
+        "/api/research/sessions",
+        "/api/research/runtime/model/test",
+        "/api/research/automations/missing/run",
+        "/api/research/report-workflows/missing/run",
+    ):
+        response = client.post(path, json={})
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "release_maintenance"
+    assert native.calls == before
+    client.portal.call(service.maintenance.end, "a" * 32)
+    assert client.post("/api/research/sessions", json={"mode": "fingpt"}).status_code == 201
+
+
+def test_release_idle_refuses_any_unverified_hot_state(api):
+    client, native, service = api
+    hot = service.store.root / "hot"
+    hot.mkdir()
+    before = list(native.calls)
+    assert client.portal.call(service.release_idle) is False
+    assert native.calls == before
+
+
+def test_release_idle_refuses_alias_hot_state(api, tmp_path):
+    client, _native, service = api
+    (service.store.root / "hot").symlink_to(tmp_path / "missing-hot")
+    assert client.portal.call(service.release_idle) is False
+
+
+def test_release_idle_includes_native_children_and_report_workers(api):
+    client, native, service = api
+    original = native.rpc
+
+    async def activity(method, payload):
+        if method == "session.list":
+            return {"items": [{"sessionId": "external-parent", "running": False}]}
+        if method == "subagent.list":
+            return {"entries": [{"kind": "child", "id": "child", "activity": "running"}]}
+        return await original(method, payload)
+
+    native.rpc = activity
+    assert client.portal.call(service.release_idle) is False
+    native.rpc = original
+    stopped = asyncio.Event()
+
+    async def worker():
+        await stopped.wait()
+
+    async def spawn():
+        service.report_workflows.runtime.tasks["fixture"] = asyncio.create_task(worker())
+        return True
+
+    client.portal.call(spawn)
+    assert client.portal.call(service.release_idle) is False
+    client.portal.call(stopped.set)
+    service.report_workflows.runtime.tasks.clear()
+
+
+@pytest.mark.parametrize("source", ["sdk", "wind_api", "storage", "directory", "plugin"])
+def test_release_idle_includes_current_datahub_and_plugin_work(api, monkeypatch, source):
+    from types import SimpleNamespace
+
+    from app.research_web.datahub import providers_wind_api, worker_activity
+
+    client, _, service = api
+    storage_runner = service.datahub.storage_runner
+    directory_task = object()
+    monkeypatch.setattr(
+        worker_activity, "active_futures", lambda: (object(),) if source == "sdk" else ()
+    )
+    monkeypatch.setattr(
+        providers_wind_api, "activity_witness", lambda: {"active": source == "wind_api"}
+    )
+    if source == "storage":
+        service.datahub.storage_runner = SimpleNamespace(active=True)
+    if source == "directory":
+        service.datahub.directory_tasks.add(directory_task)
+    if source == "plugin":
+        service.plugin_inflight = 1
+    try:
+        assert client.portal.call(service.release_idle) is False
+    finally:
+        service.datahub.storage_runner = storage_runner
+        service.datahub.directory_tasks.discard(directory_task)
+        service.plugin_inflight = 0
+
+
 @pytest.mark.parametrize(
     "witness,expected",
     [({"active": True}, True), ({"active": False}, False), ({"active": 1}, None), ({}, None)],

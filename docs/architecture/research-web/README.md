@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+Docker G2B 发布合同见[Docker 手册](../../research-web-docker.md#g2b-冻结制品与受管切换)：冻结制品、同镜像 stage 验收与受管晋级/回退均复用既有管理器。当前源码整合不等于新的现场发布验收。G2B 索引读取本次真实源码检查点 `81dc264d22009858a05c22e3b32ded3e7ede6d23`；图04等既有专用来源和视觉记录仍保留各自原身份。
+
 2026-11-22 单轮资料授权的源码阅读检查点为 `ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7`，包含当前 query／hit_id、普通同步 current 和 Host grant 分支。图04的逐节点证据固定到该本地提交，保留真实 SSH origin 并使用 local-only 链接；Atlas 的同提交 GitHub 链接须待正式发布后可访问。最终图文提交、CI、原生宿主及部署另由各自回执认证。
 
 Research Bot 的 Radar 批次新鲜度、缓存标志及冻结原件分别见[资料说明](03-data-files.md)和[接口合同](04-api.md)。
