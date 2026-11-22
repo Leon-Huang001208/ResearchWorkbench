@@ -165,6 +165,13 @@ def test_product_tool_catalog_matches_runtime_input_metadata_without_dsh_source(
     data_tools = [
         name for name, row in catalog.items() if row["source"] == "runtime/public-data.mjs"
     ]
+    enabled_tools = sorted(
+        {
+            required
+            for name in data_tools
+            for required in catalog[name].get("required_tools", [name])
+        }
+    )
     script = r"""
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -187,7 +194,7 @@ console.log(JSON.stringify(tools.map(tool=>({id:tool.name,parameters:tool.parame
             "-e",
             script,
             str(root),
-            json.dumps(data_tools),
+            json.dumps(enabled_tools),
             sys.executable,
         ],
         cwd=root,

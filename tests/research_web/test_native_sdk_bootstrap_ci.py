@@ -1,10 +1,6 @@
-"""Execute the actual bootstrap Python block through its early failure boundary.
+"""Check the public Native bootstrap without installing or building anything."""
 
-No package installation, SDK build, service, provider, or network is invoked.
-"""
-
-import json
-import os
+import shlex
 import subprocess
 import sys
 import textwrap
@@ -15,97 +11,84 @@ import pytest
 ROOT = Path(__file__).parents[2]
 
 
-def bootstrap_program(text=None):
-    text = (
-        text
-        if text is not None
-        else (ROOT / ".github/workflows/research-web-bootstrap.yml").read_text()
+def bootstrap_command():
+    workflow = (ROOT / ".github/workflows/research-web-bootstrap.yml").read_text()
+    step = workflow.split("      - name: Install Web stack on macOS\n", 1)[1].split(
+        "\n      - name:", 1
+    )[0]
+    command = next(
+        line.strip()[5:] for line in step.splitlines() if line.strip().startswith("run: ")
     )
-    programs = text.split("          .venv/bin/python - <<'PY'\n")[1:]
-    program = next(
-        body.split("          PY\n", 1)[0] for body in programs if "native-sdk-receipt.json" in body
-    )
-    return textwrap.dedent(program)
+    return shlex.split(command)
 
 
 def test_real_installer_public_constructor_and_fields_without_operations(tmp_path, monkeypatch):
-    from scripts.setup_web import DSH_COMMIT, SetupWebInstaller
+    from scripts.setup_web import DSH_COMMIT, SetupWebInstaller, build_parser
 
     def forbidden(*args, **kwargs):
         raise AssertionError("constructor must not run processes or install anything")
 
     monkeypatch.setattr(subprocess, "run", forbidden)
-    installer = SetupWebInstaller(project_root=tmp_path)
+    installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
     assert installer.project_root == tmp_path.resolve()
     assert installer.dsh_source == installer.data_home / "runtime" / "dsh" / DSH_COMMIT
     assert isinstance(installer.node_executable, Path)
     assert installer.venv == tmp_path / ".venv"
-    assert "from scripts.setup_web import SetupWebInstaller" in bootstrap_program()
+    command = bootstrap_command()
+    assert command == ["./setup-web.sh", "--no-start"]
+    flags = build_parser().parse_args(command[1:])
+    assert flags.runtime == "native" and flags.no_start is True
 
 
 @pytest.mark.parametrize(
-    "failure,stage,code,error_type",
+    "failure,code",
     [
-        ("runner_temp", "environment", "native_sdk_environment_failed", "AssertionError"),
-        ("import", "installer_import", "native_sdk_installer_import_failed", "ImportError"),
-        (
-            "git",
-            "candidate_preflight",
-            "native_sdk_candidate_preflight_failed",
-            "CalledProcessError",
-        ),
+        ("python", "python_version_unsupported"),
+        ("node", "node_version_unsupported"),
+        ("git", "git_missing"),
     ],
 )
-def test_early_preflight_failure_always_persists_failed_receipt(
-    tmp_path, failure, stage, code, error_type
-):
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
-    if failure == "runner_temp":
-        env.pop("RUNNER_TEMP", None)
-    else:
-        registered = tmp_path / "registered-ci-temp"
-        registered.mkdir()
-        env["RUNNER_TEMP"] = str(registered)
-    prelude = (
-        "import sys,subprocess,builtins\n"
-        f"sys.path.insert(0,{str(ROOT)!r})\n"
-        "_run=subprocess.run\n"
-        "def no_install(args,*a,**k):\n"
-        " if isinstance(args,list) and 'pip' in args:raise AssertionError('test must never install')\n"
-        " return _run(args,*a,**k)\n"
-        "subprocess.run=no_install\n"
-    )
-    if failure == "import":
-        prelude += (
-            "_import=builtins.__import__\n"
-            "def blocked(name,*a,**k):\n"
-            " if name=='scripts.setup_web':raise ImportError('synthetic-private-sentinel')\n"
-            " return _import(name,*a,**k)\n"
-            "builtins.__import__=blocked\n"
+def test_public_preflight_failure_is_logged_without_installing(tmp_path, failure, code):
+    program = textwrap.dedent(f"""
+        import subprocess, sys
+        from pathlib import Path
+        sys.path.insert(0, {str(ROOT)!r})
+        from scripts import setup_web
+
+        root = Path.cwd()
+        for name in ('python', 'node', 'git'):
+            (root / name).write_text('fixture executable')
+        if {failure!r} == 'git':
+            (root / 'git').unlink()
+        installer = setup_web.SetupWebInstaller(
+            project_root=root, data_home=root / 'data',
+            python_executable=root / 'python', node_executable=root / 'node',
+            git_executable=root / 'git',
+            version_reader=lambda _path: '3.11.9' if {failure!r} == 'python' else '3.12.13',
+            node_version_reader=lambda _path: 'v20.0.0' if {failure!r} == 'node' else 'v24.19.0',
         )
-    program = bootstrap_program()
-    if sys.platform != "darwin":
-        # This test proves failure persistence, not native platform acceptance.
-        guard = "assert sys.platform == 'darwin', 'Native SDK contract belongs to macOS Bootstrap'"
-        assert program.count(guard) == 1
-        program = program.replace(guard, "assert True  # test-only platform counterfactual", 1)
-    env.pop("GIT_DIR", None)
-    env.pop("GIT_WORK_TREE", None)
+        def forbidden(*args, **kwargs):
+            raise AssertionError('preflight failure must not run an installation process')
+        subprocess.run = forbidden
+        subprocess.Popen = forbidden
+        installer._prepare_data_home = forbidden
+        # Isolate runtime selection; exercise the real Native install/check and
+        # the public command's existing error logging in this clean process.
+        setup_web.__file__ = str(root / 'scripts/setup_web.py')
+        setup_web._maybe_reexec_native = lambda *_args: None
+        setup_web.install_selected_runtime = lambda args, **kwargs: installer.install(start=not args.no_start)
+        raise SystemExit(setup_web.main(['--no-start']))
+        """)
     result = subprocess.run(
-        [sys.executable, "-c", prelude + program],
+        [sys.executable, "-B", "-c", program],
         cwd=tmp_path,
-        env=env,
         text=True,
         capture_output=True,
         timeout=15,
         check=False,
     )
-    assert result.returncode != 0
-    assert error_type in result.stderr
-    receipt = json.loads((tmp_path / "native-sdk-receipt.json").read_text())
-    assert receipt["status"] == "FAILED"
-    assert (receipt["stage"], receipt["code"], receipt["error_type"]) == (stage, code, error_type)
-    assert "synthetic-private-sentinel" not in json.dumps(receipt)
-    assert not list(tmp_path.glob("native-sdk-preflight.json"))
-    assert not (tmp_path / "native-sdk-tools-install.json").exists()
-    assert not list(tmp_path.glob("rwb-native-sdk-*"))
+    assert result.returncode == 1
+    assert code in result.stderr
+    assert "setup_web_failed" in (tmp_path / "logs/setup-web.log").read_text()
+    assert not (tmp_path / ".venv").exists()
+    assert not (tmp_path / "data").exists()

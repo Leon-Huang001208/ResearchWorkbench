@@ -553,6 +553,10 @@ test('knowledge authority regressions execute once in each applicable CI branch'
       assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_service_manager.py').length,0);
       assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_service_manager.py::test_start_waits_for_runtime_readiness_before_web_spawn_and_browser').length,1);
       assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_api.py').length,0);
+      for(const file of ['test_execution_cancel_native.py','test_owned_news_native_sdk.py']) {
+        assert.equal(argumentsFound.includes(`tests/research_web/${file}`),false,`${file} belongs to the macOS built-SDK job`);
+        assert.ok(workflows.bootstrap.includes(`tests/research_web/${file}`),`${file} must execute on macOS`);
+      }
     }
     if(retention) assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_test_artifact_retention.py').length,1);
   }

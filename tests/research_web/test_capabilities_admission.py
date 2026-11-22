@@ -9,7 +9,7 @@ import time
 import zipfile
 
 import pytest
-from test_api import NativeFixture
+from test_api import NativeFixture, isolated_keyring  # noqa: F401
 from test_capabilities import api as api_fixture
 from test_capabilities import candidate, create
 

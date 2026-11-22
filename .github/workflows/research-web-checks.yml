@@ -416,7 +416,6 @@ jobs:
                  tests/research_web/test_cpu_quant_skills_stage4.py::test_five_stage4_packages_are_discoverable_disabled_and_receipt_gated \
                  tests/research_web/test_datahub_execution_health.py \
                  tests/research_web/test_execution_bindings.py \
-                 tests/research_web/test_execution_cancel_native.py \
                  tests/research_web/test_execution_cancel_policy.py \
                  tests/research_web/test_fixture_credentials.py \
                  tests/research_web/test_frameworks.py \
@@ -429,7 +428,6 @@ jobs:
                  tests/research_web/test_owned_method_dedup.py \
                  tests/research_web/test_owned_method_execution.py \
                  tests/research_web/test_owned_method_preparation.py \
-                 tests/research_web/test_owned_news_native_sdk.py \
                  tests/research_web/test_pack_dependency_closure.py \
                  tests/research_web/test_pack_execution_host.py \
                  tests/research_web/test_pack_format_profile.py \
