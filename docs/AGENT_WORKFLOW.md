@@ -13,8 +13,6 @@ Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、
 Windows 门交对应真机执行，Mac 不 dispatch；邻近未登记 resident／测试路径仍按
 unknown L4 fallback 保留缺口，不能用局部回归或路由计划代替整模块、CI 或实际升级验收。
 
-主账号数据源入口修复在现有 Mac Bootstrap 的 PR/push 清单各补 `ui/server/session.mjs`、`profile.css` 及两个相邻 session/MCP 登录测试的确切仓库路径，原静态冒烟步骤比较两个已安装 wheel 资源与 checkout 字节。复用原 Mac job、runner、权限、依赖与时限，不新增服务或其他平台 dispatch；最终候选 CI 和生产页面仍待分别验收。
-
 管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
 exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
 `build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，
@@ -566,6 +564,8 @@ node scripts/git_safety.mjs worktree-retirement --project /absolute/control-chec
 新模式按真实 runner/machine 平台归属证据：多平台 local gate 的一次 macOS 执行不复用为 Windows/Linux PASS；`generic` 不推断所有原生平台，`cross-platform` 未覆盖的目标仍保留 NOT_RUN 交接。CI PASS 必须绑定 workflow、run、候选、预期及实际 checkout；merge preview 还须由本地真实 Git commit 的父提交证明关联 base/head，未知对象失败关闭且 validator 不自行 fetch。候选、说明源码、图源/生成物与报告提交分别记录，避免报告或生成物自指提交。报告仍记录验收范围和证据来源；机械结构有效不代表任务已全部完成。
 
 ## 最小验收规划（Verification planning）
+
+模块源码变更仍须在任务报告中给出有效的 `architecture-review` 结构决定。明确说明结构未变时，每个命中模块更新至少一份与本次改动直接相关的映射文档即可，不要求把该模块清单内无关文档一起修改；没有模块文档或有效结构说明仍会拒绝。结构变化继续执行原完整映射文档和受影响图源检查，其他 API、图形证据、CI 与平台验收要求保持。
 
 资产观察 AF 连续指标迁移沿既有 Research Web Checks：`test_asset_workspace.py` 覆盖分区选源、完整日期对、60／61天硬门、valuation、旧观察和刷新恢复；JS 通配符覆盖六MA、BOLL样本标准差、EMA／KDJ／RSI黄金值、预热／缺失／平盘、周月先聚合、估算筹码、连续卡片和迟到响应。浏览器另验同输入原页对照、五图联动、缩放平移、多个宽度与明暗主题、取消和实例释放。固定本地 ECharts／Chart.js 的加载、wheel资源和Mac安装字节一致性须独立验证；真实CJPY冷启动首次查询及逐区刷新不能被夹具或HTTP成功替代。保持原CI job、平台归属和DSH质量门，未执行项保留NOT_RUN；常驻部署另行授权。
 
