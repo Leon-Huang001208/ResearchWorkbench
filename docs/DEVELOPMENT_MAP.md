@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+G2B 发布沿原管理员管理面提供 `docker/release.py`、冻结 Dockerfile/schema 与 `rwb-docker release`；账号 Host 的 `maintenance.py` 只在受管发布镜像启用维护排空。相关回归为 `test_docker_release.py`、`test_release_maintenance.py` 及原管理/API合同；晋级沿已验收的同一镜像身份，不启动第二研究执行器。
+
 普通源码退出位于 `scripts/git_safety.mjs` 的 `runDelivery` cleanup，复用原共享控制器和任务/合并/clean/无占用检查；不默认备份、恢复重演或等待部署。回归在 `tests/javascript/git_safety.test.mjs`，`cleanupScope=source` 将源码状态与业务资源分开。
 
 `resident/model_provider_upgrade.py` 的 `operate` 在当前五个

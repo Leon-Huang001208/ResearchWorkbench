@@ -691,3 +691,9 @@ def test_registration_empty_guard_detects_newline_filename(tmp_path, monkeypatch
     assert result.returncode == 0
     assert result.stdout.strip() == "registration_volumes_not_empty"
     assert content.read_text() == "preserved"
+
+
+def test_unaccepted_production_rehearsal_requires_release_plan(tmp_path):
+    manager = manage.Manager(tmp_path, "/admin", "/worktree")
+    with pytest.raises(manage.Refusal, match="managed_deploy_required"):
+        manager.up({"environment": "prod", "purpose": "rehearsal"})

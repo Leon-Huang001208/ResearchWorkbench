@@ -1,5 +1,7 @@
 # Research Web 前端
 
+受管 Docker 发布维护期间，新写操作返回 `503 release_maintenance`；已接纳的研究继续完成，队列等待而不重复提交。没有新增发布按钮，普通 Native 界面不因未启用的 Docker release 合同改变。
+
 单轮知识范围由原消息 API 的 `Prompt.knowledge_scope_id` 和明确动作接入，Host 校验新会话首轮与持久 grant；本次未增加设置卡片中的 scope 选择器或改变普通 current 检索界面。0004仅为未应用的上游 WeKnora 详情页上传校验资产，不据该文件宣布现役界面或浏览器上传已通过。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
 
 Research Bot 历史 Run 继续展示冻结来源，后端同时保留本次 Radar 资料采用的缓存标志或源批次时点。

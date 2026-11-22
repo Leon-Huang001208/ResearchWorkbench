@@ -13,7 +13,9 @@ PROJECT = Path(__file__).resolve().parents[2]
 def test_final_image_python_source_closure_imports_without_checkout_fallback(tmp_path):
     stage = tmp_path / "image"
     stage.mkdir()
-    builder = (PROJECT / "Dockerfile").read_text().split("FROM python-builder AS dsh-builder")[0]
+    builder = (PROJECT / "Dockerfile").read_text().split(
+        "FROM ${PYTHON_IMAGE} AS python-builder\n", 1
+    )[1].split("FROM python-builder AS dsh-builder", 1)[0]
     for line in builder.splitlines():
         if not line.startswith("COPY "):
             continue
@@ -55,7 +57,7 @@ print('image_import_smoke_passed')
     }
     result = subprocess.run(
         [sys.executable, "-I", "-B", "-c", code, str(stage)],
-        cwd=stage, env=environment, capture_output=True, text=True, timeout=60,
+        cwd=stage, env=environment, capture_output=True, text=True, timeout=60, check=False,
     )
     assert result.returncode == 0, result.stderr
     assert "image_import_smoke_passed" in result.stdout
