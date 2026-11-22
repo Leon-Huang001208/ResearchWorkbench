@@ -42,6 +42,23 @@ Python命令、36模块顺序、Bot准入、三个unit、Git完整参数／对�
 日志为 `logs/fingpt-ci-expression-{red,green}.txt`、`logs/fingpt-ci-expression-lengths.json`。
 本次未运行 pytest、远端发布、模型或生产操作；下一候选仍须由原任务正常返修并取得自己的CI结果。
 
+随后 `45075094329` 的 Web 5365 case 全通过（45 skip），三个原 unit 模块在 collection 因缺少
+SQLAlchemy 中止。`test_fingpt_legacy_cutover.py` 经 `fingpt.py` 导入 `runtime_workflows.py:14`，
+需要既有 `requirements/research-test.in` 已声明的 `sqlalchemy>=2,<3`；原 CI 仅消费 Web 锁及 `dev`，
+遗漏该获准的共享测试声明，不能将 Web 通过记作整个 Checks 通过。
+
+本次只在原 test-tools 提取处合并该声明文件的非空、非整行注释 spec，复用原正则并对相同 spec 去重。
+未修改任何 requirements、生产锁或业务代码。实际提取的 dev 九项加 shared test 八项合并为十项，
+相对原 CI 唯一增加项是来自该文件的 SQLAlchemy；Web 锁字节和全部 constraints 逐字保持。
+原 legacy HTTP 断言、根包 `--no-deps`、SDK/runtime pins、scope、作业与时限保持。
+
+新增两项检查先 RED，分别命中 SQLAlchemy 被遗漏、缺失声明仍能成功；修后固定 Node 24 完整模块
+35 passed、零失败（2.023s），覆盖重复 spec、缺失／空／非法文件拒绝、Web 原哈希和约束、根包无依赖安装。
+共享环境已装 PyYAML 核对六个解码 `run` 长度分别为15,585、5,925、20,387、1,704、130、148，
+均在21,000内；旧安装以外的所有 step 与 job 配置和基线 `7f23b58c` 相同。
+证据为 `logs/fingpt-ci-test-closure-{red,green}.txt` 与 `logs/fingpt-ci-test-closure-proof.json`。
+本子任务未运行 pytest、安装包、远端操作、模型或生产操作；三个 unit 的后续真实验证由主任务接续。
+
 Product-Progress: not-required — 本次只调整已有持续集成执行范围，不改变产品入口、业务行为或已完成状态。
 
-<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"仅在既有Checks范围选择与分区入口登记本批相关合同，没有新增运行服务、接口或交付节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"复用既有Checks范围和分区入口，按已有test-only声明补齐工具闭包，没有新增运行服务、接口或交付节点。","diagrams":[]} -->

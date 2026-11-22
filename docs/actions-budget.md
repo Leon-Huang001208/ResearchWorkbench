@@ -1,5 +1,12 @@
 # GitHub Actions 免费额度治理
 
+Checks 的测试工具文件合并既有 `pyproject.toml` 的 `dev` 与 `requirements/research-test.in`
+非空、非注释声明，沿原 spec 正则验证并对相同声明去重；声明缺失、空或非法时停止安装。
+本次实际只补入早已声明的 `sqlalchemy>=2,<3`，供原 FinGPT legacy 单元模块导入使用，
+不引入根包全部运行依赖，不修改 Web 锁、哈希安装、约束或 `--no-deps` 根包装载。
+`45075094329` 的 Web 5365 case 通过与随后 unit collection 失败分别保留，返修次数继续累计。
+该声明文件的精确路径加入原 Checks PR／push 输入，不新增 job、runner、依赖声明、平台门或时限。
+
 FinGPT 来源报告与 Fed RSS 的已审组合沿既有 Checks scope selector 按真实 base/head 差异选择
 `fingpt_source_only`：须命中明确 Fed／QA 入口，其余源码、测试及图文产物均在本批精确名单内；
 未知路径、混入其他产品或差异不可取得仍走原完整路径。Python 保留 RSS／Discovery、原 Bot／Automation、
