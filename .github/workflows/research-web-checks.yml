@@ -124,7 +124,7 @@ jobs:
           release_core = {"docker/release.py", "docker/Dockerfile.release", "docker/release-schema.json", "app/research_web/maintenance.py"}
           release_paths = release_core | {
               "docker/manage.py", "rwb-docker", "app/research_web/automation/service.py", "app/research_web/client.py", "app/research_web/main.py", "app/research_web/report_studio.py", "app/research_web/report_workflows/runtime.py", "app/research_web/service.py",
-              "tests/research_web/test_docker_release.py", "tests/research_web/test_release_maintenance.py", "tests/research_web/test_docker_manager.py", "tests/research_web/test_api.py", "tests/fixtures/g2b_fault_controller.py",
+              "tests/research_web/test_docker_release.py", "tests/research_web/test_release_maintenance.py", "tests/research_web/test_docker_manager.py", "tests/research_web/test_docker_packaging.py", "tests/research_web/test_report_studio.py", "tests/research_web/test_api.py", "tests/fixtures/g2b_fault_controller.py",
               ".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs", "README.md", ".ai/reports/2026-10-14-g2b-task.json",
               "docs/architecture/research-web/architecture-map.json", "docs/architecture/research-web/readme-review.json", "outputs/research-web-architecture/api-atlas.html", "outputs/research-web-architecture/index.html",
           }
