@@ -20,4 +20,4 @@
 
 CI 范围新增两项回归在原工作流实际 **2 FAIL**；修后与六项直接相邻检查合计 **8/8 PASS**、0 FAIL、0 SKIP，约0.52秒。实际执行工作流内嵌 Python 的六种差异场景，并用受限命令替身执行原 Bash 分支，确认只选择 owner Node 命令、不进入旧 SHA fetch／Python 批次；这不冒充远端 owner 测试或完整 Python 已执行。Psych YAML 解析、除六个指定 run／if 字段外的工作流结构深等比较、六段 Bash 语法、两段 Python AST、JS 语法和 diff 检查均通过。先前0 P1/P2独评仅覆盖检查器与其回归；新增CI范围由Root另行独立复核，正式候选CI仍待运行。
 
-最终受管候选的两个直接 Node 模块实际执行为182项：181项通过、1项旧证据上传条件字符串断言未同步。将该断言更新为明确包含 architecture_only 排除和原 stage-safe-evidence success 条件后，仅复跑该失败用例并通过；未重跑其余181项。文档治理、Python索引和8文件项目约束检查通过。既有源码与工作流四个已审blob保持，测试期望更新另由最终评审确认。
+最终受管候选的两个直接 Node 模块实际执行为182项：181项通过、1项旧证据上传条件字符串断言未同步。将该断言更新为明确包含 architecture_only 排除和原 stage-safe-evidence success 条件后，仅复跑该失败用例并通过；未重跑其余181项。文档治理、Python索引和8文件项目约束检查通过。检查器、owner测试与工作流三个已审blob保持，quota测试仅同步这一条条件期望，另由最终评审确认。
