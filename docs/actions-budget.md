@@ -2,6 +2,10 @@
 
 G2B 当前源码前移只在原 Research Web Checks 增加 `test_docker_release.py` 与 `test_release_maintenance.py` 两份离线合同；既有 Manager/API 检查沿用，不新增 workflow、job、依赖或平台 dispatch。Mac 安装与最终 release 实机验证分开，CI 不调用模型、不操作生产或业务卷。
 
+测试临时根工具的纯局部修补沿原 Checks 作业运行 `test_test_artifact_retention.py` 的31项分片回归，
+不运行无关 Web、Node 和编辑引擎测试。范围来自真实事件 base/head 的差异；产品改动或范围未知仍运行原完整路径，
+不新增作业、依赖、runner、权限或超时。
+
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的

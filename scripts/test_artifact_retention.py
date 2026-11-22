@@ -1,4 +1,4 @@
-"""Register and retire local pytest temp roots after independent PASS evidence is sealed."""
+"""Retire owned pytest temp roots while preserving the real test outcome."""
 
 from __future__ import annotations
 
@@ -154,7 +154,7 @@ def _owner(record: dict, root: Path) -> None:
         raise RetentionError("root_identity")
 
 
-def _evidence(path: Path, proof_root: Path) -> dict:
+def _evidence(path: Path, proof_root: Path, *, failed: bool = False) -> dict:
     path = path.absolute()
     try:
         if path.resolve() != path or not path.is_relative_to(proof_root):
@@ -164,11 +164,14 @@ def _evidence(path: Path, proof_root: Path) -> dict:
             not stat.S_ISREG(info.st_mode)
             or info.st_uid != os.getuid()
             or info.st_nlink != 1
-            or info.st_size > MAX_EVIDENCE_BYTES
+            or (not failed and info.st_size > MAX_EVIDENCE_BYTES)
         ):
             raise RetentionError("evidence_identity")
-        with path.open("rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if failed:
+            digest = _bounded_hash(path)
+        else:
+            with path.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
     except OSError as error:
         raise RetentionError("evidence_identity") from error
     return {"path": str(path), "sha256": digest, "bytes": info.st_size}
@@ -197,8 +200,10 @@ def _junit_passed(path: Path) -> dict:
     return counts
 
 
-def _batch_result(path: Path, proof_root: Path, record: dict, files: dict, counts: dict) -> dict:
-    identity = _evidence(path, proof_root)
+def _batch_result(
+    path: Path, proof_root: Path, record: dict, files: dict, counts: dict | None, *, failed=False
+) -> dict:
+    identity = _evidence(path, proof_root, failed=failed)
     try:
         value = json.loads(Path(identity["path"]).read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -224,9 +229,9 @@ def _batch_result(path: Path, proof_root: Path, record: dict, files: dict, count
         or value["rootNonce"] != record["nonce"]
         or value["batchId"] != record["batchId"]
         or value["nodeIds"] != record["nodeIds"]
-        or len(record["nodeIds"]) != counts["tests"]
+        or (not failed and (counts is None or len(record["nodeIds"]) != counts["tests"]))
         or type(value["exitCode"]) is not int
-        or value["exitCode"] != 0
+        or (not failed and value["exitCode"] != 0)
         or value["junitSha256"] != files["junit"]["sha256"]
         or value["stdoutSha256"] != files["stdout"]["sha256"]
         or value["stderrSha256"] != files["stderr"]["sha256"]
@@ -608,7 +613,10 @@ def run_batch(
     node_ids: list[str],
     python: Path,
     mode: str = "exact",
+    keep_failed: str | None = None,
 ) -> dict:
+    if keep_failed is not None and not keep_failed.strip():
+        raise RetentionError("keep_failed_reason_required")
     receipt = Path(receipt).absolute()
     checkout = _checkout_identity(candidate, mode=mode)
     proof = receipt.parent
@@ -690,13 +698,20 @@ def run_batch(
         "stderrSha256": _bounded_hash(files["stderr"]),
     }
     _save(files["result"], result)
-    if stop_reason is not None:
+    if stop_reason is not None or exit_code != 0:
+        reason = stop_reason or "pytest_failed"
+        owner["outcome"] = "failed"
+        owner["failureReason"] = reason
+        owner["actualExitCode"] = exit_code
         if stop_reason == "source_changed_during_test":
             owner["sourceDrifted"] = True
-            _phase(receipt, owner, "source_changed")
-        raise RetentionError(stop_reason)
-    if exit_code != 0:
-        raise RetentionError("pytest_failed")
+        if keep_failed:
+            owner["keepFailedReason"] = keep_failed.strip()
+            _phase(receipt, owner, "retained")
+        else:
+            _phase(receipt, owner, "failed")
+            retire_root(receipt, files["junit"], files["stdout"], files["stderr"], files["result"])
+        raise RetentionError(reason)
     return retire_root(
         receipt,
         files["junit"],
@@ -708,7 +723,7 @@ def run_batch(
 
 def _retire_root_under_lock(
     receipt: Path,
-    junit: Path,
+    junit: Path | None,
     stdout: Path,
     stderr: Path,
     result: Path,
@@ -726,6 +741,7 @@ def _retire_root_under_lock(
         Path(path).absolute().is_relative_to(root)
         or (quarantine_path is not None and Path(path).absolute().is_relative_to(quarantine_path))
         for path in (junit, stdout, stderr, result)
+        if path is not None
     ):
         raise RetentionError("evidence_inside_root")
     if (
@@ -735,25 +751,61 @@ def _retire_root_under_lock(
         or root.parent != parent
     ):
         raise RetentionError("parent_identity")
-    if record["status"] not in {"active", "sealed", "intent", "quarantined", "delete_intent"}:
+    if record["status"] not in {
+        "active",
+        "failed",
+        "retained",
+        "source_changed",
+        "sealed",
+        "intent",
+        "quarantined",
+        "delete_intent",
+    }:
         raise RetentionError("receipt_status")
     proof_root = receipt.parent
-    files = {
-        name: _evidence(Path(path), proof_root)
-        for name, path in (("junit", junit), ("stdout", stdout), ("stderr", stderr))
-    }
-    counts = _junit_passed(Path(files["junit"]["path"]))
-    batch = _batch_result(result, proof_root, record, files, counts)
-    if record["status"] == "active":
+    result_identity = _evidence(result, proof_root, failed=True)
+    actual = json.loads(Path(result_identity["path"]).read_text())
+    failed = (
+        actual.get("exitCode") != 0
+        or record.get("outcome") == "failed"
+        or record.get("sourceDrifted") is True
+    )
+    if record.get("exactCheckout") is True and not failed:
+        _checkout_identity(record["candidate"], mode="exact")
+    files = {}
+    for name, filename in (("junit", junit), ("stdout", stdout), ("stderr", stderr)):
+        if failed and (
+            filename is None or not Path(filename).exists() and not Path(filename).is_symlink()
+        ):
+            files[name] = {
+                "path": str(filename) if filename is not None else None,
+                "sha256": None,
+                "bytes": 0,
+            }
+        elif filename is None:
+            raise RetentionError("junit_required")
+        else:
+            files[name] = _evidence(Path(filename), proof_root, failed=failed)
+    counts = None if failed else _junit_passed(Path(files["junit"]["path"]))
+    batch = _batch_result(result, proof_root, record, files, counts, failed=failed)
+    if record["status"] in {"active", "failed", "retained", "source_changed"}:
         _owner(record, root)
         record["evidence"] = files
         record["batchResult"] = batch
-        record["junitCounts"] = counts
+        record["outcome"] = "failed" if failed else "passed"
+        if failed:
+            record["failure"] = {
+                "exitCode": actual["exitCode"],
+                "reason": record.get("failureReason", "execution_nonzero"),
+                "junitPresent": junit is not None and Path(junit).exists(),
+            }
+        else:
+            record["junitCounts"] = counts
         _phase(receipt, record, "sealed")
     elif (
         record.get("evidence") != files
         or record.get("batchResult") != batch
-        or record.get("junitCounts") != counts
+        or (not failed and record.get("junitCounts") != counts)
     ):
         raise RetentionError("sealed_evidence_changed")
 
@@ -762,7 +814,8 @@ def _retire_root_under_lock(
         _owner(record, root)
         if checker(root):
             raise RetentionError("root_in_use")
-        record["contents"] = _scan(root, record["device"])
+        if not failed:
+            record["contents"] = _scan(root, record["device"])
         quarantine = Path(tempfile.mkdtemp(prefix=".rwb-test-retire-", dir=parent))
         record["quarantine"] = str(quarantine)
         record["quarantineDevice"] = quarantine.stat().st_dev
@@ -784,7 +837,8 @@ def _retire_root_under_lock(
             _owner(record, root)
             if checker(root):
                 raise RetentionError("root_in_use")
-            _assert_contents(root, record, allow_removed=False)
+            if not failed:
+                _assert_contents(root, record, allow_removed=False)
             parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             quarantine_fd = os.open(quarantine, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             try:
@@ -797,7 +851,8 @@ def _retire_root_under_lock(
         elif root.exists() or not target.exists():
             raise RetentionError("quarantine_transition")
         _owner(record, target)
-        _assert_contents(target, record, allow_removed=False)
+        if not failed:
+            _assert_contents(target, record, allow_removed=False)
         _phase(receipt, record, "quarantined")
 
     if root.exists():
@@ -816,7 +871,8 @@ def _retire_root_under_lock(
             _owner(record, target)
         if checker(target):
             raise RetentionError("root_in_use")
-        _assert_contents(target, record, allow_removed=record["status"] == "delete_intent")
+        if not failed:
+            _assert_contents(target, record, allow_removed=record["status"] == "delete_intent")
         record["permissionRepairs"] = _make_writable(target, record["device"])
         _phase(receipt, record, "delete_intent")
         quarantine_fd = os.open(quarantine, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -824,7 +880,8 @@ def _retire_root_under_lock(
             current = os.stat(root.name, dir_fd=quarantine_fd, follow_symlinks=False)
             if (current.st_dev, current.st_ino) != (record["device"], record["inode"]):
                 raise RetentionError("quarantine_identity")
-            _assert_contents(target, record, allow_removed=True)
+            if not failed:
+                _assert_contents(target, record, allow_removed=True)
             shutil.rmtree(root.name, dir_fd=quarantine_fd)
             os.fsync(quarantine_fd)
         finally:
@@ -840,7 +897,7 @@ def _retire_root_under_lock(
 
 def retire_root(
     receipt: Path,
-    junit: Path,
+    junit: Path | None,
     stdout: Path,
     stderr: Path,
     result: Path,
@@ -850,8 +907,6 @@ def retire_root(
     receipt = Path(receipt).absolute()
     record = _load(receipt)
     with _task_lock(Path(record["parent"]), record["taskId"]):
-        if record.get("exactCheckout") is True:
-            _checkout_identity(record["candidate"], mode="exact")
         return _retire_root_under_lock(
             receipt, junit, stdout, stderr, result, open_files=open_files
         )
@@ -876,11 +931,14 @@ def main() -> int:
     run.add_argument("--node-id", action="append", required=True)
     run.add_argument("--python", type=Path, default=Path(sys.executable))
     run.add_argument("--mode", choices=("exact", "wip"), default="exact")
+    run.add_argument(
+        "--keep-failed", metavar="REASON", help="Keep a failed root for this reproduction purpose."
+    )
     admit = sub.add_parser("admit")
     admit.add_argument("--receipt", type=Path, required=True)
     retire = sub.add_parser("retire")
     retire.add_argument("--receipt", type=Path, required=True)
-    retire.add_argument("--junit", type=Path, required=True)
+    retire.add_argument("--junit", type=Path)
     retire.add_argument("--stdout", type=Path, required=True)
     retire.add_argument("--stderr", type=Path, required=True)
     retire.add_argument("--result", type=Path, required=True)
@@ -908,11 +966,13 @@ def main() -> int:
                 node_ids=args.node_id,
                 python=args.python,
                 mode=args.mode,
+                keep_failed=args.keep_failed,
             )
             print(
                 json.dumps(
                     {
                         "status": record["status"],
+                        "outcome": record.get("outcome", "passed"),
                         "physicalReclaimedBytes": record["physicalReclaimedBytes"],
                     }
                 )
@@ -923,11 +983,13 @@ def main() -> int:
                 json.dumps(
                     {
                         "status": record["status"],
+                        "outcome": record.get("outcome", "passed"),
+                        "testExitCode": record.get("failure", {}).get("exitCode", 0),
                         "physicalReclaimedBytes": record["physicalReclaimedBytes"],
                     }
                 )
             )
-        return 0
+        return 1 if args.action in {"run", "retire"} and record.get("outcome") == "failed" else 0
     except (RetentionError, OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         code = str(error) if isinstance(error, RetentionError) else "retention_io_error"
         log.error("test_temp_retention status=blocked code=%s", code)
