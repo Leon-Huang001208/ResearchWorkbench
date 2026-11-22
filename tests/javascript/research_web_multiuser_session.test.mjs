@@ -16,7 +16,7 @@ test('server fetch wrapper preserves RequestInit overrides and binds requests an
     },
     EventSource: class { constructor(url) { this.url = url; } },
   };
-  const context = { window, Request, URL, mountLegacyAccountMenu, mountLegacyAccountWorkspace, safeLog() {}, MutationObserver: class { observe() {} }, location: { href: 'https://unit.tailabc.ts.net/', origin: 'https://unit.tailabc.ts.net', replace() {} }, document: { createElement: () => ({ style: {}, setAttribute() {} }), body: { append() {} }, head: { append() {} }, querySelector: () => null } };
+  const context = { window, Request, URL, mountLegacyAccountMenu, mountLegacyAccountWorkspace, safeLog() {}, MutationObserver: class { observe() {} }, location: { href: 'https://unit.tailabc.ts.net/', origin: 'https://unit.tailabc.ts.net', replace() {} }, document: { documentElement: { dataset: {} }, createElement: () => ({ style: {}, setAttribute() {} }), body: { append() {} }, head: { append() {} }, querySelector: () => null } };
   await runInNewContext(`(async () => {${source}\n})()`, context);
   assert.equal(context.__RWB_ACCOUNT__.username, 'alice');
   assert.equal(context.__RWB_ACCOUNT__.role, 'user');
@@ -33,3 +33,25 @@ test('server fetch wrapper preserves RequestInit overrides and binds requests an
   const events = new window.EventSource('/api/research/sessions/example/events');
   assert.equal(new URL(events.url).searchParams.get('rwb_user'), userId);
 });
+
+for (const { name, role, primary, expected } of [
+  { name: 'primary admin', role: 'admin', primary: true, expected: 'true' },
+  { name: 'ordinary user', role: 'user', primary: false, expected: 'false' },
+  { name: 'non-primary admin', role: 'admin', primary: false, expected: 'false' },
+  { name: 'untrusted primary string', role: 'admin', primary: 'true', expected: 'false' },
+]) {
+  test(`server profile exposes the trusted primary identity before loading CSS: ${name}`, async () => {
+    const source = fs.readFileSync(new URL('../../app/research_web/ui/server/session.mjs', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replace("await import('/static/app.mjs');", '');
+    const documentElement = { dataset: {} };
+    let primaryAtProfileLoad;
+    const context = {
+      window: { fetch: async () => ({ ok: true, json: async () => ({ user: { id: 'synthetic', username: 'fixture', role }, primary }) }), EventSource: class {} },
+      document: { documentElement, createElement: () => ({}), body: {}, querySelector: () => null, head: { append(node) { if (node.href === '/server-static/profile.css') primaryAtProfileLoad = documentElement.dataset.rwbPrimary; } } },
+      Request, URL, mountLegacyAccountMenu, mountLegacyAccountWorkspace, safeLog() {}, MutationObserver: class { observe() {} }, location: {},
+    };
+    await runInNewContext(`(async () => {${source}\n})()`, context);
+    assert.equal(context.__RWB_ACCOUNT__.primary, expected === 'true');
+    assert.equal(documentElement.dataset.rwbPrimary, expected);
+    assert.equal(primaryAtProfileLoad, expected);
+  });
+}

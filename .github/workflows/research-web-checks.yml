@@ -132,11 +132,20 @@ jobs:
               "docs/architecture/research-web/architecture-map.json", "docs/architecture/research-web/readme-review.json", "outputs/research-web-architecture/api-atlas.html", "outputs/research-web-architecture/index.html",
           }
           release = bool(release_core.intersection(files)) and all(name in release_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          upgrade_core = {"research_workbench_entrypoint/resident/model_provider_upgrade.py", "research_workbench_entrypoint/resident/gateway_upgrade.py"}
+          upgrade_paths = upgrade_core | {
+              "tests/research_web/test_model_provider_upgrade.py", "tests/research_web/test_gateway_upgrade.py",
+              "app/research_web/ui/server/session.mjs", "app/research_web/ui/server/profile.css", "app/research_web/ui/progress-data.json",
+              "tests/javascript/research_web_multiuser_session.test.mjs", "tests/javascript/research_web_mcp_login.test.mjs",
+              "docs/architecture/research-web/readme-review.json", ".github/workflows/research-web-checks.yml", ".github/workflows/research-web-bootstrap.yml", "tests/javascript/actions_quota_governance.test.mjs",
+          }
+          reviewed_upgrade = bool(upgrade_core.intersection(files)) and all(name in upgrade_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
               output.write("architecture_only=" + str(architecture_only).lower() + "\n")
               output.write("g2b_release_only=" + str(release).lower() + "\n")
-          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "full Research Web"))
+              output.write("reviewed_upgrade_only=" + str(reviewed_upgrade).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "reviewed maintenance upgrade" if reviewed_upgrade else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -207,6 +216,19 @@ jobs:
               tests/research_web/test_report_studio.py::test_version_is_immutable_and_active_run_locks_version \
               tests/research_web/test_report_studio.py::test_weekly_schedule_and_overlap_are_persistent \
               --confcutdir=tests/research_web -q
+            exit 0
+          fi
+          if [ "${{ steps.contract-scope.outputs.reviewed_upgrade_only }}" = "true" ]; then
+            # Preserve the original maintenance fixtures' historical source objects.
+            git -c gc.auto=0 -c maintenance.auto=false fetch --no-tags --no-write-fetch-head --no-auto-maintenance --depth=1 origin \
+              b800e50366d1a0868372bbf173822976066c143f \
+              db2ae9a48ceca365852072e622aa6627aa7d0b83 \
+              1529c3189b008b9861a2bee1511f051feefa76eb
+            PYTEST_PLUGINS=tests.research_web.event_test_support PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+              -- tests/research_web/test_model_provider_upgrade.py tests/research_web/test_gateway_upgrade.py --confcutdir=tests/research_web -q
             exit 0
           fi
           # The exact-handoff fixture verifies these historical objects offline.
@@ -454,12 +476,18 @@ jobs:
             node --test tests/javascript/research_web_architecture.test.mjs
           elif [ "${{ steps.contract-scope.outputs.g2b_release_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_architecture.test.mjs
+          elif [ "${{ steps.contract-scope.outputs.reviewed_upgrade_only }}" = "true" ]; then
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test \
+              tests/javascript/research_web_multiuser_session.test.mjs tests/javascript/research_web_mcp_login.test.mjs \
+              tests/javascript/research_web_account_menu.test.mjs tests/javascript/research_web_account_workspace.test.mjs \
+              tests/javascript/research_web_module_navigation.test.mjs tests/javascript/research_web_progress.test.mjs \
+              tests/javascript/actions_quota_governance.test.mjs
           else
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
           fi
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
