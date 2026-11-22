@@ -61,6 +61,18 @@ inferred from this test input.
 
 ## Files
 
+### `scripts/run_fingpt_source_ci.sh`
+
+Runs the fixed FinGPT source-report/Fed tracking CI command list selected by the existing
+Research Web Checks workflow. It has no command-selection parameters and runs from the
+repository checkout with the existing `RUNNER_TEMP` / GitHub run environment. It preserves
+the three historical source objects, 36 complete Web contract modules, Bot admission case,
+three unit modules, plugins and private partition roots. `set -euo pipefail` propagates the
+original fetch or partition failures. Moving this unchanged command list out of the YAML
+keeps each decoded workflow `run` value within GitHub's 21,000-character limit; it adds no
+job, runner, dependency, test exemption or timeout.
+Its exact path is registered for the existing Checks pull-request and master-push events.
+
 ### `scripts/run_ci_pytest_partitions.py`
 
 Purpose:

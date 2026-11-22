@@ -59,6 +59,8 @@ FinGPT 来源报告／Fed RSS 组合复用该工作流的封闭范围选择。�
 对应 Python 分支运行这些边界的完整模块和原分区／证据单测，保留原 Bot 准入及历史维护源对象。
 Node、编辑引擎、通用 Constraints、Mac 干净安装、45分钟作业上限与证据身份核对均保持。
 该选择不认证真实模型、Fed 跟踪质量或常驻回滚；这些仍由各自实际执行证据说明。
+固定 FinGPT 测试命令放在 `scripts/run_fingpt_source_ci.sh`，工作流只按原选择调用该脚本。
+回归解码每个 `run` 块并核对21,000字符上限，同时记录脚本展开后的完整命令闭包；选例和执行语义不变。
 
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。
