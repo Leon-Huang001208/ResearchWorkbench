@@ -1,0 +1,1520 @@
+[
+  {
+    "id": "validate_positions.success",
+    "atom": "validate_positions",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "expected_universe": [
+        {
+          "security_id": "SYN:A",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        },
+        {
+          "security_id": "SYN:B",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        }
+      ],
+      "target_weight": 1,
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "position": [
+        {
+          "kind": "position",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "weight": 60,
+          "weight_unit": "percent",
+          "snapshot_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "kind": "position",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:B",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "weight": 0.4,
+          "weight_unit": "fraction",
+          "snapshot_at": "2026-01-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "id": "validate_positions.missing",
+    "atom": "validate_positions",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "expected_universe": [
+        {
+          "security_id": "SYN:A",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        },
+        {
+          "security_id": "SYN:B",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        }
+      ],
+      "target_weight": 1,
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "position": [
+        {
+          "kind": "position",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "weight": 0.6,
+          "weight_unit": "fraction",
+          "snapshot_at": "2026-01-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "id": "validate_positions.missing-weight",
+    "atom": "validate_positions",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "expected_universe": [
+        {
+          "security_id": "SYN:A",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        },
+        {
+          "security_id": "SYN:B",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        }
+      ],
+      "target_weight": 1,
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "position": [
+        {
+          "kind": "position",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "weight": 0.6,
+          "weight_unit": "fraction",
+          "snapshot_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "kind": "position",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:B",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "weight": null,
+          "weight_unit": "fraction",
+          "snapshot_at": "2026-01-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "id": "validate_positions.zero",
+    "atom": "validate_positions",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "expected_universe": [
+        {
+          "security_id": "SYN:A",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        }
+      ],
+      "target_weight": 0,
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "position": [
+        {
+          "kind": "position",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "weight": 0,
+          "weight_unit": "fraction",
+          "snapshot_at": "2026-01-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "id": "join_risk_windows.success",
+    "atom": "join_risk_windows",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "positions": [
+        "SYN:A",
+        "SYN:B"
+      ],
+      "as_of": "2026-01-10T00:00:00Z",
+      "window_start": "2026-01-09",
+      "window_end": "2026-01-12",
+      "required_categories": [
+        "risk",
+        "unlock",
+        "insider"
+      ],
+      "category_coverage": {
+        "risk": "complete",
+        "unlock": "complete",
+        "insider": "complete"
+      }
+    },
+    "records_by_kind": {
+      "risk-event": [
+        {
+          "kind": "risk-event",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-08T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "event_id": "e1",
+          "category": "unlock",
+          "announced_at": "2026-01-08T00:00:00Z",
+          "effective_date": "2026-01-09"
+        },
+        {
+          "kind": "risk-event",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-09T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "event_id": "e2",
+          "category": "insider",
+          "announced_at": "2026-01-09T00:00:00Z",
+          "effective_date": "2026-01-12"
+        },
+        {
+          "kind": "risk-event",
+          "row_id": "synthetic-row-0003",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "3",
+              "location": "/records/3"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-09T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:B",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "event_id": "e3",
+          "category": "risk",
+          "announced_at": "2026-01-09T00:00:00Z",
+          "effective_date": "2026-01-13"
+        }
+      ]
+    }
+  },
+  {
+    "id": "join_risk_windows.missing",
+    "atom": "join_risk_windows",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "positions": [
+        "SYN:A"
+      ],
+      "as_of": "2026-01-12T23:59:59Z",
+      "window_start": "2026-01-09",
+      "window_end": "2026-01-12",
+      "required_categories": [
+        "risk",
+        "unlock",
+        "insider"
+      ],
+      "category_coverage": {
+        "risk": "complete",
+        "unlock": "missing",
+        "insider": "complete"
+      }
+    },
+    "records_by_kind": {}
+  },
+  {
+    "id": "deduplicate_source_versions.success",
+    "atom": "deduplicate_source_versions",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-10T00:00:00Z"
+    },
+    "records_by_kind": {
+      "source-version": [
+        {
+          "kind": "source-version",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-08T08:00:00+08:00"
+          },
+          "document_id": "u1",
+          "version_id": "v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "url_ref": "u1",
+          "language": "synthetic-language",
+          "region": "SYNTHETIC-REGION",
+          "event_at": null,
+          "source_role": "original",
+          "parent_version_id": null,
+          "full_text_available": true
+        },
+        {
+          "kind": "source-version",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-08T01:00:00Z"
+          },
+          "document_id": "u2",
+          "version_id": "v2",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "url_ref": "u2",
+          "language": "synthetic-language",
+          "region": "SYNTHETIC-REGION",
+          "event_at": null,
+          "source_role": "reprint",
+          "parent_version_id": "v1",
+          "full_text_available": true
+        },
+        {
+          "kind": "source-version",
+          "row_id": "synthetic-row-0003",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "3",
+              "location": "/records/3"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-09T00:00:00Z"
+          },
+          "document_id": "u1",
+          "version_id": "v3",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "url_ref": "u1",
+          "language": "synthetic-language",
+          "region": "SYNTHETIC-REGION",
+          "event_at": null,
+          "source_role": "original",
+          "parent_version_id": null,
+          "full_text_available": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "deduplicate_source_versions.missing",
+    "atom": "deduplicate_source_versions",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "source-version": [
+        {
+          "kind": "source-version",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": null
+          },
+          "document_id": "u1",
+          "version_id": "v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "url_ref": "u1",
+          "language": "synthetic-language",
+          "region": "SYNTHETIC-REGION",
+          "event_at": null,
+          "source_role": "original",
+          "parent_version_id": null,
+          "full_text_available": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "compare_qualified_expectations.success",
+    "atom": "compare_qualified_expectations",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T00:00:00Z"
+    },
+    "records_by_kind": {
+      "actual": [
+        {
+          "kind": "actual",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "disclosed_at": "2026-01-10T00:00:00Z",
+          "value": 120
+        }
+      ],
+      "forecast": [
+        {
+          "kind": "forecast",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": 100,
+          "vintage_at": "2026-01-09T00:00:00Z",
+          "consensus_id": "f1"
+        },
+        {
+          "kind": "forecast",
+          "row_id": "synthetic-row-0003",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "3",
+              "location": "/records/3"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": 110,
+          "vintage_at": "2026-01-11T00:00:00Z",
+          "consensus_id": "f2"
+        }
+      ]
+    }
+  },
+  {
+    "id": "compare_qualified_expectations.range",
+    "atom": "compare_qualified_expectations",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "guidance": [
+        {
+          "kind": "guidance",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "disclosed_at": "2026-01-10T00:00:00Z",
+          "lower": 90,
+          "upper": 110
+        }
+      ],
+      "forecast": [
+        {
+          "kind": "forecast",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": 100,
+          "vintage_at": "2026-01-09T00:00:00Z",
+          "consensus_id": "f1"
+        }
+      ]
+    }
+  },
+  {
+    "id": "compare_qualified_expectations.zero-negative",
+    "atom": "compare_qualified_expectations",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "actual": [
+        {
+          "kind": "actual",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:0",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": 10,
+          "disclosed_at": "2026-01-10T00:00:00Z"
+        },
+        {
+          "kind": "actual",
+          "row_id": "synthetic-row-0003",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "3",
+              "location": "/records/3"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:1",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": -5,
+          "disclosed_at": "2026-01-10T00:00:00Z"
+        }
+      ],
+      "forecast": [
+        {
+          "kind": "forecast",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:0",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": 0,
+          "vintage_at": "2026-01-09T00:00:00Z",
+          "consensus_id": "synthetic-f0"
+        },
+        {
+          "kind": "forecast",
+          "row_id": "synthetic-row-0004",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "4",
+              "location": "/records/4"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:1",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "value": -10,
+          "vintage_at": "2026-01-09T00:00:00Z",
+          "consensus_id": "synthetic-f1"
+        }
+      ]
+    }
+  },
+  {
+    "id": "compare_qualified_expectations.missing",
+    "atom": "compare_qualified_expectations",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "actual": [
+        {
+          "kind": "actual",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "basis": "cumulative",
+          "metric": "net_profit",
+          "attribution": "parent",
+          "currency": "CNY",
+          "unit": "million-CNY",
+          "disclosed_at": "2026-01-10T00:00:00Z",
+          "value": 120
+        }
+      ]
+    }
+  },
+  {
+    "id": "compare_valuation_samples.success",
+    "atom": "compare_valuation_samples",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z",
+      "current_row_id": "synthetic-row-0001",
+      "window_start": "2026-01-01T00:00:00Z",
+      "window_end": "2026-01-09T23:59:59Z",
+      "minimum_samples": 4
+    },
+    "records_by_kind": {
+      "valuation": [
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-10T00:00:00Z",
+          "value": 20
+        },
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-01T00:00:00Z",
+          "value": 10
+        },
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0003",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "3",
+              "location": "/records/3"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-02T00:00:00Z",
+          "value": 20
+        },
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0004",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "4",
+              "location": "/records/4"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-03T00:00:00Z",
+          "value": 20
+        },
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0005",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "5",
+              "location": "/records/5"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-04T00:00:00Z",
+          "value": 30
+        }
+      ]
+    }
+  },
+  {
+    "id": "compare_valuation_samples.missing",
+    "atom": "compare_valuation_samples",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z",
+      "current_row_id": "synthetic-row-0001",
+      "window_start": "2026-01-01T00:00:00Z",
+      "window_end": "2026-01-09T23:59:59Z",
+      "minimum_samples": 4
+    },
+    "records_by_kind": {
+      "valuation": [
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-10T00:00:00Z",
+          "value": 20
+        },
+        {
+          "kind": "valuation",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "metric": "PE",
+          "basis": "TTM",
+          "currency": "CNY",
+          "unit": "multiple",
+          "observation_at": "2026-01-01T00:00:00Z",
+          "value": 10
+        }
+      ]
+    }
+  },
+  {
+    "id": "align_event_trading_day.success",
+    "atom": "align_event_trading_day",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "release_at": "2026-01-09T15:00:00+08:00",
+      "as_of": "2026-01-13T00:00:00Z",
+      "pre_sessions": 1,
+      "post_sessions": 0,
+      "adjustment": "forward"
+    },
+    "records_by_kind": {
+      "exchange-session": [
+        {
+          "kind": "exchange-session",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "market": "SYNTHETIC",
+          "session_date": "2026-01-09",
+          "open_at": "2026-01-09T09:30:00+08:00",
+          "close_at": "2026-01-09T15:00:00+08:00"
+        },
+        {
+          "kind": "exchange-session",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "market": "SYNTHETIC",
+          "session_date": "2026-01-12",
+          "open_at": "2026-01-12T09:30:00+08:00",
+          "close_at": "2026-01-12T15:00:00+08:00"
+        }
+      ],
+      "daily-price": [
+        {
+          "kind": "daily-price",
+          "row_id": "synthetic-row-0003",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "3",
+              "location": "/records/3"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "session_date": "2026-01-09",
+          "close": 100,
+          "unit": "CNY_per_share",
+          "adjustment": "forward",
+          "tradable": true
+        },
+        {
+          "kind": "daily-price",
+          "row_id": "synthetic-row-0004",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "4",
+              "location": "/records/4"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "session_date": "2026-01-12",
+          "close": 100,
+          "unit": "CNY_per_share",
+          "adjustment": "forward",
+          "tradable": true
+        },
+        {
+          "kind": "daily-price",
+          "row_id": "synthetic-row-0005",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "5",
+              "location": "/records/5"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:BENCH",
+            "market": "SYNTHETIC",
+            "asset_class": "index",
+            "currency": "CNY"
+          },
+          "session_date": "2026-01-09",
+          "close": 200,
+          "unit": "points",
+          "adjustment": "forward",
+          "tradable": true
+        },
+        {
+          "kind": "daily-price",
+          "row_id": "synthetic-row-0006",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "6",
+              "location": "/records/6"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:BENCH",
+            "market": "SYNTHETIC",
+            "asset_class": "index",
+            "currency": "CNY"
+          },
+          "session_date": "2026-01-12",
+          "close": 200,
+          "unit": "points",
+          "adjustment": "forward",
+          "tradable": true
+        }
+      ]
+    }
+  },
+  {
+    "id": "align_event_trading_day.missing",
+    "atom": "align_event_trading_day",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "release_at": "2026-01-10T00:00:00Z",
+      "as_of": "2026-01-12T23:59:59Z",
+      "pre_sessions": 1,
+      "post_sessions": 0,
+      "adjustment": "forward"
+    },
+    "records_by_kind": {}
+  },
+  {
+    "id": "sentiment_counts.success",
+    "atom": "sentiment_counts",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "sentiment-counts": [
+        {
+          "kind": "sentiment-counts",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "market": "SYNTHETIC",
+          "session_date": "2026-01-09",
+          "universe_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "regime_id": "synthetic-regime",
+          "expected_count": 10,
+          "observed_count": 8,
+          "up": 4,
+          "down": 3,
+          "flat": 1,
+          "unknown": 2,
+          "limit_up": 2,
+          "opened_limit": 1,
+          "limit_touched": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "sentiment_counts.missing",
+    "atom": "sentiment_counts",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z"
+    },
+    "records_by_kind": {
+      "sentiment-counts": [
+        {
+          "kind": "sentiment-counts",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "market": "SYNTHETIC",
+          "session_date": "2026-01-09",
+          "universe_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "regime_id": "synthetic-regime",
+          "expected_count": 0,
+          "observed_count": 0,
+          "up": 0,
+          "down": 0,
+          "flat": 0,
+          "unknown": 0,
+          "limit_up": 0,
+          "opened_limit": 0,
+          "limit_touched": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "disclosed_ownership.success",
+    "atom": "disclosed_ownership",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z",
+      "report_periods": [
+        "2025Q2",
+        "2025Q3"
+      ]
+    },
+    "records_by_kind": {
+      "holder-disclosure": [
+        {
+          "kind": "holder-disclosure",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025Q2",
+          "holder_id": "H1",
+          "holder_kind": "other",
+          "shares": 20,
+          "unit": "share",
+          "float_shares": 100,
+          "float_unit": "share",
+          "disclosed_at": "2026-01-01T00:00:00Z",
+          "disclosure_id": "synthetic-2025Q2"
+        },
+        {
+          "kind": "holder-disclosure",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025Q3",
+          "holder_id": "H1",
+          "holder_kind": "other",
+          "shares": 30,
+          "unit": "share",
+          "float_shares": 100,
+          "float_unit": "share",
+          "disclosed_at": "2026-01-01T00:00:00Z",
+          "disclosure_id": "synthetic-2025Q3"
+        }
+      ]
+    }
+  },
+  {
+    "id": "disclosed_ownership.missing",
+    "atom": "disclosed_ownership",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z",
+      "report_periods": [
+        "2025Q3"
+      ]
+    },
+    "records_by_kind": {
+      "holder-disclosure": [
+        {
+          "kind": "holder-disclosure",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025Q3",
+          "holder_id": "H1",
+          "holder_kind": "other",
+          "shares": 30,
+          "unit": "share",
+          "float_shares": null,
+          "float_unit": "share",
+          "disclosed_at": "2026-01-01T00:00:00Z",
+          "disclosure_id": "synthetic-2025Q3"
+        }
+      ]
+    }
+  },
+  {
+    "id": "earnings_calendar.success",
+    "atom": "earnings_calendar",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-10T00:00:00Z",
+      "expected_universe": [
+        {
+          "security_id": "SYN:A",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        },
+        {
+          "security_id": "SYN:B",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        }
+      ],
+      "report_period": "2025FY"
+    },
+    "records_by_kind": {
+      "report-calendar": [
+        {
+          "kind": "report-calendar",
+          "row_id": "synthetic-row-0001",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "1",
+              "location": "/records/1"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:A",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "plan_version": 1,
+          "planned_date": "2026-01-20",
+          "actual_disclosed_at": null,
+          "supersedes_row_id": null
+        },
+        {
+          "kind": "report-calendar",
+          "row_id": "synthetic-row-0002",
+          "origin": {
+            "locator": {
+              "source_ref": "synthetic-fixture-only",
+              "resource_id": "synthetic-in-memory-not-host-source",
+              "record_id": "2",
+              "location": "/records/2"
+            },
+            "observed_at": "2026-01-01T00:00:00Z",
+            "published_at": "2026-01-01T00:00:00Z"
+          },
+          "security": {
+            "security_id": "SYN:B",
+            "market": "SYNTHETIC",
+            "asset_class": "equity",
+            "currency": "CNY"
+          },
+          "report_period": "2025FY",
+          "plan_version": 1,
+          "planned_date": "2026-01-09",
+          "actual_disclosed_at": "2026-01-09T02:00:00Z",
+          "supersedes_row_id": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "earnings_calendar.missing",
+    "atom": "earnings_calendar",
+    "origin_class": "synthetic-test-only",
+    "authority": "none",
+    "parameters": {
+      "as_of": "2026-01-12T23:59:59Z",
+      "expected_universe": [
+        {
+          "security_id": "SYN:A",
+          "market": "SYNTHETIC",
+          "asset_class": "equity",
+          "currency": "CNY"
+        }
+      ],
+      "report_period": "2025FY"
+    },
+    "records_by_kind": {}
+  }
+]

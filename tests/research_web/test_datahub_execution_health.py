@@ -25,16 +25,26 @@ class ExecutionHealthTests(unittest.IsolatedAsyncioTestCase):
             calls.append(catalog)
             return {"admitted": True}
 
+        requirements = [{"capability": "financials", "dataset": "financials"}]
         host = SimpleNamespace(
             store=self.store,
             _task_capabilities=lambda _sid: ({}, [{"id": "fixture-capability"}]),
-            _effective_records=lambda _refs: [{"metadata": {"data_requirements": []}}],
+            _effective_records=lambda _refs: [{"metadata": {"data_requirements": requirements}}],
             capabilities=SimpleNamespace(data_readiness=readiness),
         )
+        host._validate_data_query_scope = ResearchService._validate_data_query_scope.__get__(host)
         hub = DataHub(
             self.store, admission=lambda *args: ResearchService._data_query_admission(host, *args)
         )
         host.datahub = hub
+        hub.probes["fixture-healthy"] = {
+            "source_id": "akshare",
+            "status": "completed",
+            "health": "healthy",
+            "configuration_digest": hub.source_configuration_digest("akshare"),
+            "completed_at": "2026-10-28T00:00:00+00:00",
+            "retained_until": hub._monotonic() + 30,
+        }
         try:
             hub._record_execution_health(
                 self.sid,
@@ -48,6 +58,13 @@ class ExecutionHealthTests(unittest.IsolatedAsyncioTestCase):
             ]
             self.assertEqual(len(evidence), 1)
             self.assertEqual(len(calls), 1)
+            requirements[0]["capability"] = "market_bars"
+            with self.assertRaises(StoreError) as denied:
+                hub._authorize_query(self.sid, self.query)
+            self.assertEqual(denied.exception.code, "data_outside_declared_scope")
+            source = next(row for row in hub.catalog()["sources"] if row["id"] == "akshare")
+            self.assertEqual(source["execution_evidence"], [])
+            self.assertEqual(len(calls), 3)
         finally:
             await hub.close()
 

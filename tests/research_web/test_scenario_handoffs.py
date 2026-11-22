@@ -14,6 +14,8 @@ from app.research_web.datahub.contracts import BusinessQuery
 from app.research_web.datahub.providers import Result
 from app.research_web.scenario_handoffs import requirements, selection, trusted_context
 from app.research_web.scenarios import read_scenarios
+from app.research_web.scenarios.method_catalog import contracts as method_contracts
+from app.research_web.scenarios.pack_catalog import contracts as pack_contracts
 from app.research_web.store import Store, StoreError
 
 api = workbench_fixtures.api
@@ -25,7 +27,9 @@ def test_scenario_catalog_is_read_only_and_reports_real_eligibility(api):
     before = set(service.store.data["sessions"])
     response = client.get("/api/research/scenarios")
     assert response.status_code == 200, response.text
-    assert [r["id"] for r in response.json()["items"]] == [r["id"] for r in read_scenarios()]
+    assert [r["id"] for r in response.json()["items"]] == [
+        r["id"] for r in [*read_scenarios(), *pack_contracts(), *method_contracts()]
+    ]
     assert set(service.store.data["sessions"]) == before
     assert all("capabilities" in r for r in response.json()["items"])
 

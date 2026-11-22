@@ -81,7 +81,10 @@ def web(service, sid):
     ref = "web:" + "a" * 24
     path = "inputs/web-" + "a" * 24 + ".txt"
     body = "发布时间：2026-10-27\n半导体行业供需资料".encode()
-    fid = file(service, sid, path, body)
+    target = service.store.directory(sid) / path
+    target.write_bytes(body)
+    fid = hashlib.sha256(path.encode()).hexdigest()[:24]
+    assert all(item["id"] != fid for item in service.store.files(sid))
     service.store.session(sid)["web_evidence"] = {
         ref: {
             "id": ref,
@@ -99,6 +102,7 @@ def web(service, sid):
         }
     }
     service.store.save()
+    assert any(item["id"] == fid for item in service.store.files(sid))
     return ref, fid
 
 

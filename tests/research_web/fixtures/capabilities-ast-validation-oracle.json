@@ -1,0 +1,692 @@
+{
+  "schema": "capability_ast_ordered_oracle_v1",
+  "baseline_git_head": "38b8227618debc13f67ce02acf73a441aab90395",
+  "baseline_catalog_sha256": "ec18e6b55dc0e03d48e0f70762da68292560baab1b19dafe79bf04c90a5503b0",
+  "sealed_index_sha256": "7a525ed1878ae9d27d24bf0493c4069c8944d5b48a76b0cf7211d8682f73faca",
+  "lifecycle_scope": "pure validate over persisted data from actual cold Catalog; not a new Host/constructor proof",
+  "non_deterministic_fields": [
+    "checked_at"
+  ],
+  "case_ids": [
+    "plain",
+    "unreviewed",
+    "subprocess-module-alias",
+    "subprocess-from-import",
+    "subprocess-callable-transfer",
+    "os-system-alias",
+    "os-popen-from-import",
+    "os-spawn-family",
+    "os-posix-spawn-family",
+    "os-fork-family",
+    "os-exec-family-from-import",
+    "pty-spawn-alias",
+    "pty-spawn-from-import",
+    "asyncio-exec-alias",
+    "asyncio-shell-from-import",
+    "multiprocessing-module-alias",
+    "multiprocessing-submodule-alias",
+    "multiprocessing-process-from-import",
+    "multiprocessing-pool-submodule-from-import",
+    "process-pool-module-alias",
+    "process-pool-dotted-module",
+    "process-pool-from-import",
+    "process-pool-from-concurrent",
+    "pty-fork-alias",
+    "pty-fork-from-import",
+    "os-star-import",
+    "pty-star-import",
+    "asyncio-star-import",
+    "subprocess-shadow",
+    "os-shadow",
+    "pty-shadow",
+    "asyncio-shadow",
+    "thread-pool-is-allowed",
+    "syntax",
+    "installer-import",
+    "installer-command",
+    "installer-path",
+    "relative-valid",
+    "relative-missing",
+    "relative-escape",
+    "encoding-api",
+    "encoding-defense",
+    "multi-issue",
+    "pack-dynamic",
+    "pack-third-party",
+    "pack-relative",
+    "pack-multi-issue",
+    "workflow-bindings",
+    "method-status"
+  ],
+  "results": {
+    "plain": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "unreviewed": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_review_required",
+          "message": "研究脚本须审查后按 sha256 确认，仅作为沙箱只读资源",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "subprocess-module-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "subprocess-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "subprocess-callable-transfer": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-system-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-popen-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-spawn-family": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-posix-spawn-family": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-fork-family": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-exec-family-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pty-spawn-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pty-spawn-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "asyncio-exec-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "asyncio-shell-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "multiprocessing-module-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "multiprocessing-submodule-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "multiprocessing-process-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "multiprocessing-pool-submodule-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "process-pool-module-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "process-pool-dotted-module": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "process-pool-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "process-pool-from-concurrent": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pty-fork-alias": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pty-fork-from-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-star-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pty-star-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "asyncio-star-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "subprocess-shadow": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "os-shadow": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pty-shadow": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "asyncio-shadow": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "thread-pool-is-allowed": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "syntax": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_invalid",
+          "message": "研究 Python 脚本语法不正确",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "installer-import": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "installer_forbidden",
+          "message": "包内不得包含依赖安装脚本；审查确认不授予安装权限",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "installer-command": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        },
+        {
+          "code": "installer_forbidden",
+          "message": "包内不得包含依赖安装脚本；审查确认不授予安装权限",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "installer-path": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "unsafe_file",
+          "message": "包文件路径或类型不允许",
+          "path": "scripts/install_hook.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "relative-valid": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    },
+    "relative-missing": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_import_unresolved",
+          "message": "包内导入无法在冻结资源中解析",
+          "path": "scripts/pkg/__init__.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "relative-escape": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_import_unresolved",
+          "message": "包内导入无法在冻结资源中解析",
+          "path": "scripts/pkg/__init__.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "encoding-api": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "invalid_encoding",
+          "message": "文本文件必须为 UTF-8",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "encoding-defense": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_invalid",
+          "message": "研究 Python 脚本语法不正确",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "multi-issue": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_import_unresolved",
+          "message": "包内导入无法在冻结资源中解析",
+          "path": "scripts/research.py"
+        },
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/research.py"
+        },
+        {
+          "code": "installer_forbidden",
+          "message": "包内不得包含依赖安装脚本；审查确认不授予安装权限",
+          "path": "scripts/research.py"
+        },
+        {
+          "code": "dependency_missing",
+          "message": "脚本导入模块未安装：missing_fixture_dependency",
+          "path": "scripts/research.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pack-dynamic": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "pack_dynamic_import_forbidden",
+          "message": "组合包资源不能动态导入或执行任意代码",
+          "path": "scripts/calculate.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pack-third-party": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "pack_import_forbidden",
+          "message": "组合包只能导入冻结闭包、标准库和绑定的schema验证依赖",
+          "path": "scripts/calculate.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pack-relative": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "script_import_unresolved",
+          "message": "包内导入无法在冻结资源中解析",
+          "path": "scripts/calculate.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "pack-multi-issue": {
+      "valid": false,
+      "status": "invalid",
+      "issues": [
+        {
+          "code": "pack_dynamic_import_forbidden",
+          "message": "组合包资源不能动态导入或执行任意代码",
+          "path": "scripts/calculate.py"
+        },
+        {
+          "code": "pack_import_forbidden",
+          "message": "组合包只能导入冻结闭包、标准库和绑定的schema验证依赖",
+          "path": "scripts/calculate.py"
+        },
+        {
+          "code": "runtime_incompatible_script",
+          "message": "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+          "path": "scripts/calculate.py"
+        },
+        {
+          "code": "dependency_missing",
+          "message": "脚本导入模块未安装：missing_fixture_dependency",
+          "path": "scripts/calculate.py"
+        }
+      ],
+      "bindings": [],
+      "executes_code": false
+    },
+    "workflow-bindings": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [
+        {
+          "id": "document-reading",
+          "version": 1,
+          "native_name": "document-reading"
+        },
+        {
+          "id": "market-commentary",
+          "version": 1,
+          "native_name": "market-commentary"
+        }
+      ],
+      "executes_code": false
+    },
+    "method-status": {
+      "valid": true,
+      "status": "draft",
+      "issues": [],
+      "bindings": [],
+      "executes_code": false
+    }
+  }
+}

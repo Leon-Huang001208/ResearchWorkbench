@@ -128,7 +128,9 @@ def _resolve(observations: list[dict[str, Any]], ref: Any) -> dict[str, Any]:
     return matches[0]
 
 
-def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) -> dict[str, Any]:
+def _derive(
+    rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str, *, calculation_policy=None
+) -> dict[str, Any]:
     operation = recipe["operation"]
     families = [re.sub(r"_(?:final|preliminary)$", "", row["metric"]) for row in rows]
     annual = operation in {"annual_change", "gdp_implicit_deflator"}
@@ -164,6 +166,12 @@ def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) ->
         raise ValueError(ERROR)
     # Exact integer ratios avoid double rounding even at an accepted decimal boundary.
     numbers = [Fraction(r["value"]) for r in rows]
+    if (
+        calculation_policy == "owned-company-positive-base-v1"
+        and operation == "percent_change"
+        and numbers[1] <= 0
+    ):
+        raise ValueError("owned_percent_change_nonpositive_base")
     if operation == "identity":
         exact = numbers[0]
     elif operation == "sum":
@@ -273,7 +281,11 @@ def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) ->
 
 
 def derive_business_observations(
-    observations: list[dict[str, Any]], recipes: list[dict[str, Any]], *, task_id: str
+    observations: list[dict[str, Any]],
+    recipes: list[dict[str, Any]],
+    *,
+    task_id: str,
+    calculation_policy=None,
 ) -> list[dict[str, Any]]:
     """Derive scoped display quantities; callers independently repeat on Host bytes."""
     try:
@@ -340,7 +352,7 @@ def derive_business_observations(
                 {r["id"] for r in rows}
             ) != len(rows):
                 raise ValueError(ERROR)
-            result.append(_derive(rows, recipe, task_id))
+            result.append(_derive(rows, recipe, task_id, calculation_policy=calculation_policy))
             seen.add(identifier)
         log.info("research_report_calculations_derived count=%d", len(result))
         return result
@@ -354,4 +366,6 @@ def derive_business_observations(
         OverflowError,
     ) as exc:
         log.warning("research_report_calculations_rejected type=%s", type(exc).__name__)
+        if str(exc) == "owned_percent_change_nonpositive_base":
+            raise
         raise ValueError(ERROR) from exc

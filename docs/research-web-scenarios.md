@@ -86,3 +86,5 @@ result = select_scenario(
 纯目录合同保持不变。实际场景选择、冻结、发送、资讯筛选及撤权边界见[三页场景交接](research-web-scenario-handoffs.md)，包版本与实际执行准入分别报告。
 
 场景普通问答使用 AlphaDesk 时，Host 验证能力版本及交接资料，并把实际提交的能力记录在本轮回执中。
+
+九个确定性研究包与三个自有原件方法沿同一场景冻结／准备／发送入口接入，来源选择见[选材合同](research-web-source-selection.md)，执行及缺口见[研究包](research-web-research-packs.md)。原八场景与实际授权不因包目录存在而变更。

@@ -325,6 +325,9 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 
 能力中心为公司／行业研究、调研准备、研报增量、预期差和风险检查补输入／输出／限制说明，仍引用原发布能力版本；固定方法说明本身不授予工具或来源权限。档案句柄在实际 Prompt 绑定后走既有 research_read_source 的 Host 分支，DSH 仍是唯一执行器。小创一方包仅可沿原导入预览，真实 Registry 身份未核验而保持 unsupported／未就绪；配置状态复用原插件 status，无合法安装时不开放个人凭据配置。见[方法与 UI](../../research-web-dossiers-ui.md)及[候选合同](../../research-web-seek-alpha.md)，原能力发布拓扑保持。
 
+## 2026-10-28：T3组合包集成边界
+
+pack_resources从唯一packs源冻结record/output schema、golden、runtime/import闭包；pack_relocation与pack_equivalence仅允许显式历史读回的受审等价，不重写旧包或绕当前授权/运行冻结。三owned Skill冻结共享原件动作与独立入口，Host按同资源字节复算台账。C1静态参数标记与CLS固定wrapper不注册供应商alias，不代表62/78全可用。
 
 ## 专业协作接入边界（2026-10-28）
 
@@ -335,3 +338,7 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 WeKnora 只读客户端发现既有四项工具，当前授权所选材料决定实际可读范围。
 
 已批准的 WeKnora 客户端可经私网 HTTPS 获取原冻结资料，只读工具和逐项授权边界继续适用。
+
+## 研究包的既有链路接入
+
+`scenarios/packs/` 提供九个确定性计算包，`scenario_pack_*` 与 `scenario_method_*` 在原 Host 内完成输入冻结、DSH 接线和结果复核；不新增调度器、数据库或研究引擎。能力分类仍为技能／连接器／插件，原来禁用的方法不会因此解锁。接口与来源约束见[研究包](../../research-web-research-packs.md)和[原件方法](../../research-web-owned-methods.md)。

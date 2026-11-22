@@ -164,6 +164,22 @@ async function admissionFixture(t, child = false) {
     agent: { session }, signal: new AbortController().signal } };
 }
 
+test('owned CLS directory mask follows Host readiness and only removes its fixed wrapper',async t=>{
+  const f=await admissionFixture(t);const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  let available=false;const masks=[];let releases=0;
+  f.ctx.tools.get=name=>name==='rwb_query_latest_cls_news'?{}:undefined;
+  f.exec.agent.ctx={tools:{restrict(value){masks.push(value);return ()=>{releases++;};}}};
+  globalThis.fetch=async(_url,options)=>{
+    const body=JSON.parse(options.body);const admitted=body.tool_name!=='rwb_query_latest_cls_news'||available;
+    return new Response(JSON.stringify({status:admitted?'available':'unavailable',admitted,missing:[],omitted_sections:[]}),{headers:{'content-type':'application/json'}});
+  };
+  const pre=f.handlers.get('agent/pre-step'), options={agent:f.exec.agent,signal:f.exec.signal,messages:[]};
+  const next=async()=>({kind:'continue',messages:[]});
+  assert.equal((await pre(options,next)).kind,'continue');assert.deepEqual(masks,[{deny:['rwb_query_latest_cls_news']}]);
+  available=true;assert.equal((await pre(options,next)).kind,'continue');assert.equal(releases,1);
+  available=false;await pre(options,next);assert.equal(masks.length,2);assert.deepEqual(masks[1],{deny:['rwb_query_latest_cls_news']});
+});
+
 test('native skill gate binds a child to its parent workspace and preserves prior approval', async t => {
   const f = await admissionFixture(t, true); const original = globalThis.fetch; let body;
   t.after(() => { globalThis.fetch = original; });
