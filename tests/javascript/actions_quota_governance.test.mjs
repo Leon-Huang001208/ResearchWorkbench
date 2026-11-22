@@ -549,6 +549,11 @@ test('knowledge authority regressions execute once in each applicable CI branch'
     for(const file of ['test_weknora_formal_scope.py','test_store.py','test_capabilities_native.py']) {
       assert.equal(argumentsFound.filter(value=>value===`tests/research_web/${file}`).length,retention?0:1,`${file}: retention=${retention},packs=${packs}`);
     }
+    if(packs) {
+      assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_service_manager.py').length,0);
+      assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_service_manager.py::test_start_waits_for_runtime_readiness_before_web_spawn_and_browser').length,1);
+      assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_api.py').length,0);
+    }
     if(retention) assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_test_artifact_retention.py').length,1);
   }
 });

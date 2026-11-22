@@ -140,7 +140,6 @@ jobs:
               'tests/javascript/research_web_public_data.test.mjs',
               'tests/javascript/research_web_scenarios.test.mjs',
               'tests/javascript/research_web_source_picker.test.mjs',
-              'tests/research_web/test_api.py',
               'tests/research_web/test_capabilities.py',
               'tests/research_web/test_capabilities_admission.py',
               'tests/research_web/test_capabilities_ast.py',
@@ -197,6 +196,7 @@ jobs:
               'tests/research_web/test_workbench_operations.py',
           }
           pack_fixtures = {
+              'tests/research_web/test_api.py',
               'tests/javascript/helpers/method-native-driver.mjs',
               'tests/javascript/helpers/owned-news-native-driver.mjs',
               'tests/javascript/helpers/pack-native-driver.mjs',
@@ -355,15 +355,15 @@ jobs:
               --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
               --allowed-parent "$RUNNER_TEMP" \
               --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
-              -- tests/research_web/test_api.py \
+              -- \
                  tests/research_web/test_capabilities.py \
                  tests/research_web/test_capabilities_admission.py \
                  tests/research_web/test_capabilities_ast.py \
                  tests/research_web/test_capabilities_native.py \
                  tests/research_web/test_capture_file_alias.py \
-                 tests/research_web/test_cpu_quant_skills_stage2.py \
-                 tests/research_web/test_cpu_quant_skills_stage3.py \
-                 tests/research_web/test_cpu_quant_skills_stage4.py \
+                 tests/research_web/test_cpu_quant_skills_stage2.py::test_six_unique_builtin_packages_are_admitted_discoverable_and_disabled \
+                 tests/research_web/test_cpu_quant_skills_stage3.py::test_seven_stage3_packages_are_discoverable_disabled_and_receipt_gated \
+                 tests/research_web/test_cpu_quant_skills_stage4.py::test_five_stage4_packages_are_discoverable_disabled_and_receipt_gated \
                  tests/research_web/test_datahub_execution_health.py \
                  tests/research_web/test_execution_bindings.py \
                  tests/research_web/test_execution_cancel_native.py \
@@ -371,7 +371,7 @@ jobs:
                  tests/research_web/test_fixture_credentials.py \
                  tests/research_web/test_frameworks.py \
                  tests/research_web/test_iteration_resources.py \
-                 tests/research_web/test_multiuser_runtime.py \
+                 tests/research_web/test_multiuser_runtime.py::test_tenant_pack_completion_requires_datahub_auth_after_preflight \
                  tests/research_web/test_native_argument_adapters.py \
                  tests/research_web/test_native_sdk_bootstrap_ci.py \
                  tests/research_web/test_owned_company_policy.py \
@@ -403,7 +403,7 @@ jobs:
                  tests/research_web/test_scenario_method_packages.py \
                  tests/research_web/test_scenario_method_sources.py \
                  tests/research_web/test_scenario_source_selection.py \
-                 tests/research_web/test_service_manager.py \
+                 tests/research_web/test_service_manager.py::test_start_waits_for_runtime_readiness_before_web_spawn_and_browser \
                  tests/research_web/test_source_capture_proof.py \
                  tests/research_web/test_source_capture_store_interaction.py \
                  tests/research_web/test_specialist_evidence.py \
