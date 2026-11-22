@@ -260,6 +260,15 @@
         ],
         "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts --confcutdir=tests/research_web"
       },
+      "research-web-native-upgrade": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_model_provider_upgrade.py --confcutdir=tests/research_web"
+      },
       "research-web-critical-smoke": {
         "level": "L3",
         "lane": "local",
@@ -488,6 +497,34 @@
     }
   },
   "rules": [
+    {
+      "id": "research-web-native-upgrade",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_native_upgrade_boundary",
+      "impact": ["native-upgrade", "runtime-preservation"],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "research_workbench_entrypoint/resident/model_provider_upgrade.py",
+          "tests/research_web/test_model_provider_upgrade.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": ["macos", "windows", "cross-platform"],
+      "tests": [
+        "research-web-native-upgrade",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": ["documentation-governance", "python-file-index"],
+      "ci": ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-windows-verify"],
+      "realMachine": []
+    },
     {
       "id": "research-web-architecture-checker",
       "risk": "full-delivery",

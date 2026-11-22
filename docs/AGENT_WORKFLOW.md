@@ -1,5 +1,18 @@
 # Agent 任务路由指南
 
+附接 MCP 保全复核的当前前移仅修改原 Native 联合操作员。沿同一任务和 PR #284，
+在既有测试模块验证五个保全模式的 forward apply 与非完成后回滚的 `preparing` 恢复：
+真实持有 BirthFence SQLite EX、安装作用域及原 Operations 后，配置校验和前版健康／保全复核
+均通过，才进入切换或删除准备 journal。失败须证明未 stop、checkpoint 或切源且原 journal 保留。
+Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、Mac mini 部署仍分别取证，
+不重建已过时的财经日历部署 profile。见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+原操作员源码与 `test_model_provider_upgrade.py` 两个确切文件由 `research-web-native-upgrade`
+显式选择 L4/full-delivery：完整模块、原通用完整检查、Constraints、Checks 和同候选 Mac Bootstrap
+均须分别取证。Bootstrap 的 PR／push 路径已同时覆盖源码与对应测试，测试单改也不能漏过 Mac 门。
+Windows 门交对应真机执行，Mac 不 dispatch；邻近未登记 resident／测试路径仍按
+unknown L4 fallback 保留缺口，不能用局部回归或路由计划代替整模块、CI 或实际升级验收。
+
 管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
 exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
 `build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，
@@ -503,7 +516,7 @@ node scripts/git_safety.mjs worktree-retirement --project /absolute/control-chec
 
 需要完整安全备份的人工受管收尾仍调用 `delivery --cleanup`。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
 
-本机pytest优先用 `scripts/test_artifact_retention.py run` 管理同任务唯一活动根：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复；前一根回收后才创建下一批，无须等Git合并。失败/未知保留最小复现及原始回执；没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
+本机pytest优先用 `scripts/test_artifact_retention.py run`，同任务每次只运行一批：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复。成功根回收后再创建下一批，无须等Git合并；已结束的失败根可按用户2026-11-22持续授权保留为证据，在失败已定位、原执行结束且当前无占用后，自动缩小批次或修复并绑定新候选，必要时使用本任务新私有系统临时父目录沿原入口继续，不逐次要求例外确认。原件、原owner和历史累计不改，旧失败不由新PASS覆盖；再次失败先定位，不连续复制大夹具，也不靠换目录绕过在途／占用未知、容量或新增授权。没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
 
 每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。普通Git恢复点按用户2026-10-31方案，在已登记且交付成功后轮转保留最新2个有效点，不再等待7天；未登记存量先核对逐类批准；未提交、未归并、活动、未知归属和独有保护锚点不自动淘汰，修复隔离备份仍单独保护。
 
