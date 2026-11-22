@@ -2401,3 +2401,23 @@ test("generated architecture mapping is an exact artifact list and does not acce
     assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], file);
   }
 });
+
+for (const file of ["scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"]) {
+  test(`architecture checker changes retain their full verification closure: ${file}`, () => {
+    assertKnowledgeScopeRoute(success(run(repositoryRoot, [file])), file, "research-web-architecture-checker", "research-web-architecture");
+  });
+}
+
+test("architecture checker mapping remains exact and does not admit neighboring tools", () => {
+  const actual = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".agents/verification-policy.json"), "utf8"));
+  assert.deepEqual(actual.rules.find(item => item.id === "research-web-architecture-checker").match, {
+    files: ["scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"],
+    prefixes: [], segments: [], suffixes: [],
+  });
+  for (const file of ["scripts/check_future_architecture.mjs", "tests/javascript/future_architecture.test.mjs"]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], file);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], file);
+    assert.equal(plan.requiredLevel, "L4", file);
+  }
+});

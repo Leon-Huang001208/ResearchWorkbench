@@ -22,6 +22,8 @@ The original same-name legacy read registration is removed instead of overriding
 
 Two independent review findings were fixed: the full reserve/check/write/save/rollback transaction uses the existing Store RLock, preventing another save from persisting a failed half-seal; a formal read synchronously rechecks its complete binding after the final Native RPC, rejecting a binding replacement during that wait. Tests use real thread/wait barriers and synthetic stores, not live service mutations.
 
+Final review also found that the explicit CI file list omitted the new formal-scope, Store and Native capability regressions. The original partition command now includes these three modules, with a contract that checks actual command arguments. The Reader checker and its test receive a separate two-file L4 route; neighboring unknown tools keep the original fallback. Jobs, runners, dependencies and timeouts remain unchanged.
+
 ## Evidence boundaries
 
 The current backend has 116 unique WIP adjacent tests passing with retired temporary roots; runtime checks report 57 passing Node cases and one preserved conditional skip. Syntax, Ruff, Black, isort and focused mypy checks passed. The initial incorrect legacy test expectation and same-logical-root reviewed recovery are separately retained; they are not counted twice or relabeled as exact final-candidate evidence.
