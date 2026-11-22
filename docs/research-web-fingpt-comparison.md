@@ -71,13 +71,14 @@ Research Bot 的合成模型与 Automation 合同检查记录在其独立任务�
 
 固定 90e→v5 的小型 Native pyz 与 fresh retry 仅恢复原部署链；FinGPT 仍是唯一 DSH 上的既有模式，不新增研究引擎、业务 HTTP、依赖或比较运行。三锁、lease、DB EX／有界 spawn 意图不能替代本章冻结问题、模型／次数／费用和质量 oracle；pending 或历史 UNKNOWN 不转为 accepted，也不重发试验来填质量缺口。
 
-当前原 15 账号的模型配置与比较证据保全范围不变；已提交历史弃置与正式质量结论分开，admin＋新 test 清理待终态后独立进行。源码／CI／Mac 安装、真实维护与模型比较分别取证，不据此新增 Docker／Windows／Linux 物理 PASS。维护重入与终态语义见[successor 合同](research-web-trial-successor-handoff.md)。
+交接时原 15 账号的模型配置与比较证据保全范围不变；已提交历史弃置与正式质量结论分开。2026-10-31 现场任务在恢复终态后独立清理为 admin＋新 test，原模型配置经核对保留；这不产生三组模型比较或质量通过证据。源码／CI／Mac 安装、真实维护与模型比较分别取证，不据此新增 Docker／Windows／Linux 物理 PASS。维护重入与终态语义见[successor 合同](research-web-trial-successor-handoff.md)。
 
 ## 试验丢弃与质量证据分离（2026-10-30）
 
 本次 Native 维护模式接受用户明确授权的历史试验及 Wind UNKNOWN 丢弃；它不运行 FinGPT 比较、不产生模型质量结论、不把未知执行改为成功。历史试验不再独立否决该固定模式的部署，但普通未知拒绝与本章冻结质量门保持。
 
 账号和模型配置受保护，已提交丢弃随代码回滚继续生效，关联生产者不在重启时重放。离线模块和既有 CI import 检查只证明维护合同，最终候选 CI、真实维护及认证页面另行取证。见[试验退役与恢复合同](research-web-trial-discard.md)。
+
 
 备份 FD clone／单文件快照预算修复不执行本比较、DSH 模型、Office 或付费源，
 也不把备份工具链 Python 选择复用当成模型或生产权限。小数据 clone、CI 和
@@ -107,7 +108,7 @@ Wind 恢复准备的分项见证、只读预检和私有停止构件是运维安
 
 Checks预算30→40分钟只为保留原完整合同矩阵，不运行FinGPT比较、不扩大真实模型或供应商授权。旧候选30m0s取消仍非PASS，不能用Mac安装或本机结果替代新提交完整CI；Source/安装/真实研究与Word门保持独立，质量合同和全部测试不减少。
 
-2026-10-29 Research Web Checks 的两条既有 Python scope 在原 Ubuntu job 内分成两个独立 pytest worker，并上传短期保存的 JUnit/nodeID/log 证据；原选择、CI 门和45分钟上限不变。该实现只调整测试执行吞吐，不运行FinGPT比较、不改变模型次数/费用/质量判据，也不把本机合同通过当成新候选CI或真实模型质量。
+2026-10-29 Research Web Checks 的两条既有 Python scope 最初在单一 Ubuntu job 内分成两个独立 pytest worker，并上传短期保存的脱敏 JUnit/nodeID/摘要日志证据；后继容量修复保留该层，再在 job 层确定性二分并由统一 `checks` 门核验。原选择、每 job 两 worker 和 45 分钟上限不变；峰值 runner 与总 runner-minutes 的变化单独记入 Actions 预算。该实现只调整测试执行吞吐，不运行 FinGPT 比较、不改变模型次数／费用／质量判据，也不把本机合同或 progress 当成新候选 CI 或真实模型质量。
 
 首个4ed hosted候选的分区CI收集7,381项后两个worker均在测试执行前失败。实际根因为被参数化的frozenset跨进程顺序不稳定，导致worker完整nodeID顺序与父manifest不一致；对应测试现按稳定排序收集，23个案例保持不变。worker安全taxonomy固定为phase/code映射及producer/stager相同的异常类枚举；未知identifier形失败正文归零、私有异常类名不进入artifact。定向回归只用于定位/验证测试调度与证据隐私，不认证FinGPT质量、模型调用或新的hosted CI已通过。
 
@@ -293,6 +294,12 @@ NYFed SOFRAI v3只在原Host/DataHub/可选研究仓校准复合均值和指数�
 
 个股区间浮窗是确定性浏览器计算，不创建FinGPT/Claw会话、不调用模型，也不把统计数值或阅读行为自动登记成DSH研究证据。原研究引擎和质量比较范围不变，数学/交互/CI与正式模型质量分别验收。
 
+## 2026-10-28：T3既有验证通道
+
+九包与三owned方法属于同一DSH链的确定性动作/原件核验，CLS固定wrapper不是供应商alias，C2由Host执行后供Native消费。现有比较worker、真实模型预算和质量oracle保持；140静态映射、构造资源或saved不能替代真实模型比较，T4/T5及最终CI仍待验。
+
+
+2026-10-28：PR245 Checks 安装漂移及旧 fixture 修复只约束已有冻结依赖并恢复离线合同测试，既不调用 FinGPT 模型／供应商，也不改变比较、预算或正式报告质量准入。本机 runtime／governance 通过不是模型效果或新候选 CI 的证明；原失败与新候选三 CI／Mac 安装分别保留。
 
 ## 专业协作接入边界（2026-10-28）
 

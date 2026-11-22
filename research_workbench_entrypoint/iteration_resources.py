@@ -719,8 +719,21 @@ def record_task(project, task):
             raise ResourceError("closeout_worktree_not_owned")
         stat = root.stat()
         identity = [stat.st_dev, stat.st_ino]
-        if str(root) in old["roots"] and old["roots"][str(root)] != identity:
-            raise ResourceError("closeout_worktree_changed")
+        previous_identity = old["roots"].get(str(root))
+        device_changed = previous_identity is not None and previous_identity[0] != stat.st_dev
+        if previous_identity is not None and previous_identity != identity:
+            registered = {
+                str(Path(line.removeprefix("worktree ")).resolve())
+                for line in git(project, "worktree", "list", "--porcelain").splitlines()
+                if line.startswith("worktree ")
+            }
+            if previous_identity[1] != stat.st_ino or str(root.resolve()) not in registered:
+                raise ResourceError("closeout_worktree_changed")
+            log.info(
+                "iteration_worktree_device_refreshed old=%s current=%s",
+                previous_identity[0],
+                stat.st_dev,
+            )
         old["roots"][str(root)] = identity
         known = {row["path"]: row for row in old["directories"]}
         generated = git(
@@ -741,6 +754,16 @@ def record_task(project, task):
                 row = register_directory(
                     root, path, "evidence" if relative == "logs" else "dependency"
                 )
+                prior = known.get(str(path))
+                if (
+                    prior
+                    and device_changed
+                    and prior["device"] == previous_identity[0]
+                    and row["device"] == identity[0]
+                    and {**prior, "device": row["device"]} == row
+                ):
+                    old["directories"][old["directories"].index(prior)] = row
+                    known[str(path)] = row
                 if str(path) in known and known[str(path)] != row:
                     binding = regenerated_directory(known[str(path)], row, state)
                     old.setdefault("regenerations", {})[str(path)] = binding
@@ -753,6 +776,16 @@ def record_task(project, task):
             path = root / relative
             if path.is_dir() and not path.is_symlink() and next(path.iterdir(), None) is None:
                 row = register_directory(root, path, "empty-directory")
+                prior = known.get(str(path))
+                if (
+                    prior
+                    and device_changed
+                    and prior["device"] == previous_identity[0]
+                    and row["device"] == identity[0]
+                    and {**prior, "device": row["device"]} == row
+                ):
+                    old["directories"][old["directories"].index(prior)] = row
+                    known[str(path)] = row
                 if str(path) in known and known[str(path)] != row:
                     binding = regenerated_directory(known[str(path)], row, state)
                     old.setdefault("regenerations", {})[str(path)] = binding

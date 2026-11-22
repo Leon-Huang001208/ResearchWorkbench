@@ -1,0 +1,28 @@
+{
+  "source_commit": "6334130e38313824d576cc51a1cf3a60a4622dd8",
+  "generation": "2026-10-27 post C0 RED, pre C0 resource mutation; old package captured before changes",
+  "kind": "actual frozen 633 package writer and calculator executed locally; synthetic calculation source, no model/provider",
+  "uid": 501,
+  "pid": 73677,
+  "artifacts": {
+    "input.json": "7ba2c96e4e30dbc0210389e3dfc4be1065b68608c15bee2cca115eb031fdc6dd",
+    "package.json": "797a5c7b50ee87a5cb41b45af132e5117c07b283811d0ce65388139cc87b9ddd",
+    "execution.json": "13c622be29fb566ce5df0d18467ca8dbe99d1bd49ca2e8253154502e87621419",
+    "outputs/scenario-results/ffffffffffffffffffffffffffffffff/v1/full-result.json": "30fb42887f9e84bcbfa6631ab624c8f5e2117fbf1726dda7c8ef7683b0232246",
+    "outputs/scenario-results/ffffffffffffffffffffffffffffffff/v1/manifest.json": "1148d4b9c285d81913b8a6dafb7d23e10ff657532a44e221995406e5dd485da6",
+    "outputs/scenario-results/ffffffffffffffffffffffffffffffff/v1/receipt.json": "e64d8215b26ae9ba8e42d35cfb4b67c067b88256f3656db989bd64d22ff22afd"
+  },
+  "verified_against_source_commit": {
+    "app/research_web/scenarios/packs/__init__.py": "0d359f488b248b0a30b8095c32dea5715a6167b5227d6cd2c8948ff73418fca6",
+    "app/research_web/scenarios/packs/atoms.py": "4fb80f3f6a1dfb813260f2d1997e919114077aa3deca73894754eb35cbd3d19b",
+    "app/research_web/scenarios/packs/bundles.py": "07e8d73d656b096c49db0023df11473d8809f98c58c9a01cd2479e6c65cb63bc",
+    "app/research_web/scenarios/packs/contracts.py": "d7a96a646e1622833dcad8f4c3677cbadc762a67cbed8a1e6f7ce91579e72811",
+    "app/research_web/scenarios/packs/limited.py": "f3f862a802eb06490ec5116decbb3a3c3eae54f5939fdbe270c8dc16f8b9eaa7",
+    "app/research_web/scenarios/packs/record_contracts.py": "a1bd18fb500909369d0b83447549a971b7020b9c0811395970865f8ac75daf25",
+    "app/research_web/scenarios/packs/format_profile.py": "562f97429b139f1301698ab57dff1ab166ea31094d5dee72950849c67655c030",
+    "app/research_web/capabilities/pack_logging.py": "feae7c42ce4d3339951ba1dfecedee4da2c9197fc21660599a22814ea06b9637",
+    "app/research_web/capabilities/pack_native.py": "c3ff9025c67c308cd7634fa7a73ff5f7c450f25cf07b9218a61a6b3664645003",
+    "app/research_web/capabilities/pack_import_policy.py": "7cc9ff564377b684d558c40742f99369d3167836346e0dbfe6039a95502477df",
+    "app/research_web/scenarios/packs/synthetic_vectors.json": "05966942fafb67976d8a85b25e45a010488a9cbe2ae4c920950cc639f47262fd"
+  }
+}

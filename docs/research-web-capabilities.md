@@ -161,7 +161,7 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 `datahub_index_data` 的 points 口径查询。Capabilities 目录展示这一受支持子集，不因六位代码形式
 推断或扩展 Wind 的可调用资产范围。
 
-当前目录包含 30 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+当前目录包含原 30 个内置 Skill、9 个 `research-pack-*` 确定性包和 4 个内置 Workflow。九包的来源覆盖与完整研究状态见[组合包后端合同](research-web-research-packs.md#b1hostnative后端闭环)；其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
@@ -586,3 +586,7 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 仅服务模式的研究能力可由外部宿主消费。RWB 账号内原生能力创建、启用及运行请求在该模式拒绝。
 
 AlphaDesk 收到 Host 固定且已验证的能力资源。原目录批准、资料条件和账号权限继续决定可调用工具。
+
+## 九个研究包与自有原件方法
+
+研究包复用原 Host、DataHub、DSH 和质量核验链；能力中心继续使用技能／连接器／插件三分类，包详情按现有入口投影，不重开旧分类。确定性计算与来源缺口见[研究包](research-web-research-packs.md)，三个原件方法见[自有方法](research-web-owned-methods.md)，选材与冻结见[来源选择](research-web-source-selection.md)。

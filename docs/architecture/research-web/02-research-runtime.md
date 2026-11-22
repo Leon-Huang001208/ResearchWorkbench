@@ -85,13 +85,14 @@ APFS 修复只更新已登记根的设备号。Web 和 DSH 的所有权检查、
 
 固定 90e 从旧 v4／1529 执行器交接到受审 v5，仅接续原恢复事务；完成退役并恢复 b800 代码与随后 fresh apply db2 是两个终态，不合并为一次部署成功。新 pyz 使用原恢复入口，研究仍由唯一 DSH 执行；job／TERM 意图已持久化而结果未明时只观察，不重发信号、模型或研究请求。
 
-三 EX 锁、安装 lease、BirthFence DB EX 下，每事务最多记录 8 项 spawn 意图；这不是 8 次自动重试额度。任一 pending 必须保持 UNKNOWN，不能从暂时无 PID 文件或端口空闲推断可以再 spawn；已确认 PID 与其 acceptance 在同一 checkpoint 提交。当前原 15 账号 consent 和非试验状态受保护，admin＋新 test 清理在终态后独立进行。详见[handoff／fresh retry 协议](../../research-web-trial-successor-handoff.md)，不由合成协议测试推定 Docker／Windows／Linux 实机行为。
+三 EX 锁、安装 lease、BirthFence DB EX 下，每事务最多记录 8 项 spawn 意图；这不是 8 次自动重试额度。任一 pending 必须保持 UNKNOWN，不能从暂时无 PID 文件或端口空闲推断可以再 spawn；已确认 PID 与其 acceptance 在同一 checkpoint 提交。原 15 账号 consent 和非试验状态在交接事务中受保护；2026-10-31 现场任务已于终态后独立清理为 admin＋新 test，保留原管理员凭据和模型配置。详见[handoff／fresh retry 协议](../../research-web-trial-successor-handoff.md)，不由合成协议测试推定 Docker／Windows／Linux 实机行为。
 
 ## 历史试验丢弃与恢复（2026-10-30）
 
 用户授权的历史试验丢弃由离线 Native 操作员执行，研究会话仍使用唯一 DSH。停止前重新核实已知 RWB 进程身份；外部 Wind Terminal 不在退役范围内。归档会话同时停用关联自动化／报告生产者，重启不重放模型请求；账号和模型配置保持。
 
 已提交的丢弃决定在代码回滚后继续有效，原始试验数据只允许离线、持栅栏的人工恢复。`recover` 保留完整不可变终态回执，只释放本事务的 BirthFence；错误 owner、spawn 后尚未记录 PID 或未知 mkdir 崩溃均保留未知及栅栏，须人工核对，禁止自动再 spawn。见[维护与恢复合同](../../research-web-trial-discard.md)。
+
 
 场景仍由原DSH执行；Host只冻结资料／参数、核验每项必需能力和资源、维护原提交回执及质量合同。required、discovered、真实loaded分别记录，不能把要求列表算作执行；schema2仅加强场景身份，原schema1与历史回执保持。准备不发模型，已存在意图或未知创建不重建；只有服务器锁内证明not_created的输入拒绝才恢复编辑。来源撤权时详情和回执保留安全状态，摘录不继续输出。
 
@@ -885,6 +886,9 @@ Git管理面新增 closeout-recover：默认预览不fetch；执行绑定预览�
 
 本轮最终仅交付已核实CJPY股票报价单位传播及对应回归；不新增Native部署模式。未合入、未上线的V10草稿从最终diff撤下，旧提交和CI按原身份留存，统一恢复与新组合部署由独立受审流程负责。
 
+## 2026-10-28：T3组合包集成边界
+
+scenario_pack_execution与scenario_method_sources登记task/call/input/context及固定launcher。实际supervisor完成经私有pack-completion独立核schema、全量制品与来源hash后才记saved；取消、迟到及unknown不重跑。新闻/调研C2由Host先执行冻结、Native只消费，保存与原报告质量分别认证；历史版本仅在显式Dossier读回门验证等价。
 
 ## 专业协作接入边界（2026-10-28）
 

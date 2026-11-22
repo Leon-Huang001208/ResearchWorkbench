@@ -1,7 +1,7 @@
 # 项目固定交付运行时
 
 来源为用户维护的 leon-engineering 0.19.4，提交 `3913ddb9ac612760fb95bf8d8f7102f948c32d0f`。
-五个固定文件按共享安装清单的 SHA-256 原样纳入项目，`manifest.json` 保存版本、来源提交和逐文件校验。
+该提交为固定基础版本；四个未修改文件保留原字节，`iteration-delivery.mjs` 有本项目2026-11-23局部修正：显式已授权的CI修正继续原交付，次数实际累加，不由硬3次门拒绝。没有新增自动重试，也不改变Native调用预算或QA轮次。`manifest.json`明确记录本地修正和全部实际文件校验，不把补修文件冒称上游原字节。
 包括原交付控制器、资源适配器、Harness 存储定位、资源内核和其 schema。
 
 项目加载器 `scripts/project_delivery_runtime.mjs` 校验全部文件及路径后加载模块。

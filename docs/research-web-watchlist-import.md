@@ -66,3 +66,5 @@ macOS测试夹具必须由tests/e2e/watchlist-loopback.sb的Seatbelt进程策略
 离线夹具进一步收窄：Host不需要outbound连接，所以Seatbelt取消所有outbound allow，仅保留localhost bind/inbound及已接收连接回包；运行器剔除所有大小写HTTP/HTTPS/ALL/FTP/NO_PROXY及RESEARCH_CREDENTIAL_HOME，内存backend与真实凭据拒绝保持，Chrome也使用清理后的环境及no-proxy-server。早前允许all localhost+继承环境的结果只能证明观测0，不能单靠该策略排除借本机代理；未见该epoch实际代理泄露，不伪报已发生。新受控inert proxy sink负例从不转发请求，不访问真实代理或生产服务；native connect被内核拒绝、sink连接/请求0与正常旅程计数分别取证，旧218记录不回填。
 
 自选股入口进入资产观察后，普通研究仍由资产交接创建。AlphaDesk 候选复用该入口。
+
+来源原件保存与CSV自选导入共享原Store保存入口。包准备只读取已经提交的来源记录；同一Host中的保存互斥不升级为跨进程事务，来源失败或撤权仍由原操作处理。

@@ -71,8 +71,10 @@ def valid_path(name):
         or (
             path.suffix.lower() == ".py"
             and (
-                len(path.parts) != 2
+                not 2 <= len(path.parts) <= 5
                 or path.parts[0] != "scripts"
+                or any(not part.isidentifier() for part in path.parts[1:-1])
+                or not path.stem.isidentifier()
                 or re.search(r"install|setup|bootstrap", path.name, re.IGNORECASE)
             )
         )

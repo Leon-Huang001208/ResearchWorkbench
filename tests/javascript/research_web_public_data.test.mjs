@@ -46,9 +46,10 @@ async function fixture(options = {}) {
     approvalReads(){return approvalReads;},approvalRequests(){return approvalRequests;}};
 }
 
-test('only the fifteen brand-neutral business tools are registered',async()=>{
+test('all fifteen original business tools and only the fixed owned CLS wrapper are registered',async()=>{
   const f=await fixture();
-  assert.equal(f.tools.size,15);
+  assert.equal(f.tools.size,16);
+  assert.deepEqual([...f.tools.keys()].sort(),[...BUSINESS_TOOL_IDS,'rwb_query_latest_cls_news'].sort());
   assert.ok(f.tools.has('datahub_get_market_bars'));
   assert.ok(!f.tools.has('research_public_data'));
   assert.ok(f.tools.has('datahub_search_news'));
@@ -121,16 +122,89 @@ test('mysql table tool validates nested filters and ordering before HTTP',async(
 
 test('enabledTools registers only fixed business tools and invalid configuration fails closed',async()=>{
   const f=await fixture({enabledTools:['datahub_search_news','datahub_get_fund_data']});
-  assert.deepEqual([...f.tools.keys()],['datahub_get_fund_data','datahub_search_news']);
+  assert.deepEqual([...f.tools.keys()],['datahub_get_fund_data','datahub_search_news','rwb_query_latest_cls_news']);
+  const withoutNews=await fixture({enabledTools:['datahub_get_fund_data']});
+  assert.deepEqual([...withoutNews.tools.keys()],['datahub_get_fund_data']);
   for(const invalid of [
     {omitEnabledTools:true},
     {enabledTools:'datahub_get_fund_data'},
     {enabledTools:['datahub_get_fund_data','datahub_get_fund_data']},
     {enabledTools:['datahub_not_registered']},
     {enabledTools:['toString']},
+    {enabledTools:['rwb_query_latest_cls_news']},
   ]) await assert.rejects(fixture(invalid),/enabledTools/);
   const empty=await fixture({enabledTools:[]});
   assert.equal(empty.tools.size,0);
+});
+
+for(const kind of ['pack','method']) for(const point of ['entry','first-await','second-await','dispatch','after-dispatch']) {
+  test(`${kind} completion observes cancellation at ${point} without replay`,async()=>{
+    const f=await fixture();const module=await import(moduleURL);const complete=kind==='pack'?module.completePackExecution:module.completeMethodExecution;
+    const controller=new AbortController();const reason=new DOMException('cancel-step','AbortError');let reads=0,calls=0;
+    const config={get researchRoot(){reads++;if((point==='first-await'&&reads===1)||(point==='second-await'&&reads===2))queueMicrotask(()=>controller.abort(reason));return f.root;}};
+    const binding={get execution_id(){if(point==='dispatch')controller.abort(reason);return 'a'.repeat(32);}};
+    const original=globalThis.fetch;
+    globalThis.fetch=async(_url,options)=>{calls++;assert.equal(options.signal.aborted,false);if(point==='after-dispatch')controller.abort(reason);return reply({state:'saved'});};
+    try {
+      if(point==='entry')controller.abort(reason);
+      await assert.rejects(complete(f.ctx,{...f.exec,signal:controller.signal},config,binding,{status:'completed',stdout:'actual',stderr:'',exit_code:0,error:null}),error=>error===reason);
+      assert.equal(controller.signal.aborted,true);assert.equal(calls,point==='after-dispatch'?1:0);
+    } finally {globalThis.fetch=original;}
+  });
+}
+
+test('fixed CLS wrapper has a closed bounded schema and rejects unknown arguments before any HTTP',async()=>{
+  const f=await fixture();const wrapper=f.tools.get('rwb_query_latest_cls_news');
+  assert.deepEqual(wrapper.parameters,{type:'object',properties:{query:{type:'string',maxLength:2000},limit:{type:'integer',minimum:1,maximum:100}},required:[],additionalProperties:false});
+  assert.match(wrapper.description,/先limit后/);
+  const originalNews=f.tools.get('datahub_search_news').parameters.properties;
+  assert.ok(Object.hasOwn(originalNews,'start_date'));assert.ok(Object.hasOwn(originalNews,'end_date'));assert.ok(Object.hasOwn(originalNews,'source'));
+  let requests=0;const original=globalThis.fetch;globalThis.fetch=async()=>{requests++;throw Error('HTTP must not be sent');};
+  try {
+    for(const args of [{limit:true},{limit:1.5},{limit:0},{limit:101},{query:'q'.repeat(2001)},{query:'https://example.com'},
+      {source:'cls'},{start_date:'2026-10-28'},{days:1},{stock:'600600.SH'},{sentiment:'positive'},{importance:1}]) {
+      await assert.rejects(wrapper.execute(args,f.exec),{message:'owned_news_arguments_invalid'});
+    }
+    assert.equal(requests,0);
+  } finally {globalThis.fetch=original;}
+});
+
+test('fixed CLS wrapper is available under Host admission and only it hides after scope or readiness revocation',async()=>{
+  const f=await fixture();const {apply:applyGuard}=await import('../../app/research_web/runtime/guard.mjs');
+  const handlers=new Map();const hidden=new Set();let admitted=true;let denialCode='research_source_excluded';let businessRequests=0;const bodies=[];
+  f.ctx.tools.get=name=>f.tools.get(name);f.ctx.tools.guard=()=>{};f.ctx.on=(name,handler)=>handlers.set(name,handler);
+  f.exec.agent.ctx={tools:{restrict(filter){assert.deepEqual(filter,{deny:['rwb_query_latest_cls_news']});hidden.add('rwb_query_latest_cls_news');return ()=>hidden.delete('rwb_query_latest_cls_news');}}};
+  applyGuard(f.ctx,{enabled:true,researchRoot:f.root});
+  const original=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{
+    assert.equal(options.headers['X-Research-Data-Key'],'t'.repeat(43));
+    const body=JSON.parse(options.body);bodies.push(body);
+    if(url.endsWith('/skill-preflight')){
+      const allowed=body.tool_name!=='rwb_query_latest_cls_news'||admitted;
+      return reply({status:allowed?'available':'unavailable',admitted:allowed,missing:allowed?[]:[{code:denialCode}],omitted_sections:[]});
+    }
+    assert.ok(url.endsWith('/business-query'));assert.equal(admitted,true);businessRequests++;
+    assert.deepEqual(body,{session_id:f.sid,call_id:f.sid+':call-1',request_kind:'owned-latest-cls-news-v1',arguments:{query:'ABC',limit:2}});
+    return reply({...dataset,provider:'cls',capability:'search_news'});
+  };
+  try {
+    const pre=handlers.get('agent/pre-step'),before=handlers.get('tools/pre-execute');
+    const options={agent:f.exec.agent,signal:f.exec.signal,messages:[]};
+    assert.equal((await pre(options,async()=>({kind:'continue',messages:[]}))).kind,'continue');
+    assert.equal(hidden.size,0);
+    const exec={...f.exec,name:'rwb_query_latest_cls_news',arguments:{query:'ABC',limit:2}};
+    assert.equal((await before(exec,async()=>({kind:'allow'}))).kind,'allow');
+    await f.tools.get(exec.name).execute(exec.arguments,exec);assert.equal(businessRequests,1);
+    for(const denial of ['research_source_excluded','data_source_unavailable']) {
+      admitted=false;denialCode=denial;
+      assert.equal((await pre(options,async()=>({kind:'continue',messages:[]}))).kind,'continue');
+      assert.deepEqual([...hidden],['rwb_query_latest_cls_news']);
+      assert.ok(BUSINESS_TOOL_IDS.every(name=>!hidden.has(name)));
+      assert.equal((await before(exec,async()=>({kind:'allow'}))).kind,'deny');assert.equal(businessRequests,1,denial);
+      admitted=true;await pre(options,async()=>({kind:'continue',messages:[]}));assert.equal(hidden.size,0);
+    }
+    assert.ok(bodies.some(body=>body.tool_name==='rwb_query_latest_cls_news'));
+  } finally {globalThis.fetch=original;}
 });
 
 test('automatic business query uses the stable DataHub contract without reading approval or exposing credentials',async()=>{

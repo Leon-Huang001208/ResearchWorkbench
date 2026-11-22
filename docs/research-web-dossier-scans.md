@@ -31,3 +31,7 @@ HTTP为GET `/api/research/dossiers/signals`、POST `/{id}/scan`、PATCH `/{id}/t
 档案元数据、引用、pin、scan、tracking与信号索引同库备份／恢复；原文和私有raw保持既有快照位置。私有多用户保全及原资产升级保全纳入档案摘要，忙锁、损坏、符号／硬链接失败关闭，无档案时不初始化文件或改变旧保全结果。没有执行正式恢复、生产数据库操作或常驻部署。
 
 离线测试覆盖真实Snapshots发布／DossierService读取、HTTP路由优先级、幂等、事务失败、撤权、旧授权重放、激活失败恢复、无变化静默、完整备份恢复与删除保护。测试不代表真实来源覆盖、供应商质量、模型研究质量或常驻页面已上线。
+
+## 2026-10-28：T3组合包集成边界
+
+九包历史读回核prepared handoff/seal、冻结资源树和当前账号/祖先权限，runtime冻结时拒绝。selection intent和capture proof在原retention fence内保全文件hash，无Dossier不初始化DB。选择发布未形成lineage时不承诺保全；这些读回/保全不启用扫描、跟踪或模型，不把计算结果转成已核信号。
