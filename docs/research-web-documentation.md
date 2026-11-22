@@ -54,6 +54,12 @@ HTML固定白名单只增加登记视图，不接受任意路径。图与截图�
 Actions 触发与免费额度以 [GitHub Actions 额度治理](actions-budget.md) 为准：Project Constraints 和普通 Research Web 回归使用 Ubuntu；Bootstrap、Windows、Tabbit 与 Desktop 只在各自边界触发。额度达到冻结状态时，本地门禁仍可运行，但不得创建远端 Actions run。
 Ubuntu 日常回归使用有界 Python 合同集和 `research_web*.test.mjs`；全量 `tests/research_web/` 仍按变更风险在本地交付阶段运行，不把长耗时全量套件伪装成便宜的 push 门禁。
 
+FinGPT 来源报告／Fed RSS 组合复用该工作流的封闭范围选择。真实差异必须命中 Fed／QA 特定入口，
+且仅包含已登记的来源、报告、共享 Host、维护与直接测试／图文路径；未知或混入其他产品仍回退完整范围。
+对应 Python 分支运行这些边界的完整模块和原分区／证据单测，保留原 Bot 准入及历史维护源对象。
+Node、编辑引擎、通用 Constraints、Mac 干净安装、45分钟作业上限与证据身份核对均保持。
+该选择不认证真实模型、Fed 跟踪质量或常驻回滚；这些仍由各自实际执行证据说明。
+
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。
 01–10 是保留的必需基线图；新增 `00-system-overview` 展示产品与系统边界。所有登记视图都必须有规范 HTML、交付、视觉和真实审阅记录，不能用部分完成状态跳过门禁。视图数量取自清单，不再作为散落的验收常量。

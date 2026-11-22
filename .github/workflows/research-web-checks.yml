@@ -242,13 +242,76 @@ jobs:
               "docs/architecture/research-web/readme-review.json", ".github/workflows/research-web-checks.yml", ".github/workflows/research-web-bootstrap.yml", "tests/javascript/actions_quota_governance.test.mjs",
           }
           reviewed_upgrade = bool(upgrade_core.intersection(files)) and all(name in upgrade_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          fingpt_core = {"app/research_web/discovery/fed.py", "app/research_web/discovery/tracking.py", "app/research_web/qa_tools.py", "app/research_web/qa_worker/prompts.mjs", "tests/research_web/test_alphadesk_qa.py", "tests/research_web/test_discovery_tracking.py"}
+          fingpt_paths = {
+              ".github/workflows/research-web-bootstrap.yml",
+              ".github/workflows/research-web-checks.yml",
+              "AGENTS.md",
+              "README.md",
+              "app/research_web/datahub/__init__.py",
+              "app/research_web/datahub/snapshots.py",
+              "app/research_web/discovery/README.md",
+              "app/research_web/discovery/fed.py",
+              "app/research_web/discovery/handoff.py",
+              "app/research_web/discovery/routes.py",
+              "app/research_web/discovery/service.py",
+              "app/research_web/discovery/sources.py",
+              "app/research_web/discovery/tracking.py",
+              "app/research_web/dossiers/__init__.py",
+              "app/research_web/qa_tools.py",
+              "app/research_web/qa_worker/README.md",
+              "app/research_web/qa_worker/prompts.mjs",
+              "app/research_web/research_quality.py",
+              "app/research_web/research_quality_service.py",
+              "app/research_web/research_web_sources.py",
+              "app/research_web/resources/research_report.py",
+              "app/research_web/resources/research_report_plan.py",
+              "app/research_web/service.py",
+              "app/research_web/ui/progress-data.json",
+              "docs/architecture/research-web/architecture-map.json",
+              "docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+              "docs/architecture/research-web/readme-review.json",
+              "docs/architecture/research-web/visual-review.json",
+              "outputs/research-web-architecture/02-module-dependencies.delivery.json",
+              "outputs/research-web-architecture/02-module-dependencies.html",
+              "outputs/research-web-architecture/02-module-dependencies.receipt.json",
+              "outputs/research-web-architecture/02-module-dependencies.visual-check.1440x900.dark.png",
+              "outputs/research-web-architecture/02-module-dependencies.visual-check.1440x900.light.png",
+              "outputs/research-web-architecture/02-module-dependencies.visual-check.2048x1320.dark.png",
+              "outputs/research-web-architecture/02-module-dependencies.visual-check.2048x1320.light.png",
+              "outputs/research-web-architecture/02-module-dependencies.visual-check.html",
+              "outputs/research-web-architecture/02-module-dependencies.visual-check.json",
+              "outputs/research-web-architecture/api-atlas.html",
+              "outputs/research-web-architecture/index.html",
+              "research_workbench_entrypoint/iteration_resources.py",
+              "research_workbench_entrypoint/resident/gateway_upgrade.py",
+              "research_workbench_entrypoint/resident/model_provider_upgrade.py",
+              "scripts/check_research_architecture.mjs",
+              "scripts/run_ci_pytest_partitions.py",
+              "tests/javascript/actions_quota_governance.test.mjs",
+              "tests/javascript/research_web_architecture.test.mjs",
+              "tests/javascript/research_web_ci_admission.test.mjs",
+              "tests/javascript/research_web_qa_worker.test.mjs",
+              "tests/research_web/test_alphadesk_qa.py",
+              "tests/research_web/test_bound_analysis.py",
+              "tests/research_web/test_discovery_routes.py",
+              "tests/research_web/test_discovery_tracking.py",
+              "tests/research_web/test_iteration_resources.py",
+              "tests/research_web/test_model_provider_upgrade.py",
+              "tests/research_web/test_research_quality.py",
+              "tests/unit/test_ci_pytest_evidence_staging.py",
+              "tests/unit/test_ci_pytest_partitions.py",
+              "tests/unit/test_fingpt_legacy_cutover.py",
+          }
+          fingpt_source = bool(fingpt_core.intersection(files)) and all(name in fingpt_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
               output.write("research_packs_only=" + str(packs).lower() + "\n")
               output.write("architecture_only=" + str(architecture_only).lower() + "\n")
               output.write("g2b_release_only=" + str(release).lower() + "\n")
               output.write("reviewed_upgrade_only=" + str(reviewed_upgrade).lower() + "\n")
-          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "full Research Web"))
+              output.write("fingpt_source_only=" + str(fingpt_source).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "FinGPT source reports and Fed tracking" if fingpt_source else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -468,6 +531,62 @@ jobs:
                  tests/research_web/test_weknora_formal_scope.py \
                  tests/research_web/test_workbench_operations.py \
               --confcutdir=tests/research_web -q
+            exit 0
+          fi
+          if [ "${{ steps.contract-scope.outputs.fingpt_source_only }}" = "true" ]; then
+            git -c gc.auto=0 -c maintenance.auto=false fetch --no-tags --no-write-fetch-head --no-auto-maintenance --depth=1 origin \
+              b800e50366d1a0868372bbf173822976066c143f \
+              db2ae9a48ceca365852072e622aa6627aa7d0b83 \
+              1529c3189b008b9861a2bee1511f051feefa76eb
+            PYTEST_PLUGINS=tests.research_web.event_test_support PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+              -- \
+              tests/research_web/test_protocol.py \
+              tests/research_web/test_api.py \
+              tests/research_web/test_research_bots.py \
+              tests/research_web/test_automation_routes.py \
+              tests/research_web/test_automation_schedule.py \
+              tests/research_web/test_automation_research_task.py \
+              tests/research_web/test_datahub.py \
+              tests/research_web/test_discovery.py \
+              tests/research_web/test_discovery_routes.py \
+              tests/research_web/test_discovery_tracking.py \
+              tests/research_web/test_alphadesk_qa.py \
+              tests/research_web/test_alphadesk_qa_formats.py \
+              tests/research_web/test_qa_acceptance_budget.py \
+              tests/research_web/test_research_quality.py \
+              tests/research_web/test_research_quality_scope.py \
+              tests/research_web/test_research_business_evidence.py \
+              tests/research_web/test_bound_analysis.py \
+              tests/research_web/test_research_report.py \
+              tests/research_web/test_research_report_binding.py \
+              tests/research_web/test_research_source_reading.py \
+              tests/research_web/test_external_sources.py \
+              tests/research_web/test_dossiers.py \
+              tests/research_web/test_report_formats.py \
+              tests/research_web/test_report_rendering.py \
+              tests/research_web/test_report_revision.py \
+              tests/research_web/test_report_calculations.py \
+              tests/research_web/test_report_workflows.py \
+              tests/research_web/test_report_workflow_integration.py \
+              tests/research_web/test_owned_method_execution.py \
+              tests/research_web/test_scenario_method_sources.py \
+              tests/research_web/test_model_provider_upgrade.py \
+              tests/research_web/test_gateway_upgrade.py \
+              tests/research_web/test_iteration_resources.py \
+              tests/research_web/test_capabilities_admission.py::test_research_bot_native_skill_loading_is_bound_to_frozen_capabilities \
+              tests/research_web/test_weknora_formal_scope.py \
+              tests/research_web/test_store.py \
+              tests/research_web/test_capabilities_native.py \
+              --confcutdir=tests/research_web -q
+            PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-unit" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-unit" \
+              -- tests/unit/test_fingpt_legacy_cutover.py tests/unit/test_ci_pytest_partitions.py \
+              tests/unit/test_ci_pytest_evidence_staging.py --confcutdir=tests/unit -q
             exit 0
           fi
           if [ "${{ steps.contract-scope.outputs.reviewed_upgrade_only }}" = "true" ]; then
