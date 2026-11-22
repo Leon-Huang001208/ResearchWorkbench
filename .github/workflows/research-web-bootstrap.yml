@@ -30,6 +30,8 @@ on:
       - "tests/javascript/research_web_knowledge.test.mjs"
       - "tests/javascript/research_web_public_data.test.mjs"
       - "tests/research_web/test_capabilities_native.py"
+      - "tests/research_web/test_execution_cancel_native.py"
+      - "tests/research_web/test_owned_news_native_sdk.py"
       - "tests/research_web/test_model_provider_upgrade.py"
       - "tests/research_web/test_store.py"
       - "tests/research_web/test_weknora_api.py"
@@ -128,6 +130,8 @@ on:
       - "tests/javascript/research_web_knowledge.test.mjs"
       - "tests/javascript/research_web_public_data.test.mjs"
       - "tests/research_web/test_capabilities_native.py"
+      - "tests/research_web/test_execution_cancel_native.py"
+      - "tests/research_web/test_owned_news_native_sdk.py"
       - "tests/research_web/test_model_provider_upgrade.py"
       - "tests/research_web/test_store.py"
       - "tests/research_web/test_weknora_api.py"
@@ -224,6 +228,29 @@ jobs:
       - name: Install Web stack on macOS
         shell: bash
         run: ./setup-web.sh --no-start
+
+      - name: Run built Native SDK cancellation and news contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          .venv/bin/python - <<'PY_NATIVE_TOOLS'
+          import os, re
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          tools = [line for line in Path("requirements/research-test.in").read_text().splitlines() if re.match(r"^pytest(?:-asyncio)?[<>=!]", line)]
+          assert len(tools) == 2
+          (root / "native-sdk-test-tools.in").write_text("\n".join(tools) + "\n")
+          lock = Path("requirements/web.lock").read_text()
+          (root / "native-sdk-runtime-constraints.txt").write_text(re.sub(r"--hash=sha256:[a-f0-9]+", "", lock).replace("\\\n", ""))
+          PY_NATIVE_TOOLS
+          .venv/bin/python -m pip install -c "$RUNNER_TEMP/native-sdk-runtime-constraints.txt" -r "$RUNNER_TEMP/native-sdk-test-tools.in"
+          export RWB_DSH_TEST_SOURCE="$(.venv/bin/python -c 'from pathlib import Path; from scripts.setup_web import SetupWebInstaller; print(SetupWebInstaller(project_root=Path.cwd()).dsh_source)')"
+          export RWB_TEST_NODE="$(command -v node)"
+          PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest \
+            tests/research_web/test_execution_cancel_native.py \
+            tests/research_web/test_owned_news_native_sdk.py \
+            --confcutdir=tests/research_web --basetemp "$RUNNER_TEMP/native-sdk-pytest" \
+            --junitxml "$RUNNER_TEMP/native-sdk-tests.xml" -q
 
       - name: Verify installed Hot production dependencies
         shell: bash
@@ -365,6 +392,7 @@ jobs:
           name: research-web-bootstrap-macos-15-${{ github.run_id }}
           path: |
             doctor.json
+            ${{ runner.temp }}/native-sdk-tests.xml
             root.html
             app.mjs
             connections.json
@@ -382,6 +410,7 @@ jobs:
           name: research-web-bootstrap-failure-macos-15-${{ github.run_id }}
           path: |
             doctor.json
+            ${{ runner.temp }}/native-sdk-tests.xml
             root.html
             app.mjs
             connections.json
