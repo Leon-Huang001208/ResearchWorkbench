@@ -1,5 +1,19 @@
 # Mac mini 空私有池网关升级
 
+## 已审完整版本的联合升级
+
+显式 `apply-reviewed` 将原 version 4 Host＋gateway 事务用于最新已审完整 master，不再为每个提交增加固定产品 profile：
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-reviewed \
+  --home /absolute/private-home --source /absolute/clean-reviewed-master \
+  --expected-previous EXACT_CURRENT_ACCEPTED_SHA --expected-target EXACT_REVIEWED_MASTER_SHA
+```
+
+前版必须与原 accepted、安装 manifest、baseline 及两端实际 revision 一致，目标必须同时等于干净 source HEAD 和当前 master，并通过原 managed delivery／独评／三 CI 的完整树资格。候选回执沿 source 自身的 Git common 查询；候选与两端 release 各自的 common、inode、origin 继续按原身份核对。完整前后树和动态版本写入原 journal，恢复仍使用原 `recover`，不依赖历史模式的固定前版。
+
+该入口只安装本项目 wheel；`requirements/web.lock` 与 `runtimes/research_web.json` 必须和前版相同，不借完整源码升级安装新依赖或更换 DSH。原三锁、BirthFence、安装作用域、全账号／模型／业务索引保全、永久恢复包、优雅排空、双端健康及失败回滚保持；MCP、AlphaDesk、WeKnora 及已有私网服务配置按现场保留，不自动开关。源码和离线回归通过不代表实际升级、生产登录或业务验收完成，执行仍由唯一生产维护窗口承担。
+
 ## 附接 MCP 保全的围栏内复核
 
 原 PR #284 只将两项仍有效的保护前移到当前联合操作员，不恢复旧财经日历固定部署 profile。
@@ -519,6 +533,8 @@ v2 继续使用原 v4 journal、不可变控制器、锁、BirthFence、优雅�
 主实例无需更新研究进程时，显式使用 `apply-ui --preserve-primary`，`--primary` 固定实际主实例 SHA，
 `--target` 固定已合并、资格通过的新网关 SHA，`--expected-gateway` 固定旧网关 SHA。
 这与默认 `apply-ui` 的 primary=target 合同分开；不扩大自动兼容白名单，不安装或切换主实例。
+
+`apply-ui` 的候选交付资格从传入 `--source` 的绝对 Git common directory 查询，允许已审工具／产品回执位于当前源码仓库而非旧 resident 登记仓库。现役网关的 Git common 仍须精确等于原 `resident.source_common`，否则继续报 `gateway_source_identity_changed`；本修复不改运行配置、不可变控制器或真实交付账本，也不替代原资格、空闲与保全检查。
 
 注意：主账号的 `/` 和 `/static/*` 仍取自主实例的 UI 目录，因此此模式不能单独交付主账号的侧栏等完整壳更新。
 需要完整更新主账号界面时，应先使用下节 `stage-primary-ui`，由原 resident 完成受控切换，再更新网关；

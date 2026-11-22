@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+G2B 复用 Docker 管理员进程和现有 Host；发布器从冻结制品驱动原 Manager，私有 Unix 维护通道用于排空原任务，不增加常驻调度器或研究引擎。
+
 附接 MCP 保全的两处复核仍在原 Native 联合操作员、BirthFence SQLite EX 和安装作用域内完成。
 当前五模式的 forward apply／限定 preparing 恢复复核前版后才推进，失败保留准备 journal；
 Trial、完成后回滚和其他阶段保持原职责。主实例、附接网关、账号 Host、唯一 DSH 及部署图

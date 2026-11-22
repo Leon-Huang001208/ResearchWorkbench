@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 Fed RSS 跟踪、FinGPT 来源报告与分页、双入口回滚及当前主线 Native 保全和公开安装入口。",
-  "reason": "Fed RSS 复用已登记 DataHub 来源、Discovery 和 Automation，报告通过原 Host 质量检查；主线 Native 操作员保全顺序及历史模式合同保留。没有新增安装方式、依赖、凭据配置、数据库或平台支持，README 的公开安装与产品入口仍适用。资料范围和 API 变更见 Discovery、问答及架构文档；源码、CI、真实业务和常驻部署分别取证。"
+  "summary": "复核 Fed RSS 跟踪与 FinGPT 来源报告、原件分页、双入口恢复，以及主线主账号菜单和受管升级入口。",
+  "reason": "Fed RSS 复用已登记 DataHub、Discovery、Automation 和 Host 质量链；主账号菜单、候选交付查询及同候选 Mac 安装覆盖保持主线实现。没有新增安装方式、依赖、凭据配置、数据库或平台支持，README 的公开入口仍适用。资料/API 和受管升级细节由各模块文档维护，源码、CI、实际业务和常驻部署分别留证。"
 }

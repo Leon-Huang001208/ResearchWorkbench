@@ -2,6 +2,8 @@
 
 Fed RSS 预览入口为 `POST /api/research/discovery/registered-feeds/fed`，接收本人 `session_id`、可选已冻结 `dataset_id` 和 `horizon`；来源固定为 DataHub `ext_fed/news`。保存沿原 `/discovery/tracks`，手动运行使用 `POST /discovery/tracks/{id}/run`（`expected_version`、UUID `request_id`），历史使用 `GET /discovery/tracks/{id}/runs`。沿既有本人归属、宿主跟踪开关和明确用户动作校验，不开放通用 Automation 或任意 URL。
 
+`GET /api/research/release` 读取受管镜像内的不可变发布身份；普通运行返回 `managed:false`。维护控制只使用原容器内私有 Unix socket，不暴露外部写 API；新的受管写请求在维护中返回 `503 release_maintenance`。
+
 附接 MCP 保全的围栏内复核只调整现有本机操作员 `operate` 的 forward／限定 preparing
 恢复顺序，不新增 CLI 模式、业务 HTTP 方法、路径、请求字段或权限。前版健康由原
 `Operations.verify(previous=True)` 读取；该校验不提交模型、采集或研究请求。

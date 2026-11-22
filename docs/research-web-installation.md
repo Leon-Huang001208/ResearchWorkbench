@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Docker G2B 构建从完整提交封存当前固定 DSH、Hot 锁定依赖和格式源码，镜像中的 SQL 仅作兼容性识别，不自动迁移。管理员经 `rwb-docker release` 在独立 stage 验收后晋级同一镜像；维护、原实例五卷和密钥保全见[Docker 手册](research-web-docker.md#g2b-冻结制品与受管切换)。公开 Native/Windows 安装入口不变。
+
 附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版
 复核；不增加公开安装入口、参数、依赖或用户配置。五模式的 forward／限定 preparing 恢复
 失败时保留原准备 journal，不停机或切源；Trial 与完成后回滚沿原流程。干净安装、同候选
@@ -1307,6 +1309,10 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 固定DocReader的TXT补齐使用仓库内只读 `plain_text_entrypoint.py` overlay，保留原
 `container_entrypoint.py` 的ARM／OpenSSL检查并运行原DocReader主模块；它不安装新依赖或由
 一键安装器隐式部署。严格UTF-8/BOM解析和原件不变先由离线合同验证，实际挂载和入库另验。
+
+### 已审完整版本的 macOS Native 维护
+
+原 version 4 联合事务支持 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-reviewed --home <安装根> --source <已审干净主线> --expected-previous <现场accepted完整SHA> --expected-target <该source与最新master完整SHA>`。前后版本由本次参数和现役元数据核对，不再为每个提交增加固定 profile；原 GitHub 资格、两端 wheel、账号／模型／业务保全、锁与恢复沿原路径执行。依赖锁或固定 runtime 声明变化仍需另行处理，源码检查不代表已部署；具体执行和普通 `recover --home` 见[网关维护](research-web-gateway-upgrade.md)。
 
 ### macOS 私网仅服务模式
 

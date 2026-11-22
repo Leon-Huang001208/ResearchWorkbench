@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+G2B 的源码集成和离线检查由当前 Mac 开发任务完成；其 Docker 镜像封存、stage 与晋级回退需同候选现场结果。此前 #140 构建只证明构建队列，不认证新 release 路径；Windows/Linux 原生验收不由 Mac 合同检查替代。
+
 原 PR #284 两处围栏内复核前移属于 macOS Native 操作员源码开发。离线真实围栏回归、
 同候选通用 CI／macOS 15 Bootstrap 与 Mac mini 实际切换是独立证据；本阶段不据源码
 推断已部署、模型或业务接受。Windows/Linux 原生及各自产品 dispatch 仍由对应设备接手，

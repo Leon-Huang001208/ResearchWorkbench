@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+G2B 维护与原 resident 准入共同生效：已有研究和子任务保留，新人工执行返回维护状态，新后台执行等待原门解除。Report Workflow、Automation 与 DSH prompt 共享 Host 维护门，不创建替代运行。
+
 五个附接 MCP 保全模式的 forward apply 在最终 GitHub 候选证据核对后、`execute` 前，
 于既有 BirthFence SQLite EX／安装作用域内校验配置并调用 `ops.verify(previous=True)`。
 其非完成后回滚的 preparing 恢复不再走围栏外提前返回，须在同一围栏内完成相同复核，
