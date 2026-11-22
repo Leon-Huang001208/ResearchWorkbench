@@ -889,6 +889,21 @@ def _internal_worker(argv: Sequence[str]) -> int:
     return _run_worker(plugin, marker["taskId"], root_info)
 
 
+def _signal_worker_group(
+    process: subprocess.Popen[bytes], signum: int, *, force: bool = False
+) -> None:
+    """Stop only the session created for this worker, including inherited log writers."""
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGKILL if force else signum)
+        elif force:
+            process.kill()
+        else:
+            process.send_signal(signum)
+    except ProcessLookupError:
+        pass
+
+
 def run_suite(
     arguments: Sequence[str],
     task_root: Path,
@@ -1012,17 +1027,13 @@ def run_suite(
         if startup_error is not None or signal_number is not None:
             signum = signal_number or signal.SIGTERM
             for process in worker_processes:
-                if process.poll() is None:
-                    try:
-                        process.send_signal(signum)
-                    except ProcessLookupError:
-                        pass
+                _signal_worker_group(process, signum)
 
         for process in worker_processes:
             try:
                 return_code = process.wait(timeout=10 if (startup_error or signal_number) else None)
             except subprocess.TimeoutExpired:
-                process.kill()
+                _signal_worker_group(process, signal.SIGTERM, force=True)
                 return_code = process.wait(timeout=5)
             process_evidence.append({"pid": process.pid, "returnCode": return_code, "waited": True})
     # This boundary owns all Popen children and must reap them on interruption or internal failure.
@@ -1035,18 +1046,19 @@ def run_suite(
         for process in worker_processes:
             if process.pid in recorded_pids:
                 continue
-            if process.poll() is None:
-                try:
-                    process.send_signal(signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
+            _signal_worker_group(process, signal.SIGTERM)
             try:
                 return_code = process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                process.kill()
+                _signal_worker_group(process, signal.SIGTERM, force=True)
                 return_code = process.wait(timeout=5)
             process_evidence.append({"pid": process.pid, "returnCode": return_code, "waited": True})
     finally:
+        if startup_error is not None or signal_number is not None:
+            # A reaped worker can leave descendants holding pytest.log open.
+            # Its group identity came from this invocation's start_new_session.
+            for process in worker_processes:
+                _signal_worker_group(process, signal.SIGTERM, force=True)
         for number, handler in previous_handlers.items():
             signal.signal(number, handler)
 

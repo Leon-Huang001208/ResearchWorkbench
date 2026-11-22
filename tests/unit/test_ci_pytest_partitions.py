@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from scripts import run_ci_pytest_partitions as partitions
+from scripts import stage_ci_pytest_evidence as staging
 
 
 def test_safe_exception_class_rejects_identifier_shaped_failure_body() -> None:
@@ -522,17 +523,46 @@ def test_collection_error_cannot_be_reported_as_pass(tmp_path: Path) -> None:
     assert not (root / "partitions.json").exists()
 
 
-def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
+@pytest.mark.parametrize("interrupt", [signal.SIGINT, signal.SIGTERM], ids=["sigint", "sigterm"])
+@pytest.mark.skipif(os.name != "posix", reason="POSIX worker process-group cancellation")
+def test_interruption_cannot_be_reported_as_pass(tmp_path: Path, interrupt: int) -> None:
     fixture_root = tmp_path / "fixture-project"
-    test_root = fixture_root / "tests"
+    test_root = fixture_root / "tests" / "research_web"
     test_root.mkdir(parents=True)
     (test_root / "test_fixture.py").write_text(
-        "import time\n\ndef test_slow_a(): time.sleep(10)\ndef test_slow_b(): time.sleep(10)\n",
+        """
+import signal
+import subprocess
+import sys
+import time
+
+def keep_writing(tmp_path):
+    def interrupted(signum, _frame):
+        raise SystemExit(128 + signum)
+    signal.signal(signal.SIGINT, interrupted)
+    worker = tmp_path.parent.parent
+    writer = '''import os, signal, sys, time
+from pathlib import Path
+signal.signal(signal.SIGINT, signal.SIG_IGN)
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+with Path(sys.argv[1]).open('ab', buffering=0) as stream:
+    Path(sys.argv[2]).write_text(str(os.getpid()))
+    while True:
+        stream.write(bytes([120, 10]))
+        time.sleep(0.005)
+'''
+    subprocess.Popen([sys.executable, '-c', writer, str(worker / 'pytest.log'),
+                      str(worker / 'writer.pid')])
+    time.sleep(30)
+
+def test_slow_a(tmp_path): keep_writing(tmp_path)
+def test_slow_b(tmp_path): keep_writing(tmp_path)
+""",
         encoding="utf-8",
     )
     allowed_parent = tmp_path / "temp"
     allowed_parent.mkdir()
-    result_root = allowed_parent / "interrupt-results"
+    result_root = allowed_parent / "rwb-ci-pytest-research-web"
     runner_script = Path(partitions.__file__).resolve()
     command = [
         sys.executable,
@@ -543,10 +573,10 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
         "--allowed-parent",
         str(allowed_parent),
         "--task-id",
-        "partition-interruption-test",
+        "fixture-interruption-research-web",
         "--",
-        "tests/test_fixture.py",
-        "--confcutdir=tests",
+        "tests/research_web/test_fixture.py",
+        "--confcutdir=tests/research_web",
         "-q",
     ]
     environment = dict(os.environ)
@@ -563,20 +593,27 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
             stdout=log,
             stderr=subprocess.STDOUT,
         )
+    unrelated = None
     try:
+        unrelated = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
         deadline = time.monotonic() + 10
         child_started = False
         while time.monotonic() < deadline and process.poll() is None:
-            child_owner = result_root / "worker-1.owner.json"
-            if child_owner.exists():
-                owner = json.loads(child_owner.read_text(encoding="utf-8"))
-                child_started = owner.get("pid") is not None
-                if child_started:
-                    break
+            child_started = all(
+                (result_root / f"worker-{index}" / "writer.pid").is_file() for index in range(2)
+            )
+            if child_started:
+                break
             time.sleep(0.02)
         assert child_started, log_path.read_text(encoding="utf-8")
-        process.send_signal(signal.SIGTERM)
-        assert process.wait(timeout=5) == 143
+        process.send_signal(interrupt)
+        assert process.wait(timeout=15) == 128 + interrupt
         summary = json.loads((result_root / "scheduler-result.json").read_text(encoding="utf-8"))
         assert summary["status"] == "failed"
         worker_processes = summary["workerProcesses"]
@@ -590,6 +627,19 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
             ]
             for index, item in enumerate(worker_processes)
         )
+        assert unrelated.poll() is None
+        staged = staging.stage_evidence(allowed_parent, fixture_root)
+        assert staged["staged"] is True
+        safe_summary = json.loads(
+            (Path(staged["outputPath"]) / "research-web" / "scheduler-result.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert safe_summary["status"] == "failed"
+        logs = [result_root / f"worker-{index}" / "pytest.log" for index in range(2)]
+        sizes = [path.stat().st_size for path in logs]
+        time.sleep(0.05)
+        assert [path.stat().st_size for path in logs] == sizes
     finally:
         if process.poll() is None:
             process.terminate()
@@ -598,3 +648,19 @@ def test_interruption_cannot_be_reported_as_pass(tmp_path: Path) -> None:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=3)
+        for index in range(2):
+            owner_path = result_root / f"worker-{index}.owner.json"
+            if owner_path.is_file():
+                owner = json.loads(owner_path.read_text(encoding="utf-8"))
+                if type(owner.get("pid")) is int:
+                    try:
+                        os.killpg(owner["pid"], signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+        if unrelated is not None and unrelated.poll() is None:
+            unrelated.terminate()
+            try:
+                unrelated.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                unrelated.kill()
+                unrelated.wait(timeout=3)
