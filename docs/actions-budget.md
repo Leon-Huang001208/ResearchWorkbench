@@ -6,6 +6,8 @@
 
 文档结构检查器的局部修补复用同一 Checks 范围选择：真实事件差异仅含检查器、对应 JS 测试及相关 Markdown／该工作流和直接范围测试时，只运行架构检查器原 JS 模块，不执行无关 Python、编辑引擎或不存在的 pytest 证据处理；混入产品源码或范围未知仍走原完整路径。Project Constraints、Mac Bootstrap 与原作业、依赖、runner、权限、超时保持，实际候选 CI 另行记录，不以本地分支测试冒充远端通过。
 
+主账号数据源修复沿原 Mac Bootstrap 增加四个确切触发路径和两个 wheel 资源字节比较；通用已审升级沿既有操作员测试与原三项 CI。没有新 job、runner、权限、依赖或时限，实际候选 CI 另记；本机相关回归不重复全仓，远端动作仍实时核对 visibility 与额度。
+
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的

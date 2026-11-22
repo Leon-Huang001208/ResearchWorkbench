@@ -8,6 +8,8 @@
 
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"修正apply-ui候选交付目录，并在原version4双端事务中以显式前后版本表达通用已审升级，复用原资格、身份、账号业务保全、切换与恢复。未新增服务、账户库或部署框架，Host与Gateway职责和进程拓扑保持，对应网关模块说明已同步。","diagrams":[]} -->
 
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"通用候选参数只复用macOS Native现有version4双端维护事务，不改变Native与Docker的运行选择、DSH/CJPY、依赖锁、进程拓扑或平台支持。安装文档补实际维护命令；Docker、Windows和Linux验收不由本地替身推定通过。","diagrams":[]} -->
+
 根因：网关向登录页面加载的 `ui/server/profile.css` 无条件隐藏 `#/settings/data`，主账号展开设置侧栏后仍没有数据源。静态导航目录包含该链接不能证明登录页面实际可见。
 
 界面只改两处：`session.mjs` 在加载该样式前，将现有严格布尔 `identityData.primary === true` 写入 `document.documentElement.dataset.rwbPrimary`；`profile.css` 只对非主账号隐藏数据源。其他隐藏规则与后端权限不变。两个相邻 VM 测试夹具仅补真实浏览器的 `documentElement.dataset` 形状，并增加四种身份的标记及加载顺序回归。
