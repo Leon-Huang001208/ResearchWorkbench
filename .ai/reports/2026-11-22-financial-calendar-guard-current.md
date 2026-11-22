@@ -9,7 +9,7 @@
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"仅在既有Native联合操作员的BirthFence SQLite排他锁及安装作用域内前移配置和前版复核，主实例、附接网关、安装入口与唯一DSH职责不变；不增加运行节点、依赖、模式或容器，不需要改动现有部署图。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"沿原账号身份、前版双健康、MCP实际值与账号资料保全读取复核，准备恢复失败保留原journal；数据库、认证边界、业务接口、授权和恢复数据路径均未改变，无新增拓扑或图示节点。","diagrams":[]} -->
-<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只为既有维护操作员与测试增加两个精确选择器、完整模块catalog及原Bootstrap的PR/push测试路径；L0-L4规划、原三CI作业与runner、回执协议和跨平台交接链保持，未新增验证节点、执行通道或模型比较，不改变08-iteration-docs图的拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只为既有维护操作员与测试增加两个精确选择器、完整模块catalog及原Bootstrap的PR/push测试路径，并按用户持续授权明确失败证据保全后沿原入口自动接续；L0-L4规划、原三CI作业与runner、回执协议和跨平台交接链保持，未新增验证节点、执行通道、恢复框架或模型比较，不改变08-iteration-docs图的拓扑。","diagrams":[]} -->
 
 Product-Progress: not-required — 本次仅加强既有本机维护操作员的锁内验证顺序，不增加浏览器功能或改变用户产品流程。
 
@@ -87,6 +87,21 @@ Trial／完成后回滚方向、真实中断恢复、dossiers 保全及 finish �
 不重复相加。原两项RED和通过输出保存在外置 `rwb-pr284-current-20261122/router-mapping/`。
 此处仅补政策、回归及文档，未执行整模块3975项、pytest、模型、服务或任何发布动作；
 最终完整候选的测试／CI结果仍由后续实际回执记录。
+
+## 用户授权的失败保全后自动接续
+
+候选 `14707a4c8509a67b2af8fe4ff06bea4d0a7440d7` 实际完成155批、3100项通过，
+每个成功根均已正式退休；第156批因多个约87MB的恢复夹具累计超过512MiB被原守卫终止，
+退出码为-15、无JUnit，该批不补通过。原根停止后实测575,869,521B，原owner和全部记录保留。
+剩余875项与已通过3100项互补，方案将7个重夹具分别单例运行，其余保持原分组；
+原源码、断言及容量门均不改变，后续真实结果另由外置回执记录。
+
+用户已明确允许本次继续，并要求修改`AGENTS.md`，避免今后逐次确认同类情况。
+因此同步仓库规则、工作流及存储留存文档：一次只运行一批，但已结束的失败证据根
+可在原执行退出／当前占用检查、原因定位和原件保全后，与新的受管测试根并存，
+同任务缩小批次或修复候选后自动继续，无需重复索取例外。未知或在途执行不能绕过，
+512MiB／64MiB／3GiB及最多20项门保留，旧失败、回执状态和CI／模型累计不清零。
+这次文案修改不更改retention实现、不创造新恢复入口，也不授予模型、服务、部署或依赖权限。
 
 最终候选完整相关测试、独立评审和当前基线 CI 由后续交付原件绑定，当前为
 `NOT_RUN/PENDING`。常驻切换、真实模型／供应商及业务验收均 `NOT_RUN`；
