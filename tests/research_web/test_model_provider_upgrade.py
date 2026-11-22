@@ -361,6 +361,139 @@ def test_dynamic_fingpt_operations_toggle_and_restore_both_entries(
     assert upgrade.read_json(home / "install/manifest.json")["alphadesk_qa"] is (failed is None)
 
 
+@pytest.fixture
+def dynamic_fingpt_full_operate(reviewed_operate, monkeypatch):
+    """Run the full dynamic FinGPT transaction with the existing fake OS boundary."""
+    home, state, system, source = reviewed_operate
+    root = home / "resident"
+    monkeypatch.setattr(upgrade, "execute", REAL_EXECUTE)
+    monkeypatch.setattr(upgrade.Operations, "verify", REAL_VERIFY)
+    monkeypatch.setattr(
+        upgrade.c, "configured", lambda _home: (root, upgrade.read_json(root / "config.json"))
+    )
+    fenced_health = upgrade.g.health
+
+    def health(gateway, *, fenced):
+        if not fenced:
+            assert gateway["revision"] == system["gateway"]
+            return
+        fenced_health(gateway, fenced=fenced)
+
+    monkeypatch.setattr(upgrade.g, "health", health)
+
+    def apply():
+        return upgrade.operate(
+            home,
+            source,
+            mode=upgrade.FINGPT_MODE,
+            expected_previous=state["previous"],
+            expected_target=state["target"],
+        )
+
+    return home, state, system, apply
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("reviewed_operate", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("completion_interrupted", [False, True])
+@pytest.mark.parametrize("other_quarantine", [False, True])
+def test_dynamic_fingpt_completed_rollback_allows_same_reviewed_target(
+    dynamic_fingpt_full_operate, monkeypatch, completion_interrupted, other_quarantine
+):
+    home, state, system, apply = dynamic_fingpt_full_operate
+    root = home / "resident"
+    quarantine = root / "quarantine.json"
+    if other_quarantine:
+        upgrade.c.atomic(quarantine, {"sha": "c" * 40})
+    assert apply()["status"] == "deployed"
+    index = home / "research-web/index.json"
+    current_data = {**upgrade.read_json(index), "sessions": {"after-deploy": {}}}
+    upgrade.c.atomic(index, current_data)
+    journal = home / "server/run/gateway-upgrade.json"
+    unlink = Path.unlink
+    if completion_interrupted:
+
+        def interrupted_unlink(path, *args, **kwargs):
+            if path == journal:
+                raise OSError("isolated interruption after rollback completion")
+            return unlink(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "unlink", interrupted_unlink)
+    result = upgrade.operate(home, mode=upgrade.FINGPT_MODE, rollback_target=state["target"])
+    if completion_interrupted:
+        assert result["status"] == "recovery_required"
+        assert not (root / "transaction.json").exists() and journal.is_file()
+        signals = list(system["events"])
+        current_data["sessions"]["after-rollback"] = {}
+        upgrade.c.atomic(index, current_data)
+        monkeypatch.setattr(Path, "unlink", unlink)
+        result = upgrade.operate(home, recovering=True)
+        assert system["events"] == signals
+    assert result["status"] == "rolled_back"
+    assert system["primary"] == system["gateway"] == state["previous"]
+    assert upgrade.read_json(root / "accepted.json") == state["accepted"]
+    assert apply()["status"] == "deployed"
+    assert system["primary"] == system["gateway"] == state["target"]
+    assert upgrade.read_json(index) == current_data
+    assert upgrade.read_json(home / "server/resident.json")["mcp_readonly_enabled"] is True
+    assert quarantine.exists() is other_quarantine
+    if other_quarantine:
+        assert upgrade.read_json(quarantine) == {"sha": "c" * 40}
+    assert not journal.exists() and not (root / "transaction.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("reviewed_operate", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("failed", ["start_gateway", "verify_target"])
+def test_dynamic_fingpt_failed_apply_still_quarantines_same_target(
+    dynamic_fingpt_full_operate, monkeypatch, failed
+):
+    home, state, system, apply = dynamic_fingpt_full_operate
+    action = upgrade.Operations.action
+
+    def failing_action(ops, name, record):
+        action(ops, name, record)
+        if name == failed:
+            raise RuntimeError("isolated candidate failure")
+
+    monkeypatch.setattr(upgrade.Operations, "action", failing_action)
+    assert apply()["status"] == "rolled_back"
+    assert upgrade.read_json(home / "resident/quarantine.json") == {"sha": state["target"]}
+    signals = list(system["events"])
+    with pytest.raises(upgrade.UpdateBlocked, match="resident_failed_candidate_requires_retry"):
+        apply()
+    assert system["events"] == signals
+    assert system["primary"] == system["gateway"] == state["previous"]
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.FINGPT_MODE], indirect=True)
+@pytest.mark.parametrize("reviewed_operate", [upgrade.FINGPT_MODE], indirect=True)
+def test_dynamic_fingpt_rollback_completion_keeps_failed_target_isolated(
+    dynamic_fingpt_full_operate, monkeypatch
+):
+    home, state, system, apply = dynamic_fingpt_full_operate
+    assert apply()["status"] == "deployed"
+    journal = home / "server/run/gateway-upgrade.json"
+    unlink = Path.unlink
+
+    def interrupted_unlink(path, *args, **kwargs):
+        if path == journal:
+            raise OSError("isolated interruption after rollback completion")
+        return unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", interrupted_unlink)
+    result = upgrade.operate(home, mode=upgrade.FINGPT_MODE, rollback_target=state["target"])
+    assert result["status"] == "recovery_required"
+    monkeypatch.setattr(Path, "unlink", unlink)
+    quarantine = home / "resident/quarantine.json"
+    upgrade.c.atomic(quarantine, {"sha": state["target"]})
+    signals = list(system["events"])
+    with pytest.raises(upgrade.UpdateBlocked, match="fingpt_rollback_completion_unverified"):
+        upgrade.operate(home, recovering=True)
+    assert system["events"] == signals and journal.is_file()
+    assert upgrade.read_json(quarantine) == {"sha": state["target"]}
+
+
 @pytest.mark.parametrize("mode", [upgrade.REVIEWED_MODE, upgrade.FINGPT_MODE])
 @pytest.mark.parametrize("attached_services", [False, True])
 def test_reviewed_upgrade_keeps_existing_private_service_routes(
