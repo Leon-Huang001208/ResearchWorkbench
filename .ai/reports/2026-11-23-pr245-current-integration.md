@@ -23,3 +23,7 @@ Product-Progress: not-required — 本次接续既有未合并研究包源码并
 <!-- architecture-review {"group":"resource-lifecycle","structure":"unchanged","reason":"仅在原资源记录观察阶段刷新同inode且当前Git登记匹配的设备号，不执行删除或增加清理权限，没有新服务、持久业务格式或恢复流程。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"同Task资源记录仅刷新原Git工作树挂载后的设备号，Docker对象、双运行时选择、容量、平台行为和迁移入口均不变；实际规则只在存储和Docker模块说明更新。","diagrams":[]} -->
+
+## 当前CI断言修正
+
+原CI按旧heredoc名称和全文测试路径出现次数误拒新脚本；现定点检查真实生成后被pip使用的锁文件与实际互斥bash分支参数。pack范围只接受精确自动suite和消费的fixture；未知unit混入回完整范围。五个旧Mac-only journey及其一个直接Chrome表单helper按明确manual fixture列名，当前Linux CI不执行，不用旧截图认证当前三分类界面；自动Python测试范围与其逐文件白名单一致，未重跑本地全量矩阵。

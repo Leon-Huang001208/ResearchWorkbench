@@ -128,8 +128,100 @@ jobs:
               "app/research_web/resources/research_report_calculations.py", "app/research_web/resources/research_report_plan.py", "app/research_web/runtime/guard.mjs", "app/research_web/runtime/public-data.mjs", "app/research_web/runtime/research-tools.mjs", "app/research_web/sandbox.py", "app/research_web/service.py", "app/research_web/skills/_shared/source_actions.py", "app/research_web/store.py", "app/research_web/tenant_policy.py", "app/research_web/workbench.py",
               "app/research_web/ui/app.mjs", "app/research_web/ui/capabilities.mjs", "app/research_web/ui/core.mjs", "app/research_web/ui/pack-ui.mjs", "app/research_web/ui/scenarios.css", "app/research_web/ui/scenarios.mjs",
           }
-          pack_support = ("tests/", "docs/", ".ai/reports/", "outputs/research-web-architecture/")
-          packs = any(name.startswith(pack_roots) for name in files) and all(name.startswith(pack_roots + pack_support) or name in pack_interfaces or name in {"README.md", "AGENTS.md", ".github/workflows/research-web-checks.yml", ".github/workflows/research-web-bootstrap.yml"} for name in files)
+          pack_tests = {
+              'tests/javascript/actions_quota_governance.test.mjs',
+              'tests/javascript/research_web_architecture.test.mjs',
+              'tests/javascript/research_web_capabilities_ui.test.mjs',
+              'tests/javascript/research_web_ci_admission.test.mjs',
+              'tests/javascript/research_web_guard.test.mjs',
+              'tests/javascript/research_web_method_tool.test.mjs',
+              'tests/javascript/research_web_packs_ui.test.mjs',
+              'tests/javascript/research_web_public_data.test.mjs',
+              'tests/javascript/research_web_scenarios.test.mjs',
+              'tests/javascript/research_web_source_picker.test.mjs',
+              'tests/research_web/test_api.py',
+              'tests/research_web/test_capabilities.py',
+              'tests/research_web/test_capabilities_admission.py',
+              'tests/research_web/test_capabilities_ast.py',
+              'tests/research_web/test_capabilities_native.py',
+              'tests/research_web/test_capture_file_alias.py',
+              'tests/research_web/test_cpu_quant_skills_stage2.py',
+              'tests/research_web/test_cpu_quant_skills_stage3.py',
+              'tests/research_web/test_cpu_quant_skills_stage4.py',
+              'tests/research_web/test_datahub_execution_health.py',
+              'tests/research_web/test_execution_bindings.py',
+              'tests/research_web/test_execution_cancel_native.py',
+              'tests/research_web/test_execution_cancel_policy.py',
+              'tests/research_web/test_fixture_credentials.py',
+              'tests/research_web/test_frameworks.py',
+              'tests/research_web/test_iteration_resources.py',
+              'tests/research_web/test_multiuser_runtime.py',
+              'tests/research_web/test_native_argument_adapters.py',
+              'tests/research_web/test_native_sdk_bootstrap_ci.py',
+              'tests/research_web/test_owned_company_policy.py',
+              'tests/research_web/test_owned_method_compat.py',
+              'tests/research_web/test_owned_method_dedup.py',
+              'tests/research_web/test_owned_method_execution.py',
+              'tests/research_web/test_owned_method_preparation.py',
+              'tests/research_web/test_owned_news_native_sdk.py',
+              'tests/research_web/test_pack_dependency_closure.py',
+              'tests/research_web/test_pack_execution_host.py',
+              'tests/research_web/test_pack_format_profile.py',
+              'tests/research_web/test_pack_history_read.py',
+              'tests/research_web/test_pack_import_facts.py',
+              'tests/research_web/test_pack_import_policy.py',
+              'tests/research_web/test_pack_literal_scope.py',
+              'tests/research_web/test_pack_native_resources.py',
+              'tests/research_web/test_pack_native_writer.py',
+              'tests/research_web/test_pack_output_schema.py',
+              'tests/research_web/test_pack_owned_sources.py',
+              'tests/research_web/test_pack_runtime_identity.py',
+              'tests/research_web/test_pack_runtime_relocation.py',
+              'tests/research_web/test_pack_source_inputs.py',
+              'tests/research_web/test_pack_source_versions.py',
+              'tests/research_web/test_pack_ui_projection.py',
+              'tests/research_web/test_research_pack_calculations.py',
+              'tests/research_web/test_research_pack_contracts.py',
+              'tests/research_web/test_research_source_reading.py',
+              'tests/research_web/test_scenario_handoffs.py',
+              'tests/research_web/test_scenario_method_packages.py',
+              'tests/research_web/test_scenario_method_sources.py',
+              'tests/research_web/test_scenario_source_selection.py',
+              'tests/research_web/test_service_manager.py',
+              'tests/research_web/test_source_capture_proof.py',
+              'tests/research_web/test_source_capture_store_interaction.py',
+              'tests/research_web/test_specialist_evidence.py',
+              'tests/research_web/test_store.py',
+              'tests/research_web/test_weknora_formal_scope.py',
+              'tests/research_web/test_workbench_operations.py',
+          }
+          pack_fixtures = {
+              'tests/javascript/helpers/method-native-driver.mjs',
+              'tests/javascript/helpers/owned-news-native-driver.mjs',
+              'tests/javascript/helpers/pack-native-driver.mjs',
+              'tests/research_web/fixtures/capabilities-ast-validation-oracle.json',
+              'tests/research_web/fixtures/pack-633-v1/execution.json',
+              'tests/research_web/fixtures/pack-633-v1/input.json',
+              'tests/research_web/fixtures/pack-633-v1/outputs/scenario-results/ffffffffffffffffffffffffffffffff/v1/full-result.json',
+              'tests/research_web/fixtures/pack-633-v1/outputs/scenario-results/ffffffffffffffffffffffffffffffff/v1/manifest.json',
+              'tests/research_web/fixtures/pack-633-v1/outputs/scenario-results/ffffffffffffffffffffffffffffffff/v1/receipt.json',
+              'tests/research_web/fixtures/pack-633-v1/package.json',
+              'tests/research_web/fixtures/pack-633-v1/provenance.json',
+              'tests/research_web/fixtures/pack-owned-source-v1/body.txt',
+              'tests/research_web/fixtures/pack-owned-source-v1/manifest.json',
+              'tests/research_web/source_capture_fixture.py',
+          }
+          # Existing Mac-only manual journey fixtures are not executed by this Linux CI.
+          manual_fixtures = {
+              'tests/e2e/research_web_packs_backend.py',
+              'tests/e2e/research_web_packs_real_backend.mjs',
+              'tests/e2e/research_web_packs_scroll_real_backend.mjs',
+              'tests/e2e/research_web_source_picker_backend.py',
+              'tests/e2e/research_web_source_picker_real_backend.mjs',
+              'tests/javascript/helpers/owned-preset-form-browser.mjs',
+          }
+          pack_support = ("docs/", ".ai/reports/", "outputs/research-web-architecture/")
+          packs = any(name.startswith(pack_roots) for name in files) and all(name.startswith(pack_roots + pack_support) or name in pack_interfaces or name in pack_tests or name in pack_fixtures or name in manual_fixtures or name in {"README.md", "AGENTS.md", ".github/workflows/research-web-checks.yml", ".github/workflows/research-web-bootstrap.yml"} for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
               output.write("research_packs_only=" + str(packs).lower() + "\n")
@@ -262,27 +354,61 @@ jobs:
               --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
               --allowed-parent "$RUNNER_TEMP" \
               --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
-              -- tests/research_web/test_research_pack_calculations.py \
-                 tests/research_web/test_research_pack_contracts.py \
-                 tests/research_web/test_pack_source_inputs.py \
-                 tests/research_web/test_pack_execution_host.py \
-                 tests/research_web/test_owned_method_execution.py \
-                 tests/research_web/test_owned_method_compat.py \
-                 tests/research_web/test_owned_method_dedup.py \
-                 tests/research_web/test_owned_company_policy.py \
-                 tests/research_web/test_execution_bindings.py \
-                 tests/research_web/test_capture_file_alias.py \
-                 tests/research_web/test_source_capture_store_interaction.py \
-                 tests/research_web/test_pack_import_facts.py \
-                 tests/research_web/test_pack_import_policy.py \
-                 tests/research_web/test_source_capture_proof.py \
-                 tests/research_web/test_scenario_handoffs.py \
+              -- tests/research_web/test_api.py \
                  tests/research_web/test_capabilities.py \
                  tests/research_web/test_capabilities_admission.py \
+                 tests/research_web/test_capabilities_ast.py \
                  tests/research_web/test_capabilities_native.py \
+                 tests/research_web/test_capture_file_alias.py \
+                 tests/research_web/test_cpu_quant_skills_stage2.py \
+                 tests/research_web/test_cpu_quant_skills_stage3.py \
+                 tests/research_web/test_cpu_quant_skills_stage4.py \
+                 tests/research_web/test_datahub_execution_health.py \
+                 tests/research_web/test_execution_bindings.py \
+                 tests/research_web/test_execution_cancel_native.py \
+                 tests/research_web/test_execution_cancel_policy.py \
+                 tests/research_web/test_fixture_credentials.py \
+                 tests/research_web/test_frameworks.py \
+                 tests/research_web/test_iteration_resources.py \
+                 tests/research_web/test_multiuser_runtime.py \
                  tests/research_web/test_native_argument_adapters.py \
+                 tests/research_web/test_native_sdk_bootstrap_ci.py \
+                 tests/research_web/test_owned_company_policy.py \
+                 tests/research_web/test_owned_method_compat.py \
+                 tests/research_web/test_owned_method_dedup.py \
+                 tests/research_web/test_owned_method_execution.py \
+                 tests/research_web/test_owned_method_preparation.py \
+                 tests/research_web/test_owned_news_native_sdk.py \
+                 tests/research_web/test_pack_dependency_closure.py \
+                 tests/research_web/test_pack_execution_host.py \
+                 tests/research_web/test_pack_format_profile.py \
+                 tests/research_web/test_pack_history_read.py \
+                 tests/research_web/test_pack_import_facts.py \
+                 tests/research_web/test_pack_import_policy.py \
+                 tests/research_web/test_pack_literal_scope.py \
+                 tests/research_web/test_pack_native_resources.py \
+                 tests/research_web/test_pack_native_writer.py \
+                 tests/research_web/test_pack_output_schema.py \
+                 tests/research_web/test_pack_owned_sources.py \
+                 tests/research_web/test_pack_runtime_identity.py \
+                 tests/research_web/test_pack_runtime_relocation.py \
+                 tests/research_web/test_pack_source_inputs.py \
+                 tests/research_web/test_pack_source_versions.py \
+                 tests/research_web/test_pack_ui_projection.py \
+                 tests/research_web/test_research_pack_calculations.py \
+                 tests/research_web/test_research_pack_contracts.py \
+                 tests/research_web/test_research_source_reading.py \
+                 tests/research_web/test_scenario_handoffs.py \
+                 tests/research_web/test_scenario_method_packages.py \
+                 tests/research_web/test_scenario_method_sources.py \
+                 tests/research_web/test_scenario_source_selection.py \
+                 tests/research_web/test_service_manager.py \
+                 tests/research_web/test_source_capture_proof.py \
+                 tests/research_web/test_source_capture_store_interaction.py \
+                 tests/research_web/test_specialist_evidence.py \
+                 tests/research_web/test_store.py \
                  tests/research_web/test_weknora_formal_scope.py \
-                 tests/research_web/test_iteration_resources.py::IterationResourceTests::test_record_refreshes_device_only_for_registered_same_inode_worktree \
+                 tests/research_web/test_workbench_operations.py \
               --confcutdir=tests/research_web -q
             exit 0
           fi

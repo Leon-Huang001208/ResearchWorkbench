@@ -154,33 +154,39 @@ function policyRequiresGate(file, gate) {
   return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
 }
 
-test('Checks extracts exact hashed Web SDK blocks while preserving renderer pins', t => {
+test('Checks installs hashed Web SDK and renderer blocks from the actual generated requirements', t => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-lock-contract-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
-  const lock=fs.readFileSync(new URL('../../requirements/web.lock',import.meta.url),'utf8');
-  fs.mkdirSync(path.join(root,'requirements'));
-  fs.writeFileSync(path.join(root,'requirements/web.lock'),lock);
+  for(const name of ['requirements/web.lock','app/research_web/capabilities/pack-runtime-lock.json','pyproject.toml']) {
+    const target=path.join(root,name);fs.mkdirSync(path.dirname(target),{recursive:true});
+    fs.copyFileSync(new URL('../../'+name,import.meta.url),target);
+  }
+  const lock=fs.readFileSync(path.join(root,'requirements/web.lock'),'utf8');
   const step=workflows.checks.split('      - name: Install declared test dependencies\n')[1]?.split('\n      - name:')[0];
-  assert.ok(step,'existing dependency step must remain');
-  const heredoc=step.match(/          \.venv\/bin\/python - <<'PY'\n([^]*?)\n          PY/);
-  assert.ok(heredoc,'existing lock extraction script must remain');
-  const code=heredoc[1].split('\n').map(line=>line.slice(10)).join('\n');
+  assert.ok(step,'dependency installation step must remain');
+  const beforeInstall=step.slice(0,step.indexOf('pip install'));
+  const heredoc=beforeInstall.match(/          \.venv\/bin\/python[^\n]*<<'([A-Za-z_]+)'\n([^]*?)\n          \1/);
+  assert.ok(heredoc,'run the actual requirements generation before dependency installation');
+  const code=heredoc[2].split('\n').map(line=>line.slice(10)).join('\n');
   const result=spawnSync(process.env.RWB_TEST_PYTHON || 'python3',['-B','-c',code],{
     cwd:root,env:{...process.env,RUNNER_TEMP:root,PYTHONDONTWRITEBYTECODE:'1'},encoding:'utf8',timeout:10000,
   });
   assert.equal(result.status,0,result.stderr);
-  const extracted=fs.readFileSync(path.join(root,'rwb-reportlab.lock'),'utf8');
+  const install=step.split('\n').find(line=>line.includes('pip install')&&line.includes('--require-hashes')&&line.includes('--no-deps'));
+  assert.ok(install,'install the generated requirements with pinned hashes and no implicit dependencies');
+  const requirement=install.match(/(?:^|\s)-r\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+  assert.ok(requirement);
+  const filename=(requirement[1]||requirement[2]||requirement[3]).replace(/\$(?:\{RUNNER_TEMP\}|RUNNER_TEMP)/g,root);
+  const extracted=fs.readFileSync(filename,'utf8');
   const entries=extracted.split(/\n(?=[a-z0-9])/).filter(Boolean);
-  assert.equal(entries.length,5);
   for(const packageName of ['reportlab','openpyxl','et-xmlfile','mcp','mcp-types']) {
     const entry=entries.find(value=>value.startsWith(`${packageName}==`));
     assert.ok(entry,packageName);
     const original=lock.split(/\n(?=[a-z0-9])/).find(value=>value.startsWith(`${packageName}==`));
     assert.equal(entry.trimEnd(),original.trimEnd(),`${packageName} block must retain all original hashes`);
     assert.match(entry,/--hash=sha256:[a-f0-9]{64}/);
+    if(['mcp','mcp-types'].includes(packageName)) assert.ok(entry.startsWith(`${packageName}==2.2.0`));
   }
-  assert.match(step,/pip install --require-hashes --no-deps -r "\$RUNNER_TEMP\/rwb-reportlab\.lock"/);
-  for(const packageName of ['mcp','mcp-types']) assert.ok(step.includes(`m.version('${packageName}') == '2.2.0'`),`${packageName} installed metadata must be checked`);
 });
 
 test('Docker runtime test paths retain required Native bootstrap coverage', () => {
@@ -248,7 +254,7 @@ test('research pack changes select Host interfaces while unrelated product chang
   const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
   const packFiles = ['app/research_web/scenario_pack_execution.py', 'app/research_web/main.py',
     'tests/research_web/test_pack_execution_host.py', 'docs/research-web-research-packs.md'];
-  for (const [files, expected] of [[packFiles, true], [[...packFiles, 'app/research_web/market_service.py'], false], [['app/research_web/main.py'], false], [[], false]]) {
+  for (const [files, expected] of [[packFiles, true], [[...packFiles, 'app/research_web/market_service.py'], false], [['app/research_web/capabilities/pack_execution.py', 'tests/unit/test_ci_pytest_partitions.py'], false], [['app/research_web/main.py'], false], [[], false]]) {
     const output = path.join(root, `output-${fs.readdirSync(root).length}`);
     const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in json.loads(os.environ['SCOPE_FILES']))+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
     const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
@@ -524,13 +530,25 @@ test('pytest evidence staging uses the no-follow allowlist helper and exact arti
   assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
 });
 
-test('knowledge authority regressions are actual arguments of the existing CI partition command', () => {
-  const step = workflows.checks.match(/- name: Run Research Web Python contracts\n([\s\S]*?)(?=\n      - name:|$)/)?.[1];
-  assert.ok(step, 'the existing Python contracts step must remain');
-  assert.match(step, /scripts\/run_ci_pytest_partitions\.py/);
-  const argumentsFound = [...step.matchAll(/^\s+(tests\/research_web\/[^\s]+)\s+\\\s*$/gm)].map(match => match[1]);
-  for (const file of ['test_weknora_formal_scope.py', 'test_store.py', 'test_capabilities_native.py']) {
-    const expected = `tests/research_web/${file}`;
-    assert.equal(argumentsFound.filter(value => value === expected).length, 1, `${expected} must execute exactly once`);
+test('knowledge authority regressions execute once in each applicable CI branch', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-ci-authority-branch-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const step=workflows.checks.split('      - name: Run Research Web Python contracts\n')[1]?.split('\n      - name:')[0];
+  assert.ok(step);
+  const script=step.split('        run: |\n')[1].split('\n').map(line=>line.slice(10)).join('\n');
+  fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.mkdirSync(path.join(root,'bin'));
+  fs.writeFileSync(path.join(root,'.venv/bin/python'),`#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2))+'\\n');\n`,{mode:0o700});
+  fs.writeFileSync(path.join(root,'bin/git'),'#!/bin/sh\nexit 0\n',{mode:0o700});
+  for(const [retention,packs] of [[false,false],[false,true],[true,false]]) {
+    const record=path.join(root,`${retention}-${packs}.jsonl`);
+    const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs));
+    const result=spawnSync('/bin/bash',['-e','-c',command],{cwd:root,env:{...process.env,PATH:path.join(root,'bin')+path.delimiter+process.env.PATH,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
+    assert.equal(result.status,0,result.stderr);
+    const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+    const argumentsFound=calls.filter(args=>args[0]==='scripts/run_ci_pytest_partitions.py').flatMap(args=>args.slice(args.indexOf('--')+1));
+    for(const file of ['test_weknora_formal_scope.py','test_store.py','test_capabilities_native.py']) {
+      assert.equal(argumentsFound.filter(value=>value===`tests/research_web/${file}`).length,retention?0:1,`${file}: retention=${retention},packs=${packs}`);
+    }
+    if(retention) assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_test_artifact_retention.py').length,1);
   }
 });
